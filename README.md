@@ -1,59 +1,98 @@
 # marengo
 
 marengo/
-├── Cargo.toml # workspace root, defines "armee"
-├── Cargo.lock
+├── Cargo.toml # workspace root, "armee"
 ├── README.md
+├── .gitattributes # Git LFS rules
 ├── .gitignore
 ├── rust-toolchain.toml
 │
-├── crates/ # Libraries
-│ ├── armee-proto/ # Shared message types (the Chappe schema)
-│ ├── armee-kinematics/ # FK/IK, joint limits — pure math, no hardware
-│ ├── chappe/ # Message bus client (NATS/MQTT/custom)
-│ ├── berthier/ # Motor control, owns CAN, RS03/Moteus drivers
-│ │ └── src/
-│ │ ├── lib.rs
-│ │ ├── motor.rs
-│ │ ├── arm.rs
-│ │ └── config.rs
-│ ├── davout/ # Safety supervisor (watchdog, limits, e-stop)
-│ ├── talleyrand/ # Planner: intent → validated trajectory
-│ ├── bulletin/ # Telemetry publisher
-│ ├── fouche/ # Jetson-side LLM client + vision
-│ └── robstride/ # Patched vendor crate
+├── hardware/ # PHYSICAL ROBOT — first-class citizen
+│ ├── README.md # Hardware overview, current revision
+│ ├── cad/
+│ │ ├── parts/ # SolidWorks parts (.sldprt) — LFS
+│ │ │ ├── shoulder/
+│ │ │ │ ├── shoulder_housing.sldprt
+│ │ │ │ ├── l_bracket_top.sldprt
+│ │ │ │ └── …
+│ │ │ ├── torso/
+│ │ │ ├── arm/
+│ │ │ └── head/
+│ │ ├── assemblies/ # SolidWorks assemblies (.sldasm) — LFS
+│ │ │ ├── marengo.sldasm # Top-level full robot
+│ │ │ ├── shoulder.sldasm
+│ │ │ └── arm.sldasm
+│ │ ├── drawings/ # .slddrw + exported PDFs
+│ │ └── vendor/ # Vendor-supplied CAD (.stp/.step) — LFS
+│ │ ├── robstride/ # RS03.stp, RS01.stp
+│ │ ├── moteus/
+│ │ └── extrusions/ # 2020 profile, Mankk brackets
+│ │
+│ ├── electrical/
+│ │ ├── pdb/ # Power Distribution Board v1.2
+│ │ │ ├── schematic/ # KiCad schematic
+│ │ │ ├── pcb/ # KiCad PCB layout
+│ │ │ ├── gerbers/ # Fab outputs (or .gitignored, regenerated)
+│ │ │ ├── bom.csv # PDB-specific BOM
+│ │ │ └── README.md # Component groups, design notes
+│ │ ├── wiring/
+│ │ │ ├── harness.md # Wire gauges, lengths, runs
+│ │ │ ├── can_topology.md # CAN1 (RS03) and CAN2 (Moteus) layout
+│ │ │ └── connectors.md # XT30, JST, etc.
+│ │ └── README.md
+│ │
+│ ├── prints/ # 3D print outputs and slicer notes
+│ │ ├── stl/ # Source STLs ready for slicing
+│ │ └── slicing.md # Material (PETG), infill, orientation per part
+│ │
+│ ├── bom/ # Overall BOM across mechanical + electrical
+│ │ ├── master-bom.csv
+│ │ └── vendor-sourcing.md # Multi-vendor options per part
+│ │
+│ └── docs/
+│ ├── kinematics.md # Joint ranges, axes, transforms — single source of truth
+│ ├── assembly.md # How to physically build it
+│ └── decisions/ # Hardware ADRs (separate from software ones)
 │
-├── bins/ # Composed binaries
-│ ├── marengo-pi/ # Pi runtime: berthier + davout + talleyrand + bulletin
-│ ├── marengo-jetson/ # Jetson runtime: fouche
-│ ├── probe/ # CAN diagnostic
-│ ├── motor-repl/ # Interactive motor shell
-│ └── wave-demo/ # V1 milestone binary
-│
-├── josephine (maybe?)/ # Frontend (Vite + React + TS), NOT in cargo workspace
-│ ├── package.json
-│ ├── vite.config.ts
-│ └── src/
-│
-├── assets/
-│ ├── urdf/marengo.urdf
+├── assets/ # DERIVED FROM hardware/, CONSUMED BY SOFTWARE
+│ ├── urdf/
+│ │ └── marengo.urdf # Exported via SW-to-URDF (Brawner's add-in)
 │ └── meshes/
-│ ├── visual/ # High-poly STL for Josephine viewer
-│ └── collision/ # Decimated STL for sim
+│ ├── visual/ # High-poly STL for Consul + sim display
+│ └── collision/ # Decimated STL (MeshLab/Blender) for sim
 │
-├── models/ # ONNX policies (probably git-lfs)
+├── crates/ # Rust libraries (unchanged)
+│ ├── armee-proto/
+│ ├── armee-kinematics/
+│ ├── chappe/
+│ ├── berthier/
+│ ├── davout/
+│ ├── talleyrand/
+│ ├── fouche/
+│ └── robstride/
+│
+├── bins/ # Rust binaries (unchanged)
+│ ├── marengo-pi/
+│ ├── marengo-jetson/
+│ ├── probe/
+│ ├── motor-repl/
+│ └── wave-demo/
+│
+├── consul/ # Frontend (Vite + React + TS)
+│
+├── models/ # ONNX policies — Git LFS
 ├── config/
-│ ├── robot.yaml # Policy selection, joint config
-│ └── network.yaml # Chappe broker addresses
+│ ├── robot.yaml
+│ └── network.yaml
 │
-├── docs/
+├── docs/ # Software-level docs
 │ ├── architecture.md
-│ ├── decisions/ # ADRs (0001-no-ros2.md, 0002-chappe-bus.md, …)
-│ └── bringup/ # Hardware notes
+│ └── decisions/ # Software ADRs
 │
 ├── scripts/
 │ ├── deploy-pi.sh
-│ └── deploy-jetson.sh
+│ ├── deploy-jetson.sh
+│ └── export-urdf.sh # Runs SW exporter, decimates meshes, updates assets/
 │
 └── .github/workflows/
 ├── ci.yml

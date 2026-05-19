@@ -1,0 +1,31 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/armee-proto",
+    "crates/armee-kinematics",
+    "crates/chappe",
+    "crates/berthier",
+    "crates/davout",
+    "crates/talleyrand",
+    "crates/fouche",
+    "crates/robstride",
+    "bins/marengo-pi",
+    "bins/marengo-jetson",
+    "bins/probe",
+    "bins/motor-repl",
+    "bins/wave-demo",
+]
+
+[workspace.package]
+edition = "2021"
+rust-version = "1.75"
+authors = ["Joey Lamping"]
+
+[workspace.dependencies]
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+thiserror = "1"
+tracing = "0.1"
+armee-proto = { path = "crates/armee-proto" }
+armee-kinematics = { path = "crates/armee-kinematics" }
+chappe = { path = "crates/chappe" }
