@@ -1,25 +1,59 @@
-# Joint → CAN mapping (Berkeley motor_configuration.json style, YAML for Marengo).
-# Update device_id and firmware_version when hardware is commissioned.
+# Joint → CAN mapping (4-DOF bench arm).
+# motor_type per hardware/docs/decisions/0002-robstride-protocol.md
 motors:
-  - joint: joint1
+  - joint: shoulder_roll
     driver: robstride
+    motor_type: rs03
     can_interface: can0
     device_id: 1
     direction: 1
-    firmware_version: "0.0.0-prototype"
+    gear_ratio: 1.0
+    recv_can_id: 0x240
+    firmware_version: "0.0.0-bench"
     bench:
       position_lower_rad: -1.57
       position_upper_rad: 1.57
       velocity_limit_rad_s: 0.5
-      torque_limit_nm: 2.0
-  - joint: joint2
+      torque_limit_nm: 5.0
+  - joint: shoulder_pitch
     driver: robstride
+    motor_type: rs03
     can_interface: can0
     device_id: 2
     direction: 1
-    firmware_version: "0.0.0-prototype"
+    gear_ratio: 1.0
+    recv_can_id: 0x241
+    firmware_version: "0.0.0-bench"
     bench:
-      position_lower_rad: -1.0
-      position_upper_rad: 1.0
+      position_lower_rad: -1.2
+      position_upper_rad: 1.2
       velocity_limit_rad_s: 0.5
-      torque_limit_nm: 2.0
+      torque_limit_nm: 5.0
+  - joint: upper_arm_yaw
+    driver: robstride
+    motor_type: rs02
+    can_interface: can0
+    device_id: 3
+    direction: 1
+    gear_ratio: 1.0
+    recv_can_id: 0x242
+    firmware_version: "0.0.0-bench"
+    bench:
+      position_lower_rad: -1.57
+      position_upper_rad: 1.57
+      velocity_limit_rad_s: 0.5
+      torque_limit_nm: 3.0
+  - joint: elbow
+    driver: robstride
+    motor_type: rs02
+    can_interface: can0
+    device_id: 4
+    direction: 1
+    gear_ratio: 1.0
+    recv_can_id: 0x243
+    firmware_version: "0.0.0-bench"
+    bench:
+      position_lower_rad: 0.0
+      position_upper_rad: 2.5
+      velocity_limit_rad_s: 0.5
+      torque_limit_nm: 3.0

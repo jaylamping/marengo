@@ -1,7 +1,7 @@
 [package]
-name = "marengo-pi"
+name = "teleop"
 version = "0.1.0"
-description = "Marengo runtime on Raspberry Pi"
+description = "Leader/follower teleop scaffold (not wired to hardware)"
 edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
@@ -11,13 +11,9 @@ license.workspace = true
 workspace = true
 
 [[bin]]
-name = "marengo-pi"
+name = "teleop"
 path = "src/main.rs"
 
 [dependencies]
-berthier = { path = "../../crates/berthier" }
-chappe = { path = "../../crates/chappe" }
-marengo-config.workspace = true
 marengo-support.workspace = true
-robstride = { path = "../../crates/robstride" }
 tracing.workspace = true

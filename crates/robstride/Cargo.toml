@@ -15,6 +15,7 @@ default = []
 vcan = ["dep:socketcan"]
 
 [dependencies]
+marengo-config = { workspace = true }
 thiserror.workspace = true
 tracing.workspace = true
 

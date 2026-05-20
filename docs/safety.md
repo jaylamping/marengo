@@ -24,6 +24,30 @@ Read this before enabling motors on the bench or robot.
 
 Document actual pin/signal mapping in [hardware/electrical/wiring/](../hardware/electrical/wiring/) as it is finalized.
 
+## Upright-pose incident (4-DOF arm)
+
+During bench testing with the arm elevated (shoulder/elbow up), motion stopped while the arm was unsupported. Without gravity feedforward, the arm fell rapidly into the operator workspace.
+
+**Required mitigations before repeat tests:**
+
+1. **Control mode:** Use **GravityComp** (`kp=0`, `kd=0`, `torque_ff=tau_g`) — not position-only holding in elevated configurations.
+2. **Enable sequence:** Arm supported manually or in a fixture for first enable; E-stop reachable before `Enable`.
+3. **Sign test:** Per-joint small `torque_ff` pulse; verify direction matches URDF before full `tau_g`.
+4. **Caps:** Davout per-`motor_type` `tau_ff` limits (RS02/RS00 lower than RS03/RS04); rate-limit `tau_ff` steps when enabling.
+5. **Danger zones:** `config/control.yaml` rules (e.g. elevated shoulder pitch + downward velocity) → clamp or fault.
+6. **Comm watchdog:** CAN receive timeout → `Disabled` and logged fault.
+7. **Exit:** `disable_all` on process exit / SIGTERM where the driver supports it.
+
+See [ADR 0004](decisions/0004-control-modes-and-mit.md) and [hardware/docs/decisions/0002-robstride-protocol.md](../hardware/docs/decisions/0002-robstride-protocol.md).
+
+## Bench procedure (gravity compensation)
+
+1. Verify E-stop and clear workspace.
+2. `motor-repl home` → `enable` only with arm supported.
+3. `gravity-on` — verify backdrivability and no runaway.
+4. **Upright pose test:** slowly release support; elbow/upper arm must not free-fall.
+5. `gravity-off` / `disable` before leaving the bench.
+
 ## When in doubt
 
 Disable drives, E-stop, and fix the fault before resuming.

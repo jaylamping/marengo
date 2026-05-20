@@ -1,7 +1,19 @@
-//! Inter-process message bus: pub/sub and RPC between Pi, Jetson, and tools.
+//! # Chappe — inter-process message bus
 //!
-//! Default implementation is an in-process Tokio broadcast bus carrying protobuf
-//! [`Envelope`](armee_proto::Envelope) payloads (binary on the wire per ADR 0001).
+//! Pub/sub between Pi (`marengo-pi`), Jetson (`marengo-jetson`), Consul UI, and tools.
+//! **Transport only** — no motor control, no safety filtering.
+//!
+//! ## Responsibilities
+//!
+//! - Topic-based broadcast of protobuf [`Envelope`](armee_proto::Envelope) bytes (ADR 0001).
+//! - [`Bus::publish`] / [`Bus::subscribe`] for typed messages (e.g. [`RobotState`](armee_proto::RobotState)).
+//!
+//! ## Does not
+//!
+//! - Command motors (Berthier → Davout → robstride).
+//! - Parse URDF or load `config/*.yaml` (marengo-config).
+//!
+//! Typical topics: `robot/state`, telemetry, future RPC. Producers must not put raw CAN on Chappe.
 
 use std::sync::Arc;
 

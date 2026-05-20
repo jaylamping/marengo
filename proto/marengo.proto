@@ -69,3 +69,30 @@ message HomingComplete {
   uint64 timestamp_ms = 1;
   string node_id = 2;
 }
+
+// --- Control / MIT (OpenArm-style; see ADR 0004) ---
+
+enum ControlMode {
+  CONTROL_MODE_UNSPECIFIED = 0;
+  CONTROL_MODE_DISABLED = 1;
+  CONTROL_MODE_GRAVITY_COMP = 2;
+  CONTROL_MODE_IMPEDANCE = 3;
+  CONTROL_MODE_POSITION = 4;
+  CONTROL_MODE_TORQUE_ONLY = 5;
+}
+
+// One joint MIT command (maps to Robstride Mode 0 fields).
+message MitJointCommand {
+  string name = 1;
+  double kp = 2;
+  double kd = 3;
+  double position = 4;
+  double velocity = 5;
+  double torque_ff = 6;
+}
+
+message MitCommandBatch {
+  uint64 timestamp_ms = 1;
+  ControlMode mode = 2;
+  repeated MitJointCommand joints = 3;
+}

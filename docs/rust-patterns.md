@@ -14,16 +14,20 @@ North-star guide for humans and agents. When the same mistake appears twice, add
 
 ## 2. Workspace map
 
+Each library crate has a **detailed crate-root** `//!` doc in `src/lib.rs` (responsibilities, does-not, allowed dependencies). Read that before editing a crate.
+
 | Crate / bin | Owns |
 |-------------|------|
 | `armee-proto` | Generated protobuf types |
-| `armee-kinematics` | URDF / FK / limits |
-| `chappe` | IPC bus |
-| `berthier` | Control |
-| `davout` | Safety |
+| `armee-kinematics` | URDF parse, joint limits, actuated joint names |
+| `armee-dynamics` | `gravity_torques(q)` only |
+| `chappe` | IPC pub/sub (protobuf envelopes) |
+| `berthier` | Outer loop, modes, friction FF → Davout |
+| `davout` | Safety gateway, sole path to robstride |
 | `talleyrand` | Planning |
 | `fouche` | Vision / LLM (Jetson) |
-| `robstride` | CAN / Robstride protocol |
+| `robstride` | MIT CAN encode/decode, no policy |
+| `marengo-config` | `config/*.yaml` loaders |
 | `sim-harness` | Sim test helpers |
 | `bins/*` | Thin `main`, wiring only |
 

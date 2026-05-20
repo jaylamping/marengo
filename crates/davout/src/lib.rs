@@ -1,17 +1,52 @@
-//! Safety layer: joint/velocity/torque limits, estop, and command vetoes.
+//! # Davout — safety gateway (sole motor command path)
 //!
-//! **All motor commands must pass through [`Supervisor`]** before reaching [`robstride`].
+//! Davout is the **only** crate that may send motion to [`robstride`]. Every MIT or legacy
+//! command is filtered here before CAN encode. Berthier and bins must not call `robstride`
+//! directly.
+//!
+//! ## Responsibilities
+//!
+//! - [`Supervisor`]: operational state machine (Disabled → Ready → Active).
+//! - Filter [`MitJointCommand`] / [`JointCommand`]: URDF ∩ bench limits, per-`motor_type`
+//!   `kp`/`kd`/`tau_ff` caps, [`tau_ff` rate limiting](Supervisor::filter_mit_command).
+//! - [`danger_zones`](marengo_config::DangerZoneRule) from `config/control.yaml` (fault on rule hit).
+//! - Comm watchdog: stale feedback → [`DavoutError::CommWatchdog`].
+//! - [`disable_all`]: best-effort zero-torque MIT on shutdown.
+//! - [`refresh_feedback`]: poll bus, update [`MotorState`] cache (via robstride).
+//!
+//! ## Does not
+//!
+//! - Compute gravity, impedance targets, or trajectories (Berthier / Talleyrand).
+//! - Encode MIT CAN bytes or choose `device_id` mapping (robstride + `config/motors.yaml`).
+//! - Plan paths or run vision (Talleyrand / Fouché).
+//!
+//! ## Data flow
+//!
+//! ```text
+//! Berthier MitJointCommand batch
+//!        │
+//!        ▼
+//!   Supervisor::send_mit_batch  ──filter──►  robstride::send_mit / mit_control_all
+//!        ▲
+//!   motor_states ◄── recv_all ◄── CAN feedback
+//! ```
+//!
+//! Limits are built from [`armee_kinematics`] + [`marengo_config`] at startup.
+//! See [safety.md](../../docs/safety.md) and [ADR 0004](../../docs/decisions/0004-control-modes-and-mit.md).
 
 use std::collections::HashMap;
 use std::path::Path;
+use std::time::{Duration, Instant};
 
 use armee_kinematics::{JointLimits, joint_limits, load_urdf};
 use marengo_config::{
-    MotorEntry, MotorsConfigFile, RobotConfigFile, load_motors_config, load_robot_config,
-    motor_for_joint, resolve_urdf_path, validate_motors_against_robot,
+    ControlConfigFile, MotorEntry, MotorType, MotorsConfigFile, RobotConfigFile,
+    load_control_config, load_motors_config, load_robot_config, motor_for_joint,
+    resolve_urdf_path, validate_motors_against_robot,
 };
-pub use robstride::bus::{BusError, CanBus, JointMotion, MemoryBus};
-use robstride::bus::send_motion;
+pub use robstride::bus::{BusError, MemoryBus, MotorBus};
+use robstride::bus::send_mit;
+use robstride::{MitCommand, MotorState};
 use thiserror::Error;
 use tracing::{debug, warn};
 
@@ -22,6 +57,16 @@ pub enum OperationalMode {
     Active,
 }
 
+/// Berthier control mode (maps to proto `ControlMode`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ControlMode {
+    Disabled,
+    GravityComp,
+    Impedance,
+    Position,
+    TorqueOnly,
+}
+
 /// Command from control stack before safety filtering.
 #[derive(Debug, Clone, PartialEq)]
 pub struct JointCommand {
@@ -29,6 +74,17 @@ pub struct JointCommand {
     pub position_rad: f64,
     pub velocity_rad_s: f64,
     pub torque_nm: f64,
+}
+
+/// MIT command for one joint (after filtering).
+#[derive(Debug, Clone, PartialEq)]
+pub struct MitJointCommand {
+    pub joint: String,
+    pub kp: f64,
+    pub kd: f64,
+    pub position_rad: f64,
+    pub velocity_rad_s: f64,
+    pub torque_ff_nm: f64,
 }
 
 #[derive(Debug, Error)]
@@ -47,6 +103,10 @@ pub enum DavoutError {
     Estop,
     #[error("unknown joint {joint}")]
     UnknownJoint { joint: String },
+    #[error("comm watchdog: no feedback for {ms} ms")]
+    CommWatchdog { ms: u64 },
+    #[error("danger zone {name} triggered on {joint}")]
+    DangerZone { name: String, joint: String },
 }
 
 /// Effective limits for one joint (URDF ∩ bench YAML).
@@ -56,33 +116,54 @@ struct EffectiveLimits {
     upper: f64,
     velocity: f64,
     effort: f64,
+    tau_ff_max: f64,
 }
 
 /// Safety supervisor — the only gateway to the motor bus.
-pub struct Supervisor<B: CanBus> {
+pub struct Supervisor<B: MotorBus> {
     mode: OperationalMode,
+    control_mode: ControlMode,
     hardware_estop: bool,
     limits: HashMap<String, EffectiveLimits>,
-    motors: MotorsConfigFile,
+    pub motors: MotorsConfigFile,
+    pub control: ControlConfigFile,
+    motor_types: HashMap<u8, MotorType>,
     bus: B,
+    motor_states: HashMap<u8, MotorState>,
+    last_recv: Option<Instant>,
+    last_tau_ff: HashMap<String, f64>,
+    last_tick: Option<Instant>,
 }
 
-impl<B: CanBus> Supervisor<B> {
+impl<B: MotorBus> Supervisor<B> {
     /// Build supervisor from repo `config/` and URDF limits.
     pub fn from_repo(repo_root: impl AsRef<Path>, bus: B) -> Result<Self, DavoutError> {
         let root = repo_root.as_ref();
         let robot = load_robot_config(root)?;
         let motors = load_motors_config(root)?;
+        let control = load_control_config(root)?;
         validate_motors_against_robot(&robot, &motors)?;
         let urdf_path = resolve_urdf_path(root, &robot)?;
         let urdf_robot = load_urdf(&urdf_path)?;
-        let limits = build_limits(&robot, &motors, &urdf_robot)?;
+        let limits = build_limits(&robot, &motors, &control, &urdf_robot)?;
+        let motor_types = motors
+            .motors
+            .iter()
+            .map(|m| (m.device_id, m.motor_type))
+            .collect();
         Ok(Self {
             mode: OperationalMode::Disabled,
+            control_mode: ControlMode::Disabled,
             hardware_estop: false,
             limits,
             motors,
+            control,
+            motor_types,
             bus,
+            motor_states: HashMap::new(),
+            last_recv: None,
+            last_tau_ff: HashMap::new(),
+            last_tick: None,
         })
     }
 
@@ -90,15 +171,32 @@ impl<B: CanBus> Supervisor<B> {
         self.mode
     }
 
+    pub fn control_mode(&self) -> ControlMode {
+        self.control_mode
+    }
+
+    pub fn set_control_mode(&mut self, mode: ControlMode) {
+        self.control_mode = mode;
+        debug!(?mode, "control mode set");
+    }
+
+    pub fn motor_states(&self) -> &HashMap<u8, MotorState> {
+        &self.motor_states
+    }
+
+    pub fn bus_mut(&mut self) -> &mut B {
+        &mut self.bus
+    }
+
     pub fn set_hardware_estop(&mut self, asserted: bool) {
         self.hardware_estop = asserted;
         if asserted {
             self.mode = OperationalMode::Disabled;
+            self.control_mode = ControlMode::Disabled;
             warn!("hardware E-stop asserted — disabled");
         }
     }
 
-    /// Mark homing complete; transition to Ready if E-stop clear.
     pub fn set_homing_complete(&mut self) {
         if self.hardware_estop {
             return;
@@ -107,7 +205,6 @@ impl<B: CanBus> Supervisor<B> {
         debug!("supervisor READY");
     }
 
-    /// Operator enable request (Ready → Active).
     pub fn request_enable(&mut self, enable: bool) -> Result<(), DavoutError> {
         if self.hardware_estop {
             return Err(DavoutError::Estop);
@@ -122,31 +219,207 @@ impl<B: CanBus> Supervisor<B> {
             debug!("supervisor ACTIVE");
         } else {
             self.mode = OperationalMode::Disabled;
+            self.control_mode = ControlMode::Disabled;
             debug!("supervisor DISABLED");
         }
         Ok(())
     }
 
-    /// Filter and send a joint command. **This is the motor path.**
+    /// Poll CAN feedback; updates watchdog timestamp on success.
+    pub fn refresh_feedback(&mut self) -> Result<usize, DavoutError> {
+        let timeout = Duration::from_millis(self.control.control.comm_watchdog_ms);
+        match self
+            .bus
+            .recv_all(&self.motor_types, &mut self.motor_states, timeout)
+        {
+            Ok(n) => {
+                self.last_recv = Some(Instant::now());
+                Ok(n)
+            }
+            Err(BusError::RecvTimeout) => Ok(0),
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    fn check_comm_watchdog(&self) -> Result<(), DavoutError> {
+        let max_ms = self.control.control.comm_watchdog_ms;
+        if max_ms == 0 {
+            return Ok(());
+        }
+        if self.mode != OperationalMode::Active {
+            return Ok(());
+        }
+        let Some(last) = self.last_recv else {
+            return Ok(());
+        };
+        if last.elapsed() > Duration::from_millis(max_ms) {
+            return Err(DavoutError::CommWatchdog { ms: max_ms });
+        }
+        Ok(())
+    }
+
+    /// Filter and send a joint command. **Legacy position path.**
     pub fn send_joint_command(&mut self, cmd: JointCommand) -> Result<(), DavoutError> {
+        let joint = cmd.joint.clone();
+        let motor = motor_for_joint(&self.motors, &joint)
+            .ok_or(DavoutError::UnknownJoint {
+                joint: joint.clone(),
+            })?
+            .clone();
+        let mit = MitJointCommand {
+            joint,
+            kp: 0.0,
+            kd: 0.0,
+            position_rad: cmd.position_rad,
+            velocity_rad_s: cmd.velocity_rad_s,
+            torque_ff_nm: cmd.torque_nm,
+        };
+        self.send_mit_joint(mit, &motor)
+    }
+
+    /// Filter and send one MIT command.
+    pub fn send_mit_joint(
+        &mut self,
+        cmd: MitJointCommand,
+        motor: &MotorEntry,
+    ) -> Result<(), DavoutError> {
+        self.check_comm_watchdog()?;
         if self.hardware_estop {
             return Err(DavoutError::Estop);
         }
         if self.mode != OperationalMode::Active {
             return Err(DavoutError::NotActive { mode: self.mode });
         }
-        let filtered = self.filter_command(cmd)?;
-        let motor = motor_for_joint(&self.motors, &filtered.joint).ok_or_else(|| DavoutError::UnknownJoint {
-            joint: filtered.joint.clone(),
-        })?;
-        let motion = JointMotion {
-            joint: filtered.joint.clone(),
+        let filtered = self.filter_mit_command(cmd, motor)?;
+        self.apply_danger_zones(&filtered)?;
+        let wire = MitCommand {
             device_id: motor.device_id,
+            motor_type: motor.motor_type,
             position_rad: filtered.position_rad as f32,
             velocity_rad_s: filtered.velocity_rad_s as f32,
-            torque_nm: filtered.torque_nm as f32,
+            kp: filtered.kp as f32,
+            kd: filtered.kd as f32,
+            torque_ff_nm: filtered.torque_ff_nm as f32,
         };
-        send_motion(&mut self.bus, &motion)?;
+        send_mit(&mut self.bus, &wire)?;
+        Ok(())
+    }
+
+    /// Filter and send a batch of MIT commands (one per joint).
+    pub fn send_mit_batch(&mut self, cmds: Vec<MitJointCommand>) -> Result<(), DavoutError> {
+        for cmd in cmds {
+            let joint = cmd.joint.clone();
+            let motor = motor_for_joint(&self.motors, &joint)
+                .ok_or(DavoutError::UnknownJoint { joint })?
+                .clone();
+            self.send_mit_joint(cmd, &motor)?;
+        }
+        Ok(())
+    }
+
+    /// Disable all drives (best-effort zero-torque MIT).
+    pub fn disable_all(&mut self) -> Result<(), DavoutError> {
+        let mut cmds = Vec::new();
+        for m in &self.motors.motors {
+            cmds.push(MitJointCommand {
+                joint: m.joint.clone(),
+                kp: 0.0,
+                kd: 0.0,
+                position_rad: 0.0,
+                velocity_rad_s: 0.0,
+                torque_ff_nm: 0.0,
+            });
+        }
+        for cmd in cmds {
+            if let Some(motor) = motor_for_joint(&self.motors, &cmd.joint) {
+                let wire = MitCommand {
+                    device_id: motor.device_id,
+                    motor_type: motor.motor_type,
+                    position_rad: 0.0,
+                    velocity_rad_s: 0.0,
+                    kp: 0.0,
+                    kd: 0.0,
+                    torque_ff_nm: 0.0,
+                };
+                let _ = send_mit(&mut self.bus, &wire);
+            }
+        }
+        self.mode = OperationalMode::Disabled;
+        self.control_mode = ControlMode::Disabled;
+        Ok(())
+    }
+
+    pub fn filter_mit_command(
+        &mut self,
+        cmd: MitJointCommand,
+        motor: &MotorEntry,
+    ) -> Result<MitJointCommand, DavoutError> {
+        let lim = self.limits.get(&cmd.joint).ok_or_else(|| DavoutError::UnknownJoint {
+            joint: cmd.joint.clone(),
+        })?;
+        let type_key = motor_type_key(motor.motor_type);
+        let defaults = self
+            .control
+            .control
+            .motor_type_defaults
+            .get(type_key)
+            .ok_or_else(|| DavoutError::Limit {
+                joint: cmd.joint.clone(),
+                message: format!("no defaults for motor type {type_key}"),
+            })?;
+
+        let mut out = cmd;
+        if out.kp > defaults.kp_max || out.kd > defaults.kd_max {
+            return Err(DavoutError::Limit {
+                joint: out.joint.clone(),
+                message: "kp/kd exceed motor type max".to_string(),
+            });
+        }
+        if out.position_rad < lim.lower || out.position_rad > lim.upper {
+            return Err(DavoutError::Limit {
+                joint: out.joint.clone(),
+                message: format!("position {} outside [{}, {}]", out.position_rad, lim.lower, lim.upper),
+            });
+        }
+        let vel_cap = lim.velocity.min(defaults.velocity_max_rad_s);
+        if out.velocity_rad_s.abs() > vel_cap {
+            return Err(DavoutError::Limit {
+                joint: out.joint.clone(),
+                message: format!("|velocity| {} > {}", out.velocity_rad_s, vel_cap),
+            });
+        }
+        out.torque_ff_nm = out
+            .torque_ff_nm
+            .clamp(-lim.tau_ff_max, lim.tau_ff_max)
+            .clamp(-defaults.tau_ff_max_nm, defaults.tau_ff_max_nm);
+
+        out.torque_ff_nm = rate_limit_tau_ff(
+            &mut self.last_tau_ff,
+            &out.joint,
+            out.torque_ff_nm,
+            self.control.control.tau_ff_rate_limit_nm_per_s,
+            self.last_tick,
+        );
+        self.last_tick = Some(Instant::now());
+
+        Ok(out)
+    }
+
+    fn apply_danger_zones(&self, cmd: &MitJointCommand) -> Result<(), DavoutError> {
+        for rule in &self.control.control.danger_zones {
+            if rule.joint != cmd.joint {
+                continue;
+            }
+            if cmd.position_rad > rule.position_above_rad
+                && cmd.velocity_rad_s < rule.velocity_below_rad_s
+                && rule.action == "clamp_velocity"
+            {
+                return Err(DavoutError::DangerZone {
+                    name: rule.name.clone(),
+                    joint: cmd.joint.clone(),
+                });
+            }
+        }
         Ok(())
     }
 
@@ -184,9 +457,38 @@ impl<B: CanBus> Supervisor<B> {
     }
 }
 
+fn motor_type_key(ty: MotorType) -> &'static str {
+    match ty {
+        MotorType::Rs00 => "rs00",
+        MotorType::Rs02 => "rs02",
+        MotorType::Rs03 => "rs03",
+        MotorType::Rs04 => "rs04",
+    }
+}
+
+fn rate_limit_tau_ff(
+    last: &mut HashMap<String, f64>,
+    joint: &str,
+    target: f64,
+    rate_nm_s: f64,
+    last_tick: Option<Instant>,
+) -> f64 {
+    let prev = last.get(joint).copied().unwrap_or(target);
+    let dt = last_tick
+        .map(|t| t.elapsed().as_secs_f64())
+        .unwrap_or(0.01)
+        .max(1e-4);
+    let max_step = rate_nm_s * dt;
+    let delta = (target - prev).clamp(-max_step, max_step);
+    let out = prev + delta;
+    last.insert(joint.to_string(), out);
+    out
+}
+
 fn build_limits(
     robot: &RobotConfigFile,
     motors: &MotorsConfigFile,
+    control: &ControlConfigFile,
     urdf_robot: &urdf_rs::Robot,
 ) -> Result<HashMap<String, EffectiveLimits>, DavoutError> {
     let mut map = HashMap::new();
@@ -195,10 +497,21 @@ fn build_limits(
         let motor = motor_for_joint(motors, joint_name).ok_or_else(|| DavoutError::UnknownJoint {
             joint: joint_name.clone(),
         })?;
-        map.insert(
-            joint_name.clone(),
-            effective_limits(&urdf_lim, motor, &robot.robot.bench),
-        );
+        let type_key = motor_type_key(motor.motor_type);
+        let defaults = control
+            .control
+            .motor_type_defaults
+            .get(type_key)
+            .ok_or_else(|| DavoutError::Limit {
+                joint: joint_name.clone(),
+                message: format!("missing motor_type_defaults.{type_key}"),
+            })?;
+        let mut eff = effective_limits(&urdf_lim, motor, &robot.robot.bench);
+        eff.tau_ff_max = eff
+            .effort
+            .min(motor.bench.torque_limit_nm)
+            .min(defaults.tau_ff_max_nm);
+        map.insert(joint_name.clone(), eff);
     }
     Ok(map)
 }
@@ -219,6 +532,7 @@ fn effective_limits(
             .effort
             .min(motor.bench.torque_limit_nm)
             .min(bench.max_joint_torque_nm),
+        tau_ff_max: motor.bench.torque_limit_nm,
     }
 }
 
@@ -239,7 +553,7 @@ mod tests {
         let sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
         let err = sup
             .filter_command(JointCommand {
-                joint: "joint1".to_string(),
+                joint: "shoulder_roll".to_string(),
                 position_rad: 99.0,
                 velocity_rad_s: 0.0,
                 torque_nm: 0.0,
@@ -255,7 +569,7 @@ mod tests {
         sup.set_homing_complete();
         let err = sup
             .send_joint_command(JointCommand {
-                joint: "joint1".to_string(),
+                joint: "shoulder_roll".to_string(),
                 position_rad: 0.0,
                 velocity_rad_s: 0.0,
                 torque_nm: 0.0,
@@ -265,17 +579,26 @@ mod tests {
     }
 
     #[test]
-    fn send_records_frame_when_active() {
+    fn send_mit_records_extended_frame_when_active() {
         let bus = MemoryBus::default();
         let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
         sup.set_homing_complete();
         sup.request_enable(true).expect("enable");
-        sup.send_joint_command(JointCommand {
-            joint: "joint1".to_string(),
-            position_rad: 0.1,
-            velocity_rad_s: 0.0,
-            torque_nm: 0.0,
-        })
-        .expect("send");
+        let motor = motor_for_joint(&sup.motors, "elbow").expect("motor").clone();
+        sup
+            .send_mit_joint(
+                MitJointCommand {
+                    joint: "elbow".to_string(),
+                    kp: 0.0,
+                    kd: 0.0,
+                    position_rad: 0.5,
+                    velocity_rad_s: 0.0,
+                    torque_ff_nm: 1.0,
+                },
+                &motor,
+            )
+            .expect("send");
+        assert!(!sup.bus.tx.is_empty());
+        assert!(sup.bus.tx[0].extended);
     }
 }

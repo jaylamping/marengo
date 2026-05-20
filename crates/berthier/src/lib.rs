@@ -1,9 +1,47 @@
-//! Realtime control stack for Marengo (Berthier).
+//! # Berthier — realtime control (outer loop)
 //!
-//! Motor commands go through [Davout](davout::Supervisor) only — this crate does not use
-//! [robstride] directly.
+//! Berthier owns **what to command each tick**: read joint state, compute feedforward and
+//! gains, assemble MIT setpoints. It does **not** talk to CAN, enforce safety limits, or
+//! encode vendor frames.
+//!
+//! ## Responsibilities
+//!
+//! - [`ControlLoop::tick`](loop::ControlLoop::tick): `recv` → `q` → `tau_g(q)` → MIT batch → Davout.
+//! - Control modes: gravity comp, impedance, position, torque-only ([`ControlMode`]).
+//! - Optional friction feedforward (`friction` module) in impedance mode.
+//! - Publish [`RobotState`](armee_proto::RobotState) on Chappe (lower rate than the motor loop).
+//! - Legacy [`Controller`]: single-joint position commands through Davout (REPL / bring-up).
+//!
+//! ## Does not
+//!
+//! - Open SocketCAN or call `robstride` (motor path is Davout → robstride only).
+//! - Apply torque/position limits, E-stop, comm watchdog, or danger zones (Davout).
+//! - Parse URDF for limits (uses [`armee-dynamics`] for `tau_g`, config for gains).
+//!
+//! ## Dependencies (allowed direction)
+//!
+//! ```text
+//! armee-dynamics (tau_g) ──► berthier ──► davout ──► robstride
+//! marengo-config (gains) ──┘              chappe (telemetry)
+//! armee-proto (wire types)
+//! ```
+//!
+//! ## Two mode enums (read with care)
+//!
+//! | Enum | Crate | Meaning |
+//! |------|-------|---------|
+//! | [`davout::OperationalMode`] | Davout | Disabled / Ready / Active — **may motors move?** |
+//! | [`ControlMode`] | Berthier + Davout | GravityComp / Impedance / … — **how** to command when Active |
+//!
+//! See [ADR 0004](../../docs/decisions/0004-control-modes-and-mit.md).
 
-use davout::{CanBus, DavoutError, JointCommand, OperationalMode, Supervisor};
+mod friction;
+mod r#loop;
+
+pub use davout::ControlMode;
+pub use r#loop::{ControlLoop, LoopError, proto_control_mode};
+
+use davout::{DavoutError, JointCommand, OperationalMode, Supervisor};
 use thiserror::Error;
 use tracing::debug;
 
@@ -14,11 +52,11 @@ pub enum ControlError {
 }
 
 /// Control facade — holds the Davout supervisor (motor gateway).
-pub struct Controller<B: CanBus> {
+pub struct Controller<B: davout::MotorBus> {
     supervisor: Supervisor<B>,
 }
 
-impl<B: CanBus> Controller<B> {
+impl<B: davout::MotorBus> Controller<B> {
     pub fn new(supervisor: Supervisor<B>) -> Self {
         Self { supervisor }
     }
@@ -58,16 +96,9 @@ impl<B: CanBus> Controller<B> {
 
 #[cfg(test)]
 mod tests {
-    //! Berthier must not link robstride for direct motor access.
-    use std::any::TypeId;
+    #![allow(clippy::expect_used)]
 
     use super::Controller;
-
-    #[test]
-    fn motor_path_is_davout_not_robstride() {
-        assert!(TypeId::of::<davout::Supervisor<davout::MemoryBus>>() != TypeId::of::<()>());
-        // Berthier sources must not call robstride::send_motion; enforced by code review + this module boundary.
-    }
 
     #[test]
     fn controller_commands_through_supervisor() {
@@ -76,6 +107,6 @@ mod tests {
         let mut ctrl = Controller::from_repo(&root, bus).expect("controller");
         ctrl.supervisor_mut().set_homing_complete();
         ctrl.supervisor_mut().request_enable(true).expect("enable");
-        ctrl.command_position("joint1", 0.05).expect("position");
+        ctrl.command_position("shoulder_roll", 0.05).expect("position");
     }
 }

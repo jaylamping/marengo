@@ -1,13 +1,44 @@
-//! Robstride RS-series motor protocol over CAN.
+//! # robstride — Robstride CAN driver (MIT Mode 0)
 //!
-//! All motion commands must be issued through [Davout](../davout/) — do not call this crate
-//! directly from control code.
+//! Hardware transport for RS00–RS04 actuators: encode/decode MIT frames, send/recv on CAN.
+//! **No control policy** — only bytes on the bus and a feedback cache.
+//!
+//! ## Responsibilities
+//!
+//! - [`mit`](mit): pack/unpack MIT `{kp, kd, q, dq, tau_ff}` per [`MotorType`](marengo_config::MotorType).
+//! - [`bus::MotorBus`]: `mit_control_all`, `recv_all`, extended 29-bit IDs (`0x200 + device_id`).
+//! - [`state::MotorState`]: last `q`, `dq`, `tau`, fault per `device_id`.
+//! - [`protocol`](protocol): legacy 11-bit stub (tests only; do not use on bench).
+//! - Optional SocketCAN backend (`vcan` feature, Linux).
+//!
+//! ## Does not
+//!
+//! - Decide torque limits, enable motors, or handle E-stop (Davout).
+//! - Run periodic control or gravity model (Berthier / armee-dynamics).
+//! - Load YAML or URDF (marengo-config / armee-kinematics).
+//!
+//! ## Callers
+//!
+//! | Caller | Usage |
+//! |--------|--------|
+//! | Davout | Sole production path to `send_mit` / `MotorBus` |
+//! | Tests / `motor-repl` | [`MemoryBus`](bus::MemoryBus) without hardware |
+//!
+//! Wire spec: [hardware/docs/decisions/0002-robstride-protocol.md](../../hardware/docs/decisions/0002-robstride-protocol.md).
 
 pub mod bus;
+pub mod mit;
+pub mod motor_type;
 pub mod protocol;
+pub mod state;
 
-pub use bus::{BusError, CanBus, JointMotion, MemoryBus, send_motion};
+pub use bus::{
+    BusError, CanBus, CanFrame, JointMotion, MemoryBus, MotorBus, send_mit, send_motion,
+    send_motion_legacy,
+};
+pub use mit::{MitCommand, MitFeedback, encode_mit, mit_rx_id, mit_tx_id};
 pub use protocol::{MotionCommand, MotionFeedback, command_can_id, decode_feedback, encode_command};
+pub use state::MotorState;
 
 #[cfg(all(feature = "vcan", target_os = "linux"))]
 pub mod vcan {
@@ -17,67 +48,59 @@ pub mod vcan {
     pub const DEFAULT_INTERFACE: &str = "vcan0";
 }
 
-#[cfg(all(feature = "vcan", target_os = "linux", test))]
-mod vcan_tests {
+#[cfg(test)]
+mod tests {
     #![allow(clippy::expect_used)]
 
-    use super::bus::{JointMotion, MemoryBus, send_motion};
-    use super::protocol::{command_can_id, encode_command};
-    use super::vcan::DEFAULT_INTERFACE;
-    use socketcan::{CanSocket, Socket};
+    use std::collections::HashMap;
+    use std::time::Duration;
+
+    use marengo_config::MotorType;
+
+    use super::bus::{MemoryBus, MotorBus};
+    use super::mit::{MitCommand, encode_mit, mit_tx_id};
 
     #[test]
-    fn encode_command_produces_expected_id() {
-        let cmd = super::MotionCommand {
+    fn encode_mit_extended_id() {
+        let cmd = MitCommand {
+            device_id: 2,
+            motor_type: MotorType::Rs02,
+            position_rad: 0.0,
+            velocity_rad_s: 0.0,
+            kp: 0.0,
+            kd: 0.0,
+            torque_ff_nm: 1.0,
+        };
+        let (id, _) = encode_mit(&cmd);
+        assert_eq!(id, mit_tx_id(2));
+    }
+
+    #[test]
+    fn memory_bus_mit_control_records_extended() {
+        let mut bus = MemoryBus::default();
+        let cmd = MitCommand {
             device_id: 1,
+            motor_type: MotorType::Rs03,
             position_rad: 0.1,
             velocity_rad_s: 0.0,
-            torque_nm: 0.0,
+            kp: 0.0,
+            kd: 0.0,
+            torque_ff_nm: 2.0,
         };
-        let (id, _) = encode_command(&cmd);
-        assert_eq!(id, command_can_id(1));
+        bus.mit_control_all(&[cmd]).expect("send");
+        assert_eq!(bus.tx.len(), 1);
+        assert!(bus.tx[0].extended);
+        assert_eq!(bus.tx[0].id, 0x201);
     }
 
     #[test]
-    fn memory_bus_records_frame() {
+    fn recv_all_times_out_without_rx() {
         let mut bus = MemoryBus::default();
-        send_motion(
-            &mut bus,
-            &JointMotion {
-                joint: "joint1".to_string(),
-                device_id: 1,
-                position_rad: 0.2,
-                velocity_rad_s: 0.1,
-                torque_nm: 0.0,
-            },
-        )
-        .expect("send");
-        assert_eq!(bus.frames.len(), 1);
-    }
-
-    #[test]
-    #[ignore = "requires vcan0 (docker compose --profile vcan)"]
-    fn vcan0_send_smoke() {
-        use super::bus::SocketCanBus;
-        let mut bus = SocketCanBus::open(DEFAULT_INTERFACE).expect("open vcan0");
-        send_motion(
-            &mut bus,
-            &JointMotion {
-                joint: "joint1".to_string(),
-                device_id: 1,
-                position_rad: 0.0,
-                velocity_rad_s: 0.0,
-                torque_nm: 0.0,
-            },
-        )
-        .expect("send on vcan");
-    }
-
-    #[test]
-    #[ignore = "requires vcan0 (docker compose --profile vcan)"]
-    fn vcan0_exists() {
-        let socket = CanSocket::open(DEFAULT_INTERFACE)
-            .expect("open vcan0 — run scripts/vcan-up.sh or compose profile vcan");
-        drop(socket);
+        let mut states = HashMap::new();
+        let types = HashMap::from([(1u8, MotorType::Rs03)]);
+        let err = bus
+            .recv_all(&types, &mut states, Duration::from_millis(5))
+            .expect_err("timeout");
+        assert!(matches!(err, super::bus::BusError::RecvTimeout));
     }
 }

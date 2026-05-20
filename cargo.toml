@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/armee-proto",
     "crates/armee-kinematics",
+    "crates/armee-dynamics",
     "crates/sim-harness",
     "crates/marengo-support",
     "crates/marengo-config",
@@ -17,6 +18,7 @@ members = [
     "bins/probe",
     "bins/motor-repl",
     "bins/wave-demo",
+    "bins/teleop",
 ]
 
 [workspace.package]
@@ -39,6 +41,7 @@ marengo-support = { path = "crates/marengo-support" }
 marengo-config = { path = "crates/marengo-config" }
 armee-proto = { path = "crates/armee-proto" }
 armee-kinematics = { path = "crates/armee-kinematics" }
+armee-dynamics = { path = "crates/armee-dynamics" }
 chappe = { path = "crates/chappe" }
 berthier = { path = "crates/berthier" }
 davout = { path = "crates/davout" }

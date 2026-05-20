@@ -1,0 +1,67 @@
+<?xml version="1.0"?>
+<!-- 4-DOF Marengo bench arm: RS03 shoulders, RS02 yaw/elbow. Masses are estimates until CAD export. -->
+<robot name="arm_4dof">
+  <link name="base_link">
+    <inertial>
+      <origin xyz="0 0 0.05" rpy="0 0 0"/>
+      <mass value="2.0"/>
+      <inertia ixx="0.02" ixy="0" ixz="0" iyy="0.02" iyz="0" izz="0.02"/>
+    </inertial>
+  </link>
+  <link name="shoulder_roll_link">
+    <inertial>
+      <origin xyz="0.05 0 0" rpy="0 0 0"/>
+      <mass value="1.2"/>
+      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/>
+    </inertial>
+  </link>
+  <link name="shoulder_pitch_link">
+    <inertial>
+      <origin xyz="0.08 0 0" rpy="0 0 0"/>
+      <mass value="1.0"/>
+      <inertia ixx="0.008" ixy="0" ixz="0" iyy="0.008" iyz="0" izz="0.008"/>
+    </inertial>
+  </link>
+  <link name="upper_arm_link">
+    <inertial>
+      <origin xyz="0.15 0 0" rpy="0 0 0"/>
+      <mass value="0.8"/>
+      <inertia ixx="0.006" ixy="0" ixz="0" iyy="0.006" iyz="0" izz="0.006"/>
+    </inertial>
+  </link>
+  <link name="forearm_link">
+    <inertial>
+      <origin xyz="0.12 0 0" rpy="0 0 0"/>
+      <mass value="0.5"/>
+      <inertia ixx="0.004" ixy="0" ixz="0" iyy="0.004" iyz="0" izz="0.004"/>
+    </inertial>
+  </link>
+  <joint name="shoulder_roll" type="revolute">
+    <parent link="base_link"/>
+    <child link="shoulder_roll_link"/>
+    <origin xyz="0 0 0.1" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-1.57" upper="1.57" effort="60" velocity="3.0"/>
+  </joint>
+  <joint name="shoulder_pitch" type="revolute">
+    <parent link="shoulder_roll_link"/>
+    <child link="shoulder_pitch_link"/>
+    <origin xyz="0.05 0 0" rpy="0 1.57 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-1.2" upper="1.2" effort="60" velocity="3.0"/>
+  </joint>
+  <joint name="upper_arm_yaw" type="revolute">
+    <parent link="shoulder_pitch_link"/>
+    <child link="upper_arm_link"/>
+    <origin xyz="0.08 0 0" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-1.57" upper="1.57" effort="17" velocity="3.0"/>
+  </joint>
+  <joint name="elbow" type="revolute">
+    <parent link="upper_arm_link"/>
+    <child link="forearm_link"/>
+    <origin xyz="0.3 0 0" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="0.0" upper="2.5" effort="17" velocity="3.0"/>
+  </joint>
+</robot>

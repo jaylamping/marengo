@@ -11,10 +11,11 @@ license.workspace = true
 workspace = true
 
 [dependencies]
-armee-kinematics.workspace = true
+armee-dynamics.workspace = true
 armee-proto.workspace = true
 chappe.workspace = true
 davout.workspace = true
+marengo-config.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 

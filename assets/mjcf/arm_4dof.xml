@@ -1,0 +1,22 @@
+<mujoco model="arm_4dof">
+  <compiler angle="radian"/>
+  <option gravity="0 0 -9.81"/>
+  <worldbody>
+    <body name="base_link">
+      <joint name="shoulder_roll" type="hinge" axis="0 0 1" range="-1.57 1.57"/>
+      <geom type="capsule" size="0.05 0.1" rgba="0.5 0.5 0.5 1"/>
+      <body name="shoulder_pitch_link" pos="0.05 0 0">
+        <joint name="shoulder_pitch" type="hinge" axis="0 0 1" range="-1.2 1.2"/>
+        <geom type="capsule" size="0.04 0.08" rgba="0.6 0.6 0.6 1"/>
+        <body name="upper_arm_link" pos="0.08 0 0">
+          <joint name="upper_arm_yaw" type="hinge" axis="0 0 1" range="-1.57 1.57"/>
+          <geom type="capsule" size="0.035 0.15" rgba="0.7 0.7 0.7 1"/>
+          <body name="forearm_link" pos="0.3 0 0">
+            <joint name="elbow" type="hinge" axis="0 0 1" range="0 2.5"/>
+            <geom type="capsule" size="0.03 0.12" rgba="0.8 0.8 0.8 1"/>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+</mujoco>

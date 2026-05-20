@@ -24,6 +24,19 @@ flowchart LR
   Davout --> Motors[robstride / moteus]
 ```
 
+## Control stack boundaries
+
+Motor path is fixed: **Berthier → Davout → robstride**. Each crate has a detailed module doc at the top of `src/lib.rs`.
+
+| Crate | Owns | Must not |
+|-------|------|----------|
+| [`berthier`](../crates/berthier/) | Outer loop, `tau_g` + gains → MIT batch | CAN, limits, encode |
+| [`davout`](../crates/davout/) | Enable FSM, filter, watchdog, send | Trajectories, URDF dynamics |
+| [`robstride`](../crates/robstride/) | MIT encode/decode, CAN I/O | Policy, safety |
+| [`armee-dynamics`](../crates/armee-dynamics/) | `gravity_torques(q)` | CAN, commands |
+| [`armee-kinematics`](../crates/armee-kinematics/) | URDF limits, joint lists | Control loop |
+| [`marengo-config`](../crates/marengo-config/) | YAML types/loaders | Runtime enforcement |
+
 ## Crates and binaries
 
 See the root [README](../README.md#software) for the naming map (Napoleonic corps → subsystem).

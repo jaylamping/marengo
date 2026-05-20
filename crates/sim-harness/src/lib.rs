@@ -17,6 +17,11 @@ pub fn production_model_path() -> PathBuf {
     fixtures::production_mjcf()
 }
 
+/// 4-DOF bench arm MJCF (`assets/mjcf/arm_4dof.xml`).
+pub fn arm_4dof_model_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../assets/mjcf/arm_4dof.xml")
+}
+
 /// Returns true if the model file exists (for skip logic in tests).
 pub fn model_exists(path: &Path) -> bool {
     path.is_file()
@@ -63,5 +68,18 @@ mod tests {
         let mjcf = std::fs::read_to_string(&mjcf_path).expect("production mjcf");
         let mjcf_dof = count_mjcf_hinge_joints(&mjcf);
         assert_eq!(urdf_dof, mjcf_dof, "production URDF/MJCF DOF mismatch");
+    }
+
+    #[test]
+    fn arm_4dof_urdf_and_mjcf_dof_match() {
+        let urdf_path = fixtures::arm_4dof_urdf();
+        let mjcf_path = arm_4dof_model_path();
+        assert!(model_exists(&urdf_path), "missing {:?}", urdf_path);
+        assert!(model_exists(&mjcf_path), "missing {:?}", mjcf_path);
+        let robot = load_urdf(&urdf_path).expect("arm_4dof urdf");
+        let urdf_dof = actuated_joint_count(&robot);
+        let mjcf = std::fs::read_to_string(&mjcf_path).expect("arm_4dof mjcf");
+        let mjcf_dof = count_mjcf_hinge_joints(&mjcf);
+        assert_eq!(urdf_dof, mjcf_dof, "arm_4dof URDF/MJCF DOF mismatch");
     }
 }

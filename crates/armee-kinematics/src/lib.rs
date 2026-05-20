@@ -1,4 +1,22 @@
-//! Forward/inverse kinematics and joint limit helpers from `assets/urdf/marengo.urdf`.
+//! # armee-kinematics — URDF kinematics helpers
+//!
+//! Parses Marengo URDF models and exposes **kinematic facts** for config and safety. No CAN,
+//! no control loop, no dynamics torques.
+//!
+//! ## Responsibilities
+//!
+//! - [`load_urdf`], [`joint_limits`]: position/velocity/effort limits per joint name.
+//! - [`actuated_joint_names`] / [`actuated_joint_count`]: revolute/prismatic joints only.
+//! - [`fixtures`]: paths to `arm_4dof.urdf`, `marengo.urdf`, sim fixtures.
+//!
+//! ## Does not
+//!
+//! - Compute `tau_g` ([`armee_dynamics`]).
+//! - Filter commands or manage enable state (Davout).
+//! - Full FK/IK solver for tool poses (planned; keep out of this crate until needed).
+//!
+//! URDF is the geometric source of truth; keep [`hardware/docs/kinematics.md`](../../hardware/docs/kinematics.md)
+//! in sync when joints change.
 
 use std::path::{Path, PathBuf};
 
@@ -34,9 +52,19 @@ pub mod fixtures {
         repo_root().join("assets/urdf/marengo.urdf")
     }
 
+    /// 4-DOF bench arm URDF (`assets/urdf/arm_4dof.urdf`).
+    pub fn arm_4dof_urdf() -> PathBuf {
+        repo_root().join("assets/urdf/arm_4dof.urdf")
+    }
+
     /// Production Marengo MJCF (`assets/mjcf/marengo.xml`).
     pub fn production_mjcf() -> PathBuf {
         repo_root().join("assets/mjcf/marengo.xml")
+    }
+
+    /// 4-DOF bench MJCF (`assets/mjcf/arm_4dof.xml`).
+    pub fn arm_4dof_mjcf() -> PathBuf {
+        repo_root().join("assets/mjcf/arm_4dof.xml")
     }
 }
 
@@ -91,6 +119,21 @@ pub fn joint_entry_count(robot: &urdf_rs::Robot) -> usize {
     robot.joints.len()
 }
 
+/// Actuated joint names in URDF document order.
+pub fn actuated_joint_names(robot: &urdf_rs::Robot) -> Vec<String> {
+    robot
+        .joints
+        .iter()
+        .filter(|j| {
+            matches!(
+                j.joint_type,
+                JointType::Revolute | JointType::Continuous | JointType::Prismatic
+            )
+        })
+        .map(|j| j.name.clone())
+        .collect()
+}
+
 /// Joints that can be commanded (revolute, continuous, prismatic).
 pub fn actuated_joint_count(robot: &urdf_rs::Robot) -> usize {
     robot
@@ -123,6 +166,15 @@ mod tests {
         let path = fixtures::production_urdf();
         let robot = load_urdf(&path).expect("production urdf");
         assert_eq!(actuated_joint_count(&robot), 2);
+    }
+
+    #[test]
+    fn loads_arm_4dof_urdf() {
+        let path = fixtures::arm_4dof_urdf();
+        let robot = load_urdf(&path).expect("arm_4dof");
+        assert_eq!(actuated_joint_count(&robot), 4);
+        let names = actuated_joint_names(&robot);
+        assert!(names.contains(&"elbow".to_string()));
     }
 
     #[test]
