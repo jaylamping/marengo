@@ -83,22 +83,21 @@ Vendor CAD (Robstride, Moteus, extrusions) lives under `hardware/cad/vendor/`.
 
 ## Build
 
-Install tooling first: [`protoc`](https://grpc.io/docs/protoc-installation/) and [`buf`](https://buf.build/docs/installation) — see [docs/dev-setup.md](docs/dev-setup.md).
+**Recommended:** containerized workflow — [docs/onboarding.md](docs/onboarding.md).
 
 ```bash
-rustup toolchain install stable
-cargo build --workspace
-cargo test --workspace
-
-cd consul && npm install && npm run gen:proto
+docker compose build dev
+just check
 ```
 
-Deploy helpers (stubs): `scripts/deploy-pi.sh`, `scripts/deploy-jetson.sh`.
+Native host tooling is optional ([docs/dev-setup.md](docs/dev-setup.md)). Patterns for contributors and agents: [docs/rust-patterns.md](docs/rust-patterns.md), [AGENTS.md](AGENTS.md).
+
+Deploy helpers (stubs): `scripts/deploy-pi.sh`, `scripts/deploy-jetson.sh`. systemd units: `scripts/systemd/`.
 
 ## CI
 
-GitHub Actions: format, clippy, and tests on push/PR ([.github/workflows/ci.yml](.github/workflows/ci.yml)).
+GitHub Actions runs `scripts/check.sh` in the dev image, plus optional `sim` and `vcan` jobs ([.github/workflows/ci.yml](.github/workflows/ci.yml)).
 
 ## License
 
-MIT OR Apache-2.0 (see crate manifests).
+MIT OR Apache-2.0 — see [LICENSE-MIT](LICENSE-MIT) and [LICENSE-APACHE](LICENSE-APACHE).

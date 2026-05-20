@@ -15,7 +15,8 @@ hardware/electrical/**/-backups/
 # Frontend
 consul/node_modules/
 consul/dist/
-consul/src/gen/
+consul/src/gen/*
+!consul/src/gen/.checksum
 
 # Local secrets / overrides
 .env

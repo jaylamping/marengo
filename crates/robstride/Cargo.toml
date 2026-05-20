@@ -7,6 +7,14 @@ rust-version.workspace = true
 authors.workspace = true
 license = "MIT OR Apache-2.0"
 
+[features]
+default = []
+# Linux only (SocketCAN). Use inside the vcan compose profile / CI vcan job.
+vcan = ["dep:socketcan"]
+
 [dependencies]
 thiserror.workspace = true
 tracing.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+socketcan = { version = "3", optional = true }

@@ -5,39 +5,67 @@ on:
     branches: [main]
   pull_request:
 
+env:
+  CI: true
+
 jobs:
-  rust:
+  check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install protoc
-        uses: arduino/setup-protoc@v3
         with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          lfs: true
 
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo fmt --all -- --check
-      - run: cargo clippy --workspace --all-targets -- -D warnings
-      - run: cargo test --workspace
+      - name: Build dev image
+        run: docker build -f docker/Dockerfile.dev -t marengo-dev:local .
 
-  consul-proto:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+      - name: Tag sim base
+        run: docker tag marengo-dev:local marengo-dev:local
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: consul/package-lock.json
-
-      - name: Install buf
-        uses: bufbuild/buf-action@v1
-
-      - name: Generate TypeScript protobuf
-        working-directory: consul
+      - name: Run check.sh in container
         run: |
-          npm ci
-          npm run gen:proto
-          test -f src/gen/marengo_pb.ts
+          docker run --rm \
+            -v "${{ github.workspace }}:/workspace" \
+            -w /workspace \
+            -e CI=true \
+            -e GITHUB_EVENT_NAME="${{ github.event_name }}" \
+            -e GITHUB_REPOSITORY="${{ github.repository }}" \
+            marengo-dev:local \
+            ./scripts/check.sh
+
+  sim:
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build sim image
+        run: |
+          docker build -f docker/Dockerfile.dev -t marengo-dev:local .
+          docker build -f docker/Dockerfile.sim -t marengo-sim:local .
+
+      - name: Run check-sim.sh
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/workspace" \
+            -w /workspace \
+            -e MARENGO_SIM_MODEL=/workspace/sim/fixtures/minimal.xml \
+            marengo-sim:local \
+            ./scripts/check-sim.sh
+
+  vcan:
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build dev image
+        run: docker build -f docker/Dockerfile.dev -t marengo-dev:local .
+
+      - name: vcan integration tests
+        run: |
+          docker run --rm --privileged \
+            -v "${{ github.workspace }}:/workspace" \
+            -w /workspace \
+            marengo-dev:local \
+            bash -c './scripts/vcan-up.sh && cargo test -p robstride --features vcan -- --ignored'

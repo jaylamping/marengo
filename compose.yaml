@@ -1,0 +1,79 @@
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+    image: marengo-dev:local
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - cargo-target:/workspace/target
+      - cargo-registry:/usr/local/cargo/registry
+      - consul-node-modules:/workspace/consul/node_modules
+    user: marengo
+    stdin_open: true
+    tty: true
+    command: ["/bin/bash"]
+
+  check:
+    image: marengo-dev:local
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - cargo-target:/workspace/target
+      - cargo-registry:/usr/local/cargo/registry
+      - consul-node-modules:/workspace/consul/node_modules
+    user: marengo
+    command: ["./scripts/check.sh"]
+
+  vcan:
+    profiles: [vcan]
+    image: marengo-dev:local
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+    privileged: true
+    network_mode: host
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+    command: ["./scripts/vcan-up.sh"]
+    restart: unless-stopped
+
+  check-vcan:
+    profiles: [vcan]
+    image: marengo-dev:local
+    depends_on:
+      - vcan
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - cargo-target:/workspace/target
+      - consul-node-modules:/workspace/consul/node_modules
+    user: marengo
+    network_mode: host
+    command: ["cargo", "test", "-p", "robstride", "--features", "vcan", "--", "--ignored"]
+
+  check-sim:
+    profiles: [sim]
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.sim
+    image: marengo-sim:local
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - cargo-target:/workspace/target
+      - consul-node-modules:/workspace/consul/node_modules
+    user: marengo
+    environment:
+      MARENGO_SIM_MODEL: /workspace/sim/fixtures/minimal.xml
+    command: ["./scripts/check-sim.sh"]
+
+volumes:
+  cargo-target:
+  cargo-registry:
+  consul-node-modules:

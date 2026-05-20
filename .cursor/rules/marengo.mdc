@@ -1,0 +1,16 @@
+---
+description: Marengo robotics workspace conventions
+alwaysApply: true
+---
+
+# Marengo
+
+Read [AGENTS.md](../../AGENTS.md) and [docs/rust-patterns.md](../../docs/rust-patterns.md) before editing Rust or proto.
+
+- Run `just check` (container) before completing work.
+- Proto changes start in `proto/`; regenerate TS via `consul/npm run gen:proto`.
+- Never edit `consul/src/gen/` by hand.
+- Libraries: `thiserror` + `?`; no `unwrap` in `crates/`.
+- Motor path: Berthier → Davout → robstride; see `docs/safety.md`.
+- `#![forbid(unsafe_code)]` unless an ADR allows otherwise.
+- Tests must not require hardware in default `cargo test`.

@@ -13,5 +13,5 @@ path = "src/main.rs"
 
 [dependencies]
 chappe = { path = "../../crates/chappe" }
-tokio.workspace = true
-tracing-subscriber = "0.3"
+tracing.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }

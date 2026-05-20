@@ -1,0 +1,4 @@
+rust stable
+nodejs 22
+protoc 28.3
+buf 1.47.2

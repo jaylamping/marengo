@@ -1,0 +1,17 @@
+[Unit]
+Description=Marengo Jetson runtime (planner, Fouché, Chappe)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=marengo
+WorkingDirectory=/opt/marengo
+Environment=RUST_LOG=info,marengo=debug
+EnvironmentFile=-/etc/marengo/env
+ExecStart=/opt/marengo/bin/marengo-jetson
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

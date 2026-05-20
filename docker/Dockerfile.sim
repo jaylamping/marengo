@@ -1,0 +1,11 @@
+# MuJoCo headless simulation — extends dev image.
+FROM marengo-dev:local
+
+USER root
+
+RUN pip3 install --no-cache-dir mujoco numpy \
+    && python3 -c "import mujoco; print('mujoco', mujoco.__version__)"
+
+USER marengo
+
+ENV MARENGO_SIM_MODEL=/workspace/sim/fixtures/minimal.xml

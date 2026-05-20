@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/armee-proto",
     "crates/armee-kinematics",
+    "crates/sim-harness",
     "crates/chappe",
     "crates/berthier",
     "crates/davout",
@@ -18,7 +19,7 @@ members = [
 
 [workspace.package]
 edition = "2021"
-rust-version = "1.75"
+rust-version = "1.85"
 authors = ["Joey Lamping"]
 license = "MIT OR Apache-2.0"
 
@@ -29,6 +30,9 @@ thiserror = "1"
 tracing = "0.1"
 prost = "0.13"
 prost-build = "0.13"
+urdf-rs = "0.8"
+anyhow = "1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 armee-proto = { path = "crates/armee-proto" }
 armee-kinematics = { path = "crates/armee-kinematics" }
 chappe = { path = "crates/chappe" }
@@ -37,3 +41,15 @@ davout = { path = "crates/davout" }
 talleyrand = { path = "crates/talleyrand" }
 fouche = { path = "crates/fouche" }
 robstride = { path = "crates/robstride" }
+sim-harness = { path = "crates/sim-harness" }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
+
+[profile.dev]
+split-debuginfo = "unpacked"

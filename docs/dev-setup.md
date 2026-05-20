@@ -1,51 +1,70 @@
 # Development setup
 
-## Rust (Armée workspace)
+## Recommended: Docker (source of truth)
+
+See [onboarding.md](onboarding.md).
 
 ```bash
-rustup toolchain install stable
+docker compose build dev
+just check          # or: docker compose run --rm check
+```
+
+Optional:
+
+- **Dev Container:** Reopen in Container (Cursor / VS Code) — [`.devcontainer/`](../.devcontainer/)
+- **vcan:** `just vcan` (Linux, privileged)
+- **sim:** `just sim-check`
+
+## Native / host (best-effort)
+
+If you cannot use Docker, install tools matching [mise.toml](../mise.toml):
+
+| Tool | Version |
+|------|---------|
+| Rust | 1.85 (see [rust-toolchain.toml](../rust-toolchain.toml)) |
+| Node | 22 |
+| protoc | 28.3 |
+| buf | 1.47.2 |
+
+```bash
+# macOS examples
+brew install rust protobuf bufbuild/buf/buf node@22
+git lfs install && git lfs pull
+
 cargo build --workspace
+cd consul && npm ci && npm run gen:proto
+./scripts/check.sh
 ```
 
-### `protoc`
-
-Required to build `armee-proto` (prost codegen).
-
-```bash
-# macOS
-brew install protobuf
-
-# Debian/Ubuntu
-sudo apt-get install -y protobuf-compiler
-```
-
-Verify: `protoc --version`
-
-## Consul (TypeScript)
-
-```bash
-cd consul
-npm install
-npm run gen:proto   # writes src/gen/ from ../proto
-```
-
-### `buf`
-
-Required for TypeScript protobuf codegen.
-
-```bash
-# macOS
-brew install bufbuild/buf/buf
-
-# Or: npm install -g @bufbuild/buf (also listed as consul devDependency)
-```
-
-Verify: `buf --version`
+**WSL2:** clone inside the Linux filesystem (`~/code`), not `/mnt/c/`.
 
 ## Regenerating wire types
 
-1. Edit files under [`proto/`](../proto/).
-2. Rust: `cargo build -p armee-proto` (or any workspace build).
+1. Edit `proto/*.proto`.
+2. Rust: `cargo build -p armee-proto`.
 3. TypeScript: `cd consul && npm run gen:proto`.
+4. Update checksum: `shasum -a 256 consul/src/gen/marengo_pb.ts | awk '{print $1}' > consul/src/gen/.checksum`
 
-Never commit hand-edits to generated output; `consul/src/gen/` is gitignored.
+Never commit hand-edits to `consul/src/gen/` (gitignored except `.checksum`).
+
+## Dependency updates (manual — no Dependabot)
+
+Monthly (or before releases):
+
+```bash
+cargo update
+cd consul && npm update
+just check && just sim-check
+```
+
+Review `cargo audit` / `npm audit` output.
+
+## Branch protection
+
+On GitHub, require the **check** workflow to pass before merging to `main`.
+
+## Patterns and safety
+
+- [rust-patterns.md](rust-patterns.md)
+- [safety.md](safety.md)
+- [troubleshooting.md](troubleshooting.md)

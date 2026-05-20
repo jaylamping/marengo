@@ -1,0 +1,13 @@
+target/
+**/target/
+consul/node_modules/
+consul/dist/
+.git/
+.idea/
+.vscode/
+*.local
+.env
+hardware/cad/
+hardware/electrical/**/gerbers/
+**/*-backups/
+.DS_Store

@@ -1,0 +1,15 @@
+[package]
+name = "sim-harness"
+version = "0.1.0"
+description = "Headless simulation harness for Marengo tests"
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[features]
+default = []
+sim = []
+
+[dependencies]
+armee-kinematics = { path = "../armee-kinematics" }

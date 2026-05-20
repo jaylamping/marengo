@@ -1,0 +1,31 @@
+{
+  "name": "Marengo",
+  "build": {
+    "dockerfile": "../docker/Dockerfile.dev",
+    "context": ".."
+  },
+  "workspaceFolder": "/workspace",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+  "remoteUser": "marengo",
+  "mounts": [
+    "source=marengo-cargo-target,target=/workspace/target,type=volume",
+    "source=marengo-consul-node-modules,target=/workspace/consul/node_modules,type=volume"
+  ],
+  "postCreateCommand": "bash ./scripts/bootstrap.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "tamasfe.even-better-toml",
+        "bufbuild.vscode-buf",
+        "dbaeumer.vscode-eslint",
+        "editorconfig.editorconfig"
+      ],
+      "settings": {
+        "rust-analyzer.cargo.buildScripts.enable": true,
+        "editor.formatOnSave": true
+      }
+    }
+  },
+  "forwardPorts": [5173]
+}

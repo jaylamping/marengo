@@ -1,0 +1,17 @@
+[Unit]
+Description=Marengo Pi runtime (control, CAN, Chappe)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=marengo
+WorkingDirectory=/opt/marengo
+Environment=RUST_LOG=info,marengo=debug
+EnvironmentFile=-/etc/marengo/env
+ExecStart=/opt/marengo/bin/marengo-pi
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
