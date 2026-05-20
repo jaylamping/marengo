@@ -51,7 +51,7 @@ marengo/
 │ │
 │ └── docs/
 │ ├── kinematics.md # Joint ranges, axes, transforms — single source of truth
-│ ├── assembly.md # How to physically build it
+│ ├── assembly.md # How to physically build it (this may never get updated/written)
 │ └── decisions/ # Hardware ADRs (separate from software ones)
 │
 ├── assets/ # DERIVED FROM hardware/, CONSUMED BY SOFTWARE
@@ -61,7 +61,7 @@ marengo/
 │ ├── visual/ # High-poly STL for Consul + sim display
 │ └── collision/ # Decimated STL (MeshLab/Blender) for sim
 │
-├── crates/ # Rust libraries (unchanged)
+├── crates/ # Rust libraries
 │ ├── armee-proto/
 │ ├── armee-kinematics/
 │ ├── chappe/
@@ -71,7 +71,7 @@ marengo/
 │ ├── fouche/
 │ └── robstride/
 │
-├── bins/ # Rust binaries (unchanged)
+├── bins/ # Rust binaries
 │ ├── marengo-pi/
 │ ├── marengo-jetson/
 │ ├── probe/
@@ -81,7 +81,7 @@ marengo/
 ├── consul/ # Frontend (Vite + React + TS)
 │
 ├── models/ # ONNX policies — Git LFS
-├── config/
+├── config/ # Configuration files for the robot (Will actually probably want to implement in a db, i really don't like mutable yaml files)
 │ ├── robot.yaml
 │ └── network.yaml
 │
