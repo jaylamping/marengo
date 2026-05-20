@@ -26,3 +26,46 @@ message RobotState {
   uint64 timestamp_ms = 1;
   repeated JointState joints = 2;
 }
+
+// --- Safety / enable (Spot-style surface, Marengo semantics) ---
+
+enum OperationalMode {
+  OPERATIONAL_MODE_UNSPECIFIED = 0;
+  OPERATIONAL_MODE_DISABLED = 1;
+  OPERATIONAL_MODE_READY = 2;   // homed, drives may be enabled on request
+  OPERATIONAL_MODE_ACTIVE = 3;  // tracking commanded motion
+}
+
+enum FaultSeverity {
+  FAULT_SEVERITY_UNSPECIFIED = 0;
+  FAULT_SEVERITY_WARNING = 1;
+  FAULT_SEVERITY_FAULT = 2;
+  FAULT_SEVERITY_ESTOP = 3;
+}
+
+message Fault {
+  string code = 1;
+  string message = 2;
+  FaultSeverity severity = 3;
+  string joint = 4; // optional, empty if robot-wide
+}
+
+message SafetyState {
+  uint64 timestamp_ms = 1;
+  OperationalMode mode = 2;
+  bool hardware_estop_asserted = 3;
+  bool software_estop_latched = 4;
+  repeated Fault active_faults = 5;
+}
+
+message EnableRequest {
+  uint64 timestamp_ms = 1;
+  string operator_id = 2;
+  // Request transition toward ACTIVE (must be in READY, E-stop clear).
+  bool enable = 3;
+}
+
+message HomingComplete {
+  uint64 timestamp_ms = 1;
+  string node_id = 2;
+}

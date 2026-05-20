@@ -7,9 +7,14 @@ use std::path::{Path, PathBuf};
 
 use armee_kinematics::fixtures;
 
-/// Default MJCF path for tests and compose.
+/// Default MJCF path for CI fixture tests.
 pub fn default_model_path() -> PathBuf {
     fixtures::minimal_mjcf()
+}
+
+/// Production MJCF path (`assets/mjcf/marengo.xml`).
+pub fn production_model_path() -> PathBuf {
+    fixtures::production_mjcf()
 }
 
 /// Returns true if the model file exists (for skip logic in tests).
@@ -45,5 +50,18 @@ mod tests {
             urdf_dof, mjcf_dof,
             "URDF actuated joints ({urdf_dof}) must match MJCF hinges ({mjcf_dof})"
         );
+    }
+
+    #[test]
+    fn production_urdf_and_mjcf_dof_match() {
+        let urdf_path = fixtures::production_urdf();
+        let mjcf_path = production_model_path();
+        assert!(model_exists(&urdf_path), "missing {:?}", urdf_path);
+        assert!(model_exists(&mjcf_path), "missing {:?}", mjcf_path);
+        let robot = load_urdf(&urdf_path).expect("production urdf");
+        let urdf_dof = actuated_joint_count(&robot);
+        let mjcf = std::fs::read_to_string(&mjcf_path).expect("production mjcf");
+        let mjcf_dof = count_mjcf_hinge_joints(&mjcf);
+        assert_eq!(urdf_dof, mjcf_dof, "production URDF/MJCF DOF mismatch");
     }
 }

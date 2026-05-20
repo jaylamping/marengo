@@ -40,7 +40,7 @@ marengo/
 ├── bins/                   # Pi / Jetson runtimes and dev tools
 ├── consul/                 # Frontend (Vite + React + TS)
 ├── models/                 # ONNX policies (Git LFS)
-├── config/                 # Prototype YAML (DB-backed config later)
+├── config/                 # robot.yaml, motors.yaml, network.yaml
 ├── docs/                   # Software architecture + ADRs
 └── scripts/                # URDF export, deploy helpers
 ```

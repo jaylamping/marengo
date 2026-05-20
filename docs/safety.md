@@ -11,7 +11,7 @@ Read this before enabling motors on the bench or robot.
 
 ## Bench mode (development)
 
-- Keep joint velocity and torque caps below production limits in `config/robot.yaml` (when implemented).
+- Keep joint velocity and torque caps below production limits in `config/robot.yaml` (`robot.bench`) and per-joint overrides in `config/motors.yaml`.
 - Use `motor-repl` only with operators at the robot and clear workspace.
 - Prefer **vcan** or simulation (`just sim-check`) before live CAN when developing control logic.
 

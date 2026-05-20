@@ -1,0 +1,25 @@
+# Joint → CAN mapping (Berkeley motor_configuration.json style, YAML for Marengo).
+# Update device_id and firmware_version when hardware is commissioned.
+motors:
+  - joint: joint1
+    driver: robstride
+    can_interface: can0
+    device_id: 1
+    direction: 1
+    firmware_version: "0.0.0-prototype"
+    bench:
+      position_lower_rad: -1.57
+      position_upper_rad: 1.57
+      velocity_limit_rad_s: 0.5
+      torque_limit_nm: 2.0
+  - joint: joint2
+    driver: robstride
+    can_interface: can0
+    device_id: 2
+    direction: 1
+    firmware_version: "0.0.0-prototype"
+    bench:
+      position_lower_rad: -1.0
+      position_upper_rad: 1.0
+      velocity_limit_rad_s: 0.5
+      torque_limit_nm: 2.0

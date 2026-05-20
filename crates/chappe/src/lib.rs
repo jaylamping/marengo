@@ -1,1 +1,154 @@
 //! Inter-process message bus: pub/sub and RPC between Pi, Jetson, and tools.
+//!
+//! Default implementation is an in-process Tokio broadcast bus carrying protobuf
+//! [`Envelope`](armee_proto::Envelope) payloads (binary on the wire per ADR 0001).
+
+use std::sync::Arc;
+
+use armee_proto::prost::Message;
+use armee_proto::Envelope;
+use thiserror::Error;
+use tokio::sync::broadcast;
+
+const DEFAULT_CAPACITY: usize = 256;
+
+#[derive(Debug, Error)]
+pub enum BusError {
+    #[error("publish failed: {0}")]
+    Publish(String),
+    #[error("decode envelope: {0}")]
+    Decode(String),
+}
+
+/// Topic name → broadcast channel of raw envelope bytes.
+#[derive(Clone)]
+pub struct Bus {
+    inner: Arc<BusInner>,
+}
+
+struct BusInner {
+    channels: std::sync::RwLock<std::collections::HashMap<String, broadcast::Sender<Vec<u8>>>>,
+    capacity: usize,
+}
+
+impl Default for Bus {
+    fn default() -> Self {
+        Self::new(DEFAULT_CAPACITY)
+    }
+}
+
+impl Bus {
+    pub fn new(capacity: usize) -> Self {
+        Self {
+            inner: Arc::new(BusInner {
+                channels: std::sync::RwLock::new(std::collections::HashMap::new()),
+                capacity,
+            }),
+        }
+    }
+
+    fn sender(&self, topic: &str) -> broadcast::Sender<Vec<u8>> {
+        let mut guard = self.inner.channels.write().unwrap_or_else(|e| e.into_inner());
+        if let Some(tx) = guard.get(topic) {
+            return tx.clone();
+        }
+        let (tx, _) = broadcast::channel(self.inner.capacity);
+        guard.insert(topic.to_string(), tx.clone());
+        tx
+    }
+
+    /// Publish encoded envelope bytes to `topic`.
+    pub fn publish_bytes(&self, topic: &str, payload: Vec<u8>) -> Result<(), BusError> {
+        self.sender(topic)
+            .send(payload)
+            .map_err(|e| BusError::Publish(e.to_string()))?;
+        Ok(())
+    }
+
+    /// Publish a protobuf message wrapped in [`Envelope`].
+    pub fn publish<M: Message>(
+        &self,
+        topic: &str,
+        source_node: &str,
+        message_type: &str,
+        message: &M,
+    ) -> Result<(), BusError> {
+        let payload = message.encode_to_vec();
+        let envelope = Envelope {
+            timestamp_ms: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis() as u64)
+                .unwrap_or(0),
+            source_node: source_node.to_string(),
+            message_type: message_type.to_string(),
+            payload,
+        };
+        self.publish_bytes(topic, envelope.encode_to_vec())
+    }
+
+    /// Subscribe to a topic (receive encoded `Envelope` bytes).
+    pub fn subscribe(&self, topic: &str) -> broadcast::Receiver<Vec<u8>> {
+        self.sender(topic).subscribe()
+    }
+
+    /// Decode the next envelope from a subscription.
+    pub async fn recv_envelope(rx: &mut broadcast::Receiver<Vec<u8>>) -> Result<Envelope, BusError> {
+        let bytes = rx.recv().await.map_err(|e| BusError::Decode(e.to_string()))?;
+        Envelope::decode(bytes.as_slice()).map_err(|e| BusError::Decode(e.to_string()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::expect_used)]
+
+    use armee_proto::{Heartbeat, prost::Message};
+
+    use super::*;
+
+    #[tokio::test]
+    async fn robot_state_over_chappe_matches_wire_contract() {
+        use armee_proto::{JointState, RobotState};
+
+        let bus = Bus::default();
+        let mut rx = bus.subscribe("state");
+        bus.publish(
+            "state",
+            "sim",
+            "marengo.v1.RobotState",
+            &RobotState {
+                timestamp_ms: 9,
+                joints: vec![JointState {
+                    name: "joint1".to_string(),
+                    position: 0.0,
+                    velocity: 0.0,
+                    effort: 0.0,
+                }],
+            },
+        )
+        .expect("publish");
+        let env = Bus::recv_envelope(&mut rx).await.expect("recv");
+        let state = RobotState::decode(env.payload.as_slice()).expect("robot state");
+        assert_eq!(state.joints.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn publish_subscribe_envelope() {
+        let bus = Bus::default();
+        let mut rx = bus.subscribe("telemetry");
+        bus.publish(
+            "telemetry",
+            "test",
+            "marengo.v1.Heartbeat",
+            &Heartbeat {
+                timestamp_ms: 1,
+                node_id: "probe".to_string(),
+            },
+        )
+        .expect("publish");
+        let env = Bus::recv_envelope(&mut rx).await.expect("recv");
+        assert_eq!(env.message_type, "marengo.v1.Heartbeat");
+        let hb = Heartbeat::decode(env.payload.as_slice()).expect("inner");
+        assert_eq!(hb.node_id, "probe");
+    }
+}

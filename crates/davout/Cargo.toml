@@ -12,5 +12,8 @@ workspace = true
 
 [dependencies]
 armee-kinematics.workspace = true
+marengo-config.workspace = true
+robstride.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
+urdf-rs.workspace = true

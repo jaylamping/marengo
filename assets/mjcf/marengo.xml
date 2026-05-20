@@ -1,0 +1,16 @@
+<mujoco model="marengo">
+  <option timestep="0.002" gravity="0 0 -9.81"/>
+  <worldbody>
+    <body name="base_link" pos="0 0 0">
+      <geom type="box" size="0.05 0.05 0.02" mass="1"/>
+      <body name="link1" pos="0 0 0.1">
+        <joint name="joint1" type="hinge" axis="0 0 1" range="-1.57 1.57" damping="0.1"/>
+        <geom type="capsule" fromto="0 0 0 0.2 0 0" size="0.02" mass="0.5"/>
+        <body name="link2" pos="0.2 0 0">
+          <joint name="joint2" type="hinge" axis="0 0 1" range="-1.0 1.0" damping="0.1"/>
+          <geom type="capsule" fromto="0 0 0 0.15 0 0" size="0.015" mass="0.25"/>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+</mujoco>

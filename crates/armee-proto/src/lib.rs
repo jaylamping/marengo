@@ -11,7 +11,10 @@ mod tests {
     #![allow(clippy::expect_used)]
 
     use super::prost::Message;
-    use super::{Envelope, Heartbeat, JointState, RobotState};
+    use super::{
+        EnableRequest, Envelope, Fault, FaultSeverity, Heartbeat, JointState, OperationalMode,
+        RobotState, SafetyState,
+    };
 
     #[test]
     fn heartbeat_roundtrip() {
@@ -40,6 +43,38 @@ mod tests {
         let decoded = RobotState::decode(bytes.as_slice()).expect("decode");
         assert_eq!(decoded.joints.len(), 1);
         assert!((decoded.joints[0].position - 0.1).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn safety_state_roundtrip() {
+        let msg = SafetyState {
+            timestamp_ms: 1,
+            mode: OperationalMode::Ready as i32,
+            hardware_estop_asserted: false,
+            software_estop_latched: false,
+            active_faults: vec![Fault {
+                code: "LIMIT".to_string(),
+                message: "test".to_string(),
+                severity: FaultSeverity::Warning as i32,
+                joint: "joint1".to_string(),
+            }],
+        };
+        let bytes = msg.encode_to_vec();
+        let decoded = SafetyState::decode(bytes.as_slice()).expect("decode");
+        assert_eq!(decoded.mode, OperationalMode::Ready as i32);
+        assert_eq!(decoded.active_faults.len(), 1);
+    }
+
+    #[test]
+    fn enable_request_roundtrip() {
+        let msg = EnableRequest {
+            timestamp_ms: 2,
+            operator_id: "bench".to_string(),
+            enable: true,
+        };
+        let bytes = msg.encode_to_vec();
+        let decoded = EnableRequest::decode(bytes.as_slice()).expect("decode");
+        assert!(decoded.enable);
     }
 
     #[test]

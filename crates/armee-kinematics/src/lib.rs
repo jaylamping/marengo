@@ -15,6 +15,10 @@ pub enum UrdfError {
 pub mod fixtures {
     use super::PathBuf;
 
+    fn repo_root() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+    }
+
     /// Minimal 2-DOF URDF used in CI (not the production Marengo model).
     pub fn minimal_urdf() -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../sim/fixtures/minimal.urdf")
@@ -24,6 +28,52 @@ pub mod fixtures {
     pub fn minimal_mjcf() -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../sim/fixtures/minimal.xml")
     }
+
+    /// Production Marengo URDF (`assets/urdf/marengo.urdf`).
+    pub fn production_urdf() -> PathBuf {
+        repo_root().join("assets/urdf/marengo.urdf")
+    }
+
+    /// Production Marengo MJCF (`assets/mjcf/marengo.xml`).
+    pub fn production_mjcf() -> PathBuf {
+        repo_root().join("assets/mjcf/marengo.xml")
+    }
+}
+
+/// Position limits for a revolute/prismatic joint (radians or meters).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct JointLimits {
+    pub lower: f64,
+    pub upper: f64,
+    pub velocity: f64,
+    pub effort: f64,
+}
+
+/// Limits for a named joint; errors if joint is missing or not actuated.
+pub fn joint_limits(robot: &urdf_rs::Robot, name: &str) -> Result<JointLimits, UrdfError> {
+    let joint = robot
+        .joints
+        .iter()
+        .find(|j| j.name == name)
+        .ok_or_else(|| UrdfError::Read {
+            path: name.to_string(),
+            message: "joint not found".to_string(),
+        })?;
+    if !matches!(
+        joint.joint_type,
+        JointType::Revolute | JointType::Continuous | JointType::Prismatic
+    ) {
+        return Err(UrdfError::Read {
+            path: name.to_string(),
+            message: "joint is not actuated".to_string(),
+        });
+    }
+    Ok(JointLimits {
+        lower: joint.limit.lower,
+        upper: joint.limit.upper,
+        velocity: joint.limit.velocity,
+        effort: joint.limit.effort,
+    })
 }
 
 /// Load and parse a URDF file.
@@ -65,6 +115,13 @@ mod tests {
     fn loads_minimal_fixture() {
         let robot = load_urdf(fixtures::minimal_urdf()).expect("parse");
         assert_eq!(joint_entry_count(&robot), 2);
+        assert_eq!(actuated_joint_count(&robot), 2);
+    }
+
+    #[test]
+    fn loads_production_urdf() {
+        let path = fixtures::production_urdf();
+        let robot = load_urdf(&path).expect("production urdf");
         assert_eq!(actuated_joint_count(&robot), 2);
     }
 

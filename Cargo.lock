@@ -46,6 +46,7 @@ dependencies = [
  "armee-kinematics",
  "armee-proto",
  "chappe",
+ "davout",
  "thiserror 1.0.69",
  "tracing",
 ]
@@ -85,6 +86,7 @@ name = "chappe"
 version = "0.1.0"
 dependencies = [
  "armee-proto",
+ "thiserror 1.0.69",
  "tokio",
  "tracing",
 ]
@@ -94,8 +96,11 @@ name = "davout"
 version = "0.1.0"
 dependencies = [
  "armee-kinematics",
+ "marengo-config",
+ "robstride",
  "thiserror 1.0.69",
  "tracing",
+ "urdf-rs",
 ]
 
 [[package]]
@@ -362,6 +367,8 @@ dependencies = [
 name = "motor-repl"
 version = "0.1.0"
 dependencies = [
+ "davout",
+ "marengo-config",
  "marengo-support",
  "robstride",
  "tracing",

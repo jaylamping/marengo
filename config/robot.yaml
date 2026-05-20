@@ -2,3 +2,10 @@
 robot:
   name: marengo
   urdf: assets/urdf/marengo.urdf
+  # Bench caps apply when safety mode is Bench (see davout). Production limits come from URDF + motors.yaml.
+  bench:
+    max_joint_velocity_rad_s: 0.5
+    max_joint_torque_nm: 2.0
+  joints:
+    - joint1
+    - joint2
