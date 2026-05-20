@@ -1,0 +1,4 @@
+# Robot runtime parameters (prototype — prefer DB-backed config long term)
+robot:
+  name: marengo
+  urdf: assets/urdf/marengo.urdf

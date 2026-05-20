@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package marengo.v1;
+
+// Shared envelope metadata for Chappe topics (payload follows as encoded sub-message).
+message Envelope {
+  uint64 timestamp_ms = 1;
+  string source_node = 2;
+  string message_type = 3; // fully-qualified proto message name
+  bytes payload = 4;
+}
+
+message Heartbeat {
+  uint64 timestamp_ms = 1;
+  string node_id = 2;
+}
+
+message JointState {
+  string name = 1;
+  double position = 2;
+  double velocity = 3;
+  double effort = 4;
+}
+
+message RobotState {
+  uint64 timestamp_ms = 1;
+  repeated JointState joints = 2;
+}

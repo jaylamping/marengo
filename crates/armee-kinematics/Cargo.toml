@@ -1,0 +1,11 @@
+[package]
+name = "armee-kinematics"
+version = "0.1.0"
+description = "Kinematics and transforms derived from Marengo URDF"
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+thiserror.workspace = true

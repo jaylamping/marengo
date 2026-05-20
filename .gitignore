@@ -1,0 +1,22 @@
+/target/
+**/*.rs.bk
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/
+*.local
+
+# KiCad / fab artifacts (regenerate locally)
+hardware/electrical/**/gerbers/
+hardware/electrical/**/fp-info-cache
+hardware/electrical/**/-backups/
+
+# Frontend
+consul/node_modules/
+consul/dist/
+consul/src/gen/
+
+# Local secrets / overrides
+.env
+*.pem

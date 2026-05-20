@@ -1,0 +1,20 @@
+{
+  "name": "consul",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "gen:proto": "buf generate --template buf.gen.yaml ../proto",
+    "prebuild": "npm run gen:proto",
+    "predev": "npm run gen:proto",
+    "build": "tsc --noEmit",
+    "dev": "echo \"Vite app scaffold TBD\""
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "^2.2.3"
+  },
+  "devDependencies": {
+    "@bufbuild/buf": "^1.47.2",
+    "@bufbuild/protoc-gen-es": "^2.2.3",
+    "typescript": "^5.7.2"
+  }
+}

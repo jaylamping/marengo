@@ -1,0 +1,20 @@
+[package]
+name = "marengo-jetson"
+version = "0.1.0"
+description = "Marengo runtime on Jetson"
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license = "MIT OR Apache-2.0"
+
+[[bin]]
+name = "marengo-jetson"
+path = "src/main.rs"
+
+[dependencies]
+chappe = { path = "../../crates/chappe" }
+fouche = { path = "../../crates/fouche" }
+talleyrand = { path = "../../crates/talleyrand" }
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber = "0.3"

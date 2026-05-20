@@ -1,0 +1,15 @@
+[package]
+name = "berthier"
+version = "0.1.0"
+description = "Realtime control stack for Marengo (Berthier)"
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+armee-proto.workspace = true
+armee-kinematics.workspace = true
+chappe.workspace = true
+thiserror.workspace = true
+tracing.workspace = true

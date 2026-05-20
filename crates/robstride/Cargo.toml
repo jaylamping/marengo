@@ -1,0 +1,12 @@
+[package]
+name = "robstride"
+version = "0.1.0"
+description = "Robstride actuator driver (CAN)"
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+thiserror.workspace = true
+tracing.workspace = true

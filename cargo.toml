@@ -20,12 +20,20 @@ members = [
 edition = "2021"
 rust-version = "1.75"
 authors = ["Joey Lamping"]
+license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 thiserror = "1"
 tracing = "0.1"
+prost = "0.13"
+prost-build = "0.13"
 armee-proto = { path = "crates/armee-proto" }
 armee-kinematics = { path = "crates/armee-kinematics" }
 chappe = { path = "crates/chappe" }
+berthier = { path = "crates/berthier" }
+davout = { path = "crates/davout" }
+talleyrand = { path = "crates/talleyrand" }
+fouche = { path = "crates/fouche" }
+robstride = { path = "crates/robstride" }

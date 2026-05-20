@@ -1,0 +1,14 @@
+[package]
+name = "talleyrand"
+version = "0.1.0"
+description = "Motion planning for Marengo (Talleyrand)"
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+armee-kinematics.workspace = true
+armee-proto.workspace = true
+thiserror.workspace = true
+tracing.workspace = true

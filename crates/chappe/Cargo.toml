@@ -1,0 +1,13 @@
+[package]
+name = "chappe"
+version = "0.1.0"
+description = "Message bus for Marengo (Chappe)"
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+armee-proto.workspace = true
+tokio.workspace = true
+tracing.workspace = true

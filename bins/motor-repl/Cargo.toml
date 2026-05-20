@@ -1,0 +1,15 @@
+[package]
+name = "motor-repl"
+version = "0.1.0"
+description = "Interactive motor exercise REPL"
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license = "MIT OR Apache-2.0"
+
+[[bin]]
+name = "motor-repl"
+path = "src/main.rs"
+
+[dependencies]
+robstride = { path = "../../crates/robstride" }

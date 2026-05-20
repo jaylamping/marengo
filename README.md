@@ -1,99 +1,104 @@
-# marengo
+# Marengo
 
+Personal humanoid robot: one repo for how it is built and how it runs. Mechanical and electrical design (CAD, kinematics, URDF, wiring) and the Rust runtime share the same model of the machine—hardware truth upstream, control, planning, safety, and operator tooling downstream.
+
+## Naming
+
+| Name | Role |
+|------|------|
+| **Marengo** | The robot (mechanical + electrical design, URDF, runtime) |
+| **Armée** | Rust workspace — shared types, kinematics, crates |
+| **Chappe** | Message bus between processes |
+| **Berthier** | Realtime control |
+| **Davout** | Safety supervision |
+| **Talleyrand** | Motion planning |
+| **Consul** | Web frontend |
+| **Fouché** | Jetson-side vision and LLM |
+
+Supporting crates: `armee-proto` (protobuf codegen), `armee-kinematics`, `robstride` (CAN driver). Wire schemas: [`proto/`](proto/). See [docs/architecture.md](docs/architecture.md) and [ADR 0001](docs/decisions/0001-protobuf-wire-types.md).
+
+## Repository layout
+
+```
 marengo/
-├── Cargo.toml # workspace root, "armee"
-├── README.md
-├── .gitattributes # Git LFS rules
-├── .gitignore
-├── rust-toolchain.toml
-│
-├── hardware/ # PHYSICAL ROBOT — first-class citizen
-│ ├── README.md # Hardware overview, current revision
-│ ├── cad/
-│ │ ├── parts/ # SolidWorks parts (.sldprt) — LFS
-│ │ │ ├── shoulder/
-│ │ │ │ ├── shoulder_housing.sldprt
-│ │ │ │ ├── l_bracket_top.sldprt
-│ │ │ │ └── …
-│ │ │ ├── torso/
-│ │ │ ├── arm/
-│ │ │ └── head/
-│ │ ├── assemblies/ # SolidWorks assemblies (.sldasm) — LFS
-│ │ │ ├── marengo.sldasm # Top-level full robot
-│ │ │ ├── shoulder.sldasm
-│ │ │ └── arm.sldasm
-│ │ ├── drawings/ # .slddrw + exported PDFs
-│ │ └── vendor/ # Vendor-supplied CAD (.stp/.step) — LFS
-│ │ ├── robstride/ # RS03.stp, RS01.stp
-│ │ ├── moteus/
-│ │ └── extrusions/ # 2020 profile, Mankk brackets
-│ │
-│ ├── electrical/
-│ │ ├── pdb/ # Power Distribution Board v1.2
-│ │ │ ├── schematic/ # KiCad schematic
-│ │ │ ├── pcb/ # KiCad PCB layout
-│ │ │ ├── gerbers/ # Fab outputs (or .gitignored, regenerated)
-│ │ │ ├── bom.csv # PDB-specific BOM
-│ │ │ └── README.md # Component groups, design notes
-│ │ ├── wiring/
-│ │ │ ├── harness.md # Wire gauges, lengths, runs
-│ │ │ ├── can_topology.md # CAN1 (RS03) and CAN2 (Moteus) layout
-│ │ │ └── connectors.md # XT30, JST, etc.
-│ │ └── README.md
-│ │
-│ ├── prints/ # 3D print outputs and slicer notes
-│ │ ├── stl/ # Source STLs ready for slicing
-│ │ └── slicing.md # Material (PETG), infill, orientation per part
-│ │
-│ ├── bom/ # Overall BOM across mechanical + electrical
-│ │ ├── master-bom.csv
-│ │ └── vendor-sourcing.md # Multi-vendor options per part
-│ │
-│ └── docs/
-│ ├── kinematics.md # Joint ranges, axes, transforms — single source of truth
-│ ├── assembly.md # How to physically build it (this may never get updated/written)
-│ └── decisions/ # Hardware ADRs (separate from software ones)
-│
-├── assets/ # DERIVED FROM hardware/, CONSUMED BY SOFTWARE
-│ ├── urdf/
-│ │ └── marengo.urdf # Exported via SW-to-URDF (Brawner's add-in)
-│ └── meshes/
-│ ├── visual/ # High-poly STL for Consul + sim display
-│ └── collision/ # Decimated STL (MeshLab/Blender) for sim
-│
-├── crates/ # Rust libraries
-│ ├── armee-proto/
-│ ├── armee-kinematics/
-│ ├── chappe/
-│ ├── berthier/
-│ ├── davout/
-│ ├── talleyrand/
-│ ├── fouche/
-│ └── robstride/
-│
-├── bins/ # Rust binaries
-│ ├── marengo-pi/
-│ ├── marengo-jetson/
-│ ├── probe/
-│ ├── motor-repl/
-│ └── wave-demo/
-│
-├── consul/ # Frontend (Vite + React + TS)
-│
-├── models/ # ONNX policies — Git LFS
-├── config/ # Configuration files for the robot (Will actually probably want to implement in a db, i really don't like mutable yaml files)
-│ ├── robot.yaml
-│ └── network.yaml
-│
-├── docs/ # Software-level docs
-│ ├── architecture.md
-│ └── decisions/ # Software ADRs
-│
-├── scripts/
-│ ├── deploy-pi.sh
-│ ├── deploy-jetson.sh
-│ └── export-urdf.sh # Runs SW exporter, decimates meshes, updates assets/
-│
-└── .github/workflows/
-├── ci.yml
-└── deploy.yml
+├── Cargo.toml              # Armée workspace root
+├── proto/                  # Wire-type source of truth (protobuf)
+├── hardware/               # Physical robot — source of truth
+│   ├── cad/                # SolidWorks + vendor STEP (Git LFS)
+│   ├── electrical/         # PDB, harness, CAN docs
+│   ├── prints/             # STLs + slicer notes
+│   ├── bom/                # Master BOM
+│   └── docs/               # Kinematics, assembly, hardware ADRs
+├── assets/                 # Derived from hardware → consumed by software
+│   ├── urdf/marengo.urdf   # SW → URDF export
+│   └── meshes/             # visual/ + collision/
+├── crates/                 # Armée libraries (each has a README)
+├── bins/                   # Pi / Jetson runtimes and dev tools
+├── consul/                 # Frontend (Vite + React + TS)
+├── models/                 # ONNX policies (Git LFS)
+├── config/                 # Prototype YAML (DB-backed config later)
+├── docs/                   # Software architecture + ADRs
+└── scripts/                # URDF export, deploy helpers
+```
+
+Large binaries (CAD, STL, ONNX) are tracked with **Git LFS** — see [.gitattributes](.gitattributes).
+
+## Software
+
+### Crates (`crates/`)
+
+| Crate | Codename | README |
+|-------|----------|--------|
+| `armee-proto` | Armée | [crates/armee-proto/README.md](crates/armee-proto/README.md) |
+| `armee-kinematics` | Armée | [crates/armee-kinematics/README.md](crates/armee-kinematics/README.md) |
+| `chappe` | Chappe | [crates/chappe/README.md](crates/chappe/README.md) |
+| `berthier` | Berthier | [crates/berthier/README.md](crates/berthier/README.md) |
+| `davout` | Davout | [crates/davout/README.md](crates/davout/README.md) |
+| `talleyrand` | Talleyrand | [crates/talleyrand/README.md](crates/talleyrand/README.md) |
+| `fouche` | Fouché | [crates/fouche/README.md](crates/fouche/README.md) |
+| `robstride` | — | [crates/robstride/README.md](crates/robstride/README.md) |
+
+### Binaries (`bins/`)
+
+| Binary | Host | Purpose |
+|--------|------|---------|
+| `marengo-pi` | Raspberry Pi | Control, CAN, Chappe |
+| `marengo-jetson` | Jetson | Planner, Fouché, Chappe |
+| `probe` | Dev | Bus / diagnostics |
+| `motor-repl` | Dev | Interactive motor exercise |
+| `wave-demo` | Dev | Demo trajectories |
+
+### Frontend
+
+[consul/](consul/) — operator UI and URDF visualization.
+
+## Hardware workflow
+
+1. Design in `hardware/cad/` (assemblies: `marengo.sldasm`, sub-assemblies per limb).
+2. Document limits and frames in [hardware/docs/kinematics.md](hardware/docs/kinematics.md).
+3. Export URDF and meshes: `./scripts/export-urdf.sh` → `assets/`.
+4. Wire and CAN: [hardware/electrical/wiring/](hardware/electrical/wiring/).
+
+Vendor CAD (Robstride, Moteus, extrusions) lives under `hardware/cad/vendor/`.
+
+## Build
+
+Install tooling first: [`protoc`](https://grpc.io/docs/protoc-installation/) and [`buf`](https://buf.build/docs/installation) — see [docs/dev-setup.md](docs/dev-setup.md).
+
+```bash
+rustup toolchain install stable
+cargo build --workspace
+cargo test --workspace
+
+cd consul && npm install && npm run gen:proto
+```
+
+Deploy helpers (stubs): `scripts/deploy-pi.sh`, `scripts/deploy-jetson.sh`.
+
+## CI
+
+GitHub Actions: format, clippy, and tests on push/PR ([.github/workflows/ci.yml](.github/workflows/ci.yml)).
+
+## License
+
+MIT OR Apache-2.0 (see crate manifests).

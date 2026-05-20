@@ -1,0 +1,14 @@
+[package]
+name = "armee-proto"
+version = "0.1.0"
+description = "Protobuf wire types for Marengo (generated from proto/)"
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+prost.workspace = true
+
+[build-dependencies]
+prost-build.workspace = true
