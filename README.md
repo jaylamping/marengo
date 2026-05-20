@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/portraits/marengo.jpg" alt="Jacques-Louis David, Napoleon crossing the Alps on Marengo" width="480"/>
+</p>
+
 # Marengo
 
 Personal humanoid robot: one repo for how it is built and how it runs. Mechanical and electrical design (CAD, kinematics, URDF, wiring) and the Rust runtime share the same model of the machine—hardware truth upstream, control, planning, safety, and operator tooling downstream.

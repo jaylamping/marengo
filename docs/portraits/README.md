@@ -4,6 +4,7 @@ Images at the top of subsystem READMEs (public domain or Wikimedia Commons). Sou
 
 | File | Subject | Source |
 |------|---------|--------|
+| `marengo.jpg` | Napoleon crossing the Alps (horse: Marengo) | [Commons](https://commons.wikimedia.org/wiki/File:David_-_Napoleon_crossing_the_Alps_-_Malmaison2.jpg) — Jacques-Louis David, Château de Malmaison |
 | `berthier.jpg` | Louis-Alexandre Berthier | [Commons](https://commons.wikimedia.org/wiki/File:Louis-Alexandre_Berthier.png) |
 | `davout.jpg` | Louis-Nicolas Davout | [Commons](https://commons.wikimedia.org/wiki/File:Louis-Nicolas_Davout.jpg) |
 | `talleyrand.jpg` | Charles-Maurice de Talleyrand | [Commons](https://commons.wikimedia.org/wiki/File:Talleyrand_Prudhon.jpg) |
