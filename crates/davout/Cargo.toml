@@ -1,14 +1,16 @@
 [package]
 name = "davout"
 version = "0.1.0"
-description = "Safety supervision for Marengo (Davout)"
+description = "Safety supervision for Marengo"
 edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
-license = "MIT OR Apache-2.0"
+license.workspace = true
+
+[lints]
+workspace = true
 
 [dependencies]
 armee-kinematics.workspace = true
-armee-proto.workspace = true
 thiserror.workspace = true
 tracing.workspace = true

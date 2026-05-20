@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
+# Validate sim fixtures and config via Rust tests (URDF parse + URDF/MJCF DOF parity).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-FIXTURE="${ROOT}/sim/fixtures/minimal.urdf"
-if [[ ! -f "${FIXTURE}" ]]; then
-  echo "validate-urdf: missing ${FIXTURE}" >&2
-  exit 1
-fi
-if ! grep -q '<robot' "${FIXTURE}"; then
-  echo "validate-urdf: invalid fixture" >&2
-  exit 1
-fi
-echo "validate-urdf: ok (${FIXTURE})"
+cd "${ROOT}"
+
+cargo test -p armee-kinematics --quiet
+cargo test -p sim-harness --quiet
+cargo test -p marengo-config --quiet
+
+echo "validate-fixtures: ok"

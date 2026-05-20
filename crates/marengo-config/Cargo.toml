@@ -1,7 +1,7 @@
 [package]
-name = "talleyrand"
+name = "marengo-config"
 version = "0.1.0"
-description = "Motion planning for Marengo"
+description = "Load and validate Marengo YAML configuration"
 edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
@@ -11,6 +11,6 @@ license.workspace = true
 workspace = true
 
 [dependencies]
-armee-kinematics.workspace = true
+serde.workspace = true
+serde_yaml = "0.9"
 thiserror.workspace = true
-tracing.workspace = true

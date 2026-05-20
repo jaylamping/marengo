@@ -12,5 +12,5 @@ Read [AGENTS.md](../../AGENTS.md) and [docs/rust-patterns.md](../../docs/rust-pa
 - Never edit `consul/src/gen/` by hand.
 - Libraries: `thiserror` + `?`; no `unwrap` in `crates/`.
 - Motor path: Berthier → Davout → robstride; see `docs/safety.md`.
-- `#![forbid(unsafe_code)]` unless an ADR allows otherwise.
+- Use `marengo_support::init_tracing()` in bins; workspace lints forbid `unsafe` unless an ADR allows otherwise.
 - Tests must not require hardware in default `cargo test`.

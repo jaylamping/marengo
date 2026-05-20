@@ -5,7 +5,10 @@ description = "Demo trajectory / wave motion"
 edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
-license = "MIT OR Apache-2.0"
+license.workspace = true
+
+[lints]
+workspace = true
 
 [[bin]]
 name = "wave-demo"
@@ -13,3 +16,5 @@ path = "src/main.rs"
 
 [dependencies]
 berthier = { path = "../../crates/berthier" }
+marengo-support.workspace = true
+tracing.workspace = true

@@ -5,7 +5,10 @@ description = "Kinematics and transforms derived from Marengo URDF"
 edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
-license = "MIT OR Apache-2.0"
+license.workspace = true
+
+[lints]
+workspace = true
 
 [dependencies]
 thiserror.workspace = true

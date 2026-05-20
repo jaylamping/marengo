@@ -5,11 +5,16 @@ description = "Interactive motor exercise REPL"
 edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
-license = "MIT OR Apache-2.0"
+license.workspace = true
+
+[lints]
+workspace = true
 
 [[bin]]
 name = "motor-repl"
 path = "src/main.rs"
 
 [dependencies]
+marengo-support.workspace = true
 robstride = { path = "../../crates/robstride" }
+tracing.workspace = true

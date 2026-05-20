@@ -5,13 +5,15 @@ description = "Diagnostics and bus probing for Marengo"
 edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
-license = "MIT OR Apache-2.0"
+license.workspace = true
+
+[lints]
+workspace = true
 
 [[bin]]
 name = "probe"
 path = "src/main.rs"
 
 [dependencies]
-chappe = { path = "../../crates/chappe" }
+marengo-support.workspace = true
 tracing.workspace = true
-tracing-subscriber = { workspace = true, features = ["env-filter"] }

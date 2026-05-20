@@ -1,7 +1,7 @@
 [package]
-name = "talleyrand"
+name = "marengo-support"
 version = "0.1.0"
-description = "Motion planning for Marengo"
+description = "Shared runtime helpers for Marengo binaries"
 edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
@@ -11,6 +11,4 @@ license.workspace = true
 workspace = true
 
 [dependencies]
-armee-kinematics.workspace = true
-thiserror.workspace = true
-tracing.workspace = true
+tracing-subscriber.workspace = true

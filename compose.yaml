@@ -40,7 +40,7 @@ services:
     working_dir: /workspace
     volumes:
       - .:/workspace
-    command: ["./scripts/vcan-up.sh"]
+    command: ["bash", "-c", "./scripts/vcan-up.sh && exec sleep infinity"]
     restart: unless-stopped
 
   check-vcan:

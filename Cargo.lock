@@ -94,7 +94,6 @@ name = "davout"
 version = "0.1.0"
 dependencies = [
  "armee-kinematics",
- "armee-proto",
  "thiserror 1.0.69",
  "tracing",
 ]
@@ -152,8 +151,7 @@ checksum = "d9c4f5dac5e15c24eb999c26181a6ca40b39fe946cbe4c263c7209467bc83af2"
 name = "fouche"
 version = "0.1.0"
 dependencies = [
- "armee-proto",
- "chappe",
+ "thiserror 1.0.69",
  "tracing",
 ]
 
@@ -285,15 +283,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5e5032e24019045c762d3c0f28f5b6b8bbf38563a65908389bf7978758920897"
 
 [[package]]
+name = "marengo-config"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_yaml",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "marengo-jetson"
 version = "0.1.0"
 dependencies = [
  "chappe",
  "fouche",
+ "marengo-support",
  "talleyrand",
  "tokio",
  "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]
@@ -303,9 +310,16 @@ dependencies = [
  "berthier",
  "chappe",
  "davout",
+ "marengo-support",
  "robstride",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "marengo-support"
+version = "0.1.0"
+dependencies = [
  "tracing-subscriber",
 ]
 
@@ -348,7 +362,9 @@ dependencies = [
 name = "motor-repl"
 version = "0.1.0"
 dependencies = [
+ "marengo-support",
  "robstride",
+ "tracing",
 ]
 
 [[package]]
@@ -469,9 +485,8 @@ dependencies = [
 name = "probe"
 version = "0.1.0"
 dependencies = [
- "chappe",
+ "marengo-support",
  "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]
@@ -611,6 +626,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ryu"
+version = "1.0.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
+
+[[package]]
 name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -663,6 +684,19 @@ dependencies = [
  "serde",
  "serde_core",
  "zmij",
+]
+
+[[package]]
+name = "serde_yaml"
+version = "0.9.34+deprecated"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a8b1a1a2ebf674015cc02edccce75287f1a0130d394307b36743c2f5d504b47"
+dependencies = [
+ "indexmap",
+ "itoa",
+ "ryu",
+ "serde",
+ "unsafe-libyaml",
 ]
 
 [[package]]
@@ -763,7 +797,6 @@ name = "talleyrand"
 version = "0.1.0"
 dependencies = [
  "armee-kinematics",
- "armee-proto",
  "thiserror 1.0.69",
  "tracing",
 ]
@@ -945,6 +978,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
 
 [[package]]
+name = "unsafe-libyaml"
+version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
+
+[[package]]
 name = "urdf-rs"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1027,6 +1066,8 @@ name = "wave-demo"
 version = "0.1.0"
 dependencies = [
  "berthier",
+ "marengo-support",
+ "tracing",
 ]
 
 [[package]]

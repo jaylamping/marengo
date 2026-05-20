@@ -11,18 +11,25 @@ if [[ ! -f "${GEN}" ]]; then
 fi
 
 ACTUAL="$(shasum -a 256 "${GEN}" | awk '{print $1}')"
-if [[ -f "${CHECKSUM_FILE}" ]]; then
-  EXPECTED="$(tr -d '[:space:]' < "${CHECKSUM_FILE}")"
-  if [[ "${ACTUAL}" != "${EXPECTED}" ]]; then
-    echo "proto-checksum: mismatch" >&2
-    echo "  expected: ${EXPECTED}" >&2
-    echo "  actual:   ${ACTUAL}" >&2
-    echo "  run: cd consul && npm run gen:proto && shasum -a 256 src/gen/marengo_pb.ts > src/gen/.checksum" >&2
+
+if [[ ! -f "${CHECKSUM_FILE}" ]]; then
+  if [[ "${CI:-}" == "true" ]]; then
+    echo "proto-checksum: missing ${CHECKSUM_FILE} — commit checksum after gen:proto" >&2
     exit 1
   fi
-  echo "proto-checksum: ok"
-else
-  echo "proto-checksum: no ${CHECKSUM_FILE} — writing checksum for first time"
+  echo "proto-checksum: no ${CHECKSUM_FILE} — writing checksum (local only)"
   mkdir -p "$(dirname "${CHECKSUM_FILE}")"
   echo "${ACTUAL}" > "${CHECKSUM_FILE}"
+  exit 0
 fi
+
+EXPECTED="$(tr -d '[:space:]' < "${CHECKSUM_FILE}")"
+if [[ "${ACTUAL}" != "${EXPECTED}" ]]; then
+  echo "proto-checksum: mismatch" >&2
+  echo "  expected: ${EXPECTED}" >&2
+  echo "  actual:   ${ACTUAL}" >&2
+  echo "  run: cd consul && npm run gen:proto && shasum -a 256 src/gen/marengo_pb.ts | awk '{print \$1}' > src/gen/.checksum" >&2
+  exit 1
+fi
+
+echo "proto-checksum: ok"

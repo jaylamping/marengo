@@ -1,3 +1,4 @@
 fn main() {
-    println!("wave-demo: motion demo scaffold");
+    marengo_support::init_tracing();
+    tracing::info!("wave-demo: motion demo scaffold");
 }

@@ -20,7 +20,8 @@ Short index — full rules live in linked docs.
 
 - Proto-first API changes under `proto/`.
 - Thin `bins/`, logic in `crates/`.
-- `#![forbid(unsafe_code)]` unless an ADR says otherwise.
+- Workspace forbids `unsafe` via `[workspace.lints]` unless an ADR says otherwise.
+- Call `marengo_support::init_tracing()` in bin `main`.
 - Update `docs/rust-patterns.md` when introducing a new recurring pattern.
 
 ## Environment

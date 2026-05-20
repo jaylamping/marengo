@@ -4,6 +4,11 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "${ROOT}"
 
+CI_MODE=false
+if [[ "${CI:-}" == "true" ]]; then
+  CI_MODE=true
+fi
+
 BUF="${ROOT}/consul/node_modules/.bin/buf"
 if [[ ! -x "${BUF}" ]]; then
   BUF="$(command -v buf || true)"
@@ -17,9 +22,10 @@ else
 fi
 
 echo "==> buf breaking (PR only)"
-if [[ -x "${BUF}" ]] && [[ "${CI:-}" == "true" ]] && [[ "${GITHUB_EVENT_NAME:-}" == "pull_request" ]]; then
-  "${BUF}" breaking proto --against "https://github.com/${GITHUB_REPOSITORY}.git#branch=main" || \
-    "${BUF}" breaking proto --against '.git#branch=main' || true
+if [[ -x "${BUF}" ]] && [[ "${CI_MODE}" == true ]] && [[ "${GITHUB_EVENT_NAME:-}" == "pull_request" ]]; then
+  if ! "${BUF}" breaking proto --against "https://github.com/${GITHUB_REPOSITORY}.git#branch=main"; then
+    "${BUF}" breaking proto --against '.git#branch=main'
+  fi
 fi
 
 echo "==> consul: npm ci, gen:proto, build, audit"
@@ -30,12 +36,14 @@ echo "==> consul: npm ci, gen:proto, build, audit"
   test -f src/gen/marengo_pb.ts
   "${ROOT}/scripts/proto-checksum.sh"
   npm run build
-  npm audit --audit-level=high || {
-    echo "warn: npm audit reported issues (review before release)"
-  }
+  if [[ "${CI_MODE}" == true ]]; then
+    npm audit --audit-level=high
+  else
+    npm audit --audit-level=high || echo "warn: npm audit reported issues (review before release)"
+  fi
 )
 
-echo "==> validate sim fixtures"
+echo "==> validate fixtures (URDF + MJCF)"
 "${ROOT}/scripts/validate-urdf.sh"
 
 echo "==> cargo fmt"
@@ -56,15 +64,23 @@ fi
 
 echo "==> cargo audit"
 if command -v cargo-audit >/dev/null 2>&1; then
-  cargo audit || echo "warn: cargo audit reported advisories"
+  if [[ "${CI_MODE}" == true ]]; then
+    cargo audit
+  else
+    cargo audit || echo "warn: cargo audit reported advisories"
+  fi
 else
   echo "warn: cargo-audit not installed, skipping"
 fi
 
 echo "==> cross-build smoke (aarch64)"
 if command -v aarch64-linux-gnu-gcc >/dev/null 2>&1; then
-  cargo build --workspace --release --target aarch64-unknown-linux-gnu -p marengo-pi -p probe || \
-    echo "warn: aarch64 cross-build failed (non-fatal locally)"
+  if [[ "${CI_MODE}" == true ]]; then
+    cargo build --workspace --release --target aarch64-unknown-linux-gnu -p marengo-pi -p probe
+  else
+    cargo build --workspace --release --target aarch64-unknown-linux-gnu -p marengo-pi -p probe || \
+      echo "warn: aarch64 cross-build failed (non-fatal locally)"
+  fi
 else
   echo "skip: aarch64-linux-gnu-gcc not found"
 fi

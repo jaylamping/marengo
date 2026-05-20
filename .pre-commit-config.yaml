@@ -1,3 +1,4 @@
+# Prefer running hooks inside the dev container: docker compose run --rm dev pre-commit run --all-files
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
@@ -12,14 +13,14 @@ repos:
     hooks:
       - id: cargo-fmt
         name: cargo fmt
-        entry: cargo fmt --all --
+        entry: bash -c 'command -v cargo >/dev/null && cargo fmt --all -- || docker compose run --rm dev cargo fmt --all --'
         language: system
         types: [rust]
         pass_filenames: false
 
       - id: buf-lint
         name: buf lint
-        entry: bash -c 'consul/node_modules/.bin/buf lint proto || buf lint proto'
+        entry: bash -c 'ROOT="$(git rev-parse --show-toplevel)"; BUF="$ROOT/consul/node_modules/.bin/buf"; if [[ -x "$BUF" ]]; then "$BUF" lint "$ROOT/proto"; elif command -v buf >/dev/null; then buf lint "$ROOT/proto"; else docker compose -f "$ROOT/compose.yaml" run --rm --no-TTY dev bash -c "cd consul && npm ci --silent && ./node_modules/.bin/buf lint ../proto"; fi'
         language: system
         files: \.proto$
         pass_filenames: false

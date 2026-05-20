@@ -1,6 +1,6 @@
 //! Marengo Jetson runtime: vision, planner, and Chappe bridge.
 
 fn main() {
-    tracing_subscriber::fmt::init();
+    marengo_support::init_tracing();
     tracing::info!("marengo-jetson starting (scaffold)");
 }

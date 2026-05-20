@@ -38,6 +38,7 @@
 | TypeScript errors in `consul/` | `cd consul && npm run gen:proto` — never hand-edit `src/gen/`. |
 | Rust build fails after `.proto` change | `cargo build -p armee-proto` regenerates via `prost-build`. |
 | Checksum mismatch in CI | Regenerate TS (`npm run gen:proto`) and update `consul/src/gen/.checksum`. |
+| Missing `.checksum` in CI | Run `npm run gen:proto` then `shasum -a 256 consul/src/gen/marengo_pb.ts \| awk '{print $1}' > consul/src/gen/.checksum` and commit. |
 
 ## Simulation
 

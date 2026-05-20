@@ -5,7 +5,10 @@ description = "Message bus for Marengo (Chappe)"
 edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
-license = "MIT OR Apache-2.0"
+license.workspace = true
+
+[lints]
+workspace = true
 
 [dependencies]
 armee-proto.workspace = true

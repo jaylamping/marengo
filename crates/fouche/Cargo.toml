@@ -1,13 +1,15 @@
 [package]
 name = "fouche"
 version = "0.1.0"
-description = "Jetson-side vision and LLM integration (Fouché)"
+description = "Vision and LLM integration (Jetson)"
 edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
-license = "MIT OR Apache-2.0"
+license.workspace = true
+
+[lints]
+workspace = true
 
 [dependencies]
-armee-proto.workspace = true
-chappe.workspace = true
+thiserror.workspace = true
 tracing.workspace = true

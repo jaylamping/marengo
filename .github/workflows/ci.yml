@@ -19,9 +19,6 @@ jobs:
       - name: Build dev image
         run: docker build -f docker/Dockerfile.dev -t marengo-dev:local .
 
-      - name: Tag sim base
-        run: docker tag marengo-dev:local marengo-dev:local
-
       - name: Run check.sh in container
         run: |
           docker run --rm \

@@ -5,7 +5,10 @@ description = "Marengo runtime on Raspberry Pi"
 edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
-license = "MIT OR Apache-2.0"
+license.workspace = true
+
+[lints]
+workspace = true
 
 [[bin]]
 name = "marengo-pi"
@@ -15,7 +18,7 @@ path = "src/main.rs"
 berthier = { path = "../../crates/berthier" }
 chappe = { path = "../../crates/chappe" }
 davout = { path = "../../crates/davout" }
+marengo-support.workspace = true
 robstride = { path = "../../crates/robstride" }
 tokio.workspace = true
 tracing.workspace = true
-tracing-subscriber = "0.3"

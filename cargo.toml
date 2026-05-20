@@ -4,6 +4,8 @@ members = [
     "crates/armee-proto",
     "crates/armee-kinematics",
     "crates/sim-harness",
+    "crates/marengo-support",
+    "crates/marengo-config",
     "crates/chappe",
     "crates/berthier",
     "crates/davout",
@@ -31,8 +33,10 @@ tracing = "0.1"
 prost = "0.13"
 prost-build = "0.13"
 urdf-rs = "0.8"
-anyhow = "1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+serde_yaml = "0.9"
+marengo-support = { path = "crates/marengo-support" }
+marengo-config = { path = "crates/marengo-config" }
 armee-proto = { path = "crates/armee-proto" }
 armee-kinematics = { path = "crates/armee-kinematics" }
 chappe = { path = "crates/chappe" }

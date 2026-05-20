@@ -1,7 +1,5 @@
 //! Robstride RS-series motor protocol over CAN.
 
-#![forbid(unsafe_code)]
-
 #[cfg(all(feature = "vcan", target_os = "linux"))]
 pub mod vcan {
     //! Virtual CAN helpers for bench tests.
@@ -12,12 +10,14 @@ pub mod vcan {
 
 #[cfg(all(feature = "vcan", target_os = "linux", test))]
 mod vcan_tests {
+    #![allow(clippy::expect_used)]
+
     use super::vcan::DEFAULT_INTERFACE;
+    use socketcan::{CanSocket, Socket};
 
     #[test]
     #[ignore = "requires vcan0 (docker compose --profile vcan)"]
     fn vcan0_exists() {
-        use socketcan::{CanSocket, Socket};
         let socket = CanSocket::open(DEFAULT_INTERFACE)
             .expect("open vcan0 — run scripts/vcan-up.sh or compose profile vcan");
         drop(socket);

@@ -1,3 +1,4 @@
 fn main() {
-    println!("motor-repl: interactive motor scaffold");
+    marengo_support::init_tracing();
+    tracing::info!("motor-repl: interactive motor scaffold");
 }

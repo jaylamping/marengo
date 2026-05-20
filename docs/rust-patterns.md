@@ -2,7 +2,9 @@
 
 North-star guide for humans and agents. When the same mistake appears twice, add a **BAD / GOOD** pair here.
 
-**Enforcement:** `just check`, workspace `[lints]`, and [AGENTS.md](../AGENTS.md).
+**Enforcement:** `just check`, `[lints] workspace = true` in each crate, and [AGENTS.md](../AGENTS.md).
+
+**Binaries:** call `marengo_support::init_tracing()` once at startup (respects `RUST_LOG`).
 
 ## 1. How to use this doc
 
@@ -83,7 +85,7 @@ See [safety.md](safety.md). No motor enable without Davout and an explicit state
 
 ## 9. Unsafe
 
-- `#![forbid(unsafe_code)]` on all crates unless an ADR documents an exception.
+- Workspace lint `unsafe_code = "forbid"` on all crates (see root `cargo.toml` `[workspace.lints]`) unless an ADR documents an exception.
 
 ## 10. Dependencies
 

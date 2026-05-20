@@ -2,14 +2,14 @@
 //!
 //! Do not hand-edit this crate — change `.proto` files and rebuild.
 
-#![forbid(unsafe_code)]
-
 include!(concat!(env!("OUT_DIR"), "/marengo.v1.rs"));
 
 pub use prost;
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::expect_used)]
+
     use super::prost::Message;
     use super::{Envelope, Heartbeat, JointState, RobotState};
 
