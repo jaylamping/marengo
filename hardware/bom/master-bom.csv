@@ -12,3 +12,5 @@ frame_2020_bottom_front_110,Torso bottom front rail 110mm,1,cut,,,Config L110
 frame_2020_bottom_rear_110,Torso bottom rear rail 110mm,1,cut,,,Config L110
 frame_2020_top_front_110,Torso top front rail 110mm,1,cut,,,Config L110
 frame_2020_top_rear_110,Torso top rear rail 110mm,1,cut,,,Config L110
+bracket_2028_corner,2028 corner bracket 2020 T-slot,16,cut,,,GrabCAD storm model; 8 cage corners × 2; purchase mankk B0FDKPLF8N
+stock_bracket_2028_corner_kit,mankk 2028 corner bracket kit (30 pc),1,Amazon,B0FDKPLF8N,Purchase only (not instanced)

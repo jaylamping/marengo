@@ -50,7 +50,7 @@ On `vendor_2020_black_extrusion.SLDPRT`:
 
 ## Brackets
 
-2020 T-slot (not V-Slot): 2028 corners (e.g. PETOX **B0BFRB35Z8**), M5 T-nuts, optional BLCCLOY **B08C9Q2TGW** 3-way.
+2020 T-slot (not V-Slot): 2028 corners — CAD [`GrabCAD storm bracket`](https://grabcad.com/library/aluminum-extrusion-corner-bracket-storm-1) → `vendor_2028_corner_bracket_vendor`; purchase mankk **B0FDKPLF8N** or PETOX **B0BFRB35Z8**. M5 T-nuts, optional BLCCLOY **B08C9Q2TGW** 3-way.
 
 ## URDF
 
