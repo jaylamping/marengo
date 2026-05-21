@@ -32,6 +32,7 @@ Short index — full rules live in linked docs.
 ## Architecture
 
 - [architecture.md](docs/architecture.md)
+- [roadmap.md](docs/roadmap.md) — full humanoid target; 4-DOF arm is current execution slice, not project scope
 - ADRs: [docs/decisions/](docs/decisions/)
 
 ## Simulation & CAN

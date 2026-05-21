@@ -19,7 +19,7 @@ Personal humanoid robot: one repo for how it is built and how it runs. Mechanica
 | **Consul** | Web frontend |
 | **Fouché** | Jetson-side vision and LLM |
 
-Supporting crates: `armee-proto` (protobuf codegen), `armee-kinematics`, `robstride` (CAN driver). Wire schemas: [`proto/`](proto/). See [docs/architecture.md](docs/architecture.md) and [ADR 0001](docs/decisions/0001-protobuf-wire-types.md).
+Supporting crates: `armee-proto` (protobuf codegen), `armee-kinematics`, `robstride` (CAN driver). Wire schemas: [`proto/`](proto/). See [docs/architecture.md](docs/architecture.md), [docs/roadmap.md](docs/roadmap.md) (humanoid milestones; arm is current bench slice), and [ADR 0001](docs/decisions/0001-protobuf-wire-types.md).
 
 ## Repository layout
 
@@ -78,7 +78,7 @@ Large binaries (CAD, STL, ONNX) are tracked with **Git LFS** — see [.gitattrib
 
 ## Hardware workflow
 
-1. Design in `hardware/cad/` (assemblies: `marengo.sldasm`, sub-assemblies per limb).
+1. Design in `hardware/cad/` (assemblies: `marengo.SLDASM`, sub-assemblies per limb).
 2. Document limits and frames in [hardware/docs/kinematics.md](hardware/docs/kinematics.md).
 3. Export URDF and meshes: `./scripts/export-urdf.sh` → `assets/`.
 4. Wire and CAN: [hardware/electrical/wiring/](hardware/electrical/wiring/).

@@ -5,9 +5,9 @@ Single source of truth for joint names, axes, limits, link dimensions, and actua
 | Model | URDF | Status |
 |-------|------|--------|
 | **Humanoid (target)** | [`assets/urdf/marengo.urdf`](../../assets/urdf/marengo.urdf) | CAD in progress — URDF placeholder until Brawner export |
-| **Arm (4 DOF, bring-up)** | [`assets/urdf/arm_4dof.urdf`](../../assets/urdf/arm_4dof.urdf) | First subsystem wired; maps to humanoid arm joints |
+| **Arm (4 DOF, bring-up)** | [`assets/urdf/arm_4dof.urdf`](../../assets/urdf/arm_4dof.urdf) | **Current bench slice** — same arm chain as humanoid; not a separate robot |
 
-Runtime config: [`config/robot_humanoid.yaml`](../../config/robot_humanoid.yaml) + [`config/motors_humanoid.yaml`](../../config/motors_humanoid.yaml) for the full body; [`config/robot.yaml`](../../config/robot.yaml) is the active bring-up config for the wired 4-DOF arm until remaining joints are commissioned.
+Runtime config: [`config/robot_humanoid.yaml`](../../config/robot_humanoid.yaml) + [`config/motors_humanoid.yaml`](../../config/motors_humanoid.yaml) for the full body; [`config/robot.yaml`](../../config/robot.yaml) is the active bring-up config for the wired 4-DOF arm until remaining joints are commissioned. Milestones: [`docs/roadmap.md`](../../docs/roadmap.md).
 
 ---
 

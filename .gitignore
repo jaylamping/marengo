@@ -1,6 +1,11 @@
 # SolidWorks editor lock files
 ~$*
 
+# CAD scratch copies (keep history in git, not duplicate assemblies)
+hardware/cad/**/*-OLD.*
+hardware/cad/**/*-OLD
+hardware/cad/**/*-BROKEN*
+
 /target/
 **/*.rs.bk
 .DS_Store

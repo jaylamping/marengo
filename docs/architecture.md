@@ -1,6 +1,6 @@
 # Architecture
 
-Marengo splits **hardware truth** (CAD, kinematics, wiring) from **software runtime** (Rust workspace **Armée**, message bus, control, safety, planning).
+Marengo splits **hardware truth** (CAD, kinematics, wiring) from **software runtime** (Rust workspace **Armée**, message bus, control, safety, planning). Product scope and milestone order: [roadmap.md](roadmap.md).
 
 Wire types are defined once in [`proto/`](../proto/) as **Protocol Buffers** and generated into Rust ([`armee-proto`](../crates/armee-proto/)) and TypeScript ([`consul/src/gen/`](../consul/)). See [ADR 0001](decisions/0001-protobuf-wire-types.md).
 

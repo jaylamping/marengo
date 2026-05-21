@@ -6,7 +6,7 @@ SolidWorks source of truth lives under [`hardware/cad/`](../cad/). Manifests in 
 
 | Path | Purpose |
 |------|---------|
-| `hardware/cad/assemblies/` | Root `marengo.sldasm` and limb sub-assemblies |
+| `hardware/cad/assemblies/` | Root `marengo.SLDASM` and limb sub-assemblies |
 | `hardware/cad/parts/` | Marengo-authored `.SLDPRT` by subsystem |
 | `hardware/cad/vendor/` | Immutable vendor STEP and imported `.SLDPRT` |
 | `hardware/cad/exports/` | Neutral STEP/STL from MCP `solidworks_export` (optional mirror of `assets/`) |
@@ -58,7 +58,7 @@ Place fasteners, inserts, and purchased hardware under a top-level feature folde
 
 ## Export to URDF (manual)
 
-1. Model in SolidWorks under `hardware/cad/assemblies/marengo.sldasm`.
+1. Model in SolidWorks under `hardware/cad/assemblies/marengo.SLDASM`.
 2. Run MCP `marengo_urdf_readiness` and `marengo_kinematics_consistency`.
 3. Export with **Brawner** / sw2urdf to [`assets/urdf/marengo.urdf`](../../assets/urdf/marengo.urdf).
 4. Run MCP `marengo_urdf_export_postcheck`.
