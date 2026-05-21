@@ -88,6 +88,8 @@ Single aluminum cage, CAD name target: `marengo_upper_torso_frame`.
 
 **Layout part next steps:** model committed box + waist bay + draft shoulder/hip points; named refs per `cad-standards.md` (`urdf_link_frame`, `joint_axis`, `cable_exit`, etc.).
 
+**PETG actuator brackets (rev A):** [`torso-actuator-brackets-revA.md`](torso-actuator-brackets-revA.md) — shoulder roll mounts (L/R) + waist yaw adapter for the three RS03 layout instances.
+
 **2020 extrusion:** [`torso-2020-extrusion.md`](torso-2020-extrusion.md) — `vendor_2020_black_extrusion`, `marengo_torso_frame_asm_revA` (12× named cuts, **340 mm** verticals), inserted in `marengo_torso_asm_revA`.
 
 ---
