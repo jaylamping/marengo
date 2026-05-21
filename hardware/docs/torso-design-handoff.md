@@ -50,10 +50,11 @@ Single aluminum cage, CAD name target: `marengo_upper_torso_frame`.
 
 ## Draft: RS03 mounting (shoulders + waist)
 
-- **Shoulder roll RS03:** mount on **outer Y face** of torso frame; axis **+X**.
-- **Controller housing** stays **inside** 85×110 clear; **motor body pokes out** in Y (~**40 mm**/side *draft*) → ~**230 mm** outer shoulder width (*draft*: 150 + 80).
+- **Shoulder roll RS03 (rev-a direction):** mount **inside** the 2020 cage at `shoulder_plane`; axis **+X** unchanged. Orient body so the **~99 mm** dimension spans **Y** (inner **110 mm**) and **~57 mm** spans **X** (inner **85 mm**) — see [`torso-actuator-brackets-revA.md`](torso-actuator-brackets-revA.md). PETG bracket bridges to **inner faces** of left/right verticals (or front/rear rails), not outer poke.
+- **Outer shoulder width:** stays at committed frame **150 mm** (no ~40 mm/side motor poke); arms exit through shell cutouts aligned to motor output.
+- **Chest stack:** Pi/PDB/harness share the cage with shoulder motors — layout order matters (motors low at shoulder plane, compute above waist bay).
 - **Waist RS03:** in **40 mm waist bay**; pelvis does **not** bolt directly to box — **adapter plate** between pelvis ring and torso bottom rail.
-- Import **`vendor_robstride_rs03_vendor.*`** before freezing brackets (module ~106×106×56 mm).
+- Import **`vendor_robstride_rs03_vendor.*`** before freezing brackets (module ~99×99×57 mm measured).
 
 ---
 
@@ -70,7 +71,7 @@ Single aluminum cage, CAD name target: `marengo_upper_torso_frame`.
 
 ## Draft: shell & layout
 
-- Shell wraps frame with gap for harness; **shoulder line ~230 mm** (*draft*); waist taper in **PETG only** (frame stays 125×150).
+- Shell wraps frame with gap for harness; **shoulder line ~150 mm** (frame OD, no actuator poke); waist taper in **PETG only** (frame stays 125×150).
 - **Hip span ~250 mm** (*draft*); legs 6-DOF G1 tree; shrouded actuators.
 - Arm segments *draft*: upper 215, forearm 195, hand stub 90; reach ~480 mm.
 

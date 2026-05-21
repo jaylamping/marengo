@@ -36,7 +36,7 @@
         "units": "mm"
       },
       "status": "imported",
-      "notes": "EU 2020 T-slot black 6063-T5. CAD from GrabCAD; canonical SW part vendor_2020_black_extrusion. Configs L500/L340/L085/L110. Vertical posts 340 mm (rev-a layout). Cut list: hardware/docs/torso-2020-extrusion.md."
+      "notes": "EU 2020 T-slot black 6063-T5. CAD from GrabCAD; canonical SW part vendor_2020_black_extrusion. Configs L500/L340/L085/L100/L110. Vertical posts 340 mm; depth rails L100 (100 mm). Cut list: hardware/docs/torso-2020-extrusion.md."
     },
     {
       "id": "bracket_2028_corner",

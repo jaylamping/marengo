@@ -187,7 +187,7 @@ Leg bring-up: start with **hip pitch** and **knee** RS04 sign tests under load b
 | Frame | Use |
 |-------|-----|
 | `base_link` / pelvis | Biped origin; pelvis `urdf_link_frame` on CAD pelvis (*pelvis draft*) |
-| `torso_link` | Upper torso 2020 frame; shoulder mounts on outer Y faces of committed cage |
+| `torso_link` | Upper torso 2020 frame; shoulder roll RS03 inside cage at shoulder plane (rev-a layout) |
 | `left_foot` / `right_foot` | Sole contact; Z = floor in standing neutral |
 | `left_hand` / `right_hand` | Tool frame placeholder (TCP when gripper defined) |
 | `forearm_link` | Arm bring-up tool frame (full humanoid: `left_hand` / `right_hand`) |

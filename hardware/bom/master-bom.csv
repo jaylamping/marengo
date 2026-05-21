@@ -4,10 +4,10 @@ actuator_rs03,Robstride RS03 joint motor,9,Robstride,RS03,"hip roll/yaw x4 + wai
 actuator_rs02,Robstride RS02 joint motor,10,Robstride,RS02,"ankle x4 + arm yaw/elbow/wrist x6; 17 Nm peak"
 stock_vendor_2020_black_extrusion,IXGNIJ 2020 T-slot EU black 500mm (4-pack),2,Amazon,B08Y8KCJW4,"Purchase only (not instanced). Registry: vendor_2020_black_extrusion."
 frame_2020_vertical_340,Torso vertical corner post 340mm,4,cut,,,Instances frame_2020_vertical_{back|front}_{left|right}_340
-frame_2020_bottom_left_085,Torso bottom left rail 85mm,1,cut,,,Config L085
-frame_2020_bottom_right_085,Torso bottom right rail 85mm,1,cut,,,Config L085
-frame_2020_top_left_085,Torso top left rail 85mm,1,cut,,,Config L085
-frame_2020_top_right_085,Torso top right rail 85mm,1,cut,,,Config L085
+frame_2020_bottom_left_100,Torso bottom left rail 100mm,1,cut,,,Config L100; depth rail (140 outer / 100 inner)
+frame_2020_bottom_right_100,Torso bottom right rail 100mm,1,cut,,,Config L100
+frame_2020_top_left_100,Torso top left rail 100mm,1,cut,,,Config L100
+frame_2020_top_right_100,Torso top right rail 100mm,1,cut,,,Config L100
 frame_2020_bottom_front_110,Torso bottom front rail 110mm,1,cut,,,Config L110
 frame_2020_bottom_rear_110,Torso bottom rear rail 110mm,1,cut,,,Config L110
 frame_2020_top_front_110,Torso top front rail 110mm,1,cut,,,Config L110
