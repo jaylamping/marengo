@@ -46,15 +46,15 @@
       "category": "fastener",
       "source": {
         "type": "local",
-        "path": "hardware/cad/vendor/incoming/grabcad_2028_corner_bracket_storm.stp",
+        "path": "hardware/cad/vendor/incoming/2020_corner_bracket.SLDPRT",
         "url": "https://grabcad.com/library/aluminum-extrusion-corner-bracket-storm-1"
       },
       "cad": {
-        "stepPath": "hardware/cad/vendor/vendor_2028_corner_bracket_vendor.step",
+        "stepPath": null,
         "nativePath": "hardware/cad/vendor/vendor_2028_corner_bracket_vendor.SLDPRT",
         "units": "mm"
       },
-      "status": "incoming",
+      "status": "imported",
       "notes": "2020-series 2028 corner bracket (90°). CAD: GrabCAD storm model; purchase equivalent mankk B0FDKPLF8N / PETOX B0BFRB35Z8. Verify EU 6 mm T-slot (not V-slot) before freezing mates. Torso cage: ~16 instanced (8 corners × 2); kit ships 30."
     }
   ]
