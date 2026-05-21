@@ -21,14 +21,23 @@ Regex targets are in [`cad-conventions.json`](../manifests/cad-conventions.json)
 
 ## Custom properties (authored parts)
 
-Required on every Marengo-authored part:
+Required on every Marengo-authored part **and** every vendor `.SLDPRT` referenced in an assembly (MCP `marengo_design_review` checks the tree).
 
-| Property | Example |
-|----------|---------|
-| `process` | `cnc`, `print`, `sheet` |
-| `material` | `6061-T6`, `PETG` |
-| `revision` | `A` |
-| `owner` | handle or name |
+| Property | Authored example | Vendor import example |
+|----------|------------------|------------------------|
+| `process` | `cnc`, `print`, `layout` | `purchase` |
+| `material` | `6061-T6`, `PETG` | `6063-T5`, `aluminum`, `RS03 actuator (vendor)` |
+| `revision` | `A` | `vendor` |
+| `owner` | handle or name | same as authored parts |
+
+Batch-apply vendor properties (SolidWorks must be running):
+
+```powershell
+cd C:\code\solidworks-mcp
+npm run build
+npm run set:vendor-props
+npm run promote:corner-bracket   # incoming → vendor_2028_corner_bracket_vendor + rewire torso asm
+```
 
 ## Named reference geometry (URDF handoff)
 
