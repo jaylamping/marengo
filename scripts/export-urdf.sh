@@ -19,6 +19,7 @@ echo ""
 
 if [[ -f "${URDF}" ]]; then
   echo "Current URDF present ($(wc -c < "${URDF}") bytes)."
+  echo "After export: run MCP marengo_urdf_export_postcheck (solidworks-mcp) before urdf-to-mjcf."
 else
   echo "No URDF at ${URDF} — export required before production sim tests."
   exit 1

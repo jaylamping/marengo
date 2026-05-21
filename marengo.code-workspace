@@ -1,0 +1,12 @@
+{
+  "folders": [
+    { "name": "marengo", "path": "." },
+    { "name": "solidworks-mcp", "path": "../solidworks-mcp" }
+  ],
+  "settings": {
+    "files.exclude": {
+      "**/node_modules": true,
+      "**/target": true
+    }
+  }
+}

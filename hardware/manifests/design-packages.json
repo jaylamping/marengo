@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "packages": [
+    {
+      "id": "marengo",
+      "title": "Marengo root assembly",
+      "assemblyPath": "hardware/cad/assemblies/marengo.sldasm",
+      "requiredChildNamePatterns": [],
+      "requiredVendorAssetIds": []
+    }
+  ]
+}

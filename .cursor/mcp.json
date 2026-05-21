@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "solidworks": {
+      "command": "node",
+      "args": ["C:/code/solidworks-mcp/dist/index.js"],
+      "env": {
+        "SOLIDWORKS_MCP_ALLOWED_ROOTS": "C:/code/marengo"
+      }
+    }
+  }
+}

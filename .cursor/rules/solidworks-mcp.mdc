@@ -1,0 +1,18 @@
+---
+description: SolidWorks MCP and Marengo CAD workflow
+globs:
+  - hardware/cad/**
+  - hardware/manifests/**
+  - hardware/docs/cad-standards.md
+  - assets/urdf/**
+---
+
+# SolidWorks MCP (Marengo)
+
+- Open **`marengo.code-workspace`** (marengo + solidworks-mcp) for CAD + MCP worker edits.
+- After changing `solidworks-mcp` worker or TS: `npm run build` in `solidworks-mcp`.
+- CAD allowed root: **`C:/code/marengo`** only (`SOLIDWORKS_MCP_ALLOWED_ROOTS`).
+- Root assembly target: `hardware/cad/assemblies/marengo.sldasm`.
+- MCP is **audit-first**: conventions, design package, URDF readiness, postcheck, hardware coverage — no URDF writer or `insert_component` yet.
+- URDF export is **manual** (Brawner) → `assets/urdf/marengo.urdf`; joint truth in `hardware/docs/kinematics.md`.
+- Standards: [hardware/docs/cad-standards.md](../../hardware/docs/cad-standards.md).

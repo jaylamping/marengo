@@ -1,3 +1,6 @@
+# SolidWorks editor lock files
+~$*
+
 /target/
 **/*.rs.bk
 .DS_Store
