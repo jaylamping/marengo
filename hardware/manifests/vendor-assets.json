@@ -1,4 +1,23 @@
 {
   "version": 1,
-  "assets": []
+  "assets": [
+    {
+      "id": "actuator_rs03",
+      "manufacturer": "Robstride",
+      "partNumber": "RS03",
+      "category": "actuator",
+      "source": {
+        "type": "local",
+        "path": "hardware/cad/vendor/incoming/robstride_rs03_vendor.stp",
+        "sha256": "8eccaf6291e395d8622300396289df898ab18a1648193a5cd327cfbd2bf72500"
+      },
+      "cad": {
+        "stepPath": "hardware/cad/vendor/vendor_robstride_rs03_vendor.step",
+        "nativePath": null,
+        "units": "mm"
+      },
+      "status": "staged",
+      "notes": "Torso/waist/shoulder/hip layout reference. Import STEP in SolidWorks → save as vendor_robstride_rs03_vendor.SLDPRT. Module ~106×106×56 mm (verify after import)."
+    }
+  ]
 }
