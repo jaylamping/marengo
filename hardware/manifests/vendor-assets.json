@@ -20,7 +20,7 @@
       "notes": "Torso/waist/shoulder/hip layout reference. Measured envelope ~99×99×57 mm (MCP bbox). Waist bay fit TBD vs committed 40 mm bay height."
     },
     {
-      "id": "extrusion_2020_profile",
+      "id": "vendor_2020_black_extrusion",
       "manufacturer": "IXGNIJ",
       "supplier": "Amazon",
       "partNumber": "B08Y8KCJW4",
@@ -31,12 +31,12 @@
         "url": "https://grabcad.com/library/2020-aluminium-extrusions-1"
       },
       "cad": {
-        "stepPath": "hardware/cad/vendor/vendor_ixgnij_2020_tslot_eu_black_vendor.step",
-        "nativePath": "hardware/cad/vendor/vendor_ixgnij_2020_tslot_eu_black_vendor.SLDPRT",
+        "stepPath": null,
+        "nativePath": "hardware/cad/vendor/vendor_2020_black_extrusion.SLDPRT",
         "units": "mm"
       },
-      "status": "pending",
-      "notes": "Physical: IXGNIJ Amazon B08Y8KCJW4 (EU 2020 T-slot black, 4×500 mm). CAD: GrabCAD library 2020-aluminium-extrusions-1 (SolidWorks). Verify 20×20 mm OD and ~6 mm slots on stick before freezing mates. Optional neutral: export STEP to cad.stepPath. Misumi HFS5-2020 was fallback only. Cut list: hardware/docs/torso-2020-extrusion.md."
+      "status": "imported",
+      "notes": "EU 2020 T-slot black 6063-T5. CAD from GrabCAD; canonical SW part vendor_2020_black_extrusion. Configs L500/L340/L085/L110. Vertical posts 340 mm (rev-a layout). Cut list: hardware/docs/torso-2020-extrusion.md."
     }
   ]
 }

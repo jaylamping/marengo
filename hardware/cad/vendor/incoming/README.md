@@ -1,10 +1,8 @@
-# Incoming vendor STEP
+# Incoming vendor CAD
 
-Drop vendor downloads here before staging to `hardware/cad/vendor/`.
+Drop vendor downloads here before promoting to `hardware/cad/vendor/`.
 
 | File (you provide) | Registry `asset_id` |
 |--------------------|---------------------|
-| `grabcad_2020_aluminium_extrusions.SLDPRT` | `extrusion_2020_profile` (GrabCAD SW download → review → save canonical copy under `vendor/`) |
-| `robstride_rs03_vendor.stp` | `actuator_rs03` (already staged) |
-
-Then: MCP `vendor_stage_local_asset` → import in SolidWorks → save `.SLDPRT` next to `.step` in `vendor/`.
+| `grabcad_2020_aluminium_extrusions.SLDPRT` | `vendor_2020_black_extrusion` (archive; canonical: `../vendor_2020_black_extrusion.SLDPRT`) |
+| `robstride_rs03_vendor.stp` | `actuator_rs03` (staged → `../vendor_robstride_rs03_vendor.*`) |
