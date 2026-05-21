@@ -1,4 +1,4 @@
-# Joint → CAN mapping (4-DOF bench arm).
+# Joint → CAN mapping (4-DOF arm bring-up — first wired humanoid subsystem).
 # motor_type per hardware/docs/decisions/0002-robstride-protocol.md
 motors:
   - joint: shoulder_roll

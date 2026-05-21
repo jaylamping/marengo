@@ -21,7 +21,7 @@ If you cannot use Docker, install tools matching [mise.toml](../mise.toml):
 
 | Tool | Version |
 |------|---------|
-| Rust | 1.85 (see [rust-toolchain.toml](../rust-toolchain.toml)) |
+| Rust | 1.88 (see [rust-toolchain.toml](../rust-toolchain.toml)) |
 | Node | 22 |
 | protoc | 28.3 |
 | buf | 1.47.2 |
@@ -43,7 +43,7 @@ cd consul && npm ci && npm run gen:proto
 1. Edit `proto/*.proto`.
 2. Rust: `cargo build -p armee-proto`.
 3. TypeScript: `cd consul && npm run gen:proto`.
-4. Update checksum: `shasum -a 256 consul/src/gen/marengo_pb.ts | awk '{print $1}' > consul/src/gen/.checksum`
+4. Update checksum: `shasum -a 256 consul/src/gen/marengo/v1/marengo_pb.ts | awk '{print $1}' > consul/src/gen/.checksum`
 
 Never commit hand-edits to `consul/src/gen/` (gitignored except `.checksum`).
 

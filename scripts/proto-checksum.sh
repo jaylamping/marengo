@@ -2,7 +2,7 @@
 # Verify generated TypeScript matches committed checksum (src/gen/ is gitignored).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-GEN="${ROOT}/consul/src/gen/marengo_pb.ts"
+GEN="${ROOT}/consul/src/gen/marengo/v1/marengo_pb.ts"
 CHECKSUM_FILE="${ROOT}/consul/src/gen/.checksum"
 
 if [[ ! -f "${GEN}" ]]; then
@@ -28,7 +28,7 @@ if [[ "${ACTUAL}" != "${EXPECTED}" ]]; then
   echo "proto-checksum: mismatch" >&2
   echo "  expected: ${EXPECTED}" >&2
   echo "  actual:   ${ACTUAL}" >&2
-  echo "  run: cd consul && npm run gen:proto && shasum -a 256 src/gen/marengo_pb.ts | awk '{print \$1}' > src/gen/.checksum" >&2
+  echo "  run: cd consul && npm run gen:proto && shasum -a 256 src/gen/marengo/v1/marengo_pb.ts | awk '{print \$1}' > src/gen/.checksum" >&2
   exit 1
 fi
 

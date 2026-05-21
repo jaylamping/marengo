@@ -33,9 +33,9 @@ echo "==> consul: npm ci, gen:proto, build, audit"
   cd consul
   npm ci
   npm run gen:proto
-  test -f src/gen/marengo_pb.ts
+  test -f src/gen/marengo/v1/marengo_pb.ts
   "${ROOT}/scripts/proto-checksum.sh"
-  npm run build
+  npm run build --ignore-scripts
   if [[ "${CI_MODE}" == true ]]; then
     npm audit --audit-level=high
   else
@@ -57,7 +57,7 @@ cargo test --workspace
 
 echo "==> cargo deny"
 if command -v cargo-deny >/dev/null 2>&1; then
-  cargo deny check
+  cargo deny check --disable-fetch
 else
   echo "warn: cargo-deny not installed, skipping"
 fi

@@ -220,7 +220,10 @@ pub fn validate_motors_against_robot(
 }
 
 /// Resolve URDF path from robot config; errors if the file is missing.
-pub fn resolve_urdf_path(repo_root: impl AsRef<Path>, robot: &RobotConfigFile) -> Result<PathBuf, ConfigError> {
+pub fn resolve_urdf_path(
+    repo_root: impl AsRef<Path>,
+    robot: &RobotConfigFile,
+) -> Result<PathBuf, ConfigError> {
     let path = repo_root.as_ref().join(&robot.robot.urdf);
     if !path.is_file() {
         return Err(ConfigError::UrdfMissing { path });
@@ -282,5 +285,22 @@ mod tests {
         let cfg = load_control_config(repo_root()).expect("control.yaml");
         assert_eq!(cfg.control.loop_hz, 200);
         assert!(cfg.control.motor_type_defaults.contains_key("rs03"));
+    }
+
+    #[test]
+    fn humanoid_config_templates_parse_and_align() {
+        let root = repo_root();
+        let robot_path = root.join("config/robot_humanoid.yaml");
+        let motors_path = root.join("config/motors_humanoid.yaml");
+        let robot: RobotConfigFile = read_yaml(&robot_path).expect("robot_humanoid.yaml");
+        let motors: MotorsConfigFile = read_yaml(&motors_path).expect("motors_humanoid.yaml");
+        assert_eq!(robot.robot.name, "marengo_humanoid");
+        assert_eq!(robot.robot.joints.len(), 23);
+        assert_eq!(motors.motors.len(), 23);
+        validate_motors_against_robot(&robot, &motors).expect("humanoid joint names align");
+        let knee = motor_for_joint(&motors, "left_knee").expect("left_knee");
+        assert_eq!(knee.motor_type, MotorType::Rs04);
+        let hip = motor_for_joint(&motors, "left_hip_pitch").expect("left_hip_pitch");
+        assert_eq!(hip.motor_type, MotorType::Rs04);
     }
 }

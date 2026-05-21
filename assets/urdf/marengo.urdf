@@ -1,5 +1,7 @@
 <?xml version="1.0"?>
-<!-- Marengo v0 prototype URDF (2-DOF bench model). Replace via scripts/export-urdf.sh when CAD export is ready. -->
+<!-- Marengo humanoid URDF placeholder (23 DOF target, G1-class 1524 mm). -->
+<!-- Joint names and motor map: hardware/docs/kinematics.md -->
+<!-- Replace via Brawner export + scripts/export-urdf.sh when CAD is ready. -->
 <robot name="marengo">
   <link name="base_link">
     <inertial>

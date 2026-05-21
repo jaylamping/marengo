@@ -2,7 +2,8 @@ version: v2
 inputs:
   - directory: ../proto
 plugins:
-  - remote: buf.build/bufbuild/es:v2.2.3
+  # Local plugin from npm (avoids BSR rate limits in CI).
+  - local: protoc-gen-es
     out: src/gen
     opt:
       - target=ts

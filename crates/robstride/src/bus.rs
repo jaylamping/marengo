@@ -73,8 +73,13 @@ pub trait MotorBus: CanBus {
             for frame in &frames {
                 if let Some(device_id) = frame.id.checked_sub(mit::MIT_RX_BASE) {
                     let device_id = device_id as u8;
-                    let motor_type = motor_types.get(&device_id).copied().unwrap_or(MotorType::Rs02);
-                    if let Some(fb) = mit::decode_mit_feedback(motor_type, frame.id, frame.data.as_slice()) {
+                    let motor_type = motor_types
+                        .get(&device_id)
+                        .copied()
+                        .unwrap_or(MotorType::Rs02);
+                    if let Some(fb) =
+                        mit::decode_mit_feedback(motor_type, frame.id, frame.data.as_slice())
+                    {
                         states.insert(
                             device_id,
                             MotorState {

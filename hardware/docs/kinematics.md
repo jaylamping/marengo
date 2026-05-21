@@ -1,8 +1,141 @@
 # Kinematics
 
-Single source of truth for joint names, axes, limits, and transforms. Values here must match [`assets/urdf/arm_4dof.urdf`](../../assets/urdf/arm_4dof.urdf) (4-DOF bench) or [`assets/urdf/marengo.urdf`](../../assets/urdf/marengo.urdf) (2-DOF CI placeholder).
+Single source of truth for joint names, axes, limits, link dimensions, and actuator assignment.
 
-## 4-DOF bench arm joint table
+| Model | URDF | Status |
+|-------|------|--------|
+| **Humanoid (target)** | [`assets/urdf/marengo.urdf`](../../assets/urdf/marengo.urdf) | CAD in progress — URDF placeholder until Brawner export |
+| **Arm (4 DOF, bring-up)** | [`assets/urdf/arm_4dof.urdf`](../../assets/urdf/arm_4dof.urdf) | First subsystem wired; maps to humanoid arm joints |
+
+Runtime config: [`config/robot_humanoid.yaml`](../../config/robot_humanoid.yaml) + [`config/motors_humanoid.yaml`](../../config/motors_humanoid.yaml) for the full body; [`config/robot.yaml`](../../config/robot.yaml) is the active bring-up config for the wired 4-DOF arm until remaining joints are commissioned.
+
+---
+
+## Humanoid mechanical reference
+
+Design follows **Unitree G1** proportions (~1320 mm standing) scaled to **1524 mm (5 ft)** with a slightly slimmer torso and longer legs. No wheels — biped only.
+
+| Parameter | Unitree G1 | Marengo target |
+|-----------|------------|----------------|
+| Standing height | 1320 mm | **1524 mm** |
+| Body width | 450 mm | **440 mm** |
+| Chest depth | 200 mm | **185 mm** |
+| Thigh + shank (link length) | 600 mm | **660 mm** |
+| Shoulder → hand reach | ~450 mm | **~480 mm** |
+| Target mass (with battery) | ~35 kg | **38–42 kg** |
+| Total DOF (v1, no hands) | 23 | **23** |
+
+### Link dimensions (mm)
+
+Floor → crown must sum to **1524 mm**. Joint-to-joint lengths are CAD targets; refine after vendor STEP import.
+
+| Segment | Length | Floor → landmark |
+|---------|--------|------------------|
+| Foot (sole → ankle axis) | 80 | ankle @ 80 |
+| Shank (ankle → knee) | 325 | knee @ 405 |
+| Thigh (knee → hip) | 335 | hip @ 740 |
+| Pelvis block | 115 | waist @ 855 |
+| Torso (waist → shoulder) | 380 | shoulder @ **1235** |
+| Neck | 65 | |
+| Head (chin → crown) | 224 | crown @ **1524** |
+
+| Part | Size (mm) | Notes |
+|------|-----------|-------|
+| Foot (each) | 250 × 115 × 80 | Toe-heavy for CoM |
+| Hip span (joint centers) | 280 | |
+| Shoulder span (joint centers) | 400 | |
+| Pelvis | 220 × 280 × 115 | |
+| Chest | 300 × 185 × 380 | Electronics bay |
+| Head | 175 × 160 × 224 | Depth cam / lidar pod |
+| Upper arm (per side) | 215 | Shoulder yaw → elbow |
+| Forearm (per side) | 195 | Elbow → wrist |
+| Hand / gripper stub | 90 | v1 — no dexterous hand |
+
+### Leg kinematic tree (each side)
+
+Pelvis → **hip yaw** → **hip roll** → **hip pitch** → thigh → **knee** → shank → **ankle pitch** → **ankle roll** → foot.
+
+Yaw is the outboard joint at the pelvis (G1/H1-style). Document any CAD reversal in the assembly drawing; joint names and axes here are authoritative.
+
+---
+
+## Actuator assignment (humanoid)
+
+Peak torque ratings from [ADR 0002](decisions/0002-robstride-protocol.md) (confirm in vendor PDF before production).
+
+| Model | Peak τ | Count | Joints |
+|-------|--------|-------|--------|
+| **RS04** | 120 Nm | **4** | `left_hip_pitch`, `right_hip_pitch`, `left_knee`, `right_knee` |
+| **RS03** | 60 Nm | **9** | `left/right_hip_roll`, `left/right_hip_yaw`, `waist_yaw`, `left/right_shoulder_roll`, `left/right_shoulder_pitch` |
+| **RS02** | 17 Nm | **10** | `left/right_ankle_pitch`, `left/right_ankle_roll`, `left/right_upper_arm_yaw`, `left/right_elbow`, `left/right_wrist` |
+
+**Leg rationale:** RS04 on **inner hip pitch** (primary stance/swing load) and **knee** (single-support peaks, G1-class ~90 Nm knee). RS03 on **outer hip** roll/yaw. RS02 on ankles.
+
+**Arm rationale:** RS03 shoulders (same as bring-up arm); RS02 for yaw, elbow, wrist (5 DOF per arm, G1-aligned).
+
+---
+
+## Humanoid joint table
+
+Mirror limits left/right unless noted. Effort column = motor peak τ (Nm). Angles in radians unless noted.
+
+### Waist (1 DOF)
+
+| Joint | Actuator | Parent → Child | Axis | Lower | Upper | Effort | Notes |
+|-------|----------|----------------|------|-------|-------|--------|-------|
+| `waist_yaw` | RS03 | pelvis → torso | Z | -2.71 | 2.71 | 60 | G1: ±155° |
+
+### Left leg (6 DOF)
+
+| Joint | Actuator | Parent → Child | Axis | Lower | Upper | Effort | Notes |
+|-------|----------|----------------|------|-------|-------|--------|-------|
+| `left_hip_yaw` | RS03 | pelvis → left_hip_yaw_link | Z | -2.76 | 2.76 | 60 | G1: Y ±158° |
+| `left_hip_roll` | RS03 | yaw → left_hip_roll_link | X | -0.52 | 2.97 | 60 | G1: R −30°..+170° |
+| `left_hip_pitch` | RS04 | roll → left_thigh | Y | -2.69 | 2.69 | 120 | **Inner hip**; G1: P ±154° |
+| `left_knee` | RS04 | thigh → shank | Y | 0.0 | 2.88 | 120 | G1: 0–165°; no hyperextension |
+| `left_ankle_pitch` | RS02 | shank → left_foot | Y | -1.0 | 0.8 | 17 | Tune after foot CAD |
+| `left_ankle_roll` | RS02 | pitch → left_foot | X | -0.5 | 0.5 | 17 | `kd` max **5** |
+
+### Right leg (6 DOF)
+
+Same limits as left; roll/pitch signs follow right-hand URDF convention.
+
+| Joint | Actuator | Parent → Child | Axis | Lower | Upper | Effort |
+|-------|----------|----------------|------|-------|-------|--------|
+| `right_hip_yaw` | RS03 | pelvis → right_hip_yaw_link | Z | -2.76 | 2.76 | 60 |
+| `right_hip_roll` | RS03 | yaw → right_hip_roll_link | X | -2.97 | 0.52 | 60 |
+| `right_hip_pitch` | RS04 | roll → right_thigh | Y | -2.69 | 2.69 | 120 |
+| `right_knee` | RS04 | thigh → shank | Y | 0.0 | 2.88 | 120 |
+| `right_ankle_pitch` | RS02 | shank → right_foot | Y | -1.0 | 0.8 | 17 |
+| `right_ankle_roll` | RS02 | pitch → right_foot | X | -0.5 | 0.5 | 17 |
+
+### Left arm (5 DOF)
+
+| Joint | Actuator | Parent → Child | Axis | Lower | Upper | Effort | Notes |
+|-------|----------|----------------|------|-------|-------|--------|-------|
+| `left_shoulder_roll` | RS03 | torso → left_shoulder_roll_link | X | -1.57 | 1.57 | 60 | |
+| `left_shoulder_pitch` | RS03 | roll → left_shoulder_pitch_link | Y | -1.2 | 1.2 | 60 | **Upright hazard** when q > ~0.5 rad |
+| `left_upper_arm_yaw` | RS02 | pitch → left_upper_arm | Z | -1.57 | 1.57 | 17 | |
+| `left_elbow` | RS02 | upper_arm → left_forearm | Y | 0.0 | 2.5 | 17 | **Upright hazard** — verify G-comp sign |
+| `left_wrist` | RS02 | forearm → left_hand | Y | -1.6 | 1.6 | 17 | G1 wrist pitch band ~±92.5° |
+
+### Right arm (5 DOF)
+
+| Joint | Actuator | Parent → Child | Axis | Lower | Upper | Effort |
+|-------|----------|----------------|------|-------|-------|--------|
+| `right_shoulder_roll` | RS03 | torso → right_shoulder_roll_link | X | -1.57 | 1.57 | 60 |
+| `right_shoulder_pitch` | RS03 | roll → right_shoulder_pitch_link | Y | -1.2 | 1.2 | 60 |
+| `right_upper_arm_yaw` | RS02 | pitch → right_upper_arm | Z | -1.57 | 1.57 | 17 |
+| `right_elbow` | RS02 | upper_arm → right_forearm | Y | 0.0 | 2.5 | 17 |
+| `right_wrist` | RS02 | forearm → right_hand | Y | -1.6 | 1.6 | 17 |
+
+Masses and inertials in URDF are **estimates** until CAD export; re-run MuJoCo cross-check after export ([ADR 0005](../../docs/decisions/0005-dynamics-library.md)).
+
+---
+
+## 4-DOF arm bring-up (joint table)
+
+Subset of humanoid arm kinematics (shoulder roll/pitch, upper-arm yaw, elbow); currently wired per [`config/robot.yaml`](../../config/robot.yaml).
 
 | Joint | Actuator | Parent → Child | Axis (joint) | Lower (rad) | Upper (rad) | Effort (Nm) | Notes |
 |-------|----------|----------------|--------------|-------------|-------------|-------------|-------|
@@ -11,17 +144,30 @@ Single source of truth for joint names, axes, limits, and transforms. Values her
 | `upper_arm_yaw` | RS02 | pitch → upper_arm_link | Z | -1.57 | 1.57 | 17 | |
 | `elbow` | RS02 | upper_arm → forearm | Z | 0.0 | 2.5 | 17 | **Upright hazard** — verify G-comp sign |
 
-Masses and inertials in URDF are **estimates** until CAD export; re-run MuJoCo cross-check after export ([ADR 0005](../../docs/decisions/0005-dynamics-library.md)).
+---
 
 ## Upright / elevated poses
 
-Documented incident: arm elevated, control stopped, arm fell without gravity feedforward. Before bench tests with elevated shoulder/elbow:
+Documented incident (arm bring-up): arm elevated, control stopped, arm fell without gravity feedforward. Applies to **shoulder_pitch** and **elbow** on the bring-up arm and full humanoid arms.
+
+Before bring-up tests with elevated shoulder/elbow:
 
 1. Run per-joint `torque_ff` sign test.
 2. Use **GravityComp** only until impedance is tuned.
 3. Apply `danger_zones` in `config/control.yaml` for shoulder_pitch + downward velocity.
 
+Leg bring-up: start with **hip pitch** and **knee** RS04 sign tests under load before closing the ankle loop.
+
+---
+
 ## Frames
 
-- **base_link:** robot mount.
-- **forearm_link:** tool frame placeholder (add TCP when gripper is defined).
+| Frame | Use |
+|-------|-----|
+| `base_link` / pelvis | Biped origin; pelvis `urdf_link_frame` on CAD pelvis |
+| `torso_link` | Shoulder mount reference |
+| `left_foot` / `right_foot` | Sole contact; Z = floor in standing neutral |
+| `left_hand` / `right_hand` | Tool frame placeholder (TCP when gripper defined) |
+| `forearm_link` | Arm bring-up tool frame (full humanoid: `left_hand` / `right_hand`) |
+
+Named CAD geometry: see [cad-standards.md](cad-standards.md).

@@ -6,7 +6,8 @@
 |---------|-----|
 | `protoc: not found` | Use the dev container or `docker compose run --rm check` — do not rely on host protoc. |
 | `buf: not found` | Run checks inside the container; for native dev, `cd consul && npm ci`. |
-| Permission denied on `target/` | Files owned by root from Docker — `sudo chown -R $(id -u):$(id -g) target` or use the `marengo` user in the image. |
+| Permission denied on `target/` | Named volumes owned by root — rebuild dev image and re-run; entrypoint chowns `target/` and `consul/node_modules`. Or `docker compose run --rm --user root dev chown -R marengo:marengo /workspace/target /workspace/consul/node_modules`. |
+| `EACCES` on `consul/node_modules` during `just check` | Same as above — ensure `docker/Dockerfile.dev` entrypoint is active (rebuild: `docker compose build dev`). |
 | Slow builds on macOS | Ensure the repo is not on a slow bind mount; use named volumes for `target/` (see `compose.yaml`). |
 
 ## Git LFS
@@ -38,7 +39,7 @@
 | TypeScript errors in `consul/` | `cd consul && npm run gen:proto` — never hand-edit `src/gen/`. |
 | Rust build fails after `.proto` change | `cargo build -p armee-proto` regenerates via `prost-build`. |
 | Checksum mismatch in CI | Regenerate TS (`npm run gen:proto`) and update `consul/src/gen/.checksum`. |
-| Missing `.checksum` in CI | Run `npm run gen:proto` then `shasum -a 256 consul/src/gen/marengo_pb.ts \| awk '{print $1}' > consul/src/gen/.checksum` and commit. |
+| Missing `.checksum` in CI | Run `npm run gen:proto` then `shasum -a 256 consul/src/gen/marengo/v1/marengo_pb.ts \| awk '{print $1}' > consul/src/gen/.checksum` and commit. |
 
 ## Simulation
 

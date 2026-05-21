@@ -14,6 +14,7 @@ git lfs pull
 
 - [Docker](https://docs.docker.com/get-docker/) and Docker Compose v2
 - Optional: [Cursor](https://cursor.com/) or VS Code with Dev Containers
+- **Windows:** prefer [WSL2 setup](wsl-setup.md) — clone under `~/code`, not `C:\`
 
 ## 3. Verify the workspace
 

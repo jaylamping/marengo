@@ -38,14 +38,14 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use armee_kinematics::{JointLimits, joint_limits, load_urdf};
+use armee_kinematics::{joint_limits, load_urdf, JointLimits};
 use marengo_config::{
-    ControlConfigFile, MotorEntry, MotorType, MotorsConfigFile, RobotConfigFile,
-    load_control_config, load_motors_config, load_robot_config, motor_for_joint,
-    resolve_urdf_path, validate_motors_against_robot,
+    load_control_config, load_motors_config, load_robot_config, motor_for_joint, resolve_urdf_path,
+    validate_motors_against_robot, ControlConfigFile, MotorEntry, MotorType, MotorsConfigFile,
+    RobotConfigFile,
 };
-pub use robstride::bus::{BusError, MemoryBus, MotorBus};
 use robstride::bus::send_mit;
+pub use robstride::bus::{BusError, MemoryBus, MotorBus};
 use robstride::{MitCommand, MotorState};
 use thiserror::Error;
 use tracing::{debug, warn};
@@ -211,9 +211,7 @@ impl<B: MotorBus> Supervisor<B> {
         }
         if enable {
             if self.mode != OperationalMode::Ready {
-                return Err(DavoutError::NotActive {
-                    mode: self.mode,
-                });
+                return Err(DavoutError::NotActive { mode: self.mode });
             }
             self.mode = OperationalMode::Active;
             debug!("supervisor ACTIVE");
@@ -354,9 +352,12 @@ impl<B: MotorBus> Supervisor<B> {
         cmd: MitJointCommand,
         motor: &MotorEntry,
     ) -> Result<MitJointCommand, DavoutError> {
-        let lim = self.limits.get(&cmd.joint).ok_or_else(|| DavoutError::UnknownJoint {
-            joint: cmd.joint.clone(),
-        })?;
+        let lim = self
+            .limits
+            .get(&cmd.joint)
+            .ok_or_else(|| DavoutError::UnknownJoint {
+                joint: cmd.joint.clone(),
+            })?;
         let type_key = motor_type_key(motor.motor_type);
         let defaults = self
             .control
@@ -378,7 +379,10 @@ impl<B: MotorBus> Supervisor<B> {
         if out.position_rad < lim.lower || out.position_rad > lim.upper {
             return Err(DavoutError::Limit {
                 joint: out.joint.clone(),
-                message: format!("position {} outside [{}, {}]", out.position_rad, lim.lower, lim.upper),
+                message: format!(
+                    "position {} outside [{}, {}]",
+                    out.position_rad, lim.lower, lim.upper
+                ),
             });
         }
         let vel_cap = lim.velocity.min(defaults.velocity_max_rad_s);
@@ -425,9 +429,12 @@ impl<B: MotorBus> Supervisor<B> {
 
     /// Apply URDF + bench limits without sending (for tests and planners).
     pub fn filter_command(&self, cmd: JointCommand) -> Result<JointCommand, DavoutError> {
-        let lim = self.limits.get(&cmd.joint).ok_or_else(|| DavoutError::UnknownJoint {
-            joint: cmd.joint.clone(),
-        })?;
+        let lim = self
+            .limits
+            .get(&cmd.joint)
+            .ok_or_else(|| DavoutError::UnknownJoint {
+                joint: cmd.joint.clone(),
+            })?;
         let out = cmd;
         if out.position_rad < lim.lower {
             return Err(DavoutError::Limit {
@@ -494,9 +501,10 @@ fn build_limits(
     let mut map = HashMap::new();
     for joint_name in &robot.robot.joints {
         let urdf_lim = joint_limits(urdf_robot, joint_name)?;
-        let motor = motor_for_joint(motors, joint_name).ok_or_else(|| DavoutError::UnknownJoint {
-            joint: joint_name.clone(),
-        })?;
+        let motor =
+            motor_for_joint(motors, joint_name).ok_or_else(|| DavoutError::UnknownJoint {
+                joint: joint_name.clone(),
+            })?;
         let type_key = motor_type_key(motor.motor_type);
         let defaults = control
             .control
@@ -584,20 +592,21 @@ mod tests {
         let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
         sup.set_homing_complete();
         sup.request_enable(true).expect("enable");
-        let motor = motor_for_joint(&sup.motors, "elbow").expect("motor").clone();
-        sup
-            .send_mit_joint(
-                MitJointCommand {
-                    joint: "elbow".to_string(),
-                    kp: 0.0,
-                    kd: 0.0,
-                    position_rad: 0.5,
-                    velocity_rad_s: 0.0,
-                    torque_ff_nm: 1.0,
-                },
-                &motor,
-            )
-            .expect("send");
+        let motor = motor_for_joint(&sup.motors, "elbow")
+            .expect("motor")
+            .clone();
+        sup.send_mit_joint(
+            MitJointCommand {
+                joint: "elbow".to_string(),
+                kp: 0.0,
+                kd: 0.0,
+                position_rad: 0.5,
+                velocity_rad_s: 0.0,
+                torque_ff_nm: 1.0,
+            },
+            &motor,
+        )
+        .expect("send");
         assert!(!sup.bus.tx.is_empty());
         assert!(sup.bus.tx[0].extended);
     }

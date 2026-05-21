@@ -39,7 +39,7 @@ mod friction;
 mod r#loop;
 
 pub use davout::ControlMode;
-pub use r#loop::{ControlLoop, LoopError, proto_control_mode};
+pub use r#loop::{proto_control_mode, ControlLoop, LoopError};
 
 use davout::{DavoutError, JointCommand, OperationalMode, Supervisor};
 use thiserror::Error;
@@ -107,6 +107,7 @@ mod tests {
         let mut ctrl = Controller::from_repo(&root, bus).expect("controller");
         ctrl.supervisor_mut().set_homing_complete();
         ctrl.supervisor_mut().request_enable(true).expect("enable");
-        ctrl.command_position("shoulder_roll", 0.05).expect("position");
+        ctrl.command_position("shoulder_roll", 0.05)
+            .expect("position");
     }
 }

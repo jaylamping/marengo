@@ -2,7 +2,11 @@
 
 [advisories]
 version = 2
-ignore = []
+db-path = "/usr/local/cargo/advisory-db-pinned"
+ignore = [
+    # Transitive via nalgebra → simba; no patched release on our toolchain yet.
+    { id = "RUSTSEC-2024-0436", reason = "paste unmaintained (nalgebra 0.33)" },
+]
 
 [licenses]
 version = 2

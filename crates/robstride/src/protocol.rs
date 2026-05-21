@@ -1,4 +1,4 @@
-//! Robstride RS-series CAN frame encoding (control subset for bench bring-up).
+//! Robstride RS-series CAN frame encoding (control subset for arm bring-up).
 //!
 //! Wire format is a Marengo-internal subset documented here until vendor ICD is linked in
 //! `hardware/docs/decisions/0001-can-and-motors.md`.

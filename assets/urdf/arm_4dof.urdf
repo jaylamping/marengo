@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<!-- 4-DOF Marengo bench arm: RS03 shoulders, RS02 yaw/elbow. Masses are estimates until CAD export. -->
+<!-- 4-DOF Marengo arm bring-up: humanoid arm subset (RS03 shoulders, RS02 yaw/elbow). Masses are estimates until CAD export. -->
 <robot name="arm_4dof">
   <link name="base_link">
     <inertial>

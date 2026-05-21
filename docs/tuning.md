@@ -1,4 +1,4 @@
-# Control tuning (4-DOF bench arm)
+# Control tuning (4-DOF arm bring-up)
 
 Operator workflow for OpenArm-style impedance after gravity compensation is validated. See [ADR 0004](decisions/0004-control-modes-and-mit.md).
 
@@ -15,8 +15,8 @@ OpenArm convention: arms straight down when possible. Record encoder zeros with 
 ## Gain sweep
 
 1. Start `config/control.yaml` impedance `kp`/`kd` at documented defaults.
-2. **RS03 joints** (`shoulder_roll`, `shoulder_pitch`): `kd` up to 100; do not copy to RS02 joints.
-3. **RS02 joints** (`upper_arm_yaw`, `elbow`): `kd` max **5** per vendor table.
+2. **RS03 / RS04 joints** (shoulders, waist, outer hip, **hip pitch**, **knee**): `kd` up to 100; do not copy to RS02 joints.
+3. **RS02 joints** (ankles, arm yaw/elbow/wrist): `kd` max **5** per vendor table.
 4. Increase `kp` until contact feels crisp without oscillation; back off 20%.
 
 ## Friction

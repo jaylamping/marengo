@@ -33,11 +33,13 @@ pub mod protocol;
 pub mod state;
 
 pub use bus::{
-    BusError, CanBus, CanFrame, JointMotion, MemoryBus, MotorBus, send_mit, send_motion,
-    send_motion_legacy,
+    send_mit, send_motion, send_motion_legacy, BusError, CanBus, CanFrame, JointMotion, MemoryBus,
+    MotorBus,
 };
-pub use mit::{MitCommand, MitFeedback, encode_mit, mit_rx_id, mit_tx_id};
-pub use protocol::{MotionCommand, MotionFeedback, command_can_id, decode_feedback, encode_command};
+pub use mit::{encode_mit, mit_rx_id, mit_tx_id, MitCommand, MitFeedback};
+pub use protocol::{
+    command_can_id, decode_feedback, encode_command, MotionCommand, MotionFeedback,
+};
 pub use state::MotorState;
 
 #[cfg(all(feature = "vcan", target_os = "linux"))]
@@ -58,7 +60,7 @@ mod tests {
     use marengo_config::MotorType;
 
     use super::bus::{MemoryBus, MotorBus};
-    use super::mit::{MitCommand, encode_mit, mit_tx_id};
+    use super::mit::{encode_mit, mit_tx_id, MitCommand};
 
     #[test]
     fn encode_mit_extended_id() {

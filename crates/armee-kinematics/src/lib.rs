@@ -21,7 +21,7 @@
 use std::path::{Path, PathBuf};
 
 use thiserror::Error;
-use urdf_rs::{JointType, read_file};
+use urdf_rs::{read_file, JointType};
 
 #[derive(Debug, Error)]
 pub enum UrdfError {
@@ -52,7 +52,7 @@ pub mod fixtures {
         repo_root().join("assets/urdf/marengo.urdf")
     }
 
-    /// 4-DOF bench arm URDF (`assets/urdf/arm_4dof.urdf`).
+    /// 4-DOF arm bring-up URDF (`assets/urdf/arm_4dof.urdf`) — humanoid arm subset.
     pub fn arm_4dof_urdf() -> PathBuf {
         repo_root().join("assets/urdf/arm_4dof.urdf")
     }
@@ -62,7 +62,7 @@ pub mod fixtures {
         repo_root().join("assets/mjcf/marengo.xml")
     }
 
-    /// 4-DOF bench MJCF (`assets/mjcf/arm_4dof.xml`).
+    /// 4-DOF arm bring-up MJCF (`assets/mjcf/arm_4dof.xml`).
     pub fn arm_4dof_mjcf() -> PathBuf {
         repo_root().join("assets/mjcf/arm_4dof.xml")
     }

@@ -80,11 +80,7 @@ pub fn encode_mit(cmd: &MitCommand) -> (u32, [u8; 8]) {
 }
 
 /// Decode MIT feedback; returns `None` if frame length or ID is invalid.
-pub fn decode_mit_feedback(
-    motor_type: MotorType,
-    can_id: u32,
-    data: &[u8],
-) -> Option<MitFeedback> {
+pub fn decode_mit_feedback(motor_type: MotorType, can_id: u32, data: &[u8]) -> Option<MitFeedback> {
     if data.len() < 8 {
         return None;
     }

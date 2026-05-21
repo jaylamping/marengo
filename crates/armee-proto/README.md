@@ -6,7 +6,7 @@
 
 Part of **Armée** — thin Rust wrapper around [`proto/`](../../proto/).
 
-At compile time, `build.rs` runs **prost-build** on `../../proto/*.proto` and this crate re-exports the generated types. **Do not hand-edit** — change `.proto` files and rebuild.
+At compile time, `build.rs` runs **prost-build** on `../../proto/**/*.proto` and this crate re-exports the generated types. **Do not hand-edit** — change `.proto` files and rebuild.
 
 ```rust
 use armee_proto::{Heartbeat, RobotState};

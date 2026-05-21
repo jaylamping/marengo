@@ -99,12 +99,7 @@ impl<B: MotorBus> ControlLoop<B> {
             let (kp, kd, tau_ff) = match self.control_mode {
                 ControlMode::GravityComp | ControlMode::TorqueOnly => (0.0, 0.0, tau_g[i]),
                 ControlMode::Impedance => {
-                    let cfg = self
-                        .supervisor
-                        .control
-                        .control
-                        .joints
-                        .get(name);
+                    let cfg = self.supervisor.control.control.joints.get(name);
                     let imp = cfg.map(|c| &c.impedance);
                     let fr = cfg.map(|c| &c.friction);
                     let kp = imp.map(|g| g.kp).unwrap_or(0.0);
@@ -199,12 +194,7 @@ impl<B: MotorBus> ControlLoop<B> {
             timestamp_ms,
             joints,
         };
-        chappe.publish(
-            "robot/state",
-            "berthier",
-            "marengo.v1.RobotState",
-            &state,
-        )?;
+        chappe.publish("robot/state", "berthier", "marengo.v1.RobotState", &state)?;
         Ok(())
     }
 

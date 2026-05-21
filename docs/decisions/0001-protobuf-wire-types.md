@@ -27,7 +27,7 @@ Use **Protocol Buffers** as the source of truth for all inter-service wire types
 
 - **Tooling:** `protoc` required for Rust builds; `buf` CLI required for Consul codegen.
 - **CI:** Install both; run `cargo build` and `consul` `gen:proto` in pipeline.
-- **Workflow:** API changes start in `proto/*.proto`, then regenerate Rust/TS.
+- **Workflow:** API changes start in `proto/marengo/v1/*.proto`, then regenerate Rust/TS.
 
 ## Alternatives considered
 

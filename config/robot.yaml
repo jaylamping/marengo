@@ -1,4 +1,4 @@
-# Robot runtime parameters (4-DOF bench arm)
+# Robot runtime parameters (4-DOF arm bring-up — first wired humanoid subsystem)
 robot:
   name: marengo_arm_4dof
   urdf: assets/urdf/arm_4dof.urdf

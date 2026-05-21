@@ -60,7 +60,11 @@ impl Bus {
     }
 
     fn sender(&self, topic: &str) -> broadcast::Sender<Vec<u8>> {
-        let mut guard = self.inner.channels.write().unwrap_or_else(|e| e.into_inner());
+        let mut guard = self
+            .inner
+            .channels
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
         if let Some(tx) = guard.get(topic) {
             return tx.clone();
         }
@@ -104,8 +108,13 @@ impl Bus {
     }
 
     /// Decode the next envelope from a subscription.
-    pub async fn recv_envelope(rx: &mut broadcast::Receiver<Vec<u8>>) -> Result<Envelope, BusError> {
-        let bytes = rx.recv().await.map_err(|e| BusError::Decode(e.to_string()))?;
+    pub async fn recv_envelope(
+        rx: &mut broadcast::Receiver<Vec<u8>>,
+    ) -> Result<Envelope, BusError> {
+        let bytes = rx
+            .recv()
+            .await
+            .map_err(|e| BusError::Decode(e.to_string()))?;
         Envelope::decode(bytes.as_slice()).map_err(|e| BusError::Decode(e.to_string()))
     }
 }
@@ -114,7 +123,7 @@ impl Bus {
 mod tests {
     #![allow(clippy::expect_used)]
 
-    use armee_proto::{Heartbeat, prost::Message};
+    use armee_proto::{prost::Message, Heartbeat};
 
     use super::*;
 

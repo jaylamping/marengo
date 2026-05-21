@@ -17,7 +17,7 @@ pub fn production_model_path() -> PathBuf {
     fixtures::production_mjcf()
 }
 
-/// 4-DOF bench arm MJCF (`assets/mjcf/arm_4dof.xml`).
+/// 4-DOF arm bring-up MJCF (`assets/mjcf/arm_4dof.xml`).
 pub fn arm_4dof_model_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../assets/mjcf/arm_4dof.xml")
 }

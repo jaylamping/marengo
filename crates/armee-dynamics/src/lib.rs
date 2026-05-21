@@ -25,8 +25,8 @@ mod urdf_gravity;
 use std::path::Path;
 
 use armee_kinematics::UrdfError;
-pub use urdf_gravity::UrdfGravityModel;
 use thiserror::Error;
+pub use urdf_gravity::UrdfGravityModel;
 
 #[derive(Debug, Error)]
 pub enum DynamicsError {

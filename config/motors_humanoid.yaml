@@ -1,0 +1,332 @@
+# Humanoid joint → CAN mapping (23 DOF).
+# Not loaded by default — copy/rename to motors.yaml when commissioning full body.
+# motor_type per hardware/docs/decisions/0002-robstride-protocol.md
+# Joint names and limits must match hardware/docs/kinematics.md
+motors:
+  # --- Left leg (device_id 1–6) ---
+  - joint: left_hip_yaw
+    driver: robstride
+    motor_type: rs03
+    can_interface: can0
+    device_id: 1
+    direction: 1
+    gear_ratio: 1.0
+    recv_can_id: 0x240
+    firmware_version: "0.0.0-humanoid"
+    bench:
+      position_lower_rad: -2.76
+      position_upper_rad: 2.76
+      velocity_limit_rad_s: 0.5
+      torque_limit_nm: 5.0
+  - joint: left_hip_roll
+    driver: robstride
+    motor_type: rs03
+    can_interface: can0
+    device_id: 2
+    direction: 1
+    gear_ratio: 1.0
+    recv_can_id: 0x241
+    firmware_version: "0.0.0-humanoid"
+    bench:
+      position_lower_rad: -0.52
+      position_upper_rad: 2.97
+      velocity_limit_rad_s: 0.5
+      torque_limit_nm: 5.0
+  - joint: left_hip_pitch
+    driver: robstride
+    motor_type: rs04
+    can_interface: can0
+    device_id: 3
+    direction: 1
+    gear_ratio: 1.0
+    recv_can_id: 0x242
+    firmware_version: "0.0.0-humanoid"
+    bench:
+      position_lower_rad: -2.69
+      position_upper_rad: 2.69
+      velocity_limit_rad_s: 0.4
+      torque_limit_nm: 5.0
+  - joint: left_knee
+    driver: robstride
+    motor_type: rs04
+    can_interface: can0
+    device_id: 4
+    direction: 1
+    gear_ratio: 1.0
+    recv_can_id: 0x243
+    firmware_version: "0.0.0-humanoid"
+    bench:
+      position_lower_rad: 0.0
+      position_upper_rad: 2.88
+      velocity_limit_rad_s: 0.4
+      torque_limit_nm: 5.0
+  - joint: left_ankle_pitch
+    driver: robstride
+    motor_type: rs02
+    can_interface: can0
+    device_id: 5
+    direction: 1
+    gear_ratio: 1.0
+    recv_can_id: 0x244
+    firmware_version: "0.0.0-humanoid"
+    bench:
+      position_lower_rad: -1.0
+      position_upper_rad: 0.8
+      velocity_limit_rad_s: 0.5
+      torque_limit_nm: 3.0
+  - joint: left_ankle_roll
+    driver: robstride
+    motor_type: rs02
+    can_interface: can0
+    device_id: 6
+    direction: 1
+    gear_ratio: 1.0
+    recv_can_id: 0x245
+    firmware_version: "0.0.0-humanoid"
+    bench:
+      position_lower_rad: -0.5
+      position_upper_rad: 0.5
+      velocity_limit_rad_s: 0.5
+      torque_limit_nm: 3.0
+  # --- Right leg (device_id 7–12) ---
+  - joint: right_hip_yaw
+    driver: robstride
+    motor_type: rs03
+    can_interface: can0
+    device_id: 7
+    direction: 1
+    gear_ratio: 1.0
+    recv_can_id: 0x246
+    firmware_version: "0.0.0-humanoid"
+    bench:
+      position_lower_rad: -2.76
+      position_upper_rad: 2.76
+      velocity_limit_rad_s: 0.5
+      torque_limit_nm: 5.0
+  - joint: right_hip_roll
+    driver: robstride
+    motor_type: rs03
+    can_interface: can0
+    device_id: 8
+    direction: 1
+    gear_ratio: 1.0
+    recv_can_id: 0x247
+    firmware_version: "0.0.0-humanoid"
+    bench:
+      position_lower_rad: -2.97
+      position_upper_rad: 0.52
+      velocity_limit_rad_s: 0.5
+      torque_limit_nm: 5.0
+  - joint: right_hip_pitch
+    driver: robstride
+    motor_type: rs04
+    can_interface: can0
+    device_id: 9
+    direction: 1
+    gear_ratio: 1.0
+    recv_can_id: 0x248
+    firmware_version: "0.0.0-humanoid"
+    bench:
+      position_lower_rad: -2.69
+      position_upper_rad: 2.69
+      velocity_limit_rad_s: 0.4
+      torque_limit_nm: 5.0
+  - joint: right_knee
+    driver: robstride
+    motor_type: rs04
+    can_interface: can0
+    device_id: 10
+    direction: 1
+    gear_ratio: 1.0
+    recv_can_id: 0x249
+    firmware_version: "0.0.0-humanoid"
+    bench:
+      position_lower_rad: 0.0
+      position_upper_rad: 2.88
+      velocity_limit_rad_s: 0.4
+      torque_limit_nm: 5.0
+  - joint: right_ankle_pitch
+    driver: robstride
+    motor_type: rs02
+    can_interface: can0
+    device_id: 11
+    direction: 1
+    gear_ratio: 1.0
+    recv_can_id: 0x24a
+    firmware_version: "0.0.0-humanoid"
+    bench:
+      position_lower_rad: -1.0
+      position_upper_rad: 0.8
+      velocity_limit_rad_s: 0.5
+      torque_limit_nm: 3.0
+  - joint: right_ankle_roll
+    driver: robstride
+    motor_type: rs02
+    can_interface: can0
+    device_id: 12
+    direction: 1
+    gear_ratio: 1.0
+    recv_can_id: 0x24b
+    firmware_version: "0.0.0-humanoid"
+    bench:
+      position_lower_rad: -0.5
+      position_upper_rad: 0.5
+      velocity_limit_rad_s: 0.5
+      torque_limit_nm: 3.0
+  # --- Waist (device_id 13) ---
+  - joint: waist_yaw
+    driver: robstride
+    motor_type: rs03
+    can_interface: can0
+    device_id: 13
+    direction: 1
+    gear_ratio: 1.0
+    recv_can_id: 0x24c
+    firmware_version: "0.0.0-humanoid"
+    bench:
+      position_lower_rad: -2.71
+      position_upper_rad: 2.71
+      velocity_limit_rad_s: 0.5
+      torque_limit_nm: 5.0
+  # --- Left arm (device_id 14–18) ---
+  - joint: left_shoulder_roll
+    driver: robstride
+    motor_type: rs03
+    can_interface: can0
+    device_id: 14
+    direction: 1
+    gear_ratio: 1.0
+    recv_can_id: 0x24d
+    firmware_version: "0.0.0-humanoid"
+    bench:
+      position_lower_rad: -1.57
+      position_upper_rad: 1.57
+      velocity_limit_rad_s: 0.5
+      torque_limit_nm: 5.0
+  - joint: left_shoulder_pitch
+    driver: robstride
+    motor_type: rs03
+    can_interface: can0
+    device_id: 15
+    direction: 1
+    gear_ratio: 1.0
+    recv_can_id: 0x24e
+    firmware_version: "0.0.0-humanoid"
+    bench:
+      position_lower_rad: -1.2
+      position_upper_rad: 1.2
+      velocity_limit_rad_s: 0.5
+      torque_limit_nm: 5.0
+  - joint: left_upper_arm_yaw
+    driver: robstride
+    motor_type: rs02
+    can_interface: can0
+    device_id: 16
+    direction: 1
+    gear_ratio: 1.0
+    recv_can_id: 0x24f
+    firmware_version: "0.0.0-humanoid"
+    bench:
+      position_lower_rad: -1.57
+      position_upper_rad: 1.57
+      velocity_limit_rad_s: 0.5
+      torque_limit_nm: 3.0
+  - joint: left_elbow
+    driver: robstride
+    motor_type: rs02
+    can_interface: can0
+    device_id: 17
+    direction: 1
+    gear_ratio: 1.0
+    recv_can_id: 0x250
+    firmware_version: "0.0.0-humanoid"
+    bench:
+      position_lower_rad: 0.0
+      position_upper_rad: 2.5
+      velocity_limit_rad_s: 0.5
+      torque_limit_nm: 3.0
+  - joint: left_wrist
+    driver: robstride
+    motor_type: rs02
+    can_interface: can0
+    device_id: 18
+    direction: 1
+    gear_ratio: 1.0
+    recv_can_id: 0x251
+    firmware_version: "0.0.0-humanoid"
+    bench:
+      position_lower_rad: -1.6
+      position_upper_rad: 1.6
+      velocity_limit_rad_s: 0.5
+      torque_limit_nm: 3.0
+  # --- Right arm (device_id 19–23) ---
+  - joint: right_shoulder_roll
+    driver: robstride
+    motor_type: rs03
+    can_interface: can0
+    device_id: 19
+    direction: 1
+    gear_ratio: 1.0
+    recv_can_id: 0x252
+    firmware_version: "0.0.0-humanoid"
+    bench:
+      position_lower_rad: -1.57
+      position_upper_rad: 1.57
+      velocity_limit_rad_s: 0.5
+      torque_limit_nm: 5.0
+  - joint: right_shoulder_pitch
+    driver: robstride
+    motor_type: rs03
+    can_interface: can0
+    device_id: 20
+    direction: 1
+    gear_ratio: 1.0
+    recv_can_id: 0x253
+    firmware_version: "0.0.0-humanoid"
+    bench:
+      position_lower_rad: -1.2
+      position_upper_rad: 1.2
+      velocity_limit_rad_s: 0.5
+      torque_limit_nm: 5.0
+  - joint: right_upper_arm_yaw
+    driver: robstride
+    motor_type: rs02
+    can_interface: can0
+    device_id: 21
+    direction: 1
+    gear_ratio: 1.0
+    recv_can_id: 0x254
+    firmware_version: "0.0.0-humanoid"
+    bench:
+      position_lower_rad: -1.57
+      position_upper_rad: 1.57
+      velocity_limit_rad_s: 0.5
+      torque_limit_nm: 3.0
+  - joint: right_elbow
+    driver: robstride
+    motor_type: rs02
+    can_interface: can0
+    device_id: 22
+    direction: 1
+    gear_ratio: 1.0
+    recv_can_id: 0x255
+    firmware_version: "0.0.0-humanoid"
+    bench:
+      position_lower_rad: 0.0
+      position_upper_rad: 2.5
+      velocity_limit_rad_s: 0.5
+      torque_limit_nm: 3.0
+  - joint: right_wrist
+    driver: robstride
+    motor_type: rs02
+    can_interface: can0
+    device_id: 23
+    direction: 1
+    gear_ratio: 1.0
+    recv_can_id: 0x256
+    firmware_version: "0.0.0-humanoid"
+    bench:
+      position_lower_rad: -1.6
+      position_upper_rad: 1.6
+      velocity_limit_rad_s: 0.5
+      torque_limit_nm: 3.0

@@ -56,11 +56,7 @@ impl UrdfGravityModel {
         let mut chain = Vec::new();
         let mut current = link_name.to_string();
         loop {
-            let joint = self
-                .robot
-                .joints
-                .iter()
-                .find(|j| j.child.link == current);
+            let joint = self.robot.joints.iter().find(|j| j.child.link == current);
             let Some(joint) = joint else {
                 break;
             };
@@ -77,7 +73,8 @@ impl UrdfGravityModel {
                 .find(|(n, _)| n == &joint.name)
                 .map(|(_, v)| *v)
                 .unwrap_or(0.0);
-            if joint.joint_type == JointType::Revolute || joint.joint_type == JointType::Continuous {
+            if joint.joint_type == JointType::Revolute || joint.joint_type == JointType::Continuous
+            {
                 let axis = Vector3::new(
                     joint.axis.xyz.0[0],
                     joint.axis.xyz.0[1],
@@ -128,10 +125,7 @@ impl super::DynamicsModel for UrdfGravityModel {
             for sign in [-1.0f64, 1.0] {
                 q_map[i].1 = q0 + sign * DQ_EPS;
                 let coms = self.link_com_world(&q_map);
-                let pe: f64 = coms
-                    .iter()
-                    .map(|(m, p)| -m * GRAVITY.dot(p))
-                    .sum();
+                let pe: f64 = coms.iter().map(|(m, p)| -m * GRAVITY.dot(p)).sum();
                 dpe_dq += sign * pe / (2.0 * DQ_EPS);
             }
             q_map[i].1 = q0;

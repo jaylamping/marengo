@@ -5,7 +5,7 @@
 
 ## Context
 
-Marengo targets OpenArm-class control: closed-loop CAN with MIT-mode impedance/feedforward commands. The existing stack used scalar position commands and a non-vendor CAN stub. Gravity compensation is required on the 4-DOF bench after an upright-pose collapse incident (see [safety.md](../safety.md)).
+Marengo targets OpenArm-class control: closed-loop CAN with MIT-mode impedance/feedforward commands. The existing stack used scalar position commands and a non-vendor CAN stub. Gravity compensation is required during 4-DOF arm bring-up after an upright-pose collapse incident (see [safety.md](../safety.md)).
 
 ## Decision
 

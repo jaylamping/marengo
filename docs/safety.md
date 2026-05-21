@@ -26,7 +26,7 @@ Document actual pin/signal mapping in [hardware/electrical/wiring/](../hardware/
 
 ## Upright-pose incident (4-DOF arm)
 
-During bench testing with the arm elevated (shoulder/elbow up), motion stopped while the arm was unsupported. Without gravity feedforward, the arm fell rapidly into the operator workspace.
+During early arm bring-up with the arm elevated (shoulder/elbow up), motion stopped while the arm was unsupported. Without gravity feedforward, the arm fell rapidly into the operator workspace.
 
 **Required mitigations before repeat tests:**
 

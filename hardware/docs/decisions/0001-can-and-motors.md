@@ -5,7 +5,7 @@
 
 ## Context
 
-Marengo bench bring-up uses Robstride RS-series actuators on SocketCAN. Software reads joint→bus mapping from [`config/motors.yaml`](../../../config/motors.yaml).
+Marengo uses Robstride RS-series actuators on SocketCAN. Software reads joint→bus mapping from [`config/motors.yaml`](../../../config/motors.yaml) (4-DOF arm bring-up — active config) or [`config/motors_humanoid.yaml`](../../../config/motors_humanoid.yaml) (23-DOF humanoid template). Joint names and motor types are defined in [`kinematics.md`](../kinematics.md).
 
 ## Decision
 
@@ -19,14 +19,20 @@ Marengo bench bring-up uses Robstride RS-series actuators on SocketCAN. Software
 | Frame format | Standard 11-bit CAN |
 | Protocol | Robstride RS motion frames (see `crates/robstride`) |
 
-### Device IDs (prototype v0)
+### Device IDs
 
-| Joint | `device_id` | Notes |
+**Arm bring-up (active, 4 DOF)** — [`config/motors.yaml`](../../../config/motors.yaml):
+
+| Joint | `device_id` | Motor |
 |-------|-------------|-------|
-| `joint1` | 1 | Bench link 1 |
-| `joint2` | 2 | Bench link 2 |
+| `shoulder_roll` | 1 | RS03 |
+| `shoulder_pitch` | 2 | RS03 |
+| `upper_arm_yaw` | 3 | RS02 |
+| `elbow` | 4 | RS02 |
 
-Reassign IDs in firmware before changing `config/motors.yaml`.
+**Humanoid (template)** — [`config/motors_humanoid.yaml`](../../../config/motors_humanoid.yaml): IDs 1–23, legs 1–12, waist 13, arms 14–23. RS04 on hip pitch + knee (4×); RS03 on outer hip, waist, shoulders (9×); RS02 on ankles + arm wrist chain (10×).
+
+Reassign IDs in firmware before changing motor YAML.
 
 ### CAN2 — Moteus (future)
 
