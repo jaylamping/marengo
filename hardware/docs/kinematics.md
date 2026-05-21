@@ -13,43 +13,65 @@ Runtime config: [`config/robot_humanoid.yaml`](../../config/robot_humanoid.yaml)
 
 ## Humanoid mechanical reference
 
-Design follows **Unitree G1** proportions (~1320 mm standing) scaled to **1524 mm (5 ft)** with a slightly slimmer torso and longer legs. No wheels — biped only.
+Design follows **Unitree G1** upper-body proportions and **Unitree R1** lower-body slimness, scaled to **1524 mm (5 ft)**. No wheels — biped only.
 
-| Parameter | Unitree G1 | Marengo target |
-|-----------|------------|----------------|
+**Design status:** only the [**upper torso 2020 frame**](#torso-frame-committed) is committed for rev-a CAD. Pelvis, shell, battery bays, shoulder poke, and leg lengths below are **draft** — may change during layout; joint names, axes, and actuator map stay authoritative.
+
+| Parameter | Unitree G1 | Marengo (draft unless noted) |
+|-----------|------------|------------------------------|
 | Standing height | 1320 mm | **1524 mm** |
-| Body width | 450 mm | **440 mm** |
-| Chest depth | 200 mm | **185 mm** |
+| Body width | 450 mm | *draft* — shell TBD |
+| Chest depth | 200 mm | *draft* — shell TBD |
 | Thigh + shank (link length) | 600 mm | **660 mm** |
 | Shoulder → hand reach | ~450 mm | **~480 mm** |
 | Target mass (with battery) | ~35 kg | **38–42 kg** |
 | Total DOF (v1, no hands) | 23 | **23** |
 
+### Torso frame (committed)
+
+Upper body structure is a single **2020 aluminum cage** (`marengo_upper_torso_frame` in CAD). Depth = **+X forward**, width = **±Y**, height = **+Z** from pelvis bottom origin.
+
+| | Depth (X) | Width (Y) | Height (Z) |
+|---|-----------|-----------|------------|
+| **Outer (2020 OD)** | **125** | **150** | **380** |
+| **Inner clear (between rails)** | **85** | **110** | **~300** above waist bay |
+
+| Feature | mm | Notes |
+|---------|-----|-------|
+| **Waist bay** (bottom of frame) | **≥ 40** | Reserved for `waist_yaw` RS03 + adapter; no shelves |
+| **Chest zone** (above waist bay) | **~340** outer | Pi, PDB, harness; M18 bay *draft* |
+| **Bottom interface** | — | Bottom rail → waist adapter → pelvis ring (*pelvis draft*) |
+| **Top interface** | Z = **495** from pelvis bottom | Shoulder RS03 mounts on outer Y faces (*poke draft*) |
+
+Vertical: **380 mm** = waist joint plane → shoulder plane when pelvis height remains **115 mm** (draft).
+
 ### Link dimensions (mm)
 
-Floor → crown must sum to **1524 mm**. Joint-to-joint lengths are CAD targets; refine after vendor STEP import.
+Floor → crown must sum to **1524 mm**. Values marked *draft* are CAD targets until vendor STEP and layout freeze.
 
 | Segment | Length | Floor → landmark |
 |---------|--------|------------------|
-| Foot (sole → ankle axis) | 80 | ankle @ 80 |
-| Shank (ankle → knee) | 325 | knee @ 405 |
-| Thigh (knee → hip) | 335 | hip @ 740 |
-| Pelvis block | 115 | waist @ 855 |
-| Torso (waist → shoulder) | 380 | shoulder @ **1235** |
-| Neck | 65 | |
-| Head (chin → crown) | 224 | crown @ **1524** |
+| Foot (sole → ankle axis) | 80 *draft* | ankle @ 80 |
+| Shank (ankle → knee) | 325 *draft* | knee @ 405 |
+| Thigh (knee → hip) | 335 *draft* | hip @ 740 |
+| Pelvis block | 115 *draft* | waist @ 855 |
+| Torso (waist → shoulder) | **380** | shoulder @ **1235** |
+| Neck | 65 *draft* | |
+| Head (chin → crown) | 224 *draft* | crown @ **1524** |
 
-| Part | Size (mm) | Notes |
-|------|-----------|-------|
-| Foot (each) | 250 × 115 × 80 | Toe-heavy for CoM |
-| Hip span (joint centers) | 280 | |
-| Shoulder span (joint centers) | 400 | |
-| Pelvis | 220 × 280 × 115 | |
-| Chest | 300 × 185 × 380 | Electronics bay |
-| Head | 175 × 160 × 224 | Depth cam / lidar pod |
-| Upper arm (per side) | 215 | Shoulder yaw → elbow |
-| Forearm (per side) | 195 | Elbow → wrist |
-| Hand / gripper stub | 90 | v1 — no dexterous hand |
+| Part | Size (mm) | Status | Notes |
+|------|-----------|--------|-------|
+| **Upper torso frame** | **125 × 150 × 380** outer; **85 × 110** inner clear | **committed** | 2020 cage; see [torso frame](#torso-frame-committed) |
+| Pelvis ring | ~215 × 260 × 115 outer *draft* | draft | Wider than torso; main pack bay TBD |
+| Main battery envelope | ~185 × 165 × 90 *draft* | draft | Pelvis; max Wh TBD |
+| M18 HD12 aux bay | ~168 × 98 × 112 *draft* | draft | Upper back cantilever |
+| Shoulder outer width | ~230 *draft* | draft | 150 frame + RS03 poke (~40 mm/side); verify STEP |
+| Hip span (joint centers) | ~250 *draft* | draft | R1-class; splayed mounts |
+| Foot (each) | 250 × 115 × 80 *draft* | draft | Toe-heavy for CoM |
+| Head | 175 × 160 × 224 *draft* | draft | Skipped in v1 CAD |
+| Upper arm (per side) | 215 *draft* | draft | |
+| Forearm (per side) | 195 *draft* | draft | |
+| Hand / gripper stub | 90 *draft* | draft | v1 — no dexterous hand |
 
 ### Leg kinematic tree (each side)
 
@@ -164,8 +186,8 @@ Leg bring-up: start with **hip pitch** and **knee** RS04 sign tests under load b
 
 | Frame | Use |
 |-------|-----|
-| `base_link` / pelvis | Biped origin; pelvis `urdf_link_frame` on CAD pelvis |
-| `torso_link` | Shoulder mount reference |
+| `base_link` / pelvis | Biped origin; pelvis `urdf_link_frame` on CAD pelvis (*pelvis draft*) |
+| `torso_link` | Upper torso 2020 frame; shoulder mounts on outer Y faces of committed cage |
 | `left_foot` / `right_foot` | Sole contact; Z = floor in standing neutral |
 | `left_hand` / `right_hand` | Tool frame placeholder (TCP when gripper defined) |
 | `forearm_link` | Arm bring-up tool frame (full humanoid: `left_hand` / `right_hand`) |

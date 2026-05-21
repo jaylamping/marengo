@@ -16,7 +16,7 @@ Physical robot design for **Marengo** — CAD, electrical, prints, and BOM live 
 
 | Target | Status |
 |--------|--------|
-| **Humanoid rev-a** — G1-class biped, 1524 mm, 23 DOF | CAD + kinematics defined; see [`docs/kinematics.md`](docs/kinematics.md) |
+| **Humanoid rev-a** — G1/R1-class biped, 1524 mm, 23 DOF | Torso frame **125×150×380 mm** committed; pelvis/shell draft — [`docs/kinematics.md`](docs/kinematics.md) |
 | **Arm (4 DOF, bring-up)** | First subsystem wired; [`config/robot.yaml`](../config/robot.yaml) + [`assets/urdf/arm_4dof.urdf`](../assets/urdf/arm_4dof.urdf) — subset of humanoid arm kinematics |
 
 Full-body runtime templates (not loaded until remaining joints are commissioned): [`config/robot_humanoid.yaml`](../config/robot_humanoid.yaml), [`config/motors_humanoid.yaml`](../config/motors_humanoid.yaml).
