@@ -13,11 +13,11 @@
       },
       "cad": {
         "stepPath": "hardware/cad/vendor/vendor_robstride_rs03_vendor.step",
-        "nativePath": null,
+        "nativePath": "hardware/cad/vendor/vendor_robstride_rs03_vendor.SLDPRT",
         "units": "mm"
       },
-      "status": "staged",
-      "notes": "Torso/waist/shoulder/hip layout reference. Import STEP in SolidWorks → save as vendor_robstride_rs03_vendor.SLDPRT. Module ~106×106×56 mm (verify after import)."
+      "status": "imported",
+      "notes": "Torso/waist/shoulder/hip layout reference. Measured envelope ~99×99×57 mm (MCP bbox). Waist bay fit TBD vs committed 40 mm bay height."
     }
   ]
 }
