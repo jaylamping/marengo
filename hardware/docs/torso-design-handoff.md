@@ -88,6 +88,8 @@ Single aluminum cage, CAD name target: `marengo_upper_torso_frame`.
 
 **Layout part next steps:** model committed box + waist bay + draft shoulder/hip points; named refs per `cad-standards.md` (`urdf_link_frame`, `joint_axis`, `cable_exit`, etc.).
 
+**2020 extrusion:** cut list + GrabCAD/vendor workflow in [`torso-2020-extrusion.md`](torso-2020-extrusion.md). Layout ICE rails (`corner_posts`, `top_rail_*`, `bottom_rail_*`) match committed lengths — replace with vendor profile in a frame sub-assembly.
+
 ---
 
 ## Concept images (non-CAD)

@@ -10,7 +10,9 @@ globs:
 # SolidWorks MCP (Marengo)
 
 - Open **`marengo.code-workspace`** (marengo + solidworks-mcp) for CAD + MCP worker edits.
-- After changing `solidworks-mcp` worker or TS: `npm run build` in `solidworks-mcp`.
+- After changing `solidworks-mcp` worker or TS: `npm run build` in `solidworks-mcp`, then **restart the SolidWorks MCP server** in Cursor (MCP panel → restart, or Reload Window). Stale MCP causes wrong URDF/readiness results.
+- Verify tools: `npm run validate:tools` in `solidworks-mcp` (requires SolidWorks running).
+- `solidworks_status` returns `mcpVersion`; if missing or old after a build, restart MCP.
 - CAD allowed root: **`C:/code/marengo`** only (`SOLIDWORKS_MCP_ALLOWED_ROOTS`).
 - Root assembly target: `hardware/cad/assemblies/marengo.sldasm`.
 - MCP is **audit-first**: conventions, design package, URDF readiness, postcheck, hardware coverage — no URDF writer or `insert_component` yet.
