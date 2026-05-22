@@ -64,6 +64,7 @@ fn unsigned_to_vendor_u16(value: f32, scale: f32) -> u16 {
         .clamp(0.0, u16::MAX as f32) as u16
 }
 
+#[cfg(test)]
 fn vendor_u16_to_unsigned(raw: u16, scale: f32) -> f32 {
     f32::from(raw) / u16::MAX as f32 * scale
 }
