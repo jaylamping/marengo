@@ -11,7 +11,7 @@ At the point of sunset, the repository had grown past 80 kLOC and was continuing
 
 The goal of this ADR is to capture the specific early architectural and process mistakes that became structurally expensive, so that Marengo (and future contributors/agents) can consciously avoid repeating them while pursuing the same 23-DOF biped vision.
 
-On a personal note, the author is currently deep in Napoleonic history. The opportunity to name the entire runtime after Napoleon's marshals and generals — Berthier (control), Davout (safety), Talleyrand (planning), Fouché (perception), Chappe (the optical telegraph as the message bus), and Marengo itself (the horse and the 1800 battle) — was simply too good to pass up. The "Armée" workspace and Napoleonic corps naming theme gives the second system both a memorable identity and a constant, slightly irreverent reminder of what disciplined command structures can (and cannot) achieve.
+On a personal note, the author was reading a lot of Napoleonic history at the time. Naming the crates after the marshals and headquarters staff of the Grande Armée — Berthier for the bit that actually moves the joints, Davout for the part whose entire job is to say “no”, Talleyrand for planning, Fouché for perception, Chappe for the message bus — felt clever in the moment. The decision to theme a second-system robotics stack after one of history’s more famous examples of centralised command, right after concluding that the first 80 kLOC attempt had collapsed under the weight of its own early decisions, is recorded here without additional editorialising.
 
 ## The costly early decisions in Rudy
 
