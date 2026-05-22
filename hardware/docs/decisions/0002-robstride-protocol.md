@@ -19,10 +19,13 @@
 ## Protocol family (shared)
 
 - **CAN 2.0B extended** frames (29-bit arbitration).
-- **MIT Mode 0** — five-tuple: `p_des`, `v_des`, `kp`, `kd`, `t_ff`.
-- **MIT command ID:** `0x200 + motor_id` (TX).
-- **Feedback:** model-specific RX IDs; decode position, velocity, torque, mode, fault.
+- Extended arbitration ID: `(comm_type << 24) | (extra_data << 8) | device_id`.
+- **MIT Mode 0** — five-tuple: `p_des`, `v_des`, `kp`, `kd`, `t_ff`; torque is encoded in the extended ID `extra_data` field.
+- **Feedback:** `comm_type=2` status frames; decode position, velocity, torque, temperature, fault reports.
 - **Lifecycle:** enable, disable, stop, `SetZero` per manual (parameter IDs may differ by model).
+- Firmware `run_mode` (`0x7005`): `0=MIT`, `1=Position`, `2=Speed`, `3=Current`.
+
+The Seeed wiki's simplified `0x200`/`0x300`/`0x400 + device_id` table is documentation drift. The Seeed SDK and vendor manuals use communication types plus parameter writes: Position writes `loc_ref` (`0x7016`), Speed writes `spd_ref` (`0x700A`), and Current writes `iq_ref` (`0x7006`).
 
 ## Rated limits (Seeed table — confirm in each PDF before production)
 
@@ -36,9 +39,9 @@
 ## Marengo implementation
 
 - `motor_type` in [`config/motors.yaml`](../../../config/motors.yaml): `rs00` | `rs02` | `rs03` | `rs04`.
-- `crates/robstride`: `encode_mit(cmd, MotorType)` / `decode_feedback` — **delete** legacy 11-bit `0x140` stub.
-- **Phase 2 deliverable:** RS02 + RS03 encode/decode + hardware/vcan roundtrip.
-- **RS00 / RS04:** same API; unit tests from PDF quantization before motors are mounted.
+- `crates/robstride`: vendor `encode_mit` / `decode_mit_feedback`, lifecycle frames, and parameter read/write helpers.
+- **MIT production path:** Berthier → Davout → Robstride `OPERATION_CONTROL` (`comm_type=1`) every tick.
+- **Bench diagnostics:** firmware Speed/Position/Current modes require explicit Davout methods and config gates; do not map Berthier control modes to firmware `run_mode`.
 
 ## Gate before bench gravity comp
 

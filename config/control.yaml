@@ -7,6 +7,8 @@ control:
   comm_watchdog_ms: 50
   tau_ff_rate_limit_nm_per_s: 20.0
   disable_on_exit: true
+  bench:
+    allow_firmware_speed_mode: false
 
   motor_type_defaults:
     rs00:

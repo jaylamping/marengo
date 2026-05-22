@@ -81,6 +81,14 @@ let bytes = joint.encode_to_vec();
 
 See [safety.md](safety.md). No motor enable without Davout and an explicit state machine.
 
+```rust
+// BAD — reconstructing Robstride arbitration IDs at call sites
+let id = (18 << 24) | (0x00ff << 8) | device_id;
+
+// GOOD — vendor frame helpers keep communication type and parameter layout together
+let (id, data) = robstride::encode_set_run_mode(device_id, robstride::RunMode::Speed);
+```
+
 ## 8. Testing
 
 - Default `cargo test` must not require hardware.

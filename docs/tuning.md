@@ -25,8 +25,12 @@ Tune `fc`, `fv`, `fo`, `k` under each joint in `config/control.yaml` (Berthier `
 
 ## Modes
 
-| Mode | When |
-|------|------|
-| `GravityComp` | First hardware enable, elevated poses |
-| `Impedance` | After G-comp signed off |
-| `Position` | Only when not holding elevated configurations |
+These are Marengo control modes, not Robstride firmware `run_mode` values. Marengo `Position` still sends MIT operation-control frames with non-zero gains; it does not switch the drive to firmware Position mode (`run_mode=1`).
+
+| Marengo mode | Firmware path | When |
+|--------------|---------------|------|
+| `GravityComp` | MIT `run_mode=0` | First hardware enable, elevated poses |
+| `Impedance` | MIT `run_mode=0` | After G-comp signed off |
+| `Position` | MIT `run_mode=0` | Only when not holding elevated configurations |
+
+Firmware Speed mode (`run_mode=2`, `spd_ref`) is a bench diagnostic path only and is disabled unless `control.bench.allow_firmware_speed_mode` is set explicitly.

@@ -6,7 +6,10 @@ use std::time::{Duration, Instant};
 use marengo_config::MotorType;
 use thiserror::Error;
 
+use crate::comm::{self, CommunicationType};
+use crate::lifecycle;
 use crate::mit::{self, MitCommand};
+use crate::params::{self, ParameterId, ParameterValue, RunMode};
 use crate::protocol::MotionCommand;
 use crate::state::MotorState;
 
@@ -40,18 +43,67 @@ pub trait CanBus {
     }
 }
 
+fn send_encoded_frame<B: CanBus + ?Sized>(
+    bus: &mut B,
+    id: u32,
+    data: [u8; 8],
+) -> Result<(), BusError> {
+    bus.send_frame(&CanFrame {
+        id,
+        data,
+        extended: true,
+    })
+}
+
 /// Motor bus: MIT commands + feedback cache.
 pub trait MotorBus: CanBus {
     fn mit_control_all(&mut self, cmds: &[MitCommand]) -> Result<(), BusError> {
         for cmd in cmds {
             let (id, data) = mit::encode_mit(cmd);
-            self.send_frame(&CanFrame {
-                id,
-                data,
-                extended: true,
-            })?;
+            send_encoded_frame(self, id, data)?;
         }
         Ok(())
+    }
+
+    fn enable_drive(&mut self, device_id: u8) -> Result<(), BusError> {
+        let (id, data) = lifecycle::encode_default_enable(device_id);
+        send_encoded_frame(self, id, data)
+    }
+
+    fn disable_drive(&mut self, device_id: u8) -> Result<(), BusError> {
+        let (id, data) = lifecycle::encode_default_disable(device_id);
+        send_encoded_frame(self, id, data)
+    }
+
+    fn set_zero_position(&mut self, device_id: u8) -> Result<(), BusError> {
+        let (id, data) = lifecycle::encode_default_set_zero_position(device_id);
+        send_encoded_frame(self, id, data)
+    }
+
+    fn read_parameter(&mut self, device_id: u8, parameter: ParameterId) -> Result<(), BusError> {
+        let (id, data) = params::encode_read_parameter(comm::DEFAULT_HOST_ID, device_id, parameter);
+        send_encoded_frame(self, id, data)
+    }
+
+    fn write_parameter(
+        &mut self,
+        device_id: u8,
+        parameter: ParameterId,
+        value: ParameterValue,
+    ) -> Result<(), BusError> {
+        let (id, data) =
+            params::encode_write_parameter(comm::DEFAULT_HOST_ID, device_id, parameter, value);
+        send_encoded_frame(self, id, data)
+    }
+
+    fn set_run_mode(&mut self, device_id: u8, mode: RunMode) -> Result<(), BusError> {
+        let (id, data) = params::encode_set_run_mode(device_id, mode);
+        send_encoded_frame(self, id, data)
+    }
+
+    fn speed_control(&mut self, device_id: u8, velocity_rad_s: f32) -> Result<(), BusError> {
+        let (id, data) = params::encode_speed_ref(device_id, velocity_rad_s);
+        send_encoded_frame(self, id, data)
     }
 
     fn recv_all(
@@ -71,27 +123,35 @@ pub trait MotorBus: CanBus {
                 continue;
             }
             for frame in &frames {
-                if let Some(device_id) = frame.id.checked_sub(mit::MIT_RX_BASE) {
-                    let device_id = device_id as u8;
-                    let motor_type = motor_types
-                        .get(&device_id)
-                        .copied()
-                        .unwrap_or(MotorType::Rs02);
-                    if let Some(fb) =
-                        mit::decode_mit_feedback(motor_type, frame.id, frame.data.as_slice())
-                    {
-                        states.insert(
-                            device_id,
-                            MotorState {
-                                position_rad: fb.position_rad,
-                                velocity_rad_s: fb.velocity_rad_s,
-                                torque_nm: fb.torque_nm,
-                                fault: fb.fault,
-                                updated: Some(Instant::now()),
-                            },
-                        );
-                        count += 1;
-                    }
+                if !frame.extended {
+                    continue;
+                }
+                let Some(ext) = comm::unpack_ext_id(frame.id) else {
+                    continue;
+                };
+                if CommunicationType::from_u8(ext.comm_type)
+                    != Some(CommunicationType::OperationStatus)
+                {
+                    continue;
+                }
+                let motor_type = motor_types
+                    .get(&ext.device_id)
+                    .copied()
+                    .unwrap_or(MotorType::Rs02);
+                if let Some(fb) =
+                    mit::decode_mit_feedback(motor_type, frame.id, frame.data.as_slice())
+                {
+                    states.insert(
+                        ext.device_id,
+                        MotorState {
+                            position_rad: fb.position_rad,
+                            velocity_rad_s: fb.velocity_rad_s,
+                            torque_nm: fb.torque_nm,
+                            fault: fb.fault,
+                            updated: Some(Instant::now()),
+                        },
+                    );
+                    count += 1;
                 }
             }
             if count > 0 {
