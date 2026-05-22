@@ -226,5 +226,6 @@ Use these to avoid throwaway work:
 | [0003](decisions/0003-simulation-testing.md) | Sim tiers D0–D2 |
 | [0004](decisions/0004-control-modes-and-mit.md) | MIT / gravity comp |
 | [0005](decisions/0005-dynamics-library.md) | URDF gravity model |
+| [0006](decisions/0006-rudy-retrospective-and-marengo-principles.md) | Lessons from Rudy (second-system principles) |
 
 When a milestone completes, update **Status** here and add a one-line note in the PR or commit message—not a separate plan file.
