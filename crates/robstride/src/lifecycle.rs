@@ -35,6 +35,8 @@ pub fn encode_default_set_zero_position(device_id: u8) -> (u32, [u8; 8]) {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::expect_used)]
+
     use super::*;
     use crate::comm::unpack_ext_id;
 

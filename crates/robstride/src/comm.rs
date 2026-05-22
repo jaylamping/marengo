@@ -66,6 +66,8 @@ pub fn unpack_ext_id(ext_id: u32) -> Option<ExtendedId> {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::expect_used)]
+
     use super::*;
 
     #[test]

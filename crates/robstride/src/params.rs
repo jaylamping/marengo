@@ -119,6 +119,8 @@ pub fn encode_current_ref(device_id: u8, current_a: f32) -> (u32, [u8; 8]) {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::expect_used)]
+
     use super::*;
     use crate::comm::unpack_ext_id;
 
