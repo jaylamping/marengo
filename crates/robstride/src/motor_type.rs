@@ -1,57 +1,75 @@
-//! Robstride actuator model (RS00–RS04) with per-model MIT ranges.
+//! Robstride actuator model (RS00–RS04) with per-model vendor MIT scales.
 
 use marengo_config::MotorType;
 
-/// MIT field ranges for encode/decode (Seeed table; confirm in vendor PDF).
+/// Vendor MIT field scales for encode/decode.
+///
+/// Position, velocity, and torque are represented as signed quantities via
+/// `(value / scale + 1.0) * 0x7fff`; gains use unsigned `value / scale * 0xffff`.
 #[derive(Debug, Clone, Copy)]
 pub struct MitRanges {
-    pub p_min: f32,
-    pub p_max: f32,
-    pub v_min: f32,
-    pub v_max: f32,
-    pub kp_min: f32,
-    pub kp_max: f32,
-    pub kd_min: f32,
-    pub kd_max: f32,
-    pub t_min: f32,
-    pub t_max: f32,
+    pub position_scale: f32,
+    pub velocity_scale: f32,
+    pub kp_scale: f32,
+    pub kd_scale: f32,
+    pub torque_scale: f32,
 }
 
 impl MitRanges {
     pub fn for_motor_type(ty: MotorType) -> Self {
         match ty {
-            MotorType::Rs00 | MotorType::Rs02 => Self {
-                p_min: -12.57,
-                p_max: 12.57,
-                v_min: -44.0,
-                v_max: 44.0,
-                kp_min: 0.0,
-                kp_max: 500.0,
-                kd_min: 0.0,
-                kd_max: 5.0,
-                t_min: -17.0,
-                t_max: 17.0,
+            MotorType::Rs00 => Self {
+                position_scale: 4.0 * std::f32::consts::PI,
+                velocity_scale: 50.0,
+                kp_scale: 500.0,
+                kd_scale: 5.0,
+                torque_scale: 17.0,
             },
-            MotorType::Rs03 | MotorType::Rs04 => Self {
-                p_min: -12.57,
-                p_max: 12.57,
-                v_min: -50.0,
-                v_max: 50.0,
-                kp_min: 0.0,
-                kp_max: 5000.0,
-                kd_min: 0.0,
-                kd_max: 100.0,
-                t_min: if matches!(ty, MotorType::Rs04) {
-                    -120.0
-                } else {
-                    -60.0
-                },
-                t_max: if matches!(ty, MotorType::Rs04) {
-                    120.0
-                } else {
-                    60.0
-                },
+            MotorType::Rs02 => Self {
+                position_scale: 4.0 * std::f32::consts::PI,
+                velocity_scale: 44.0,
+                kp_scale: 500.0,
+                kd_scale: 5.0,
+                torque_scale: 17.0,
+            },
+            MotorType::Rs03 => Self {
+                position_scale: 4.0 * std::f32::consts::PI,
+                velocity_scale: 50.0,
+                kp_scale: 5000.0,
+                kd_scale: 100.0,
+                torque_scale: 60.0,
+            },
+            MotorType::Rs04 => Self {
+                position_scale: 4.0 * std::f32::consts::PI,
+                velocity_scale: 15.0,
+                kp_scale: 5000.0,
+                kd_scale: 100.0,
+                torque_scale: 120.0,
             },
         }
+    }
+
+    pub fn p_min(self) -> f32 {
+        -self.position_scale
+    }
+
+    pub fn p_max(self) -> f32 {
+        self.position_scale
+    }
+
+    pub fn v_min(self) -> f32 {
+        -self.velocity_scale
+    }
+
+    pub fn v_max(self) -> f32 {
+        self.velocity_scale
+    }
+
+    pub fn t_min(self) -> f32 {
+        -self.torque_scale
+    }
+
+    pub fn t_max(self) -> f32 {
+        self.torque_scale
     }
 }

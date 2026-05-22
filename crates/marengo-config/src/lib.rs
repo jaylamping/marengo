@@ -147,9 +147,17 @@ pub struct ControlSection {
     pub comm_watchdog_ms: u64,
     pub tau_ff_rate_limit_nm_per_s: f64,
     pub disable_on_exit: bool,
+    #[serde(default)]
+    pub bench: ControlBenchSection,
     pub motor_type_defaults: std::collections::HashMap<String, MotorTypeDefaults>,
     pub joints: std::collections::HashMap<String, JointControlEntry>,
     pub danger_zones: Vec<DangerZoneRule>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct ControlBenchSection {
+    #[serde(default)]
+    pub allow_firmware_speed_mode: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]

@@ -16,8 +16,8 @@ Marengo uses Robstride RS-series actuators on SocketCAN. Software reads joint→
 | Interface | `can0` on Raspberry Pi (Pi 5 + CAN HAT) |
 | Bitrate | **1 Mbit/s** |
 | Termination | 120 Ω at each end of the daisy chain (max two terminators powered) |
-| Frame format | Standard 11-bit CAN |
-| Protocol | Robstride RS motion frames (see `crates/robstride`) |
+| Frame format | Extended 29-bit CAN |
+| Protocol | Robstride RS communication-type frames (see `crates/robstride`) |
 
 ### Device IDs
 

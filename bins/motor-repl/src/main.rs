@@ -4,7 +4,7 @@ use std::env;
 use std::path::PathBuf;
 
 use berthier::{ControlLoop, ControlMode};
-use davout::JointCommand;
+use davout::{JointCommand, SpeedCommand};
 use marengo_config::load_control_config;
 use robstride::MemoryBus;
 use tracing::info;
@@ -22,6 +22,9 @@ fn usage() {
            motor-repl enable <operator_id>\n  \
            motor-repl disable\n  \
            motor-repl jog <joint> <position_rad>\n  \
+           motor-repl speed <joint> <rad_s>\n  \
+           motor-repl speed-stop <joint>\n  \
+           motor-repl set-zero <joint>\n  \
            motor-repl gravity-on\n  \
            motor-repl gravity-off\n  \
            motor-repl gravity-preview [q0 q1 q2 q3]\n\
@@ -111,6 +114,62 @@ fn main() {
                 std::process::exit(1);
             }
             println!("jog {joint} → {pos} rad (memory bus)");
+        }
+        "speed" => {
+            let joint = args.get(2).map(String::as_str).unwrap_or_else(|| {
+                eprintln!("missing joint name");
+                std::process::exit(1);
+            });
+            let velocity: f64 = args.get(3).and_then(|s| s.parse().ok()).unwrap_or_else(|| {
+                eprintln!("missing or invalid rad_s");
+                std::process::exit(1);
+            });
+            if !control.control.bench.allow_firmware_speed_mode {
+                eprintln!("firmware speed mode disabled: set control.bench.allow_firmware_speed_mode=true for bench diagnostics");
+                std::process::exit(1);
+            }
+            loop_ctrl.supervisor_mut().set_homing_complete();
+            if let Err(e) = loop_ctrl.supervisor_mut().request_enable(true) {
+                eprintln!("enable failed: {e}");
+                std::process::exit(1);
+            }
+            match loop_ctrl.supervisor_mut().send_speed_command(SpeedCommand {
+                joint: joint.to_string(),
+                velocity_rad_s: velocity,
+            }) {
+                Ok(sent) => println!("speed {joint} → {sent} rad/s (firmware mode 2, memory bus)"),
+                Err(e) => {
+                    eprintln!("speed failed: {e}");
+                    std::process::exit(1);
+                }
+            }
+        }
+        "speed-stop" => {
+            let joint = args.get(2).map(String::as_str).unwrap_or_else(|| {
+                eprintln!("missing joint name");
+                std::process::exit(1);
+            });
+            if let Err(e) = loop_ctrl.supervisor_mut().stop_speed_command(joint) {
+                eprintln!("speed-stop failed: {e}");
+                std::process::exit(1);
+            }
+            println!("speed {joint} → 0 rad/s (memory bus)");
+        }
+        "set-zero" => {
+            let joint = args.get(2).map(String::as_str).unwrap_or_else(|| {
+                eprintln!("missing joint name");
+                std::process::exit(1);
+            });
+            loop_ctrl.supervisor_mut().set_homing_complete();
+            if let Err(e) = loop_ctrl.supervisor_mut().request_enable(true) {
+                eprintln!("enable failed: {e}");
+                std::process::exit(1);
+            }
+            if let Err(e) = loop_ctrl.supervisor_mut().set_zero_position(joint) {
+                eprintln!("set-zero failed: {e}");
+                std::process::exit(1);
+            }
+            println!("set-zero {joint} (memory bus)");
         }
         "gravity-on" => {
             loop_ctrl.set_control_mode(ControlMode::GravityComp);

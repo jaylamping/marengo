@@ -46,7 +46,7 @@ use marengo_config::{
 };
 use robstride::bus::send_mit;
 pub use robstride::bus::{BusError, MemoryBus, MotorBus};
-use robstride::{MitCommand, MotorState};
+use robstride::{MitCommand, MotorState, ParameterId, ParameterValue, RunMode};
 use thiserror::Error;
 use tracing::{debug, warn};
 
@@ -87,6 +87,13 @@ pub struct MitJointCommand {
     pub torque_ff_nm: f64,
 }
 
+/// Firmware speed-mode command for bench diagnostics only.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SpeedCommand {
+    pub joint: String,
+    pub velocity_rad_s: f64,
+}
+
 #[derive(Debug, Error)]
 pub enum DavoutError {
     #[error("config: {0}")]
@@ -107,6 +114,8 @@ pub enum DavoutError {
     CommWatchdog { ms: u64 },
     #[error("danger zone {name} triggered on {joint}")]
     DangerZone { name: String, joint: String },
+    #[error("firmware speed mode is disabled in control.bench.allow_firmware_speed_mode")]
+    FirmwareSpeedModeDisabled,
 }
 
 /// Effective limits for one joint (URDF ∩ bench YAML).
@@ -213,12 +222,14 @@ impl<B: MotorBus> Supervisor<B> {
             if self.mode != OperationalMode::Ready {
                 return Err(DavoutError::NotActive { mode: self.mode });
             }
+            for motor in &self.motors.motors {
+                self.bus.enable_drive(motor.device_id)?;
+                self.bus.set_run_mode(motor.device_id, RunMode::Mit)?;
+            }
             self.mode = OperationalMode::Active;
             debug!("supervisor ACTIVE");
         } else {
-            self.mode = OperationalMode::Disabled;
-            self.control_mode = ControlMode::Disabled;
-            debug!("supervisor DISABLED");
+            self.disable_all()?;
         }
         Ok(())
     }
@@ -315,35 +326,87 @@ impl<B: MotorBus> Supervisor<B> {
         Ok(())
     }
 
-    /// Disable all drives (best-effort zero-torque MIT).
+    /// Send a firmware speed-mode command for bench diagnostics.
+    ///
+    /// This is not a Berthier control mode. It switches the drive to Robstride
+    /// `run_mode=2`, caps the target velocity, writes `limit_spd`, then writes
+    /// `spd_ref`.
+    pub fn send_speed_command(&mut self, cmd: SpeedCommand) -> Result<f64, DavoutError> {
+        self.check_comm_watchdog()?;
+        if self.hardware_estop {
+            return Err(DavoutError::Estop);
+        }
+        if self.mode != OperationalMode::Active {
+            return Err(DavoutError::NotActive { mode: self.mode });
+        }
+        if !self.control.control.bench.allow_firmware_speed_mode {
+            return Err(DavoutError::FirmwareSpeedModeDisabled);
+        }
+        let motor = motor_for_joint(&self.motors, &cmd.joint)
+            .ok_or_else(|| DavoutError::UnknownJoint {
+                joint: cmd.joint.clone(),
+            })?
+            .clone();
+        let capped = self.filter_speed_command(cmd, &motor)?;
+        let cap = self.speed_cap_for_joint(&capped.joint, &motor)?;
+        self.bus.set_run_mode(motor.device_id, RunMode::Speed)?;
+        self.bus.write_parameter(
+            motor.device_id,
+            ParameterId::LimitSpeed,
+            ParameterValue::F32(cap as f32),
+        )?;
+        self.bus
+            .speed_control(motor.device_id, capped.velocity_rad_s as f32)?;
+        Ok(capped.velocity_rad_s)
+    }
+
+    /// Best-effort speed reference zero for bench firmware speed mode.
+    pub fn stop_speed_command(&mut self, joint: &str) -> Result<(), DavoutError> {
+        let motor = motor_for_joint(&self.motors, joint)
+            .ok_or_else(|| DavoutError::UnknownJoint {
+                joint: joint.to_string(),
+            })?
+            .clone();
+        self.bus.speed_control(motor.device_id, 0.0)?;
+        Ok(())
+    }
+
+    /// Set firmware zero for a joint after mechanical homing.
+    pub fn set_zero_position(&mut self, joint: &str) -> Result<(), DavoutError> {
+        if self.hardware_estop {
+            return Err(DavoutError::Estop);
+        }
+        if self.mode != OperationalMode::Active {
+            return Err(DavoutError::NotActive { mode: self.mode });
+        }
+        let motor = motor_for_joint(&self.motors, joint)
+            .ok_or_else(|| DavoutError::UnknownJoint {
+                joint: joint.to_string(),
+            })?
+            .clone();
+        self.bus.set_zero_position(motor.device_id)?;
+        Ok(())
+    }
+
+    /// Disable all drives (best-effort zero speed, zero-torque MIT, then DISABLE).
     pub fn disable_all(&mut self) -> Result<(), DavoutError> {
-        let mut cmds = Vec::new();
-        for m in &self.motors.motors {
-            cmds.push(MitJointCommand {
-                joint: m.joint.clone(),
-                kp: 0.0,
-                kd: 0.0,
+        for motor in &self.motors.motors {
+            let _ = self.bus.speed_control(motor.device_id, 0.0);
+            let wire = MitCommand {
+                device_id: motor.device_id,
+                motor_type: motor.motor_type,
                 position_rad: 0.0,
                 velocity_rad_s: 0.0,
+                kp: 0.0,
+                kd: 0.0,
                 torque_ff_nm: 0.0,
-            });
-        }
-        for cmd in cmds {
-            if let Some(motor) = motor_for_joint(&self.motors, &cmd.joint) {
-                let wire = MitCommand {
-                    device_id: motor.device_id,
-                    motor_type: motor.motor_type,
-                    position_rad: 0.0,
-                    velocity_rad_s: 0.0,
-                    kp: 0.0,
-                    kd: 0.0,
-                    torque_ff_nm: 0.0,
-                };
-                let _ = send_mit(&mut self.bus, &wire);
-            }
+            };
+            let _ = send_mit(&mut self.bus, &wire);
+            let _ = self.bus.disable_drive(motor.device_id);
         }
         self.mode = OperationalMode::Disabled;
         self.control_mode = ControlMode::Disabled;
+        debug!("supervisor DISABLED");
         Ok(())
     }
 
@@ -406,6 +469,37 @@ impl<B: MotorBus> Supervisor<B> {
         );
         self.last_tick = Some(Instant::now());
 
+        Ok(out)
+    }
+
+    fn speed_cap_for_joint(&self, joint: &str, motor: &MotorEntry) -> Result<f64, DavoutError> {
+        let lim = self
+            .limits
+            .get(joint)
+            .ok_or_else(|| DavoutError::UnknownJoint {
+                joint: joint.to_string(),
+            })?;
+        let type_key = motor_type_key(motor.motor_type);
+        let defaults = self
+            .control
+            .control
+            .motor_type_defaults
+            .get(type_key)
+            .ok_or_else(|| DavoutError::Limit {
+                joint: joint.to_string(),
+                message: format!("no defaults for motor type {type_key}"),
+            })?;
+        Ok(lim.velocity.min(defaults.velocity_max_rad_s))
+    }
+
+    pub fn filter_speed_command(
+        &self,
+        cmd: SpeedCommand,
+        motor: &MotorEntry,
+    ) -> Result<SpeedCommand, DavoutError> {
+        let cap = self.speed_cap_for_joint(&cmd.joint, motor)?;
+        let mut out = cmd;
+        out.velocity_rad_s = out.velocity_rad_s.clamp(-cap, cap);
         Ok(out)
     }
 
@@ -609,5 +703,40 @@ mod tests {
         .expect("send");
         assert!(!sup.bus.tx.is_empty());
         assert!(sup.bus.tx[0].extended);
+    }
+
+    #[test]
+    fn enable_sends_lifecycle_and_mit_run_mode() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        sup.set_homing_complete();
+        sup.request_enable(true).expect("enable");
+        assert_eq!(sup.mode(), OperationalMode::Active);
+        assert_eq!(sup.bus.tx.len(), sup.motors.motors.len() * 2);
+        let first = robstride::unpack_ext_id(sup.bus.tx[0].id).expect("enable id");
+        assert_eq!(
+            first.comm_type,
+            robstride::CommunicationType::Enable.as_u8()
+        );
+        let second = robstride::unpack_ext_id(sup.bus.tx[1].id).expect("run_mode id");
+        assert_eq!(
+            second.comm_type,
+            robstride::CommunicationType::WriteParameter.as_u8()
+        );
+    }
+
+    #[test]
+    fn firmware_speed_mode_requires_config_flag() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        sup.set_homing_complete();
+        sup.request_enable(true).expect("enable");
+        let err = sup
+            .send_speed_command(SpeedCommand {
+                joint: "elbow".to_string(),
+                velocity_rad_s: 0.1,
+            })
+            .expect_err("speed mode disabled");
+        assert!(matches!(err, DavoutError::FirmwareSpeedModeDisabled));
     }
 }
