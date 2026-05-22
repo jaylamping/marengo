@@ -89,11 +89,12 @@ Peak torque ratings from [ADR 0002](decisions/0002-robstride-protocol.md) (confi
 |-------|--------|-------|--------|
 | **RS04** | 120 Nm | **4** | `left_hip_pitch`, `right_hip_pitch`, `left_knee`, `right_knee` |
 | **RS03** | 60 Nm | **9** | `left/right_hip_roll`, `left/right_hip_yaw`, `waist_yaw`, `left/right_shoulder_roll`, `left/right_shoulder_pitch` |
-| **RS02** | 17 Nm | **10** | `left/right_ankle_pitch`, `left/right_ankle_roll`, `left/right_upper_arm_yaw`, `left/right_elbow`, `left/right_wrist` |
+| **RS02** | 17 Nm | **8** | `left/right_ankle_pitch`, `left/right_ankle_roll`, `left/right_upper_arm_yaw`, `left/right_elbow` |
+|| **RS00** | 17 Nm | **2** | `left/right_wrist` |
 
 **Leg rationale:** RS04 on **inner hip pitch** (primary stance/swing load) and **knee** (single-support peaks, G1-class ~90 Nm knee). RS03 on **outer hip** roll/yaw. RS02 on ankles.
 
-**Arm rationale:** RS03 shoulders (same as bring-up arm); RS02 for yaw, elbow, wrist (5 DOF per arm, G1-aligned).
+**Arm rationale:** RS03 shoulders (same as bring-up arm); RS02 for yaw, elbow; RS00 for wrists (5 DOF per arm, G1-aligned).
 
 ---
 
@@ -139,7 +140,7 @@ Same limits as left; roll/pitch signs follow right-hand URDF convention.
 | `left_shoulder_pitch` | RS03 | roll → left_shoulder_pitch_link | Y | -1.2 | 1.2 | 60 | **Upright hazard** when q > ~0.5 rad |
 | `left_upper_arm_yaw` | RS02 | pitch → left_upper_arm | Z | -1.57 | 1.57 | 17 | |
 | `left_elbow` | RS02 | upper_arm → left_forearm | Y | 0.0 | 2.5 | 17 | **Upright hazard** — verify G-comp sign |
-| `left_wrist` | RS02 | forearm → left_hand | Y | -1.6 | 1.6 | 17 | G1 wrist pitch band ~±92.5° |
+| `left_wrist` | RS00 | forearm → left_hand | Y | -1.6 | 1.6 | 17 | G1 wrist pitch band ~±92.5° |
 
 ### Right arm (5 DOF)
 
@@ -149,7 +150,7 @@ Same limits as left; roll/pitch signs follow right-hand URDF convention.
 | `right_shoulder_pitch` | RS03 | roll → right_shoulder_pitch_link | Y | -1.2 | 1.2 | 60 |
 | `right_upper_arm_yaw` | RS02 | pitch → right_upper_arm | Z | -1.57 | 1.57 | 17 |
 | `right_elbow` | RS02 | upper_arm → right_forearm | Y | 0.0 | 2.5 | 17 |
-| `right_wrist` | RS02 | forearm → right_hand | Y | -1.6 | 1.6 | 17 |
+| `right_wrist` | RS00 | forearm → right_hand | Y | -1.6 | 1.6 | 17 |
 
 Masses and inertials in URDF are **estimates** until CAD export; re-run MuJoCo cross-check after export ([ADR 0005](../../docs/decisions/0005-dynamics-library.md)).
 

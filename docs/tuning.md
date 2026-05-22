@@ -15,8 +15,8 @@ OpenArm convention: arms straight down when possible. Record encoder zeros with 
 ## Gain sweep
 
 1. Start `config/control.yaml` impedance `kp`/`kd` at documented defaults.
-2. **RS03 / RS04 joints** (shoulders, waist, outer hip, **hip pitch**, **knee**): `kd` up to 100; do not copy to RS02 joints.
-3. **RS02 joints** (ankles, arm yaw/elbow/wrist): `kd` max **5** per vendor table.
+2. **RS03 / RS04 joints** (shoulders, waist, outer hip, **hip pitch**, **knee**): `kd` up to 100; do not copy to RS02/RS00 joints.
+3. **RS02 / RS00 joints** (ankles, arm yaw/elbow, wrists): `kd` max **5** per vendor table.
 4. Increase `kp` until contact feels crisp without oscillation; back off 20%.
 
 ## Friction

@@ -10,7 +10,7 @@ Brief for continuing CAD/layout work. **SSOT for numbers:** [`kinematics.md`](ki
 - **G1** upper-body proportions; **R1** lower-body slimness (narrow hips, shrouded legs).
 - **Not** hourglass / feminine taper — athletic straight sides; smooth printed PETG shell taper (shell is *draft*, not skeleton).
 - **23 DOF** v1, no dexterous hands. Head skipped in v1 CAD.
-- **Actuators:** RS04 hip pitch + knees; RS03 outer hips, waist, shoulders; RS02 ankles + arm chain.
+- **Actuators:** RS04 hip pitch + knees; RS03 outer hips, waist, shoulders; RS02 ankles + arm yaw/elbow; RS00 wrists.
 - **Materials:** 2020 aluminum internal frame; PETG/ABS panels/shell; pelvis v1 PETG (*draft*).
 - **Power (*draft*):** large fixed **48 V** pack in pelvis (max Wh); **Milwaukee M18 HD12** aux bay upper back (18 V adjunct, not motor bus).
 - **Comms:** OTA-first; removable front/back panels (screws); G1-style waist split for service.

@@ -1,7 +1,8 @@
 part_id,description,qty,vendor,mpn,notes
 actuator_rs04,Robstride RS04 joint motor,4,Robstride,RS04,"left/right hip_pitch + left/right knee; 120 Nm peak"
 actuator_rs03,Robstride RS03 joint motor,9,Robstride,RS03,"hip roll/yaw x4 + waist_yaw + shoulder roll/pitch x4; 60 Nm peak"
-actuator_rs02,Robstride RS02 joint motor,10,Robstride,RS02,"ankle x4 + arm yaw/elbow/wrist x6; 17 Nm peak"
+actuator_rs00,Robstride RS00 joint motor,2,Robstride,RS00,"left/right wrist; 17 Nm peak"
+actuator_rs02,Robstride RS02 joint motor,8,Robstride,RS02,"ankle x4 + arm yaw/elbow x4; 17 Nm peak"
 stock_vendor_2020_black_extrusion,IXGNIJ 2020 T-slot EU black 500mm (4-pack),2,Amazon,B08Y8KCJW4,"Purchase only (not instanced). Registry: vendor_2020_black_extrusion."
 frame_2020_vertical_340,Torso vertical corner post 340mm,4,cut,,,Instances frame_2020_vertical_{back|front}_{left|right}_340
 frame_2020_bottom_left_100,Torso bottom left rail 100mm,1,cut,,,Config L100; depth rail (140 outer / 100 inner)

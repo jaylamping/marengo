@@ -247,7 +247,7 @@ motors:
       torque_limit_nm: 3.0
   - joint: left_wrist
     driver: robstride
-    motor_type: rs02
+    motor_type: rs00
     can_interface: can0
     device_id: 18
     direction: 1
@@ -318,7 +318,7 @@ motors:
       torque_limit_nm: 3.0
   - joint: right_wrist
     driver: robstride
-    motor_type: rs02
+    motor_type: rs00
     can_interface: can0
     device_id: 23
     direction: 1

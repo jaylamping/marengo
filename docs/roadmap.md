@@ -22,7 +22,7 @@
 | Form | Biped, no wheels |
 | Height | 1524 mm standing |
 | DOF | 23 actuated (no hands); head skipped in v1 CAD |
-| Actuators | RS04 hips/knees; RS03 waist/hips/shoulders; RS02 ankles + arm distal |
+| Actuators | RS04 hips/knees; RS03 waist/hips/shoulders; RS02 ankles + arm yaw/elbow; RS00 wrists |
 | Proportions | G1 upper body, R1-class slim legs |
 | Structure | 2020 aluminum torso cage (committed); pelvis/legs/shell largely draft |
 | Comms / runtime | Pi (control + CAN), Jetson (planner + perception), Chappe protobuf bus |

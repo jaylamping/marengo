@@ -30,7 +30,7 @@ Marengo uses Robstride RS-series actuators on SocketCAN. Software reads joint→
 | `upper_arm_yaw` | 3 | RS02 |
 | `elbow` | 4 | RS02 |
 
-**Humanoid (template)** — [`config/motors_humanoid.yaml`](../../../config/motors_humanoid.yaml): IDs 1–23, legs 1–12, waist 13, arms 14–23. RS04 on hip pitch + knee (4×); RS03 on outer hip, waist, shoulders (9×); RS02 on ankles + arm wrist chain (10×).
+**Humanoid (template)** — [`config/motors_humanoid.yaml`](../../../config/motors_humanoid.yaml): IDs 1–23, legs 1–12, waist 13, arms 14–23. RS04 on hip pitch + knee (4×); RS03 on outer hip, waist, shoulders (9×); RS02 on ankles + arm yaw/elbow (8×); RS00 on wrists (2×).
 
 Reassign IDs in firmware before changing motor YAML.
 
