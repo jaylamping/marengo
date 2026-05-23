@@ -1,4 +1,4 @@
-/** Dummy host + control metrics — replace with Chappe telemetry later. */
+/** Dummy host metrics — replace with Chappe telemetry later. */
 
 export type PiHostMetrics = {
   hostname: string;
@@ -27,21 +27,6 @@ export type JetsonHostMetrics = {
   servicesLabel: string;
 };
 
-export type CanBusMetrics = {
-  interface: string;
-  status: string;
-  nodeCount: number;
-  avgRttMs: number;
-  detail: string;
-};
-
-export type ControlLoopMetrics = {
-  rateHz: number;
-  p99Ms: number;
-  summary: string;
-  detail: string;
-};
-
 export const dummyPiHostMetrics: PiHostMetrics = {
   hostname: 'marengo-pi',
   cpuPercent: 24,
@@ -67,19 +52,4 @@ export const dummyJetsonHostMetrics: JetsonHostMetrics = {
   chappeRttMs: 1.4,
   online: true,
   servicesLabel: 'Fouché · planner · Chappe to Pi',
-};
-
-export const dummyCanBusMetrics: CanBusMetrics = {
-  interface: 'can0',
-  status: 'OK',
-  nodeCount: 4,
-  avgRttMs: 0.8,
-  detail: 'RS03×2 · RS02×2 · no missed heartbeats',
-};
-
-export const dummyControlLoopMetrics: ControlLoopMetrics = {
-  rateHz: 500,
-  p99Ms: 1.2,
-  summary: 'Berthier → Davout steady',
-  detail: 'Last overruns: none this session',
 };

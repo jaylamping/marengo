@@ -12,6 +12,12 @@ Every pixel, interaction, and feature must survive this question:
 
 If the answer is “no” or “only a little,” it does not exist.
 
+## Current Phase
+
+Consul is **wireframe-only** right now. KPI cards, charts, inventory rows, and header badges use static placeholder data to validate layout, density, and operator flows. No Chappe subscription, CAN feedback, or live telemetry yet — that wiring comes after the shell feels right.
+
+The **Simulation** tab is the planned home for Isaac Sim / Isaac Lab: viewport stream, play/pause/scenario controls, runtime metrics, and task logs. Same wireframe rules apply until the D2 Lab bridge shares `proto/` with the stack ([ADR 0003](../docs/decisions/0003-simulation-testing.md)).
+
 ## Core Principles
 
 ### 1. Information is sacred

@@ -7,6 +7,7 @@ import {
   type JetsonHostMetrics,
 } from '@/data/host-metrics';
 import {
+  computeRamUsagePercent,
   formatLoad,
   formatPercent,
   formatRamUsage,
@@ -32,13 +33,25 @@ export function JetsonHostCard({
       }
       content={
         <MetricGrid>
-          <MetricItem label="CPU" value={formatPercent(metrics.cpuPercent)} />
+          <MetricItem
+            label="CPU"
+            value={formatPercent(metrics.cpuPercent)}
+            usagePercent={metrics.cpuPercent}
+          />
           <MetricItem
             label="RAM"
             value={formatRamUsage(metrics.ramUsedGb, metrics.ramTotalGb)}
-            valueClassName="text-sm"
+            valueClassName="text-xs"
+            usagePercent={computeRamUsagePercent(
+              metrics.ramUsedGb,
+              metrics.ramTotalGb,
+            )}
           />
-          <MetricItem label="GPU" value={formatPercent(metrics.gpuPercent)} />
+          <MetricItem
+            label="GPU"
+            value={formatPercent(metrics.gpuPercent)}
+            usagePercent={metrics.gpuPercent}
+          />
           <MetricItem label="Temp" value={formatTempC(metrics.tempC)} />
         </MetricGrid>
       }

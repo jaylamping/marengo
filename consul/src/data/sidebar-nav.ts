@@ -1,4 +1,6 @@
 export type SidebarIconKey =
+  | 'overview'
+  | 'simulation'
   | 'visualizer'
   | 'joints'
   | 'safety'
@@ -35,6 +37,8 @@ export const sidebarUser: SidebarUser = {
 };
 
 export const sidebarNavMain: SidebarNavItem[] = [
+  { title: 'Overview', url: '/', icon: 'overview' },
+  { title: 'Simulation', url: '/simulation', icon: 'simulation' },
   { title: 'Visualizer', url: '#', icon: 'visualizer' },
   { title: 'Joints', url: '#', icon: 'joints' },
   { title: 'Safety', url: '#', icon: 'safety' },

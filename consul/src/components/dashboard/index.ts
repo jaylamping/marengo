@@ -1,3 +1,4 @@
+export { SimulationOverview } from '@/components/dashboard/simulation/simulation-overview';
 export { DashboardLayout } from '@/components/dashboard/layout/dashboard-layout';
 export { DashboardOverview } from '@/components/dashboard/overview/dashboard-overview';
 export { SectionCards } from '@/components/dashboard/section-cards';

@@ -7,6 +7,7 @@ import {
   type PiHostMetrics,
 } from '@/data/host-metrics';
 import {
+  computeRamUsagePercent,
   formatLoad,
   formatPercent,
   formatRamUsage,
@@ -30,11 +31,19 @@ export function PiHostCard({ metrics = dummyPiHostMetrics }: PiHostCardProps) {
       }
       content={
         <MetricGrid>
-          <MetricItem label="CPU" value={formatPercent(metrics.cpuPercent)} />
+          <MetricItem
+            label="CPU"
+            value={formatPercent(metrics.cpuPercent)}
+            usagePercent={metrics.cpuPercent}
+          />
           <MetricItem
             label="RAM"
             value={formatRamUsage(metrics.ramUsedGb, metrics.ramTotalGb)}
-            valueClassName="text-sm"
+            valueClassName="text-xs"
+            usagePercent={computeRamUsagePercent(
+              metrics.ramUsedGb,
+              metrics.ramTotalGb,
+            )}
           />
           <MetricItem label="Temp" value={formatTempC(metrics.tempC)} />
           <MetricItem label="Load (1m)" value={formatLoad(metrics.load1m)} />

@@ -7,8 +7,8 @@ export function SiteHeaderStatusBadges() {
       <Badge variant="outline" className="hidden font-mono text-xs sm:inline-flex">
         {siteHeaderConfig.bus}
       </Badge>
-      <Badge className="bg-green-600/90 font-mono text-xs hover:bg-green-600/90">
-        LIVE
+      <Badge variant="secondary" className="font-mono text-xs">
+        WIREFRAME
       </Badge>
     </div>
   );

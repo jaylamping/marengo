@@ -3,8 +3,10 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import {
   Analytics01Icon,
   ChartHistogramIcon,
+  DashboardSquare01Icon,
   Database01Icon,
   File01Icon,
+  GameController01Icon,
   HelpCircleIcon,
   SearchIcon,
   Settings05Icon,
@@ -14,6 +16,8 @@ import {
 } from '@hugeicons/core-free-icons';
 
 const sidebarIcons: Record<SidebarIconKey, typeof ThreeDViewIcon> = {
+  overview: DashboardSquare01Icon,
+  simulation: GameController01Icon,
   visualizer: ThreeDViewIcon,
   joints: SlidersHorizontalIcon,
   safety: Shield01Icon,
