@@ -16,6 +16,7 @@ globs:
 - CAD allowed root: **`C:/code/marengo`** only (`SOLIDWORKS_MCP_ALLOWED_ROOTS`).
 - Root assembly target: `hardware/cad/assemblies/marengo.SLDASM`.
 - MCP is **audit-first**: conventions, design package, URDF readiness, postcheck, hardware coverage — no URDF writer or `insert_component` yet.
+- **Never parallelize SolidWorks MCP tool calls** — COM is STA; concurrent workers crash SolidWorks (see `solidworks-mcp/docs/troubleshooting.md`). Workers are serialized in 0.3.1+, but still run audits one tool at a time.
 - **Never** run destructive CAD automation unless the user explicitly asked in that turn. All of these require `--confirm` (scripts) or `confirm: true` (MCP `marengo_torso_frame_build`): `torso-frame-layout-place.mjs`, `torso-frame-autobuild.mjs`, `torso-frame-layout-sync.mjs`, `torso-frame-layout-sync-continue.mjs`, `torso-frame-remate.mjs`. Do not “fix” assemblies by deleting mates or snapping transforms without permission.
 - URDF export is **manual** (Brawner) → `assets/urdf/marengo.urdf`; joint truth in `hardware/docs/kinematics.md`.
 - Standards: [hardware/docs/cad-standards.md](../../hardware/docs/cad-standards.md).
