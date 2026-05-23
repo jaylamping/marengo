@@ -7,7 +7,7 @@ import { SectionCards } from '@/components/section-cards';
 import { SiteHeader } from '@/components/site-header';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 
-import data from '@/app/dashboard/data.json';
+import { robotInventory } from '@/data/robot-inventory';
 
 export function DashboardPage() {
   return (
@@ -29,7 +29,7 @@ export function DashboardPage() {
               <div className="px-4 lg:px-6">
                 <ChartAreaInteractive />
               </div>
-              <DataTable data={data} />
+              <DataTable data={robotInventory} />
             </div>
           </div>
         </div>

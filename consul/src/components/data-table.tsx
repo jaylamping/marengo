@@ -1,4 +1,4 @@
-import * as React from "react"
+import * as React from "react";
 import {
   closestCenter,
   DndContext,
@@ -9,22 +9,21 @@ import {
   useSensors,
   type DragEndEvent,
   type UniqueIdentifier,
-} from "@dnd-kit/core"
-import { restrictToVerticalAxis } from "@dnd-kit/modifiers"
+} from "@dnd-kit/core";
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import {
   arrayMove,
   SortableContext,
   useSortable,
   verticalListSortingStrategy,
-} from "@dnd-kit/sortable"
-import { CSS } from "@dnd-kit/utilities"
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   flexRender,
   getCoreRowModel,
   getFacetedRowModel,
   getFacetedUniqueValues,
   getFilteredRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
   type ColumnDef,
@@ -32,21 +31,31 @@ import {
   type Row,
   type SortingState,
   type VisibilityState,
-} from "@tanstack/react-table"
-import { Area, AreaChart, CartesianGrid, XAxis } from "recharts"
-import { toast } from "sonner"
-import { z } from "zod"
+} from "@tanstack/react-table";
+import { Area, AreaChart, CartesianGrid, XAxis } from "recharts";
+import { toast } from "sonner";
+import { z } from "zod";
 
-import { useIsMobile } from "@/hooks/use-mobile"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import {
+  INVENTORY_GROUP_LABELS,
+  INVENTORY_GROUP_ORDER,
+  countByStatus,
+  countUnconfigured,
+  type InventoryGroup,
+  type InventoryItem,
+} from "@/data/robot-inventory";
+import { cn } from "@/lib/utils";
+
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
-} from "@/components/ui/chart"
-import { Checkbox } from "@/components/ui/checkbox"
+} from "@/components/ui/chart";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Drawer,
   DrawerClose,
@@ -56,7 +65,7 @@ import {
   DrawerHeader,
   DrawerTitle,
   DrawerTrigger,
-} from "@/components/ui/drawer"
+} from "@/components/ui/drawer";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -64,9 +73,9 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -74,8 +83,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Separator } from "@/components/ui/separator"
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import {
   Table,
   TableBody,
@@ -83,31 +92,43 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs"
-import { HugeiconsIcon } from "@hugeicons/react"
-import { DragDropVerticalIcon, CheckmarkCircle01Icon, Loading03Icon, MoreVerticalCircle01Icon, LeftToRightListBulletIcon, ArrowDown01Icon, Add01Icon, ArrowLeftDoubleIcon, ArrowLeft01Icon, ArrowRight01Icon, ArrowRightDoubleIcon, ChartUpIcon } from "@hugeicons/core-free-icons"
+  DragDropVerticalIcon,
+  CheckmarkCircle01Icon,
+  Loading03Icon,
+  MoreVerticalCircle01Icon,
+  LeftToRightListBulletIcon,
+  ArrowDown01Icon,
+  Add01Icon,
+  ChartUpIcon,
+} from "@hugeicons/core-free-icons";
 
 export const schema = z.object({
   id: z.number(),
-  header: z.string(),
-  type: z.string(),
+  name: z.string(),
+  group: z.string(),
+  kind: z.string(),
   status: z.string(),
-  target: z.string(),
+  value: z.string(),
   limit: z.string(),
-  reviewer: z.string(),
-})
+  preset: z.string(),
+  node: z.string(),
+});
+
+export type InventoryRow = z.infer<typeof schema>;
+
+function isHealthyStatus(status: string) {
+  return status === "Enabled" || status === "Nominal";
+}
 
 // Create a separate component for the drag handle
 function DragHandle({ id }: { id: number }) {
   const { attributes, listeners } = useSortable({
     id,
-  })
+  });
   return (
     <Button
       {...attributes}
@@ -116,12 +137,16 @@ function DragHandle({ id }: { id: number }) {
       size="icon"
       className="size-7 text-muted-foreground hover:bg-transparent"
     >
-      <HugeiconsIcon icon={DragDropVerticalIcon} strokeWidth={2} className="size-3 text-muted-foreground" />
+      <HugeiconsIcon
+        icon={DragDropVerticalIcon}
+        strokeWidth={2}
+        className="size-3 text-muted-foreground"
+      />
       <span className="sr-only">Drag to reorder</span>
     </Button>
-  )
+  );
 }
-const columns: ColumnDef<z.infer<typeof schema>>[] = [
+const columns: ColumnDef<InventoryRow>[] = [
   {
     id: "drag",
     header: () => null,
@@ -155,22 +180,28 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
     enableHiding: false,
   },
   {
-    accessorKey: "header",
-    header: "Header",
-    cell: ({ row }) => {
-      return <TableCellViewer item={row.original} />
-    },
+    accessorKey: "name",
+    header: "Name",
+    cell: ({ row }) => (
+      <div className="min-w-[10rem]">
+        <TableCellViewer item={row.original} />
+        <div className="mt-0.5 font-mono text-[10px] text-muted-foreground">
+          {row.original.node}
+        </div>
+      </div>
+    ),
     enableHiding: false,
   },
   {
-    accessorKey: "type",
-    header: "Section Type",
+    accessorKey: "kind",
+    header: "Kind",
     cell: ({ row }) => (
-      <div className="w-32">
-        <Badge variant="outline" className="px-1.5 text-muted-foreground">
-          {row.original.type}
-        </Badge>
-      </div>
+      <Badge
+        variant="outline"
+        className="px-1.5 capitalize text-muted-foreground"
+      >
+        {row.original.kind}
+      </Badge>
     ),
   },
   {
@@ -178,59 +209,69 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
     header: "Status",
     cell: ({ row }) => (
       <Badge variant="outline" className="px-1.5 text-muted-foreground">
-        {row.original.status === "Done" ? (
-          <HugeiconsIcon icon={CheckmarkCircle01Icon} strokeWidth={2} className="fill-green-500 dark:fill-green-400" />
-        ) : (
+        {isHealthyStatus(row.original.status) ? (
+          <HugeiconsIcon
+            icon={CheckmarkCircle01Icon}
+            strokeWidth={2}
+            className="fill-green-500 dark:fill-green-400"
+          />
+        ) : row.original.status === "Tuning" ? (
           <HugeiconsIcon icon={Loading03Icon} strokeWidth={2} />
-        )}
+        ) : row.original.status === "Fault" ? (
+          <HugeiconsIcon
+            icon={Loading03Icon}
+            strokeWidth={2}
+            className="text-destructive"
+          />
+        ) : null}
         {row.original.status}
       </Badge>
     ),
   },
   {
-    accessorKey: "target",
-    header: () => <div className="w-full text-right">Target</div>,
+    accessorKey: "value",
+    header: () => <div className="w-full text-right">Reading</div>,
     cell: ({ row }) => (
       <form
         onSubmit={(e) => {
-          e.preventDefault()
+          e.preventDefault();
           toast.promise(new Promise((resolve) => setTimeout(resolve, 1000)), {
-            loading: `Saving ${row.original.header}`,
+            loading: `Saving ${row.original.name}`,
             success: "Done",
             error: "Error",
-          })
+          });
         }}
       >
-        <Label htmlFor={`${row.original.id}-target`} className="sr-only">
-          Target
+        <Label htmlFor={`${row.original.id}-value`} className="sr-only">
+          Reading
         </Label>
         <Input
-          className="h-8 w-16 border-transparent bg-transparent text-right shadow-none hover:bg-input/30 focus-visible:border focus-visible:bg-background dark:bg-transparent dark:hover:bg-input/30 dark:focus-visible:bg-input/30"
-          defaultValue={row.original.target}
-          id={`${row.original.id}-target`}
+          className="h-8 w-20 border-transparent bg-transparent text-right font-mono text-xs shadow-none hover:bg-input/30 focus-visible:border focus-visible:bg-background dark:bg-transparent dark:hover:bg-input/30 dark:focus-visible:bg-input/30"
+          defaultValue={row.original.value}
+          id={`${row.original.id}-value`}
         />
       </form>
     ),
   },
   {
     accessorKey: "limit",
-    header: () => <div className="w-full text-right">Limit</div>,
+    header: () => <div className="w-full text-right">Range</div>,
     cell: ({ row }) => (
       <form
         onSubmit={(e) => {
-          e.preventDefault()
+          e.preventDefault();
           toast.promise(new Promise((resolve) => setTimeout(resolve, 1000)), {
-            loading: `Saving ${row.original.header}`,
+            loading: `Saving ${row.original.name}`,
             success: "Done",
             error: "Error",
-          })
+          });
         }}
       >
         <Label htmlFor={`${row.original.id}-limit`} className="sr-only">
-          Limit
+          Range
         </Label>
         <Input
-          className="h-8 w-16 border-transparent bg-transparent text-right shadow-none hover:bg-input/30 focus-visible:border focus-visible:bg-background dark:bg-transparent dark:hover:bg-input/30 dark:focus-visible:bg-input/30"
+          className="h-8 w-24 border-transparent bg-transparent text-right font-mono text-xs shadow-none hover:bg-input/30 focus-visible:border focus-visible:bg-background dark:bg-transparent dark:hover:bg-input/30 dark:focus-visible:bg-input/30"
           defaultValue={row.original.limit}
           id={`${row.original.id}-limit`}
         />
@@ -238,42 +279,44 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
     ),
   },
   {
-    accessorKey: "reviewer",
-    header: "Reviewer",
+    accessorKey: "preset",
+    header: "Preset",
     cell: ({ row }) => {
-      const isAssigned = row.original.reviewer !== "Assign reviewer"
+      const isAssigned = row.original.preset !== "unassigned";
       if (isAssigned) {
-        return row.original.reviewer
+        return <span className="font-mono text-xs">{row.original.preset}</span>;
       }
       return (
         <>
-          <Label htmlFor={`${row.original.id}-reviewer`} className="sr-only">
-            Reviewer
+          <Label htmlFor={`${row.original.id}-preset`} className="sr-only">
+            Preset
           </Label>
           <Select
             items={[
-              { label: "Eddie Lake", value: "Eddie Lake" },
-              { label: "Jamik Tashpulatov", value: "Jamik Tashpulatov" },
+              { label: "golden_pose", value: "golden_pose" },
+              { label: "bench_default", value: "bench_default" },
+              { label: "tuning_sweep", value: "tuning_sweep" },
+              { label: "last_session", value: "last_session" },
             ]}
           >
             <SelectTrigger
               className="w-38 **:data-[slot=select-value]:block **:data-[slot=select-value]:truncate"
               size="sm"
-              id={`${row.original.id}-reviewer`}
+              id={`${row.original.id}-preset`}
             >
-              <SelectValue placeholder="Assign reviewer" />
+              <SelectValue placeholder="Assign preset" />
             </SelectTrigger>
             <SelectContent align="end">
               <SelectGroup>
-                <SelectItem value="Eddie Lake">Eddie Lake</SelectItem>
-                <SelectItem value="Jamik Tashpulatov">
-                  Jamik Tashpulatov
-                </SelectItem>
+                <SelectItem value="golden_pose">golden_pose</SelectItem>
+                <SelectItem value="bench_default">bench_default</SelectItem>
+                <SelectItem value="tuning_sweep">tuning_sweep</SelectItem>
+                <SelectItem value="last_session">last_session</SelectItem>
               </SelectGroup>
             </SelectContent>
           </Select>
         </>
-      )
+      );
     },
   },
   {
@@ -293,20 +336,20 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
           <span className="sr-only">Open menu</span>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-32">
-          <DropdownMenuItem>Edit</DropdownMenuItem>
-          <DropdownMenuItem>Make a copy</DropdownMenuItem>
-          <DropdownMenuItem>Favorite</DropdownMenuItem>
+          <DropdownMenuItem>Zero / home</DropdownMenuItem>
+          <DropdownMenuItem>Apply preset</DropdownMenuItem>
+          <DropdownMenuItem>Disable</DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive">Delete</DropdownMenuItem>
+          <DropdownMenuItem variant="destructive">Clear fault</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     ),
   },
-]
-function DraggableRow({ row }: { row: Row<z.infer<typeof schema>> }) {
+];
+function DraggableRow({ row }: { row: Row<InventoryRow> }) {
   const { transform, transition, setNodeRef, isDragging } = useSortable({
     id: row.original.id,
-  })
+  });
   return (
     <TableRow
       data-state={row.getIsSelected() && "selected"}
@@ -324,44 +367,75 @@ function DraggableRow({ row }: { row: Row<z.infer<typeof schema>> }) {
         </TableCell>
       ))}
     </TableRow>
-  )
+  );
 }
-export function DataTable({
-  data: initialData,
-}: {
-  data: z.infer<typeof schema>[]
-}) {
-  const [data, setData] = React.useState(() => initialData)
-  const [rowSelection, setRowSelection] = React.useState({})
+export function DataTable({ data: initialData }: { data: InventoryItem[] }) {
+  const [data, setData] = React.useState(() => initialData);
+  const [activeView, setActiveView] = React.useState("all");
+  const [collapsedGroups, setCollapsedGroups] = React.useState<
+    Set<InventoryGroup>
+  >(() => new Set());
+  const [rowSelection, setRowSelection] = React.useState({});
   const [columnVisibility, setColumnVisibility] =
-    React.useState<VisibilityState>({})
+    React.useState<VisibilityState>({});
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    []
-  )
-  const [sorting, setSorting] = React.useState<SortingState>([])
-  const [pagination, setPagination] = React.useState({
-    pageIndex: 0,
-    pageSize: 10,
-  })
-  const sortableId = React.useId()
+    [],
+  );
+  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const sortableId = React.useId();
   const sensors = useSensors(
     useSensor(MouseSensor, {}),
     useSensor(TouchSensor, {}),
-    useSensor(KeyboardSensor, {})
-  )
-  const dataIds = React.useMemo<UniqueIdentifier[]>(
-    () => data?.map(({ id }) => id) || [],
-    [data]
-  )
+    useSensor(KeyboardSensor, {}),
+  );
+
+  const filteredData = React.useMemo(() => {
+    switch (activeView) {
+      case "faults":
+        return data.filter((item) => item.status === "Fault");
+      case "offline":
+        return data.filter((item) => item.status === "Offline");
+      case "unconfigured":
+        return data.filter((item) => item.preset === "unassigned");
+      default:
+        return data;
+    }
+  }, [activeView, data]);
+
+  const dataIds = React.useMemo<UniqueIdentifier[]>(() => {
+    return filteredData
+      .filter((item) => !collapsedGroups.has(item.group))
+      .map(({ id }) => id);
+  }, [collapsedGroups, filteredData]);
+
+  const toggleGroup = React.useCallback((group: InventoryGroup) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(group)) {
+        next.delete(group);
+      } else {
+        next.add(group);
+      }
+      return next;
+    });
+  }, []);
+
+  const expandAllGroups = React.useCallback(() => {
+    setCollapsedGroups(new Set());
+  }, []);
+
+  const collapseAllGroups = React.useCallback(() => {
+    setCollapsedGroups(new Set(INVENTORY_GROUP_ORDER));
+  }, []);
+
   const table = useReactTable({
-    data,
+    data: filteredData,
     columns,
     state: {
       sorting,
       columnVisibility,
       rowSelection,
       columnFilters,
-      pagination,
     },
     getRowId: (row) => row.id.toString(),
     enableRowSelection: true,
@@ -369,27 +443,42 @@ export function DataTable({
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
-    onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
-  })
+  });
+
+  const groupedSections = React.useMemo(() => {
+    const rows = table.getRowModel().rows;
+    return INVENTORY_GROUP_ORDER.map((group) => ({
+      group,
+      label: INVENTORY_GROUP_LABELS[group],
+      rows: rows.filter((row) => row.original.group === group),
+    })).filter((section) => section.rows.length > 0);
+  }, [table]);
+
+  const faultCount = countByStatus("Fault");
+  const offlineCount = countByStatus("Offline");
+  const unconfiguredCount = countUnconfigured();
+  const expandedGroupCount = groupedSections.filter(
+    (section) => !collapsedGroups.has(section.group),
+  ).length;
   function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event
+    const { active, over } = event;
     if (active && over && active.id !== over.id) {
       setData((data) => {
-        const oldIndex = dataIds.indexOf(active.id)
-        const newIndex = dataIds.indexOf(over.id)
-        return arrayMove(data, oldIndex, newIndex)
-      })
+        const oldIndex = dataIds.indexOf(active.id);
+        const newIndex = dataIds.indexOf(over.id);
+        return arrayMove(data, oldIndex, newIndex);
+      });
     }
   }
   return (
     <Tabs
-      defaultValue="outline"
+      value={activeView}
+      onValueChange={setActiveView}
       className="w-full flex-col justify-start gap-6"
     >
       <div className="flex items-center justify-between px-4 lg:px-6">
@@ -397,12 +486,17 @@ export function DataTable({
           View
         </Label>
         <Select
-          defaultValue="outline"
+          value={activeView}
+          onValueChange={(value) => {
+            if (value !== null) {
+              setActiveView(value);
+            }
+          }}
           items={[
-            { label: "Outline", value: "outline" },
-            { label: "Past Performance", value: "past-performance" },
-            { label: "Key Personnel", value: "key-personnel" },
-            { label: "Focus Documents", value: "focus-documents" },
+            { label: "All Devices", value: "all" },
+            { label: "Faults", value: "faults" },
+            { label: "Offline", value: "offline" },
+            { label: "Unconfigured", value: "unconfigured" },
           ]}
         >
           <SelectTrigger
@@ -414,31 +508,41 @@ export function DataTable({
           </SelectTrigger>
           <SelectContent>
             <SelectGroup>
-              <SelectItem value="outline">Outline</SelectItem>
-              <SelectItem value="past-performance">Past Performance</SelectItem>
-              <SelectItem value="key-personnel">Key Personnel</SelectItem>
-              <SelectItem value="focus-documents">Focus Documents</SelectItem>
+              <SelectItem value="all">All Devices</SelectItem>
+              <SelectItem value="faults">Faults</SelectItem>
+              <SelectItem value="offline">Offline</SelectItem>
+              <SelectItem value="unconfigured">Unconfigured</SelectItem>
             </SelectGroup>
           </SelectContent>
         </Select>
         <TabsList className="hidden **:data-[slot=badge]:size-5 **:data-[slot=badge]:rounded-full **:data-[slot=badge]:bg-muted-foreground/30 **:data-[slot=badge]:px-1 @4xl/main:flex">
-          <TabsTrigger value="outline">Outline</TabsTrigger>
-          <TabsTrigger value="past-performance">
-            Past Performance <Badge variant="secondary">3</Badge>
+          <TabsTrigger value="all">All Devices</TabsTrigger>
+          <TabsTrigger value="faults">
+            Faults <Badge variant="secondary">{faultCount}</Badge>
           </TabsTrigger>
-          <TabsTrigger value="key-personnel">
-            Key Personnel <Badge variant="secondary">2</Badge>
+          <TabsTrigger value="offline">
+            Offline <Badge variant="secondary">{offlineCount}</Badge>
           </TabsTrigger>
-          <TabsTrigger value="focus-documents">Focus Documents</TabsTrigger>
+          <TabsTrigger value="unconfigured">
+            Unconfigured <Badge variant="secondary">{unconfiguredCount}</Badge>
+          </TabsTrigger>
         </TabsList>
         <div className="flex items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger
               render={<Button variant="outline" size="sm" />}
             >
-              <HugeiconsIcon icon={LeftToRightListBulletIcon} strokeWidth={2} data-icon="inline-start" />
+              <HugeiconsIcon
+                icon={LeftToRightListBulletIcon}
+                strokeWidth={2}
+                data-icon="inline-start"
+              />
               Columns
-              <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={2} data-icon="inline-end" />
+              <HugeiconsIcon
+                icon={ArrowDown01Icon}
+                strokeWidth={2}
+                data-icon="inline-end"
+              />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-32">
               {table
@@ -446,7 +550,7 @@ export function DataTable({
                 .filter(
                   (column) =>
                     typeof column.accessorFn !== "undefined" &&
-                    column.getCanHide()
+                    column.getCanHide(),
                 )
                 .map((column) => {
                   return (
@@ -460,20 +564,23 @@ export function DataTable({
                     >
                       {column.id}
                     </DropdownMenuCheckboxItem>
-                  )
+                  );
                 })}
             </DropdownMenuContent>
           </DropdownMenu>
+          <Button variant="ghost" size="sm" onClick={expandAllGroups}>
+            Expand all
+          </Button>
+          <Button variant="ghost" size="sm" onClick={collapseAllGroups}>
+            Collapse all
+          </Button>
           <Button variant="outline" size="sm">
             <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />
-            <span className="hidden lg:inline">Add Section</span>
+            <span className="hidden lg:inline">Add Device</span>
           </Button>
         </div>
       </div>
-      <TabsContent
-        value="outline"
-        className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
-      >
+      <div className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6">
         <div className="overflow-hidden rounded-lg border">
           <DndContext
             collisionDetection={closestCenter}
@@ -493,23 +600,58 @@ export function DataTable({
                             ? null
                             : flexRender(
                                 header.column.columnDef.header,
-                                header.getContext()
+                                header.getContext(),
                               )}
                         </TableHead>
-                      )
+                      );
                     })}
                   </TableRow>
                 ))}
               </TableHeader>
               <TableBody className="**:data-[slot=table-cell]:first:w-8">
-                {table.getRowModel().rows?.length ? (
+                {groupedSections.length ? (
                   <SortableContext
                     items={dataIds}
                     strategy={verticalListSortingStrategy}
                   >
-                    {table.getRowModel().rows.map((row) => (
-                      <DraggableRow key={row.id} row={row} />
-                    ))}
+                    {groupedSections.map(({ group, label, rows }) => {
+                      const isCollapsed = collapsedGroups.has(group);
+                      return (
+                        <React.Fragment key={group}>
+                          <TableRow className="bg-muted/40 hover:bg-muted/60">
+                            <TableCell colSpan={columns.length} className="p-0">
+                              <button
+                                type="button"
+                                aria-expanded={!isCollapsed}
+                                aria-controls={`inventory-group-${group}`}
+                                onClick={() => toggleGroup(group)}
+                                className="flex w-full items-center gap-2 px-4 py-2 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                              >
+                                <HugeiconsIcon
+                                  icon={ArrowDown01Icon}
+                                  strokeWidth={2}
+                                  className={cn(
+                                    "size-3.5 shrink-0 transition-transform",
+                                    isCollapsed && "-rotate-90",
+                                  )}
+                                />
+                                <span>{label}</span>
+                                <Badge
+                                  variant="secondary"
+                                  className="ml-1 font-mono text-[10px]"
+                                >
+                                  {rows.length}
+                                </Badge>
+                              </button>
+                            </TableCell>
+                          </TableRow>
+                          {!isCollapsed &&
+                            rows.map((row) => (
+                              <DraggableRow key={row.id} row={row} />
+                            ))}
+                        </React.Fragment>
+                      );
+                    })}
                   </SortableContext>
                 ) : (
                   <TableRow>
@@ -517,7 +659,7 @@ export function DataTable({
                       colSpan={columns.length}
                       className="h-24 text-center"
                     >
-                      No results.
+                      No devices match this view.
                     </TableCell>
                   </TableRow>
                 )}
@@ -525,164 +667,65 @@ export function DataTable({
             </Table>
           </DndContext>
         </div>
-        <div className="flex items-center justify-between px-4">
-          <div className="hidden flex-1 text-sm text-muted-foreground lg:flex">
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <div>
             {table.getFilteredSelectedRowModel().rows.length} of{" "}
-            {table.getFilteredRowModel().rows.length} row(s) selected.
+            {table.getFilteredRowModel().rows.length} selected ·{" "}
+            {groupedSections.length} groups · {expandedGroupCount} expanded
           </div>
-          <div className="flex w-full items-center gap-8 lg:w-fit">
-            <div className="hidden items-center gap-2 lg:flex">
-              <Label htmlFor="rows-per-page" className="text-sm font-medium">
-                Rows per page
-              </Label>
-              <Select
-                value={`${table.getState().pagination.pageSize}`}
-                onValueChange={(value) => {
-                  table.setPageSize(Number(value))
-                }}
-                items={[10, 20, 30, 40, 50].map((pageSize) => ({
-                  label: `${pageSize}`,
-                  value: `${pageSize}`,
-                }))}
-              >
-                <SelectTrigger size="sm" className="w-20" id="rows-per-page">
-                  <SelectValue
-                    placeholder={table.getState().pagination.pageSize}
-                  />
-                </SelectTrigger>
-                <SelectContent side="top">
-                  <SelectGroup>
-                    {[10, 20, 30, 40, 50].map((pageSize) => (
-                      <SelectItem key={pageSize} value={`${pageSize}`}>
-                        {pageSize}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex w-fit items-center justify-center text-sm font-medium">
-              Page {table.getState().pagination.pageIndex + 1} of{" "}
-              {table.getPageCount()}
-            </div>
-            <div className="ml-auto flex items-center gap-2 lg:ml-0">
-              <Button
-                variant="outline"
-                className="hidden h-8 w-8 p-0 lg:flex"
-                onClick={() => table.setPageIndex(0)}
-                disabled={!table.getCanPreviousPage()}
-              >
-                <span className="sr-only">Go to first page</span>
-                <HugeiconsIcon icon={ArrowLeftDoubleIcon} strokeWidth={2} />
-              </Button>
-              <Button
-                variant="outline"
-                className="size-8"
-                size="icon"
-                onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}
-              >
-                <span className="sr-only">Go to previous page</span>
-                <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} />
-              </Button>
-              <Button
-                variant="outline"
-                className="size-8"
-                size="icon"
-                onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage()}
-              >
-                <span className="sr-only">Go to next page</span>
-                <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={2} />
-              </Button>
-              <Button
-                variant="outline"
-                className="hidden size-8 lg:flex"
-                size="icon"
-                onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-                disabled={!table.getCanNextPage()}
-              >
-                <span className="sr-only">Go to last page</span>
-                <HugeiconsIcon icon={ArrowRightDoubleIcon} strokeWidth={2} />
-              </Button>
-            </div>
-          </div>
+          <div>{data.length} total devices (dummy inventory)</div>
         </div>
-      </TabsContent>
-      <TabsContent
-        value="past-performance"
-        className="flex flex-col px-4 lg:px-6"
-      >
-        <div className="aspect-video w-full flex-1 rounded-lg border border-dashed"></div>
-      </TabsContent>
-      <TabsContent value="key-personnel" className="flex flex-col px-4 lg:px-6">
-        <div className="aspect-video w-full flex-1 rounded-lg border border-dashed"></div>
-      </TabsContent>
-      <TabsContent
-        value="focus-documents"
-        className="flex flex-col px-4 lg:px-6"
-      >
-        <div className="aspect-video w-full flex-1 rounded-lg border border-dashed"></div>
-      </TabsContent>
+      </div>
     </Tabs>
-  )
+  );
 }
 const chartData = [
-  {
-    month: "January",
-    desktop: 186,
-    mobile: 80,
-  },
-  {
-    month: "February",
-    desktop: 305,
-    mobile: 200,
-  },
-  {
-    month: "March",
-    desktop: 237,
-    mobile: 120,
-  },
-  {
-    month: "April",
-    desktop: 73,
-    mobile: 190,
-  },
-  {
-    month: "May",
-    desktop: 209,
-    mobile: 130,
-  },
-  {
-    month: "June",
-    desktop: 214,
-    mobile: 140,
-  },
-]
+  { sample: "0s", commanded: 0.42, measured: 0.38 },
+  { sample: "10s", commanded: 0.61, measured: 0.58 },
+  { sample: "20s", commanded: 0.72, measured: 0.69 },
+  { sample: "30s", commanded: 0.58, measured: 0.55 },
+  { sample: "40s", commanded: 0.74, measured: 0.71 },
+  { sample: "50s", commanded: 0.85, measured: 0.79 },
+  { sample: "60s", commanded: 0.78, measured: 0.73 },
+];
 const chartConfig = {
-  desktop: {
-    label: "Desktop",
+  commanded: {
+    label: "Commanded (Nm)",
     color: "var(--primary)",
   },
-  mobile: {
-    label: "Mobile",
-    color: "var(--primary)",
+  measured: {
+    label: "Measured (Nm)",
+    color: "var(--chart-2)",
   },
-} satisfies ChartConfig
-function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
-  const isMobile = useIsMobile()
+} satisfies ChartConfig;
+function TableCellViewer({ item }: { item: InventoryRow }) {
+  const isMobile = useIsMobile();
   return (
     <Drawer direction={isMobile ? "bottom" : "right"}>
-      <DrawerTrigger render={<Button variant="link" className="w-fit px-0 text-left text-foreground" />}>{item.header}</DrawerTrigger>
+      <DrawerTrigger
+        render={
+          <Button
+            variant="link"
+            className="w-fit px-0 text-left font-mono text-sm text-foreground"
+          />
+        }
+      >
+        {item.name}
+      </DrawerTrigger>
       <DrawerContent>
         <DrawerHeader className="gap-1">
-          <DrawerTitle>{item.header}</DrawerTitle>
+          <DrawerTitle className="font-mono">{item.name}</DrawerTitle>
           <DrawerDescription>
-            Showing total visitors for the last 6 months
+            {
+              INVENTORY_GROUP_LABELS[
+                item.group as keyof typeof INVENTORY_GROUP_LABELS
+              ]
+            }{" "}
+            · {item.kind} · {item.node}
           </DrawerDescription>
         </DrawerHeader>
         <div className="flex flex-col gap-4 overflow-y-auto px-4 text-sm">
-          {!isMobile && (
+          {item.kind === "actuator" && !isMobile && (
             <>
               <ChartContainer config={chartConfig}>
                 <AreaChart
@@ -695,11 +738,10 @@ function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
                 >
                   <CartesianGrid vertical={false} />
                   <XAxis
-                    dataKey="month"
+                    dataKey="sample"
                     tickLine={false}
                     axisLine={false}
                     tickMargin={8}
-                    tickFormatter={(value) => value.slice(0, 3)}
                     hide
                   />
                   <ChartTooltip
@@ -707,19 +749,19 @@ function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
                     content={<ChartTooltipContent indicator="dot" />}
                   />
                   <Area
-                    dataKey="mobile"
+                    dataKey="measured"
                     type="natural"
-                    fill="var(--color-mobile)"
+                    fill="var(--color-measured)"
                     fillOpacity={0.6}
-                    stroke="var(--color-mobile)"
+                    stroke="var(--color-measured)"
                     stackId="a"
                   />
                   <Area
-                    dataKey="desktop"
+                    dataKey="commanded"
                     type="natural"
-                    fill="var(--color-desktop)"
+                    fill="var(--color-commanded)"
                     fillOpacity={0.4}
-                    stroke="var(--color-desktop)"
+                    stroke="var(--color-commanded)"
                     stackId="a"
                   />
                 </AreaChart>
@@ -727,13 +769,16 @@ function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
               <Separator />
               <div className="grid gap-2">
                 <div className="flex gap-2 leading-none font-medium">
-                  Trending up by 5.2% this month{" "}
-                  <HugeiconsIcon icon={ChartUpIcon} strokeWidth={2} className="size-4" />
+                  Max tracking error 0.06 Nm this session{" "}
+                  <HugeiconsIcon
+                    icon={ChartUpIcon}
+                    strokeWidth={2}
+                    className="size-4"
+                  />
                 </div>
                 <div className="text-muted-foreground">
-                  Showing total visitors for the last 6 months. This is just
-                  some random text to test the layout. It spans multiple lines
-                  and should wrap around.
+                  Dummy telemetry for layout. Will sync to live CAN feedback and
+                  time cursor when Chappe stream lands.
                 </div>
               </div>
               <Separator />
@@ -741,49 +786,28 @@ function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
           )}
           <form className="flex flex-col gap-4">
             <div className="flex flex-col gap-3">
-              <Label htmlFor="header">Header</Label>
-              <Input id="header" defaultValue={item.header} />
+              <Label htmlFor="name">Name</Label>
+              <Input id="name" defaultValue={item.name} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-3">
-                <Label htmlFor="type">Type</Label>
+                <Label htmlFor="kind">Kind</Label>
                 <Select
-                  defaultValue={item.type}
+                  defaultValue={item.kind}
                   items={[
-                    { label: "Table of Contents", value: "Table of Contents" },
-                    { label: "Executive Summary", value: "Executive Summary" },
-                    {
-                      label: "Technical Approach",
-                      value: "Technical Approach",
-                    },
-                    { label: "Design", value: "Design" },
-                    { label: "Capabilities", value: "Capabilities" },
-                    { label: "Focus Documents", value: "Focus Documents" },
-                    { label: "Narrative", value: "Narrative" },
-                    { label: "Cover Page", value: "Cover Page" },
+                    { label: "actuator", value: "actuator" },
+                    { label: "sensor", value: "sensor" },
+                    { label: "device", value: "device" },
                   ]}
                 >
-                  <SelectTrigger id="type" className="w-full">
-                    <SelectValue placeholder="Select a type" />
+                  <SelectTrigger id="kind" className="w-full">
+                    <SelectValue placeholder="Select kind" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      <SelectItem value="Table of Contents">
-                        Table of Contents
-                      </SelectItem>
-                      <SelectItem value="Executive Summary">
-                        Executive Summary
-                      </SelectItem>
-                      <SelectItem value="Technical Approach">
-                        Technical Approach
-                      </SelectItem>
-                      <SelectItem value="Design">Design</SelectItem>
-                      <SelectItem value="Capabilities">Capabilities</SelectItem>
-                      <SelectItem value="Focus Documents">
-                        Focus Documents
-                      </SelectItem>
-                      <SelectItem value="Narrative">Narrative</SelectItem>
-                      <SelectItem value="Cover Page">Cover Page</SelectItem>
+                      <SelectItem value="actuator">actuator</SelectItem>
+                      <SelectItem value="sensor">sensor</SelectItem>
+                      <SelectItem value="device">device</SelectItem>
                     </SelectGroup>
                   </SelectContent>
                 </Select>
@@ -793,19 +817,23 @@ function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
                 <Select
                   defaultValue={item.status}
                   items={[
-                    { label: "Done", value: "Done" },
-                    { label: "In Progress", value: "In Progress" },
-                    { label: "Not Started", value: "Not Started" },
+                    { label: "Enabled", value: "Enabled" },
+                    { label: "Nominal", value: "Nominal" },
+                    { label: "Tuning", value: "Tuning" },
+                    { label: "Fault", value: "Fault" },
+                    { label: "Offline", value: "Offline" },
                   ]}
                 >
                   <SelectTrigger id="status" className="w-full">
-                    <SelectValue placeholder="Select a status" />
+                    <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      <SelectItem value="Done">Done</SelectItem>
-                      <SelectItem value="In Progress">In Progress</SelectItem>
-                      <SelectItem value="Not Started">Not Started</SelectItem>
+                      <SelectItem value="Enabled">Enabled</SelectItem>
+                      <SelectItem value="Nominal">Nominal</SelectItem>
+                      <SelectItem value="Tuning">Tuning</SelectItem>
+                      <SelectItem value="Fault">Fault</SelectItem>
+                      <SelectItem value="Offline">Offline</SelectItem>
                     </SelectGroup>
                   </SelectContent>
                 </Select>
@@ -813,34 +841,36 @@ function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-3">
-                <Label htmlFor="target">Target</Label>
-                <Input id="target" defaultValue={item.target} />
+                <Label htmlFor="value">Reading</Label>
+                <Input id="value" defaultValue={item.value} />
               </div>
               <div className="flex flex-col gap-3">
-                <Label htmlFor="limit">Limit</Label>
+                <Label htmlFor="limit">Range</Label>
                 <Input id="limit" defaultValue={item.limit} />
               </div>
             </div>
             <div className="flex flex-col gap-3">
-              <Label htmlFor="reviewer">Reviewer</Label>
+              <Label htmlFor="preset">Preset</Label>
               <Select
-                defaultValue={item.reviewer}
+                defaultValue={item.preset}
                 items={[
-                  { label: "Eddie Lake", value: "Eddie Lake" },
-                  { label: "Jamik Tashpulatov", value: "Jamik Tashpulatov" },
-                  { label: "Emily Whalen", value: "Emily Whalen" },
+                  { label: "golden_pose", value: "golden_pose" },
+                  { label: "bench_default", value: "bench_default" },
+                  { label: "tuning_sweep", value: "tuning_sweep" },
+                  { label: "last_session", value: "last_session" },
+                  { label: "unassigned", value: "unassigned" },
                 ]}
               >
-                <SelectTrigger id="reviewer" className="w-full">
-                  <SelectValue placeholder="Select a reviewer" />
+                <SelectTrigger id="preset" className="w-full">
+                  <SelectValue placeholder="Select preset" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    <SelectItem value="Eddie Lake">Eddie Lake</SelectItem>
-                    <SelectItem value="Jamik Tashpulatov">
-                      Jamik Tashpulatov
-                    </SelectItem>
-                    <SelectItem value="Emily Whalen">Emily Whalen</SelectItem>
+                    <SelectItem value="golden_pose">golden_pose</SelectItem>
+                    <SelectItem value="bench_default">bench_default</SelectItem>
+                    <SelectItem value="tuning_sweep">tuning_sweep</SelectItem>
+                    <SelectItem value="last_session">last_session</SelectItem>
+                    <SelectItem value="unassigned">unassigned</SelectItem>
                   </SelectGroup>
                 </SelectContent>
               </Select>
@@ -848,10 +878,10 @@ function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
           </form>
         </div>
         <DrawerFooter>
-          <Button>Submit</Button>
+          <Button>Apply</Button>
           <DrawerClose render={<Button variant="outline" />}></DrawerClose>
         </DrawerFooter>
       </DrawerContent>
     </Drawer>
-  )
+  );
 }

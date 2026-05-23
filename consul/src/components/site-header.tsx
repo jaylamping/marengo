@@ -1,5 +1,6 @@
-import { Separator } from "@/components/ui/separator"
-import { SidebarTrigger } from "@/components/ui/sidebar"
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 
 export function SiteHeader() {
   return (
@@ -10,8 +11,21 @@ export function SiteHeader() {
           orientation="vertical"
           className="mx-2 h-4 data-vertical:self-auto"
         />
-        <h1 className="text-base font-medium">Dashboard</h1>
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <h1 className="text-base font-medium">Overview</h1>
+          <span className="hidden text-sm text-muted-foreground sm:inline">
+            marengo_arm_4dof · bench
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="hidden font-mono text-xs sm:inline-flex">
+            vcan0
+          </Badge>
+          <Badge className="bg-green-600/90 font-mono text-xs hover:bg-green-600/90">
+            LIVE
+          </Badge>
+        </div>
       </div>
     </header>
-  )
+  );
 }
