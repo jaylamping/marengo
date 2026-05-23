@@ -15,4 +15,28 @@ export default defineConfig({
     port: 5173,
     // Future: proxy or WebTransport setup will go here
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (
+            id.includes('node_modules/recharts') ||
+            id.includes('node_modules/d3-') ||
+            id.includes('node_modules/decimal.js-light') ||
+            id.includes('node_modules/es-toolkit')
+          ) {
+            return 'recharts';
+          }
+
+          if (
+            id.includes('@dnd-kit') ||
+            id.includes('@tanstack/react-table') ||
+            id.includes('@tanstack/table-core')
+          ) {
+            return 'inventory-table';
+          }
+        },
+      },
+    },
+  },
 });

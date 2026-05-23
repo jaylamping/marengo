@@ -1,7 +1,7 @@
 import {
   BatteryPackLegend,
-  BatterySocChart,
-} from '@/components/dashboard/cards/battery-soc-chart';
+  BatterySocRings,
+} from '@/components/dashboard/cards/battery-soc-rings';
 import { DashboardCardShell } from '@/components/dashboard/cards/dashboard-card-shell';
 import { MetricGrid } from '@/components/dashboard/metrics/metric-grid';
 import { MetricItem } from '@/components/dashboard/metrics/metric-item';
@@ -76,7 +76,7 @@ export function PowerSystemCard({
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Packs · {batteries.packs.length} online
             </p>
-            <BatterySocChart
+            <BatterySocRings
               packs={batteries.packs}
               aggregateSocPercent={aggregateSocPercent}
               className="max-w-[180px] @md/card:mx-0"
