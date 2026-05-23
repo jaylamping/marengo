@@ -11,12 +11,12 @@ type DashboardLayoutProps = {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
-    <SidebarProvider style={dashboardLayoutStyle}>
+    <SidebarProvider style={dashboardLayoutStyle} className="min-h-svh">
       <AppSidebar variant="inset" />
       <SidebarInset>
         <SiteHeader />
-        <div className="flex flex-1 flex-col">
-          <div className={dashboardMainClassName}>{children}</div>
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className={`${dashboardMainClassName} min-h-0`}>{children}</div>
         </div>
       </SidebarInset>
     </SidebarProvider>

@@ -5,6 +5,7 @@ export type SidebarIconKey =
   | 'joints'
   | 'safety'
   | 'telemetry'
+  | 'logs'
   | 'settings'
   | 'docs'
   | 'search'
@@ -43,6 +44,7 @@ export const sidebarNavMain: SidebarNavItem[] = [
   { title: 'Joints', url: '#', icon: 'joints' },
   { title: 'Safety', url: '#', icon: 'safety' },
   { title: 'Telemetry', url: '#', icon: 'telemetry' },
+  { title: 'Logs', url: '/logs', icon: 'logs' },
 ];
 
 export const sidebarNavSecondary: SidebarNavItem[] = [

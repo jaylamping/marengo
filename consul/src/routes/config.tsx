@@ -36,6 +36,21 @@ export const appRoutes: RouteObject[] = [
           };
         },
       },
+      {
+        path: '/logs',
+        lazy: async () => {
+          const { LogsPage } = await import('@/pages/logs');
+          return {
+            Component: LogsPage,
+            handle: {
+              header: {
+                title: 'Logs',
+                subtitle: 'live stream · virtualized',
+              },
+            },
+          };
+        },
+      },
     ],
   },
 ];

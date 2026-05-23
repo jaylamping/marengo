@@ -29,6 +29,7 @@ export default defineConfig({
           }
 
           if (
+            id.includes('@tanstack/react-virtual') ||
             id.includes('@dnd-kit') ||
             id.includes('@tanstack/react-table') ||
             id.includes('@tanstack/table-core')

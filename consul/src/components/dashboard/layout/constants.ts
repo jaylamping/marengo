@@ -11,4 +11,7 @@ export const dashboardMainClassName =
 export const dashboardOverviewClassName =
   'flex flex-col gap-4 py-4 md:gap-6 md:py-6';
 
+export const dashboardLogsClassName =
+  'flex min-h-0 flex-1 flex-col gap-4 px-4 py-4 lg:px-6';
+
 export const dashboardChartSectionClassName = 'px-4 lg:px-6';
