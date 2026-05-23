@@ -1,0 +1,26 @@
+---
+description: Commit or back up dirty work before making changes
+alwaysApply: true
+---
+
+# Worktree safety (before you change anything)
+
+Before editing files, running CAD automation, or destructive git operations in **any repo in the workspace** (marengo, solidworks-mcp, etc.):
+
+1. Run `git status` (and `git diff --stat` if anything looks dirty) in each repo you will touch.
+2. If there are **staged changes**, **unstaged changes**, or **untracked files you might overwrite** on paths you are about to modify:
+   - **Stop** until the user chooses one of:
+     - **Commit** — user asked to commit, or changes are clearly ready; follow git commit protocol.
+     - **Back up** — `git stash push -u -m "backup before <task>"`, or copy affected files to a dated folder outside the repo, or a short-lived branch commit the user can cherry-pick.
+   - Tell the user what is dirty and what you did (commit vs stash vs copy).
+3. **Never** without backup + explicit user OK:
+   - `git checkout` / `git restore` on binary CAD (`.SLDASM`, `.SLDPRT`, etc.)
+   - `close_all_documents` + overwrite in SolidWorks
+   - `delete_all_mates`, `repair_torso_frame`, layout rebuild, or other destructive MCP/script paths
+4. After backup or commit, re-run `git status` to confirm a clean baseline on the paths you will change.
+
+## CAD-specific
+
+- SolidWorks may lock files — close docs or ask user to close before restore/stash checkout.
+- Prefer **commit** when changes are intentional and named (e.g. vendor config fix); prefer **stash** for exploratory/WIP.
+- Do not mix unrelated work (e.g. consul tsbuildinfo) into CAD commits unless the user asks.
