@@ -1,5 +1,7 @@
-import { DashboardPage } from '@/pages/dashboard';
+import { useRoutes } from 'react-router-dom';
+
+import { appRoutes } from '@/routes';
 
 export default function App() {
-  return <DashboardPage />;
+  return useRoutes(appRoutes);
 }

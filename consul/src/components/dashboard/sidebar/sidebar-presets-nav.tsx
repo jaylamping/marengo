@@ -1,12 +1,12 @@
-"use client"
-
+import type { SidebarPresetItem } from '@/data/sidebar-nav';
+import { SidebarIcon } from '@/components/dashboard/sidebar/sidebar-icon';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from '@/components/ui/dropdown-menu';
 import {
   SidebarGroup,
   SidebarGroupLabel,
@@ -15,20 +15,22 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from "@/components/ui/sidebar"
-import { HugeiconsIcon } from "@hugeicons/react"
-import { MoreHorizontalCircle01Icon, Folder01Icon, Share01Icon, Delete02Icon } from "@hugeicons/core-free-icons"
+} from '@/components/ui/sidebar';
+import { HugeiconsIcon } from '@hugeicons/react';
+import {
+  Delete02Icon,
+  Folder01Icon,
+  MoreHorizontalCircle01Icon,
+  Share01Icon,
+} from '@hugeicons/core-free-icons';
 
-export function NavDocuments({
-  items,
-}: {
-  items: {
-    name: string
-    url: string
-    icon: React.ReactNode
-  }[]
-}) {
-  const { isMobile } = useSidebar()
+type SidebarPresetsNavProps = {
+  items: SidebarPresetItem[];
+};
+
+export function SidebarPresetsNav({ items }: SidebarPresetsNavProps) {
+  const { isMobile } = useSidebar();
+
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
       <SidebarGroupLabel>Presets</SidebarGroupLabel>
@@ -36,7 +38,7 @@ export function NavDocuments({
         {items.map((item) => (
           <SidebarMenuItem key={item.name}>
             <SidebarMenuButton render={<a href={item.url} />}>
-              {item.icon}
+              <SidebarIcon icon={item.icon} />
               <span>{item.name}</span>
             </SidebarMenuButton>
             <DropdownMenu>
@@ -53,8 +55,8 @@ export function NavDocuments({
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 className="w-24"
-                side={isMobile ? "bottom" : "right"}
-                align={isMobile ? "end" : "start"}
+                side={isMobile ? 'bottom' : 'right'}
+                align={isMobile ? 'end' : 'start'}
               >
                 <DropdownMenuItem>
                   <HugeiconsIcon icon={Folder01Icon} strokeWidth={2} />
@@ -75,11 +77,15 @@ export function NavDocuments({
         ))}
         <SidebarMenuItem>
           <SidebarMenuButton className="text-sidebar-foreground/70">
-            <HugeiconsIcon icon={MoreHorizontalCircle01Icon} strokeWidth={2} className="text-sidebar-foreground/70" />
+            <HugeiconsIcon
+              icon={MoreHorizontalCircle01Icon}
+              strokeWidth={2}
+              className="text-sidebar-foreground/70"
+            />
             <span>More</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>
     </SidebarGroup>
-  )
+  );
 }

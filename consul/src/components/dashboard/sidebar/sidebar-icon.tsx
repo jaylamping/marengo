@@ -1,0 +1,38 @@
+import type { SidebarIconKey } from '@/data/sidebar-nav';
+import { HugeiconsIcon } from '@hugeicons/react';
+import {
+  Analytics01Icon,
+  ChartHistogramIcon,
+  Database01Icon,
+  File01Icon,
+  HelpCircleIcon,
+  SearchIcon,
+  Settings05Icon,
+  Shield01Icon,
+  SlidersHorizontalIcon,
+  ThreeDViewIcon,
+} from '@hugeicons/core-free-icons';
+
+const sidebarIcons: Record<SidebarIconKey, typeof ThreeDViewIcon> = {
+  visualizer: ThreeDViewIcon,
+  joints: SlidersHorizontalIcon,
+  safety: Shield01Icon,
+  telemetry: ChartHistogramIcon,
+  settings: Settings05Icon,
+  docs: HelpCircleIcon,
+  search: SearchIcon,
+  'preset-golden': Database01Icon,
+  'preset-bench': Analytics01Icon,
+  'preset-tuning': File01Icon,
+};
+
+type SidebarIconProps = {
+  icon: SidebarIconKey;
+  className?: string;
+};
+
+export function SidebarIcon({ icon, className }: SidebarIconProps) {
+  return (
+    <HugeiconsIcon icon={sidebarIcons[icon]} strokeWidth={2} className={className} />
+  );
+}

@@ -1,5 +1,8 @@
-// Placeholder for future route definitions.
-// When we add more views (tuning, telemetry history, session replay, etc.)
-// we will define them here and wire them in App.tsx via <Routes>.
+import { DashboardPage } from '@/pages/dashboard';
 
-export {};
+export const appRoutes = [
+  {
+    path: '/',
+    element: <DashboardPage />,
+  },
+] as const;

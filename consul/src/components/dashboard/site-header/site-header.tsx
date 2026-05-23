@@ -1,4 +1,5 @@
-import { Badge } from '@/components/ui/badge';
+import { SiteHeaderStatusBadges } from '@/components/dashboard/site-header/site-header-status-badges';
+import { siteHeaderConfig } from '@/data/site-header';
 import { Separator } from '@/components/ui/separator';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 
@@ -12,19 +13,12 @@ export function SiteHeader() {
           className="mx-2 h-4 data-vertical:self-auto"
         />
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          <h1 className="text-base font-medium">Overview</h1>
+          <h1 className="text-base font-medium">{siteHeaderConfig.title}</h1>
           <span className="hidden text-sm text-muted-foreground sm:inline">
-            marengo_arm_4dof · bench
+            {siteHeaderConfig.subtitle}
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="hidden font-mono text-xs sm:inline-flex">
-            vcan0
-          </Badge>
-          <Badge className="bg-green-600/90 font-mono text-xs hover:bg-green-600/90">
-            LIVE
-          </Badge>
-        </div>
+        <SiteHeaderStatusBadges />
       </div>
     </header>
   );

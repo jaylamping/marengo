@@ -1,25 +1,23 @@
-"use client"
+import type { ComponentPropsWithoutRef } from 'react';
 
-import * as React from "react"
-
+import type { SidebarNavItem } from '@/data/sidebar-nav';
+import { SidebarIcon } from '@/components/dashboard/sidebar/sidebar-icon';
 import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@/components/ui/sidebar"
+} from '@/components/ui/sidebar';
 
-export function NavSecondary({
+type SidebarNavSecondaryProps = {
+  items: SidebarNavItem[];
+} & ComponentPropsWithoutRef<typeof SidebarGroup>;
+
+export function SidebarNavSecondary({
   items,
   ...props
-}: {
-  items: {
-    title: string
-    url: string
-    icon: React.ReactNode
-  }[]
-} & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
+}: SidebarNavSecondaryProps) {
   return (
     <SidebarGroup {...props}>
       <SidebarGroupContent>
@@ -27,7 +25,7 @@ export function NavSecondary({
           {items.map((item) => (
             <SidebarMenuItem key={item.title}>
               <SidebarMenuButton render={<a href={item.url} />}>
-                {item.icon}
+                <SidebarIcon icon={item.icon} />
                 <span>{item.title}</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -35,5 +33,5 @@ export function NavSecondary({
         </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>
-  )
+  );
 }
