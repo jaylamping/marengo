@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/gen/marengo/v1/marengo_pb.ts","./src/routes/index.tsx","./src/state/robotstore.ts"],"errors":true,"version":"5.9.3"}
