@@ -1,0 +1,18 @@
+[Unit]
+Description=Bring up Marengo SocketCAN interfaces (can0, can1)
+After=network-pre.target
+Before=network.target marengo-pi.service
+DefaultDependencies=no
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/sbin/ip link set can0 type can bitrate 1000000
+ExecStart=/sbin/ip link set can0 up
+ExecStart=/sbin/ip link set can1 type can bitrate 1000000
+ExecStart=/sbin/ip link set can1 up
+ExecStop=/sbin/ip link set can0 down
+ExecStop=/sbin/ip link set can1 down
+
+[Install]
+WantedBy=multi-user.target

@@ -23,16 +23,37 @@ Each configured motor is addressed by (`can_interface`, `device_id`). Device IDs
 
 ### Device IDs
 
-**Arm bring-up (active, 4 DOF)** — [`config/motors.yaml`](../../../config/motors.yaml):
+**Commissioned ID blocks (prototype — May 2026):**
+
+| Subsystem | ID range |
+|-----------|----------|
+| Right arm | 1–10 |
+| Left arm | 11–20 |
+| Right leg | 21–30 |
+| Left leg | 31–40 |
+| Waist + aux | 41+ |
+
+**Dual shoulder pitch bring-up** — [`config/bringup/shoulder_pitch_dual/`](../../../config/bringup/shoulder_pitch_dual/):
+
+| Joint | `can_interface` | `device_id` | Motor |
+|-------|-----------------|-------------|-------|
+| `left_shoulder_pitch` | can0 | 12 | RS03 |
+| `right_shoulder_pitch` | can1 | 2 | RS03 |
+
+**Left 4-DOF arm (Milestone B)** — [`config/bringup/arm_4dof_left/`](../../../config/bringup/arm_4dof_left/) / [`config/motors.yaml`](../../../config/motors.yaml):
 
 | Joint | `device_id` | Motor |
 |-------|-------------|-------|
-| `shoulder_roll` | 1 | RS03 |
-| `shoulder_pitch` | 2 | RS03 |
-| `upper_arm_yaw` | 3 | RS02 |
-| `elbow` | 4 | RS02 |
+| `shoulder_roll` | 11 | RS03 |
+| `shoulder_pitch` | 12 | RS03 |
+| `upper_arm_yaw` | 13 | RS02 |
+| `elbow` | 14 | RS02 |
 
-**Humanoid (template)** — [`config/motors_humanoid.yaml`](../../../config/motors_humanoid.yaml): IDs 1–23, legs 1–12, waist 13, arms 14–23. RS04 on hip pitch + knee (4×); RS03 on outer hip, waist, shoulders (9×); RS02 on ankles + arm yaw/elbow (8×); RS00 on wrists (2×).
+All on `can0`. Right arm (future, `can1`): roll **1**, pitch **2**, yaw **3**, elbow **4**.
+
+**Legacy 4-DOF template (superseded):** IDs 1–4 on single bus — do not use on commissioned hardware.
+
+**Humanoid (template)** — [`config/motors_humanoid.yaml`](../../../config/motors_humanoid.yaml): IDs 1–23 for full body layout.
 
 Reassign IDs in firmware before changing motor YAML.
 

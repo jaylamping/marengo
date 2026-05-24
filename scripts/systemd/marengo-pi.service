@@ -1,6 +1,7 @@
 [Unit]
 Description=Marengo Pi runtime (control, CAN, Chappe)
-After=network-online.target
+After=network-online.target marengo-can.service
+Requires=marengo-can.service
 Wants=network-online.target
 
 [Service]

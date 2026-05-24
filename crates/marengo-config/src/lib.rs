@@ -126,6 +126,13 @@ fn read_yaml<T: for<'de> Deserialize<'de>>(path: &Path) -> Result<T, ConfigError
     })
 }
 
+/// Repository root: `MARENGO_ROOT` env, else compile-time workspace root from this crate.
+pub fn resolve_repo_root() -> PathBuf {
+    std::env::var("MARENGO_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."))
+}
+
 /// Config directory: `MARENGO_CONFIG_DIR` or `<repo_root>/config`.
 pub fn resolve_config_dir(repo_root: impl AsRef<Path>) -> PathBuf {
     std::env::var("MARENGO_CONFIG_DIR")
@@ -134,7 +141,9 @@ pub fn resolve_config_dir(repo_root: impl AsRef<Path>) -> PathBuf {
 }
 
 /// Load `robot.yaml` from `config_dir`.
-pub fn load_robot_config_from(config_dir: impl AsRef<Path>) -> Result<RobotConfigFile, ConfigError> {
+pub fn load_robot_config_from(
+    config_dir: impl AsRef<Path>,
+) -> Result<RobotConfigFile, ConfigError> {
     read_yaml(&config_dir.as_ref().join("robot.yaml"))
 }
 
@@ -284,7 +293,7 @@ mod tests {
     use super::*;
 
     fn repo_root() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+        resolve_repo_root()
     }
 
     #[test]
@@ -304,7 +313,7 @@ mod tests {
         assert_eq!(motors.motors.len(), 4);
         validate_motors_against_robot(&robot, &motors).expect("joint names align");
         let m = motor_for_joint(&motors, "shoulder_roll").expect("shoulder_roll");
-        assert_eq!(m.device_id, 1);
+        assert_eq!(m.device_id, 11);
         assert_eq!(m.motor_type, MotorType::Rs03);
     }
 
@@ -321,6 +330,21 @@ mod tests {
     }
 
     #[test]
+    fn arm_4dof_left_bringup_config_validates() {
+        let root = repo_root();
+        let config_dir = root.join("config/bringup/arm_4dof_left");
+        let robot = load_robot_config_from(&config_dir).expect("arm robot.yaml");
+        let motors = load_motors_config_from(&config_dir).expect("arm motors.yaml");
+        validate_motors_against_robot(&robot, &motors).expect("arm joints align");
+        assert_eq!(
+            motor_for_joint(&motors, "shoulder_pitch")
+                .expect("pitch")
+                .device_id,
+            12
+        );
+    }
+
+    #[test]
     fn shoulder_pitch_dual_bringup_config_validates() {
         let root = repo_root();
         let config_dir = root.join("config/bringup/shoulder_pitch_dual");
@@ -328,6 +352,12 @@ mod tests {
         let motors = load_motors_config_from(&config_dir).expect("bringup motors.yaml");
         assert_eq!(motors.motors.len(), 2);
         validate_motors_against_robot(&robot, &motors).expect("bringup joints align");
+        let left = motor_for_joint(&motors, "left_shoulder_pitch").expect("left");
+        let right = motor_for_joint(&motors, "right_shoulder_pitch").expect("right");
+        assert_eq!(left.device_id, 12);
+        assert_eq!(left.can_interface, "can0");
+        assert_eq!(right.device_id, 2);
+        assert_eq!(right.can_interface, "can1");
         let urdf = resolve_urdf_path(&root, &robot).expect("bringup urdf");
         assert!(urdf.ends_with("shoulder_pitch_dual.urdf"));
         load_control_config_from(&config_dir).expect("bringup control.yaml");
