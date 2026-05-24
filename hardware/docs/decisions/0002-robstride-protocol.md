@@ -39,9 +39,24 @@ The Seeed wiki's simplified `0x200`/`0x300`/`0x400 + device_id` table is documen
 ## Marengo implementation
 
 - `motor_type` in [`config/motors.yaml`](../../../config/motors.yaml): `rs00` | `rs02` | `rs03` | `rs04`.
-- `crates/robstride`: vendor `encode_mit` / `decode_mit_feedback`, lifecycle frames, and parameter read/write helpers.
-- **MIT production path:** Berthier → Davout → Robstride `OPERATION_CONTROL` (`comm_type=1`) every tick.
+- `crates/robstride`: vendor `encode_mit` / `decode_mit_feedback`, lifecycle frames, and parameter read/write helpers. It stays in raw motor/CAN coordinates and does not apply joint sign or gearing.
+- `crates/davout`: safety gateway and joint↔motor coordinate boundary. It reads each motor row's `direction` and `gear_ratio`, filters commands in joint space, converts approved commands to motor space before calling robstride, and converts feedback back to joint space before Berthier reads it.
+- **MIT production path:** Berthier joint-space commands → Davout safety + direction/gear transform → Robstride `OPERATION_CONTROL` (`comm_type=1`) every tick.
 - **Bench diagnostics:** firmware Speed/Position/Current modes require explicit Davout methods and config gates; do not map Berthier control modes to firmware `run_mode`.
+
+### Coordinate ownership
+
+- **Joint space:** URDF axes, armee-dynamics gravity torques, Berthier control modes, Chappe `RobotState`, and Davout limit checks.
+- **Motor space:** Robstride MIT fields and SocketCAN frames.
+- **Boundary:** Davout only. Do not duplicate `direction` / `gear_ratio` handling in Berthier, robstride, bins, or generated telemetry. This keeps safety limits and sign tests tied to the same approved command path.
+
+For `scale = direction * gear_ratio`, Davout applies:
+
+- position / velocity command: `motor = joint * scale`
+- torque feedforward command: `motor = joint / scale`
+- feedback position / velocity: `joint = motor / scale`
+- feedback torque: `joint = motor * scale`
+- MIT `kp` / `kd`: `motor_gain = joint_gain / scale^2`
 
 ## Gate before bench gravity comp
 

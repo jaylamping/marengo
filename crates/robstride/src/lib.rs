@@ -17,6 +17,7 @@
 //! ## Does not
 //!
 //! - Decide torque limits, enable motors, or handle E-stop (Davout).
+//! - Apply joint sign, gearing, or URDF-axis conventions (`direction` / `gear_ratio` live in Davout).
 //! - Run periodic control or gravity model (Berthier / armee-dynamics).
 //! - Load YAML or URDF (marengo-config / armee-kinematics).
 //!

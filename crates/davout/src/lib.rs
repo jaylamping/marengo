@@ -9,6 +9,8 @@
 //! - [`Supervisor`]: operational state machine (Disabled → Ready → Active).
 //! - Filter [`MitJointCommand`] / [`JointCommand`]: URDF ∩ bench limits, per-`motor_type`
 //!   `kp`/`kd`/`tau_ff` caps, [`tau_ff` rate limiting](Supervisor::filter_mit_command).
+//! - Own joint↔motor coordinate conversion from `config/motors.yaml` (`direction`, `gear_ratio`):
+//!   Berthier and dynamics stay in joint space; robstride stays in raw motor/CAN space.
 //! - [`danger_zones`](marengo_config::DangerZoneRule) from `config/control.yaml` (fault on rule hit).
 //! - Comm watchdog: stale feedback → [`DavoutError::CommWatchdog`].
 //! - [`disable_all`]: best-effort zero-torque MIT on shutdown.
@@ -17,7 +19,7 @@
 //! ## Does not
 //!
 //! - Compute gravity, impedance targets, or trajectories (Berthier / Talleyrand).
-//! - Encode MIT CAN bytes or choose `device_id` mapping (robstride + `config/motors.yaml`).
+//! - Encode MIT CAN bytes (robstride).
 //! - Plan paths or run vision (Talleyrand / Fouché).
 //!
 //! ## Data flow
@@ -26,9 +28,14 @@
 //! Berthier MitJointCommand batch
 //!        │
 //!        ▼
-//!   Supervisor::send_mit_batch  ──filter──►  robstride::send_mit / mit_control_all
+//!   Supervisor::send_mit_batch
+//!        │
+//!        ├─ filter in joint space
+//!        ├─ apply direction/gear_ratio to motor space
+//!        ▼
+//!   robstride::send_mit / mit_control_all
 //!        ▲
-//!   motor_states ◄── recv_all ◄── CAN feedback
+//!   motor_states (joint space) ◄── direction/gear_ratio ◄── recv_all (motor space) ◄── CAN feedback
 //! ```
 //!
 //! Limits are built from [`armee_kinematics`] + [`marengo_config`] at startup.
