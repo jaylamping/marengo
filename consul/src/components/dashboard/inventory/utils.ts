@@ -29,9 +29,7 @@ export function filterInventoryByView(
   }
 }
 
-export function buildGroupedSections<T extends { group: InventoryGroup }>(
-  rows: Row<T>[],
-): InventoryGroupSection[] {
+export function buildGroupedSections(rows: Row<InventoryItem>[]): InventoryGroupSection[] {
   return INVENTORY_GROUP_ORDER.map((group) => ({
     group,
     label: INVENTORY_GROUP_LABELS[group],
