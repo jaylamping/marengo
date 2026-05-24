@@ -16,8 +16,25 @@ jobs:
         with:
           lfs: true
 
+      - name: Capture runner uid/gid
+        run: |
+          echo "MARENGO_UID=$(id -u)" >> "$GITHUB_ENV"
+          echo "MARENGO_GID=$(id -g)" >> "$GITHUB_ENV"
+
+      - uses: docker/setup-buildx-action@v3
+
       - name: Build dev image
-        run: docker build -f docker/Dockerfile.dev -t marengo-dev:local .
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.dev
+          load: true
+          tags: marengo-dev:local
+          build-args: |
+            MARENGO_UID=${{ env.MARENGO_UID }}
+            MARENGO_GID=${{ env.MARENGO_GID }}
+          cache-from: type=gha,scope=dev-image
+          cache-to: type=gha,scope=dev-image,mode=max
 
       - name: Run check.sh in container
         run: |
@@ -36,10 +53,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build sim image
+      - name: Capture runner uid/gid
         run: |
-          docker build -f docker/Dockerfile.dev -t marengo-dev:local .
-          docker build -f docker/Dockerfile.sim -t marengo-sim:local .
+          echo "MARENGO_UID=$(id -u)" >> "$GITHUB_ENV"
+          echo "MARENGO_GID=$(id -g)" >> "$GITHUB_ENV"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build dev image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.dev
+          load: true
+          tags: marengo-dev:local
+          build-args: |
+            MARENGO_UID=${{ env.MARENGO_UID }}
+            MARENGO_GID=${{ env.MARENGO_GID }}
+          cache-from: type=gha,scope=dev-image
+          cache-to: type=gha,scope=dev-image,mode=max
+
+      - name: Build sim image
+        run: docker build -f docker/Dockerfile.sim -t marengo-sim:local .
 
       - name: Run check-sim.sh
         run: |
@@ -56,8 +91,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Capture runner uid/gid
+        run: |
+          echo "MARENGO_UID=$(id -u)" >> "$GITHUB_ENV"
+          echo "MARENGO_GID=$(id -g)" >> "$GITHUB_ENV"
+
+      - uses: docker/setup-buildx-action@v3
+
       - name: Build dev image
-        run: docker build -f docker/Dockerfile.dev -t marengo-dev:local .
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.dev
+          load: true
+          tags: marengo-dev:local
+          build-args: |
+            MARENGO_UID=${{ env.MARENGO_UID }}
+            MARENGO_GID=${{ env.MARENGO_GID }}
+          cache-from: type=gha,scope=dev-image
+          cache-to: type=gha,scope=dev-image,mode=max
 
       - name: vcan integration tests
         run: |
