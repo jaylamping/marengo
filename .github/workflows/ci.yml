@@ -23,6 +23,18 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
+      - name: Restore Cargo cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .ci-cache/cargo/registry
+            .ci-cache/cargo/git
+            target
+          key: cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'docker/Dockerfile.dev') }}-${{ github.run_id }}
+          restore-keys: |
+            cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'docker/Dockerfile.dev') }}-
+            cargo-${{ runner.os }}-
+
       - name: Build dev image
         uses: docker/build-push-action@v6
         with:
@@ -38,8 +50,12 @@ jobs:
 
       - name: Run check.sh in container
         run: |
+          mkdir -p .ci-cache/cargo/registry .ci-cache/cargo/git target
           docker run --rm \
             -v "${{ github.workspace }}:/workspace" \
+            -v "${{ github.workspace }}/.ci-cache/cargo/registry:/usr/local/cargo/registry" \
+            -v "${{ github.workspace }}/.ci-cache/cargo/git:/usr/local/cargo/git" \
+            -v "${{ github.workspace }}/target:/workspace/target" \
             -w /workspace \
             -e CI=true \
             -e GITHUB_EVENT_NAME="${{ github.event_name }}" \
@@ -60,6 +76,18 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
+      - name: Restore Cargo cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .ci-cache/cargo/registry
+            .ci-cache/cargo/git
+            target
+          key: cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'docker/Dockerfile.dev') }}-${{ github.run_id }}
+          restore-keys: |
+            cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'docker/Dockerfile.dev') }}-
+            cargo-${{ runner.os }}-
+
       - name: Build dev image
         uses: docker/build-push-action@v6
         with:
@@ -78,8 +106,12 @@ jobs:
 
       - name: Run check-sim.sh
         run: |
+          mkdir -p .ci-cache/cargo/registry .ci-cache/cargo/git target
           docker run --rm \
             -v "${{ github.workspace }}:/workspace" \
+            -v "${{ github.workspace }}/.ci-cache/cargo/registry:/usr/local/cargo/registry" \
+            -v "${{ github.workspace }}/.ci-cache/cargo/git:/usr/local/cargo/git" \
+            -v "${{ github.workspace }}/target:/workspace/target" \
             -w /workspace \
             -e MARENGO_SIM_MODEL=/workspace/sim/fixtures/minimal.xml \
             marengo-sim:local \
@@ -98,6 +130,18 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
+      - name: Restore Cargo cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .ci-cache/cargo/registry
+            .ci-cache/cargo/git
+            target
+          key: cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'docker/Dockerfile.dev') }}-${{ github.run_id }}
+          restore-keys: |
+            cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'docker/Dockerfile.dev') }}-
+            cargo-${{ runner.os }}-
+
       - name: Build dev image
         uses: docker/build-push-action@v6
         with:
@@ -113,8 +157,12 @@ jobs:
 
       - name: vcan integration tests
         run: |
+          mkdir -p .ci-cache/cargo/registry .ci-cache/cargo/git target
           docker run --rm --privileged \
             -v "${{ github.workspace }}:/workspace" \
+            -v "${{ github.workspace }}/.ci-cache/cargo/registry:/usr/local/cargo/registry" \
+            -v "${{ github.workspace }}/.ci-cache/cargo/git:/usr/local/cargo/git" \
+            -v "${{ github.workspace }}/target:/workspace/target" \
             -w /workspace \
             -e MARENGO_USER=root \
             marengo-dev:local \
