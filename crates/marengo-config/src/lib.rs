@@ -126,16 +126,40 @@ fn read_yaml<T: for<'de> Deserialize<'de>>(path: &Path) -> Result<T, ConfigError
     })
 }
 
-/// Load `config/robot.yaml` relative to `repo_root`.
-pub fn load_robot_config(repo_root: impl AsRef<Path>) -> Result<RobotConfigFile, ConfigError> {
-    let path = repo_root.as_ref().join("config/robot.yaml");
-    read_yaml(&path)
+/// Config directory: `MARENGO_CONFIG_DIR` or `<repo_root>/config`.
+pub fn resolve_config_dir(repo_root: impl AsRef<Path>) -> PathBuf {
+    std::env::var("MARENGO_CONFIG_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| repo_root.as_ref().join("config"))
 }
 
-/// Load `config/motors.yaml` relative to `repo_root`.
+/// Load `robot.yaml` from `config_dir`.
+pub fn load_robot_config_from(config_dir: impl AsRef<Path>) -> Result<RobotConfigFile, ConfigError> {
+    read_yaml(&config_dir.as_ref().join("robot.yaml"))
+}
+
+/// Load `motors.yaml` from `config_dir`.
+pub fn load_motors_config_from(
+    config_dir: impl AsRef<Path>,
+) -> Result<MotorsConfigFile, ConfigError> {
+    read_yaml(&config_dir.as_ref().join("motors.yaml"))
+}
+
+/// Load `control.yaml` from `config_dir`.
+pub fn load_control_config_from(
+    config_dir: impl AsRef<Path>,
+) -> Result<ControlConfigFile, ConfigError> {
+    read_yaml(&config_dir.as_ref().join("control.yaml"))
+}
+
+/// Load `config/robot.yaml` relative to `repo_root` (honours `MARENGO_CONFIG_DIR`).
+pub fn load_robot_config(repo_root: impl AsRef<Path>) -> Result<RobotConfigFile, ConfigError> {
+    load_robot_config_from(resolve_config_dir(repo_root))
+}
+
+/// Load `config/motors.yaml` relative to `repo_root` (honours `MARENGO_CONFIG_DIR`).
 pub fn load_motors_config(repo_root: impl AsRef<Path>) -> Result<MotorsConfigFile, ConfigError> {
-    let path = repo_root.as_ref().join("config/motors.yaml");
-    read_yaml(&path)
+    load_motors_config_from(resolve_config_dir(repo_root))
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -203,10 +227,9 @@ pub struct DangerZoneRule {
     pub max_velocity_rad_s: f64,
 }
 
-/// Load `config/control.yaml` relative to `repo_root`.
+/// Load `config/control.yaml` relative to `repo_root` (honours `MARENGO_CONFIG_DIR`).
 pub fn load_control_config(repo_root: impl AsRef<Path>) -> Result<ControlConfigFile, ConfigError> {
-    let path = repo_root.as_ref().join("config/control.yaml");
-    read_yaml(&path)
+    load_control_config_from(resolve_config_dir(repo_root))
 }
 
 /// Load `config/network.yaml` relative to `repo_root`.
@@ -295,6 +318,19 @@ mod tests {
         let err = validate_motors_against_robot(&robot, &motors).expect_err("duplicate address");
 
         assert!(matches!(err, ConfigError::DuplicateMotorAddress { .. }));
+    }
+
+    #[test]
+    fn shoulder_pitch_dual_bringup_config_validates() {
+        let root = repo_root();
+        let config_dir = root.join("config/bringup/shoulder_pitch_dual");
+        let robot = load_robot_config_from(&config_dir).expect("bringup robot.yaml");
+        let motors = load_motors_config_from(&config_dir).expect("bringup motors.yaml");
+        assert_eq!(motors.motors.len(), 2);
+        validate_motors_against_robot(&robot, &motors).expect("bringup joints align");
+        let urdf = resolve_urdf_path(&root, &robot).expect("bringup urdf");
+        assert!(urdf.ends_with("shoulder_pitch_dual.urdf"));
+        load_control_config_from(&config_dir).expect("bringup control.yaml");
     }
 
     #[test]

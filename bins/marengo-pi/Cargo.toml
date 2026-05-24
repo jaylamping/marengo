@@ -13,16 +13,19 @@ workspace = true
 [features]
 default = []
 socketcan = ["robstride/socketcan"]
-vcan = ["socketcan"]
 
 [[bin]]
 name = "marengo-pi"
 path = "src/main.rs"
 
 [dependencies]
+armee-proto.workspace = true
 berthier = { path = "../../crates/berthier" }
 chappe = { path = "../../crates/chappe" }
+ctrlc = "3.4"
+davout = { path = "../../crates/davout" }
 marengo-config.workspace = true
 marengo-support.workspace = true
 robstride = { path = "../../crates/robstride" }
+tokio = { version = "1", features = ["sync"] }
 tracing.workspace = true

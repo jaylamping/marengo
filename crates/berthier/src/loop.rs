@@ -84,52 +84,51 @@ impl<B: MotorBus> ControlLoop<B> {
 
     /// One control cycle: recv → compute → send → optional Chappe publish.
     pub fn tick(&mut self, chappe: Option<&Bus>) -> Result<(), LoopError> {
-        let _ = self.supervisor.refresh_feedback()?;
-        if self.supervisor.mode() != OperationalMode::Active {
-            return Ok(());
-        }
-        if self.control_mode == ControlMode::Disabled {
-            return Ok(());
-        }
+        self.supervisor.refresh_feedback()?;
 
         let q = self.read_positions();
-        let tau_g = self.dynamics.gravity_torques(&q)?;
 
-        let mut batch = Vec::new();
-        for (i, name) in self.joint_names.iter().enumerate() {
-            let (kp, kd, tau_ff) = match self.control_mode {
-                ControlMode::GravityComp | ControlMode::TorqueOnly => (0.0, 0.0, tau_g[i]),
-                ControlMode::Impedance => {
-                    let cfg = self.supervisor.control.control.joints.get(name);
-                    let imp = cfg.map(|c| &c.impedance);
-                    let fr = cfg.map(|c| &c.friction);
-                    let kp = imp.map(|g| g.kp).unwrap_or(0.0);
-                    let kd = imp.map(|g| g.kd).unwrap_or(0.0);
-                    let dq = self.joint_velocity(name);
-                    let tau_f = fr
-                        .map(|f| friction_torque(dq, f.fc, f.fv, f.fo, f.k))
-                        .unwrap_or(0.0);
-                    (kp, kd, tau_g[i] + tau_f)
-                }
-                ControlMode::Position => {
-                    let cfg = self.supervisor.control.control.joints.get(name);
-                    let kp = cfg.map(|c| c.impedance.kp).unwrap_or(20.0);
-                    let kd = cfg.map(|c| c.impedance.kd).unwrap_or(1.0);
-                    (kp, kd, tau_g[i])
-                }
-                ControlMode::Disabled => continue,
-            };
-            batch.push(DavoutMit {
-                joint: name.clone(),
-                kp,
-                kd,
-                position_rad: q[i],
-                velocity_rad_s: 0.0,
-                torque_ff_nm: tau_ff,
-            });
+        if self.supervisor.mode() == OperationalMode::Active
+            && self.control_mode != ControlMode::Disabled
+        {
+            let tau_g = self.dynamics.gravity_torques(&q)?;
+
+            let mut batch = Vec::new();
+            for (i, name) in self.joint_names.iter().enumerate() {
+                let (kp, kd, tau_ff) = match self.control_mode {
+                    ControlMode::GravityComp | ControlMode::TorqueOnly => (0.0, 0.0, tau_g[i]),
+                    ControlMode::Impedance => {
+                        let cfg = self.supervisor.control.control.joints.get(name);
+                        let imp = cfg.map(|c| &c.impedance);
+                        let fr = cfg.map(|c| &c.friction);
+                        let kp = imp.map(|g| g.kp).unwrap_or(0.0);
+                        let kd = imp.map(|g| g.kd).unwrap_or(0.0);
+                        let dq = self.joint_velocity(name);
+                        let tau_f = fr
+                            .map(|f| friction_torque(dq, f.fc, f.fv, f.fo, f.k))
+                            .unwrap_or(0.0);
+                        (kp, kd, tau_g[i] + tau_f)
+                    }
+                    ControlMode::Position => {
+                        let cfg = self.supervisor.control.control.joints.get(name);
+                        let kp = cfg.map(|c| c.impedance.kp).unwrap_or(20.0);
+                        let kd = cfg.map(|c| c.impedance.kd).unwrap_or(1.0);
+                        (kp, kd, tau_g[i])
+                    }
+                    ControlMode::Disabled => continue,
+                };
+                batch.push(DavoutMit {
+                    joint: name.clone(),
+                    kp,
+                    kd,
+                    position_rad: q[i],
+                    velocity_rad_s: 0.0,
+                    torque_ff_nm: tau_ff,
+                });
+            }
+
+            self.supervisor.send_mit_batch(batch)?;
         }
-
-        self.supervisor.send_mit_batch(batch)?;
 
         if let Some(bus) = chappe {
             let now = Instant::now();

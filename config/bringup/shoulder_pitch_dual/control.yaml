@@ -1,0 +1,46 @@
+# Control tuning for dual shoulder pitch bring-up.
+control:
+  loop_hz: 200
+  chappe_state_hz: 50
+  comm_watchdog_ms: 50
+  tau_ff_rate_limit_nm_per_s: 20.0
+  disable_on_exit: true
+  bench:
+    allow_firmware_speed_mode: false
+
+  motor_type_defaults:
+    rs03:
+      kp_max: 5000
+      kd_max: 100
+      tau_ff_max_nm: 5.0
+      velocity_max_rad_s: 2.0
+
+  joints:
+    left_shoulder_pitch:
+      motor_type: rs03
+      gravity_comp:
+        kp: 0.0
+        kd: 0.0
+      impedance:
+        kp: 50.0
+        kd: 2.0
+      friction:
+        fc: 0.0
+        fv: 0.0
+        fo: 0.0
+        k: 10.0
+    right_shoulder_pitch:
+      motor_type: rs03
+      gravity_comp:
+        kp: 0.0
+        kd: 0.0
+      impedance:
+        kp: 50.0
+        kd: 2.0
+      friction:
+        fc: 0.0
+        fv: 0.0
+        fo: 0.0
+        k: 10.0
+
+  danger_zones: []

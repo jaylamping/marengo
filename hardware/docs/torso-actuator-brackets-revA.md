@@ -46,8 +46,8 @@ CAD action: **move** the two shoulder layout instances in `marengo_torso_asm_rev
 
 | File | Qty | `process` / `material` |
 |------|-----|------------------------|
-| `hardware/cad/parts/marengo_shoulder_roll_mount_bracket_left_revA.SLDPRT` | 1 | `print` / `PETG` |
-| `hardware/cad/parts/marengo_shoulder_roll_mount_bracket_right_revA.SLDPRT` | 1 | `print` / `PETG` |
+| `hardware/cad/parts/marengo_shoulder_internal_pitch_mount_bracket_left_revA.SLDPRT` | 1 | `print` / `PETG` |
+| `hardware/cad/parts/marengo_shoulder_internal_pitch_mount_bracket_right_revA.SLDPRT` | 1 | `print` / `PETG` |
 | `hardware/cad/parts/marengo_waist_yaw_adapter_revA.SLDPRT` | 1 | `print` / `PETG` |
 
 ### Reference geometry (each part)
@@ -67,7 +67,7 @@ Layout part anchors to add:
 
 ---
 
-## 1. Internal shoulder roll bracket (L / R)
+## 1. Internal shoulder pitch mount bracket (L / R)
 
 **Purpose:** Capture RS03 against **inner face** of the side vertical (`frame_2020_vertical_*_340`) or a short PETG bridge from vertical + front/rear rail; keep motor mass inside **110 mm** Y span.
 
@@ -87,7 +87,7 @@ Layout part anchors to add:
 **Modeling order**
 
 1. Move layout motor inside cage in `marengo_torso_asm_revA` (unfix → mate to `shoulder_mount_*`).
-2. New part `marengo_shoulder_roll_mount_bracket_left_revA.SLDPRT`.
+2. New part `marengo_shoulder_internal_pitch_mount_bracket_left_revA.SLDPRT`.
 3. Sketch `mount_face` against inner rail; extrude saddle for RS03.
 4. Clash-check vs `vendor_robstride_rs03_vendor` and future Pi envelope.
 5. Mirror for right.
