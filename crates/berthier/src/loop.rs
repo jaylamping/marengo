@@ -179,11 +179,20 @@ impl<B: MotorBus> ControlLoop<B> {
             .joint_names
             .iter()
             .zip(q.iter())
-            .map(|(name, &position)| JointState {
-                name: name.clone(),
-                position,
-                velocity: 0.0,
-                effort: 0.0,
+            .map(|(name, &position)| {
+                let state = self
+                    .supervisor
+                    .motors
+                    .motors
+                    .iter()
+                    .find(|m| &m.joint == name)
+                    .and_then(|m| self.supervisor.motor_states().get(&m.device_id));
+                JointState {
+                    name: name.clone(),
+                    position,
+                    velocity: state.map(|s| f64::from(s.velocity_rad_s)).unwrap_or(0.0),
+                    effort: state.map(|s| f64::from(s.torque_nm)).unwrap_or(0.0),
+                }
             })
             .collect();
         let timestamp_ms = std::time::SystemTime::now()

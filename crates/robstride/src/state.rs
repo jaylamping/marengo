@@ -8,7 +8,8 @@ pub struct MotorState {
     pub position_rad: f32,
     pub velocity_rad_s: f32,
     pub torque_nm: f32,
-    pub fault: u8,
+    pub temperature_c: f32,
+    pub fault: u16,
     pub updated: Option<Instant>,
 }
 
@@ -18,6 +19,7 @@ impl Default for MotorState {
             position_rad: 0.0,
             velocity_rad_s: 0.0,
             torque_nm: 0.0,
+            temperature_c: 0.0,
             fault: 0,
             updated: None,
         }

@@ -10,6 +10,10 @@ license.workspace = true
 [lints]
 workspace = true
 
+[features]
+default = []
+vcan = ["robstride/vcan"]
+
 [[bin]]
 name = "motor-repl"
 path = "src/main.rs"

@@ -89,6 +89,21 @@ let id = (18 << 24) | (0x00ff << 8) | device_id;
 let (id, data) = robstride::encode_set_run_mode(device_id, robstride::RunMode::Speed);
 ```
 
+Keep coordinate ownership explicit:
+
+```rust
+// BAD — Berthier or robstride applies motor sign/gearing ad hoc
+let motor_tau = tau_g / (motor.direction as f64 * motor.gear_ratio);
+robstride::send_mit(&mut bus, &cmd)?;
+
+// GOOD — Davout is the joint↔motor boundary
+supervisor.send_mit_batch(joint_space_cmds)?;
+```
+
+- Berthier, armee-dynamics, Chappe, and Davout safety limits operate in URDF joint space.
+- robstride operates in raw motor/CAN space only.
+- Davout owns `config/motors.yaml` `direction` / `gear_ratio` transforms in both directions.
+
 ## 8. Testing
 
 - Default `cargo test` must not require hardware.

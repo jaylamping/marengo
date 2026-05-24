@@ -9,6 +9,8 @@
 //! - [`Supervisor`]: operational state machine (Disabled → Ready → Active).
 //! - Filter [`MitJointCommand`] / [`JointCommand`]: URDF ∩ bench limits, per-`motor_type`
 //!   `kp`/`kd`/`tau_ff` caps, [`tau_ff` rate limiting](Supervisor::filter_mit_command).
+//! - Own joint↔motor coordinate conversion from `config/motors.yaml` (`direction`, `gear_ratio`):
+//!   Berthier and dynamics stay in joint space; robstride stays in raw motor/CAN space.
 //! - [`danger_zones`](marengo_config::DangerZoneRule) from `config/control.yaml` (fault on rule hit).
 //! - Comm watchdog: stale feedback → [`DavoutError::CommWatchdog`].
 //! - [`disable_all`]: best-effort zero-torque MIT on shutdown.
@@ -17,7 +19,7 @@
 //! ## Does not
 //!
 //! - Compute gravity, impedance targets, or trajectories (Berthier / Talleyrand).
-//! - Encode MIT CAN bytes or choose `device_id` mapping (robstride + `config/motors.yaml`).
+//! - Encode MIT CAN bytes (robstride).
 //! - Plan paths or run vision (Talleyrand / Fouché).
 //!
 //! ## Data flow
@@ -26,9 +28,14 @@
 //! Berthier MitJointCommand batch
 //!        │
 //!        ▼
-//!   Supervisor::send_mit_batch  ──filter──►  robstride::send_mit / mit_control_all
+//!   Supervisor::send_mit_batch
+//!        │
+//!        ├─ filter in joint space
+//!        ├─ apply direction/gear_ratio to motor space
+//!        ▼
+//!   robstride::send_mit / mit_control_all
 //!        ▲
-//!   motor_states ◄── recv_all ◄── CAN feedback
+//!   motor_states (joint space) ◄── direction/gear_ratio ◄── recv_all (motor space) ◄── CAN feedback
 //! ```
 //!
 //! Limits are built from [`armee_kinematics`] + [`marengo_config`] at startup.
@@ -116,6 +123,10 @@ pub enum DavoutError {
     DangerZone { name: String, joint: String },
     #[error("firmware speed mode is disabled in control.bench.allow_firmware_speed_mode")]
     FirmwareSpeedModeDisabled,
+    #[error("invalid motor config for {joint}: {message}")]
+    InvalidMotorConfig { joint: String, message: String },
+    #[error("motor fault on {joint}: 0x{fault:04x}")]
+    MotorFault { joint: String, fault: u16 },
 }
 
 /// Effective limits for one joint (URDF ∩ bench YAML).
@@ -140,6 +151,7 @@ pub struct Supervisor<B: MotorBus> {
     bus: B,
     motor_states: HashMap<u8, MotorState>,
     last_recv: Option<Instant>,
+    active_since: Option<Instant>,
     last_tau_ff: HashMap<String, f64>,
     last_tick: Option<Instant>,
 }
@@ -171,6 +183,7 @@ impl<B: MotorBus> Supervisor<B> {
             bus,
             motor_states: HashMap::new(),
             last_recv: None,
+            active_since: None,
             last_tau_ff: HashMap::new(),
             last_tick: None,
         })
@@ -202,6 +215,7 @@ impl<B: MotorBus> Supervisor<B> {
         if asserted {
             self.mode = OperationalMode::Disabled;
             self.control_mode = ControlMode::Disabled;
+            self.active_since = None;
             warn!("hardware E-stop asserted — disabled");
         }
     }
@@ -227,6 +241,7 @@ impl<B: MotorBus> Supervisor<B> {
                 self.bus.set_run_mode(motor.device_id, RunMode::Mit)?;
             }
             self.mode = OperationalMode::Active;
+            self.active_since = Some(Instant::now());
             debug!("supervisor ACTIVE");
         } else {
             self.disable_all()?;
@@ -236,12 +251,21 @@ impl<B: MotorBus> Supervisor<B> {
 
     /// Poll CAN feedback; updates watchdog timestamp on success.
     pub fn refresh_feedback(&mut self) -> Result<usize, DavoutError> {
-        let timeout = Duration::from_millis(self.control.control.comm_watchdog_ms);
+        let timeout = self.feedback_poll_timeout();
+        let mut raw_states = HashMap::new();
         match self
             .bus
-            .recv_all(&self.motor_types, &mut self.motor_states, timeout)
+            .recv_all(&self.motor_types, &mut raw_states, timeout)
         {
             Ok(n) => {
+                for (device_id, raw) in raw_states {
+                    let Some(motor) = self.motors.motors.iter().find(|m| m.device_id == device_id)
+                    else {
+                        continue;
+                    };
+                    self.motor_states
+                        .insert(device_id, motor_to_joint_state(motor, raw)?);
+                }
                 self.last_recv = Some(Instant::now());
                 Ok(n)
             }
@@ -252,17 +276,28 @@ impl<B: MotorBus> Supervisor<B> {
 
     fn check_comm_watchdog(&self) -> Result<(), DavoutError> {
         let max_ms = self.control.control.comm_watchdog_ms;
-        if max_ms == 0 {
-            return Ok(());
-        }
         if self.mode != OperationalMode::Active {
             return Ok(());
         }
-        let Some(last) = self.last_recv else {
-            return Ok(());
-        };
-        if last.elapsed() > Duration::from_millis(max_ms) {
-            return Err(DavoutError::CommWatchdog { ms: max_ms });
+        if max_ms != 0 {
+            let last_feedback_or_enable = self.last_recv.or(self.active_since);
+            let Some(last) = last_feedback_or_enable else {
+                return Err(DavoutError::CommWatchdog { ms: max_ms });
+            };
+            if last.elapsed() > Duration::from_millis(max_ms) {
+                return Err(DavoutError::CommWatchdog { ms: max_ms });
+            }
+        }
+        for motor in &self.motors.motors {
+            let Some(state) = self.motor_states.get(&motor.device_id) else {
+                continue;
+            };
+            if state.fault != 0 {
+                return Err(DavoutError::MotorFault {
+                    joint: motor.joint.clone(),
+                    fault: state.fault,
+                });
+            }
         }
         Ok(())
     }
@@ -301,14 +336,15 @@ impl<B: MotorBus> Supervisor<B> {
         }
         let filtered = self.filter_mit_command(cmd, motor)?;
         self.apply_danger_zones(&filtered)?;
+        let scale = motor_position_scale(motor)?;
         let wire = MitCommand {
             device_id: motor.device_id,
             motor_type: motor.motor_type,
-            position_rad: filtered.position_rad as f32,
-            velocity_rad_s: filtered.velocity_rad_s as f32,
-            kp: filtered.kp as f32,
-            kd: filtered.kd as f32,
-            torque_ff_nm: filtered.torque_ff_nm as f32,
+            position_rad: (filtered.position_rad * scale) as f32,
+            velocity_rad_s: (filtered.velocity_rad_s * scale) as f32,
+            kp: (filtered.kp / scale.powi(2)) as f32,
+            kd: (filtered.kd / scale.powi(2)) as f32,
+            torque_ff_nm: (filtered.torque_ff_nm / scale) as f32,
         };
         send_mit(&mut self.bus, &wire)?;
         Ok(())
@@ -349,14 +385,15 @@ impl<B: MotorBus> Supervisor<B> {
             .clone();
         let capped = self.filter_speed_command(cmd, &motor)?;
         let cap = self.speed_cap_for_joint(&capped.joint, &motor)?;
+        let scale = motor_position_scale(&motor)?;
         self.bus.set_run_mode(motor.device_id, RunMode::Speed)?;
         self.bus.write_parameter(
             motor.device_id,
             ParameterId::LimitSpeed,
-            ParameterValue::F32(cap as f32),
+            ParameterValue::F32((cap * scale.abs()) as f32),
         )?;
         self.bus
-            .speed_control(motor.device_id, capped.velocity_rad_s as f32)?;
+            .speed_control(motor.device_id, (capped.velocity_rad_s * scale) as f32)?;
         Ok(capped.velocity_rad_s)
     }
 
@@ -406,8 +443,18 @@ impl<B: MotorBus> Supervisor<B> {
         }
         self.mode = OperationalMode::Disabled;
         self.control_mode = ControlMode::Disabled;
+        self.active_since = None;
         debug!("supervisor DISABLED");
         Ok(())
+    }
+
+    fn feedback_poll_timeout(&self) -> Duration {
+        let watchdog = Duration::from_millis(self.control.control.comm_watchdog_ms);
+        if watchdog.is_zero() {
+            Duration::from_millis(1)
+        } else {
+            watchdog.min(Duration::from_millis(1))
+        }
     }
 
     pub fn filter_mit_command(
@@ -586,6 +633,35 @@ fn rate_limit_tau_ff(
     out
 }
 
+fn motor_position_scale(motor: &MotorEntry) -> Result<f64, DavoutError> {
+    if motor.direction == 0 {
+        return Err(DavoutError::InvalidMotorConfig {
+            joint: motor.joint.clone(),
+            message: "direction must be -1 or 1".to_string(),
+        });
+    }
+    if motor.gear_ratio <= 0.0 {
+        return Err(DavoutError::InvalidMotorConfig {
+            joint: motor.joint.clone(),
+            message: "gear_ratio must be positive".to_string(),
+        });
+    }
+    let direction = if motor.direction < 0 { -1.0 } else { 1.0 };
+    Ok(direction * motor.gear_ratio)
+}
+
+fn motor_to_joint_state(motor: &MotorEntry, raw: MotorState) -> Result<MotorState, DavoutError> {
+    let scale = motor_position_scale(motor)?;
+    Ok(MotorState {
+        position_rad: (f64::from(raw.position_rad) / scale) as f32,
+        velocity_rad_s: (f64::from(raw.velocity_rad_s) / scale) as f32,
+        torque_nm: (f64::from(raw.torque_nm) * scale) as f32,
+        temperature_c: raw.temperature_c,
+        fault: raw.fault,
+        updated: raw.updated,
+    })
+}
+
 fn build_limits(
     robot: &RobotConfigFile,
     motors: &MotorsConfigFile,
@@ -738,5 +814,102 @@ mod tests {
             })
             .expect_err("speed mode disabled");
         assert!(matches!(err, DavoutError::FirmwareSpeedModeDisabled));
+    }
+
+    #[test]
+    fn motor_transform_converts_feedback_to_joint_space() {
+        let mut motor = motor_for_joint(
+            &Supervisor::from_repo(repo_root(), MemoryBus::default())
+                .expect("supervisor")
+                .motors,
+            "elbow",
+        )
+        .expect("motor")
+        .clone();
+        motor.direction = -1;
+        motor.gear_ratio = 2.0;
+        let joint = motor_to_joint_state(
+            &motor,
+            MotorState {
+                position_rad: -1.0,
+                velocity_rad_s: -0.5,
+                torque_nm: -2.0,
+                temperature_c: 42.0,
+                fault: 7,
+                updated: None,
+            },
+        )
+        .expect("transform");
+        assert!((joint.position_rad - 0.5).abs() < 1e-6);
+        assert!((joint.velocity_rad_s - 0.25).abs() < 1e-6);
+        assert!((joint.torque_nm - 4.0).abs() < 1e-6);
+        assert_eq!(joint.temperature_c, 42.0);
+        assert_eq!(joint.fault, 7);
+    }
+
+    #[test]
+    fn send_mit_converts_joint_command_to_motor_space() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        sup.set_homing_complete();
+        sup.request_enable(true).expect("enable");
+        sup.bus.tx.clear();
+        let mut motor = motor_for_joint(&sup.motors, "elbow")
+            .expect("motor")
+            .clone();
+        motor.direction = -1;
+        motor.gear_ratio = 2.0;
+        sup.send_mit_joint(
+            MitJointCommand {
+                joint: "elbow".to_string(),
+                kp: 8.0,
+                kd: 4.0,
+                position_rad: 0.5,
+                velocity_rad_s: 0.25,
+                torque_ff_nm: 2.0,
+            },
+            &motor,
+        )
+        .expect("send");
+        let expected = MitCommand {
+            device_id: motor.device_id,
+            motor_type: motor.motor_type,
+            position_rad: -1.0,
+            velocity_rad_s: -0.5,
+            kp: 2.0,
+            kd: 1.0,
+            torque_ff_nm: -1.0,
+        };
+        let (expected_id, expected_data) = robstride::encode_mit(&expected);
+        assert_eq!(sup.bus.tx.len(), 1);
+        assert_eq!(sup.bus.tx[0].id, expected_id);
+        assert_eq!(sup.bus.tx[0].data, expected_data);
+    }
+
+    #[test]
+    fn watchdog_fires_when_active_without_first_feedback() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        sup.control.control.comm_watchdog_ms = 1;
+        sup.set_homing_complete();
+        sup.request_enable(true).expect("enable");
+        std::thread::sleep(Duration::from_millis(2));
+        let motor = motor_for_joint(&sup.motors, "elbow")
+            .expect("motor")
+            .clone();
+        let err = sup
+            .send_mit_joint(
+                MitJointCommand {
+                    joint: "elbow".to_string(),
+                    kp: 0.0,
+                    kd: 0.0,
+                    position_rad: 0.0,
+                    velocity_rad_s: 0.0,
+                    torque_ff_nm: 0.0,
+                },
+                &motor,
+            )
+            .expect_err("watchdog");
+        assert!(matches!(err, DavoutError::CommWatchdog { ms: 1 }));
     }
 }

@@ -25,7 +25,7 @@ pub struct MitFeedback {
     pub velocity_rad_s: f32,
     pub torque_nm: f32,
     pub temperature_c: f32,
-    pub fault: u8,
+    pub fault: u16,
 }
 
 /// Extended CAN arbitration ID for a neutral-torque MIT command to `device_id`.

@@ -3,7 +3,7 @@ FROM marengo-dev:local
 
 USER root
 
-RUN pip3 install --no-cache-dir mujoco numpy \
+RUN pip3 install --no-cache-dir --break-system-packages mujoco numpy \
     && python3 -c "import mujoco; print('mujoco', mujoco.__version__)"
 
 ENV MARENGO_SIM_MODEL=/workspace/sim/fixtures/minimal.xml

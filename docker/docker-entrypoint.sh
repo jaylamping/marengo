@@ -12,6 +12,7 @@ ensure_dir_owned_by_marengo() {
 
 if [[ "$(id -u)" -eq 0 ]]; then
   ensure_dir_owned_by_marengo /workspace/consul/node_modules
+  ensure_dir_owned_by_marengo /workspace/consul/src/gen
   ensure_dir_owned_by_marengo /workspace/target
   ensure_dir_owned_by_marengo /usr/local/cargo/registry
   ensure_dir_owned_by_marengo /usr/local/cargo/git

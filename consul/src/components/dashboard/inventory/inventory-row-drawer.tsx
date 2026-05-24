@@ -49,15 +49,13 @@ export function InventoryRowDrawer({ item }: InventoryRowDrawerProps) {
 
   return (
     <Drawer direction={isMobile ? 'bottom' : 'right'}>
-      <DrawerTrigger
-        render={
-          <Button
-            variant="link"
-            className="w-fit px-0 text-left font-mono text-sm text-foreground"
-          />
-        }
-      >
-        {item.name}
+      <DrawerTrigger asChild>
+        <Button
+          variant="link"
+          className="w-fit px-0 text-left font-mono text-sm text-foreground"
+        >
+          {item.name}
+        </Button>
       </DrawerTrigger>
       <DrawerContent>
         <DrawerHeader className="gap-1">
@@ -194,7 +192,9 @@ export function InventoryRowDrawer({ item }: InventoryRowDrawerProps) {
         </div>
         <DrawerFooter>
           <Button>Apply</Button>
-          <DrawerClose render={<Button variant="outline" />} />
+          <DrawerClose asChild>
+            <Button variant="outline">Cancel</Button>
+          </DrawerClose>
         </DrawerFooter>
       </DrawerContent>
     </Drawer>

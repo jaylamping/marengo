@@ -6,9 +6,9 @@ use std::time::Instant;
 
 use berthier::{ControlLoop, ControlMode};
 use chappe::Bus;
-use marengo_config::load_control_config;
+use marengo_config::{load_control_config, load_motors_config};
 use marengo_support::init_tracing;
-use robstride::MemoryBus;
+use robstride::RuntimeBus;
 use tracing::info;
 
 fn repo_root() -> PathBuf {
@@ -25,8 +25,36 @@ fn main() {
             std::process::exit(1);
         }
     };
+    let motors = match load_motors_config(&root) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("motors.yaml: {e}");
+            std::process::exit(1);
+        }
+    };
 
-    let bus = MemoryBus::default();
+    let bus_kind = std::env::var("MARENGO_MOTOR_BUS").unwrap_or_else(|_| "memory".to_string());
+    let can_interface = std::env::var("MARENGO_CAN_INTERFACE").unwrap_or_else(|_| {
+        motors
+            .motors
+            .first()
+            .map(|m| m.can_interface.clone())
+            .unwrap_or_else(|| "can0".to_string())
+    });
+    let bus = match bus_kind.as_str() {
+        "memory" => RuntimeBus::memory(),
+        "socketcan" => match RuntimeBus::socketcan(&can_interface) {
+            Ok(bus) => bus,
+            Err(e) => {
+                eprintln!("open SocketCAN {can_interface}: {e}");
+                std::process::exit(1);
+            }
+        },
+        other => {
+            eprintln!("unknown MARENGO_MOTOR_BUS={other}; use memory or socketcan");
+            std::process::exit(1);
+        }
+    };
     let mut loop_ctrl = match ControlLoop::from_repo(
         &root,
         bus,
@@ -43,7 +71,9 @@ fn main() {
     let chappe = Arc::new(Bus::default());
     info!(
         hz = control.control.loop_hz,
-        "marengo-pi starting gravity-comp scaffold (memory bus)"
+        bus = %bus_kind,
+        can_interface = %can_interface,
+        "marengo-pi starting gravity-comp scaffold"
     );
 
     loop_ctrl.supervisor_mut().set_homing_complete();

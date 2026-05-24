@@ -16,13 +16,46 @@ jobs:
         with:
           lfs: true
 
+      - name: Capture runner uid/gid
+        run: |
+          echo "MARENGO_UID=$(id -u)" >> "$GITHUB_ENV"
+          echo "MARENGO_GID=$(id -g)" >> "$GITHUB_ENV"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Restore Cargo cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .ci-cache/cargo/registry
+            .ci-cache/cargo/git
+            target
+          key: cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'docker/Dockerfile.dev') }}-${{ github.run_id }}
+          restore-keys: |
+            cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'docker/Dockerfile.dev') }}-
+            cargo-${{ runner.os }}-
+
       - name: Build dev image
-        run: docker build -f docker/Dockerfile.dev -t marengo-dev:local .
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.dev
+          load: true
+          tags: marengo-dev:local
+          build-args: |
+            MARENGO_UID=${{ env.MARENGO_UID }}
+            MARENGO_GID=${{ env.MARENGO_GID }}
+          cache-from: type=gha,scope=dev-image
+          cache-to: type=gha,scope=dev-image,mode=max
 
       - name: Run check.sh in container
         run: |
+          mkdir -p .ci-cache/cargo/registry .ci-cache/cargo/git target
           docker run --rm \
             -v "${{ github.workspace }}:/workspace" \
+            -v "${{ github.workspace }}/.ci-cache/cargo/registry:/usr/local/cargo/registry" \
+            -v "${{ github.workspace }}/.ci-cache/cargo/git:/usr/local/cargo/git" \
+            -v "${{ github.workspace }}/target:/workspace/target" \
             -w /workspace \
             -e CI=true \
             -e GITHUB_EVENT_NAME="${{ github.event_name }}" \
@@ -36,15 +69,49 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build sim image
+      - name: Capture runner uid/gid
         run: |
-          docker build -f docker/Dockerfile.dev -t marengo-dev:local .
-          docker build -f docker/Dockerfile.sim -t marengo-sim:local .
+          echo "MARENGO_UID=$(id -u)" >> "$GITHUB_ENV"
+          echo "MARENGO_GID=$(id -g)" >> "$GITHUB_ENV"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Restore Cargo cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .ci-cache/cargo/registry
+            .ci-cache/cargo/git
+            target
+          key: cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'docker/Dockerfile.dev') }}-${{ github.run_id }}
+          restore-keys: |
+            cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'docker/Dockerfile.dev') }}-
+            cargo-${{ runner.os }}-
+
+      - name: Build dev image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.dev
+          load: true
+          tags: marengo-dev:local
+          build-args: |
+            MARENGO_UID=${{ env.MARENGO_UID }}
+            MARENGO_GID=${{ env.MARENGO_GID }}
+          cache-from: type=gha,scope=dev-image
+          cache-to: type=gha,scope=dev-image,mode=max
+
+      - name: Build sim image
+        run: docker build -f docker/Dockerfile.sim -t marengo-sim:local .
 
       - name: Run check-sim.sh
         run: |
+          mkdir -p .ci-cache/cargo/registry .ci-cache/cargo/git target
           docker run --rm \
             -v "${{ github.workspace }}:/workspace" \
+            -v "${{ github.workspace }}/.ci-cache/cargo/registry:/usr/local/cargo/registry" \
+            -v "${{ github.workspace }}/.ci-cache/cargo/git:/usr/local/cargo/git" \
+            -v "${{ github.workspace }}/target:/workspace/target" \
             -w /workspace \
             -e MARENGO_SIM_MODEL=/workspace/sim/fixtures/minimal.xml \
             marengo-sim:local \
@@ -56,13 +123,50 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Capture runner uid/gid
+        run: |
+          echo "MARENGO_UID=$(id -u)" >> "$GITHUB_ENV"
+          echo "MARENGO_GID=$(id -g)" >> "$GITHUB_ENV"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Restore Cargo cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .ci-cache/cargo/registry
+            .ci-cache/cargo/git
+            target
+          key: cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'docker/Dockerfile.dev') }}-${{ github.run_id }}
+          restore-keys: |
+            cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'docker/Dockerfile.dev') }}-
+            cargo-${{ runner.os }}-
+
       - name: Build dev image
-        run: docker build -f docker/Dockerfile.dev -t marengo-dev:local .
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.dev
+          load: true
+          tags: marengo-dev:local
+          build-args: |
+            MARENGO_UID=${{ env.MARENGO_UID }}
+            MARENGO_GID=${{ env.MARENGO_GID }}
+          cache-from: type=gha,scope=dev-image
+          cache-to: type=gha,scope=dev-image,mode=max
+
+      - name: Load vcan kernel module
+        run: sudo modprobe vcan
 
       - name: vcan integration tests
         run: |
+          mkdir -p .ci-cache/cargo/registry .ci-cache/cargo/git target
           docker run --rm --privileged \
             -v "${{ github.workspace }}:/workspace" \
+            -v "${{ github.workspace }}/.ci-cache/cargo/registry:/usr/local/cargo/registry" \
+            -v "${{ github.workspace }}/.ci-cache/cargo/git:/usr/local/cargo/git" \
+            -v "${{ github.workspace }}/target:/workspace/target" \
             -w /workspace \
+            -e MARENGO_USER=root \
             marengo-dev:local \
             bash -c './scripts/vcan-up.sh && cargo test -p robstride --features vcan -- --ignored'
