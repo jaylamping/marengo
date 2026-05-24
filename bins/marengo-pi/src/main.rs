@@ -3,7 +3,7 @@
 use std::collections::BTreeSet;
 use std::env;
 use std::io::{self, BufRead};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::Arc;
@@ -19,14 +19,15 @@ use berthier::{proto_control_mode, ControlLoop, ControlMode};
 use chappe::Bus;
 use davout::{MotorAddress, OperationalMode};
 use marengo_config::{
-    load_control_config, load_motors_config, resolve_config_dir, resolve_urdf_path,
+    load_control_config, load_motors_config, resolve_config_dir, resolve_repo_root,
+    resolve_urdf_path,
 };
 use marengo_support::init_tracing;
 use robstride::RuntimeBus;
 use tracing::{error, info, warn};
 
 fn repo_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+    resolve_repo_root()
 }
 
 fn timestamp_ms() -> u64 {
@@ -201,13 +202,15 @@ fn publish_heartbeat(chappe: &Bus) -> Result<(), chappe::BusError> {
     )
 }
 
-fn print_status(loop_ctrl: &ControlLoop<RuntimeBus>, config_dir: &PathBuf) {
+fn print_status(loop_ctrl: &mut ControlLoop<RuntimeBus>, config_dir: &Path) {
+    let control_mode = loop_ctrl.control_mode();
     let supervisor = loop_ctrl.supervisor_mut();
+    let operational = supervisor.mode();
     println!(
         "config: {}\noperational: {:?}\ncontrol: {:?}",
         config_dir.display(),
-        supervisor.mode(),
-        loop_ctrl.control_mode(),
+        operational,
+        control_mode,
     );
     for motor in &supervisor.motors.motors {
         let address = MotorAddress::from(motor);
@@ -233,7 +236,7 @@ fn print_status(loop_ctrl: &ControlLoop<RuntimeBus>, config_dir: &PathBuf) {
 fn handle_command(
     loop_ctrl: &mut ControlLoop<RuntimeBus>,
     cmd: PiCommand,
-    config_dir: &PathBuf,
+    config_dir: &Path,
 ) -> bool {
     match cmd {
         PiCommand::Home => {
@@ -274,7 +277,7 @@ fn usage() {
     eprintln!(
         "marengo-pi — Pi control runtime (Berthier → Davout → SocketCAN)\n\
          Usage: marengo-pi [--config-dir PATH] [--no-stdin-ctl]\n\
-         Env:  MARENGO_CONFIG_DIR — override config directory\n\
+         Env:  MARENGO_ROOT, MARENGO_CONFIG_DIR — override repo/config paths\n\
          Bring-up: MARENGO_CONFIG_DIR=config/bringup/shoulder_pitch_dual"
     );
 }
@@ -376,10 +379,14 @@ fn main() {
 
     let shutdown = Arc::new(AtomicBool::new(false));
     let shutdown_flag = Arc::clone(&shutdown);
-    ctrlc::set_handler(move || {
+    if ctrlc::set_handler(move || {
         shutdown_flag.store(true, Ordering::SeqCst);
     })
-    .expect("install ctrl-c handler");
+    .is_err()
+    {
+        eprintln!("failed to install ctrl-c handler");
+        std::process::exit(1);
+    }
 
     let (cmd_tx, cmd_rx): (Sender<PiCommand>, Receiver<PiCommand>) = mpsc::channel();
     if stdin_ctl {
@@ -397,10 +404,11 @@ fn main() {
     );
 
     let period = loop_ctrl.loop_period();
-    let chappe_period = Duration::from_secs_f64(1.0 / f64::from(control.control.chappe_state_hz.max(1)));
+    let chappe_period =
+        Duration::from_secs_f64(1.0 / f64::from(control.control.chappe_state_hz.max(1)));
     let mut last_chappe = Instant::now();
     let mut last_heartbeat = Instant::now();
-    let mut active_fault: Option<String> = None;
+    let mut active_fault: Option<String>;
 
     while !shutdown.load(Ordering::SeqCst) {
         let tick_start = Instant::now();
@@ -414,17 +422,15 @@ fn main() {
 
         drain_chappe_commands(&mut loop_ctrl, &mut enable_rx, &mut homing_rx);
 
-        match loop_ctrl.tick(Some(chappe.as_ref())) {
-            Ok(()) => {
-                active_fault = None;
-            }
+        active_fault = match loop_ctrl.tick(Some(chappe.as_ref())) {
+            Ok(()) => None,
             Err(e) => {
                 error!(error = %e, "control tick failed");
-                active_fault = Some(e.to_string());
                 let _ = loop_ctrl.supervisor_mut().disable_all();
                 loop_ctrl.set_control_mode(ControlMode::Disabled);
+                Some(e.to_string())
             }
-        }
+        };
 
         let now = Instant::now();
         if now.duration_since(last_chappe) >= chappe_period {
@@ -438,7 +444,7 @@ fn main() {
             if let Err(e) = publish_heartbeat(chappe.as_ref()) {
                 warn!(error = %e, "failed to publish heartbeat");
             }
-            debug_status(&loop_ctrl);
+            debug_status(&mut loop_ctrl);
             last_heartbeat = now;
         }
 
@@ -456,8 +462,10 @@ fn main() {
     info!("marengo-pi stopped");
 }
 
-fn debug_status(loop_ctrl: &ControlLoop<RuntimeBus>) {
+fn debug_status(loop_ctrl: &mut ControlLoop<RuntimeBus>) {
+    let control_mode = loop_ctrl.control_mode();
     let supervisor = loop_ctrl.supervisor_mut();
+    let operational = supervisor.mode();
     for motor in &supervisor.motors.motors {
         let address = MotorAddress::from(motor);
         if let Some(state) = supervisor.motor_states().get(&address) {
@@ -468,8 +476,8 @@ fn debug_status(loop_ctrl: &ControlLoop<RuntimeBus>) {
                 pos = f64::from(state.position_rad),
                 vel = f64::from(state.velocity_rad_s),
                 torque = f64::from(state.torque_nm),
-                operational = ?supervisor.mode(),
-                control = ?proto_control_mode(loop_ctrl.control_mode()),
+                operational = ?operational,
+                control = ?proto_control_mode(control_mode),
                 "feedback"
             );
         }

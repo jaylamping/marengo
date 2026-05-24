@@ -2,7 +2,7 @@
 
 ## Recommended: Docker (source of truth)
 
-See [onboarding.md](onboarding.md).
+See [onboarding.md](onboarding.md) for dev container setup. For **physical Pi bring-up**, see [pi-commissioning.md](pi-commissioning.md).
 
 ```bash
 docker compose build dev

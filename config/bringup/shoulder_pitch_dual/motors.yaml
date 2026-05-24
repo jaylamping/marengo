@@ -1,14 +1,15 @@
-# Left shoulder pitch → can0, right → can1. Adjust device_id if firmware differs.
+# Dual shoulder pitch — left on can0 (id 12), right on can1 (id 2).
+# ID scheme: right arm 1–10, left arm 11–20 (roll 11/1 reserved when installed).
 motors:
   - joint: left_shoulder_pitch
     driver: robstride
     motor_type: rs03
     can_interface: can0
-    device_id: 1
+    device_id: 12
     direction: 1
     gear_ratio: 1.0
-    recv_can_id: 0x240
-    firmware_version: "0.0.0-bench"
+    recv_can_id: 0x24c
+    firmware_version: "0.3.1.42"
     bench:
       position_lower_rad: -1.2
       position_upper_rad: 1.2
@@ -18,11 +19,11 @@ motors:
     driver: robstride
     motor_type: rs03
     can_interface: can1
-    device_id: 1
+    device_id: 2
     direction: 1
     gear_ratio: 1.0
-    recv_can_id: 0x240
-    firmware_version: "0.0.0-bench"
+    recv_can_id: 0x241
+    firmware_version: "0.3.1.42"
     bench:
       position_lower_rad: -1.2
       position_upper_rad: 1.2

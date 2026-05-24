@@ -6,19 +6,19 @@ use std::path::PathBuf;
 
 use berthier::{ControlLoop, ControlMode};
 use davout::{JointCommand, SpeedCommand};
-use marengo_config::{load_control_config, load_motors_config};
+use marengo_config::{load_control_config, load_motors_config, resolve_repo_root};
 use robstride::RuntimeBus;
 use tracing::info;
 
 fn repo_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+    resolve_repo_root()
 }
 
 fn usage() {
     eprintln!(
         "motor-repl — bench motor exercise (Davout → robstride)\n\
          Usage:\n  \
-           motor-repl [--can-interface can0] status\n  \
+         motor-repl [--config-dir PATH] [--can-interface can0] status\n  \
            motor-repl home\n  \
            motor-repl enable <operator_id>\n  \
            motor-repl disable\n  \
@@ -29,13 +29,15 @@ fn usage() {
            motor-repl gravity-on\n  \
            motor-repl gravity-off\n  \
            motor-repl gravity-preview [q0 q1 q2 q3]\n\
-         Uses SocketCAN; prefer test harness or simulation before live CAN."
+         Uses SocketCAN; prefer test harness or simulation before live CAN.\n\
+         Env: MARENGO_ROOT, MARENGO_CONFIG_DIR (e.g. config/bringup/shoulder_pitch_dual)"
     );
 }
 
-fn parse_bus_args(args: Vec<String>) -> (Option<String>, Vec<String>) {
+fn parse_bus_args(args: Vec<String>) -> (Option<String>, Option<PathBuf>, Vec<String>) {
     let mut command_args = vec![args[0].clone()];
     let mut can_interface = env::var("MARENGO_CAN_INTERFACE").ok();
+    let mut config_dir = env::var("MARENGO_CONFIG_DIR").ok().map(PathBuf::from);
     let mut i = 1;
     while i < args.len() {
         match args[i].as_str() {
@@ -47,18 +49,35 @@ fn parse_bus_args(args: Vec<String>) -> (Option<String>, Vec<String>) {
                 can_interface = Some(value.clone());
                 i += 2;
             }
+            "--config-dir" => {
+                let Some(value) = args.get(i + 1) else {
+                    eprintln!("--config-dir requires a path");
+                    std::process::exit(1);
+                };
+                config_dir = Some(PathBuf::from(value));
+                i += 2;
+            }
             _ => {
                 command_args.extend_from_slice(&args[i..]);
                 break;
             }
         }
     }
-    (can_interface, command_args)
+    (can_interface, config_dir, command_args)
 }
 
 fn main() {
     marengo_support::init_tracing();
     let args: Vec<String> = env::args().collect();
+    if args.len() < 2 {
+        usage();
+        std::process::exit(1);
+    }
+
+    let (can_interface, config_dir, args) = parse_bus_args(args);
+    if let Some(dir) = config_dir {
+        env::set_var("MARENGO_CONFIG_DIR", dir);
+    }
     if args.len() < 2 {
         usage();
         std::process::exit(1);
@@ -79,11 +98,6 @@ fn main() {
             std::process::exit(1);
         }
     };
-    let (can_interface, args) = parse_bus_args(args);
-    if args.len() < 2 {
-        usage();
-        std::process::exit(1);
-    }
     let bus = match can_interface.as_deref() {
         Some(interface) => match RuntimeBus::socketcan(interface) {
             Ok(bus) => bus,
@@ -250,20 +264,19 @@ fn main() {
             println!("control mode → Disabled");
         }
         "gravity-preview" => {
-            let q: Vec<f64> = if args.len() >= 6 {
-                let mut parsed = Vec::new();
-                for s in &args[2..6] {
-                    match s.parse::<f64>() {
-                        Ok(v) => parsed.push(v),
-                        Err(_) => {
+            let joint_count = loop_ctrl.supervisor_mut().motors.motors.len();
+            let q: Vec<f64> = if args.len() >= 2 + joint_count {
+                args[2..2 + joint_count]
+                    .iter()
+                    .map(|s| {
+                        s.parse::<f64>().unwrap_or_else(|_| {
                             eprintln!("invalid joint angle: {s}");
                             std::process::exit(1);
-                        }
-                    }
-                }
-                parsed
+                        })
+                    })
+                    .collect()
             } else {
-                vec![0.0, 0.0, 0.0, 0.0]
+                vec![0.0; joint_count]
             };
             let tau = match loop_ctrl.preview_gravity_torques(&q) {
                 Ok(t) => t,
