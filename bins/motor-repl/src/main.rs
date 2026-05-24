@@ -5,8 +5,8 @@ use std::path::PathBuf;
 
 use berthier::{ControlLoop, ControlMode};
 use davout::{JointCommand, SpeedCommand};
-use marengo_config::load_control_config;
-use robstride::MemoryBus;
+use marengo_config::{load_control_config, load_motors_config};
+use robstride::RuntimeBus;
 use tracing::info;
 
 fn repo_root() -> PathBuf {
@@ -17,7 +17,7 @@ fn usage() {
     eprintln!(
         "motor-repl — bench motor exercise (Davout → robstride)\n\
          Usage:\n  \
-           motor-repl status\n  \
+           motor-repl [--bus memory|socketcan] [--can-interface can0] status\n  \
            motor-repl home\n  \
            motor-repl enable <operator_id>\n  \
            motor-repl disable\n  \
@@ -30,6 +30,38 @@ fn usage() {
            motor-repl gravity-preview [q0 q1 q2 q3]\n\
          Prefer vcan or simulation before live CAN."
     );
+}
+
+fn parse_bus_args(args: Vec<String>, default_interface: String) -> (String, String, Vec<String>) {
+    let mut command_args = vec![args[0].clone()];
+    let mut bus_kind = env::var("MARENGO_MOTOR_BUS").unwrap_or_else(|_| "memory".to_string());
+    let mut can_interface = env::var("MARENGO_CAN_INTERFACE").unwrap_or(default_interface);
+    let mut i = 1;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--bus" => {
+                let Some(value) = args.get(i + 1) else {
+                    eprintln!("--bus requires memory or socketcan");
+                    std::process::exit(1);
+                };
+                bus_kind = value.clone();
+                i += 2;
+            }
+            "--can-interface" => {
+                let Some(value) = args.get(i + 1) else {
+                    eprintln!("--can-interface requires an interface name");
+                    std::process::exit(1);
+                };
+                can_interface = value.clone();
+                i += 2;
+            }
+            _ => {
+                command_args.extend_from_slice(&args[i..]);
+                break;
+            }
+        }
+    }
+    (bus_kind, can_interface, command_args)
 }
 
 fn main() {
@@ -48,7 +80,37 @@ fn main() {
             std::process::exit(1);
         }
     };
-    let bus = MemoryBus::default();
+    let motors = match load_motors_config(&root) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("motors.yaml: {e}");
+            std::process::exit(1);
+        }
+    };
+    let default_interface = motors
+        .motors
+        .first()
+        .map(|m| m.can_interface.clone())
+        .unwrap_or_else(|| "can0".to_string());
+    let (bus_kind, can_interface, args) = parse_bus_args(args, default_interface);
+    if args.len() < 2 {
+        usage();
+        std::process::exit(1);
+    }
+    let bus = match bus_kind.as_str() {
+        "memory" => RuntimeBus::memory(),
+        "socketcan" => match RuntimeBus::socketcan(&can_interface) {
+            Ok(bus) => bus,
+            Err(e) => {
+                eprintln!("open SocketCAN {can_interface}: {e}");
+                std::process::exit(1);
+            }
+        },
+        other => {
+            eprintln!("unknown bus {other}; use memory or socketcan");
+            std::process::exit(1);
+        }
+    };
     let mut loop_ctrl = match ControlLoop::from_repo(
         &root,
         bus,
@@ -70,9 +132,11 @@ fn main() {
                 "motor-repl status"
             );
             println!(
-                "operational: {:?}, control: {:?}",
+                "operational: {:?}, control: {:?}, bus: {}, interface: {}",
                 loop_ctrl.supervisor_mut().mode(),
-                loop_ctrl.control_mode()
+                loop_ctrl.control_mode(),
+                bus_kind,
+                can_interface
             );
         }
         "home" => {
@@ -113,7 +177,7 @@ fn main() {
                 eprintln!("jog failed: {e}");
                 std::process::exit(1);
             }
-            println!("jog {joint} → {pos} rad (memory bus)");
+            println!("jog {joint} → {pos} rad ({bus_kind} bus)");
         }
         "speed" => {
             let joint = args.get(2).map(String::as_str).unwrap_or_else(|| {
@@ -137,7 +201,9 @@ fn main() {
                 joint: joint.to_string(),
                 velocity_rad_s: velocity,
             }) {
-                Ok(sent) => println!("speed {joint} → {sent} rad/s (firmware mode 2, memory bus)"),
+                Ok(sent) => {
+                    println!("speed {joint} → {sent} rad/s (firmware mode 2, {bus_kind} bus)");
+                }
                 Err(e) => {
                     eprintln!("speed failed: {e}");
                     std::process::exit(1);
@@ -153,7 +219,7 @@ fn main() {
                 eprintln!("speed-stop failed: {e}");
                 std::process::exit(1);
             }
-            println!("speed {joint} → 0 rad/s (memory bus)");
+            println!("speed {joint} → 0 rad/s ({bus_kind} bus)");
         }
         "set-zero" => {
             let joint = args.get(2).map(String::as_str).unwrap_or_else(|| {
@@ -169,7 +235,7 @@ fn main() {
                 eprintln!("set-zero failed: {e}");
                 std::process::exit(1);
             }
-            println!("set-zero {joint} (memory bus)");
+            println!("set-zero {joint} ({bus_kind} bus)");
         }
         "gravity-on" => {
             loop_ctrl.set_control_mode(ControlMode::GravityComp);

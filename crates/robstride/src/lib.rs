@@ -40,8 +40,10 @@ pub mod state;
 
 pub use bus::{
     send_mit, send_motion, send_motion_legacy, BusError, CanBus, CanFrame, JointMotion, MemoryBus,
-    MotorBus,
+    MotorBus, RuntimeBus,
 };
+#[cfg(all(feature = "vcan", target_os = "linux"))]
+pub use bus::SocketCanBus;
 pub use comm::{pack_ext_id, unpack_ext_id, CommunicationType, ExtendedId, DEFAULT_HOST_ID};
 pub use lifecycle::{
     encode_default_disable, encode_default_enable, encode_default_set_zero_position,
@@ -75,8 +77,9 @@ mod tests {
     use marengo_config::MotorType;
 
     use super::bus::{MemoryBus, MotorBus};
-    use super::comm::{unpack_ext_id, CommunicationType};
+    use super::comm::{pack_typed_ext_id, unpack_ext_id, CommunicationType};
     use super::mit::{encode_mit, MitCommand};
+    use super::CanFrame;
 
     #[test]
     fn encode_mit_extended_id() {
@@ -131,5 +134,81 @@ mod tests {
             .recv_all(&types, &mut states, Duration::from_millis(5))
             .expect_err("timeout");
         assert!(matches!(err, super::bus::BusError::RecvTimeout));
+    }
+
+    #[test]
+    fn recv_all_drains_multiple_status_frames() {
+        let mut bus = MemoryBus::default();
+        let status_data = [0x7F, 0xFF, 0x7F, 0xFF, 0x7F, 0xFF, 0x00, 0xC8];
+        bus.rx_queue.push(CanFrame {
+            id: pack_typed_ext_id(CommunicationType::OperationStatus, 0, 1),
+            data: status_data,
+            extended: true,
+        });
+        bus.rx_queue.push(CanFrame {
+            id: pack_typed_ext_id(CommunicationType::OperationStatus, 0, 2),
+            data: status_data,
+            extended: true,
+        });
+        let mut states = HashMap::new();
+        let types = HashMap::from([(1u8, MotorType::Rs03), (2u8, MotorType::Rs02)]);
+        let count = bus
+            .recv_all(&types, &mut states, Duration::from_millis(1))
+            .expect("status frames");
+        assert_eq!(count, 2);
+        assert_eq!(states.len(), 2);
+        assert!((states[&1].temperature_c - 20.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn recv_all_updates_fault_report() {
+        let mut bus = MemoryBus::default();
+        bus.rx_queue.push(CanFrame {
+            id: pack_typed_ext_id(CommunicationType::FaultReport, 0, 1),
+            data: [0x34, 0x12, 0, 0, 0, 0, 0, 0],
+            extended: true,
+        });
+        let mut states = HashMap::new();
+        let types = HashMap::from([(1u8, MotorType::Rs03)]);
+        let count = bus
+            .recv_all(&types, &mut states, Duration::from_millis(1))
+            .expect("fault report");
+        assert_eq!(count, 1);
+        assert_eq!(states[&1].fault, 0x1234);
+    }
+
+    #[cfg(all(feature = "vcan", target_os = "linux"))]
+    #[test]
+    #[ignore = "requires vcan0 from scripts/vcan-up.sh or just vcan"]
+    fn socketcan_sends_and_receives_on_vcan() {
+        use super::{CanBus, SocketCanBus};
+        use std::thread;
+
+        let mut tx = SocketCanBus::open(super::vcan::DEFAULT_INTERFACE).expect("open tx vcan");
+        let mut rx = SocketCanBus::open(super::vcan::DEFAULT_INTERFACE).expect("open rx vcan");
+        let cmd = MitCommand {
+            device_id: 1,
+            motor_type: MotorType::Rs03,
+            position_rad: 0.0,
+            velocity_rad_s: 0.0,
+            kp: 0.0,
+            kd: 0.0,
+            torque_ff_nm: 0.0,
+        };
+        tx.mit_control_all(&[cmd]).expect("send vcan frame");
+        let expected_id = encode_mit(&cmd).0;
+        let deadline = std::time::Instant::now() + Duration::from_millis(100);
+        let mut frames: Vec<CanFrame> = Vec::new();
+        while std::time::Instant::now() < deadline {
+            rx.recv_frames(&mut frames).expect("recv vcan frames");
+            if frames.iter().any(|frame| frame.id == expected_id) {
+                return;
+            }
+            thread::sleep(Duration::from_millis(1));
+        }
+        assert!(
+            frames.iter().any(|frame| frame.id == expected_id),
+            "did not receive MIT frame on vcan0"
+        );
     }
 }
