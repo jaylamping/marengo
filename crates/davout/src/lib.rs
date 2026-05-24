@@ -51,11 +51,11 @@ use marengo_config::{
     validate_motors_against_robot, ControlConfigFile, MotorEntry, MotorType, MotorsConfigFile,
     RobotConfigFile,
 };
-use robstride::bus::send_mit;
-pub use robstride::bus::{BusError, MemoryBus, MotorBus};
+pub use robstride::bus::{BusError, MemoryBus, MotorAddress, MotorBus};
+use robstride::AddressedMitCommand;
 use robstride::{MitCommand, MotorState, ParameterId, ParameterValue, RunMode};
 use thiserror::Error;
-use tracing::{debug, warn};
+use tracing::{debug, info, trace, warn};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OperationalMode {
@@ -147,9 +147,9 @@ pub struct Supervisor<B: MotorBus> {
     limits: HashMap<String, EffectiveLimits>,
     pub motors: MotorsConfigFile,
     pub control: ControlConfigFile,
-    motor_types: HashMap<u8, MotorType>,
+    motor_types: HashMap<MotorAddress, MotorType>,
     bus: B,
-    motor_states: HashMap<u8, MotorState>,
+    motor_states: HashMap<MotorAddress, MotorState>,
     last_recv: Option<Instant>,
     active_since: Option<Instant>,
     last_tau_ff: HashMap<String, f64>,
@@ -170,7 +170,7 @@ impl<B: MotorBus> Supervisor<B> {
         let motor_types = motors
             .motors
             .iter()
-            .map(|m| (m.device_id, m.motor_type))
+            .map(|m| (MotorAddress::from(m), m.motor_type))
             .collect();
         Ok(Self {
             mode: OperationalMode::Disabled,
@@ -202,7 +202,7 @@ impl<B: MotorBus> Supervisor<B> {
         debug!(?mode, "control mode set");
     }
 
-    pub fn motor_states(&self) -> &HashMap<u8, MotorState> {
+    pub fn motor_states(&self) -> &HashMap<MotorAddress, MotorState> {
         &self.motor_states
     }
 
@@ -237,12 +237,19 @@ impl<B: MotorBus> Supervisor<B> {
                 return Err(DavoutError::NotActive { mode: self.mode });
             }
             for motor in &self.motors.motors {
-                self.bus.enable_drive(motor.device_id)?;
-                self.bus.set_run_mode(motor.device_id, RunMode::Mit)?;
+                let address = MotorAddress::from(motor);
+                info!(
+                    joint = %motor.joint,
+                    interface = %address.interface,
+                    device_id = address.device_id,
+                    "enabling motor"
+                );
+                self.bus.enable_drive_at(&address)?;
+                self.bus.set_run_mode_at(&address, RunMode::Mit)?;
             }
             self.mode = OperationalMode::Active;
             self.active_since = Some(Instant::now());
-            debug!("supervisor ACTIVE");
+            info!(motor_count = self.motors.motors.len(), "supervisor ACTIVE");
         } else {
             self.disable_all()?;
         }
@@ -255,22 +262,32 @@ impl<B: MotorBus> Supervisor<B> {
         let mut raw_states = HashMap::new();
         match self
             .bus
-            .recv_all(&self.motor_types, &mut raw_states, timeout)
+            .recv_all_addressed(&self.motor_types, &mut raw_states, timeout)
         {
             Ok(n) => {
-                for (device_id, raw) in raw_states {
-                    let Some(motor) = self.motors.motors.iter().find(|m| m.device_id == device_id)
+                if n > 0 {
+                    trace!(count = n, "received motor feedback batch");
+                }
+                for (address, raw) in raw_states {
+                    let Some(motor) = self
+                        .motors
+                        .motors
+                        .iter()
+                        .find(|m| MotorAddress::from(*m) == address)
                     else {
                         continue;
                     };
                     self.motor_states
-                        .insert(device_id, motor_to_joint_state(motor, raw)?);
+                        .insert(address, motor_to_joint_state(motor, raw)?);
                 }
                 self.last_recv = Some(Instant::now());
                 Ok(n)
             }
             Err(BusError::RecvTimeout) => Ok(0),
-            Err(e) => Err(e.into()),
+            Err(e) => {
+                warn!(error = %e, "motor feedback receive failed");
+                Err(e.into())
+            }
         }
     }
 
@@ -282,17 +299,34 @@ impl<B: MotorBus> Supervisor<B> {
         if max_ms != 0 {
             let last_feedback_or_enable = self.last_recv.or(self.active_since);
             let Some(last) = last_feedback_or_enable else {
+                warn!(
+                    max_ms,
+                    "comm watchdog expired before first feedback timestamp"
+                );
                 return Err(DavoutError::CommWatchdog { ms: max_ms });
             };
             if last.elapsed() > Duration::from_millis(max_ms) {
+                warn!(
+                    max_ms,
+                    elapsed_ms = last.elapsed().as_millis(),
+                    "comm watchdog expired"
+                );
                 return Err(DavoutError::CommWatchdog { ms: max_ms });
             }
         }
         for motor in &self.motors.motors {
-            let Some(state) = self.motor_states.get(&motor.device_id) else {
+            let address = MotorAddress::from(motor);
+            let Some(state) = self.motor_states.get(&address) else {
                 continue;
             };
             if state.fault != 0 {
+                warn!(
+                    joint = %motor.joint,
+                    interface = %address.interface,
+                    device_id = address.device_id,
+                    fault = format_args!("{:#06x}", state.fault),
+                    "motor fault latched"
+                );
                 return Err(DavoutError::MotorFault {
                     joint: motor.joint.clone(),
                     fault: state.fault,
@@ -346,7 +380,10 @@ impl<B: MotorBus> Supervisor<B> {
             kd: (filtered.kd / scale.powi(2)) as f32,
             torque_ff_nm: (filtered.torque_ff_nm / scale) as f32,
         };
-        send_mit(&mut self.bus, &wire)?;
+        self.bus.mit_control_all_at(&[AddressedMitCommand {
+            address: MotorAddress::from(motor),
+            command: wire,
+        }])?;
         Ok(())
     }
 
@@ -386,14 +423,15 @@ impl<B: MotorBus> Supervisor<B> {
         let capped = self.filter_speed_command(cmd, &motor)?;
         let cap = self.speed_cap_for_joint(&capped.joint, &motor)?;
         let scale = motor_position_scale(&motor)?;
-        self.bus.set_run_mode(motor.device_id, RunMode::Speed)?;
-        self.bus.write_parameter(
-            motor.device_id,
+        let address = MotorAddress::from(&motor);
+        self.bus.set_run_mode_at(&address, RunMode::Speed)?;
+        self.bus.write_parameter_at(
+            &address,
             ParameterId::LimitSpeed,
             ParameterValue::F32((cap * scale.abs()) as f32),
         )?;
         self.bus
-            .speed_control(motor.device_id, (capped.velocity_rad_s * scale) as f32)?;
+            .speed_control_at(&address, (capped.velocity_rad_s * scale) as f32)?;
         Ok(capped.velocity_rad_s)
     }
 
@@ -404,7 +442,8 @@ impl<B: MotorBus> Supervisor<B> {
                 joint: joint.to_string(),
             })?
             .clone();
-        self.bus.speed_control(motor.device_id, 0.0)?;
+        let address = MotorAddress::from(&motor);
+        self.bus.speed_control_at(&address, 0.0)?;
         Ok(())
     }
 
@@ -421,14 +460,16 @@ impl<B: MotorBus> Supervisor<B> {
                 joint: joint.to_string(),
             })?
             .clone();
-        self.bus.set_zero_position(motor.device_id)?;
+        let address = MotorAddress::from(&motor);
+        self.bus.set_zero_position_at(&address)?;
         Ok(())
     }
 
     /// Disable all drives (best-effort zero speed, zero-torque MIT, then DISABLE).
     pub fn disable_all(&mut self) -> Result<(), DavoutError> {
         for motor in &self.motors.motors {
-            let _ = self.bus.speed_control(motor.device_id, 0.0);
+            let address = MotorAddress::from(motor);
+            let _ = self.bus.speed_control_at(&address, 0.0);
             let wire = MitCommand {
                 device_id: motor.device_id,
                 motor_type: motor.motor_type,
@@ -438,8 +479,11 @@ impl<B: MotorBus> Supervisor<B> {
                 kd: 0.0,
                 torque_ff_nm: 0.0,
             };
-            let _ = send_mit(&mut self.bus, &wire);
-            let _ = self.bus.disable_drive(motor.device_id);
+            let _ = self.bus.mit_control_all_at(&[AddressedMitCommand {
+                address: address.clone(),
+                command: wire,
+            }]);
+            let _ = self.bus.disable_drive_at(&address);
         }
         self.mode = OperationalMode::Disabled;
         self.control_mode = ControlMode::Disabled;
@@ -719,7 +763,36 @@ mod tests {
     #![allow(clippy::expect_used)]
 
     use super::*;
-    use robstride::MemoryBus;
+    use robstride::{CanBus, CanFrame, MemoryBus, ReceivedCanFrame};
+
+    #[derive(Default)]
+    struct RoutedMemoryBus {
+        tx: Vec<(MotorAddress, CanFrame)>,
+        rx: Vec<ReceivedCanFrame>,
+    }
+
+    impl CanBus for RoutedMemoryBus {
+        fn send_frame(&mut self, frame: &CanFrame) -> Result<(), BusError> {
+            self.tx.push((MotorAddress::new("can0", 0), frame.clone()));
+            Ok(())
+        }
+
+        fn send_frame_to(
+            &mut self,
+            address: &MotorAddress,
+            frame: &CanFrame,
+        ) -> Result<(), BusError> {
+            self.tx.push((address.clone(), frame.clone()));
+            Ok(())
+        }
+
+        fn recv_frames_from(&mut self, out: &mut Vec<ReceivedCanFrame>) -> Result<(), BusError> {
+            out.append(&mut self.rx);
+            Ok(())
+        }
+    }
+
+    impl MotorBus for RoutedMemoryBus {}
 
     fn repo_root() -> std::path::PathBuf {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -845,6 +918,49 @@ mod tests {
         assert!((joint.torque_nm - 4.0).abs() < 1e-6);
         assert_eq!(joint.temperature_c, 42.0);
         assert_eq!(joint.fault, 7);
+    }
+
+    #[test]
+    fn feedback_state_is_keyed_by_bus_address() {
+        let bus = RoutedMemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        sup.motors.motors[0].can_interface = "can0".to_string();
+        sup.motors.motors[0].device_id = 1;
+        sup.motors.motors[1].can_interface = "can1".to_string();
+        sup.motors.motors[1].device_id = 1;
+        sup.motor_types = sup
+            .motors
+            .motors
+            .iter()
+            .map(|m| (MotorAddress::from(m), m.motor_type))
+            .collect();
+        let status = [0x7F, 0xFF, 0x7F, 0xFF, 0x7F, 0xFF, 0x00, 0xC8];
+        sup.bus.rx.push(ReceivedCanFrame {
+            interface: Some("can0".to_string()),
+            frame: CanFrame {
+                id: robstride::pack_ext_id(2, 0, 1),
+                data: status,
+                extended: true,
+            },
+        });
+        sup.bus.rx.push(ReceivedCanFrame {
+            interface: Some("can1".to_string()),
+            frame: CanFrame {
+                id: robstride::pack_ext_id(2, 0, 1),
+                data: status,
+                extended: true,
+            },
+        });
+
+        let count = sup.refresh_feedback().expect("feedback");
+
+        assert_eq!(count, 2);
+        assert!(sup
+            .motor_states()
+            .contains_key(&MotorAddress::new("can0", 1)));
+        assert!(sup
+            .motor_states()
+            .contains_key(&MotorAddress::new("can1", 1)));
     }
 
     #[test]

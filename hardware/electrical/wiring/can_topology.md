@@ -2,21 +2,22 @@
 
 Logical and physical CAN segments for Marengo. Authoritative parameters: [ADR 0001](../../docs/decisions/0001-can-and-motors.md).
 
-## CAN1 — Robstride
+## Robstride limb buses
 
 | Item | Value |
 |------|-------|
-| Host | Raspberry Pi (`can0`) |
+| Host | Raspberry Pi SocketCAN (`can0`, `can1`, `can2`, etc.) |
 | Bitrate | 1 Mbit/s |
 | Cable | Twisted pair (ISO 11898), keep stubs short |
 | Termination | 120 Ω at bus ends only |
-| Devices | `joint1` → ID 1, `joint2` → ID 2 (see `config/motors.yaml`) |
+| Devices | Static addresses from `config/motors.yaml` (`can_interface`, `device_id`) |
 
 ```
-[Pi CAN HAT] ---- joint1 (ID 1) ---- joint2 (ID 2) ---- [120Ω term]
+[Pi CAN HAT can0] ---- left limb devices ---- [120Ω term]
+[Pi CAN HAT can1] ---- right limb devices ---- [120Ω term]
 ```
 
-Bench: use `vcan0` in dev container (`just vcan`) — no physical transceiver required.
+Test harness: `just vcan` creates `vcan0`/`vcan1` as virtual stand-ins only.
 
 ## CAN2 — Moteus
 

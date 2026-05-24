@@ -17,11 +17,14 @@
 | Tiny pointer files instead of CAD/meshes | `git lfs install && git lfs pull` |
 | CI fails on missing assets | Add LFS pull to bootstrap; verify `.gitattributes` patterns. |
 
-## vcan (virtual CAN)
+## SocketCAN
 
 | Symptom | Fix |
 |---------|-----|
-| `Cannot find device vcan0` | Run `docker compose --profile vcan up -d vcan` or `just vcan` on Linux. |
+| `Cannot find device can0` | Bring up the production interface: `sudo ip link set can0 type can bitrate 1000000 && sudo ip link set can0 up`. Repeat for `can1`, `can2`, etc. |
+| Configured motor never appears | Check `config/motors.yaml` `can_interface` + `device_id`; runtime does not auto-register or prune devices. A silent configured motor is a safety fault. |
+| Need raw CAN/router logs | Run with `RUST_LOG=robstride=trace,davout=debug,berthier=debug,marengo_pi=info` (or `motor_repl=info`) to log SocketCAN open, TX/RX frame IDs, decoded status, unknown frames, watchdog expiry, and motor faults. |
+| Need virtual CAN tests | Run `docker compose --profile vcan up -d vcan` or `just vcan` on Linux. This creates `vcan0`/`vcan1` only for tests. |
 | vcan on macOS host | Use Linux container with `privileged: true`; SocketCAN is not available on macOS natively. |
 | `modprobe: not found` | Use the `vcan` compose service (requires Linux, privileged). |
 

@@ -12,8 +12,15 @@ just check          # or: docker compose run --rm check
 Optional:
 
 - **Dev Container:** Reopen in Container (Cursor / VS Code) — [`.devcontainer/`](../.devcontainer/)
-- **vcan:** `just vcan` (Linux, privileged)
+- **SocketCAN test harness:** `just vcan` (Linux, privileged; creates `vcan0`/`vcan1` as test stand-ins for production `can0`/`can1`)
 - **sim:** `just sim-check`
+
+Production runtime uses SocketCAN interfaces named `can0`, `can1`, `can2`, etc. Bring them up on the robot before starting `marengo-pi`, for example:
+
+```bash
+sudo ip link set can0 type can bitrate 1000000
+sudo ip link set can0 up
+```
 
 ## Native / host (best-effort)
 

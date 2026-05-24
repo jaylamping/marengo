@@ -9,15 +9,17 @@ Marengo uses Robstride RS-series actuators on SocketCAN. Software reads joint→
 
 ## Decision
 
-### CAN1 — Robstride (primary leg/arm bus)
+### Robstride limb buses
 
 | Parameter | Value |
 |-----------|-------|
-| Interface | `can0` on Raspberry Pi (Pi 5 + CAN HAT) |
+| Interface | `can0`, `can1`, `can2`, etc. on Raspberry Pi (Pi 5 + CAN HATs) |
 | Bitrate | **1 Mbit/s** |
 | Termination | 120 Ω at each end of the daisy chain (max two terminators powered) |
 | Frame format | Extended 29-bit CAN |
 | Protocol | Robstride RS communication-type frames (see `crates/robstride`) |
+
+Each configured motor is addressed by (`can_interface`, `device_id`). Device IDs may repeat on different CAN interfaces; duplicate addresses on the same interface are invalid.
 
 ### Device IDs
 
@@ -55,7 +57,7 @@ Document per-joint Robstride firmware strings in `config/motors.yaml` (`firmware
 ## Consequences
 
 - [`can_topology.md`](../../electrical/wiring/can_topology.md) and [`connectors.md`](../../electrical/wiring/connectors.md) must stay aligned with this ADR.
-- CI uses `vcan0` at 1 Mbit/s for encode/decode tests only (no motors).
+- CI uses virtual CAN interfaces as test stand-ins only (no motors).
 
 ## References
 

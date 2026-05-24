@@ -46,13 +46,14 @@ services:
     image: marengo-dev:local
     depends_on:
       - vcan
+    privileged: true
     working_dir: /workspace
     volumes:
       - .:/workspace
       - cargo-target:/workspace/target
       - consul-node-modules:/workspace/consul/node_modules
     network_mode: host
-    command: ["cargo", "test", "-p", "robstride", "--features", "vcan", "--", "--ignored"]
+    command: ["bash", "-c", "./scripts/vcan-up.sh && cargo test -p robstride --features socketcan -- --ignored"]
 
   check-sim:
     profiles: [sim]

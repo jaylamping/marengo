@@ -12,7 +12,7 @@
 //! - [`lifecycle`](lifecycle): enable, disable, and set-zero frames.
 //! - [`state::MotorState`]: last `q`, `dq`, `tau`, fault per `device_id`.
 //! - [`protocol`](protocol): legacy 11-bit stub (tests only; do not use on bench).
-//! - Optional SocketCAN backend (`vcan` feature, Linux).
+//! - Optional SocketCAN backend (`socketcan` feature, Linux).
 //!
 //! ## Does not
 //!
@@ -26,7 +26,7 @@
 //! | Caller | Usage |
 //! |--------|--------|
 //! | Davout | Sole production path to `send_mit` / `MotorBus` |
-//! | Tests / `motor-repl` | [`MemoryBus`](bus::MemoryBus) without hardware |
+//! | Tests | [`MemoryBus`](bus::MemoryBus) without hardware |
 //!
 //! Wire spec: [hardware/docs/decisions/0002-robstride-protocol.md](../../hardware/docs/decisions/0002-robstride-protocol.md).
 
@@ -39,12 +39,12 @@ pub mod params;
 pub mod protocol;
 pub mod state;
 
-#[cfg(all(feature = "vcan", target_os = "linux"))]
-pub use bus::SocketCanBus;
 pub use bus::{
-    send_mit, send_motion, send_motion_legacy, BusError, CanBus, CanFrame, JointMotion, MemoryBus,
-    MotorBus, RuntimeBus,
+    send_mit, send_motion, send_motion_legacy, AddressedMitCommand, BusError, CanBus, CanFrame,
+    JointMotion, MemoryBus, MotorAddress, MotorBus, ReceivedCanFrame, RuntimeBus,
 };
+#[cfg(all(feature = "socketcan", target_os = "linux"))]
+pub use bus::{SocketCanBus, SocketCanRouter};
 pub use comm::{pack_ext_id, unpack_ext_id, CommunicationType, ExtendedId, DEFAULT_HOST_ID};
 pub use lifecycle::{
     encode_default_disable, encode_default_enable, encode_default_set_zero_position,
@@ -60,7 +60,7 @@ pub use protocol::{
 };
 pub use state::MotorState;
 
-#[cfg(all(feature = "vcan", target_os = "linux"))]
+#[cfg(all(feature = "socketcan", target_os = "linux"))]
 pub mod vcan {
     //! Virtual CAN helpers for bench tests.
 
@@ -77,10 +77,42 @@ mod tests {
 
     use marengo_config::MotorType;
 
-    use super::bus::{MemoryBus, MotorBus};
+    use super::bus::{AddressedMitCommand, MemoryBus, MotorAddress, MotorBus, ReceivedCanFrame};
     use super::comm::{pack_typed_ext_id, unpack_ext_id, CommunicationType};
     use super::mit::{encode_mit, MitCommand};
     use super::CanFrame;
+
+    #[derive(Default)]
+    struct RoutedMemoryBus {
+        tx: Vec<(MotorAddress, CanFrame)>,
+        rx: Vec<ReceivedCanFrame>,
+    }
+
+    impl super::CanBus for RoutedMemoryBus {
+        fn send_frame(&mut self, frame: &CanFrame) -> Result<(), super::BusError> {
+            self.tx.push((MotorAddress::new("can0", 0), frame.clone()));
+            Ok(())
+        }
+
+        fn send_frame_to(
+            &mut self,
+            address: &MotorAddress,
+            frame: &CanFrame,
+        ) -> Result<(), super::BusError> {
+            self.tx.push((address.clone(), frame.clone()));
+            Ok(())
+        }
+
+        fn recv_frames_from(
+            &mut self,
+            out: &mut Vec<ReceivedCanFrame>,
+        ) -> Result<(), super::BusError> {
+            out.append(&mut self.rx);
+            Ok(())
+        }
+    }
+
+    impl MotorBus for RoutedMemoryBus {}
 
     #[test]
     fn encode_mit_extended_id() {
@@ -124,6 +156,30 @@ mod tests {
             unpacked.comm_type,
             CommunicationType::OperationControl.as_u8()
         );
+    }
+
+    #[test]
+    fn addressed_mit_routes_to_configured_interface() {
+        let mut bus = RoutedMemoryBus::default();
+        let address = MotorAddress::new("can1", 1);
+        let command = MitCommand {
+            device_id: 1,
+            motor_type: MotorType::Rs03,
+            position_rad: 0.0,
+            velocity_rad_s: 0.0,
+            kp: 0.0,
+            kd: 0.0,
+            torque_ff_nm: 0.0,
+        };
+        bus.mit_control_all_at(&[AddressedMitCommand {
+            address: address.clone(),
+            command,
+        }])
+        .expect("send addressed");
+
+        assert_eq!(bus.tx.len(), 1);
+        assert_eq!(bus.tx[0].0, address);
+        assert!(bus.tx[0].1.extended);
     }
 
     #[test]
@@ -178,15 +234,81 @@ mod tests {
         assert_eq!(states[&1].fault, 0x1234);
     }
 
-    #[cfg(all(feature = "vcan", target_os = "linux"))]
     #[test]
-    #[ignore = "requires vcan0 from scripts/vcan-up.sh or just vcan"]
-    fn socketcan_sends_and_receives_on_vcan() {
-        use super::{CanBus, SocketCanBus};
+    fn recv_all_addressed_keeps_repeated_device_ids_separate() {
+        let mut bus = RoutedMemoryBus::default();
+        let can0_id1 = MotorAddress::new("can0", 1);
+        let can1_id1 = MotorAddress::new("can1", 1);
+        bus.rx.push(ReceivedCanFrame {
+            interface: Some("can1".to_string()),
+            frame: CanFrame {
+                id: pack_typed_ext_id(CommunicationType::OperationStatus, 0, 1),
+                data: [0x7F, 0xFF, 0x7F, 0xFF, 0x7F, 0xFF, 0x00, 0xC8],
+                extended: true,
+            },
+        });
+        let mut states = HashMap::new();
+        let types = HashMap::from([
+            (can0_id1.clone(), MotorType::Rs03),
+            (can1_id1.clone(), MotorType::Rs02),
+        ]);
+
+        let count = bus
+            .recv_all_addressed(&types, &mut states, Duration::from_millis(1))
+            .expect("addressed status");
+
+        assert_eq!(count, 1);
+        assert!(!states.contains_key(&can0_id1));
+        assert!(states.contains_key(&can1_id1));
+    }
+
+    #[cfg(all(feature = "socketcan", target_os = "linux"))]
+    #[test]
+    #[ignore = "requires vcan0/vcan1 from scripts/vcan-up.sh or just vcan"]
+    fn socketcan_routes_multiple_test_interfaces() {
+        use super::CanBus;
+        use marengo_config::{MotorBenchLimits, MotorEntry, MotorsConfigFile};
         use std::thread;
 
-        let mut tx = SocketCanBus::open(super::vcan::DEFAULT_INTERFACE).expect("open tx vcan");
-        let mut rx = SocketCanBus::open(super::vcan::DEFAULT_INTERFACE).expect("open rx vcan");
+        let motors = MotorsConfigFile {
+            motors: vec![
+                MotorEntry {
+                    joint: "left_test".to_string(),
+                    driver: "robstride".to_string(),
+                    motor_type: MotorType::Rs03,
+                    can_interface: super::vcan::DEFAULT_INTERFACE.to_string(),
+                    device_id: 1,
+                    direction: 1,
+                    gear_ratio: 1.0,
+                    recv_can_id: 0,
+                    firmware_version: "test".to_string(),
+                    bench: MotorBenchLimits {
+                        position_lower_rad: -1.0,
+                        position_upper_rad: 1.0,
+                        velocity_limit_rad_s: 1.0,
+                        torque_limit_nm: 1.0,
+                    },
+                },
+                MotorEntry {
+                    joint: "right_test".to_string(),
+                    driver: "robstride".to_string(),
+                    motor_type: MotorType::Rs03,
+                    can_interface: "vcan1".to_string(),
+                    device_id: 1,
+                    direction: 1,
+                    gear_ratio: 1.0,
+                    recv_can_id: 0,
+                    firmware_version: "test".to_string(),
+                    bench: MotorBenchLimits {
+                        position_lower_rad: -1.0,
+                        position_upper_rad: 1.0,
+                        velocity_limit_rad_s: 1.0,
+                        torque_limit_nm: 1.0,
+                    },
+                },
+            ],
+        };
+        let mut router = super::SocketCanRouter::open(&motors).expect("open vcan router");
         let cmd = MitCommand {
             device_id: 1,
             motor_type: MotorType::Rs03,
@@ -196,20 +318,45 @@ mod tests {
             kd: 0.0,
             torque_ff_nm: 0.0,
         };
-        tx.mit_control_all(&[cmd]).expect("send vcan frame");
+        router
+            .mit_control_all_at(&[
+                AddressedMitCommand {
+                    address: MotorAddress::new(super::vcan::DEFAULT_INTERFACE, 1),
+                    command: cmd,
+                },
+                AddressedMitCommand {
+                    address: MotorAddress::new("vcan1", 1),
+                    command: cmd,
+                },
+            ])
+            .expect("send routed vcan frames");
         let expected_id = encode_mit(&cmd).0;
         let deadline = std::time::Instant::now() + Duration::from_millis(100);
-        let mut frames: Vec<CanFrame> = Vec::new();
+        let mut frames: Vec<ReceivedCanFrame> = Vec::new();
         while std::time::Instant::now() < deadline {
-            rx.recv_frames(&mut frames).expect("recv vcan frames");
-            if frames.iter().any(|frame| frame.id == expected_id) {
+            router
+                .recv_frames_from(&mut frames)
+                .expect("recv routed vcan frames");
+            let saw_vcan0 = frames.iter().any(|frame| {
+                frame.interface.as_deref() == Some(super::vcan::DEFAULT_INTERFACE)
+                    && frame.frame.id == expected_id
+            });
+            let saw_vcan1 = frames.iter().any(|frame| {
+                frame.interface.as_deref() == Some("vcan1") && frame.frame.id == expected_id
+            });
+            if saw_vcan0 && saw_vcan1 {
                 return;
             }
             thread::sleep(Duration::from_millis(1));
         }
         assert!(
-            frames.iter().any(|frame| frame.id == expected_id),
-            "did not receive MIT frame on vcan0"
+            frames.iter().any(|frame| {
+                frame.interface.as_deref() == Some(super::vcan::DEFAULT_INTERFACE)
+                    && frame.frame.id == expected_id
+            }) && frames.iter().any(|frame| {
+                frame.interface.as_deref() == Some("vcan1") && frame.frame.id == expected_id
+            }),
+            "did not receive MIT frames on both vcan test interfaces"
         );
     }
 }

@@ -3,7 +3,7 @@
 # motor_type per hardware/docs/decisions/0002-robstride-protocol.md
 # Joint names and limits must match hardware/docs/kinematics.md
 motors:
-  # --- Left leg (device_id 1–6) ---
+  # --- Left leg (device_id 1–6, can0) ---
   - joint: left_hip_yaw
     driver: robstride
     motor_type: rs03
@@ -88,11 +88,11 @@ motors:
       position_upper_rad: 0.5
       velocity_limit_rad_s: 0.5
       torque_limit_nm: 3.0
-  # --- Right leg (device_id 7–12) ---
+  # --- Right leg (device_id 7–12, can1) ---
   - joint: right_hip_yaw
     driver: robstride
     motor_type: rs03
-    can_interface: can0
+    can_interface: can1
     device_id: 7
     direction: 1
     gear_ratio: 1.0
@@ -106,7 +106,7 @@ motors:
   - joint: right_hip_roll
     driver: robstride
     motor_type: rs03
-    can_interface: can0
+    can_interface: can1
     device_id: 8
     direction: 1
     gear_ratio: 1.0
@@ -120,7 +120,7 @@ motors:
   - joint: right_hip_pitch
     driver: robstride
     motor_type: rs04
-    can_interface: can0
+    can_interface: can1
     device_id: 9
     direction: 1
     gear_ratio: 1.0
@@ -134,7 +134,7 @@ motors:
   - joint: right_knee
     driver: robstride
     motor_type: rs04
-    can_interface: can0
+    can_interface: can1
     device_id: 10
     direction: 1
     gear_ratio: 1.0
@@ -148,7 +148,7 @@ motors:
   - joint: right_ankle_pitch
     driver: robstride
     motor_type: rs02
-    can_interface: can0
+    can_interface: can1
     device_id: 11
     direction: 1
     gear_ratio: 1.0
@@ -162,7 +162,7 @@ motors:
   - joint: right_ankle_roll
     driver: robstride
     motor_type: rs02
-    can_interface: can0
+    can_interface: can1
     device_id: 12
     direction: 1
     gear_ratio: 1.0
@@ -173,11 +173,11 @@ motors:
       position_upper_rad: 0.5
       velocity_limit_rad_s: 0.5
       torque_limit_nm: 3.0
-  # --- Waist (device_id 13) ---
+  # --- Waist (device_id 13, can2) ---
   - joint: waist_yaw
     driver: robstride
     motor_type: rs03
-    can_interface: can0
+    can_interface: can2
     device_id: 13
     direction: 1
     gear_ratio: 1.0
@@ -188,11 +188,11 @@ motors:
       position_upper_rad: 2.71
       velocity_limit_rad_s: 0.5
       torque_limit_nm: 5.0
-  # --- Left arm (device_id 14–18) ---
+  # --- Left arm (device_id 14–18, can3) ---
   - joint: left_shoulder_roll
     driver: robstride
     motor_type: rs03
-    can_interface: can0
+    can_interface: can3
     device_id: 14
     direction: 1
     gear_ratio: 1.0
@@ -206,7 +206,7 @@ motors:
   - joint: left_shoulder_pitch
     driver: robstride
     motor_type: rs03
-    can_interface: can0
+    can_interface: can3
     device_id: 15
     direction: 1
     gear_ratio: 1.0
@@ -220,7 +220,7 @@ motors:
   - joint: left_upper_arm_yaw
     driver: robstride
     motor_type: rs02
-    can_interface: can0
+    can_interface: can3
     device_id: 16
     direction: 1
     gear_ratio: 1.0
@@ -234,7 +234,7 @@ motors:
   - joint: left_elbow
     driver: robstride
     motor_type: rs02
-    can_interface: can0
+    can_interface: can3
     device_id: 17
     direction: 1
     gear_ratio: 1.0
@@ -248,7 +248,7 @@ motors:
   - joint: left_wrist
     driver: robstride
     motor_type: rs00
-    can_interface: can0
+    can_interface: can3
     device_id: 18
     direction: 1
     gear_ratio: 1.0
@@ -259,11 +259,11 @@ motors:
       position_upper_rad: 1.6
       velocity_limit_rad_s: 0.5
       torque_limit_nm: 3.0
-  # --- Right arm (device_id 19–23) ---
+  # --- Right arm (device_id 19–23, can4) ---
   - joint: right_shoulder_roll
     driver: robstride
     motor_type: rs03
-    can_interface: can0
+    can_interface: can4
     device_id: 19
     direction: 1
     gear_ratio: 1.0
@@ -277,7 +277,7 @@ motors:
   - joint: right_shoulder_pitch
     driver: robstride
     motor_type: rs03
-    can_interface: can0
+    can_interface: can4
     device_id: 20
     direction: 1
     gear_ratio: 1.0
@@ -291,7 +291,7 @@ motors:
   - joint: right_upper_arm_yaw
     driver: robstride
     motor_type: rs02
-    can_interface: can0
+    can_interface: can4
     device_id: 21
     direction: 1
     gear_ratio: 1.0
@@ -305,7 +305,7 @@ motors:
   - joint: right_elbow
     driver: robstride
     motor_type: rs02
-    can_interface: can0
+    can_interface: can4
     device_id: 22
     direction: 1
     gear_ratio: 1.0
@@ -319,7 +319,7 @@ motors:
   - joint: right_wrist
     driver: robstride
     motor_type: rs00
-    can_interface: can0
+    can_interface: can4
     device_id: 23
     direction: 1
     gear_ratio: 1.0

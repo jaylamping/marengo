@@ -107,7 +107,7 @@ supervisor.send_mit_batch(joint_space_cmds)?;
 ## 8. Testing
 
 - Default `cargo test` must not require hardware.
-- Use features: `vcan`, `sim`; mark hardware tests `#[ignore]` with a clear message.
+- Use features: `socketcan`, `sim`; `vcan` names belong only to virtual-CAN test harnesses. Mark hardware tests `#[ignore]` with a clear message.
 - Sim: deterministic seeds for golden states.
 
 ## 9. Unsafe

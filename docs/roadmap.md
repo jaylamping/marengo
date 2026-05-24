@@ -125,12 +125,12 @@ Statuses: **done** · **active** · **next** · **later**
 
 | Step | Done when |
 |------|-----------|
-| SocketCAN wired in `marengo-pi` / `motor-repl` (config-selectable; keep `MemoryBus` in CI) | Bench on `vcan0` then robot CAN |
+| SocketCAN wired in `marengo-pi` / `motor-repl` (`MemoryBus` test-only) | Test harness on `vcan0`/`vcan1`, then robot CAN on `can0`/`can1`/`can2` |
 | GravityComp on arm | [safety.md](safety.md) upright-pose procedure passes |
 | Davout limits + danger zones | No runaway on shoulder_pitch / elbow |
 | `arm_4dof.urdf` masses from CAD export | Dynamics tests match hardware feel |
 
-**Do not** treat MemoryBus-only `marengo-pi` as “shipped”—it is a loop scaffold until M4 CAN is wired.
+**Do not** treat non-SocketCAN motor runtime as “shipped”—`MemoryBus` is for tests only.
 
 ### M5 — Electrical and CAN topology
 
@@ -160,6 +160,7 @@ Statuses: **done** · **active** · **next** · **later**
 |-------|------|
 | Chappe transport ADR (NATS/IPC vs in-process) | Required before Pi + Jetson + Consul are separate processes |
 | Consul minimal UI (state, enable, faults, URDF viz) | After Chappe carries real `RobotState` / `SafetyState` |
+| Live log-level control from Consul | Use `tracing_subscriber::reload`; validate requested filters, log operator/source, support TTL rollback for noisy CAN traces |
 | `marengo-jetson` beyond scaffold | After M6 or clear sim-only planner scope |
 | Talleyrand | After collision meshes + stable full URDF |
 | Fouché / `models/` | After Jetson role and ONNX scope defined |

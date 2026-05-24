@@ -12,7 +12,8 @@ workspace = true
 
 [features]
 default = []
-vcan = ["dep:socketcan"]
+socketcan = ["dep:socketcan"]
+vcan = ["socketcan"]
 
 [dependencies]
 marengo-config = { workspace = true }

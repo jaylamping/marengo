@@ -7,7 +7,8 @@ use armee_dynamics::{DynamicsModel, UrdfGravityModel};
 use armee_proto::{ControlMode as ProtoControlMode, JointState, RobotState};
 use chappe::Bus;
 use davout::{
-    ControlMode, DavoutError, MitJointCommand as DavoutMit, MotorBus, OperationalMode, Supervisor,
+    ControlMode, DavoutError, MitJointCommand as DavoutMit, MotorAddress, MotorBus,
+    OperationalMode, Supervisor,
 };
 use marengo_config::{load_robot_config, resolve_urdf_path};
 use thiserror::Error;
@@ -156,7 +157,7 @@ impl<B: MotorBus> ControlLoop<B> {
                     .motors
                     .iter()
                     .find(|m| &m.joint == name)
-                    .and_then(|m| self.supervisor.motor_states().get(&m.device_id))
+                    .and_then(|m| self.supervisor.motor_states().get(&MotorAddress::from(m)))
                     .map(|s| f64::from(s.position_rad))
                     .unwrap_or(0.0)
             })
@@ -169,7 +170,7 @@ impl<B: MotorBus> ControlLoop<B> {
             .motors
             .iter()
             .find(|m| m.joint == joint)
-            .and_then(|m| self.supervisor.motor_states().get(&m.device_id))
+            .and_then(|m| self.supervisor.motor_states().get(&MotorAddress::from(m)))
             .map(|s| f64::from(s.velocity_rad_s))
             .unwrap_or(0.0)
     }
@@ -186,7 +187,7 @@ impl<B: MotorBus> ControlLoop<B> {
                     .motors
                     .iter()
                     .find(|m| &m.joint == name)
-                    .and_then(|m| self.supervisor.motor_states().get(&m.device_id));
+                    .and_then(|m| self.supervisor.motor_states().get(&MotorAddress::from(m)));
                 JointState {
                     name: name.clone(),
                     position,

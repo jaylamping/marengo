@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bring up virtual CAN interfaces for bench development (Linux only).
+# Bring up virtual CAN interfaces for SocketCAN integration tests (Linux only).
 set -euo pipefail
 
 if [[ "$(uname -s)" != "Linux" ]]; then
@@ -9,10 +9,12 @@ fi
 
 modprobe vcan 2>/dev/null || true
 
-if ! ip link show vcan0 &>/dev/null; then
-  ip link add dev vcan0 type vcan
-fi
-ip link set up vcan0
+for iface in vcan0 vcan1; do
+  if ! ip link show "${iface}" &>/dev/null; then
+    ip link add dev "${iface}" type vcan
+  fi
+  ip link set up "${iface}"
 
-echo "vcan0 is up"
-ip -details link show vcan0
+  echo "${iface} is up"
+  ip -details link show "${iface}"
+done

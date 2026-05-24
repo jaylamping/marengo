@@ -38,7 +38,7 @@ Short index — full rules live in linked docs.
 ## Simulation & CAN
 
 - Default tests: no hardware.
-- vcan: `just vcan` then `cargo test -p robstride --features vcan -- --ignored`
+- SocketCAN test harness: `just vcan` then `cargo test -p robstride --features socketcan -- --ignored`
 - Sim: `just sim-check` ([ADR 0003](docs/decisions/0003-simulation-testing.md))
 
 ## Cursor Cloud specific instructions
@@ -65,5 +65,5 @@ Use `./scripts/check.sh` directly (the `just check-native` target). Docker and `
 
 - `cargo deny check --disable-fetch` requires the pinned advisory-db at `/usr/local/cargo/advisory-db-pinned/github.com-a946fc29ac602819`. The update script installs this.
 - Consul `dev` script is a scaffold (`echo "Vite app scaffold TBD"`); there is no running frontend dev server.
-- `motor-repl` runs against a `MemoryBus` (no CAN hardware needed): `cargo run --bin motor-repl -- status` or `cargo run --bin motor-repl -- gravity-preview 0 0.5 0.3 0`.
+- `motor-repl` uses SocketCAN only; use `just vcan` / the ignored SocketCAN tests for no-hardware bus checks.
 - Default `cargo test` requires no hardware. vCAN and simulation tests are optional and need Docker.

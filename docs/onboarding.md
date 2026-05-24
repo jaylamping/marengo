@@ -38,12 +38,14 @@ cargo test --workspace
 
 **Cursor / VS Code:** Command Palette → **Dev Containers: Reopen in Container**
 
-## 5. Virtual CAN (Linux container)
+## 5. SocketCAN Test Harness (Linux container)
 
 ```bash
 just vcan
 docker compose --profile vcan run --rm check-vcan
 ```
+
+This creates virtual `vcan0`/`vcan1` interfaces for tests only. Robot runtime uses production interfaces such as `can0`, `can1`, and `can2` from `config/motors.yaml`.
 
 ## 6. Simulation (optional)
 

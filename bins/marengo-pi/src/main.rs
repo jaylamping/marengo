@@ -1,5 +1,6 @@
 //! Marengo Pi runtime: control loop, CAN, and Chappe bridge.
 
+use std::collections::BTreeSet;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
@@ -32,26 +33,16 @@ fn main() {
             std::process::exit(1);
         }
     };
+    let can_interfaces: BTreeSet<_> = motors
+        .motors
+        .iter()
+        .map(|motor| motor.can_interface.as_str())
+        .collect();
 
-    let bus_kind = std::env::var("MARENGO_MOTOR_BUS").unwrap_or_else(|_| "memory".to_string());
-    let can_interface = std::env::var("MARENGO_CAN_INTERFACE").unwrap_or_else(|_| {
-        motors
-            .motors
-            .first()
-            .map(|m| m.can_interface.clone())
-            .unwrap_or_else(|| "can0".to_string())
-    });
-    let bus = match bus_kind.as_str() {
-        "memory" => RuntimeBus::memory(),
-        "socketcan" => match RuntimeBus::socketcan(&can_interface) {
-            Ok(bus) => bus,
-            Err(e) => {
-                eprintln!("open SocketCAN {can_interface}: {e}");
-                std::process::exit(1);
-            }
-        },
-        other => {
-            eprintln!("unknown MARENGO_MOTOR_BUS={other}; use memory or socketcan");
+    let bus = match RuntimeBus::socketcan_from_motors(&motors) {
+        Ok(bus) => bus,
+        Err(e) => {
+            eprintln!("open SocketCAN from motors.yaml: {e}");
             std::process::exit(1);
         }
     };
@@ -71,9 +62,9 @@ fn main() {
     let chappe = Arc::new(Bus::default());
     info!(
         hz = control.control.loop_hz,
-        bus = %bus_kind,
-        can_interface = %can_interface,
-        "marengo-pi starting gravity-comp scaffold"
+        motor_count = motors.motors.len(),
+        interfaces = ?can_interfaces,
+        "marengo-pi starting gravity-comp scaffold on SocketCAN"
     );
 
     loop_ctrl.supervisor_mut().set_homing_complete();

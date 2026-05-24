@@ -12,7 +12,8 @@ workspace = true
 
 [features]
 default = []
-vcan = ["robstride/vcan"]
+socketcan = ["robstride/socketcan"]
+vcan = ["socketcan"]
 
 [[bin]]
 name = "marengo-pi"

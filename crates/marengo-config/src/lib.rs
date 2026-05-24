@@ -25,6 +25,7 @@
 //! Change joint names, motor types, or bench caps here — then update URDF and
 //! `hardware/docs/kinematics.md` together.
 
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
@@ -40,6 +41,8 @@ pub enum ConfigError {
     UrdfMissing { path: PathBuf },
     #[error("unknown joint {joint} in motors.yaml (not listed in robot.yaml)")]
     UnknownMotorJoint { joint: String },
+    #[error("duplicate motor CAN address {interface}:{device_id} in motors.yaml")]
+    DuplicateMotorAddress { interface: String, device_id: u8 },
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -217,10 +220,17 @@ pub fn validate_motors_against_robot(
     robot: &RobotConfigFile,
     motors: &MotorsConfigFile,
 ) -> Result<(), ConfigError> {
+    let mut addresses = HashSet::new();
     for m in &motors.motors {
         if !robot.robot.joints.iter().any(|j| j == &m.joint) {
             return Err(ConfigError::UnknownMotorJoint {
                 joint: m.joint.clone(),
+            });
+        }
+        if !addresses.insert((m.can_interface.clone(), m.device_id)) {
+            return Err(ConfigError::DuplicateMotorAddress {
+                interface: m.can_interface.clone(),
+                device_id: m.device_id,
             });
         }
     }
@@ -273,6 +283,18 @@ mod tests {
         let m = motor_for_joint(&motors, "shoulder_roll").expect("shoulder_roll");
         assert_eq!(m.device_id, 1);
         assert_eq!(m.motor_type, MotorType::Rs03);
+    }
+
+    #[test]
+    fn duplicate_motor_addresses_are_rejected() {
+        let robot = load_robot_config(repo_root()).expect("robot");
+        let mut motors = load_motors_config(repo_root()).expect("motors");
+        motors.motors[1].can_interface = motors.motors[0].can_interface.clone();
+        motors.motors[1].device_id = motors.motors[0].device_id;
+
+        let err = validate_motors_against_robot(&robot, &motors).expect_err("duplicate address");
+
+        assert!(matches!(err, ConfigError::DuplicateMotorAddress { .. }));
     }
 
     #[test]
