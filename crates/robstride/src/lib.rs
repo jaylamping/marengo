@@ -38,12 +38,12 @@ pub mod params;
 pub mod protocol;
 pub mod state;
 
+#[cfg(all(feature = "vcan", target_os = "linux"))]
+pub use bus::SocketCanBus;
 pub use bus::{
     send_mit, send_motion, send_motion_legacy, BusError, CanBus, CanFrame, JointMotion, MemoryBus,
     MotorBus, RuntimeBus,
 };
-#[cfg(all(feature = "vcan", target_os = "linux"))]
-pub use bus::SocketCanBus;
 pub use comm::{pack_ext_id, unpack_ext_id, CommunicationType, ExtendedId, DEFAULT_HOST_ID};
 pub use lifecycle::{
     encode_default_disable, encode_default_enable, encode_default_set_zero_position,

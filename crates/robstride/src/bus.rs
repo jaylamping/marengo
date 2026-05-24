@@ -319,7 +319,9 @@ mod socketcan {
     use super::*;
     use std::io::ErrorKind;
 
-    use ::socketcan::{CanFrame as SocketFrame, CanSocket, EmbeddedFrame, ExtendedId, Frame, Socket};
+    use ::socketcan::{
+        CanFrame as SocketFrame, CanSocket, EmbeddedFrame, ExtendedId, Frame, Socket,
+    };
 
     #[derive(Debug)]
     pub struct SocketCanBus {
