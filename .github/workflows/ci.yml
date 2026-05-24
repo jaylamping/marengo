@@ -155,6 +155,9 @@ jobs:
           cache-from: type=gha,scope=dev-image
           cache-to: type=gha,scope=dev-image,mode=max
 
+      - name: Load vcan kernel module
+        run: sudo modprobe vcan
+
       - name: vcan integration tests
         run: |
           mkdir -p .ci-cache/cargo/registry .ci-cache/cargo/git target
