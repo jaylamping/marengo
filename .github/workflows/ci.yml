@@ -116,5 +116,6 @@ jobs:
           docker run --rm --privileged \
             -v "${{ github.workspace }}:/workspace" \
             -w /workspace \
+            -e MARENGO_USER=root \
             marengo-dev:local \
             bash -c './scripts/vcan-up.sh && cargo test -p robstride --features vcan -- --ignored'
