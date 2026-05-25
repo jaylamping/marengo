@@ -32,6 +32,8 @@ Host: **`marengo.local`** user **`joey`**. Pi root: **`/opt/marengo`**.
 
 Prefer **`pi_bench_harness`** for debug sessions. Sustained control uses **`pi_marengo_pi_script`** (not `pi_motor_enable` alone).
 
+**Encoder zero (replaces Motor Studio):** position arm at mechanical zero → **`pi_set_zero`** with `confirm: true`. Default joint `right_shoulder_pitch`; use `config_dir: .../shoulder_pitch_right_only` for isolated right bench. `verify: true` (default) prints feedback position — expect |pos| < 0.05 rad.
+
 **Weighted proposals:** if logs suggest load/model issues, ask user to run weighted bench now; if deferred, append [docs/bench-test-backlog.md](../../docs/bench-test-backlog.md).
 
 ## Bench workflow
@@ -42,6 +44,6 @@ Prefer **`pi_bench_harness`** for debug sessions. Sustained control uses **`pi_m
 4. **Weighted:** ask twice in chat → harness with both confirm flags.
 5. After harness: `pi_logs_last_fault` + read JSON in response; link log path in issues.
 
-Commissioned map: right `can0`/id **2**, left `can1`/id **12**. Config: `shoulder_pitch_dual`.
+Commissioned map: right `can0`/id **2**, left `can1`/id **12**. Default dual config: `shoulder_pitch_dual`; right-only bench: `shoulder_pitch_right_only`.
 
 Docs: [pi-commissioning.md](../../docs/pi-commissioning.md), [tools/marengo-pi-mcp/README.md](../../tools/marengo-pi-mcp/README.md).

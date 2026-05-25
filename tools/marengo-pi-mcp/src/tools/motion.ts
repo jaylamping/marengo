@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { BenchProfile, MarengoPiConfig } from "../config.js";
 import { appendAudit } from "../audit.js";
-import { shellQuote, wrapRemote } from "../env.js";
+import { shellQuote, wrapRemote, wrapRemoteWithConfig } from "../env.js";
 import { validateMotionConfirm } from "../safety.js";
 
 const motionConfirmSchema = z.object({
@@ -36,6 +36,19 @@ function marengoPiPipe(script: string[], timeoutSec: number): string {
     .map((l) => `printf '%s\\n' ${JSON.stringify(l)}`)
     .join("\n");
   return `${printfLines} | timeout ${timeoutSec} bin/marengo-pi`;
+}
+
+/** motor-repl set-zero + optional position readback (replaces Motor Studio Set Zero). */
+function zeroActuatorRemoteBody(joint: string, verify: boolean): string {
+  const lines = [`bin/motor-repl set-zero ${shellQuote(joint)}`];
+  lines.push("bin/motor-repl disable 2>/dev/null || true");
+  if (verify) {
+    lines.push(
+      "sleep 0.3",
+      "{ echo home; echo 'enable bench'; sleep 2; echo status; echo disable; echo quit; } | timeout 8 bin/marengo-pi",
+    );
+  }
+  return lines.join("\n");
 }
 
 export function registerMotionTools(
@@ -95,21 +108,45 @@ export function registerMotionTools(
     },
 
     pi_set_zero: {
-      description: "motor-repl set-zero at current angle (hardware encoder zero)",
+      description:
+        "Zero encoder at the current shaft angle via CAN SetZero (no Motor Studio). " +
+        "Position the arm at mechanical zero first, then call with confirm: true. " +
+        "Sends motor-repl set-zero, disables, and reads back position when verify=true.",
       inputSchema: motionConfirmSchema.extend({
-        joint: z.string(),
+        joint: z
+          .string()
+          .default("right_shoulder_pitch")
+          .describe("Joint name from motors.yaml"),
+        config_dir: z
+          .string()
+          .optional()
+          .describe(
+            "Override MARENGO_CONFIG_DIR (e.g. /opt/marengo/config/bringup/shoulder_pitch_right_only)",
+          ),
+        verify: z
+          .boolean()
+          .default(true)
+          .describe("Enable briefly and print status so feedback pos ≈ 0 is visible"),
       }),
       handler: async (args: {
         confirm: true;
         confirm_weighted_motion?: true;
         profile?: BenchProfile;
-        joint: string;
+        joint?: string;
+        config_dir?: string;
+        verify?: boolean;
       }) => {
         const check = gate(args);
         if (!check.ok) return check.message;
-        const body = wrapRemote(cfg, `bin/motor-repl set-zero ${args.joint}`);
-        const out = await runRemote(body, 30_000);
-        auditMotion("pi_set_zero", args, out, 0);
+        const joint = args.joint ?? "right_shoulder_pitch";
+        const verify = args.verify ?? true;
+        const body = wrapRemoteWithConfig(
+          cfg,
+          zeroActuatorRemoteBody(joint, verify),
+          args.config_dir,
+        );
+        const out = await runRemote(body, verify ? 45_000 : 30_000);
+        auditMotion("pi_set_zero", { ...args, joint, verify }, out, 0);
         return out;
       },
     },

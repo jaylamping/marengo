@@ -20,6 +20,17 @@ export function wrapRemote(cfg: MarengoPiConfig, body: string, debug = false): s
   return `${remotePreamble(cfg, debug)}\n${body}`;
 }
 
+/** Remote script with optional config-dir override (e.g. shoulder_pitch_right_only). */
+export function wrapRemoteWithConfig(
+  cfg: MarengoPiConfig,
+  body: string,
+  configDir?: string,
+  debug = false,
+): string {
+  const effective = configDir ? { ...cfg, configDir } : cfg;
+  return wrapRemote(effective, body, debug);
+}
+
 export function shellQuote(s: string): string {
   return `'${s.replace(/'/g, `'\\''`)}'`;
 }
