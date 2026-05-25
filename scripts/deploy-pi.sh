@@ -84,8 +84,16 @@ rsync -av --delete \
 
 if [[ "$DO_INSTALL" == true ]]; then
   echo "Installing on Pi (sudo install-pi.sh → /opt/marengo)..."
-  ssh "$PI_HOST" "set -euo pipefail; cd ${REMOTE_ROOT}; sudo MARENGO_INSTALL_ROOT=/opt/marengo ./scripts/install-pi.sh"
-  ssh "$PI_HOST" "echo \$(git -C /opt/marengo rev-parse HEAD 2>/dev/null || echo unknown) \$(date -u +%Y-%m-%dT%H:%M:%SZ) > ${REMOTE_ROOT}/.deploy-rev && cat ${REMOTE_ROOT}/.deploy-rev" || true
+  if ssh "$PI_HOST" "sudo -n true" 2>/dev/null; then
+    ssh "$PI_HOST" "set -euo pipefail; cd ${REMOTE_ROOT}; sudo MARENGO_INSTALL_ROOT=/opt/marengo ./scripts/install-pi.sh"
+    ssh "$PI_HOST" "echo \$(git -C /opt/marengo rev-parse HEAD 2>/dev/null || echo unknown) \$(date -u +%Y-%m-%dT%H:%M:%SZ) > ${REMOTE_ROOT}/.deploy-rev && cat ${REMOTE_ROOT}/.deploy-rev" || true
+  else
+    echo ""
+    echo "warn: passwordless sudo not available — install manually on the Pi:"
+    echo "  ssh ${PI_HOST} 'cd ${REMOTE_ROOT} && sudo MARENGO_INSTALL_ROOT=/opt/marengo ./scripts/install-pi.sh'"
+    echo ""
+    echo "Until then, bench with: ${REMOTE_ROOT}/marengo-pi (MARENGO_ROOT=/opt/marengo)"
+  fi
 else
   echo "On the Pi:"
   echo "  cd ${REMOTE_ROOT} && sudo MARENGO_INSTALL_ROOT=/opt/marengo ./scripts/install-pi.sh"

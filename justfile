@@ -35,3 +35,7 @@ sim-check: build
 # Host-native check (requires local toolchain)
 check-native:
     ./scripts/check.sh
+
+# Cross-build and deploy Pi binaries from macOS (installs cross GCC if needed)
+deploy-pi host="joey@marengo.local":
+    ./scripts/deploy-pi.sh --install {{host}}
