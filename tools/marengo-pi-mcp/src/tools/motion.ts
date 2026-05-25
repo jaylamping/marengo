@@ -12,6 +12,28 @@ const motionConfirmSchema = z.object({
     .optional(),
 });
 
+const BENCH_CONFIG_RIGHT =
+  "/opt/marengo/config/bringup/shoulder_pitch_right_only";
+const BENCH_CONFIG_LEFT =
+  "/opt/marengo/config/bringup/shoulder_pitch_left_only";
+
+/** Single-shoulder bench profile from joint name when config_dir omitted. */
+function benchConfigDirForJoint(
+  joint?: string,
+  configDir?: string,
+): string | undefined {
+  if (configDir) {
+    return configDir;
+  }
+  if (joint?.includes("left_shoulder")) {
+    return BENCH_CONFIG_LEFT;
+  }
+  if (joint?.includes("right_shoulder")) {
+    return BENCH_CONFIG_RIGHT;
+  }
+  return undefined;
+}
+
 const benchLogWrapper = (
   cfg: MarengoPiConfig,
   pipeCmd: string,
@@ -52,6 +74,11 @@ function marengoPiPipe(script: string[], timeoutSec: number, binary = "$PI_BIN")
   return `${printfLines} | timeout ${timeoutSec} ${binary}`;
 }
 
+function marengoPiPkillLine(cfg: MarengoPiConfig): string {
+  const bin = `${cfg.piRoot}/bin/marengo-pi`;
+  return `pkill -f ${shellQuote(bin)} 2>/dev/null || true`;
+}
+
 function holdSessionRemoteBody(
   cfg: MarengoPiConfig,
   args: {
@@ -65,7 +92,7 @@ function holdSessionRemoteBody(
 ): string {
   const lines: string[] = [];
   if (args.killStale) {
-    lines.push("pkill -f 'marengo-pi' 2>/dev/null || true", "sleep 0.3");
+    lines.push(marengoPiPkillLine(cfg), "sleep 0.3");
   }
   lines.push("bin/motor-repl disable 2>/dev/null || true");
   if (args.setZero) {
@@ -87,7 +114,7 @@ function holdSessionRemoteBody(
 /** Stop control, disable drives (clears most Robstride faults), brief enable to read fault= line. */
 function motorRecoverRemoteBody(cfg: MarengoPiConfig): string {
   return [
-    "pkill -f 'marengo-pi' 2>/dev/null || true",
+    marengoPiPkillLine(cfg),
     "sleep 0.3",
     "bin/motor-repl disable 2>/dev/null || true",
     "sleep 0.5",
@@ -189,11 +216,7 @@ export function registerMotionTools(
       }) => {
         const check = gate(args);
         if (!check.ok) return check.message;
-        const configDir =
-          args.config_dir ??
-          (args.profile === "bare_motor" || cfg.benchProfile === "bare_motor"
-            ? "/opt/marengo/config/bringup/shoulder_pitch_right_only"
-            : undefined);
+        const configDir = benchConfigDirForJoint(undefined, args.config_dir);
         const body = wrapRemoteWithConfig(
           cfg,
           "bin/motor-repl disable",
@@ -226,9 +249,10 @@ export function registerMotionTools(
       }) => {
         const check = gate(args);
         if (!check.ok) return check.message;
-        const configDir =
-          args.config_dir ??
-          "/opt/marengo/config/bringup/shoulder_pitch_right_only";
+        const configDir = benchConfigDirForJoint(
+          undefined,
+          args.config_dir ?? BENCH_CONFIG_RIGHT,
+        );
         const pipeCmd = [
           motorRecoverRemoteBody(cfg),
           motorRecoverSummaryShell,
@@ -273,10 +297,12 @@ export function registerMotionTools(
         if (!check.ok) return check.message;
         const joint = args.joint ?? "right_shoulder_pitch";
         const verify = args.verify ?? true;
+        const configDir =
+          benchConfigDirForJoint(joint, args.config_dir) ?? BENCH_CONFIG_RIGHT;
         const body = wrapRemoteWithConfig(
           cfg,
           zeroActuatorRemoteBody(joint, verify),
-          args.config_dir,
+          configDir,
         );
         const out = await runRemote(body, verify ? 45_000 : 30_000);
         auditMotion("pi_set_zero", { ...args, joint, verify }, out, 0);
@@ -349,15 +375,18 @@ export function registerMotionTools(
         const check = gate(args);
         if (!check.ok) return check.message;
         const timeoutSec = args.timeout_sec ?? 30;
+        const joint = args.joint ?? "right_shoulder_pitch";
+        const configDir =
+          benchConfigDirForJoint(joint, args.config_dir) ?? BENCH_CONFIG_RIGHT;
         const pipeCmd = holdSessionRemoteBody(cfg, {
-          joint: args.joint ?? "right_shoulder_pitch",
+          joint,
           setZero: args.set_zero ?? true,
           killStale: args.kill_stale ?? true,
           operator: args.operator ?? "bench",
           positionRad: args.position_rad,
           timeoutSec,
         });
-        const body = benchLogWrapper(cfg, pipeCmd, "hold-on", args.config_dir);
+        const body = benchLogWrapper(cfg, pipeCmd, "hold-on", configDir);
         const out = await runRemote(body, timeoutSec * 1000 + 20_000);
         auditMotion("pi_hold_on", args, out, 0);
         return out;
@@ -365,24 +394,31 @@ export function registerMotionTools(
     },
 
     pi_hold_off: {
-      description: "Stop hold: pkill marengo-pi and motor-repl disable",
+      description:
+        "Stop hold: pkill marengo-pi and motor-repl disable. " +
+        "Optional joint picks left/right bench config_dir when config_dir omitted.",
       inputSchema: motionConfirmSchema.extend({
+        joint: z.string().optional(),
         config_dir: z.string().optional(),
       }),
       handler: async (args: {
         confirm: true;
         confirm_weighted_motion?: true;
         profile?: BenchProfile;
+        joint?: string;
         config_dir?: string;
       }) => {
         const check = gate(args);
         if (!check.ok) return check.message;
+        const configDir =
+          benchConfigDirForJoint(args.joint, args.config_dir) ??
+          BENCH_CONFIG_RIGHT;
         const body = wrapRemoteWithConfig(
           cfg,
-          ["pkill -f 'marengo-pi' 2>/dev/null || true", "bin/motor-repl disable"].join(
+          [marengoPiPkillLine(cfg), "bin/motor-repl disable"].join(
             "\n",
           ),
-          args.config_dir,
+          configDir,
         );
         const out = await runRemote(body, 20_000);
         auditMotion("pi_hold_off", args, out, 0);
@@ -394,6 +430,12 @@ export function registerMotionTools(
       description:
         "Pipe stdin script to marengo-pi (enable/gravity-on/hold-on/status/disable/quit); logs to var/log",
       inputSchema: motionConfirmSchema.extend({
+        joint: z
+          .string()
+          .optional()
+          .describe(
+            "When config_dir omitted, left/right shoulder picks shoulder_pitch_*_only profile",
+          ),
         config_dir: z
           .string()
           .optional()
@@ -408,6 +450,7 @@ export function registerMotionTools(
         confirm: true;
         confirm_weighted_motion?: true;
         profile?: BenchProfile;
+        joint?: string;
         config_dir?: string;
         script: string[];
         timeout_sec?: number;
@@ -419,7 +462,10 @@ export function registerMotionTools(
           marengoPiBinarySelector(cfg),
           marengoPiPipe(args.script, timeoutSec),
         ].join("\n");
-        const body = benchLogWrapper(cfg, pipeCmd, "marengo-pi-script", args.config_dir);
+        const configDir =
+          benchConfigDirForJoint(args.joint, args.config_dir) ??
+          args.config_dir;
+        const body = benchLogWrapper(cfg, pipeCmd, "marengo-pi-script", configDir);
         const out = await runRemote(body, timeoutSec * 1000 + 15_000);
         auditMotion("pi_marengo_pi_script", args, out, 0);
         return out;

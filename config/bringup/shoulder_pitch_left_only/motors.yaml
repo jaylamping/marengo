@@ -1,0 +1,16 @@
+# Left shoulder pitch only — single-actuator bench (can1, device id 12).
+motors:
+  - joint: left_shoulder_pitch
+    driver: robstride
+    motor_type: rs03
+    can_interface: can1
+    device_id: 12
+    direction: 1
+    gear_ratio: 1.0
+    recv_can_id: 0x24c
+    firmware_version: "0.3.1.42"
+    bench:
+      position_lower_rad: -1.2
+      position_upper_rad: 1.65
+      velocity_limit_rad_s: 0.5
+      torque_limit_nm: 5.0

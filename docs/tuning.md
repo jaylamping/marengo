@@ -10,7 +10,7 @@ Operator workflow for OpenArm-style impedance after gravity compensation is vali
 
 ## Zero pose
 
-OpenArm convention: arms straight down when possible. Record encoder zeros with `SetZero` per motor after mechanical zeroing.
+OpenArm convention: arms straight down when possible. Record encoder zeros with `SetZero` per motor after mechanical zeroing (`motor-repl set-zero` / `pi_set_zero` — Robstride lifecycle uses host id **0xFD** and set-zero data byte **0x01**, matching Motor Studio).
 
 ## Gain sweep
 

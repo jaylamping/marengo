@@ -1,0 +1,19 @@
+---
+description: Use Marengo Pi MCP tools before asking user to run bench commands
+alwaysApply: true
+---
+
+# Marengo Pi MCP First
+
+When working on Pi bench bring-up, CAN, motors, gravity, `motor-repl`, `marengo-pi`, config sync, logs, or shoulder pitch testing:
+
+1. Use the available **marengo-pi MCP tools first** for Pi actions and verification.
+2. Do **not** ask the user to run shell commands, paste logs, deploy files, or verify software state when an MCP tool can do it.
+3. Use read-only/admin MCP tools without asking permission: `pi_health`, `pi_can_status`, `pi_can_up`, `pi_motor_repl_status`, `pi_logs_*`, `pi_journal`, `pi_candump_once`, `pi_read_file`, `pi_sync_bench_config`, and `pi_sync_main`.
+4. For motion tools, ask only for the required confirmation flags and any physical safety preconditions. Then run the tool yourself.
+5. Ask the user only for physical actions or credentials the MCP cannot perform: supporting the arm, keeping hands off, power-cycling, plugging hardware, entering sudo password, Motor Studio UI actions, or confirming weighted/live motion.
+6. If MCP tooling is stale or missing a capability, fix or extend the MCP toolchain, rebuild it, and use it rather than falling back to user-run commands.
+
+Bad: “Run this on the Pi and tell me what it prints.”
+
+Good: call `pi_read_file`, `pi_logs_tail`, `pi_motor_repl_status`, `pi_sync_bench_config`, `pi_set_zero`, or `pi_marengo_pi_script` as appropriate, then report the result.

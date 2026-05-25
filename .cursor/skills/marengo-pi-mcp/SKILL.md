@@ -16,6 +16,8 @@ Host: **`marengo.local`** user **`joey`**. Pi root: **`/opt/marengo`**.
 1. On any question or failure: **`pi_logs_last_fault`** → **`pi_logs_tail`** → **`pi_logs_grep`** — call immediately.
 2. Never ask the user to paste logs available in `var/log/bench-latest.log`.
 3. Never ask *“may I SSH?”* for read-only tools — pre-authorized.
+4. Never ask the user to run Pi commands, paste command output, deploy files, or verify software state when an MCP tool can do it. Use the MCP tool yourself and report the result.
+5. If a needed Pi action is missing from MCP, prefer adding/fixing the MCP tool and rebuilding it over falling back to user-run commands.
 
 ## Read-only (no confirm)
 
@@ -25,9 +27,11 @@ Host: **`marengo.local`** user **`joey`**. Pi root: **`/opt/marengo`**.
 
 `pi_can_up`, **`pi_sync_main`** — see [marengo-pi-sync](../marengo-pi-sync/SKILL.md)
 
-**Config sync:** after editing `config/bringup/*/control.yaml` (or motors/robot) on the Mac, ask: **Would you like me to sync your bench config to the Pi?** If yes → **`pi_sync_bench_config`** (`profile: shoulder_pitch_right_only`, `install_to_opt: true`).
+**Config sync:** after editing `config/bringup/*/control.yaml` (or motors/robot) on the Mac, run **`pi_sync_bench_config`** with `profile: shoulder_pitch_right_only` or `shoulder_pitch_left_only`, `install_to_opt: true`; do not ask the user to run rsync/deploy manually. Also sync/deploy **`assets/urdf/shoulder_pitch_left_bare.urdf`** when the left profile is new or changed.
 
 ## Motion (confirm required)
+
+Ask the user only for physical actions or required safety confirmations: support the arm, keep hands off, power-cycle, plug hardware, enter sudo password, use Motor Studio UI, or approve weighted/live motion. After confirmation, run the MCP motion tool yourself.
 
 **Motor fault (no Motor Studio — do not ask user to paste SSH):**
 
@@ -36,7 +40,7 @@ Host: **`marengo.local`** user **`joey`**. Pi root: **`/opt/marengo`**.
 3. `RECOVER_FAIL` or arm still limp → user **power-cycles drive**, then run **`pi_motor_recover`** again.
 4. Optional first step: **`pi_hold_off`** (confirm) if `marengo-pi` was running.
 
-Default `config_dir`: `shoulder_pitch_right_only`. Set `MARENGO_PI_HOST` to Pi IP if `.local` fails.
+Motion tools pick **`config_dir`** from **`joint`** when omitted: `right_shoulder_pitch` → `shoulder_pitch_right_only`, `left_shoulder_pitch` → `shoulder_pitch_left_only`. Otherwise default right-only. Set `MARENGO_PI_HOST` to Pi IP if `.local` fails.
 
 | Profile | Params |
 |---------|--------|
@@ -45,11 +49,13 @@ Default `config_dir`: `shoulder_pitch_right_only`. Set `MARENGO_PI_HOST` to Pi I
 
 Prefer **`pi_bench_harness`** for debug sessions. Sustained control uses **`pi_marengo_pi_script`** (not `pi_motor_enable` alone).
 
-**Encoder zero (replaces Motor Studio):** position arm at mechanical zero → **`pi_set_zero`** with `confirm: true`. Default joint `right_shoulder_pitch`; use `config_dir: .../shoulder_pitch_right_only` for isolated right bench. `verify: true` (default) prints feedback position — expect |pos| < 0.05 rad.
+**Encoder zero (replaces Motor Studio):** position arm at mechanical zero → **`pi_set_zero`** with `confirm: true`, `joint: right_shoulder_pitch` or `left_shoulder_pitch` (config_dir auto). `verify: true` (default) prints feedback position — expect |pos| < 0.05 rad.
 
-**Backdrive:** use **`gravity-on`** in `pi_marengo_pi_script` with **`timeout_sec: 30`** (default). Script `["home","enable bench","gravity-on"]`, `config_dir: .../shoulder_pitch_right_only`. Stay within ±1.0 rad during manual moves.
+**Backdrive:** use **`gravity-on`** in `pi_marengo_pi_script` with **`timeout_sec: 30`** (default). Script `["home","enable bench","gravity-on"]`, `joint: left_shoulder_pitch` or right equivalent. Stay within ±1.0 rad during manual moves.
 
-**Position hold:** **`pi_hold_on`** (`confirm: true`) — set-zero, `hold-on` or `position_rad` for `hold-at`, 30 s default, logs to `var/log`. **`pi_hold_off`** to stop. Tune `impedance.kp`/`kd`, slew, and trim in `control.yaml` (right-only bench: **kp=12, kd=0.75**, slew **15 rad/s**, max_lead **0.5**, trim **-0.043**). Sync to Pi before hold tests if YAML changed locally. Stay within ±1.0 rad when pushing.
+**Position hold:** **`pi_hold_on`** (`confirm: true`, `joint: left_shoulder_pitch` for left bench) — set-zero, `hold-on` or `position_rad` for `hold-at`, 30 s default, logs to `var/log`. **`pi_hold_off`** with same `joint` to stop. Both shoulders (mirrored hardware): **kp=12, kd=0.75**, slew **15 rad/s**, max_lead **0.5**, trim **-0.043**, upper **1.65 rad**. Sync profile to Pi before hold tests if YAML changed locally. **Hands off** during scripted round trips.
+
+**Left bench round trip (hands off):** `pi_marengo_pi_script` with `joint: left_shoulder_pitch`, script `home` → `enable bench` → `hold-at 0` (pause) → `hold-at 1.570796` → `hold-at 0` → `disable`, `timeout_sec` ≥ 25.
 
 **Weighted proposals:** if logs suggest load/model issues, ask user to run weighted bench now; if deferred, append [docs/bench-test-backlog.md](../../docs/bench-test-backlog.md).
 
@@ -61,6 +67,6 @@ Prefer **`pi_bench_harness`** for debug sessions. Sustained control uses **`pi_m
 4. **Weighted:** ask twice in chat → harness with both confirm flags.
 5. After harness: `pi_logs_last_fault` + read JSON in response; link log path in issues.
 
-Commissioned map: right `can0`/id **2**, left `can1`/id **12**. Default dual config: `shoulder_pitch_dual`; right-only bench: `shoulder_pitch_right_only`.
+Commissioned map: right `can0`/id **2**, left `can1`/id **12**. Bench profiles: `shoulder_pitch_right_only`, `shoulder_pitch_left_only` (mirrored tuning); dual: `shoulder_pitch_dual`.
 
 Docs: [pi-commissioning.md](../../docs/pi-commissioning.md), [tools/marengo-pi-mcp/README.md](../../tools/marengo-pi-mcp/README.md).

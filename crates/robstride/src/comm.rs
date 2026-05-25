@@ -54,7 +54,8 @@ pub fn inbound_motor_device_id(can_id: u32, comm_type: CommunicationType) -> u8 
 }
 
 pub const EXTENDED_ID_MASK: u32 = 0x1FFF_FFFF;
-pub const DEFAULT_HOST_ID: u8 = 0xFF;
+/// USB-CAN / Motor Studio default host id (lifecycle + parameter frames use this in `extra_data`).
+pub const DEFAULT_HOST_ID: u8 = 0xFD;
 
 pub fn pack_ext_id(comm_type: u8, extra_data: u16, device_id: u8) -> u32 {
     ((u32::from(comm_type) & 0x1F) << 24) | (u32::from(extra_data) << 8) | u32::from(device_id)

@@ -941,7 +941,7 @@ mod tests {
         sup.bus.rx.push(ReceivedCanFrame {
             interface: Some("can0".to_string()),
             frame: CanFrame {
-                id: robstride::pack_ext_id(2, 0, 1),
+                id: robstride::pack_ext_id(2, 1, robstride::DEFAULT_HOST_ID),
                 data: status,
                 extended: true,
             },
@@ -949,7 +949,7 @@ mod tests {
         sup.bus.rx.push(ReceivedCanFrame {
             interface: Some("can1".to_string()),
             frame: CanFrame {
-                id: robstride::pack_ext_id(2, 0, 1),
+                id: robstride::pack_ext_id(2, 1, robstride::DEFAULT_HOST_ID),
                 data: status,
                 extended: true,
             },
