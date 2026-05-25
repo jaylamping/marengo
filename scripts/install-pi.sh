@@ -42,6 +42,8 @@ fi
 
 rsync -a --delete "${ROOT}/config/" "${INSTALL_ROOT}/config/"
 rsync -a "${ROOT}/assets/" "${INSTALL_ROOT}/assets/"
+rsync -a "${ROOT}/scripts/" "${INSTALL_ROOT}/scripts/"
+chmod 755 "${INSTALL_ROOT}/scripts/can-up.sh"
 
 mkdir -p /etc/marengo
 if [[ ! -f /etc/marengo/env ]]; then
@@ -58,9 +60,10 @@ sed -i "s|ExecStart=.*|ExecStart=${INSTALL_ROOT}/bin/marengo-pi|" /etc/systemd/s
 chown -R "${RUN_USER}:${RUN_USER}" "${INSTALL_ROOT}"
 
 systemctl daemon-reload
-systemctl enable marengo-can.service
+systemctl enable --now marengo-can.service
 
-echo "Done. Next:"
+echo "Done. CAN (can0/can1) should be UP — verify: ip -br link show type can"
+echo "Next:"
 echo "  1. Edit /etc/marengo/env (MARENGO_ROOT, MARENGO_CONFIG_DIR)"
-echo "  2. sudo systemctl start marengo-can.service"
-echo "  3. MARENGO_CONFIG_DIR=config/bringup/shoulder_pitch_dual ${INSTALL_ROOT}/bin/motor-repl status"
+echo "  2. Bench motion: run marengo-pi / motor-repl manually (do not enable marengo-pi.service unless you want always-on control)"
+echo "  3. Example: MARENGO_CONFIG_DIR=config/bringup/shoulder_pitch_right_only ${INSTALL_ROOT}/bin/motor-repl status"

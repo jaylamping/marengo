@@ -7,6 +7,8 @@ description: SSH Marengo Pi bench control via MCP — log-first investigation, c
 
 MCP server: `tools/marengo-pi-mcp/` (configure in `.cursor/mcp.json`).
 
+**Rebuild after tool changes:** `just mcp-build` from repo root, then **restart** the `marengo-pi` MCP server in Cursor.
+
 Host: **`marengo.local`** user **`joey`**. Pi root: **`/opt/marengo`**.
 
 ## Log-first (mandatory — no permission ask)
@@ -26,6 +28,15 @@ Host: **`marengo.local`** user **`joey`**. Pi root: **`/opt/marengo`**.
 **Config sync:** after editing `config/bringup/*/control.yaml` (or motors/robot) on the Mac, ask: **Would you like me to sync your bench config to the Pi?** If yes → **`pi_sync_bench_config`** (`profile: shoulder_pitch_right_only`, `install_to_opt: true`).
 
 ## Motion (confirm required)
+
+**Motor fault (no Motor Studio — do not ask user to paste SSH):**
+
+1. **`pi_motor_recover`** with `{ "confirm": true }` — full recover script (disable → status → `RECOVER_OK` / `RECOVER_FAIL`); logs to `var/log/bench-latest.log`.
+2. Read result via **`pi_logs_last_fault`** / tail — do not ask user to paste terminal output.
+3. `RECOVER_FAIL` or arm still limp → user **power-cycles drive**, then run **`pi_motor_recover`** again.
+4. Optional first step: **`pi_hold_off`** (confirm) if `marengo-pi` was running.
+
+Default `config_dir`: `shoulder_pitch_right_only`. Set `MARENGO_PI_HOST` to Pi IP if `.local` fails.
 
 | Profile | Params |
 |---------|--------|

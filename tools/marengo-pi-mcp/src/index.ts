@@ -78,7 +78,8 @@ async function main() {
         text.startsWith("Motion blocked") ||
         text.startsWith("Weighted motion blocked") ||
         text.startsWith("Error:") ||
-        text.startsWith("Local repo dirty");
+        text.startsWith("Local repo dirty") ||
+        text.includes("RECOVER_FAIL");
       return {
         content: [{ type: "text", text }],
         isError,

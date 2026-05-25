@@ -39,3 +39,7 @@ check-native:
 # Cross-build and deploy Pi binaries from macOS (installs cross GCC if needed)
 deploy-pi host="joey@marengo.local":
     ./scripts/deploy-pi.sh --install {{host}}
+
+# Rebuild Marengo Pi MCP server (Cursor: restart marengo-pi MCP after this)
+mcp-build:
+    cd tools/marengo-pi-mcp && npm install && npm run build

@@ -39,11 +39,21 @@ Do **not** prefix `MARENGO_INSTALL_ROOT=` on the install command — default is 
 
 ### Build MCP server
 
+From repo root:
+
+```bash
+just mcp-build
+```
+
+Or:
+
 ```bash
 cd tools/marengo-pi-mcp
 npm install
 npm run build
 ```
+
+Restart the **marengo-pi** MCP server in Cursor after rebuilding.
 
 ### Cursor `mcp.json`
 
@@ -55,7 +65,7 @@ Copy [`mcp.json.example`](mcp.json.example) into `.cursor/mcp.json` and adjust p
 |-------|---------|----------|
 | Read-only | No | `pi_logs_tail`, `pi_health`, `pi_motor_repl_status`, `pi_gravity_preview` |
 | Admin | No | `pi_can_up`, `pi_sync_main`, `pi_sync_bench_config`, `pi_git_pull`, `pi_build` |
-| Motion | Yes | `pi_set_zero`, `pi_hold_on`, `pi_hold_off`, `pi_bench_harness`, `pi_marengo_pi_script`, `pi_jog` |
+| Motion | Yes | `pi_motor_recover`, `pi_motor_disable`, `pi_set_zero`, `pi_hold_on`, `pi_hold_off`, `pi_bench_harness`, `pi_marengo_pi_script`, `pi_jog` |
 
 Weighted profile (`weighted_single_arm`, `arm_attached`) requires **`confirm: true`** and **`confirm_weighted_motion: true`**.
 
@@ -81,6 +91,14 @@ Weighted profile (`weighted_single_arm`, `arm_attached`) requires **`confirm: tr
 ## Session logs
 
 Motion runs tee to `$MARENGO_ROOT/var/log/bench-latest.log`. Read with `pi_logs_tail` / `pi_logs_last_fault`.
+
+### Motor recover (no Motor Studio)
+
+```json
+{ "confirm": true }
+```
+
+Tool: **`pi_motor_recover`** — disable drives, brief `status` with `fault=0x…`, prints **`RECOVER_OK`** or **`RECOVER_FAIL`**. Optional: `"config_dir": "/opt/marengo/config/bringup/shoulder_pitch_right_only"`.
 
 ## Skills
 

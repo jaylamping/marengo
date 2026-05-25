@@ -35,9 +35,14 @@ Reboot, then:
 
 ```bash
 ip link show type can
-sudo ./scripts/can-up.sh can0 can1
-# or: sudo systemctl enable --now marengo-can.service   (after install-pi.sh)
+# Manual (one-off): sudo ./scripts/can-up.sh can0 can1
+# Automatic (recommended after install-pi.sh): marengo-can.service enables on boot
+sudo systemctl enable --now marengo-can.service
+systemctl status marengo-can.service
+ip -br link show type can   # expect can0 UP, can1 UP
 ```
+
+After `install-pi.sh`, `marengo-can` is **enabled and started** — no manual `can-up` needed on each reboot unless the unit failed (check `journalctl -u marengo-can`).
 
 **Security (recommended):** SSH key-only, `fail2ban`, `ufw` allow SSH from bench subnet, `unattended-upgrades`.
 

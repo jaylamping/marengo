@@ -84,6 +84,40 @@ function holdSessionRemoteBody(
   return lines.join("\n");
 }
 
+/** Stop control, disable drives (clears most Robstride faults), brief enable to read fault= line. */
+function motorRecoverRemoteBody(cfg: MarengoPiConfig): string {
+  return [
+    "pkill -f 'marengo-pi' 2>/dev/null || true",
+    "sleep 0.3",
+    "bin/motor-repl disable 2>/dev/null || true",
+    "sleep 0.5",
+    marengoPiBinarySelector(cfg),
+    [
+      "{",
+      "echo home;",
+      "echo 'enable bench';",
+      "sleep 1;",
+      "echo status;",
+      "echo disable;",
+      "echo quit;",
+      "} | timeout 10 \"$PI_BIN\"",
+    ].join(" "),
+  ].join("\n");
+}
+
+/** Parse bench log for fault= lines; printed after tee to $LOG. */
+const motorRecoverSummaryShell = [
+  'echo "--- RECOVER_SUMMARY ---"',
+  'grep -E "fault=0x|operational:|enabled|disabled" "$LOG" 2>/dev/null | tail -15 || true',
+  'if grep -qE "fault=0x[0-9a-fA-F]*[1-9a-fA-F]" "$LOG" 2>/dev/null; then',
+  '  echo "RECOVER_FAIL: non-zero motor fault — power-cycle arm drive, then run pi_motor_recover again"',
+  'elif grep -q "fault=0x0000" "$LOG" 2>/dev/null; then',
+  '  echo "RECOVER_OK: fault=0x0000 — safe to re-enable / hold test"',
+  'else',
+  '  echo "RECOVER_UNKNOWN: no fault= feedback — check CAN/power; see log path in JSON below"',
+  'fi',
+].join("\n");
+
 /** motor-repl set-zero + optional position readback (replaces Motor Studio Set Zero). */
 function zeroActuatorRemoteBody(joint: string, verify: boolean): string {
   const lines = [`bin/motor-repl set-zero ${shellQuote(joint)}`];
@@ -137,18 +171,71 @@ export function registerMotionTools(
     },
 
     pi_motor_disable: {
-      description: "motor-repl disable all joints",
-      inputSchema: motionConfirmSchema,
+      description:
+        "motor-repl disable all joints (Robstride DISABLE frame — primary fault clear; no Motor Studio)",
+      inputSchema: motionConfirmSchema.extend({
+        config_dir: z
+          .string()
+          .optional()
+          .describe(
+            "MARENGO_CONFIG_DIR override (default: right-only bench for bare_motor)",
+          ),
+      }),
       handler: async (args: {
         confirm: true;
         confirm_weighted_motion?: true;
         profile?: BenchProfile;
+        config_dir?: string;
       }) => {
         const check = gate(args);
         if (!check.ok) return check.message;
-        const body = wrapRemote(cfg, "bin/motor-repl disable");
+        const configDir =
+          args.config_dir ??
+          (args.profile === "bare_motor" || cfg.benchProfile === "bare_motor"
+            ? "/opt/marengo/config/bringup/shoulder_pitch_right_only"
+            : undefined);
+        const body = wrapRemoteWithConfig(
+          cfg,
+          "bin/motor-repl disable",
+          configDir,
+        );
         const out = await runRemote(body, 30_000);
         auditMotion("pi_motor_disable", args, out, 0);
+        return out;
+      },
+    },
+
+    pi_motor_recover: {
+      description:
+        "Recover after drive fault (replaces Motor Studio clear + manual SSH). " +
+        "pkill marengo-pi → motor-repl disable → brief enable/status → prints RECOVER_OK or RECOVER_FAIL. " +
+        "Logs to var/log/bench-latest.log. Args: confirm:true; optional config_dir (default right-only bench).",
+      inputSchema: motionConfirmSchema.extend({
+        config_dir: z
+          .string()
+          .optional()
+          .describe(
+            "MARENGO_CONFIG_DIR (default /opt/marengo/config/bringup/shoulder_pitch_right_only)",
+          ),
+      }),
+      handler: async (args: {
+        confirm: true;
+        confirm_weighted_motion?: true;
+        profile?: BenchProfile;
+        config_dir?: string;
+      }) => {
+        const check = gate(args);
+        if (!check.ok) return check.message;
+        const configDir =
+          args.config_dir ??
+          "/opt/marengo/config/bringup/shoulder_pitch_right_only";
+        const pipeCmd = [
+          motorRecoverRemoteBody(cfg),
+          motorRecoverSummaryShell,
+        ].join("\n");
+        const body = benchLogWrapper(cfg, pipeCmd, "motor-recover", configDir);
+        const out = await runRemote(body, 45_000);
+        auditMotion("pi_motor_recover", args, out, 0);
         return out;
       },
     },
