@@ -531,13 +531,16 @@ impl<B: MotorBus> Supervisor<B> {
             });
         }
         if out.position_rad < lim.lower || out.position_rad > lim.upper {
-            return Err(DavoutError::Limit {
-                joint: out.joint.clone(),
-                message: format!(
-                    "position {} outside [{}, {}]",
-                    out.position_rad, lim.lower, lim.upper
-                ),
-            });
+            let keepalive = out.kp == 0.0 && out.kd == 0.0 && out.torque_ff_nm == 0.0;
+            if !keepalive {
+                return Err(DavoutError::Limit {
+                    joint: out.joint.clone(),
+                    message: format!(
+                        "position {} outside [{}, {}]",
+                        out.position_rad, lim.lower, lim.upper
+                    ),
+                });
+            }
         }
         let vel_cap = lim.velocity.min(defaults.velocity_max_rad_s);
         if out.velocity_rad_s.abs() > vel_cap {
