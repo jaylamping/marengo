@@ -58,11 +58,13 @@ const benchLogWrapper = (
 };
 
 function marengoPiBinarySelector(cfg: MarengoPiConfig): string {
-  const fallback = `${cfg.piStagingRoot.replace(/^~/, "$HOME")}/target/release/marengo-pi`;
+  const fallback = cfg.piStagingRoot.startsWith("~/")
+    ? `"${"$HOME"}${cfg.piStagingRoot.slice(1)}/target/release/marengo-pi"`
+    : shellQuote(`${cfg.piStagingRoot}/target/release/marengo-pi`);
   return [
     'PI_BIN=bin/marengo-pi',
     'if ! printf \'%s\\n\' help | timeout 2 "$PI_BIN" 2>&1 | grep -q hold-on; then',
-    `  PI_BIN=${shellQuote(fallback)}`,
+    `  PI_BIN=${fallback}`,
     "fi",
   ].join("\n");
 }
