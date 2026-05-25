@@ -140,3 +140,20 @@ Left arm chain: roll **11**, pitch **12**, yaw **13**, elbow **14**. Right arm: 
 | `Device or resource busy` on can0 | Already UP — use `ip link show type can` |
 | Motor silent | Power, termination, wrong `device_id`, run `candump` |
 | Config not found | Set `MARENGO_ROOT` + `MARENGO_CONFIG_DIR` or clone full repo |
+
+## Agent-assisted bench
+
+Cursor agents can drive the Pi over SSH via [`tools/marengo-pi-mcp/`](../tools/marengo-pi-mcp/README.md) (MCP server on your dev Mac).
+
+- **Read-only / logs:** no confirmation — agent should call `pi_logs_*`, `pi_health`, `pi_motor_repl_status` freely.
+- **Deploy:** `pi_sync_main` (pull `main`, cross-build, `install-pi.sh`) — pre-authorized.
+- **Motion:** `confirm: true`; weighted profile also needs `confirm_weighted_motion: true` after two chat approvals.
+- **Session logs:** harness and `pi_marengo_pi_script` tee to `$MARENGO_ROOT/var/log/bench-latest.log`.
+- **Weighted tests backlog:** [bench-test-backlog.md](bench-test-backlog.md)
+
+```bash
+# Manual bench run with session log (same paths MCP uses)
+export MARENGO_ROOT=/opt/marengo
+mkdir -p "$MARENGO_ROOT/var/log"
+./tools/marengo-pi-mcp/harness/log-tee.sh -- /opt/marengo/bin/motor-repl status
+```

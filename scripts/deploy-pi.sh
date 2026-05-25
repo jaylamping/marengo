@@ -16,7 +16,7 @@ if [[ -z "$PI_HOST" ]]; then
   echo "  ${ROOT}/target/${TARGET}/release/marengo-pi"
   echo "  ${ROOT}/target/${TARGET}/release/motor-repl"
   echo ""
-  echo "Deploy: $0 user@marengo"
+  echo "Deploy: $0 joey@marengo.local"
   echo "  or on Pi: git clone + native cargo build + sudo scripts/install-pi.sh"
   exit 0
 fi

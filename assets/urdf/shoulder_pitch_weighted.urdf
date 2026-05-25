@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<!-- Weighted bench URDF: default loaded side = right_upper_arm_stub @ 2.3 kg (measure on scale). -->
+<robot name="shoulder_pitch_weighted">
+  <link name="base_link">
+    <inertial>
+      <mass value="5.0"/>
+      <inertia ixx="0.05" ixy="0" ixz="0" iyy="0.05" iyz="0" izz="0.05"/>
+    </inertial>
+  </link>
+  <link name="left_upper_arm_stub">
+    <inertial>
+      <mass value="1.5"/>
+      <origin xyz="0.15 0 0"/>
+      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/>
+    </inertial>
+  </link>
+  <link name="right_upper_arm_stub">
+    <inertial>
+      <mass value="2.3"/>
+      <origin xyz="0.15 0 0"/>
+      <inertia ixx="0.015" ixy="0" ixz="0" iyy="0.015" iyz="0" izz="0.015"/>
+    </inertial>
+  </link>
+  <joint name="left_shoulder_pitch" type="revolute">
+    <parent link="base_link"/>
+    <child link="left_upper_arm_stub"/>
+    <origin xyz="0 0.12 0.35" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1.2" upper="1.2" effort="10" velocity="2.0"/>
+  </joint>
+  <joint name="right_shoulder_pitch" type="revolute">
+    <parent link="base_link"/>
+    <child link="right_upper_arm_stub"/>
+    <origin xyz="0 -0.12 0.35" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1.2" upper="1.2" effort="10" velocity="2.0"/>
+  </joint>
+</robot>

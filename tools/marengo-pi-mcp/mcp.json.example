@@ -1,0 +1,14 @@
+{
+  "marengo-pi": {
+    "command": "node",
+    "args": ["/Users/jlamping/code/personal/marengo/tools/marengo-pi-mcp/dist/index.js"],
+    "env": {
+      "MARENGO_PI_HOST": "marengo.local",
+      "MARENGO_PI_USER": "joey",
+      "MARENGO_PI_ROOT": "/opt/marengo",
+      "MARENGO_LOCAL_ROOT": "/Users/jlamping/code/personal/marengo",
+      "MARENGO_CONFIG_DIR": "/opt/marengo/config/bringup/shoulder_pitch_dual",
+      "MARENGO_BENCH_PROFILE": "bare_motor"
+    }
+  }
+}

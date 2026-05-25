@@ -1,0 +1,65 @@
+# Marengo Pi MCP
+
+MCP server for Marengo bench control on a Raspberry Pi over SSH. Runs on your **dev Mac**; the Pi is only an SSH target.
+
+## Setup
+
+### SSH
+
+```text
+# ~/.ssh/config
+Host marengo.local
+  Hostname marengo.local
+  User joey
+  IdentityFile ~/.ssh/id_ed25519
+```
+
+Verify: `ssh joey@marengo.local 'echo ok'`
+
+If mDNS fails, set `MARENGO_PI_HOST` to the Pi IP in `mcp.json`.
+
+### Passwordless sudo (Pi)
+
+```sudoers
+joey ALL=(ALL) NOPASSWD: /opt/marengo/scripts/can-up.sh, /opt/marengo/scripts/install-pi.sh
+```
+
+### Build MCP server
+
+```bash
+cd tools/marengo-pi-mcp
+npm install
+npm run build
+```
+
+### Cursor `mcp.json`
+
+Copy [`mcp.json.example`](mcp.json.example) into `.cursor/mcp.json` and adjust paths.
+
+## Tool summary
+
+| Class | Confirm | Examples |
+|-------|---------|----------|
+| Read-only | No | `pi_logs_tail`, `pi_health`, `pi_motor_repl_status`, `pi_gravity_preview` |
+| Admin | No | `pi_can_up`, `pi_sync_main`, `pi_git_pull`, `pi_build` |
+| Motion | Yes | `pi_bench_harness`, `pi_marengo_pi_script`, `pi_jog` |
+
+Weighted profile (`weighted_single_arm`, `arm_attached`) requires **`confirm: true`** and **`confirm_weighted_motion: true`**.
+
+## Deploy (`pi_sync_main`)
+
+1. Local `git pull --ff-only` on `main` (fails if dirty)
+2. `./scripts/deploy-pi.sh joey@marengo.local`
+3. Remote `install-pi.sh` → `/opt/marengo`
+4. Writes `/opt/marengo/.deploy-rev`
+
+## Session logs
+
+Motion runs tee to `$MARENGO_ROOT/var/log/bench-latest.log`. Read with `pi_logs_tail` / `pi_logs_last_fault`.
+
+## Skills
+
+- [`.cursor/skills/marengo-pi-mcp/SKILL.md`](../../.cursor/skills/marengo-pi-mcp/SKILL.md) — log-first bench workflow
+- [`.cursor/skills/marengo-pi-sync/SKILL.md`](../../.cursor/skills/marengo-pi-sync/SKILL.md) — sync-with-main deploy
+
+See also [docs/pi-commissioning.md](../../docs/pi-commissioning.md).
