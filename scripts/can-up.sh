@@ -3,7 +3,11 @@
 set -euo pipefail
 
 BITRATE="${MARENGO_CAN_BITRATE:-1000000}"
-INTERFACES=("${@:-can0 can1}")
+if [ $# -eq 0 ]; then
+  INTERFACES=(can0 can1)
+else
+  INTERFACES=("$@")
+fi
 
 for iface in "${INTERFACES[@]}"; do
   if ! ip link show "$iface" &>/dev/null; then

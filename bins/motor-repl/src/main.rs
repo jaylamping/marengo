@@ -161,6 +161,8 @@ fn main() {
         }
         "enable" => {
             let op = args.get(2).map(String::as_str).unwrap_or("bench");
+            // Each motor-repl invocation is a new process; bench enable marks homing complete here.
+            loop_ctrl.supervisor_mut().set_homing_complete();
             if let Err(e) = loop_ctrl.supervisor_mut().request_enable(true) {
                 eprintln!("enable failed: {e}");
                 std::process::exit(1);
@@ -184,6 +186,11 @@ fn main() {
                 eprintln!("missing or invalid position_rad");
                 std::process::exit(1);
             });
+            loop_ctrl.supervisor_mut().set_homing_complete();
+            if let Err(e) = loop_ctrl.supervisor_mut().request_enable(true) {
+                eprintln!("enable failed: {e}");
+                std::process::exit(1);
+            }
             if let Err(e) = loop_ctrl.supervisor_mut().send_joint_command(JointCommand {
                 joint: joint.to_string(),
                 position_rad: pos,

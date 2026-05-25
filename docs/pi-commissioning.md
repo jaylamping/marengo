@@ -35,7 +35,7 @@ Reboot, then:
 
 ```bash
 ip link show type can
-sudo ./scripts/can-up.sh
+sudo ./scripts/can-up.sh can0 can1
 # or: sudo systemctl enable --now marengo-can.service   (after install-pi.sh)
 ```
 
@@ -95,8 +95,10 @@ cansend can0 0400FF0C#0000000000000000   # disable
 
 ## Phase 5 — Safe motor test ([safety.md](safety.md))
 
+Each `motor-repl` command is a **separate process**; `enable` and `jog` mark homing complete for bench use. Use **`marengo-pi`** for gravity comp (running control loop).
+
 1. E-stop reachable; shoulder supported
-2. `motor-repl home` → `enable bench`
+2. `motor-repl enable bench` (or `home` then `enable` in `marengo-pi`)
 3. Sign test per joint (small torque_ff; fix `direction` in YAML if inverted)
 4. `set-zero <joint>` at mechanical zero
 5. `gravity-preview` with two angles (defaults 0,0)

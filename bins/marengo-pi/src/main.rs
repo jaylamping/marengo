@@ -244,6 +244,7 @@ fn handle_command(
             println!("homing complete → Ready");
         }
         PiCommand::Enable { operator_id } => {
+            loop_ctrl.supervisor_mut().set_homing_complete();
             match loop_ctrl.supervisor_mut().request_enable(true) {
                 Ok(()) => println!("enabled (operator={operator_id})"),
                 Err(e) => eprintln!("enable failed: {e}"),

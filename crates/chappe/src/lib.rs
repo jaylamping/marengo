@@ -74,9 +74,14 @@ impl Bus {
     }
 
     /// Publish encoded envelope bytes to `topic`.
+    ///
+    /// Succeeds when there are no subscribers (bench / headless Pi without Consul).
     pub fn publish_bytes(&self, topic: &str, payload: Vec<u8>) -> Result<(), BusError> {
-        self.sender(topic)
-            .send(payload)
+        let tx = self.sender(topic);
+        if tx.receiver_count() == 0 {
+            return Ok(());
+        }
+        tx.send(payload)
             .map_err(|e| BusError::Publish(e.to_string()))?;
         Ok(())
     }
@@ -151,6 +156,13 @@ mod tests {
         let env = Bus::recv_envelope(&mut rx).await.expect("recv");
         let state = RobotState::decode(env.payload.as_slice()).expect("robot state");
         assert_eq!(state.joints.len(), 1);
+    }
+
+    #[test]
+    fn publish_without_subscribers_succeeds() {
+        let bus = Bus::default();
+        bus.publish_bytes("robot/state", vec![1, 2, 3])
+            .expect("noop publish");
     }
 
     #[tokio::test]
