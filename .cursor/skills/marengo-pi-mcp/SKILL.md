@@ -34,6 +34,8 @@ Prefer **`pi_bench_harness`** for debug sessions. Sustained control uses **`pi_m
 
 **Encoder zero (replaces Motor Studio):** position arm at mechanical zero → **`pi_set_zero`** with `confirm: true`. Default joint `right_shoulder_pitch`; use `config_dir: .../shoulder_pitch_right_only` for isolated right bench. `verify: true` (default) prints feedback position — expect |pos| < 0.05 rad.
 
+**Backdrive:** use **`gravity-on`** in `pi_marengo_pi_script` for weightless hold (stays where you release it). Optional **`impedance-on`** adds damping if it feels too loose later. Right-only URDF mass is ~10% above measured for a touch more support when lifted.
+
 **Weighted proposals:** if logs suggest load/model issues, ask user to run weighted bench now; if deferred, append [docs/bench-test-backlog.md](../../docs/bench-test-backlog.md).
 
 ## Bench workflow

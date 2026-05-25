@@ -51,6 +51,8 @@ enum PiCommand {
     Disable,
     GravityOn,
     GravityOff,
+    ImpedanceOn,
+    ImpedanceOff,
     Status,
     Quit,
 }
@@ -66,6 +68,8 @@ fn parse_command(line: &str) -> Option<PiCommand> {
         "disable" => Some(PiCommand::Disable),
         "gravity-on" | "gravity_on" => Some(PiCommand::GravityOn),
         "gravity-off" | "gravity_off" => Some(PiCommand::GravityOff),
+        "impedance-on" | "impedance_on" => Some(PiCommand::ImpedanceOn),
+        "impedance-off" | "impedance_off" => Some(PiCommand::ImpedanceOff),
         "status" => Some(PiCommand::Status),
         "quit" | "exit" => Some(PiCommand::Quit),
         "help" => {
@@ -86,6 +90,7 @@ fn print_usage() {
          enable [operator_id]\n  \
          disable\n  \
          gravity-on | gravity-off\n  \
+         impedance-on | impedance-off\n  \
          status\n  \
          quit"
     );
@@ -265,6 +270,17 @@ fn handle_command(
             );
         }
         PiCommand::GravityOff => {
+            loop_ctrl.set_control_mode(ControlMode::Disabled);
+            println!("control mode → Disabled");
+        }
+        PiCommand::ImpedanceOn => {
+            loop_ctrl.set_control_mode(ControlMode::Impedance);
+            println!(
+                "control mode → Impedance (operational={:?})",
+                loop_ctrl.supervisor_mut().mode()
+            );
+        }
+        PiCommand::ImpedanceOff => {
             loop_ctrl.set_control_mode(ControlMode::Disabled);
             println!("control mode → Disabled");
         }
