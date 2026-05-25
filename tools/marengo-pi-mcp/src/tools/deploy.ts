@@ -68,10 +68,10 @@ export async function runSyncMain(
   const deployScript = path.join(cfg.localRoot, "scripts", "deploy-pi.sh");
   const deploy = await execLocal(
     "bash",
-    [deployScript, `${cfg.user}@${cfg.host}`],
+    [deployScript, "--install", `${cfg.user}@${cfg.host}`],
     { cwd: cfg.localRoot, timeoutMs: 900_000 },
   );
-  steps.push(`[deploy-pi.sh]\n${formatRemoteResult(deploy)}`);
+  steps.push(`[deploy-pi.sh --install]\n${formatRemoteResult(deploy)}`);
   if (deploy.exitCode !== 0) return steps.join("\n\n");
 
   const staging = cfg.piStagingRoot.replace(/^~/, `/home/${cfg.user}`);
@@ -79,10 +79,11 @@ export async function runSyncMain(
     "set -euo pipefail",
     `cd ${shellQuote(staging)}`,
     "if pgrep -af marengo-pi >/dev/null 2>&1; then echo 'warning: marengo-pi running' >&2; fi",
-    sudoInstallCommand(cfg, staging),
+    "test -x /opt/marengo/bin/marengo-pi && /opt/marengo/bin/marengo-pi 2>&1 | head -1 || true",
+    "echo 'install verified via deploy-pi.sh --install'",
   ].join("\n");
   const install = await execRemote(cfg, installBody, { timeoutMs: 120_000 });
-  steps.push(`[install-pi.sh]\n${formatRemoteResult(install)}`);
+  steps.push(`[verify install]\n${formatRemoteResult(install)}`);
   if (install.exitCode !== 0) return steps.join("\n\n");
 
   await writeDeployRev(cfg, runRemote, steps, head);

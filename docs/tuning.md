@@ -30,7 +30,16 @@ These are Marengo control modes, not Robstride firmware `run_mode` values. Maren
 | Marengo mode | Firmware path | When |
 |--------------|---------------|------|
 | `GravityComp` | MIT `run_mode=0` | First hardware enable, elevated poses |
-| `Impedance` | MIT `run_mode=0` | After G-comp signed off |
-| `Position` | MIT `run_mode=0` | Only when not holding elevated configurations |
+| `Impedance` | MIT `run_mode=0` | Compliant at current pose (setpoint tracks measured q) |
+| `Position` | MIT `run_mode=0` | **Hold-and-return:** latched setpoint via `marengo-pi` `hold-on` / `hold-at` |
+| `Position` (legacy) | MIT `run_mode=0` | Only when not holding elevated configurations without G-comp |
+
+### Position hold (`hold-on`)
+
+1. Validate `GravityComp` at arm-down and mid-range first.
+2. `enable bench` → `hold-on` (latches current encoder pose) or `hold-at <rad>`.
+3. Small push (~±0.1 rad); verify return without oscillation or limit fault.
+4. Sweep `impedance.kp` / `kd` in bring-up `control.yaml`; back off 20% from first oscillation.
+5. `hold-off` / `disable` before leaving bench.
 
 Firmware Speed mode (`run_mode=2`, `spd_ref`) is a bench diagnostic path only and is disabled unless `control.bench.allow_firmware_speed_mode` is set explicitly.

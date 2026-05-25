@@ -47,12 +47,20 @@ fn proto_operational_mode(mode: OperationalMode) -> i32 {
 
 enum PiCommand {
     Home,
-    Enable { operator_id: String },
+    Enable {
+        operator_id: String,
+    },
     Disable,
     GravityOn,
     GravityOff,
     ImpedanceOn,
     ImpedanceOff,
+    HoldOn,
+    HoldAt {
+        joint: Option<String>,
+        position_rad: f64,
+    },
+    HoldOff,
     Status,
     Quit,
 }
@@ -70,6 +78,31 @@ fn parse_command(line: &str) -> Option<PiCommand> {
         "gravity-off" | "gravity_off" => Some(PiCommand::GravityOff),
         "impedance-on" | "impedance_on" => Some(PiCommand::ImpedanceOn),
         "impedance-off" | "impedance_off" => Some(PiCommand::ImpedanceOff),
+        "hold-on" | "hold_on" => Some(PiCommand::HoldOn),
+        "hold-off" | "hold_off" => Some(PiCommand::HoldOff),
+        "hold-at" | "hold_at" => {
+            let tokens: Vec<_> = parts.collect();
+            match tokens.as_slice() {
+                [rad] => {
+                    let position_rad = rad.parse().ok()?;
+                    Some(PiCommand::HoldAt {
+                        joint: None,
+                        position_rad,
+                    })
+                }
+                [joint, rad] => {
+                    let position_rad = rad.parse().ok()?;
+                    Some(PiCommand::HoldAt {
+                        joint: Some(joint.to_string()),
+                        position_rad,
+                    })
+                }
+                _ => {
+                    eprintln!("hold-at usage: hold-at <rad>  OR  hold-at <joint> <rad>");
+                    None
+                }
+            }
+        }
         "status" => Some(PiCommand::Status),
         "quit" | "exit" => Some(PiCommand::Quit),
         "help" => {
@@ -91,6 +124,7 @@ fn print_usage() {
          disable\n  \
          gravity-on | gravity-off\n  \
          impedance-on | impedance-off\n  \
+         hold-on | hold-at [joint] <rad> | hold-off\n  \
          status\n  \
          quit"
     );
@@ -283,6 +317,40 @@ fn handle_command(
         PiCommand::ImpedanceOff => {
             loop_ctrl.set_control_mode(ControlMode::Disabled);
             println!("control mode → Disabled");
+        }
+        PiCommand::HoldOn => match loop_ctrl.enter_position_hold() {
+            Ok(()) => {
+                println!(
+                    "control mode → Position hold (operational={:?})",
+                    loop_ctrl.supervisor_mut().mode()
+                );
+                if let Some(sp) = loop_ctrl.position_setpoints() {
+                    for (name, &q) in loop_ctrl.joint_names().iter().zip(sp) {
+                        println!("  hold {name} = {q:.4} rad");
+                    }
+                }
+            }
+            Err(e) => eprintln!("hold-on failed: {e}"),
+        },
+        PiCommand::HoldAt {
+            joint,
+            position_rad,
+        } => match loop_ctrl.enter_position_hold_at(joint.as_deref(), position_rad) {
+            Ok(()) => {
+                println!(
+                    "control mode → Position hold at {position_rad:.4} rad (operational={:?})",
+                    loop_ctrl.supervisor_mut().mode()
+                );
+                if let Some(j) = joint.as_deref() {
+                    println!("  joint {j}");
+                }
+            }
+            Err(e) => eprintln!("hold-at failed: {e}"),
+        },
+        PiCommand::HoldOff => {
+            loop_ctrl.clear_position_hold();
+            loop_ctrl.set_control_mode(ControlMode::Disabled);
+            println!("hold-off → Disabled");
         }
         PiCommand::Status => print_status(loop_ctrl, config_dir),
         PiCommand::Quit => return false,

@@ -33,7 +33,7 @@
 
 | Symptom | Fix |
 |---------|-----|
-| `linker aarch64-linux-gnu-gcc not found` | Build inside `marengo-dev` image (includes cross toolchain). |
+| `linker aarch64-linux-gnu-gcc not found` | On Mac: `./scripts/setup-mac-pi-cross.sh` then `just deploy-pi`. Or build inside `marengo-dev` image. |
 | Wrong glibc on device | Match Debian/bookworm-based images to Pi OS / JetPack versions. |
 
 ## Proto / Consul codegen

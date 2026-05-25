@@ -34,7 +34,9 @@ Prefer **`pi_bench_harness`** for debug sessions. Sustained control uses **`pi_m
 
 **Encoder zero (replaces Motor Studio):** position arm at mechanical zero → **`pi_set_zero`** with `confirm: true`. Default joint `right_shoulder_pitch`; use `config_dir: .../shoulder_pitch_right_only` for isolated right bench. `verify: true` (default) prints feedback position — expect |pos| < 0.05 rad.
 
-**Backdrive:** use **`gravity-on`** in `pi_marengo_pi_script` with **`timeout_sec: 30`** (default). Script `["home","enable bench","gravity-on"]`, `config_dir: .../shoulder_pitch_right_only`. Stay within ±1.0 rad during manual moves. Optional **`impedance-on`** if it feels too loose later.
+**Backdrive:** use **`gravity-on`** in `pi_marengo_pi_script` with **`timeout_sec: 30`** (default). Script `["home","enable bench","gravity-on"]`, `config_dir: .../shoulder_pitch_right_only`. Stay within ±1.0 rad during manual moves.
+
+**Position hold (return-to-setpoint):** after gravity comp feels good, script `["home","enable bench","hold-on"]` — latches current `q` and commands MIT position targets with gravity FF + impedance `kp`/`kd` from `control.yaml`. Disturb the arm; it should spring back. `hold-at 0.3` (single-joint bench) or `hold-at right_shoulder_pitch 0.3`. `hold-off` or `disable` to stop. Tune `impedance.kp`/`kd` under `config/bringup/shoulder_pitch_right_only/control.yaml`. Start with small disturbances inside ±1.0 rad.
 
 **Weighted proposals:** if logs suggest load/model issues, ask user to run weighted bench now; if deferred, append [docs/bench-test-backlog.md](../../docs/bench-test-backlog.md).
 

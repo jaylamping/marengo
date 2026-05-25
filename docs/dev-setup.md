@@ -38,6 +38,11 @@ If you cannot use Docker, install tools matching [mise.toml](../mise.toml):
 brew install rust protobuf bufbuild/buf/buf node@22
 git lfs install && git lfs pull
 
+# Pi cross-build from Mac (one-time toolchain + deploy)
+./scripts/setup-mac-pi-cross.sh
+./scripts/deploy-pi.sh --install joey@marengo.local
+# or: just deploy-pi
+
 cargo build --workspace
 cd consul && npm ci && npm run gen:proto
 ./scripts/check.sh

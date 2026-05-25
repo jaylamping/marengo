@@ -9,7 +9,7 @@ description: Sync Marengo main to the Pi — pi_sync_main cross-build deploy wit
 
 ## Tool
 
-**`pi_sync_main`** — local `git pull main` → `deploy-pi.sh joey@marengo.local` → `install-pi.sh` → `.deploy-rev`
+**`pi_sync_main`** — local `git pull main` → `deploy-pi.sh --install joey@marengo.local` → `.deploy-rev`. On Mac: `just deploy-pi` (auto-installs cross GCC if missing).
 
 Optional: `strategy: "pi_native"` for on-Pi build (slow).
 
