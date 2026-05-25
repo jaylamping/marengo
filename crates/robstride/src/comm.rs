@@ -42,6 +42,17 @@ impl CommunicationType {
     }
 }
 
+/// Motor id for **inbound** status/fault frames (host id in low byte, motor id at bits 8–15).
+/// Outbound command/lifecycle frames use the motor id in the low byte.
+pub fn inbound_motor_device_id(can_id: u32, comm_type: CommunicationType) -> u8 {
+    match comm_type {
+        CommunicationType::OperationStatus | CommunicationType::FaultReport => {
+            ((can_id >> 8) & 0xFF) as u8
+        }
+        _ => (can_id & 0xFF) as u8,
+    }
+}
+
 pub const EXTENDED_ID_MASK: u32 = 0x1FFF_FFFF;
 pub const DEFAULT_HOST_ID: u8 = 0xFF;
 
@@ -69,6 +80,22 @@ mod tests {
     #![allow(clippy::expect_used)]
 
     use super::*;
+
+    #[test]
+    fn inbound_motor_device_id_status_uses_bits_8_15() {
+        assert_eq!(
+            inbound_motor_device_id(0x028002FF, CommunicationType::OperationStatus),
+            2
+        );
+        assert_eq!(
+            inbound_motor_device_id(0x02800CFF, CommunicationType::OperationStatus),
+            12
+        );
+        assert_eq!(
+            inbound_motor_device_id(0x0300FF0C, CommunicationType::Enable),
+            12
+        );
+    }
 
     #[test]
     fn pack_unpack_vendor_ext_id() {
