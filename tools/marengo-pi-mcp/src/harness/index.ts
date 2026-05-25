@@ -26,11 +26,8 @@ export interface HarnessArgs {
   debug?: boolean;
 }
 
-function marengoScript(
-  lines: string[],
-  timeoutSec: number,
-): string {
-  const printfLines = lines
+function marengoPiPipe(script: string[], timeoutSec: number): string {
+  const printfLines = script
     .map((l) => `printf '%s\\n' ${JSON.stringify(l)}`)
     .join("\n");
   return `${printfLines} | timeout ${timeoutSec} bin/marengo-pi`;
@@ -39,7 +36,7 @@ function marengoScript(
 function benchSessionWrapper(
   cfg: MarengoPiConfig,
   label: string,
-  inner: string,
+  pipeCmd: string,
   debug: boolean,
 ): string {
   const logDir = `${cfg.piRoot}/var/log`;
@@ -53,7 +50,7 @@ function benchSessionWrapper(
       `JSON="$LOGDIR/bench-$TS.json"`,
       `LABEL=${shellQuote(label)}`,
       "echo \"=== bench harness $TS ($LABEL) ===\" | tee \"$LOG\"",
-      `{ ${inner}; } 2>&1 | tee -a "$LOG"`,
+      `${pipeCmd} 2>&1 | tee -a "$LOG"`,
       "ln -sf \"$LOG\" \"$LOGDIR/bench-latest.log\"",
       "echo \"log=$LOG\"",
     ].join("\n"),
@@ -153,8 +150,8 @@ export async function runBenchHarness(
     ];
 
     for (const s of scripts) {
-      const inner = marengoScript(s.lines, 35);
-      const body = benchSessionWrapper(cfg, s.name, inner, debug);
+      const pipeCmd = marengoPiPipe(s.lines, 35);
+      const body = benchSessionWrapper(cfg, s.name, pipeCmd, debug);
       if (!(await step(s.name, body, 45_000))) {
         break;
       }
@@ -174,11 +171,11 @@ export async function runBenchHarness(
       }
     }
 
-    const inner = marengoScript(
+    const pipeCmd = marengoPiPipe(
       ["home", "enable bench", "status", "gravity-on", "status", "disable", "quit"],
       40,
     );
-    const body = benchSessionWrapper(cfg, "weighted_gravity_on", inner, debug);
+    const body = benchSessionWrapper(cfg, "weighted_gravity_on", pipeCmd, debug);
     await step("weighted_gravity_on", body, 50_000);
   }
 

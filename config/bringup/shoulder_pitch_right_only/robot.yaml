@@ -1,0 +1,10 @@
+# Single right shoulder pitch for isolated bench bring-up.
+# Use: MARENGO_CONFIG_DIR=config/bringup/shoulder_pitch_right_only marengo-pi
+robot:
+  name: marengo_shoulder_pitch_right_only
+  urdf: assets/urdf/shoulder_pitch_right_bare.urdf
+  bench:
+    max_joint_velocity_rad_s: 0.5
+    max_joint_torque_nm: 5.0
+  joints:
+    - right_shoulder_pitch

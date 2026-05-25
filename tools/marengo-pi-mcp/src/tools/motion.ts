@@ -12,7 +12,7 @@ const motionConfirmSchema = z.object({
     .optional(),
 });
 
-const benchLogWrapper = (cfg: MarengoPiConfig, inner: string, label: string) => {
+const benchLogWrapper = (cfg: MarengoPiConfig, pipeCmd: string, label: string) => {
   const logDir = `${cfg.piRoot}/var/log`;
   return wrapRemote(
     cfg,
@@ -23,13 +23,20 @@ const benchLogWrapper = (cfg: MarengoPiConfig, inner: string, label: string) => 
       `LOG="$LOGDIR/bench-$TS.log"`,
       `LABEL=${shellQuote(label)}`,
       "echo \"=== bench session $TS ($LABEL) ===\" | tee \"$LOG\"",
-      `{ ${inner}; } 2>&1 | tee -a "$LOG"`,
+      `${pipeCmd} 2>&1 | tee -a "$LOG"`,
       "ln -sf \"$LOG\" \"$LOGDIR/bench-latest.log\"",
       'echo "{\"log\":\"$LOG\",\"ts\":\"$TS\",\"label\":\"$LABEL\"}"',
     ].join("\n"),
     false,
   );
 };
+
+function marengoPiPipe(script: string[], timeoutSec: number): string {
+  const printfLines = script
+    .map((l) => `printf '%s\\n' ${JSON.stringify(l)}`)
+    .join("\n");
+  return `${printfLines} | timeout ${timeoutSec} bin/marengo-pi`;
+}
 
 export function registerMotionTools(
   cfg: MarengoPiConfig,
@@ -151,12 +158,8 @@ export function registerMotionTools(
       }) => {
         const check = gate(args);
         if (!check.ok) return check.message;
-        const lines = args.script.map((l) => `printf '%s\\n' ${JSON.stringify(l)}`).join("\n");
-        const inner = [
-          lines,
-          `| timeout ${args.timeout_sec ?? 30} bin/marengo-pi`,
-        ].join("\n");
-        const body = benchLogWrapper(cfg, inner, "marengo-pi-script");
+        const pipeCmd = marengoPiPipe(args.script, args.timeout_sec ?? 30);
+        const body = benchLogWrapper(cfg, pipeCmd, "marengo-pi-script");
         const out = await runRemote(body, (args.timeout_sec ?? 30) * 1000 + 15_000);
         auditMotion("pi_marengo_pi_script", args, out, 0);
         return out;

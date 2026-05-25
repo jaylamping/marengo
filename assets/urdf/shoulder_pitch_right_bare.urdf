@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<!-- Right shoulder pitch bench load: 75 g dowel, COM 7.875 in from axis; q=0 = arm down. -->
+<robot name="shoulder_pitch_right_bare">
+  <link name="base_link">
+    <inertial>
+      <mass value="0.001"/>
+      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+    </inertial>
+  </link>
+  <link name="right_upper_arm_stub">
+    <inertial>
+      <mass value="0.075"/>
+      <origin xyz="0 0 -0.200025" rpy="0 0 0"/>
+      <inertia ixx="0.001" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.0001"/>
+    </inertial>
+  </link>
+  <joint name="right_shoulder_pitch" type="revolute">
+    <parent link="base_link"/>
+    <child link="right_upper_arm_stub"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1.2" upper="1.2" effort="10" velocity="2.0"/>
+  </joint>
+</robot>
