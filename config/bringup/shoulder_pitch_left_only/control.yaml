@@ -27,7 +27,7 @@ control:
       # hold-at / retarget: ramp setpoint at this rate (rad/s) instead of stepping instantly.
       position_slew_rad_s: 15.0
       position_slew_max_lead_rad: 0.5
-      # Bench trim: encoder zero slightly ahead of mechanical arm-down (tune by eye).
+      # Bench trim stays zero after set-zero at mechanical arm-down.
       position_hold_trim_rad: 0.0
       friction:
         fc: 0.0

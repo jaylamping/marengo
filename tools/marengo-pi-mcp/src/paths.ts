@@ -5,10 +5,14 @@ import type { MarengoPiConfig } from "./config.js";
 export function isAllowedReadPath(cfg: MarengoPiConfig, requested: string): boolean {
   const normalized = path.posix.normalize(requested.replace(/\\/g, "/"));
   if (normalized.includes("..")) return false;
+  const stagingRoot = cfg.piStagingRoot.startsWith("~/")
+    ? `/home/${cfg.user}${cfg.piStagingRoot.slice(1)}`
+    : cfg.piStagingRoot;
 
   const allowPrefixes = [
     `${cfg.piRoot}/config/`,
     `${cfg.piRoot}/var/log/`,
+    `${stagingRoot}/config/`,
     "/etc/marengo/env",
   ];
 
