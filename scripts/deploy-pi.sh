@@ -74,12 +74,9 @@ rsync -a "${ROOT}/assets/" "$STAGING/assets/"
 rsync -a "${ROOT}/scripts/" "$STAGING/scripts/"
 
 REMOTE_ROOT="${MARENGO_INSTALL_ROOT:-~/marengo}"
-echo "Syncing to ${PI_HOST}:${REMOTE_ROOT}..."
+echo "Syncing to ${PI_HOST}:${REMOTE_ROOT}/ ..."
 rsync -av --delete \
-  "$STAGING/target/release/" \
-  "$STAGING/config/" \
-  "$STAGING/assets/" \
-  "$STAGING/scripts/" \
+  "$STAGING/" \
   "${PI_HOST}:${REMOTE_ROOT}/"
 
 if [[ "$DO_INSTALL" == true ]]; then
@@ -89,13 +86,16 @@ if [[ "$DO_INSTALL" == true ]]; then
     ssh "$PI_HOST" "echo \$(git -C /opt/marengo rev-parse HEAD 2>/dev/null || echo unknown) \$(date -u +%Y-%m-%dT%H:%M:%SZ) > ${REMOTE_ROOT}/.deploy-rev && cat ${REMOTE_ROOT}/.deploy-rev" || true
   else
     echo ""
-    echo "warn: passwordless sudo not available — install manually on the Pi:"
-    echo "  ssh ${PI_HOST} 'cd ${REMOTE_ROOT} && sudo MARENGO_INSTALL_ROOT=/opt/marengo ./scripts/install-pi.sh'"
+    echo "warn: passwordless sudo not available — on the Pi (already logged in), run:"
+    echo "  cd ${REMOTE_ROOT} && sudo MARENGO_INSTALL_ROOT=/opt/marengo ./scripts/install-pi.sh"
     echo ""
-    echo "Until then, bench with: ${REMOTE_ROOT}/marengo-pi (MARENGO_ROOT=/opt/marengo)"
+    echo "If install-pi.sh is missing, re-run deploy from Mac: just deploy-pi"
+    echo "Quick binary-only fix on Pi:"
+    echo "  sudo install -m 755 ${REMOTE_ROOT}/target/release/marengo-pi /opt/marengo/bin/marengo-pi"
+    echo "  sudo install -m 755 ${REMOTE_ROOT}/target/release/motor-repl /opt/marengo/bin/motor-repl"
   fi
 else
   echo "On the Pi:"
   echo "  cd ${REMOTE_ROOT} && sudo MARENGO_INSTALL_ROOT=/opt/marengo ./scripts/install-pi.sh"
-  echo "Or re-run: $0 --install ${PI_HOST}"
+  echo "Or re-run from Mac: $0 --install ${PI_HOST}"
 fi

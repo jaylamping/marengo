@@ -21,9 +21,23 @@ usermod -aG dialout "$RUN_USER" || true
 mkdir -p "${INSTALL_ROOT}/bin" "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets" "${INSTALL_ROOT}/var/log"
 chmod 775 "${INSTALL_ROOT}/var" "${INSTALL_ROOT}/var/log" 2>/dev/null || true
 chown root:"${RUN_USER}" "${INSTALL_ROOT}/var" "${INSTALL_ROOT}/var/log" 2>/dev/null || true
-install -m 755 "${ROOT}/target/release/marengo-pi" "${INSTALL_ROOT}/bin/marengo-pi"
-if [[ -f "${ROOT}/target/release/motor-repl" ]]; then
-  install -m 755 "${ROOT}/target/release/motor-repl" "${INSTALL_ROOT}/bin/motor-repl"
+
+PI_BIN="${ROOT}/target/release/marengo-pi"
+REPL_BIN="${ROOT}/target/release/motor-repl"
+# Flat deploy layout (legacy rsync): binaries at repo root
+if [[ ! -f "$PI_BIN" && -f "${ROOT}/marengo-pi" ]]; then
+  PI_BIN="${ROOT}/marengo-pi"
+fi
+if [[ ! -f "$REPL_BIN" && -f "${ROOT}/motor-repl" ]]; then
+  REPL_BIN="${ROOT}/motor-repl"
+fi
+if [[ ! -f "$PI_BIN" ]]; then
+  echo "error: marengo-pi not found under ${ROOT}/target/release/ or ${ROOT}/" >&2
+  exit 1
+fi
+install -m 755 "$PI_BIN" "${INSTALL_ROOT}/bin/marengo-pi"
+if [[ -f "$REPL_BIN" ]]; then
+  install -m 755 "$REPL_BIN" "${INSTALL_ROOT}/bin/motor-repl"
 fi
 
 rsync -a --delete "${ROOT}/config/" "${INSTALL_ROOT}/config/"
