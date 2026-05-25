@@ -184,7 +184,7 @@ export function registerMotionTools(
           .array(z.string())
           .min(1)
           .describe("Lines to pipe to marengo-pi stdin"),
-        timeout_sec: z.number().int().min(5).max(120).default(30),
+        timeout_sec: z.number().int().min(5).max(120).default(60),
       }),
       handler: async (args: {
         confirm: true;
@@ -195,9 +195,9 @@ export function registerMotionTools(
       }) => {
         const check = gate(args);
         if (!check.ok) return check.message;
-        const pipeCmd = marengoPiPipe(args.script, args.timeout_sec ?? 30);
+        const pipeCmd = marengoPiPipe(args.script, args.timeout_sec ?? 60);
         const body = benchLogWrapper(cfg, pipeCmd, "marengo-pi-script");
-        const out = await runRemote(body, (args.timeout_sec ?? 30) * 1000 + 15_000);
+        const out = await runRemote(body, (args.timeout_sec ?? 60) * 1000 + 15_000);
         auditMotion("pi_marengo_pi_script", args, out, 0);
         return out;
       },
