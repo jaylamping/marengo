@@ -28,7 +28,7 @@ control:
       position_slew_rad_s: 15.0
       position_slew_max_lead_rad: 0.5
       # Bench trim: encoder zero slightly ahead of mechanical arm-down (tune by eye).
-      position_hold_trim_rad: -0.043
+      position_hold_trim_rad: 0.0
       # Position hold (hold-on) reuses impedance kp/kd with a latched q_des + tau_g.
       friction:
         fc: 0.0

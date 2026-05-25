@@ -75,7 +75,7 @@ RUST_LOG=robstride=info,davout=info,berthier=info,motor_repl=info
 | **A1 — left bench only** | `config/bringup/shoulder_pitch_left_only` | `left_shoulder_pitch` on can1, id 12 (mirrors right tuning) |
 | **B — left 4-DOF arm** | `config/bringup/arm_4dof_left` or `config` | all on can0, IDs 11–14 |
 
-Single-shoulder bench profiles share impedance **kp=12 / kd=0.75**, slew **15 rad/s**, max lead **0.5**, trim **-0.043**, upper **1.65 rad**. Commission each side with **`pi_set_zero`** at mechanical home before hold-at round trips.
+Single-shoulder bench profiles share impedance **kp=12 / kd=0.75**, slew **15 rad/s**, max lead **0.5**, and trim **0.0** once firmware zero is set at arm-down. Operator shoulder-pitch limits are **[-0.872665, 3.141593] rad** (arm down = 0, -50° to +180°); hard bench/URDF limits are widened to **[-0.9, 3.17] rad** with URDF soft limits at the operator range. Commission each side with **`pi_set_zero`** at mechanical home before hold-at round trips.
 
 Trim `motors.yaml` joint list to only wired actuators while building the arm incrementally.
 

@@ -12,6 +12,13 @@ function expandStagingRoot(cfg: MarengoPiConfig): string {
   return cfg.piStagingRoot;
 }
 
+function remotePathExpr(path: string): string {
+  if (path.startsWith("$HOME/")) {
+    return `"${"$HOME"}${path.slice("$HOME".length)}"`;
+  }
+  return shellQuote(path);
+}
+
 export async function runSyncBenchConfig(
   cfg: MarengoPiConfig,
   runRemote: (body: string, timeoutMs?: number) => Promise<string>,
@@ -47,7 +54,7 @@ export async function runSyncBenchConfig(
   const verifyBody = wrapRemote(
     cfg,
     [
-      `grep -A3 'impedance:' ${shellQuote(`${expandStagingRoot(cfg)}/${remoteRel}/control.yaml`)}`,
+      `grep -A3 'impedance:' ${remotePathExpr(`${expandStagingRoot(cfg)}/${remoteRel}/control.yaml`)}`,
     ].join("\n"),
   );
   const verify = await runRemote(verifyBody, 15_000);
@@ -57,7 +64,7 @@ export async function runSyncBenchConfig(
     const installBody = wrapRemote(
       cfg,
       [
-        `SRC=${shellQuote(`${expandStagingRoot(cfg)}/${remoteRel}`)}`,
+        `SRC=${remotePathExpr(`${expandStagingRoot(cfg)}/${remoteRel}`)}`,
         `DST=${shellQuote(remoteOpt)}`,
         'if sudo -n true 2>/dev/null; then',
         '  sudo mkdir -p "$DST"',

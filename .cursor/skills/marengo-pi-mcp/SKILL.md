@@ -53,7 +53,7 @@ Prefer **`pi_bench_harness`** for debug sessions. Sustained control uses **`pi_m
 
 **Backdrive:** use **`gravity-on`** in `pi_marengo_pi_script` with **`timeout_sec: 30`** (default). Script `["home","enable bench","gravity-on"]`, `joint: left_shoulder_pitch` or right equivalent. Stay within ±1.0 rad during manual moves.
 
-**Position hold:** **`pi_hold_on`** (`confirm: true`, `joint: left_shoulder_pitch` for left bench) — set-zero, `hold-on` or `position_rad` for `hold-at`, 30 s default, logs to `var/log`. **`pi_hold_off`** with same `joint` to stop. Both shoulders (mirrored hardware): **kp=12, kd=0.75**, slew **15 rad/s**, max_lead **0.5**, trim **-0.043**, upper **1.65 rad**. Sync profile to Pi before hold tests if YAML changed locally. **Hands off** during scripted round trips.
+**Position hold:** **`pi_hold_on`** (`confirm: true`, `joint: left_shoulder_pitch` for left bench) — set-zero, `hold-on` or `position_rad` for `hold-at`, 30 s default, logs to `var/log`. **`pi_hold_off`** with same `joint` to stop. Both shoulders (mirrored hardware): **kp=12, kd=0.75**, slew **15 rad/s**, max_lead **0.5**, trim **0.0** after set-zero at arm-down. Operator limits are **[-0.872665, 3.141593] rad** (-50° to +180°); hard bench/URDF envelope is **[-0.9, 3.17] rad**. Sync profile to Pi before hold tests if YAML changed locally. **Hands off** during scripted round trips.
 
 **Left bench round trip (hands off):** `pi_marengo_pi_script` with `joint: left_shoulder_pitch`, script `home` → `enable bench` → `hold-at 0` (pause) → `hold-at 1.570796` → `hold-at 0` → `disable`, `timeout_sec` ≥ 25.
 
