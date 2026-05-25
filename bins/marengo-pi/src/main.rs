@@ -338,7 +338,7 @@ fn handle_command(
         } => match loop_ctrl.enter_position_hold_at(joint.as_deref(), position_rad) {
             Ok(()) => {
                 println!(
-                    "control mode → Position hold at {position_rad:.4} rad (operational={:?})",
+                    "control mode → Position hold → target {position_rad:.4} rad (ramping, operational={:?})",
                     loop_ctrl.supervisor_mut().mode()
                 );
                 if let Some(j) = joint.as_deref() {

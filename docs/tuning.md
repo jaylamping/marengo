@@ -38,8 +38,9 @@ These are Marengo control modes, not Robstride firmware `run_mode` values. Maren
 
 1. Validate `GravityComp` at arm-down and mid-range first.
 2. `enable bench` → `hold-on` (latches current encoder pose) or `hold-at <rad>`.
-3. Small push (~±0.1 rad); verify return without oscillation or limit fault.
-4. Sweep `impedance.kp` / `kd` in bring-up `control.yaml`; back off 20% from first oscillation.
-5. `hold-off` / `disable` before leaving bench.
+3. **`hold-at` ramps** toward the target at each joint's `position_slew_rad_s` (default **0.25 rad/s**). `position_slew_max_lead_rad` caps how far the command may run ahead of measured `q` so soft gains still reach the target before retarget/return.
+4. Small push (~±0.1 rad); verify return without oscillation or limit fault.
+5. Sweep `impedance.kp` / `kd` in bring-up `control.yaml`; back off 20% from first oscillation.
+6. `hold-off` / `disable` before leaving bench.
 
 Firmware Speed mode (`run_mode=2`, `spd_ref`) is a bench diagnostic path only and is disabled unless `control.bench.allow_firmware_speed_mode` is set explicitly.

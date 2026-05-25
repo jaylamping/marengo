@@ -40,8 +40,10 @@ pub struct ControlLoop<B: MotorBus> {
     dynamics: UrdfGravityModel,
     joint_names: Vec<String>,
     control_mode: ControlMode,
-    /// Latched joint-space targets for [`ControlMode::Position`] (hold-on / hold-at).
+    /// Final joint-space targets for [`ControlMode::Position`] (hold-on / hold-at).
     position_setpoints: Option<Vec<f64>>,
+    /// Ramped MIT position commands — slews toward [`Self::position_setpoints`] each tick.
+    position_commands: Option<Vec<f64>>,
     loop_period: Duration,
     chappe_publish_period: Duration,
     last_chappe: Option<Instant>,
@@ -67,6 +69,7 @@ impl<B: MotorBus> ControlLoop<B> {
             joint_names,
             control_mode: ControlMode::Disabled,
             position_setpoints: None,
+            position_commands: None,
             loop_period: Duration::from_secs_f64(1.0 / f64::from(loop_hz.max(1))),
             chappe_publish_period: Duration::from_secs_f64(1.0 / f64::from(chappe_hz.max(1))),
             last_chappe: None,
@@ -74,13 +77,20 @@ impl<B: MotorBus> ControlLoop<B> {
         })
     }
 
-    /// Capture current joint positions as MIT position targets.
+    /// Capture current joint positions as hold targets and commands (no ramp).
     pub fn latch_position_setpoints(&mut self) {
-        self.position_setpoints = Some(self.read_positions());
+        let q = self.read_positions();
+        self.position_setpoints = Some(q.clone());
+        self.position_commands = Some(q);
     }
 
     pub fn position_setpoints(&self) -> Option<&[f64]> {
         self.position_setpoints.as_deref()
+    }
+
+    /// Ramped MIT position commands (for status / tests); slews toward [`Self::position_setpoints`].
+    pub fn position_hold_commands(&self) -> Option<&[f64]> {
+        self.position_commands.as_deref()
     }
 
     pub fn set_joint_position_setpoint(
@@ -91,22 +101,36 @@ impl<B: MotorBus> ControlLoop<B> {
         if self.position_setpoints.is_none() {
             self.latch_position_setpoints();
         }
-        let Some(setpoints) = self.position_setpoints.as_mut() else {
-            return Err(LoopError::MissingSetpoint {
-                joint: joint.to_string(),
-            });
-        };
         let Some(i) = self.joint_names.iter().position(|n| n == joint) else {
             return Err(LoopError::UnknownJoint {
                 joint: joint.to_string(),
             });
         };
-        setpoints[i] = position_rad;
+        let target = self.hold_target_for_joint(joint, position_rad);
+        let Some(setpoints) = self.position_setpoints.as_mut() else {
+            return Err(LoopError::MissingSetpoint {
+                joint: joint.to_string(),
+            });
+        };
+        setpoints[i] = target;
         Ok(())
+    }
+
+    fn hold_target_for_joint(&self, joint: &str, position_rad: f64) -> f64 {
+        let trim = self
+            .supervisor
+            .control
+            .control
+            .joints
+            .get(joint)
+            .map(|c| c.position_hold_trim_rad)
+            .unwrap_or(0.0);
+        position_rad + trim
     }
 
     pub fn clear_position_hold(&mut self) {
         self.position_setpoints = None;
+        self.position_commands = None;
     }
 
     /// Latch current `q` and enter [`ControlMode::Position`] (gravity FF + impedance gains).
@@ -122,12 +146,19 @@ impl<B: MotorBus> ControlLoop<B> {
         joint: Option<&str>,
         position_rad: f64,
     ) -> Result<(), LoopError> {
+        let q = self.read_positions();
         if self.joint_names.len() == 1 {
-            self.position_setpoints = Some(vec![position_rad]);
+            let name = self.joint_names[0].clone();
+            let target = self.hold_target_for_joint(&name, position_rad);
+            self.position_setpoints = Some(vec![target]);
+            self.position_commands = Some(q);
         } else {
             let joint = joint.ok_or(LoopError::JointNameRequired)?;
             if self.position_setpoints.is_none() {
-                self.latch_position_setpoints();
+                self.position_setpoints = Some(q.clone());
+            }
+            if self.position_commands.is_none() {
+                self.position_commands = Some(q);
             }
             self.set_joint_position_setpoint(joint, position_rad)?;
         }
@@ -142,6 +173,7 @@ impl<B: MotorBus> ControlLoop<B> {
     pub fn set_control_mode(&mut self, mode: ControlMode) {
         if mode != ControlMode::Position {
             self.position_setpoints = None;
+            self.position_commands = None;
         }
         self.control_mode = mode;
         self.supervisor.set_control_mode(mode);
@@ -169,6 +201,11 @@ impl<B: MotorBus> ControlLoop<B> {
             if self.control_mode != ControlMode::Disabled {
                 let tau_g = self.dynamics.gravity_torques(&q)?;
 
+                if self.control_mode == ControlMode::Position {
+                    self.advance_position_commands(&q)?;
+                }
+
+                let q_cmd = self.position_commands.as_deref();
                 let mut batch = Vec::new();
                 for (i, name) in self.joint_names.iter().enumerate() {
                     let (kp, kd, tau_ff, q_des) = match self.control_mode {
@@ -191,12 +228,11 @@ impl<B: MotorBus> ControlLoop<B> {
                             let cfg = self.supervisor.control.control.joints.get(name);
                             let kp = cfg.map(|c| c.impedance.kp).unwrap_or(20.0);
                             let kd = cfg.map(|c| c.impedance.kd).unwrap_or(1.0);
-                            let q_des = self
-                                .position_setpoints
-                                .as_ref()
-                                .and_then(|sp| sp.get(i).copied())
-                                .ok_or_else(|| LoopError::MissingSetpoint {
-                                    joint: name.clone(),
+                            let q_des =
+                                q_cmd.and_then(|sp| sp.get(i).copied()).ok_or_else(|| {
+                                    LoopError::MissingSetpoint {
+                                        joint: name.clone(),
+                                    }
                                 })?;
                             (kp, kd, tau_g[i], q_des)
                         }
@@ -247,6 +283,29 @@ impl<B: MotorBus> ControlLoop<B> {
 
         self.tick_count += 1;
         debug!(tick = self.tick_count, ?self.control_mode, "control tick");
+        Ok(())
+    }
+
+    /// Ramp commanded hold poses toward latched targets for this tick.
+    fn advance_position_commands(&mut self, q: &[f64]) -> Result<(), LoopError> {
+        let Some(targets) = self.position_setpoints.as_ref() else {
+            return Ok(());
+        };
+        if self.position_commands.is_none() {
+            self.position_commands = Some(q.to_vec());
+        }
+        let Some(commands) = self.position_commands.as_mut() else {
+            return Ok(());
+        };
+        let dt = self.loop_period.as_secs_f64();
+        for (i, name) in self.joint_names.iter().enumerate() {
+            let cfg = self.supervisor.control.control.joints.get(name);
+            let slew_rad_s = cfg.map(|c| c.position_slew_rad_s).unwrap_or(0.25);
+            let max_lead = cfg.map(|c| c.position_slew_max_lead_rad).unwrap_or(0.15);
+            let max_step = slew_rad_s * dt;
+            commands[i] = slew_toward(commands[i], targets[i], max_step);
+            commands[i] = commands[i].clamp(q[i] - max_lead, q[i] + max_lead);
+        }
         Ok(())
     }
 
@@ -313,6 +372,16 @@ impl<B: MotorBus> ControlLoop<B> {
     /// Preview gravity torques without sending (for motor-repl status).
     pub fn preview_gravity_torques(&self, q: &[f64]) -> Result<Vec<f64>, LoopError> {
         Ok(self.dynamics.gravity_torques(q)?)
+    }
+}
+
+/// Move `current` toward `target` by at most `max_step` (rad).
+fn slew_toward(current: f64, target: f64, max_step: f64) -> f64 {
+    let err = target - current;
+    if err.abs() <= max_step {
+        target
+    } else {
+        current + max_step.copysign(err)
     }
 }
 
@@ -403,5 +472,61 @@ mod tests {
             .expect("hold-at");
         loop_ctrl.tick(None).expect("tick");
         assert_eq!(loop_ctrl.supervisor_mut().mode(), OperationalMode::Active);
+    }
+
+    #[test]
+    fn slew_toward_steps_and_snaps() {
+        assert!((slew_toward(0.0, 1.0, 0.25) - 0.25).abs() < 1e-12);
+        assert!((slew_toward(0.9, 1.0, 0.25) - 1.0).abs() < 1e-12);
+        assert!((slew_toward(0.0, -1.0, 0.1) - (-0.1)).abs() < 1e-12);
+    }
+
+    #[test]
+    fn slew_max_lead_clamps_command_ahead_of_measured_q() {
+        let mut loop_ctrl = test_loop();
+        loop_ctrl
+            .enter_position_hold_at(Some("shoulder_pitch"), 1.2)
+            .expect("hold-at");
+        loop_ctrl.supervisor_mut().set_homing_complete();
+        loop_ctrl
+            .supervisor_mut()
+            .request_enable(true)
+            .expect("enable");
+        loop_ctrl.tick(None).expect("tick");
+        let i = loop_ctrl
+            .joint_names()
+            .iter()
+            .position(|n| n == "shoulder_pitch")
+            .expect("joint");
+        let cmd = loop_ctrl.position_hold_commands().expect("cmd")[i];
+        assert!(cmd < 0.2, "first tick must not jump to 1.2 rad target");
+    }
+
+    #[test]
+    fn hold_at_ramps_command_not_instant_setpoint() {
+        let mut loop_ctrl = test_loop();
+        loop_ctrl
+            .enter_position_hold_at(Some("shoulder_pitch"), 1.2)
+            .expect("hold-at");
+        let i = loop_ctrl
+            .joint_names()
+            .iter()
+            .position(|n| n == "shoulder_pitch")
+            .expect("joint index");
+        let target = loop_ctrl.position_setpoints().expect("target")[i];
+        assert!((target - 1.2).abs() < 1e-9);
+        let cmd0 = loop_ctrl.position_hold_commands().expect("commands")[i];
+        assert!(cmd0.abs() < 1e-6, "command starts at measured q≈0");
+        loop_ctrl.supervisor_mut().set_homing_complete();
+        loop_ctrl
+            .supervisor_mut()
+            .request_enable(true)
+            .expect("enable");
+        loop_ctrl.tick(None).expect("tick");
+        let cmd1 = loop_ctrl.position_hold_commands().expect("commands")[i];
+        assert!(
+            cmd1 > cmd0 && cmd1 < target,
+            "first tick slews toward target"
+        );
     }
 }

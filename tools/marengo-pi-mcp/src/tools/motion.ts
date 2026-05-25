@@ -12,30 +12,76 @@ const motionConfirmSchema = z.object({
     .optional(),
 });
 
-const benchLogWrapper = (cfg: MarengoPiConfig, pipeCmd: string, label: string) => {
+const benchLogWrapper = (
+  cfg: MarengoPiConfig,
+  pipeCmd: string,
+  label: string,
+  configDir?: string,
+) => {
   const logDir = `${cfg.piRoot}/var/log`;
-  return wrapRemote(
-    cfg,
-    [
-      `LOGDIR=${shellQuote(logDir)}`,
-      "mkdir -p \"$LOGDIR\"",
-      'TS=$(date -u +"%Y%m%dT%H%M%SZ")',
-      `LOG="$LOGDIR/bench-$TS.log"`,
-      `LABEL=${shellQuote(label)}`,
-      "echo \"=== bench session $TS ($LABEL) ===\" | tee \"$LOG\"",
-      `${pipeCmd} 2>&1 | tee -a "$LOG"`,
-      "ln -sf \"$LOG\" \"$LOGDIR/bench-latest.log\"",
-      'echo "{\"log\":\"$LOG\",\"ts\":\"$TS\",\"label\":\"$LABEL\"}"',
-    ].join("\n"),
-    false,
-  );
+  const body = [
+    `LOGDIR=${shellQuote(logDir)}`,
+    'mkdir -p "$LOGDIR"',
+    'TS=$(date -u +"%Y%m%dT%H%M%SZ")',
+    'LOG="$LOGDIR/bench-$TS.log"',
+    `LABEL=${shellQuote(label)}`,
+    'echo "=== bench session $TS ($LABEL) ===" | tee "$LOG"',
+    `${pipeCmd} 2>&1 | tee -a "$LOG"`,
+    'ln -sf "$LOG" "$LOGDIR/bench-latest.log"',
+    'echo "{\"log\":\"$LOG\",\"ts\":\"$TS\",\"label\":\"$LABEL\"}"',
+  ].join("\n");
+  return configDir
+    ? wrapRemoteWithConfig(cfg, body, configDir)
+    : wrapRemote(cfg, body, false);
 };
 
-function marengoPiPipe(script: string[], timeoutSec: number): string {
+function marengoPiBinarySelector(cfg: MarengoPiConfig): string {
+  const fallback = `${cfg.piStagingRoot.replace(/^~/, "$HOME")}/target/release/marengo-pi`;
+  return [
+    'PI_BIN=bin/marengo-pi',
+    'if ! printf \'%s\\n\' help | timeout 2 "$PI_BIN" 2>&1 | grep -q hold-on; then',
+    `  PI_BIN=${shellQuote(fallback)}`,
+    "fi",
+  ].join("\n");
+}
+
+function marengoPiPipe(script: string[], timeoutSec: number, binary = "$PI_BIN"): string {
   const printfLines = script
     .map((l) => `printf '%s\\n' ${JSON.stringify(l)}`)
     .join("\n");
-  return `${printfLines} | timeout ${timeoutSec} bin/marengo-pi`;
+  return `${printfLines} | timeout ${timeoutSec} ${binary}`;
+}
+
+function holdSessionRemoteBody(
+  cfg: MarengoPiConfig,
+  args: {
+    joint: string;
+    setZero: boolean;
+    killStale: boolean;
+    operator: string;
+    positionRad?: number;
+    timeoutSec: number;
+  },
+): string {
+  const lines: string[] = [];
+  if (args.killStale) {
+    lines.push("pkill -f 'marengo-pi' 2>/dev/null || true", "sleep 0.3");
+  }
+  lines.push("bin/motor-repl disable 2>/dev/null || true");
+  if (args.setZero) {
+    lines.push(`bin/motor-repl set-zero ${shellQuote(args.joint)}`);
+  }
+  lines.push(marengoPiBinarySelector(cfg));
+  const holdLine =
+    args.positionRad !== undefined ? `hold-at ${args.positionRad}` : "hold-on";
+  lines.push(
+    marengoPiPipe(
+      ["home", `enable ${args.operator}`, holdLine],
+      args.timeoutSec,
+    ),
+  );
+  lines.push("bin/motor-repl disable");
+  return lines.join("\n");
 }
 
 /** motor-repl set-zero + optional position readback (replaces Motor Studio Set Zero). */
@@ -176,10 +222,95 @@ export function registerMotionTools(
       },
     },
 
+    pi_hold_on: {
+      description:
+        "Compliant position hold: set-zero (optional), home, enable, hold-on or hold-at. " +
+        "Uses kp/kd/slew/trim from control.yaml (right-only bench: kp=12 kd=0.75). Logs to var/log. " +
+        "Call pi_sync_bench_config first if control.yaml was edited locally.",
+      inputSchema: motionConfirmSchema.extend({
+        config_dir: z
+          .string()
+          .optional()
+          .describe(
+            "MARENGO_CONFIG_DIR override (default: MCP env or shoulder_pitch_right_only)",
+          ),
+        joint: z.string().default("right_shoulder_pitch"),
+        timeout_sec: z.number().int().min(5).max(120).default(30),
+        set_zero: z.boolean().default(true),
+        kill_stale: z
+          .boolean()
+          .default(true)
+          .describe("pkill stale marengo-pi before session"),
+        position_rad: z
+          .number()
+          .optional()
+          .describe("If set, use hold-at instead of latching current pose"),
+        operator: z.string().default("bench"),
+      }),
+      handler: async (args: {
+        confirm: true;
+        confirm_weighted_motion?: true;
+        profile?: BenchProfile;
+        config_dir?: string;
+        joint?: string;
+        timeout_sec?: number;
+        set_zero?: boolean;
+        kill_stale?: boolean;
+        position_rad?: number;
+        operator?: string;
+      }) => {
+        const check = gate(args);
+        if (!check.ok) return check.message;
+        const timeoutSec = args.timeout_sec ?? 30;
+        const pipeCmd = holdSessionRemoteBody(cfg, {
+          joint: args.joint ?? "right_shoulder_pitch",
+          setZero: args.set_zero ?? true,
+          killStale: args.kill_stale ?? true,
+          operator: args.operator ?? "bench",
+          positionRad: args.position_rad,
+          timeoutSec,
+        });
+        const body = benchLogWrapper(cfg, pipeCmd, "hold-on", args.config_dir);
+        const out = await runRemote(body, timeoutSec * 1000 + 20_000);
+        auditMotion("pi_hold_on", args, out, 0);
+        return out;
+      },
+    },
+
+    pi_hold_off: {
+      description: "Stop hold: pkill marengo-pi and motor-repl disable",
+      inputSchema: motionConfirmSchema.extend({
+        config_dir: z.string().optional(),
+      }),
+      handler: async (args: {
+        confirm: true;
+        confirm_weighted_motion?: true;
+        profile?: BenchProfile;
+        config_dir?: string;
+      }) => {
+        const check = gate(args);
+        if (!check.ok) return check.message;
+        const body = wrapRemoteWithConfig(
+          cfg,
+          ["pkill -f 'marengo-pi' 2>/dev/null || true", "bin/motor-repl disable"].join(
+            "\n",
+          ),
+          args.config_dir,
+        );
+        const out = await runRemote(body, 20_000);
+        auditMotion("pi_hold_off", args, out, 0);
+        return out;
+      },
+    },
+
     pi_marengo_pi_script: {
       description:
-        "Pipe stdin script to marengo-pi (enable/gravity-on/status/disable/quit); logs to var/log",
+        "Pipe stdin script to marengo-pi (enable/gravity-on/hold-on/status/disable/quit); logs to var/log",
       inputSchema: motionConfirmSchema.extend({
+        config_dir: z
+          .string()
+          .optional()
+          .describe("MARENGO_CONFIG_DIR override"),
         script: z
           .array(z.string())
           .min(1)
@@ -190,14 +321,19 @@ export function registerMotionTools(
         confirm: true;
         confirm_weighted_motion?: true;
         profile?: BenchProfile;
+        config_dir?: string;
         script: string[];
         timeout_sec?: number;
       }) => {
         const check = gate(args);
         if (!check.ok) return check.message;
-        const pipeCmd = marengoPiPipe(args.script, args.timeout_sec ?? 30);
-        const body = benchLogWrapper(cfg, pipeCmd, "marengo-pi-script");
-        const out = await runRemote(body, (args.timeout_sec ?? 30) * 1000 + 15_000);
+        const timeoutSec = args.timeout_sec ?? 30;
+        const pipeCmd = [
+          marengoPiBinarySelector(cfg),
+          marengoPiPipe(args.script, timeoutSec),
+        ].join("\n");
+        const body = benchLogWrapper(cfg, pipeCmd, "marengo-pi-script", args.config_dir);
+        const out = await runRemote(body, timeoutSec * 1000 + 15_000);
         auditMotion("pi_marengo_pi_script", args, out, 0);
         return out;
       },

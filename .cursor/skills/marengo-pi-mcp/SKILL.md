@@ -23,6 +23,8 @@ Host: **`marengo.local`** user **`joey`**. Pi root: **`/opt/marengo`**.
 
 `pi_can_up`, **`pi_sync_main`** — see [marengo-pi-sync](../marengo-pi-sync/SKILL.md)
 
+**Config sync:** after editing `config/bringup/*/control.yaml` (or motors/robot) on the Mac, ask: **Would you like me to sync your bench config to the Pi?** If yes → **`pi_sync_bench_config`** (`profile: shoulder_pitch_right_only`, `install_to_opt: true`).
+
 ## Motion (confirm required)
 
 | Profile | Params |
@@ -36,7 +38,7 @@ Prefer **`pi_bench_harness`** for debug sessions. Sustained control uses **`pi_m
 
 **Backdrive:** use **`gravity-on`** in `pi_marengo_pi_script` with **`timeout_sec: 30`** (default). Script `["home","enable bench","gravity-on"]`, `config_dir: .../shoulder_pitch_right_only`. Stay within ±1.0 rad during manual moves.
 
-**Position hold (return-to-setpoint):** after gravity comp feels good, script `["home","enable bench","hold-on"]` — latches current `q` and commands MIT position targets with gravity FF + impedance `kp`/`kd` from `control.yaml`. Disturb the arm; it should spring back. `hold-at 0.3` (single-joint bench) or `hold-at right_shoulder_pitch 0.3`. `hold-off` or `disable` to stop. Tune `impedance.kp`/`kd` under `config/bringup/shoulder_pitch_right_only/control.yaml`. Start with small disturbances inside ±1.0 rad.
+**Position hold:** **`pi_hold_on`** (`confirm: true`) — set-zero, `hold-on` or `position_rad` for `hold-at`, 30 s default, logs to `var/log`. **`pi_hold_off`** to stop. Tune `impedance.kp`/`kd`, slew, and trim in `control.yaml` (right-only bench: **kp=12, kd=0.75**, slew **15 rad/s**, max_lead **0.5**, trim **-0.043**). Sync to Pi before hold tests if YAML changed locally. Stay within ±1.0 rad when pushing.
 
 **Weighted proposals:** if logs suggest load/model issues, ask user to run weighted bench now; if deferred, append [docs/bench-test-backlog.md](../../docs/bench-test-backlog.md).
 

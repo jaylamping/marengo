@@ -54,8 +54,8 @@ Copy [`mcp.json.example`](mcp.json.example) into `.cursor/mcp.json` and adjust p
 | Class | Confirm | Examples |
 |-------|---------|----------|
 | Read-only | No | `pi_logs_tail`, `pi_health`, `pi_motor_repl_status`, `pi_gravity_preview` |
-| Admin | No | `pi_can_up`, `pi_sync_main`, `pi_git_pull`, `pi_build` |
-| Motion | Yes | `pi_set_zero`, `pi_bench_harness`, `pi_marengo_pi_script`, `pi_jog` |
+| Admin | No | `pi_can_up`, `pi_sync_main`, `pi_sync_bench_config`, `pi_git_pull`, `pi_build` |
+| Motion | Yes | `pi_set_zero`, `pi_hold_on`, `pi_hold_off`, `pi_bench_harness`, `pi_marengo_pi_script`, `pi_jog` |
 
 Weighted profile (`weighted_single_arm`, `arm_attached`) requires **`confirm: true`** and **`confirm_weighted_motion: true`**.
 

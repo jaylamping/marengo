@@ -3,6 +3,10 @@ import type { MarengoPiConfig } from "../config.js";
 import { sudoCanUpCommand, sudoInstallCommand } from "../config.js";
 import { wrapRemote } from "../env.js";
 import { runSyncMain } from "./deploy.js";
+import {
+  runSyncBenchConfig,
+  syncBenchConfigSchema,
+} from "./sync-config.js";
 
 export function registerAdminTools(
   cfg: MarengoPiConfig,
@@ -26,6 +30,22 @@ export function registerAdminTools(
       }),
       handler: async (args: { strategy: "cross" | "pi_native" }) => {
         return runSyncMain(cfg, runRemote, args.strategy);
+      },
+    },
+
+    pi_sync_bench_config: {
+      description:
+        "Rsync a bringup profile (control.yaml, motors.yaml, robot.yaml) from local repo to Pi. " +
+        "Use after editing config on Mac; sets ~/marengo and optionally /opt/marengo.",
+      inputSchema: syncBenchConfigSchema,
+      handler: async (args: {
+        profile?: string;
+        install_to_opt?: boolean;
+      }) => {
+        return runSyncBenchConfig(cfg, runRemote, {
+          profile: args.profile ?? "shoulder_pitch_right_only",
+          install_to_opt: args.install_to_opt ?? true,
+        });
       },
     },
 

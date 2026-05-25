@@ -104,6 +104,8 @@ supervisor.send_mit_batch(joint_space_cmds)?;
 - robstride operates in raw motor/CAN space only.
 - Davout owns `config/motors.yaml` `direction` / `gear_ratio` transforms in both directions.
 
+Position hold (`hold-at`) ramps the MIT setpoint toward the latched target each tick at `position_slew_rad_s` in `control.yaml` — do not jump `q_des` instantly on retarget.
+
 ## 8. Testing
 
 - Default `cargo test` must not require hardware.

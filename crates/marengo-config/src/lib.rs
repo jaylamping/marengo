@@ -210,6 +210,23 @@ pub struct JointControlEntry {
     pub gravity_comp: ModeGains,
     pub impedance: ModeGains,
     pub friction: FrictionGains,
+    /// Max rate for ramping position-hold setpoints (`hold-at` / retarget). Default 0.25 rad/s.
+    #[serde(default = "default_position_slew_rad_s")]
+    pub position_slew_rad_s: f64,
+    /// Max rad the ramped MIT setpoint may lead measured `q` (prevents racing ahead at high slew).
+    #[serde(default = "default_position_slew_max_lead_rad")]
+    pub position_slew_max_lead_rad: f64,
+    /// Added to every position-hold target (rad). Bench trim when mechanical zero ≠ encoder zero.
+    #[serde(default)]
+    pub position_hold_trim_rad: f64,
+}
+
+fn default_position_slew_rad_s() -> f64 {
+    0.25
+}
+
+fn default_position_slew_max_lead_rad() -> f64 {
+    0.15
 }
 
 #[derive(Debug, Clone, Deserialize)]
