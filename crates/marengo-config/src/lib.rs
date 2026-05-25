@@ -355,9 +355,9 @@ mod tests {
         let left = motor_for_joint(&motors, "left_shoulder_pitch").expect("left");
         let right = motor_for_joint(&motors, "right_shoulder_pitch").expect("right");
         assert_eq!(left.device_id, 12);
-        assert_eq!(left.can_interface, "can0");
+        assert_eq!(left.can_interface, "can1");
         assert_eq!(right.device_id, 2);
-        assert_eq!(right.can_interface, "can1");
+        assert_eq!(right.can_interface, "can0");
         let urdf = resolve_urdf_path(&root, &robot).expect("bringup urdf");
         assert!(urdf.ends_with("shoulder_pitch_dual.urdf"));
         load_control_config_from(&config_dir).expect("bringup control.yaml");

@@ -37,8 +37,8 @@ Each configured motor is addressed by (`can_interface`, `device_id`). Device IDs
 
 | Joint | `can_interface` | `device_id` | Motor |
 |-------|-----------------|-------------|-------|
-| `left_shoulder_pitch` | can0 | 12 | RS03 |
-| `right_shoulder_pitch` | can1 | 2 | RS03 |
+| `left_shoulder_pitch` | can1 | 12 | RS03 |
+| `right_shoulder_pitch` | can0 | 2 | RS03 |
 
 **Left 4-DOF arm (Milestone B)** — [`config/bringup/arm_4dof_left/`](../../../config/bringup/arm_4dof_left/) / [`config/motors.yaml`](../../../config/motors.yaml):
 

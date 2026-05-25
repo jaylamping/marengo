@@ -1,8 +1,8 @@
 # Pi commissioning runbook — dual-shoulder bring-up through single-arm Milestone B.
 #
 # Hardware confirmed (prototype):
-#   left_shoulder_pitch  can0  device_id 12  firmware 0.3.1.42
-#   right_shoulder_pitch can1  device_id 2   firmware 0.3.1.42
+#   left_shoulder_pitch  can1  device_id 12  firmware 0.3.1.42
+#   right_shoulder_pitch can0  device_id 2   firmware 0.3.1.42
 #
 # See also: docs/safety.md, hardware/electrical/wiring/can_topology.md
 
@@ -83,7 +83,7 @@ RUST_LOG=robstride=trace,davout=debug \
 MARENGO_CAN_INTERFACE=can0 ./target/release/motor-repl --can-interface can0 status
 ```
 
-**Pass:** both interfaces open; trace shows TX/RX for id **12** (can0) and id **2** (can1).
+**Pass:** both interfaces open; trace shows TX/RX for id **2** on can0 (robot right) and id **12** on can1 (robot left).
 
 Raw bus (motor power on):
 
