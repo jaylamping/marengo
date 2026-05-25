@@ -44,6 +44,24 @@ export function sshTarget(cfg: MarengoPiConfig): string {
   return `${cfg.user}@${cfg.host}`;
 }
 
+/** Absolute path to a script under MARENGO_PI_ROOT/scripts. */
+export function piScriptPath(cfg: MarengoPiConfig, name: string): string {
+  return `${cfg.piRoot}/scripts/${name}`;
+}
+
+/** Passwordless sudo can-up (requires /etc/sudoers.d/marengo-joey). */
+export function sudoCanUpCommand(cfg: MarengoPiConfig): string {
+  return `sudo -n ${piScriptPath(cfg, "can-up.sh")} can0 can1`;
+}
+
+/** Passwordless sudo install-pi; optional root when script lives outside piRoot (deploy staging). */
+export function sudoInstallCommand(
+  cfg: MarengoPiConfig,
+  scriptRoot = cfg.piRoot,
+): string {
+  return `sudo -n ${scriptRoot}/scripts/install-pi.sh`;
+}
+
 export function auditLogPath(): string {
   return path.join(homedir(), ".marengo-pi-mcp", "audit.log");
 }

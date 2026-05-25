@@ -18,7 +18,9 @@ if ! id "$RUN_USER" &>/dev/null; then
 fi
 usermod -aG dialout "$RUN_USER" || true
 
-mkdir -p "${INSTALL_ROOT}/bin" "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets"
+mkdir -p "${INSTALL_ROOT}/bin" "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets" "${INSTALL_ROOT}/var/log"
+chmod 775 "${INSTALL_ROOT}/var" "${INSTALL_ROOT}/var/log" 2>/dev/null || true
+chown root:"${RUN_USER}" "${INSTALL_ROOT}/var" "${INSTALL_ROOT}/var/log" 2>/dev/null || true
 install -m 755 "${ROOT}/target/release/marengo-pi" "${INSTALL_ROOT}/bin/marengo-pi"
 if [[ -f "${ROOT}/target/release/motor-repl" ]]; then
   install -m 755 "${ROOT}/target/release/motor-repl" "${INSTALL_ROOT}/bin/motor-repl"

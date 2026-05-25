@@ -1,4 +1,5 @@
 import type { BenchProfile, MarengoPiConfig } from "../config.js";
+import { sudoCanUpCommand } from "../config.js";
 import { shellQuote, wrapRemote } from "../env.js";
 
 export interface HarnessStep {
@@ -104,7 +105,7 @@ export async function runBenchHarness(
     return formatHarnessResult(profile, loadedJoint, steps, faults, logPath);
   }
 
-  const canUpBody = wrapRemote(cfg, "sudo ./scripts/can-up.sh can0 can1", debug);
+  const canUpBody = wrapRemote(cfg, sudoCanUpCommand(cfg), debug);
   if (!(await step("can_up", canUpBody, 60_000))) {
     return formatHarnessResult(profile, loadedJoint, steps, faults, logPath);
   }

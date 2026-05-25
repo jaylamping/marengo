@@ -21,8 +21,21 @@ If mDNS fails, set `MARENGO_PI_HOST` to the Pi IP in `mcp.json`.
 ### Passwordless sudo (Pi)
 
 ```sudoers
-joey ALL=(ALL) NOPASSWD: /opt/marengo/scripts/can-up.sh, /opt/marengo/scripts/install-pi.sh
+# Marengo MCP — passwordless sudo for bench scripts only (visudo -f /etc/sudoers.d/marengo-joey)
+joey ALL=(ALL) NOPASSWD: /opt/marengo/scripts/can-up.sh *
+joey ALL=(ALL) NOPASSWD: /opt/marengo/scripts/install-pi.sh
+# If you use deploy-pi.sh staging under ~/marengo:
+# joey ALL=(ALL) NOPASSWD: /home/joey/marengo/scripts/install-pi.sh
 ```
+
+Verify:
+
+```bash
+sudo -n /opt/marengo/scripts/can-up.sh can0 can1
+sudo -n /opt/marengo/scripts/install-pi.sh
+```
+
+Do **not** prefix `MARENGO_INSTALL_ROOT=` on the install command — default is `/opt/marengo` and sudoers blocks arbitrary env vars.
 
 ### Build MCP server
 

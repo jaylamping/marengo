@@ -1,5 +1,6 @@
 import path from "node:path";
 import type { MarengoPiConfig } from "../config.js";
+import { sudoInstallCommand } from "../config.js";
 import { shellQuote, wrapRemote } from "../env.js";
 import { execLocal, execRemote, formatRemoteResult } from "../ssh.js";
 
@@ -17,7 +18,7 @@ export async function runSyncMain(
         "if ! git diff --quiet || ! git diff --cached --quiet; then git status --short; exit 1; fi",
         "git fetch origin && git checkout main && git pull --ff-only",
         "cargo build -p marengo-pi -p motor-repl --features socketcan --release",
-        "sudo MARENGO_INSTALL_ROOT=/opt/marengo ./scripts/install-pi.sh",
+        sudoInstallCommand(cfg),
       ].join("\n"),
     );
     const r = await execRemote(cfg, body, { timeoutMs: 900_000 });
@@ -78,7 +79,7 @@ export async function runSyncMain(
     "set -euo pipefail",
     `cd ${shellQuote(staging)}`,
     "if pgrep -af marengo-pi >/dev/null 2>&1; then echo 'warning: marengo-pi running' >&2; fi",
-    "sudo MARENGO_INSTALL_ROOT=/opt/marengo ./scripts/install-pi.sh",
+    sudoInstallCommand(cfg, staging),
   ].join("\n");
   const install = await execRemote(cfg, installBody, { timeoutMs: 120_000 });
   steps.push(`[install-pi.sh]\n${formatRemoteResult(install)}`);

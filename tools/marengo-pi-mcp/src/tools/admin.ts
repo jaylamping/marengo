@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { MarengoPiConfig } from "../config.js";
+import { sudoCanUpCommand, sudoInstallCommand } from "../config.js";
 import { wrapRemote } from "../env.js";
 import { runSyncMain } from "./deploy.js";
 
@@ -12,7 +13,7 @@ export function registerAdminTools(
       description: "Bring up CAN interfaces can0 and can1",
       inputSchema: z.object({}),
       handler: async () => {
-        const body = wrapRemote(cfg, "sudo ./scripts/can-up.sh can0 can1");
+        const body = wrapRemote(cfg, sudoCanUpCommand(cfg));
         return runRemote(body, 60_000);
       },
     },
@@ -55,7 +56,7 @@ export function registerAdminTools(
           cfg,
           [
             "cargo build -p marengo-pi -p motor-repl --features socketcan --release",
-            "sudo MARENGO_INSTALL_ROOT=/opt/marengo ./scripts/install-pi.sh",
+            sudoInstallCommand(cfg),
           ].join("\n"),
         );
         return runRemote(body, 900_000);
