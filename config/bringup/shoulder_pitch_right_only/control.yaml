@@ -23,7 +23,7 @@ control:
         kd: 0.0
       impedance:
         kp: 15.0
-        kd: 0.5
+        kd: 0.75
       # Position hold (hold-on) reuses impedance kp/kd with a latched q_des + tau_g.
       friction:
         fc: 0.0
