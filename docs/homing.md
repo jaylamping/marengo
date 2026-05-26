@@ -93,7 +93,7 @@ Blind position hunting without sensors or operator reference is **not** allowed.
 
 ## Calibration record
 
-Host-side registry: `var/calibration/zero_registry.yaml` (path configurable via `homing.yaml`; override at runtime with `MARENGO_CALIBRATION_RECORD`).
+Host-side registry: `var/calibration/zero_registry.yaml` by default, or an absolute bench path such as `/opt/marengo/var/calibration/zero_registry.yaml` for live Pi profiles. The path is configurable via `homing.yaml`; override at runtime with `MARENGO_CALIBRATION_RECORD`.
 
 Records per joint: device ID, method, offset, timestamp, config revision, verification result, sign-test status. Firmware `SetZero` alone is not an audit trail.
 

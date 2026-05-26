@@ -20,6 +20,8 @@ If mDNS fails, set `MARENGO_PI_HOST` to the Pi IP in `mcp.json`.
 
 ### Passwordless sudo (Pi)
 
+`scripts/install-pi.sh` provisions these rules automatically when run as root. For manual repair:
+
 ```sudoers
 # Marengo MCP — passwordless sudo for bench scripts only (visudo -f /etc/sudoers.d/marengo-joey)
 joey ALL=(ALL) NOPASSWD: /opt/marengo/scripts/can-up.sh *
@@ -54,6 +56,8 @@ npm run build
 ```
 
 Restart the **marengo-pi** MCP server in Cursor after rebuilding.
+
+If a tool still shows old behavior after `npm run build`, the Cursor MCP process is stale; restart the **marengo-pi** MCP server before retrying the tool.
 
 ### Cursor `mcp.json`
 

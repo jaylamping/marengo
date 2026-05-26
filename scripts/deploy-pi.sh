@@ -82,12 +82,12 @@ rsync -av --delete \
 if [[ "$DO_INSTALL" == true ]]; then
   echo "Installing on Pi (sudo install-pi.sh → /opt/marengo)..."
   if ssh "$PI_HOST" "sudo -n true" 2>/dev/null; then
-    ssh "$PI_HOST" "set -euo pipefail; cd ${REMOTE_ROOT}; sudo MARENGO_INSTALL_ROOT=/opt/marengo ./scripts/install-pi.sh"
+    ssh "$PI_HOST" "set -euo pipefail; sudo ${REMOTE_ROOT}/scripts/install-pi.sh"
     ssh "$PI_HOST" "echo \$(git -C /opt/marengo rev-parse HEAD 2>/dev/null || echo unknown) \$(date -u +%Y-%m-%dT%H:%M:%SZ) > ${REMOTE_ROOT}/.deploy-rev && cat ${REMOTE_ROOT}/.deploy-rev" || true
   else
     echo ""
     echo "warn: passwordless sudo not available — on the Pi (already logged in), run:"
-    echo "  cd ${REMOTE_ROOT} && sudo MARENGO_INSTALL_ROOT=/opt/marengo ./scripts/install-pi.sh"
+    echo "  sudo ${REMOTE_ROOT}/scripts/install-pi.sh"
     echo ""
     echo "If install-pi.sh is missing, re-run deploy from Mac: just deploy-pi"
     echo "Quick binary-only fix on Pi:"

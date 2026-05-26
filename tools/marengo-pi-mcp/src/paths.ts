@@ -11,6 +11,7 @@ export function isAllowedReadPath(cfg: MarengoPiConfig, requested: string): bool
 
   const allowPrefixes = [
     `${cfg.piRoot}/config/`,
+    `${cfg.piRoot}/var/calibration/`,
     `${cfg.piRoot}/var/log/`,
     `${stagingRoot}/config/`,
     "/etc/marengo/env",

@@ -49,14 +49,14 @@ After `install-pi.sh`, `marengo-can` is **enabled and started** — no manual `c
 ## Phase 2 — Build Marengo on the Pi
 
 ```bash
-git clone <repo-url> /opt/marengo
-cd /opt/marengo && git lfs pull
-# Install Rust 1.88 + protoc (see docs/dev-setup.md native section)
+git clone <repo-url> ~/marengo
+cd ~/marengo && git lfs pull
+# Install Rust 1.85.0 + protoc (see docs/dev-setup.md native section)
 cargo build -p motor-repl -p marengo-pi --features socketcan --release
 sudo ./scripts/install-pi.sh
 ```
 
-Cross-build from laptop: `./scripts/deploy-pi.sh user@marengo` then `install-pi.sh` on Pi.
+Cross-build from laptop: `./scripts/deploy-pi.sh --install joey@marengo.local`. `install-pi.sh` provisions `/opt/marengo`, group-writable config/calibration directories, and narrow passwordless sudo rules for future MCP config sync/install.
 
 **Environment** (`/etc/marengo/env` — template in `scripts/env.example`):
 
@@ -75,7 +75,7 @@ RUST_LOG=robstride=info,davout=info,berthier=info,motor_repl=info
 | **A1 — left bench only** | `config/bringup/shoulder_pitch_left_only` | `left_shoulder_pitch` on can1, id 12 (mirrors right tuning) |
 | **B — left 4-DOF arm** | `config/bringup/arm_4dof_left` or `config` | all on can0, IDs 11–14 |
 
-Single-shoulder bench profiles share impedance **kp=12 / kd=0.75**, slew **15 rad/s**, max lead **0.5**, and trim **0.0** once firmware zero is set at arm-down. Operator shoulder-pitch limits are **[-0.872665, 3.141593] rad** (arm down = 0, -50° to +180°); hard bench/URDF limits are widened to **[-0.9, 3.17] rad** with URDF soft limits at the operator range.
+Single-shoulder bench profiles use conservative position hold tuning while feedback velocity guards are active. The current right-only profile uses impedance **kp=12 / kd=2.0**, slew **0.25 rad/s**, max lead **0.05**, and trim **0.0** once firmware zero is set at arm-down. Operator shoulder-pitch limits are **[-0.872665, 3.141593] rad** (arm down = 0, -50° to +180°); hard bench/URDF limits are widened to **[-0.9, 3.17] rad** with URDF soft limits at the operator range.
 
 ### Homing (interim — manual reference)
 

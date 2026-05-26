@@ -997,25 +997,10 @@ mod tests {
     }
 
     fn bench_verify_all_joints<B: MotorBus>(sup: &mut Supervisor<B>) {
-        for motor in sup.motors.motors.clone() {
-            let joint = motor.joint.clone();
-            if sup
-                .verify_zero_after_set(&joint, "unit_test", true)
-                .is_err()
-            {
-                sup.homing_registry_mut()
-                    .record_verification(
-                        &motor,
-                        "manual_reference",
-                        0.0,
-                        0.0,
-                        true,
-                        "unit_test",
-                        None,
-                    )
-                    .expect("record verification");
-            }
-        }
+        let motors = sup.motors.motors.clone();
+        sup.homing_registry_mut()
+            .bench_mark_all_verified(&motors)
+            .expect("bench homing");
     }
 
     fn bench_ready_active<B: MotorBus>(sup: &mut Supervisor<B>) {

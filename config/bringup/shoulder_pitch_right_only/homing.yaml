@@ -1,6 +1,6 @@
 homing:
   zero_verify_tolerance_rad: 0.05
-  calibration_record_path: var/calibration/zero_registry.yaml
+  calibration_record_path: /opt/marengo/var/calibration/zero_registry.yaml
   defaults:
     method: manual_reference
     home_offset_rad: 0.0
