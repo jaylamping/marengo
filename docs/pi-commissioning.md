@@ -163,6 +163,22 @@ Left arm chain: roll **11**, pitch **12**, yaw **13**, elbow **14**. Right arm: 
 | Motor silent | Power, termination, wrong `device_id`, run `candump` |
 | Config not found | Set `MARENGO_ROOT` + `MARENGO_CONFIG_DIR` or clone full repo |
 
+## Consul live telemetry (marengo-gateway)
+
+1. Build/install includes `marengo-gateway` (`install-pi.sh` / `deploy-pi.sh`).
+2. Enable gateway: `sudo systemctl enable --now marengo-gateway` (listens on **127.0.0.1:8080** HTTP and **:8443** WebTransport).
+3. Run `marengo-pi` with `MARENGO_CHAPPE_SOCKET=/run/marengo/chappe.sock` (set in `/etc/marengo/env`).
+4. On the dev Mac, tunnel and open Consul with `consul/.env.local` from `consul/.env.example`:
+
+```bash
+ssh -L 8080:127.0.0.1:8080 -L 8443:127.0.0.1:8443 joey@marengo.local
+cd consul && npm run dev
+```
+
+Trust the gateway self-signed TLS once by visiting `https://127.0.0.1:8443` if the browser blocks WebTransport.
+
+Local demo without hardware: `cargo run -p marengo-gateway -- --demo` then point Consul at `http://127.0.0.1:8080` and `https://127.0.0.1:8443/chappe`.
+
 ## Agent-assisted bench
 
 Cursor agents can drive the Pi over SSH via [`tools/marengo-pi-mcp/`](../tools/marengo-pi-mcp/README.md) (MCP server on your dev Mac).

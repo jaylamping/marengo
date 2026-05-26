@@ -50,8 +50,8 @@ ensure_cross_toolchain() {
 cd "$ROOT"
 ensure_cross_toolchain
 
-echo "Building marengo-pi + motor-repl for ${TARGET}..."
-cargo build --release --target "$TARGET" -p marengo-pi -p motor-repl --features socketcan
+echo "Building marengo-pi + marengo-gateway + motor-repl for ${TARGET}..."
+cargo build --release --target "$TARGET" -p marengo-pi -p marengo-gateway -p motor-repl --features socketcan
 
 if [[ -z "$PI_HOST" ]]; then
   echo "Built:"
@@ -68,6 +68,7 @@ trap 'rm -rf "$STAGING"' EXIT
 
 mkdir -p "$STAGING/target/release"
 cp "${ROOT}/target/${TARGET}/release/marengo-pi" "$STAGING/target/release/"
+cp "${ROOT}/target/${TARGET}/release/marengo-gateway" "$STAGING/target/release/"
 cp "${ROOT}/target/${TARGET}/release/motor-repl" "$STAGING/target/release/"
 rsync -a "${ROOT}/config/" "$STAGING/config/"
 rsync -a "${ROOT}/assets/" "$STAGING/assets/"

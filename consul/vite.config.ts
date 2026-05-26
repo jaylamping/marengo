@@ -13,7 +13,8 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    // Future: proxy or WebTransport setup will go here
+    // Live telemetry: set VITE_CHAPPE_* in .env.local (see consul/.env.example).
+    // WebTransport uses HTTP/3 to the gateway directly (not proxied through Vite).
   },
   build: {
     rollupOptions: {

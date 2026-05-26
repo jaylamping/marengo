@@ -473,6 +473,16 @@ fn main() {
     };
 
     let chappe = Arc::new(Bus::default());
+    #[cfg(unix)]
+    if let Some(socket_path) = chappe::ipc::socket_path_from_env() {
+        match chappe::ipc::IpcFanout::spawn_client(socket_path.clone(), (*chappe).clone()) {
+            Ok(fanout) => {
+                chappe.set_ipc_fanout(fanout);
+                info!(path = %socket_path.display(), "Chappe IPC fanout enabled");
+            }
+            Err(e) => warn!(error = %e, "Chappe IPC fanout disabled"),
+        }
+    }
     let mut enable_rx = chappe.subscribe("robot/enable");
     let mut homing_rx = chappe.subscribe("robot/homing");
 

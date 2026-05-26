@@ -8,7 +8,7 @@
 
 Operator UI for Marengo (Vite + React + TypeScript): robot state, URDF visualization, and tuning. Consumes `assets/meshes/visual/` and talks to runtime over Chappe (binary protobuf, same schemas as [`proto/`](../proto/)).
 
-**Status:** Base Vite + React 19 scaffold landed (see `DESIGN.md` + `TECH.md` in this folder). Still pre-transport; real protobuf streaming and URDF visualization will come after the Chappe transport decision.
+**Status:** Vite + React 19 dashboard with optional live Chappe telemetry ([ADR 0008](../docs/decisions/0008-chappe-webtransport-transport.md)). Set `VITE_CHAPPE_HTTP_URL` and `VITE_CHAPPE_WEBTRANSPORT_URL` (see `.env.example`). URDF visualization is still upcoming.
 
 ## Development
 

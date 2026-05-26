@@ -96,3 +96,18 @@ message MitCommandBatch {
   ControlMode mode = 2;
   repeated MitJointCommand joints = 3;
 }
+
+// --- Operator gateway (Consul / marengo-gateway) ---
+
+// First message on a WebTransport bidi stream: which Chappe topics to receive.
+message GatewaySubscribe {
+  repeated string topics = 1;
+}
+
+// Structured log line for Consul log surfaces (topic: logs/structured).
+message LogEvent {
+  uint64 timestamp_ms = 1;
+  string level = 2;   // trace | debug | info | warn | error
+  string target = 3;  // tracing target, e.g. berthier::loop
+  string message = 4;
+}

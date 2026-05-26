@@ -1,0 +1,35 @@
+[package]
+name = "marengo-gateway"
+version = "0.1.0"
+description = "Operator gateway: HTTP CRUD + WebTransport for Consul"
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "marengo-gateway"
+path = "src/main.rs"
+
+[dependencies]
+armee-proto.workspace = true
+axum = { version = "0.8", features = ["json"] }
+bytes = "1"
+chappe = { path = "../../crates/chappe" }
+futures = "0.3"
+marengo-support.workspace = true
+prost = { workspace = true }
+quinn = "0.11"
+rcgen = "0.13"
+rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
+rustls-pemfile = "2"
+serde = { workspace = true, features = ["derive"] }
+serde_json = "1"
+thiserror.workspace = true
+tokio = { workspace = true, features = ["full"] }
+tower-http = { version = "0.6", features = ["cors"] }
+tracing.workspace = true
+web-transport-quinn = { version = "0.11", default-features = true }

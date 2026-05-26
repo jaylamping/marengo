@@ -32,6 +32,7 @@ chmod 775 "${INSTALL_ROOT}/var" "${INSTALL_ROOT}/var/log" "${INSTALL_ROOT}/var/c
 chown root:"${RUN_USER}" "${INSTALL_ROOT}/var" "${INSTALL_ROOT}/var/log" "${INSTALL_ROOT}/var/calibration" 2>/dev/null || true
 
 PI_BIN="${ROOT}/target/release/marengo-pi"
+GATEWAY_BIN="${ROOT}/target/release/marengo-gateway"
 REPL_BIN="${ROOT}/target/release/motor-repl"
 # Flat deploy layout (legacy rsync): binaries at repo root
 if [[ ! -f "$PI_BIN" && -f "${ROOT}/marengo-pi" ]]; then
@@ -45,6 +46,9 @@ if [[ ! -f "$PI_BIN" ]]; then
   exit 1
 fi
 install -m 755 "$PI_BIN" "${INSTALL_ROOT}/bin/marengo-pi"
+if [[ -f "$GATEWAY_BIN" ]]; then
+  install -m 755 "$GATEWAY_BIN" "${INSTALL_ROOT}/bin/marengo-gateway"
+fi
 if [[ -f "$REPL_BIN" ]]; then
   install -m 755 "$REPL_BIN" "${INSTALL_ROOT}/bin/motor-repl"
 fi
@@ -82,9 +86,13 @@ fi
 
 install -m 644 "${ROOT}/scripts/systemd/marengo-can.service" /etc/systemd/system/marengo-can.service
 install -m 644 "${ROOT}/scripts/systemd/marengo-pi.service" /etc/systemd/system/marengo-pi.service
+install -m 644 "${ROOT}/scripts/systemd/marengo-gateway.service" /etc/systemd/system/marengo-gateway.service
 sed -i "s|WorkingDirectory=.*|WorkingDirectory=${INSTALL_ROOT}|" /etc/systemd/system/marengo-pi.service
 sed -i "s|User=.*|User=${RUN_USER}|" /etc/systemd/system/marengo-pi.service
 sed -i "s|ExecStart=.*|ExecStart=${INSTALL_ROOT}/bin/marengo-pi|" /etc/systemd/system/marengo-pi.service
+sed -i "s|WorkingDirectory=.*|WorkingDirectory=${INSTALL_ROOT}|" /etc/systemd/system/marengo-gateway.service
+sed -i "s|User=.*|User=${RUN_USER}|" /etc/systemd/system/marengo-gateway.service
+sed -i "s|ExecStart=.*|ExecStart=${INSTALL_ROOT}/bin/marengo-gateway --http-listen 127.0.0.1:8080 --wt-listen 127.0.0.1:8443 --chappe-socket /run/marengo/chappe.sock|" /etc/systemd/system/marengo-gateway.service
 
 chown -R "${RUN_USER}:${RUN_USER}" "${INSTALL_ROOT}"
 chown -R root:"${RUN_USER}" "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets" "${INSTALL_ROOT}/scripts" "${INSTALL_ROOT}/var" 2>/dev/null || true
@@ -96,5 +104,7 @@ systemctl enable --now marengo-can.service
 echo "Done. CAN (can0/can1) should be UP — verify: ip -br link show type can"
 echo "Next:"
 echo "  1. Edit /etc/marengo/env (MARENGO_ROOT, MARENGO_CONFIG_DIR)"
-echo "  2. Bench motion: run marengo-pi / motor-repl manually (do not enable marengo-pi.service unless you want always-on control)"
-echo "  3. Example: MARENGO_CONFIG_DIR=config/bringup/shoulder_pitch_right_only ${INSTALL_ROOT}/bin/motor-repl status"
+echo "  2. Optional: systemctl enable --now marengo-gateway (HTTP :8080, WebTransport :8443 on localhost)"
+echo "  3. Bench motion: run marengo-pi / motor-repl manually (do not enable marengo-pi.service unless you want always-on control)"
+echo "  4. Example: MARENGO_CONFIG_DIR=config/bringup/shoulder_pitch_right_only ${INSTALL_ROOT}/bin/motor-repl status"
+echo "  5. Consul on Mac: ssh -L 8080:127.0.0.1:8080 -L 8443:127.0.0.1:8443 joey@marengo.local"

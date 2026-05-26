@@ -15,6 +15,7 @@ members = [
     "crates/fouche",
     "crates/robstride",
     "bins/marengo-pi",
+    "bins/marengo-gateway",
     "bins/marengo-jetson",
     "bins/probe",
     "bins/motor-repl",

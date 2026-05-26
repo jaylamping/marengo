@@ -111,9 +111,31 @@ export function registerReadonlyTools(
       handler: async (args: { lines: number }) => {
         const body = wrapRemote(
           cfg,
-          `journalctl -u marengo-can -u marengo-pi -n ${args.lines} --no-pager 2>&1 || echo '(systemd units not installed)'`,
+          `journalctl -u marengo-can -u marengo-pi -u marengo-gateway -n ${args.lines} --no-pager 2>&1 || echo '(systemd units not installed)'`,
         );
         return runRemote(body, 30_000);
+      },
+    },
+
+    pi_gateway_health: {
+      description:
+        "marengo-gateway health (HTTP /health on localhost:8080; requires gateway unit or manual start)",
+      inputSchema: z.object({}),
+      handler: async () => {
+        const body = wrapRemote(
+          cfg,
+          [
+            "echo '=== marengo-gateway unit ==='",
+            "systemctl is-active marengo-gateway 2>/dev/null || echo inactive",
+            "echo",
+            "echo '=== HTTP /health ==='",
+            "curl -sf http://127.0.0.1:8080/health 2>&1 || echo '(gateway not reachable on :8080)'",
+            "echo",
+            "echo '=== socket ==='",
+            "test -S /run/marengo/chappe.sock && ls -la /run/marengo/chappe.sock || echo '(no chappe.sock)'",
+          ].join("\n"),
+        );
+        return runRemote(body, 15_000);
       },
     },
 

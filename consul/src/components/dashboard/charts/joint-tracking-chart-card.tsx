@@ -3,6 +3,8 @@ import { useMemo } from 'react';
 import { ChartTimeRangeControls } from '@/components/dashboard/charts/chart-time-range-controls';
 import { dummyShoulderPitchTracking } from '@/components/dashboard/charts/constants';
 import { useChartTimeRange } from '@/components/dashboard/charts/hooks/use-chart-time-range';
+import { isChappeLive } from '@/lib/chappe-config';
+import { useRobotStore } from '@/state/robotStore';
 import { JointTrackingAreaChart } from '@/components/dashboard/charts/joint-tracking-area-chart';
 import type { JointTrackingSeries } from '@/components/dashboard/charts/types';
 import { filterTrackingPointsByTimeRange } from '@/components/dashboard/charts/utils';
@@ -20,8 +22,22 @@ type JointTrackingChartCardProps = {
 };
 
 export function JointTrackingChartCard({
-  series = dummyShoulderPitchTracking,
+  series: seriesProp,
 }: JointTrackingChartCardProps) {
+  const livePoints = useRobotStore((s) => s.trackingPoints);
+  const connected = useRobotStore((s) => s.connected);
+  const series =
+    seriesProp ??
+    (isChappeLive() && connected && livePoints.length > 0
+      ? {
+          ...dummyShoulderPitchTracking,
+          title: 'Shoulder pitch (live)',
+          description: 'Measured position from Chappe robot/state',
+          descriptionShort: 'Live · Chappe',
+          points: livePoints,
+        }
+      : dummyShoulderPitchTracking);
+
   const { timeRange, setTimeRange } = useChartTimeRange();
   const filteredData = useMemo(
     () => filterTrackingPointsByTimeRange(series.points, timeRange),

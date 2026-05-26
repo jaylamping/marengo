@@ -15,12 +15,16 @@
 //!
 //! Typical topics: `robot/state`, telemetry, future RPC. Producers must not put raw CAN on Chappe.
 
+pub mod ipc;
+pub mod transport;
+
 use std::sync::Arc;
 
 use armee_proto::prost::Message;
 use armee_proto::Envelope;
 use thiserror::Error;
 use tokio::sync::broadcast;
+pub use transport::{SharedBus, Transport};
 
 const DEFAULT_CAPACITY: usize = 256;
 
@@ -41,6 +45,8 @@ pub struct Bus {
 struct BusInner {
     channels: std::sync::RwLock<std::collections::HashMap<String, broadcast::Sender<Vec<u8>>>>,
     capacity: usize,
+    #[cfg(unix)]
+    ipc: std::sync::RwLock<Option<std::sync::Arc<ipc::IpcFanout>>>,
 }
 
 impl Default for Bus {
@@ -55,7 +61,17 @@ impl Bus {
             inner: Arc::new(BusInner {
                 channels: std::sync::RwLock::new(std::collections::HashMap::new()),
                 capacity,
+                #[cfg(unix)]
+                ipc: std::sync::RwLock::new(None),
             }),
+        }
+    }
+
+    /// Forward publishes to a Unix socket for `marengo-gateway` (see ADR 0008).
+    #[cfg(unix)]
+    pub fn set_ipc_fanout(&self, fanout: std::sync::Arc<ipc::IpcFanout>) {
+        if let Ok(mut guard) = self.inner.ipc.write() {
+            *guard = Some(fanout);
         }
     }
 
@@ -77,6 +93,12 @@ impl Bus {
     ///
     /// Succeeds when there are no subscribers (bench / headless Pi without Consul).
     pub fn publish_bytes(&self, topic: &str, payload: Vec<u8>) -> Result<(), BusError> {
+        #[cfg(unix)]
+        if let Ok(guard) = self.inner.ipc.read() {
+            if let Some(ipc) = guard.as_ref() {
+                ipc.forward_runtime_to_gateway(topic, &payload);
+            }
+        }
         let tx = self.sender(topic);
         if tx.receiver_count() == 0 {
             return Ok(());
