@@ -13,6 +13,51 @@ import {
 } from '@/gen/marengo/v1/marengo_pb';
 import { CHAPPE_TOPICS, getChappeEndpoints } from '@/lib/chappe-config';
 
+type WebTransportCertificateHash = {
+  algorithm: 'sha-256';
+  value: Uint8Array;
+};
+
+function decodeSha256Fingerprint(b64: string): Uint8Array {
+  const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  if (bytes.length !== 32) {
+    throw new Error(`expected 32-byte sha-256 fingerprint, got ${bytes.length}`);
+  }
+  return bytes;
+}
+
+/** Bench gateway uses a persisted self-signed cert; pin SPKI via HTTP before QUIC. */
+async function fetchServerCertificateHashes(
+  httpUrl: string,
+): Promise<WebTransportCertificateHash[]> {
+  const res = await fetch(`${httpUrl}/tls/fingerprint`);
+  if (!res.ok) {
+    throw new Error(`tls fingerprint failed: ${res.status}`);
+  }
+  const body = (await res.json()) as {
+    algorithm?: string;
+    value?: string;
+    hashes?: { algorithm: string; value: string }[];
+  };
+  const entries = body.hashes?.length
+    ? body.hashes
+    : body.value
+      ? [{ algorithm: body.algorithm ?? 'sha-256', value: body.value }]
+      : [];
+  if (entries.length === 0) {
+    throw new Error('tls fingerprint response empty');
+  }
+  return entries.map((entry) => {
+    if (entry.algorithm !== 'sha-256' || !entry.value) {
+      throw new Error(`unsupported tls fingerprint: ${entry.algorithm}`);
+    }
+    return {
+      algorithm: 'sha-256' as const,
+      value: decodeSha256Fingerprint(entry.value),
+    };
+  });
+}
+
 export type ChappeTelemetryHandlers = {
   onRobotState: (state: RobotState) => void;
   onSafetyState: (state: SafetyState) => void;
@@ -105,7 +150,19 @@ export async function connectChappeTelemetry(
   let transport: WebTransport | null = null;
 
   try {
-    transport = new WebTransport(endpoints.webTransportUrl);
+    const serverCertificateHashes = await fetchServerCertificateHashes(
+      endpoints.httpUrl,
+    );
+    if (import.meta.env.DEV) {
+      console.info(
+        '[chappe] WebTransport cert pin',
+        serverCertificateHashes.map((h) => h.value.length),
+      );
+    }
+    transport = new WebTransport(endpoints.webTransportUrl, {
+      allowPooling: false,
+      serverCertificateHashes,
+    } as WebTransportOptions);
     await transport.ready;
     if (closed) {
       transport.close();

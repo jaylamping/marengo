@@ -36,9 +36,10 @@ Wire types remain in [`proto/marengo/v1/marengo.proto`](../../proto/marengo/v1/m
 
 ### Auth (bench)
 
-- Phase 1: bind `127.0.0.1` by default; dev Mac uses `ssh -L 8080:127.0.0.1:8080 -L 8443:127.0.0.1:8443 marengo.local`.
-- TLS: self-signed cert generated at startup (`rcgen`); Consul dev sets `VITE_CHAPPE_WEBTRANSPORT_URL` and browser may require trusting the cert once.
-- Future: bearer token or mTLS before exposing on LAN.
+- Phase 1: bind **`[::]:8080`** (HTTP) and **`[::]:8443`** (WebTransport/QUIC) on the Pi LAN (dual-stack; `marengo.local` is often IPv6-first on macOS). Bench-only — not intended for the public internet.
+- Dev Mac on the same network: `VITE_CHAPPE_HTTP_URL=http://marengo.local:8080`, `VITE_CHAPPE_WEBTRANSPORT_URL=https://marengo.local:8443/chappe`. **`ssh -L` does not forward QUIC**; do not tunnel `:8443` for WebTransport.
+- TLS: self-signed cert generated at startup (`rcgen`); browser may prompt when Consul opens WebTransport (there is no normal HTTPS page on `:8443`).
+- Future: bearer token or mTLS; optional `127.0.0.1`-only bind for localhost-only installs.
 
 ### Relation to NATS
 

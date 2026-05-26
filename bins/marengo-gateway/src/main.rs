@@ -110,6 +110,9 @@ async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         webtransport::spawn_demo_publisher(Arc::clone(&state));
     }
 
+    let tls = webtransport::load_or_generate_tls(args.cert_path, args.key_path)?;
+    state.set_tls_cert_sha256_base64(tls.cert_sha256_base64.clone());
+
     let http_state = Arc::clone(&state);
     let http_addr = args.http_addr;
     tokio::spawn(async move {
@@ -125,6 +128,6 @@ async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         }
     });
 
-    webtransport::run_webtransport(state, args.wt_addr, args.cert_path, args.key_path).await?;
+    webtransport::run_webtransport(state, args.wt_addr, tls).await?;
     Ok(())
 }

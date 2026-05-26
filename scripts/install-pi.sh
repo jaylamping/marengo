@@ -27,7 +27,8 @@ mkdir -p \
   "${INSTALL_ROOT}/config" \
   "${INSTALL_ROOT}/assets" \
   "${INSTALL_ROOT}/var/log" \
-  "${INSTALL_ROOT}/var/calibration"
+  "${INSTALL_ROOT}/var/calibration" \
+  "${INSTALL_ROOT}/var/gateway/tls"
 chmod 775 "${INSTALL_ROOT}/var" "${INSTALL_ROOT}/var/log" "${INSTALL_ROOT}/var/calibration" 2>/dev/null || true
 chown root:"${RUN_USER}" "${INSTALL_ROOT}/var" "${INSTALL_ROOT}/var/log" "${INSTALL_ROOT}/var/calibration" 2>/dev/null || true
 
@@ -92,7 +93,7 @@ sed -i "s|User=.*|User=${RUN_USER}|" /etc/systemd/system/marengo-pi.service
 sed -i "s|ExecStart=.*|ExecStart=${INSTALL_ROOT}/bin/marengo-pi|" /etc/systemd/system/marengo-pi.service
 sed -i "s|WorkingDirectory=.*|WorkingDirectory=${INSTALL_ROOT}|" /etc/systemd/system/marengo-gateway.service
 sed -i "s|User=.*|User=${RUN_USER}|" /etc/systemd/system/marengo-gateway.service
-sed -i "s|ExecStart=.*|ExecStart=${INSTALL_ROOT}/bin/marengo-gateway --http-listen 127.0.0.1:8080 --wt-listen 127.0.0.1:8443 --chappe-socket /run/marengo/chappe.sock|" /etc/systemd/system/marengo-gateway.service
+sed -i "s|ExecStart=.*|ExecStart=${INSTALL_ROOT}/bin/marengo-gateway --http-listen [::]:8080 --wt-listen [::]:8443 --chappe-socket /run/marengo/chappe.sock|" /etc/systemd/system/marengo-gateway.service
 
 chown -R "${RUN_USER}:${RUN_USER}" "${INSTALL_ROOT}"
 chown -R root:"${RUN_USER}" "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets" "${INSTALL_ROOT}/scripts" "${INSTALL_ROOT}/var" 2>/dev/null || true
@@ -104,7 +105,13 @@ systemctl enable --now marengo-can.service
 echo "Done. CAN (can0/can1) should be UP — verify: ip -br link show type can"
 echo "Next:"
 echo "  1. Edit /etc/marengo/env (MARENGO_ROOT, MARENGO_CONFIG_DIR)"
-echo "  2. Optional: systemctl enable --now marengo-gateway (HTTP :8080, WebTransport :8443 on localhost)"
+echo "  2. Optional: systemctl enable --now marengo-gateway (HTTP :8080, WebTransport :8443 on LAN)"
 echo "  3. Bench motion: run marengo-pi / motor-repl manually (do not enable marengo-pi.service unless you want always-on control)"
 echo "  4. Example: MARENGO_CONFIG_DIR=config/bringup/shoulder_pitch_right_only ${INSTALL_ROOT}/bin/motor-repl status"
-echo "  5. Consul on Mac: ssh -L 8080:127.0.0.1:8080 -L 8443:127.0.0.1:8443 joey@marengo.local"
+echo "  5. Consul on Mac (same LAN): VITE_CHAPPE_* → http://marengo.local:8080 and https://marengo.local:8443/chappe (see consul/.env.example)"
+PI_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+if [[ -n "${PI_IP}" ]] && [[ -f /etc/marengo/env ]]; then
+  if ! grep -q '^MARENGO_GATEWAY_TLS_EXTRA_SAN=' /etc/marengo/env 2>/dev/null; then
+    echo "MARENGO_GATEWAY_TLS_EXTRA_SAN=${PI_IP}" >> /etc/marengo/env
+  fi
+fi

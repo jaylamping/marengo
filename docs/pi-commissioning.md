@@ -166,16 +166,17 @@ Left arm chain: roll **11**, pitch **12**, yaw **13**, elbow **14**. Right arm: 
 ## Consul live telemetry (marengo-gateway)
 
 1. Build/install includes `marengo-gateway` (`install-pi.sh` / `deploy-pi.sh`).
-2. Enable gateway: `sudo systemctl enable --now marengo-gateway` (listens on **127.0.0.1:8080** HTTP and **:8443** WebTransport).
+2. Enable gateway: `sudo systemctl enable --now marengo-gateway` (listens on **`[::]:8080`** HTTP and **`[::]:8443`** WebTransport/QUIC on the Pi LAN, dual-stack).
 3. Run `marengo-pi` with `MARENGO_CHAPPE_SOCKET=/run/marengo/chappe.sock` (set in `/etc/marengo/env`).
-4. On the dev Mac, tunnel and open Consul with `consul/.env.local` from `consul/.env.example`:
+4. On the dev Mac (same network as the Pi), copy `consul/.env.example` → `consul/.env.local` and use **`marengo.local`** (not `127.0.0.1`):
 
 ```bash
-ssh -L 8080:127.0.0.1:8080 -L 8443:127.0.0.1:8443 joey@marengo.local
 cd consul && npm run dev
 ```
 
-Trust the gateway self-signed TLS once by visiting `https://127.0.0.1:8443` if the browser blocks WebTransport.
+WebTransport uses **QUIC (UDP)**. `ssh -L` forwards TCP only and will not carry `:8443`; use LAN hostnames instead.
+
+If the browser blocks the gateway self-signed cert, allow the exception when Consul first connects (do not expect a normal HTTPS page on `:8443`).
 
 Local demo without hardware: `cargo run -p marengo-gateway -- --demo` then point Consul at `http://127.0.0.1:8080` and `https://127.0.0.1:8443/chappe`.
 

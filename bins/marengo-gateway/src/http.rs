@@ -24,14 +24,29 @@ struct OkResponse {
     ok: bool,
 }
 
+#[derive(Serialize)]
+struct TlsFingerprintEntry {
+    algorithm: &'static str,
+    value: String,
+}
+
+#[derive(Serialize)]
+struct TlsFingerprintResponse {
+    algorithm: &'static str,
+    value: String,
+    hashes: Vec<TlsFingerprintEntry>,
+}
+
 pub fn router(state: SharedState) -> Router {
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods(Any)
-        .allow_headers(Any);
+        .allow_headers(Any)
+        .allow_private_network(tower_http::cors::AllowPrivateNetwork::yes());
 
     Router::new()
         .route("/health", get(health))
+        .route("/tls/fingerprint", get(tls_fingerprint))
         .route("/snapshot/robot/state", get(snapshot_state))
         .route("/snapshot/robot/safety", get(snapshot_safety))
         .route("/snapshot/robot/heartbeat", get(snapshot_heartbeat))
@@ -45,6 +60,22 @@ async fn health() -> Json<HealthResponse> {
         ok: true,
         node: "marengo-gateway",
     })
+}
+
+async fn tls_fingerprint(
+    State(state): State<SharedState>,
+) -> Result<Json<TlsFingerprintResponse>, StatusCode> {
+    let value = state
+        .tls_cert_sha256_base64()
+        .ok_or(StatusCode::NOT_FOUND)?;
+    Ok(Json(TlsFingerprintResponse {
+        algorithm: "sha-256",
+        value: value.clone(),
+        hashes: vec![TlsFingerprintEntry {
+            algorithm: "sha-256",
+            value,
+        }],
+    }))
 }
 
 async fn snapshot_state(State(state): State<SharedState>) -> Response {

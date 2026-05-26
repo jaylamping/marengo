@@ -24,6 +24,8 @@ pub struct AppState {
     pub bus: Arc<Bus>,
     pub snapshots: Arc<RwLock<Snapshots>>,
     pub ipc: Option<Arc<IpcListener>>,
+    /// Base64 SHA-256 of the DER WebTransport cert (for Consul `serverCertificateHashes`).
+    pub tls_cert_sha256_base64: RwLock<Option<String>>,
     envelope_tx: broadcast::Sender<(String, Vec<u8>)>,
 }
 
@@ -34,8 +36,22 @@ impl AppState {
             bus,
             snapshots: Arc::new(RwLock::new(Snapshots::default())),
             ipc: None,
+            tls_cert_sha256_base64: RwLock::new(None),
             envelope_tx,
         }
+    }
+
+    pub fn set_tls_cert_sha256_base64(&self, value: String) {
+        if let Ok(mut guard) = self.tls_cert_sha256_base64.write() {
+            *guard = Some(value);
+        }
+    }
+
+    pub fn tls_cert_sha256_base64(&self) -> Option<String> {
+        self.tls_cert_sha256_base64
+            .read()
+            .ok()
+            .and_then(|g| g.clone())
     }
 
     pub fn with_ipc(mut self, ipc: Arc<IpcListener>) -> Self {
