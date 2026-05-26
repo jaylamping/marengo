@@ -282,14 +282,18 @@ pub trait MotorBus: CanBus {
                 };
                 match CommunicationType::from_u8(ext.comm_type) {
                     Some(CommunicationType::OperationStatus) => {
-                        let Some(motor_type) = motor_types.get(&ext.device_id).copied() else {
+                        let device_id = comm::inbound_motor_device_id(
+                            frame.id,
+                            CommunicationType::OperationStatus,
+                        );
+                        let Some(motor_type) = motor_types.get(&device_id).copied() else {
                             continue;
                         };
                         if let Some(fb) =
                             mit::decode_mit_feedback(motor_type, frame.id, frame.data.as_slice())
                         {
                             states.insert(
-                                ext.device_id,
+                                device_id,
                                 MotorState {
                                     position_rad: fb.position_rad,
                                     velocity_rad_s: fb.velocity_rad_s,
@@ -303,7 +307,9 @@ pub trait MotorBus: CanBus {
                         }
                     }
                     Some(CommunicationType::FaultReport) => {
-                        if !motor_types.contains_key(&ext.device_id) {
+                        let device_id =
+                            comm::inbound_motor_device_id(frame.id, CommunicationType::FaultReport);
+                        if !motor_types.contains_key(&device_id) {
                             continue;
                         }
                         if let Some(report) = decode_fault_report(frame.id, frame.data.as_slice()) {
@@ -360,20 +366,24 @@ pub trait MotorBus: CanBus {
                     );
                     continue;
                 };
+                let Some(comm_type) = CommunicationType::from_u8(ext.comm_type) else {
+                    continue;
+                };
+                let device_id = comm::inbound_motor_device_id(frame.id, comm_type);
                 let Some(address) =
-                    address_for_frame(motor_types, received.interface.as_deref(), ext.device_id)
+                    address_for_frame(motor_types, received.interface.as_deref(), device_id)
                 else {
                     tracing::trace!(
                         interface = received.interface.as_deref().unwrap_or("unknown"),
-                        device_id = ext.device_id,
+                        device_id,
                         comm_type = ext.comm_type,
                         can_id = format_args!("{:#010x}", frame.id),
                         "ignoring frame for unconfigured motor address"
                     );
                     continue;
                 };
-                match CommunicationType::from_u8(ext.comm_type) {
-                    Some(CommunicationType::OperationStatus) => {
+                match comm_type {
+                    CommunicationType::OperationStatus => {
                         let Some(motor_type) = motor_types.get(&address).copied() else {
                             continue;
                         };
@@ -411,7 +421,7 @@ pub trait MotorBus: CanBus {
                             );
                         }
                     }
-                    Some(CommunicationType::FaultReport) => {
+                    CommunicationType::FaultReport => {
                         if let Some(report) = decode_fault_report(frame.id, frame.data.as_slice()) {
                             tracing::warn!(
                                 interface = %address.interface,
@@ -474,7 +484,7 @@ fn decode_fault_report(can_id: u32, data: &[u8]) -> Option<FaultReport> {
         unpacked.extra_data
     };
     Some(FaultReport {
-        device_id: unpacked.device_id,
+        device_id: comm::inbound_motor_device_id(can_id, CommunicationType::FaultReport),
         fault,
     })
 }

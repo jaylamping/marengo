@@ -6,36 +6,40 @@ use std::path::PathBuf;
 
 use berthier::{ControlLoop, ControlMode};
 use davout::{JointCommand, SpeedCommand};
-use marengo_config::{load_control_config, load_motors_config};
+use marengo_config::{load_control_config, load_motors_config, resolve_repo_root};
 use robstride::RuntimeBus;
 use tracing::info;
 
 fn repo_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+    resolve_repo_root()
 }
 
 fn usage() {
     eprintln!(
         "motor-repl — bench motor exercise (Davout → robstride)\n\
          Usage:\n  \
-           motor-repl [--can-interface can0] status\n  \
+         motor-repl [--config-dir PATH] [--can-interface can0] status\n  \
+           motor-repl homing-status\n  \
            motor-repl home\n  \
            motor-repl enable <operator_id>\n  \
            motor-repl disable\n  \
            motor-repl jog <joint> <position_rad>\n  \
            motor-repl speed <joint> <rad_s>\n  \
            motor-repl speed-stop <joint>\n  \
-           motor-repl set-zero <joint>\n  \
+           motor-repl set-zero <joint> [--sign-tested]\n  \
            motor-repl gravity-on\n  \
            motor-repl gravity-off\n  \
            motor-repl gravity-preview [q0 q1 q2 q3]\n\
-         Uses SocketCAN; prefer test harness or simulation before live CAN."
+         Homing: set-zero each joint at mechanical reference, then home, then enable.\n\
+         Uses SocketCAN; prefer test harness or simulation before live CAN.\n\
+         Env: MARENGO_ROOT, MARENGO_CONFIG_DIR (e.g. config/bringup/shoulder_pitch_dual)"
     );
 }
 
-fn parse_bus_args(args: Vec<String>) -> (Option<String>, Vec<String>) {
+fn parse_bus_args(args: Vec<String>) -> (Option<String>, Option<PathBuf>, Vec<String>) {
     let mut command_args = vec![args[0].clone()];
     let mut can_interface = env::var("MARENGO_CAN_INTERFACE").ok();
+    let mut config_dir = env::var("MARENGO_CONFIG_DIR").ok().map(PathBuf::from);
     let mut i = 1;
     while i < args.len() {
         match args[i].as_str() {
@@ -47,18 +51,35 @@ fn parse_bus_args(args: Vec<String>) -> (Option<String>, Vec<String>) {
                 can_interface = Some(value.clone());
                 i += 2;
             }
+            "--config-dir" => {
+                let Some(value) = args.get(i + 1) else {
+                    eprintln!("--config-dir requires a path");
+                    std::process::exit(1);
+                };
+                config_dir = Some(PathBuf::from(value));
+                i += 2;
+            }
             _ => {
                 command_args.extend_from_slice(&args[i..]);
                 break;
             }
         }
     }
-    (can_interface, command_args)
+    (can_interface, config_dir, command_args)
 }
 
 fn main() {
     marengo_support::init_tracing();
     let args: Vec<String> = env::args().collect();
+    if args.len() < 2 {
+        usage();
+        std::process::exit(1);
+    }
+
+    let (can_interface, config_dir, args) = parse_bus_args(args);
+    if let Some(dir) = config_dir {
+        env::set_var("MARENGO_CONFIG_DIR", dir);
+    }
     if args.len() < 2 {
         usage();
         std::process::exit(1);
@@ -79,11 +100,6 @@ fn main() {
             std::process::exit(1);
         }
     };
-    let (can_interface, args) = parse_bus_args(args);
-    if args.len() < 2 {
-        usage();
-        std::process::exit(1);
-    }
     let bus = match can_interface.as_deref() {
         Some(interface) => match RuntimeBus::socketcan(interface) {
             Ok(bus) => bus,
@@ -140,13 +156,52 @@ fn main() {
                 loop_ctrl.control_mode(),
                 bus_label
             );
+            let joints: Vec<String> = loop_ctrl
+                .supervisor_mut()
+                .motors
+                .motors
+                .iter()
+                .map(|m| m.joint.clone())
+                .collect();
+            for joint in &joints {
+                let state = loop_ctrl.supervisor_mut().joint_homing_state(joint);
+                println!("  homing {joint}: {state:?}");
+            }
+        }
+        "homing-status" => {
+            let joints: Vec<String> = loop_ctrl
+                .supervisor_mut()
+                .motors
+                .motors
+                .iter()
+                .map(|m| m.joint.clone())
+                .collect();
+            for joint in &joints {
+                let state = loop_ctrl.supervisor_mut().joint_homing_state(joint);
+                let pos = loop_ctrl.supervisor_mut().joint_position_rad(joint);
+                println!(
+                    "{joint}: homing={state:?} pos={}",
+                    pos.map(|p| format!("{p:.4} rad"))
+                        .unwrap_or_else(|| "n/a".into())
+                );
+            }
         }
         "home" => {
-            loop_ctrl.supervisor_mut().set_homing_complete();
-            println!("homing complete → Ready");
+            if let Err(e) = loop_ctrl.supervisor_mut().set_homing_complete() {
+                eprintln!("home failed: {e}");
+                std::process::exit(1);
+            }
+            println!("homing verified → Ready");
         }
         "enable" => {
             let op = args.get(2).map(String::as_str).unwrap_or("bench");
+            if loop_ctrl.supervisor_mut().mode() != davout::OperationalMode::Ready {
+                if let Err(e) = loop_ctrl.supervisor_mut().set_homing_complete() {
+                    eprintln!("enable blocked: {e}");
+                    eprintln!("run set-zero for each joint, then home");
+                    std::process::exit(1);
+                }
+            }
             if let Err(e) = loop_ctrl.supervisor_mut().request_enable(true) {
                 eprintln!("enable failed: {e}");
                 std::process::exit(1);
@@ -170,6 +225,14 @@ fn main() {
                 eprintln!("missing or invalid position_rad");
                 std::process::exit(1);
             });
+            if let Err(e) = loop_ctrl.supervisor_mut().set_homing_complete() {
+                eprintln!("jog blocked: {e}");
+                std::process::exit(1);
+            }
+            if let Err(e) = loop_ctrl.supervisor_mut().request_enable(true) {
+                eprintln!("enable failed: {e}");
+                std::process::exit(1);
+            }
             if let Err(e) = loop_ctrl.supervisor_mut().send_joint_command(JointCommand {
                 joint: joint.to_string(),
                 position_rad: pos,
@@ -194,7 +257,10 @@ fn main() {
                 eprintln!("firmware speed mode disabled: set control.bench.allow_firmware_speed_mode=true for bench diagnostics");
                 std::process::exit(1);
             }
-            loop_ctrl.supervisor_mut().set_homing_complete();
+            if let Err(e) = loop_ctrl.supervisor_mut().set_homing_complete() {
+                eprintln!("speed blocked: {e}");
+                std::process::exit(1);
+            }
             if let Err(e) = loop_ctrl.supervisor_mut().request_enable(true) {
                 eprintln!("enable failed: {e}");
                 std::process::exit(1);
@@ -230,16 +296,30 @@ fn main() {
                 eprintln!("missing joint name");
                 std::process::exit(1);
             });
-            loop_ctrl.supervisor_mut().set_homing_complete();
-            if let Err(e) = loop_ctrl.supervisor_mut().request_enable(true) {
-                eprintln!("enable failed: {e}");
-                std::process::exit(1);
+            let sign_tested = args.iter().any(|a| a == "--sign-tested");
+            if loop_ctrl.supervisor_mut().mode() != davout::OperationalMode::Active {
+                if let Err(e) = loop_ctrl.supervisor_mut().request_enable_for_calibration() {
+                    eprintln!("enable for set-zero failed: {e}");
+                    std::process::exit(1);
+                }
             }
             if let Err(e) = loop_ctrl.supervisor_mut().set_zero_position(joint) {
                 eprintln!("set-zero failed: {e}");
                 std::process::exit(1);
             }
-            println!("set-zero {joint} (SocketCAN {bus_label})");
+            let _ = loop_ctrl.supervisor_mut().refresh_feedback();
+            match loop_ctrl
+                .supervisor_mut()
+                .verify_zero_after_set(joint, "bench", sign_tested)
+            {
+                Ok(pos) => {
+                    println!("set-zero {joint} verified pos={pos:.4} rad (SocketCAN {bus_label})");
+                }
+                Err(e) => {
+                    eprintln!("set-zero verify failed: {e}");
+                    std::process::exit(1);
+                }
+            }
         }
         "gravity-on" => {
             loop_ctrl.set_control_mode(ControlMode::GravityComp);
@@ -250,20 +330,19 @@ fn main() {
             println!("control mode → Disabled");
         }
         "gravity-preview" => {
-            let q: Vec<f64> = if args.len() >= 6 {
-                let mut parsed = Vec::new();
-                for s in &args[2..6] {
-                    match s.parse::<f64>() {
-                        Ok(v) => parsed.push(v),
-                        Err(_) => {
+            let joint_count = loop_ctrl.supervisor_mut().motors.motors.len();
+            let q: Vec<f64> = if args.len() >= 2 + joint_count {
+                args[2..2 + joint_count]
+                    .iter()
+                    .map(|s| {
+                        s.parse::<f64>().unwrap_or_else(|_| {
                             eprintln!("invalid joint angle: {s}");
                             std::process::exit(1);
-                        }
-                    }
-                }
-                parsed
+                        })
+                    })
+                    .collect()
             } else {
-                vec![0.0, 0.0, 0.0, 0.0]
+                vec![0.0; joint_count]
             };
             let tau = match loop_ctrl.preview_gravity_torques(&q) {
                 Ok(t) => t,

@@ -116,7 +116,7 @@ pub fn decode_mit_feedback(motor_type: MotorType, can_id: u32, data: &[u8]) -> O
     let t = vendor_u16_to_signed(read_be_u16(data, 4), ranges.torque_scale);
     let temp = f32::from(read_be_u16(data, 6)) * 0.1;
     Some(MitFeedback {
-        device_id: unpacked.device_id,
+        device_id: crate::comm::inbound_motor_device_id(can_id, CommunicationType::OperationStatus),
         position_rad: p,
         velocity_rad_s: v,
         torque_nm: t,
@@ -130,7 +130,7 @@ mod tests {
     #![allow(clippy::expect_used)]
 
     use super::*;
-    use crate::comm::unpack_ext_id;
+    use crate::comm::{unpack_ext_id, DEFAULT_HOST_ID};
     use marengo_config::MotorType;
 
     #[test]
@@ -188,7 +188,7 @@ mod tests {
         );
         write_be_u16(&mut data, 4, signed_to_vendor_u16(3.0, ranges.torque_scale));
         write_be_u16(&mut data, 6, 321);
-        let id = pack_typed_ext_id(CommunicationType::OperationStatus, 0, 4);
+        let id = pack_typed_ext_id(CommunicationType::OperationStatus, 4, DEFAULT_HOST_ID);
         let fb = decode_mit_feedback(MotorType::Rs02, id, &data).expect("feedback");
         assert_eq!(fb.device_id, 4);
         assert!((fb.position_rad - 1.0).abs() < 0.001);

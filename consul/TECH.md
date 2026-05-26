@@ -34,14 +34,13 @@ It is deliberately opinionated and will be updated as the real sharp edges move.
 | Live Plots / Telemetry     | Recharts (or uPlot / @visx for higher perf) | Recharts is good enough for 90% of use cases and has great React 19 ergonomics. We can swap the hot path later. |
 | Session Recording / Replay | Event log + protobuf snapshots + time cursor | Built from day one so scrubbing is perfect. |
 
-## Messaging & Transport (Future)
+## Messaging & Transport
 
-- **Today**: Placeholder (we still need the Chappe transport ADR).
-- **Target**: **WebTransport** (bidirectional streams + datagrams) over HTTP/3 when we have a Rust-side endpoint.
-  - Dramatic latency and multiplexing win over WebSocket.
-  - Binary protobuf (same `@bufbuild/protobuf` we already use) over WebTransport.
-- Fallback: WebSocket + protobuf for environments where WebTransport isn’t viable yet.
-- We will keep the generated types (`consul/src/gen/`) as the single source of truth.
+- **Bench / dev**: [`marengo-gateway`](../bins/marengo-gateway/) — HTTP CRUD on `:8080`, WebTransport on `:8443` ([ADR 0008](../docs/decisions/0008-chappe-webtransport-transport.md)).
+- **Wire**: Binary protobuf (`@bufbuild/protobuf`, `consul/src/gen/marengo/v1/marengo_pb.ts` after `npm run gen:proto`).
+- **Env**: `VITE_CHAPPE_HTTP_URL`, `VITE_CHAPPE_WEBTRANSPORT_URL` (see `consul/.env.example`). Pi access via `ssh -L`.
+- **No GraphQL, no WebSocket fallback** in phase 1.
+- **Client**: `src/lib/chappe-client.ts`, `useChappeTelemetry` in app providers.
 
 ## Other Sharp Tools (2026)
 
@@ -74,4 +73,4 @@ This stack is chosen so that in 2026–2027 Consul can be the best-feeling robot
 
 ---
 
-**Current status (May 2026)**: Still pre-scaffold. This document + `DESIGN.md` are the north star. The first real code will be a minimal Vite + React 19 + Tailwind + resizable + placeholder 3D spike once the transport path is clearer.
+**Current status (May 2026)**: Dashboard shell + live Chappe telemetry path (gateway + WebTransport client). URDF-first 3D and session replay are next.

@@ -78,7 +78,7 @@ mod tests {
     use marengo_config::MotorType;
 
     use super::bus::{AddressedMitCommand, MemoryBus, MotorAddress, MotorBus, ReceivedCanFrame};
-    use super::comm::{pack_typed_ext_id, unpack_ext_id, CommunicationType};
+    use super::comm::{pack_typed_ext_id, unpack_ext_id, CommunicationType, DEFAULT_HOST_ID};
     use super::mit::{encode_mit, MitCommand};
     use super::CanFrame;
 
@@ -198,12 +198,12 @@ mod tests {
         let mut bus = MemoryBus::default();
         let status_data = [0x7F, 0xFF, 0x7F, 0xFF, 0x7F, 0xFF, 0x00, 0xC8];
         bus.rx_queue.push(CanFrame {
-            id: pack_typed_ext_id(CommunicationType::OperationStatus, 0, 1),
+            id: pack_typed_ext_id(CommunicationType::OperationStatus, 1, DEFAULT_HOST_ID),
             data: status_data,
             extended: true,
         });
         bus.rx_queue.push(CanFrame {
-            id: pack_typed_ext_id(CommunicationType::OperationStatus, 0, 2),
+            id: pack_typed_ext_id(CommunicationType::OperationStatus, 2, DEFAULT_HOST_ID),
             data: status_data,
             extended: true,
         });
@@ -221,7 +221,7 @@ mod tests {
     fn recv_all_updates_fault_report() {
         let mut bus = MemoryBus::default();
         bus.rx_queue.push(CanFrame {
-            id: pack_typed_ext_id(CommunicationType::FaultReport, 0, 1),
+            id: pack_typed_ext_id(CommunicationType::FaultReport, 1, DEFAULT_HOST_ID),
             data: [0x34, 0x12, 0, 0, 0, 0, 0, 0],
             extended: true,
         });
@@ -242,7 +242,7 @@ mod tests {
         bus.rx.push(ReceivedCanFrame {
             interface: Some("can1".to_string()),
             frame: CanFrame {
-                id: pack_typed_ext_id(CommunicationType::OperationStatus, 0, 1),
+                id: pack_typed_ext_id(CommunicationType::OperationStatus, 1, DEFAULT_HOST_ID),
                 data: [0x7F, 0xFF, 0x7F, 0xFF, 0x7F, 0xFF, 0x00, 0xC8],
                 extended: true,
             },

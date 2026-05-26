@@ -10,7 +10,16 @@ Operator workflow for OpenArm-style impedance after gravity compensation is vali
 
 ## Zero pose
 
-OpenArm convention: arms straight down when possible. Record encoder zeros with `SetZero` per motor after mechanical zeroing.
+OpenArm convention: arms straight down when possible. Record encoder zeros with `SetZero` per motor after mechanical zeroing (`motor-repl set-zero` / `pi_set_zero` — Robstride lifecycle uses host id **0xFD** and set-zero data byte **0x01**, matching Motor Studio).
+
+**Do not confuse:**
+
+| Knob | File | Purpose |
+|------|------|---------|
+| `home_offset_rad` | `config/homing.yaml` | Maps Hall home reference → semantic zero |
+| `position_hold_trim_rad` | `config/control.yaml` | Small hold-target fudge only; not homing |
+
+See [homing.md](homing.md).
 
 ## Gain sweep
 
@@ -30,7 +39,17 @@ These are Marengo control modes, not Robstride firmware `run_mode` values. Maren
 | Marengo mode | Firmware path | When |
 |--------------|---------------|------|
 | `GravityComp` | MIT `run_mode=0` | First hardware enable, elevated poses |
-| `Impedance` | MIT `run_mode=0` | After G-comp signed off |
-| `Position` | MIT `run_mode=0` | Only when not holding elevated configurations |
+| `Impedance` | MIT `run_mode=0` | Compliant at current pose (setpoint tracks measured q) |
+| `Position` | MIT `run_mode=0` | **Hold-and-return:** latched setpoint via `marengo-pi` `hold-on` / `hold-at` |
+| `Position` (legacy) | MIT `run_mode=0` | Only when not holding elevated configurations without G-comp |
+
+### Position hold (`hold-on`)
+
+1. Validate `GravityComp` at arm-down and mid-range first.
+2. `enable bench` → `hold-on` (latches current encoder pose) or `hold-at <rad>`.
+3. **`hold-at` ramps** toward the target at each joint's `position_slew_rad_s` (default **0.25 rad/s**). `position_slew_max_lead_rad` caps how far the command may run ahead of measured `q` so soft gains still reach the target before retarget/return.
+4. Small push (~±0.1 rad); verify return without oscillation or limit fault.
+5. Sweep `impedance.kp` / `kd` in bring-up `control.yaml`; back off 20% from first oscillation.
+6. `hold-off` / `disable` before leaving bench.
 
 Firmware Speed mode (`run_mode=2`, `spd_ref`) is a bench diagnostic path only and is disabled unless `control.bench.allow_firmware_speed_mode` is set explicitly.

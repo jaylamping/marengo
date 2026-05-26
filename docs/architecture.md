@@ -16,6 +16,8 @@ flowchart LR
   ConsulGen --> Consul[Consul UI]
   HW --> Consul
   Pi[marengo-pi] --> Chappe
+  Gateway[marengo-gateway] --> Chappe
+  Consul[Consul UI] -->|HTTP + WebTransport| Gateway
   Jetson[marengo-jetson] --> Chappe
   Chappe -->|"binary protobuf"| Berthier[Berthier control]
   Berthier --> Davout[Davout safety]

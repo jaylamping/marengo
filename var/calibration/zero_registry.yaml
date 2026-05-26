@@ -1,0 +1,4 @@
+# Host-side zero calibration audit trail (generated at runtime).
+# See docs/homing.md
+
+joints: []

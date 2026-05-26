@@ -22,6 +22,8 @@ hardware/electrical/**/-backups/
 
 # Frontend
 consul/node_modules/
+tools/marengo-pi-mcp/node_modules/
+tools/marengo-pi-mcp/dist/
 consul/dist/
 consul/src/gen/*
 !consul/src/gen/.checksum
@@ -29,3 +31,7 @@ consul/src/gen/*
 # Local secrets / overrides
 .env
 *.pem
+.firecrawl/
+
+# Pi bench session logs (runtime on device; not committed)
+var/log/

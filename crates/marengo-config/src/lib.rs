@@ -10,6 +10,7 @@
 //! | `robot.yaml` | [`RobotConfigFile`] | Davout, Berthier, armee-dynamics |
 //! | `motors.yaml` | [`MotorsConfigFile`] | Davout, robstride (`device_id`, [`MotorType`]) |
 //! | `control.yaml` | [`ControlConfigFile`] | Berthier (gains, loop Hz), Davout (caps, danger zones) |
+//! | `homing.yaml` | [`HomingConfigFile`] | Homing methods, offsets, sensor inputs |
 //! | `network.yaml` | [`NetworkConfigFile`] | Chappe / bins |
 //!
 //! ## Responsibilities
@@ -126,6 +127,13 @@ fn read_yaml<T: for<'de> Deserialize<'de>>(path: &Path) -> Result<T, ConfigError
     })
 }
 
+/// Repository root: `MARENGO_ROOT` env, else compile-time workspace root from this crate.
+pub fn resolve_repo_root() -> PathBuf {
+    std::env::var("MARENGO_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."))
+}
+
 /// Config directory: `MARENGO_CONFIG_DIR` or `<repo_root>/config`.
 pub fn resolve_config_dir(repo_root: impl AsRef<Path>) -> PathBuf {
     std::env::var("MARENGO_CONFIG_DIR")
@@ -134,7 +142,9 @@ pub fn resolve_config_dir(repo_root: impl AsRef<Path>) -> PathBuf {
 }
 
 /// Load `robot.yaml` from `config_dir`.
-pub fn load_robot_config_from(config_dir: impl AsRef<Path>) -> Result<RobotConfigFile, ConfigError> {
+pub fn load_robot_config_from(
+    config_dir: impl AsRef<Path>,
+) -> Result<RobotConfigFile, ConfigError> {
     read_yaml(&config_dir.as_ref().join("robot.yaml"))
 }
 
@@ -150,6 +160,13 @@ pub fn load_control_config_from(
     config_dir: impl AsRef<Path>,
 ) -> Result<ControlConfigFile, ConfigError> {
     read_yaml(&config_dir.as_ref().join("control.yaml"))
+}
+
+/// Load `homing.yaml` from `config_dir`.
+pub fn load_homing_config_from(
+    config_dir: impl AsRef<Path>,
+) -> Result<HomingConfigFile, ConfigError> {
+    read_yaml(&config_dir.as_ref().join("homing.yaml"))
 }
 
 /// Load `config/robot.yaml` relative to `repo_root` (honours `MARENGO_CONFIG_DIR`).
@@ -201,6 +218,23 @@ pub struct JointControlEntry {
     pub gravity_comp: ModeGains,
     pub impedance: ModeGains,
     pub friction: FrictionGains,
+    /// Max rate for ramping position-hold setpoints (`hold-at` / retarget). Default 0.25 rad/s.
+    #[serde(default = "default_position_slew_rad_s")]
+    pub position_slew_rad_s: f64,
+    /// Max rad the ramped MIT setpoint may lead measured `q` (prevents racing ahead at high slew).
+    #[serde(default = "default_position_slew_max_lead_rad")]
+    pub position_slew_max_lead_rad: f64,
+    /// Added to every position-hold target (rad). Bench trim when mechanical zero ≠ encoder zero.
+    #[serde(default)]
+    pub position_hold_trim_rad: f64,
+}
+
+fn default_position_slew_rad_s() -> f64 {
+    0.25
+}
+
+fn default_position_slew_max_lead_rad() -> f64 {
+    0.15
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -225,6 +259,191 @@ pub struct DangerZoneRule {
     pub velocity_below_rad_s: f64,
     pub action: String,
     pub max_velocity_rad_s: f64,
+}
+
+/// Load `config/homing.yaml` relative to `repo_root` (honours `MARENGO_CONFIG_DIR`).
+pub fn load_homing_config(repo_root: impl AsRef<Path>) -> Result<HomingConfigFile, ConfigError> {
+    load_homing_config_from(resolve_config_dir(repo_root))
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct HomingConfigFile {
+    pub homing: HomingSection,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct HomingSection {
+    pub zero_verify_tolerance_rad: f64,
+    pub calibration_record_path: String,
+    #[serde(default)]
+    pub defaults: HomingJointDefaults,
+    pub joints: std::collections::HashMap<String, HomingJointEntry>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HomingMethod {
+    None,
+    ManualReference,
+    HallThreeSensor,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct HomingJointDefaults {
+    #[serde(default = "default_homing_method")]
+    pub method: HomingMethod,
+    #[serde(default)]
+    pub home_offset_rad: f64,
+    #[serde(default = "default_search_direction")]
+    pub search_direction: SearchDirection,
+    #[serde(default = "default_search_velocity")]
+    pub search_velocity_rad_s: f64,
+    #[serde(default = "default_search_torque")]
+    pub search_torque_nm: f64,
+    #[serde(default = "default_search_timeout")]
+    pub search_timeout_s: f64,
+    #[serde(default = "default_backoff")]
+    pub backoff_rad: f64,
+    #[serde(default = "default_true")]
+    pub sign_test_required: bool,
+    #[serde(default)]
+    pub allow_sensor_overlap: bool,
+}
+
+impl Default for HomingJointDefaults {
+    fn default() -> Self {
+        Self {
+            method: HomingMethod::ManualReference,
+            home_offset_rad: 0.0,
+            search_direction: SearchDirection::Positive,
+            search_velocity_rad_s: default_search_velocity(),
+            search_torque_nm: default_search_torque(),
+            search_timeout_s: default_search_timeout(),
+            backoff_rad: default_backoff(),
+            sign_test_required: true,
+            allow_sensor_overlap: false,
+        }
+    }
+}
+
+fn default_homing_method() -> HomingMethod {
+    HomingMethod::ManualReference
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SearchDirection {
+    Positive,
+    Negative,
+}
+
+fn default_search_direction() -> SearchDirection {
+    SearchDirection::Positive
+}
+
+fn default_search_velocity() -> f64 {
+    0.15
+}
+
+fn default_search_torque() -> f64 {
+    0.5
+}
+
+fn default_search_timeout() -> f64 {
+    30.0
+}
+
+fn default_backoff() -> f64 {
+    0.05
+}
+
+fn default_true() -> bool {
+    true
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct HomingJointEntry {
+    #[serde(default = "default_homing_method")]
+    pub method: HomingMethod,
+    #[serde(flatten)]
+    pub overrides: HomingJointOverrides,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct HomingJointOverrides {
+    #[serde(default)]
+    pub home_offset_rad: Option<f64>,
+    #[serde(default)]
+    pub search_direction: Option<SearchDirection>,
+    #[serde(default)]
+    pub search_velocity_rad_s: Option<f64>,
+    #[serde(default)]
+    pub search_torque_nm: Option<f64>,
+    #[serde(default)]
+    pub search_timeout_s: Option<f64>,
+    #[serde(default)]
+    pub backoff_rad: Option<f64>,
+    #[serde(default)]
+    pub sign_test_required: Option<bool>,
+    #[serde(default)]
+    pub allow_sensor_overlap: Option<bool>,
+    #[serde(default)]
+    pub sensors: Option<HomingSensors>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct HomingSensors {
+    pub home: SensorInput,
+    pub min_limit: SensorInput,
+    pub max_limit: SensorInput,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct SensorInput {
+    pub gpio: u8,
+    #[serde(default = "default_true")]
+    pub active_high: bool,
+}
+
+/// Effective homing parameters for one joint (defaults merged with overrides).
+#[derive(Debug, Clone)]
+pub struct EffectiveHomingJoint {
+    pub joint: String,
+    pub method: HomingMethod,
+    pub home_offset_rad: f64,
+    pub search_direction: SearchDirection,
+    pub search_velocity_rad_s: f64,
+    pub search_torque_nm: f64,
+    pub search_timeout_s: f64,
+    pub backoff_rad: f64,
+    pub sign_test_required: bool,
+    pub allow_sensor_overlap: bool,
+    pub sensors: Option<HomingSensors>,
+}
+
+impl HomingSection {
+    pub fn effective_joint(&self, joint: &str) -> Option<EffectiveHomingJoint> {
+        let entry = self.joints.get(joint)?;
+        let d = &self.defaults;
+        let o = &entry.overrides;
+        Some(EffectiveHomingJoint {
+            joint: joint.to_string(),
+            method: entry.method,
+            home_offset_rad: o.home_offset_rad.unwrap_or(d.home_offset_rad),
+            search_direction: o.search_direction.unwrap_or(d.search_direction),
+            search_velocity_rad_s: o.search_velocity_rad_s.unwrap_or(d.search_velocity_rad_s),
+            search_torque_nm: o.search_torque_nm.unwrap_or(d.search_torque_nm),
+            search_timeout_s: o.search_timeout_s.unwrap_or(d.search_timeout_s),
+            backoff_rad: o.backoff_rad.unwrap_or(d.backoff_rad),
+            sign_test_required: o.sign_test_required.unwrap_or(d.sign_test_required),
+            allow_sensor_overlap: o.allow_sensor_overlap.unwrap_or(d.allow_sensor_overlap),
+            sensors: o.sensors.clone(),
+        })
+    }
+
+    pub fn configured_joints(&self) -> impl Iterator<Item = &String> {
+        self.joints.keys()
+    }
 }
 
 /// Load `config/control.yaml` relative to `repo_root` (honours `MARENGO_CONFIG_DIR`).
@@ -284,7 +503,7 @@ mod tests {
     use super::*;
 
     fn repo_root() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+        resolve_repo_root()
     }
 
     #[test]
@@ -304,7 +523,7 @@ mod tests {
         assert_eq!(motors.motors.len(), 4);
         validate_motors_against_robot(&robot, &motors).expect("joint names align");
         let m = motor_for_joint(&motors, "shoulder_roll").expect("shoulder_roll");
-        assert_eq!(m.device_id, 1);
+        assert_eq!(m.device_id, 11);
         assert_eq!(m.motor_type, MotorType::Rs03);
     }
 
@@ -321,6 +540,21 @@ mod tests {
     }
 
     #[test]
+    fn arm_4dof_left_bringup_config_validates() {
+        let root = repo_root();
+        let config_dir = root.join("config/bringup/arm_4dof_left");
+        let robot = load_robot_config_from(&config_dir).expect("arm robot.yaml");
+        let motors = load_motors_config_from(&config_dir).expect("arm motors.yaml");
+        validate_motors_against_robot(&robot, &motors).expect("arm joints align");
+        assert_eq!(
+            motor_for_joint(&motors, "shoulder_pitch")
+                .expect("pitch")
+                .device_id,
+            12
+        );
+    }
+
+    #[test]
     fn shoulder_pitch_dual_bringup_config_validates() {
         let root = repo_root();
         let config_dir = root.join("config/bringup/shoulder_pitch_dual");
@@ -328,6 +562,12 @@ mod tests {
         let motors = load_motors_config_from(&config_dir).expect("bringup motors.yaml");
         assert_eq!(motors.motors.len(), 2);
         validate_motors_against_robot(&robot, &motors).expect("bringup joints align");
+        let left = motor_for_joint(&motors, "left_shoulder_pitch").expect("left");
+        let right = motor_for_joint(&motors, "right_shoulder_pitch").expect("right");
+        assert_eq!(left.device_id, 12);
+        assert_eq!(left.can_interface, "can1");
+        assert_eq!(right.device_id, 2);
+        assert_eq!(right.can_interface, "can0");
         let urdf = resolve_urdf_path(&root, &robot).expect("bringup urdf");
         assert!(urdf.ends_with("shoulder_pitch_dual.urdf"));
         load_control_config_from(&config_dir).expect("bringup control.yaml");
@@ -344,6 +584,25 @@ mod tests {
         let cfg = load_robot_config(repo_root()).expect("robot.yaml");
         let path = resolve_urdf_path(repo_root(), &cfg).expect("arm_4dof.urdf");
         assert!(path.ends_with("arm_4dof.urdf"));
+    }
+
+    #[test]
+    fn homing_yaml_parses() {
+        let cfg = load_homing_config(repo_root()).expect("homing.yaml");
+        assert!((cfg.homing.zero_verify_tolerance_rad - 0.05).abs() < 1e-9);
+        let roll = cfg
+            .homing
+            .effective_joint("shoulder_roll")
+            .expect("shoulder_roll");
+        assert!(matches!(roll.method, HomingMethod::ManualReference));
+    }
+
+    #[test]
+    fn shoulder_pitch_dual_homing_parses() {
+        let root = repo_root();
+        let config_dir = root.join("config/bringup/shoulder_pitch_dual");
+        let cfg = load_homing_config_from(&config_dir).expect("bringup homing.yaml");
+        assert_eq!(cfg.homing.joints.len(), 2);
     }
 
     #[test]

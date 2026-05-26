@@ -8,7 +8,7 @@
 //!
 //! - [`ControlLoop::tick`](loop::ControlLoop::tick): `recv` → `q` → `tau_g(q)` → MIT batch → Davout.
 //! - Control modes: gravity comp, impedance, position, torque-only ([`ControlMode`]).
-//! - Optional friction feedforward (`friction` module) in impedance mode.
+//! - Optional friction feedforward (`friction` module) in impedance and position modes.
 //! - Publish [`RobotState`](armee_proto::RobotState) on Chappe (lower rate than the motor loop).
 //! - Legacy [`Controller`]: single-joint position commands through Davout (REPL / bring-up).
 //!
@@ -105,7 +105,12 @@ mod tests {
         let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
         let bus = davout::MemoryBus::default();
         let mut ctrl = Controller::from_repo(&root, bus).expect("controller");
-        ctrl.supervisor_mut().set_homing_complete();
+        let motors = ctrl.supervisor_mut().motors.motors.clone();
+        ctrl.supervisor_mut()
+            .homing_registry_mut()
+            .bench_mark_all_verified(&motors)
+            .expect("verify");
+        ctrl.supervisor_mut().set_homing_complete().expect("ready");
         ctrl.supervisor_mut().request_enable(true).expect("enable");
         ctrl.command_position("shoulder_roll", 0.05)
             .expect("position");

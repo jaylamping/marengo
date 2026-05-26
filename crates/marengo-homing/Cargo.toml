@@ -1,0 +1,18 @@
+[package]
+name = "marengo-homing"
+version = "0.1.0"
+description = "Homing state machine, sensor truth table, and calibration registry for Marengo"
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+marengo-config.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_yaml.workspace = true
+thiserror.workspace = true
+chrono = { version = "0.4", default-features = false, features = ["clock"] }

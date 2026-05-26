@@ -3,7 +3,7 @@
 use std::collections::BTreeSet;
 use std::env;
 use std::io::{self, BufRead};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::Arc;
@@ -19,14 +19,15 @@ use berthier::{proto_control_mode, ControlLoop, ControlMode};
 use chappe::Bus;
 use davout::{MotorAddress, OperationalMode};
 use marengo_config::{
-    load_control_config, load_motors_config, resolve_config_dir, resolve_urdf_path,
+    load_control_config, load_motors_config, resolve_config_dir, resolve_repo_root,
+    resolve_urdf_path,
 };
 use marengo_support::init_tracing;
 use robstride::RuntimeBus;
 use tracing::{error, info, warn};
 
 fn repo_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+    resolve_repo_root()
 }
 
 fn timestamp_ms() -> u64 {
@@ -46,10 +47,20 @@ fn proto_operational_mode(mode: OperationalMode) -> i32 {
 
 enum PiCommand {
     Home,
-    Enable { operator_id: String },
+    Enable {
+        operator_id: String,
+    },
     Disable,
     GravityOn,
     GravityOff,
+    ImpedanceOn,
+    ImpedanceOff,
+    HoldOn,
+    HoldAt {
+        joint: Option<String>,
+        position_rad: f64,
+    },
+    HoldOff,
     Status,
     Quit,
 }
@@ -65,6 +76,33 @@ fn parse_command(line: &str) -> Option<PiCommand> {
         "disable" => Some(PiCommand::Disable),
         "gravity-on" | "gravity_on" => Some(PiCommand::GravityOn),
         "gravity-off" | "gravity_off" => Some(PiCommand::GravityOff),
+        "impedance-on" | "impedance_on" => Some(PiCommand::ImpedanceOn),
+        "impedance-off" | "impedance_off" => Some(PiCommand::ImpedanceOff),
+        "hold-on" | "hold_on" => Some(PiCommand::HoldOn),
+        "hold-off" | "hold_off" => Some(PiCommand::HoldOff),
+        "hold-at" | "hold_at" => {
+            let tokens: Vec<_> = parts.collect();
+            match tokens.as_slice() {
+                [rad] => {
+                    let position_rad = rad.parse().ok()?;
+                    Some(PiCommand::HoldAt {
+                        joint: None,
+                        position_rad,
+                    })
+                }
+                [joint, rad] => {
+                    let position_rad = rad.parse().ok()?;
+                    Some(PiCommand::HoldAt {
+                        joint: Some(joint.to_string()),
+                        position_rad,
+                    })
+                }
+                _ => {
+                    eprintln!("hold-at usage: hold-at <rad>  OR  hold-at <joint> <rad>");
+                    None
+                }
+            }
+        }
         "status" => Some(PiCommand::Status),
         "quit" | "exit" => Some(PiCommand::Quit),
         "help" => {
@@ -85,6 +123,8 @@ fn print_usage() {
          enable [operator_id]\n  \
          disable\n  \
          gravity-on | gravity-off\n  \
+         impedance-on | impedance-off\n  \
+         hold-on | hold-at [joint] <rad> | hold-off\n  \
          status\n  \
          quit"
     );
@@ -116,6 +156,12 @@ fn handle_chappe_enable(
     request: &EnableRequest,
 ) -> Result<(), String> {
     if request.enable {
+        if loop_ctrl.supervisor_mut().mode() != davout::OperationalMode::Ready {
+            loop_ctrl
+                .supervisor_mut()
+                .set_homing_complete()
+                .map_err(|e| e.to_string())?;
+        }
         loop_ctrl
             .supervisor_mut()
             .request_enable(true)
@@ -155,8 +201,11 @@ fn drain_chappe_commands(
         let Ok(_homing) = HomingComplete::decode(envelope.payload.as_slice()) else {
             continue;
         };
-        loop_ctrl.supervisor_mut().set_homing_complete();
-        info!("homing complete via Chappe");
+        if let Err(e) = loop_ctrl.supervisor_mut().set_homing_complete() {
+            warn!(error = %e, "Chappe homing rejected");
+        } else {
+            info!("homing verified via Chappe");
+        }
     }
 }
 
@@ -201,13 +250,15 @@ fn publish_heartbeat(chappe: &Bus) -> Result<(), chappe::BusError> {
     )
 }
 
-fn print_status(loop_ctrl: &ControlLoop<RuntimeBus>, config_dir: &PathBuf) {
+fn print_status(loop_ctrl: &mut ControlLoop<RuntimeBus>, config_dir: &Path) {
+    let control_mode = loop_ctrl.control_mode();
     let supervisor = loop_ctrl.supervisor_mut();
+    let operational = supervisor.mode();
     println!(
         "config: {}\noperational: {:?}\ncontrol: {:?}",
         config_dir.display(),
-        supervisor.mode(),
-        loop_ctrl.control_mode(),
+        operational,
+        control_mode,
     );
     for motor in &supervisor.motors.motors {
         let address = MotorAddress::from(motor);
@@ -233,14 +284,20 @@ fn print_status(loop_ctrl: &ControlLoop<RuntimeBus>, config_dir: &PathBuf) {
 fn handle_command(
     loop_ctrl: &mut ControlLoop<RuntimeBus>,
     cmd: PiCommand,
-    config_dir: &PathBuf,
+    config_dir: &Path,
 ) -> bool {
     match cmd {
-        PiCommand::Home => {
-            loop_ctrl.supervisor_mut().set_homing_complete();
-            println!("homing complete → Ready");
-        }
+        PiCommand::Home => match loop_ctrl.supervisor_mut().set_homing_complete() {
+            Ok(()) => println!("homing verified → Ready"),
+            Err(e) => eprintln!("home failed: {e}"),
+        },
         PiCommand::Enable { operator_id } => {
+            if loop_ctrl.supervisor_mut().mode() != davout::OperationalMode::Ready {
+                if let Err(e) = loop_ctrl.supervisor_mut().set_homing_complete() {
+                    eprintln!("enable blocked: {e}");
+                    return true;
+                }
+            }
             match loop_ctrl.supervisor_mut().request_enable(true) {
                 Ok(()) => println!("enabled (operator={operator_id})"),
                 Err(e) => eprintln!("enable failed: {e}"),
@@ -264,6 +321,51 @@ fn handle_command(
             loop_ctrl.set_control_mode(ControlMode::Disabled);
             println!("control mode → Disabled");
         }
+        PiCommand::ImpedanceOn => {
+            loop_ctrl.set_control_mode(ControlMode::Impedance);
+            println!(
+                "control mode → Impedance (operational={:?})",
+                loop_ctrl.supervisor_mut().mode()
+            );
+        }
+        PiCommand::ImpedanceOff => {
+            loop_ctrl.set_control_mode(ControlMode::Disabled);
+            println!("control mode → Disabled");
+        }
+        PiCommand::HoldOn => match loop_ctrl.enter_position_hold() {
+            Ok(()) => {
+                println!(
+                    "control mode → Position hold (operational={:?})",
+                    loop_ctrl.supervisor_mut().mode()
+                );
+                if let Some(sp) = loop_ctrl.position_setpoints() {
+                    for (name, &q) in loop_ctrl.joint_names().iter().zip(sp) {
+                        println!("  hold {name} = {q:.4} rad");
+                    }
+                }
+            }
+            Err(e) => eprintln!("hold-on failed: {e}"),
+        },
+        PiCommand::HoldAt {
+            joint,
+            position_rad,
+        } => match loop_ctrl.enter_position_hold_at(joint.as_deref(), position_rad) {
+            Ok(()) => {
+                println!(
+                    "control mode → Position hold → target {position_rad:.4} rad (ramping, operational={:?})",
+                    loop_ctrl.supervisor_mut().mode()
+                );
+                if let Some(j) = joint.as_deref() {
+                    println!("  joint {j}");
+                }
+            }
+            Err(e) => eprintln!("hold-at failed: {e}"),
+        },
+        PiCommand::HoldOff => {
+            loop_ctrl.clear_position_hold();
+            loop_ctrl.set_control_mode(ControlMode::Disabled);
+            println!("hold-off → Disabled");
+        }
         PiCommand::Status => print_status(loop_ctrl, config_dir),
         PiCommand::Quit => return false,
     }
@@ -274,7 +376,7 @@ fn usage() {
     eprintln!(
         "marengo-pi — Pi control runtime (Berthier → Davout → SocketCAN)\n\
          Usage: marengo-pi [--config-dir PATH] [--no-stdin-ctl]\n\
-         Env:  MARENGO_CONFIG_DIR — override config directory\n\
+         Env:  MARENGO_ROOT, MARENGO_CONFIG_DIR — override repo/config paths\n\
          Bring-up: MARENGO_CONFIG_DIR=config/bringup/shoulder_pitch_dual"
     );
 }
@@ -371,15 +473,29 @@ fn main() {
     };
 
     let chappe = Arc::new(Bus::default());
+    #[cfg(unix)]
+    if let Some(socket_path) = chappe::ipc::socket_path_from_env() {
+        match chappe::ipc::IpcFanout::spawn_client(socket_path.clone(), (*chappe).clone()) {
+            Ok(fanout) => {
+                chappe.set_ipc_fanout(fanout);
+                info!(path = %socket_path.display(), "Chappe IPC fanout enabled");
+            }
+            Err(e) => warn!(error = %e, "Chappe IPC fanout disabled"),
+        }
+    }
     let mut enable_rx = chappe.subscribe("robot/enable");
     let mut homing_rx = chappe.subscribe("robot/homing");
 
     let shutdown = Arc::new(AtomicBool::new(false));
     let shutdown_flag = Arc::clone(&shutdown);
-    ctrlc::set_handler(move || {
+    if ctrlc::set_handler(move || {
         shutdown_flag.store(true, Ordering::SeqCst);
     })
-    .expect("install ctrl-c handler");
+    .is_err()
+    {
+        eprintln!("failed to install ctrl-c handler");
+        std::process::exit(1);
+    }
 
     let (cmd_tx, cmd_rx): (Sender<PiCommand>, Receiver<PiCommand>) = mpsc::channel();
     if stdin_ctl {
@@ -397,10 +513,11 @@ fn main() {
     );
 
     let period = loop_ctrl.loop_period();
-    let chappe_period = Duration::from_secs_f64(1.0 / f64::from(control.control.chappe_state_hz.max(1)));
+    let chappe_period =
+        Duration::from_secs_f64(1.0 / f64::from(control.control.chappe_state_hz.max(1)));
     let mut last_chappe = Instant::now();
     let mut last_heartbeat = Instant::now();
-    let mut active_fault: Option<String> = None;
+    let mut active_fault: Option<String>;
 
     while !shutdown.load(Ordering::SeqCst) {
         let tick_start = Instant::now();
@@ -414,17 +531,15 @@ fn main() {
 
         drain_chappe_commands(&mut loop_ctrl, &mut enable_rx, &mut homing_rx);
 
-        match loop_ctrl.tick(Some(chappe.as_ref())) {
-            Ok(()) => {
-                active_fault = None;
-            }
+        active_fault = match loop_ctrl.tick(Some(chappe.as_ref())) {
+            Ok(()) => None,
             Err(e) => {
                 error!(error = %e, "control tick failed");
-                active_fault = Some(e.to_string());
                 let _ = loop_ctrl.supervisor_mut().disable_all();
                 loop_ctrl.set_control_mode(ControlMode::Disabled);
+                Some(e.to_string())
             }
-        }
+        };
 
         let now = Instant::now();
         if now.duration_since(last_chappe) >= chappe_period {
@@ -438,7 +553,7 @@ fn main() {
             if let Err(e) = publish_heartbeat(chappe.as_ref()) {
                 warn!(error = %e, "failed to publish heartbeat");
             }
-            debug_status(&loop_ctrl);
+            debug_status(&mut loop_ctrl);
             last_heartbeat = now;
         }
 
@@ -456,8 +571,10 @@ fn main() {
     info!("marengo-pi stopped");
 }
 
-fn debug_status(loop_ctrl: &ControlLoop<RuntimeBus>) {
+fn debug_status(loop_ctrl: &mut ControlLoop<RuntimeBus>) {
+    let control_mode = loop_ctrl.control_mode();
     let supervisor = loop_ctrl.supervisor_mut();
+    let operational = supervisor.mode();
     for motor in &supervisor.motors.motors {
         let address = MotorAddress::from(motor);
         if let Some(state) = supervisor.motor_states().get(&address) {
@@ -468,8 +585,8 @@ fn debug_status(loop_ctrl: &ControlLoop<RuntimeBus>) {
                 pos = f64::from(state.position_rad),
                 vel = f64::from(state.velocity_rad_s),
                 torque = f64::from(state.torque_nm),
-                operational = ?supervisor.mode(),
-                control = ?proto_control_mode(loop_ctrl.control_mode()),
+                operational = ?operational,
+                control = ?proto_control_mode(control_mode),
                 "feedback"
             );
         }

@@ -1,0 +1,15 @@
+[Unit]
+Description=Bring up Marengo SocketCAN interfaces (can0, can1)
+After=network-pre.target
+Before=network.target marengo-pi.service
+DefaultDependencies=no
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# Idempotent: safe after reboot; matches scripts/can-up.sh (1 Mbit/s).
+ExecStart=/opt/marengo/scripts/can-up.sh can0 can1
+ExecStop=/bin/sh -c '/sbin/ip link set can0 down 2>/dev/null; /sbin/ip link set can1 down 2>/dev/null; true'
+
+[Install]
+WantedBy=multi-user.target

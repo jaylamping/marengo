@@ -1,0 +1,20 @@
+[Unit]
+Description=Marengo operator gateway (HTTP + WebTransport for Consul)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=marengo
+WorkingDirectory=/opt/marengo
+Environment=RUST_LOG=info,marengo_gateway=debug
+EnvironmentFile=-/etc/marengo/env
+Environment=MARENGO_CHAPPE_SOCKET=/run/marengo/chappe.sock
+ExecStart=/opt/marengo/bin/marengo-gateway --http-listen [::]:8080 --wt-listen [::]:8443 --chappe-socket /run/marengo/chappe.sock
+Restart=on-failure
+RestartSec=3
+RuntimeDirectory=marengo
+RuntimeDirectoryMode=0750
+
+[Install]
+WantedBy=multi-user.target

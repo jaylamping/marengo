@@ -2,7 +2,7 @@
 
 ## Recommended: Docker (source of truth)
 
-See [onboarding.md](onboarding.md).
+See [onboarding.md](onboarding.md) for dev container setup. For **physical Pi bring-up**, see [pi-commissioning.md](pi-commissioning.md).
 
 ```bash
 docker compose build dev
@@ -37,6 +37,11 @@ If you cannot use Docker, install tools matching [mise.toml](../mise.toml):
 # macOS examples
 brew install rust protobuf bufbuild/buf/buf node@22
 git lfs install && git lfs pull
+
+# Pi cross-build from Mac (one-time toolchain + deploy)
+./scripts/setup-mac-pi-cross.sh
+./scripts/deploy-pi.sh --install joey@marengo.local
+# or: just deploy-pi
 
 cargo build --workspace
 cd consul && npm ci && npm run gen:proto

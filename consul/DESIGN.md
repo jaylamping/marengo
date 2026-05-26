@@ -14,7 +14,7 @@ If the answer is “no” or “only a little,” it does not exist.
 
 ## Current Phase
 
-Consul is **wireframe-only** right now. KPI cards, charts, inventory rows, and header badges use static placeholder data to validate layout, density, and operator flows. No Chappe subscription, CAN feedback, or live telemetry yet — that wiring comes after the shell feels right.
+Consul is **wireframe + live telemetry** when `VITE_CHAPPE_*` is set. KPI cards, charts, inventory rows, and header badges still use placeholders by default; joint tracking, safety/mode badges, and inventory values can reflect real `RobotState` / `SafetyState` from `marengo-gateway` over WebTransport.
 
 The **Simulation** tab is the planned home for Isaac Sim / Isaac Lab: viewport stream, play/pause/scenario controls, runtime metrics, and task logs. Same wireframe rules apply until the D2 Lab bridge shares `proto/` with the stack ([ADR 0003](../docs/decisions/0003-simulation-testing.md)).
 

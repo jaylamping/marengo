@@ -154,12 +154,13 @@ Statuses: **done** · **active** · **next** · **later**
 
 ### M7 — Multi-process runtime and operator UI
 
-**Status:** later
+**Status:** active (gateway slice landed)
 
 | Piece | Gate |
 |-------|------|
-| Chappe transport ADR (NATS/IPC vs in-process) | Required before Pi + Jetson + Consul are separate processes |
-| Consul minimal UI (state, enable, faults, URDF viz) | After Chappe carries real `RobotState` / `SafetyState` |
+| Chappe WebTransport gateway ([ADR 0008](decisions/0008-chappe-webtransport-transport.md)) | **Done** — `marengo-gateway`, Unix IPC, Consul client |
+| NATS / multi-host transport | Later — same `Envelope` bytes |
+| Consul minimal UI (state, enable, faults, URDF viz) | **In progress** — live joints/safety via WebTransport; URDF viz later |
 | Live log-level control from Consul | Use `tracing_subscriber::reload`; validate requested filters, log operator/source, support TTL rollback for noisy CAN traces |
 | `marengo-jetson` beyond scaffold | After M6 or clear sim-only planner scope |
 | Talleyrand | After collision meshes + stable full URDF |

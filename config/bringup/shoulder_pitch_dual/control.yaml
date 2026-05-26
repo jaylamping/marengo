@@ -1,4 +1,4 @@
-# Control tuning for dual shoulder pitch bring-up.
+# Control tuning for dual shoulder pitch bring-up (left mirrors right-only bench).
 control:
   loop_hz: 200
   chappe_state_hz: 50
@@ -22,8 +22,11 @@ control:
         kp: 0.0
         kd: 0.0
       impedance:
-        kp: 50.0
-        kd: 2.0
+        kp: 12.0
+        kd: 0.75
+      position_slew_rad_s: 15.0
+      position_slew_max_lead_rad: 0.5
+      position_hold_trim_rad: 0.0
       friction:
         fc: 0.0
         fv: 0.0
@@ -35,8 +38,11 @@ control:
         kp: 0.0
         kd: 0.0
       impedance:
-        kp: 50.0
-        kd: 2.0
+        kp: 12.0
+        kd: 0.75
+      position_slew_rad_s: 15.0
+      position_slew_max_lead_rad: 0.5
+      position_hold_trim_rad: 0.0
       friction:
         fc: 0.0
         fv: 0.0

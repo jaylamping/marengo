@@ -15,12 +15,16 @@
 //!
 //! Typical topics: `robot/state`, telemetry, future RPC. Producers must not put raw CAN on Chappe.
 
+pub mod ipc;
+pub mod transport;
+
 use std::sync::Arc;
 
 use armee_proto::prost::Message;
 use armee_proto::Envelope;
 use thiserror::Error;
 use tokio::sync::broadcast;
+pub use transport::{SharedBus, Transport};
 
 const DEFAULT_CAPACITY: usize = 256;
 
@@ -41,6 +45,8 @@ pub struct Bus {
 struct BusInner {
     channels: std::sync::RwLock<std::collections::HashMap<String, broadcast::Sender<Vec<u8>>>>,
     capacity: usize,
+    #[cfg(unix)]
+    ipc: std::sync::RwLock<Option<std::sync::Arc<ipc::IpcFanout>>>,
 }
 
 impl Default for Bus {
@@ -55,7 +61,17 @@ impl Bus {
             inner: Arc::new(BusInner {
                 channels: std::sync::RwLock::new(std::collections::HashMap::new()),
                 capacity,
+                #[cfg(unix)]
+                ipc: std::sync::RwLock::new(None),
             }),
+        }
+    }
+
+    /// Forward publishes to a Unix socket for `marengo-gateway` (see ADR 0008).
+    #[cfg(unix)]
+    pub fn set_ipc_fanout(&self, fanout: std::sync::Arc<ipc::IpcFanout>) {
+        if let Ok(mut guard) = self.inner.ipc.write() {
+            *guard = Some(fanout);
         }
     }
 
@@ -74,9 +90,20 @@ impl Bus {
     }
 
     /// Publish encoded envelope bytes to `topic`.
+    ///
+    /// Succeeds when there are no subscribers (bench / headless Pi without Consul).
     pub fn publish_bytes(&self, topic: &str, payload: Vec<u8>) -> Result<(), BusError> {
-        self.sender(topic)
-            .send(payload)
+        #[cfg(unix)]
+        if let Ok(guard) = self.inner.ipc.read() {
+            if let Some(ipc) = guard.as_ref() {
+                ipc.forward_runtime_to_gateway(topic, &payload);
+            }
+        }
+        let tx = self.sender(topic);
+        if tx.receiver_count() == 0 {
+            return Ok(());
+        }
+        tx.send(payload)
             .map_err(|e| BusError::Publish(e.to_string()))?;
         Ok(())
     }
@@ -151,6 +178,13 @@ mod tests {
         let env = Bus::recv_envelope(&mut rx).await.expect("recv");
         let state = RobotState::decode(env.payload.as_slice()).expect("robot state");
         assert_eq!(state.joints.len(), 1);
+    }
+
+    #[test]
+    fn publish_without_subscribers_succeeds() {
+        let bus = Bus::default();
+        bus.publish_bytes("robot/state", vec![1, 2, 3])
+            .expect("noop publish");
     }
 
     #[tokio::test]
