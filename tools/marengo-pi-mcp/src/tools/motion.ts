@@ -79,8 +79,8 @@ function marengoPiBinarySelector(cfg: MarengoPiConfig): string {
 function marengoPiPipe(script: string[], timeoutSec: number, binary = "$PI_BIN"): string {
   const printfLines = script
     .map((l) => `printf '%s\\n' ${JSON.stringify(l)}`)
-    .join("\n");
-  return `${printfLines} | timeout ${timeoutSec} ${binary}`;
+    .join(";\n");
+  return `{\n${printfLines};\n} | timeout ${timeoutSec} ${binary}`;
 }
 
 function marengoPiPkillLine(cfg: MarengoPiConfig): string {

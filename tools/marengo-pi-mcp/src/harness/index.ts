@@ -29,8 +29,8 @@ export interface HarnessArgs {
 function marengoPiPipe(script: string[], timeoutSec: number): string {
   const printfLines = script
     .map((l) => `printf '%s\\n' ${JSON.stringify(l)}`)
-    .join("\n");
-  return `${printfLines} | timeout ${timeoutSec} bin/marengo-pi`;
+    .join(";\n");
+  return `{\n${printfLines};\n} | timeout ${timeoutSec} bin/marengo-pi`;
 }
 
 function benchSessionWrapper(
