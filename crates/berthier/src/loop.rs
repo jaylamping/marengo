@@ -250,6 +250,7 @@ impl<B: MotorBus> ControlLoop<B> {
                                     position_hold_friction_torque(dq, lead, f.fc, f.fv, f.fo, f.k)
                                 })
                                 .unwrap_or(0.0);
+                            let tau_d = -kd * dq;
                             if log_position_diag {
                                 let target = self
                                     .position_setpoints
@@ -257,7 +258,7 @@ impl<B: MotorBus> ControlLoop<B> {
                                     .and_then(|sp| sp.get(i).copied())
                                     .unwrap_or(q_des);
                                 let position_error = target - q[i];
-                                let estimated_tau = tau_g[i] + tau_f + kp * lead - kd * dq;
+                                let estimated_tau = tau_g[i] + tau_f + tau_d + kp * lead;
                                 info!(
                                     joint = %name,
                                     q = q[i],
@@ -270,11 +271,15 @@ impl<B: MotorBus> ControlLoop<B> {
                                     kd,
                                     tau_g = tau_g[i],
                                     tau_f,
+                                    tau_d,
                                     estimated_tau,
                                     "position hold command"
                                 );
                             }
-                            (kp, kd, tau_g[i] + tau_f, q_des)
+                            // Keep firmware MIT damping at zero in position hold; the drive's
+                            // velocity estimate is noisy, so Berthier applies damping through
+                            // torque feedforward using Davout's sanitized joint velocity.
+                            (kp, 0.0, tau_g[i] + tau_f + tau_d, q_des)
                         }
                         ControlMode::Disabled => continue,
                     };
@@ -524,6 +529,39 @@ mod tests {
             .expect("hold-at");
         loop_ctrl.tick(None).expect("tick");
         assert_eq!(loop_ctrl.supervisor_mut().mode(), OperationalMode::Active);
+    }
+
+    #[test]
+    fn position_hold_sends_zero_firmware_damping() {
+        let mut loop_ctrl = test_loop();
+        bench_ready_active(&mut loop_ctrl);
+        loop_ctrl
+            .enter_position_hold_at(Some("shoulder_pitch"), 0.25)
+            .expect("hold-at");
+        loop_ctrl.tick(None).expect("tick");
+
+        let joint_count = loop_ctrl.joint_names().len();
+        let mit_frames: Vec<_> = loop_ctrl
+            .supervisor_mut()
+            .bus_mut()
+            .tx
+            .iter()
+            .rev()
+            .take(joint_count)
+            .collect();
+
+        assert_eq!(
+            mit_frames.len(),
+            joint_count,
+            "position hold should send one MIT frame per joint"
+        );
+        for frame in mit_frames {
+            assert_eq!(
+                &frame.data[6..8],
+                &[0, 0],
+                "firmware kd must stay zero; Berthier applies damping through sanitized torque FF"
+            );
+        }
     }
 
     #[test]

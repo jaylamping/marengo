@@ -442,8 +442,8 @@ impl<B: MotorBus> Supervisor<B> {
                         continue;
                     };
                     let motor = motor.clone();
-                    let state = motor_to_joint_state(&motor, raw)?;
-                    self.check_feedback_velocity(&motor, &state, received_at)?;
+                    let mut state = motor_to_joint_state(&motor, raw)?;
+                    self.check_feedback_velocity(&motor, &mut state, received_at)?;
                     self.motor_states.insert(address, state);
                 }
                 self.last_recv = Some(received_at);
@@ -460,7 +460,7 @@ impl<B: MotorBus> Supervisor<B> {
     fn check_feedback_velocity(
         &mut self,
         motor: &MotorEntry,
-        state: &MotorState,
+        state: &mut MotorState,
         received_at: Instant,
     ) -> Result<(), DavoutError> {
         if self.mode != OperationalMode::Active {
@@ -474,36 +474,41 @@ impl<B: MotorBus> Supervisor<B> {
             .ok_or_else(|| DavoutError::UnknownJoint {
                 joint: motor.joint.clone(),
             })?;
-        let velocity = f64::from(state.velocity_rad_s).abs();
+        let raw_velocity = f64::from(state.velocity_rad_s);
+        let velocity = raw_velocity.abs();
         let position = f64::from(state.position_rad);
-        let previous = self.last_feedback_samples.insert(
-            motor.joint.clone(),
-            FeedbackSample {
-                position_rad: position,
-                velocity_rad_s: f64::from(state.velocity_rad_s),
-                received_at,
-            },
-        );
+        let previous = self.last_feedback_samples.get(&motor.joint).copied();
+        let position_velocity = previous.and_then(|prev| {
+            let dt = received_at.duration_since(prev.received_at).as_secs_f64();
+            (dt > 0.0).then_some((position - prev.position_rad) / dt)
+        });
+        let sanitized_velocity = position_velocity.unwrap_or(0.0);
+        state.velocity_rad_s = sanitized_velocity as f32;
         if velocity > lim.velocity {
-            let position_velocity = previous.and_then(|prev| {
-                let dt = received_at.duration_since(prev.received_at).as_secs_f64();
-                (dt > 0.0).then_some((position - prev.position_rad).abs() / dt)
-            });
             if position_velocity
-                .map(|v| v <= lim.velocity + FEEDBACK_VELOCITY_CORROBORATION_EPS_RAD_S)
+                .map(|v| v.abs() <= lim.velocity + FEEDBACK_VELOCITY_CORROBORATION_EPS_RAD_S)
                 .unwrap_or(true)
             {
                 info!(
                     joint = %motor.joint,
                     position_rad = position,
                     previous_position_rad = previous.map(|prev| prev.position_rad),
-                    velocity_rad_s = velocity,
+                    raw_velocity_rad_s = raw_velocity,
                     previous_velocity_rad_s = previous.map(|prev| prev.velocity_rad_s),
                     position_velocity_rad_s = position_velocity,
+                    sanitized_velocity_rad_s = sanitized_velocity,
                     limit_rad_s = lim.velocity,
                     "ignored uncorroborated feedback velocity spike"
                 );
                 self.feedback_velocity_trips.remove(&motor.joint);
+                self.last_feedback_samples.insert(
+                    motor.joint.clone(),
+                    FeedbackSample {
+                        position_rad: position,
+                        velocity_rad_s: sanitized_velocity,
+                        received_at,
+                    },
+                );
                 return Ok(());
             }
             let trips = self
@@ -515,12 +520,20 @@ impl<B: MotorBus> Supervisor<B> {
                 joint = %motor.joint,
                 position_rad = position,
                 previous_position_rad = previous.map(|prev| prev.position_rad),
-                velocity_rad_s = velocity,
+                velocity_rad_s = raw_velocity,
                 previous_velocity_rad_s = previous.map(|prev| prev.velocity_rad_s),
                 position_velocity_rad_s = position_velocity,
                 limit_rad_s = lim.velocity,
                 trips = *trips,
                 "feedback velocity limit exceeded"
+            );
+            self.last_feedback_samples.insert(
+                motor.joint.clone(),
+                FeedbackSample {
+                    position_rad: position,
+                    velocity_rad_s: sanitized_velocity,
+                    received_at,
+                },
             );
             if *trips >= FEEDBACK_VELOCITY_LIMIT_TRIPS {
                 return Err(DavoutError::Limit {
@@ -531,6 +544,14 @@ impl<B: MotorBus> Supervisor<B> {
         } else {
             self.feedback_velocity_trips.remove(&motor.joint);
         }
+        self.last_feedback_samples.insert(
+            motor.joint.clone(),
+            FeedbackSample {
+                position_rad: position,
+                velocity_rad_s: sanitized_velocity,
+                received_at,
+            },
+        );
         Ok(())
     }
 
@@ -1313,6 +1334,47 @@ mod tests {
             .expect("stationary repeated spike remains ignored");
 
         assert!(sup.feedback_velocity_trips.is_empty());
+        let state = sup
+            .motor_states()
+            .get(&MotorAddress::new("can0", 1))
+            .expect("sanitized state cached");
+        assert_eq!(state.velocity_rad_s, 0.0);
+    }
+
+    #[test]
+    fn active_feedback_velocity_cache_uses_position_delta() {
+        let bus = RoutedMemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        bench_ready_active(&mut sup);
+        let motor = sup.motors.motors[0].clone();
+        let t0 = Instant::now();
+        let mut first = MotorState {
+            position_rad: 0.2,
+            velocity_rad_s: 0.0,
+            torque_nm: 0.0,
+            temperature_c: 25.0,
+            fault: 0,
+            updated: Some(t0),
+        };
+        sup.check_feedback_velocity(&motor, &mut first, t0)
+            .expect("first sample");
+
+        let mut noisy_but_stationary = MotorState {
+            position_rad: 0.2,
+            velocity_rad_s: 0.4,
+            torque_nm: 0.0,
+            temperature_c: 25.0,
+            fault: 0,
+            updated: Some(t0 + Duration::from_millis(20)),
+        };
+        sup.check_feedback_velocity(
+            &motor,
+            &mut noisy_but_stationary,
+            t0 + Duration::from_millis(20),
+        )
+        .expect("stationary sample");
+
+        assert_eq!(noisy_but_stationary.velocity_rad_s, 0.0);
     }
 
     #[test]
