@@ -16,6 +16,8 @@ use tracing::{debug, info};
 
 use crate::friction::{friction_torque, position_hold_friction_torque};
 
+const POSITION_HOLD_DAMPING_FULL_ERROR_RAD: f64 = 0.01;
+
 #[derive(Debug, Error)]
 pub enum LoopError {
     #[error("safety: {0}")]
@@ -245,19 +247,26 @@ impl<B: MotorBus> ControlLoop<B> {
                                 })?;
                             let dq = self.joint_velocity(name);
                             let lead = q_des - q[i];
+                            let target = self
+                                .position_setpoints
+                                .as_deref()
+                                .and_then(|sp| sp.get(i).copied())
+                                .unwrap_or(q_des);
+                            let position_error = target - q[i];
                             let tau_f = fr
                                 .map(|f| {
-                                    position_hold_friction_torque(dq, lead, f.fc, f.fv, f.fo, f.k)
+                                    position_hold_friction_torque(
+                                        dq,
+                                        position_error,
+                                        f.fc,
+                                        f.fv,
+                                        f.fo,
+                                        f.k,
+                                    )
                                 })
                                 .unwrap_or(0.0);
-                            let tau_d = -kd * dq;
+                            let tau_d = position_hold_damping_torque(dq, position_error, kd);
                             if log_position_diag {
-                                let target = self
-                                    .position_setpoints
-                                    .as_deref()
-                                    .and_then(|sp| sp.get(i).copied())
-                                    .unwrap_or(q_des);
-                                let position_error = target - q[i];
                                 let estimated_tau = tau_g[i] + tau_f + tau_d + kp * lead;
                                 info!(
                                     joint = %name,
@@ -352,7 +361,7 @@ impl<B: MotorBus> ControlLoop<B> {
             let max_lead = cfg.map(|c| c.position_slew_max_lead_rad).unwrap_or(0.15);
             let max_step = slew_rad_s * dt;
             commands[i] = slew_toward(commands[i], targets[i], max_step);
-            commands[i] = commands[i].clamp(q[i] - max_lead, q[i] + max_lead);
+            commands[i] = clamp_position_command(commands[i], q[i], targets[i], max_lead);
         }
         Ok(())
     }
@@ -431,6 +440,27 @@ fn slew_toward(current: f64, target: f64, max_step: f64) -> f64 {
     } else {
         current + max_step.copysign(err)
     }
+}
+
+/// Keep a ramped position command within the lead cap without letting it brake
+/// against the final target direction.
+fn clamp_position_command(command: f64, q: f64, target: f64, max_lead: f64) -> f64 {
+    match (target - q).partial_cmp(&0.0) {
+        Some(std::cmp::Ordering::Greater) => command.clamp(q, q + max_lead),
+        Some(std::cmp::Ordering::Less) => command.clamp(q - max_lead, q),
+        _ => target,
+    }
+}
+
+/// Damping should settle the final hold, not behave like extra moving friction.
+fn position_hold_damping_torque(dq: f64, position_error: f64, kd: f64) -> f64 {
+    let moving_toward_target = dq * position_error > 0.0;
+    let scale = if moving_toward_target {
+        (POSITION_HOLD_DAMPING_FULL_ERROR_RAD / position_error.abs()).clamp(0.0, 1.0)
+    } else {
+        1.0
+    };
+    -kd * dq * scale
 }
 
 /// Map Davout mode to protobuf (for logging / Consul).
@@ -569,6 +599,41 @@ mod tests {
         assert!((slew_toward(0.0, 1.0, 0.25) - 0.25).abs() < 1e-12);
         assert!((slew_toward(0.9, 1.0, 0.25) - 1.0).abs() < 1e-12);
         assert!((slew_toward(0.0, -1.0, 0.1) - (-0.1)).abs() < 1e-12);
+    }
+
+    #[test]
+    fn clamp_position_command_does_not_brake_against_positive_target() {
+        let cmd = clamp_position_command(0.064, 0.075, 0.1, 0.05);
+
+        assert!((cmd - 0.075).abs() < 1e-12);
+    }
+
+    #[test]
+    fn clamp_position_command_does_not_brake_against_negative_target() {
+        let cmd = clamp_position_command(-0.064, -0.075, -0.1, 0.05);
+
+        assert!((cmd + 0.075).abs() < 1e-12);
+    }
+
+    #[test]
+    fn position_hold_damping_fades_while_moving_toward_target() {
+        let tau_d = position_hold_damping_torque(0.3, 0.05, 1.0);
+
+        assert!((tau_d + 0.06).abs() < 1e-12);
+    }
+
+    #[test]
+    fn position_hold_damping_is_full_near_target() {
+        let tau_d = position_hold_damping_torque(0.3, 0.005, 1.0);
+
+        assert!((tau_d + 0.3).abs() < 1e-12);
+    }
+
+    #[test]
+    fn position_hold_damping_assists_when_moving_away_from_target() {
+        let tau_d = position_hold_damping_torque(-0.3, 0.05, 1.0);
+
+        assert!((tau_d - 0.3).abs() < 1e-12);
     }
 
     #[test]
