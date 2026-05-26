@@ -12,6 +12,15 @@ Operator workflow for OpenArm-style impedance after gravity compensation is vali
 
 OpenArm convention: arms straight down when possible. Record encoder zeros with `SetZero` per motor after mechanical zeroing (`motor-repl set-zero` / `pi_set_zero` — Robstride lifecycle uses host id **0xFD** and set-zero data byte **0x01**, matching Motor Studio).
 
+**Do not confuse:**
+
+| Knob | File | Purpose |
+|------|------|---------|
+| `home_offset_rad` | `config/homing.yaml` | Maps Hall home reference → semantic zero |
+| `position_hold_trim_rad` | `config/control.yaml` | Small hold-target fudge only; not homing |
+
+See [homing.md](homing.md).
+
 ## Gain sweep
 
 1. Start `config/control.yaml` impedance `kp`/`kd` at documented defaults.

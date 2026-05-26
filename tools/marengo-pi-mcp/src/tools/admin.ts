@@ -35,7 +35,7 @@ export function registerAdminTools(
 
     pi_sync_bench_config: {
       description:
-        "Rsync a bringup profile (control.yaml, motors.yaml, robot.yaml) from local repo to Pi. " +
+        "Rsync a bringup profile (control.yaml, motors.yaml, robot.yaml, homing.yaml) from local repo to Pi. " +
         "Use after editing config on Mac; sets ~/marengo and optionally /opt/marengo.",
       inputSchema: syncBenchConfigSchema,
       handler: async (args: {

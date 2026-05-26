@@ -49,7 +49,7 @@ Motion tools pick **`config_dir`** from **`joint`** when omitted: `right_shoulde
 
 Prefer **`pi_bench_harness`** for debug sessions. Sustained control uses **`pi_marengo_pi_script`** (not `pi_motor_enable` alone).
 
-**Encoder zero (replaces Motor Studio):** position arm at mechanical zero → **`pi_set_zero`** with `confirm: true`, `joint: right_shoulder_pitch` or `left_shoulder_pitch` (config_dir auto). `verify: true` (default) prints feedback position — expect |pos| < 0.05 rad.
+**Encoder zero (replaces Motor Studio):** position arm at mechanical zero → **`pi_set_zero`** with `confirm: true`. Then **`pi_homing_status`**; all joints must be `Verified` before **`home`** / enable. `pi_hold_on` defaults `set_zero: false` — only set true when intentionally recalibrating.
 
 **Backdrive:** use **`gravity-on`** in `pi_marengo_pi_script` with **`timeout_sec: 30`** (default). Script `["home","enable bench","gravity-on"]`, `joint: left_shoulder_pitch` or right equivalent. Stay within ±1.0 rad during manual moves.
 

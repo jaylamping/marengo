@@ -26,6 +26,7 @@ export function isAllowedReadPath(cfg: MarengoPiConfig, requested: string): bool
     (basename === "motors.yaml" ||
       basename === "robot.yaml" ||
       basename === "control.yaml" ||
+      basename === "homing.yaml" ||
       basename === ".deploy-rev")
   ) {
     return true;

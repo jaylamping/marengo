@@ -19,16 +19,18 @@ fn usage() {
         "motor-repl — bench motor exercise (Davout → robstride)\n\
          Usage:\n  \
          motor-repl [--config-dir PATH] [--can-interface can0] status\n  \
+           motor-repl homing-status\n  \
            motor-repl home\n  \
            motor-repl enable <operator_id>\n  \
            motor-repl disable\n  \
            motor-repl jog <joint> <position_rad>\n  \
            motor-repl speed <joint> <rad_s>\n  \
            motor-repl speed-stop <joint>\n  \
-           motor-repl set-zero <joint>\n  \
+           motor-repl set-zero <joint> [--sign-tested]\n  \
            motor-repl gravity-on\n  \
            motor-repl gravity-off\n  \
            motor-repl gravity-preview [q0 q1 q2 q3]\n\
+         Homing: set-zero each joint at mechanical reference, then home, then enable.\n\
          Uses SocketCAN; prefer test harness or simulation before live CAN.\n\
          Env: MARENGO_ROOT, MARENGO_CONFIG_DIR (e.g. config/bringup/shoulder_pitch_dual)"
     );
@@ -154,15 +156,52 @@ fn main() {
                 loop_ctrl.control_mode(),
                 bus_label
             );
+            let joints: Vec<String> = loop_ctrl
+                .supervisor_mut()
+                .motors
+                .motors
+                .iter()
+                .map(|m| m.joint.clone())
+                .collect();
+            for joint in &joints {
+                let state = loop_ctrl.supervisor_mut().joint_homing_state(joint);
+                println!("  homing {joint}: {state:?}");
+            }
+        }
+        "homing-status" => {
+            let joints: Vec<String> = loop_ctrl
+                .supervisor_mut()
+                .motors
+                .motors
+                .iter()
+                .map(|m| m.joint.clone())
+                .collect();
+            for joint in &joints {
+                let state = loop_ctrl.supervisor_mut().joint_homing_state(joint);
+                let pos = loop_ctrl.supervisor_mut().joint_position_rad(joint);
+                println!(
+                    "{joint}: homing={state:?} pos={}",
+                    pos.map(|p| format!("{p:.4} rad"))
+                        .unwrap_or_else(|| "n/a".into())
+                );
+            }
         }
         "home" => {
-            loop_ctrl.supervisor_mut().set_homing_complete();
-            println!("homing complete → Ready");
+            if let Err(e) = loop_ctrl.supervisor_mut().set_homing_complete() {
+                eprintln!("home failed: {e}");
+                std::process::exit(1);
+            }
+            println!("homing verified → Ready");
         }
         "enable" => {
             let op = args.get(2).map(String::as_str).unwrap_or("bench");
-            // Each motor-repl invocation is a new process; bench enable marks homing complete here.
-            loop_ctrl.supervisor_mut().set_homing_complete();
+            if loop_ctrl.supervisor_mut().mode() != davout::OperationalMode::Ready {
+                if let Err(e) = loop_ctrl.supervisor_mut().set_homing_complete() {
+                    eprintln!("enable blocked: {e}");
+                    eprintln!("run set-zero for each joint, then home");
+                    std::process::exit(1);
+                }
+            }
             if let Err(e) = loop_ctrl.supervisor_mut().request_enable(true) {
                 eprintln!("enable failed: {e}");
                 std::process::exit(1);
@@ -186,7 +225,10 @@ fn main() {
                 eprintln!("missing or invalid position_rad");
                 std::process::exit(1);
             });
-            loop_ctrl.supervisor_mut().set_homing_complete();
+            if let Err(e) = loop_ctrl.supervisor_mut().set_homing_complete() {
+                eprintln!("jog blocked: {e}");
+                std::process::exit(1);
+            }
             if let Err(e) = loop_ctrl.supervisor_mut().request_enable(true) {
                 eprintln!("enable failed: {e}");
                 std::process::exit(1);
@@ -215,7 +257,10 @@ fn main() {
                 eprintln!("firmware speed mode disabled: set control.bench.allow_firmware_speed_mode=true for bench diagnostics");
                 std::process::exit(1);
             }
-            loop_ctrl.supervisor_mut().set_homing_complete();
+            if let Err(e) = loop_ctrl.supervisor_mut().set_homing_complete() {
+                eprintln!("speed blocked: {e}");
+                std::process::exit(1);
+            }
             if let Err(e) = loop_ctrl.supervisor_mut().request_enable(true) {
                 eprintln!("enable failed: {e}");
                 std::process::exit(1);
@@ -251,16 +296,30 @@ fn main() {
                 eprintln!("missing joint name");
                 std::process::exit(1);
             });
-            loop_ctrl.supervisor_mut().set_homing_complete();
-            if let Err(e) = loop_ctrl.supervisor_mut().request_enable(true) {
-                eprintln!("enable failed: {e}");
-                std::process::exit(1);
+            let sign_tested = args.iter().any(|a| a == "--sign-tested");
+            if loop_ctrl.supervisor_mut().mode() != davout::OperationalMode::Active {
+                if let Err(e) = loop_ctrl.supervisor_mut().request_enable_for_calibration() {
+                    eprintln!("enable for set-zero failed: {e}");
+                    std::process::exit(1);
+                }
             }
             if let Err(e) = loop_ctrl.supervisor_mut().set_zero_position(joint) {
                 eprintln!("set-zero failed: {e}");
                 std::process::exit(1);
             }
-            println!("set-zero {joint} (SocketCAN {bus_label})");
+            let _ = loop_ctrl.supervisor_mut().refresh_feedback();
+            match loop_ctrl
+                .supervisor_mut()
+                .verify_zero_after_set(joint, "bench", sign_tested)
+            {
+                Ok(pos) => {
+                    println!("set-zero {joint} verified pos={pos:.4} rad (SocketCAN {bus_label})");
+                }
+                Err(e) => {
+                    eprintln!("set-zero verify failed: {e}");
+                    std::process::exit(1);
+                }
+            }
         }
         "gravity-on" => {
             loop_ctrl.set_control_mode(ControlMode::GravityComp);

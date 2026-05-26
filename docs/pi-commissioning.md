@@ -75,7 +75,20 @@ RUST_LOG=robstride=info,davout=info,berthier=info,motor_repl=info
 | **A1 — left bench only** | `config/bringup/shoulder_pitch_left_only` | `left_shoulder_pitch` on can1, id 12 (mirrors right tuning) |
 | **B — left 4-DOF arm** | `config/bringup/arm_4dof_left` or `config` | all on can0, IDs 11–14 |
 
-Single-shoulder bench profiles share impedance **kp=12 / kd=0.75**, slew **15 rad/s**, max lead **0.5**, and trim **0.0** once firmware zero is set at arm-down. Operator shoulder-pitch limits are **[-0.872665, 3.141593] rad** (arm down = 0, -50° to +180°); hard bench/URDF limits are widened to **[-0.9, 3.17] rad** with URDF soft limits at the operator range. Commission each side with **`pi_set_zero`** at mechanical home before hold-at round trips.
+Single-shoulder bench profiles share impedance **kp=12 / kd=0.75**, slew **15 rad/s**, max lead **0.5**, and trim **0.0** once firmware zero is set at arm-down. Operator shoulder-pitch limits are **[-0.872665, 3.141593] rad** (arm down = 0, -50° to +180°); hard bench/URDF limits are widened to **[-0.9, 3.17] rad** with URDF soft limits at the operator range.
+
+### Homing (interim — manual reference)
+
+Until Hall sensors are installed on shoulder roll (see [hardware/docs/homing-sensors.md](../hardware/docs/homing-sensors.md)):
+
+1. Place arm at mechanical reference (arm down for pitch).
+2. **`pi_set_zero`** with `confirm: true` — verifies |pos| < tolerance, writes calibration record.
+3. **`motor-repl home`** or `marengo-pi` stdin `home` — all joints must be Verified before Ready.
+4. **`enable`** only after homing succeeds.
+
+Do not use `pi_hold_on` with `set_zero: true` unless intentionally recalibrating at mechanical zero.
+
+Full homing contract: [homing.md](homing.md).
 
 Trim `motors.yaml` joint list to only wired actuators while building the arm incrementally.
 
@@ -104,14 +117,14 @@ cansend can0 0400FF0C#0000000000000000   # disable
 
 ## Phase 5 — Safe motor test ([safety.md](safety.md))
 
-Each `motor-repl` command is a **separate process**; `enable` and `jog` mark homing complete for bench use. Use **`marengo-pi`** for gravity comp (running control loop).
+Each `motor-repl` command is a **separate process**. **`enable` requires verified homing** — run `set-zero` then `home` first. Use **`marengo-pi`** for gravity comp (running control loop).
 
 1. E-stop reachable; shoulder supported
-2. `motor-repl enable bench` (or `home` then `enable` in `marengo-pi`)
-3. Sign test per joint (small torque_ff; fix `direction` in YAML if inverted)
-4. `set-zero <joint>` at mechanical zero
+2. Sign test per joint (small torque_ff; fix `direction` in YAML if inverted)
+3. `set-zero <joint>` at mechanical zero (writes calibration + marks Verified)
+4. `motor-repl home` (supervisor Ready when all joints Verified)
 5. `gravity-preview` with two angles (defaults 0,0)
-6. `marengo-pi` with stdin: `home`, `enable`, `gravity-on` — **not** `motor-repl gravity-on` alone
+6. `marengo-pi` with stdin: `enable`, `gravity-on` — **not** `motor-repl gravity-on` alone
 
 ```bash
 MARENGO_CONFIG_DIR=config/bringup/shoulder_pitch_dual ./target/release/marengo-pi

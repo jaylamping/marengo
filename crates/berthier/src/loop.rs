@@ -411,14 +411,27 @@ mod tests {
         ControlLoop::from_repo(repo_root(), MemoryBus::default(), 200, 50).expect("loop")
     }
 
-    #[test]
-    fn position_mode_without_latched_setpoint_errors() {
-        let mut loop_ctrl = test_loop();
-        loop_ctrl.supervisor_mut().set_homing_complete();
+    fn bench_ready_active(loop_ctrl: &mut ControlLoop<MemoryBus>) {
+        let motors = loop_ctrl.supervisor_mut().motors.motors.clone();
+        loop_ctrl
+            .supervisor_mut()
+            .homing_registry_mut()
+            .bench_mark_all_verified(&motors)
+            .expect("verify");
+        loop_ctrl
+            .supervisor_mut()
+            .set_homing_complete()
+            .expect("ready");
         loop_ctrl
             .supervisor_mut()
             .request_enable(true)
             .expect("enable");
+    }
+
+    #[test]
+    fn position_mode_without_latched_setpoint_errors() {
+        let mut loop_ctrl = test_loop();
+        bench_ready_active(&mut loop_ctrl);
         loop_ctrl.set_control_mode(ControlMode::Position);
         let err = loop_ctrl.tick(None).expect_err("missing setpoint");
         assert!(matches!(err, LoopError::MissingSetpoint { .. }));
@@ -462,11 +475,7 @@ mod tests {
     #[test]
     fn position_hold_tick_runs_when_active() {
         let mut loop_ctrl = test_loop();
-        loop_ctrl.supervisor_mut().set_homing_complete();
-        loop_ctrl
-            .supervisor_mut()
-            .request_enable(true)
-            .expect("enable");
+        bench_ready_active(&mut loop_ctrl);
         loop_ctrl
             .enter_position_hold_at(Some("shoulder_pitch"), 0.25)
             .expect("hold-at");
@@ -487,11 +496,7 @@ mod tests {
         loop_ctrl
             .enter_position_hold_at(Some("shoulder_pitch"), 1.2)
             .expect("hold-at");
-        loop_ctrl.supervisor_mut().set_homing_complete();
-        loop_ctrl
-            .supervisor_mut()
-            .request_enable(true)
-            .expect("enable");
+        bench_ready_active(&mut loop_ctrl);
         loop_ctrl.tick(None).expect("tick");
         let i = loop_ctrl
             .joint_names()
@@ -517,11 +522,7 @@ mod tests {
         assert!((target - 1.2).abs() < 1e-9);
         let cmd0 = loop_ctrl.position_hold_commands().expect("commands")[i];
         assert!(cmd0.abs() < 1e-6, "command starts at measured q≈0");
-        loop_ctrl.supervisor_mut().set_homing_complete();
-        loop_ctrl
-            .supervisor_mut()
-            .request_enable(true)
-            .expect("enable");
+        bench_ready_active(&mut loop_ctrl);
         loop_ctrl.tick(None).expect("tick");
         let cmd1 = loop_ctrl.position_hold_commands().expect("commands")[i];
         assert!(

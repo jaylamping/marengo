@@ -7,6 +7,7 @@ members = [
     "crates/sim-harness",
     "crates/marengo-support",
     "crates/marengo-config",
+    "crates/marengo-homing",
     "crates/chappe",
     "crates/berthier",
     "crates/davout",
@@ -39,6 +40,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 serde_yaml = "0.9"
 marengo-support = { path = "crates/marengo-support" }
 marengo-config = { path = "crates/marengo-config" }
+marengo-homing = { path = "crates/marengo-homing" }
 armee-proto = { path = "crates/armee-proto" }
 armee-kinematics = { path = "crates/armee-kinematics" }
 armee-dynamics = { path = "crates/armee-dynamics" }

@@ -147,15 +147,15 @@ const motorRecoverSummaryShell = [
   'fi',
 ].join("\n");
 
-/** motor-repl set-zero + optional position readback (replaces Motor Studio Set Zero). */
+/** motor-repl set-zero (with verify) + homing-status readback. */
 function zeroActuatorRemoteBody(joint: string, verify: boolean): string {
-  const lines = [`bin/motor-repl set-zero ${shellQuote(joint)}`];
+  const lines = [
+    `bin/motor-repl set-zero ${shellQuote(joint)} --sign-tested`,
+    "bin/motor-repl homing-status",
+  ];
   lines.push("bin/motor-repl disable 2>/dev/null || true");
   if (verify) {
-    lines.push(
-      "sleep 0.3",
-      "{ echo home; echo 'enable bench'; sleep 2; echo status; echo disable; echo quit; } | timeout 8 bin/marengo-pi",
-    );
+    lines.push("sleep 0.3", "bin/motor-repl homing-status");
   }
   return lines.join("\n");
 }
@@ -266,11 +266,27 @@ export function registerMotionTools(
       },
     },
 
+    pi_homing_status: {
+      description:
+        "Read-only homing state per joint (motor-repl homing-status). No motion.",
+      inputSchema: z.object({
+        config_dir: z.string().optional(),
+      }),
+      handler: async (args: { config_dir?: string }) => {
+        const configDir = args.config_dir ?? BENCH_CONFIG_RIGHT;
+        const body = wrapRemoteWithConfig(
+          cfg,
+          "bin/motor-repl homing-status",
+          configDir,
+        );
+        return runRemote(body, 20_000);
+      },
+    },
+
     pi_set_zero: {
       description:
-        "Zero encoder at the current shaft angle via CAN SetZero (no Motor Studio). " +
-        "Position the arm at mechanical zero first, then call with confirm: true. " +
-        "Sends motor-repl set-zero, disables, and reads back position when verify=true.",
+        "Zero encoder at mechanical reference via CAN SetZero. Verifies |pos| < tolerance, " +
+        "writes calibration record, and prints homing-status. Position arm first; confirm: true.",
       inputSchema: motionConfirmSchema.extend({
         joint: z
           .string()
@@ -351,7 +367,7 @@ export function registerMotionTools(
           ),
         joint: z.string().default("right_shoulder_pitch"),
         timeout_sec: z.number().int().min(5).max(120).default(30),
-        set_zero: z.boolean().default(true),
+        set_zero: z.boolean().default(false),
         kill_stale: z
           .boolean()
           .default(true)

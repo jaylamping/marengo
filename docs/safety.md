@@ -15,12 +15,22 @@ Read this before enabling motors on the bench or robot.
 - Use `motor-repl` only with operators at the robot and clear workspace.
 - Prefer the virtual CAN test harness (`just vcan`) or simulation (`just sim-check`) before live CAN when developing control logic.
 
+## Homing and zero (see [homing.md](homing.md))
+
+- **Homing before motion.** After power-on or fault, every configured joint must reach **Verified** before supervisor `Ready`.
+- **Sensor health first.** When Hall/limit inputs are configured, startup checks sensor wiring and stuck-state before homing search.
+- **No blind hunting.** Out-of-range or stale-zero joints may only use constrained recovery (manual reference or sensor homing), not normal gravity/hold/impedance.
+- **Calibration audit.** Host registry at `var/calibration/zero_registry.yaml` records who/when/how zero was established; firmware `SetZero` alone is insufficient.
+
+Interim bench (no Hall hardware yet): manual reference + `set-zero` + verification. Target: three Hall sensors per joint (home, min, max).
+
 ## Enable / disable sequence (target behavior)
 
 1. Verify E-stop released (hardware).
-2. Software `Disabled` → `Ready` (homing complete, no faults).
-3. Operator command `Enable` → `Active` (motors may track).
-4. Fault or E-stop → `Disabled` (ramp down, then disable drives).
+2. Precheck CAN, faults, sensor health (if configured).
+3. Homing → all joints **Verified** → software `Disabled` → `Ready`.
+4. Operator command `Enable` → `Active` (motors may track).
+5. Fault, homing fault, or E-stop → `Disabled` (ramp down, then disable drives).
 
 Document actual pin/signal mapping in [hardware/electrical/wiring/](../hardware/electrical/wiring/) as it is finalized.
 

@@ -13,6 +13,7 @@ workspace = true
 [dependencies]
 armee-kinematics.workspace = true
 marengo-config.workspace = true
+marengo-homing.workspace = true
 robstride.workspace = true
 thiserror.workspace = true
 tracing.workspace = true

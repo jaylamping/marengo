@@ -156,6 +156,12 @@ fn handle_chappe_enable(
     request: &EnableRequest,
 ) -> Result<(), String> {
     if request.enable {
+        if loop_ctrl.supervisor_mut().mode() != davout::OperationalMode::Ready {
+            loop_ctrl
+                .supervisor_mut()
+                .set_homing_complete()
+                .map_err(|e| e.to_string())?;
+        }
         loop_ctrl
             .supervisor_mut()
             .request_enable(true)
@@ -195,8 +201,11 @@ fn drain_chappe_commands(
         let Ok(_homing) = HomingComplete::decode(envelope.payload.as_slice()) else {
             continue;
         };
-        loop_ctrl.supervisor_mut().set_homing_complete();
-        info!("homing complete via Chappe");
+        if let Err(e) = loop_ctrl.supervisor_mut().set_homing_complete() {
+            warn!(error = %e, "Chappe homing rejected");
+        } else {
+            info!("homing verified via Chappe");
+        }
     }
 }
 
@@ -278,12 +287,17 @@ fn handle_command(
     config_dir: &Path,
 ) -> bool {
     match cmd {
-        PiCommand::Home => {
-            loop_ctrl.supervisor_mut().set_homing_complete();
-            println!("homing complete → Ready");
-        }
+        PiCommand::Home => match loop_ctrl.supervisor_mut().set_homing_complete() {
+            Ok(()) => println!("homing verified → Ready"),
+            Err(e) => eprintln!("home failed: {e}"),
+        },
         PiCommand::Enable { operator_id } => {
-            loop_ctrl.supervisor_mut().set_homing_complete();
+            if loop_ctrl.supervisor_mut().mode() != davout::OperationalMode::Ready {
+                if let Err(e) = loop_ctrl.supervisor_mut().set_homing_complete() {
+                    eprintln!("enable blocked: {e}");
+                    return true;
+                }
+            }
             match loop_ctrl.supervisor_mut().request_enable(true) {
                 Ok(()) => println!("enabled (operator={operator_id})"),
                 Err(e) => eprintln!("enable failed: {e}"),
