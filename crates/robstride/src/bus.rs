@@ -307,10 +307,8 @@ pub trait MotorBus: CanBus {
                         }
                     }
                     Some(CommunicationType::FaultReport) => {
-                        let device_id = comm::inbound_motor_device_id(
-                            frame.id,
-                            CommunicationType::FaultReport,
-                        );
+                        let device_id =
+                            comm::inbound_motor_device_id(frame.id, CommunicationType::FaultReport);
                         if !motor_types.contains_key(&device_id) {
                             continue;
                         }

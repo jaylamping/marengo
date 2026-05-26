@@ -198,20 +198,12 @@ mod tests {
         let mut bus = MemoryBus::default();
         let status_data = [0x7F, 0xFF, 0x7F, 0xFF, 0x7F, 0xFF, 0x00, 0xC8];
         bus.rx_queue.push(CanFrame {
-            id: pack_typed_ext_id(
-                CommunicationType::OperationStatus,
-                1,
-                DEFAULT_HOST_ID,
-            ),
+            id: pack_typed_ext_id(CommunicationType::OperationStatus, 1, DEFAULT_HOST_ID),
             data: status_data,
             extended: true,
         });
         bus.rx_queue.push(CanFrame {
-            id: pack_typed_ext_id(
-                CommunicationType::OperationStatus,
-                2,
-                DEFAULT_HOST_ID,
-            ),
+            id: pack_typed_ext_id(CommunicationType::OperationStatus, 2, DEFAULT_HOST_ID),
             data: status_data,
             extended: true,
         });
@@ -250,11 +242,7 @@ mod tests {
         bus.rx.push(ReceivedCanFrame {
             interface: Some("can1".to_string()),
             frame: CanFrame {
-                id: pack_typed_ext_id(
-                    CommunicationType::OperationStatus,
-                    1,
-                    DEFAULT_HOST_ID,
-                ),
+                id: pack_typed_ext_id(CommunicationType::OperationStatus, 1, DEFAULT_HOST_ID),
                 data: [0x7F, 0xFF, 0x7F, 0xFF, 0x7F, 0xFF, 0x00, 0xC8],
                 extended: true,
             },

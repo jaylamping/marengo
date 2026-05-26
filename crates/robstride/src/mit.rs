@@ -116,10 +116,7 @@ pub fn decode_mit_feedback(motor_type: MotorType, can_id: u32, data: &[u8]) -> O
     let t = vendor_u16_to_signed(read_be_u16(data, 4), ranges.torque_scale);
     let temp = f32::from(read_be_u16(data, 6)) * 0.1;
     Some(MitFeedback {
-        device_id: crate::comm::inbound_motor_device_id(
-            can_id,
-            CommunicationType::OperationStatus,
-        ),
+        device_id: crate::comm::inbound_motor_device_id(can_id, CommunicationType::OperationStatus),
         position_rad: p,
         velocity_rad_s: v,
         torque_nm: t,

@@ -22,7 +22,11 @@ pub fn encode_disable(host_id: u8, device_id: u8) -> (u32, [u8; 8]) {
 
 pub fn encode_set_zero_position(host_id: u8, device_id: u8) -> (u32, [u8; 8]) {
     (
-        pack_typed_ext_id(CommunicationType::SetZeroPosition, u16::from(host_id), device_id),
+        pack_typed_ext_id(
+            CommunicationType::SetZeroPosition,
+            u16::from(host_id),
+            device_id,
+        ),
         SET_ZERO_DATA,
     )
 }
