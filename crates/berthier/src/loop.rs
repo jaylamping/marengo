@@ -14,7 +14,7 @@ use marengo_config::{load_robot_config, resolve_urdf_path};
 use thiserror::Error;
 use tracing::{debug, info};
 
-use crate::friction::friction_torque;
+use crate::friction::{friction_torque, position_hold_friction_torque};
 
 #[derive(Debug, Error)]
 pub enum LoopError {
@@ -236,22 +236,28 @@ impl<B: MotorBus> ControlLoop<B> {
                             let cfg = self.supervisor.control.control.joints.get(name);
                             let kp = cfg.map(|c| c.impedance.kp).unwrap_or(20.0);
                             let kd = cfg.map(|c| c.impedance.kd).unwrap_or(1.0);
+                            let fr = cfg.map(|c| &c.friction);
                             let q_des =
                                 q_cmd.and_then(|sp| sp.get(i).copied()).ok_or_else(|| {
                                     LoopError::MissingSetpoint {
                                         joint: name.clone(),
                                     }
                                 })?;
+                            let dq = self.joint_velocity(name);
+                            let lead = q_des - q[i];
+                            let tau_f = fr
+                                .map(|f| {
+                                    position_hold_friction_torque(dq, lead, f.fc, f.fv, f.fo, f.k)
+                                })
+                                .unwrap_or(0.0);
                             if log_position_diag {
-                                let dq = self.joint_velocity(name);
                                 let target = self
                                     .position_setpoints
                                     .as_deref()
                                     .and_then(|sp| sp.get(i).copied())
                                     .unwrap_or(q_des);
-                                let lead = q_des - q[i];
                                 let position_error = target - q[i];
-                                let estimated_tau = tau_g[i] + kp * lead - kd * dq;
+                                let estimated_tau = tau_g[i] + tau_f + kp * lead - kd * dq;
                                 info!(
                                     joint = %name,
                                     q = q[i],
@@ -263,11 +269,12 @@ impl<B: MotorBus> ControlLoop<B> {
                                     kp,
                                     kd,
                                     tau_g = tau_g[i],
+                                    tau_f,
                                     estimated_tau,
                                     "position hold command"
                                 );
                             }
-                            (kp, kd, tau_g[i], q_des)
+                            (kp, kd, tau_g[i] + tau_f, q_des)
                         }
                         ControlMode::Disabled => continue,
                     };

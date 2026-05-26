@@ -8,7 +8,7 @@
 //!
 //! - [`ControlLoop::tick`](loop::ControlLoop::tick): `recv` → `q` → `tau_g(q)` → MIT batch → Davout.
 //! - Control modes: gravity comp, impedance, position, torque-only ([`ControlMode`]).
-//! - Optional friction feedforward (`friction` module) in impedance mode.
+//! - Optional friction feedforward (`friction` module) in impedance and position modes.
 //! - Publish [`RobotState`](armee_proto::RobotState) on Chappe (lower rate than the motor loop).
 //! - Legacy [`Controller`]: single-joint position commands through Davout (REPL / bring-up).
 //!
