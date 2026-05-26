@@ -22,8 +22,8 @@ control:
         kp: 0.0
         kd: 0.0
       impedance:
-        kp: 14.0
-        kd: 2.0
+        kp: 12.0
+        kd: 1.0
       # Bench hold-at / retarget: keep scripted moves within the bench speed cap.
       position_slew_rad_s: 0.10
       position_slew_max_lead_rad: 0.04
