@@ -1,9 +1,15 @@
 import { execFile, spawn } from "node:child_process";
+import { delimiter } from "node:path";
 import { promisify } from "node:util";
 import type { MarengoPiConfig } from "./config.js";
 import { sshTarget } from "./config.js";
 
 const execFileAsync = promisify(execFile);
+const LOCAL_TOOL_PATHS = [
+  "/opt/homebrew/opt/rustup/bin",
+  "/opt/homebrew/bin",
+  "/usr/local/bin",
+];
 
 export interface RemoteExecResult {
   stdout: string;
@@ -91,6 +97,7 @@ export async function execLocal(
   try {
     const { stdout, stderr } = await execFileAsync(command, args, {
       cwd: opts.cwd,
+      env: localExecEnv(),
       maxBuffer: 16 * 1024 * 1024,
       timeout: timeoutMs,
     });
@@ -108,6 +115,22 @@ export async function execLocal(
       exitCode: typeof e.code === "number" ? e.code : 1,
     };
   }
+}
+
+function localExecEnv(): NodeJS.ProcessEnv {
+  const homeCargoBin = process.env.HOME
+    ? [`${process.env.HOME}/.cargo/bin`]
+    : [];
+  const pathEntries = [
+    ...LOCAL_TOOL_PATHS,
+    ...homeCargoBin,
+    process.env.PATH ?? "",
+  ].filter((entry) => entry.length > 0);
+
+  return {
+    ...process.env,
+    PATH: pathEntries.join(delimiter),
+  };
 }
 
 export function formatRemoteResult(r: RemoteExecResult): string {
