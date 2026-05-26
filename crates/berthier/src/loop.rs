@@ -12,7 +12,7 @@ use davout::{
 };
 use marengo_config::{load_robot_config, resolve_urdf_path};
 use thiserror::Error;
-use tracing::debug;
+use tracing::{debug, info};
 
 use crate::friction::friction_torque;
 
@@ -47,6 +47,7 @@ pub struct ControlLoop<B: MotorBus> {
     loop_period: Duration,
     chappe_publish_period: Duration,
     last_chappe: Option<Instant>,
+    last_position_diag: Option<Instant>,
     tick_count: u64,
 }
 
@@ -73,6 +74,7 @@ impl<B: MotorBus> ControlLoop<B> {
             loop_period: Duration::from_secs_f64(1.0 / f64::from(loop_hz.max(1))),
             chappe_publish_period: Duration::from_secs_f64(1.0 / f64::from(chappe_hz.max(1))),
             last_chappe: None,
+            last_position_diag: None,
             tick_count: 0,
         })
     }
@@ -174,6 +176,7 @@ impl<B: MotorBus> ControlLoop<B> {
         if mode != ControlMode::Position {
             self.position_setpoints = None;
             self.position_commands = None;
+            self.last_position_diag = None;
         }
         self.control_mode = mode;
         self.supervisor.set_control_mode(mode);
@@ -206,6 +209,11 @@ impl<B: MotorBus> ControlLoop<B> {
                 }
 
                 let q_cmd = self.position_commands.as_deref();
+                let log_position_diag = self.control_mode == ControlMode::Position
+                    && self
+                        .last_position_diag
+                        .map(|t| t.elapsed() >= Duration::from_secs(1))
+                        .unwrap_or(true);
                 let mut batch = Vec::new();
                 for (i, name) in self.joint_names.iter().enumerate() {
                     let (kp, kd, tau_ff, q_des) = match self.control_mode {
@@ -234,6 +242,31 @@ impl<B: MotorBus> ControlLoop<B> {
                                         joint: name.clone(),
                                     }
                                 })?;
+                            if log_position_diag {
+                                let dq = self.joint_velocity(name);
+                                let target = self
+                                    .position_setpoints
+                                    .as_deref()
+                                    .and_then(|sp| sp.get(i).copied())
+                                    .unwrap_or(q_des);
+                                let lead = q_des - q[i];
+                                let position_error = target - q[i];
+                                let estimated_tau = tau_g[i] + kp * lead - kd * dq;
+                                info!(
+                                    joint = %name,
+                                    q = q[i],
+                                    dq,
+                                    q_des,
+                                    target,
+                                    lead,
+                                    position_error,
+                                    kp,
+                                    kd,
+                                    tau_g = tau_g[i],
+                                    estimated_tau,
+                                    "position hold command"
+                                );
+                            }
                             (kp, kd, tau_g[i], q_des)
                         }
                         ControlMode::Disabled => continue,
@@ -246,6 +279,9 @@ impl<B: MotorBus> ControlLoop<B> {
                         velocity_rad_s: 0.0,
                         torque_ff_nm: tau_ff,
                     });
+                }
+                if log_position_diag {
+                    self.last_position_diag = Some(Instant::now());
                 }
 
                 self.supervisor.send_mit_batch(batch)?;
