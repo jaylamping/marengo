@@ -67,7 +67,7 @@ export async function runSyncBenchConfig(
         `SRC=${remotePathExpr(`${expandStagingRoot(cfg)}/${remoteRel}`)}`,
         `DST=${shellQuote(remoteOpt)}`,
         'if [[ -d "$DST" && -w "$DST" ]]; then',
-        '  rsync -a "$SRC/" "$DST/"',
+        '  rsync -a --no-owner --no-group "$SRC/" "$DST/"',
         '  echo "installed to $DST (direct write)"',
         '  grep -A3 impedance "$DST/control.yaml"',
         'elif sudo -n true 2>/dev/null; then',
