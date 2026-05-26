@@ -17,13 +17,21 @@ const BENCH_CONFIG_RIGHT =
 const BENCH_CONFIG_LEFT =
   "/opt/marengo/config/bringup/shoulder_pitch_left_only";
 
+function normalizeBenchConfigDir(cfg: MarengoPiConfig, configDir: string): string {
+  if (configDir.startsWith("/") || configDir.startsWith("~/")) {
+    return configDir;
+  }
+  return `${cfg.piRoot}/config/bringup/${configDir}`;
+}
+
 /** Single-shoulder bench profile from joint name when config_dir omitted. */
 function benchConfigDirForJoint(
+  cfg: MarengoPiConfig,
   joint?: string,
   configDir?: string,
 ): string | undefined {
   if (configDir) {
-    return configDir;
+    return normalizeBenchConfigDir(cfg, configDir);
   }
   if (joint?.includes("left_shoulder")) {
     return BENCH_CONFIG_LEFT;
@@ -247,7 +255,7 @@ export function registerMotionTools(
       }) => {
         const check = gate(args);
         if (!check.ok) return check.message;
-        const configDir = benchConfigDirForJoint(undefined, args.config_dir);
+        const configDir = benchConfigDirForJoint(cfg, undefined, args.config_dir);
         const body = wrapRemoteWithConfig(
           cfg,
           "bin/motor-repl disable",
@@ -281,6 +289,7 @@ export function registerMotionTools(
         const check = gate(args);
         if (!check.ok) return check.message;
         const configDir = benchConfigDirForJoint(
+          cfg,
           undefined,
           args.config_dir ?? BENCH_CONFIG_RIGHT,
         );
@@ -302,7 +311,9 @@ export function registerMotionTools(
         config_dir: z.string().optional(),
       }),
       handler: async (args: { config_dir?: string }) => {
-        const configDir = args.config_dir ?? BENCH_CONFIG_RIGHT;
+        const configDir =
+          benchConfigDirForJoint(cfg, undefined, args.config_dir) ??
+          BENCH_CONFIG_RIGHT;
         const body = wrapRemoteWithConfig(
           cfg,
           "bin/motor-repl homing-status",
@@ -345,7 +356,7 @@ export function registerMotionTools(
         const joint = args.joint ?? "right_shoulder_pitch";
         const verify = args.verify ?? true;
         const configDir =
-          benchConfigDirForJoint(joint, args.config_dir) ?? BENCH_CONFIG_RIGHT;
+          benchConfigDirForJoint(cfg, joint, args.config_dir) ?? BENCH_CONFIG_RIGHT;
         const body = wrapRemoteWithConfig(
           cfg,
           zeroActuatorRemoteBody(joint, verify),
@@ -424,7 +435,7 @@ export function registerMotionTools(
         const timeoutSec = args.timeout_sec ?? 30;
         const joint = args.joint ?? "right_shoulder_pitch";
         const configDir =
-          benchConfigDirForJoint(joint, args.config_dir) ?? BENCH_CONFIG_RIGHT;
+          benchConfigDirForJoint(cfg, joint, args.config_dir) ?? BENCH_CONFIG_RIGHT;
         const pipeCmd = holdSessionRemoteBody(cfg, {
           joint,
           setZero: args.set_zero ?? true,
@@ -458,7 +469,7 @@ export function registerMotionTools(
         const check = gate(args);
         if (!check.ok) return check.message;
         const configDir =
-          benchConfigDirForJoint(args.joint, args.config_dir) ??
+          benchConfigDirForJoint(cfg, args.joint, args.config_dir) ??
           BENCH_CONFIG_RIGHT;
         const body = wrapRemoteWithConfig(
           cfg,
@@ -510,7 +521,7 @@ export function registerMotionTools(
           marengoPiPipe(args.script, timeoutSec),
         ].join("\n");
         const configDir =
-          benchConfigDirForJoint(args.joint, args.config_dir) ??
+          benchConfigDirForJoint(cfg, args.joint, args.config_dir) ??
           args.config_dir;
         const body = benchLogWrapper(cfg, pipeCmd, "marengo-pi-script", configDir);
         const out = await runRemote(body, timeoutSec * 1000 + 15_000);

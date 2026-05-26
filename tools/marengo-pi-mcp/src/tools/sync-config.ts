@@ -19,6 +19,9 @@ function remotePathExpr(path: string): string {
   return shellQuote(path);
 }
 
+export const directInstallRsyncLine =
+  'rsync -r --no-owner --no-group --no-perms --omit-dir-times "$SRC/" "$DST/"';
+
 export async function runSyncBenchConfig(
   cfg: MarengoPiConfig,
   runRemote: (body: string, timeoutMs?: number) => Promise<string>,
@@ -67,7 +70,7 @@ export async function runSyncBenchConfig(
         `SRC=${remotePathExpr(`${expandStagingRoot(cfg)}/${remoteRel}`)}`,
         `DST=${shellQuote(remoteOpt)}`,
         'if [[ -d "$DST" && -w "$DST" ]]; then',
-        '  rsync -a --no-owner --no-group "$SRC/" "$DST/"',
+        `  ${directInstallRsyncLine}`,
         '  echo "installed to $DST (direct write)"',
         '  grep -A3 impedance "$DST/control.yaml"',
         'elif sudo -n true 2>/dev/null; then',

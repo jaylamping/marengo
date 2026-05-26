@@ -65,6 +65,61 @@ describe("marengo-pi script tool", () => {
     assert.match(script, /bin\/motor-repl disable/);
   });
 
+  it("expands profile-like config_dir overrides before a hold test", async () => {
+    let script = "";
+    const tools = registerMotionTools(
+      cfg,
+      async (body) => {
+        script = body;
+        return body;
+      },
+      () => {},
+    );
+
+    await tools.pi_hold_on.handler({
+      confirm: true,
+      config_dir: "shoulder_pitch_right_only",
+      joint: "right_shoulder_pitch",
+      set_zero: false,
+      position_rad: 0.1,
+      timeout_sec: 10,
+    });
+
+    assert.match(
+      script,
+      /export MARENGO_CONFIG_DIR='\/opt\/marengo\/config\/bringup\/shoulder_pitch_right_only'/,
+    );
+    assert.doesNotMatch(
+      script,
+      /export MARENGO_CONFIG_DIR='shoulder_pitch_right_only'/,
+    );
+  });
+
+  it("expands profile-like config_dir overrides for homing status", async () => {
+    let script = "";
+    const tools = registerMotionTools(
+      cfg,
+      async (body) => {
+        script = body;
+        return body;
+      },
+      () => {},
+    );
+
+    await tools.pi_homing_status.handler({
+      config_dir: "shoulder_pitch_right_only",
+    });
+
+    assert.match(
+      script,
+      /export MARENGO_CONFIG_DIR='\/opt\/marengo\/config\/bringup\/shoulder_pitch_right_only'/,
+    );
+    assert.doesNotMatch(
+      script,
+      /export MARENGO_CONFIG_DIR='shoulder_pitch_right_only'/,
+    );
+  });
+
   it("pipes every script line into marengo-pi", async () => {
     let script = "";
     const tools = registerMotionTools(
