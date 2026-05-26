@@ -48,9 +48,15 @@ const benchLogWrapper = (
     'LOG="$LOGDIR/bench-$TS.log"',
     `LABEL=${shellQuote(label)}`,
     'echo "=== bench session $TS ($LABEL) ===" | tee "$LOG"',
-    `${pipeCmd} 2>&1 | tee -a "$LOG"`,
+    "set +e",
+    "{",
+    pipeCmd,
+    '} 2>&1 | tee -a "$LOG"',
+    "PIPE_STATUS=${PIPESTATUS[0]}",
+    "set -e",
     'ln -sf "$LOG" "$LOGDIR/bench-latest.log"',
     'echo "{\"log\":\"$LOG\",\"ts\":\"$TS\",\"label\":\"$LABEL\"}"',
+    'exit "$PIPE_STATUS"',
   ].join("\n");
   return configDir
     ? wrapRemoteWithConfig(cfg, body, configDir)
@@ -83,6 +89,21 @@ function marengoPiPipe(script: string[], timeoutSec: number, binary = "$PI_BIN")
   return `{\n${printfLines};\n} | timeout ${timeoutSec} ${binary}`;
 }
 
+function marengoPiTimedPipe(
+  script: string[],
+  dwellSec: number,
+  binary = "$PI_BIN",
+): string {
+  const commandLines = [
+    ...script.map((l) => `printf '%s\\n' ${JSON.stringify(l)};`),
+    `sleep ${dwellSec};`,
+    `printf '%s\\n' "status";`,
+    `printf '%s\\n' "disable";`,
+    `printf '%s\\n' "quit";`,
+  ];
+  return `{\n${commandLines.join("\n")}\n} | timeout ${dwellSec + 10} ${binary}`;
+}
+
 function marengoPiPkillLine(cfg: MarengoPiConfig): string {
   const bin = `${cfg.piRoot}/bin/marengo-pi`;
   return `pkill -f ${shellQuote(bin)} 2>/dev/null || true`;
@@ -111,12 +132,13 @@ function holdSessionRemoteBody(
   const holdLine =
     args.positionRad !== undefined ? `hold-at ${args.positionRad}` : "hold-on";
   lines.push(
-    marengoPiPipe(
-      ["home", `enable ${args.operator}`, holdLine],
-      args.timeoutSec,
-    ),
+    "set +e",
+    marengoPiTimedPipe(["home", `enable ${args.operator}`, holdLine], args.timeoutSec),
+    "PIPE_STATUS=$?",
+    "set -e",
+    "bin/motor-repl disable",
+    'exit "$PIPE_STATUS"',
   );
-  lines.push("bin/motor-repl disable");
   return lines.join("\n");
 }
 
