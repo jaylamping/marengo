@@ -63,8 +63,15 @@ function marengoPiBinarySelector(cfg: MarengoPiConfig): string {
     : shellQuote(`${cfg.piStagingRoot}/target/release/marengo-pi`);
   return [
     'PI_BIN=bin/marengo-pi',
-    'if ! printf \'%s\\n\' help | timeout 2 "$PI_BIN" 2>&1 | grep -q hold-on; then',
-    `  PI_BIN=${fallback}`,
+    `PI_FALLBACK=${fallback}`,
+    'if ! test -x "$PI_BIN" && test -x "$PI_FALLBACK"; then',
+    '  PI_BIN="$PI_FALLBACK"',
+    "fi",
+    'if test -x "$PI_BIN"; then',
+    '  PI_HELP=$(printf \'%s\\n\' help | timeout 2 "$PI_BIN" 2>&1 || true)',
+    '  if ! printf \'%s\\n\' "$PI_HELP" | grep -q hold-on && test -x "$PI_FALLBACK"; then',
+    '    PI_BIN="$PI_FALLBACK"',
+    "  fi",
     "fi",
   ].join("\n");
 }

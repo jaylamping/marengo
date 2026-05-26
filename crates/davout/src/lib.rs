@@ -152,6 +152,8 @@ enum EnablePolicy {
     ZeroCalibration,
 }
 
+const FEEDBACK_VELOCITY_LIMIT_TRIPS: u8 = 2;
+
 /// Safety supervisor — the only gateway to the motor bus.
 pub struct Supervisor<B: MotorBus> {
     mode: OperationalMode,
@@ -168,6 +170,7 @@ pub struct Supervisor<B: MotorBus> {
     last_recv: Option<Instant>,
     active_since: Option<Instant>,
     last_tau_ff: HashMap<String, f64>,
+    feedback_velocity_trips: HashMap<String, u8>,
     last_tick: Option<Instant>,
 }
 
@@ -213,6 +216,7 @@ impl<B: MotorBus> Supervisor<B> {
             last_recv: None,
             active_since: None,
             last_tau_ff: HashMap::new(),
+            feedback_velocity_trips: HashMap::new(),
             last_tick: None,
         })
     }
@@ -424,8 +428,10 @@ impl<B: MotorBus> Supervisor<B> {
                     else {
                         continue;
                     };
-                    self.motor_states
-                        .insert(address, motor_to_joint_state(motor, raw)?);
+                    let motor = motor.clone();
+                    let state = motor_to_joint_state(&motor, raw)?;
+                    self.check_feedback_velocity(&motor, &state)?;
+                    self.motor_states.insert(address, state);
                 }
                 self.last_recv = Some(Instant::now());
                 Ok(n)
@@ -436,6 +442,47 @@ impl<B: MotorBus> Supervisor<B> {
                 Err(e.into())
             }
         }
+    }
+
+    fn check_feedback_velocity(
+        &mut self,
+        motor: &MotorEntry,
+        state: &MotorState,
+    ) -> Result<(), DavoutError> {
+        if self.mode != OperationalMode::Active {
+            self.feedback_velocity_trips.remove(&motor.joint);
+            return Ok(());
+        }
+        let lim = self
+            .limits
+            .get(&motor.joint)
+            .ok_or_else(|| DavoutError::UnknownJoint {
+                joint: motor.joint.clone(),
+            })?;
+        let velocity = f64::from(state.velocity_rad_s).abs();
+        if velocity > lim.velocity {
+            let trips = self
+                .feedback_velocity_trips
+                .entry(motor.joint.clone())
+                .and_modify(|count| *count = count.saturating_add(1))
+                .or_insert(1);
+            warn!(
+                joint = %motor.joint,
+                velocity_rad_s = velocity,
+                limit_rad_s = lim.velocity,
+                trips = *trips,
+                "feedback velocity limit exceeded"
+            );
+            if *trips >= FEEDBACK_VELOCITY_LIMIT_TRIPS {
+                return Err(DavoutError::Limit {
+                    joint: motor.joint.clone(),
+                    message: format!("feedback |velocity| {velocity} > {}", lim.velocity),
+                });
+            }
+        } else {
+            self.feedback_velocity_trips.remove(&motor.joint);
+        }
+        Ok(())
     }
 
     fn check_comm_watchdog(&self) -> Result<(), DavoutError> {
@@ -635,6 +682,7 @@ impl<B: MotorBus> Supervisor<B> {
         self.mode = OperationalMode::Disabled;
         self.control_mode = ControlMode::Disabled;
         self.active_since = None;
+        self.feedback_velocity_trips.clear();
         debug!("supervisor DISABLED");
         Ok(())
     }
@@ -948,7 +996,7 @@ mod tests {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
     }
 
-    fn bench_verify_all_joints(sup: &mut Supervisor<MemoryBus>) {
+    fn bench_verify_all_joints<B: MotorBus>(sup: &mut Supervisor<B>) {
         for motor in sup.motors.motors.clone() {
             let joint = motor.joint.clone();
             if sup
@@ -970,7 +1018,7 @@ mod tests {
         }
     }
 
-    fn bench_ready_active(sup: &mut Supervisor<MemoryBus>) {
+    fn bench_ready_active<B: MotorBus>(sup: &mut Supervisor<B>) {
         bench_verify_all_joints(sup);
         sup.set_homing_complete().expect("ready");
         sup.request_enable(true).expect("enable");
@@ -978,10 +1026,8 @@ mod tests {
 
     #[test]
     fn enable_blocked_without_verified_homing() {
-        let temp = std::env::temp_dir().join(format!(
-            "marengo-homing-empty-{}.yaml",
-            std::process::id()
-        ));
+        let temp =
+            std::env::temp_dir().join(format!("marengo-homing-empty-{}.yaml", std::process::id()));
         let _ = std::fs::write(&temp, "joints: []\n");
         std::env::set_var("MARENGO_CALIBRATION_RECORD", &temp);
         let bus = MemoryBus::default();
@@ -1152,6 +1198,44 @@ mod tests {
         assert!(sup
             .motor_states()
             .contains_key(&MotorAddress::new("can1", 1)));
+    }
+
+    #[test]
+    fn active_feedback_velocity_above_limit_faults() {
+        let bus = RoutedMemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        sup.motors.motors[0].can_interface = "can0".to_string();
+        sup.motors.motors[0].device_id = 1;
+        sup.motor_types = sup
+            .motors
+            .motors
+            .iter()
+            .map(|m| (MotorAddress::from(m), m.motor_type))
+            .collect();
+        bench_ready_active(&mut sup);
+        sup.bus.rx.push(ReceivedCanFrame {
+            interface: Some("can0".to_string()),
+            frame: CanFrame {
+                id: robstride::pack_ext_id(2, 1, robstride::DEFAULT_HOST_ID),
+                data: [0x7f, 0xff, 0xff, 0xff, 0x7f, 0xff, 0x00, 0xc8],
+                extended: true,
+            },
+        });
+
+        sup.refresh_feedback().expect("first overspeed warns only");
+        sup.bus.rx.push(ReceivedCanFrame {
+            interface: Some("can0".to_string()),
+            frame: CanFrame {
+                id: robstride::pack_ext_id(2, 1, robstride::DEFAULT_HOST_ID),
+                data: [0x7f, 0xff, 0xff, 0xff, 0x7f, 0xff, 0x00, 0xc8],
+                extended: true,
+            },
+        });
+
+        let err = sup.refresh_feedback().expect_err("overspeed feedback");
+
+        assert!(matches!(err, DavoutError::Limit { .. }));
+        assert!(err.to_string().contains("feedback |velocity|"));
     }
 
     #[test]

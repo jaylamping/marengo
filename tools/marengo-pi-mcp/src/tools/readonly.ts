@@ -47,7 +47,13 @@ export function registerReadonlyTools(
       handler: async () => {
         const body = wrapRemote(
           cfg,
-          "ip -details -statistics link show can0 can1 2>&1 || ip link show type can",
+          [
+            "for iface in can0 can1; do",
+            "  echo \"=== ${iface} ===\"",
+            "  ip -details -statistics link show dev \"${iface}\" 2>&1 || true",
+            "  echo",
+            "done",
+          ].join("\n"),
         );
         return runRemote(body, 15_000);
       },
@@ -117,7 +123,7 @@ export function registerReadonlyTools(
       handler: async () => {
         const body = wrapRemote(
           cfg,
-          "timeout 2 candump -ta can0,can1 2>&1 || true",
+          "timeout 2 candump -ta can0 can1 2>&1 || true",
         );
         return runRemote(body, 10_000);
       },
