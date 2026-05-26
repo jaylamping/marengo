@@ -153,6 +153,14 @@ enum EnablePolicy {
 }
 
 const FEEDBACK_VELOCITY_LIMIT_TRIPS: u8 = 2;
+const FEEDBACK_VELOCITY_CORROBORATION_EPS_RAD_S: f64 = 0.05;
+
+#[derive(Debug, Clone, Copy)]
+struct FeedbackSample {
+    position_rad: f64,
+    velocity_rad_s: f64,
+    received_at: Instant,
+}
 
 /// Safety supervisor — the only gateway to the motor bus.
 pub struct Supervisor<B: MotorBus> {
@@ -171,6 +179,7 @@ pub struct Supervisor<B: MotorBus> {
     active_since: Option<Instant>,
     last_tau_ff: HashMap<String, f64>,
     feedback_velocity_trips: HashMap<String, u8>,
+    last_feedback_samples: HashMap<String, FeedbackSample>,
     last_tick: Option<Instant>,
 }
 
@@ -217,6 +226,7 @@ impl<B: MotorBus> Supervisor<B> {
             active_since: None,
             last_tau_ff: HashMap::new(),
             feedback_velocity_trips: HashMap::new(),
+            last_feedback_samples: HashMap::new(),
             last_tick: None,
         })
     }
@@ -339,6 +349,8 @@ impl<B: MotorBus> Supervisor<B> {
             self.mode = OperationalMode::Disabled;
             self.control_mode = ControlMode::Disabled;
             self.active_since = None;
+            self.feedback_velocity_trips.clear();
+            self.last_feedback_samples.clear();
             warn!("hardware E-stop asserted — disabled");
         }
     }
@@ -416,6 +428,7 @@ impl<B: MotorBus> Supervisor<B> {
             .recv_all_addressed(&self.motor_types, &mut raw_states, timeout)
         {
             Ok(n) => {
+                let received_at = Instant::now();
                 if n > 0 {
                     trace!(count = n, "received motor feedback batch");
                 }
@@ -430,10 +443,10 @@ impl<B: MotorBus> Supervisor<B> {
                     };
                     let motor = motor.clone();
                     let state = motor_to_joint_state(&motor, raw)?;
-                    self.check_feedback_velocity(&motor, &state)?;
+                    self.check_feedback_velocity(&motor, &state, received_at)?;
                     self.motor_states.insert(address, state);
                 }
-                self.last_recv = Some(Instant::now());
+                self.last_recv = Some(received_at);
                 Ok(n)
             }
             Err(BusError::RecvTimeout) => Ok(0),
@@ -448,9 +461,11 @@ impl<B: MotorBus> Supervisor<B> {
         &mut self,
         motor: &MotorEntry,
         state: &MotorState,
+        received_at: Instant,
     ) -> Result<(), DavoutError> {
         if self.mode != OperationalMode::Active {
             self.feedback_velocity_trips.remove(&motor.joint);
+            self.last_feedback_samples.remove(&motor.joint);
             return Ok(());
         }
         let lim = self
@@ -460,7 +475,37 @@ impl<B: MotorBus> Supervisor<B> {
                 joint: motor.joint.clone(),
             })?;
         let velocity = f64::from(state.velocity_rad_s).abs();
+        let position = f64::from(state.position_rad);
+        let previous = self.last_feedback_samples.insert(
+            motor.joint.clone(),
+            FeedbackSample {
+                position_rad: position,
+                velocity_rad_s: f64::from(state.velocity_rad_s),
+                received_at,
+            },
+        );
         if velocity > lim.velocity {
+            let position_velocity = previous.and_then(|prev| {
+                let dt = received_at.duration_since(prev.received_at).as_secs_f64();
+                (dt > 0.0).then_some((position - prev.position_rad).abs() / dt)
+            });
+            if position_velocity
+                .map(|v| v <= lim.velocity + FEEDBACK_VELOCITY_CORROBORATION_EPS_RAD_S)
+                .unwrap_or(true)
+            {
+                info!(
+                    joint = %motor.joint,
+                    position_rad = position,
+                    previous_position_rad = previous.map(|prev| prev.position_rad),
+                    velocity_rad_s = velocity,
+                    previous_velocity_rad_s = previous.map(|prev| prev.velocity_rad_s),
+                    position_velocity_rad_s = position_velocity,
+                    limit_rad_s = lim.velocity,
+                    "ignored uncorroborated feedback velocity spike"
+                );
+                self.feedback_velocity_trips.remove(&motor.joint);
+                return Ok(());
+            }
             let trips = self
                 .feedback_velocity_trips
                 .entry(motor.joint.clone())
@@ -468,7 +513,11 @@ impl<B: MotorBus> Supervisor<B> {
                 .or_insert(1);
             warn!(
                 joint = %motor.joint,
+                position_rad = position,
+                previous_position_rad = previous.map(|prev| prev.position_rad),
                 velocity_rad_s = velocity,
+                previous_velocity_rad_s = previous.map(|prev| prev.velocity_rad_s),
+                position_velocity_rad_s = position_velocity,
                 limit_rad_s = lim.velocity,
                 trips = *trips,
                 "feedback velocity limit exceeded"
@@ -683,6 +732,7 @@ impl<B: MotorBus> Supervisor<B> {
         self.control_mode = ControlMode::Disabled;
         self.active_since = None;
         self.feedback_velocity_trips.clear();
+        self.last_feedback_samples.clear();
         debug!("supervisor DISABLED");
         Ok(())
     }
@@ -1202,17 +1252,28 @@ mod tests {
             interface: Some("can0".to_string()),
             frame: CanFrame {
                 id: robstride::pack_ext_id(2, 1, robstride::DEFAULT_HOST_ID),
-                data: [0x7f, 0xff, 0xff, 0xff, 0x7f, 0xff, 0x00, 0xc8],
+                data: [0x7f, 0xff, 0x7f, 0xff, 0x7f, 0xff, 0x00, 0xc8],
                 extended: true,
             },
         });
 
-        sup.refresh_feedback().expect("first overspeed warns only");
+        sup.refresh_feedback().expect("initial feedback");
         sup.bus.rx.push(ReceivedCanFrame {
             interface: Some("can0".to_string()),
             frame: CanFrame {
                 id: robstride::pack_ext_id(2, 1, robstride::DEFAULT_HOST_ID),
-                data: [0x7f, 0xff, 0xff, 0xff, 0x7f, 0xff, 0x00, 0xc8],
+                data: [0x8f, 0xff, 0xff, 0xff, 0x7f, 0xff, 0x00, 0xc8],
+                extended: true,
+            },
+        });
+
+        sup.refresh_feedback()
+            .expect("first corroborated overspeed warns only");
+        sup.bus.rx.push(ReceivedCanFrame {
+            interface: Some("can0".to_string()),
+            frame: CanFrame {
+                id: robstride::pack_ext_id(2, 1, robstride::DEFAULT_HOST_ID),
+                data: [0x9f, 0xff, 0xff, 0xff, 0x7f, 0xff, 0x00, 0xc8],
                 extended: true,
             },
         });
@@ -1221,6 +1282,37 @@ mod tests {
 
         assert!(matches!(err, DavoutError::Limit { .. }));
         assert!(err.to_string().contains("feedback |velocity|"));
+    }
+
+    #[test]
+    fn stationary_feedback_velocity_spike_is_ignored() {
+        let bus = RoutedMemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        sup.motors.motors[0].can_interface = "can0".to_string();
+        sup.motors.motors[0].device_id = 1;
+        sup.motor_types = sup
+            .motors
+            .motors
+            .iter()
+            .map(|m| (MotorAddress::from(m), m.motor_type))
+            .collect();
+        bench_ready_active(&mut sup);
+        let stationary_overspeed = ReceivedCanFrame {
+            interface: Some("can0".to_string()),
+            frame: CanFrame {
+                id: robstride::pack_ext_id(2, 1, robstride::DEFAULT_HOST_ID),
+                data: [0x7f, 0xff, 0xff, 0xff, 0x7f, 0xff, 0x00, 0xc8],
+                extended: true,
+            },
+        };
+
+        sup.bus.rx.push(stationary_overspeed.clone());
+        sup.refresh_feedback().expect("first spike ignored");
+        sup.bus.rx.push(stationary_overspeed);
+        sup.refresh_feedback()
+            .expect("stationary repeated spike remains ignored");
+
+        assert!(sup.feedback_velocity_trips.is_empty());
     }
 
     #[test]
