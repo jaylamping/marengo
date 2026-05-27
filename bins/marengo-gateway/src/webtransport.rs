@@ -230,6 +230,20 @@ fn default_tls_dir() -> PathBuf {
         .join("var/gateway/tls")
 }
 
+/// PEM paths used by WebTransport and the optional HTTPS Consul listener.
+pub fn resolve_tls_pem_paths(
+    cert_path: Option<PathBuf>,
+    key_path: Option<PathBuf>,
+) -> (PathBuf, PathBuf) {
+    match (cert_path, key_path) {
+        (Some(c), Some(k)) => (c, k),
+        _ => {
+            let dir = default_tls_dir();
+            (dir.join("cert.pem"), dir.join("key.pem"))
+        }
+    }
+}
+
 fn tls_material_from_pem_files(
     cert_file: &Path,
     key_file: &Path,

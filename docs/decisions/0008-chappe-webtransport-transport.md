@@ -36,9 +36,10 @@ Wire types remain in [`proto/marengo/v1/marengo.proto`](../../proto/marengo/v1/m
 
 ### Auth (bench)
 
-- Phase 1: bind **`[::]:8080`** (HTTP) and **`[::]:8443`** (WebTransport/QUIC) on the Pi LAN (dual-stack; `marengo.local` is often IPv6-first on macOS). Bench-only — not intended for the public internet.
-- Dev Mac on the same network: `VITE_CHAPPE_HTTP_URL=http://marengo.local:8080`, `VITE_CHAPPE_WEBTRANSPORT_URL=https://marengo.local:8443/chappe`. **`ssh -L` does not forward QUIC**; do not tunnel `:8443` for WebTransport.
-- TLS: self-signed cert generated at startup (`rcgen`); browser may prompt when Consul opens WebTransport (there is no normal HTTPS page on `:8443`).
+- Phase 1: bind **`[::]:8080`** (HTTP API), **`[::]:8444`** (HTTPS Consul UI + API), and **`[::]:8443`** (WebTransport/QUIC) on the Pi LAN (dual-stack; `marengo.local` is often IPv6-first on macOS). Bench-only — not intended for the public internet.
+- **Robot-hosted Consul:** `https://marengo.local:8444` serves the built SPA from `/opt/marengo/www`; endpoints are derived at runtime (no `VITE_CHAPPE_*` on the robot).
+- **Local dev:** `VITE_CHAPPE_HTTP_URL=http://marengo.local:8080`, `VITE_CHAPPE_WEBTRANSPORT_URL=https://marengo.local:8443/chappe` in `consul/.env.local`. **`ssh -L` does not forward QUIC**; do not tunnel `:8443` for WebTransport.
+- TLS: self-signed cert generated at startup (`rcgen`); accept the browser warning once on `:8444` (secure origin for WebTransport cert pinning).
 - Future: bearer token or mTLS; optional `127.0.0.1`-only bind for localhost-only installs.
 
 ### Relation to NATS
@@ -49,7 +50,7 @@ Gateway is the **reference WebTransport transport** for Chappe. A future `--tran
 
 - New workspace member `bins/marengo-gateway`; `chappe` gains `transport` + `ipc` modules.
 - `marengo-pi` sets `MARENGO_CHAPPE_SOCKET` when gateway runs on Pi (`systemd` / env).
-- Consul: `VITE_CHAPPE_HTTP_URL`, `VITE_CHAPPE_WEBTRANSPORT_URL`; mock data when unset.
+- Consul: robot-hosted HTTPS derives endpoints; local dev uses `VITE_CHAPPE_*`; mock data when neither applies.
 - CI: gateway + ipc tested without hardware; WebTransport requires TLS stack (quinn/rustls).
 
 ## Alternatives considered

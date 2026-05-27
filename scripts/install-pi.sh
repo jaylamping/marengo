@@ -26,6 +26,7 @@ mkdir -p \
   "${INSTALL_ROOT}/bin" \
   "${INSTALL_ROOT}/config" \
   "${INSTALL_ROOT}/assets" \
+  "${INSTALL_ROOT}/www" \
   "${INSTALL_ROOT}/var/log" \
   "${INSTALL_ROOT}/var/calibration" \
   "${INSTALL_ROOT}/var/gateway/tls"
@@ -57,6 +58,11 @@ fi
 rsync -a --delete "${ROOT}/config/" "${INSTALL_ROOT}/config/"
 rsync -a "${ROOT}/assets/" "${INSTALL_ROOT}/assets/"
 rsync -a "${ROOT}/scripts/" "${INSTALL_ROOT}/scripts/"
+if [[ -d "${ROOT}/www" ]]; then
+  rsync -a --delete "${ROOT}/www/" "${INSTALL_ROOT}/www/"
+else
+  echo "warning: ${ROOT}/www missing — Consul UI not installed (run deploy-pi from dev machine)" >&2
+fi
 chmod 755 "${INSTALL_ROOT}/scripts/can-up.sh"
 chown -R root:"${RUN_USER}" "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets" "${INSTALL_ROOT}/scripts"
 chmod -R g+rwX "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets" "${INSTALL_ROOT}/scripts"
@@ -93,7 +99,7 @@ sed -i "s|User=.*|User=${RUN_USER}|" /etc/systemd/system/marengo-pi.service
 sed -i "s|ExecStart=.*|ExecStart=${INSTALL_ROOT}/bin/marengo-pi|" /etc/systemd/system/marengo-pi.service
 sed -i "s|WorkingDirectory=.*|WorkingDirectory=${INSTALL_ROOT}|" /etc/systemd/system/marengo-gateway.service
 sed -i "s|User=.*|User=${RUN_USER}|" /etc/systemd/system/marengo-gateway.service
-sed -i "s|ExecStart=.*|ExecStart=${INSTALL_ROOT}/bin/marengo-gateway --http-listen [::]:8080 --wt-listen [::]:8443 --chappe-socket /run/marengo/chappe.sock|" /etc/systemd/system/marengo-gateway.service
+sed -i "s|ExecStart=.*|ExecStart=${INSTALL_ROOT}/bin/marengo-gateway --http-listen [::]:8080 --https-listen [::]:8444 --web-root ${INSTALL_ROOT}/www --wt-listen [::]:8443 --chappe-socket /run/marengo/chappe.sock|" /etc/systemd/system/marengo-gateway.service
 
 chown -R "${RUN_USER}:${RUN_USER}" "${INSTALL_ROOT}"
 chown -R root:"${RUN_USER}" "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets" "${INSTALL_ROOT}/scripts" "${INSTALL_ROOT}/var" 2>/dev/null || true
@@ -101,14 +107,17 @@ chmod -R g+rwX "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets" "${INSTALL_ROOT
 
 systemctl daemon-reload
 systemctl enable --now marengo-can.service
+if [[ -f "${INSTALL_ROOT}/bin/marengo-gateway" ]]; then
+  systemctl enable --now marengo-gateway.service
+fi
 
 echo "Done. CAN (can0/can1) should be UP — verify: ip -br link show type can"
 echo "Next:"
 echo "  1. Edit /etc/marengo/env (MARENGO_ROOT, MARENGO_CONFIG_DIR)"
-echo "  2. Optional: systemctl enable --now marengo-gateway (HTTP :8080, WebTransport :8443 on LAN)"
+echo "  2. Consul UI: https://marengo.local:8444 (gateway enabled on boot; accept self-signed cert once)"
 echo "  3. Bench motion: run marengo-pi / motor-repl manually (do not enable marengo-pi.service unless you want always-on control)"
 echo "  4. Example: MARENGO_CONFIG_DIR=config/bringup/shoulder_pitch_right_only ${INSTALL_ROOT}/bin/motor-repl status"
-echo "  5. Consul on Mac (same LAN): VITE_CHAPPE_* → http://marengo.local:8080 and https://marengo.local:8443/chappe (see consul/.env.example)"
+echo "  5. Local dev Consul: VITE_CHAPPE_* in consul/.env.local (see consul/.env.example)"
 PI_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
 if [[ -n "${PI_IP}" ]] && [[ -f /etc/marengo/env ]]; then
   if ! grep -q '^MARENGO_GATEWAY_TLS_EXTRA_SAN=' /etc/marengo/env 2>/dev/null; then

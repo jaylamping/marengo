@@ -163,22 +163,28 @@ Left arm chain: roll **11**, pitch **12**, yaw **13**, elbow **14**. Right arm: 
 | Motor silent | Power, termination, wrong `device_id`, run `candump` |
 | Config not found | Set `MARENGO_ROOT` + `MARENGO_CONFIG_DIR` or clone full repo |
 
-## Consul live telemetry (marengo-gateway)
+## Consul (robot-hosted UI)
 
-1. Build/install includes `marengo-gateway` (`install-pi.sh` / `deploy-pi.sh`).
-2. Enable gateway: `sudo systemctl enable --now marengo-gateway` (listens on **`[::]:8080`** HTTP and **`[::]:8443`** WebTransport/QUIC on the Pi LAN, dual-stack).
-3. Run `marengo-pi` with `MARENGO_CHAPPE_SOCKET=/run/marengo/chappe.sock` (set in `/etc/marengo/env`).
-4. On the dev Mac (same network as the Pi), copy `consul/.env.example` → `consul/.env.local` and use **`marengo.local`** (not `127.0.0.1`):
+1. Build/install includes `marengo-gateway` and Consul static assets (`deploy-pi.sh` builds `consul/dist` → `www/`; `install-pi.sh` installs to `/opt/marengo/www`).
+2. After `install-pi.sh`, **`marengo-gateway`** and **`marengo-can`** are enabled on boot. Gateway listens on **`[::]:8080`** (HTTP API), **`[::]:8444`** (HTTPS Consul UI), **`[::]:8443`** (WebTransport/QUIC).
+3. On the bench LAN, open **`https://marengo.local:8444`** and accept the self-signed certificate once.
+4. Run `marengo-pi` manually for live telemetry (`MARENGO_CHAPPE_SOCKET=/run/marengo/chappe.sock` in `/etc/marengo/env`). **`marengo-pi.service` stays disabled** by default — no automatic motor control after reboot.
 
-```bash
-cd consul && npm run dev
-```
+**Boot state after power loss:** CAN up, gateway/UI up, `marengo-pi` stopped, motors not enabled.
+
+**Local dev (optional):** copy `consul/.env.example` → `consul/.env.local`, then `cd consul && npm run dev` on the dev Mac.
 
 WebTransport uses **QUIC (UDP)**. `ssh -L` forwards TCP only and will not carry `:8443`; use LAN hostnames instead.
 
-If the browser blocks the gateway self-signed cert, allow the exception when Consul first connects (do not expect a normal HTTPS page on `:8443`).
+Local demo without hardware:
 
-Local demo without hardware: `cargo run -p marengo-gateway -- --demo` then point Consul at `http://127.0.0.1:8080` and `https://127.0.0.1:8443/chappe`.
+```bash
+cd consul && npm run build
+cargo run -p marengo-gateway -- --demo \
+  --https-listen 127.0.0.1:8444 --web-root consul/dist
+```
+
+Then open `https://127.0.0.1:8444`.
 
 ## Agent-assisted bench
 

@@ -53,6 +53,19 @@ ensure_cross_toolchain
 echo "Building marengo-pi + marengo-gateway + motor-repl for ${TARGET}..."
 cargo build --release --target "$TARGET" -p marengo-pi -p marengo-gateway -p motor-repl --features socketcan
 
+echo "Building Consul static assets..."
+(
+  cd "${ROOT}/consul"
+  if [[ ! -d node_modules ]]; then
+    npm ci
+  fi
+  npm run build
+)
+if [[ ! -f "${ROOT}/consul/dist/index.html" ]]; then
+  echo "error: consul build did not produce dist/index.html" >&2
+  exit 1
+fi
+
 if [[ -z "$PI_HOST" ]]; then
   echo "Built:"
   echo "  ${ROOT}/target/${TARGET}/release/marengo-pi"
@@ -73,6 +86,8 @@ cp "${ROOT}/target/${TARGET}/release/motor-repl" "$STAGING/target/release/"
 rsync -a "${ROOT}/config/" "$STAGING/config/"
 rsync -a "${ROOT}/assets/" "$STAGING/assets/"
 rsync -a "${ROOT}/scripts/" "$STAGING/scripts/"
+mkdir -p "$STAGING/www"
+rsync -a --delete "${ROOT}/consul/dist/" "$STAGING/www/"
 
 REMOTE_ROOT="${MARENGO_INSTALL_ROOT:-~/marengo}"
 echo "Syncing to ${PI_HOST}:${REMOTE_ROOT}/ ..."

@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use armee_proto::prost::Message;
 use armee_proto::EnableRequest;
 use axum::{
@@ -10,6 +12,7 @@ use axum::{
 };
 use serde::Serialize;
 use tower_http::cors::{Any, CorsLayer};
+use tower_http::services::{ServeDir, ServeFile};
 
 use crate::state::SharedState;
 
@@ -37,14 +40,15 @@ struct TlsFingerprintResponse {
     hashes: Vec<TlsFingerprintEntry>,
 }
 
-pub fn router(state: SharedState) -> Router {
+/// API routes plus optional Consul SPA static files (`web_root` for robot-hosted HTTPS).
+pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods(Any)
         .allow_headers(Any)
         .allow_private_network(tower_http::cors::AllowPrivateNetwork::yes());
 
-    Router::new()
+    let api = Router::new()
         .route("/health", get(health))
         .route("/tls/fingerprint", get(tls_fingerprint))
         .route("/snapshot/robot/state", get(snapshot_state))
@@ -52,7 +56,16 @@ pub fn router(state: SharedState) -> Router {
         .route("/snapshot/robot/heartbeat", get(snapshot_heartbeat))
         .route("/command/enable", post(command_enable))
         .layer(cors)
-        .with_state(state)
+        .with_state(state);
+
+    match web_root {
+        Some(root) => {
+            let index = root.join("index.html");
+            let static_files = ServeDir::new(root).not_found_service(ServeFile::new(index));
+            api.fallback_service(static_files)
+        }
+        None => api,
+    }
 }
 
 async fn health() -> Json<HealthResponse> {
