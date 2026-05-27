@@ -43,6 +43,8 @@ Disabled → Ready → Active
 ## Sensor truth table (3-Hall layout)
 
 One magnet on the rotating member; three fixed Hall sensors on the housing.
+Truth table values are **logical active states after polarity normalization**.
+A3144-style Hall switches are electrically active-low when used with MCP23017 pull-ups, but should still appear as `1` when active in homing logic.
 
 | home | min | max | Interpretation |
 |------|-----|-----|----------------|
@@ -68,7 +70,7 @@ Configured per joint in `config/homing.yaml` (see [ADR 0006](decisions/0006-homi
 
 ## Interim manual procedure (until Hall hardware)
 
-Use until shoulder-roll Hall mounts are installed:
+Use until Hall mounts are installed:
 
 1. E-stop reachable; arm supported.
 2. `motor-repl status` — CAN OK, no faults.
