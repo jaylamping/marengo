@@ -83,6 +83,7 @@ pub fn report_payload_length(report_id: u8) -> Option<usize> {
         REPORT_ACCELEROMETER | REPORT_GYROSCOPE => Some(10),
         REPORT_ROTATION_VECTOR => Some(14),
         REPORT_TIMESTAMP_REBASE | REPORT_BASE_TIMESTAMP => Some(5),
+        0x14 | 0x15 | 0x16 => Some(16), // raw accel / gyro / mag
         GET_FEATURE_RESPONSE => Some(17),
         SHTP_REPORT_PRODUCT_ID_RESPONSE | COMMAND_RESPONSE => Some(16),
         _ => None,
@@ -99,8 +100,11 @@ pub fn split_batch_reports(data: &[u8]) -> Result<Vec<&[u8]>, String> {
     let mut index = 0;
     while index < data.len() {
         let report_id = data[index];
-        let required = report_payload_length(report_id)
-            .ok_or_else(|| format!("unknown report id {report_id:#04x}"))?;
+        let Some(required) = report_payload_length(report_id) else {
+            // Stop at unknown IDs instead of failing the whole packet (hub may
+            // emit reports we have not enabled yet).
+            break;
+        };
         if index + required > data.len() {
             return Err(format!(
                 "incomplete report {report_id:#04x}: need {required} bytes, have {}",
