@@ -28,7 +28,7 @@ fi
 
 echo "Cross-build smoke..."
 cd "$ROOT"
-cargo build --release --target aarch64-unknown-linux-gnu -p marengo-pi -p motor-repl --features socketcan
+cargo build --release --target aarch64-unknown-linux-gnu -p marengo-pi -p motor-repl -p imu-probe --features socketcan,linux-i2c
 
 echo "setup-mac-pi-cross: ok"
 echo "Deploy: ./scripts/deploy-pi.sh joey@marengo.local --install"

@@ -18,8 +18,10 @@ if ! id "$RUN_USER" &>/dev/null; then
   useradd --system --home "$INSTALL_ROOT" --shell /usr/sbin/nologin "$RUN_USER"
 fi
 usermod -aG dialout "$RUN_USER" || true
+usermod -aG i2c "$RUN_USER" || true
 if id "$DEPLOY_USER" &>/dev/null; then
   usermod -aG "$RUN_USER" "$DEPLOY_USER" || true
+  usermod -aG i2c "$DEPLOY_USER" || true
 fi
 
 mkdir -p \
@@ -36,6 +38,7 @@ chown root:"${RUN_USER}" "${INSTALL_ROOT}/var" "${INSTALL_ROOT}/var/log" "${INST
 PI_BIN="${ROOT}/target/release/marengo-pi"
 GATEWAY_BIN="${ROOT}/target/release/marengo-gateway"
 REPL_BIN="${ROOT}/target/release/motor-repl"
+IMU_PROBE_BIN="${ROOT}/target/release/imu-probe"
 # Flat deploy layout (legacy rsync): binaries at repo root
 if [[ ! -f "$PI_BIN" && -f "${ROOT}/marengo-pi" ]]; then
   PI_BIN="${ROOT}/marengo-pi"
@@ -53,6 +56,9 @@ if [[ -f "$GATEWAY_BIN" ]]; then
 fi
 if [[ -f "$REPL_BIN" ]]; then
   install -m 755 "$REPL_BIN" "${INSTALL_ROOT}/bin/motor-repl"
+fi
+if [[ -f "$IMU_PROBE_BIN" ]]; then
+  install -m 755 "$IMU_PROBE_BIN" "${INSTALL_ROOT}/bin/imu-probe"
 fi
 
 rsync -a --delete "${ROOT}/config/" "${INSTALL_ROOT}/config/"

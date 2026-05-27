@@ -130,8 +130,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let tls = webtransport::load_or_generate_tls(args.cert_path.clone(), args.key_path.clone())?;
     state.set_tls_cert_sha256_base64(tls.cert_sha256_base64.clone());
 
-    let (cert_pem, key_pem) =
-        webtransport::resolve_tls_pem_paths(args.cert_path, args.key_path);
+    let (cert_pem, key_pem) = webtransport::resolve_tls_pem_paths(args.cert_path, args.key_path);
 
     let http_state = Arc::clone(&state);
     let http_addr = args.http_addr;

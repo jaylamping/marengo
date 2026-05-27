@@ -27,9 +27,11 @@ Each library crate has a **detailed crate-root** `//!` doc in `src/lib.rs` (resp
 | `talleyrand` | Planning |
 | `fouche` | Vision / LLM (Jetson) |
 | `robstride` | MIT CAN encode/decode, no policy |
+| `marengo-imu` | BNO085 SHTP/I2C driver, rotation-vector samples |
 | `marengo-config` | `config/*.yaml` loaders |
 | `sim-harness` | Sim test helpers |
 | `bins/*` | Thin `main`, wiring only |
+| `bins/imu-probe` | BNO085 I2C quaternion probe (Pi bench) |
 
 ## 3. Crate boundaries
 

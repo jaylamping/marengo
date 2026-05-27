@@ -18,3 +18,4 @@ stock_bracket_2028_corner_kit,mankk 2028 corner bracket kit (30 pc),1,Amazon,B0F
 print_shoulder_internal_pitch_mount_bracket_left,PETG shoulder internal pitch mount bracket (left),1,printed,,,marengo_shoulder_internal_pitch_mount_bracket_left_revA
 print_shoulder_internal_pitch_mount_bracket_right,PETG shoulder internal pitch mount bracket (right),1,printed,,,marengo_shoulder_internal_pitch_mount_bracket_right_revA
 print_waist_yaw_adapter,PETG waist yaw adapter plate,1,printed,,,marengo_waist_yaw_adapter_revA
+sensor_bno085,Teyleten Robot GY-BNO085 9-DOF IMU,1,Teyleten,GY-BNO085,"torso IMU; I2C 0x4b (ADR high); Pi header i2c-1"

@@ -1,0 +1,24 @@
+[package]
+name = "marengo-imu"
+version = "0.1.0"
+description = "BNO085 IMU driver (SHTP over I2C) for Marengo"
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = []
+linux-i2c = ["dep:i2cdev"]
+
+[dependencies]
+thiserror.workspace = true
+tracing.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+i2cdev = { version = "0.6", optional = true }
+
+[dev-dependencies]

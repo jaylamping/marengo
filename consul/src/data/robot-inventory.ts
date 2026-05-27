@@ -121,7 +121,7 @@ export const robotInventory: InventoryItem[] = [
   device(1, 'pi5_can_hat', 'platform', 'Enabled', 'up', '—', 'bench_default', 'can0 · Waveshare 2-ch'),
   device(2, 'estop_chain', 'platform', 'Nominal', 'closed', '—', 'bench_default', 'gpio · NC chain'),
   sensor(3, 'battery_bms', 'platform', 'Nominal', '48.1 V · 87%', '42–54 V', 'bench_default', 'i2c · smart BMS'),
-  sensor(4, 'torso_imu', 'platform', 'Offline', '—', '±16 g', 'unassigned', 'i2c · BMI270'),
+  sensor(4, 'torso_imu', 'platform', 'Offline', '—', 'quat', 'bench_default', 'i2c-1 · 0x4b · BNO085'),
   sensor(5, 'head_rgb', 'platform', 'Offline', '—', '—', 'unassigned', 'usb · future'),
   sensor(6, 'chest_depth', 'platform', 'Offline', '—', '—', 'unassigned', 'usb · future'),
 

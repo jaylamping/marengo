@@ -19,8 +19,8 @@
 
 ```bash
 sudo apt update && sudo apt full-upgrade -y
-sudo apt install -y iproute2 can-utils git
-sudo usermod -aG dialout $USER   # re-login
+sudo apt install -y iproute2 can-utils git i2c-tools
+sudo usermod -aG dialout,i2c $USER   # re-login
 ```
 
 **Waveshare 2-CH CAN HAT (`/boot/firmware/config.txt`):**
@@ -43,6 +43,51 @@ ip -br link show type can   # expect can0 UP, can1 UP
 ```
 
 After `install-pi.sh`, `marengo-can` is **enabled and started** — no manual `can-up` needed on each reboot unless the unit failed (check `journalctl -u marengo-can`).
+
+### BNO085 torso IMU (I2C)
+
+Commissioned on the Pi 5 bench: **Teyleten Robot GY-BNO085** on header I2C at **`0x4b`** (ADR/SA0 high; default breakout address is `0x4a`).
+
+**Enable I2C** in `/boot/firmware/config.txt` (requires `sudo`):
+
+```text
+dtparam=i2c_arm=on
+dtparam=i2c_arm_baudrate=400000
+```
+
+Reboot, then verify:
+
+```bash
+ls -l /dev/i2c-*
+i2cdetect -y 1
+# expect 0x4b (Pi 5 uses i2c-1 for header pins; i2c-0 is absent — ignore i2cdetect -y 0 errors)
+```
+
+**Wiring (3.3 V logic only):**
+
+| BNO085 | Pi 5 header |
+|--------|-------------|
+| VCC | 3.3 V (pin 1) |
+| GND | GND (pin 6) |
+| SDA | pin 3 (GPIO2 / SDA) |
+| SCL | pin 5 (GPIO3 / SCL) |
+
+**Rust probe (after deploy):**
+
+```bash
+/opt/marengo/bin/imu-probe --bus /dev/i2c-1 --address 0x4b --samples 10
+```
+
+**Python smoke test (optional fallback):** Bookworm/Trixie block system `pip`; use a venv with system site-packages so `python3-lgpio` works on Pi 5:
+
+```bash
+sudo apt install -y python3-venv python3-lgpio
+python3 -m venv --system-site-packages ~/imu-venv
+~/imu-venv/bin/pip install adafruit-blinka adafruit-circuitpython-bno08x
+# pass address=0x4b to the driver (not default 0x4a)
+```
+
+See [hardware/electrical/wiring/harness.md](../hardware/electrical/wiring/harness.md) for harness notes.
 
 **Security (recommended):** SSH key-only, `fail2ban`, `ufw` allow SSH from bench subnet, `unattended-upgrades`.
 
@@ -162,6 +207,13 @@ Left arm chain: roll **11**, pitch **12**, yaw **13**, elbow **14**. Right arm: 
 | `Device or resource busy` on can0 | Already UP — use `ip link show type can` |
 | Motor silent | Power, termination, wrong `device_id`, run `candump` |
 | Config not found | Set `MARENGO_ROOT` + `MARENGO_CONFIG_DIR` or clone full repo |
+| `i2cdetect -y 0` fails | Harmless on Pi 5 — use bus **1** for header I2C |
+| No device at `0x4a` | This board uses **`0x4b`** when ADR/SA0 is high |
+| `Permission denied` on `/dev/i2c-1` | Add user to `i2c` group (`sudo usermod -aG i2c $USER`), re-login; or re-run `install-pi.sh` |
+| `config.txt` edit denied | Use `sudo nano /boot/firmware/config.txt` or `sudo tee` |
+| Python `externally-managed-environment` | Use venv (`python3 -m venv`), not `sudo pip3` |
+| `ModuleNotFoundError: lgpio` | `python3 -m venv --system-site-packages` + `apt install python3-lgpio` |
+| IMU probe timeout / no quaternions | BNO085 uses **SHTP**, not MPU6050-style register reads; confirm `i2cdetect -y 1` shows `0x4b` and wiring is 3.3 V |
 
 ## Consul (robot-hosted UI)
 

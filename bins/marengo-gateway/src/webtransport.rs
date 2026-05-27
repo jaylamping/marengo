@@ -269,20 +269,6 @@ fn cert_sha256_from_der(cert_der: &[u8]) -> [u8; 32] {
     Sha256::digest(cert_der).into()
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn cert_hash_is_stable_for_der_roundtrip() {
-        let generated = rcgen::generate_simple_self_signed(vec!["localhost".into()]).expect("cert");
-        let der = generated.cert.der();
-        let a = cert_sha256_from_der(der);
-        let b = cert_sha256_from_der(der);
-        assert_eq!(a, b);
-    }
-}
-
 /// Demo publisher for local testing without `marengo-pi`.
 pub fn spawn_demo_publisher(state: SharedState) {
     use armee_proto::{Heartbeat, JointState, OperationalMode, RobotState, SafetyState};
@@ -343,4 +329,20 @@ pub fn spawn_demo_publisher(state: SharedState) {
             tokio::time::sleep(std::time::Duration::from_millis(50)).await;
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::expect_used)]
+
+    use super::*;
+
+    #[test]
+    fn cert_hash_is_stable_for_der_roundtrip() {
+        let generated = rcgen::generate_simple_self_signed(vec!["localhost".into()]).expect("cert");
+        let der = generated.cert.der();
+        let a = cert_sha256_from_der(der);
+        let b = cert_sha256_from_der(der);
+        assert_eq!(a, b);
+    }
 }

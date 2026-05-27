@@ -50,8 +50,8 @@ ensure_cross_toolchain() {
 cd "$ROOT"
 ensure_cross_toolchain
 
-echo "Building marengo-pi + marengo-gateway + motor-repl for ${TARGET}..."
-cargo build --release --target "$TARGET" -p marengo-pi -p marengo-gateway -p motor-repl --features socketcan
+echo "Building marengo-pi + marengo-gateway + motor-repl + imu-probe for ${TARGET}..."
+cargo build --release --target "$TARGET" -p marengo-pi -p marengo-gateway -p motor-repl -p imu-probe --features socketcan,linux-i2c
 
 echo "Building Consul static assets..."
 (
@@ -83,6 +83,7 @@ mkdir -p "$STAGING/target/release"
 cp "${ROOT}/target/${TARGET}/release/marengo-pi" "$STAGING/target/release/"
 cp "${ROOT}/target/${TARGET}/release/marengo-gateway" "$STAGING/target/release/"
 cp "${ROOT}/target/${TARGET}/release/motor-repl" "$STAGING/target/release/"
+cp "${ROOT}/target/${TARGET}/release/imu-probe" "$STAGING/target/release/"
 rsync -a "${ROOT}/config/" "$STAGING/config/"
 rsync -a "${ROOT}/assets/" "$STAGING/assets/"
 rsync -a "${ROOT}/scripts/" "$STAGING/scripts/"

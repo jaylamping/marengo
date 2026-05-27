@@ -7,6 +7,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=marengo
+SupplementaryGroups=i2c
 WorkingDirectory=/opt/marengo
 Environment=RUST_LOG=info,marengo=debug
 EnvironmentFile=-/etc/marengo/env

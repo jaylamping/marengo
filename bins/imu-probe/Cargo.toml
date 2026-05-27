@@ -1,0 +1,24 @@
+[package]
+name = "imu-probe"
+version = "0.1.0"
+description = "BNO085 I2C probe — print rotation quaternions on the Pi bench"
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = []
+linux-i2c = ["marengo-imu/linux-i2c"]
+
+[[bin]]
+name = "imu-probe"
+path = "src/main.rs"
+
+[dependencies]
+marengo-imu = { path = "../../crates/marengo-imu" }
+marengo-support.workspace = true
+tracing.workspace = true
