@@ -61,7 +61,17 @@ If a tool still shows old behavior after `npm run build`, the Cursor MCP process
 
 ### Cursor `mcp.json`
 
-Copy [`mcp.json.example`](mcp.json.example) into `.cursor/mcp.json` and adjust paths.
+Repo [`.cursor/mcp.json`](../../.cursor/mcp.json) uses `${workspaceFolder}` so the same file works on Windows and Mac. Open the **marengo repo root** as the Cursor workspace (or `marengo.code-workspace`).
+
+`MARENGO_LOCAL_ROOT` is optional — the server derives the repo root from its own install path. Override only for unusual clone layouts.
+
+On each machine after clone or pull that touches MCP sources:
+
+```bash
+just mcp-build
+```
+
+Then restart the **marengo-pi** MCP server in Cursor.
 
 ## Tool summary
 

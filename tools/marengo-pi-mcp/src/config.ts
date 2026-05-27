@@ -1,5 +1,6 @@
 import { homedir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 export type BenchProfile = "bare_motor" | "weighted_single_arm" | "arm_attached";
 
@@ -22,6 +23,12 @@ function env(key: string, fallback?: string): string {
   throw new Error(`Missing required env: ${key}`);
 }
 
+/** Marengo repo root: tools/marengo-pi-mcp/dist/config.js → ../../.. */
+export function defaultLocalRoot(): string {
+  const here = fileURLToPath(import.meta.url);
+  return path.resolve(path.dirname(here), "..", "..", "..");
+}
+
 export function loadConfig(): MarengoPiConfig {
   return {
     host: env("MARENGO_PI_HOST", "marengo.local"),
@@ -31,7 +38,7 @@ export function loadConfig(): MarengoPiConfig {
       "MARENGO_CONFIG_DIR",
       "/opt/marengo/config/bringup/shoulder_pitch_dual",
     ),
-    localRoot: env("MARENGO_LOCAL_ROOT", process.cwd()),
+    localRoot: env("MARENGO_LOCAL_ROOT", defaultLocalRoot()),
     sshIdentityFile: process.env.SSH_IDENTITY_FILE?.trim() || undefined,
     benchProfile: (process.env.MARENGO_BENCH_PROFILE?.trim() ||
       "bare_motor") as BenchProfile,

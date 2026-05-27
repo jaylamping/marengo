@@ -13,7 +13,7 @@ description: Sync Marengo main to the Pi — pi_sync_main cross-build deploy wit
 
 Optional: `strategy: "pi_native"` for on-Pi build (slow).
 
-Requires `MARENGO_LOCAL_ROOT` in MCP env (dev Mac marengo clone).
+Requires marengo repo open as Cursor workspace (server derives `localRoot` from install path; override with `MARENGO_LOCAL_ROOT` only if needed).
 
 ## When to run (no ask)
 
