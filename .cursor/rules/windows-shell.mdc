@@ -1,0 +1,39 @@
+---
+description: Windows PowerShell shell command safety
+alwaysApply: true
+---
+
+# Windows Shell Safety
+
+The default shell on this workspace is PowerShell. Avoid Bash-only command
+syntax unless the command is explicitly executed through `sh`.
+
+## PowerShell Sequencing
+
+- Do not use `&&` or `||` in Shell commands.
+- Use `; if ($LASTEXITCODE -eq 0) { ... } else { exit $LASTEXITCODE }`
+  when the next command depends on the previous command succeeding.
+- Use `;` only when later commands may run even if an earlier command fails.
+
+## Heredocs And Commit Messages
+
+When a heredoc is required, especially for `git commit -m "$(cat <<'EOF' ...)"`,
+pipe a PowerShell here-string into `sh` instead of nesting complex quotes inside
+one command string:
+
+```powershell
+@'
+set -e
+git commit -m "$(cat <<'EOF'
+docs(scope): concise message
+
+EOF
+)"
+'@ | sh
+```
+
+## PATH Updates
+
+After installing CLI tools with `winget` or `npm -g`, update `$env:Path` in the
+current session before verifying the command. New terminals may not see PATH
+changes until restarted.
