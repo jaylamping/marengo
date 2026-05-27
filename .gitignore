@@ -35,3 +35,6 @@ consul/src/gen/*
 
 # Pi bench session logs (runtime on device; not committed)
 var/log/
+
+# Local deploy staging (docker cross-build rsync bundle)
+.pi-deploy-staging/

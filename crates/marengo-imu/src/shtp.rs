@@ -17,6 +17,11 @@ pub const REPORT_ACCELEROMETER: u8 = 0x01;
 pub const REPORT_GYROSCOPE: u8 = 0x02;
 pub const REPORT_ROTATION_VECTOR: u8 = 0x05;
 
+/// SH-2 timestamp rebase (channel 3 batch prefix; host timing metadata).
+pub const REPORT_TIMESTAMP_REBASE: u8 = 0xFA;
+/// SH-2 base timestamp reference (channel 3 batch prefix; host timing metadata).
+pub const REPORT_BASE_TIMESTAMP: u8 = 0xFB;
+
 const Q_POINT_14_SCALAR: f64 = 1.0 / 16384.0;
 const Q_POINT_9_SCALAR: f64 = 1.0 / 512.0;
 const Q_POINT_8_SCALAR: f64 = 1.0 / 256.0;
@@ -76,10 +81,16 @@ pub fn report_payload_length(report_id: u8) -> Option<usize> {
     match report_id {
         REPORT_ACCELEROMETER | REPORT_GYROSCOPE => Some(10),
         REPORT_ROTATION_VECTOR => Some(14),
+        REPORT_TIMESTAMP_REBASE | REPORT_BASE_TIMESTAMP => Some(5),
         GET_FEATURE_RESPONSE => Some(17),
         SHTP_REPORT_PRODUCT_ID_RESPONSE => Some(16),
         _ => None,
     }
+}
+
+/// Meta/control report IDs (0xF0+) that may prefix sensor batches on channel 3.
+pub fn is_meta_report(report_id: u8) -> bool {
+    matches!(report_id, REPORT_TIMESTAMP_REBASE | REPORT_BASE_TIMESTAMP)
 }
 
 pub fn split_batch_reports(data: &[u8]) -> Result<Vec<&[u8]>, String> {
@@ -186,5 +197,25 @@ mod tests {
         assert_eq!(slices.len(), 2);
         assert_eq!(slices[0].len(), 14);
         assert_eq!(slices[1].len(), 10);
+    }
+
+    #[test]
+    fn split_batch_with_base_timestamp_prefix() {
+        let mut data = vec![0u8; 19];
+        data[0] = REPORT_BASE_TIMESTAMP;
+        data[5] = REPORT_ROTATION_VECTOR;
+        let slices = split_batch_reports(&data).expect("split");
+        assert_eq!(slices.len(), 2);
+        assert_eq!(slices[0].len(), 5);
+        assert_eq!(slices[0][0], REPORT_BASE_TIMESTAMP);
+        assert_eq!(slices[1].len(), 14);
+        assert_eq!(slices[1][0], REPORT_ROTATION_VECTOR);
+    }
+
+    #[test]
+    fn base_timestamp_is_meta_report() {
+        assert!(is_meta_report(REPORT_BASE_TIMESTAMP));
+        assert!(is_meta_report(REPORT_TIMESTAMP_REBASE));
+        assert!(!is_meta_report(REPORT_ROTATION_VECTOR));
     }
 }

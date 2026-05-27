@@ -184,6 +184,12 @@ impl<B: I2cBus> Bno085<B> {
         }
 
         for report in packet.reports()? {
+            if report
+                .first()
+                .is_some_and(|id| crate::shtp::is_meta_report(*id))
+            {
+                continue;
+            }
             if let Some((i, j, k, real, accuracy)) = parse_rotation_vector(report) {
                 self.last_rotation = Some(RotationVectorSample {
                     quaternion: Quaternion { i, j, k, real }.normalize(),
@@ -292,6 +298,29 @@ mod tests {
         let len = build_outgoing_packet(CHANNEL_INPUT_SENSOR_REPORTS, 2, &report, &mut packet);
         packet.truncate(len);
         packet
+    }
+
+    #[test]
+    fn parses_rotation_after_base_timestamp_prefix() {
+        use crate::shtp::REPORT_BASE_TIMESTAMP;
+
+        let mut batch = [0u8; 19];
+        batch[0] = REPORT_BASE_TIMESTAMP;
+        batch[5] = REPORT_ROTATION_VECTOR;
+        batch[7] = 3;
+        let qi = (0.5 / (1.0 / 16384.0)) as i16;
+        batch[9..11].copy_from_slice(&qi.to_le_bytes());
+        let mut packet = vec![0u8; 4 + batch.len()];
+        let len = build_outgoing_packet(CHANNEL_INPUT_SENSOR_REPORTS, 2, &batch, &mut packet);
+        packet.truncate(len);
+
+        let mut bus = MockI2cBus::default();
+        bus.push_read_packet(&packet);
+        let mut driver = Bno085::new(bus);
+        driver.enabled_features.push(REPORT_ROTATION_VECTOR);
+        driver.process_available_packets(None).expect("process");
+        let sample = driver.last_rotation().expect("rotation");
+        assert!((sample.quaternion.i - 1.0).abs() < 1e-3);
     }
 
     #[test]
