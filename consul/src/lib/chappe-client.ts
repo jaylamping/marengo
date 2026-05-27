@@ -6,6 +6,8 @@ import {
   GatewaySubscribeSchema,
   HeartbeatSchema,
   type Heartbeat,
+  type ImuSample,
+  ImuSampleSchema,
   type RobotState,
   type SafetyState,
   RobotStateSchema,
@@ -62,6 +64,7 @@ export type ChappeTelemetryHandlers = {
   onRobotState: (state: RobotState) => void;
   onSafetyState: (state: SafetyState) => void;
   onHeartbeat: (heartbeat: Heartbeat) => void;
+  onImuSample?: (sample: ImuSample) => void;
   onConnected?: () => void;
   onDisconnected?: () => void;
   onError?: (message: string) => void;
@@ -132,6 +135,9 @@ function dispatchEnvelope(
     case 'marengo.v1.Heartbeat':
       handlers.onHeartbeat(fromBinary(HeartbeatSchema, envelope.payload));
       break;
+    case 'marengo.v1.ImuSample':
+      handlers.onImuSample?.(fromBinary(ImuSampleSchema, envelope.payload));
+      break;
     default:
       break;
   }
@@ -179,6 +185,7 @@ export async function connectChappeTelemetry(
         CHAPPE_TOPICS.state,
         CHAPPE_TOPICS.safety,
         CHAPPE_TOPICS.heartbeat,
+        CHAPPE_TOPICS.imuTorso,
       ],
     });
     await writeLengthPrefixed(

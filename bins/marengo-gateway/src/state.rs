@@ -1,7 +1,7 @@
 use std::sync::{Arc, RwLock};
 
 use armee_proto::prost::Message;
-use armee_proto::{Heartbeat, RobotState, SafetyState};
+use armee_proto::{Heartbeat, ImuSample, RobotState, SafetyState};
 use chappe::ipc::IpcListener;
 use chappe::Bus;
 use tokio::sync::broadcast;
@@ -9,15 +9,23 @@ use tokio::sync::broadcast;
 pub const TOPIC_STATE: &str = "robot/state";
 pub const TOPIC_SAFETY: &str = "robot/safety";
 pub const TOPIC_HEARTBEAT: &str = "robot/heartbeat";
+pub const TOPIC_IMU_TORSO: &str = "sensors/imu/torso";
 pub const TOPIC_LOGS: &str = "logs/structured";
 
-pub const ALLOWED_TOPICS: &[&str] = &[TOPIC_STATE, TOPIC_SAFETY, TOPIC_HEARTBEAT, TOPIC_LOGS];
+pub const ALLOWED_TOPICS: &[&str] = &[
+    TOPIC_STATE,
+    TOPIC_SAFETY,
+    TOPIC_HEARTBEAT,
+    TOPIC_IMU_TORSO,
+    TOPIC_LOGS,
+];
 
 #[derive(Default, Clone)]
 pub struct Snapshots {
     pub robot_state: Option<Vec<u8>>,
     pub safety_state: Option<Vec<u8>>,
     pub heartbeat: Option<Vec<u8>>,
+    pub imu_torso: Option<Vec<u8>>,
 }
 
 pub struct AppState {
@@ -74,6 +82,7 @@ impl AppState {
             TOPIC_STATE => guard.robot_state = Some(payload.to_vec()),
             TOPIC_SAFETY => guard.safety_state = Some(payload.to_vec()),
             TOPIC_HEARTBEAT => guard.heartbeat = Some(payload.to_vec()),
+            TOPIC_IMU_TORSO => guard.imu_torso = Some(payload.to_vec()),
             _ => {}
         }
     }
@@ -121,6 +130,11 @@ impl AppState {
     pub fn snapshot_heartbeat(&self) -> Option<Heartbeat> {
         let bytes = self.snapshots.read().ok()?.heartbeat.clone()?;
         decode_envelope_payload::<Heartbeat>(&bytes).ok()
+    }
+
+    pub fn snapshot_imu_torso(&self) -> Option<ImuSample> {
+        let bytes = self.snapshots.read().ok()?.imu_torso.clone()?;
+        decode_envelope_payload::<ImuSample>(&bytes).ok()
     }
 }
 

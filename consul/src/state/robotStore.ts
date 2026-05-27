@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import type { RobotState, SafetyState } from '@/gen/marengo/v1/marengo_pb';
+import type { RobotState, SafetyState, ImuSample } from '@/gen/marengo/v1/marengo_pb';
 import type { JointTrackingPoint } from '@/components/dashboard/charts/types';
 import { dummyShoulderPitchTracking } from '@/components/dashboard/charts/constants';
 import { isChappeLive } from '@/lib/chappe-config';
@@ -23,6 +23,9 @@ interface RobotStore {
 
   safetyState: SafetyState | null;
   setSafetyState: (state: SafetyState | null) => void;
+
+  imuSample: ImuSample | null;
+  setImuSample: (sample: ImuSample | null) => void;
 
   gatewayError: string | null;
   setGatewayError: (message: string | null) => void;
@@ -50,6 +53,9 @@ export const useRobotStore = create<RobotStore>((set) => ({
 
   safetyState: null,
   setSafetyState: (safetyState) => set({ safetyState }),
+
+  imuSample: null,
+  setImuSample: (imuSample) => set({ imuSample }),
 
   gatewayError: null,
   setGatewayError: (gatewayError) => set({ gatewayError }),

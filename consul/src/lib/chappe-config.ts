@@ -47,6 +47,7 @@ export const CHAPPE_TOPICS = {
   state: 'robot/state',
   safety: 'robot/safety',
   heartbeat: 'robot/heartbeat',
+  imuTorso: 'sensors/imu/torso',
   logs: 'logs/structured',
   enable: 'robot/enable',
 } as const;

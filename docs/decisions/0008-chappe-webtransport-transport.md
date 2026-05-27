@@ -25,6 +25,7 @@ Wire types remain in [`proto/marengo/v1/marengo.proto`](../../proto/marengo/v1/m
 | GET | `/snapshot/robot/state` | — | `application/x-protobuf` `RobotState` |
 | GET | `/snapshot/robot/safety` | — | `application/x-protobuf` `SafetyState` |
 | GET | `/snapshot/robot/heartbeat` | — | `application/x-protobuf` `Heartbeat` |
+| GET | `/snapshot/sensors/imu/torso` | — | `application/x-protobuf` `ImuSample` |
 | POST | `/command/enable` | `application/x-protobuf` `EnableRequest` | JSON `{ "ok": true }` |
 
 ### WebTransport contract (phase 1)
@@ -32,7 +33,7 @@ Wire types remain in [`proto/marengo/v1/marengo.proto`](../../proto/marengo/v1/m
 - URL path: `/chappe` (session accepted for any path under gateway in dev).
 - First client→server bidi message: length-prefixed `GatewaySubscribe` protobuf (topic list).
 - Server→client: repeated length-prefixed `Envelope` bytes for matching topics.
-- Allowed subscribe topics: `robot/state`, `robot/safety`, `robot/heartbeat`, `logs/structured`.
+- Allowed subscribe topics: `robot/state`, `robot/safety`, `robot/heartbeat`, `sensors/imu/torso`, `logs/structured`.
 
 ### Auth (bench)
 

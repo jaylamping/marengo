@@ -21,7 +21,7 @@ Host: **`marengo.local`** user **`joey`**. Pi root: **`/opt/marengo`**.
 
 ## Read-only (no confirm)
 
-`pi_health`, `pi_can_status`, `pi_motor_repl_status`, `pi_gravity_preview`, `pi_logs_*`, `pi_journal`, `pi_candump_once`, `pi_read_file`
+`pi_health`, `pi_can_status`, `pi_motor_repl_status`, `pi_gravity_preview`, `pi_logs_*`, `pi_journal`, `pi_candump_once`, `pi_imu_probe`, `pi_read_file`
 
 ## Admin (no confirm)
 

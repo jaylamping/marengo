@@ -27,6 +27,35 @@ message RobotState {
   repeated JointState joints = 2;
 }
 
+// --- Sensors (torso IMU on Pi I2C) ---
+
+enum ImuAccuracy {
+  IMU_ACCURACY_UNSPECIFIED = 0;
+  IMU_ACCURACY_UNRELIABLE = 1;
+  IMU_ACCURACY_LOW = 2;
+  IMU_ACCURACY_MEDIUM = 3;
+  IMU_ACCURACY_HIGH = 4;
+}
+
+message ImuSample {
+  uint64 timestamp_ms = 1;
+  string frame_id = 2;
+  double quaternion_i = 3;
+  double quaternion_j = 4;
+  double quaternion_k = 5;
+  double quaternion_real = 6;
+  ImuAccuracy accuracy = 7;
+  // Optional linear acceleration (m/s²) and gyro (rad/s) when enabled on device.
+  double accel_x_m_s2 = 8;
+  double accel_y_m_s2 = 9;
+  double accel_z_m_s2 = 10;
+  double gyro_x_rad_s = 11;
+  double gyro_y_rad_s = 12;
+  double gyro_z_rad_s = 13;
+  bool has_accel = 14;
+  bool has_gyro = 15;
+}
+
 // --- Safety / enable (Spot-style surface, Marengo semantics) ---
 
 enum OperationalMode {

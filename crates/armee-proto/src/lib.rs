@@ -12,8 +12,8 @@ mod tests {
 
     use super::prost::Message;
     use super::{
-        EnableRequest, Envelope, Fault, FaultSeverity, Heartbeat, JointState, OperationalMode,
-        RobotState, SafetyState,
+        EnableRequest, Envelope, Fault, FaultSeverity, Heartbeat, ImuSample, JointState,
+        OperationalMode, RobotState, SafetyState,
     };
 
     #[test]
@@ -94,5 +94,30 @@ mod tests {
         let decoded = Envelope::decode(bytes.as_slice()).expect("decode");
         let hb = Heartbeat::decode(decoded.payload.as_slice()).expect("inner");
         assert_eq!(hb.node_id, "probe");
+    }
+
+    #[test]
+    fn imu_sample_roundtrip() {
+        let msg = ImuSample {
+            timestamp_ms: 99,
+            frame_id: "torso_imu".to_string(),
+            quaternion_i: 0.1,
+            quaternion_j: 0.2,
+            quaternion_k: 0.3,
+            quaternion_real: 0.9,
+            accuracy: 3,
+            accel_x_m_s2: 0.0,
+            accel_y_m_s2: 0.0,
+            accel_z_m_s2: 9.8,
+            gyro_x_rad_s: 0.0,
+            gyro_y_rad_s: 0.0,
+            gyro_z_rad_s: 0.0,
+            has_accel: true,
+            has_gyro: false,
+        };
+        let bytes = msg.encode_to_vec();
+        let decoded = ImuSample::decode(bytes.as_slice()).expect("decode");
+        assert_eq!(decoded.frame_id, "torso_imu");
+        assert!((decoded.quaternion_real - 0.9).abs() < f64::EPSILON);
     }
 }

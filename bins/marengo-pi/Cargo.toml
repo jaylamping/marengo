@@ -13,6 +13,7 @@ workspace = true
 [features]
 default = []
 socketcan = ["robstride/socketcan"]
+linux-i2c = ["dep:marengo-imu", "marengo-imu/linux-i2c"]
 
 [[bin]]
 name = "marengo-pi"
@@ -25,6 +26,7 @@ chappe = { path = "../../crates/chappe" }
 ctrlc = "3.4"
 davout = { path = "../../crates/davout" }
 marengo-config.workspace = true
+marengo-imu = { path = "../../crates/marengo-imu", optional = true }
 marengo-support.workspace = true
 robstride = { path = "../../crates/robstride" }
 tokio = { version = "1", features = ["sync"] }

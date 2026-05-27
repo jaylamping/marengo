@@ -35,6 +35,10 @@ export function registerReadonlyTools(
             "echo",
             "echo '=== systemd ==='",
             "systemctl is-active marengo-can marengo-pi 2>/dev/null || true",
+            "echo",
+            "echo '=== IMU (i2c-1 / imu-probe) ==='",
+            "test -x bin/imu-probe && ls -la bin/imu-probe || echo '(missing bin/imu-probe)'",
+            "i2cdetect -y 1 2>&1 | grep -E '4b|--' || i2cdetect -y 1 2>&1 || echo '(i2cdetect unavailable)'",
           ].join("\n"),
         );
         return runRemote(body, 30_000);
@@ -148,6 +152,27 @@ export function registerReadonlyTools(
           "timeout 2 candump -ta can0 can1 2>&1 || true",
         );
         return runRemote(body, 10_000);
+      },
+    },
+
+    pi_imu_probe: {
+      description:
+        "Run imu-probe on Pi (BNO085 rotation quaternions; read-only hardware check)",
+      inputSchema: z.object({
+        bus: z.string().default("/dev/i2c-1"),
+        address: z.string().default("4b"),
+        samples: z.number().int().min(1).max(100).default(5),
+      }),
+      handler: async (args: {
+        bus: string;
+        address: string;
+        samples: number;
+      }) => {
+        const body = wrapRemote(
+          cfg,
+          `test -x bin/imu-probe && bin/imu-probe --bus ${JSON.stringify(args.bus)} --address ${JSON.stringify(args.address)} --samples ${args.samples} || echo 'imu-probe missing or failed'`,
+        );
+        return runRemote(body, 30_000);
       },
     },
   };

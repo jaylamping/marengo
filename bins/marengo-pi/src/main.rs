@@ -1,5 +1,8 @@
 //! Marengo Pi runtime: CAN I/O, control loop, Chappe telemetry, operator commands.
 
+#[cfg(all(target_os = "linux", feature = "linux-i2c"))]
+mod imu;
+
 use std::collections::BTreeSet;
 use std::env;
 use std::io::{self, BufRead};
@@ -496,6 +499,9 @@ fn main() {
         eprintln!("failed to install ctrl-c handler");
         std::process::exit(1);
     }
+
+    #[cfg(all(target_os = "linux", feature = "linux-i2c"))]
+    imu::spawn_imu_publisher(Arc::clone(&chappe), Arc::clone(&shutdown));
 
     let (cmd_tx, cmd_rx): (Sender<PiCommand>, Receiver<PiCommand>) = mpsc::channel();
     if stdin_ctl {

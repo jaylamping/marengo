@@ -54,6 +54,7 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
         .route("/snapshot/robot/state", get(snapshot_state))
         .route("/snapshot/robot/safety", get(snapshot_safety))
         .route("/snapshot/robot/heartbeat", get(snapshot_heartbeat))
+        .route("/snapshot/sensors/imu/torso", get(snapshot_imu_torso))
         .route("/command/enable", post(command_enable))
         .layer(cors)
         .with_state(state);
@@ -101,6 +102,10 @@ async fn snapshot_safety(State(state): State<SharedState>) -> Response {
 
 async fn snapshot_heartbeat(State(state): State<SharedState>) -> Response {
     protobuf_snapshot(state.snapshot_heartbeat())
+}
+
+async fn snapshot_imu_torso(State(state): State<SharedState>) -> Response {
+    protobuf_snapshot(state.snapshot_imu_torso())
 }
 
 fn protobuf_snapshot<M: Message>(msg: Option<M>) -> Response {

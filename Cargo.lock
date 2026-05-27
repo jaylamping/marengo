@@ -1164,6 +1164,7 @@ dependencies = [
  "ctrlc",
  "davout",
  "marengo-config",
+ "marengo-imu",
  "marengo-support",
  "robstride",
  "tokio",

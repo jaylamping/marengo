@@ -12,6 +12,7 @@ export function useChappeTelemetry(): void {
   const setOperationalMode = useRobotStore((s) => s.setOperationalMode);
   const setRobotState = useRobotStore((s) => s.setRobotState);
   const setSafetyState = useRobotStore((s) => s.setSafetyState);
+  const setImuSample = useRobotStore((s) => s.setImuSample);
   const appendTrackingPoint = useRobotStore((s) => s.appendTrackingPoint);
   const setGatewayError = useRobotStore((s) => s.setGatewayError);
 
@@ -57,6 +58,7 @@ export function useChappeTelemetry(): void {
         }
       },
       onHeartbeat: () => {},
+      onImuSample: (sample) => setImuSample(sample),
     }).then((fn) => {
       dispose = fn;
     });
@@ -72,6 +74,7 @@ export function useChappeTelemetry(): void {
     setOperationalMode,
     setRobotState,
     setSafetyState,
+    setImuSample,
   ]);
 }
 
