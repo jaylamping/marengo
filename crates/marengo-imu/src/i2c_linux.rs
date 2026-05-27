@@ -5,11 +5,11 @@ use i2cdev::linux::LinuxI2CDevice;
 
 use crate::bus::{BusError, I2cBus};
 
-fn io_is_no_packet(err: &std::io::Error) -> bool {
-    matches!(
-        err.raw_os_error(),
-        Some(121) | Some(6) | Some(11) // EREMOTEIO, ENXIO/ENODEV, EAGAIN
-    )
+fn io_is_no_packet(err: &impl std::fmt::Display) -> bool {
+    let msg = err.to_string();
+    msg.contains("Remote I/O error")
+        || msg.contains("No such device")
+        || msg.contains("Resource temporarily unavailable")
 }
 
 /// Linux `/dev/i2c-*` backend using `i2cdev`.
