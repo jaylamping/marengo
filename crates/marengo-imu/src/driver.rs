@@ -208,27 +208,24 @@ impl<B: I2cBus> Bno085<B> {
             Err(err) => return Err(err.into()),
         };
         let header = match PacketHeader::parse(&header_bytes) {
-            Some(header) => header,
-            None => return Ok(None),
+            Some(header) if header.data_length > 0 => header,
+            _ => return Ok(None),
         };
 
-        if header.data_length + 4 > DATA_BUFFER_SIZE {
+        let total = header.packet_byte_count as usize;
+        if total > DATA_BUFFER_SIZE {
             return Err(ImuError::Protocol(format!(
-                "packet too large: {} bytes",
-                header.data_length + 4
+                "packet too large: {total} bytes"
             )));
         }
 
-        let mut buffer = vec![0u8; 4 + header.data_length];
-        buffer[..4].copy_from_slice(&header_bytes);
-        if header.data_length > 0 {
-            self.bus
-                .read_packet_payload(header.data_length, &mut buffer)
-                .map_err(ImuError::from)?;
-        }
+        let mut buffer = vec![0u8; total];
+        self.bus
+            .read_packet(total, &mut buffer)
+            .map_err(ImuError::from)?;
         Ok(Some(ShtpPacket {
-            channel: header.channel,
-            data: buffer[4..4 + header.data_length].to_vec(),
+            channel: buffer[2],
+            data: buffer[4..total].to_vec(),
         }))
     }
 

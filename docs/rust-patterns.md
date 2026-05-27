@@ -133,6 +133,20 @@ println!("joint={angle}");
 tracing::debug!(angle, "commanded joint");
 ```
 
+## 11a. BNO085 I2C (SHTP)
+
+```rust
+// BAD — smbus register read or header + payload-only second read
+smbus.read_i2c_block_data(addr, 0, 4);
+read_header(); read(&mut buf[4..payload_len]);
+
+// GOOD — plain I2C read; peek header, then read full packet_byte_count (Adafruit BNO08x)
+read_header(); // data_length == 0 => no packet
+read_packet(total_len, &mut buf[..total_len]);
+```
+
+`smbus2` / register reads → `EREMOTEIO` on Pi is normal. Use `scripts/pi-i2c-plain-read.py` or `scripts/pi-bno085-shtp-init.py` to verify.
+
 ## 12. Further reading
 
 - [Clippy](https://rust-lang.github.io/rust-clippy/master/)

@@ -46,17 +46,17 @@ impl I2cBus for LinuxI2cBus {
         Ok(header)
     }
 
-    fn read_packet_payload(&mut self, payload_len: usize, out: &mut [u8]) -> Result<(), BusError> {
-        if out.len() < 4 + payload_len {
+    fn read_packet(&mut self, total_len: usize, out: &mut [u8]) -> Result<(), BusError> {
+        if out.len() < total_len {
             return Err(BusError::BufferTooSmall {
-                need: 4 + payload_len,
+                need: total_len,
                 have: out.len(),
             });
         }
-        if payload_len == 0 {
+        if total_len == 0 {
             return Ok(());
         }
-        if let Err(err) = self.device.read(&mut out[4..4 + payload_len]) {
+        if let Err(err) = self.device.read(&mut out[..total_len]) {
             if io_is_no_packet(&err) {
                 return Err(BusError::NoPacket);
             }
