@@ -5,6 +5,13 @@ use i2cdev::linux::LinuxI2CDevice;
 
 use crate::bus::{BusError, I2cBus};
 
+fn io_is_no_packet(err: &std::io::Error) -> bool {
+    matches!(
+        err.raw_os_error(),
+        Some(121) | Some(6) | Some(11) // EREMOTEIO, ENXIO/ENODEV, EAGAIN
+    )
+}
+
 /// Linux `/dev/i2c-*` backend using `i2cdev`.
 pub struct LinuxI2cBus {
     device: LinuxI2CDevice,
@@ -28,9 +35,14 @@ impl I2cBus for LinuxI2cBus {
 
     fn read_header(&mut self) -> Result<[u8; 4], BusError> {
         let mut header = [0u8; 4];
-        self.device.read(&mut header).map_err(|err| BusError::Io {
-            message: err.to_string(),
-        })?;
+        if let Err(err) = self.device.read(&mut header) {
+            if io_is_no_packet(&err) {
+                return Err(BusError::NoPacket);
+            }
+            return Err(BusError::Io {
+                message: err.to_string(),
+            });
+        }
         Ok(header)
     }
 
@@ -44,10 +56,14 @@ impl I2cBus for LinuxI2cBus {
         if payload_len == 0 {
             return Ok(());
         }
-        self.device
-            .read(&mut out[4..4 + payload_len])
-            .map_err(|err| BusError::Io {
+        if let Err(err) = self.device.read(&mut out[4..4 + payload_len]) {
+            if io_is_no_packet(&err) {
+                return Err(BusError::NoPacket);
+            }
+            return Err(BusError::Io {
                 message: err.to_string(),
-            })
+            });
+        }
+        Ok(())
     }
 }

@@ -214,6 +214,8 @@ Left arm chain: roll **11**, pitch **12**, yaw **13**, elbow **14**. Right arm: 
 | Python `externally-managed-environment` | Use venv (`python3 -m venv`), not `sudo pip3` |
 | `ModuleNotFoundError: lgpio` | `python3 -m venv --system-site-packages` + `apt install python3-lgpio` |
 | IMU probe timeout / no quaternions | BNO085 uses **SHTP**, not MPU6050-style register reads; confirm `i2cdetect -y 1` shows `0x4b` and wiring is 3.3 V |
+| `product id response` timeout | Chip wedged — **stop all `marengo-pi`** (only one I2C client), **power-cycle BNO085** (3.3 V off 10 s), retry `imu-probe` before starting `marengo-pi` |
+| `Remote I/O error (121)` at `0x4a` | Wrong address — this bench uses **`0x4b`** (ADR high) |
 
 ## Consul (robot-hosted UI)
 

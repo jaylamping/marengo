@@ -14,6 +14,8 @@ use crate::types::{ImuAccuracy, Quaternion, RotationVectorSample};
 
 const SOFT_RESET_PAYLOAD: [u8; 1] = [1];
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(2);
+const PRODUCT_ID_TIMEOUT: Duration = Duration::from_secs(5);
+const POST_RESET_DELAY: Duration = Duration::from_millis(1000);
 
 /// BNO085 driver over SHTP/I2C.
 pub struct Bno085<B: I2cBus> {
@@ -110,10 +112,10 @@ impl<B: I2cBus> Bno085<B> {
         self.enabled_features.clear();
         self.id_verified = false;
         self.send_packet(CHANNEL_EXE, &SOFT_RESET_PAYLOAD)?;
-        std::thread::sleep(Duration::from_millis(500));
+        std::thread::sleep(POST_RESET_DELAY);
         self.send_packet(CHANNEL_EXE, &SOFT_RESET_PAYLOAD)?;
-        std::thread::sleep(Duration::from_millis(500));
-        for _ in 0..3 {
+        std::thread::sleep(POST_RESET_DELAY);
+        for _ in 0..10 {
             let _ = self.try_read_packet();
         }
         Ok(())
@@ -126,22 +128,13 @@ impl<B: I2cBus> Bno085<B> {
         let req = build_product_id_request();
         self.send_packet(CHANNEL_CONTROL, &req)?;
 
-        let deadline = Instant::now() + DEFAULT_TIMEOUT;
+        let deadline = Instant::now() + PRODUCT_ID_TIMEOUT;
         while Instant::now() < deadline {
-            if let Some(packet) = self.try_read_packet()? {
-                if packet.channel != CHANNEL_CONTROL {
-                    self.handle_packet(packet)?;
-                    continue;
-                }
-                for report in packet.reports()? {
-                    if report.first() == Some(&SHTP_REPORT_PRODUCT_ID_RESPONSE) {
-                        self.id_verified = true;
-                        debug!("BNO085 product id response received");
-                        return Ok(());
-                    }
-                }
+            self.process_available_packets(Some(20))?;
+            if self.id_verified {
+                return Ok(());
             }
-            std::thread::sleep(Duration::from_millis(5));
+            std::thread::sleep(Duration::from_millis(10));
         }
         Err(ImuError::Timeout {
             what: "product id response".to_string(),
@@ -168,22 +161,24 @@ impl<B: I2cBus> Bno085<B> {
     }
 
     fn handle_packet(&mut self, packet: ShtpPacket) -> Result<(), ImuError> {
-        if packet.channel == CHANNEL_CONTROL {
-            for report in packet.reports()? {
-                if report.first() == Some(&GET_FEATURE_RESPONSE) && report.len() >= 2 {
+        for report in packet.reports()? {
+            match report.first().copied() {
+                Some(SHTP_REPORT_PRODUCT_ID_RESPONSE) => {
+                    self.id_verified = true;
+                    debug!("BNO085 product id response received");
+                }
+                Some(GET_FEATURE_RESPONSE) if report.len() >= 2 => {
                     let feature_id = report[1];
                     if !self.enabled_features.contains(&feature_id) {
                         self.enabled_features.push(feature_id);
                     }
                 }
+                _ => {}
             }
-        }
 
-        if packet.channel != CHANNEL_INPUT_SENSOR_REPORTS {
-            return Ok(());
-        }
-
-        for report in packet.reports()? {
+            if packet.channel != CHANNEL_INPUT_SENSOR_REPORTS {
+                continue;
+            }
             if report
                 .first()
                 .is_some_and(|id| crate::shtp::is_meta_report(*id))
