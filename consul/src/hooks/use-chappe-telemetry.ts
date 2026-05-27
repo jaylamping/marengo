@@ -1,11 +1,33 @@
 import { useEffect } from 'react';
 
-import { OperationalMode } from '@/gen/marengo/v1/marengo_pb';
-import { connectChappeTelemetry } from '@/lib/chappe-client';
+import { HostNodeRole, OperationalMode } from '@/gen/marengo/v1/marengo_pb';
+import { connectChappeStream } from '@/lib/chappe-client';
 import { isChappeLive } from '@/lib/chappe-config';
+import {
+  appendLiveLog,
+  enableChappeLiveLogs,
+} from '@/lib/log-buffer';
+import type { LogLevel } from '@/data/logs';
+import { useHostMetricsStore } from '@/state/hostMetricsStore';
 import { useRobotStore } from '@/state/robotStore';
 
 const MAX_CHART_POINTS = 120;
+
+function mapLogLevel(level: string): LogLevel {
+  switch (level.toLowerCase()) {
+    case 'trace':
+    case 'debug':
+      return 'DEBUG';
+    case 'warn':
+      return 'WARN';
+    case 'error':
+      return 'ERROR';
+    case 'fatal':
+      return 'FATAL';
+    default:
+      return 'INFO';
+  }
+}
 
 export function useChappeTelemetry(): void {
   const setConnected = useRobotStore((s) => s.setConnected);
@@ -15,20 +37,25 @@ export function useChappeTelemetry(): void {
   const setImuSample = useRobotStore((s) => s.setImuSample);
   const appendTrackingPoint = useRobotStore((s) => s.appendTrackingPoint);
   const setGatewayError = useRobotStore((s) => s.setGatewayError);
+  const setTransportMode = useHostMetricsStore((s) => s.setTransportMode);
+  const setPiMetrics = useHostMetricsStore((s) => s.setPiMetrics);
+  const setJetsonMetrics = useHostMetricsStore((s) => s.setJetsonMetrics);
 
   useEffect(() => {
     if (!isChappeLive()) {
       return;
     }
 
+    enableChappeLiveLogs();
     let dispose: (() => void) | undefined;
 
-    void connectChappeTelemetry({
+    void connectChappeStream({
       onConnected: () => {
         setConnected(true);
         setGatewayError(null);
       },
       onDisconnected: () => setConnected(false),
+      onTransportMode: (mode) => setTransportMode(mode),
       onError: (message) => {
         setGatewayError(message);
         setConnected(false);
@@ -59,6 +86,29 @@ export function useChappeTelemetry(): void {
       },
       onHeartbeat: () => {},
       onImuSample: (sample) => setImuSample(sample),
+      onLogEvent: (event) => {
+        appendLiveLog({
+          timestamp: Number(event.timestampMs),
+          level: mapLogLevel(event.level),
+          source: event.target,
+          message: event.message,
+        });
+      },
+      onHostMetrics: (metrics, topic) => {
+        const role =
+          metrics.nodeRole === HostNodeRole.JETSON
+            ? 'jetson'
+            : metrics.nodeRole === HostNodeRole.PI
+              ? 'pi'
+              : topic.includes('jetson')
+                ? 'jetson'
+                : 'pi';
+        if (role === 'jetson') {
+          setJetsonMetrics(metrics);
+        } else {
+          setPiMetrics(metrics);
+        }
+      },
     }).then((fn) => {
       dispose = fn;
     });
@@ -66,15 +116,19 @@ export function useChappeTelemetry(): void {
     return () => {
       dispose?.();
       setConnected(false);
+      setTransportMode('offline');
     };
   }, [
     appendTrackingPoint,
     setConnected,
     setGatewayError,
+    setJetsonMetrics,
     setOperationalMode,
+    setPiMetrics,
     setRobotState,
     setSafetyState,
     setImuSample,
+    setTransportMode,
   ]);
 }
 

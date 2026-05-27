@@ -15,6 +15,7 @@ armee-proto.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
 
 [target.'cfg(unix)'.dependencies]
 # ipc uses std::os::unix only; no extra crates

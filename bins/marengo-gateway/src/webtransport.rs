@@ -3,13 +3,11 @@ use std::sync::Arc;
 
 use armee_proto::prost::Message;
 use armee_proto::GatewaySubscribe;
-use bytes::{BufMut, BytesMut};
 use tracing::{info, warn};
 use web_transport_quinn::{ServerBuilder, Session};
 
+use crate::framing::{self, MAX_FRAME};
 use crate::state::{filter_topics, SharedState};
-
-const MAX_FRAME: usize = 4 * 1024 * 1024;
 
 /// TLS material for WebTransport (QUIC) and `/tls/fingerprint` for browsers.
 pub struct TlsMaterial {
@@ -56,7 +54,7 @@ async fn handle_session(
         .await
         .map_err(|e| format!("accept_bi: {e}"))?;
 
-    let subscribe_bytes = read_length_prefixed(&mut recv).await?;
+    let subscribe_bytes = framing::read_length_prefixed_quinn(&mut recv).await?;
     let subscribe = GatewaySubscribe::decode(subscribe_bytes.as_slice())
         .map_err(|e| format!("subscribe decode: {e}"))?;
     let topics = filter_topics(&subscribe.topics);
@@ -78,7 +76,7 @@ async fn handle_session(
                 let envelope = armee_proto::Envelope::decode(payload.as_slice())
                     .map_err(|e| format!("envelope: {e}"))?;
                 let out = envelope.encode_to_vec();
-                write_length_prefixed(&mut send, &out).await?;
+                framing::write_length_prefixed_quinn(&mut send, &out).await?;
             }
             chunk = recv.read_chunk(MAX_FRAME, true) => {
                 if chunk?.is_none() {
@@ -87,31 +85,6 @@ async fn handle_session(
             }
         }
     }
-    Ok(())
-}
-
-async fn read_length_prefixed(
-    recv: &mut web_transport_quinn::RecvStream,
-) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
-    let mut len_buf = [0u8; 4];
-    recv.read_exact(&mut len_buf).await?;
-    let len = u32::from_le_bytes(len_buf) as usize;
-    if len > MAX_FRAME {
-        return Err("frame too large".into());
-    }
-    let mut buf = vec![0u8; len];
-    recv.read_exact(&mut buf).await?;
-    Ok(buf)
-}
-
-async fn write_length_prefixed(
-    send: &mut web_transport_quinn::SendStream,
-    payload: &[u8],
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let mut buf = BytesMut::with_capacity(4 + payload.len());
-    buf.put_u32_le(payload.len() as u32);
-    buf.extend_from_slice(payload);
-    send.write_chunk(buf.freeze()).await?;
     Ok(())
 }
 
@@ -271,7 +244,11 @@ fn cert_sha256_from_der(cert_der: &[u8]) -> [u8; 32] {
 
 /// Demo publisher for local testing without `marengo-pi`.
 pub fn spawn_demo_publisher(state: SharedState) {
-    use armee_proto::{Heartbeat, JointState, OperationalMode, RobotState, SafetyState};
+    use armee_proto::{
+        BuildInfo, ChappeHealth, ClockMetrics, CpuMetrics, Heartbeat, HostMetrics, HostNodeRole,
+        JetsonPlatformMetrics, JointState, LoadMetrics, LogEvent, MemoryMetrics, OperationalMode,
+        PiPlatformMetrics, RobotState, SafetyState, ThermalMetrics,
+    };
     tokio::spawn(async move {
         let mut t = 0u64;
         loop {
@@ -300,6 +277,111 @@ pub fn spawn_demo_publisher(state: SharedState) {
                 timestamp_ms: ts,
                 node_id: "demo".to_string(),
             };
+            let log = LogEvent {
+                timestamp_ms: ts,
+                level: "info".to_string(),
+                target: "marengo_gateway::demo".to_string(),
+                message: format!("demo tick {t}"),
+            };
+            let host_pi = HostMetrics {
+                timestamp_ms: ts,
+                hostname: "demo-pi".to_string(),
+                node_role: HostNodeRole::Pi as i32,
+                uptime_sec: t,
+                kernel_version: "demo".to_string(),
+                os_pretty_name: "Marengo Demo".to_string(),
+                build: Some(BuildInfo {
+                    deploy_rev: "demo".to_string(),
+                    git_sha: "demo".to_string(),
+                    semver: env!("CARGO_PKG_VERSION").to_string(),
+                }),
+                cpu: Some(CpuMetrics {
+                    usage_percent: 12.0 + (angle.sin() * 10.0),
+                    core_count: 4,
+                    ..Default::default()
+                }),
+                memory: Some(MemoryMetrics {
+                    total_bytes: 8 * 1024 * 1024 * 1024,
+                    used_bytes: 2 * 1024 * 1024 * 1024,
+                    available_bytes: 6 * 1024 * 1024 * 1024,
+                    ..Default::default()
+                }),
+                load: Some(LoadMetrics {
+                    load_1m: 0.42,
+                    ..Default::default()
+                }),
+                thermal: Some(ThermalMetrics {
+                    cpu_celsius: 48.0,
+                    ..Default::default()
+                }),
+                chappe: Some(ChappeHealth {
+                    ipc_connected: true,
+                    gateway_reachable: true,
+                    ..Default::default()
+                }),
+                clock: Some(ClockMetrics {
+                    sync_source: "demo".to_string(),
+                    synchronized: true,
+                    ..Default::default()
+                }),
+                platform: Some(armee_proto::host_metrics::Platform::Pi(PiPlatformMetrics {
+                    throttled_now: false,
+                    ..Default::default()
+                })),
+                ..Default::default()
+            };
+            let host_jetson = HostMetrics {
+                timestamp_ms: ts,
+                hostname: "demo-jetson".to_string(),
+                node_role: HostNodeRole::Jetson as i32,
+                uptime_sec: t,
+                build: Some(BuildInfo {
+                    deploy_rev: "demo".to_string(),
+                    git_sha: "demo".to_string(),
+                    semver: env!("CARGO_PKG_VERSION").to_string(),
+                }),
+                cpu: Some(CpuMetrics {
+                    usage_percent: 18.0,
+                    core_count: 8,
+                    ..Default::default()
+                }),
+                memory: Some(MemoryMetrics {
+                    total_bytes: 16 * 1024 * 1024 * 1024,
+                    used_bytes: 6 * 1024 * 1024 * 1024,
+                    available_bytes: 10 * 1024 * 1024 * 1024,
+                    ..Default::default()
+                }),
+                load: Some(LoadMetrics {
+                    load_1m: 0.88,
+                    ..Default::default()
+                }),
+                thermal: Some(ThermalMetrics {
+                    cpu_celsius: 44.0,
+                    gpu_celsius: 51.0,
+                    ..Default::default()
+                }),
+                chappe: Some(ChappeHealth {
+                    ipc_connected: true,
+                    gateway_reachable: true,
+                    ..Default::default()
+                }),
+                clock: Some(ClockMetrics {
+                    sync_source: "demo".to_string(),
+                    synchronized: true,
+                    ..Default::default()
+                }),
+                platform: Some(armee_proto::host_metrics::Platform::Jetson(
+                    JetsonPlatformMetrics {
+                        jetson_model: "Demo Orin".to_string(),
+                        power_mode: "MAXN".to_string(),
+                        gpu_usage_percent: 55.0,
+                        chappe_connected: true,
+                        chappe_rtt_ms: 1.2,
+                        ..Default::default()
+                    },
+                )),
+                ..Default::default()
+            };
             for (topic, msg, type_name) in [
                 (
                     crate::state::TOPIC_STATE,
@@ -315,6 +397,21 @@ pub fn spawn_demo_publisher(state: SharedState) {
                     crate::state::TOPIC_HEARTBEAT,
                     hb.encode_to_vec(),
                     "marengo.v1.Heartbeat",
+                ),
+                (
+                    crate::state::TOPIC_LOGS,
+                    log.encode_to_vec(),
+                    "marengo.v1.LogEvent",
+                ),
+                (
+                    crate::state::TOPIC_HOST_METRICS_PI,
+                    host_pi.encode_to_vec(),
+                    "marengo.v1.HostMetrics",
+                ),
+                (
+                    crate::state::TOPIC_HOST_METRICS_JETSON,
+                    host_jetson.encode_to_vec(),
+                    "marengo.v1.HostMetrics",
                 ),
             ] {
                 let envelope = armee_proto::Envelope {

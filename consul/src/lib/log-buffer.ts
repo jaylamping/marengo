@@ -131,8 +131,9 @@ class LogBuffer {
 
 export const logBuffer = new LogBuffer();
 
-let streamSequence = INITIAL_LOG_SEED_COUNT;
+let streamSequence = 0;
 let live = false;
+let chappeLive = false;
 let liveTimer: number | undefined;
 const liveListeners = new Set<() => void>();
 
@@ -150,7 +151,7 @@ function stopLiveStream() {
 }
 
 function startLiveStream() {
-  if (liveTimer !== undefined) {
+  if (liveTimer !== undefined || chappeLive) {
     return;
   }
 
@@ -195,7 +196,29 @@ export function seedLogs(count: number) {
   logBuffer.seed(count);
 }
 
+export function appendLiveLog(entry: Omit<LogEntry, 'id'>) {
+  streamSequence += 1;
+  logBuffer.appendBatch([
+    {
+      id: `live-${streamSequence}`,
+      ...entry,
+    },
+  ]);
+}
+
+export function enableChappeLiveLogs() {
+  chappeLive = true;
+  stopLiveStream();
+  if (logBuffer.getCount() > 0 && logBuffer.getEntry(0)?.id.startsWith('seed-')) {
+    logBuffer.clear();
+    streamSequence = 0;
+  }
+}
+
 export function ensureLogsSeeded(count = INITIAL_LOG_SEED_COUNT) {
+  if (chappeLive) {
+    return;
+  }
   if (logBuffer.getCount() === 0) {
     seedLogs(count);
   }

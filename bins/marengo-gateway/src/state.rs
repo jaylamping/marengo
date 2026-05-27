@@ -1,7 +1,7 @@
 use std::sync::{Arc, RwLock};
 
 use armee_proto::prost::Message;
-use armee_proto::{Heartbeat, ImuSample, RobotState, SafetyState};
+use armee_proto::{Heartbeat, HostMetrics, ImuSample, RobotState, SafetyState};
 use chappe::ipc::IpcListener;
 use chappe::Bus;
 use tokio::sync::broadcast;
@@ -11,6 +11,8 @@ pub const TOPIC_SAFETY: &str = "robot/safety";
 pub const TOPIC_HEARTBEAT: &str = "robot/heartbeat";
 pub const TOPIC_IMU_TORSO: &str = "sensors/imu/torso";
 pub const TOPIC_LOGS: &str = "logs/structured";
+pub const TOPIC_HOST_METRICS_PI: &str = "host/metrics/pi";
+pub const TOPIC_HOST_METRICS_JETSON: &str = "host/metrics/jetson";
 
 pub const ALLOWED_TOPICS: &[&str] = &[
     TOPIC_STATE,
@@ -18,7 +20,11 @@ pub const ALLOWED_TOPICS: &[&str] = &[
     TOPIC_HEARTBEAT,
     TOPIC_IMU_TORSO,
     TOPIC_LOGS,
+    TOPIC_HOST_METRICS_PI,
+    TOPIC_HOST_METRICS_JETSON,
 ];
+
+const ENVELOPE_BROADCAST_CAPACITY: usize = 4096;
 
 #[derive(Default, Clone)]
 pub struct Snapshots {
@@ -26,6 +32,8 @@ pub struct Snapshots {
     pub safety_state: Option<Vec<u8>>,
     pub heartbeat: Option<Vec<u8>>,
     pub imu_torso: Option<Vec<u8>>,
+    pub host_metrics_pi: Option<Vec<u8>>,
+    pub host_metrics_jetson: Option<Vec<u8>>,
 }
 
 pub struct AppState {
@@ -39,7 +47,7 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(bus: Arc<Bus>) -> Self {
-        let (envelope_tx, _) = broadcast::channel(512);
+        let (envelope_tx, _) = broadcast::channel(ENVELOPE_BROADCAST_CAPACITY);
         Self {
             bus,
             snapshots: Arc::new(RwLock::new(Snapshots::default())),
@@ -83,6 +91,8 @@ impl AppState {
             TOPIC_SAFETY => guard.safety_state = Some(payload.to_vec()),
             TOPIC_HEARTBEAT => guard.heartbeat = Some(payload.to_vec()),
             TOPIC_IMU_TORSO => guard.imu_torso = Some(payload.to_vec()),
+            TOPIC_HOST_METRICS_PI => guard.host_metrics_pi = Some(payload.to_vec()),
+            TOPIC_HOST_METRICS_JETSON => guard.host_metrics_jetson = Some(payload.to_vec()),
             _ => {}
         }
     }
@@ -135,6 +145,16 @@ impl AppState {
     pub fn snapshot_imu_torso(&self) -> Option<ImuSample> {
         let bytes = self.snapshots.read().ok()?.imu_torso.clone()?;
         decode_envelope_payload::<ImuSample>(&bytes).ok()
+    }
+
+    pub fn snapshot_host_metrics_pi(&self) -> Option<HostMetrics> {
+        let bytes = self.snapshots.read().ok()?.host_metrics_pi.clone()?;
+        decode_envelope_payload::<HostMetrics>(&bytes).ok()
+    }
+
+    pub fn snapshot_host_metrics_jetson(&self) -> Option<HostMetrics> {
+        let bytes = self.snapshots.read().ok()?.host_metrics_jetson.clone()?;
+        decode_envelope_payload::<HostMetrics>(&bytes).ok()
     }
 }
 

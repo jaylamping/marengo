@@ -140,3 +140,150 @@ message LogEvent {
   string target = 3;  // tracing target, e.g. berthier::loop
   string message = 4;
 }
+
+// --- Host metrics (Consul host cards; topics host/metrics/pi | host/metrics/jetson) ---
+
+enum HostNodeRole {
+  HOST_NODE_ROLE_UNSPECIFIED = 0;
+  HOST_NODE_ROLE_PI = 1;
+  HOST_NODE_ROLE_JETSON = 2;
+}
+
+enum ServiceState {
+  SERVICE_STATE_UNSPECIFIED = 0;
+  SERVICE_STATE_ACTIVE = 1;
+  SERVICE_STATE_INACTIVE = 2;
+  SERVICE_STATE_FAILED = 3;
+}
+
+message HostMetrics {
+  uint64 timestamp_ms = 1;
+  string hostname = 2;
+  HostNodeRole node_role = 3;
+  uint64 uptime_sec = 4;
+  string kernel_version = 5;
+  string os_pretty_name = 6;
+  BuildInfo build = 7;
+
+  CpuMetrics cpu = 10;
+  MemoryMetrics memory = 11;
+  LoadMetrics load = 12;
+  ThermalMetrics thermal = 13;
+  repeated DiskMetrics disks = 14;
+  repeated NetworkInterfaceMetrics network = 15;
+  repeated ServiceStatus services = 16;
+  ChappeHealth chappe = 17;
+  ClockMetrics clock = 18;
+
+  oneof platform {
+    PiPlatformMetrics pi = 20;
+    JetsonPlatformMetrics jetson = 21;
+  }
+}
+
+message BuildInfo {
+  string deploy_rev = 1;
+  string git_sha = 2;
+  string semver = 3;
+}
+
+message ChappeHealth {
+  bool ipc_connected = 1;
+  bool gateway_reachable = 2;
+  uint64 last_publish_age_ms = 3;
+}
+
+message ClockMetrics {
+  string sync_source = 1;
+  double offset_ms = 2;
+  bool synchronized = 3;
+}
+
+message CpuMetrics {
+  double usage_percent = 1;
+  uint32 core_count = 2;
+  repeated double per_core_usage_percent = 3;
+  uint32 freq_mhz = 4;
+  double iowait_percent = 5;
+}
+
+message MemoryMetrics {
+  uint64 total_bytes = 1;
+  uint64 used_bytes = 2;
+  uint64 available_bytes = 3;
+  uint64 buffers_bytes = 4;
+  uint64 cached_bytes = 5;
+  uint64 swap_total_bytes = 6;
+  uint64 swap_used_bytes = 7;
+}
+
+message LoadMetrics {
+  double load_1m = 1;
+  double load_5m = 2;
+  double load_15m = 3;
+}
+
+message ThermalMetrics {
+  double cpu_celsius = 1;
+  double gpu_celsius = 2;
+  double soc_celsius = 3;
+  repeated ThermalZone zones = 4;
+}
+
+message ThermalZone {
+  string name = 1;
+  double celsius = 2;
+}
+
+message DiskMetrics {
+  string mount_point = 1;
+  string filesystem = 2;
+  uint64 total_bytes = 3;
+  uint64 used_bytes = 4;
+  double read_bytes_per_sec = 5;
+  double write_bytes_per_sec = 6;
+  bool read_only = 7;
+  bool nearly_full = 8;
+}
+
+message NetworkInterfaceMetrics {
+  string name = 1;
+  bool up = 2;
+  uint64 rx_bytes_per_sec = 3;
+  uint64 tx_bytes_per_sec = 4;
+  uint64 rx_errors_total = 5;
+  uint64 tx_errors_total = 6;
+  string can_state = 7;
+  uint64 can_tx_error_count = 8;
+  uint64 can_rx_error_count = 9;
+}
+
+message ServiceStatus {
+  string unit = 1;
+  ServiceState state = 2;
+  uint32 restarts = 3;
+}
+
+message PiPlatformMetrics {
+  bool throttled_now = 1;
+  uint32 throttle_events = 2;
+  uint32 arm_freq_mhz = 3;
+  uint32 core_freq_mhz = 4;
+  double core_voltage_v = 5;
+  uint32 sdram_freq_mhz = 6;
+  uint32 gpu_freq_mhz = 7;
+  double pmic_temp_celsius = 8;
+}
+
+message JetsonPlatformMetrics {
+  string jetson_model = 1;
+  string power_mode = 2;
+  double gpu_usage_percent = 3;
+  uint64 gpu_mem_used_bytes = 4;
+  uint64 gpu_mem_total_bytes = 5;
+  uint32 gpu_freq_mhz = 6;
+  uint32 emc_freq_mhz = 7;
+  double power_draw_w = 8;
+  double chappe_rtt_ms = 9;
+  bool chappe_connected = 10;
+}

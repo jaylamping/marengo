@@ -328,6 +328,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -1116,6 +1117,8 @@ dependencies = [
  "thiserror 1.0.69",
  "time",
  "tokio",
+ "tokio-util",
+ "tower",
  "tower-http",
  "tracing",
  "web-transport-quinn",
@@ -1130,6 +1133,14 @@ dependencies = [
  "marengo-config",
  "serde",
  "serde_yaml",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "marengo-host-metrics"
+version = "0.1.0"
+dependencies = [
+ "armee-proto",
  "thiserror 1.0.69",
 ]
 
@@ -1164,6 +1175,7 @@ dependencies = [
  "ctrlc",
  "davout",
  "marengo-config",
+ "marengo-host-metrics",
  "marengo-imu",
  "marengo-support",
  "robstride",

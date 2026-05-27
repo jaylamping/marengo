@@ -49,5 +49,19 @@ export const CHAPPE_TOPICS = {
   heartbeat: 'robot/heartbeat',
   imuTorso: 'sensors/imu/torso',
   logs: 'logs/structured',
+  hostMetricsPi: 'host/metrics/pi',
+  hostMetricsJetson: 'host/metrics/jetson',
   enable: 'robot/enable',
 } as const;
+
+export function getChappeSubscribeTopics(): string[] {
+  return [
+    CHAPPE_TOPICS.state,
+    CHAPPE_TOPICS.safety,
+    CHAPPE_TOPICS.heartbeat,
+    CHAPPE_TOPICS.imuTorso,
+    CHAPPE_TOPICS.logs,
+    CHAPPE_TOPICS.hostMetricsPi,
+    CHAPPE_TOPICS.hostMetricsJetson,
+  ];
+}

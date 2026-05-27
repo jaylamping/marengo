@@ -1,5 +1,6 @@
 //! Marengo Pi runtime: CAN I/O, control loop, Chappe telemetry, operator commands.
 
+mod host_metrics;
 #[cfg(all(target_os = "linux", feature = "linux-i2c"))]
 mod imu;
 
@@ -25,7 +26,6 @@ use marengo_config::{
     load_control_config, load_motors_config, resolve_config_dir, resolve_repo_root,
     resolve_urdf_path,
 };
-use marengo_support::init_tracing;
 use robstride::RuntimeBus;
 use tracing::{error, info, warn};
 
@@ -413,7 +413,6 @@ fn parse_args() -> (Option<PathBuf>, bool) {
 }
 
 fn main() {
-    init_tracing();
     let (cli_config_dir, stdin_ctl) = parse_args();
     let root = repo_root();
     if let Some(dir) = cli_config_dir {
@@ -476,6 +475,7 @@ fn main() {
     };
 
     let chappe = Arc::new(Bus::default());
+    chappe::tracing_layer::init_subscriber(Some(Arc::clone(&chappe)), "marengo-pi");
     #[cfg(unix)]
     if let Some(socket_path) = chappe::ipc::socket_path_from_env() {
         match chappe::ipc::IpcFanout::spawn_client(socket_path.clone(), (*chappe).clone()) {
@@ -502,6 +502,9 @@ fn main() {
 
     #[cfg(all(target_os = "linux", feature = "linux-i2c"))]
     imu::spawn_imu_publisher(Arc::clone(&chappe), Arc::clone(&shutdown));
+
+    #[cfg(target_os = "linux")]
+    host_metrics::spawn_host_metrics_publisher(Arc::clone(&chappe), Arc::clone(&shutdown));
 
     let (cmd_tx, cmd_rx): (Sender<PiCommand>, Receiver<PiCommand>) = mpsc::channel();
     if stdin_ctl {

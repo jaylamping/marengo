@@ -1,0 +1,15 @@
+[package]
+name = "marengo-host-metrics"
+version = "0.1.0"
+description = "Linux host metrics collector for Chappe HostMetrics protobuf"
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+armee-proto.workspace = true
+thiserror.workspace = true

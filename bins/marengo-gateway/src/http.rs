@@ -3,18 +3,21 @@ use std::path::Path;
 use armee_proto::prost::Message;
 use armee_proto::EnableRequest;
 use axum::{
-    body::Bytes,
-    extract::State,
+    body::Body,
+    extract::{Query, State},
     http::{header, HeaderMap, StatusCode},
     response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
 };
-use serde::Serialize;
+use futures::StreamExt;
+use serde::{Deserialize, Serialize};
+use tokio_util::io::ReaderStream;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
 
-use crate::state::SharedState;
+use crate::framing::{self, CHAPPE_STREAM_CONTENT_TYPE};
+use crate::state::{filter_topics, SharedState};
 
 #[derive(Serialize)]
 struct HealthResponse {
@@ -40,6 +43,11 @@ struct TlsFingerprintResponse {
     hashes: Vec<TlsFingerprintEntry>,
 }
 
+#[derive(Deserialize)]
+struct StreamQuery {
+    topics: String,
+}
+
 /// API routes plus optional Consul SPA static files (`web_root` for robot-hosted HTTPS).
 pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
     let cors = CorsLayer::new()
@@ -51,10 +59,16 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
     let api = Router::new()
         .route("/health", get(health))
         .route("/tls/fingerprint", get(tls_fingerprint))
+        .route("/stream/chappe", get(stream_chappe))
         .route("/snapshot/robot/state", get(snapshot_state))
         .route("/snapshot/robot/safety", get(snapshot_safety))
         .route("/snapshot/robot/heartbeat", get(snapshot_heartbeat))
         .route("/snapshot/sensors/imu/torso", get(snapshot_imu_torso))
+        .route("/snapshot/host/metrics/pi", get(snapshot_host_metrics_pi))
+        .route(
+            "/snapshot/host/metrics/jetson",
+            get(snapshot_host_metrics_jetson),
+        )
         .route("/command/enable", post(command_enable))
         .layer(cors)
         .with_state(state);
@@ -92,6 +106,44 @@ async fn tls_fingerprint(
     }))
 }
 
+async fn stream_chappe(
+    State(state): State<SharedState>,
+    Query(query): Query<StreamQuery>,
+) -> Result<Response, StatusCode> {
+    let raw_topics: Vec<String> = query
+        .topics
+        .split(',')
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+    let topics = filter_topics(&raw_topics);
+    if topics.is_empty() {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    let (mut writer, reader) = tokio::io::duplex(64 * 1024);
+    let rx = state.subscribe_envelopes();
+    let topics_clone = topics.clone();
+    tokio::spawn(async move {
+        let _ = framing::pump_envelope_stream(rx, &topics_clone, &mut writer).await;
+    });
+
+    let stream = ReaderStream::new(reader).map(|chunk| {
+        chunk.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+    });
+
+    let mut headers = HeaderMap::new();
+    if let Ok(value) = header::HeaderValue::from_str(CHAPPE_STREAM_CONTENT_TYPE) {
+        headers.insert(header::CONTENT_TYPE, value);
+    }
+    headers.insert(
+        header::CACHE_CONTROL,
+        header::HeaderValue::from_static("no-cache"),
+    );
+
+    Ok((StatusCode::OK, headers, Body::from_stream(stream)).into_response())
+}
+
 async fn snapshot_state(State(state): State<SharedState>) -> Response {
     protobuf_snapshot(state.snapshot_robot_state())
 }
@@ -106,6 +158,14 @@ async fn snapshot_heartbeat(State(state): State<SharedState>) -> Response {
 
 async fn snapshot_imu_torso(State(state): State<SharedState>) -> Response {
     protobuf_snapshot(state.snapshot_imu_torso())
+}
+
+async fn snapshot_host_metrics_pi(State(state): State<SharedState>) -> Response {
+    protobuf_snapshot(state.snapshot_host_metrics_pi())
+}
+
+async fn snapshot_host_metrics_jetson(State(state): State<SharedState>) -> Response {
+    protobuf_snapshot(state.snapshot_host_metrics_jetson())
 }
 
 fn protobuf_snapshot<M: Message>(msg: Option<M>) -> Response {
@@ -123,7 +183,7 @@ fn protobuf_snapshot<M: Message>(msg: Option<M>) -> Response {
 
 async fn command_enable(
     State(state): State<SharedState>,
-    body: Bytes,
+    body: axum::body::Bytes,
 ) -> Result<Json<OkResponse>, (StatusCode, String)> {
     let request = EnableRequest::decode(body.as_ref())
         .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
@@ -137,4 +197,48 @@ async fn command_enable(
         )
         .map_err(|e| (StatusCode::BAD_GATEWAY, e))?;
     Ok(Json(OkResponse { ok: true }))
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::expect_used)]
+
+    use super::*;
+    use armee_proto::{Envelope, Heartbeat};
+    use axum::body::Body;
+    use chappe::Bus;
+    use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn stream_chappe_emits_length_prefixed_envelopes() {
+        let bus = std::sync::Arc::new(Bus::default());
+        let state = std::sync::Arc::new(crate::state::AppState::new(std::sync::Arc::clone(&bus)));
+        let app = router(state.clone(), None);
+
+        let hb = Heartbeat {
+            timestamp_ms: 1,
+            node_id: "test".to_string(),
+        };
+        let envelope = Envelope {
+            timestamp_ms: 1,
+            source_node: "test".into(),
+            message_type: "marengo.v1.Heartbeat".into(),
+            payload: hb.encode_to_vec(),
+        };
+        state.ingest_runtime_frame(
+            crate::state::TOPIC_HEARTBEAT.to_string(),
+            envelope.encode_to_vec(),
+        );
+
+        let response = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/stream/chappe?topics=robot/heartbeat")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::OK);
+    }
 }

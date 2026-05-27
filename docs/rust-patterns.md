@@ -79,6 +79,15 @@ use armee_proto::JointState;
 let bytes = joint.encode_to_vec();
 ```
 
+```rust
+// BAD — println! for operator-visible runtime logs in marengo-pi
+println!("control tick failed: {e}");
+
+// GOOD — tracing + ChappeLogLayer publishes LogEvent on logs/structured
+chappe::tracing_layer::init_subscriber(Some(chappe_bus), "marengo-pi");
+tracing::warn!(error = %e, "control tick failed");
+```
+
 ## 7. Safety & control
 
 See [safety.md](safety.md). No motor enable without Davout and an explicit state machine.

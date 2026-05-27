@@ -16,8 +16,10 @@
 //! Typical topics: `robot/state`, telemetry, future RPC. Producers must not put raw CAN on Chappe.
 
 pub mod ipc;
+pub mod tracing_layer;
 pub mod transport;
 
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
 use armee_proto::prost::Message;
@@ -45,6 +47,7 @@ pub struct Bus {
 struct BusInner {
     channels: std::sync::RwLock<std::collections::HashMap<String, broadcast::Sender<Vec<u8>>>>,
     capacity: usize,
+    last_publish_ms: AtomicU64,
     #[cfg(unix)]
     ipc: std::sync::RwLock<Option<std::sync::Arc<ipc::IpcFanout>>>,
 }
@@ -61,6 +64,7 @@ impl Bus {
             inner: Arc::new(BusInner {
                 channels: std::sync::RwLock::new(std::collections::HashMap::new()),
                 capacity,
+                last_publish_ms: AtomicU64::new(0),
                 #[cfg(unix)]
                 ipc: std::sync::RwLock::new(None),
             }),
@@ -93,6 +97,13 @@ impl Bus {
     ///
     /// Succeeds when there are no subscribers (bench / headless Pi without Consul).
     pub fn publish_bytes(&self, topic: &str, payload: Vec<u8>) -> Result<(), BusError> {
+        self.inner.last_publish_ms.store(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis() as u64)
+                .unwrap_or(0),
+            Ordering::Relaxed,
+        );
         #[cfg(unix)]
         if let Ok(guard) = self.inner.ipc.read() {
             if let Some(ipc) = guard.as_ref() {
@@ -143,6 +154,23 @@ impl Bus {
             .await
             .map_err(|e| BusError::Decode(e.to_string()))?;
         Envelope::decode(bytes.as_slice()).map_err(|e| BusError::Decode(e.to_string()))
+    }
+
+    /// Milliseconds since UNIX epoch of the last successful publish.
+    pub fn last_publish_ms(&self) -> u64 {
+        self.inner.last_publish_ms.load(Ordering::Relaxed)
+    }
+
+    /// Whether IPC fanout is configured (Unix only).
+    pub fn ipc_configured(&self) -> bool {
+        #[cfg(unix)]
+        {
+            self.inner.ipc.read().map(|g| g.is_some()).unwrap_or(false)
+        }
+        #[cfg(not(unix))]
+        {
+            false
+        }
     }
 }
 

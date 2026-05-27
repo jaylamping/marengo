@@ -28,6 +28,7 @@ davout = { path = "../../crates/davout" }
 marengo-config.workspace = true
 marengo-imu = { path = "../../crates/marengo-imu", optional = true }
 marengo-support.workspace = true
+marengo-host-metrics.workspace = true
 robstride = { path = "../../crates/robstride" }
 tokio = { version = "1", features = ["sync"] }
 tracing.workspace = true

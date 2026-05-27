@@ -83,7 +83,7 @@ pub fn report_payload_length(report_id: u8) -> Option<usize> {
         REPORT_ACCELEROMETER | REPORT_GYROSCOPE => Some(10),
         REPORT_ROTATION_VECTOR => Some(14),
         REPORT_TIMESTAMP_REBASE | REPORT_BASE_TIMESTAMP => Some(5),
-        0x14 | 0x15 | 0x16 => Some(16), // raw accel / gyro / mag
+        0x14..=0x16 => Some(16), // raw accel / gyro / mag
         GET_FEATURE_RESPONSE => Some(17),
         SHTP_REPORT_PRODUCT_ID_RESPONSE | COMMAND_RESPONSE => Some(16),
         _ => None,

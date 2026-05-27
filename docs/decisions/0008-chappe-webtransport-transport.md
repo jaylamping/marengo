@@ -12,8 +12,9 @@
 Add **`marengo-gateway`**, a thin Rust operator service that:
 
 1. **HTTP/1.1 CRUD** (default port `8080`) — health, protobuf snapshots, command posts.
-2. **WebTransport over HTTP/3 + TLS** (default port `8443`) — bidirectional streams carrying binary `Envelope` protobuf (ADR 0001). No GraphQL. No WebSocket fallback in phase 1.
-3. **Unix socket IPC** (`MARENGO_CHAPPE_SOCKET`, default `/run/marengo/chappe.sock`) — `marengo-pi` forwards publishes; gateway ingests and fans out to HTTP cache + WebTransport subscribers. Commands from gateway → runtime use the reverse direction on the same socket.
+2. **WebTransport over HTTP/3 + TLS** (default port `8443`) — bidirectional streams carrying binary `Envelope` protobuf (ADR 0001). Primary realtime transport.
+3. **HTTP long-lived stream fallback** — `GET /stream/chappe?topics=…` on `:8080` / `:8444`; same length-prefixed `Envelope` bytes as WebTransport; TCP-tunnelable when QUIC is blocked.
+4. **Unix socket IPC** (`MARENGO_CHAPPE_SOCKET`, default `/run/marengo/chappe.sock`) — `marengo-pi` forwards publishes; gateway ingests and fans out to HTTP cache + WebTransport/HTTP-stream subscribers. Commands from gateway → runtime use the reverse direction on the same socket.
 
 Wire types remain in [`proto/marengo/v1/marengo.proto`](../../proto/marengo/v1/marengo.proto). Consul decodes with `@bufbuild/protobuf` from `consul/src/gen/`.
 
@@ -26,6 +27,9 @@ Wire types remain in [`proto/marengo/v1/marengo.proto`](../../proto/marengo/v1/m
 | GET | `/snapshot/robot/safety` | — | `application/x-protobuf` `SafetyState` |
 | GET | `/snapshot/robot/heartbeat` | — | `application/x-protobuf` `Heartbeat` |
 | GET | `/snapshot/sensors/imu/torso` | — | `application/x-protobuf` `ImuSample` |
+| GET | `/snapshot/host/metrics/pi` | — | `application/x-protobuf` `HostMetrics` |
+| GET | `/snapshot/host/metrics/jetson` | — | `application/x-protobuf` `HostMetrics` |
+| GET | `/stream/chappe?topics=…` | — | `application/vnd.marengo.chappe-stream` chunked Envelope stream |
 | POST | `/command/enable` | `application/x-protobuf` `EnableRequest` | JSON `{ "ok": true }` |
 
 ### WebTransport contract (phase 1)
@@ -33,7 +37,13 @@ Wire types remain in [`proto/marengo/v1/marengo.proto`](../../proto/marengo/v1/m
 - URL path: `/chappe` (session accepted for any path under gateway in dev).
 - First client→server bidi message: length-prefixed `GatewaySubscribe` protobuf (topic list).
 - Server→client: repeated length-prefixed `Envelope` bytes for matching topics.
-- Allowed subscribe topics: `robot/state`, `robot/safety`, `robot/heartbeat`, `sensors/imu/torso`, `logs/structured`.
+- Allowed subscribe topics: `robot/state`, `robot/safety`, `robot/heartbeat`, `sensors/imu/torso`, `logs/structured`, `host/metrics/pi`, `host/metrics/jetson`.
+
+### HTTP stream fallback
+
+- Same topic allowlist as WebTransport.
+- Response body: repeated 4-byte little-endian length + `Envelope` protobuf (identical framing to WebTransport server→client).
+- Use when WebTransport/QUIC unavailable (SSH tunnel to `:8444`, blocked UDP, browsers without `WebTransport`).
 
 ### Auth (bench)
 

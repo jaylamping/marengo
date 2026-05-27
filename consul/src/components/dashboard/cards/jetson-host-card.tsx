@@ -13,22 +13,92 @@ import {
   formatRamUsage,
   formatTempC,
 } from '@/lib/format';
+import { isChappeLive } from '@/lib/chappe-config';
+import {
+  hostMetricsStale,
+  useHostMetricsStore,
+} from '@/state/hostMetricsStore';
+
+function formatUptime(seconds: bigint | number): string {
+  const total = Number(seconds);
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  }
+  return `${minutes}m`;
+}
+
+function liveJetsonMetrics(
+  metrics: ReturnType<typeof useHostMetricsStore.getState>['jetsonMetrics'],
+): JetsonHostMetrics | null {
+  if (!metrics) {
+    return null;
+  }
+  const mem = metrics.memory;
+  return {
+    hostname: metrics.hostname || 'marengo-jetson',
+    cpuPercent: metrics.cpu?.usagePercent ?? 0,
+    ramUsedGb: mem ? Number(mem.usedBytes) / 1024 ** 3 : 0,
+    ramTotalGb: mem ? Number(mem.totalBytes) / 1024 ** 3 : 0,
+    gpuPercent:
+      metrics.platform.case === 'jetson'
+        ? metrics.platform.value.gpuUsagePercent
+        : 0,
+    tempC: metrics.thermal?.cpuCelsius ?? 0,
+    load1m: metrics.load?.load1m ?? 0,
+    uptime: formatUptime(metrics.uptimeSec),
+    powerMode:
+      metrics.platform.case === 'jetson'
+        ? metrics.platform.value.powerMode || '—'
+        : '—',
+    chappeRttMs:
+      metrics.platform.case === 'jetson'
+        ? metrics.platform.value.chappeRttMs
+        : 0,
+    online:
+      metrics.platform.case === 'jetson'
+        ? metrics.platform.value.chappeConnected
+        : false,
+    servicesLabel: metrics.build?.deployRev
+      ? `deploy ${metrics.build.deployRev}`
+      : 'Fouché · planner · Chappe to Pi',
+  };
+}
 
 type JetsonHostCardProps = {
   metrics?: JetsonHostMetrics;
 };
 
 export function JetsonHostCard({
-  metrics = dummyJetsonHostMetrics,
+  metrics: metricsProp,
 }: JetsonHostCardProps) {
+  const liveMetrics = useHostMetricsStore((s) => s.jetsonMetrics);
+  const liveUpdatedAt = useHostMetricsStore((s) => s.jetsonUpdatedAt);
+  const live = isChappeLive();
+  const metrics =
+    live && liveMetrics && !hostMetricsStale(liveUpdatedAt)
+      ? liveJetsonMetrics(liveMetrics) ?? dummyJetsonHostMetrics
+      : (metricsProp ?? dummyJetsonHostMetrics);
+
   return (
     <DashboardCardShell
       description="Jetson · perception"
       title={metrics.hostname}
       action={
         <StatusBadge
-          label={metrics.online ? 'online' : 'offline'}
-          tone={metrics.online ? 'healthy' : 'muted'}
+          label={
+            live && hostMetricsStale(liveUpdatedAt)
+              ? 'stale'
+              : metrics.online
+                ? 'online'
+                : 'offline'
+          }
+          tone={
+            live && !hostMetricsStale(liveUpdatedAt) && metrics.online
+              ? 'healthy'
+              : 'muted'
+          }
         />
       }
       content={

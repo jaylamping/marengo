@@ -1,12 +1,14 @@
 import { siteHeaderConfig } from '@/data/site-header';
 import { Badge } from '@/components/ui/badge';
 import { isChappeLive } from '@/lib/chappe-config';
+import { useHostMetricsStore } from '@/state/hostMetricsStore';
 import { useRobotStore } from '@/state/robotStore';
 
 export function SiteHeaderStatusBadges() {
   const connected = useRobotStore((s) => s.connected);
   const operationalMode = useRobotStore((s) => s.operationalMode);
   const gatewayError = useRobotStore((s) => s.gatewayError);
+  const transportMode = useHostMetricsStore((s) => s.transportMode);
   const live = isChappeLive();
 
   return (
@@ -15,16 +17,23 @@ export function SiteHeaderStatusBadges() {
         {siteHeaderConfig.bus}
       </Badge>
       {live ? (
-        <Badge
-          variant={connected ? 'default' : 'destructive'}
-          className="font-mono text-xs"
-        >
-          {connected
-            ? operationalMode ?? 'LIVE'
-            : gatewayError
-              ? 'CHAPPE ERR'
-              : 'CONNECTING'}
-        </Badge>
+        <>
+          {transportMode !== 'offline' ? (
+            <Badge variant="outline" className="font-mono text-xs">
+              {transportMode === 'webtransport' ? 'WT' : 'HTTP'}
+            </Badge>
+          ) : null}
+          <Badge
+            variant={connected ? 'default' : 'destructive'}
+            className="font-mono text-xs"
+          >
+            {connected
+              ? operationalMode ?? 'LIVE'
+              : gatewayError
+                ? 'CHAPPE ERR'
+                : 'CONNECTING'}
+          </Badge>
+        </>
       ) : (
         <Badge variant="secondary" className="font-mono text-xs">
           WIREFRAME
