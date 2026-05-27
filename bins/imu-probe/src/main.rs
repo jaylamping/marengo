@@ -116,7 +116,7 @@ fn main() {
 fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(all(target_os = "linux", feature = "linux-i2c"))]
     {
-        use marengo_imu::LinuxI2cBus;
+        use marengo_imu::{Bno085, LinuxI2cBus};
 
         tracing::info!(
             bus = %args.bus,

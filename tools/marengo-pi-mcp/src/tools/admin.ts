@@ -75,7 +75,7 @@ export function registerAdminTools(
         const body = wrapRemote(
           cfg,
           [
-            "cargo build -p marengo-pi -p motor-repl --features socketcan --release",
+            "cargo build -p marengo-pi -p marengo-gateway -p motor-repl -p imu-probe --features socketcan,linux-i2c --release",
             sudoInstallCommand(cfg),
           ].join("\n"),
         );
