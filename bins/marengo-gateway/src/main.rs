@@ -98,6 +98,7 @@ async fn main() {
 
 async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     init_tracing();
+    let _ = rustls::crypto::ring::default_provider().install_default();
     let args = parse_args().map_err(|e| e.to_string())?;
     let bus = Arc::new(Bus::default());
     let state_holder: Arc<std::sync::Mutex<Option<state::SharedState>>> =
