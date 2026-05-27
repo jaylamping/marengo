@@ -150,7 +150,7 @@ impl<B: I2cBus> Bno085<B> {
 
     fn process_available_packets(&mut self, max: Option<usize>) -> Result<(), ImuError> {
         let mut processed = 0usize;
-        while self.data_ready()? {
+        loop {
             if let Some(limit) = max {
                 if processed >= limit {
                     break;
@@ -206,14 +206,6 @@ impl<B: I2cBus> Bno085<B> {
         Ok(())
     }
 
-    fn data_ready(&mut self) -> Result<bool, ImuError> {
-        match self.bus.read_header() {
-            Ok(header) => Ok(PacketHeader::parse(&header).is_some()),
-            Err(BusError::NoPacket) => Ok(false),
-            Err(err) => Err(err.into()),
-        }
-    }
-
     fn try_read_packet(&mut self) -> Result<Option<ShtpPacket>, ImuError> {
         let header_bytes = match self.bus.read_header() {
             Ok(bytes) => bytes,
@@ -225,17 +217,20 @@ impl<B: I2cBus> Bno085<B> {
             None => return Ok(None),
         };
 
-        let total = header.packet_byte_count as usize;
-        if total > DATA_BUFFER_SIZE {
+        if header.data_length + 4 > DATA_BUFFER_SIZE {
             return Err(ImuError::Protocol(format!(
-                "packet too large: {total} bytes"
+                "packet too large: {} bytes",
+                header.data_length + 4
             )));
         }
 
-        let mut buffer = vec![0u8; total];
-        self.bus
-            .read_packet_body(total, &mut buffer)
-            .map_err(ImuError::from)?;
+        let mut buffer = vec![0u8; 4 + header.data_length];
+        buffer[..4].copy_from_slice(&header_bytes);
+        if header.data_length > 0 {
+            self.bus
+                .read_packet_payload(header.data_length, &mut buffer)
+                .map_err(ImuError::from)?;
+        }
         Ok(Some(ShtpPacket {
             channel: header.channel,
             data: buffer[4..4 + header.data_length].to_vec(),

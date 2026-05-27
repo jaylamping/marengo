@@ -13,8 +13,10 @@ pub enum BusError {
 /// Minimal I2C transaction surface for SHTP (testable without hardware).
 pub trait I2cBus {
     fn write(&mut self, data: &[u8]) -> Result<(), BusError>;
+    /// Read the 4-byte SHTP packet header.
     fn read_header(&mut self) -> Result<[u8; 4], BusError>;
-    fn read_packet_body(&mut self, total_len: usize, out: &mut [u8]) -> Result<(), BusError>;
+    /// Read `payload_len` bytes into `out[4..4 + payload_len]` (header already in `out[0..4]`).
+    fn read_packet_payload(&mut self, payload_len: usize, out: &mut [u8]) -> Result<(), BusError>;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -56,15 +58,13 @@ impl MockI2cBus {
         let mut header = [0u8; 4];
         header.copy_from_slice(&packet[..4]);
         let body = packet[4..].to_vec();
-        for _ in 0..2 {
-            self.transactions.push(MockTransaction {
-                kind: TransactionKind::ReadHeader,
-                write_data: Vec::new(),
-                header_response: header,
-                body_response: body.clone(),
-            });
-        }
-        if packet.len() > 4 {
+        self.transactions.push(MockTransaction {
+            kind: TransactionKind::ReadHeader,
+            write_data: Vec::new(),
+            header_response: header,
+            body_response: body.clone(),
+        });
+        if !body.is_empty() {
             self.transactions.push(MockTransaction {
                 kind: TransactionKind::ReadBody,
                 write_data: Vec::new(),
@@ -110,10 +110,10 @@ impl I2cBus for MockI2cBus {
         Ok(tx.header_response)
     }
 
-    fn read_packet_body(&mut self, total_len: usize, out: &mut [u8]) -> Result<(), BusError> {
-        if out.len() < total_len {
+    fn read_packet_payload(&mut self, payload_len: usize, out: &mut [u8]) -> Result<(), BusError> {
+        if out.len() < 4 + payload_len {
             return Err(BusError::BufferTooSmall {
-                need: total_len,
+                need: 4 + payload_len,
                 have: out.len(),
             });
         }
@@ -123,10 +123,8 @@ impl I2cBus for MockI2cBus {
                 message: format!("expected read body, got {:?}", tx.kind),
             });
         }
-        out[..4].copy_from_slice(&tx.header_response);
-        let body_len = total_len.saturating_sub(4);
-        if body_len > 0 {
-            out[4..4 + body_len].copy_from_slice(&tx.body_response[..body_len]);
+        if payload_len > 0 {
+            out[4..4 + payload_len].copy_from_slice(&tx.body_response[..payload_len]);
         }
         Ok(())
     }
@@ -145,11 +143,11 @@ mod tests {
         bus.push_read_packet(&[0x08, 0x00, 2, 1, 0xAA, 0xBB, 0xCC, 0xDD]);
 
         bus.write(&[1, 2, 3, 4]).expect("write");
-        let _ = bus.read_header().expect("peek header");
         let header = bus.read_header().expect("header");
         assert_eq!(header[2], 2);
         let mut buf = [0u8; 8];
-        bus.read_packet_body(8, &mut buf).expect("body");
+        buf[..4].copy_from_slice(&header);
+        bus.read_packet_payload(4, &mut buf).expect("payload");
         assert_eq!(buf[4], 0xAA);
     }
 }

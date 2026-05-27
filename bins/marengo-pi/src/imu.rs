@@ -9,7 +9,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use armee_proto::{ImuAccuracy as ProtoImuAccuracy, ImuSample};
 use chappe::Bus;
 use marengo_imu::{Bno085, LinuxI2cBus, DEFAULT_I2C_ADDRESS};
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 pub const TOPIC_IMU_TORSO: &str = "sensors/imu/torso";
 const DEFAULT_FRAME_ID: &str = "torso_imu";
@@ -116,6 +116,8 @@ fn run_imu_loop(chappe: Arc<Bus>, shutdown: Arc<AtomicBool>, cfg: ImuConfig) -> 
                     chappe.publish(TOPIC_IMU_TORSO, "marengo-pi", "marengo.v1.ImuSample", &msg)
                 {
                     warn!(error = %err, "failed to publish ImuSample");
+                } else {
+                    debug!(real = q.real, "published ImuSample");
                 }
             }
             Ok(None) => {}

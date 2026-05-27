@@ -34,15 +34,18 @@ impl I2cBus for LinuxI2cBus {
         Ok(header)
     }
 
-    fn read_packet_body(&mut self, total_len: usize, out: &mut [u8]) -> Result<(), BusError> {
-        if out.len() < total_len {
+    fn read_packet_payload(&mut self, payload_len: usize, out: &mut [u8]) -> Result<(), BusError> {
+        if out.len() < 4 + payload_len {
             return Err(BusError::BufferTooSmall {
-                need: total_len,
+                need: 4 + payload_len,
                 have: out.len(),
             });
         }
+        if payload_len == 0 {
+            return Ok(());
+        }
         self.device
-            .read(&mut out[..total_len])
+            .read(&mut out[4..4 + payload_len])
             .map_err(|err| BusError::Io {
                 message: err.to_string(),
             })
