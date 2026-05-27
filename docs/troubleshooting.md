@@ -33,7 +33,8 @@
 
 | Symptom | Fix |
 |---------|-----|
-| `linker aarch64-linux-gnu-gcc not found` | On Mac: `./scripts/setup-mac-pi-cross.sh` then `just deploy-pi`. Or build inside `marengo-dev` image. |
+| `linker aarch64-linux-gnu-gcc not found` | On Mac: `./scripts/setup-mac-pi-cross.sh` then `just deploy-pi`. On Windows: `just deploy-pi-docker` (or `./scripts/deploy-pi-docker.sh`). |
+| `deploy-pi.sh` / `buf` `ENOENT` on `downloaded-*-linux-x64-buf` | Host `consul/node_modules` from Windows npm inside Linux Docker — `deploy-pi.sh` re-runs `npm ci` when buf fails; prefer `just deploy-pi-docker` (uses Linux `consul-node-modules` volume). |
 | Wrong glibc on device | Match Debian/bookworm-based images to Pi OS / JetPack versions. |
 
 ## Proto / Consul codegen

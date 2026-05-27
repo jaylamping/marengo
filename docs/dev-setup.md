@@ -43,6 +43,10 @@ git lfs install && git lfs pull
 ./scripts/deploy-pi.sh --install joey@marengo.local
 # or: just deploy-pi
 
+# Windows (no native aarch64 GCC): deploy via dev container
+./scripts/deploy-pi-docker.sh joey@marengo.local
+# or: just deploy-pi-docker
+
 cargo build --workspace
 cd consul && npm ci && npm run gen:proto
 ./scripts/check.sh

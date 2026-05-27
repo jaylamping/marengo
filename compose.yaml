@@ -70,6 +70,21 @@ services:
       MARENGO_SIM_MODEL: /workspace/sim/fixtures/minimal.xml
     command: ["./scripts/check-sim.sh"]
 
+  deploy-pi:
+    profiles: [deploy]
+    image: marengo-dev:local
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - cargo-target:/workspace/target
+      - cargo-registry:/usr/local/cargo/registry
+      - consul-node-modules:/workspace/consul/node_modules
+    stdin_open: true
+    tty: true
+
 volumes:
   cargo-target:
   cargo-registry:

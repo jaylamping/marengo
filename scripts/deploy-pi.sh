@@ -43,8 +43,43 @@ ensure_cross_toolchain() {
     "${ROOT}/scripts/setup-mac-pi-cross.sh"
     return 0
   fi
-  echo "error: aarch64-linux-gnu-gcc not found (use Docker dev image or install cross GCC)" >&2
+  echo "error: aarch64-linux-gnu-gcc not found (use: just deploy-pi-docker, or Docker dev image)" >&2
   exit 1
+}
+
+# Host-mounted consul/node_modules (e.g. Windows npm on Linux Docker bind mount) ships the
+# wrong @bufbuild/buf platform binary. Reinstall when the local buf wrapper cannot run.
+ensure_consul_deps() {
+  (
+    cd "${ROOT}/consul"
+    if [[ ! -f package-lock.json ]]; then
+      echo "error: consul/package-lock.json missing" >&2
+      exit 1
+    fi
+    if [[ -d node_modules ]] && node_modules/.bin/buf --version >/dev/null 2>&1; then
+      return 0
+    fi
+    echo "Consul node_modules missing or wrong platform — running npm ci ..."
+    rm -rf node_modules
+    npm ci
+    if ! node_modules/.bin/buf --version >/dev/null 2>&1; then
+      echo "error: buf still unavailable after npm ci" >&2
+      exit 1
+    fi
+  )
+}
+
+build_consul_assets() {
+  echo "Building Consul static assets..."
+  ensure_consul_deps
+  (
+    cd "${ROOT}/consul"
+    npm run build
+  )
+  if [[ ! -f "${ROOT}/consul/dist/index.html" ]]; then
+    echo "error: consul build did not produce dist/index.html" >&2
+    exit 1
+  fi
 }
 
 cd "$ROOT"
@@ -53,18 +88,7 @@ ensure_cross_toolchain
 echo "Building marengo-pi + marengo-gateway + motor-repl + imu-probe for ${TARGET}..."
 cargo build --release --target "$TARGET" -p marengo-pi -p marengo-gateway -p motor-repl -p imu-probe --features socketcan,linux-i2c
 
-echo "Building Consul static assets..."
-(
-  cd "${ROOT}/consul"
-  if [[ ! -d node_modules ]]; then
-    npm ci
-  fi
-  npm run build
-)
-if [[ ! -f "${ROOT}/consul/dist/index.html" ]]; then
-  echo "error: consul build did not produce dist/index.html" >&2
-  exit 1
-fi
+build_consul_assets
 
 if [[ -z "$PI_HOST" ]]; then
   echo "Built:"

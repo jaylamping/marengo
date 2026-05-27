@@ -40,6 +40,10 @@ check-native:
 deploy-pi host="joey@marengo.local":
     ./scripts/deploy-pi.sh --install {{host}}
 
+# Cross-build + deploy via dev container (Windows / no native aarch64 GCC).
+deploy-pi-docker host="joey@marengo.local":
+    ./scripts/deploy-pi-docker.sh {{host}}
+
 # Rebuild Marengo Pi MCP server (Cursor: restart marengo-pi MCP after this)
 mcp-build:
     cd tools/marengo-pi-mcp && npm install && npm run build
