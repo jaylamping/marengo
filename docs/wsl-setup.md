@@ -189,6 +189,11 @@ Best-effort; container remains source of truth ([dev-setup.md](dev-setup.md)).
 # rustup
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
+# Pi cross-build + deploy (native, cached target/ on ext4)
+./scripts/setup-wsl-pi-cross.sh
+just deploy-pi-wsl
+# Binary-only (skip consul): ./scripts/deploy-pi.sh --install --skip-consul joey@marengo.local
+
 # mise (matches mise.toml)
 curl https://mise.run | sh
 cd ~/code/marengo && mise install
@@ -201,7 +206,9 @@ cd ~/code/marengo && mise install
 | Symptom | Fix |
 |---------|-----|
 | `failed to connect to docker API at npipe://...` | Start Docker Desktop; enable WSL integration; run commands **inside WSL**. |
-| Builds still slow | Confirm repo is `~/code/...`, not `/mnt/c/...`. |
+| Builds still slow | Confirm repo is `~/code/...`, not `/mnt/c/...`. Use `just deploy-pi-docker` (not bare `docker run`); 2nd run should reuse `cargo-target` / `cargo-registry` volumes. |
+| Deploy looks hung, no output | Use `./scripts/deploy-pi-docker.sh` (line-buffered + `CARGO_TERM_PROGRESS_WHEN=always`). Verbose: `MARENGO_DEPLOY_VERBOSE=1 just deploy-pi-docker`. |
+| Want native deploy without Docker | WSL2: `./scripts/setup-wsl-pi-cross.sh` then `just deploy-pi-wsl`. |
 | `git lfs` smudge errors | `git lfs install && git lfs pull` inside WSL clone. |
 | Line-ending noise | In WSL clone: `git config core.autocrlf input`. |
 | Permission errors on `target/` | `docker compose build dev` (entrypoint chowns volumes). See [troubleshooting.md](troubleshooting.md). |

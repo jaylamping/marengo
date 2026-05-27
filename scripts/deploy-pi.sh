@@ -3,20 +3,30 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=deploy-lib.sh
+source "${ROOT}/scripts/deploy-lib.sh"
+deploy_progress_env
+
 TARGET="${MARENGO_PI_TARGET:-aarch64-unknown-linux-gnu}"
 PI_HOST=""
 DO_INSTALL=false
+SKIP_CONSUL=false
 
 usage() {
-  echo "Usage: $0 [--install] [user@host]" >&2
-  echo "  --install  run sudo install-pi.sh on the Pi after rsync (MARENGO_INSTALL_ROOT=/opt/marengo)" >&2
-  echo "  Env: MARENGO_PI_HOST, MARENGO_INSTALL_ROOT (remote staging, default ~/marengo)" >&2
+  echo "Usage: $0 [--install] [--skip-consul] [user@host]" >&2
+  echo "  --install      run sudo install-pi.sh on the Pi after rsync" >&2
+  echo "  --skip-consul  skip consul npm build (binary-only deploy)" >&2
+  echo "  Env: MARENGO_PI_HOST, MARENGO_INSTALL_ROOT, MARENGO_DEPLOY_VERBOSE=1" >&2
 }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --install)
       DO_INSTALL=true
+      shift
+      ;;
+    --skip-consul)
+      SKIP_CONSUL=true
       shift
       ;;
     -h | --help)
@@ -34,21 +44,32 @@ if [[ -z "$PI_HOST" ]]; then
   PI_HOST="${MARENGO_PI_HOST:-}"
 fi
 
+if [[ "${MARENGO_SKIP_CONSUL:-}" == 1 ]]; then
+  SKIP_CONSUL=true
+fi
+
 ensure_cross_toolchain() {
   if command -v aarch64-linux-gnu-gcc >/dev/null 2>&1; then
+    log_step "Cross toolchain: $(command -v aarch64-linux-gnu-gcc)"
     return 0
   fi
   if [[ "$(uname -s)" == "Darwin" ]]; then
-    echo "Cross linker missing — running scripts/setup-mac-pi-cross.sh ..."
+    log_step "Cross linker missing — running setup-mac-pi-cross.sh"
     "${ROOT}/scripts/setup-mac-pi-cross.sh"
     return 0
   fi
-  echo "error: aarch64-linux-gnu-gcc not found (use: just deploy-pi-docker, or Docker dev image)" >&2
+  echo "error: aarch64-linux-gnu-gcc not found" >&2
+  echo "  WSL2: ./scripts/setup-wsl-pi-cross.sh then ./scripts/deploy-pi.sh" >&2
+  echo "  Windows: ./scripts/deploy-pi-docker.sh (cached compose volumes)" >&2
   exit 1
 }
 
-# Host-mounted consul/node_modules (e.g. Windows npm on Linux Docker bind mount) ships the
-# wrong @bufbuild/buf platform binary. Reinstall when the local buf wrapper cannot run.
+consul_lock_hash() {
+  sha256sum package-lock.json | awk '{print $1}'
+}
+
+# Host-mounted consul/node_modules (Windows npm on Linux bind mount) ships the wrong
+# @bufbuild/buf binary. Reinstall only when buf fails or package-lock changed.
 ensure_consul_deps() {
   (
     cd "${ROOT}/consul"
@@ -56,21 +77,48 @@ ensure_consul_deps() {
       echo "error: consul/package-lock.json missing" >&2
       exit 1
     fi
+    local stamp=".marengo-npm-stamp"
+    local hash
+    hash="$(consul_lock_hash)"
     if [[ -d node_modules ]] && node_modules/.bin/buf --version >/dev/null 2>&1; then
-      return 0
+      if [[ -f "$stamp" ]] && [[ "$(cat "$stamp")" == "$hash" ]]; then
+        log_step "Consul deps OK (cached, lock ${hash:0:8}…)"
+        return 0
+      fi
+      log_step "Consul deps present but lock changed — npm ci"
+    else
+      log_step "Consul deps missing or wrong platform — npm ci"
     fi
-    echo "Consul node_modules missing or wrong platform — running npm ci ..."
     rm -rf node_modules
     npm ci
     if ! node_modules/.bin/buf --version >/dev/null 2>&1; then
       echo "error: buf still unavailable after npm ci" >&2
       exit 1
     fi
+    echo "$hash" >"$stamp"
+    log_step "Consul deps installed"
   )
 }
 
+consul_assets_fresh() {
+  local dist="${ROOT}/consul/dist/index.html"
+  [[ -f "$dist" ]] || return 1
+  if find "${ROOT}/consul/src" "${ROOT}/proto" -type f -newer "$dist" 2>/dev/null | grep -q .; then
+    return 1
+  fi
+  return 0
+}
+
 build_consul_assets() {
-  echo "Building Consul static assets..."
+  if [[ "$SKIP_CONSUL" == true ]]; then
+    log_step "Skipping Consul build (--skip-consul)"
+    return 0
+  fi
+  if consul_assets_fresh; then
+    log_step "Consul dist up to date — skipping npm build"
+    return 0
+  fi
+  log_step "Building Consul static assets"
   ensure_consul_deps
   (
     cd "${ROOT}/consul"
@@ -80,26 +128,34 @@ build_consul_assets() {
     echo "error: consul build did not produce dist/index.html" >&2
     exit 1
   fi
+  log_step "Consul build done"
 }
 
 cd "$ROOT"
+
+if [[ -z "${MARENGO_DEPLOY_VIA_COMPOSE:-}" ]] && ! command -v aarch64-linux-gnu-gcc >/dev/null 2>&1 && [[ "$(uname -s)" != Darwin ]]; then
+  log_warn "No native cross GCC — use ./scripts/deploy-pi-docker.sh or ./scripts/setup-wsl-pi-cross.sh"
+fi
+
 ensure_cross_toolchain
 
-echo "Building marengo-pi + marengo-gateway + motor-repl + imu-probe for ${TARGET}..."
+log_step "cargo build (release, ${TARGET})"
+log_note "Packages: marengo-pi, marengo-gateway, motor-repl, imu-probe"
 cargo build --release --target "$TARGET" -p marengo-pi -p marengo-gateway -p motor-repl -p imu-probe --features socketcan,linux-i2c
+log_step "cargo build done"
 
 build_consul_assets
 
 if [[ -z "$PI_HOST" ]]; then
-  echo "Built:"
+  log_step "Build complete (no deploy host)"
   echo "  ${ROOT}/target/${TARGET}/release/marengo-pi"
   echo "  ${ROOT}/target/${TARGET}/release/motor-repl"
   echo ""
   echo "Deploy: $0 [--install] joey@marengo.local"
-  echo "  or on Pi: git clone + native cargo build + sudo scripts/install-pi.sh"
   exit 0
 fi
 
+log_step "Staging deploy bundle"
 STAGING="$(mktemp -d)"
 trap 'rm -rf "$STAGING"' EXIT
 
@@ -112,31 +168,27 @@ rsync -a "${ROOT}/config/" "$STAGING/config/"
 rsync -a "${ROOT}/assets/" "$STAGING/assets/"
 rsync -a "${ROOT}/scripts/" "$STAGING/scripts/"
 mkdir -p "$STAGING/www"
-rsync -a --delete "${ROOT}/consul/dist/" "$STAGING/www/"
+if [[ -d "${ROOT}/consul/dist" ]]; then
+  rsync -a --delete "${ROOT}/consul/dist/" "$STAGING/www/"
+fi
 
 REMOTE_ROOT="${MARENGO_INSTALL_ROOT:-~/marengo}"
-echo "Syncing to ${PI_HOST}:${REMOTE_ROOT}/ ..."
+log_step "rsync → ${PI_HOST}:${REMOTE_ROOT}/"
 rsync -av --delete \
   "$STAGING/" \
   "${PI_HOST}:${REMOTE_ROOT}/"
 
 if [[ "$DO_INSTALL" == true ]]; then
-  echo "Installing on Pi (sudo install-pi.sh → /opt/marengo)..."
+  log_step "install-pi.sh on ${PI_HOST}"
   if ssh "$PI_HOST" "sudo -n true" 2>/dev/null; then
     ssh "$PI_HOST" "set -euo pipefail; sudo ${REMOTE_ROOT}/scripts/install-pi.sh"
     ssh "$PI_HOST" "echo \$(git -C /opt/marengo rev-parse HEAD 2>/dev/null || echo unknown) \$(date -u +%Y-%m-%dT%H:%M:%SZ) > ${REMOTE_ROOT}/.deploy-rev && cat ${REMOTE_ROOT}/.deploy-rev" || true
   else
-    echo ""
-    echo "warn: passwordless sudo not available — on the Pi (already logged in), run:"
+    log_warn "passwordless sudo not available on Pi"
     echo "  sudo ${REMOTE_ROOT}/scripts/install-pi.sh"
-    echo ""
-    echo "If install-pi.sh is missing, re-run deploy from Mac: just deploy-pi"
-    echo "Quick binary-only fix on Pi:"
-    echo "  sudo install -m 755 ${REMOTE_ROOT}/target/release/marengo-pi /opt/marengo/bin/marengo-pi"
-    echo "  sudo install -m 755 ${REMOTE_ROOT}/target/release/motor-repl /opt/marengo/bin/motor-repl"
   fi
 else
-  echo "On the Pi:"
-  echo "  cd ${REMOTE_ROOT} && sudo MARENGO_INSTALL_ROOT=/opt/marengo ./scripts/install-pi.sh"
-  echo "Or re-run from Mac: $0 --install ${PI_HOST}"
+  echo "On the Pi: sudo ${REMOTE_ROOT}/scripts/install-pi.sh"
 fi
+
+log_step "deploy complete"

@@ -44,6 +44,14 @@ deploy-pi host="joey@marengo.local":
 deploy-pi-docker host="joey@marengo.local":
     ./scripts/deploy-pi-docker.sh {{host}}
 
+# Fast binary-only deploy via Docker (skip consul npm build).
+deploy-pi-docker-binaries host="joey@marengo.local":
+    MARENGO_SKIP_CONSUL=1 ./scripts/deploy-pi-docker.sh {{host}}
+
+# WSL2 native cross-build (no Docker) — run once: ./scripts/setup-wsl-pi-cross.sh
+deploy-pi-wsl host="joey@marengo.local":
+    ./scripts/deploy-pi.sh --install {{host}}
+
 # Rebuild Marengo Pi MCP server (Cursor: restart marengo-pi MCP after this)
 mcp-build:
     cd tools/marengo-pi-mcp && npm install && npm run build

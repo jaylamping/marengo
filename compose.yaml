@@ -9,6 +9,7 @@ services:
       - .:/workspace
       - cargo-target:/workspace/target
       - cargo-registry:/usr/local/cargo/registry
+      - cargo-git:/usr/local/cargo/git
       - consul-node-modules:/workspace/consul/node_modules
     stdin_open: true
     tty: true
@@ -24,6 +25,7 @@ services:
       - .:/workspace
       - cargo-target:/workspace/target
       - cargo-registry:/usr/local/cargo/registry
+      - cargo-git:/usr/local/cargo/git
       - consul-node-modules:/workspace/consul/node_modules
     command: ["./scripts/check.sh"]
 
@@ -81,6 +83,7 @@ services:
       - .:/workspace
       - cargo-target:/workspace/target
       - cargo-registry:/usr/local/cargo/registry
+      - cargo-git:/usr/local/cargo/git
       - consul-node-modules:/workspace/consul/node_modules
     stdin_open: true
     tty: true
@@ -88,4 +91,5 @@ services:
 volumes:
   cargo-target:
   cargo-registry:
+  cargo-git:
   consul-node-modules:

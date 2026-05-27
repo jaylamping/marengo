@@ -43,9 +43,15 @@ git lfs install && git lfs pull
 ./scripts/deploy-pi.sh --install joey@marengo.local
 # or: just deploy-pi
 
-# Windows (no native aarch64 GCC): deploy via dev container
+# Windows (no native aarch64 GCC): deploy via dev container (cached volumes + live logs)
 ./scripts/deploy-pi-docker.sh joey@marengo.local
 # or: just deploy-pi-docker
+# Binary-only (faster): just deploy-pi-docker-binaries
+# Verbose: MARENGO_DEPLOY_VERBOSE=1 just deploy-pi-docker
+
+# WSL2 (recommended for daily work): native cross-build on ext4 — see docs/wsl-setup.md
+./scripts/setup-wsl-pi-cross.sh
+just deploy-pi-wsl
 
 cargo build --workspace
 cd consul && npm ci && npm run gen:proto

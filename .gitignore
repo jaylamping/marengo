@@ -22,6 +22,7 @@ hardware/electrical/**/-backups/
 
 # Frontend
 consul/node_modules/
+consul/.marengo-npm-stamp
 tools/marengo-pi-mcp/node_modules/
 tools/marengo-pi-mcp/dist/
 consul/dist/

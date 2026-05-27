@@ -35,6 +35,8 @@
 |---------|-----|
 | `linker aarch64-linux-gnu-gcc not found` | On Mac: `./scripts/setup-mac-pi-cross.sh` then `just deploy-pi`. On Windows: `just deploy-pi-docker` (or `./scripts/deploy-pi-docker.sh`). |
 | `deploy-pi.sh` / `buf` `ENOENT` on `downloaded-*-linux-x64-buf` | Host `consul/node_modules` from Windows npm inside Linux Docker — `deploy-pi.sh` re-runs `npm ci` when buf fails; prefer `just deploy-pi-docker` (uses Linux `consul-node-modules` volume). |
+| Deploy re-downloads all crates every time | Bare `docker run -v .:/workspace` skips named volumes. Use `just deploy-pi-docker` only. First run ~2–5 min; incremental runs reuse `cargo-target` + `cargo-registry`. |
+| Deploy shows no output / looks frozen | PowerShell pipes buffer Docker. Run `just deploy-pi-docker` unfiltered; set `MARENGO_DEPLOY_VERBOSE=1` for npm/cargo detail. Steps log as `==> [mm:ss] …`. |
 | Wrong glibc on device | Match Debian/bookworm-based images to Pi OS / JetPack versions. |
 
 ## Proto / Consul codegen
