@@ -170,8 +170,8 @@ impl<B: I2cBus> Bno085<B> {
     fn handle_packet(&mut self, packet: ShtpPacket) -> Result<(), ImuError> {
         if packet.channel == CHANNEL_CONTROL {
             for report in packet.reports()? {
-                if report.first() == Some(&GET_FEATURE_RESPONSE) && report.len() >= 6 {
-                    let feature_id = report[5];
+                if report.first() == Some(&GET_FEATURE_RESPONSE) && report.len() >= 2 {
+                    let feature_id = report[1];
                     if !self.enabled_features.contains(&feature_id) {
                         self.enabled_features.push(feature_id);
                     }
@@ -328,7 +328,7 @@ mod tests {
         let mut bus = MockI2cBus::default();
         let mut report = [0u8; 17];
         report[0] = GET_FEATURE_RESPONSE;
-        report[5] = REPORT_ROTATION_VECTOR;
+        report[1] = REPORT_ROTATION_VECTOR;
         let mut packet = vec![0u8; 21];
         let len = build_outgoing_packet(CHANNEL_CONTROL, 1, &report, &mut packet);
         packet.truncate(len);

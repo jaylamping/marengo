@@ -12,6 +12,7 @@ pub const SET_FEATURE_COMMAND: u8 = 0xFD;
 pub const GET_FEATURE_RESPONSE: u8 = 0xFC;
 pub const SHTP_REPORT_PRODUCT_ID_REQUEST: u8 = 0xF9;
 pub const SHTP_REPORT_PRODUCT_ID_RESPONSE: u8 = 0xF8;
+pub const COMMAND_RESPONSE: u8 = 0xF1;
 
 pub const REPORT_ACCELEROMETER: u8 = 0x01;
 pub const REPORT_GYROSCOPE: u8 = 0x02;
@@ -83,7 +84,7 @@ pub fn report_payload_length(report_id: u8) -> Option<usize> {
         REPORT_ROTATION_VECTOR => Some(14),
         REPORT_TIMESTAMP_REBASE | REPORT_BASE_TIMESTAMP => Some(5),
         GET_FEATURE_RESPONSE => Some(17),
-        SHTP_REPORT_PRODUCT_ID_RESPONSE => Some(16),
+        SHTP_REPORT_PRODUCT_ID_RESPONSE | COMMAND_RESPONSE => Some(16),
         _ => None,
     }
 }
