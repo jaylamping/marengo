@@ -11,7 +11,7 @@
       "command": "node",
       "args": ["${workspaceFolder}/tools/marengo-pi-mcp/dist/index.js"],
       "env": {
-        "MARENGO_PI_HOST": "marengo.local",
+        "MARENGO_PI_HOST": "joey-robot.tail0b414.ts.net",
         "MARENGO_PI_USER": "joey",
         "MARENGO_PI_ROOT": "/opt/marengo",
         "MARENGO_CONFIG_DIR": "/opt/marengo/config/bringup/shoulder_pitch_right_only",
