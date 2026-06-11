@@ -162,7 +162,7 @@ jobs:
       - name: vcan integration tests
         run: |
           mkdir -p .ci-cache/cargo/registry .ci-cache/cargo/git target
-          ip -details link show vcan0 vcan1
+          for iface in vcan0 vcan1; do ip -details link show "${iface}"; done
           docker run --rm --privileged --network host \
             -v "${{ github.workspace }}:/workspace" \
             -v "${{ github.workspace }}/.ci-cache/cargo/registry:/usr/local/cargo/registry" \
@@ -172,4 +172,4 @@ jobs:
             -w /workspace \
             -e MARENGO_USER=root \
             marengo-dev:local \
-            bash -c './scripts/vcan-up.sh && ip -details link show vcan0 vcan1 && cargo test -p robstride --features socketcan -- --ignored'
+            bash -c 'for iface in vcan0 vcan1; do ip -details link show "${iface}"; done && cargo test -p robstride --features socketcan -- --ignored'
