@@ -162,11 +162,13 @@ jobs:
       - name: vcan integration tests
         run: |
           mkdir -p .ci-cache/cargo/registry .ci-cache/cargo/git target
+          ip -details link show vcan0 vcan1
           docker run --rm --privileged --network host \
             -v "${{ github.workspace }}:/workspace" \
             -v "${{ github.workspace }}/.ci-cache/cargo/registry:/usr/local/cargo/registry" \
             -v "${{ github.workspace }}/.ci-cache/cargo/git:/usr/local/cargo/git" \
             -v "${{ github.workspace }}/target:/workspace/target" \
+            -v /lib/modules:/lib/modules:ro \
             -w /workspace \
             -e MARENGO_USER=root \
             marengo-dev:local \

@@ -7,6 +7,11 @@ if [[ "$(uname -s)" != "Linux" ]]; then
   exit 1
 fi
 
+fail() {
+  echo "vcan-up: $*" >&2
+  exit 1
+}
+
 ensure_vcan_support() {
   if modprobe vcan 2>/dev/null; then
     return 0
@@ -20,17 +25,27 @@ ensure_vcan_support() {
     return 0
   fi
 
-  echo "vcan-up: vcan unavailable (modprobe failed and cannot create vcan link)" >&2
-  return 1
+  fail "vcan unavailable (modprobe failed and cannot create vcan link)"
 }
 
-ensure_vcan_support || exit 1
+need_create=false
+for iface in vcan0 vcan1; do
+  if ! ip link show "${iface}" &>/dev/null; then
+    need_create=true
+    break
+  fi
+done
+
+if [[ "${need_create}" == true ]]; then
+  ensure_vcan_support
+fi
 
 for iface in vcan0 vcan1; do
   if ! ip link show "${iface}" &>/dev/null; then
-    ip link add dev "${iface}" type vcan
+    ip link add dev "${iface}" type vcan \
+      || fail "failed to create ${iface} (is vcan loaded on the host?)"
   fi
-  ip link set up "${iface}"
+  ip link set up "${iface}" || fail "failed to bring ${iface} up"
 
   echo "${iface} is up"
   ip -details link show "${iface}"
