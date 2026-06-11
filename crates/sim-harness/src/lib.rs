@@ -42,7 +42,7 @@ mod tests {
     #[test]
     fn default_fixture_exists() {
         let p = default_model_path();
-        assert!(model_exists(&p), "missing {:?} — run from repo root", p);
+        assert!(model_exists(&p), "missing {p:?} — run from repo root");
     }
 
     #[test]
@@ -61,8 +61,8 @@ mod tests {
     fn production_urdf_and_mjcf_dof_match() {
         let urdf_path = fixtures::production_urdf();
         let mjcf_path = production_model_path();
-        assert!(model_exists(&urdf_path), "missing {:?}", urdf_path);
-        assert!(model_exists(&mjcf_path), "missing {:?}", mjcf_path);
+        assert!(model_exists(&urdf_path), "missing {urdf_path:?}");
+        assert!(model_exists(&mjcf_path), "missing {mjcf_path:?}");
         let robot = load_urdf(&urdf_path).expect("production urdf");
         let urdf_dof = actuated_joint_count(&robot);
         let mjcf = std::fs::read_to_string(&mjcf_path).expect("production mjcf");
@@ -74,8 +74,8 @@ mod tests {
     fn arm_4dof_urdf_and_mjcf_dof_match() {
         let urdf_path = fixtures::arm_4dof_urdf();
         let mjcf_path = arm_4dof_model_path();
-        assert!(model_exists(&urdf_path), "missing {:?}", urdf_path);
-        assert!(model_exists(&mjcf_path), "missing {:?}", mjcf_path);
+        assert!(model_exists(&urdf_path), "missing {urdf_path:?}");
+        assert!(model_exists(&mjcf_path), "missing {mjcf_path:?}");
         let robot = load_urdf(&urdf_path).expect("arm_4dof urdf");
         let urdf_dof = actuated_joint_count(&robot);
         let mjcf = std::fs::read_to_string(&mjcf_path).expect("arm_4dof mjcf");

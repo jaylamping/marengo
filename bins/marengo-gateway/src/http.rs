@@ -128,9 +128,8 @@ async fn stream_chappe(
         let _ = framing::pump_envelope_stream(rx, &topics_clone, &mut writer).await;
     });
 
-    let stream = ReaderStream::new(reader).map(|chunk| {
-        chunk.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
-    });
+    let stream = ReaderStream::new(reader)
+        .map(|chunk| chunk.map_err(|e| std::io::Error::other(e.to_string())));
 
     let mut headers = HeaderMap::new();
     if let Ok(value) = header::HeaderValue::from_str(CHAPPE_STREAM_CONTENT_TYPE) {

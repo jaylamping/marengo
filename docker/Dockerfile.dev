@@ -1,5 +1,5 @@
 # Marengo development image — source of truth for CI, Compose, and Dev Container.
-FROM rust:1.85.0-bookworm
+FROM rust:1.88.0-bookworm
 
 ARG PROTOC_VERSION=28.3
 ARG NODE_MAJOR=22
@@ -47,7 +47,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && npm --version \
     && git lfs install
 
-# cargo-deny 0.16.x matches Rust 1.85; advisory-db pinned before CVSS 4.0 entries (cargo-deny 0.16 cannot parse them)
+# cargo-deny 0.16.x; advisory-db pinned before CVSS 4.0 entries (cargo-deny 0.16 cannot parse them)
 ARG ADVISORY_DB_REV=808b5a554ded31fe41863ecf7c9abf4c26e8cfcd
 RUN cargo install cargo-deny --locked --version 0.16.3 \
     && cargo install cargo-audit --locked \
