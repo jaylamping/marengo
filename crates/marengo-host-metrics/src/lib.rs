@@ -342,7 +342,7 @@ mod linux {
                 } else {
                     0.0
                 };
-                let read_only = cols.iter().any(|c| *c == "ro");
+                let read_only = cols.contains(&"ro");
                 Some(DiskMetrics {
                     mount_point: (*mount).to_string(),
                     filesystem: cols[0].to_string(),

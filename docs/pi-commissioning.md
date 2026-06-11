@@ -96,7 +96,7 @@ See [hardware/electrical/wiring/harness.md](../hardware/electrical/wiring/harnes
 ```bash
 git clone <repo-url> ~/marengo
 cd ~/marengo && git lfs pull
-# Install Rust 1.85.0 + protoc (see docs/dev-setup.md native section)
+# Install Rust 1.88.0 + protoc (see docs/dev-setup.md native section)
 cargo build -p motor-repl -p marengo-pi --features socketcan --release
 sudo ./scripts/install-pi.sh
 ```

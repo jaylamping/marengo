@@ -9,7 +9,7 @@ Contributors use macOS, Windows (WSL2), and Linux. Host-installed `protoc`, `buf
 
 ## Decision
 
-- **Single dev image:** [`docker/Dockerfile.dev`](../../docker/Dockerfile.dev) pins Rust 1.85, protoc 28.3, Node 22, cross toolchain, and vcan tools. Advisory DB for `cargo-deny` is pinned in-image (pre-CVSS-4.0) via [`deny.toml`](../../deny.toml).
+- **Single dev image:** [`docker/Dockerfile.dev`](../../docker/Dockerfile.dev) pins Rust 1.88, protoc 28.3, Node 22, cross toolchain, and vcan tools. Advisory DB for `cargo-deny` is pinned in-image (pre-CVSS-4.0) via [`deny.toml`](../../deny.toml).
 - **CI parity:** GitHub Actions runs [`scripts/check.sh`](../../scripts/check.sh) inside that image.
 - **Compose** services: `dev`, `check`, optional profiles `vcan` and `sim`.
 - **Dev Container** (Cursor / VS Code) uses the same Dockerfile; optional for editors that support it.

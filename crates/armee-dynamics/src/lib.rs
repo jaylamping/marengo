@@ -98,9 +98,7 @@ mod tests {
         let tau_up = model.gravity_torques(&q_up).expect("up");
         assert!(
             (tau_up[3] - tau_down[3]).abs() > 0.05,
-            "elbow torque should change between poses: down={:?} up={:?}",
-            tau_down,
-            tau_up
+            "elbow torque should change between poses: down={tau_down:?} up={tau_up:?}",
         );
     }
 }
