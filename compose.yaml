@@ -55,7 +55,7 @@ services:
       - cargo-target:/workspace/target
       - consul-node-modules:/workspace/consul/node_modules
     network_mode: host
-    command: ["bash", "-c", "./scripts/vcan-up.sh && cargo test -p robstride --features socketcan -- --ignored"]
+    command: ["bash", "-c", "./scripts/vcan-up.sh && ip -details link show vcan0 vcan1 && cargo test -p robstride --features socketcan -- --ignored"]
 
   check-sim:
     profiles: [sim]

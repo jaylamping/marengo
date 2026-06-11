@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 # Prepare GitHub Actions runners for vcan SocketCAN tests.
+# CAN is required in CI — this script fails loudly if vcan cannot be brought up.
 set -euo pipefail
+
+fail() {
+  echo "vcan host setup: FAILED — $*" >&2
+  echo "CAN integration tests require working vcan support; do not skip or bypass this job." >&2
+  exit 1
+}
 
 probe_vcan() {
   sudo ip link add dev vcan-ci-probe type vcan
@@ -11,16 +18,17 @@ load_vcan_module() {
   sudo modprobe vcan
 }
 
-if load_vcan_module 2>/dev/null && probe_vcan 2>/dev/null; then
+if load_vcan_module && probe_vcan; then
   echo "vcan host setup: ok"
   exit 0
 fi
 
 kernel_release="$(uname -r)"
-echo "==> vcan unavailable; installing linux-modules-extra-${kernel_release}"
+echo "==> vcan module not loaded; installing linux-modules-extra-${kernel_release}"
 sudo apt-get update -qq
-sudo apt-get install -y --no-install-recommends "linux-modules-extra-${kernel_release}"
+sudo apt-get install -y --no-install-recommends "linux-modules-extra-${kernel_release}" \
+  || fail "linux-modules-extra-${kernel_release} is not available on this runner"
 
-load_vcan_module
-probe_vcan
+load_vcan_module || fail "modprobe vcan failed after installing linux-modules-extra"
+probe_vcan || fail "ip link type vcan probe failed — kernel lacks CAN support"
 echo "vcan host setup: ok"

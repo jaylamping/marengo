@@ -7,7 +7,10 @@ if [[ "$(uname -s)" != "Linux" ]]; then
   exit 1
 fi
 
-modprobe vcan 2>/dev/null || true
+if ! modprobe vcan; then
+  echo "vcan-up: failed to load vcan kernel module (required for SocketCAN tests)" >&2
+  exit 1
+fi
 
 for iface in vcan0 vcan1; do
   if ! ip link show "${iface}" &>/dev/null; then

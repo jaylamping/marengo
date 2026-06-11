@@ -117,6 +117,7 @@ jobs:
             marengo-sim:local \
             ./scripts/check-sim.sh
 
+  # Required gate: virtual CAN must work (same path as production SocketCAN via vcan0/vcan1).
   vcan:
     runs-on: ubuntu-latest
     needs: check
@@ -169,4 +170,4 @@ jobs:
             -w /workspace \
             -e MARENGO_USER=root \
             marengo-dev:local \
-            bash -c './scripts/vcan-up.sh && cargo test -p robstride --features socketcan -- --ignored'
+            bash -c './scripts/vcan-up.sh && ip -details link show vcan0 vcan1 && cargo test -p robstride --features socketcan -- --ignored'
