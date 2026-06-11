@@ -26,13 +26,26 @@ cmd_reports_version() {
   command -v "${cmd}" >/dev/null 2>&1 && "${cmd}" --version 2>&1 | grep -qF "${expected}"
 }
 
+protoc_arch() {
+  case "$(uname -m)" in
+    aarch64 | arm64) echo "aarch_64" ;;
+    x86_64 | amd64) echo "x86_64" ;;
+    *)
+      echo "setup-cloud: unsupported CPU architecture for protoc: $(uname -m)" >&2
+      exit 1
+      ;;
+  esac
+}
+
 install_protoc() {
+  local protoc_arch
+  protoc_arch="$(protoc_arch)"
   if ! command -v unzip >/dev/null 2>&1; then
     ${SUDO} apt-get update -qq
     ${SUDO} apt-get install -y --no-install-recommends unzip
   fi
   curl -fsSL \
-    "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip" \
+    "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-${protoc_arch}.zip" \
     -o /tmp/protoc.zip
   ${SUDO} unzip -q -o /tmp/protoc.zip -d /usr/local
   rm -f /tmp/protoc.zip
