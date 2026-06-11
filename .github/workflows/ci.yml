@@ -156,12 +156,12 @@ jobs:
           cache-to: type=gha,scope=dev-image,mode=max
 
       - name: Load vcan kernel module
-        run: sudo modprobe vcan
+        run: ./scripts/ci-vcan-host-setup.sh
 
       - name: vcan integration tests
         run: |
           mkdir -p .ci-cache/cargo/registry .ci-cache/cargo/git target
-          docker run --rm --privileged \
+          docker run --rm --privileged --network host \
             -v "${{ github.workspace }}:/workspace" \
             -v "${{ github.workspace }}/.ci-cache/cargo/registry:/usr/local/cargo/registry" \
             -v "${{ github.workspace }}/.ci-cache/cargo/git:/usr/local/cargo/git" \
