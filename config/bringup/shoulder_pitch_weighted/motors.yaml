@@ -1,5 +1,6 @@
 # Dual shoulder pitch — same commissioned bus map as shoulder_pitch_dual.
 # Update loaded side mass/COM in shoulder_pitch_weighted.urdf after scale measurement.
+# See docs/bench-weighted-gravity-sign.md and scripts/bench-set-weighted-mass.sh.
 motors:
   - joint: left_shoulder_pitch
     driver: robstride

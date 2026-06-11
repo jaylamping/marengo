@@ -1,6 +1,27 @@
 import type { BenchProfile, MarengoPiConfig } from "../config.js";
 import { sudoCanUpCommand } from "../config.js";
-import { shellQuote, wrapRemote } from "../env.js";
+import { shellQuote, wrapRemoteWithConfig } from "../env.js";
+
+const BENCH_CONFIG_WEIGHTED =
+  "/opt/marengo/config/bringup/shoulder_pitch_weighted";
+
+/** Config profile for harness runs; weighted profile must use shoulder_pitch_weighted URDF. */
+export function harnessConfigDir(
+  cfg: MarengoPiConfig,
+  profile: BenchProfile,
+  configDir?: string,
+): string {
+  if (configDir) {
+    if (configDir.startsWith("/") || configDir.startsWith("~/")) {
+      return configDir;
+    }
+    return `${cfg.piRoot}/config/bringup/${configDir}`;
+  }
+  if (profile === "weighted_single_arm" || profile === "arm_attached") {
+    return BENCH_CONFIG_WEIGHTED;
+  }
+  return cfg.configDir;
+}
 
 export interface HarnessStep {
   name: string;
@@ -19,6 +40,7 @@ export interface HarnessResult {
 
 export interface HarnessArgs {
   profile?: BenchProfile;
+  config_dir?: string;
   joints?: string[];
   loaded_joint?: string;
   gravity_angles?: number[];
@@ -35,12 +57,13 @@ function marengoPiPipe(script: string[], timeoutSec: number): string {
 
 function benchSessionWrapper(
   cfg: MarengoPiConfig,
+  configDir: string,
   label: string,
   pipeCmd: string,
   debug: boolean,
 ): string {
   const logDir = `${cfg.piRoot}/var/log`;
-  return wrapRemote(
+  return wrapRemoteWithConfig(
     cfg,
     [
       `LOGDIR=${shellQuote(logDir)}`,
@@ -60,6 +83,7 @@ function benchSessionWrapper(
       "echo \"log=$LOG\"",
       "exit \"$PIPE_STATUS\"",
     ].join("\n"),
+    configDir,
     debug,
   );
 }
@@ -70,11 +94,14 @@ export async function runBenchHarness(
   args: HarnessArgs,
 ): Promise<string> {
   const profile = args.profile ?? cfg.benchProfile;
+  const configDir = harnessConfigDir(cfg, profile, args.config_dir);
   const loadedJoint = args.loaded_joint ?? cfg.loadedJoint;
   const debug = args.debug ?? false;
   const steps: HarnessStep[] = [];
   const faults: string[] = [];
   let logPath: string | undefined;
+
+  const remote = (body: string) => wrapRemoteWithConfig(cfg, body, configDir, debug);
 
   async function step(name: string, body: string, timeoutMs: number): Promise<boolean> {
     const out = await runRemote(body, timeoutMs);
@@ -95,33 +122,31 @@ export async function runBenchHarness(
   }
 
   // 1. health + can up
-  const healthBody = wrapRemote(
-    cfg,
+  const healthBody = remote(
     [
       "ip -br link show type can || true",
       "test -x bin/marengo-pi",
       "cat .deploy-rev 2>/dev/null || true",
     ].join("\n"),
-    debug,
   );
   if (!(await step("health", healthBody, 30_000))) {
     return formatHarnessResult(profile, loadedJoint, steps, faults, logPath);
   }
 
-  const canUpBody = wrapRemote(cfg, sudoCanUpCommand(cfg), debug);
+  const canUpBody = remote(sudoCanUpCommand(cfg));
   if (!(await step("can_up", canUpBody, 60_000))) {
     return formatHarnessResult(profile, loadedJoint, steps, faults, logPath);
   }
 
   // 2. motor-repl status
-  if (!(await step("motor_repl_status", wrapRemote(cfg, "bin/motor-repl status", debug), 30_000))) {
+  if (!(await step("motor_repl_status", remote("bin/motor-repl status"), 30_000))) {
     return formatHarnessResult(profile, loadedJoint, steps, faults, logPath);
   }
 
   // 3. set-zero (skipped by default)
   if (!args.skip_set_zero) {
     for (const joint of ["left_shoulder_pitch", "right_shoulder_pitch"]) {
-      const body = wrapRemote(cfg, `bin/motor-repl set-zero ${joint}`, debug);
+      const body = remote(`bin/motor-repl set-zero ${joint}`);
       if (!(await step(`set_zero_${joint}`, body, 30_000))) {
         return formatHarnessResult(profile, loadedJoint, steps, faults, logPath);
       }
@@ -135,7 +160,7 @@ export async function runBenchHarness(
   }
 
   // 4. gravity-preview 0 0
-  if (!(await step("gravity_preview_0_0", wrapRemote(cfg, "bin/motor-repl gravity-preview 0 0", debug), 30_000))) {
+  if (!(await step("gravity_preview_0_0", remote("bin/motor-repl gravity-preview 0 0"), 30_000))) {
     return formatHarnessResult(profile, loadedJoint, steps, faults, logPath);
   }
 
@@ -157,7 +182,7 @@ export async function runBenchHarness(
 
     for (const s of scripts) {
       const pipeCmd = marengoPiPipe(s.lines, 35);
-      const body = benchSessionWrapper(cfg, s.name, pipeCmd, debug);
+      const body = benchSessionWrapper(cfg, configDir, s.name, pipeCmd, debug);
       if (!(await step(s.name, body, 45_000))) {
         break;
       }
@@ -167,11 +192,7 @@ export async function runBenchHarness(
     for (const a of angles) {
       const q0 = loadedJoint === "left_shoulder_pitch" ? a : 0;
       const q1 = loadedJoint === "right_shoulder_pitch" ? a : 0;
-      const body = wrapRemote(
-        cfg,
-        `bin/motor-repl gravity-preview ${q0} ${q1}`,
-        debug,
-      );
+      const body = remote(`bin/motor-repl gravity-preview ${q0} ${q1}`);
       if (!(await step(`gravity_preview_${a}`, body, 30_000))) {
         return formatHarnessResult(profile, loadedJoint, steps, faults, logPath);
       }
@@ -181,13 +202,13 @@ export async function runBenchHarness(
       ["home", "enable bench", "status", "gravity-on", "status", "disable", "quit"],
       40,
     );
-    const body = benchSessionWrapper(cfg, "weighted_gravity_on", pipeCmd, debug);
+    const body = benchSessionWrapper(cfg, configDir, "weighted_gravity_on", pipeCmd, debug);
     await step("weighted_gravity_on", body, 50_000);
   }
 
   // final disable + status
-  await step("final_disable", wrapRemote(cfg, "bin/motor-repl disable", debug), 15_000);
-  await step("final_status", wrapRemote(cfg, "bin/motor-repl status", debug), 15_000);
+  await step("final_disable", remote("bin/motor-repl disable"), 15_000);
+  await step("final_status", remote("bin/motor-repl status"), 15_000);
 
   return formatHarnessResult(profile, loadedJoint, steps, faults, logPath);
 }

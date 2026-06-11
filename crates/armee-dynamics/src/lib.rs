@@ -101,4 +101,28 @@ mod tests {
             "elbow torque should change between poses: down={tau_down:?} up={tau_up:?}",
         );
     }
+
+    fn shoulder_pitch_joints() -> Vec<String> {
+        vec![
+            "left_shoulder_pitch".to_string(),
+            "right_shoulder_pitch".to_string(),
+        ]
+    }
+
+    #[test]
+    fn weighted_bench_right_heavier_at_pitch() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../assets/urdf/shoulder_pitch_weighted.urdf");
+        let model =
+            gravity_model_from_urdf(&path, &shoulder_pitch_joints()).expect("weighted model");
+        let tau = model
+            .gravity_torques(&[0.0, 0.3])
+            .expect("tau at q_right=0.3");
+        assert!(
+            tau[1].abs() > tau[0].abs(),
+            "loaded right side should see larger |tau_g|: left={} right={}",
+            tau[0],
+            tau[1],
+        );
+    }
 }
