@@ -9,7 +9,7 @@ env:
   CI: true
 
 jobs:
-  # Build the dev image once; check/sim/vcan load it instead of rebuilding.
+  # Build the dev image once and populate the GHA layer cache for downstream jobs.
   build-image:
     runs-on: ubuntu-latest
     steps:
@@ -35,15 +35,6 @@ jobs:
           cache-from: type=gha,scope=dev-image
           cache-to: type=gha,scope=dev-image,mode=max
 
-      - name: Save dev image artifact
-        run: docker save marengo-dev:local | gzip -1 > marengo-dev.tar.gz
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: marengo-dev-image
-          path: marengo-dev.tar.gz
-          retention-days: 1
-
   check:
     runs-on: ubuntu-latest
     needs: build-image
@@ -52,12 +43,24 @@ jobs:
         with:
           lfs: true
 
-      - uses: actions/download-artifact@v4
-        with:
-          name: marengo-dev-image
+      - name: Capture runner uid/gid
+        run: |
+          echo "MARENGO_UID=$(id -u)" >> "$GITHUB_ENV"
+          echo "MARENGO_GID=$(id -g)" >> "$GITHUB_ENV"
 
-      - name: Load dev image
-        run: gunzip -c marengo-dev.tar.gz | docker load
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Load dev image from GHA cache
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.dev
+          load: true
+          tags: marengo-dev:local
+          build-args: |
+            MARENGO_UID=${{ env.MARENGO_UID }}
+            MARENGO_GID=${{ env.MARENGO_GID }}
+          cache-from: type=gha,scope=dev-image
 
       - name: Restore Cargo cache
         uses: actions/cache@v4
@@ -99,12 +102,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/download-artifact@v4
-        with:
-          name: marengo-dev-image
+      - name: Capture runner uid/gid
+        run: |
+          echo "MARENGO_UID=$(id -u)" >> "$GITHUB_ENV"
+          echo "MARENGO_GID=$(id -g)" >> "$GITHUB_ENV"
 
-      - name: Load dev image
-        run: gunzip -c marengo-dev.tar.gz | docker load
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Load dev image from GHA cache
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.dev
+          load: true
+          tags: marengo-dev:local
+          build-args: |
+            MARENGO_UID=${{ env.MARENGO_UID }}
+            MARENGO_GID=${{ env.MARENGO_GID }}
+          cache-from: type=gha,scope=dev-image
 
       - name: Restore Cargo cache
         uses: actions/cache/restore@v4
@@ -140,12 +155,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/download-artifact@v4
-        with:
-          name: marengo-dev-image
+      - name: Capture runner uid/gid
+        run: |
+          echo "MARENGO_UID=$(id -u)" >> "$GITHUB_ENV"
+          echo "MARENGO_GID=$(id -g)" >> "$GITHUB_ENV"
 
-      - name: Load dev image
-        run: gunzip -c marengo-dev.tar.gz | docker load
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Load dev image from GHA cache
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.dev
+          load: true
+          tags: marengo-dev:local
+          build-args: |
+            MARENGO_UID=${{ env.MARENGO_UID }}
+            MARENGO_GID=${{ env.MARENGO_GID }}
+          cache-from: type=gha,scope=dev-image
 
       - name: Restore Cargo cache
         uses: actions/cache/restore@v4
