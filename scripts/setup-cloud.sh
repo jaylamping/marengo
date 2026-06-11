@@ -23,7 +23,7 @@ SUDO="$(need_sudo)"
 cmd_reports_version() {
   local cmd="$1"
   local expected="$2"
-  command -v "${cmd}" >/dev/null 2>&1 && "${cmd}" --version 2>/dev/null | grep -qF "${expected}"
+  command -v "${cmd}" >/dev/null 2>&1 && "${cmd}" --version 2>&1 | grep -qF "${expected}"
 }
 
 install_protoc() {
