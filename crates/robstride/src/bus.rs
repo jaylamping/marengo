@@ -664,8 +664,7 @@ mod socketcan {
     use std::io::ErrorKind;
 
     use ::socketcan::{
-        CanFrame as SocketFrame, CanSocket, EmbeddedFrame, ExtendedId, Frame, Socket,
-        SocketOptions,
+        CanFrame as SocketFrame, CanSocket, EmbeddedFrame, ExtendedId, Frame, Socket, SocketOptions,
     };
 
     fn configure_vcan_loopback(socket: &CanSocket, interface: &str) -> Result<(), BusError> {
