@@ -12,7 +12,6 @@ permissions:
 env:
   CI: true
   DEV_IMAGE: ghcr.io/${{ github.repository_owner }}/marengo-dev
-  DEV_IMAGE_TAG: dev-${{ hashFiles('docker/Dockerfile.dev', 'rust-toolchain.toml') }}
 
 jobs:
   changes:
@@ -45,6 +44,11 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set dev image tag
+        env:
+          DEV_IMAGE_TAG: dev-${{ hashFiles('docker/Dockerfile.dev', 'rust-toolchain.toml') }}
+        run: echo "DEV_IMAGE_TAG=${DEV_IMAGE_TAG}" >> "$GITHUB_ENV"
 
       - name: Capture runner uid/gid
         run: |
@@ -84,6 +88,11 @@ jobs:
         with:
           lfs: true
           fetch-depth: 0
+
+      - name: Set dev image tag
+        env:
+          DEV_IMAGE_TAG: dev-${{ hashFiles('docker/Dockerfile.dev', 'rust-toolchain.toml') }}
+        run: echo "DEV_IMAGE_TAG=${DEV_IMAGE_TAG}" >> "$GITHUB_ENV"
 
       - name: Capture runner uid/gid
         run: |
@@ -172,6 +181,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set dev image tag
+        env:
+          DEV_IMAGE_TAG: dev-${{ hashFiles('docker/Dockerfile.dev', 'rust-toolchain.toml') }}
+        run: echo "DEV_IMAGE_TAG=${DEV_IMAGE_TAG}" >> "$GITHUB_ENV"
+
       - name: Capture runner uid/gid
         run: |
           echo "MARENGO_UID=$(id -u)" >> "$GITHUB_ENV"
@@ -250,6 +264,11 @@ jobs:
     needs: build-image
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set dev image tag
+        env:
+          DEV_IMAGE_TAG: dev-${{ hashFiles('docker/Dockerfile.dev', 'rust-toolchain.toml') }}
+        run: echo "DEV_IMAGE_TAG=${DEV_IMAGE_TAG}" >> "$GITHUB_ENV"
 
       - name: Capture runner uid/gid
         run: |

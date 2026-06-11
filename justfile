@@ -32,7 +32,7 @@ sim-check: build
     docker compose build check-sim
     docker compose --profile sim run --rm check-sim
 
-# Host-native check (requires local toolchain)
+# Host-native check (requires local toolchain; cloud: run setup-cloud.sh first)
 check-native:
     ./scripts/check.sh
 
