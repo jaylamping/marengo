@@ -5,13 +5,44 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+  packages: read
+
 env:
   CI: true
+  DEV_IMAGE: ghcr.io/${{ github.repository_owner }}/marengo-dev
+  DEV_IMAGE_TAG: dev-${{ hashFiles('docker/Dockerfile.dev', 'rust-toolchain.toml') }}
 
 jobs:
-  # Build the dev image once and populate the GHA layer cache for downstream jobs.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      sim: ${{ steps.filter.outputs.sim }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            sim:
+              - 'sim/**'
+              - 'crates/sim-harness/**'
+              - 'docker/Dockerfile.sim'
+              - 'scripts/check-sim.sh'
+              - 'Cargo.lock'
+              - 'Cargo.toml'
+              - 'crates/**'
+              - 'bins/**'
+              - 'proto/**'
+              - '.github/workflows/ci.yml'
+
+  # Build once, push to GHCR (same-repo pushes/PRs), populate GHA layer cache.
   build-image:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
 
@@ -22,17 +53,27 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
-      - name: Build dev image
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push dev image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: docker/Dockerfile.dev
-          load: true
-          tags: marengo-dev:local
+          push: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+          tags: |
+            ${{ env.DEV_IMAGE }}:${{ env.DEV_IMAGE_TAG }}
+            ${{ env.DEV_IMAGE }}:latest
           build-args: |
             MARENGO_UID=${{ env.MARENGO_UID }}
             MARENGO_GID=${{ env.MARENGO_GID }}
-          cache-from: type=gha,scope=dev-image
+          cache-from: |
+            type=gha,scope=dev-image
+            type=registry,ref=${{ env.DEV_IMAGE }}:latest
           cache-to: type=gha,scope=dev-image,mode=max
 
   check:
@@ -51,7 +92,31 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
-      - name: Load dev image from GHA cache
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve dev image
+        id: dev-image
+        run: |
+          set -euo pipefail
+          tagged="${{ env.DEV_IMAGE }}:${{ env.DEV_IMAGE_TAG }}"
+          if docker pull "${tagged}"; then
+            docker tag "${tagged}" marengo-dev:local
+            echo "source=ghcr" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if docker pull "${{ env.DEV_IMAGE }}:latest"; then
+            docker tag "${{ env.DEV_IMAGE }}:latest" marengo-dev:local
+            echo "source=ghcr-latest" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "source=build" >> "$GITHUB_OUTPUT"
+
+      - name: Build dev image fallback
+        if: steps.dev-image.outputs.source == 'build'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -61,7 +126,9 @@ jobs:
           build-args: |
             MARENGO_UID=${{ env.MARENGO_UID }}
             MARENGO_GID=${{ env.MARENGO_GID }}
-          cache-from: type=gha,scope=dev-image
+          cache-from: |
+            type=gha,scope=dev-image
+            type=registry,ref=${{ env.DEV_IMAGE }}:latest
 
       - name: Restore Cargo cache
         uses: actions/cache@v4
@@ -93,13 +160,15 @@ jobs:
             -w /workspace \
             -e CI=true \
             -e GITHUB_EVENT_NAME="${{ github.event_name }}" \
+            -e GITHUB_REF="${{ github.ref }}" \
             -e GITHUB_REPOSITORY="${{ github.repository }}" \
             marengo-dev:local \
             ./scripts/check.sh
 
   sim:
     runs-on: ubuntu-latest
-    needs: build-image
+    needs: [build-image, changes]
+    if: github.event_name == 'push' || needs.changes.outputs.sim == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -110,7 +179,31 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
-      - name: Load dev image from GHA cache
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve dev image
+        id: dev-image
+        run: |
+          set -euo pipefail
+          tagged="${{ env.DEV_IMAGE }}:${{ env.DEV_IMAGE_TAG }}"
+          if docker pull "${tagged}"; then
+            docker tag "${tagged}" marengo-dev:local
+            echo "source=ghcr" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if docker pull "${{ env.DEV_IMAGE }}:latest"; then
+            docker tag "${{ env.DEV_IMAGE }}:latest" marengo-dev:local
+            echo "source=ghcr-latest" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "source=build" >> "$GITHUB_OUTPUT"
+
+      - name: Build dev image fallback
+        if: steps.dev-image.outputs.source == 'build'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -120,7 +213,9 @@ jobs:
           build-args: |
             MARENGO_UID=${{ env.MARENGO_UID }}
             MARENGO_GID=${{ env.MARENGO_GID }}
-          cache-from: type=gha,scope=dev-image
+          cache-from: |
+            type=gha,scope=dev-image
+            type=registry,ref=${{ env.DEV_IMAGE }}:latest
 
       - name: Restore Cargo cache
         uses: actions/cache/restore@v4
@@ -163,7 +258,31 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
-      - name: Load dev image from GHA cache
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve dev image
+        id: dev-image
+        run: |
+          set -euo pipefail
+          tagged="${{ env.DEV_IMAGE }}:${{ env.DEV_IMAGE_TAG }}"
+          if docker pull "${tagged}"; then
+            docker tag "${tagged}" marengo-dev:local
+            echo "source=ghcr" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if docker pull "${{ env.DEV_IMAGE }}:latest"; then
+            docker tag "${{ env.DEV_IMAGE }}:latest" marengo-dev:local
+            echo "source=ghcr-latest" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "source=build" >> "$GITHUB_OUTPUT"
+
+      - name: Build dev image fallback
+        if: steps.dev-image.outputs.source == 'build'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -173,7 +292,9 @@ jobs:
           build-args: |
             MARENGO_UID=${{ env.MARENGO_UID }}
             MARENGO_GID=${{ env.MARENGO_GID }}
-          cache-from: type=gha,scope=dev-image
+          cache-from: |
+            type=gha,scope=dev-image
+            type=registry,ref=${{ env.DEV_IMAGE }}:latest
 
       - name: Restore Cargo cache
         uses: actions/cache/restore@v4
