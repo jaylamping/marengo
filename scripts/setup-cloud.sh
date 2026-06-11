@@ -20,6 +20,14 @@ need_sudo() {
 
 SUDO="$(need_sudo)"
 
+target_owner() {
+  if [[ "${EUID}" -eq 0 && -n "${SUDO_UID:-}" && -n "${SUDO_GID:-}" ]]; then
+    echo "${SUDO_UID}:${SUDO_GID}"
+  else
+    echo "$(id -u):$(id -g)"
+  fi
+}
+
 cmd_reports_version() {
   local cmd="$1"
   local expected="$2"
@@ -95,7 +103,7 @@ fi
 ${SUDO} git -C "${ADVISORY_DB_DIR}" fetch --depth 1 origin "${ADVISORY_DB_REV}" 2>/dev/null || true
 ${SUDO} git -C "${ADVISORY_DB_DIR}" checkout -f "${ADVISORY_DB_REV}"
 ${SUDO} git -C "${ADVISORY_DB_DIR}" clean -fd
-${SUDO} chown -R "$(id -u):$(id -g)" /usr/local/cargo/advisory-db-pinned
+${SUDO} chown -R "$(target_owner)" /usr/local/cargo/advisory-db-pinned
 
 echo "==> workspace bootstrap"
 "${ROOT}/scripts/bootstrap.sh"
