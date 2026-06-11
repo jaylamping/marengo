@@ -42,6 +42,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           lfs: true
+          fetch-depth: 0
 
       - name: Capture runner uid/gid
         run: |
