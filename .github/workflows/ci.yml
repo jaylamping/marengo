@@ -9,12 +9,11 @@ env:
   CI: true
 
 jobs:
-  check:
+  # Build the dev image once; check/sim/vcan load it instead of rebuilding.
+  build-image:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          lfs: true
 
       - name: Capture runner uid/gid
         run: |
@@ -22,18 +21,6 @@ jobs:
           echo "MARENGO_GID=$(id -g)" >> "$GITHUB_ENV"
 
       - uses: docker/setup-buildx-action@v3
-
-      - name: Restore Cargo cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            .ci-cache/cargo/registry
-            .ci-cache/cargo/git
-            target
-          key: cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'docker/Dockerfile.dev') }}-${{ github.run_id }}
-          restore-keys: |
-            cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'docker/Dockerfile.dev') }}-
-            cargo-${{ runner.os }}-
 
       - name: Build dev image
         uses: docker/build-push-action@v6
@@ -47,6 +34,49 @@ jobs:
             MARENGO_GID=${{ env.MARENGO_GID }}
           cache-from: type=gha,scope=dev-image
           cache-to: type=gha,scope=dev-image,mode=max
+
+      - name: Save dev image artifact
+        run: docker save marengo-dev:local | gzip -1 > marengo-dev.tar.gz
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: marengo-dev-image
+          path: marengo-dev.tar.gz
+          retention-days: 1
+
+  check:
+    runs-on: ubuntu-latest
+    needs: build-image
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: marengo-dev-image
+
+      - name: Load dev image
+        run: gunzip -c marengo-dev.tar.gz | docker load
+
+      - name: Restore Cargo cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .ci-cache/cargo/registry
+            .ci-cache/cargo/git
+            target
+          key: cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'docker/Dockerfile.dev') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-
+
+      - name: Restore consul node_modules cache
+        uses: actions/cache@v4
+        with:
+          path: consul/node_modules
+          key: consul-npm-${{ runner.os }}-${{ hashFiles('consul/package-lock.json') }}
+          restore-keys: |
+            consul-npm-${{ runner.os }}-
 
       - name: Run check.sh in container
         run: |
@@ -65,41 +95,27 @@ jobs:
 
   sim:
     runs-on: ubuntu-latest
-    needs: check
+    needs: build-image
     steps:
       - uses: actions/checkout@v4
 
-      - name: Capture runner uid/gid
-        run: |
-          echo "MARENGO_UID=$(id -u)" >> "$GITHUB_ENV"
-          echo "MARENGO_GID=$(id -g)" >> "$GITHUB_ENV"
+      - uses: actions/download-artifact@v4
+        with:
+          name: marengo-dev-image
 
-      - uses: docker/setup-buildx-action@v3
+      - name: Load dev image
+        run: gunzip -c marengo-dev.tar.gz | docker load
 
       - name: Restore Cargo cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
             .ci-cache/cargo/registry
             .ci-cache/cargo/git
             target
-          key: cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'docker/Dockerfile.dev') }}-${{ github.run_id }}
+          key: cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'docker/Dockerfile.dev') }}
           restore-keys: |
-            cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'docker/Dockerfile.dev') }}-
             cargo-${{ runner.os }}-
-
-      - name: Build dev image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: docker/Dockerfile.dev
-          load: true
-          tags: marengo-dev:local
-          build-args: |
-            MARENGO_UID=${{ env.MARENGO_UID }}
-            MARENGO_GID=${{ env.MARENGO_GID }}
-          cache-from: type=gha,scope=dev-image
-          cache-to: type=gha,scope=dev-image,mode=max
 
       - name: Build sim image
         run: docker build -f docker/Dockerfile.sim -t marengo-sim:local .
@@ -120,41 +136,27 @@ jobs:
   # Required gate: virtual CAN must work (same path as production SocketCAN via vcan0/vcan1).
   vcan:
     runs-on: ubuntu-latest
-    needs: check
+    needs: build-image
     steps:
       - uses: actions/checkout@v4
 
-      - name: Capture runner uid/gid
-        run: |
-          echo "MARENGO_UID=$(id -u)" >> "$GITHUB_ENV"
-          echo "MARENGO_GID=$(id -g)" >> "$GITHUB_ENV"
+      - uses: actions/download-artifact@v4
+        with:
+          name: marengo-dev-image
 
-      - uses: docker/setup-buildx-action@v3
+      - name: Load dev image
+        run: gunzip -c marengo-dev.tar.gz | docker load
 
       - name: Restore Cargo cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
             .ci-cache/cargo/registry
             .ci-cache/cargo/git
             target
-          key: cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'docker/Dockerfile.dev') }}-${{ github.run_id }}
+          key: cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'docker/Dockerfile.dev') }}
           restore-keys: |
-            cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'docker/Dockerfile.dev') }}-
             cargo-${{ runner.os }}-
-
-      - name: Build dev image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: docker/Dockerfile.dev
-          load: true
-          tags: marengo-dev:local
-          build-args: |
-            MARENGO_UID=${{ env.MARENGO_UID }}
-            MARENGO_GID=${{ env.MARENGO_GID }}
-          cache-from: type=gha,scope=dev-image
-          cache-to: type=gha,scope=dev-image,mode=max
 
       - name: Load vcan kernel module
         run: ./scripts/ci-vcan-host-setup.sh
