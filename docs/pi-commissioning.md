@@ -176,6 +176,10 @@ MARENGO_CONFIG_DIR=config/bringup/shoulder_pitch_dual ./target/release/marengo-p
 # stdin: home / enable bench / gravity-on / status / disable / quit
 ```
 
+### Phase 5b — Weighted gravity sign test
+
+After bare-motor sign checks, run the asymmetric-load procedure in [bench-weighted-gravity-sign.md](bench-weighted-gravity-sign.md) (`shoulder_pitch_weighted` profile, `weighted_single_arm` harness).
+
 ## Phase 7 — Milestone B (left arm on can0)
 
 ```bash

@@ -25,5 +25,5 @@ Agent: append here when investigation suggests a load/model test and the user is
 - **Hypothesis:** Left `direction` or encoder zero wrong; weighted stub on right would validate `tau_g` sign independently
 - **Log evidence:** bare `gravity-on` runaway on left at ~−1.76 rad; see bring-up session logs on Pi
 - **Suggested run:** profile `weighted_single_arm`, `MARENGO_LOADED_JOINT=right_shoulder_pitch`, angles `[0, 0.3, -0.3]`, backdrivable hold at 0
-- **Blocked on:** measure fixture mass for `shoulder_pitch_weighted.urdf` (left set-zero fixed in robstride — host 0xFD + payload 0x01)
+- **Blocked on:** measure fixture mass for `shoulder_pitch_weighted.urdf` — use [bench-weighted-gravity-sign.md](bench-weighted-gravity-sign.md) + `scripts/bench-set-weighted-mass.sh`
 - **Result:** (pending)

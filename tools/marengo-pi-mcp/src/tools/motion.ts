@@ -537,6 +537,7 @@ export function registerMotionTools(
         profile: z
           .enum(["bare_motor", "weighted_single_arm", "arm_attached"])
           .optional(),
+        config_dir: z.string().optional(),
         joints: z.array(z.string()).optional(),
         loaded_joint: z.string().optional(),
         gravity_angles: z.array(z.number()).optional(),
@@ -550,6 +551,7 @@ export function registerMotionTools(
         confirm: true;
         confirm_weighted_motion?: true;
         profile?: BenchProfile;
+        config_dir?: string;
         joints?: string[];
         loaded_joint?: string;
         gravity_angles?: number[];
