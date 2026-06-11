@@ -45,6 +45,16 @@ Short index — full rules live in linked docs.
 
 Cloud agents run natively (no Docker) with pre-installed tooling: Rust 1.88, Node 22, protoc 28.3, cargo-deny 0.16.3, cargo-audit, and the pinned advisory-db.
 
+### First-time VM setup
+
+Fresh cloud VMs do not include Docker or the dev-container toolchain. Run once:
+
+```bash
+./scripts/setup-cloud.sh
+```
+
+This installs protoc, cargo-deny, cargo-audit, the pinned advisory-db, and runs `./scripts/bootstrap.sh`.
+
 ### Running checks
 
 Use `./scripts/check.sh` directly (the `just check-native` target). Docker and `just check` are unavailable in the cloud VM. The cross-build smoke test (aarch64) is skipped; this is non-fatal.
@@ -63,7 +73,7 @@ Use `./scripts/check.sh` directly (the `just check-native` target). Docker and `
 
 ### Gotchas
 
-- `cargo deny check --disable-fetch` requires the pinned advisory-db at `/usr/local/cargo/advisory-db-pinned/github.com-a946fc29ac602819`. The update script installs this.
+- `cargo deny check --disable-fetch` requires the pinned advisory-db at `/usr/local/cargo/advisory-db-pinned/github.com-a946fc29ac602819`. `./scripts/setup-cloud.sh` installs and pins it; do not let `cargo audit` auto-update that tree.
 - Consul `dev` script is a scaffold (`echo "Vite app scaffold TBD"`); there is no running frontend dev server.
 - `motor-repl` uses SocketCAN only; use `just vcan` / the ignored SocketCAN tests for no-hardware bus checks.
 - Default `cargo test` requires no hardware. vCAN and simulation tests are optional and need Docker.
