@@ -665,7 +665,18 @@ mod socketcan {
 
     use ::socketcan::{
         CanFrame as SocketFrame, CanSocket, EmbeddedFrame, ExtendedId, Frame, Socket,
+        SocketOptions,
     };
+
+    fn configure_vcan_loopback(socket: &CanSocket, interface: &str) -> Result<(), BusError> {
+        if !interface.starts_with("vcan") {
+            return Ok(());
+        }
+        socket
+            .set_loopback(true)
+            .and_then(|_| socket.set_recv_own_msgs(true))
+            .map_err(|e| BusError::Driver(e.to_string()))
+    }
 
     #[derive(Debug)]
     pub struct SocketCanBus {
@@ -679,6 +690,7 @@ mod socketcan {
             let socket = CanSocket::open(interface).map_err(|e| BusError::Send {
                 message: e.to_string(),
             })?;
+            configure_vcan_loopback(&socket, interface)?;
             socket
                 .set_read_timeout(Duration::from_millis(1))
                 .map_err(|e| BusError::Driver(e.to_string()))?;
