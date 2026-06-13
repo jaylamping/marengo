@@ -68,6 +68,20 @@ consul_lock_hash() {
   sha256sum package-lock.json | awk '{print $1}'
 }
 
+clear_consul_node_modules() {
+  if [[ ! -d node_modules ]]; then
+    return 0
+  fi
+  # Compose named volume mounts node_modules — cannot rm the mount point itself.
+  if [[ "${MARENGO_DEPLOY_VIA_COMPOSE:-}" == 1 ]] || mountpoint -q node_modules 2>/dev/null; then
+    find node_modules -mindepth 1 -delete 2>/dev/null \
+      || find node_modules -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null \
+      || true
+  else
+    rm -rf node_modules
+  fi
+}
+
 # Host-mounted consul/node_modules (Windows npm on Linux bind mount) ships the wrong
 # @bufbuild/buf binary. Reinstall only when buf fails or package-lock changed.
 ensure_consul_deps() {
@@ -89,7 +103,7 @@ ensure_consul_deps() {
     else
       log_step "Consul deps missing or wrong platform — npm ci"
     fi
-    rm -rf node_modules
+    clear_consul_node_modules
     npm ci
     if ! node_modules/.bin/buf --version >/dev/null 2>&1; then
       echo "error: buf still unavailable after npm ci" >&2
