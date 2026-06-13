@@ -62,4 +62,18 @@ describe("log tools", () => {
 
     assert.match(script, /tail -n 100 /);
   });
+
+  it("pi_candump_summary accepts leading whitespace in candump timestamps", async () => {
+    let script = "";
+    const tools = registerLogTools(cfg, async (body) => {
+      script = body;
+      return "";
+    });
+
+    await tools.pi_candump_summary.handler({});
+
+    assert.match(script, /grep -m1 -E "\^\[\[:space:\]\]\*\\\("/);
+    assert.match(script, /sed -n "s\/\^\[\[:space:\]\]\*\(\\\(\[0-9\.\]\*\\\)\)/);
+    assert.match(script, /top CAN IDs/);
+  });
 });
