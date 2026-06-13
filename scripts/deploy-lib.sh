@@ -24,7 +24,8 @@ log_warn() {
 }
 
 deploy_progress_env() {
-  export CARGO_TERM_PROGRESS_WHEN="${CARGO_TERM_PROGRESS_WHEN:-always}"
+  # `always` needs a TTY width; Docker deploy uses -T on Windows.
+  export CARGO_TERM_PROGRESS_WHEN="${CARGO_TERM_PROGRESS_WHEN:-auto}"
   export CARGO_TERM_COLOR="${CARGO_TERM_COLOR:-always}"
   export NPM_CONFIG_PROGRESS="${NPM_CONFIG_PROGRESS:-true}"
   export NPM_CONFIG_LOGLEVEL="${NPM_CONFIG_LOGLEVEL:-notice}"
