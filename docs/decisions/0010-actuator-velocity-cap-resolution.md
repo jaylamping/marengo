@@ -11,9 +11,9 @@ Operators need per-actuator and grouped tuning (shoulder pitch L/R, hips, …) w
 
 ## Decision
 
-### Desired cap (operator intent)
+### Velocity cap (single source of truth)
 
-Resolve in priority order:
+`control.yaml` is the only source for command velocity caps. Resolve in priority order:
 
 1. `control.joints.<name>.velocity_max_rad_s` (optional per-joint override)
 2. `control.actuator_groups.<group>.velocity_max_rad_s` when joint is listed
@@ -30,37 +30,29 @@ actuator_groups:
 
 Each joint may appear in at most one group. Group joints must exist in `control.joints` and `robot.joints`.
 
-### Effective cap (runtime)
+Implemented in `marengo-config::resolve_joint_velocity_cap` (alias for `resolve_desired_joint_velocity_cap`). Davout stores the result in `JointLimitPolicy.velocity` at startup. MIT filtering, firmware speed mode, and feedback velocity guards use that field only.
 
-```text
-effective_cap = min(
-  desired_cap,
-  urdf_joint_limit.velocity,
-  motors.yaml bench.velocity_limit_rad_s,
-  robot.yaml bench.max_joint_velocity_rad_s,
-)
-```
-
-Implemented in `marengo-config::resolve_joint_velocity_cap`. Davout stores the result in `JointLimitPolicy.velocity` at startup. MIT filtering, firmware speed mode, and feedback velocity guards use that field only.
+**Not used for command velocity caps:** `motors.yaml` `bench.velocity_limit_rad_s`, `robot.yaml` `bench.max_joint_velocity_rad_s`, and URDF joint `limit.velocity`. Those fields may remain for commissioning documentation or other subsystems; they must not silently clamp operator velocity intent at runtime.
 
 Berthier clamps planner `v_max` (slew and trajectory) against `Supervisor::joint_velocity_cap()` so commanded `dq_ref` never exceeds Davout.
 
-Load-time validation (`validate_control_against_limits`) rejects `position_trajectory_velocity_rad_s` above effective cap.
+Load-time validation (`validate_control_against_limits`) rejects `position_trajectory_velocity_rad_s` above the resolved cap.
 
 ### Semantics
 
 | Layer | Role | Editable from Consul (future) |
 |-------|------|--------------------------------|
-| URDF / `motors.yaml` / `robot.yaml` | Safety ceilings | Read-only display |
-| Joint / group / motor-type desired cap | Operator tuning | Yes |
+| Joint / group / motor-type cap in `control.yaml` | Operator command velocity limit | Yes |
 | `position_slew_rad_s`, trajectory v/a | Motion shaping | Yes (separate fields) |
+| URDF / `motors.yaml` / `robot.yaml` velocity fields | Not applied to command cap | N/A (orthogonal) |
 
-Consul will show **desired** vs **effective** when bench ceilings clamp the operator request.
+Position and torque limits still use URDF + bench YAML as before (ADR 0009 envelope, effort min, etc.).
 
 ## Consequences
 
 - Shoulder bring-up profiles declare `actuator_groups.shoulder_pitch` instead of relying solely on global `rs03` defaults.
 - `motor_type_defaults.velocity_max_rad_s` remains the fallback for joints without override or group.
+- Operators set the cap they want in `control.yaml`; no hidden 0.5 rad/s ceiling from stale bench YAML.
 - Proto/Chappe tuning RPC and live overlay on Berthier are follow-ups; resolver API is stable for that path.
 
 ## References

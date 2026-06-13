@@ -2,8 +2,7 @@
 # Not loaded by default — copy/rename to motors.yaml when commissioning full body.
 # motor_type per hardware/docs/decisions/0002-robstride-protocol.md
 # Joint names and limits must match hardware/docs/kinematics.md
-# Future: control.yaml actuator_groups (e.g. hips, shoulder_pitch) set desired velocity caps;
-# effective cap = min(group/joint cap, motors.yaml bench cap, robot bench cap, URDF).
+# Command velocity caps: control.yaml only (joint → actuator_groups → motor_type_defaults). ADR 0010.
 motors:
   # --- Left leg (device_id 1–6, can0) ---
   - joint: left_hip_yaw

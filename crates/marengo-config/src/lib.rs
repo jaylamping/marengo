@@ -379,7 +379,7 @@ pub fn actuator_group_for_joint<'a>(
         .map(|(name, group)| (name.as_str(), group))
 }
 
-/// Desired velocity cap before URDF / bench hard ceilings (joint > group > motor type).
+/// Velocity cap from control.yaml (joint > group > motor type). ADR 0010.
 pub fn resolve_desired_joint_velocity_cap(
     joint: &str,
     motor_type: MotorType,
@@ -425,19 +425,13 @@ pub fn resolve_desired_joint_velocity_cap(
     Ok(defaults.velocity_max_rad_s)
 }
 
-/// Effective command velocity cap (rad/s) for one joint. ADR 0010.
+/// Command velocity cap (rad/s) for one joint — alias for [`resolve_desired_joint_velocity_cap`].
 pub fn resolve_joint_velocity_cap(
     joint: &str,
-    urdf_velocity_rad_s: f64,
-    motor: &MotorEntry,
-    robot: &RobotSection,
+    motor_type: MotorType,
     control: &ControlSection,
 ) -> Result<f64, ConfigError> {
-    let desired = resolve_desired_joint_velocity_cap(joint, motor.motor_type, control)?;
-    Ok(desired
-        .min(urdf_velocity_rad_s)
-        .min(motor.bench.velocity_limit_rad_s)
-        .min(robot.bench.max_joint_velocity_rad_s))
+    resolve_desired_joint_velocity_cap(joint, motor_type, control)
 }
 
 fn validate_actuator_groups(control: &ControlSection) -> Result<(), ConfigError> {
@@ -495,7 +489,6 @@ pub fn validate_control_against_limits(
     robot: &RobotConfigFile,
     motors: &MotorsConfigFile,
     control: &ControlConfigFile,
-    urdf_velocity_rad_s: impl Fn(&str) -> Result<f64, ConfigError>,
 ) -> Result<(), ConfigError> {
     let robot_joints: HashSet<&str> = robot.robot.joints.iter().map(String::as_str).collect();
     for (group, entry) in &control.control.actuator_groups {
@@ -516,13 +509,12 @@ pub fn validate_control_against_limits(
             motor_for_joint(motors, joint).ok_or_else(|| ConfigError::UnknownMotorJoint {
                 joint: joint.clone(),
             })?;
-        let urdf_v = urdf_velocity_rad_s(joint)?;
-        let cap = resolve_joint_velocity_cap(joint, urdf_v, motor, &robot.robot, &control.control)?;
+        let cap = resolve_joint_velocity_cap(joint, motor.motor_type, &control.control)?;
         if joint_cfg.position_trajectory_velocity_rad_s > cap + 1e-9 {
             return Err(ConfigError::InvalidVelocity {
                 joint: joint.clone(),
                 message: format!(
-                    "position_trajectory_velocity_rad_s {} > effective cap {}",
+                    "position_trajectory_velocity_rad_s {} > velocity cap {}",
                     joint_cfg.position_trajectory_velocity_rad_s, cap
                 ),
             });
@@ -1029,23 +1021,14 @@ mod tests {
     }
 
     #[test]
-    fn hard_ceilings_clamp_effective_velocity_cap() {
+    fn resolve_joint_velocity_cap_ignores_bench_yaml() {
         let control = sample_control_section();
         let mut motor = sample_motor();
         motor.bench.velocity_limit_rad_s = 0.5;
-        let robot = RobotSection {
-            name: "test".to_string(),
-            urdf: "test.urdf".to_string(),
-            bench: BenchSection {
-                max_joint_velocity_rad_s: 2.0,
-                max_joint_torque_nm: 5.0,
-            },
-            joints: vec!["right_shoulder_pitch".to_string()],
-        };
         let cap =
-            resolve_joint_velocity_cap("right_shoulder_pitch", 50.0, &motor, &robot, &control)
+            resolve_joint_velocity_cap("right_shoulder_pitch", motor.motor_type, &control)
                 .expect("cap");
-        assert!((cap - 0.5).abs() < 1e-9);
+        assert!((cap - 2.0).abs() < 1e-9);
     }
 
     #[test]
@@ -1076,17 +1059,8 @@ mod tests {
             .get_mut("right_shoulder_pitch")
             .expect("joint")
             .position_trajectory_velocity_rad_s = 99.0;
-        let urdf_path = resolve_urdf_path(&root, &robot).expect("urdf");
-        let urdf_robot = armee_kinematics::load_urdf(&urdf_path).expect("load urdf");
-        let err = validate_control_against_limits(&robot, &motors, &control, |joint| {
-            armee_kinematics::joint_limits(&urdf_robot, joint)
-                .map(|lim| lim.velocity)
-                .map_err(|e| ConfigError::InvalidVelocity {
-                    joint: joint.to_string(),
-                    message: e.to_string(),
-                })
-        })
-        .expect_err("trajectory too high");
+        let err = validate_control_against_limits(&robot, &motors, &control)
+            .expect_err("trajectory too high");
         assert!(matches!(err, ConfigError::InvalidVelocity { .. }));
     }
 }

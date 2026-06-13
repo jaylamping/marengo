@@ -201,14 +201,7 @@ impl<B: MotorBus> Supervisor<B> {
         })?;
         let urdf_path = resolve_urdf_path(root, &robot)?;
         let urdf_robot = load_urdf(&urdf_path)?;
-        validate_control_against_limits(&robot, &motors, &control, |joint| {
-            joint_limits(&urdf_robot, joint)
-                .map(|lim| lim.velocity)
-                .map_err(|e| marengo_config::ConfigError::InvalidVelocity {
-                    joint: joint.to_string(),
-                    message: e.to_string(),
-                })
-        })?;
+        validate_control_against_limits(&robot, &motors, &control)?;
         let limits = build_limits(&robot, &motors, &control, &urdf_robot)?;
         let motor_types = motors
             .motors
@@ -253,7 +246,7 @@ impl<B: MotorBus> Supervisor<B> {
         self.limits.get(joint)
     }
 
-    /// Effective command velocity cap (rad/s) after desired + bench + URDF resolution. ADR 0010.
+    /// Command velocity cap (rad/s) from control.yaml resolution. ADR 0010.
     pub fn joint_velocity_cap(&self, joint: &str) -> Option<f64> {
         self.limits.get(joint).map(|lim| lim.velocity)
     }
@@ -1080,13 +1073,8 @@ fn build_limits(
             })?;
         let joint_cfg = control.control.joints.get(joint_name);
         let margin = limit_margin_from_config(joint_cfg);
-        let velocity = resolve_joint_velocity_cap(
-            joint_name,
-            urdf_lim.velocity,
-            motor,
-            &robot.robot,
-            &control.control,
-        )?;
+        let velocity =
+            resolve_joint_velocity_cap(joint_name, motor.motor_type, &control.control)?;
         let effort = urdf_lim
             .effort
             .min(motor.bench.torque_limit_nm)
