@@ -87,21 +87,59 @@ stage_copy_tree() {
   cp -a "${src}/." "$dest/"
 }
 
-compose_ssh() {
-  local ssh_opts=(-o BatchMode=yes)
-  if [[ "${MARENGO_DEPLOY_VIA_COMPOSE:-}" == 1 ]]; then
-    ssh_opts+=(-o StrictHostKeyChecking=accept-new)
+COMPOSE_SSH_DIR=""
+COMPOSE_SSH_IDENTITY=""
+COMPOSE_SSH_KNOWN=""
+
+compose_ssh_setup() {
+  if [[ "${MARENGO_DEPLOY_VIA_COMPOSE:-}" != 1 ]]; then
+    return 0
   fi
+  if [[ -n "$COMPOSE_SSH_DIR" ]]; then
+    return 0
+  fi
+  COMPOSE_SSH_DIR="/tmp/marengo-deploy-ssh"
+  mkdir -p "$COMPOSE_SSH_DIR"
+  chmod 700 "$COMPOSE_SSH_DIR"
+  if [[ -d /home/marengo/.ssh ]]; then
+    cp -a /home/marengo/.ssh/. "$COMPOSE_SSH_DIR/"
+  fi
+  chmod 600 "$COMPOSE_SSH_DIR"/* 2>/dev/null || true
+  chmod 644 "$COMPOSE_SSH_DIR"/*.pub 2>/dev/null || true
+  for k in id_ed25519 id_rsa; do
+    if [[ -f "${COMPOSE_SSH_DIR}/${k}" ]]; then
+      COMPOSE_SSH_IDENTITY="${COMPOSE_SSH_DIR}/${k}"
+      break
+    fi
+  done
+  COMPOSE_SSH_KNOWN="${COMPOSE_SSH_DIR}/known_hosts"
+  touch "$COMPOSE_SSH_KNOWN"
+  chmod 644 "$COMPOSE_SSH_KNOWN"
+}
+
+compose_ssh_opts() {
+  compose_ssh_setup
+  local -n _out=$1
+  _out=(-o BatchMode=yes -o StrictHostKeyChecking=accept-new)
+  if [[ -n "$COMPOSE_SSH_IDENTITY" ]]; then
+    _out+=(-o IdentitiesOnly=yes -i "$COMPOSE_SSH_IDENTITY")
+  fi
+  if [[ -n "$COMPOSE_SSH_KNOWN" ]]; then
+    _out+=(-o UserKnownHostsFile="$COMPOSE_SSH_KNOWN")
+  fi
+}
+
+compose_ssh() {
+  local ssh_opts=()
+  compose_ssh_opts ssh_opts
   ssh "${ssh_opts[@]}" "$@"
 }
 
 sync_staging_to_pi() {
   local staging="$1"
   local remote_root="$2"
-  local ssh_opts=(-o BatchMode=yes)
-  if [[ "${MARENGO_DEPLOY_VIA_COMPOSE:-}" == 1 ]]; then
-    ssh_opts+=(-o StrictHostKeyChecking=accept-new)
-  fi
+  local ssh_opts=()
+  compose_ssh_opts ssh_opts
   if command -v rsync >/dev/null 2>&1; then
     rsync -av --delete -e "ssh ${ssh_opts[*]}" "${staging}/" "${PI_HOST}:${remote_root}/"
     return
