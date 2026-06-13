@@ -10,6 +10,7 @@ ARG TARGETARCH
 ENV DEBIAN_FRONTEND=noninteractive \
     CARGO_HOME=/usr/local/cargo \
     RUSTUP_HOME=/usr/local/rustup \
+    PATH=/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
     WORKSPACE=/workspace
 
 # protoc (pinned, arch-aware), Node 22, cross toolchain, CAN/vcan tools, git-lfs

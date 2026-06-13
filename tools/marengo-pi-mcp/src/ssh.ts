@@ -118,8 +118,9 @@ export async function execLocal(
 }
 
 function localExecEnv(): NodeJS.ProcessEnv {
-  const homeCargoBin = process.env.HOME
-    ? [`${process.env.HOME}/.cargo/bin`]
+  const home = process.env.HOME ?? process.env.USERPROFILE ?? "";
+  const homeCargoBin = home
+    ? [`${home}/.cargo/bin`, `${home}\\.cargo\\bin`]
     : [];
   const pathEntries = [
     ...LOCAL_TOOL_PATHS,

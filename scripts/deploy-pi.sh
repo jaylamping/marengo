@@ -138,6 +138,8 @@ if [[ -z "${MARENGO_DEPLOY_VIA_COMPOSE:-}" ]] && ! command -v aarch64-linux-gnu-
 fi
 
 ensure_cross_toolchain
+ensure_cargo_in_path
+ensure_pi_cross_target
 
 log_step "cargo build (release, ${TARGET})"
 log_note "Packages: marengo-pi, marengo-gateway, motor-repl, imu-probe"

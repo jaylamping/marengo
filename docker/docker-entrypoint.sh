@@ -4,6 +4,8 @@ set -euo pipefail
 
 MARENGO_USER="${MARENGO_USER:-marengo}"
 
+export PATH="/usr/local/cargo/bin:${PATH:-/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin}"
+
 ensure_dir_owned_by_marengo() {
   local path="$1"
   mkdir -p "${path}"

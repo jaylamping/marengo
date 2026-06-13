@@ -4,6 +4,7 @@ services:
       context: .
       dockerfile: docker/Dockerfile.dev
     image: marengo-dev:local
+    platform: linux/amd64
     working_dir: /workspace
     volumes:
       - .:/workspace
@@ -20,6 +21,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.dev
+    platform: linux/amd64
     working_dir: /workspace
     volumes:
       - .:/workspace
@@ -55,7 +57,7 @@ services:
       - cargo-target:/workspace/target
       - consul-node-modules:/workspace/consul/node_modules
     network_mode: host
-    command: ["bash", "-c", "./scripts/vcan-up.sh && for iface in vcan0 vcan1; do ip -details link show \"${iface}\"; done && cargo test -p robstride --features socketcan -- --ignored"]
+    command: ["bash", "-c", "./scripts/vcan-up.sh && for iface in vcan0 vcan1; do ip -details link show \"$$iface\"; done && cargo test -p robstride --features socketcan -- --ignored"]
 
   check-sim:
     profiles: [sim]
@@ -78,6 +80,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.dev
+    platform: linux/amd64
     working_dir: /workspace
     volumes:
       - .:/workspace

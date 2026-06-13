@@ -34,6 +34,11 @@
 | Symptom | Fix |
 |---------|-----|
 | `linker aarch64-linux-gnu-gcc not found` | On Mac: `./scripts/setup-mac-pi-cross.sh` then `just deploy-pi`. On Windows: `just deploy-pi-docker` (or `./scripts/deploy-pi-docker.sh`). |
+| `cargo: command not found` in Docker deploy | Fixed: run through `./scripts/deploy-pi-docker.sh` (uses entrypoint + `PATH=/usr/local/cargo/bin`). Do not wrap in `bash -lc` manually. |
+| `failed to get console: provided file is not a console` | Docker `-t` on non-TTY (Cursor agent, CI). `deploy-pi-docker.sh` uses `-T` when stdin/stdout are not terminals. |
+| `exec format error` during `docker compose build` | Wrong platform image (e.g. arm64 on x64). Compose sets `platform: linux/amd64`; override with `DOCKER_PLATFORM=linux/arm64` on Apple Silicon if needed. |
+| `can't find crate for std` / `target may not be installed` | Run `rustup target add aarch64-unknown-linux-gnu` once in the dev container, or use `deploy-pi-docker` / `ensure_pi_cross_target` in `deploy-pi.sh`. |
+| `pi_build` / `pi_sync_main pi_native`: `cargo: command not found` on Pi | Install Rust on Pi or use cross deploy. MCP now sources `~/.cargo/env` and prepends `~/.cargo/bin` on SSH. |
 | `deploy-pi.sh` / `buf` `ENOENT` on `downloaded-*-linux-x64-buf` | Host `consul/node_modules` from Windows npm inside Linux Docker — `deploy-pi.sh` re-runs `npm ci` when buf fails; prefer `just deploy-pi-docker` (uses Linux `consul-node-modules` volume). |
 | Deploy re-downloads all crates every time | Bare `docker run -v .:/workspace` skips named volumes. Use `just deploy-pi-docker` only. First run ~2–5 min; incremental runs reuse `cargo-target` + `cargo-registry`. |
 | Deploy shows no output / looks frozen | PowerShell pipes buffer Docker. Run `just deploy-pi-docker` unfiltered; set `MARENGO_DEPLOY_VERBOSE=1` for npm/cargo detail. Steps log as `==> [mm:ss] …`. |

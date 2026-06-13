@@ -75,6 +75,10 @@ fi
 
 echo "==> cross-build smoke (aarch64)"
 if command -v aarch64-linux-gnu-gcc >/dev/null 2>&1; then
+  # shellcheck source=deploy-lib.sh
+  source "${ROOT}/scripts/deploy-lib.sh"
+  ensure_cargo_in_path
+  ensure_pi_cross_target
   if [[ "${CI_MODE}" == true ]] && [[ "${GITHUB_REF:-}" != "refs/heads/main" ]]; then
     echo "skip: aarch64 cross-build (main branch only in CI)"
   elif [[ "${CI_MODE}" == true ]]; then

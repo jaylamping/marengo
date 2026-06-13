@@ -4,6 +4,21 @@ import { sudoInstallCommand, sudoStagingInstallCommand } from "../config.js";
 import { shellQuote, wrapRemote } from "../env.js";
 import { execLocal, execRemote, formatRemoteResult } from "../ssh.js";
 
+function localDeployCommand(cfg: MarengoPiConfig): { cmd: string; args: string[] } {
+  const host = `${cfg.user}@${cfg.host}`;
+  // Windows hosts lack native aarch64 cross GCC; use the cached compose deploy path.
+  if (process.platform === "win32") {
+    return {
+      cmd: "bash",
+      args: [path.join(cfg.localRoot, "scripts", "deploy-pi-docker.sh"), host],
+    };
+  }
+  return {
+    cmd: "bash",
+    args: [path.join(cfg.localRoot, "scripts", "deploy-pi.sh"), "--install", host],
+  };
+}
+
 export async function runSyncMain(
   cfg: MarengoPiConfig,
   runRemote: (body: string, timeoutMs?: number) => Promise<string>,
@@ -17,7 +32,10 @@ export async function runSyncMain(
       [
         "if ! git diff --quiet || ! git diff --cached --quiet; then git status --short; exit 1; fi",
         "git fetch origin && git checkout main && git pull --ff-only",
-        "cargo build -p marengo-pi -p motor-repl --features socketcan --release",
+        'if [[ -f "${HOME}/.cargo/env" ]]; then set -a; source "${HOME}/.cargo/env"; set +a; fi',
+        'export PATH="${HOME}/.cargo/bin:/usr/local/cargo/bin:${PATH:-}"',
+        "command -v cargo >/dev/null || { echo 'error: cargo not on PATH (install Rust on Pi or use pi_sync_main cross)'; exit 127; }",
+        "cargo build -p marengo-pi -p motor-repl --features socketcan,linux-i2c --release",
         sudoInstallCommand(cfg),
       ].join("\n"),
     );
@@ -65,14 +83,15 @@ export async function runSyncMain(
   const head = rev.stdout.trim();
   steps.push(`[deploy rev] ${head}`);
 
-  const deployScript = path.join(cfg.localRoot, "scripts", "deploy-pi.sh");
-  const deploy = await execLocal(
-    "bash",
-    [deployScript, "--install", `${cfg.user}@${cfg.host}`],
-    { cwd: cfg.localRoot, timeoutMs: 900_000 },
+  const deploy = localDeployCommand(cfg);
+  const deployResult = await execLocal(deploy.cmd, deploy.args, {
+    cwd: cfg.localRoot,
+    timeoutMs: 900_000,
+  });
+  steps.push(
+    `[${path.basename(deploy.args[0])}]\n${formatRemoteResult(deployResult)}`,
   );
-  steps.push(`[deploy-pi.sh --install]\n${formatRemoteResult(deploy)}`);
-  if (deploy.exitCode !== 0) return steps.join("\n\n");
+  if (deployResult.exitCode !== 0) return steps.join("\n\n");
 
   const installBody = wrapRemote(cfg, sudoStagingInstallCommand(cfg));
   const installOpt = await execRemote(cfg, installBody, { timeoutMs: 120_000 });

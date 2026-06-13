@@ -85,10 +85,13 @@ export function registerAdminTools(
       handler: async () => {
         const body = wrapRemote(
           cfg,
-          [
-            "cargo build -p marengo-pi -p marengo-gateway -p motor-repl -p imu-probe --features socketcan,linux-i2c --release",
-            sudoInstallCommand(cfg),
-          ].join("\n"),
+        [
+          'if [[ -f "${HOME}/.cargo/env" ]]; then set -a; source "${HOME}/.cargo/env"; set +a; fi',
+          'export PATH="${HOME}/.cargo/bin:/usr/local/cargo/bin:${PATH:-}"',
+          "command -v cargo >/dev/null || { echo 'error: cargo not on PATH'; exit 127; }",
+          "cargo build -p marengo-pi -p marengo-gateway -p motor-repl -p imu-probe --features socketcan,linux-i2c --release",
+          sudoInstallCommand(cfg),
+        ].join("\n"),
         );
         return runRemote(body, 900_000);
       },
