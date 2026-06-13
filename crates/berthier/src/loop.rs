@@ -44,7 +44,8 @@ pub struct ControlLoop<B: MotorBus> {
     control_mode: ControlMode,
     /// Final joint-space targets for [`ControlMode::Position`] (hold-on / hold-at).
     position_setpoints: Option<Vec<f64>>,
-    /// Ramped MIT position commands — slews toward [`Self::position_setpoints`] each tick.
+    /// Internal slew trajectory toward [`Self::position_setpoints`]; MIT `q_des` is
+    /// derived each tick by clamping this reference to `max_lead` ahead of measured `q`.
     position_commands: Option<Vec<f64>>,
     loop_period: Duration,
     chappe_publish_period: Duration,
@@ -92,7 +93,7 @@ impl<B: MotorBus> ControlLoop<B> {
         self.position_setpoints.as_deref()
     }
 
-    /// Ramped MIT position commands (for status / tests); slews toward [`Self::position_setpoints`].
+    /// Slew trajectory reference (for status / tests), not the clamped MIT setpoint.
     pub fn position_hold_commands(&self) -> Option<&[f64]> {
         self.position_commands.as_deref()
     }
@@ -238,26 +239,32 @@ impl<B: MotorBus> ControlLoop<B> {
                             let cfg = self.supervisor.control.control.joints.get(name);
                             let kp = cfg.map(|c| c.impedance.kp).unwrap_or(20.0);
                             let kd = cfg.map(|c| c.impedance.kd).unwrap_or(1.0);
+                            let max_lead = cfg
+                                .map(|c| c.position_slew_max_lead_rad)
+                                .unwrap_or(0.15);
                             let fr = cfg.map(|c| &c.friction);
-                            let q_des =
+                            let q_traj =
                                 q_cmd.and_then(|sp| sp.get(i).copied()).ok_or_else(|| {
                                     LoopError::MissingSetpoint {
                                         joint: name.clone(),
                                     }
                                 })?;
-                            let dq = self.joint_velocity(name);
-                            let lead = q_des - q[i];
                             let target = self
                                 .position_setpoints
                                 .as_deref()
                                 .and_then(|sp| sp.get(i).copied())
-                                .unwrap_or(q_des);
-                            let position_error = target - q[i];
+                                .unwrap_or(q_traj);
+                            let q_des =
+                                clamp_position_command(q_traj, q[i], target, max_lead);
+                            let dq = self.joint_velocity(name);
+                            let lead = q_des - q[i];
+                            let tracking_error = q_traj - q[i];
+                            let settle_error = target - q[i];
                             let tau_f = fr
                                 .map(|f| {
                                     position_hold_friction_torque(
                                         dq,
-                                        position_error,
+                                        lead,
                                         f.fc,
                                         f.fv,
                                         f.fo,
@@ -265,17 +272,24 @@ impl<B: MotorBus> ControlLoop<B> {
                                     )
                                 })
                                 .unwrap_or(0.0);
-                            let tau_d = position_hold_damping_torque(dq, position_error, kd);
+                            let tau_d = position_hold_damping_torque(
+                                dq,
+                                tracking_error,
+                                settle_error,
+                                kd,
+                            );
                             if log_position_diag {
                                 let estimated_tau = tau_g[i] + tau_f + tau_d + kp * lead;
                                 info!(
                                     joint = %name,
                                     q = q[i],
                                     dq,
+                                    q_traj,
                                     q_des,
                                     target,
                                     lead,
-                                    position_error,
+                                    tracking_error,
+                                    settle_error,
                                     kp,
                                     kd,
                                     tau_g = tau_g[i],
@@ -343,8 +357,9 @@ impl<B: MotorBus> ControlLoop<B> {
         Ok(())
     }
 
-    /// Ramp commanded hold poses toward latched targets for this tick.
+    /// Advance the internal slew trajectory toward latched targets (rate-limited).
     fn advance_position_commands(&mut self, q: &[f64]) -> Result<(), LoopError> {
+        let _ = q;
         let Some(targets) = self.position_setpoints.as_ref() else {
             return Ok(());
         };
@@ -358,10 +373,8 @@ impl<B: MotorBus> ControlLoop<B> {
         for (i, name) in self.joint_names.iter().enumerate() {
             let cfg = self.supervisor.control.control.joints.get(name);
             let slew_rad_s = cfg.map(|c| c.position_slew_rad_s).unwrap_or(0.25);
-            let max_lead = cfg.map(|c| c.position_slew_max_lead_rad).unwrap_or(0.15);
             let max_step = slew_rad_s * dt;
             commands[i] = slew_toward(commands[i], targets[i], max_step);
-            commands[i] = clamp_position_command(commands[i], q[i], targets[i], max_lead);
         }
         Ok(())
     }
@@ -453,10 +466,21 @@ fn clamp_position_command(command: f64, q: f64, target: f64, max_lead: f64) -> f
 }
 
 /// Damping should settle the final hold, not behave like extra moving friction.
-fn position_hold_damping_torque(dq: f64, position_error: f64, kd: f64) -> f64 {
-    let moving_toward_target = dq * position_error > 0.0;
+/// While ramping, scale using trajectory tracking error; near the latch use settle error.
+fn position_hold_damping_torque(
+    dq: f64,
+    tracking_error: f64,
+    settle_error: f64,
+    kd: f64,
+) -> f64 {
+    let error_for_scale = if settle_error.abs() <= POSITION_HOLD_DAMPING_FULL_ERROR_RAD {
+        settle_error
+    } else {
+        tracking_error
+    };
+    let moving_toward_target = dq * error_for_scale > 0.0;
     let scale = if moving_toward_target {
-        (POSITION_HOLD_DAMPING_FULL_ERROR_RAD / position_error.abs()).clamp(0.0, 1.0)
+        (POSITION_HOLD_DAMPING_FULL_ERROR_RAD / error_for_scale.abs()).clamp(0.0, 1.0)
     } else {
         1.0
     };
@@ -617,21 +641,21 @@ mod tests {
 
     #[test]
     fn position_hold_damping_fades_while_moving_toward_target() {
-        let tau_d = position_hold_damping_torque(0.3, 0.05, 1.0);
+        let tau_d = position_hold_damping_torque(0.3, 0.05, 1.0, 1.0);
 
         assert!((tau_d + 0.06).abs() < 1e-12);
     }
 
     #[test]
     fn position_hold_damping_is_full_near_target() {
-        let tau_d = position_hold_damping_torque(0.3, 0.005, 1.0);
+        let tau_d = position_hold_damping_torque(0.3, 0.5, 0.005, 1.0);
 
         assert!((tau_d + 0.3).abs() < 1e-12);
     }
 
     #[test]
     fn position_hold_damping_assists_when_moving_away_from_target() {
-        let tau_d = position_hold_damping_torque(-0.3, 0.05, 1.0);
+        let tau_d = position_hold_damping_torque(-0.3, 0.05, 1.0, 1.0);
 
         assert!((tau_d - 0.3).abs() < 1e-12);
     }
@@ -675,5 +699,26 @@ mod tests {
             cmd1 > cmd0 && cmd1 < target,
             "first tick slews toward target"
         );
+    }
+
+    #[test]
+    fn slew_trajectory_accumulates_independently_of_max_lead() {
+        let target = 1.2;
+        let max_step = 0.08 * 0.005;
+        let max_lead = 0.03;
+        let mut traj = 0.0;
+        for _ in 0..50 {
+            traj = slew_toward(traj, target, max_step);
+        }
+        assert!(
+            traj > 0.015,
+            "planner trajectory must advance at slew rate even when q lags"
+        );
+        let q_des = clamp_position_command(traj, 0.0, target, max_lead);
+        assert!(
+            q_des <= max_lead + 1e-12,
+            "MIT setpoint stays within max_lead of measured q"
+        );
+        assert!(traj >= q_des, "trajectory runs ahead of or meets clamped MIT command");
     }
 }

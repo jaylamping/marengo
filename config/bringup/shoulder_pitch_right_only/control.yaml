@@ -31,7 +31,7 @@ control:
       position_hold_trim_rad: 0.0
       # Position hold (hold-on) reuses impedance kp/kd with a latched q_des + tau_g.
       friction:
-        fc: 0.0
+        fc: 0.5
         fv: 0.0
         fo: 0.0
         k: 10.0

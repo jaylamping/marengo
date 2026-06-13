@@ -115,7 +115,14 @@ supervisor.send_mit_batch(joint_space_cmds)?;
 - robstride operates in raw motor/CAN space only.
 - Davout owns `config/motors.yaml` `direction` / `gear_ratio` transforms in both directions.
 
-Position hold (`hold-at`) ramps the MIT setpoint toward the latched target each tick at `position_slew_rad_s` in `control.yaml` — do not jump `q_des` instantly on retarget.
+Position hold (`hold-at`) follows the joint-impedance pattern (KUKA/iiwa-style, MIT Manipulation course):
+
+- **Planner trajectory** (`position_commands`): rate-limited slew toward the latched target at `position_slew_rad_s`; never clamped in storage.
+- **MIT setpoint** (`q_des`): each tick, clamp trajectory to `[q, q + max_lead]` toward the target so P gain stays bounded.
+- **Gravity FF** (`tau_g`): always at measured `q` (industrial standard).
+- **Friction / damping FF**: use commanded tracking error (`q_des − q` / trajectory − q), not error to the distant latch target.
+
+Do not fold `max_lead` into the slew accumulator — that freezes the ramp when the arm lags.
 
 ## 8. Testing
 

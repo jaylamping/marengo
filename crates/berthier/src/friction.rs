@@ -8,18 +8,20 @@ pub fn friction_torque(dq: f64, fc: f64, fv: f64, fo: f64, k: f64) -> f64 {
     fc * (k * dq).tanh() + fv * dq + fo
 }
 
-/// Position hold uses the final target error for Coulomb direction so breakaway
-/// torque does not flip when the joint moves ahead of the ramped command.
+/// Position hold Coulomb assist uses **command tracking error** (`q_des − q`, bounded
+/// by `position_slew_max_lead_rad`), not error to the final latched target. That
+/// matches joint-impedance practice (KUKA/iiwa-style): feedforward assists along the
+/// ramp, not toward a distant goal.
 pub fn position_hold_friction_torque(
     dq: f64,
-    position_error: f64,
+    tracking_error: f64,
     fc: f64,
     fv: f64,
     fo: f64,
     k: f64,
 ) -> f64 {
-    let coulomb = if position_error.abs() > POSITION_HOLD_ERROR_DEADBAND_RAD {
-        fc * (position_error / POSITION_HOLD_FRICTION_FADE_RAD).clamp(-1.0, 1.0)
+    let coulomb = if tracking_error.abs() > POSITION_HOLD_ERROR_DEADBAND_RAD {
+        fc * (tracking_error / POSITION_HOLD_FRICTION_FADE_RAD).clamp(-1.0, 1.0)
     } else {
         fc * (k * dq).tanh()
     };
