@@ -31,6 +31,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gosu \
     unzip \
     xz-utils \
+    rsync \
+    openssh-client \
     && rm -rf /var/lib/apt/lists/* \
     && case "${TARGETARCH}" in \
          arm64|aarch64) PROTOC_ARCH="aarch_64" ;; \

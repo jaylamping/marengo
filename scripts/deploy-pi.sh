@@ -68,6 +68,36 @@ consul_lock_hash() {
   sha256sum package-lock.json | awk '{print $1}'
 }
 
+stage_copy_tree() {
+  local src="$1"
+  local dest="$2"
+  local delete="${3:-false}"
+  mkdir -p "$dest"
+  if command -v rsync >/dev/null 2>&1; then
+    if [[ "$delete" == true ]]; then
+      rsync -a --delete "${src}/" "${dest}/"
+    else
+      rsync -a "${src}/" "${dest}/"
+    fi
+    return
+  fi
+  if [[ "$delete" == true ]] && [[ -d "$dest" ]]; then
+    find "$dest" -mindepth 1 -delete 2>/dev/null || rm -rf "${dest:?}/"* 2>/dev/null || true
+  fi
+  cp -a "${src}/." "$dest/"
+}
+
+sync_staging_to_pi() {
+  local staging="$1"
+  local remote_root="$2"
+  if command -v rsync >/dev/null 2>&1; then
+    rsync -av --delete "${staging}/" "${PI_HOST}:${remote_root}/"
+    return
+  fi
+  log_note "rsync missing — using tar over ssh"
+  tar -C "$staging" -czf - . | ssh "$PI_HOST" "mkdir -p ${remote_root} && tar -xzf - -C ${remote_root}"
+}
+
 clear_consul_node_modules() {
   if [[ ! -d node_modules ]]; then
     return 0
@@ -180,19 +210,17 @@ cp "${ROOT}/target/${TARGET}/release/marengo-pi" "$STAGING/target/release/"
 cp "${ROOT}/target/${TARGET}/release/marengo-gateway" "$STAGING/target/release/"
 cp "${ROOT}/target/${TARGET}/release/motor-repl" "$STAGING/target/release/"
 cp "${ROOT}/target/${TARGET}/release/imu-probe" "$STAGING/target/release/"
-rsync -a "${ROOT}/config/" "$STAGING/config/"
-rsync -a "${ROOT}/assets/" "$STAGING/assets/"
-rsync -a "${ROOT}/scripts/" "$STAGING/scripts/"
+stage_copy_tree "${ROOT}/config" "$STAGING/config"
+stage_copy_tree "${ROOT}/assets" "$STAGING/assets"
+stage_copy_tree "${ROOT}/scripts" "$STAGING/scripts"
 mkdir -p "$STAGING/www"
 if [[ -d "${ROOT}/consul/dist" ]]; then
-  rsync -a --delete "${ROOT}/consul/dist/" "$STAGING/www/"
+  stage_copy_tree "${ROOT}/consul/dist" "$STAGING/www" true
 fi
 
 REMOTE_ROOT="${MARENGO_INSTALL_ROOT:-~/marengo}"
-log_step "rsync → ${PI_HOST}:${REMOTE_ROOT}/"
-rsync -av --delete \
-  "$STAGING/" \
-  "${PI_HOST}:${REMOTE_ROOT}/"
+log_step "sync → ${PI_HOST}:${REMOTE_ROOT}/"
+sync_staging_to_pi "$STAGING" "$REMOTE_ROOT"
 
 if [[ "$DO_INSTALL" == true ]]; then
   log_step "install-pi.sh on ${PI_HOST}"
