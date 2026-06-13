@@ -20,6 +20,7 @@ export interface RemoteExecResult {
 export interface RemoteExecOptions {
   timeoutMs?: number;
   cwd?: string;
+  env?: NodeJS.ProcessEnv;
 }
 
 function sshArgs(cfg: MarengoPiConfig): string[] {
@@ -97,7 +98,7 @@ export async function execLocal(
   try {
     const { stdout, stderr } = await execFileAsync(command, args, {
       cwd: opts.cwd,
-      env: localExecEnv(),
+      env: opts.env ?? localExecEnv(),
       maxBuffer: 16 * 1024 * 1024,
       timeout: timeoutMs,
     });
@@ -117,7 +118,7 @@ export async function execLocal(
   }
 }
 
-function localExecEnv(): NodeJS.ProcessEnv {
+export function localExecEnv(): NodeJS.ProcessEnv {
   const home = process.env.HOME ?? process.env.USERPROFILE ?? "";
   const homeCargoBin = home
     ? [`${home}/.cargo/bin`, `${home}\\.cargo\\bin`]

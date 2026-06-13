@@ -8,7 +8,25 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PI_HOST="${1:-${MARENGO_PI_HOST:-joey@marengo.local}}"
-SSH_DIR="${MARENGO_SSH_DIR:-${USERPROFILE:-${HOME}}/.ssh}"
+
+resolve_ssh_dir() {
+  if [[ -n "${MARENGO_SSH_DIR:-}" ]]; then
+    printf '%s\n' "${MARENGO_SSH_DIR}"
+    return
+  fi
+  case "$(uname -s 2>/dev/null)" in
+    MINGW* | MSYS* | CYGWIN*)
+      if [[ -n "${USERPROFILE:-}" ]]; then
+        printf '%s\n' "${USERPROFILE}/.ssh"
+        return
+      fi
+      ;;
+  esac
+  printf '%s\n' "${HOME}/.ssh"
+}
+
+SSH_DIR="$(resolve_ssh_dir)"
+SSH_DIR="${SSH_DIR//\\//}"
 DOCKER_PLATFORM="${DOCKER_PLATFORM:-linux/amd64}"
 
 # shellcheck source=deploy-lib.sh
@@ -16,6 +34,12 @@ source "${ROOT}/scripts/deploy-lib.sh"
 deploy_progress_env
 
 log_step "deploy-pi-docker → ${PI_HOST}"
+log_note "SSH mount: ${SSH_DIR} → /home/marengo/.ssh"
+if [[ ! -f "${SSH_DIR}/config" ]] && [[ ! -f "${SSH_DIR}/id_ed25519_marengo" ]] \
+  && [[ ! -f "${SSH_DIR}/id_ed25519" ]]; then
+  echo "error: no SSH keys under ${SSH_DIR} (set MARENGO_SSH_DIR)" >&2
+  exit 1
+fi
 log_note "Platform: ${DOCKER_PLATFORM}"
 log_note "Cache volumes: cargo-target, cargo-registry, cargo-git, consul-node-modules"
 log_note "Live logs: CARGO_TERM_PROGRESS_WHEN=${CARGO_TERM_PROGRESS_WHEN}"

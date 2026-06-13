@@ -2,7 +2,7 @@ import path from "node:path";
 import type { MarengoPiConfig } from "../config.js";
 import { sudoInstallCommand, sudoStagingInstallCommand } from "../config.js";
 import { shellQuote, wrapRemote } from "../env.js";
-import { execLocal, execRemote, formatRemoteResult } from "../ssh.js";
+import { execLocal, execRemote, formatRemoteResult, localExecEnv } from "../ssh.js";
 
 function localDeployCommand(cfg: MarengoPiConfig): { cmd: string; args: string[] } {
   const host = `${cfg.user}@${cfg.host}`;
@@ -86,9 +86,14 @@ export async function runSyncMain(
   steps.push(`[deploy rev] ${head}`);
 
   const deploy = localDeployCommand(cfg);
+  const deployEnv = { ...localExecEnv() };
+  if (process.platform === "win32" && process.env.USERPROFILE) {
+    deployEnv.MARENGO_SSH_DIR = path.join(process.env.USERPROFILE, ".ssh");
+  }
   const deployResult = await execLocal(deploy.cmd, deploy.args, {
     cwd: cfg.localRoot,
     timeoutMs: 900_000,
+    env: deployEnv,
   });
   steps.push(
     `[${path.basename(deploy.args[0])}]\n${formatRemoteResult(deployResult)}`,
