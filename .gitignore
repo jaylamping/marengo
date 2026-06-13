@@ -39,3 +39,9 @@ var/log/
 
 # Local deploy staging (docker cross-build rsync bundle)
 .pi-deploy-staging/
+.pi-deploy/
+.pi-staging/
+/bin/
+
+# Local scratch notes (not docs)
+/markdown
