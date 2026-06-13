@@ -120,6 +120,30 @@ describe("marengo-pi script tool", () => {
     );
   });
 
+  it("treats sleep N script lines as shell dwell between marengo-pi commands", async () => {
+    let script = "";
+    const tools = registerMotionTools(
+      cfg,
+      async (body) => {
+        script = body;
+        return body;
+      },
+      () => {},
+    );
+
+    await tools.pi_marengo_pi_script.handler({
+      confirm: true,
+      joint: "right_shoulder_pitch",
+      script: ["home", "enable bench", "hold-at 1.570796", "sleep 35", "hold-at 0"],
+      timeout_sec: 80,
+    });
+
+    assert.match(script, /printf '%s\\n' "hold-at 1\.570796";/);
+    assert.match(script, /sleep 35;/);
+    assert.match(script, /printf '%s\\n' "hold-at 0";/);
+    assert.match(script, /\} \| timeout 80 \$PI_BIN/);
+  });
+
   it("pipes every script line into marengo-pi", async () => {
     let script = "";
     const tools = registerMotionTools(

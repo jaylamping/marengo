@@ -295,7 +295,7 @@ impl<B: MotorBus> ControlLoop<B> {
                                 .and_then(|sp| sp.get(i).copied())
                                 .unwrap_or(q_traj);
                             let q_des = if on_trajectory {
-                                clamp_trajectory_setpoint(q_traj, q[i], max_lead)
+                                clamp_trajectory_setpoint(q_traj, q[i], target, max_lead)
                             } else {
                                 clamp_position_command(q_traj, q[i], target, max_lead)
                             };
@@ -536,9 +536,24 @@ fn slew_toward(current: f64, target: f64, max_step: f64) -> f64 {
     crate::position_trajectory::slew_toward(current, target, max_step)
 }
 
-/// Symmetric lead clamp for trajectory tracking — allows braking when `q` outruns `q_traj`.
-fn clamp_trajectory_setpoint(q_traj: f64, q: f64, max_lead: f64) -> f64 {
-    q_traj.clamp(q - max_lead, q + max_lead)
+/// Trajectory setpoint clamp: brake when `q` outruns `q_traj`, but follow `q_traj` when
+/// lagging toward `target` so weighted descent can overcome gravity feedforward.
+fn clamp_trajectory_setpoint(q_traj: f64, q: f64, target: f64, max_lead: f64) -> f64 {
+    const TOL: f64 = 1e-4;
+    let to_target = target - q;
+    let lag = q_traj - q;
+    if to_target.abs() > TOL
+        && lag.signum() == to_target.signum()
+        && lag.abs() > max_lead
+    {
+        if to_target > 0.0 {
+            q_traj.clamp(q, target)
+        } else {
+            q_traj.clamp(target, q)
+        }
+    } else {
+        q_traj.clamp(q - max_lead, q + max_lead)
+    }
 }
 
 /// Keep a ramped position command within the lead cap without letting it brake
@@ -723,8 +738,20 @@ mod tests {
 
     #[test]
     fn clamp_trajectory_setpoint_brakes_when_q_outruns_traj() {
-        let q_des = clamp_trajectory_setpoint(0.11, 1.10, 0.03);
+        let q_des = clamp_trajectory_setpoint(0.11, 1.10, 1.57, 0.03);
         assert!((q_des - 1.07).abs() < 1e-12);
+    }
+
+    #[test]
+    fn clamp_trajectory_setpoint_follows_traj_when_lagging_on_descent() {
+        let q_des = clamp_trajectory_setpoint(1.50, 1.77, 0.0, 0.03);
+        assert!((q_des - 1.50).abs() < 1e-12);
+    }
+
+    #[test]
+    fn clamp_trajectory_setpoint_follows_traj_when_overshot_above_target() {
+        let q_des = clamp_trajectory_setpoint(1.55, 1.76, 1.57, 0.03);
+        assert!((q_des - 1.55).abs() < 1e-12);
     }
 
     #[test]

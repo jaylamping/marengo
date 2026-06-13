@@ -93,11 +93,18 @@ function marengoPiBinarySelector(cfg: MarengoPiConfig): string {
 /** Default dwell for hold-at / marengo-pi script sessions (bench iteration speed). */
 const DEFAULT_MOTION_TIMEOUT_SEC = 15;
 
+/** Shell sleep between marengo-pi stdin lines (e.g. dwell after hold-at). */
+function marengoPiPipeLine(line: string): string {
+  const sleepMatch = /^sleep (\d+(?:\.\d+)?)$/i.exec(line.trim());
+  if (sleepMatch) {
+    return `sleep ${sleepMatch[1]}`;
+  }
+  return `printf '%s\\n' ${JSON.stringify(line)}`;
+}
+
 function marengoPiPipe(script: string[], timeoutSec: number, binary = "$PI_BIN"): string {
-  const printfLines = script
-    .map((l) => `printf '%s\\n' ${JSON.stringify(l)}`)
-    .join(";\n");
-  return `{\n${printfLines};\n} | timeout ${timeoutSec} ${binary}`;
+  const pipeLines = script.map(marengoPiPipeLine).join(";\n");
+  return `{\n${pipeLines};\n} | timeout ${timeoutSec} ${binary}`;
 }
 
 function marengoPiTimedPipe(
