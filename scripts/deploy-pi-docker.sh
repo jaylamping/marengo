@@ -26,13 +26,10 @@ cd "$ROOT"
 
 export DOCKER_DEFAULT_PLATFORM="${DOCKER_DEFAULT_PLATFORM:-${DOCKER_PLATFORM}}"
 
-COMPOSE_RUN=(docker compose --ansi always run --rm)
-# Avoid "failed to get console" on Windows/non-TTY automation when -t is set alone.
-if [[ -t 0 ]] && [[ -t 1 ]]; then
-  COMPOSE_RUN+=(-t)
-else
-  COMPOSE_RUN+=(-T)
-fi
+COMPOSE_RUN=(docker compose run --rm -T)
+# Deploy is non-interactive; cargo/npm progress uses CARGO_TERM_PROGRESS_WHEN=always.
+# Do not pass --ansi always or -t: Docker Desktop on Windows PowerShell fails with
+# "creating a console from a file is not supported on windows".
 
 DEPLOY_ARGS=(./scripts/deploy-pi.sh --install "${PI_HOST}")
 if [[ "${MARENGO_SKIP_CONSUL:-}" == 1 ]]; then
@@ -40,7 +37,7 @@ if [[ "${MARENGO_SKIP_CONSUL:-}" == 1 ]]; then
 fi
 
 # Build image only when Dockerfile changed (BuildKit layer cache otherwise).
-docker compose --ansi always build deploy-pi >&2
+docker compose build deploy-pi >&2
 
 # Run through the image entrypoint (gosu marengo) — do not wrap in bash -lc (drops PATH).
 exec "${COMPOSE_RUN[@]}" \

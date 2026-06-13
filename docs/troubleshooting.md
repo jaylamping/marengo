@@ -35,7 +35,7 @@
 |---------|-----|
 | `linker aarch64-linux-gnu-gcc not found` | On Mac: `./scripts/setup-mac-pi-cross.sh` then `just deploy-pi`. On Windows: `just deploy-pi-docker` (or `./scripts/deploy-pi-docker.sh`). |
 | `cargo: command not found` in Docker deploy | Fixed: run through `./scripts/deploy-pi-docker.sh` (uses entrypoint + `PATH=/usr/local/cargo/bin`). Do not wrap in `bash -lc` manually. |
-| `failed to get console: provided file is not a console` | Docker `-t` on non-TTY (Cursor agent, CI). `deploy-pi-docker.sh` uses `-T` when stdin/stdout are not terminals. |
+| `failed to get console: provided file is not a console` / `creating a console from a file is not supported on windows` / `The handle is invalid` | Docker `--ansi always`, `-t`, or `tty: true` on Windows PowerShell → Docker Desktop. `deploy-pi-docker.sh` uses plain `docker compose` + `-T`; `deploy-pi` service has no `tty:`. Progress via `CARGO_TERM_PROGRESS_WHEN=always`. |
 | `exec format error` during `docker compose build` | Wrong platform image (e.g. arm64 on x64). Compose sets `platform: linux/amd64`; override with `DOCKER_PLATFORM=linux/arm64` on Apple Silicon if needed. |
 | `can't find crate for std` / `target may not be installed` | Run `rustup target add aarch64-unknown-linux-gnu` once in the dev container, or use `deploy-pi-docker` / `ensure_pi_cross_target` in `deploy-pi.sh`. |
 | `pi_build` / `pi_sync_main pi_native`: `cargo: command not found` on Pi | Install Rust on Pi or use cross deploy. MCP now sources `~/.cargo/env` and prepends `~/.cargo/bin` on SSH. |
