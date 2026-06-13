@@ -46,9 +46,11 @@ export async function runSyncMain(
   }
 
   // cross-build from Mac
-  const status = await execLocal("git", ["status", "--porcelain"], {
-    cwd: cfg.localRoot,
-  });
+  const status = await execLocal(
+    "git",
+    ["status", "--porcelain", "--untracked-files=no"],
+    { cwd: cfg.localRoot },
+  );
   if (status.stdout.trim()) {
     return `Local repo dirty — commit or stash first:\n${status.stdout}`;
   }
