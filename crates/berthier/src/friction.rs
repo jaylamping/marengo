@@ -35,16 +35,14 @@ pub fn position_hold_friction(
     gains: &FrictionGains,
 ) -> (PositionFrictionMode, f64) {
     if dq_traj.abs() > POSITION_HOLD_ERROR_DEADBAND_RAD && dq_traj * settle_error > 0.0 {
-        let tau = if dq.abs() <= velocity_deadband * POSITION_STUCK_EXIT_VELOCITY_RATIO
-            && settle_error.abs() > POSITION_HOLD_ERROR_DEADBAND_RAD
-        {
-            let ramp = (dq_traj.abs() / velocity_deadband).clamp(0.0, 1.0);
-            let distance = (settle_error.abs() / POSITION_HOLD_FRICTION_FADE_RAD).clamp(0.0, 1.0);
-            let scale = ramp.max(distance);
-            gains.fc * dq_traj.signum() * scale + gains.fv * dq + gains.fo
+        // Ramp Coulomb with planner speed while the joint is stuck — not with settle_error
+        // (full move distance would apply fc immediately and cause an approach hitch).
+        let scale = if dq.abs() > velocity_deadband * POSITION_STUCK_EXIT_VELOCITY_RATIO {
+            1.0
         } else {
-            trajectory_friction_torque(dq, dq_traj, settle_error, velocity_deadband, gains)
+            (dq_traj.abs() / velocity_deadband).clamp(0.0, 1.0)
         };
+        let tau = gains.fc * dq_traj.signum() * scale + gains.fv * dq + gains.fo;
         return (PositionFrictionMode::TrajectoryVelocity, tau);
     }
 
@@ -111,6 +109,9 @@ pub fn trajectory_friction_torque(
                 gains.k,
             )
         }
+    } else if dq_des * settle_error > 0.0 {
+        let scale = (dq_des.abs() / velocity_deadband).clamp(0.0, 1.0);
+        gains.fc * dq_des.signum() * scale + gains.fv * dq + gains.fo
     } else {
         position_settle_friction_torque(
             dq,
@@ -151,7 +152,20 @@ mod tests {
     }
 
     #[test]
-    fn stuck_onset_ramps_coulomb() {
+    fn stuck_onset_ramps_coulomb_with_dq_traj_not_settle_error() {
+        let gains = FrictionGains {
+            fc: 0.35,
+            fv: 0.0,
+            fo: 0.0,
+            k: 10.0,
+        };
+        let (mode, tau) = position_hold_friction(0.0, 0.018, 0.098, 0.02, 0.10, &gains);
+        assert_eq!(mode, PositionFrictionMode::TrajectoryVelocity);
+        assert!((tau - 0.315).abs() < 1e-6);
+    }
+
+    #[test]
+    fn stuck_onset_reaches_full_fc_at_velocity_deadband() {
         let gains = FrictionGains {
             fc: 0.5,
             fv: 0.0,
@@ -183,6 +197,13 @@ mod tests {
     fn settle_friction_scales_with_settle_error() {
         let tau = position_settle_friction_torque(0.0, 0.02, 0.05, 1.8, 0.0, 0.0, 10.0);
         assert!((tau - 0.72).abs() < 1e-6);
+    }
+
+    #[test]
+    fn trajectory_friction_ramps_below_velocity_deadband() {
+        let gains = test_gains();
+        let tau = trajectory_friction_torque(0.0, 0.01, 0.08, 0.02, &gains);
+        assert!((tau - 0.125).abs() < 1e-6);
     }
 
     #[test]

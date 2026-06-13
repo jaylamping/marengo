@@ -120,11 +120,14 @@ Position hold (`hold-at`) is Berthier's **joint-space motion primitive executor*
 Control law (ADR 0007 one-pass):
 
 - **Planner:** always trapezoidal `q_ref(t)`, `dq_ref(t)` toward latched target; moves ≤ ~60 mrad cap `v_max` at `position_slew_rad_s`, larger moves use `position_trajectory_velocity_rad_s`.
-- **MIT setpoint:** `q_des = clamp(q_ref, q, target, max_lead)` each tick (safety bound, not a second controller).
+- **MIT setpoint:** `q_des = clamp(q_ref, q, target, max_lead)` each tick (safety bound, not a second controller). While approaching, if measured `q` is only slightly ahead of `q_ref` (within `max_lead`), never command `q_des` behind `q` — MIT stiffness would pull back and cause mid-travel stick-slip. Same mirror rule on descent lag. Overshoot past target clamps `q_des` toward `target`.
+- **Return retarget:** downward moves from well above `target` seed planner `dq_ref` at slew rate so friction/damping FF exceeds gravity at high `q`. Single-joint configs use the same retarget path as multi-joint.
+- **Return lag:** freeze planner while stuck lagging on descent; resync when planner holds at target but arm is still far (`> POSITION_RETURN_RESYNC_RAD`, not small hold overshoot).
+- **Return onset:** first ~500 ms after downward retarget, if stuck at high `q`, command `q_des` below measured `q` so MIT `tau_p` assists breakaway (gravity FF holds arm up at overshoot).
 - **Stiffness:** `tau_p = Kp * (q_des − q)` always.
-- **Damping FF:** `tau_d = Kd * (dq_ref − dq)` while `|dq_ref| > deadband`; else `-Kd * dq` when settled and moving.
+- **Damping FF:** filtered `dq` (EMA α=0.25); `tau_d = Kd * (dq_ref − dq_filt)` while moving; spike brake cap (−0.04 Nm max) when approaching and overspeed > 0.04 rad/s; else `-Kd * dq_filt` when settled and moving.
 - **Friction FF:** two rules only — `traj_vel` (follow `dq_ref`) or `settle` (fade on `target − q`).
-- **MIT wire:** `velocity_rad_s = dq_ref`, `kd_mit = 0`; damping through torque FF using Davout-sanitized velocity.
+- **MIT wire:** `velocity_rad_s = dq_ref` when moving, `0` when stuck (`|dq| < velocity_deadband`); `kd_mit = 0`; damping through torque FF using Davout-sanitized velocity.
 - **Gravity FF:** `tau_g` at measured `q`.
 
 Do not fold `max_lead` into the planner accumulator — that freezes the reference when the arm lags.
