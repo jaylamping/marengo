@@ -16,7 +16,8 @@ use thiserror::Error;
 use tracing::{debug, info};
 
 use crate::friction::{
-    friction_torque, joint_stuck_with_hysteresis, position_hold_friction_assist, PositionFrictionMode,
+    breakaway_velocity_exceeded, friction_torque, joint_stuck_with_hysteresis,
+    position_hold_friction_assist, PositionFrictionMode,
 };
 use crate::position_trace::{PositionTrace, PositionTraceRow};
 use crate::position_trajectory::{trajectory_damping_torque, JointPositionPlanner};
@@ -62,6 +63,8 @@ pub struct ControlLoop<B: MotorBus> {
     position_retarget_tick: Option<Vec<u64>>,
     /// Per-joint stuck latch for friction assist hysteresis (see [`joint_stuck_with_hysteresis`]).
     position_stuck_latched: Option<Vec<bool>>,
+    /// Per-joint: breakaway achieved this retarget — do not re-enter stuck friction mid-move.
+    position_breakaway_confirmed: Option<Vec<bool>>,
 }
 
 impl<B: MotorBus> ControlLoop<B> {
@@ -94,6 +97,7 @@ impl<B: MotorBus> ControlLoop<B> {
             position_trace: PositionTrace::from_env(loop_hz),
             position_retarget_tick: None,
             position_stuck_latched: None,
+            position_breakaway_confirmed: None,
         })
     }
 
@@ -174,6 +178,16 @@ impl<B: MotorBus> ControlLoop<B> {
         if let Some(ticks) = self.position_retarget_tick.as_mut() {
             ticks[joint_index] = self.tick_count;
         }
+        if let Some(latched) = self.position_stuck_latched.as_mut() {
+            if let Some(slot) = latched.get_mut(joint_index) {
+                *slot = false;
+            }
+        }
+        if let Some(confirmed) = self.position_breakaway_confirmed.as_mut() {
+            if let Some(slot) = confirmed.get_mut(joint_index) {
+                *slot = false;
+            }
+        }
     }
 
     fn position_retarget_age_ms(&self, joint_index: usize) -> u64 {
@@ -190,6 +204,12 @@ impl<B: MotorBus> ControlLoop<B> {
     fn ensure_position_stuck_latched(&mut self) {
         if self.position_stuck_latched.is_none() {
             self.position_stuck_latched = Some(vec![false; self.joint_names.len()]);
+        }
+    }
+
+    fn ensure_position_breakaway_confirmed(&mut self) {
+        if self.position_breakaway_confirmed.is_none() {
+            self.position_breakaway_confirmed = Some(vec![false; self.joint_names.len()]);
         }
     }
 
@@ -213,6 +233,7 @@ impl<B: MotorBus> ControlLoop<B> {
         self.position_planners = Some(planners);
         self.position_retarget_tick = Some(vec![self.tick_count; self.joint_names.len()]);
         self.position_stuck_latched = Some(vec![false; self.joint_names.len()]);
+        self.position_breakaway_confirmed = Some(vec![false; self.joint_names.len()]);
     }
 
     fn hold_target_for_joint(&self, joint: &str, position_rad: f64) -> f64 {
@@ -232,6 +253,7 @@ impl<B: MotorBus> ControlLoop<B> {
         self.position_planners = None;
         self.position_retarget_tick = None;
         self.position_stuck_latched = None;
+        self.position_breakaway_confirmed = None;
     }
 
     /// Latch current `q` and enter [`ControlMode::Position`] (gravity FF + impedance gains).
@@ -282,6 +304,7 @@ impl<B: MotorBus> ControlLoop<B> {
             self.position_planners = None;
             self.position_retarget_tick = None;
             self.position_stuck_latched = None;
+            self.position_breakaway_confirmed = None;
             self.last_position_diag = None;
         }
         self.control_mode = mode;
@@ -313,6 +336,7 @@ impl<B: MotorBus> ControlLoop<B> {
                 if self.control_mode == ControlMode::Position {
                     self.advance_position_commands(&q)?;
                     self.ensure_position_stuck_latched();
+                    self.ensure_position_breakaway_confirmed();
                 }
 
                 let log_position_diag = self.control_mode == ControlMode::Position
@@ -379,20 +403,37 @@ impl<B: MotorBus> ControlLoop<B> {
                                 && (q_traj - target).abs() <= SETTLE_POSITION_TOLERANCE_RAD;
                             let moving_reference =
                                 moving_reference_toward_target(dq_traj, settle_error, vel_deadband);
+                            let mut breakaway_confirmed = self
+                                .position_breakaway_confirmed
+                                .as_ref()
+                                .and_then(|confirmed| confirmed.get(i).copied())
+                                .unwrap_or(false);
+                            if !breakaway_confirmed
+                                && breakaway_velocity_exceeded(dq, vel_deadband)
+                                && moving_reference
+                            {
+                                if let Some(confirmed) =
+                                    self.position_breakaway_confirmed.as_mut()
+                                {
+                                    confirmed[i] = true;
+                                }
+                                breakaway_confirmed = true;
+                            }
                             let was_stuck = self
                                 .position_stuck_latched
                                 .as_ref()
                                 .and_then(|latched| latched.get(i).copied())
                                 .unwrap_or(false);
-                            let joint_stuck = joint_stuck_with_hysteresis(
+                            let stuck_raw = joint_stuck_with_hysteresis(
                                 dq,
                                 dq_traj,
                                 settle_error,
                                 vel_deadband,
                                 was_stuck,
                             );
+                            let joint_stuck = stuck_raw && !breakaway_confirmed;
                             if let Some(latched) = self.position_stuck_latched.as_mut() {
-                                latched[i] = joint_stuck;
+                                latched[i] = stuck_raw;
                             }
                             let (friction_mode, tau_f) = fr
                                 .map(|f| {

@@ -4,8 +4,6 @@ use marengo_config::FrictionGains;
 
 const POSITION_HOLD_ERROR_DEADBAND_RAD: f64 = 1e-4;
 const POSITION_HOLD_FRICTION_FADE_RAD: f64 = 0.02;
-/// Extra Coulomb while fully ramped and joint still stuck (mid-travel stiction).
-const POSITION_STUCK_BREAKAWAY_BOOST: f64 = 1.25;
 /// Stay in stuck assist until |dq| exceeds deadband × this (reduces traj_vel churn).
 pub const POSITION_STUCK_EXIT_VELOCITY_RATIO: f64 = 1.25;
 
@@ -78,13 +76,18 @@ pub fn joint_stuck_with_hysteresis(
         && dq.abs() <= velocity_deadband * POSITION_STUCK_EXIT_VELOCITY_RATIO
 }
 
+/// Measured speed high enough to treat breakaway as achieved for this retarget.
+pub fn breakaway_velocity_exceeded(dq: f64, velocity_deadband: f64) -> bool {
+    dq.abs() > velocity_deadband * POSITION_STUCK_EXIT_VELOCITY_RATIO
+}
+
 /// Select position-hold friction path and torque (logged for bench onset debugging).
 ///
 /// **Stuck breakaway first:** when measured `|dq|` is within the velocity deadband but
 /// the planner still commands motion toward the latched target, always ramp Coulomb
-/// assist with `dq_traj` (`SlewRamp`). That applies equally to small slew moves and
-/// large trapezoid segments at motion onset (and mid-move stick-slip) without snapping
-/// to full `fc` via [`PositionFrictionMode::TrajectoryVelocity`].
+/// assist with `dq_traj` (`SlewRamp`). That applies at motion onset without snapping
+/// to full `fc` via [`PositionFrictionMode::TrajectoryVelocity`]. Mid-move stick-slip
+/// must not re-enter this path once breakaway is confirmed (see loop breakaway latch).
 ///
 /// Once the joint is actually moving (`|dq|` above deadband), trajectory / moving-reference
 /// paths resume — cruise tracking on large moves is unchanged.
@@ -208,12 +211,7 @@ pub fn position_slew_friction_torque(
         && dq_traj * settle_error > 0.0
     {
         let ramp = (dq_traj.abs() / velocity_deadband).clamp(0.0, 1.0);
-        let boost = if ramp >= 1.0 - f64::EPSILON {
-            POSITION_STUCK_BREAKAWAY_BOOST
-        } else {
-            1.0
-        };
-        return fc * dq_traj.signum() * ramp * boost + fv * dq + fo;
+        return fc * dq_traj.signum() * ramp + fv * dq + fo;
     }
     position_hold_friction_torque(dq, lead, fc, fv, fo, k)
 }
@@ -320,7 +318,7 @@ mod tests {
         let full = position_slew_friction_torque(0.0, 0.0, 0.02, 0.08, deadband, 0.5, 0.0, 0.0, 10.0);
 
         assert!((half - 0.25).abs() < 1e-6);
-        assert!((full - 0.625).abs() < 1e-6);
+        assert!((full - 0.5).abs() < 1e-6);
     }
 
     #[test]
@@ -458,8 +456,14 @@ mod tests {
             &gains,
         );
         assert_eq!(mode, PositionFrictionMode::SlewRamp);
-        assert!((tau - 0.3125).abs() < 1e-6);
+        assert!((tau - 0.25).abs() < 1e-6);
         assert!(joint_stuck_in_move_direction(0.0, 0.10, 0.08, 0.02));
+    }
+
+    #[test]
+    fn breakaway_velocity_exceeds_hysteresis_exit_band() {
+        assert!(!breakaway_velocity_exceeded(0.024, 0.02));
+        assert!(breakaway_velocity_exceeded(0.026, 0.02));
     }
 
     #[test]
