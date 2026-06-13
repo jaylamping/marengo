@@ -36,8 +36,24 @@ if [[ "${MARENGO_SKIP_CONSUL:-}" == 1 ]]; then
   DEPLOY_ARGS=(./scripts/deploy-pi.sh --install --skip-consul "${PI_HOST}")
 fi
 
-# Build image only when Dockerfile changed (BuildKit layer cache otherwise).
-docker compose build deploy-pi >&2
+ensure_deploy_pi_image() {
+  if [[ "${MARENGO_FORCE_IMAGE_BUILD:-}" == 1 ]]; then
+    log_step "docker compose build deploy-pi (forced)"
+    docker compose build deploy-pi >&2
+    return
+  fi
+  if docker image inspect marengo-dev:local >/dev/null 2>&1; then
+    log_note "Reusing marengo-dev:local (set MARENGO_FORCE_IMAGE_BUILD=1 to rebuild)"
+    return
+  fi
+  log_step "docker compose build deploy-pi (image missing)"
+  if ! docker compose build deploy-pi >&2; then
+    echo "error: marengo-dev:local missing and docker compose build failed" >&2
+    exit 1
+  fi
+}
+
+ensure_deploy_pi_image
 
 # Run through the image entrypoint (gosu marengo) — do not wrap in bash -lc (drops PATH).
 exec "${COMPOSE_RUN[@]}" \
