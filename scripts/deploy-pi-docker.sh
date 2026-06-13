@@ -65,6 +65,6 @@ exec "${COMPOSE_RUN[@]}" \
   -e NPM_CONFIG_LOGLEVEL \
   -e MARENGO_DEPLOY_VERBOSE \
   -e MARENGO_DEPLOY_START="${MARENGO_DEPLOY_START}" \
-  -v "${SSH_DIR}:/root/.ssh:ro" \
+  -v "${SSH_DIR}:/home/marengo/.ssh:ro" \
   deploy-pi \
   "${DEPLOY_ARGS[@]}"

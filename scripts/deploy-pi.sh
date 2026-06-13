@@ -87,15 +87,27 @@ stage_copy_tree() {
   cp -a "${src}/." "$dest/"
 }
 
+compose_ssh() {
+  local ssh_opts=(-o BatchMode=yes)
+  if [[ "${MARENGO_DEPLOY_VIA_COMPOSE:-}" == 1 ]]; then
+    ssh_opts+=(-o StrictHostKeyChecking=accept-new)
+  fi
+  ssh "${ssh_opts[@]}" "$@"
+}
+
 sync_staging_to_pi() {
   local staging="$1"
   local remote_root="$2"
+  local ssh_opts=(-o BatchMode=yes)
+  if [[ "${MARENGO_DEPLOY_VIA_COMPOSE:-}" == 1 ]]; then
+    ssh_opts+=(-o StrictHostKeyChecking=accept-new)
+  fi
   if command -v rsync >/dev/null 2>&1; then
-    rsync -av --delete "${staging}/" "${PI_HOST}:${remote_root}/"
+    rsync -av --delete -e "ssh ${ssh_opts[*]}" "${staging}/" "${PI_HOST}:${remote_root}/"
     return
   fi
   log_note "rsync missing — using tar over ssh"
-  tar -C "$staging" -czf - . | ssh "$PI_HOST" "mkdir -p ${remote_root} && tar -xzf - -C ${remote_root}"
+  tar -C "$staging" -czf - . | ssh "${ssh_opts[@]}" "$PI_HOST" "mkdir -p ${remote_root} && tar -xzf - -C ${remote_root}"
 }
 
 clear_consul_node_modules() {
@@ -225,8 +237,8 @@ sync_staging_to_pi "$STAGING" "$REMOTE_ROOT"
 if [[ "$DO_INSTALL" == true ]]; then
   log_step "install-pi.sh on ${PI_HOST}"
   # Narrow sudoers allow specific scripts only — not `sudo -n true`.
-  if ssh "$PI_HOST" "set -euo pipefail; sudo -n ${REMOTE_ROOT}/scripts/install-pi.sh"; then
-    ssh "$PI_HOST" "echo \$(git -C /opt/marengo rev-parse HEAD 2>/dev/null || echo unknown) \$(date -u +%Y-%m-%dT%H:%M:%SZ) > ${REMOTE_ROOT}/.deploy-rev && cat ${REMOTE_ROOT}/.deploy-rev" || true
+  if compose_ssh "$PI_HOST" "set -euo pipefail; sudo -n ${REMOTE_ROOT}/scripts/install-pi.sh"; then
+    compose_ssh "$PI_HOST" "echo \$(git -C /opt/marengo rev-parse HEAD 2>/dev/null || echo unknown) \$(date -u +%Y-%m-%dT%H:%M:%SZ) > ${REMOTE_ROOT}/.deploy-rev && cat ${REMOTE_ROOT}/.deploy-rev" || true
   else
     log_warn "passwordless sudo install failed (run once on Pi: sudo ${REMOTE_ROOT}/scripts/install-pi.sh)"
   fi
