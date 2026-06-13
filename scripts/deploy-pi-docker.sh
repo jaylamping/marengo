@@ -29,15 +29,17 @@ SSH_DIR="$(resolve_ssh_dir)"
 SSH_DIR="${SSH_DIR//\\//}"
 
 docker_ssh_mount_src() {
-  local dir="${1//\\//}"
+  local dir="${1}"
+  dir="${dir//\\//}"
+  # Docker Desktop on Windows needs backslashes; apply whenever path looks like C:/...
+  if [[ "$dir" =~ ^([A-Za-z]):/(.*)$ ]]; then
+    printf '%s:\\%s' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]//\//\\}"
+    return
+  fi
   case "$(uname -s 2>/dev/null)" in
     MINGW* | MSYS* | CYGWIN*)
       if command -v cygpath >/dev/null 2>&1; then
         cygpath -w "$dir"
-        return
-      fi
-      if [[ "$dir" =~ ^([A-Za-z]):/(.*)$ ]]; then
-        printf '%s:\\%s' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]//\//\\}"
         return
       fi
       ;;
