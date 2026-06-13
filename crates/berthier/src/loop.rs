@@ -16,8 +16,8 @@ use thiserror::Error;
 use tracing::{debug, info};
 
 use crate::friction::{
-    friction_torque, position_hold_friction, PositionFrictionMode, POSITION_HOLD_ERROR_DEADBAND_RAD,
-    POSITION_STUCK_EXIT_VELOCITY_RATIO,
+    friction_torque, position_hold_friction, PositionFrictionMode,
+    POSITION_HOLD_ERROR_DEADBAND_RAD, POSITION_HOLD_ONSET_MS, POSITION_STUCK_EXIT_VELOCITY_RATIO,
 };
 use crate::position_trace::{PositionTrace, PositionTraceRow};
 use crate::position_trajectory::{
@@ -33,6 +33,8 @@ const POSITION_RETURN_DESCENT_SEED_RAD: f64 = 0.05;
 const POSITION_RETURN_RESYNC_RAD: f64 = 0.03;
 /// MIT pull-down lead while stuck on descent (until breakaway latch clears).
 const POSITION_DESCENT_STUCK_LEAD_RAD: f64 = 0.03;
+/// Outbound-only lead cap during post-retarget onset (weighted breakaway).
+const POSITION_HOLD_ONSET_MAX_LEAD_RAD: f64 = 0.15;
 
 #[derive(Debug, Error)]
 pub enum LoopError {
@@ -445,13 +447,22 @@ impl<B: MotorBus> ControlLoop<B> {
                                 .unwrap_or(q_traj);
                             let retarget_age_ms = self.position_retarget_age_ms(i);
                             self.init_descent_latch_state();
+                            let settle_error = target - q[i];
+                            let approaching_target =
+                                dq_traj * settle_error > POSITION_HOLD_ERROR_DEADBAND_RAD;
+                            let effective_max_lead = position_hold_effective_max_lead(
+                                max_lead,
+                                retarget_age_ms,
+                                approaching_target,
+                                settle_error,
+                            );
                             let mut breakaway = self
                                 .position_descent_breakaway
                                 .as_ref()
                                 .and_then(|l| l.get(i).copied())
                                 .unwrap_or(false);
                             let mut q_des =
-                                clamp_trajectory_setpoint(q_traj, q[i], target, max_lead);
+                                clamp_trajectory_setpoint(q_traj, q[i], target, effective_max_lead);
                             let to_target = target - q[i];
                             let stuck_now = descent_stuck_mit_pull(
                                 to_target,
@@ -480,8 +491,7 @@ impl<B: MotorBus> ControlLoop<B> {
                                     latch[i] = true;
                                 }
                             }
-                            let joint_stuck =
-                                stuck_now && !breakaway;
+                            let joint_stuck = stuck_now && !breakaway;
                             if joint_stuck {
                                 q_des = q_des.min(q[i] - POSITION_DESCENT_STUCK_LEAD_RAD);
                             }
@@ -491,11 +501,8 @@ impl<B: MotorBus> ControlLoop<B> {
                                 .and_then(|f| f.get(i).copied())
                                 .unwrap_or(false);
                             let lead = q_des - q[i];
-                            let settle_error = target - q[i];
                             let settling = matches!(traj_phase, TrapezoidPhase::Hold)
                                 && settle_error.abs() <= POSITION_SETTLE_TOLERANCE_RAD;
-                            let approaching_target =
-                                dq_traj * settle_error > POSITION_HOLD_ERROR_DEADBAND_RAD;
                             let (friction_mode, tau_f) = friction
                                 .map(|f| {
                                     position_hold_friction(
@@ -503,7 +510,8 @@ impl<B: MotorBus> ControlLoop<B> {
                                         dq_traj,
                                         settle_error,
                                         vel_deadband,
-                                        max_lead,
+                                        effective_max_lead,
+                                        retarget_age_ms,
                                         &f,
                                     )
                                 })
@@ -523,13 +531,15 @@ impl<B: MotorBus> ControlLoop<B> {
                             };
                             let tau_ff_cmd = tau_g[i] + tau_f + tau_d;
                             let tau_meas = self.joint_torque(&name);
-                            let lead_sat = lead.abs() >= max_lead - 1e-6;
+                            let lead_sat = lead.abs() >= effective_max_lead - 1e-6;
                             let tau_p = kp * lead;
-                            let mit_velocity = if dq_raw.abs() < vel_deadband {
-                                0.0
-                            } else {
-                                dq_traj
-                            };
+                            let mit_velocity = position_hold_mit_velocity(
+                                dq_raw,
+                                dq_traj,
+                                vel_deadband,
+                                retarget_age_ms,
+                                approaching_target,
+                            );
                             let phase_str = format!("{traj_phase:?}");
                             if log_position_diag {
                                 info!(
@@ -849,6 +859,43 @@ fn descent_breakaway_confirmed(to_target: f64, dq_filtered: f64, velocity_deadba
         && dq_filtered <= -velocity_deadband * POSITION_STUCK_EXIT_VELOCITY_RATIO
 }
 
+/// Outbound-only `max_lead` boost for the post-retarget onset window.
+fn position_hold_effective_max_lead(
+    max_lead: f64,
+    retarget_age_ms: u64,
+    approaching_target: bool,
+    settle_error: f64,
+) -> f64 {
+    if retarget_age_ms <= POSITION_HOLD_ONSET_MS
+        && approaching_target
+        && settle_error.abs() > POSITION_RETURN_DESCENT_SEED_RAD
+    {
+        max_lead.max(POSITION_HOLD_ONSET_MAX_LEAD_RAD)
+    } else {
+        max_lead
+    }
+}
+
+/// MIT velocity FF: zero at rest except during post-retarget onset while approaching.
+fn position_hold_mit_velocity(
+    dq_raw: f64,
+    dq_traj: f64,
+    velocity_deadband: f64,
+    retarget_age_ms: u64,
+    approaching_target: bool,
+) -> f64 {
+    if dq_raw.abs() >= velocity_deadband {
+        return dq_traj;
+    }
+    if approaching_target
+        && retarget_age_ms <= POSITION_HOLD_ONSET_MS
+        && dq_traj.abs() > POSITION_HOLD_ERROR_DEADBAND_RAD
+    {
+        return dq_traj;
+    }
+    0.0
+}
+
 /// MIT pull-down while descending and stuck (cleared by [`descent_breakaway_confirmed`]).
 fn descent_stuck_mit_pull(
     to_target: f64,
@@ -899,18 +946,16 @@ fn clamp_trajectory_setpoint(q_traj: f64, q: f64, target: f64, max_lead: f64) ->
     const TOL: f64 = 1e-4;
     let to_target = target - q;
     let lag = q_traj - q;
-    let mut q_des = if to_target.abs() > TOL
-        && lag.signum() == to_target.signum()
-        && lag.abs() > max_lead
-    {
-        if to_target > 0.0 {
-            q_traj.clamp(q, target)
+    let mut q_des =
+        if to_target.abs() > TOL && lag.signum() == to_target.signum() && lag.abs() > max_lead {
+            if to_target > 0.0 {
+                q_traj.clamp(q, target)
+            } else {
+                q_traj.clamp(target, q)
+            }
         } else {
-            q_traj.clamp(target, q)
-        }
-    } else {
-        q_traj.clamp(q - max_lead, q + max_lead)
-    };
+            q_traj.clamp(q - max_lead, q + max_lead)
+        };
 
     if to_target.abs() > TOL {
         if to_target > 0.0 && q > q_traj && (q - q_traj) < max_lead {
@@ -1111,7 +1156,9 @@ mod tests {
     #[test]
     fn planner_not_drifted_on_small_hold_overshoot() {
         let planner = JointPositionPlanner::new_at(0.1);
-        assert!(!planner_drifted_from_measurement(&planner, 0.112, 0.1, 0.10));
+        assert!(!planner_drifted_from_measurement(
+            &planner, 0.112, 0.1, 0.10
+        ));
     }
 
     #[test]
@@ -1123,12 +1170,36 @@ mod tests {
     }
 
     #[test]
+    fn onset_mit_velocity_follows_planner_while_arm_stuck() {
+        let v = position_hold_mit_velocity(0.0, 0.18, 0.02, 0, true);
+        assert!((v - 0.18).abs() < 1e-12);
+    }
+
+    #[test]
+    fn onset_mit_velocity_zeros_after_onset_window() {
+        let v = position_hold_mit_velocity(0.0, 0.18, 0.02, 301, true);
+        assert!((v).abs() < 1e-12);
+    }
+
+    #[test]
+    fn onset_max_lead_boosts_outbound_only() {
+        let boosted = position_hold_effective_max_lead(0.10, 0, true, 1.57);
+        assert!((boosted - 0.15).abs() < 1e-12);
+        let home = position_hold_effective_max_lead(0.10, 0, false, -1.57);
+        assert!((home - 0.10).abs() < 1e-12);
+        let small = position_hold_effective_max_lead(0.10, 0, true, 0.02);
+        assert!((small - 0.10).abs() < 1e-12);
+    }
+
+    #[test]
     fn descent_mit_pull_clears_after_breakaway_latch() {
         assert!(!descent_stuck_mit_pull(-0.09, 0.105, 0.0, 0.0, 0.02, true));
         assert!(descent_stuck_mit_pull(-0.09, 0.105, 0.0, 0.0, 0.02, false));
         assert!(descent_breakaway_confirmed(-0.09, -0.026, 0.02));
         // Cruise motion alone must not imply breakaway without a stuck episode.
-        assert!(!descent_stuck_mit_pull(-0.09, 0.08, 0.0, -0.03, 0.02, false));
+        assert!(!descent_stuck_mit_pull(
+            -0.09, 0.08, 0.0, -0.03, 0.02, false
+        ));
     }
 
     #[test]

@@ -126,8 +126,8 @@ Control law (ADR 0007 one-pass):
 - **Descent breakaway:** while stuck descending (`|dq_filt| < deadband`, not yet latched), command `q_des` below measured `q` for MIT pull. Latch clears pull only after a stuck episode then `dq_filt ≤ −deadband×1.25` toward home (cruise alone does not latch).
 - **Stiffness:** `tau_p = Kp * (q_des − q)` always.
 - **Damping FF:** filtered `dq` (EMA α=0.25); `tau_d = Kd * (dq_ref − dq_filt)` while moving; spike brake cap (−0.04 Nm max) when approaching and overspeed > 0.04 rad/s; else `-Kd * dq_filt` when settled and moving.
-- **Friction FF:** two rules only — `traj_vel` (follow `dq_ref`) or `settle` (fade on `target − q`).
-- **MIT wire:** `velocity_rad_s = dq_ref` when moving, `0` when stuck (`|dq| < velocity_deadband`); `kd_mit = 0`; damping through torque FF using Davout-sanitized velocity.
+- **Friction FF:** two rules only — `traj_vel` (follow `dq_ref`) or `settle` (fade on `target − q`). Post-retarget onset (300 ms): full `fc` breakaway pulse while stuck; after onset, ramp `fc` with `|dq_ref|/deadband` until motion starts.
+- **MIT wire:** `velocity_rad_s = dq_ref` when moving or during post-retarget onset while approaching; `0` when stuck at rest after onset; `kd_mit = 0`; damping through torque FF using Davout-sanitized velocity. Outbound moves > ~50 mrad use `max(max_lead, 0.15 rad)` lead cap for the onset window only.
 - **Gravity FF:** `tau_g` at measured `q`.
 
 Do not fold `max_lead` into the planner accumulator — that freezes the reference when the arm lags.

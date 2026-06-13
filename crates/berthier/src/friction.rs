@@ -4,6 +4,8 @@ use marengo_config::FrictionGains;
 
 pub const POSITION_HOLD_ERROR_DEADBAND_RAD: f64 = 1e-4;
 pub const POSITION_HOLD_FRICTION_FADE_RAD: f64 = 0.02;
+/// Post-retarget window for onset MIT velocity and full-Coulomb breakaway pulse.
+pub const POSITION_HOLD_ONSET_MS: u64 = 300;
 /// Hysteresis band when scaling Coulomb assist at stuck onset.
 pub const POSITION_STUCK_EXIT_VELOCITY_RATIO: f64 = 1.25;
 
@@ -32,12 +34,17 @@ pub fn position_hold_friction(
     settle_error: f64,
     velocity_deadband: f64,
     fade_rad: f64,
+    retarget_age_ms: u64,
     gains: &FrictionGains,
 ) -> (PositionFrictionMode, f64) {
     if dq_traj.abs() > POSITION_HOLD_ERROR_DEADBAND_RAD && dq_traj * settle_error > 0.0 {
         // Ramp Coulomb with planner speed while the joint is stuck — not with settle_error
         // (full move distance would apply fc immediately and cause an approach hitch).
-        let scale = if dq.abs() > velocity_deadband * POSITION_STUCK_EXIT_VELOCITY_RATIO {
+        // During the post-retarget onset window, apply full fc while stuck so breakaway
+        // torque is not gated on dq_traj crossing the velocity deadband.
+        let stuck = dq.abs() <= velocity_deadband * POSITION_STUCK_EXIT_VELOCITY_RATIO;
+        let in_onset = retarget_age_ms <= POSITION_HOLD_ONSET_MS;
+        let scale = if !stuck || in_onset {
             1.0
         } else {
             (dq_traj.abs() / velocity_deadband).clamp(0.0, 1.0)
@@ -146,7 +153,7 @@ mod tests {
     #[test]
     fn trajectory_velocity_full_fc_when_moving() {
         let gains = test_gains();
-        let (mode, tau) = position_hold_friction(0.08, 0.10, 0.50, 0.02, 0.10, &gains);
+        let (mode, tau) = position_hold_friction(0.08, 0.10, 0.50, 0.02, 0.10, 500, &gains);
         assert_eq!(mode, PositionFrictionMode::TrajectoryVelocity);
         assert!((tau - 0.25).abs() < 1e-6);
     }
@@ -159,9 +166,22 @@ mod tests {
             fo: 0.0,
             k: 10.0,
         };
-        let (mode, tau) = position_hold_friction(0.0, 0.018, 0.098, 0.02, 0.10, &gains);
+        let (mode, tau) = position_hold_friction(0.0, 0.018, 0.098, 0.02, 0.10, 500, &gains);
         assert_eq!(mode, PositionFrictionMode::TrajectoryVelocity);
         assert!((tau - 0.315).abs() < 1e-6);
+    }
+
+    #[test]
+    fn breakaway_pulse_applies_full_fc_during_onset_while_stuck() {
+        let gains = FrictionGains {
+            fc: 0.35,
+            fv: 0.0,
+            fo: 0.0,
+            k: 10.0,
+        };
+        let (mode, tau) = position_hold_friction(0.0, 0.00475, 0.98, 0.02, 0.10, 0, &gains);
+        assert_eq!(mode, PositionFrictionMode::TrajectoryVelocity);
+        assert!((tau - 0.35).abs() < 1e-6);
     }
 
     #[test]
@@ -172,7 +192,7 @@ mod tests {
             fo: 0.0,
             k: 10.0,
         };
-        let (mode, tau) = position_hold_friction(0.0, 0.03, 0.08, 0.02, 0.10, &gains);
+        let (mode, tau) = position_hold_friction(0.0, 0.03, 0.08, 0.02, 0.10, 500, &gains);
         assert_eq!(mode, PositionFrictionMode::TrajectoryVelocity);
         assert!((tau - 0.5).abs() < 1e-6);
     }
@@ -180,7 +200,7 @@ mod tests {
     #[test]
     fn settle_fade_when_planner_done() {
         let gains = test_gains();
-        let (mode, tau) = position_hold_friction(0.0, 0.0, 0.02, 0.02, 0.10, &gains);
+        let (mode, tau) = position_hold_friction(0.0, 0.0, 0.02, 0.02, 0.10, 500, &gains);
         assert_eq!(mode, PositionFrictionMode::SettleFade);
         assert!((tau - 0.05).abs() < 1e-6);
     }
@@ -188,7 +208,7 @@ mod tests {
     #[test]
     fn cross_target_uses_settle_fade() {
         let gains = test_gains();
-        let (mode, tau) = position_hold_friction(0.08, 0.10, -0.003, 0.02, 0.10, &gains);
+        let (mode, tau) = position_hold_friction(0.08, 0.10, -0.003, 0.02, 0.10, 500, &gains);
         assert_eq!(mode, PositionFrictionMode::SettleFade);
         assert!(tau.abs() < 0.05);
     }
