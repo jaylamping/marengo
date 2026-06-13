@@ -54,6 +54,8 @@ const benchLogWrapper = (
     'mkdir -p "$LOGDIR"',
     'TS=$(date -u +"%Y%m%dT%H%M%SZ")',
     'LOG="$LOGDIR/bench-$TS.log"',
+    'TRACE="$LOGDIR/position-trace-$TS.csv"',
+    'export MARENGO_POSITION_TRACE="$TRACE"',
     `LABEL=${shellQuote(label)}`,
     'echo "=== bench session $TS ($LABEL) ===" | tee "$LOG"',
     "set +e",
@@ -63,7 +65,8 @@ const benchLogWrapper = (
     "PIPE_STATUS=${PIPESTATUS[0]}",
     "set -e",
     'ln -sf "$LOG" "$LOGDIR/bench-latest.log"',
-    'echo "{\"log\":\"$LOG\",\"ts\":\"$TS\",\"label\":\"$LABEL\"}"',
+    'ln -sf "$TRACE" "$LOGDIR/position-trace-latest.csv"',
+    'echo "{\"log\":\"$LOG\",\"trace\":\"$TRACE\",\"ts\":\"$TS\",\"label\":\"$LABEL\"}"',
     'exit "$PIPE_STATUS"',
   ].join("\n");
   return configDir

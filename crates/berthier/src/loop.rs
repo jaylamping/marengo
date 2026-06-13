@@ -17,6 +17,7 @@ use tracing::{debug, info};
 use crate::friction::{
     friction_torque, position_hold_friction_torque, trajectory_friction_torque,
 };
+use crate::position_trace::{PositionTrace, PositionTraceRow};
 use crate::position_trajectory::{trajectory_damping_torque, JointPositionPlanner};
 
 const POSITION_HOLD_DAMPING_FULL_ERROR_RAD: f64 = 0.01;
@@ -54,6 +55,8 @@ pub struct ControlLoop<B: MotorBus> {
     last_chappe: Option<Instant>,
     last_position_diag: Option<Instant>,
     tick_count: u64,
+    loop_hz: u32,
+    position_trace: Option<PositionTrace>,
 }
 
 impl<B: MotorBus> ControlLoop<B> {
@@ -68,6 +71,7 @@ impl<B: MotorBus> ControlLoop<B> {
         let joint_names = robot.robot.joints.clone();
         let urdf = resolve_urdf_path(root, &robot)?;
         let dynamics = UrdfGravityModel::from_urdf(&urdf, &joint_names)?;
+        let loop_hz = loop_hz.max(1);
         let supervisor = Supervisor::from_repo(root, bus)?;
         Ok(Self {
             supervisor,
@@ -76,11 +80,13 @@ impl<B: MotorBus> ControlLoop<B> {
             control_mode: ControlMode::Disabled,
             position_setpoints: None,
             position_planners: None,
-            loop_period: Duration::from_secs_f64(1.0 / f64::from(loop_hz.max(1))),
+            loop_period: Duration::from_secs_f64(1.0 / f64::from(loop_hz)),
             chappe_publish_period: Duration::from_secs_f64(1.0 / f64::from(chappe_hz.max(1))),
             last_chappe: None,
             last_position_diag: None,
             tick_count: 0,
+            loop_hz,
+            position_trace: PositionTrace::from_env(loop_hz),
         })
     }
 
@@ -341,13 +347,16 @@ impl<B: MotorBus> ControlLoop<B> {
                                     kd,
                                 )
                             };
+                            let tau_ff_cmd = tau_g[i] + tau_f + tau_d;
+                            let tau_meas = self.joint_torque(name);
+                            let lead_sat = lead.abs() >= max_lead - 1e-6;
+                            let phase_str = if on_trajectory {
+                                format!("{traj_phase:?}")
+                            } else {
+                                "slew".to_string()
+                            };
                             if log_position_diag {
-                                let estimated_tau = tau_g[i] + tau_f + tau_d + kp * lead;
-                                let phase = if on_trajectory {
-                                    format!("{traj_phase:?}")
-                                } else {
-                                    "slew".to_string()
-                                };
+                                let estimated_tau = tau_ff_cmd + kp * lead;
                                 info!(
                                     joint = %name,
                                     q = q[i],
@@ -357,22 +366,60 @@ impl<B: MotorBus> ControlLoop<B> {
                                     q_des,
                                     target,
                                     lead,
+                                    lead_sat,
                                     tracking_error,
                                     settle_error,
-                                    phase = %phase,
+                                    phase = %phase_str,
                                     kp,
                                     kd,
                                     tau_g = tau_g[i],
                                     tau_f,
                                     tau_d,
+                                    tau_ff_cmd,
+                                    tau_meas,
+                                    tau_err = tau_meas - tau_ff_cmd,
                                     estimated_tau,
+                                    kp_mit = kp,
+                                    kd_mit = 0.0,
                                     "position hold command"
                                 );
+                            }
+                            if let Some(trace) = self.position_trace.as_mut() {
+                                let t_ms = self
+                                    .tick_count
+                                    .saturating_mul(1000)
+                                    / u64::from(self.loop_hz);
+                                let row = PositionTraceRow {
+                                    joint: name,
+                                    q: q[i],
+                                    dq,
+                                    dq_traj,
+                                    q_des,
+                                    target,
+                                    lead,
+                                    lead_sat,
+                                    tracking_error,
+                                    settle_error,
+                                    phase: &phase_str,
+                                    kp,
+                                    kd,
+                                    tau_g: tau_g[i],
+                                    tau_f,
+                                    tau_d,
+                                    tau_ff_cmd,
+                                    tau_meas,
+                                    kp_mit: kp,
+                                    kd_mit: 0.0,
+                                };
+                                let _ = trace.maybe_record(self.tick_count, t_ms, &row);
+                                if self.tick_count % u64::from(self.loop_hz) == 0 {
+                                    let _ = trace.flush();
+                                }
                             }
                             // Keep firmware MIT damping at zero in position hold; the drive's
                             // velocity estimate is noisy, so Berthier applies damping through
                             // torque feedforward using Davout's sanitized joint velocity.
-                            (kp, 0.0, tau_g[i] + tau_f + tau_d, q_des)
+                            (kp, 0.0, tau_ff_cmd, q_des)
                         }
                         ControlMode::Disabled => continue,
                     };
@@ -489,6 +536,17 @@ impl<B: MotorBus> ControlLoop<B> {
             .find(|m| m.joint == joint)
             .and_then(|m| self.supervisor.motor_states().get(&MotorAddress::from(m)))
             .map(|s| f64::from(s.velocity_rad_s))
+            .unwrap_or(0.0)
+    }
+
+    fn joint_torque(&self, joint: &str) -> f64 {
+        self.supervisor
+            .motors
+            .motors
+            .iter()
+            .find(|m| m.joint == joint)
+            .and_then(|m| self.supervisor.motor_states().get(&MotorAddress::from(m)))
+            .map(|s| f64::from(s.torque_nm))
             .unwrap_or(0.0)
     }
 
