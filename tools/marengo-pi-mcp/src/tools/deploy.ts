@@ -6,16 +6,16 @@ import { execLocal, execRemote, formatRemoteResult } from "../ssh.js";
 
 function localDeployCommand(cfg: MarengoPiConfig): { cmd: string; args: string[] } {
   const host = `${cfg.user}@${cfg.host}`;
-  // Windows hosts lack native aarch64 cross GCC; use the cached compose deploy path.
+  // Relative paths: execLocal sets cwd to localRoot (Windows bash mangles C:\… backslashes).
   if (process.platform === "win32") {
     return {
       cmd: "bash",
-      args: [path.join(cfg.localRoot, "scripts", "deploy-pi-docker.sh"), host],
+      args: ["./scripts/deploy-pi-docker.sh", host],
     };
   }
   return {
     cmd: "bash",
-    args: [path.join(cfg.localRoot, "scripts", "deploy-pi.sh"), "--install", host],
+    args: ["./scripts/deploy-pi.sh", "--install", host],
   };
 }
 
