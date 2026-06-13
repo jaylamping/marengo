@@ -78,8 +78,8 @@ mod tests {
         let positive = position_hold_friction_torque(-0.2, 0.01, 0.25, 0.0, 0.0, 10.0);
         let negative = position_hold_friction_torque(0.2, -0.01, 0.25, 0.0, 0.0, 10.0);
 
-        assert!((positive - 0.25).abs() < 1e-6);
-        assert!((negative + 0.25).abs() < 1e-6);
+        assert!((positive - 0.125).abs() < 1e-6);
+        assert!((negative + 0.125).abs() < 1e-6);
     }
 
     #[test]

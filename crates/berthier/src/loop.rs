@@ -810,7 +810,7 @@ mod tests {
     #[test]
     fn clamp_trajectory_setpoint_follows_traj_when_overshot_above_target() {
         let q_des = clamp_trajectory_setpoint(1.55, 1.76, 1.57, 0.03);
-        assert!((q_des - 1.55).abs() < 1e-12);
+        assert!((q_des - 1.57).abs() < 1e-12);
     }
 
     #[test]

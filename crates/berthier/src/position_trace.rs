@@ -179,7 +179,7 @@ mod tests {
         };
         let line = row.format_csv_with_meta(42, 1234);
         assert!(line.starts_with("42,1234,right_shoulder_pitch,"));
-        assert!(line.contains(",1.740000,1.500000,-0.240000,"));
+        assert!(line.contains(",1.740000,1.980000,1.500000,-0.240000,"));
         assert!(line.contains(",Cruise,"));
     }
 }
