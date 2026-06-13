@@ -15,6 +15,11 @@ control:
       tau_ff_max_nm: 5.0
       velocity_max_rad_s: 2.0
 
+  actuator_groups:
+    shoulder_pitch:
+      joints: [left_shoulder_pitch]
+      velocity_max_rad_s: 2.0
+
   joints:
     left_shoulder_pitch:
       motor_type: rs03

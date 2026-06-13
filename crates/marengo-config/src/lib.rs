@@ -26,7 +26,7 @@
 //! Change joint names, motor types, or bench caps here — then update URDF and
 //! `hardware/docs/kinematics.md` together.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
@@ -46,6 +46,10 @@ pub enum ConfigError {
     DuplicateMotorAddress { interface: String, device_id: u8 },
     #[error("invalid limit margin on joint {joint}: {message}")]
     InvalidLimitMargin { joint: String, message: String },
+    #[error("invalid actuator group {group}: {message}")]
+    InvalidActuatorGroup { group: String, message: String },
+    #[error("invalid velocity on joint {joint}: {message}")]
+    InvalidVelocity { joint: String, message: String },
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -197,9 +201,18 @@ pub struct ControlSection {
     pub disable_on_exit: bool,
     #[serde(default)]
     pub bench: ControlBenchSection,
-    pub motor_type_defaults: std::collections::HashMap<String, MotorTypeDefaults>,
-    pub joints: std::collections::HashMap<String, JointControlEntry>,
+    pub motor_type_defaults: HashMap<String, MotorTypeDefaults>,
+    #[serde(default)]
+    pub actuator_groups: HashMap<String, ActuatorGroupEntry>,
+    pub joints: HashMap<String, JointControlEntry>,
     pub danger_zones: Vec<DangerZoneRule>,
+}
+
+/// Shared tuning for a named actuator grouping (e.g. shoulder pitch L/R, hips).
+#[derive(Debug, Clone, Deserialize)]
+pub struct ActuatorGroupEntry {
+    pub joints: Vec<String>,
+    pub velocity_max_rad_s: f64,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -222,6 +235,9 @@ pub struct JointControlEntry {
     pub gravity_comp: ModeGains,
     pub impedance: ModeGains,
     pub friction: FrictionGains,
+    /// Operator desired MIT / planner velocity cap (rad/s). Overrides group and motor-type default.
+    #[serde(default)]
+    pub velocity_max_rad_s: Option<f64>,
     /// Max rate for ramping position-hold setpoints (`hold-at` / retarget). Default 0.25 rad/s.
     #[serde(default = "default_position_slew_rad_s")]
     pub position_slew_rad_s: f64,
@@ -341,10 +357,176 @@ fn default_position_limit_measured_fault_slack_rad() -> f64 {
     0.005
 }
 
-/// Validate margin fields on every joint entry in `control.yaml`.
+/// YAML key for [`MotorType`] in `motor_type_defaults`.
+pub fn motor_type_key(motor_type: MotorType) -> &'static str {
+    match motor_type {
+        MotorType::Rs00 => "rs00",
+        MotorType::Rs02 => "rs02",
+        MotorType::Rs03 => "rs03",
+        MotorType::Rs04 => "rs04",
+    }
+}
+
+/// Actuator group containing `joint`, if any.
+pub fn actuator_group_for_joint<'a>(
+    joint: &str,
+    control: &'a ControlSection,
+) -> Option<(&'a str, &'a ActuatorGroupEntry)> {
+    control
+        .actuator_groups
+        .iter()
+        .find(|(_, group)| group.joints.iter().any(|j| j == joint))
+        .map(|(name, group)| (name.as_str(), group))
+}
+
+/// Desired velocity cap before URDF / bench hard ceilings (joint > group > motor type).
+pub fn resolve_desired_joint_velocity_cap(
+    joint: &str,
+    motor_type: MotorType,
+    control: &ControlSection,
+) -> Result<f64, ConfigError> {
+    if let Some(v) = control
+        .joints
+        .get(joint)
+        .and_then(|entry| entry.velocity_max_rad_s)
+    {
+        if v <= 0.0 {
+            return Err(ConfigError::InvalidVelocity {
+                joint: joint.to_string(),
+                message: "velocity_max_rad_s must be > 0".to_string(),
+            });
+        }
+        return Ok(v);
+    }
+    if let Some((_group, entry)) = actuator_group_for_joint(joint, control) {
+        if entry.velocity_max_rad_s <= 0.0 {
+            return Err(ConfigError::InvalidVelocity {
+                joint: joint.to_string(),
+                message: "actuator group velocity_max_rad_s must be > 0".to_string(),
+            });
+        }
+        return Ok(entry.velocity_max_rad_s);
+    }
+    let type_key = motor_type_key(motor_type);
+    let defaults =
+        control
+            .motor_type_defaults
+            .get(type_key)
+            .ok_or_else(|| ConfigError::InvalidVelocity {
+                joint: joint.to_string(),
+                message: format!("missing motor_type_defaults.{type_key}"),
+            })?;
+    if defaults.velocity_max_rad_s <= 0.0 {
+        return Err(ConfigError::InvalidVelocity {
+            joint: joint.to_string(),
+            message: format!("motor_type_defaults.{type_key}.velocity_max_rad_s must be > 0"),
+        });
+    }
+    Ok(defaults.velocity_max_rad_s)
+}
+
+/// Effective command velocity cap (rad/s) for one joint. ADR 0010.
+pub fn resolve_joint_velocity_cap(
+    joint: &str,
+    urdf_velocity_rad_s: f64,
+    motor: &MotorEntry,
+    robot: &RobotSection,
+    control: &ControlSection,
+) -> Result<f64, ConfigError> {
+    let desired = resolve_desired_joint_velocity_cap(joint, motor.motor_type, control)?;
+    Ok(desired
+        .min(urdf_velocity_rad_s)
+        .min(motor.bench.velocity_limit_rad_s)
+        .min(robot.bench.max_joint_velocity_rad_s))
+}
+
+fn validate_actuator_groups(control: &ControlSection) -> Result<(), ConfigError> {
+    let mut joint_owner: HashMap<String, String> = HashMap::new();
+    for (group, entry) in &control.actuator_groups {
+        if entry.velocity_max_rad_s <= 0.0 {
+            return Err(ConfigError::InvalidActuatorGroup {
+                group: group.clone(),
+                message: "velocity_max_rad_s must be > 0".to_string(),
+            });
+        }
+        if entry.joints.is_empty() {
+            return Err(ConfigError::InvalidActuatorGroup {
+                group: group.clone(),
+                message: "joints must not be empty".to_string(),
+            });
+        }
+        for joint in &entry.joints {
+            if !control.joints.contains_key(joint) {
+                return Err(ConfigError::InvalidActuatorGroup {
+                    group: group.clone(),
+                    message: format!("joint {joint} not in control.joints"),
+                });
+            }
+            if let Some(other) = joint_owner.insert(joint.clone(), group.clone()) {
+                return Err(ConfigError::InvalidActuatorGroup {
+                    group: group.clone(),
+                    message: format!("joint {joint} already in group {other}"),
+                });
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Validate margin fields and actuator groups in `control.yaml`.
 pub fn validate_control_config(control: &ControlConfigFile) -> Result<(), ConfigError> {
+    validate_actuator_groups(&control.control)?;
     for (joint, entry) in &control.control.joints {
         entry.limit_margin_fields_valid(joint)?;
+        if let Some(v) = entry.velocity_max_rad_s {
+            if v <= 0.0 {
+                return Err(ConfigError::InvalidVelocity {
+                    joint: joint.clone(),
+                    message: "velocity_max_rad_s must be > 0".to_string(),
+                });
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Cross-check planner speeds against effective caps (call after URDF is loaded).
+pub fn validate_control_against_limits(
+    robot: &RobotConfigFile,
+    motors: &MotorsConfigFile,
+    control: &ControlConfigFile,
+    urdf_velocity_rad_s: impl Fn(&str) -> Result<f64, ConfigError>,
+) -> Result<(), ConfigError> {
+    let robot_joints: HashSet<&str> = robot.robot.joints.iter().map(String::as_str).collect();
+    for (group, entry) in &control.control.actuator_groups {
+        for joint in &entry.joints {
+            if !robot_joints.contains(joint.as_str()) {
+                return Err(ConfigError::InvalidActuatorGroup {
+                    group: group.clone(),
+                    message: format!("joint {joint} not in robot.joints"),
+                });
+            }
+        }
+    }
+    for joint in &robot.robot.joints {
+        let Some(joint_cfg) = control.control.joints.get(joint) else {
+            continue;
+        };
+        let motor =
+            motor_for_joint(motors, joint).ok_or_else(|| ConfigError::UnknownMotorJoint {
+                joint: joint.clone(),
+            })?;
+        let urdf_v = urdf_velocity_rad_s(joint)?;
+        let cap = resolve_joint_velocity_cap(joint, urdf_v, motor, &robot.robot, &control.control)?;
+        if joint_cfg.position_trajectory_velocity_rad_s > cap + 1e-9 {
+            return Err(ConfigError::InvalidVelocity {
+                joint: joint.clone(),
+                message: format!(
+                    "position_trajectory_velocity_rad_s {} > effective cap {}",
+                    joint_cfg.position_trajectory_velocity_rad_s, cap
+                ),
+            });
+        }
     }
     Ok(())
 }
@@ -739,5 +921,172 @@ mod tests {
         assert_eq!(knee.motor_type, MotorType::Rs04);
         let hip = motor_for_joint(&motors, "left_hip_pitch").expect("left_hip_pitch");
         assert_eq!(hip.motor_type, MotorType::Rs04);
+    }
+
+    fn sample_control_section() -> ControlSection {
+        let mut motor_type_defaults = HashMap::new();
+        motor_type_defaults.insert(
+            "rs03".to_string(),
+            MotorTypeDefaults {
+                kp_max: 5000.0,
+                kd_max: 100.0,
+                tau_ff_max_nm: 5.0,
+                velocity_max_rad_s: 2.0,
+            },
+        );
+        let mut joints = HashMap::new();
+        joints.insert(
+            "right_shoulder_pitch".to_string(),
+            JointControlEntry {
+                motor_type: MotorType::Rs03,
+                gravity_comp: ModeGains { kp: 0.0, kd: 0.0 },
+                impedance: ModeGains { kp: 8.0, kd: 1.0 },
+                friction: FrictionGains {
+                    fc: 0.0,
+                    fv: 0.0,
+                    fo: 0.0,
+                    k: 10.0,
+                },
+                velocity_max_rad_s: None,
+                position_slew_rad_s: 0.15,
+                position_slew_max_lead_rad: 0.10,
+                position_trajectory_threshold_rad: 0.0,
+                position_trajectory_velocity_rad_s: 2.0,
+                position_trajectory_accel_rad_s2: 4.8,
+                position_trajectory_velocity_deadband_rad: 0.02,
+                position_hold_trim_rad: 0.0,
+                position_limit_margin_min_rad: 0.01,
+                position_limit_margin_k_v_s: 0.02,
+                position_limit_margin_k_stop: 0.5,
+                position_limit_measured_fault_slack_rad: 0.005,
+                position_soft_lower_rad: None,
+                position_soft_upper_rad: None,
+            },
+        );
+        let mut actuator_groups = HashMap::new();
+        actuator_groups.insert(
+            "shoulder_pitch".to_string(),
+            ActuatorGroupEntry {
+                joints: vec!["right_shoulder_pitch".to_string()],
+                velocity_max_rad_s: 2.0,
+            },
+        );
+        ControlSection {
+            loop_hz: 200,
+            chappe_state_hz: 50,
+            comm_watchdog_ms: 50,
+            tau_ff_rate_limit_nm_per_s: 20.0,
+            disable_on_exit: true,
+            bench: ControlBenchSection::default(),
+            motor_type_defaults,
+            actuator_groups,
+            joints,
+            danger_zones: vec![],
+        }
+    }
+
+    fn sample_motor() -> MotorEntry {
+        MotorEntry {
+            joint: "right_shoulder_pitch".to_string(),
+            driver: "robstride".to_string(),
+            motor_type: MotorType::Rs03,
+            can_interface: "can0".to_string(),
+            device_id: 2,
+            direction: -1,
+            gear_ratio: 1.0,
+            recv_can_id: 0x242,
+            firmware_version: "test".to_string(),
+            bench: MotorBenchLimits {
+                position_lower_rad: -0.9,
+                position_upper_rad: 3.17,
+                velocity_limit_rad_s: 2.0,
+                torque_limit_nm: 5.0,
+            },
+        }
+    }
+
+    #[test]
+    fn joint_velocity_override_beats_group_and_type_default() {
+        let mut control = sample_control_section();
+        control
+            .joints
+            .get_mut("right_shoulder_pitch")
+            .expect("joint")
+            .velocity_max_rad_s = Some(1.5);
+        let desired =
+            resolve_desired_joint_velocity_cap("right_shoulder_pitch", MotorType::Rs03, &control)
+                .expect("desired");
+        assert!((desired - 1.5).abs() < 1e-9);
+    }
+
+    #[test]
+    fn group_velocity_used_when_joint_override_absent() {
+        let control = sample_control_section();
+        let desired =
+            resolve_desired_joint_velocity_cap("right_shoulder_pitch", MotorType::Rs03, &control)
+                .expect("desired");
+        assert!((desired - 2.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn hard_ceilings_clamp_effective_velocity_cap() {
+        let control = sample_control_section();
+        let mut motor = sample_motor();
+        motor.bench.velocity_limit_rad_s = 0.5;
+        let robot = RobotSection {
+            name: "test".to_string(),
+            urdf: "test.urdf".to_string(),
+            bench: BenchSection {
+                max_joint_velocity_rad_s: 2.0,
+                max_joint_torque_nm: 5.0,
+            },
+            joints: vec!["right_shoulder_pitch".to_string()],
+        };
+        let cap =
+            resolve_joint_velocity_cap("right_shoulder_pitch", 50.0, &motor, &robot, &control)
+                .expect("cap");
+        assert!((cap - 0.5).abs() < 1e-9);
+    }
+
+    #[test]
+    fn duplicate_actuator_group_membership_rejected() {
+        let mut control = sample_control_section();
+        control.actuator_groups.insert(
+            "other".to_string(),
+            ActuatorGroupEntry {
+                joints: vec!["right_shoulder_pitch".to_string()],
+                velocity_max_rad_s: 1.0,
+            },
+        );
+        let cfg = ControlConfigFile { control };
+        let err = validate_control_config(&cfg).expect_err("duplicate");
+        assert!(matches!(err, ConfigError::InvalidActuatorGroup { .. }));
+    }
+
+    #[test]
+    fn trajectory_velocity_above_effective_cap_rejected() {
+        let root = repo_root();
+        let config_dir = root.join("config/bringup/shoulder_pitch_right_only");
+        let robot = load_robot_config_from(&config_dir).expect("robot");
+        let motors = load_motors_config_from(&config_dir).expect("motors");
+        let mut control = load_control_config_from(&config_dir).expect("control");
+        control
+            .control
+            .joints
+            .get_mut("right_shoulder_pitch")
+            .expect("joint")
+            .position_trajectory_velocity_rad_s = 99.0;
+        let urdf_path = resolve_urdf_path(&root, &robot).expect("urdf");
+        let urdf_robot = armee_kinematics::load_urdf(&urdf_path).expect("load urdf");
+        let err = validate_control_against_limits(&robot, &motors, &control, |joint| {
+            armee_kinematics::joint_limits(&urdf_robot, joint)
+                .map(|lim| lim.velocity)
+                .map_err(|e| ConfigError::InvalidVelocity {
+                    joint: joint.to_string(),
+                    message: e.to_string(),
+                })
+        })
+        .expect_err("trajectory too high");
+        assert!(matches!(err, ConfigError::InvalidVelocity { .. }));
     }
 }

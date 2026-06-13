@@ -189,23 +189,36 @@ impl<B: MotorBus> ControlLoop<B> {
         if self.position_planners.is_none() {
             self.init_position_planners(&q_now);
         }
+        let downward_seed_rate = if (old_target - target).abs() > 1e-6 {
+            self.supervisor
+                .control
+                .control
+                .joints
+                .get(joint)
+                .map(|cfg| {
+                    let move_dist = (target - q_now[i]).abs();
+                    let v_max = self.clamp_v_max(
+                        joint,
+                        if move_dist <= POSITION_SMALL_MOVE_VMAX_RAD {
+                            cfg.position_slew_rad_s
+                        } else {
+                            cfg.position_trajectory_velocity_rad_s
+                        },
+                    );
+                    cfg.position_slew_rad_s.min(v_max)
+                })
+        } else {
+            None
+        };
         if let Some(planners) = self.position_planners.as_mut() {
             planners[i].reset_target(q_now[i], target);
-            if (old_target - target).abs() > 1e-6 {
-                if let Some(cfg) = self.supervisor.control.control.joints.get(joint) {
-                    let move_dist = (target - q_now[i]).abs();
-                    let v_max = if move_dist <= POSITION_SMALL_MOVE_VMAX_RAD {
-                        cfg.position_slew_rad_s
-                    } else {
-                        cfg.position_trajectory_velocity_rad_s
-                    };
-                    planners[i].seed_downward_return_if_needed(
-                        q_now[i],
-                        target,
-                        POSITION_RETURN_DESCENT_SEED_RAD,
-                        cfg.position_slew_rad_s.min(v_max),
-                    );
-                }
+            if let Some(seed) = downward_seed_rate {
+                planners[i].seed_downward_return_if_needed(
+                    q_now[i],
+                    target,
+                    POSITION_RETURN_DESCENT_SEED_RAD,
+                    seed,
+                );
             }
         }
         if (old_target - target).abs() > 1e-6 {
@@ -341,6 +354,12 @@ impl<B: MotorBus> ControlLoop<B> {
         clamp_hold_target(policy, q, dq_cmd, requested_rad)
     }
 
+    fn clamp_v_max(&self, joint: &str, v_requested: f64) -> f64 {
+        self.supervisor
+            .joint_velocity_cap(joint)
+            .map_or(v_requested, |cap| v_requested.min(cap))
+    }
+
     fn estimated_retarget_dq_cmd(&self, joint: &str, q: f64, requested_rad: f64) -> f64 {
         let delta = requested_rad - q;
         if delta.abs() <= 1e-9 {
@@ -356,7 +375,7 @@ impl<B: MotorBus> ControlLoop<B> {
         } else {
             trajectory_v
         };
-        delta.signum() * v_max
+        delta.signum() * self.clamp_v_max(joint, v_max)
     }
 
     pub fn clear_position_hold(&mut self) {
@@ -788,16 +807,33 @@ impl<B: MotorBus> ControlLoop<B> {
         let dq_filtered: Vec<f64> = (0..self.joint_names.len())
             .map(|i| self.filtered_dq_for_damping(i, dq_meas[i]))
             .collect();
+        let v_max_caps: Vec<f64> = self
+            .joint_names
+            .iter()
+            .enumerate()
+            .map(|(i, name)| {
+                let cfg = self.supervisor.control.control.joints.get(name);
+                let slew_rad_s = cfg.map(|c| c.position_slew_rad_s).unwrap_or(0.25);
+                let trajectory_v_max = cfg
+                    .map(|c| c.position_trajectory_velocity_rad_s)
+                    .unwrap_or(0.30);
+                let move_dist = (targets[i] - q[i]).abs();
+                self.clamp_v_max(
+                    name,
+                    if move_dist <= POSITION_SMALL_MOVE_VMAX_RAD {
+                        slew_rad_s
+                    } else {
+                        trajectory_v_max
+                    },
+                )
+            })
+            .collect();
         let Some(planners) = self.position_planners.as_mut() else {
             return Ok(());
         };
         let dt = self.loop_period.as_secs_f64();
         for (i, name) in self.joint_names.iter().enumerate() {
             let cfg = self.supervisor.control.control.joints.get(name);
-            let slew_rad_s = cfg.map(|c| c.position_slew_rad_s).unwrap_or(0.25);
-            let trajectory_v_max = cfg
-                .map(|c| c.position_trajectory_velocity_rad_s)
-                .unwrap_or(0.30);
             let a_max = cfg
                 .map(|c| c.position_trajectory_accel_rad_s2)
                 .unwrap_or(0.20);
@@ -805,12 +841,7 @@ impl<B: MotorBus> ControlLoop<B> {
             let vel_deadband = cfg
                 .map(|c| c.position_trajectory_velocity_deadband_rad)
                 .unwrap_or(POSITION_HOLD_ERROR_DEADBAND_RAD);
-            let move_dist = (targets[i] - q[i]).abs();
-            let v_max = if move_dist <= POSITION_SMALL_MOVE_VMAX_RAD {
-                slew_rad_s
-            } else {
-                trajectory_v_max
-            };
+            let v_max = v_max_caps[i];
             let resync_stuck_lead = planner_should_resync_stuck_lead(
                 &planners[i],
                 q[i],

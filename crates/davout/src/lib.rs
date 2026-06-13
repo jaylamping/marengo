@@ -54,7 +54,8 @@ use armee_kinematics::{
 };
 use marengo_config::{
     load_control_config, load_homing_config, load_motors_config, load_robot_config,
-    motor_for_joint, resolve_urdf_path, validate_motors_against_robot, ControlConfigFile,
+    motor_for_joint, motor_type_key, resolve_joint_velocity_cap, resolve_urdf_path,
+    validate_control_against_limits, validate_motors_against_robot, ControlConfigFile,
     HomingConfigFile, MotorEntry, MotorType, MotorsConfigFile, RobotConfigFile,
 };
 use marengo_homing::{verify_manual_reference, HomingRegistry, VerifyError};
@@ -200,6 +201,14 @@ impl<B: MotorBus> Supervisor<B> {
         })?;
         let urdf_path = resolve_urdf_path(root, &robot)?;
         let urdf_robot = load_urdf(&urdf_path)?;
+        validate_control_against_limits(&robot, &motors, &control, |joint| {
+            joint_limits(&urdf_robot, joint)
+                .map(|lim| lim.velocity)
+                .map_err(|e| marengo_config::ConfigError::InvalidVelocity {
+                    joint: joint.to_string(),
+                    message: e.to_string(),
+                })
+        })?;
         let limits = build_limits(&robot, &motors, &control, &urdf_robot)?;
         let motor_types = motors
             .motors
@@ -242,6 +251,11 @@ impl<B: MotorBus> Supervisor<B> {
     /// Per-joint limit policy (hard/soft bounds + margin config). ADR 0009.
     pub fn joint_limit_policy(&self, joint: &str) -> Option<&JointLimitPolicy> {
         self.limits.get(joint)
+    }
+
+    /// Effective command velocity cap (rad/s) after desired + bench + URDF resolution. ADR 0010.
+    pub fn joint_velocity_cap(&self, joint: &str) -> Option<f64> {
+        self.limits.get(joint).map(|lim| lim.velocity)
     }
 
     /// Joint-space feedback position (rad) if available.
@@ -716,7 +730,7 @@ impl<B: MotorBus> Supervisor<B> {
             })?
             .clone();
         let capped = self.filter_speed_command(cmd, &motor)?;
-        let cap = self.speed_cap_for_joint(&capped.joint, &motor)?;
+        let cap = self.speed_cap_for_joint(&capped.joint)?;
         let scale = motor_position_scale(&motor)?;
         let address = MotorAddress::from(&motor);
         self.bus.set_run_mode_at(&address, RunMode::Speed)?;
@@ -867,7 +881,7 @@ impl<B: MotorBus> Supervisor<B> {
                 ),
             });
         }
-        let vel_cap = lim.velocity.min(defaults.velocity_max_rad_s);
+        let vel_cap = lim.velocity;
         if out.velocity_rad_s.abs() > vel_cap {
             return Err(DavoutError::Limit {
                 joint: out.joint.clone(),
@@ -891,32 +905,22 @@ impl<B: MotorBus> Supervisor<B> {
         Ok(out)
     }
 
-    fn speed_cap_for_joint(&self, joint: &str, motor: &MotorEntry) -> Result<f64, DavoutError> {
+    fn speed_cap_for_joint(&self, joint: &str) -> Result<f64, DavoutError> {
         let lim = self
             .limits
             .get(joint)
             .ok_or_else(|| DavoutError::UnknownJoint {
                 joint: joint.to_string(),
             })?;
-        let type_key = motor_type_key(motor.motor_type);
-        let defaults = self
-            .control
-            .control
-            .motor_type_defaults
-            .get(type_key)
-            .ok_or_else(|| DavoutError::Limit {
-                joint: joint.to_string(),
-                message: format!("no defaults for motor type {type_key}"),
-            })?;
-        Ok(lim.velocity.min(defaults.velocity_max_rad_s))
+        Ok(lim.velocity)
     }
 
     pub fn filter_speed_command(
         &self,
         cmd: SpeedCommand,
-        motor: &MotorEntry,
+        _motor: &MotorEntry,
     ) -> Result<SpeedCommand, DavoutError> {
-        let cap = self.speed_cap_for_joint(&cmd.joint, motor)?;
+        let cap = self.speed_cap_for_joint(&cmd.joint)?;
         let mut out = cmd;
         out.velocity_rad_s = out.velocity_rad_s.clamp(-cap, cap);
         Ok(out)
@@ -975,15 +979,6 @@ impl<B: MotorBus> Supervisor<B> {
             });
         }
         Ok(out)
-    }
-}
-
-fn motor_type_key(ty: MotorType) -> &'static str {
-    match ty {
-        MotorType::Rs00 => "rs00",
-        MotorType::Rs02 => "rs02",
-        MotorType::Rs03 => "rs03",
-        MotorType::Rs04 => "rs04",
     }
 }
 
@@ -1085,10 +1080,13 @@ fn build_limits(
             })?;
         let joint_cfg = control.control.joints.get(joint_name);
         let margin = limit_margin_from_config(joint_cfg);
-        let velocity = urdf_lim
-            .velocity
-            .min(motor.bench.velocity_limit_rad_s)
-            .min(robot.robot.bench.max_joint_velocity_rad_s);
+        let velocity = resolve_joint_velocity_cap(
+            joint_name,
+            urdf_lim.velocity,
+            motor,
+            &robot.robot,
+            &control.control,
+        )?;
         let effort = urdf_lim
             .effort
             .min(motor.bench.torque_limit_nm)
