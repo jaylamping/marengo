@@ -10,6 +10,10 @@ changes can be compared without eyeballing thousands of rows.
 
 Layer 2 gate (weighted hold-at 0.1):
   python scripts/analyze-position-trace.py trace.csv --gate layer2 --tau-ff-rate-limit 60
+
+Onset diagnostics (first 250 ms after each retarget):
+  python scripts/analyze-position-trace.py trace.csv --onset
+  python scripts/analyze-position-trace.py trace.csv --onset --onset-window-ms 300
 """
 
 from __future__ import annotations
@@ -47,12 +51,138 @@ class SegmentReport:
     gate_checks: dict[str, bool] = field(default_factory=dict)
 
 
+@dataclass
+class OnsetReport:
+    target_rad: float
+    window_ms: int
+    samples: int
+    first_motion_ms: int | None
+    stuck_ms: int
+    friction_mode_counts: dict[str, int] = field(default_factory=dict)
+    first_traj_vel_ms: int | None = None
+    first_tau_f_nonzero_ms: int | None = None
+    max_dq_traj_at_stuck: float = 0.0
+    max_tau_f_at_stuck: float = 0.0
+    tau_f_mode_transitions: int = 0
+    hints: list[str] = field(default_factory=list)
+
+
 # Layer 2 weighted hold-at 0.1 — see docs/bench-position-tuning.md
 LAYER2_APPROACH_TARGET_RAD = 0.1
 LAYER2_LEAD_SAT_MAX = 0.10
 LAYER2_JERK_RMS_MAX_RAD_S2 = 800.0
 LAYER2_TAU_F_FLIPS_MAX = 2
 LAYER2_TAU_FF_RATE_LIMIT_MULTIPLIER = 2.0
+DEFAULT_ONSET_WINDOW_MS = 250
+VELOCITY_DEADBAND_RAD_S = 0.02
+MOTION_DQ_RAD_S = 0.005
+
+
+def _has(row: dict[str, str], key: str) -> bool:
+    return key in row and row[key] != ""
+
+
+def _b(row: dict[str, str], key: str) -> bool:
+    return _i(row, key) != 0
+
+
+def _onset_rows(seg: list[dict[str, str]], window_ms: int) -> list[dict[str, str]]:
+    if not seg:
+        return []
+    if _has(seg[0], "retarget_age_ms"):
+        onset = [r for r in seg if _i(r, "retarget_age_ms") <= window_ms]
+        if onset:
+            return onset
+    t0 = _i(seg[0], "t_ms")
+    return [r for r in seg if _i(r, "t_ms") - t0 <= window_ms]
+
+
+def _analyze_onset(seg: list[dict[str, str]], window_ms: int = DEFAULT_ONSET_WINDOW_MS) -> OnsetReport:
+    target = _f(seg[0], "target")
+    rows = _onset_rows(seg, window_ms)
+    if not rows:
+        return OnsetReport(
+            target_rad=target,
+            window_ms=window_ms,
+            samples=0,
+            first_motion_ms=None,
+            stuck_ms=0,
+        )
+
+    t0 = _i(rows[0], "t_ms")
+    age_ms = lambda r: _i(r, "retarget_age_ms") if _has(r, "retarget_age_ms") else _i(r, "t_ms") - t0
+
+    first_motion_ms: int | None = None
+    stuck_ms = 0
+    mode_counts: dict[str, int] = {}
+    first_traj_vel_ms: int | None = None
+    first_tau_f_nonzero_ms: int | None = None
+    max_dq_traj_at_stuck = 0.0
+    max_tau_f_at_stuck = 0.0
+    mode_transitions = 0
+    prev_mode: str | None = None
+
+    for r in rows:
+        ms = age_ms(r)
+        dq = _f(r, "dq")
+        dq_traj = _f(r, "dq_traj")
+        tau_f = _f(r, "tau_f")
+        stuck = _b(r, "joint_stuck") if _has(r, "joint_stuck") else (
+            abs(dq) <= VELOCITY_DEADBAND_RAD_S and abs(dq_traj) > 1e-4
+        )
+        if abs(dq) > MOTION_DQ_RAD_S and first_motion_ms is None:
+            first_motion_ms = ms
+        if stuck:
+            stuck_ms += 1
+            max_dq_traj_at_stuck = max(max_dq_traj_at_stuck, abs(dq_traj))
+            max_tau_f_at_stuck = max(max_tau_f_at_stuck, abs(tau_f))
+        mode = r.get("friction_mode", "unknown")
+        mode_counts[mode] = mode_counts.get(mode, 0) + 1
+        if mode == "traj_vel" and first_traj_vel_ms is None:
+            first_traj_vel_ms = ms
+        if abs(tau_f) > 1e-4 and first_tau_f_nonzero_ms is None:
+            first_tau_f_nonzero_ms = ms
+        if prev_mode is not None and mode != prev_mode:
+            mode_transitions += 1
+        prev_mode = mode
+
+    hints: list[str] = []
+    if stuck_ms > len(rows) // 3:
+        hints.append(
+            f"joint stuck {stuck_ms}/{len(rows)} onset samples — check friction_mode vs dq_traj ramp"
+        )
+    if first_motion_ms is not None and first_tau_f_nonzero_ms is not None:
+        if first_tau_f_nonzero_ms > first_motion_ms + 30:
+            hints.append(
+                f"tau_f late ({first_tau_f_nonzero_ms}ms vs motion {first_motion_ms}ms): breakaway assist lag"
+            )
+        elif first_tau_f_nonzero_ms + 30 < first_motion_ms:
+            hints.append(
+                f"tau_f early ({first_tau_f_nonzero_ms}ms vs motion {first_motion_ms}ms): friction snap before breakaway"
+            )
+    if first_traj_vel_ms is not None and max_dq_traj_at_stuck > VELOCITY_DEADBAND_RAD_S:
+        hints.append(
+            f"traj_vel at {first_traj_vel_ms}ms while stuck with dq_traj={max_dq_traj_at_stuck:.3f}: moving_reference path"
+        )
+    if mode_transitions >= 3:
+        hints.append(f"friction_mode churn x{mode_transitions} in {window_ms}ms: path switching at start")
+    if first_motion_ms is not None and first_motion_ms > 80:
+        hints.append(f"slow breakaway ({first_motion_ms}ms to |dq|>{MOTION_DQ_RAD_S}): stiction or low assist")
+
+    return OnsetReport(
+        target_rad=target,
+        window_ms=window_ms,
+        samples=len(rows),
+        first_motion_ms=first_motion_ms,
+        stuck_ms=stuck_ms,
+        friction_mode_counts=mode_counts,
+        first_traj_vel_ms=first_traj_vel_ms,
+        first_tau_f_nonzero_ms=first_tau_f_nonzero_ms,
+        max_dq_traj_at_stuck=max_dq_traj_at_stuck,
+        max_tau_f_at_stuck=max_tau_f_at_stuck,
+        tau_f_mode_transitions=mode_transitions,
+        hints=hints,
+    )
 
 
 def _f(row: dict[str, str], key: str) -> float:
@@ -275,14 +405,20 @@ def analyze(
     *,
     gate: str | None = None,
     tau_ff_rate_limit_nm_s: float = 60.0,
+    onset: bool = False,
+    onset_window_ms: int = DEFAULT_ONSET_WINDOW_MS,
 ) -> dict:
     rows = _rows(path)
-    segment_reports = [_analyze_segment(s) for s in _split_segments(rows)]
+    segments = _split_segments(rows)
+    segment_reports = [_analyze_segment(s) for s in segments]
     result: dict = {
         "path": str(path),
         "samples": len(rows),
         "segments": [asdict(s) for s in segment_reports],
     }
+    if onset:
+        result["onset"] = [_analyze_onset(s, onset_window_ms) for s in segments]
+        result["onset_window_ms"] = onset_window_ms
     if gate == "layer2":
         result["layer2_gate"] = evaluate_layer2_gate(segment_reports, tau_ff_rate_limit_nm_s)
         result["segments"] = [asdict(s) for s in segment_reports]
@@ -328,6 +464,28 @@ def _print_human(report: dict) -> None:
         print(f"  analyzer: {'PASS' if gate['analyzer_pass'] else 'FAIL'}")
         print(f"  ({gate['note']})")
 
+    onset_reports = report.get("onset")
+    if onset_reports:
+        window = report.get("onset_window_ms", DEFAULT_ONSET_WINDOW_MS)
+        print()
+        print(f"=== Onset window ({window} ms after retarget / segment start) ===")
+        for i, onset in enumerate(onset_reports, 1):
+            print()
+            print(
+                f"--- onset {i}: target={onset['target_rad']:.4f} rad ({onset['samples']} samples) ---"
+            )
+            print(
+                f"  stuck={onset['stuck_ms']}  first_motion={onset['first_motion_ms']}  "
+                f"first_tau_f={onset['first_tau_f_nonzero_ms']}  first_traj_vel={onset['first_traj_vel_ms']}"
+            )
+            print(
+                f"  stuck peak dq_traj={onset['max_dq_traj_at_stuck']:.3f}  "
+                f"tau_f={onset['max_tau_f_at_stuck']:.3f}  mode_transitions={onset['tau_f_mode_transitions']}"
+            )
+            print(f"  friction_mode: {onset['friction_mode_counts']}")
+            for hint in onset.get("hints", []):
+                print(f"  ! {hint}")
+
 
 def main(argv: Iterable[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -344,6 +502,17 @@ def main(argv: Iterable[str] | None = None) -> int:
         default=60.0,
         help="tau_ff_rate_limit_nm_per_s from control.yaml (Layer 2 gate)",
     )
+    parser.add_argument(
+        "--onset",
+        action="store_true",
+        help="summarize first motion window (accel/friction onset)",
+    )
+    parser.add_argument(
+        "--onset-window-ms",
+        type=int,
+        default=DEFAULT_ONSET_WINDOW_MS,
+        help="onset analysis window in ms (default 250)",
+    )
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     if not args.csv.is_file():
@@ -354,6 +523,8 @@ def main(argv: Iterable[str] | None = None) -> int:
         args.csv,
         gate=args.gate,
         tau_ff_rate_limit_nm_s=args.tau_ff_rate_limit,
+        onset=args.onset,
+        onset_window_ms=args.onset_window_ms,
     )
     if args.json:
         json.dump(report, sys.stdout, indent=2)

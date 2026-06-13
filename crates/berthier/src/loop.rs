@@ -1,6 +1,7 @@
 //! Periodic control loop (OpenArm-style refresh → compute → MIT send).
 
 use std::path::Path;
+use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
 use armee_dynamics::{DynamicsModel, UrdfGravityModel};
@@ -14,10 +15,7 @@ use marengo_config::{load_robot_config, resolve_urdf_path};
 use thiserror::Error;
 use tracing::{debug, info};
 
-use crate::friction::{
-    friction_torque, position_hold_friction_torque, position_settle_friction_torque,
-    trajectory_friction_torque,
-};
+use crate::friction::{friction_torque, position_hold_friction_assist, PositionFrictionMode};
 use crate::position_trace::{PositionTrace, PositionTraceRow};
 use crate::position_trajectory::{trajectory_damping_torque, JointPositionPlanner};
 
@@ -58,6 +56,8 @@ pub struct ControlLoop<B: MotorBus> {
     tick_count: u64,
     loop_hz: u32,
     position_trace: Option<PositionTrace>,
+    /// Control tick when each joint's latched target last changed (onset diagnostics).
+    position_retarget_tick: Option<Vec<u64>>,
 }
 
 impl<B: MotorBus> ControlLoop<B> {
@@ -88,6 +88,7 @@ impl<B: MotorBus> ControlLoop<B> {
             tick_count: 0,
             loop_hz,
             position_trace: PositionTrace::from_env(loop_hz),
+            position_retarget_tick: None,
         })
     }
 
@@ -128,6 +129,7 @@ impl<B: MotorBus> ControlLoop<B> {
                 joint: joint.to_string(),
             });
         };
+        let old_target = setpoints[i];
         setpoints[i] = target;
         let q_now = self.refresh_joint_positions();
         let threshold = self
@@ -144,7 +146,40 @@ impl<B: MotorBus> ControlLoop<B> {
         if let Some(planners) = self.position_planners.as_mut() {
             planners[i].reset_target(q_now[i], target, threshold);
         }
+        if (old_target - target).abs() > 1e-6 {
+            info!(
+                joint = %joint,
+                q = q_now[i],
+                old_target,
+                new_target = target,
+                delta = target - q_now[i],
+                traj_threshold_rad = threshold,
+                tick = self.tick_count,
+                "position hold retarget"
+            );
+            self.mark_position_retarget(i);
+        }
         Ok(())
+    }
+
+    fn mark_position_retarget(&mut self, joint_index: usize) {
+        if self.position_retarget_tick.is_none() {
+            self.position_retarget_tick = Some(vec![0; self.joint_names.len()]);
+        }
+        if let Some(ticks) = self.position_retarget_tick.as_mut() {
+            ticks[joint_index] = self.tick_count;
+        }
+    }
+
+    fn position_retarget_age_ms(&self, joint_index: usize) -> u64 {
+        let Some(ticks) = self.position_retarget_tick.as_ref() else {
+            return u64::MAX;
+        };
+        let retarget_tick = ticks.get(joint_index).copied().unwrap_or(0);
+        self.tick_count
+            .saturating_sub(retarget_tick)
+            .saturating_mul(1000)
+            / u64::from(self.loop_hz.max(1))
     }
 
     fn init_position_planners(&mut self, q: &[f64]) {
@@ -165,6 +200,7 @@ impl<B: MotorBus> ControlLoop<B> {
             })
             .collect();
         self.position_planners = Some(planners);
+        self.position_retarget_tick = Some(vec![self.tick_count; self.joint_names.len()]);
     }
 
     fn hold_target_for_joint(&self, joint: &str, position_rad: f64) -> f64 {
@@ -182,6 +218,7 @@ impl<B: MotorBus> ControlLoop<B> {
     pub fn clear_position_hold(&mut self) {
         self.position_setpoints = None;
         self.position_planners = None;
+        self.position_retarget_tick = None;
     }
 
     /// Latch current `q` and enter [`ControlMode::Position`] (gravity FF + impedance gains).
@@ -203,6 +240,14 @@ impl<B: MotorBus> ControlLoop<B> {
             let target = self.hold_target_for_joint(&name, position_rad);
             self.position_setpoints = Some(vec![target]);
             self.init_position_planners(&q);
+            info!(
+                joint = %name,
+                q = q[0],
+                new_target = target,
+                delta = target - q[0],
+                tick = self.tick_count,
+                "position hold retarget"
+            );
         } else {
             let joint = joint.ok_or(LoopError::JointNameRequired)?;
             if self.position_setpoints.is_none() {
@@ -222,6 +267,7 @@ impl<B: MotorBus> ControlLoop<B> {
         if mode != ControlMode::Position {
             self.position_setpoints = None;
             self.position_planners = None;
+            self.position_retarget_tick = None;
             self.last_position_diag = None;
         }
         self.control_mode = mode;
@@ -318,33 +364,29 @@ impl<B: MotorBus> ControlLoop<B> {
                                 && (q_traj - target).abs() <= SETTLE_POSITION_TOLERANCE_RAD;
                             let moving_reference =
                                 moving_reference_toward_target(dq_traj, settle_error, vel_deadband);
-                            let tau_f = fr
+                            let joint_stuck = crate::friction::joint_stuck_in_move_direction(
+                                dq,
+                                dq_traj,
+                                settle_error,
+                                vel_deadband,
+                            );
+                            let (friction_mode, tau_f) = fr
                                 .map(|f| {
-                                    if on_trajectory || moving_reference {
-                                        trajectory_friction_torque(
-                                            dq,
-                                            dq_traj,
-                                            settle_error,
-                                            vel_deadband,
-                                            f,
-                                        )
-                                    } else if settling {
-                                        position_settle_friction_torque(
-                                            dq,
-                                            settle_error,
-                                            max_lead,
-                                            f.fc,
-                                            f.fv,
-                                            f.fo,
-                                            f.k,
-                                        )
-                                    } else {
-                                        position_hold_friction_torque(
-                                            dq, lead, f.fc, f.fv, f.fo, f.k,
-                                        )
-                                    }
+                                    position_hold_friction_assist(
+                                        dq,
+                                        lead,
+                                        dq_traj,
+                                        settle_error,
+                                        on_trajectory,
+                                        settling,
+                                        moving_reference,
+                                        max_lead,
+                                        vel_deadband,
+                                        f,
+                                    )
                                 })
-                                .unwrap_or(0.0);
+                                .unwrap_or((PositionFrictionMode::SlewLead, 0.0));
+                            let retarget_age_ms = self.position_retarget_age_ms(i);
                             let tau_d = if on_trajectory || moving_reference {
                                 trajectory_damping_torque(dq, dq_traj, kd)
                             } else if settling && dq.abs() > vel_deadband {
@@ -376,6 +418,12 @@ impl<B: MotorBus> ControlLoop<B> {
                                     lead_sat,
                                     tracking_error,
                                     settle_error,
+                                    on_trajectory,
+                                    moving_reference,
+                                    settling,
+                                    joint_stuck,
+                                    friction_mode = friction_mode.as_str(),
+                                    retarget_age_ms,
                                     phase = %phase_str,
                                     kp,
                                     kd,
@@ -391,6 +439,33 @@ impl<B: MotorBus> ControlLoop<B> {
                                     "position hold command"
                                 );
                             }
+                            let retarget_tick = self
+                                .position_retarget_tick
+                                .as_ref()
+                                .and_then(|ticks| ticks.get(i).copied());
+                            if should_log_position_onset(retarget_tick, self.tick_count, self.loop_hz) {
+                                debug!(
+                                    joint = %name,
+                                    retarget_age_ms,
+                                    q = q[i],
+                                    dq,
+                                    q_traj,
+                                    dq_traj,
+                                    lead,
+                                    tracking_error,
+                                    settle_error,
+                                    on_trajectory,
+                                    moving_reference,
+                                    settling,
+                                    joint_stuck,
+                                    friction_mode = friction_mode.as_str(),
+                                    tau_f,
+                                    tau_d,
+                                    tau_ff_cmd,
+                                    phase = %phase_str,
+                                    "position hold onset"
+                                );
+                            }
                             if let Some(trace) = self.position_trace.as_mut() {
                                 let t_ms =
                                     self.tick_count.saturating_mul(1000) / u64::from(self.loop_hz);
@@ -398,6 +473,7 @@ impl<B: MotorBus> ControlLoop<B> {
                                     joint: name,
                                     q: q[i],
                                     dq,
+                                    q_traj,
                                     dq_traj,
                                     q_des,
                                     target,
@@ -407,6 +483,11 @@ impl<B: MotorBus> ControlLoop<B> {
                                     settle_error,
                                     dist_to_target,
                                     on_trajectory,
+                                    moving_reference,
+                                    settling,
+                                    joint_stuck,
+                                    friction_mode: friction_mode.as_str(),
+                                    retarget_age_ms,
                                     phase: &phase_str,
                                     kp,
                                     kd,
@@ -644,6 +725,27 @@ fn planner_drifted_from_measurement(
 /// Moving-reference feedforward is valid only before measured `q` crosses the target.
 fn moving_reference_toward_target(dq_traj: f64, settle_error: f64, vel_deadband: f64) -> bool {
     dq_traj.abs() > vel_deadband && dq_traj * settle_error > 0.0
+}
+
+/// High-rate onset logs for the first window after retarget (`MARENGO_POSITION_ONSET_LOG_MS`, default 250).
+fn should_log_position_onset(retarget_tick: Option<u64>, tick: u64, loop_hz: u32) -> bool {
+    static ONSET_MS: OnceLock<u64> = OnceLock::new();
+    let onset_ms = *ONSET_MS.get_or_init(|| {
+        std::env::var("MARENGO_POSITION_ONSET_LOG_MS")
+            .ok()
+            .and_then(|s| s.parse::<u64>().ok())
+            .unwrap_or(250)
+    });
+    let Some(retarget_tick) = retarget_tick else {
+        return false;
+    };
+    let age_ticks = tick.saturating_sub(retarget_tick);
+    let age_ms = age_ticks.saturating_mul(1000) / u64::from(loop_hz.max(1));
+    if age_ms > onset_ms {
+        return false;
+    }
+    let decimate = u64::from(loop_hz.max(1) / 20).max(1);
+    age_ticks % decimate == 0
 }
 
 /// Damping should settle the final hold, not behave like extra moving friction.

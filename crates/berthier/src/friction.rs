@@ -1,7 +1,110 @@
 //! Joint friction model (OpenArm teleop style).
 
+use marengo_config::FrictionGains;
+
 const POSITION_HOLD_ERROR_DEADBAND_RAD: f64 = 1e-4;
 const POSITION_HOLD_FRICTION_FADE_RAD: f64 = 0.02;
+
+/// Which position-hold friction recipe produced `tau_f` (bench diagnostics).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PositionFrictionMode {
+    /// `trajectory_friction`: |dq_traj| above velocity deadband → full ±fc.
+    TrajectoryVelocity,
+    /// `trajectory_friction`: |dq_traj| within deadband → lead/settle fade.
+    TrajectoryNearHold,
+    /// `position_settle_friction_torque` after planner latched at target.
+    Settle,
+    /// `position_slew_friction_torque` stuck breakaway ramp vs dq_traj.
+    SlewRamp,
+    /// `position_hold_friction_torque` on MIT lead while slewing.
+    SlewLead,
+}
+
+impl PositionFrictionMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::TrajectoryVelocity => "traj_vel",
+            Self::TrajectoryNearHold => "traj_hold",
+            Self::Settle => "settle",
+            Self::SlewRamp => "slew_ramp",
+            Self::SlewLead => "slew_lead",
+        }
+    }
+}
+
+/// Joint not moving (`|dq|` low) while planner still commands motion toward `target`.
+pub fn joint_stuck_in_move_direction(
+    dq: f64,
+    dq_traj: f64,
+    settle_error: f64,
+    velocity_deadband: f64,
+) -> bool {
+    dq.abs() <= velocity_deadband
+        && dq_traj.abs() > POSITION_HOLD_ERROR_DEADBAND_RAD
+        && settle_error.abs() > POSITION_HOLD_ERROR_DEADBAND_RAD
+        && dq_traj * settle_error > 0.0
+}
+
+/// Select position-hold friction path and torque (logged for bench onset debugging).
+pub fn position_hold_friction_assist(
+    dq: f64,
+    lead: f64,
+    dq_traj: f64,
+    settle_error: f64,
+    on_trajectory: bool,
+    settling: bool,
+    moving_reference: bool,
+    max_lead: f64,
+    velocity_deadband: f64,
+    gains: &FrictionGains,
+) -> (PositionFrictionMode, f64) {
+    if on_trajectory || moving_reference {
+        if dq_traj.abs() > velocity_deadband {
+            (
+                PositionFrictionMode::TrajectoryVelocity,
+                trajectory_friction_torque(dq, dq_traj, settle_error, velocity_deadband, gains),
+            )
+        } else {
+            (
+                PositionFrictionMode::TrajectoryNearHold,
+                trajectory_friction_torque(dq, dq_traj, settle_error, velocity_deadband, gains),
+            )
+        }
+    } else if settling {
+        (
+            PositionFrictionMode::Settle,
+            position_settle_friction_torque(
+                dq,
+                settle_error,
+                max_lead,
+                gains.fc,
+                gains.fv,
+                gains.fo,
+                gains.k,
+            ),
+        )
+    } else if joint_stuck_in_move_direction(dq, dq_traj, settle_error, velocity_deadband) {
+        (
+            PositionFrictionMode::SlewRamp,
+            position_slew_friction_torque(
+                dq,
+                lead,
+                dq_traj,
+                settle_error,
+                velocity_deadband,
+                gains.fc,
+                gains.fv,
+                gains.fo,
+                gains.k,
+            ),
+        )
+    } else {
+        (
+            PositionFrictionMode::SlewLead,
+            position_hold_friction_torque(dq, lead, gains.fc, gains.fv, gains.fo, gains.k),
+        )
+    }
+}
 
 /// `tau_f = Fc*tanh(k*dq) + Fv*dq + Fo`
 pub fn friction_torque(dq: f64, fc: f64, fv: f64, fo: f64, k: f64) -> f64 {
@@ -26,6 +129,30 @@ pub fn position_hold_friction_torque(
         fc * (k * dq).tanh()
     };
     coulomb + fv * dq + fo
+}
+
+/// Slew-phase breakaway while the joint is stuck: ramp Coulomb with `dq_traj` so assist
+/// does not snap on at the velocity deadband (initial hitch).
+pub fn position_slew_friction_torque(
+    dq: f64,
+    lead: f64,
+    dq_traj: f64,
+    settle_error: f64,
+    velocity_deadband: f64,
+    fc: f64,
+    fv: f64,
+    fo: f64,
+    k: f64,
+) -> f64 {
+    if dq_traj.abs() > POSITION_HOLD_ERROR_DEADBAND_RAD
+        && dq.abs() <= velocity_deadband
+        && settle_error.abs() > POSITION_HOLD_ERROR_DEADBAND_RAD
+        && dq_traj * settle_error > 0.0
+    {
+        let ramp = (dq_traj.abs() / velocity_deadband).clamp(0.0, 1.0);
+        return fc * dq_traj.signum() * ramp + fv * dq + fo;
+    }
+    position_hold_friction_torque(dq, lead, fc, fv, fo, k)
 }
 
 /// Settle-phase Coulomb assist after the planner reaches the latched target (`q_traj ≈
@@ -109,5 +236,78 @@ mod tests {
 
         assert!((lead_assist - 1.8).abs() < 1e-6);
         assert!((settle_assist - 0.72).abs() < 1e-6);
+    }
+
+    #[test]
+    fn slew_friction_ramps_breakaway_while_joint_stuck() {
+        let deadband = 0.02;
+        let half = position_slew_friction_torque(0.0, 0.0, 0.01, 0.08, deadband, 0.5, 0.0, 0.0, 10.0);
+        let full = position_slew_friction_torque(0.0, 0.0, 0.02, 0.08, deadband, 0.5, 0.0, 0.0, 10.0);
+
+        assert!((half - 0.25).abs() < 1e-6);
+        assert!((full - 0.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn slew_friction_does_not_assist_past_target_crossing() {
+        let tau = position_slew_friction_torque(0.0, -0.05, 0.01, -0.01, 0.02, 0.5, 0.0, 0.0, 10.0);
+
+        assert!((tau - (-0.5)).abs() < 1e-6);
+    }
+
+    #[test]
+    fn slew_friction_falls_back_when_joint_is_moving() {
+        let tau = position_slew_friction_torque(0.05, 0.03, 0.01, 0.08, 0.02, 0.5, 0.0, 0.0, 10.0);
+
+        assert!((tau - 0.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn position_hold_friction_assist_classifies_trajectory_velocity_while_stuck() {
+        let gains = FrictionGains {
+            fc: 0.25,
+            fv: 0.0,
+            fo: 0.0,
+            k: 10.0,
+        };
+        let (mode, tau) = position_hold_friction_assist(
+            0.0,
+            0.0,
+            0.10,
+            0.08,
+            false,
+            false,
+            true,
+            0.10,
+            0.02,
+            &gains,
+        );
+        assert_eq!(mode, PositionFrictionMode::TrajectoryVelocity);
+        assert!((tau - 0.25).abs() < 1e-6);
+        assert!(joint_stuck_in_move_direction(0.0, 0.10, 0.08, 0.02));
+    }
+
+    #[test]
+    fn position_hold_friction_assist_uses_slew_ramp_when_not_moving_reference() {
+        let gains = FrictionGains {
+            fc: 0.25,
+            fv: 0.0,
+            fo: 0.0,
+            k: 10.0,
+        };
+        let (mode, tau) = position_hold_friction_assist(
+            0.0,
+            0.0,
+            0.01,
+            0.08,
+            false,
+            false,
+            false,
+            0.10,
+            0.02,
+            &gains,
+        );
+        assert_eq!(mode, PositionFrictionMode::SlewRamp);
+        assert!((tau - 0.125).abs() < 1e-6);
     }
 }
