@@ -17,6 +17,7 @@ use tracing::{debug, info};
 
 use crate::friction::{
     friction_torque, position_hold_friction, PositionFrictionMode, POSITION_HOLD_ERROR_DEADBAND_RAD,
+    POSITION_STUCK_EXIT_VELOCITY_RATIO,
 };
 use crate::position_trace::{PositionTrace, PositionTraceRow};
 use crate::position_trajectory::{
@@ -30,9 +31,8 @@ const POSITION_SMALL_MOVE_VMAX_RAD: f64 = 0.06;
 const POSITION_RETURN_DESCENT_SEED_RAD: f64 = 0.05;
 /// Resync planner only when arm is far from latched target (not small hold overshoot).
 const POSITION_RETURN_RESYNC_RAD: f64 = 0.03;
-/// After downward retarget, MIT pull-down assist while stuck at high q (return onset hitch).
-const POSITION_RETURN_ONSET_MS: u64 = 500;
-const POSITION_RETURN_ONSET_LEAD_RAD: f64 = 0.03;
+/// MIT pull-down lead while stuck on descent (until breakaway latch clears).
+const POSITION_DESCENT_STUCK_LEAD_RAD: f64 = 0.03;
 
 #[derive(Debug, Error)]
 pub enum LoopError {
@@ -73,6 +73,12 @@ pub struct ControlLoop<B: MotorBus> {
     position_retarget_tick: Option<Vec<u64>>,
     /// EMA-filtered measured velocity per joint for position-hold damping FF only.
     position_dq_filtered: Option<Vec<f64>>,
+    /// Hysteresis: planner tick frozen while arm stuck lagging on descent.
+    position_planner_frozen: Option<Vec<bool>>,
+    /// Once set, descent MIT pull stays off until next retarget.
+    position_descent_breakaway: Option<Vec<bool>>,
+    /// Set when MIT pull applied on descent; breakaway latch requires this.
+    position_descent_was_stuck: Option<Vec<bool>>,
 }
 
 impl<B: MotorBus> ControlLoop<B> {
@@ -105,6 +111,9 @@ impl<B: MotorBus> ControlLoop<B> {
             position_trace: PositionTrace::from_env(loop_hz),
             position_retarget_tick: None,
             position_dq_filtered: None,
+            position_planner_frozen: None,
+            position_descent_breakaway: None,
+            position_descent_was_stuck: None,
         })
     }
 
@@ -186,14 +195,37 @@ impl<B: MotorBus> ControlLoop<B> {
     }
 
     fn mark_position_retarget(&mut self, joint_index: usize) {
+        self.init_descent_latch_state();
         if self.position_retarget_tick.is_none() {
             self.position_retarget_tick = Some(vec![0; self.joint_names.len()]);
         }
         if let Some(ticks) = self.position_retarget_tick.as_mut() {
             ticks[joint_index] = self.tick_count;
         }
+        if let Some(frozen) = self.position_planner_frozen.as_mut() {
+            frozen[joint_index] = false;
+        }
+        if let Some(breakaway) = self.position_descent_breakaway.as_mut() {
+            breakaway[joint_index] = false;
+        }
+        if let Some(was_stuck) = self.position_descent_was_stuck.as_mut() {
+            was_stuck[joint_index] = false;
+        }
         let dq = self.joint_velocity(&self.joint_names[joint_index]);
         self.seed_dq_filter(joint_index, dq);
+    }
+
+    fn init_descent_latch_state(&mut self) {
+        let n = self.joint_names.len();
+        if self.position_planner_frozen.is_none() {
+            self.position_planner_frozen = Some(vec![false; n]);
+        }
+        if self.position_descent_breakaway.is_none() {
+            self.position_descent_breakaway = Some(vec![false; n]);
+        }
+        if self.position_descent_was_stuck.is_none() {
+            self.position_descent_was_stuck = Some(vec![false; n]);
+        }
     }
 
     fn position_retarget_age_ms(&self, joint_index: usize) -> u64 {
@@ -226,6 +258,16 @@ impl<B: MotorBus> ControlLoop<B> {
                 .map(|name| self.joint_velocity(name))
                 .collect(),
         );
+        self.init_descent_latch_state();
+        if let Some(frozen) = self.position_planner_frozen.as_mut() {
+            frozen.fill(false);
+        }
+        if let Some(breakaway) = self.position_descent_breakaway.as_mut() {
+            breakaway.fill(false);
+        }
+        if let Some(was_stuck) = self.position_descent_was_stuck.as_mut() {
+            was_stuck.fill(false);
+        }
     }
 
     fn seed_dq_filter(&mut self, joint_index: usize, dq: f64) {
@@ -309,6 +351,9 @@ impl<B: MotorBus> ControlLoop<B> {
             self.position_planners = None;
             self.position_retarget_tick = None;
             self.position_dq_filtered = None;
+            self.position_planner_frozen = None;
+            self.position_descent_breakaway = None;
+            self.position_descent_was_stuck = None;
             self.last_position_diag = None;
         }
         self.control_mode = mode;
@@ -388,23 +433,63 @@ impl<B: MotorBus> ControlLoop<B> {
                                 (planner.q_traj, planner.dq_traj, planner.phase())
                             };
                             let dq_raw = self.joint_velocity(&name);
-                            let dq = self.filtered_dq_for_damping(i, dq_raw);
+                            let dq = self
+                                .position_dq_filtered
+                                .as_ref()
+                                .and_then(|f| f.get(i).copied())
+                                .unwrap_or(dq_raw);
                             let target = self
                                 .position_setpoints
                                 .as_deref()
                                 .and_then(|sp| sp.get(i).copied())
                                 .unwrap_or(q_traj);
                             let retarget_age_ms = self.position_retarget_age_ms(i);
+                            self.init_descent_latch_state();
+                            let mut breakaway = self
+                                .position_descent_breakaway
+                                .as_ref()
+                                .and_then(|l| l.get(i).copied())
+                                .unwrap_or(false);
                             let mut q_des =
                                 clamp_trajectory_setpoint(q_traj, q[i], target, max_lead);
                             let to_target = target - q[i];
-                            if to_target < -POSITION_HOLD_ERROR_DEADBAND_RAD
-                                && dq_raw.abs() < vel_deadband
-                                && retarget_age_ms < POSITION_RETURN_ONSET_MS
-                                && (q[i] - target) > POSITION_RETURN_DESCENT_SEED_RAD
-                            {
-                                q_des = q_des.min(q[i] - POSITION_RETURN_ONSET_LEAD_RAD);
+                            let stuck_now = descent_stuck_mit_pull(
+                                to_target,
+                                q[i],
+                                target,
+                                dq,
+                                vel_deadband,
+                                false,
+                            );
+                            if stuck_now {
+                                if let Some(was_stuck) = self.position_descent_was_stuck.as_mut() {
+                                    was_stuck[i] = true;
+                                }
                             }
+                            let was_stuck = self
+                                .position_descent_was_stuck
+                                .as_ref()
+                                .and_then(|s| s.get(i).copied())
+                                .unwrap_or(false);
+                            if !breakaway
+                                && was_stuck
+                                && descent_breakaway_confirmed(to_target, dq, vel_deadband)
+                            {
+                                breakaway = true;
+                                if let Some(latch) = self.position_descent_breakaway.as_mut() {
+                                    latch[i] = true;
+                                }
+                            }
+                            let joint_stuck =
+                                stuck_now && !breakaway;
+                            if joint_stuck {
+                                q_des = q_des.min(q[i] - POSITION_DESCENT_STUCK_LEAD_RAD);
+                            }
+                            let planner_frozen = self
+                                .position_planner_frozen
+                                .as_ref()
+                                .and_then(|f| f.get(i).copied())
+                                .unwrap_or(false);
                             let lead = q_des - q[i];
                             let settle_error = target - q[i];
                             let settling = matches!(traj_phase, TrapezoidPhase::Hold)
@@ -462,6 +547,8 @@ impl<B: MotorBus> ControlLoop<B> {
                                     settling,
                                     friction_mode = friction_mode.as_str(),
                                     retarget_age_ms,
+                                    joint_stuck,
+                                    planner_frozen,
                                     phase = %phase_str,
                                     kp,
                                     kd,
@@ -503,6 +590,8 @@ impl<B: MotorBus> ControlLoop<B> {
                                     tau_d,
                                     tau_ff_cmd,
                                     phase = %phase_str,
+                                    joint_stuck,
+                                    planner_frozen,
                                     "position hold onset"
                                 );
                             }
@@ -531,6 +620,8 @@ impl<B: MotorBus> ControlLoop<B> {
                                     dq_mit: mit_velocity,
                                     kp,
                                     kd,
+                                    joint_stuck,
+                                    planner_frozen,
                                 };
                                 let _ = trace.maybe_record(self.tick_count, t_ms, &row);
                                 if self.tick_count % u64::from(self.loop_hz) == 0 {
@@ -600,10 +691,14 @@ impl<B: MotorBus> ControlLoop<B> {
         if self.position_planners.is_none() {
             self.init_position_planners(q);
         }
+        self.init_descent_latch_state();
         let dq_meas: Vec<f64> = self
             .joint_names
             .iter()
             .map(|name| self.joint_velocity(name))
+            .collect();
+        let dq_filtered: Vec<f64> = (0..self.joint_names.len())
+            .map(|i| self.filtered_dq_for_damping(i, dq_meas[i]))
             .collect();
         let Some(planners) = self.position_planners.as_mut() else {
             return Ok(());
@@ -641,13 +736,25 @@ impl<B: MotorBus> ControlLoop<B> {
             }
             let lag = q[i] - planners[i].q_traj;
             let to_target = targets[i] - q[i];
-            let dq = dq_meas[i];
-            let stuck_lagging_descent = to_target < -POSITION_HOLD_ERROR_DEADBAND_RAD
-                && lag > POSITION_HOLD_ERROR_DEADBAND_RAD
-                && lag < max_lead
-                && dq.abs() < vel_deadband
-                && planners[i].dq_traj < -POSITION_HOLD_ERROR_DEADBAND_RAD;
-            if !stuck_lagging_descent {
+            let dq_filtered = dq_filtered[i];
+            let was_frozen = self
+                .position_planner_frozen
+                .as_ref()
+                .and_then(|f| f.get(i).copied())
+                .unwrap_or(false);
+            let freeze = planner_should_freeze_on_descent(
+                was_frozen,
+                to_target,
+                lag,
+                planners[i].dq_traj,
+                dq_filtered,
+                vel_deadband,
+                max_lead,
+            );
+            if let Some(frozen) = self.position_planner_frozen.as_mut() {
+                frozen[i] = freeze;
+            }
+            if !freeze {
                 planners[i].tick(targets[i], dt, v_max, a_max);
             }
         }
@@ -734,6 +841,51 @@ impl<B: MotorBus> ControlLoop<B> {
     /// Preview gravity torques without sending (for motor-repl status).
     pub fn preview_gravity_torques(&self, q: &[f64]) -> Result<Vec<f64>, LoopError> {
         Ok(self.dynamics.gravity_torques(q)?)
+    }
+}
+
+fn descent_breakaway_confirmed(to_target: f64, dq_filtered: f64, velocity_deadband: f64) -> bool {
+    to_target < -POSITION_HOLD_ERROR_DEADBAND_RAD
+        && dq_filtered <= -velocity_deadband * POSITION_STUCK_EXIT_VELOCITY_RATIO
+}
+
+/// MIT pull-down while descending and stuck (cleared by [`descent_breakaway_confirmed`]).
+fn descent_stuck_mit_pull(
+    to_target: f64,
+    q: f64,
+    target: f64,
+    dq_filtered: f64,
+    velocity_deadband: f64,
+    breakaway_confirmed: bool,
+) -> bool {
+    !breakaway_confirmed
+        && to_target < -POSITION_HOLD_ERROR_DEADBAND_RAD
+        && (q - target) > POSITION_RETURN_DESCENT_SEED_RAD
+        && dq_filtered.abs() < velocity_deadband
+}
+
+/// Freeze planner while arm lags on descent; hysteresis exit on filtered downward motion.
+fn planner_should_freeze_on_descent(
+    was_frozen: bool,
+    to_target: f64,
+    lag: f64,
+    dq_traj: f64,
+    dq_filtered: f64,
+    velocity_deadband: f64,
+    max_lead: f64,
+) -> bool {
+    let lagging = to_target < -POSITION_HOLD_ERROR_DEADBAND_RAD
+        && lag > POSITION_HOLD_ERROR_DEADBAND_RAD
+        && lag < max_lead
+        && dq_traj < -POSITION_HOLD_ERROR_DEADBAND_RAD;
+    if !lagging {
+        return false;
+    }
+    let exit_v = velocity_deadband * POSITION_STUCK_EXIT_VELOCITY_RATIO;
+    if was_frozen {
+        dq_filtered > -exit_v
+    } else {
+        dq_filtered.abs() < velocity_deadband
     }
 }
 
@@ -964,8 +1116,33 @@ mod tests {
 
     #[test]
     fn return_onset_pulls_q_des_below_q_when_stuck() {
-        let q_des = clamp_trajectory_setpoint(0.105, 0.105, 0.0, 0.10).min(0.105 - 0.03);
+        assert!(descent_stuck_mit_pull(-0.09, 0.105, 0.0, 0.0, 0.02, false));
+        let q_des = clamp_trajectory_setpoint(0.105, 0.105, 0.0, 0.10)
+            .min(0.105 - POSITION_DESCENT_STUCK_LEAD_RAD);
         assert!((q_des - 0.075).abs() < 1e-12);
+    }
+
+    #[test]
+    fn descent_mit_pull_clears_after_breakaway_latch() {
+        assert!(!descent_stuck_mit_pull(-0.09, 0.105, 0.0, 0.0, 0.02, true));
+        assert!(descent_stuck_mit_pull(-0.09, 0.105, 0.0, 0.0, 0.02, false));
+        assert!(descent_breakaway_confirmed(-0.09, -0.026, 0.02));
+        // Cruise motion alone must not imply breakaway without a stuck episode.
+        assert!(!descent_stuck_mit_pull(-0.09, 0.08, 0.0, -0.03, 0.02, false));
+    }
+
+    #[test]
+    fn planner_freeze_hysteresis_ignores_dq_noise_while_frozen() {
+        let deadband = 0.02;
+        assert!(planner_should_freeze_on_descent(
+            false, -0.08, 0.03, -0.10, 0.0, deadband, 0.10
+        ));
+        assert!(planner_should_freeze_on_descent(
+            true, -0.08, 0.03, -0.10, -0.024, deadband, 0.10
+        ));
+        assert!(!planner_should_freeze_on_descent(
+            true, -0.08, 0.03, -0.10, -0.026, deadband, 0.10
+        ));
     }
 
     #[test]

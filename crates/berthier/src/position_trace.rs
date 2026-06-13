@@ -33,7 +33,7 @@ impl PositionTrace {
         if is_new {
             writeln!(
                 writer,
-                "tick,t_ms,joint,q,dq,q_traj,dq_traj,q_des,target,lead,lead_sat,settle_error,phase,friction_mode,tau_p,tau_g,tau_f,tau_d,tau_ff_cmd,tau_meas,dq_mit,kp,kd"
+                "tick,t_ms,joint,q,dq,q_traj,dq_traj,q_des,target,lead,lead_sat,settle_error,phase,friction_mode,tau_p,tau_g,tau_f,tau_d,tau_ff_cmd,tau_meas,dq_mit,kp,kd,joint_stuck,planner_frozen"
             )?;
         }
         log_trace_enabled_once(path);
@@ -85,12 +85,14 @@ pub struct PositionTraceRow<'a> {
     pub dq_mit: f64,
     pub kp: f64,
     pub kd: f64,
+    pub joint_stuck: bool,
+    pub planner_frozen: bool,
 }
 
 impl PositionTraceRow<'_> {
     pub fn format_csv_with_meta(&self, tick: u64, t_ms: u64) -> String {
         format!(
-            "{tick},{t_ms},{joint},{q:.6},{dq:.6},{q_traj:.6},{dq_traj:.6},{q_des:.6},{target:.6},{lead:.6},{lead_sat},{settle_error:.6},{phase},{friction_mode},{tau_p:.6},{tau_g:.6},{tau_f:.6},{tau_d:.6},{tau_ff_cmd:.6},{tau_meas:.6},{dq_mit:.6},{kp:.3},{kd:.3}",
+            "{tick},{t_ms},{joint},{q:.6},{dq:.6},{q_traj:.6},{dq_traj:.6},{q_des:.6},{target:.6},{lead:.6},{lead_sat},{settle_error:.6},{phase},{friction_mode},{tau_p:.6},{tau_g:.6},{tau_f:.6},{tau_d:.6},{tau_ff_cmd:.6},{tau_meas:.6},{dq_mit:.6},{kp:.3},{kd:.3},{joint_stuck},{planner_frozen}",
             tick = tick,
             t_ms = t_ms,
             joint = csv_escape(self.joint),
@@ -114,6 +116,8 @@ impl PositionTraceRow<'_> {
             dq_mit = self.dq_mit,
             kp = self.kp,
             kd = self.kd,
+            joint_stuck = if self.joint_stuck { 1 } else { 0 },
+            planner_frozen = if self.planner_frozen { 1 } else { 0 },
         )
     }
 }
@@ -165,10 +169,13 @@ mod tests {
             dq_mit: 0.12,
             kp: 12.0,
             kd: 1.0,
+            joint_stuck: true,
+            planner_frozen: false,
         };
         let line = row.format_csv_with_meta(42, 1234);
         assert!(line.starts_with("42,1234,right_shoulder_pitch,"));
         assert!(line.contains(",1.740000,1.500000,0.120000,"));
         assert!(line.contains(",Cruise,traj_vel,"));
+        assert!(line.ends_with(",1,0"));
     }
 }
