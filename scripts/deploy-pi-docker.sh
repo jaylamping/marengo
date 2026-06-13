@@ -27,6 +27,25 @@ resolve_ssh_dir() {
 
 SSH_DIR="$(resolve_ssh_dir)"
 SSH_DIR="${SSH_DIR//\\//}"
+
+docker_ssh_mount_src() {
+  local dir="${1//\\//}"
+  case "$(uname -s 2>/dev/null)" in
+    MINGW* | MSYS* | CYGWIN*)
+      if command -v cygpath >/dev/null 2>&1; then
+        cygpath -w "$dir"
+        return
+      fi
+      if [[ "$dir" =~ ^([A-Za-z]):/(.*)$ ]]; then
+        printf '%s:\\%s' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]//\//\\}"
+        return
+      fi
+      ;;
+  esac
+  printf '%s\n' "$dir"
+}
+
+DOCKER_SSH_MOUNT="$(docker_ssh_mount_src "$SSH_DIR")"
 DOCKER_PLATFORM="${DOCKER_PLATFORM:-linux/amd64}"
 
 # shellcheck source=deploy-lib.sh
@@ -34,7 +53,7 @@ source "${ROOT}/scripts/deploy-lib.sh"
 deploy_progress_env
 
 log_step "deploy-pi-docker → ${PI_HOST}"
-log_note "SSH mount: ${SSH_DIR} → /home/marengo/.ssh"
+log_note "SSH mount: ${DOCKER_SSH_MOUNT} → /home/marengo/.ssh"
 if [[ ! -f "${SSH_DIR}/config" ]] && [[ ! -f "${SSH_DIR}/id_ed25519_marengo" ]] \
   && [[ ! -f "${SSH_DIR}/id_ed25519" ]]; then
   log_warn "SSH preflight: host shell cannot read ${SSH_DIR} (continuing — Docker mount may still work)"
@@ -88,6 +107,6 @@ exec "${COMPOSE_RUN[@]}" \
   -e NPM_CONFIG_LOGLEVEL \
   -e MARENGO_DEPLOY_VERBOSE \
   -e MARENGO_DEPLOY_START="${MARENGO_DEPLOY_START}" \
-  -v "${SSH_DIR}:/home/marengo/.ssh:ro" \
+  -v "${DOCKER_SSH_MOUNT}:/home/marengo/.ssh:ro" \
   deploy-pi \
   "${DEPLOY_ARGS[@]}"
