@@ -417,7 +417,7 @@ def analyze(
         "segments": [asdict(s) for s in segment_reports],
     }
     if onset:
-        result["onset"] = [_analyze_onset(s, onset_window_ms) for s in segments]
+        result["onset"] = [asdict(_analyze_onset(s, onset_window_ms)) for s in segments]
         result["onset_window_ms"] = onset_window_ms
     if gate == "layer2":
         result["layer2_gate"] = evaluate_layer2_gate(segment_reports, tau_ff_rate_limit_nm_s)

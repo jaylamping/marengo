@@ -46,6 +46,15 @@ pub fn joint_stuck_in_move_direction(
 }
 
 /// Select position-hold friction path and torque (logged for bench onset debugging).
+///
+/// **Stuck breakaway first:** when measured `|dq|` is within the velocity deadband but
+/// the planner still commands motion toward the latched target, always ramp Coulomb
+/// assist with `dq_traj` (`SlewRamp`). That applies equally to small slew moves and
+/// large trapezoid segments at motion onset (and mid-move stick-slip) without snapping
+/// to full `fc` via [`PositionFrictionMode::TrajectoryVelocity`].
+///
+/// Once the joint is actually moving (`|dq|` above deadband), trajectory / moving-reference
+/// paths resume — cruise tracking on large moves is unchanged.
 pub fn position_hold_friction_assist(
     dq: f64,
     lead: f64,
@@ -58,6 +67,22 @@ pub fn position_hold_friction_assist(
     velocity_deadband: f64,
     gains: &FrictionGains,
 ) -> (PositionFrictionMode, f64) {
+    if joint_stuck_in_move_direction(dq, dq_traj, settle_error, velocity_deadband) {
+        return (
+            PositionFrictionMode::SlewRamp,
+            position_slew_friction_torque(
+                dq,
+                lead,
+                dq_traj,
+                settle_error,
+                velocity_deadband,
+                gains.fc,
+                gains.fv,
+                gains.fo,
+                gains.k,
+            ),
+        );
+    }
     if on_trajectory || moving_reference {
         if dq_traj.abs() > velocity_deadband {
             (
@@ -77,21 +102,6 @@ pub fn position_hold_friction_assist(
                 dq,
                 settle_error,
                 max_lead,
-                gains.fc,
-                gains.fv,
-                gains.fo,
-                gains.k,
-            ),
-        )
-    } else if joint_stuck_in_move_direction(dq, dq_traj, settle_error, velocity_deadband) {
-        (
-            PositionFrictionMode::SlewRamp,
-            position_slew_friction_torque(
-                dq,
-                lead,
-                dq_traj,
-                settle_error,
-                velocity_deadband,
                 gains.fc,
                 gains.fv,
                 gains.fo,
@@ -263,7 +273,57 @@ mod tests {
     }
 
     #[test]
-    fn position_hold_friction_assist_classifies_trajectory_velocity_while_stuck() {
+    fn stuck_breakaway_ramps_when_moving_reference_even_on_trajectory() {
+        let gains = FrictionGains {
+            fc: 0.25,
+            fv: 0.0,
+            fo: 0.0,
+            k: 10.0,
+        };
+        let (mode, tau) = position_hold_friction_assist(
+            0.0,
+            0.0,
+            0.01,
+            0.08,
+            true,
+            false,
+            true,
+            0.10,
+            0.02,
+            &gains,
+        );
+        assert_eq!(mode, PositionFrictionMode::SlewRamp);
+        assert!((tau - 0.125).abs() < 1e-6);
+        assert!(joint_stuck_in_move_direction(0.0, 0.01, 0.08, 0.02));
+    }
+
+    #[test]
+    fn moving_joint_on_trajectory_uses_trajectory_velocity() {
+        let gains = FrictionGains {
+            fc: 0.25,
+            fv: 0.0,
+            fo: 0.0,
+            k: 10.0,
+        };
+        let (mode, tau) = position_hold_friction_assist(
+            0.08,
+            0.02,
+            0.10,
+            0.50,
+            true,
+            false,
+            true,
+            0.10,
+            0.02,
+            &gains,
+        );
+        assert_eq!(mode, PositionFrictionMode::TrajectoryVelocity);
+        assert!((tau - 0.25).abs() < 1e-6);
+        assert!(!joint_stuck_in_move_direction(0.08, 0.10, 0.50, 0.02));
+    }
+
+    #[test]
+    fn position_hold_friction_assist_classifies_stuck_as_slew_ramp_not_traj_vel() {
         let gains = FrictionGains {
             fc: 0.25,
             fv: 0.0,
@@ -282,7 +342,7 @@ mod tests {
             0.02,
             &gains,
         );
-        assert_eq!(mode, PositionFrictionMode::TrajectoryVelocity);
+        assert_eq!(mode, PositionFrictionMode::SlewRamp);
         assert!((tau - 0.25).abs() < 1e-6);
         assert!(joint_stuck_in_move_direction(0.0, 0.10, 0.08, 0.02));
     }
