@@ -281,9 +281,8 @@ impl<B: MotorBus> ControlLoop<B> {
                             let cfg = self.supervisor.control.control.joints.get(name);
                             let kp = cfg.map(|c| c.impedance.kp).unwrap_or(20.0);
                             let kd = cfg.map(|c| c.impedance.kd).unwrap_or(1.0);
-                            let max_lead = cfg
-                                .map(|c| c.position_slew_max_lead_rad)
-                                .unwrap_or(0.15);
+                            let max_lead =
+                                cfg.map(|c| c.position_slew_max_lead_rad).unwrap_or(0.15);
                             let fr = cfg.map(|c| &c.friction);
                             let planner = self
                                 .position_planners
@@ -317,52 +316,43 @@ impl<B: MotorBus> ControlLoop<B> {
                             let settling = !on_trajectory
                                 && dq_traj.abs() <= vel_deadband
                                 && (q_traj - target).abs() <= SETTLE_POSITION_TOLERANCE_RAD;
-                            let tau_f = fr.map(|f| {
-                                if on_trajectory {
-                                    trajectory_friction_torque(
-                                        dq,
-                                        dq_traj,
-                                        settle_error,
-                                        vel_deadband,
-                                        f.fc,
-                                        f.fv,
-                                        f.fo,
-                                        f.k,
-                                    )
-                                } else if settling {
-                                    position_settle_friction_torque(
-                                        dq,
-                                        settle_error,
-                                        max_lead,
-                                        f.fc,
-                                        f.fv,
-                                        f.fo,
-                                        f.k,
-                                    )
-                                } else {
-                                    position_hold_friction_torque(
-                                        dq,
-                                        lead,
-                                        f.fc,
-                                        f.fv,
-                                        f.fo,
-                                        f.k,
-                                    )
-                                }
-                            }).unwrap_or(0.0);
-                            let tau_d = if on_trajectory
-                                && dq_traj.abs() > vel_deadband
-                            {
+                            let moving_reference = dq_traj.abs() > vel_deadband;
+                            let tau_f = fr
+                                .map(|f| {
+                                    if on_trajectory || moving_reference {
+                                        trajectory_friction_torque(
+                                            dq,
+                                            dq_traj,
+                                            settle_error,
+                                            vel_deadband,
+                                            f.fc,
+                                            f.fv,
+                                            f.fo,
+                                            f.k,
+                                        )
+                                    } else if settling {
+                                        position_settle_friction_torque(
+                                            dq,
+                                            settle_error,
+                                            max_lead,
+                                            f.fc,
+                                            f.fv,
+                                            f.fo,
+                                            f.k,
+                                        )
+                                    } else {
+                                        position_hold_friction_torque(
+                                            dq, lead, f.fc, f.fv, f.fo, f.k,
+                                        )
+                                    }
+                                })
+                                .unwrap_or(0.0);
+                            let tau_d = if on_trajectory || moving_reference {
                                 trajectory_damping_torque(dq, dq_traj, kd)
                             } else if settling && dq.abs() > vel_deadband {
                                 -kd * dq
                             } else {
-                                position_hold_damping_torque(
-                                    dq,
-                                    tracking_error,
-                                    settle_error,
-                                    kd,
-                                )
+                                position_hold_damping_torque(dq, tracking_error, settle_error, kd)
                             };
                             let tau_ff_cmd = tau_g[i] + tau_f + tau_d;
                             let tau_meas = self.joint_torque(name);
@@ -404,10 +394,8 @@ impl<B: MotorBus> ControlLoop<B> {
                                 );
                             }
                             if let Some(trace) = self.position_trace.as_mut() {
-                                let t_ms = self
-                                    .tick_count
-                                    .saturating_mul(1000)
-                                    / u64::from(self.loop_hz);
+                                let t_ms =
+                                    self.tick_count.saturating_mul(1000) / u64::from(self.loop_hz);
                                 let row = PositionTraceRow {
                                     joint: name,
                                     q: q[i],
@@ -623,10 +611,7 @@ fn clamp_trajectory_setpoint(q_traj: f64, q: f64, target: f64, max_lead: f64) ->
     const TOL: f64 = 1e-4;
     let to_target = target - q;
     let lag = q_traj - q;
-    if to_target.abs() > TOL
-        && lag.signum() == to_target.signum()
-        && lag.abs() > max_lead
-    {
+    if to_target.abs() > TOL && lag.signum() == to_target.signum() && lag.abs() > max_lead {
         if to_target > 0.0 {
             q_traj.clamp(q, target)
         } else {
@@ -659,12 +644,7 @@ fn planner_drifted_from_measurement(
 
 /// Damping should settle the final hold, not behave like extra moving friction.
 /// While ramping, scale using trajectory tracking error; near the latch use settle error.
-fn position_hold_damping_torque(
-    dq: f64,
-    tracking_error: f64,
-    settle_error: f64,
-    kd: f64,
-) -> f64 {
+fn position_hold_damping_torque(dq: f64, tracking_error: f64, settle_error: f64, kd: f64) -> f64 {
     let error_for_scale = if settle_error.abs() <= POSITION_HOLD_DAMPING_FULL_ERROR_RAD {
         settle_error
     } else {
@@ -914,13 +894,9 @@ mod tests {
     #[test]
     fn planner_drifted_detects_stale_init_before_large_hold_at() {
         let stale = JointPositionPlanner::new_for_target(0.0, 0.0, 0.15);
-        assert!(planner_drifted_from_measurement(
-            &stale, 2.9, 0.0, 0.15
-        ));
+        assert!(planner_drifted_from_measurement(&stale, 2.9, 0.0, 0.15));
         let aligned = JointPositionPlanner::new_for_target(2.9, 0.0, 0.15);
-        assert!(!planner_drifted_from_measurement(
-            &aligned, 2.9, 0.0, 0.15
-        ));
+        assert!(!planner_drifted_from_measurement(&aligned, 2.9, 0.0, 0.15));
     }
 
     #[test]
@@ -941,6 +917,9 @@ mod tests {
             q_des <= max_lead + 1e-12,
             "MIT setpoint stays within max_lead of measured q"
         );
-        assert!(traj >= q_des, "trajectory runs ahead of or meets clamped MIT command");
+        assert!(
+            traj >= q_des,
+            "trajectory runs ahead of or meets clamped MIT command"
+        );
     }
 }

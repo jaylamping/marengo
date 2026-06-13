@@ -117,7 +117,7 @@ supervisor.send_mit_batch(joint_space_cmds)?;
 
 Position hold (`hold-at`) follows the joint-impedance pattern (KUKA/iiwa-style, MIT Manipulation course):
 
-- **Small retargets** (`|Δq| ≤ position_trajectory_threshold_rad`): rate-limited slew at `position_slew_rad_s`.
+- **Small retargets** (`|Δq| ≤ position_trajectory_threshold_rad`): accel-limited slew with `position_slew_rad_s` as peak velocity and `position_trajectory_accel_rad_s2` as ramp limit.
 - **Large retargets** (ADR 0007): trapezoidal `q_ref(t)` with `position_trajectory_velocity_rad_s` and `position_trajectory_accel_rad_s2`; decelerates on stopping distance.
 - **MIT setpoint** (`q_des`): each tick, clamp trajectory to `[q, q + max_lead]` toward the target so P gain stays bounded.
 - **Gravity FF** (`tau_g`): always at measured `q`.

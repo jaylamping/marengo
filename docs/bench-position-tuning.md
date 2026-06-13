@@ -30,7 +30,7 @@ Operator smoothness is **required** even if analyzer passes.
 | Pi | `joey@joey-robot.tail0b414.ts.net` |
 | Config | `shoulder_pitch_right_only` |
 | Motor | `can0/id2` (`right_shoulder_pitch`) |
-| Deploy rev | `05b8bf6` (friction fade `POSITION_HOLD_FRICTION_FADE_RAD` 0.005 → 0.02 in `berthier::friction`) |
+| Deploy rev | `05b8bf6` (friction fade `POSITION_HOLD_FRICTION_FADE_RAD` 0.005 → 0.02 in `berthier::friction`; local follow-up adds accel-limited small slew + `dq_traj` FF) |
 | Profile | `weighted_single_arm` via `pi_hold_on` |
 
 ### Testing done (2026-06-13)
@@ -73,8 +73,8 @@ Systematic one-knob-at-a-time tuning after repeated operator **FAIL — still ve
 1. **Operator feel** on `131850Z` — smooth / stair-step / still very jerky?
 2. **Clean baseline:** arm at mechanical down (~0 rad), then full 0→0.1→0 gate run.
 3. **Code fixes** (likely required for PASS):
-   - Velocity-based Coulomb during slew (`|dq_traj| > 0`) instead of error-based breakaway
-   - Slew accel/decel (trapezoid on small moves, not bang-on `dq_traj`)
+   - Velocity-based Coulomb during slew (`|dq_traj| > 0`) instead of error-based breakaway — **local patch applied**
+   - Slew accel/decel (trapezoid on small moves, not bang-on `dq_traj`) — **local patch applied**
    - Faster return slew or higher `max_lead` if ~30 mrad home offset persists
 4. After Layer 2 PASS → distance steps **0.3 → 0.8 → 1.57 rad** (use `return_home_sec: 20` for 90°).
 

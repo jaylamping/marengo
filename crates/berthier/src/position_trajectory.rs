@@ -77,14 +77,8 @@ impl JointPositionPlanner {
             if (trap_target - target).abs() > POSITION_TOLERANCE_RAD {
                 self.trapezoid_target = Some(target);
             }
-            let (q, v, phase) = trapezoid_step(
-                self.q_traj,
-                self.dq_traj,
-                trap_target,
-                v_max,
-                a_max,
-                dt,
-            );
+            let (q, v, phase) =
+                trapezoid_step(self.q_traj, self.dq_traj, trap_target, v_max, a_max, dt);
             self.q_traj = q;
             self.dq_traj = v;
             self.phase = phase;
@@ -94,21 +88,11 @@ impl JointPositionPlanner {
             return;
         }
 
-        let max_step = slew_rad_s * dt;
-        let prev = self.q_traj;
-        self.q_traj = slew_toward(self.q_traj, target, max_step);
-        self.dq_traj = if dt > 0.0 {
-            (self.q_traj - prev) / dt
-        } else {
-            0.0
-        };
-        self.phase = if (target - self.q_traj).abs() <= POSITION_TOLERANCE_RAD {
-            TrapezoidPhase::Hold
-        } else if self.dq_traj.abs() > POSITION_TOLERANCE_RAD {
-            TrapezoidPhase::Cruise
-        } else {
-            TrapezoidPhase::Hold
-        };
+        let (q, v, phase) =
+            trapezoid_step(self.q_traj, self.dq_traj, target, slew_rad_s, a_max, dt);
+        self.q_traj = q;
+        self.dq_traj = v;
+        self.phase = phase;
         let _ = q_measured;
     }
 }
@@ -263,6 +247,17 @@ mod tests {
     fn planner_uses_slew_for_small_hold_at() {
         let p = JointPositionPlanner::new_for_target(0.0, 0.1, 0.15);
         assert!(!p.uses_trajectory());
+    }
+
+    #[test]
+    fn small_slew_uses_accel_limited_reference() {
+        let mut p = JointPositionPlanner::new_for_target(0.0, 0.1, 0.15);
+        let dt = 0.005;
+        p.tick(0.1, 0.0, dt, 0.10, 0.72, 0.36);
+
+        assert!(matches!(p.phase(), TrapezoidPhase::Accelerate));
+        assert!((p.dq_traj - 0.0018).abs() < 1e-9);
+        assert!((p.q_traj - 0.000009).abs() < 1e-9);
     }
 
     #[test]
