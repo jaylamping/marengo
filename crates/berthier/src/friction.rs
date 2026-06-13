@@ -8,10 +8,10 @@ pub fn friction_torque(dq: f64, fc: f64, fv: f64, fo: f64, k: f64) -> f64 {
     fc * (k * dq).tanh() + fv * dq + fo
 }
 
-/// Position hold Coulomb assist uses **command tracking error** (`q_des − q`, bounded
-/// by `position_slew_max_lead_rad`), not error to the final latched target. That
-/// matches joint-impedance practice (KUKA/iiwa-style): feedforward assists along the
-/// ramp, not toward a distant goal.
+/// Slew Coulomb assist uses **command tracking error** (`q_des − q`, bounded by
+/// `position_slew_max_lead_rad`), not error to the final latched target. That matches
+/// joint-impedance practice (KUKA/iiwa-style): feedforward assists along the ramp,
+/// not toward a distant goal.
 pub fn position_hold_friction_torque(
     dq: f64,
     tracking_error: f64,
@@ -22,6 +22,27 @@ pub fn position_hold_friction_torque(
 ) -> f64 {
     let coulomb = if tracking_error.abs() > POSITION_HOLD_ERROR_DEADBAND_RAD {
         fc * (tracking_error / POSITION_HOLD_FRICTION_FADE_RAD).clamp(-1.0, 1.0)
+    } else {
+        fc * (k * dq).tanh()
+    };
+    coulomb + fv * dq + fo
+}
+
+/// Settle-phase Coulomb assist after the planner reaches the latched target (`q_traj ≈
+/// target`, `dq_traj ≈ 0`). Uses settle error with a wider fade so saturated MIT lead
+/// does not pin breakaway assist at full `fc` during end-of-travel stick-slip.
+pub fn position_settle_friction_torque(
+    dq: f64,
+    settle_error: f64,
+    fade_rad: f64,
+    fc: f64,
+    fv: f64,
+    fo: f64,
+    k: f64,
+) -> f64 {
+    let fade = fade_rad.max(POSITION_HOLD_FRICTION_FADE_RAD);
+    let coulomb = if settle_error.abs() > POSITION_HOLD_ERROR_DEADBAND_RAD {
+        fc * (settle_error / fade).clamp(-1.0, 1.0)
     } else {
         fc * (k * dq).tanh()
     };
@@ -82,5 +103,15 @@ mod tests {
     fn position_hold_falls_back_to_velocity_at_target() {
         let tau = position_hold_friction_torque(0.1, 0.0, 1.0, 0.0, 0.0, 10.0);
         assert!((tau - friction_torque(0.1, 1.0, 0.0, 0.0, 10.0)).abs() < 1e-6);
+    }
+
+    #[test]
+    fn settle_friction_scales_with_settle_error_not_saturated_lead() {
+        let lead_assist = position_hold_friction_torque(0.0, 0.05, 1.8, 0.0, 0.0, 10.0);
+        let settle_assist =
+            position_settle_friction_torque(0.0, 0.02, 0.05, 1.8, 0.0, 0.0, 10.0);
+
+        assert!((lead_assist - 1.8).abs() < 1e-6);
+        assert!((settle_assist - 0.72).abs() < 1e-6);
     }
 }

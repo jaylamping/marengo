@@ -12,53 +12,8 @@ source "${ROOT}/scripts/deploy-lib.sh"
 
 PI_HOST="${1:-$(resolve_deploy_pi_host)}"
 
-resolve_ssh_dir() {
-  if [[ -n "${MARENGO_SSH_DIR:-}" ]]; then
-    printf '%s\n' "${MARENGO_SSH_DIR}"
-    return
-  fi
-  case "$(uname -s 2>/dev/null)" in
-    MINGW* | MSYS* | CYGWIN*)
-      if [[ -n "${USERPROFILE:-}" ]]; then
-        printf '%s\n' "${USERPROFILE}/.ssh"
-        return
-      fi
-      ;;
-  esac
-  printf '%s\n' "${HOME}/.ssh"
-}
-
 SSH_DIR="$(resolve_ssh_dir)"
-SSH_DIR="${SSH_DIR//\\//}"
-
-docker_ssh_mount_src() {
-  local dir="${1}"
-  dir="${dir//\\//}"
-  if [[ "$dir" =~ ^([A-Za-z]):/(.*)$ ]]; then
-    local drive="${BASH_REMATCH[1],,}"
-    local rest="${BASH_REMATCH[2]}"
-    if grep -qiE 'microsoft|WSL' /proc/version 2>/dev/null; then
-      printf '/mnt/%s/%s' "$drive" "$rest"
-      return
-    fi
-    # Git Bash / MSYS: use //c/... so pathconv does not strip the Docker bind mount.
-    if [[ "$(uname -s 2>/dev/null)" == MINGW* ]] || [[ "${OSTYPE:-}" == msys* ]]; then
-      printf '//%s/%s' "$drive" "$rest"
-      return
-    fi
-    printf '%s:\\%s' "${BASH_REMATCH[1]}" "${rest//\//\\}"
-    return
-  fi
-  case "$(uname -s 2>/dev/null)" in
-    MINGW* | MSYS* | CYGWIN*)
-      if command -v cygpath >/dev/null 2>&1; then
-        cygpath -w "$dir"
-        return
-      fi
-      ;;
-  esac
-  printf '%s\n' "$dir"
-}
+export MARENGO_SSH_DIR="${SSH_DIR}"
 
 DOCKER_SSH_MOUNT="$(docker_ssh_mount_src "$SSH_DIR")"
 DOCKER_PLATFORM="${DOCKER_PLATFORM:-linux/amd64}"
@@ -127,6 +82,7 @@ exec "${COMPOSE_RUN[@]}" \
   -e NPM_CONFIG_LOGLEVEL \
   -e MARENGO_DEPLOY_VERBOSE \
   -e MARENGO_DEPLOY_START="${MARENGO_DEPLOY_START}" \
+  -e MARENGO_SSH_DIR \
   -v "${DOCKER_SSH_MOUNT}:/home/marengo/.ssh:ro" \
   deploy-pi \
   "${DEPLOY_ARGS[@]}"

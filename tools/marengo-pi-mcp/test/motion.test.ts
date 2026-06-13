@@ -69,9 +69,10 @@ describe("marengo-pi script tool", () => {
 
     assert.match(script, /printf '%s\\n' "hold-at 0";/);
     assert.match(script, /sleep 10;/);
+    assert.match(script, /sleep 20;/);
     assert.match(script, /printf '%s\\n' "disable";/);
     assert.match(script, /printf '%s\\n' "quit";/);
-    assert.match(script, /\} \| timeout 20 \$PI_BIN/);
+    assert.match(script, /\} \| timeout 40 \$PI_BIN/);
     assert.match(script, /bin\/motor-repl disable/);
   });
 

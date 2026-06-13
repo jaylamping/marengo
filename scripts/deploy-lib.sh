@@ -61,6 +61,138 @@ ensure_pi_cross_target() {
   fi
 }
 
+
+is_wsl() {
+  grep -qiE "microsoft|WSL" /proc/version 2>/dev/null
+}
+
+# Host path for existence checks; on WSL maps C:/... to /mnt/c/...
+normalize_ssh_dir_path() {
+  local dir="${1}"
+  dir="${dir//\\//}"
+  if is_wsl && [[ "$dir" =~ ^([A-Za-z]):/(.*)$ ]]; then
+    local drive="${BASH_REMATCH[1],,}"
+    printf "/mnt/%s/%s" "$drive" "${BASH_REMATCH[2]}"
+    return
+  fi
+  printf "%s\n" "$dir"
+}
+
+wsl_windows_ssh_dir() {
+  is_wsl || return 1
+  local user=""
+  if command -v cmd.exe >/dev/null 2>&1; then
+    user="$(cmd.exe /c "echo %USERNAME%" 2>/dev/null | tr -d "\r\n" | sed "s/^[[:space:]]*//;s/[[:space:]]*$//")"
+  fi
+  if [[ -n "$user" ]] && [[ -d "/mnt/c/Users/${user}/.ssh" ]]; then
+    printf "/mnt/c/Users/%s/.ssh" "$user"
+    return 0
+  fi
+  # Dev fallback: first Windows profile with the Marengo deploy key.
+  local d
+  for d in /mnt/c/Users/*/.ssh; do
+    [[ -f "${d}/id_ed25519_marengo" ]] || continue
+    printf '%s\n' "$d"
+    return 0
+  done
+  return 1
+}
+
+ssh_dir_has_identity() {
+  local dir="$1"
+  local k
+  for k in id_ed25519_marengo id_ed25519 id_rsa; do
+    if [[ -f "${dir}/${k}" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+resolve_ssh_dir() {
+  local candidate=""
+  if [[ -n "${MARENGO_SSH_DIR:-}" ]]; then
+    candidate="$(normalize_ssh_dir_path "${MARENGO_SSH_DIR}")"
+    if [[ -d "$candidate" ]] && ssh_dir_has_identity "$candidate"; then
+      printf "%s\n" "$candidate"
+      return
+    fi
+    if [[ -d "$candidate" ]]; then
+      log_warn "MARENGO_SSH_DIR has no deploy key: ${candidate}"
+    else
+      log_warn "MARENGO_SSH_DIR is not a directory: ${candidate}"
+    fi
+  fi
+
+  case "$(uname -s 2>/dev/null)" in
+    MINGW* | MSYS* | CYGWIN*)
+      if [[ -n "${USERPROFILE:-}" ]]; then
+        candidate="$(normalize_ssh_dir_path "${USERPROFILE}/.ssh")"
+        if [[ -d "$candidate" ]] && ssh_dir_has_identity "$candidate"; then
+          printf "%s\n" "$candidate"
+          return
+        fi
+      fi
+      ;;
+  esac
+
+  if candidate="$(wsl_windows_ssh_dir)" && ssh_dir_has_identity "$candidate"; then
+    printf "%s\n" "$candidate"
+    return
+  fi
+
+  candidate="${HOME}/.ssh"
+  if [[ -d "$candidate" ]] && ssh_dir_has_identity "$candidate"; then
+    printf "%s\n" "$candidate"
+    return
+  fi
+
+  # Last resort: return best-effort path for error messages / empty mount checks.
+  if [[ -n "${MARENGO_SSH_DIR:-}" ]]; then
+    printf "%s\n" "$(normalize_ssh_dir_path "${MARENGO_SSH_DIR}")"
+    return
+  fi
+  if candidate="$(wsl_windows_ssh_dir)"; then
+    printf "%s\n" "$candidate"
+    return
+  fi
+  printf "%s\n" "${HOME}/.ssh"
+}
+
+docker_ssh_mount_src() {
+  local dir
+  dir="$(normalize_ssh_dir_path "${1}")"
+  dir="${dir//\\//}"
+  if [[ "$dir" == /mnt/* ]]; then
+    printf "%s\n" "$dir"
+    return
+  fi
+  if [[ "$dir" =~ ^([A-Za-z]):/(.*)$ ]]; then
+    local drive="${BASH_REMATCH[1],,}"
+    local rest="${BASH_REMATCH[2]}"
+    if is_wsl; then
+      printf "/mnt/%s/%s" "$drive" "$rest"
+      return
+    fi
+    if [[ "$(uname -s 2>/dev/null)" == MINGW* ]] || [[ "${OSTYPE:-}" == msys* ]]; then
+      printf "//%s/%s" "$drive" "$rest"
+      return
+    fi
+    printf "%s:\\%s" "${BASH_REMATCH[1]}" "${rest//\//\\}"
+    return
+  fi
+  case "$(uname -s 2>/dev/null)" in
+    MINGW* | MSYS* | CYGWIN*)
+      if command -v cygpath >/dev/null 2>&1; then
+        cygpath -w "$dir"
+        return
+      fi
+      ;;
+  esac
+  printf "%s\n" "$dir"
+}
+
+
 # --- Docker deploy SSH (Windows bind-mount .ssh is world-readable; copy to /tmp) ---
 
 COMPOSE_SSH_DIR=""
@@ -79,18 +211,33 @@ resolve_deploy_pi_host() {
 }
 
 compose_ssh_source_dir() {
-  if [[ -n "${MARENGO_SSH_DIR:-}" ]] && [[ -d "${MARENGO_SSH_DIR}" ]]; then
-    printf '%s\n' "${MARENGO_SSH_DIR}"
-    return 0
+  local candidate=""
+
+  if [[ -n "${MARENGO_SSH_DIR:-}" ]]; then
+    candidate="$(normalize_ssh_dir_path "${MARENGO_SSH_DIR}")"
+    if ssh_dir_has_identity "$candidate"; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
   fi
-  if [[ "${MARENGO_DEPLOY_VIA_COMPOSE:-}" == 1 ]] && [[ -d /home/marengo/.ssh ]]; then
+
+  # Bind mount is only valid when the mounted dir contains a deploy key.
+  if [[ "${MARENGO_DEPLOY_VIA_COMPOSE:-}" == 1 ]] && ssh_dir_has_identity /home/marengo/.ssh; then
     printf '%s\n' "/home/marengo/.ssh"
     return 0
   fi
-  if [[ -d "${HOME}/.ssh" ]]; then
+
+  candidate="$(resolve_ssh_dir)"
+  if ssh_dir_has_identity "$candidate"; then
+    printf '%s\n' "$candidate"
+    return 0
+  fi
+
+  if [[ -d "${HOME}/.ssh" ]] && ssh_dir_has_identity "${HOME}/.ssh"; then
     printf '%s\n' "${HOME}/.ssh"
     return 0
   fi
+
   return 1
 }
 

@@ -15,7 +15,8 @@ use thiserror::Error;
 use tracing::{debug, info};
 
 use crate::friction::{
-    friction_torque, position_hold_friction_torque, trajectory_friction_torque,
+    friction_torque, position_hold_friction_torque, position_settle_friction_torque,
+    trajectory_friction_torque,
 };
 use crate::position_trace::{PositionTrace, PositionTraceRow};
 use crate::position_trajectory::{trajectory_damping_torque, JointPositionPlanner};
@@ -312,6 +313,10 @@ impl<B: MotorBus> ControlLoop<B> {
                             let vel_deadband = cfg
                                 .map(|c| c.position_trajectory_velocity_deadband_rad)
                                 .unwrap_or(0.02);
+                            const SETTLE_POSITION_TOLERANCE_RAD: f64 = 1e-4;
+                            let settling = !on_trajectory
+                                && dq_traj.abs() <= vel_deadband
+                                && (q_traj - target).abs() <= SETTLE_POSITION_TOLERANCE_RAD;
                             let tau_f = fr.map(|f| {
                                 if on_trajectory {
                                     trajectory_friction_torque(
@@ -319,6 +324,16 @@ impl<B: MotorBus> ControlLoop<B> {
                                         dq_traj,
                                         settle_error,
                                         vel_deadband,
+                                        f.fc,
+                                        f.fv,
+                                        f.fo,
+                                        f.k,
+                                    )
+                                } else if settling {
+                                    position_settle_friction_torque(
+                                        dq,
+                                        settle_error,
+                                        max_lead,
                                         f.fc,
                                         f.fv,
                                         f.fo,
@@ -339,6 +354,8 @@ impl<B: MotorBus> ControlLoop<B> {
                                 && dq_traj.abs() > vel_deadband
                             {
                                 trajectory_damping_torque(dq, dq_traj, kd)
+                            } else if settling && dq.abs() > vel_deadband {
+                                -kd * dq
                             } else {
                                 position_hold_damping_torque(
                                     dq,

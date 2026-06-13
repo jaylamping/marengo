@@ -145,22 +145,29 @@ function marengoPiPipe(script: string[], pipeTimeoutSec: number, binary = "$PI_B
 function marengoPiTimedPipe(
   script: string[],
   dwellSec: number,
+  returnHomeSec: number,
   binary = "$PI_BIN",
 ): string {
   const commandLines = [
     ...script.map((l) => `printf '%s\\n' ${JSON.stringify(l)};`),
     `sleep ${dwellSec};`,
+    `printf '%s\\n' "hold-at 0";`,
+    `sleep ${returnHomeSec};`,
     `printf '%s\\n' "status";`,
     `printf '%s\\n' "disable";`,
     `printf '%s\\n' "quit";`,
   ];
-  return `{\n${commandLines.join("\n")}\n} | timeout ${dwellSec + 10} ${binary}`;
+  const pipeTimeoutSec = dwellSec + returnHomeSec + 10;
+  return `{\n${commandLines.join("\n")}\n} | timeout ${pipeTimeoutSec} ${binary}`;
 }
 
 function marengoPiPkillLine(cfg: MarengoPiConfig): string {
   const bin = `${cfg.piRoot}/bin/marengo-pi`;
   return `pkill -f ${shellQuote(bin)} 2>/dev/null || true`;
 }
+
+/** Default dwell at target before ramping back to home (rad 0). */
+const DEFAULT_RETURN_HOME_SEC = 20;
 
 function holdSessionRemoteBody(
   cfg: MarengoPiConfig,
@@ -171,6 +178,7 @@ function holdSessionRemoteBody(
     operator: string;
     positionRad?: number;
     timeoutSec: number;
+    returnHomeSec: number;
   },
 ): string {
   const lines: string[] = [];
@@ -186,7 +194,11 @@ function holdSessionRemoteBody(
     args.positionRad !== undefined ? `hold-at ${args.positionRad}` : "hold-on";
   lines.push(
     "set +e",
-    marengoPiTimedPipe(["home", `enable ${args.operator}`, holdLine], args.timeoutSec),
+    marengoPiTimedPipe(
+      ["home", `enable ${args.operator}`, holdLine],
+      args.timeoutSec,
+      args.returnHomeSec,
+    ),
     "PIPE_STATUS=$?",
     "set -e",
     "bin/motor-repl disable",
@@ -466,6 +478,15 @@ export function registerMotionTools(
           .number()
           .optional()
           .describe("If set, use hold-at instead of latching current pose"),
+        return_home_sec: z
+          .number()
+          .int()
+          .min(5)
+          .max(120)
+          .default(DEFAULT_RETURN_HOME_SEC)
+          .describe(
+            "After dwell at target, hold-at 0 and wait this long before disable/quit",
+          ),
         operator: z.string().default("bench"),
       }),
       handler: async (args: {
@@ -479,10 +500,12 @@ export function registerMotionTools(
         kill_stale?: boolean;
         position_rad?: number;
         operator?: string;
+        return_home_sec?: number;
       }) => {
         const check = gate(args);
         if (!check.ok) return check.message;
         const timeoutSec = args.timeout_sec ?? DEFAULT_MOTION_TIMEOUT_SEC;
+        const returnHomeSec = args.return_home_sec ?? DEFAULT_RETURN_HOME_SEC;
         const joint = args.joint ?? "right_shoulder_pitch";
         const configDir =
           benchConfigDirForJoint(cfg, joint, args.config_dir) ?? BENCH_CONFIG_RIGHT;
@@ -493,9 +516,13 @@ export function registerMotionTools(
           operator: args.operator ?? "bench",
           positionRad: args.position_rad,
           timeoutSec,
+          returnHomeSec,
         });
         const body = benchLogWrapper(cfg, pipeCmd, "hold-on", configDir);
-        const out = await runRemote(body, timeoutSec * 1000 + 20_000);
+        const out = await runRemote(
+          body,
+          (timeoutSec + returnHomeSec) * 1000 + 20_000,
+        );
         auditMotion("pi_hold_on", args, out, 0);
         return out;
       },

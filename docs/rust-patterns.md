@@ -121,7 +121,7 @@ Position hold (`hold-at`) follows the joint-impedance pattern (KUKA/iiwa-style, 
 - **Large retargets** (ADR 0007): trapezoidal `q_ref(t)` with `position_trajectory_velocity_rad_s` and `position_trajectory_accel_rad_s2`; decelerates on stopping distance.
 - **MIT setpoint** (`q_des`): each tick, clamp trajectory to `[q, q + max_lead]` toward the target so P gain stays bounded.
 - **Gravity FF** (`tau_g`): always at measured `q`.
-- **Friction / damping FF**: tracking error for slew; `dq_des`-based friction and `(dq_des − dq)` damping while on trajectory.
+- **Friction / damping FF**: ramp lead for slew; settle error + full damping once `q_traj` reaches the latch; `dq_des`-based friction and `(dq_des − dq)` damping while on trajectory.
 
 Do not fold `max_lead` into the slew accumulator — that freezes the ramp when the arm lags.
 
