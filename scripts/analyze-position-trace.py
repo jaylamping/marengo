@@ -7,6 +7,9 @@ Usage:
 
 Emits per-target-move segments with jerk/lead/rate-limit indicators so tuning
 changes can be compared without eyeballing thousands of rows.
+
+Layer 2 gate (weighted hold-at 0.1):
+  python scripts/analyze-position-trace.py trace.csv --gate layer2 --tau-ff-rate-limit 60
 """
 
 from __future__ import annotations
@@ -41,6 +44,15 @@ class SegmentReport:
     jerk_rms_rad_s2: float
     phase_counts: dict[str, int] = field(default_factory=dict)
     hints: list[str] = field(default_factory=list)
+    gate_checks: dict[str, bool] = field(default_factory=dict)
+
+
+# Layer 2 weighted hold-at 0.1 — see docs/bench-position-tuning.md
+LAYER2_APPROACH_TARGET_RAD = 0.1
+LAYER2_LEAD_SAT_MAX = 0.10
+LAYER2_JERK_RMS_MAX_RAD_S2 = 800.0
+LAYER2_TAU_F_FLIPS_MAX = 2
+LAYER2_TAU_FF_RATE_LIMIT_MULTIPLIER = 2.0
 
 
 def _f(row: dict[str, str], key: str) -> float:
@@ -161,6 +173,10 @@ def _analyze_segment(seg: list[dict[str, str]]) -> SegmentReport:
         hints.append(
             f"velocity lag RMS {vel_lag_rms:.2f} rad/s: measured dq vs dq_traj diverge (gravity or lead_sat)"
         )
+    if jerk_rms > LAYER2_JERK_RMS_MAX_RAD_S2:
+        hints.append(
+            f"jerk_rms {jerk_rms:.0f} rad/s²: exceeds Layer 2 smoothness gate ({LAYER2_JERK_RMS_MAX_RAD_S2:.0f}) — likely torque clipping or friction bang-bang"
+        )
 
     return SegmentReport(
         target_rad=target,
@@ -181,17 +197,96 @@ def _analyze_segment(seg: list[dict[str, str]]) -> SegmentReport:
         jerk_rms_rad_s2=jerk_rms,
         phase_counts=phase_counts,
         hints=hints,
+        gate_checks={},
     )
 
 
-def analyze(path: Path) -> dict:
-    rows = _rows(path)
-    segments = [_analyze_segment(s) for s in _split_segments(rows)]
+def _segment_matches_target(seg: SegmentReport, target_rad: float) -> bool:
+    return abs(seg.target_rad - target_rad) < 1e-3
+
+
+def _evaluate_layer2_segment(
+    seg: SegmentReport,
+    *,
+    is_approach: bool,
+    tau_ff_rate_limit_nm_s: float,
+) -> dict[str, bool]:
+    tau_ff_cap = tau_ff_rate_limit_nm_s * LAYER2_TAU_FF_RATE_LIMIT_MULTIPLIER
+    checks = {
+        "lead_sat_ok": seg.lead_sat_fraction < LAYER2_LEAD_SAT_MAX,
+        "jerk_ok": seg.jerk_rms_rad_s2 < LAYER2_JERK_RMS_MAX_RAD_S2,
+        "tau_ff_slew_ok": seg.tau_ff_max_slew_nm_s < tau_ff_cap,
+    }
+    if is_approach:
+        checks["tau_f_flips_ok"] = seg.tau_f_sign_flips <= LAYER2_TAU_F_FLIPS_MAX
+    return checks
+
+
+def evaluate_layer2_gate(
+    segments: list[SegmentReport],
+    tau_ff_rate_limit_nm_s: float,
+) -> dict:
+    approach = next(
+        (s for s in segments if _segment_matches_target(s, LAYER2_APPROACH_TARGET_RAD)),
+        None,
+    )
+    ret = next((s for s in segments if _segment_matches_target(s, 0.0)), None)
+    missing: list[str] = []
+    if approach is None:
+        missing.append(f"approach segment (target={LAYER2_APPROACH_TARGET_RAD})")
+    if ret is None:
+        missing.append("return segment (target=0)")
+
+    approach_checks: dict[str, bool] = {}
+    return_checks: dict[str, bool] = {}
+    if approach is not None:
+        approach_checks = _evaluate_layer2_segment(
+            approach,
+            is_approach=True,
+            tau_ff_rate_limit_nm_s=tau_ff_rate_limit_nm_s,
+        )
+        approach.gate_checks = approach_checks
+    if ret is not None:
+        return_checks = _evaluate_layer2_segment(
+            ret,
+            is_approach=False,
+            tau_ff_rate_limit_nm_s=tau_ff_rate_limit_nm_s,
+        )
+        ret.gate_checks = return_checks
+
+    analyzer_ok = (
+        not missing
+        and all(approach_checks.values())
+        and all(return_checks.values())
+    )
     return {
+        "gate": "layer2",
+        "tau_ff_rate_limit_nm_s": tau_ff_rate_limit_nm_s,
+        "analyzer_pass": analyzer_ok,
+        "missing_segments": missing,
+        "approach_checks": approach_checks,
+        "return_checks": return_checks,
+        "note": "Operator smoothness still required — analyzer cannot detect felt jerk alone.",
+    }
+
+
+def analyze(
+    path: Path,
+    *,
+    gate: str | None = None,
+    tau_ff_rate_limit_nm_s: float = 60.0,
+) -> dict:
+    rows = _rows(path)
+    segment_reports = [_analyze_segment(s) for s in _split_segments(rows)]
+    result: dict = {
         "path": str(path),
         "samples": len(rows),
-        "segments": [asdict(s) for s in segments],
+        "segments": [asdict(s) for s in segment_reports],
     }
+    if gate == "layer2":
+        result["layer2_gate"] = evaluate_layer2_gate(segment_reports, tau_ff_rate_limit_nm_s)
+        result["segments"] = [asdict(s) for s in segment_reports]
+    return result
 
 
 def _print_human(report: dict) -> None:
@@ -212,21 +307,54 @@ def _print_human(report: dict) -> None:
             f"dq_traj stutter={seg['dq_traj_stutter_events']}"
         )
         print(f"  phases: {seg['phase_counts']}")
+        if seg.get("gate_checks"):
+            failed = [k for k, ok in seg["gate_checks"].items() if not ok]
+            status = "PASS" if not failed else f"FAIL ({', '.join(failed)})"
+            print(f"  layer2_gate: {status}")
         for hint in seg["hints"]:
             print(f"  ! {hint}")
+
+    gate = report.get("layer2_gate")
+    if gate is not None:
+        print()
+        print("=== Layer 2 gate (analyzer) ===")
+        print(f"  tau_ff_rate_limit: {gate['tau_ff_rate_limit_nm_s']} Nm/s")
+        if gate["missing_segments"]:
+            print(f"  missing: {', '.join(gate['missing_segments'])}")
+        if gate["approach_checks"]:
+            print(f"  approach: {gate['approach_checks']}")
+        if gate["return_checks"]:
+            print(f"  return: {gate['return_checks']}")
+        print(f"  analyzer: {'PASS' if gate['analyzer_pass'] else 'FAIL'}")
+        print(f"  ({gate['note']})")
 
 
 def main(argv: Iterable[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("csv", type=Path)
     parser.add_argument("--json", action="store_true", help="machine-readable output")
+    parser.add_argument(
+        "--gate",
+        choices=("layer2",),
+        help="evaluate pass/fail against documented bench gate criteria",
+    )
+    parser.add_argument(
+        "--tau-ff-rate-limit",
+        type=float,
+        default=60.0,
+        help="tau_ff_rate_limit_nm_per_s from control.yaml (Layer 2 gate)",
+    )
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     if not args.csv.is_file():
         print(f"error: not found: {args.csv}", file=sys.stderr)
         return 1
 
-    report = analyze(args.csv)
+    report = analyze(
+        args.csv,
+        gate=args.gate,
+        tau_ff_rate_limit_nm_s=args.tau_ff_rate_limit,
+    )
     if args.json:
         json.dump(report, sys.stdout, indent=2)
         print()
