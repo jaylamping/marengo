@@ -104,12 +104,19 @@ compose_ssh_setup() {
   if [[ -d /home/marengo/.ssh ]]; then
     cp -a /home/marengo/.ssh/. "$COMPOSE_SSH_DIR/"
   fi
-  chmod 600 "$COMPOSE_SSH_DIR"/* 2>/dev/null || true
-  chmod 644 "$COMPOSE_SSH_DIR"/*.pub 2>/dev/null || true
+  for f in "$COMPOSE_SSH_DIR"/id_* "$COMPOSE_SSH_DIR"/*.bak; do
+    [[ -f "$f" ]] || continue
+    if [[ "$f" == *.pub ]]; then
+      chmod 644 "$f"
+    else
+      chmod 600 "$f"
+    fi
+  done
   if [[ -f "${COMPOSE_SSH_DIR}/config" ]]; then
     sed "s|~/.ssh|${COMPOSE_SSH_DIR}|g; s|\${HOME}/.ssh|${COMPOSE_SSH_DIR}|g" \
       "${COMPOSE_SSH_DIR}/config" > "${COMPOSE_SSH_DIR}/config.deploy"
     mv "${COMPOSE_SSH_DIR}/config.deploy" "${COMPOSE_SSH_DIR}/config"
+    chmod 644 "${COMPOSE_SSH_DIR}/config"
   fi
   for k in id_ed25519 id_rsa id_ed25519_marengo; do
     if [[ -f "${COMPOSE_SSH_DIR}/${k}" ]]; then
@@ -136,23 +143,38 @@ compose_ssh_opts() {
   fi
 }
 
+compose_ssh_target() {
+  local host="$1"
+  compose_ssh_setup
+  if [[ -f "${COMPOSE_SSH_DIR}/config" ]] && [[ "$host" == *@* ]]; then
+    echo "${host#*@}"
+  else
+    echo "$host"
+  fi
+}
+
 compose_ssh() {
   local ssh_opts=()
+  local target="$1"
+  shift
   compose_ssh_opts ssh_opts
-  ssh "${ssh_opts[@]}" "$@"
+  target="$(compose_ssh_target "$target")"
+  ssh "${ssh_opts[@]}" "$target" "$@"
 }
 
 sync_staging_to_pi() {
   local staging="$1"
   local remote_root="$2"
   local ssh_opts=()
+  local sync_host
   compose_ssh_opts ssh_opts
+  sync_host="$(compose_ssh_target "$PI_HOST")"
   if command -v rsync >/dev/null 2>&1; then
-    rsync -av --delete -e "ssh ${ssh_opts[*]}" "${staging}/" "${PI_HOST}:${remote_root}/"
+    rsync -av --delete -e "ssh ${ssh_opts[*]}" "${staging}/" "${sync_host}:${remote_root}/"
     return
   fi
   log_note "rsync missing — using tar over ssh"
-  tar -C "$staging" -czf - . | ssh "${ssh_opts[@]}" "$PI_HOST" "mkdir -p ${remote_root} && tar -xzf - -C ${remote_root}"
+  tar -C "$staging" -czf - . | ssh "${ssh_opts[@]}" "$sync_host" "mkdir -p ${remote_root} && tar -xzf - -C ${remote_root}"
 }
 
 clear_consul_node_modules() {
