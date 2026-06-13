@@ -14,14 +14,15 @@ Host: **`marengo.local`** user **`joey`**. Pi root: **`/opt/marengo`**.
 ## Log-first (mandatory — no permission ask)
 
 1. On any question or failure: **`pi_logs_last_fault`** → **`pi_logs_tail`** → **`pi_logs_grep`** — call immediately.
-2. Never ask the user to paste logs available in `var/log/bench-latest.log`.
-3. Never ask *“may I SSH?”* for read-only tools — pre-authorized.
-4. Never ask the user to run Pi commands, paste command output, deploy files, or verify software state when an MCP tool can do it. Use the MCP tool yourself and report the result.
-5. If a needed Pi action is missing from MCP, prefer adding/fixing the MCP tool and rebuilding it over falling back to user-run commands.
+2. After any **motion** session (`pi_hold_on`, `pi_bench_harness`, `pi_marengo_pi_script`): read **`pi_candump_summary`** and correlate with **`position-trace-latest.csv`** (via `pi_read_file` tail or analyze script). CAN is the wire truth; trace is planner/code truth.
+3. Never ask the user to paste logs available in `var/log/bench-latest.log`, `position-trace-latest.csv`, or **`candump-latest.log`**.
+4. Never ask *“may I SSH?”* for read-only tools — pre-authorized.
+5. Never ask the user to run Pi commands, paste command output, deploy files, or verify software state when an MCP tool can do it. Use the MCP tool yourself and report the result.
+6. If a needed Pi action is missing from MCP, prefer adding/fixing the MCP tool and rebuilding it over falling back to user-run commands.
 
 ## Read-only (no confirm)
 
-`pi_health`, `pi_can_status`, `pi_motor_repl_status`, `pi_gravity_preview`, `pi_logs_*`, `pi_journal`, `pi_candump_once`, `pi_imu_probe`, `pi_read_file`
+`pi_health`, `pi_can_status`, `pi_motor_repl_status`, `pi_gravity_preview`, `pi_logs_*`, **`pi_candump_summary`**, `pi_journal`, `pi_candump_once`, `pi_imu_probe`, `pi_read_file`
 
 ## Admin (no confirm)
 
@@ -65,7 +66,19 @@ Prefer **`pi_bench_harness`** for debug sessions. Sustained control uses **`pi_m
 2. `pi_health` + `pi_can_up` before motion.
 3. **`bare_motor`:** one user OK → `pi_bench_harness` with `confirm: true`.
 4. **Weighted:** ask twice in chat → harness with both confirm flags.
-5. After harness: `pi_logs_last_fault` + read JSON in response; link log path in issues.
+5. After harness: `pi_logs_last_fault` + **`pi_candump_summary`** + position trace JSON in response; link log paths in issues.
+
+### Bench telemetry triad (motion troubleshooting)
+
+Every `pi_hold_on` / harness run auto-records:
+
+| Layer | File | What it shows |
+|-------|------|----------------|
+| Text | `bench-latest.log` | 1 Hz diagnostics, faults |
+| Code | `position-trace-latest.csv` | 200 Hz planner/MIT command |
+| **Wire** | **`candump-latest.log`** | raw CAN frames (TX/RX rate) |
+
+Compare: trace smooth + candump jerky → firmware/mechanical; both jerky → control tuning; candump rate ≠ ~400/s/motor → comm/scheduling issue.
 
 Commissioned map: right `can0`/id **2**, left `can1`/id **12**. Bench profiles: `shoulder_pitch_right_only`, `shoulder_pitch_left_only` (mirrored tuning); dual: `shoulder_pitch_dual`.
 

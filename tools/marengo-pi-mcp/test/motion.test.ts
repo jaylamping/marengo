@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { MarengoPiConfig } from "../src/config.js";
 import {
+  benchLogPruneShell,
   marengoPiPipeTimeoutSec,
   registerMotionTools,
   scriptSleepTotalSec,
@@ -45,6 +46,10 @@ describe("marengo-pi script tool", () => {
     assert.match(script, /\} 2>&1 \| tee -a "\$LOG"/);
     assert.match(script, /PIPE_STATUS=\$\{PIPESTATUS\[0\]\}/);
     assert.match(script, /ln -sf "\$LOG" "\$LOGDIR\/bench-latest\.log"/);
+    assert.match(script, /position-trace-\$TS\.csv/);
+    assert.match(script, /candump -t z/);
+    assert.match(script, /candump-latest\.log/);
+    assert.match(script, /tail -n \+101/);
     assert.match(script, /exit "\$PIPE_STATUS"/);
   });
 

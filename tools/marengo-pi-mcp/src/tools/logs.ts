@@ -50,14 +50,20 @@ export function registerLogTools(
     },
 
     pi_logs_list: {
-      description: "List recent bench-*.log and bench-*.json with mtimes",
+      description:
+        "List recent bench logs/traces with sizes; shows var/log total",
       inputSchema: z.object({
         limit: z.number().int().min(1).max(50).default(15),
       }),
       handler: async (args: { limit: number }) => {
         const body = wrapRemote(
           cfg,
-          `ls -lt ${logDir}/bench-*.log ${logDir}/bench-*.json 2>/dev/null | head -n ${args.limit} || echo '(no bench logs yet)'`,
+          [
+            `LOGDIR=${JSON.stringify(logDir)}`,
+            'du -sh "$LOGDIR" 2>/dev/null || true',
+            'ls -lt "$LOGDIR"/bench-*.log "$LOGDIR"/bench-*.json "$LOGDIR"/position-trace-*.csv "$LOGDIR"/candump-*.log 2>/dev/null',
+            `  | head -n ${args.limit} || echo '(no bench logs yet)'`,
+          ].join("\n"),
         );
         return runRemote(body, 15_000);
       },
@@ -71,6 +77,46 @@ export function registerLogTools(
         const body = wrapRemote(
           cfg,
           `grep -E 'ERROR|WARN|fault|watchdog|outside|limit' ${logDir}/bench-latest.log 2>/dev/null | tail -n 80 || echo '(no fault lines or no bench-latest.log)'`,
+        );
+        return runRemote(body, 15_000);
+      },
+    },
+
+    pi_candump_summary: {
+      description:
+        "Summarize candump-latest.log: frame count, duration, approximate Hz (after pi_hold_on/harness)",
+      inputSchema: z.object({}),
+      handler: async () => {
+        const body = wrapRemote(
+          cfg,
+          [
+            `F=${JSON.stringify(`${logDir}/candump-latest.log`)}`,
+            'if ! test -f "$F"; then',
+            '  echo "(no candump-latest.log — run pi_hold_on or pi_bench_harness first)"',
+            "  exit 0",
+            "fi",
+            'lines=$(wc -l < "$F" | tr -d " ")',
+            'bytes=$(wc -c < "$F" | tr -d " ")',
+            'echo "file=$F lines=$lines bytes=$bytes"',
+            'first=$(grep -m1 "^(" "$F" 2>/dev/null || true)',
+            'last=$(grep "^(" "$F" | tail -n 1 || true)',
+            'echo "first=$first"',
+            'echo "last=$last"',
+            "if [ -n \"$first\" ] && [ -n \"$last\" ]; then",
+            '  t0=$(echo "$first" | sed -n "s/(\\([0-9.]*\\)).*/\\1/p")',
+            '  t1=$(echo "$last" | sed -n "s/(\\([0-9.]*\\)).*/\\1/p")',
+            '  if [ -n "$t0" ] && [ -n "$t1" ]; then',
+            '    dur=$(awk -v t0="$t0" -v t1="$t1" \'BEGIN { d=t1-t0; if (d>0) printf "%.3f", d; else print "0" }\')',
+            '    hz=$(awk -v n="$lines" -v t0="$t0" -v t1="$t1" \'BEGIN { d=t1-t0; if (d>0) printf "%.1f", n/d; else print "n/a" }\')',
+            '    echo "duration_sec=$dur approx_hz=$hz"',
+            '  fi',
+            "fi",
+            'echo "--- per-interface ---"',
+            'for _if in can0 can1 can2; do',
+            '  c=$(grep -c " ${_if} " "$F" 2>/dev/null || echo 0)',
+            '  test "$c" -gt 0 && echo "${_if}_frames=$c"',
+            "done",
+          ].join("\n"),
         );
         return runRemote(body, 15_000);
       },

@@ -367,13 +367,15 @@ impl<B: MotorBus> ControlLoop<B> {
                             let tau_ff_cmd = tau_g[i] + tau_f + tau_d;
                             let tau_meas = self.joint_torque(name);
                             let lead_sat = lead.abs() >= max_lead - 1e-6;
+                            let dist_to_target = target - q_traj;
+                            let tau_p = kp * lead;
+                            let estimated_tau = tau_ff_cmd + tau_p;
                             let phase_str = if on_trajectory {
                                 format!("{traj_phase:?}")
                             } else {
                                 "slew".to_string()
                             };
                             if log_position_diag {
-                                let estimated_tau = tau_ff_cmd + kp * lead;
                                 info!(
                                     joint = %name,
                                     q = q[i],
@@ -417,13 +419,17 @@ impl<B: MotorBus> ControlLoop<B> {
                                     lead_sat,
                                     tracking_error,
                                     settle_error,
+                                    dist_to_target,
+                                    on_trajectory: on_trajectory,
                                     phase: &phase_str,
                                     kp,
                                     kd,
+                                    tau_p,
                                     tau_g: tau_g[i],
                                     tau_f,
                                     tau_d,
                                     tau_ff_cmd,
+                                    estimated_tau,
                                     tau_meas,
                                     kp_mit: kp,
                                     kd_mit: 0.0,

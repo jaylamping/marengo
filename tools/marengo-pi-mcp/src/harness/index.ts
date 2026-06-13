@@ -1,6 +1,7 @@
 import type { BenchProfile, MarengoPiConfig } from "../config.js";
 import { sudoCanUpCommand } from "../config.js";
 import { shellQuote, wrapRemoteWithConfig } from "../env.js";
+import { benchLogPruneShell, benchCandumpStartShell, benchCandumpStopShell } from "../tools/motion.js";
 
 const BENCH_CONFIG_WEIGHTED =
   "/opt/marengo/config/bringup/shoulder_pitch_weighted";
@@ -73,14 +74,17 @@ function benchSessionWrapper(
       `JSON="$LOGDIR/bench-$TS.json"`,
       `LABEL=${shellQuote(label)}`,
       "echo \"=== bench harness $TS ($LABEL) ===\" | tee \"$LOG\"",
+      benchCandumpStartShell(),
       "set +e",
       "{",
       pipeCmd,
       "} 2>&1 | tee -a \"$LOG\"",
       "PIPE_STATUS=${PIPESTATUS[0]}",
       "set -e",
+      benchCandumpStopShell(),
       "ln -sf \"$LOG\" \"$LOGDIR/bench-latest.log\"",
-      "echo \"log=$LOG\"",
+      benchLogPruneShell("$LOGDIR"),
+      "echo \"log=$LOG candump=${CANDUMP:-}\"",
       "exit \"$PIPE_STATUS\"",
     ].join("\n"),
     configDir,

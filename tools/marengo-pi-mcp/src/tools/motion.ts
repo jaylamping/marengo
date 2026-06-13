@@ -17,6 +17,52 @@ const BENCH_CONFIG_RIGHT =
 const BENCH_CONFIG_LEFT =
   "/opt/marengo/config/bringup/shoulder_pitch_left_only";
 
+/** Keep newest N timestamped bench artifacts; symlinks (bench-latest.*) untouched. */
+export const BENCH_LOG_KEEP_COUNT = 100;
+
+export function benchLogPruneShell(logDirVar = "$LOGDIR", keep = BENCH_LOG_KEEP_COUNT): string {
+  return [
+    `# prune old bench logs/traces (keep ${keep} newest each)`,
+    `for _pat in bench-*.log position-trace-*.csv bench-*.json candump-*.log; do`,
+    `  ls -1t ${logDirVar}/$_pat 2>/dev/null | tail -n +${keep + 1} | while IFS= read -r _f; do rm -f "$_f"; done`,
+    `done`,
+  ].join("\n");
+}
+
+/** Start background candump on all UP CAN interfaces for the bench session. */
+export function benchCandumpStartShell(): string {
+  return [
+    'CANDUMP="$LOGDIR/candump-$TS.log"',
+    'CANDUMP_ARGS=""',
+    "for _if in can0 can1 can2; do",
+    '  ip link show "$_if" 2>/dev/null | grep -q " state UP " && CANDUMP_ARGS="$CANDUMP_ARGS $_if"',
+    "done",
+    'if [ -n "$CANDUMP_ARGS" ]; then',
+    '  candump -t z $CANDUMP_ARGS > "$CANDUMP" 2>&1 &',
+    "  CANDUMP_PID=$!",
+    '  echo "candump recording:$CANDUMP_ARGS -> $CANDUMP" | tee -a "$LOG"',
+    "else",
+    '  echo "candump skipped (no UP CAN interfaces)" | tee -a "$LOG"',
+    "  CANDUMP_PID=",
+    "fi",
+  ].join("\n");
+}
+
+/** Stop session candump and link candump-latest.log. */
+export function benchCandumpStopShell(): string {
+  return [
+    'if [ -n "${CANDUMP_PID:-}" ]; then',
+    '  kill "$CANDUMP_PID" 2>/dev/null || true',
+    '  wait "$CANDUMP_PID" 2>/dev/null || true',
+    "fi",
+    'if [ -f "${CANDUMP:-}" ]; then',
+    '  _lines=$(wc -l < "$CANDUMP" | tr -d " ")',
+    '  echo "candump ${_lines} frames -> $CANDUMP" | tee -a "$LOG"',
+    '  ln -sf "$CANDUMP" "$LOGDIR/candump-latest.log"',
+    "fi",
+  ].join("\n");
+}
+
 function normalizeBenchConfigDir(cfg: MarengoPiConfig, configDir: string): string {
   if (configDir.startsWith("/") || configDir.startsWith("~/")) {
     return configDir;
@@ -58,15 +104,18 @@ const benchLogWrapper = (
     'export MARENGO_POSITION_TRACE="$TRACE"',
     `LABEL=${shellQuote(label)}`,
     'echo "=== bench session $TS ($LABEL) ===" | tee "$LOG"',
+    benchCandumpStartShell(),
     "set +e",
     "{",
     pipeCmd,
     '} 2>&1 | tee -a "$LOG"',
     "PIPE_STATUS=${PIPESTATUS[0]}",
     "set -e",
+    benchCandumpStopShell(),
     'ln -sf "$LOG" "$LOGDIR/bench-latest.log"',
     'ln -sf "$TRACE" "$LOGDIR/position-trace-latest.csv"',
-    'echo "{\"log\":\"$LOG\",\"trace\":\"$TRACE\",\"ts\":\"$TS\",\"label\":\"$LABEL\"}"',
+    benchLogPruneShell(),
+    'echo "{\"log\":\"$LOG\",\"trace\":\"$TRACE\",\"candump\":\"${CANDUMP:-}\",\"ts\":\"$TS\",\"label\":\"$LABEL\"}"',
     'exit "$PIPE_STATUS"',
   ].join("\n");
   return configDir
