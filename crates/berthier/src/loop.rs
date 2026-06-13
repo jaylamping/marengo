@@ -885,6 +885,9 @@ impl<B: MotorBus> ControlLoop<B> {
             if let Some(frozen) = self.position_planner_frozen.as_mut() {
                 frozen[i] = freeze;
             }
+            if planner_should_latch_on_overshoot_hold(q[i], targets[i], dq_filtered, vel_deadband) {
+                planners[i].latch_at_target(targets[i]);
+            }
             if !freeze {
                 let v_tick = if let Some(policy) = self.supervisor.joint_limit_policy(name) {
                     approach_velocity_cap(policy, q[i], planners[i].dq_traj, v_max)
@@ -1072,6 +1075,19 @@ fn planner_should_resync_stuck_lead(
     (q - planner.q_traj).abs() > max_lead - 1e-6
 }
 
+/// Arm past latched target and at rest — stop trapezoid hunting (hold overshoot wiggle).
+/// Skips return-to-home (`target` near zero) where descent stuck logic owns `q_des`.
+fn planner_should_latch_on_overshoot_hold(
+    q: f64,
+    target: f64,
+    dq_filtered: f64,
+    velocity_deadband: f64,
+) -> bool {
+    target.abs() > POSITION_RETURN_FREEZE_Q_MAX_RAD
+        && q > target + POSITION_RETURN_RESYNC_RAD
+        && dq_filtered.abs() < velocity_deadband
+}
+
 /// Freeze planner while arm lags on return-to-home descent; hysteresis exit on filtered downward motion.
 #[allow(clippy::too_many_arguments)]
 fn planner_should_freeze_on_descent(
@@ -1156,7 +1172,14 @@ fn clamp_trajectory_setpoint(
 
     // Overshoot: command at least `target` but never past measured `q` (avoids MIT pull-back mid-travel).
     let settle_error = target - q;
-    if settle_error < -TOL && q_traj <= target + TOL {
+    if settle_error < -POSITION_RETURN_RESYNC_RAD && target.abs() > POSITION_RETURN_FREEZE_Q_MAX_RAD {
+        // Large hold overshoot away from home — fixed target setpoint; do not chase `q_traj` above `q`.
+        q_des = target;
+        if let Some(p) = policy {
+            let (lo, hi) = effective_command_bounds(p, q, dq_traj);
+            q_des = q_des.clamp(lo, hi);
+        }
+    } else if settle_error < -TOL && q_traj <= target + TOL {
         q_des = q_des.max(target);
         if let Some(p) = policy {
             let (lo, _) = effective_command_bounds(p, q, dq_traj);
@@ -1368,6 +1391,31 @@ mod tests {
     fn clamp_caps_ahead_setpoint_at_target_on_approach() {
         let q_des = clamp_trajectory_setpoint(0.091, 0.105, 0.1, 0.10, None, 0.0);
         assert!((q_des - 0.1).abs() < 1e-12);
+    }
+
+    #[test]
+    fn clamp_latches_setpoint_at_target_on_large_hold_overshoot() {
+        let q_des = clamp_trajectory_setpoint(1.65, 1.64, 1.57, 0.10, None, -0.3);
+        assert!(
+            (q_des - 1.57).abs() < 1e-12,
+            "hold overshoot must not chase q_traj above measured q"
+        );
+    }
+
+    #[test]
+    fn planner_latches_on_overshoot_hold_when_at_rest() {
+        assert!(planner_should_latch_on_overshoot_hold(
+            1.64, 1.57, 0.0, 0.02
+        ));
+        assert!(!planner_should_latch_on_overshoot_hold(
+            1.64, 1.57, 0.15, 0.02
+        ));
+        assert!(!planner_should_latch_on_overshoot_hold(
+            1.58, 1.57, 0.0, 0.02
+        ));
+        assert!(!planner_should_latch_on_overshoot_hold(
+            0.105, 0.0, 0.0, 0.02
+        ));
     }
 
     #[test]

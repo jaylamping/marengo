@@ -50,6 +50,13 @@ impl JointPositionPlanner {
         };
     }
 
+    /// Freeze reference at `target` when measured `q` has overshot and settled.
+    pub fn latch_at_target(&mut self, target: f64) {
+        self.q_traj = target;
+        self.dq_traj = 0.0;
+        self.phase = TrapezoidPhase::Hold;
+    }
+
     /// After `reset_target`, seed downward cruise speed when returning from well above `target`.
     /// At high `q`, gravity FF exceeds friction until `dq_traj` reaches velocity deadband — causes
     /// a long return hitch from approach overshoot (e.g. weighted 0.1 rad gate).
