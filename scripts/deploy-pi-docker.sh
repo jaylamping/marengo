@@ -37,8 +37,7 @@ log_step "deploy-pi-docker → ${PI_HOST}"
 log_note "SSH mount: ${SSH_DIR} → /home/marengo/.ssh"
 if [[ ! -f "${SSH_DIR}/config" ]] && [[ ! -f "${SSH_DIR}/id_ed25519_marengo" ]] \
   && [[ ! -f "${SSH_DIR}/id_ed25519" ]]; then
-  echo "error: no SSH keys under ${SSH_DIR} (set MARENGO_SSH_DIR)" >&2
-  exit 1
+  log_warn "SSH preflight: host shell cannot read ${SSH_DIR} (continuing — Docker mount may still work)"
 fi
 log_note "Platform: ${DOCKER_PLATFORM}"
 log_note "Cache volumes: cargo-target, cargo-registry, cargo-git, consul-node-modules"
