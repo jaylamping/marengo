@@ -1,7 +1,11 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { MarengoPiConfig } from "../src/config.js";
-import { registerMotionTools } from "../src/tools/motion.js";
+import {
+  marengoPiPipeTimeoutSec,
+  registerMotionTools,
+  scriptSleepTotalSec,
+} from "../src/tools/motion.js";
 
 const cfg: MarengoPiConfig = {
   host: "marengo.local",
@@ -14,6 +18,12 @@ const cfg: MarengoPiConfig = {
 };
 
 describe("marengo-pi script tool", () => {
+  it("uses timeout_sec as total pipe budget", () => {
+    assert.equal(scriptSleepTotalSec(["hold-at 0", "sleep 2", "sleep 1.5"]), 3.5);
+    assert.equal(marengoPiPipeTimeoutSec(["sleep 35", "disable"], 15), 15);
+    assert.equal(marengoPiPipeTimeoutSec(["home", "disable"], 20), 20);
+  });
+
   it("keeps bench logs current when script exits nonzero", async () => {
     let script = "";
     const tools = registerMotionTools(
@@ -135,13 +145,14 @@ describe("marengo-pi script tool", () => {
       confirm: true,
       joint: "right_shoulder_pitch",
       script: ["home", "enable bench", "hold-at 1.570796", "sleep 35", "hold-at 0"],
-      timeout_sec: 80,
+      timeout_sec: 15,
     });
 
     assert.match(script, /printf '%s\\n' "hold-at 1\.570796";/);
     assert.match(script, /sleep 35;/);
     assert.match(script, /printf '%s\\n' "hold-at 0";/);
-    assert.match(script, /\} \| timeout 80 \$PI_BIN/);
+    assert.match(script, /printf '%s\\n' "quit";/);
+    assert.match(script, /\} \| timeout 15 \$PI_BIN/);
   });
 
   it("pipes every script line into marengo-pi", async () => {
@@ -164,7 +175,7 @@ describe("marengo-pi script tool", () => {
 
     assert.match(
       script,
-      /\{\nprintf '%s\\n' "home";\nprintf '%s\\n' "enable bench";\nprintf '%s\\n' "status";\n\} \| timeout 10 \$PI_BIN/,
+      /\{\nprintf '%s\\n' "home";\nprintf '%s\\n' "enable bench";\nprintf '%s\\n' "status";\nprintf '%s\\n' "quit";\n\} \| timeout 10 \$PI_BIN/,
     );
   });
 
@@ -190,5 +201,6 @@ describe("marengo-pi script tool", () => {
     assert.match(script, /PI_FALLBACK="\$HOME\/marengo\/target\/release\/marengo-pi"/);
     assert.match(script, /timeout 2 "\$PI_BIN" 2>&1 \|\| true/);
     assert.match(script, /test -x "\$PI_FALLBACK"/);
+    assert.match(script, /\} \| timeout 10 \$PI_BIN/);
   });
 });

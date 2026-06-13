@@ -4,6 +4,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
+import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { loadConfig } from "./config.js";
 import { execRemote, formatRemoteResult } from "./ssh.js";
@@ -71,9 +72,10 @@ async function main() {
     }
 
     try {
-      const text = await tool.handler(
-        (request.params.arguments ?? {}) as Record<string, unknown>,
+      const parsed = (tool.inputSchema as z.ZodTypeAny).parse(
+        request.params.arguments ?? {},
       );
+      const text = await tool.handler(parsed);
       const isError =
         text.startsWith("Motion blocked") ||
         text.startsWith("Weighted motion blocked") ||

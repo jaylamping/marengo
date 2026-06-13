@@ -90,8 +90,40 @@ function marengoPiBinarySelector(cfg: MarengoPiConfig): string {
   ].join("\n");
 }
 
-/** Default dwell for hold-at / marengo-pi script sessions (bench iteration speed). */
+/** Default total marengo-pi pipe timeout (includes script `sleep N` lines). */
 const DEFAULT_MOTION_TIMEOUT_SEC = 15;
+
+/** SSH wrapper slack beyond pipe timeout. */
+const REMOTE_SSH_SLACK_MS = 10_000;
+
+/** Sum `sleep N` dwell lines (for docs / harness helpers). */
+export function scriptSleepTotalSec(script: string[]): number {
+  let total = 0;
+  for (const line of script) {
+    const sleepMatch = /^sleep (\d+(?:\.\d+)?)$/i.exec(line.trim());
+    if (sleepMatch) {
+      total += Number(sleepMatch[1]);
+    }
+  }
+  return total;
+}
+
+/** Total pipe timeout passed to `timeout(1) marengo-pi`. */
+export function marengoPiPipeTimeoutSec(
+  _script: string[],
+  totalTimeoutSec: number,
+): number {
+  return Math.ceil(totalTimeoutSec);
+}
+
+/** End stdin session so marengo-pi exits instead of running until timeout. */
+function ensureScriptQuit(script: string[]): string[] {
+  const out = [...script];
+  if (out[out.length - 1]?.trim().toLowerCase() !== "quit") {
+    out.push("quit");
+  }
+  return out;
+}
 
 /** Shell sleep between marengo-pi stdin lines (e.g. dwell after hold-at). */
 function marengoPiPipeLine(line: string): string {
@@ -102,9 +134,9 @@ function marengoPiPipeLine(line: string): string {
   return `printf '%s\\n' ${JSON.stringify(line)}`;
 }
 
-function marengoPiPipe(script: string[], timeoutSec: number, binary = "$PI_BIN"): string {
+function marengoPiPipe(script: string[], pipeTimeoutSec: number, binary = "$PI_BIN"): string {
   const pipeLines = script.map(marengoPiPipeLine).join(";\n");
-  return `{\n${pipeLines};\n} | timeout ${timeoutSec} ${binary}`;
+  return `{\n${pipeLines};\n} | timeout ${pipeTimeoutSec} ${binary}`;
 }
 
 function marengoPiTimedPipe(
@@ -522,7 +554,10 @@ export function registerMotionTools(
           .int()
           .min(5)
           .max(120)
-          .default(DEFAULT_MOTION_TIMEOUT_SEC),
+          .default(DEFAULT_MOTION_TIMEOUT_SEC)
+          .describe(
+            "Total marengo-pi pipe timeout; script sleep lines count against this budget",
+          ),
       }),
       handler: async (args: {
         confirm: true;
@@ -535,16 +570,21 @@ export function registerMotionTools(
       }) => {
         const check = gate(args);
         if (!check.ok) return check.message;
-        const timeoutSec = args.timeout_sec ?? DEFAULT_MOTION_TIMEOUT_SEC;
+        const controlTimeoutSec = args.timeout_sec ?? DEFAULT_MOTION_TIMEOUT_SEC;
+        const script = ensureScriptQuit(args.script);
+        const pipeTimeoutSec = marengoPiPipeTimeoutSec(script, controlTimeoutSec);
         const pipeCmd = [
           marengoPiBinarySelector(cfg),
-          marengoPiPipe(args.script, timeoutSec),
+          marengoPiPipe(script, pipeTimeoutSec),
         ].join("\n");
         const configDir =
           benchConfigDirForJoint(cfg, args.joint, args.config_dir) ??
           args.config_dir;
         const body = benchLogWrapper(cfg, pipeCmd, "marengo-pi-script", configDir);
-        const out = await runRemote(body, timeoutSec * 1000 + 15_000);
+        const out = await runRemote(
+          body,
+          pipeTimeoutSec * 1000 + REMOTE_SSH_SLACK_MS,
+        );
         auditMotion("pi_marengo_pi_script", args, out, 0);
         return out;
       },
