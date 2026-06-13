@@ -33,7 +33,7 @@ impl PositionTrace {
         if is_new {
             writeln!(
                 writer,
-                "tick,t_ms,joint,q,dq,q_traj,dq_traj,q_des,target,lead,lead_sat,settle_error,phase,friction_mode,tau_p,tau_g,tau_f,tau_d,tau_ff_cmd,tau_meas,dq_mit,kp,kd,joint_stuck,planner_frozen"
+                "tick,t_ms,joint,q,dq,q_traj,dq_traj,q_des,target,target_raw,q_env_lo,q_env_hi,lead,lead_sat,settle_error,phase,friction_mode,tau_p,tau_g,tau_f,tau_d,tau_ff_cmd,tau_meas,dq_mit,kp,kd,joint_stuck,planner_frozen"
             )?;
         }
         log_trace_enabled_once(path);
@@ -71,6 +71,9 @@ pub struct PositionTraceRow<'a> {
     pub dq_traj: f64,
     pub q_des: f64,
     pub target: f64,
+    pub target_raw: f64,
+    pub q_env_lo: f64,
+    pub q_env_hi: f64,
     pub lead: f64,
     pub lead_sat: bool,
     pub settle_error: f64,
@@ -92,7 +95,7 @@ pub struct PositionTraceRow<'a> {
 impl PositionTraceRow<'_> {
     pub fn format_csv_with_meta(&self, tick: u64, t_ms: u64) -> String {
         format!(
-            "{tick},{t_ms},{joint},{q:.6},{dq:.6},{q_traj:.6},{dq_traj:.6},{q_des:.6},{target:.6},{lead:.6},{lead_sat},{settle_error:.6},{phase},{friction_mode},{tau_p:.6},{tau_g:.6},{tau_f:.6},{tau_d:.6},{tau_ff_cmd:.6},{tau_meas:.6},{dq_mit:.6},{kp:.3},{kd:.3},{joint_stuck},{planner_frozen}",
+            "{tick},{t_ms},{joint},{q:.6},{dq:.6},{q_traj:.6},{dq_traj:.6},{q_des:.6},{target:.6},{target_raw:.6},{q_env_lo:.6},{q_env_hi:.6},{lead:.6},{lead_sat},{settle_error:.6},{phase},{friction_mode},{tau_p:.6},{tau_g:.6},{tau_f:.6},{tau_d:.6},{tau_ff_cmd:.6},{tau_meas:.6},{dq_mit:.6},{kp:.3},{kd:.3},{joint_stuck},{planner_frozen}",
             tick = tick,
             t_ms = t_ms,
             joint = csv_escape(self.joint),
@@ -102,6 +105,9 @@ impl PositionTraceRow<'_> {
             dq_traj = self.dq_traj,
             q_des = self.q_des,
             target = self.target,
+            target_raw = self.target_raw,
+            q_env_lo = self.q_env_lo,
+            q_env_hi = self.q_env_hi,
             lead = self.lead,
             lead_sat = if self.lead_sat { 1 } else { 0 },
             settle_error = self.settle_error,
@@ -143,6 +149,8 @@ pub fn log_trace_enabled_once(path: &Path) {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::approx_constant)]
+
     use super::*;
 
     #[test]
@@ -155,6 +163,9 @@ mod tests {
             dq_traj: 0.12,
             q_des: 0.52,
             target: 1.57,
+            target_raw: 1.57,
+            q_env_lo: -0.85,
+            q_env_hi: 3.14,
             lead: 0.02,
             lead_sat: false,
             settle_error: 1.07,

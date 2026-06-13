@@ -12,6 +12,7 @@ workspace = true
 
 [dependencies]
 armee-dynamics.workspace = true
+armee-kinematics.workspace = true
 armee-proto.workspace = true
 chappe.workspace = true
 davout.workspace = true

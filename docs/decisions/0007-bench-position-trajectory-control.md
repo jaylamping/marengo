@@ -328,7 +328,7 @@ Each stage must end Disabled, with `fault=0x0000`, homing still Verified, and lo
 ## Consequences
 
 - The smooth `hold-at 0.1 rad` tuning remains accepted for local position hold.
-- Large limit sweeps are deferred until trajectory control is implemented.
+- Large limit sweeps use the ADR 0009 envelope (see [0009-dynamic-position-limit-envelope.md](0009-dynamic-position-limit-envelope.md)); weighted full-range top↔bottom may require staged legs or accept soft-limit approach after decel.
 - Bench tests should not use large instantaneous `hold-at` retargets as a substitute for trajectory moves.
 - Berthier gains trajectory state and tests.
 - Davout remains the safety authority; this ADR does not weaken velocity, torque, homing, or watchdog checks.

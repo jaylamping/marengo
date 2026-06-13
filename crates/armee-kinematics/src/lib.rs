@@ -5,7 +5,8 @@
 //!
 //! ## Responsibilities
 //!
-//! - [`load_urdf`], [`joint_limits`]: position/velocity/effort limits per joint name.
+//! - [`load_urdf`], [`joint_limits`], [`joint_limit_bounds`]: position/velocity/effort limits per joint name.
+//! - [`limits`]: velocity-scaled command envelope (ADR 0009).
 //! - [`actuated_joint_names`] / [`actuated_joint_count`]: revolute/prismatic joints only.
 //! - [`fixtures`]: paths to `arm_4dof.urdf`, `marengo.urdf`, sim fixtures.
 //!
@@ -22,6 +23,13 @@ use std::path::{Path, PathBuf};
 
 use thiserror::Error;
 use urdf_rs::{read_file, JointType};
+
+pub mod limits;
+pub use limits::{
+    approach_velocity_cap, clamp_hold_target, clamp_position_in_envelope, effective_command_bounds,
+    limit_margin_rad, measured_position_fault, JointLimitBounds, JointLimitPolicy,
+    LimitMarginConfig,
+};
 
 #[derive(Debug, Error)]
 pub enum UrdfError {
@@ -104,6 +112,30 @@ pub fn joint_limits(robot: &urdf_rs::Robot, name: &str) -> Result<JointLimits, U
     })
 }
 
+/// Hard limits plus URDF `safety_controller` soft bounds when present.
+pub fn joint_limit_bounds(
+    robot: &urdf_rs::Robot,
+    name: &str,
+) -> Result<JointLimitBounds, UrdfError> {
+    let hard = joint_limits(robot, name)?;
+    let joint = robot
+        .joints
+        .iter()
+        .find(|j| j.name == name)
+        .ok_or_else(|| UrdfError::Read {
+            path: name.to_string(),
+            message: "joint not found".to_string(),
+        })?;
+    let (soft_lower, soft_upper) = joint
+        .safety_controller
+        .as_ref()
+        .map(|s| (Some(s.soft_lower_limit), Some(s.soft_upper_limit)))
+        .unwrap_or((None, None));
+    Ok(JointLimitBounds::from_hard_and_soft(
+        hard.lower, hard.upper, soft_lower, soft_upper,
+    ))
+}
+
 /// Load and parse a URDF file.
 pub fn load_urdf(path: impl AsRef<Path>) -> Result<urdf_rs::Robot, UrdfError> {
     let path = path.as_ref();
@@ -150,7 +182,7 @@ pub fn actuated_joint_count(robot: &urdf_rs::Robot) -> usize {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::expect_used)]
+    #![allow(clippy::approx_constant, clippy::expect_used)]
 
     use super::*;
 
@@ -189,5 +221,13 @@ mod tests {
         let upper = j1.limit.upper;
         assert!((lower + 1.57).abs() < 1e-6);
         assert!((upper - 1.57).abs() < 1e-6);
+    }
+
+    #[test]
+    fn joint_limit_bounds_reads_soft_from_arm_4dof() {
+        let robot = load_urdf(fixtures::arm_4dof_urdf()).expect("parse");
+        let b = joint_limit_bounds(&robot, "shoulder_pitch").expect("bounds");
+        assert!((b.soft_lower - (-0.872665)).abs() < 1e-6);
+        assert!((b.soft_upper - 3.141593).abs() < 1e-6);
     }
 }

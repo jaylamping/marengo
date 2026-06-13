@@ -130,6 +130,7 @@ Control law (ADR 0007 one-pass):
 - **Friction FF:** two rules only — `traj_vel` (follow `dq_ref`) or `settle` (fade on `target − q`). Post-retarget onset (300 ms): full `fc` breakaway pulse while stuck; after onset, ramp `fc` with `|dq_ref|/deadband` until motion starts.
 - **MIT wire:** `velocity_rad_s = dq_ref` when moving or during post-retarget onset while approaching; `0` when stuck at rest after onset; `kd_mit = 0`; damping through torque FF using Davout-sanitized velocity. Outbound moves > ~50 mrad use `max(max_lead, 0.15 rad)` lead cap for the onset window only.
 - **Gravity FF:** `tau_g` at measured `q`.
+- **Limit envelope (ADR 0009):** `effective_command_bounds(q, dq_cmd)` shrinks commandable interval toward hard limits by `min_rad + k_v|dq| + k_stop·v²/(2a)` on the approached side only; Berthier clamps targets/`q_traj`/`q_des`; Davout clamps MIT commands and faults measured `q` beyond hard + slack. Soft bounds from URDF `safety_controller`.
 
 Do not fold `max_lead` into the planner accumulator — that freezes the reference when the arm lags.
 

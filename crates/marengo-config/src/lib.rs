@@ -44,6 +44,8 @@ pub enum ConfigError {
     UnknownMotorJoint { joint: String },
     #[error("duplicate motor CAN address {interface}:{device_id} in motors.yaml")]
     DuplicateMotorAddress { interface: String, device_id: u8 },
+    #[error("invalid limit margin on joint {joint}: {message}")]
+    InvalidLimitMargin { joint: String, message: String },
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -159,7 +161,9 @@ pub fn load_motors_config_from(
 pub fn load_control_config_from(
     config_dir: impl AsRef<Path>,
 ) -> Result<ControlConfigFile, ConfigError> {
-    read_yaml(&config_dir.as_ref().join("control.yaml"))
+    let cfg: ControlConfigFile = read_yaml(&config_dir.as_ref().join("control.yaml"))?;
+    validate_control_config(&cfg)?;
+    Ok(cfg)
 }
 
 /// Load `homing.yaml` from `config_dir`.
@@ -239,6 +243,62 @@ pub struct JointControlEntry {
     /// Added to every position-hold target (rad). Bench trim when mechanical zero ≠ encoder zero.
     #[serde(default)]
     pub position_hold_trim_rad: f64,
+    /// Minimum position envelope margin at rest (rad). ADR 0009.
+    #[serde(default = "default_position_limit_margin_min_rad")]
+    pub position_limit_margin_min_rad: f64,
+    /// Velocity-scaled envelope term: margin += k_v_s * |dq_cmd| (s).
+    #[serde(default = "default_position_limit_margin_k_v_s")]
+    pub position_limit_margin_k_v_s: f64,
+    /// Stopping-distance scale on v²/(2a) envelope term.
+    #[serde(default = "default_position_limit_margin_k_stop")]
+    pub position_limit_margin_k_stop: f64,
+    /// Measured-q fault slack beyond hard limits before disable (rad).
+    #[serde(default = "default_position_limit_measured_fault_slack_rad")]
+    pub position_limit_measured_fault_slack_rad: f64,
+    /// Override URDF soft lower when `safety_controller` absent (rad).
+    #[serde(default)]
+    pub position_soft_lower_rad: Option<f64>,
+    /// Override URDF soft upper when `safety_controller` absent (rad).
+    #[serde(default)]
+    pub position_soft_upper_rad: Option<f64>,
+}
+
+impl JointControlEntry {
+    pub fn limit_margin_fields_valid(&self, joint: &str) -> Result<(), ConfigError> {
+        if self.position_limit_margin_min_rad < 0.0 {
+            return Err(ConfigError::InvalidLimitMargin {
+                joint: joint.to_string(),
+                message: "position_limit_margin_min_rad must be >= 0".to_string(),
+            });
+        }
+        if self.position_limit_margin_k_v_s < 0.0 {
+            return Err(ConfigError::InvalidLimitMargin {
+                joint: joint.to_string(),
+                message: "position_limit_margin_k_v_s must be >= 0".to_string(),
+            });
+        }
+        if self.position_limit_margin_k_stop < 0.0 {
+            return Err(ConfigError::InvalidLimitMargin {
+                joint: joint.to_string(),
+                message: "position_limit_margin_k_stop must be >= 0".to_string(),
+            });
+        }
+        if self.position_limit_measured_fault_slack_rad < 0.0 {
+            return Err(ConfigError::InvalidLimitMargin {
+                joint: joint.to_string(),
+                message: "position_limit_measured_fault_slack_rad must be >= 0".to_string(),
+            });
+        }
+        if let (Some(lo), Some(hi)) = (self.position_soft_lower_rad, self.position_soft_upper_rad) {
+            if lo > hi {
+                return Err(ConfigError::InvalidLimitMargin {
+                    joint: joint.to_string(),
+                    message: format!("position_soft_lower_rad {lo} > position_soft_upper_rad {hi}"),
+                });
+            }
+        }
+        Ok(())
+    }
 }
 
 fn default_position_slew_rad_s() -> f64 {
@@ -263,6 +323,30 @@ fn default_position_trajectory_accel_rad_s2() -> f64 {
 
 fn default_position_trajectory_velocity_deadband_rad() -> f64 {
     0.02
+}
+
+fn default_position_limit_margin_min_rad() -> f64 {
+    0.01
+}
+
+fn default_position_limit_margin_k_v_s() -> f64 {
+    0.02
+}
+
+fn default_position_limit_margin_k_stop() -> f64 {
+    0.5
+}
+
+fn default_position_limit_measured_fault_slack_rad() -> f64 {
+    0.005
+}
+
+/// Validate margin fields on every joint entry in `control.yaml`.
+pub fn validate_control_config(control: &ControlConfigFile) -> Result<(), ConfigError> {
+    for (joint, entry) in &control.control.joints {
+        entry.limit_margin_fields_valid(joint)?;
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, Deserialize)]

@@ -109,6 +109,7 @@ pub fn position_settle_friction_torque(
 }
 
 /// Trajectory Coulomb assist follows commanded velocity when moving; near hold uses settle error.
+#[allow(dead_code)] // unit tests in this crate
 pub fn trajectory_friction_torque(
     dq: f64,
     dq_des: f64,

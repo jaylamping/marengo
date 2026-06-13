@@ -131,6 +131,7 @@ pub fn trapezoid_step(
 }
 
 /// Damping from commanded vs measured velocity while tracking a trajectory.
+#[allow(dead_code)] // unit tests in this crate
 pub fn trajectory_damping_torque(dq: f64, dq_des: f64, kd: f64) -> f64 {
     kd * (dq_des - dq)
 }

@@ -228,6 +228,7 @@ name = "berthier"
 version = "0.1.0"
 dependencies = [
  "armee-dynamics",
+ "armee-kinematics",
  "armee-proto",
  "chappe",
  "davout",

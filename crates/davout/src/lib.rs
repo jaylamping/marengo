@@ -39,13 +39,19 @@
 //! ```
 //!
 //! Limits are built from [`armee_kinematics`] + [`marengo_config`] at startup.
-//! See [safety.md](../../docs/safety.md) and [ADR 0004](../../docs/decisions/0004-control-modes-and-mit.md).
+//! See [safety.md](../../docs/safety.md), [ADR 0004](../../docs/decisions/0004-control-modes-and-mit.md),
+//! and [ADR 0009](../../docs/decisions/0009-dynamic-position-limit-envelope.md).
+
+pub use armee_kinematics::JointLimitPolicy;
 
 use std::collections::HashMap;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use armee_kinematics::{joint_limits, load_urdf, JointLimits};
+use armee_kinematics::{
+    clamp_position_in_envelope, joint_limit_bounds, joint_limits, load_urdf,
+    measured_position_fault, LimitMarginConfig,
+};
 use marengo_config::{
     load_control_config, load_homing_config, load_motors_config, load_robot_config,
     motor_for_joint, resolve_urdf_path, validate_motors_against_robot, ControlConfigFile,
@@ -133,16 +139,6 @@ pub enum DavoutError {
     HomingVerify { joint: String, message: String },
 }
 
-/// Effective limits for one joint (URDF ∩ bench YAML).
-#[derive(Debug, Clone, Copy)]
-struct EffectiveLimits {
-    lower: f64,
-    upper: f64,
-    velocity: f64,
-    effort: f64,
-    tau_ff_max: f64,
-}
-
 pub use marengo_homing::JointHomingState;
 pub use robstride::bus::{BusError, MemoryBus, MotorAddress, MotorBus};
 
@@ -167,7 +163,7 @@ pub struct Supervisor<B: MotorBus> {
     mode: OperationalMode,
     control_mode: ControlMode,
     hardware_estop: bool,
-    limits: HashMap<String, EffectiveLimits>,
+    limits: HashMap<String, JointLimitPolicy>,
     pub motors: MotorsConfigFile,
     pub control: ControlConfigFile,
     pub homing_config: HomingConfigFile,
@@ -243,6 +239,11 @@ impl<B: MotorBus> Supervisor<B> {
         self.homing.joint_state(joint)
     }
 
+    /// Per-joint limit policy (hard/soft bounds + margin config). ADR 0009.
+    pub fn joint_limit_policy(&self, joint: &str) -> Option<&JointLimitPolicy> {
+        self.limits.get(joint)
+    }
+
     /// Joint-space feedback position (rad) if available.
     pub fn joint_position_rad(&self, joint: &str) -> Option<f64> {
         let motor = motor_for_joint(&self.motors, joint)?;
@@ -304,8 +305,8 @@ impl<B: MotorBus> Supervisor<B> {
             &motor,
             &effective,
             position,
-            lim.lower,
-            lim.upper,
+            lim.hard_lower(),
+            lim.hard_upper(),
             sign_test_passed,
             operator,
             None,
@@ -444,6 +445,7 @@ impl<B: MotorBus> Supervisor<B> {
                     let motor = motor.clone();
                     let mut state = motor_to_joint_state(&motor, raw)?;
                     self.check_feedback_velocity(&motor, &mut state, received_at)?;
+                    self.check_feedback_position(&motor, &state)?;
                     self.motor_states.insert(address, state);
                 }
                 self.last_recv = Some(received_at);
@@ -552,6 +554,35 @@ impl<B: MotorBus> Supervisor<B> {
                 received_at,
             },
         );
+        Ok(())
+    }
+
+    fn check_feedback_position(
+        &self,
+        motor: &MotorEntry,
+        state: &MotorState,
+    ) -> Result<(), DavoutError> {
+        if self.mode != OperationalMode::Active {
+            return Ok(());
+        }
+        let lim = self
+            .limits
+            .get(&motor.joint)
+            .ok_or_else(|| DavoutError::UnknownJoint {
+                joint: motor.joint.clone(),
+            })?;
+        let position = f64::from(state.position_rad);
+        if measured_position_fault(position, lim) {
+            return Err(DavoutError::Limit {
+                joint: motor.joint.clone(),
+                message: format!(
+                    "measured position {position} outside [{}, {}] (+ slack {})",
+                    lim.hard_lower(),
+                    lim.hard_upper(),
+                    lim.margin.measured_fault_slack_rad
+                ),
+            });
+        }
         Ok(())
     }
 
@@ -796,17 +827,45 @@ impl<B: MotorBus> Supervisor<B> {
                 message: "kp/kd exceed motor type max".to_string(),
             });
         }
-        if out.position_rad < lim.lower || out.position_rad > lim.upper {
-            let keepalive = out.kp == 0.0 && out.kd == 0.0 && out.torque_ff_nm == 0.0;
-            if !keepalive {
+        let q_meas = self
+            .joint_position_rad(&out.joint)
+            .unwrap_or(out.position_rad);
+        let keepalive = out.kp == 0.0 && out.kd == 0.0 && out.torque_ff_nm == 0.0;
+        if !keepalive {
+            let clamped =
+                clamp_position_in_envelope(lim, q_meas, out.velocity_rad_s, out.position_rad);
+            if (clamped - out.position_rad).abs() > 1e-9 {
+                trace!(
+                    joint = %out.joint,
+                    requested = out.position_rad,
+                    clamped,
+                    q_meas,
+                    dq_cmd = out.velocity_rad_s,
+                    "MIT position clamped to limit envelope"
+                );
+            }
+            out.position_rad = clamped;
+            if out.position_rad < lim.hard_lower() || out.position_rad > lim.hard_upper() {
                 return Err(DavoutError::Limit {
                     joint: out.joint.clone(),
                     message: format!(
-                        "position {} outside [{}, {}]",
-                        out.position_rad, lim.lower, lim.upper
+                        "position {} outside hard [{}, {}] after envelope clamp",
+                        out.position_rad,
+                        lim.hard_lower(),
+                        lim.hard_upper()
                     ),
                 });
             }
+        } else if out.position_rad < lim.hard_lower() || out.position_rad > lim.hard_upper() {
+            return Err(DavoutError::Limit {
+                joint: out.joint.clone(),
+                message: format!(
+                    "position {} outside [{}, {}]",
+                    out.position_rad,
+                    lim.hard_lower(),
+                    lim.hard_upper()
+                ),
+            });
         }
         let vel_cap = lim.velocity.min(defaults.velocity_max_rad_s);
         if out.velocity_rad_s.abs() > vel_cap {
@@ -889,17 +948,18 @@ impl<B: MotorBus> Supervisor<B> {
             .ok_or_else(|| DavoutError::UnknownJoint {
                 joint: cmd.joint.clone(),
             })?;
-        let out = cmd;
-        if out.position_rad < lim.lower {
+        let mut out = cmd;
+        out.position_rad =
+            clamp_position_in_envelope(lim, out.position_rad, out.velocity_rad_s, out.position_rad);
+        if out.position_rad < lim.hard_lower() || out.position_rad > lim.hard_upper() {
             return Err(DavoutError::Limit {
                 joint: out.joint.clone(),
-                message: format!("position {} < lower {}", out.position_rad, lim.lower),
-            });
-        }
-        if out.position_rad > lim.upper {
-            return Err(DavoutError::Limit {
-                joint: out.joint.clone(),
-                message: format!("position {} > upper {}", out.position_rad, lim.upper),
+                message: format!(
+                    "position {} outside [{}, {}]",
+                    out.position_rad,
+                    lim.hard_lower(),
+                    lim.hard_upper()
+                ),
             });
         }
         if out.velocity_rad_s.abs() > lim.velocity {
@@ -980,14 +1040,40 @@ fn build_limits(
     motors: &MotorsConfigFile,
     control: &ControlConfigFile,
     urdf_robot: &urdf_rs::Robot,
-) -> Result<HashMap<String, EffectiveLimits>, DavoutError> {
+) -> Result<HashMap<String, JointLimitPolicy>, DavoutError> {
     let mut map = HashMap::new();
     for joint_name in &robot.robot.joints {
         let urdf_lim = joint_limits(urdf_robot, joint_name)?;
+        let mut bounds = joint_limit_bounds(urdf_robot, joint_name)?;
         let motor =
             motor_for_joint(motors, joint_name).ok_or_else(|| DavoutError::UnknownJoint {
                 joint: joint_name.clone(),
             })?;
+        bounds.hard_lower = urdf_lim.lower.max(motor.bench.position_lower_rad);
+        bounds.hard_upper = urdf_lim.upper.min(motor.bench.position_upper_rad);
+        if let Some(joint_cfg) = control.control.joints.get(joint_name) {
+            if let Some(lo) = joint_cfg.position_soft_lower_rad {
+                bounds.soft_lower = lo.clamp(bounds.hard_lower, bounds.hard_upper);
+            }
+            if let Some(hi) = joint_cfg.position_soft_upper_rad {
+                bounds.soft_upper = hi.clamp(bounds.hard_lower, bounds.hard_upper);
+            }
+        }
+        bounds.soft_lower = bounds
+            .soft_lower
+            .clamp(bounds.hard_lower, bounds.hard_upper);
+        bounds.soft_upper = bounds
+            .soft_upper
+            .clamp(bounds.hard_lower, bounds.hard_upper);
+        if bounds.soft_lower < bounds.hard_lower || bounds.soft_upper > bounds.hard_upper {
+            return Err(DavoutError::Limit {
+                joint: joint_name.clone(),
+                message: format!(
+                    "soft [{}, {}] not within hard [{}, {}]",
+                    bounds.soft_lower, bounds.soft_upper, bounds.hard_lower, bounds.hard_upper
+                ),
+            });
+        }
         let type_key = motor_type_key(motor.motor_type);
         let defaults = control
             .control
@@ -997,33 +1083,46 @@ fn build_limits(
                 joint: joint_name.clone(),
                 message: format!("missing motor_type_defaults.{type_key}"),
             })?;
-        let mut eff = effective_limits(&urdf_lim, motor, &robot.robot.bench);
-        eff.tau_ff_max = eff
+        let joint_cfg = control.control.joints.get(joint_name);
+        let margin = limit_margin_from_config(joint_cfg);
+        let velocity = urdf_lim
+            .velocity
+            .min(motor.bench.velocity_limit_rad_s)
+            .min(robot.robot.bench.max_joint_velocity_rad_s);
+        let effort = urdf_lim
             .effort
             .min(motor.bench.torque_limit_nm)
+            .min(robot.robot.bench.max_joint_torque_nm);
+        let tau_ff_max = effort
+            .min(motor.bench.torque_limit_nm)
             .min(defaults.tau_ff_max_nm);
-        map.insert(joint_name.clone(), eff);
+        map.insert(
+            joint_name.clone(),
+            JointLimitPolicy {
+                bounds,
+                margin,
+                velocity,
+                effort,
+                tau_ff_max,
+            },
+        );
     }
     Ok(map)
 }
 
-fn effective_limits(
-    urdf: &JointLimits,
-    motor: &MotorEntry,
-    bench: &marengo_config::BenchSection,
-) -> EffectiveLimits {
-    EffectiveLimits {
-        lower: urdf.lower.max(motor.bench.position_lower_rad),
-        upper: urdf.upper.min(motor.bench.position_upper_rad),
-        velocity: urdf
-            .velocity
-            .min(motor.bench.velocity_limit_rad_s)
-            .min(bench.max_joint_velocity_rad_s),
-        effort: urdf
-            .effort
-            .min(motor.bench.torque_limit_nm)
-            .min(bench.max_joint_torque_nm),
-        tau_ff_max: motor.bench.torque_limit_nm,
+fn limit_margin_from_config(
+    joint_cfg: Option<&marengo_config::JointControlEntry>,
+) -> LimitMarginConfig {
+    match joint_cfg {
+        Some(c) => LimitMarginConfig {
+            min_rad: c.position_limit_margin_min_rad,
+            k_v_s: c.position_limit_margin_k_v_s,
+            k_stop: c.position_limit_margin_k_stop,
+            velocity_deadband_rad_s: c.position_trajectory_velocity_deadband_rad,
+            measured_fault_slack_rad: c.position_limit_measured_fault_slack_rad,
+            decel_rad_s2: c.position_trajectory_accel_rad_s2,
+        },
+        None => LimitMarginConfig::default(),
     }
 }
 
@@ -1094,14 +1193,14 @@ mod tests {
     }
 
     #[test]
-    fn rejects_position_outside_limits() {
+    fn rejects_velocity_outside_limits() {
         let bus = MemoryBus::default();
         let sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
         let err = sup
             .filter_command(JointCommand {
                 joint: "shoulder_roll".to_string(),
-                position_rad: 99.0,
-                velocity_rad_s: 0.0,
+                position_rad: 0.0,
+                velocity_rad_s: 99.0,
                 torque_nm: 0.0,
             })
             .expect_err("limit");
@@ -1439,5 +1538,22 @@ mod tests {
             )
             .expect_err("watchdog");
         assert!(matches!(err, DavoutError::CommWatchdog { ms: 1 }));
+    }
+
+    #[test]
+    fn filter_command_clamps_position_into_envelope() {
+        let bus = MemoryBus::default();
+        let sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let out = sup
+            .filter_command(JointCommand {
+                joint: "elbow".to_string(),
+                position_rad: 99.0,
+                velocity_rad_s: 0.0,
+                torque_nm: 0.0,
+            })
+            .expect("clamp");
+        let policy = sup.joint_limit_policy("elbow").expect("policy");
+        assert!(out.position_rad <= policy.hard_upper());
+        assert!(out.position_rad < 99.0);
     }
 }

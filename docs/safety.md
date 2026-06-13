@@ -46,7 +46,8 @@ During early arm bring-up with the arm elevated (shoulder/elbow up), motion stop
 4. **Caps:** Davout per-`motor_type` `tau_ff` limits (RS02/RS00 lower than RS03/RS04); rate-limit `tau_ff` steps when enabling.
 5. **Danger zones:** `config/control.yaml` rules (e.g. elevated shoulder pitch + downward velocity) → clamp or fault.
 6. **Comm watchdog:** CAN receive timeout → `Disabled` and logged fault.
-7. **Exit:** `disable_all` on process exit / SIGTERM where the driver supports it.
+7. **Measured position guard (ADR 0009):** feedback `q` beyond URDF hard limits + small slack → `Disabled` (independent of command path).
+8. **Exit:** `disable_all` on process exit / SIGTERM where the driver supports it.
 
 See [ADR 0004](decisions/0004-control-modes-and-mit.md) and [hardware/docs/decisions/0002-robstride-protocol.md](../hardware/docs/decisions/0002-robstride-protocol.md).
 

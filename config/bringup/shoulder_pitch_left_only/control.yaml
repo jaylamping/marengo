@@ -29,6 +29,10 @@ control:
       position_slew_max_lead_rad: 0.5
       # Bench trim stays zero after set-zero at mechanical arm-down.
       position_hold_trim_rad: 0.0
+      position_limit_margin_min_rad: 0.01
+      position_limit_margin_k_v_s: 0.02
+      position_limit_margin_k_stop: 0.5
+      position_limit_measured_fault_slack_rad: 0.005
       friction:
         fc: 0.0
         fv: 0.0

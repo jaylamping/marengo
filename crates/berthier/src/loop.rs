@@ -5,6 +5,10 @@ use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
 use armee_dynamics::{DynamicsModel, UrdfGravityModel};
+use armee_kinematics::{
+    approach_velocity_cap, clamp_hold_target, clamp_position_in_envelope, effective_command_bounds,
+    JointLimitPolicy,
+};
 use armee_proto::{ControlMode as ProtoControlMode, JointState, RobotState};
 use chappe::Bus;
 use davout::{
@@ -64,6 +68,8 @@ pub struct ControlLoop<B: MotorBus> {
     control_mode: ControlMode,
     /// Final joint-space targets for [`ControlMode::Position`] (hold-on / hold-at).
     position_setpoints: Option<Vec<f64>>,
+    /// Operator-requested targets before limit envelope clamp (diagnostics).
+    position_setpoints_raw: Option<Vec<f64>>,
     /// Per-joint slew or trapezoidal planner toward [`Self::position_setpoints`].
     position_planners: Option<Vec<JointPositionPlanner>>,
     loop_period: Duration,
@@ -105,6 +111,7 @@ impl<B: MotorBus> ControlLoop<B> {
             joint_names,
             control_mode: ControlMode::Disabled,
             position_setpoints: None,
+            position_setpoints_raw: None,
             position_planners: None,
             loop_period: Duration::from_secs_f64(1.0 / f64::from(loop_hz)),
             chappe_publish_period: Duration::from_secs_f64(1.0 / f64::from(chappe_hz.max(1))),
@@ -125,6 +132,7 @@ impl<B: MotorBus> ControlLoop<B> {
     pub fn latch_position_setpoints(&mut self) {
         let q = self.refresh_joint_positions();
         self.position_setpoints = Some(q.clone());
+        self.position_setpoints_raw = Some(q.clone());
         self.init_position_planners(&q);
     }
 
@@ -152,7 +160,16 @@ impl<B: MotorBus> ControlLoop<B> {
                 joint: joint.to_string(),
             });
         };
-        let target = self.hold_target_for_joint(joint, position_rad);
+        let q_now = self.refresh_joint_positions();
+        let requested = self.hold_target_trim(joint, position_rad);
+        let dq_cmd = self.estimated_retarget_dq_cmd(joint, q_now[i], requested);
+        let target = self.clamp_hold_target(joint, q_now[i], requested, dq_cmd);
+        if self.position_setpoints_raw.is_none() {
+            self.position_setpoints_raw = Some(vec![0.0; self.joint_names.len()]);
+        }
+        if let Some(raw) = self.position_setpoints_raw.as_mut() {
+            raw[i] = requested;
+        }
         let Some(setpoints) = self.position_setpoints.as_mut() else {
             return Err(LoopError::MissingSetpoint {
                 joint: joint.to_string(),
@@ -160,7 +177,15 @@ impl<B: MotorBus> ControlLoop<B> {
         };
         let old_target = setpoints[i];
         setpoints[i] = target;
-        let q_now = self.refresh_joint_positions();
+        if (requested - target).abs() > 1e-6 {
+            info!(
+                joint = %joint,
+                requested,
+                clamped = target,
+                q = q_now[i],
+                "hold-at target clamped to limit envelope"
+            );
+        }
         if self.position_planners.is_none() {
             self.init_position_planners(&q_now);
         }
@@ -288,14 +313,16 @@ impl<B: MotorBus> ControlLoop<B> {
             self.position_dq_filtered = Some(vec![dq_raw; self.joint_names.len()]);
             return dq_raw;
         }
-        let filtered = self.position_dq_filtered.as_mut().expect("init above");
+        let Some(filtered) = self.position_dq_filtered.as_mut() else {
+            return dq_raw;
+        };
         let prev = filtered[joint_index];
         let next = filter_dq_ema(prev, dq_raw, POSITION_DAMPING_DQ_FILTER_ALPHA);
         filtered[joint_index] = next;
         next
     }
 
-    fn hold_target_for_joint(&self, joint: &str, position_rad: f64) -> f64 {
+    fn hold_target_trim(&self, joint: &str, position_rad: f64) -> f64 {
         let trim = self
             .supervisor
             .control
@@ -307,8 +334,34 @@ impl<B: MotorBus> ControlLoop<B> {
         position_rad + trim
     }
 
+    fn clamp_hold_target(&self, joint: &str, q: f64, requested_rad: f64, dq_cmd: f64) -> f64 {
+        let Some(policy) = self.supervisor.joint_limit_policy(joint) else {
+            return requested_rad;
+        };
+        clamp_hold_target(policy, q, dq_cmd, requested_rad)
+    }
+
+    fn estimated_retarget_dq_cmd(&self, joint: &str, q: f64, requested_rad: f64) -> f64 {
+        let delta = requested_rad - q;
+        if delta.abs() <= 1e-9 {
+            return 0.0;
+        }
+        let cfg = self.supervisor.control.control.joints.get(joint);
+        let slew = cfg.map(|c| c.position_slew_rad_s).unwrap_or(0.25);
+        let trajectory_v = cfg
+            .map(|c| c.position_trajectory_velocity_rad_s)
+            .unwrap_or(0.30);
+        let v_max = if delta.abs() <= POSITION_SMALL_MOVE_VMAX_RAD {
+            slew
+        } else {
+            trajectory_v
+        };
+        delta.signum() * v_max
+    }
+
     pub fn clear_position_hold(&mut self) {
         self.position_setpoints = None;
+        self.position_setpoints_raw = None;
         self.position_planners = None;
         self.position_retarget_tick = None;
         self.position_dq_filtered = None;
@@ -352,6 +405,7 @@ impl<B: MotorBus> ControlLoop<B> {
     pub fn set_control_mode(&mut self, mode: ControlMode) {
         if mode != ControlMode::Position {
             self.position_setpoints = None;
+            self.position_setpoints_raw = None;
             self.position_planners = None;
             self.position_retarget_tick = None;
             self.position_dq_filtered = None;
@@ -464,8 +518,15 @@ impl<B: MotorBus> ControlLoop<B> {
                                 .as_ref()
                                 .and_then(|l| l.get(i).copied())
                                 .unwrap_or(false);
-                            let mut q_des =
-                                clamp_trajectory_setpoint(q_traj, q[i], target, effective_max_lead);
+                            let limit_policy = self.supervisor.joint_limit_policy(&name);
+                            let mut q_des = clamp_trajectory_setpoint(
+                                q_traj,
+                                q[i],
+                                target,
+                                effective_max_lead,
+                                limit_policy,
+                                dq_traj,
+                            );
                             let to_target = target - q[i];
                             let stuck_now = descent_stuck_mit_pull(
                                 to_target,
@@ -497,6 +558,9 @@ impl<B: MotorBus> ControlLoop<B> {
                             let joint_stuck = stuck_now && !breakaway;
                             if joint_stuck {
                                 q_des = q_des.min(q[i] - POSITION_DESCENT_STUCK_LEAD_RAD);
+                            }
+                            if let Some(policy) = limit_policy {
+                                q_des = clamp_position_in_envelope(policy, q[i], dq_traj, q_des);
                             }
                             let planner_frozen = self
                                 .position_planner_frozen
@@ -611,6 +675,14 @@ impl<B: MotorBus> ControlLoop<B> {
                             if let Some(trace) = self.position_trace.as_mut() {
                                 let t_ms =
                                     self.tick_count.saturating_mul(1000) / u64::from(self.loop_hz);
+                                let (q_env_lo, q_env_hi) = limit_policy
+                                    .map(|p| effective_command_bounds(p, q[i], dq_traj))
+                                    .unwrap_or((f64::NAN, f64::NAN));
+                                let target_raw = self
+                                    .position_setpoints_raw
+                                    .as_ref()
+                                    .and_then(|r| r.get(i).copied())
+                                    .unwrap_or(target);
                                 let row = PositionTraceRow {
                                     joint: &name,
                                     q: q[i],
@@ -619,6 +691,9 @@ impl<B: MotorBus> ControlLoop<B> {
                                     dq_traj,
                                     q_des,
                                     target,
+                                    target_raw,
+                                    q_env_lo,
+                                    q_env_hi,
                                     lead,
                                     lead_sat,
                                     settle_error,
@@ -780,7 +855,20 @@ impl<B: MotorBus> ControlLoop<B> {
                 frozen[i] = freeze;
             }
             if !freeze {
-                planners[i].tick(targets[i], dt, v_max, a_max);
+                let v_tick = if let Some(policy) = self.supervisor.joint_limit_policy(name) {
+                    approach_velocity_cap(policy, q[i], planners[i].dq_traj, v_max)
+                } else {
+                    v_max
+                };
+                planners[i].tick(targets[i], dt, v_tick, a_max);
+                if let Some(policy) = self.supervisor.joint_limit_policy(name) {
+                    planners[i].q_traj = clamp_position_in_envelope(
+                        policy,
+                        q[i],
+                        planners[i].dq_traj,
+                        planners[i].q_traj,
+                    );
+                }
             }
         }
         Ok(())
@@ -954,6 +1042,7 @@ fn planner_should_resync_stuck_lead(
 }
 
 /// Freeze planner while arm lags on return-to-home descent; hysteresis exit on filtered downward motion.
+#[allow(clippy::too_many_arguments)]
 fn planner_should_freeze_on_descent(
     was_frozen: bool,
     target: f64,
@@ -998,7 +1087,14 @@ fn planner_should_freeze_on_descent(
 /// When the arm is only slightly ahead of the planner while still approaching `target`,
 /// do not command `q_des` behind measured `q` — MIT stiffness pulls back and causes
 /// mid-travel stick-slip stalls on the weighted bench.
-fn clamp_trajectory_setpoint(q_traj: f64, q: f64, target: f64, max_lead: f64) -> f64 {
+fn clamp_trajectory_setpoint(
+    q_traj: f64,
+    q: f64,
+    target: f64,
+    max_lead: f64,
+    policy: Option<&JointLimitPolicy>,
+    dq_traj: f64,
+) -> f64 {
     const TOL: f64 = 1e-4;
     let to_target = target - q;
     let lag = q_traj - q;
@@ -1018,16 +1114,35 @@ fn clamp_trajectory_setpoint(q_traj: f64, q: f64, target: f64, max_lead: f64) ->
         if to_target > 0.0 && q > q_traj && (q - q_traj) < POSITION_RETURN_RESYNC_RAD {
             q_des = q_des.max(q);
         } else if to_target < 0.0 && q < q_traj && (q_traj - q) < POSITION_RETURN_RESYNC_RAD {
-            q_des = q_des.min(q);
+            if let Some(p) = policy {
+                let (lo, _) = effective_command_bounds(p, q, dq_traj);
+                q_des = q_des.min(q.max(lo));
+            } else {
+                q_des = q_des.min(q);
+            }
         }
     }
 
     // Overshoot: command at least `target` but never past measured `q` (avoids MIT pull-back mid-travel).
     let settle_error = target - q;
     if settle_error < -TOL && q_traj <= target + TOL {
-        q_des = q_des.max(target).min(q);
+        q_des = q_des.max(target);
+        if let Some(p) = policy {
+            let (lo, _) = effective_command_bounds(p, q, dq_traj);
+            q_des = q_des.min(q).max(lo);
+        } else {
+            q_des = q_des.min(q);
+        }
     } else if settle_error > TOL && q_traj >= target - TOL {
-        q_des = q_des.min(target).max(q);
+        if let Some(p) = policy {
+            let (_, hi) = effective_command_bounds(p, q, dq_traj);
+            q_des = q_des.min(target).max(q).min(hi);
+        } else {
+            q_des = q_des.min(target).max(q);
+        }
+    }
+    if let Some(p) = policy {
+        q_des = clamp_position_in_envelope(p, q, dq_traj, q_des);
     }
     q_des
 }
@@ -1091,7 +1206,7 @@ pub fn proto_control_mode(mode: ControlMode) -> ProtoControlMode {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::expect_used)]
+    #![allow(clippy::approx_constant, clippy::expect_used)]
 
     use super::*;
     use davout::{MemoryBus, OperationalMode};
@@ -1198,19 +1313,19 @@ mod tests {
 
     #[test]
     fn clamp_trajectory_setpoint_brakes_when_q_outruns_traj() {
-        let q_des = clamp_trajectory_setpoint(0.11, 1.10, 1.57, 0.03);
+        let q_des = clamp_trajectory_setpoint(0.11, 1.10, 1.57, 0.03, None, 0.0);
         assert!((q_des - 1.07).abs() < 1e-12);
     }
 
     #[test]
     fn clamp_does_not_pull_back_when_slightly_ahead_approaching() {
-        let q_des = clamp_trajectory_setpoint(0.035, 0.058, 0.1, 0.10);
+        let q_des = clamp_trajectory_setpoint(0.035, 0.058, 0.1, 0.10, None, 0.0);
         assert!((q_des - 0.058).abs() < 1e-12);
     }
 
     #[test]
     fn clamp_brakes_when_arm_runs_far_ahead_of_planner() {
-        let q_des = clamp_trajectory_setpoint(1.32, 1.36, 1.57, 0.10);
+        let q_des = clamp_trajectory_setpoint(1.32, 1.36, 1.57, 0.10, None, 0.0);
         assert!(
             q_des < 1.36,
             "must not command q_des at measured q when lead > resync band"
@@ -1220,7 +1335,7 @@ mod tests {
 
     #[test]
     fn clamp_caps_ahead_setpoint_at_target_on_approach() {
-        let q_des = clamp_trajectory_setpoint(0.091, 0.105, 0.1, 0.10);
+        let q_des = clamp_trajectory_setpoint(0.091, 0.105, 0.1, 0.10, None, 0.0);
         assert!((q_des - 0.1).abs() < 1e-12);
     }
 
@@ -1234,7 +1349,9 @@ mod tests {
     fn planner_not_drifted_when_arm_runs_ahead_on_approach() {
         let mut planner = JointPositionPlanner::new_for_target(0.88, 1.57);
         planner.q_traj = 0.88;
-        assert!(!planner_drifted_from_measurement(&planner, 1.02, 1.57, 0.10));
+        assert!(!planner_drifted_from_measurement(
+            &planner, 1.02, 1.57, 0.10
+        ));
     }
 
     #[test]
@@ -1248,7 +1365,7 @@ mod tests {
     #[test]
     fn return_onset_pulls_q_des_below_q_when_stuck() {
         assert!(descent_stuck_mit_pull(-0.09, 0.105, 0.0, 0.0, 0.02, false));
-        let q_des = clamp_trajectory_setpoint(0.105, 0.105, 0.0, 0.10)
+        let q_des = clamp_trajectory_setpoint(0.105, 0.105, 0.0, 0.10, None, 0.0)
             .min(0.105 - POSITION_DESCENT_STUCK_LEAD_RAD);
         assert!((q_des - 0.075).abs() < 1e-12);
     }
@@ -1411,7 +1528,7 @@ mod tests {
             planner.q_traj > 0.01,
             "planner trajectory must advance at trapezoid rate even when q lags"
         );
-        let q_des = clamp_trajectory_setpoint(planner.q_traj, 0.0, target, max_lead);
+        let q_des = clamp_trajectory_setpoint(planner.q_traj, 0.0, target, max_lead, None, 0.0);
         assert!(
             q_des > 0.0,
             "MIT setpoint follows planner when measured q lags"
@@ -1419,6 +1536,41 @@ mod tests {
         assert!(
             planner.q_traj >= q_des,
             "trajectory runs ahead of or meets clamped MIT command"
+        );
+    }
+
+    fn shoulder_limit_policy() -> JointLimitPolicy {
+        JointLimitPolicy {
+            bounds: armee_kinematics::JointLimitBounds::from_hard_and_soft(
+                -0.9,
+                3.17,
+                Some(-0.872665),
+                Some(3.141593),
+            ),
+            margin: armee_kinematics::LimitMarginConfig {
+                min_rad: 0.01,
+                k_v_s: 0.02,
+                k_stop: 0.5,
+                velocity_deadband_rad_s: 0.02,
+                measured_fault_slack_rad: 0.005,
+                decel_rad_s2: 4.8,
+            },
+            velocity: 2.0,
+            effort: 10.0,
+            tau_ff_max: 5.0,
+        }
+    }
+
+    #[test]
+    fn overshoot_past_soft_bottom_stays_above_hard_envelope() {
+        let policy = shoulder_limit_policy();
+        let target = -0.872665;
+        let q = -0.92;
+        let q_des = clamp_trajectory_setpoint(-0.877, q, target, 0.10, Some(&policy), -1.5);
+        assert!(
+            q_des >= policy.hard_lower(),
+            "q_des {q_des} must not command past hard lower {}",
+            policy.hard_lower()
         );
     }
 }

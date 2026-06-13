@@ -8,6 +8,9 @@ Usage:
 Emits per-target-move segments with jerk/lead/rate-limit indicators so tuning
 changes can be compared without eyeballing thousands of rows.
 
+Trace columns (2026-06-13+): `target_raw`, `q_env_lo`, `q_env_hi` document ADR 0009
+limit envelope clamping; older CSVs without these columns still analyze.
+
 Layer 2 gate (weighted hold-at 0.1):
   python scripts/analyze-position-trace.py trace.csv --gate layer2 --tau-ff-rate-limit 60
 
