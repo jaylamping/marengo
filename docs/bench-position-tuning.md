@@ -30,7 +30,7 @@ Operator smoothness is **required** even if analyzer passes.
 | Pi | `joey@joey-robot.tail0b414.ts.net` |
 | Config | `shoulder_pitch_right_only` |
 | Motor | `can0/id2` (`right_shoulder_pitch`) |
-| Deploy rev | `05b8bf6` (friction fade `POSITION_HOLD_FRICTION_FADE_RAD` 0.005 → 0.02 in `berthier::friction`; local follow-up adds accel-limited small slew + `dq_traj` FF) |
+| Deploy rev | `2d95ee5` local Pi build includes accel-limited small slew + `dq_traj` FF handoff fix; repo commit `2d95ee5` fixes MCP candump summary parsing |
 | Profile | `weighted_single_arm` via `pi_hold_on` |
 
 ### Testing done (2026-06-13)
@@ -49,8 +49,9 @@ Systematic one-knob-at-a-time tuning after repeated operator **FAIL — still ve
 | `131510Z` post-deploy 05b8bf6 | 1736 | 85% lead_sat | stuck −102 mrad | Arm not at arm-down |
 | `131808Z` **max_lead 0.05→0.10** | 1627* | 976 | **0%** | *Started already at 0.105 — bogus approach |
 | **`131850Z`** fair run 0.032→0.1→0 | **1318** | **1047** | **0% both** | Return ends **−28 mrad**; fault=0; τ_ff slew OK |
+| **`142555Z`** post code fix 0.018→0.1→0 | **2161** | **1714** | **0% both** | Fault=0; target settles +1.25 mrad; home +0.77 mrad; approach overshoot +13.1 mrad |
 
-**Current config on Pi** (after `131850Z`):
+**Current config on Pi** (after `142555Z`):
 
 | Knob | Value |
 |------|-------|
@@ -63,25 +64,24 @@ Systematic one-knob-at-a-time tuning after repeated operator **FAIL — still ve
 ### Findings
 
 1. **YAML-only tuning stalled** on jerk gate (~1000–1700 vs 800 target).
-2. **`max_lead=0.10`** fixed return `lead_sat` (was 82–85% at 0.05); home still **~28–31 mrad short** every run.
-3. **Friction** contributes jerk (`tau_f` → ±0.35 on return) but **`fc=0`** proved jerk is not friction-only and breaks gravity return.
-4. **Fair Layer 2** needs clean **arm-down start (~0 rad)**; several runs started already elevated.
-5. **Code deployed:** wider friction fade (0.02 rad); still not enough for Layer 2 PASS.
+2. **Code fix improved settling:** after accel-limited small slew + `dq_traj` FF handoff, target hold ends within **+1.25 mrad** and return home within **+0.77 mrad**.
+3. **`lead_sat` is solved** for the 0.1 rad gate at `max_lead=0.10` (0% on approach and return).
+4. **Remaining blocker is dynamic smoothness:** approach still overshoots **+13.1 mrad** and jerk remains above gate (`2161` approach / `1714` return vs `<800` target).
+5. **Friction still contributes:** `tau_f` had 17 sign flips on approach in `142555Z`, so breakaway/Coulomb handoff needs another pass.
 
 ### Next steps
 
-1. **Operator feel** on `131850Z` — smooth / stair-step / still very jerky?
-2. **Clean baseline:** arm at mechanical down (~0 rad), then full 0→0.1→0 gate run.
-3. **Code fixes** (likely required for PASS):
-   - Velocity-based Coulomb during slew (`|dq_traj| > 0`) instead of error-based breakaway — **local patch applied**
-   - Slew accel/decel (trapezoid on small moves, not bang-on `dq_traj`) — **local patch applied**
-   - Faster return slew or higher `max_lead` if ~30 mrad home offset persists
-4. After Layer 2 PASS → distance steps **0.3 → 0.8 → 1.57 rad** (use `return_home_sec: 20` for 90°).
+1. **Operator feel** on `142555Z` — smooth enough, stair-step, or still visibly jerky? The trace says better settle, not yet smooth.
+2. **Re-run CAN summary** with fixed `pi_candump_summary` after MCP reload; confirm ~400 frames/s on `can0` and no wire-rate dropout.
+3. **Reduce approach overshoot:** lower small-move slew/accel or add earlier decel for the 0.1 rad gate; keep `max_lead=0.10` unchanged.
+4. **Tame friction handoff:** reduce `fc` or widen/fade Coulomb near target to cut `tau_f` sign flips without breaking gravity return.
+5. After Layer 2 PASS → distance steps **0.3 → 0.8 → 1.57 rad** (use `return_home_sec: 20` for 90°).
 
 ### Latest artifacts (Pi)
 
 | Session | Trace | Candump |
 |---------|-------|---------|
+| `142555Z` (latest post code fix) | `position-trace-20260613T142555Z.csv` | `candump-20260613T142555Z.log` |
 | `131850Z` (best fair run) | `position-trace-20260613T131850Z.csv` | `candump-20260613T131850Z.log` |
 | Symlinks | `position-trace-latest.csv`, `candump-latest.log` | |
 
