@@ -90,6 +90,9 @@ function marengoPiBinarySelector(cfg: MarengoPiConfig): string {
   ].join("\n");
 }
 
+/** Default dwell for hold-at / marengo-pi script sessions (bench iteration speed). */
+const DEFAULT_MOTION_TIMEOUT_SEC = 15;
+
 function marengoPiPipe(script: string[], timeoutSec: number, binary = "$PI_BIN"): string {
   const printfLines = script
     .map((l) => `printf '%s\\n' ${JSON.stringify(l)}`)
@@ -406,7 +409,12 @@ export function registerMotionTools(
             "MARENGO_CONFIG_DIR override (default: MCP env or shoulder_pitch_right_only)",
           ),
         joint: z.string().default("right_shoulder_pitch"),
-        timeout_sec: z.number().int().min(5).max(120).default(30),
+        timeout_sec: z
+          .number()
+          .int()
+          .min(5)
+          .max(120)
+          .default(DEFAULT_MOTION_TIMEOUT_SEC),
         set_zero: z.boolean().default(false),
         kill_stale: z
           .boolean()
@@ -432,7 +440,7 @@ export function registerMotionTools(
       }) => {
         const check = gate(args);
         if (!check.ok) return check.message;
-        const timeoutSec = args.timeout_sec ?? 30;
+        const timeoutSec = args.timeout_sec ?? DEFAULT_MOTION_TIMEOUT_SEC;
         const joint = args.joint ?? "right_shoulder_pitch";
         const configDir =
           benchConfigDirForJoint(cfg, joint, args.config_dir) ?? BENCH_CONFIG_RIGHT;
@@ -502,7 +510,12 @@ export function registerMotionTools(
           .array(z.string())
           .min(1)
           .describe("Lines to pipe to marengo-pi stdin"),
-        timeout_sec: z.number().int().min(5).max(120).default(30),
+        timeout_sec: z
+          .number()
+          .int()
+          .min(5)
+          .max(120)
+          .default(DEFAULT_MOTION_TIMEOUT_SEC),
       }),
       handler: async (args: {
         confirm: true;
@@ -515,7 +528,7 @@ export function registerMotionTools(
       }) => {
         const check = gate(args);
         if (!check.ok) return check.message;
-        const timeoutSec = args.timeout_sec ?? 30;
+        const timeoutSec = args.timeout_sec ?? DEFAULT_MOTION_TIMEOUT_SEC;
         const pipeCmd = [
           marengoPiBinarySelector(cfg),
           marengoPiPipe(args.script, timeoutSec),
