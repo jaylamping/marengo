@@ -36,6 +36,7 @@
 //! See [ADR 0004](../../docs/decisions/0004-control-modes-and-mit.md).
 
 mod friction;
+mod position_trajectory;
 mod r#loop;
 
 pub use davout::ControlMode;

@@ -28,6 +28,24 @@ pub fn position_hold_friction_torque(
     coulomb + fv * dq + fo
 }
 
+/// Trajectory Coulomb assist follows commanded velocity when moving; near hold uses settle error.
+pub fn trajectory_friction_torque(
+    dq: f64,
+    dq_des: f64,
+    settle_error: f64,
+    velocity_deadband: f64,
+    fc: f64,
+    fv: f64,
+    fo: f64,
+    k: f64,
+) -> f64 {
+    if dq_des.abs() > velocity_deadband {
+        fc * dq_des.signum() + fv * dq + fo
+    } else {
+        position_hold_friction_torque(dq, settle_error, fc, fv, fo, k)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

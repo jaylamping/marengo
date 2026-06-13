@@ -14,7 +14,10 @@ use marengo_config::{load_robot_config, resolve_urdf_path};
 use thiserror::Error;
 use tracing::{debug, info};
 
-use crate::friction::{friction_torque, position_hold_friction_torque};
+use crate::friction::{
+    friction_torque, position_hold_friction_torque, trajectory_friction_torque,
+};
+use crate::position_trajectory::{trajectory_damping_torque, JointPositionPlanner};
 
 const POSITION_HOLD_DAMPING_FULL_ERROR_RAD: f64 = 0.01;
 
@@ -44,9 +47,8 @@ pub struct ControlLoop<B: MotorBus> {
     control_mode: ControlMode,
     /// Final joint-space targets for [`ControlMode::Position`] (hold-on / hold-at).
     position_setpoints: Option<Vec<f64>>,
-    /// Internal slew trajectory toward [`Self::position_setpoints`]; MIT `q_des` is
-    /// derived each tick by clamping this reference to `max_lead` ahead of measured `q`.
-    position_commands: Option<Vec<f64>>,
+    /// Per-joint slew or trapezoidal planner toward [`Self::position_setpoints`].
+    position_planners: Option<Vec<JointPositionPlanner>>,
     loop_period: Duration,
     chappe_publish_period: Duration,
     last_chappe: Option<Instant>,
@@ -73,7 +75,7 @@ impl<B: MotorBus> ControlLoop<B> {
             joint_names,
             control_mode: ControlMode::Disabled,
             position_setpoints: None,
-            position_commands: None,
+            position_planners: None,
             loop_period: Duration::from_secs_f64(1.0 / f64::from(loop_hz.max(1))),
             chappe_publish_period: Duration::from_secs_f64(1.0 / f64::from(chappe_hz.max(1))),
             last_chappe: None,
@@ -84,18 +86,20 @@ impl<B: MotorBus> ControlLoop<B> {
 
     /// Capture current joint positions as hold targets and commands (no ramp).
     pub fn latch_position_setpoints(&mut self) {
-        let q = self.read_positions();
+        let q = self.refresh_joint_positions();
         self.position_setpoints = Some(q.clone());
-        self.position_commands = Some(q);
+        self.init_position_planners(&q);
     }
 
     pub fn position_setpoints(&self) -> Option<&[f64]> {
         self.position_setpoints.as_deref()
     }
 
-    /// Slew trajectory reference (for status / tests), not the clamped MIT setpoint.
-    pub fn position_hold_commands(&self) -> Option<&[f64]> {
-        self.position_commands.as_deref()
+    /// Planner trajectory reference (for status / tests), not the clamped MIT setpoint.
+    pub fn position_hold_commands(&self) -> Option<Vec<f64>> {
+        self.position_planners
+            .as_ref()
+            .map(|planners| planners.iter().map(|p| p.q_traj).collect())
     }
 
     pub fn set_joint_position_setpoint(
@@ -118,7 +122,42 @@ impl<B: MotorBus> ControlLoop<B> {
             });
         };
         setpoints[i] = target;
+        let q_now = self.refresh_joint_positions();
+        let threshold = self
+            .supervisor
+            .control
+            .control
+            .joints
+            .get(joint)
+            .map(|c| c.position_trajectory_threshold_rad)
+            .unwrap_or(0.15);
+        if self.position_planners.is_none() {
+            self.init_position_planners(&q_now);
+        }
+        if let Some(planners) = self.position_planners.as_mut() {
+            planners[i].reset_target(q_now[i], target, threshold);
+        }
         Ok(())
+    }
+
+    fn init_position_planners(&mut self, q: &[f64]) {
+        let targets = self
+            .position_setpoints
+            .clone()
+            .unwrap_or_else(|| q.to_vec());
+        let planners = self
+            .joint_names
+            .iter()
+            .enumerate()
+            .map(|(i, name)| {
+                let cfg = self.supervisor.control.control.joints.get(name);
+                let threshold = cfg
+                    .map(|c| c.position_trajectory_threshold_rad)
+                    .unwrap_or(0.15);
+                JointPositionPlanner::new_for_target(q[i], targets[i], threshold)
+            })
+            .collect();
+        self.position_planners = Some(planners);
     }
 
     fn hold_target_for_joint(&self, joint: &str, position_rad: f64) -> f64 {
@@ -135,7 +174,7 @@ impl<B: MotorBus> ControlLoop<B> {
 
     pub fn clear_position_hold(&mut self) {
         self.position_setpoints = None;
-        self.position_commands = None;
+        self.position_planners = None;
     }
 
     /// Latch current `q` and enter [`ControlMode::Position`] (gravity FF + impedance gains).
@@ -151,19 +190,16 @@ impl<B: MotorBus> ControlLoop<B> {
         joint: Option<&str>,
         position_rad: f64,
     ) -> Result<(), LoopError> {
-        let q = self.read_positions();
+        let q = self.refresh_joint_positions();
         if self.joint_names.len() == 1 {
             let name = self.joint_names[0].clone();
             let target = self.hold_target_for_joint(&name, position_rad);
             self.position_setpoints = Some(vec![target]);
-            self.position_commands = Some(q);
+            self.init_position_planners(&q);
         } else {
             let joint = joint.ok_or(LoopError::JointNameRequired)?;
             if self.position_setpoints.is_none() {
                 self.position_setpoints = Some(q.clone());
-            }
-            if self.position_commands.is_none() {
-                self.position_commands = Some(q);
             }
             self.set_joint_position_setpoint(joint, position_rad)?;
         }
@@ -178,7 +214,7 @@ impl<B: MotorBus> ControlLoop<B> {
     pub fn set_control_mode(&mut self, mode: ControlMode) {
         if mode != ControlMode::Position {
             self.position_setpoints = None;
-            self.position_commands = None;
+            self.position_planners = None;
             self.last_position_diag = None;
         }
         self.control_mode = mode;
@@ -211,7 +247,6 @@ impl<B: MotorBus> ControlLoop<B> {
                     self.advance_position_commands(&q)?;
                 }
 
-                let q_cmd = self.position_commands.as_deref();
                 let log_position_diag = self.control_mode == ControlMode::Position
                     && self
                         .last_position_diag
@@ -243,25 +278,47 @@ impl<B: MotorBus> ControlLoop<B> {
                                 .map(|c| c.position_slew_max_lead_rad)
                                 .unwrap_or(0.15);
                             let fr = cfg.map(|c| &c.friction);
-                            let q_traj =
-                                q_cmd.and_then(|sp| sp.get(i).copied()).ok_or_else(|| {
-                                    LoopError::MissingSetpoint {
-                                        joint: name.clone(),
-                                    }
+                            let planner = self
+                                .position_planners
+                                .as_ref()
+                                .and_then(|p| p.get(i))
+                                .ok_or_else(|| LoopError::MissingSetpoint {
+                                    joint: name.clone(),
                                 })?;
+                            let q_traj = planner.q_traj;
+                            let dq_traj = planner.dq_traj;
+                            let on_trajectory = planner.uses_trajectory();
+                            let traj_phase = planner.phase();
                             let target = self
                                 .position_setpoints
                                 .as_deref()
                                 .and_then(|sp| sp.get(i).copied())
                                 .unwrap_or(q_traj);
-                            let q_des =
-                                clamp_position_command(q_traj, q[i], target, max_lead);
+                            let q_des = if on_trajectory {
+                                clamp_trajectory_setpoint(q_traj, q[i], max_lead)
+                            } else {
+                                clamp_position_command(q_traj, q[i], target, max_lead)
+                            };
                             let dq = self.joint_velocity(name);
                             let lead = q_des - q[i];
                             let tracking_error = q_traj - q[i];
                             let settle_error = target - q[i];
-                            let tau_f = fr
-                                .map(|f| {
+                            let vel_deadband = cfg
+                                .map(|c| c.position_trajectory_velocity_deadband_rad)
+                                .unwrap_or(0.02);
+                            let tau_f = fr.map(|f| {
+                                if on_trajectory {
+                                    trajectory_friction_torque(
+                                        dq,
+                                        dq_traj,
+                                        settle_error,
+                                        vel_deadband,
+                                        f.fc,
+                                        f.fv,
+                                        f.fo,
+                                        f.k,
+                                    )
+                                } else {
                                     position_hold_friction_torque(
                                         dq,
                                         lead,
@@ -270,26 +327,39 @@ impl<B: MotorBus> ControlLoop<B> {
                                         f.fo,
                                         f.k,
                                     )
-                                })
-                                .unwrap_or(0.0);
-                            let tau_d = position_hold_damping_torque(
-                                dq,
-                                tracking_error,
-                                settle_error,
-                                kd,
-                            );
+                                }
+                            }).unwrap_or(0.0);
+                            let tau_d = if on_trajectory
+                                && dq_traj.abs() > vel_deadband
+                            {
+                                trajectory_damping_torque(dq, dq_traj, kd)
+                            } else {
+                                position_hold_damping_torque(
+                                    dq,
+                                    tracking_error,
+                                    settle_error,
+                                    kd,
+                                )
+                            };
                             if log_position_diag {
                                 let estimated_tau = tau_g[i] + tau_f + tau_d + kp * lead;
+                                let phase = if on_trajectory {
+                                    format!("{traj_phase:?}")
+                                } else {
+                                    "slew".to_string()
+                                };
                                 info!(
                                     joint = %name,
                                     q = q[i],
                                     dq,
                                     q_traj,
+                                    dq_traj,
                                     q_des,
                                     target,
                                     lead,
                                     tracking_error,
                                     settle_error,
+                                    phase = %phase,
                                     kp,
                                     kd,
                                     tau_g = tau_g[i],
@@ -357,26 +427,42 @@ impl<B: MotorBus> ControlLoop<B> {
         Ok(())
     }
 
-    /// Advance the internal slew trajectory toward latched targets (rate-limited).
+    /// Advance per-joint planners toward latched targets.
     fn advance_position_commands(&mut self, q: &[f64]) -> Result<(), LoopError> {
-        let _ = q;
-        let Some(targets) = self.position_setpoints.as_ref() else {
+        let Some(targets) = self.position_setpoints.clone() else {
             return Ok(());
         };
-        if self.position_commands.is_none() {
-            self.position_commands = Some(q.to_vec());
+        if self.position_planners.is_none() {
+            self.init_position_planners(q);
         }
-        let Some(commands) = self.position_commands.as_mut() else {
+        let Some(planners) = self.position_planners.as_mut() else {
             return Ok(());
         };
         let dt = self.loop_period.as_secs_f64();
         for (i, name) in self.joint_names.iter().enumerate() {
             let cfg = self.supervisor.control.control.joints.get(name);
             let slew_rad_s = cfg.map(|c| c.position_slew_rad_s).unwrap_or(0.25);
-            let max_step = slew_rad_s * dt;
-            commands[i] = slew_toward(commands[i], targets[i], max_step);
+            let v_max = cfg
+                .map(|c| c.position_trajectory_velocity_rad_s)
+                .unwrap_or(0.30);
+            let a_max = cfg
+                .map(|c| c.position_trajectory_accel_rad_s2)
+                .unwrap_or(0.20);
+            let threshold = cfg
+                .map(|c| c.position_trajectory_threshold_rad)
+                .unwrap_or(0.15);
+            if planner_drifted_from_measurement(&planners[i], q[i], targets[i], threshold) {
+                planners[i].reset_target(q[i], targets[i], threshold);
+            }
+            planners[i].tick(targets[i], q[i], dt, slew_rad_s, v_max, a_max);
         }
         Ok(())
+    }
+
+    /// Poll bus feedback, then read cached joint positions for planner init.
+    fn refresh_joint_positions(&mut self) -> Vec<f64> {
+        let _ = self.supervisor.refresh_feedback();
+        self.read_positions()
     }
 
     fn read_positions(&self) -> Vec<f64> {
@@ -447,22 +533,32 @@ impl<B: MotorBus> ControlLoop<B> {
 
 /// Move `current` toward `target` by at most `max_step` (rad).
 fn slew_toward(current: f64, target: f64, max_step: f64) -> f64 {
-    let err = target - current;
-    if err.abs() <= max_step {
-        target
-    } else {
-        current + max_step.copysign(err)
-    }
+    crate::position_trajectory::slew_toward(current, target, max_step)
+}
+
+/// Symmetric lead clamp for trajectory tracking — allows braking when `q` outruns `q_traj`.
+fn clamp_trajectory_setpoint(q_traj: f64, q: f64, max_lead: f64) -> f64 {
+    q_traj.clamp(q - max_lead, q + max_lead)
 }
 
 /// Keep a ramped position command within the lead cap without letting it brake
-/// against the final target direction.
+/// against the final target direction (slew / small moves only).
 fn clamp_position_command(command: f64, q: f64, target: f64, max_lead: f64) -> f64 {
     match (target - q).partial_cmp(&0.0) {
         Some(std::cmp::Ordering::Greater) => command.clamp(q, q + max_lead),
         Some(std::cmp::Ordering::Less) => command.clamp(q - max_lead, q),
         _ => target,
     }
+}
+
+/// Re-anchor planner when init raced stale feedback (e.g. hold-at right after enable).
+fn planner_drifted_from_measurement(
+    planner: &JointPositionPlanner,
+    q: f64,
+    target: f64,
+    threshold: f64,
+) -> bool {
+    (q - planner.q_traj).abs() > threshold && (target - q).abs() > threshold
 }
 
 /// Damping should settle the final hold, not behave like extra moving friction.
@@ -626,6 +722,12 @@ mod tests {
     }
 
     #[test]
+    fn clamp_trajectory_setpoint_brakes_when_q_outruns_traj() {
+        let q_des = clamp_trajectory_setpoint(0.11, 1.10, 0.03);
+        assert!((q_des - 1.07).abs() < 1e-12);
+    }
+
+    #[test]
     fn clamp_position_command_does_not_brake_against_positive_target() {
         let cmd = clamp_position_command(0.064, 0.075, 0.1, 0.05);
 
@@ -699,6 +801,18 @@ mod tests {
             cmd1 > cmd0 && cmd1 < target,
             "first tick slews toward target"
         );
+    }
+
+    #[test]
+    fn planner_drifted_detects_stale_init_before_large_hold_at() {
+        let stale = JointPositionPlanner::new_for_target(0.0, 0.0, 0.15);
+        assert!(planner_drifted_from_measurement(
+            &stale, 2.9, 0.0, 0.15
+        ));
+        let aligned = JointPositionPlanner::new_for_target(2.9, 0.0, 0.15);
+        assert!(!planner_drifted_from_measurement(
+            &aligned, 2.9, 0.0, 0.15
+        ));
     }
 
     #[test]

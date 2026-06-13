@@ -224,6 +224,18 @@ pub struct JointControlEntry {
     /// Max rad the ramped MIT setpoint may lead measured `q` (prevents racing ahead at high slew).
     #[serde(default = "default_position_slew_max_lead_rad")]
     pub position_slew_max_lead_rad: f64,
+    /// `|target − q|` above this selects trapezoidal trajectory instead of slew (ADR 0007).
+    #[serde(default = "default_position_trajectory_threshold_rad")]
+    pub position_trajectory_threshold_rad: f64,
+    /// Trajectory cruise speed cap (rad/s); must stay below Davout bench velocity limit.
+    #[serde(default = "default_position_trajectory_velocity_rad_s")]
+    pub position_trajectory_velocity_rad_s: f64,
+    /// Trajectory acceleration cap (rad/s²).
+    #[serde(default = "default_position_trajectory_accel_rad_s2")]
+    pub position_trajectory_accel_rad_s2: f64,
+    /// Friction follows `dq_des` when |dq_des| exceeds this (rad/s).
+    #[serde(default = "default_position_trajectory_velocity_deadband_rad")]
+    pub position_trajectory_velocity_deadband_rad: f64,
     /// Added to every position-hold target (rad). Bench trim when mechanical zero ≠ encoder zero.
     #[serde(default)]
     pub position_hold_trim_rad: f64,
@@ -235,6 +247,22 @@ fn default_position_slew_rad_s() -> f64 {
 
 fn default_position_slew_max_lead_rad() -> f64 {
     0.15
+}
+
+fn default_position_trajectory_threshold_rad() -> f64 {
+    0.15
+}
+
+fn default_position_trajectory_velocity_rad_s() -> f64 {
+    0.30
+}
+
+fn default_position_trajectory_accel_rad_s2() -> f64 {
+    0.20
+}
+
+fn default_position_trajectory_velocity_deadband_rad() -> f64 {
+    0.02
 }
 
 #[derive(Debug, Clone, Deserialize)]
