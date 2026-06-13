@@ -316,7 +316,8 @@ impl<B: MotorBus> ControlLoop<B> {
                             let settling = !on_trajectory
                                 && dq_traj.abs() <= vel_deadband
                                 && (q_traj - target).abs() <= SETTLE_POSITION_TOLERANCE_RAD;
-                            let moving_reference = dq_traj.abs() > vel_deadband;
+                            let moving_reference =
+                                moving_reference_toward_target(dq_traj, settle_error, vel_deadband);
                             let tau_f = fr
                                 .map(|f| {
                                     if on_trajectory || moving_reference {
@@ -640,6 +641,11 @@ fn planner_drifted_from_measurement(
     (q - planner.q_traj).abs() > threshold && (target - q).abs() > threshold
 }
 
+/// Moving-reference feedforward is valid only before measured `q` crosses the target.
+fn moving_reference_toward_target(dq_traj: f64, settle_error: f64, vel_deadband: f64) -> bool {
+    dq_traj.abs() > vel_deadband && dq_traj * settle_error > 0.0
+}
+
 /// Damping should settle the final hold, not behave like extra moving friction.
 /// While ramping, scale using trajectory tracking error; near the latch use settle error.
 fn position_hold_damping_torque(dq: f64, tracking_error: f64, settle_error: f64, kd: f64) -> f64 {
@@ -846,6 +852,15 @@ mod tests {
         let tau_d = position_hold_damping_torque(-0.3, 0.05, 1.0, 1.0);
 
         assert!((tau_d - 0.3).abs() < 1e-12);
+    }
+
+    #[test]
+    fn moving_reference_stops_after_crossing_target() {
+        assert!(moving_reference_toward_target(0.10, 0.01, 0.02));
+        assert!(moving_reference_toward_target(-0.10, -0.01, 0.02));
+        assert!(!moving_reference_toward_target(0.10, -0.01, 0.02));
+        assert!(!moving_reference_toward_target(-0.10, 0.01, 0.02));
+        assert!(!moving_reference_toward_target(0.01, 0.01, 0.02));
     }
 
     #[test]
