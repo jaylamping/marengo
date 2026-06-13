@@ -55,15 +55,12 @@ pub fn trajectory_friction_torque(
     dq_des: f64,
     settle_error: f64,
     velocity_deadband: f64,
-    fc: f64,
-    fv: f64,
-    fo: f64,
-    k: f64,
+    gains: &marengo_config::FrictionGains,
 ) -> f64 {
     if dq_des.abs() > velocity_deadband {
-        fc * dq_des.signum() + fv * dq + fo
+        gains.fc * dq_des.signum() + gains.fv * dq + gains.fo
     } else {
-        position_hold_friction_torque(dq, settle_error, fc, fv, fo, k)
+        position_hold_friction_torque(dq, settle_error, gains.fc, gains.fv, gains.fo, gains.k)
     }
 }
 
@@ -108,8 +105,7 @@ mod tests {
     #[test]
     fn settle_friction_scales_with_settle_error_not_saturated_lead() {
         let lead_assist = position_hold_friction_torque(0.0, 0.05, 1.8, 0.0, 0.0, 10.0);
-        let settle_assist =
-            position_settle_friction_torque(0.0, 0.02, 0.05, 1.8, 0.0, 0.0, 10.0);
+        let settle_assist = position_settle_friction_torque(0.0, 0.02, 0.05, 1.8, 0.0, 0.0, 10.0);
 
         assert!((lead_assist - 1.8).abs() < 1e-6);
         assert!((settle_assist - 0.72).abs() < 1e-6);

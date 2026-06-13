@@ -1,5 +1,5 @@
 # Marengo development image — source of truth for CI, Compose, and Dev Container.
-FROM rust:1.88.0-bookworm
+FROM rust:1.88.0-slim-bookworm
 
 ARG PROTOC_VERSION=28.3
 ARG NODE_MAJOR=22

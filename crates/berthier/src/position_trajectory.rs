@@ -98,6 +98,7 @@ impl JointPositionPlanner {
 }
 
 /// Move `current` toward `target` by at most `max_step` (rad).
+#[cfg(test)]
 pub fn slew_toward(current: f64, target: f64, max_step: f64) -> f64 {
     let err = target - current;
     if err.abs() <= max_step {
@@ -149,7 +150,7 @@ pub fn trapezoid_step(
     };
 
     let v_new = dir * v_along_new;
-    let mut q_new = q + v_new * dt;
+    let q_new = q + v_new * dt;
 
     if dir > 0.0 && q_new >= q_target {
         return (q_target, 0.0, TrapezoidPhase::Hold);

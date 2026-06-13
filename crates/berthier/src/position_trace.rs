@@ -5,7 +5,6 @@ use std::io::{BufWriter, Write};
 use std::path::Path;
 use std::sync::OnceLock;
 
-
 /// Buffered CSV writer for position-hold diagnostics (optional, env-gated).
 pub struct PositionTrace {
     writer: BufWriter<File>,
@@ -38,7 +37,10 @@ impl PositionTrace {
             )?;
         }
         log_trace_enabled_once(path);
-        Ok(Self { writer, period_ticks })
+        Ok(Self {
+            writer,
+            period_ticks,
+        })
     }
 
     /// Record one sample when `tick` matches the decimation period.

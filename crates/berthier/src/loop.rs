@@ -325,10 +325,7 @@ impl<B: MotorBus> ControlLoop<B> {
                                             dq_traj,
                                             settle_error,
                                             vel_deadband,
-                                            f.fc,
-                                            f.fv,
-                                            f.fo,
-                                            f.k,
+                                            f,
                                         )
                                     } else if settling {
                                         position_settle_friction_torque(
@@ -408,7 +405,7 @@ impl<B: MotorBus> ControlLoop<B> {
                                     tracking_error,
                                     settle_error,
                                     dist_to_target,
-                                    on_trajectory: on_trajectory,
+                                    on_trajectory,
                                     phase: &phase_str,
                                     kp,
                                     kd,
@@ -601,6 +598,7 @@ impl<B: MotorBus> ControlLoop<B> {
 }
 
 /// Move `current` toward `target` by at most `max_step` (rad).
+#[cfg(test)]
 fn slew_toward(current: f64, target: f64, max_step: f64) -> f64 {
     crate::position_trajectory::slew_toward(current, target, max_step)
 }
