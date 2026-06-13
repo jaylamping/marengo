@@ -115,15 +115,19 @@ supervisor.send_mit_batch(joint_space_cmds)?;
 - robstride operates in raw motor/CAN space only.
 - Davout owns `config/motors.yaml` `direction` / `gear_ratio` transforms in both directions.
 
-Position hold (`hold-at`) follows the joint-impedance pattern (KUKA/iiwa-style, MIT Manipulation course):
+Position hold (`hold-at`) is Berthier's **joint-space motion primitive executor** — one law for every retarget, whether from operator `hold-at`, future Talleyrand joint streams, or Cartesian primitives resolved upstream. Talleyrand owns IK and multi-joint timing; Berthier does not.
 
-- **Small retargets** (`|Δq| ≤ position_trajectory_threshold_rad`): accel-limited slew with `position_slew_rad_s` as peak velocity and `position_trajectory_accel_rad_s2` as ramp limit.
-- **Large retargets** (ADR 0007): trapezoidal `q_ref(t)` with `position_trajectory_velocity_rad_s` and `position_trajectory_accel_rad_s2`; decelerates on stopping distance.
-- **MIT setpoint** (`q_des`): each tick, clamp trajectory to `[q, q + max_lead]` toward the target so P gain stays bounded.
-- **Gravity FF** (`tau_g`): always at measured `q`.
-- **Friction / damping FF**: ramp lead for slew; settle error + full damping once `q_traj` reaches the latch; `dq_des`-based friction and `(dq_des − dq)` damping while on trajectory.
+Control law (ADR 0007 one-pass):
 
-Do not fold `max_lead` into the slew accumulator — that freezes the ramp when the arm lags.
+- **Planner:** always trapezoidal `q_ref(t)`, `dq_ref(t)` toward latched target; moves ≤ ~60 mrad cap `v_max` at `position_slew_rad_s`, larger moves use `position_trajectory_velocity_rad_s`.
+- **MIT setpoint:** `q_des = clamp(q_ref, q, target, max_lead)` each tick (safety bound, not a second controller).
+- **Stiffness:** `tau_p = Kp * (q_des − q)` always.
+- **Damping FF:** `tau_d = Kd * (dq_ref − dq)` while `|dq_ref| > deadband`; else `-Kd * dq` when settled and moving.
+- **Friction FF:** two rules only — `traj_vel` (follow `dq_ref`) or `settle` (fade on `target − q`).
+- **MIT wire:** `velocity_rad_s = dq_ref`, `kd_mit = 0`; damping through torque FF using Davout-sanitized velocity.
+- **Gravity FF:** `tau_g` at measured `q`.
+
+Do not fold `max_lead` into the planner accumulator — that freezes the reference when the arm lags.
 
 ## 8. Testing
 

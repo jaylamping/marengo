@@ -33,7 +33,7 @@ impl PositionTrace {
         if is_new {
             writeln!(
                 writer,
-                "tick,t_ms,joint,q,dq,dq_traj,q_traj,q_des,target,lead,lead_sat,tracking_error,settle_error,dist_to_target,on_trajectory,moving_reference,settling,joint_stuck,friction_mode,retarget_age_ms,phase,kp,kd,tau_p,tau_g,tau_f,tau_d,tau_ff_cmd,estimated_tau,tau_meas,tau_err,kp_mit,kd_mit"
+                "tick,t_ms,joint,q,dq,q_traj,dq_traj,q_des,target,lead,lead_sat,settle_error,phase,friction_mode,tau_p,tau_g,tau_f,tau_d,tau_ff_cmd,tau_meas,dq_mit,kp,kd"
             )?;
         }
         log_trace_enabled_once(path);
@@ -67,73 +67,53 @@ pub struct PositionTraceRow<'a> {
     pub joint: &'a str,
     pub q: f64,
     pub dq: f64,
-    pub dq_traj: f64,
     pub q_traj: f64,
+    pub dq_traj: f64,
     pub q_des: f64,
     pub target: f64,
     pub lead: f64,
     pub lead_sat: bool,
-    pub tracking_error: f64,
     pub settle_error: f64,
-    pub dist_to_target: f64,
-    pub on_trajectory: bool,
-    pub moving_reference: bool,
-    pub settling: bool,
-    pub joint_stuck: bool,
-    pub friction_mode: &'a str,
-    pub retarget_age_ms: u64,
     pub phase: &'a str,
-    pub kp: f64,
-    pub kd: f64,
+    pub friction_mode: &'a str,
     pub tau_p: f64,
     pub tau_g: f64,
     pub tau_f: f64,
     pub tau_d: f64,
     pub tau_ff_cmd: f64,
-    pub estimated_tau: f64,
     pub tau_meas: f64,
-    pub kp_mit: f64,
-    pub kd_mit: f64,
+    pub dq_mit: f64,
+    pub kp: f64,
+    pub kd: f64,
 }
 
 impl PositionTraceRow<'_> {
     pub fn format_csv_with_meta(&self, tick: u64, t_ms: u64) -> String {
-        let tau_err = self.tau_meas - self.tau_ff_cmd;
         format!(
-            "{tick},{t_ms},{joint},{q:.6},{dq:.6},{dq_traj:.6},{q_traj:.6},{q_des:.6},{target:.6},{lead:.6},{lead_sat},{tracking_error:.6},{settle_error:.6},{dist_to_target:.6},{on_trajectory},{moving_reference},{settling},{joint_stuck},{friction_mode},{retarget_age_ms},{phase},{kp:.3},{kd:.3},{tau_p:.6},{tau_g:.6},{tau_f:.6},{tau_d:.6},{tau_ff_cmd:.6},{estimated_tau:.6},{tau_meas:.6},{tau_err:.6},{kp_mit:.3},{kd_mit:.3}",
+            "{tick},{t_ms},{joint},{q:.6},{dq:.6},{q_traj:.6},{dq_traj:.6},{q_des:.6},{target:.6},{lead:.6},{lead_sat},{settle_error:.6},{phase},{friction_mode},{tau_p:.6},{tau_g:.6},{tau_f:.6},{tau_d:.6},{tau_ff_cmd:.6},{tau_meas:.6},{dq_mit:.6},{kp:.3},{kd:.3}",
             tick = tick,
             t_ms = t_ms,
             joint = csv_escape(self.joint),
             q = self.q,
             dq = self.dq,
-            dq_traj = self.dq_traj,
             q_traj = self.q_traj,
+            dq_traj = self.dq_traj,
             q_des = self.q_des,
             target = self.target,
             lead = self.lead,
             lead_sat = if self.lead_sat { 1 } else { 0 },
-            tracking_error = self.tracking_error,
             settle_error = self.settle_error,
-            dist_to_target = self.dist_to_target,
-            on_trajectory = if self.on_trajectory { 1 } else { 0 },
-            moving_reference = if self.moving_reference { 1 } else { 0 },
-            settling = if self.settling { 1 } else { 0 },
-            joint_stuck = if self.joint_stuck { 1 } else { 0 },
-            friction_mode = csv_escape(self.friction_mode),
-            retarget_age_ms = self.retarget_age_ms,
             phase = csv_escape(self.phase),
-            kp = self.kp,
-            kd = self.kd,
+            friction_mode = csv_escape(self.friction_mode),
             tau_p = self.tau_p,
             tau_g = self.tau_g,
             tau_f = self.tau_f,
             tau_d = self.tau_d,
             tau_ff_cmd = self.tau_ff_cmd,
-            estimated_tau = self.estimated_tau,
             tau_meas = self.tau_meas,
-            tau_err = tau_err,
-            kp_mit = self.kp_mit,
-            kd_mit = self.kd_mit,
+            dq_mit = self.dq_mit,
+            kp = self.kp,
+            kd = self.kd,
         )
     }
 }
@@ -167,37 +147,28 @@ mod tests {
             joint: "right_shoulder_pitch",
             q: 0.5,
             dq: 0.1,
-            dq_traj: 0.12,
             q_traj: 0.48,
+            dq_traj: 0.12,
             q_des: 0.52,
             target: 1.57,
             lead: 0.02,
             lead_sat: false,
-            tracking_error: -0.01,
             settle_error: 1.07,
-            dist_to_target: 1.05,
-            on_trajectory: true,
-            moving_reference: true,
-            settling: false,
-            joint_stuck: false,
-            friction_mode: "traj_vel",
-            retarget_age_ms: 42,
             phase: "Cruise",
-            kp: 12.0,
-            kd: 1.0,
+            friction_mode: "traj_vel",
             tau_p: 0.24,
             tau_g: 1.2,
             tau_f: 0.5,
             tau_d: 0.02,
             tau_ff_cmd: 1.74,
-            estimated_tau: 1.98,
             tau_meas: 1.5,
-            kp_mit: 12.0,
-            kd_mit: 0.0,
+            dq_mit: 0.12,
+            kp: 12.0,
+            kd: 1.0,
         };
         let line = row.format_csv_with_meta(42, 1234);
         assert!(line.starts_with("42,1234,right_shoulder_pitch,"));
-        assert!(line.contains(",1.740000,1.980000,1.500000,-0.240000,"));
-        assert!(line.contains(",Cruise,"));
+        assert!(line.contains(",1.740000,1.500000,0.120000,"));
+        assert!(line.contains(",Cruise,traj_vel,"));
     }
 }

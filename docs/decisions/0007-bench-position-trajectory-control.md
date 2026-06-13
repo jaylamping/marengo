@@ -1,9 +1,20 @@
 # ADR 0007: Bench position trajectory control
 
-**Status:** Proposed (interim hold-at fix landed — see [Update 2026-06-13](#update-2026-06-13-hold-at-plannermit-split))  
+**Status:** Accepted (2026-06-13 one-pass: always-trapezoid joint executor, two-rule friction, MIT `dq_ref`)  
 **Date:** 2026-05-26
 
-## Update 2026-06-13: hold-at planner/MIT split
+## Update 2026-06-13: one-pass simplification (implemented)
+
+Berthier **Position** mode is now a single joint-space motion primitive executor:
+
+- Always trapezoidal `q_ref` / `dq_ref` (no slew/threshold split).
+- `tau_p = Kp * lead`; `tau_d = Kd * (dq_ref − dq)` while moving; MIT `velocity_rad_s = dq_ref`, `kd_mit = 0`.
+- Friction: **`traj_vel`** or **`settle`** only (no breakaway latch / mode zoo).
+- **Talleyrand** (future) owns Cartesian → joint timing; Berthier executes whatever joint refs it receives. Operator `hold-at` is a bench/debug surface to the same API.
+
+See [rust-patterns.md](../rust-patterns.md) §7.
+
+## Update 2026-06-13: hold-at planner/MIT split (superseded)
 
 Commit `f1d2be6` implements an **interim** joint-impedance fix in Berthier for large `hold-at` retargets (e.g. weighted right shoulder 0→90°). It does **not** replace the trapezoidal trajectory layer proposed below, but removes the worst failure modes (slew freeze, distant-target friction shove, absent ramp damping).
 

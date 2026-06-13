@@ -69,6 +69,7 @@ class OnsetReport:
 
 # Layer 2 weighted hold-at 0.1 — see docs/bench-position-tuning.md
 LAYER2_APPROACH_TARGET_RAD = 0.1
+LAYER2_HOME_START_MAX_RAD = 0.005
 LAYER2_LEAD_SAT_MAX = 0.10
 LAYER2_JERK_RMS_MAX_RAD_S2 = 800.0
 LAYER2_TAU_F_FLIPS_MAX = 2
@@ -226,8 +227,14 @@ def _analyze_segment(seg: list[dict[str, str]]) -> SegmentReport:
     qs = [_f(r, "q") for r in seg]
     dqs = [_f(r, "dq") for r in seg]
     dq_trajs = [_f(r, "dq_traj") for r in seg]
-    settle = [_f(r, "settle_error") for r in seg]
-    tracking = [_f(r, "tracking_error") for r in seg]
+    settle = [
+        _f(r, "settle_error") if _has(r, "settle_error") else _f(r, "target") - _f(r, "q")
+        for r in seg
+    ]
+    tracking = [
+        _f(r, "tracking_error") if _has(r, "tracking_error") else _f(r, "q_traj") - _f(r, "q")
+        for r in seg
+    ]
     lead_sat = [_i(r, "lead_sat") for r in seg]
     tau_f = [_f(r, "tau_f") for r in seg]
     tau_ff = [_f(r, "tau_ff_cmd") for r in seg]
@@ -355,6 +362,8 @@ def _evaluate_layer2_segment(
 def evaluate_layer2_gate(
     segments: list[SegmentReport],
     tau_ff_rate_limit_nm_s: float,
+    *,
+    require_home_start: bool = False,
 ) -> dict:
     approach = next(
         (s for s in segments if _segment_matches_target(s, LAYER2_APPROACH_TARGET_RAD)),
@@ -375,6 +384,8 @@ def evaluate_layer2_gate(
             is_approach=True,
             tau_ff_rate_limit_nm_s=tau_ff_rate_limit_nm_s,
         )
+        if require_home_start:
+            approach_checks["home_start_ok"] = abs(approach.q_start) < LAYER2_HOME_START_MAX_RAD
         approach.gate_checks = approach_checks
     if ret is not None:
         return_checks = _evaluate_layer2_segment(
@@ -392,6 +403,8 @@ def evaluate_layer2_gate(
     return {
         "gate": "layer2",
         "tau_ff_rate_limit_nm_s": tau_ff_rate_limit_nm_s,
+        "require_home_start": require_home_start,
+        "home_start_max_rad": LAYER2_HOME_START_MAX_RAD,
         "analyzer_pass": analyzer_ok,
         "missing_segments": missing,
         "approach_checks": approach_checks,
@@ -407,6 +420,7 @@ def analyze(
     tau_ff_rate_limit_nm_s: float = 60.0,
     onset: bool = False,
     onset_window_ms: int = DEFAULT_ONSET_WINDOW_MS,
+    require_home_start: bool = False,
 ) -> dict:
     rows = _rows(path)
     segments = _split_segments(rows)
@@ -420,7 +434,11 @@ def analyze(
         result["onset"] = [asdict(_analyze_onset(s, onset_window_ms)) for s in segments]
         result["onset_window_ms"] = onset_window_ms
     if gate == "layer2":
-        result["layer2_gate"] = evaluate_layer2_gate(segment_reports, tau_ff_rate_limit_nm_s)
+        result["layer2_gate"] = evaluate_layer2_gate(
+            segment_reports,
+            tau_ff_rate_limit_nm_s,
+            require_home_start=require_home_start,
+        )
         result["segments"] = [asdict(s) for s in segment_reports]
     return result
 
@@ -513,6 +531,11 @@ def main(argv: Iterable[str] | None = None) -> int:
         default=DEFAULT_ONSET_WINDOW_MS,
         help="onset analysis window in ms (default 250)",
     )
+    parser.add_argument(
+        "--require-home-start",
+        action="store_true",
+        help=f"Layer 2 gate: approach segment must start with |q| < {LAYER2_HOME_START_MAX_RAD} rad",
+    )
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     if not args.csv.is_file():
@@ -525,6 +548,7 @@ def main(argv: Iterable[str] | None = None) -> int:
         tau_ff_rate_limit_nm_s=args.tau_ff_rate_limit,
         onset=args.onset,
         onset_window_ms=args.onset_window_ms,
+        require_home_start=args.require_home_start,
     )
     if args.json:
         json.dump(report, sys.stdout, indent=2)

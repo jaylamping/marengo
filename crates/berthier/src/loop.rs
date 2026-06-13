@@ -15,14 +15,12 @@ use marengo_config::{load_robot_config, resolve_urdf_path};
 use thiserror::Error;
 use tracing::{debug, info};
 
-use crate::friction::{
-    breakaway_velocity_exceeded, friction_torque, joint_stuck_with_hysteresis,
-    position_hold_friction_assist, PositionFrictionMode,
-};
+use crate::friction::{friction_torque, position_hold_friction, PositionFrictionMode};
 use crate::position_trace::{PositionTrace, PositionTraceRow};
-use crate::position_trajectory::{trajectory_damping_torque, JointPositionPlanner};
+use crate::position_trajectory::{trajectory_damping_torque, JointPositionPlanner, TrapezoidPhase};
 
-const POSITION_HOLD_DAMPING_FULL_ERROR_RAD: f64 = 0.01;
+const POSITION_SETTLE_TOLERANCE_RAD: f64 = 1e-4;
+const POSITION_SMALL_MOVE_VMAX_RAD: f64 = 0.06;
 
 #[derive(Debug, Error)]
 pub enum LoopError {
@@ -61,10 +59,6 @@ pub struct ControlLoop<B: MotorBus> {
     position_trace: Option<PositionTrace>,
     /// Control tick when each joint's latched target last changed (onset diagnostics).
     position_retarget_tick: Option<Vec<u64>>,
-    /// Per-joint stuck latch for friction assist hysteresis (see [`joint_stuck_with_hysteresis`]).
-    position_stuck_latched: Option<Vec<bool>>,
-    /// Per-joint: breakaway achieved this retarget — do not re-enter stuck friction mid-move.
-    position_breakaway_confirmed: Option<Vec<bool>>,
 }
 
 impl<B: MotorBus> ControlLoop<B> {
@@ -96,8 +90,6 @@ impl<B: MotorBus> ControlLoop<B> {
             loop_hz,
             position_trace: PositionTrace::from_env(loop_hz),
             position_retarget_tick: None,
-            position_stuck_latched: None,
-            position_breakaway_confirmed: None,
         })
     }
 
@@ -141,19 +133,11 @@ impl<B: MotorBus> ControlLoop<B> {
         let old_target = setpoints[i];
         setpoints[i] = target;
         let q_now = self.refresh_joint_positions();
-        let threshold = self
-            .supervisor
-            .control
-            .control
-            .joints
-            .get(joint)
-            .map(|c| c.position_trajectory_threshold_rad)
-            .unwrap_or(0.15);
         if self.position_planners.is_none() {
             self.init_position_planners(&q_now);
         }
         if let Some(planners) = self.position_planners.as_mut() {
-            planners[i].reset_target(q_now[i], target, threshold);
+            planners[i].reset_target(q_now[i], target);
         }
         if (old_target - target).abs() > 1e-6 {
             info!(
@@ -162,7 +146,6 @@ impl<B: MotorBus> ControlLoop<B> {
                 old_target,
                 new_target = target,
                 delta = target - q_now[i],
-                traj_threshold_rad = threshold,
                 tick = self.tick_count,
                 "position hold retarget"
             );
@@ -178,16 +161,6 @@ impl<B: MotorBus> ControlLoop<B> {
         if let Some(ticks) = self.position_retarget_tick.as_mut() {
             ticks[joint_index] = self.tick_count;
         }
-        if let Some(latched) = self.position_stuck_latched.as_mut() {
-            if let Some(slot) = latched.get_mut(joint_index) {
-                *slot = false;
-            }
-        }
-        if let Some(confirmed) = self.position_breakaway_confirmed.as_mut() {
-            if let Some(slot) = confirmed.get_mut(joint_index) {
-                *slot = false;
-            }
-        }
     }
 
     fn position_retarget_age_ms(&self, joint_index: usize) -> u64 {
@@ -201,18 +174,6 @@ impl<B: MotorBus> ControlLoop<B> {
             / u64::from(self.loop_hz.max(1))
     }
 
-    fn ensure_position_stuck_latched(&mut self) {
-        if self.position_stuck_latched.is_none() {
-            self.position_stuck_latched = Some(vec![false; self.joint_names.len()]);
-        }
-    }
-
-    fn ensure_position_breakaway_confirmed(&mut self) {
-        if self.position_breakaway_confirmed.is_none() {
-            self.position_breakaway_confirmed = Some(vec![false; self.joint_names.len()]);
-        }
-    }
-
     fn init_position_planners(&mut self, q: &[f64]) {
         let targets = self
             .position_setpoints
@@ -222,18 +183,10 @@ impl<B: MotorBus> ControlLoop<B> {
             .joint_names
             .iter()
             .enumerate()
-            .map(|(i, name)| {
-                let cfg = self.supervisor.control.control.joints.get(name);
-                let threshold = cfg
-                    .map(|c| c.position_trajectory_threshold_rad)
-                    .unwrap_or(0.15);
-                JointPositionPlanner::new_for_target(q[i], targets[i], threshold)
-            })
+            .map(|(i, _name)| JointPositionPlanner::new_for_target(q[i], targets[i]))
             .collect();
         self.position_planners = Some(planners);
         self.position_retarget_tick = Some(vec![self.tick_count; self.joint_names.len()]);
-        self.position_stuck_latched = Some(vec![false; self.joint_names.len()]);
-        self.position_breakaway_confirmed = Some(vec![false; self.joint_names.len()]);
     }
 
     fn hold_target_for_joint(&self, joint: &str, position_rad: f64) -> f64 {
@@ -252,8 +205,6 @@ impl<B: MotorBus> ControlLoop<B> {
         self.position_setpoints = None;
         self.position_planners = None;
         self.position_retarget_tick = None;
-        self.position_stuck_latched = None;
-        self.position_breakaway_confirmed = None;
     }
 
     /// Latch current `q` and enter [`ControlMode::Position`] (gravity FF + impedance gains).
@@ -303,8 +254,6 @@ impl<B: MotorBus> ControlLoop<B> {
             self.position_setpoints = None;
             self.position_planners = None;
             self.position_retarget_tick = None;
-            self.position_stuck_latched = None;
-            self.position_breakaway_confirmed = None;
             self.last_position_diag = None;
         }
         self.control_mode = mode;
@@ -335,8 +284,6 @@ impl<B: MotorBus> ControlLoop<B> {
 
                 if self.control_mode == ControlMode::Position {
                     self.advance_position_commands(&q)?;
-                    self.ensure_position_stuck_latched();
-                    self.ensure_position_breakaway_confirmed();
                 }
 
                 let log_position_diag = self.control_mode == ControlMode::Position
@@ -346,9 +293,9 @@ impl<B: MotorBus> ControlLoop<B> {
                         .unwrap_or(true);
                 let mut batch = Vec::new();
                 for (i, name) in self.joint_names.iter().enumerate() {
-                    let (kp, kd, tau_ff, q_des) = match self.control_mode {
+                    let (kp, kd, tau_ff, q_des, mit_velocity) = match self.control_mode {
                         ControlMode::GravityComp | ControlMode::TorqueOnly => {
-                            (0.0, 0.0, tau_g[i], q[i])
+                            (0.0, 0.0, tau_g[i], q[i], 0.0)
                         }
                         ControlMode::Impedance => {
                             let cfg = self.supervisor.control.control.joints.get(name);
@@ -360,7 +307,7 @@ impl<B: MotorBus> ControlLoop<B> {
                             let tau_f = fr
                                 .map(|f| friction_torque(dq, f.fc, f.fv, f.fo, f.k))
                                 .unwrap_or(0.0);
-                            (kp, kd, tau_g[i] + tau_f, q[i])
+                            (kp, kd, tau_g[i] + tau_f, q[i], 0.0)
                         }
                         ControlMode::Position => {
                             let cfg = self.supervisor.control.control.joints.get(name);
@@ -378,99 +325,46 @@ impl<B: MotorBus> ControlLoop<B> {
                                 })?;
                             let q_traj = planner.q_traj;
                             let dq_traj = planner.dq_traj;
-                            let on_trajectory = planner.uses_trajectory();
                             let traj_phase = planner.phase();
                             let target = self
                                 .position_setpoints
                                 .as_deref()
                                 .and_then(|sp| sp.get(i).copied())
                                 .unwrap_or(q_traj);
-                            let q_des = if on_trajectory {
-                                clamp_trajectory_setpoint(q_traj, q[i], target, max_lead)
-                            } else {
-                                clamp_position_command(q_traj, q[i], target, max_lead)
-                            };
+                            let q_des = clamp_trajectory_setpoint(q_traj, q[i], target, max_lead);
                             let dq = self.joint_velocity(name);
                             let lead = q_des - q[i];
-                            let tracking_error = q_traj - q[i];
                             let settle_error = target - q[i];
                             let vel_deadband = cfg
                                 .map(|c| c.position_trajectory_velocity_deadband_rad)
                                 .unwrap_or(0.02);
-                            const SETTLE_POSITION_TOLERANCE_RAD: f64 = 1e-4;
-                            let settling = !on_trajectory
-                                && dq_traj.abs() <= vel_deadband
-                                && (q_traj - target).abs() <= SETTLE_POSITION_TOLERANCE_RAD;
-                            let moving_reference =
-                                moving_reference_toward_target(dq_traj, settle_error, vel_deadband);
-                            let mut breakaway_confirmed = self
-                                .position_breakaway_confirmed
-                                .as_ref()
-                                .and_then(|confirmed| confirmed.get(i).copied())
-                                .unwrap_or(false);
-                            if !breakaway_confirmed
-                                && breakaway_velocity_exceeded(dq, vel_deadband)
-                                && moving_reference
-                            {
-                                if let Some(confirmed) =
-                                    self.position_breakaway_confirmed.as_mut()
-                                {
-                                    confirmed[i] = true;
-                                }
-                                breakaway_confirmed = true;
-                            }
-                            let was_stuck = self
-                                .position_stuck_latched
-                                .as_ref()
-                                .and_then(|latched| latched.get(i).copied())
-                                .unwrap_or(false);
-                            let stuck_raw = joint_stuck_with_hysteresis(
-                                dq,
-                                dq_traj,
-                                settle_error,
-                                vel_deadband,
-                                was_stuck,
-                            );
-                            let joint_stuck = stuck_raw && !breakaway_confirmed;
-                            if let Some(latched) = self.position_stuck_latched.as_mut() {
-                                latched[i] = stuck_raw;
-                            }
+                            let settling = matches!(traj_phase, TrapezoidPhase::Hold)
+                                && settle_error.abs() <= POSITION_SETTLE_TOLERANCE_RAD;
                             let (friction_mode, tau_f) = fr
                                 .map(|f| {
-                                    position_hold_friction_assist(
+                                    position_hold_friction(
                                         dq,
-                                        lead,
                                         dq_traj,
                                         settle_error,
-                                        on_trajectory,
-                                        settling,
-                                        moving_reference,
-                                        max_lead,
                                         vel_deadband,
-                                        joint_stuck,
+                                        max_lead,
                                         f,
                                     )
                                 })
-                                .unwrap_or((PositionFrictionMode::SlewLead, 0.0));
+                                .unwrap_or((PositionFrictionMode::SettleFade, 0.0));
                             let retarget_age_ms = self.position_retarget_age_ms(i);
-                            let tau_d = if on_trajectory || moving_reference {
+                            let tau_d = if dq_traj.abs() > vel_deadband {
                                 trajectory_damping_torque(dq, dq_traj, kd)
                             } else if settling && dq.abs() > vel_deadband {
                                 -kd * dq
                             } else {
-                                position_hold_damping_torque(dq, tracking_error, settle_error, kd)
+                                0.0
                             };
                             let tau_ff_cmd = tau_g[i] + tau_f + tau_d;
                             let tau_meas = self.joint_torque(name);
                             let lead_sat = lead.abs() >= max_lead - 1e-6;
-                            let dist_to_target = target - q_traj;
                             let tau_p = kp * lead;
-                            let estimated_tau = tau_ff_cmd + tau_p;
-                            let phase_str = if on_trajectory {
-                                format!("{traj_phase:?}")
-                            } else {
-                                "slew".to_string()
-                            };
+                            let phase_str = format!("{traj_phase:?}");
                             if log_position_diag {
                                 info!(
                                     joint = %name,
@@ -482,12 +376,8 @@ impl<B: MotorBus> ControlLoop<B> {
                                     target,
                                     lead,
                                     lead_sat,
-                                    tracking_error,
                                     settle_error,
-                                    on_trajectory,
-                                    moving_reference,
                                     settling,
-                                    joint_stuck,
                                     friction_mode = friction_mode.as_str(),
                                     retarget_age_ms,
                                     phase = %phase_str,
@@ -499,7 +389,8 @@ impl<B: MotorBus> ControlLoop<B> {
                                     tau_ff_cmd,
                                     tau_meas,
                                     tau_err = tau_meas - tau_ff_cmd,
-                                    estimated_tau,
+                                    tau_p,
+                                    dq_mit = dq_traj,
                                     kp_mit = kp,
                                     kd_mit = 0.0,
                                     "position hold command"
@@ -509,7 +400,11 @@ impl<B: MotorBus> ControlLoop<B> {
                                 .position_retarget_tick
                                 .as_ref()
                                 .and_then(|ticks| ticks.get(i).copied());
-                            if should_log_position_onset(retarget_tick, self.tick_count, self.loop_hz) {
+                            if should_log_position_onset(
+                                retarget_tick,
+                                self.tick_count,
+                                self.loop_hz,
+                            ) {
                                 debug!(
                                     joint = %name,
                                     retarget_age_ms,
@@ -518,12 +413,8 @@ impl<B: MotorBus> ControlLoop<B> {
                                     q_traj,
                                     dq_traj,
                                     lead,
-                                    tracking_error,
                                     settle_error,
-                                    on_trajectory,
-                                    moving_reference,
                                     settling,
-                                    joint_stuck,
                                     friction_mode = friction_mode.as_str(),
                                     tau_f,
                                     tau_d,
@@ -545,37 +436,25 @@ impl<B: MotorBus> ControlLoop<B> {
                                     target,
                                     lead,
                                     lead_sat,
-                                    tracking_error,
                                     settle_error,
-                                    dist_to_target,
-                                    on_trajectory,
-                                    moving_reference,
-                                    settling,
-                                    joint_stuck,
-                                    friction_mode: friction_mode.as_str(),
-                                    retarget_age_ms,
                                     phase: &phase_str,
-                                    kp,
-                                    kd,
+                                    friction_mode: friction_mode.as_str(),
                                     tau_p,
                                     tau_g: tau_g[i],
                                     tau_f,
                                     tau_d,
                                     tau_ff_cmd,
-                                    estimated_tau,
                                     tau_meas,
-                                    kp_mit: kp,
-                                    kd_mit: 0.0,
+                                    dq_mit: dq_traj,
+                                    kp,
+                                    kd,
                                 };
                                 let _ = trace.maybe_record(self.tick_count, t_ms, &row);
                                 if self.tick_count % u64::from(self.loop_hz) == 0 {
                                     let _ = trace.flush();
                                 }
                             }
-                            // Keep firmware MIT damping at zero in position hold; the drive's
-                            // velocity estimate is noisy, so Berthier applies damping through
-                            // torque feedforward using Davout's sanitized joint velocity.
-                            (kp, 0.0, tau_ff_cmd, q_des)
+                            (kp, 0.0, tau_ff_cmd, q_des, dq_traj)
                         }
                         ControlMode::Disabled => continue,
                     };
@@ -584,7 +463,7 @@ impl<B: MotorBus> ControlLoop<B> {
                         kp,
                         kd,
                         position_rad: q_des,
-                        velocity_rad_s: 0.0,
+                        velocity_rad_s: mit_velocity,
                         torque_ff_nm: tau_ff,
                     });
                 }
@@ -645,19 +524,23 @@ impl<B: MotorBus> ControlLoop<B> {
         for (i, name) in self.joint_names.iter().enumerate() {
             let cfg = self.supervisor.control.control.joints.get(name);
             let slew_rad_s = cfg.map(|c| c.position_slew_rad_s).unwrap_or(0.25);
-            let v_max = cfg
+            let trajectory_v_max = cfg
                 .map(|c| c.position_trajectory_velocity_rad_s)
                 .unwrap_or(0.30);
             let a_max = cfg
                 .map(|c| c.position_trajectory_accel_rad_s2)
                 .unwrap_or(0.20);
-            let threshold = cfg
-                .map(|c| c.position_trajectory_threshold_rad)
-                .unwrap_or(0.15);
-            if planner_drifted_from_measurement(&planners[i], q[i], targets[i], threshold) {
-                planners[i].reset_target(q[i], targets[i], threshold);
+            let max_lead = cfg.map(|c| c.position_slew_max_lead_rad).unwrap_or(0.10);
+            if planner_drifted_from_measurement(&planners[i], q[i], targets[i], max_lead) {
+                planners[i].reset_target(q[i], targets[i]);
             }
-            planners[i].tick(targets[i], q[i], dt, slew_rad_s, v_max, a_max);
+            let move_dist = (targets[i] - q[i]).abs();
+            let v_max = if move_dist <= POSITION_SMALL_MOVE_VMAX_RAD {
+                slew_rad_s
+            } else {
+                trajectory_v_max
+            };
+            planners[i].tick(targets[i], dt, v_max, a_max);
         }
         Ok(())
     }
@@ -745,12 +628,6 @@ impl<B: MotorBus> ControlLoop<B> {
     }
 }
 
-/// Move `current` toward `target` by at most `max_step` (rad).
-#[cfg(test)]
-fn slew_toward(current: f64, target: f64, max_step: f64) -> f64 {
-    crate::position_trajectory::slew_toward(current, target, max_step)
-}
-
 /// Trajectory setpoint clamp: brake when `q` outruns `q_traj`, but follow `q_traj` when
 /// lagging toward `target` so weighted descent can overcome gravity feedforward.
 fn clamp_trajectory_setpoint(q_traj: f64, q: f64, target: f64, max_lead: f64) -> f64 {
@@ -768,29 +645,13 @@ fn clamp_trajectory_setpoint(q_traj: f64, q: f64, target: f64, max_lead: f64) ->
     }
 }
 
-/// Keep a ramped position command within the lead cap without letting it brake
-/// against the final target direction (slew / small moves only).
-fn clamp_position_command(command: f64, q: f64, target: f64, max_lead: f64) -> f64 {
-    match (target - q).partial_cmp(&0.0) {
-        Some(std::cmp::Ordering::Greater) => command.clamp(q, q + max_lead),
-        Some(std::cmp::Ordering::Less) => command.clamp(q - max_lead, q),
-        _ => target,
-    }
-}
-
-/// Re-anchor planner when init raced stale feedback (e.g. hold-at right after enable).
 fn planner_drifted_from_measurement(
     planner: &JointPositionPlanner,
     q: f64,
     target: f64,
-    threshold: f64,
+    max_lead: f64,
 ) -> bool {
-    (q - planner.q_traj).abs() > threshold && (target - q).abs() > threshold
-}
-
-/// Moving-reference feedforward is valid only before measured `q` crosses the target.
-fn moving_reference_toward_target(dq_traj: f64, settle_error: f64, vel_deadband: f64) -> bool {
-    dq_traj.abs() > vel_deadband && dq_traj * settle_error > 0.0
+    (q - planner.q_traj).abs() > max_lead && (target - q).abs() > POSITION_SETTLE_TOLERANCE_RAD
 }
 
 /// High-rate onset logs for the first window after retarget (`MARENGO_POSITION_ONSET_LOG_MS`, default 250).
@@ -812,23 +673,6 @@ fn should_log_position_onset(retarget_tick: Option<u64>, tick: u64, loop_hz: u32
     }
     let decimate = u64::from(loop_hz.max(1) / 20).max(1);
     age_ticks % decimate == 0
-}
-
-/// Damping should settle the final hold, not behave like extra moving friction.
-/// While ramping, scale using trajectory tracking error; near the latch use settle error.
-fn position_hold_damping_torque(dq: f64, tracking_error: f64, settle_error: f64, kd: f64) -> f64 {
-    let error_for_scale = if settle_error.abs() <= POSITION_HOLD_DAMPING_FULL_ERROR_RAD {
-        settle_error
-    } else {
-        tracking_error
-    };
-    let moving_toward_target = dq * error_for_scale > 0.0;
-    let scale = if moving_toward_target {
-        (POSITION_HOLD_DAMPING_FULL_ERROR_RAD / error_for_scale.abs()).clamp(0.0, 1.0)
-    } else {
-        1.0
-    };
-    -kd * dq * scale
 }
 
 /// Map Davout mode to protobuf (for logging / Consul).
@@ -930,43 +774,23 @@ mod tests {
     }
 
     #[test]
-    fn position_hold_sends_zero_firmware_damping() {
+    fn position_hold_advances_trapezoid_on_first_tick() {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
         loop_ctrl
             .enter_position_hold_at(Some("shoulder_pitch"), 0.25)
             .expect("hold-at");
-        loop_ctrl.tick(None).expect("tick");
-
-        let joint_count = loop_ctrl.joint_names().len();
-        let mit_frames: Vec<_> = loop_ctrl
-            .supervisor_mut()
-            .bus_mut()
-            .tx
+        let i = loop_ctrl
+            .joint_names()
             .iter()
-            .rev()
-            .take(joint_count)
-            .collect();
-
-        assert_eq!(
-            mit_frames.len(),
-            joint_count,
-            "position hold should send one MIT frame per joint"
+            .position(|n| n == "shoulder_pitch")
+            .expect("joint");
+        loop_ctrl.tick(None).expect("tick");
+        let cmd = loop_ctrl.position_hold_commands().expect("cmd")[i];
+        assert!(
+            cmd > 0.0,
+            "trapezoid planner must advance q_traj on first tick"
         );
-        for frame in mit_frames {
-            assert_eq!(
-                &frame.data[6..8],
-                &[0, 0],
-                "firmware kd must stay zero; Berthier applies damping through sanitized torque FF"
-            );
-        }
-    }
-
-    #[test]
-    fn slew_toward_steps_and_snaps() {
-        assert!((slew_toward(0.0, 1.0, 0.25) - 0.25).abs() < 1e-12);
-        assert!((slew_toward(0.9, 1.0, 0.25) - 1.0).abs() < 1e-12);
-        assert!((slew_toward(0.0, -1.0, 0.1) - (-0.1)).abs() < 1e-12);
     }
 
     #[test]
@@ -976,59 +800,9 @@ mod tests {
     }
 
     #[test]
-    fn clamp_trajectory_setpoint_follows_traj_when_lagging_on_descent() {
-        let q_des = clamp_trajectory_setpoint(1.50, 1.77, 0.0, 0.03);
-        assert!((q_des - 1.50).abs() < 1e-12);
-    }
-
-    #[test]
-    fn clamp_trajectory_setpoint_follows_traj_when_overshot_above_target() {
-        let q_des = clamp_trajectory_setpoint(1.55, 1.76, 1.57, 0.03);
-        assert!((q_des - 1.57).abs() < 1e-12);
-    }
-
-    #[test]
-    fn clamp_position_command_does_not_brake_against_positive_target() {
-        let cmd = clamp_position_command(0.064, 0.075, 0.1, 0.05);
-
-        assert!((cmd - 0.075).abs() < 1e-12);
-    }
-
-    #[test]
-    fn clamp_position_command_does_not_brake_against_negative_target() {
-        let cmd = clamp_position_command(-0.064, -0.075, -0.1, 0.05);
-
-        assert!((cmd + 0.075).abs() < 1e-12);
-    }
-
-    #[test]
-    fn position_hold_damping_fades_while_moving_toward_target() {
-        let tau_d = position_hold_damping_torque(0.3, 0.05, 1.0, 1.0);
-
-        assert!((tau_d + 0.06).abs() < 1e-12);
-    }
-
-    #[test]
-    fn position_hold_damping_is_full_near_target() {
-        let tau_d = position_hold_damping_torque(0.3, 0.5, 0.005, 1.0);
-
-        assert!((tau_d + 0.3).abs() < 1e-12);
-    }
-
-    #[test]
-    fn position_hold_damping_assists_when_moving_away_from_target() {
-        let tau_d = position_hold_damping_torque(-0.3, 0.05, 1.0, 1.0);
-
-        assert!((tau_d - 0.3).abs() < 1e-12);
-    }
-
-    #[test]
-    fn moving_reference_stops_after_crossing_target() {
-        assert!(moving_reference_toward_target(0.10, 0.01, 0.02));
-        assert!(moving_reference_toward_target(-0.10, -0.01, 0.02));
-        assert!(!moving_reference_toward_target(0.10, -0.01, 0.02));
-        assert!(!moving_reference_toward_target(-0.10, 0.01, 0.02));
-        assert!(!moving_reference_toward_target(0.01, 0.01, 0.02));
+    fn position_hold_trajectory_damping_tracks_dq_error() {
+        let tau_d = trajectory_damping_torque(0.1, 0.2, 2.0);
+        assert!((tau_d - 0.2).abs() < 1e-12);
     }
 
     #[test]
@@ -1074,32 +848,32 @@ mod tests {
 
     #[test]
     fn planner_drifted_detects_stale_init_before_large_hold_at() {
-        let stale = JointPositionPlanner::new_for_target(0.0, 0.0, 0.15);
+        let stale = JointPositionPlanner::new_for_target(0.0, 0.0);
         assert!(planner_drifted_from_measurement(&stale, 2.9, 0.0, 0.15));
-        let aligned = JointPositionPlanner::new_for_target(2.9, 0.0, 0.15);
+        let aligned = JointPositionPlanner::new_for_target(2.9, 0.0);
         assert!(!planner_drifted_from_measurement(&aligned, 2.9, 0.0, 0.15));
     }
 
     #[test]
-    fn slew_trajectory_accumulates_independently_of_max_lead() {
+    fn trapezoid_trajectory_accumulates_independently_of_max_lead() {
         let target = 1.2;
-        let max_step = 0.08 * 0.005;
         let max_lead = 0.03;
-        let mut traj = 0.0;
-        for _ in 0..50 {
-            traj = slew_toward(traj, target, max_step);
+        let mut planner = JointPositionPlanner::new_for_target(0.0, target);
+        let dt = 0.005;
+        for _ in 0..100 {
+            planner.tick(target, dt, 0.08, 0.36);
         }
         assert!(
-            traj > 0.015,
-            "planner trajectory must advance at slew rate even when q lags"
+            planner.q_traj > 0.01,
+            "planner trajectory must advance at trapezoid rate even when q lags"
         );
-        let q_des = clamp_position_command(traj, 0.0, target, max_lead);
+        let q_des = clamp_trajectory_setpoint(planner.q_traj, 0.0, target, max_lead);
         assert!(
-            q_des <= max_lead + 1e-12,
-            "MIT setpoint stays within max_lead of measured q"
+            q_des > 0.0,
+            "MIT setpoint follows planner when measured q lags"
         );
         assert!(
-            traj >= q_des,
+            planner.q_traj >= q_des,
             "trajectory runs ahead of or meets clamped MIT command"
         );
     }

@@ -1,6 +1,21 @@
 # Bench position hold — systematic tuning
 
-Weighted shoulder pitch `hold-at` is **not** eighteen independent knobs. It is four layers tuned **in order**, with CSV trace analysis between each step.
+Weighted shoulder pitch `hold-at` uses **one joint-space control law** (ADR 0007 one-pass). See [rust-patterns.md](rust-patterns.md) §7 for the full formula. Talleyrand will supply joint refs from Cartesian primitives later; bench `hold-at` hits the same executor.
+
+## Position hold control law (reference)
+
+| Layer | Rule |
+|-------|------|
+| Planner | Always trapezoid toward latched target; small moves (≤ ~60 mrad) cap `v_max` at `position_slew_rad_s` |
+| MIT setpoint | `q_des = clamp(q_ref, q, target, max_lead)` |
+| Stiffness | `tau_p = kp * (q_des − q)` |
+| Damping FF | `tau_d = kd * (dq_ref − dq)` while `\|dq_ref\| > deadband`; else `-kd * dq` when settled |
+| Friction FF | `traj_vel` if `\|dq_ref\| > deadband` and moving toward target; else `settle` fade |
+| MIT wire | `velocity_rad_s = dq_ref`, `kd_mit = 0`, `tau_ff = tau_g + tau_f + tau_d` |
+
+**Config (right-only bench):** `position_trajectory_threshold_rad: 0`, `kp=8`, `kd=1.25`, `slew=0.10`, `max_lead=0.10`, `v=0.72`, `a=0.72`, `fc=0.35`, `tau_ff_rate_limit=60`.
+
+**Layer 2 script:** 5 s settle dwell after `hold-at 0`; analyzer `--require-home-start` enforces `\|q\| < 5 mrad` at approach onset.
 
 ## Session handoff (2026-06-13)
 
@@ -408,3 +423,18 @@ MCP example (90° after intermediate steps pass):
 ```
 
 See also [tuning.md](tuning.md), [ADR 0007](decisions/0007-bench-position-trajectory-control.md).
+
+## Phase C — firmware kd experiment (deferred)
+
+**Do not enable until Layer 2 analyzer + operator pass on the one-pass baseline.**
+
+Preconditions:
+
+- ≥3 consecutive weighted Layer 2 sessions with `--gate layer2 --require-home-start --tau-ff-rate-limit 60`.
+
+Protocol (document only until then):
+
+1. Add config flag `position_use_firmware_kd: false` (default off).
+2. When enabled: `kd_mit = 0.25 × kd`; reduce FF `tau_d` by the same fraction to avoid double damping.
+3. Compare traces: jerk RMS, `tau_ff` slew, operator feel at approach onset.
+4. Abort if Davout velocity-limit trips increase or approach hitch regresses vs baseline.

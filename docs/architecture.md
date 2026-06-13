@@ -32,7 +32,8 @@ Motor path is fixed: **Berthier → Davout → robstride**. Each crate has a det
 
 | Crate | Owns | Must not |
 |-------|------|----------|
-| [`berthier`](../crates/berthier/) | Outer loop, `tau_g` + gains → MIT batch | CAN, limits, encode |
+| [`berthier`](../crates/berthier/) | Joint-space trajectory executor: `tau_g` + impedance → MIT batch | CAN, limits, Cartesian IK, behavior scripts |
+| [`talleyrand`](../crates/talleyrand/) | Cartesian primitives → joint trajectories (future) | CAN, MIT encode |
 | [`davout`](../crates/davout/) | Enable FSM, filter, watchdog, send | Trajectories, URDF dynamics |
 | [`robstride`](../crates/robstride/) | MIT encode/decode, CAN I/O | Policy, safety |
 | [`armee-dynamics`](../crates/armee-dynamics/) | `gravity_torques(q)` | CAN, commands |

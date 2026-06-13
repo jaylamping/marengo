@@ -1,4 +1,4 @@
-//! Trapezoidal position trajectory for large `hold-at` moves (ADR 0007).
+//! Trapezoidal position trajectory for position-hold retargets (ADR 0007).
 
 const POSITION_TOLERANCE_RAD: f64 = 1e-4;
 
@@ -11,100 +11,51 @@ pub enum TrapezoidPhase {
     Hold,
 }
 
-/// One joint's planner: either rate-limited slew (small moves) or trapezoid (large moves).
+/// One joint's trapezoidal planner toward a latched target.
 #[derive(Debug, Clone)]
 pub struct JointPositionPlanner {
     pub q_traj: f64,
     pub dq_traj: f64,
-    trapezoid_target: Option<f64>,
     phase: TrapezoidPhase,
 }
 
 impl JointPositionPlanner {
-    pub fn new_slew(q: f64) -> Self {
+    pub fn new_at(q: f64) -> Self {
         Self {
             q_traj: q,
             dq_traj: 0.0,
-            trapezoid_target: None,
             phase: TrapezoidPhase::Hold,
         }
     }
 
-    pub fn new_for_target(q: f64, target: f64, threshold_rad: f64) -> Self {
-        if (target - q).abs() > threshold_rad {
-            Self {
-                q_traj: q,
-                dq_traj: 0.0,
-                trapezoid_target: Some(target),
-                phase: TrapezoidPhase::Accelerate,
-            }
-        } else {
-            Self::new_slew(q)
+    pub fn new_for_target(q: f64, target: f64) -> Self {
+        let mut planner = Self::new_at(q);
+        if (target - q).abs() > POSITION_TOLERANCE_RAD {
+            planner.phase = TrapezoidPhase::Accelerate;
         }
-    }
-
-    pub fn uses_trajectory(&self) -> bool {
-        self.trapezoid_target.is_some()
+        planner
     }
 
     pub fn phase(&self) -> TrapezoidPhase {
         self.phase
     }
 
-    pub fn reset_target(&mut self, q: f64, target: f64, threshold_rad: f64) {
+    pub fn reset_target(&mut self, q: f64, target: f64) {
         self.q_traj = q;
         self.dq_traj = 0.0;
-        if (target - q).abs() > threshold_rad {
-            self.trapezoid_target = Some(target);
-            self.phase = TrapezoidPhase::Accelerate;
+        self.phase = if (target - q).abs() > POSITION_TOLERANCE_RAD {
+            TrapezoidPhase::Accelerate
         } else {
-            self.trapezoid_target = None;
-            self.phase = TrapezoidPhase::Hold;
-        }
+            TrapezoidPhase::Hold
+        };
     }
 
-    /// Advance one control tick toward `target`.
-    pub fn tick(
-        &mut self,
-        target: f64,
-        q_measured: f64,
-        dt: f64,
-        slew_rad_s: f64,
-        v_max: f64,
-        a_max: f64,
-    ) {
-        if let Some(trap_target) = self.trapezoid_target {
-            if (trap_target - target).abs() > POSITION_TOLERANCE_RAD {
-                self.trapezoid_target = Some(target);
-            }
-            let (q, v, phase) =
-                trapezoid_step(self.q_traj, self.dq_traj, trap_target, v_max, a_max, dt);
-            self.q_traj = q;
-            self.dq_traj = v;
-            self.phase = phase;
-            if phase == TrapezoidPhase::Hold {
-                self.trapezoid_target = None;
-            }
-            return;
-        }
-
-        let (q, v, phase) =
-            trapezoid_step(self.q_traj, self.dq_traj, target, slew_rad_s, a_max, dt);
+    /// Advance one control tick toward `target` with peak velocity `v_max`.
+    pub fn tick(&mut self, target: f64, dt: f64, v_max: f64, a_max: f64) {
+        let (q, v, phase) = trapezoid_step(self.q_traj, self.dq_traj, target, v_max, a_max, dt);
         self.q_traj = q;
         self.dq_traj = v;
         self.phase = phase;
-        let _ = q_measured;
-    }
-}
-
-/// Move `current` toward `target` by at most `max_step` (rad).
-#[cfg(test)]
-pub fn slew_toward(current: f64, target: f64, max_step: f64) -> f64 {
-    let err = target - current;
-    if err.abs() <= max_step {
-        target
-    } else {
-        current + max_step.copysign(err)
     }
 }
 
@@ -239,26 +190,18 @@ mod tests {
     }
 
     #[test]
-    fn planner_selects_trajectory_for_large_hold_at() {
-        let p = JointPositionPlanner::new_for_target(0.0, 1.57, 0.15);
-        assert!(p.uses_trajectory());
+    fn planner_always_uses_trapezoid_for_nontrivial_move() {
+        let p = JointPositionPlanner::new_for_target(0.0, 0.1);
+        assert_eq!(p.phase(), TrapezoidPhase::Accelerate);
     }
 
     #[test]
-    fn planner_uses_slew_for_small_hold_at() {
-        let p = JointPositionPlanner::new_for_target(0.0, 0.1, 0.15);
-        assert!(!p.uses_trajectory());
-    }
-
-    #[test]
-    fn small_slew_uses_accel_limited_reference() {
-        let mut p = JointPositionPlanner::new_for_target(0.0, 0.1, 0.15);
+    fn small_move_uses_low_v_max_in_tick() {
+        let mut p = JointPositionPlanner::new_for_target(0.0, 0.02);
         let dt = 0.005;
-        p.tick(0.1, 0.0, dt, 0.10, 0.72, 0.36);
-
+        p.tick(0.02, dt, 0.10, 0.36);
         assert!(matches!(p.phase(), TrapezoidPhase::Accelerate));
         assert!((p.dq_traj - 0.0018).abs() < 1e-9);
-        assert!((p.q_traj - 0.000009).abs() < 1e-9);
     }
 
     #[test]

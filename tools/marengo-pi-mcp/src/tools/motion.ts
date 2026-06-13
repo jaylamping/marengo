@@ -142,8 +142,33 @@ function marengoPiBinarySelector(cfg: MarengoPiConfig): string {
   ].join("\n");
 }
 
+/** Default dwell at target before hold-at 0 (Layer 2 0.1 rad gate: brief settle). */
+const DEFAULT_HOLD_DWELL_SEC = 5;
+
+/** Default wait for return to home after hold-at 0 (≤5 s motion budget + slack). */
+const DEFAULT_RETURN_HOME_SEC = 6;
+
+/** Fair Layer 2 start: dwell after hold-at 0; analyzer `--require-home-start` enforces |q|<5 mrad. */
+export const LAYER2_HOME_SETTLE_SEC = 5;
+
+export const LAYER2_HOLD_ROUND_TRIP_SCRIPT = [
+  "home",
+  "enable bench",
+  "hold-at 0",
+  `sleep ${LAYER2_HOME_SETTLE_SEC}`,
+  "hold-at 0.1",
+  "sleep 5",
+  "hold-at 0",
+  "sleep 5",
+  "status",
+  "disable",
+] as const;
+
+/** Pipe timeout for [`LAYER2_HOLD_ROUND_TRIP_SCRIPT`] (sleep sum + startup slack). */
+export const LAYER2_HOLD_ROUND_TRIP_TIMEOUT_SEC = 21;
+
 /** Default total marengo-pi pipe timeout (includes script `sleep N` lines). */
-const DEFAULT_MOTION_TIMEOUT_SEC = 15;
+const DEFAULT_MOTION_TIMEOUT_SEC = DEFAULT_HOLD_DWELL_SEC;
 
 /** SSH wrapper slack beyond pipe timeout. */
 const REMOTE_SSH_SLACK_MS = 10_000;
@@ -214,9 +239,6 @@ function marengoPiPkillLine(cfg: MarengoPiConfig): string {
   const bin = `${cfg.piRoot}/bin/marengo-pi`;
   return `pkill -f ${shellQuote(bin)} 2>/dev/null || true`;
 }
-
-/** Default dwell at target before ramping back to home (rad 0). */
-const DEFAULT_RETURN_HOME_SEC = 20;
 
 function holdSessionRemoteBody(
   cfg: MarengoPiConfig,
