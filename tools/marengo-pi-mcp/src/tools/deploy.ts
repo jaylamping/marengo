@@ -1,16 +1,23 @@
 import path from "node:path";
+import { homedir } from "node:os";
 import type { MarengoPiConfig } from "../config.js";
 import { sudoInstallCommand, sudoStagingInstallCommand } from "../config.js";
 import { shellQuote, wrapRemote } from "../env.js";
-import { execLocal, execRemote, formatRemoteResult, localExecEnv } from "../ssh.js";
+import { execLocal, execRemote, formatRemoteResult } from "../ssh.js";
 
 function localDeployCommand(cfg: MarengoPiConfig): { cmd: string; args: string[] } {
   const host = `${cfg.user}@${cfg.host}`;
   // Relative paths: execLocal sets cwd to localRoot (Windows bash mangles C:\… backslashes).
   if (process.platform === "win32") {
+    const sshDir = path
+      .join(process.env.USERPROFILE ?? homedir(), ".ssh")
+      .replace(/\\/g, "/");
     return {
       cmd: "bash",
-      args: ["./scripts/deploy-pi-docker.sh", host],
+      args: [
+        "-c",
+        `export MARENGO_SSH_DIR='${sshDir.replace(/'/g, `'\\''`)}'; exec ./scripts/deploy-pi-docker.sh '${host.replace(/'/g, `'\\''`)}'`,
+      ],
     };
   }
   return {
@@ -86,14 +93,9 @@ export async function runSyncMain(
   steps.push(`[deploy rev] ${head}`);
 
   const deploy = localDeployCommand(cfg);
-  const deployEnv = { ...localExecEnv() };
-  if (process.platform === "win32" && process.env.USERPROFILE) {
-    deployEnv.MARENGO_SSH_DIR = path.join(process.env.USERPROFILE, ".ssh");
-  }
   const deployResult = await execLocal(deploy.cmd, deploy.args, {
     cwd: cfg.localRoot,
     timeoutMs: 900_000,
-    env: deployEnv,
   });
   steps.push(
     `[${path.basename(deploy.args[0])}]\n${formatRemoteResult(deployResult)}`,
