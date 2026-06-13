@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { MarengoPiConfig } from "../config.js";
-import { sudoCanUpCommand, sudoInstallCommand } from "../config.js";
+import { sudoCanUpCommand, sudoInstallCommand, sudoStagingInstallCommand } from "../config.js";
 import { wrapRemote } from "../env.js";
 import { runSyncMain } from "./deploy.js";
 import {
@@ -46,6 +46,17 @@ export function registerAdminTools(
           profile: args.profile ?? "shoulder_pitch_right_only",
           install_to_opt: args.install_to_opt ?? true,
         });
+      },
+    },
+
+    pi_install_staging: {
+      description:
+        "Install ~/marengo staging tree into /opt/marengo via passwordless sudo (install-pi.sh). " +
+        "Run after scp/manual staging or when /opt lags ~/marengo.",
+      inputSchema: z.object({}),
+      handler: async () => {
+        const body = wrapRemote(cfg, sudoStagingInstallCommand(cfg));
+        return runRemote(body, 120_000);
       },
     },
 

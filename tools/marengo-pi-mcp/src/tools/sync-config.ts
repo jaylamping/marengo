@@ -35,7 +35,7 @@ export async function runSyncBenchConfig(
   const remoteStaging = `${cfg.piStagingRoot}/${remoteRel}`.replace(/\/+/g, "/");
   const remoteOpt = `${cfg.piRoot}/${remoteRel}`;
 
-  const rsync = await execLocal(
+  let sync = await execLocal(
     "rsync",
     [
       "-av",
@@ -45,12 +45,28 @@ export async function runSyncBenchConfig(
     { cwd: cfg.localRoot, timeoutMs: 60_000 },
   );
 
-  const steps: string[] = [
-    `[local rsync → ${remoteStaging}]`,
-    formatRemoteResult(rsync),
-  ];
+  const steps: string[] = [`[local sync → ${remoteStaging}]`];
 
-  if (rsync.exitCode !== 0) {
+  if (sync.exitCode !== 0) {
+    await runRemote(
+      wrapRemote(
+        cfg,
+        `mkdir -p ${shellQuote(`${expandStagingRoot(cfg)}/${remoteRel}`)}`,
+      ),
+      15_000,
+    );
+    steps.push("[mkdir staging]");
+    sync = await execLocal(
+      "scp",
+      ["-r", `${localDir}/.`, `${sshTarget(cfg)}:${remoteStaging}/`],
+      { cwd: cfg.localRoot, timeoutMs: 60_000 },
+    );
+    steps.push(`[local scp fallback]\n${formatRemoteResult(sync)}`);
+  } else {
+    steps.push(formatRemoteResult(sync));
+  }
+
+  if (sync.exitCode !== 0) {
     return steps.join("\n\n");
   }
 
@@ -73,11 +89,8 @@ export async function runSyncBenchConfig(
         `  ${directInstallRsyncLine}`,
         '  echo "installed to $DST (direct write)"',
         '  grep -A3 impedance "$DST/control.yaml"',
-        'elif sudo -n true 2>/dev/null; then',
-        '  sudo mkdir -p "$DST"',
-        '  sudo rsync -a "$SRC/" "$DST/"',
-        '  echo "installed to $DST"',
-        '  sudo grep -A3 impedance "$DST/control.yaml"',
+        'elif sudo -n /opt/marengo/scripts/can-up.sh can0 can1 2>/dev/null; then',
+        '  echo "warn: $DST not writable; run pi_install_staging to refresh /opt from ~/marengo"',
         "else",
         '  echo "warn: cannot write $DST and passwordless sudo is unavailable"',
         '  echo "run once on the Pi:"',

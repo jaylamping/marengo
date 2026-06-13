@@ -69,6 +69,19 @@ export function sudoInstallCommand(
   return `sudo -n ${scriptRoot}/scripts/install-pi.sh`;
 }
 
+/** Staging tree on Pi (~/marengo → /home/joey/marengo). */
+export function piStagingAbs(cfg: MarengoPiConfig): string {
+  if (cfg.piStagingRoot.startsWith("~/")) {
+    return `/home/${cfg.user}${cfg.piStagingRoot.slice(1)}`;
+  }
+  return cfg.piStagingRoot;
+}
+
+/** Install from deploy staging into /opt/marengo (passwordless sudo). */
+export function sudoStagingInstallCommand(cfg: MarengoPiConfig): string {
+  return sudoInstallCommand(cfg, piStagingAbs(cfg));
+}
+
 export function auditLogPath(): string {
   return path.join(homedir(), ".marengo-pi-mcp", "audit.log");
 }

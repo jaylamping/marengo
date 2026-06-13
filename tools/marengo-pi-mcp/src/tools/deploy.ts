@@ -1,6 +1,6 @@
 import path from "node:path";
 import type { MarengoPiConfig } from "../config.js";
-import { sudoInstallCommand } from "../config.js";
+import { sudoInstallCommand, sudoStagingInstallCommand } from "../config.js";
 import { shellQuote, wrapRemote } from "../env.js";
 import { execLocal, execRemote, formatRemoteResult } from "../ssh.js";
 
@@ -74,17 +74,22 @@ export async function runSyncMain(
   steps.push(`[deploy-pi.sh --install]\n${formatRemoteResult(deploy)}`);
   if (deploy.exitCode !== 0) return steps.join("\n\n");
 
+  const installBody = wrapRemote(cfg, sudoStagingInstallCommand(cfg));
+  const installOpt = await execRemote(cfg, installBody, { timeoutMs: 120_000 });
+  steps.push(`[install-pi.sh staging → /opt]\n${formatRemoteResult(installOpt)}`);
+  if (installOpt.exitCode !== 0) return steps.join("\n\n");
+
   const staging = cfg.piStagingRoot.replace(/^~/, `/home/${cfg.user}`);
-  const installBody = [
+  const verifyBody = [
     "set -euo pipefail",
     `cd ${shellQuote(staging)}`,
     "if pgrep -af marengo-pi >/dev/null 2>&1; then echo 'warning: marengo-pi running' >&2; fi",
     "test -x /opt/marengo/bin/marengo-pi && /opt/marengo/bin/marengo-pi 2>&1 | head -1 || true",
-    "echo 'install verified via deploy-pi.sh --install'",
+    "echo 'install verified'",
   ].join("\n");
-  const install = await execRemote(cfg, installBody, { timeoutMs: 120_000 });
-  steps.push(`[verify install]\n${formatRemoteResult(install)}`);
-  if (install.exitCode !== 0) return steps.join("\n\n");
+  const verify = await execRemote(cfg, verifyBody, { timeoutMs: 120_000 });
+  steps.push(`[verify install]\n${formatRemoteResult(verify)}`);
+  if (verify.exitCode !== 0) return steps.join("\n\n");
 
   await writeDeployRev(cfg, runRemote, steps, head);
 

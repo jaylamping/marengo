@@ -24,20 +24,21 @@ If mDNS fails, set `MARENGO_PI_HOST` to the Pi IP in `mcp.json`.
 
 ```sudoers
 # Marengo MCP — passwordless sudo for bench scripts only (visudo -f /etc/sudoers.d/marengo-joey)
-joey ALL=(ALL) NOPASSWD: /opt/marengo/scripts/can-up.sh *
-joey ALL=(ALL) NOPASSWD: /opt/marengo/scripts/install-pi.sh
-# If you use deploy-pi.sh staging under ~/marengo:
-# joey ALL=(ALL) NOPASSWD: /home/joey/marengo/scripts/install-pi.sh
+joey ALL=(root) NOPASSWD: /opt/marengo/scripts/can-up.sh *
+joey ALL=(root) NOPASSWD: /opt/marengo/scripts/install-pi.sh
+joey ALL=(root) NOPASSWD: /home/joey/marengo/scripts/install-pi.sh
 ```
+
+Installed automatically by `scripts/install-pi.sh`. **Not** full passwordless sudo — only these paths.
 
 Verify:
 
 ```bash
 sudo -n /opt/marengo/scripts/can-up.sh can0 can1
-sudo -n /opt/marengo/scripts/install-pi.sh
+sudo -n /home/joey/marengo/scripts/install-pi.sh   # staging → /opt (use this after deploy)
 ```
 
-Do **not** prefix `MARENGO_INSTALL_ROOT=` on the install command — default is `/opt/marengo` and sudoers blocks arbitrary env vars.
+`sudo -n true` will fail by design. After editing files under `~/marengo`, run **`pi_install_staging`** (MCP) or the staging install command above — **not** `/opt/marengo/scripts/install-pi.sh` alone (that re-copies stale `/opt` content).
 
 ### Build MCP server
 

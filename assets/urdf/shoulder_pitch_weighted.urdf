@@ -1,8 +1,7 @@
 <?xml version="1.0"?>
 <!-- Weighted bench URDF: asymmetric load for gravity sign validation.
-     Geometry matches shoulder_pitch_*_bare.urdf (75 g dowel, COM 200 mm below joint).
-     Left: bare dowel only. Right: dowel + fixture — update mass after scale measurement
-     (scripts/bench-set-weighted-mass.sh <kg> right|left). -->
+     Left: bare dowel only (83 g, COM 200 mm). Right: dowel + mallet fixture (measured).
+     Update mass via scripts/bench-set-weighted-mass.sh <kg> right|left; adjust COM if lever arm changes. -->
 <robot name="shoulder_pitch_weighted">
   <link name="base_link">
     <inertial>
@@ -19,9 +18,9 @@
   </link>
   <link name="right_upper_arm_stub">
     <inertial>
-      <!-- PLACEHOLDER: re-weigh right-side fixture (dowel + plate) before weighted bench -->
-      <mass value="0.583"/>
-      <origin xyz="0 0 -0.200025" rpy="0 0 0"/>
+      <!-- 2026-06-11: 0.70 kg total (dowel + rubber mallet at tip); COM ≈ 18 in from joint -->
+      <mass value="0.7"/>
+      <origin xyz="0 0 -0.4572" rpy="0 0 0"/>
       <inertia ixx="0.001" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.0001"/>
     </inertial>
   </link>

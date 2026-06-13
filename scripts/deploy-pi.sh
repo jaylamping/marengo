@@ -180,12 +180,11 @@ rsync -av --delete \
 
 if [[ "$DO_INSTALL" == true ]]; then
   log_step "install-pi.sh on ${PI_HOST}"
-  if ssh "$PI_HOST" "sudo -n true" 2>/dev/null; then
-    ssh "$PI_HOST" "set -euo pipefail; sudo ${REMOTE_ROOT}/scripts/install-pi.sh"
+  # Narrow sudoers allow specific scripts only — not `sudo -n true`.
+  if ssh "$PI_HOST" "set -euo pipefail; sudo -n ${REMOTE_ROOT}/scripts/install-pi.sh"; then
     ssh "$PI_HOST" "echo \$(git -C /opt/marengo rev-parse HEAD 2>/dev/null || echo unknown) \$(date -u +%Y-%m-%dT%H:%M:%SZ) > ${REMOTE_ROOT}/.deploy-rev && cat ${REMOTE_ROOT}/.deploy-rev" || true
   else
-    log_warn "passwordless sudo not available on Pi"
-    echo "  sudo ${REMOTE_ROOT}/scripts/install-pi.sh"
+    log_warn "passwordless sudo install failed (run once on Pi: sudo ${REMOTE_ROOT}/scripts/install-pi.sh)"
   fi
 else
   echo "On the Pi: sudo ${REMOTE_ROOT}/scripts/install-pi.sh"
