@@ -106,7 +106,12 @@ compose_ssh_setup() {
   fi
   chmod 600 "$COMPOSE_SSH_DIR"/* 2>/dev/null || true
   chmod 644 "$COMPOSE_SSH_DIR"/*.pub 2>/dev/null || true
-  for k in id_ed25519 id_rsa; do
+  if [[ -f "${COMPOSE_SSH_DIR}/config" ]]; then
+    sed "s|~/.ssh|${COMPOSE_SSH_DIR}|g; s|\${HOME}/.ssh|${COMPOSE_SSH_DIR}|g" \
+      "${COMPOSE_SSH_DIR}/config" > "${COMPOSE_SSH_DIR}/config.deploy"
+    mv "${COMPOSE_SSH_DIR}/config.deploy" "${COMPOSE_SSH_DIR}/config"
+  fi
+  for k in id_ed25519 id_rsa id_ed25519_marengo; do
     if [[ -f "${COMPOSE_SSH_DIR}/${k}" ]]; then
       COMPOSE_SSH_IDENTITY="${COMPOSE_SSH_DIR}/${k}"
       break
@@ -121,7 +126,9 @@ compose_ssh_opts() {
   compose_ssh_setup
   local -n _out=$1
   _out=(-o BatchMode=yes -o StrictHostKeyChecking=accept-new)
-  if [[ -n "$COMPOSE_SSH_IDENTITY" ]]; then
+  if [[ -f "${COMPOSE_SSH_DIR}/config" ]]; then
+    _out+=(-F "${COMPOSE_SSH_DIR}/config")
+  elif [[ -n "$COMPOSE_SSH_IDENTITY" ]]; then
     _out+=(-o IdentitiesOnly=yes -i "$COMPOSE_SSH_IDENTITY")
   fi
   if [[ -n "$COMPOSE_SSH_KNOWN" ]]; then
