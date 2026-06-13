@@ -1,7 +1,41 @@
 # ADR 0007: Bench position trajectory control
 
-**Status:** Proposed  
+**Status:** Proposed (interim hold-at fix landed — see [Update 2026-06-13](#update-2026-06-13-hold-at-plannermit-split))  
 **Date:** 2026-05-26
+
+## Update 2026-06-13: hold-at planner/MIT split
+
+Commit `f1d2be6` implements an **interim** joint-impedance fix in Berthier for large `hold-at` retargets (e.g. weighted right shoulder 0→90°). It does **not** replace the trapezoidal trajectory layer proposed below, but removes the worst failure modes (slew freeze, distant-target friction shove, absent ramp damping).
+
+### Industry pattern (reference)
+
+Manipulator hold/ramp control (MIT [Manipulator Control](http://manipulation.csail.mit.edu/force.html), KUKA iiwa joint impedance, Atlas ID stack) separates:
+
+1. **Planner** — rate-limited reference `q_ref(t)` toward the goal; state accumulates even when measured `q` lags.
+2. **Controller** — bounded MIT setpoint `q_des` within `max_lead` of measured `q`.
+3. **Gravity FF** — `τ_g` at **measured** `q`, not the distant latch target.
+4. **Friction / damping FF** — keyed off **tracking error** (`q_des − q` or `q_ref − q`), not error to the final target.
+
+### What broke on the bench (weighted 0→1.57 rad)
+
+| Symptom | Cause |
+|---------|--------|
+| Velocity trip ~24–34° | `fc=0.5` applied to full target error (1.57 rad) → constant assist shove; measured motion exceeded Davout cap |
+| Arm stuck at q≈0 after config-only fix | `max_lead` clamp applied to **stored** slew state → trajectory froze when arm lagged |
+| Weak / no breakaway | `fc=0` removed assist; frozen slew could not advance `q_des` |
+
+### Berthier change (`f1d2be6`)
+
+| Layer | Before | After |
+|-------|--------|-------|
+| Slew state | Clamped each tick in storage | **Trajectory accumulates** at `position_slew_rad_s` |
+| MIT `q_des` | Same as stored command | **Per-tick** `clamp(q_traj, q, target, max_lead)` |
+| Friction FF | `target − q` | **`q_des − q`** (bounded lead) |
+| Damping scale | `target − q` | **`q_traj − q` while ramping**; settle error near goal |
+
+Documented in [rust-patterns.md](../rust-patterns.md) §7 (joint space / hold-at). Right weighted bench tuning: `shoulder_pitch_right_only` — `position_slew_rad_s=0.08`, `max_lead=0.03`, velocity limits 2.0 rad/s, `fc=0.5` restored.
+
+Large scripted sweeps in this ADR still require explicit trajectory velocity/acceleration planning; single-joint `hold-at` to 90° is retestable with the interim fix.
 
 ## Context
 

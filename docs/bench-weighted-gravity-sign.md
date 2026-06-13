@@ -84,6 +84,18 @@ Update left mass in URDF if left carries extra fixture:
 
 Mark the 2026-05-24 entry in [bench-test-backlog.md](bench-test-backlog.md) `done` with log path and result summary.
 
+## Step 7 — Weighted position hold (optional, after gravity sign passes)
+
+After Phase D gravity sign is confirmed, validate **position hold** (not just `gravity-on` backdrive) with the loaded fixture:
+
+- Config: `shoulder_pitch_right_only` (weighted URDF, tuned slew/velocity — see [ADR 0007](decisions/0007-bench-position-trajectory-control.md#update-2026-06-13-hold-at-plannermit-split))
+- Small move smoke: `hold-at 0.35` (~20°) — expect stable hold, `fault=0x0000`
+- Full lift: single `hold-at 1.570796` (~90°) — requires Berthier planner/MIT split (`f1d2be6`+); ~20 s ramp at 0.08 rad/s; hands off; weighted motion confirm
+
+Via MCP: `pi_hold_on` with `profile: weighted_single_arm`, `config_dir: shoulder_pitch_right_only`, `confirm` + `confirm_weighted_motion`.
+
+**Pass:** arm reaches target without Davout velocity trip, holds with τ_g ~3 Nm at 90°, clean disable.
+
 ## Troubleshooting
 
 | Symptom | Action |
