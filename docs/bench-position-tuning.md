@@ -2,7 +2,92 @@
 
 Weighted shoulder pitch `hold-at` is **not** eighteen independent knobs. It is four layers tuned **in order**, with CSV trace analysis between each step.
 
-## Telemetry (already on every `pi_hold_on` / harness run)
+## Session handoff (2026-06-13)
+
+Copy this block into a new chat to resume Layer 2 bring-up.
+
+### Goal
+
+**Layer 2 gate:** weighted right shoulder pitch **`hold-at 0.1 rad`** from arm-down, return home. **All** must pass:
+
+| Criterion | Target |
+|-----------|--------|
+| Operator | Smooth — no stair-step jerk or stick-slip |
+| Fault | `fault=0` |
+| `lead_sat` | < 10% |
+| `jerk_rms` | < 800 rad/s² (both segments) |
+| `tau_ff` peak slew | < 2× `tau_ff_rate_limit_nm_per_s` |
+| `tau_f` sign flips | ≤ 2 on approach |
+
+Analyzer: `python scripts/analyze-position-trace.py <trace.csv> --gate layer2 --tau-ff-rate-limit 60`
+
+Operator smoothness is **required** even if analyzer passes.
+
+### Environment
+
+| Item | Value |
+|------|-------|
+| Pi | `joey@joey-robot.tail0b414.ts.net` |
+| Config | `shoulder_pitch_right_only` |
+| Motor | `can0/id2` (`right_shoulder_pitch`) |
+| Deploy rev | `05b8bf6` (friction fade `POSITION_HOLD_FRICTION_FADE_RAD` 0.005 → 0.02 in `berthier::friction`) |
+| Profile | `weighted_single_arm` via `pi_hold_on` |
+
+### Testing done (2026-06-13)
+
+Systematic one-knob-at-a-time tuning after repeated operator **FAIL — still very jerky**:
+
+| Session / change | Approach jerk | Return | lead_sat | Notes |
+|------------------|---------------|--------|----------|-------|
+| `130424Z` baseline kp=12, fc=0.5, slew=0.20, τ_ff limit 20 | 1587 | 1034 | 0% | FF clipped 210 Nm/s |
+| `130736Z` τ_ff limit 20→60 | 1207 | 1664 | 0% | Still jerky |
+| `130849Z` fc 0.5→0.35 | 1358 | 1429 | 0% | Return −26 mrad |
+| `130930Z` kd 2→1 | 1086 | 1379 | 0% | Return −5 mrad (best home so far) |
+| `131043Z` slew 0.20→0.10 | 1585 | 1144 | 0% | 6 τ_f flips on approach |
+| `131118Z` **fc=0 diagnostic** | 1665 | 1728 | **82% return** | Jerk not friction-only; return never home |
+| `131200Z` kp 12→8 | ~650* | −24 mrad | transient | *Unfair start ~0.09 rad |
+| `131510Z` post-deploy 05b8bf6 | 1736 | 85% lead_sat | stuck −102 mrad | Arm not at arm-down |
+| `131808Z` **max_lead 0.05→0.10** | 1627* | 976 | **0%** | *Started already at 0.105 — bogus approach |
+| **`131850Z`** fair run 0.032→0.1→0 | **1318** | **1047** | **0% both** | Return ends **−28 mrad**; fault=0; τ_ff slew OK |
+
+**Current config on Pi** (after `131850Z`):
+
+| Knob | Value |
+|------|-------|
+| Impedance | `kp=8`, `kd=1` |
+| Slew / lead | `0.10` / **`0.10`** |
+| Friction | `fc=0.35` |
+| FF rate limit | `60` Nm/s |
+| Large move (≥ 0.15 rad) | `v=0.72`, `a=0.36` (unused at 0.1 rad gate) |
+
+### Findings
+
+1. **YAML-only tuning stalled** on jerk gate (~1000–1700 vs 800 target).
+2. **`max_lead=0.10`** fixed return `lead_sat` (was 82–85% at 0.05); home still **~28–31 mrad short** every run.
+3. **Friction** contributes jerk (`tau_f` → ±0.35 on return) but **`fc=0`** proved jerk is not friction-only and breaks gravity return.
+4. **Fair Layer 2** needs clean **arm-down start (~0 rad)**; several runs started already elevated.
+5. **Code deployed:** wider friction fade (0.02 rad); still not enough for Layer 2 PASS.
+
+### Next steps
+
+1. **Operator feel** on `131850Z` — smooth / stair-step / still very jerky?
+2. **Clean baseline:** arm at mechanical down (~0 rad), then full 0→0.1→0 gate run.
+3. **Code fixes** (likely required for PASS):
+   - Velocity-based Coulomb during slew (`|dq_traj| > 0`) instead of error-based breakaway
+   - Slew accel/decel (trapezoid on small moves, not bang-on `dq_traj`)
+   - Faster return slew or higher `max_lead` if ~30 mrad home offset persists
+4. After Layer 2 PASS → distance steps **0.3 → 0.8 → 1.57 rad** (use `return_home_sec: 20` for 90°).
+
+### Latest artifacts (Pi)
+
+| Session | Trace | Candump |
+|---------|-------|---------|
+| `131850Z` (best fair run) | `position-trace-20260613T131850Z.csv` | `candump-20260613T131850Z.log` |
+| Symlinks | `position-trace-latest.csv`, `candump-latest.log` | |
+
+Path: `/opt/marengo/var/log/`
+
+---
 
 Each bench motion sets `MARENGO_POSITION_TRACE` automatically (see `tools/marengo-pi-mcp` `benchLogWrapper`):
 
@@ -45,6 +130,29 @@ Timestamped `bench-*.log` and `position-trace-*.csv` per session; symlinks `benc
 
 Check usage: `pi_logs_list` (includes total `du -sh`). After motion: **`pi_candump_summary`** for wire frame rate.
 
+### MCP read-only access (no motion)
+
+| Tool | Use |
+|------|-----|
+| `pi_logs_list` | Recent logs/traces + disk usage |
+| `pi_logs_tail` / `pi_logs_grep` | Search bench/journal output |
+| `pi_logs_last_fault` | Last motor fault |
+| `pi_journal` | systemd / marengo-pi journal |
+| `pi_candump_summary` | Frame rate on latest candump |
+| `pi_candump_once` | Live CAN snapshot |
+| `pi_read_file` | Pull trace/log from Pi |
+| `pi_health` | Deploy rev, binaries, CAN up |
+| `pi_motor_repl_status` | Motor state without motion |
+| `pi_gravity_preview` | Static gravity comp check (Layer 1) |
+
+### Supplementary (not every hold run)
+
+| Source | Rate | Notes |
+|--------|------|-------|
+| Chappe `RobotState` | 50 Hz | IPC fanout when marengo-pi runs |
+| IMU (`torso_imu`) | 50 Hz | i2c publisher thread in marengo-pi |
+| `motor-repl` | interactive | Layer 1 gravity sign / static checks |
+
 Local analysis:
 ```bash
 python scripts/analyze-candump-log.py candump-latest.log
@@ -74,7 +182,8 @@ The script splits on **target changes** (approach vs return) and reports:
 | Column | Meaning |
 |--------|---------|
 | `q`, `dq` | Measured joint state |
-| `q_traj`, `dq_traj` | Internal planner reference |
+| `dq_traj` | Planner reference velocity |
+| `q_traj` | Internal planner position (**1 Hz text log only** — not in CSV header today) |
 | `q_des`, `lead`, `lead_sat` | MIT setpoint and clamp |
 | `tracking_error` | `q_traj − q` |
 | `settle_error` | `target − q` |
@@ -117,13 +226,15 @@ Use **`hold-at 0.1`** from arm-down (not full π rad):
 | `tau_ff` peak slew | < 2× `tau_ff_rate_limit_nm_per_s` (else Davout clips → torque stairs) |
 | `tau_f` sign flips | ≤ 2 on approach |
 
-Impedance baseline: `kp=8`, `kd=1`, `slew=0.10`, `max_lead=0.05`, `fc=0.35`, `tau_ff_rate_limit=60`.
+Impedance baseline: `kp=8`, `kd=1`, `slew=0.10`, `max_lead=0.10`, `fc=0.35`, `tau_ff_rate_limit=60`.
 
 Moves below `position_trajectory_threshold_rad` (0.15) use **slew** only; large-move `v`/`a` do not apply.
 
 Only after PASS → increase distance (0.3 → 0.8 → 1.57 rad).
 
 **Analyzer gate:** `python scripts/analyze-position-trace.py <trace.csv> --gate layer2 --tau-ff-rate-limit 60` — checks numeric rows above; operator smoothness still required for final PASS.
+
+Per-segment metrics emitted: overshoot, settle error, `lead_sat` fraction, tracking RMS, velocity lag RMS, `tau_f` sign flips, `tau_ff` peak slew, `dq_traj` stutter events, jerk RMS on `q`, phase counts, Layer 2 pass/fail breakdown. Use `--json` for diffing runs.
 
 **Gate FAIL (2026-06-13):** `bench-20260613T130424Z` — operator: **jerky / not smooth** despite `lead_sat=0%`.
 
@@ -191,7 +302,18 @@ Proves breakaway friction contributes jerk, but removing it breaks gravity retur
 2. Raise `max_lead` or allow faster gravity-assisted return slew.
 3. Trapezoid accel/decel on small-move slew (not bang-on `dq_traj`).
 
-**Next bench action:** friction fade **0.005 → 0.02 rad** in `berthier::friction` (coded, pending `pi_sync_main` — repo dirty).
+**Next bench action:** friction fade **0.005 → 0.02 rad** deployed in `05b8bf6`. **`max_lead` 0.05 → 0.10** synced on Pi — fixes return `lead_sat`; home offset ~28 mrad persists. Layer 2 still FAIL on jerk; see **Session handoff** at top.
+
+**Gate FAIL (2026-06-13):** `bench-20260613T131850Z` — fair run from q≈0.032; `max_lead=0.10`.
+
+| Segment | lead_sat | jerk_rms | tau_ff slew peak | settle_err | Issue |
+|---------|----------|----------|------------------|------------|-------|
+| → 0.1 rad | 0% | **1318** | 45 Nm/s ✓ | −7 mrad | jerk >>800; τ_f flips=2 |
+| → 0 rad | 0% | **1047** | 55 Nm/s ✓ | **−28 mrad** | no lead_sat; still short of home |
+
+**Gate FAIL (2026-06-13):** `bench-20260613T131808Z` — `max_lead=0.10`; arm already at 0.105 (not arm-down). Approach segment not comparable.
+
+**Gate FAIL (2026-06-13):** `bench-20260613T131510Z` — post-deploy `05b8bf6`; return lead_sat 85%, −102 mrad.
 
 ### Layer 3 — Trajectory (planner)
 
@@ -247,25 +369,26 @@ Raising **v, kp, and fc together** guarantees fighting:
 
 ## Current config (`shoulder_pitch_right_only`)
 
-Synced on Pi after Layer 2 recovery (2026-06-13):
+Synced on Pi after Layer 2 trials (2026-06-13):
 
 | Layer | Values |
 |-------|--------|
-| Impedance | `kp=12`, `kd=2` |
-| Slew / lead | `0.20` / `0.05` |
+| Impedance | `kp=8`, `kd=1` |
+| Slew / lead | `0.10` / **`0.10`** |
 | Trajectory (≥ 0.15 rad) | **`v=0.72`**, **`a=0.36`** |
-| Friction | `fc=0.5` |
-| FF rate limit | **`60`** Nm/s (was 20 — caused clipping/jerk on gate attempt) |
+| Friction | `fc=0.35` |
+| FF rate limit | **`60`** Nm/s |
+| Code | friction fade **`0.02` rad** (`05b8bf6`) |
 
-Large-move speed is **pre-set** for fast approach and return; impedance/friction were reverted after failed `kp=18` trials. Do not raise `kp` or `fc` while stepping distance.
+Large-move speed is pre-set for fast approach and return; **0.1 rad gate uses slew only** (below 0.15 rad threshold). Do not raise `kp` or `fc` while stepping distance.
 
 ## Recommended next bench session
 
-Layer 2 **FAIL** — retry gate before distance steps:
+Layer 2 **FAIL** — see **Session handoff** at top. Before distance steps:
 
-1. Config: `tau_ff_rate_limit=60` synced (`pi_sync_bench_config`)
-2. Weighted `hold-at 0.1` → return; operator + analyzer must pass **all** Layer 2 criteria
-3. If still jerky with slew OK: next single knob is **`fc` down** (0.5 → 0.35) or **`kd` down** (2 → 1) — not both
+1. Arm at mechanical down (~0 rad) for fair 0→0.1→0 gate
+2. Weighted `hold-at 0.1` → return; operator + `--gate layer2` analyzer
+3. If still jerky: **code** changes (velocity Coulomb, slew accel/decel) — YAML-only likely exhausted
 4. After Layer 2 PASS → distance steps: 0.3 → 0.8 → 1.57 rad
 5. Full 90°: use **`return_home_sec: 20`**
 
