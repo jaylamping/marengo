@@ -27,6 +27,17 @@ impl PositionFrictionMode {
     }
 }
 
+/// Measured velocity ahead of commanded trajectory (same direction).
+fn trajectory_overspeed_rad_s(dq: f64, dq_traj: f64) -> f64 {
+    if dq_traj > POSITION_HOLD_ERROR_DEADBAND_RAD {
+        (dq - dq_traj).max(0.0)
+    } else if dq_traj < -POSITION_HOLD_ERROR_DEADBAND_RAD {
+        (dq_traj - dq).max(0.0)
+    } else {
+        0.0
+    }
+}
+
 /// Two-rule position-hold friction (ADR 0007): trajectory velocity or settle fade.
 pub fn position_hold_friction(
     dq: f64,
@@ -44,11 +55,14 @@ pub fn position_hold_friction(
         // torque is not gated on dq_traj crossing the velocity deadband.
         let stuck = dq.abs() <= velocity_deadband * POSITION_STUCK_EXIT_VELOCITY_RATIO;
         let in_onset = retarget_age_ms <= POSITION_HOLD_ONSET_MS;
-        let scale = if !stuck || in_onset {
+        let mut scale = if !stuck || in_onset {
             1.0
         } else {
             (dq_traj.abs() / velocity_deadband).clamp(0.0, 1.0)
         };
+        if trajectory_overspeed_rad_s(dq, dq_traj) > velocity_deadband {
+            scale = 0.0;
+        }
         let tau = gains.fc * dq_traj.signum() * scale + gains.fv * dq + gains.fo;
         return (PositionFrictionMode::TrajectoryVelocity, tau);
     }
@@ -156,6 +170,14 @@ mod tests {
         let (mode, tau) = position_hold_friction(0.08, 0.10, 0.50, 0.02, 0.10, 500, &gains);
         assert_eq!(mode, PositionFrictionMode::TrajectoryVelocity);
         assert!((tau - 0.25).abs() < 1e-6);
+    }
+
+    #[test]
+    fn trajectory_friction_zeros_when_measured_outruns_planner() {
+        let gains = test_gains();
+        let (mode, tau) = position_hold_friction(1.50, 0.02, 0.50, 0.02, 0.10, 50, &gains);
+        assert_eq!(mode, PositionFrictionMode::TrajectoryVelocity);
+        assert!(tau.abs() < 1e-6);
     }
 
     #[test]

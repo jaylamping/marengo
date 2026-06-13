@@ -455,6 +455,7 @@ impl<B: MotorBus> ControlLoop<B> {
                                 retarget_age_ms,
                                 approaching_target,
                                 settle_error,
+                                q[i],
                             );
                             let mut breakaway = self
                                 .position_descent_breakaway
@@ -754,6 +755,7 @@ impl<B: MotorBus> ControlLoop<B> {
                 .unwrap_or(false);
             let freeze = planner_should_freeze_on_descent(
                 was_frozen,
+                targets[i],
                 to_target,
                 lag,
                 planners[i].dq_traj,
@@ -859,16 +861,19 @@ fn descent_breakaway_confirmed(to_target: f64, dq_filtered: f64, velocity_deadba
         && dq_filtered <= -velocity_deadband * POSITION_STUCK_EXIT_VELOCITY_RATIO
 }
 
-/// Outbound-only `max_lead` boost for the post-retarget onset window.
+/// Outbound-only `max_lead` boost for breakaway from home during the post-retarget onset window.
 fn position_hold_effective_max_lead(
     max_lead: f64,
     retarget_age_ms: u64,
     approaching_target: bool,
     settle_error: f64,
+    q: f64,
 ) -> f64 {
+    let breakaway_from_home = q.abs() <= POSITION_RETURN_DESCENT_SEED_RAD;
     if retarget_age_ms <= POSITION_HOLD_ONSET_MS
         && approaching_target
         && settle_error.abs() > POSITION_RETURN_DESCENT_SEED_RAD
+        && breakaway_from_home
     {
         max_lead.max(POSITION_HOLD_ONSET_MAX_LEAD_RAD)
     } else {
@@ -911,9 +916,10 @@ fn descent_stuck_mit_pull(
         && dq_filtered.abs() < velocity_deadband
 }
 
-/// Freeze planner while arm lags on descent; hysteresis exit on filtered downward motion.
+/// Freeze planner while arm lags on return-to-home descent; hysteresis exit on filtered downward motion.
 fn planner_should_freeze_on_descent(
     was_frozen: bool,
+    target: f64,
     to_target: f64,
     lag: f64,
     dq_traj: f64,
@@ -921,8 +927,16 @@ fn planner_should_freeze_on_descent(
     velocity_deadband: f64,
     max_lead: f64,
 ) -> bool {
+    // Return-to-home only — overshoot past intermediate hold targets has the same
+    // `(to_target < 0, lag > 0)` signature but must not freeze the planner.
+    if target.abs() > POSITION_SETTLE_TOLERANCE_RAD {
+        return false;
+    }
+    if was_frozen && lag.abs() < POSITION_RETURN_RESYNC_RAD {
+        return false;
+    }
     let lagging = to_target < -POSITION_HOLD_ERROR_DEADBAND_RAD
-        && lag > POSITION_HOLD_ERROR_DEADBAND_RAD
+        && lag > POSITION_RETURN_RESYNC_RAD
         && lag < max_lead
         && dq_traj < -POSITION_HOLD_ERROR_DEADBAND_RAD;
     if !lagging {
@@ -958,9 +972,10 @@ fn clamp_trajectory_setpoint(q_traj: f64, q: f64, target: f64, max_lead: f64) ->
         };
 
     if to_target.abs() > TOL {
-        if to_target > 0.0 && q > q_traj && (q - q_traj) < max_lead {
+        // Only suppress MIT pull-back for a small lead band — not the full `max_lead` window.
+        if to_target > 0.0 && q > q_traj && (q - q_traj) < POSITION_RETURN_RESYNC_RAD {
             q_des = q_des.max(q);
-        } else if to_target < 0.0 && q < q_traj && (q_traj - q) < max_lead {
+        } else if to_target < 0.0 && q < q_traj && (q_traj - q) < POSITION_RETURN_RESYNC_RAD {
             q_des = q_des.min(q);
         }
     }
@@ -981,6 +996,16 @@ fn planner_drifted_from_measurement(
     target: f64,
     max_lead: f64,
 ) -> bool {
+    let to_target = target - q;
+    if to_target.abs() > POSITION_SETTLE_TOLERANCE_RAD {
+        // Arm outran planner — clamp/brake; snapping `q_traj` forward causes runaway overshoot.
+        if to_target > 0.0 && q > planner.q_traj + max_lead {
+            return false;
+        }
+        if to_target < 0.0 && q < planner.q_traj - max_lead {
+            return false;
+        }
+    }
     if (q - planner.q_traj).abs() > max_lead && (target - q).abs() > POSITION_SETTLE_TOLERANCE_RAD {
         return true;
     }
@@ -1142,6 +1167,16 @@ mod tests {
     }
 
     #[test]
+    fn clamp_brakes_when_arm_runs_far_ahead_of_planner() {
+        let q_des = clamp_trajectory_setpoint(1.32, 1.36, 1.57, 0.10);
+        assert!(
+            q_des < 1.36,
+            "must not command q_des at measured q when lead > resync band"
+        );
+        assert!((q_des - 1.32).abs() < 1e-12);
+    }
+
+    #[test]
     fn clamp_caps_ahead_setpoint_at_target_on_approach() {
         let q_des = clamp_trajectory_setpoint(0.091, 0.105, 0.1, 0.10);
         assert!((q_des - 0.1).abs() < 1e-12);
@@ -1151,6 +1186,13 @@ mod tests {
     fn planner_drifted_when_hold_latched_but_arm_not_settled() {
         let planner = JointPositionPlanner::new_at(0.0);
         assert!(planner_drifted_from_measurement(&planner, 0.087, 0.0, 0.10));
+    }
+
+    #[test]
+    fn planner_not_drifted_when_arm_runs_ahead_on_approach() {
+        let mut planner = JointPositionPlanner::new_for_target(0.88, 1.57);
+        planner.q_traj = 0.88;
+        assert!(!planner_drifted_from_measurement(&planner, 1.02, 1.57, 0.10));
     }
 
     #[test]
@@ -1183,11 +1225,13 @@ mod tests {
 
     #[test]
     fn onset_max_lead_boosts_outbound_only() {
-        let boosted = position_hold_effective_max_lead(0.10, 0, true, 1.57);
+        let boosted = position_hold_effective_max_lead(0.10, 0, true, 1.57, 0.0);
         assert!((boosted - 0.15).abs() < 1e-12);
-        let home = position_hold_effective_max_lead(0.10, 0, false, -1.57);
+        let mid_span = position_hold_effective_max_lead(0.10, 0, true, 0.69, 0.878);
+        assert!((mid_span - 0.10).abs() < 1e-12);
+        let home = position_hold_effective_max_lead(0.10, 0, false, -1.57, 1.5);
         assert!((home - 0.10).abs() < 1e-12);
-        let small = position_hold_effective_max_lead(0.10, 0, true, 0.02);
+        let small = position_hold_effective_max_lead(0.10, 0, true, 0.02, 0.0);
         assert!((small - 0.10).abs() < 1e-12);
     }
 
@@ -1206,13 +1250,29 @@ mod tests {
     fn planner_freeze_hysteresis_ignores_dq_noise_while_frozen() {
         let deadband = 0.02;
         assert!(planner_should_freeze_on_descent(
-            false, -0.08, 0.03, -0.10, 0.0, deadband, 0.10
+            false, 0.0, -0.08, 0.04, -0.10, 0.0, deadband, 0.10
         ));
         assert!(planner_should_freeze_on_descent(
-            true, -0.08, 0.03, -0.10, -0.024, deadband, 0.10
+            true, 0.0, -0.08, 0.04, -0.10, -0.024, deadband, 0.10
         ));
         assert!(!planner_should_freeze_on_descent(
-            true, -0.08, 0.03, -0.10, -0.026, deadband, 0.10
+            true, 0.0, -0.08, 0.04, -0.10, -0.026, deadband, 0.10
+        ));
+    }
+
+    #[test]
+    fn planner_freeze_skips_intermediate_overshoot_and_synced_return() {
+        let deadband = 0.02;
+        // Overshoot past 0.8 rad hold — same lag signature, must not freeze.
+        assert!(!planner_should_freeze_on_descent(
+            false, 0.8, -0.078, 0.059, -0.062, 0.0, deadband, 0.10
+        ));
+        // Return nearly synced (~10 mrad lead) — must not latch forever at rest.
+        assert!(!planner_should_freeze_on_descent(
+            false, 0.0, -1.508, 0.010, -0.180, 0.0, deadband, 0.10
+        ));
+        assert!(!planner_should_freeze_on_descent(
+            true, 0.0, -1.508, 0.010, -0.180, 0.0, deadband, 0.10
         ));
     }
 
