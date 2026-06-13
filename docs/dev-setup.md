@@ -44,7 +44,9 @@ git lfs install && git lfs pull
 # or: just deploy-pi
 
 # Windows (no native aarch64 GCC): deploy via dev container (cached volumes + live logs)
-./scripts/deploy-pi-docker.sh joey@marengo.local
+# Set MARENGO_PI_HOST to a resolvable name (Tailscale / IP) — marengo.local mDNS fails inside Docker.
+export MARENGO_PI_HOST=joey-robot.tail0b414.ts.net   # example
+./scripts/deploy-pi-docker.sh
 # or: just deploy-pi-docker
 # Binary-only (faster): just deploy-pi-docker-binaries
 # Verbose: MARENGO_DEPLOY_VERBOSE=1 just deploy-pi-docker

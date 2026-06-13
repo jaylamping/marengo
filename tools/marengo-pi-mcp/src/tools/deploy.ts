@@ -16,7 +16,7 @@ function localDeployCommand(cfg: MarengoPiConfig): { cmd: string; args: string[]
       cmd: "bash",
       args: [
         "-c",
-        `export MARENGO_SSH_DIR='${sshDir.replace(/'/g, `'\\''`)}'; exec ./scripts/deploy-pi-docker.sh '${host.replace(/'/g, `'\\''`)}'`,
+        `export MSYS_NO_PATHCONV=1; export MARENGO_SSH_DIR='${sshDir.replace(/'/g, `'\\''`)}'; export MARENGO_PI_HOST='${cfg.host.replace(/'/g, `'\\''`)}'; export MARENGO_PI_USER='${cfg.user.replace(/'/g, `'\\''`)}'; exec ./scripts/deploy-pi-docker.sh '${host.replace(/'/g, `'\\''`)}'`,
       ],
     };
   }

@@ -7,7 +7,10 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-PI_HOST="${1:-${MARENGO_PI_HOST:-joey@marengo.local}}"
+# shellcheck source=deploy-lib.sh
+source "${ROOT}/scripts/deploy-lib.sh"
+
+PI_HOST="${1:-$(resolve_deploy_pi_host)}"
 
 resolve_ssh_dir() {
   if [[ -n "${MARENGO_SSH_DIR:-}" ]]; then
@@ -38,8 +41,9 @@ docker_ssh_mount_src() {
       printf '/mnt/%s/%s' "$drive" "$rest"
       return
     fi
-    if [[ "$(uname -s 2>/dev/null)" == MINGW* ]]; then
-      printf '/%s/%s' "$drive" "$rest"
+    # Git Bash / MSYS: use //c/... so pathconv does not strip the Docker bind mount.
+    if [[ "$(uname -s 2>/dev/null)" == MINGW* ]] || [[ "${OSTYPE:-}" == msys* ]]; then
+      printf '//%s/%s' "$drive" "$rest"
       return
     fi
     printf '%s:\\%s' "${BASH_REMATCH[1]}" "${rest//\//\\}"
@@ -59,8 +63,6 @@ docker_ssh_mount_src() {
 DOCKER_SSH_MOUNT="$(docker_ssh_mount_src "$SSH_DIR")"
 DOCKER_PLATFORM="${DOCKER_PLATFORM:-linux/amd64}"
 
-# shellcheck source=deploy-lib.sh
-source "${ROOT}/scripts/deploy-lib.sh"
 deploy_progress_env
 
 log_step "deploy-pi-docker → ${PI_HOST}"
@@ -108,9 +110,16 @@ ensure_deploy_pi_image() {
 
 ensure_deploy_pi_image
 
+# Git Bash converts -v C:/... paths before they reach Docker Desktop; disable for compose run.
+if [[ "$(uname -s 2>/dev/null)" == MINGW* ]] || [[ "${OSTYPE:-}" == msys* ]]; then
+  export MSYS_NO_PATHCONV=1
+fi
+
 # Run through the image entrypoint (gosu marengo) — do not wrap in bash -lc (drops PATH).
 exec "${COMPOSE_RUN[@]}" \
   -e MARENGO_DEPLOY_VIA_COMPOSE=1 \
+  -e MARENGO_PI_HOST \
+  -e MARENGO_PI_USER \
   -e MARENGO_SKIP_CONSUL \
   -e CARGO_TERM_PROGRESS_WHEN \
   -e CARGO_TERM_COLOR \

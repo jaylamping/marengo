@@ -60,3 +60,150 @@ ensure_pi_cross_target() {
     rustup target add "${target}"
   fi
 }
+
+# --- Docker deploy SSH (Windows bind-mount .ssh is world-readable; copy to /tmp) ---
+
+COMPOSE_SSH_DIR=""
+COMPOSE_SSH_IDENTITY=""
+COMPOSE_SSH_KNOWN=""
+
+# user@host from MARENGO_PI_HOST / MARENGO_PI_USER when no CLI arg.
+resolve_deploy_pi_host() {
+  local host="${MARENGO_PI_HOST:-marengo.local}"
+  local user="${MARENGO_PI_USER:-joey}"
+  if [[ "$host" == *@* ]]; then
+    printf '%s\n' "$host"
+  else
+    printf '%s@%s\n' "$user" "$host"
+  fi
+}
+
+compose_ssh_source_dir() {
+  if [[ -n "${MARENGO_SSH_DIR:-}" ]] && [[ -d "${MARENGO_SSH_DIR}" ]]; then
+    printf '%s\n' "${MARENGO_SSH_DIR}"
+    return 0
+  fi
+  if [[ "${MARENGO_DEPLOY_VIA_COMPOSE:-}" == 1 ]] && [[ -d /home/marengo/.ssh ]]; then
+    printf '%s\n' "/home/marengo/.ssh"
+    return 0
+  fi
+  if [[ -d "${HOME}/.ssh" ]]; then
+    printf '%s\n' "${HOME}/.ssh"
+    return 0
+  fi
+  return 1
+}
+
+compose_ssh_setup() {
+  if [[ "${MARENGO_DEPLOY_VIA_COMPOSE:-}" != 1 ]]; then
+    return 0
+  fi
+  if [[ -n "$COMPOSE_SSH_DIR" ]]; then
+    return 0
+  fi
+
+  local src
+  src="$(compose_ssh_source_dir)" || {
+    echo "error: no SSH directory for Docker deploy (mount ~/.ssh or set MARENGO_SSH_DIR)" >&2
+    return 1
+  }
+
+  COMPOSE_SSH_DIR="/tmp/marengo-deploy-ssh"
+  rm -rf "$COMPOSE_SSH_DIR"
+  mkdir -p "$COMPOSE_SSH_DIR"
+  chmod 700 "$COMPOSE_SSH_DIR"
+  cp -a "${src}/." "$COMPOSE_SSH_DIR/"
+
+  for f in "$COMPOSE_SSH_DIR"/id_* "$COMPOSE_SSH_DIR"/*.bak; do
+    [[ -f "$f" ]] || continue
+    if [[ "$f" == *.pub ]]; then
+      chmod 644 "$f"
+    else
+      chmod 600 "$f"
+    fi
+  done
+
+  if [[ -f "${COMPOSE_SSH_DIR}/config" ]]; then
+    sed 's/\r$//' "${COMPOSE_SSH_DIR}/config" \
+      | sed "s|~/.ssh|${COMPOSE_SSH_DIR}|g; s|\${HOME}/.ssh|${COMPOSE_SSH_DIR}|g" \
+      > "${COMPOSE_SSH_DIR}/config.deploy"
+    mv "${COMPOSE_SSH_DIR}/config.deploy" "${COMPOSE_SSH_DIR}/config"
+    chmod 644 "${COMPOSE_SSH_DIR}/config"
+  fi
+
+  # Marengo bench key first — generic id_ed25519 is often not authorized on the Pi.
+  for k in id_ed25519_marengo id_ed25519 id_rsa; do
+    if [[ -f "${COMPOSE_SSH_DIR}/${k}" ]]; then
+      COMPOSE_SSH_IDENTITY="${COMPOSE_SSH_DIR}/${k}"
+      break
+    fi
+  done
+
+  COMPOSE_SSH_KNOWN="${COMPOSE_SSH_DIR}/known_hosts"
+  touch "$COMPOSE_SSH_KNOWN"
+  chmod 644 "$COMPOSE_SSH_KNOWN"
+
+  if [[ -z "$COMPOSE_SSH_IDENTITY" ]]; then
+    echo "error: no private key in ${src} (expected id_ed25519_marengo)" >&2
+    return 1
+  fi
+}
+
+compose_ssh_opts() {
+  compose_ssh_setup || return 1
+  local -n _out=$1
+  _out=(
+    -o BatchMode=yes
+    -o IdentitiesOnly=yes
+    -o StrictHostKeyChecking=accept-new
+    -o ConnectTimeout=15
+  )
+  if [[ -f "${COMPOSE_SSH_DIR}/config" ]]; then
+    _out+=(-F "${COMPOSE_SSH_DIR}/config")
+  fi
+  if [[ -n "$COMPOSE_SSH_IDENTITY" ]]; then
+    _out+=(-i "$COMPOSE_SSH_IDENTITY")
+  fi
+  if [[ -n "$COMPOSE_SSH_KNOWN" ]]; then
+    _out+=(-o UserKnownHostsFile="$COMPOSE_SSH_KNOWN")
+  fi
+}
+
+compose_ssh_target() {
+  local host="$1"
+  compose_ssh_setup || return 1
+  if [[ -f "${COMPOSE_SSH_DIR}/config" ]] && [[ "$host" == *@* ]]; then
+    echo "${host#*@}"
+  else
+    echo "$host"
+  fi
+}
+
+compose_ssh() {
+  local ssh_opts=()
+  local target="$1"
+  shift
+  compose_ssh_opts ssh_opts || return 1
+  target="$(compose_ssh_target "$target")"
+  ssh "${ssh_opts[@]}" "$target" "$@"
+}
+
+# Verify SSH before rsync (Docker deploy only).
+compose_ssh_preflight() {
+  local host="$1"
+  if [[ "${MARENGO_DEPLOY_VIA_COMPOSE:-}" != 1 ]]; then
+    return 0
+  fi
+  log_step "SSH preflight → $(compose_ssh_target "$host")"
+  if compose_ssh "$host" "true"; then
+    log_note "SSH preflight ok"
+    return 0
+  fi
+  echo "error: Docker deploy SSH failed (see above)" >&2
+  echo "  Host: ${host}" >&2
+  echo "  Tips:" >&2
+  echo "    - Set MARENGO_PI_HOST to a resolvable name (e.g. Tailscale MagicDNS), not marengo.local" >&2
+  echo "    - Ensure ~/.ssh/id_ed25519_marengo is authorized on the Pi" >&2
+  echo "    - Host SSH: ssh -o BatchMode=yes ${host} true" >&2
+  return 1
+}

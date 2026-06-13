@@ -41,7 +41,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$PI_HOST" ]]; then
-  PI_HOST="${MARENGO_PI_HOST:-}"
+  PI_HOST="$(resolve_deploy_pi_host)"
 fi
 
 if [[ "${MARENGO_SKIP_CONSUL:-}" == 1 ]]; then
@@ -85,81 +85,6 @@ stage_copy_tree() {
     find "$dest" -mindepth 1 -delete 2>/dev/null || rm -rf "${dest:?}/"* 2>/dev/null || true
   fi
   cp -a "${src}/." "$dest/"
-}
-
-COMPOSE_SSH_DIR=""
-COMPOSE_SSH_IDENTITY=""
-COMPOSE_SSH_KNOWN=""
-
-compose_ssh_setup() {
-  if [[ "${MARENGO_DEPLOY_VIA_COMPOSE:-}" != 1 ]]; then
-    return 0
-  fi
-  if [[ -n "$COMPOSE_SSH_DIR" ]]; then
-    return 0
-  fi
-  COMPOSE_SSH_DIR="/tmp/marengo-deploy-ssh"
-  mkdir -p "$COMPOSE_SSH_DIR"
-  chmod 700 "$COMPOSE_SSH_DIR"
-  if [[ -d /home/marengo/.ssh ]]; then
-    cp -a /home/marengo/.ssh/. "$COMPOSE_SSH_DIR/"
-  fi
-  for f in "$COMPOSE_SSH_DIR"/id_* "$COMPOSE_SSH_DIR"/*.bak; do
-    [[ -f "$f" ]] || continue
-    if [[ "$f" == *.pub ]]; then
-      chmod 644 "$f"
-    else
-      chmod 600 "$f"
-    fi
-  done
-  if [[ -f "${COMPOSE_SSH_DIR}/config" ]]; then
-    sed "s|~/.ssh|${COMPOSE_SSH_DIR}|g; s|\${HOME}/.ssh|${COMPOSE_SSH_DIR}|g" \
-      "${COMPOSE_SSH_DIR}/config" > "${COMPOSE_SSH_DIR}/config.deploy"
-    mv "${COMPOSE_SSH_DIR}/config.deploy" "${COMPOSE_SSH_DIR}/config"
-    chmod 644 "${COMPOSE_SSH_DIR}/config"
-  fi
-  for k in id_ed25519 id_rsa id_ed25519_marengo; do
-    if [[ -f "${COMPOSE_SSH_DIR}/${k}" ]]; then
-      COMPOSE_SSH_IDENTITY="${COMPOSE_SSH_DIR}/${k}"
-      break
-    fi
-  done
-  COMPOSE_SSH_KNOWN="${COMPOSE_SSH_DIR}/known_hosts"
-  touch "$COMPOSE_SSH_KNOWN"
-  chmod 644 "$COMPOSE_SSH_KNOWN"
-}
-
-compose_ssh_opts() {
-  compose_ssh_setup
-  local -n _out=$1
-  _out=(-o BatchMode=yes -o StrictHostKeyChecking=accept-new)
-  if [[ -f "${COMPOSE_SSH_DIR}/config" ]]; then
-    _out+=(-F "${COMPOSE_SSH_DIR}/config")
-  elif [[ -n "$COMPOSE_SSH_IDENTITY" ]]; then
-    _out+=(-o IdentitiesOnly=yes -i "$COMPOSE_SSH_IDENTITY")
-  fi
-  if [[ -n "$COMPOSE_SSH_KNOWN" ]]; then
-    _out+=(-o UserKnownHostsFile="$COMPOSE_SSH_KNOWN")
-  fi
-}
-
-compose_ssh_target() {
-  local host="$1"
-  compose_ssh_setup
-  if [[ -f "${COMPOSE_SSH_DIR}/config" ]] && [[ "$host" == *@* ]]; then
-    echo "${host#*@}"
-  else
-    echo "$host"
-  fi
-}
-
-compose_ssh() {
-  local ssh_opts=()
-  local target="$1"
-  shift
-  compose_ssh_opts ssh_opts
-  target="$(compose_ssh_target "$target")"
-  ssh "${ssh_opts[@]}" "$target" "$@"
 }
 
 sync_staging_to_pi() {
@@ -298,6 +223,7 @@ if [[ -d "${ROOT}/consul/dist" ]]; then
 fi
 
 REMOTE_ROOT="${MARENGO_INSTALL_ROOT:-~/marengo}"
+compose_ssh_preflight "$PI_HOST"
 log_step "sync → ${PI_HOST}:${REMOTE_ROOT}/"
 sync_staging_to_pi "$STAGING" "$REMOTE_ROOT"
 
