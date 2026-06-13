@@ -13,7 +13,7 @@ Weighted shoulder pitch `hold-at` uses **one joint-space control law** (ADR 0007
 | Friction FF | `traj_vel` if `\|dq_ref\| > deadband` and moving toward target; else `settle` fade |
 | MIT wire | `velocity_rad_s = dq_ref`, `kd_mit = 0`, `tau_ff = tau_g + tau_f + tau_d` |
 
-**Config (right-only bench):** `position_trajectory_threshold_rad: 0`, `kp=8`, `kd=1.25`, `slew=0.10`, `max_lead=0.10`, `v=0.72`, `a=0.72`, `fc=0.35`, `tau_ff_rate_limit=60`.
+**Config (right-only bench, locked 2026-06-13):** `position_trajectory_threshold_rad: 0`, `kp=8`, `kd=1.25`, `slew=0.15`, `max_lead=0.10`, **`v=2.0`**, **`a=4.8`**, `fc=0.25`, `tau_ff_rate_limit=60`. Target **~1.2 s** for weighted 0→90° (π/2 rad ≈ 1.571 rad; mean **1.31 rad/s / 75 deg/s**); `v` at rs03 cap.
 
 **Layer 2 script:** 5 s settle dwell after `hold-at 0`; analyzer `--require-home-start` enforces `\|q\| < 5 mrad` at approach onset.
 
@@ -384,18 +384,27 @@ Raising **v, kp, and fc together** guarantees fighting:
 
 ## Current config (`shoulder_pitch_right_only`)
 
-Synced on Pi after Layer 2 trials (2026-06-13):
+**Locked on Pi 2026-06-13** after Berthier return-freeze fixes (`3f66ea2`) and full-range retest:
 
 | Layer | Values |
 |-------|--------|
-| Impedance | `kp=8`, `kd=1` |
-| Slew / lead | `0.10` / **`0.10`** |
-| Trajectory (≥ 0.15 rad) | **`v=0.72`**, **`a=0.36`** |
-| Friction | `fc=0.35` |
+| Impedance | `kp=8`, `kd=1.25` |
+| Slew / lead | **`0.15`** / **`0.10`** |
+| Trajectory (moves > ~60 mrad) | **`v=2.0`**, **`a=4.8`** (~1.2 s planner for π/2 rad at motor cap) |
+| Friction | `fc=0.25` |
 | FF rate limit | **`60`** Nm/s |
-| Code | friction fade **`0.02` rad** (`05b8bf6`) |
 
-Large-move speed is pre-set for fast approach and return; **0.1 rad gate uses slew only** (below 0.15 rad threshold). Do not raise `kp` or `fc` while stepping distance.
+**Verified weighted script** (`hold-at 0` → `1.570796` → `0`, `weighted_single_arm`):
+
+| Leg | Wall time (2026-06-13) | Notes |
+|-----|------------------------|-------|
+| 0 → 90° | **~1.0–1.2 s** | `dq_traj` cruises at 2.0 rad/s; brief overshoot ~97° |
+| 90° → 0 | **~3 s** | No `planner_frozen`; `dq_traj=−2.0` on descent |
+| Faults | `fault=0x0000` | |
+
+Moves ≤ **`POSITION_SMALL_MOVE_VMAX_RAD` (~60 mrad)** cap cruise at `position_slew_rad_s` (0.15); full sweeps use trajectory `v`/`a`.
+
+Do not raise `kp` or `fc` while stepping distance. Lower `v`/`a` if operator reports harsh overshoot or velocity trips.
 
 ## Recommended next bench session
 

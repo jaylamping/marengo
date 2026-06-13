@@ -14,6 +14,21 @@ Berthier **Position** mode is now a single joint-space motion primitive executor
 
 See [rust-patterns.md](../rust-patterns.md) §7.
 
+## Update 2026-06-13: weighted full-range timing (locked)
+
+After **`3f66ea2`** (high-q return freeze skip, stuck-lead resync, return breakaway onset) and trajectory retune on `shoulder_pitch_right_only`:
+
+| Parameter | Value | Rationale |
+|-----------|-------|-----------|
+| `position_trajectory_velocity_rad_s` | **2.0** | rs03 / config velocity cap; ~1.2 s wall-clock 0→90° on weighted arm |
+| `position_trajectory_accel_rad_s2` | **4.8** | Symmetric trapezoid ≈1.2 s for π/2 rad at `v=2.0` |
+| `position_slew_rad_s` | 0.15 | Small retargets (≤ ~60 mrad) |
+| `position_slew_max_lead_rad` | 0.10 | MIT lead clamp |
+| `impedance` | kp=8, kd=1.25 | Layer 2 baseline + return damping |
+| `friction.fc` | 0.25 | Reduced from 0.35 after jerk trials |
+
+Bench verification (2026-06-13): weighted `hold-at` 0 → 1.570796 → 0 — outbound **~1.2 s**, return **~3 s**, `fault=0`, no `planner_frozen`. Documented in [bench-position-tuning.md](../bench-position-tuning.md).
+
 ## Update 2026-06-13: hold-at planner/MIT split (superseded)
 
 Commit `f1d2be6` implements an **interim** joint-impedance fix in Berthier for large `hold-at` retargets (e.g. weighted right shoulder 0→90°). It does **not** replace the trapezoidal trajectory layer proposed below, but removes the worst failure modes (slew freeze, distant-target friction shove, absent ramp damping).

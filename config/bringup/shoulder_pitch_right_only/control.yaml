@@ -28,9 +28,10 @@ control:
       position_slew_rad_s: 0.15
       position_slew_max_lead_rad: 0.10
       position_trajectory_threshold_rad: 0
-      # Trapezoid cruise/accel (+50% over v=0.18 bench); overshoot fixes in bf8757d allow faster travel.
-      position_trajectory_velocity_rad_s: 0.27
-      position_trajectory_accel_rad_s2: 1.43
+      # Target ~1.2 s for 0→90° (π/2 rad ≈ 1.571 rad): mean speed ≈ 1.31 rad/s (75 deg/s).
+      # v=2.0 (rs03 cap) + a=4.8 → ~1.2 s symmetric trapezoid at velocity limit.
+      position_trajectory_velocity_rad_s: 2.0
+      position_trajectory_accel_rad_s2: 4.8
       position_trajectory_velocity_deadband_rad: 0.02
       # Bench trim stays zero after set-zero at mechanical arm-down.
       position_hold_trim_rad: 0.0
