@@ -31,9 +31,18 @@ SSH_DIR="${SSH_DIR//\\//}"
 docker_ssh_mount_src() {
   local dir="${1}"
   dir="${dir//\\//}"
-  # Docker Desktop on Windows needs backslashes; apply whenever path looks like C:/...
   if [[ "$dir" =~ ^([A-Za-z]):/(.*)$ ]]; then
-    printf '%s:\\%s' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]//\//\\}"
+    local drive="${BASH_REMATCH[1],,}"
+    local rest="${BASH_REMATCH[2]}"
+    if grep -qiE 'microsoft|WSL' /proc/version 2>/dev/null; then
+      printf '/mnt/%s/%s' "$drive" "$rest"
+      return
+    fi
+    if [[ "$(uname -s 2>/dev/null)" == MINGW* ]]; then
+      printf '/%s/%s' "$drive" "$rest"
+      return
+    fi
+    printf '%s:\\%s' "${BASH_REMATCH[1]}" "${rest//\//\\}"
     return
   fi
   case "$(uname -s 2>/dev/null)" in
