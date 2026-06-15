@@ -553,8 +553,7 @@ struct ControlLoopRuntime<'a> {
 #[tracing::instrument(skip(loop_ctrl, runtime))]
 fn run_control_loop(loop_ctrl: &mut ControlLoop<RuntimeBus>, runtime: &mut ControlLoopRuntime<'_>) {
     let period = loop_ctrl.loop_period();
-    let chappe_period =
-        Duration::from_secs_f64(1.0 / f64::from(runtime.chappe_state_hz.max(1)));
+    let chappe_period = Duration::from_secs_f64(1.0 / f64::from(runtime.chappe_state_hz.max(1)));
     let mut last_chappe = Instant::now();
     let mut last_heartbeat = Instant::now();
     let mut active_fault: Option<String>;
