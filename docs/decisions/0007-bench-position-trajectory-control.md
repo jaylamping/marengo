@@ -3,13 +3,40 @@
 **Status:** Accepted (2026-06-13 one-pass: always-trapezoid joint executor, two-rule friction, MIT `dq_ref`)  
 **Date:** 2026-05-26
 
+## Update 2026-06-15: weighted hold-at friction and onset helpers (implemented)
+
+After the one-pass refactor, weighted shoulder `hold-at` tuning (`6646c12`…`d2e5108`) added **bench-only onset behavior** without reintroducing a friction mode zoo. Two friction modes remain (`traj_vel`, `settle`); loop-level latches are separate from friction classification.
+
+### Friction (`position_hold_friction` in `friction.rs`)
+
+| Rule | When | Effect |
+|------|------|--------|
+| **Mode split** | `\|dq_ref\| > deadband` and moving toward target | `traj_vel`: Coulomb follows `dq_ref` sign |
+| | otherwise | `settle`: faded assist keyed on `settle_error` |
+| **Onset pulse** | `retarget_age_ms ≤ 300` and joint stuck | Full `fc` Coulomb even when `\|dq_ref\|` is below velocity deadband — breakaway from home / high-q return |
+| **Stuck ramp** | stuck, past onset window | Scale Coulomb by `\|dq_ref\| / velocity_deadband` (not by full `settle_error`) to avoid approach hitch |
+| **Overspeed brake** | measured `dq` outruns `dq_ref` beyond deadband | Zero Coulomb assist — prevents velocity-trip shove when arm leads planner |
+
+Constants: `POSITION_HOLD_ONSET_MS = 300`, `POSITION_STUCK_EXIT_VELOCITY_RATIO = 1.25`.
+
+### Loop helpers (`loop.rs`, not friction modes)
+
+| Helper | Purpose |
+|--------|---------|
+| Post-retarget **onset `max_lead` boost** (0.15 rad) | Outbound from home or high-q return breakaway |
+| Post-retarget **onset MIT velocity** | Non-zero `velocity_rad_s` while stuck in first 300 ms |
+| **Descent breakaway latch** | MIT pull-down on descent clears after measured motion confirms breakaway |
+| **Planner freeze** | Holds trajectory state when overshoot would re-accelerate into Davout velocity cap |
+
+See [bench-position-tuning.md](../bench-position-tuning.md) friction row and position-hold trace columns `friction_mode`, `planner_frozen`, `joint_stuck`.
+
 ## Update 2026-06-13: one-pass simplification (implemented)
 
 Berthier **Position** mode is now a single joint-space motion primitive executor:
 
 - Always trapezoidal `q_ref` / `dq_ref` (no slew/threshold split).
 - `tau_p = Kp * lead`; `tau_d = Kd * (dq_ref − dq)` while moving; MIT `velocity_rad_s = dq_ref`, `kd_mit = 0`.
-- Friction: **`traj_vel`** or **`settle`** only (no breakaway latch / mode zoo).
+- Friction: **`traj_vel`** or **`settle`** only (see 2026-06-15 update for onset/stuck/overspeed rules within `traj_vel`).
 - **Talleyrand** (future) owns Cartesian → joint timing; Berthier executes whatever joint refs it receives. Operator `hold-at` is a bench/debug surface to the same API.
 
 See [rust-patterns.md](../rust-patterns.md) §7.

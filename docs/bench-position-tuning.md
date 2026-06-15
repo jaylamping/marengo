@@ -10,7 +10,7 @@ Weighted shoulder pitch `hold-at` uses **one joint-space control law** (ADR 0007
 | MIT setpoint | `q_des = clamp(q_ref, q, target, max_lead)` |
 | Stiffness | `tau_p = kp * (q_des − q)` |
 | Damping FF | `tau_d = kd * (dq_ref − dq)` while `\|dq_ref\| > deadband`; else `-kd * dq` when settled |
-| Friction FF | `traj_vel` if `\|dq_ref\| > deadband` and moving toward target; else `settle` fade |
+| Friction FF | `traj_vel` if `\|dq_ref\| > deadband` and moving toward target; else `settle` fade. Within `traj_vel`: full `fc` pulse for 300 ms after retarget while stuck; ramp Coulomb with `\|dq_ref\|` when stuck past onset; zero Coulomb if measured `dq` outruns `dq_ref` (overspeed brake). See ADR 0007 (2026-06-15 update). |
 | MIT wire | `velocity_rad_s = dq_ref`, `kd_mit = 0`, `tau_ff = tau_g + tau_f + tau_d` |
 
 **Config (right-only bench, locked 2026-06-13):** `position_trajectory_threshold_rad: 0`, `kp=8`, `kd=1.25`, `slew=0.15`, `max_lead=0.10`, **`v=2.0`**, **`a=4.8`**, `fc=0.25`, `tau_ff_rate_limit=60`. Target **~1.2 s** for weighted 0→90° (π/2 rad ≈ 1.571 rad; mean **1.31 rad/s / 75 deg/s**); `v` at rs03 cap.
