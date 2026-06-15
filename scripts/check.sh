@@ -67,6 +67,12 @@ echo "==> consul: npm ci, gen:proto, build, audit"
 echo "==> validate fixtures (URDF + MJCF)"
 "${ROOT}/scripts/validate-urdf.sh"
 
+echo "==> log inventory (informational)"
+"${ROOT}/scripts/log-inventory.sh" || echo "warn: log inventory failed"
+
+echo "==> println guard (crates/)"
+"${ROOT}/scripts/check-println-crates.sh"
+
 echo "==> cargo fmt"
 cargo fmt --all -- --check
 

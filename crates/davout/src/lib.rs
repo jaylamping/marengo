@@ -371,6 +371,7 @@ impl<B: MotorBus> Supervisor<B> {
         debug!("supervisor READY (unchecked — deprecated)");
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn request_enable(&mut self, enable: bool) -> Result<(), DavoutError> {
         self.request_enable_with_policy(enable, EnablePolicy::Normal)
     }
@@ -768,6 +769,7 @@ impl<B: MotorBus> Supervisor<B> {
     }
 
     /// Disable all drives (best-effort zero speed, zero-torque MIT, then DISABLE).
+    #[tracing::instrument(skip(self))]
     pub fn disable_all(&mut self) -> Result<(), DavoutError> {
         for motor in &self.motors.motors {
             let address = MotorAddress::from(motor);

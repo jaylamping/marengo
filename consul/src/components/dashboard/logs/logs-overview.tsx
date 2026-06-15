@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { dashboardLogsClassName } from '@/components/dashboard/layout/constants';
 import { CandumpFrameTable } from '@/components/dashboard/logs/candump-frame-table';
 import { VirtualLinesList } from '@/components/dashboard/logs/virtual-lines-list';
+import { LogsArchiveSearch } from '@/components/dashboard/logs/logs-archive-search';
 import { LogsConnectionBanner } from '@/components/dashboard/logs/logs-connection-banner';
 import { LogsFilterProvider } from '@/components/dashboard/logs/logs-filter-context';
 import { LogsModeTabs, type LogsMode } from '@/components/dashboard/logs/logs-mode-tabs';
@@ -28,7 +29,7 @@ import { ensureLogDebugProbeStarted } from '@/lib/log-debug-probe';
 import { isChappeLive } from '@/lib/chappe-config';
 
 const CAN_PAGE = 200;
-type ArchiveView = 'bench' | 'trace';
+type ArchiveView = 'bench' | 'trace' | 'search';
 
 function LogsOverviewInner() {
   const [mode, setMode] = useState<LogsMode>('live');
@@ -138,9 +139,18 @@ function LogsOverviewInner() {
               >
                 Position trace
               </button>
+              <button
+                type="button"
+                className={`rounded px-2 py-1 text-xs ${archiveView === 'search' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}
+                onClick={() => setArchiveView('search')}
+              >
+                Search
+              </button>
             </div>
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border bg-card p-3">
-              {archiveLines.length === 0 ? (
+              {archiveView === 'search' ? (
+                <LogsArchiveSearch />
+              ) : archiveLines.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Select a session.</p>
               ) : (
                 <VirtualLinesList lines={archiveLines} emptyMessage="Select a session." />

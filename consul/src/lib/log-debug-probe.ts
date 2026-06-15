@@ -122,3 +122,23 @@ export function probeScrollEffect() {
 export function probeVisibleIndexRebuild() {
   counters.visibleIndexRebuilds += 1;
 }
+
+export type LogIngestStats = {
+  accepted: number;
+  rejectedRate: number;
+  rejectedPaused: number;
+  rejectedInactive: number;
+  rejectedDebug: number;
+  decodeSkipped: number;
+};
+
+export function getLogIngestStats(): LogIngestStats {
+  return {
+    accepted: counters.appendAccepted,
+    rejectedRate: counters.appendRejectedRate,
+    rejectedPaused: counters.appendRejectedPaused,
+    rejectedInactive: counters.appendRejectedInactive,
+    rejectedDebug: counters.appendRejectedDebug,
+    decodeSkipped: counters.logDecodeSkipped,
+  };
+}

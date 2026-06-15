@@ -12,6 +12,7 @@ export type LogEntry = {
   level: LogLevel;
   source: string;
   message: string;
+  fieldsJson?: string;
 };
 
 export const LOG_SOURCES = [

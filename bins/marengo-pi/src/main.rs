@@ -27,7 +27,7 @@ use marengo_config::{
     resolve_urdf_path,
 };
 use robstride::RuntimeBus;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 fn repo_root() -> PathBuf {
     resolve_repo_root()
@@ -521,6 +521,36 @@ fn main() {
         "marengo-pi starting (Disabled — run home/enable/gravity-on when ready)"
     );
 
+    run_control_loop(
+        &mut loop_ctrl,
+        &control,
+        &config_dir,
+        &chappe,
+        &cmd_rx,
+        &mut enable_rx,
+        &mut homing_rx,
+        &shutdown,
+    );
+
+    if control.control.disable_on_exit {
+        if let Err(e) = loop_ctrl.supervisor_mut().disable_all() {
+            warn!(error = %e, "disable_all on shutdown failed");
+        }
+    }
+    info!("marengo-pi stopped");
+}
+
+#[tracing::instrument(skip(loop_ctrl, chappe, cmd_rx, enable_rx, homing_rx, shutdown))]
+fn run_control_loop(
+    loop_ctrl: &mut ControlLoop<RuntimeBus>,
+    control: &marengo_config::ControlConfigFile,
+    config_dir: &Path,
+    chappe: &Arc<Bus>,
+    cmd_rx: &Receiver<PiCommand>,
+    enable_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
+    homing_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
+    shutdown: &Arc<AtomicBool>,
+) {
     let period = loop_ctrl.loop_period();
     let chappe_period =
         Duration::from_secs_f64(1.0 / f64::from(control.control.chappe_state_hz.max(1)));
@@ -532,13 +562,13 @@ fn main() {
         let tick_start = Instant::now();
 
         while let Ok(cmd) = cmd_rx.try_recv() {
-            if !handle_command(&mut loop_ctrl, cmd, &config_dir) {
+            if !handle_command(loop_ctrl, cmd, config_dir) {
                 shutdown.store(true, Ordering::SeqCst);
                 break;
             }
         }
 
-        drain_chappe_commands(&mut loop_ctrl, &mut enable_rx, &mut homing_rx);
+        drain_chappe_commands(loop_ctrl, enable_rx, homing_rx);
 
         active_fault = match loop_ctrl.tick(Some(chappe.as_ref())) {
             Ok(()) => None,
@@ -562,7 +592,7 @@ fn main() {
             if let Err(e) = publish_heartbeat(chappe.as_ref()) {
                 warn!(error = %e, "failed to publish heartbeat");
             }
-            debug_status(&mut loop_ctrl);
+            debug_status(loop_ctrl);
             last_heartbeat = now;
         }
 
@@ -571,13 +601,6 @@ fn main() {
             thread::sleep(period - elapsed);
         }
     }
-
-    if control.control.disable_on_exit {
-        if let Err(e) = loop_ctrl.supervisor_mut().disable_all() {
-            warn!(error = %e, "disable_all on shutdown failed");
-        }
-    }
-    info!("marengo-pi stopped");
 }
 
 fn debug_status(loop_ctrl: &mut ControlLoop<RuntimeBus>) {
@@ -587,7 +610,7 @@ fn debug_status(loop_ctrl: &mut ControlLoop<RuntimeBus>) {
     for motor in &supervisor.motors.motors {
         let address = MotorAddress::from(motor);
         if let Some(state) = supervisor.motor_states().get(&address) {
-            info!(
+            debug!(
                 joint = %motor.joint,
                 interface = %motor.can_interface,
                 device_id = motor.device_id,

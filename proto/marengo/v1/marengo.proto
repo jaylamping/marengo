@@ -140,6 +140,7 @@ message LogEvent {
   string target = 3;  // tracing target, e.g. berthier::loop
   string message = 4;
   string session_id = 5; // bench session id when MARENGO_LOG_SESSION_ID set
+  string fields_json = 6; // JSON object of tracing structured fields; empty when none
 }
 
 // --- Host metrics (Consul host cards; topics host/metrics/pi | host/metrics/jetson) ---
@@ -317,6 +318,7 @@ message StructuredLogEntry {
   string target = 4;
   string message = 5;
   string session_id = 6;
+  string fields_json = 7;
 }
 
 message StructuredLogList {

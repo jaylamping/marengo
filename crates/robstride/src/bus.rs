@@ -13,6 +13,23 @@ use crate::params::{self, ParameterId, ParameterValue, RunMode};
 use crate::protocol::MotionCommand;
 use crate::state::MotorState;
 
+fn trace_skipped_frame(
+    interface: Option<&str>,
+    can_id: u32,
+    reason: &'static str,
+    device_id: Option<u8>,
+    comm_type: Option<u8>,
+) {
+    tracing::trace!(
+        interface = interface.unwrap_or("unknown"),
+        can_id = format_args!("{can_id:#010x}"),
+        device_id,
+        comm_type,
+        reason,
+        "ignoring CAN frame"
+    );
+}
+
 #[derive(Debug, Error)]
 pub enum BusError {
     #[error("CAN send failed: {message}")]
@@ -351,18 +368,22 @@ pub trait MotorBus: CanBus {
             for received in &frames {
                 let frame = &received.frame;
                 if !frame.extended {
-                    tracing::trace!(
-                        interface = received.interface.as_deref().unwrap_or("unknown"),
-                        can_id = format_args!("{:#010x}", frame.id),
-                        "ignoring non-extended CAN frame"
+                    trace_skipped_frame(
+                        received.interface.as_deref(),
+                        frame.id,
+                        "non-extended",
+                        None,
+                        None,
                     );
                     continue;
                 }
                 let Some(ext) = comm::unpack_ext_id(frame.id) else {
-                    tracing::trace!(
-                        interface = received.interface.as_deref().unwrap_or("unknown"),
-                        can_id = format_args!("{:#010x}", frame.id),
-                        "ignoring invalid extended CAN id"
+                    trace_skipped_frame(
+                        received.interface.as_deref(),
+                        frame.id,
+                        "invalid-extended-id",
+                        None,
+                        None,
                     );
                     continue;
                 };
@@ -373,12 +394,12 @@ pub trait MotorBus: CanBus {
                 let Some(address) =
                     address_for_frame(motor_types, received.interface.as_deref(), device_id)
                 else {
-                    tracing::trace!(
-                        interface = received.interface.as_deref().unwrap_or("unknown"),
-                        device_id,
-                        comm_type = ext.comm_type,
-                        can_id = format_args!("{:#010x}", frame.id),
-                        "ignoring frame for unconfigured motor address"
+                    trace_skipped_frame(
+                        received.interface.as_deref(),
+                        frame.id,
+                        "unconfigured-motor",
+                        Some(device_id),
+                        Some(ext.comm_type),
                     );
                     continue;
                 };
@@ -436,12 +457,12 @@ pub trait MotorBus: CanBus {
                         }
                     }
                     _ => {
-                        tracing::trace!(
-                            interface = %address.interface,
-                            device_id = address.device_id,
-                            comm_type = ext.comm_type,
-                            can_id = format_args!("{:#010x}", frame.id),
-                            "ignoring unsupported Robstride frame type"
+                        trace_skipped_frame(
+                            received.interface.as_deref(),
+                            frame.id,
+                            "unsupported-comm-type",
+                            Some(address.device_id),
+                            Some(ext.comm_type),
                         );
                     }
                 }

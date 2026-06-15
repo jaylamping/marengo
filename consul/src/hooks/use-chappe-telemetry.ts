@@ -114,6 +114,7 @@ export function useChappeTelemetry(): void {
           level: mapLogLevel(event.level),
           source: event.target,
           message: event.message,
+          fieldsJson: event.fieldsJson || undefined,
         });
       },
       onHostMetrics: (metrics, topic) => {

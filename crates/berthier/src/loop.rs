@@ -422,6 +422,7 @@ impl<B: MotorBus> ControlLoop<B> {
     }
 
     pub fn set_control_mode(&mut self, mode: ControlMode) {
+        let previous = self.control_mode;
         if mode != ControlMode::Position {
             self.position_setpoints = None;
             self.position_setpoints_raw = None;
@@ -435,6 +436,9 @@ impl<B: MotorBus> ControlLoop<B> {
         }
         self.control_mode = mode;
         self.supervisor.set_control_mode(mode);
+        if previous != mode {
+            info!(?previous, ?mode, "control mode transition");
+        }
     }
 
     pub fn control_mode(&self) -> ControlMode {

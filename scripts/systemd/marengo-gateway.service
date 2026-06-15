@@ -7,7 +7,7 @@ Wants=network-online.target
 Type=simple
 User=marengo
 WorkingDirectory=/opt/marengo
-Environment=RUST_LOG=info,marengo_gateway=debug
+Environment=RUST_LOG=info,marengo_gateway=info,chappe=info
 EnvironmentFile=-/etc/marengo/env
 Environment=MARENGO_CHAPPE_SOCKET=/run/marengo/chappe.sock
 ExecStart=/opt/marengo/bin/marengo-gateway --http-listen [::]:8080 --https-listen [::]:8444 --web-root /opt/marengo/www --wt-listen [::]:8443 --chappe-socket /run/marengo/chappe.sock

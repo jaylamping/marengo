@@ -16,7 +16,8 @@ function matchesSearch(entry: LogEntry, query: string): boolean {
   return (
     entry.message.toLowerCase().includes(normalized) ||
     entry.source.toLowerCase().includes(normalized) ||
-    entry.level.toLowerCase().includes(normalized)
+    entry.level.toLowerCase().includes(normalized) ||
+    (entry.fieldsJson?.toLowerCase().includes(normalized) ?? false)
   );
 }
 

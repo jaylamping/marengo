@@ -35,6 +35,7 @@ pub struct StructuredLogEntryJson {
     target: String,
     message: String,
     session_id: String,
+    fields_json: String,
 }
 
 #[derive(Serialize)]
@@ -103,6 +104,7 @@ impl LogServices {
                     target: row.target,
                     message: row.message,
                     session_id: row.session_id,
+                    fields_json: row.fields_json,
                 })
                 .collect();
             ring.preload(preload);
@@ -124,6 +126,11 @@ impl LogServices {
                 None
             } else {
                 Some(event.session_id.clone())
+            },
+            fields_json: if event.fields_json.is_empty() {
+                None
+            } else {
+                Some(event.fields_json.clone())
             },
         };
         self.ring.push(insert.clone());
@@ -218,6 +225,7 @@ pub async fn snapshot_logs_recent(
             target: e.target,
             message: e.message,
             session_id: e.session_id.unwrap_or_default(),
+            fields_json: e.fields_json.unwrap_or_default(),
         })
         .collect();
     Ok(Json(StructuredLogListJson {
@@ -433,6 +441,7 @@ pub async fn structured_logs(
             target: e.target,
             message: e.message,
             session_id: e.session_id.unwrap_or_default(),
+            fields_json: e.fields_json.unwrap_or_default(),
         })
         .collect();
     Ok(Json(StructuredLogListJson { entries, total }))

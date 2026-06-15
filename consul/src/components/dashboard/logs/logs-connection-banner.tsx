@@ -1,6 +1,9 @@
+import { useEffect, useState } from 'react';
+
 import { useHostMetricsStore } from '@/state/hostMetricsStore';
 import { useRobotStore } from '@/state/robotStore';
 import { isChappeLive } from '@/lib/chappe-config';
+import { getLogIngestStats, type LogIngestStats } from '@/lib/log-debug-probe';
 import { cn } from '@/lib/utils';
 
 export function LogsConnectionBanner() {
@@ -8,6 +11,14 @@ export function LogsConnectionBanner() {
   const connected = useRobotStore((s) => s.connected);
   const gatewayError = useRobotStore((s) => s.gatewayError);
   const piMetrics = useHostMetricsStore((s) => s.piMetrics);
+  const [ingest, setIngest] = useState<LogIngestStats | null>(null);
+
+  useEffect(() => {
+    const tick = () => setIngest(getLogIngestStats());
+    tick();
+    const id = window.setInterval(tick, 2000);
+    return () => window.clearInterval(id);
+  }, []);
 
   const mode = !isChappeLive()
     ? 'offline'
@@ -17,6 +28,13 @@ export function LogsConnectionBanner() {
 
   const logDisk = piMetrics?.logDiskBytes;
   const logBudget = piMetrics?.logDiskBudgetBytes;
+  const dropped =
+    ingest &&
+    ingest.rejectedRate +
+      ingest.rejectedPaused +
+      ingest.rejectedInactive +
+      ingest.rejectedDebug +
+      ingest.decodeSkipped;
 
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/30 px-3 py-2 text-sm">
@@ -41,6 +59,14 @@ export function LogsConnectionBanner() {
       </span>
       {gatewayError ? (
         <span className="text-destructive">{gatewayError}</span>
+      ) : null}
+      {ingest ? (
+        <span className="text-muted-foreground">
+          ingest {ingest.accepted}/2s
+          {dropped ? (
+            <span className="text-amber-600"> · {dropped} dropped</span>
+          ) : null}
+        </span>
       ) : null}
       {logDisk !== undefined && logBudget !== undefined && logBudget > 0n ? (
         <span className="text-muted-foreground">

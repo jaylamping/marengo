@@ -7,6 +7,7 @@ export type StructuredLogEntryDto = {
   target: string;
   message: string;
   session_id: string;
+  fields_json: string;
 };
 
 export type LogSessionDto = {
