@@ -16,7 +16,7 @@ import {
   formatRamUsage,
   formatTempC,
 } from '@/lib/format';
-import { hostDebugLinesFromMetrics } from '@/lib/host-debug-info';
+import { hostCardDebugLines } from '@/lib/host-debug-info';
 import {
   canWarning,
   chappeDegraded,
@@ -97,10 +97,12 @@ export function PiHostCard({ metrics: metricsProp }: PiHostCardProps) {
   const warnDisk = live && diskWarning(liveMetrics);
   const warnChappe = live && chappeDegraded(liveMetrics);
   const warnClock = live && clockUnsynced(liveMetrics);
-  const debugLines =
-    live && liveMetrics
-      ? hostDebugLinesFromMetrics(liveMetrics, { subsystem: 'Chappe' })
-      : [];
+  const debugLines = hostCardDebugLines(live ? liveMetrics : null, {
+    model: 'PI 5',
+    subsystem: 'Chappe',
+    host: metrics?.hostname,
+    note: metricsLoading ? 'Waiting for telemetry' : stale ? 'Metrics stale' : undefined,
+  });
 
   let badgeLabel = metricsLoading ? '…' : metrics?.throttled ? 'throttled' : 'healthy';
   let badgeTone: 'healthy' | 'warning' | 'muted' = metrics?.throttled

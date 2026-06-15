@@ -63,3 +63,41 @@ export function hostDebugLinesFromMetrics(
 
   return lines;
 }
+
+export function hostDebugLinesFallback(options: {
+  subsystem: string;
+  model?: string;
+  host?: string;
+  note?: string;
+}): HostDebugLine[] {
+  const lines: HostDebugLine[] = [];
+
+  if (options.model) {
+    lines.push({ label: 'Model', value: options.model });
+  }
+  if (options.host) {
+    lines.push({ label: 'Host', value: options.host });
+  }
+  lines.push({ label: 'Subsystem', value: options.subsystem });
+  if (options.note) {
+    lines.push({ label: 'Status', value: options.note });
+  }
+
+  return lines;
+}
+
+export function hostCardDebugLines(
+  liveMetrics: HostMetrics | null | undefined,
+  options: {
+    subsystem: string;
+    model: string;
+    host?: string;
+    note?: string;
+  },
+): HostDebugLine[] {
+  if (liveMetrics) {
+    return hostDebugLinesFromMetrics(liveMetrics, { subsystem: options.subsystem });
+  }
+
+  return hostDebugLinesFallback(options);
+}

@@ -15,7 +15,7 @@ import {
   formatTempC,
 } from '@/lib/format';
 import { isChappeLive } from '@/lib/chappe-config';
-import { hostDebugLinesFromMetrics } from '@/lib/host-debug-info';
+import { hostCardDebugLines } from '@/lib/host-debug-info';
 import {
   hostMetricsStale,
   useHostMetricsStore,
@@ -82,10 +82,18 @@ export function JetsonHostCard({
       : null
     : (metricsProp ?? dummyJetsonHostMetrics);
   const stale = live && hostMetricsStale(liveUpdatedAt);
-  const debugLines =
-    live && liveMetrics
-      ? hostDebugLinesFromMetrics(liveMetrics, { subsystem: 'Fouché' })
-      : [];
+  const debugLines = hostCardDebugLines(live ? liveMetrics : null, {
+    model: 'Jetson Orin Nano',
+    subsystem: 'Fouché',
+    host: metrics?.hostname,
+    note: metricsLoading
+      ? 'Waiting for telemetry'
+      : stale
+        ? 'Metrics stale'
+        : live && metrics && !metrics.online
+          ? 'Offline'
+          : undefined,
+  });
   const placeholder = '—';
 
   return (
