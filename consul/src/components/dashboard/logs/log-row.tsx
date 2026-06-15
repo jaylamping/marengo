@@ -17,9 +17,15 @@ import { cn } from '@/lib/utils';
 type LogRowProps = {
   entry: LogEntry;
   style?: CSSProperties;
+  /**
+   * When true (default) the row is absolutely positioned for virtualized lists.
+   * Set false to render in normal document flow so rows with field badges can
+   * grow to their natural height without overlapping neighbors.
+   */
+  positioned?: boolean;
 };
 
-export const LogRow = memo(function LogRow({ entry, style }: LogRowProps) {
+export const LogRow = memo(function LogRow({ entry, style, positioned = true }: LogRowProps) {
   const fields = parseLogFields(entry.fieldsJson);
   const highlightKeys = highlightLogFieldKeys(fields);
   const otherKeys = Object.keys(fields).filter(
@@ -31,7 +37,8 @@ export const LogRow = memo(function LogRow({ entry, style }: LogRowProps) {
     <div
       style={style}
       className={cn(
-        'absolute left-0 top-0 w-full border-b px-3 font-mono text-xs hover:bg-muted/30 [content-visibility:auto]',
+        'w-full border-b px-3 font-mono text-xs hover:bg-muted/30 [content-visibility:auto]',
+        positioned && 'absolute left-0 top-0',
         hasFields ? 'py-1' : 'grid items-center',
         !hasFields && LOG_TABLE_GRID_CLASS,
       )}

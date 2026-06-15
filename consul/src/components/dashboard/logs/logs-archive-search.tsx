@@ -130,13 +130,9 @@ export function LogsArchiveSearch() {
             Search SQLite structured logs across sessions.
           </p>
         ) : (
-          <div className="relative" style={{ height: entries.length * 40 }}>
-            {entries.map((entry, index) => (
-              <LogRow
-                key={entry.id}
-                entry={entry}
-                style={{ transform: `translateY(${index * 40}px)`, height: 40 }}
-              />
+          <div>
+            {entries.map((entry) => (
+              <LogRow key={entry.id} entry={entry} positioned={false} />
             ))}
           </div>
         )}
