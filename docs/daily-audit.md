@@ -70,7 +70,7 @@ Project MCP (`marengo-research`) may not appear in Cursor Automations dashboard.
 
 - Run qualitative review from **local agent** with MCP enabled
 - Use **`audit-research` CLI** in GitHub Actions (wired in workflow)
-- Future: HTTP wrapper for cloud agents
+- Cloud agents: **`./scripts/pi-remote.sh`** over Tailscale for Pi logs (see [cloud-pi-tailscale.md](cloud-pi-tailscale.md))
 
 ### WorkflowData draft (for Automations editor)
 

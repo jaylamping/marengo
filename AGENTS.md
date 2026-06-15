@@ -77,3 +77,22 @@ Use `./scripts/check.sh` directly (the `just check-native` target). Docker and `
 - Consul `dev` script is a scaffold (`echo "Vite app scaffold TBD"`); there is no running frontend dev server.
 - `motor-repl` uses SocketCAN only; use `just vcan` / the ignored SocketCAN tests for no-hardware bus checks.
 - Default `cargo test` requires no hardware. vCAN and simulation tests are optional and need Docker.
+
+### Pi bench access (Tailscale)
+
+Cloud VMs reach the robot via **Tailscale userspace networking** — not `marengo.local` mDNS. `.cursor/environment.json` runs `./scripts/setup-cloud-pi.sh` on boot.
+
+**One-time:** add secrets per [docs/cloud-pi-tailscale.md](docs/cloud-pi-tailscale.md) (`TAILSCALE_AUTH_KEY`, `MARENGO_PI_SSH_PRIVATE_KEY_B64`, `MARENGO_PI_HOST`).
+
+**Pi / logs (no marengo-pi MCP in cloud):** use `./scripts/pi-remote.sh`:
+
+| Task | Command |
+|------|---------|
+| Verify connectivity | `./scripts/pi-remote.sh verify` |
+| Health | `./scripts/pi-remote.sh health` |
+| Log triage | `./scripts/pi-remote.sh logs-last-fault` → `logs-tail` → `logs-grep` |
+| Archive sessions | `./scripts/pi-remote.sh logs-sessions` |
+| CAN wire truth | `./scripts/pi-remote.sh candump-summary` |
+| Deploy to Pi | `./scripts/pi-remote.sh deploy --install` |
+
+Do not ask the user to paste Pi logs or run SSH when `pi-remote.sh` can fetch them.

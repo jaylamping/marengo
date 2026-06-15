@@ -1,0 +1,5 @@
+{
+  "install": "./scripts/setup-cloud.sh && ./scripts/setup-cloud-pi.sh --prepare",
+  "start": "./scripts/setup-cloud-pi.sh --start-daemon && ./scripts/setup-cloud-pi.sh --connect",
+  "terminals": []
+}

@@ -36,6 +36,17 @@ sim-check: build
 check-native:
     ./scripts/check.sh
 
+# Cloud agent: Tailscale + SSH to Pi (see docs/cloud-pi-tailscale.md)
+cloud-pi-setup:
+    ./scripts/setup-cloud-pi.sh
+
+cloud-pi-verify:
+    ./scripts/setup-cloud-pi.sh --verify
+
+# Cloud/local Pi CLI when marengo-pi MCP unavailable
+pi-remote *args:
+    ./scripts/pi-remote.sh {{args}}
+
 # Cross-build and deploy Pi binaries from macOS (installs cross GCC if needed)
 deploy-pi host="joey@marengo.local":
     ./scripts/deploy-pi.sh --install {{host}}
