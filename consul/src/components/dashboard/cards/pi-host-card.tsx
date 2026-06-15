@@ -98,7 +98,9 @@ export function PiHostCard({ metrics: metricsProp }: PiHostCardProps) {
   const warnChappe = live && chappeDegraded(liveMetrics);
   const warnClock = live && clockUnsynced(liveMetrics);
   const debugLines =
-    live && liveMetrics ? hostDebugLinesFromMetrics(liveMetrics) : [];
+    live && liveMetrics
+      ? hostDebugLinesFromMetrics(liveMetrics, { subsystem: 'Chappe' })
+      : [];
 
   let badgeLabel = metricsLoading ? '…' : metrics?.throttled ? 'throttled' : 'healthy';
   let badgeTone: 'healthy' | 'warning' | 'muted' = metrics?.throttled
@@ -119,10 +121,9 @@ export function PiHostCard({ metrics: metricsProp }: PiHostCardProps) {
 
   return (
     <DashboardCardShell
-      description={live ? 'Pi 5 · Chappe gateway' : 'Pi 5 · onboard'}
       title={
         <span className="inline-flex items-center gap-1.5">
-          {metrics?.hostname ?? placeholder}
+          PI 5
           <HostDebugTooltip lines={debugLines} />
         </span>
       }

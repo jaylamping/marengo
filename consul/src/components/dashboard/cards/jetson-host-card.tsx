@@ -83,15 +83,16 @@ export function JetsonHostCard({
     : (metricsProp ?? dummyJetsonHostMetrics);
   const stale = live && hostMetricsStale(liveUpdatedAt);
   const debugLines =
-    live && liveMetrics ? hostDebugLinesFromMetrics(liveMetrics) : [];
+    live && liveMetrics
+      ? hostDebugLinesFromMetrics(liveMetrics, { subsystem: 'Fouché' })
+      : [];
   const placeholder = '—';
 
   return (
     <DashboardCardShell
-      description="Jetson · perception"
       title={
         <span className="inline-flex items-center gap-1.5">
-          {metrics?.hostname ?? placeholder}
+          Jetson Orin Nano
           <HostDebugTooltip lines={debugLines} />
         </span>
       }

@@ -23,8 +23,16 @@ export function parseDeployRev(raw: string): { rev: string; deployedAt?: string 
 
 export function hostDebugLinesFromMetrics(
   metrics: HostMetrics,
+  options?: { subsystem?: string },
 ): HostDebugLine[] {
   const lines: HostDebugLine[] = [];
+
+  if (metrics.hostname) {
+    lines.push({ label: 'Host', value: metrics.hostname });
+  }
+  if (options?.subsystem) {
+    lines.push({ label: 'Subsystem', value: options.subsystem });
+  }
   const build = metrics.build;
 
   if (build?.deployRev) {

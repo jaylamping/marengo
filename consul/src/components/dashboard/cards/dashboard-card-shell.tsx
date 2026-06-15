@@ -12,7 +12,7 @@ import {
 import { cn } from '@/lib/utils';
 
 type DashboardCardShellProps = {
-  description: string;
+  description?: string;
   title: ReactNode;
   titleClassName?: string;
   action?: ReactNode;
@@ -35,7 +35,7 @@ export function DashboardCardShell({
   return (
     <Card className={cn('@container/card', className)}>
       <CardHeader>
-        <CardDescription>{description}</CardDescription>
+        {description ? <CardDescription>{description}</CardDescription> : null}
         <CardTitle className={cn('text-lg font-semibold', titleClassName)}>
           {title}
         </CardTitle>
