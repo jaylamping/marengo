@@ -206,7 +206,7 @@ cloud_pi_verify() {
   cloud_pi_log "Verifying Tailscale"
   if ! cloud_pi_tailscale_up; then
     ok=false
-  elif ! cloud_pi_tailscale_proxy_env; tailscale --socket="${MARENGO_TAILSCALE_STATE_DIR}/tailscaled.sock" status >/dev/null 2>&1; then
+  elif ! tailscale --socket="${MARENGO_TAILSCALE_STATE_DIR}/tailscaled.sock" status >/dev/null 2>&1; then
     cloud_pi_warn "tailscale status failed"
     ok=false
   fi

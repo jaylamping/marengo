@@ -43,6 +43,9 @@ case "${MODE}" in
     run_connect
     ;;
   --verify | verify)
+    if ! cloud_pi_tailscale_installed; then
+      run_prepare
+    fi
     run_connect
     cloud_pi_verify
     ;;
