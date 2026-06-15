@@ -56,6 +56,18 @@ Tunnel HTTPS `:8444` for the SPA and HTTP stream fallback. **Do not** tunnel `:8
 
 Default `RUST_LOG` should stay at `info` on bench. The tracing layer caps ~200 events/sec and drops trace/debug when over cap (warn/error always forwarded).
 
+## Log persistence and archive ([ADR 0011](decisions/0011-log-retention-and-archive.md))
+
+| Path | Role |
+|------|------|
+| WebTransport `logs/structured` | Live stream (primary) |
+| `GET /snapshot/logs/recent` | HTTP backfill on Consul connect |
+| `GET /logs/sessions`, `/logs/structured`, `/logs/sessions/:id/*` | Archive browse, bench/candump/trace blobs |
+| `var/marengo.db` | Structured logs, session metadata, candump frame index |
+| `var/log/blobs/` | gzip bench/candump/trace archives |
+
+Optional `MARENGO_GATEWAY_LOG_TOKEN` / `VITE_MARENGO_LOG_TOKEN` for log HTTP routes on LAN.
+
 ## Deploy identity
 
 Host cards show `build.deploy_rev` from `$MARENGO_ROOT/.deploy-rev` (written by `deploy-pi.sh` / `pi_sync_main`).

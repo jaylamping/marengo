@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { MarengoPiConfig } from "../src/config.js";
 import { registerLogTools } from "../src/tools/logs.js";
+import { BENCH_LOG_KEEP_COUNT } from "../src/tools/motion.js";
 
 const cfg: MarengoPiConfig = {
   host: "marengo.local",
@@ -47,6 +48,10 @@ describe("log tools", () => {
 
     assert.match(script, /head -n 3/);
     assert.doesNotMatch(script, /if \[\[ 1 -eq 1 \]\]; then/);
+  });
+
+  it("BENCH_LOG_KEEP_COUNT is 50", () => {
+    assert.equal(BENCH_LOG_KEEP_COUNT, 50);
   });
 
   it("pi_logs_tail defaults lines to 100", async () => {

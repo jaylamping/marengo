@@ -1,7 +1,7 @@
 import { memo } from 'react';
 
 import { LOG_LEVELS } from '@/data/logs';
-import { useLogActions, useLogBufferSnapshot, useLogLive } from '@/components/dashboard/logs/hooks/use-log-controls';
+import { useLogActions, useLogBufferSnapshot, useLogPaused } from '@/components/dashboard/logs/hooks/use-log-controls';
 import { useLogsFilter } from '@/components/dashboard/logs/logs-filter-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,9 +12,15 @@ function formatCount(value: number): string {
   return value.toLocaleString();
 }
 
-export const LogsToolbar = memo(function LogsToolbar() {
-  const live = useLogLive();
-  const { setLive, clear } = useLogActions();
+export const LogsToolbar = memo(function LogsToolbar({
+  autoFollow,
+  onAutoFollowChange,
+}: {
+  autoFollow?: boolean;
+  onAutoFollowChange?: (next: boolean) => void;
+}) {
+  const paused = useLogPaused();
+  const { setPaused, clear } = useLogActions();
   const stats = useLogBufferSnapshot();
   const {
     levelFilter,
@@ -38,11 +44,20 @@ export const LogsToolbar = memo(function LogsToolbar() {
         <div className="flex flex-wrap items-center gap-2">
           <Button
             size="sm"
-            variant={live ? 'default' : 'outline'}
-            onClick={() => setLive(!live)}
+            variant={!paused ? 'default' : 'outline'}
+            onClick={() => setPaused(!paused)}
           >
-            {live ? 'Live' : 'Paused'}
+            {!paused ? 'Live' : 'Paused'}
           </Button>
+          {onAutoFollowChange ? (
+            <Button
+              size="sm"
+              variant={autoFollow ? 'default' : 'outline'}
+              onClick={() => onAutoFollowChange(!autoFollow)}
+            >
+              {autoFollow ? 'Following' : 'Follow off'}
+            </Button>
+          ) : null}
           <Button size="sm" variant="outline" onClick={() => clear()}>
             Clear
           </Button>

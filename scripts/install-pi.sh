@@ -30,6 +30,7 @@ mkdir -p \
   "${INSTALL_ROOT}/assets" \
   "${INSTALL_ROOT}/www" \
   "${INSTALL_ROOT}/var/log" \
+  "${INSTALL_ROOT}/var/log/blobs" \
   "${INSTALL_ROOT}/var/calibration" \
   "${INSTALL_ROOT}/var/gateway/tls"
 chmod 775 "${INSTALL_ROOT}/var" "${INSTALL_ROOT}/var/log" "${INSTALL_ROOT}/var/calibration" 2>/dev/null || true
@@ -37,6 +38,7 @@ chown root:"${RUN_USER}" "${INSTALL_ROOT}/var" "${INSTALL_ROOT}/var/log" "${INST
 
 PI_BIN="${ROOT}/target/release/marengo-pi"
 GATEWAY_BIN="${ROOT}/target/release/marengo-gateway"
+LOG_CLI_BIN="${ROOT}/target/release/marengo-log-cli"
 REPL_BIN="${ROOT}/target/release/motor-repl"
 IMU_PROBE_BIN="${ROOT}/target/release/imu-probe"
 # Flat deploy layout (legacy rsync): binaries at repo root
@@ -53,6 +55,9 @@ fi
 install -m 755 "$PI_BIN" "${INSTALL_ROOT}/bin/marengo-pi"
 if [[ -f "$GATEWAY_BIN" ]]; then
   install -m 755 "$GATEWAY_BIN" "${INSTALL_ROOT}/bin/marengo-gateway"
+fi
+if [[ -f "$LOG_CLI_BIN" ]]; then
+  install -m 755 "$LOG_CLI_BIN" "${INSTALL_ROOT}/bin/marengo-log-cli"
 fi
 if [[ -f "$REPL_BIN" ]]; then
   install -m 755 "$REPL_BIN" "${INSTALL_ROOT}/bin/motor-repl"
@@ -100,6 +105,8 @@ fi
 install -m 644 "${ROOT}/scripts/systemd/marengo-can.service" /etc/systemd/system/marengo-can.service
 install -m 644 "${ROOT}/scripts/systemd/marengo-pi.service" /etc/systemd/system/marengo-pi.service
 install -m 644 "${ROOT}/scripts/systemd/marengo-gateway.service" /etc/systemd/system/marengo-gateway.service
+install -m 644 "${ROOT}/scripts/systemd/marengo-log-maintenance.service" /etc/systemd/system/marengo-log-maintenance.service
+install -m 644 "${ROOT}/scripts/systemd/marengo-log-maintenance.timer" /etc/systemd/system/marengo-log-maintenance.timer
 sed -i "s|WorkingDirectory=.*|WorkingDirectory=${INSTALL_ROOT}|" /etc/systemd/system/marengo-pi.service
 sed -i "s|User=.*|User=${RUN_USER}|" /etc/systemd/system/marengo-pi.service
 sed -i "s|ExecStart=.*|ExecStart=${INSTALL_ROOT}/bin/marengo-pi|" /etc/systemd/system/marengo-pi.service
@@ -115,6 +122,9 @@ systemctl daemon-reload
 systemctl enable --now marengo-can.service
 if [[ -f "${INSTALL_ROOT}/bin/marengo-gateway" ]]; then
   systemctl enable --now marengo-gateway.service
+fi
+if [[ -f "${INSTALL_ROOT}/bin/marengo-log-cli" ]]; then
+  systemctl enable --now marengo-log-maintenance.timer
 fi
 
 echo "Done. CAN (can0/can1) should be UP — verify: ip -br link show type can"

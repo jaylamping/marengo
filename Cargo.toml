@@ -16,8 +16,10 @@ members = [
     "crates/robstride",
     "crates/marengo-imu",
     "crates/marengo-host-metrics",
+    "crates/marengo-store",
     "bins/marengo-pi",
     "bins/marengo-gateway",
+    "bins/marengo-log-cli",
     "bins/marengo-jetson",
     "bins/probe",
     "bins/motor-repl",
@@ -56,6 +58,7 @@ fouche = { path = "crates/fouche" }
 robstride = { path = "crates/robstride" }
 marengo-imu = { path = "crates/marengo-imu" }
 marengo-host-metrics = { path = "crates/marengo-host-metrics" }
+marengo-store = { path = "crates/marengo-store" }
 sim-harness = { path = "crates/sim-harness" }
 
 [workspace.lints.rust]

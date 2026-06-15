@@ -2,6 +2,7 @@
 
 mod framing;
 mod http;
+mod logs;
 mod state;
 mod webtransport;
 
@@ -12,8 +13,10 @@ use std::sync::Arc;
 use axum_server::tls_rustls::RustlsConfig;
 use chappe::ipc::{default_socket_path, socket_path_from_env, IpcListener};
 use chappe::Bus;
-use marengo_support::init_tracing;
+use marengo_store::Store;
 use tracing::info;
+
+use crate::logs::LogServices;
 
 #[derive(Debug)]
 struct Args {
@@ -98,12 +101,23 @@ async fn main() {
 }
 
 async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    init_tracing();
     let _ = rustls::crypto::ring::default_provider().install_default();
     let args = parse_args().map_err(|e| e.to_string())?;
     let bus = Arc::new(Bus::default());
+    chappe::tracing_layer::init_subscriber(Some(Arc::clone(&bus)), "marengo-gateway");
     let state_holder: Arc<std::sync::Mutex<Option<state::SharedState>>> =
         Arc::new(std::sync::Mutex::new(None));
+
+    let logs = match Store::open_default() {
+        Ok(store) => {
+            info!("marengo-store opened");
+            Some(LogServices::open(store))
+        }
+        Err(e) => {
+            tracing::warn!(error = %e, "marengo-store unavailable; log persistence disabled");
+            None
+        }
+    };
 
     let on_frame = {
         let holder = Arc::clone(&state_holder);
@@ -117,7 +131,11 @@ async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     };
 
     let ipc = IpcListener::spawn_server(args.socket_path.clone(), on_frame)?;
-    let state: state::SharedState = Arc::new(state::AppState::new(Arc::clone(&bus)).with_ipc(ipc));
+    let mut app_state = state::AppState::new(Arc::clone(&bus)).with_ipc(ipc);
+    if let Some(log_services) = logs {
+        app_state = app_state.with_logs(log_services);
+    }
+    let state: state::SharedState = Arc::new(app_state);
     if let Ok(mut guard) = state_holder.lock() {
         *guard = Some(Arc::clone(&state));
     }

@@ -51,21 +51,28 @@ export function registerLogTools(
 
     pi_logs_list: {
       description:
-        "List recent bench logs/traces with sizes; shows var/log total",
+        "List recent bench sessions (gateway SQL when reachable, else hot files)",
       inputSchema: z.object({
         limit: z.number().int().min(1).max(50).default(15),
       }),
       handler: async (args: { limit: number }) => {
+        const gw = `http://${cfg.host}:8080`;
         const body = wrapRemote(
           cfg,
           [
+            `if curl -sf "${gw}/logs/sessions?limit=${args.limit}" >/tmp/m-sessions.json 2>/dev/null; then`,
+            '  echo "=== gateway sessions ==="',
+            '  cat /tmp/m-sessions.json',
+            '  echo ""',
+            "fi",
             `LOGDIR=${JSON.stringify(logDir)}`,
             'du -sh "$LOGDIR" 2>/dev/null || true',
+            'echo "=== hot files ==="',
             'ls -lt "$LOGDIR"/bench-*.log "$LOGDIR"/bench-*.json "$LOGDIR"/position-trace-*.csv "$LOGDIR"/candump-*.log 2>/dev/null',
             `  | head -n ${args.limit} || echo '(no bench logs yet)'`,
           ].join("\n"),
         );
-        return runRemote(body, 15_000);
+        return runRemote(body, 20_000);
       },
     },
 
@@ -79,6 +86,28 @@ export function registerLogTools(
           `grep -E 'ERROR|WARN|fault|watchdog|outside|limit' ${logDir}/bench-latest.log 2>/dev/null | tail -n 80 || echo '(no fault lines or no bench-latest.log)'`,
         );
         return runRemote(body, 15_000);
+      },
+    },
+
+    pi_logs_archive_list: {
+      description: "List archived bench sessions via marengo-log-cli / gateway SQL store",
+      inputSchema: z.object({
+        limit: z.number().int().min(1).max(50).default(15),
+      }),
+      handler: async (args: { limit: number }) => {
+        const gw = `http://${cfg.host}:8080`;
+        const body = wrapRemote(
+          cfg,
+          [
+            `if curl -sf "${gw}/logs/sessions?limit=${args.limit}" >/tmp/m-sessions.json 2>/dev/null; then`,
+            '  cat /tmp/m-sessions.json',
+            "else",
+            `  marengo-log-cli archive --keep 50 2>/dev/null || true`,
+            `  ls -lt ${logDir}/blobs/*/* 2>/dev/null | head -n ${args.limit} || echo '(no archived sessions)'`,
+            "fi",
+          ].join("\n"),
+        );
+        return runRemote(body, 20_000);
       },
     },
 

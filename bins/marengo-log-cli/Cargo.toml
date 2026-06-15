@@ -1,0 +1,21 @@
+[package]
+name = "marengo-log-cli"
+version = "0.1.0"
+description = "CLI for Marengo log session archive and SQLite maintenance"
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "marengo-log-cli"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive", "env"] }
+marengo-store = { path = "../../crates/marengo-store" }
+tracing.workspace = true
+marengo-support.workspace = true

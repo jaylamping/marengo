@@ -1,0 +1,16 @@
+[Unit]
+Description=Marengo log archive purge and maintenance
+After=network.target
+
+[Service]
+Type=oneshot
+Environment=MARENGO_ROOT=/opt/marengo
+EnvironmentFile=-/etc/marengo/env
+ExecStart=/opt/marengo/bin/marengo-log-cli journal-import
+ExecStart=/opt/marengo/bin/marengo-log-cli archive --keep 50
+ExecStart=/opt/marengo/bin/marengo-log-cli purge --days 30
+User=marengo
+Group=marengo
+
+[Install]
+WantedBy=multi-user.target

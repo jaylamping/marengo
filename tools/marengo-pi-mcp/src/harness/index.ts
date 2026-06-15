@@ -1,7 +1,7 @@
 import type { BenchProfile, MarengoPiConfig } from "../config.js";
 import { sudoCanUpCommand } from "../config.js";
 import { shellQuote, wrapRemoteWithConfig } from "../env.js";
-import { benchLogPruneShell, benchCandumpStartShell, benchCandumpStopShell } from "../tools/motion.js";
+import { benchLogArchiveShell, benchCandumpStartShell, benchCandumpStopShell } from "../tools/motion.js";
 
 const BENCH_CONFIG_WEIGHTED =
   "/opt/marengo/config/bringup/shoulder_pitch_weighted";
@@ -71,7 +71,10 @@ function benchSessionWrapper(
       "mkdir -p \"$LOGDIR\"",
       'TS=$(date -u +"%Y%m%dT%H%M%SZ")',
       `LOG="$LOGDIR/bench-$TS.log"`,
+      `TRACE="$LOGDIR/position-trace-$TS.csv"`,
       `JSON="$LOGDIR/bench-$TS.json"`,
+      'export MARENGO_POSITION_TRACE="$TRACE"',
+      'export MARENGO_LOG_SESSION_ID="$TS"',
       `LABEL=${shellQuote(label)}`,
       "echo \"=== bench harness $TS ($LABEL) ===\" | tee \"$LOG\"",
       benchCandumpStartShell(),
@@ -82,8 +85,9 @@ function benchSessionWrapper(
       "PIPE_STATUS=${PIPESTATUS[0]}",
       "set -e",
       benchCandumpStopShell(),
-      "ln -sf \"$LOG\" \"$LOGDIR/bench-latest.log\"",
-      benchLogPruneShell("$LOGDIR"),
+      'ln -sf "$LOG" "$LOGDIR/bench-latest.log"',
+      'ln -sf "$TRACE" "$LOGDIR/position-trace-latest.csv"',
+      benchLogArchiveShell(cfg.piRoot),
       "echo \"log=$LOG candump=${CANDUMP:-}\"",
       "exit \"$PIPE_STATUS\"",
     ].join("\n"),

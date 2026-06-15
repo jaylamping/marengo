@@ -6,6 +6,8 @@ use chappe::ipc::IpcListener;
 use chappe::Bus;
 use tokio::sync::broadcast;
 
+use crate::logs::{decode_log_payload, LogServices as LogSvc};
+
 pub const TOPIC_STATE: &str = "robot/state";
 pub const TOPIC_SAFETY: &str = "robot/safety";
 pub const TOPIC_HEARTBEAT: &str = "robot/heartbeat";
@@ -40,6 +42,7 @@ pub struct AppState {
     pub bus: Arc<Bus>,
     pub snapshots: Arc<RwLock<Snapshots>>,
     pub ipc: Option<Arc<IpcListener>>,
+    pub logs: Option<Arc<LogSvc>>,
     /// Base64 SHA-256 of the DER WebTransport cert (for Consul `serverCertificateHashes`).
     pub tls_cert_sha256_base64: RwLock<Option<String>>,
     envelope_tx: broadcast::Sender<(String, Vec<u8>)>,
@@ -52,9 +55,15 @@ impl AppState {
             bus,
             snapshots: Arc::new(RwLock::new(Snapshots::default())),
             ipc: None,
+            logs: None,
             tls_cert_sha256_base64: RwLock::new(None),
             envelope_tx,
         }
+    }
+
+    pub fn with_logs(mut self, logs: LogSvc) -> Self {
+        self.logs = Some(Arc::new(logs));
+        self
     }
 
     pub fn set_tls_cert_sha256_base64(&self, value: String) {
@@ -76,6 +85,11 @@ impl AppState {
     }
 
     pub fn ingest_runtime_frame(&self, topic: String, payload: Vec<u8>) {
+        if topic == TOPIC_LOGS {
+            if let (Some(logs), Some(event)) = (&self.logs, decode_log_payload(&payload)) {
+                logs.ingest_log_event(&event);
+            }
+        }
         self.update_snapshot(&topic, &payload);
         let _ = self.bus.publish_bytes(&topic, payload.clone());
         let _ = self.envelope_tx.send((topic, payload));

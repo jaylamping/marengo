@@ -139,17 +139,20 @@ RS03 does **not** expose a fixed “CAN frequency” in our stack — MIT mode i
 
 Timestamped `bench-*.log` and `position-trace-*.csv` per session; symlinks `bench-latest.log` / `position-trace-latest.csv` always point at newest.
 
-- **Auto-prune:** harness / `pi_hold_on` keep **100 newest** of each pattern after every run
+- **Hot keep:** harness / `pi_hold_on` keep **50 newest** of each pattern; older files gzip to `var/log/blobs/` via `marengo-log-cli archive`
+- **Archive:** SQLite `log_sessions` + gateway `GET /logs/sessions` (Consul Archive tab, MCP `pi_logs_archive_list`)
+- **Purge:** daily timer — `marengo-log-cli purge --days 30` + journal import
 - **Manual:** `scripts/bench-log-prune.sh [/opt/marengo/var/log] [keep]`
 - **Rough size:** ~40–80 KB/log, ~60–150 KB/trace @ 50 Hz for ~30 s; ~4× @ 200 Hz (default trace rate)
 
-Check usage: `pi_logs_list` (includes total `du -sh`). After motion: **`pi_candump_summary`** for wire frame rate.
+Check usage: `pi_logs_list` (gateway sessions + hot `du -sh`). After motion: **`pi_candump_summary`** for wire frame rate.
 
 ### MCP read-only access (no motion)
 
 | Tool | Use |
 |------|-----|
-| `pi_logs_list` | Recent logs/traces + disk usage |
+| `pi_logs_list` | Gateway sessions + hot files + disk usage |
+| `pi_logs_archive_list` | Archived sessions (gateway SQL or blob dir) |
 | `pi_logs_tail` / `pi_logs_grep` | Search bench/journal output |
 | `pi_logs_last_fault` | Last motor fault |
 | `pi_journal` | systemd / marengo-pi journal |

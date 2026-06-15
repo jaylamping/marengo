@@ -134,6 +134,7 @@ export const logBuffer = new LogBuffer();
 let streamSequence = 0;
 let live = false;
 let chappeLive = false;
+let paused = false;
 let liveTimer: number | undefined;
 const liveListeners = new Set<() => void>();
 
@@ -162,8 +163,17 @@ function startLiveStream() {
   }, 1000);
 }
 
+export function getLogPaused(): boolean {
+  return paused;
+}
+
+export function setLogPaused(next: boolean) {
+  paused = next;
+  notifyLiveListeners();
+}
+
 export function getLogLive(): boolean {
-  return live;
+  return live && !paused;
 }
 
 export function setLogLive(next: boolean) {
@@ -197,6 +207,9 @@ export function seedLogs(count: number) {
 }
 
 export function appendLiveLog(entry: Omit<LogEntry, 'id'>) {
+  if (paused) {
+    return;
+  }
   streamSequence += 1;
   logBuffer.appendBatch([
     {
@@ -215,11 +228,48 @@ export function enableChappeLiveLogs() {
   }
 }
 
+export function hydrateLogsFromSnapshot(
+  entries: Array<{
+    timestamp_ms: number;
+    level: string;
+    target: string;
+    message: string;
+  }>,
+) {
+  if (entries.length === 0) {
+    return;
+  }
+  const batch: LogEntry[] = entries.map((e, i) => ({
+    id: `snap-${i}-${e.timestamp_ms}`,
+    timestamp: e.timestamp_ms,
+    level: mapProtoLevel(e.level),
+    source: e.target,
+    message: e.message,
+  }));
+  logBuffer.clear();
+  streamSequence = batch.length;
+  logBuffer.appendBatch(batch);
+}
+
+function mapProtoLevel(level: string): LogLevel {
+  switch (level.toLowerCase()) {
+    case 'trace':
+    case 'debug':
+      return 'DEBUG';
+    case 'warn':
+      return 'WARN';
+    case 'error':
+      return 'ERROR';
+    default:
+      return 'INFO';
+  }
+}
+
 export function ensureLogsSeeded(count = INITIAL_LOG_SEED_COUNT) {
   if (chappeLive) {
     return;
   }
-  if (logBuffer.getCount() === 0) {
+  if (import.meta.env.DEV && logBuffer.getCount() === 0) {
     seedLogs(count);
   }
 }

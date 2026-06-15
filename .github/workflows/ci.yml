@@ -158,6 +158,15 @@ jobs:
           restore-keys: |
             consul-npm-${{ runner.os }}-
 
+      - name: Prepare proto breaking baseline
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          mkdir -p .ci-buf-against
+          git archive "${{ github.event.pull_request.base.sha }}" proto | tar -x -C .ci-buf-against
+          test -f .ci-buf-against/proto/marengo/v1/marengo.proto
+          echo "BUF_BREAKING_AGAINST=${{ github.workspace }}/.ci-buf-against/proto" >> "$GITHUB_ENV"
+
       - name: Run check.sh in container
         run: |
           mkdir -p .ci-cache/cargo/registry .ci-cache/cargo/git target
@@ -170,6 +179,7 @@ jobs:
             -e CI=true \
             -e GITHUB_EVENT_NAME="${{ github.event_name }}" \
             -e GITHUB_BASE_SHA="${{ github.event.pull_request.base.sha || '' }}" \
+            -e BUF_BREAKING_AGAINST="${{ env.BUF_BREAKING_AGAINST || '' }}" \
             -e GITHUB_REF="${{ github.ref }}" \
             -e GITHUB_REPOSITORY="${{ github.repository }}" \
             marengo-dev:local \

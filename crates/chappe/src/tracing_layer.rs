@@ -94,6 +94,7 @@ where
             level: level_name(level).to_string(),
             target: event.metadata().target().to_string(),
             message: visitor.message,
+            session_id: std::env::var("MARENGO_LOG_SESSION_ID").unwrap_or_default(),
         };
         let _ = self
             .bus

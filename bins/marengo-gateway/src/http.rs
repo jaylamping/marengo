@@ -17,6 +17,7 @@ use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
 
 use crate::framing::{self, CHAPPE_STREAM_CONTENT_TYPE};
+use crate::logs;
 use crate::state::{filter_topics, SharedState};
 
 #[derive(Serialize)]
@@ -65,10 +66,20 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
         .route("/snapshot/robot/heartbeat", get(snapshot_heartbeat))
         .route("/snapshot/sensors/imu/torso", get(snapshot_imu_torso))
         .route("/snapshot/host/metrics/pi", get(snapshot_host_metrics_pi))
+        .route("/snapshot/host/metrics/jetson", get(snapshot_host_metrics_jetson))
+        .route("/snapshot/logs/recent", get(logs::snapshot_logs_recent))
+        .route("/logs/sessions", get(logs::list_sessions))
+        .route("/logs/sessions/latest/candump", get(logs::latest_candump))
+        .route("/logs/sessions/{id}/bench", get(logs::session_bench))
+        .route("/logs/sessions/{id}/trace", get(logs::session_trace))
+        .route("/logs/sessions/{id}/candump", get(logs::session_candump))
         .route(
-            "/snapshot/host/metrics/jetson",
-            get(snapshot_host_metrics_jetson),
+            "/logs/sessions/{id}/candump/summary",
+            get(logs::session_candump_summary),
         )
+        .route("/logs/sessions/{id}/download", get(logs::session_download))
+        .route("/logs/structured", get(logs::structured_logs))
+        .route("/settings", get(logs::get_settings))
         .route("/command/enable", post(command_enable))
         .layer(cors)
         .with_state(state);

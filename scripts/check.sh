@@ -23,19 +23,28 @@ fi
 
 echo "==> buf breaking (PR only)"
 if [[ -x "${BUF}" ]] && [[ "${CI_MODE}" == true ]] && [[ "${GITHUB_EVENT_NAME:-}" == "pull_request" ]]; then
-  BASE_SHA="${GITHUB_BASE_SHA:-}"
-  if [[ -z "${BASE_SHA}" ]]; then
-    git fetch origin main 2>/dev/null || true
-    BASE_SHA="$(git rev-parse origin/main 2>/dev/null || git rev-parse main 2>/dev/null || true)"
+  AGAINST="${BUF_BREAKING_AGAINST:-}"
+  AGAINST_DIR=""
+  if [[ -z "${AGAINST}" ]]; then
+    BASE_SHA="${GITHUB_BASE_SHA:-}"
+    if [[ -z "${BASE_SHA}" ]]; then
+      git fetch origin main 2>/dev/null || true
+      BASE_SHA="$(git rev-parse origin/main 2>/dev/null || git rev-parse main 2>/dev/null || true)"
+    fi
+    if [[ -n "${BASE_SHA}" ]]; then
+      git config --global --add safe.directory "${ROOT}" 2>/dev/null || true
+      AGAINST_DIR="$(mktemp -d)"
+      # Never use buf `.git#branch=…` in Docker — shallow mounts mis-detect deletions.
+      git archive "${BASE_SHA}" proto | tar -x -C "${AGAINST_DIR}"
+      AGAINST="${AGAINST_DIR}/proto"
+    fi
   fi
-  if [[ -z "${BASE_SHA}" ]]; then
-    echo "warn: could not resolve base ref for buf breaking, skipping"
+  if [[ -z "${AGAINST}" ]] || [[ ! -f "${AGAINST}/marengo/v1/marengo.proto" ]]; then
+    echo "warn: could not materialize base proto for buf breaking, skipping"
   else
-    AGAINST_DIR="$(mktemp -d)"
-    # buf's `.git#branch=…` source mis-detects proto deletions in shallow/docker
-    # checkouts; materialize the base tree instead.
-    git archive "${BASE_SHA}" proto | tar -x -C "${AGAINST_DIR}"
-    "${BUF}" breaking proto --against "${AGAINST_DIR}/proto"
+    "${BUF}" breaking proto --against "${AGAINST}"
+  fi
+  if [[ -n "${AGAINST_DIR}" ]]; then
     rm -rf "${AGAINST_DIR}"
   fi
 fi

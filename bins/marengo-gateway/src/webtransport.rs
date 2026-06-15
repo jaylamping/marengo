@@ -282,6 +282,7 @@ pub fn spawn_demo_publisher(state: SharedState) {
                 level: "info".to_string(),
                 target: "marengo_gateway::demo".to_string(),
                 message: format!("demo tick {t}"),
+                session_id: String::new(),
             };
             let host_pi = HostMetrics {
                 timestamp_ms: ts,

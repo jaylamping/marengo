@@ -18,7 +18,28 @@ const BENCH_CONFIG_LEFT =
   "/opt/marengo/config/bringup/shoulder_pitch_left_only";
 
 /** Keep newest N timestamped bench artifacts; symlinks (bench-latest.*) untouched. */
-export const BENCH_LOG_KEEP_COUNT = 100;
+export const BENCH_LOG_KEEP_COUNT = 50;
+
+export function benchLogArchiveShell(
+  piRoot: string,
+  keep = BENCH_LOG_KEEP_COUNT,
+): string {
+  const root = shellQuote(piRoot);
+  return [
+    `# archive hot bench logs (keep ${keep})`,
+    `if command -v marengo-log-cli >/dev/null 2>&1; then`,
+    `  MARENGO_ROOT=${root} marengo-log-cli session register \\`,
+    `    --id "$TS" --label "$LABEL" \\`,
+    `    --bench "$LOG" \\`,
+    `    --candump "\${CANDUMP:-}" \\`,
+    `    --trace "$TRACE" || true`,
+    `  MARENGO_ROOT=${root} marengo-log-cli session finalize --id "$TS" || true`,
+    `  MARENGO_ROOT=${root} marengo-log-cli archive --keep ${keep} || true`,
+    `else`,
+    ...benchLogPruneShell("$LOGDIR", keep).split("\n"),
+    `fi`,
+  ].join("\n");
+}
 
 export function benchLogPruneShell(logDirVar = "$LOGDIR", keep = BENCH_LOG_KEEP_COUNT): string {
   return [
@@ -102,6 +123,7 @@ const benchLogWrapper = (
     'LOG="$LOGDIR/bench-$TS.log"',
     'TRACE="$LOGDIR/position-trace-$TS.csv"',
     'export MARENGO_POSITION_TRACE="$TRACE"',
+    'export MARENGO_LOG_SESSION_ID="$TS"',
     `LABEL=${shellQuote(label)}`,
     'echo "=== bench session $TS ($LABEL) ===" | tee "$LOG"',
     benchCandumpStartShell(),
@@ -114,7 +136,7 @@ const benchLogWrapper = (
     benchCandumpStopShell(),
     'ln -sf "$LOG" "$LOGDIR/bench-latest.log"',
     'ln -sf "$TRACE" "$LOGDIR/position-trace-latest.csv"',
-    benchLogPruneShell(),
+    benchLogArchiveShell(cfg.piRoot),
     'echo "{\"log\":\"$LOG\",\"trace\":\"$TRACE\",\"candump\":\"${CANDUMP:-}\",\"ts\":\"$TS\",\"label\":\"$LABEL\"}"',
     'exit "$PIPE_STATUS"',
   ].join("\n");

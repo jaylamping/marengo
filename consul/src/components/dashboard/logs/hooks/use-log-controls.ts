@@ -2,8 +2,10 @@ import { useSyncExternalStore } from 'react';
 
 import {
   getLogLive,
+  getLogPaused,
   logBuffer,
   setLogLive,
+  setLogPaused,
   subscribeLogLive,
   clearLogs,
   type LogBufferSnapshot,
@@ -11,6 +13,14 @@ import {
 
 export function useLogLive() {
   return useSyncExternalStore(subscribeLogLive, getLogLive, getLogLive);
+}
+
+export function useLogPaused() {
+  return useSyncExternalStore(
+    subscribeLogLive,
+    getLogPaused,
+    getLogPaused,
+  );
 }
 
 export function useLogBufferSnapshot(): LogBufferSnapshot {
@@ -24,6 +34,7 @@ export function useLogBufferSnapshot(): LogBufferSnapshot {
 export function useLogActions() {
   return {
     setLive: setLogLive,
+    setPaused: setLogPaused,
     clear: clearLogs,
   };
 }

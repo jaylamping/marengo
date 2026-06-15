@@ -22,7 +22,7 @@ Host: **`marengo.local`** user **`joey`**. Pi root: **`/opt/marengo`**.
 
 ## Read-only (no confirm)
 
-`pi_health`, `pi_can_status`, `pi_motor_repl_status`, `pi_gravity_preview`, `pi_logs_*`, **`pi_candump_summary`**, `pi_journal`, `pi_candump_once`, `pi_imu_probe`, `pi_read_file`
+`pi_health`, `pi_can_status`, `pi_motor_repl_status`, `pi_gravity_preview`, `pi_logs_*`, **`pi_logs_archive_list`**, **`pi_candump_summary`**, `pi_journal`, `pi_candump_once`, `pi_imu_probe`, `pi_read_file`
 
 ## Admin (no confirm)
 
@@ -67,6 +67,7 @@ Prefer **`pi_bench_harness`** for debug sessions. Sustained control uses **`pi_m
 3. **`bare_motor`:** one user OK → `pi_bench_harness` with `confirm: true`.
 4. **Weighted:** ask twice in chat → harness with both confirm flags.
 5. After harness: `pi_logs_last_fault` + **`pi_candump_summary`** + position trace JSON in response; link log paths in issues.
+6. Session history: **`pi_logs_list`** / **`pi_logs_archive_list`** (gateway SQL) before raw file greps when gateway is up.
 
 ### Bench telemetry triad (motion troubleshooting)
 

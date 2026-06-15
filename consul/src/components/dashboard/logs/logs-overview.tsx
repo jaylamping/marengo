@@ -1,28 +1,178 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { dashboardLogsClassName } from '@/components/dashboard/layout/constants';
+import { CandumpFrameTable } from '@/components/dashboard/logs/candump-frame-table';
+import { LogsConnectionBanner } from '@/components/dashboard/logs/logs-connection-banner';
 import { LogsFilterProvider } from '@/components/dashboard/logs/logs-filter-context';
+import { LogsModeTabs, type LogsMode } from '@/components/dashboard/logs/logs-mode-tabs';
+import { LogsSessionList } from '@/components/dashboard/logs/logs-session-list';
 import { LogsToolbar } from '@/components/dashboard/logs/logs-toolbar';
 import { LogsVirtualTable } from '@/components/dashboard/logs/logs-virtual-table';
+import {
+  fetchBenchLines,
+  fetchCandumpPage,
+  fetchCandumpSummary,
+  fetchSessions,
+  fetchTraceLines,
+  type LogSessionDto,
+} from '@/lib/log-api';
 import { ensureLogsSeeded } from '@/lib/log-buffer';
+import { isChappeLive } from '@/lib/chappe-config';
 
-function LogsOverviewContent() {
+const CAN_PAGE = 200;
+type ArchiveView = 'bench' | 'trace';
+
+function LogsOverviewInner() {
+  const [mode, setMode] = useState<LogsMode>('live');
+  const [archiveView, setArchiveView] = useState<ArchiveView>('bench');
+  const [sessions, setSessions] = useState<LogSessionDto[]>([]);
+  const [selectedSession, setSelectedSession] = useState<string | null>(null);
+  const [archiveLines, setArchiveLines] = useState<string[]>([]);
+  const [canFrames, setCanFrames] = useState<Awaited<ReturnType<typeof fetchCandumpPage>>['frames']>([]);
+  const [canTotal, setCanTotal] = useState(0);
+  const [canOffset, setCanOffset] = useState(0);
+  const [canSummary, setCanSummary] = useState<string>('');
+  const [autoFollow, setAutoFollow] = useState(true);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    ensureLogsSeeded();
+    if (!isChappeLive()) {
+      ensureLogsSeeded();
+    }
   }, []);
+
+  useEffect(() => {
+    if (mode !== 'archive' && mode !== 'can') {
+      return;
+    }
+    void fetchSessions(50).then(setSessions);
+  }, [mode]);
+
+  useEffect(() => {
+    if (mode !== 'archive' || !selectedSession) {
+      return;
+    }
+    if (archiveView === 'bench') {
+      void fetchBenchLines(selectedSession, 0, 500).then(({ lines }) => setArchiveLines(lines));
+    } else {
+      void fetchTraceLines(selectedSession, 0, 500).then(({ lines }) => setArchiveLines(lines));
+    }
+  }, [mode, selectedSession, archiveView]);
+
+  useEffect(() => {
+    if (mode !== 'can') {
+      return;
+    }
+    const id = selectedSession ?? 'latest';
+    void fetchCandumpPage(id, canOffset, CAN_PAGE).then(({ frames, total_frames }) => {
+      setCanFrames(frames);
+      setCanTotal(total_frames);
+    });
+    if (selectedSession) {
+      void fetchCandumpSummary(selectedSession).then((summary) => {
+        if (!summary) {
+          setCanSummary('');
+          return;
+        }
+        setCanSummary(
+          `${summary.frame_count} frames · ${summary.approx_hz.toFixed(1)} Hz · ${summary.duration_s.toFixed(2)}s`,
+        );
+      });
+    } else {
+      setCanSummary('live candump-latest.log');
+    }
+  }, [mode, selectedSession, canOffset]);
+
+  const onFollowScroll = useCallback(() => {
+    if (!autoFollow || !scrollRef.current) {
+      return;
+    }
+    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [autoFollow]);
+
+  useEffect(() => {
+    if (mode === 'live') {
+      onFollowScroll();
+    }
+  }, [mode, onFollowScroll]);
 
   return (
     <div className={dashboardLogsClassName}>
-      <LogsToolbar />
-      <LogsVirtualTable />
+      <div className="flex flex-col gap-3">
+        <LogsConnectionBanner />
+        <LogsModeTabs mode={mode} onModeChange={setMode} />
+      </div>
+
+      {mode === 'live' ? (
+        <LogsFilterProvider>
+          <LogsToolbar autoFollow={autoFollow} onAutoFollowChange={setAutoFollow} />
+          <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
+            <LogsVirtualTable />
+          </div>
+        </LogsFilterProvider>
+      ) : null}
+
+      {mode === 'archive' ? (
+        <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[240px_1fr]">
+          <LogsSessionList
+            sessions={sessions}
+            selectedId={selectedSession}
+            onSelect={setSelectedSession}
+          />
+          <div className="flex min-h-0 flex-col gap-2">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className={`rounded px-2 py-1 text-xs ${archiveView === 'bench' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}
+                onClick={() => setArchiveView('bench')}
+              >
+                Bench log
+              </button>
+              <button
+                type="button"
+                className={`rounded px-2 py-1 text-xs ${archiveView === 'trace' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}
+                onClick={() => setArchiveView('trace')}
+              >
+                Position trace
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-auto rounded-lg border bg-card p-3 font-mono text-xs">
+              {archiveLines.length === 0 ? (
+                <p className="text-muted-foreground">Select a session.</p>
+              ) : (
+                archiveLines.map((line) => <div key={line}>{line}</div>)
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {mode === 'can' ? (
+        <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[240px_1fr]">
+          <LogsSessionList
+            sessions={sessions}
+            selectedId={selectedSession}
+            onSelect={(id) => {
+              setSelectedSession(id);
+              setCanOffset(0);
+            }}
+          />
+          <div className="flex min-h-0 flex-col gap-2">
+            <p className="text-sm text-muted-foreground">{canSummary}</p>
+            <CandumpFrameTable
+              frames={canFrames}
+              total={canTotal}
+              offset={canOffset}
+              pageSize={CAN_PAGE}
+              onPage={setCanOffset}
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
 
 export function LogsOverview() {
-  return (
-    <LogsFilterProvider>
-      <LogsOverviewContent />
-    </LogsFilterProvider>
-  );
+  return <LogsOverviewInner />;
 }

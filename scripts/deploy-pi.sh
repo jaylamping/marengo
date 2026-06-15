@@ -190,8 +190,8 @@ ensure_cargo_in_path
 ensure_pi_cross_target
 
 log_step "cargo build (release, ${TARGET})"
-log_note "Packages: marengo-pi, marengo-gateway, motor-repl, imu-probe"
-cargo build --release --target "$TARGET" -p marengo-pi -p marengo-gateway -p motor-repl -p imu-probe --features socketcan,linux-i2c
+log_note "Packages: marengo-pi, marengo-gateway, marengo-log-cli, motor-repl, imu-probe"
+cargo build --release --target "$TARGET" -p marengo-pi -p marengo-gateway -p marengo-log-cli -p motor-repl -p imu-probe --features socketcan,linux-i2c
 log_step "cargo build done"
 
 build_consul_assets
@@ -212,6 +212,7 @@ trap 'rm -rf "$STAGING"' EXIT
 mkdir -p "$STAGING/target/release"
 cp "${ROOT}/target/${TARGET}/release/marengo-pi" "$STAGING/target/release/"
 cp "${ROOT}/target/${TARGET}/release/marengo-gateway" "$STAGING/target/release/"
+cp "${ROOT}/target/${TARGET}/release/marengo-log-cli" "$STAGING/target/release/"
 cp "${ROOT}/target/${TARGET}/release/motor-repl" "$STAGING/target/release/"
 cp "${ROOT}/target/${TARGET}/release/imu-probe" "$STAGING/target/release/"
 stage_copy_tree "${ROOT}/config" "$STAGING/config"
@@ -225,6 +226,7 @@ fi
 REMOTE_ROOT="${MARENGO_INSTALL_ROOT:-~/marengo}"
 compose_ssh_preflight "$PI_HOST"
 log_step "sync → ${PI_HOST}:${REMOTE_ROOT}/"
+# Staging excludes var/marengo.db and var/log/blobs — never rsync-delete Pi log store.
 sync_staging_to_pi "$STAGING" "$REMOTE_ROOT"
 
 if [[ "$DO_INSTALL" == true ]]; then

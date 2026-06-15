@@ -83,6 +83,8 @@ fn stub_metrics(
         chappe: Some(chappe.into_proto()),
         clock: Some(ClockMetrics::default()),
         platform: None,
+        log_disk_bytes: 0,
+        log_disk_budget_bytes: 5 * 1024 * 1024 * 1024,
     }
 }
 
@@ -134,6 +136,7 @@ mod linux {
         let network = sample_network(prev, elapsed);
         let services = sample_services(role);
         let clock = sample_clock();
+        let (log_disk_bytes, log_disk_budget_bytes) = sample_log_disk();
         let platform = match role {
             HostNodeRole::Pi => Some(armee_proto::host_metrics::Platform::Pi(sample_pi_platform(
                 &thermal,
@@ -169,7 +172,35 @@ mod linux {
             chappe: Some(chappe.into_proto()),
             clock: Some(clock),
             platform,
+            log_disk_bytes,
+            log_disk_budget_bytes,
         }
+    }
+
+    fn sample_log_disk() -> (u64, u64) {
+        let root = std::env::var("MARENGO_ROOT").unwrap_or_else(|_| "/opt/marengo".to_string());
+        let budget = 5_u64 * 1024 * 1024 * 1024;
+        let mut bytes = dir_size(Path::new(&root).join("var/log"));
+        bytes += fs::metadata(Path::new(&root).join("var/marengo.db"))
+            .map(|m| m.len())
+            .unwrap_or(0);
+        (bytes, budget)
+    }
+
+    fn dir_size(path: &Path) -> u64 {
+        if path.is_file() {
+            return fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+        }
+        if !path.is_dir() {
+            return 0;
+        }
+        let mut total = 0_u64;
+        if let Ok(entries) = fs::read_dir(path) {
+            for entry in entries.flatten() {
+                total += dir_size(&entry.path());
+            }
+        }
+        total
     }
 
     fn read_os_pretty_name() -> String {

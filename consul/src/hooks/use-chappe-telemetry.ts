@@ -6,7 +6,9 @@ import { isChappeLive } from '@/lib/chappe-config';
 import {
   appendLiveLog,
   enableChappeLiveLogs,
+  hydrateLogsFromSnapshot,
 } from '@/lib/log-buffer';
+import { fetchRecentLogs } from '@/lib/log-api';
 import type { LogLevel } from '@/data/logs';
 import { useHostMetricsStore } from '@/state/hostMetricsStore';
 import { useRobotStore } from '@/state/robotStore';
@@ -47,6 +49,9 @@ export function useChappeTelemetry(): void {
     }
 
     enableChappeLiveLogs();
+    void fetchRecentLogs(5000).then((entries) => {
+      hydrateLogsFromSnapshot(entries);
+    });
     let dispose: (() => void) | undefined;
 
     void connectChappeStream({

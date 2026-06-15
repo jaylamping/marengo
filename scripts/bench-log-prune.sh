@@ -4,14 +4,14 @@
 # Usage:
 #   bench-log-prune.sh [LOGDIR] [KEEP]
 #   LOGDIR default: /opt/marengo/var/log
-#   KEEP default: 100 (newest files kept per pattern)
+#   KEEP default: 50 (newest files kept per pattern)
 #
 # Never removes symlinks bench-latest.log / position-trace-latest.csv.
 
 set -eu
 
 LOGDIR="${1:-/opt/marengo/var/log}"
-KEEP="${2:-100}"
+KEEP="${2:-50}"
 
 prune_pattern() {
   pat="$1"

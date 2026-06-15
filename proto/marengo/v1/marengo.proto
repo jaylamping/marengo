@@ -139,6 +139,7 @@ message LogEvent {
   string level = 2;   // trace | debug | info | warn | error
   string target = 3;  // tracing target, e.g. berthier::loop
   string message = 4;
+  string session_id = 5; // bench session id when MARENGO_LOG_SESSION_ID set
 }
 
 // --- Host metrics (Consul host cards; topics host/metrics/pi | host/metrics/jetson) ---
@@ -179,6 +180,9 @@ message HostMetrics {
     PiPlatformMetrics pi = 20;
     JetsonPlatformMetrics jetson = 21;
   }
+
+  uint64 log_disk_bytes = 30;
+  uint64 log_disk_budget_bytes = 31;
 }
 
 message BuildInfo {
@@ -286,4 +290,59 @@ message JetsonPlatformMetrics {
   double power_draw_w = 8;
   double chappe_rtt_ms = 9;
   bool chappe_connected = 10;
+}
+
+// --- Log store HTTP API (marengo-gateway + Consul) ---
+
+message LogSessionMeta {
+  string id = 1;
+  string label = 2;
+  uint64 started_ms = 3;
+  uint64 ended_ms = 4;
+  bool has_bench = 5;
+  bool has_candump = 6;
+  bool has_trace = 7;
+  uint64 candump_bytes = 8;
+  uint64 candump_frame_count = 9;
+}
+
+message LogSessionList {
+  repeated LogSessionMeta sessions = 1;
+}
+
+message StructuredLogEntry {
+  uint64 id = 1;
+  uint64 timestamp_ms = 2;
+  string level = 3;
+  string target = 4;
+  string message = 5;
+  string session_id = 6;
+}
+
+message StructuredLogList {
+  repeated StructuredLogEntry entries = 1;
+  uint32 total = 2;
+}
+
+message CandumpFrame {
+  double delta_s = 1;
+  string interface = 2;
+  string can_id = 3;
+  string data = 4;
+  uint32 line_no = 5;
+}
+
+message CandumpPage {
+  repeated CandumpFrame frames = 1;
+  uint32 total_frames = 2;
+  uint32 offset = 3;
+}
+
+message CandumpSummary {
+  uint32 frame_count = 1;
+  uint64 bytes = 2;
+  double duration_s = 3;
+  double approx_hz = 4;
+  repeated string interfaces = 5;
+  repeated string top_ids = 6;
 }
