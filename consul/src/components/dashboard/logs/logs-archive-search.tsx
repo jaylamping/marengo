@@ -15,6 +15,11 @@ const SOURCE_PRESETS = [
   { label: 'systemd', target: 'systemd:' },
 ] as const;
 
+type LogsArchiveSearchProps = {
+  selectedLogId?: string | null;
+  onSelectLog?: (entry: LogEntry) => void;
+};
+
 function mapProtoLevel(level: string): LogLevel {
   switch (level.toLowerCase()) {
     case 'trace':
@@ -42,7 +47,10 @@ function dtoToEntry(row: Awaited<ReturnType<typeof fetchStructuredLogs>>['entrie
   };
 }
 
-export function LogsArchiveSearch() {
+export function LogsArchiveSearch({
+  selectedLogId = null,
+  onSelectLog,
+}: LogsArchiveSearchProps) {
   const [query, setQuery] = useState('');
   const [level, setLevel] = useState('');
   const [target, setTarget] = useState('');
@@ -132,7 +140,13 @@ export function LogsArchiveSearch() {
         ) : (
           <div>
             {entries.map((entry) => (
-              <LogRow key={entry.id} entry={entry} positioned={false} />
+              <LogRow
+                key={entry.id}
+                entry={entry}
+                positioned={false}
+                selected={entry.id === selectedLogId}
+                onSelect={onSelectLog}
+              />
             ))}
           </div>
         )}

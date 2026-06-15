@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { dashboardLogsClassName } from '@/components/dashboard/layout/constants';
 import { CandumpFrameTable } from '@/components/dashboard/logs/candump-frame-table';
 import { VirtualLinesList } from '@/components/dashboard/logs/virtual-lines-list';
+import { LogDetailSheet } from '@/components/dashboard/logs/log-detail-sheet';
 import { LogsArchiveSearch } from '@/components/dashboard/logs/logs-archive-search';
 import { LogsConnectionBanner } from '@/components/dashboard/logs/logs-connection-banner';
 import { LogsFilterProvider } from '@/components/dashboard/logs/logs-filter-context';
@@ -27,6 +28,7 @@ import {
 } from '@/lib/log-buffer';
 import { ensureLogDebugProbeStarted } from '@/lib/log-debug-probe';
 import { isChappeLive } from '@/lib/chappe-config';
+import type { LogEntry } from '@/data/logs';
 
 const CAN_PAGE = 200;
 type ArchiveView = 'bench' | 'trace' | 'search';
@@ -42,6 +44,13 @@ function LogsOverviewInner() {
   const [canOffset, setCanOffset] = useState(0);
   const [canSummary, setCanSummary] = useState<string>('');
   const [autoFollow, setAutoFollow] = useState(true);
+  const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+
+  function handleSelectLog(entry: LogEntry) {
+    setSelectedLog(entry);
+    setDetailOpen(true);
+  }
 
   useEffect(() => {
     ensureLogDebugProbeStarted();
@@ -112,9 +121,19 @@ function LogsOverviewInner() {
       {mode === 'live' ? (
         <LogsFilterProvider>
           <LogsToolbar autoFollow={autoFollow} onAutoFollowChange={setAutoFollow} />
-          <LogsVirtualTable autoFollow={autoFollow && mode === 'live'} />
+          <LogsVirtualTable
+            autoFollow={autoFollow && mode === 'live'}
+            selectedLogId={selectedLog?.id ?? null}
+            onSelectLog={handleSelectLog}
+          />
         </LogsFilterProvider>
       ) : null}
+
+      <LogDetailSheet
+        entry={selectedLog}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+      />
 
       {mode === 'archive' ? (
         <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[240px_1fr]">
@@ -149,7 +168,10 @@ function LogsOverviewInner() {
             </div>
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border bg-card p-3">
               {archiveView === 'search' ? (
-                <LogsArchiveSearch />
+                <LogsArchiveSearch
+                  selectedLogId={selectedLog?.id ?? null}
+                  onSelectLog={handleSelectLog}
+                />
               ) : archiveLines.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Select a session.</p>
               ) : (

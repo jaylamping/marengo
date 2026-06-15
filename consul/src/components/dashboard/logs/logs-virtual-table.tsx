@@ -5,15 +5,20 @@ import { useVisibleLogIndexModel } from '@/components/dashboard/logs/hooks/use-v
 import { useLogsFilter } from '@/components/dashboard/logs/logs-filter-context';
 import { LOG_ROW_ESTIMATE_SIZE, LogRow } from '@/components/dashboard/logs/log-row';
 import { LogsTableHeader } from '@/components/dashboard/logs/logs-table-header';
+import type { LogEntry } from '@/data/logs';
 import { logBuffer } from '@/lib/log-buffer';
 import { probeScrollEffect, probeVirtualTableRender } from '@/lib/log-debug-probe';
 
 type LogsVirtualTableProps = {
   autoFollow?: boolean;
+  selectedLogId?: string | null;
+  onSelectLog?: (entry: LogEntry) => void;
 };
 
 export const LogsVirtualTable = memo(function LogsVirtualTable({
   autoFollow = false,
+  selectedLogId = null,
+  onSelectLog,
 }: LogsVirtualTableProps) {
   probeVirtualTableRender();
   const model = useVisibleLogIndexModel();
@@ -87,6 +92,8 @@ export const LogsVirtualTable = memo(function LogsVirtualTable({
                 <LogRow
                   key={entry.id}
                   entry={entry}
+                  selected={entry.id === selectedLogId}
+                  onSelect={onSelectLog}
                   style={{
                     height: `${virtualRow.size}px`,
                     transform: `translateY(${virtualRow.start}px)`,
