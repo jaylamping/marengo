@@ -4,6 +4,7 @@ import type { MarengoPiConfig } from "../config.js";
 import { sudoInstallCommand, sudoStagingInstallCommand } from "../config.js";
 import { shellQuote, wrapRemote } from "../env.js";
 import { execLocal, execRemote, formatRemoteResult } from "../ssh.js";
+import { waitForDeployReady } from "./deploy-wait.js";
 
 function localDeployCommand(cfg: MarengoPiConfig): { cmd: string; args: string[] } {
   const host = `${cfg.user}@${cfg.host}`;
@@ -30,7 +31,10 @@ export async function runSyncMain(
   cfg: MarengoPiConfig,
   runRemote: (body: string, timeoutMs?: number) => Promise<string>,
   strategy: "cross" | "pi_native",
+  opts: { waitForReady?: boolean; waitTimeoutSec?: number } = {},
 ): Promise<string> {
+  const waitForReady = opts.waitForReady ?? true;
+  const waitTimeoutSec = opts.waitTimeoutSec ?? 180;
   const steps: string[] = [];
 
   if (strategy === "pi_native") {
@@ -127,6 +131,19 @@ export async function runSyncMain(
   );
   const health = await execRemote(cfg, healthBody, { timeoutMs: 30_000 });
   steps.push(`[verify]\n${formatRemoteResult(health)}`);
+
+  if (waitForReady && head) {
+    steps.push(`[wait for gateway] polling up to ${waitTimeoutSec}s for rev ${head.slice(0, 12)}…`);
+    const wait = await waitForDeployReady(cfg, head, {
+      timeoutMs: waitTimeoutSec * 1000,
+    });
+    steps.push(wait.log);
+    if (!wait.ready) {
+      steps.push(
+        `[wait for gateway] TIMEOUT — Pi not ready after ${waitTimeoutSec}s (check marengo-gateway / www)`,
+      );
+    }
+  }
 
   return steps.join("\n\n---\n\n");
 }
