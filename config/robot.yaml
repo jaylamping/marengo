@@ -6,7 +6,7 @@ robot:
     max_joint_velocity_rad_s: 0.5
     max_joint_torque_nm: 5.0
   joints:
-    - shoulder_roll
     - shoulder_pitch
+    - shoulder_roll
     - upper_arm_yaw
     - elbow

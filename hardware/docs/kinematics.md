@@ -136,8 +136,8 @@ Same limits as left; roll/pitch signs follow right-hand URDF convention.
 
 | Joint | Actuator | Parent → Child | Axis | Lower | Upper | Effort | Notes |
 |-------|----------|----------------|------|-------|-------|--------|-------|
-| `left_shoulder_roll` | RS03 | torso → left_shoulder_roll_link | X | -1.57 | 1.57 | 60 | |
-| `left_shoulder_pitch` | RS03 | roll → left_shoulder_pitch_link | Y | -1.2 | 1.2 | 60 | **Upright hazard** when q > ~0.5 rad |
+| `left_shoulder_pitch` | RS03 | torso → left_shoulder_pitch_link | Y | -1.2 | 1.2 | 60 | **Upright hazard** when q > ~0.5 rad |
+| `left_shoulder_roll` | RS03 | pitch → left_shoulder_roll_link | X | -1.57 | 1.57 | 60 | Torso-mounted pitch; roll on arm sub-asm |
 | `left_upper_arm_yaw` | RS02 | pitch → left_upper_arm | Z | -1.57 | 1.57 | 17 | |
 | `left_elbow` | RS02 | upper_arm → left_forearm | Y | 0.0 | 2.5 | 17 | **Upright hazard** — verify G-comp sign |
 | `left_wrist` | RS00 | forearm → left_hand | Y | -1.6 | 1.6 | 17 | G1 wrist pitch band ~±92.5° |
@@ -146,8 +146,8 @@ Same limits as left; roll/pitch signs follow right-hand URDF convention.
 
 | Joint | Actuator | Parent → Child | Axis | Lower | Upper | Effort |
 |-------|----------|----------------|------|-------|-------|--------|
-| `right_shoulder_roll` | RS03 | torso → right_shoulder_roll_link | X | -1.57 | 1.57 | 60 |
-| `right_shoulder_pitch` | RS03 | roll → right_shoulder_pitch_link | Y | -1.2 | 1.2 | 60 |
+| `right_shoulder_pitch` | RS03 | torso → right_shoulder_pitch_link | Y | -1.2 | 1.2 | 60 |
+| `right_shoulder_roll` | RS03 | pitch → right_shoulder_roll_link | X | -1.57 | 1.57 | 60 |
 | `right_upper_arm_yaw` | RS02 | pitch → right_upper_arm | Z | -1.57 | 1.57 | 17 |
 | `right_elbow` | RS02 | upper_arm → right_forearm | Y | 0.0 | 2.5 | 17 |
 | `right_wrist` | RS00 | forearm → right_hand | Y | -1.6 | 1.6 | 17 |
@@ -162,8 +162,8 @@ Subset of humanoid arm kinematics (shoulder roll/pitch, upper-arm yaw, elbow); c
 
 | Joint | Actuator | Parent → Child | Axis (joint) | Lower (rad) | Upper (rad) | Effort (Nm) | Notes |
 |-------|----------|----------------|--------------|-------------|-------------|-------------|-------|
-| `shoulder_roll` | RS03 | base → shoulder_roll_link | Z | -1.57 | 1.57 | 60 | High shoulder torque |
-| `shoulder_pitch` | RS03 | roll → shoulder_pitch_link | Z (after fixed rpy) | -1.2 | 1.2 | 60 | **Upright hazard** when q > ~0.5 rad |
+| `shoulder_pitch` | RS03 | base → shoulder_pitch_link | Z (after fixed rpy) | -1.2 | 1.2 | 60 | **Upright hazard** when q > ~0.5 rad; maps to humanoid pitch-at-torso |
+| `shoulder_roll` | RS03 | pitch → shoulder_roll_link | Z | -1.57 | 1.57 | 60 | Distal roll on arm sub-asm |
 | `upper_arm_yaw` | RS02 | pitch → upper_arm_link | Z | -1.57 | 1.57 | 17 | |
 | `elbow` | RS02 | upper_arm → forearm | Z | 0.0 | 2.5 | 17 | **Upright hazard** — verify G-comp sign |
 
@@ -188,7 +188,7 @@ Leg bring-up: start with **hip pitch** and **knee** RS04 sign tests under load b
 | Frame | Use |
 |-------|-----|
 | `base_link` / pelvis | Biped origin; pelvis `urdf_link_frame` on CAD pelvis (*pelvis draft*) |
-| `torso_link` | Upper torso 2020 frame; shoulder roll RS03 inside cage at shoulder plane (rev-a layout) |
+| `torso_link` | Upper torso 2020 frame; shoulder **pitch** RS03 inside cage at shoulder plane (rev-a layout) |
 | `left_foot` / `right_foot` | Sole contact; Z = floor in standing neutral |
 | `left_hand` / `right_hand` | Tool frame placeholder (TCP when gripper defined) |
 | `forearm_link` | Arm bring-up tool frame (full humanoid: `left_hand` / `right_hand`) |

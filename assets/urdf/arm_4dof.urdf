@@ -1,5 +1,6 @@
 <?xml version="1.0"?>
 <!-- 4-DOF Marengo arm bring-up: humanoid arm subset (RS03 shoulders, RS02 yaw/elbow). Masses are estimates until CAD export. -->
+<!-- Kinematic order: pitch (torso/bench base) → roll (arm sub-asm) → yaw → elbow. See hardware/docs/kinematics.md -->
 <robot name="arm_4dof">
   <link name="base_link">
     <inertial>
@@ -8,18 +9,18 @@
       <inertia ixx="0.02" ixy="0" ixz="0" iyy="0.02" iyz="0" izz="0.02"/>
     </inertial>
   </link>
-  <link name="shoulder_roll_link">
-    <inertial>
-      <origin xyz="0.05 0 0" rpy="0 0 0"/>
-      <mass value="1.2"/>
-      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/>
-    </inertial>
-  </link>
   <link name="shoulder_pitch_link">
     <inertial>
       <origin xyz="0.08 0 0" rpy="0 0 0"/>
       <mass value="1.0"/>
       <inertia ixx="0.008" ixy="0" ixz="0" iyy="0.008" iyz="0" izz="0.008"/>
+    </inertial>
+  </link>
+  <link name="shoulder_roll_link">
+    <inertial>
+      <origin xyz="0.05 0 0" rpy="0 0 0"/>
+      <mass value="1.2"/>
+      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/>
     </inertial>
   </link>
   <link name="upper_arm_link">
@@ -36,23 +37,23 @@
       <inertia ixx="0.004" ixy="0" ixz="0" iyy="0.004" iyz="0" izz="0.004"/>
     </inertial>
   </link>
-  <joint name="shoulder_roll" type="revolute">
-    <parent link="base_link"/>
-    <child link="shoulder_roll_link"/>
-    <origin xyz="0 0 0.1" rpy="0 0 0"/>
-    <axis xyz="0 0 1"/>
-    <limit lower="-1.57" upper="1.57" effort="60" velocity="3.0"/>
-  </joint>
   <joint name="shoulder_pitch" type="revolute">
-    <parent link="shoulder_roll_link"/>
+    <parent link="base_link"/>
     <child link="shoulder_pitch_link"/>
-    <origin xyz="0.05 0 0" rpy="0 1.57 0"/>
+    <origin xyz="0 0 0.1" rpy="0 0 0"/>
     <axis xyz="0 0 1"/>
     <limit lower="-0.9" upper="3.17" effort="60" velocity="3.0"/>
     <safety_controller soft_lower_limit="-0.872665" soft_upper_limit="3.141593" k_position="10" k_velocity="1"/>
   </joint>
-  <joint name="upper_arm_yaw" type="revolute">
+  <joint name="shoulder_roll" type="revolute">
     <parent link="shoulder_pitch_link"/>
+    <child link="shoulder_roll_link"/>
+    <origin xyz="0.05 0 0" rpy="0 1.57 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-1.57" upper="1.57" effort="60" velocity="3.0"/>
+  </joint>
+  <joint name="upper_arm_yaw" type="revolute">
+    <parent link="shoulder_roll_link"/>
     <child link="upper_arm_link"/>
     <origin xyz="0.08 0 0" rpy="0 0 0"/>
     <axis xyz="0 0 1"/>

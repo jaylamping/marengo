@@ -66,8 +66,8 @@ Bring-up joint names are a **subset** of the left-arm humanoid names (same axes/
 
 | Bring-up (`robot.yaml`) | Humanoid (`robot_humanoid.yaml`) |
 |-------------------------|----------------------------------|
-| `shoulder_roll` | `left_shoulder_roll` (mirror for right) |
-| `shoulder_pitch` | `left_shoulder_pitch` |
+| `shoulder_pitch` | `left_shoulder_pitch` (mirror for right) |
+| `shoulder_roll` | `left_shoulder_roll` |
 | `upper_arm_yaw` | `left_upper_arm_yaw` |
 | `elbow` | `left_elbow` |
 

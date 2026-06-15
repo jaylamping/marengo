@@ -61,8 +61,8 @@ mod tests {
 
     fn arm_joints() -> Vec<String> {
         vec![
-            "shoulder_roll".to_string(),
             "shoulder_pitch".to_string(),
+            "shoulder_roll".to_string(),
             "upper_arm_yaw".to_string(),
             "elbow".to_string(),
         ]

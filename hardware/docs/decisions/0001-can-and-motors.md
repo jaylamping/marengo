@@ -42,14 +42,14 @@ Each configured motor is addressed by (`can_interface`, `device_id`). Device IDs
 
 **Left 4-DOF arm (Milestone B)** — [`config/bringup/arm_4dof_left/`](../../../config/bringup/arm_4dof_left/) / [`config/motors.yaml`](../../../config/motors.yaml):
 
-| Joint | `device_id` | Motor |
-|-------|-------------|-------|
-| `shoulder_roll` | 11 | RS03 |
-| `shoulder_pitch` | 12 | RS03 |
-| `upper_arm_yaw` | 13 | RS02 |
-| `elbow` | 14 | RS02 |
+| Joint | `device_id` | Motor | Notes |
+|-------|-------------|-------|-------|
+| `shoulder_pitch` | 12 | RS03 | Torso-mounted (rev-a) |
+| `shoulder_roll` | 11 | RS03 | Arm sub-asm |
+| `upper_arm_yaw` | 13 | RS02 | |
+| `elbow` | 14 | RS02 | |
 
-All on `can0`. Right arm (future, `can1`): roll **1**, pitch **2**, yaw **3**, elbow **4**.
+All on `can0`. Right arm (future, `can1`): pitch **2** (torso, commissioned), roll **1**, yaw **3**, elbow **4**.
 
 **Legacy 4-DOF template (superseded):** IDs 1–4 on single bus — do not use on commissioned hardware.
 

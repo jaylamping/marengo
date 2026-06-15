@@ -21,13 +21,13 @@ robot:
     - right_knee
     - right_ankle_pitch
     - right_ankle_roll
-    - left_shoulder_roll
     - left_shoulder_pitch
+    - left_shoulder_roll
     - left_upper_arm_yaw
     - left_elbow
     - left_wrist
-    - right_shoulder_roll
     - right_shoulder_pitch
+    - right_shoulder_roll
     - right_upper_arm_yaw
     - right_elbow
     - right_wrist

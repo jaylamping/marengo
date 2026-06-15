@@ -50,7 +50,7 @@ Single aluminum cage, CAD name target: `marengo_upper_torso_frame`.
 
 ## Draft: RS03 mounting (shoulders + waist)
 
-- **Shoulder roll RS03 (rev-a direction):** mount **inside** the 2020 cage at `shoulder_plane`; axis **+X** unchanged. Orient body so the **~99 mm** dimension spans **Y** (inner **110 mm**) and **~57 mm** spans **X** (inner **85 mm**) — see [`torso-actuator-brackets-revA.md`](torso-actuator-brackets-revA.md). PETG bracket bridges to **inner faces** of left/right verticals (or front/rear rails), not outer poke.
+- **Shoulder pitch RS03 (rev-a):** mount **inside** the 2020 cage at `shoulder_plane`; axis **+Y**. Orient body so the **~99 mm** dimension spans **Y** (inner **110 mm**) and **~57 mm** spans **X** (inner **85 mm**) — see [`torso-actuator-brackets-revA.md`](torso-actuator-brackets-revA.md). PETG bracket bridges to **inner faces** of left/right verticals (or front/rear rails), not outer poke. Shoulder **roll** RS03 lives on the arm sub-assembly (distal to pitch).
 - **Outer shoulder width:** stays at committed frame **150 mm** (no ~40 mm/side motor poke); arms exit through shell cutouts aligned to motor output.
 - **Chest stack:** Pi/PDB/harness share the cage with shoulder motors — layout order matters (motors low at shoulder plane, compute above waist bay).
 - **Waist RS03:** in **40 mm waist bay**; pelvis does **not** bolt directly to box — **adapter plate** between pelvis ring and torso bottom rail.
