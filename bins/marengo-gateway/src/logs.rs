@@ -11,7 +11,7 @@ use axum::{
     Json,
 };
 use marengo_store::{
-    LogEventInsert, LogRingBuffer, StructuredLogQuery, DEFAULT_RING_CAPACITY, Store,
+    LogEventInsert, LogRingBuffer, Store, StructuredLogQuery, DEFAULT_RING_CAPACITY,
 };
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
@@ -450,7 +450,11 @@ pub async fn get_settings(
     authorize_logs(&headers)?;
     let logs = state.logs.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     let mut settings = std::collections::HashMap::new();
-    for key in ["schema_version", "log_archive_days", "log_disk_budget_bytes"] {
+    for key in [
+        "schema_version",
+        "log_archive_days",
+        "log_disk_budget_bytes",
+    ] {
         if let Ok(Some(val)) = logs.store.get_setting(key) {
             settings.insert(key.to_string(), val);
         }

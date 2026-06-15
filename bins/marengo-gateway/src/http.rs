@@ -66,7 +66,10 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
         .route("/snapshot/robot/heartbeat", get(snapshot_heartbeat))
         .route("/snapshot/sensors/imu/torso", get(snapshot_imu_torso))
         .route("/snapshot/host/metrics/pi", get(snapshot_host_metrics_pi))
-        .route("/snapshot/host/metrics/jetson", get(snapshot_host_metrics_jetson))
+        .route(
+            "/snapshot/host/metrics/jetson",
+            get(snapshot_host_metrics_jetson),
+        )
         .route("/snapshot/logs/recent", get(logs::snapshot_logs_recent))
         .route("/logs/sessions", get(logs::list_sessions))
         .route("/logs/sessions/latest/candump", get(logs::latest_candump))

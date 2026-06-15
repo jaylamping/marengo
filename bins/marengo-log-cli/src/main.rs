@@ -4,8 +4,8 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 use marengo_store::{
-    import_journal, resolve_db_path, resolve_marengo_root, DEFAULT_ARCHIVE_DAYS,
-    DEFAULT_HOT_KEEP, JOURNAL_UNITS, Store,
+    import_journal, resolve_db_path, resolve_marengo_root, Store, DEFAULT_ARCHIVE_DAYS,
+    DEFAULT_HOT_KEEP, JOURNAL_UNITS,
 };
 use marengo_support::init_tracing;
 
@@ -72,10 +72,7 @@ enum SessionAction {
 
 fn open_store(cli: &Cli) -> Result<Store, Box<dyn std::error::Error>> {
     let root = cli.root.clone().unwrap_or_else(resolve_marengo_root);
-    let db = cli
-        .db
-        .clone()
-        .unwrap_or_else(|| resolve_db_path());
+    let db = cli.db.clone().unwrap_or_else(|| resolve_db_path());
     Ok(Store::open(db, root)?)
 }
 

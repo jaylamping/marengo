@@ -45,9 +45,7 @@ impl Store {
     }
 
     pub fn connection(&self) -> std::sync::MutexGuard<'_, Connection> {
-        self.conn
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
+        self.conn.lock().unwrap_or_else(|e| e.into_inner())
     }
 
     pub fn marengo_root(&self) -> &Path {
@@ -86,14 +84,13 @@ impl Store {
 
     pub fn get_setting(&self, key: &str) -> Result<Option<String>> {
         let conn = self.connection();
-        conn
-            .query_row(
-                "SELECT value_json FROM settings WHERE key = ?1",
-                params![key],
-                |row| row.get(0),
-            )
-            .optional()
-            .map_err(StoreError::from)
+        conn.query_row(
+            "SELECT value_json FROM settings WHERE key = ?1",
+            params![key],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(StoreError::from)
     }
 
     pub fn insert_log_events(&self, events: &[LogEventInsert]) -> Result<()> {
@@ -199,7 +196,8 @@ impl Store {
                      ORDER BY e.ts_ms DESC LIMIT ?2 OFFSET ?3",
                 )?;
                 let fts_q = format!("{}*", q.trim());
-                let rows = stmt.query_map(params![fts_q, limit as i64, offset as i64], map_log_row)?;
+                let rows =
+                    stmt.query_map(params![fts_q, limit as i64, offset as i64], map_log_row)?;
                 let entries: Vec<LogEventRow> = rows
                     .collect::<std::result::Result<Vec<_>, _>>()
                     .map_err(StoreError::from)?;
@@ -213,7 +211,9 @@ impl Store {
             params_vec.iter().map(|p| p.as_ref()).collect();
         let conn = self.connection();
         let total: u32 = conn
-            .query_row(&count_sql, param_refs.as_slice(), |row| row.get::<_, i64>(0))
+            .query_row(&count_sql, param_refs.as_slice(), |row| {
+                row.get::<_, i64>(0)
+            })
             .map(|n| n as u32)
             .unwrap_or(0);
 
@@ -242,8 +242,7 @@ impl Store {
         )? as u64;
 
         let old_sessions: Vec<String> = {
-            let mut stmt =
-                conn.prepare("SELECT id FROM log_sessions WHERE started_ms < ?1")?;
+            let mut stmt = conn.prepare("SELECT id FROM log_sessions WHERE started_ms < ?1")?;
             let rows = stmt.query_map(params![cutoff as i64], |row| row.get(0))?;
             rows.collect::<std::result::Result<Vec<_>, _>>()
                 .map_err(StoreError::from)?
@@ -251,11 +250,7 @@ impl Store {
 
         for id in &old_sessions {
             if let Some(session) = self.get_session(id)? {
-                for blob in [
-                    session.bench_blob,
-                    session.candump_blob,
-                    session.trace_blob,
-                ] {
+                for blob in [session.bench_blob, session.candump_blob, session.trace_blob] {
                     if let Some(path) = blob {
                         let _ = fs::remove_file(&path);
                     }
@@ -426,12 +421,7 @@ impl Store {
         Ok(dest)
     }
 
-    fn update_session_blob(
-        &self,
-        session_id: &str,
-        source: &Path,
-        gz_path: &Path,
-    ) -> Result<()> {
+    fn update_session_blob(&self, session_id: &str, source: &Path, gz_path: &Path) -> Result<()> {
         let fname = source.file_name().and_then(|n| n.to_str()).unwrap_or("");
         let col = if fname.starts_with("bench-") {
             "bench_blob"
@@ -733,8 +723,8 @@ fn session_id_to_date(session_id: &str) -> String {
 }
 
 fn session_id_to_ms(session_id: &str) -> Option<u64> {
-    let parsed = time::format_description::parse("[year][month][day]T[hour][minute][second]Z")
-        .ok()?;
+    let parsed =
+        time::format_description::parse("[year][month][day]T[hour][minute][second]Z").ok()?;
     let dt = time::OffsetDateTime::parse(session_id, &parsed).ok()?;
     Some((dt.unix_timestamp_nanos() / 1_000_000) as u64)
 }
@@ -815,7 +805,11 @@ fn parse_candump_line(buf: &[u8], line_no: u32) -> Option<CandumpFrame> {
     if parts.len() < 3 {
         return None;
     }
-    let delta_s = parts[0].trim_start_matches('(').trim_end_matches(')').parse().ok()?;
+    let delta_s = parts[0]
+        .trim_start_matches('(')
+        .trim_end_matches(')')
+        .parse()
+        .ok()?;
     let iface = parts[1].to_string();
     let id_part = parts[2];
     let (can_id, mut data) = if let Some((id, hex)) = id_part.split_once('#') {
