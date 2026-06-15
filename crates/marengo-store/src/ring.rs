@@ -61,6 +61,10 @@ impl LogRingBuffer {
     pub fn len(&self) -> usize {
         self.slots.read().map(|g| g.len()).unwrap_or(0)
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 #[cfg(test)]

@@ -163,7 +163,7 @@ fn flush_batch(store: &Store, buf: &mut Vec<LogEventInsert>) {
     if buf.is_empty() {
         return;
     }
-    let batch: Vec<_> = buf.drain(..).collect();
+    let batch = std::mem::take(buf);
     if let Err(e) = store.insert_log_events(&batch) {
         tracing::warn!(error = %e, "log batch insert failed");
     }

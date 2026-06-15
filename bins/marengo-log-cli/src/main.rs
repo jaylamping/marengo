@@ -72,7 +72,7 @@ enum SessionAction {
 
 fn open_store(cli: &Cli) -> Result<Store, Box<dyn std::error::Error>> {
     let root = cli.root.clone().unwrap_or_else(resolve_marengo_root);
-    let db = cli.db.clone().unwrap_or_else(|| resolve_db_path());
+    let db = cli.db.clone().unwrap_or_else(resolve_db_path);
     Ok(Store::open(db, root)?)
 }
 
