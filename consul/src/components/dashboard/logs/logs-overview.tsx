@@ -24,6 +24,7 @@ import {
   setLogsPageActive,
   SNAPSHOT_HYDRATE_LIMIT,
 } from '@/lib/log-buffer';
+import { ensureLogDebugProbeStarted } from '@/lib/log-debug-probe';
 import { isChappeLive } from '@/lib/chappe-config';
 
 const CAN_PAGE = 200;
@@ -42,6 +43,7 @@ function LogsOverviewInner() {
   const [autoFollow, setAutoFollow] = useState(true);
 
   useEffect(() => {
+    ensureLogDebugProbeStarted();
     setLogsPageActive(true);
     if (isChappeLive()) {
       void fetchRecentLogs(SNAPSHOT_HYDRATE_LIMIT).then((entries) => {

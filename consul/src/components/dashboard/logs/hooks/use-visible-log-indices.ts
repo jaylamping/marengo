@@ -2,11 +2,14 @@ import { useMemo, useSyncExternalStore } from 'react';
 
 import { useLogsFilter } from '@/components/dashboard/logs/logs-filter-context';
 import {
+  buildLevelOnlyVisibleIndices,
   directVisibleLogicalIndex,
   getVisibleLogIndices,
   usesDirectVisibleIndex,
+  usesLevelOnlyVisibleIndex,
 } from '@/lib/log-view-index';
 import { logBuffer } from '@/lib/log-buffer';
+import { probeVisibleIndexRebuild } from '@/lib/log-debug-probe';
 
 export type VisibleLogIndexModel =
   | {
@@ -36,9 +39,22 @@ export function useVisibleLogIndexModel(): VisibleLogIndexModel {
   );
 
   const filteredIndices = useMemo(
-    () =>
-      direct
-        ? []
+    () => {
+      if (direct) {
+        return [];
+      }
+      probeVisibleIndexRebuild();
+      const indices = usesLevelOnlyVisibleIndex(
+        levelFilter,
+        deferredSearchQuery,
+        sort,
+      )
+        ? buildLevelOnlyVisibleIndices(
+            snapshot.count,
+            (index) => logBuffer.getEntry(index),
+            levelFilter,
+            sort,
+          )
         : getVisibleLogIndices(
             snapshot.version,
             snapshot.count,
@@ -46,7 +62,9 @@ export function useVisibleLogIndexModel(): VisibleLogIndexModel {
             levelFilter,
             deferredSearchQuery,
             sort,
-          ),
+          );
+      return indices;
+    },
     [
       deferredSearchQuery,
       direct,

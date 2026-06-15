@@ -6,6 +6,7 @@ import { useLogsFilter } from '@/components/dashboard/logs/logs-filter-context';
 import { LOG_ROW_ESTIMATE_SIZE, LogRow } from '@/components/dashboard/logs/log-row';
 import { LogsTableHeader } from '@/components/dashboard/logs/logs-table-header';
 import { logBuffer } from '@/lib/log-buffer';
+import { probeScrollEffect, probeVirtualTableRender } from '@/lib/log-debug-probe';
 
 type LogsVirtualTableProps = {
   autoFollow?: boolean;
@@ -14,6 +15,7 @@ type LogsVirtualTableProps = {
 export const LogsVirtualTable = memo(function LogsVirtualTable({
   autoFollow = false,
 }: LogsVirtualTableProps) {
+  probeVirtualTableRender();
   const model = useVisibleLogIndexModel();
   const { sort, setSortField } = useLogsFilter();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -47,6 +49,7 @@ export const LogsVirtualTable = memo(function LogsVirtualTable({
   });
 
   useEffect(() => {
+    probeScrollEffect();
     if (!autoFollow || rowCount === 0) {
       return;
     }
@@ -56,7 +59,7 @@ export const LogsVirtualTable = memo(function LogsVirtualTable({
     }
     lastScrollAtRef.current = now;
     rowVirtualizer.scrollToIndex(rowCount - 1, { align: 'end' });
-  }, [autoFollow, model.version, rowCount, rowVirtualizer]);
+  }, [autoFollow, model.version, rowCount]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border bg-card">

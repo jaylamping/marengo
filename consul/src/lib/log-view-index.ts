@@ -20,6 +20,25 @@ function matchesSearch(entry: LogEntry, query: string): boolean {
   );
 }
 
+export function buildLevelOnlyVisibleIndices(
+  count: number,
+  getEntry: GetEntry,
+  levelFilter: LogLevelFilter,
+  sort: LogSortState,
+): number[] {
+  const indices: number[] = [];
+  for (let index = 0; index < count; index += 1) {
+    const entry = getEntry(index);
+    if (entry?.level === levelFilter) {
+      indices.push(index);
+    }
+  }
+  if (sort.direction === 'desc') {
+    indices.reverse();
+  }
+  return indices;
+}
+
 export function buildFilterKey(
   levelFilter: LogLevelFilter,
   searchQuery: string,
@@ -34,6 +53,17 @@ export function usesDirectVisibleIndex(
   sort: LogSortState,
 ): boolean {
   if (levelFilter !== 'all' || searchQuery.trim().length > 0) {
+    return false;
+  }
+  return sort.field === 'timestamp';
+}
+
+export function usesLevelOnlyVisibleIndex(
+  levelFilter: LogLevelFilter,
+  searchQuery: string,
+  sort: LogSortState,
+): boolean {
+  if (levelFilter === 'all' || searchQuery.trim().length > 0) {
     return false;
   }
   return sort.field === 'timestamp';

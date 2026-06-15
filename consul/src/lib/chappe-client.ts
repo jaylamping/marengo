@@ -22,6 +22,8 @@ import {
   getChappeEndpoints,
   getChappeSubscribeTopics,
 } from '@/lib/chappe-config';
+import { probeChappeDispatch, probeLogDecodeSkipped } from '@/lib/log-debug-probe';
+import { shouldDecodeLogEvents } from '@/lib/log-buffer';
 import type { ChappeTransportMode } from '@/state/hostMetricsStore';
 
 type WebTransportCertificateHash = {
@@ -149,6 +151,7 @@ export function dispatchEnvelope(
   if (!envelope.payload.length) {
     return;
   }
+  probeChappeDispatch(envelope.messageType);
   switch (envelope.messageType) {
     case 'marengo.v1.RobotState':
       handlers.onRobotState(fromBinary(RobotStateSchema, envelope.payload));
@@ -163,6 +166,10 @@ export function dispatchEnvelope(
       handlers.onImuSample?.(fromBinary(ImuSampleSchema, envelope.payload));
       break;
     case 'marengo.v1.LogEvent':
+      if (!shouldDecodeLogEvents()) {
+        probeLogDecodeSkipped();
+        break;
+      }
       handlers.onLogEvent?.(fromBinary(LogEventSchema, envelope.payload));
       break;
     case 'marengo.v1.HostMetrics':
