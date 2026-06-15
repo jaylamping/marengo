@@ -9,7 +9,7 @@ Type=simple
 User=marengo
 SupplementaryGroups=i2c
 WorkingDirectory=/opt/marengo
-Environment=RUST_LOG=info,marengo=debug
+Environment=RUST_LOG=robstride=info,davout=info,berthier=info,marengo_pi=info,marengo_imu=info,chappe=info
 EnvironmentFile=-/etc/marengo/env
 ExecStart=/opt/marengo/bin/marengo-pi
 Restart=on-failure

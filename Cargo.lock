@@ -394,6 +394,7 @@ name = "chappe"
 version = "0.1.0"
 dependencies = [
  "armee-proto",
+ "serde_json",
  "thiserror 1.0.69",
  "tokio",
  "tracing",

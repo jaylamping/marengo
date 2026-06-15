@@ -4,7 +4,7 @@ North-star guide for humans and agents. When the same mistake appears twice, add
 
 **Enforcement:** `just check`, `[lints] workspace = true` in each crate, and [AGENTS.md](../AGENTS.md).
 
-**Binaries:** call `marengo_support::init_tracing()` once at startup (respects `RUST_LOG`).
+**Binaries:** Chappe producers (`marengo-pi`, `marengo-gateway`) call `chappe::tracing_layer::init_subscriber` once at startup (publishes `LogEvent` on `logs/structured`). Scaffolds and CLI bins call `marengo_support::init_tracing()` (stdout/journal only). Both respect `RUST_LOG`. See [logging-taxonomy.md](logging-taxonomy.md).
 
 ## 1. How to use this doc
 
@@ -159,6 +159,8 @@ println!("joint={angle}");
 // GOOD
 tracing::debug!(angle, "commanded joint");
 ```
+
+Chappe producers use `init_subscriber`; other bins use `init_tracing`. Structured fields reach Consul via `LogEvent.fields_json` ([ADR 0013](decisions/0013-structured-log-fields.md)).
 
 ## 11a. BNO085 I2C (SHTP)
 

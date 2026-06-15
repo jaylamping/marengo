@@ -54,7 +54,9 @@ Tunnel HTTPS `:8444` for the SPA and HTTP stream fallback. **Do not** tunnel `:8
 
 ## Log volume
 
-Default `RUST_LOG` should stay at `info` on bench. The tracing layer caps ~200 events/sec and drops trace/debug when over cap (warn/error always forwarded).
+Default `RUST_LOG` should stay at `info` on bench. The tracing layer caps **40 events/sec** on the Chappe publish path; when over cap, `trace`/`debug`/`info` are dropped but `warn`/`error` always forward. Consul further throttles UI ingest to **10 events/sec** (decode cap 12/s) with the same warn/error bypass.
+
+See [logging-taxonomy.md](logging-taxonomy.md) for the full funnel and S0–S3 tiers.
 
 ## Log persistence and archive ([ADR 0011](decisions/0011-log-retention-and-archive.md))
 

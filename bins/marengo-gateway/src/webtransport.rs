@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use armee_proto::prost::Message;
 use armee_proto::GatewaySubscribe;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 use web_transport_quinn::{ServerBuilder, Session};
 
 use crate::framing::{self, MAX_FRAME};
@@ -61,7 +61,7 @@ async fn handle_session(
     if topics.is_empty() {
         return Err("no allowed topics in subscribe".into());
     }
-    info!(?topics, "WebTransport subscribed");
+    debug!(?topics, "WebTransport subscribed");
 
     let mut rx = state.subscribe_envelopes();
     loop {
@@ -283,6 +283,7 @@ pub fn spawn_demo_publisher(state: SharedState) {
                 target: "marengo_gateway::demo".to_string(),
                 message: format!("demo tick {t}"),
                 session_id: String::new(),
+                fields_json: String::new(),
             };
             let host_pi = HostMetrics {
                 timestamp_ms: ts,

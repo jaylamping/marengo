@@ -11,7 +11,7 @@ use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 
 use crate::error::{Result, StoreError};
-use crate::migrations::{MIGRATION_001, SCHEMA_VERSION};
+use crate::migrations::{MIGRATION_001, MIGRATION_002, SCHEMA_VERSION};
 use crate::model::{
     CandumpFrame, CandumpSummary, LogEventInsert, LogEventRow, LogSessionRow, StructuredLogQuery,
 };
@@ -55,6 +55,10 @@ impl Store {
     pub fn migrate(&self) -> Result<()> {
         self.connection().execute_batch(MIGRATION_001)?;
         let now = now_ms();
+        let version = self.schema_version()?.unwrap_or(0);
+        if version < 2 {
+            self.connection().execute_batch(MIGRATION_002)?;
+        }
         self.set_setting("schema_version", &SCHEMA_VERSION.to_string(), now)?;
         if self.get_setting("log_archive_days")?.is_none() {
             self.set_setting(
@@ -71,6 +75,12 @@ impl Store {
             )?;
         }
         Ok(())
+    }
+
+    fn schema_version(&self) -> Result<Option<i64>> {
+        Ok(self
+            .get_setting("schema_version")?
+            .and_then(|v| v.parse::<i64>().ok()))
     }
 
     pub fn set_setting(&self, key: &str, value_json: &str, updated_ms: u64) -> Result<()> {
@@ -101,8 +111,8 @@ impl Store {
         let tx = conn.unchecked_transaction()?;
         {
             let mut stmt = tx.prepare(
-                "INSERT INTO log_events (ts_ms, level, target, message, session_id)
-                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                "INSERT INTO log_events (ts_ms, level, target, message, session_id, fields_json)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             )?;
             for e in events {
                 stmt.execute(params![
@@ -111,6 +121,7 @@ impl Store {
                     e.target,
                     e.message,
                     e.session_id,
+                    e.fields_json,
                 ])?;
             }
         }
@@ -121,7 +132,7 @@ impl Store {
     pub fn recent_log_events(&self, limit: u32) -> Result<Vec<LogEventRow>> {
         let conn = self.connection();
         let mut stmt = conn.prepare(
-            "SELECT id, ts_ms, level, target, message, session_id
+            "SELECT id, ts_ms, level, target, message, session_id, fields_json
              FROM log_events ORDER BY ts_ms DESC LIMIT ?1",
         )?;
         let rows = stmt.query_map(params![limit as i64], map_log_row)?;
@@ -189,7 +200,7 @@ impl Store {
                 let _ = fts_sql;
                 let conn = self.connection();
                 let mut stmt = conn.prepare(
-                    "SELECT e.id, e.ts_ms, e.level, e.target, e.message, e.session_id
+                    "SELECT e.id, e.ts_ms, e.level, e.target, e.message, e.session_id, e.fields_json
                      FROM log_events e
                      INNER JOIN log_events_fts f ON f.rowid = e.id
                      WHERE log_events_fts MATCH ?1
@@ -218,7 +229,7 @@ impl Store {
             .unwrap_or(0);
 
         let select_sql = format!(
-            "SELECT id, ts_ms, level, target, message, session_id
+            "SELECT id, ts_ms, level, target, message, session_id, fields_json
              FROM log_events{where_sql} ORDER BY ts_ms DESC LIMIT ? OFFSET ?"
         );
         params_vec.push(Box::new(limit as i64));
@@ -622,6 +633,7 @@ fn map_log_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<LogEventRow> {
         target: row.get(3)?,
         message: row.get(4)?,
         session_id: row.get(5)?,
+        fields_json: row.get(6)?,
     })
 }
 
@@ -914,6 +926,7 @@ mod tests {
             target: "test".into(),
             message: "hello".into(),
             session_id: None,
+            fields_json: Some(r#"{"joint":"shoulder_pitch"}"#.into()),
         }])?;
         let recent = store.recent_log_events(10)?;
         assert_eq!(recent.len(), 1);

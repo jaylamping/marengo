@@ -8,6 +8,7 @@ pub struct LogEventRow {
     pub target: String,
     pub message: String,
     pub session_id: Option<String>,
+    pub fields_json: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -17,6 +18,7 @@ pub struct LogEventInsert {
     pub target: String,
     pub message: String,
     pub session_id: Option<String>,
+    pub fields_json: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

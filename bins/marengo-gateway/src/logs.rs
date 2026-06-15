@@ -20,6 +20,10 @@ use crate::state::SharedState;
 
 const BATCH_MAX: usize = 100;
 const BATCH_INTERVAL: std::time::Duration = std::time::Duration::from_millis(500);
+/// Upper bound on log inserts queued for the DB writer. Bounded (not unbounded)
+/// so a runaway producer applies backpressure / drops instead of growing the
+/// queue until the process is OOM-killed.
+const BATCH_QUEUE_CAPACITY: usize = 16_384;
 
 #[derive(Serialize)]
 pub struct StructuredLogListJson {
@@ -35,6 +39,7 @@ pub struct StructuredLogEntryJson {
     target: String,
     message: String,
     session_id: String,
+    fields_json: String,
 }
 
 #[derive(Serialize)]
@@ -84,14 +89,16 @@ pub struct CandumpSummaryJson {
 pub struct LogServices {
     pub store: Arc<Store>,
     pub ring: Arc<LogRingBuffer>,
-    batch_tx: mpsc::UnboundedSender<LogEventInsert>,
+    batch_tx: mpsc::Sender<LogEventInsert>,
+    dropped: Arc<std::sync::atomic::AtomicU64>,
 }
 
 impl LogServices {
     pub fn open(store: Store) -> Self {
         let store = Arc::new(store);
         let ring = Arc::new(LogRingBuffer::new(DEFAULT_RING_CAPACITY));
-        let (batch_tx, batch_rx) = mpsc::unbounded_channel();
+        let (batch_tx, batch_rx) = mpsc::channel(BATCH_QUEUE_CAPACITY);
+        let dropped = Arc::new(std::sync::atomic::AtomicU64::new(0));
         spawn_batch_writer(Arc::clone(&store), batch_rx);
         if let Ok(recent) = store.recent_log_events(DEFAULT_RING_CAPACITY as u32) {
             let preload: Vec<LogEventInsert> = recent
@@ -103,6 +110,7 @@ impl LogServices {
                     target: row.target,
                     message: row.message,
                     session_id: row.session_id,
+                    fields_json: row.fields_json,
                 })
                 .collect();
             ring.preload(preload);
@@ -111,6 +119,7 @@ impl LogServices {
             store,
             ring,
             batch_tx,
+            dropped,
         }
     }
 
@@ -125,13 +134,29 @@ impl LogServices {
             } else {
                 Some(event.session_id.clone())
             },
+            fields_json: if event.fields_json.is_empty() {
+                None
+            } else {
+                Some(event.fields_json.clone())
+            },
         };
         self.ring.push(insert.clone());
-        let _ = self.batch_tx.send(insert);
+        // Non-blocking: under a runaway producer we drop the DB write rather than
+        // grow the queue unbounded. Deliberately not logged here — emitting a log
+        // on the log-ingest path would feed straight back into this pipeline.
+        if self.batch_tx.try_send(insert).is_err() {
+            self.dropped
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        }
+    }
+
+    /// Count of structured log inserts dropped due to DB-writer backpressure.
+    pub fn dropped_log_inserts(&self) -> u64 {
+        self.dropped.load(std::sync::atomic::Ordering::Relaxed)
     }
 }
 
-fn spawn_batch_writer(store: Arc<Store>, mut rx: mpsc::UnboundedReceiver<LogEventInsert>) {
+fn spawn_batch_writer(store: Arc<Store>, mut rx: mpsc::Receiver<LogEventInsert>) {
     tokio::spawn(async move {
         let mut buf = Vec::with_capacity(BATCH_MAX);
         let mut interval = tokio::time::interval(BATCH_INTERVAL);
@@ -218,6 +243,7 @@ pub async fn snapshot_logs_recent(
             target: e.target,
             message: e.message,
             session_id: e.session_id.unwrap_or_default(),
+            fields_json: e.fields_json.unwrap_or_default(),
         })
         .collect();
     Ok(Json(StructuredLogListJson {
@@ -433,6 +459,7 @@ pub async fn structured_logs(
             target: e.target,
             message: e.message,
             session_id: e.session_id.unwrap_or_default(),
+            fields_json: e.fields_json.unwrap_or_default(),
         })
         .collect();
     Ok(Json(StructuredLogListJson { entries, total }))

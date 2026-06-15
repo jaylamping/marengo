@@ -380,6 +380,7 @@ export function hydrateLogsFromSnapshot(
     level: string;
     target: string;
     message: string;
+    fields_json?: string;
   }>,
 ) {
   if (entries.length === 0) {
@@ -392,6 +393,7 @@ export function hydrateLogsFromSnapshot(
       level: mapProtoLevel(e.level),
       source: e.target,
       message: e.message,
+      fieldsJson: e.fields_json || undefined,
     }))
     .filter((entry) => !chappeLive || entry.level !== 'DEBUG')
     .slice(-SNAPSHOT_HYDRATE_LIMIT);

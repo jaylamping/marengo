@@ -81,6 +81,7 @@ mod tests {
                 target: "t".into(),
                 message: format!("m{i}"),
                 session_id: None,
+                fields_json: None,
             });
         }
         let recent = ring.recent(10);

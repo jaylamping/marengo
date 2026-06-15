@@ -84,6 +84,15 @@ impl AppState {
         self
     }
 
+    /// Process a single frame: update the snapshot, persist structured logs, and
+    /// fan it out to WebTransport subscribers via `envelope_tx`.
+    ///
+    /// This must NOT re-publish onto `self.bus`. The bus fanout task
+    /// (`spawn_bus_fanout`) is itself a bus subscriber, so publishing back here
+    /// would feed every frame straight into an infinite echo loop — each cycle
+    /// queuing another unbounded DB insert until the process exhausts memory.
+    /// Frames already reach the bus from their real sources (the IPC listener
+    /// and the gateway's own `ChappeLogLayer`); this handler is the sink.
     pub fn ingest_runtime_frame(&self, topic: String, payload: Vec<u8>) {
         if topic == TOPIC_LOGS {
             if let (Some(logs), Some(event)) = (&self.logs, decode_log_payload(&payload)) {
@@ -91,7 +100,6 @@ impl AppState {
             }
         }
         self.update_snapshot(&topic, &payload);
-        let _ = self.bus.publish_bytes(&topic, payload.clone());
         let _ = self.envelope_tx.send((topic, payload));
     }
 

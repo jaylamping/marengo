@@ -24,6 +24,8 @@ use crate::state::{filter_topics, SharedState};
 struct HealthResponse {
     ok: bool,
     node: &'static str,
+    /// Structured log inserts dropped due to DB-writer backpressure (0 in healthy operation).
+    dropped_log_inserts: u64,
 }
 
 #[derive(Serialize)]
@@ -101,10 +103,16 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
     }
 }
 
-async fn health() -> Json<HealthResponse> {
+async fn health(State(state): State<SharedState>) -> Json<HealthResponse> {
+    let dropped_log_inserts = state
+        .logs
+        .as_ref()
+        .map(|l| l.dropped_log_inserts())
+        .unwrap_or(0);
     Json(HealthResponse {
         ok: true,
         node: "marengo-gateway",
+        dropped_log_inserts,
     })
 }
 

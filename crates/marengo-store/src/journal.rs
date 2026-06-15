@@ -108,6 +108,7 @@ fn import_journal_linux(store: &Store, units: &[&str]) -> Result<u32> {
             target: format!("systemd:{unit}"),
             message,
             session_id: None,
+            fields_json: None,
         });
     }
 

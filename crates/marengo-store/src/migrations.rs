@@ -1,4 +1,4 @@
-pub const SCHEMA_VERSION: i64 = 1;
+pub const SCHEMA_VERSION: i64 = 2;
 
 pub const MIGRATION_001: &str = r"
 CREATE TABLE IF NOT EXISTS settings (
@@ -64,4 +64,38 @@ CREATE TABLE IF NOT EXISTS config_overrides (
   updated_ms INTEGER NOT NULL,
   source TEXT NOT NULL
 );
+";
+
+pub const MIGRATION_002: &str = r"
+ALTER TABLE log_events ADD COLUMN fields_json TEXT;
+
+DROP TRIGGER IF EXISTS log_events_ai;
+DROP TRIGGER IF EXISTS log_events_ad;
+DROP TRIGGER IF EXISTS log_events_au;
+DROP TABLE IF EXISTS log_events_fts;
+
+CREATE VIRTUAL TABLE log_events_fts USING fts5(
+  message,
+  target,
+  fields_json,
+  content='log_events',
+  content_rowid='id'
+);
+
+CREATE TRIGGER log_events_ai AFTER INSERT ON log_events BEGIN
+  INSERT INTO log_events_fts(rowid, message, target, fields_json)
+  VALUES (new.id, new.message, new.target, COALESCE(new.fields_json, ''));
+END;
+CREATE TRIGGER log_events_ad AFTER DELETE ON log_events BEGIN
+  INSERT INTO log_events_fts(log_events_fts, rowid, message, target, fields_json)
+  VALUES('delete', old.id, old.message, old.target, COALESCE(old.fields_json, ''));
+END;
+CREATE TRIGGER log_events_au AFTER UPDATE ON log_events BEGIN
+  INSERT INTO log_events_fts(log_events_fts, rowid, message, target, fields_json)
+  VALUES('delete', old.id, old.message, old.target, COALESCE(old.fields_json, ''));
+  INSERT INTO log_events_fts(rowid, message, target, fields_json)
+  VALUES (new.id, new.message, new.target, COALESCE(new.fields_json, ''));
+END;
+
+INSERT INTO log_events_fts(log_events_fts) VALUES('rebuild');
 ";

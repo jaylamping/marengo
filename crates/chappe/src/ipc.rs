@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 use thiserror::Error;
-use tracing::{debug, warn};
+use tracing::{debug, error, warn};
 
 pub const DIRECTION_RUNTIME_TO_GATEWAY: u8 = 0;
 pub const DIRECTION_GATEWAY_TO_RUNTIME: u8 = 1;
@@ -153,7 +153,9 @@ fn read_inbound_commands(stream: &mut std::os::unix::net::UnixStream, bus: crate
 }
 
 fn connect_with_retry(path: &Path) -> Option<std::os::unix::net::UnixStream> {
-    for attempt in 0..20 {
+    const MAX_ATTEMPTS: u32 = 20;
+    const RETRY_MS: u64 = 250;
+    for attempt in 0..MAX_ATTEMPTS {
         match std::os::unix::net::UnixStream::connect(path) {
             Ok(s) => {
                 debug!(path = %path.display(), "chappe ipc connected");
@@ -163,10 +165,17 @@ fn connect_with_retry(path: &Path) -> Option<std::os::unix::net::UnixStream> {
                 if attempt == 0 {
                     debug!(path = %path.display(), error = %e, "chappe ipc connect retry");
                 }
-                std::thread::sleep(std::time::Duration::from_millis(250));
+                std::thread::sleep(std::time::Duration::from_millis(RETRY_MS));
             }
         }
     }
+    let unreachable_ms = MAX_ATTEMPTS as u64 * RETRY_MS;
+    error!(
+        path = %path.display(),
+        attempts = MAX_ATTEMPTS,
+        unreachable_ms,
+        "chappe ipc connect failed — gateway unreachable"
+    );
     None
 }
 
