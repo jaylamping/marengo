@@ -23,8 +23,20 @@ fi
 
 echo "==> buf breaking (PR only)"
 if [[ -x "${BUF}" ]] && [[ "${CI_MODE}" == true ]] && [[ "${GITHUB_EVENT_NAME:-}" == "pull_request" ]]; then
-  if ! "${BUF}" breaking proto --against "https://github.com/${GITHUB_REPOSITORY}.git#branch=main"; then
-    "${BUF}" breaking proto --against '.git#branch=main'
+  BASE_SHA="${GITHUB_BASE_SHA:-}"
+  if [[ -z "${BASE_SHA}" ]]; then
+    git fetch origin main 2>/dev/null || true
+    BASE_SHA="$(git rev-parse origin/main 2>/dev/null || git rev-parse main 2>/dev/null || true)"
+  fi
+  if [[ -z "${BASE_SHA}" ]]; then
+    echo "warn: could not resolve base ref for buf breaking, skipping"
+  else
+    AGAINST_DIR="$(mktemp -d)"
+    # buf's `.git#branch=…` source mis-detects proto deletions in shallow/docker
+    # checkouts; materialize the base tree instead.
+    git archive "${BASE_SHA}" proto | tar -x -C "${AGAINST_DIR}"
+    "${BUF}" breaking proto --against "${AGAINST_DIR}/proto"
+    rm -rf "${AGAINST_DIR}"
   fi
 fi
 
