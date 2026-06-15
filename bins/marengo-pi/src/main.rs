@@ -521,16 +521,16 @@ fn main() {
         "marengo-pi starting (Disabled — run home/enable/gravity-on when ready)"
     );
 
-    run_control_loop(
-        &mut loop_ctrl,
-        &control,
-        &config_dir,
-        &chappe,
-        &cmd_rx,
-        &mut enable_rx,
-        &mut homing_rx,
-        &shutdown,
-    );
+    let mut runtime = ControlLoopRuntime {
+        config_dir: &config_dir,
+        chappe_state_hz: control.control.chappe_state_hz,
+        chappe: &chappe,
+        cmd_rx: &cmd_rx,
+        enable_rx: &mut enable_rx,
+        homing_rx: &mut homing_rx,
+        shutdown: &shutdown,
+    };
+    run_control_loop(&mut loop_ctrl, &mut runtime);
 
     if control.control.disable_on_exit {
         if let Err(e) = loop_ctrl.supervisor_mut().disable_all() {
@@ -540,37 +540,38 @@ fn main() {
     info!("marengo-pi stopped");
 }
 
-#[tracing::instrument(skip(loop_ctrl, chappe, cmd_rx, enable_rx, homing_rx, shutdown))]
-fn run_control_loop(
-    loop_ctrl: &mut ControlLoop<RuntimeBus>,
-    control: &marengo_config::ControlConfigFile,
-    config_dir: &Path,
-    chappe: &Arc<Bus>,
-    cmd_rx: &Receiver<PiCommand>,
-    enable_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
-    homing_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
-    shutdown: &Arc<AtomicBool>,
-) {
+struct ControlLoopRuntime<'a> {
+    config_dir: &'a Path,
+    chappe_state_hz: u32,
+    chappe: &'a Arc<Bus>,
+    cmd_rx: &'a Receiver<PiCommand>,
+    enable_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
+    homing_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
+    shutdown: &'a Arc<AtomicBool>,
+}
+
+#[tracing::instrument(skip(loop_ctrl, runtime))]
+fn run_control_loop(loop_ctrl: &mut ControlLoop<RuntimeBus>, runtime: &mut ControlLoopRuntime<'_>) {
     let period = loop_ctrl.loop_period();
     let chappe_period =
-        Duration::from_secs_f64(1.0 / f64::from(control.control.chappe_state_hz.max(1)));
+        Duration::from_secs_f64(1.0 / f64::from(runtime.chappe_state_hz.max(1)));
     let mut last_chappe = Instant::now();
     let mut last_heartbeat = Instant::now();
     let mut active_fault: Option<String>;
 
-    while !shutdown.load(Ordering::SeqCst) {
+    while !runtime.shutdown.load(Ordering::SeqCst) {
         let tick_start = Instant::now();
 
-        while let Ok(cmd) = cmd_rx.try_recv() {
-            if !handle_command(loop_ctrl, cmd, config_dir) {
-                shutdown.store(true, Ordering::SeqCst);
+        while let Ok(cmd) = runtime.cmd_rx.try_recv() {
+            if !handle_command(loop_ctrl, cmd, runtime.config_dir) {
+                runtime.shutdown.store(true, Ordering::SeqCst);
                 break;
             }
         }
 
-        drain_chappe_commands(loop_ctrl, enable_rx, homing_rx);
+        drain_chappe_commands(loop_ctrl, runtime.enable_rx, runtime.homing_rx);
 
-        active_fault = match loop_ctrl.tick(Some(chappe.as_ref())) {
+        active_fault = match loop_ctrl.tick(Some(runtime.chappe.as_ref())) {
             Ok(()) => None,
             Err(e) => {
                 error!(error = %e, "control tick failed");
@@ -583,13 +584,13 @@ fn run_control_loop(
         let now = Instant::now();
         if now.duration_since(last_chappe) >= chappe_period {
             let mode = loop_ctrl.supervisor_mut().mode();
-            if let Err(e) = publish_safety(chappe.as_ref(), mode, active_fault.as_deref()) {
+            if let Err(e) = publish_safety(runtime.chappe.as_ref(), mode, active_fault.as_deref()) {
                 warn!(error = %e, "failed to publish SafetyState");
             }
             last_chappe = now;
         }
         if now.duration_since(last_heartbeat) >= Duration::from_secs(1) {
-            if let Err(e) = publish_heartbeat(chappe.as_ref()) {
+            if let Err(e) = publish_heartbeat(runtime.chappe.as_ref()) {
                 warn!(error = %e, "failed to publish heartbeat");
             }
             debug_status(loop_ctrl);
