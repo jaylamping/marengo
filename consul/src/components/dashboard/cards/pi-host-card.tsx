@@ -1,4 +1,5 @@
 import { DashboardCardShell } from '@/components/dashboard/cards/dashboard-card-shell';
+import { HostDebugTooltip } from '@/components/dashboard/metrics/host-debug-tooltip';
 import { MetricGrid } from '@/components/dashboard/metrics/metric-grid';
 import { MetricItem } from '@/components/dashboard/metrics/metric-item';
 import { StatusBadge } from '@/components/dashboard/metrics/status-badge';
@@ -15,6 +16,7 @@ import {
   formatRamUsage,
   formatTempC,
 } from '@/lib/format';
+import { hostDebugLinesFromMetrics } from '@/lib/host-debug-info';
 import {
   canWarning,
   chappeDegraded,
@@ -71,9 +73,6 @@ function livePiMetrics(
     throttled:
       (metrics.platform.case === 'pi' && metrics.platform.value.throttledNow) ||
       (metrics.platform.case === 'pi' && metrics.platform.value.throttleEvents !== 0),
-    servicesLabel: metrics.build?.deployRev
-      ? `deploy ${metrics.build.deployRev}`
-      : 'Chappe live',
   };
 }
 
@@ -96,6 +95,8 @@ export function PiHostCard({ metrics: metricsProp }: PiHostCardProps) {
   const warnDisk = live && diskWarning(liveMetrics);
   const warnChappe = live && chappeDegraded(liveMetrics);
   const warnClock = live && clockUnsynced(liveMetrics);
+  const debugLines =
+    live && liveMetrics ? hostDebugLinesFromMetrics(liveMetrics) : [];
 
   let badgeLabel = metrics.throttled ? 'throttled' : 'healthy';
   let badgeTone: 'healthy' | 'warning' | 'muted' = metrics.throttled
@@ -114,14 +115,13 @@ export function PiHostCard({ metrics: metricsProp }: PiHostCardProps) {
 
   return (
     <DashboardCardShell
-      description={
-        live
-          ? metrics.servicesLabel.startsWith('deploy')
-            ? `Pi 5 · ${metrics.servicesLabel}`
-            : 'Pi 5 · Chappe gateway'
-          : 'Pi 5 · onboard'
+      description={live ? 'Pi 5 · Chappe gateway' : 'Pi 5 · onboard'}
+      title={
+        <span className="inline-flex items-center gap-1.5">
+          {metrics.hostname}
+          <HostDebugTooltip lines={debugLines} />
+        </span>
       }
-      title={metrics.hostname}
       action={<StatusBadge label={badgeLabel} tone={badgeTone} />}
       content={
         <MetricGrid>
@@ -173,9 +173,7 @@ export function PiHostCard({ metrics: metricsProp }: PiHostCardProps) {
       }
       footerPrimary={`Uptime ${metrics.uptime}`}
       footerSecondary={
-        live && hostMetricsStale(liveUpdatedAt)
-          ? 'Host metrics stale'
-          : metrics.servicesLabel
+        live && hostMetricsStale(liveUpdatedAt) ? 'Host metrics stale' : undefined
       }
     />
   );

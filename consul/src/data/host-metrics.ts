@@ -14,7 +14,6 @@ export type PiHostMetrics = {
   load1m: number;
   uptime: string;
   throttled: boolean;
-  servicesLabel: string;
 };
 
 export type JetsonHostMetrics = {
@@ -29,7 +28,6 @@ export type JetsonHostMetrics = {
   powerMode: string;
   chappeRttMs: number;
   online: boolean;
-  servicesLabel: string;
 };
 
 export const dummyPiHostMetrics: PiHostMetrics = {
@@ -46,7 +44,6 @@ export const dummyPiHostMetrics: PiHostMetrics = {
   load1m: 0.42,
   uptime: '4h 12m',
   throttled: false,
-  servicesLabel: 'Consul · Berthier · Davout on same host',
 };
 
 export const dummyJetsonHostMetrics: JetsonHostMetrics = {
@@ -61,5 +58,4 @@ export const dummyJetsonHostMetrics: JetsonHostMetrics = {
   powerMode: 'MAXN',
   chappeRttMs: 1.4,
   online: true,
-  servicesLabel: 'Fouché · planner · Chappe to Pi',
 };

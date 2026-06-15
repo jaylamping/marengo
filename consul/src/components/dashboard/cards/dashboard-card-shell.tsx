@@ -13,12 +13,12 @@ import { cn } from '@/lib/utils';
 
 type DashboardCardShellProps = {
   description: string;
-  title: string;
+  title: ReactNode;
   titleClassName?: string;
   action?: ReactNode;
   content?: ReactNode;
   footerPrimary: ReactNode;
-  footerSecondary: ReactNode;
+  footerSecondary?: ReactNode;
   className?: string;
 };
 
@@ -44,7 +44,9 @@ export function DashboardCardShell({
       {content ? <CardContent className="px-6 pb-0">{content}</CardContent> : null}
       <CardFooter className="flex-col items-start gap-1.5 text-sm">
         <div className="line-clamp-1 font-medium">{footerPrimary}</div>
-        <div className="text-muted-foreground">{footerSecondary}</div>
+        {footerSecondary ? (
+          <div className="text-muted-foreground">{footerSecondary}</div>
+        ) : null}
       </CardFooter>
     </Card>
   );

@@ -1,4 +1,5 @@
 import { DashboardCardShell } from '@/components/dashboard/cards/dashboard-card-shell';
+import { HostDebugTooltip } from '@/components/dashboard/metrics/host-debug-tooltip';
 import { MetricGrid } from '@/components/dashboard/metrics/metric-grid';
 import { MetricItem } from '@/components/dashboard/metrics/metric-item';
 import { StatusBadge } from '@/components/dashboard/metrics/status-badge';
@@ -14,6 +15,7 @@ import {
   formatTempC,
 } from '@/lib/format';
 import { isChappeLive } from '@/lib/chappe-config';
+import { hostDebugLinesFromMetrics } from '@/lib/host-debug-info';
 import {
   hostMetricsStale,
   useHostMetricsStore,
@@ -60,9 +62,6 @@ function liveJetsonMetrics(
       metrics.platform.case === 'jetson'
         ? metrics.platform.value.chappeConnected
         : false,
-    servicesLabel: metrics.build?.deployRev
-      ? `deploy ${metrics.build.deployRev}`
-      : 'Fouché · planner · Chappe to Pi',
   };
 }
 
@@ -80,11 +79,18 @@ export function JetsonHostCard({
     live && liveMetrics && !hostMetricsStale(liveUpdatedAt)
       ? liveJetsonMetrics(liveMetrics) ?? dummyJetsonHostMetrics
       : (metricsProp ?? dummyJetsonHostMetrics);
+  const debugLines =
+    live && liveMetrics ? hostDebugLinesFromMetrics(liveMetrics) : [];
 
   return (
     <DashboardCardShell
       description="Jetson · perception"
-      title={metrics.hostname}
+      title={
+        <span className="inline-flex items-center gap-1.5">
+          {metrics.hostname}
+          <HostDebugTooltip lines={debugLines} />
+        </span>
+      }
       action={
         <StatusBadge
           label={
@@ -126,7 +132,13 @@ export function JetsonHostCard({
         </MetricGrid>
       }
       footerPrimary={`Uptime ${metrics.uptime} · ${metrics.powerMode} · load ${formatLoad(metrics.load1m)}`}
-      footerSecondary={`${metrics.servicesLabel} · ${metrics.chappeRttMs.toFixed(1)} ms`}
+      footerSecondary={
+        live && !hostMetricsStale(liveUpdatedAt)
+          ? `${metrics.chappeRttMs.toFixed(1)} ms Chappe RTT`
+          : live && hostMetricsStale(liveUpdatedAt)
+            ? 'Host metrics stale'
+            : undefined
+      }
     />
   );
 }
