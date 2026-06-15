@@ -13,6 +13,10 @@ export type LogEntry = {
   source: string;
   message: string;
   fieldsJson?: string;
+  /** Bench session id when MARENGO_LOG_SESSION_ID is set. */
+  sessionId?: string;
+  /** SQLite row id when loaded from structured log archive/search. */
+  storeId?: number;
 };
 
 export const LOG_SOURCES = [

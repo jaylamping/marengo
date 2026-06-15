@@ -44,6 +44,8 @@ function dtoToEntry(row: Awaited<ReturnType<typeof fetchStructuredLogs>>['entrie
     source: row.target,
     message: row.message,
     fieldsJson: row.fields_json || undefined,
+    sessionId: row.session_id || undefined,
+    storeId: row.id,
   };
 }
 

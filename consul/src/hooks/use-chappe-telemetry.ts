@@ -115,6 +115,7 @@ export function useChappeTelemetry(): void {
           source: event.target,
           message: event.message,
           fieldsJson: event.fieldsJson || undefined,
+          sessionId: event.sessionId || undefined,
         });
       },
       onHostMetrics: (metrics, topic) => {

@@ -376,10 +376,12 @@ export function enableChappeLiveLogs() {
 
 export function hydrateLogsFromSnapshot(
   entries: Array<{
+    id?: number;
     timestamp_ms: number;
     level: string;
     target: string;
     message: string;
+    session_id?: string;
     fields_json?: string;
   }>,
 ) {
@@ -388,12 +390,14 @@ export function hydrateLogsFromSnapshot(
   }
   const batch: LogEntry[] = entries
     .map((e, i) => ({
-      id: `snap-${i}-${e.timestamp_ms}`,
+      id: e.id !== undefined ? `snap-${e.id}` : `snap-${i}-${e.timestamp_ms}`,
       timestamp: e.timestamp_ms,
       level: mapProtoLevel(e.level),
       source: e.target,
       message: e.message,
       fieldsJson: e.fields_json || undefined,
+      sessionId: e.session_id || undefined,
+      storeId: e.id,
     }))
     .filter((entry) => !chappeLive || entry.level !== 'DEBUG')
     .slice(-SNAPSHOT_HYDRATE_LIMIT);
