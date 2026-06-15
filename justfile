@@ -63,3 +63,7 @@ research-mcp-setup:
 # Local deterministic daily audit dry-run
 daily-audit:
     python3 scripts/daily-audit/audit.py
+
+# Regenerate consul/package-lock.json on Linux Node 22 (matches CI npm ci).
+consul-lock:
+    docker compose run --rm dev bash -c "cd consul && npm install --package-lock-only"
