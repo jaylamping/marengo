@@ -9,7 +9,7 @@ Add these in [Cursor → Cloud Agents → Secrets](https://cursor.com/dashboard/
 | Secret | Type | Value |
 |--------|------|-------|
 | `TAILSCALE_AUTH_KEY` | **Runtime Secret** | Ephemeral or reusable auth key from [Tailscale admin → Settings → Keys](https://login.tailscale.com/admin/settings/keys). Tag the key with the same ACL tag as the Pi if you use tagged nodes. |
-| `MARENGO_PI_SSH_PRIVATE_KEY_B64` | **Runtime Secret** | Base64 of the `id_ed25519_marengo` private key authorized on the Pi (`base64 -w0 ~/.ssh/id_ed25519_marengo` on your Mac). |
+| `MARENGO_PI_SSH_PRIVATE_KEY_B64` | **Runtime Secret** | Base64 of the `id_ed25519_marengo` private key authorized on the Pi. **macOS:** `base64 -i ~/.ssh/id_ed25519_marengo \| tr -d '\\n'`. **Linux:** `base64 -w0 ~/.ssh/id_ed25519_marengo`. |
 | `MARENGO_PI_HOST` | Environment Variable | `joey-robot.tail0b414.ts.net` (or your Pi MagicDNS name). |
 | `MARENGO_PI_USER` | Environment Variable | `joey` |
 | `MARENGO_GATEWAY_LOG_TOKEN` | Runtime Secret (optional) | Only if `MARENGO_GATEWAY_LOG_TOKEN` is set on the Pi gateway. |
