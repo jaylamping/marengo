@@ -16,6 +16,22 @@ When working on Pi bench bring-up, CAN, motors, gravity, `motor-repl`, `marengo-
 7. Ask the user only for physical actions or credentials the MCP cannot perform: supporting the arm, keeping hands off, power-cycling, plugging hardware, entering sudo password, Motor Studio UI actions, or confirming weighted/live motion.
 8. If MCP tooling is stale or missing a capability, fix or extend the MCP toolchain, rebuild it, and use it rather than falling back to user-run commands.
 
-Bad: “Run this on the Pi and tell me what it prints.”
+## Cloud agents (`CURSOR_AGENT=1`)
 
-Good: call `pi_read_file`, `pi_logs_tail`, `pi_motor_repl_status`, `pi_sync_bench_config`, `pi_set_zero`, or `pi_marengo_pi_script` as appropriate, then report the result.
+When **marengo-pi MCP is unavailable** (typical in cloud sessions), use **`./scripts/pi-remote.sh`** with the same log-first order. Setup: [docs/cloud-pi-tailscale.md](../../docs/cloud-pi-tailscale.md).
+
+| MCP tool | Cloud equivalent |
+|----------|------------------|
+| `pi_health` | `pi-remote.sh health` |
+| `pi_logs_tail` | `pi-remote.sh logs-tail` |
+| `pi_logs_grep` | `pi-remote.sh logs-grep` |
+| `pi_logs_last_fault` | `pi-remote.sh logs-last-fault` |
+| `pi_logs_list` / `pi_logs_archive_list` | `pi-remote.sh logs-list` / `logs-sessions` |
+| `pi_candump_summary` | `pi-remote.sh candump-summary` |
+| `pi_journal` | `pi-remote.sh journal` |
+| `pi_sync_main` | `pi-remote.sh deploy --install` |
+| `pi_read_file` | `pi-remote.sh ssh -- cat /opt/marengo/...` |
+
+Bad: “Paste the bench log from the Pi.”
+
+Good: `./scripts/pi-remote.sh logs-last-fault` then report the result.

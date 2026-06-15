@@ -241,7 +241,31 @@ compose_ssh_source_dir() {
   return 1
 }
 
+cloud_ssh_dir_in_use() {
+  [[ -n "${MARENGO_SSH_DIR:-}" ]] && [[ "${MARENGO_DEPLOY_VIA_COMPOSE:-}" != 1 ]]
+}
+
 compose_ssh_setup() {
+  if cloud_ssh_dir_in_use; then
+    if [[ -n "$COMPOSE_SSH_DIR" ]]; then
+      return 0
+    fi
+    COMPOSE_SSH_DIR="$(normalize_ssh_dir_path "${MARENGO_SSH_DIR}")"
+    if ! ssh_dir_has_identity "$COMPOSE_SSH_DIR"; then
+      echo "error: MARENGO_SSH_DIR has no deploy key: ${COMPOSE_SSH_DIR}" >&2
+      return 1
+    fi
+    for k in id_ed25519_marengo id_ed25519 id_rsa; do
+      if [[ -f "${COMPOSE_SSH_DIR}/${k}" ]]; then
+        COMPOSE_SSH_IDENTITY="${COMPOSE_SSH_DIR}/${k}"
+        break
+      fi
+    done
+    COMPOSE_SSH_KNOWN="${COMPOSE_SSH_DIR}/known_hosts"
+    touch "$COMPOSE_SSH_KNOWN" 2>/dev/null || true
+    return 0
+  fi
+
   if [[ "${MARENGO_DEPLOY_VIA_COMPOSE:-}" != 1 ]]; then
     return 0
   fi
@@ -338,7 +362,7 @@ compose_ssh() {
 # Verify SSH before rsync (Docker deploy only).
 compose_ssh_preflight() {
   local host="$1"
-  if [[ "${MARENGO_DEPLOY_VIA_COMPOSE:-}" != 1 ]]; then
+  if [[ "${MARENGO_DEPLOY_VIA_COMPOSE:-}" != 1 ]] && ! cloud_ssh_dir_in_use; then
     return 0
   fi
   log_step "SSH preflight → $(compose_ssh_target "$host")"

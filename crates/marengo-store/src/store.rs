@@ -250,10 +250,11 @@ impl Store {
 
         for id in &old_sessions {
             if let Some(session) = self.get_session(id)? {
-                for blob in [session.bench_blob, session.candump_blob, session.trace_blob] {
-                    if let Some(path) = blob {
-                        let _ = fs::remove_file(&path);
-                    }
+                for path in [session.bench_blob, session.candump_blob, session.trace_blob]
+                    .into_iter()
+                    .flatten()
+                {
+                    let _ = fs::remove_file(&path);
                 }
             }
             conn.execute(
@@ -903,28 +904,29 @@ mod tests {
     use tempfile::tempdir;
 
     #[test]
-    fn migrate_and_insert_logs() {
-        let dir = tempdir().expect("tempdir");
+    fn migrate_and_insert_logs() -> Result<()> {
+        let dir = tempdir()?;
         let db = dir.path().join("test.db");
-        let store = Store::open(&db, dir.path()).expect("open");
-        store
-            .insert_log_events(&[LogEventInsert {
-                ts_ms: 1000,
-                level: "info".into(),
-                target: "test".into(),
-                message: "hello".into(),
-                session_id: None,
-            }])
-            .expect("insert");
-        let recent = store.recent_log_events(10).expect("recent");
+        let store = Store::open(&db, dir.path())?;
+        store.insert_log_events(&[LogEventInsert {
+            ts_ms: 1000,
+            level: "info".into(),
+            target: "test".into(),
+            message: "hello".into(),
+            session_id: None,
+        }])?;
+        let recent = store.recent_log_events(10)?;
         assert_eq!(recent.len(), 1);
         assert_eq!(recent[0].message, "hello");
+        Ok(())
     }
 
     #[test]
-    fn parse_candump_delta_line() {
-        let frame = parse_candump_line(b"(0.001234) can0 701#AABBCCDD\n", 0).expect("frame");
+    fn parse_candump_delta_line() -> Result<()> {
+        let frame = parse_candump_line(b"(0.001234) can0 701#AABBCCDD\n", 0)
+            .ok_or_else(|| StoreError::msg("expected candump frame"))?;
         assert_eq!(frame.interface, "can0");
         assert_eq!(frame.can_id, "701");
+        Ok(())
     }
 }

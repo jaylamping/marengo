@@ -121,7 +121,8 @@ chmod -R g+rwX "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets" "${INSTALL_ROOT
 systemctl daemon-reload
 systemctl enable --now marengo-can.service
 if [[ -f "${INSTALL_ROOT}/bin/marengo-gateway" ]]; then
-  systemctl enable --now marengo-gateway.service
+  systemctl enable marengo-gateway.service
+  systemctl restart marengo-gateway.service
 fi
 if [[ -f "${INSTALL_ROOT}/bin/marengo-log-cli" ]]; then
   systemctl enable --now marengo-log-maintenance.timer
