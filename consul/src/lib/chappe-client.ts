@@ -90,40 +90,6 @@ function writeLengthPrefixed(
   return writer.write(header).then(() => writer.write(payload));
 }
 
-async function readLengthPrefixed(
-  reader: ReadableStreamDefaultReader<Uint8Array>,
-): Promise<Uint8Array | null> {
-  const lenResult = await reader.read();
-  if (lenResult.done || !lenResult.value || lenResult.value.length < 4) {
-    return null;
-  }
-  const len = new DataView(
-    lenResult.value.buffer,
-    lenResult.value.byteOffset,
-    4,
-  ).getUint32(0, true);
-  if (len === 0 || len > 4 * 1024 * 1024) {
-    return null;
-  }
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  while (total < len) {
-    const chunk = await reader.read();
-    if (chunk.done || !chunk.value) {
-      return null;
-    }
-    chunks.push(chunk.value);
-    total += chunk.value.length;
-  }
-  const out = new Uint8Array(len);
-  let offset = 0;
-  for (const c of chunks) {
-    out.set(c, offset);
-    offset += c.length;
-  }
-  return out;
-}
-
 async function readLengthPrefixedFromStream(
   reader: ReadableStreamDefaultReader<Uint8Array>,
   buffer: Uint8Array[],
@@ -132,10 +98,11 @@ async function readLengthPrefixedFromStream(
   while (true) {
     let combined = concatChunks(buffer);
     if (combined.length >= 4) {
-      const frameLen = new DataView(combined.buffer, combined.byteOffset, 4).getUint32(
-        0,
-        true,
-      );
+      const frameLen = new DataView(
+        combined.buffer,
+        combined.byteOffset,
+        Math.min(4, combined.byteLength),
+      ).getUint32(0, true);
       if (frameLen === 0 || frameLen > 4 * 1024 * 1024) {
         return null;
       }
@@ -247,9 +214,16 @@ async function connectWebTransport(
   });
   await writeLengthPrefixed(writer, toBinary(GatewaySubscribeSchema, subscribe));
 
+  const frameBuffer: Uint8Array[] = [];
+  const frameBufferedLen = { value: 0 };
+
   void (async () => {
     while (!closed()) {
-      const frame = await readLengthPrefixed(reader);
+      const frame = await readLengthPrefixedFromStream(
+        reader,
+        frameBuffer,
+        frameBufferedLen,
+      );
       if (!frame) {
         break;
       }

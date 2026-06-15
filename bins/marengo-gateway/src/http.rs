@@ -90,8 +90,12 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
     match web_root {
         Some(root) => {
             let index = root.join("index.html");
-            let static_files = ServeDir::new(root).not_found_service(ServeFile::new(index));
-            api.fallback_service(static_files)
+            let assets = root.join("assets");
+            let mut router = api;
+            if assets.is_dir() {
+                router = router.nest_service("/assets", ServeDir::new(assets));
+            }
+            router.fallback_service(ServeFile::new(index))
         }
         None => api,
     }
