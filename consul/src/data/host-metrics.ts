@@ -5,6 +5,11 @@ export type PiHostMetrics = {
   cpuPercent: number;
   ramUsedGb: number;
   ramTotalGb: number;
+  diskUsedGb: number | null;
+  diskTotalGb: number | null;
+  logDiskUsedGb: number | null;
+  logDiskBudgetGb: number | null;
+  canState: string | null;
   tempC: number;
   load1m: number;
   uptime: string;
@@ -32,6 +37,11 @@ export const dummyPiHostMetrics: PiHostMetrics = {
   cpuPercent: 24,
   ramUsedGb: 2.1,
   ramTotalGb: 8,
+  diskUsedGb: 12,
+  diskTotalGb: 58,
+  logDiskUsedGb: 0.82,
+  logDiskBudgetGb: 5,
+  canState: 'ERROR-ACTIVE',
   tempC: 52.3,
   load1m: 0.42,
   uptime: '4h 12m',

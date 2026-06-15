@@ -11,6 +11,7 @@ import { postEnableCommand } from '@/lib/chappe-client';
 import { isChappeLive } from '@/lib/chappe-config';
 import {
   computeRamUsagePercent,
+  computeUsagePercent,
   formatLoad,
   formatPercent,
   formatRamUsage,
@@ -36,6 +37,10 @@ function formatUptime(seconds: bigint | number): string {
   return `${minutes}m`;
 }
 
+function bytesToGb(bytes: bigint | number): number {
+  return Number(bytes) / 1024 ** 3;
+}
+
 function livePiMetrics(
   metrics: ReturnType<typeof useHostMetricsStore.getState>['piMetrics'],
 ): PiHostMetrics | null {
@@ -44,13 +49,24 @@ function livePiMetrics(
   }
   const cpu = metrics.cpu?.usagePercent ?? 0;
   const mem = metrics.memory;
-  const ramTotalGb = mem ? Number(mem.totalBytes) / 1024 ** 3 : 0;
-  const ramUsedGb = mem ? Number(mem.usedBytes) / 1024 ** 3 : 0;
+  const ramTotalGb = mem ? bytesToGb(mem.totalBytes) : 0;
+  const ramUsedGb = mem ? bytesToGb(mem.usedBytes) : 0;
+  const rootDisk =
+    metrics.disks?.find((disk) => disk.mountPoint === '/') ?? metrics.disks?.[0];
+  const canIface = metrics.network?.find((iface) => iface.name.startsWith('can'));
+  const logBudget = metrics.logDiskBudgetBytes;
   return {
     hostname: metrics.hostname || 'marengo-pi',
     cpuPercent: cpu,
     ramUsedGb,
     ramTotalGb,
+    diskUsedGb: rootDisk ? bytesToGb(rootDisk.usedBytes) : null,
+    diskTotalGb: rootDisk ? bytesToGb(rootDisk.totalBytes) : null,
+    logDiskUsedGb:
+      metrics.logDiskBytes !== undefined ? bytesToGb(metrics.logDiskBytes) : null,
+    logDiskBudgetGb:
+      logBudget !== undefined && logBudget > 0n ? bytesToGb(logBudget) : null,
+    canState: canIface?.canState || (canIface?.up ? 'up' : null),
     tempC: metrics.thermal?.cpuCelsius ?? 0,
     load1m: metrics.load?.load1m ?? 0,
     uptime: formatUptime(metrics.uptimeSec),
@@ -144,8 +160,36 @@ export function PiHostCard({ metrics: metricsProp }: PiHostCardProps) {
               metrics.ramTotalGb,
             )}
           />
+          {metrics.diskUsedGb !== null && metrics.diskTotalGb !== null ? (
+            <MetricItem
+              label="Disk"
+              value={formatRamUsage(metrics.diskUsedGb, metrics.diskTotalGb)}
+              valueClassName="text-xs"
+              usagePercent={computeUsagePercent(
+                metrics.diskUsedGb,
+                metrics.diskTotalGb,
+              )}
+            />
+          ) : null}
+          {metrics.logDiskUsedGb !== null && metrics.logDiskBudgetGb !== null ? (
+            <MetricItem
+              label="Logs"
+              value={formatRamUsage(
+                metrics.logDiskUsedGb,
+                metrics.logDiskBudgetGb,
+              )}
+              valueClassName="text-xs"
+              usagePercent={computeUsagePercent(
+                metrics.logDiskUsedGb,
+                metrics.logDiskBudgetGb,
+              )}
+            />
+          ) : null}
           <MetricItem label="Temp" value={formatTempC(metrics.tempC)} />
           <MetricItem label="Load (1m)" value={formatLoad(metrics.load1m)} />
+          {metrics.canState ? (
+            <MetricItem label="CAN" value={metrics.canState} valueClassName="text-xs" />
+          ) : null}
         </MetricGrid>
       }
       footerPrimary={`Uptime ${metrics.uptime}`}

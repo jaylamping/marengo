@@ -1,18 +1,43 @@
-export function computeRamUsagePercent(usedGb: number, totalGb: number): number {
-  if (totalGb <= 0) {
+export function formatSigFig(value: number, sigFigs = 2): string {
+  if (!Number.isFinite(value)) {
+    return '—';
+  }
+  if (value === 0) {
+    return '0';
+  }
+
+  const abs = Math.abs(value);
+  const magnitude = Math.floor(Math.log10(abs));
+  const decimals = Math.max(0, sigFigs - magnitude - 1);
+  const factor = 10 ** decimals;
+  const rounded = Math.round(value * factor) / factor;
+
+  if (decimals === 0) {
+    return String(Math.round(rounded));
+  }
+
+  return rounded.toFixed(decimals);
+}
+
+export function computeUsagePercent(used: number, total: number): number {
+  if (total <= 0) {
     return 0;
   }
 
-  return Math.round((usedGb / totalGb) * 100);
+  return Math.round((used / total) * 100);
+}
+
+export function computeRamUsagePercent(usedGb: number, totalGb: number): number {
+  return computeUsagePercent(usedGb, totalGb);
 }
 
 export function formatRamUsage(usedGb: number, totalGb: number): string {
-  const percent = computeRamUsagePercent(usedGb, totalGb);
-  return `${usedGb} / ${totalGb} GB · ${percent}%`;
+  const percent = computeUsagePercent(usedGb, totalGb);
+  return `${formatSigFig(usedGb)} / ${formatSigFig(totalGb)} GB · ${percent}%`;
 }
 
 export function formatPercent(value: number): string {
-  return `${value}%`;
+  return `${formatSigFig(value)}%`;
 }
 
 export function formatTempC(value: number): string {
