@@ -75,35 +75,39 @@ export function JetsonHostCard({
   const liveMetrics = useHostMetricsStore((s) => s.jetsonMetrics);
   const liveUpdatedAt = useHostMetricsStore((s) => s.jetsonUpdatedAt);
   const live = isChappeLive();
-  const metrics =
-    live && liveMetrics && !hostMetricsStale(liveUpdatedAt)
-      ? liveJetsonMetrics(liveMetrics) ?? dummyJetsonHostMetrics
-      : (metricsProp ?? dummyJetsonHostMetrics);
+  const metricsLoading = live && liveMetrics === null;
+  const metrics = live
+    ? liveMetrics
+      ? liveJetsonMetrics(liveMetrics)
+      : null
+    : (metricsProp ?? dummyJetsonHostMetrics);
+  const stale = live && hostMetricsStale(liveUpdatedAt);
   const debugLines =
     live && liveMetrics ? hostDebugLinesFromMetrics(liveMetrics) : [];
+  const placeholder = '—';
 
   return (
     <DashboardCardShell
       description="Jetson · perception"
       title={
         <span className="inline-flex items-center gap-1.5">
-          {metrics.hostname}
+          {metrics?.hostname ?? placeholder}
           <HostDebugTooltip lines={debugLines} />
         </span>
       }
       action={
         <StatusBadge
           label={
-            live && hostMetricsStale(liveUpdatedAt)
-              ? 'stale'
-              : metrics.online
-                ? 'online'
-                : 'offline'
+            metricsLoading
+              ? '…'
+              : stale
+                ? 'stale'
+                : metrics?.online
+                  ? 'online'
+                  : 'offline'
           }
           tone={
-            live && !hostMetricsStale(liveUpdatedAt) && metrics.online
-              ? 'healthy'
-              : 'muted'
+            !metricsLoading && !stale && metrics?.online ? 'healthy' : 'muted'
           }
         />
       }
@@ -111,32 +115,46 @@ export function JetsonHostCard({
         <MetricGrid>
           <MetricItem
             label="CPU"
-            value={formatPercent(metrics.cpuPercent)}
-            usagePercent={metrics.cpuPercent}
+            value={metrics ? formatPercent(metrics.cpuPercent) : placeholder}
+            usagePercent={metrics?.cpuPercent ?? 0}
           />
           <MetricItem
             label="RAM"
-            value={formatRamUsage(metrics.ramUsedGb, metrics.ramTotalGb)}
+            value={
+              metrics
+                ? formatRamUsage(metrics.ramUsedGb, metrics.ramTotalGb)
+                : placeholder
+            }
             valueClassName="text-xs"
-            usagePercent={computeRamUsagePercent(
-              metrics.ramUsedGb,
-              metrics.ramTotalGb,
-            )}
+            usagePercent={
+              metrics
+                ? computeRamUsagePercent(metrics.ramUsedGb, metrics.ramTotalGb)
+                : 0
+            }
           />
           <MetricItem
             label="GPU"
-            value={formatPercent(metrics.gpuPercent)}
-            usagePercent={metrics.gpuPercent}
+            value={metrics ? formatPercent(metrics.gpuPercent) : placeholder}
+            usagePercent={metrics?.gpuPercent ?? 0}
           />
-          <MetricItem label="Temp" value={formatTempC(metrics.tempC)} />
+          <MetricItem
+            label="Temp"
+            value={metrics ? formatTempC(metrics.tempC) : placeholder}
+          />
         </MetricGrid>
       }
-      footerPrimary={`Uptime ${metrics.uptime} · ${metrics.powerMode} · load ${formatLoad(metrics.load1m)}`}
+      footerPrimary={
+        metricsLoading
+          ? 'Waiting for telemetry'
+          : metrics
+            ? `Uptime ${metrics.uptime} · ${metrics.powerMode} · load ${formatLoad(metrics.load1m)}`
+            : placeholder
+      }
       footerSecondary={
-        live && !hostMetricsStale(liveUpdatedAt)
-          ? `${metrics.chappeRttMs.toFixed(1)} ms Chappe RTT`
-          : live && hostMetricsStale(liveUpdatedAt)
-            ? 'Host metrics stale'
+        stale
+          ? 'Host metrics stale'
+          : metrics
+            ? `${metrics.chappeRttMs.toFixed(1)} ms Chappe RTT`
             : undefined
       }
     />

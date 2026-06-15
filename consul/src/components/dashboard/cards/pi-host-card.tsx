@@ -86,10 +86,14 @@ export function PiHostCard({ metrics: metricsProp }: PiHostCardProps) {
   const liveMetrics = useHostMetricsStore((s) => s.piMetrics);
   const liveUpdatedAt = useHostMetricsStore((s) => s.piUpdatedAt);
   const live = isChappeLive();
-  const metrics =
-    live && liveMetrics && !hostMetricsStale(liveUpdatedAt)
-      ? livePiMetrics(liveMetrics) ?? dummyPiHostMetrics
-      : (metricsProp ?? dummyPiHostMetrics);
+  const metricsLoading = live && liveMetrics === null;
+  const metrics = live
+    ? liveMetrics
+      ? livePiMetrics(liveMetrics)
+      : null
+    : (metricsProp ?? dummyPiHostMetrics);
+  const stale = live && hostMetricsStale(liveUpdatedAt);
+  const placeholder = '—';
 
   const warnCan = live && canWarning(liveMetrics);
   const warnDisk = live && diskWarning(liveMetrics);
@@ -98,11 +102,13 @@ export function PiHostCard({ metrics: metricsProp }: PiHostCardProps) {
   const debugLines =
     live && liveMetrics ? hostDebugLinesFromMetrics(liveMetrics) : [];
 
-  let badgeLabel = metrics.throttled ? 'throttled' : 'healthy';
-  let badgeTone: 'healthy' | 'warning' | 'muted' = metrics.throttled
+  let badgeLabel = metricsLoading ? '…' : metrics?.throttled ? 'throttled' : 'healthy';
+  let badgeTone: 'healthy' | 'warning' | 'muted' = metrics?.throttled
     ? 'warning'
     : 'healthy';
-  if (live && connected && operationalMode) {
+  if (metricsLoading) {
+    badgeTone = 'muted';
+  } else if (live && connected && operationalMode) {
     badgeLabel = operationalMode;
     badgeTone = 'healthy';
   } else if (warnCan || warnDisk || warnChappe) {
@@ -118,7 +124,7 @@ export function PiHostCard({ metrics: metricsProp }: PiHostCardProps) {
       description={live ? 'Pi 5 · Chappe gateway' : 'Pi 5 · onboard'}
       title={
         <span className="inline-flex items-center gap-1.5">
-          {metrics.hostname}
+          {metrics?.hostname ?? placeholder}
           <HostDebugTooltip lines={debugLines} />
         </span>
       }
@@ -127,19 +133,24 @@ export function PiHostCard({ metrics: metricsProp }: PiHostCardProps) {
         <MetricGrid>
           <MetricItem
             label="CPU"
-            value={formatPercent(metrics.cpuPercent)}
-            usagePercent={metrics.cpuPercent}
+            value={metrics ? formatPercent(metrics.cpuPercent) : placeholder}
+            usagePercent={metrics?.cpuPercent ?? 0}
           />
           <MetricItem
             label="RAM"
-            value={formatRamUsage(metrics.ramUsedGb, metrics.ramTotalGb)}
+            value={
+              metrics
+                ? formatRamUsage(metrics.ramUsedGb, metrics.ramTotalGb)
+                : placeholder
+            }
             valueClassName="text-xs"
-            usagePercent={computeRamUsagePercent(
-              metrics.ramUsedGb,
-              metrics.ramTotalGb,
-            )}
+            usagePercent={
+              metrics
+                ? computeRamUsagePercent(metrics.ramUsedGb, metrics.ramTotalGb)
+                : 0
+            }
           />
-          {metrics.diskUsedGb !== null && metrics.diskTotalGb !== null ? (
+          {metrics?.diskUsedGb != null && metrics.diskTotalGb != null ? (
             <MetricItem
               label="Disk"
               value={formatRamUsage(metrics.diskUsedGb, metrics.diskTotalGb)}
@@ -150,7 +161,7 @@ export function PiHostCard({ metrics: metricsProp }: PiHostCardProps) {
               )}
             />
           ) : null}
-          {metrics.logDiskUsedGb !== null && metrics.logDiskBudgetGb !== null ? (
+          {metrics?.logDiskUsedGb != null && metrics.logDiskBudgetGb != null ? (
             <MetricItem
               label="Logs"
               value={formatRamUsage(
@@ -164,16 +175,28 @@ export function PiHostCard({ metrics: metricsProp }: PiHostCardProps) {
               )}
             />
           ) : null}
-          <MetricItem label="Temp" value={formatTempC(metrics.tempC)} />
-          <MetricItem label="Load (1m)" value={formatLoad(metrics.load1m)} />
-          {metrics.canState ? (
+          <MetricItem
+            label="Temp"
+            value={metrics ? formatTempC(metrics.tempC) : placeholder}
+          />
+          <MetricItem
+            label="Load (1m)"
+            value={metrics ? formatLoad(metrics.load1m) : placeholder}
+          />
+          {metrics?.canState ? (
             <MetricItem label="CAN" value={metrics.canState} valueClassName="text-xs" />
           ) : null}
         </MetricGrid>
       }
-      footerPrimary={`Uptime ${metrics.uptime}`}
+      footerPrimary={
+        metricsLoading
+          ? 'Waiting for telemetry'
+          : metrics
+            ? `Uptime ${metrics.uptime}`
+            : placeholder
+      }
       footerSecondary={
-        live && hostMetricsStale(liveUpdatedAt) ? 'Host metrics stale' : undefined
+        stale ? 'Host metrics stale' : undefined
       }
     />
   );
