@@ -1172,7 +1172,8 @@ fn clamp_trajectory_setpoint(
 
     // Overshoot: command at least `target` but never past measured `q` (avoids MIT pull-back mid-travel).
     let settle_error = target - q;
-    if settle_error < -POSITION_RETURN_RESYNC_RAD && target.abs() > POSITION_RETURN_FREEZE_Q_MAX_RAD {
+    if settle_error < -POSITION_RETURN_RESYNC_RAD && target.abs() > POSITION_RETURN_FREEZE_Q_MAX_RAD
+    {
         // Large hold overshoot away from home — fixed target setpoint; do not chase `q_traj` above `q`.
         q_des = target;
         if let Some(p) = policy {
@@ -1288,6 +1289,55 @@ mod tests {
             .supervisor_mut()
             .request_enable(true)
             .expect("enable");
+    }
+
+    #[test]
+    fn enable_requires_verified_homing() {
+        let mut loop_ctrl = test_loop();
+        let err = loop_ctrl
+            .supervisor_mut()
+            .request_enable(true)
+            .expect_err("enable without homing");
+        assert!(matches!(err, DavoutError::Homing { .. }));
+    }
+
+    #[test]
+    fn tick_sends_no_mit_when_supervisor_not_active() {
+        let mut loop_ctrl = test_loop();
+        let motors = loop_ctrl.supervisor_mut().motors.motors.clone();
+        loop_ctrl
+            .supervisor_mut()
+            .homing_registry_mut()
+            .bench_mark_all_verified(&motors)
+            .expect("verify");
+        loop_ctrl
+            .supervisor_mut()
+            .set_homing_complete()
+            .expect("ready");
+        assert_eq!(loop_ctrl.supervisor_mut().mode(), OperationalMode::Ready);
+        loop_ctrl
+            .enter_position_hold_at(Some("shoulder_pitch"), 0.25)
+            .expect("hold-at");
+        loop_ctrl.tick(None).expect("tick");
+        assert!(
+            loop_ctrl.supervisor_mut().bus_mut().tx.is_empty(),
+            "Ready (not Active) must not emit MIT frames"
+        );
+    }
+
+    #[test]
+    fn tick_sends_comm_watchdog_keepalive_when_active_control_disabled() {
+        let mut loop_ctrl = test_loop();
+        bench_ready_active(&mut loop_ctrl);
+        assert_eq!(loop_ctrl.control_mode(), ControlMode::Disabled);
+        loop_ctrl.supervisor_mut().bus_mut().tx.clear();
+        loop_ctrl.tick(None).expect("tick");
+        let n = loop_ctrl.joint_names.len();
+        assert_eq!(
+            loop_ctrl.supervisor_mut().bus_mut().tx.len(),
+            n,
+            "Active + Disabled control mode must send zero-gain MIT keepalive per joint"
+        );
     }
 
     #[test]

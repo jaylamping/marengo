@@ -64,6 +64,17 @@ For `scale = direction * gear_ratio`, Davout applies:
 2. Per-joint **sign test**: small `+t_ff`, verify direction vs URDF axis.
 3. `SetZero` / homing documented per motor before trusting `q` for `tau_g`.
 
+## Appendix: vCAN test harness (SocketCAN)
+
+Marengo’s ignored SocketCAN integration tests open a **`vcan*`** interface and send/receive on the **same socket** (`crates/robstride/src/bus.rs`, `configure_vcan_loopback`). On real `can0`/`can1` hardware this is not applied.
+
+| Setting | vcan only | Purpose |
+|---------|-----------|---------|
+| `SOCK_RAW` loopback | `set_loopback(true)` | TX frames are visible to the same socket’s RX queue |
+| `CAN_RAW_RECV_OWN_MSGS` | `set_recv_own_msgs(true)` | Driver delivers self-sent frames for send→recv roundtrip tests |
+
+**Production path unchanged:** live bench CAN does not enable loopback; protocol encoding and MIT lifecycle frames are identical. See [Seeed RobStride control](https://wiki.seeedstudio.com/robstride_control/) for vendor MIT semantics.
+
 ## Related
 
 - [0001-can-and-motors.md](0001-can-and-motors.md) — bus topology

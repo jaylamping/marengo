@@ -224,12 +224,21 @@ def diff_line_count(path: str, since: str) -> tuple[int, int]:
     return added, deleted
 
 
+def paired_adr_updated(path: str, changed: list[str]) -> bool:
+    for prefix, adr in ADR_MAP.items():
+        if path.startswith(prefix) and adr in changed:
+            return True
+    return False
+
+
 def check_large_risky_diff(changed: list[str], report: Report) -> None:
     for path in changed:
         if not any(path.startswith(p) for p in RISKY_PREFIXES):
             continue
         added, deleted = diff_line_count(path, "7.days")
         if added + deleted > 400:
+            if paired_adr_updated(path, changed):
+                continue
             report.add(
                 Finding(
                     severity="warn",

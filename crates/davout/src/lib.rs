@@ -1073,8 +1073,7 @@ fn build_limits(
             })?;
         let joint_cfg = control.control.joints.get(joint_name);
         let margin = limit_margin_from_config(joint_cfg);
-        let velocity =
-            resolve_joint_velocity_cap(joint_name, motor.motor_type, &control.control)?;
+        let velocity = resolve_joint_velocity_cap(joint_name, motor.motor_type, &control.control)?;
         let effort = urdf_lim
             .effort
             .min(motor.bench.torque_limit_nm)

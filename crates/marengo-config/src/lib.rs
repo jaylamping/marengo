@@ -1025,9 +1025,8 @@ mod tests {
         let control = sample_control_section();
         let mut motor = sample_motor();
         motor.bench.velocity_limit_rad_s = 0.5;
-        let cap =
-            resolve_joint_velocity_cap("right_shoulder_pitch", motor.motor_type, &control)
-                .expect("cap");
+        let cap = resolve_joint_velocity_cap("right_shoulder_pitch", motor.motor_type, &control)
+            .expect("cap");
         assert!((cap - 2.0).abs() < 1e-9);
     }
 
