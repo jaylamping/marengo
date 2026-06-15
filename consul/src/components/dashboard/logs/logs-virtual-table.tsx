@@ -7,7 +7,6 @@ import { LOG_ROW_ESTIMATE_SIZE, LogRow } from '@/components/dashboard/logs/log-r
 import { LogsTableHeader } from '@/components/dashboard/logs/logs-table-header';
 import type { LogEntry } from '@/data/logs';
 import { logBuffer } from '@/lib/log-buffer';
-import { probeScrollEffect, probeVirtualTableRender } from '@/lib/log-debug-probe';
 
 type LogsVirtualTableProps = {
   autoFollow?: boolean;
@@ -20,7 +19,6 @@ export const LogsVirtualTable = memo(function LogsVirtualTable({
   selectedLogId = null,
   onSelectLog,
 }: LogsVirtualTableProps) {
-  probeVirtualTableRender();
   const model = useVisibleLogIndexModel();
   const { sort, setSortField } = useLogsFilter();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -54,7 +52,6 @@ export const LogsVirtualTable = memo(function LogsVirtualTable({
   });
 
   useEffect(() => {
-    probeScrollEffect();
     if (!autoFollow || rowCount === 0) {
       return;
     }

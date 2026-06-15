@@ -26,7 +26,6 @@ import {
   setLogsPageActive,
   SNAPSHOT_HYDRATE_LIMIT,
 } from '@/lib/log-buffer';
-import { ensureLogDebugProbeStarted } from '@/lib/log-debug-probe';
 import { isChappeLive } from '@/lib/chappe-config';
 import type { LogEntry } from '@/data/logs';
 
@@ -53,7 +52,6 @@ function LogsOverviewInner() {
   }
 
   useEffect(() => {
-    ensureLogDebugProbeStarted();
     setLogsPageActive(true);
     if (isChappeLive()) {
       void fetchRecentLogs(SNAPSHOT_HYDRATE_LIMIT).then((entries) => {

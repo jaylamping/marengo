@@ -9,7 +9,6 @@ import {
   usesLevelOnlyVisibleIndex,
 } from '@/lib/log-view-index';
 import { logBuffer } from '@/lib/log-buffer';
-import { probeVisibleIndexRebuild } from '@/lib/log-debug-probe';
 
 export type VisibleLogIndexModel =
   | {
@@ -43,7 +42,6 @@ export function useVisibleLogIndexModel(): VisibleLogIndexModel {
       if (direct) {
         return [];
       }
-      probeVisibleIndexRebuild();
       const indices = usesLevelOnlyVisibleIndex(
         levelFilter,
         deferredSearchQuery,

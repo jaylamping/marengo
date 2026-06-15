@@ -4,12 +4,6 @@ import {
   type LogEntry,
   type LogLevel,
 } from '@/data/logs';
-import {
-  probeAppendAccepted,
-  probeAppendRejected,
-  probeBufferNotify,
-} from '@/lib/log-debug-probe';
-
 export const MAX_LOG_COUNT = 5_000;
 export const INITIAL_LOG_SEED_COUNT = 500;
 export const SNAPSHOT_HYDRATE_LIMIT = 300;
@@ -60,7 +54,6 @@ class LogBuffer {
   }
 
   private flushNotify() {
-    probeBufferNotify(this.pendingLive.length);
     this.version += 1;
     this.rebuildSnapshot();
     for (const listener of this.listeners) {
@@ -340,22 +333,14 @@ export function seedLogs(count: number) {
 
 export function appendLiveLog(entry: Omit<LogEntry, 'id'>) {
   if (!shouldIngestLogEvents()) {
-    if (!logsPageActive) {
-      probeAppendRejected('inactive');
-    } else {
-      probeAppendRejected('paused');
-    }
     return;
   }
   if (chappeLive && entry.level === 'DEBUG') {
-    probeAppendRejected('debug');
     return;
   }
   if (!allowIngest(entry.level)) {
-    probeAppendRejected('rate');
     return;
   }
-  probeAppendAccepted();
   streamSequence += 1;
   logBuffer.queueLiveEntry({
     id: `live-${streamSequence}`,
