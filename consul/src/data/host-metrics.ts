@@ -9,7 +9,6 @@ export type PiHostMetrics = {
   diskTotalGb: number | null;
   logDiskUsedGb: number | null;
   logDiskBudgetGb: number | null;
-  canState: string | null;
   tempC: number;
   load1m: number;
   uptime: string;
@@ -39,7 +38,6 @@ export const dummyPiHostMetrics: PiHostMetrics = {
   diskTotalGb: 58,
   logDiskUsedGb: 0.82,
   logDiskBudgetGb: 5,
-  canState: 'ERROR-ACTIVE',
   tempC: 52.3,
   load1m: 0.42,
   uptime: '4h 12m',
