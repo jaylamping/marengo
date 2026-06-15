@@ -169,6 +169,7 @@ jobs:
             -w /workspace \
             -e CI=true \
             -e GITHUB_EVENT_NAME="${{ github.event_name }}" \
+            -e GITHUB_BASE_SHA="${{ github.event.pull_request.base.sha || '' }}" \
             -e GITHUB_REF="${{ github.ref }}" \
             -e GITHUB_REPOSITORY="${{ github.repository }}" \
             marengo-dev:local \
