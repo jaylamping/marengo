@@ -218,6 +218,7 @@ async function connectWebTransport(
   const frameBufferedLen = { value: 0 };
 
   void (async () => {
+    let framesSinceYield = 0;
     while (!closed()) {
       const frame = await readLengthPrefixedFromStream(
         reader,
@@ -231,6 +232,13 @@ async function connectWebTransport(
         dispatchEnvelope(frame, handlers);
       } catch (err) {
         handlers.onError?.(err instanceof Error ? err.message : String(err));
+      }
+      framesSinceYield += 1;
+      if (framesSinceYield >= 32) {
+        framesSinceYield = 0;
+        await new Promise<void>((resolve) => {
+          window.setTimeout(resolve, 0);
+        });
       }
     }
     handlers.onDisconnected?.();
@@ -268,6 +276,7 @@ async function connectHttpStream(
   const abort = new AbortController();
 
   void (async () => {
+    let framesSinceYield = 0;
     while (!closed() && !abort.signal.aborted) {
       const frame = await readLengthPrefixedFromStream(reader, buffer, bufferedLen);
       if (!frame) {
@@ -277,6 +286,13 @@ async function connectHttpStream(
         dispatchEnvelope(frame, handlers);
       } catch (err) {
         handlers.onError?.(err instanceof Error ? err.message : String(err));
+      }
+      framesSinceYield += 1;
+      if (framesSinceYield >= 32) {
+        framesSinceYield = 0;
+        await new Promise<void>((resolve) => {
+          window.setTimeout(resolve, 0);
+        });
       }
     }
     handlers.onDisconnected?.();

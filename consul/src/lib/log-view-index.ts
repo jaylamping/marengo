@@ -28,6 +28,28 @@ export function buildFilterKey(
   return `${levelFilter}|${searchQuery.trim().toLowerCase()}|${sort.field}|${sort.direction}`;
 }
 
+export function usesDirectVisibleIndex(
+  levelFilter: LogLevelFilter,
+  searchQuery: string,
+  sort: LogSortState,
+): boolean {
+  if (levelFilter !== 'all' || searchQuery.trim().length > 0) {
+    return false;
+  }
+  return sort.field === 'timestamp';
+}
+
+export function directVisibleLogicalIndex(
+  displayIndex: number,
+  count: number,
+  sort: LogSortState,
+): number {
+  if (sort.direction === 'desc') {
+    return count - 1 - displayIndex;
+  }
+  return displayIndex;
+}
+
 export function buildVisibleLogIndices(
   count: number,
   getEntry: GetEntry,

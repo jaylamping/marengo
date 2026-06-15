@@ -21,7 +21,7 @@ export const LogRow = memo(function LogRow({ entry, style }: LogRowProps) {
       style={style}
       className={cn(
         LOG_TABLE_GRID_CLASS,
-        'absolute left-0 top-0 w-full items-center border-b px-3 font-mono text-xs hover:bg-muted/30',
+        'absolute left-0 top-0 w-full items-center border-b px-3 font-mono text-xs hover:bg-muted/30 [content-visibility:auto]',
       )}
     >
       <span className="truncate tabular-nums text-muted-foreground">

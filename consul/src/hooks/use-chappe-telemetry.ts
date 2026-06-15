@@ -1,19 +1,35 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
-import { HostNodeRole, OperationalMode } from '@/gen/marengo/v1/marengo_pb';
+import { HostNodeRole, OperationalMode, type HostMetrics, type RobotState } from '@/gen/marengo/v1/marengo_pb';
 import { connectChappeStream } from '@/lib/chappe-client';
 import { isChappeLive } from '@/lib/chappe-config';
-import {
-  appendLiveLog,
-  enableChappeLiveLogs,
-  hydrateLogsFromSnapshot,
-} from '@/lib/log-buffer';
-import { fetchRecentLogs } from '@/lib/log-api';
+import { appendLiveLog, enableChappeLiveLogs } from '@/lib/log-buffer';
+import { throttleTrailing } from '@/lib/throttle-callback';
 import type { LogLevel } from '@/data/logs';
 import { useHostMetricsStore } from '@/state/hostMetricsStore';
 import { useRobotStore } from '@/state/robotStore';
 
-const MAX_CHART_POINTS = 120;
+const TELEMETRY_UI_MS = 100;
+
+function applyRobotState(
+  state: RobotState,
+  setRobotState: (state: RobotState) => void,
+  appendTrackingPoint: (point: {
+    time: string;
+    measured: number;
+    commanded: number;
+  }) => void,
+) {
+  setRobotState(state);
+  const joint = state.joints[0];
+  if (joint) {
+    appendTrackingPoint({
+      time: String(Number(state.timestampMs % 10_000n)),
+      measured: joint.position,
+      commanded: joint.position,
+    });
+  }
+}
 
 function mapLogLevel(level: string): LogLevel {
   switch (level.toLowerCase()) {
@@ -49,10 +65,19 @@ export function useChappeTelemetry(): void {
     }
 
     enableChappeLiveLogs();
-    void fetchRecentLogs(5000).then((entries) => {
-      hydrateLogsFromSnapshot(entries);
-    });
     let dispose: (() => void) | undefined;
+
+    const publishRobotState = throttleTrailing((state: RobotState) => {
+      applyRobotState(state, setRobotState, appendTrackingPoint);
+    }, TELEMETRY_UI_MS);
+
+    const publishPiMetrics = throttleTrailing((metrics: HostMetrics) => {
+      setPiMetrics(metrics);
+    }, TELEMETRY_UI_MS);
+
+    const publishJetsonMetrics = throttleTrailing((metrics: HostMetrics) => {
+      setJetsonMetrics(metrics);
+    }, TELEMETRY_UI_MS);
 
     void connectChappeStream({
       onConnected: () => {
@@ -66,15 +91,7 @@ export function useChappeTelemetry(): void {
         setConnected(false);
       },
       onRobotState: (state) => {
-        setRobotState(state);
-        const joint = state.joints[0];
-        if (joint) {
-          appendTrackingPoint({
-            time: String(Number(state.timestampMs % 10_000n)),
-            measured: joint.position,
-            commanded: joint.position,
-          });
-        }
+        publishRobotState(state);
       },
       onSafetyState: (safety) => {
         setSafetyState(safety);
@@ -109,9 +126,9 @@ export function useChappeTelemetry(): void {
                 ? 'jetson'
                 : 'pi';
         if (role === 'jetson') {
-          setJetsonMetrics(metrics);
+          publishJetsonMetrics(metrics);
         } else {
-          setPiMetrics(metrics);
+          publishPiMetrics(metrics);
         }
       },
     }).then((fn) => {

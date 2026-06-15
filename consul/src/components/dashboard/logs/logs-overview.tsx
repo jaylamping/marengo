@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { dashboardLogsClassName } from '@/components/dashboard/layout/constants';
 import { CandumpFrameTable } from '@/components/dashboard/logs/candump-frame-table';
+import { VirtualLinesList } from '@/components/dashboard/logs/virtual-lines-list';
 import { LogsConnectionBanner } from '@/components/dashboard/logs/logs-connection-banner';
 import { LogsFilterProvider } from '@/components/dashboard/logs/logs-filter-context';
 import { LogsModeTabs, type LogsMode } from '@/components/dashboard/logs/logs-mode-tabs';
@@ -12,11 +13,16 @@ import {
   fetchBenchLines,
   fetchCandumpPage,
   fetchCandumpSummary,
+  fetchRecentLogs,
   fetchSessions,
   fetchTraceLines,
   type LogSessionDto,
 } from '@/lib/log-api';
-import { ensureLogsSeeded } from '@/lib/log-buffer';
+import {
+  ensureLogsSeeded,
+  hydrateLogsFromSnapshot,
+  SNAPSHOT_HYDRATE_LIMIT,
+} from '@/lib/log-buffer';
 import { isChappeLive } from '@/lib/chappe-config';
 
 const CAN_PAGE = 200;
@@ -33,12 +39,15 @@ function LogsOverviewInner() {
   const [canOffset, setCanOffset] = useState(0);
   const [canSummary, setCanSummary] = useState<string>('');
   const [autoFollow, setAutoFollow] = useState(true);
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!isChappeLive()) {
-      ensureLogsSeeded();
+    if (isChappeLive()) {
+      void fetchRecentLogs(SNAPSHOT_HYDRATE_LIMIT).then((entries) => {
+        hydrateLogsFromSnapshot(entries);
+      });
+      return;
     }
+    ensureLogsSeeded();
   }, []);
 
   useEffect(() => {
@@ -83,19 +92,6 @@ function LogsOverviewInner() {
     }
   }, [mode, selectedSession, canOffset]);
 
-  const onFollowScroll = useCallback(() => {
-    if (!autoFollow || !scrollRef.current) {
-      return;
-    }
-    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [autoFollow]);
-
-  useEffect(() => {
-    if (mode === 'live') {
-      onFollowScroll();
-    }
-  }, [mode, onFollowScroll]);
-
   return (
     <div className={dashboardLogsClassName}>
       <div className="flex flex-col gap-3">
@@ -106,9 +102,7 @@ function LogsOverviewInner() {
       {mode === 'live' ? (
         <LogsFilterProvider>
           <LogsToolbar autoFollow={autoFollow} onAutoFollowChange={setAutoFollow} />
-          <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
-            <LogsVirtualTable />
-          </div>
+          <LogsVirtualTable autoFollow={autoFollow && mode === 'live'} />
         </LogsFilterProvider>
       ) : null}
 
@@ -136,11 +130,11 @@ function LogsOverviewInner() {
                 Position trace
               </button>
             </div>
-            <div className="min-h-0 flex-1 overflow-auto rounded-lg border bg-card p-3 font-mono text-xs">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border bg-card p-3">
               {archiveLines.length === 0 ? (
-                <p className="text-muted-foreground">Select a session.</p>
+                <p className="text-sm text-muted-foreground">Select a session.</p>
               ) : (
-                archiveLines.map((line) => <div key={line}>{line}</div>)
+                <VirtualLinesList lines={archiveLines} emptyMessage="Select a session." />
               )}
             </div>
           </div>

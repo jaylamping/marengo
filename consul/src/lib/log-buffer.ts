@@ -6,7 +6,8 @@ import {
 } from '@/data/logs';
 
 export const MAX_LOG_COUNT = 50_000;
-export const INITIAL_LOG_SEED_COUNT = 10_000;
+export const INITIAL_LOG_SEED_COUNT = 2_000;
+export const SNAPSHOT_HYDRATE_LIMIT = 1_000;
 
 export type LevelCounts = Record<LogLevel, number>;
 
@@ -27,6 +28,8 @@ class LogBuffer {
   private version = 0;
   private levelCounts = emptyLevelCounts();
   private listeners = new Set<() => void>();
+  private notifyFrame: number | undefined;
+  private pendingLive: LogEntry[] = [];
   private snapshot: LogBufferSnapshot = {
     version: 0,
     count: 0,
@@ -46,13 +49,90 @@ class LogBuffer {
     };
   }
 
-  private notify() {
+  private flushNotify() {
     this.version += 1;
     this.rebuildSnapshot();
     for (const listener of this.listeners) {
       listener();
     }
   }
+
+  private scheduleNotify() {
+    if (this.notifyFrame !== undefined) {
+      return;
+    }
+    this.notifyFrame = requestAnimationFrame(() => {
+      this.notifyFrame = undefined;
+      this.flushPendingLive();
+      this.flushNotify();
+    });
+  }
+
+  private flushPendingLive() {
+    if (this.pendingLive.length === 0) {
+      return;
+    }
+    const batch = this.pendingLive;
+    this.pendingLive = [];
+    this.insertBatch(batch);
+  }
+
+  private insertBatch(batch: readonly LogEntry[]) {
+    for (const entry of batch) {
+      if (this.size < MAX_LOG_COUNT) {
+        const tail = this.slotIndex(this.size);
+        this.slots[tail] = entry;
+        this.size += 1;
+        this.adjustLevel(entry.level, 1);
+        continue;
+      }
+
+      const removed = this.slots[this.head];
+      if (removed) {
+        this.adjustLevel(removed.level, -1);
+      }
+
+      this.slots[this.head] = entry;
+      this.adjustLevel(entry.level, 1);
+      this.head = (this.head + 1) % MAX_LOG_COUNT;
+    }
+  }
+
+  queueLiveEntry(entry: LogEntry) {
+    this.pendingLive.push(entry);
+    this.scheduleNotify();
+  }
+
+  insertBatchChunked(batch: readonly LogEntry[], onComplete: () => void) {
+    const chunkSize = 250;
+    let offset = 0;
+
+    const step = () => {
+      const end = Math.min(offset + chunkSize, batch.length);
+      this.insertBatch(batch.slice(offset, end));
+      offset = end;
+      if (offset < batch.length) {
+        requestAnimationFrame(step);
+        return;
+      }
+      onComplete();
+    };
+
+    step();
+  }
+
+  private notifyNow() {
+    if (this.notifyFrame !== undefined) {
+      cancelAnimationFrame(this.notifyFrame);
+      this.notifyFrame = undefined;
+    }
+    this.flushPendingLive();
+    this.flushNotify();
+  }
+
+  publish = () => {
+    this.notifyNow();
+  };
 
   private adjustLevel(level: LogLevel, delta: number) {
     this.levelCounts[level] += delta;
@@ -94,11 +174,12 @@ class LogBuffer {
   }
 
   clear() {
+    this.pendingLive = [];
     this.slots = [];
     this.head = 0;
     this.size = 0;
     this.levelCounts = emptyLevelCounts();
-    this.notify();
+    this.notifyNow();
   }
 
   appendBatch(batch: readonly LogEntry[]) {
@@ -106,26 +187,8 @@ class LogBuffer {
       return;
     }
 
-    for (const entry of batch) {
-      if (this.size < MAX_LOG_COUNT) {
-        const tail = this.slotIndex(this.size);
-        this.slots[tail] = entry;
-        this.size += 1;
-        this.adjustLevel(entry.level, 1);
-        continue;
-      }
-
-      const removed = this.slots[this.head];
-      if (removed) {
-        this.adjustLevel(removed.level, -1);
-      }
-
-      this.slots[this.head] = entry;
-      this.adjustLevel(entry.level, 1);
-      this.head = (this.head + 1) % MAX_LOG_COUNT;
-    }
-
-    this.notify();
+    this.insertBatch(batch);
+    this.scheduleNotify();
   }
 }
 
@@ -211,12 +274,10 @@ export function appendLiveLog(entry: Omit<LogEntry, 'id'>) {
     return;
   }
   streamSequence += 1;
-  logBuffer.appendBatch([
-    {
-      id: `live-${streamSequence}`,
-      ...entry,
-    },
-  ]);
+  logBuffer.queueLiveEntry({
+    id: `live-${streamSequence}`,
+    ...entry,
+  });
 }
 
 export function enableChappeLiveLogs() {
@@ -248,7 +309,9 @@ export function hydrateLogsFromSnapshot(
   }));
   logBuffer.clear();
   streamSequence = batch.length;
-  logBuffer.appendBatch(batch);
+  logBuffer.insertBatchChunked(batch, () => {
+    logBuffer.publish();
+  });
 }
 
 function mapProtoLevel(level: string): LogLevel {
