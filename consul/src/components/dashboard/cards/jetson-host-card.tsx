@@ -115,7 +115,9 @@ export function JetsonHostCard({
         <MetricGrid>
           <MetricItem
             label="CPU"
-            value={metrics ? formatPercent(metrics.cpuPercent) : placeholder}
+            value={placeholder}
+            smoothValue={metrics?.cpuPercent}
+            formatSmoothValue={formatPercent}
             usagePercent={metrics?.cpuPercent ?? 0}
           />
           <MetricItem
@@ -134,12 +136,16 @@ export function JetsonHostCard({
           />
           <MetricItem
             label="GPU"
-            value={metrics ? formatPercent(metrics.gpuPercent) : placeholder}
+            value={placeholder}
+            smoothValue={metrics?.gpuPercent}
+            formatSmoothValue={formatPercent}
             usagePercent={metrics?.gpuPercent ?? 0}
           />
           <MetricItem
             label="Temp"
-            value={metrics ? formatTempC(metrics.tempC) : placeholder}
+            value={placeholder}
+            smoothValue={metrics?.tempC}
+            formatSmoothValue={formatTempC}
           />
         </MetricGrid>
       }

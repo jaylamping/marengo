@@ -133,7 +133,9 @@ export function PiHostCard({ metrics: metricsProp }: PiHostCardProps) {
         <MetricGrid>
           <MetricItem
             label="CPU"
-            value={metrics ? formatPercent(metrics.cpuPercent) : placeholder}
+            value={placeholder}
+            smoothValue={metrics?.cpuPercent}
+            formatSmoothValue={formatPercent}
             usagePercent={metrics?.cpuPercent ?? 0}
           />
           <MetricItem
@@ -177,11 +179,15 @@ export function PiHostCard({ metrics: metricsProp }: PiHostCardProps) {
           ) : null}
           <MetricItem
             label="Temp"
-            value={metrics ? formatTempC(metrics.tempC) : placeholder}
+            value={placeholder}
+            smoothValue={metrics?.tempC}
+            formatSmoothValue={formatTempC}
           />
           <MetricItem
             label="Load (1m)"
-            value={metrics ? formatLoad(metrics.load1m) : placeholder}
+            value={placeholder}
+            smoothValue={metrics?.load1m}
+            formatSmoothValue={formatLoad}
           />
           {metrics?.canState ? (
             <MetricItem label="CAN" value={metrics.canState} valueClassName="text-xs" />

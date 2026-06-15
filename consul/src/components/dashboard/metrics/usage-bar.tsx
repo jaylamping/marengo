@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { motion, useTransform } from 'motion/react';
 
+import { useTelemetrySpring } from '@/hooks/use-telemetry-spring';
 import { cn } from '@/lib/utils';
 
 type UsageBarProps = {
@@ -21,12 +22,8 @@ function getFillClass(value: number): string {
 
 export function UsageBar({ value, className }: UsageBarProps) {
   const target = Math.min(100, Math.max(0, value));
-  const [width, setWidth] = useState(0);
-
-  useEffect(() => {
-    const id = requestAnimationFrame(() => setWidth(target));
-    return () => cancelAnimationFrame(id);
-  }, [target]);
+  const spring = useTelemetrySpring(target);
+  const scaleX = useTransform(spring, (latest) => latest / 100);
 
   return (
     <div
@@ -36,12 +33,9 @@ export function UsageBar({ value, className }: UsageBarProps) {
       aria-valuemin={0}
       aria-valuemax={100}
     >
-      <div
-        className={cn(
-          'h-full rounded-full transition-[width] duration-500 ease-in-out motion-reduce:transition-none',
-          getFillClass(target),
-        )}
-        style={{ width: `${width}%` }}
+      <motion.div
+        className={cn('h-full w-full origin-left rounded-full', getFillClass(target))}
+        style={{ scaleX }}
       />
     </div>
   );
