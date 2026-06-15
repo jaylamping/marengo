@@ -2,12 +2,10 @@ import { DashboardCardShell } from '@/components/dashboard/cards/dashboard-card-
 import { MetricGrid } from '@/components/dashboard/metrics/metric-grid';
 import { MetricItem } from '@/components/dashboard/metrics/metric-item';
 import { StatusBadge } from '@/components/dashboard/metrics/status-badge';
-import { Button } from '@/components/ui/button';
 import {
   dummyPiHostMetrics,
   type PiHostMetrics,
 } from '@/data/host-metrics';
-import { postEnableCommand } from '@/lib/chappe-client';
 import { isChappeLive } from '@/lib/chappe-config';
 import {
   computeRamUsagePercent,
@@ -99,10 +97,6 @@ export function PiHostCard({ metrics: metricsProp }: PiHostCardProps) {
   const warnChappe = live && chappeDegraded(liveMetrics);
   const warnClock = live && clockUnsynced(liveMetrics);
 
-  async function handleEnableClick() {
-    await postEnableCommand(true);
-  }
-
   let badgeLabel = metrics.throttled ? 'throttled' : 'healthy';
   let badgeTone: 'healthy' | 'warning' | 'muted' = metrics.throttled
     ? 'warning'
@@ -128,22 +122,7 @@ export function PiHostCard({ metrics: metricsProp }: PiHostCardProps) {
           : 'Pi 5 · onboard'
       }
       title={metrics.hostname}
-      action={
-        <div className="flex items-center gap-2">
-          {live && connected ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="h-7 text-xs"
-              onClick={() => void handleEnableClick()}
-            >
-              Enable (HTTP)
-            </Button>
-          ) : null}
-          <StatusBadge label={badgeLabel} tone={badgeTone} />
-        </div>
-      }
+      action={<StatusBadge label={badgeLabel} tone={badgeTone} />}
       content={
         <MetricGrid>
           <MetricItem
