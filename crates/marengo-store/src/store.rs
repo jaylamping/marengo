@@ -250,13 +250,9 @@ impl Store {
 
         for id in &old_sessions {
             if let Some(session) = self.get_session(id)? {
-                for path in [
-                    session.bench_blob,
-                    session.candump_blob,
-                    session.trace_blob,
-                ]
-                .into_iter()
-                .flatten()
+                for path in [session.bench_blob, session.candump_blob, session.trace_blob]
+                    .into_iter()
+                    .flatten()
                 {
                     let _ = fs::remove_file(&path);
                 }
