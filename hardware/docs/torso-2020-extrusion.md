@@ -33,9 +33,9 @@ Cut list and vendor CAD for the **committed** upper torso cage (`125 × 150 × 3
 
 | File | Role |
 |------|------|
-| `hardware/cad/assemblies/marengo_torso_frame_asm_revA.SLDASM` | 12× extrusion + layout jig (hide layout when done) |
-| `hardware/cad/assemblies/marengo_torso_asm_revA.SLDASM` | Layout + frame sub-asm + RS03 layout motors |
-| `hardware/cad/parts/marengo_torso_layout_revA.SLDPRT` | URDF refs (`urdf_link_frame`, `joint_axis`, planes) |
+| `hardware/cad/assemblies/marengo_torso_frame_asm.SLDASM` | 12× extrusion + layout jig (hide layout when done) |
+| `hardware/cad/assemblies/marengo_torso_asm.SLDASM` | Layout + frame sub-asm + RS03 layout motors |
+| `hardware/cad/parts/marengo_torso_layout.SLDPRT` | URDF refs (`urdf_link_frame`, `joint_axis`, planes) |
 
 ## Vendor part configs
 

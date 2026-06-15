@@ -1,8 +1,8 @@
 {
   "version": 1,
   "cadRoot": "hardware/cad",
-  "partFilenamePattern": "^marengo_[a-z0-9_]+_rev[A-Z]\\.SLDPRT$",
-  "assemblyFilenamePattern": "^marengo_[a-z0-9_]+_asm_rev[A-Z]\\.SLDASM$",
+  "partFilenamePattern": "^marengo_[a-z0-9_]+\\.SLDPRT$",
+  "assemblyFilenamePattern": "^marengo_[a-z0-9_]+_asm\\.SLDASM$",
   "vendorFilenamePattern": "^vendor_[a-z0-9_]+_vendor\\.",
   "requiredCustomProperties": ["process", "material", "revision", "owner"],
   "requiredUrdfReferenceNames": ["urdf_link_frame", "joint_axis"],

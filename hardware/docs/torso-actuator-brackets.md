@@ -1,6 +1,6 @@
-# Torso PETG actuator brackets — rev A
+# Torso PETG actuator brackets
 
-Printed mounts for the **three RS03 layout motors** in `marengo_torso_asm_revA`.
+Printed mounts for the **three RS03 layout motors** in `marengo_torso_asm`.
 
 **Rev-a shoulder decision:** shoulder **pitch** RS03 units live **inside** the 2020 cage (not on outer Y faces). Shoulder **roll** RS03 mounts on the arm sub-assembly (distal). Packaging and brackets only on the torso for pitch.
 
@@ -38,7 +38,7 @@ Measured bbox on `vendor_robstride_rs03_vendor.SLDPRT` (mm):
 
 **Required orientation at shoulder (pitch motor):** pitch axis **+Y**; pack body so **99 mm spans Y** and **57 mm spans X** (not 99 mm into the 85 mm depth). Verify in a test assembly before printing brackets.
 
-CAD action: **move** the two shoulder layout instances in `marengo_torso_asm_revA` from outer fixed poses into the cage; remate to layout refs `shoulder_mount_left` / `shoulder_mount_right` (add on layout part).
+CAD action: **move** the two shoulder layout instances in `marengo_torso_asm` from outer fixed poses into the cage; remate to layout refs `shoulder_mount_left` / `shoulder_mount_right` (add on layout part).
 
 ---
 
@@ -46,9 +46,9 @@ CAD action: **move** the two shoulder layout instances in `marengo_torso_asm_rev
 
 | File | Qty | `process` / `material` |
 |------|-----|------------------------|
-| `hardware/cad/parts/marengo_shoulder_pitch_mount_bracket_left_revA.SLDPRT` | 1 | `print` / `PETG` |
-| `hardware/cad/parts/marengo_shoulder_pitch_mount_bracket_right_revA.SLDPRT` | 1 | `print` / `PETG` |
-| `hardware/cad/parts/marengo_waist_yaw_adapter_revA.SLDPRT` | 1 | `print` / `PETG` |
+| `hardware/cad/parts/marengo_shoulder_pitch_mount_bracket_left.SLDPRT` | 1 | `print` / `PETG` |
+| `hardware/cad/parts/marengo_shoulder_pitch_mount_bracket_right.SLDPRT` | 1 | `print` / `PETG` |
+| `hardware/cad/parts/marengo_waist_yaw_adapter.SLDPRT` | 1 | `print` / `PETG` |
 
 ### Reference geometry (each part)
 
@@ -86,8 +86,8 @@ Layout part anchors to add:
 
 **Modeling order**
 
-1. Move layout motor inside cage in `marengo_torso_asm_revA` (unfix → mate to `shoulder_mount_*`).
-2. New part `marengo_shoulder_pitch_mount_bracket_left_revA.SLDPRT`.
+1. Move layout motor inside cage in `marengo_torso_asm` (unfix → mate to `shoulder_mount_*`).
+2. New part `marengo_shoulder_pitch_mount_bracket_left.SLDPRT`.
 3. Sketch `mount_face` against inner rail; extrude saddle for RS03.
 4. Clash-check vs `vendor_robstride_rs03_vendor` and future Pi envelope.
 5. Mirror for right.

@@ -50,7 +50,7 @@ Single aluminum cage, CAD name target: `marengo_upper_torso_frame`.
 
 ## Draft: RS03 mounting (shoulders + waist)
 
-- **Shoulder pitch RS03 (rev-a):** mount **inside** the 2020 cage at `shoulder_plane`; axis **+Y**. Orient body so the **~99 mm** dimension spans **Y** (inner **110 mm**) and **~57 mm** spans **X** (inner **85 mm**) — see [`torso-actuator-brackets-revA.md`](torso-actuator-brackets-revA.md). PETG bracket bridges to **inner faces** of left/right verticals (or front/rear rails), not outer poke. Shoulder **roll** RS03 lives on the arm sub-assembly (distal to pitch).
+- **Shoulder pitch RS03 (rev-a):** mount **inside** the 2020 cage at `shoulder_plane`; axis **+Y**. Orient body so the **~99 mm** dimension spans **Y** (inner **110 mm**) and **~57 mm** spans **X** (inner **85 mm**) — see [`torso-actuator-brackets.md`](torso-actuator-brackets.md). PETG bracket bridges to **inner faces** of left/right verticals (or front/rear rails), not outer poke. Shoulder **roll** RS03 lives on the arm sub-assembly (distal to pitch).
 - **Outer shoulder width:** stays at committed frame **150 mm** (no ~40 mm/side motor poke); arms exit through shell cutouts aligned to motor output.
 - **Chest stack:** Pi/PDB/harness share the cage with shoulder motors — layout order matters (motors low at shoulder plane, compute above waist bay).
 - **Waist RS03:** in **40 mm waist bay**; pelvis does **not** bolt directly to box — **adapter plate** between pelvis ring and torso bottom rail.
@@ -81,17 +81,17 @@ Single aluminum cage, CAD name target: `marengo_upper_torso_frame`.
 
 | Path | Status |
 |------|--------|
-| `hardware/cad/parts/marengo_torso_layout_revA.SLDPRT` | Layout skeleton — mostly empty |
-| `hardware/cad/assemblies/marengo_torso_asm_revA.SLDASM` | Sub-asm; layout part inserted |
+| `hardware/cad/parts/marengo_torso_layout.SLDPRT` | Layout skeleton — mostly empty |
+| `hardware/cad/assemblies/marengo_torso_asm.SLDASM` | Sub-asm; layout part inserted |
 | `hardware/docs/kinematics.md` | SSOT — joint names, limits, committed frame |
 | `hardware/docs/cad-standards.md` | Naming, URDF ref geometry |
 | SolidWorks MCP | Audit tools; worker path fixed in `solidworks-mcp` |
 
 **Layout part next steps:** model committed box + waist bay + draft shoulder/hip points; named refs per `cad-standards.md` (`urdf_link_frame`, `joint_axis`, `cable_exit`, etc.).
 
-**PETG actuator brackets (rev A):** [`torso-actuator-brackets-revA.md`](torso-actuator-brackets-revA.md) — shoulder internal pitch mount brackets (L/R) + waist yaw adapter for the three RS03 layout instances.
+**PETG actuator brackets (rev A):** [`torso-actuator-brackets.md`](torso-actuator-brackets.md) — shoulder internal pitch mount brackets (L/R) + waist yaw adapter for the three RS03 layout instances.
 
-**2020 extrusion:** [`torso-2020-extrusion.md`](torso-2020-extrusion.md) — `vendor_2020_black_extrusion`, `marengo_torso_frame_asm_revA` (12× named cuts, **340 mm** verticals), inserted in `marengo_torso_asm_revA`.
+**2020 extrusion:** [`torso-2020-extrusion.md`](torso-2020-extrusion.md) — `vendor_2020_black_extrusion`, `marengo_torso_frame_asm` (12× named cuts, **340 mm** verticals), inserted in `marengo_torso_asm`.
 
 ---
 

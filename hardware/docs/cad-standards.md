@@ -13,8 +13,8 @@ SolidWorks source of truth lives under [`hardware/cad/`](../cad/). Manifests in 
 
 ## Naming
 
-- **Authored part:** `marengo_<subsystem>_<part>_revA.SLDPRT` (example: `marengo_shoulder_bracket_revA.SLDPRT`)
-- **Authored assembly:** `marengo_<subsystem>_asm_revA.SLDASM`
+- **Authored part:** `marengo_<subsystem>_<part>.SLDPRT` (example: `marengo_shoulder_pitch_mount_bracket_left.SLDPRT`)
+- **Authored assembly:** `marengo_<subsystem>_asm.SLDASM` (example: `marengo_torso_asm.SLDASM`)
 - **Vendor import:** `vendor_<mfg>_<mpn>_vendor.*` (STEP or `.SLDPRT` after import)
 
 Regex targets are in [`cad-conventions.json`](../manifests/cad-conventions.json).

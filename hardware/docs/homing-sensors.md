@@ -16,7 +16,7 @@ Shoulder pitch, shoulder roll, and future arm joints use **three Hall effect sen
 - Do **not** use two magnets unless polarity/field pattern is distinguishable.
 - For the shoulder pitch joint, prefer the Hall sensors fixed to the actuator face/bracket and the magnet fixed to the moving shoulder roll housing. This keeps the sensor harness stationary.
 
-## Mechanical requirements (shoulder pitch/roll revA+)
+## Mechanical requirements (shoulder pitch/roll)
 
 | Requirement | Notes |
 |-------------|-------|
