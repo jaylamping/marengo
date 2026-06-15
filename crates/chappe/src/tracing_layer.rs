@@ -13,7 +13,7 @@ use tracing_subscriber::registry::LookupSpan;
 
 pub const TOPIC_LOGS: &str = "logs/structured";
 
-const MAX_LOGS_PER_SEC: u64 = 200;
+const MAX_LOGS_PER_SEC: u64 = 40;
 
 /// Rate-limited layer forwarding tracing events to Chappe.
 pub struct ChappeLogLayer {

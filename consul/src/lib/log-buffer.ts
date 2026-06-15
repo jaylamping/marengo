@@ -5,9 +5,11 @@ import {
   type LogLevel,
 } from '@/data/logs';
 
-export const MAX_LOG_COUNT = 50_000;
-export const INITIAL_LOG_SEED_COUNT = 2_000;
-export const SNAPSHOT_HYDRATE_LIMIT = 1_000;
+export const MAX_LOG_COUNT = 5_000;
+export const INITIAL_LOG_SEED_COUNT = 500;
+export const SNAPSHOT_HYDRATE_LIMIT = 300;
+const UI_NOTIFY_MS = 400;
+const MAX_INGEST_PER_SEC = 10;
 
 export type LevelCounts = Record<LogLevel, number>;
 
@@ -28,7 +30,8 @@ class LogBuffer {
   private version = 0;
   private levelCounts = emptyLevelCounts();
   private listeners = new Set<() => void>();
-  private notifyFrame: number | undefined;
+  private notifyTimer: number | undefined;
+  private lastNotifyAt = 0;
   private pendingLive: LogEntry[] = [];
   private snapshot: LogBufferSnapshot = {
     version: 0,
@@ -58,14 +61,17 @@ class LogBuffer {
   }
 
   private scheduleNotify() {
-    if (this.notifyFrame !== undefined) {
+    if (this.notifyTimer !== undefined) {
       return;
     }
-    this.notifyFrame = requestAnimationFrame(() => {
-      this.notifyFrame = undefined;
+    const elapsed = Date.now() - this.lastNotifyAt;
+    const delay = Math.max(0, UI_NOTIFY_MS - elapsed);
+    this.notifyTimer = window.setTimeout(() => {
+      this.notifyTimer = undefined;
+      this.lastNotifyAt = Date.now();
       this.flushPendingLive();
       this.flushNotify();
-    });
+    }, delay);
   }
 
   private flushPendingLive() {
@@ -99,12 +105,20 @@ class LogBuffer {
   }
 
   queueLiveEntry(entry: LogEntry) {
+    if (this.pendingLive.length >= 256) {
+      const dropIndex = this.pendingLive.findIndex((row) => row.level === 'DEBUG');
+      if (dropIndex >= 0) {
+        this.pendingLive.splice(dropIndex, 1);
+      } else {
+        this.pendingLive.shift();
+      }
+    }
     this.pendingLive.push(entry);
     this.scheduleNotify();
   }
 
   insertBatchChunked(batch: readonly LogEntry[], onComplete: () => void) {
-    const chunkSize = 250;
+    const chunkSize = 100;
     let offset = 0;
 
     const step = () => {
@@ -122,11 +136,12 @@ class LogBuffer {
   }
 
   private notifyNow() {
-    if (this.notifyFrame !== undefined) {
-      cancelAnimationFrame(this.notifyFrame);
-      this.notifyFrame = undefined;
+    if (this.notifyTimer !== undefined) {
+      window.clearTimeout(this.notifyTimer);
+      this.notifyTimer = undefined;
     }
     this.flushPendingLive();
+    this.lastNotifyAt = Date.now();
     this.flushNotify();
   }
 
@@ -197,7 +212,10 @@ export const logBuffer = new LogBuffer();
 let streamSequence = 0;
 let live = false;
 let chappeLive = false;
-let paused = false;
+let paused = true;
+let logsPageActive = false;
+let ingestWindowStart = 0;
+let ingestWindowCount = 0;
 let liveTimer: number | undefined;
 const liveListeners = new Set<() => void>();
 
@@ -220,10 +238,23 @@ function startLiveStream() {
   }
 
   liveTimer = window.setInterval(() => {
-    const batch = generateLiveLogBatch(4, streamSequence);
+    const batch = generateLiveLogBatch(2, streamSequence);
     streamSequence += batch.length;
     logBuffer.appendBatch(batch);
-  }, 1000);
+  }, 2000);
+}
+
+function allowIngest(level: LogLevel): boolean {
+  const now = Date.now();
+  if (now - ingestWindowStart >= 1000) {
+    ingestWindowStart = now;
+    ingestWindowCount = 0;
+  }
+  ingestWindowCount += 1;
+  if (ingestWindowCount <= MAX_INGEST_PER_SEC) {
+    return true;
+  }
+  return level === 'WARN' || level === 'ERROR' || level === 'FATAL';
 }
 
 export function getLogPaused(): boolean {
@@ -254,6 +285,14 @@ export function setLogLive(next: boolean) {
   notifyLiveListeners();
 }
 
+export function setLogsPageActive(active: boolean) {
+  logsPageActive = active;
+  if (active && chappeLive) {
+    paused = true;
+    notifyLiveListeners();
+  }
+}
+
 export function subscribeLogLive(listener: () => void): () => void {
   liveListeners.add(listener);
   return () => liveListeners.delete(listener);
@@ -270,7 +309,13 @@ export function seedLogs(count: number) {
 }
 
 export function appendLiveLog(entry: Omit<LogEntry, 'id'>) {
-  if (paused) {
+  if (!logsPageActive || paused) {
+    return;
+  }
+  if (chappeLive && entry.level === 'DEBUG') {
+    return;
+  }
+  if (!allowIngest(entry.level)) {
     return;
   }
   streamSequence += 1;
@@ -282,11 +327,13 @@ export function appendLiveLog(entry: Omit<LogEntry, 'id'>) {
 
 export function enableChappeLiveLogs() {
   chappeLive = true;
+  paused = true;
   stopLiveStream();
   if (logBuffer.getCount() > 0 && logBuffer.getEntry(0)?.id.startsWith('seed-')) {
     logBuffer.clear();
     streamSequence = 0;
   }
+  notifyLiveListeners();
 }
 
 export function hydrateLogsFromSnapshot(
@@ -300,13 +347,16 @@ export function hydrateLogsFromSnapshot(
   if (entries.length === 0) {
     return;
   }
-  const batch: LogEntry[] = entries.map((e, i) => ({
-    id: `snap-${i}-${e.timestamp_ms}`,
-    timestamp: e.timestamp_ms,
-    level: mapProtoLevel(e.level),
-    source: e.target,
-    message: e.message,
-  }));
+  const batch: LogEntry[] = entries
+    .map((e, i) => ({
+      id: `snap-${i}-${e.timestamp_ms}`,
+      timestamp: e.timestamp_ms,
+      level: mapProtoLevel(e.level),
+      source: e.target,
+      message: e.message,
+    }))
+    .filter((entry) => !chappeLive || entry.level !== 'DEBUG')
+    .slice(-SNAPSHOT_HYDRATE_LIMIT);
   logBuffer.clear();
   streamSequence = batch.length;
   logBuffer.insertBatchChunked(batch, () => {
@@ -323,6 +373,8 @@ function mapProtoLevel(level: string): LogLevel {
       return 'WARN';
     case 'error':
       return 'ERROR';
+    case 'fatal':
+      return 'FATAL';
     default:
       return 'INFO';
   }

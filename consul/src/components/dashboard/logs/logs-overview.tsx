@@ -21,6 +21,7 @@ import {
 import {
   ensureLogsSeeded,
   hydrateLogsFromSnapshot,
+  setLogsPageActive,
   SNAPSHOT_HYDRATE_LIMIT,
 } from '@/lib/log-buffer';
 import { isChappeLive } from '@/lib/chappe-config';
@@ -41,13 +42,19 @@ function LogsOverviewInner() {
   const [autoFollow, setAutoFollow] = useState(true);
 
   useEffect(() => {
+    setLogsPageActive(true);
     if (isChappeLive()) {
       void fetchRecentLogs(SNAPSHOT_HYDRATE_LIMIT).then((entries) => {
         hydrateLogsFromSnapshot(entries);
       });
-      return;
+      return () => {
+        setLogsPageActive(false);
+      };
     }
     ensureLogsSeeded();
+    return () => {
+      setLogsPageActive(false);
+    };
   }, []);
 
   useEffect(() => {

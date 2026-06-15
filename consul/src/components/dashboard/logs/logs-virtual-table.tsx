@@ -17,6 +17,7 @@ export const LogsVirtualTable = memo(function LogsVirtualTable({
   const model = useVisibleLogIndexModel();
   const { sort, setSortField } = useLogsFilter();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const lastScrollAtRef = useRef(0);
   const rowCount = model.mode === 'direct' ? model.count : model.indices.length;
 
   const resolveLogicalIndex = (displayIndex: number): number | undefined => {
@@ -49,6 +50,11 @@ export const LogsVirtualTable = memo(function LogsVirtualTable({
     if (!autoFollow || rowCount === 0) {
       return;
     }
+    const now = Date.now();
+    if (now - lastScrollAtRef.current < 400) {
+      return;
+    }
+    lastScrollAtRef.current = now;
     rowVirtualizer.scrollToIndex(rowCount - 1, { align: 'end' });
   }, [autoFollow, model.version, rowCount, rowVirtualizer]);
 

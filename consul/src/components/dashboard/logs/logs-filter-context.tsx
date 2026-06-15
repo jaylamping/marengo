@@ -8,6 +8,7 @@ import {
 } from 'react';
 
 import type { LogLevelFilter } from '@/data/logs';
+import { isChappeLive } from '@/lib/chappe-config';
 import {
   DEFAULT_LOG_SORT,
   toggleLogSort,
@@ -25,10 +26,14 @@ type LogsFilterContextValue = {
   setSortField: (field: LogSortField) => void;
 };
 
+function defaultLevelFilter(): LogLevelFilter {
+  return isChappeLive() ? 'INFO' : 'all';
+}
+
 const LogsFilterContext = createContext<LogsFilterContextValue | null>(null);
 
 export function LogsFilterProvider({ children }: { children: ReactNode }) {
-  const [levelFilter, setLevelFilter] = useState<LogLevelFilter>('all');
+  const [levelFilter, setLevelFilter] = useState<LogLevelFilter>(defaultLevelFilter);
   const [searchQuery, setSearchQuery] = useState('');
   const [sort, setSort] = useState<LogSortState>(DEFAULT_LOG_SORT);
   const deferredSearchQuery = useDeferredValue(searchQuery);
