@@ -37,6 +37,7 @@ consul/src/gen/*
 .marengo-research/
 tools/marengo-research-mcp/.venv/
 tools/marengo-research-mcp/**/__pycache__/
+scripts/daily-audit/__pycache__/
 
 # Pi bench session logs (runtime on device; not committed)
 var/log/

@@ -8,7 +8,18 @@ OUT_DIR="$ROOT/var/log/daily-audit/$DATE"
 mkdir -p "$OUT_DIR"
 
 echo "Running Marengo daily audit..."
-python3 "$ROOT/scripts/daily-audit/audit.py" || true
+PYTHON=""
+for cmd in python3 python py; do
+  if command -v "$cmd" >/dev/null 2>&1; then
+    PYTHON="$cmd"
+    break
+  fi
+done
+if [ -z "$PYTHON" ]; then
+  echo "No python interpreter found (tried python3, python, py)" >&2
+  exit 1
+fi
+"$PYTHON" "$ROOT/scripts/daily-audit/audit.py" || true
 
 # Optional cargo audit (non-fatal if unavailable)
 if command -v cargo-audit >/dev/null 2>&1; then

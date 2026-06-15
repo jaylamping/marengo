@@ -4,15 +4,15 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import sys
 from dataclasses import asdict, dataclass, field
-from datetime import date, datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-OUT_DIR = ROOT / "var" / "log" / "daily-audit" / date.today().isoformat()
 
 RISKY_PREFIXES = (
     "crates/berthier/",
@@ -21,11 +21,20 @@ RISKY_PREFIXES = (
     "proto/",
 )
 
+SAFETY_PREFIXES = RISKY_PREFIXES + (
+    "config/",
+    "crates/marengo-config/",
+)
+
 ADR_MAP = {
     "crates/robstride/": "hardware/docs/decisions/0002-robstride-protocol.md",
     "crates/davout/": "docs/safety.md",
+    "crates/berthier/": "docs/decisions/0007-bench-position-trajectory-control.md",
     "proto/": "docs/decisions/0001-protobuf-wire-types.md",
 }
+
+UNWRAP_RE = re.compile(r"\.unwrap\s*\(|\.expect\s*\(")
+COMMENT_LINE_RE = re.compile(r"^\s*//")
 
 
 @dataclass
@@ -46,6 +55,7 @@ class Report:
     findings: list[Finding] = field(default_factory=list)
     topics: list[dict[str, str]] = field(default_factory=list)
     clean: bool = True
+    scan_windows: dict[str, str] = field(default_factory=dict)
 
     def add(self, finding: Finding) -> None:
         if finding.severity in ("warn", "critical"):
@@ -53,19 +63,92 @@ class Report:
         self.findings.append(finding)
 
 
+def utc_today() -> str:
+    return datetime.now(timezone.utc).date().isoformat()
+
+
+def out_dir_for(date_str: str | None = None) -> Path:
+    return ROOT / "var" / "log" / "daily-audit" / (date_str or utc_today())
+
+
 def run(cmd: list[str], cwd: Path = ROOT) -> str:
     result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, check=False)
     return result.stdout.strip()
 
 
-def git_changed_files() -> tuple[list[str], list[str]]:
-    commits = run(["git", "log", "--since=24.hours", "--format=%H"]).splitlines()
+def run_json(cmd: list[str], cwd: Path = ROOT) -> list | dict | None:
+    proc = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, check=False)
+    if proc.returncode != 0 or not proc.stdout.strip():
+        return None
+    return json.loads(proc.stdout)
+
+
+def git_log_since(since: str) -> list[str]:
+    return [c for c in run(["git", "log", f"--since={since}", "--format=%H"]).splitlines() if c]
+
+
+def files_for_commits(commits: list[str]) -> set[str]:
     files: set[str] = set()
     for commit in commits:
         diff_files = run(["git", "diff-tree", "--no-commit-id", "--name-only", "-r", commit])
         files.update(f for f in diff_files.splitlines() if f)
-    # Open PR heads not available locally without gh; workflow adds PR scan separately
-    return commits, sorted(files)
+    return files
+
+
+def git_changed_files() -> tuple[list[str], list[str], dict[str, str]]:
+    """Return commits, merged changed files, and scan window metadata."""
+    commits_24h = git_log_since("24.hours")
+    commits_7d = git_log_since("7.days")
+    files_24h = files_for_commits(commits_24h)
+    files_7d = files_for_commits(commits_7d)
+
+    safety_from_7d = {f for f in files_7d if any(f.startswith(p) for p in SAFETY_PREFIXES)}
+    merged = sorted(files_24h | safety_from_7d)
+    commits = commits_7d
+
+    windows = {
+        "general": "24.hours",
+        "safety_paths": "7.days",
+        "files_from_24h": str(len(files_24h)),
+        "files_from_7d_safety": str(len(safety_from_7d)),
+    }
+    return commits, merged, windows
+
+
+def strip_rust_tests(source: str) -> str:
+    """Drop #[cfg(test)] modules so test unwrap/expect do not false-positive."""
+    lines = source.splitlines()
+    out: list[str] = []
+    i = 0
+    while i < len(lines):
+        if lines[i].strip() == "#[cfg(test)]":
+            i += 1
+            while i < len(lines) and not lines[i].strip().startswith("mod "):
+                i += 1
+            if i >= len(lines):
+                break
+            brace_depth = 0
+            started = False
+            while i < len(lines):
+                line = lines[i]
+                for ch in line:
+                    if ch == "{":
+                        brace_depth += 1
+                        started = True
+                    elif ch == "}":
+                        brace_depth -= 1
+                i += 1
+                if started and brace_depth <= 0:
+                    break
+            continue
+        out.append(lines[i])
+        i += 1
+    return "\n".join(out)
+
+
+def production_rust_lines(source: str) -> str:
+    body = strip_rust_tests(source)
+    return "\n".join(line for line in body.splitlines() if not COMMENT_LINE_RE.match(line))
 
 
 def check_unwrap(changed: list[str], report: Report) -> None:
@@ -73,17 +156,17 @@ def check_unwrap(changed: list[str], report: Report) -> None:
         if not path.startswith("crates/") or "/tests/" in path:
             continue
         full = ROOT / path
-        if not full.is_file():
+        if not full.is_file() or not path.endswith(".rs"):
             continue
-        text = full.read_text(encoding="utf-8", errors="replace")
-        if re.search(r"\bunwrap\s*\(|\bexpect\s*\(", text):
+        text = production_rust_lines(full.read_text(encoding="utf-8", errors="replace"))
+        if UNWRAP_RE.search(text):
             report.add(
                 Finding(
                     severity="critical",
                     category="rust",
                     file=path,
-                    rule="AGENTS.md — no unwrap/expect in crates/*",
-                    message="unwrap/expect found in changed crate file",
+                    rule="AGENTS.md R1 — no unwrap/expect in crates/* library code",
+                    message="unwrap/expect found outside test modules",
                 )
             )
 
@@ -96,61 +179,74 @@ def check_gen_handedit(changed: list[str], report: Report) -> None:
                     severity="critical",
                     category="proto",
                     file=path,
-                    rule="AGENTS.md — never hand-edit consul/src/gen/",
+                    rule="AGENTS.md R3 — never hand-edit consul/src/gen/",
                     message="Generated consul proto file modified",
                 )
             )
 
 
 def check_davout_bypass(changed: list[str], report: Report) -> None:
-    motor_paths = [p for p in changed if "robstride" in p or "davout" in p or "berthier" in p]
-    for path in motor_paths:
-        full = ROOT / path
-        if not full.is_file() or not path.endswith(".rs"):
+    for path in changed:
+        if not path.startswith("crates/berthier/") or not path.endswith(".rs"):
             continue
-        text = full.read_text(encoding="utf-8", errors="replace")
-        if path.startswith("crates/berthier/") and "robstride" in text.lower():
-            report.add(
-                Finding(
-                    severity="critical",
-                    category="safety",
-                    file=path,
-                    rule="docs/architecture.md — Berthier must not touch CAN/robstride",
-                    message="Berthier references robstride directly",
+        full = ROOT / path
+        if not full.is_file():
+            continue
+        for line in full.read_text(encoding="utf-8", errors="replace").splitlines():
+            if COMMENT_LINE_RE.match(line):
+                continue
+            lower = line.lower()
+            if "robstride" in lower or "use robstride" in lower:
+                report.add(
+                    Finding(
+                        severity="critical",
+                        category="safety",
+                        file=path,
+                        rule="docs/architecture.md R6 — Berthier must not touch CAN/robstride",
+                        message="Non-comment Berthier reference to robstride/CAN layer",
+                    )
                 )
-            )
-        if path.startswith("crates/robstride/") and "enable" in text.lower() and "test" not in path:
-            if "davout" not in run(["git", "log", "-1", "--format=%H", "--", path]):
-                pass  # heuristic only in diff context
+                break
+
+
+def diff_line_count(path: str, since: str) -> tuple[int, int]:
+    stat = run(["git", "log", f"--since={since}", "--format=%H", "--", path]).splitlines()
+    if not stat:
+        return 0, 0
+    oldest = stat[-1]
+    numstat = run(["git", "diff", f"{oldest}^", "HEAD", "--numstat", "--", path])
+    added = deleted = 0
+    for line in numstat.splitlines():
+        parts = line.split()
+        if len(parts) >= 2:
+            added += int(parts[0] or 0)
+            deleted += int(parts[1] or 0)
+    return added, deleted
 
 
 def check_large_risky_diff(changed: list[str], report: Report) -> None:
     for path in changed:
         if not any(path.startswith(p) for p in RISKY_PREFIXES):
             continue
-        stat = run(["git", "diff", "HEAD~1", "HEAD", "--numstat", "--", path])
-        if not stat:
-            continue
-        parts = stat.split()
-        if len(parts) >= 2:
-            added = int(parts[0] or 0)
-            deleted = int(parts[1] or 0)
-            if added + deleted > 400:
-                report.add(
-                    Finding(
-                        severity="warn",
-                        category="scope",
-                        file=path,
-                        rule="daily-audit — large change in safety-critical path",
-                        message=f"Large diff ({added}+{deleted} lines) in risky area",
-                    )
+        added, deleted = diff_line_count(path, "7.days")
+        if added + deleted > 400:
+            report.add(
+                Finding(
+                    severity="warn",
+                    category="scope",
+                    file=path,
+                    rule="daily-audit — large change in safety-critical path (7d window)",
+                    message=f"Large diff ({added}+{deleted} lines) in risky area over 7 days",
                 )
+            )
 
 
 def check_adr_staleness(changed: list[str], report: Report) -> None:
-    adr_changed = any(p.startswith("docs/decisions/") for p in changed)
+    adr_changed = any(
+        p.startswith("docs/decisions/") or p.startswith("hardware/docs/decisions/") for p in changed
+    )
     for prefix, adr in ADR_MAP.items():
-        touched = [p for p in changed if p.startswith(prefix)]
+        touched = [p for p in changed if p.startswith(prefix) and p.endswith(".rs")]
         if touched and not adr_changed:
             report.add(
                 Finding(
@@ -164,8 +260,8 @@ def check_adr_staleness(changed: list[str], report: Report) -> None:
 
 
 def check_hardware_config_coupling(changed: list[str], report: Report) -> None:
-    motor_cfg = [p for p in changed if p.startswith("config/motors") or "motors" in p]
-    kin = [p for p in changed if "kinematics" in p]
+    motor_cfg = [p for p in changed if p.startswith("config/") and "motor" in p.lower()]
+    kin = [p for p in changed if "kinematics" in p.lower()]
     docs = [p for p in changed if p.startswith("docs/") or p.startswith("hardware/docs/")]
     if (motor_cfg or kin) and not docs:
         report.add(
@@ -174,9 +270,84 @@ def check_hardware_config_coupling(changed: list[str], report: Report) -> None:
                 category="config",
                 file=(motor_cfg or kin)[0],
                 rule="daily-audit-rubric R10 — config/kinematics needs doc pairing",
-                message="Hardware/config changed without doc updates in same window",
+                message="Hardware/config changed without doc updates in scan window",
             )
         )
+
+
+def check_ci_status(report: Report) -> None:
+    repo = os.environ.get("GITHUB_REPOSITORY", "jaylamping/marengo")
+    runs = run_json(
+        [
+            "gh",
+            "run",
+            "list",
+            "--repo",
+            repo,
+            "--branch",
+            "main",
+            "--workflow",
+            "CI",
+            "--limit",
+            "1",
+            "--json",
+            "databaseId,conclusion,headSha,url",
+        ]
+    )
+    if not isinstance(runs, list) or not runs:
+        return
+    latest = runs[0]
+    conclusion = latest.get("conclusion")
+    if conclusion and conclusion != "success":
+        report.add(
+            Finding(
+                severity="warn",
+                category="ci",
+                file="main",
+                rule="AGENTS.md — keep CI green before shipping",
+                message=f"Latest CI run on main: {conclusion} ({latest.get('url', '')})",
+            )
+        )
+
+
+def check_stale_safety_prs(report: Report) -> None:
+    repo = os.environ.get("GITHUB_REPOSITORY", "jaylamping/marengo")
+    prs = run_json(
+        [
+            "gh",
+            "pr",
+            "list",
+            "--repo",
+            repo,
+            "--state",
+            "open",
+            "--json",
+            "number,createdAt,files,url",
+            "--limit",
+            "30",
+        ]
+    )
+    if not isinstance(prs, list):
+        return
+    cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+    for pr in prs:
+        created_raw = pr.get("createdAt")
+        if not created_raw:
+            continue
+        created = datetime.fromisoformat(created_raw.replace("Z", "+00:00"))
+        if created > cutoff:
+            continue
+        files = [f.get("path", "") for f in pr.get("files") or []]
+        if any(any(path.startswith(p) for p in SAFETY_PREFIXES) for path in files):
+            report.add(
+                Finding(
+                    severity="warn",
+                    category="process",
+                    file=f"PR #{pr.get('number')}",
+                    rule="daily-audit-rubric — stale open PR on safety paths",
+                    message=f"Open >7d with safety-path edits ({pr.get('url', '')})",
+                )
+            )
 
 
 def infer_topics(changed: list[str]) -> list[dict[str, str]]:
@@ -192,8 +363,8 @@ def infer_topics(changed: list[str]) -> list[dict[str, str]]:
     return topics
 
 
-def write_report(report: Report) -> None:
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
+def write_report(report: Report, out_dir: Path) -> None:
+    out_dir.mkdir(parents=True, exist_ok=True)
     payload = {
         "date": report.date,
         "commits_reviewed": report.commits_reviewed,
@@ -201,15 +372,17 @@ def write_report(report: Report) -> None:
         "findings": [asdict(f) for f in report.findings],
         "topics": report.topics,
         "clean": report.clean,
+        "scan_windows": report.scan_windows,
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
-    (OUT_DIR / "report.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    (out_dir / "report.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
     lines = [
         f"# Daily audit {report.date}",
         "",
         f"**Clean:** {report.clean}",
         f"**Commits:** {len(report.commits_reviewed)}",
         f"**Changed files:** {len(report.changed_files)}",
+        f"**Scan windows:** {report.scan_windows}",
         "",
         "## Findings",
         "",
@@ -223,14 +396,29 @@ def write_report(report: Report) -> None:
             lines.append(
                 f"| {f.severity} | {f.category} | `{f.file}` | {f.rule} | {f.message} |"
             )
-    (OUT_DIR / "report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
-    (OUT_DIR / "topics.json").write_text(json.dumps({"topics": report.topics}, indent=2), encoding="utf-8")
-    print(json.dumps({"out_dir": str(OUT_DIR), "clean": report.clean, "findings": len(report.findings)}))
+    (out_dir / "report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    (out_dir / "topics.json").write_text(json.dumps({"topics": report.topics}, indent=2), encoding="utf-8")
+    print(
+        json.dumps(
+            {
+                "out_dir": str(out_dir),
+                "clean": report.clean,
+                "findings": len(report.findings),
+            }
+        )
+    )
 
 
 def main() -> int:
-    commits, changed = git_changed_files()
-    report = Report(date=date.today().isoformat(), commits_reviewed=commits, changed_files=changed)
+    date_str = utc_today()
+    out_dir = out_dir_for(date_str)
+    commits, changed, windows = git_changed_files()
+    report = Report(
+        date=date_str,
+        commits_reviewed=commits,
+        changed_files=changed,
+        scan_windows=windows,
+    )
     if changed:
         check_unwrap(changed, report)
         check_gen_handedit(changed, report)
@@ -239,7 +427,9 @@ def main() -> int:
         check_adr_staleness(changed, report)
         check_hardware_config_coupling(changed, report)
         report.topics = infer_topics(changed)
-    write_report(report)
+    check_ci_status(report)
+    check_stale_safety_prs(report)
+    write_report(report, out_dir)
     return 0 if report.clean else 1
 
 
