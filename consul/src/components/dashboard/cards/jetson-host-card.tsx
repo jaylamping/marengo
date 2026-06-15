@@ -87,7 +87,7 @@ export function JetsonHostCard({
     subsystem: 'Fouché',
     host: metrics?.hostname,
     note: metricsLoading
-      ? 'Waiting for telemetry'
+      ? 'Inactive'
       : stale
         ? 'Metrics stale'
         : live && metrics && !metrics.online
@@ -108,7 +108,7 @@ export function JetsonHostCard({
         <StatusBadge
           label={
             metricsLoading
-              ? '…'
+              ? 'Inactive'
               : stale
                 ? 'stale'
                 : metrics?.online
