@@ -1,0 +1,37 @@
+# Curated vendor, lab, and humanoid stack seeds for Marengo research MCP.
+
+vendor_docs:
+  - title: Seeed RobStride control wiki
+    url: https://wiki.seeedstudio.com/robstride_control/
+    description: Robstride MIT control, Motor Studio, CAN setup
+    tags: [robstride, mit, can, motor, seeed]
+  - title: docs.rs robstride crate
+    url: https://docs.rs/robstride/latest/robstride/
+    description: Rust robstride driver API reference
+    tags: [robstride, rust, can, mit]
+  - title: Marengo hardware ADR Robstride protocol
+    url: https://github.com/jaylamping/marengo/blob/main/hardware/docs/decisions/0002-robstride-protocol.md
+    description: Internal MIT protocol and joint/motor coordinate boundary
+    tags: [robstride, davout, mit, adr]
+
+humanoid_repos:
+  - title: Unitree SDK2
+    url: https://github.com/unitreerobotics/unitree_sdk2
+    tags: [unitree, humanoid, sdk]
+  - title: Fourier GRx SDK
+    url: https://github.com/FFTAI
+    tags: [fourier, humanoid]
+  - title: OpenLoong
+    url: https://github.com/loongOpen/OpenLoong
+    tags: [openloong, humanoid, china]
+  - title: Berkeley Humanoid
+    url: https://github.com/HybridRobotics/Berkeley-Humanoid-Lite
+    tags: [berkeley, humanoid, lite]
+  - title: MuJoCo Menagerie
+    url: https://github.com/google-deepmind/mujoco_menagerie
+    tags: [mujoco, urdf, sim]
+
+labs:
+  - title: LeRobot (Hugging Face)
+    url: https://github.com/huggingface/lerobot
+    tags: [policy, imitation, hf]

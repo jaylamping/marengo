@@ -1,0 +1,38 @@
+name: Daily audit
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run daily audit
+        run: |
+          chmod +x scripts/daily-audit/run.sh scripts/daily-audit/issue-upsert.sh
+          ./scripts/daily-audit/run.sh
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-audit-${{ github.run_id }}
+          path: var/log/daily-audit/**/*
+
+      - name: Upsert GitHub issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DATE: ${{ github.run_id }}
+        run: |
+          export DATE="$(date -u +%Y-%m-%d)"
+          ./scripts/daily-audit/issue-upsert.sh

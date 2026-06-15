@@ -17,6 +17,20 @@
         "MARENGO_CONFIG_DIR": "/opt/marengo/config/bringup/shoulder_pitch_right_only",
         "MARENGO_BENCH_PROFILE": "bare_motor"
       }
+    },
+    "marengo-research": {
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/tools/marengo-research-mcp/run-mcp.ps1"
+      ],
+      "env": {
+        "MARENGO_RESEARCH_CACHE_DIR": "${workspaceFolder}/.marengo-research",
+        "MARENGO_WORKSPACE": "${workspaceFolder}"
+      }
     }
   }
 }

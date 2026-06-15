@@ -55,3 +55,11 @@ deploy-pi-wsl host="joey@marengo.local":
 # Rebuild Marengo Pi MCP server (Cursor: restart marengo-pi MCP after this)
 mcp-build:
     cd tools/marengo-pi-mcp && npm install && npm run build
+
+# Install Marengo Research MCP (Python/uv; restart marengo-research MCP after this)
+research-mcp-setup:
+    cd tools/marengo-research-mcp && uv sync --extra dev
+
+# Local deterministic daily audit dry-run
+daily-audit:
+    python3 scripts/daily-audit/audit.py

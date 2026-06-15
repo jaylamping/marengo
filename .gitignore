@@ -34,6 +34,9 @@ consul/src/gen/*
 .env
 *.pem
 .firecrawl/
+.marengo-research/
+tools/marengo-research-mcp/.venv/
+tools/marengo-research-mcp/**/__pycache__/
 
 # Pi bench session logs (runtime on device; not committed)
 var/log/
