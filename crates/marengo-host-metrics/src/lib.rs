@@ -180,7 +180,8 @@ mod linux {
     fn sample_log_disk() -> (u64, u64) {
         let root = std::env::var("MARENGO_ROOT").unwrap_or_else(|_| "/opt/marengo".to_string());
         let budget = 5_u64 * 1024 * 1024 * 1024;
-        let mut bytes = dir_size(Path::new(&root).join("var/log"));
+        let log_path = Path::new(&root).join("var/log");
+        let mut bytes = dir_size(&log_path);
         bytes += fs::metadata(Path::new(&root).join("var/marengo.db"))
             .map(|m| m.len())
             .unwrap_or(0);
