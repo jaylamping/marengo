@@ -190,7 +190,7 @@ mod linux {
 
     fn dir_size(path: &Path) -> u64 {
         if path.is_file() {
-            return fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+            return fs::metadata(path).map(|m| m.len()).unwrap_or(0);
         }
         if !path.is_dir() {
             return 0;
