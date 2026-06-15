@@ -43,7 +43,7 @@ Short index — full rules live in linked docs.
 
 ## Cursor Cloud specific instructions
 
-Cloud agents run natively (no Docker) with pre-installed tooling: Rust 1.88, Node 22, protoc 28.3, cargo-deny 0.16.3, cargo-audit, and the pinned advisory-db.
+Cloud agents run natively (no Docker) with pre-installed tooling: Rust 1.88, Node 24, protoc 28.3, cargo-deny 0.16.3, cargo-audit, and the pinned advisory-db.
 
 ### First-time VM setup
 

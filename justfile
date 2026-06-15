@@ -64,6 +64,10 @@ research-mcp-setup:
 daily-audit:
     python3 scripts/daily-audit/audit.py
 
-# Regenerate consul/package-lock.json on Linux Node 22 (matches CI npm ci).
+# Regenerate consul/package-lock.json in the Linux dev container (matches CI npm ci).
 consul-lock:
     docker compose run --rm dev bash -c "cd consul && npm install --package-lock-only"
+
+# Install consul deps exactly as CI (Linux Node 24 npm ci).
+consul-ci:
+    docker compose run --rm dev bash -c "cd consul && npm ci && npm audit --audit-level=high"

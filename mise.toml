@@ -1,7 +1,7 @@
 # Optional native toolchain (container is source of truth). https://mise.jdx.dev/
 [tools]
 rust = "stable"
-node = "22"
+node = "24.16.0"
 protoc = "28.3"
 buf = "1.47.2"
 

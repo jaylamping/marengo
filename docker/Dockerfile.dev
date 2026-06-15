@@ -2,7 +2,7 @@
 FROM rust:1.88.0-slim-bookworm
 
 ARG PROTOC_VERSION=28.3
-ARG NODE_MAJOR=22
+ARG NODE_MAJOR=24
 ARG MARENGO_UID=1000
 ARG MARENGO_GID=1000
 ARG TARGETARCH
@@ -13,7 +13,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PATH=/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
     WORKSPACE=/workspace
 
-# protoc (pinned, arch-aware), Node 22, cross toolchain, CAN/vcan tools, git-lfs
+# protoc (pinned, arch-aware), Node 24, cross toolchain, CAN/vcan tools, git-lfs
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \

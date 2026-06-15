@@ -29,13 +29,41 @@ If you cannot use Docker, install tools matching [mise.toml](../mise.toml):
 | Tool | Version |
 |------|---------|
 | Rust | 1.88 (see [rust-toolchain.toml](../rust-toolchain.toml)) |
-| Node | 22 |
+| Node | **24.16.0** (see [.nvmrc](../.nvmrc), [mise.toml](../mise.toml)) — matches CI/dev container |
 | protoc | 28.3 |
 | buf | 1.47.2 |
 
+### Node on Mac / Windows (avoid lockfile drift)
+
+CI and the dev container use **Node 24** (currently 24.16.x). Use mise (or nvm/fnm) so Mac and Windows match CI — avoid an unpinned system Node.
+
+**Recommended:** [mise](https://mise.jdx.dev/) (Mac + Windows + Linux):
+
 ```bash
-# macOS examples
-brew install rust protobuf bufbuild/buf/buf node@22
+# once per machine
+mise trust
+mise install          # reads mise.toml → Node 24.16.0, Rust, buf, protoc
+
+# in repo root — verify
+mise exec -- node -v    # v24.16.0
+cd consul && mise exec -- npm ci
+```
+
+Alternatives: **nvm** / **fnm** read [.nvmrc](../.nvmrc) or [.node-version](../.node-version).
+
+**Consul `package-lock.json` rules:**
+
+| Task | Command |
+|------|---------|
+| Install deps (day-to-day) | `cd consul && mise exec -- npm ci` or `just consul-ci` |
+| After editing `consul/package.json` | `just consul-lock` then commit lockfile |
+| Never | `npm install` on Windows/Mac alone to refresh the lockfile — optional deps differ from Linux CI |
+
+`consul/.npmrc` sets `engine-strict=true`; npm refuses Node outside `^24.16.0`.
+
+```bash
+# macOS examples (prefer `mise install` for pinned Node 24.16.0 — see above)
+brew install rust protobuf bufbuild/buf/buf
 git lfs install && git lfs pull
 
 # Pi cross-build from Mac (one-time toolchain + deploy)
@@ -56,7 +84,7 @@ export MARENGO_PI_HOST=joey-robot.tail0b414.ts.net   # example
 just deploy-pi-wsl
 
 cargo build --workspace
-cd consul && npm ci && npm run gen:proto
+cd consul && mise exec -- npm ci && npm run gen:proto
 ./scripts/check.sh
 ```
 
@@ -77,7 +105,7 @@ Monthly (or before releases):
 
 ```bash
 cargo update
-cd consul && npm update
+cd consul && npm update   # then: just consul-lock && just consul-ci
 just check && just sim-check
 ```
 
