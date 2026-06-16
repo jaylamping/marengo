@@ -51,6 +51,21 @@ export const appRoutes: RouteObject[] = [
           };
         },
       },
+      {
+        path: '/memory',
+        lazy: async () => {
+          const { MemoryPage } = await import('@/pages/memory');
+          return {
+            Component: MemoryPage,
+            handle: {
+              header: {
+                title: 'Memory',
+                subtitle: 'mem0 · marengo-joey · read-only',
+              },
+            },
+          };
+        },
+      },
     ],
   },
 ];

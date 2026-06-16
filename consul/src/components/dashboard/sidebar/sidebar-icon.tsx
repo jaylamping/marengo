@@ -24,6 +24,7 @@ const sidebarIcons: Record<SidebarIconKey, typeof ThreeDViewIcon> = {
   safety: Shield01Icon,
   telemetry: ChartHistogramIcon,
   logs: LeftToRightListBulletIcon,
+  memory: Database01Icon,
   settings: Settings05Icon,
   docs: HelpCircleIcon,
   search: SearchIcon,

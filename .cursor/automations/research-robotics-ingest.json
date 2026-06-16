@@ -1,0 +1,5 @@
+{
+  "name": "research-robotics-ingest",
+  "schedule": "0 20 * * 0",
+  "prompt": "Run the Marengo skill at .cursor/skills/research-robotics-ingest/SKILL.md. Use marengo-research MCP and mem0-mcp mem_save. User: marengo-joey. Summarize what was ingested."
+}

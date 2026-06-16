@@ -32,6 +32,7 @@ Short index — full rules live in linked docs.
 ## Architecture
 
 - [architecture.md](docs/architecture.md)
+- [ai-sdd.md](docs/ai-sdd.md) — Gentle-AI SDD, mem0, feasibility gate, Consul `/memory`
 - [roadmap.md](docs/roadmap.md) — full humanoid target; 4-DOF arm is current execution slice, not project scope
 - ADRs: [docs/decisions/](docs/decisions/)
 

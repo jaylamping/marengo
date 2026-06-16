@@ -31,6 +31,19 @@
         "MARENGO_RESEARCH_CACHE_DIR": "${workspaceFolder}/.marengo-research",
         "MARENGO_WORKSPACE": "${workspaceFolder}"
       }
+    },
+    "mem0": {
+      "command": "node",
+      "args": ["${workspaceFolder}/tools/mem0-mcp/dist/index.js"],
+      "env": {
+        "MEM0_API_URL": "https://joey-pc.tail0b414.ts.net:8888",
+        "MEM0_API_KEY": "${env:MEM0_API_KEY}",
+        "MEM0_USER_ID": "marengo-joey"
+      }
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "--package=@upstash/context7-mcp@2.2.5", "--", "context7-mcp"]
     }
   }
 }

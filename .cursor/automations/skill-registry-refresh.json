@@ -1,0 +1,5 @@
+{
+  "name": "skill-registry-refresh",
+  "schedule": "0 21 * * 1",
+  "prompt": "Run: gentle-ai skill-registry refresh --cwd . --force. Report skill count from .atl/skill-registry.md."
+}
