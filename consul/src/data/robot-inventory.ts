@@ -146,14 +146,14 @@ export const robotInventory: InventoryItem[] = [
 
   // Left arm — 4 DOF bench slice wired on can0 ids 1–4 (humanoid ids 14–17)
   actuator(20, 'left_shoulder_roll', 'left_arm', 'Enabled', '0.12', '±1.57', 'bench_default', 'rs03', 14),
-  actuator(21, 'left_shoulder_pitch', 'left_arm', 'Enabled', '−0.34', '±1.20', 'golden_pose', 'rs03', 15),
+  actuator(21, 'left_shoulder_pitch', 'left_arm', 'Enabled', '−0.34', '−0.9–3.17', 'golden_pose', 'rs03', 15),
   actuator(22, 'left_upper_arm_yaw', 'left_arm', 'Tuning', '0.00', '±1.57', 'tuning_sweep', 'rs02', 16),
   actuator(23, 'left_elbow', 'left_arm', 'Enabled', '1.05', '0–2.50', 'bench_default', 'rs02', 17),
   actuator(24, 'left_wrist', 'left_arm', 'Offline', '—', '±1.6', 'unassigned', 'rs00', 18),
 
   // Right arm
   actuator(25, 'right_shoulder_roll', 'right_arm', 'Offline', '—', '±1.57', 'unassigned', 'rs03', 19),
-  actuator(26, 'right_shoulder_pitch', 'right_arm', 'Offline', '—', '±1.20', 'unassigned', 'rs03', 20),
+  actuator(26, 'right_shoulder_pitch', 'right_arm', 'Offline', '—', '−0.9–3.17', 'unassigned', 'rs03', 20),
   actuator(27, 'right_upper_arm_yaw', 'right_arm', 'Offline', '—', '±1.57', 'unassigned', 'rs02', 21),
   actuator(28, 'right_elbow', 'right_arm', 'Offline', '—', '0–2.50', 'unassigned', 'rs02', 22),
   actuator(29, 'right_wrist', 'right_arm', 'Offline', '—', '±1.6', 'unassigned', 'rs00', 23),
