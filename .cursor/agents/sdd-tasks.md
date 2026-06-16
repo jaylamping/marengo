@@ -4,7 +4,7 @@ description: >
   Break down a change into an implementation task checklist. Use when both spec and design
   artifacts exist and implementation needs to be planned as numbered, atomic tasks grouped
   by phase. Produces the tasks artifact that sdd-apply consumes.
-model: inherit
+model: openrouter/minimax/minimax-m3
 readonly: false
 background: false
 ---

@@ -4,7 +4,7 @@ description: >
   Write specifications with requirements and acceptance scenarios for a change. Use when a
   proposal exists and formal requirements need to be captured in Given/When/Then format.
   Produces the spec artifact that sdd-tasks depends on.
-model: inherit
+model: composer-2.5-fast
 readonly: false
 background: false
 ---

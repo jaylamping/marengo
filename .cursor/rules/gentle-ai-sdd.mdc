@@ -1,6 +1,5 @@
 ---
 description: SDD orchestrator for Marengo (Gentle-AI). Coordinates phased spec-driven development via mem0-mcp.
-globs:
 alwaysApply: false
 ---
 # Agent Teams Lite — Orchestrator Instructions (Cursor)
@@ -230,20 +229,27 @@ Automatic mode does not override this guard. Always pass the resolved delivery s
 <!-- gentle-ai:sdd-model-assignments -->
 ## Model Assignments
 
-Read this table at session start (or before first delegation), cache it for the session, and pass the mapped alias when invoking subagents via the `model` parameter. If a phase is missing, use the `default` row. If you lack access to the assigned model, substitute `sonnet` and continue.
+Read this table at session start (or before first delegation), cache it for the session, and pass the mapped alias when invoking subagents via the `model` parameter. If a phase is missing, use the `default` row. If you lack access to the assigned model, substitute the closest GLM or Composer tier and continue.
 
-| Phase | Default Model | Reason |
-|-------|---------------|--------|
-| orchestrator | opus | Coordinates, makes decisions |
-| sdd-explore | sonnet | Reads code, structural - not architectural |
-| sdd-propose | opus | Architectural decisions |
-| sdd-spec | sonnet | Structured writing |
-| sdd-design | opus | Architecture decisions |
-| sdd-tasks | sonnet | Mechanical breakdown |
-| sdd-apply | sonnet | Implementation |
-| sdd-verify | sonnet | Validation against spec |
-| sdd-archive | haiku | Copy and close |
-| default | sonnet | Non-SDD general delegation |
+| Phase / agent | Model (OpenRouter unless noted) | Reason |
+|---------------|----------------------------------|--------|
+| orchestrator | `z-ai/glm-5.2:nitro` | Meta-reasoning, gatekeeper, delegation |
+| sdd-init | `z-ai/glm-5.2:nitro` | One-shot bootstrap |
+| sdd-explore | `openrouter/owl-alpha` | Read-only codebase scan |
+| sdd-propose | `z-ai/glm-5.2:nitro` | Scope, ADRs, feasibility forks |
+| sdd-spec | `composer-2.5-fast` | Structured requirements writing |
+| sdd-design | `z-ai/glm-5.2:nitro` | Architecture decisions |
+| sdd-tasks | `minimax/minimax-m3` | Task breakdown |
+| sdd-apply | `composer-2.5-fast` | Repo-native implementation |
+| sdd-verify | `z-ai/glm-5.2:nitro` | Safety gate + design/apply gate reviews |
+| sdd-archive | `nex-agi/nex-n2-pro:free` | Mechanical close-out |
+| sdd-onboard | `composer-2.5-fast` | Interactive walkthrough |
+| expert-* | `openrouter/owl-alpha` | Read-only domain churn; GLM escalation on rails |
+| review-readability | `nex-agi/nex-n2-pro:free` | Style/naming |
+| review-reliability | `minimax/minimax-m3` | Tests, contracts |
+| review-resilience | `minimax/minimax-m3` | Fallbacks, observability |
+| review-risk | `z-ai/glm-5.2:nitro` | Merge-blocking security |
+| default | `z-ai/glm-5.2:nitro` | Non-SDD general delegation |
 
 <!-- /gentle-ai:sdd-model-assignments -->
 

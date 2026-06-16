@@ -1,7 +1,7 @@
 ---
 name: review-readability
 description: R2 Readability reviewer — naming, complexity, intention, maintainability, review size, and context clarity.
-model: inherit
+model: openrouter/nex-agi/nex-n2-pro:free
 readonly: true
 background: false
 ---

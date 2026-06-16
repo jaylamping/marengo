@@ -80,16 +80,55 @@ Run `cd consul && npm run dev` → open `/memory`.
 
 Pi-hosted Consul (`marengo.local:8444`) shows offline banner until gateway proxy exists.
 
-## OpenRouter model mapping (manual in Cursor UI)
+## OpenRouter + Cursor model assignments
 
-| Role | Suggested model tier |
-|------|---------------------|
-| Orchestrator | Composer |
-| sdd-explore, archive, automations | Cheaper OpenRouter (e.g. Gemini Flash, gpt-4.1-mini) |
-| sdd-propose, design, verify, experts | Stronger (Claude Sonnet, gpt-4.1) |
-| sdd-apply | Composer or trusted mid-tier |
+Enable OpenRouter in Cursor Settings → Models. Agent `model:` fields in [`.cursor/agents/`](../.cursor/agents/) mirror the orchestrator table in [`.cursor/rules/gentle-ai-sdd.mdc`](../.cursor/rules/gentle-ai-sdd.mdc).
 
-Assign in Cursor agent settings per `.cursor/agents/sdd-*.md`.
+### Launch orchestrator
+
+- **Agent:** `@sdd-orchestrator` (reads `gentle-ai-sdd.mdc` + persona rule)
+- **Meta-commands:** `/sdd-new`, `/sdd-continue`, `/sdd-ff`, `/sdd-status`
+
+### SDD phases
+
+| Agent | Model |
+|-------|-------|
+| sdd-orchestrator | `openrouter/z-ai/glm-5.2:nitro` |
+| sdd-init | `openrouter/z-ai/glm-5.2:nitro` |
+| sdd-explore | `openrouter/owl-alpha` |
+| sdd-propose | `openrouter/z-ai/glm-5.2:nitro` |
+| sdd-spec | `composer-2.5-fast` |
+| sdd-design | `openrouter/z-ai/glm-5.2:nitro` |
+| sdd-tasks | `openrouter/minimax/minimax-m3` |
+| sdd-apply | `composer-2.5-fast` |
+| sdd-verify | `openrouter/z-ai/glm-5.2:nitro` |
+| sdd-archive | `openrouter/nex-agi/nex-n2-pro:free` |
+| sdd-onboard | `composer-2.5-fast` |
+
+### Experts (Owl Alpha; GLM escalation on rails)
+
+All `expert-*` agents use `openrouter/owl-alpha` while the OpenRouter promo runs (~30 days). Orchestrator re-runs with GLM 5.2 nitro when an expert contradicts authoritative sources, invents specs, or issues **No-Go** without evidence.
+
+| Agent | mem0 path |
+|-------|-----------|
+| expert-cad | `feasibility/{change}/expert/cad` |
+| expert-mech | `feasibility/{change}/expert/mech` |
+| expert-ee | `feasibility/{change}/expert/ee` |
+| expert-robotics | `feasibility/{change}/expert/robotics` |
+| expert-kinematics | `feasibility/{change}/expert/kinematics` |
+
+Long-lived heuristics: `expert/{domain}/{slug}`.
+
+### Review agents
+
+| Agent | Model |
+|-------|-------|
+| review-readability | `openrouter/nex-agi/nex-n2-pro:free` |
+| review-reliability | `openrouter/minimax/minimax-m3` |
+| review-resilience | `openrouter/minimax/minimax-m3` |
+| review-risk | `openrouter/z-ai/glm-5.2:nitro` |
+
+Slug strings must match Cursor's model picker after OpenRouter is connected. Adjust agent frontmatter if a slug differs.
 
 ## Gentle-AI install note
 

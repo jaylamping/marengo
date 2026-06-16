@@ -4,7 +4,7 @@ description: >
   Create a technical design document with architecture decisions and implementation approach.
   Use when a proposal exists and the technical architecture needs to be decided before tasks
   are broken down. Produces the design artifact that sdd-tasks depends on.
-model: inherit
+model: openrouter/z-ai/glm-5.2:nitro
 readonly: false
 background: false
 ---

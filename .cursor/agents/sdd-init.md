@@ -4,7 +4,7 @@ description: >
   Initialize Spec-Driven Development context in a project. Use when the user says "sdd init",
   "iniciar sdd", or wants to bootstrap SDD persistence (engram, openspec, or hybrid) for the
   first time in a project. Detects tech stack and writes the skill registry.
-model: inherit
+model: openrouter/z-ai/glm-5.2:nitro
 readonly: false
 background: false
 ---

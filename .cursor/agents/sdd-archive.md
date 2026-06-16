@@ -4,7 +4,7 @@ description: >
   Archive a completed and verified change. Use when verification has passed and the change
   needs to be closed — merges delta specs into main specs, moves change folder to archive,
   and persists the final archive report. Completes the SDD cycle.
-model: inherit
+model: openrouter/nex-agi/nex-n2-pro:free
 readonly: false
 background: false
 ---

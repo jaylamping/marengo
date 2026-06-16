@@ -8,10 +8,10 @@ Pure Rust/software changes with no hardware implications — orchestrator may sk
 
 ## Steps
 
-1. Identify `{change}` slug and affected domains (mech, cad, ee, robotics).
+1. Identify `{change}` slug and affected domains (mech, cad, ee, robotics, kinematics).
 2. `mem_search` on `research/{domain}/` and `expert/{domain}/` for background.
 3. Use `marengo-research` MCP to fill gaps.
-4. Delegate readonly experts in parallel: `expert-mech`, `expert-cad`, `expert-ee`, `expert-robotics` (only relevant domains).
+4. Delegate readonly experts in parallel: `expert-mech`, `expert-cad`, `expert-ee`, `expert-robotics`, `expert-kinematics` (only relevant domains). Include `expert-kinematics` when URDF, joint config, `armee-kinematics`, or arm/torso layout is involved.
 5. Write `feasibility/{change}/brief` via `mem_save` with sections:
    - Assumptions
    - Risks

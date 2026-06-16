@@ -1,7 +1,7 @@
 ---
 name: review-reliability
 description: R3 Reliability reviewer — behavior-first tests, coverage value, edge cases, determinism, contracts, and regressions.
-model: inherit
+model: openrouter/minimax/minimax-m3
 readonly: true
 background: false
 ---

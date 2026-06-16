@@ -1,7 +1,7 @@
 ---
 name: review-resilience
 description: R4 Resilience reviewer — fallbacks, retry/backoff, graceful degradation, observability, load, rollback, and SLO risks.
-model: inherit
+model: openrouter/minimax/minimax-m3
 readonly: true
 background: false
 ---
