@@ -5,8 +5,7 @@ description: >
   a feature, investigate the codebase, understand current architecture, compare approaches, or
   clarify requirements — before any proposal or spec is written.
 model: openrouter/owl-alpha
-readonly: false
-# sdd-explore/sdd-verify need terminal and MCP access for codebase investigation and test execution
+readonly: true
 background: false
 ---
 

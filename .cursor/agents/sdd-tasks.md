@@ -4,7 +4,7 @@ description: >
   Break down a change into an implementation task checklist. Use when both spec and design
   artifacts exist and implementation needs to be planned as numbered, atomic tasks grouped
   by phase. Produces the tasks artifact that sdd-apply consumes.
-model: openrouter/minimax/minimax-m3
+model: minimax/minimax-m3
 readonly: false
 background: false
 ---
@@ -23,7 +23,8 @@ Execute all steps from the skill directly in this context window:
 3. Break down into hierarchically numbered tasks (1.1, 1.2, 2.1, etc.) grouped by phase
 4. Each task must be atomic enough to complete in one session
 5. Map tasks to files from the design's file-change table
-6. Persist tasks to active backend (engram, openspec, or hybrid)
+6. Include Review Workload Forecast with exact guard-line format
+7. Persist tasks to active backend (engram, openspec, or hybrid)
 
 ## Engram Save (mandatory)
 
@@ -40,6 +41,6 @@ Return a structured result with these fields:
 - `status`: `done` | `blocked` | `partial`
 - `executive_summary`: one-sentence description of the task breakdown (phase count, total task count)
 - `artifacts`: topic_keys or file paths written (e.g. `sdd/{change-name}/tasks`)
-- `next_recommended`: `sdd-apply`
+- `next_recommended`: `sdd-apply` (or `blocked` if workload decision required)
 - `risks`: tasks that are large or have hidden dependencies, phases that may need splitting
 - `skill_resolution`: `paths-injected` if exact skill paths were provided and loaded, otherwise `none`

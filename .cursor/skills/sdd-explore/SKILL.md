@@ -6,7 +6,7 @@ user-invocable: false
 license: MIT
 metadata:
   author: gentleman-programming
-  version: "2.0"
+  version: "3.0"
   delegate_only: true
 ---
 

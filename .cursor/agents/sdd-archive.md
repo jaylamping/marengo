@@ -4,7 +4,7 @@ description: >
   Archive a completed and verified change. Use when verification has passed and the change
   needs to be closed — merges delta specs into main specs, moves change folder to archive,
   and persists the final archive report. Completes the SDD cycle.
-model: openrouter/nex-agi/nex-n2-pro:free
+model: nex-agi/nex-n2-pro:free
 readonly: false
 background: false
 ---
@@ -24,10 +24,11 @@ Execute all steps from the skill directly in this context window:
    - `mem_search("sdd/{change-name}/design")` → `mem_get_observation`
    - `mem_search("sdd/{change-name}/tasks")` → `mem_get_observation`
    - `mem_search("sdd/{change-name}/verify-report")` → `mem_get_observation`
-2. Merge delta specs into main specs (openspec/hybrid mode)
-3. Move change folder to archive (openspec/hybrid mode)
-4. Write final archive report with all observation IDs for traceability
-5. Persist archive report to active backend
+2. Validate task completion gate — all implementation tasks must be checked
+3. Merge delta specs into main specs (openspec/hybrid mode)
+4. Move change folder to archive with ISO date prefix (openspec/hybrid mode)
+5. Write final archive report with all observation IDs for traceability
+6. Persist archive report to active backend
 
 ## Engram Save (mandatory)
 

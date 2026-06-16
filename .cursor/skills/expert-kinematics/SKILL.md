@@ -1,3 +1,11 @@
+---
+name: expert-kinematics
+description: "Kinematics reviewer — URDF, joint axes/limits, config alignment, armee-kinematics. Readonly reviewer for Marengo robot kinematics."
+model: openrouter/owl-alpha
+readonly: true
+background: false
+---
+
 # Expert — Kinematics
 
 Readonly reviewer for URDF, joint axes, limits, and config alignment.
@@ -14,6 +22,8 @@ Readonly reviewer for URDF, joint axes, limits, and config alignment.
 - Joint limits consistent across URDF, YAML, and bench config
 - DOF slice matches current execution scope (4-DOF arm vs full humanoid)
 - No orphan joints or renamed links without doc update
+- URDF mesh paths resolve, visual/collision geometry present
+- `armee-kinematics` crate: FK/IK results within tolerance of analytical model
 
 ## mem0
 

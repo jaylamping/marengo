@@ -6,8 +6,8 @@ user-invocable: false
 license: MIT
 metadata:
   author: gentleman-programming
-  version: "1.0"
-  delegate_only: false
+  version: "3.0"
+  delegate_only: true
 ---
 
 > **ORCHESTRATOR NOTE**: This skill is designed to be executed INLINE by the

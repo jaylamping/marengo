@@ -5,8 +5,7 @@ description: >
   verification — runs tests, checks spec compliance, validates design coherence. Reports
   CRITICAL / WARNING / SUGGESTION findings. Read-only: does not modify code.
 model: openrouter/z-ai/glm-5.2:nitro
-readonly: false
-# sdd-explore/sdd-verify need terminal and MCP access for codebase investigation and test execution
+readonly: true
 background: false
 ---
 
@@ -22,11 +21,12 @@ Execute all steps from the skill directly in this context window:
 1. Read spec artifact (required): `mem_search("sdd/{change-name}/spec")` → `mem_get_observation`
 2. Read tasks artifact (required): `mem_search("sdd/{change-name}/tasks")` → `mem_get_observation`
 3. Read design artifact: `mem_search("sdd/{change-name}/design")` → `mem_get_observation`
-4. Check completeness: all tasks done?
-5. Run tests (detect runner from config, package.json, Makefile, etc.)
-6. Run build/type check
-7. Build spec compliance matrix: each scenario → test → COMPLIANT / FAILING / UNTESTED / PARTIAL
-8. Report verdict: PASS / PASS WITH WARNINGS / FAIL
+4. Read apply-progress: `mem_search("sdd/{change-name}/apply-progress")` → `mem_get_observation`
+5. Check completeness: all tasks done?
+6. Run tests (detect runner from config, package.json, Makefile, etc.)
+7. Run build/type check
+8. Build spec compliance matrix: each scenario → test → COMPLIANT / FAILING / UNTESTED / PARTIAL
+9. Report verdict: PASS / PASS WITH WARNINGS / FAIL
 
 Do NOT create or modify project files — your job is verification only, not implementation.
 Do NOT fix any issues found — only report them. The orchestrator decides what to do next.
