@@ -19,6 +19,11 @@ Before editing files, running CAD automation, or destructive git operations in *
    - `delete_all_mates`, `repair_torso_frame`, layout rebuild, or other destructive MCP/script paths
 4. After backup or commit, re-run `git status` to confirm a clean baseline on the paths you will change.
 
+## Scratch artifacts
+
+- `.firecrawl-*`, `.ts-netmap.txt`, `.ts-status.json`, and `scripts/scratch_*.py` are gitignored disposable output.
+- **Delete them when the task is finished** — do not leave session scratch in the repo tree.
+
 ## CAD-specific
 
 - SolidWorks may lock files — close docs or ask user to close before restore/stash checkout.
