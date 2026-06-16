@@ -1,10 +1,7 @@
 import { useState, useMemo, useRef } from 'react';
 
 import { ChartTimeRangeControls } from '@/components/dashboard/charts/chart-time-range-controls';
-import {
-  CHART_RENDER_MS,
-  dummyShoulderPitchTracking,
-} from '@/components/dashboard/charts/constants';
+import { dummyShoulderPitchTracking } from '@/components/dashboard/charts/constants';
 import { useChartTimeRange } from '@/components/dashboard/charts/hooks/use-chart-time-range';
 import { useThrottledValue } from '@/hooks/use-throttled-value';
 import { isChappeLive } from '@/lib/chappe-config';
@@ -28,6 +25,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useRobotModel } from '@/urdf/RobotModelContext';
+
+const CHART_RENDER_MS = 300;
 
 type JointTrackingChartCardProps = {
   series?: JointTrackingSeries; // deprecated, will be removed when URDF is fully wired

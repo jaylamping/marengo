@@ -24,7 +24,6 @@ export const JointTrackingAreaChart = memo(function JointTrackingAreaChart({
     <ChartContainer
       config={jointTrackingChartConfig}
       className="aspect-auto h-[250px] w-full min-h-[250px]"
-      debounce={150}
     >
       <AreaChart data={data} margin={{ left: 12, right: 12 }}>
         <defs>
