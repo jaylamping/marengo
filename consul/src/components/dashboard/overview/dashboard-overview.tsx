@@ -23,6 +23,11 @@ const InventoryDataTable = lazy(async () => {
   return { default: module.InventoryDataTable };
 });
 
+const UrdfPreviewPanel = lazy(async () => {
+  const module = await import('@/components/dashboard/urdf-preview/urdf-preview-panel');
+  return { default: module.UrdfPreviewPanel };
+});
+
 type DashboardOverviewProps = {
   inventory: InventoryItem[];
 };
@@ -37,6 +42,16 @@ export function DashboardOverview({ inventory }: DashboardOverviewProps) {
           <Suspense fallback={<ChartSectionSkeleton />}>
             <RobotModelProvider urdfXml={SHOULDER_PITCH_RIGHT_ONLY_URDF}>
               <JointTrackingChartCard />
+            </RobotModelProvider>
+          </Suspense>
+        </DeferredMount>
+      </div>
+
+      <div className={dashboardChartSectionClassName}>
+        <DeferredMount fallback={<ChartSectionSkeleton />} timeoutMs={800}>
+          <Suspense fallback={<ChartSectionSkeleton />}>
+            <RobotModelProvider urdfXml={SHOULDER_PITCH_RIGHT_ONLY_URDF}>
+              <UrdfPreviewPanel />
             </RobotModelProvider>
           </Suspense>
         </DeferredMount>
