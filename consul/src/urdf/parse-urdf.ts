@@ -10,6 +10,17 @@ export type JointSpec = {
   mimic: { joint: string; multiplier: number; offset: number } | null;
 };
 
+export type UrdfGeometry =
+  | { type: 'box'; size: readonly [number, number, number] }
+  | { type: 'cylinder'; radius: number; length: number }
+  | { type: 'sphere'; radius: number };
+
+export type VisualSpec = {
+  origin: { xyz: readonly [number, number, number]; rpy: readonly [number, number, number] };
+  geometry: UrdfGeometry;
+  material?: { color: readonly [number, number, number, number] };
+};
+
 export type LinkSpec = {
   name: string;
   inertial?: {
@@ -17,6 +28,7 @@ export type LinkSpec = {
     origin?: { xyz: readonly [number, number, number]; rpy: readonly [number, number, number] };
     inertia?: { ixx: number; ixy: number; ixz: number; iyy: number; iyz: number; izz: number };
   };
+  visuals: VisualSpec[];
 };
 
 export type RobotModel = {
@@ -43,6 +55,58 @@ function getRequiredAttr(el: Element, attr: string): string {
   const val = getAttr(el, attr);
   if (!val) throw new Error(`Missing required attribute '${attr}' on <${el.tagName.toLowerCase()}>`);
   return val;
+}
+
+function parseOrigin(el: Element | null): { xyz: readonly [number, number, number]; rpy: readonly [number, number, number] } {
+  return el
+    ? {
+        xyz: parseFloatArray(getAttr(el, 'xyz'), 3) as readonly [number, number, number],
+        rpy: parseFloatArray(getAttr(el, 'rpy'), 3) as readonly [number, number, number],
+      }
+    : { xyz: [0, 0, 0] as const, rpy: [0, 0, 0] as const };
+}
+
+function parseVisual(visualEl: Element): VisualSpec {
+  const origin = parseOrigin(visualEl.querySelector(':scope > origin'));
+
+  const geometryEl = visualEl.querySelector(':scope > geometry');
+  if (!geometryEl) {
+    throw new Error('<visual> is missing required <geometry> child.');
+  }
+
+  let geometry: UrdfGeometry;
+  const boxEl = geometryEl.querySelector('box');
+  const cylinderEl = geometryEl.querySelector('cylinder');
+  const sphereEl = geometryEl.querySelector('sphere');
+
+  if (boxEl) {
+    geometry = {
+      type: 'box',
+      size: parseFloatArray(getAttr(boxEl, 'size'), 3) as readonly [number, number, number],
+    };
+  } else if (cylinderEl) {
+    geometry = {
+      type: 'cylinder',
+      radius: parseFloat(getAttr(cylinderEl, 'radius') ?? '0'),
+      length: parseFloat(getAttr(cylinderEl, 'length') ?? '0'),
+    };
+  } else if (sphereEl) {
+    geometry = {
+      type: 'sphere',
+      radius: parseFloat(getAttr(sphereEl, 'radius') ?? '0'),
+    };
+  } else {
+    throw new Error('<geometry> must contain <box>, <cylinder>, or <sphere>.');
+  }
+
+  const materialEl = visualEl.querySelector(':scope > material > color');
+  const material = materialEl
+    ? {
+        color: parseFloatArray(getAttr(materialEl, 'rgba'), 4) as readonly [number, number, number, number],
+      }
+    : undefined;
+
+  return { origin, geometry, material };
 }
 
 export function parseUrdfXml(xml: string): RobotModel {
@@ -72,7 +136,12 @@ export function parseUrdfXml(xml: string): RobotModel {
   const linkEls = Array.from(robotEl.querySelectorAll('link'));
   for (const linkEl of linkEls) {
     const linkName = getRequiredAttr(linkEl, 'name');
-    const linkSpec: LinkSpec = { name: linkName };
+    const linkSpec: LinkSpec = { name: linkName, visuals: [] };
+
+    const visualEls = Array.from(linkEl.querySelectorAll(':scope > visual'));
+    for (const visualEl of visualEls) {
+      linkSpec.visuals.push(parseVisual(visualEl));
+    }
 
     const inertialEl = linkEl.querySelector(':scope > inertial');
     if (inertialEl) {

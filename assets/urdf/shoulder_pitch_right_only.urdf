@@ -8,6 +8,15 @@
       <mass value="0.001"/>
       <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
     </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.04" length="0.10"/>
+      </geometry>
+      <material name="mount_gray">
+        <color rgba="0.5 0.5 0.5 1"/>
+      </material>
+    </visual>
   </link>
   <link name="right_upper_arm_stub">
     <inertial>
@@ -15,6 +24,15 @@
       <origin xyz="0 0 -0.200025" rpy="0 0 0"/>
       <inertia ixx="0.001" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.0001"/>
     </inertial>
+    <visual>
+      <origin xyz="0 0 -0.2" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.03" length="0.4"/>
+      </geometry>
+      <material name="arm_blue">
+        <color rgba="0.23 0.51 0.96 1"/>
+      </material>
+    </visual>
   </link>
   <joint name="right_shoulder_pitch" type="revolute">
     <parent link="base_link"/>

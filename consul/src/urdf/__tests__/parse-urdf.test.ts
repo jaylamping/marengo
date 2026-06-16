@@ -85,4 +85,47 @@ describe('parseUrdfXml', () => {
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Missing <limit>"));
     consoleSpy.mockRestore();
   });
+
+  it('should parse visual geometry with materials', () => {
+    const urdfWithVisuals = `<?xml version="1.0"?>
+<robot name="visual_robot">
+  <link name="base_link">
+    <visual>
+      <origin xyz="0.1 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.05 0.18 0.05"/>
+      </geometry>
+      <material name="mount_gray">
+        <color rgba="0.5 0.5 0.5 1"/>
+      </material>
+    </visual>
+    <visual>
+      <geometry>
+        <cylinder radius="0.04" length="0.10"/>
+      </geometry>
+    </visual>
+    <visual>
+      <geometry>
+        <sphere radius="0.02"/>
+      </geometry>
+      <material name="accent">
+        <color rgba="1 0 0 0.5"/>
+      </material>
+    </visual>
+  </link>
+</robot>`;
+    const model = parseUrdfXml(urdfWithVisuals);
+    const link = model.links.get('base_link')!;
+    expect(link.visuals).toHaveLength(3);
+
+    expect(link.visuals[0].geometry).toEqual({ type: 'box', size: [0.05, 0.18, 0.05] });
+    expect(link.visuals[0].origin).toEqual({ xyz: [0.1, 0, 0], rpy: [0, 0, 0] });
+    expect(link.visuals[0].material?.color).toEqual([0.5, 0.5, 0.5, 1]);
+
+    expect(link.visuals[1].geometry).toEqual({ type: 'cylinder', radius: 0.04, length: 0.1 });
+    expect(link.visuals[1].material).toBeUndefined();
+
+    expect(link.visuals[2].geometry).toEqual({ type: 'sphere', radius: 0.02 });
+    expect(link.visuals[2].material?.color).toEqual([1, 0, 0, 0.5]);
+  });
 });
