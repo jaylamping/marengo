@@ -10,6 +10,8 @@ import {
 import { InventoryTableSkeleton } from '@/components/dashboard/inventory/inventory-table-skeleton';
 import { ChartSectionSkeleton } from '@/components/dashboard/overview/chart-section-skeleton';
 import { SectionCards } from '@/components/dashboard/section-cards';
+import { RobotModelProvider } from '@/urdf/RobotModelContext';
+import { SHOULDER_PITCH_RIGHT_ONLY_URDF } from '@/assets/urdf/shoulder-pitch-right-only';
 
 const JointTrackingChartCard = lazy(async () => {
   const module = await import('@/components/dashboard/charts/joint-tracking-chart-card');
@@ -33,7 +35,9 @@ export function DashboardOverview({ inventory }: DashboardOverviewProps) {
       <div className={dashboardChartSectionClassName}>
         <DeferredMount fallback={<ChartSectionSkeleton />} timeoutMs={800}>
           <Suspense fallback={<ChartSectionSkeleton />}>
-            <JointTrackingChartCard />
+            <RobotModelProvider urdfXml={SHOULDER_PITCH_RIGHT_ONLY_URDF}>
+              <JointTrackingChartCard />
+            </RobotModelProvider>
           </Suspense>
         </DeferredMount>
       </div>

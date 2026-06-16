@@ -37,6 +37,14 @@ export default defineConfig({
           ) {
             return 'inventory-table';
           }
+
+          if (
+            id.includes('three') ||
+            id.includes('@react-three/fiber') ||
+            id.includes('@react-three/drei')
+          ) {
+            return 'three';
+          }
         },
       },
     },

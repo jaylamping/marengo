@@ -15,7 +15,8 @@
     "dev:mock-chappe": "npx --yes tsx scripts/mock-chappe-server.mts",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "test": "vitest"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
@@ -39,7 +40,7 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^6.30.4",
-    "recharts": "^3.8.0",
+    "recharts": "^3.8.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
     "three": "^0.175.0",
@@ -59,6 +60,7 @@
     "shadcn": "^4.8.0",
     "tailwindcss": "^4.3.0",
     "typescript": "^5.8.0",
-    "vite": "^8.0.16"
+    "vite": "^8.0.16",
+    "vitest": "^2.1.8"
   }
 }

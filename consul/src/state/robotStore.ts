@@ -7,6 +7,8 @@ import { isChappeLive } from '@/lib/chappe-config';
 
 export type OperationalModeLabel = 'DISABLED' | 'READY' | 'ACTIVE' | null;
 
+export type JointTrackingPointByJoint = Record<string, JointTrackingPoint[]>;
+
 interface RobotStore {
   /** Legacy demo slider (3D placeholder). */
   jointPosition: number;
@@ -30,8 +32,9 @@ interface RobotStore {
   gatewayError: string | null;
   setGatewayError: (message: string | null) => void;
 
-  trackingPoints: JointTrackingPoint[];
-  appendTrackingPoint: (point: JointTrackingPoint) => void;
+  trackingPoints: JointTrackingPoint[]; // legacy alias or empty
+  trackingPointsByJoint: JointTrackingPointByJoint;
+  appendTrackingPoint: (jointName: string, point: JointTrackingPoint) => void;
 }
 
 const initialTracking = isChappeLive()
@@ -60,13 +63,20 @@ export const useRobotStore = create<RobotStore>((set) => ({
   gatewayError: null,
   setGatewayError: (gatewayError) => set({ gatewayError }),
 
-  trackingPoints: initialTracking,
-  appendTrackingPoint: (point) =>
+  trackingPoints: isChappeLive() ? [] : dummyShoulderPitchTracking.points, // keep legacy shape for backwards compat if needed
+  trackingPointsByJoint: {},
+  appendTrackingPoint: (jointName, point) =>
     set((state) => {
-      const next = [...state.trackingPoints, point];
+      const current = state.trackingPointsByJoint[jointName] || [];
+      const next = [...current, point];
       if (next.length > 120) {
         next.splice(0, next.length - 120);
       }
-      return { trackingPoints: next };
+      return {
+        trackingPointsByJoint: {
+          ...state.trackingPointsByJoint,
+          [jointName]: next,
+        },
+      };
     }),
 }));

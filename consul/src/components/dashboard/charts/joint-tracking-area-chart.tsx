@@ -1,7 +1,8 @@
-import { Area, AreaChart, CartesianGrid, XAxis } from 'recharts';
+import { memo } from 'react';
+import { Area, AreaChart, CartesianGrid, XAxis, ReferenceLine, ReferenceArea } from 'recharts';
 
 import { jointTrackingChartConfig } from '@/components/dashboard/charts/constants';
-import type { JointTrackingPoint } from '@/components/dashboard/charts/types';
+import type { JointTrackingPoint, JointLimits, JointSafety } from '@/components/dashboard/charts/types';
 import {
   ChartContainer,
   ChartTooltip,
@@ -10,15 +11,22 @@ import {
 
 type JointTrackingAreaChartProps = {
   data: JointTrackingPoint[];
+  limits?: JointLimits | null;
+  safety?: JointSafety | null;
 };
 
-export function JointTrackingAreaChart({ data }: JointTrackingAreaChartProps) {
+export const JointTrackingAreaChart = memo(function JointTrackingAreaChart({
+  data,
+  limits,
+  safety,
+}: JointTrackingAreaChartProps) {
   return (
     <ChartContainer
       config={jointTrackingChartConfig}
-      className="aspect-auto h-[250px] w-full"
+      className="aspect-auto h-[250px] w-full min-h-[250px]"
+      debounce={150}
     >
-      <AreaChart data={data}>
+      <AreaChart data={data} margin={{ left: 12, right: 12 }}>
         <defs>
           <linearGradient id="fillCommanded" x1="0" y1="0" x2="0" y2="1">
             <stop offset="5%" stopColor="var(--color-commanded)" stopOpacity={1.0} />
@@ -39,6 +47,7 @@ export function JointTrackingAreaChart({ data }: JointTrackingAreaChartProps) {
         />
         <ChartTooltip
           cursor={false}
+          isAnimationActive={false}
           content={
             <ChartTooltipContent
               labelFormatter={(value) => `t+${value}`}
@@ -46,21 +55,49 @@ export function JointTrackingAreaChart({ data }: JointTrackingAreaChartProps) {
             />
           }
         />
+        {safety && (
+          <>
+            <ReferenceArea
+              y1={safety.softLower}
+              y2={limits?.lower ?? safety.softLower}
+              fill="var(--color-warning)"
+              fillOpacity={0.15}
+              stroke="none"
+            />
+            <ReferenceArea
+              y1={limits?.upper ?? safety.softUpper}
+              y2={safety.softUpper}
+              fill="var(--color-warning)"
+              fillOpacity={0.15}
+              stroke="none"
+            />
+          </>
+        )}
+        {limits && (
+          <>
+            <ReferenceLine y={limits.lower} stroke="var(--color-destructive)" strokeDasharray="4 4" strokeWidth={1.5} />
+            <ReferenceLine y={limits.upper} stroke="var(--color-destructive)" strokeDasharray="4 4" strokeWidth={1.5} />
+          </>
+        )}
         <Area
           dataKey="measured"
-          type="natural"
+          type="monotone"
           fill="url(#fillMeasured)"
           stroke="var(--color-measured)"
-          stackId="a"
+          isAnimationActive={false}
+          dot={false}
+          activeDot={false}
         />
         <Area
           dataKey="commanded"
-          type="natural"
+          type="monotone"
           fill="url(#fillCommanded)"
           stroke="var(--color-commanded)"
-          stackId="a"
+          isAnimationActive={false}
+          dot={false}
+          activeDot={false}
         />
       </AreaChart>
     </ChartContainer>
   );
-}
+});
