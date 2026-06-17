@@ -62,8 +62,32 @@ Core principle: **does this inflate my context without need?** If yes → delega
 4. **Incident rule**: wrong `cwd`, accidental mutation, merge recovery → fresh audit before continuing
 5. **Long-session rule**: ~20 tool calls or 5 exploratory reads without delegation → pause and delegate
 6. **Fresh review rule**: adversarial review of diffs, conflicts, PR readiness → fresh context
+7. **Context saturation rule**: context **at or after 50%** (not before) → finish atomic step, `mem_save` `maintenance/session-handoff/{project}`, spawn fresh subagent (see § Context Saturation Handoff)
 
 Children receive concrete role work. They must NOT orchestrate.
+
+### Parallel delivery (MANDATORY for multi-item backlogs)
+
+- **One branch + one PR per independent backlog item** — never batch unrelated fixes on `main`.
+- Launch **parallel** `sdd-apply` subagents when items have no file overlap.
+- Orchestrator workflow per item: branch from `main` → apply → test → commit → push → `gh pr create` → report URL to user.
+- User should return to **N PRs ready for review**, not one mega-commit.
+
+### Context Saturation Handoff (MANDATORY)
+
+Full protocol: [`.cursor/skills/_shared/sdd-phase-common.md` § F](../skills/_shared/sdd-phase-common.md).
+
+**Orchestrator at or after 50% saturation (not before):** finish current delegation summary → `mem_save` handoff → tell user a fresh orchestrator session should continue from `maintenance/session-handoff/marengo`.
+
+**All Composer 2.5 Fast executors:** same rule; return `partial` + `session-handoff-resume`; never continue heavy apply in a saturated thread. Automatic gatekeeper must PASS this routing when handoff is persisted (see § Automatic Mode Gatekeeper).
+
+**Questioning:** executors MUST read mem0 explore/init/handoff; if work is enhancement while robot unbuilt or contradicts phase-1 scope, return `blocked` with reason.
+
+### Session bootstrap resume guard (MANDATORY)
+
+At conversation start, a mem0 hit on `maintenance/session-handoff/{project}` does **not** auto-resume. Full rules: `sdd-phase-common.md` § F *Resume eligibility*.
+
+Resume only when the observation has `resume_pending: true`, `created_at` within 72h, and the user's intent does not supersede (no `/sdd-new`, `/sdd-ff`, unrelated work, or a different change name). Clear leftover handoffs via upsert (`resume_pending: false`) after archive, successful resume, supersession, or TTL expiry.
 
 ---
 
@@ -122,19 +146,33 @@ Cache the mode for the session.
 
 In **Automatic** mode, validate after every phase before invoking the next:
 
+**Session handoff short-circuit (before other checks):**
+
+If `status: partial` AND `next_recommended: session-handoff-resume`:
+
+1. Verify `maintenance/session-handoff/{project}` exists via `mem_search(query: "maintenance/session-handoff/{project}", project: "{project}")` → `mem_get_observation(id)` (or openspec handoff file if that mode).
+2. If handoff is missing, empty, `resume_pending` is not `true`, or `created_at` is older than 72h → FAIL (re-run same phase once with corrective feedback); upsert cleared handoff if stale.
+3. If handoff is present and eligible → **PASS routing** — do **not** treat `session-handoff-resume` as DAG drift. Immediately delegate per `sdd-orchestrator.md` **Handoff Resume Delegation** (fresh executor, handoff `mem_get_observation`, continue from handoff `next`). Do **not** re-run the saturated phase in the same thread, do **not** only report progress to the user, and do **not** advance to the next DAG node until resume completes.
+
 **Checks (against Result Contract):**
+
+Skip artifact-existence, drift, and DAG routing checks when the handoff short-circuit above PASSes.
+
+Otherwise:
+
 - Contract conformance: `status`, `executive_summary`, `artifacts`, `next_recommended`, `risks`, `skill_resolution` present
-- Artifact existence: read back from backend — success without retrievable artifact FAILS
+- Artifact existence: read back from backend — `success` without retrievable artifact FAILS (`partial` may omit new phase artifacts when handoff short-circuit applies)
 - No hallucination: spot-check every file path, symbol, command claimed
 - No drift from inputs: spec within proposal scope, design answers proposal, tasks cover spec+design
-- Routing coherence: `next_recommended` follows DAG, no unaddressed CRITICAL
+- Routing coherence: `next_recommended` follows DAG (`proposal` → `spec`/`design` → `tasks` → `apply` → `verify` → `archive`, plus `none` or same-phase retry), no unaddressed CRITICAL — **`session-handoff-resume` only valid with `status: partial` and persisted handoff**
 
 **Validation mechanism:**
 - **Inline** for low-risk phases (`sdd-explore`, `sdd-spec`, `sdd-tasks`, `sdd-archive`)
 - **Fresh-context reviewer** for high-risk phases (`sdd-design`, `sdd-apply`)
 - **Escalate on smell**: any inline check finding issues → delegated review
 
-**On PASS:** continue automatically.
+**On PASS (normal):** continue automatically to `next_recommended`.
+**On PASS (handoff):** delegate fresh phase executor per `sdd-orchestrator.md` **Handoff Resume Delegation** — not a DAG advance, not a user-only status report.
 **On FAIL:** re-run same phase once with specific corrective feedback. If fails again, STOP and report to user.
 
 ### Artifact Store Mode
@@ -160,6 +198,8 @@ After `sdd-tasks` completes, inspect `Review Workload Forecast`. If `Chained PRs
 ### Result Contract
 
 Each phase returns: `status`, `executive_summary`, `artifacts`, `next_recommended`, `risks`, `skill_resolution`.
+
+`next_recommended` is normally the next DAG phase (or `none`). For context saturation at ≥50%, executors return `session-handoff-resume` with `status: partial` after persisting `maintenance/session-handoff/{project}` — gatekeeper treats that as resume routing, not DAG advance.
 
 ---
 
@@ -272,6 +312,7 @@ When launching `sdd-apply` for a continuation batch:
 | Verify report | `sdd/{change-name}/verify-report` |
 | Archive report | `sdd/{change-name}/archive-report` |
 | DAG state | `sdd/{change-name}/state` |
+| Session handoff | `maintenance/session-handoff/{project}` (active: `resume_pending: true`; cleared after archive/resume/supersession) |
 
 Retrieval requires two steps:
 1. `mem_search(query: "{topic_key}", project: "{project}")` → get observation ID

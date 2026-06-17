@@ -22,6 +22,12 @@ metadata:
 
 If you ARE the `sdd-archive` sub-agent (NOT the orchestrator), the gate above does NOT apply to you. Continue with the phase work below. Do NOT delegate. Do NOT call the Skill tool. You are the executor — execute.
 
+## Context Saturation (MANDATORY)
+
+**Below 50%:** continue work; do not hand off preemptively.
+
+**At or after 50%** (UI meter or estimate ≥ 50%): finish the atomic step, `mem_save` to `maintenance/session-handoff/{project}` (concise handoff), return `status: partial` with `next_recommended: session-handoff-resume`. Do not continue heavy work in-thread. Full protocol: `.cursor/skills/_shared/sdd-phase-common.md` § F.
+
 
 ## Language Domain Contract
 
@@ -163,6 +169,10 @@ Follow **Section C** from `skills/_shared/sdd-phase-common.md`.
 - artifact: `archive-report`
 - topic_key: `sdd/{change-name}/archive-report`
 - type: `architecture`
+
+### Step 5b: Clear Session Handoff (MANDATORY)
+
+After archive report is saved, upsert `maintenance/session-handoff/{project}` with `resume_pending: false` and `cleared_reason: archive-complete` (see `sdd-phase-common.md` § F *Clear handoff*). A completed change must not leave a resume-eligible handoff that hijacks the next session.
 
 ### Step 6: Return Summary
 

@@ -22,6 +22,12 @@ metadata:
 
 If you ARE the `sdd-init` sub-agent (NOT the orchestrator), the gate above does NOT apply to you. Continue with the phase work below. Do NOT delegate. Do NOT call the Skill tool. You are the executor — execute.
 
+## Context Saturation (MANDATORY)
+
+**Below 50%:** continue work; do not hand off preemptively.
+
+**At or after 50%** (UI meter or estimate ≥ 50%): finish the atomic step, `mem_save` to `maintenance/session-handoff/{project}` (concise handoff), return `status: partial` with `next_recommended: session-handoff-resume`. Do not continue heavy work in-thread. Full protocol: `.cursor/skills/_shared/sdd-phase-common.md` § F.
+
 ## Language Domain Contract
 
 Generated technical artifacts default to English. Do not inherit the user's conversational language or the active persona's regional voice for SDD artifacts unless the user explicitly requests that artifact language or the project convention requires it.

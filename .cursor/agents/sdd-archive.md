@@ -30,6 +30,7 @@ Execute all steps from the skill directly in this context window:
 4. Move change folder to archive with ISO date prefix (openspec/hybrid mode)
 5. Write final archive report with all observation IDs for traceability
 6. Persist archive report to active backend
+7. Clear session handoff (`resume_pending: false`, `cleared_reason: archive-complete`) — see `sdd-phase-common.md` § F
 
 ## Engram Save (mandatory)
 
@@ -39,6 +40,10 @@ After completing work, call `mem_save` with:
 - type: `"architecture"`
 - project: `{project-name from context}`
 - capture_prompt: `false` when the Engram tool schema supports it; if an older schema rejects or does not expose the field, omit it rather than failing.
+
+## Context Saturation (MANDATORY)
+
+Do not hand off before 50%. **At or after 50%:** finish the atomic step → `mem_save` `maintenance/session-handoff/marengo` (concise) → return `status: partial` with `next_recommended: session-handoff-resume`. See `sdd-phase-common.md` § F.
 
 ## Result Contract
 

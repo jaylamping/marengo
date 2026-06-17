@@ -23,6 +23,12 @@ metadata:
 
 If you ARE the `sdd-apply` sub-agent (NOT the orchestrator), the gate above does NOT apply to you. Continue with the phase work below. Do NOT delegate. Do NOT call the Skill tool. You are the executor — execute.
 
+## Context Saturation (MANDATORY)
+
+**Below 50%:** continue apply; do not hand off preemptively.
+
+**At or after 50%** (UI meter or estimate ≥ 50%): finish the atomic step, merge `apply-progress` if tasks remain, `mem_save` to `maintenance/session-handoff/{project}` (concise), return `status: partial` with `next_recommended: session-handoff-resume`. Do not continue apply in-thread. Full protocol: `.cursor/skills/_shared/sdd-phase-common.md` § F.
+
 
 ## Language Domain Contract
 

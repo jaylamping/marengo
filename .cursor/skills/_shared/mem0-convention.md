@@ -19,6 +19,7 @@ user_id: marengo-joey (via MCP env)
 | `sdd/init/{project}` | SDD project context (from sdd-init) |
 | `sdd/{change}/{phase}` | SDD phase artifacts |
 | `maintenance/skill-registry` | Skill registry index |
+| `maintenance/session-handoff/{project}` | Context saturation handoff (upsert). Active: `resume_pending: true` + `created_at` (ISO UTC). Cleared: `resume_pending: false` + `cleared_reason`. Bootstrap resumes only when pending, ≤72h, and user intent allows. |
 | `feasibility/{change}/brief` | Feasibility gate output |
 | `feasibility/{change}/expert/{domain}` | Expert review |
 | `research/{domain}/…` | Scheduled research ingest |
@@ -32,7 +33,7 @@ user_id: marengo-joey (via MCP env)
 ## Recovery (2 steps)
 
 ```
-mem_search(query: "sdd/{change}/{artifact}") → id
+mem_search(query: "sdd/{change}/{artifact}", project: "marengo") → id
 mem_get_observation(id) → full content (required)
 ```
 
