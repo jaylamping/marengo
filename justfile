@@ -63,17 +63,18 @@ deploy-pi-docker-binaries host="joey@marengo.local":
 deploy-pi-wsl host="joey@marengo.local":
     ./scripts/deploy-pi.sh --install {{host}}
 
-# Rebuild Marengo Pi MCP server (Cursor: restart marengo-pi MCP after this)
+# Rebuild Marengo MCP servers (Cursor: restart MCP after this)
 mcp-build:
     cd tools/marengo-pi-mcp && npm install && npm run build
+    cd tools/mem0-mcp && npm install && npm run build
 
 # Install Marengo Research MCP (Python/uv; restart marengo-research MCP after this)
 research-mcp-setup:
     cd tools/marengo-research-mcp && uv sync --extra dev
 
-# Local deterministic daily audit dry-run
+# Local deterministic daily audit dry-run (full pipeline via run.sh)
 daily-audit:
-    python3 scripts/daily-audit/audit.py
+    ./scripts/daily-audit/run.sh
 
 # Regenerate consul/package-lock.json in the Linux dev container (matches CI npm ci).
 consul-lock:

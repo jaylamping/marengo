@@ -87,15 +87,17 @@ export const JointTrackingAreaChart = memo(function JointTrackingAreaChart({
           dot={false}
           activeDot={false}
         />
-        <Area
-          dataKey="commanded"
-          type="monotone"
-          fill="url(#fillCommanded)"
-          stroke="var(--color-commanded)"
-          isAnimationActive={false}
-          dot={false}
-          activeDot={false}
-        />
+        {data.some((point) => point.commanded !== undefined) ? (
+          <Area
+            dataKey="commanded"
+            type="monotone"
+            fill="url(#fillCommanded)"
+            stroke="var(--color-commanded)"
+            isAnimationActive={false}
+            dot={false}
+            activeDot={false}
+          />
+        ) : null}
       </AreaChart>
     </ChartContainer>
   );

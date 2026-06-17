@@ -65,6 +65,12 @@ export const memGetObservationSchema = z.object({
   id: z.string().min(1),
 });
 
+export const memUpdateSchema = z.object({
+  id: z.string().min(1),
+  content: z.string().min(1),
+});
+
 export type MemSearchInput = z.infer<typeof memSearchSchema>;
 export type MemSaveInput = z.infer<typeof memSaveSchema>;
 export type MemGetObservationInput = z.infer<typeof memGetObservationSchema>;
+export type MemUpdateInput = z.infer<typeof memUpdateSchema>;

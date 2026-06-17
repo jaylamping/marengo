@@ -171,6 +171,21 @@ def check_unwrap(changed: list[str], report: Report) -> None:
             )
 
 
+def check_proto_checksum(changed: list[str], report: Report) -> None:
+    proto_changed = any(path.startswith("proto/") for path in changed)
+    checksum_changed = "consul/src/gen/.checksum" in changed
+    if proto_changed and not checksum_changed:
+        report.add(
+            Finding(
+                severity="warn",
+                category="proto",
+                file="consul/src/gen/.checksum",
+                rule="R4 — proto change should refresh consul gen checksum",
+                message="proto/ changed but consul/src/gen/.checksum not updated in scan window",
+            )
+        )
+
+
 def check_gen_handedit(changed: list[str], report: Report) -> None:
     for path in changed:
         if path.startswith("consul/src/gen/") and not path.endswith(".checksum"):
@@ -431,6 +446,7 @@ def main() -> int:
     if changed:
         check_unwrap(changed, report)
         check_gen_handedit(changed, report)
+        check_proto_checksum(changed, report)
         check_davout_bypass(changed, report)
         check_large_risky_diff(changed, report)
         check_adr_staleness(changed, report)

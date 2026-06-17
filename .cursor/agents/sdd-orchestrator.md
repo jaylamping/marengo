@@ -18,11 +18,11 @@ You are the **SDD orchestrator** for Project Marengo. You coordinate; you do not
 3. Read [`.cursor/skills/mem0-mcp/SKILL.md`](../skills/mem0-mcp/SKILL.md) — mem0 persistence setup.
 4. If SDD skills involved: read [`.cursor/skills/sdd-orchestrator/SKILL.md`](../skills/sdd-orchestrator/SKILL.md) (if exists) or the phase-specific skill for the requested command.
 5. **Skill registry resolution** (once per session):
-   - `mem_search(query: "skill-registry", project: "marengo")` → `mem_get_observation(id)` for full content
+   - `mem_search(query: "maintenance/skill-registry", project: "marengo")` → `mem_get_observation(id)` for full content
    - Fallback: read `.atl/skill-registry.md`
    - Cache the index: skill name, trigger/description, scope, exact path
 6. **Model assignments**: cache the table from `gentle-ai-sdd.mdc` § Model Assignments.
-7. **SDD init check**: `mem_search(query: "sdd-init/marengo", project: "marengo")`. If NOT found, delegate to `sdd-init` silently before proceeding.
+7. **SDD init check**: `mem_search(query: "sdd/init/marengo", project: "marengo")`. If NOT found, delegate to `sdd-init` silently before proceeding.
 
 ## Delegation Pattern
 

@@ -317,34 +317,73 @@ export async function connectChappeStream(
 
   let closed = false;
   let cleanup: (() => void) | undefined;
+  let reconnectTimer: number | undefined;
+  let backoffMs = 1000;
+  const maxBackoffMs = 30_000;
 
   const isClosed = () => closed;
 
-  try {
-    if (webTransportAvailable()) {
-      try {
-        cleanup = (await connectWebTransport(handlers, isClosed)) ?? undefined;
-      } catch (err) {
-        handlers.onError?.(
-          err instanceof Error ? err.message : String(err),
-        );
+  const wrappedHandlers: ChappeTelemetryHandlers = {
+    ...handlers,
+    onConnected: () => {
+      backoffMs = 1000;
+      handlers.onConnected?.();
+    },
+    onDisconnected: () => {
+      handlers.onDisconnected?.();
+      if (closed || reconnectTimer !== undefined) {
+        return;
       }
+      reconnectTimer = window.setTimeout(() => {
+        reconnectTimer = undefined;
+        void attemptConnect();
+      }, backoffMs);
+      backoffMs = Math.min(backoffMs * 2, maxBackoffMs);
+    },
+  };
+
+  async function attemptConnect() {
+    if (closed) {
+      return;
     }
-    if (!cleanup) {
-      cleanup = (await connectHttpStream(handlers, isClosed)) ?? undefined;
+    cleanup?.();
+    cleanup = undefined;
+    try {
+      if (webTransportAvailable()) {
+        try {
+          cleanup =
+            (await connectWebTransport(wrappedHandlers, isClosed)) ?? undefined;
+        } catch (err) {
+          wrappedHandlers.onError?.(
+            err instanceof Error ? err.message : String(err),
+          );
+        }
+      }
+      if (!cleanup) {
+        cleanup =
+          (await connectHttpStream(wrappedHandlers, isClosed)) ?? undefined;
+      }
+      if (!cleanup) {
+        wrappedHandlers.onTransportMode?.('offline');
+        wrappedHandlers.onError?.('no Chappe transport available');
+        wrappedHandlers.onDisconnected?.();
+      }
+    } catch (err) {
+      wrappedHandlers.onError?.(
+        err instanceof Error ? err.message : String(err),
+      );
+      wrappedHandlers.onTransportMode?.('offline');
+      wrappedHandlers.onDisconnected?.();
     }
-    if (!cleanup) {
-      handlers.onTransportMode?.('offline');
-      handlers.onError?.('no Chappe transport available');
-    }
-  } catch (err) {
-    handlers.onError?.(err instanceof Error ? err.message : String(err));
-    handlers.onTransportMode?.('offline');
-    handlers.onDisconnected?.();
   }
+
+  await attemptConnect();
 
   return () => {
     closed = true;
+    if (reconnectTimer !== undefined) {
+      window.clearTimeout(reconnectTimer);
+    }
     cleanup?.();
   };
 }

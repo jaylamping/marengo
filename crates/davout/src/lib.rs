@@ -11,7 +11,7 @@
 //!   `kp`/`kd`/`tau_ff` caps, [`tau_ff` rate limiting](Supervisor::filter_mit_command).
 //! - Own joint↔motor coordinate conversion from `config/motors.yaml` (`direction`, `gear_ratio`):
 //!   Berthier and dynamics stay in joint space; robstride stays in raw motor/CAN space.
-//! - [`danger_zones`](marengo_config::DangerZoneRule) from `config/control.yaml` (fault on rule hit).
+//! - [`danger_zones`](marengo_config::DangerZoneRule) from `config/control.yaml` (clamp or fault on rule hit).
 //! - Comm watchdog: stale feedback → [`DavoutError::CommWatchdog`].
 //! - [`disable_all`]: best-effort zero-torque MIT on shutdown.
 //! - [`refresh_feedback`]: poll bus, update [`MotorState`] cache (via robstride).
@@ -55,7 +55,8 @@ use armee_kinematics::{
 use marengo_config::{
     load_control_config, load_homing_config, load_motors_config, load_robot_config,
     motor_for_joint, motor_type_key, resolve_joint_velocity_cap, resolve_urdf_path,
-    validate_control_against_limits, validate_motors_against_robot, ControlConfigFile,
+    validate_control_against_limits, validate_motors_against_robot,
+    validate_robot_control_joint_coverage, ControlConfigFile,
     HomingConfigFile, MotorEntry, MotorType, MotorsConfigFile, RobotConfigFile,
 };
 use marengo_homing::{verify_manual_reference, HomingRegistry, VerifyError};
@@ -189,6 +190,7 @@ impl<B: MotorBus> Supervisor<B> {
         let control = load_control_config(root)?;
         let homing_config = load_homing_config(root)?;
         validate_motors_against_robot(&robot, &motors)?;
+        validate_robot_control_joint_coverage(&robot, &control)?;
         let homing_joints: Vec<String> = robot.robot.joints.clone();
         let homing = HomingRegistry::new(
             root,
@@ -345,6 +347,28 @@ impl<B: MotorBus> Supervisor<B> {
 
     pub fn motor_states(&self) -> &HashMap<MotorAddress, MotorState> {
         &self.motor_states
+    }
+
+    /// Seed zero feedback for all configured motors (unit tests without CAN RX).
+    pub fn seed_synthetic_feedback(&mut self) {
+        let now = Instant::now();
+        for motor in &self.motors.motors {
+            self.motor_states.insert(
+                MotorAddress::from(motor),
+                MotorState {
+                    position_rad: 0.0,
+                    velocity_rad_s: 0.0,
+                    torque_nm: 0.0,
+                    temperature_c: 0.0,
+                    fault: 0,
+                    updated: Some(now),
+                },
+            );
+        }
+    }
+
+    pub fn clear_motor_states(&mut self) {
+        self.motor_states.clear();
     }
 
     pub fn bus_mut(&mut self) -> &mut B {
@@ -672,7 +696,6 @@ impl<B: MotorBus> Supervisor<B> {
             return Err(DavoutError::NotActive { mode: self.mode });
         }
         let filtered = self.filter_mit_command(cmd, motor)?;
-        self.apply_danger_zones(&filtered)?;
         let scale = motor_position_scale(motor)?;
         let wire = MitCommand {
             device_id: motor.device_id,
@@ -692,13 +715,36 @@ impl<B: MotorBus> Supervisor<B> {
 
     /// Filter and send a batch of MIT commands (one per joint).
     pub fn send_mit_batch(&mut self, cmds: Vec<MitJointCommand>) -> Result<(), DavoutError> {
+        let batch_tick = Instant::now();
         for cmd in cmds {
             let joint = cmd.joint.clone();
             let motor = motor_for_joint(&self.motors, &joint)
                 .ok_or(DavoutError::UnknownJoint { joint })?
                 .clone();
-            self.send_mit_joint(cmd, &motor)?;
+            self.check_comm_watchdog()?;
+            if self.hardware_estop {
+                return Err(DavoutError::Estop);
+            }
+            if self.mode != OperationalMode::Active {
+                return Err(DavoutError::NotActive { mode: self.mode });
+            }
+            let filtered = self.filter_mit_command_at_tick(cmd, &motor, self.last_tick)?;
+            let scale = motor_position_scale(&motor)?;
+            let wire = MitCommand {
+                device_id: motor.device_id,
+                motor_type: motor.motor_type,
+                position_rad: (filtered.position_rad * scale) as f32,
+                velocity_rad_s: (filtered.velocity_rad_s * scale) as f32,
+                kp: (filtered.kp / scale.powi(2)) as f32,
+                kd: (filtered.kd / scale.powi(2)) as f32,
+                torque_ff_nm: (filtered.torque_ff_nm / scale) as f32,
+            };
+            self.bus.mit_control_all_at(&[AddressedMitCommand {
+                address: MotorAddress::from(&motor),
+                command: wire,
+            }])?;
         }
+        self.last_tick = Some(batch_tick);
         Ok(())
     }
 
@@ -812,6 +858,18 @@ impl<B: MotorBus> Supervisor<B> {
         cmd: MitJointCommand,
         motor: &MotorEntry,
     ) -> Result<MitJointCommand, DavoutError> {
+        let tick = Instant::now();
+        let out = self.filter_mit_command_at_tick(cmd, motor, self.last_tick)?;
+        self.last_tick = Some(tick);
+        Ok(out)
+    }
+
+    fn filter_mit_command_at_tick(
+        &mut self,
+        cmd: MitJointCommand,
+        motor: &MotorEntry,
+        previous_tick: Option<Instant>,
+    ) -> Result<MitJointCommand, DavoutError> {
         let lim = self
             .limits
             .get(&cmd.joint)
@@ -877,6 +935,7 @@ impl<B: MotorBus> Supervisor<B> {
             });
         }
         let vel_cap = lim.velocity;
+        self.apply_danger_zone_clamps(&mut out);
         if out.velocity_rad_s.abs() > vel_cap {
             return Err(DavoutError::Limit {
                 joint: out.joint.clone(),
@@ -893,9 +952,8 @@ impl<B: MotorBus> Supervisor<B> {
             &out.joint,
             out.torque_ff_nm,
             self.control.control.tau_ff_rate_limit_nm_per_s,
-            self.last_tick,
+            previous_tick,
         );
-        self.last_tick = Some(Instant::now());
 
         Ok(out)
     }
@@ -921,22 +979,24 @@ impl<B: MotorBus> Supervisor<B> {
         Ok(out)
     }
 
-    fn apply_danger_zones(&self, cmd: &MitJointCommand) -> Result<(), DavoutError> {
+    fn apply_danger_zone_clamps(&self, cmd: &mut MitJointCommand) {
         for rule in &self.control.control.danger_zones {
             if rule.joint != cmd.joint {
                 continue;
             }
-            if cmd.position_rad > rule.position_above_rad
-                && cmd.velocity_rad_s < rule.velocity_below_rad_s
-                && rule.action == "clamp_velocity"
+            if cmd.position_rad <= rule.position_above_rad
+                || cmd.velocity_rad_s >= rule.velocity_below_rad_s
             {
-                return Err(DavoutError::DangerZone {
-                    name: rule.name.clone(),
-                    joint: cmd.joint.clone(),
-                });
+                continue;
+            }
+            if rule.action == "clamp_velocity" {
+                if cmd.velocity_rad_s < 0.0 {
+                    cmd.velocity_rad_s = cmd.velocity_rad_s.max(-rule.max_velocity_rad_s);
+                } else {
+                    cmd.velocity_rad_s = cmd.velocity_rad_s.min(rule.max_velocity_rad_s);
+                }
             }
         }
-        Ok(())
     }
 
     /// Apply URDF + bench limits without sending (for tests and planners).
@@ -1177,6 +1237,48 @@ mod tests {
         let err = sup.request_enable(true).expect_err("blocked");
         assert!(matches!(err, DavoutError::Homing { .. }));
         let _ = std::fs::remove_file(temp);
+    }
+
+    #[test]
+    fn rate_limit_uses_shared_previous_tick() {
+        use std::collections::HashMap;
+        use std::time::{Duration, Instant};
+
+        let mut last = HashMap::new();
+        last.insert("j1".to_string(), 0.0);
+        last.insert("j2".to_string(), 0.0);
+        let prev = Instant::now() - Duration::from_millis(10);
+        let out1 = rate_limit_tau_ff(&mut last, "j1", 10.0, 100.0, Some(prev));
+        let out2 = rate_limit_tau_ff(&mut last, "j2", 10.0, 100.0, Some(prev));
+        assert!((out1 - 1.0).abs() < 0.05, "j1 slew expected ~1.0, got {out1}");
+        assert!((out2 - 1.0).abs() < 0.05, "j2 slew expected ~1.0, got {out2}");
+    }
+
+    #[test]
+    fn clamp_velocity_danger_zone_limits_downward_speed() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let motor = motor_for_joint(&sup.motors, "shoulder_pitch")
+            .expect("motor")
+            .clone();
+        let filtered = sup
+            .filter_mit_command(
+                MitJointCommand {
+                    joint: "shoulder_pitch".to_string(),
+                    kp: 10.0,
+                    kd: 1.0,
+                    position_rad: 1.0,
+                    velocity_rad_s: -0.5,
+                    torque_ff_nm: 0.0,
+                },
+                &motor,
+            )
+            .expect("filter");
+        assert!(
+            filtered.velocity_rad_s >= -0.05 - 1e-9,
+            "expected clamp to max_velocity_rad_s 0.05, got {}",
+            filtered.velocity_rad_s
+        );
     }
 
     #[test]

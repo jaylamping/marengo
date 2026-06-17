@@ -3,6 +3,7 @@ robot:
   name: marengo_arm_4dof
   urdf: assets/urdf/arm_4dof.urdf
   bench:
+    # DEPRECATED: command velocity caps come from control.yaml (ADR 0010).
     max_joint_velocity_rad_s: 0.5
     max_joint_torque_nm: 5.0
   joints:

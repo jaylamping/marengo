@@ -73,8 +73,9 @@ async fn handle_session(
                 if !topics.iter().any(|t| t == &topic) {
                     continue;
                 }
-                let envelope = armee_proto::Envelope::decode(payload.as_slice())
-                    .map_err(|e| format!("envelope: {e}"))?;
+                let Some(envelope) = armee_proto::Envelope::decode(payload.as_slice()).ok() else {
+                    continue;
+                };
                 let out = envelope.encode_to_vec();
                 framing::write_length_prefixed_quinn(&mut send, &out).await?;
             }

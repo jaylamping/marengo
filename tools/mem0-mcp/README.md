@@ -9,6 +9,7 @@ Engram-compatible MCP server for Marengo self-hosted mem0.
 | `mem_search` | `POST /search` |
 | `mem_save` | `POST /memories` (`infer: false`) |
 | `mem_get_observation` | `GET /memories/{id}` + `/history` |
+| `mem_update` | `PUT /memories/{id}` |
 
 ## Env
 

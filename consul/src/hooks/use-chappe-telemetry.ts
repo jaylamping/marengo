@@ -17,16 +17,13 @@ function applyRobotState(
   appendTrackingPoint: (jointName: string, point: {
     time: string;
     measured: number;
-    commanded: number;
   }) => void,
 ) {
   setRobotState(state);
-  // Use actual joint names instead of hardcoded index 0
   for (const joint of state.joints) {
     appendTrackingPoint(joint.name, {
       time: String(Number(state.timestampMs % 10_000n)),
       measured: joint.position,
-      commanded: joint.position, // TODO: wire actual commanded position when available in proto
     });
   }
 }

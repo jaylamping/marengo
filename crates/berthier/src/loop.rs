@@ -58,6 +58,8 @@ pub enum LoopError {
     UnknownJoint { joint: String },
     #[error("position hold: joint name required for hold-at on multi-joint configs")]
     JointNameRequired,
+    #[error("missing motor feedback for joint {joint}")]
+    MissingFeedback { joint: String },
 }
 
 /// Realtime control loop facade.
@@ -458,6 +460,17 @@ impl<B: MotorBus> ControlLoop<B> {
         self.supervisor.refresh_feedback()?;
 
         let q = self.read_positions();
+
+        if self.supervisor.mode() == OperationalMode::Active && self.control_mode != ControlMode::Disabled
+        {
+            for name in &self.joint_names {
+                if !self.has_joint_feedback(name) {
+                    return Err(LoopError::MissingFeedback {
+                        joint: name.clone(),
+                    });
+                }
+            }
+        }
 
         if self.supervisor.mode() == OperationalMode::Active {
             if self.control_mode != ControlMode::Disabled {
@@ -918,6 +931,16 @@ impl<B: MotorBus> ControlLoop<B> {
         self.read_positions()
     }
 
+    fn has_joint_feedback(&self, joint: &str) -> bool {
+        self.supervisor
+            .motors
+            .motors
+            .iter()
+            .find(|m| m.joint == joint)
+            .and_then(|m| self.supervisor.motor_states().get(&MotorAddress::from(m)))
+            .is_some()
+    }
+
     fn read_positions(&self) -> Vec<f64> {
         self.joint_names
             .iter()
@@ -1293,6 +1316,7 @@ mod tests {
             .supervisor_mut()
             .request_enable(true)
             .expect("enable");
+        loop_ctrl.supervisor_mut().seed_synthetic_feedback();
     }
 
     #[test]
@@ -1342,6 +1366,19 @@ mod tests {
             n,
             "Active + Disabled control mode must send zero-gain MIT keepalive per joint"
         );
+    }
+
+    #[test]
+    fn position_mode_without_feedback_errors_when_active() {
+        let mut loop_ctrl = test_loop();
+        bench_ready_active(&mut loop_ctrl);
+        loop_ctrl.supervisor_mut().clear_motor_states();
+        loop_ctrl.set_control_mode(ControlMode::Position);
+        loop_ctrl
+            .enter_position_hold_at(Some("shoulder_pitch"), 0.25)
+            .expect("hold-at");
+        let err = loop_ctrl.tick(None).expect_err("missing feedback");
+        assert!(matches!(err, LoopError::MissingFeedback { .. }));
     }
 
     #[test]

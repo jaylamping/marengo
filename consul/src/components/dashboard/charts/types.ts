@@ -2,8 +2,9 @@ export type ChartTimeRange = 'session' | '5m' | '1m';
 
 export type JointTrackingPoint = {
   time: string;
-  commanded: number;
   measured: number;
+  /** Omitted in live Chappe mode until proto exposes commanded position. */
+  commanded?: number;
 };
 
 type JointLimits = {

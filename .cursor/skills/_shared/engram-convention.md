@@ -79,7 +79,7 @@ STEP B — RETRIEVE FULL CONTENT (mandatory):
 
 Loading project context:
 ```
-mem_search(query: "sdd-init/{project}", project: "{project}") → get ID
+mem_search(query: "sdd/init/{project}", project: "{project}") → get ID
 mem_get_observation(id) → full project context
 ```
 

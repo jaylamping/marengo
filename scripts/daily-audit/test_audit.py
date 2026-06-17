@@ -9,7 +9,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from audit import UNWRAP_RE, production_rust_lines, strip_rust_tests
+from audit import (
+    UNWRAP_RE,
+    check_proto_checksum,
+    production_rust_lines,
+    strip_rust_tests,
+    Finding,
+    Report,
+)
 
 
 class AuditRegexTests(unittest.TestCase):
@@ -52,6 +59,22 @@ class StripRustTests(unittest.TestCase):
         self.assertIn("line1", out)
         self.assertIn("line2", out)
         self.assertNotIn("mod tests", out)
+
+
+class ProtoChecksumTests(unittest.TestCase):
+    def test_proto_change_without_checksum_warns(self) -> None:
+        report = Report(date="2026-06-16")
+        check_proto_checksum(["proto/marengo/v1/marengo.proto"], report)
+        self.assertFalse(report.clean)
+        self.assertEqual(len(report.findings), 1)
+
+    def test_proto_and_checksum_change_is_clean(self) -> None:
+        report = Report(date="2026-06-16")
+        check_proto_checksum(
+            ["proto/marengo/v1/marengo.proto", "consul/src/gen/.checksum"],
+            report,
+        )
+        self.assertTrue(report.clean)
 
 
 if __name__ == "__main__":

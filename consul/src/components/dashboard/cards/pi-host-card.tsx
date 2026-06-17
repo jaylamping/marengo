@@ -110,15 +110,15 @@ export function PiHostCard({ metrics: metricsProp }: PiHostCardProps) {
     : 'healthy';
   if (metricsLoading) {
     badgeTone = 'muted';
-  } else if (live && connected && operationalMode) {
-    badgeLabel = operationalMode;
-    badgeTone = 'healthy';
   } else if (warnCan || warnDisk || warnChappe) {
     badgeLabel = warnCan ? 'CAN' : warnChappe ? 'chappe' : 'disk';
     badgeTone = 'warning';
   } else if (warnClock) {
     badgeLabel = 'clock';
     badgeTone = 'muted';
+  } else if (live && connected && operationalMode) {
+    badgeLabel = operationalMode;
+    badgeTone = 'healthy';
   }
 
   return (

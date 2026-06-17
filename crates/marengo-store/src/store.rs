@@ -178,41 +178,53 @@ impl Store {
 
         if let Some(q) = &query.q {
             if !q.trim().is_empty() {
-                let fts_sql = format!(
-                    "SELECT e.id, e.ts_ms, e.level, e.target, e.message, e.session_id
+                let filter_sql = if where_clauses.is_empty() {
+                    String::new()
+                } else {
+                    format!(
+                        " AND {}",
+                        where_clauses
+                            .iter()
+                            .map(|c| format!("e.{c}"))
+                            .collect::<Vec<_>>()
+                            .join(" AND ")
+                    )
+                };
+                let count_sql = format!(
+                    "SELECT COUNT(*)
                      FROM log_events e
                      INNER JOIN log_events_fts f ON f.rowid = e.id
-                     WHERE log_events_fts MATCH ?1{extra}
-                     ORDER BY e.ts_ms DESC LIMIT ?2 OFFSET ?3",
-                    extra = if where_clauses.is_empty() {
-                        String::new()
-                    } else {
-                        format!(
-                            " AND {}",
-                            where_clauses
-                                .iter()
-                                .map(|c| c.replace('?', ""))
-                                .collect::<Vec<_>>()
-                                .join(" AND ")
-                        )
-                    }
+                     WHERE log_events_fts MATCH ?{filter_sql}"
                 );
-                let _ = fts_sql;
-                let conn = self.connection();
-                let mut stmt = conn.prepare(
+                let select_sql = format!(
                     "SELECT e.id, e.ts_ms, e.level, e.target, e.message, e.session_id, e.fields_json
                      FROM log_events e
                      INNER JOIN log_events_fts f ON f.rowid = e.id
-                     WHERE log_events_fts MATCH ?1
-                     ORDER BY e.ts_ms DESC LIMIT ?2 OFFSET ?3",
-                )?;
+                     WHERE log_events_fts MATCH ?{filter_sql}
+                     ORDER BY e.ts_ms DESC LIMIT ? OFFSET ?"
+                );
                 let fts_q = format!("{}*", q.trim());
-                let rows =
-                    stmt.query_map(params![fts_q, limit as i64, offset as i64], map_log_row)?;
+                let mut query_params = params_vec;
+                query_params.insert(0, Box::new(fts_q));
+                let count_refs: Vec<&dyn rusqlite::types::ToSql> =
+                    query_params.iter().map(|p| p.as_ref()).collect();
+                let conn = self.connection();
+                let total: u32 = conn
+                    .query_row(&count_sql, count_refs.as_slice(), |row| {
+                        row.get::<_, i64>(0)
+                    })
+                    .map(|n| n as u32)
+                    .unwrap_or(0);
+
+                query_params.push(Box::new(limit as i64));
+                query_params.push(Box::new(offset as i64));
+                let select_refs: Vec<&dyn rusqlite::types::ToSql> =
+                    query_params.iter().map(|p| p.as_ref()).collect();
+                let mut stmt = conn.prepare(&select_sql)?;
+                let rows = stmt.query_map(select_refs.as_slice(), map_log_row)?;
                 let entries: Vec<LogEventRow> = rows
                     .collect::<std::result::Result<Vec<_>, _>>()
                     .map_err(StoreError::from)?;
-                let total = entries.len() as u32;
                 return Ok((entries, total));
             }
         }
@@ -931,6 +943,45 @@ mod tests {
         let recent = store.recent_log_events(10)?;
         assert_eq!(recent.len(), 1);
         assert_eq!(recent[0].message, "hello");
+        Ok(())
+    }
+
+    #[test]
+    fn fts_query_applies_level_filter_and_count() -> Result<()> {
+        let dir = tempdir()?;
+        let db = dir.path().join("fts.db");
+        let store = Store::open(&db, dir.path())?;
+        store.insert_log_events(&[
+            LogEventInsert {
+                ts_ms: 1000,
+                level: "info".into(),
+                target: "berthier".into(),
+                message: "shoulder pitch hold".into(),
+                session_id: None,
+                fields_json: None,
+            },
+            LogEventInsert {
+                ts_ms: 2000,
+                level: "error".into(),
+                target: "berthier".into(),
+                message: "shoulder pitch fault".into(),
+                session_id: None,
+                fields_json: None,
+            },
+        ])?;
+        let (entries, total) = store.query_structured_logs(&StructuredLogQuery {
+            from_ms: None,
+            to_ms: None,
+            target: None,
+            session_id: None,
+            q: Some("shoulder".into()),
+            level: Some("error".into()),
+            limit: 10,
+            offset: 0,
+        })?;
+        assert_eq!(total, 1);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].level, "error");
         Ok(())
     }
 

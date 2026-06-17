@@ -18,7 +18,7 @@ The registry is an **index** of skill names, triggers, scopes, and exact `SKILL.
 
 Resolution order:
 1. Use the session cache if present.
-2. `mem_search(query: "skill-registry", project: "{project}")` → `mem_get_observation(id)` for full content.
+2. `mem_search(query: "maintenance/skill-registry", project: "{project}")` → `mem_get_observation(id)` for full content.
 3. Fallback: read `.atl/skill-registry.md` from the project root.
 4. No registry found → proceed without project skills and warn the user to run `gentle-ai skill-registry refresh`.
 

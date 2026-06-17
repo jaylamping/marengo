@@ -27,8 +27,8 @@ Execute all steps from the skill directly in this context window:
 ## Engram Save (mandatory)
 
 After completing work, call `mem_save` with:
-- title: `"sdd-init/{project}"`
-- topic_key: `"sdd-init/{project}"`
+- title: `"sdd/init/{project}"`
+- topic_key: `"sdd/init/{project}"`
 - type: `"architecture"`
 - project: `{project-name from context}`
 - capture_prompt: `false` when the Engram tool schema supports it; if an older schema rejects or does not expose the field, omit it rather than failing.
@@ -38,7 +38,7 @@ After completing work, call `mem_save` with:
 Return a structured result with these fields:
 - `status`: `done` | `blocked` | `partial`
 - `executive_summary`: one-sentence description of what was initialized
-- `artifacts`: list of paths or topic_keys written (e.g. `.atl/skill-registry.md`, `sdd-init/{project}`)
+- `artifacts`: list of paths or topic_keys written (e.g. `.atl/skill-registry.md`, `sdd/init/{project}`)
 - `next_recommended`: `sdd-explore` or `sdd-new`
 - `risks`: any warnings about the detected stack or persistence backend
 - `skill_resolution`: `paths-injected` if exact skill paths were provided and loaded, otherwise `none`

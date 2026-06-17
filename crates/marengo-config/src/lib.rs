@@ -50,6 +50,8 @@ pub enum ConfigError {
     InvalidActuatorGroup { group: String, message: String },
     #[error("invalid velocity on joint {joint}: {message}")]
     InvalidVelocity { joint: String, message: String },
+    #[error("joint {joint} in robot.yaml has no entry in control.yaml")]
+    MissingControlJoint { joint: String },
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -479,6 +481,21 @@ pub fn validate_control_config(control: &ControlConfigFile) -> Result<(), Config
                     message: "velocity_max_rad_s must be > 0".to_string(),
                 });
             }
+        }
+    }
+    Ok(())
+}
+
+/// Every `robot.joints` entry must have a matching `control.joints` entry.
+pub fn validate_robot_control_joint_coverage(
+    robot: &RobotConfigFile,
+    control: &ControlConfigFile,
+) -> Result<(), ConfigError> {
+    for joint in &robot.robot.joints {
+        if !control.control.joints.contains_key(joint) {
+            return Err(ConfigError::MissingControlJoint {
+                joint: joint.clone(),
+            });
         }
     }
     Ok(())
@@ -1043,6 +1060,18 @@ mod tests {
         let cfg = ControlConfigFile { control };
         let err = validate_control_config(&cfg).expect_err("duplicate");
         assert!(matches!(err, ConfigError::InvalidActuatorGroup { .. }));
+    }
+
+    #[test]
+    fn missing_control_joint_rejected() {
+        let root = repo_root();
+        let config_dir = root.join("config/bringup/shoulder_pitch_right_only");
+        let robot = load_robot_config_from(&config_dir).expect("robot");
+        let mut control = load_control_config_from(&config_dir).expect("control");
+        control.control.joints.remove("right_shoulder_pitch");
+        let err =
+            validate_robot_control_joint_coverage(&robot, &control).expect_err("missing joint");
+        assert!(matches!(err, ConfigError::MissingControlJoint { .. }));
     }
 
     #[test]

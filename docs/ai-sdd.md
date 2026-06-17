@@ -25,16 +25,18 @@ Branch naming: `sdd/{slug}` or `feat/{slug}`.
 | API | `https://joey-pc.tail0b414.ts.net:8888` |
 | Dashboard | `https://joey-pc.tail0b414.ts.net` |
 | User ID | `marengo-joey` |
-| MCP | `mem0-mcp` → `mem_search`, `mem_save`, `mem_get_observation` |
+| MCP | `mem0-mcp` → `mem_search`, `mem_save`, `mem_get_observation`, `mem_update` |
 
 ### topic_key schema
 
 ```
+sdd/init/{project}
 sdd/{change}/{phase}
 feasibility/{change}/brief
 feasibility/{change}/expert/{domain}
 research/{domain}/{slug}
 expert/{domain}/{slug}
+maintenance/skill-registry
 maintenance/prune/{date}
 ```
 

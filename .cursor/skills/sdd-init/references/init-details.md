@@ -30,7 +30,7 @@
 ## Engram Saves
 
 ```text
-mem_save title/topic_key: sdd-init/{project}
+mem_save title/topic_key: sdd/init/{project}
 type: architecture
 content: detected project context markdown
 capture_prompt: false when available
@@ -40,7 +40,7 @@ type: config
 content: testing capabilities markdown
 capture_prompt: false when available
 
-mem_save title/topic_key: skill-registry
+mem_save title/topic_key: maintenance/skill-registry
 type: config
 content: registry markdown
 capture_prompt: false when available

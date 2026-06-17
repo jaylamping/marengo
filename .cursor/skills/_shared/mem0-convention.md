@@ -16,7 +16,9 @@ user_id: marengo-joey (via MCP env)
 
 | Prefix | Purpose |
 |--------|---------|
+| `sdd/init/{project}` | SDD project context (from sdd-init) |
 | `sdd/{change}/{phase}` | SDD phase artifacts |
+| `maintenance/skill-registry` | Skill registry index |
 | `feasibility/{change}/brief` | Feasibility gate output |
 | `feasibility/{change}/expert/{domain}` | Expert review |
 | `research/{domain}/…` | Scheduled research ingest |

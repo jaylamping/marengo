@@ -6,11 +6,13 @@ import {
   getMemoryHistory,
   saveMemory,
   searchMemories,
+  updateMemory,
 } from "../client.js";
 import {
   memGetObservationSchema,
   memSaveSchema,
   memSearchSchema,
+  memUpdateSchema,
   rejectSecrets,
   validateTopicKey,
 } from "../schema.js";
@@ -72,6 +74,20 @@ export function registerMemoryTools(cfg: Mem0Config): Record<string, ToolEntry> 
         const row = await getMemory(cfg, args.id);
         const history = await getMemoryHistory(cfg, args.id);
         return formatObservation(row, history);
+      },
+    },
+    mem_update: {
+      description:
+        "Update an existing mem0 memory by observation ID. Replaces stored text content.",
+      inputSchema: memUpdateSchema,
+      handler: async (raw) => {
+        const args = memUpdateSchema.parse(raw);
+        const secretError = rejectSecrets(args.content);
+        if (secretError) {
+          return `Error: ${secretError}`;
+        }
+        const row = await updateMemory(cfg, args.id, args.content);
+        return `Observation updated (id=${row.id ?? args.id})`;
       },
     },
   };

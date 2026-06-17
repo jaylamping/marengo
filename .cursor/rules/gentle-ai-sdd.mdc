@@ -106,7 +106,7 @@ proposal -> specs --> tasks -> apply -> verify -> archive
 ### SDD Init Guard (MANDATORY)
 
 Before ANY SDD command, check if `sdd-init` has been run:
-1. `mem_search(query: "sdd-init/{project}", project: "{project}")`
+1. `mem_search(query: "sdd/init/{project}", project: "{project}")`
 2. If found → proceed
 3. If NOT found → run `sdd-init` FIRST silently, THEN proceed
 
@@ -202,7 +202,7 @@ Maintain a session-scoped list of `(phase, task-fingerprint)` pairs. Before invo
 ALL sub-agent invocations involving code MUST include pre-resolved skill paths from the registry.
 
 **Orchestrator resolution (once per session):**
-1. `mem_search(query: "skill-registry", project: "{project}")` → `mem_get_observation(id)`
+1. `mem_search(query: "maintenance/skill-registry", project: "{project}")` → `mem_get_observation(id)`
 2. Fallback: read `.atl/skill-registry.md`
 3. Cache the index: name, trigger/description, scope, exact path
 
@@ -246,7 +246,7 @@ Pass artifact references (topic keys or file paths), NOT content.
 ### Strict TDD Forwarding (MANDATORY)
 
 When launching `sdd-apply` or `sdd-verify`:
-1. `mem_search(query: "sdd-init/{project}", project: "{project}")`
+1. `mem_search(query: "sdd/init/{project}", project: "{project}")`
 2. If `strict_tdd: true` found → add to prompt: `"STRICT TDD MODE IS ACTIVE. Test runner: {test_command}. You MUST follow strict-tdd.md. Do NOT fall back to Standard Mode."`
 3. If not found → do NOT add TDD instruction
 
@@ -262,7 +262,7 @@ When launching `sdd-apply` for a continuation batch:
 
 | Artifact | Topic Key |
 |----------|-----------|
-| Project context | `sdd-init/{project}` |
+| Project context | `sdd/init/{project}` |
 | Exploration | `sdd/{change-name}/explore` |
 | Proposal | `sdd/{change-name}/proposal` |
 | Spec | `sdd/{change-name}/spec` |

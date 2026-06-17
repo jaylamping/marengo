@@ -125,6 +125,17 @@ export async function deleteMemory(cfg: Mem0Config, id: string): Promise<void> {
   await mem0Fetch(cfg, `/memories/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
+export async function updateMemory(
+  cfg: Mem0Config,
+  id: string,
+  content: string,
+): Promise<Mem0MemoryRow> {
+  return mem0Fetch<Mem0MemoryRow>(cfg, `/memories/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify({ text: content }),
+  });
+}
+
 export function formatObservation(row: Mem0MemoryRow, history?: Mem0HistoryEvent[]): string {
   const meta = row.metadata ?? {};
   const topicKey = meta.topic_key ?? meta.title ?? row.id ?? "unknown";

@@ -9,9 +9,12 @@ import {
 describe("validateTopicKey", () => {
   it("accepts valid marengo namespaces", () => {
     assert.equal(validateTopicKey("sdd/pilot-change/explore"), null);
+    assert.equal(validateTopicKey("sdd/init/marengo"), null);
+    assert.equal(validateTopicKey("sdd/marengo/testing-capabilities"), null);
     assert.equal(validateTopicKey("feasibility/pilot-change/brief"), null);
     assert.equal(validateTopicKey("research/robotics/can-bus"), null);
     assert.equal(validateTopicKey("maintenance/prune/2026-06-16"), null);
+    assert.equal(validateTopicKey("maintenance/skill-registry"), null);
   });
 
   it("rejects invalid keys", () => {

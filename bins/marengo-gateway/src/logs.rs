@@ -167,30 +167,34 @@ fn spawn_batch_writer(store: Arc<Store>, mut rx: mpsc::Receiver<LogEventInsert>)
                         Some(entry) => {
                             buf.push(entry);
                             if buf.len() >= BATCH_MAX {
-                                flush_batch(&store, &mut buf);
+                                flush_batch_async(&store, &mut buf).await;
                             }
                         }
                         None => {
-                            flush_batch(&store, &mut buf);
+                            flush_batch_async(&store, &mut buf).await;
                             break;
                         }
                     }
                 }
                 _ = interval.tick() => {
-                    flush_batch(&store, &mut buf);
+                    flush_batch_async(&store, &mut buf).await;
                 }
             }
         }
     });
 }
 
-fn flush_batch(store: &Store, buf: &mut Vec<LogEventInsert>) {
+async fn flush_batch_async(store: &Arc<Store>, buf: &mut Vec<LogEventInsert>) {
     if buf.is_empty() {
         return;
     }
     let batch = std::mem::take(buf);
-    if let Err(e) = store.insert_log_events(&batch) {
-        tracing::warn!(error = %e, "log batch insert failed");
+    let store = Arc::clone(store);
+    let result = tokio::task::spawn_blocking(move || store.insert_log_events(&batch)).await;
+    match result {
+        Ok(Ok(())) => {}
+        Ok(Err(e)) => tracing::warn!(error = %e, "log batch insert failed"),
+        Err(e) => tracing::warn!(error = %e, "log batch insert task failed"),
     }
 }
 
@@ -232,12 +236,14 @@ pub async fn snapshot_logs_recent(
     authorize_logs(&headers)?;
     let limit = query.limit.clamp(1, 10_000);
     let logs = state.logs.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    let recent = logs.ring.recent(limit as usize);
-    let entries: Vec<StructuredLogEntryJson> = recent
+    let rows = logs
+        .store
+        .recent_log_events(limit)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let entries: Vec<StructuredLogEntryJson> = rows
         .into_iter()
-        .enumerate()
-        .map(|(i, e)| StructuredLogEntryJson {
-            id: i as u64,
+        .map(|e| StructuredLogEntryJson {
+            id: e.id as u64,
             timestamp_ms: e.ts_ms,
             level: e.level,
             target: e.target,
@@ -246,10 +252,8 @@ pub async fn snapshot_logs_recent(
             fields_json: e.fields_json.unwrap_or_default(),
         })
         .collect();
-    Ok(Json(StructuredLogListJson {
-        total: entries.len() as u32,
-        entries,
-    }))
+    let total = entries.len() as u32;
+    Ok(Json(StructuredLogListJson { entries, total }))
 }
 
 #[derive(Deserialize)]
