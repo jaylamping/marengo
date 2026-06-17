@@ -105,6 +105,11 @@ async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let args = parse_args().map_err(|e| e.to_string())?;
     let bus = Arc::new(Bus::default());
     chappe::tracing_layer::init_subscriber(Some(Arc::clone(&bus)), "marengo-gateway");
+    if logs::log_token_from_env().is_none() {
+        tracing::warn!(
+            "MARENGO_GATEWAY_LOG_TOKEN is unset; log HTTP routes are unauthenticated"
+        );
+    }
     let state_holder: Arc<std::sync::Mutex<Option<state::SharedState>>> =
         Arc::new(std::sync::Mutex::new(None));
 

@@ -541,4 +541,18 @@ mod tests {
     fn recent_limit_default() {
         assert_eq!(default_recent_limit(), 5000);
     }
+
+    #[test]
+    fn log_token_from_env_filters_empty() {
+        const KEY: &str = "MARENGO_GATEWAY_LOG_TOKEN";
+        let saved = std::env::var(KEY).ok();
+        std::env::set_var(KEY, "");
+        assert!(log_token_from_env().is_none());
+        std::env::set_var(KEY, "secret");
+        assert_eq!(log_token_from_env().as_deref(), Some("secret"));
+        match saved {
+            Some(v) => std::env::set_var(KEY, v),
+            None => std::env::remove_var(KEY),
+        }
+    }
 }
