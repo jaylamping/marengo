@@ -230,4 +230,32 @@ mod tests {
         assert!((b.soft_lower - (-0.872665)).abs() < 1e-6);
         assert!((b.soft_upper - 3.141593).abs() < 1e-6);
     }
+
+    #[test]
+    #[ignore = "marengo.urdf is placeholder until Brawner export; run when commissioning full humanoid"]
+    fn humanoid_urdf_actuated_joints_match_robot_config() {
+        use marengo_config::{resolve_repo_root, resolve_urdf_path, RobotConfigFile};
+        use std::fs;
+
+        let root = resolve_repo_root();
+        let robot_path = root.join("config/robot_humanoid.yaml");
+        let text = fs::read_to_string(&robot_path).expect("robot_humanoid.yaml");
+        let robot: RobotConfigFile =
+            serde_yaml::from_str(&text).expect("parse robot_humanoid.yaml");
+
+        let urdf_path = resolve_urdf_path(&root, &robot).expect("marengo.urdf");
+        let parsed = load_urdf(&urdf_path).expect("parse marengo.urdf");
+
+        let mut config_joints = robot.robot.joints;
+        config_joints.sort();
+
+        let mut urdf_joints = actuated_joint_names(&parsed);
+        urdf_joints.sort();
+
+        assert_eq!(
+            urdf_joints, config_joints,
+            "actuated joints in {} must match config/robot_humanoid.yaml",
+            urdf_path.display()
+        );
+    }
 }
