@@ -62,7 +62,7 @@ Core principle: **does this inflate my context without need?** If yes → delega
 4. **Incident rule**: wrong `cwd`, accidental mutation, merge recovery → fresh audit before continuing
 5. **Long-session rule**: ~20 tool calls or 5 exploratory reads without delegation → pause and delegate
 6. **Fresh review rule**: adversarial review of diffs, conflicts, PR readiness → fresh context
-7. **Context saturation rule**: estimated context **>50%** → finish atomic step, `mem_save` `maintenance/session-handoff/{project}`, spawn fresh subagent (see § Context Saturation Handoff)
+7. **Context saturation rule**: context **at or after 50%** (not before) → finish atomic step, `mem_save` `maintenance/session-handoff/{project}`, spawn fresh subagent (see § Context Saturation Handoff)
 
 Children receive concrete role work. They must NOT orchestrate.
 
@@ -77,7 +77,7 @@ Children receive concrete role work. They must NOT orchestrate.
 
 Full protocol: [`.cursor/skills/_shared/sdd-phase-common.md` § F](../skills/_shared/sdd-phase-common.md).
 
-**Orchestrator at >50% saturation:** finish current delegation summary → `mem_save` handoff → tell user a fresh orchestrator session should continue from `maintenance/session-handoff/marengo`.
+**Orchestrator at or after 50% saturation (not before):** finish current delegation summary → `mem_save` handoff → tell user a fresh orchestrator session should continue from `maintenance/session-handoff/marengo`.
 
 **All Composer 2.5 Fast executors:** same rule; return `partial` + handoff key; never continue heavy apply in a saturated thread.
 

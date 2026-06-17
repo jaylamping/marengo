@@ -110,11 +110,13 @@ This guard exists to reduce reviewer burnout and keep implementation delivery sa
 
 ## F. Context Saturation Handoff (MANDATORY — all SDD agents)
 
-**Applies to:** orchestrator, every `sdd-*` phase executor, and **Composer 2.5 Fast** sessions. Composer quality degrades above ~50% context saturation.
+**Applies to:** orchestrator, every `sdd-*` phase executor, and **Composer 2.5 Fast** sessions. Composer quality degrades at or above ~50% context saturation.
 
 ### When to hand off
 
-If you estimate context saturation **>50%** (long tool history, large diffs in thread, or UI context meter if visible):
+**Do NOT hand off before 50%.** Continue working while context is below 50% — no preemptive session splits.
+
+When context is **at or after 50%** (UI context meter ≥ 50%, or a reliable estimate crosses 50%):
 
 1. **Finish the atomic step in progress** — complete the current file edit, test run, or return envelope; do not stop mid-edit.
 2. **Persist handoff to mem0** (concise; target ≤800 tokens):

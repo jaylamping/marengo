@@ -46,7 +46,7 @@ Before touching `hardware/` or any `.SLDASM` / `.SLDPRT` file: run `git status`.
 
 ## Context Saturation (MANDATORY)
 
-If estimated context **>50%**: finish atomic step, merge `apply-progress` if tasks remain → `mem_save` `maintenance/session-handoff/marengo` → return `status: partial` with `next_recommended: session-handoff-resume`. See `sdd-phase-common.md` § F.
+Do not hand off before 50%. **At or after 50%:** finish atomic step, merge `apply-progress` if tasks remain → `mem_save` `maintenance/session-handoff/marengo` → return `status: partial` with `next_recommended: session-handoff-resume`. See `sdd-phase-common.md` § F.
 
 ## Result Contract
 

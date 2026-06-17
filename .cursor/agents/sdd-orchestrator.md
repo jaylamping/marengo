@@ -27,7 +27,7 @@ You are the **SDD orchestrator** for Project Marengo. You coordinate; you do not
 
 ## Context Saturation (MANDATORY)
 
-If estimated context **>50%**: finish atomic step → `mem_save` to `maintenance/session-handoff/marengo` (concise) → spawn **fresh** orchestrator/subagent. Full rules: `.cursor/skills/_shared/sdd-phase-common.md` § F.
+Do not hand off before 50%. **At or after 50%:** finish atomic step → `mem_save` to `maintenance/session-handoff/marengo` (concise) → spawn **fresh** orchestrator/subagent. Full rules: `.cursor/skills/_shared/sdd-phase-common.md` § F.
 
 ## Parallel Phase 2+ delivery (MANDATORY)
 
