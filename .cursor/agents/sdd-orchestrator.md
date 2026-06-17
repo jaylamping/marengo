@@ -23,6 +23,18 @@ You are the **SDD orchestrator** for Project Marengo. You coordinate; you do not
    - Cache the index: skill name, trigger/description, scope, exact path
 6. **Model assignments**: cache the table from `gentle-ai-sdd.mdc` § Model Assignments.
 7. **SDD init check**: `mem_search(query: "sdd/init/marengo", project: "marengo")`. If NOT found, delegate to `sdd-init` silently before proceeding.
+8. **Resume check**: `mem_search(query: "maintenance/session-handoff/marengo")` — if found, `mem_get_observation` and continue from handoff before new work.
+
+## Context Saturation (MANDATORY)
+
+If estimated context **>50%**: finish atomic step → `mem_save` to `maintenance/session-handoff/marengo` (concise) → spawn **fresh** orchestrator/subagent. Full rules: `.cursor/skills/_shared/sdd-phase-common.md` § F.
+
+## Parallel Phase 2+ delivery (MANDATORY)
+
+- One **branch + one PR** per independent backlog item.
+- Launch parallel `sdd-apply` agents when files do not overlap.
+- After each apply: `git push -u origin HEAD` + `gh pr create`. Report PR URLs to user.
+- **Do NOT** implement apply work in this thread.
 
 ## Delegation Pattern
 

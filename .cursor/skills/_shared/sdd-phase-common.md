@@ -107,3 +107,41 @@ SDD must protect reviewer cognitive load, not only generate tasks.
 - In a Feature Branch Chain, PR #1 targets the feature/tracker branch and later child PRs target the immediate previous PR branch; if GitHub shows previous slices in a child diff, retarget/rebase until the diff is clean.
 
 This guard exists to reduce reviewer burnout and keep implementation delivery safe. Do not treat it as optional process noise.
+
+## F. Context Saturation Handoff (MANDATORY — all SDD agents)
+
+**Applies to:** orchestrator, every `sdd-*` phase executor, and **Composer 2.5 Fast** sessions. Composer quality degrades above ~50% context saturation.
+
+### When to hand off
+
+If you estimate context saturation **>50%** (long tool history, large diffs in thread, or UI context meter if visible):
+
+1. **Finish the atomic step in progress** — complete the current file edit, test run, or return envelope; do not stop mid-edit.
+2. **Persist handoff to mem0** (concise; target ≤800 tokens):
+
+```
+mem_save(
+  title: "maintenance/session-handoff/marengo",
+  topic_key: "maintenance/session-handoff/marengo",
+  type: "architecture",
+  project: "marengo",
+  capture_prompt: false,
+  content: "## Session handoff\n- change: {slug}\n- phase: {phase}\n- branch: {branch}\n- done: ...\n- next: ...\n- open_prs: ...\n- blockers: ...\n- questions: ...\n- files_touched: ..."
+)
+```
+
+Also upsert `sdd/{change}/state` if a named change is active.
+
+3. **Stop taking new work** in this session.
+4. **Orchestrator:** spawn a **fresh** subagent (new context). First message MUST include: `mem_search` + `mem_get_observation` for `maintenance/session-handoff/marengo` and any active `sdd/{change}/*` artifacts.
+5. **Executor:** return `status: partial` with `next_recommended: session-handoff-resume` and handoff topic key — do not continue the phase in-thread.
+
+### Questioning rule (use mem0)
+
+Before apply, **read** `sdd/{change}/explore`, `sdd/init/marengo`, and recent handoff. If the task contradicts stored priorities (e.g. full-robot not built, enhancement vs gremlin), return **`status: blocked`** with evidence — do not silently proceed.
+
+### Orchestrator-only
+
+- Prefer **parallel** `sdd-apply` invocations on **independent branches** (one PR per item).
+- Never implement multi-file fixes in the orchestrator thread — delegate.
+- After each subagent completes: commit + push + `gh pr create` before starting dependent work.

@@ -19,6 +19,7 @@ user_id: marengo-joey (via MCP env)
 | `sdd/init/{project}` | SDD project context (from sdd-init) |
 | `sdd/{change}/{phase}` | SDD phase artifacts |
 | `maintenance/skill-registry` | Skill registry index |
+| `maintenance/session-handoff/{project}` | Context saturation agent handoff (upsert) |
 | `feasibility/{change}/brief` | Feasibility gate output |
 | `feasibility/{change}/expert/{domain}` | Expert review |
 | `research/{domain}/…` | Scheduled research ingest |

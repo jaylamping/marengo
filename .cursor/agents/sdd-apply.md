@@ -44,6 +44,10 @@ Also update the tasks artifact with `[x]` marks via `mem_save` with same topic_k
 
 Before touching `hardware/` or any `.SLDASM` / `.SLDPRT` file: run `git status`. Never `git restore` or overwrite binary CAD without backup + explicit user OK. See worktree-safety rule.
 
+## Context Saturation (MANDATORY)
+
+If estimated context **>50%**: finish atomic step, merge `apply-progress` if tasks remain → `mem_save` `maintenance/session-handoff/marengo` → return `status: partial` with `next_recommended: session-handoff-resume`. See `sdd-phase-common.md` § F.
+
 ## Result Contract
 
 Return a structured result with these fields:

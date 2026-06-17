@@ -41,6 +41,10 @@ After completing work, call `mem_save` with:
 - project: `{project-name from context}`
 - capture_prompt: `false` when the Engram tool schema supports it; if an older schema rejects or does not expose the field, omit it rather than failing.
 
+## Context Saturation (MANDATORY)
+
+If estimated context **>50%**: finish the atomic step → `mem_save` `maintenance/session-handoff/marengo` (concise) → return `status: partial` with `next_recommended: session-handoff-resume`. See `sdd-phase-common.md` § F.
+
 ## Result Contract
 
 Return a structured result with these fields:

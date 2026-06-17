@@ -62,8 +62,26 @@ Core principle: **does this inflate my context without need?** If yes → delega
 4. **Incident rule**: wrong `cwd`, accidental mutation, merge recovery → fresh audit before continuing
 5. **Long-session rule**: ~20 tool calls or 5 exploratory reads without delegation → pause and delegate
 6. **Fresh review rule**: adversarial review of diffs, conflicts, PR readiness → fresh context
+7. **Context saturation rule**: estimated context **>50%** → finish atomic step, `mem_save` `maintenance/session-handoff/{project}`, spawn fresh subagent (see § Context Saturation Handoff)
 
 Children receive concrete role work. They must NOT orchestrate.
+
+### Parallel delivery (MANDATORY for multi-item backlogs)
+
+- **One branch + one PR per independent backlog item** — never batch unrelated fixes on `main`.
+- Launch **parallel** `sdd-apply` subagents when items have no file overlap.
+- Orchestrator workflow per item: branch from `main` → apply → test → commit → push → `gh pr create` → report URL to user.
+- User should return to **N PRs ready for review**, not one mega-commit.
+
+### Context Saturation Handoff (MANDATORY)
+
+Full protocol: [`.cursor/skills/_shared/sdd-phase-common.md` § F](../skills/_shared/sdd-phase-common.md).
+
+**Orchestrator at >50% saturation:** finish current delegation summary → `mem_save` handoff → tell user a fresh orchestrator session should continue from `maintenance/session-handoff/marengo`.
+
+**All Composer 2.5 Fast executors:** same rule; return `partial` + handoff key; never continue heavy apply in a saturated thread.
+
+**Questioning:** executors MUST read mem0 explore/init/handoff; if work is enhancement while robot unbuilt or contradicts phase-1 scope, return `blocked` with reason.
 
 ---
 
@@ -272,6 +290,7 @@ When launching `sdd-apply` for a continuation batch:
 | Verify report | `sdd/{change-name}/verify-report` |
 | Archive report | `sdd/{change-name}/archive-report` |
 | DAG state | `sdd/{change-name}/state` |
+| Session handoff | `maintenance/session-handoff/{project}` |
 
 Retrieval requires two steps:
 1. `mem_search(query: "{topic_key}", project: "{project}")` → get observation ID
