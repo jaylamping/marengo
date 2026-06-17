@@ -30,6 +30,7 @@ Execute all steps from the skill directly in this context window:
 4. Move change folder to archive with ISO date prefix (openspec/hybrid mode)
 5. Write final archive report with all observation IDs for traceability
 6. Persist archive report to active backend
+7. Clear session handoff (`resume_pending: false`, `cleared_reason: archive-complete`) — see `sdd-phase-common.md` § F
 
 ## Engram Save (mandatory)
 

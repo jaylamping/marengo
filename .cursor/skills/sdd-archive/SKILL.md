@@ -170,6 +170,10 @@ Follow **Section C** from `skills/_shared/sdd-phase-common.md`.
 - topic_key: `sdd/{change-name}/archive-report`
 - type: `architecture`
 
+### Step 5b: Clear Session Handoff (MANDATORY)
+
+After archive report is saved, upsert `maintenance/session-handoff/{project}` with `resume_pending: false` and `cleared_reason: archive-complete` (see `sdd-phase-common.md` § F *Clear handoff*). A completed change must not leave a resume-eligible handoff that hijacks the next session.
+
 ### Step 6: Return Summary
 
 Return to the orchestrator:

@@ -76,7 +76,7 @@ Every phase MUST return a structured envelope to the orchestrator:
 - `executive_summary`: 1-3 sentence summary of what was done
 - `detailed_report`: (optional) full phase output, or omit if already inline
 - `artifacts`: list of artifact keys/paths written
-- `next_recommended`: the next SDD phase to run, or "none"
+- `next_recommended`: the next SDD phase to run, `none`, or `session-handoff-resume` (context saturation only — with `status: partial` after handoff `mem_save`)
 - `risks`: risks discovered, or "None"
 - `skill_resolution`: how skills were loaded — `paths-injected` (received exact skill paths from orchestrator), `fallback-registry` (self-loaded paths from registry), `fallback-path` (loaded via SKILL: Load path), or `none` (no skills loaded)
 
@@ -119,7 +119,7 @@ This guard exists to reduce reviewer burnout and keep implementation delivery sa
 When context is **at or after 50%** (UI context meter ≥ 50%, or a reliable estimate crosses 50%):
 
 1. **Finish the atomic step in progress** — complete the current file edit, test run, or return envelope; do not stop mid-edit.
-2. **Persist handoff to mem0** (concise; target ≤800 tokens):
+2. **Persist handoff to mem0** (concise; target ≤800 tokens). **Required frontmatter fields** — bootstrap ignores handoffs without them:
 
 ```
 mem_save(
@@ -128,15 +128,41 @@ mem_save(
   type: "architecture",
   project: "marengo",
   capture_prompt: false,
-  content: "## Session handoff\n- change: {slug}\n- phase: {phase}\n- branch: {branch}\n- done: ...\n- next: ...\n- open_prs: ...\n- blockers: ...\n- questions: ...\n- files_touched: ..."
+  content: "## Session handoff\n- resume_pending: true\n- created_at: {ISO-8601 UTC}\n- change: {slug}\n- phase: {phase}\n- branch: {branch}\n- done: ...\n- next: ...\n- open_prs: ...\n- blockers: ...\n- questions: ...\n- files_touched: ..."
 )
 ```
 
 Also upsert `sdd/{change}/state` if a named change is active.
 
 3. **Stop taking new work** in this session.
-4. **Orchestrator:** spawn a **fresh** subagent (new context). First message MUST include: `mem_search` + `mem_get_observation` for `maintenance/session-handoff/marengo` and any active `sdd/{change}/*` artifacts.
+4. **Orchestrator:** on executor `partial` + `session-handoff-resume`, delegate per `sdd-orchestrator.md` **Handoff Resume Delegation** — invoke a **fresh** phase executor (new context). First message MUST include: `mem_search(query: "maintenance/session-handoff/{project}", project: "{project}")` → `mem_get_observation(id)` and the same two-step retrieval for any active `sdd/{change}/*` artifacts; continue from handoff `next`. Do not stop at a user-facing progress summary.
 5. **Executor:** return `status: partial` with `next_recommended: session-handoff-resume` and handoff topic key — do not continue the phase in-thread.
+
+### Resume eligibility (orchestrator bootstrap)
+
+A persisted observation at `maintenance/session-handoff/{project}` is **not** automatically actionable. Resume ONLY when **all** hold:
+
+1. **`resume_pending: true`** in the full observation (via `mem_get_observation`). Missing or `false` → do not resume.
+2. **`created_at` within 72 hours** (ISO-8601 UTC). Missing or expired → do not resume; clear the record (see below).
+3. **User intent does not supersede** — do not resume when the user's message is:
+   - `/sdd-new`, `/sdd-ff`, `/sdd-status`, `/sdd-onboard`, or unrelated non-SDD work; or
+   - `/sdd-new {other}` / `/sdd-ff {other}` where `{other}` ≠ handoff `change`.
+4. **Resume trigger present** — auto-resume only on `/sdd-continue` (optional change name must match handoff `change` if provided), explicit "resume SDD handoff", or Automatic mode mid-chain handoff routing (`partial` + `session-handoff-resume`). Opening a fresh chat without an SDD continue command → **offer** resume in Interactive mode; do not silently override.
+
+When guards fail but a handoff observation exists, **clear** it (mem0 has no delete — upsert):
+
+```
+mem_save(
+  title: "maintenance/session-handoff/marengo",
+  topic_key: "maintenance/session-handoff/marengo",
+  type: "architecture",
+  project: "marengo",
+  capture_prompt: false,
+  content: "## Session handoff (cleared)\n- resume_pending: false\n- cleared_at: {ISO-8601 UTC}\n- cleared_reason: stale|superseded|missing-flag|resume-consumed|archive-complete\n- prior_change: {slug}\n- prior_phase: {phase}\n"
+)
+```
+
+**Clear handoff** (`resume_pending: false`) after: successful resume (`resume-consumed`), archive complete (`archive-complete`), superseded by new change (`superseded`), or TTL expiry (`stale`).
 
 ### Questioning rule (use mem0)
 
