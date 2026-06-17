@@ -2,6 +2,8 @@
 ---
 name: sdd-verify
 description: "Trigger: SDD verification phase, verify change. Execute tests and prove implementation matches specs, design, and tasks."
+# model: openrouter/z-ai/glm-5.2:nitro
+model: composer-2.5-fast
 disable-model-invocation: true
 user-invocable: false
 license: MIT
@@ -96,6 +98,8 @@ Return `## Verification Report` with change, mode, completeness table, build/tes
 ---
 name: sdd-verify
 description: "Trigger: SDD verification phase, verify change. Execute tests and prove implementation matches specs, design, and tasks."
+# model: openrouter/z-ai/glm-5.2:nitro
+model: composer-2.5-fast
 disable-model-invocation: true
 user-invocable: false
 license: MIT

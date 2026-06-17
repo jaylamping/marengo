@@ -1,6 +1,8 @@
 ---
 name: sdd-init
 description: "Trigger: sdd init, iniciar sdd, openspec init. Initialize SDD context, testing capabilities, registry, and persistence."
+# model: openrouter/z-ai/glm-5.2:nitro
+model: composer-2.5-fast
 disable-model-invocation: true
 user-invocable: false
 license: MIT

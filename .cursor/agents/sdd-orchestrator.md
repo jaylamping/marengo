@@ -3,7 +3,8 @@ name: sdd-orchestrator
 description: >
   SDD coordinator for Marengo — /sdd-new, /sdd-continue, phased delegation via mem0.
   Coordinates explore → propose → spec → design → tasks → apply → verify → archive.
-model: openrouter/z-ai/glm-5.2:nitro
+# model: openrouter/z-ai/glm-5.2:nitro
+model: composer-2.5-fast
 readonly: false
 background: false
 ---

@@ -16,15 +16,15 @@ Cursor supports native sub-agent delegation via `.cursor/agents/`. Invoke by nam
 
 | Subagent | File | Purpose | Model |
 |----------|------|---------|-------|
-| `sdd-init` | `sdd-init.md` | Initialize SDD context; detect stack, bootstrap persistence | `z-ai/glm-5.2:nitro` |
-| `sdd-explore` | `sdd-explore.md` | Investigate codebase; no files created | `openrouter/owl-alpha` |
-| `sdd-propose` | `sdd-propose.md` | Draft the change proposal | `z-ai/glm-5.2:nitro` |
+| `sdd-init` | `sdd-init.md` | Initialize SDD context; detect stack, bootstrap persistence | `composer-2.5-fast` |
+| `sdd-explore` | `sdd-explore.md` | Investigate codebase; no files created | `composer-2.5-fast` |
+| `sdd-propose` | `sdd-propose.md` | Draft the change proposal | `composer-2.5-fast` |
 | `sdd-spec` | `sdd-spec.md` | Write requirements and acceptance scenarios | `composer-2.5-fast` |
-| `sdd-design` | `sdd-design.md` | Write architecture and file-change design | `z-ai/glm-5.2:nitro` |
-| `sdd-tasks` | `sdd-tasks.md` | Break down change into implementation task checklist | `minimax/minimax-m3` |
+| `sdd-design` | `sdd-design.md` | Write architecture and file-change design | `composer-2.5-fast` |
+| `sdd-tasks` | `sdd-tasks.md` | Break down change into implementation task checklist | `composer-2.5-fast` |
 | `sdd-apply` | `sdd-apply.md` | Implement tasks; check off as it goes | `composer-2.5-fast` |
-| `sdd-verify` | `sdd-verify.md` | Validate implementation against specs | `z-ai/glm-5.2:nitro` |
-| `sdd-archive` | `sdd-archive.md` | Sync delta specs and archive completed change | `nex-agi/nex-n2-pro:free` |
+| `sdd-verify` | `sdd-verify.md` | Validate implementation against specs | `composer-2.5-fast` |
+| `sdd-archive` | `sdd-archive.md` | Sync delta specs and archive completed change | `composer-2.5-fast` |
 | `sdd-onboard` | `sdd-onboard.md` | Guided end-to-end SDD walkthrough | `composer-2.5-fast` |
 
 Each subagent returns a **structured result**. Collect it, update DAG state, present summary to user before next phase.
@@ -165,20 +165,22 @@ Each phase returns: `status`, `executive_summary`, `artifacts`, `next_recommende
 
 ## Model Assignments
 
+<!-- TEST MODE: all SDD phases on composer-2.5-fast. Prior assignments preserved as # model: comments in .cursor/agents/sdd-*.md and .cursor/skills/sdd-*/SKILL.md. -->
+
 Cache this table at session start. Pass the mapped alias via `model` parameter when invoking subagents. If a phase is missing, use `default`. If assigned model unavailable, substitute closest GLM or Composer tier.
 
 | Phase / agent | Model | Reason |
 |---------------|-------|--------|
-| orchestrator | `z-ai/glm-5.2:nitro` | Meta-reasoning, gatekeeper, delegation |
-| sdd-init | `z-ai/glm-5.2:nitro` | One-shot bootstrap |
-| sdd-explore | `openrouter/owl-alpha` | Read-only codebase scan |
-| sdd-propose | `z-ai/glm-5.2:nitro` | Scope, ADRs, feasibility forks |
+| orchestrator | `composer-2.5-fast` | Meta-reasoning, gatekeeper, delegation |
+| sdd-init | `composer-2.5-fast` | One-shot bootstrap |
+| sdd-explore | `composer-2.5-fast` | Read-only codebase scan |
+| sdd-propose | `composer-2.5-fast` | Scope, ADRs, feasibility forks |
 | sdd-spec | `composer-2.5-fast` | Structured requirements writing |
-| sdd-design | `z-ai/glm-5.2:nitro` | Architecture decisions |
-| sdd-tasks | `minimax/minimax-m3` | Task breakdown |
+| sdd-design | `composer-2.5-fast` | Architecture decisions |
+| sdd-tasks | `composer-2.5-fast` | Task breakdown |
 | sdd-apply | `composer-2.5-fast` | Repo-native implementation |
-| sdd-verify | `z-ai/glm-5.2:nitro` | Safety gate + design/apply gate reviews |
-| sdd-archive | `nex-agi/nex-n2-pro:free` | Mechanical close-out |
+| sdd-verify | `composer-2.5-fast` | Safety gate + design/apply gate reviews |
+| sdd-archive | `composer-2.5-fast` | Mechanical close-out |
 | sdd-onboard | `composer-2.5-fast` | Interactive walkthrough |
 | expert-* | `openrouter/owl-alpha` | Read-only domain churn; GLM escalation on rails |
 | review-readability | `nex-agi/nex-n2-pro:free` | Style/naming |

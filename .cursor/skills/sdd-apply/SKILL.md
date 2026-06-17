@@ -2,6 +2,8 @@
 ---
 name: sdd-apply
 description: "Implement SDD tasks from specs and design. Trigger: orchestrator launches apply for one or more change tasks."
+# model: composer-2.5-fast
+model: composer-2.5-fast
 disable-model-invocation: true
 user-invocable: false
 license: MIT
@@ -261,6 +263,8 @@ If none, say "None."}
 ---
 name: sdd-apply
 description: "Implement SDD tasks from specs and design. Trigger: orchestrator launches apply for one or more change tasks."
+# model: composer-2.5-fast
+model: composer-2.5-fast
 disable-model-invocation: true
 user-invocable: false
 license: MIT

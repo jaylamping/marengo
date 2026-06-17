@@ -1,6 +1,8 @@
 ---
 name: sdd-archive
 description: "Archive a completed SDD change by syncing delta specs. Trigger: orchestrator launches archive after implementation and verification."
+# model: nex-agi/nex-n2-pro:free
+model: composer-2.5-fast
 disable-model-invocation: true
 user-invocable: false
 license: MIT

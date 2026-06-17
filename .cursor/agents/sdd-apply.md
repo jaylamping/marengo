@@ -4,6 +4,7 @@ description: >
   Implement code changes from task definitions. Use when tasks are ready and implementation
   should begin. Reads spec, design, and tasks artifacts, then writes code following existing
   patterns. Marks tasks complete as it goes.
+# model: composer-2.5-fast
 model: composer-2.5-fast
 readonly: false
 background: false

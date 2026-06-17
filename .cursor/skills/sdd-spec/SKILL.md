@@ -1,6 +1,8 @@
 ---
 name: sdd-spec
 description: "Write SDD delta specs with requirements and scenarios. Trigger: orchestrator launches spec work for a change."
+# model: composer-2.5-fast
+model: composer-2.5-fast
 disable-model-invocation: true
 user-invocable: false
 license: MIT

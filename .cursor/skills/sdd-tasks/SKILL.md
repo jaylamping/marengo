@@ -1,6 +1,8 @@
 ---
 name: sdd-tasks
 description: "Break an SDD change into implementation tasks. Trigger: orchestrator launches task planning for a change."
+# model: minimax/minimax-m3
+model: composer-2.5-fast
 disable-model-invocation: true
 user-invocable: false
 license: MIT

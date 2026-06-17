@@ -4,7 +4,8 @@ description: >
   Explore and investigate ideas before committing to a change. Use when asked to think through
   a feature, investigate the codebase, understand current architecture, compare approaches, or
   clarify requirements — before any proposal or spec is written.
-model: openrouter/owl-alpha
+# model: openrouter/owl-alpha
+model: composer-2.5-fast
 readonly: true
 background: false
 ---

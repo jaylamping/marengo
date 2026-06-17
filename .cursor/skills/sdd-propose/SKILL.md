@@ -1,6 +1,8 @@
 ---
 name: sdd-propose
 description: "Create an SDD change proposal with intent, scope, and approach. Trigger: orchestrator launches proposal work for a change."
+# model: openrouter/z-ai/glm-5.2:nitro
+model: composer-2.5-fast
 disable-model-invocation: true
 user-invocable: false
 license: MIT

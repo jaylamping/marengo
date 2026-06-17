@@ -4,6 +4,7 @@ description: >
   Guide the user through a complete SDD cycle using their real codebase. Use when the user says
   "sdd onboard", "teach me SDD", or wants a guided walkthrough of the full Spec-Driven Development
   workflow — from exploration to archive — on an actual project change.
+# model: composer-2.5-fast
 model: composer-2.5-fast
 readonly: false
 background: false
