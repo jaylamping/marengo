@@ -46,9 +46,9 @@ CAD action: **move** the two shoulder layout instances in `marengo_torso_asm` fr
 
 | File | Qty | `process` / `material` |
 |------|-----|------------------------|
-| `hardware/cad/parts/marengo_shoulder_pitch_mount_bracket_left.SLDPRT` | 1 | `print` / `PETG` |
-| `hardware/cad/parts/marengo_shoulder_pitch_mount_bracket_right.SLDPRT` | 1 | `print` / `PETG` |
-| `hardware/cad/parts/marengo_waist_yaw_adapter.SLDPRT` | 1 | `print` / `PETG` |
+| `cad/parts/marengo_shoulder_pitch_mount_bracket_left.SLDPRT` | 1 | `print` / `PETG` |
+| `cad/parts/marengo_shoulder_pitch_mount_bracket_right.SLDPRT` | 1 | `print` / `PETG` |
+| `cad/parts/marengo_waist_yaw_adapter.SLDPRT` | 1 | `print` / `PETG` |
 
 ### Reference geometry (each part)
 

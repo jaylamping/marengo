@@ -1,6 +1,6 @@
 # Incoming vendor CAD
 
-Drop vendor downloads here before promoting to `hardware/cad/vendor/`.
+Drop vendor downloads here before promoting to `cad/vendor/`.
 
 | File (you provide) | Registry `asset_id` |
 |--------------------|---------------------|

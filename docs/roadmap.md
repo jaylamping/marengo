@@ -97,10 +97,10 @@ Statuses: **done** · **active** · **next** · **later**
 | Deliverable | Reference |
 |-------------|-----------|
 | 2020 frame assembly frozen | `marengo_torso_frame_asm`, [torso-2020-extrusion.md](../hardware/docs/torso-2020-extrusion.md) |
-| Layout part with named URDF refs | `marengo_torso_layout`, [cad-standards.md](../hardware/docs/cad-standards.md) |
+| Layout part with named URDF refs | `marengo_torso_layout`, [cad/README.md](../cad/README.md) |
 | Shoulder/waist RS03 brackets | [torso-actuator-brackets.md](../hardware/docs/torso-actuator-brackets.md) |
 | MCP design review clean | `marengo_design_review`, `marengo_urdf_readiness` |
-| Root assembly tree | `hardware/cad/assemblies/marengo.SLDASM` |
+| Root assembly tree | `cad/assemblies/marengo.SLDASM` |
 
 **Parallel (draft, safe to iterate):** pelvis ring, shell, battery bays, hip splay, leg segments—see [torso-design-handoff.md](../hardware/docs/torso-design-handoff.md).
 

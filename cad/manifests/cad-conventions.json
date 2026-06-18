@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "cadRoot": "hardware/cad",
+  "cadRoot": "cad",
   "partFilenamePattern": "^marengo_[a-z0-9_]+\\.SLDPRT$",
   "assemblyFilenamePattern": "^marengo_[a-z0-9_]+_asm\\.SLDASM$",
   "vendorFilenamePattern": "^vendor_[a-z0-9_]+_vendor\\.",

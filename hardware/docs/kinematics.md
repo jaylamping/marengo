@@ -195,4 +195,4 @@ Leg bring-up: start with **hip pitch** and **knee** RS04 sign tests under load b
 | `left_hand` / `right_hand` | Tool frame placeholder (TCP when gripper defined) |
 | `forearm_link` | Arm bring-up tool frame (full humanoid: `left_hand` / `right_hand`) |
 
-Named CAD geometry: see [cad-standards.md](cad-standards.md).
+Named CAD geometry: see [cad/README.md](../../cad/README.md).

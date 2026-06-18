@@ -8,7 +8,7 @@ Wire types are defined once in [`proto/`](../proto/) as Protocol Buffers and gen
 
 ```mermaid
 flowchart LR
-  HW[hardware/ + URDF] --> Assets[assets/]
+  HW[cad/ + hardware/docs] --> Assets[assets/]
   Assets --> KIN[armee-kinematics]
   Proto[proto/*.proto] --> AP[armee-proto]
   Proto --> ConsulGen[consul/src/gen]

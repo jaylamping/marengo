@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "assets": [
+    {
+      "id": "actuator_rs00",
+      "manufacturer": "Robstride",
+      "partNumber": "RS00",
+      "category": "actuator",
+      "source": {
+        "type": "local",
+        "path": "cad/vendor/incoming/robstride_rs00_vendor.SLDPRT",
+        "sha256": "5ccc7d96bf5b0a601d31419e143ba220f3ae4e3e6d5f91e0a41198176f493052"
+      },
+      "cad": {
+        "stepPath": null,
+        "nativePath": "cad/vendor/vendor_robstride_rs00_vendor.SLDPRT",
+        "units": "mm"
+      },
+      "status": "imported",
+      "notes": "Vendor SLDPRT from Desktop archive. Measured envelope 57×57×51.4 mm (MCP bbox)."
+    },
+    {
+      "id": "actuator_rs02",
+      "manufacturer": "Robstride",
+      "partNumber": "RS02",
+      "category": "actuator",
+      "source": {
+        "type": "local",
+        "path": "cad/vendor/incoming/robstride_rs02_vendor.SLDPRT",
+        "sha256": "64b68323cbff68be52ce9d0c09aa5e53bd7bdb85d7e983954fe0baaf5713a7b6"
+      },
+      "cad": {
+        "stepPath": null,
+        "nativePath": "cad/vendor/vendor_robstride_rs02_vendor.SLDPRT",
+        "units": "mm"
+      },
+      "status": "imported",
+      "notes": "Vendor SLDPRT from Desktop archive. Measured envelope 78.5×78.5×45.5 mm (MCP bbox)."
+    },
+    {
+      "id": "actuator_rs03",
+      "manufacturer": "Robstride",
+      "partNumber": "RS03",
+      "category": "actuator",
+      "source": {
+        "type": "local",
+        "path": "cad/vendor/incoming/robstride_rs03_vendor.SLDPRT",
+        "sha256": "08eb6da71015bb4a73b987985af6c85116c682810bd4675b0c9b2e85485555d0"
+      },
+      "cad": {
+        "stepPath": null,
+        "nativePath": "cad/vendor/vendor_robstride_rs03_vendor.SLDPRT",
+        "units": "mm"
+      },
+      "status": "imported",
+      "notes": "Vendor SLDPRT from Desktop archive. Measured envelope 99.5×98.5×56.6 mm (MCP bbox). Torso/waist/shoulder/hip layout reference."
+    },
+    {
+      "id": "actuator_rs04",
+      "manufacturer": "Robstride",
+      "partNumber": "RS04",
+      "category": "actuator",
+      "source": {
+        "type": "local",
+        "path": "cad/vendor/incoming/robstride_rs04_vendor.SLDPRT",
+        "sha256": "e571678bbfe605352fa51e72fcb06f0d136c437f747e9ba08bf4f064075c12c5"
+      },
+      "cad": {
+        "stepPath": null,
+        "nativePath": "cad/vendor/vendor_robstride_rs04_vendor.SLDPRT",
+        "units": "mm"
+      },
+      "status": "imported",
+      "notes": "Vendor SLDPRT from Desktop archive. Measured envelope 120×120×55.7 mm (MCP bbox)."
+    },
+    {
+      "id": "actuator_rs05",
+      "manufacturer": "Robstride",
+      "partNumber": "RS05",
+      "category": "actuator",
+      "source": {
+        "type": "local",
+        "path": "cad/vendor/incoming/robstride_rs05_vendor.step",
+        "sha256": "35a143d7e04d84eeda8664591e33626a1802f614a5b76ac29f465620dec81792"
+      },
+      "cad": {
+        "stepPath": "cad/vendor/vendor_robstride_rs05_vendor.step",
+        "nativePath": "cad/vendor/vendor_robstride_rs05_vendor.SLDPRT",
+        "units": "mm"
+      },
+      "status": "imported",
+      "notes": "RS05.STEP imports as 143-component assembly; mounting bbox 65×65×47 mm. Desktop SLDPRT is body-only 46×46×47 mm (23 g). Use STEP for envelope/mounting; SLDPRT for solid cavity cuts."
+    },
+    {
+      "id": "vendor_2020_black_extrusion",
+      "manufacturer": "IXGNIJ",
+      "supplier": "Amazon",
+      "partNumber": "B08Y8KCJW4",
+      "category": "extrusion",
+      "source": {
+        "type": "local",
+        "path": "cad/vendor/incoming/grabcad_2020_aluminium_extrusions.SLDPRT",
+        "url": "https://grabcad.com/library/2020-aluminium-extrusions-1"
+      },
+      "cad": {
+        "stepPath": null,
+        "nativePath": "cad/vendor/vendor_2020_black_extrusion.SLDPRT",
+        "units": "mm"
+      },
+      "status": "imported",
+      "notes": "EU 2020 T-slot black 6063-T5. CAD from GrabCAD; canonical SW part vendor_2020_black_extrusion. Configs L500/L340/L085/L100/L110. Vertical posts 340 mm; depth rails L100 (100 mm). Cut list: hardware/docs/torso-2020-extrusion.md."
+    },
+    {
+      "id": "bracket_2028_corner",
+      "manufacturer": "GrabCAD",
+      "supplier": "Amazon",
+      "partNumber": "B0FDKPLF8N",
+      "category": "fastener",
+      "source": {
+        "type": "local",
+        "path": "cad/vendor/incoming/2020_corner_bracket.SLDPRT",
+        "url": "https://grabcad.com/library/aluminum-extrusion-corner-bracket-storm-1"
+      },
+      "cad": {
+        "stepPath": null,
+        "nativePath": "cad/vendor/vendor_2028_corner_bracket_vendor.SLDPRT",
+        "units": "mm"
+      },
+      "status": "imported",
+      "notes": "2020-series 2028 corner bracket (90°). CAD: GrabCAD storm model; purchase equivalent mankk B0FDKPLF8N / PETOX B0BFRB35Z8. Verify EU 6 mm T-slot (not V-slot) before freezing mates. Torso cage: ~16 instanced (8 corners × 2); kit ships 30."
+    }
+  ]
+}

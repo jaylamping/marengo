@@ -7,7 +7,7 @@ consul/dist/
 .vscode/
 *.local
 .env
-hardware/cad/
+cad/
 hardware/electrical/**/gerbers/
 **/*-backups/
 .DS_Store

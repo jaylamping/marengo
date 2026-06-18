@@ -8,7 +8,7 @@ Cut list and vendor CAD for the **committed** upper torso cage (`125 × 150 × 3
 |-------|--------|
 | **Product** | [IXGNIJ 4× 500 mm T-Slot 2020 black](https://www.amazon.com/dp/B08Y8KCJW4) |
 | **ASIN** | `B08Y8KCJW4` |
-| **CAD / registry** | `vendor_2020_black_extrusion` → `hardware/cad/vendor/vendor_2020_black_extrusion.SLDPRT` |
+| **CAD / registry** | `vendor_2020_black_extrusion` → `cad/vendor/vendor_2020_black_extrusion.SLDPRT` |
 | **Profile** | European standard 2020 **T-slot** — 20×20 mm, **6063-T5**, black anodized, **6 mm** slots |
 
 ## Cut list (mm) — as built in CAD
@@ -33,9 +33,9 @@ Cut list and vendor CAD for the **committed** upper torso cage (`125 × 150 × 3
 
 | File | Role |
 |------|------|
-| `hardware/cad/assemblies/marengo_torso_frame_asm.SLDASM` | 12× extrusion + layout jig (hide layout when done) |
-| `hardware/cad/assemblies/marengo_torso_asm.SLDASM` | Layout + frame sub-asm + RS03 layout motors |
-| `hardware/cad/parts/marengo_torso_layout.SLDPRT` | URDF refs (`urdf_link_frame`, `joint_axis`, planes) |
+| `cad/assemblies/marengo_torso_frame_asm.SLDASM` | 12× extrusion + layout jig (hide layout when done) |
+| `cad/assemblies/marengo_torso_asm.SLDASM` | Layout + frame sub-asm + RS03 layout motors |
+| `cad/parts/marengo_torso_layout.SLDPRT` | URDF refs (`urdf_link_frame`, `joint_axis`, planes) |
 
 ## Vendor part configs
 

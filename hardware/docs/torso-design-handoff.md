@@ -81,13 +81,13 @@ Single aluminum cage, CAD name target: `marengo_upper_torso_frame`.
 
 | Path | Status |
 |------|--------|
-| `hardware/cad/parts/marengo_torso_layout.SLDPRT` | Layout skeleton — mostly empty |
-| `hardware/cad/assemblies/marengo_torso_asm.SLDASM` | Sub-asm; layout part inserted |
+| `cad/parts/marengo_torso_layout.SLDPRT` | Layout skeleton — mostly empty |
+| `cad/assemblies/marengo_torso_asm.SLDASM` | Sub-asm; layout part inserted |
 | `hardware/docs/kinematics.md` | SSOT — joint names, limits, committed frame |
-| `hardware/docs/cad-standards.md` | Naming, URDF ref geometry |
+| [cad/README.md](../../cad/README.md) | Naming, URDF ref geometry |
 | SolidWorks MCP | Audit tools; worker path fixed in `solidworks-mcp` |
 
-**Layout part next steps:** model committed box + waist bay + draft shoulder/hip points; named refs per `cad-standards.md` (`urdf_link_frame`, `joint_axis`, `cable_exit`, etc.).
+**Layout part next steps:** model committed box + waist bay + draft shoulder/hip points; named refs per [cad/README.md](../../cad/README.md) (`urdf_link_frame`, `joint_axis`, `cable_exit`, etc.).
 
 **PETG actuator brackets (rev A):** [`torso-actuator-brackets.md`](torso-actuator-brackets.md) — shoulder internal pitch mount brackets (L/R) + waist yaw adapter for the three RS03 layout instances.
 

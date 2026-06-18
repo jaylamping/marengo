@@ -68,7 +68,7 @@ For mechanical design with Cursor + SolidWorks:
 1. Open `marengo.code-workspace` (marengo + sibling `solidworks-mcp` repo).
 2. Build the MCP server: `cd ../solidworks-mcp && npm install && npm run build`.
 3. Cursor loads workspace MCP from [`.cursor/mcp.json`](../.cursor/mcp.json) (`SOLIDWORKS_MCP_ALLOWED_ROOTS=C:/code/marengo`).
-4. Model under [`hardware/cad/`](../hardware/cad/); run `marengo_design_review` before saving assemblies.
+4. Model under [`cad/`](../cad/); run `marengo_design_review` before saving assemblies.
 5. URDF: manual Brawner export → `assets/urdf/marengo.urdf`, then MCP `marengo_urdf_export_postcheck` and [`scripts/export-urdf.sh`](../scripts/export-urdf.sh).
 
-CAD standards: [hardware/docs/cad-standards.md](../hardware/docs/cad-standards.md).
+CAD standards: [cad/README.md](../cad/README.md).

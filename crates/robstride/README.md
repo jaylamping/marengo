@@ -1,6 +1,6 @@
 # robstride
 
-Driver for Robstride actuators (RS00, RS02, RS03, RS04) on CAN1. Vendor CAD: [`hardware/cad/vendor/robstride/`](../../hardware/cad/vendor/robstride/). [Berthier](../berthier/) calls it after [Davout](../davout/) approves commands.
+Driver for Robstride actuators (RS00, RS02, RS03, RS04) on CAN1. Vendor CAD: [`cad/vendor/robstride/`](../../cad/vendor/robstride/). [Berthier](../berthier/) calls it after [Davout](../davout/) approves commands.
 
 Supported firmware frames:
 

@@ -4,7 +4,7 @@
     {
       "id": "marengo",
       "title": "Marengo root assembly",
-      "assemblyPath": "hardware/cad/assemblies/marengo.SLDASM",
+      "assemblyPath": "cad/assemblies/marengo.SLDASM",
       "requiredChildNamePatterns": [],
       "requiredVendorAssetIds": []
     }

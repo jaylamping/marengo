@@ -27,9 +27,13 @@ Supporting crates: `armee-proto` (protobuf codegen), `armee-kinematics`, `robstr
 marengo/
 ├── Cargo.toml              # Armée workspace root
 ├── proto/                  # Protobuf wire types
-├── hardware/               # Physical robot design
-│   ├── cad/                # SolidWorks + vendor STEP (Git LFS)
-│   ├── electrical/         # PDB, harness, CAN docs
+├── cad/                  # SolidWorks + vendor STEP (Git LFS)
+│   ├── assemblies/       # marengo.SLDASM tree
+│   ├── parts/            # Authored .SLDPRT
+│   ├── vendor/           # Vendor imports
+│   └── manifests/        # MCP conventions + registry
+├── hardware/             # Electrical, prints, BOM, hardware docs
+│   ├── electrical/       # PDB, harness, CAN docs
 │   ├── prints/             # STLs + slicer notes
 │   ├── bom/                # Master BOM
 │   └── docs/               # Kinematics, assembly, hardware ADRs
@@ -78,12 +82,12 @@ CAD, STL, and ONNX files go through Git LFS. See [.gitattributes](.gitattributes
 
 ## Hardware workflow
 
-1. Design in `hardware/cad/` (assemblies: `marengo.SLDASM`, sub-assemblies per limb).
+1. Design in `cad/` (assemblies: `marengo.SLDASM`, sub-assemblies per limb).
 2. Document limits and frames in [hardware/docs/kinematics.md](hardware/docs/kinematics.md).
 3. Export URDF and meshes: `./scripts/export-urdf.sh` → `assets/`.
 4. Wire and CAN: [hardware/electrical/wiring/](hardware/electrical/wiring/).
 
-Vendor CAD (Robstride, Moteus, extrusions) lives under `hardware/cad/vendor/`.
+Vendor CAD (Robstride, Moteus, extrusions) lives under `cad/vendor/`.
 
 ## Build
 

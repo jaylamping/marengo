@@ -2,9 +2,9 @@
 ~$*
 
 # CAD scratch copies (keep history in git, not duplicate assemblies)
-hardware/cad/**/*-OLD.*
-hardware/cad/**/*-OLD
-hardware/cad/**/*-BROKEN*
+cad/**/*-OLD.*
+cad/**/*-OLD
+cad/**/*-BROKEN*
 
 /target/
 **/*.rs.bk
