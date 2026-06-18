@@ -1,6 +1,6 @@
 # Power Distribution Board
 
-KiCad project for the Marengo PDB. See `schematic/` and `pcb/` once the design is checked in.
+KiCad project for the Marengo PDB. Schematic and layout live in `schematic/` and `pcb/` once checked in.
 
 ## Component groups
 

@@ -4,6 +4,6 @@
 
 # fouche
 
-**Fouché** — Jetson-side LLM and vision.
+Fouché runs vision and LLM work on the Jetson.
 
-Runs on the Jetson: camera pipelines, ONNX policies in [`models/`](../../models/), and optional LLM tooling. Publishes perception and intent on [Chappe](../chappe/) for control and [Consul](../../consul/).
+Camera pipelines, ONNX policies in [`models/`](../../models/), optional LLM tooling. Publishes perception and intent on [Chappe](../chappe/) for control and [Consul](../../consul/).

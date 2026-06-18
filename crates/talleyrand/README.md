@@ -4,6 +4,6 @@
 
 # talleyrand
 
-**Talleyrand** — planner.
+Talleyrand is the motion planner.
 
-Turns high-level goals into feasible trajectories using [armee-kinematics](../armee-kinematics/) and collision meshes under `assets/meshes/collision/`. Publishes setpoints for [Berthier](../berthier/) over [Chappe](../chappe/).
+It turns high-level goals into feasible trajectories using [armee-kinematics](../armee-kinematics/) and collision meshes under `assets/meshes/collision/`. Publishes setpoints for [Berthier](../berthier/) over [Chappe](../chappe/).

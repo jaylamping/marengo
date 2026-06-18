@@ -1,8 +1,8 @@
 # Marengo roadmap
 
-**North star:** a **23-DOF biped humanoid** (~1524 mm, ~38–42 kg, no dexterous hands in v1). One repo holds mechanical truth, runtime, and operator tooling for the **whole machine**.
+Target: a 23-DOF biped humanoid (~1524 mm, ~38–42 kg, no dexterous hands in v1). One repo for CAD, runtime, and operator tooling on the full machine.
 
-**Current progress:** the **left/right arm chain (4-DOF bring-up slice)** and **upper torso 2020 frame** are furthest along in CAD and software. That slice is **not** a separate robot—it is the first subsystem we can bench, audit, and harden while the rest of the body is designed and commissioned.
+Furthest along today: the left/right arm chain (4-DOF bring-up slice) and the upper torso 2020 frame. That slice is not a separate robot. It is the first subsystem we can bench, audit, and harden while the rest of the body is designed and commissioned.
 
 | Doc | Role |
 |-----|------|
@@ -11,7 +11,7 @@
 | [docs/architecture.md](architecture.md) | Software crate boundaries |
 | [docs/safety.md](safety.md) | Bench and enable rules (read before motors) |
 | [config/robot_humanoid.yaml](../config/robot_humanoid.yaml) | Full-body config template (not active runtime yet) |
-| [config/robot.yaml](../config/robot.yaml) | **Active** bring-up config (4-DOF arm subset) |
+| [config/robot.yaml](../config/robot.yaml) | Active bring-up config (4-DOF arm subset) |
 
 ---
 

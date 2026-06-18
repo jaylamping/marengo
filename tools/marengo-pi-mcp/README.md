@@ -1,6 +1,6 @@
 # Marengo Pi MCP
 
-MCP server for Marengo bench control on a Raspberry Pi over SSH. Runs on your **dev Mac**; the Pi is only an SSH target.
+MCP server for Marengo bench control on a Raspberry Pi over SSH. Runs on your dev machine; the Pi is only an SSH target.
 
 ## Setup
 
@@ -20,7 +20,7 @@ If mDNS fails, set `MARENGO_PI_HOST` to the Pi IP in `mcp.json`.
 
 ### Passwordless sudo (Pi)
 
-`scripts/install-pi.sh` provisions these rules automatically when run as root. For manual repair:
+`scripts/install-pi.sh` provisions these rules when run as root. For manual repair:
 
 ```sudoers
 # Marengo MCP — passwordless sudo for bench scripts only (visudo -f /etc/sudoers.d/marengo-joey)
@@ -29,7 +29,7 @@ joey ALL=(root) NOPASSWD: /opt/marengo/scripts/install-pi.sh
 joey ALL=(root) NOPASSWD: /home/joey/marengo/scripts/install-pi.sh
 ```
 
-Installed automatically by `scripts/install-pi.sh`. **Not** full passwordless sudo — only these paths.
+Not full passwordless sudo. Only these paths.
 
 Verify:
 
@@ -38,7 +38,7 @@ sudo -n /opt/marengo/scripts/can-up.sh can0 can1
 sudo -n /home/joey/marengo/scripts/install-pi.sh   # staging → /opt (use this after deploy)
 ```
 
-`sudo -n true` will fail by design. After editing files under `~/marengo`, run **`pi_install_staging`** (MCP) or the staging install command above — **not** `/opt/marengo/scripts/install-pi.sh` alone (that re-copies stale `/opt` content).
+`sudo -n true` fails by design. After editing files under `~/marengo`, run `pi_install_staging` (MCP) or the staging install command above. Do not run `/opt/marengo/scripts/install-pi.sh` alone; it re-copies stale `/opt` content.
 
 ### Build MCP server
 
@@ -56,23 +56,23 @@ npm install
 npm run build
 ```
 
-Restart the **marengo-pi** MCP server in Cursor after rebuilding.
+Restart the marengo-pi MCP server in Cursor after rebuilding.
 
-If a tool still shows old behavior after `npm run build`, the Cursor MCP process is stale; restart the **marengo-pi** MCP server before retrying the tool.
+If a tool still shows old behavior after `npm run build`, the Cursor MCP process is stale. Restart marengo-pi before retrying.
 
 ### Cursor `mcp.json`
 
-Repo [`.cursor/mcp.json`](../../.cursor/mcp.json) uses `${workspaceFolder}` so the same file works on Windows and Mac. Open the **marengo repo root** as the Cursor workspace (or `marengo.code-workspace`).
+Repo [`.cursor/mcp.json`](../../.cursor/mcp.json) uses `${workspaceFolder}` so the same file works on Windows and Mac. Open the marengo repo root as the Cursor workspace (or `marengo.code-workspace`).
 
-`MARENGO_LOCAL_ROOT` is optional — the server derives the repo root from its own install path. Override only for unusual clone layouts.
+`MARENGO_LOCAL_ROOT` is optional. The server derives the repo root from its install path. Override only for unusual clone layouts.
 
-On each machine after clone or pull that touches MCP sources:
+After clone or pull that touches MCP sources:
 
 ```bash
 just mcp-build
 ```
 
-Then restart the **marengo-pi** MCP server in Cursor.
+Then restart the marengo-pi MCP server in Cursor.
 
 ## Tool summary
 
@@ -82,14 +82,14 @@ Then restart the **marengo-pi** MCP server in Cursor.
 | Admin | No | `pi_can_up`, `pi_sync_main`, `pi_sync_bench_config`, `pi_git_pull`, `pi_build` |
 | Motion | Yes | `pi_motor_recover`, `pi_motor_disable`, `pi_set_zero`, `pi_homing_status`, `pi_hold_on`, `pi_hold_off`, `pi_bench_harness`, `pi_marengo_pi_script`, `pi_jog` |
 
-Weighted profile (`weighted_single_arm`, `arm_attached`) requires **`confirm: true`** and **`confirm_weighted_motion: true`**.
+Weighted profile (`weighted_single_arm`, `arm_attached`) needs `confirm: true` and `confirm_weighted_motion: true`.
 
 ### Encoder zero (no Motor Studio)
 
 1. Position shaft at mechanical zero (arm down).
-2. **`pi_set_zero`** with `confirm: true` — verifies |pos| < 0.05 rad, writes calibration record.
-3. **`pi_homing_status`** — confirm all configured joints show `Verified` before enable/hold.
-4. **`motor-repl home`** / marengo-pi `home` — supervisor Ready when all joints verified.
+2. `pi_set_zero` with `confirm: true`. Verifies |pos| < 0.05 rad, writes calibration record.
+3. `pi_homing_status`. Confirm all configured joints show `Verified` before enable/hold.
+4. `motor-repl home` / marengo-pi `home`. Supervisor Ready when all joints verified.
 
 ```json
 {
@@ -98,6 +98,8 @@ Weighted profile (`weighted_single_arm`, `arm_attached`) requires **`confirm: tr
   "config_dir": "/opt/marengo/config/bringup/shoulder_pitch_right_only"
 }
 ```
+
+### `pi_sync_main`
 
 1. Local `git pull --ff-only` on `main` (fails if dirty)
 2. `./scripts/deploy-pi.sh joey@marengo.local`
@@ -114,11 +116,11 @@ Motion runs tee to `$MARENGO_ROOT/var/log/bench-latest.log`. Read with `pi_logs_
 { "confirm": true }
 ```
 
-Tool: **`pi_motor_recover`** — disable drives, brief `status` with `fault=0x…`, prints **`RECOVER_OK`** or **`RECOVER_FAIL`**. Optional: `"config_dir": "/opt/marengo/config/bringup/shoulder_pitch_right_only"`.
+Tool: `pi_motor_recover`. Disable drives, brief `status` with `fault=0x…`, prints `RECOVER_OK` or `RECOVER_FAIL`. Optional: `"config_dir": "/opt/marengo/config/bringup/shoulder_pitch_right_only"`.
 
 ## Skills
 
 - [`.cursor/skills/marengo-pi-mcp/SKILL.md`](../../.cursor/skills/marengo-pi-mcp/SKILL.md) — log-first bench workflow
 - [`.cursor/skills/marengo-pi-sync/SKILL.md`](../../.cursor/skills/marengo-pi-sync/SKILL.md) — sync-with-main deploy
 
-See also [docs/pi-commissioning.md](../../docs/pi-commissioning.md).
+Also [docs/pi-commissioning.md](../../docs/pi-commissioning.md).

@@ -4,6 +4,6 @@
 
 # berthier
 
-**Berthier** — control.
+Berthier runs the realtime control loop.
 
-Runs the realtime control loop: trajectory tracking, mode switching, and command output to motor drivers. Consumes planner setpoints from [Talleyrand](../talleyrand/) and respects limits enforced by [Davout](../davout/).
+Trajectory tracking, mode switching, command output to motor drivers. Consumes planner setpoints from [Talleyrand](../talleyrand/) and limits from [Davout](../davout/).

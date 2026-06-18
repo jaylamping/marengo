@@ -4,14 +4,12 @@
 
 # consul
 
-**Consul** — frontend.
+Consul is the operator frontend for Marengo (Vite + React + TypeScript): robot state, URDF visualization, tuning. Loads `assets/meshes/visual/` and talks to the runtime over Chappe (binary protobuf, same schemas as [`proto/`](../proto/)).
 
-Operator UI for Marengo (Vite + React + TypeScript): robot state, URDF visualization, and tuning. Consumes `assets/meshes/visual/` and talks to runtime over Chappe (binary protobuf, same schemas as [`proto/`](../proto/)).
+Vite + React 19 dashboard with optional live Chappe telemetry ([ADR 0008](../docs/decisions/0008-chappe-webtransport-transport.md)).
 
-**Status:** Vite + React 19 dashboard with optional live Chappe telemetry ([ADR 0008](../docs/decisions/0008-chappe-webtransport-transport.md)).
-
-- **Robot-hosted (default on Pi):** open `https://marengo.local:8444` after `install-pi.sh` / `deploy-pi.sh --install`. Endpoints are derived from the page origin; WebTransport uses `:8443/chappe`.
-- **Local dev:** copy `.env.example` → `.env.local` with `VITE_CHAPPE_*`, then `npm run dev` on `:5173`.
+- Robot-hosted (default on Pi): open `https://marengo.local:8444` after `install-pi.sh` / `deploy-pi.sh --install`. Endpoints come from the page origin; WebTransport uses `:8443/chappe`.
+- Local dev: copy `.env.example` → `.env.local` with `VITE_CHAPPE_*`, then `npm run dev` on `:5173`.
 
 URDF visualization is still upcoming.
 
@@ -27,6 +25,6 @@ npm run build       # tsc --noEmit (CI parity)
 
 `gen:proto` runs automatically before `dev` and `build`.
 
-Generated TypeScript uses `@bufbuild/protobuf` — never edit `src/gen/` by hand.
+Generated TypeScript uses `@bufbuild/protobuf`. Never edit `src/gen/` by hand.
 
-See `DESIGN.md` and `TECH.md` for the guiding principles and current tech choices.
+`DESIGN.md` and `TECH.md` cover principles and current tech choices.

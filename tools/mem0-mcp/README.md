@@ -1,6 +1,6 @@
 # mem0-mcp
 
-Engram-compatible MCP server for Marengo self-hosted mem0.
+MCP server for Marengo self-hosted mem0 (Engram-compatible).
 
 ## Tools
 
@@ -19,7 +19,7 @@ MEM0_API_KEY=m0sk_...
 MEM0_USER_ID=marengo-joey
 ```
 
-Set `MEM0_API_KEY` in user environment (not committed). Registered in `.cursor/mcp.json`.
+Set `MEM0_API_KEY` in your environment, not in git. Registered in `.cursor/mcp.json`.
 
 ## Build
 
@@ -39,4 +39,4 @@ MEM0_PRUNE_TARGET_MAX=400 node dist/prune.js
 
 ## topic_key validation
 
-Must match `^(sdd|feasibility|research|expert|maintenance)/…` — see `src/schema.ts`.
+Must match `^(sdd|feasibility|research|expert|maintenance)/…`. See `src/schema.ts`.

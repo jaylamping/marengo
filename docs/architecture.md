@@ -1,8 +1,8 @@
 # Architecture
 
-Marengo splits **hardware truth** (CAD, kinematics, wiring) from **software runtime** (Rust workspace **Armée**, message bus, control, safety, planning). Product scope and milestone order: [roadmap.md](roadmap.md).
+CAD, kinematics, and wiring describe the machine. The Rust workspace (Armée), message bus, control, safety, and planning consume that description. Scope and milestone order: [roadmap.md](roadmap.md).
 
-Wire types are defined once in [`proto/`](../proto/) as **Protocol Buffers** and generated into Rust ([`armee-proto`](../crates/armee-proto/)) and TypeScript ([`consul/src/gen/`](../consul/)). See [ADR 0001](decisions/0001-protobuf-wire-types.md).
+Wire types are defined once in [`proto/`](../proto/) as Protocol Buffers and generated into Rust ([`armee-proto`](../crates/armee-proto/)) and TypeScript ([`consul/src/gen/`](../consul/)). [ADR 0001](decisions/0001-protobuf-wire-types.md).
 
 ## Data flow (high level)
 
@@ -28,7 +28,7 @@ flowchart LR
 
 ## Control stack boundaries
 
-Motor path is fixed: **Berthier → Davout → robstride**. Each crate has a detailed module doc at the top of `src/lib.rs`.
+Motor path is fixed: Berthier → Davout → robstride. Each crate documents its boundary at the top of `src/lib.rs`.
 
 | Crate | Owns | Must not |
 |-------|------|----------|
@@ -46,4 +46,4 @@ See the root [README](../README.md#software) for the naming map (Napoleonic corp
 
 ## Dev tooling
 
-[`dev-setup.md`](dev-setup.md) — `protoc`, `buf`, and regeneration workflow.
+[`dev-setup.md`](dev-setup.md): `protoc`, `buf`, and regeneration workflow.

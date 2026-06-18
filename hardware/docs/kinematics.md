@@ -1,13 +1,13 @@
 # Kinematics
 
-Single source of truth for joint names, axes, limits, link dimensions, and actuator assignment.
+Single source of truth for joint names, axes, limits, link dimensions, and actuator assignment. Software, URDF, and bench config should match this doc.
 
 | Model | URDF | Status |
 |-------|------|--------|
-| **Humanoid (target)** | [`assets/urdf/marengo.urdf`](../../assets/urdf/marengo.urdf) | CAD in progress — URDF placeholder until Brawner export |
-| **Arm (4 DOF, bring-up)** | [`assets/urdf/arm_4dof.urdf`](../../assets/urdf/arm_4dof.urdf) | **Current bench slice** — same arm chain as humanoid; not a separate robot |
+| Humanoid (target) | [`assets/urdf/marengo.urdf`](../../assets/urdf/marengo.urdf) | CAD in progress; URDF placeholder until Brawner export |
+| Arm (4 DOF, bring-up) | [`assets/urdf/arm_4dof.urdf`](../../assets/urdf/arm_4dof.urdf) | Current bench slice; same arm chain as humanoid, not a separate robot |
 
-Runtime config: [`config/robot_humanoid.yaml`](../../config/robot_humanoid.yaml) + [`config/motors_humanoid.yaml`](../../config/motors_humanoid.yaml) for the full body; [`config/robot.yaml`](../../config/robot.yaml) is the active bring-up config for the wired 4-DOF arm until remaining joints are commissioned. Milestones: [`docs/roadmap.md`](../../docs/roadmap.md).
+Full body: [`config/robot_humanoid.yaml`](../../config/robot_humanoid.yaml) + [`config/motors_humanoid.yaml`](../../config/motors_humanoid.yaml). Active bring-up: [`config/robot.yaml`](../../config/robot.yaml) for the wired 4-DOF arm until remaining joints are commissioned. Milestones: [`docs/roadmap.md`](../../docs/roadmap.md).
 
 ---
 
@@ -15,7 +15,7 @@ Runtime config: [`config/robot_humanoid.yaml`](../../config/robot_humanoid.yaml)
 
 Design follows **Unitree G1** upper-body proportions and **Unitree R1** lower-body slimness, scaled to **1524 mm (5 ft)**. No wheels — biped only.
 
-**Design status:** only the [**upper torso 2020 frame**](#torso-frame-committed) is committed for rev-a CAD. Pelvis, shell, battery bays, shoulder poke, and leg lengths below are **draft** — may change during layout; joint names, axes, and actuator map stay authoritative.
+Design status: only the [upper torso 2020 frame](#torso-frame-committed) is committed for rev-a CAD. Pelvis, shell, battery bays, shoulder poke, and leg lengths below are draft and may change during layout. Joint names, axes, and actuator map stay authoritative.
 
 | Parameter | Unitree G1 | Marengo (draft unless noted) |
 |-----------|------------|------------------------------|

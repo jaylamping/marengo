@@ -1,6 +1,6 @@
 # Portraits
 
-Images at the top of subsystem READMEs (public domain or Wikimedia Commons). Sources:
+Header images for subsystem READMEs (public domain or Wikimedia Commons).
 
 | File | Subject | Source |
 |------|---------|--------|

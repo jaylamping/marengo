@@ -4,36 +4,36 @@
 
 # Marengo
 
-Personal humanoid robot: one repo for how it is built and how it runs. Mechanical and electrical design (CAD, kinematics, URDF, wiring) and the Rust runtime share the same model of the machine—hardware truth upstream, control, planning, safety, and operator tooling downstream.
+One repo for a personal humanoid: CAD, wiring, URDF, and the Rust runtime. SolidWorks and the harness docs define joints, frames, and limits. Control, safety, planning, and the operator UI read that same definition. When the robot changes in CAD, software should change with it.
 
 ## Naming
 
 | Name | Role |
 |------|------|
-| **Marengo** | The robot (mechanical + electrical design, URDF, runtime) |
-| **Armée** | Rust workspace — shared types, kinematics, crates |
-| **Chappe** | Message bus between processes |
-| **Berthier** | Realtime control |
-| **Davout** | Safety supervision |
-| **Talleyrand** | Motion planning |
-| **Consul** | Web frontend |
-| **Fouché** | Jetson-side vision and LLM |
+| Marengo | The robot (mechanical + electrical design, URDF, runtime) |
+| Armée | Rust workspace: shared types, kinematics, crates |
+| Chappe | Message bus between processes |
+| Berthier | Realtime control |
+| Davout | Safety supervision |
+| Talleyrand | Motion planning |
+| Consul | Web frontend |
+| Fouché | Jetson-side vision and LLM |
 
-Supporting crates: `armee-proto` (protobuf codegen), `armee-kinematics`, `robstride` (CAN driver). Wire schemas: [`proto/`](proto/). See [docs/architecture.md](docs/architecture.md), [docs/roadmap.md](docs/roadmap.md) (humanoid milestones; arm is current bench slice), and [ADR 0001](docs/decisions/0001-protobuf-wire-types.md).
+Supporting crates: `armee-proto` (protobuf codegen), `armee-kinematics`, `robstride` (CAN driver). Wire schemas live in [`proto/`](proto/). More context: [docs/architecture.md](docs/architecture.md), [docs/roadmap.md](docs/roadmap.md) (full humanoid milestones; the arm is the current bench slice), [ADR 0001](docs/decisions/0001-protobuf-wire-types.md).
 
 ## Repository layout
 
 ```
 marengo/
 ├── Cargo.toml              # Armée workspace root
-├── proto/                  # Wire-type source of truth (protobuf)
-├── hardware/               # Physical robot — source of truth
+├── proto/                  # Protobuf wire types
+├── hardware/               # Physical robot design
 │   ├── cad/                # SolidWorks + vendor STEP (Git LFS)
 │   ├── electrical/         # PDB, harness, CAN docs
 │   ├── prints/             # STLs + slicer notes
 │   ├── bom/                # Master BOM
 │   └── docs/               # Kinematics, assembly, hardware ADRs
-├── assets/                 # Derived from hardware → consumed by software
+├── assets/                 # Exported from hardware, used by software
 │   ├── urdf/marengo.urdf   # SW → URDF export
 │   └── meshes/             # visual/ + collision/
 ├── crates/                 # Armée libraries (each has a README)
@@ -45,7 +45,7 @@ marengo/
 └── scripts/                # URDF export, deploy helpers
 ```
 
-Large binaries (CAD, STL, ONNX) are tracked with **Git LFS** — see [.gitattributes](.gitattributes).
+CAD, STL, and ONNX files go through Git LFS. See [.gitattributes](.gitattributes).
 
 ## Software
 
@@ -74,7 +74,7 @@ Large binaries (CAD, STL, ONNX) are tracked with **Git LFS** — see [.gitattrib
 
 ### Frontend
 
-[consul/](consul/) — operator UI and URDF visualization.
+[consul/](consul/) is the operator UI and URDF viewer.
 
 ## Hardware workflow
 
@@ -87,14 +87,14 @@ Vendor CAD (Robstride, Moteus, extrusions) lives under `hardware/cad/vendor/`.
 
 ## Build
 
-**Recommended:** containerized workflow — [docs/onboarding.md](docs/onboarding.md).
+Use the container workflow unless you have a reason not to: [docs/onboarding.md](docs/onboarding.md).
 
 ```bash
 docker compose build dev
 just check
 ```
 
-Native host tooling is optional ([docs/dev-setup.md](docs/dev-setup.md)). Patterns for contributors and agents: [docs/rust-patterns.md](docs/rust-patterns.md), [AGENTS.md](AGENTS.md).
+Native host setup is optional ([docs/dev-setup.md](docs/dev-setup.md)). Rust conventions for contributors and agents: [docs/rust-patterns.md](docs/rust-patterns.md), [AGENTS.md](AGENTS.md).
 
 Deploy helpers (stubs): `scripts/deploy-pi.sh`, `scripts/deploy-jetson.sh`. systemd units: `scripts/systemd/`.
 
@@ -104,4 +104,4 @@ GitHub Actions runs `scripts/check.sh` in the dev image, plus optional `sim` and
 
 ## License
 
-MIT OR Apache-2.0 — see [LICENSE-MIT](LICENSE-MIT) and [LICENSE-APACHE](LICENSE-APACHE).
+MIT OR Apache-2.0. See [LICENSE-MIT](LICENSE-MIT) and [LICENSE-APACHE](LICENSE-APACHE).

@@ -1,8 +1,8 @@
 # Development setup
 
-## Recommended: Docker (source of truth)
+## Docker (recommended)
 
-See [onboarding.md](onboarding.md) for dev container setup. For **physical Pi bring-up**, see [pi-commissioning.md](pi-commissioning.md).
+Use the container workflow unless you have a reason not to. Dev container setup: [onboarding.md](onboarding.md). Pi bring-up: [pi-commissioning.md](pi-commissioning.md).
 
 ```bash
 docker compose build dev
@@ -11,9 +11,9 @@ just check          # or: docker compose run --rm check
 
 Optional:
 
-- **Dev Container:** Reopen in Container (Cursor / VS Code) — [`.devcontainer/`](../.devcontainer/)
-- **SocketCAN test harness:** `just vcan` (Linux, privileged; creates `vcan0`/`vcan1` as test stand-ins for production `can0`/`can1`)
-- **sim:** `just sim-check`
+- Dev Container: Reopen in Container (Cursor / VS Code), [`.devcontainer/`](../.devcontainer/)
+- SocketCAN test harness: `just vcan` (Linux, privileged; creates `vcan0`/`vcan1` as test stand-ins for production `can0`/`can1`)
+- sim: `just sim-check`
 
 Production runtime uses SocketCAN interfaces named `can0`, `can1`, `can2`, etc. Bring them up on the robot before starting `marengo-pi`, for example:
 
@@ -29,15 +29,15 @@ If you cannot use Docker, install tools matching [mise.toml](../mise.toml):
 | Tool | Version |
 |------|---------|
 | Rust | 1.88 (see [rust-toolchain.toml](../rust-toolchain.toml)) |
-| Node | **24.16.0** (see [.nvmrc](../.nvmrc), [mise.toml](../mise.toml)) — matches CI/dev container |
+| Node | 24.16.0 (see [.nvmrc](../.nvmrc), [mise.toml](../mise.toml); matches CI/dev container) |
 | protoc | 28.3 |
 | buf | 1.47.2 |
 
 ### Node on Mac / Windows (avoid lockfile drift)
 
-CI and the dev container use **Node 24** (currently 24.16.x). Use mise (or nvm/fnm) so Mac and Windows match CI — avoid an unpinned system Node.
+CI and the dev container use Node 24 (currently 24.16.x). Use mise (or nvm/fnm) so Mac and Windows match CI. Do not rely on an unpinned system Node.
 
-**Recommended:** [mise](https://mise.jdx.dev/) (Mac + Windows + Linux):
+[mise](https://mise.jdx.dev/) (Mac + Windows + Linux):
 
 ```bash
 # once per machine
@@ -49,9 +49,9 @@ mise exec -- node -v    # v24.16.0
 cd consul && mise exec -- npm ci
 ```
 
-Alternatives: **nvm** / **fnm** read [.nvmrc](../.nvmrc) or [.node-version](../.node-version).
+Alternatives: nvm / fnm read [.nvmrc](../.nvmrc) or [.node-version](../.node-version).
 
-**Consul `package-lock.json` rules:**
+Consul `package-lock.json` rules:
 
 | Task | Command |
 |------|---------|
@@ -88,7 +88,7 @@ cd consul && mise exec -- npm ci && npm run gen:proto
 ./scripts/check.sh
 ```
 
-**WSL2:** clone inside the Linux filesystem (`~/code`), not `/mnt/c/`.
+WSL2: clone inside the Linux filesystem (`~/code`), not `/mnt/c/`.
 
 ## Regenerating wire types
 

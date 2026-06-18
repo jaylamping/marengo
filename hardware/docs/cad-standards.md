@@ -1,6 +1,6 @@
 # Marengo CAD standards
 
-SolidWorks source of truth lives under [`hardware/cad/`](../cad/). Manifests in [`hardware/manifests/`](../manifests/) drive MCP audits. Runtime consumes [`assets/urdf/marengo.urdf`](../../assets/urdf/marengo.urdf) after manual export.
+SolidWorks models live under [`hardware/cad/`](../cad/). Manifests in [`hardware/manifests/`](../manifests/) drive MCP audits. After manual export, runtime reads [`assets/urdf/marengo.urdf`](../../assets/urdf/marengo.urdf).
 
 ## Folder layout
 

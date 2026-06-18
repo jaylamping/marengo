@@ -4,6 +4,6 @@
 
 # davout
 
-**Davout** — safety.
+Davout is the safety layer.
 
-Sits between [Berthier](../berthier/) and hardware: enforces joint limits (see URDF + kinematics docs), rate limits, and fault reactions. Nothing reaches the motors without passing Davout checks.
+It sits between [Berthier](../berthier/) and hardware: joint limits (URDF + kinematics docs), rate limits, fault reactions. Nothing reaches the motors without passing Davout.

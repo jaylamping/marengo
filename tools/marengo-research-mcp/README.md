@@ -1,8 +1,8 @@
 # Marengo Research MCP
 
-Python MCP server for **humanoid robotics research** (papers, code, forums, vendor docs, HF, standards, web) and headless support for the **daily audit**.
+Python MCP server for humanoid robotics research: papers, code, forums, vendor docs, Hugging Face, standards, and general web. Also runs headless for the daily audit.
 
-Optional: `GITHUB_TOKEN` for higher GitHub rate limits — the MCP launcher (`run-mcp.ps1` / `run-mcp.sh`) auto-injects it from `gh auth token` when you are logged in via GitHub CLI.
+`GITHUB_TOKEN` is optional but helps with rate limits. The launcher (`run-mcp.ps1` / `run-mcp.sh`) pulls it from `gh auth token` when you are logged in via GitHub CLI.
 
 ## Setup
 
@@ -13,15 +13,13 @@ Optional: `GITHUB_TOKEN` for higher GitHub rate limits — the MCP launcher (`ru
 just research-mcp-setup
 ```
 
-3. Restart the **marengo-research** MCP server in Cursor.
-
-Optional: set `GITHUB_TOKEN` for higher GitHub API rate limits.
+3. Restart the marengo-research MCP server in Cursor.
 
 ## Tools
 
 | Tool | Description |
 |------|-------------|
-| `research_humanoid` | Orchestrator — fan-out all sources, rank, optional scrape |
+| `research_humanoid` | Orchestrator: queries all sources, ranks, optional scrape |
 | `search_papers` | arXiv, Semantic Scholar, OpenReview, Papers With Code |
 | `search_github` | GitHub repos |
 | `search_reddit` | Reddit + DDG fallback |
@@ -35,7 +33,7 @@ Optional: set `GITHUB_TOKEN` for higher GitHub API rate limits.
 
 ## Cache
 
-Results stored under `.marengo-research/` (gitignored).
+Results land in `.marengo-research/` (gitignored).
 
 ## Headless CLI (daily audit)
 
@@ -56,4 +54,4 @@ uv run pytest tests/ -q
 
 ## Daily audit
 
-See [docs/daily-audit.md](../../docs/daily-audit.md) and [docs/daily-audit-rubric.md](../../docs/daily-audit-rubric.md).
+[docs/daily-audit.md](../../docs/daily-audit.md), [docs/daily-audit-rubric.md](../../docs/daily-audit-rubric.md).

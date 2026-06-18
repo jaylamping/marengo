@@ -1,6 +1,6 @@
 # Simulation fixtures and tests
 
-CI uses **minimal** models here until [`assets/urdf/marengo.urdf`](../assets/urdf/marengo.urdf) is exported from CAD.
+CI uses minimal models here until [`assets/urdf/marengo.urdf`](../assets/urdf/marengo.urdf) is exported from CAD.
 
 | File | Purpose |
 |------|---------|
@@ -19,4 +19,4 @@ Requires `docker/Dockerfile.sim` (MuJoCo Python).
 
 - `MARENGO_SIM_MODEL` — path to MJCF (default: `sim/fixtures/minimal.xml`)
 
-See [ADR 0003](../docs/decisions/0003-simulation-testing.md).
+[ADR 0003](../docs/decisions/0003-simulation-testing.md).
