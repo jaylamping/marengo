@@ -9,28 +9,58 @@ ALL persisted artifacts MUST use:
 ```
 topic_key: {namespace}/{...}
 metadata.topic_key: same as topic_key
+metadata.project: marengo
 user_id: marengo-joey (via MCP env)
 ```
 
-### Namespaces
+## Namespaces
 
 | Prefix | Purpose |
 |--------|---------|
 | `sdd/init/{project}` | SDD project context (from sdd-init) |
 | `sdd/{change}/{phase}` | SDD phase artifacts |
-| `maintenance/skill-registry` | Skill registry index |
-| `maintenance/session-handoff/{project}` | Context saturation handoff (upsert). Active: `resume_pending: true` + `created_at` (ISO UTC). Cleared: `resume_pending: false` + `cleared_reason`. Bootstrap resumes only when pending, ≤72h, and user intent allows. |
 | `feasibility/{change}/brief` | Feasibility gate output |
-| `feasibility/{change}/expert/{domain}` | Expert review |
-| `research/{domain}/…` | Scheduled research ingest |
-| `expert/{domain}/…` | Curated heuristics |
+| `feasibility/{change}/expert/{domain}` | Expert review for a change |
+| `decision/{area}/{slug}` | Durable cross-cutting decisions (not full ADRs) |
+| `hardware/{subsystem}/{slug}` | Mechanical/electrical build facts and constraints |
+| `cad/{assembly}/{slug}` | SolidWorks assembly, mate, and frame knowledge |
+| `pi/{subsystem}/{slug}` | Pi deployment, systemd, CAN, and bench operations |
+| `control/{subsystem}/{slug}` | Motor path, safety, gravity, kinematics |
+| `software/{crate}/{slug}` | Rust, Consul, proto, CI patterns |
+| `research/{domain}/{slug}` | Cited research distillations |
+| `expert/{domain}/{slug}` | Stable curated heuristics |
+| `maintenance/skill-registry` | Skill registry index |
+| `maintenance/session-handoff/{project}` | Context saturation handoff |
 | `maintenance/prune/{date}` | Prune audit summaries |
 
 ### SDD artifact types
 
 `explore`, `proposal`, `spec`, `design`, `tasks`, `apply-progress`, `verify-report`, `archive-report`, `state`
 
-## Recovery (2 steps)
+## Classification (conflict rules)
+
+| If the fact is about… | Use | Not |
+|----------------------|-----|-----|
+| SDD phase deliverable | `sdd/{change}/{phase}` | `decision/` |
+| Go/no-go for hardware change | `feasibility/{change}/brief` | `expert/` |
+| Stable rule reused across tasks | `expert/{domain}/{slug}` | `pi/` or `control/` |
+| Pi systemd, deploy, CAN iface | `pi/{subsystem}/{slug}` | `control/` |
+| Motor limits, Davout, gravity | `control/{subsystem}/{slug}` | `pi/` |
+| Part loads, wiring, E-stop | `hardware/{subsystem}/{slug}` | `cad/` |
+| SolidWorks mates, frames | `cad/{assembly}/{slug}` | `hardware/` |
+| Rust crate or Consul pattern | `software/{crate}/{slug}` | `decision/` |
+
+Promote to `expert/` only after a lesson survives two+ sessions and is not tied to one commit/deploy.
+
+## Recovery
+
+**Preferred (exact):**
+
+```
+mem_get_by_topic_key(topic_key: "sdd/{change}/{artifact}", project: "marengo")
+```
+
+**Exploratory (semantic):**
 
 ```
 mem_search(query: "sdd/{change}/{artifact}", project: "marengo") → id
@@ -45,11 +75,23 @@ mem_save(
   topic_key: "sdd/{change}/{artifact}",
   type: "architecture",
   project: "marengo",
+  capture_prompt: false,
   content: "{full markdown}"
 )
 ```
 
-`mem_save` rejects invalid `topic_key` patterns and content containing secrets.
+Same `topic_key` **upserts** (updates existing observation). Use `mem_update(id, content)` only when you already have the observation ID.
+
+Operational memories (`pi/`, `cad/`, live bench) should include in content:
+
+```
+- observed_at: {ISO-8601 UTC}
+- source_ref: {tool, file, or command}
+- git_sha: {when applicable}
+- valid_until: {optional}
+```
+
+`mem_save` rejects invalid `topic_key` patterns, secrets, oversized content, and raw log dumps.
 
 ## History
 

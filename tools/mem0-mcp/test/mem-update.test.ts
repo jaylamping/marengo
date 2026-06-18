@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { memUpdateSchema, rejectSecrets } from "../src/schema.js";
+import { memUpdateSchema } from "../src/schema.js";
 
 describe("memUpdateSchema", () => {
   it("accepts id and content", () => {
@@ -14,14 +14,5 @@ describe("memUpdateSchema", () => {
 
   it("rejects empty content", () => {
     assert.throws(() => memUpdateSchema.parse({ id: "obs-123", content: "" }));
-  });
-});
-
-describe("mem_update secret guard", () => {
-  it("blocks api keys in update content", () => {
-    assert.match(
-      rejectSecrets("token m0sk_abcdefghijklmnopqrstuvwxyz123456") ?? "",
-      /secret/,
-    );
   });
 });

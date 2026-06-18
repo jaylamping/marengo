@@ -18,21 +18,22 @@ NOTE: the preferred path is (1) — exact skill paths selected by the orchestrat
 
 ## B. Artifact Retrieval (Engram Mode)
 
-**CRITICAL**: `mem_search` returns 300-char PREVIEWS, not full content. You MUST call `mem_get_observation(id)` for EVERY artifact. **Skipping this produces wrong output.**
+**CRITICAL**: `mem_search` returns truncated PREVIEWS, not full content. You MUST retrieve full content before using an artifact. **Skipping this produces wrong output.**
 
-**Run all searches in parallel** — do NOT search sequentially.
+**Preferred (exact topic key):**
+
+```
+mem_get_by_topic_key(topic_key: "sdd/{change-name}/{artifact-type}", project: "{project}")
+```
+
+**Fallback (semantic search):**
 
 ```
 mem_search(query: "sdd/{change-name}/{artifact-type}", project: "{project}") → save ID
-```
-
-Then **run all retrievals in parallel**:
-
-```
 mem_get_observation(id: {saved_id}) → full content (REQUIRED)
 ```
 
-Do NOT use search previews as source material.
+Run independent lookups in parallel. Do NOT use search previews as source material.
 
 ## C. Artifact Persistence
 

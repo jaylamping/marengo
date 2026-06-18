@@ -6,8 +6,9 @@ MCP server for Marengo self-hosted mem0 (Engram-compatible).
 
 | Tool | mem0 API |
 |------|----------|
-| `mem_search` | `POST /search` |
-| `mem_save` | `POST /memories` (`infer: false`) |
+| `mem_search` | `POST /search` (+ client-side `project` filter) |
+| `mem_get_by_topic_key` | `GET /memories` + exact metadata match |
+| `mem_save` | `POST /memories` or `PUT /memories/{id}` (upsert by `topic_key`) |
 | `mem_get_observation` | `GET /memories/{id}` + `/history` |
 | `mem_update` | `PUT /memories/{id}` |
 
@@ -30,6 +31,8 @@ npm run build
 npm test
 ```
 
+After build, reconnect the mem0 MCP server in Cursor so tool descriptors refresh.
+
 ## Prune CLI
 
 ```bash
@@ -37,6 +40,8 @@ node dist/prune.js --dry-run
 MEM0_PRUNE_TARGET_MAX=400 node dist/prune.js
 ```
 
+Protection rules: `src/prune-policy.ts`.
+
 ## topic_key validation
 
-Must match `^(sdd|feasibility|research|expert|maintenance)/…`. See `src/schema.ts`.
+Must match allowed namespaces in `src/schema.ts` (`sdd`, `feasibility`, `research`, `expert`, `maintenance`, `decision`, `hardware`, `cad`, `pi`, `control`, `software`).

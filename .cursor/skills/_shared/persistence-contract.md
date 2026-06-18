@@ -93,8 +93,15 @@ Non-SDD:
 ```
 PERSISTENCE (MANDATORY):
 If you make important discoveries, decisions, or fix bugs, you MUST save them to engram before returning:
-  mem_save(title: "{short description}", type: "{decision|bugfix|discovery|pattern}",
-           project: "{project}", content: "{What, Why, Where, Learned}")
+  mem_save(
+    title: "{namespace}/{slug}",
+    topic_key: "{namespace}/{area}/{slug}",
+    type: "{decision|bugfix|discovery|pattern}",
+    project: "marengo",
+    capture_prompt: false,
+    content: "{What, Why, Where, Learned, observed_at, source_ref}"
+  )
+Use namespaces from mem0-convention.md (decision/, hardware/, cad/, pi/, control/, software/, expert/).
 Do NOT return without saving what you learned. This is how the team builds persistent knowledge across sessions.
 ```
 

@@ -7,6 +7,12 @@ export type Mem0Namespace =
   | 'research'
   | 'expert'
   | 'maintenance'
+  | 'decision'
+  | 'hardware'
+  | 'cad'
+  | 'pi'
+  | 'control'
+  | 'software'
   | 'other';
 
 export type Mem0Memory = {
@@ -29,12 +35,18 @@ export type Mem0HistoryEvent = {
   updated_at?: string;
 };
 
-const TOPIC_PREFIXES = [
+export const TOPIC_PREFIXES = [
   'sdd',
   'feasibility',
   'research',
   'expert',
   'maintenance',
+  'decision',
+  'hardware',
+  'cad',
+  'pi',
+  'control',
+  'software',
 ] as const;
 
 export function parseNamespace(topicKey: string | undefined): Mem0Namespace {

@@ -314,7 +314,10 @@ When launching `sdd-apply` for a continuation batch:
 | DAG state | `sdd/{change-name}/state` |
 | Session handoff | `maintenance/session-handoff/{project}` (active: `resume_pending: true`; cleared after archive/resume/supersession) |
 
-Retrieval requires two steps:
+Retrieval (preferred exact lookup):
+1. `mem_get_by_topic_key(topic_key: "{topic_key}", project: "{project}")` → full content
+
+Fallback (semantic):
 1. `mem_search(query: "{topic_key}", project: "{project}")` → get observation ID
 2. `mem_get_observation(id: {id})` → full content (REQUIRED — search previews are truncated)
 

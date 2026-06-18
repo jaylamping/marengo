@@ -25,7 +25,7 @@ Branch naming: `sdd/{slug}` or `feat/{slug}`.
 | API | `https://joey-pc.tail0b414.ts.net:8888` |
 | Dashboard | `https://joey-pc.tail0b414.ts.net` |
 | User ID | `marengo-joey` |
-| MCP | `mem0-mcp` → `mem_search`, `mem_save`, `mem_get_observation`, `mem_update` |
+| MCP | `mem0-mcp` → `mem_get_by_topic_key`, `mem_search`, `mem_save`, `mem_get_observation`, `mem_update` |
 
 ### topic_key schema
 
@@ -34,11 +34,20 @@ sdd/init/{project}
 sdd/{change}/{phase}
 feasibility/{change}/brief
 feasibility/{change}/expert/{domain}
+decision/{area}/{slug}
+hardware/{subsystem}/{slug}
+cad/{assembly}/{slug}
+pi/{subsystem}/{slug}
+control/{subsystem}/{slug}
+software/{crate}/{slug}
 research/{domain}/{slug}
 expert/{domain}/{slug}
 maintenance/skill-registry
+maintenance/session-handoff/{project}
 maintenance/prune/{date}
 ```
+
+Repo-wide memory rules: [`.cursor/rules/marengo-memory.mdc`](../.cursor/rules/marengo-memory.mdc). Full convention: [`.cursor/skills/_shared/mem0-convention.md`](../.cursor/skills/_shared/mem0-convention.md).
 
 Enforced in `tools/mem0-mcp` on `mem_save`. See `.cursor/skills/_shared/mem0-convention.md`.
 

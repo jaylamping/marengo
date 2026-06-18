@@ -44,10 +44,32 @@ async function mem0Fetch<T>(
   return (await response.json()) as T;
 }
 
+function matchesProject(row: Mem0MemoryRow, project?: string): boolean {
+  if (!project) {
+    return true;
+  }
+  const meta = row.metadata ?? {};
+  return meta.project === project;
+}
+
+function topicKeyFromRow(row: Mem0MemoryRow): string {
+  const meta = row.metadata ?? {};
+  return String(meta.topic_key ?? "");
+}
+
+function sortByRecency(rows: Mem0MemoryRow[]): Mem0MemoryRow[] {
+  return [...rows].sort((a, b) => {
+    const aTime = Date.parse(a.updated_at ?? a.created_at ?? "0");
+    const bTime = Date.parse(b.updated_at ?? b.created_at ?? "0");
+    return bTime - aTime;
+  });
+}
+
 export async function searchMemories(
   cfg: Mem0Config,
   query: string,
   topK = 10,
+  project?: string,
 ): Promise<Mem0MemoryRow[]> {
   const payload = await mem0Fetch<{ results?: Mem0MemoryRow[] }>(cfg, "/search", {
     method: "POST",
@@ -57,7 +79,11 @@ export async function searchMemories(
       top_k: topK,
     }),
   });
-  return payload.results ?? [];
+  let rows = payload.results ?? [];
+  if (project) {
+    rows = rows.filter((row) => matchesProject(row, project));
+  }
+  return rows;
 }
 
 export async function listMemories(cfg: Mem0Config): Promise<Mem0MemoryRow[]> {
@@ -66,6 +92,21 @@ export async function listMemories(cfg: Mem0Config): Promise<Mem0MemoryRow[]> {
     `/memories?user_id=${encodeURIComponent(cfg.userId)}`,
   );
   return payload.results ?? [];
+}
+
+export async function findMemoriesByTopicKey(
+  cfg: Mem0Config,
+  topicKey: string,
+  project?: string,
+): Promise<Mem0MemoryRow[]> {
+  const rows = await listMemories(cfg);
+  const matches = rows.filter((row) => {
+    if (topicKeyFromRow(row) !== topicKey) {
+      return false;
+    }
+    return matchesProject(row, project);
+  });
+  return sortByRecency(matches);
 }
 
 export async function getMemory(
@@ -97,6 +138,7 @@ export async function saveMemory(
     type?: string;
     project?: string;
     content: string;
+    capturePrompt?: boolean;
   },
 ): Promise<{ id?: string; message?: string; results?: unknown[] }> {
   const metadata: Record<string, unknown> = {
@@ -109,6 +151,9 @@ export async function saveMemory(
   if (args.project) {
     metadata.project = args.project;
   }
+  if (args.capturePrompt !== undefined) {
+    metadata.capture_prompt = args.capturePrompt;
+  }
 
   return mem0Fetch(cfg, "/memories", {
     method: "POST",
@@ -119,6 +164,37 @@ export async function saveMemory(
       infer: false,
     }),
   });
+}
+
+export async function upsertMemoryByTopicKey(
+  cfg: Mem0Config,
+  args: {
+    title: string;
+    topicKey: string;
+    type?: string;
+    project?: string;
+    content: string;
+    capturePrompt?: boolean;
+  },
+): Promise<{ id?: string; action: "created" | "updated" }> {
+  const existing = await findMemoriesByTopicKey(cfg, args.topicKey, args.project);
+  if (existing.length > 0 && existing[0].id) {
+    const primaryId = existing[0].id;
+    await updateMemory(cfg, primaryId, args.content);
+    for (let i = 1; i < existing.length; i++) {
+      const duplicateId = existing[i].id;
+      if (duplicateId) {
+        await deleteMemory(cfg, duplicateId);
+      }
+    }
+    return { id: primaryId, action: "updated" };
+  }
+
+  const result = await saveMemory(cfg, args);
+  const id =
+    (result.results as { id?: string }[] | undefined)?.[0]?.id ??
+    (result as { id?: string }).id;
+  return { id, action: "created" };
 }
 
 export async function deleteMemory(cfg: Mem0Config, id: string): Promise<void> {
@@ -142,6 +218,7 @@ export function formatObservation(row: Mem0MemoryRow, history?: Mem0HistoryEvent
   const lines = [
     `# Observation ${row.id ?? "?"}`,
     `topic_key: ${String(topicKey)}`,
+    `project: ${String(meta.project ?? "?")}`,
     `created_at: ${row.created_at ?? "?"}`,
     `updated_at: ${row.updated_at ?? "?"}`,
     "",
