@@ -580,6 +580,9 @@ pub struct DangerZoneRule {
     pub velocity_below_rad_s: f64,
     pub action: String,
     pub max_velocity_rad_s: f64,
+    /// Optional torque cap (Nm) when `action` is `clamp_torque`.
+    #[serde(default)]
+    pub max_torque_nm: Option<f64>,
 }
 
 /// Load `config/homing.yaml` relative to `repo_root` (honours `MARENGO_CONFIG_DIR`).

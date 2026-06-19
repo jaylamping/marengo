@@ -37,6 +37,9 @@
 
 mod friction;
 mod r#loop;
+mod position_feedforward;
+mod position_profile;
+mod position_setpoint;
 mod position_trace;
 mod position_trajectory;
 

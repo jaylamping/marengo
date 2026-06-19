@@ -273,6 +273,45 @@ impl<B: MotorBus> Supervisor<B> {
             .map(|s| f64::from(s.position_rad))
     }
 
+    /// Joint-space feedback velocity (rad/s) if available.
+    pub fn joint_velocity_rad(&self, joint: &str) -> Option<f64> {
+        let motor = motor_for_joint(&self.motors, joint)?;
+        let address = MotorAddress::from(motor);
+        let raw = self.motor_states.get(&address)?;
+        motor_to_joint_state(motor, *raw)
+            .ok()
+            .map(|s| f64::from(s.velocity_rad_s))
+    }
+
+    /// Override synthetic feedback for one joint (unit tests / replay without CAN RX).
+    pub fn set_synthetic_joint_feedback(
+        &mut self,
+        joint: &str,
+        position_rad: f32,
+        velocity_rad_s: f32,
+    ) -> Result<(), DavoutError> {
+        let motor = motor_for_joint(&self.motors, joint)
+            .ok_or_else(|| DavoutError::UnknownJoint {
+                joint: joint.to_string(),
+            })?
+            .clone();
+        let address = MotorAddress::from(&motor);
+        let now = Instant::now();
+        self.motor_states.insert(
+            address,
+            MotorState {
+                position_rad,
+                velocity_rad_s,
+                torque_nm: 0.0,
+                temperature_c: 0.0,
+                fault: 0,
+                updated: Some(now),
+            },
+        );
+        self.last_recv = Some(now);
+        Ok(())
+    }
+
     /// Mark supervisor Ready when every configured joint is Verified.
     pub fn set_homing_complete(&mut self) -> Result<(), DavoutError> {
         if self.hardware_estop {
@@ -387,6 +426,8 @@ impl<B: MotorBus> Supervisor<B> {
     }
 
     pub fn set_hardware_estop(&mut self, asserted: bool) {
+        // Runtime GPIO/input wiring is not yet integrated on the Pi bench — see
+        // docs/position-hold-control-review.md (hardware E-stop gap).
         self.hardware_estop = asserted;
         if asserted {
             self.mode = OperationalMode::Disabled;
@@ -935,10 +976,17 @@ impl<B: MotorBus> Supervisor<B> {
         let q_meas = self
             .joint_position_rad(&out.joint)
             .unwrap_or(out.position_rad);
+        let dq_meas = self.joint_velocity_rad(&out.joint).unwrap_or(0.0);
+        let dq_envelope = if out.velocity_rad_s.abs() >= dq_meas.abs() {
+            out.velocity_rad_s
+        } else if dq_meas.abs() > 1e-9 {
+            dq_meas
+        } else {
+            out.velocity_rad_s
+        };
         let keepalive = out.kp == 0.0 && out.kd == 0.0 && out.torque_ff_nm == 0.0;
         if !keepalive {
-            let clamped =
-                clamp_position_in_envelope(lim, q_meas, out.velocity_rad_s, out.position_rad);
+            let clamped = clamp_position_in_envelope(lim, q_meas, dq_envelope, out.position_rad);
             if (clamped - out.position_rad).abs() > 1e-9 {
                 trace!(
                     joint = %out.joint,
@@ -973,7 +1021,7 @@ impl<B: MotorBus> Supervisor<B> {
             });
         }
         let vel_cap = lim.velocity;
-        self.apply_danger_zone_clamps(&mut out);
+        self.apply_danger_zone_clamps(&mut out, q_meas, dq_meas);
         if out.velocity_rad_s.abs() > vel_cap {
             return Err(DavoutError::Limit {
                 joint: out.joint.clone(),
@@ -1017,22 +1065,30 @@ impl<B: MotorBus> Supervisor<B> {
         Ok(out)
     }
 
-    fn apply_danger_zone_clamps(&self, cmd: &mut MitJointCommand) {
+    fn apply_danger_zone_clamps(&self, cmd: &mut MitJointCommand, q_meas: f64, dq_meas: f64) {
         for rule in &self.control.control.danger_zones {
             if rule.joint != cmd.joint {
                 continue;
             }
-            if cmd.position_rad <= rule.position_above_rad
-                || cmd.velocity_rad_s >= rule.velocity_below_rad_s
-            {
+            if q_meas <= rule.position_above_rad || dq_meas >= rule.velocity_below_rad_s {
                 continue;
             }
-            if rule.action == "clamp_velocity" {
-                if cmd.velocity_rad_s < 0.0 {
-                    cmd.velocity_rad_s = cmd.velocity_rad_s.max(-rule.max_velocity_rad_s);
-                } else {
-                    cmd.velocity_rad_s = cmd.velocity_rad_s.min(rule.max_velocity_rad_s);
+            match rule.action.as_str() {
+                "clamp_velocity" => {
+                    if cmd.velocity_rad_s < 0.0 {
+                        cmd.velocity_rad_s = cmd.velocity_rad_s.max(-rule.max_velocity_rad_s);
+                    } else {
+                        cmd.velocity_rad_s = cmd.velocity_rad_s.min(rule.max_velocity_rad_s);
+                    }
                 }
+                "clamp_torque" => {
+                    let cap = rule
+                        .max_torque_nm
+                        .unwrap_or(rule.max_velocity_rad_s)
+                        .max(0.0);
+                    cmd.torque_ff_nm = cmd.torque_ff_nm.clamp(-cap, cap);
+                }
+                _ => {}
             }
         }
     }
@@ -1302,6 +1358,9 @@ mod tests {
     fn clamp_velocity_danger_zone_limits_downward_speed() {
         let bus = MemoryBus::default();
         let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        sup.seed_synthetic_feedback();
+        sup.set_synthetic_joint_feedback("shoulder_pitch", 1.0, -0.5)
+            .expect("feedback");
         let motor = motor_for_joint(&sup.motors, "shoulder_pitch")
             .expect("motor")
             .clone();
@@ -1310,10 +1369,10 @@ mod tests {
                 MitJointCommand {
                     joint: "shoulder_pitch".to_string(),
                     kp: 10.0,
-                    kd: 1.0,
+                    kd: 0.0,
                     position_rad: 1.0,
                     velocity_rad_s: -0.5,
-                    torque_ff_nm: 0.0,
+                    torque_ff_nm: 2.0,
                 },
                 &motor,
             )
@@ -1321,6 +1380,36 @@ mod tests {
         assert!(
             filtered.velocity_rad_s >= -0.05 - 1e-9,
             "expected clamp to max_velocity_rad_s 0.05, got {}",
+            filtered.velocity_rad_s
+        );
+    }
+
+    #[test]
+    fn danger_zone_skips_when_measured_q_below_threshold() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        sup.seed_synthetic_feedback();
+        sup.set_synthetic_joint_feedback("shoulder_pitch", 0.2, -0.5)
+            .expect("feedback");
+        let motor = motor_for_joint(&sup.motors, "shoulder_pitch")
+            .expect("motor")
+            .clone();
+        let filtered = sup
+            .filter_mit_command(
+                MitJointCommand {
+                    joint: "shoulder_pitch".to_string(),
+                    kp: 10.0,
+                    kd: 0.0,
+                    position_rad: 0.2,
+                    velocity_rad_s: -0.5,
+                    torque_ff_nm: 0.0,
+                },
+                &motor,
+            )
+            .expect("filter");
+        assert!(
+            (filtered.velocity_rad_s + 0.5).abs() < 1e-9,
+            "rule requires measured q > 0.5, got velocity {}",
             filtered.velocity_rad_s
         );
     }

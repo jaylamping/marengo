@@ -7,7 +7,6 @@ use std::time::{Duration, Instant};
 use armee_dynamics::{DynamicsModel, UrdfGravityModel};
 use armee_kinematics::{
     approach_velocity_cap, clamp_hold_target, clamp_position_in_envelope, effective_command_bounds,
-    JointLimitPolicy,
 };
 use armee_proto::{ControlMode as ProtoControlMode, JointState, RobotState};
 use chappe::Bus;
@@ -17,30 +16,24 @@ use davout::{
 };
 use marengo_config::{load_robot_config, resolve_urdf_path};
 use thiserror::Error;
-use tracing::{debug, info};
+use tracing::{debug, info, trace};
 
-use crate::friction::{
-    friction_torque, position_hold_friction, PositionFrictionMode,
-    POSITION_HOLD_ERROR_DEADBAND_RAD, POSITION_HOLD_ONSET_MS, POSITION_STUCK_EXIT_VELOCITY_RATIO,
+use crate::friction::{friction_torque, POSITION_HOLD_ERROR_DEADBAND_RAD};
+use crate::position_feedforward::compose_position_hold_feedforward;
+use crate::position_profile::{
+    classify_position_profile, position_hold_v_max, position_profile_v_max, PlannerEvent,
+};
+use crate::position_setpoint::{
+    clamp_trajectory_setpoint, descent_breakaway_confirmed, descent_stuck_mit_pull,
+    planner_drifted_from_measurement, planner_should_freeze_on_descent,
+    planner_should_latch_on_overshoot_hold, planner_should_resync_stuck_lead,
+    position_hold_effective_max_lead, position_hold_mit_velocity, POSITION_DESCENT_STUCK_LEAD_RAD,
+    POSITION_RETURN_DESCENT_SEED_RAD, POSITION_SETTLE_TOLERANCE_RAD,
 };
 use crate::position_trace::{PositionTrace, PositionTraceRow};
 use crate::position_trajectory::{
-    filter_dq_ema, is_gravity_assisted_return, position_hold_damping_torque, JointPositionPlanner,
-    TrapezoidPhase, POSITION_DAMPING_DQ_FILTER_ALPHA,
+    filter_dq_ema, JointPositionPlanner, TrapezoidPhase, POSITION_DAMPING_DQ_FILTER_ALPHA,
 };
-
-const POSITION_SETTLE_TOLERANCE_RAD: f64 = 1e-4;
-const POSITION_SMALL_MOVE_VMAX_RAD: f64 = 0.06;
-/// Descent retarget from above this delta seeds planner speed so FF beats gravity at high q.
-const POSITION_RETURN_DESCENT_SEED_RAD: f64 = 0.05;
-/// Resync planner only when arm is far from latched target (not small hold overshoot).
-const POSITION_RETURN_RESYNC_RAD: f64 = 0.03;
-/// Return planner-freeze only below this |q| — high-angle descent needs continuous q_ref.
-const POSITION_RETURN_FREEZE_Q_MAX_RAD: f64 = 0.12;
-/// MIT pull-down lead while stuck on descent (until breakaway latch clears).
-const POSITION_DESCENT_STUCK_LEAD_RAD: f64 = 0.03;
-/// Outbound-only lead cap during post-retarget onset (weighted breakaway).
-const POSITION_HOLD_ONSET_MAX_LEAD_RAD: f64 = 0.15;
 
 #[derive(Debug, Error)]
 pub enum LoopError {
@@ -91,6 +84,8 @@ pub struct ControlLoop<B: MotorBus> {
     position_descent_breakaway: Option<Vec<bool>>,
     /// Set when MIT pull applied on descent; breakaway latch requires this.
     position_descent_was_stuck: Option<Vec<bool>>,
+    /// Last planner event per joint (trace CSV `planner_event`).
+    position_planner_events: Option<Vec<PlannerEvent>>,
 }
 
 impl<B: MotorBus> ControlLoop<B> {
@@ -127,6 +122,7 @@ impl<B: MotorBus> ControlLoop<B> {
             position_planner_frozen: None,
             position_descent_breakaway: None,
             position_descent_was_stuck: None,
+            position_planner_events: None,
         })
     }
 
@@ -199,13 +195,15 @@ impl<B: MotorBus> ControlLoop<B> {
                 .get(joint)
                 .map(|cfg| {
                     let move_dist = (target - q_now[i]).abs();
+                    let threshold = cfg.position_trajectory_threshold_rad;
                     let v_max = self.clamp_v_max(
                         joint,
-                        if move_dist <= POSITION_SMALL_MOVE_VMAX_RAD {
-                            cfg.position_slew_rad_s
-                        } else {
-                            cfg.position_trajectory_velocity_rad_s
-                        },
+                        position_profile_v_max(
+                            move_dist,
+                            cfg.position_slew_rad_s,
+                            cfg.position_trajectory_velocity_rad_s,
+                            threshold,
+                        ),
                     );
                     cfg.position_slew_rad_s.min(v_max)
                 })
@@ -372,11 +370,10 @@ impl<B: MotorBus> ControlLoop<B> {
         let trajectory_v = cfg
             .map(|c| c.position_trajectory_velocity_rad_s)
             .unwrap_or(0.30);
-        let v_max = if delta.abs() <= POSITION_SMALL_MOVE_VMAX_RAD {
-            slew
-        } else {
-            trajectory_v
-        };
+        let threshold = cfg
+            .map(|c| c.position_trajectory_threshold_rad)
+            .unwrap_or(0.15);
+        let v_max = position_profile_v_max(delta.abs(), slew, trajectory_v, threshold);
         delta.signum() * self.clamp_v_max(joint, v_max)
     }
 
@@ -386,6 +383,10 @@ impl<B: MotorBus> ControlLoop<B> {
         self.position_planners = None;
         self.position_retarget_tick = None;
         self.position_dq_filtered = None;
+        self.position_planner_frozen = None;
+        self.position_descent_breakaway = None;
+        self.position_descent_was_stuck = None;
+        self.position_planner_events = None;
     }
 
     /// Latch current `q` and enter [`ControlMode::Position`] (gravity FF + impedance gains).
@@ -434,6 +435,7 @@ impl<B: MotorBus> ControlLoop<B> {
             self.position_planner_frozen = None;
             self.position_descent_breakaway = None;
             self.position_descent_was_stuck = None;
+            self.position_planner_events = None;
             self.last_position_diag = None;
         }
         self.control_mode = mode;
@@ -615,33 +617,23 @@ impl<B: MotorBus> ControlLoop<B> {
                             let lead = q_des - q[i];
                             let settling = matches!(traj_phase, TrapezoidPhase::Hold)
                                 && settle_error.abs() <= POSITION_SETTLE_TOLERANCE_RAD;
-                            let (friction_mode, tau_f) = friction
-                                .map(|f| {
-                                    position_hold_friction(
-                                        dq,
-                                        dq_traj,
-                                        settle_error,
-                                        vel_deadband,
-                                        effective_max_lead,
-                                        retarget_age_ms,
-                                        &f,
-                                    )
-                                })
-                                .unwrap_or((PositionFrictionMode::SettleFade, 0.0));
-                            let tau_d = if dq_traj.abs() > POSITION_HOLD_ERROR_DEADBAND_RAD {
-                                position_hold_damping_torque(
-                                    dq,
-                                    dq_traj,
-                                    kd,
-                                    vel_deadband,
-                                    approaching_target,
-                                )
-                            } else if settling && dq.abs() > vel_deadband {
-                                -kd * dq
-                            } else {
-                                0.0
-                            };
-                            let tau_ff_cmd = tau_g[i] + tau_f + tau_d;
+                            let ff = compose_position_hold_feedforward(
+                                tau_g[i],
+                                kd,
+                                dq,
+                                dq_traj,
+                                settle_error,
+                                vel_deadband,
+                                effective_max_lead,
+                                retarget_age_ms,
+                                traj_phase,
+                                friction.as_ref(),
+                                approaching_target,
+                            );
+                            let friction_mode = ff.friction_mode;
+                            let tau_f = ff.tau_f;
+                            let tau_d = ff.tau_d;
+                            let tau_ff_cmd = ff.tau_ff_cmd;
                             let tau_meas = self.joint_torque(&name);
                             let lead_sat = lead.abs() >= effective_max_lead - 1e-6;
                             let tau_p = kp * lead;
@@ -653,6 +645,12 @@ impl<B: MotorBus> ControlLoop<B> {
                                 approaching_target,
                             );
                             let phase_str = format!("{traj_phase:?}");
+                            let planner_event = self
+                                .position_planner_events
+                                .as_ref()
+                                .and_then(|e| e.get(i).copied())
+                                .unwrap_or(PlannerEvent::Tick)
+                                .as_str();
                             if log_position_diag {
                                 info!(
                                     joint = %name,
@@ -755,6 +753,8 @@ impl<B: MotorBus> ControlLoop<B> {
                                     kd,
                                     joint_stuck,
                                     planner_frozen,
+                                    retarget_age_ms,
+                                    planner_event,
                                 };
                                 let _ = trace.maybe_record(self.tick_count, t_ms, &row);
                                 if self.tick_count % u64::from(self.loop_hz) == 0 {
@@ -843,6 +843,9 @@ impl<B: MotorBus> ControlLoop<B> {
                 let trajectory_v_max = cfg
                     .map(|c| c.position_trajectory_velocity_rad_s)
                     .unwrap_or(0.30);
+                let threshold = cfg
+                    .map(|c| c.position_trajectory_threshold_rad)
+                    .unwrap_or(0.15);
                 let move_dist = (targets[i] - q[i]).abs();
                 let planner_speed = self
                     .position_planners
@@ -852,13 +855,13 @@ impl<B: MotorBus> ControlLoop<B> {
                     .unwrap_or(0.0);
                 self.clamp_v_max(
                     name,
-                    if move_dist <= POSITION_SMALL_MOVE_VMAX_RAD
-                        && planner_speed <= slew_rad_s + 1e-9
-                    {
-                        slew_rad_s
-                    } else {
-                        trajectory_v_max
-                    },
+                    position_hold_v_max(
+                        move_dist,
+                        slew_rad_s,
+                        trajectory_v_max,
+                        threshold,
+                        planner_speed,
+                    ),
                 )
             })
             .collect();
@@ -866,7 +869,11 @@ impl<B: MotorBus> ControlLoop<B> {
             return Ok(());
         };
         let dt = self.loop_period.as_secs_f64();
+        if self.position_planner_events.is_none() {
+            self.position_planner_events = Some(vec![PlannerEvent::Tick; self.joint_names.len()]);
+        }
         for (i, name) in self.joint_names.iter().enumerate() {
+            let mut event = PlannerEvent::Tick;
             let cfg = self.supervisor.control.control.joints.get(name);
             let a_max = cfg
                 .map(|c| c.position_trajectory_accel_rad_s2)
@@ -876,6 +883,12 @@ impl<B: MotorBus> ControlLoop<B> {
                 .map(|c| c.position_trajectory_velocity_deadband_rad)
                 .unwrap_or(POSITION_HOLD_ERROR_DEADBAND_RAD);
             let v_max = v_max_caps[i];
+            let threshold = cfg
+                .map(|c| c.position_trajectory_threshold_rad)
+                .unwrap_or(0.15);
+            let move_dist = (targets[i] - q[i]).abs();
+            let profile = classify_position_profile(q[i], targets[i], move_dist, threshold);
+            trace!(joint = %name, ?profile, move_dist, v_max, "position hold profile");
             let resync_stuck_lead = planner_should_resync_stuck_lead(
                 &planners[i],
                 q[i],
@@ -887,6 +900,11 @@ impl<B: MotorBus> ControlLoop<B> {
             if resync_stuck_lead
                 || planner_drifted_from_measurement(&planners[i], q[i], targets[i], max_lead)
             {
+                event = if resync_stuck_lead {
+                    PlannerEvent::ResyncStuckLead
+                } else {
+                    PlannerEvent::Reset
+                };
                 planners[i].reset_target(q[i], targets[i]);
                 if let Some(cfg) = self.supervisor.control.control.joints.get(name) {
                     planners[i].seed_downward_return_if_needed(
@@ -916,6 +934,11 @@ impl<B: MotorBus> ControlLoop<B> {
                 vel_deadband,
                 max_lead,
             );
+            if freeze && !was_frozen {
+                event = PlannerEvent::FreezeEnter;
+            } else if was_frozen && !freeze {
+                event = PlannerEvent::FreezeExit;
+            }
             if let Some(frozen) = self.position_planner_frozen.as_mut() {
                 frozen[i] = freeze;
             }
@@ -927,6 +950,7 @@ impl<B: MotorBus> ControlLoop<B> {
                 vel_deadband,
             ) {
                 planners[i].latch_at_target(targets[i]);
+                event = PlannerEvent::Latch;
             }
             if !freeze {
                 let v_tick = if let Some(policy) = self.supervisor.joint_limit_policy(name) {
@@ -936,13 +960,20 @@ impl<B: MotorBus> ControlLoop<B> {
                 };
                 planners[i].tick(targets[i], dt, v_tick, a_max);
                 if let Some(policy) = self.supervisor.joint_limit_policy(name) {
-                    planners[i].q_traj = clamp_position_in_envelope(
+                    let clamped = clamp_position_in_envelope(
                         policy,
                         q[i],
                         planners[i].dq_traj,
                         planners[i].q_traj,
                     );
+                    if (clamped - planners[i].q_traj).abs() > 1e-9 {
+                        event = PlannerEvent::EnvelopeClamp;
+                    }
+                    planners[i].q_traj = clamped;
                 }
+            }
+            if let Some(events) = self.position_planner_events.as_mut() {
+                events[i] = event;
             }
         }
         Ok(())
@@ -1039,258 +1070,14 @@ impl<B: MotorBus> ControlLoop<B> {
     pub fn preview_gravity_torques(&self, q: &[f64]) -> Result<Vec<f64>, LoopError> {
         Ok(self.dynamics.gravity_torques(q)?)
     }
-}
 
-fn descent_breakaway_confirmed(to_target: f64, dq_filtered: f64, velocity_deadband: f64) -> bool {
-    to_target < -POSITION_HOLD_ERROR_DEADBAND_RAD
-        && dq_filtered <= -velocity_deadband * POSITION_STUCK_EXIT_VELOCITY_RATIO
-}
-
-/// Post-retarget onset `max_lead` boost for breakaway from home (outbound) or high-q return.
-fn position_hold_effective_max_lead(
-    max_lead: f64,
-    retarget_age_ms: u64,
-    approaching_target: bool,
-    settle_error: f64,
-    q: f64,
-) -> f64 {
-    let breakaway_from_home = q.abs() <= POSITION_RETURN_DESCENT_SEED_RAD;
-    let outbound_breakaway = breakaway_from_home
-        && approaching_target
-        && settle_error > POSITION_RETURN_DESCENT_SEED_RAD;
-    let target = q + settle_error;
-    let return_breakaway =
-        is_gravity_assisted_return(q, target) && settle_error < -POSITION_RETURN_DESCENT_SEED_RAD;
-    if retarget_age_ms <= POSITION_HOLD_ONSET_MS
-        && settle_error.abs() > POSITION_RETURN_DESCENT_SEED_RAD
-        && (outbound_breakaway || return_breakaway)
-    {
-        max_lead.max(POSITION_HOLD_ONSET_MAX_LEAD_RAD)
-    } else {
-        max_lead
+    /// Test-only: planner `(q_traj, dq_traj)` for replay assertions.
+    #[cfg(test)]
+    pub fn test_planner_state(&self, joint: &str) -> Option<(f64, f64)> {
+        let i = self.joint_names.iter().position(|n| n == joint)?;
+        let planner = self.position_planners.as_ref()?.get(i)?;
+        Some((planner.q_traj, planner.dq_traj))
     }
-}
-
-/// MIT velocity FF: zero at rest except during post-retarget onset while approaching.
-fn position_hold_mit_velocity(
-    dq_raw: f64,
-    dq_traj: f64,
-    velocity_deadband: f64,
-    retarget_age_ms: u64,
-    approaching_target: bool,
-) -> f64 {
-    if dq_raw.abs() >= velocity_deadband {
-        return dq_traj;
-    }
-    if approaching_target
-        && retarget_age_ms <= POSITION_HOLD_ONSET_MS
-        && dq_traj.abs() > POSITION_HOLD_ERROR_DEADBAND_RAD
-    {
-        return dq_traj;
-    }
-    0.0
-}
-
-/// MIT pull-down while descending and stuck (cleared by [`descent_breakaway_confirmed`]).
-fn descent_stuck_mit_pull(
-    to_target: f64,
-    q: f64,
-    target: f64,
-    dq_filtered: f64,
-    velocity_deadband: f64,
-    breakaway_confirmed: bool,
-) -> bool {
-    !breakaway_confirmed
-        && is_gravity_assisted_return(q, target)
-        && to_target < -POSITION_HOLD_ERROR_DEADBAND_RAD
-        && (q - target) > POSITION_RETURN_DESCENT_SEED_RAD
-        && dq_filtered.abs() < velocity_deadband
-}
-
-/// Arm stuck at the lead cap with no motion — snap `q_traj` to measured `q` so the
-/// reference can catch up (safe at rest; runaway overspeed is handled separately).
-fn planner_should_resync_stuck_lead(
-    planner: &JointPositionPlanner,
-    q: f64,
-    target: f64,
-    dq_filtered: f64,
-    max_lead: f64,
-    velocity_deadband: f64,
-) -> bool {
-    if (target - q).abs() <= POSITION_SETTLE_TOLERANCE_RAD {
-        return false;
-    }
-    if dq_filtered.abs() >= velocity_deadband {
-        return false;
-    }
-    (q - planner.q_traj).abs() > max_lead - 1e-6
-}
-
-/// Arm past latched target and at rest — stop trapezoid hunting (hold overshoot wiggle).
-/// Skips return-to-home (`target` near zero) where descent stuck logic owns `q_des`.
-fn planner_should_latch_on_overshoot_hold(
-    q: f64,
-    q_traj: f64,
-    target: f64,
-    dq_filtered: f64,
-    velocity_deadband: f64,
-) -> bool {
-    let target_reached_by_planner = if target >= 0.0 {
-        q_traj >= target - POSITION_SETTLE_TOLERANCE_RAD
-    } else {
-        q_traj <= target + POSITION_SETTLE_TOLERANCE_RAD
-    };
-    target.abs() > POSITION_RETURN_FREEZE_Q_MAX_RAD
-        && target_reached_by_planner
-        && (q - target).abs() > POSITION_RETURN_RESYNC_RAD
-        && dq_filtered.abs() < velocity_deadband
-}
-
-/// Freeze planner while arm lags on return-to-home descent; hysteresis exit on filtered downward motion.
-#[allow(clippy::too_many_arguments)]
-fn planner_should_freeze_on_descent(
-    was_frozen: bool,
-    target: f64,
-    q: f64,
-    to_target: f64,
-    lag: f64,
-    dq_traj: f64,
-    dq_filtered: f64,
-    velocity_deadband: f64,
-    max_lead: f64,
-) -> bool {
-    // Return-to-home only — overshoot past intermediate hold targets has the same
-    // `(to_target < 0, lag > 0)` signature but must not freeze the planner.
-    if target.abs() > POSITION_SETTLE_TOLERANCE_RAD {
-        return false;
-    }
-    // Weighted return from high q: keep planner descending; freeze is for final home band only.
-    if q > POSITION_RETURN_FREEZE_Q_MAX_RAD {
-        return false;
-    }
-    if was_frozen && lag.abs() < POSITION_RETURN_RESYNC_RAD {
-        return false;
-    }
-    let lagging = to_target < -POSITION_HOLD_ERROR_DEADBAND_RAD
-        && lag > POSITION_RETURN_RESYNC_RAD
-        && lag < max_lead
-        && dq_traj < -POSITION_HOLD_ERROR_DEADBAND_RAD;
-    if !lagging {
-        return false;
-    }
-    let exit_v = velocity_deadband * POSITION_STUCK_EXIT_VELOCITY_RATIO;
-    if was_frozen {
-        dq_filtered > -exit_v
-    } else {
-        dq_filtered.abs() < velocity_deadband
-    }
-}
-
-/// Trajectory setpoint clamp: brake when `q` outruns `q_traj`, but follow `q_traj` when
-/// lagging toward `target` so weighted descent can overcome gravity feedforward.
-///
-/// When the arm is only slightly ahead of the planner while still approaching `target`,
-/// do not command `q_des` behind measured `q` — MIT stiffness pulls back and causes
-/// mid-travel stick-slip stalls on the weighted bench.
-fn clamp_trajectory_setpoint(
-    q_traj: f64,
-    q: f64,
-    target: f64,
-    max_lead: f64,
-    policy: Option<&JointLimitPolicy>,
-    dq_traj: f64,
-) -> f64 {
-    const TOL: f64 = 1e-4;
-    let to_target = target - q;
-    let lag = q_traj - q;
-    let mut q_des =
-        if to_target.abs() > TOL && lag.signum() == to_target.signum() && lag.abs() > max_lead {
-            if to_target > 0.0 {
-                q_traj.clamp(q, target)
-            } else {
-                q_traj.clamp(target, q)
-            }
-        } else {
-            q_traj.clamp(q - max_lead, q + max_lead)
-        };
-
-    if to_target.abs() > TOL {
-        // Only suppress MIT pull-back for a small lead band — not the full `max_lead` window.
-        if to_target > 0.0 && q > q_traj && (q - q_traj) < POSITION_RETURN_RESYNC_RAD {
-            q_des = q_des.max(q);
-        } else if to_target < 0.0
-            && q < q_traj
-            && ((q_traj - q) < POSITION_RETURN_RESYNC_RAD
-                || (target.abs() <= TOL && q.abs() < POSITION_RETURN_FREEZE_Q_MAX_RAD))
-        {
-            if let Some(p) = policy {
-                let (lo, _) = effective_command_bounds(p, q, dq_traj);
-                q_des = q_des.min(q.max(lo));
-            } else {
-                q_des = q_des.min(q);
-            }
-        }
-    }
-
-    // Overshoot: command at least `target` but never past measured `q` (avoids MIT pull-back mid-travel).
-    let settle_error = target - q;
-    let overshot_past_target = if target >= 0.0 {
-        q > target + POSITION_RETURN_RESYNC_RAD && q_traj >= target - TOL
-    } else {
-        q < target - POSITION_RETURN_RESYNC_RAD && q_traj <= target + TOL
-    };
-    if overshot_past_target && target.abs() > POSITION_RETURN_FREEZE_Q_MAX_RAD {
-        // Large hold overshoot away from home — fixed target setpoint; do not chase `q_traj` above `q`.
-        q_des = target;
-        if let Some(p) = policy {
-            let (lo, hi) = effective_command_bounds(p, q, dq_traj);
-            q_des = q_des.clamp(lo, hi);
-        }
-    } else if settle_error < -TOL && q_traj <= target + TOL {
-        q_des = q_des.max(target);
-        if let Some(p) = policy {
-            let (lo, _) = effective_command_bounds(p, q, dq_traj);
-            q_des = q_des.min(q).max(lo);
-        } else {
-            q_des = q_des.min(q);
-        }
-    } else if settle_error > TOL && q_traj >= target - TOL {
-        if let Some(p) = policy {
-            let (_, hi) = effective_command_bounds(p, q, dq_traj);
-            q_des = q_des.min(target).max(q).min(hi);
-        } else {
-            q_des = q_des.min(target).max(q);
-        }
-    }
-    if let Some(p) = policy {
-        q_des = clamp_position_in_envelope(p, q, dq_traj, q_des);
-    }
-    q_des
-}
-
-fn planner_drifted_from_measurement(
-    planner: &JointPositionPlanner,
-    q: f64,
-    target: f64,
-    max_lead: f64,
-) -> bool {
-    let to_target = target - q;
-    if to_target.abs() > POSITION_SETTLE_TOLERANCE_RAD {
-        // Arm outran planner — clamp/brake; snapping `q_traj` forward causes runaway overshoot.
-        if to_target > 0.0 && q > planner.q_traj + max_lead {
-            return false;
-        }
-        if to_target < 0.0 && q < planner.q_traj - max_lead {
-            return false;
-        }
-    }
-    if (q - planner.q_traj).abs() > max_lead && (target - q).abs() > POSITION_SETTLE_TOLERANCE_RAD {
-        return true;
-    }
-    // Planner latched at target while arm still far (return incomplete — not hold overshoot).
-    planner.phase() == TrapezoidPhase::Hold
-        && (q - target).abs() > POSITION_RETURN_RESYNC_RAD
-        && (q - planner.q_traj).abs() > POSITION_SETTLE_TOLERANCE_RAD
 }
 
 /// High-rate onset logs for the first window after retarget (`MARENGO_POSITION_ONSET_LOG_MS`, default 250).
@@ -1330,6 +1117,7 @@ mod tests {
     #![allow(clippy::approx_constant, clippy::expect_used)]
 
     use super::*;
+    use armee_kinematics::JointLimitPolicy;
     use davout::{MemoryBus, OperationalMode};
 
     fn repo_root() -> std::path::PathBuf {
@@ -1866,6 +1654,101 @@ mod tests {
         assert!(
             cmd > target,
             "planner must approach the clamped target gradually: cmd={cmd} target={target}"
+        );
+    }
+
+    #[test]
+    fn layer2_hold_at_uses_slew_profile_not_trajectory() {
+        let mut loop_ctrl = test_loop();
+        bench_ready_active(&mut loop_ctrl);
+        let joint = "shoulder_pitch";
+        let cfg = loop_ctrl
+            .supervisor
+            .control
+            .control
+            .joints
+            .get(joint)
+            .expect("joint cfg");
+        let slew = cfg.position_slew_rad_s;
+        let trajectory_v = cfg.position_trajectory_velocity_rad_s;
+        let threshold = cfg.position_trajectory_threshold_rad;
+        let v_small =
+            crate::position_profile::position_profile_v_max(0.1, slew, trajectory_v, threshold);
+        loop_ctrl
+            .enter_position_hold_at(Some(joint), 0.1)
+            .expect("hold-at");
+        let mut max_dq: f64 = 0.0;
+        for _ in 0..120 {
+            let (q_traj, dq_traj) = loop_ctrl.test_planner_state(joint).unwrap_or((0.0, 0.0));
+            max_dq = max_dq.max(dq_traj.abs());
+            loop_ctrl
+                .supervisor_mut()
+                .set_synthetic_joint_feedback(joint, q_traj as f32, dq_traj as f32)
+                .expect("feedback");
+            loop_ctrl.tick(None).expect("tick");
+        }
+        assert!(
+            max_dq <= v_small * 1.2 + 0.02,
+            "0.1 rad hold-at must use small-move profile (v_max≈{v_small}), got peak dq_traj={max_dq}"
+        );
+    }
+
+    #[test]
+    fn layer2_replay_return_home_stays_on_slew_profile() {
+        let mut loop_ctrl = test_loop();
+        bench_ready_active(&mut loop_ctrl);
+        let joint = "shoulder_pitch";
+        let cfg = loop_ctrl
+            .supervisor
+            .control
+            .control
+            .joints
+            .get(joint)
+            .expect("joint cfg");
+        let slew = cfg.position_slew_rad_s;
+        let trajectory_v = cfg.position_trajectory_velocity_rad_s;
+        let threshold = cfg.position_trajectory_threshold_rad;
+        let v_small =
+            crate::position_profile::position_profile_v_max(0.1, slew, trajectory_v, threshold);
+        loop_ctrl
+            .enter_position_hold_at(Some(joint), 0.1)
+            .expect("hold-at");
+        for _ in 0..400 {
+            let (q_traj, dq_traj) = loop_ctrl.test_planner_state(joint).unwrap_or((0.0, 0.0));
+            loop_ctrl
+                .supervisor_mut()
+                .set_synthetic_joint_feedback(joint, q_traj as f32, dq_traj as f32)
+                .expect("feedback");
+            loop_ctrl.tick(None).expect("tick");
+        }
+        loop_ctrl
+            .set_joint_position_setpoint(joint, 0.0)
+            .expect("return home");
+        let mut max_dq: f64 = 0.0;
+        let mut max_q_des_step: f64 = 0.0;
+        let mut prev_q_des = loop_ctrl
+            .test_planner_state(joint)
+            .map(|(q, _)| q)
+            .unwrap_or(0.0);
+        for _ in 0..400 {
+            let (q_traj, dq_traj) = loop_ctrl.test_planner_state(joint).unwrap_or((0.0, 0.0));
+            max_dq = max_dq.max(dq_traj.abs());
+            let step = (q_traj - prev_q_des).abs();
+            max_q_des_step = max_q_des_step.max(step);
+            prev_q_des = q_traj;
+            loop_ctrl
+                .supervisor_mut()
+                .set_synthetic_joint_feedback(joint, q_traj as f32, dq_traj as f32)
+                .expect("feedback");
+            loop_ctrl.tick(None).expect("tick");
+        }
+        assert!(
+            max_dq <= v_small * 1.2 + 0.02,
+            "return home must use small-move profile (v_max≈{v_small}), peak dq_traj={max_dq}"
+        );
+        assert!(
+            max_q_des_step < 0.05,
+            "planner reference must not jump per tick on return, max step={max_q_des_step}"
         );
     }
 }
