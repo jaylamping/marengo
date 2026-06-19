@@ -10,6 +10,7 @@ import {
   CardTitle,
   type cardVariants,
 } from '@/components/ui/card';
+import { dashboardGlassCardClassName } from '@/components/dashboard/layout/constants';
 import type { VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
@@ -37,7 +38,10 @@ export function DashboardCardShell({
   variant = 'glass',
 }: DashboardCardShellProps) {
   return (
-    <Card variant={variant} className={cn('@container/card', className)}>
+    <Card
+      variant={variant}
+      className={cn('@container/card', dashboardGlassCardClassName, className)}
+    >
       <CardHeader>
         {description ? <CardDescription>{description}</CardDescription> : null}
         <CardTitle className={cn('text-lg font-semibold', titleClassName)}>
