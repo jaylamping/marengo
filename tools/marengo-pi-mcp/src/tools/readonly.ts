@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { MarengoPiConfig } from "../config.js";
+import { homingHealthShell } from "../homing-preflight.js";
 import { shellQuote, wrapRemote } from "../env.js";
 
 export function registerReadonlyTools(
@@ -9,7 +10,7 @@ export function registerReadonlyTools(
   return {
     pi_health: {
       description:
-        "Pi health: CAN links, marengo-pi binary, deploy rev, commissioned motors.yaml map",
+        "Pi health: CAN links, marengo-pi binary, deploy rev, homing/calibration, commissioned motors.yaml map",
       inputSchema: z.object({}),
       handler: async () => {
         const body = wrapRemote(
@@ -29,6 +30,7 @@ export function registerReadonlyTools(
             "echo",
             "echo '=== commissioned motors (can0/id2, can1/id12) ==='",
             `grep -E 'can_interface|device_id|joint:' ${shellQuote(`${cfg.configDir}/motors.yaml`)} 2>/dev/null || echo '(motors.yaml not found)'`,
+            homingHealthShell(),
             "echo",
             "echo '=== marengo-pi/motor-repl running? ==='",
             "pgrep -af 'marengo-pi|motor-repl' || echo '(none)'",

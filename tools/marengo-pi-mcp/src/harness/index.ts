@@ -1,5 +1,9 @@
 import type { BenchProfile, MarengoPiConfig } from "../config.js";
 import { sudoCanUpCommand } from "../config.js";
+import {
+  homingPreflightShell,
+  homingStatusOutputOk,
+} from "../homing-preflight.js";
 import { shellQuote, wrapRemoteWithConfig } from "../env.js";
 import { benchLogArchiveShell, benchCandumpStartShell, benchCandumpStopShell } from "../tools/motion.js";
 
@@ -111,12 +115,14 @@ export async function runBenchHarness(
 
   const remote = (body: string) => wrapRemoteWithConfig(cfg, body, configDir, debug);
 
-  async function step(name: string, body: string, timeoutMs: number): Promise<boolean> {
+  async function step(
+    name: string,
+    body: string,
+    timeoutMs: number,
+    isOk: (out: string) => boolean = defaultStepOk,
+  ): Promise<boolean> {
     const out = await runRemote(body, timeoutMs);
-    const ok =
-      !out.includes("[exit ") &&
-      !out.toLowerCase().includes("failed") &&
-      !out.includes("fault");
+    const ok = isOk(out);
     steps.push({ name, ok, output: out.slice(0, 4000) });
     if (!ok) {
       const faultLines = out
@@ -127,6 +133,14 @@ export async function runBenchHarness(
     const logMatch = out.match(/log=(\S+)/);
     if (logMatch) logPath = logMatch[1];
     return ok;
+  }
+
+  function defaultStepOk(out: string): boolean {
+    return (
+      !out.includes("[exit ") &&
+      !out.toLowerCase().includes("failed") &&
+      !out.includes("fault")
+    );
   }
 
   // 1. health + can up
@@ -165,6 +179,18 @@ export async function runBenchHarness(
       ok: true,
       output: "skip_set_zero=true (default)",
     });
+  }
+
+  // 3b. homing preflight — fail before motion if calibration record / Verified missing
+  if (
+    !(await step(
+      "homing_preflight",
+      remote(homingPreflightShell(true)),
+      30_000,
+      homingStatusOutputOk,
+    ))
+  ) {
+    return formatHarnessResult(profile, loadedJoint, steps, faults, logPath);
   }
 
   // 4. gravity-preview 0 0

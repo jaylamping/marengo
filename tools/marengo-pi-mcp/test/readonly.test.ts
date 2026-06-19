@@ -43,4 +43,17 @@ describe("readonly CAN tools", () => {
     assert.match(script, /timeout 2 candump -ta can0 can1/);
     assert.doesNotMatch(script, /can0,can1/);
   });
+
+  it("pi_health runs homing preflight for active config", async () => {
+    let script = "";
+    const tools = registerReadonlyTools(cfg, async (body) => {
+      script = body;
+      return body;
+    });
+
+    await tools.pi_health.handler();
+
+    assert.match(script, /homing-preflight\.sh/);
+    assert.match(script, /shoulder_pitch_right_only/);
+  });
 });
