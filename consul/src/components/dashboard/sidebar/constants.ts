@@ -4,6 +4,7 @@ import { dashboardPanelPointerClassName } from '@/components/dashboard/layout/co
 export const sidebarGlassSkinStyle = {
   '--sidebar': 'var(--glass-2-surface)',
   '--sidebar-border': 'var(--glass-border)',
+  '--sidebar-foreground': 'var(--foreground)',
 } as const;
 
 /** Glass panel surface applied to the visible sidebar shell only. */

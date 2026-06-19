@@ -27,6 +27,7 @@ describe('sidebar glass skin constants (chrome tier)', () => {
   it('maps sidebar tokens to glass CSS variables', () => {
     expect(sidebarGlassSkinStyle['--sidebar']).toBe('var(--glass-2-surface)');
     expect(sidebarGlassSkinStyle['--sidebar-border']).toBe('var(--glass-border)');
+    expect(sidebarGlassSkinStyle['--sidebar-foreground']).toBe('var(--foreground)');
   });
 
   it('defines a single blur layer with refraction highlight', () => {
