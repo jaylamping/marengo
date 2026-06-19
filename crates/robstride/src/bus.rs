@@ -269,14 +269,12 @@ pub trait MotorBus: CanBus {
     }
 
     fn enable_active_reporting_at(&mut self, address: &MotorAddress) -> Result<(), BusError> {
-        let (id, data) =
-            lifecycle::encode_default_active_reporting(address.device_id, true);
+        let (id, data) = lifecycle::encode_default_active_reporting(address.device_id, true);
         send_encoded_frame_to(self, address, id, data)
     }
 
     fn disable_active_reporting_at(&mut self, address: &MotorAddress) -> Result<(), BusError> {
-        let (id, data) =
-            lifecycle::encode_default_active_reporting(address.device_id, false);
+        let (id, data) = lifecycle::encode_default_active_reporting(address.device_id, false);
         send_encoded_frame_to(self, address, id, data)
     }
 
