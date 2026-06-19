@@ -14,8 +14,8 @@
 
 | Symptom | Fix |
 |---------|-----|
-| Tiny pointer files instead of CAD/meshes | `git lfs install && git lfs pull` |
-| CI fails on missing assets | Add LFS pull to bootstrap; verify `.gitattributes` patterns. |
+| Tiny pointer files instead of ONNX | `git lfs install && git lfs pull` |
+| SolidWorks files missing after clone | Expected — CAD is not in this repo. Restore locally per [cad/README.md](cad/README.md). |
 
 ## SocketCAN
 

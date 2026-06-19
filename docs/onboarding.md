@@ -2,13 +2,13 @@
 
 Steps to a working Marengo dev environment.
 
-## 1. Clone and LFS
+## 1. Clone
 
 ```bash
 git clone <repo-url> marengo && cd marengo
-git lfs install
-git lfs pull
 ```
+
+SolidWorks CAD is **not in this repo** — restore your local `cad/` tree separately ([cad/README.md](../cad/README.md)). ONNX policies (when added) use Git LFS: `git lfs install && git lfs pull`.
 
 ## 2. Prerequisites
 
