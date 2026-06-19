@@ -20,9 +20,9 @@
   </link>
   <link name="right_upper_arm_stub">
     <inertial>
-      <!-- 2026-06-19: 0.70 kg total (18 in arm, mass concentrated at tip); COM = 18 in (0.4572 m) from joint. Mirror of shoulder_pitch_weighted.urdf right link. -->
+      <!-- 2026-06-19: 0.70 kg total (700g fixture); effective COM data-derived / calibrated to ~14.2 in (0.36 m) from joint. Mirror of shoulder_pitch_weighted.urdf right link. -->
       <mass value="0.7"/>
-      <origin xyz="0 0 -0.4572" rpy="0 0 0"/>
+      <origin xyz="0 0 -0.36" rpy="0 0 0"/>
       <inertia ixx="0.001" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.0001"/>
     </inertial>
     <visual>
