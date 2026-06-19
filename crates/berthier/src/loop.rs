@@ -911,7 +911,13 @@ impl<B: MotorBus> ControlLoop<B> {
             if let Some(frozen) = self.position_planner_frozen.as_mut() {
                 frozen[i] = freeze;
             }
-            if planner_should_latch_on_overshoot_hold(q[i], targets[i], dq_filtered, vel_deadband) {
+            if planner_should_latch_on_overshoot_hold(
+                q[i],
+                planners[i].q_traj,
+                targets[i],
+                dq_filtered,
+                vel_deadband,
+            ) {
                 planners[i].latch_at_target(targets[i]);
             }
             if !freeze {
@@ -1116,12 +1122,19 @@ fn planner_should_resync_stuck_lead(
 /// Skips return-to-home (`target` near zero) where descent stuck logic owns `q_des`.
 fn planner_should_latch_on_overshoot_hold(
     q: f64,
+    q_traj: f64,
     target: f64,
     dq_filtered: f64,
     velocity_deadband: f64,
 ) -> bool {
+    let target_reached_by_planner = if target >= 0.0 {
+        q_traj >= target - POSITION_SETTLE_TOLERANCE_RAD
+    } else {
+        q_traj <= target + POSITION_SETTLE_TOLERANCE_RAD
+    };
     target.abs() > POSITION_RETURN_FREEZE_Q_MAX_RAD
-        && q > target + POSITION_RETURN_RESYNC_RAD
+        && target_reached_by_planner
+        && (q - target).abs() > POSITION_RETURN_RESYNC_RAD
         && dq_filtered.abs() < velocity_deadband
 }
 
@@ -1506,16 +1519,22 @@ mod tests {
     #[test]
     fn planner_latches_on_overshoot_hold_when_at_rest() {
         assert!(planner_should_latch_on_overshoot_hold(
-            1.64, 1.57, 0.0, 0.02
+            1.64, 1.57, 1.57, 0.0, 0.02
         ));
         assert!(!planner_should_latch_on_overshoot_hold(
-            1.64, 1.57, 0.15, 0.02
+            1.64, 1.57, 1.57, 0.15, 0.02
         ));
         assert!(!planner_should_latch_on_overshoot_hold(
-            1.58, 1.57, 0.0, 0.02
+            1.58, 1.57, 1.57, 0.0, 0.02
         ));
         assert!(!planner_should_latch_on_overshoot_hold(
-            0.105, 0.0, 0.0, 0.02
+            0.105, 0.0, 0.0, 0.0, 0.02
+        ));
+        assert!(!planner_should_latch_on_overshoot_hold(
+            -0.016, -0.016, -0.641, 0.0, 0.02
+        ));
+        assert!(planner_should_latch_on_overshoot_hold(
+            -0.70, -0.641, -0.641, 0.0, 0.02
         ));
     }
 
@@ -1776,6 +1795,7 @@ mod tests {
     #[test]
     fn limit_clamped_sub_home_target_does_not_seed_downward_return() {
         let mut loop_ctrl = test_loop();
+        bench_ready_active(&mut loop_ctrl);
         loop_ctrl
             .enter_position_hold_at(Some("shoulder_pitch"), -0.85)
             .expect("hold-at");
@@ -1793,6 +1813,16 @@ mod tests {
         assert!(
             planner.dq_traj.abs() < 1e-12,
             "clamped negative target must not seed downward velocity"
+        );
+        loop_ctrl.tick(None).expect("tick");
+        let cmd = loop_ctrl.position_hold_commands().expect("commands")[i];
+        assert!(
+            cmd > -0.20,
+            "first tick must ramp from measured q, not jump to clamped target: {cmd}"
+        );
+        assert!(
+            cmd > target,
+            "planner must approach the clamped target gradually: cmd={cmd} target={target}"
         );
     }
 }
