@@ -844,9 +844,17 @@ impl<B: MotorBus> ControlLoop<B> {
                     .map(|c| c.position_trajectory_velocity_rad_s)
                     .unwrap_or(0.30);
                 let move_dist = (targets[i] - q[i]).abs();
+                let planner_speed = self
+                    .position_planners
+                    .as_ref()
+                    .and_then(|planners| planners.get(i))
+                    .map(|planner| planner.dq_traj.abs())
+                    .unwrap_or(0.0);
                 self.clamp_v_max(
                     name,
-                    if move_dist <= POSITION_SMALL_MOVE_VMAX_RAD {
+                    if move_dist <= POSITION_SMALL_MOVE_VMAX_RAD
+                        && planner_speed <= slew_rad_s + 1e-9
+                    {
                         slew_rad_s
                     } else {
                         trajectory_v_max

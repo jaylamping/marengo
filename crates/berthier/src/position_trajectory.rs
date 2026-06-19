@@ -130,7 +130,11 @@ pub fn trapezoid_step(
         };
         (accel, phase)
     } else {
-        (v_max, TrapezoidPhase::Cruise)
+        // If an earlier phase or dynamic velocity cap leaves the reference above
+        // the current cruise speed, bleed it down by the planner acceleration
+        // limit instead of snapping `dq_traj` in one control tick.
+        let cruise = (v_along - a_max * dt).max(v_max);
+        (cruise, TrapezoidPhase::Cruise)
     };
 
     let v_new = dir * v_along_new;
@@ -325,6 +329,17 @@ mod tests {
         p.tick(0.02, dt, 0.10, 0.36);
         assert!(matches!(p.phase(), TrapezoidPhase::Accelerate));
         assert!((p.dq_traj - 0.0018).abs() < 1e-9);
+    }
+
+    #[test]
+    fn trajectory_velocity_cap_steps_down_by_acceleration_limit() {
+        let (_q_new, v_new, phase) = trapezoid_step(0.04, 0.552, 0.10, 0.15, 20.0, 0.005);
+        assert_eq!(phase, TrapezoidPhase::Cruise);
+        assert!(
+            (v_new - 0.15).abs() > 1e-9,
+            "must not snap directly to v_max"
+        );
+        assert!((v_new - 0.15).abs() < (0.552_f64 - 0.15).abs());
     }
 
     #[test]
