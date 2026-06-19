@@ -180,6 +180,8 @@ pub struct Supervisor<B: MotorBus> {
     last_feedback_samples: HashMap<String, FeedbackSample>,
     last_tick: Option<Instant>,
     active_reporting_armed: bool,
+    /// Status frames decoded in the most recent [`Self::refresh_feedback`] poll.
+    last_refresh_frames: usize,
 }
 
 impl<B: MotorBus> Supervisor<B> {
@@ -230,7 +232,13 @@ impl<B: MotorBus> Supervisor<B> {
             last_feedback_samples: HashMap::new(),
             last_tick: None,
             active_reporting_armed: false,
+            last_refresh_frames: 0,
         })
+    }
+
+    /// Frames received in the last [`Self::refresh_feedback`] call (0 if none or timeout).
+    pub fn last_refresh_frame_count(&self) -> usize {
+        self.last_refresh_frames
     }
 
     pub fn homing_registry(&self) -> &HomingRegistry {
@@ -462,11 +470,13 @@ impl<B: MotorBus> Supervisor<B> {
         let budget = self.feedback_poll_timeout();
         let quiet = self.feedback_drain_quiet();
         let mut raw_states = HashMap::new();
+        self.last_refresh_frames = 0;
         match self
             .bus
             .recv_all_addressed(&self.motor_types, &mut raw_states, budget, quiet)
         {
             Ok(n) => {
+                self.last_refresh_frames = n;
                 let received_at = Instant::now();
                 if n > 0 {
                     trace!(count = n, "received motor feedback batch");
@@ -1667,9 +1677,7 @@ mod tests {
         tx.iter()
             .filter(|f| {
                 robstride::unpack_ext_id(f.id)
-                    .map(|u| {
-                        u.comm_type == robstride::CommunicationType::ActiveReporting.as_u8()
-                    })
+                    .map(|u| u.comm_type == robstride::CommunicationType::ActiveReporting.as_u8())
                     .unwrap_or(false)
             })
             .collect()

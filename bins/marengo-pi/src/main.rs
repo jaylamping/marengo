@@ -557,6 +557,7 @@ fn run_control_loop(loop_ctrl: &mut ControlLoop<RuntimeBus>, runtime: &mut Contr
     let mut last_chappe = Instant::now();
     let mut last_heartbeat = Instant::now();
     let mut active_fault: Option<String>;
+    let mut timing = LoopTimingWindow::new(loop_ctrl.tick_count());
 
     while !runtime.shutdown.load(Ordering::SeqCst) {
         let tick_start = Instant::now();
@@ -580,6 +581,13 @@ fn run_control_loop(loop_ctrl: &mut ControlLoop<RuntimeBus>, runtime: &mut Contr
             }
         };
 
+        let elapsed = tick_start.elapsed();
+        timing.record_tick(
+            elapsed,
+            period,
+            loop_ctrl.supervisor_mut().last_refresh_frame_count(),
+        );
+
         let now = Instant::now();
         if now.duration_since(last_chappe) >= chappe_period {
             let mode = loop_ctrl.supervisor_mut().mode();
@@ -592,18 +600,78 @@ fn run_control_loop(loop_ctrl: &mut ControlLoop<RuntimeBus>, runtime: &mut Contr
             if let Err(e) = publish_heartbeat(runtime.chappe.as_ref()) {
                 warn!(error = %e, "failed to publish heartbeat");
             }
-            debug_status(loop_ctrl);
+            debug_status(loop_ctrl, &mut timing);
             last_heartbeat = now;
         }
 
-        let elapsed = tick_start.elapsed();
         if elapsed < period {
             thread::sleep(period - elapsed);
         }
     }
 }
 
-fn debug_status(loop_ctrl: &mut ControlLoop<RuntimeBus>) {
+/// Wall-clock loop stats accumulated between 1 Hz heartbeats.
+struct LoopTimingWindow {
+    window_start: Instant,
+    tick_count_start: u64,
+    iterations: u32,
+    tick_elapsed_max_us: u64,
+    tick_elapsed_sum_us: u64,
+    overruns: u32,
+    refresh_frames_sum: u32,
+}
+
+impl LoopTimingWindow {
+    fn new(tick_count: u64) -> Self {
+        Self {
+            window_start: Instant::now(),
+            tick_count_start: tick_count,
+            iterations: 0,
+            tick_elapsed_max_us: 0,
+            tick_elapsed_sum_us: 0,
+            overruns: 0,
+            refresh_frames_sum: 0,
+        }
+    }
+
+    fn record_tick(&mut self, elapsed: Duration, period: Duration, refresh_frames: usize) {
+        self.iterations += 1;
+        let us = u64::try_from(elapsed.as_micros()).unwrap_or(u64::MAX);
+        self.tick_elapsed_sum_us = self.tick_elapsed_sum_us.saturating_add(us);
+        self.tick_elapsed_max_us = self.tick_elapsed_max_us.max(us);
+        if elapsed > period {
+            self.overruns += 1;
+        }
+        self.refresh_frames_sum = self
+            .refresh_frames_sum
+            .saturating_add(u32::try_from(refresh_frames).unwrap_or(u32::MAX));
+    }
+
+    fn log_and_reset(&mut self, loop_ctrl: &ControlLoop<RuntimeBus>) {
+        let wall_s = self.window_start.elapsed().as_secs_f64();
+        if wall_s <= f64::EPSILON || self.iterations == 0 {
+            *self = Self::new(loop_ctrl.tick_count());
+            return;
+        }
+        let wall_hz = f64::from(self.iterations) / wall_s;
+        let avg_us = self.tick_elapsed_sum_us / u64::from(self.iterations);
+        let nominal_ticks = loop_ctrl.tick_count().saturating_sub(self.tick_count_start);
+        debug!(
+            configured_hz = loop_ctrl.configured_loop_hz(),
+            wall_hz,
+            nominal_ticks,
+            tick_elapsed_avg_us = avg_us,
+            tick_elapsed_max_us = self.tick_elapsed_max_us,
+            overruns = self.overruns,
+            refresh_frames_per_sec = f64::from(self.refresh_frames_sum) / wall_s,
+            "loop timing"
+        );
+        *self = Self::new(loop_ctrl.tick_count());
+    }
+}
+
+fn debug_status(loop_ctrl: &mut ControlLoop<RuntimeBus>, timing: &mut LoopTimingWindow) {
+    timing.log_and_reset(loop_ctrl);
     let control_mode = loop_ctrl.control_mode();
     let supervisor = loop_ctrl.supervisor_mut();
     let operational = supervisor.mode();

@@ -50,9 +50,56 @@ export function benchLogPruneShell(logDirVar = "$LOGDIR", keep = BENCH_LOG_KEEP_
   ].join("\n");
 }
 
+/** Snapshot CAN kernel RX/TX packet counters for UP interfaces. */
+export function benchCanKernelSnapshotShell(kind: "start" | "end"): string {
+  const varName = kind === "start" ? "CAN_KERNEL_START" : "CAN_KERNEL_END";
+  return [
+    `: > "$${varName}"`,
+    "for _if in can0 can1 can2; do",
+    '  ip link show "$_if" 2>/dev/null | grep -q " state UP " || continue',
+    '  _rx=$(ip -statistics link show dev "$_if" 2>/dev/null | awk \'/^[[:space:]]+RX:/ {getline; print $2}\')',
+    '  _tx=$(ip -statistics link show dev "$_if" 2>/dev/null | awk \'/^[[:space:]]+TX:/ {getline; print $2}\')',
+    `  printf '%s %s %s\\n' "$_if" "$_rx" "$_tx" >> "$${varName}"`,
+    "done",
+    `echo "can kernel ${kind}: $(tr '\\n' ' ' < "$${varName}" 2>/dev/null || true)" | tee -a "$LOG"`,
+  ].join("\n");
+}
+
+/** Log per-interface kernel packet rates using start/end snapshots. */
+export function benchCanKernelDeltaShell(): string {
+  return [
+    'if [ -f "$CAN_KERNEL_START" ] && [ -f "$CAN_KERNEL_END" ]; then',
+    '  _dur="${CANDUMP_DURATION_SEC:-}"',
+    '  if [ -z "$_dur" ] && [ -f "${CANDUMP:-}" ]; then',
+    '    _first=$(head -1 "$CANDUMP" | sed -n \'s/^([0-9.]*).*/\\1/p\')',
+    '    _last=$(tail -1 "$CANDUMP" | sed -n \'s/^([0-9.]*).*/\\1/p\')',
+    '    _dur=$(awk -v a="$_first" -v b="$_last" \'BEGIN { if (b>a) printf "%.3f", b-a; else print "0" }\')',
+    '  fi',
+    '  while read -r _if _rx0 _tx0; do',
+    '    [ -n "$_if" ] || continue',
+    '    _line=$(grep "^$_if " "$CAN_KERNEL_END" || true)',
+    '    [ -n "$_line" ] || continue',
+    '    _rx1=$(printf "%s" "$_line" | awk \'{print $2}\')',
+    '    _tx1=$(printf "%s" "$_line" | awk \'{print $3}\')',
+    '    _drx=$((_rx1 - _rx0))',
+    '    _dtx=$((_tx1 - _tx0))',
+    '    if [ -n "$_dur" ] && [ "$_dur" != "0" ]; then',
+    '      _hz=$(awk -v t="$_drx + $_dtx" -v s="$_dur" \'BEGIN { printf "%.1f", t/s }\')',
+    '      echo "can kernel delta $_if: drx=$_drx dtx=$_dtx total=${_hz}/s (${_dur}s window)" | tee -a "$LOG"',
+    '    else',
+    '      echo "can kernel delta $_if: drx=$_drx dtx=$_dtx" | tee -a "$LOG"',
+    '    fi',
+    '  done < "$CAN_KERNEL_START"',
+    "fi",
+  ].join("\n");
+}
+
 /** Start background candump on all UP CAN interfaces for the bench session. */
 export function benchCandumpStartShell(): string {
   return [
+    'CAN_KERNEL_START="$LOGDIR/can-kernel-$TS.start"',
+    'CAN_KERNEL_END="$LOGDIR/can-kernel-$TS.end"',
+    benchCanKernelSnapshotShell("start"),
     'CANDUMP="$LOGDIR/candump-$TS.log"',
     'CANDUMP_ARGS=""',
     "for _if in can0 can1 can2; do",
@@ -76,6 +123,8 @@ export function benchCandumpStopShell(): string {
     '  kill "$CANDUMP_PID" 2>/dev/null || true',
     '  wait "$CANDUMP_PID" 2>/dev/null || true',
     "fi",
+    benchCanKernelSnapshotShell("end"),
+    benchCanKernelDeltaShell(),
     'if [ -f "${CANDUMP:-}" ]; then',
     '  _lines=$(wc -l < "$CANDUMP" | tr -d " ")',
     '  echo "candump ${_lines} frames -> $CANDUMP" | tee -a "$LOG"',
@@ -125,6 +174,9 @@ const benchLogWrapper = (
     'export MARENGO_POSITION_TRACE="$TRACE"',
     'export MARENGO_LOG_SESSION_ID="$TS"',
     `LABEL=${shellQuote(label)}`,
+    marengoPiPkillLine(cfg),
+    "sleep 0.3",
+    "bin/motor-repl disable 2>/dev/null || true",
     'echo "=== bench session $TS ($LABEL) ===" | tee "$LOG"',
     benchCandumpStartShell(),
     "set +e",
