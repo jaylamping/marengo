@@ -1374,6 +1374,7 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_yaml",
+ "tempfile",
  "thiserror 1.0.69",
 ]
 
@@ -1475,6 +1476,8 @@ dependencies = [
  "marengo-imu",
  "marengo-support",
  "robstride",
+ "tempfile",
+ "thiserror 1.0.69",
  "tokio",
  "tracing",
 ]

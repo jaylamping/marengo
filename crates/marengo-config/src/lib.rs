@@ -29,7 +29,7 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -78,7 +78,7 @@ pub struct MotorsConfigFile {
     pub motors: Vec<MotorEntry>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum MotorType {
     Rs00,
@@ -189,12 +189,12 @@ pub fn load_motors_config(repo_root: impl AsRef<Path>) -> Result<MotorsConfigFil
     load_motors_config_from(resolve_config_dir(repo_root))
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ControlConfigFile {
     pub control: ControlSection,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ControlSection {
     pub loop_hz: u32,
     pub chappe_state_hz: u32,
@@ -211,19 +211,19 @@ pub struct ControlSection {
 }
 
 /// Shared tuning for a named actuator grouping (e.g. shoulder pitch L/R, hips).
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActuatorGroupEntry {
     pub joints: Vec<String>,
     pub velocity_max_rad_s: f64,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ControlBenchSection {
     #[serde(default)]
     pub allow_firmware_speed_mode: bool,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MotorTypeDefaults {
     pub kp_max: f64,
     pub kd_max: f64,
@@ -231,7 +231,7 @@ pub struct MotorTypeDefaults {
     pub velocity_max_rad_s: f64,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JointControlEntry {
     pub motor_type: MotorType,
     pub gravity_comp: ModeGains,
@@ -540,13 +540,13 @@ pub fn validate_control_against_limits(
     Ok(())
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModeGains {
     pub kp: f64,
     pub kd: f64,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FrictionGains {
     pub fc: f64,
     pub fv: f64,
@@ -554,7 +554,7 @@ pub struct FrictionGains {
     pub k: f64,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DangerZoneRule {
     pub name: String,
     pub joint: String,
@@ -827,6 +827,77 @@ pub fn is_wired_bench_joint(joint: &str) -> bool {
 pub fn resolve_command_joint(input: &str) -> Option<&'static str> {
     let canonical = normalize_joint_alias(input)?;
     is_wired_bench_joint(canonical).then_some(canonical)
+}
+
+/// Path to `control.yaml` under `config_dir`.
+pub fn control_config_path(config_dir: impl AsRef<Path>) -> PathBuf {
+    config_dir.as_ref().join("control.yaml")
+}
+
+/// Persist `control.yaml` under `config_dir` (validates before write).
+pub fn write_control_config_from(
+    config_dir: impl AsRef<Path>,
+    cfg: &ControlConfigFile,
+) -> Result<(), ConfigError> {
+    validate_control_config(cfg)?;
+    let path = control_config_path(&config_dir);
+    let text = serde_yaml::to_string(cfg).map_err(|e| ConfigError::Parse {
+        path: path.clone(),
+        message: e.to_string(),
+    })?;
+    std::fs::write(&path, text).map_err(|e| ConfigError::Io {
+        path: path.clone(),
+        message: e.to_string(),
+    })
+}
+
+/// Apply a config-tier tuning parameter; returns the previous value.
+pub fn apply_joint_config_param(
+    entry: &mut JointControlEntry,
+    param: &str,
+    value: f64,
+) -> Result<f64, ConfigError> {
+    match param {
+        "impedance.kp" => {
+            let before = entry.impedance.kp;
+            entry.impedance.kp = value;
+            Ok(before)
+        }
+        "impedance.kd" => {
+            let before = entry.impedance.kd;
+            entry.impedance.kd = value;
+            Ok(before)
+        }
+        "friction.fc" => {
+            let before = entry.friction.fc;
+            entry.friction.fc = value;
+            Ok(before)
+        }
+        "friction.fv" => {
+            let before = entry.friction.fv;
+            entry.friction.fv = value;
+            Ok(before)
+        }
+        "friction.fo" => {
+            let before = entry.friction.fo;
+            entry.friction.fo = value;
+            Ok(before)
+        }
+        "friction.k" => {
+            let before = entry.friction.k;
+            entry.friction.k = value;
+            Ok(before)
+        }
+        "velocity_max_rad_s" => {
+            let before = entry.velocity_max_rad_s.unwrap_or(0.0);
+            entry.velocity_max_rad_s = Some(value);
+            Ok(before)
+        }
+        other => Err(ConfigError::Parse {
+            path: PathBuf::from("control.yaml"),
+            message: format!("unsupported config overlay param: {other}"),
+        }),
+    }
 }
 
 #[cfg(test)]
@@ -1158,5 +1229,53 @@ mod tests {
         let err = validate_control_against_limits(&robot, &motors, &control)
             .expect_err("trajectory too high");
         assert!(matches!(err, ConfigError::InvalidVelocity { .. }));
+    }
+
+    #[test]
+    fn write_control_config_roundtrip_in_temp_dir() {
+        let root = repo_root();
+        let src = root.join("config");
+        let tmp = tempfile::tempdir().expect("tempdir");
+        for name in ["control.yaml", "robot.yaml", "motors.yaml", "homing.yaml"] {
+            std::fs::copy(src.join(name), tmp.path().join(name)).expect("copy config");
+        }
+        let mut cfg = load_control_config_from(tmp.path()).expect("load");
+        let before = cfg.control.joints["elbow"].impedance.kp;
+        cfg.control.joints.get_mut("elbow").expect("elbow").impedance.kp = before + 3.0;
+        write_control_config_from(tmp.path(), &cfg).expect("write");
+        let reloaded = load_control_config_from(tmp.path()).expect("reload");
+        assert!((reloaded.control.joints["elbow"].impedance.kp - (before + 3.0)).abs() < 1e-9);
+    }
+
+    #[test]
+    fn apply_joint_config_param_returns_before_value() {
+        let mut entry = JointControlEntry {
+            motor_type: MotorType::Rs02,
+            gravity_comp: ModeGains { kp: 0.0, kd: 0.0 },
+            impedance: ModeGains { kp: 20.0, kd: 1.0 },
+            friction: FrictionGains {
+                fc: 0.0,
+                fv: 0.0,
+                fo: 0.0,
+                k: 10.0,
+            },
+            velocity_max_rad_s: None,
+            position_slew_rad_s: 0.25,
+            position_slew_max_lead_rad: 0.15,
+            position_trajectory_threshold_rad: 0.0,
+            position_trajectory_velocity_rad_s: 2.0,
+            position_trajectory_accel_rad_s2: 4.8,
+            position_trajectory_velocity_deadband_rad: 0.02,
+            position_hold_trim_rad: 0.0,
+            position_limit_margin_min_rad: 0.01,
+            position_limit_margin_k_v_s: 0.02,
+            position_limit_margin_k_stop: 0.5,
+            position_limit_measured_fault_slack_rad: 0.05,
+            position_soft_lower_rad: None,
+            position_soft_upper_rad: None,
+        };
+        let before = apply_joint_config_param(&mut entry, "impedance.kp", 42.0).expect("apply");
+        assert!((before - 20.0).abs() < 1e-9);
+        assert!((entry.impedance.kp - 42.0).abs() < 1e-9);
     }
 }

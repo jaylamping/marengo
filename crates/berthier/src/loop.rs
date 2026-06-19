@@ -1,5 +1,6 @@
 //! Periodic control loop (OpenArm-style refresh → compute → MIT send).
 
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
@@ -62,6 +63,16 @@ pub enum LoopError {
     MissingFeedback { joint: String },
 }
 
+/// Session-scoped MIT parameter overrides (Consul actuator harness runtime tier).
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct RuntimeMitOverlay {
+    pub kp: Option<f64>,
+    pub kd: Option<f64>,
+    pub position_rad: Option<f64>,
+    pub velocity_rad_s: Option<f64>,
+    pub torque_ff_nm: Option<f64>,
+}
+
 /// Realtime control loop facade.
 pub struct ControlLoop<B: MotorBus> {
     supervisor: Supervisor<B>,
@@ -91,6 +102,8 @@ pub struct ControlLoop<B: MotorBus> {
     position_descent_breakaway: Option<Vec<bool>>,
     /// Set when MIT pull applied on descent; breakaway latch requires this.
     position_descent_was_stuck: Option<Vec<bool>>,
+    /// Berthier-only runtime MIT overlays (cleared on restart; not persisted).
+    runtime_overlays: HashMap<String, RuntimeMitOverlay>,
 }
 
 impl<B: MotorBus> ControlLoop<B> {
@@ -127,6 +140,7 @@ impl<B: MotorBus> ControlLoop<B> {
             position_planner_frozen: None,
             position_descent_breakaway: None,
             position_descent_was_stuck: None,
+            runtime_overlays: HashMap::new(),
         })
     }
 
@@ -423,6 +437,10 @@ impl<B: MotorBus> ControlLoop<B> {
         &mut self.supervisor
     }
 
+    pub fn supervisor(&self) -> &Supervisor<B> {
+        &self.supervisor
+    }
+
     pub fn set_control_mode(&mut self, mode: ControlMode) {
         let previous = self.control_mode;
         if mode != ControlMode::Position {
@@ -445,6 +463,37 @@ impl<B: MotorBus> ControlLoop<B> {
 
     pub fn control_mode(&self) -> ControlMode {
         self.control_mode
+    }
+
+    /// Replace the session-scoped runtime MIT overlay for `joint`.
+    pub fn set_runtime_overlay(&mut self, joint: &str, overlay: RuntimeMitOverlay) {
+        self.runtime_overlays.insert(joint.to_string(), overlay);
+    }
+
+    /// Current runtime MIT overlay for `joint`, if any.
+    pub fn runtime_overlay(&self, joint: &str) -> Option<&RuntimeMitOverlay> {
+        self.runtime_overlays.get(joint)
+    }
+
+    fn apply_runtime_mit_overlay(
+        &self,
+        joint: &str,
+        kp: f64,
+        kd: f64,
+        torque_ff_nm: f64,
+        position_rad: f64,
+        velocity_rad_s: f64,
+    ) -> (f64, f64, f64, f64, f64) {
+        let Some(overlay) = self.runtime_overlays.get(joint) else {
+            return (kp, kd, torque_ff_nm, position_rad, velocity_rad_s);
+        };
+        (
+            overlay.kp.unwrap_or(kp),
+            overlay.kd.unwrap_or(kd),
+            overlay.torque_ff_nm.unwrap_or(torque_ff_nm),
+            overlay.position_rad.unwrap_or(position_rad),
+            overlay.velocity_rad_s.unwrap_or(velocity_rad_s),
+        )
     }
 
     pub fn joint_names(&self) -> &[String] {
@@ -756,6 +805,8 @@ impl<B: MotorBus> ControlLoop<B> {
                         }
                         ControlMode::Disabled => continue,
                     };
+                    let (kp, kd, tau_ff, q_des, mit_velocity) =
+                        self.apply_runtime_mit_overlay(&name, kp, kd, tau_ff, q_des, mit_velocity);
                     batch.push(DavoutMit {
                         joint: name.clone(),
                         kp,
@@ -1742,5 +1793,19 @@ mod tests {
             "q_des {q_des} must not command past hard lower {}",
             policy.hard_lower()
         );
+    }
+
+    #[test]
+    fn runtime_overlay_stores_session_kp_override() {
+        let mut loop_ctrl = test_loop();
+        loop_ctrl.set_runtime_overlay(
+            "elbow",
+            RuntimeMitOverlay {
+                kp: Some(99.0),
+                ..RuntimeMitOverlay::default()
+            },
+        );
+        let overlay = loop_ctrl.runtime_overlay("elbow").expect("overlay");
+        assert!((overlay.kp.expect("kp") - 99.0).abs() < 1e-9);
     }
 }

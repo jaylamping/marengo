@@ -41,7 +41,7 @@ mod position_trace;
 mod position_trajectory;
 
 pub use davout::ControlMode;
-pub use r#loop::{proto_control_mode, ControlLoop, LoopError};
+pub use r#loop::{proto_control_mode, ControlLoop, LoopError, RuntimeMitOverlay};
 
 use davout::{DavoutError, JointCommand, OperationalMode, Supervisor};
 use thiserror::Error;
