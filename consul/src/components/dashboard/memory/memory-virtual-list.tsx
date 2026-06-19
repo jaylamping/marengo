@@ -1,6 +1,7 @@
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useRef } from 'react';
 
+import { memoryListShellClassName } from '@/components/dashboard/memory/constants';
 import type { Mem0Memory } from '@/lib/mem0-config';
 import { cn } from '@/lib/utils';
 
@@ -21,14 +22,14 @@ export function MemoryVirtualList({ memories, selectedId, onSelect }: MemoryVirt
 
   if (memories.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
+      <div className={cn(memoryListShellClassName, 'border-dashed p-6 text-sm text-muted-foreground')}>
         No memories in this namespace.
       </div>
     );
   }
 
   return (
-    <div ref={parentRef} className="h-[420px] overflow-auto rounded-lg border">
+    <div ref={parentRef} className={memoryListShellClassName} data-testid="memory-list-shell">
       <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }}>
         {virtualizer.getVirtualItems().map((item) => {
           const memory = memories[item.index];
@@ -38,7 +39,7 @@ export function MemoryVirtualList({ memories, selectedId, onSelect }: MemoryVirt
               key={memory.id}
               type="button"
               className={cn(
-                'absolute inset-x-0 flex w-full flex-col gap-1 border-b px-3 py-2 text-left text-sm hover:bg-muted/40',
+                'absolute inset-x-0 flex w-full flex-col gap-1 border-b bg-card/95 px-3 py-2 text-left text-sm hover:bg-muted/40',
                 selectedId === memory.id && 'bg-muted',
               )}
               style={{ transform: `translateY(${item.start}px)`, height: `${item.size}px` }}

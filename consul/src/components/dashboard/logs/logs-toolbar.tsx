@@ -1,5 +1,6 @@
 import { memo } from 'react';
 
+import { logsTabsVariant, logsToolbarShellClassName } from '@/components/dashboard/logs/constants';
 import { LOG_LEVELS } from '@/data/logs';
 import { useLogActions, useLogBufferSnapshot, useLogPaused } from '@/components/dashboard/logs/hooks/use-log-controls';
 import { useLogsFilter } from '@/components/dashboard/logs/logs-filter-context';
@@ -31,7 +32,7 @@ export const LogsToolbar = memo(function LogsToolbar({
   } = useLogsFilter();
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className={logsToolbarShellClassName} data-testid="logs-toolbar-shell">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-medium">Live log stream</h2>
@@ -69,10 +70,12 @@ export const LogsToolbar = memo(function LogsToolbar({
           value={levelFilter}
           onValueChange={(value) => setLevelFilter(value as typeof levelFilter)}
         >
-          <TabsList>
-            <TabsTrigger value="all">All</TabsTrigger>
+          <TabsList variant={logsTabsVariant}>
+            <TabsTrigger variant={logsTabsVariant} value="all">
+              All
+            </TabsTrigger>
             {LOG_LEVELS.map((level) => (
-              <TabsTrigger key={level} value={level}>
+              <TabsTrigger key={level} variant={logsTabsVariant} value={level}>
                 {level}
               </TabsTrigger>
             ))}
@@ -80,6 +83,7 @@ export const LogsToolbar = memo(function LogsToolbar({
         </Tabs>
 
         <Input
+          variant="glass"
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}
           placeholder="Filter message, source, level…"

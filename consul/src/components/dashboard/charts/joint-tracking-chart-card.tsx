@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef } from 'react';
 
+import { dashboardGlassCardClassName } from '@/components/dashboard/layout/constants';
 import { ChartTimeRangeControls } from '@/components/dashboard/charts/chart-time-range-controls';
 import { dummyShoulderPitchTracking } from '@/components/dashboard/charts/constants';
 import { useChartTimeRange } from '@/components/dashboard/charts/hooks/use-chart-time-range';
@@ -24,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 import { useRobotModel } from '@/urdf/RobotModelContext';
 
 const CHART_RENDER_MS = 300;
@@ -74,7 +76,10 @@ export function JointTrackingChartCard({ series: _seriesProp }: JointTrackingCha
   );
 
   return (
-    <Card className="@container/card">
+    <Card
+      variant="glass"
+      className={cn('@container/card', dashboardGlassCardClassName)}
+    >
       <CardHeader>
         <CardTitle>{series.title}</CardTitle>
         <CardDescription>

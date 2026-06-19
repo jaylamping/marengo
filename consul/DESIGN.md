@@ -64,6 +64,17 @@ The **Simulation** tab is the planned home for Isaac Sim / Isaac Lab: viewport s
 - Generic “dashboard” widgets that look good in screenshots but slow you down in practice
 - Anything that makes the 3D view feel secondary
 - Any feature whose primary justification is “other people might find this useful”
+- GLINUI signature components (Meteor Shower, Typewriter, Pulsating Button) on operator data routes
+
+## Glass and motion tiers (GLINUI migration)
+
+| Tier | Surfaces | Glass | Motion |
+|------|----------|-------|--------|
+| Chrome | sidebar, header, nav, tabs, control bar | full blur + border | mount ≤200ms; hover feedback |
+| Data | tables, charts, log/inventory rows | shell only; opaque rows | sort/filter ≤150ms; **no row animation** |
+| Hero | empty states, sim idle, welcome | full + atmosphere | stagger enter/exit allowed |
+
+Decorative motion honors `prefers-reduced-motion`. Telemetry springs stay unchanged.
 
 ---
 

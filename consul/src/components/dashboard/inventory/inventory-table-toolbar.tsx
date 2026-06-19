@@ -1,4 +1,7 @@
-import { INVENTORY_VIEW_OPTIONS } from '@/components/dashboard/inventory/constants';
+import {
+  INVENTORY_VIEW_OPTIONS,
+  inventoryToolbarShellClassName,
+} from '@/components/dashboard/inventory/constants';
 import type { InventoryView } from '@/components/dashboard/inventory/types';
 import type { InventoryTable } from '@/components/dashboard/inventory/utils';
 import { Badge } from '@/components/ui/badge';
@@ -48,7 +51,10 @@ export function InventoryTableToolbar({
   onCollapseAll,
 }: InventoryTableToolbarProps) {
   return (
-    <div className="flex items-center justify-between px-4 lg:px-6">
+    <div
+      className={inventoryToolbarShellClassName}
+      data-testid="inventory-toolbar-shell"
+    >
       <Label htmlFor="view-selector" className="sr-only">
         View
       </Label>

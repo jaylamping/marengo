@@ -8,9 +8,9 @@ It is deliberately opinionated and will be updated as the real sharp edges move.
 
 | Concern              | Choice                          | Rationale |
 |----------------------|----------------------------------|---------|
-| Framework            | **Vite 6 + React 19 + TypeScript** | React 19 compiler is the single biggest smoothness win available. Vite is still the fastest DX. |
+| Framework            | **Vite 8 + React 19 + TypeScript** | React 19 compiler is the single biggest smoothness win available. Vite is still the fastest DX. |
 | Language             | TypeScript (strictest config)   | Non-negotiable for a codebase you will live in daily. |
-| Styling              | **Tailwind CSS 4** + shadcn/ui (Radix primitives) | Best density + customization balance. shadcn gives us beautiful, accessible building blocks without bloat. |
+| Styling              | **Tailwind CSS 4** + **GLINUI CLI** (Radix primitives) | Primitives seeded via `glinui` CLI into `src/components/ui/*`; glass tokens additive in `index.css`. shadcn `base-mira` retired in PR-8. |
 | Resizable Layout     | `react-resizable-panels` + shadcn `Resizable` wrapper | Exactly the Foxglove-style draggable panes we need. |
 | Command Palette      | `cmdk` (or kbar if we need more) | ⌘K to reach *anything* is table stakes for a functional tool. |
 
@@ -73,4 +73,10 @@ This stack is chosen so that in 2026–2027 Consul can be the best-feeling robot
 
 ---
 
-**Current status (May 2026)**: Dashboard shell + live Chappe telemetry path (gateway + WebTransport client). URDF-first 3D and session replay are next.
+**Current status (June 2026)**: Dashboard shell + live Chappe telemetry path (gateway + WebTransport client). GLINUI foundation (PR-1): Radix-backed button/card/badge/input/tabs/checkbox with `--glass-*` tokens; select/dropdown/tooltip remain Base UI until PR-4/5/7. URDF-first 3D and session replay are next.
+
+## UI primitive workflow
+
+- **Add components**: `npx glinui add <name>` (registry in `glinui.json` / `components.json` → `@glinui`).
+- **Do not** run `npx shadcn add` during migration — use GLINUI CLI only.
+- **Icons**: Hugeicons (unchanged).

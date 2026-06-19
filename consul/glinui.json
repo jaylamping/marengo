@@ -1,0 +1,11 @@
+{
+  "$schema": "https://glinui.com/r/schema.json",
+  "style": "default",
+  "tailwind": {
+    "css": "src/index.css"
+  },
+  "aliases": {
+    "components": "src/components/ui",
+    "utils": "src/lib/utils"
+  }
+}

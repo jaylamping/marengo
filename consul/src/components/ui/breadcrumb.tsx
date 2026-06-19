@@ -1,6 +1,5 @@
 import * as React from "react"
-import { mergeProps } from "@base-ui/react/merge-props"
-import { useRender } from "@base-ui/react/use-render"
+import { mergeProps, useRender } from "@/lib/render-slot"
 
 import { cn } from "@/lib/utils"
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -47,7 +46,7 @@ function BreadcrumbLink({
 }: useRender.ComponentProps<"a">) {
   return useRender({
     defaultTagName: "a",
-    props: mergeProps<"a">(
+    props: mergeProps(
       {
         className: cn("transition-colors hover:text-foreground", className),
       },

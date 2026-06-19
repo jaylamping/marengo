@@ -6,6 +6,7 @@ import {
   STATUS_OPTIONS,
   actuatorTrackingChartConfig,
   actuatorTrackingChartData,
+  inventoryDrawerContentClassName,
 } from '@/components/dashboard/inventory/constants';
 import type { InventoryRow } from '@/components/dashboard/inventory/types';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -57,7 +58,7 @@ export function InventoryRowDrawer({ item }: InventoryRowDrawerProps) {
           {item.name}
         </Button>
       </DrawerTrigger>
-      <DrawerContent>
+      <DrawerContent className={inventoryDrawerContentClassName}>
         <DrawerHeader className="gap-1">
           <DrawerTitle className="font-mono">{item.name}</DrawerTitle>
           <DrawerDescription>

@@ -1,3 +1,4 @@
+import { inventoryTableShellClassName } from '@/components/dashboard/inventory/constants';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export function InventoryTableSkeleton() {
@@ -7,7 +8,7 @@ export function InventoryTableSkeleton() {
         <Skeleton className="h-9 w-72" />
         <Skeleton className="h-9 w-40" />
       </div>
-      <div className="overflow-hidden rounded-lg border">
+      <div className={inventoryTableShellClassName}>
         <div className="space-y-0 border-b bg-muted/20 p-3">
           <Skeleton className="h-4 w-full max-w-3xl" />
         </div>

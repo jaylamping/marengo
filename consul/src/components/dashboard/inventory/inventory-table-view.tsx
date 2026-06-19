@@ -14,6 +14,7 @@ import { flexRender } from '@tanstack/react-table';
 import {
   inventoryColumnCount,
 } from '@/components/dashboard/inventory/inventory-columns';
+import { inventoryTableShellClassName } from '@/components/dashboard/inventory/constants';
 import { InventoryDraggableRow } from '@/components/dashboard/inventory/inventory-draggable-row';
 import { InventoryGroupHeaderRow } from '@/components/dashboard/inventory/inventory-group-header-row';
 import type { InventoryGroupSection } from '@/components/dashboard/inventory/types';
@@ -50,7 +51,10 @@ export function InventoryTableView({
   onToggleGroup,
 }: InventoryTableViewProps) {
   return (
-    <div className="overflow-hidden rounded-lg border">
+    <div
+      className={inventoryTableShellClassName}
+      data-testid="inventory-table-shell"
+    >
       <DndContext
         collisionDetection={closestCenter}
         modifiers={[restrictToVerticalAxis]}

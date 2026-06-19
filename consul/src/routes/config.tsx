@@ -37,6 +37,21 @@ export const appRoutes: RouteObject[] = [
         },
       },
       {
+        path: '/subsystems',
+        lazy: async () => {
+          const { SubsystemsPage } = await import('@/pages/subsystems');
+          return {
+            Component: SubsystemsPage,
+            handle: {
+              header: {
+                title: 'Subsystems',
+                subtitle: 'devices · actuators · sensors',
+              },
+            },
+          };
+        },
+      },
+      {
         path: '/logs',
         lazy: async () => {
           const { LogsPage } = await import('@/pages/logs');

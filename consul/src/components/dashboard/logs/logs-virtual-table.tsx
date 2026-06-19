@@ -1,6 +1,7 @@
 import { memo, useEffect, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 
+import { logsTableShellClassName } from '@/components/dashboard/logs/constants';
 import { useVisibleLogIndexModel } from '@/components/dashboard/logs/hooks/use-visible-log-indices';
 import { useLogsFilter } from '@/components/dashboard/logs/logs-filter-context';
 import { LOG_ROW_ESTIMATE_SIZE, LogRow } from '@/components/dashboard/logs/log-row';
@@ -64,7 +65,7 @@ export const LogsVirtualTable = memo(function LogsVirtualTable({
   }, [autoFollow, model.version, rowCount]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border bg-card">
+    <div className={logsTableShellClassName} data-testid="logs-table-shell">
       <LogsTableHeader sort={sort} onSortField={setSortField} />
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
         {rowCount === 0 ? (

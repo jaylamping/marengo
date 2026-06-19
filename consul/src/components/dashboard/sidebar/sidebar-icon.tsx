@@ -3,6 +3,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import {
   Analytics01Icon,
   ChartHistogramIcon,
+  CircuitBoardIcon,
   DashboardSquare01Icon,
   Database01Icon,
   File01Icon,
@@ -12,7 +13,6 @@ import {
   SearchIcon,
   Settings05Icon,
   Shield01Icon,
-  SlidersHorizontalIcon,
   ThreeDViewIcon,
 } from '@hugeicons/core-free-icons';
 
@@ -20,7 +20,7 @@ const sidebarIcons: Record<SidebarIconKey, typeof ThreeDViewIcon> = {
   overview: DashboardSquare01Icon,
   simulation: GameController01Icon,
   visualizer: ThreeDViewIcon,
-  joints: SlidersHorizontalIcon,
+  subsystems: CircuitBoardIcon,
   safety: Shield01Icon,
   telemetry: ChartHistogramIcon,
   logs: LeftToRightListBulletIcon,

@@ -4,6 +4,7 @@ import { useInventoryTable } from '@/components/dashboard/inventory/hooks/use-in
 import { InventoryTableFooter } from '@/components/dashboard/inventory/inventory-table-footer';
 import { InventoryTableToolbar } from '@/components/dashboard/inventory/inventory-table-toolbar';
 import { InventoryTableView } from '@/components/dashboard/inventory/inventory-table-view';
+import { dashboardPanelPointerClassName } from '@/components/dashboard/layout/constants';
 import { Tabs } from '@/components/ui/tabs';
 
 type InventoryDataTableProps = {
@@ -33,7 +34,7 @@ export function InventoryDataTable({ data }: InventoryDataTableProps) {
     <Tabs
       value={activeView}
       onValueChange={(value) => setActiveView(value as typeof activeView)}
-      className="w-full flex-col justify-start gap-6"
+      className={`w-full flex-col justify-start gap-6 ${dashboardPanelPointerClassName}`}
     >
       <InventoryTableToolbar
         activeView={activeView}

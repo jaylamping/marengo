@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { dashboardLogsClassName } from '@/components/dashboard/layout/constants';
+import { logsArchivePanelShellClassName, logsTabsVariant } from '@/components/dashboard/logs/constants';
 import { CandumpFrameTable } from '@/components/dashboard/logs/candump-frame-table';
 import { VirtualLinesList } from '@/components/dashboard/logs/virtual-lines-list';
 import { LogDetailSheet } from '@/components/dashboard/logs/log-detail-sheet';
@@ -11,6 +12,7 @@ import { LogsModeTabs, type LogsMode } from '@/components/dashboard/logs/logs-mo
 import { LogsSessionList } from '@/components/dashboard/logs/logs-session-list';
 import { LogsToolbar } from '@/components/dashboard/logs/logs-toolbar';
 import { LogsVirtualTable } from '@/components/dashboard/logs/logs-virtual-table';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   fetchBenchLines,
   fetchCandumpPage,
@@ -141,30 +143,20 @@ function LogsOverviewInner() {
             onSelect={setSelectedSession}
           />
           <div className="flex min-h-0 flex-col gap-2">
-            <div className="flex gap-2">
-              <button
-                type="button"
-                className={`rounded px-2 py-1 text-xs ${archiveView === 'bench' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}
-                onClick={() => setArchiveView('bench')}
-              >
-                Bench log
-              </button>
-              <button
-                type="button"
-                className={`rounded px-2 py-1 text-xs ${archiveView === 'trace' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}
-                onClick={() => setArchiveView('trace')}
-              >
-                Position trace
-              </button>
-              <button
-                type="button"
-                className={`rounded px-2 py-1 text-xs ${archiveView === 'search' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}
-                onClick={() => setArchiveView('search')}
-              >
-                Search
-              </button>
-            </div>
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border bg-card p-3">
+            <Tabs value={archiveView} onValueChange={(v) => setArchiveView(v as ArchiveView)}>
+              <TabsList variant={logsTabsVariant}>
+                <TabsTrigger variant={logsTabsVariant} value="bench">
+                  Bench log
+                </TabsTrigger>
+                <TabsTrigger variant={logsTabsVariant} value="trace">
+                  Position trace
+                </TabsTrigger>
+                <TabsTrigger variant={logsTabsVariant} value="search">
+                  Search
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <div className={logsArchivePanelShellClassName}>
               {archiveView === 'search' ? (
                 <LogsArchiveSearch
                   selectedLogId={selectedLog?.id ?? null}

@@ -1,4 +1,8 @@
 import { DashboardCardShell } from '@/components/dashboard/cards/dashboard-card-shell';
+import {
+  simDashboardCardShellClassName,
+  simDataShellVariant,
+} from '@/components/dashboard/simulation/constants';
 import { MetricGrid } from '@/components/dashboard/metrics/metric-grid';
 import { MetricItem } from '@/components/dashboard/metrics/metric-item';
 import type { SimRuntimeMetrics } from '@/data/simulation';
@@ -11,6 +15,8 @@ type SimRuntimeMetricsCardProps = {
 export function SimRuntimeMetricsCard({ metrics }: SimRuntimeMetricsCardProps) {
   return (
     <DashboardCardShell
+      variant={simDataShellVariant}
+      className={simDashboardCardShellClassName}
       description="Runtime"
       title="Physics + render"
       content={
