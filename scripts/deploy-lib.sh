@@ -378,3 +378,34 @@ compose_ssh_preflight() {
   echo "    - Host SSH: ssh -o BatchMode=yes ${host} true" >&2
   return 1
 }
+
+# --- deploy revision (single writer: install-pi.sh → /opt/marengo/.deploy-rev) ---
+
+# Write bundle-travelling .deploy-rev before rsync (SHA from deploy machine HEAD).
+stage_deploy_rev() {
+  local repo_root="$1"
+  local staging_dir="$2"
+  local sha ts
+  sha="$(git -C "$repo_root" rev-parse HEAD)"
+  ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  printf '%s %s\n' "$sha" "$ts" >"${staging_dir}/.deploy-rev"
+}
+
+# Install .deploy-rev into INSTALL_ROOT; staged file wins over on-Pi git checkout.
+install_deploy_rev() {
+  local bundle_root="$1"
+  local install_root="$2"
+  local content=""
+  if [[ -f "${bundle_root}/.deploy-rev" ]]; then
+    content="$(tr -d '\r' <"${bundle_root}/.deploy-rev" | head -1)"
+  elif git -C "$bundle_root" rev-parse HEAD >/dev/null 2>&1; then
+    local sha ts
+    sha="$(git -C "$bundle_root" rev-parse HEAD)"
+    ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    content="${sha} ${ts}"
+  else
+    echo "error: no .deploy-rev in bundle and ${bundle_root} is not a git checkout" >&2
+    return 1
+  fi
+  install -m 644 /dev/stdin "${install_root}/.deploy-rev" <<<"${content}"
+}
