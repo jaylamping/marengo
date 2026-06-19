@@ -36,9 +36,7 @@
       "command": "node",
       "args": ["${workspaceFolder}/tools/mem0-mcp/dist/index.js"],
       "env": {
-        "MEM0_API_URL": "https://joey-pc.tail0b414.ts.net:8888",
-        "MEM0_API_KEY": "${env:MEM0_API_KEY}",
-        "MEM0_USER_ID": "marengo-joey"
+        "MEM0_API_KEY": "${env:MEM0_API_KEY}"
       }
     },
     "context7": {

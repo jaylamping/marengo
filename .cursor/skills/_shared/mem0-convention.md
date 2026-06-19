@@ -1,6 +1,6 @@
 # mem0 Artifact Convention (Marengo)
 
-Marengo uses **self-hosted mem0** via `mem0-mcp` (Engram-compatible tool names).
+Marengo uses **self-hosted mem0** via `mem0-mcp` (Engram-compatible tool names). Canonical endpoints: `tools/mem0-mcp/src/defaults.ts` (API `https://joey-pc.tail0b414.ts.net:8888`).
 
 ## Naming Rules
 
@@ -95,7 +95,7 @@ Operational memories (`pi/`, `cad/`, live bench) should include in content:
 - valid_until: {optional}
 ```
 
-`mem_save` rejects invalid `topic_key` patterns, secrets, oversized content, and raw log dumps.
+`mem_save` rejects invalid `topic_key` patterns, secrets, oversized content, and pasted log dumps (3+ log-format lines). Mentioning tools like `pi_candump_summary` or `journalctl` in distilled docs is fine. Pass `content` as a **plain markdown string**, not a `[{text,type}]` array.
 
 ## History
 

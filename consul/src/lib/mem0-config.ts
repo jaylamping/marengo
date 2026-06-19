@@ -1,4 +1,9 @@
 /** mem0 Memory Observatory — proxied via Vite `/mem0-api` in dev. */
+export {
+  MEM0_API_URL,
+  MEM0_DASHBOARD_URL,
+  MEM0_USER_ID,
+} from '../../../tools/mem0-mcp/src/defaults.ts';
 
 export type Mem0Namespace =
   | 'all'
@@ -91,7 +96,9 @@ export function normalizeMemory(row: {
 }
 
 export function mem0UserId(): string {
-  return (import.meta.env.VITE_MEM0_USER_ID as string | undefined)?.trim() || 'marengo-joey';
+  return (
+    (import.meta.env.VITE_MEM0_USER_ID as string | undefined)?.trim() || MEM0_USER_ID
+  );
 }
 
 export function mem0PollMs(): number {
@@ -113,4 +120,3 @@ export function isMem0Live(): boolean {
   return isMem0Configured();
 }
 
-export const MEM0_DASHBOARD_URL = 'https://joey-pc.tail0b414.ts.net';

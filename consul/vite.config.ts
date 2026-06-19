@@ -2,11 +2,12 @@ import tailwindcss from '@tailwindcss/vite';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import { MEM0_API_URL } from '../tools/mem0-mcp/src/defaults.ts';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  const mem0Target = env.MEM0_API_URL?.replace(/\/$/, '');
+  const mem0Target = (env.MEM0_API_URL ?? MEM0_API_URL).replace(/\/$/, '');
 
   return {
     plugins: [react(), tailwindcss()],
@@ -17,22 +18,20 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 5173,
-      proxy: mem0Target
-        ? {
-            '/mem0-api': {
-              target: mem0Target,
-              changeOrigin: true,
-              rewrite: (p) => p.replace(/^\/mem0-api/, ''),
-              configure: (proxy) => {
-                proxy.on('proxyReq', (proxyReq) => {
-                  if (env.MEM0_API_KEY) {
-                    proxyReq.setHeader('X-API-Key', env.MEM0_API_KEY);
-                  }
-                });
-              },
-            },
-          }
-        : undefined,
+      proxy: {
+        '/mem0-api': {
+          target: mem0Target,
+          changeOrigin: true,
+          rewrite: (p) => p.replace(/^\/mem0-api/, ''),
+          configure: (proxy) => {
+            proxy.on('proxyReq', (proxyReq) => {
+              if (env.MEM0_API_KEY) {
+                proxyReq.setHeader('X-API-Key', env.MEM0_API_KEY);
+              }
+            });
+          },
+        },
+      },
       // Live telemetry: set VITE_CHAPPE_* in .env.local (see consul/.env.example).
       // WebTransport uses HTTP/3 to the gateway directly (not proxied through Vite).
     },

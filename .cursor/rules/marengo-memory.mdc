@@ -4,7 +4,7 @@ alwaysApply: true
 ---
 # Marengo Memory (mem0)
 
-Use **self-hosted mem0** via `mem0-mcp` whenever working in this repo. SDD artifacts remain on `sdd/*` keys; general engineering knowledge uses the expanded namespaces in [`.cursor/skills/_shared/mem0-convention.md`](../skills/_shared/mem0-convention.md).
+Use **self-hosted mem0** via `mem0-mcp` whenever working in this repo. **API URL defaults** to `https://joey-pc.tail0b414.ts.net:8888` (`tools/mem0-mcp/src/defaults.ts`) — never discover or curl-guess; use MCP tools or that constant. SDD artifacts remain on `sdd/*` keys; general engineering knowledge uses the expanded namespaces in [`.cursor/skills/_shared/mem0-convention.md`](../skills/_shared/mem0-convention.md).
 
 ## Bootstrap (bounded, fail-open)
 

@@ -37,5 +37,5 @@ Protection logic lives in `tools/mem0-mcp/src/prune-policy.ts` — update code a
 
 ## Env
 
-- `MEM0_API_URL`, `MEM0_API_KEY`, `MEM0_USER_ID=marengo-joey`
+- `MEM0_API_KEY` (required). URL and user ID default from `tools/mem0-mcp/src/defaults.ts`.
 - Write-capable API key required for deletes

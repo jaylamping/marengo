@@ -15,10 +15,11 @@ MCP server for Marengo self-hosted mem0 (Engram-compatible).
 ## Env
 
 ```bash
-MEM0_API_URL=https://joey-pc.tail0b414.ts.net:8888
+# MEM0_API_URL and MEM0_USER_ID default to tools/mem0-mcp/src/defaults.ts
 MEM0_API_KEY=m0sk_...
-MEM0_USER_ID=marengo-joey
 ```
+
+Optional overrides: `MEM0_API_URL`, `MEM0_USER_ID`.
 
 Set `MEM0_API_KEY` in your environment, not in git. Registered in `.cursor/mcp.json`.
 

@@ -37,7 +37,7 @@ export function MemoryConnectionBanner({ reachable }: MemoryConnectionBannerProp
       </span>
       {mode === 'unconfigured' ? (
         <span className="text-muted-foreground">
-          Set MEM0_API_URL + MEM0_API_KEY in consul/.env.local (see .env.example)
+          Set MEM0_API_KEY in consul/.env.local (see .env.example). API URL defaults to joey-pc Tailscale.
         </span>
       ) : null}
       {mode === 'offline' ? (

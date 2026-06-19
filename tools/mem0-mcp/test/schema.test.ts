@@ -2,9 +2,13 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   MEMORY_TOOL_NAMES,
+  countRawLogLines,
   memGetByTopicKeySchema,
+  memSaveSchema,
+  normalizeContentInput,
   parseNamespace,
   rejectOversizedContent,
+  rejectRawLogs,
   rejectSecrets,
   validateMemoryContent,
   validateTopicKey,
@@ -77,6 +81,49 @@ describe("validateMemoryContent", () => {
       validateMemoryContent("shoulder pitch hold uses Davout gate"),
       null,
     );
+  });
+
+  it("allows distilled docs that mention candump or journalctl tools", () => {
+    const proposal = `# Proposal: consul-actuator-harness
+
+## Intent
+Bridge sim-to-real by adding /actuators page to Consul.
+
+## Test plan
+- After motion: pi_candump_summary plus position trace
+- Check journalctl -u marengo-pi for faults
+`;
+    assert.equal(validateMemoryContent(proposal), null);
+  });
+
+  it("blocks pasted candump log dumps", () => {
+    const dump = [
+      "(0.001234) can0 701#AABBCCDD",
+      "(0.002345) can0 701#BBCCDDEE",
+      "(0.003456) can0 701#CCDDEEFF",
+    ].join("\n");
+    assert.equal(countRawLogLines(dump), 3);
+    assert.match(rejectRawLogs(dump) ?? "", /raw log output/);
+  });
+
+  it("allows a single example candump line in docs", () => {
+    const doc = "Example frame: (0.001234) can0 701#AABBCCDD";
+    assert.equal(rejectRawLogs(doc), null);
+  });
+
+  it("coerces Anthropic content block arrays to plain strings", () => {
+    const parsed = memSaveSchema.parse({
+      title: "sdd/foo/proposal",
+      topic_key: "sdd/foo/proposal",
+      content: [{ text: "# Proposal\n\nBody text.", type: "text" }],
+    });
+    assert.equal(parsed.content, "# Proposal\n\nBody text.");
+  });
+});
+
+describe("normalizeContentInput", () => {
+  it("passes through plain strings", () => {
+    assert.equal(normalizeContentInput("hello"), "hello");
   });
 });
 

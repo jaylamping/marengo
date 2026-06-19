@@ -47,7 +47,7 @@ export function registerMemoryTools(cfg: Mem0Config): Record<string, ToolEntry> 
       },
     },
     mem_save: {
-      description: `Save or upsert a memory to self-hosted mem0 by topic_key. Requires topic_key under ${ALLOWED_NAMESPACE_HINT}. Same topic_key updates the existing observation.`,
+      description: `Save or upsert a memory to self-hosted mem0 by topic_key. Requires topic_key under ${ALLOWED_NAMESPACE_HINT}. Same topic_key updates the existing observation. Pass content as a plain markdown string (not a [{text,type}] array).`,
       inputSchema: memSaveSchema,
       handler: async (raw) => {
         const args = memSaveSchema.parse(raw);
