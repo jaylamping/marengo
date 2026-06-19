@@ -1,8 +1,10 @@
 import { useMatches } from 'react-router-dom';
 
+import { siteHeaderGlassClassName } from '@/components/dashboard/sidebar/constants';
 import { SiteHeaderStatusBadges } from '@/components/dashboard/site-header/site-header-status-badges';
 import { siteHeaderConfig } from '@/data/site-header';
 import { getRouteHeader } from '@/lib/route-handle';
+import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 
@@ -14,7 +16,12 @@ export function SiteHeader() {
   const subtitle = routeHeader?.subtitle ?? siteHeaderConfig.subtitle;
 
   return (
-    <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
+    <header
+      className={cn(
+        'flex h-(--header-height) shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)',
+        siteHeaderGlassClassName,
+      )}
+    >
       <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
         <SidebarTrigger className="-ml-1" />
         <Separator
