@@ -25,8 +25,8 @@ use crate::friction::{
 };
 use crate::position_trace::{PositionTrace, PositionTraceRow};
 use crate::position_trajectory::{
-    filter_dq_ema, position_hold_damping_torque, JointPositionPlanner, TrapezoidPhase,
-    POSITION_DAMPING_DQ_FILTER_ALPHA,
+    filter_dq_ema, is_gravity_assisted_return, position_hold_damping_torque, JointPositionPlanner,
+    TrapezoidPhase, POSITION_DAMPING_DQ_FILTER_ALPHA,
 };
 
 const POSITION_SETTLE_TOLERANCE_RAD: f64 = 1e-4;
@@ -1044,9 +1044,9 @@ fn position_hold_effective_max_lead(
     let outbound_breakaway = breakaway_from_home
         && approaching_target
         && settle_error > POSITION_RETURN_DESCENT_SEED_RAD;
-    let return_breakaway = (q + settle_error).abs() <= POSITION_SETTLE_TOLERANCE_RAD
-        && q > POSITION_RETURN_DESCENT_SEED_RAD
-        && settle_error < -POSITION_RETURN_DESCENT_SEED_RAD;
+    let target = q + settle_error;
+    let return_breakaway =
+        is_gravity_assisted_return(q, target) && settle_error < -POSITION_RETURN_DESCENT_SEED_RAD;
     if retarget_age_ms <= POSITION_HOLD_ONSET_MS
         && settle_error.abs() > POSITION_RETURN_DESCENT_SEED_RAD
         && (outbound_breakaway || return_breakaway)
@@ -1087,6 +1087,7 @@ fn descent_stuck_mit_pull(
     breakaway_confirmed: bool,
 ) -> bool {
     !breakaway_confirmed
+        && is_gravity_assisted_return(q, target)
         && to_target < -POSITION_HOLD_ERROR_DEADBAND_RAD
         && (q - target) > POSITION_RETURN_DESCENT_SEED_RAD
         && dq_filtered.abs() < velocity_deadband
@@ -1543,10 +1544,20 @@ mod tests {
 
     #[test]
     fn return_onset_pulls_q_des_below_q_when_stuck() {
-        assert!(descent_stuck_mit_pull(-0.09, 0.105, 0.0, 0.0, 0.02, false));
-        let q_des = clamp_trajectory_setpoint(0.105, 0.105, 0.0, 0.10, None, 0.0)
+        assert!(descent_stuck_mit_pull(
+            -0.09, 0.105, 0.015, 0.0, 0.02, false
+        ));
+        let q_des = clamp_trajectory_setpoint(0.105, 0.105, 0.015, 0.10, None, 0.0)
             .min(0.105 - POSITION_DESCENT_STUCK_LEAD_RAD);
         assert!((q_des - 0.075).abs() < 1e-12);
+    }
+
+    #[test]
+    fn sub_home_negative_move_does_not_enable_descent_mit_pull() {
+        assert!(!descent_stuck_mit_pull(-0.64, 0.0, -0.64, 0.0, 0.02, false));
+        assert!(!descent_stuck_mit_pull(
+            -0.50, -0.14, -0.64, 0.0, 0.02, false
+        ));
     }
 
     #[test]
@@ -1571,10 +1582,15 @@ mod tests {
         assert!((home - 0.10).abs() < 1e-12);
         let small = position_hold_effective_max_lead(0.10, 0, true, 0.02, 0.0);
         assert!((small - 0.10).abs() < 1e-12);
-        let return_high = position_hold_effective_max_lead(0.10, 0, true, -1.645, 1.645);
+        let return_high = position_hold_effective_max_lead(0.10, 0, true, -1.545, 1.645);
         assert!(
             (return_high - 0.15).abs() < 1e-12,
             "return from high q gets onset lead boost"
+        );
+        let lower_limit = position_hold_effective_max_lead(0.10, 0, true, -0.64, 0.0);
+        assert!(
+            (lower_limit - 0.10).abs() < 1e-12,
+            "limit-directed negative move must not get return assist boost"
         );
     }
 
@@ -1592,12 +1608,16 @@ mod tests {
 
     #[test]
     fn descent_mit_pull_clears_after_breakaway_latch() {
-        assert!(!descent_stuck_mit_pull(-0.09, 0.105, 0.0, 0.0, 0.02, true));
-        assert!(descent_stuck_mit_pull(-0.09, 0.105, 0.0, 0.0, 0.02, false));
+        assert!(!descent_stuck_mit_pull(
+            -0.09, 0.105, 0.015, 0.0, 0.02, true
+        ));
+        assert!(descent_stuck_mit_pull(
+            -0.09, 0.105, 0.015, 0.0, 0.02, false
+        ));
         assert!(descent_breakaway_confirmed(-0.09, -0.026, 0.02));
         // Cruise motion alone must not imply breakaway without a stuck episode.
         assert!(!descent_stuck_mit_pull(
-            -0.09, 0.08, 0.0, -0.03, 0.02, false
+            -0.09, 0.08, 0.015, -0.03, 0.02, false
         ));
     }
 
@@ -1750,6 +1770,29 @@ mod tests {
             q_des >= policy.hard_lower(),
             "q_des {q_des} must not command past hard lower {}",
             policy.hard_lower()
+        );
+    }
+
+    #[test]
+    fn limit_clamped_sub_home_target_does_not_seed_downward_return() {
+        let mut loop_ctrl = test_loop();
+        loop_ctrl
+            .enter_position_hold_at(Some("shoulder_pitch"), -0.85)
+            .expect("hold-at");
+        let i = loop_ctrl
+            .joint_names()
+            .iter()
+            .position(|n| n == "shoulder_pitch")
+            .expect("joint index");
+        let target = loop_ctrl.position_setpoints().expect("setpoints")[i];
+        assert!(
+            target > -0.85,
+            "requested lower-limit probe must clamp before planner reset"
+        );
+        let planner = &loop_ctrl.position_planners.as_ref().expect("planner")[i];
+        assert!(
+            planner.dq_traj.abs() < 1e-12,
+            "clamped negative target must not seed downward velocity"
         );
     }
 }

@@ -57,7 +57,7 @@ impl JointPositionPlanner {
         self.phase = TrapezoidPhase::Hold;
     }
 
-    /// After `reset_target`, seed downward cruise speed when returning from well above `target`.
+    /// After `reset_target`, seed downward cruise speed for same-side returns toward home.
     /// At high `q`, gravity FF exceeds friction until `dq_traj` reaches velocity deadband — causes
     /// a long return hitch from approach overshoot (e.g. weighted 0.1 rad gate).
     pub fn seed_downward_return_if_needed(
@@ -67,7 +67,10 @@ impl JointPositionPlanner {
         seed_threshold_rad: f64,
         v_seed: f64,
     ) {
-        if target >= q - seed_threshold_rad || v_seed <= POSITION_TOLERANCE_RAD {
+        if !is_gravity_assisted_return(q, target)
+            || target >= q - seed_threshold_rad
+            || v_seed <= POSITION_TOLERANCE_RAD
+        {
             return;
         }
         self.dq_traj = -v_seed;
@@ -81,6 +84,12 @@ impl JointPositionPlanner {
         self.dq_traj = v;
         self.phase = phase;
     }
+}
+
+/// Descent assist is only for same-side returns toward home, not crossing home or
+/// driving into a lower-limit target.
+pub fn is_gravity_assisted_return(q: f64, target: f64) -> bool {
+    q * target > 0.0 && target.abs() < q.abs()
 }
 
 /// One trapezoidal velocity step toward `q_target`.
@@ -220,7 +229,7 @@ mod tests {
     #[test]
     fn seed_downward_return_when_well_above_target() {
         let mut planner = JointPositionPlanner::new_at(0.12);
-        planner.seed_downward_return_if_needed(0.12, 0.0, 0.05, 0.10);
+        planner.seed_downward_return_if_needed(0.12, 0.06, 0.05, 0.10);
         assert!((planner.dq_traj + 0.10).abs() < 1e-12);
         assert_eq!(planner.phase, TrapezoidPhase::Accelerate);
     }
@@ -230,6 +239,32 @@ mod tests {
         let mut planner = JointPositionPlanner::new_at(0.03);
         planner.seed_downward_return_if_needed(0.03, 0.0, 0.05, 0.10);
         assert!((planner.dq_traj).abs() < 1e-12);
+    }
+
+    #[test]
+    fn seed_downward_return_skips_sub_home_target() {
+        let mut planner = JointPositionPlanner::new_at(0.0);
+        planner.seed_downward_return_if_needed(0.0, -0.64, 0.05, 0.10);
+        assert!((planner.dq_traj).abs() < 1e-12);
+        assert_eq!(planner.phase, TrapezoidPhase::Hold);
+    }
+
+    #[test]
+    fn seed_downward_return_skips_limit_directed_negative_move() {
+        let mut planner = JointPositionPlanner::new_at(-0.14);
+        planner.seed_downward_return_if_needed(-0.14, -0.64, 0.05, 0.10);
+        assert!((planner.dq_traj).abs() < 1e-12);
+        assert_eq!(planner.phase, TrapezoidPhase::Hold);
+    }
+
+    #[test]
+    fn gravity_assisted_return_requires_same_side_closer_to_home() {
+        assert!(is_gravity_assisted_return(0.30, 0.10));
+        assert!(is_gravity_assisted_return(-0.30, -0.10));
+        assert!(!is_gravity_assisted_return(0.0, -0.30));
+        assert!(!is_gravity_assisted_return(0.30, -0.10));
+        assert!(!is_gravity_assisted_return(-0.10, -0.30));
+        assert!(!is_gravity_assisted_return(0.30, 0.0));
     }
 
     #[test]
