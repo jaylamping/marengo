@@ -6,7 +6,9 @@ import { runSyncMain } from "./deploy.js";
 import { waitForDeployReady } from "./deploy-wait.js";
 import {
   runSyncBenchConfig,
+  runSyncBenchUrdfAssets,
   syncBenchConfigSchema,
+  syncBenchUrdfSchema,
 } from "./sync-config.js";
 
 export function registerAdminTools(
@@ -80,6 +82,19 @@ export function registerAdminTools(
         return runSyncBenchConfig(cfg, runRemote, {
           profile: args.profile ?? "shoulder_pitch_right_only",
           install_to_opt: args.install_to_opt ?? true,
+        });
+      },
+    },
+
+    pi_sync_bench_urdf: {
+      description:
+        "Rsync selected bench URDF assets from local assets/urdf to the Pi. " +
+        "Use after editing bench URDF COM/mass assets; sets ~/marengo and optionally /opt/marengo.",
+      inputSchema: syncBenchUrdfSchema,
+      handler: async (args: z.infer<typeof syncBenchUrdfSchema>) => {
+        return runSyncBenchUrdfAssets(cfg, runRemote, {
+          assets: args.assets,
+          install_to_opt: args.install_to_opt,
         });
       },
     },

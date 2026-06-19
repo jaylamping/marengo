@@ -6,6 +6,14 @@ import { shellQuote, wrapRemote, wrapRemoteWithConfig } from "../env.js";
 import { sshTarget } from "../config.js";
 import { execLocal, formatRemoteResult } from "../ssh.js";
 
+const benchUrdfAssets = [
+  "shoulder_pitch_right_only.urdf",
+  "shoulder_pitch_weighted.urdf",
+  "shoulder_pitch_left_bare.urdf",
+] as const;
+
+type BenchUrdfAsset = (typeof benchUrdfAssets)[number];
+
 function expandStagingRoot(cfg: MarengoPiConfig): string {
   if (cfg.piStagingRoot.startsWith("~/")) {
     return `$HOME${cfg.piStagingRoot.slice(1)}`;
@@ -22,6 +30,59 @@ function remotePathExpr(path: string): string {
 
 export const directInstallRsyncLine =
   'rsync -r --no-owner --no-group --no-perms --omit-dir-times "$SRC/" "$DST/"';
+
+export function benchUrdfStagingVerifyBody(
+  cfg: MarengoPiConfig,
+  assets: BenchUrdfAsset[],
+): string {
+  const remoteRel = "assets/urdf";
+  const stagedFiles = assets
+    .map((asset) => remotePathExpr(`${expandStagingRoot(cfg)}/${remoteRel}/${asset}`))
+    .join(" ");
+
+  return wrapRemote(
+    cfg,
+    [
+      "for urdf in " + stagedFiles + "; do",
+      '  echo "--- $urdf"',
+      '  grep -A3 "<inertial>" "$urdf" | sed -n "1,4p"',
+      "done",
+    ].join("\n"),
+  );
+}
+
+export function benchUrdfInstallBody(
+  cfg: MarengoPiConfig,
+  assets: BenchUrdfAsset[],
+): string {
+  const remoteRel = "assets/urdf";
+  const remoteOpt = `${cfg.piRoot}/${remoteRel}`;
+  const assetNames = assets.map((asset) => shellQuote(asset)).join(" ");
+
+  return wrapRemote(
+    cfg,
+    [
+      `SRC=${remotePathExpr(`${expandStagingRoot(cfg)}/${remoteRel}`)}`,
+      `DST=${shellQuote(remoteOpt)}`,
+      'if [[ -d "$DST" && -w "$DST" ]]; then',
+      "  for asset in " + assetNames + "; do",
+      '    install -m 0644 "$SRC/$asset" "$DST/$asset"',
+      '    echo "installed $DST/$asset (direct write)"',
+      "  done",
+      "else",
+      '  echo "warn: $DST not writable and passwordless sudo is unavailable"',
+      '  echo "run once on the Pi:"',
+      '  echo "  cd $HOME/marengo && sudo ./scripts/install-pi.sh"',
+      "fi",
+      "for asset in " + assetNames + "; do",
+      '  if [[ -f "$DST/$asset" ]]; then',
+      '    echo "--- $DST/$asset"',
+      '    grep -A3 "<inertial>" "$DST/$asset" | sed -n "1,4p"',
+      "  fi",
+      "done",
+    ].join("\n"),
+  );
+}
 
 export async function runSyncBenchConfig(
   cfg: MarengoPiConfig,
@@ -118,6 +179,77 @@ export async function runSyncBenchConfig(
   return steps.join("\n\n---\n\n");
 }
 
+export async function runSyncBenchUrdfAssets(
+  cfg: MarengoPiConfig,
+  runRemote: (body: string, timeoutMs?: number) => Promise<string>,
+  args: {
+    assets: BenchUrdfAsset[];
+    install_to_opt: boolean;
+  },
+): Promise<string> {
+  const localDir = path.join(cfg.localRoot, "assets", "urdf");
+  const remoteRel = "assets/urdf";
+  const remoteStaging = `${cfg.piStagingRoot}/${remoteRel}`.replace(/\/+/g, "/");
+  const remoteOpt = `${cfg.piRoot}/${remoteRel}`;
+  const localFiles = args.assets.map((asset) => path.join(localDir, asset));
+
+  let sync = await execLocal(
+    "rsync",
+    [
+      "-av",
+      ...localFiles,
+      `${sshTarget(cfg)}:${remoteStaging}/`,
+    ],
+    { cwd: cfg.localRoot, timeoutMs: 60_000 },
+  );
+
+  const steps: string[] = [`[local URDF sync → ${remoteStaging}]`];
+
+  if (sync.exitCode !== 0) {
+    await runRemote(
+      wrapRemote(
+        cfg,
+        `mkdir -p ${shellQuote(`${expandStagingRoot(cfg)}/${remoteRel}`)}`,
+      ),
+      15_000,
+    );
+    steps.push("[mkdir URDF staging]");
+    sync = await execLocal(
+      "scp",
+      [
+        ...localFiles,
+        `${sshTarget(cfg)}:${remoteStaging}/`,
+      ],
+      { cwd: cfg.localRoot, timeoutMs: 60_000 },
+    );
+    steps.push(`[local scp fallback]\n${formatRemoteResult(sync)}`);
+  } else {
+    steps.push(formatRemoteResult(sync));
+  }
+
+  if (sync.exitCode !== 0) {
+    return steps.join("\n\n");
+  }
+
+  const verifyStaging = await runRemote(
+    benchUrdfStagingVerifyBody(cfg, args.assets),
+    15_000,
+  );
+  steps.push(`[staging URDF inertials]\n${verifyStaging}`);
+
+  if (args.install_to_opt) {
+    const installBody = benchUrdfInstallBody(cfg, args.assets);
+    const install = await runRemote(installBody, 30_000);
+    steps.push(`[install URDFs → ${remoteOpt}]\n${install}`);
+  } else {
+    steps.push(
+      `[note] Staging only. Bench with MARENGO_ROOT=${expandStagingRoot(cfg)} or install_to_opt: true.`,
+    );
+  }
+
+  return steps.join("\n\n---\n\n");
+}
+
 export const syncBenchConfigSchema = z.object({
   profile: z
     .string()
@@ -127,4 +259,16 @@ export const syncBenchConfigSchema = z.object({
     .boolean()
     .default(true)
     .describe("Also rsync into /opt/marengo (requires passwordless sudo)"),
+});
+
+export const syncBenchUrdfSchema = z.object({
+  assets: z
+    .array(z.enum(benchUrdfAssets))
+    .nonempty()
+    .default(["shoulder_pitch_right_only.urdf", "shoulder_pitch_weighted.urdf"])
+    .describe("Bench URDF asset filenames under assets/urdf/"),
+  install_to_opt: z
+    .boolean()
+    .default(true)
+    .describe("Also install into /opt/marengo/assets/urdf when writable"),
 });

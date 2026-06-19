@@ -28,7 +28,7 @@ Host: **`marengo.local`** user **`joey`**. Pi root: **`/opt/marengo`**.
 
 `pi_can_up`, **`pi_sync_main`** — see [marengo-pi-sync](../marengo-pi-sync/SKILL.md)
 
-**Config sync:** after editing `config/bringup/*/control.yaml` (or motors/robot) on the Mac, run **`pi_sync_bench_config`** with `profile: shoulder_pitch_right_only` or `shoulder_pitch_left_only`, `install_to_opt: true`; do not ask the user to run rsync/deploy manually. Also sync/deploy **`assets/urdf/shoulder_pitch_left_bare.urdf`** when the left profile is new or changed.
+**Config sync:** after editing `config/bringup/*/control.yaml` (or motors/robot) on the Mac, run **`pi_sync_bench_config`** with `profile: shoulder_pitch_right_only` or `shoulder_pitch_left_only`, `install_to_opt: true`; do not ask the user to run rsync/deploy manually. After editing bench URDF assets, run **`pi_sync_bench_urdf`** with the relevant `assets` list, `install_to_opt: true`; use the default asset list for right weighted/right-only COM calibration.
 
 ## Motion (confirm required)
 
