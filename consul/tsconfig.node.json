@@ -10,7 +10,8 @@
     "declaration": true,
     "emitDeclarationOnly": true,
     "outDir": "./node_modules/.cache/tsconfig.node",
-    "tsBuildInfoFile": "./node_modules/.cache/tsconfig.node.tsbuildinfo"
+    "tsBuildInfoFile": "./node_modules/.cache/tsconfig.node.tsbuildinfo",
+    "types": ["node"]
   },
   "include": ["vite.config.ts"]
 }
