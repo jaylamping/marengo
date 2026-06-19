@@ -95,6 +95,8 @@ Pi-hosted Consul (`marengo.local:8444`) shows offline banner until gateway proxy
 
 Agent `model:` fields in [`.cursor/agents/`](../.cursor/agents/) mirror the orchestrator table in [`.cursor/rules/gentle-ai-sdd.mdc`](../.cursor/rules/gentle-ai-sdd.mdc). Slugs must match Cursor's model picker.
 
+**Credit budget:** Composer 2.5 Fast uses a separate Cursor credit bucket. Prefer Composer when quality is a toss-up; reserve API credits for orchestrator, propose, design, verify, review-risk, review-reliability, and expert-cad.
+
 ### Launch orchestrator
 
 - **Agent:** `@sdd-orchestrator` (reads `gentle-ai-sdd.mdc` + persona rule)
@@ -105,28 +107,28 @@ Agent `model:` fields in [`.cursor/agents/`](../.cursor/agents/) mirror the orch
 | Agent | Model |
 |-------|-------|
 | sdd-orchestrator | `claude-4.6-sonnet-medium-thinking` |
-| sdd-init | `gpt-5.5-high` |
-| sdd-explore | `gemini-3.1-pro` |
+| sdd-init | `composer-2.5-fast` |
+| sdd-explore | `composer-2.5-fast` |
 | sdd-propose | `claude-4.6-sonnet-medium-thinking` |
-| sdd-spec | `claude-4.6-sonnet-medium-thinking` |
+| sdd-spec | `composer-2.5-fast` |
 | sdd-design | `claude-opus-4-8-thinking-high` |
-| sdd-tasks | `gpt-5.5-high` |
-| sdd-apply | `gpt-5.3-codex-high` |
+| sdd-tasks | `composer-2.5-fast` |
+| sdd-apply | `composer-2.5-fast` |
 | sdd-verify | `claude-opus-4-8-thinking-high` |
-| sdd-archive | `claude-4.6-sonnet-medium-thinking` |
-| sdd-onboard | `claude-4.6-sonnet-medium-thinking` |
+| sdd-archive | `composer-2.5-fast` |
+| sdd-onboard | `composer-2.5-fast` |
 
 ### Experts
 
-All `expert-*` agents use `gemini-3.1-pro` for read-only domain review. Orchestrator re-runs with `claude-opus-4-8-thinking-high` when an expert contradicts authoritative sources, invents specs, or issues **No-Go** without evidence.
+All `expert-*` agents (except `expert-cad`) use `composer-2.5-fast` for read-only domain review. Orchestrator re-runs with `claude-opus-4-8-thinking-high` when an expert contradicts authoritative sources, invents specs, or issues **No-Go** without evidence.
 
 | Agent | Model | mem0 path |
 |-------|-------|-----------|
 | expert-cad | `gpt-5.3-codex-high` | `feasibility/{change}/expert/cad` |
-| expert-mech | `gemini-3.1-pro` | `feasibility/{change}/expert/mech` |
-| expert-ee | `gemini-3.1-pro` | `feasibility/{change}/expert/ee` |
-| expert-robotics | `gemini-3.1-pro` | `feasibility/{change}/expert/robotics` |
-| expert-kinematics | `gemini-3.1-pro` | `feasibility/{change}/expert/kinematics` |
+| expert-mech | `composer-2.5-fast` | `feasibility/{change}/expert/mech` |
+| expert-ee | `composer-2.5-fast` | `feasibility/{change}/expert/ee` |
+| expert-robotics | `composer-2.5-fast` | `feasibility/{change}/expert/robotics` |
+| expert-kinematics | `composer-2.5-fast` | `feasibility/{change}/expert/kinematics` |
 
 Long-lived heuristics: `expert/{domain}/{slug}`.
 
@@ -134,9 +136,9 @@ Long-lived heuristics: `expert/{domain}/{slug}`.
 
 | Agent | Model |
 |-------|-------|
-| review-readability | `gpt-5.4-nano-medium` |
+| review-readability | `composer-2.5-fast` |
 | review-reliability | `gpt-5.5-high` |
-| review-resilience | `claude-4.6-sonnet-medium-thinking` |
+| review-resilience | `composer-2.5-fast` |
 | review-risk | `claude-opus-4-8-thinking-high` |
 
 Model slugs must match Cursor's model picker. Adjust agent frontmatter if a slug differs.

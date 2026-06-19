@@ -1,8 +1,8 @@
 ---
 name: sdd-archive
 description: "Archive a completed SDD change by syncing delta specs. Trigger: orchestrator launches archive after implementation and verification."
-# model: composer-2.5-fast
-model: claude-4.6-sonnet-medium-thinking
+model: composer-2.5-fast
+# model: claude-4.6-sonnet-medium-thinking
 disable-model-invocation: true
 user-invocable: false
 license: MIT

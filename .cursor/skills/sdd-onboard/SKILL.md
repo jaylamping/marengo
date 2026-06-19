@@ -1,8 +1,8 @@
 ---
 name: sdd-onboard
 description: "Walk users through the SDD workflow on the real codebase. Trigger: orchestrator launches onboarding for the full SDD cycle."
-# model: composer-2.5-fast
-model: claude-4.6-sonnet-medium-thinking
+model: composer-2.5-fast
+# model: claude-4.6-sonnet-medium-thinking
 disable-model-invocation: true
 user-invocable: false
 license: MIT

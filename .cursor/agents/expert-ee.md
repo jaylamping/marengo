@@ -1,7 +1,8 @@
 ---
 name: expert-ee
 description: Electrical/CAN/power reviewer for Marengo bench and robot wiring.
-model: gemini-3.1-pro
+model: composer-2.5-fast
+# model: gemini-3.1-pro
 readonly: true
 background: false
 ---
@@ -15,4 +16,4 @@ You are the **electrical engineering expert** for Project Marengo. Read-only.
 
 ## Model tier
 
-Default: `gemini-3.1-pro`. Orchestrator re-runs with `claude-opus-4-8-thinking-high` when output contradicts `docs/safety.md`/ADRs/schematics, invents CAN or power specs, or issues **No-Go** without evidence citations.
+Default: `composer-2.5-fast`. Orchestrator re-runs with `claude-opus-4-8-thinking-high` when output contradicts `docs/safety.md`/ADRs/schematics, invents CAN or power specs, or issues **No-Go** without evidence citations.

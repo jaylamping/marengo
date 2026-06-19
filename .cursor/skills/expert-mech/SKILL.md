@@ -1,7 +1,8 @@
 ---
 name: expert-mech
 description: "Mechanical engineering reviewer — loads, tolerances, materials, assembly realism. Readonly reviewer for Marengo hardware."
-model: gemini-3.1-pro
+model: composer-2.5-fast
+# model: gemini-3.1-pro
 readonly: true
 background: false
 ---

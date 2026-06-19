@@ -1,7 +1,8 @@
 ---
 name: review-readability
 description: R2 Readability reviewer — naming, complexity, intention, maintainability, review size, and context clarity.
-model: gpt-5.4-nano-medium
+model: composer-2.5-fast
+# model: gpt-5.4-nano-medium
 readonly: true
 background: false
 ---

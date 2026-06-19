@@ -1,7 +1,8 @@
 ---
 name: review-resilience
 description: R4 Resilience reviewer — fallbacks, retry/backoff, graceful degradation, observability, load, rollback, and SLO risks.
-model: claude-4.6-sonnet-medium-thinking
+model: composer-2.5-fast
+# model: claude-4.6-sonnet-medium-thinking
 readonly: true
 background: false
 ---

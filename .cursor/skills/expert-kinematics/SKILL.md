@@ -1,7 +1,8 @@
 ---
 name: expert-kinematics
 description: "Kinematics reviewer — URDF, joint axes/limits, config alignment, armee-kinematics. Readonly reviewer for Marengo robot kinematics."
-model: gemini-3.1-pro
+model: composer-2.5-fast
+# model: gemini-3.1-pro
 readonly: true
 background: false
 ---

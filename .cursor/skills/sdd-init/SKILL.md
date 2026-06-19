@@ -1,8 +1,8 @@
 ---
 name: sdd-init
 description: "Trigger: sdd init, iniciar sdd, openspec init. Initialize SDD context, testing capabilities, registry, and persistence."
-# model: composer-2.5-fast
-model: gpt-5.5-high
+model: composer-2.5-fast
+# model: gpt-5.5-high
 disable-model-invocation: true
 user-invocable: false
 license: MIT

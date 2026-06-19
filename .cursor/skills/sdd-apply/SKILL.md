@@ -1,8 +1,8 @@
 ---
 name: sdd-apply
 description: "Implement SDD tasks from specs and design. Trigger: orchestrator launches apply for one or more change tasks."
-# model: composer-2.5-fast
-model: gpt-5.3-codex-high
+model: composer-2.5-fast
+# model: gpt-5.3-codex-high
 disable-model-invocation: true
 user-invocable: false
 license: MIT

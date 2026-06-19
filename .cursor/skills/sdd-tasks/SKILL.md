@@ -1,8 +1,8 @@
 ---
 name: sdd-tasks
 description: "Break an SDD change into implementation tasks. Trigger: orchestrator launches task planning for a change."
-# model: composer-2.5-fast
-model: gpt-5.5-high
+model: composer-2.5-fast
+# model: gpt-5.5-high
 disable-model-invocation: true
 user-invocable: false
 license: MIT

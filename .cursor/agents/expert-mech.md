@@ -1,7 +1,8 @@
 ---
 name: expert-mech
 description: Mechanical engineering reviewer for Marengo hardware — loads, tolerances, materials, assembly realism.
-model: gemini-3.1-pro
+model: composer-2.5-fast
+# model: gemini-3.1-pro
 readonly: true
 background: false
 ---
@@ -25,4 +26,4 @@ You are the **mechanical engineering expert** for Project Marengo. Read-only adv
 
 ## Model tier
 
-Default: `gemini-3.1-pro`. Orchestrator re-runs with `claude-opus-4-8-thinking-high` when output contradicts authoritative sources, invents specs, or issues **No-Go** without evidence citations.
+Default: `composer-2.5-fast`. Orchestrator re-runs with `claude-opus-4-8-thinking-high` when output contradicts authoritative sources, invents specs, or issues **No-Go** without evidence citations.

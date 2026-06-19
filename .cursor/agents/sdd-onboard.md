@@ -4,8 +4,8 @@ description: >
   Guide the user through a complete SDD cycle using their real codebase. Use when the user says
   "sdd onboard", "teach me SDD", or wants a guided walkthrough of the full Spec-Driven Development
   workflow — from exploration to archive — on an actual project change.
-# model: composer-2.5-fast
-model: claude-4.6-sonnet-medium-thinking
+model: composer-2.5-fast
+# model: claude-4.6-sonnet-medium-thinking
 readonly: false
 background: false
 ---

@@ -1,7 +1,8 @@
 ---
 name: expert-ee
 description: "Electrical/CAN/power reviewer — E-stop, enable paths, bus termination, grounding, bench safety. Readonly reviewer for Marengo electrical systems."
-model: gemini-3.1-pro
+model: composer-2.5-fast
+# model: gemini-3.1-pro
 readonly: true
 background: false
 ---

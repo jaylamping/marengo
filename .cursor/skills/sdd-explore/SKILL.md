@@ -1,8 +1,8 @@
 ---
 name: sdd-explore
 description: "Explore SDD ideas before committing to a change. Trigger: orchestrator launches exploration or requirement clarification."
-# model: composer-2.5-fast
-model: gemini-3.1-pro
+model: composer-2.5-fast
+# model: gemini-3.1-pro
 disable-model-invocation: true
 user-invocable: false
 license: MIT

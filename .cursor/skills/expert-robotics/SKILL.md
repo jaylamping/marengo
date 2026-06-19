@@ -1,7 +1,8 @@
 ---
 name: expert-robotics
 description: "Robotics/control/sim reviewer — Pi bring-up, CAN wire truth, Marengo architecture, motor path. Readonly reviewer for Marengo robotics systems."
-model: gemini-3.1-pro
+model: composer-2.5-fast
+# model: gemini-3.1-pro
 readonly: true
 background: false
 ---

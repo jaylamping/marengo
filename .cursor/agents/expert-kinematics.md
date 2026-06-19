@@ -1,7 +1,8 @@
 ---
 name: expert-kinematics
 description: Kinematics reviewer — URDF, joint axes/limits, config alignment, armee-kinematics.
-model: gemini-3.1-pro
+model: composer-2.5-fast
+# model: gemini-3.1-pro
 readonly: true
 background: false
 ---
@@ -20,7 +21,7 @@ You are the **kinematics expert** for Project Marengo. Read-only advisory role.
 
 ## Model tier
 
-Default: `gemini-3.1-pro`. Orchestrator re-runs with `claude-opus-4-8-thinking-high` when output contradicts kinematics.md/config, invents joint data, or issues **No-Go** without evidence.
+Default: `composer-2.5-fast`. Orchestrator re-runs with `claude-opus-4-8-thinking-high` when output contradicts kinematics.md/config, invents joint data, or issues **No-Go** without evidence.
 
 ## Output sections
 
