@@ -56,8 +56,8 @@ use marengo_config::{
     load_control_config, load_homing_config, load_motors_config, load_robot_config,
     motor_for_joint, motor_type_key, resolve_joint_velocity_cap, resolve_urdf_path,
     validate_control_against_limits, validate_motors_against_robot,
-    validate_robot_control_joint_coverage, ControlConfigFile,
-    HomingConfigFile, MotorEntry, MotorType, MotorsConfigFile, RobotConfigFile,
+    validate_robot_control_joint_coverage, ControlConfigFile, HomingConfigFile, MotorEntry,
+    MotorType, MotorsConfigFile, RobotConfigFile,
 };
 use marengo_homing::{verify_manual_reference, HomingRegistry, VerifyError};
 use robstride::AddressedMitCommand;
@@ -454,11 +454,12 @@ impl<B: MotorBus> Supervisor<B> {
 
     /// Poll CAN feedback; updates watchdog timestamp on success.
     pub fn refresh_feedback(&mut self) -> Result<usize, DavoutError> {
-        let timeout = self.feedback_poll_timeout();
+        let budget = self.feedback_poll_timeout();
+        let quiet = self.feedback_drain_quiet();
         let mut raw_states = HashMap::new();
         match self
             .bus
-            .recv_all_addressed(&self.motor_types, &mut raw_states, timeout)
+            .recv_all_addressed(&self.motor_types, &mut raw_states, budget, quiet)
         {
             Ok(n) => {
                 let received_at = Instant::now();
@@ -845,12 +846,11 @@ impl<B: MotorBus> Supervisor<B> {
     }
 
     fn feedback_poll_timeout(&self) -> Duration {
-        let watchdog = Duration::from_millis(self.control.control.comm_watchdog_ms);
-        if watchdog.is_zero() {
-            Duration::from_millis(1)
-        } else {
-            watchdog.min(Duration::from_millis(1))
-        }
+        Duration::from_micros(self.control.control.feedback_poll_budget_us)
+    }
+
+    fn feedback_drain_quiet(&self) -> Duration {
+        Duration::from_micros(self.control.control.feedback_drain_quiet_us)
     }
 
     pub fn filter_mit_command(
@@ -1250,8 +1250,14 @@ mod tests {
         let prev = Instant::now() - Duration::from_millis(10);
         let out1 = rate_limit_tau_ff(&mut last, "j1", 10.0, 100.0, Some(prev));
         let out2 = rate_limit_tau_ff(&mut last, "j2", 10.0, 100.0, Some(prev));
-        assert!((out1 - 1.0).abs() < 0.05, "j1 slew expected ~1.0, got {out1}");
-        assert!((out2 - 1.0).abs() < 0.05, "j2 slew expected ~1.0, got {out2}");
+        assert!(
+            (out1 - 1.0).abs() < 0.05,
+            "j1 slew expected ~1.0, got {out1}"
+        );
+        assert!(
+            (out2 - 1.0).abs() < 0.05,
+            "j2 slew expected ~1.0, got {out2}"
+        );
     }
 
     #[test]
@@ -1627,6 +1633,61 @@ mod tests {
             )
             .expect_err("watchdog");
         assert!(matches!(err, DavoutError::CommWatchdog { ms: 1 }));
+    }
+
+    #[test]
+    fn feedback_poll_timeout_honors_budget_not_watchdog_cap() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        sup.control.control.comm_watchdog_ms = 50;
+        sup.control.control.feedback_poll_budget_us = 3000;
+        sup.control.control.feedback_drain_quiet_us = 300;
+        assert_eq!(
+            sup.feedback_poll_timeout(),
+            Duration::from_micros(3000),
+            "poll budget must not be capped at 1 ms by comm_watchdog_ms"
+        );
+    }
+
+    #[test]
+    fn comm_watchdog_unchanged_despite_larger_poll_budget() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        sup.control.control.comm_watchdog_ms = 50;
+        sup.control.control.feedback_poll_budget_us = 3000;
+        sup.control.control.feedback_drain_quiet_us = 300;
+        bench_ready_active(&mut sup);
+        std::thread::sleep(Duration::from_millis(10));
+        let motor = motor_for_joint(&sup.motors, "elbow")
+            .expect("motor")
+            .clone();
+        sup.send_mit_joint(
+            MitJointCommand {
+                joint: "elbow".to_string(),
+                kp: 0.0,
+                kd: 0.0,
+                position_rad: 0.0,
+                velocity_rad_s: 0.0,
+                torque_ff_nm: 0.0,
+            },
+            &motor,
+        )
+        .expect("watchdog should not fire at 10 ms silence");
+        std::thread::sleep(Duration::from_millis(45));
+        let err = sup
+            .send_mit_joint(
+                MitJointCommand {
+                    joint: "elbow".to_string(),
+                    kp: 0.0,
+                    kd: 0.0,
+                    position_rad: 0.0,
+                    velocity_rad_s: 0.0,
+                    torque_ff_nm: 0.0,
+                },
+                &motor,
+            )
+            .expect_err("watchdog");
+        assert!(matches!(err, DavoutError::CommWatchdog { ms: 50 }));
     }
 
     #[test]

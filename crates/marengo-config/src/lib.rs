@@ -106,6 +106,14 @@ fn default_gear_ratio() -> f64 {
     1.0
 }
 
+fn default_feedback_poll_budget_us() -> u64 {
+    3000
+}
+
+fn default_feedback_drain_quiet_us() -> u64 {
+    300
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct MotorBenchLimits {
     pub position_lower_rad: f64,
@@ -199,6 +207,10 @@ pub struct ControlSection {
     pub loop_hz: u32,
     pub chappe_state_hz: u32,
     pub comm_watchdog_ms: u64,
+    #[serde(default = "default_feedback_poll_budget_us")]
+    pub feedback_poll_budget_us: u64,
+    #[serde(default = "default_feedback_drain_quiet_us")]
+    pub feedback_drain_quiet_us: u64,
     pub tau_ff_rate_limit_nm_per_s: f64,
     pub disable_on_exit: bool,
     #[serde(default)]
@@ -912,6 +924,8 @@ mod tests {
     fn control_yaml_parses() {
         let cfg = load_control_config(repo_root()).expect("control.yaml");
         assert_eq!(cfg.control.loop_hz, 200);
+        assert_eq!(cfg.control.feedback_poll_budget_us, 3000);
+        assert_eq!(cfg.control.feedback_drain_quiet_us, 300);
         assert!(cfg.control.motor_type_defaults.contains_key("rs03"));
     }
 
@@ -984,6 +998,8 @@ mod tests {
             loop_hz: 200,
             chappe_state_hz: 50,
             comm_watchdog_ms: 50,
+            feedback_poll_budget_us: 3000,
+            feedback_drain_quiet_us: 300,
             tau_ff_rate_limit_nm_per_s: 20.0,
             disable_on_exit: true,
             bench: ControlBenchSection::default(),

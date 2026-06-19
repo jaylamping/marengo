@@ -5,6 +5,8 @@ control:
   loop_hz: 200
   chappe_state_hz: 50
   comm_watchdog_ms: 50
+  feedback_poll_budget_us: 3000
+  feedback_drain_quiet_us: 300
   tau_ff_rate_limit_nm_per_s: 20.0
   disable_on_exit: true
   bench:
