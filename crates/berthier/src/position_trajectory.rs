@@ -57,7 +57,19 @@ impl JointPositionPlanner {
         self.phase = TrapezoidPhase::Hold;
     }
 
-    /// After `reset_target`, seed downward cruise speed when returning from well above `target`.
+    /// Resume cruise after virtual hold latched before measured `q` settled.
+    pub fn resume_cruise_toward(&mut self, q_traj: f64, dq_traj: f64) {
+        self.q_traj = q_traj;
+        self.dq_traj = dq_traj;
+        self.phase = TrapezoidPhase::Cruise;
+    }
+
+    #[cfg(test)]
+    pub fn force_hold_for_test(&mut self) {
+        self.phase = TrapezoidPhase::Hold;
+    }
+
+    /// After `reset_target`, seed downward cruise speed for same-side returns toward home.
     /// At high `q`, gravity FF exceeds friction until `dq_traj` reaches velocity deadband — causes
     /// a long return hitch from approach overshoot (e.g. weighted 0.1 rad gate).
     pub fn seed_downward_return_if_needed(
@@ -67,7 +79,10 @@ impl JointPositionPlanner {
         seed_threshold_rad: f64,
         v_seed: f64,
     ) {
-        if target >= q - seed_threshold_rad || v_seed <= POSITION_TOLERANCE_RAD {
+        if !is_descent_return(q, target, seed_threshold_rad)
+            || target >= q - seed_threshold_rad
+            || v_seed <= POSITION_TOLERANCE_RAD
+        {
             return;
         }
         self.dq_traj = -v_seed;
@@ -81,6 +96,26 @@ impl JointPositionPlanner {
         self.dq_traj = v;
         self.phase = phase;
     }
+}
+
+/// Descent assist is only for same-side returns toward home, not crossing home or
+/// driving into a lower-limit target.
+pub fn is_gravity_assisted_return(q: f64, target: f64) -> bool {
+    q * target > 0.0 && target.abs() < q.abs()
+}
+
+/// Descent toward home (`target` ≈ 0) or a same-side smaller-magnitude target.
+pub fn is_descent_return(q: f64, target: f64, min_span_rad: f64) -> bool {
+    if (target - q).abs() <= POSITION_TOLERANCE_RAD {
+        return false;
+    }
+    if q.abs() <= min_span_rad {
+        return false;
+    }
+    if target.abs() <= POSITION_TOLERANCE_RAD {
+        return (target - q).signum() != q.signum();
+    }
+    is_gravity_assisted_return(q, target)
 }
 
 /// One trapezoidal velocity step toward `q_target`.
@@ -121,7 +156,11 @@ pub fn trapezoid_step(
         };
         (accel, phase)
     } else {
-        (v_max, TrapezoidPhase::Cruise)
+        // If an earlier phase or dynamic velocity cap leaves the reference above
+        // the current cruise speed, bleed it down by the planner acceleration
+        // limit instead of snapping `dq_traj` in one control tick.
+        let cruise = (v_along - a_max * dt).max(v_max);
+        (cruise, TrapezoidPhase::Cruise)
     };
 
     let v_new = dir * v_along_new;
@@ -176,7 +215,15 @@ pub fn position_hold_damping_torque(
     velocity_deadband: f64,
     approaching_target: bool,
 ) -> f64 {
-    let tau_d = kd * (dq_traj - dq_filtered);
+    // When the planner is moving but measured speed is inside the encoder deadband, skip
+    // catch-up damping — otherwise return descent alternates 0 / -0.08 rad/s quanta and
+    // pumps `tau_d` (felt as shakiness on the way home).
+    let dq_for_d = if dq_filtered.abs() < velocity_deadband && dq_traj.abs() > velocity_deadband {
+        dq_traj
+    } else {
+        dq_filtered
+    };
+    let tau_d = kd * (dq_traj - dq_for_d);
     if tau_d >= 0.0 || !approaching_target {
         return tau_d;
     }
@@ -220,7 +267,7 @@ mod tests {
     #[test]
     fn seed_downward_return_when_well_above_target() {
         let mut planner = JointPositionPlanner::new_at(0.12);
-        planner.seed_downward_return_if_needed(0.12, 0.0, 0.05, 0.10);
+        planner.seed_downward_return_if_needed(0.12, 0.06, 0.05, 0.10);
         assert!((planner.dq_traj + 0.10).abs() < 1e-12);
         assert_eq!(planner.phase, TrapezoidPhase::Accelerate);
     }
@@ -230,6 +277,47 @@ mod tests {
         let mut planner = JointPositionPlanner::new_at(0.03);
         planner.seed_downward_return_if_needed(0.03, 0.0, 0.05, 0.10);
         assert!((planner.dq_traj).abs() < 1e-12);
+    }
+
+    #[test]
+    fn seed_downward_return_skips_sub_home_target() {
+        let mut planner = JointPositionPlanner::new_at(0.0);
+        planner.seed_downward_return_if_needed(0.0, -0.64, 0.05, 0.10);
+        assert!((planner.dq_traj).abs() < 1e-12);
+        assert_eq!(planner.phase, TrapezoidPhase::Hold);
+    }
+
+    #[test]
+    fn seed_downward_return_skips_limit_directed_negative_move() {
+        let mut planner = JointPositionPlanner::new_at(-0.14);
+        planner.seed_downward_return_if_needed(-0.14, -0.64, 0.05, 0.10);
+        assert!((planner.dq_traj).abs() < 1e-12);
+        assert_eq!(planner.phase, TrapezoidPhase::Hold);
+    }
+
+    #[test]
+    fn seed_downward_return_from_high_angle_to_home() {
+        let mut planner = JointPositionPlanner::new_at(1.65);
+        planner.seed_downward_return_if_needed(1.65, 0.0, 0.05, 0.60);
+        assert!((planner.dq_traj + 0.60).abs() < 1e-12);
+        assert_eq!(planner.phase, TrapezoidPhase::Accelerate);
+    }
+
+    #[test]
+    fn descent_return_includes_hold_at_home() {
+        assert!(is_descent_return(1.65, 0.0, 0.05));
+        assert!(!is_descent_return(-0.14, -0.64, 0.05));
+        assert!(!is_descent_return(0.03, 0.0, 0.05));
+    }
+
+    #[test]
+    fn gravity_assisted_return_requires_same_side_closer_to_home() {
+        assert!(is_gravity_assisted_return(0.30, 0.10));
+        assert!(is_gravity_assisted_return(-0.30, -0.10));
+        assert!(!is_gravity_assisted_return(0.0, -0.30));
+        assert!(!is_gravity_assisted_return(0.30, -0.10));
+        assert!(!is_gravity_assisted_return(-0.10, -0.30));
+        assert!(!is_gravity_assisted_return(0.30, 0.0));
     }
 
     #[test]
@@ -293,6 +381,17 @@ mod tests {
     }
 
     #[test]
+    fn trajectory_velocity_cap_steps_down_by_acceleration_limit() {
+        let (_q_new, v_new, phase) = trapezoid_step(0.04, 0.552, 0.10, 0.15, 20.0, 0.005);
+        assert_eq!(phase, TrapezoidPhase::Cruise);
+        assert!(
+            (v_new - 0.15).abs() > 1e-9,
+            "must not snap directly to v_max"
+        );
+        assert!((v_new - 0.15).abs() < (0.552_f64 - 0.15).abs());
+    }
+
+    #[test]
     fn trajectory_damping_tracks_velocity_error() {
         let tau = trajectory_damping_torque(0.1, 0.2, 2.0);
         assert!((tau - 0.2).abs() < 1e-12);
@@ -322,6 +421,14 @@ mod tests {
             capped > unfiltered,
             "cap should reduce braking: capped={capped} raw={unfiltered}"
         );
+    }
+
+    #[test]
+    fn damping_no_catchup_torque_inside_measurement_deadband() {
+        let noisy_zero = position_hold_damping_torque(0.0, -0.15, 2.0, 0.02, true);
+        assert!(noisy_zero.abs() < 1e-9);
+        let moving = position_hold_damping_torque(-0.076, -0.15, 2.0, 0.02, true);
+        assert!((moving + 0.148).abs() < 0.01);
     }
 
     #[test]
