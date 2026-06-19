@@ -154,10 +154,7 @@ mod tests {
         let device_id = 2;
         let (id, data) = encode_read_parameter(host_id, device_id, ParameterId::RunMode);
         let unpacked = unpack_ext_id(id).expect("extended id");
-        assert_eq!(
-            unpacked.comm_type,
-            CommunicationType::ReadParameter.as_u8()
-        );
+        assert_eq!(unpacked.comm_type, CommunicationType::ReadParameter.as_u8());
         assert_eq!(unpacked.extra_data, u16::from(host_id));
         assert_eq!(unpacked.device_id, device_id);
         assert_eq!(&data[..2], &ParameterId::RunMode.as_u16().to_le_bytes());
@@ -168,10 +165,7 @@ mod tests {
     fn read_limit_torque_encodes_parameter_index() {
         let (id, data) = encode_read_parameter(DEFAULT_HOST_ID, 3, ParameterId::LimitTorque);
         let unpacked = unpack_ext_id(id).expect("extended id");
-        assert_eq!(
-            unpacked.comm_type,
-            CommunicationType::ReadParameter.as_u8()
-        );
+        assert_eq!(unpacked.comm_type, CommunicationType::ReadParameter.as_u8());
         assert_eq!(&data[..2], &0x700Bu16.to_le_bytes());
     }
 
@@ -179,10 +173,7 @@ mod tests {
     fn read_ep_scan_time_encodes_parameter_index() {
         let (id, data) = encode_read_parameter(DEFAULT_HOST_ID, 5, ParameterId::EPScanTime);
         let unpacked = unpack_ext_id(id).expect("extended id");
-        assert_eq!(
-            unpacked.comm_type,
-            CommunicationType::ReadParameter.as_u8()
-        );
+        assert_eq!(unpacked.comm_type, CommunicationType::ReadParameter.as_u8());
         assert_eq!(&data[..2], &0x7026u16.to_le_bytes());
     }
 
@@ -190,10 +181,7 @@ mod tests {
     fn read_can_timeout_encodes_parameter_index() {
         let (id, data) = encode_read_parameter(DEFAULT_HOST_ID, 7, ParameterId::CanTimeout);
         let unpacked = unpack_ext_id(id).expect("extended id");
-        assert_eq!(
-            unpacked.comm_type,
-            CommunicationType::ReadParameter.as_u8()
-        );
+        assert_eq!(unpacked.comm_type, CommunicationType::ReadParameter.as_u8());
         assert_eq!(&data[..2], &0x7028u16.to_le_bytes());
     }
 }
