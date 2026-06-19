@@ -50,9 +50,7 @@ export function DashboardOverview({ inventory }: DashboardOverviewProps) {
       <div className={dashboardChartSectionClassName}>
         <DeferredMount fallback={<ChartSectionSkeleton />} timeoutMs={800}>
           <Suspense fallback={<ChartSectionSkeleton />}>
-            <RobotModelProvider urdfXml={SHOULDER_PITCH_RIGHT_ONLY_URDF}>
-              <UrdfPreviewPanel />
-            </RobotModelProvider>
+            <UrdfPreviewPanel />
           </Suspense>
         </DeferredMount>
       </div>
