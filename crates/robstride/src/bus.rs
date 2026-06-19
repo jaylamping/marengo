@@ -268,28 +268,48 @@ pub trait MotorBus: CanBus {
         send_encoded_frame_to(self, address, id, data)
     }
 
+    fn enable_active_reporting_at(&mut self, address: &MotorAddress) -> Result<(), BusError> {
+        let (id, data) =
+            lifecycle::encode_default_active_reporting(address.device_id, true);
+        send_encoded_frame_to(self, address, id, data)
+    }
+
+    fn disable_active_reporting_at(&mut self, address: &MotorAddress) -> Result<(), BusError> {
+        let (id, data) =
+            lifecycle::encode_default_active_reporting(address.device_id, false);
+        send_encoded_frame_to(self, address, id, data)
+    }
+
     fn recv_all(
         &mut self,
         motor_types: &HashMap<u8, MotorType>,
         states: &mut HashMap<u8, MotorState>,
-        timeout: Duration,
+        budget: Duration,
+        quiet: Duration,
     ) -> Result<usize, BusError> {
-        let deadline = Instant::now() + timeout;
+        let deadline = Instant::now() + budget;
         let mut frames = Vec::new();
         let mut count = 0;
+        let mut last_frame_at: Option<Instant> = None;
         loop {
             frames.clear();
             self.recv_frames(&mut frames)?;
             if frames.is_empty() {
-                if count > 0 {
-                    return Ok(count);
+                if let Some(last) = last_frame_at {
+                    if count > 0 && last.elapsed() >= quiet {
+                        return Ok(count);
+                    }
                 }
                 if Instant::now() >= deadline {
+                    if count > 0 {
+                        return Ok(count);
+                    }
                     break;
                 }
                 std::thread::sleep(Duration::from_micros(200));
                 continue;
             }
+            last_frame_at = Some(Instant::now());
             for frame in &frames {
                 if !frame.extended {
                     continue;
@@ -347,24 +367,32 @@ pub trait MotorBus: CanBus {
         &mut self,
         motor_types: &HashMap<MotorAddress, MotorType>,
         states: &mut HashMap<MotorAddress, MotorState>,
-        timeout: Duration,
+        budget: Duration,
+        quiet: Duration,
     ) -> Result<usize, BusError> {
-        let deadline = Instant::now() + timeout;
+        let deadline = Instant::now() + budget;
         let mut frames = Vec::new();
         let mut count = 0;
+        let mut last_frame_at: Option<Instant> = None;
         loop {
             frames.clear();
             self.recv_frames_from(&mut frames)?;
             if frames.is_empty() {
-                if count > 0 {
-                    return Ok(count);
+                if let Some(last) = last_frame_at {
+                    if count > 0 && last.elapsed() >= quiet {
+                        return Ok(count);
+                    }
                 }
                 if Instant::now() >= deadline {
+                    if count > 0 {
+                        return Ok(count);
+                    }
                     break;
                 }
                 std::thread::sleep(Duration::from_micros(200));
                 continue;
             }
+            last_frame_at = Some(Instant::now());
             for received in &frames {
                 let frame = &received.frame;
                 if !frame.extended {

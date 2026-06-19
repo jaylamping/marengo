@@ -20,6 +20,7 @@ pub enum CommunicationType {
     ReadParameter = 17,
     WriteParameter = 18,
     FaultReport = 21,
+    ActiveReporting = 24,
 }
 
 impl CommunicationType {
@@ -33,6 +34,7 @@ impl CommunicationType {
             17 => Some(Self::ReadParameter),
             18 => Some(Self::WriteParameter),
             21 => Some(Self::FaultReport),
+            24 => Some(Self::ActiveReporting),
             _ => None,
         }
     }

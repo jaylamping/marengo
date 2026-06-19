@@ -56,8 +56,8 @@ use marengo_config::{
     load_control_config, load_homing_config, load_motors_config, load_robot_config,
     motor_for_joint, motor_type_key, resolve_joint_velocity_cap, resolve_urdf_path,
     validate_control_against_limits, validate_motors_against_robot,
-    validate_robot_control_joint_coverage, ControlConfigFile,
-    HomingConfigFile, MotorEntry, MotorType, MotorsConfigFile, RobotConfigFile,
+    validate_robot_control_joint_coverage, ControlConfigFile, HomingConfigFile, MotorEntry,
+    MotorType, MotorsConfigFile, RobotConfigFile,
 };
 use marengo_homing::{verify_manual_reference, HomingRegistry, VerifyError};
 use robstride::AddressedMitCommand;
@@ -179,6 +179,7 @@ pub struct Supervisor<B: MotorBus> {
     feedback_velocity_trips: HashMap<String, u8>,
     last_feedback_samples: HashMap<String, FeedbackSample>,
     last_tick: Option<Instant>,
+    active_reporting_armed: bool,
 }
 
 impl<B: MotorBus> Supervisor<B> {
@@ -228,6 +229,7 @@ impl<B: MotorBus> Supervisor<B> {
             feedback_velocity_trips: HashMap::new(),
             last_feedback_samples: HashMap::new(),
             last_tick: None,
+            active_reporting_armed: false,
         })
     }
 
@@ -274,6 +276,7 @@ impl<B: MotorBus> Supervisor<B> {
                 message: e.to_string(),
             })?;
         self.mode = OperationalMode::Ready;
+        self.sync_active_reporting();
         debug!("supervisor READY (all joints verified)");
         Ok(())
     }
@@ -392,6 +395,7 @@ impl<B: MotorBus> Supervisor<B> {
             return;
         }
         self.mode = OperationalMode::Ready;
+        self.sync_active_reporting();
         debug!("supervisor READY (unchecked — deprecated)");
     }
 
@@ -445,6 +449,7 @@ impl<B: MotorBus> Supervisor<B> {
             }
             self.mode = OperationalMode::Active;
             self.active_since = Some(Instant::now());
+            self.sync_active_reporting();
             info!(motor_count = self.motors.motors.len(), "supervisor ACTIVE");
         } else {
             self.disable_all()?;
@@ -454,11 +459,12 @@ impl<B: MotorBus> Supervisor<B> {
 
     /// Poll CAN feedback; updates watchdog timestamp on success.
     pub fn refresh_feedback(&mut self) -> Result<usize, DavoutError> {
-        let timeout = self.feedback_poll_timeout();
+        let budget = self.feedback_poll_timeout();
+        let quiet = self.feedback_drain_quiet();
         let mut raw_states = HashMap::new();
         match self
             .bus
-            .recv_all_addressed(&self.motor_types, &mut raw_states, timeout)
+            .recv_all_addressed(&self.motor_types, &mut raw_states, budget, quiet)
         {
             Ok(n) => {
                 let received_at = Instant::now();
@@ -840,17 +846,39 @@ impl<B: MotorBus> Supervisor<B> {
         self.active_since = None;
         self.feedback_velocity_trips.clear();
         self.last_feedback_samples.clear();
+        self.sync_active_reporting();
         debug!("supervisor DISABLED");
         Ok(())
     }
 
-    fn feedback_poll_timeout(&self) -> Duration {
-        let watchdog = Duration::from_millis(self.control.control.comm_watchdog_ms);
-        if watchdog.is_zero() {
-            Duration::from_millis(1)
-        } else {
-            watchdog.min(Duration::from_millis(1))
+    fn active_reporting_desired(&self) -> bool {
+        self.control.control.bench.active_reporting_diagnostics
+            && self.mode == OperationalMode::Disabled
+    }
+
+    /// Enable or disable firmware active reporting (comm type 24) per bench config and mode.
+    pub fn sync_active_reporting(&mut self) {
+        let desired = self.active_reporting_desired();
+        if desired == self.active_reporting_armed {
+            return;
         }
+        for motor in &self.motors.motors {
+            let address = MotorAddress::from(motor);
+            if desired {
+                let _ = self.bus.enable_active_reporting_at(&address);
+            } else {
+                let _ = self.bus.disable_active_reporting_at(&address);
+            }
+        }
+        self.active_reporting_armed = desired;
+    }
+
+    fn feedback_poll_timeout(&self) -> Duration {
+        Duration::from_micros(self.control.control.feedback_poll_budget_us)
+    }
+
+    fn feedback_drain_quiet(&self) -> Duration {
+        Duration::from_micros(self.control.control.feedback_drain_quiet_us)
     }
 
     pub fn filter_mit_command(
@@ -1250,8 +1278,14 @@ mod tests {
         let prev = Instant::now() - Duration::from_millis(10);
         let out1 = rate_limit_tau_ff(&mut last, "j1", 10.0, 100.0, Some(prev));
         let out2 = rate_limit_tau_ff(&mut last, "j2", 10.0, 100.0, Some(prev));
-        assert!((out1 - 1.0).abs() < 0.05, "j1 slew expected ~1.0, got {out1}");
-        assert!((out2 - 1.0).abs() < 0.05, "j2 slew expected ~1.0, got {out2}");
+        assert!(
+            (out1 - 1.0).abs() < 0.05,
+            "j1 slew expected ~1.0, got {out1}"
+        );
+        assert!(
+            (out2 - 1.0).abs() < 0.05,
+            "j2 slew expected ~1.0, got {out2}"
+        );
     }
 
     #[test]
@@ -1627,6 +1661,154 @@ mod tests {
             )
             .expect_err("watchdog");
         assert!(matches!(err, DavoutError::CommWatchdog { ms: 1 }));
+    }
+
+    fn type24_tx_frames(tx: &[CanFrame]) -> Vec<&CanFrame> {
+        tx.iter()
+            .filter(|f| {
+                robstride::unpack_ext_id(f.id)
+                    .map(|u| {
+                        u.comm_type == robstride::CommunicationType::ActiveReporting.as_u8()
+                    })
+                    .unwrap_or(false)
+            })
+            .collect()
+    }
+
+    #[test]
+    fn active_reporting_default_false_sends_no_type24() {
+        let bus = MemoryBus::default();
+        let sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        assert_eq!(sup.mode(), OperationalMode::Disabled);
+        assert!(type24_tx_frames(&sup.bus.tx).is_empty());
+    }
+
+    #[test]
+    fn active_reporting_sends_type24_only_when_disabled_and_flag_true() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        sup.control.control.bench.active_reporting_diagnostics = true;
+        sup.sync_active_reporting();
+        let type24 = type24_tx_frames(&sup.bus.tx);
+        assert_eq!(type24.len(), sup.motors.motors.len());
+        for frame in type24 {
+            assert_eq!(frame.data[6], 0x01, "enable F_CMD");
+        }
+        let tx_before = sup.bus.tx.len();
+        bench_ready_active(&mut sup);
+        assert!(!sup.active_reporting_armed);
+        let new_frames = &sup.bus.tx[tx_before..];
+        for frame in type24_tx_frames(new_frames) {
+            assert_eq!(frame.data[6], 0x00, "disable before leaving Disabled");
+        }
+    }
+
+    #[test]
+    fn active_reporting_zero_tx_during_active_mit_batch() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        sup.control.control.bench.active_reporting_diagnostics = true;
+        sup.sync_active_reporting();
+        bench_ready_active(&mut sup);
+        let motor = motor_for_joint(&sup.motors, "elbow")
+            .expect("motor")
+            .clone();
+        let tx_before = sup.bus.tx.len();
+        sup.send_mit_joint(
+            MitJointCommand {
+                joint: "elbow".to_string(),
+                kp: 0.0,
+                kd: 0.0,
+                position_rad: 0.5,
+                velocity_rad_s: 0.0,
+                torque_ff_nm: 1.0,
+            },
+            &motor,
+        )
+        .expect("send");
+        assert!(!sup.bus.tx.is_empty());
+        let new_frames = &sup.bus.tx[tx_before..];
+        assert!(
+            type24_tx_frames(new_frames).is_empty(),
+            "MIT batch must not include type-24 frames"
+        );
+    }
+
+    #[test]
+    fn active_reporting_disables_before_ready_transition() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        sup.control.control.bench.active_reporting_diagnostics = true;
+        sup.sync_active_reporting();
+        assert_eq!(type24_tx_frames(&sup.bus.tx).len(), sup.motors.motors.len());
+        bench_verify_all_joints(&mut sup);
+        let tx_before = sup.bus.tx.len();
+        sup.set_homing_complete().expect("ready");
+        let off_frames = type24_tx_frames(&sup.bus.tx[tx_before..]);
+        assert_eq!(off_frames.len(), sup.motors.motors.len());
+        for frame in off_frames {
+            assert_eq!(frame.data[6], 0x00, "disable F_CMD before Ready");
+        }
+    }
+
+    #[test]
+    fn no_comm_type_22_in_robstride_surface() {
+        assert!(robstride::CommunicationType::from_u8(22).is_none());
+    }
+
+    #[test]
+    fn feedback_poll_timeout_honors_budget_not_watchdog_cap() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        sup.control.control.comm_watchdog_ms = 50;
+        sup.control.control.feedback_poll_budget_us = 3000;
+        sup.control.control.feedback_drain_quiet_us = 300;
+        assert_eq!(
+            sup.feedback_poll_timeout(),
+            Duration::from_micros(3000),
+            "poll budget must not be capped at 1 ms by comm_watchdog_ms"
+        );
+    }
+
+    #[test]
+    fn comm_watchdog_unchanged_despite_larger_poll_budget() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        sup.control.control.comm_watchdog_ms = 50;
+        sup.control.control.feedback_poll_budget_us = 3000;
+        sup.control.control.feedback_drain_quiet_us = 300;
+        bench_ready_active(&mut sup);
+        std::thread::sleep(Duration::from_millis(10));
+        let motor = motor_for_joint(&sup.motors, "elbow")
+            .expect("motor")
+            .clone();
+        sup.send_mit_joint(
+            MitJointCommand {
+                joint: "elbow".to_string(),
+                kp: 0.0,
+                kd: 0.0,
+                position_rad: 0.0,
+                velocity_rad_s: 0.0,
+                torque_ff_nm: 0.0,
+            },
+            &motor,
+        )
+        .expect("watchdog should not fire at 10 ms silence");
+        std::thread::sleep(Duration::from_millis(45));
+        let err = sup
+            .send_mit_joint(
+                MitJointCommand {
+                    joint: "elbow".to_string(),
+                    kp: 0.0,
+                    kd: 0.0,
+                    position_rad: 0.0,
+                    velocity_rad_s: 0.0,
+                    torque_ff_nm: 0.0,
+                },
+                &motor,
+            )
+            .expect_err("watchdog");
+        assert!(matches!(err, DavoutError::CommWatchdog { ms: 50 }));
     }
 
     #[test]

@@ -25,9 +25,12 @@ pub enum ParameterId {
     SpeedTarget = 0x700A,
     PositionTarget = 0x7016,
     LimitSpeed = 0x7017,
+    LimitTorque = 0x700B,
     PositionKp = 0x701E,
     SpeedKp = 0x701F,
     SpeedKi = 0x7020,
+    EPScanTime = 0x7026,
+    CanTimeout = 0x7028,
 }
 
 impl ParameterId {
@@ -143,5 +146,54 @@ mod tests {
         let (_id, data) = encode_speed_ref(4, 1.25);
         assert_eq!(&data[..2], &ParameterId::SpeedTarget.as_u16().to_le_bytes());
         assert_eq!(&data[4..8], &1.25f32.to_le_bytes());
+    }
+
+    #[test]
+    fn read_run_mode_uses_parameter_protocol() {
+        let host_id = DEFAULT_HOST_ID;
+        let device_id = 2;
+        let (id, data) = encode_read_parameter(host_id, device_id, ParameterId::RunMode);
+        let unpacked = unpack_ext_id(id).expect("extended id");
+        assert_eq!(
+            unpacked.comm_type,
+            CommunicationType::ReadParameter.as_u8()
+        );
+        assert_eq!(unpacked.extra_data, u16::from(host_id));
+        assert_eq!(unpacked.device_id, device_id);
+        assert_eq!(&data[..2], &ParameterId::RunMode.as_u16().to_le_bytes());
+        assert_eq!(data[2..], [0u8; 6]);
+    }
+
+    #[test]
+    fn read_limit_torque_encodes_parameter_index() {
+        let (id, data) = encode_read_parameter(DEFAULT_HOST_ID, 3, ParameterId::LimitTorque);
+        let unpacked = unpack_ext_id(id).expect("extended id");
+        assert_eq!(
+            unpacked.comm_type,
+            CommunicationType::ReadParameter.as_u8()
+        );
+        assert_eq!(&data[..2], &0x700Bu16.to_le_bytes());
+    }
+
+    #[test]
+    fn read_ep_scan_time_encodes_parameter_index() {
+        let (id, data) = encode_read_parameter(DEFAULT_HOST_ID, 5, ParameterId::EPScanTime);
+        let unpacked = unpack_ext_id(id).expect("extended id");
+        assert_eq!(
+            unpacked.comm_type,
+            CommunicationType::ReadParameter.as_u8()
+        );
+        assert_eq!(&data[..2], &0x7026u16.to_le_bytes());
+    }
+
+    #[test]
+    fn read_can_timeout_encodes_parameter_index() {
+        let (id, data) = encode_read_parameter(DEFAULT_HOST_ID, 7, ParameterId::CanTimeout);
+        let unpacked = unpack_ext_id(id).expect("extended id");
+        assert_eq!(
+            unpacked.comm_type,
+            CommunicationType::ReadParameter.as_u8()
+        );
+        assert_eq!(&data[..2], &0x7028u16.to_le_bytes());
     }
 }
