@@ -25,7 +25,7 @@ fi
 
 CAL_RECORD=""
 if [[ -f "${CONFIG_DIR}/homing.yaml" ]]; then
-  CAL_RECORD="$(grep -E '^[[:space:]]*calibration_record_path:' "${CONFIG_DIR}/homing.yaml" | head -1 | sed 's/.*:[[:space:]]*//' | tr -d "'\"")
+  CAL_RECORD="$(grep -E '^[[:space:]]*calibration_record_path:' "${CONFIG_DIR}/homing.yaml" | head -1 | sed 's/.*:[[:space:]]*//' | tr -d "\"'")"
 fi
 if [[ -z "$CAL_RECORD" ]]; then
   CAL_RECORD="${ROOT}/var/calibration/zero_registry.yaml"
@@ -37,7 +37,7 @@ fi
 echo "=== homing preflight ==="
 echo "config: ${CONFIG_DIR}"
 if [[ -f "$CAL_RECORD" ]]; then
-  echo "calibration record: ${CAL_RECORD} (present)"
+  echo "calibration record: ${CAL_RECORD} [present]"
 else
   echo "calibration record: MISSING at ${CAL_RECORD}"
 fi
