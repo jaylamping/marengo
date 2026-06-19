@@ -3,6 +3,7 @@
 mod framing;
 mod http;
 mod logs;
+mod session;
 mod state;
 mod webtransport;
 

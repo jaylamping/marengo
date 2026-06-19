@@ -876,6 +876,36 @@ pub fn motor_for_joint<'a>(motors: &'a MotorsConfigFile, joint: &str) -> Option<
     motors.motors.iter().find(|m| m.joint == joint)
 }
 
+/// Bench-wired joints eligible for actuator commands (4-DOF left arm bring-up).
+pub const WIRED_BENCH_JOINTS: &[&str] = &[
+    "shoulder_roll",
+    "shoulder_pitch",
+    "upper_arm_yaw",
+    "elbow",
+];
+
+/// Map bench or inventory alias to canonical bench joint name.
+pub fn normalize_joint_alias(input: &str) -> Option<&'static str> {
+    match input {
+        "shoulder_roll" | "left_shoulder_roll" => Some("shoulder_roll"),
+        "shoulder_pitch" | "left_shoulder_pitch" => Some("shoulder_pitch"),
+        "upper_arm_yaw" | "left_upper_arm_yaw" => Some("upper_arm_yaw"),
+        "elbow" | "left_elbow" => Some("elbow"),
+        _ => None,
+    }
+}
+
+/// True when `joint` is on the bench wired allowlist (after alias normalization).
+pub fn is_wired_bench_joint(joint: &str) -> bool {
+    WIRED_BENCH_JOINTS.contains(&joint)
+}
+
+/// Resolve operator joint input to canonical wired bench name, or None if not command-eligible.
+pub fn resolve_command_joint(input: &str) -> Option<&'static str> {
+    let canonical = normalize_joint_alias(input)?;
+    is_wired_bench_joint(canonical).then_some(canonical)
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::expect_used)]
@@ -1163,6 +1193,44 @@ mod tests {
         let err =
             validate_robot_control_joint_coverage(&robot, &control).expect_err("missing joint");
         assert!(matches!(err, ConfigError::MissingControlJoint { .. }));
+    }
+
+    #[test]
+    fn normalize_joint_alias_maps_inventory_to_bench() {
+        assert_eq!(
+            normalize_joint_alias("left_shoulder_pitch"),
+            Some("shoulder_pitch")
+        );
+        assert_eq!(normalize_joint_alias("shoulder_roll"), Some("shoulder_roll"));
+    }
+
+    #[test]
+    fn normalize_joint_alias_rejects_unwired_inventory() {
+        assert_eq!(normalize_joint_alias("right_shoulder_pitch"), None);
+        assert_eq!(normalize_joint_alias("left_wrist_pitch"), None);
+    }
+
+    #[test]
+    fn resolve_command_joint_accepts_bench_and_left_aliases() {
+        assert_eq!(resolve_command_joint("elbow"), Some("elbow"));
+        assert_eq!(resolve_command_joint("left_elbow"), Some("elbow"));
+    }
+
+    #[test]
+    fn resolve_command_joint_rejects_unwired() {
+        assert_eq!(resolve_command_joint("right_shoulder_pitch"), None);
+        assert_eq!(resolve_command_joint("left_knee"), None);
+    }
+
+    #[test]
+    fn wired_bench_joints_match_arm_4dof() {
+        let robot = load_robot_config(repo_root()).expect("robot.yaml");
+        for joint in WIRED_BENCH_JOINTS {
+            assert!(
+                robot.robot.joints.iter().any(|j| j == joint),
+                "wired joint {joint} missing from robot.yaml"
+            );
+        }
     }
 
     #[test]
