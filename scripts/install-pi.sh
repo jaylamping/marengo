@@ -3,6 +3,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=deploy-lib.sh
+source "${ROOT}/scripts/deploy-lib.sh"
 INSTALL_ROOT="${MARENGO_INSTALL_ROOT:-/opt/marengo}"
 RUN_USER="${MARENGO_USER:-marengo}"
 DEPLOY_USER="${MARENGO_DEPLOY_USER:-${SUDO_USER:-joey}}"
@@ -117,6 +119,10 @@ sed -i "s|ExecStart=.*|ExecStart=${INSTALL_ROOT}/bin/marengo-gateway --http-list
 chown -R "${RUN_USER}:${RUN_USER}" "${INSTALL_ROOT}"
 chown -R root:"${RUN_USER}" "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets" "${INSTALL_ROOT}/scripts" "${INSTALL_ROOT}/var" 2>/dev/null || true
 chmod -R g+rwX "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets" "${INSTALL_ROOT}/scripts" "${INSTALL_ROOT}/var" 2>/dev/null || true
+
+install_deploy_rev "${ROOT}" "${INSTALL_ROOT}"
+chown root:root "${INSTALL_ROOT}/.deploy-rev"
+chmod 644 "${INSTALL_ROOT}/.deploy-rev"
 
 systemctl daemon-reload
 systemctl enable --now marengo-can.service

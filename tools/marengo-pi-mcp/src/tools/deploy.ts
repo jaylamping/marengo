@@ -52,7 +52,9 @@ export async function runSyncMain(
     );
     const r = await execRemote(cfg, body, { timeoutMs: 900_000 });
     steps.push(formatRemoteResult(r));
-    await writeDeployRev(cfg, runRemote, steps);
+    if (r.exitCode === 0) {
+      await logDeployRev(cfg, runRemote, steps);
+    }
     return steps.join("\n\n---\n\n");
   }
 
@@ -123,11 +125,11 @@ export async function runSyncMain(
   steps.push(`[verify install]\n${formatRemoteResult(verify)}`);
   if (verify.exitCode !== 0) return steps.join("\n\n");
 
-  await writeDeployRev(cfg, runRemote, steps, head);
+  await logDeployRev(cfg, runRemote, steps, head);
 
   const healthBody = wrapRemote(
     cfg,
-    "cat .deploy-rev && test -x bin/marengo-pi && echo 'install ok'",
+    "test -x bin/marengo-pi && echo 'install ok'",
   );
   const health = await execRemote(cfg, healthBody, { timeoutMs: 30_000 });
   steps.push(`[verify]\n${formatRemoteResult(health)}`);
@@ -148,25 +150,26 @@ export async function runSyncMain(
   return steps.join("\n\n---\n\n");
 }
 
-async function writeDeployRev(
+/** Remote command: read canonical /opt/marengo/.deploy-rev (written by install-pi.sh). */
+export function deployRevLogCommand(piRoot = "/opt/marengo"): string {
+  return `cat ${shellQuote(`${piRoot}/.deploy-rev`)} 2>/dev/null || echo '(no .deploy-rev)'`;
+}
+
+async function logDeployRev(
   cfg: MarengoPiConfig,
   _runRemote: (body: string, timeoutMs?: number) => Promise<string>,
   steps: string[],
-  headOverride?: string,
+  expectedHead?: string,
 ): Promise<void> {
-  let head = headOverride;
-  if (!head) {
-    const rev = await execLocal("git", ["rev-parse", "HEAD"], {
-      cwd: cfg.localRoot,
-    });
-    head = rev.stdout.trim();
-  }
-  const ts = new Date().toISOString();
-  const content = `${head} ${ts}\n`;
-  const body = wrapRemote(
-    cfg,
-    `echo ${JSON.stringify(content)} > .deploy-rev && cat .deploy-rev`,
-  );
+  const body = wrapRemote(cfg, deployRevLogCommand(cfg.piRoot));
   const r = await execRemote(cfg, body, { timeoutMs: 15_000 });
   steps.push(`[.deploy-rev]\n${formatRemoteResult(r)}`);
+  if (expectedHead && r.stdout.trim()) {
+    const first = r.stdout.trim().split(/\s+/)[0] ?? "";
+    if (first && first !== expectedHead) {
+      steps.push(
+        `[.deploy-rev] warn: installed rev ${first} does not match deploy HEAD ${expectedHead}`,
+      );
+    }
+  }
 }

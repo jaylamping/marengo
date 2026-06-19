@@ -25,7 +25,7 @@ export function registerAdminTools(
 
     pi_sync_main: {
       description:
-        "Sync local main, cross-build, deploy to Pi, install-pi, write .deploy-rev, " +
+        "Sync local main, cross-build, deploy to Pi, install-pi (writes /opt/marengo/.deploy-rev), " +
         "then poll until gateway /health OK and deploy rev matches (default wait 180s)",
       inputSchema: z.object({
         strategy: z.enum(["cross", "pi_native"]).default("cross"),
