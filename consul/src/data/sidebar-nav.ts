@@ -2,7 +2,7 @@ export type SidebarIconKey =
   | 'overview'
   | 'simulation'
   | 'visualizer'
-  | 'joints'
+  | 'subsystems'
   | 'safety'
   | 'telemetry'
   | 'logs'
@@ -42,7 +42,7 @@ export const sidebarNavMain: SidebarNavItem[] = [
   { title: 'Overview', url: '/', icon: 'overview' },
   { title: 'Simulation', url: '/simulation', icon: 'simulation' },
   { title: 'Visualizer', url: '#', icon: 'visualizer' },
-  { title: 'Joints', url: '#', icon: 'joints' },
+  { title: 'Subsystems', url: '/subsystems', icon: 'subsystems' },
   { title: 'Safety', url: '#', icon: 'safety' },
   { title: 'Telemetry', url: '#', icon: 'telemetry' },
   { title: 'Logs', url: '/logs', icon: 'logs' },
