@@ -34,7 +34,7 @@ export function DashboardCardShell({
   footerPrimary,
   footerSecondary,
   className,
-  variant = 'default',
+  variant = 'glass',
 }: DashboardCardShellProps) {
   return (
     <Card variant={variant} className={cn('@container/card', className)}>
