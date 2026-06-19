@@ -25,9 +25,16 @@ function Tooltip(props: React.ComponentPropsWithoutRef<typeof TooltipPrimitive.R
 
 function TooltipTrigger({
   render,
+  asChild,
   ...props
 }: useRender.ComponentProps<"button"> &
-  React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Trigger>) {
+  React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Trigger> & {
+    asChild?: boolean
+  }) {
+  if (asChild) {
+    return <TooltipPrimitive.Trigger asChild data-slot="tooltip-trigger" {...props} />
+  }
+
   if (render) {
     return (
       <TooltipPrimitive.Trigger asChild>

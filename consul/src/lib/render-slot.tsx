@@ -48,7 +48,18 @@ export function useRender<T extends React.ElementType>({
   }
 
   if (effectiveRender) {
-    return <Slot {...mergedProps}>{effectiveRender}</Slot>
+    // JSX children on <Slot> override a `children` key in mergedProps — compose
+    // content onto the slottable element explicitly so icons/labels are not dropped.
+    const { children: slotChildren, ...slotProps } = mergedProps
+    const slottable = React.isValidElement(effectiveRender)
+      ? React.cloneElement(
+          effectiveRender,
+          undefined,
+          slotChildren ?? effectiveRender.props.children,
+        )
+      : effectiveRender
+
+    return <Slot {...slotProps}>{slottable}</Slot>
   }
 
   return React.createElement(defaultTagName, mergedProps)
