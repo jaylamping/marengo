@@ -43,18 +43,56 @@ export async function runSyncMain(
       [
         "if ! git diff --quiet || ! git diff --cached --quiet; then git status --short; exit 1; fi",
         "git fetch origin && git checkout main && git pull --ff-only",
-        'if [[ -f "${HOME}/.cargo/env" ]]; then set -a; source "${HOME}/.cargo/env"; set +a; fi',
-        'export PATH="${HOME}/.cargo/bin:/usr/local/cargo/bin:${PATH:-}"',
-        "command -v cargo >/dev/null || { echo 'error: cargo not on PATH (install Rust on Pi or use pi_sync_main cross)'; exit 127; }",
-        "cargo build -p marengo-pi -p motor-repl --features socketcan,linux-i2c --release",
+        "# Bench: stop systemd marengo-pi before install replaces binary",
+        "sudo systemctl stop marengo-pi.service 2>/dev/null || true",
+        "sudo systemctl disable marengo-pi.service 2>/dev/null || true",
+        "sudo pkill -f /opt/marengo/bin/marengo-pi 2>/dev/null || true",
+        "sudo git config --global --add safe.directory \"$(pwd)\" 2>/dev/null || true",
+        "if [[ -x ./scripts/pi-native-build.sh ]]; then",
+        "  ./scripts/pi-native-build.sh",
+        "else",
+        '  if [[ -f "${HOME}/.cargo/env" ]]; then set -a; source "${HOME}/.cargo/env"; set +a; fi',
+        '  export PATH="${HOME}/.cargo/bin:/usr/local/cargo/bin:${PATH:-}"',
+        "  command -v cargo >/dev/null || { echo 'error: cargo not on PATH'; exit 127; }",
+        "  cargo build -p marengo-pi -p marengo-gateway -p marengo-log-cli -p motor-repl -p imu-probe --features socketcan,linux-i2c --release",
+        "  if [[ -x ./scripts/build-consul-native.sh ]]; then ./scripts/build-consul-native.sh; elif command -v npm >/dev/null && [[ -f consul/package-lock.json ]]; then",
+        "    (cd consul && npm ci && env -u VITE_CHAPPE_HTTP_URL -u VITE_CHAPPE_WEBTRANSPORT_URL npm run build)",
+        "  fi",
+        "fi",
         sudoInstallCommand(cfg),
+        "# Ensure deploy-rev + www even if install-pi.sh on Pi predates consul/dist + safe.directory fixes",
+        'SHA="$(git rev-parse HEAD)"; TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"; printf "%s %s\\n" "$SHA" "$TS" | sudo tee /opt/marengo/.deploy-rev >/dev/null',
+        "if [[ -f consul/dist/index.html ]]; then sudo rsync -a --delete consul/dist/ /opt/marengo/www/; fi",
+        "sudo systemctl restart marengo-gateway.service 2>/dev/null || true",
       ].join("\n"),
     );
     const r = await execRemote(cfg, body, { timeoutMs: 900_000 });
     steps.push(formatRemoteResult(r));
-    if (r.exitCode === 0) {
-      await logDeployRev(cfg, runRemote, steps);
+    if (r.exitCode !== 0) return steps.join("\n\n---\n\n");
+
+    const revBody = wrapRemote(cfg, "git rev-parse HEAD");
+    const revR = await execRemote(cfg, revBody, { timeoutMs: 15_000 });
+    const head = revR.stdout.trim();
+    if (head) {
+      steps.push(`[deploy rev] ${head}`);
     }
+    await logDeployRev(cfg, runRemote, steps, head || undefined);
+
+    if (waitForReady && head) {
+      steps.push(
+        `[wait for gateway] polling up to ${waitTimeoutSec}s for rev ${head.slice(0, 12)}…`,
+      );
+      const wait = await waitForDeployReady(cfg, head, {
+        timeoutMs: waitTimeoutSec * 1000,
+      });
+      steps.push(wait.log);
+      if (!wait.ready) {
+        steps.push(
+          `[wait for gateway] TIMEOUT — Pi not ready after ${waitTimeoutSec}s (check marengo-gateway / www)`,
+        );
+      }
+    }
+
     return steps.join("\n\n---\n\n");
   }
 

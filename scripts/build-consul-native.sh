@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Build Consul static assets on the Pi (or any native host with npm).
+# Produces ${ROOT}/consul/dist for install-pi.sh → /opt/marengo/www.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ROOT="${1:-$ROOT}"
+
+if [[ "${SKIP_CONSUL:-false}" == true ]]; then
+  echo "build-consul-native: SKIP_CONSUL=true — skipping"
+  exit 0
+fi
+
+if ! command -v npm >/dev/null 2>&1; then
+  echo "warning: npm not found — skipping Consul UI build" >&2
+  exit 0
+fi
+
+if [[ ! -f "${ROOT}/consul/package-lock.json" ]]; then
+  echo "error: ${ROOT}/consul/package-lock.json missing" >&2
+  exit 1
+fi
+
+echo "build-consul-native: npm ci + build in ${ROOT}/consul"
+(
+  cd "${ROOT}/consul"
+  npm ci
+  env -u VITE_CHAPPE_HTTP_URL -u VITE_CHAPPE_WEBTRANSPORT_URL npm run build
+)
+
+if [[ ! -f "${ROOT}/consul/dist/index.html" ]]; then
+  echo "error: consul build did not produce dist/index.html" >&2
+  exit 1
+fi
+
+"${ROOT}/scripts/check-consul-dist.sh" "${ROOT}/consul/dist"
+echo "build-consul-native: ok → ${ROOT}/consul/dist"

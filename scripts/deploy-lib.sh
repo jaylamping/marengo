@@ -381,12 +381,18 @@ compose_ssh_preflight() {
 
 # --- deploy revision (single writer: install-pi.sh → /opt/marengo/.deploy-rev) ---
 
+# Root install-pi runs git as root; without safe.directory git refuses /opt/marengo (owned by marengo).
+ensure_git_safe_directory() {
+  local repo_root="$1"
+  git config --global --add safe.directory "$repo_root" 2>/dev/null || true
+}
+
 # Write bundle-travelling .deploy-rev before rsync (SHA from deploy machine HEAD).
 stage_deploy_rev() {
   local repo_root="$1"
   local staging_dir="$2"
   local sha ts
-  git config --global --add safe.directory "$repo_root" 2>/dev/null || true
+  ensure_git_safe_directory "$repo_root"
   sha="$(git -C "$repo_root" rev-parse HEAD)"
   ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   printf '%s %s\n' "$sha" "$ts" >"${staging_dir}/.deploy-rev"
@@ -405,6 +411,8 @@ install_deploy_rev() {
   if [[ "$bundle_root" == "$install_root" ]]; then
     same_root=true
   fi
+
+  ensure_git_safe_directory "$bundle_root"
 
   if ! $same_root && [[ -f "$staged" ]]; then
     content="$(tr -d '\r' <"$staged" | head -1)"

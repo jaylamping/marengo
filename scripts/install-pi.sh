@@ -16,6 +16,10 @@ fi
 
 echo "Installing Marengo to ${INSTALL_ROOT} (user ${RUN_USER})"
 
+# Bench default: stop always-on control so manual/MCP sessions own marengo-pi.
+systemctl stop marengo-pi.service 2>/dev/null || true
+pkill -f "${INSTALL_ROOT}/bin/marengo-pi" 2>/dev/null || true
+
 if ! id "$RUN_USER" &>/dev/null; then
   useradd --system --home "$INSTALL_ROOT" --shell /usr/sbin/nologin "$RUN_USER"
 fi
@@ -71,10 +75,16 @@ fi
 rsync -a --delete "${ROOT}/config/" "${INSTALL_ROOT}/config/"
 rsync -a "${ROOT}/assets/" "${INSTALL_ROOT}/assets/"
 rsync -a "${ROOT}/scripts/" "${INSTALL_ROOT}/scripts/"
-if [[ -d "${ROOT}/www" ]]; then
-  rsync -a --delete "${ROOT}/www/" "${INSTALL_ROOT}/www/"
+WWW_SRC=""
+if [[ -d "${ROOT}/consul/dist" ]] && [[ -f "${ROOT}/consul/dist/index.html" ]]; then
+  WWW_SRC="${ROOT}/consul/dist"
+elif [[ -d "${ROOT}/www" ]] && [[ -f "${ROOT}/www/index.html" ]]; then
+  WWW_SRC="${ROOT}/www"
+fi
+if [[ -n "$WWW_SRC" ]]; then
+  rsync -a --delete "${WWW_SRC}/" "${INSTALL_ROOT}/www/"
 else
-  echo "warning: ${ROOT}/www missing — Consul UI not installed (run deploy-pi from dev machine)" >&2
+  echo "warning: no Consul UI (consul/dist or www/index.html missing — run pi-native-build or cross deploy)" >&2
 fi
 chmod 755 "${INSTALL_ROOT}/scripts/can-up.sh"
 chown -R root:"${RUN_USER}" "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets" "${INSTALL_ROOT}/scripts"

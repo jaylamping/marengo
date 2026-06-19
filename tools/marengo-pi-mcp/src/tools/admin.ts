@@ -121,11 +121,23 @@ export function registerAdminTools(
         const body = wrapRemote(
           cfg,
         [
-          'if [[ -f "${HOME}/.cargo/env" ]]; then set -a; source "${HOME}/.cargo/env"; set +a; fi',
-          'export PATH="${HOME}/.cargo/bin:/usr/local/cargo/bin:${PATH:-}"',
-          "command -v cargo >/dev/null || { echo 'error: cargo not on PATH'; exit 127; }",
-          "cargo build -p marengo-pi -p marengo-gateway -p motor-repl -p imu-probe --features socketcan,linux-i2c --release",
+          "sudo systemctl stop marengo-pi.service 2>/dev/null || true",
+          "sudo systemctl disable marengo-pi.service 2>/dev/null || true",
+          "sudo pkill -f /opt/marengo/bin/marengo-pi 2>/dev/null || true",
+          "sudo git config --global --add safe.directory \"$(pwd)\" 2>/dev/null || true",
+          "if [[ -x ./scripts/pi-native-build.sh ]]; then ./scripts/pi-native-build.sh; else",
+          '  if [[ -f "${HOME}/.cargo/env" ]]; then set -a; source "${HOME}/.cargo/env"; set +a; fi',
+          '  export PATH="${HOME}/.cargo/bin:/usr/local/cargo/bin:${PATH:-}"',
+          "  command -v cargo >/dev/null || { echo 'error: cargo not on PATH'; exit 127; }",
+          "  cargo build -p marengo-pi -p marengo-gateway -p marengo-log-cli -p motor-repl -p imu-probe --features socketcan,linux-i2c --release",
+          "  if command -v npm >/dev/null && [[ -f consul/package-lock.json ]]; then",
+          "    (cd consul && npm ci && env -u VITE_CHAPPE_HTTP_URL -u VITE_CHAPPE_WEBTRANSPORT_URL npm run build)",
+          "  fi",
+          "fi",
           sudoInstallCommand(cfg),
+          'SHA="$(git rev-parse HEAD)"; TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"; printf "%s %s\\n" "$SHA" "$TS" | sudo tee /opt/marengo/.deploy-rev >/dev/null',
+          "if [[ -f consul/dist/index.html ]]; then sudo rsync -a --delete consul/dist/ /opt/marengo/www/; fi",
+          "sudo systemctl restart marengo-gateway.service 2>/dev/null || true",
         ].join("\n"),
         );
         return runRemote(body, 900_000);
