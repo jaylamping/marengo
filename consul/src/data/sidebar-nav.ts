@@ -1,6 +1,9 @@
+import { isActuatorsFeatureEnabled } from '@/lib/feature-flags';
+
 export type SidebarIconKey =
   | 'overview'
   | 'simulation'
+  | 'actuators'
   | 'visualizer'
   | 'subsystems'
   | 'safety'
@@ -38,7 +41,7 @@ export const sidebarUser: SidebarUser = {
   avatar: '',
 };
 
-export const sidebarNavMain: SidebarNavItem[] = [
+const sidebarNavMainBase: SidebarNavItem[] = [
   { title: 'Overview', url: '/', icon: 'overview' },
   { title: 'Simulation', url: '/simulation', icon: 'simulation' },
   { title: 'Visualizer', url: '#', icon: 'visualizer' },
@@ -48,6 +51,24 @@ export const sidebarNavMain: SidebarNavItem[] = [
   { title: 'Logs', url: '/logs', icon: 'logs' },
   { title: 'Memory', url: '/memory', icon: 'memory' },
 ];
+
+const actuatorsNavItem: SidebarNavItem = {
+  title: 'Actuators',
+  url: '/actuators',
+  icon: 'actuators',
+};
+
+/** Main nav with feature-gated Actuators entry after Simulation. */
+export function getSidebarNavMain(): SidebarNavItem[] {
+  if (!isActuatorsFeatureEnabled()) {
+    return sidebarNavMainBase;
+  }
+  const [overview, simulation, ...rest] = sidebarNavMainBase;
+  return [overview, simulation, actuatorsNavItem, ...rest];
+}
+
+/** @deprecated Use getSidebarNavMain() for feature-aware navigation. */
+export const sidebarNavMain: SidebarNavItem[] = sidebarNavMainBase;
 
 export const sidebarNavSecondary: SidebarNavItem[] = [
   { title: 'Settings', url: '#', icon: 'settings' },

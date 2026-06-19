@@ -6,7 +6,7 @@ import { SidebarNavSecondary } from '@/components/dashboard/sidebar/sidebar-nav-
 import { SidebarPresetsNav } from '@/components/dashboard/sidebar/sidebar-presets-nav';
 import { SidebarUserMenu } from '@/components/dashboard/sidebar/sidebar-user-menu';
 import {
-  sidebarNavMain,
+  getSidebarNavMain,
   sidebarNavSecondary,
   sidebarPresets,
   sidebarUser,
@@ -25,7 +25,7 @@ export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
         <SidebarBrand />
       </SidebarHeader>
       <SidebarContent>
-        <SidebarNavMain items={sidebarNavMain} />
+        <SidebarNavMain items={getSidebarNavMain()} />
         <SidebarPresetsNav items={sidebarPresets} />
         <SidebarNavSecondary items={sidebarNavSecondary} className="mt-auto" />
       </SidebarContent>
