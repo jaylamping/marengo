@@ -618,7 +618,7 @@ impl<B: MotorBus> ControlLoop<B> {
                             let (friction_mode, tau_f) = friction
                                 .map(|f| {
                                     position_hold_friction(
-                                        dq_raw,
+                                        dq,
                                         dq_traj,
                                         settle_error,
                                         vel_deadband,
@@ -1218,7 +1218,11 @@ fn clamp_trajectory_setpoint(
         // Only suppress MIT pull-back for a small lead band — not the full `max_lead` window.
         if to_target > 0.0 && q > q_traj && (q - q_traj) < POSITION_RETURN_RESYNC_RAD {
             q_des = q_des.max(q);
-        } else if to_target < 0.0 && q < q_traj && (q_traj - q) < POSITION_RETURN_RESYNC_RAD {
+        } else if to_target < 0.0
+            && q < q_traj
+            && ((q_traj - q) < POSITION_RETURN_RESYNC_RAD
+                || (target.abs() <= TOL && q.abs() < POSITION_RETURN_FREEZE_Q_MAX_RAD))
+        {
             if let Some(p) = policy {
                 let (lo, _) = effective_command_bounds(p, q, dq_traj);
                 q_des = q_des.min(q.max(lo));
@@ -1517,6 +1521,15 @@ mod tests {
     fn clamp_caps_ahead_setpoint_at_target_on_approach() {
         let q_des = clamp_trajectory_setpoint(0.091, 0.105, 0.1, 0.10, None, 0.0);
         assert!((q_des - 0.1).abs() < 1e-12);
+    }
+
+    #[test]
+    fn clamp_does_not_pull_forward_near_home_return() {
+        let q_des = clamp_trajectory_setpoint(0.039, 0.006, 0.0, 0.10, None, -0.6);
+        assert!(
+            q_des <= 0.006,
+            "near-home return must not brake descent by commanding ahead: {q_des}"
+        );
     }
 
     #[test]
