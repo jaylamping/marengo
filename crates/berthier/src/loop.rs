@@ -24,9 +24,11 @@ use crate::position_profile::{
     classify_position_profile, position_hold_v_max, position_profile_v_max, PlannerEvent,
 };
 use crate::position_setpoint::{
-    clamp_trajectory_setpoint, descent_breakaway_confirmed, descent_stuck_mit_pull,
-    planner_drifted_from_measurement, planner_should_freeze_on_descent,
+    clamp_trajectory_setpoint, approach_stuck_mit_pull, descent_breakaway_confirmed,
+    descent_stuck_mit_pull,
+    planner_drifted_from_measurement, planner_premature_hold, planner_should_freeze_on_descent,
     planner_should_latch_on_overshoot_hold, planner_should_resync_stuck_lead,
+    downward_return_seed_velocity, reopen_planner_from_premature_hold,
     position_hold_effective_max_lead, position_hold_mit_velocity, POSITION_DESCENT_STUCK_LEAD_RAD,
     POSITION_RETURN_DESCENT_SEED_RAD, POSITION_SETTLE_TOLERANCE_RAD,
 };
@@ -86,6 +88,81 @@ pub struct ControlLoop<B: MotorBus> {
     position_descent_was_stuck: Option<Vec<bool>>,
     /// Last planner event per joint (trace CSV `planner_event`).
     position_planner_events: Option<Vec<PlannerEvent>>,
+    /// Cumulative per-tick phase times for 1 Hz diagnostics (`take_tick_phase_averages`).
+    tick_phase: TickPhaseAccumulator,
+}
+
+/// Per-tick CPU time inside [`ControlLoop::tick`] (microseconds, averaged over a window).
+#[derive(Debug, Clone, Copy, Default)]
+pub struct TickPhaseAverages {
+    pub ticks: u32,
+    pub feedback_us: u64,
+    pub gravity_us: u64,
+    pub planner_us: u64,
+    pub compose_us: u64,
+    pub trace_us: u64,
+    pub send_us: u64,
+    pub chappe_us: u64,
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+struct TickPhaseSample {
+    feedback_us: u64,
+    gravity_us: u64,
+    planner_us: u64,
+    compose_us: u64,
+    trace_us: u64,
+    send_us: u64,
+    chappe_us: u64,
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+struct TickPhaseAccumulator {
+    ticks: u32,
+    feedback_us: u64,
+    gravity_us: u64,
+    planner_us: u64,
+    compose_us: u64,
+    trace_us: u64,
+    send_us: u64,
+    chappe_us: u64,
+}
+
+impl TickPhaseAccumulator {
+    fn record(&mut self, sample: TickPhaseSample) {
+        self.ticks = self.ticks.saturating_add(1);
+        self.feedback_us = self.feedback_us.saturating_add(sample.feedback_us);
+        self.gravity_us = self.gravity_us.saturating_add(sample.gravity_us);
+        self.planner_us = self.planner_us.saturating_add(sample.planner_us);
+        self.compose_us = self.compose_us.saturating_add(sample.compose_us);
+        self.trace_us = self.trace_us.saturating_add(sample.trace_us);
+        self.send_us = self.send_us.saturating_add(sample.send_us);
+        self.chappe_us = self.chappe_us.saturating_add(sample.chappe_us);
+    }
+
+    fn into_averages(mut self) -> Option<TickPhaseAverages> {
+        if self.ticks == 0 {
+            return None;
+        }
+        let n = u64::from(self.ticks);
+        let avg = TickPhaseAverages {
+            ticks: self.ticks,
+            feedback_us: self.feedback_us / n,
+            gravity_us: self.gravity_us / n,
+            planner_us: self.planner_us / n,
+            compose_us: self.compose_us / n,
+            trace_us: self.trace_us / n,
+            send_us: self.send_us / n,
+            chappe_us: self.chappe_us / n,
+        };
+        Some(avg)
+    }
+}
+
+fn phase_elapsed_us(since: Instant) -> (u64, Instant) {
+    let now = Instant::now();
+    let us = u64::try_from(now.duration_since(since).as_micros()).unwrap_or(u64::MAX);
+    (us, now)
 }
 
 impl<B: MotorBus> ControlLoop<B> {
@@ -123,7 +200,13 @@ impl<B: MotorBus> ControlLoop<B> {
             position_descent_breakaway: None,
             position_descent_was_stuck: None,
             position_planner_events: None,
+            tick_phase: TickPhaseAccumulator::default(),
         })
+    }
+
+    /// Mean per-tick phase times since the last call; resets the accumulator.
+    pub fn take_tick_phase_averages(&mut self) -> Option<TickPhaseAverages> {
+        std::mem::take(&mut self.tick_phase).into_averages()
     }
 
     /// Capture current joint positions as hold targets and commands (no ramp).
@@ -205,7 +288,12 @@ impl<B: MotorBus> ControlLoop<B> {
                             threshold,
                         ),
                     );
-                    cfg.position_slew_rad_s.min(v_max)
+                    downward_return_seed_velocity(
+                        cfg.position_slew_rad_s,
+                        v_max,
+                        q_now[i],
+                        target,
+                    )
                 })
         } else {
             None
@@ -467,13 +555,26 @@ impl<B: MotorBus> ControlLoop<B> {
 
     /// One control cycle: recv → compute → send → optional Chappe publish.
     pub fn tick(&mut self, chappe: Option<&Bus>) -> Result<(), LoopError> {
-        self.supervisor.refresh_feedback()?;
+        let mut phase = TickPhaseSample::default();
+        let mut t = Instant::now();
+
+        self.supervisor.begin_tick_feedback();
+        self.supervisor.drain_feedback()?;
+        (phase.feedback_us, t) = phase_elapsed_us(t);
 
         let q = self.read_positions();
 
-        if self.supervisor.mode() == OperationalMode::Active
-            && self.control_mode != ControlMode::Disabled
-        {
+        let needs_joint_feedback = self.supervisor.mode() == OperationalMode::Active
+            && self.control_mode != ControlMode::Disabled;
+        // First tick may run before any CAN status frame arrives; after that, every
+        // commissioned joint must have feedback while Active.
+        let feedback_bootstrap = needs_joint_feedback
+            && self.tick_count == 0
+            && !self
+                .joint_names
+                .iter()
+                .any(|name| self.has_joint_feedback(name));
+        if needs_joint_feedback && !feedback_bootstrap {
             for name in &self.joint_names {
                 if !self.has_joint_feedback(name) {
                     return Err(LoopError::MissingFeedback {
@@ -486,10 +587,12 @@ impl<B: MotorBus> ControlLoop<B> {
         if self.supervisor.mode() == OperationalMode::Active {
             if self.control_mode != ControlMode::Disabled {
                 let tau_g = self.dynamics.gravity_torques(&q)?;
+                (phase.gravity_us, t) = phase_elapsed_us(t);
 
                 if self.control_mode == ControlMode::Position {
                     self.advance_position_commands(&q)?;
                 }
+                (phase.planner_us, t) = phase_elapsed_us(t);
 
                 let log_position_diag = self.control_mode == ControlMode::Position
                     && self
@@ -497,6 +600,7 @@ impl<B: MotorBus> ControlLoop<B> {
                         .map(|t| t.elapsed() >= Duration::from_secs(1))
                         .unwrap_or(true);
                 let mut batch = Vec::new();
+                let mut trace_us_this_tick = 0u64;
                 for i in 0..self.joint_names.len() {
                     let name = self.joint_names[i].clone();
                     let (kp, kd, tau_ff, q_des, mit_velocity) = match self.control_mode {
@@ -603,6 +707,19 @@ impl<B: MotorBus> ControlLoop<B> {
                                 }
                             }
                             let joint_stuck = stuck_now && !breakaway;
+                            if approach_stuck_mit_pull(
+                                to_target,
+                                q[i],
+                                q_traj,
+                                dq,
+                                dq_traj,
+                                vel_deadband,
+                            ) {
+                                q_des = q_des.max(
+                                    (q[i] + POSITION_DESCENT_STUCK_LEAD_RAD)
+                                        .min(q_traj + effective_max_lead),
+                                );
+                            }
                             if joint_stuck {
                                 q_des = q_des.min(q[i] - POSITION_DESCENT_STUCK_LEAD_RAD);
                             }
@@ -716,6 +833,7 @@ impl<B: MotorBus> ControlLoop<B> {
                                 );
                             }
                             if let Some(trace) = self.position_trace.as_mut() {
+                                let trace_start = Instant::now();
                                 let t_ms =
                                     self.tick_count.saturating_mul(1000) / u64::from(self.loop_hz);
                                 let (q_env_lo, q_env_hi) = limit_policy
@@ -760,6 +878,10 @@ impl<B: MotorBus> ControlLoop<B> {
                                 if self.tick_count % u64::from(self.loop_hz) == 0 {
                                     let _ = trace.flush();
                                 }
+                                trace_us_this_tick = trace_us_this_tick.saturating_add(
+                                    u64::try_from(trace_start.elapsed().as_micros())
+                                        .unwrap_or(u64::MAX),
+                                );
                             }
                             (kp, 0.0, tau_ff_cmd, q_des, mit_velocity)
                         }
@@ -777,8 +899,12 @@ impl<B: MotorBus> ControlLoop<B> {
                 if log_position_diag {
                     self.last_position_diag = Some(Instant::now());
                 }
+                phase.trace_us = trace_us_this_tick;
+                (phase.compose_us, t) = phase_elapsed_us(t);
 
                 self.supervisor.send_mit_batch(batch)?;
+                (phase.send_us, t) = phase_elapsed_us(t);
+                let _ = self.supervisor.drain_feedback();
             } else {
                 // Robstride only streams status after MIT frames; hold current q with zero
                 // gains/torque so comm watchdog stays fresh between enable and gravity-on.
@@ -795,7 +921,10 @@ impl<B: MotorBus> ControlLoop<B> {
                         torque_ff_nm: 0.0,
                     })
                     .collect();
+                (phase.compose_us, t) = phase_elapsed_us(t);
                 self.supervisor.send_mit_batch(batch)?;
+                (phase.send_us, t) = phase_elapsed_us(t);
+                let _ = self.supervisor.drain_feedback();
             }
         }
 
@@ -808,11 +937,12 @@ impl<B: MotorBus> ControlLoop<B> {
             {
                 self.publish_robot_state(bus, &q)?;
                 self.last_chappe = Some(now);
+                (phase.chappe_us, t) = phase_elapsed_us(t);
             }
         }
 
+        self.tick_phase.record(phase);
         self.tick_count += 1;
-        debug!(tick = self.tick_count, ?self.control_mode, "control tick");
         Ok(())
     }
 
@@ -897,21 +1027,49 @@ impl<B: MotorBus> ControlLoop<B> {
                 max_lead,
                 vel_deadband,
             );
-            if resync_stuck_lead
-                || planner_drifted_from_measurement(&planners[i], q[i], targets[i], max_lead)
-            {
-                event = if resync_stuck_lead {
-                    PlannerEvent::ResyncStuckLead
-                } else {
-                    PlannerEvent::Reset
-                };
+            if resync_stuck_lead {
+                event = PlannerEvent::ResyncStuckLead;
                 planners[i].reset_target(q[i], targets[i]);
                 if let Some(cfg) = self.supervisor.control.control.joints.get(name) {
                     planners[i].seed_downward_return_if_needed(
                         q[i],
                         targets[i],
                         POSITION_RETURN_DESCENT_SEED_RAD,
-                        cfg.position_slew_rad_s.min(v_max),
+                        downward_return_seed_velocity(
+                            cfg.position_slew_rad_s,
+                            v_max,
+                            q[i],
+                            targets[i],
+                        ),
+                    );
+                }
+            } else if planner_premature_hold(&planners[i], q[i], targets[i]) {
+                event = PlannerEvent::Reset;
+                reopen_planner_from_premature_hold(
+                    &mut planners[i],
+                    q[i],
+                    targets[i],
+                    v_max,
+                );
+            } else if planner_drifted_from_measurement(
+                &planners[i],
+                q[i],
+                targets[i],
+                max_lead,
+            ) {
+                event = PlannerEvent::Reset;
+                planners[i].reset_target(q[i], targets[i]);
+                if let Some(cfg) = self.supervisor.control.control.joints.get(name) {
+                    planners[i].seed_downward_return_if_needed(
+                        q[i],
+                        targets[i],
+                        POSITION_RETURN_DESCENT_SEED_RAD,
+                        downward_return_seed_velocity(
+                            cfg.position_slew_rad_s,
+                            v_max,
+                            q[i],
+                            targets[i],
+                        ),
                     );
                 }
             }
@@ -981,7 +1139,7 @@ impl<B: MotorBus> ControlLoop<B> {
 
     /// Poll bus feedback, then read cached joint positions for planner init.
     fn refresh_joint_positions(&mut self) -> Vec<f64> {
-        let _ = self.supervisor.refresh_feedback();
+        let _ = self.supervisor.drain_feedback();
         self.read_positions()
     }
 
@@ -1199,6 +1357,7 @@ mod tests {
     fn position_mode_without_feedback_errors_when_active() {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
+        loop_ctrl.tick(None).expect("seed tick with feedback");
         loop_ctrl.supervisor_mut().clear_motor_states();
         loop_ctrl.set_control_mode(ControlMode::Position);
         loop_ctrl
@@ -1370,8 +1529,23 @@ mod tests {
     }
 
     #[test]
+    fn planner_premature_hold_when_virtual_target_reached_before_arm() {
+        let mut planner = JointPositionPlanner::new_for_target(0.05, 0.1);
+        planner.q_traj = 0.1;
+        planner.dq_traj = 0.0;
+        planner.force_hold_for_test();
+        assert!(planner_premature_hold(&planner, 0.052, 0.1));
+        assert!(!planner_drifted_from_measurement(&planner, 0.052, 0.1, 0.10));
+        reopen_planner_from_premature_hold(&mut planner, 0.052, 0.1, 0.15);
+        assert_eq!(planner.phase(), TrapezoidPhase::Cruise);
+        assert!((planner.q_traj - 0.1).abs() < 1e-12);
+        assert!((planner.dq_traj - 0.15).abs() < 1e-12);
+    }
+
+    #[test]
     fn planner_drifted_when_hold_latched_but_arm_not_settled() {
         let planner = JointPositionPlanner::new_at(0.0);
+        assert!(!planner_premature_hold(&planner, 0.087, 0.0));
         assert!(planner_drifted_from_measurement(&planner, 0.087, 0.0, 0.10));
     }
 
@@ -1457,6 +1631,24 @@ mod tests {
     }
 
     #[test]
+    fn planner_no_resync_when_lagging_on_home_return() {
+        let mut planner = JointPositionPlanner::new_for_target(1.65, 0.0);
+        planner.q_traj = 1.50;
+        planner.dq_traj = -0.8;
+        assert!(!planner_should_resync_stuck_lead(
+            &planner, 1.65, 0.0, 0.0, 0.10, 0.02
+        ));
+    }
+
+    #[test]
+    fn planner_not_drifted_when_arm_lags_on_home_return() {
+        let mut planner = JointPositionPlanner::new_for_target(1.65, 0.0);
+        planner.q_traj = 1.50;
+        planner.dq_traj = -1.2;
+        assert!(!planner_drifted_from_measurement(&planner, 1.65, 0.0, 0.10));
+    }
+
+    #[test]
     fn descent_mit_pull_clears_after_breakaway_latch() {
         assert!(!descent_stuck_mit_pull(
             -0.09, 0.105, 0.015, 0.0, 0.02, true
@@ -1475,13 +1667,21 @@ mod tests {
     fn planner_freeze_hysteresis_ignores_dq_noise_while_frozen() {
         let deadband = 0.02;
         assert!(planner_should_freeze_on_descent(
-            false, 0.0, 0.08, -0.08, 0.04, -0.10, 0.0, deadband, 0.10
+            false, 0.0, 0.04, -0.04, 0.04, -0.10, 0.0, deadband, 0.10
         ));
         assert!(planner_should_freeze_on_descent(
-            true, 0.0, 0.08, -0.08, 0.04, -0.10, -0.024, deadband, 0.10
+            true, 0.0, 0.04, -0.04, 0.04, -0.10, -0.024, deadband, 0.10
         ));
         assert!(!planner_should_freeze_on_descent(
-            true, 0.0, 0.08, -0.08, 0.04, -0.10, -0.026, deadband, 0.10
+            true, 0.0, 0.04, -0.04, 0.04, -0.10, -0.026, deadband, 0.10
+        ));
+    }
+
+    #[test]
+    fn planner_freeze_skips_far_from_home_overshoot_return() {
+        let deadband = 0.02;
+        assert!(!planner_should_freeze_on_descent(
+            false, 0.0, 0.102, -0.102, 0.030, -0.15, 0.0, deadband, 0.10
         ));
     }
 

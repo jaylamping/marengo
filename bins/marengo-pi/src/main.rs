@@ -19,7 +19,7 @@ use armee_proto::{
     EnableRequest, Fault, FaultSeverity, Heartbeat, HomingComplete, OperationalMode as ProtoOpMode,
     SafetyState,
 };
-use berthier::{proto_control_mode, ControlLoop, ControlMode};
+use berthier::{proto_control_mode, ControlLoop, ControlMode, TickPhaseAverages};
 use chappe::Bus;
 use davout::{MotorAddress, OperationalMode};
 use marengo_config::{
@@ -561,15 +561,20 @@ fn run_control_loop(loop_ctrl: &mut ControlLoop<RuntimeBus>, runtime: &mut Contr
 
     while !runtime.shutdown.load(Ordering::SeqCst) {
         let tick_start = Instant::now();
+        let mut outer_stdin_us = 0u64;
+        let mut outer_chappe_drain_us = 0u64;
 
+        let mut t = tick_start;
         while let Ok(cmd) = runtime.cmd_rx.try_recv() {
             if !handle_command(loop_ctrl, cmd, runtime.config_dir) {
                 runtime.shutdown.store(true, Ordering::SeqCst);
                 break;
             }
         }
+        (outer_stdin_us, t) = phase_elapsed_us(t);
 
         drain_chappe_commands(loop_ctrl, runtime.enable_rx, runtime.homing_rx);
+        (outer_chappe_drain_us, t) = phase_elapsed_us(t);
 
         active_fault = match loop_ctrl.tick(Some(runtime.chappe.as_ref())) {
             Ok(()) => None,
@@ -586,6 +591,8 @@ fn run_control_loop(loop_ctrl: &mut ControlLoop<RuntimeBus>, runtime: &mut Contr
             elapsed,
             period,
             loop_ctrl.supervisor_mut().last_refresh_frame_count(),
+            outer_stdin_us,
+            outer_chappe_drain_us,
         );
 
         let now = Instant::now();
@@ -610,6 +617,12 @@ fn run_control_loop(loop_ctrl: &mut ControlLoop<RuntimeBus>, runtime: &mut Contr
     }
 }
 
+fn phase_elapsed_us(since: Instant) -> (u64, Instant) {
+    let now = Instant::now();
+    let us = u64::try_from(now.duration_since(since).as_micros()).unwrap_or(u64::MAX);
+    (us, now)
+}
+
 /// Wall-clock loop stats accumulated between 1 Hz heartbeats.
 struct LoopTimingWindow {
     window_start: Instant,
@@ -619,6 +632,8 @@ struct LoopTimingWindow {
     tick_elapsed_sum_us: u64,
     overruns: u32,
     refresh_frames_sum: u32,
+    outer_stdin_us_sum: u64,
+    outer_chappe_drain_us_sum: u64,
 }
 
 impl LoopTimingWindow {
@@ -631,10 +646,19 @@ impl LoopTimingWindow {
             tick_elapsed_sum_us: 0,
             overruns: 0,
             refresh_frames_sum: 0,
+            outer_stdin_us_sum: 0,
+            outer_chappe_drain_us_sum: 0,
         }
     }
 
-    fn record_tick(&mut self, elapsed: Duration, period: Duration, refresh_frames: usize) {
+    fn record_tick(
+        &mut self,
+        elapsed: Duration,
+        period: Duration,
+        refresh_frames: usize,
+        outer_stdin_us: u64,
+        outer_chappe_drain_us: u64,
+    ) {
         self.iterations += 1;
         let us = u64::try_from(elapsed.as_micros()).unwrap_or(u64::MAX);
         self.tick_elapsed_sum_us = self.tick_elapsed_sum_us.saturating_add(us);
@@ -645,9 +669,13 @@ impl LoopTimingWindow {
         self.refresh_frames_sum = self
             .refresh_frames_sum
             .saturating_add(u32::try_from(refresh_frames).unwrap_or(u32::MAX));
+        self.outer_stdin_us_sum = self.outer_stdin_us_sum.saturating_add(outer_stdin_us);
+        self.outer_chappe_drain_us_sum = self
+            .outer_chappe_drain_us_sum
+            .saturating_add(outer_chappe_drain_us);
     }
 
-    fn log_and_reset(&mut self, loop_ctrl: &ControlLoop<RuntimeBus>) {
+    fn log_and_reset(&mut self, loop_ctrl: &mut ControlLoop<RuntimeBus>) {
         let wall_s = self.window_start.elapsed().as_secs_f64();
         if wall_s <= f64::EPSILON || self.iterations == 0 {
             *self = Self::new(loop_ctrl.tick_count());
@@ -656,6 +684,9 @@ impl LoopTimingWindow {
         let wall_hz = f64::from(self.iterations) / wall_s;
         let avg_us = self.tick_elapsed_sum_us / u64::from(self.iterations);
         let nominal_ticks = loop_ctrl.tick_count().saturating_sub(self.tick_count_start);
+        let outer_stdin_avg_us = self.outer_stdin_us_sum / u64::from(self.iterations);
+        let outer_chappe_drain_avg_us =
+            self.outer_chappe_drain_us_sum / u64::from(self.iterations);
         debug!(
             configured_hz = loop_ctrl.configured_loop_hz(),
             wall_hz,
@@ -664,10 +695,36 @@ impl LoopTimingWindow {
             tick_elapsed_max_us = self.tick_elapsed_max_us,
             overruns = self.overruns,
             refresh_frames_per_sec = f64::from(self.refresh_frames_sum) / wall_s,
+            outer_stdin_avg_us,
+            outer_chappe_drain_avg_us,
             "loop timing"
         );
+        if let Some(phase) = loop_ctrl.take_tick_phase_averages() {
+            log_tick_phase_averages(phase);
+        }
         *self = Self::new(loop_ctrl.tick_count());
     }
+}
+
+fn log_tick_phase_averages(phase: TickPhaseAverages) {
+    let accounted = phase.feedback_us
+        + phase.gravity_us
+        + phase.planner_us
+        + phase.compose_us
+        + phase.send_us
+        + phase.chappe_us;
+    debug!(
+        phase_ticks = phase.ticks,
+        feedback_us = phase.feedback_us,
+        gravity_us = phase.gravity_us,
+        planner_us = phase.planner_us,
+        compose_us = phase.compose_us,
+        trace_us = phase.trace_us,
+        send_us = phase.send_us,
+        chappe_us = phase.chappe_us,
+        accounted_us = accounted,
+        "tick phase timing"
+    );
 }
 
 fn debug_status(loop_ctrl: &mut ControlLoop<RuntimeBus>, timing: &mut LoopTimingWindow) {

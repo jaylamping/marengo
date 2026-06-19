@@ -14,7 +14,8 @@
 //! - [`danger_zones`](marengo_config::DangerZoneRule) from `config/control.yaml` (clamp or fault on rule hit).
 //! - Comm watchdog: stale feedback → [`DavoutError::CommWatchdog`].
 //! - [`disable_all`]: best-effort zero-torque MIT on shutdown.
-//! - [`refresh_feedback`]: poll bus, update [`MotorState`] cache (via robstride).
+//! - [`refresh_feedback`]: blocking poll up to `feedback_poll_budget_us` (REPL / set-zero).
+//! - [`drain_feedback`]: non-blocking RX queue drain (Berthier control loop).
 //!
 //! ## Does not
 //!
@@ -150,8 +151,10 @@ enum EnablePolicy {
     ZeroCalibration,
 }
 
-const FEEDBACK_VELOCITY_LIMIT_TRIPS: u8 = 2;
-const FEEDBACK_VELOCITY_CORROBORATION_EPS_RAD_S: f64 = 0.05;
+const FEEDBACK_VELOCITY_LIMIT_TRIPS: u8 = 3;
+/// Measured (position-derived) speed must exceed `limit + margin` before tripping.
+/// Absorbs encoder quantization and planner cruise at the nominal cap without disabling.
+const FEEDBACK_VELOCITY_FAULT_MARGIN_RAD_S: f64 = 0.20;
 
 #[derive(Debug, Clone, Copy)]
 struct FeedbackSample {
@@ -506,18 +509,33 @@ impl<B: MotorBus> Supervisor<B> {
         Ok(())
     }
 
-    /// Poll CAN feedback; updates watchdog timestamp on success.
+    /// Frames received in the last control tick (pre- and post-send drains combined).
+    pub fn begin_tick_feedback(&mut self) {
+        self.last_refresh_frames = 0;
+    }
+
+    /// Non-blocking drain of pending CAN status frames (control-loop path).
+    ///
+    /// Does not wait for the next MIT response; uses whatever is already in the
+    /// SocketCAN RX queue from the previous tick's transmit.
+    pub fn drain_feedback(&mut self) -> Result<usize, DavoutError> {
+        self.poll_feedback(Duration::ZERO)
+    }
+
+    /// Poll CAN feedback up to [`feedback_poll_budget_us`](marengo_config::ControlSection::feedback_poll_budget_us).
     pub fn refresh_feedback(&mut self) -> Result<usize, DavoutError> {
-        let budget = self.feedback_poll_timeout();
+        self.poll_feedback(self.feedback_poll_timeout())
+    }
+
+    fn poll_feedback(&mut self, budget: Duration) -> Result<usize, DavoutError> {
         let quiet = self.feedback_drain_quiet();
         let mut raw_states = HashMap::new();
-        self.last_refresh_frames = 0;
         match self
             .bus
             .recv_all_addressed(&self.motor_types, &mut raw_states, budget, quiet)
         {
             Ok(n) => {
-                self.last_refresh_frames = n;
+                self.last_refresh_frames = self.last_refresh_frames.saturating_add(n);
                 let received_at = Instant::now();
                 if n > 0 {
                     trace!(count = n, "received motor feedback batch");
@@ -566,42 +584,40 @@ impl<B: MotorBus> Supervisor<B> {
                 joint: motor.joint.clone(),
             })?;
         let raw_velocity = f64::from(state.velocity_rad_s);
-        let velocity = raw_velocity.abs();
         let position = f64::from(state.position_rad);
         let previous = self.last_feedback_samples.get(&motor.joint).copied();
         let position_velocity = previous.and_then(|prev| {
             let dt = received_at.duration_since(prev.received_at).as_secs_f64();
             (dt > 0.0).then_some((position - prev.position_rad) / dt)
         });
-        let sanitized_velocity = position_velocity.unwrap_or(0.0);
-        state.velocity_rad_s = sanitized_velocity as f32;
-        if velocity > lim.velocity {
-            if position_velocity
-                .map(|v| v.abs() <= lim.velocity + FEEDBACK_VELOCITY_CORROBORATION_EPS_RAD_S)
-                .unwrap_or(true)
-            {
-                info!(
-                    joint = %motor.joint,
-                    position_rad = position,
-                    previous_position_rad = previous.map(|prev| prev.position_rad),
-                    raw_velocity_rad_s = raw_velocity,
-                    previous_velocity_rad_s = previous.map(|prev| prev.velocity_rad_s),
-                    position_velocity_rad_s = position_velocity,
-                    sanitized_velocity_rad_s = sanitized_velocity,
-                    limit_rad_s = lim.velocity,
-                    "ignored uncorroborated feedback velocity spike"
-                );
-                self.feedback_velocity_trips.remove(&motor.joint);
-                self.last_feedback_samples.insert(
-                    motor.joint.clone(),
-                    FeedbackSample {
-                        position_rad: position,
-                        velocity_rad_s: sanitized_velocity,
-                        received_at,
-                    },
-                );
-                return Ok(());
-            }
+        let measured_velocity = position_velocity.unwrap_or(raw_velocity);
+        state.velocity_rad_s = measured_velocity as f32;
+        let fault_threshold = lim.velocity + FEEDBACK_VELOCITY_FAULT_MARGIN_RAD_S;
+
+        if raw_velocity.abs() > lim.velocity && measured_velocity.abs() <= fault_threshold {
+            info!(
+                joint = %motor.joint,
+                position_rad = position,
+                previous_position_rad = previous.map(|prev| prev.position_rad),
+                raw_velocity_rad_s = raw_velocity,
+                measured_velocity_rad_s = measured_velocity,
+                fault_threshold_rad_s = fault_threshold,
+                limit_rad_s = lim.velocity,
+                "ignored uncorroborated feedback velocity spike"
+            );
+            self.feedback_velocity_trips.remove(&motor.joint);
+            self.last_feedback_samples.insert(
+                motor.joint.clone(),
+                FeedbackSample {
+                    position_rad: position,
+                    velocity_rad_s: measured_velocity,
+                    received_at,
+                },
+            );
+            return Ok(());
+        }
+
+        if measured_velocity.abs() > fault_threshold {
             let trips = self
                 .feedback_velocity_trips
                 .entry(motor.joint.clone())
@@ -611,9 +627,9 @@ impl<B: MotorBus> Supervisor<B> {
                 joint = %motor.joint,
                 position_rad = position,
                 previous_position_rad = previous.map(|prev| prev.position_rad),
-                velocity_rad_s = raw_velocity,
-                previous_velocity_rad_s = previous.map(|prev| prev.velocity_rad_s),
-                position_velocity_rad_s = position_velocity,
+                raw_velocity_rad_s = raw_velocity,
+                measured_velocity_rad_s = measured_velocity,
+                fault_threshold_rad_s = fault_threshold,
                 limit_rad_s = lim.velocity,
                 trips = *trips,
                 "feedback velocity limit exceeded"
@@ -622,14 +638,17 @@ impl<B: MotorBus> Supervisor<B> {
                 motor.joint.clone(),
                 FeedbackSample {
                     position_rad: position,
-                    velocity_rad_s: sanitized_velocity,
+                    velocity_rad_s: measured_velocity,
                     received_at,
                 },
             );
             if *trips >= FEEDBACK_VELOCITY_LIMIT_TRIPS {
                 return Err(DavoutError::Limit {
                     joint: motor.joint.clone(),
-                    message: format!("feedback |velocity| {velocity} > {}", lim.velocity),
+                    message: format!(
+                        "feedback |velocity| {measured_velocity} > {fault_threshold} (limit {} + margin {})",
+                        lim.velocity, FEEDBACK_VELOCITY_FAULT_MARGIN_RAD_S
+                    ),
                 });
             }
         } else {
@@ -639,7 +658,7 @@ impl<B: MotorBus> Supervisor<B> {
             motor.joint.clone(),
             FeedbackSample {
                 position_rad: position,
-                velocity_rad_s: sanitized_velocity,
+                velocity_rad_s: measured_velocity,
                 received_at,
             },
         );
@@ -1581,49 +1600,48 @@ mod tests {
     fn active_feedback_velocity_above_limit_faults() {
         let bus = RoutedMemoryBus::default();
         let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
-        sup.motors.motors[0].can_interface = "can0".to_string();
-        sup.motors.motors[0].device_id = 1;
-        sup.motor_types = sup
-            .motors
-            .motors
-            .iter()
-            .map(|m| (MotorAddress::from(m), m.motor_type))
-            .collect();
         bench_ready_active(&mut sup);
-        sup.bus.rx.push(ReceivedCanFrame {
-            interface: Some("can0".to_string()),
-            frame: CanFrame {
-                id: robstride::pack_ext_id(2, 1, robstride::DEFAULT_HOST_ID),
-                data: [0x7f, 0xff, 0x7f, 0xff, 0x7f, 0xff, 0x00, 0xc8],
-                extended: true,
-            },
-        });
+        let motor = sup.motors.motors[0].clone();
+        let limit = sup
+            .limits
+            .get(&motor.joint)
+            .expect("limits")
+            .velocity;
+        let overspeed = limit + FEEDBACK_VELOCITY_FAULT_MARGIN_RAD_S + 0.15;
+        let dt = 0.005;
+        let t0 = Instant::now();
+        let mut pos = 0.30_f32;
+        let mut state = MotorState {
+            position_rad: pos,
+            velocity_rad_s: 0.0,
+            torque_nm: 0.0,
+            temperature_c: 25.0,
+            fault: 0,
+            updated: Some(t0),
+        };
+        sup.check_feedback_velocity(&motor, &mut state, t0)
+            .expect("seed sample");
 
-        sup.refresh_feedback().expect("initial feedback");
-        sup.bus.rx.push(ReceivedCanFrame {
-            interface: Some("can0".to_string()),
-            frame: CanFrame {
-                id: robstride::pack_ext_id(2, 1, robstride::DEFAULT_HOST_ID),
-                data: [0x8f, 0xff, 0xff, 0xff, 0x7f, 0xff, 0x00, 0xc8],
-                extended: true,
-            },
-        });
-
-        sup.refresh_feedback()
-            .expect("first corroborated overspeed warns only");
-        sup.bus.rx.push(ReceivedCanFrame {
-            interface: Some("can0".to_string()),
-            frame: CanFrame {
-                id: robstride::pack_ext_id(2, 1, robstride::DEFAULT_HOST_ID),
-                data: [0x9f, 0xff, 0xff, 0xff, 0x7f, 0xff, 0x00, 0xc8],
-                extended: true,
-            },
-        });
-
-        let err = sup.refresh_feedback().expect_err("overspeed feedback");
-
-        assert!(matches!(err, DavoutError::Limit { .. }));
-        assert!(err.to_string().contains("feedback |velocity|"));
+        for step in 1..=u64::from(FEEDBACK_VELOCITY_LIMIT_TRIPS) {
+            pos += (overspeed * dt) as f32;
+            let t = t0 + Duration::from_secs_f64(dt * step as f64);
+            let mut sample = MotorState {
+                position_rad: pos,
+                velocity_rad_s: overspeed as f32,
+                torque_nm: 0.0,
+                temperature_c: 25.0,
+                fault: 0,
+                updated: Some(t),
+            };
+            let result = sup.check_feedback_velocity(&motor, &mut sample, t);
+            if step < u64::from(FEEDBACK_VELOCITY_LIMIT_TRIPS) {
+                result.expect("warn-only overspeed sample");
+            } else {
+                let err = result.expect_err("sustained overspeed feedback");
+                assert!(matches!(err, DavoutError::Limit { .. }));
+                assert!(err.to_string().contains("feedback |velocity|"));
+            }
+        }
     }
 
     #[test]
@@ -1660,6 +1678,49 @@ mod tests {
             .get(&MotorAddress::new("can0", 1))
             .expect("sanitized state cached");
         assert_eq!(state.velocity_rad_s, 0.0);
+    }
+
+    #[test]
+    fn cruise_near_limit_measured_velocity_does_not_fault() {
+        let bus = RoutedMemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        bench_ready_active(&mut sup);
+        let motor = sup.motors.motors[0].clone();
+        let limit = sup
+            .limits
+            .get(&motor.joint)
+            .expect("limits")
+            .velocity;
+        let t0 = Instant::now();
+        let mut first = MotorState {
+            position_rad: 0.30,
+            velocity_rad_s: 5.0,
+            torque_nm: 0.0,
+            temperature_c: 25.0,
+            fault: 0,
+            updated: Some(t0),
+        };
+        sup.check_feedback_velocity(&motor, &mut first, t0)
+            .expect("seed sample");
+
+        let near_limit = limit + 0.10;
+        let dt = 0.005;
+        let mut pos = 0.30_f32;
+        for i in 0..5 {
+            pos += (near_limit * dt) as f32;
+            let t = t0 + Duration::from_secs_f64(dt * f64::from(i + 1));
+            let mut state = MotorState {
+                position_rad: pos,
+                velocity_rad_s: 5.0,
+                torque_nm: 0.0,
+                temperature_c: 25.0,
+                fault: 0,
+                updated: Some(t),
+            };
+            sup.check_feedback_velocity(&motor, &mut state, t)
+                .expect("near-limit cruise should stay enabled");
+        }
+        assert!(sup.feedback_velocity_trips.is_empty());
     }
 
     #[test]

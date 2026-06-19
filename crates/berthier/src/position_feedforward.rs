@@ -5,7 +5,6 @@ use marengo_config::FrictionGains;
 use crate::friction::{
     position_hold_friction, PositionFrictionMode, POSITION_HOLD_ERROR_DEADBAND_RAD,
 };
-use crate::position_setpoint::POSITION_SETTLE_TOLERANCE_RAD;
 use crate::position_trajectory::{position_hold_damping_torque, TrapezoidPhase};
 
 /// Per-tick position-hold feedforward outputs.
@@ -32,8 +31,6 @@ pub fn compose_position_hold_feedforward(
     friction: Option<&FrictionGains>,
     approaching_target: bool,
 ) -> PositionHoldFeedforward {
-    let settling = matches!(traj_phase, TrapezoidPhase::Hold)
-        && settle_error.abs() <= POSITION_SETTLE_TOLERANCE_RAD;
     let (friction_mode, tau_f) = friction
         .map(|f| {
             position_hold_friction(
@@ -43,13 +40,17 @@ pub fn compose_position_hold_feedforward(
                 vel_deadband,
                 effective_max_lead,
                 retarget_age_ms,
+                traj_phase,
                 f,
             )
         })
         .unwrap_or((PositionFrictionMode::SettleFade, 0.0));
     let tau_d = if dq_traj.abs() > POSITION_HOLD_ERROR_DEADBAND_RAD {
         position_hold_damping_torque(dq_filtered, dq_traj, kd, vel_deadband, approaching_target)
-    } else if settling && dq_filtered.abs() > vel_deadband {
+    } else if matches!(traj_phase, TrapezoidPhase::Hold) && dq_filtered.abs() > vel_deadband {
+        // Damp micro-oscillation whenever the planner is in Hold, even if position error
+        // is above POSITION_SETTLE_TOLERANCE_RAD (otherwise tau_d stays zero and kp-only
+        // hold buzzes at loop rate).
         -kd * dq_filtered
     } else {
         0.0
@@ -89,5 +90,23 @@ mod tests {
             true,
         );
         assert!((out.tau_ff_cmd - (1.0 + out.tau_f + out.tau_d)).abs() < 1e-12);
+    }
+
+    #[test]
+    fn hold_phase_damps_velocity_when_settle_error_large() {
+        let out = compose_position_hold_feedforward(
+            0.5,
+            2.0,
+            0.05,
+            0.0,
+            -0.014,
+            0.02,
+            0.10,
+            5_000,
+            TrapezoidPhase::Hold,
+            None,
+            true,
+        );
+        assert!((out.tau_d - (-0.1)).abs() < 1e-12);
     }
 }

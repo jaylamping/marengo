@@ -2,7 +2,7 @@
 
 use armee_kinematics::{clamp_position_in_envelope, effective_command_bounds, JointLimitPolicy};
 
-use crate::position_trajectory::{JointPositionPlanner, TrapezoidPhase};
+use crate::position_trajectory::JointPositionPlanner;
 
 pub(crate) const POSITION_SETTLE_TOLERANCE_RAD: f64 = 1e-4;
 /// Descent retarget from above this delta seeds planner speed so FF beats gravity at high q.
@@ -17,7 +17,7 @@ pub(crate) const POSITION_DESCENT_STUCK_LEAD_RAD: f64 = 0.03;
 pub(crate) const POSITION_HOLD_ONSET_MAX_LEAD_RAD: f64 = 0.15;
 
 use crate::friction::{POSITION_HOLD_ERROR_DEADBAND_RAD, POSITION_HOLD_ONSET_MS};
-use crate::position_trajectory::is_gravity_assisted_return;
+use crate::position_trajectory::{is_descent_return, is_gravity_assisted_return, TrapezoidPhase};
 
 /// Effective max lead including outbound/return breakaway boost during onset window.
 pub fn position_hold_effective_max_lead(
@@ -44,6 +44,19 @@ pub fn position_hold_effective_max_lead(
     }
 }
 
+/// Downward planner speed after retarget/reset — large home returns seed closer to cruise.
+pub fn downward_return_seed_velocity(slew_rad_s: f64, v_max: f64, q: f64, target: f64) -> f64 {
+    let base = slew_rad_s.min(v_max);
+    if !is_descent_return(q, target, POSITION_RETURN_DESCENT_SEED_RAD) {
+        return base;
+    }
+    let span = (q - target).abs();
+    if span <= POSITION_RETURN_DESCENT_SEED_RAD * 4.0 {
+        return base;
+    }
+    v_max.min(base.max(v_max * 0.35))
+}
+
 /// MIT velocity FF: zero at rest except during post-retarget onset while approaching.
 pub fn position_hold_mit_velocity(
     dq_raw: f64,
@@ -62,6 +75,22 @@ pub fn position_hold_mit_velocity(
         return dq_traj;
     }
     0.0
+}
+
+/// MIT pull while ascending toward target and stuck with planner slightly ahead.
+pub fn approach_stuck_mit_pull(
+    to_target: f64,
+    q: f64,
+    q_traj: f64,
+    dq_filtered: f64,
+    dq_traj: f64,
+    velocity_deadband: f64,
+) -> bool {
+    to_target > POSITION_HOLD_ERROR_DEADBAND_RAD
+        && dq_traj > POSITION_HOLD_ERROR_DEADBAND_RAD
+        && q_traj >= q - POSITION_SETTLE_TOLERANCE_RAD
+        && (q_traj - q) < POSITION_RETURN_RESYNC_RAD
+        && dq_filtered.abs() < velocity_deadband
 }
 
 /// MIT pull-down while descending and stuck (cleared by [`descent_breakaway_confirmed`]).
@@ -104,6 +133,13 @@ pub fn planner_should_resync_stuck_lead(
     if dq_filtered.abs() >= velocity_deadband {
         return false;
     }
+    if is_descent_return(q, target, POSITION_RETURN_DESCENT_SEED_RAD)
+        && target < q
+        && q > planner.q_traj
+        && planner.phase() != TrapezoidPhase::Hold
+    {
+        return false;
+    }
     (q - planner.q_traj).abs() > max_lead - 1e-6
 }
 
@@ -143,6 +179,10 @@ pub fn planner_should_freeze_on_descent(
         return false;
     }
     if q > POSITION_RETURN_FREEZE_Q_MAX_RAD {
+        return false;
+    }
+    // Final-band stick-slip assist only — not while still descending from approach overshoot.
+    if (q - target).abs() > POSITION_RETURN_DESCENT_SEED_RAD {
         return false;
     }
     if was_frozen && lag.abs() < POSITION_RETURN_RESYNC_RAD {
@@ -237,18 +277,59 @@ pub fn clamp_trajectory_setpoint(
     q_des
 }
 
+/// Virtual trapezoid latched at target while measured `q` is still short of target — reopen, do not reset.
+pub fn planner_premature_hold(planner: &JointPositionPlanner, q: f64, target: f64) -> bool {
+    if planner.phase() != TrapezoidPhase::Hold {
+        return false;
+    }
+    if (q - target).abs() <= POSITION_RETURN_RESYNC_RAD {
+        return false;
+    }
+    let tol = POSITION_SETTLE_TOLERANCE_RAD;
+    if target >= 0.0 {
+        q < target - POSITION_RETURN_RESYNC_RAD && planner.q_traj >= target - tol
+    } else {
+        q > target + POSITION_RETURN_RESYNC_RAD && planner.q_traj <= target + tol
+    }
+}
+
+/// Resume cruise toward `target` without snapping `q_traj` back to measured `q`.
+pub fn reopen_planner_from_premature_hold(
+    planner: &mut JointPositionPlanner,
+    q: f64,
+    target: f64,
+    v_max: f64,
+) {
+    let dir = (target - q).signum();
+    if dir > 0.0 {
+        planner.q_traj = planner.q_traj.max(q);
+    } else if dir < 0.0 {
+        planner.q_traj = planner.q_traj.min(q);
+    }
+    planner.resume_cruise_toward(planner.q_traj, dir * v_max);
+}
+
 pub fn planner_drifted_from_measurement(
     planner: &JointPositionPlanner,
     q: f64,
     target: f64,
     max_lead: f64,
 ) -> bool {
+    if planner_premature_hold(planner, q, target) {
+        return false;
+    }
     let to_target = target - q;
     if to_target.abs() > POSITION_SETTLE_TOLERANCE_RAD {
         if to_target > 0.0 && q > planner.q_traj + max_lead {
             return false;
         }
         if to_target < 0.0 && q < planner.q_traj - max_lead {
+            return false;
+        }
+        if is_descent_return(q, target, POSITION_RETURN_DESCENT_SEED_RAD)
+            && q > planner.q_traj + max_lead
+            && planner.phase() != TrapezoidPhase::Hold
+        {
             return false;
         }
     }

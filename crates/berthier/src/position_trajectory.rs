@@ -57,6 +57,18 @@ impl JointPositionPlanner {
         self.phase = TrapezoidPhase::Hold;
     }
 
+    /// Resume cruise after virtual hold latched before measured `q` settled.
+    pub fn resume_cruise_toward(&mut self, q_traj: f64, dq_traj: f64) {
+        self.q_traj = q_traj;
+        self.dq_traj = dq_traj;
+        self.phase = TrapezoidPhase::Cruise;
+    }
+
+    #[cfg(test)]
+    pub fn force_hold_for_test(&mut self) {
+        self.phase = TrapezoidPhase::Hold;
+    }
+
     /// After `reset_target`, seed downward cruise speed for same-side returns toward home.
     /// At high `q`, gravity FF exceeds friction until `dq_traj` reaches velocity deadband — causes
     /// a long return hitch from approach overshoot (e.g. weighted 0.1 rad gate).
@@ -67,7 +79,7 @@ impl JointPositionPlanner {
         seed_threshold_rad: f64,
         v_seed: f64,
     ) {
-        if !is_gravity_assisted_return(q, target)
+        if !is_descent_return(q, target, seed_threshold_rad)
             || target >= q - seed_threshold_rad
             || v_seed <= POSITION_TOLERANCE_RAD
         {
@@ -90,6 +102,20 @@ impl JointPositionPlanner {
 /// driving into a lower-limit target.
 pub fn is_gravity_assisted_return(q: f64, target: f64) -> bool {
     q * target > 0.0 && target.abs() < q.abs()
+}
+
+/// Descent toward home (`target` ≈ 0) or a same-side smaller-magnitude target.
+pub fn is_descent_return(q: f64, target: f64, min_span_rad: f64) -> bool {
+    if (target - q).abs() <= POSITION_TOLERANCE_RAD {
+        return false;
+    }
+    if q.abs() <= min_span_rad {
+        return false;
+    }
+    if target.abs() <= POSITION_TOLERANCE_RAD {
+        return (target - q).signum() != q.signum();
+    }
+    is_gravity_assisted_return(q, target)
 }
 
 /// One trapezoidal velocity step toward `q_target`.
@@ -189,7 +215,15 @@ pub fn position_hold_damping_torque(
     velocity_deadband: f64,
     approaching_target: bool,
 ) -> f64 {
-    let tau_d = kd * (dq_traj - dq_filtered);
+    // When the planner is moving but measured speed is inside the encoder deadband, skip
+    // catch-up damping — otherwise return descent alternates 0 / -0.08 rad/s quanta and
+    // pumps `tau_d` (felt as shakiness on the way home).
+    let dq_for_d = if dq_filtered.abs() < velocity_deadband && dq_traj.abs() > velocity_deadband {
+        dq_traj
+    } else {
+        dq_filtered
+    };
+    let tau_d = kd * (dq_traj - dq_for_d);
     if tau_d >= 0.0 || !approaching_target {
         return tau_d;
     }
@@ -259,6 +293,21 @@ mod tests {
         planner.seed_downward_return_if_needed(-0.14, -0.64, 0.05, 0.10);
         assert!((planner.dq_traj).abs() < 1e-12);
         assert_eq!(planner.phase, TrapezoidPhase::Hold);
+    }
+
+    #[test]
+    fn seed_downward_return_from_high_angle_to_home() {
+        let mut planner = JointPositionPlanner::new_at(1.65);
+        planner.seed_downward_return_if_needed(1.65, 0.0, 0.05, 0.60);
+        assert!((planner.dq_traj + 0.60).abs() < 1e-12);
+        assert_eq!(planner.phase, TrapezoidPhase::Accelerate);
+    }
+
+    #[test]
+    fn descent_return_includes_hold_at_home() {
+        assert!(is_descent_return(1.65, 0.0, 0.05));
+        assert!(!is_descent_return(-0.14, -0.64, 0.05));
+        assert!(!is_descent_return(0.03, 0.0, 0.05));
     }
 
     #[test]
@@ -372,6 +421,14 @@ mod tests {
             capped > unfiltered,
             "cap should reduce braking: capped={capped} raw={unfiltered}"
         );
+    }
+
+    #[test]
+    fn damping_no_catchup_torque_inside_measurement_deadband() {
+        let noisy_zero = position_hold_damping_torque(0.0, -0.15, 2.0, 0.02, true);
+        assert!(noisy_zero.abs() < 1e-9);
+        let moving = position_hold_damping_torque(-0.076, -0.15, 2.0, 0.02, true);
+        assert!((moving + 0.148).abs() < 0.01);
     }
 
     #[test]
