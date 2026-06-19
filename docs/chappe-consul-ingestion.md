@@ -41,12 +41,34 @@ cargo run -p marengo-gateway -- --demo --http-listen 127.0.0.1:8080 --wt-listen 
 cd consul && npm run dev
 ```
 
-Set `consul/.env.local`:
+Set `consul/.env.local` (dev machine only — **not** used by Pi deploy):
 
 ```
 VITE_CHAPPE_HTTP_URL=http://127.0.0.1:8080
 VITE_CHAPPE_WEBTRANSPORT_URL=https://127.0.0.1:8443/chappe
 ```
+
+## Robot-hosted deploy
+
+Pi deploy builds Consul with production env scrub ([ADR 0008](decisions/0008-chappe-webtransport-transport.md)):
+
+1. `consul/.env.production` — empty `VITE_CHAPPE_*` anchors override `.env.local`
+2. `deploy-pi.sh` — `env -u VITE_CHAPPE_* npm run build` + always rebuild (no stale-dist skip)
+3. `scripts/check-consul-dist.sh` — rejects dist containing `127.0.0.1:8080` or `VITE_CHAPPE_` literals
+
+**Canonical redeploy:** `pi_sync_main` (MCP) or `./scripts/deploy-pi.sh --install joey@marengo.local` after merge. Verify with `pi_health`: `.deploy-rev` first field matches local `git rev-parse HEAD`.
+
+## Connection failures (CHAPPE ERR)
+
+Hover the **CHAPPE ERR** badge for resolved HTTP and WebTransport URLs plus a triage hint.
+
+| Symptom | Badge tooltip | Likely cause | Fix |
+|---------|---------------|--------------|-----|
+| CHAPPE ERR on `https://marengo.local:8444` | URLs show `127.0.0.1` + "Baked dev URLs" | Pre-fix bundle or deploy built with dev `.env.local` baked in | `pi_sync_main` after deploy-pipeline merge; confirm `check-consul-dist` passes locally |
+| CHAPPE ERR, derived URLs, "Gateway unreachable" | HTTP/WT match page origin | `marengo-gateway` down or blocked | `systemctl status marengo-gateway`; accept TLS cert on `:8444` once |
+| **WIREFRAME** (not CHAPPE ERR) | — | Page loaded over HTTP (no live endpoints) | Open `https://…:8444` on Pi LAN or set `.env.local` for local dev |
+
+**HTTP stream fallback** works over TCP/`ssh -L` to `:8444`; **WebTransport requires LAN UDP** to `:8443`.
 
 ## SSH tunnel note
 
@@ -72,4 +94,4 @@ Optional `MARENGO_GATEWAY_LOG_TOKEN` / `VITE_MARENGO_LOG_TOKEN` for log HTTP rou
 
 ## Deploy identity
 
-Host cards show `build.deploy_rev` from `$MARENGO_ROOT/.deploy-rev` (written by `deploy-pi.sh` / `pi_sync_main`).
+Host cards show `build.deploy_rev` from **`/opt/marengo/.deploy-rev`** (single writer: `install-pi.sh` copies staged `{local HEAD} {UTC}\n` from the deploy bundle). `pi_sync_main` and `deploy-pi.sh --install` both use this path — not `~/marengo/.deploy-rev` or on-Pi `git rev-parse`.

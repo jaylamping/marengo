@@ -223,16 +223,22 @@ Left arm chain: roll **11**, pitch **12**, yaw **13**, elbow **14**. Right arm: 
 
 ## Consul (robot-hosted UI)
 
-1. Build/install includes `marengo-gateway` and Consul static assets (`deploy-pi.sh` builds `consul/dist` → `www/`; `install-pi.sh` installs to `/opt/marengo/www`).
+1. Build/install includes `marengo-gateway` and Consul static assets (`deploy-pi.sh` always rebuilds `consul/dist` with production env scrub → `www/`; `install-pi.sh` installs to `/opt/marengo/www`).
 2. After `install-pi.sh`, **`marengo-gateway`** and **`marengo-can`** are enabled on boot. Gateway listens on **`[::]:8080`** (HTTP API), **`[::]:8444`** (HTTPS Consul UI), **`[::]:8443`** (WebTransport/QUIC).
 3. On the bench LAN, open **`https://marengo.local:8444`** and accept the self-signed certificate once.
 4. Run `marengo-pi` manually for live telemetry (`MARENGO_CHAPPE_SOCKET=/run/marengo/chappe.sock` in `/etc/marengo/env`). **`marengo-pi.service` stays disabled** by default — no automatic motor control after reboot.
 
 **Boot state after power loss:** CAN up, gateway/UI up, `marengo-pi` stopped, motors not enabled.
 
-**Local dev (optional):** copy `consul/.env.example` → `consul/.env.local`, then `cd consul && npm run dev` on the dev Mac.
+**Deploy revision:** `/opt/marengo/.deploy-rev` — compare first field to your laptop `git rev-parse HEAD` after deploy. Agent canonical path: **`pi_sync_main`** (pull, cross-build, install, poll gateway).
+
+**CHAPPE ERR on Pi:** hover the badge. If URLs show `127.0.0.1`, the bundle was built with dev env — redeploy with current `deploy-pi.sh` (scrubs `VITE_CHAPPE_*`, runs `check-consul-dist.sh`). If URLs match `marengo.local` but connection fails, check `systemctl status marengo-gateway` and TLS cert acceptance.
+
+**Local dev (optional):** copy `consul/.env.example` → `consul/.env.local` on the dev Mac only; never rsync `.env.local` to the Pi. Then `cd consul && npm run dev`.
 
 WebTransport uses **QUIC (UDP)**. `ssh -L` forwards TCP only and will not carry `:8443`; use LAN hostnames instead.
+
+See [chappe-consul-ingestion.md](chappe-consul-ingestion.md) for failure-mode table and [ADR 0008](decisions/0008-chappe-webtransport-transport.md) for deploy build contract.
 
 Local demo without hardware:
 

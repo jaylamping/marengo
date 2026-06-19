@@ -17,18 +17,37 @@ Optional: `strategy: "pi_native"` for on-Pi build (slow). `wait_for_ready: false
 
 Requires marengo repo open as Cursor workspace (server derives `localRoot` from install path; override with `MARENGO_LOCAL_ROOT` only if needed).
 
+## Deploy pipeline (Consul + rev)
+
+Canonical operator redeploy after merge or CHAPPE fix:
+
+1. **`pi_sync_main`** — cross-build, install, poll gateway
+2. **`pi_health`** — confirm `/opt/marengo/.deploy-rev` first field == local `git rev-parse HEAD`
+3. Open `https://marengo.local:8444` — no **CHAPPE ERR** with `127.0.0.1` in badge tooltip
+
+What deploy does (see ADR 0008):
+
+| Step | Script | Purpose |
+|------|--------|---------|
+| Env scrub | `deploy-pi.sh` | `env -u VITE_CHAPPE_* npm run build` + `consul/.env.production` empty anchors |
+| Dist gate | `check-consul-dist.sh` | Fail if dist embeds `127.0.0.1:8080` or `VITE_CHAPPE_` |
+| Always rebuild | `deploy-pi.sh` | No stale-dist skip on deploy |
+| Deploy rev | `install-pi.sh` | Single writer → **`/opt/marengo/.deploy-rev`** (local HEAD + UTC) |
+
+**Never** tell the user to run `deploy-pi.sh` / `install-pi.sh` manually — use MCP.
+
 ## When to run (no ask — agent runs it)
 
 - User says *sync pi*, *deploy*, *push fixes to pi*, or UI fix needs Pi verification
 - `pi_health` shows stale `.deploy-rev` or wrong `motors.yaml`
 - Fix committed on `main` needs Pi verification
-- **Never** tell the user to run `deploy-pi.sh` / `install-pi.sh` — use MCP
+- Pi Consul shows **CHAPPE ERR** with baked `127.0.0.1` URLs (poisoned bundle) — redeploy immediately after deploy-pipeline merge
 
 ## After sync
 
 1. `pi_sync_main` output should end with `[ready]` from wait poll; if TIMEOUT, run `pi_health` and investigate gateway
 2. `pi_health` — `.deploy-rev`, gateway `/health`, `www/index.html`, commissioned config
-2. `pi_can_up` if CAN down
-3. Continue log-first investigation or request motion confirm
+3. `pi_can_up` if CAN down
+4. Continue log-first investigation or request motion confirm
 
 See [marengo-pi-mcp](../marengo-pi-mcp/SKILL.md) for bench motion rules.
