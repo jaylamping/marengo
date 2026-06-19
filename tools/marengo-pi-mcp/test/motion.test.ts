@@ -218,5 +218,7 @@ describe("marengo-pi script tool", () => {
     assert.match(benchCanKernelSnapshotShell("start"), /CAN_KERNEL_START/);
     assert.match(benchCanKernelSnapshotShell("end"), /CAN_KERNEL_END/);
     assert.match(benchCanKernelDeltaShell(), /can kernel delta/);
+    assert.match(benchCanKernelDeltaShell(), /_rx0=\$\{_rx0:-0\}/);
+    assert.match(benchCanKernelDeltaShell(), /grep -m1 -E "\^\[\[:space:\]\]\*\\\("/);
   });
 });
