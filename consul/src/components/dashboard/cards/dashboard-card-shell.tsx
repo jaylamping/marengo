@@ -8,7 +8,9 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
+  type cardVariants,
 } from '@/components/ui/card';
+import type { VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 type DashboardCardShellProps = {
@@ -20,6 +22,7 @@ type DashboardCardShellProps = {
   footerPrimary: ReactNode;
   footerSecondary?: ReactNode;
   className?: string;
+  variant?: VariantProps<typeof cardVariants>['variant'];
 };
 
 export function DashboardCardShell({
@@ -31,9 +34,10 @@ export function DashboardCardShell({
   footerPrimary,
   footerSecondary,
   className,
+  variant = 'default',
 }: DashboardCardShellProps) {
   return (
-    <Card className={cn('@container/card', className)}>
+    <Card variant={variant} className={cn('@container/card', className)}>
       <CardHeader>
         {description ? <CardDescription>{description}</CardDescription> : null}
         <CardTitle className={cn('text-lg font-semibold', titleClassName)}>

@@ -21,6 +21,13 @@ export const dashboardMainPointerClassName = 'pointer-events-none';
 /** Glass panels and interactive shells opt back into pointer events. */
 export const dashboardPanelPointerClassName = 'pointer-events-auto';
 
+/** Shared GLINUI glass card shell — variant=glass + Strategy C pointer threading. */
+export const dashboardGlassCardClassName = dashboardPanelPointerClassName;
+
+/** Overview metric card grid (glass cards supply their own surface). */
+export const sectionCardsGridClassName =
+  'grid grid-cols-1 gap-4 px-4 lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4';
+
 export const dashboardMainClassName =
   '@container/main flex flex-1 flex-col gap-2';
 
