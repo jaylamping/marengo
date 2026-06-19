@@ -1,6 +1,11 @@
 import { siteHeaderConfig } from '@/data/site-header';
 import { Badge } from '@/components/ui/badge';
-import { isChappeLive } from '@/lib/chappe-config';
+import {
+  chappeConnectionErrDetail,
+  chappeMisconfigHint,
+  isChappeLive,
+  resolveChappeEndpoints,
+} from '@/lib/chappe-config';
 import { useHostMetricsStore } from '@/state/hostMetricsStore';
 import { useRobotStore } from '@/state/robotStore';
 
@@ -9,7 +14,12 @@ export function SiteHeaderStatusBadges() {
   const operationalMode = useRobotStore((s) => s.operationalMode);
   const gatewayError = useRobotStore((s) => s.gatewayError);
   const transportMode = useHostMetricsStore((s) => s.transportMode);
-  const live = isChappeLive();
+  const resolution = resolveChappeEndpoints();
+  const live = resolution.endpoints !== null;
+  const chappeErrDetail =
+    live && !connected && gatewayError
+      ? chappeConnectionErrDetail(resolution, chappeMisconfigHint())
+      : null;
 
   return (
     <div className="flex items-center gap-2">
@@ -26,6 +36,7 @@ export function SiteHeaderStatusBadges() {
           <Badge
             variant={connected ? 'default' : 'destructive'}
             className="font-mono text-xs"
+            title={chappeErrDetail ?? undefined}
           >
             {connected
               ? operationalMode ?? 'LIVE'
