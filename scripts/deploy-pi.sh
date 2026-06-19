@@ -170,12 +170,13 @@ build_consul_assets() {
   ensure_consul_deps
   (
     cd "${ROOT}/consul"
-    npm run build
+    env -u VITE_CHAPPE_HTTP_URL -u VITE_CHAPPE_WEBTRANSPORT_URL npm run build
   )
   if [[ ! -f "${ROOT}/consul/dist/index.html" ]]; then
     echo "error: consul build did not produce dist/index.html" >&2
     exit 1
   fi
+  "${ROOT}/scripts/check-consul-dist.sh"
   log_step "Consul build done"
 }
 
