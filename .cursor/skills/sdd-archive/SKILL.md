@@ -1,8 +1,8 @@
 ---
 name: sdd-archive
 description: "Archive a completed SDD change by syncing delta specs. Trigger: orchestrator launches archive after implementation and verification."
-# model: nex-agi/nex-n2-pro:free
-model: composer-2.5-fast
+# model: composer-2.5-fast
+model: claude-4.6-sonnet-medium-thinking
 disable-model-invocation: true
 user-invocable: false
 license: MIT
@@ -81,6 +81,8 @@ OpenSpec permits archiving with incomplete artifacts or tasks after a user confi
 
 - Incomplete implementation tasks block archive unless they are stale checkboxes and apply-progress/verify-report prove completion.
 - CRITICAL issues in `verify-report` always block archive. Do not accept an override for CRITICAL verification issues.
+- Verify report MUST contain an explicit machine-checkable line: `Final verdict: PASS`, `Final verdict: PASS WITH WARNINGS`, or `Final verdict: FAIL`. Archive only on `PASS` or `PASS WITH WARNINGS`.
+- Missing runtime evidence for required spec scenarios blocks archive unless user explicitly accepts risk (log in mem0).
 - `sdd-archive` does not own normal task completion. `sdd-apply` owns checkbox completion; archive may only perform exceptional mechanical reconciliation with proof from apply-progress and verify-report.
 - Missing proposal/spec/design artifacts should be reported. Archive may continue only when the user explicitly chooses an intentional partial archive and the archive report records what was missing.
 

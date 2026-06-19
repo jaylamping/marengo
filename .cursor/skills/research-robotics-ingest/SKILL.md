@@ -11,7 +11,7 @@ Weekly (Sunday evening). Cursor Automation: `research-robotics-ingest`.
 1. Use `marengo-research` MCP — queries from `tools/marengo-research-mcp` humanoid seeds + Marengo ADRs.
 2. Distill 3–7 durable facts (no secrets, no ephemeral chat fluff).
 3. `mem_save` each with `topic_key: research/robotics/{slug}` and `type: discovery`.
-4. Cheap OpenRouter model is fine for summarization.
+4. A lightweight model (`gpt-5.4-nano-medium`) is fine for summarization.
 
 ## Do not
 

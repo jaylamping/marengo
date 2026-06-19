@@ -4,8 +4,8 @@ description: >
   Create a change proposal with intent, scope, and approach. Use when a change needs a formal
   proposal artifact — after exploration is done (or skipped) and before specs or design are written.
   Produces proposal.md or the engram proposal artifact.
-# model: openrouter/z-ai/glm-5.2:nitro
-model: composer-2.5-fast
+# model: composer-2.5-fast
+model: claude-4.6-sonnet-medium-thinking
 readonly: false
 background: false
 ---

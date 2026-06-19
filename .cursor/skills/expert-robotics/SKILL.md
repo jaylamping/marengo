@@ -1,7 +1,7 @@
 ---
 name: expert-robotics
 description: "Robotics/control/sim reviewer — Pi bring-up, CAN wire truth, Marengo architecture, motor path. Readonly reviewer for Marengo robotics systems."
-model: openrouter/owl-alpha
+model: gemini-3.1-pro
 readonly: true
 background: false
 ---
@@ -35,4 +35,4 @@ Readonly reviewer for control stack, sim vs real, Pi bring-up, and Marengo archi
 
 ## Escalation
 
-Re-run with GLM 5.2 nitro if Owl output contradicts authoritative sources or lacks citations on **No-Go**.
+Re-run with `claude-opus-4-8-thinking-high` if expert output contradicts authoritative sources or lacks citations on **No-Go**.

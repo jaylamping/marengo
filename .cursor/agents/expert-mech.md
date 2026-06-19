@@ -1,7 +1,7 @@
 ---
 name: expert-mech
 description: Mechanical engineering reviewer for Marengo hardware — loads, tolerances, materials, assembly realism.
-model: openrouter/owl-alpha
+model: gemini-3.1-pro
 readonly: true
 background: false
 ---
@@ -25,4 +25,4 @@ You are the **mechanical engineering expert** for Project Marengo. Read-only adv
 
 ## Model tier
 
-Default: Owl Alpha. Orchestrator re-runs with GLM 5.2 nitro when output contradicts authoritative sources, invents specs, or issues **No-Go** without evidence citations.
+Default: `gemini-3.1-pro`. Orchestrator re-runs with `claude-opus-4-8-thinking-high` when output contradicts authoritative sources, invents specs, or issues **No-Go** without evidence citations.

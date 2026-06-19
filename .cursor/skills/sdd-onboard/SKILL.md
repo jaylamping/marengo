@@ -2,7 +2,7 @@
 name: sdd-onboard
 description: "Walk users through the SDD workflow on the real codebase. Trigger: orchestrator launches onboarding for the full SDD cycle."
 # model: composer-2.5-fast
-model: composer-2.5-fast
+model: claude-4.6-sonnet-medium-thinking
 disable-model-invocation: true
 user-invocable: false
 license: MIT
@@ -12,13 +12,20 @@ metadata:
   delegate_only: true
 ---
 
-> **ORCHESTRATOR NOTE**: This skill is designed to be executed INLINE by the
-> orchestrator. It is an interactive walkthrough — no sub-agent delegation
-> needed.
+> **ORCHESTRATOR GATE**: If you loaded this skill via the `skill()` tool, you are
+> the ORCHESTRATOR — STOP. Do NOT execute phase work inline. You coordinate the
+> onboarding walkthrough: narrate, ask the user, and **delegate each SDD phase**
+> to the dedicated phase sub-agent (`sdd-explore`, `sdd-propose`, etc.).
 
-## Executor Override
+## Onboard Coordinator Contract
 
-If you ARE the `sdd-onboard` sub-agent (NOT the orchestrator), the gate above does NOT apply to you. Continue with the phase work below. Do NOT delegate. Do NOT call the Skill tool. You are the executor — execute.
+You guide the user through a complete SDD cycle on their real codebase. You are a **coordinator and teacher**, not a phase executor.
+
+- **Narrate** each step in 1–3 sentences before delegating.
+- **Delegate** explore → propose → spec → design → tasks → apply → verify → archive to the matching `sdd-*` sub-agent with the resolved model from Model Assignments.
+- **Never** write proposal/spec/design/tasks artifacts, implement code, run verify, or archive yourself.
+- **Ask** the user before continuing past proposal review (Phase 3).
+- Return envelope per **Section D** from `skills/_shared/sdd-phase-common.md` when the walkthrough ends or pauses.
 
 ## Context Saturation (MANDATORY)
 
@@ -37,7 +44,7 @@ Public/contextual comments follow the target context language by default. Explic
 
 ## Purpose
 
-You are a sub-agent responsible for ONBOARDING. You guide the user through a complete SDD cycle — from exploration to archive — using their actual codebase. This is a real change with real artifacts, not a toy example. The goal is to teach by doing.
+Guide the user through a complete SDD cycle using their actual codebase. This is a real change with real artifacts, not a toy example. Teach by doing — but **delegate all phase execution** to the proper sub-agents.
 
 ## What You Receive
 
@@ -77,124 +84,37 @@ Criteria for a good onboarding change:
 
 Present 2-3 options to the user. Let them choose or suggest their own.
 
-### Phase 2: Explore (narrated)
+### Phase 2: Explore (narrated + delegated)
 
-Narrate as you explore:
+Narrate, then **delegate to `sdd-explore`** with the chosen topic. Present the executor's summary to the user in plain language. Do not run exploration inline.
 
-```
-"Step 1: Explore — Before we commit to any change, we investigate.
- Let me look at the relevant code..."
-```
+### Phase 3: Propose (narrated + delegated)
 
-Run `sdd-explore` behavior inline — investigate the chosen area, understand current state, identify what needs to change. Explain your findings to the user in plain language.
+Narrate, then **delegate to `sdd-propose`**. Show the user the proposal summary. Ask if they want to adjust anything before continuing.
 
-Conclude with:
-```
-"Good — I understand what we're working with. Now let's start a real change."
-```
+### Phase 4: Specs (narrated + delegated)
 
-### Phase 3: Propose (narrated)
+Narrate, then **delegate to `sdd-spec`**. Explain Given/When/Then briefly after the executor returns.
 
-```
-"Step 2: Propose — We write down WHAT we're building and WHY.
- This becomes the contract for everything that follows."
-```
+### Phase 5: Design (narrated + delegated)
 
-Create the change folder and write `proposal.md` following `sdd-propose` format. After creating it:
+Narrate, then **delegate to `sdd-design`**. Highlight key decisions from the executor's summary.
 
-```
-"Here's the proposal I wrote. Notice the Capabilities section —
- this tells the next step exactly which spec files to create."
-```
+### Phase 6: Tasks (narrated + delegated)
 
-Show the user the proposal and let them review it. Ask if they want to adjust anything before continuing.
+Narrate, then **delegate to `sdd-tasks`**. Explain task specificity from the executor's summary.
 
-### Phase 4: Specs (narrated)
+### Phase 7: Apply (narrated + delegated)
 
-```
-"Step 3: Specs — We define WHAT the system should do, in testable terms.
- No implementation details — just observable behavior."
-```
+Narrate, then **delegate to `sdd-apply`** for the assigned task batch. Report the executor's progress — do not implement code yourself.
 
-Write the delta specs following `sdd-spec` format. After creating them:
+### Phase 8: Verify (narrated + delegated)
 
-```
-"See the Given/When/Then format? Each scenario is a potential test case.
- These scenarios will drive the verify phase later."
-```
+Narrate, then **delegate to `sdd-verify`**. Explain the compliance matrix from the executor's report.
 
-### Phase 5: Design (narrated)
+### Phase 9: Archive (narrated + delegated)
 
-```
-"Step 4: Design — We decide HOW to build it. Architecture decisions, file changes, rationale."
-```
-
-Write `design.md` following `sdd-design` format. Highlight the key decisions:
-
-```
-"Notice the Decisions section — we document WHY we chose this approach
- over alternatives. Future you (and teammates) will thank you."
-```
-
-### Phase 6: Tasks (narrated)
-
-```
-"Step 5: Tasks — We break the work into concrete, checkable steps."
-```
-
-Write `tasks.md` following `sdd-tasks` format. Explain the structure:
-
-```
-"Each task is specific enough that you know when it's done.
- 'Implement feature' is not a task. 'Create src/utils/validate.ts with validateEmail()' is."
-```
-
-### Phase 7: Apply (narrated)
-
-```
-"Step 6: Apply — Now we write actual code. The tasks guide us, the specs tell us what 'done' means."
-```
-
-Implement the tasks following `sdd-apply` behavior. Narrate each task as you complete it:
-
-```
-"Implementing task 1.1: [description]
- ✓ Done — [brief note on what was created/changed]"
-```
-
-If Strict TDD mode is active, apply the TDD cycle and explain it:
-
-```
-"Notice: RED → GREEN → TRIANGULATE → REFACTOR.
- We write the failing test FIRST, then write the minimum code to pass it."
-```
-
-### Phase 8: Verify (narrated)
-
-```
-"Step 7: Verify — We check that what we built matches what we specified."
-```
-
-Run `sdd-verify` behavior. Explain the compliance matrix:
-
-```
-"Each spec scenario gets a verdict: COMPLIANT, FAILING, or UNTESTED.
- This is the moment where specs pay off — they tell us exactly what to check."
-```
-
-### Phase 9: Archive (narrated)
-
-```
-"Step 8: Archive — We merge our delta specs into the main specs and close the change.
- The specs now describe the new behavior. The change becomes the audit trail."
-```
-
-Run `sdd-archive` behavior. Show the result:
-
-```
-"Done! The change is archived at openspec/changes/archive/YYYY-MM-DD-{name}/
- And openspec/specs/ now reflects the new behavior."
-```
+Narrate, then **delegate to `sdd-archive`**. Show the archive summary from the executor.
 
 ### Phase 10: Summary
 
@@ -229,11 +149,10 @@ Small tweaks? Just code. Features, APIs, architecture decisions? SDD first.
 
 ## Rules
 
-- This is a REAL change — not a demo. The artifacts and code must be production-quality.
+- This is a REAL change — artifacts and code must be production-quality, produced by delegated phase executors.
 - Keep each phase narration SHORT — 1-3 sentences. Teach, don't lecture.
 - Always ask before continuing past Phase 3 (proposal) — let the user review and adjust.
-- If the user picks their own improvement, validate it fits the "small and safe" criteria before proceeding.
 - If anything blocks the cycle (tests fail, design is unclear, codebase is too complex), STOP and explain — don't push through.
 - Adapt the tone to the user — if they're experienced, skip basics; if they're new, explain more.
-- Follow all format rules from the individual skills (sdd-propose, sdd-spec, sdd-design, sdd-tasks, sdd-apply, sdd-verify, sdd-archive).
+- **Never implement phase work inline** — delegate every SDD phase to the matching sub-agent.
 - Return envelope per **Section D** from `skills/_shared/sdd-phase-common.md`.

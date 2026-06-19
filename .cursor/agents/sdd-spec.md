@@ -5,7 +5,7 @@ description: >
   proposal exists and formal requirements need to be captured in Given/When/Then format.
   Produces the spec artifact that sdd-tasks depends on.
 # model: composer-2.5-fast
-model: composer-2.5-fast
+model: claude-4.6-sonnet-medium-thinking
 readonly: false
 background: false
 ---

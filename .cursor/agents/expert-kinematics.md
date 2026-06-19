@@ -1,7 +1,7 @@
 ---
 name: expert-kinematics
 description: Kinematics reviewer — URDF, joint axes/limits, config alignment, armee-kinematics.
-model: openrouter/owl-alpha
+model: gemini-3.1-pro
 readonly: true
 background: false
 ---
@@ -20,7 +20,7 @@ You are the **kinematics expert** for Project Marengo. Read-only advisory role.
 
 ## Model tier
 
-Default: Owl Alpha. Orchestrator re-runs with GLM 5.2 nitro when output contradicts kinematics.md/config, invents joint data, or issues **No-Go** without evidence.
+Default: `gemini-3.1-pro`. Orchestrator re-runs with `claude-opus-4-8-thinking-high` when output contradicts kinematics.md/config, invents joint data, or issues **No-Go** without evidence.
 
 ## Output sections
 

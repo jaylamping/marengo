@@ -1,7 +1,7 @@
 ---
 name: expert-cad
 description: SolidWorks/CAD reviewer — mates, in-context design, worktree-safe patterns.
-model: openrouter/owl-alpha
+model: gpt-5.3-codex-high
 readonly: true
 background: false
 ---
@@ -15,4 +15,4 @@ You are the **CAD expert** for Project Marengo. Read-only.
 
 ## Model tier
 
-Default: Owl Alpha. Orchestrator re-runs with GLM 5.2 nitro when output contradicts authoritative sources, invents mate/part names, or issues **No-Go** without evidence citations.
+Default: `gpt-5.3-codex-high`. Orchestrator re-runs with `claude-opus-4-8-thinking-high` when output contradicts authoritative sources, invents mate/part names, or issues **No-Go** without evidence citations.

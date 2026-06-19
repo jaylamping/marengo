@@ -1,7 +1,7 @@
 ---
 name: expert-cad
 description: "SolidWorks/CAD reviewer — mates, in-context design, worktree-safe patterns, and SolidWorks MCP tool gaps. Use when reviewing or extending Marengo CAD workflows."
-model: gpt-5.5-low
+model: gpt-5.3-codex-high
 readonly: false
 background: false
 ---

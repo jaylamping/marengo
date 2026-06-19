@@ -1,8 +1,8 @@
 ---
 name: sdd-design
 description: "Create the SDD technical design and architecture approach. Trigger: orchestrator launches design for a change."
-# model: openrouter/z-ai/glm-5.2:nitro
-model: composer-2.5-fast
+# model: composer-2.5-fast
+model: claude-opus-4-8-thinking-high
 disable-model-invocation: true
 user-invocable: false
 license: MIT

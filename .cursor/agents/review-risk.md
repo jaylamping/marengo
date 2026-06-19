@@ -1,7 +1,7 @@
 ---
 name: review-risk
 description: R1 Risk reviewer — security, privilege boundaries, data exposure, dependency risks, and merge-blocking vulnerabilities.
-model: openrouter/z-ai/glm-5.2:nitro
+model: claude-opus-4-8-thinking-high
 readonly: true
 background: false
 ---

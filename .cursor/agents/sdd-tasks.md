@@ -4,8 +4,8 @@ description: >
   Break down a change into an implementation task checklist. Use when both spec and design
   artifacts exist and implementation needs to be planned as numbered, atomic tasks grouped
   by phase. Produces the tasks artifact that sdd-apply consumes.
-# model: minimax/minimax-m3
-model: composer-2.5-fast
+# model: composer-2.5-fast
+model: gpt-5.5-high
 readonly: false
 background: false
 ---

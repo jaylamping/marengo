@@ -30,7 +30,7 @@ Daily evening (after research ingest). Cursor Automation: `memory-prune-evening`
 ## Execution
 
 1. Run CLI: `node tools/mem0-mcp/dist/prune.js --dry-run` then without flag.
-2. Use cheap OpenRouter model to merge duplicate clusters before delete (optional agent step).
+2. Use a lightweight model (`gpt-5.4-nano-medium`) to merge duplicate clusters before delete (optional agent step).
 3. Save audit via `mem_save` → `maintenance/prune/{YYYY-MM-DD}` with before/after counts and deleted topic_keys sample.
 
 Protection logic lives in `tools/mem0-mcp/src/prune-policy.ts` — update code and tests when retention rules change.

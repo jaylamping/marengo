@@ -16,16 +16,16 @@ Cursor supports native sub-agent delegation via `.cursor/agents/`. Invoke by nam
 
 | Subagent | File | Purpose | Model |
 |----------|------|---------|-------|
-| `sdd-init` | `sdd-init.md` | Initialize SDD context; detect stack, bootstrap persistence | `composer-2.5-fast` |
-| `sdd-explore` | `sdd-explore.md` | Investigate codebase; no files created | `composer-2.5-fast` |
-| `sdd-propose` | `sdd-propose.md` | Draft the change proposal | `composer-2.5-fast` |
-| `sdd-spec` | `sdd-spec.md` | Write requirements and acceptance scenarios | `composer-2.5-fast` |
-| `sdd-design` | `sdd-design.md` | Write architecture and file-change design | `composer-2.5-fast` |
-| `sdd-tasks` | `sdd-tasks.md` | Break down change into implementation task checklist | `composer-2.5-fast` |
-| `sdd-apply` | `sdd-apply.md` | Implement tasks; check off as it goes | `composer-2.5-fast` |
-| `sdd-verify` | `sdd-verify.md` | Validate implementation against specs | `composer-2.5-fast` |
-| `sdd-archive` | `sdd-archive.md` | Sync delta specs and archive completed change | `composer-2.5-fast` |
-| `sdd-onboard` | `sdd-onboard.md` | Guided end-to-end SDD walkthrough | `composer-2.5-fast` |
+| `sdd-init` | `sdd-init.md` | Initialize SDD context; detect stack, bootstrap persistence | `gpt-5.5-high` |
+| `sdd-explore` | `sdd-explore.md` | Investigate codebase; no files created | `gemini-3.1-pro` |
+| `sdd-propose` | `sdd-propose.md` | Draft the change proposal | `claude-4.6-sonnet-medium-thinking` |
+| `sdd-spec` | `sdd-spec.md` | Write requirements and acceptance scenarios | `claude-4.6-sonnet-medium-thinking` |
+| `sdd-design` | `sdd-design.md` | Write architecture and file-change design | `claude-opus-4-8-thinking-high` |
+| `sdd-tasks` | `sdd-tasks.md` | Break down change into implementation task checklist | `gpt-5.5-high` |
+| `sdd-apply` | `sdd-apply.md` | Implement tasks; check off as it goes | `gpt-5.3-codex-high` |
+| `sdd-verify` | `sdd-verify.md` | Validate implementation against specs | `claude-opus-4-8-thinking-high` |
+| `sdd-archive` | `sdd-archive.md` | Sync delta specs and archive completed change | `claude-4.6-sonnet-medium-thinking` |
+| `sdd-onboard` | `sdd-onboard.md` | Guided end-to-end SDD walkthrough | `claude-4.6-sonnet-medium-thinking` |
 
 Each subagent returns a **structured result**. Collect it, update DAG state, present summary to user before next phase.
 
@@ -79,7 +79,7 @@ Full protocol: [`.cursor/skills/_shared/sdd-phase-common.md` § F](../skills/_sh
 
 **Orchestrator at or after 50% saturation (not before):** finish current delegation summary → `mem_save` handoff → tell user a fresh orchestrator session should continue from `maintenance/session-handoff/marengo`.
 
-**All Composer 2.5 Fast executors:** same rule; return `partial` + `session-handoff-resume`; never continue heavy apply in a saturated thread. Automatic gatekeeper must PASS this routing when handoff is persisted (see § Automatic Mode Gatekeeper).
+**All SDD phase executors:** same rule; return `partial` + `session-handoff-resume`; never continue heavy apply in a saturated thread. Automatic gatekeeper must PASS this routing when handoff is persisted (see § Automatic Mode Gatekeeper).
 
 **Questioning:** executors MUST read mem0 explore/init/handoff; if work is enhancement while robot unbuilt or contradicts phase-1 scope, return `blocked` with reason.
 
@@ -205,29 +205,28 @@ Each phase returns: `status`, `executive_summary`, `artifacts`, `next_recommende
 
 ## Model Assignments
 
-<!-- TEST MODE: all SDD phases on composer-2.5-fast. Prior assignments preserved as # model: comments in .cursor/agents/sdd-*.md and .cursor/skills/sdd-*/SKILL.md. -->
-
-Cache this table at session start. Pass the mapped alias via `model` parameter when invoking subagents. If a phase is missing, use `default`. If assigned model unavailable, substitute closest GLM or Composer tier.
+Cache this table at session start. Pass the mapped alias via `model` parameter when invoking subagents. If a phase is missing, use `default`. If assigned model unavailable, substitute the closest tier from this table (prefer same vendor family, then `composer-2.5-fast` as last resort).
 
 | Phase / agent | Model | Reason |
 |---------------|-------|--------|
-| orchestrator | `composer-2.5-fast` | Meta-reasoning, gatekeeper, delegation |
-| sdd-init | `composer-2.5-fast` | One-shot bootstrap |
-| sdd-explore | `composer-2.5-fast` | Read-only codebase scan |
-| sdd-propose | `composer-2.5-fast` | Scope, ADRs, feasibility forks |
-| sdd-spec | `composer-2.5-fast` | Structured requirements writing |
-| sdd-design | `composer-2.5-fast` | Architecture decisions |
-| sdd-tasks | `composer-2.5-fast` | Task breakdown |
-| sdd-apply | `composer-2.5-fast` | Repo-native implementation |
-| sdd-verify | `composer-2.5-fast` | Safety gate + design/apply gate reviews |
-| sdd-archive | `composer-2.5-fast` | Mechanical close-out |
-| sdd-onboard | `composer-2.5-fast` | Interactive walkthrough |
-| expert-* | `openrouter/owl-alpha` | Read-only domain churn; GLM escalation on rails |
-| review-readability | `nex-agi/nex-n2-pro:free` | Style/naming |
-| review-reliability | `minimax/minimax-m3` | Tests, contracts |
-| review-resilience | `minimax/minimax-m3` | Fallbacks, observability |
-| review-risk | `z-ai/glm-5.2:nitro` | Merge-blocking security |
-| default | `z-ai/glm-5.2:nitro` | Non-SDD general delegation |
+| orchestrator | `claude-4.6-sonnet-medium-thinking` | Meta-reasoning, gatekeeper, delegation |
+| sdd-init | `gpt-5.5-high` | One-shot bootstrap and durable project detection |
+| sdd-explore | `gemini-3.1-pro` | Read-heavy codebase scan |
+| sdd-propose | `claude-4.6-sonnet-medium-thinking` | Scope, ADRs, feasibility forks |
+| sdd-spec | `claude-4.6-sonnet-medium-thinking` | Structured requirements writing |
+| sdd-design | `claude-opus-4-8-thinking-high` | Architecture decisions and tradeoffs |
+| sdd-tasks | `gpt-5.5-high` | Task breakdown and PR slice judgment |
+| sdd-apply | `gpt-5.3-codex-high` | Repo-native implementation |
+| sdd-verify | `claude-opus-4-8-thinking-high` | Safety gate + adversarial verification |
+| sdd-archive | `claude-4.6-sonnet-medium-thinking` | Careful close-out and archive validation |
+| sdd-onboard | `claude-4.6-sonnet-medium-thinking` | Interactive walkthrough |
+| expert-* | `gemini-3.1-pro` | Read-only domain churn; Opus escalation on rails |
+| expert-cad | `gpt-5.3-codex-high` | CAD review + MCP toolchain extension |
+| review-readability | `gpt-5.4-nano-medium` | Style/naming |
+| review-reliability | `gpt-5.5-high` | Tests, contracts |
+| review-resilience | `claude-4.6-sonnet-medium-thinking` | Fallbacks, observability |
+| review-risk | `claude-opus-4-8-thinking-high` | Merge-blocking security |
+| default | `claude-4.6-sonnet-medium-thinking` | Non-SDD general delegation |
 
 ---
 

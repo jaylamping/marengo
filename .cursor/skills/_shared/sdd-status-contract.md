@@ -22,6 +22,31 @@ Commands that select, continue, apply, verify, or archive an SDD change MUST fir
 - Human-readable explanation belongs in `blockedReasons`, not `nextRecommended`.
 - If the binary is unavailable, fall back to this prompt contract and the manual status schema below. Manual fallback status MUST stay shape-compatible with native `gentle-ai.sdd-status` JSON even when values are reconstructed manually.
 
+## Artifact Store Modes
+
+Marengo default is **engram** (mem0). Status MUST reflect the active store:
+
+| Mode | `artifactStore` token | Primary artifact refs |
+|------|----------------------|------------------------|
+| engram | `engram` | mem0 `topic_key` values under `sdd/{change}/{phase}` |
+| openspec | `openspec` | absolute paths under `openspec/changes/{change}/` |
+| hybrid | `hybrid` | both topic keys and filesystem paths |
+| none | `none` | inline only — no persisted refs |
+
+For **engram** and **hybrid**, populate `artifactTopicKeys` alongside `artifactPaths`:
+
+```yaml
+artifactTopicKeys:
+  proposal: ["sdd/{change}/proposal"]
+  specs: ["sdd/{change}/spec"]
+  design: ["sdd/{change}/design"]
+  tasks: ["sdd/{change}/tasks"]
+  applyProgress: ["sdd/{change}/apply-progress"]
+  verifyReport: ["sdd/{change}/verify-report"]
+```
+
+Executors MUST retrieve full content via `mem_get_by_topic_key` (preferred) or `mem_search` → `mem_get_observation`. Pass topic keys to executors, not artifact body content.
+
 ## Status Schema
 
 Return status as markdown with these fields, or as equivalent JSON when the host supports it:
@@ -30,10 +55,10 @@ Return status as markdown with these fields, or as equivalent JSON when the host
 schemaName: gentle-ai.sdd-status
 schemaVersion: 1
 changeName: <change-name-or-null>
-artifactStore: openspec
+artifactStore: engram | openspec | hybrid | none
 planningHome:
   mode: repo-local
-  path: <absolute path to openspec>
+  path: <absolute path to openspec or repo root>
 changeRoot: <absolute path to openspec/changes/<change> or null>
 artifactPaths:
   proposal: [<absolute path>]
@@ -42,6 +67,13 @@ artifactPaths:
   tasks: [<absolute path>]
   applyProgress: [<absolute path>]
   verifyReport: [<absolute path>]
+artifactTopicKeys:
+  proposal: [<mem0 topic_key>]
+  specs: [<mem0 topic_key>]
+  design: [<mem0 topic_key>]
+  tasks: [<mem0 topic_key>]
+  applyProgress: [<mem0 topic_key>]
+  verifyReport: [<mem0 topic_key>]
 contextFiles:
   proposal: [<absolute readable files>]
   specs: [<absolute readable files>]
@@ -88,7 +120,11 @@ nextRecommended: propose | spec | design | tasks | apply | verify | archive | sd
 blockedReasons: []
 ```
 
-`phaseInstructions` is optional and appears only when instructions are requested. It carries only execution-phase keys (`apply`, `verify`, `archive`); planning-phase instructions (`propose`, `spec`, `design`, `tasks`) are surfaced in the dispatcher markdown, not this JSON map, so a consumer routing on a planning `nextRecommended` MUST NOT expect a matching `phaseInstructions` entry. Empty path fields MUST be arrays, not null. `changeName` and `changeRoot` are nullable; all other sections should be present in fallback output so consumers can parse native and manual status the same way. Native status currently emits `artifactStore: openspec`; if native adds store modes later, fallback output must mirror the native token.
+`phaseInstructions` is optional and appears only when instructions are requested. It carries only execution-phase keys (`apply`, `verify`, `archive`); planning-phase instructions (`propose`, `spec`, `design`, `tasks`) are surfaced in the dispatcher markdown, not this JSON map, so a consumer routing on a planning `nextRecommended` MUST NOT expect a matching `phaseInstructions` entry. Empty path/topic fields MUST be arrays, not null. `changeName` and `changeRoot` are nullable; all other sections should be present in fallback output so consumers can parse native and manual status the same way. When `artifactStore` is `engram` or `hybrid`, `artifactTopicKeys` is authoritative for retrieval; `artifactPaths` may be empty arrays. For `openspec`, paths are authoritative. Native `gentle-ai` status may still emit `artifactStore: openspec` — manual fallback for Marengo mem0 sessions MUST emit `engram` or `hybrid` when mem0 is active.
+
+## Envelope Translation
+
+Phase executors return snake_case envelopes per `sdd-phase-common.md` § D. Status JSON uses camelCase. The orchestrator translates `next_recommended` ↔ `nextRecommended` without changing routing meaning.
 
 ## Apply State
 

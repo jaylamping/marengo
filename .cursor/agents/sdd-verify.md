@@ -4,8 +4,8 @@ description: >
   Validate implementation against specs and tasks. Use when code is written and needs
   verification — runs tests, checks spec compliance, validates design coherence. Reports
   CRITICAL / WARNING / SUGGESTION findings. Read-only: does not modify code.
-# model: openrouter/z-ai/glm-5.2:nitro
-model: composer-2.5-fast
+# model: composer-2.5-fast
+model: claude-opus-4-8-thinking-high
 readonly: true
 background: false
 ---

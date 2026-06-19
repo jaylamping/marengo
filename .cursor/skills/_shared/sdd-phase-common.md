@@ -81,6 +81,19 @@ Every phase MUST return a structured envelope to the orchestrator:
 - `risks`: risks discovered, or "None"
 - `skill_resolution`: how skills were loaded — `paths-injected` (received exact skill paths from orchestrator), `fallback-registry` (self-loaded paths from registry), `fallback-path` (loaded via SKILL: Load path), or `none` (no skills loaded)
 
+### Field-name translation (orchestrator)
+
+Phase envelopes use **snake_case** (`next_recommended`, `executive_summary`, `skill_resolution`). Structured status from `sdd-status-contract.md` uses **camelCase** (`nextRecommended`, `blockedReasons`, `applyState`). The orchestrator MUST translate between them — never treat them as different routing semantics.
+
+| Phase envelope | Status contract |
+|----------------|-----------------|
+| `next_recommended` | `nextRecommended` |
+| `executive_summary` | (human summary in status output) |
+| `status: blocked` | non-empty `blockedReasons` |
+| `status: partial` + `session-handoff-resume` | handoff routing — not a DAG `nextRecommended` advance |
+
+Valid `next_recommended` / `nextRecommended` tokens: `sdd-init`, `sdd-explore`, `sdd-propose`, `sdd-spec`, `sdd-design`, `sdd-tasks`, `sdd-apply`, `sdd-verify`, `sdd-archive`, `none`, `session-handoff-resume`, `select-change`, `resolve-blockers`, `sdd-new`.
+
 Example:
 
 ```markdown
@@ -111,7 +124,7 @@ This guard exists to reduce reviewer burnout and keep implementation delivery sa
 
 ## F. Context Saturation Handoff (MANDATORY — all SDD agents)
 
-**Applies to:** orchestrator, every `sdd-*` phase executor, and **Composer 2.5 Fast** sessions. Composer quality degrades at or above ~50% context saturation.
+**Applies to:** orchestrator and every `sdd-*` phase executor. Context quality degrades at or above ~50% saturation — hand off before continuing heavy work in-thread.
 
 ### When to hand off
 

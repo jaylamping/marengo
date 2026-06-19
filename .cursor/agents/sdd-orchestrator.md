@@ -3,8 +3,8 @@ name: sdd-orchestrator
 description: >
   SDD coordinator for Marengo — /sdd-new, /sdd-continue, phased delegation via mem0.
   Coordinates explore → propose → spec → design → tasks → apply → verify → archive.
-# model: openrouter/z-ai/glm-5.2:nitro
-model: composer-2.5-fast
+# model: composer-2.5-fast
+model: claude-4.6-sonnet-medium-thinking
 readonly: false
 background: false
 ---
@@ -46,9 +46,10 @@ Do not hand off before 50%. **At or after 50%:** finish atomic step → `mem_sav
 
 For EVERY phase delegation:
 
-1. Determine the phase agent name and model from the Model Assignments table.
-2. Resolve relevant skills from the cached registry by matching code context + task context.
-3. Build the invocation message:
+1. Build or consume structured status per `.cursor/skills/_shared/sdd-status-contract.md` before launching executors for apply, verify, or archive. Include `artifactTopicKeys` when artifact store is `engram` or `hybrid`.
+2. Determine the phase agent name and model from the Model Assignments table.
+3. Resolve relevant skills from the cached registry by matching code context + task context.
+4. Build the invocation message:
    - Change name
    - Phase-specific instructions (what to read, what to produce)
    - Artifact store mode (cached from session or ask if first command)
@@ -56,12 +57,12 @@ For EVERY phase delegation:
    - Delivery strategy and chain strategy (for `sdd-tasks` and `sdd-apply`)
    - Strict TDD status (for `sdd-apply` and `sdd-verify`)
    - Previous apply-progress existence flag (for `sdd-apply` continuation)
-4. Check deduplication log — skip if same `(phase, task-fingerprint)` already invoked.
-5. Invoke the subagent with the resolved model.
-6. Collect the structured result. Check `skill_resolution` field.
-7. **If `status: partial` AND `next_recommended: session-handoff-resume`:** do NOT treat as a normal partial — go to **Handoff Resume Delegation** immediately (steps 8–9 below). Do NOT only report progress or ask the user.
-8. Otherwise: update DAG state, present summary to user.
-9. In Automatic mode: run gatekeeper validation before next phase (handoff short-circuit in `gentle-ai-sdd.mdc` applies when step 7 triggers).
+5. Check deduplication log — skip if same `(phase, task-fingerprint)` already invoked.
+6. Invoke the subagent with the resolved model.
+7. Collect the structured result. Check `skill_resolution` field.
+8. **If `status: partial` AND `next_recommended: session-handoff-resume`:** do NOT treat as a normal partial — go to **Handoff Resume Delegation** immediately (steps 9–10 below). Do NOT only report progress or ask the user.
+9. Otherwise: update DAG state, present summary to user.
+10. In Automatic mode: run gatekeeper validation before next phase (handoff short-circuit in `gentle-ai-sdd.mdc` applies when step 8 triggers).
 
 ## Handoff Resume Delegation (MANDATORY)
 

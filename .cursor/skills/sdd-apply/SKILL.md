@@ -1,9 +1,8 @@
-<!-- section:model-capable -->
 ---
 name: sdd-apply
 description: "Implement SDD tasks from specs and design. Trigger: orchestrator launches apply for one or more change tasks."
 # model: composer-2.5-fast
-model: composer-2.5-fast
+model: gpt-5.3-codex-high
 disable-model-invocation: true
 user-invocable: false
 license: MIT
@@ -75,6 +74,17 @@ Before reading implementation files or writing code, consume the structured stat
 
 ### Step 1: Load Skills
 Follow **Section A** from `skills/_shared/sdd-phase-common.md`.
+
+### Step 1b: Marengo Worktree Preflight (MANDATORY before writes)
+
+Before editing any file:
+
+1. Run `git status` and `git diff --stat` in each repo you will touch.
+2. If **staged**, **unstaged**, or **untracked** changes exist on paths you are about to modify:
+   - **STOP** and return `status: blocked` with the dirty paths listed.
+   - Do NOT `git restore`, overwrite binary CAD (`.SLDASM`, `.SLDPRT`, etc.), or run destructive SolidWorks MCP paths without backup + explicit user OK.
+3. For CAD changes: confirm worktree-safety per `.cursor/rules/worktree-safety.mdc` before any restore or overwrite.
+4. For Pi/CAN/motor changes: use marengo-pi MCP tools per `.cursor/rules/pi-mcp-first.mdc` — do not ask the user to run deploy/SSH when MCP can do it.
 
 ### Step 2: Read Context
 
@@ -262,62 +272,5 @@ If none, say "None."}
 - Apply any `rules.apply` from `openspec/config.yaml`
 - If Strict TDD Mode is active (Step 3), load `strict-tdd.md` and follow its cycle INSTEAD of Step 4
 - When Strict TDD is active, the `strict-tdd.md` module's rules OVERRIDE Step 4 entirely
+- If `mem_update` for tasks fails or observation ID is missing, return `status: blocked` — do NOT report ready for verify with stale unchecked tasks.
 - Return envelope per **Section D** from `skills/_shared/sdd-phase-common.md`.
-<!-- /section:model-capable -->
-
-<!-- section:model-small -->
----
-name: sdd-apply
-description: "Implement SDD tasks from specs and design. Trigger: orchestrator launches apply for one or more change tasks."
-# model: composer-2.5-fast
-model: composer-2.5-fast
-disable-model-invocation: true
-user-invocable: false
-license: MIT
-metadata:
-  author: gentleman-programming
-  version: "3.0"
-  delegate_only: true
----
-
-> **ORCHESTRATOR GATE**: If you loaded this skill via the `skill()` tool, you are the ORCHESTRATOR — STOP. Do NOT execute these instructions inline. Do NOT delegate, do NOT call task/delegate, and do NOT launch sub-agents. Read this SKILL.md and follow it exactly.
-
-## Purpose
-
-You are an IMPLEMENTER sub-agent. You receive specific tasks and implement them by writing actual code. Follow the specs and design strictly. Do NOT delegate.
-
-## Rules
-
-- Do NOT delegate, do NOT call task/delegate, do NOT launch sub-agents
-- Read max 3 files at a time — if you need more to understand a task, stop and report `needs-explore`
-- Keep edits minimal and localized to task files
-- Consume structured status when provided; stop on `blocked`, `all_done`, or unsafe `actionContext`
-- If workload forecast says >400 lines or `Chained PRs recommended`, STOP and return `blocked: workload-decision-required`
-- If previous apply-progress exists, read it via mem_search + mem_get_observation and MERGE before saving
-
-## Steps
-
-1. Load up to 2 SKILL.md paths passed by orchestrator (only these — do not load additional skills)
-2. Read structured status if provided; stop unless apply is ready and edit roots are safe
-3. Read the task description and acceptance criteria in spec
-4. Read the design decisions
-5. Read only files explicitly referenced by the task (max 3 files)
-6. Implement code changes — minimal, localized edits
-7. Persist progress immediately after each completed task:
-    - `engram`: `mem_update` the `sdd/{change-name}/tasks` observation so completed tasks are marked `[x]`, then `mem_save` or `mem_update` for `sdd/{change-name}/apply-progress`
-    - `openspec`: mark tasks.md checkboxes
-    - `hybrid`: both
-8. Re-read persisted tasks and verify completed tasks are checked before returning.
-9. Return short summary: files changed list, completed tasks, blocked items.
-
-## Return Envelope
-
-```json
-{
-  "status": "ok|blocked|error",
-  "completed_tasks": ["1.1", "1.2"],
-  "files_changed": ["path/to/file.ext"],
-  "notes": "short text"
-}
-```
-<!-- /section:model-small -->

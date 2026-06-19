@@ -4,8 +4,8 @@ description: >
   Archive a completed and verified change. Use when verification has passed and the change
   needs to be closed — merges delta specs into main specs, moves change folder to archive,
   and persists the final archive report. Completes the SDD cycle.
-# model: nex-agi/nex-n2-pro:free
-model: composer-2.5-fast
+# model: composer-2.5-fast
+model: claude-4.6-sonnet-medium-thinking
 readonly: false
 background: false
 ---

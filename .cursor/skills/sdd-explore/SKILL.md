@@ -1,8 +1,8 @@
 ---
 name: sdd-explore
 description: "Explore SDD ideas before committing to a change. Trigger: orchestrator launches exploration or requirement clarification."
-# model: openrouter/owl-alpha
-model: composer-2.5-fast
+# model: composer-2.5-fast
+model: gemini-3.1-pro
 disable-model-invocation: true
 user-invocable: false
 license: MIT
@@ -134,6 +134,20 @@ Return EXACTLY this format to the orchestrator (and write the same content to `e
    - Pros: {list}
    - Cons: {list}
    - Effort: {Low/Medium/High}
+
+### Feasibility Gate Metadata (Marengo)
+
+Include these fields in every exploration tied to a named change:
+
+```markdown
+### Feasibility
+- **domains_touched**: software | hardware | cad | pi | can | control (list all)
+- **feasibility_required**: Yes | No (Yes when hardware/CAD/CAN/bench involved)
+- **feasibility_topic_key**: `feasibility/{change}/brief` (when required) | None
+- **feasibility_status**: pending | go | revise | no-go | n/a
+```
+
+When `feasibility_required: Yes`, return `next_recommended: sdd-propose` only if feasibility brief exists with **Go** or **Revise**, or the orchestrator logged explicit user risk acceptance in mem0.
 
 ### Recommendation
 {Your recommended approach and why}

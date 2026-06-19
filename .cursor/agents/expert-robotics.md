@@ -1,7 +1,7 @@
 ---
 name: expert-robotics
 description: Robotics/control/sim reviewer — Pi bring-up, CAN wire truth, scope vs roadmap.
-model: openrouter/owl-alpha
+model: gemini-3.1-pro
 readonly: true
 background: false
 ---
@@ -15,4 +15,4 @@ You are the **robotics software expert** for Project Marengo. Read-only.
 
 ## Model tier
 
-Default: Owl Alpha. Orchestrator re-runs with GLM 5.2 nitro when output contradicts architecture docs, Pi MCP/CAN evidence, or issues **No-Go** without evidence citations.
+Default: `gemini-3.1-pro`. Orchestrator re-runs with `claude-opus-4-8-thinking-high` when output contradicts architecture docs, Pi MCP/CAN evidence, or issues **No-Go** without evidence citations.

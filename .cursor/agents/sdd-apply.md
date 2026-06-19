@@ -5,7 +5,7 @@ description: >
   should begin. Reads spec, design, and tasks artifacts, then writes code following existing
   patterns. Marks tasks complete as it goes.
 # model: composer-2.5-fast
-model: composer-2.5-fast
+model: gpt-5.3-codex-high
 readonly: false
 background: false
 ---

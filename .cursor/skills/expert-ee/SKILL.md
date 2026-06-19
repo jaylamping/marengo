@@ -1,7 +1,7 @@
 ---
 name: expert-ee
 description: "Electrical/CAN/power reviewer — E-stop, enable paths, bus termination, grounding, bench safety. Readonly reviewer for Marengo electrical systems."
-model: openrouter/owl-alpha
+model: gemini-3.1-pro
 readonly: true
 background: false
 ---
@@ -34,4 +34,4 @@ Readonly reviewer for CAN bus, power distribution, grounding, and bench safety p
 
 ## Escalation
 
-Re-run with GLM 5.2 nitro if Owl output contradicts authoritative sources or lacks citations on **No-Go**.
+Re-run with `claude-opus-4-8-thinking-high` if expert output contradicts authoritative sources or lacks citations on **No-Go**.

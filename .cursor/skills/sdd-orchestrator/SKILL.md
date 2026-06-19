@@ -1,7 +1,7 @@
 ---
 name: sdd-orchestrator
 description: "Orchestrator-only: delegate SDD phases, parallel PRs, context handoff. Not for executors."
-model: composer-2.5-fast
+model: claude-4.6-sonnet-medium-thinking
 disable-model-invocation: true
 user-invocable: false
 ---

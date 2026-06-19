@@ -1,7 +1,7 @@
 ---
 name: expert-kinematics
 description: "Kinematics reviewer — URDF, joint axes/limits, config alignment, armee-kinematics. Readonly reviewer for Marengo robot kinematics."
-model: openrouter/owl-alpha
+model: gemini-3.1-pro
 readonly: true
 background: false
 ---
@@ -32,4 +32,4 @@ Readonly reviewer for URDF, joint axes, limits, and config alignment.
 
 ## Escalation
 
-Re-run with GLM 5.2 nitro if Owl output contradicts authoritative sources or lacks citations on **No-Go**.
+Re-run with `claude-opus-4-8-thinking-high` if expert output contradicts authoritative sources or lacks citations on **No-Go**.

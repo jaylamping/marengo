@@ -1,9 +1,8 @@
-<!-- section:model-capable -->
 ---
 name: sdd-verify
 description: "Trigger: SDD verification phase, verify change. Execute tests and prove implementation matches specs, design, and tasks."
-# model: openrouter/z-ai/glm-5.2:nitro
-model: composer-2.5-fast
+# model: composer-2.5-fast
+model: claude-opus-4-8-thinking-high
 disable-model-invocation: true
 user-invocable: false
 license: MIT
@@ -47,12 +46,20 @@ The orchestrator should provide structured status from `skills/_shared/sdd-statu
 
 - Read all available status `contextFiles` before judging implementation. Full spec-driven verification reads proposal, specs, design, and tasks; partial artifact sets degrade as described below.
 - Execute relevant tests; static analysis alone is never verification.
-- A spec scenario is compliant only when a covering test passed at runtime.
+- A spec scenario is compliant only when a covering test passed at runtime (or explicit manual verification is recorded with evidence when project config allows).
 - Compare specs first, design second, task completion third.
 - Do not fix issues; report them for the orchestrator/user.
 - Persist `verify-report` according to mode: Engram, openspec file, hybrid both, or inline-only for `none`.
 - If Strict TDD is active, load `strict-tdd-verify.md` from this skill directory; if inactive, never load it.
 - Return the Section D envelope from `../_shared/sdd-phase-common.md`.
+- **Never skip runtime test execution** in standard mode — there is no reduced verify path.
+
+## Marengo Verify Gates (when change touches Pi/CAN/CAD/bench)
+
+- **Pi deploy/sync:** if apply changed Pi or Consul deployables, confirm `pi_sync_main` ran (or report `blocked` with deploy gap).
+- **CAN wire truth:** for motor/motion changes, require `pi_candump_summary` plus position trace — CAN is wire truth vs code trace.
+- **CAD:** verify does not restore/overwrite binary CAD; report worktree state if CAD paths were touched.
+- **Default tests:** `cargo test --workspace` and `just check` for software changes; no hardware required in default test path per `AGENTS.md`.
 
 ## Decision Gates
 
@@ -84,7 +91,7 @@ The orchestrator should provide structured status from `skills/_shared/sdd-statu
 
 ## Output Contract
 
-Return `## Verification Report` with change, mode, completeness table, build/tests/coverage evidence, spec compliance matrix, correctness table, design coherence table, issues grouped as CRITICAL/WARNING/SUGGESTION, and final verdict `PASS`, `PASS WITH WARNINGS`, or `FAIL`.
+Return `## Verification Report` with change, mode, completeness table, build/tests/coverage evidence, spec compliance matrix, correctness table, design coherence table, issues grouped as CRITICAL/WARNING/SUGGESTION, and final verdict line `Final verdict: PASS`, `Final verdict: PASS WITH WARNINGS`, or `Final verdict: FAIL`.
 
 ## Graceful Artifact Handling
 
@@ -98,54 +105,3 @@ Return `## Verification Report` with change, mode, completeness table, build/tes
 - [references/report-format.md](references/report-format.md) — full report template, compliance statuses, and command evidence fields.
 - [strict-tdd-verify.md](strict-tdd-verify.md) — load only when Strict TDD is active.
 - `../_shared/sdd-phase-common.md` — skill loading, retrieval, persistence, and return envelope.
-<!-- /section:model-capable -->
-
-<!-- section:model-small -->
----
-name: sdd-verify
-description: "Trigger: SDD verification phase, verify change. Execute tests and prove implementation matches specs, design, and tasks."
-# model: openrouter/z-ai/glm-5.2:nitro
-model: composer-2.5-fast
-disable-model-invocation: true
-user-invocable: false
-license: MIT
-metadata:
-  author: gentleman-programming
-  version: "3.0"
-  delegate_only: true
----
-
-> **ORCHESTRATOR GATE**: If you loaded this skill via the `skill()` tool, you are the ORCHESTRATOR — STOP. Do NOT execute these instructions inline. Do NOT delegate, do NOT call task/delegate, do NOT launch sub-agents. Read this SKILL.md and follow it exactly.
-
-
-## Language Domain Contract
-
-Generated technical artifacts default to English. Do not inherit the user's conversational language or the active persona's regional voice for SDD artifacts unless the user explicitly requests that artifact language or the project convention requires it.
-
-If Spanish technical artifacts are explicitly requested, use neutral/professional Spanish unless the user explicitly asks for a regional variant.
-
-Public/contextual comments follow the target context language by default. Explicit user language or tone overrides win; Spanish comments default to neutral/professional Spanish unless the user or target context clearly calls for regional tone.
-
-## Purpose
-
-You are a VERIFY sub-agent. Your job: check implemented changes match spec acceptance criteria. Do NOT delegate.
-
-## Hard Rules
-
-- Read spec acceptance criteria only
-- Inspect changed files listed in apply-progress (or tasks) — limit to those files
-- Use structured status when provided; stop on workspace-planning action context
-- Do NOT run tests unless `strict_tdd` is active and test runner is explicitly provided
-- Do not fix issues; report them for the orchestrator/user
-- Return minimal report
-
-## Return Minimal Report
-
-```json
-{
-  "status": "pass|fail|warning",
-  "checks": [{"criterion": "text", "result": "pass|fail", "evidence": "one-line"}],
-  "next": "ready-for-archive|fixes-required"
-}
-```
-<!-- /section:model-small -->

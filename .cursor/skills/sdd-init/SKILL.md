@@ -1,8 +1,8 @@
 ---
 name: sdd-init
 description: "Trigger: sdd init, iniciar sdd, openspec init. Initialize SDD context, testing capabilities, registry, and persistence."
-# model: openrouter/z-ai/glm-5.2:nitro
-model: composer-2.5-fast
+# model: composer-2.5-fast
+model: gpt-5.5-high
 disable-model-invocation: true
 user-invocable: false
 license: MIT
@@ -71,11 +71,11 @@ Run this phase when the orchestrator/user asks to initialize SDD in a project. Y
 4. Initialize persistence for the resolved mode.
 5. Build `.atl/skill-registry.md` using the skill-registry scan rules.
 6. Persist testing capabilities and project context.
-7. Return the structured initialization envelope.
+7. Return the structured initialization envelope per **Section D** from `../_shared/sdd-phase-common.md` (include `skill_resolution`).
 
 ## Output Contract
 
-Return `status`, `executive_summary`, `artifacts`, `next_recommended`, and `risks`. Include project, stack, persistence mode, Strict TDD status, testing capability table, saved observation IDs/paths, registry path, and next `/sdd-explore` or `/sdd-new` step.
+Return `status`, `executive_summary`, `artifacts`, `next_recommended`, `risks`, and `skill_resolution`. Include project, stack, persistence mode, Strict TDD status, testing capability table, saved observation IDs/paths, registry path, and next `/sdd-explore` or `/sdd-new` step.
 
 ## References
 
