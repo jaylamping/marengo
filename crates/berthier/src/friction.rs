@@ -38,6 +38,15 @@ fn trajectory_overspeed_rad_s(dq: f64, dq_traj: f64) -> f64 {
     }
 }
 
+fn trajectory_overspeed_fade(overspeed: f64, velocity_deadband: f64) -> f64 {
+    let deadband = velocity_deadband.max(POSITION_HOLD_ERROR_DEADBAND_RAD);
+    if overspeed <= deadband {
+        1.0
+    } else {
+        (1.0 - (overspeed - deadband) / deadband).clamp(0.0, 1.0)
+    }
+}
+
 /// Two-rule position-hold friction (ADR 0007): trajectory velocity or settle fade.
 pub fn position_hold_friction(
     dq: f64,
@@ -60,9 +69,8 @@ pub fn position_hold_friction(
         } else {
             (dq_traj.abs() / velocity_deadband).clamp(0.0, 1.0)
         };
-        if trajectory_overspeed_rad_s(dq, dq_traj) > velocity_deadband {
-            scale = 0.0;
-        }
+        scale *=
+            trajectory_overspeed_fade(trajectory_overspeed_rad_s(dq, dq_traj), velocity_deadband);
         let tau = gains.fc * dq_traj.signum() * scale + gains.fv * dq + gains.fo;
         return (PositionFrictionMode::TrajectoryVelocity, tau);
     }
@@ -179,6 +187,37 @@ mod tests {
         let (mode, tau) = position_hold_friction(1.50, 0.02, 0.50, 0.02, 0.10, 50, &gains);
         assert_eq!(mode, PositionFrictionMode::TrajectoryVelocity);
         assert!(tau.abs() < 1e-6);
+    }
+
+    #[test]
+    fn trajectory_friction_fades_overspeed_across_deadband_span() {
+        let gains = test_gains();
+        let velocity_deadband = 0.02;
+        let (_, full) =
+            position_hold_friction(0.12, 0.10, 0.50, velocity_deadband, 0.10, 500, &gains);
+        let (_, half) =
+            position_hold_friction(0.13, 0.10, 0.50, velocity_deadband, 0.10, 500, &gains);
+        let (_, zero) =
+            position_hold_friction(0.14, 0.10, 0.50, velocity_deadband, 0.10, 500, &gains);
+
+        assert!((full - 0.25).abs() < 1e-6);
+        assert!((half - 0.125).abs() < 1e-6);
+        assert!(zero.abs() < 1e-6);
+    }
+
+    #[test]
+    fn trajectory_friction_overspeed_fade_is_monotonic() {
+        let gains = test_gains();
+        let velocity_deadband = 0.02;
+        let mut previous = f64::INFINITY;
+        for overspeed_steps in 0..=8 {
+            let overspeed = f64::from(overspeed_steps) * 0.005;
+            let dq = 0.10 + overspeed;
+            let (_, tau) =
+                position_hold_friction(dq, 0.10, 0.50, velocity_deadband, 0.10, 500, &gains);
+            assert!(tau <= previous + 1e-9, "tau={tau} previous={previous}");
+            previous = tau;
+        }
     }
 
     #[test]
