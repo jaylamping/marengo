@@ -57,6 +57,7 @@ echo "==> consul: npm ci, gen:proto, build, audit"
   test -f src/gen/marengo/v1/marengo_pb.ts
   "${ROOT}/scripts/proto-checksum.sh"
   npm run build --ignore-scripts
+  "${ROOT}/scripts/check-consul-dist.sh"
   if [[ "${CI_MODE}" == true ]]; then
     npm audit --audit-level=high
   else
