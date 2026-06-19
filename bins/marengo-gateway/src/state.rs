@@ -4,6 +4,7 @@ use armee_proto::prost::Message;
 use armee_proto::{Heartbeat, HostMetrics, ImuSample, RobotState, SafetyState};
 use chappe::ipc::IpcListener;
 use chappe::Bus;
+use marengo_config::resolve_command_joint;
 use tokio::sync::broadcast;
 
 use crate::logs::{decode_log_payload, LogServices as LogSvc};
@@ -15,6 +16,12 @@ pub const TOPIC_IMU_TORSO: &str = "sensors/imu/torso";
 pub const TOPIC_LOGS: &str = "logs/structured";
 pub const TOPIC_HOST_METRICS_PI: &str = "host/metrics/pi";
 pub const TOPIC_HOST_METRICS_JETSON: &str = "host/metrics/jetson";
+pub const TOPIC_ACTUATOR_LIMITS: &str = "robot/actuator/limits";
+pub const TOPIC_AUDIT_TUNING: &str = "robot/audit/tuning";
+pub const TOPIC_AUDIT_ACTION: &str = "robot/audit/action";
+
+/// Publish-only command topic (not in [`ALLOWED_TOPICS`]).
+pub const TOPIC_ACTUATOR_COMMAND: &str = "robot/actuator/command";
 
 pub const ALLOWED_TOPICS: &[&str] = &[
     TOPIC_STATE,
@@ -24,6 +31,9 @@ pub const ALLOWED_TOPICS: &[&str] = &[
     TOPIC_LOGS,
     TOPIC_HOST_METRICS_PI,
     TOPIC_HOST_METRICS_JETSON,
+    TOPIC_ACTUATOR_LIMITS,
+    TOPIC_AUDIT_TUNING,
+    TOPIC_AUDIT_ACTION,
 ];
 
 const ENVELOPE_BROADCAST_CAPACITY: usize = 4096;
@@ -147,6 +157,12 @@ impl AppState {
         self.bus
             .publish_bytes(topic, bytes)
             .map_err(|e| e.to_string())
+    }
+
+    /// Normalize bench/inventory alias and reject joints not on the wired allowlist.
+    pub fn resolve_actuator_joint(&self, joint: &str) -> Result<&'static str, String> {
+        resolve_command_joint(joint)
+            .ok_or_else(|| format!("joint not command-eligible: {joint}"))
     }
 
     pub fn snapshot_robot_state(&self) -> Option<RobotState> {

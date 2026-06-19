@@ -21,8 +21,10 @@ axum-server = { version = "0.7", features = ["tls-rustls"] }
 bytes = "1"
 chappe = { path = "../../crates/chappe" }
 futures = "0.3"
+marengo-config.workspace = true
 marengo-support.workspace = true
 marengo-store = { path = "../../crates/marengo-store" }
+uuid = { version = "1", features = ["v4"] }
 prost = { workspace = true }
 quinn = "0.11"
 rcgen = "0.13"
