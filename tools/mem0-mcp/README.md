@@ -7,10 +7,10 @@ MCP server for Marengo self-hosted mem0 (Engram-compatible).
 | Tool | mem0 API |
 |------|----------|
 | `mem_search` | `POST /search` (+ client-side `project` filter) |
-| `mem_get_by_topic_key` | `GET /memories` + exact metadata match |
-| `mem_save` | `POST /memories` or `PUT /memories/{id}` (upsert by `topic_key`) |
+| `mem_get_by_topic_key` | `GET /memories?top_k=10000` + exact metadata match; search fallback |
+| `mem_save` | `POST /memories` or `PUT /memories/{id}` with metadata (upsert by `topic_key`) |
 | `mem_get_observation` | `GET /memories/{id}` + `/history` |
-| `mem_update` | `PUT /memories/{id}` |
+| `mem_update` | `PUT /memories/{id}` — preserves existing metadata; prefer `mem_save` upsert |
 
 ## Env
 
@@ -38,6 +38,15 @@ After build, reconnect the mem0 MCP server in Cursor so tool descriptors refresh
 ```bash
 node dist/prune.js --dry-run
 MEM0_PRUNE_TARGET_MAX=400 node dist/prune.js
+```
+
+## Repair corrupted topic_key rows
+
+After text-only PUT updates that dropped metadata:
+
+```bash
+node scripts/repair-topic-keys.mjs --dry-run
+node scripts/repair-topic-keys.mjs
 ```
 
 Protection rules: `src/prune-policy.ts`.

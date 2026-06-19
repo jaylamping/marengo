@@ -65,6 +65,48 @@ function sortByRecency(rows: Mem0MemoryRow[]): Mem0MemoryRow[] {
   });
 }
 
+/** mem0 OSS defaults GET /memories to top_k=20; SDD stores exceed that quickly. */
+export const LIST_MEMORIES_TOP_K = 10_000;
+
+export function buildSaveMetadata(args: {
+  title: string;
+  topicKey: string;
+  type?: string;
+  project?: string;
+  capturePrompt?: boolean;
+}): Record<string, unknown> {
+  const metadata: Record<string, unknown> = {
+    topic_key: args.topicKey,
+    title: args.title,
+  };
+  if (args.type) {
+    metadata.type = args.type;
+  }
+  if (args.project) {
+    metadata.project = args.project;
+  }
+  if (args.capturePrompt !== undefined) {
+    metadata.capture_prompt = args.capturePrompt;
+  }
+  return metadata;
+}
+
+export function mergeSaveMetadata(
+  existing: Record<string, unknown> | undefined,
+  args: {
+    title: string;
+    topicKey: string;
+    type?: string;
+    project?: string;
+    capturePrompt?: boolean;
+  },
+): Record<string, unknown> {
+  return {
+    ...(existing ?? {}),
+    ...buildSaveMetadata(args),
+  };
+}
+
 export async function searchMemories(
   cfg: Mem0Config,
   query: string,
@@ -89,9 +131,22 @@ export async function searchMemories(
 export async function listMemories(cfg: Mem0Config): Promise<Mem0MemoryRow[]> {
   const payload = await mem0Fetch<{ results?: Mem0MemoryRow[] }>(
     cfg,
-    `/memories?user_id=${encodeURIComponent(cfg.userId)}`,
+    `/memories?user_id=${encodeURIComponent(cfg.userId)}&top_k=${LIST_MEMORIES_TOP_K}`,
   );
   return payload.results ?? [];
+}
+
+export function filterRowsByTopicKey(
+  rows: Mem0MemoryRow[],
+  topicKey: string,
+  project?: string,
+): Mem0MemoryRow[] {
+  return rows.filter((row) => {
+    if (topicKeyFromRow(row) !== topicKey) {
+      return false;
+    }
+    return matchesProject(row, project);
+  });
 }
 
 export async function findMemoriesByTopicKey(
@@ -99,14 +154,17 @@ export async function findMemoriesByTopicKey(
   topicKey: string,
   project?: string,
 ): Promise<Mem0MemoryRow[]> {
-  const rows = await listMemories(cfg);
-  const matches = rows.filter((row) => {
-    if (topicKeyFromRow(row) !== topicKey) {
-      return false;
-    }
-    return matchesProject(row, project);
-  });
-  return sortByRecency(matches);
+  const fromList = filterRowsByTopicKey(await listMemories(cfg), topicKey, project);
+  if (fromList.length > 0) {
+    return sortByRecency(fromList);
+  }
+
+  const fromSearch = filterRowsByTopicKey(
+    await searchMemories(cfg, topicKey, 50, project),
+    topicKey,
+    project,
+  );
+  return sortByRecency(fromSearch);
 }
 
 export async function getMemory(
@@ -141,19 +199,7 @@ export async function saveMemory(
     capturePrompt?: boolean;
   },
 ): Promise<{ id?: string; message?: string; results?: unknown[] }> {
-  const metadata: Record<string, unknown> = {
-    topic_key: args.topicKey,
-    title: args.title,
-  };
-  if (args.type) {
-    metadata.type = args.type;
-  }
-  if (args.project) {
-    metadata.project = args.project;
-  }
-  if (args.capturePrompt !== undefined) {
-    metadata.capture_prompt = args.capturePrompt;
-  }
+  const metadata = buildSaveMetadata(args);
 
   return mem0Fetch(cfg, "/memories", {
     method: "POST",
@@ -180,7 +226,13 @@ export async function upsertMemoryByTopicKey(
   const existing = await findMemoriesByTopicKey(cfg, args.topicKey, args.project);
   if (existing.length > 0 && existing[0].id) {
     const primaryId = existing[0].id;
-    await updateMemory(cfg, primaryId, args.content);
+    const existingMeta = existing[0].metadata;
+    await updateMemory(
+      cfg,
+      primaryId,
+      args.content,
+      mergeSaveMetadata(existingMeta, args),
+    );
     for (let i = 1; i < existing.length; i++) {
       const duplicateId = existing[i].id;
       if (duplicateId) {
@@ -205,10 +257,15 @@ export async function updateMemory(
   cfg: Mem0Config,
   id: string,
   content: string,
+  metadata?: Record<string, unknown>,
 ): Promise<Mem0MemoryRow> {
+  const body: Record<string, unknown> = { text: content };
+  if (metadata !== undefined) {
+    body.metadata = metadata;
+  }
   return mem0Fetch<Mem0MemoryRow>(cfg, `/memories/${encodeURIComponent(id)}`, {
     method: "PUT",
-    body: JSON.stringify({ text: content }),
+    body: JSON.stringify(body),
   });
 }
 

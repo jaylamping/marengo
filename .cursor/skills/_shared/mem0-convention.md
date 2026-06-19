@@ -80,7 +80,11 @@ mem_save(
 )
 ```
 
-Same `topic_key` **upserts** (updates existing observation). Use `mem_update(id, content)` only when you already have the observation ID.
+Same `topic_key` **upserts** (updates existing observation). Use `mem_save`, not `mem_update`, for SDD artifacts.
+
+`mem_update(id, content)` only replaces text. The MCP server re-sends existing metadata so `topic_key` is preserved, but mem0 OSS still drops custom metadata if you call the REST API without it. After any update, verify with `mem_get_by_topic_key`.
+
+`mem_get_by_topic_key` lists up to 10k memories, then falls back to semantic search with an exact `metadata.topic_key` filter. If lookup fails immediately after create, retry once or use `mem_search` → `mem_get_observation`.
 
 Operational memories (`pi/`, `cad/`, live bench) should include in content:
 

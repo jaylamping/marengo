@@ -108,7 +108,7 @@ export function registerMemoryTools(cfg: Mem0Config): Record<string, ToolEntry> 
     },
     mem_update: {
       description:
-        "Update an existing mem0 memory by observation ID. Replaces stored text content. Prefer mem_save with the same topic_key for upserts.",
+        "Update an existing mem0 memory by observation ID. Replaces stored text content and preserves topic_key metadata when present. Prefer mem_save with the same topic_key for upserts.",
       inputSchema: memUpdateSchema,
       handler: async (raw) => {
         const args = memUpdateSchema.parse(raw);
@@ -116,7 +116,9 @@ export function registerMemoryTools(cfg: Mem0Config): Record<string, ToolEntry> 
         if (contentError) {
           return `Error: ${contentError}`;
         }
-        const row = await updateMemory(cfg, args.id, args.content);
+        const existing = await getMemory(cfg, args.id);
+        const metadata = existing.metadata;
+        const row = await updateMemory(cfg, args.id, args.content, metadata);
         return `Observation updated (id=${row.id ?? args.id})`;
       },
     },

@@ -21,8 +21,8 @@ See [`.cursor/rules/marengo-memory.mdc`](../../rules/marengo-memory.mdc) and [`.
 | `mem_get_by_topic_key` | Exact lookup by `topic_key` (preferred for SDD/bootstrap) |
 | `mem_search` | Semantic search; optional `project` filter |
 | `mem_get_observation` | Full content + history by observation ID |
-| `mem_save` | Upsert by `topic_key` |
-| `mem_update` | Replace content by observation ID |
+| `mem_save` | Upsert by `topic_key` (always prefer for SDD artifacts) |
+| `mem_update` | Replace content by observation ID; MCP preserves metadata, but prefer `mem_save` |
 
 After changing tools: `cd tools/mem0-mcp && npm run build`, then reconnect the mem0 MCP server in Cursor.
 

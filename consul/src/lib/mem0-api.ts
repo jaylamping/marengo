@@ -40,7 +40,7 @@ async function mem0Fetch<T>(path: string, init?: RequestInit): Promise<T | null>
 
 export async function fetchMemories(userId = mem0UserId()): Promise<Mem0Memory[]> {
   const payload = await mem0Fetch<Mem0ListResponse>(
-    `/memories?user_id=${encodeURIComponent(userId)}`,
+    `/memories?user_id=${encodeURIComponent(userId)}&top_k=10000`,
   );
   if (!payload?.results) {
     return [];
