@@ -1,3 +1,4 @@
+import { memorySheetContentClassName } from '@/components/dashboard/memory/constants';
 import {
   Sheet,
   SheetContent,
@@ -6,6 +7,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import type { Mem0HistoryEvent, Mem0Memory } from '@/lib/mem0-config';
+import { cn } from '@/lib/utils';
 
 type MemoryDetailSheetProps = {
   memory: Mem0Memory | null;
@@ -22,7 +24,7 @@ export function MemoryDetailSheet({
 }: MemoryDetailSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+      <SheetContent className={cn('w-full overflow-y-auto sm:max-w-xl', memorySheetContentClassName)}>
         <SheetHeader>
           <SheetTitle>{memory?.topicKey || memory?.id || 'Memory'}</SheetTitle>
           <SheetDescription>

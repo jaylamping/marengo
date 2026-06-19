@@ -174,3 +174,14 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
 }
+
+@layer components {
+  .cn-toast {
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border-top-color: var(--glass-refraction-top) !important;
+    box-shadow:
+      0 0 0 1px rgb(255 255 255 / 0.1) inset,
+      var(--shadow-glass-sm);
+  }
+}

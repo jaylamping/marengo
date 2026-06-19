@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import { memorySearchPanelShellClassName } from '@/components/dashboard/memory/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { searchMemories } from '@/lib/mem0-api';
@@ -25,8 +26,9 @@ export function MemorySearchPanel({ onResults, onClear }: MemorySearchPanelProps
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className={memorySearchPanelShellClassName} data-testid="memory-search-panel-shell">
       <Input
+        variant="glass"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Semantic search mem0…"

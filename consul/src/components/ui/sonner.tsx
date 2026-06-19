@@ -5,12 +5,20 @@ import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { CheckmarkCircle02Icon, InformationCircleIcon, Alert02Icon, MultiplicationSignCircleIcon, Loading03Icon } from "@hugeicons/core-free-icons"
 
+export const toasterGlassStyle = {
+  "--normal-bg": "var(--glass-2-surface)",
+  "--normal-text": "var(--popover-foreground)",
+  "--normal-border": "var(--glass-border)",
+  "--border-radius": "var(--radius-lg)",
+} as React.CSSProperties
+
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme()
+  const { theme = "dark" } = useTheme()
+  const resolvedTheme = theme === "system" ? "dark" : theme
 
   return (
     <Sonner
-      theme={theme as ToasterProps["theme"]}
+      theme={resolvedTheme as ToasterProps["theme"]}
       className="toaster group"
       icons={{
         success: (
@@ -29,14 +37,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
           <HugeiconsIcon icon={Loading03Icon} strokeWidth={2} className="size-4 animate-spin" />
         ),
       }}
-      style={
-        {
-          "--normal-bg": "var(--popover)",
-          "--normal-text": "var(--popover-foreground)",
-          "--normal-border": "var(--border)",
-          "--border-radius": "var(--radius)",
-        } as React.CSSProperties
-      }
+      style={toasterGlassStyle}
       toastOptions={{
         classNames: {
           toast: "cn-toast",

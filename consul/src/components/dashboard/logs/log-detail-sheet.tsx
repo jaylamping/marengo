@@ -1,5 +1,5 @@
 import type { LogEntry } from '@/data/logs';
-import { LOG_LEVEL_STYLES } from '@/components/dashboard/logs/constants';
+import { LOG_LEVEL_STYLES, logsSheetContentClassName } from '@/components/dashboard/logs/constants';
 import {
   formatLogTimestamp,
   formatLogTimestampLong,
@@ -60,7 +60,7 @@ export function LogDetailSheet({ entry, open, onOpenChange }: LogDetailSheetProp
       <SheetContent
         side="right"
         showOverlay={false}
-        className="w-full border-l shadow-2xl sm:max-w-lg"
+        className={cn('w-full border-l shadow-2xl sm:max-w-lg', logsSheetContentClassName)}
       >
         {entry ? (
           <>

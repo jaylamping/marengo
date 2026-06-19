@@ -1,4 +1,5 @@
 import type { LogSessionDto } from '@/lib/log-api';
+import { logsSessionListShellClassName } from '@/components/dashboard/logs/constants';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
@@ -21,14 +22,14 @@ function sessionLifecycle(session: LogSessionDto, index: number): 'hot' | 'archi
 export function LogsSessionList({ sessions, selectedId, onSelect }: Props) {
   if (sessions.length === 0) {
     return (
-      <div className="rounded-lg border p-4 text-sm text-muted-foreground">
+      <div className={cn(logsSessionListShellClassName, 'p-4 text-sm text-muted-foreground')}>
         No archived sessions.
       </div>
     );
   }
 
   return (
-    <div className="flex max-h-[480px] flex-col gap-1 overflow-auto rounded-lg border p-2">
+    <div className={logsSessionListShellClassName} data-testid="logs-session-list-shell">
       {sessions.map((session, index) => {
         const lifecycle = sessionLifecycle(session, index);
         return (
@@ -37,7 +38,7 @@ export function LogsSessionList({ sessions, selectedId, onSelect }: Props) {
             type="button"
             onClick={() => onSelect(session.id)}
             className={cn(
-              'rounded-md px-2 py-2 text-left text-sm hover:bg-muted',
+              'rounded-md bg-card/95 px-2 py-2 text-left text-sm hover:bg-muted',
               selectedId === session.id && 'bg-muted font-medium',
             )}
           >

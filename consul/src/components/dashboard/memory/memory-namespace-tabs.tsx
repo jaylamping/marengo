@@ -1,3 +1,4 @@
+import { memoryTabsVariant } from '@/components/dashboard/memory/constants';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { Mem0Namespace } from '@/lib/mem0-config';
 
@@ -25,9 +26,9 @@ type MemoryNamespaceTabsProps = {
 export function MemoryNamespaceTabs({ value, counts, onChange }: MemoryNamespaceTabsProps) {
   return (
     <Tabs value={value} onValueChange={(v) => onChange(v as Mem0Namespace)}>
-      <TabsList className="flex h-auto flex-wrap gap-1">
+      <TabsList variant={memoryTabsVariant} className="flex h-auto flex-wrap gap-1">
         {TABS.map((tab) => (
-          <TabsTrigger key={tab.id} value={tab.id} className="gap-1.5">
+          <TabsTrigger key={tab.id} variant={memoryTabsVariant} value={tab.id} className="gap-1.5">
             {tab.label}
             <span className="text-xs text-muted-foreground">({counts[tab.id] ?? 0})</span>
           </TabsTrigger>

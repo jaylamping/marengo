@@ -1,3 +1,4 @@
+import { logsTabsVariant } from '@/components/dashboard/logs/constants';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export type LogsMode = 'live' | 'archive' | 'can';
@@ -10,10 +11,16 @@ type Props = {
 export function LogsModeTabs({ mode, onModeChange }: Props) {
   return (
     <Tabs value={mode} onValueChange={(v) => onModeChange(v as LogsMode)}>
-      <TabsList>
-        <TabsTrigger value="live">Live</TabsTrigger>
-        <TabsTrigger value="archive">Archive</TabsTrigger>
-        <TabsTrigger value="can">CAN</TabsTrigger>
+      <TabsList variant={logsTabsVariant}>
+        <TabsTrigger variant={logsTabsVariant} value="live">
+          Live
+        </TabsTrigger>
+        <TabsTrigger variant={logsTabsVariant} value="archive">
+          Archive
+        </TabsTrigger>
+        <TabsTrigger variant={logsTabsVariant} value="can">
+          CAN
+        </TabsTrigger>
       </TabsList>
     </Tabs>
   );

@@ -1,10 +1,12 @@
 import { useCallback, useState } from 'react';
 
+import { logsTabsVariant } from '@/components/dashboard/logs/constants';
 import { LogRow } from '@/components/dashboard/logs/log-row';
 import type { LogEntry, LogLevel } from '@/data/logs';
 import { fetchStructuredLogs } from '@/lib/log-api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const SOURCE_PRESETS = [
   { label: 'All', target: '' },
@@ -92,6 +94,7 @@ export function LogsArchiveSearch({
         <div className="min-w-[200px] flex-1">
           <label className="mb-1 block text-xs text-muted-foreground">FTS query</label>
           <Input
+            variant="glass"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="joint, error, operator…"
@@ -100,17 +103,25 @@ export function LogsArchiveSearch({
         </div>
         <div>
           <label className="mb-1 block text-xs text-muted-foreground">Level</label>
-          <select
-            value={level}
-            onChange={(e) => setLevel(e.target.value)}
-            className="h-8 rounded-md border bg-background px-2 text-xs"
-          >
-            <option value="">all</option>
-            <option value="info">info</option>
-            <option value="warn">warn</option>
-            <option value="error">error</option>
-            <option value="debug">debug</option>
-          </select>
+          <Tabs value={level || 'all'} onValueChange={(v) => setLevel(v === 'all' ? '' : v)}>
+            <TabsList variant={logsTabsVariant} className="h-8">
+              <TabsTrigger variant={logsTabsVariant} value="all" className="px-2 text-xs">
+                all
+              </TabsTrigger>
+              <TabsTrigger variant={logsTabsVariant} value="info" className="px-2 text-xs">
+                info
+              </TabsTrigger>
+              <TabsTrigger variant={logsTabsVariant} value="warn" className="px-2 text-xs">
+                warn
+              </TabsTrigger>
+              <TabsTrigger variant={logsTabsVariant} value="error" className="px-2 text-xs">
+                error
+              </TabsTrigger>
+              <TabsTrigger variant={logsTabsVariant} value="debug" className="px-2 text-xs">
+                debug
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
         <Button type="button" size="sm" onClick={() => void runSearch()} disabled={loading}>
           {loading ? 'Searching…' : 'Search'}
@@ -118,23 +129,23 @@ export function LogsArchiveSearch({
       </div>
       <div className="flex flex-wrap gap-1">
         {SOURCE_PRESETS.map((preset) => (
-          <button
+          <Button
             key={preset.label}
             type="button"
+            size="sm"
+            variant={target === preset.target ? 'default' : 'outline'}
+            className="h-7 px-2 text-xs"
             onClick={() => setTarget(preset.target)}
-            className={`rounded px-2 py-0.5 text-xs ${
-              target === preset.target ? 'bg-primary text-primary-foreground' : 'bg-muted'
-            }`}
           >
             {preset.label}
-          </button>
+          </Button>
         ))}
       </div>
       {error ? <p className="text-sm text-muted-foreground">{error}</p> : null}
       <p className="text-xs text-muted-foreground">
         {entries.length} shown · {total} total matches (FTS over message, target, fields)
       </p>
-      <div className="relative min-h-0 flex-1 overflow-auto rounded-lg border bg-card">
+      <div className="relative min-h-0 flex-1 overflow-auto rounded-lg border bg-card/95">
         {entries.length === 0 ? (
           <p className="p-4 text-sm text-muted-foreground">
             Search SQLite structured logs across sessions.
