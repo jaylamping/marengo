@@ -1222,8 +1222,12 @@ fn clamp_trajectory_setpoint(
 
     // Overshoot: command at least `target` but never past measured `q` (avoids MIT pull-back mid-travel).
     let settle_error = target - q;
-    if settle_error < -POSITION_RETURN_RESYNC_RAD && target.abs() > POSITION_RETURN_FREEZE_Q_MAX_RAD
-    {
+    let overshot_past_target = if target >= 0.0 {
+        q > target + POSITION_RETURN_RESYNC_RAD && q_traj >= target - TOL
+    } else {
+        q < target - POSITION_RETURN_RESYNC_RAD && q_traj <= target + TOL
+    };
+    if overshot_past_target && target.abs() > POSITION_RETURN_FREEZE_Q_MAX_RAD {
         // Large hold overshoot away from home — fixed target setpoint; do not chase `q_traj` above `q`.
         q_des = target;
         if let Some(p) = policy {
@@ -1513,6 +1517,24 @@ mod tests {
         assert!(
             (q_des - 1.57).abs() < 1e-12,
             "hold overshoot must not chase q_traj above measured q"
+        );
+        let q_des_negative = clamp_trajectory_setpoint(-0.66, -0.70, -0.64, 0.10, None, -0.3);
+        assert!(
+            (q_des_negative + 0.64).abs() < 1e-12,
+            "negative hold overshoot must latch at target"
+        );
+    }
+
+    #[test]
+    fn clamp_does_not_jump_to_negative_target_before_planner_arrives() {
+        let q_des = clamp_trajectory_setpoint(-0.0005, -0.0004, -0.6417, 0.10, None, -0.024);
+        assert!(
+            q_des > -0.02,
+            "sub-home retarget must follow q_traj, not jump to target: {q_des}"
+        );
+        assert!(
+            q_des > -0.6417,
+            "q_des must not command the lower-limit target before planner reaches it"
         );
     }
 
