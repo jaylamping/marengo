@@ -3,6 +3,7 @@
 mod framing;
 mod http;
 mod logs;
+mod ratelimit;
 mod session;
 mod state;
 mod webtransport;

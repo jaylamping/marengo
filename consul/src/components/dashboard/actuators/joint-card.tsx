@@ -1,4 +1,5 @@
 import type { InventoryItem } from '@/data/robot-inventory';
+import { TuningPanel } from '@/components/dashboard/actuators/tuning-panel';
 import {
   Card,
   CardContent,
@@ -50,6 +51,7 @@ export function JointCard({ joint, wired }: JointCardProps) {
         </div>
         <p className="text-muted-foreground">{wiringLabel}</p>
         <p className="text-muted-foreground">{modeLabel}</p>
+        <TuningPanel jointName={joint.name} wired={wired} />
       </CardContent>
     </Card>
   );

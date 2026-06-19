@@ -1,13 +1,16 @@
 use std::sync::{Arc, RwLock};
 
 use armee_proto::prost::Message;
-use armee_proto::{Heartbeat, HostMetrics, ImuSample, RobotState, SafetyState};
+use armee_proto::{
+    ActuatorLimitSnapshot, Heartbeat, HostMetrics, ImuSample, RobotState, SafetyState,
+};
 use chappe::ipc::IpcListener;
 use chappe::Bus;
 use marengo_config::resolve_command_joint;
 use tokio::sync::broadcast;
 
 use crate::logs::{decode_log_payload, LogServices as LogSvc};
+use crate::ratelimit::{CommandBucket, RateLimiter};
 
 pub const TOPIC_STATE: &str = "robot/state";
 pub const TOPIC_SAFETY: &str = "robot/safety";
@@ -50,6 +53,7 @@ pub struct Snapshots {
     pub imu_torso: Option<Vec<u8>>,
     pub host_metrics_pi: Option<Vec<u8>>,
     pub host_metrics_jetson: Option<Vec<u8>>,
+    pub actuator_limits: Option<Vec<u8>>,
 }
 
 pub struct AppState {
@@ -60,6 +64,7 @@ pub struct AppState {
     /// Base64 SHA-256 of the DER WebTransport cert (for Consul `serverCertificateHashes`).
     pub tls_cert_sha256_base64: RwLock<Option<String>>,
     envelope_tx: broadcast::Sender<(String, Vec<u8>)>,
+    pub rate_limiter: RateLimiter,
 }
 
 impl AppState {
@@ -72,6 +77,7 @@ impl AppState {
             logs: None,
             tls_cert_sha256_base64: RwLock::new(None),
             envelope_tx,
+            rate_limiter: RateLimiter::new(),
         }
     }
 
@@ -136,6 +142,7 @@ impl AppState {
             TOPIC_IMU_TORSO => guard.imu_torso = Some(payload.to_vec()),
             TOPIC_HOST_METRICS_PI => guard.host_metrics_pi = Some(payload.to_vec()),
             TOPIC_HOST_METRICS_JETSON => guard.host_metrics_jetson = Some(payload.to_vec()),
+            TOPIC_ACTUATOR_LIMITS => guard.actuator_limits = Some(payload.to_vec()),
             _ => {}
         }
     }
@@ -204,6 +211,20 @@ impl AppState {
     pub fn snapshot_host_metrics_jetson(&self) -> Option<HostMetrics> {
         let bytes = self.snapshots.read().ok()?.host_metrics_jetson.clone()?;
         decode_envelope_payload::<HostMetrics>(&bytes).ok()
+    }
+
+    pub fn snapshot_actuator_limits(&self) -> Option<ActuatorLimitSnapshot> {
+        let bytes = self.snapshots.read().ok()?.actuator_limits.clone()?;
+        decode_envelope_payload::<ActuatorLimitSnapshot>(&bytes).ok()
+    }
+
+    pub fn check_actuator_rate_limit(
+        &self,
+        session_id: &str,
+        joint: &str,
+        bucket: CommandBucket,
+    ) -> bool {
+        self.rate_limiter.allow(session_id, joint, bucket)
     }
 }
 

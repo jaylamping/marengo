@@ -12,9 +12,26 @@ vi.mock('@/hooks/use-live-inventory', () => ({
   useLiveInventory: (base: InventoryItem[]) => base,
 }));
 
+vi.mock('@/hooks/use-actuator-harness', () => ({
+  useActuatorHarnessBootstrap: () => undefined,
+}));
+
 vi.mock('@/state/robotStore', () => ({
   useRobotStore: (selector: (s: { connected: boolean }) => unknown) =>
     selector({ connected: false }),
+}));
+
+vi.mock('@/state/actuatorStore', () => ({
+  useActuatorStore: (selector: (s: { sessionId: string | null; limitSnapshot: null }) => unknown) =>
+    selector({ sessionId: 'test-session', limitSnapshot: null }),
+  resolveJointLimits: vi.fn(() => ({
+    kpMax: 5000,
+    kdMax: 100,
+    velocityMaxRadS: 2,
+    tauFfMaxNm: 5,
+  })),
+  kpMaxForJoint: vi.fn(() => 5000),
+  kdMaxForJoint: vi.fn(() => 100),
 }));
 
 afterEach(() => {
@@ -62,12 +79,14 @@ describe('JointCard read-only shell', () => {
     expect(screen.getByText(/telemetry only/i)).toBeInTheDocument();
   });
 
-  it('does not expose motion or tuning command controls', () => {
+  it('exposes runtime tuning sliders for wired joints without motion controls', () => {
     render(<JointCard joint={wiredJoint} wired />);
 
+    expect(screen.getByTestId('tuning-panel')).toBeInTheDocument();
+    expect(screen.getByRole('slider', { name: /runtime kp/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /enable/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /jog/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });
 
@@ -83,7 +102,7 @@ describe('ActuatorsOverview', () => {
     }
 
     expect(within(overview).getByText('left_wrist')).toBeInTheDocument();
-    expect(within(overview).getByText(/read-only/i)).toBeInTheDocument();
+    expect(within(overview).getByText(/runtime tuning sliders/i)).toBeInTheDocument();
   });
 
   it('renders every joint card without command controls', () => {

@@ -21,6 +21,7 @@ use tower_http::services::{ServeDir, ServeFile};
 
 use crate::framing::{self, CHAPPE_STREAM_CONTENT_TYPE};
 use crate::logs;
+use crate::ratelimit::CommandBucket;
 use crate::session;
 use crate::state::{filter_topics, SharedState, TOPIC_ACTUATOR_COMMAND};
 
@@ -76,6 +77,7 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
             "/snapshot/host/metrics/jetson",
             get(snapshot_host_metrics_jetson),
         )
+        .route("/snapshot/actuator/limits", get(snapshot_actuator_limits))
         .route("/snapshot/logs/recent", get(logs::snapshot_logs_recent))
         .route("/logs/sessions", get(logs::list_sessions))
         .route("/logs/sessions/latest/candump", get(logs::latest_candump))
@@ -201,6 +203,10 @@ async fn snapshot_host_metrics_jetson(State(state): State<SharedState>) -> Respo
     protobuf_snapshot(state.snapshot_host_metrics_jetson())
 }
 
+async fn snapshot_actuator_limits(State(state): State<SharedState>) -> Response {
+    protobuf_snapshot(state.snapshot_actuator_limits())
+}
+
 fn protobuf_snapshot<M: Message>(msg: Option<M>) -> Response {
     match msg {
         Some(m) => {
@@ -288,6 +294,14 @@ async fn command_actuator(
     let canonical = state
         .resolve_actuator_joint(joint)
         .map_err(|e| (StatusCode::FORBIDDEN, e))?;
+    let session_id = operator.session_id.as_str();
+    let bucket = actuator_command_bucket(operator.command.as_ref());
+    if !state.check_actuator_rate_limit(session_id, canonical, bucket) {
+        return Err((
+            StatusCode::TOO_MANY_REQUESTS,
+            "actuator command rate limit exceeded".to_string(),
+        ));
+    }
     if let Some(cmd) = operator.command.as_mut() {
         cmd.joint = canonical.to_string();
     }
@@ -323,6 +337,13 @@ async fn command_home(
         )
         .map_err(|e| (StatusCode::BAD_GATEWAY, e))?;
     Ok(Json(OkResponse { ok: true }))
+}
+
+fn actuator_command_bucket(command: Option<&ActuatorCommand>) -> CommandBucket {
+    match command.and_then(|c| c.payload.as_ref()) {
+        Some(armee_proto::actuator_command::Payload::Tuning(_)) => CommandBucket::Tuning,
+        _ => CommandBucket::Motion,
+    }
 }
 
 fn protobuf_ok_response<M: Message>(msg: &M) -> Result<Response, (StatusCode, String)> {
@@ -490,5 +511,102 @@ mod tests {
         let operator = OperatorCommand::decode(env.payload.as_slice()).expect("operator");
         let joint = operator.command.expect("command").joint;
         assert_eq!(joint, "shoulder_pitch");
+    }
+
+    #[tokio::test]
+    async fn command_actuator_returns_429_when_rate_limited() {
+        let app = router(test_state(), None);
+        let body = operator_envelope("left_shoulder_pitch");
+        for _ in 0..10 {
+            let response = app
+                .clone()
+                .oneshot(
+                    axum::http::Request::builder()
+                        .method("POST")
+                        .uri("/command/actuator")
+                        .header("content-type", "application/x-protobuf")
+                        .body(Body::from(body.clone()))
+                        .expect("request"),
+                )
+                .await
+                .expect("response");
+            assert_eq!(response.status(), StatusCode::OK);
+        }
+        let response = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/command/actuator")
+                    .header("content-type", "application/x-protobuf")
+                    .body(Body::from(body))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
+    }
+
+    #[tokio::test]
+    async fn snapshot_actuator_limits_503_when_cache_empty() {
+        let app = router(test_state(), None);
+        let response = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/snapshot/actuator/limits")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    }
+
+    #[tokio::test]
+    async fn snapshot_actuator_limits_serves_cached_payload() {
+        use armee_proto::{ActuatorLimitSnapshot, JointActuatorLimit};
+
+        let state = test_state();
+        let snapshot = ActuatorLimitSnapshot {
+            timestamp_ms: 42,
+            joints: vec![JointActuatorLimit {
+                joint: "shoulder_pitch".to_string(),
+                kp_max: 50.0,
+                kd_max: 5.0,
+                velocity_max_rad_s: 2.0,
+                tau_ff_max_nm: 3.0,
+                pos_lower_rad: -1.0,
+                pos_upper_rad: 1.0,
+                wired: true,
+            }],
+        };
+        let envelope = Envelope {
+            timestamp_ms: 42,
+            source_node: "marengo-pi".into(),
+            message_type: "marengo.v1.ActuatorLimitSnapshot".into(),
+            payload: snapshot.encode_to_vec(),
+        };
+        state.ingest_runtime_frame(
+            crate::state::TOPIC_ACTUATOR_LIMITS.to_string(),
+            envelope.encode_to_vec(),
+        );
+
+        let app = router(state, None);
+        let response = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/snapshot/actuator/limits")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body");
+        let parsed = ActuatorLimitSnapshot::decode(body.as_ref()).expect("decode");
+        assert_eq!(parsed.joints.len(), 1);
+        assert_eq!(parsed.joints[0].joint, "shoulder_pitch");
+        assert!((parsed.joints[0].kp_max - 50.0).abs() < f64::EPSILON);
     }
 }
