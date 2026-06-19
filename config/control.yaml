@@ -11,6 +11,7 @@ control:
   disable_on_exit: true
   bench:
     allow_firmware_speed_mode: false
+    active_reporting_diagnostics: false
 
   motor_type_defaults:
     rs00:

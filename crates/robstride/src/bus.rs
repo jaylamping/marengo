@@ -268,6 +268,18 @@ pub trait MotorBus: CanBus {
         send_encoded_frame_to(self, address, id, data)
     }
 
+    fn enable_active_reporting_at(&mut self, address: &MotorAddress) -> Result<(), BusError> {
+        let (id, data) =
+            lifecycle::encode_default_active_reporting(address.device_id, true);
+        send_encoded_frame_to(self, address, id, data)
+    }
+
+    fn disable_active_reporting_at(&mut self, address: &MotorAddress) -> Result<(), BusError> {
+        let (id, data) =
+            lifecycle::encode_default_active_reporting(address.device_id, false);
+        send_encoded_frame_to(self, address, id, data)
+    }
+
     fn recv_all(
         &mut self,
         motor_types: &HashMap<u8, MotorType>,

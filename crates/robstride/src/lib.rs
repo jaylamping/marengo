@@ -47,8 +47,9 @@ pub use bus::{
 pub use bus::{SocketCanBus, SocketCanRouter};
 pub use comm::{pack_ext_id, unpack_ext_id, CommunicationType, ExtendedId, DEFAULT_HOST_ID};
 pub use lifecycle::{
-    encode_default_disable, encode_default_enable, encode_default_set_zero_position,
-    encode_disable, encode_enable, encode_set_zero_position,
+    encode_active_reporting, encode_default_active_reporting, encode_default_disable,
+    encode_default_enable, encode_default_set_zero_position, encode_disable, encode_enable,
+    encode_set_zero_position,
 };
 pub use mit::{encode_mit, mit_rx_id, mit_tx_id, MitCommand, MitFeedback};
 pub use params::{

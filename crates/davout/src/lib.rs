@@ -179,6 +179,7 @@ pub struct Supervisor<B: MotorBus> {
     feedback_velocity_trips: HashMap<String, u8>,
     last_feedback_samples: HashMap<String, FeedbackSample>,
     last_tick: Option<Instant>,
+    active_reporting_armed: bool,
 }
 
 impl<B: MotorBus> Supervisor<B> {
@@ -228,6 +229,7 @@ impl<B: MotorBus> Supervisor<B> {
             feedback_velocity_trips: HashMap::new(),
             last_feedback_samples: HashMap::new(),
             last_tick: None,
+            active_reporting_armed: false,
         })
     }
 
@@ -274,6 +276,7 @@ impl<B: MotorBus> Supervisor<B> {
                 message: e.to_string(),
             })?;
         self.mode = OperationalMode::Ready;
+        self.sync_active_reporting();
         debug!("supervisor READY (all joints verified)");
         Ok(())
     }
@@ -392,6 +395,7 @@ impl<B: MotorBus> Supervisor<B> {
             return;
         }
         self.mode = OperationalMode::Ready;
+        self.sync_active_reporting();
         debug!("supervisor READY (unchecked — deprecated)");
     }
 
@@ -445,6 +449,7 @@ impl<B: MotorBus> Supervisor<B> {
             }
             self.mode = OperationalMode::Active;
             self.active_since = Some(Instant::now());
+            self.sync_active_reporting();
             info!(motor_count = self.motors.motors.len(), "supervisor ACTIVE");
         } else {
             self.disable_all()?;
@@ -841,8 +846,31 @@ impl<B: MotorBus> Supervisor<B> {
         self.active_since = None;
         self.feedback_velocity_trips.clear();
         self.last_feedback_samples.clear();
+        self.sync_active_reporting();
         debug!("supervisor DISABLED");
         Ok(())
+    }
+
+    fn active_reporting_desired(&self) -> bool {
+        self.control.control.bench.active_reporting_diagnostics
+            && self.mode == OperationalMode::Disabled
+    }
+
+    /// Enable or disable firmware active reporting (comm type 24) per bench config and mode.
+    pub fn sync_active_reporting(&mut self) {
+        let desired = self.active_reporting_desired();
+        if desired == self.active_reporting_armed {
+            return;
+        }
+        for motor in &self.motors.motors {
+            let address = MotorAddress::from(motor);
+            if desired {
+                let _ = self.bus.enable_active_reporting_at(&address);
+            } else {
+                let _ = self.bus.disable_active_reporting_at(&address);
+            }
+        }
+        self.active_reporting_armed = desired;
     }
 
     fn feedback_poll_timeout(&self) -> Duration {
@@ -1633,6 +1661,99 @@ mod tests {
             )
             .expect_err("watchdog");
         assert!(matches!(err, DavoutError::CommWatchdog { ms: 1 }));
+    }
+
+    fn type24_tx_frames(tx: &[CanFrame]) -> Vec<&CanFrame> {
+        tx.iter()
+            .filter(|f| {
+                robstride::unpack_ext_id(f.id)
+                    .map(|u| {
+                        u.comm_type == robstride::CommunicationType::ActiveReporting.as_u8()
+                    })
+                    .unwrap_or(false)
+            })
+            .collect()
+    }
+
+    #[test]
+    fn active_reporting_default_false_sends_no_type24() {
+        let bus = MemoryBus::default();
+        let sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        assert_eq!(sup.mode(), OperationalMode::Disabled);
+        assert!(type24_tx_frames(&sup.bus.tx).is_empty());
+    }
+
+    #[test]
+    fn active_reporting_sends_type24_only_when_disabled_and_flag_true() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        sup.control.control.bench.active_reporting_diagnostics = true;
+        sup.sync_active_reporting();
+        let type24 = type24_tx_frames(&sup.bus.tx);
+        assert_eq!(type24.len(), sup.motors.motors.len());
+        for frame in type24 {
+            assert_eq!(frame.data[6], 0x01, "enable F_CMD");
+        }
+        let tx_before = sup.bus.tx.len();
+        bench_ready_active(&mut sup);
+        assert!(!sup.active_reporting_armed);
+        let new_frames = &sup.bus.tx[tx_before..];
+        for frame in type24_tx_frames(new_frames) {
+            assert_eq!(frame.data[6], 0x00, "disable before leaving Disabled");
+        }
+    }
+
+    #[test]
+    fn active_reporting_zero_tx_during_active_mit_batch() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        sup.control.control.bench.active_reporting_diagnostics = true;
+        sup.sync_active_reporting();
+        bench_ready_active(&mut sup);
+        let motor = motor_for_joint(&sup.motors, "elbow")
+            .expect("motor")
+            .clone();
+        let tx_before = sup.bus.tx.len();
+        sup.send_mit_joint(
+            MitJointCommand {
+                joint: "elbow".to_string(),
+                kp: 0.0,
+                kd: 0.0,
+                position_rad: 0.5,
+                velocity_rad_s: 0.0,
+                torque_ff_nm: 1.0,
+            },
+            &motor,
+        )
+        .expect("send");
+        assert!(!sup.bus.tx.is_empty());
+        let new_frames = &sup.bus.tx[tx_before..];
+        assert!(
+            type24_tx_frames(new_frames).is_empty(),
+            "MIT batch must not include type-24 frames"
+        );
+    }
+
+    #[test]
+    fn active_reporting_disables_before_ready_transition() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        sup.control.control.bench.active_reporting_diagnostics = true;
+        sup.sync_active_reporting();
+        assert_eq!(type24_tx_frames(&sup.bus.tx).len(), sup.motors.motors.len());
+        bench_verify_all_joints(&mut sup);
+        let tx_before = sup.bus.tx.len();
+        sup.set_homing_complete().expect("ready");
+        let off_frames = type24_tx_frames(&sup.bus.tx[tx_before..]);
+        assert_eq!(off_frames.len(), sup.motors.motors.len());
+        for frame in off_frames {
+            assert_eq!(frame.data[6], 0x00, "disable F_CMD before Ready");
+        }
+    }
+
+    #[test]
+    fn no_comm_type_22_in_robstride_surface() {
+        assert!(robstride::CommunicationType::from_u8(22).is_none());
     }
 
     #[test]

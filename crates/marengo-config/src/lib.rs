@@ -114,6 +114,10 @@ fn default_feedback_drain_quiet_us() -> u64 {
     300
 }
 
+fn default_active_reporting_diagnostics() -> bool {
+    false
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct MotorBenchLimits {
     pub position_lower_rad: f64,
@@ -233,6 +237,8 @@ pub struct ActuatorGroupEntry {
 pub struct ControlBenchSection {
     #[serde(default)]
     pub allow_firmware_speed_mode: bool,
+    #[serde(default = "default_active_reporting_diagnostics")]
+    pub active_reporting_diagnostics: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -926,6 +932,7 @@ mod tests {
         assert_eq!(cfg.control.loop_hz, 200);
         assert_eq!(cfg.control.feedback_poll_budget_us, 3000);
         assert_eq!(cfg.control.feedback_drain_quiet_us, 300);
+        assert!(!cfg.control.bench.active_reporting_diagnostics);
         assert!(cfg.control.motor_type_defaults.contains_key("rs03"));
     }
 
