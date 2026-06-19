@@ -108,10 +108,21 @@ export const memGetObservationSchema = z.object({
   id: z.string().min(1),
 });
 
-export const memGetByTopicKeySchema = z.object({
-  topic_key: z.string().min(1),
-  project: z.string().optional(),
-});
+export const memGetByTopicKeySchema = z
+  .object({
+    topic_key: z.string().min(1).optional(),
+    /** Legacy alias — agents often pass `query` copied from mem_search examples. */
+    query: z.string().min(1).optional(),
+    project: z.string().optional(),
+  })
+  .refine((value) => Boolean(value.topic_key ?? value.query), {
+    message:
+      "topic_key is required (exact key like sdd/my-change/tasks). Do not use mem_search's query param name here.",
+  })
+  .transform((value) => ({
+    topic_key: (value.topic_key ?? value.query)!,
+    project: value.project,
+  }));
 
 export const memUpdateSchema = z.object({
   id: z.string().min(1),

@@ -6,11 +6,27 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import type { z } from "zod";
+import { ZodError } from "zod";
 import { loadConfig } from "./config.js";
 import { registerMemoryTools } from "./tools/memory.js";
 
 function schemaOf(zodSchema: z.ZodTypeAny): Record<string, unknown> {
   return zodToJsonSchema(zodSchema) as Record<string, unknown>;
+}
+
+function formatToolError(error: unknown): string {
+  if (error instanceof ZodError) {
+    return error.issues
+      .map((issue) => {
+        const path = issue.path.length > 0 ? issue.path.join(".") : "arguments";
+        return `${path}: ${issue.message}`;
+      })
+      .join("; ");
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
 }
 
 async function main() {
@@ -58,9 +74,8 @@ async function main() {
         isError,
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
       return {
-        content: [{ type: "text", text: `Error: ${message}` }],
+        content: [{ type: "text", text: `Error: ${formatToolError(error)}` }],
         isError: true,
       };
     }

@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   MEMORY_TOOL_NAMES,
+  memGetByTopicKeySchema,
   parseNamespace,
   rejectOversizedContent,
   rejectSecrets,
@@ -14,6 +15,28 @@ import {
   sortDeletableForPrune,
   topicKeyFromRow,
 } from "../src/prune-policy.js";
+
+describe("memGetByTopicKeySchema", () => {
+  it("accepts topic_key", () => {
+    const parsed = memGetByTopicKeySchema.parse({
+      topic_key: "sdd/foo/tasks",
+      project: "marengo",
+    });
+    assert.equal(parsed.topic_key, "sdd/foo/tasks");
+  });
+
+  it("accepts query as legacy alias for topic_key", () => {
+    const parsed = memGetByTopicKeySchema.parse({
+      query: "maintenance/session-handoff/marengo",
+      project: "marengo",
+    });
+    assert.equal(parsed.topic_key, "maintenance/session-handoff/marengo");
+  });
+
+  it("rejects missing topic_key and query", () => {
+    assert.throws(() => memGetByTopicKeySchema.parse({ project: "marengo" }));
+  });
+});
 
 describe("validateTopicKey", () => {
   it("accepts valid marengo namespaces", () => {

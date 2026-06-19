@@ -86,7 +86,7 @@ export function registerMemoryTools(cfg: Mem0Config): Record<string, ToolEntry> 
     },
     mem_get_by_topic_key: {
       description:
-        "Exact lookup by metadata topic_key (preferred for SDD/bootstrap recovery). Returns full content for the newest match.",
+        "Exact lookup by metadata topic_key (preferred for SDD/bootstrap recovery). Pass topic_key, not query. Returns full content for the newest match.",
       inputSchema: memGetByTopicKeySchema,
       handler: async (raw) => {
         const args = memGetByTopicKeySchema.parse(raw);
