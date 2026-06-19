@@ -3,8 +3,8 @@ import type { MarengoPiConfig } from "./config.js";
 /** Remote shell preamble for Pi SSH sessions. */
 export function remotePreamble(cfg: MarengoPiConfig, debug = false): string {
   const rustLog = debug
-    ? "robstride=trace,davout=debug,berthier=info,marengo_pi=info"
-    : "robstride=info,davout=info,berthier=info,marengo_pi=info";
+    ? "robstride=trace,davout=debug,berthier=info,marengo_pi=debug"
+    : "robstride=info,davout=info,berthier=info,marengo_pi=debug";
 
   return [
     "set -euo pipefail",

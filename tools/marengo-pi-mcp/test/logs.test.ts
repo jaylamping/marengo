@@ -79,6 +79,7 @@ describe("log tools", () => {
 
     assert.match(script, /grep -m1 -E "\^\[\[:space:\]\]\*\\\("/);
     assert.match(script, /sed -n "s\/\^\[\[:space:\]\]\*\(\\\(\[0-9\.\]\*\\\)\)/);
+    assert.match(script, /c=\$\{c:-0\}/);
     assert.match(script, /top CAN IDs/);
   });
 });

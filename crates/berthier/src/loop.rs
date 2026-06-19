@@ -455,13 +455,22 @@ impl<B: MotorBus> ControlLoop<B> {
         self.loop_period
     }
 
+    pub fn configured_loop_hz(&self) -> u32 {
+        self.loop_hz
+    }
+
+    pub fn tick_count(&self) -> u64 {
+        self.tick_count
+    }
+
     /// One control cycle: recv → compute → send → optional Chappe publish.
     pub fn tick(&mut self, chappe: Option<&Bus>) -> Result<(), LoopError> {
         self.supervisor.refresh_feedback()?;
 
         let q = self.read_positions();
 
-        if self.supervisor.mode() == OperationalMode::Active && self.control_mode != ControlMode::Disabled
+        if self.supervisor.mode() == OperationalMode::Active
+            && self.control_mode != ControlMode::Disabled
         {
             for name in &self.joint_names {
                 if !self.has_joint_feedback(name) {

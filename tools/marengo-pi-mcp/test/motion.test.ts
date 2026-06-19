@@ -2,6 +2,8 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { MarengoPiConfig } from "../src/config.js";
 import {
+  benchCanKernelDeltaShell,
+  benchCanKernelSnapshotShell,
   benchLogPruneShell,
   marengoPiPipeTimeoutSec,
   registerMotionTools,
@@ -49,7 +51,9 @@ describe("marengo-pi script tool", () => {
     assert.match(script, /position-trace-\$TS\.csv/);
     assert.match(script, /candump -t z/);
     assert.match(script, /candump-latest\.log/);
-    assert.match(script, /tail -n \+101/);
+    assert.match(script, /pkill -f/);
+    assert.match(script, /can kernel start:/);
+    assert.match(script, /can kernel delta/);
     assert.match(script, /exit "\$PIPE_STATUS"/);
   });
 
@@ -208,5 +212,13 @@ describe("marengo-pi script tool", () => {
     assert.match(script, /timeout 2 "\$PI_BIN" 2>&1 \|\| true/);
     assert.match(script, /test -x "\$PI_FALLBACK"/);
     assert.match(script, /\} \| timeout 10 \$PI_BIN/);
+  });
+
+  it("emits kernel counter snapshot helpers", () => {
+    assert.match(benchCanKernelSnapshotShell("start"), /CAN_KERNEL_START/);
+    assert.match(benchCanKernelSnapshotShell("end"), /CAN_KERNEL_END/);
+    assert.match(benchCanKernelDeltaShell(), /can kernel delta/);
+    assert.match(benchCanKernelDeltaShell(), /_rx0=\$\{_rx0:-0\}/);
+    assert.match(benchCanKernelDeltaShell(), /grep -m1 -E "\^\[\[:space:\]\]\*\\\("/);
   });
 });

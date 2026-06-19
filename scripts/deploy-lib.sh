@@ -386,6 +386,7 @@ stage_deploy_rev() {
   local repo_root="$1"
   local staging_dir="$2"
   local sha ts
+  git config --global --add safe.directory "$repo_root" 2>/dev/null || true
   sha="$(git -C "$repo_root" rev-parse HEAD)"
   ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   printf '%s %s\n' "$sha" "$ts" >"${staging_dir}/.deploy-rev"
