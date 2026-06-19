@@ -1,3 +1,4 @@
+import { simControlBarClassName } from '@/components/dashboard/simulation/constants';
 import { Button } from '@/components/ui/button';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
@@ -18,8 +19,8 @@ export function SimControlBar({ sessionState }: SimControlBarProps) {
   const disconnected = sessionState === 'disconnected';
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card px-4 py-3">
-      <Button size="sm" disabled={disconnected}>
+    <div className={simControlBarClassName} data-testid="sim-control-bar">
+      <Button size="sm" variant="glass" disabled={disconnected}>
         <HugeiconsIcon icon={PlayIcon} strokeWidth={2} data-icon="inline-start" />
         Play
       </Button>

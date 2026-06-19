@@ -1,3 +1,7 @@
+import {
+  simDataShellVariant,
+  simEventLogWellClassName,
+} from '@/components/dashboard/simulation/constants';
 import type { SimEvent } from '@/data/simulation';
 import {
   Card,
@@ -20,13 +24,13 @@ type SimEventLogProps = {
 
 export function SimEventLog({ events }: SimEventLogProps) {
   return (
-    <Card>
+    <Card variant={simDataShellVariant}>
       <CardHeader>
         <CardDescription>Events</CardDescription>
         <CardTitle className="text-lg font-semibold">Sim log</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="max-h-48 space-y-2 overflow-y-auto rounded-md border bg-muted/20 p-3 font-mono text-xs">
+        <div className={simEventLogWellClassName} data-testid="sim-event-log-well">
           {events.map((event) => (
             <div key={event.id} className="flex gap-3">
               <span className="shrink-0 text-muted-foreground">{event.timestamp}</span>

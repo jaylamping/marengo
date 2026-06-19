@@ -1,4 +1,8 @@
 import { DashboardCardShell } from '@/components/dashboard/cards/dashboard-card-shell';
+import {
+  simDashboardCardShellClassName,
+  simDataShellVariant,
+} from '@/components/dashboard/simulation/constants';
 import { MetricGrid } from '@/components/dashboard/metrics/metric-grid';
 import { MetricItem } from '@/components/dashboard/metrics/metric-item';
 import { StatusBadge } from '@/components/dashboard/metrics/status-badge';
@@ -18,6 +22,8 @@ type SimSessionCardProps = {
 export function SimSessionCard({ session }: SimSessionCardProps) {
   return (
     <DashboardCardShell
+      variant={simDataShellVariant}
+      className={simDashboardCardShellClassName}
       description="Isaac Sim session"
       title={session.kitVersion}
       action={

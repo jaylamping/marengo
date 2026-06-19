@@ -1,3 +1,7 @@
+import {
+  simDataShellVariant,
+  simTableRowClassName,
+} from '@/components/dashboard/simulation/constants';
 import type { SimScenario } from '@/data/simulation';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -30,7 +34,7 @@ type SimScenariosTableProps = {
 
 export function SimScenariosTable({ scenarios }: SimScenariosTableProps) {
   return (
-    <Card>
+    <Card variant={simDataShellVariant}>
       <CardHeader>
         <CardDescription>Scenarios</CardDescription>
         <CardTitle className="text-lg font-semibold">Isaac Lab tasks</CardTitle>
@@ -49,7 +53,7 @@ export function SimScenariosTable({ scenarios }: SimScenariosTableProps) {
           </TableHeader>
           <TableBody>
             {scenarios.map((scenario) => (
-              <TableRow key={scenario.id}>
+              <TableRow key={scenario.id} className={simTableRowClassName}>
                 <TableCell className="font-mono text-xs">{scenario.name}</TableCell>
                 <TableCell className="font-mono text-xs">{scenario.world}</TableCell>
                 <TableCell className="hidden max-w-xs truncate text-muted-foreground md:table-cell">
