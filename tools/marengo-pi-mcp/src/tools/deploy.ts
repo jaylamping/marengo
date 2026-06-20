@@ -1,5 +1,4 @@
 import path from "node:path";
-import { homedir } from "node:os";
 import type { MarengoPiConfig } from "../config.js";
 import { sudoInstallCommand, sudoStagingInstallCommand } from "../config.js";
 import { shellQuote, wrapRemote } from "../env.js";
@@ -8,16 +7,19 @@ import { waitForDeployReady } from "./deploy-wait.js";
 
 function localDeployCommand(cfg: MarengoPiConfig): { cmd: string; args: string[] } {
   const host = `${cfg.user}@${cfg.host}`;
-  // Relative paths: execLocal sets cwd to localRoot (Windows bash mangles C:\… backslashes).
   if (process.platform === "win32") {
-    const sshDir = path
-      .join(process.env.USERPROFILE ?? homedir(), ".ssh")
-      .replace(/\\/g, "/");
+    // Windows: run the PowerShell port directly so docker.exe uses the
+    // desktop-linux npipe context (bash on Windows hits "protocol not
+    // available" via an incompatible context).
     return {
-      cmd: "bash",
+      cmd: "pwsh",
       args: [
-        "-c",
-        `export MSYS_NO_PATHCONV=1; export MARENGO_SSH_DIR='${sshDir.replace(/'/g, `'\\''`)}'; export MARENGO_PI_HOST='${cfg.host.replace(/'/g, `'\\''`)}'; export MARENGO_PI_USER='${cfg.user.replace(/'/g, `'\\''`)}'; exec ./scripts/deploy-pi-docker.sh '${host.replace(/'/g, `'\\''`)}'`,
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "./scripts/deploy-pi-docker.ps1",
+        host,
       ],
     };
   }
