@@ -685,8 +685,7 @@ impl LoopTimingWindow {
         let avg_us = self.tick_elapsed_sum_us / u64::from(self.iterations);
         let nominal_ticks = loop_ctrl.tick_count().saturating_sub(self.tick_count_start);
         let outer_stdin_avg_us = self.outer_stdin_us_sum / u64::from(self.iterations);
-        let outer_chappe_drain_avg_us =
-            self.outer_chappe_drain_us_sum / u64::from(self.iterations);
+        let outer_chappe_drain_avg_us = self.outer_chappe_drain_us_sum / u64::from(self.iterations);
         debug!(
             configured_hz = loop_ctrl.configured_loop_hz(),
             wall_hz,

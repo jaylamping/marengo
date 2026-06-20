@@ -121,6 +121,8 @@ discontinuities; no planner-event churn near target.
 
 ## Related docs
 
+- [bench-90deg-calibrated-roundtrip.md](bench-90deg-calibrated-roundtrip.md) — 2026-06-20
+  calibrated 90° (`1.484` rad) weighted round trip, set-zero, return settle gap
 - [bench-position-tuning.md](bench-position-tuning.md) — Layer 2 gate thresholds
 - [safety.md](safety.md) — motor path and enable rules
 - [ADR 0004](decisions/0004-control-modes-and-mit.md) — control modes

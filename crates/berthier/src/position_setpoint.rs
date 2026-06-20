@@ -5,14 +5,27 @@ use armee_kinematics::{clamp_position_in_envelope, effective_command_bounds, Joi
 use crate::position_trajectory::JointPositionPlanner;
 
 pub(crate) const POSITION_SETTLE_TOLERANCE_RAD: f64 = 1e-4;
+/// Tighter settle band at `target == 0` — matches Layer 2 `--require-home-start`.
+pub(crate) const POSITION_HOME_SETTLE_RAD: f64 = 0.005;
 /// Descent retarget from above this delta seeds planner speed so FF beats gravity at high q.
 pub(crate) const POSITION_RETURN_DESCENT_SEED_RAD: f64 = 0.05;
 /// Resync planner only when arm is far from latched target (not small hold overshoot).
 pub(crate) const POSITION_RETURN_RESYNC_RAD: f64 = 0.03;
+
+/// Settle/resync band: home returns use [`POSITION_HOME_SETTLE_RAD`], other targets use resync.
+pub fn return_settle_band(target: f64) -> f64 {
+    if target.abs() <= POSITION_SETTLE_TOLERANCE_RAD {
+        POSITION_HOME_SETTLE_RAD
+    } else {
+        POSITION_RETURN_RESYNC_RAD
+    }
+}
 /// Return planner-freeze only below this |q| — high-angle descent needs continuous q_ref.
 pub(crate) const POSITION_RETURN_FREEZE_Q_MAX_RAD: f64 = 0.12;
 /// MIT pull-down lead while stuck on descent (until breakaway latch clears).
 pub(crate) const POSITION_DESCENT_STUCK_LEAD_RAD: f64 = 0.03;
+/// Command past home while stuck in the final band — extra P torque to break static friction.
+pub(crate) const POSITION_HOME_FINAL_PULL_THROUGH_RAD: f64 = 0.02;
 /// Outbound-only lead cap during post-retarget onset (weighted breakaway).
 pub(crate) const POSITION_HOLD_ONSET_MAX_LEAD_RAD: f64 = 0.15;
 
@@ -77,6 +90,29 @@ pub fn position_hold_mit_velocity(
     0.0
 }
 
+/// MIT `kd` while coasting past a latched target — firmware velocity damping on overshoot.
+pub fn position_hold_mit_kd(
+    kd: f64,
+    q: f64,
+    target: f64,
+    dq_filtered: f64,
+    velocity_deadband: f64,
+) -> f64 {
+    if dq_filtered.abs() < velocity_deadband {
+        return 0.0;
+    }
+    let past_target = if target >= 0.0 {
+        q > target + POSITION_RETURN_RESYNC_RAD && dq_filtered > velocity_deadband
+    } else {
+        q < target - POSITION_RETURN_RESYNC_RAD && dq_filtered < -velocity_deadband
+    };
+    if past_target {
+        kd
+    } else {
+        0.0
+    }
+}
+
 /// MIT pull while ascending toward target and stuck with planner slightly ahead.
 pub fn approach_stuck_mit_pull(
     to_target: f64,
@@ -103,10 +139,32 @@ pub fn descent_stuck_mit_pull(
     breakaway_confirmed: bool,
 ) -> bool {
     !breakaway_confirmed
-        && is_gravity_assisted_return(q, target)
         && to_target < -POSITION_HOLD_ERROR_DEADBAND_RAD
-        && (q - target) > POSITION_RETURN_DESCENT_SEED_RAD
         && dq_filtered.abs() < velocity_deadband
+        && (high_angle_descent_stuck(q, target) || home_final_approach_stuck(q, target))
+}
+
+/// Weighted return above `POSITION_RETURN_DESCENT_SEED_RAD` — gravity-assisted same-side descent.
+fn high_angle_descent_stuck(q: f64, target: f64) -> bool {
+    is_gravity_assisted_return(q, target) && (q - target) > POSITION_RETURN_DESCENT_SEED_RAD
+}
+
+/// Last ~5–50 mrad above home — `is_gravity_assisted_return` is false at `target == 0`.
+pub fn home_final_approach_stuck(q: f64, target: f64) -> bool {
+    target.abs() <= POSITION_SETTLE_TOLERANCE_RAD
+        && q > POSITION_HOME_SETTLE_RAD
+        && q <= POSITION_RETURN_DESCENT_SEED_RAD
+}
+
+/// MIT pull-down lead while stuck in [`home_final_approach_stuck`] (includes pull-through past target).
+pub fn home_final_approach_stuck_pull_rad(q: f64, target: f64) -> f64 {
+    if !home_final_approach_stuck(q, target) {
+        return POSITION_DESCENT_STUCK_LEAD_RAD;
+    }
+    (q - target + POSITION_HOME_FINAL_PULL_THROUGH_RAD).clamp(
+        POSITION_DESCENT_STUCK_LEAD_RAD,
+        POSITION_HOLD_ONSET_MAX_LEAD_RAD,
+    )
 }
 
 pub fn descent_breakaway_confirmed(
@@ -178,6 +236,9 @@ pub fn planner_should_freeze_on_descent(
     if target.abs() > POSITION_SETTLE_TOLERANCE_RAD {
         return false;
     }
+    if home_final_approach_stuck(q, target) {
+        return false;
+    }
     if q > POSITION_RETURN_FREEZE_Q_MAX_RAD {
         return false;
     }
@@ -185,7 +246,14 @@ pub fn planner_should_freeze_on_descent(
     if (q - target).abs() > POSITION_RETURN_DESCENT_SEED_RAD {
         return false;
     }
-    if was_frozen && lag.abs() < POSITION_RETURN_RESYNC_RAD {
+    let settle_band = return_settle_band(target);
+    if was_frozen
+        && (lag.abs() < POSITION_RETURN_RESYNC_RAD
+            || (home_final_approach_stuck(q, target) && dq_filtered.abs() < velocity_deadband))
+    {
+        return false;
+    }
+    if (q - target).abs() <= settle_band {
         return false;
     }
     let lagging = to_target < -POSITION_HOLD_ERROR_DEADBAND_RAD
@@ -282,14 +350,49 @@ pub fn planner_premature_hold(planner: &JointPositionPlanner, q: f64, target: f6
     if planner.phase() != TrapezoidPhase::Hold {
         return false;
     }
-    if (q - target).abs() <= POSITION_RETURN_RESYNC_RAD {
+    let band = return_settle_band(target);
+    if (q - target).abs() <= band {
         return false;
     }
     let tol = POSITION_SETTLE_TOLERANCE_RAD;
     if target >= 0.0 {
-        q < target - POSITION_RETURN_RESYNC_RAD && planner.q_traj >= target - tol
+        planner.q_traj >= target - tol
     } else {
-        q > target + POSITION_RETURN_RESYNC_RAD && planner.q_traj <= target + tol
+        planner.q_traj <= target + tol
+    }
+}
+
+/// Virtual trapezoid latched at target while measured `q` overshot — planner at target, arm past.
+pub fn planner_overshot_at_hold(planner: &JointPositionPlanner, q: f64, target: f64) -> bool {
+    if planner.phase() != TrapezoidPhase::Hold {
+        return false;
+    }
+    let tol = POSITION_SETTLE_TOLERANCE_RAD;
+    if target >= 0.0 {
+        q > target + POSITION_RETURN_RESYNC_RAD && planner.q_traj >= target - tol
+    } else {
+        q < target - POSITION_RETURN_RESYNC_RAD && planner.q_traj <= target + tol
+    }
+}
+
+/// Virtual trapezoid latched at target while measured `q` overshot and is still moving — reopen.
+pub fn planner_overshoot_hold_while_moving(
+    planner: &JointPositionPlanner,
+    q: f64,
+    target: f64,
+    dq_filtered: f64,
+    velocity_deadband: f64,
+) -> bool {
+    if dq_filtered.abs() < velocity_deadband {
+        return false;
+    }
+    if !planner_overshot_at_hold(planner, q, target) {
+        return false;
+    }
+    if target >= 0.0 {
+        dq_filtered > velocity_deadband
+    } else {
+        dq_filtered < -velocity_deadband
     }
 }
 
@@ -318,6 +421,9 @@ pub fn planner_drifted_from_measurement(
     if planner_premature_hold(planner, q, target) {
         return false;
     }
+    if planner_overshot_at_hold(planner, q, target) {
+        return false;
+    }
     let to_target = target - q;
     if to_target.abs() > POSITION_SETTLE_TOLERANCE_RAD {
         if to_target > 0.0 && q > planner.q_traj + max_lead {
@@ -337,6 +443,6 @@ pub fn planner_drifted_from_measurement(
         return true;
     }
     planner.phase() == TrapezoidPhase::Hold
-        && (q - target).abs() > POSITION_RETURN_RESYNC_RAD
+        && (q - target).abs() > return_settle_band(target)
         && (q - planner.q_traj).abs() > POSITION_SETTLE_TOLERANCE_RAD
 }

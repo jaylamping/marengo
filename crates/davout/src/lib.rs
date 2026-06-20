@@ -159,7 +159,6 @@ const FEEDBACK_VELOCITY_FAULT_MARGIN_RAD_S: f64 = 0.20;
 #[derive(Debug, Clone, Copy)]
 struct FeedbackSample {
     position_rad: f64,
-    velocity_rad_s: f64,
     received_at: Instant,
 }
 
@@ -610,7 +609,6 @@ impl<B: MotorBus> Supervisor<B> {
                 motor.joint.clone(),
                 FeedbackSample {
                     position_rad: position,
-                    velocity_rad_s: measured_velocity,
                     received_at,
                 },
             );
@@ -638,7 +636,6 @@ impl<B: MotorBus> Supervisor<B> {
                 motor.joint.clone(),
                 FeedbackSample {
                     position_rad: position,
-                    velocity_rad_s: measured_velocity,
                     received_at,
                 },
             );
@@ -658,7 +655,6 @@ impl<B: MotorBus> Supervisor<B> {
             motor.joint.clone(),
             FeedbackSample {
                 position_rad: position,
-                velocity_rad_s: measured_velocity,
                 received_at,
             },
         );
@@ -1602,11 +1598,7 @@ mod tests {
         let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
         bench_ready_active(&mut sup);
         let motor = sup.motors.motors[0].clone();
-        let limit = sup
-            .limits
-            .get(&motor.joint)
-            .expect("limits")
-            .velocity;
+        let limit = sup.limits.get(&motor.joint).expect("limits").velocity;
         let overspeed = limit + FEEDBACK_VELOCITY_FAULT_MARGIN_RAD_S + 0.15;
         let dt = 0.005;
         let t0 = Instant::now();
@@ -1686,11 +1678,7 @@ mod tests {
         let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
         bench_ready_active(&mut sup);
         let motor = sup.motors.motors[0].clone();
-        let limit = sup
-            .limits
-            .get(&motor.joint)
-            .expect("limits")
-            .velocity;
+        let limit = sup.limits.get(&motor.joint).expect("limits").velocity;
         let t0 = Instant::now();
         let mut first = MotorState {
             position_rad: 0.30,

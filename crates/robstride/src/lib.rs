@@ -325,10 +325,7 @@ mod tests {
 
     #[test]
     fn recv_all_addressed_zero_budget_single_pass() {
-        let mut bus = ScriptBus::new(vec![
-            vec![status_frame(1)],
-            vec![status_frame(1)],
-        ]);
+        let mut bus = ScriptBus::new(vec![vec![status_frame(1)], vec![status_frame(1)]]);
         let mut states = HashMap::new();
         let types = HashMap::from([(MotorAddress::new("can0", 1), MotorType::Rs03)]);
 
