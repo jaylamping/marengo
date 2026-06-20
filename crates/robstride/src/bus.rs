@@ -625,70 +625,70 @@ impl RuntimeBus {
     }
 }
 
-    impl CanBus for RuntimeBus {
-        fn send_frame(&mut self, frame: &CanFrame) -> Result<(), BusError> {
-            let _ = frame;
-            match self {
-                #[cfg(all(feature = "socketcan", target_os = "linux"))]
-                Self::Socket(bus) => bus.send_frame(frame),
-                #[cfg(all(feature = "socketcan", target_os = "linux"))]
-                Self::Router(bus) => bus.send_frame(frame),
-                #[cfg(not(all(feature = "socketcan", target_os = "linux")))]
-                _ => Err(socketcan_unavailable()),
-            }
-        }
-
-        fn send_frame_to(&mut self, address: &MotorAddress, frame: &CanFrame) -> Result<(), BusError> {
-            let _ = (address, frame);
-            match self {
-                #[cfg(all(feature = "socketcan", target_os = "linux"))]
-                Self::Socket(bus) => bus.send_frame_to(address, frame),
-                #[cfg(all(feature = "socketcan", target_os = "linux"))]
-                Self::Router(bus) => bus.send_frame_to(address, frame),
-                #[cfg(not(all(feature = "socketcan", target_os = "linux")))]
-                _ => Err(socketcan_unavailable()),
-            }
-        }
-
-        fn recv_frames(&mut self, out: &mut Vec<CanFrame>) -> Result<(), BusError> {
-            let _ = out;
-            match self {
-                #[cfg(all(feature = "socketcan", target_os = "linux"))]
-                Self::Socket(bus) => bus.recv_frames(out),
-                #[cfg(all(feature = "socketcan", target_os = "linux"))]
-                Self::Router(bus) => bus.recv_frames(out),
-                #[cfg(not(all(feature = "socketcan", target_os = "linux")))]
-                _ => Err(socketcan_unavailable()),
-            }
-        }
-
-        fn recv_frames_from(&mut self, out: &mut Vec<ReceivedCanFrame>) -> Result<(), BusError> {
-            let _ = out;
-            match self {
-                #[cfg(all(feature = "socketcan", target_os = "linux"))]
-                Self::Socket(bus) => bus.recv_frames_from(out),
-                #[cfg(all(feature = "socketcan", target_os = "linux"))]
-                Self::Router(bus) => bus.recv_frames_from(out),
-                #[cfg(not(all(feature = "socketcan", target_os = "linux")))]
-                _ => Err(socketcan_unavailable()),
-            }
-        }
-
-        fn recv_frames_from_nonblocking(
-            &mut self,
-            out: &mut Vec<ReceivedCanFrame>,
-        ) -> Result<(), BusError> {
-            let _ = out;
-            match self {
-                #[cfg(all(feature = "socketcan", target_os = "linux"))]
-                Self::Socket(bus) => bus.recv_frames_from_nonblocking(out),
-                #[cfg(all(feature = "socketcan", target_os = "linux"))]
-                Self::Router(bus) => bus.recv_frames_from_nonblocking(out),
-                #[cfg(not(all(feature = "socketcan", target_os = "linux")))]
-                _ => Err(socketcan_unavailable()),
-            }
+impl CanBus for RuntimeBus {
+    fn send_frame(&mut self, frame: &CanFrame) -> Result<(), BusError> {
+        let _ = frame;
+        match self {
+            #[cfg(all(feature = "socketcan", target_os = "linux"))]
+            Self::Socket(bus) => bus.send_frame(frame),
+            #[cfg(all(feature = "socketcan", target_os = "linux"))]
+            Self::Router(bus) => bus.send_frame(frame),
+            #[cfg(not(all(feature = "socketcan", target_os = "linux")))]
+            _ => Err(socketcan_unavailable()),
         }
     }
+
+    fn send_frame_to(&mut self, address: &MotorAddress, frame: &CanFrame) -> Result<(), BusError> {
+        let _ = (address, frame);
+        match self {
+            #[cfg(all(feature = "socketcan", target_os = "linux"))]
+            Self::Socket(bus) => bus.send_frame_to(address, frame),
+            #[cfg(all(feature = "socketcan", target_os = "linux"))]
+            Self::Router(bus) => bus.send_frame_to(address, frame),
+            #[cfg(not(all(feature = "socketcan", target_os = "linux")))]
+            _ => Err(socketcan_unavailable()),
+        }
+    }
+
+    fn recv_frames(&mut self, out: &mut Vec<CanFrame>) -> Result<(), BusError> {
+        let _ = out;
+        match self {
+            #[cfg(all(feature = "socketcan", target_os = "linux"))]
+            Self::Socket(bus) => bus.recv_frames(out),
+            #[cfg(all(feature = "socketcan", target_os = "linux"))]
+            Self::Router(bus) => bus.recv_frames(out),
+            #[cfg(not(all(feature = "socketcan", target_os = "linux")))]
+            _ => Err(socketcan_unavailable()),
+        }
+    }
+
+    fn recv_frames_from(&mut self, out: &mut Vec<ReceivedCanFrame>) -> Result<(), BusError> {
+        let _ = out;
+        match self {
+            #[cfg(all(feature = "socketcan", target_os = "linux"))]
+            Self::Socket(bus) => bus.recv_frames_from(out),
+            #[cfg(all(feature = "socketcan", target_os = "linux"))]
+            Self::Router(bus) => bus.recv_frames_from(out),
+            #[cfg(not(all(feature = "socketcan", target_os = "linux")))]
+            _ => Err(socketcan_unavailable()),
+        }
+    }
+
+    fn recv_frames_from_nonblocking(
+        &mut self,
+        out: &mut Vec<ReceivedCanFrame>,
+    ) -> Result<(), BusError> {
+        let _ = out;
+        match self {
+            #[cfg(all(feature = "socketcan", target_os = "linux"))]
+            Self::Socket(bus) => bus.recv_frames_from_nonblocking(out),
+            #[cfg(all(feature = "socketcan", target_os = "linux"))]
+            Self::Router(bus) => bus.recv_frames_from_nonblocking(out),
+            #[cfg(not(all(feature = "socketcan", target_os = "linux")))]
+            _ => Err(socketcan_unavailable()),
+        }
+    }
+}
 
 impl MotorBus for RuntimeBus {}
 
@@ -897,7 +897,10 @@ mod socketcan {
 
     impl SocketCanBus {
         fn recv_frames_nonblocking(&mut self, out: &mut Vec<CanFrame>) -> Result<(), BusError> {
-            let was_nonblocking = self.socket.nonblocking().map_err(|e| BusError::Driver(e.to_string()))?;
+            let was_nonblocking = self
+                .socket
+                .nonblocking()
+                .map_err(|e| BusError::Driver(e.to_string()))?;
             if !was_nonblocking {
                 self.socket
                     .set_nonblocking(true)
@@ -910,7 +913,10 @@ mod socketcan {
             result
         }
 
-        fn recv_frames_nonblocking_inner(&mut self, out: &mut Vec<CanFrame>) -> Result<(), BusError> {
+        fn recv_frames_nonblocking_inner(
+            &mut self,
+            out: &mut Vec<CanFrame>,
+        ) -> Result<(), BusError> {
             loop {
                 match self.socket.read_frame() {
                     Ok(frame) => {
