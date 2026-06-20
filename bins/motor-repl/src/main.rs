@@ -257,7 +257,7 @@ fn main() {
                 }
             }
             if !force {
-                if let Err(code) = preflight_gravity_saturation(&loop_ctrl) {
+                if let Err(code) = preflight_gravity_saturation(&mut loop_ctrl) {
                     std::process::exit(code);
                 }
             }
