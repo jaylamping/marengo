@@ -140,6 +140,8 @@ pub enum DavoutError {
     Homing { message: String },
     #[error("homing verify on {joint}: {message}")]
     HomingVerify { joint: String, message: String },
+    #[error("wrong-sign watchdog: gravity-comp torque opposes motion for {ticks} ticks on joint {joint}")]
+    WrongSignWatchdog { joint: String, ticks: u32 },
 }
 
 pub use marengo_homing::JointHomingState;
@@ -155,6 +157,12 @@ const FEEDBACK_VELOCITY_LIMIT_TRIPS: u8 = 3;
 /// Measured (position-derived) speed must exceed `limit + margin` before tripping.
 /// Absorbs encoder quantization and planner cruise at the nominal cap without disabling.
 const FEEDBACK_VELOCITY_FAULT_MARGIN_RAD_S: f64 = 0.20;
+
+#[derive(Debug, Clone, Copy, Default)]
+struct WrongSignState {
+    opposition_ticks: u32,
+    ticks_since_enable: u32,
+}
 
 #[derive(Debug, Clone, Copy)]
 struct FeedbackSample {
@@ -180,6 +188,7 @@ pub struct Supervisor<B: MotorBus> {
     last_tau_ff: HashMap<String, f64>,
     feedback_velocity_trips: HashMap<String, u8>,
     last_feedback_samples: HashMap<String, FeedbackSample>,
+    wrong_sign_state: HashMap<String, WrongSignState>,
     last_tick: Option<Instant>,
     active_reporting_armed: bool,
     /// Status frames decoded in the most recent [`Self::refresh_feedback`] poll.
@@ -232,6 +241,7 @@ impl<B: MotorBus> Supervisor<B> {
             last_tau_ff: HashMap::new(),
             feedback_velocity_trips: HashMap::new(),
             last_feedback_samples: HashMap::new(),
+            wrong_sign_state: HashMap::new(),
             last_tick: None,
             active_reporting_armed: false,
             last_refresh_frames: 0,
@@ -283,6 +293,16 @@ impl<B: MotorBus> Supervisor<B> {
         motor_to_joint_state(motor, *raw)
             .ok()
             .map(|s| f64::from(s.velocity_rad_s))
+    }
+
+    /// Joint-space feedback torque (Nm) if available.
+    pub fn joint_torque_rad(&self, joint: &str) -> Option<f64> {
+        let motor = motor_for_joint(&self.motors, joint)?;
+        let address = MotorAddress::from(motor);
+        let raw = self.motor_states.get(&address)?;
+        motor_to_joint_state(motor, *raw)
+            .ok()
+            .map(|s| f64::from(s.torque_nm))
     }
 
     /// Override synthetic feedback for one joint (unit tests / replay without CAN RX).
@@ -397,6 +417,19 @@ impl<B: MotorBus> Supervisor<B> {
         debug!(?mode, "control mode set");
     }
 
+    /// Seed the tau_ff rate limiter with current measured torque for each joint.
+    ///
+    /// Called on mode transitions to ensure the rate limiter slews from the correct
+    /// starting point. Do NOT clear `last_tau_ff` — that would cause `rate_limit_tau_ff`
+    /// to use `unwrap_or(target)`, passing torque through unclamped (safety regression).
+    pub fn seed_tau_ff_rate_limiter(&mut self) {
+        for motor in &self.motors.motors {
+            let joint = &motor.joint;
+            let measured = self.joint_torque_rad(joint).unwrap_or(0.0);
+            self.last_tau_ff.insert(joint.clone(), measured);
+        }
+    }
+
     pub fn motor_states(&self) -> &HashMap<MotorAddress, MotorState> {
         &self.motor_states
     }
@@ -437,6 +470,7 @@ impl<B: MotorBus> Supervisor<B> {
             self.active_since = None;
             self.feedback_velocity_trips.clear();
             self.last_feedback_samples.clear();
+            self.wrong_sign_state.clear();
             warn!("hardware E-stop asserted — disabled");
         }
     }
@@ -500,6 +534,7 @@ impl<B: MotorBus> Supervisor<B> {
             }
             self.mode = OperationalMode::Active;
             self.active_since = Some(Instant::now());
+            self.wrong_sign_state.clear();
             self.sync_active_reporting();
             info!(motor_count = self.motors.motors.len(), "supervisor ACTIVE");
         } else {
@@ -912,6 +947,7 @@ impl<B: MotorBus> Supervisor<B> {
         self.active_since = None;
         self.feedback_velocity_trips.clear();
         self.last_feedback_samples.clear();
+        self.wrong_sign_state.clear();
         self.sync_active_reporting();
         debug!("supervisor DISABLED");
         Ok(())
@@ -1056,7 +1092,63 @@ impl<B: MotorBus> Supervisor<B> {
             previous_tick,
         );
 
+        self.check_wrong_sign_watchdog(&out, q_meas, dq_meas)?;
+
         Ok(out)
+    }
+
+    fn check_wrong_sign_watchdog(
+        &mut self,
+        out: &MitJointCommand,
+        q_meas: f64,
+        dq_meas: f64,
+    ) -> Result<(), DavoutError> {
+        if self.control_mode != ControlMode::GravityComp {
+            return Ok(());
+        }
+        let cfg = &self.control.control.wrong_sign_watchdog;
+        if !cfg.enabled {
+            return Ok(());
+        }
+        let state = self.wrong_sign_state.entry(out.joint.clone()).or_default();
+        state.ticks_since_enable = state.ticks_since_enable.saturating_add(1);
+
+        if state.ticks_since_enable <= cfg.grace_period_ticks {
+            return Ok(());
+        }
+        if dq_meas.abs() <= cfg.min_velocity_rad_s {
+            return Ok(());
+        }
+
+        let expected_sign = if q_meas >= 0.0 {
+            cfg.expected_sign_at_positive_q as f64
+        } else {
+            -(cfg.expected_sign_at_positive_q as f64)
+        };
+        let actual_sign = out.torque_ff_nm.signum();
+
+        if actual_sign == 0.0 || actual_sign == expected_sign {
+            state.opposition_ticks = 0;
+            return Ok(());
+        }
+
+        state.opposition_ticks = state.opposition_ticks.saturating_add(1);
+        if state.opposition_ticks >= cfg.min_opposition_ticks {
+            warn!(
+                joint = %out.joint,
+                ticks = state.opposition_ticks,
+                torque_ff_nm = out.torque_ff_nm,
+                q_meas,
+                dq_meas,
+                expected_sign,
+                "wrong-sign watchdog tripped"
+            );
+            return Err(DavoutError::WrongSignWatchdog {
+                joint: out.joint.clone(),
+                ticks: state.opposition_ticks,
+            });
+        }
+        Ok(())
     }
 
     fn speed_cap_for_joint(&self, joint: &str) -> Result<f64, DavoutError> {
@@ -1366,6 +1458,34 @@ mod tests {
         assert!(
             (out2 - 1.0).abs() < 0.05,
             "j2 slew expected ~1.0, got {out2}"
+        );
+    }
+
+    #[test]
+    fn rate_limiter_seeds_on_mode_transition() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        bench_ready_active(&mut sup);
+
+        // Set feedback with known position/velocity (torque_nm will be 0.0).
+        sup.set_synthetic_joint_feedback("shoulder_pitch", 1.0, 0.5)
+            .expect("feedback");
+
+        // Set last_tau_ff to a known value different from measured torque (0.0).
+        sup.last_tau_ff.insert("shoulder_pitch".to_string(), 5.0);
+
+        // Seed — should update last_tau_ff to measured torque (0.0), not clear or keep 5.0.
+        sup.seed_tau_ff_rate_limiter();
+
+        let seeded = sup.last_tau_ff.get("shoulder_pitch").copied();
+        assert!(
+            seeded.is_some(),
+            "shoulder_pitch should still have an entry (not cleared)"
+        );
+        assert!(
+            (seeded.expect("shoulder_pitch should still have an entry") - 0.0).abs() < 1e-9,
+            "expected measured torque 0.0, got {}",
+            seeded.expect("shoulder_pitch should still have an entry")
         );
     }
 
@@ -1972,5 +2092,149 @@ mod tests {
         let policy = sup.joint_limit_policy("elbow").expect("policy");
         assert!(out.position_rad <= policy.hard_upper());
         assert!(out.position_rad < 99.0);
+    }
+
+    fn wrong_sign_sup() -> Supervisor<MemoryBus> {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        bench_ready_active(&mut sup);
+        sup.set_control_mode(ControlMode::GravityComp);
+        sup.set_synthetic_joint_feedback("shoulder_pitch", 1.0, 0.5)
+            .expect("feedback");
+        sup
+    }
+
+    fn wrong_sign_cmd() -> MitJointCommand {
+        MitJointCommand {
+            joint: "shoulder_pitch".to_string(),
+            kp: 0.0,
+            kd: 0.0,
+            position_rad: 1.0,
+            velocity_rad_s: 0.0,
+            // q > 0 → expected_sign = -1; +1.0 opposes it.
+            torque_ff_nm: 1.0,
+        }
+    }
+
+    #[test]
+    fn wrong_sign_watchdog_trips_on_sustained_opposition() {
+        let mut sup = wrong_sign_sup();
+        let motor = motor_for_joint(&sup.motors, "shoulder_pitch")
+            .expect("motor")
+            .clone();
+        let cmd = wrong_sign_cmd();
+        let grace = sup.control.control.wrong_sign_watchdog.grace_period_ticks;
+        let min_opp = sup.control.control.wrong_sign_watchdog.min_opposition_ticks;
+        for _ in 0..grace + min_opp - 1 {
+            sup.filter_mit_command(cmd.clone(), &motor)
+                .expect("no trip before threshold");
+        }
+        let err = sup
+            .filter_mit_command(cmd, &motor)
+            .expect_err("should trip on sustained opposition");
+        assert!(matches!(
+            err,
+            DavoutError::WrongSignWatchdog {
+                ticks, ..
+            } if ticks >= min_opp
+        ));
+    }
+
+    #[test]
+    fn wrong_sign_watchdog_no_trip_in_impedance() {
+        let mut sup = wrong_sign_sup();
+        sup.set_control_mode(ControlMode::Impedance);
+        let motor = motor_for_joint(&sup.motors, "shoulder_pitch")
+            .expect("motor")
+            .clone();
+        let cmd = wrong_sign_cmd();
+        let grace = sup.control.control.wrong_sign_watchdog.grace_period_ticks;
+        let min_opp = sup.control.control.wrong_sign_watchdog.min_opposition_ticks;
+        for _ in 0..grace + min_opp + 5 {
+            sup.filter_mit_command(cmd.clone(), &motor)
+                .expect("Impedance mode must not trip wrong-sign watchdog");
+        }
+    }
+
+    #[test]
+    fn wrong_sign_watchdog_grace_period() {
+        let mut sup = wrong_sign_sup();
+        let motor = motor_for_joint(&sup.motors, "shoulder_pitch")
+            .expect("motor")
+            .clone();
+        let cmd = wrong_sign_cmd();
+        let grace = sup.control.control.wrong_sign_watchdog.grace_period_ticks;
+        // Opposition during the entire grace window must not trip.
+        for _ in 0..grace {
+            sup.filter_mit_command(cmd.clone(), &motor)
+                .expect("grace period must not trip");
+        }
+        // State should show opposition has not accumulated past grace.
+        let state = sup
+            .wrong_sign_state
+            .get("shoulder_pitch")
+            .expect("state populated");
+        assert_eq!(state.opposition_ticks, 0);
+    }
+
+    #[test]
+    fn wrong_sign_watchdog_resets_on_enable() {
+        let mut sup = wrong_sign_sup();
+        let motor = motor_for_joint(&sup.motors, "shoulder_pitch")
+            .expect("motor")
+            .clone();
+        let cmd = wrong_sign_cmd();
+        let grace = sup.control.control.wrong_sign_watchdog.grace_period_ticks;
+        // Accumulate a few opposition ticks past grace.
+        for _ in 0..grace + 3 {
+            let _ = sup.filter_mit_command(cmd.clone(), &motor);
+        }
+        assert!(sup.wrong_sign_state.contains_key("shoulder_pitch"));
+        sup.disable_all().expect("disable");
+        assert!(sup.wrong_sign_state.is_empty());
+        // Re-enable clears state on the enable path too.
+        sup.set_homing_complete().expect("ready");
+        sup.request_enable(true).expect("enable");
+        assert!(sup.wrong_sign_state.is_empty());
+    }
+
+    #[test]
+    fn wrong_sign_watchdog_no_trip_when_velocity_below_threshold() {
+        let mut sup = wrong_sign_sup();
+        sup.set_synthetic_joint_feedback("shoulder_pitch", 1.0, 0.01)
+            .expect("feedback");
+        let motor = motor_for_joint(&sup.motors, "shoulder_pitch")
+            .expect("motor")
+            .clone();
+        let cmd = wrong_sign_cmd();
+        let grace = sup.control.control.wrong_sign_watchdog.grace_period_ticks;
+        let min_opp = sup.control.control.wrong_sign_watchdog.min_opposition_ticks;
+        for _ in 0..grace + min_opp + 5 {
+            sup.filter_mit_command(cmd.clone(), &motor)
+                .expect("near-zero velocity must not trip");
+        }
+    }
+
+    #[test]
+    fn wrong_sign_watchdog_no_trip_when_sign_matches() {
+        let mut sup = wrong_sign_sup();
+        let motor = motor_for_joint(&sup.motors, "shoulder_pitch")
+            .expect("motor")
+            .clone();
+        // q > 0 → expected_sign = -1; torque_ff = -1.0 matches → no trip.
+        let cmd = MitJointCommand {
+            joint: "shoulder_pitch".to_string(),
+            kp: 0.0,
+            kd: 0.0,
+            position_rad: 1.0,
+            velocity_rad_s: 0.0,
+            torque_ff_nm: -1.0,
+        };
+        let grace = sup.control.control.wrong_sign_watchdog.grace_period_ticks;
+        let min_opp = sup.control.control.wrong_sign_watchdog.min_opposition_ticks;
+        for _ in 0..grace + min_opp + 5 {
+            sup.filter_mit_command(cmd.clone(), &motor)
+                .expect("matching sign must not trip");
+        }
     }
 }

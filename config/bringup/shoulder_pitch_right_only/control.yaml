@@ -51,3 +51,10 @@ control:
         k: 10.0
 
   danger_zones: []
+
+  wrong_sign_watchdog:
+    enabled: true
+    expected_sign_at_positive_q: -1
+    min_velocity_rad_s: 0.05
+    min_opposition_ticks: 10
+    grace_period_ticks: 20

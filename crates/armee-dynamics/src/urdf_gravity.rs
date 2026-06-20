@@ -1,12 +1,13 @@
 //! Gravity torques via virtual work (numerical ∂COM/∂q).
 
+use std::collections::HashMap;
 use std::path::Path;
 
 use armee_kinematics::load_urdf;
 use nalgebra::{Isometry3, Rotation3, Translation3, Unit, Vector3};
 use urdf_rs::{JointType, Robot};
 
-use crate::DynamicsError;
+use crate::{DynamicsError, PureGravityTorque};
 
 const GRAVITY: Vector3<f64> = Vector3::new(0.0, 0.0, -9.81);
 const DQ_EPS: f64 = 1e-6;
@@ -15,6 +16,9 @@ const DQ_EPS: f64 = 1e-6;
 pub struct UrdfGravityModel {
     joint_names: Vec<String>,
     robot: Robot,
+    /// Cached: for each link name, the ordered list of joint indices (root→leaf).
+    /// Eliminates the O(n) `joints.iter().find()` scan per link_transform call.
+    link_chains: HashMap<String, Vec<usize>>,
 }
 
 impl UrdfGravityModel {
@@ -30,9 +34,29 @@ impl UrdfGravityModel {
                 });
             }
         }
+
+        // Precompute the parent joint chain (root→leaf) for each link so that
+        // link_transform can do a direct index lookup instead of an O(n) scan.
+        let mut link_chains = HashMap::new();
+        for link in &robot.links {
+            let mut chain = Vec::new();
+            let mut current = link.name.clone();
+            loop {
+                let joint_idx = robot.joints.iter().position(|j| j.child.link == current);
+                let Some(idx) = joint_idx else {
+                    break;
+                };
+                chain.push(idx);
+                current = robot.joints[idx].parent.link.clone();
+            }
+            chain.reverse(); // root→leaf order
+            link_chains.insert(link.name.clone(), chain);
+        }
+
         Ok(Self {
             joint_names: joint_names.to_vec(),
             robot,
+            link_chains,
         })
     }
 
@@ -53,17 +77,10 @@ impl UrdfGravityModel {
     }
 
     fn link_transform(&self, link_name: &str, q_map: &[(String, f64)]) -> Isometry3<f64> {
-        let mut chain = Vec::new();
-        let mut current = link_name.to_string();
-        loop {
-            let joint = self.robot.joints.iter().find(|j| j.child.link == current);
-            let Some(joint) = joint else {
-                break;
-            };
-            chain.push(joint);
-            current = joint.parent.link.clone();
-        }
-        chain.reverse();
+        let chain: Vec<&urdf_rs::Joint> = match self.link_chains.get(link_name) {
+            Some(indices) => indices.iter().map(|&i| &self.robot.joints[i]).collect(),
+            None => Vec::new(),
+        };
 
         let mut t = Isometry3::identity();
         for joint in chain {
@@ -104,7 +121,7 @@ impl super::DynamicsModel for UrdfGravityModel {
         &self.joint_names
     }
 
-    fn gravity_torques(&self, q: &[f64]) -> Result<Vec<f64>, DynamicsError> {
+    fn gravity_torques(&self, q: &[f64]) -> Result<PureGravityTorque, DynamicsError> {
         if q.len() != self.joint_names.len() {
             return Err(DynamicsError::JointCount {
                 expected: self.joint_names.len(),
@@ -131,6 +148,50 @@ impl super::DynamicsModel for UrdfGravityModel {
             q_map[i].1 = q0;
             tau[i] = dpe_dq;
         }
-        Ok(tau)
+        Ok(PureGravityTorque(tau))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::expect_used)]
+
+    use std::path::Path;
+
+    use super::*;
+
+    fn shoulder_pitch_right_only_urdf() -> std::path::PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../assets/urdf/shoulder_pitch_right_only.urdf")
+    }
+
+    #[test]
+    fn link_chains_built_correctly() {
+        let model = UrdfGravityModel::from_urdf(
+            shoulder_pitch_right_only_urdf(),
+            &["right_shoulder_pitch".to_string()],
+        )
+        .expect("build model from shoulder_pitch_right_only.urdf");
+
+        // base_link is the root: no parent joint → empty chain.
+        let base_chain = model
+            .link_chains
+            .get("base_link")
+            .expect("base_link has a cached chain");
+        assert!(
+            base_chain.is_empty(),
+            "root link should have an empty joint chain, got {base_chain:?}",
+        );
+
+        // right_upper_arm_stub is the child of right_shoulder_pitch (joint index 0).
+        let arm_chain = model
+            .link_chains
+            .get("right_upper_arm_stub")
+            .expect("right_upper_arm_stub has a cached chain");
+        assert_eq!(
+            arm_chain,
+            &vec![0usize],
+            "right_upper_arm_stub chain should be [0] (right_shoulder_pitch), got {arm_chain:?}",
+        );
     }
 }

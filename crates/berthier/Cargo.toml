@@ -20,3 +20,9 @@ marengo-config.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 
+[dev-dependencies]
+proptest = { workspace = true }
+davout = { workspace = true }
+robstride = { workspace = true }
+armee-dynamics = { workspace = true }
+

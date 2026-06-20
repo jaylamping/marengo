@@ -19,10 +19,11 @@
     </visual>
   </link>
   <link name="right_upper_arm_stub">
+    <!-- COM calibrated 2026-06-19 from 700g bench Phase 4: effective COM ~14.2in vs original 18in.
+         tau_meas/tau_g ratio was 0.73 (27% over-compensation). Mass (0.7 kg) unchanged. -->
     <inertial>
-      <!-- 2026-06-19: 0.70 kg total (18 in arm, mass concentrated at tip); COM = 18 in (0.4572 m) from joint. Mirror of shoulder_pitch_weighted.urdf right link. -->
       <mass value="0.7"/>
-      <origin xyz="0 0 -0.4572" rpy="0 0 0"/>
+      <origin xyz="0 0 -0.36" rpy="0 0 0"/>
       <inertia ixx="0.001" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.0001"/>
     </inertial>
     <visual>

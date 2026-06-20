@@ -20,6 +20,7 @@ name = "marengo-pi"
 path = "src/main.rs"
 
 [dependencies]
+armee-dynamics.workspace = true
 armee-proto.workspace = true
 berthier = { path = "../../crates/berthier" }
 chappe = { path = "../../crates/chappe" }

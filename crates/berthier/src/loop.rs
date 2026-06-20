@@ -58,6 +58,21 @@ pub enum LoopError {
     MissingFeedback { joint: String },
 }
 
+/// Per-joint kp/kd transition ramp for smooth mode switching.
+///
+/// When armed, kp/kd are interpolated from `from` to `to` values over `total_ticks`.
+/// Only applies to transitions between non-Disabled modes. tau_ff is NOT ramped
+/// here — Davout's `rate_limit_tau_ff` owns that.
+#[derive(Debug, Clone)]
+struct GainRamp {
+    /// Per-joint: (from_kp, from_kd, to_kp, to_kd)
+    joints: Vec<(f64, f64, f64, f64)>,
+    /// Ticks remaining in the ramp.
+    ticks_remaining: u32,
+    /// Total ticks in the ramp (for interpolation).
+    total_ticks: u32,
+}
+
 /// Realtime control loop facade.
 pub struct ControlLoop<B: MotorBus> {
     supervisor: Supervisor<B>,
@@ -95,6 +110,8 @@ pub struct ControlLoop<B: MotorBus> {
     last_operational_mode: OperationalMode,
     /// Ticks allowed without joint feedback immediately after enable (post-homing tick_count > 0).
     active_feedback_grace_ticks: u8,
+    /// Active kp/kd transition ramp (None when no ramp in progress).
+    gain_ramp: Option<GainRamp>,
 }
 
 /// Per-tick CPU time inside [`ControlLoop::tick`] (microseconds, averaged over a window).
@@ -208,6 +225,7 @@ impl<B: MotorBus> ControlLoop<B> {
             tick_phase: TickPhaseAccumulator::default(),
             last_operational_mode: OperationalMode::Disabled,
             active_feedback_grace_ticks: 0,
+            gain_ramp: None,
         })
     }
 
@@ -533,6 +551,61 @@ impl<B: MotorBus> ControlLoop<B> {
         if previous != mode {
             info!(?previous, ?mode, "control mode transition");
         }
+        // Arm a kp/kd ramp for non-Disabled transitions (~100ms at 200Hz).
+        // Disabled is excluded in both directions: instant disable for safety,
+        // enable path bootstraps separately.
+        if mode != ControlMode::Disabled && previous != ControlMode::Disabled {
+            let n = self.joint_names.len();
+            let from = self.current_effective_gains();
+            let to = self.target_gains_for_mode(mode);
+            self.gain_ramp = Some(GainRamp {
+                joints: (0..n).map(|i| (from[i].0, from[i].1, to[i].0, to[i].1)).collect(),
+                ticks_remaining: 20,
+                total_ticks: 20,
+            });
+            // Seed the tau_ff rate limiter with current measured torque so the rate
+            // limiter slews from the correct starting point (NOT cleared — clearing
+            // causes unclamped torque step via unwrap_or(target)).
+            self.supervisor.seed_tau_ff_rate_limiter();
+        }
+    }
+
+    /// Effective per-joint (kp, kd) right now: interpolated ramp value if a ramp
+    /// is in progress, otherwise the target gains for the current mode.
+    fn current_effective_gains(&self) -> Vec<(f64, f64)> {
+        if let Some(ref ramp) = self.gain_ramp {
+            let progress = 1.0 - (ramp.ticks_remaining as f64 / ramp.total_ticks as f64);
+            ramp.joints
+                .iter()
+                .map(|(from_kp, from_kd, to_kp, to_kd)| {
+                    let kp = from_kp + (to_kp - from_kp) * progress;
+                    let kd = from_kd + (to_kd - from_kd) * progress;
+                    (kp, kd)
+                })
+                .collect()
+        } else {
+            self.target_gains_for_mode(self.control_mode)
+        }
+    }
+
+    /// Target (kp, kd) per joint for a mode. GravityComp/TorqueOnly/Disabled → (0, 0);
+    /// Impedance/Position → config impedance gains.
+    fn target_gains_for_mode(&self, mode: ControlMode) -> Vec<(f64, f64)> {
+        match mode {
+            ControlMode::GravityComp | ControlMode::TorqueOnly | ControlMode::Disabled => {
+                vec![(0.0, 0.0); self.joint_names.len()]
+            }
+            ControlMode::Impedance | ControlMode::Position => self
+                .joint_names
+                .iter()
+                .map(|name| {
+                    let cfg = self.supervisor.control.control.joints.get(name);
+                    let kp = cfg.map(|c| c.impedance.kp).unwrap_or(0.0);
+                    let kd = cfg.map(|c| c.impedance.kd).unwrap_or(0.0);
+                    (kp, kd)
+                })
+                .collect(),
+        }
     }
 
     pub fn control_mode(&self) -> ControlMode {
@@ -621,7 +694,7 @@ impl<B: MotorBus> ControlLoop<B> {
                 let mut trace_us_this_tick = 0u64;
                 for i in 0..self.joint_names.len() {
                     let name = self.joint_names[i].clone();
-                    let (kp, kd, tau_ff, q_des, mit_velocity) = match self.control_mode {
+                    let (base_kp, base_kd, tau_ff, q_des, mit_velocity) = match self.control_mode {
                         ControlMode::GravityComp | ControlMode::TorqueOnly => {
                             (0.0, 0.0, tau_g[i], q[i], 0.0)
                         }
@@ -907,6 +980,16 @@ impl<B: MotorBus> ControlLoop<B> {
                         }
                         ControlMode::Disabled => continue,
                     };
+                    let (kp, kd) = if let Some(ref ramp) = self.gain_ramp {
+                        let progress =
+                            1.0 - (ramp.ticks_remaining as f64 / ramp.total_ticks as f64);
+                        let (from_kp, from_kd, to_kp, to_kd) = ramp.joints[i];
+                        let kp = from_kp + (to_kp - from_kp) * progress;
+                        let kd = from_kd + (to_kd - from_kd) * progress;
+                        (kp, kd)
+                    } else {
+                        (base_kp, base_kd)
+                    };
                     batch.push(DavoutMit {
                         joint: name.clone(),
                         kp,
@@ -925,6 +1008,12 @@ impl<B: MotorBus> ControlLoop<B> {
                 self.supervisor.send_mit_batch(batch)?;
                 (phase.send_us, t) = phase_elapsed_us(t);
                 let _ = self.supervisor.drain_feedback();
+                if let Some(ref mut ramp) = self.gain_ramp {
+                    ramp.ticks_remaining = ramp.ticks_remaining.saturating_sub(1);
+                    if ramp.ticks_remaining == 0 {
+                        self.gain_ramp = None;
+                    }
+                }
             } else {
                 // Robstride only streams status after MIT frames; hold current q with zero
                 // gains/torque so comm watchdog stays fresh between enable and gravity-on.
@@ -1244,7 +1333,12 @@ impl<B: MotorBus> ControlLoop<B> {
 
     /// Preview gravity torques without sending (for motor-repl status).
     pub fn preview_gravity_torques(&self, q: &[f64]) -> Result<Vec<f64>, LoopError> {
-        Ok(self.dynamics.gravity_torques(q)?)
+        Ok(self.dynamics.gravity_torques(q)?.into_inner())
+    }
+
+    /// Read-only access to the dynamics model (for pre-flight saturation checks).
+    pub fn dynamics_model(&self) -> &dyn DynamicsModel {
+        &self.dynamics
     }
 
     /// Test-only: planner `(q_traj, dq_traj)` for replay assertions.

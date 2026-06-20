@@ -224,6 +224,61 @@ pub struct ControlSection {
     pub actuator_groups: HashMap<String, ActuatorGroupEntry>,
     pub joints: HashMap<String, JointControlEntry>,
     pub danger_zones: Vec<DangerZoneRule>,
+    /// GravityComp wrong-sign watchdog (ADR 0015). Trips when sign(torque_ff)
+    /// opposes the expected sign sustained over `min_opposition_ticks`.
+    #[serde(default)]
+    pub wrong_sign_watchdog: WrongSignWatchdogConfig,
+}
+
+/// Config-driven sign table for the GravityComp wrong-sign watchdog (ADR 0015).
+///
+/// Davout does not recompute `tau_g` (crate boundary). Instead, the expected sign
+/// of `torque_ff` is config-driven: `expected_sign_at_positive_q` tells the
+/// watchdog what sign the motor torque should have when `q > 0`.
+#[derive(Debug, Clone, Deserialize)]
+pub struct WrongSignWatchdogConfig {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    /// Expected sign of `torque_ff` when `q > 0` (depends on URDF joint axis + motor direction).
+    #[serde(default = "default_expected_sign")]
+    pub expected_sign_at_positive_q: i8,
+    /// Minimum `|dq|` (rad/s) to consider sign (below this, sign is undefined).
+    #[serde(default = "default_min_velocity")]
+    pub min_velocity_rad_s: f64,
+    /// Consecutive opposition ticks required to trip.
+    #[serde(default = "default_min_opposition_ticks")]
+    pub min_opposition_ticks: u32,
+    /// Grace period ticks after enable (no trip during this window).
+    #[serde(default = "default_grace_period_ticks")]
+    pub grace_period_ticks: u32,
+}
+
+impl Default for WrongSignWatchdogConfig {
+    fn default() -> Self {
+        Self {
+            enabled: default_true(),
+            expected_sign_at_positive_q: default_expected_sign(),
+            min_velocity_rad_s: default_min_velocity(),
+            min_opposition_ticks: default_min_opposition_ticks(),
+            grace_period_ticks: default_grace_period_ticks(),
+        }
+    }
+}
+
+fn default_expected_sign() -> i8 {
+    -1
+}
+
+fn default_min_velocity() -> f64 {
+    0.05
+}
+
+fn default_min_opposition_ticks() -> u32 {
+    10
+}
+
+fn default_grace_period_ticks() -> u32 {
+    20
 }
 
 /// Shared tuning for a named actuator grouping (e.g. shoulder pitch L/R, hips).
@@ -1017,6 +1072,7 @@ mod tests {
             actuator_groups,
             joints,
             danger_zones: vec![],
+            wrong_sign_watchdog: WrongSignWatchdogConfig::default(),
         }
     }
 
