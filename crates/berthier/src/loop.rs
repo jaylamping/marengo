@@ -145,7 +145,7 @@ impl TickPhaseAccumulator {
         self.chappe_us = self.chappe_us.saturating_add(sample.chappe_us);
     }
 
-    fn into_averages(mut self) -> Option<TickPhaseAverages> {
+    fn into_averages(self) -> Option<TickPhaseAverages> {
         if self.ticks == 0 {
             return None;
         }
@@ -957,7 +957,7 @@ impl<B: MotorBus> ControlLoop<B> {
             {
                 self.publish_robot_state(bus, &q)?;
                 self.last_chappe = Some(now);
-                (phase.chappe_us, t) = phase_elapsed_us(t);
+                phase.chappe_us = phase_elapsed_us(t).0;
             }
         }
 
@@ -1063,16 +1063,15 @@ impl<B: MotorBus> ControlLoop<B> {
                         ),
                     );
                 }
-            } else if planner_premature_hold(&planners[i], q[i], targets[i]) {
-                event = PlannerEvent::Reset;
-                reopen_planner_from_premature_hold(&mut planners[i], q[i], targets[i], v_max);
-            } else if planner_overshoot_hold_while_moving(
-                &planners[i],
-                q[i],
-                targets[i],
-                dq_filtered[i],
-                vel_deadband,
-            ) {
+            } else if planner_premature_hold(&planners[i], q[i], targets[i])
+                || planner_overshoot_hold_while_moving(
+                    &planners[i],
+                    q[i],
+                    targets[i],
+                    dq_filtered[i],
+                    vel_deadband,
+                )
+            {
                 event = PlannerEvent::Reset;
                 reopen_planner_from_premature_hold(&mut planners[i], q[i], targets[i], v_max);
             } else if planner_drifted_from_measurement(&planners[i], q[i], targets[i], max_lead) {

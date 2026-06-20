@@ -50,6 +50,7 @@ fn trajectory_overspeed_fade(overspeed: f64, velocity_deadband: f64) -> f64 {
 }
 
 /// Two-rule position-hold friction (ADR 0007): trajectory velocity or settle fade.
+#[allow(clippy::too_many_arguments)]
 pub fn position_hold_friction(
     dq: f64,
     dq_traj: f64,
@@ -122,16 +123,15 @@ fn trajectory_velocity_friction(
     let opposing_motion = dq.abs() > velocity_deadband * 0.5
         && dq.signum() != dq_traj.signum()
         && dq_traj.abs() > POSITION_HOLD_ERROR_DEADBAND_RAD;
-    let mut scale = if !stuck {
-        1.0
-    } else if in_onset && opposing_motion {
+    let mut scale = if !stuck
+        || (in_onset && opposing_motion)
+        || (in_onset && !gravity_descent)
+    {
         1.0
     } else if in_onset && gravity_descent {
         let vel_scale = (dq_traj.abs() / velocity_deadband).clamp(0.0, 1.0);
         let time_ramp = (retarget_age_ms as f64 / POSITION_HOLD_ONSET_MS as f64).clamp(0.25, 1.0);
         vel_scale * time_ramp
-    } else if in_onset {
-        1.0
     } else {
         (dq_traj.abs() / velocity_deadband).clamp(0.0, 1.0)
     };
