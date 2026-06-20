@@ -14,6 +14,7 @@ use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use armee_dynamics::max_gravity_torque_over_range;
 use armee_proto::prost::Message;
 use armee_proto::{
     EnableRequest, Fault, FaultSeverity, Heartbeat, HomingComplete, OperationalMode as ProtoOpMode,
@@ -52,6 +53,7 @@ enum PiCommand {
     Home,
     Enable {
         operator_id: String,
+        force: bool,
     },
     Disable,
     GravityOn,
@@ -73,8 +75,19 @@ fn parse_command(line: &str) -> Option<PiCommand> {
     match parts.next()? {
         "home" => Some(PiCommand::Home),
         "enable" => {
-            let operator_id = parts.next().unwrap_or("bench").to_string();
-            Some(PiCommand::Enable { operator_id })
+            let mut force = false;
+            let mut operator_id = "bench".to_string();
+            for tok in parts {
+                if tok == "force" || tok == "--force" {
+                    force = true;
+                } else if operator_id == "bench" {
+                    operator_id = tok.to_string();
+                }
+            }
+            Some(PiCommand::Enable {
+                operator_id,
+                force,
+            })
         }
         "disable" => Some(PiCommand::Disable),
         "gravity-on" | "gravity_on" => Some(PiCommand::GravityOn),
@@ -123,7 +136,7 @@ fn print_usage() {
     eprintln!(
         "marengo-pi commands (stdin):\n  \
          home\n  \
-         enable [operator_id]\n  \
+         enable [operator_id] [force]\n  \
          disable\n  \
          gravity-on | gravity-off\n  \
          impedance-on | impedance-off\n  \
@@ -284,6 +297,55 @@ fn print_status(loop_ctrl: &mut ControlLoop<RuntimeBus>, config_dir: &Path) {
     }
 }
 
+fn preflight_gravity_saturation(loop_ctrl: &mut ControlLoop<RuntimeBus>) -> Result<(), ()> {
+    // Collect per-joint range + torque limit from the supervisor first, so the
+    // &mut supervisor borrow ends before we borrow loop_ctrl for the dynamics model.
+    let joint_names: Vec<String> = loop_ctrl.joint_names().to_vec();
+    let joint_specs: Vec<(String, usize, f64, f64, f64)> = {
+        let supervisor = loop_ctrl.supervisor_mut();
+        let motors = &supervisor.motors.motors;
+        joint_names
+            .iter()
+            .enumerate()
+            .filter_map(|(i, joint)| {
+                let motor = motors.iter().find(|m| &m.joint == joint)?;
+                let policy = supervisor.joint_limit_policy(joint)?;
+                Some((
+                    joint.clone(),
+                    i,
+                    motor.bench.position_lower_rad,
+                    motor.bench.position_upper_rad,
+                    policy.tau_ff_max,
+                ))
+            })
+            .collect()
+    };
+    let model = loop_ctrl.dynamics_model();
+    let mut saturated = false;
+    for (joint, i, q_min, q_max, motor_tau_limit) in &joint_specs {
+        let tau_max = max_gravity_torque_over_range(model, *i, *q_min, *q_max, 20).unwrap_or(0.0);
+        if tau_max > *motor_tau_limit {
+            error!(
+                joint = %joint,
+                tau_max, motor_tau_limit = *motor_tau_limit,
+                "gravity saturation: tau_g exceeds motor torque limit"
+            );
+            saturated = true;
+        } else if tau_max > 0.8 * *motor_tau_limit {
+            warn!(
+                joint = %joint,
+                tau_max, motor_tau_limit = *motor_tau_limit,
+                "gravity torque >80% of motor limit"
+            );
+        }
+    }
+    if saturated {
+        Err(())
+    } else {
+        Ok(())
+    }
+}
+
 fn handle_command(
     loop_ctrl: &mut ControlLoop<RuntimeBus>,
     cmd: PiCommand,
@@ -294,10 +356,19 @@ fn handle_command(
             Ok(()) => println!("homing verified → Ready"),
             Err(e) => eprintln!("home failed: {e}"),
         },
-        PiCommand::Enable { operator_id } => {
+        PiCommand::Enable {
+            operator_id,
+            force,
+        } => {
             if loop_ctrl.supervisor_mut().mode() != davout::OperationalMode::Ready {
                 if let Err(e) = loop_ctrl.supervisor_mut().set_homing_complete() {
                     eprintln!("enable blocked: {e}");
+                    return true;
+                }
+            }
+            if !force {
+                if let Err(()) = preflight_gravity_saturation(loop_ctrl) {
+                    eprintln!("enable refused: gravity saturation exceeds motor limit (use 'enable <operator> force' to override)");
                     return true;
                 }
             }

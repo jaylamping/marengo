@@ -42,10 +42,16 @@ fn trajectory_overspeed_rad_s(dq: f64, dq_traj: f64) -> f64 {
 
 fn trajectory_overspeed_fade(overspeed: f64, velocity_deadband: f64) -> f64 {
     let deadband = velocity_deadband.max(POSITION_HOLD_ERROR_DEADBAND_RAD);
+    // Extended fade zone (2× deadband) — halves the rate of change and
+    // eliminates the one-tick ~0.72 Nm cliff at the Accelerate→Cruise
+    // planner boundary (Phase 2 Layer 2 smoothness fix).
+    let fade_zone = 2.0 * deadband;
     if overspeed <= deadband {
         1.0
+    } else if overspeed <= deadband + fade_zone {
+        1.0 - (overspeed - deadband) / fade_zone
     } else {
-        (1.0 - (overspeed - deadband) / deadband).clamp(0.0, 1.0)
+        0.0
     }
 }
 
@@ -296,6 +302,8 @@ mod tests {
     fn trajectory_friction_fades_overspeed_across_deadband_span() {
         let gains = test_gains();
         let velocity_deadband = 0.02;
+        // Extended fade zone = 2× deadband = 0.04 rad/s, so the fade spans
+        // overspeed ∈ [0.02, 0.06] (dq ∈ [0.12, 0.16] for dq_traj=0.10).
         let (_, full) = position_hold_friction(
             0.12,
             0.10,
@@ -306,7 +314,7 @@ mod tests {
             TrapezoidPhase::Cruise,
             &gains,
         );
-        let (_, half) = position_hold_friction(
+        let (_, q3) = position_hold_friction(
             0.13,
             0.10,
             0.50,
@@ -316,8 +324,28 @@ mod tests {
             TrapezoidPhase::Cruise,
             &gains,
         );
-        let (_, zero) = position_hold_friction(
+        let (_, half) = position_hold_friction(
             0.14,
+            0.10,
+            0.50,
+            velocity_deadband,
+            0.10,
+            500,
+            TrapezoidPhase::Cruise,
+            &gains,
+        );
+        let (_, q5) = position_hold_friction(
+            0.15,
+            0.10,
+            0.50,
+            velocity_deadband,
+            0.10,
+            500,
+            TrapezoidPhase::Cruise,
+            &gains,
+        );
+        let (_, zero) = position_hold_friction(
+            0.16,
             0.10,
             0.50,
             velocity_deadband,
@@ -328,7 +356,9 @@ mod tests {
         );
 
         assert!((full - 0.25).abs() < 1e-6);
+        assert!((q3 - 0.1875).abs() < 1e-6);
         assert!((half - 0.125).abs() < 1e-6);
+        assert!((q5 - 0.0625).abs() < 1e-6);
         assert!(zero.abs() < 1e-6);
     }
 
@@ -353,6 +383,42 @@ mod tests {
             assert!(tau <= previous + 1e-9, "tau={tau} previous={previous}");
             previous = tau;
         }
+    }
+
+    #[test]
+    fn friction_continuous_at_accelerate_to_cruise() {
+        // Phase 2 Layer 2 smoothness gate: tau_f must be continuous (no
+        // step discontinuity) across the Accelerate→Cruise planner boundary,
+        // where dq_traj drops and measured dq can momentarily exceed dq_traj.
+        let gains = test_gains();
+        let velocity_deadband = 0.02;
+        let dq_traj = 0.10;
+        let mut max_step = 0.0f64;
+        let mut prev_tau = f64::INFINITY;
+
+        for i in 0..=100 {
+            let dq = 0.05 + (i as f64) * 0.001;
+            let (_, tau) = position_hold_friction(
+                dq,
+                dq_traj,
+                0.50,
+                velocity_deadband,
+                0.10,
+                500,
+                TrapezoidPhase::Cruise,
+                &gains,
+            );
+            if prev_tau.is_finite() {
+                let step = (tau - prev_tau).abs();
+                max_step = max_step.max(step);
+            }
+            prev_tau = tau;
+        }
+
+        assert!(
+            max_step < 0.05,
+            "max single-step tau_f delta = {max_step} Nm (should be < 0.05)"
+        );
     }
 
     #[test]

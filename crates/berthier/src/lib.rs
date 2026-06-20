@@ -43,6 +43,9 @@ mod position_setpoint;
 mod position_trace;
 mod position_trajectory;
 
+#[cfg(test)]
+mod mode_isolation;
+
 pub use davout::ControlMode;
 pub use r#loop::{proto_control_mode, ControlLoop, LoopError, TickPhaseAverages};
 
