@@ -159,7 +159,6 @@ const FEEDBACK_VELOCITY_FAULT_MARGIN_RAD_S: f64 = 0.20;
 #[derive(Debug, Clone, Copy)]
 struct FeedbackSample {
     position_rad: f64,
-    velocity_rad_s: f64,
     received_at: Instant,
 }
 
@@ -610,7 +609,6 @@ impl<B: MotorBus> Supervisor<B> {
                 motor.joint.clone(),
                 FeedbackSample {
                     position_rad: position,
-                    velocity_rad_s: measured_velocity,
                     received_at,
                 },
             );
@@ -638,7 +636,6 @@ impl<B: MotorBus> Supervisor<B> {
                 motor.joint.clone(),
                 FeedbackSample {
                     position_rad: position,
-                    velocity_rad_s: measured_velocity,
                     received_at,
                 },
             );
@@ -658,7 +655,6 @@ impl<B: MotorBus> Supervisor<B> {
             motor.joint.clone(),
             FeedbackSample {
                 position_rad: position,
-                velocity_rad_s: measured_velocity,
                 received_at,
             },
         );
