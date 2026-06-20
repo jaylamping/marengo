@@ -106,7 +106,11 @@ pub fn position_hold_mit_kd(
     } else {
         q < target - POSITION_RETURN_RESYNC_RAD && dq_filtered < -velocity_deadband
     };
-    if past_target { kd } else { 0.0 }
+    if past_target {
+        kd
+    } else {
+        0.0
+    }
 }
 
 /// MIT pull while ascending toward target and stuck with planner slightly ahead.
@@ -157,11 +161,10 @@ pub fn home_final_approach_stuck_pull_rad(q: f64, target: f64) -> f64 {
     if !home_final_approach_stuck(q, target) {
         return POSITION_DESCENT_STUCK_LEAD_RAD;
     }
-    (q - target + POSITION_HOME_FINAL_PULL_THROUGH_RAD)
-        .clamp(
-            POSITION_DESCENT_STUCK_LEAD_RAD,
-            POSITION_HOLD_ONSET_MAX_LEAD_RAD,
-        )
+    (q - target + POSITION_HOME_FINAL_PULL_THROUGH_RAD).clamp(
+        POSITION_DESCENT_STUCK_LEAD_RAD,
+        POSITION_HOLD_ONSET_MAX_LEAD_RAD,
+    )
 }
 
 pub fn descent_breakaway_confirmed(
@@ -246,8 +249,7 @@ pub fn planner_should_freeze_on_descent(
     let settle_band = return_settle_band(target);
     if was_frozen
         && (lag.abs() < POSITION_RETURN_RESYNC_RAD
-            || (home_final_approach_stuck(q, target)
-                && dq_filtered.abs() < velocity_deadband))
+            || (home_final_approach_stuck(q, target) && dq_filtered.abs() < velocity_deadband))
     {
         return false;
     }
