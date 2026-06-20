@@ -1,14 +1,21 @@
 //! Import systemd journal lines into `log_events` (Pi maintenance).
 
+#[cfg(target_os = "linux")]
 use std::process::Command;
 
+#[cfg(target_os = "linux")]
 use serde::Deserialize;
 
+#[cfg(target_os = "linux")]
 use crate::model::LogEventInsert;
 use crate::store::Store;
-use crate::{now_ms, Result, StoreError};
+use crate::Result;
+#[cfg(target_os = "linux")]
+use crate::{now_ms, StoreError};
 
+#[cfg(target_os = "linux")]
 const JOURNAL_CURSOR_KEY: &str = "journal_import_ts_ms";
+#[cfg(target_os = "linux")]
 const DEFAULT_LOOKBACK_MS: u64 = 24 * 60 * 60 * 1000;
 
 /// Units imported into structured logs (`target` prefix `systemd:`).
@@ -27,6 +34,7 @@ pub fn import_journal(store: &Store, units: &[&str]) -> Result<u32> {
     }
 }
 
+#[cfg(target_os = "linux")]
 #[derive(Debug, Deserialize)]
 struct JournalEntry {
     #[serde(rename = "__REALTIME_TIMESTAMP")]
@@ -120,6 +128,7 @@ fn import_journal_linux(store: &Store, units: &[&str]) -> Result<u32> {
     Ok(count)
 }
 
+#[cfg(target_os = "linux")]
 fn journal_priority_level(priority: Option<&str>) -> String {
     match priority.and_then(|p| p.parse::<u8>().ok()) {
         Some(0..=3) => "error".into(),
@@ -131,6 +140,7 @@ fn journal_priority_level(priority: Option<&str>) -> String {
 }
 
 #[cfg(test)]
+#[cfg(target_os = "linux")]
 mod tests {
     use super::journal_priority_level;
 
