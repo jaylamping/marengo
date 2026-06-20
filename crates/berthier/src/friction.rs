@@ -123,10 +123,7 @@ fn trajectory_velocity_friction(
     let opposing_motion = dq.abs() > velocity_deadband * 0.5
         && dq.signum() != dq_traj.signum()
         && dq_traj.abs() > POSITION_HOLD_ERROR_DEADBAND_RAD;
-    let mut scale = if !stuck
-        || (in_onset && opposing_motion)
-        || (in_onset && !gravity_descent)
-    {
+    let mut scale = if !stuck || (in_onset && opposing_motion) || (in_onset && !gravity_descent) {
         1.0
     } else if in_onset && gravity_descent {
         let vel_scale = (dq_traj.abs() / velocity_deadband).clamp(0.0, 1.0);
