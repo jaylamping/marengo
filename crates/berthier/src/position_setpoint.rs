@@ -24,6 +24,8 @@ pub fn return_settle_band(target: f64) -> f64 {
 pub(crate) const POSITION_RETURN_FREEZE_Q_MAX_RAD: f64 = 0.12;
 /// MIT pull-down lead while stuck on descent (until breakaway latch clears).
 pub(crate) const POSITION_DESCENT_STUCK_LEAD_RAD: f64 = 0.03;
+/// Command past home while stuck in the final band — extra P torque to break static friction.
+pub(crate) const POSITION_HOME_FINAL_PULL_THROUGH_RAD: f64 = 0.02;
 /// Outbound-only lead cap during post-retarget onset (weighted breakaway).
 pub(crate) const POSITION_HOLD_ONSET_MAX_LEAD_RAD: f64 = 0.15;
 
@@ -133,10 +135,33 @@ pub fn descent_stuck_mit_pull(
     breakaway_confirmed: bool,
 ) -> bool {
     !breakaway_confirmed
-        && is_gravity_assisted_return(q, target)
         && to_target < -POSITION_HOLD_ERROR_DEADBAND_RAD
-        && (q - target) > POSITION_RETURN_DESCENT_SEED_RAD
         && dq_filtered.abs() < velocity_deadband
+        && (high_angle_descent_stuck(q, target) || home_final_approach_stuck(q, target))
+}
+
+/// Weighted return above `POSITION_RETURN_DESCENT_SEED_RAD` — gravity-assisted same-side descent.
+fn high_angle_descent_stuck(q: f64, target: f64) -> bool {
+    is_gravity_assisted_return(q, target) && (q - target) > POSITION_RETURN_DESCENT_SEED_RAD
+}
+
+/// Last ~5–50 mrad above home — `is_gravity_assisted_return` is false at `target == 0`.
+pub fn home_final_approach_stuck(q: f64, target: f64) -> bool {
+    target.abs() <= POSITION_SETTLE_TOLERANCE_RAD
+        && q > POSITION_HOME_SETTLE_RAD
+        && q <= POSITION_RETURN_DESCENT_SEED_RAD
+}
+
+/// MIT pull-down lead while stuck in [`home_final_approach_stuck`] (includes pull-through past target).
+pub fn home_final_approach_stuck_pull_rad(q: f64, target: f64) -> f64 {
+    if !home_final_approach_stuck(q, target) {
+        return POSITION_DESCENT_STUCK_LEAD_RAD;
+    }
+    (q - target + POSITION_HOME_FINAL_PULL_THROUGH_RAD)
+        .clamp(
+            POSITION_DESCENT_STUCK_LEAD_RAD,
+            POSITION_HOLD_ONSET_MAX_LEAD_RAD,
+        )
 }
 
 pub fn descent_breakaway_confirmed(
@@ -208,6 +233,9 @@ pub fn planner_should_freeze_on_descent(
     if target.abs() > POSITION_SETTLE_TOLERANCE_RAD {
         return false;
     }
+    if home_final_approach_stuck(q, target) {
+        return false;
+    }
     if q > POSITION_RETURN_FREEZE_Q_MAX_RAD {
         return false;
     }
@@ -215,7 +243,15 @@ pub fn planner_should_freeze_on_descent(
     if (q - target).abs() > POSITION_RETURN_DESCENT_SEED_RAD {
         return false;
     }
-    if was_frozen && lag.abs() < POSITION_RETURN_RESYNC_RAD {
+    let settle_band = return_settle_band(target);
+    if was_frozen
+        && (lag.abs() < POSITION_RETURN_RESYNC_RAD
+            || (home_final_approach_stuck(q, target)
+                && dq_filtered.abs() < velocity_deadband))
+    {
+        return false;
+    }
+    if (q - target).abs() <= settle_band {
         return false;
     }
     let lagging = to_target < -POSITION_HOLD_ERROR_DEADBAND_RAD

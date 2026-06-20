@@ -30,7 +30,8 @@ use crate::position_setpoint::{
     planner_should_freeze_on_descent,
     planner_should_latch_on_overshoot_hold, planner_should_resync_stuck_lead,
     downward_return_seed_velocity, position_hold_mit_kd, reopen_planner_from_premature_hold,
-    position_hold_effective_max_lead, position_hold_mit_velocity, POSITION_DESCENT_STUCK_LEAD_RAD,
+    home_final_approach_stuck_pull_rad, position_hold_effective_max_lead,
+    position_hold_mit_velocity, POSITION_DESCENT_STUCK_LEAD_RAD,
     POSITION_RETURN_DESCENT_SEED_RAD, POSITION_SETTLE_TOLERANCE_RAD,
 };
 use crate::position_trace::{PositionTrace, PositionTraceRow};
@@ -744,7 +745,9 @@ impl<B: MotorBus> ControlLoop<B> {
                                 );
                             }
                             if joint_stuck {
-                                q_des = q_des.min(q[i] - POSITION_DESCENT_STUCK_LEAD_RAD);
+                                let stuck_pull =
+                                    home_final_approach_stuck_pull_rad(q[i], target);
+                                q_des = q_des.min(q[i] - stuck_pull);
                             }
                             if let Some(policy) = limit_policy {
                                 q_des = clamp_position_in_envelope(policy, q[i], dq_traj, q_des);
@@ -1635,8 +1638,8 @@ mod tests {
     #[test]
     fn planner_drifted_when_hold_latched_but_arm_not_settled() {
         let planner = JointPositionPlanner::new_at(0.0);
-        assert!(!planner_premature_hold(&planner, 0.087, 0.0));
-        assert!(planner_drifted_from_measurement(&planner, 0.087, 0.0, 0.10));
+        assert!(planner_premature_hold(&planner, 0.087, 0.0));
+        assert!(!planner_drifted_from_measurement(&planner, 0.087, 0.0, 0.10));
     }
 
     #[test]
@@ -1763,17 +1766,41 @@ mod tests {
     }
 
     #[test]
-    fn planner_freeze_hysteresis_ignores_dq_noise_while_frozen() {
-        let deadband = 0.02;
-        assert!(planner_should_freeze_on_descent(
-            false, 0.0, 0.04, -0.04, 0.04, -0.10, 0.0, deadband, 0.10
-        ));
-        assert!(planner_should_freeze_on_descent(
-            true, 0.0, 0.04, -0.04, 0.04, -0.10, -0.024, deadband, 0.10
+    fn home_final_approach_stuck_enables_mit_pull_and_unfreezes_planner() {
+        use crate::position_setpoint::{
+            home_final_approach_stuck, home_final_approach_stuck_pull_rad,
+            POSITION_HOME_FINAL_PULL_THROUGH_RAD,
+        };
+        assert!(home_final_approach_stuck(0.031, 0.0));
+        assert!(!home_final_approach_stuck(0.003, 0.0));
+        assert!(!home_final_approach_stuck(0.06, 0.0));
+        assert!(descent_stuck_mit_pull(-0.031, 0.031, 0.0, 0.0, 0.02, false));
+        assert!(
+            (home_final_approach_stuck_pull_rad(0.031, 0.0)
+                - (0.031 + POSITION_HOME_FINAL_PULL_THROUGH_RAD))
+                .abs()
+                < 1e-9
+        );
+        assert!(!planner_should_freeze_on_descent(
+            false, 0.0, 0.031, -0.031, 0.031, -0.15, 0.0, 0.02, 0.10,
         ));
         assert!(!planner_should_freeze_on_descent(
-            true, 0.0, 0.04, -0.04, 0.04, -0.10, -0.026, deadband, 0.10
+            true, 0.0, 0.031, -0.031, 0.031, -0.15, 0.0, 0.02, 0.10,
         ));
+    }
+
+    #[test]
+    fn planner_freeze_skipped_in_home_final_approach_band() {
+        let deadband = 0.02;
+        // MIT pull-through replaces planner freeze in the 5–50 mrad home band.
+        for q in [0.01_f64, 0.04, 0.05] {
+            assert!(!planner_should_freeze_on_descent(
+                false, 0.0, q, -q, q, -0.10, 0.0, deadband, 0.10
+            ));
+            assert!(!planner_should_freeze_on_descent(
+                true, 0.0, q, -q, q, -0.10, -0.024, deadband, 0.10
+            ));
+        }
     }
 
     #[test]
@@ -1857,8 +1884,9 @@ mod tests {
 
     #[test]
     fn planner_drifted_detects_stale_init_before_large_hold_at() {
-        let stale = JointPositionPlanner::new_for_target(0.0, 0.0);
-        assert!(planner_drifted_from_measurement(&stale, 2.9, 0.0, 0.15));
+        let stale = JointPositionPlanner::new_at(0.0);
+        assert!(planner_premature_hold(&stale, 2.9, 0.0));
+        assert!(!planner_drifted_from_measurement(&stale, 2.9, 0.0, 0.15));
         let aligned = JointPositionPlanner::new_for_target(2.9, 0.0);
         assert!(!planner_drifted_from_measurement(&aligned, 2.9, 0.0, 0.15));
     }

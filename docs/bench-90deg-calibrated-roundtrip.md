@@ -10,6 +10,9 @@ mechanical home. Complements [position-hold-control-review.md](position-hold-con
 | `bench-20260620T002735Z` | 0 → 1.484 → 0 | **No motion** — arm at q ≈ −0.054 rad; homing verified but past home |
 | `bench-20260620T002912Z` | retry + gravity-on | Same — stuck at −0.054 rad |
 | `bench-20260620T003624Z` | set-zero then 0 → 1.484 → 0 | **Full trip** — valid overshoot/settle data |
+| `bench-20260620T010012Z` | 0 → 1.484 → 0 (no gravity-on) | **No outbound** — τ_ff insufficient at q ≈ 0 |
+| `bench-20260620T010123Z` | gravity-on, set-zero baseline | **Full trip** — peak 1.603, return q ≈ 0.031 |
+| `bench-20260620T010823Z` | gravity-on, set-zero baseline | **Accepted** — peak 1.605, return q ≈ 0.031, visual ~1° |
 
 ## Frame calibration
 
@@ -53,13 +56,19 @@ inside that band, so:
 
 Planner declares Hold while arm is still above home; settle torque holds ~2° offset.
 
-**Fix (implemented):** `POSITION_HOME_SETTLE_RAD` = **0.005 rad** when `target == 0`;
-`planner_premature_hold` symmetric on `|q − target| > band`. Bench verify pending.
+### Return (`bench-20260620T004856Z` → `T010823Z`)
+
+- Final encoder **q ≈ 0.031 rad (~1.8°)** repeats across accepted runs.
+- Operator acceptance (`T010823Z`): visual **~1°** at disable, smooth return, no sag.
+- Home-settle latch fix (`return_settle_band`) — `bench-20260620T004856Z`.
+- Home final-approach assist (`home_final_approach_stuck`, pull-through 20 mrad,
+  skip planner freeze in 5–50 mrad band) — `bench-20260620T010123Z` onward;
+  τ_p ≈ −0.40 Nm at q ≈ 0.031, freeze churn eliminated.
 
 ## Bench protocol (weighted)
 
 ```text
-home → enable → hold-at 0 → sleep 5 → hold-at 1.484 → sleep 12 → hold-at 0 → sleep 15 → disable → quit
+home → enable bench → gravity-on → hold-at 0 → sleep 5 → hold-at 1.484 → sleep 12 → hold-at 0 → sleep 15 → disable → quit
 ```
 
 - Mechanical 90° target: **`1.484 rad`**, not `1.570796`.
@@ -68,9 +77,10 @@ home → enable → hold-at 0 → sleep 5 → hold-at 1.484 → sleep 12 → hol
 
 ## Open items
 
-1. ~~Home return settle~~ — implemented (`return_settle_band`); re-run weighted 0 → 1.484 → 0 to verify `|q| < ~0.005`.
-2. Outbound coast — latch/decel at 1.484 (overshoot-hold / `kd_mit` branch work).
-3. Document `MECHANICAL_90_RAD = 1.484` in bench config or bringup constants.
+1. ~~Home return settle (latch)~~ — `return_settle_band`; verified `bench-20260620T004856Z`.
+2. ~~Home final approach~~ — pull-through + no freeze in 5–50 mrad band; operator accepted `T010823Z`.
+3. Outbound coast — latch/decel at 1.484 (peak +0.12 rad vs 1.484; overshoot-hold / `kd_mit`).
+4. Document `MECHANICAL_90_RAD = 1.484` in bench config or bringup constants.
 
 ## Related
 
