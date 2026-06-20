@@ -26,9 +26,10 @@ use crate::position_profile::{
 use crate::position_setpoint::{
     clamp_trajectory_setpoint, approach_stuck_mit_pull, descent_breakaway_confirmed,
     descent_stuck_mit_pull,
-    planner_drifted_from_measurement, planner_premature_hold, planner_should_freeze_on_descent,
+    planner_drifted_from_measurement, planner_overshoot_hold_while_moving, planner_premature_hold,
+    planner_should_freeze_on_descent,
     planner_should_latch_on_overshoot_hold, planner_should_resync_stuck_lead,
-    downward_return_seed_velocity, reopen_planner_from_premature_hold,
+    downward_return_seed_velocity, position_hold_mit_kd, reopen_planner_from_premature_hold,
     position_hold_effective_max_lead, position_hold_mit_velocity, POSITION_DESCENT_STUCK_LEAD_RAD,
     POSITION_RETURN_DESCENT_SEED_RAD, POSITION_SETTLE_TOLERANCE_RAD,
 };
@@ -90,6 +91,10 @@ pub struct ControlLoop<B: MotorBus> {
     position_planner_events: Option<Vec<PlannerEvent>>,
     /// Cumulative per-tick phase times for 1 Hz diagnostics (`take_tick_phase_averages`).
     tick_phase: TickPhaseAccumulator,
+    /// Previous supervisor mode (detect Active transition for feedback grace).
+    last_operational_mode: OperationalMode,
+    /// Ticks allowed without joint feedback immediately after enable (post-homing tick_count > 0).
+    active_feedback_grace_ticks: u8,
 }
 
 /// Per-tick CPU time inside [`ControlLoop::tick`] (microseconds, averaged over a window).
@@ -201,6 +206,8 @@ impl<B: MotorBus> ControlLoop<B> {
             position_descent_was_stuck: None,
             position_planner_events: None,
             tick_phase: TickPhaseAccumulator::default(),
+            last_operational_mode: OperationalMode::Disabled,
+            active_feedback_grace_ticks: 0,
         })
     }
 
@@ -564,16 +571,25 @@ impl<B: MotorBus> ControlLoop<B> {
 
         let q = self.read_positions();
 
-        let needs_joint_feedback = self.supervisor.mode() == OperationalMode::Active
+        let operational_mode = self.supervisor.mode();
+        if operational_mode == OperationalMode::Active
+            && self.last_operational_mode != OperationalMode::Active
+        {
+            // Homing/disabled ticks advance tick_count before the first Active cycle.
+            self.active_feedback_grace_ticks = 2;
+        }
+        self.last_operational_mode = operational_mode;
+
+        let needs_joint_feedback = operational_mode == OperationalMode::Active
             && self.control_mode != ControlMode::Disabled;
-        // First tick may run before any CAN status frame arrives; after that, every
-        // commissioned joint must have feedback while Active.
+        let all_have_feedback = self
+            .joint_names
+            .iter()
+            .all(|name| self.has_joint_feedback(name));
+        // First tick (or first ticks after enable) may run before CAN status arrives.
         let feedback_bootstrap = needs_joint_feedback
-            && self.tick_count == 0
-            && !self
-                .joint_names
-                .iter()
-                .any(|name| self.has_joint_feedback(name));
+            && !all_have_feedback
+            && (self.tick_count == 0 || self.active_feedback_grace_ticks > 0);
         if needs_joint_feedback && !feedback_bootstrap {
             for name in &self.joint_names {
                 if !self.has_joint_feedback(name) {
@@ -581,6 +597,13 @@ impl<B: MotorBus> ControlLoop<B> {
                         joint: name.clone(),
                     });
                 }
+            }
+        }
+        if self.active_feedback_grace_ticks > 0 {
+            if all_have_feedback {
+                self.active_feedback_grace_ticks = 0;
+            } else {
+                self.active_feedback_grace_ticks -= 1;
             }
         }
 
@@ -761,6 +784,8 @@ impl<B: MotorBus> ControlLoop<B> {
                                 retarget_age_ms,
                                 approaching_target,
                             );
+                            let mit_kd =
+                                position_hold_mit_kd(kd, q[i], target, dq, vel_deadband);
                             let phase_str = format!("{traj_phase:?}");
                             let planner_event = self
                                 .position_planner_events
@@ -798,7 +823,7 @@ impl<B: MotorBus> ControlLoop<B> {
                                     tau_p,
                                     dq_mit = mit_velocity,
                                     kp_mit = kp,
-                                    kd_mit = 0.0,
+                                    kd_mit = mit_kd,
                                     "position hold command"
                                 );
                             }
@@ -883,7 +908,7 @@ impl<B: MotorBus> ControlLoop<B> {
                                         .unwrap_or(u64::MAX),
                                 );
                             }
-                            (kp, 0.0, tau_ff_cmd, q_des, mit_velocity)
+                            (kp, mit_kd, tau_ff_cmd, q_des, mit_velocity)
                         }
                         ControlMode::Disabled => continue,
                     };
@@ -1044,6 +1069,20 @@ impl<B: MotorBus> ControlLoop<B> {
                     );
                 }
             } else if planner_premature_hold(&planners[i], q[i], targets[i]) {
+                event = PlannerEvent::Reset;
+                reopen_planner_from_premature_hold(
+                    &mut planners[i],
+                    q[i],
+                    targets[i],
+                    v_max,
+                );
+            } else if planner_overshoot_hold_while_moving(
+                &planners[i],
+                q[i],
+                targets[i],
+                dq_filtered[i],
+                vel_deadband,
+            ) {
                 event = PlannerEvent::Reset;
                 reopen_planner_from_premature_hold(
                     &mut planners[i],
@@ -1368,6 +1407,36 @@ mod tests {
     }
 
     #[test]
+    fn active_feedback_grace_after_disabled_ticks() {
+        let mut loop_ctrl = test_loop();
+        let motors = loop_ctrl.supervisor_mut().motors.motors.clone();
+        loop_ctrl
+            .supervisor_mut()
+            .homing_registry_mut()
+            .bench_mark_all_verified(&motors)
+            .expect("verify");
+        loop_ctrl
+            .supervisor_mut()
+            .set_homing_complete()
+            .expect("ready");
+        for _ in 0..5 {
+            loop_ctrl.tick(None).expect("disabled ticks");
+        }
+        assert!(loop_ctrl.tick_count() >= 5);
+        loop_ctrl
+            .supervisor_mut()
+            .request_enable(true)
+            .expect("enable");
+        loop_ctrl.set_control_mode(ControlMode::Position);
+        loop_ctrl
+            .enter_position_hold_at(Some("shoulder_pitch"), 0.25)
+            .expect("hold-at");
+        loop_ctrl
+            .tick(None)
+            .expect("grace tick without feedback after homing ticks");
+    }
+
+    #[test]
     fn position_mode_without_latched_setpoint_errors() {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
@@ -1543,10 +1612,40 @@ mod tests {
     }
 
     #[test]
+    fn planner_reopens_when_overshot_past_hold_while_moving() {
+        let mut planner = JointPositionPlanner::new_for_target(1.5, 1.57);
+        planner.q_traj = 1.57;
+        planner.dq_traj = 0.0;
+        planner.force_hold_for_test();
+        assert!(planner_overshoot_hold_while_moving(
+            &planner, 1.62, 1.57, 0.08, 0.02
+        ));
+        reopen_planner_from_premature_hold(&mut planner, 1.62, 1.57, 1.65);
+        assert_eq!(planner.phase(), TrapezoidPhase::Cruise);
+        assert!(planner.dq_traj < 0.0);
+    }
+
+    #[test]
+    fn mit_kd_engages_on_overshoot_velocity() {
+        assert!((position_hold_mit_kd(2.0, 1.62, 1.57, 0.08, 0.02) - 2.0).abs() < 1e-12);
+        assert!((position_hold_mit_kd(2.0, 1.62, 1.57, 0.01, 0.02)).abs() < 1e-12);
+        assert!((position_hold_mit_kd(2.0, 1.55, 1.57, 0.08, 0.02)).abs() < 1e-12);
+    }
+
+    #[test]
     fn planner_drifted_when_hold_latched_but_arm_not_settled() {
         let planner = JointPositionPlanner::new_at(0.0);
         assert!(!planner_premature_hold(&planner, 0.087, 0.0));
         assert!(planner_drifted_from_measurement(&planner, 0.087, 0.0, 0.10));
+    }
+
+    #[test]
+    fn home_premature_hold_when_arm_above_target_within_old_resync_band() {
+        let mut planner = JointPositionPlanner::new_at(0.0);
+        planner.force_hold_for_test();
+        // 0.031 rad was observed on bench-20260620T003624Z — inside 0.03 resync, above 0.005 home band.
+        assert!(planner_premature_hold(&planner, 0.031, 0.0));
+        assert!(!planner_drifted_from_measurement(&planner, 0.031, 0.0, 0.10));
     }
 
     #[test]
