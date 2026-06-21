@@ -30,7 +30,7 @@ control:
       impedance:
         kp: 12.0
         kd: 3.0
-        ki: 2.0
+        ki: 5.0
       # Always trapezoid (ADR 0007 one-pass); small moves cap v_max at position_slew_rad_s.
       position_slew_rad_s: 0.15
       position_slew_max_lead_rad: 0.15
@@ -47,7 +47,7 @@ control:
       position_limit_margin_k_stop: 0.5
       position_limit_measured_fault_slack_rad: 0.005
       friction:
-        fc: 0.08
+        fc: 0.05
         fv: 0.0
         fo: 0.0
         k: 10.0
