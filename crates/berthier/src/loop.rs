@@ -853,6 +853,16 @@ impl<B: MotorBus> ControlLoop<B> {
                             let tau_f = ff.tau_f;
                             let tau_d = ff.tau_d;
                             let mut tau_ff_cmd = ff.tau_ff_cmd;
+                            // Integral term — only accumulates near target to avoid windup.
+                            if ki > 0.0 && settle_error.abs() < 0.1 && dq.abs() < 0.1 {
+                                if let Some(ref mut integral) = self.position_integral_error {
+                                    let dt = self.loop_period.as_secs_f64();
+                                    const MAX_INTEGRAL_NM: f64 = 0.5;
+                                    integral[i] = (integral[i] + settle_error * dt)
+                                        .clamp(-MAX_INTEGRAL_NM / ki, MAX_INTEGRAL_NM / ki);
+                                    tau_ff_cmd += ki * integral[i];
+                                }
+                            }
                             // Integral term with anti-windup — accumulates steady error.
                             if ki > 0.0 {
                                 if let Some(ref mut integral) = self.position_integral_error {
