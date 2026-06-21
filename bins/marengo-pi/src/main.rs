@@ -19,8 +19,9 @@ use armee_proto::prost::Message;
 use armee_proto::{
     EnableRequest, Fault, FaultSeverity, Heartbeat, HomingComplete, OperationalMode as ProtoOpMode,
     SafetyState,
+    MitCommandBatch,
 };
-use berthier::{proto_control_mode, ControlLoop, ControlMode, TickPhaseAverages};
+use berthier::{proto_control_mode, ControlLoop, ControlMode, GainOverride, TickPhaseAverages};
 use chappe::Bus;
 use davout::{MotorAddress, OperationalMode};
 use marengo_config::{
@@ -221,6 +222,39 @@ fn drain_chappe_commands(
             warn!(error = %e, "Chappe homing rejected");
         } else {
             info!("homing verified via Chappe");
+        }
+    }
+}
+
+fn drain_testing_commands(
+    loop_ctrl: &mut ControlLoop<RuntimeBus>,
+    testing_cmd_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
+) {
+    while let Ok(bytes) = testing_cmd_rx.try_recv() {
+        let Ok(envelope) = armee_proto::Envelope::decode(bytes.as_slice()) else {
+            continue;
+        };
+        let Ok(batch) = MitCommandBatch::decode(envelope.payload.as_slice()) else {
+            continue;
+        };
+        for joint in &batch.joints {
+            loop_ctrl.apply_gain_override(
+                &joint.name,
+                GainOverride {
+                    kp: joint.kp,
+                    kd: joint.kd,
+                    ki: joint.ki,
+                    fc: joint.fc,
+                },
+            );
+            debug!(
+                joint = %joint.name,
+                kp = joint.kp,
+                kd = joint.kd,
+                ki = joint.ki,
+                fc = joint.fc,
+                "applied testing gain override"
+            );
         }
     }
 }
@@ -559,6 +593,7 @@ fn main() {
     }
     let mut enable_rx = chappe.subscribe("robot/enable");
     let mut homing_rx = chappe.subscribe("robot/homing");
+    let mut testing_cmd_rx = chappe.subscribe("robot/testing/mit_command_batch");
 
     let shutdown = Arc::new(AtomicBool::new(false));
     let shutdown_flag = Arc::clone(&shutdown);
@@ -599,6 +634,7 @@ fn main() {
         cmd_rx: &cmd_rx,
         enable_rx: &mut enable_rx,
         homing_rx: &mut homing_rx,
+        testing_cmd_rx: &mut testing_cmd_rx,
         shutdown: &shutdown,
     };
     run_control_loop(&mut loop_ctrl, &mut runtime);
@@ -618,6 +654,7 @@ struct ControlLoopRuntime<'a> {
     cmd_rx: &'a Receiver<PiCommand>,
     enable_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     homing_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
+    testing_cmd_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     shutdown: &'a Arc<AtomicBool>,
 }
 
@@ -646,6 +683,7 @@ fn run_control_loop(loop_ctrl: &mut ControlLoop<RuntimeBus>, runtime: &mut Contr
 
         drain_chappe_commands(loop_ctrl, runtime.enable_rx, runtime.homing_rx);
         (outer_chappe_drain_us, t) = phase_elapsed_us(t);
+        drain_testing_commands(loop_ctrl, runtime.testing_cmd_rx);
 
         active_fault = match loop_ctrl.tick(Some(runtime.chappe.as_ref())) {
             Ok(()) => None,
