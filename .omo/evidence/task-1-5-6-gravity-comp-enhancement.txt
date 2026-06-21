@@ -1,0 +1,25 @@
+﻿Wave 1-2 / Todos 1, 5, 6 — Verification
+
+Date: 2026-06-19
+
+Todo 1 (PureGravityTorque newtype):
+- PureGravityTorque struct at lib.rs:90, Index impl at L104
+- DynamicsModel trait return type changed to Result<PureGravityTorque>
+- UrdfGravityModel impl updated
+- berthier call sites work via Index/Deref (no changes needed)
+- cargo test -p armee-dynamics: 11/11 PASS
+- cargo clippy clean
+
+Todo 5 (Sign convention docs):
+- ## Sign Convention section at lib.rs:23
+- Covers: sign convention, motor-space transform, PureGravityTorque contract, safety
+- cargo doc generates (PureGravityTorque link now resolves since Todo 1 completed)
+
+Todo 6 (URDF COM correction):
+- Both URDFs: shoulder_pitch_right_only.urdf and shoulder_pitch_weighted.urdf
+- COM z: -0.4572 → -0.36 with calibration comment
+- Golden values updated: 0.9278→0.7306, 3.1396→2.4721, etc. (ratio 0.787 = 0.36/0.4572)
+- tau_g at pi/2: 2.47 Nm (target ~2.5, within 1%)
+- cargo test -p armee-dynamics --test golden_tau_g: 7/7 PASS
+
+All three changes coexist cleanly (no merge conflicts — they edited different sections of lib.rs).
