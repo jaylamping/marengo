@@ -47,7 +47,7 @@ mod position_trajectory;
 mod mode_isolation;
 
 pub use davout::ControlMode;
-pub use r#loop::{proto_control_mode, ControlLoop, LoopError, TickPhaseAverages};
+pub use r#loop::{proto_control_mode, ControlLoop, GainOverride, LoopError, TickPhaseAverages};
 
 use davout::{DavoutError, JointCommand, OperationalMode, Supervisor};
 use thiserror::Error;
