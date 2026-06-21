@@ -876,7 +876,11 @@ impl<B: MotorBus> ControlLoop<B> {
                                 retarget_age_ms,
                                 approaching_target,
                             );
-                            let mit_kd = position_hold_mit_kd(kd, q[i], target, dq, vel_deadband);
+                            let mit_kd = if settle_error.abs() < 0.1 {
+                                position_hold_mit_kd(kd, q[i], target, dq, vel_deadband)
+                            } else {
+                                0.0
+                            };
                             let phase_str = format!("{traj_phase:?}");
                             let planner_event = self
                                 .position_planner_events

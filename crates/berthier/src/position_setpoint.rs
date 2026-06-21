@@ -90,7 +90,21 @@ pub fn position_hold_mit_velocity(
     0.0
 }
 
-/// MIT `kd` while arm is moving — firmware velocity damping throughout the trajectory.
+/// MIT `kd` near target only — dampens final approach without braking ascent.
+pub fn position_hold_mit_kd(
+    kd: f64,
+    _q: f64,
+    _target: f64,
+    dq_filtered: f64,
+    velocity_deadband: f64,
+) -> f64 {
+    if dq_filtered.abs() < velocity_deadband {
+        return 0.0;
+    }
+    kd
+        return 0.0;
+    }
+    0.0 // disabled during approach — caller gates near target
 pub fn position_hold_mit_kd(
     kd: f64,
     q: f64,
