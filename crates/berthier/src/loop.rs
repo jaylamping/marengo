@@ -1104,6 +1104,9 @@ impl<B: MotorBus> ControlLoop<B> {
                 )
             })
             .collect();
+        let retarget_age_ms: Vec<u64> = (0..self.joint_names.len())
+            .map(|i| self.position_retarget_age_ms(i))
+            .collect();
         let Some(planners) = self.position_planners.as_mut() else {
             return Ok(());
         };
@@ -1134,7 +1137,7 @@ impl<B: MotorBus> ControlLoop<B> {
             let settle_error_eff = targets[i] - q[i];
             let approaching_target_eff =
                 planners[i].dq_traj * settle_error_eff > POSITION_HOLD_ERROR_DEADBAND_RAD;
-            let retarget_age_ms_eff = self.position_retarget_age_ms(i);
+            let retarget_age_ms_eff = retarget_age_ms[i];
             let effective_max_lead = position_hold_effective_max_lead(
                 max_lead,
                 retarget_age_ms_eff,
