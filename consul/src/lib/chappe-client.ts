@@ -12,6 +12,8 @@ import {
   ImuSampleSchema,
   type LogEvent,
   LogEventSchema,
+  MitCommandBatchSchema,
+  type MitCommandBatch,
   type RobotState,
   type SafetyState,
   RobotStateSchema,
@@ -426,5 +428,37 @@ export async function postEnableCommand(enable: boolean): Promise<void> {
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`enable failed: ${res.status} ${text}`);
+  }
+}
+
+export async function postMitCommandBatch(batch: MitCommandBatch): Promise<void> {
+  const endpoints = getChappeEndpoints();
+  if (!endpoints) {
+    throw new Error('Chappe endpoints not configured');
+  }
+  const res = await fetch(`${endpoints.httpUrl}/command/mit`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-protobuf' },
+    body: toBinary(MitCommandBatchSchema, batch),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`mit command failed: ${res.status} ${text}`);
+  }
+}
+
+export async function postTestingMitCommandBatch(batch: MitCommandBatch): Promise<void> {
+  const endpoints = getChappeEndpoints();
+  if (!endpoints) {
+    throw new Error('Chappe endpoints not configured');
+  }
+  const res = await fetch(`${endpoints.httpUrl}/command/testing_mit`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-protobuf' },
+    body: toBinary(MitCommandBatchSchema, batch),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`testing mit command failed: ${res.status} ${text}`);
   }
 }
