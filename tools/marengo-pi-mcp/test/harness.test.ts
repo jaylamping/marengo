@@ -31,4 +31,18 @@ describe("bench harness config", () => {
       "/opt/marengo/config/bringup/shoulder_pitch_right_only",
     );
   });
+
+  it("selects arm_2dof_right for roll_attached profile", () => {
+    assert.equal(
+      harnessConfigDir(cfg, "roll_attached"),
+      "/opt/marengo/config/bringup/arm_2dof_right",
+    );
+  });
+
+  it("selects arm_2dof_right for arm_2dof_smoke profile", () => {
+    assert.equal(
+      harnessConfigDir(cfg, "arm_2dof_smoke"),
+      "/opt/marengo/config/bringup/arm_2dof_right",
+    );
+  });
 });

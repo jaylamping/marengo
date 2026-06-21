@@ -8,7 +8,13 @@ const motionConfirmSchema = z.object({
   confirm: z.literal(true),
   confirm_weighted_motion: z.literal(true).optional(),
   profile: z
-    .enum(["bare_motor", "weighted_single_arm", "arm_attached"])
+    .enum([
+      "bare_motor",
+      "weighted_single_arm",
+      "arm_attached",
+      "roll_attached",
+      "arm_2dof_smoke",
+    ])
     .optional(),
 });
 
@@ -295,12 +301,15 @@ function marengoPiTimedPipe(
   script: string[],
   dwellSec: number,
   returnHomeSec: number,
+  returnJoint?: string,
   binary = "$PI_BIN",
 ): string {
+  const returnHold =
+    returnJoint !== undefined ? `hold-at ${returnJoint} 0` : "hold-at 0";
   const commandLines = [
     ...script.map((l) => `printf '%s\\n' ${JSON.stringify(l)};`),
     `sleep ${dwellSec};`,
-    `printf '%s\\n' "hold-at 0";`,
+    `printf '%s\\n' ${JSON.stringify(returnHold)};`,
     `sleep ${returnHomeSec};`,
     `printf '%s\\n' "status";`,
     `printf '%s\\n' "disable";`,
@@ -337,13 +346,16 @@ function holdSessionRemoteBody(
   }
   lines.push(marengoPiBinarySelector(cfg));
   const holdLine =
-    args.positionRad !== undefined ? `hold-at ${args.positionRad}` : "hold-on";
+    args.positionRad !== undefined
+      ? `hold-at ${args.joint} ${args.positionRad}`
+      : "hold-on";
   lines.push(
     "set +e",
     marengoPiTimedPipe(
       ["home", `enable ${args.operator}`, holdLine],
       args.timeoutSec,
       args.returnHomeSec,
+      args.joint,
     ),
     "PIPE_STATUS=$?",
     "set -e",
@@ -768,10 +780,16 @@ export function registerMotionTools(
 
     pi_bench_harness: {
       description:
-        "Profile-aware bench test matrix (bare_motor or weighted_single_arm)",
+        "Profile-aware bench test matrix (bare_motor, weighted, roll_attached, arm_2dof_smoke)",
       inputSchema: motionConfirmSchema.extend({
         profile: z
-          .enum(["bare_motor", "weighted_single_arm", "arm_attached"])
+          .enum([
+            "bare_motor",
+            "weighted_single_arm",
+            "arm_attached",
+            "roll_attached",
+            "arm_2dof_smoke",
+          ])
           .optional(),
         config_dir: z.string().optional(),
         joints: z.array(z.string()).optional(),

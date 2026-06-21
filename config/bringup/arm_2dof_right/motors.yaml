@@ -6,14 +6,15 @@ motors:
     motor_type: rs03
     can_interface: can0
     device_id: 1
+    # Same RS03 / wiring pattern as pitch; direction flipped (pitch -1 → roll +1).
     direction: 1
     gear_ratio: 1.0
     recv_can_id: 0x241
     firmware_version: "0.3.1.42"
     bench:
-      position_lower_rad: -1.57
-      position_upper_rad: 1.57
-      velocity_limit_rad_s: 0.5
+      position_lower_rad: 0.0
+      position_upper_rad: 3.14159
+      velocity_limit_rad_s: 2.0
       torque_limit_nm: 5.0
   - joint: right_shoulder_pitch
     driver: robstride

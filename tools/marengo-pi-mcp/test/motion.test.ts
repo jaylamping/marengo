@@ -76,7 +76,7 @@ describe("marengo-pi script tool", () => {
       timeout_sec: 10,
     });
 
-    assert.match(script, /printf '%s\\n' "hold-at 0";/);
+    assert.match(script, /printf '%s\\n' "hold-at right_shoulder_pitch 0";/);
     assert.match(script, /sleep 10;/);
     assert.match(script, /sleep 6;/);
     assert.match(script, /printf '%s\\n' "disable";/);

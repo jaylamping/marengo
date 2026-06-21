@@ -172,3 +172,19 @@ Cloud VMs reach the robot via **Tailscale userspace networking** — not `mareng
 | Deploy to Pi | `./scripts/pi-remote.sh deploy --install` |
 
 Do not ask the user to paste Pi logs or run SSH when `pi-remote.sh` can fetch them.
+
+## Learned User Preferences
+
+- Early bench commissioning (roll / multi-DOF bringup): prioritize reliable safe motion over perfect mass or COM tuning when hardware is still changing week to week.
+- For a new joint on the same actuator type as an existing bench motor, start from the proven pitch motor settings and flip `direction` sign rather than inventing fresh tuning.
+- Re–set-zero at mechanical home whenever arm configuration changes (bare motor vs attached arm, bolt-on segments).
+
+## Learned Workspace Facts
+
+- SolidWorks CAD binaries under `cad/assemblies`, `cad/parts`, `cad/vendor`, and `cad/exports` are gitignored local-only (removed from git tracking in `0a0adc1`); restore from Git LFS history at the commit before removal and hydrate blobs if pointers remain.
+- `pi_sync_bench_config` syncs bringup YAML only — it does not deploy `assets/urdf/`; verify gravity preview after COM/URDF edits or copy URDF assets separately.
+- Windows Pi Docker deploy from Git Bash fails on `unix:///var/run/docker.sock` even when Docker Desktop works in PowerShell; set `$env:DOCKER_HOST='npipe:////./pipe/dockerDesktopLinuxEngine'` before `deploy-pi-docker.sh`.
+- `pi_sync_main` deploys `main` and may switch the local checkout to `main`; feature-branch Pi deploys use `deploy-pi-docker.sh` with the Docker host workaround above.
+- Native Windows `cargo test` for crates using `chappe` fails on Unix socket APIs; use `just check` (container) for valid Rust test results on Windows.
+- Consul actuator assignment and joint limit edits are not wired today — use `config/bringup/<profile>/motors.yaml` and `control.yaml`, then sync to Pi.
+- Active 2-DOF right bench profile is `config/bringup/arm_2dof_right/` with roll CAN id 1 and pitch CAN id 2 on `can0`; roll limits 0→π rad (arm down to sky).

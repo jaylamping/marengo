@@ -1028,8 +1028,8 @@ mod tests {
             "right_shoulder_pitch".to_string(),
             JointControlEntry {
                 motor_type: MotorType::Rs03,
-                gravity_comp: ModeGains { kp: 0.0, kd: 0.0 },
-                impedance: ModeGains { kp: 8.0, kd: 1.0 },
+                gravity_comp: ModeGains { kp: 0.0, kd: 0.0, ki: 0.0 },
+                impedance: ModeGains { kp: 8.0, kd: 1.0, ki: 0.0 },
                 friction: FrictionGains {
                     fc: 0.0,
                     fv: 0.0,

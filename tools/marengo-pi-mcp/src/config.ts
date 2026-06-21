@@ -2,7 +2,12 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-export type BenchProfile = "bare_motor" | "weighted_single_arm" | "arm_attached";
+export type BenchProfile =
+  | "bare_motor"
+  | "weighted_single_arm"
+  | "arm_attached"
+  | "roll_attached"
+  | "arm_2dof_smoke";
 
 export interface MarengoPiConfig {
   host: string;
