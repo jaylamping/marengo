@@ -15,6 +15,8 @@ pub const TOPIC_IMU_TORSO: &str = "sensors/imu/torso";
 pub const TOPIC_LOGS: &str = "logs/structured";
 pub const TOPIC_HOST_METRICS_PI: &str = "host/metrics/pi";
 pub const TOPIC_HOST_METRICS_JETSON: &str = "host/metrics/jetson";
+pub const TOPIC_TESTING_MIT_COMMAND_BATCH: &str = "robot/testing/mit_command_batch";
+pub const TOPIC_TESTING_TELEMETRY: &str = "robot/testing/telemetry";
 
 pub const ALLOWED_TOPICS: &[&str] = &[
     TOPIC_STATE,
@@ -24,6 +26,8 @@ pub const ALLOWED_TOPICS: &[&str] = &[
     TOPIC_LOGS,
     TOPIC_HOST_METRICS_PI,
     TOPIC_HOST_METRICS_JETSON,
+    TOPIC_TESTING_MIT_COMMAND_BATCH,
+    TOPIC_TESTING_TELEMETRY,
 ];
 
 const ENVELOPE_BROADCAST_CAPACITY: usize = 4096;
@@ -100,7 +104,12 @@ impl AppState {
             }
         }
         self.update_snapshot(&topic, &payload);
-        let _ = self.envelope_tx.send((topic, payload));
+        let _ = self.envelope_tx.send((topic.clone(), payload.clone()));
+        // Fan RobotState to testing telemetry topic so the Testing page has
+        // a dedicated subscription without sharing the main dashboard's topic.
+        if topic == TOPIC_STATE {
+            let _ = self.envelope_tx.send((TOPIC_TESTING_TELEMETRY.to_string(), payload));
+        }
     }
 
     fn update_snapshot(&self, topic: &str, payload: &[u8]) {

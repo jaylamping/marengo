@@ -265,6 +265,8 @@ pub fn spawn_demo_publisher(state: SharedState) {
                     position: angle.sin() * 0.5,
                     velocity: angle.cos() * 0.1,
                     effort: 0.0,
+                    temperature_c: 0.0,
+                    fault: 0,
                 }],
             };
             let safety = SafetyState {
