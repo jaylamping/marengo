@@ -81,6 +81,21 @@ export const appRoutes: RouteObject[] = [
           };
         },
       },
+      {
+        path: '/testing',
+        lazy: async () => {
+          const { TestingPage } = await import('@/pages/testing');
+          return {
+            Component: TestingPage,
+            handle: {
+              header: {
+                title: 'Testing',
+                subtitle: 'interactive · multi-actuator · PID retune',
+              },
+            },
+          };
+        },
+      },
     ],
   },
 ];
