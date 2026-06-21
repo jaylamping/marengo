@@ -806,9 +806,10 @@ impl<B: MotorBus> ControlLoop<B> {
                                 dq_traj,
                                 vel_deadband,
                             ) {
+                                let stuck_pull_lead =
+                                    POSITION_DESCENT_STUCK_LEAD_RAD.max(effective_max_lead);
                                 q_des = q_des.max(
-                                    (q[i] + POSITION_DESCENT_STUCK_LEAD_RAD)
-                                        .min(q_traj + effective_max_lead),
+                                    (q[i] + stuck_pull_lead).min(q_traj + effective_max_lead),
                                 );
                             }
                             if joint_stuck {
@@ -1718,11 +1719,20 @@ mod tests {
     }
 
     #[test]
-    fn mit_kd_engages_on_overshoot_velocity() {
+    fn mit_kd_engages_on_velocity_during_motion() {
+        // Moving toward or past target with dq > deadband → kd engages
         assert!((position_hold_mit_kd(2.0, 1.62, 1.57, 0.08, 0.02) - 2.0).abs() < 1e-12);
+        // Below deadband → kd remains 0.0
         assert!((position_hold_mit_kd(2.0, 1.62, 1.57, 0.01, 0.02)).abs() < 1e-12);
-        assert!((position_hold_mit_kd(2.0, 1.55, 1.57, 0.08, 0.02)).abs() < 1e-12);
+        // Moving toward target (not yet past) → kd engages (new behavior)
+        assert!((position_hold_mit_kd(2.0, 1.55, 1.57, 0.08, 0.02) - 2.0).abs() < 1e-12);
     }
+        // Moving toward or past target with dq > deadband → kd engages
+        assert!((position_hold_mit_kd(2.0, 1.62, 1.57, 0.08, 0.02) - 2.0).abs() < 1e-12);
+        // Below deadband → kd remains 0.0
+        assert!((position_hold_mit_kd(2.0, 1.62, 1.57, 0.01, 0.02)).abs() < 1e-12);
+        // Moving toward target (not yet past) → kd engages (new behavior)
+        assert!((position_hold_mit_kd(2.0, 1.55, 1.57, 0.08, 0.02) - 2.0).abs() < 1e-12);
 
     #[test]
     fn planner_drifted_when_hold_latched_but_arm_not_settled() {

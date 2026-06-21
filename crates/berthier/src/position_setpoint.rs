@@ -90,7 +90,7 @@ pub fn position_hold_mit_velocity(
     0.0
 }
 
-/// MIT `kd` while coasting past a latched target — firmware velocity damping on overshoot.
+/// MIT `kd` while arm is moving — firmware velocity damping throughout the trajectory.
 pub fn position_hold_mit_kd(
     kd: f64,
     q: f64,
@@ -101,16 +101,7 @@ pub fn position_hold_mit_kd(
     if dq_filtered.abs() < velocity_deadband {
         return 0.0;
     }
-    let past_target = if target >= 0.0 {
-        q > target + POSITION_RETURN_RESYNC_RAD && dq_filtered > velocity_deadband
-    } else {
-        q < target - POSITION_RETURN_RESYNC_RAD && dq_filtered < -velocity_deadband
-    };
-    if past_target {
-        kd
-    } else {
-        0.0
-    }
+    kd
 }
 
 /// MIT pull while ascending toward target and stuck with planner slightly ahead.

@@ -13,6 +13,7 @@
 use std::path::PathBuf;
 
 use robstride::comm::unpack_ext_id;
+use armee_dynamics::DynamicsModel;
 
 /// Repo root relative to `CARGO_MANIFEST_DIR` of the berthier crate.
 fn repo_root() -> PathBuf {
