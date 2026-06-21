@@ -1128,12 +1128,26 @@ impl<B: MotorBus> ControlLoop<B> {
             let move_dist = (targets[i] - q[i]).abs();
             let profile = classify_position_profile(q[i], targets[i], move_dist, threshold);
             trace!(joint = %name, ?profile, move_dist, v_max, "position hold profile");
+            // FIX A: use effective max_lead (with onset boost) in drift/resync thresholds.
+            // Without this, the onset boost in tick()'s q_des clamp is dead-lettered because
+            // advance_position_commands resets q_traj to q whenever lead > raw max_lead.
+            let settle_error_eff = targets[i] - q[i];
+            let approaching_target_eff =
+                planners[i].dq_traj * settle_error_eff > POSITION_HOLD_ERROR_DEADBAND_RAD;
+            let retarget_age_ms_eff = self.position_retarget_age_ms(i);
+            let effective_max_lead = position_hold_effective_max_lead(
+                max_lead,
+                retarget_age_ms_eff,
+                approaching_target_eff,
+                settle_error_eff,
+                q[i],
+            );
             let resync_stuck_lead = planner_should_resync_stuck_lead(
                 &planners[i],
                 q[i],
                 targets[i],
                 dq_filtered[i],
-                max_lead,
+                effective_max_lead,
                 vel_deadband,
             );
             if resync_stuck_lead {
@@ -1163,7 +1177,7 @@ impl<B: MotorBus> ControlLoop<B> {
             {
                 event = PlannerEvent::Reset;
                 reopen_planner_from_premature_hold(&mut planners[i], q[i], targets[i], v_max);
-            } else if planner_drifted_from_measurement(&planners[i], q[i], targets[i], max_lead) {
+            } else if planner_drifted_from_measurement(&planners[i], q[i], targets[i], effective_max_lead) {
                 event = PlannerEvent::Reset;
                 planners[i].reset_target(q[i], targets[i]);
                 if let Some(cfg) = self.supervisor.control.control.joints.get(name) {
@@ -1824,6 +1838,99 @@ mod tests {
         planner.q_traj = 1.50;
         planner.dq_traj = -1.2;
         assert!(!planner_drifted_from_measurement(&planner, 1.65, 0.0, 0.10));
+    }
+
+    // === FIX A regression tests: effective max_lead in drift/resync thresholds ===
+    // These tests lock the fix for the pi/2 hold limit cycle. The onset boost
+    // (position_hold_effective_max_lead) raises max_lead from 0.05 to 0.15 during
+    // the 300ms post-retarget window. Before FIX A, advance_position_commands
+    // passed raw max_lead to the drift/resync checks, dead-lettering the boost:
+    // q_traj was reset to q whenever lead > 0.05, so q_des could never reach q+0.15,
+    // capping P-torque at 0.4 Nm — insufficient to break static friction.
+
+    #[test]
+    fn planner_drift_uses_effective_max_lead_during_onset() {
+        // At home (q≈0) stuck with target=π/2, during onset, q_traj=q+0.10 must
+        // NOT drift-reset when using effective max_lead (0.15). With raw 0.05 it
+        // would — this is the bug FIX A addresses.
+        let q = 0.004;
+        let target = std::f64::consts::FRAC_PI_2;
+        let mut planner = JointPositionPlanner::new_for_target(q, target);
+        planner.q_traj = q + 0.10;
+        planner.dq_traj = 0.4;
+        let raw_max_lead = 0.05;
+        let effective = position_hold_effective_max_lead(
+            raw_max_lead, 100, true, target - q, q,
+        );
+        assert!((effective - 0.15).abs() < 1e-9, "onset boost active");
+        assert!(
+            !planner_drifted_from_measurement(&planner, q, target, effective),
+            "FIX A: drift uses effective max_lead; q+0.10 within 0.15 lead → no reset"
+        );
+        assert!(
+            planner_drifted_from_measurement(&planner, q, target, raw_max_lead),
+            "bug repro: raw max_lead resets at q+0.10 > 0.05, dead-lettering the boost"
+        );
+    }
+
+    #[test]
+    fn planner_drift_reverts_to_raw_max_lead_after_onset() {
+        // After 300ms onset window, effective max_lead reverts to raw; drift
+        // reset resumes at the raw threshold. Guards against persistent boost.
+        let q = 0.004;
+        let target = std::f64::consts::FRAC_PI_2;
+        let mut planner = JointPositionPlanner::new_for_target(q, target);
+        planner.q_traj = q + 0.10;
+        planner.dq_traj = 0.4;
+        let raw_max_lead = 0.05;
+        let effective = position_hold_effective_max_lead(
+            raw_max_lead, 301, true, target - q, q,
+        );
+        assert!((effective - raw_max_lead).abs() < 1e-9, "onset expired");
+        assert!(
+            planner_drifted_from_measurement(&planner, q, target, effective),
+            "drift reset resumes at raw max_lead after onset expires"
+        );
+    }
+
+    #[test]
+    fn planner_resync_uses_effective_max_lead_during_onset() {
+        // Resync_stuck_lead must also use effective max_lead. During onset,
+        // q_traj=q+0.10 is within 0.15 lead → no resync. Raw 0.05 would resync.
+        let q = 0.004;
+        let target = std::f64::consts::FRAC_PI_2;
+        let mut planner = JointPositionPlanner::new_for_target(q, target);
+        planner.q_traj = q + 0.10;
+        planner.dq_traj = 0.4;
+        let raw_max_lead = 0.05;
+        let effective = position_hold_effective_max_lead(
+            raw_max_lead, 100, true, target - q, q,
+        );
+        assert!(
+            !planner_should_resync_stuck_lead(
+                &planner, q, target, 0.0, effective, 0.02
+            ),
+            "FIX A: resync uses effective max_lead; q+0.10 within 0.15 → no resync"
+        );
+        assert!(
+            planner_should_resync_stuck_lead(
+                &planner, q, target, 0.0, raw_max_lead, 0.02
+            ),
+            "bug repro: raw max_lead resyncs at q+0.10 > 0.05"
+        );
+    }
+
+    #[test]
+    fn onset_lead_boost_expires_at_300ms_boundary() {
+        // The onset boost must expire at POSITION_HOLD_ONSET_MS (300ms).
+        // At 300ms: boost active (0.15). At 301ms: expired (raw 0.05).
+        let raw = 0.05;
+        let q = 0.004;
+        let settle_error = std::f64::consts::FRAC_PI_2 - q;
+        let at_boundary = position_hold_effective_max_lead(raw, 300, true, settle_error, q);
+        assert!((at_boundary - 0.15).abs() < 1e-9, "boost active at 300ms");
+        let after_boundary = position_hold_effective_max_lead(raw, 301, true, settle_error, q);
+        assert!((after_boundary - raw).abs() < 1e-9, "boost expired at 301ms");
     }
 
     #[test]
