@@ -364,6 +364,9 @@ impl<B: MotorBus> ControlLoop<B> {
         if let Some(was_stuck) = self.position_descent_was_stuck.as_mut() {
             was_stuck[joint_index] = false;
         }
+        if let Some(integral) = self.position_integral_error.as_mut() {
+            integral[joint_index] = 0.0;
+        }
         let dq = self.joint_velocity(&self.joint_names[joint_index]);
         self.seed_dq_filter(joint_index, dq);
     }
