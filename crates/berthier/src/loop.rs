@@ -112,6 +112,8 @@ pub struct ControlLoop<B: MotorBus> {
     active_feedback_grace_ticks: u8,
     /// Active kp/kd transition ramp (None when no ramp in progress).
     gain_ramp: Option<GainRamp>,
+    /// Accumulated position error (integral) for ki anti-windup per joint.
+    position_integral_error: Option<Vec<f64>>,
 }
 
 /// Per-tick CPU time inside [`ControlLoop::tick`] (microseconds, averaged over a window).
@@ -219,6 +221,7 @@ impl<B: MotorBus> ControlLoop<B> {
             position_retarget_tick: None,
             position_dq_filtered: None,
             position_planner_frozen: None,
+            position_integral_error: None,
             position_descent_breakaway: None,
             position_descent_was_stuck: None,
             position_planner_events: None,
@@ -376,6 +379,9 @@ impl<B: MotorBus> ControlLoop<B> {
         if self.position_descent_was_stuck.is_none() {
             self.position_descent_was_stuck = Some(vec![false; n]);
         }
+        if self.position_integral_error.is_none() {
+            self.position_integral_error = Some(vec![0.0; n]);
+        }
     }
 
     fn position_retarget_age_ms(&self, joint_index: usize) -> u64 {
@@ -495,6 +501,7 @@ impl<B: MotorBus> ControlLoop<B> {
         self.position_descent_breakaway = None;
         self.position_descent_was_stuck = None;
         self.position_planner_events = None;
+        self.position_integral_error = None;
     }
 
     /// Latch current `q` and enter [`ControlMode::Position`] (gravity FF + impedance gains).
@@ -542,6 +549,7 @@ impl<B: MotorBus> ControlLoop<B> {
             self.position_dq_filtered = None;
             self.position_planner_frozen = None;
             self.position_descent_breakaway = None;
+        self.position_integral_error = None;
             self.position_descent_was_stuck = None;
             self.position_planner_events = None;
             self.last_position_diag = None;
@@ -711,11 +719,12 @@ impl<B: MotorBus> ControlLoop<B> {
                             (kp, kd, tau_g[i] + tau_f, q[i], 0.0)
                         }
                         ControlMode::Position => {
-                            let (kp, kd, max_lead, vel_deadband, friction) = {
+                            let (kp, kd, ki, max_lead, vel_deadband, friction) = {
                                 let cfg = self.supervisor.control.control.joints.get(&name);
                                 (
                                     cfg.map(|c| c.impedance.kp).unwrap_or(20.0),
                                     cfg.map(|c| c.impedance.kd).unwrap_or(1.0),
+                                    cfg.map(|c| c.impedance.ki).unwrap_or(0.0),
                                     cfg.map(|c| c.position_slew_max_lead_rad).unwrap_or(0.15),
                                     cfg.map(|c| c.position_trajectory_velocity_deadband_rad)
                                         .unwrap_or(0.02),
@@ -843,7 +852,17 @@ impl<B: MotorBus> ControlLoop<B> {
                             let friction_mode = ff.friction_mode;
                             let tau_f = ff.tau_f;
                             let tau_d = ff.tau_d;
-                            let tau_ff_cmd = ff.tau_ff_cmd;
+                            let mut tau_ff_cmd = ff.tau_ff_cmd;
+                            // Integral term with anti-windup — accumulates steady error.
+                            if ki > 0.0 {
+                                if let Some(ref mut integral) = self.position_integral_error {
+                                    let dt = self.loop_period.as_secs_f64();
+                                    const MAX_INTEGRAL_NM: f64 = 1.0;
+                                    integral[i] = (integral[i] + settle_error * dt)
+                                        .clamp(-MAX_INTEGRAL_NM / ki, MAX_INTEGRAL_NM / ki);
+                                    tau_ff_cmd += ki * integral[i];
+                                }
+                            }
                             let tau_meas = self.joint_torque(&name);
                             let lead_sat = lead.abs() >= effective_max_lead - 1e-6;
                             let tau_p = kp * lead;

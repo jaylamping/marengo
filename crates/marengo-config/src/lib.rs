@@ -617,6 +617,7 @@ pub fn validate_control_against_limits(
 pub struct ModeGains {
     pub kp: f64,
     pub kd: f64,
+    pub ki: f64,
 }
 
 #[derive(Debug, Clone, Deserialize)]

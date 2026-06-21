@@ -23,6 +23,8 @@
          tau_meas/tau_g ratio was 0.73 (27% over-compensation). Mass (0.7 kg) unchanged. -->
     <inertial>
       <mass value="0.7"/>
+      <origin xyz="0 0 -0.53" rpy="0 0 0"/>
+      <mass value="0.7"/>
       <origin xyz="0 0 -0.36" rpy="0 0 0"/>
       <inertia ixx="0.001" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.0001"/>
     </inertial>
