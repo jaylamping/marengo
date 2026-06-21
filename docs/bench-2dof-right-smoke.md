@@ -4,6 +4,27 @@ Light **pitch + roll** motion smoke on `arm_2dof_right`. Run **once** after the
 [roll commissioning suite](bench-roll-test-suite.md) passes (`roll_attached`
 harness `pass: true`).
 
+## Position-hold baseline (2026-06-21)
+
+Locked after roll 15° round-trip probe: ascent ~1 s, return to **q ≈ 0.0015 rad**
+at disable. Same joint tuning on **roll and pitch** in
+`config/bringup/arm_2dof_right/control.yaml`:
+
+| Parameter | Value |
+|-----------|-------|
+| impedance kp / kd / ki | 18 / 3 / 5 |
+| position_slew_rad_s | 0.15 |
+| position_slew_max_lead_rad | 0.12 |
+| position_trajectory_velocity_rad_s | 1.25 |
+| position_trajectory_accel_rad_s2 | 4.5 |
+| friction fc | 0.08 |
+| actuator_group velocity_max_rad_s | 2.5 (both) |
+| comm_watchdog_ms | 100 |
+
+**Pre-flight:** re-zero each joint at mechanical arm-down home before enable
+(roll limit is q ≥ 0). **Software:** Berthier re-enables on `hold-at` after
+comm-watchdog disable; `hold-at 0` no longer clamped by limit envelope.
+
 **Not in scope:** coupled gravity preview, dual `gravity-on`, coordinated sky
 poses, full D4–D7 regression (see [bench-test-backlog.md](bench-test-backlog.md)).
 

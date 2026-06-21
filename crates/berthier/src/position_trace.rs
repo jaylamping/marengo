@@ -29,7 +29,7 @@ impl PositionTrace {
         let period_ticks = (u64::from(loop_hz.max(1)) / u64::from(trace_hz.max(1))).max(1);
         let file = OpenOptions::new().create(true).append(true).open(path)?;
         let is_new = file.metadata().map(|m| m.len() == 0).unwrap_or(true);
-        let mut writer = BufWriter::new(file);
+        let mut writer = BufWriter::with_capacity(512 * 1024, file);
         if is_new {
             writeln!(
                 writer,

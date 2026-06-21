@@ -30,6 +30,7 @@ pub fn compose_position_hold_feedforward(
     traj_phase: TrapezoidPhase,
     friction: Option<&FrictionGains>,
     approaching_target: bool,
+    sustained_low_angle_breakaway: bool,
 ) -> PositionHoldFeedforward {
     let (friction_mode, tau_f) = friction
         .map(|f| {
@@ -42,6 +43,7 @@ pub fn compose_position_hold_feedforward(
                 retarget_age_ms,
                 traj_phase,
                 f,
+                sustained_low_angle_breakaway,
             )
         })
         .unwrap_or((PositionFrictionMode::SettleFade, 0.0));
@@ -88,6 +90,7 @@ mod tests {
             TrapezoidPhase::Cruise,
             Some(&friction),
             true,
+            false,
         );
         assert!((out.tau_ff_cmd - (1.0 + out.tau_f + out.tau_d)).abs() < 1e-12);
     }
@@ -106,6 +109,7 @@ mod tests {
             TrapezoidPhase::Hold,
             None,
             true,
+            false,
         );
         assert!((out.tau_d - (-0.1)).abs() < 1e-12);
     }

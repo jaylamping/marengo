@@ -140,6 +140,7 @@ function benchSessionWrapper(
       `TRACE="$LOGDIR/position-trace-$TS.csv"`,
       `JSON="$LOGDIR/bench-$TS.json"`,
       'export MARENGO_POSITION_TRACE="$TRACE"',
+      'export MARENGO_POSITION_TRACE_HZ="${MARENGO_POSITION_TRACE_HZ:-50}"',
       'export MARENGO_LOG_SESSION_ID="$TS"',
       `LABEL=${shellQuote(label)}`,
       "echo \"=== bench harness $TS ($LABEL) ===\" | tee \"$LOG\"",

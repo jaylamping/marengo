@@ -87,6 +87,7 @@ proptest! {
             traj_phase,
             Some(&friction),
             approaching_target,
+            false,
         );
         let out2: PositionHoldFeedforward = compose_position_hold_feedforward(
             tau_g_perturbed,
@@ -100,6 +101,7 @@ proptest! {
             traj_phase,
             Some(&friction),
             approaching_target,
+            false,
         );
 
         // The non-gravity components (tau_f, tau_d) must be identical.

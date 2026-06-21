@@ -25,15 +25,19 @@ use crate::position_profile::{
     classify_position_profile, position_hold_v_max, position_profile_v_max, PlannerEvent,
 };
 use crate::position_setpoint::{
-    approach_stuck_mit_pull, clamp_trajectory_setpoint, descent_breakaway_confirmed,
-    descent_stuck_mit_pull, downward_return_seed_velocity, home_final_approach_stuck_pull_rad,
+    approach_stuck_mit_pull, approach_stuck_mit_pull_lead_rad, clamp_trajectory_setpoint,
+    descent_breakaway_confirmed, descent_stuck_mit_pull, downward_return_seed_velocity,
+    envelope_dq_cmd_for_hold_clamp,
+    home_final_approach_stuck_pull_rad, low_angle_breakaway_active,
     planner_drifted_from_measurement, planner_overshoot_hold_while_moving, planner_premature_hold,
     planner_should_freeze_on_descent, planner_should_latch_on_overshoot_hold,
     planner_should_resync_stuck_lead, position_hold_effective_max_lead, position_hold_mit_kd,
     position_hold_mit_velocity, reopen_planner_from_premature_hold,
-    POSITION_DESCENT_STUCK_LEAD_RAD, POSITION_RETURN_DESCENT_SEED_RAD,
+    POSITION_RETURN_DESCENT_SEED_RAD,
+    POSITION_HOME_SETTLE_RAD,
     POSITION_SETTLE_TOLERANCE_RAD,
 };
+use crate::position_trajectory::is_descent_return;
 use crate::position_trace::{PositionTrace, PositionTraceRow};
 use crate::position_trajectory::{
     filter_dq_ema, JointPositionPlanner, TrapezoidPhase, POSITION_DAMPING_DQ_FILTER_ALPHA,
@@ -287,7 +291,22 @@ impl<B: MotorBus> ControlLoop<B> {
         let q_now = self.refresh_joint_positions();
         let requested = self.hold_target_trim(joint, position_rad);
         let dq_cmd = self.estimated_retarget_dq_cmd(joint, q_now[i], requested);
-        let target = self.clamp_hold_target(joint, q_now[i], requested, dq_cmd);
+        let slew = self
+            .supervisor
+            .control
+            .control
+            .joints
+            .get(joint)
+            .map(|c| c.position_slew_rad_s)
+            .unwrap_or(0.15);
+        let dq_envelope = envelope_dq_cmd_for_hold_clamp(
+            self.supervisor.joint_limit_policy(joint),
+            q_now[i],
+            requested,
+            dq_cmd,
+            slew,
+        );
+        let target = self.clamp_hold_target(joint, q_now[i], requested, dq_envelope);
         if self.position_setpoints_raw.is_none() {
             self.position_setpoints_raw = Some(vec![0.0; self.joint_names.len()]);
         }
@@ -525,7 +544,18 @@ impl<B: MotorBus> ControlLoop<B> {
     /// Latch current `q` and enter [`ControlMode::Position`] (gravity FF + impedance gains).
     pub fn enter_position_hold(&mut self) -> Result<(), LoopError> {
         self.latch_position_setpoints();
+        self.ensure_active_for_motion()?;
         self.set_control_mode(ControlMode::Position);
+        Ok(())
+    }
+
+    /// Re-arm drives after a safety disable when homing is still verified.
+    pub fn ensure_active_for_motion(&mut self) -> Result<(), LoopError> {
+        if self.supervisor.mode() == OperationalMode::Active {
+            return Ok(());
+        }
+        self.supervisor.set_homing_complete()?;
+        self.supervisor.request_enable(true)?;
         Ok(())
     }
 
@@ -549,6 +579,7 @@ impl<B: MotorBus> ControlLoop<B> {
             }
             self.set_joint_position_setpoint(joint, position_rad)?;
         }
+        self.ensure_active_for_motion()?;
         self.set_control_mode(ControlMode::Position);
         Ok(())
     }
@@ -938,13 +969,19 @@ impl<B: MotorBus> ControlLoop<B> {
                             if approach_stuck_mit_pull(
                                 to_target,
                                 q[i],
+                                target,
                                 q_traj,
                                 dq,
                                 dq_traj,
                                 vel_deadband,
+                                effective_max_lead,
                             ) {
-                                let stuck_pull_lead =
-                                    POSITION_DESCENT_STUCK_LEAD_RAD.max(effective_max_lead);
+                                let lag = q_traj - q[i];
+                                let stuck_pull_lead = approach_stuck_mit_pull_lead_rad(
+                                    to_target,
+                                    lag,
+                                    effective_max_lead,
+                                );
                                 q_des = q_des.max(
                                     (q[i] + stuck_pull_lead).min(q_traj + effective_max_lead),
                                 );
@@ -964,8 +1001,30 @@ impl<B: MotorBus> ControlLoop<B> {
                             let lead = q_des - q[i];
                             let settling = matches!(traj_phase, TrapezoidPhase::Hold)
                                 && settle_error.abs() <= POSITION_SETTLE_TOLERANCE_RAD;
+                            let sustained_low_angle_breakaway = approaching_target
+                                && low_angle_breakaway_active(
+                                    q[i],
+                                    target,
+                                    settle_error,
+                                    approaching_target,
+                                )
+                                && dq.abs() < vel_deadband;
+                            let tau_g_hold = if is_descent_return(
+                                q[i],
+                                target,
+                                POSITION_RETURN_DESCENT_SEED_RAD,
+                            ) && dq_traj < -POSITION_HOLD_ERROR_DEADBAND_RAD
+                                && target.abs() <= POSITION_HOME_SETTLE_RAD
+                                && q[i] <= 0.30
+                            {
+                                // Full gravity FF in the knee fights P on descent to home.
+                                let knee = (q[i] / 0.30).clamp(0.0, 1.0);
+                                tau_g[i] * (0.25 + 0.75 * knee)
+                            } else {
+                                tau_g[i]
+                            };
                             let ff = compose_position_hold_feedforward(
-                                tau_g[i],
+                                tau_g_hold,
                                 kd,
                                 dq,
                                 dq_traj,
@@ -976,6 +1035,7 @@ impl<B: MotorBus> ControlLoop<B> {
                                 traj_phase,
                                 friction.as_ref(),
                                 approaching_target,
+                                sustained_low_angle_breakaway,
                             );
                             let friction_mode = ff.friction_mode;
                             let tau_f = ff.tau_f;
@@ -1637,6 +1697,29 @@ mod tests {
     }
 
     #[test]
+    fn hold_at_reenables_after_safety_disable() {
+        let mut loop_ctrl = test_loop();
+        bench_ready_active(&mut loop_ctrl);
+        loop_ctrl
+            .enter_position_hold_at(Some("shoulder_pitch"), 0.25)
+            .expect("hold-at");
+        loop_ctrl.tick(None).expect("tick");
+        loop_ctrl
+            .supervisor_mut()
+            .disable_all()
+            .expect("disable");
+        assert_eq!(
+            loop_ctrl.supervisor_mut().mode(),
+            OperationalMode::Disabled
+        );
+        loop_ctrl
+            .enter_position_hold_at(Some("shoulder_pitch"), 0.0)
+            .expect("hold-at home");
+        assert_eq!(loop_ctrl.supervisor_mut().mode(), OperationalMode::Active);
+        assert_eq!(loop_ctrl.control_mode(), ControlMode::Position);
+    }
+
+    #[test]
     fn position_mode_without_feedback_errors_when_active() {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
@@ -1920,6 +2003,7 @@ mod tests {
 
     #[test]
     fn return_onset_pulls_q_des_below_q_when_stuck() {
+        use crate::position_setpoint::POSITION_DESCENT_STUCK_LEAD_RAD;
         assert!(descent_stuck_mit_pull(
             -0.09, 0.105, 0.015, 0.0, 0.02, false
         ));
@@ -1957,11 +2041,24 @@ mod tests {
         let home = position_hold_effective_max_lead(0.10, 0, false, -1.57, 1.5);
         assert!((home - 0.10).abs() < 1e-12);
         let small = position_hold_effective_max_lead(0.10, 0, true, 0.02, 0.0);
-        assert!((small - 0.10).abs() < 1e-12);
+        assert!(
+            (small - 0.15).abs() < 1e-12,
+            "sustained low-angle boost covers small outbound moves from home"
+        );
         let return_high = position_hold_effective_max_lead(0.10, 0, true, -1.545, 1.645);
         assert!(
             (return_high - 0.15).abs() < 1e-12,
             "return from high q gets onset lead boost"
+        );
+        let outbound_knee = position_hold_effective_max_lead(0.10, 500, true, 0.05, 0.10);
+        assert!(
+            (outbound_knee - 0.15).abs() < 1e-12,
+            "sustained boost through low-angle outbound knee"
+        );
+        let staging_descent = position_hold_effective_max_lead(0.10, 500, false, -0.15, 0.25);
+        assert!(
+            (staging_descent - 0.15).abs() < 1e-12,
+            "sustained boost on staged descent near 15 deg"
         );
         let lower_limit = position_hold_effective_max_lead(0.10, 0, true, -0.64, 0.0);
         assert!(
@@ -2106,6 +2203,89 @@ mod tests {
         assert!(!descent_stuck_mit_pull(
             -0.09, 0.08, 0.015, -0.03, 0.02, false
         ));
+    }
+
+    #[test]
+    fn outbound_low_angle_stuck_enables_lead_saturated_mit_pull() {
+        use crate::position_setpoint::{
+            approach_stuck_mit_pull, approach_stuck_mit_pull_lead_rad, outbound_low_angle_stuck,
+            outbound_low_angle_stuck_pull_rad,
+        };
+        let q = 0.18;
+        let target = 0.262;
+        let to_target = target - q;
+        let lag = 0.15;
+        let max_lead = 0.15;
+        let deadband = 0.02;
+        assert!(outbound_low_angle_stuck(
+            q, target, to_target, 0.0, deadband, lag, max_lead
+        ));
+        assert!(!outbound_low_angle_stuck(
+            q, target, to_target, 0.0, deadband, 0.10, max_lead
+        ));
+        assert!(approach_stuck_mit_pull(
+            to_target,
+            q,
+            target,
+            q + lag,
+            0.0,
+            0.10,
+            deadband,
+            max_lead,
+        ));
+        assert!(!approach_stuck_mit_pull(
+            to_target,
+            0.35,
+            0.45,
+            0.50,
+            0.0,
+            0.10,
+            deadband,
+            max_lead,
+        ));
+        assert!(
+            (outbound_low_angle_stuck_pull_rad(to_target, max_lead) - to_target).abs() < 1e-9
+        );
+        assert!(
+            (approach_stuck_mit_pull_lead_rad(to_target, lag, max_lead) - to_target).abs() < 1e-9
+        );
+    }
+
+    #[test]
+    fn envelope_hold_clamp_allows_home_target_from_high_q() {
+        use armee_kinematics::{JointLimitBounds, JointLimitPolicy, LimitMarginConfig};
+        use crate::position_setpoint::{
+            envelope_dq_cmd_for_hold_clamp, POSITION_HOME_SETTLE_RAD,
+        };
+
+        let policy = JointLimitPolicy {
+            bounds: JointLimitBounds::from_hard_and_soft(0.0, 3.14159, None, None),
+            margin: LimitMarginConfig {
+                min_rad: 0.01,
+                k_v_s: 0.02,
+                k_stop: 0.5,
+                decel_rad_s2: 4.5,
+                velocity_deadband_rad_s: 0.02,
+                measured_fault_slack_rad: 0.005,
+            },
+            velocity: 1.25,
+            effort: 5.0,
+            tau_ff_max: 5.0,
+        };
+        let q = 0.286;
+        let requested = 0.0;
+        let dq_cruise = -1.25;
+        let slew = 0.15;
+        let dq_env = envelope_dq_cmd_for_hold_clamp(Some(&policy), q, requested, dq_cruise, slew);
+        assert!(
+            dq_env.abs() <= slew + 1e-9,
+            "envelope dq should use slew, got {dq_env}"
+        );
+        let clamped = armee_kinematics::clamp_hold_target(&policy, q, dq_env, requested);
+        assert!(
+            clamped.abs() <= POSITION_HOME_SETTLE_RAD,
+            "home hold-at must not clamp to margin band: got {clamped}"
+        );
     }
 
     #[test]

@@ -179,6 +179,7 @@ const benchLogWrapper = (
     'LOG="$LOGDIR/bench-$TS.log"',
     'TRACE="$LOGDIR/position-trace-$TS.csv"',
     'export MARENGO_POSITION_TRACE="$TRACE"',
+    'export MARENGO_POSITION_TRACE_HZ="${MARENGO_POSITION_TRACE_HZ:-50}"',
     'export MARENGO_LOG_SESSION_ID="$TS"',
     `LABEL=${shellQuote(label)}`,
     marengoPiPkillLine(cfg),

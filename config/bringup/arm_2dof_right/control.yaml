@@ -2,7 +2,7 @@
 control:
   loop_hz: 200
   chappe_state_hz: 25
-  comm_watchdog_ms: 50
+  comm_watchdog_ms: 100
   tau_ff_rate_limit_nm_per_s: 60.0
   disable_on_exit: true
   bench:
@@ -21,7 +21,7 @@ control:
       velocity_max_rad_s: 2.5
     shoulder_roll:
       joints: [right_shoulder_roll]
-      velocity_max_rad_s: 1.25
+      velocity_max_rad_s: 2.5
 
   joints:
     right_shoulder_roll:
@@ -31,37 +31,11 @@ control:
         kd: 0.0
         ki: 0.0
       impedance:
-        kp: 12.0
-        kd: 3.0
-        ki: 5.0
-      position_slew_rad_s: 0.08
-      position_slew_max_lead_rad: 0.03
-      position_trajectory_threshold_rad: 0.15
-      position_trajectory_velocity_rad_s: 0.55
-      position_trajectory_accel_rad_s2: 2.5
-      position_trajectory_velocity_deadband_rad: 0.02
-      position_hold_trim_rad: 0.0
-      position_limit_margin_min_rad: 0.01
-      position_limit_margin_k_v_s: 0.02
-      position_limit_margin_k_stop: 0.5
-      position_limit_measured_fault_slack_rad: 0.005
-      friction:
-        fc: 0.05
-        fv: 0.0
-        fo: 0.0
-        k: 10.0
-    right_shoulder_pitch:
-      motor_type: rs03
-      gravity_comp:
-        kp: 0.0
-        kd: 0.0
-        ki: 0.0
-      impedance:
-        kp: 12.0
+        kp: 18.0
         kd: 3.0
         ki: 5.0
       position_slew_rad_s: 0.15
-      position_slew_max_lead_rad: 0.05
+      position_slew_max_lead_rad: 0.12
       position_trajectory_threshold_rad: 0.15
       position_trajectory_velocity_rad_s: 1.25
       position_trajectory_accel_rad_s2: 4.5
@@ -72,7 +46,33 @@ control:
       position_limit_margin_k_stop: 0.5
       position_limit_measured_fault_slack_rad: 0.005
       friction:
-        fc: 0.05
+        fc: 0.08
+        fv: 0.0
+        fo: 0.0
+        k: 10.0
+    right_shoulder_pitch:
+      motor_type: rs03
+      gravity_comp:
+        kp: 0.0
+        kd: 0.0
+        ki: 0.0
+      impedance:
+        kp: 18.0
+        kd: 3.0
+        ki: 5.0
+      position_slew_rad_s: 0.15
+      position_slew_max_lead_rad: 0.12
+      position_trajectory_threshold_rad: 0.15
+      position_trajectory_velocity_rad_s: 1.25
+      position_trajectory_accel_rad_s2: 4.5
+      position_trajectory_velocity_deadband_rad: 0.02
+      position_hold_trim_rad: 0.0
+      position_limit_margin_min_rad: 0.01
+      position_limit_margin_k_v_s: 0.02
+      position_limit_margin_k_stop: 0.5
+      position_limit_measured_fault_slack_rad: 0.005
+      friction:
+        fc: 0.08
         fv: 0.0
         fo: 0.0
         k: 10.0

@@ -66,6 +66,7 @@ pub fn position_hold_friction(
     retarget_age_ms: u64,
     traj_phase: TrapezoidPhase,
     gains: &FrictionGains,
+    sustained_low_angle_breakaway: bool,
 ) -> (PositionFrictionMode, f64) {
     let toward_target = dq_traj * settle_error > POSITION_HOLD_ERROR_DEADBAND_RAD;
     if dq_traj.abs() > POSITION_HOLD_ERROR_DEADBAND_RAD {
@@ -77,6 +78,7 @@ pub fn position_hold_friction(
                 velocity_deadband,
                 retarget_age_ms,
                 gains,
+                sustained_low_angle_breakaway,
             );
         }
         if matches!(traj_phase, TrapezoidPhase::Hold)
@@ -93,6 +95,7 @@ pub fn position_hold_friction(
                 fade_rad,
                 retarget_age_ms,
                 gains,
+                sustained_low_angle_breakaway,
             );
         }
     }
@@ -121,6 +124,7 @@ fn trajectory_velocity_friction(
     velocity_deadband: f64,
     retarget_age_ms: u64,
     gains: &FrictionGains,
+    sustained_low_angle_breakaway: bool,
 ) -> (PositionFrictionMode, f64) {
     let stuck = dq.abs() <= velocity_deadband * POSITION_STUCK_EXIT_VELOCITY_RATIO;
     let in_onset = retarget_age_ms <= POSITION_HOLD_ONSET_MS;
@@ -129,7 +133,11 @@ fn trajectory_velocity_friction(
     let opposing_motion = dq.abs() > velocity_deadband * 0.5
         && dq.signum() != dq_traj.signum()
         && dq_traj.abs() > POSITION_HOLD_ERROR_DEADBAND_RAD;
-    let mut scale = if !stuck || (in_onset && opposing_motion) || (in_onset && !gravity_descent) {
+    let mut scale = if !stuck
+        || (in_onset && opposing_motion)
+        || (in_onset && !gravity_descent)
+        || (sustained_low_angle_breakaway && !gravity_descent)
+    {
         1.0
     } else if in_onset && gravity_descent {
         let vel_scale = (dq_traj.abs() / velocity_deadband).clamp(0.0, 1.0);
@@ -151,13 +159,14 @@ fn cross_target_trajectory_friction(
     fade_rad: f64,
     retarget_age_ms: u64,
     gains: &FrictionGains,
+    sustained_low_angle_breakaway: bool,
 ) -> (PositionFrictionMode, f64) {
     let fade = POSITION_HOLD_FRICTION_FADE_RAD.max(fade_rad);
     let taper = (settle_error.abs() / fade).clamp(0.0, 1.0);
     let stuck = dq.abs() <= velocity_deadband * POSITION_STUCK_EXIT_VELOCITY_RATIO;
     let in_onset = retarget_age_ms <= POSITION_HOLD_ONSET_MS;
     let mut scale = taper;
-    if stuck && !in_onset {
+    if stuck && !in_onset && !sustained_low_angle_breakaway {
         scale *= (dq_traj.abs() / velocity_deadband).clamp(0.0, 1.0);
     }
     scale *= trajectory_overspeed_fade(trajectory_overspeed_rad_s(dq, dq_traj), velocity_deadband);
@@ -253,6 +262,7 @@ mod tests {
             0,
             TrapezoidPhase::Accelerate,
             &gains,
+            false,
         );
         assert_eq!(mode, PositionFrictionMode::TrajectoryVelocity);
         assert!(tau.abs() > 0.0);
@@ -276,6 +286,7 @@ mod tests {
             500,
             TrapezoidPhase::Cruise,
             &gains,
+            false,
         );
         assert_eq!(mode, PositionFrictionMode::TrajectoryVelocity);
         assert!((tau - 0.25).abs() < 1e-6);
@@ -293,6 +304,7 @@ mod tests {
             50,
             TrapezoidPhase::Cruise,
             &gains,
+            false,
         );
         assert_eq!(mode, PositionFrictionMode::TrajectoryVelocity);
         assert!(tau.abs() < 1e-6);
@@ -313,6 +325,7 @@ mod tests {
             500,
             TrapezoidPhase::Cruise,
             &gains,
+            false,
         );
         let (_, q3) = position_hold_friction(
             0.13,
@@ -323,6 +336,7 @@ mod tests {
             500,
             TrapezoidPhase::Cruise,
             &gains,
+            false,
         );
         let (_, half) = position_hold_friction(
             0.14,
@@ -333,6 +347,7 @@ mod tests {
             500,
             TrapezoidPhase::Cruise,
             &gains,
+            false,
         );
         let (_, q5) = position_hold_friction(
             0.15,
@@ -343,6 +358,7 @@ mod tests {
             500,
             TrapezoidPhase::Cruise,
             &gains,
+            false,
         );
         let (_, zero) = position_hold_friction(
             0.16,
@@ -353,6 +369,7 @@ mod tests {
             500,
             TrapezoidPhase::Cruise,
             &gains,
+            false,
         );
 
         assert!((full - 0.25).abs() < 1e-6);
@@ -379,6 +396,7 @@ mod tests {
                 500,
                 TrapezoidPhase::Cruise,
                 &gains,
+                false,
             );
             assert!(tau <= previous + 1e-9, "tau={tau} previous={previous}");
             previous = tau;
@@ -407,6 +425,7 @@ mod tests {
                 500,
                 TrapezoidPhase::Cruise,
                 &gains,
+                false,
             );
             if prev_tau.is_finite() {
                 let step = (tau - prev_tau).abs();
@@ -438,6 +457,7 @@ mod tests {
             500,
             TrapezoidPhase::Cruise,
             &gains,
+            false,
         );
         assert_eq!(mode, PositionFrictionMode::TrajectoryVelocity);
         assert!((tau - 0.315).abs() < 1e-6);
@@ -460,6 +480,7 @@ mod tests {
             0,
             TrapezoidPhase::Cruise,
             &gains,
+            false,
         );
         assert_eq!(mode, PositionFrictionMode::TrajectoryVelocity);
         assert!((tau - 0.35).abs() < 1e-6);
@@ -482,9 +503,44 @@ mod tests {
             500,
             TrapezoidPhase::Cruise,
             &gains,
+            false,
         );
         assert_eq!(mode, PositionFrictionMode::TrajectoryVelocity);
         assert!((tau - 0.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn sustained_low_angle_breakaway_keeps_full_fc_after_onset() {
+        let gains = FrictionGains {
+            fc: 0.35,
+            fv: 0.0,
+            fo: 0.0,
+            k: 10.0,
+        };
+        let (_, ramped) = position_hold_friction(
+            0.0,
+            0.00475,
+            0.20,
+            0.02,
+            0.10,
+            500,
+            TrapezoidPhase::Cruise,
+            &gains,
+            false,
+        );
+        let (_, sustained) = position_hold_friction(
+            0.0,
+            0.00475,
+            0.20,
+            0.02,
+            0.10,
+            500,
+            TrapezoidPhase::Cruise,
+            &gains,
+            true,
+        );
+        assert!(ramped < 0.35 - 1e-6, "post-onset ramp should attenuate fc");
+        assert!((sustained - 0.35).abs() < 1e-6, "sustained knee breakaway keeps full fc");
     }
 
     #[test]
@@ -499,6 +555,7 @@ mod tests {
             500,
             TrapezoidPhase::Hold,
             &gains,
+            false,
         );
         assert_eq!(mode, PositionFrictionMode::SettleFade);
         assert!((tau - 0.05).abs() < 1e-6);
@@ -516,6 +573,7 @@ mod tests {
             500,
             TrapezoidPhase::Cruise,
             &gains,
+            false,
         );
         assert_eq!(mode, PositionFrictionMode::TrajectoryVelocity);
         assert!(tau > 0.0 && tau < 0.25);
@@ -533,6 +591,7 @@ mod tests {
             500,
             TrapezoidPhase::Hold,
             &gains,
+            false,
         );
         assert_eq!(mode, PositionFrictionMode::SettleFade);
         assert!(tau.abs() < 0.05);

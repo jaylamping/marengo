@@ -40,13 +40,16 @@ pub fn position_hold_effective_max_lead(
     settle_error: f64,
     q: f64,
 ) -> f64 {
-    let breakaway_from_home = q.abs() <= POSITION_RETURN_DESCENT_SEED_RAD;
-    let outbound_breakaway = breakaway_from_home
+    let target = q + settle_error;
+    let in_low_angle_band = q.abs() <= POSITION_HOME_BREAKAWAY_Q_MAX_RAD;
+    let outbound_breakaway = in_low_angle_band
         && approaching_target
         && settle_error > POSITION_RETURN_DESCENT_SEED_RAD;
-    let target = q + settle_error;
     let return_breakaway =
         is_gravity_assisted_return(q, target) && settle_error < -POSITION_RETURN_DESCENT_SEED_RAD;
+    if low_angle_breakaway_active(q, target, settle_error, approaching_target) {
+        return max_lead.max(POSITION_HOLD_ONSET_MAX_LEAD_RAD);
+    }
     if retarget_age_ms <= POSITION_HOLD_ONSET_MS
         && settle_error.abs() > POSITION_RETURN_DESCENT_SEED_RAD
         && (outbound_breakaway || return_breakaway)
@@ -57,7 +60,61 @@ pub fn position_hold_effective_max_lead(
     }
 }
 
+/// Sustained lead boost in the ~0–30° friction-knee band (outlasts the 300 ms onset window).
+pub fn low_angle_breakaway_active(
+    q: f64,
+    target: f64,
+    settle_error: f64,
+    approaching_target: bool,
+) -> bool {
+    const LOW_ANGLE_SPAN_MAX_RAD: f64 = 0.30;
+    if q > LOW_ANGLE_SPAN_MAX_RAD {
+        return false;
+    }
+    if home_final_approach_stuck(q, target) {
+        return true;
+    }
+    if target > LOW_ANGLE_SPAN_MAX_RAD {
+        return false;
+    }
+    if approaching_target {
+        settle_error > POSITION_HOME_SETTLE_RAD
+    } else {
+        settle_error < -POSITION_HOME_SETTLE_RAD
+    }
+}
+
 /// Downward planner speed after retarget/reset — large home returns seed closer to cruise.
+/// Cap `dq_cmd` used only for limit-envelope hold-target clamping near hard stops.
+///
+/// Cruise retarget velocity inflates kinetic margin (~0.12 rad at 1.25 rad/s), which blocks
+/// `hold-at 0` on joints whose lower limit is 0 — the target gets clamped to `hard_lower + margin`.
+pub fn envelope_dq_cmd_for_hold_clamp(
+    policy: Option<&JointLimitPolicy>,
+    q: f64,
+    requested_rad: f64,
+    dq_cmd: f64,
+    slew_rad_s: f64,
+) -> f64 {
+    let Some(policy) = policy else {
+        return dq_cmd;
+    };
+    let home_band = POSITION_HOME_SETTLE_RAD;
+    if requested_rad <= policy.hard_lower() + home_band
+        && q > requested_rad + home_band
+        && dq_cmd < 0.0
+    {
+        return -dq_cmd.abs().min(slew_rad_s);
+    }
+    if requested_rad >= policy.hard_upper() - home_band
+        && q < requested_rad - home_band
+        && dq_cmd > 0.0
+    {
+        return dq_cmd.abs().min(slew_rad_s);
+    }
+    dq_cmd
+}
+
 pub fn downward_return_seed_velocity(slew_rad_s: f64, v_max: f64, q: f64, target: f64) -> f64 {
     let base = slew_rad_s.min(v_max);
     if !is_descent_return(q, target, POSITION_RETURN_DESCENT_SEED_RAD) {
@@ -104,20 +161,79 @@ pub fn position_hold_mit_kd(
     kd
 }
 
-/// MIT pull while ascending toward target and stuck with planner slightly ahead.
+/// Outbound friction-knee stall: lead saturated, no motion, target still in low-angle band.
+pub fn outbound_low_angle_stuck(
+    q: f64,
+    target: f64,
+    to_target: f64,
+    dq_filtered: f64,
+    velocity_deadband: f64,
+    lag: f64,
+    effective_max_lead: f64,
+) -> bool {
+    const LOW_ANGLE_SPAN_MAX_RAD: f64 = 0.30;
+    to_target > POSITION_RETURN_DESCENT_SEED_RAD
+        && target <= LOW_ANGLE_SPAN_MAX_RAD
+        && q > POSITION_HOME_SETTLE_RAD
+        && q <= LOW_ANGLE_SPAN_MAX_RAD
+        && dq_filtered.abs() < velocity_deadband
+        && lag >= effective_max_lead - 1e-6
+}
+
+/// MIT pull-up lead while stuck in [`outbound_low_angle_stuck`].
+pub fn outbound_low_angle_stuck_pull_rad(to_target: f64, effective_max_lead: f64) -> f64 {
+    to_target
+        .min(effective_max_lead)
+        .max(POSITION_DESCENT_STUCK_LEAD_RAD)
+}
+
+/// MIT pull while ascending toward target and stuck (narrow sync or lead-saturated knee).
 pub fn approach_stuck_mit_pull(
     to_target: f64,
     q: f64,
+    target: f64,
     q_traj: f64,
     dq_filtered: f64,
     dq_traj: f64,
     velocity_deadband: f64,
+    effective_max_lead: f64,
 ) -> bool {
-    to_target > POSITION_HOLD_ERROR_DEADBAND_RAD
-        && dq_traj > POSITION_HOLD_ERROR_DEADBAND_RAD
-        && q_traj >= q - POSITION_SETTLE_TOLERANCE_RAD
-        && (q_traj - q) < POSITION_RETURN_RESYNC_RAD
-        && dq_filtered.abs() < velocity_deadband
+    if to_target <= POSITION_HOLD_ERROR_DEADBAND_RAD
+        || dq_traj <= POSITION_HOLD_ERROR_DEADBAND_RAD
+        || dq_filtered.abs() >= velocity_deadband
+        || q_traj < q - POSITION_SETTLE_TOLERANCE_RAD
+    {
+        return false;
+    }
+    let lag = q_traj - q;
+    if lag < POSITION_RETURN_RESYNC_RAD {
+        return true;
+    }
+    outbound_low_angle_stuck(
+        q,
+        target,
+        to_target,
+        dq_filtered,
+        velocity_deadband,
+        lag,
+        effective_max_lead,
+    )
+}
+
+/// Pull-up lead for [`approach_stuck_mit_pull`]: small-lag nudge vs knee lead-sat shove.
+pub fn approach_stuck_mit_pull_lead_rad(
+    to_target: f64,
+    lag: f64,
+    effective_max_lead: f64,
+) -> f64 {
+    if lag >= effective_max_lead - 1e-6 {
+        outbound_low_angle_stuck_pull_rad(to_target, effective_max_lead)
+    } else {
+        (lag + POSITION_HOME_FINAL_PULL_THROUGH_RAD).clamp(
+            POSITION_DESCENT_STUCK_LEAD_RAD,
+            effective_max_lead,
+        )
+    }
 }
 
 /// MIT pull-down while descending and stuck (cleared by [`descent_breakaway_confirmed`]).
@@ -140,11 +256,14 @@ fn high_angle_descent_stuck(q: f64, target: f64) -> bool {
     is_gravity_assisted_return(q, target) && (q - target) > POSITION_RETURN_DESCENT_SEED_RAD
 }
 
-/// Last ~5–50 mrad above home — `is_gravity_assisted_return` is false at `target == 0`.
+/// Upper q bound for home breakaway MIT pull — covers low-angle stall above the 50 mrad seed band.
+pub(crate) const POSITION_HOME_BREAKAWAY_Q_MAX_RAD: f64 = 0.15;
+
+/// Last ~5–150 mrad above home — `is_gravity_assisted_return` is false at `target == 0`.
 pub fn home_final_approach_stuck(q: f64, target: f64) -> bool {
     target.abs() <= POSITION_SETTLE_TOLERANCE_RAD
         && q > POSITION_HOME_SETTLE_RAD
-        && q <= POSITION_RETURN_DESCENT_SEED_RAD
+        && q <= POSITION_HOME_BREAKAWAY_Q_MAX_RAD
 }
 
 /// MIT pull-down lead while stuck in [`home_final_approach_stuck`] (includes pull-through past target).

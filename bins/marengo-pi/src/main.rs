@@ -21,9 +21,9 @@ use armee_proto::{
     SafetyState,
     MitCommandBatch,
 };
-use berthier::{proto_control_mode, ControlLoop, ControlMode, GainOverride, TickPhaseAverages};
+use berthier::{proto_control_mode, ControlLoop, ControlMode, GainOverride, LoopError, TickPhaseAverages};
 use chappe::Bus;
-use davout::{MotorAddress, OperationalMode};
+use davout::{DavoutError, MotorAddress, OperationalMode};
 use marengo_config::{
     load_control_config, load_motors_config, resolve_config_dir, resolve_repo_root,
     resolve_urdf_path,
@@ -690,7 +690,13 @@ fn run_control_loop(loop_ctrl: &mut ControlLoop<RuntimeBus>, runtime: &mut Contr
             Err(e) => {
                 error!(error = %e, "control tick failed");
                 let _ = loop_ctrl.supervisor_mut().disable_all();
-                loop_ctrl.set_control_mode(ControlMode::Disabled);
+                let preserve_position_hold = matches!(
+                    &e,
+                    LoopError::Safety(DavoutError::CommWatchdog { .. })
+                );
+                if !preserve_position_hold {
+                    loop_ctrl.set_control_mode(ControlMode::Disabled);
+                }
                 Some(e.to_string())
             }
         };
