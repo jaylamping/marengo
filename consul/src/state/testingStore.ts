@@ -6,7 +6,7 @@ import {
   MitJointCommandSchema,
   type MitJointCommand,
 } from '@/gen/marengo/v1/marengo_pb';
-import { postMitCommandBatch, postTestingMitCommandBatch, postEnableCommand } from '@/lib/chappe-client';
+import { postTestingMitCommandBatch, postEnableCommand } from '@/lib/chappe-client';
 
 interface TestingStore {
   selectedJointNames: string[];
@@ -55,14 +55,17 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
         name,
         kp: gain.kp,
         kd: gain.kd,
+        ki: gain.ki,
+        fc: gain.fc,
         position: setpointRad,
         velocity: 0,
         torqueFf: 0,
       });
     });
 
+
     if (!dryRun) {
-      await postMitCommandBatch(create(MitCommandBatchSchema, {
+      await postTestingMitCommandBatch(create(MitCommandBatchSchema, {
         timestampMs: BigInt(Date.now()),
         mode: ControlMode.POSITION,
         joints,
