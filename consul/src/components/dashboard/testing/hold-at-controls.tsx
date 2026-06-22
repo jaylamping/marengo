@@ -6,7 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export function HoldAtControls() {
-  const { setpointRad, setSetpoint, startTest, stopTest, dryRun, toggleDryRun, mode, setMode } = useTestingStore();
+  const { setpointRad, setSetpoint, startTest, stopTest, returnHome, dryRun, toggleDryRun, mode, setMode, isRunning } = useTestingStore();
 
   return (
     <Card>
@@ -34,8 +34,14 @@ export function HoldAtControls() {
           <span className="text-sm">Dry Run</span>
         </div>
         <div className="flex gap-2">
-          <Button onClick={startTest}>Start Hold</Button>
-          <Button variant="destructive" onClick={stopTest}>Stop</Button>
+          {isRunning ? (
+            <>
+              <Button onClick={returnHome}>Return Home</Button>
+              <Button variant="destructive" onClick={stopTest}>Stop</Button>
+            </>
+          ) : (
+            <Button onClick={startTest}>Start Hold</Button>
+          )}
         </div>
       </CardContent>
     </Card>

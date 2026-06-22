@@ -24,6 +24,7 @@ interface TestingStore {
   setGain: (name: string, gain: { kp: number; kd: number; ki: number; fc: number }) => void;
   toggleDryRun: () => void;
   startTest: () => Promise<void>;
+  returnHome: () => Promise<void>;
   stopTest: () => void;
   enable: () => Promise<void>;
   disable: () => Promise<void>;
@@ -73,6 +74,33 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
     }
   },
   stopTest: () => set({ isRunning: false }),
+
+  returnHome: async () => {
+    const { selectedJointNames, gains, dryRun } = get();
+    set({ isRunning: false, setpointRad: 0 });
+
+    const joints: MitJointCommand[] = selectedJointNames.map((name) => {
+      const gain = gains[name] || { kp: 0, kd: 0, ki: 0, fc: 0 };
+      return create(MitJointCommandSchema, {
+        name,
+        kp: gain.kp,
+        kd: gain.kd,
+        ki: gain.ki,
+        fc: gain.fc,
+        position: 0,
+        velocity: 0,
+        torqueFf: 0,
+      });
+    });
+
+    if (!dryRun) {
+      await postTestingMitCommandBatch(create(MitCommandBatchSchema, {
+        timestampMs: BigInt(Date.now()),
+        mode: ControlMode.POSITION,
+        joints,
+      }));
+    }
+  },
 
   enable: async () => {
     await postEnableCommand(true);
