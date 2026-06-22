@@ -12,6 +12,7 @@ import {
   ImuSampleSchema,
   type LogEvent,
   LogEventSchema,
+  HomingCompleteSchema,
   MitCommandBatchSchema,
   type MitCommandBatch,
   type RobotState,
@@ -460,5 +461,25 @@ export async function postTestingMitCommandBatch(batch: MitCommandBatch): Promis
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`testing mit command failed: ${res.status} ${text}`);
+  }
+}
+
+export async function postHomeCommand(): Promise<void> {
+  const endpoints = getChappeEndpoints();
+  if (!endpoints) {
+    throw new Error('Chappe endpoints not configured');
+  }
+  const request = create(HomingCompleteSchema, {
+    timestampMs: BigInt(Date.now()),
+    nodeId: 'consul',
+  });
+  const res = await fetch(`${endpoints.httpUrl}/command/home`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-protobuf' },
+    body: toBinary(HomingCompleteSchema, request),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`home command failed: ${res.status} ${text}`);
   }
 }
