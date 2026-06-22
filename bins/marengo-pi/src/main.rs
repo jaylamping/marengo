@@ -66,6 +66,13 @@ enum PiCommand {
         joint: Option<String>,
         position_rad: f64,
     },
+    Wave {
+        joint: String,
+        min_rad: f64,
+        max_rad: f64,
+        cycles: u32,
+        half_period_sec: f64,
+    },
     HoldOff,
     Status,
     Quit,
@@ -120,6 +127,42 @@ fn parse_command(line: &str) -> Option<PiCommand> {
                 }
             }
         }
+        "wave" => {
+            let tokens: Vec<_> = parts.collect();
+            match tokens.as_slice() {
+                [joint, min, max, cycles] => {
+                    let min_rad = min.parse().ok()?;
+                    let max_rad = max.parse().ok()?;
+                    let cycles = cycles.parse().ok()?;
+                    Some(PiCommand::Wave {
+                        joint: joint.to_string(),
+                        min_rad,
+                        max_rad,
+                        cycles,
+                        half_period_sec: 0.4,
+                    })
+                }
+                [joint, min, max, cycles, half_period] => {
+                    let min_rad = min.parse().ok()?;
+                    let max_rad = max.parse().ok()?;
+                    let cycles = cycles.parse().ok()?;
+                    let half_period_sec = half_period.parse().ok()?;
+                    Some(PiCommand::Wave {
+                        joint: joint.to_string(),
+                        min_rad,
+                        max_rad,
+                        cycles,
+                        half_period_sec,
+                    })
+                }
+                _ => {
+                    eprintln!(
+                        "wave usage: wave <joint> <min_rad> <max_rad> <cycles> [half_period_sec]"
+                    );
+                    None
+                }
+            }
+        }
         "status" => Some(PiCommand::Status),
         "quit" | "exit" => Some(PiCommand::Quit),
         "help" => {
@@ -142,6 +185,7 @@ fn print_usage() {
          gravity-on | gravity-off\n  \
          impedance-on | impedance-off\n  \
          hold-on | hold-at [joint] <rad> | hold-off\n  \
+         wave <joint> <min_rad> <max_rad> <cycles> [half_period_sec]\n  \
          status\n  \
          quit"
     );
@@ -468,6 +512,27 @@ fn handle_command(
                 }
             }
             Err(e) => eprintln!("hold-at failed: {e}"),
+        },
+        PiCommand::Wave {
+            joint,
+            min_rad,
+            max_rad,
+            cycles,
+            half_period_sec,
+        } => match loop_ctrl.start_position_wave(
+            &joint,
+            min_rad,
+            max_rad,
+            cycles,
+            half_period_sec,
+        ) {
+            Ok(duration_sec) => {
+                println!(
+                    "position wave → {joint} {min_rad:.4}↔{max_rad:.4} rad ×{cycles} (~{duration_sec:.2}s, operational={:?})",
+                    loop_ctrl.supervisor_mut().mode()
+                );
+            }
+            Err(e) => eprintln!("wave failed: {e}"),
         },
         PiCommand::HoldOff => {
             loop_ctrl.clear_position_hold();

@@ -42,6 +42,7 @@ use crate::position_trace::{PositionTrace, PositionTraceRow};
 use crate::position_trajectory::{
     filter_dq_ema, JointPositionPlanner, TrapezoidPhase, POSITION_DAMPING_DQ_FILTER_ALPHA,
 };
+use crate::position_wave::PositionWave;
 
 #[derive(Debug, Error)]
 pub enum LoopError {
@@ -59,6 +60,12 @@ pub enum LoopError {
     UnknownJoint { joint: String },
     #[error("position hold: joint name required for hold-at on multi-joint configs")]
     JointNameRequired,
+    #[error("position wave: min_rad must be less than max_rad")]
+    InvalidWaveRange,
+    #[error("position wave: cycles must be at least 1")]
+    InvalidWaveCycles,
+    #[error("position wave: half_period_sec must be positive")]
+    InvalidWavePeriod,
     #[error("missing motor feedback for joint {joint}")]
     MissingFeedback { joint: String },
 }
@@ -132,6 +139,8 @@ pub struct ControlLoop<B: MotorBus> {
     gain_overrides: HashMap<String, GainOverride>,
     /// Accumulated position error (integral) for ki anti-windup per joint.
     position_integral_error: Option<Vec<f64>>,
+    /// In-loop triangle wave on one joint while others hold fixed setpoints.
+    position_wave: Option<PositionWave>,
 }
 
 /// Per-tick CPU time inside [`ControlLoop::tick`] (microseconds, averaged over a window).
@@ -248,6 +257,7 @@ impl<B: MotorBus> ControlLoop<B> {
             active_feedback_grace_ticks: 0,
             gain_ramp: None,
             gain_overrides: HashMap::new(),
+            position_wave: None,
         })
     }
 
@@ -320,6 +330,7 @@ impl<B: MotorBus> ControlLoop<B> {
         };
         let old_target = setpoints[i];
         setpoints[i] = target;
+        self.position_wave = None;
         if (requested - target).abs() > 1e-6 {
             info!(
                 joint = %joint,
@@ -539,6 +550,66 @@ impl<B: MotorBus> ControlLoop<B> {
         self.position_descent_was_stuck = None;
         self.position_planner_events = None;
         self.position_integral_error = None;
+        self.position_wave = None;
+    }
+
+    /// Start a continuous triangle wave on one joint (Position mode).
+    ///
+    /// Other joints keep their current latched setpoints. The wave runs in-loop for
+    /// `cycles` full min→max→min periods without stdin pacing.
+    pub fn start_position_wave(
+        &mut self,
+        joint: &str,
+        min_rad: f64,
+        max_rad: f64,
+        cycles: u32,
+        half_period_sec: f64,
+    ) -> Result<f64, LoopError> {
+        if min_rad >= max_rad {
+            return Err(LoopError::InvalidWaveRange);
+        }
+        if cycles == 0 {
+            return Err(LoopError::InvalidWaveCycles);
+        }
+        if half_period_sec <= 0.0 {
+            return Err(LoopError::InvalidWavePeriod);
+        }
+        let Some(i) = self.joint_names.iter().position(|n| n == joint) else {
+            return Err(LoopError::UnknownJoint {
+                joint: joint.to_string(),
+            });
+        };
+        let q = self.refresh_joint_positions();
+        if self.position_setpoints.is_none() {
+            self.position_setpoints = Some(q.clone());
+            self.position_setpoints_raw = Some(q.clone());
+        }
+        if self.position_planners.is_none() {
+            self.init_position_planners(&q);
+        }
+        self.ensure_active_for_motion()?;
+        self.set_control_mode(ControlMode::Position);
+        let half_period_ticks =
+            (half_period_sec * f64::from(self.loop_hz)).round().max(1.0) as u64;
+        let wave = PositionWave::new(i, min_rad, max_rad, self.tick_count, half_period_ticks, cycles);
+        let duration_sec = wave.duration_sec(self.loop_hz);
+        self.position_wave = Some(wave);
+        info!(
+            joint = %joint,
+            min_rad,
+            max_rad,
+            cycles,
+            half_period_sec,
+            duration_sec,
+            "position wave started"
+        );
+        Ok(duration_sec)
+    }
+
+    pub fn position_wave_active(&self) -> bool {
+        self.position_wave
+            .as_ref()
+            .is_some_and(|w| !w.is_finished())
     }
 
     /// Latch current `q` and enter [`ControlMode::Position`] (gravity FF + impedance gains).
@@ -602,6 +673,7 @@ impl<B: MotorBus> ControlLoop<B> {
             self.position_descent_was_stuck = None;
             self.position_planner_events = None;
             self.last_position_diag = None;
+            self.position_wave = None;
         }
         self.control_mode = mode;
         self.supervisor.set_control_mode(mode);
@@ -1269,6 +1341,30 @@ impl<B: MotorBus> ControlLoop<B> {
 
     /// Advance per-joint planners toward latched targets.
     fn advance_position_commands(&mut self, q: &[f64]) -> Result<(), LoopError> {
+        if let Some(wave) = self.position_wave.as_mut() {
+            let joint_name = self.joint_names[wave.joint_index].clone();
+            if let Some(target) = wave.target_at_tick(self.tick_count) {
+                if let (Some(setpoints), Some(raw)) = (
+                    self.position_setpoints.as_mut(),
+                    self.position_setpoints_raw.as_mut(),
+                ) {
+                    setpoints[wave.joint_index] = target;
+                    raw[wave.joint_index] = target;
+                }
+            } else {
+                let idx = wave.joint_index;
+                let end = wave.end_position_rad();
+                self.position_wave = None;
+                if let (Some(setpoints), Some(raw)) = (
+                    self.position_setpoints.as_mut(),
+                    self.position_setpoints_raw.as_mut(),
+                ) {
+                    setpoints[idx] = end;
+                    raw[idx] = end;
+                }
+                info!(joint = %joint_name, end_rad = end, "position wave complete");
+            }
+        }
         let Some(targets) = self.position_setpoints.clone() else {
             return Ok(());
         };

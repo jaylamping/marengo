@@ -178,13 +178,17 @@ Do not ask the user to paste Pi logs or run SSH when `pi-remote.sh` can fetch th
 - Early bench commissioning (roll / multi-DOF bringup): prioritize reliable safe motion over perfect mass or COM tuning when hardware is still changing week to week.
 - For a new joint on the same actuator type as an existing bench motor, start from the proven pitch motor settings and flip `direction` sign rather than inventing fresh tuning.
 - Re–set-zero at mechanical home whenever arm configuration changes (bare motor vs attached arm, bolt-on segments).
+- On `arm_2dof_right` wave motion: **pitch** raises the arm (~π–2.8 rad); **roll** oscillates — do not swap those joint roles.
 
 ## Learned Workspace Facts
 
 - SolidWorks CAD binaries under `cad/assemblies`, `cad/parts`, `cad/vendor`, and `cad/exports` are gitignored local-only (removed from git tracking in `0a0adc1`); restore from Git LFS history at the commit before removal and hydrate blobs if pointers remain.
 - `pi_sync_bench_config` syncs bringup YAML only — it does not deploy `assets/urdf/`; verify gravity preview after COM/URDF edits or copy URDF assets separately.
 - Windows Pi Docker deploy from Git Bash fails on `unix:///var/run/docker.sock` even when Docker Desktop works in PowerShell; set `$env:DOCKER_HOST='npipe:////./pipe/dockerDesktopLinuxEngine'` before `deploy-pi-docker.sh`.
-- `pi_sync_main` deploys `main` and may switch the local checkout to `main`; feature-branch Pi deploys use `deploy-pi-docker.sh` with the Docker host workaround above.
+- `pi_sync_main` deploys `main`, may switch the local checkout to `main`, and refuses a dirty git tree; feature-branch Pi deploys use `deploy-pi-docker.sh` with the Docker host workaround above and `MARENGO_SKIP_CONSUL=1` when consul WIP breaks the build.
 - Native Windows `cargo test` for crates using `chappe` fails on Unix socket APIs; use `just check` (container) for valid Rust test results on Windows.
 - Consul actuator assignment and joint limit edits are not wired today — use `config/bringup/<profile>/motors.yaml` and `control.yaml`, then sync to Pi.
-- Active 2-DOF right bench profile is `config/bringup/arm_2dof_right/` with roll CAN id 1 and pitch CAN id 2 on `can0`; roll limits 0→π rad (arm down to sky).
+- Active 2-DOF right bench profile is `config/bringup/arm_2dof_right/` with roll CAN id 1 and pitch CAN id 2 on `can0`; roll limits 0→π rad (arm down to sky); re–set-zero roll at arm-down mechanical home (q≥0) before enable after physical homing.
+- Roll velocity-limit trips on ascent often trace to `actuator_groups.shoulder_roll.velocity_max_rad_s` disagreeing with joint `position_trajectory_velocity_rad_s` — align both before raising traj speed.
+- Never call synchronous `PositionTrace::flush()` in the Berthier 200 Hz loop (~70 ms SD fsync on Pi trips the 50 ms comm watchdog); flush on session `Drop` only.
+- **Signed-off position-hold baseline** (`ff9d554`): kp 18 / kd 3 / ki 5, fc 0.08, max_lead 0.12, group vel 2.5 — see [docs/bench-2dof-right-smoke.md](docs/bench-2dof-right-smoke.md); mem0 `control/bench/arm-2dof-right-baseline`.

@@ -267,6 +267,24 @@ export function scriptSleepTotalSec(script: string[]): number {
   return total;
 }
 
+/** After each `wave` line, insert a sleep for in-loop wave duration (+ slack). */
+export function expandScriptWithWaveWaits(script: string[]): string[] {
+  const out: string[] = [];
+  for (const line of script) {
+    out.push(line);
+    const waveMatch =
+      /^wave\s+\S+\s+[\d.]+\s+[\d.]+\s+(\d+)(?:\s+([\d.]+))?\s*$/i.exec(line.trim());
+    if (waveMatch) {
+      const cycles = Number(waveMatch[1]);
+      const halfPeriod =
+        waveMatch[2] !== undefined ? Number(waveMatch[2]) : 0.4;
+      const waitSec = Math.ceil((cycles * 2 * halfPeriod + 0.15) * 10) / 10;
+      out.push(`sleep ${waitSec}`);
+    }
+  }
+  return out;
+}
+
 /** Total pipe timeout passed to `timeout(1) marengo-pi`. */
 export function marengoPiPipeTimeoutSec(
   _script: string[],
@@ -759,8 +777,16 @@ export function registerMotionTools(
       }) => {
         const check = gate(args);
         if (!check.ok) return check.message;
-        const controlTimeoutSec = args.timeout_sec ?? DEFAULT_MOTION_TIMEOUT_SEC;
-        const script = ensureScriptQuit(args.script);
+        const expanded = expandScriptWithWaveWaits(args.script);
+        const sleepBudget = scriptSleepTotalSec(expanded);
+        const controlTimeoutSec =
+          args.timeout_sec !== undefined
+            ? args.timeout_sec
+            : Math.max(
+                DEFAULT_MOTION_TIMEOUT_SEC,
+                Math.ceil(sleepBudget + 10),
+              );
+        const script = ensureScriptQuit(expanded);
         const pipeTimeoutSec = marengoPiPipeTimeoutSec(script, controlTimeoutSec);
         const pipeCmd = [
           marengoPiBinarySelector(cfg),

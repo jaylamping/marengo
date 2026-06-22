@@ -5,6 +5,7 @@ import {
   benchCanKernelDeltaShell,
   benchCanKernelSnapshotShell,
   benchLogPruneShell,
+  expandScriptWithWaveWaits,
   marengoPiPipeTimeoutSec,
   registerMotionTools,
   scriptSleepTotalSec,
@@ -25,6 +26,18 @@ describe("marengo-pi script tool", () => {
     assert.equal(scriptSleepTotalSec(["hold-at 0", "sleep 2", "sleep 1.5"]), 3.5);
     assert.equal(marengoPiPipeTimeoutSec(["sleep 35", "disable"], 15), 15);
     assert.equal(marengoPiPipeTimeoutSec(["home", "disable"], 20), 20);
+  });
+
+  it("expands wave lines with auto wait sleep", () => {
+    const expanded = expandScriptWithWaveWaits([
+      "wave right_shoulder_roll 0.4 1.0 4",
+      "hold-at right_shoulder_roll 0",
+    ]);
+    assert.deepEqual(expanded, [
+      "wave right_shoulder_roll 0.4 1.0 4",
+      "sleep 3.4",
+      "hold-at right_shoulder_roll 0",
+    ]);
   });
 
   it("keeps bench logs current when script exits nonzero", async () => {

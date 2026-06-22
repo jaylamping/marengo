@@ -42,6 +42,7 @@ mod position_profile;
 mod position_setpoint;
 mod position_trace;
 mod position_trajectory;
+mod position_wave;
 
 #[cfg(test)]
 mod mode_isolation;

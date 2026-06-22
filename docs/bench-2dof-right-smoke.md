@@ -4,10 +4,14 @@ Light **pitch + roll** motion smoke on `arm_2dof_right`. Run **once** after the
 [roll commissioning suite](bench-roll-test-suite.md) passes (`roll_attached`
 harness `pass: true`).
 
-## Position-hold baseline (2026-06-21)
+## Position-hold baseline — signed off (2026-06-22)
 
-Locked after roll 15° round-trip probe: ascent ~1 s, return to **q ≈ 0.0015 rad**
-at disable. Same joint tuning on **roll and pitch** in
+**Operator sign-off:** best motion quality on this bench to date. Do not change
+`control.yaml` or Berthier hold-at path without an A/B against this baseline.
+
+Locked after roll 15° round-trip probe and **`arm_2dof_smoke` harness PASS**
+(deploy `ff9d554`). Roll ascent ~1 s, return to **q ≈ 0.0015 rad** at disable.
+Same joint tuning on **roll and pitch** in
 `config/bringup/arm_2dof_right/control.yaml`:
 
 | Parameter | Value |
@@ -96,4 +100,7 @@ Analyze position trace: passive joint peak \|Δq\| < 30 mrad.
 }
 ```
 
-Archive `log_path` from JSON and mark smoke done in [bench-test-backlog.md](bench-test-backlog.md).
+**2026-06-22 run (PASS):** `bench-20260622T002026Z.log`,
+`position-trace-20260622T002026Z.csv`, `candump-20260622T002026Z.log` on Pi
+(`/opt/marengo/var/log/`). Marked done in
+[bench-test-backlog.md](bench-test-backlog.md).
