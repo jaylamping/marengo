@@ -1,4 +1,7 @@
-import { dashboardOverviewClassName } from '@/components/dashboard/layout/constants';
+import {
+  dashboardOverviewClassName,
+  dashboardPanelPointerClassName,
+} from '@/components/dashboard/layout/constants';
 import { ActuatorMultiSelect } from '@/components/dashboard/testing/actuator-multi-select';
 import { PresetGroupButtons } from '@/components/dashboard/testing/preset-group-buttons';
 import { HoldAtControls } from '@/components/dashboard/testing/hold-at-controls';
@@ -9,7 +12,9 @@ import { EStopButton } from '@/components/dashboard/testing/e-stop-button';
 
 export function TestingOverview() {
   return (
-    <div className={`${dashboardOverviewClassName} px-4 lg:px-6`}>
+    <div
+      className={`${dashboardOverviewClassName} ${dashboardPanelPointerClassName} px-4 lg:px-6`}
+    >
       <div className="sticky top-0 z-10 bg-background/80 backdrop-blur p-4 flex gap-4 items-center border-b">
         <EnableDisableButtons />
         <div className="flex-1" />

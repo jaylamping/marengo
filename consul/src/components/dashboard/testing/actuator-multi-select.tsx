@@ -5,6 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { dashboardGlassCardClassName } from '@/components/dashboard/layout/constants';
 
 export function ActuatorMultiSelect() {
   const { selectedJointNames, selectJoint, deselectJoint } = useTestingStore();
@@ -19,7 +20,7 @@ export function ActuatorMultiSelect() {
   };
 
   return (
-    <Card className="bg-card/50">
+    <Card className={dashboardGlassCardClassName}>
       <CardHeader>
         <CardTitle>Actuators ({selectedJointNames.length} / {actuators.length} selected)</CardTitle>
       </CardHeader>
