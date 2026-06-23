@@ -144,6 +144,10 @@ fi
 if [[ -f "${INSTALL_ROOT}/bin/marengo-log-cli" ]]; then
   systemctl enable --now marengo-log-maintenance.timer
 fi
+if [[ -f "${INSTALL_ROOT}/bin/marengo-pi" ]]; then
+  systemctl enable marengo-pi.service
+  systemctl restart marengo-pi.service
+fi
 
 echo "Done. CAN (can0/can1) should be UP — verify: ip -br link show type can"
 if [[ -x "${INSTALL_ROOT}/bin/motor-repl" ]] && [[ -x "${INSTALL_ROOT}/scripts/homing-preflight.sh" ]]; then
