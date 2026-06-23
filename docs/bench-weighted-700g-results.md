@@ -1,7 +1,7 @@
 # Weighted right shoulder pitch — 700 g bench test suite results
 
 Load: **0.7 kg**, COM **18 in (0.4572 m)** end-loaded arm.
-Config: `shoulder_pitch_right_only` (loaded URDF, `git 3a87be2`).
+Config: `arm_2dof_right` (loaded URDF, `git 3a87be2`).
 Tuning: kp=8, kd=1.25, v=2.0, a=4.8, slew=0.15, τ_ff rate limit 60, friction fc=0.25/k=10.
 Velocity guard: Davout disables on corroborated feedback velocity > 2.0 rad/s.
 

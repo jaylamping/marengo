@@ -26,7 +26,7 @@ fn with_bench_config() -> scopeguard_guard {
     let prev = std::env::var("MARENGO_CONFIG_DIR").ok();
     std::env::set_var(
         "MARENGO_CONFIG_DIR",
-        repo_root().join("config/bringup/shoulder_pitch_right_only"),
+    repo_root().join("config/bringup/arm_2dof_right"),
     );
     scopeguard_guard(prev)
 }
@@ -47,7 +47,7 @@ fn tau_g_sign_positive_at_positive_q() {
     // At q=0.3 rad, tau_g should be POSITIVE for the right_shoulder_pitch joint.
     // Gravity pulls the arm down; the motor must push up (= positive joint torque).
     // Golden value from bench-weighted-700g-results.md Phase 1.
-    let model_path = repo_root().join("assets/urdf/shoulder_pitch_right_only.urdf");
+let model_path = repo_root().join("assets/urdf/arm_2dof_right.urdf");
     let model = armee_dynamics::gravity_model_from_urdf(
         &model_path,
         &["right_shoulder_pitch".to_string()],
@@ -72,7 +72,7 @@ fn tau_g_sign_positive_at_positive_q() {
 #[test]
 fn motor_space_sign_flipped_by_direction() {
     // The right_shoulder_pitch motor has direction=-1, gear_ratio=1.0 in
-    // config/bringup/shoulder_pitch_right_only/motors.yaml.
+// config/bringup/arm_2dof_right/motors.yaml.
     // motor_position_scale = direction * gear_ratio = -1.0.
     //
     // When a joint-space torque_ff flows through send_mit_joint:
@@ -153,7 +153,7 @@ fn motor_space_sign_flipped_by_direction() {
 #[test]
 fn tau_g_at_pi_over_2_positive() {
     // Confirm sign is positive even at large q.
-    let model_path = repo_root().join("assets/urdf/shoulder_pitch_right_only.urdf");
+let model_path = repo_root().join("assets/urdf/arm_2dof_right.urdf");
     let model = armee_dynamics::gravity_model_from_urdf(
         &model_path,
         &["right_shoulder_pitch".to_string()],

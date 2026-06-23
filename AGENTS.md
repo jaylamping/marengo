@@ -38,7 +38,7 @@ marengo/
 | Pi runtime | `bins/marengo-pi/` | Control + CAN + Chappe on Pi |
 | Bench motor tool | `bins/motor-repl/` | `status`, `enable`, `jog`, `set-zero`, `gravity-on` |
 | Wire types | `proto/` → `crates/armee-proto/` (Rust) + `consul/src/gen/` (TS) | Never hand-edit gen/ |
-| Bringup profiles | `config/bringup/<profile>/` | `shoulder_pitch_right_only` is bench default |
+| Bringup profiles | `config/bringup/<profile>/` | `arm_2dof_right` is bench default |
 | Pi deploy / logs | `scripts/pi-remote.sh` | Cloud fallback when MCP unavailable |
 | ADRs | `docs/decisions/` | 14 ADRs (wire types, control modes, homing, …) |
 

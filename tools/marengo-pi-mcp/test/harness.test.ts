@@ -27,8 +27,8 @@ describe("bench harness config", () => {
 
   it("expands relative config_dir overrides", () => {
     assert.equal(
-      harnessConfigDir(cfg, "bare_motor", "shoulder_pitch_right_only"),
-      "/opt/marengo/config/bringup/shoulder_pitch_right_only",
+      harnessConfigDir(cfg, "bare_motor", "arm_2dof_right"),
+      "/opt/marengo/config/bringup/arm_2dof_right",
     );
   });
 

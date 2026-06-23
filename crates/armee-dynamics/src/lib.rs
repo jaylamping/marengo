@@ -240,16 +240,16 @@ mod tests {
         );
     }
 
-    fn shoulder_pitch_right_only_model() -> UrdfGravityModel {
+    fn arm_2dof_right_model() -> UrdfGravityModel {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../assets/urdf/shoulder_pitch_right_only.urdf");
+            .join("../../assets/urdf/arm_2dof_right.urdf");
         gravity_model_from_urdf(&path, &["right_shoulder_pitch".to_string()])
-            .expect("shoulder_pitch_right_only model")
+            .expect("arm_2dof_right model")
     }
 
     #[test]
     fn saturation_check_returns_max_over_range() {
-        let model = shoulder_pitch_right_only_model();
+        let model = arm_2dof_right_model();
         // Gravity torque grows with |q| up to π/2 for this single-pitch model.
         let tau_at_pi2 = model
             .gravity_torques(&[std::f64::consts::FRAC_PI_2])
@@ -272,7 +272,7 @@ mod tests {
 
     #[test]
     fn saturation_check_with_zero_range() {
-        let model = shoulder_pitch_right_only_model();
+        let model = arm_2dof_right_model();
         let q = 0.3_f64;
         let tau_at_q = model.gravity_torques(&[q]).expect("tau at q")[0].abs();
         let max_tau = max_gravity_torque_over_range(&model, 0, q, q, 5).expect("max zero range");
@@ -284,7 +284,7 @@ mod tests {
 
     #[test]
     fn saturation_check_with_min_steps() {
-        let model = shoulder_pitch_right_only_model();
+        let model = arm_2dof_right_model();
         let tau_at_end = model
             .gravity_torques(&[std::f64::consts::FRAC_PI_2])
             .expect("tau at π/2")[0]
@@ -300,7 +300,7 @@ mod tests {
 
     #[test]
     fn saturation_check_rejects_out_of_range_joint() {
-        let model = shoulder_pitch_right_only_model();
+        let model = arm_2dof_right_model();
         let err = max_gravity_torque_over_range(&model, 5, 0.0, 1.0, 10)
             .expect_err("out-of-range joint index should error");
         assert!(matches!(err, DynamicsError::JointCount { .. }));

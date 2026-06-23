@@ -160,18 +160,18 @@ mod tests {
 
     use super::*;
 
-    fn shoulder_pitch_right_only_urdf() -> std::path::PathBuf {
+    fn arm_2dof_right_urdf() -> std::path::PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../assets/urdf/shoulder_pitch_right_only.urdf")
+            .join("../../assets/urdf/arm_2dof_right.urdf")
     }
 
     #[test]
     fn link_chains_built_correctly() {
         let model = UrdfGravityModel::from_urdf(
-            shoulder_pitch_right_only_urdf(),
+            arm_2dof_right_urdf(),
             &["right_shoulder_pitch".to_string()],
         )
-        .expect("build model from shoulder_pitch_right_only.urdf");
+        .expect("build model from arm_2dof_right.urdf");
 
         // base_link is the root: no parent joint → empty chain.
         let base_chain = model

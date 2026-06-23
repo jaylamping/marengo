@@ -91,7 +91,7 @@ export function registerAdminTools(
         install_to_opt?: boolean;
       }) => {
         return runSyncBenchConfig(cfg, runRemote, {
-          profile: args.profile ?? "shoulder_pitch_right_only",
+          profile: args.profile ?? "arm_2dof_right",
           install_to_opt: args.install_to_opt ?? true,
         });
       },

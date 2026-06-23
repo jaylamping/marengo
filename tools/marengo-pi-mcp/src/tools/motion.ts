@@ -19,7 +19,7 @@ const motionConfirmSchema = z.object({
 });
 
 const BENCH_CONFIG_RIGHT =
-  "/opt/marengo/config/bringup/shoulder_pitch_right_only";
+  "/opt/marengo/config/bringup/arm_2dof_right";
 const BENCH_CONFIG_LEFT =
   "/opt/marengo/config/bringup/shoulder_pitch_left_only";
 
@@ -511,7 +511,7 @@ export function registerMotionTools(
           .string()
           .optional()
           .describe(
-            "MARENGO_CONFIG_DIR (default /opt/marengo/config/bringup/shoulder_pitch_right_only)",
+            "MARENGO_CONFIG_DIR (default /opt/marengo/config/bringup/arm_2dof_right)",
           ),
       }),
       handler: async (args: {
@@ -570,7 +570,7 @@ export function registerMotionTools(
           .string()
           .optional()
           .describe(
-            "Override MARENGO_CONFIG_DIR (e.g. /opt/marengo/config/bringup/shoulder_pitch_right_only)",
+            "Override MARENGO_CONFIG_DIR (e.g. /opt/marengo/config/bringup/arm_2dof_right)",
           ),
         verify: z
           .boolean()
@@ -637,7 +637,7 @@ export function registerMotionTools(
           .string()
           .optional()
           .describe(
-            "MARENGO_CONFIG_DIR override (default: MCP env or shoulder_pitch_right_only)",
+            "MARENGO_CONFIG_DIR override (default: MCP env or arm_2dof_right)",
           ),
         joint: z.string().default("right_shoulder_pitch"),
         timeout_sec: z
