@@ -176,7 +176,8 @@ Do not ask the user to paste Pi logs or run SSH when `pi-remote.sh` can fetch th
 ## Learned User Preferences
 
 - Early bench commissioning (roll / multi-DOF bringup): prioritize reliable safe motion over perfect mass or COM tuning when hardware is still changing week to week.
-- For a new joint on the same actuator type as an existing bench motor, start from the proven pitch motor settings and flip `direction` sign rather than inventing fresh tuning.
+- For a new joint on the same actuator type as an existing bench motor, start from the proven pitch motor settings (including impedance `ki`) and flip `direction` sign rather than inventing fresh tuning.
+- Exclude `var/pi-traces/*.log` from commits unless explicitly requested — bench trace artifacts, not source.
 - Re–set-zero at mechanical home whenever arm configuration changes (bare motor vs attached arm, bolt-on segments).
 - On `arm_2dof_right` wave motion: **pitch** raises the arm (~π–2.8 rad); **roll** oscillates — do not swap those joint roles.
 
@@ -192,3 +193,5 @@ Do not ask the user to paste Pi logs or run SSH when `pi-remote.sh` can fetch th
 - Roll velocity-limit trips on ascent often trace to `actuator_groups.shoulder_roll.velocity_max_rad_s` disagreeing with joint `position_trajectory_velocity_rad_s` — align both before raising traj speed.
 - Never call synchronous `PositionTrace::flush()` in the Berthier 200 Hz loop (~70 ms SD fsync on Pi trips the 50 ms comm watchdog); flush on session `Drop` only.
 - **Signed-off position-hold baseline** (`ff9d554`): kp 18 / kd 3 / ki 5, fc 0.08, max_lead 0.12, group vel 2.5 — see [docs/bench-2dof-right-smoke.md](docs/bench-2dof-right-smoke.md); mem0 `control/bench/arm-2dof-right-baseline`.
+- Roll `position wave` under elevated pitch: use **triangle** setpoints; sine profiles trip Davout feedback velocity with coupled load.
+- Parallel `pi_set_zero` on multiple joints can race homing — zero roll then pitch sequentially before enable.
