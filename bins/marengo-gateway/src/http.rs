@@ -2,8 +2,8 @@ use std::path::Path;
 
 use armee_proto::prost::Message;
 use armee_proto::EnableRequest;
-use armee_proto::MitCommandBatch;
 use armee_proto::HomingComplete;
+use armee_proto::MitCommandBatch;
 use axum::{
     body::Body,
     extract::{Query, State},

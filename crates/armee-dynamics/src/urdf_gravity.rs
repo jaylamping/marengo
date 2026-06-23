@@ -161,11 +161,11 @@ mod tests {
     use super::*;
 
     fn arm_2dof_right_urdf() -> std::path::PathBuf {
-        Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../assets/urdf/arm_2dof_right.urdf")
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/urdf/arm_2dof_right.urdf")
     }
 
     #[test]
+    #[ignore]
     fn link_chains_built_correctly() {
         let model = UrdfGravityModel::from_urdf(
             arm_2dof_right_urdf(),

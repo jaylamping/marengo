@@ -1028,8 +1028,16 @@ mod tests {
             "right_shoulder_pitch".to_string(),
             JointControlEntry {
                 motor_type: MotorType::Rs03,
-                gravity_comp: ModeGains { kp: 0.0, kd: 0.0, ki: 0.0 },
-                impedance: ModeGains { kp: 8.0, kd: 1.0, ki: 0.0 },
+                gravity_comp: ModeGains {
+                    kp: 0.0,
+                    kd: 0.0,
+                    ki: 0.0,
+                },
+                impedance: ModeGains {
+                    kp: 8.0,
+                    kd: 1.0,
+                    ki: 0.0,
+                },
                 friction: FrictionGains {
                     fc: 0.0,
                     fv: 0.0,
@@ -1148,7 +1156,7 @@ mod tests {
     #[test]
     fn missing_control_joint_rejected() {
         let root = repo_root();
-let config_dir = root.join("config/bringup/arm_2dof_right");
+        let config_dir = root.join("config/bringup/arm_2dof_right");
         let robot = load_robot_config_from(&config_dir).expect("robot");
         let mut control = load_control_config_from(&config_dir).expect("control");
         control.control.joints.remove("right_shoulder_pitch");
@@ -1160,7 +1168,7 @@ let config_dir = root.join("config/bringup/arm_2dof_right");
     #[test]
     fn trajectory_velocity_above_effective_cap_rejected() {
         let root = repo_root();
-let config_dir = root.join("config/bringup/arm_2dof_right");
+        let config_dir = root.join("config/bringup/arm_2dof_right");
         let robot = load_robot_config_from(&config_dir).expect("robot");
         let motors = load_motors_config_from(&config_dir).expect("motors");
         let mut control = load_control_config_from(&config_dir).expect("control");

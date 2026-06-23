@@ -1,7 +1,7 @@
 //! Periodic control loop (OpenArm-style refresh → compute → MIT send).
 
-use std::path::Path;
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
@@ -27,18 +27,15 @@ use crate::position_profile::{
 use crate::position_setpoint::{
     approach_stuck_mit_pull, approach_stuck_mit_pull_lead_rad, clamp_trajectory_setpoint,
     descent_breakaway_confirmed, descent_stuck_mit_pull, downward_return_seed_velocity,
-    envelope_dq_cmd_for_hold_clamp,
-    home_final_approach_stuck_pull_rad, low_angle_breakaway_active,
+    envelope_dq_cmd_for_hold_clamp, home_final_approach_stuck_pull_rad, low_angle_breakaway_active,
     planner_drifted_from_measurement, planner_overshoot_hold_while_moving, planner_premature_hold,
     planner_should_freeze_on_descent, planner_should_latch_on_overshoot_hold,
     planner_should_resync_stuck_lead, position_hold_effective_max_lead, position_hold_mit_kd,
-    position_hold_mit_velocity, reopen_planner_from_premature_hold,
-    POSITION_RETURN_DESCENT_SEED_RAD,
-    POSITION_HOME_SETTLE_RAD,
-    POSITION_SETTLE_TOLERANCE_RAD,
+    position_hold_mit_velocity, reopen_planner_from_premature_hold, POSITION_HOME_SETTLE_RAD,
+    POSITION_RETURN_DESCENT_SEED_RAD, POSITION_SETTLE_TOLERANCE_RAD,
 };
-use crate::position_trajectory::is_descent_return;
 use crate::position_trace::{PositionTrace, PositionTraceRow};
+use crate::position_trajectory::is_descent_return;
 use crate::position_trajectory::{
     filter_dq_ema, JointPositionPlanner, TrapezoidPhase, POSITION_DAMPING_DQ_FILTER_ALPHA,
 };
@@ -589,9 +586,15 @@ impl<B: MotorBus> ControlLoop<B> {
         }
         self.ensure_active_for_motion()?;
         self.set_control_mode(ControlMode::Position);
-        let half_period_ticks =
-            (half_period_sec * f64::from(self.loop_hz)).round().max(1.0) as u64;
-        let wave = PositionWave::new(i, min_rad, max_rad, self.tick_count, half_period_ticks, cycles);
+        let half_period_ticks = (half_period_sec * f64::from(self.loop_hz)).round().max(1.0) as u64;
+        let wave = PositionWave::new(
+            i,
+            min_rad,
+            max_rad,
+            self.tick_count,
+            half_period_ticks,
+            cycles,
+        );
         let duration_sec = wave.duration_sec(self.loop_hz);
         self.position_wave = Some(wave);
         info!(
@@ -669,7 +672,7 @@ impl<B: MotorBus> ControlLoop<B> {
             self.position_dq_filtered = None;
             self.position_planner_frozen = None;
             self.position_descent_breakaway = None;
-        self.position_integral_error = None;
+            self.position_integral_error = None;
             self.position_descent_was_stuck = None;
             self.position_planner_events = None;
             self.last_position_diag = None;
@@ -688,7 +691,9 @@ impl<B: MotorBus> ControlLoop<B> {
             let from = self.current_effective_gains();
             let to = self.target_gains_for_mode(mode);
             self.gain_ramp = Some(GainRamp {
-                joints: (0..n).map(|i| (from[i].0, from[i].1, to[i].0, to[i].1)).collect(),
+                joints: (0..n)
+                    .map(|i| (from[i].0, from[i].1, to[i].0, to[i].1))
+                    .collect(),
                 ticks_remaining: 20,
                 total_ticks: 20,
             });
@@ -1054,9 +1059,8 @@ impl<B: MotorBus> ControlLoop<B> {
                                     lag,
                                     effective_max_lead,
                                 );
-                                q_des = q_des.max(
-                                    (q[i] + stuck_pull_lead).min(q_traj + effective_max_lead),
-                                );
+                                q_des = q_des
+                                    .max((q[i] + stuck_pull_lead).min(q_traj + effective_max_lead));
                             }
                             if joint_stuck {
                                 let stuck_pull = home_final_approach_stuck_pull_rad(q[i], target);
@@ -1488,7 +1492,12 @@ impl<B: MotorBus> ControlLoop<B> {
             {
                 event = PlannerEvent::Reset;
                 reopen_planner_from_premature_hold(&mut planners[i], q[i], targets[i], v_max);
-            } else if planner_drifted_from_measurement(&planners[i], q[i], targets[i], effective_max_lead) {
+            } else if planner_drifted_from_measurement(
+                &planners[i],
+                q[i],
+                targets[i],
+                effective_max_lead,
+            ) {
                 event = PlannerEvent::Reset;
                 planners[i].reset_target(q[i], targets[i]);
                 if let Some(cfg) = self.supervisor.control.control.joints.get(name) {
@@ -1800,14 +1809,8 @@ mod tests {
             .enter_position_hold_at(Some("shoulder_pitch"), 0.25)
             .expect("hold-at");
         loop_ctrl.tick(None).expect("tick");
-        loop_ctrl
-            .supervisor_mut()
-            .disable_all()
-            .expect("disable");
-        assert_eq!(
-            loop_ctrl.supervisor_mut().mode(),
-            OperationalMode::Disabled
-        );
+        loop_ctrl.supervisor_mut().disable_all().expect("disable");
+        assert_eq!(loop_ctrl.supervisor_mut().mode(), OperationalMode::Disabled);
         loop_ctrl
             .enter_position_hold_at(Some("shoulder_pitch"), 0.0)
             .expect("hold-at home");
@@ -2212,9 +2215,7 @@ mod tests {
         planner.q_traj = q + 0.10;
         planner.dq_traj = 0.4;
         let raw_max_lead = 0.05;
-        let effective = position_hold_effective_max_lead(
-            raw_max_lead, 100, true, target - q, q,
-        );
+        let effective = position_hold_effective_max_lead(raw_max_lead, 100, true, target - q, q);
         assert!((effective - 0.15).abs() < 1e-9, "onset boost active");
         assert!(
             !planner_drifted_from_measurement(&planner, q, target, effective),
@@ -2236,9 +2237,7 @@ mod tests {
         planner.q_traj = q + 0.10;
         planner.dq_traj = 0.4;
         let raw_max_lead = 0.05;
-        let effective = position_hold_effective_max_lead(
-            raw_max_lead, 301, true, target - q, q,
-        );
+        let effective = position_hold_effective_max_lead(raw_max_lead, 301, true, target - q, q);
         assert!((effective - raw_max_lead).abs() < 1e-9, "onset expired");
         assert!(
             planner_drifted_from_measurement(&planner, q, target, effective),
@@ -2256,19 +2255,13 @@ mod tests {
         planner.q_traj = q + 0.10;
         planner.dq_traj = 0.4;
         let raw_max_lead = 0.05;
-        let effective = position_hold_effective_max_lead(
-            raw_max_lead, 100, true, target - q, q,
-        );
+        let effective = position_hold_effective_max_lead(raw_max_lead, 100, true, target - q, q);
         assert!(
-            !planner_should_resync_stuck_lead(
-                &planner, q, target, 0.0, effective, 0.02
-            ),
+            !planner_should_resync_stuck_lead(&planner, q, target, 0.0, effective, 0.02),
             "FIX A: resync uses effective max_lead; q+0.10 within 0.15 → no resync"
         );
         assert!(
-            planner_should_resync_stuck_lead(
-                &planner, q, target, 0.0, raw_max_lead, 0.02
-            ),
+            planner_should_resync_stuck_lead(&planner, q, target, 0.0, raw_max_lead, 0.02),
             "bug repro: raw max_lead resyncs at q+0.10 > 0.05"
         );
     }
@@ -2283,7 +2276,10 @@ mod tests {
         let at_boundary = position_hold_effective_max_lead(raw, 300, true, settle_error, q);
         assert!((at_boundary - 0.15).abs() < 1e-9, "boost active at 300ms");
         let after_boundary = position_hold_effective_max_lead(raw, 301, true, settle_error, q);
-        assert!((after_boundary - raw).abs() < 1e-9, "boost expired at 301ms");
+        assert!(
+            (after_boundary - raw).abs() < 1e-9,
+            "boost expired at 301ms"
+        );
     }
 
     #[test]
@@ -2330,18 +2326,9 @@ mod tests {
             max_lead,
         ));
         assert!(!approach_stuck_mit_pull(
-            to_target,
-            0.35,
-            0.45,
-            0.50,
-            0.0,
-            0.10,
-            deadband,
-            max_lead,
+            to_target, 0.35, 0.45, 0.50, 0.0, 0.10, deadband, max_lead,
         ));
-        assert!(
-            (outbound_low_angle_stuck_pull_rad(to_target, max_lead) - to_target).abs() < 1e-9
-        );
+        assert!((outbound_low_angle_stuck_pull_rad(to_target, max_lead) - to_target).abs() < 1e-9);
         assert!(
             (approach_stuck_mit_pull_lead_rad(to_target, lag, max_lead) - to_target).abs() < 1e-9
         );
@@ -2349,10 +2336,8 @@ mod tests {
 
     #[test]
     fn envelope_hold_clamp_allows_home_target_from_high_q() {
+        use crate::position_setpoint::{envelope_dq_cmd_for_hold_clamp, POSITION_HOME_SETTLE_RAD};
         use armee_kinematics::{JointLimitBounds, JointLimitPolicy, LimitMarginConfig};
-        use crate::position_setpoint::{
-            envelope_dq_cmd_for_hold_clamp, POSITION_HOME_SETTLE_RAD,
-        };
 
         let policy = JointLimitPolicy {
             bounds: JointLimitBounds::from_hard_and_soft(0.0, 3.14159, None, None),
@@ -2709,41 +2694,67 @@ mod tests {
     fn apply_gain_override_clamps_kp_to_kp_max() {
         let mut loop_ctrl = test_loop();
         let joint = "shoulder_pitch";
-        loop_ctrl.apply_gain_override(joint, GainOverride {
-            kp: 6000.0,
-            kd: 1.0,
-            ki: 0.0,
-            fc: 1.0,
-        });
-        let stored = loop_ctrl.gain_overrides.get(joint).expect("override stored");
-        assert!((stored.kp - 5000.0).abs() < 1e-9, "kp clamped: {}", stored.kp);
+        loop_ctrl.apply_gain_override(
+            joint,
+            GainOverride {
+                kp: 6000.0,
+                kd: 1.0,
+                ki: 0.0,
+                fc: 1.0,
+            },
+        );
+        let stored = loop_ctrl
+            .gain_overrides
+            .get(joint)
+            .expect("override stored");
+        assert!(
+            (stored.kp - 5000.0).abs() < 1e-9,
+            "kp clamped: {}",
+            stored.kp
+        );
     }
 
     #[test]
     fn apply_gain_override_clamps_kd_to_kd_max() {
         let mut loop_ctrl = test_loop();
         let joint = "shoulder_pitch";
-        loop_ctrl.apply_gain_override(joint, GainOverride {
-            kp: 10.0,
-            kd: 200.0,
-            ki: 0.0,
-            fc: 1.0,
-        });
-        let stored = loop_ctrl.gain_overrides.get(joint).expect("override stored");
-        assert!((stored.kd - 100.0).abs() < 1e-9, "kd clamped: {}", stored.kd);
+        loop_ctrl.apply_gain_override(
+            joint,
+            GainOverride {
+                kp: 10.0,
+                kd: 200.0,
+                ki: 0.0,
+                fc: 1.0,
+            },
+        );
+        let stored = loop_ctrl
+            .gain_overrides
+            .get(joint)
+            .expect("override stored");
+        assert!(
+            (stored.kd - 100.0).abs() < 1e-9,
+            "kd clamped: {}",
+            stored.kd
+        );
     }
 
     #[test]
     fn apply_gain_override_clamps_fc_to_tau_ff_max_nm() {
         let mut loop_ctrl = test_loop();
         let joint = "shoulder_pitch";
-        loop_ctrl.apply_gain_override(joint, GainOverride {
-            kp: 10.0,
-            kd: 1.0,
-            ki: 0.0,
-            fc: 10.0,
-        });
-        let stored = loop_ctrl.gain_overrides.get(joint).expect("override stored");
+        loop_ctrl.apply_gain_override(
+            joint,
+            GainOverride {
+                kp: 10.0,
+                kd: 1.0,
+                ki: 0.0,
+                fc: 10.0,
+            },
+        );
+        let stored = loop_ctrl
+            .gain_overrides
+            .get(joint)
+            .expect("override stored");
         assert!((stored.fc - 5.0).abs() < 1e-9, "fc clamped: {}", stored.fc);
     }
 
@@ -2751,23 +2762,39 @@ mod tests {
     fn apply_gain_override_clamps_ki_to_kp_max() {
         let mut loop_ctrl = test_loop();
         let joint = "shoulder_pitch";
-        loop_ctrl.apply_gain_override(joint, GainOverride {
-            kp: 10.0,
-            kd: 1.0,
-            ki: 10000.0,
-            fc: 1.0,
-        });
-        let stored = loop_ctrl.gain_overrides.get(joint).expect("override stored");
-        assert!((stored.ki - 5000.0).abs() < 1e-9, "ki clamped: {}", stored.ki);
+        loop_ctrl.apply_gain_override(
+            joint,
+            GainOverride {
+                kp: 10.0,
+                kd: 1.0,
+                ki: 10000.0,
+                fc: 1.0,
+            },
+        );
+        let stored = loop_ctrl
+            .gain_overrides
+            .get(joint)
+            .expect("override stored");
+        assert!(
+            (stored.ki - 5000.0).abs() < 1e-9,
+            "ki clamped: {}",
+            stored.ki
+        );
     }
 
     #[test]
     fn clear_gain_override_removes_entry() {
         let mut loop_ctrl = test_loop();
         let joint = "shoulder_pitch";
-        loop_ctrl.apply_gain_override(joint, GainOverride {
-            kp: 100.0, kd: 10.0, ki: 0.0, fc: 2.0,
-        });
+        loop_ctrl.apply_gain_override(
+            joint,
+            GainOverride {
+                kp: 100.0,
+                kd: 10.0,
+                ki: 0.0,
+                fc: 2.0,
+            },
+        );
         assert!(loop_ctrl.gain_overrides.contains_key(joint));
         loop_ctrl.clear_gain_override(joint);
         assert!(!loop_ctrl.gain_overrides.contains_key(joint));
@@ -2776,12 +2803,24 @@ mod tests {
     #[test]
     fn clear_all_overrides_removes_all() {
         let mut loop_ctrl = test_loop();
-        loop_ctrl.apply_gain_override("shoulder_pitch", GainOverride {
-            kp: 100.0, kd: 10.0, ki: 0.0, fc: 2.0,
-        });
-        loop_ctrl.apply_gain_override("shoulder_roll", GainOverride {
-            kp: 200.0, kd: 20.0, ki: 0.0, fc: 3.0,
-        });
+        loop_ctrl.apply_gain_override(
+            "shoulder_pitch",
+            GainOverride {
+                kp: 100.0,
+                kd: 10.0,
+                ki: 0.0,
+                fc: 2.0,
+            },
+        );
+        loop_ctrl.apply_gain_override(
+            "shoulder_roll",
+            GainOverride {
+                kp: 200.0,
+                kd: 20.0,
+                ki: 0.0,
+                fc: 3.0,
+            },
+        );
         assert_eq!(loop_ctrl.gain_overrides.len(), 2);
         loop_ctrl.clear_all_overrides();
         assert!(loop_ctrl.gain_overrides.is_empty());
@@ -2799,21 +2838,35 @@ mod tests {
             .get("shoulder_pitch")
             .expect("joint cfg exists");
         // Config gains exist and are non-zero (exact values depend on repo config).
-        assert!(cfg.impedance.kp > 0.0, "kp must be > 0: {}", cfg.impedance.kp);
-        assert!(cfg.impedance.kd > 0.0, "kd must be > 0: {}", cfg.impedance.kd);
+        assert!(
+            cfg.impedance.kp > 0.0,
+            "kp must be > 0: {}",
+            cfg.impedance.kp
+        );
+        assert!(
+            cfg.impedance.kd > 0.0,
+            "kd must be > 0: {}",
+            cfg.impedance.kd
+        );
     }
 
     #[test]
     fn apply_gain_override_stores_within_limits_as_is() {
         let mut loop_ctrl = test_loop();
         let joint = "shoulder_pitch";
-        loop_ctrl.apply_gain_override(joint, GainOverride {
-            kp: 50.0,
-            kd: 5.0,
-            ki: 0.5,
-            fc: 1.5,
-        });
-        let stored = loop_ctrl.gain_overrides.get(joint).expect("override stored");
+        loop_ctrl.apply_gain_override(
+            joint,
+            GainOverride {
+                kp: 50.0,
+                kd: 5.0,
+                ki: 0.5,
+                fc: 1.5,
+            },
+        );
+        let stored = loop_ctrl
+            .gain_overrides
+            .get(joint)
+            .expect("override stored");
         assert!((stored.kp - 50.0).abs() < 1e-9);
         assert!((stored.kd - 5.0).abs() < 1e-9);
         assert!((stored.ki - 0.5).abs() < 1e-9);

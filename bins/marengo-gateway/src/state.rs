@@ -108,7 +108,9 @@ impl AppState {
         // Fan RobotState to testing telemetry topic so the Testing page has
         // a dedicated subscription without sharing the main dashboard's topic.
         if topic == TOPIC_STATE {
-            let _ = self.envelope_tx.send((TOPIC_TESTING_TELEMETRY.to_string(), payload));
+            let _ = self
+                .envelope_tx
+                .send((TOPIC_TESTING_TELEMETRY.to_string(), payload));
         }
     }
 

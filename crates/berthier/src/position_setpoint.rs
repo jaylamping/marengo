@@ -42,9 +42,8 @@ pub fn position_hold_effective_max_lead(
 ) -> f64 {
     let target = q + settle_error;
     let in_low_angle_band = q.abs() <= POSITION_HOME_BREAKAWAY_Q_MAX_RAD;
-    let outbound_breakaway = in_low_angle_band
-        && approaching_target
-        && settle_error > POSITION_RETURN_DESCENT_SEED_RAD;
+    let outbound_breakaway =
+        in_low_angle_band && approaching_target && settle_error > POSITION_RETURN_DESCENT_SEED_RAD;
     let return_breakaway =
         is_gravity_assisted_return(q, target) && settle_error < -POSITION_RETURN_DESCENT_SEED_RAD;
     if low_angle_breakaway_active(q, target, settle_error, approaching_target) {
@@ -188,6 +187,7 @@ pub fn outbound_low_angle_stuck_pull_rad(to_target: f64, effective_max_lead: f64
 }
 
 /// MIT pull while ascending toward target and stuck (narrow sync or lead-saturated knee).
+#[allow(clippy::too_many_arguments)]
 pub fn approach_stuck_mit_pull(
     to_target: f64,
     q: f64,
@@ -221,18 +221,12 @@ pub fn approach_stuck_mit_pull(
 }
 
 /// Pull-up lead for [`approach_stuck_mit_pull`]: small-lag nudge vs knee lead-sat shove.
-pub fn approach_stuck_mit_pull_lead_rad(
-    to_target: f64,
-    lag: f64,
-    effective_max_lead: f64,
-) -> f64 {
+pub fn approach_stuck_mit_pull_lead_rad(to_target: f64, lag: f64, effective_max_lead: f64) -> f64 {
     if lag >= effective_max_lead - 1e-6 {
         outbound_low_angle_stuck_pull_rad(to_target, effective_max_lead)
     } else {
-        (lag + POSITION_HOME_FINAL_PULL_THROUGH_RAD).clamp(
-            POSITION_DESCENT_STUCK_LEAD_RAD,
-            effective_max_lead,
-        )
+        (lag + POSITION_HOME_FINAL_PULL_THROUGH_RAD)
+            .clamp(POSITION_DESCENT_STUCK_LEAD_RAD, effective_max_lead)
     }
 }
 

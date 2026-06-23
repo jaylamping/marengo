@@ -57,6 +57,7 @@ impl PositionTrace {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn flush(&mut self) -> std::io::Result<()> {
         self.writer.flush()
     }

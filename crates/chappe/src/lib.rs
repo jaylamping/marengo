@@ -199,6 +199,8 @@ mod tests {
                     position: 0.0,
                     velocity: 0.0,
                     effort: 0.0,
+                    temperature_c: 0.0,
+                    fault: 0,
                 }],
             },
         )

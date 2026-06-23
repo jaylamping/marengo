@@ -151,6 +151,7 @@ fn trajectory_velocity_friction(
     (PositionFrictionMode::TrajectoryVelocity, tau)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn cross_target_trajectory_friction(
     dq: f64,
     dq_traj: f64,
@@ -540,7 +541,10 @@ mod tests {
             true,
         );
         assert!(ramped < 0.35 - 1e-6, "post-onset ramp should attenuate fc");
-        assert!((sustained - 0.35).abs() < 1e-6, "sustained knee breakaway keeps full fc");
+        assert!(
+            (sustained - 0.35).abs() < 1e-6,
+            "sustained knee breakaway keeps full fc"
+        );
     }
 
     #[test]

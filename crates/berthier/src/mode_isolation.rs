@@ -14,13 +14,12 @@
 //! two different `tau_g` values. If the non-gravity components are identical, the modes
 //! are isolated from gravity comp changes.
 
-#![cfg(test)]
 #![allow(clippy::expect_used)]
 
 use proptest::prelude::*;
 
 use crate::friction::friction_torque;
-use crate::position_feedforward::{PositionHoldFeedforward, compose_position_hold_feedforward};
+use crate::position_feedforward::{compose_position_hold_feedforward, PositionHoldFeedforward};
 use crate::position_trajectory::TrapezoidPhase;
 use marengo_config::FrictionGains;
 

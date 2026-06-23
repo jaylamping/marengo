@@ -41,7 +41,7 @@ export function loadConfig(): MarengoPiConfig {
     piRoot: env("MARENGO_PI_ROOT", "/opt/marengo"),
     configDir: env(
       "MARENGO_CONFIG_DIR",
-      "/opt/marengo/config/bringup/shoulder_pitch_dual",
+      "/opt/marengo/config/bringup/arm_2dof_right",
     ),
     localRoot: env("MARENGO_LOCAL_ROOT", defaultLocalRoot()),
     sshIdentityFile: process.env.SSH_IDENTITY_FILE?.trim() || undefined,

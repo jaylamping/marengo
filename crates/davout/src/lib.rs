@@ -156,7 +156,7 @@ enum EnablePolicy {
 const FEEDBACK_VELOCITY_LIMIT_TRIPS: u8 = 3;
 /// Measured (position-derived) speed must exceed `limit + margin` before tripping.
 /// Absorbs encoder quantization and planner cruise at the nominal cap without disabling.
-const FEEDBACK_VELOCITY_FAULT_MARGIN_RAD_S: f64 = 0.20;
+const FEEDBACK_VELOCITY_FAULT_MARGIN_RAD_S: f64 = 0.50;
 
 #[derive(Debug, Clone, Copy, Default)]
 struct WrongSignState {
@@ -629,7 +629,7 @@ impl<B: MotorBus> Supervisor<B> {
         let fault_threshold = lim.velocity + FEEDBACK_VELOCITY_FAULT_MARGIN_RAD_S;
 
         if raw_velocity.abs() > lim.velocity && measured_velocity.abs() <= fault_threshold {
-            info!(
+            debug!(
                 joint = %motor.joint,
                 position_rad = position,
                 previous_position_rad = previous.map(|prev| prev.position_rad),

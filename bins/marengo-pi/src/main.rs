@@ -17,11 +17,12 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use armee_dynamics::max_gravity_torque_over_range;
 use armee_proto::prost::Message;
 use armee_proto::{
-    EnableRequest, Fault, FaultSeverity, Heartbeat, HomingComplete, OperationalMode as ProtoOpMode,
-    SafetyState,
-    MitCommandBatch,
+    EnableRequest, Fault, FaultSeverity, Heartbeat, HomingComplete, MitCommandBatch,
+    OperationalMode as ProtoOpMode, SafetyState,
 };
-use berthier::{proto_control_mode, ControlLoop, ControlMode, GainOverride, LoopError, TickPhaseAverages};
+use berthier::{
+    proto_control_mode, ControlLoop, ControlMode, GainOverride, LoopError, TickPhaseAverages,
+};
 use chappe::Bus;
 use davout::{DavoutError, MotorAddress, OperationalMode};
 use marengo_config::{
@@ -92,10 +93,7 @@ fn parse_command(line: &str) -> Option<PiCommand> {
                     operator_id = tok.to_string();
                 }
             }
-            Some(PiCommand::Enable {
-                operator_id,
-                force,
-            })
+            Some(PiCommand::Enable { operator_id, force })
         }
         "disable" => Some(PiCommand::Disable),
         "gravity-on" | "gravity_on" => Some(PiCommand::GravityOn),
@@ -434,10 +432,7 @@ fn handle_command(
             Ok(()) => println!("homing verified → Ready"),
             Err(e) => eprintln!("home failed: {e}"),
         },
-        PiCommand::Enable {
-            operator_id,
-            force,
-        } => {
+        PiCommand::Enable { operator_id, force } => {
             if loop_ctrl.supervisor_mut().mode() != davout::OperationalMode::Ready {
                 if let Err(e) = loop_ctrl.supervisor_mut().set_homing_complete() {
                     eprintln!("enable blocked: {e}");
@@ -519,13 +514,8 @@ fn handle_command(
             max_rad,
             cycles,
             half_period_sec,
-        } => match loop_ctrl.start_position_wave(
-            &joint,
-            min_rad,
-            max_rad,
-            cycles,
-            half_period_sec,
-        ) {
+        } => match loop_ctrl.start_position_wave(&joint, min_rad, max_rad, cycles, half_period_sec)
+        {
             Ok(duration_sec) => {
                 println!(
                     "position wave → {joint} {min_rad:.4}↔{max_rad:.4} rad ×{cycles} (~{duration_sec:.2}s, operational={:?})",
@@ -734,20 +724,18 @@ fn run_control_loop(loop_ctrl: &mut ControlLoop<RuntimeBus>, runtime: &mut Contr
 
     while !runtime.shutdown.load(Ordering::SeqCst) {
         let tick_start = Instant::now();
-        let mut outer_stdin_us = 0u64;
-        let mut outer_chappe_drain_us = 0u64;
 
-        let mut t = tick_start;
+        let t = tick_start;
         while let Ok(cmd) = runtime.cmd_rx.try_recv() {
             if !handle_command(loop_ctrl, cmd, runtime.config_dir) {
                 runtime.shutdown.store(true, Ordering::SeqCst);
                 break;
             }
         }
-        (outer_stdin_us, t) = phase_elapsed_us(t);
+        let (outer_stdin_us, t_next) = phase_elapsed_us(t);
 
         drain_chappe_commands(loop_ctrl, runtime.enable_rx, runtime.homing_rx);
-        (outer_chappe_drain_us, t) = phase_elapsed_us(t);
+        let (outer_chappe_drain_us, _t) = phase_elapsed_us(t_next);
         drain_testing_commands(loop_ctrl, runtime.testing_cmd_rx);
 
         active_fault = match loop_ctrl.tick(Some(runtime.chappe.as_ref())) {
@@ -755,10 +743,8 @@ fn run_control_loop(loop_ctrl: &mut ControlLoop<RuntimeBus>, runtime: &mut Contr
             Err(e) => {
                 error!(error = %e, "control tick failed");
                 let _ = loop_ctrl.supervisor_mut().disable_all();
-                let preserve_position_hold = matches!(
-                    &e,
-                    LoopError::Safety(DavoutError::CommWatchdog { .. })
-                );
+                let preserve_position_hold =
+                    matches!(&e, LoopError::Safety(DavoutError::CommWatchdog { .. }));
                 if !preserve_position_hold {
                     loop_ctrl.set_control_mode(ControlMode::Disabled);
                 }

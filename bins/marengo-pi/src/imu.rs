@@ -75,14 +75,37 @@ pub fn spawn_imu_publisher(chappe: Arc<Bus>, shutdown: Arc<AtomicBool>) {
         "starting IMU publisher thread"
     );
 
-    thread::spawn(move || {
-        if let Err(err) = run_imu_loop(chappe, shutdown, cfg) {
-            warn!(error = %err, "IMU publisher thread exited");
-        }
-    });
+    thread::spawn(move || run_imu_loop(chappe, shutdown, cfg));
 }
 
-fn run_imu_loop(chappe: Arc<Bus>, shutdown: Arc<AtomicBool>, cfg: ImuConfig) -> Result<(), String> {
+fn run_imu_loop(chappe: Arc<Bus>, shutdown: Arc<AtomicBool>, cfg: ImuConfig) {
+    let mut backoff = Duration::from_secs(1);
+    const MAX_BACKOFF: Duration = Duration::from_secs(10);
+
+    while !shutdown.load(Ordering::SeqCst) {
+        info!("IMU session starting");
+        match run_imu_session(&chappe, &shutdown, &cfg) {
+            Ok(()) => {
+                info!("IMU session ended cleanly");
+                return;
+            }
+            Err(err) => {
+                warn!(error = %err, backoff_sec = backoff.as_secs(), "IMU session failed, restarting");
+                let deadline = Instant::now() + backoff;
+                while !shutdown.load(Ordering::SeqCst) && Instant::now() < deadline {
+                    thread::sleep(Duration::from_millis(100));
+                }
+                backoff = (backoff * 2).min(MAX_BACKOFF);
+            }
+        }
+    }
+}
+
+fn run_imu_session(
+    chappe: &Arc<Bus>,
+    shutdown: &Arc<AtomicBool>,
+    cfg: &ImuConfig,
+) -> Result<(), String> {
     let bus = LinuxI2cBus::open(&cfg.bus_path, cfg.address).map_err(|e| e.to_string())?;
     let mut imu = Bno085::new(bus);
     imu.initialize().map_err(|e| e.to_string())?;

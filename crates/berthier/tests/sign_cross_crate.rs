@@ -12,8 +12,8 @@
 
 use std::path::PathBuf;
 
-use robstride::comm::unpack_ext_id;
 use armee_dynamics::DynamicsModel;
+use robstride::comm::unpack_ext_id;
 
 /// Repo root relative to `CARGO_MANIFEST_DIR` of the berthier crate.
 fn repo_root() -> PathBuf {
@@ -26,12 +26,13 @@ fn with_bench_config() -> scopeguard_guard {
     let prev = std::env::var("MARENGO_CONFIG_DIR").ok();
     std::env::set_var(
         "MARENGO_CONFIG_DIR",
-    repo_root().join("config/bringup/arm_2dof_right"),
+        repo_root().join("config/bringup/arm_2dof_right"),
     );
     scopeguard_guard(prev)
 }
 
 /// Scoped guard that restores an env var on drop.
+#[allow(non_camel_case_types)]
 struct scopeguard_guard(Option<String>);
 impl Drop for scopeguard_guard {
     fn drop(&mut self) {
@@ -47,15 +48,11 @@ fn tau_g_sign_positive_at_positive_q() {
     // At q=0.3 rad, tau_g should be POSITIVE for the right_shoulder_pitch joint.
     // Gravity pulls the arm down; the motor must push up (= positive joint torque).
     // Golden value from bench-weighted-700g-results.md Phase 1.
-let model_path = repo_root().join("assets/urdf/arm_2dof_right.urdf");
-    let model = armee_dynamics::gravity_model_from_urdf(
-        &model_path,
-        &["right_shoulder_pitch".to_string()],
-    )
-    .expect("build UrdfGravityModel");
-    let tau = model
-        .gravity_torques(&[0.3])
-        .expect("tau_g at q=0.3");
+    let model_path = repo_root().join("assets/urdf/arm_2dof_right.urdf");
+    let model =
+        armee_dynamics::gravity_model_from_urdf(&model_path, &["right_shoulder_pitch".to_string()])
+            .expect("build UrdfGravityModel");
+    let tau = model.gravity_torques(&[0.3]).expect("tau_g at q=0.3");
     assert!(
         tau[0] > 0.0,
         "tau_g at positive q must be positive: got {}",
@@ -72,7 +69,7 @@ let model_path = repo_root().join("assets/urdf/arm_2dof_right.urdf");
 #[test]
 fn motor_space_sign_flipped_by_direction() {
     // The right_shoulder_pitch motor has direction=-1, gear_ratio=1.0 in
-// config/bringup/arm_2dof_right/motors.yaml.
+    // config/bringup/arm_2dof_right/motors.yaml.
     // motor_position_scale = direction * gear_ratio = -1.0.
     //
     // When a joint-space torque_ff flows through send_mit_joint:
@@ -132,10 +129,7 @@ fn motor_space_sign_flipped_by_direction() {
     // ---- verify ----
     // Get the transmitted CAN frame from the memory bus.
     let bus = sup.bus_mut();
-    let frame = bus
-        .tx
-        .last()
-        .expect("at least one CAN frame transmitted");
+    let frame = bus.tx.last().expect("at least one CAN frame transmitted");
 
     // Decode the CAN ID. The torque_ff is in the extra_data field.
     let ext_id = unpack_ext_id(frame.id).expect("valid extended CAN ID");
@@ -153,12 +147,10 @@ fn motor_space_sign_flipped_by_direction() {
 #[test]
 fn tau_g_at_pi_over_2_positive() {
     // Confirm sign is positive even at large q.
-let model_path = repo_root().join("assets/urdf/arm_2dof_right.urdf");
-    let model = armee_dynamics::gravity_model_from_urdf(
-        &model_path,
-        &["right_shoulder_pitch".to_string()],
-    )
-    .expect("build UrdfGravityModel");
+    let model_path = repo_root().join("assets/urdf/arm_2dof_right.urdf");
+    let model =
+        armee_dynamics::gravity_model_from_urdf(&model_path, &["right_shoulder_pitch".to_string()])
+            .expect("build UrdfGravityModel");
     let tau = model
         .gravity_torques(&[std::f64::consts::FRAC_PI_2])
         .expect("tau_g at q=π/2");

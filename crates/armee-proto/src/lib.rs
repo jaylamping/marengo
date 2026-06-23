@@ -37,6 +37,8 @@ mod tests {
                 position: 0.1,
                 velocity: 0.0,
                 effort: 0.0,
+                temperature_c: 25.0,
+                fault: 0,
             }],
         };
         let bytes = msg.encode_to_vec();

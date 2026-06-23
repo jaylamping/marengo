@@ -241,8 +241,8 @@ mod tests {
     }
 
     fn arm_2dof_right_model() -> UrdfGravityModel {
-        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../assets/urdf/arm_2dof_right.urdf");
+        let path =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/urdf/arm_2dof_right.urdf");
         gravity_model_from_urdf(&path, &["right_shoulder_pitch".to_string()])
             .expect("arm_2dof_right model")
     }
@@ -255,19 +255,17 @@ mod tests {
             .gravity_torques(&[std::f64::consts::FRAC_PI_2])
             .expect("tau at π/2")[0]
             .abs();
-        let max_tau = max_gravity_torque_over_range(
-            &model,
-            0,
-            0.0,
-            std::f64::consts::FRAC_PI_2,
-            20,
-        )
-        .expect("max over range");
+        let max_tau =
+            max_gravity_torque_over_range(&model, 0, 0.0, std::f64::consts::FRAC_PI_2, 20)
+                .expect("max over range");
         assert!(
             (max_tau - tau_at_pi2).abs() < 1e-6,
             "max over [0, π/2] should equal |tau_g(π/2)|={tau_at_pi2}, got {max_tau}",
         );
-        assert!(max_tau > 0.1, "expected non-trivial gravity load, got {max_tau}");
+        assert!(
+            max_tau > 0.1,
+            "expected non-trivial gravity load, got {max_tau}"
+        );
     }
 
     #[test]
@@ -289,9 +287,8 @@ mod tests {
             .gravity_torques(&[std::f64::consts::FRAC_PI_2])
             .expect("tau at π/2")[0]
             .abs();
-        let max_tau =
-            max_gravity_torque_over_range(&model, 0, 0.0, std::f64::consts::FRAC_PI_2, 2)
-                .expect("max steps=2");
+        let max_tau = max_gravity_torque_over_range(&model, 0, 0.0, std::f64::consts::FRAC_PI_2, 2)
+            .expect("max steps=2");
         assert!(
             (max_tau - tau_at_end).abs() < 1e-6,
             "steps=2 samples endpoints; max should be |tau_g(π/2)|={tau_at_end}, got {max_tau}",
