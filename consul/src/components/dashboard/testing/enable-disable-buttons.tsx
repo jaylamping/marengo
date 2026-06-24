@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useRobotStore } from '@/state/robotStore';
 import { useTestingStore } from '@/state/testingStore';
-import { postHomeCommand } from '@/lib/chappe-client';
+import { postHomeCommand } from '@/lib/gateway-api';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 

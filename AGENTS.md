@@ -1,197 +1,310 @@
-# Agent instructions (Marengo)
+# Repository Guidelines
 
-**Generated:** 2026-06-19 · **Commit:** f77fb · **Branch:** main
+Practical guide for AI assistants working in the Marengo repository.
 
-Short index — full rules live in linked docs. Subdirectory guides: [crates/](crates/AGENTS.md), [bins/](bins/AGENTS.md), [consul/](consul/AGENTS.md), [config/](config/AGENTS.md), [scripts/](scripts/AGENTS.md), [tools/](tools/AGENTS.md), [.cursor/](.cursor/AGENTS.md).
+**Before editing:** read [`docs/rust-patterns.md`](docs/rust-patterns.md); for control/CAN/enable paths also read [`docs/safety.md`](docs/safety.md). For navigation, start at [`codemap.md`](codemap.md). Deeper per-folder guides: [`crates/AGENTS.md`](crates/AGENTS.md), [`bins/AGENTS.md`](bins/AGENTS.md), [`consul/AGENTS.md`](consul/AGENTS.md), [`config/AGENTS.md`](config/AGENTS.md), [`scripts/AGENTS.md`](scripts/AGENTS.md).
 
-## STRUCTURE
+---
+
+## Project Overview
+
+Marengo is a **personal humanoid robot** in one repo: CAD, wiring, URDF, and the Rust runtime. SolidWorks and harness docs define joints, frames, and limits; control, safety, planning, and the operator UI consume that same definition.
+
+| Name | Role |
+|------|------|
+| **Marengo** | The robot (mechanical + electrical + software) |
+| **Armée** | Rust workspace (`Cargo.toml`) — 16 crates + 9 bins |
+| **Chappe** | Inter-process message bus (binary protobuf) |
+| **Berthier** | Realtime control loop |
+| **Davout** | Safety supervisor — **sole path to motors** |
+| **Talleyrand** | Motion planning (scaffold) |
+| **Fouché** | Jetson vision/LLM (scaffold) |
+| **Consul** | Operator web UI (Vite + React + TS) |
+
+Current execution slice is a **2-DOF right bench arm** (`config/bringup/arm_2dof_right/`); full humanoid is the long-term target ([`docs/roadmap.md`](docs/roadmap.md)).
+
+---
+
+## Architecture & Data Flow
+
+### Control stack (fixed motor path)
 
 ```
-marengo/
-├── Cargo.toml          # Armée workspace: 16 crates + 9 bins, forbids unsafe
-├── crates/             # Libraries (codenames: Berthier=control, Davout=safety, …)
-├── bins/               # Thin runtimes: marengo-pi, marengo-jetson, motor-repl, …
-├── proto/              # Protobuf wire types (Chappe) — proto-first API changes
-├── consul/             # Vite+React+TS operator UI (separate npm workspace)
-├── config/             # robot.yaml, motors.yaml, control.yaml + bringup/ profiles
-├── scripts/            # check.sh, deploy-pi.sh, pi-remote.sh, vcan, sim, systemd
-├── tools/              # Vendored MCP servers (marengo-pi-mcp, mem0-mcp) + protoc
-├── docs/               # architecture, ADRs, rust-patterns, safety, bench logs
-├── hardware/           # Electrical, prints, BOM, hardware ADRs (not software)
-├── cad/                # SolidWorks tree (local-only); manifests tracked
-├── assets/             # URDF + meshes (exported from CAD)
-├── models/             # ONNX policies (Git LFS)
-├── sim/                # MuJoCo simulation configs
-├── docker/             # dev / check / vcan / sim containers
-└── .cursor/            # Agent rules, skills, plans, environment.json
+Consul (React) ←HTTP/WebTransport→ marengo-gateway ←IPC→ Chappe ← marengo-pi
+                                                              ↓
+                                                      Berthier (control)
+                                                              ↓
+                                                      Davout (safety)
+                                                              ↓
+                                                      robstride (CAN)
+                                                              ↓
+                                                      Robstride motors
 ```
 
-## WHERE TO LOOK
+**Berthier → Davout → robstride.** No shortcuts. Berthier never opens CAN.
 
-| Task | Location | Notes |
-|------|----------|-------|
-| Control loop / modes | `crates/berthier/src/loop.rs` | Outer loop, friction FF → Davout |
-| Safety supervisor | `crates/davout/src/lib.rs` (`Supervisor` @ L166) | Sole path to robstride; `disable_all`, `request_enable` |
-| CAN encode/decode | `crates/robstride/` | MIT frames, no policy |
-| Gravity torques | `crates/armee-dynamics/` | `gravity_torques(q)` only |
-| Config loaders | `crates/marengo-config/` | `control.yaml`, `motors.yaml`, `robot.yaml` |
-| Pi runtime | `bins/marengo-pi/` | Control + CAN + Chappe on Pi |
-| Bench motor tool | `bins/motor-repl/` | `status`, `enable`, `jog`, `set-zero`, `gravity-on` |
-| Wire types | `proto/` → `crates/armee-proto/` (Rust) + `consul/src/gen/` (TS) | Never hand-edit gen/ |
-| Bringup profiles | `config/bringup/<profile>/` | `arm_2dof_right` is bench default |
-| Pi deploy / logs | `scripts/pi-remote.sh` | Cloud fallback when MCP unavailable |
-| ADRs | `docs/decisions/` | 14 ADRs (wire types, control modes, homing, …) |
+| Layer | Owns | Must not |
+|-------|------|----------|
+| `berthier` | Joint-space trajectory, τ_g + impedance → MIT batch | CAN, limits, IK |
+| `davout` | Enable FSM, filter, watchdog, send | Trajectories, URDF dynamics |
+| `robstride` | MIT encode/decode, CAN I/O | Policy, safety |
+| `armee-dynamics` | `gravity_torques(q)` | CAN, commands |
+| `chappe` | Topic pub/sub (protobuf envelopes) | Control policy |
 
-## Before any change
+### Control tick (200 Hz on Pi)
 
-1. Read [docs/rust-patterns.md](docs/rust-patterns.md) (good/bad Rust, control law).
-2. Read [docs/safety.md](docs/safety.md) if touching control, CAN, or enable paths.
-3. Run **`just check`** or `docker compose run --rm check` before finishing.
+1. Davout drains CAN feedback → joint positions (joint space)
+2. Berthier computes τ_g, friction/impedance, planner output
+3. MIT batch → Davout filters (limits, caps, danger zones) → robstride CAN
+4. `marengo-pi` publishes `RobotState` on Chappe → gateway → Consul
 
-## Never
+### Coordinate spaces
 
-- Hand-edit `consul/src/gen/` (run `cd consul && npm run gen:proto`).
-- Add JSON as the Chappe wire format ([ADR 0001](docs/decisions/0001-protobuf-wire-types.md)).
-- Use `unwrap()` / `expect()` in `crates/*` library code (clippy `warn`).
-- Skip Davout for motor commands — Berthier → Davout → robstride, no shortcuts.
-- Berthier opens CAN directly (see rust-patterns §3).
-- Edit the plan file in `.cursor/plans/` during implementation tasks unless asked.
-- `println!` for runtime logs in `marengo-pi`/`marengo-gateway` — use `tracing` + ChappeLogLayer.
-- Reconstruct Robstride arbitration IDs at call sites — use `robstride::encode_*` helpers.
+- **Joint space:** Berthier, armee-dynamics, Chappe, Davout limits (URDF)
+- **Motor space:** robstride only — Davout owns `direction` / `gear_ratio` transforms
 
-## Always
+### Wire types
 
-- Proto-first API changes under `proto/`; regenerate Rust + TS.
-- Thin `bins/`, logic in `crates/`.
-- Workspace forbids `unsafe` via `[workspace.lints]` unless an ADR says otherwise.
-- Call `marengo_support::init_tracing()` in bin `main` (or `chappe::tracing_layer::init_subscriber` for Chappe producers).
-- Update `docs/rust-patterns.md` when introducing a new recurring pattern.
-- Read each crate's `src/lib.rs` `//!` doc before editing (responsibilities + allowed deps).
-- Default `cargo test` must not require hardware.
+Proto-first ([ADR 0001](docs/decisions/0001-protobuf-wire-types.md)): edit `proto/` → regenerate Rust (`armee-proto`) and TS (`consul/src/gen/`). Never hand-edit generated code.
 
-## CONVENTIONS (deviations from standard)
+---
 
-- **Codename system:** crates use Napoleonic names (Berthier, Davout, Talleyrand, …) — see README table.
-- **Joint vs motor space:** Berthier, armee-dynamics, Chappe, Davout limits operate in URDF **joint space**. robstride is **raw motor/CAN space only**. Davout owns `direction`/`gear_ratio` transforms.
-- **Control law:** single-pass trapezoidal planner + MIT setpoint clamp — see rust-patterns §7 for the full law (max_lead, breakaway, return lag, limit envelope ADR 0009, velocity cap ADR 0010).
-- **Velocity caps:** resolved only from `config/control.yaml` via `marengo-config::resolve_joint_velocity_cap`. `motors.yaml`/`robot.yaml`/URDF velocity fields do **not** override.
-- **Logging:** Chappe producers (`marengo-pi`, `marengo-gateway`) → `init_subscriber` (publishes `LogEvent` on `logs/structured`). Other bins → `init_tracing` (stdout/journal).
-- **BNO085 I2C:** plain I2C reads, not smbus register reads (`EREMOTEIO` on Pi is normal).
+## Key Directories
 
-## ANTI-PATTERNS (THIS PROJECT)
+| Directory | Purpose |
+|-----------|---------|
+| `crates/` | Armée libraries — control, safety, CAN, config, Chappe, dynamics |
+| `bins/` | Thin runtimes: `marengo-pi`, `marengo-gateway`, `motor-repl`, probes |
+| `proto/` | Protobuf wire schemas (`marengo.v1`) |
+| `consul/` | Operator UI — telemetry, enable, URDF viewer |
+| `config/` | `robot.yaml`, `motors.yaml`, `control.yaml`, `homing.yaml` + `bringup/` profiles |
+| `assets/urdf/` | URDF + meshes exported from CAD |
+| `scripts/` | CI (`check.sh`), deploy, vcan, Pi remote, URDF validation |
+| `docs/` | Architecture, safety, ADRs (`docs/decisions/`), bench runbooks |
+| `docker/` | Dev, check, sim, vcan container images |
+| `tools/` | Vendored MCP servers (`marengo-pi-mcp`, `mem0-mcp`) |
+| `hardware/`, `cad/` | Electrical, prints, BOM, SolidWorks (CAD binaries local-only) |
 
-- **Upright-pose fall:** never position-hold an elevated arm without GravityComp (`kp=0, kd=0, torque_ff=tau_g`). See safety.md §"Upright-pose incident".
-- **Blind enable:** no motor enable without homing Verified + Davout state machine.
-- **Danger zones:** rules evaluate **measured** `q`/`dq`, not commanded MIT fields. Prefer `clamp_torque` when `kd_mit = 0`.
-- **Limit envelope:** uses `max(|dq_cmd|, |dq_meas|)` so gravity-driven motion cannot shrink it.
-- **Folding max_lead into planner:** freezes reference when arm lags — do not.
+---
 
-## Environment
+## Development Commands
 
-- Preferred: Dev Container or `docker compose` ([onboarding.md](docs/onboarding.md)).
-- Native host tooling is best-effort ([dev-setup.md](docs/dev-setup.md)).
-- Windows host: default shell is PowerShell — no `&&`/`||` (see `.cursor/rules/windows-shell.mdc`).
-
-## Architecture
-
-- [architecture.md](docs/architecture.md)
-- [ai-sdd.md](docs/ai-sdd.md) — Gentle-AI SDD, mem0, feasibility gate, Consul `/memory`
-- [roadmap.md](docs/roadmap.md) — full humanoid target; 4-DOF arm is current execution slice, not project scope
-- ADRs: [docs/decisions/](docs/decisions/) (14 total: 0001 protobuf wire → 0014 jetson perception)
-
-## Simulation & CAN
-
-- Default tests: no hardware.
-- SocketCAN test harness: `just vcan` then `cargo test -p robstride --features socketcan -- --ignored`
-- Sim: `just sim-check` ([ADR 0003](docs/decisions/0003-simulation-testing.md))
-
-## COMMANDS
+### Primary gate (run before finishing)
 
 ```bash
-just check              # CI-parity (container): build + fmt + clippy + test + deny
+just check              # CI-parity in Docker: lint + fmt + clippy + test + deny + audit
 just check-native       # Host-native: ./scripts/check.sh (cloud VMs)
-just vcan               # Virtual CAN bus up
-just sim-check          # MuJoCo sim checks
-cargo test --workspace  # Default tests (no hardware)
-cd consul && npm run gen:proto   # Regenerate TS proto types
-cd consul && npm run build       # Consul type-check
 ```
 
-## Cursor Cloud specific instructions
-
-Cloud agents run natively (no Docker) with pre-installed tooling: Rust 1.88, Node 24, protoc 28.3, cargo-deny 0.16.3, cargo-audit, and the pinned advisory-db.
-
-### First-time VM setup
-
-Fresh cloud VMs do not include Docker or the dev-container toolchain. Run once:
+### Build & test
 
 ```bash
-./scripts/setup-cloud.sh
+cargo build --workspace
+cargo test --workspace                    # No hardware required
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets -- -D warnings
 ```
 
-This installs protoc, cargo-deny, cargo-audit, the pinned advisory-db, and runs `./scripts/bootstrap.sh`.
+### Consul (TypeScript)
 
-### Running checks
+```bash
+cd consul && npm ci && npm run gen:proto && npm run build
+cd consul && npm test                     # vitest
+```
 
-Use `./scripts/check.sh` directly (the `just check-native` target). Docker and `just check` are unavailable in the cloud VM. The cross-build smoke test (aarch64) is skipped; this is non-fatal.
+### Simulation & virtual CAN
 
-### Key commands
+```bash
+just sim-check            # MuJoCo smoke + sim-harness tests
+just vcan                 # Bring up vcan0/vcan1
+just check-vcan           # robstride SocketCAN integration tests
+cargo test -p robstride --features socketcan -- --ignored
+```
 
-| Task | Command |
-|------|---------|
-| Full CI-parity check | `./scripts/check.sh` |
-| Build workspace | `cargo build --workspace` |
-| Lint (fmt) | `cargo fmt --all -- --check` |
-| Lint (clippy) | `cargo clippy --workspace --all-targets -- -D warnings` |
-| Test | `cargo test --workspace` |
-| Consul proto codegen | `cd consul && npm run gen:proto` |
-| Consul type-check | `cd consul && npm run build` |
+### Pi deploy
 
-### Gotchas
+```bash
+just deploy-pi host=joey@marengo.local           # macOS cross-build + rsync
+just deploy-pi-docker host=joey@marengo.local    # Windows / no native aarch64 GCC
+MARENGO_SKIP_CONSUL=1 just deploy-pi-docker-binaries host=...  # binaries only
+```
 
-- `cargo deny check --disable-fetch` requires the pinned advisory-db at `/usr/local/cargo/advisory-db-pinned/github.com-a946fc29ac602819`. `./scripts/setup-cloud.sh` installs and pins it; do not let `cargo audit` auto-update that tree.
-- Consul `dev` script is a scaffold (`echo "Vite app scaffold TBD"`); there is no running frontend dev server.
-- `motor-repl` uses SocketCAN only; use `just vcan` / the ignored SocketCAN tests for no-hardware bus checks.
-- Default `cargo test` requires no hardware. vCAN and simulation tests are optional and need Docker.
+### Cloud / Pi bench (no MCP)
 
-### Pi bench access (Tailscale)
+```bash
+./scripts/setup-cloud.sh              # First-time cloud VM
+./scripts/pi-remote.sh verify
+./scripts/pi-remote.sh health
+./scripts/pi-remote.sh logs-last-fault
+./scripts/pi-remote.sh deploy --install
+```
 
-Cloud VMs reach the robot via **Tailscale userspace networking** — not `marengo.local` mDNS. `.cursor/environment.json` runs `./scripts/setup-cloud-pi.sh` on boot.
+See [`docs/cloud-pi-tailscale.md`](docs/cloud-pi-tailscale.md) for Tailscale secrets.
 
-**One-time:** add secrets per [docs/cloud-pi-tailscale.md](docs/cloud-pi-tailscale.md) (`TAILSCALE_AUTH_KEY`, `MARENGO_PI_SSH_PRIVATE_KEY_B64`, `MARENGO_PI_HOST`).
+---
 
-**Pi / logs (no marengo-pi MCP in cloud):** use `./scripts/pi-remote.sh`:
+## Code Conventions & Common Patterns
 
-| Task | Command |
-|------|---------|
-| Verify connectivity | `./scripts/pi-remote.sh verify` |
-| Health | `./scripts/pi-remote.sh health` |
-| Log triage | `./scripts/pi-remote.sh logs-last-fault` → `logs-tail` → `logs-grep` |
-| Archive sessions | `./scripts/pi-remote.sh logs-sessions` |
-| CAN wire truth | `./scripts/pi-remote.sh candump-summary` |
-| Deploy to Pi | `./scripts/pi-remote.sh deploy --install` |
+### Crate boundaries
 
-Do not ask the user to paste Pi logs or run SSH when `pi-remote.sh` can fetch them.
+```rust
+// BAD — Berthier opens CAN
+socketcan::CanSocket::open("can0")?;
 
-## Learned User Preferences
+// GOOD — Berthier → Davout → robstride
+davout::filter(cmd)?;
+robstride::send(cmd)?;
+```
 
-- Early bench commissioning (roll / multi-DOF bringup): prioritize reliable safe motion over perfect mass or COM tuning when hardware is still changing week to week.
-- For a new joint on the same actuator type as an existing bench motor, start from the proven pitch motor settings (including impedance `ki`) and flip `direction` sign rather than inventing fresh tuning.
-- Exclude `var/pi-traces/*.log` from commits unless explicitly requested — bench trace artifacts, not source.
-- Re–set-zero at mechanical home whenever arm configuration changes (bare motor vs attached arm, bolt-on segments).
-- On `arm_2dof_right` wave motion: **pitch** raises the arm (~π–2.8 rad); **roll** oscillates — do not swap those joint roles.
+### Error handling
 
-## Learned Workspace Facts
+- **Libraries:** `thiserror` enums, `Result` in public APIs — no `unwrap()` / `expect()` (clippy `warn`)
+- **Bins:** `anyhow::Result` in `main` is fine
 
-- SolidWorks CAD binaries under `cad/assemblies`, `cad/parts`, `cad/vendor`, and `cad/exports` are gitignored local-only (removed from git tracking in `0a0adc1`); restore from Git LFS history at the commit before removal and hydrate blobs if pointers remain.
-- `pi_sync_bench_config` syncs bringup YAML only — it does not deploy `assets/urdf/`; verify gravity preview after COM/URDF edits or copy URDF assets separately.
-- Windows Pi Docker deploy from Git Bash fails on `unix:///var/run/docker.sock` even when Docker Desktop works in PowerShell; set `$env:DOCKER_HOST='npipe:////./pipe/dockerDesktopLinuxEngine'` before `deploy-pi-docker.sh`.
-- `pi_sync_main` deploys `main`, may switch the local checkout to `main`, and refuses a dirty git tree; feature-branch Pi deploys use `deploy-pi-docker.sh` with the Docker host workaround above and `MARENGO_SKIP_CONSUL=1` when consul WIP breaks the build.
-- Native Windows `cargo test` for crates using `chappe` fails on Unix socket APIs; use `just check` (container) for valid Rust test results on Windows.
-- Consul actuator assignment and joint limit edits are not wired today — use `config/bringup/<profile>/motors.yaml` and `control.yaml`, then sync to Pi.
-- Active 2-DOF right bench profile is `config/bringup/arm_2dof_right/` with roll CAN id 1 and pitch CAN id 2 on `can0`; roll limits 0→π rad (arm down to sky); re–set-zero roll at arm-down mechanical home (q≥0) before enable after physical homing.
-- Roll velocity-limit trips on ascent often trace to `actuator_groups.shoulder_roll.velocity_max_rad_s` disagreeing with joint `position_trajectory_velocity_rad_s` — align both before raising traj speed.
-- Never call synchronous `PositionTrace::flush()` in the Berthier 200 Hz loop (~70 ms SD fsync on Pi trips the 50 ms comm watchdog); flush on session `Drop` only.
-- **Signed-off position-hold baseline** (`ff9d554`): kp 18 / kd 3 / ki 5, fc 0.08, max_lead 0.12, group vel 2.5 — see [docs/bench-2dof-right-smoke.md](docs/bench-2dof-right-smoke.md); mem0 `control/bench/arm-2dof-right-baseline`.
-- Roll `position wave` under elevated pitch: use **triangle** setpoints; sine profiles trip Davout feedback velocity with coupled load.
-- Parallel `pi_set_zero` on multiple joints can race homing — zero roll then pitch sequentially before enable.
+### Async (Tokio)
+
+- Async at Chappe, network, and CAN boundaries
+- Do not block inside async without `spawn_blocking` or a dedicated thread
+
+### Logging
+
+| Binary type | Init |
+|-------------|------|
+| Chappe producers (`marengo-pi`, `marengo-gateway`) | `chappe::tracing_layer::init_subscriber` |
+| CLI / scaffolds | `marengo_support::init_tracing()` |
+
+No `println!` in `crates/` library code or Chappe producers — use `tracing`.
+
+### Control law
+
+Single-pass trapezoidal planner + MIT setpoint clamp ([`docs/rust-patterns.md`](docs/rust-patterns.md) §7). Velocity caps resolve only from `config/control.yaml` via `marengo-config::resolve_joint_velocity_cap`.
+
+### Naming
+
+- Crates use Napoleonic codenames (Berthier, Davout, Talleyrand, …)
+- Read each crate's `src/lib.rs` `//!` doc before editing
+- Thin `bins/`, logic in `crates/`
+
+### Hard rules (never)
+
+- Hand-edit `consul/src/gen/` — run `cd consul && npm run gen:proto`
+- Add JSON as Chappe wire format
+- Skip Davout for motor commands
+- Position-hold an elevated arm without GravityComp (`kp=0, kd=0, torque_ff=τ_g`)
+- Enable motors without homing Verified + Davout state machine
+- Call synchronous `PositionTrace::flush()` in the Berthier 200 Hz loop (SD fsync trips watchdog)
+- Reconstruct Robstride arbitration IDs at call sites — use `robstride::encode_*` helpers
+
+### Hard rules (always)
+
+- Proto-first API changes under `proto/`; regenerate Rust + TS
+- Workspace forbids `unsafe` unless an ADR says otherwise
+- Default `cargo test` must not require hardware
+- Update `docs/rust-patterns.md` when introducing a recurring pattern
+
+---
+
+## Important Files
+
+| File | Role |
+|------|------|
+| `Cargo.toml` | Workspace root — members, lints, shared deps |
+| `rust-toolchain.toml` | Rust 1.88.0 + rustfmt + clippy |
+| `justfile` | Developer task runner |
+| `compose.yaml` | Docker dev/check/sim/vcan services |
+| `scripts/check.sh` | CI-parity gate script |
+| `proto/marengo/v1/marengo.proto` | Wire schema source of truth |
+| `config/bringup/arm_2dof_right/` | Active 2-DOF bench profile |
+| `assets/urdf/marengo.urdf` | Kinematic source of truth |
+| `bins/marengo-pi/src/main.rs` | Pi control loop entry |
+| `bins/marengo-gateway/src/main.rs` | HTTP/WebTransport gateway |
+| `bins/motor-repl/src/main.rs` | Bench motor CLI |
+| `crates/berthier/src/loop.rs` | `ControlLoop::tick` |
+| `crates/davout/src/lib.rs` | `Supervisor` safety gateway |
+| `deny.toml` | cargo-deny license/advisory policy |
+| `.pre-commit-config.yaml` | fmt + buf lint hooks |
+
+**Deploy layout on Pi:** `/opt/marengo` (binaries + config), `/etc/marengo/env`, systemd units in `scripts/systemd/`.
+
+---
+
+## Runtime/Tooling Preferences
+
+| Tool | Version / choice |
+|------|------------------|
+| Rust | **1.88** (pinned in `rust-toolchain.toml`) |
+| Node | **24.x** for Consul (`consul/package.json` engines) |
+| Package manager | **npm** (not Bun) for Consul and MCP tools |
+| Task runner | **just** (`just --list`) |
+| Proto tooling | **buf** + **protoc** 28.x |
+| Dev environment | **Container-first** — `docker compose` + `just check` ([`docs/onboarding.md`](docs/onboarding.md)) |
+| Native host | Best-effort ([`docs/dev-setup.md`](docs/dev-setup.md)) |
+| Windows shell | PowerShell default — no `&&`/`||` (see `.cursor/rules/windows-shell.mdc`) |
+| Windows Rust tests | `chappe` Unix-socket tests fail natively — use `just check` in container |
+| Windows Pi Docker | Set `$env:DOCKER_HOST='npipe:////./pipe/dockerDesktopLinuxEngine'` before deploy scripts |
+| Formatting | rustfmt: 100 cols, Unix newlines (`rustfmt.toml`) |
+| Lint | clippy `-D warnings`; buf STANDARD lint on proto |
+| Cross-compile | `aarch64-unknown-linux-gnu` via Docker or `aarch64-linux-gnu-gcc` |
+
+**Cloud VMs:** no Docker — use `./scripts/check.sh` after `./scripts/setup-cloud.sh`. Pi access via Tailscale + `pi-remote.sh`, not mDNS.
+
+**MCP:** rebuild with `just mcp-build`; restart MCP servers after. Motion on Pi requires `confirm: true` on MCP tools.
+
+### Agent tooling (Cursor)
+
+- **Never** call `Grep` / `search` with an empty `pattern` — it fails with `Pattern must not be empty`.
+- To **list or discover files**, use `Glob`, `find`, or `Read` — not grep with `""`.
+- Repo root is the opened workspace (e.g. `C:\code\marengo` on this machine) — do not invent other paths from usernames or handoff context.
+
+---
+
+## Testing & QA
+
+### Frameworks
+
+| Language | Framework | Scope |
+|----------|-----------|-------|
+| Rust | `cargo test` | Unit tests (`#[cfg(test)]`) + `crates/*/tests/` integration |
+| Rust | `proptest` | Mode isolation in `berthier/src/mode_isolation.rs` |
+| TypeScript | `vitest` + testing-library | `consul/src/**/__tests__/` |
+| Python | `unittest` / `pytest` | Daily audit, research MCP |
+| Shell | assert-based runners | `scripts/*.test.sh` |
+
+### Running tests
+
+```bash
+cargo test --workspace                           # Default — no hardware
+cargo test -p berthier                         # Single crate
+cargo test -p robstride --features socketcan -- --ignored   # Needs vcan
+just sim-check                                 # MuJoCo + sim-harness
+cd consul && npm test
+python3 -m unittest scripts/daily-audit/test_audit.py
+```
+
+### CI (`.github/workflows/ci.yml`)
+
+1. **check** — Docker dev image → `scripts/check.sh` (buf lint, consul build, URDF validation, fmt, clippy, test, deny, audit, aarch64 smoke)
+2. **sim** (path-filtered) — MuJoCo smoke + `sim-harness`
+3. **vcan** — SocketCAN integration on virtual interfaces
+
+No coverage tooling is configured. Expectation: `just check` passes before merge.
+
+### Hardware-gated tests
+
+- Marked `#[ignore]` or require `--features socketcan`
+- Use `just vcan` / `just check-vcan` — never required for default `cargo test`
+- Physical bench protocols: [`docs/bench-gravity-comp-test-suite.md`](docs/bench-gravity-comp-test-suite.md), [`docs/bench-2dof-right-smoke.md`](docs/bench-2dof-right-smoke.md)
+
+### Bench commissioning notes
+
+- Active profile: `config/bringup/arm_2dof_right/` — roll CAN id 1, pitch CAN id 2 on `can0`
+- **Pitch** raises arm (~π–2.8 rad); **roll** oscillates — do not swap roles
+- Re–set-zero at mechanical home when arm configuration changes
+- `pi_sync_bench_config` syncs YAML only — not `assets/urdf/`; verify gravity after URDF/COM edits
+- Signed-off position-hold baseline: kp 18 / kd 3 / ki 5 — see bench smoke doc
+
+---
+
+## Repository Map
+
+Full hierarchical codemap at [`codemap.md`](codemap.md). Read it before starting any task; for deep work, also read that folder's `codemap.md`.

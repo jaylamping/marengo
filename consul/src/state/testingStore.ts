@@ -6,7 +6,7 @@ import {
   MitJointCommandSchema,
   type MitJointCommand,
 } from '@/gen/marengo/v1/marengo_pb';
-import { postTestingMitCommandBatch, postEnableCommand } from '@/lib/chappe-client';
+import { postTestingMitCommandBatch, postEnableCommand } from '@/lib/gateway-api';
 
 interface TestingStore {
   selectedJointNames: string[];

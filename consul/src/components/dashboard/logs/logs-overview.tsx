@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import { dashboardLogsClassName } from '@/components/dashboard/layout/constants';
 import { logsArchivePanelShellClassName, logsTabsVariant } from '@/components/dashboard/logs/constants';
@@ -13,103 +13,37 @@ import { LogsSessionList } from '@/components/dashboard/logs/logs-session-list';
 import { LogsToolbar } from '@/components/dashboard/logs/logs-toolbar';
 import { LogsVirtualTable } from '@/components/dashboard/logs/logs-virtual-table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  fetchBenchLines,
-  fetchCandumpPage,
-  fetchCandumpSummary,
-  fetchRecentLogs,
-  fetchSessions,
-  fetchTraceLines,
-  type LogSessionDto,
-} from '@/lib/log-api';
-import {
-  ensureLogsSeeded,
-  hydrateLogsFromSnapshot,
-  setLogsPageActive,
-  SNAPSHOT_HYDRATE_LIMIT,
-} from '@/lib/log-buffer';
-import { isChappeLive } from '@/lib/chappe-config';
-import type { LogEntry } from '@/data/logs';
-
-const CAN_PAGE = 200;
-type ArchiveView = 'bench' | 'trace' | 'search';
+import { useArchiveSessions, type ArchiveView } from '@/hooks/use-archive-sessions';
+import { useCandumpData, CAN_PAGE } from '@/hooks/use-candump-data';
+import { useLogDetailSheet } from '@/hooks/use-log-detail-sheet';
 
 function LogsOverviewInner() {
   const [mode, setMode] = useState<LogsMode>('live');
-  const [archiveView, setArchiveView] = useState<ArchiveView>('bench');
-  const [sessions, setSessions] = useState<LogSessionDto[]>([]);
-  const [selectedSession, setSelectedSession] = useState<string | null>(null);
-  const [archiveLines, setArchiveLines] = useState<string[]>([]);
-  const [canFrames, setCanFrames] = useState<Awaited<ReturnType<typeof fetchCandumpPage>>['frames']>([]);
-  const [canTotal, setCanTotal] = useState(0);
-  const [canOffset, setCanOffset] = useState(0);
-  const [canSummary, setCanSummary] = useState<string>('');
   const [autoFollow, setAutoFollow] = useState(true);
-  const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
 
-  function handleSelectLog(entry: LogEntry) {
-    setSelectedLog(entry);
-    setDetailOpen(true);
-  }
+  const {
+    sessions,
+    selectedSession,
+    setSelectedSession,
+    archiveView,
+    setArchiveView,
+    archiveLines,
+  } = useArchiveSessions(mode);
 
-  useEffect(() => {
-    setLogsPageActive(true);
-    if (isChappeLive()) {
-      void fetchRecentLogs(SNAPSHOT_HYDRATE_LIMIT).then((entries) => {
-        hydrateLogsFromSnapshot(entries);
-      });
-      return () => {
-        setLogsPageActive(false);
-      };
-    }
-    ensureLogsSeeded();
-    return () => {
-      setLogsPageActive(false);
-    };
-  }, []);
+  const {
+    canFrames,
+    canTotal,
+    canOffset,
+    setCanOffset,
+    canSummary,
+  } = useCandumpData(mode, selectedSession);
 
-  useEffect(() => {
-    if (mode !== 'archive' && mode !== 'can') {
-      return;
-    }
-    void fetchSessions(50).then(setSessions);
-  }, [mode]);
-
-  useEffect(() => {
-    if (mode !== 'archive' || !selectedSession) {
-      return;
-    }
-    if (archiveView === 'bench') {
-      void fetchBenchLines(selectedSession, 0, 500).then(({ lines }) => setArchiveLines(lines));
-    } else {
-      void fetchTraceLines(selectedSession, 0, 500).then(({ lines }) => setArchiveLines(lines));
-    }
-  }, [mode, selectedSession, archiveView]);
-
-  useEffect(() => {
-    if (mode !== 'can') {
-      return;
-    }
-    const id = selectedSession ?? 'latest';
-    void fetchCandumpPage(id, canOffset, CAN_PAGE).then(({ frames, total_frames }) => {
-      setCanFrames(frames);
-      setCanTotal(total_frames);
-    });
-    if (selectedSession) {
-      void fetchCandumpSummary(selectedSession).then((summary) => {
-        if (!summary) {
-          setCanSummary('');
-          return;
-        }
-        setCanSummary(
-          `${summary.frame_count} frames · ${summary.approx_hz.toFixed(1)} Hz · ${summary.duration_s.toFixed(2)}s`,
-        );
-      });
-    } else {
-      setCanSummary('live candump-latest.log');
-    }
-  }, [mode, selectedSession, canOffset]);
+  const {
+    selectedLog,
+    detailOpen,
+    setDetailOpen,
+    handleSelectLog,
+  } = useLogDetailSheet();
 
   return (
     <div className={dashboardLogsClassName}>
