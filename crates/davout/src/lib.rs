@@ -535,6 +535,7 @@ impl<B: MotorBus> Supervisor<B> {
             self.mode = OperationalMode::Active;
             self.active_since = Some(Instant::now());
             self.wrong_sign_state.clear();
+            self.last_tick = None;
             self.sync_active_reporting();
             info!(motor_count = self.motors.motors.len(), "supervisor ACTIVE");
         } else {
@@ -948,6 +949,7 @@ impl<B: MotorBus> Supervisor<B> {
         self.feedback_velocity_trips.clear();
         self.last_feedback_samples.clear();
         self.wrong_sign_state.clear();
+        self.last_tick = None;
         self.sync_active_reporting();
         debug!("supervisor DISABLED");
         Ok(())
@@ -2236,5 +2238,75 @@ mod tests {
             sup.filter_mit_command(cmd.clone(), &motor)
                 .expect("matching sign must not trip");
         }
+    }
+
+    #[test]
+    fn disable_all_clears_last_tick() {
+        let mut sup = wrong_sign_sup();
+        let motor = motor_for_joint(&sup.motors, "shoulder_pitch")
+            .expect("motor")
+            .clone();
+        let cmd = MitJointCommand {
+            joint: "shoulder_pitch".to_string(),
+            kp: 0.0,
+            kd: 0.0,
+            position_rad: 1.0,
+            velocity_rad_s: 0.0,
+            torque_ff_nm: -1.0, // matching sign → no watchdog trip
+        };
+        let _ = sup.filter_mit_command(cmd, &motor);
+        assert!(sup.last_tick.is_some(), "last_tick set after a tick");
+        sup.disable_all().expect("disable");
+        assert!(
+            sup.last_tick.is_none(),
+            "disable_all must clear last_tick to prevent stale dt on re-enable"
+        );
+    }
+
+    #[test]
+    fn tau_ff_step_rate_limited_after_disable_gap() {
+        let mut sup = wrong_sign_sup();
+        let motor = motor_for_joint(&sup.motors, "shoulder_pitch")
+            .expect("motor")
+            .clone();
+        sup.seed_tau_ff_rate_limiter();
+        // Tick once at -0.5 Nm to establish a rate-limiter baseline.
+        let cmd_small = MitJointCommand {
+            joint: "shoulder_pitch".to_string(),
+            kp: 0.0,
+            kd: 0.0,
+            position_rad: 1.0,
+            velocity_rad_s: 0.0,
+            torque_ff_nm: -0.5,
+        };
+        let out1 = sup.filter_mit_command(cmd_small, &motor).expect("tick 1");
+        // Disable — simulates a safety trip / comm-watchdog gap.
+        sup.disable_all().expect("disable");
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        // Re-enable (mirrors the recovery path the Pi would take).
+        sup.set_homing_complete().expect("ready");
+        sup.request_enable(true).expect("enable");
+        // Large τ_ff step — must be rate-limited, NOT passed through.
+        let cmd_big = MitJointCommand {
+            joint: "shoulder_pitch".to_string(),
+            kp: 0.0,
+            kd: 0.0,
+            position_rad: 1.0,
+            velocity_rad_s: 0.0,
+            torque_ff_nm: -5.0,
+        };
+        let out2 = sup
+            .filter_mit_command(cmd_big, &motor)
+            .expect("tick after re-enable");
+        let rate = sup.control.control.tau_ff_rate_limit_nm_per_s;
+        let max_step = rate * 0.01; // default dt fallback (0.01 s)
+        let actual_step = (out2.torque_ff_nm - out1.torque_ff_nm).abs();
+        assert!(
+            actual_step <= max_step + 1e-6,
+            "τ_ff step {actual_step} must be <= rate-limited max_step {max_step} after disable gap \
+             (rate={rate} Nm/s, out1={}, out2={})",
+            out1.torque_ff_nm,
+            out2.torque_ff_nm,
+        );
     }
 }

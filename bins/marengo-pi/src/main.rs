@@ -661,6 +661,12 @@ fn main() {
         std::process::exit(1);
     }
 
+    #[cfg(unix)]
+    if signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&shutdown)).is_err() {
+        eprintln!("failed to install SIGTERM handler");
+        std::process::exit(1);
+    }
+
     #[cfg(all(target_os = "linux", feature = "linux-i2c"))]
     imu::spawn_imu_publisher(Arc::clone(&chappe), Arc::clone(&shutdown));
 

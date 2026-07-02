@@ -58,8 +58,8 @@ control:
         kp: 12.0
         kd: 0.75
         ki: 0.0
-      position_slew_rad_s: 15.0
-      position_slew_max_lead_rad: 0.5
+      position_slew_rad_s: 0.15
+      position_slew_max_lead_rad: 0.12
       position_hold_trim_rad: 0.0
       friction:
         fc: 0.0

@@ -31,11 +31,10 @@ use crate::position_setpoint::{
     planner_drifted_from_measurement, planner_overshoot_hold_while_moving, planner_premature_hold,
     planner_should_freeze_on_descent, planner_should_latch_on_overshoot_hold,
     planner_should_resync_stuck_lead, position_hold_effective_max_lead, position_hold_mit_kd,
-    position_hold_mit_velocity, reopen_planner_from_premature_hold, POSITION_HOME_SETTLE_RAD,
+    position_hold_mit_velocity, reopen_planner_from_premature_hold,
     POSITION_RETURN_DESCENT_SEED_RAD, POSITION_SETTLE_TOLERANCE_RAD,
 };
 use crate::position_trace::{PositionTrace, PositionTraceRow};
-use crate::position_trajectory::is_descent_return;
 use crate::position_trajectory::{
     filter_dq_ema, JointPositionPlanner, TrapezoidPhase, POSITION_DAMPING_DQ_FILTER_ALPHA,
 };
@@ -1085,20 +1084,7 @@ impl<B: MotorBus> ControlLoop<B> {
                                     approaching_target,
                                 )
                                 && dq.abs() < vel_deadband;
-                            let tau_g_hold = if is_descent_return(
-                                q[i],
-                                target,
-                                POSITION_RETURN_DESCENT_SEED_RAD,
-                            ) && dq_traj < -POSITION_HOLD_ERROR_DEADBAND_RAD
-                                && target.abs() <= POSITION_HOME_SETTLE_RAD
-                                && q[i] <= 0.30
-                            {
-                                // Full gravity FF in the knee fights P on descent to home.
-                                let knee = (q[i] / 0.30).clamp(0.0, 1.0);
-                                tau_g[i] * (0.25 + 0.75 * knee)
-                            } else {
-                                tau_g[i]
-                            };
+                            let tau_g_hold = tau_g[i];
                             let ff = compose_position_hold_feedforward(
                                 tau_g_hold,
                                 kd,
@@ -1131,7 +1117,7 @@ impl<B: MotorBus> ControlLoop<B> {
                             let lead_sat = lead.abs() >= effective_max_lead - 1e-6;
                             let tau_p = kp * lead;
                             let mit_velocity = position_hold_mit_velocity(
-                                dq_raw,
+                                dq,
                                 dq_traj,
                                 vel_deadband,
                                 retarget_age_ms,
