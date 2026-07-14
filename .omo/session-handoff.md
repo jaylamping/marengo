@@ -15,22 +15,22 @@ Re-onboard via Cloud Agents (phone-friendly). Disable mem0 → local `.omo/` han
 - Position-hold baseline signed off: kp 18 / kd 3 / ki 5 — see `docs/bench-2dof-right-smoke.md`
 - mem0 MCP: **disabled** (removed from `.cursor/mcp.json`; local handoffs preferred)
 - Cloud secrets present: `MARENGO_PI_HOST`, `MARENGO_PI_USER`, `MARENGO_PI_SSH_PRIVATE_KEY_B64`, `TAILSCALE_AUTH_KEY`
-- **Blocker:** `TAILSCALE_AUTH_KEY` rejected — `invalid key: API key does not exist` (format `tskey-…`, length 61 — revoked/expired, not missing)
-- Tailscale package + userspace `tailscaled` install path verified on this VM after re-running `setup-cloud-pi.sh`
-- Pi health: not reachable until Tailscale connects
+- **Blocker:** Tailscale still down in *this* cloud VM. User rotated `TAILSCALE_AUTH_KEY` in the dashboard, but this running agent still has the pre-rotation value (`tskey-auth-…`, still rejected as `API key does not exist`). Cursor injects secrets at agent **start** only — need a **new** cloud agent run (or restart) after the secret update.
+- Tailscale package + userspace `tailscaled` path works; `setup-cloud-pi.sh --verify` fails only at `tailscale up`
+- Pi health: not reachable until Tailscale connects on a fresh agent with the new key
 - Older handoff archive: `.omo/session-handoff-2026-06-21.md` (single-joint gravity suite; superseded profile)
 
 ## Work completed
 
 - Cloud agent environment recognized; install had failed on missing Tailscale — packages + Tailscale installed on demand
-- Switched agent memory to local: `marengo-memory.mdc`, OpenSpec default, skills/automation marked disabled
-- Confirmed SSH key secret length looks sane (not validated until Tailscale is up)
+- Switched agent memory to local: `marengo-memory.mdc`, OpenSpec default, skills/automation marked disabled (PR #57)
+- Confirmed secret type is Auth key (`tskey-auth-…`), not API key — correct kind, stale injection
 
 ## Pending next
 
-1. Rotate `TAILSCALE_AUTH_KEY` in Cursor Cloud Agents secrets (new reusable/ephemeral key from Tailscale admin)
-2. Re-run `./scripts/setup-cloud-pi.sh --verify` → expect `SSH_OK` + gateway health
-3. `./scripts/pi-remote.sh health` / `logs-last-fault` for bench snapshot
+1. Start a **new** Cloud Agent (or restart this one) so the updated `TAILSCALE_AUTH_KEY` is injected
+2. First message: “continue from `.omo/session-handoff.md` — run `./scripts/setup-cloud-pi.sh --verify` then `pi-remote.sh health`”
+3. Bench snapshot via `logs-last-fault` once SSH_OK
 4. Continue re-onboard (smoke path or software task)
 
 ## Key files
