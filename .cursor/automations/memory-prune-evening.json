@@ -1,5 +1,6 @@
 {
   "name": "memory-prune-evening",
+  "enabled": false,
   "schedule": "0 22 * * *",
-  "prompt": "Run .cursor/skills/memory-prune/SKILL.md. Dry-run first with node tools/mem0-mcp/dist/prune.js --dry-run, then execute prune and mem_save audit to maintenance/prune/{today}."
+  "prompt": "DISABLED: mem0 is off. Do not run prune. See .cursor/skills/memory-prune/SKILL.md."
 }

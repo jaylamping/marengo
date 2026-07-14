@@ -6,7 +6,7 @@ The orchestrator passes `artifact_store.mode` with one of: `engram | openspec | 
 
 The orchestrator ASKs the user which mode they want when `/sdd-new`, `/sdd-ff`, or `/sdd-continue` is invoked for the first time in a session. The choice is cached for the session.
 
-Default (if user doesn't specify): if mem0-mcp is available → `engram` (mem0 backend). Otherwise → `none`.
+Default (if user doesn't specify): **`openspec`** (repo files). `engram` (mem0) is **disabled** — do not offer it until mem0 is re-enabled.
 
 ## Mode Roles
 

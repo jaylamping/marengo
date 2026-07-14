@@ -1,5 +1,7 @@
 # mem0 operations (Marengo)
 
+> **Agent note (2026-07-14):** Cursor agent mem0 MCP is **disabled**. Use `.omo/session-handoff.md` and OpenSpec instead. This doc remains for the self-hosted stack / Consul observatory if you re-enable later.
+
 Self-hosted stack: `C:\mem0\server` (fork: [jaylamping/mem0](https://github.com/jaylamping/mem0)).
 
 ## URLs (Tailscale Serve on joey-pc)

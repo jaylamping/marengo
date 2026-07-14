@@ -1,5 +1,5 @@
 # SDD init placeholder
 
-Run `/sdd-init` in Cursor to bootstrap project context in mem0 (`sdd/init/marengo`).
+Run `/sdd-init` in Cursor to bootstrap project context. **Default store: OpenSpec** (`openspec/`). Session continuity: `.omo/session-handoff.md`.
 
-Hybrid mode (optional): `openspec/changes/{slug}/` holds human-readable artifacts when artifact store is set to hybrid.
+mem0 / `engram` mode is disabled until re-enabled in `.cursor/mcp.json`.

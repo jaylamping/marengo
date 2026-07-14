@@ -93,6 +93,7 @@ See [ADR 0011](decisions/0011-log-retention-and-archive.md) and [bench-position-
 |---------|-----|
 | `TAILSCALE_AUTH_KEY not set` | Add secret; restart cloud agent |
 | `Could not resolve hostname` | Tailscale not connected — check `/tmp/tailscaled.log`, re-run `--connect` |
+| `invalid key: API key does not exist` | `TAILSCALE_AUTH_KEY` revoked/expired — create a new auth key in Tailscale admin → update Cursor Cloud Agents secret → re-run `./scripts/setup-cloud-pi.sh --verify` |
 | `Permission denied (publickey)` | Wrong or missing `MARENGO_PI_SSH_PRIVATE_KEY_B64` |
 | `GET /logs/sessions` 401 | Set `MARENGO_GATEWAY_LOG_TOKEN` secret to match Pi |
 | SSH works, rsync deploy fails | `export MARENGO_SSH_DIR=$HOME/.marengo-cloud-ssh` before `deploy-pi.sh` |

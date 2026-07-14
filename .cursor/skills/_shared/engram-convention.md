@@ -1,3 +1,5 @@
+> **DISABLED (2026-07-14):** Engram/mem0 mode is off. Default SDD store is OpenSpec.
+
 # Engram Artifact Convention (reference documentation)
 
 NOTE: Critical engram calls (`mem_search`, `mem_save`, `mem_get_observation`) are inlined directly in each skill's SKILL.md. This document is supplementary reference — sub-agents do NOT need to read it to function.

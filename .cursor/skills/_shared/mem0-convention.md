@@ -1,3 +1,5 @@
+> **DISABLED (2026-07-14):** mem0 agent memory is off. Use `.omo/session-handoff.md` + OpenSpec. Kept for re-enable reference.
+
 # mem0 Artifact Convention (Marengo)
 
 Marengo uses **self-hosted mem0** via `mem0-mcp` (Engram-compatible tool names).

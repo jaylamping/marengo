@@ -1,37 +1,20 @@
-# mem0 MCP (Marengo)
+# mem0 MCP — DISABLED
 
-Persistent memory via self-hosted mem0 at `https://joey-pc.tail0b414.ts.net:8888`.
+**Status: disabled (2026-07-14).** Prefer local handoffs under `.omo/`.
 
-## When to use
+## Do not use
 
-Use mem0 for **all Marengo repo work**, not only SDD:
+- Do not start the `mem0` MCP server
+- Do not call `mem_search`, `mem_save`, `mem_get_*`, or `mem_update`
+- `tools/mem0-mcp/` remains in-tree for possible future re-enable; leave it idle
 
-- SDD phase artifacts (`sdd/{change}/{phase}`)
-- Feasibility briefs and expert reviews
-- Engineering decisions, hardware/CAD/Pi/control/software lessons
-- Research ingest and prune audits
-- Session handoffs and skill registry
+## Replacement
 
-See [`.cursor/rules/marengo-memory.mdc`](../../rules/marengo-memory.mdc) and [`.cursor/skills/_shared/mem0-convention.md`](../_shared/mem0-convention.md).
+| Was (mem0) | Use instead |
+|------------|-------------|
+| `maintenance/session-handoff/marengo` | `.omo/session-handoff.md` |
+| SDD `sdd/{change}/{phase}` | `openspec/changes/{change}/…` |
+| Skill registry in mem0 | `.atl/skill-registry.md` (local) |
+| Agent bootstrap | [`.cursor/rules/marengo-memory.mdc`](../../rules/marengo-memory.mdc) |
 
-## Tools
-
-| Tool | Purpose |
-|------|---------|
-| `mem_get_by_topic_key` | Exact lookup by `topic_key` (preferred for SDD/bootstrap) |
-| `mem_search` | Semantic search; optional `project` filter |
-| `mem_get_observation` | Full content + history by observation ID |
-| `mem_save` | Upsert by `topic_key` (always prefer for SDD artifacts) |
-| `mem_update` | Replace content by observation ID; MCP preserves metadata, but prefer `mem_save` |
-
-After changing tools: `cd tools/mem0-mcp && npm run build`, then reconnect the mem0 MCP server in Cursor.
-
-## Setup
-
-1. Set user env `MEM0_API_KEY` (m0sk_… from mem0 dashboard)
-2. Build: `cd tools/mem0-mcp && npm run build`
-3. MCP registered as `mem0` in `.cursor/mcp.json`
-
-## Never
-
-Store secrets in `mem_save` — server rejects key-like patterns. Distill logs before saving.
+Consul `/memory` (mem0 observatory) is unrelated UI code — out of scope unless re-enabling the stack.

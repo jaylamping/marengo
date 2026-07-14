@@ -108,10 +108,13 @@ cloud_pi_tailscale_up() {
     return 0
   fi
   cloud_pi_log "Connecting Tailscale"
-  tailscale --socket="${TS_SOCKET}" up \
+  if ! tailscale --socket="${TS_SOCKET}" up \
     --auth-key="${auth_key}" \
     --accept-routes \
-    --hostname="cursor-cloud-$(hostname -s 2>/dev/null || echo agent)"
+    --hostname="cursor-cloud-$(hostname -s 2>/dev/null || echo agent)"; then
+    cloud_pi_warn "tailscale up failed — if you see 'API key does not exist', rotate TAILSCALE_AUTH_KEY in Cursor Cloud Agents secrets (docs/cloud-pi-tailscale.md)"
+    return 1
+  fi
 }
 
 cloud_pi_write_ssh_key() {

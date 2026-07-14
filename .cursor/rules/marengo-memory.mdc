@@ -1,68 +1,77 @@
 ---
-description: Marengo persistent memory via mem0 — bootstrap, recall, save, and no-save rules for all repo work.
+description: Marengo local memory — session handoffs and durable notes under .omo/ (mem0 disabled).
 alwaysApply: true
 ---
-# Marengo Memory (mem0)
+# Marengo Memory (local handoffs)
 
-Use **self-hosted mem0** via `mem0-mcp` whenever working in this repo. SDD artifacts remain on `sdd/*` keys; general engineering knowledge uses the expanded namespaces in [`.cursor/skills/_shared/mem0-convention.md`](../skills/_shared/mem0-convention.md).
+**mem0 is disabled.** Do not call `mem_*` tools or start the `mem0` MCP server.
+Use **repo-local files** under `.omo/` (and OpenSpec for SDD).
 
-## Bootstrap (bounded, fail-open)
+## Bootstrap (bounded)
 
 Before substantial repo work (multi-file change, hardware/CAN/CAD/Pi bench, or SDD):
 
-1. **Required exact lookups** (prefer `mem_get_by_topic_key`; fallback `mem_search` → `mem_get_observation`):
-   - `maintenance/session-handoff/marengo`
-   - `maintenance/skill-registry`
-2. **Optional** (max 2 extra lookups): task-relevant namespaces such as `pi/can/*`, `cad/torso-frame/*`, `control/gravity/*`, `software/{crate}/*`.
-3. If mem0 is unavailable (missing `MEM0_API_KEY`, MCP down, Tailscale offline): **proceed with a short warning** and fall back to `.atl/skill-registry.md` when present. Do not block the user.
+1. Read **`.omo/session-handoff.md`** (canonical current handoff).
+2. If missing, read the newest `.omo/session-handoff-*.md`.
+3. Optional (max 2): task notes under `.omo/plans/`, `.omo/evidence/`, or `openspec/changes/`.
+4. Skill index: `.atl/skill-registry.md` when present (gitignored local cache).
 
-## Recall
+## Session handoffs
 
-- **Exact recovery:** `mem_get_by_topic_key(topic_key: "...", project: "marengo")` for SDD artifacts, handoffs, and known keys.
-- **Exploratory recall:** `mem_search(query: "...", project: "marengo")` → `mem_get_observation(id)` for full content.
-- Search previews are truncated — always fetch full content before acting on a memory.
+| Path | Role |
+|------|------|
+| `.omo/session-handoff.md` | **Current** handoff — always update this |
+| `.omo/session-handoff-YYYY-MM-DD.md` | Optional dated archive when rolling a major checkpoint |
 
-## Save
+### When to write / update
 
-Save **durable, source-grounded** facts only:
+- End of a bench or multi-file session
+- Context saturation / session switch
+- User asks to save a handoff
 
-- Engineering decisions, safety lessons, bench/CAD/CAN bring-up distillations
-- SDD phase artifacts (`sdd/{change}/{phase}`)
-- Expert heuristics (`expert/{domain}/{slug}`) after a lesson is stable
-- Session handoffs (`maintenance/session-handoff/marengo`)
+### Template
 
-Use the **narrowest** namespace. Include metadata in content when operational:
+```markdown
+# Session handoff — Marengo
 
-```
 - observed_at: {ISO-8601 UTC}
-- source_ref: {command, file, PR, or MCP tool}
-- git_sha: {when repo state matters}
-- valid_until: {optional expiry for live bench/CAD state}
+- git_sha: {short sha}
+- source_ref: {cloud agent / local / PR}
+
+## Goal
+…
+
+## Current state
+- Bench / Pi: …
+- Config profile: `config/bringup/arm_2dof_right/` (or other)
+- Blockers: …
+
+## Work completed
+…
+
+## Pending next
+…
+
+## Key files
+…
 ```
 
-`mem_save` **upserts by `topic_key`** — same key updates the existing observation. Use `project: "marengo"`, `capture_prompt: false` for automated artifacts.
+## Durable local notes (optional)
 
-## Never save
+Prefer existing docs for long-lived truth (`docs/`, `config/`, ADRs). Use `.omo/` for session-scoped continuity only:
 
-- Secrets, API keys, private keys, bench tokens
-- Raw logs, candump traces, journal dumps (distill first)
-- Large transcripts or ephemeral command output
-- Live Pi/CAD state without `source_ref` and staleness metadata
+| Area | Location |
+|------|----------|
+| Plans / scratch design | `.omo/plans/` |
+| Bench evidence snippets | `.omo/evidence/` (distill; no raw candump dumps) |
+| SDD change artifacts | `openspec/changes/{slug}/` (default SDD store) |
 
-## Namespace quick map
+## Never commit
 
-| Task area | Prefix |
-|-----------|--------|
-| SDD phases | `sdd/{change}/{phase}` |
-| Cross-cutting decision (not ADR) | `decision/{area}/{slug}` |
-| Mechanical/electrical facts | `hardware/{subsystem}/{slug}` |
-| SolidWorks / mates / frames | `cad/{assembly}/{slug}` |
-| Pi deploy, systemd, bench ops | `pi/{subsystem}/{slug}` |
-| Motors, safety, kinematics | `control/{subsystem}/{slug}` |
-| Rust, Consul, proto, CI | `software/{crate}/{slug}` |
-| Research distillations | `research/{domain}/{slug}` |
-| Stable heuristics | `expert/{domain}/{slug}` |
+- Secrets, API keys, private keys, Tailscale auth keys, bench tokens
+- Raw logs / candump / journal dumps (distill first)
+- Live Pi passwords or SSH private key material
 
 ## Marengo overrides
 
-[AGENTS.md](../../AGENTS.md) wins on safety, Pi MCP-first, CAD worktree policy, and `just check`. Memory supplements — never overrides — those rules.
+[AGENTS.md](../../AGENTS.md) wins on safety, Pi MCP-first / `pi-remote.sh`, CAD worktree policy, and `just check`. Local memory supplements — never overrides — those rules.
