@@ -62,7 +62,7 @@ function Test-SshIdentity($Dir) {
 }
 
 if (-not (Test-Path -LiteralPath $SshDir) -or -not (Test-SshIdentity $SshDir)) {
-  Write-Warning "SSH preflight: cannot find deploy key in $SshDir (continuing — Docker mount may still work)"
+  Write-Warning "SSH preflight: cannot find deploy key in $SshDir (continuing - Docker mount may still work)"
 }
 
 $env:MARENGO_SSH_DIR = $SshDir
