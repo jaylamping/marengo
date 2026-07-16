@@ -57,6 +57,7 @@ var/log/
 # Local scratch notes (not docs); agent/session scratch above — delete when done
 /markdown
 # Local AI runtime state
+.omo/
 .atl/
 .agents/local.json
 .agents/generated/
