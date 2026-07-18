@@ -10,11 +10,7 @@ const lineVariants = cva("shrink-0", {
   variants: {
     variant: {
       default: "bg-[var(--color-border)]",
-      glass: [
-        "bg-[var(--glass-refraction-top)]",
-        "[background-image:linear-gradient(90deg,var(--glass-refraction-top),var(--glass-refraction-top))]",
-        "opacity-60",
-      ].join(" "),
+      panel: "bg-[var(--line-strong)]",
       gradient:
         "bg-gradient-to-r from-transparent via-[var(--color-border)] to-transparent",
       dashed: "border-dashed border-[var(--color-border)] bg-transparent",

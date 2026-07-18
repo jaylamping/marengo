@@ -9,14 +9,8 @@ const cardVariants = cva(
     variants: {
       variant: {
         default: "bg-card py-4",
-        glass: [
-          "border border-white/20 [border-top-color:var(--glass-refraction-top)] py-4",
-          "bg-[radial-gradient(ellipse_at_50%_0%,rgb(255_255_255_/_0.16),transparent_50%),linear-gradient(to_bottom,rgb(255_255_255_/_0.1),rgb(255_255_255_/_0.04))]",
-          "backdrop-blur-xl backdrop-saturate-[180%]",
-          "shadow-[0_0_0_1px_rgb(255_255_255_/_0.1)_inset,var(--shadow-glass-sm)]",
-          "dark:border-white/[0.1] dark:bg-[radial-gradient(ellipse_at_50%_0%,rgb(255_255_255_/_0.05),transparent_50%),linear-gradient(to_bottom,rgb(255_255_255_/_0.03),rgb(255_255_255_/_0.01))]",
-          "dark:shadow-[0_0_0_1px_rgb(255_255_255_/_0.05)_inset,0_8px_24px_rgb(0_0_0_/_0.35)]",
-        ].join(" "),
+        panel:
+          "border border-line bg-surface-1 py-4 shadow-[0_8px_24px_rgb(0_0_0/0.3)]",
       },
       size: {
         default: "data-[size=default]:gap-4 data-[size=default]:py-4",
@@ -64,7 +58,10 @@ function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-title"
-      className={cn("font-heading text-sm font-medium", className)}
+      className={cn(
+        "font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-foreground",
+        className
+      )}
       {...props}
     />
   )

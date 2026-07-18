@@ -1,6 +1,6 @@
 # consul/ — Operator UI (Vite + React + TS)
 
-Separate npm workspace. Vite + React + TypeScript + shadcn/ui. Consumes Chappe wire types via protobuf codegen. **Never hand-edit `src/gen/`.**
+Separate npm workspace. Vite + React + TypeScript + GLINUI/Radix primitives with the "Launch Day" panel design system (see `DESIGN.md`). Consumes Chappe wire types via protobuf codegen. **Never hand-edit `src/gen/`.**
 
 ## STRUCTURE
 
@@ -30,7 +30,7 @@ consul/
 |------|----------|
 | Regenerate proto types | `npm run gen:proto` (reads `buf.gen.yaml`, writes `src/gen/`) |
 | Type-check | `npm run build` |
-| Design system | `DESIGN.md`, `components.json` (shadcn config) |
+| Design system | `DESIGN.md` (Launch Day identity), `src/index.css` (tokens), `components.json` (glinui config) |
 | URDF viewer | `src/urdf/` |
 | API / Chappe connection | `src/lib/`, `src/hooks/` |
 
@@ -38,7 +38,7 @@ consul/
 
 - **Proto-first:** change `proto/` → `npm run gen:proto` → never touch `src/gen/`.
 - npm lockfile must match CI (Linux Node 24 `npm ci`): `just consul-lock` / `just consul-ci`.
-- `dev` script is a scaffold (`echo "Vite app scaffold TBD"`) — no running frontend dev server yet.
+- `npm run dev` starts the Vite dev server (regenerates proto types first via `predev`).
 
 ## ANTI-PATTERNS
 

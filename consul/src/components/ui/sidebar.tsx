@@ -6,8 +6,8 @@ import { cva, type VariantProps } from "class-variance-authority"
 
 import {
   sidebarChromeClassName,
-  sidebarGlassSkinClassName,
-  sidebarGlassSkinStyle,
+  sidebarPanelSkinClassName,
+  sidebarPanelSkinStyle,
 } from "@/components/dashboard/sidebar/constants"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
@@ -173,10 +173,10 @@ function Sidebar({
     return (
       <div
         data-slot="sidebar"
-        style={sidebarGlassSkinStyle}
+        style={sidebarPanelSkinStyle}
         className={cn(
           "flex h-full w-(--sidebar-width) flex-col text-sidebar-foreground",
-          sidebarGlassSkinClassName,
+          sidebarPanelSkinClassName,
           className
         )}
         {...props}
@@ -196,12 +196,12 @@ function Sidebar({
           data-mobile="true"
           className={cn(
             "w-(--sidebar-width) p-0 text-sidebar-foreground [&>button]:hidden",
-            sidebarGlassSkinClassName
+            sidebarPanelSkinClassName
           )}
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
-              ...sidebarGlassSkinStyle,
+              ...sidebarPanelSkinStyle,
             } as React.CSSProperties
           }
           side={side}
@@ -254,10 +254,10 @@ function Sidebar({
         <div
           data-sidebar="sidebar"
           data-slot="sidebar-inner"
-          style={sidebarGlassSkinStyle}
+          style={sidebarPanelSkinStyle}
           className={cn(
             "flex size-full flex-col text-sidebar-foreground group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:shadow-sm group-data-[variant=floating]:ring-1 group-data-[variant=floating]:ring-sidebar-border",
-            sidebarGlassSkinClassName
+            sidebarPanelSkinClassName
           )}
         >
           {children}

@@ -44,12 +44,14 @@ export function TelemetryGaugeGrid() {
 
         return (
           <Card key={joint.name}>
-            <CardHeader><CardTitle className="text-sm">{joint.name}</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{joint.name}</CardTitle></CardHeader>
             <CardContent className="space-y-2">
               <Gauge label="Position" value={joint.position} percent={posPercent} unit="rad" limit={`${posLower.toFixed(2)} → ${posUpper.toFixed(2)}`} />
               <Gauge label="Velocity" value={joint.velocity} percent={velPercent} unit="rad/s" limit={`±${velMax.toFixed(2)}`} />
               <Gauge label="Torque" value={joint.effort} percent={torquePercent} unit="Nm" limit={`±${torqueLimit.toFixed(2)}`} />
-              <div className="text-xs">Temp: {joint.temperatureC?.toFixed(1) ?? '—'}°C</div>
+              <div className="data-value text-xs text-muted-foreground">
+                TEMP <span className="text-foreground">{joint.temperatureC?.toFixed(1) ?? '—'}°C</span>
+              </div>
             </CardContent>
           </Card>
         );
@@ -62,12 +64,12 @@ function Gauge({ label, value, percent, unit, limit }: { label: string, value: n
   return (
     <div className="space-y-1">
       <div className="flex justify-between text-xs">
-        <span>{label}</span>
-        <span>{formatSigFig(value)} {unit} <span className="text-muted-foreground">/ {limit}</span></span>
+        <span className="micro-label">{label}</span>
+        <span className="data-value">{formatSigFig(value)} {unit} <span className="text-muted-foreground">/ {limit}</span></span>
       </div>
-      <div className="h-2 bg-muted rounded-full overflow-hidden">
+      <div className="h-1.5 rounded-sm bg-surface-3 overflow-hidden">
         <div
-          className={cn("h-full transition-all", percent > 90 ? "bg-red-500" : percent > 70 ? "bg-yellow-500" : "bg-green-500")}
+          className={cn("h-full transition-all", percent > 90 ? "bg-fault" : percent > 70 ? "bg-warning" : "bg-ok")}
           style={{ width: `${Math.min(percent, 100)}%` }}
         />
       </div>

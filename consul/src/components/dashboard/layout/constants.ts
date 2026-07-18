@@ -15,16 +15,16 @@ export const dashboardLayoutRootClassName = 'relative h-svh';
 /** Chrome layer above the canvas (sidebar, header, inset). */
 export const dashboardChromeClassName = 'relative z-20 min-h-svh bg-transparent';
 
-/** Main route shell — re-enable pointer events on glass panels via children. */
+/** Main route shell — re-enable pointer events on panels via children. */
 export const dashboardMainPointerClassName = 'pointer-events-none';
 
-/** Glass panels and interactive shells opt back into pointer events. */
+/** Panels and interactive shells opt back into pointer events. */
 export const dashboardPanelPointerClassName = 'pointer-events-auto';
 
-/** Shared GLINUI glass card shell — variant=glass + Strategy C pointer threading. */
-export const dashboardGlassCardClassName = dashboardPanelPointerClassName;
+/** Shared panel card shell — variant=panel + Strategy C pointer threading. */
+export const dashboardPanelCardClassName = dashboardPanelPointerClassName;
 
-/** Overview metric card grid (glass cards supply their own surface). */
+/** Overview metric card grid (panel cards supply their own surface). */
 export const sectionCardsGridClassName =
   'grid grid-cols-1 gap-4 px-4 lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4';
 

@@ -13,14 +13,7 @@ const sheetContentVariants = cva(
     variants: {
       variant: {
         default: "bg-popover",
-        glass: [
-          "border border-white/20 [border-top-color:var(--glass-refraction-top)]",
-          "bg-[radial-gradient(ellipse_at_50%_0%,rgb(255_255_255_/_0.12),transparent_50%),linear-gradient(to_bottom,rgb(255_255_255_/_0.08),rgb(255_255_255_/_0.03))]",
-          "backdrop-blur-xl backdrop-saturate-[180%]",
-          "shadow-[0_0_0_1px_rgb(255_255_255_/_0.1)_inset,var(--shadow-glass-sm)]",
-          "dark:border-white/[0.1]",
-          "dark:bg-[radial-gradient(ellipse_at_50%_0%,rgb(255_255_255_/_0.04),transparent_50%),linear-gradient(to_bottom,rgb(255_255_255_/_0.02),rgb(255_255_255_/_0.01))]",
-        ].join(" "),
+        panel: "border-line bg-surface-1 shadow-[0_8px_32px_rgb(0_0_0/0.5)]",
       },
     },
     defaultVariants: {
@@ -53,7 +46,7 @@ function SheetOverlay({
     <SheetPrimitive.Overlay
       data-slot="sheet-overlay"
       className={cn(
-        "fixed inset-0 z-50 bg-black/80 transition-opacity duration-150 data-[state=closed]:opacity-0 data-[state=open]:opacity-100 supports-backdrop-filter:backdrop-blur-xs motion-reduce:transition-none",
+        "fixed inset-0 z-50 bg-black/70 transition-opacity duration-150 data-[state=closed]:opacity-0 data-[state=open]:opacity-100 motion-reduce:transition-none",
         className
       )}
       {...props}

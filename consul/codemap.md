@@ -7,7 +7,7 @@
 - **SPA** with React Router (`createBrowserRouter`)
 - **State management**: Zustand stores in `src/state/`
 - **Telemetry client**: `chappe-client.ts` — WebTransport primary, HTTP stream fallback
-- **Component library**: shadcn/ui primitives under `components/ui/`
+- **Component library**: GLINUI/Radix primitives under `components/ui/`, “Launch Day” panel skins (see `DESIGN.md`)
 - **Dashboard panels**: testing (hold-at, PID sliders), simulation, URDF preview, inventory, logs, metrics
 - Buf-generated protobuf types in `src/gen/`
 

@@ -17,6 +17,11 @@ vi.mock('@react-three/fiber', () => ({
 
 vi.mock('@react-three/drei', () => ({
   OrbitControls: () => <div data-testid="orbit-controls" />,
+  ContactShadows: () => <div data-testid="contact-shadows" />,
+}));
+
+vi.mock('@/components/dashboard/layout/space-backdrop', () => ({
+  SpaceBackdrop: () => <div data-testid="space-backdrop" />,
 }));
 
 vi.mock('@/urdf/RobotModelContext', () => ({
@@ -41,6 +46,7 @@ describe('SceneBackground', () => {
     expect(host.className).toBe(sceneBackgroundClassName);
     expect(screen.getByTestId('r3f-canvas')).toBeTruthy();
     expect(screen.getByTestId('urdf-scene')).toBeTruthy();
+    expect(screen.getByTestId('space-backdrop')).toBeTruthy();
   });
 
   it('wraps the scene in RobotModelProvider for shared URDF context', () => {

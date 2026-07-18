@@ -20,7 +20,7 @@ export function SimControlBar({ sessionState }: SimControlBarProps) {
 
   return (
     <div className={simControlBarClassName} data-testid="sim-control-bar">
-      <Button size="sm" variant="glass" disabled={disconnected}>
+      <Button size="sm" variant="panel" disabled={disconnected}>
         <HugeiconsIcon icon={PlayIcon} strokeWidth={2} data-icon="inline-start" />
         Play
       </Button>
