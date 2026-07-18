@@ -148,22 +148,9 @@ ensure_consul_deps() {
   )
 }
 
-consul_assets_fresh() {
-  local dist="${ROOT}/consul/dist/index.html"
-  [[ -f "$dist" ]] || return 1
-  if find "${ROOT}/consul/src" "${ROOT}/proto" -type f -newer "$dist" 2>/dev/null | grep -q .; then
-    return 1
-  fi
-  return 0
-}
-
 build_consul_assets() {
   if [[ "$SKIP_CONSUL" == true ]]; then
     log_step "Skipping Consul build (--skip-consul)"
-    return 0
-  fi
-  if consul_assets_fresh; then
-    log_step "Consul dist up to date — skipping npm build"
     return 0
   fi
   log_step "Building Consul static assets"
