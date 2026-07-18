@@ -1,6 +1,23 @@
 import type { RouteObject } from 'react-router-dom';
 
+import { isActuatorsFeatureEnabled } from '@/lib/feature-flags';
 import { RootLayout } from '@/routes/root-layout';
+
+const actuatorsRoute: RouteObject = {
+  path: '/actuators',
+  lazy: async () => {
+    const { ActuatorsPage } = await import('@/pages/actuators');
+    return {
+      Component: ActuatorsPage,
+      handle: {
+        header: {
+          title: 'Actuators',
+          subtitle: 'telemetry only · PR-1 shell',
+        },
+      },
+    };
+  },
+};
 
 export const appRoutes: RouteObject[] = [
   {
@@ -36,6 +53,7 @@ export const appRoutes: RouteObject[] = [
           };
         },
       },
+      ...(isActuatorsFeatureEnabled() ? [actuatorsRoute] : []),
       {
         path: '/subsystems',
         lazy: async () => {
