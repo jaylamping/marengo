@@ -31,6 +31,7 @@ rustls = { version = "0.23", default-features = false, features = ["ring", "std"
 rustls-pemfile = "2"
 serde = { workspace = true, features = ["derive"] }
 serde_json = "1"
+serde_yaml.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { version = "0.7", features = ["io"] }

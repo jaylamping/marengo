@@ -19,6 +19,7 @@ use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
 
 use crate::actuator;
+use crate::config;
 use crate::framing::{self, CHAPPE_STREAM_CONTENT_TYPE};
 use crate::logs;
 use crate::state::{filter_topics, SharedState};
@@ -92,6 +93,8 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
         .route("/logs/sessions/{id}/download", get(logs::session_download))
         .route("/logs/structured", get(logs::structured_logs))
         .route("/settings", get(logs::get_settings))
+        .route("/config/snapshot", get(config::get_config_snapshot))
+        .route("/config/patch", post(config::post_config_patch))
         .route("/command/enable", post(command_enable))
         .route("/command/testing_mit", post(command_testing_mit))
         .route("/command/home", post(command_home))

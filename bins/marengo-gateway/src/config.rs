@@ -57,7 +57,7 @@ pub struct ConfigSnapshotJson {
     pub control_limits: Vec<JointControlLimitsJson>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct ConfigPatchJson {
     pub joint: String,
     pub device_id: Option<u8>,
@@ -215,7 +215,7 @@ pub async fn post_config_patch(
             &audit_key,
             &audit_json,
             &source,
-            marengo_store::store::now_ms(),
+            marengo_store::now_ms(),
         )
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
