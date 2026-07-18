@@ -21,27 +21,25 @@ afterEach(() => {
   cleanup();
 });
 
-describe('inventory glass shell constants (data + chrome tiers)', () => {
+describe('inventory panel shell constants (data + chrome tiers)', () => {
   it('defines a data-tier table shell with blur and pointer-events-auto', () => {
-    expect(inventoryTableShellClassName).toContain('backdrop-blur-xl');
+    expect(inventoryTableShellClassName).toContain('bg-surface-1');
     expect(inventoryTableShellClassName).toContain('pointer-events-auto');
-    expect(inventoryTableShellClassName).toContain(
-      '[border-top-color:var(--glass-refraction-top)]',
-    );
+    expect(inventoryTableShellClassName).toContain('border-line');
   });
 
   it('defines a chrome-tier toolbar shell with blur and pointer-events-auto', () => {
-    expect(inventoryToolbarShellClassName).toContain('backdrop-blur-xl');
+    expect(inventoryToolbarShellClassName).toContain('bg-surface-1');
     expect(inventoryToolbarShellClassName).toContain('pointer-events-auto');
   });
 
-  it('defines drawer content glass without row-level blur', () => {
-    expect(inventoryDrawerContentClassName).toContain('backdrop-blur-xl');
+  it('defines drawer content panel without row-level blur', () => {
+    expect(inventoryDrawerContentClassName).toContain('bg-surface-1');
     expect(inventoryDrawerContentClassName).not.toContain('animate-in');
   });
 });
 
-describe('InventoryTableView glass shell', () => {
+describe('InventoryTableView panel shell', () => {
   it('wraps the TanStack table in the data-tier shell', () => {
     const table = {
       getHeaderGroups: () => [
@@ -74,13 +72,13 @@ describe('InventoryTableView glass shell', () => {
     );
 
     const shell = screen.getByTestId('inventory-table-shell');
-    expect(shell.className).toMatch(/backdrop-blur-xl/);
+    expect(shell.className).toContain('bg-surface-1');
     expect(shell.className).toMatch(/pointer-events-auto/);
     expect(screen.getByText('No devices match this view.')).toBeTruthy();
   });
 });
 
-describe('InventoryTableToolbar glass shell', () => {
+describe('InventoryTableToolbar panel shell', () => {
   it('renders chrome-tier controls inside the toolbar shell', () => {
     render(
       <Tabs value="all">
@@ -100,13 +98,13 @@ describe('InventoryTableToolbar glass shell', () => {
     );
 
     const shell = screen.getByTestId('inventory-toolbar-shell');
-    expect(shell.className).toMatch(/backdrop-blur-xl/);
+    expect(shell.className).toContain('bg-surface-1');
     expect(screen.getByRole('button', { name: 'Expand all' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Collapse all' })).toBeTruthy();
   });
 });
 
-describe('InventoryRowDrawer glass shell', () => {
+describe('InventoryRowDrawer panel shell', () => {
   it('renders the device name trigger for drawer access', () => {
     const item: InventoryItem = {
       id: 1,

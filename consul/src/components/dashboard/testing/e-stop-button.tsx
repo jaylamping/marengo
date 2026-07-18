@@ -17,10 +17,10 @@ export function EStopButton() {
   };
 
   return (
-    <Button 
-      variant="destructive" 
-      size="lg" 
-      className="w-full text-lg font-bold"
+    <Button
+      variant="destructive"
+      size="lg"
+      className="panel-brackets-fault w-full font-mono text-sm font-semibold uppercase tracking-[0.18em]"
       onClick={handleClick}
     >
       {confirm ? 'CONFIRM E-STOP' : 'E-STOP'}

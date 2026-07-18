@@ -18,7 +18,7 @@ import {
   type MitJointCommand,
 } from '@/gen/marengo/v1/marengo_pb';
 import { postTestingMitCommandBatch } from '@/lib/gateway-api';
-import { dashboardGlassCardClassName } from '@/components/dashboard/layout/constants';
+import { dashboardPanelCardClassName } from '@/components/dashboard/layout/constants';
 
 export function CompoundTestPanel() {
   const {
@@ -185,7 +185,8 @@ export function CompoundTestPanel() {
           {COMPOUND_TEST_PRESETS.map((preset) => (
             <Card
               key={preset.id}
-              className={`${dashboardGlassCardClassName} cursor-pointer hover:border-primary transition-colors`}
+              variant="panel"
+              className={`${dashboardPanelCardClassName} cursor-pointer hover:border-primary transition-colors`}
               onClick={() => setSelectedPresetId(preset.id)}
             >
               <CardHeader>
@@ -203,7 +204,7 @@ export function CompoundTestPanel() {
           ))}
         </div>
       ) : (
-        <Card className={dashboardGlassCardClassName}>
+        <Card variant="panel" className={dashboardPanelCardClassName}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b border-border/50">
             <div>
               <CardTitle className="text-xl">{selectedPreset.name}</CardTitle>

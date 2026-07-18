@@ -18,7 +18,7 @@ export function InventoryStatusCell({ status }: InventoryStatusCellProps) {
         <HugeiconsIcon
           icon={CheckmarkCircle01Icon}
           strokeWidth={2}
-          className="fill-green-500 dark:fill-green-400"
+          className="fill-ok"
         />
       ) : status === 'Tuning' ? (
         <HugeiconsIcon icon={Loading03Icon} strokeWidth={2} />

@@ -25,14 +25,14 @@ afterEach(() => {
   cleanup();
 });
 
-describe('SectionCards (overview glass grid)', () => {
+describe('SectionCards (overview panel grid)', () => {
   it('uses the shared section grid class without legacy gradient selectors', () => {
     expect(sectionCardsGridClassName).toContain('grid');
     expect(sectionCardsGridClassName).not.toContain('bg-linear-to-t');
     expect(sectionCardsGridClassName).not.toContain('from-primary/5');
   });
 
-  it('renders all four overview host cards in the glass grid', () => {
+  it('renders all four overview host cards in the panel grid', () => {
     render(<SectionCards />);
 
     const grid = screen.getByTestId('section-cards-grid');

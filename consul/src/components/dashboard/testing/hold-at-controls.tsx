@@ -4,13 +4,13 @@ import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { dashboardGlassCardClassName } from '@/components/dashboard/layout/constants';
+import { dashboardPanelCardClassName } from '@/components/dashboard/layout/constants';
 
 export function HoldAtControls() {
   const { setpointRad, setSetpoint, startTest, stopTest, returnHome, dryRun, toggleDryRun, isRunning } = useTestingStore();
 
   return (
-    <Card className={dashboardGlassCardClassName}>
+    <Card variant="panel" className={dashboardPanelCardClassName}>
       <CardHeader className="pb-3"><CardTitle>Hold Controls</CardTitle></CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-2">

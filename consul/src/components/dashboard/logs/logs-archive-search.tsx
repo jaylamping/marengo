@@ -111,7 +111,7 @@ export function LogsArchiveSearch({
         <div className="min-w-[200px] flex-1">
           <label className="mb-1 block text-xs text-muted-foreground">FTS query</label>
           <Input
-            variant="glass"
+            variant="panel"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="joint, error, operator…"

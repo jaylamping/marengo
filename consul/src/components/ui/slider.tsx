@@ -15,10 +15,10 @@ const sliderTrackVariants = cva(
         md: "h-3",
         lg: "h-4",
       },
-      variant: {
-        default: "",
-        glass: "bg-white/5",
-      },
+    variant: {
+      default: "",
+      panel: "bg-surface-1",
+    },
     },
     defaultVariants: {
       size: "md",
@@ -36,7 +36,7 @@ const sliderRootVariants = cva("w-full", {
     },
     variant: {
       default: "",
-      glass: "bg-white/5 rounded-md",
+      panel: "bg-surface-1 rounded-md",
     },
   },
   defaultVariants: {
@@ -51,7 +51,7 @@ export type SliderProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, 'val
   onValueChange?: (value: number[]) => void
   // expose optional design variants for consumers
   size?: "sm" | "md" | "lg"
-  variant?: "default" | "glass"
+  variant?: "default" | "panel"
 }
 
 // Slider root that renders a native range input for single-value sliders.
@@ -80,7 +80,7 @@ export const Slider = React.forwardRef<HTMLInputElement, SliderProps>(
     return (
       <div className={cn("w-full", className)} style={style}>
         {/* Wrap with track for API compatibility; actual thumb is provided by native range */}
-        <div className={sliderRootVariants({ size: size as "sm" | "md" | "lg", variant: variant as "default" | "glass" })}>
+        <div className={sliderRootVariants({ size: size as "sm" | "md" | "lg", variant: variant as "default" | "panel" })}>
           <input
             ref={ref}
             type="range"
@@ -92,7 +92,7 @@ export const Slider = React.forwardRef<HTMLInputElement, SliderProps>(
             className={cn(
               // basic track styling to resemble glinui radix-like slider
               "w-full appearance-none rounded-lg border-0 bg-transparent",
-              "accent-[#4f46e5]", // tailwind purple-500-ish accent for modern look
+              "accent-[var(--accent)]",
               size === "sm" ? "h-2" : size === "lg" ? "h-4" : "h-3"
             )}
             {...props}
@@ -107,18 +107,18 @@ Slider.displayName = "Slider"
 export const SliderTrack = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   (props, ref) => {
     // Simple track wrapper; actual native range handles the thumb visually.
-    return <div ref={ref} {...props} className={cn("relative w-full rounded-full bg-gray-200/60", props.className)} />
+    return <div ref={ref} {...props} className={cn("relative w-full rounded-full bg-surface-3", props.className)} />
   }
 )
 SliderTrack.displayName = "SliderTrack"
 
 export const SliderRange = React.forwardRef<HTMLSpanElement, React.HTMLAttributes<HTMLSpanElement>>((props, ref) => {
-  return <span ref={ref} {...props} className={cn("absolute left-0 top-0 h-full bg-gray-700/40 rounded-full", props.className)} />
+  return <span ref={ref} {...props} className={cn("absolute left-0 top-0 h-full bg-accent/60 rounded-full", props.className)} />
 })
 SliderRange.displayName = "SliderRange"
 
 export const SliderThumb = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>((props, ref) => {
-  return <div ref={ref} {...props} className={cn("absolute w-4 h-4 rounded-full bg-white shadow", props.className)} />
+  return <div ref={ref} {...props} className={cn("absolute w-4 h-4 rounded-full bg-accent shadow", props.className)} />
 })
 SliderThumb.displayName = "SliderThumb"
 

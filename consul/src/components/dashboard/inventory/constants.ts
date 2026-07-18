@@ -3,35 +3,26 @@ import type { ChartConfig } from '@/components/ui/chart';
 import { dashboardPanelPointerClassName } from '@/components/dashboard/layout/constants';
 import type { InventoryView } from '@/components/dashboard/inventory/types';
 
-const inventoryGlassSurfaceClassName = [
-  'border border-white/20 [border-top-color:var(--glass-refraction-top)]',
-  'bg-[radial-gradient(ellipse_at_50%_0%,rgb(255_255_255_/_0.16),transparent_50%),linear-gradient(to_bottom,rgb(255_255_255_/_0.1),rgb(255_255_255_/_0.04))]',
-  'backdrop-blur-xl backdrop-saturate-[180%]',
-  'shadow-[0_0_0_1px_rgb(255_255_255_/_0.1)_inset,var(--shadow-glass-sm)]',
-  'dark:border-white/[0.1]',
-  'dark:bg-[radial-gradient(ellipse_at_50%_0%,rgb(255_255_255_/_0.05),transparent_50%),linear-gradient(to_bottom,rgb(255_255_255_/_0.03),rgb(255_255_255_/_0.01))]',
-  'dark:shadow-[0_0_0_1px_rgb(255_255_255_/_0.05)_inset,0_8px_24px_rgb(0_0_0_/_0.35)]',
+const inventoryPanelSurfaceClassName = [
+  'border border-line bg-surface-1',
+  'shadow-[0_8px_24px_rgb(0_0_0/0.3)]',
 ].join(' ');
 
 export const inventoryTableShellClassName = [
   'overflow-hidden rounded-lg',
   dashboardPanelPointerClassName,
-  inventoryGlassSurfaceClassName,
+  inventoryPanelSurfaceClassName,
 ].join(' ');
 
 export const inventoryToolbarShellClassName = [
   'flex items-center justify-between rounded-lg px-4 py-2 lg:px-6',
   dashboardPanelPointerClassName,
-  inventoryGlassSurfaceClassName,
+  inventoryPanelSurfaceClassName,
 ].join(' ');
 
 export const inventoryDrawerContentClassName = [
-  'border border-white/20 [border-top-color:var(--glass-refraction-top)]',
-  'bg-[radial-gradient(ellipse_at_50%_0%,rgb(255_255_255_/_0.12),transparent_50%),linear-gradient(to_bottom,rgb(255_255_255_/_0.08),rgb(255_255_255_/_0.03))]',
-  'backdrop-blur-xl backdrop-saturate-[180%]',
-  'shadow-[0_0_0_1px_rgb(255_255_255_/_0.1)_inset,var(--shadow-glass-sm)]',
-  'dark:border-white/[0.1]',
-  'dark:bg-[radial-gradient(ellipse_at_50%_0%,rgb(255_255_255_/_0.04),transparent_50%),linear-gradient(to_bottom,rgb(255_255_255_/_0.02),rgb(255_255_255_/_0.01))]',
+  'border border-line bg-surface-1',
+  'shadow-[0_8px_32px_rgb(0_0_0/0.5)]',
 ].join(' ');
 
 export const INVENTORY_VIEW_OPTIONS: Array<{

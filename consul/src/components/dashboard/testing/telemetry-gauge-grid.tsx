@@ -6,7 +6,7 @@ import { fetchConfigSnapshot, ConfigSnapshotDto } from '@/lib/config-api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { formatSigFig } from '@/lib/format';
-import { dashboardGlassCardClassName } from '@/components/dashboard/layout/constants';
+import { dashboardPanelCardClassName } from '@/components/dashboard/layout/constants';
 import { COMPOUND_TEST_PRESETS } from '@/data/compound-tests';
 
 const GAIN_LIMITS: Record<string, { kp_max: number; kd_max: number; tau_ff_max_nm: number; velocity_max_rad_s: number }> = {
@@ -38,7 +38,7 @@ export function TelemetryGaugeGrid() {
 
   if (jointsToDisplay.length === 0) {
     return (
-      <Card className={dashboardGlassCardClassName}>
+      <Card variant="panel" className={dashboardPanelCardClassName}>
         <CardContent className="py-8 text-center text-muted-foreground text-sm">
           Select actuators to view telemetry.
         </CardContent>
@@ -65,13 +65,15 @@ export function TelemetryGaugeGrid() {
         const velPercent = velMax > 0 ? Math.abs(joint.velocity / velMax) * 100 : 0;
 
         return (
-          <Card key={joint.name} className={dashboardGlassCardClassName}>
+          <Card key={joint.name} variant="panel" className={dashboardPanelCardClassName}>
             <CardHeader className="pb-2"><CardTitle className="text-sm">{joint.name}</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-2">
               <Gauge label="Position" value={joint.position} percent={posPercent} unit="rad" limit={`${posLower.toFixed(2)} → ${posUpper.toFixed(2)}`} />
               <Gauge label="Velocity" value={joint.velocity} percent={velPercent} unit="rad/s" limit={`±${velMax.toFixed(2)}`} />
               <Gauge label="Torque" value={joint.effort} percent={torquePercent} unit="Nm" limit={`±${torqueLimit.toFixed(2)}`} />
-              <div className="text-xs text-muted-foreground pt-1">Temp: {joint.temperatureC?.toFixed(1) ?? '—'}°C</div>
+              <div className="data-value text-xs text-muted-foreground">
+                TEMP <span className="text-foreground">{joint.temperatureC?.toFixed(1) ?? '—'}°C</span>
+              </div>
             </CardContent>
           </Card>
         );
@@ -82,14 +84,14 @@ export function TelemetryGaugeGrid() {
 
 function Gauge({ label, value, percent, unit, limit }: { label: string, value: number, percent: number, unit: string, limit: string }) {
   return (
-    <div className="space-y-1.5">
-      <div className="flex justify-between text-xs font-medium">
-        <span>{label}</span>
-        <span>{formatSigFig(value)} {unit} <span className="text-muted-foreground font-normal">/ {limit}</span></span>
+    <div className="space-y-1">
+      <div className="flex justify-between text-xs">
+        <span className="micro-label">{label}</span>
+        <span className="data-value">{formatSigFig(value)} {unit} <span className="text-muted-foreground">/ {limit}</span></span>
       </div>
-      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+      <div className="h-1.5 rounded-sm bg-surface-3 overflow-hidden">
         <div
-          className={cn("h-full transition-all duration-200", percent > 90 ? "bg-destructive" : percent > 70 ? "bg-yellow-500" : "bg-primary")}
+          className={cn("h-full transition-all", percent > 90 ? "bg-fault" : percent > 70 ? "bg-warning" : "bg-ok")}
           style={{ width: `${Math.min(percent, 100)}%` }}
         />
       </div>

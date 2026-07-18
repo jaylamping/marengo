@@ -3,7 +3,7 @@ import { useTestingStore } from '@/state/testingStore';
 import { fetchConfigSnapshot, ConfigSnapshotDto } from '@/lib/config-api';
 import { Slider } from '@/components/ui/slider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { dashboardGlassCardClassName } from '@/components/dashboard/layout/constants';
+import { dashboardPanelCardClassName } from '@/components/dashboard/layout/constants';
 
 export function PidSliderPanel() {
   const { selectedJointNames, gains, setGain, dispatchGainUpdate } = useTestingStore();
@@ -23,7 +23,7 @@ export function PidSliderPanel() {
 
   if (selectedJointNames.length === 0) {
     return (
-      <Card className={dashboardGlassCardClassName}>
+      <Card variant="panel" className={dashboardPanelCardClassName}>
         <CardContent className="py-8 text-center text-muted-foreground text-sm">
           Select actuators to tune PID gains.
         </CardContent>
@@ -46,7 +46,7 @@ export function PidSliderPanel() {
         ];
 
         return (
-          <Card key={jointName} className={dashboardGlassCardClassName}>
+          <Card key={jointName} variant="panel" className={dashboardPanelCardClassName}>
             <CardHeader className="pb-3"><CardTitle className="text-base">{jointName} Gains</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
               {sliders.map(({ key, label, max }) => (

@@ -29,7 +29,13 @@ export function EnableDisableButtons() {
       <Button variant="outline" onClick={handleHome} disabled={homing}>
         {homing ? 'Homing...' : 'Home'}
       </Button>
-      <Button disabled={operationalMode !== 'READY'} onClick={enable}>Enable</Button>
+      <Button
+        className="panel-brackets"
+        disabled={operationalMode !== 'READY'}
+        onClick={enable}
+      >
+        Enable
+      </Button>
       <Button variant="destructive" onClick={disable}>Disable</Button>
     </div>
   );

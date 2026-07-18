@@ -4,7 +4,7 @@ import { robotInventory, INVENTORY_GROUP_ORDER, INVENTORY_GROUP_LABELS } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { dashboardGlassCardClassName } from '@/components/dashboard/layout/constants';
+import { dashboardPanelCardClassName } from '@/components/dashboard/layout/constants';
 
 export function ActuatorMultiSelect() {
   const { selectedJointNames, selectJoint, deselectJoint } = useTestingStore();
@@ -56,7 +56,7 @@ export function ActuatorMultiSelect() {
   }, [selectedJointNames, groupedActuators]);
 
   return (
-    <Card className={dashboardGlassCardClassName}>
+    <Card variant="panel" className={dashboardPanelCardClassName}>
       <CardHeader className="pb-3">
         <CardTitle>Actuators ({selectedJointNames.length} / {actuators.length} selected)</CardTitle>
       </CardHeader>

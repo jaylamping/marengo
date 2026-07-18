@@ -15,11 +15,6 @@ const JointTrackingChartCard = lazy(async () => {
   return { default: module.JointTrackingChartCard };
 });
 
-const UrdfPreviewPanel = lazy(async () => {
-  const module = await import('@/components/dashboard/urdf-preview/urdf-preview-panel');
-  return { default: module.UrdfPreviewPanel };
-});
-
 export function DashboardOverview() {
   return (
     <div className={dashboardOverviewClassName}>
@@ -31,14 +26,6 @@ export function DashboardOverview() {
             <RobotModelProvider urdfXml={SHOULDER_PITCH_RIGHT_ONLY_URDF}>
               <JointTrackingChartCard />
             </RobotModelProvider>
-          </Suspense>
-        </DeferredMount>
-      </div>
-
-      <div className={dashboardChartSectionClassName}>
-        <DeferredMount fallback={<ChartSectionSkeleton />} timeoutMs={800}>
-          <Suspense fallback={<ChartSectionSkeleton />}>
-            <UrdfPreviewPanel />
           </Suspense>
         </DeferredMount>
       </div>

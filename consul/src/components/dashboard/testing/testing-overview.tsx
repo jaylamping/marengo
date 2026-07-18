@@ -18,7 +18,7 @@ export function TestingOverview() {
     <div
       className={`${dashboardOverviewClassName} ${dashboardPanelPointerClassName} px-4 lg:px-6 pb-8`}
     >
-      <div className="sticky top-0 z-10 bg-background/80 backdrop-blur py-4 flex gap-4 items-center border-b mb-6">
+      <div className="sticky top-0 z-10 bg-surface-1 p-4 flex gap-4 items-center border-b border-line mb-6">
         <EnableDisableButtons />
         <div className="flex-1" />
         <div className="w-48">

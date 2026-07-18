@@ -61,43 +61,43 @@ afterEach(() => {
   mockFetchStructuredLogs.mockResolvedValue({ ok: true, data: { entries: [], total: 0 } });
 });
 
-describe('logs glass shell constants (chrome + data tiers)', () => {
-  it('defines a chrome-tier toolbar shell with blur and pointer-events-auto', () => {
-    expect(logsToolbarShellClassName).toContain('backdrop-blur-xl');
+describe('logs panel shell constants (chrome + data tiers)', () => {
+  it('defines a chrome-tier toolbar shell with panel surface and pointer-events-auto', () => {
+    expect(logsToolbarShellClassName).toContain('bg-surface-1');
+    expect(logsToolbarShellClassName).toContain('border-line');
     expect(logsToolbarShellClassName).toContain('pointer-events-auto');
-    expect(logsToolbarShellClassName).toContain(
-      '[border-top-color:var(--glass-refraction-top)]',
-    );
+    expect(logsToolbarShellClassName).not.toContain('backdrop-blur');
   });
 
-  it('defines a data-tier table shell with blur and pointer-events-auto', () => {
-    expect(logsTableShellClassName).toContain('backdrop-blur-xl');
+  it('defines a data-tier table shell with panel surface and pointer-events-auto', () => {
+    expect(logsTableShellClassName).toContain('bg-surface-1');
     expect(logsTableShellClassName).toContain('pointer-events-auto');
   });
 
   it('defines session list and archive panel data-tier shells', () => {
-    expect(logsSessionListShellClassName).toContain('backdrop-blur-xl');
+    expect(logsSessionListShellClassName).toContain('bg-surface-1');
     expect(logsArchivePanelShellClassName).toContain('pointer-events-auto');
   });
 
-  it('defines sheet content glass without row animation classes', () => {
-    expect(logsSheetContentClassName).toContain('backdrop-blur-xl');
+  it('defines sheet content panel without row animation classes', () => {
+    expect(logsSheetContentClassName).toContain('bg-surface-1');
+    expect(logsSheetContentClassName).not.toContain('backdrop-blur');
     expect(logsSheetContentClassName).not.toContain('animate-in');
   });
 });
 
-describe('LogsModeTabs glass chrome', () => {
-  it('renders mode tabs inside a glass tabs list', () => {
+describe('LogsModeTabs panel chrome', () => {
+  it('renders mode tabs inside a panel tabs list', () => {
     render(<LogsModeTabs mode="live" onModeChange={() => undefined} />);
 
     const liveTab = screen.getByRole('tab', { name: 'Live' });
-    expect(liveTab.closest('[role="tablist"]')?.className).toMatch(/backdrop-blur-md/);
+    expect(liveTab.closest('[role="tablist"]')?.className).toContain('bg-surface-1');
     expect(screen.getByRole('tab', { name: 'Archive' })).toBeTruthy();
   });
 });
 
-describe('LogsToolbar glass chrome', () => {
-  it('wraps filter controls in the toolbar shell with glass input', () => {
+describe('LogsToolbar panel chrome', () => {
+  it('wraps filter controls in the toolbar shell with panel input', () => {
     render(
       <LogsFilterProvider>
         <LogsToolbar />
@@ -105,7 +105,7 @@ describe('LogsToolbar glass chrome', () => {
     );
 
     const shell = screen.getByTestId('logs-toolbar-shell');
-    expect(shell.className).toMatch(/backdrop-blur-xl/);
+    expect(shell.className).toContain('bg-surface-1');
     expect(screen.getByPlaceholderText('Filter message, source, level…')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Live' })).toBeTruthy();
   });
@@ -120,13 +120,13 @@ describe('LogsVirtualTable data-tier shell', () => {
     );
 
     const shell = screen.getByTestId('logs-table-shell');
-    expect(shell.className).toMatch(/backdrop-blur-xl/);
+    expect(shell.className).toContain('bg-surface-1');
     expect(screen.getByText('No logs match the current filters.')).toBeTruthy();
   });
 });
 
 describe('LogsSessionList data-tier shell', () => {
-  it('renders sessions inside the glass session list shell', () => {
+  it('renders sessions inside the panel session list shell', () => {
     render(
       <LogsSessionList
         sessions={[
@@ -148,7 +148,7 @@ describe('LogsSessionList data-tier shell', () => {
     );
 
     const shell = screen.getByTestId('logs-session-list-shell');
-    expect(shell.className).toMatch(/backdrop-blur-xl/);
+    expect(shell.className).toContain('bg-surface-1');
     expect(screen.getByText('bench-2026')).toBeTruthy();
   });
 
@@ -176,12 +176,12 @@ describe('LogsSessionList data-tier shell', () => {
   });
 });
 
-describe('LogsArchiveSearch glass filters', () => {
-  it('renders FTS input with glass variant and search action', () => {
+describe('LogsArchiveSearch panel filters', () => {
+  it('renders FTS input with panel variant and search action', () => {
     render(<LogsArchiveSearch />);
 
     const input = screen.getByPlaceholderText('joint, error, operator…');
-    expect(input.className).toMatch(/backdrop-blur/);
+    expect(input.className).toContain('bg-surface-1');
     expect(screen.getByRole('button', { name: 'Search' })).toBeTruthy();
   });
 
@@ -212,8 +212,8 @@ describe('LogsArchiveSearch glass filters', () => {
   });
 });
 
-describe('LogDetailSheet glass sheet', () => {
-  it('applies glass sheet content classes when open', () => {
+describe('LogDetailSheet panel sheet', () => {
+  it('applies panel sheet content classes when open', () => {
     const entry: LogEntry = {
       id: 'log-1',
       timestamp: Date.now(),
@@ -225,7 +225,7 @@ describe('LogDetailSheet glass sheet', () => {
     render(<LogDetailSheet entry={entry} open onOpenChange={() => undefined} />);
 
     const content = document.querySelector('[data-slot="sheet-content"]');
-    expect(content?.className).toMatch(/backdrop-blur-xl/);
+    expect(content?.className).toContain('bg-surface-1');
     expect(screen.getByText('hold engaged')).toBeTruthy();
   });
 });

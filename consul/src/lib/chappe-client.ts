@@ -1,5 +1,5 @@
+export type { ChappeTelemetryHandlers } from './chappe-transport';
 export {
-  type ChappeTelemetryHandlers,
   dispatchEnvelope,
   webTransportAvailable,
   connectWebTransport,

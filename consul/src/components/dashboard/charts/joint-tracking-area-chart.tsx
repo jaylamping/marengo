@@ -36,13 +36,14 @@ export const JointTrackingAreaChart = memo(function JointTrackingAreaChart({
             <stop offset="95%" stopColor="var(--color-measured)" stopOpacity={0.1} />
           </linearGradient>
         </defs>
-        <CartesianGrid vertical={false} />
+        <CartesianGrid vertical={false} stroke="var(--color-line)" strokeDasharray="2 4" />
         <XAxis
           dataKey="time"
           tickLine={false}
           axisLine={false}
           tickMargin={8}
           minTickGap={32}
+          tick={{ fontSize: 10, fontFamily: 'var(--font-mono)' }}
         />
         <ChartTooltip
           cursor={false}

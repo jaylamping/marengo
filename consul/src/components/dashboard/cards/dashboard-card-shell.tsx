@@ -10,7 +10,7 @@ import {
   CardTitle,
   type cardVariants,
 } from '@/components/ui/card';
-import { dashboardGlassCardClassName } from '@/components/dashboard/layout/constants';
+import { dashboardPanelCardClassName } from '@/components/dashboard/layout/constants';
 import type { VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
@@ -35,18 +35,16 @@ export function DashboardCardShell({
   footerPrimary,
   footerSecondary,
   className,
-  variant = 'glass',
+  variant = 'panel',
 }: DashboardCardShellProps) {
   return (
     <Card
       variant={variant}
-      className={cn('@container/card', dashboardGlassCardClassName, className)}
+      className={cn('@container/card', dashboardPanelCardClassName, className)}
     >
       <CardHeader>
         {description ? <CardDescription>{description}</CardDescription> : null}
-        <CardTitle className={cn('text-lg font-semibold', titleClassName)}>
-          {title}
-        </CardTitle>
+        <CardTitle className={titleClassName}>{title}</CardTitle>
         {action ? <CardAction>{action}</CardAction> : null}
       </CardHeader>
       {content ? <CardContent className="px-6 pb-0">{content}</CardContent> : null}

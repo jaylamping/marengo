@@ -4,8 +4,8 @@ import { cn } from '@/lib/utils';
 export type StatusTone = 'healthy' | 'warning' | 'muted';
 
 const toneClasses: Record<StatusTone, string> = {
-  healthy: 'border-green-500/40 text-green-400',
-  warning: 'border-amber-500/40 text-amber-400',
+  healthy: 'border-ok/40 text-ok',
+  warning: 'border-warning/40 text-warning',
   muted: 'border-muted-foreground/40 text-muted-foreground',
 };
 

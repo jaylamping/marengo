@@ -149,7 +149,7 @@ export function LogDetailSheet({ entry, open, onOpenChange }: LogDetailSheetProp
                     ))}
                   </dl>
                   {fieldsTruncated ? (
-                    <p className="mt-2 text-xs text-amber-500">
+                    <p className="mt-2 text-xs text-warning">
                       Field payload was truncated on ingest (max 2 KB).
                     </p>
                   ) : null}
