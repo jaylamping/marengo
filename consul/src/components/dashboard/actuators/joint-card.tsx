@@ -24,7 +24,9 @@ function formatPosition(value: string): string {
 
 export function JointCard({ joint, wired }: JointCardProps) {
   const wiringLabel = wired ? 'Bench wired' : 'Not wired on bench';
-  const modeLabel = wired ? 'Telemetry only until PR-5' : 'Telemetry only';
+  const modeLabel = wired
+    ? 'Runtime MIT tuning available; motion gated until PR-5'
+    : 'Telemetry only';
 
   return (
     <Card

@@ -1,10 +1,9 @@
 use std::path::Path;
 
 use armee_proto::prost::Message;
-use armee_proto::{
-    ActuatorCommand, EnableRequest, Envelope, HomingComplete, MitCommandBatch, OperatorCommand,
-    SessionStartRequest, SessionStartResponse, TuningChange, TuningTier,
-};
+use armee_proto::EnableRequest;
+use armee_proto::HomingComplete;
+use armee_proto::MitCommandBatch;
 use axum::{
     body::Body,
     extract::{Query, State},
@@ -19,11 +18,10 @@ use tokio_util::io::ReaderStream;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
 
+use crate::actuator;
 use crate::framing::{self, CHAPPE_STREAM_CONTENT_TYPE};
 use crate::logs;
-use crate::ratelimit::CommandBucket;
-use crate::session;
-use crate::state::{filter_topics, SharedState, TOPIC_ACTUATOR_COMMAND};
+use crate::state::{filter_topics, SharedState};
 
 #[derive(Serialize)]
 struct HealthResponse {
@@ -77,7 +75,10 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
             "/snapshot/host/metrics/jetson",
             get(snapshot_host_metrics_jetson),
         )
-        .route("/snapshot/actuator/limits", get(snapshot_actuator_limits))
+        .route(
+            "/snapshot/actuator/limits",
+            get(actuator::snapshot_actuator_limits),
+        )
         .route("/snapshot/logs/recent", get(logs::snapshot_logs_recent))
         .route("/logs/sessions", get(logs::list_sessions))
         .route("/logs/sessions/latest/candump", get(logs::latest_candump))
@@ -94,8 +95,7 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
         .route("/command/enable", post(command_enable))
         .route("/command/testing_mit", post(command_testing_mit))
         .route("/command/home", post(command_home))
-        .route("/session/start", post(session_start))
-        .route("/command/actuator", post(command_actuator))
+        .route("/command/actuator", post(actuator::command_actuator))
         .layer(cors)
         .with_state(state);
 
@@ -203,10 +203,6 @@ async fn snapshot_host_metrics_jetson(State(state): State<SharedState>) -> Respo
     protobuf_snapshot(state.snapshot_host_metrics_jetson())
 }
 
-async fn snapshot_actuator_limits(State(state): State<SharedState>) -> Response {
-    protobuf_snapshot(state.snapshot_actuator_limits())
-}
-
 fn protobuf_snapshot<M: Message>(msg: Option<M>) -> Response {
     match msg {
         Some(m) => {
@@ -256,67 +252,6 @@ async fn command_testing_mit(
     Ok(Json(OkResponse { ok: true }))
 }
 
-async fn session_start(body: axum::body::Bytes) -> Result<Response, (StatusCode, String)> {
-    let request = if body.is_empty() {
-        SessionStartRequest::default()
-    } else {
-        SessionStartRequest::decode(body.as_ref())
-            .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?
-    };
-    let response = session::build_session_start_response(&request);
-    protobuf_ok_response(&response)
-}
-
-async fn command_actuator(
-    State(state): State<SharedState>,
-    body: axum::body::Bytes,
-) -> Result<Json<OkResponse>, (StatusCode, String)> {
-    let envelope = Envelope::decode(body.as_ref())
-        .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
-    if envelope.message_type != "marengo.v1.OperatorCommand" {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            format!("unexpected message_type: {}", envelope.message_type),
-        ));
-    }
-    let mut operator = OperatorCommand::decode(envelope.payload.as_slice())
-        .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
-    let joint = operator
-        .command
-        .as_ref()
-        .map(|c| c.joint.as_str())
-        .ok_or_else(|| {
-            (
-                StatusCode::BAD_REQUEST,
-                "missing ActuatorCommand".to_string(),
-            )
-        })?;
-    let canonical = state
-        .resolve_actuator_joint(joint)
-        .map_err(|e| (StatusCode::FORBIDDEN, e))?;
-    let session_id = operator.session_id.as_str();
-    let bucket = actuator_command_bucket(operator.command.as_ref());
-    if !state.check_actuator_rate_limit(session_id, canonical, bucket) {
-        return Err((
-            StatusCode::TOO_MANY_REQUESTS,
-            "actuator command rate limit exceeded".to_string(),
-        ));
-    }
-    if let Some(cmd) = operator.command.as_mut() {
-        cmd.joint = canonical.to_string();
-    }
-    let payload = operator.encode_to_vec();
-    state
-        .publish_command_envelope(
-            TOPIC_ACTUATOR_COMMAND,
-            "consul",
-            "marengo.v1.OperatorCommand",
-            payload,
-        )
-        .map_err(|e| (StatusCode::BAD_GATEWAY, e))?;
-    Ok(Json(OkResponse { ok: true }))
-}
-
 async fn command_home(
     State(state): State<SharedState>,
 ) -> Result<Json<OkResponse>, (StatusCode, String)> {
@@ -339,67 +274,20 @@ async fn command_home(
     Ok(Json(OkResponse { ok: true }))
 }
 
-fn actuator_command_bucket(command: Option<&ActuatorCommand>) -> CommandBucket {
-    match command.and_then(|c| c.payload.as_ref()) {
-        Some(armee_proto::actuator_command::Payload::Tuning(_)) => CommandBucket::Tuning,
-        _ => CommandBucket::Motion,
-    }
-}
-
-fn protobuf_ok_response<M: Message>(msg: &M) -> Result<Response, (StatusCode, String)> {
-    let mut headers = HeaderMap::new();
-    if let Ok(value) = header::HeaderValue::from_str("application/x-protobuf") {
-        headers.insert(header::CONTENT_TYPE, value);
-    }
-    Ok((StatusCode::OK, headers, msg.encode_to_vec()).into_response())
-}
-
 #[cfg(test)]
 mod tests {
     #![allow(clippy::expect_used)]
 
     use super::*;
-    use armee_proto::{Envelope, Heartbeat, OperatorCommand};
+    use armee_proto::{Envelope, Heartbeat};
     use axum::body::Body;
     use chappe::Bus;
     use tower::ServiceExt;
-    use uuid::Uuid;
-
-    fn test_state() -> SharedState {
-        let bus = std::sync::Arc::new(Bus::default());
-        std::sync::Arc::new(crate::state::AppState::new(std::sync::Arc::clone(&bus)))
-    }
-
-    fn operator_envelope(joint: &str) -> Vec<u8> {
-        let operator = OperatorCommand {
-            timestamp_ms: 1,
-            session_id: "sess-test".to_string(),
-            operator_id: String::new(),
-            seq: 1,
-            command: Some(ActuatorCommand {
-                joint: joint.to_string(),
-                payload: Some(armee_proto::actuator_command::Payload::Tuning(
-                    TuningChange {
-                        tier: TuningTier::RuntimeMit as i32,
-                        param: "kp".to_string(),
-                        value: 10.0,
-                        persist: false,
-                    },
-                )),
-            }),
-        };
-        Envelope {
-            timestamp_ms: 1,
-            source_node: "consul".to_string(),
-            message_type: "marengo.v1.OperatorCommand".to_string(),
-            payload: operator.encode_to_vec(),
-        }
-        .encode_to_vec()
-    }
 
     #[tokio::test]
     async fn stream_chappe_emits_length_prefixed_envelopes() {
-        let state = test_state();
+        let bus = std::sync::Arc::new(Bus::default());
+        let state = std::sync::Arc::new(crate::state::AppState::new(std::sync::Arc::clone(&bus)));
         let app = router(state.clone(), None);
 
         let hb = Heartbeat {
@@ -427,186 +315,5 @@ mod tests {
             .await
             .expect("response");
         assert_eq!(response.status(), StatusCode::OK);
-    }
-
-    #[tokio::test]
-    async fn session_start_mints_uuid() {
-        let app = router(test_state(), None);
-        let response = app
-            .oneshot(
-                axum::http::Request::builder()
-                    .method("POST")
-                    .uri("/session/start")
-                    .body(Body::empty())
-                    .expect("request"),
-            )
-            .await
-            .expect("response");
-        assert_eq!(response.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
-            .await
-            .expect("body");
-        let parsed = SessionStartResponse::decode(body.as_ref()).expect("decode");
-        let uuid = Uuid::parse_str(&parsed.session_id).expect("uuid");
-        assert_eq!(uuid.get_version(), Some(uuid::Version::Random));
-        assert!(parsed.started_ms > 0);
-    }
-
-    #[tokio::test]
-    async fn command_actuator_rejects_unwired_joint_with_403() {
-        let app = router(test_state(), None);
-        let response = app
-            .oneshot(
-                axum::http::Request::builder()
-                    .method("POST")
-                    .uri("/command/actuator")
-                    .header("content-type", "application/x-protobuf")
-                    .body(Body::from(operator_envelope("left_wrist_pitch")))
-                    .expect("request"),
-            )
-            .await
-            .expect("response");
-        assert_eq!(response.status(), StatusCode::FORBIDDEN);
-    }
-
-    #[tokio::test]
-    async fn command_actuator_rejects_malformed_proto_with_400() {
-        let app = router(test_state(), None);
-        let response = app
-            .oneshot(
-                axum::http::Request::builder()
-                    .method("POST")
-                    .uri("/command/actuator")
-                    .header("content-type", "application/x-protobuf")
-                    .body(Body::from(vec![0xff, 0x00, 0x01]))
-                    .expect("request"),
-            )
-            .await
-            .expect("response");
-        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    }
-
-    #[tokio::test]
-    async fn command_actuator_publishes_canonical_joint_for_alias() {
-        let bus = std::sync::Arc::new(Bus::default());
-        let state = std::sync::Arc::new(crate::state::AppState::new(std::sync::Arc::clone(&bus)));
-        let mut rx = bus.subscribe(TOPIC_ACTUATOR_COMMAND);
-        let app = router(state, None);
-
-        let response = app
-            .oneshot(
-                axum::http::Request::builder()
-                    .method("POST")
-                    .uri("/command/actuator")
-                    .header("content-type", "application/x-protobuf")
-                    .body(Body::from(operator_envelope("left_shoulder_pitch")))
-                    .expect("request"),
-            )
-            .await
-            .expect("response");
-        assert_eq!(response.status(), StatusCode::OK);
-
-        let published = rx.recv().await.expect("published");
-        let env = Envelope::decode(published.as_slice()).expect("envelope");
-        let operator = OperatorCommand::decode(env.payload.as_slice()).expect("operator");
-        let joint = operator.command.expect("command").joint;
-        assert_eq!(joint, "shoulder_pitch");
-    }
-
-    #[tokio::test]
-    async fn command_actuator_returns_429_when_rate_limited() {
-        let app = router(test_state(), None);
-        let body = operator_envelope("left_shoulder_pitch");
-        for _ in 0..10 {
-            let response = app
-                .clone()
-                .oneshot(
-                    axum::http::Request::builder()
-                        .method("POST")
-                        .uri("/command/actuator")
-                        .header("content-type", "application/x-protobuf")
-                        .body(Body::from(body.clone()))
-                        .expect("request"),
-                )
-                .await
-                .expect("response");
-            assert_eq!(response.status(), StatusCode::OK);
-        }
-        let response = app
-            .oneshot(
-                axum::http::Request::builder()
-                    .method("POST")
-                    .uri("/command/actuator")
-                    .header("content-type", "application/x-protobuf")
-                    .body(Body::from(body))
-                    .expect("request"),
-            )
-            .await
-            .expect("response");
-        assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
-    }
-
-    #[tokio::test]
-    async fn snapshot_actuator_limits_503_when_cache_empty() {
-        let app = router(test_state(), None);
-        let response = app
-            .oneshot(
-                axum::http::Request::builder()
-                    .uri("/snapshot/actuator/limits")
-                    .body(Body::empty())
-                    .expect("request"),
-            )
-            .await
-            .expect("response");
-        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
-    }
-
-    #[tokio::test]
-    async fn snapshot_actuator_limits_serves_cached_payload() {
-        use armee_proto::{ActuatorLimitSnapshot, JointActuatorLimit};
-
-        let state = test_state();
-        let snapshot = ActuatorLimitSnapshot {
-            timestamp_ms: 42,
-            joints: vec![JointActuatorLimit {
-                joint: "shoulder_pitch".to_string(),
-                kp_max: 50.0,
-                kd_max: 5.0,
-                velocity_max_rad_s: 2.0,
-                tau_ff_max_nm: 3.0,
-                pos_lower_rad: -1.0,
-                pos_upper_rad: 1.0,
-                wired: true,
-            }],
-        };
-        let envelope = Envelope {
-            timestamp_ms: 42,
-            source_node: "marengo-pi".into(),
-            message_type: "marengo.v1.ActuatorLimitSnapshot".into(),
-            payload: snapshot.encode_to_vec(),
-        };
-        state.ingest_runtime_frame(
-            crate::state::TOPIC_ACTUATOR_LIMITS.to_string(),
-            envelope.encode_to_vec(),
-        );
-
-        let app = router(state, None);
-        let response = app
-            .oneshot(
-                axum::http::Request::builder()
-                    .uri("/snapshot/actuator/limits")
-                    .body(Body::empty())
-                    .expect("request"),
-            )
-            .await
-            .expect("response");
-        assert_eq!(response.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
-            .await
-            .expect("body");
-        let parsed = ActuatorLimitSnapshot::decode(body.as_ref()).expect("decode");
-        assert_eq!(parsed.joints.len(), 1);
-        assert_eq!(parsed.joints[0].joint, "shoulder_pitch");
-        assert!((parsed.joints[0].kp_max - 50.0).abs() < f64::EPSILON);
     }
 }

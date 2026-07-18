@@ -73,3 +73,6 @@ CLAUDE.md
 opencode.json
 .junie/mcp/
 .junie/skills
+
+# Local alternate cargo target (root target/ may be root-owned)
+.cargo-target/

@@ -6,11 +6,11 @@ use armee_proto::{
 };
 use chappe::ipc::IpcListener;
 use chappe::Bus;
-use marengo_config::resolve_command_joint;
+use marengo_config::CommandJointAllowlist;
 use tokio::sync::broadcast;
 
 use crate::logs::{decode_log_payload, LogServices as LogSvc};
-use crate::ratelimit::{CommandBucket, RateLimiter};
+use crate::ratelimit::RateLimiter;
 
 pub const TOPIC_STATE: &str = "robot/state";
 pub const TOPIC_SAFETY: &str = "robot/safety";
@@ -65,6 +65,8 @@ pub struct AppState {
     pub tls_cert_sha256_base64: RwLock<Option<String>>,
     envelope_tx: broadcast::Sender<(String, Vec<u8>)>,
     pub rate_limiter: RateLimiter,
+    /// Command-eligible joints from the active bringup profile.
+    pub command_joints: CommandJointAllowlist,
 }
 
 impl AppState {
@@ -78,7 +80,13 @@ impl AppState {
             tls_cert_sha256_base64: RwLock::new(None),
             envelope_tx,
             rate_limiter: RateLimiter::new(),
+            command_joints: CommandJointAllowlist::empty(),
         }
+    }
+
+    pub fn with_command_joints(mut self, command_joints: CommandJointAllowlist) -> Self {
+        self.command_joints = command_joints;
+        self
     }
 
     pub fn with_logs(mut self, logs: LogSvc) -> Self {
@@ -177,12 +185,6 @@ impl AppState {
             .map_err(|e| e.to_string())
     }
 
-    /// Normalize bench/inventory alias and reject joints not on the wired allowlist.
-    pub fn resolve_actuator_joint(&self, joint: &str) -> Result<&'static str, String> {
-        resolve_command_joint(joint)
-            .ok_or_else(|| format!("joint not command-eligible: {joint}"))
-    }
-
     pub fn snapshot_robot_state(&self) -> Option<RobotState> {
         let bytes = self.snapshots.read().ok()?.robot_state.clone()?;
         decode_envelope_payload::<RobotState>(&bytes).ok()
@@ -216,15 +218,6 @@ impl AppState {
     pub fn snapshot_actuator_limits(&self) -> Option<ActuatorLimitSnapshot> {
         let bytes = self.snapshots.read().ok()?.actuator_limits.clone()?;
         decode_envelope_payload::<ActuatorLimitSnapshot>(&bytes).ok()
-    }
-
-    pub fn check_actuator_rate_limit(
-        &self,
-        session_id: &str,
-        joint: &str,
-        bucket: CommandBucket,
-    ) -> bool {
-        self.rate_limiter.allow(session_id, joint, bucket)
     }
 }
 

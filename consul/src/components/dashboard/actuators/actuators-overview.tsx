@@ -19,7 +19,7 @@ export function ActuatorsOverview() {
       <header className="flex flex-col gap-1">
         <h2 className="text-lg font-semibold">Actuator harness</h2>
         <p className="text-sm text-muted-foreground">
-          Runtime tuning sliders (debounced) — motion controls remain gated until PR-5.
+          Runtime MIT tuning (debounced, live limits required) — motion controls gated until PR-5.
         </p>
       </header>
 

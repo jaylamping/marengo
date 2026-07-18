@@ -1,16 +1,12 @@
 import { useEffect } from 'react';
 
-import {
-  fetchActuatorLimits,
-  startActuatorSession,
-} from '@/lib/actuator-client';
+import { fetchActuatorLimits } from '@/lib/gateway-api';
 import { isChappeLive } from '@/lib/chappe-config';
-import { useActuatorStore } from '@/state/actuatorStore';
+import { ensureClientId, useActuatorStore } from '@/state/actuatorStore';
 
 const LIMITS_POLL_MS = 2000;
 
 export function useActuatorHarnessBootstrap(): void {
-  const setSessionId = useActuatorStore((s) => s.setSessionId);
   const setLimitSnapshot = useActuatorStore((s) => s.setLimitSnapshot);
   const setLimitsError = useActuatorStore((s) => s.setLimitsError);
 
@@ -19,19 +15,8 @@ export function useActuatorHarnessBootstrap(): void {
       return;
     }
 
+    ensureClientId();
     let cancelled = false;
-
-    void startActuatorSession()
-      .then(({ sessionId }) => {
-        if (!cancelled) {
-          setSessionId(sessionId);
-        }
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) {
-          setLimitsError(error instanceof Error ? error.message : 'session start failed');
-        }
-      });
 
     const pollLimits = () => {
       void fetchActuatorLimits()
@@ -54,5 +39,5 @@ export function useActuatorHarnessBootstrap(): void {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [setLimitSnapshot, setLimitsError, setSessionId]);
+  }, [setLimitSnapshot, setLimitsError]);
 }

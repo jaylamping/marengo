@@ -15,7 +15,8 @@ import {
 } from '@/gen/marengo/v1/marengo_pb';
 import {
   findSnapshotLimit,
-  kpMaxForJoint,
+  jointLimitMax,
+  liveJointLimits,
   resolveJointLimits,
 } from '@/state/actuatorStore';
 
@@ -35,12 +36,12 @@ describe('clampTuningValue', () => {
 });
 
 describe('resolveJointLimits', () => {
-  it('prefers live snapshot caps over static fallback', () => {
+  it('prefers live snapshot caps over static display reference', () => {
     const snapshot = create(ActuatorLimitSnapshotSchema, {
       timestampMs: 1n,
       joints: [
         create(JointActuatorLimitSchema, {
-          joint: 'shoulder_pitch',
+          joint: 'right_shoulder_pitch',
           kpMax: 42,
           kdMax: 3,
           velocityMaxRadS: 1.5,
@@ -50,16 +51,19 @@ describe('resolveJointLimits', () => {
       ],
     });
 
-    const limits = resolveJointLimits('left_shoulder_pitch', snapshot);
+    const limits = resolveJointLimits('right_shoulder_pitch', snapshot);
     expect(limits?.kpMax).toBe(42);
-    expect(kpMaxForJoint('left_shoulder_pitch', snapshot)).toBe(42);
+    expect(jointLimitMax('right_shoulder_pitch', snapshot, 'kp')).toBe(42);
+    expect(liveJointLimits('right_shoulder_pitch', snapshot)?.kdMax).toBe(3);
   });
 
-  it('falls back to static limits when snapshot cache is empty', () => {
-    const staticLimits = staticLimitsForJoint('left_elbow');
+  it('does not arm live command caps from static display limits', () => {
+    const staticLimits = staticLimitsForJoint('right_shoulder_roll');
     expect(staticLimits).not.toBeNull();
-    expect(resolveJointLimits('left_elbow', null)).toEqual(staticLimits);
-    expect(findSnapshotLimit(null, 'left_elbow')).toBeNull();
+    expect(liveJointLimits('right_shoulder_roll', null)).toBeNull();
+    expect(jointLimitMax('right_shoulder_roll', null, 'kp')).toBeNull();
+    expect(resolveJointLimits('right_shoulder_roll', null)).toEqual(staticLimits);
+    expect(findSnapshotLimit(null, 'right_shoulder_roll')).toBeNull();
   });
 });
 
@@ -71,7 +75,7 @@ describe('TuningSlider debounce', () => {
     render(
       <TuningSlider
         label="Runtime kp"
-        value={10}
+        value={0}
         min={0}
         max={50}
         step={0.5}
@@ -96,7 +100,7 @@ describe('TuningSlider debounce', () => {
     render(
       <TuningSlider
         label="Runtime kd"
-        value={1}
+        value={0}
         min={0}
         max={5}
         step={0.1}

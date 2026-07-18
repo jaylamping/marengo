@@ -10,34 +10,105 @@ import {
   type StaticJointLimits,
 } from '@/data/actuator-joints';
 
+export type ActuatorBootstrapStatus =
+  | { kind: 'idle' }
+  | { kind: 'ready'; clientId: string }
+  | { kind: 'limitsError'; clientId: string; message: string };
+
 interface ActuatorStore {
-  sessionId: string | null;
-  setSessionId: (sessionId: string | null) => void;
+  bootstrap: ActuatorBootstrapStatus;
+  setBootstrapReady: (clientId: string) => void;
+  setLimitsError: (message: string) => void;
 
   limitSnapshot: ActuatorLimitSnapshot | null;
   limitsUpdatedAt: number | null;
   setLimitSnapshot: (snapshot: ActuatorLimitSnapshot | null) => void;
 
-  limitsError: string | null;
-  setLimitsError: (message: string | null) => void;
+  lastError: string | null;
+  setLastError: (message: string | null) => void;
+
+  commandSeq: bigint;
+  nextCommandSeq: () => bigint;
 }
 
-export const useActuatorStore = create<ActuatorStore>((set) => ({
-  sessionId: null,
-  setSessionId: (sessionId) => set({ sessionId }),
+function mintClientId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `consul-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+export const useActuatorStore = create<ActuatorStore>((set, get) => ({
+  bootstrap: { kind: 'idle' },
+  setBootstrapReady: (clientId) => set({ bootstrap: { kind: 'ready', clientId } }),
+  setLimitsError: (message) => {
+    const clientId =
+      get().bootstrap.kind === 'idle' ? mintClientId() : getClientId(get().bootstrap);
+    set({ bootstrap: { kind: 'limitsError', clientId, message } });
+  },
 
   limitSnapshot: null,
   limitsUpdatedAt: null,
-  setLimitSnapshot: (limitSnapshot) =>
+  setLimitSnapshot: (limitSnapshot) => {
+    const clientId =
+      get().bootstrap.kind === 'idle' ? mintClientId() : getClientId(get().bootstrap);
     set({
       limitSnapshot,
       limitsUpdatedAt: limitSnapshot ? Date.now() : null,
-      limitsError: null,
-    }),
+      bootstrap: { kind: 'ready', clientId },
+    });
+  },
 
-  limitsError: null,
-  setLimitsError: (limitsError) => set({ limitsError }),
+  lastError: null,
+  setLastError: (lastError) => set({ lastError }),
+
+  commandSeq: 0n,
+  nextCommandSeq: () => {
+    const next = get().commandSeq + 1n;
+    set({ commandSeq: next });
+    return next;
+  },
 }));
+
+function getClientId(status: ActuatorBootstrapStatus): string {
+  switch (status.kind) {
+    case 'idle':
+      return mintClientId();
+    case 'ready':
+    case 'limitsError':
+      return status.clientId;
+    default: {
+      const _exhaustive: never = status;
+      return _exhaustive;
+    }
+  }
+}
+
+/** Client id used as OperatorCommand.session_id for rate-limit keys. */
+export function selectClientId(status: ActuatorBootstrapStatus): string | null {
+  switch (status.kind) {
+    case 'idle':
+      return null;
+    case 'ready':
+    case 'limitsError':
+      return status.clientId;
+    default: {
+      const _exhaustive: never = status;
+      return _exhaustive;
+    }
+  }
+}
+
+export function ensureClientId(): string {
+  const current = useActuatorStore.getState().bootstrap;
+  const existing = selectClientId(current);
+  if (existing) {
+    return existing;
+  }
+  const clientId = mintClientId();
+  useActuatorStore.getState().setBootstrapReady(clientId);
+  return clientId;
+}
 
 export function findSnapshotLimit(
   snapshot: ActuatorLimitSnapshot | null,
@@ -50,32 +121,39 @@ export function findSnapshotLimit(
   return snapshot.joints.find((entry) => entry.joint === canonical) ?? null;
 }
 
-export function resolveJointLimits(
+/** Live snapshot caps only — never fall back to static display limits for commands. */
+export function liveJointLimits(
   jointName: string,
   snapshot: ActuatorLimitSnapshot | null,
 ): StaticJointLimits | null {
   const live = findSnapshotLimit(snapshot, jointName);
-  if (live) {
-    return {
-      kpMax: live.kpMax,
-      kdMax: live.kdMax,
-      velocityMaxRadS: live.velocityMaxRadS,
-      tauFfMaxNm: live.tauFfMaxNm,
-    };
+  if (!live) {
+    return null;
   }
-  return staticLimitsForJoint(jointName);
+  return {
+    kpMax: live.kpMax,
+    kdMax: live.kdMax,
+    velocityMaxRadS: live.velocityMaxRadS,
+    tauFfMaxNm: live.tauFfMaxNm,
+  };
 }
 
-export function kpMaxForJoint(
+/** Display helper: live caps preferred, static reference only when snapshot missing. */
+export function resolveJointLimits(
   jointName: string,
   snapshot: ActuatorLimitSnapshot | null,
-): number | null {
-  return resolveJointLimits(jointName, snapshot)?.kpMax ?? null;
+): StaticJointLimits | null {
+  return liveJointLimits(jointName, snapshot) ?? staticLimitsForJoint(jointName);
 }
 
-export function kdMaxForJoint(
+export function jointLimitMax(
   jointName: string,
   snapshot: ActuatorLimitSnapshot | null,
+  param: 'kp' | 'kd',
 ): number | null {
-  return resolveJointLimits(jointName, snapshot)?.kdMax ?? null;
+  const limits = liveJointLimits(jointName, snapshot);
+  if (!limits) {
+    return null;
+  }
+  return param === 'kp' ? limits.kpMax : limits.kdMax;
 }
