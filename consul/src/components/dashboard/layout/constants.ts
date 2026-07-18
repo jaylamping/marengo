@@ -12,8 +12,14 @@ export const sceneBackgroundClassName =
 /** Root shell for the 3-layer dashboard z-model. */
 export const dashboardLayoutRootClassName = 'relative h-svh';
 
-/** Chrome layer above the canvas (sidebar, header, inset). */
-export const dashboardChromeClassName = 'relative z-20 min-h-svh bg-transparent';
+/**
+ * Chrome layer above the canvas (sidebar, header, inset).
+ * Must override shadcn’s `has-data-[variant=inset]:bg-sidebar` — that opaque
+ * fill only applies on desktop (mobile Sheet never sets data-variant), which
+ * is why the ambient backdrop vanished above the md breakpoint.
+ */
+export const dashboardChromeClassName =
+  'relative z-20 min-h-svh bg-transparent has-data-[variant=inset]:bg-transparent';
 
 /** Main route shell — re-enable pointer events on panels via children. */
 export const dashboardMainPointerClassName = 'pointer-events-none';

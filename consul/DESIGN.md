@@ -66,7 +66,7 @@ The **Simulation** tab is the planned home for Isaac Sim / Isaac Lab: viewport s
 - Any feature whose primary justification is “other people might find this useful”
 - GLINUI signature components (Meteor Shower, Typewriter, Pulsating Button) on operator data routes
 - Frosted glass / backdrop blur on any surface (retired 2026-07 — the “Launch Day” reskin)
-- Decorative motion or idle “alive” effects other than the cosmos backdrop drift
+- Decorative motion or idle “alive” effects other than the dust backdrop drift
 - Gradients for beauty (legibility aids like the vignette excepted)
 - Playful empty states, illustrations, easter eggs
 
@@ -81,7 +81,7 @@ Consul looks like the console a SpaceX engineer has open on launch day: calm, de
 - **Radius:** 4px. Sharp instruments, not consumer cards.
 - **LEDs (`.led*`):** the only always-on glow; live-link pulses at 2.4s (reduced-motion aware).
 - **Corner brackets (`.panel-brackets`):** semantic only — surfaces that act on hardware (e-stop, enable, armed tuning panels). Never on passive cards.
-- **Cosmos backdrop:** NASA SVS Deep Star Map drifts slowly behind the fullscreen 3D canvas. The universe moves; the robot (telemetry) stays rock solid. This is the single sanctioned ambient motion.
+- **Dust backdrop:** soft gray particles drift slowly in a near-black void behind the fullscreen canvas. The air moves; the robot (telemetry) stays rock solid. This is the single sanctioned ambient motion — procedural, no stock imagery.
 
 ### Surface and motion tiers
 
@@ -91,7 +91,7 @@ Consul looks like the console a SpaceX engineer has open on launch day: calm, de
 | Data | tables, charts, log/inventory rows | panel shell; opaque rows | sort/filter ≤150ms; **no row animation** |
 | Hero | empty states, sim idle, welcome | panel + void | stagger enter/exit allowed |
 
-Glow is semantic only: armed (amber), fault (red), live-link (LED). Nominal state never glows. `prefers-reduced-motion` freezes the cosmos drift and LED pulse. Telemetry springs stay unchanged.
+Glow is semantic only: armed (amber), fault (red), live-link (LED). Nominal state never glows. `prefers-reduced-motion` freezes the dust drift and LED pulse. Telemetry springs stay unchanged.
 
 ---
 

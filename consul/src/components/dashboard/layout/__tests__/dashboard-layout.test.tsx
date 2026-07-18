@@ -58,6 +58,9 @@ describe('Strategy C z-model constants', () => {
     expect(dashboardLayoutRootClassName).toContain('relative');
     expect(dashboardLayoutRootClassName).toContain('h-svh');
     expect(dashboardChromeClassName).toContain('z-20');
+    expect(dashboardChromeClassName).toContain(
+      'has-data-[variant=inset]:bg-transparent',
+    );
     expect(dashboardMainPointerClassName).toContain('pointer-events-none');
   });
 });
