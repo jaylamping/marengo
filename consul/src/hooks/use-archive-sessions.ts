@@ -7,6 +7,7 @@ import {
   fetchRecentLogs,
   fetchSessions,
   fetchTraceLines,
+  type AsyncSlice,
   type LogSessionDto,
 } from '@/lib/log-api';
 import {
@@ -18,17 +19,31 @@ import {
 
 export type ArchiveView = 'bench' | 'trace' | 'search';
 
+const emptySessionsSlice = (): AsyncSlice<LogSessionDto[]> => ({
+  loading: false,
+  error: null,
+  data: [],
+});
+
+const emptyLinesSlice = (): AsyncSlice<string[]> => ({
+  loading: false,
+  error: null,
+  data: [],
+});
+
 export function useArchiveSessions(mode: LogsMode) {
-  const [sessions, setSessions] = useState<LogSessionDto[]>([]);
+  const [sessionsState, setSessionsState] = useState<AsyncSlice<LogSessionDto[]>>(emptySessionsSlice);
+  const [linesState, setLinesState] = useState<AsyncSlice<string[]>>(emptyLinesSlice);
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
   const [archiveView, setArchiveView] = useState<ArchiveView>('bench');
-  const [archiveLines, setArchiveLines] = useState<string[]>([]);
 
   useEffect(() => {
     setLogsPageActive(true);
     if (isChappeLive()) {
-      void fetchRecentLogs(SNAPSHOT_HYDRATE_LIMIT).then((entries) => {
-        hydrateLogsFromSnapshot(entries);
+      void fetchRecentLogs(SNAPSHOT_HYDRATE_LIMIT).then((result) => {
+        if (result.ok) {
+          hydrateLogsFromSnapshot(result.data);
+        }
       });
       return () => {
         setLogsPageActive(false);
@@ -44,26 +59,40 @@ export function useArchiveSessions(mode: LogsMode) {
     if (mode !== 'archive' && mode !== 'can') {
       return;
     }
-    void fetchSessions(50).then(setSessions);
+    setSessionsState((prev) => ({ ...prev, loading: true, error: null }));
+    void fetchSessions(50).then((result) => {
+      if (result.ok) {
+        setSessionsState({ loading: false, error: null, data: result.data });
+        return;
+      }
+      setSessionsState({ loading: false, error: result.error, data: [] });
+    });
   }, [mode]);
 
   useEffect(() => {
-    if (mode !== 'archive' || !selectedSession) {
+    if (mode !== 'archive' || !selectedSession || archiveView === 'search') {
       return;
     }
-    if (archiveView === 'bench') {
-      void fetchBenchLines(selectedSession, 0, 500).then(({ lines }) => setArchiveLines(lines));
-    } else {
-      void fetchTraceLines(selectedSession, 0, 500).then(({ lines }) => setArchiveLines(lines));
-    }
+    setLinesState((prev) => ({ ...prev, loading: true, error: null }));
+    const fetchLines =
+      archiveView === 'bench'
+        ? fetchBenchLines(selectedSession, 0, 500)
+        : fetchTraceLines(selectedSession, 0, 500);
+    void fetchLines.then((result) => {
+      if (result.ok) {
+        setLinesState({ loading: false, error: null, data: result.data.lines });
+        return;
+      }
+      setLinesState({ loading: false, error: result.error, data: [] });
+    });
   }, [mode, selectedSession, archiveView]);
 
   return {
-    sessions,
+    sessionsState,
+    linesState,
     selectedSession,
     setSelectedSession,
     archiveView,
     setArchiveView,
-    archiveLines,
   };
 }

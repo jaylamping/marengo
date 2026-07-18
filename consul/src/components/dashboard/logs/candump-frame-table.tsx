@@ -1,7 +1,8 @@
 import { memo, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 
-import type { CandumpFrameDto } from '@/lib/log-api';
+import type { CandumpFrameDto, LogApiError } from '@/lib/log-api';
+import { logErrorMessage, shouldShowLogErrorBanner } from '@/lib/log-api';
 
 const ROW_HEIGHT = 28;
 
@@ -11,6 +12,8 @@ type Props = {
   offset: number;
   pageSize: number;
   onPage: (offset: number) => void;
+  error?: LogApiError | null;
+  loading?: boolean;
 };
 
 export const CandumpFrameTable = memo(function CandumpFrameTable({
@@ -19,6 +22,8 @@ export const CandumpFrameTable = memo(function CandumpFrameTable({
   offset,
   pageSize,
   onPage,
+  error = null,
+  loading = false,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -32,6 +37,9 @@ export const CandumpFrameTable = memo(function CandumpFrameTable({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
+      {shouldShowLogErrorBanner(error) ? (
+        <p className="text-sm text-destructive">{logErrorMessage(error!)}</p>
+      ) : null}
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <span>
           {total} frames · showing {offset + 1}–{Math.min(offset + pageSize, total)}
@@ -63,7 +71,11 @@ export const CandumpFrameTable = memo(function CandumpFrameTable({
           <span>data</span>
         </div>
         <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
-          {frames.length === 0 ? (
+          {loading ? (
+            <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
+              Loading frames…
+            </div>
+          ) : !shouldShowLogErrorBanner(error) && frames.length === 0 ? (
             <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
               No frames on this page.
             </div>

@@ -16,27 +16,22 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useArchiveSessions, type ArchiveView } from '@/hooks/use-archive-sessions';
 import { useCandumpData, CAN_PAGE } from '@/hooks/use-candump-data';
 import { useLogDetailSheet } from '@/hooks/use-log-detail-sheet';
+import { logErrorMessage, shouldShowLogErrorBanner } from '@/lib/log-api';
 
 function LogsOverviewInner() {
   const [mode, setMode] = useState<LogsMode>('live');
   const [autoFollow, setAutoFollow] = useState(true);
 
   const {
-    sessions,
+    sessionsState,
+    linesState,
     selectedSession,
     setSelectedSession,
     archiveView,
     setArchiveView,
-    archiveLines,
   } = useArchiveSessions(mode);
 
-  const {
-    canFrames,
-    canTotal,
-    canOffset,
-    setCanOffset,
-    canSummary,
-  } = useCandumpData(mode, selectedSession);
+  const { pageState, summaryState, canOffset, setCanOffset } = useCandumpData(mode, selectedSession);
 
   const {
     selectedLog,
@@ -44,6 +39,37 @@ function LogsOverviewInner() {
     setDetailOpen,
     handleSelectLog,
   } = useLogDetailSheet();
+
+  const renderArchivePanel = () => {
+    if (archiveView === 'search') {
+      return (
+        <LogsArchiveSearch
+          selectedLogId={selectedLog?.id ?? null}
+          onSelectLog={handleSelectLog}
+        />
+      );
+    }
+
+    if (shouldShowLogErrorBanner(linesState.error)) {
+      return (
+        <p className="p-4 text-sm text-destructive">{logErrorMessage(linesState.error!)}</p>
+      );
+    }
+
+    if (linesState.loading) {
+      return <p className="p-4 text-sm text-muted-foreground">Loading archive lines…</p>;
+    }
+
+    if (!selectedSession) {
+      return <p className="p-4 text-sm text-muted-foreground">Select a session.</p>;
+    }
+
+    if (linesState.data.length === 0) {
+      return <p className="p-4 text-sm text-muted-foreground">No lines for this session.</p>;
+    }
+
+    return <VirtualLinesList lines={linesState.data} emptyMessage="Select a session." />;
+  };
 
   return (
     <div className={dashboardLogsClassName}>
@@ -72,9 +98,11 @@ function LogsOverviewInner() {
       {mode === 'archive' ? (
         <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[240px_1fr]">
           <LogsSessionList
-            sessions={sessions}
+            sessions={sessionsState.data}
             selectedId={selectedSession}
             onSelect={setSelectedSession}
+            error={sessionsState.error}
+            loading={sessionsState.loading}
           />
           <div className="flex min-h-0 flex-col gap-2">
             <Tabs value={archiveView} onValueChange={(v) => setArchiveView(v as ArchiveView)}>
@@ -90,18 +118,7 @@ function LogsOverviewInner() {
                 </TabsTrigger>
               </TabsList>
             </Tabs>
-            <div className={logsArchivePanelShellClassName}>
-              {archiveView === 'search' ? (
-                <LogsArchiveSearch
-                  selectedLogId={selectedLog?.id ?? null}
-                  onSelectLog={handleSelectLog}
-                />
-              ) : archiveLines.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Select a session.</p>
-              ) : (
-                <VirtualLinesList lines={archiveLines} emptyMessage="Select a session." />
-              )}
-            </div>
+            <div className={logsArchivePanelShellClassName}>{renderArchivePanel()}</div>
           </div>
         </div>
       ) : null}
@@ -109,21 +126,29 @@ function LogsOverviewInner() {
       {mode === 'can' ? (
         <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[240px_1fr]">
           <LogsSessionList
-            sessions={sessions}
+            sessions={sessionsState.data}
             selectedId={selectedSession}
             onSelect={(id) => {
               setSelectedSession(id);
               setCanOffset(0);
             }}
+            error={sessionsState.error}
+            loading={sessionsState.loading}
           />
           <div className="flex min-h-0 flex-col gap-2">
-            <p className="text-sm text-muted-foreground">{canSummary}</p>
+            {shouldShowLogErrorBanner(summaryState.error) ? (
+              <p className="text-sm text-destructive">{logErrorMessage(summaryState.error!)}</p>
+            ) : (
+              <p className="text-sm text-muted-foreground">{summaryState.data}</p>
+            )}
             <CandumpFrameTable
-              frames={canFrames}
-              total={canTotal}
+              frames={pageState.data.frames}
+              total={pageState.data.total}
               offset={canOffset}
               pageSize={CAN_PAGE}
               onPage={setCanOffset}
+              error={pageState.error}
+              loading={pageState.loading}
             />
           </div>
         </div>

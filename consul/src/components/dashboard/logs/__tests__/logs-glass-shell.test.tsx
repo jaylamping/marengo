@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 
 import {
   logsArchivePanelShellClassName,
@@ -17,6 +17,7 @@ import { LogsToolbar } from '@/components/dashboard/logs/logs-toolbar';
 import { LogsVirtualTable } from '@/components/dashboard/logs/logs-virtual-table';
 import { LogsFilterProvider } from '@/components/dashboard/logs/logs-filter-context';
 import type { LogEntry } from '@/data/logs';
+import { fetchStructuredLogs } from '@/lib/log-api';
 
 vi.mock('@/components/dashboard/logs/hooks/use-log-controls', () => ({
   useLogPaused: () => false,
@@ -45,12 +46,19 @@ vi.mock('@tanstack/react-virtual', () => ({
   }),
 }));
 
-vi.mock('@/lib/log-api', () => ({
-  fetchStructuredLogs: vi.fn().mockResolvedValue({ entries: [], total: 0 }),
-}));
+vi.mock('@/lib/log-api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/log-api')>();
+  return {
+    ...actual,
+    fetchStructuredLogs: vi.fn().mockResolvedValue({ ok: true, data: { entries: [], total: 0 } }),
+  };
+});
+
+const mockFetchStructuredLogs = vi.mocked(fetchStructuredLogs);
 
 afterEach(() => {
   cleanup();
+  mockFetchStructuredLogs.mockResolvedValue({ ok: true, data: { entries: [], total: 0 } });
 });
 
 describe('logs glass shell constants (chrome + data tiers)', () => {
@@ -143,6 +151,29 @@ describe('LogsSessionList data-tier shell', () => {
     expect(shell.className).toMatch(/backdrop-blur-xl/);
     expect(screen.getByText('bench-2026')).toBeTruthy();
   });
+
+  it('shows error banner without empty copy on server failure', () => {
+    render(
+      <LogsSessionList
+        sessions={[]}
+        selectedId={null}
+        onSelect={() => undefined}
+        error={{ kind: 'server', status: 500 }}
+      />,
+    );
+
+    expect(screen.getByText('Log gateway returned a server error.')).toBeTruthy();
+    expect(screen.queryByText('No archived sessions.')).toBeNull();
+  });
+
+  it('shows empty copy without banner on successful empty sessions', () => {
+    render(
+      <LogsSessionList sessions={[]} selectedId={null} onSelect={() => undefined} error={null} />,
+    );
+
+    expect(screen.getByText('No archived sessions.')).toBeTruthy();
+    expect(screen.queryByText('Log gateway returned a server error.')).toBeNull();
+  });
 });
 
 describe('LogsArchiveSearch glass filters', () => {
@@ -152,6 +183,32 @@ describe('LogsArchiveSearch glass filters', () => {
     const input = screen.getByPlaceholderText('joint, error, operator…');
     expect(input.className).toMatch(/backdrop-blur/);
     expect(screen.getByRole('button', { name: 'Search' })).toBeTruthy();
+  });
+
+  it('surfaces HTTP failure instead of SQLite-empty messaging', async () => {
+    mockFetchStructuredLogs.mockResolvedValueOnce({
+      ok: false,
+      error: { kind: 'unavailable', status: 503 },
+    });
+
+    render(<LogsArchiveSearch />);
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+
+    expect(await screen.findByText('Log store temporarily unavailable.')).toBeTruthy();
+    expect(screen.queryByText('No structured logs in SQLite yet.')).toBeNull();
+  });
+
+  it('distinguishes HTTP failure from ok-empty LogApiResult', async () => {
+    mockFetchStructuredLogs.mockResolvedValueOnce({
+      ok: false,
+      error: { kind: 'server', status: 500 },
+    });
+
+    render(<LogsArchiveSearch />);
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+
+    expect(await screen.findByText('Log gateway returned a server error.')).toBeTruthy();
+    expect(screen.queryByText('No structured logs in SQLite yet.')).toBeNull();
   });
 });
 
