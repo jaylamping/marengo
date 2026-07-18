@@ -18,6 +18,7 @@ use tokio_util::io::ReaderStream;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
 
+use crate::actuator;
 use crate::framing::{self, CHAPPE_STREAM_CONTENT_TYPE};
 use crate::logs;
 use crate::state::{filter_topics, SharedState};
@@ -74,6 +75,10 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
             "/snapshot/host/metrics/jetson",
             get(snapshot_host_metrics_jetson),
         )
+        .route(
+            "/snapshot/actuator/limits",
+            get(actuator::snapshot_actuator_limits),
+        )
         .route("/snapshot/logs/recent", get(logs::snapshot_logs_recent))
         .route("/logs/sessions", get(logs::list_sessions))
         .route("/logs/sessions/latest/candump", get(logs::latest_candump))
@@ -90,6 +95,7 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
         .route("/command/enable", post(command_enable))
         .route("/command/testing_mit", post(command_testing_mit))
         .route("/command/home", post(command_home))
+        .route("/command/actuator", post(actuator::command_actuator))
         .layer(cors)
         .with_state(state);
 

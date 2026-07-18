@@ -12,25 +12,57 @@ vi.mock('@/hooks/use-live-inventory', () => ({
   useLiveInventory: (base: InventoryItem[]) => base,
 }));
 
+vi.mock('@/hooks/use-actuator-harness', () => ({
+  useActuatorHarnessBootstrap: () => undefined,
+}));
+
 vi.mock('@/state/robotStore', () => ({
   useRobotStore: (selector: (s: { connected: boolean }) => unknown) =>
     selector({ connected: false }),
 }));
+
+vi.mock('@/state/actuatorStore', async () => {
+  const actual = await vi.importActual<typeof import('@/state/actuatorStore')>(
+    '@/state/actuatorStore',
+  );
+  return {
+    ...actual,
+    useActuatorStore: (
+      selector: (s: {
+        bootstrap: { kind: 'ready'; clientId: string };
+        limitSnapshot: null;
+        lastError: null;
+        nextCommandSeq: () => bigint;
+        setLastError: (m: string | null) => void;
+      }) => unknown,
+    ) =>
+      selector({
+        bootstrap: { kind: 'ready', clientId: 'test-client' },
+        limitSnapshot: null,
+        lastError: null,
+        nextCommandSeq: () => 1n,
+        setLastError: () => undefined,
+      }),
+    liveJointLimits: vi.fn(() => null),
+    jointLimitMax: vi.fn(() => null),
+    selectClientId: vi.fn(() => 'test-client'),
+  };
+});
 
 afterEach(() => {
   cleanup();
 });
 
 const wiredJoint: InventoryItem = {
-  id: 20,
-  name: 'left_shoulder_roll',
-  group: 'left_arm',
+  id: 25,
+  name: 'right_shoulder_roll',
+  group: 'right_arm',
   kind: 'actuator',
   status: 'Enabled',
   value: '0.12',
   limit: '±1.57',
-  preset: 'bench_default',
-  node: 'RS03 · can0 · id 14',
+  preset: 'bench_2dof',
+  node: 'RS03 · can0 · id 1',
 };
 
 const unwiredJoint: InventoryItem = {
@@ -49,7 +81,7 @@ describe('JointCard read-only shell', () => {
   it('shows live position telemetry for a wired bench joint', () => {
     render(<JointCard joint={wiredJoint} wired />);
 
-    expect(screen.getByText('left_shoulder_roll')).toBeInTheDocument();
+    expect(screen.getByText('right_shoulder_roll')).toBeInTheDocument();
     expect(screen.getByText('0.12 rad')).toBeInTheDocument();
     expect(screen.getByText(/bench wired/i)).toBeInTheDocument();
   });
@@ -62,17 +94,18 @@ describe('JointCard read-only shell', () => {
     expect(screen.getByText(/telemetry only/i)).toBeInTheDocument();
   });
 
-  it('does not expose motion or tuning command controls', () => {
+  it('waits for live limits before exposing tuning sliders', () => {
     render(<JointCard joint={wiredJoint} wired />);
 
+    expect(screen.getByTestId('tuning-panel-unavailable')).toBeInTheDocument();
+    expect(screen.queryByRole('slider', { name: /runtime kp/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /enable/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /jog/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
   });
 });
 
 describe('ActuatorsOverview', () => {
-  it('renders joint cards for all four bench-wired joints plus inventory actuators', () => {
+  it('renders joint cards for right 2-DOF wired joints plus inventory actuators', () => {
     render(<ActuatorsOverview />);
 
     const overview = screen.getByTestId('actuators-overview');
@@ -83,10 +116,13 @@ describe('ActuatorsOverview', () => {
     }
 
     expect(within(overview).getByText('left_wrist')).toBeInTheDocument();
-    expect(within(overview).getByText(/read-only/i)).toBeInTheDocument();
+    expect(
+      within(overview).getByRole('heading', { name: /actuator harness/i }),
+    ).toBeInTheDocument();
+    expect(within(overview).getByText(/live limits required/i)).toBeInTheDocument();
   });
 
-  it('renders every joint card without command controls', () => {
+  it('renders every joint card without motion command controls', () => {
     render(<ActuatorsOverview />);
 
     const cards = screen.getAllByTestId('joint-card');

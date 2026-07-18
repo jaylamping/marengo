@@ -1,4 +1,5 @@
 import type { InventoryItem } from '@/data/robot-inventory';
+import { TuningPanel } from '@/components/dashboard/actuators/tuning-panel';
 import {
   Card,
   CardContent,
@@ -23,7 +24,9 @@ function formatPosition(value: string): string {
 
 export function JointCard({ joint, wired }: JointCardProps) {
   const wiringLabel = wired ? 'Bench wired' : 'Not wired on bench';
-  const modeLabel = wired ? 'Telemetry only until PR-5' : 'Telemetry only';
+  const modeLabel = wired
+    ? 'Runtime MIT tuning available; motion gated until PR-5'
+    : 'Telemetry only';
 
   return (
     <Card
@@ -50,6 +53,7 @@ export function JointCard({ joint, wired }: JointCardProps) {
         </div>
         <p className="text-muted-foreground">{wiringLabel}</p>
         <p className="text-muted-foreground">{modeLabel}</p>
+        <TuningPanel jointName={joint.name} wired={wired} />
       </CardContent>
     </Card>
   );

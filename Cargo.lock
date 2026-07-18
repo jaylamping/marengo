@@ -1405,6 +1405,7 @@ dependencies = [
  "bytes",
  "chappe",
  "futures",
+ "marengo-config",
  "marengo-store",
  "marengo-support",
  "prost",

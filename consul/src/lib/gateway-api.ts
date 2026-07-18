@@ -1,12 +1,60 @@
-import { create, toBinary } from '@bufbuild/protobuf';
+import { create, fromBinary, toBinary } from '@bufbuild/protobuf';
 
+import type {
+  ActuatorLimitSnapshot,
+  MitCommandBatch,
+  OperatorCommand,
+} from '@/gen/marengo/v1/marengo_pb';
 import {
+  ActuatorLimitSnapshotSchema,
   EnableRequestSchema,
+  EnvelopeSchema,
   HomingCompleteSchema,
   MitCommandBatchSchema,
-  type MitCommandBatch,
+  OperatorCommandSchema,
 } from '@/gen/marengo/v1/marengo_pb';
 import { getChappeEndpoints } from '@/lib/chappe-config';
+
+function requireEndpoints() {
+  const endpoints = getChappeEndpoints();
+  if (!endpoints) {
+    throw new Error('Chappe endpoints not configured');
+  }
+  return endpoints;
+}
+
+export async function fetchActuatorLimits(): Promise<ActuatorLimitSnapshot | null> {
+  const { httpUrl } = requireEndpoints();
+  const res = await fetch(`${httpUrl}/snapshot/actuator/limits`);
+  if (res.status === 503) {
+    return null;
+  }
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`actuator limits failed: ${res.status} ${text}`);
+  }
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  return fromBinary(ActuatorLimitSnapshotSchema, bytes);
+}
+
+export async function postActuatorCommand(command: OperatorCommand): Promise<void> {
+  const { httpUrl } = requireEndpoints();
+  const envelope = create(EnvelopeSchema, {
+    timestampMs: command.timestampMs,
+    sourceNode: 'consul',
+    messageType: 'marengo.v1.OperatorCommand',
+    payload: toBinary(OperatorCommandSchema, command),
+  });
+  const res = await fetch(`${httpUrl}/command/actuator`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-protobuf' },
+    body: toBinary(EnvelopeSchema, envelope),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`actuator command failed: ${res.status} ${text}`);
+  }
+}
 
 export async function fetchGatewayHealth(): Promise<boolean> {
   const endpoints = getChappeEndpoints();

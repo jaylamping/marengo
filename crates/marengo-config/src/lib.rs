@@ -26,6 +26,13 @@
 //! Change joint names, motor types, or bench caps here — then update URDF and
 //! `hardware/docs/kinematics.md` together.
 
+mod bench_joints;
+
+pub use bench_joints::{
+    load_command_joint_allowlist, load_command_joint_allowlist_from, resolve_command_joint,
+    CommandJointAllowlist,
+};
+
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
@@ -876,6 +883,7 @@ pub fn motor_for_joint<'a>(motors: &'a MotorsConfigFile, joint: &str) -> Option<
     motors.motors.iter().find(|m| m.joint == joint)
 }
 
+/// Bench-wired joints eligible for actuator commands (4-DOF left arm bring-up).
 #[cfg(test)]
 mod tests {
     #![allow(clippy::expect_used)]

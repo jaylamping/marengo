@@ -3,10 +3,12 @@ import { JointCard } from '@/components/dashboard/actuators/joint-card';
 import { isWiredBenchJoint } from '@/data/actuator-joints';
 import { robotInventory } from '@/data/robot-inventory';
 import { useLiveInventory } from '@/hooks/use-live-inventory';
+import { useActuatorHarnessBootstrap } from '@/hooks/use-actuator-harness';
 
 const actuatorInventory = robotInventory.filter((item) => item.kind === 'actuator');
 
 export function ActuatorsOverview() {
+  useActuatorHarnessBootstrap();
   const joints = useLiveInventory(actuatorInventory);
 
   return (
@@ -17,7 +19,7 @@ export function ActuatorsOverview() {
       <header className="flex flex-col gap-1">
         <h2 className="text-lg font-semibold">Actuator harness</h2>
         <p className="text-sm text-muted-foreground">
-          Read-only telemetry shell — motion and tuning controls ship after PR-5 gate.
+          Runtime MIT tuning (debounced, live limits required) — motion controls gated until PR-5.
         </p>
       </header>
 

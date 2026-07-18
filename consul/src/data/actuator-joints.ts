@@ -1,13 +1,65 @@
-/** Four bench-wired joints on the 4-DOF left arm slice (can0 ids 14–17). */
+/**
+ * Wired bench joints for the active bringup profile (`arm_2dof_right`).
+ * Must match `robot.joints` in `config/bringup/arm_2dof_right/robot.yaml`
+ * and the gateway command allowlist loaded from `MARENGO_CONFIG_DIR`.
+ */
 export const WIRED_BENCH_JOINTS = [
-  'left_shoulder_roll',
-  'left_shoulder_pitch',
-  'left_upper_arm_yaw',
-  'left_elbow',
+  'right_shoulder_roll',
+  'right_shoulder_pitch',
 ] as const;
 
 export type WiredBenchJoint = (typeof WIRED_BENCH_JOINTS)[number];
 
+export type StaticJointLimits = {
+  kpMax: number;
+  kdMax: number;
+  velocityMaxRadS: number;
+  tauFfMaxNm: number;
+};
+
+/**
+ * Display-only reference caps (not a command trust boundary).
+ * Commands require a live ActuatorLimitSnapshot from the gateway.
+ */
+export const DISPLAY_STATIC_JOINT_LIMITS: Record<WiredBenchJoint, StaticJointLimits> = {
+  right_shoulder_roll: {
+    kpMax: 50,
+    kdMax: 5,
+    velocityMaxRadS: 2.0,
+    tauFfMaxNm: 5.0,
+  },
+  right_shoulder_pitch: {
+    kpMax: 50,
+    kdMax: 5,
+    velocityMaxRadS: 2.0,
+    tauFfMaxNm: 5.0,
+  },
+};
+
 export function isWiredBenchJoint(jointName: string): jointName is WiredBenchJoint {
   return (WIRED_BENCH_JOINTS as readonly string[]).includes(jointName);
+}
+
+/** Canonical command joint id — same namespace as inventory / robot.yaml. */
+export function toCanonicalBenchJoint(jointName: string): string | null {
+  if (!isWiredBenchJoint(jointName)) {
+    return null;
+  }
+  return jointName;
+}
+
+/** Display-only static caps; never use to arm commands. */
+export function staticLimitsForJoint(jointName: string): StaticJointLimits | null {
+  if (!isWiredBenchJoint(jointName)) {
+    return null;
+  }
+  return DISPLAY_STATIC_JOINT_LIMITS[jointName];
+}
+
+/** Clamp runtime tuning slider values to a known max. */
+export function clampTuningValue(value: number, max: number, min = 0): number {
+  if (max < min) {
+    return min;
+  }
+  return Math.min(Math.max(value, min), max);
 }
