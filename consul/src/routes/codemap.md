@@ -13,7 +13,6 @@ RootLayout (Suspense<Outlet />)
 ├── /simulation → SimulationPage (lazy)  — simulation sessions and scenarios
 ├── /subsystems → SubsystemsPage (lazy)  — inventory table with live enrichment
 ├── /logs → LogsPage (lazy)              — structured log viewer with live streaming
-├── /memory → MemoryPage (lazy)          — mem0 Memory Observatory
 └── /testing → TestingPage (lazy)        — MIT motor testing interface
 ```
 

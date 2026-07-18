@@ -82,7 +82,7 @@ Proto-first ([ADR 0001](docs/decisions/0001-protobuf-wire-types.md)): edit `prot
 | `scripts/` | CI (`check.sh`), deploy, vcan, Pi remote, URDF validation |
 | `docs/` | Architecture, safety, ADRs (`docs/decisions/`), bench runbooks |
 | `docker/` | Dev, check, sim, vcan container images |
-| `tools/` | Vendored MCP servers (`marengo-pi-mcp`, `mem0-mcp`) |
+| `tools/` | Vendored MCP servers (`marengo-pi-mcp`, `marengo-research-mcp`) |
 | `hardware/`, `cad/` | Electrical, prints, BOM, SolidWorks (CAD binaries local-only) |
 
 ---

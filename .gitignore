@@ -28,8 +28,6 @@ hardware/electrical/**/-backups/
 consul/node_modules/
 consul/.marengo-npm-stamp
 tools/marengo-pi-mcp/node_modules/
-tools/mem0-mcp/node_modules/
-tools/mem0-mcp/dist/
 tools/marengo-pi-mcp/dist/
 tools/protoc-*/
 consul/dist/

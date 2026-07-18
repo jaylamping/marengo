@@ -26,7 +26,7 @@ Agent: append here when investigation suggests a load/model test and the user is
 - **Log evidence:** Pi `/opt/marengo/var/log/bench-20260622T002026Z.log` (+ position-trace, candump same stamp); deploy `ff9d554`
 - **Suggested run:** `pi_bench_harness` profile `arm_2dof_smoke`, `config_dir: arm_2dof_right`, `skip_set_zero: true` after Verified zeros
 - **Blocked on:** —
-- **Result:** PASS all steps (pitch hold 0.3 rad, roll hold 0.785 rad, cross-talk). Operator: best movement since bench start. Baseline in [bench-2dof-right-smoke.md](bench-2dof-right-smoke.md); mem0 `control/bench/arm-2dof-right-baseline`.
+- **Result:** PASS all steps (pitch hold 0.3 rad, roll hold 0.785 rad, cross-talk). Operator: best movement since bench start. Baseline in [bench-2dof-right-smoke.md](bench-2dof-right-smoke.md).
 
 ---
 

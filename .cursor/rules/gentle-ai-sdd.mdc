@@ -1,5 +1,5 @@
 ---
-description: SDD orchestrator for Marengo (Gentle-AI). Coordinates phased spec-driven development via mem0-mcp.
+description: SDD orchestrator for Marengo (Gentle-AI). Coordinates phased spec-driven development via OpenSpec.
 alwaysApply: false
 ---
 # SDD Orchestrator — Marengo (Gentle-AI)
@@ -62,7 +62,7 @@ Core principle: **does this inflate my context without need?** If yes → delega
 4. **Incident rule**: wrong `cwd`, accidental mutation, merge recovery → fresh audit before continuing
 5. **Long-session rule**: ~20 tool calls or 5 exploratory reads without delegation → pause and delegate
 6. **Fresh review rule**: adversarial review of diffs, conflicts, PR readiness → fresh context
-7. **Context saturation rule**: context **at or after 50%** (not before) → finish atomic step, `mem_save` `maintenance/session-handoff/{project}`, spawn fresh subagent (see § Context Saturation Handoff)
+7. **Context saturation rule**: context **at or after 50%** (not before) → finish atomic step, write `.atl/session-handoff.md`, spawn fresh subagent (see § Context Saturation Handoff)
 
 Children receive concrete role work. They must NOT orchestrate.
 
@@ -77,15 +77,15 @@ Children receive concrete role work. They must NOT orchestrate.
 
 Full protocol: [`.cursor/skills/_shared/sdd-phase-common.md` § F](../skills/_shared/sdd-phase-common.md).
 
-**Orchestrator at or after 50% saturation (not before):** finish current delegation summary → `mem_save` handoff → tell user a fresh orchestrator session should continue from `maintenance/session-handoff/marengo`.
+**Orchestrator at or after 50% saturation (not before):** finish current delegation summary → write `.atl/session-handoff.md` → tell user a fresh orchestrator session should continue from that handoff.
 
 **All SDD phase executors:** same rule; return `partial` + `session-handoff-resume`; never continue heavy apply in a saturated thread. Automatic gatekeeper must PASS this routing when handoff is persisted (see § Automatic Mode Gatekeeper).
 
-**Questioning:** executors MUST read mem0 explore/init/handoff; if work is enhancement while robot unbuilt or contradicts phase-1 scope, return `blocked` with reason.
+**Questioning:** executors MUST read OpenSpec explore/init/handoff; if work is enhancement while robot unbuilt or contradicts phase-1 scope, return `blocked` with reason.
 
 ### Session bootstrap resume guard (MANDATORY)
 
-At conversation start, a mem0 hit on `maintenance/session-handoff/{project}` does **not** auto-resume. Full rules: `sdd-phase-common.md` § F *Resume eligibility*.
+At conversation start, a OpenSpec hit on `.atl/session-handoff.md` does **not** auto-resume. Full rules: `sdd-phase-common.md` § F *Resume eligibility*.
 
 Resume only when the observation has `resume_pending: true`, `created_at` within 72h, and the user's intent does not supersede (no `/sdd-new`, `/sdd-ff`, unrelated work, or a different change name). Clear leftover handoffs via upsert (`resume_pending: false`) after archive, successful resume, supersession, or TTL expiry.
 
@@ -122,15 +122,15 @@ proposal -> specs --> tasks -> apply -> verify -> archive
 
 | Mode | Behavior |
 |------|----------|
-| `engram` | Default when mem0 available; persistent memory across sessions |
-| `openspec` | File-based; user must explicitly request |
-| `hybrid` | Both backends; higher token cost |
-| `none` | Inline only; recommend enabling engram or openspec |
+| `openspec` | Default — file-based artifacts under `openspec/changes/{slug}/` |
+| `none` | Inline only; no project files |
+
+Legacy `engram` / `hybrid`: treat as `openspec` (memory MCP removed).
 
 ### SDD Init Guard (MANDATORY)
 
 Before ANY SDD command, check if `sdd-init` has been run:
-1. `mem_search(query: "sdd/init/{project}", project: "{project}")`
+1. Check for `openspec/config.yaml`
 2. If found → proceed
 3. If NOT found → run `sdd-init` FIRST silently, THEN proceed
 
@@ -150,9 +150,9 @@ In **Automatic** mode, validate after every phase before invoking the next:
 
 If `status: partial` AND `next_recommended: session-handoff-resume`:
 
-1. Verify `maintenance/session-handoff/{project}` exists via `mem_search(query: "maintenance/session-handoff/{project}", project: "{project}")` → `mem_get_observation(id)` (or openspec handoff file if that mode).
-2. If handoff is missing, empty, `resume_pending` is not `true`, or `created_at` is older than 72h → FAIL (re-run same phase once with corrective feedback); upsert cleared handoff if stale.
-3. If handoff is present and eligible → **PASS routing** — do **not** treat `session-handoff-resume` as DAG drift. Immediately delegate per `sdd-orchestrator.md` **Handoff Resume Delegation** (fresh executor, handoff `mem_get_observation`, continue from handoff `next`). Do **not** re-run the saturated phase in the same thread, do **not** only report progress to the user, and do **not** advance to the next DAG node until resume completes.
+1. Verify `.atl/session-handoff.md` exists
+2. If handoff is missing, empty, `resume_pending` is not `true`, or `created_at` is older than 72h → FAIL (re-run same phase once with corrective feedback); clear handoff if stale
+3. If handoff is present and eligible → **PASS routing** — do **not** treat `session-handoff-resume` as DAG drift. Immediately delegate per `sdd-orchestrator.md` **Handoff Resume Delegation** (fresh executor, read handoff file, continue from handoff `next`). Do **not** re-run the saturated phase in the same thread, do **not** only report progress to the user, and do **not** advance to the next DAG node until resume completes.
 
 **Checks (against Result Contract):**
 
@@ -177,7 +177,7 @@ Otherwise:
 
 ### Artifact Store Mode
 
-On first `/sdd-new`, `/sdd-ff`, or `/sdd-continue` in a session, ask which artifact store to use. Default: `engram` if mem0 available, else `none`. Cache for session.
+On first `/sdd-new`, `/sdd-ff`, or `/sdd-continue` in a session, ask which artifact store to use. Default: `openspec`. Cache for session.
 
 ### Delivery Strategy
 
@@ -199,7 +199,7 @@ After `sdd-tasks` completes, inspect `Review Workload Forecast`. If `Chained PRs
 
 Each phase returns: `status`, `executive_summary`, `artifacts`, `next_recommended`, `risks`, `skill_resolution`.
 
-`next_recommended` is normally the next DAG phase (or `none`). For context saturation at ≥50%, executors return `session-handoff-resume` with `status: partial` after persisting `maintenance/session-handoff/{project}` — gatekeeper treats that as resume routing, not DAG advance.
+`next_recommended` is normally the next DAG phase (or `none`). For context saturation at ≥50%, executors return `session-handoff-resume` with `status: partial` after writing `.atl/session-handoff.md` — gatekeeper treats that as resume routing, not DAG advance.
 
 ---
 
@@ -247,9 +247,8 @@ Maintain a session-scoped list of `(phase, task-fingerprint)` pairs. Before invo
 ALL sub-agent invocations involving code MUST include pre-resolved skill paths from the registry.
 
 **Orchestrator resolution (once per session):**
-1. `mem_search(query: "maintenance/skill-registry", project: "{project}")` → `mem_get_observation(id)`
-2. Fallback: read `.atl/skill-registry.md`
-3. Cache the index: name, trigger/description, scope, exact path
+1. Read `.atl/skill-registry.md`
+2. Cache the index: name, trigger/description, scope, exact path
 
 **Per invocation:**
 1. Match skills by code context (file extensions/paths) AND task context (actions)
@@ -269,30 +268,30 @@ After every subagent invocation, check `skill_resolution`:
 Sub-agents run in fresh, isolated context windows with NO shared memory.
 
 **Non-SDD tasks:**
-- Read: orchestrator searches engram, passes in invocation
-- Write: subagent MUST save discoveries to engram via `mem_save` before returning
+- Read: orchestrator summarizes relevant repo context in the invocation
+- Write: durable notes go in docs/ADRs/PRs — no memory MCP
 - Skills: orchestrator injects paths as `## Skills to load before work`
 
 **SDD Phases — Read/Write Matrix:**
 
 | Phase | Reads | Writes |
 |-------|-------|--------|
-| `sdd-explore` | nothing | `explore` |
-| `sdd-propose` | exploration (optional) | `proposal` |
-| `sdd-spec` | proposal (required) | `spec` |
-| `sdd-design` | proposal (required) | `design` |
-| `sdd-tasks` | spec + design (required) | `tasks` |
-| `sdd-apply` | tasks + spec + design + apply-progress (if exists) | `apply-progress` |
-| `sdd-verify` | spec + tasks + apply-progress | `verify-report` |
-| `sdd-archive` | all artifacts | `archive-report` |
+| `sdd-explore` | nothing | `exploration.md` |
+| `sdd-propose` | exploration (optional) | `proposal.md` |
+| `sdd-spec` | proposal (required) | `specs/**/spec.md` |
+| `sdd-design` | proposal (required) | `design.md` |
+| `sdd-tasks` | spec + design (required) | `tasks.md` |
+| `sdd-apply` | tasks + spec + design (+ prior progress) | update `tasks.md` |
+| `sdd-verify` | spec + tasks | `verify-report.md` |
+| `sdd-archive` | all artifacts | archive folder + main specs |
 
-Pass artifact references (topic keys or file paths), NOT content.
+Pass artifact file paths, NOT content.
 
 ### Strict TDD Forwarding (MANDATORY)
 
 When launching `sdd-apply` or `sdd-verify`:
-1. `mem_search(query: "sdd/init/{project}", project: "{project}")`
-2. If `strict_tdd: true` found → add to prompt: `"STRICT TDD MODE IS ACTIVE. Test runner: {test_command}. You MUST follow strict-tdd.md. Do NOT fall back to Standard Mode."`
+1. Read `openspec/config.yaml` for `strict_tdd` / test command if present
+2. If `strict_tdd: true` found → add to prompt accordingly
 3. If not found → do NOT add TDD instruction
 
 Resolve TDD status ONCE per session, cache it.
@@ -300,39 +299,19 @@ Resolve TDD status ONCE per session, cache it.
 ### Apply-Progress Continuity (MANDATORY)
 
 When launching `sdd-apply` for a continuation batch:
-1. `mem_search(query: "sdd/{change-name}/apply-progress", project: "{project}")`
-2. If found → add: `"PREVIOUS APPLY-PROGRESS EXISTS at topic_key 'sdd/{change-name}/apply-progress'. You MUST read it first via mem_search + mem_get_observation, merge your new progress with the existing progress, and save the combined result. Do NOT overwrite — MERGE."`
+1. Read `openspec/changes/{change-name}/tasks.md` (and `state.yaml` if present)
+2. If prior progress exists → instruct the executor to merge `[x]` marks, not overwrite
 
-### Engram Topic Key Format
+### OpenSpec Artifact Paths
 
-| Artifact | Topic Key |
-|----------|-----------|
-| Project context | `sdd/init/{project}` |
-| Exploration | `sdd/{change-name}/explore` |
-| Proposal | `sdd/{change-name}/proposal` |
-| Spec | `sdd/{change-name}/spec` |
-| Design | `sdd/{change-name}/design` |
-| Tasks | `sdd/{change-name}/tasks` |
-| Apply progress | `sdd/{change-name}/apply-progress` |
-| Verify report | `sdd/{change-name}/verify-report` |
-| Archive report | `sdd/{change-name}/archive-report` |
-| DAG state | `sdd/{change-name}/state` |
-| Session handoff | `maintenance/session-handoff/{project}` (active: `resume_pending: true`; cleared after archive/resume/supersession) |
-
-Retrieval (preferred exact lookup):
-1. `mem_get_by_topic_key(topic_key: "{topic_key}", project: "{project}")` → full content
-
-Fallback (semantic):
-1. `mem_search(query: "{topic_key}", project: "{project}")` → get observation ID
-2. `mem_get_observation(id: {id})` → full content (REQUIRED — search previews are truncated)
+See `.cursor/skills/_shared/openspec-convention.md`. Session handoff: `.atl/session-handoff.md`.
 
 ---
 
 ## Marengo Overrides (authoritative over Gentle-AI defaults)
 
 - **[AGENTS.md](../../AGENTS.md) and Marengo workspace rules win** on safety, CAD worktree policy, Pi MCP, and `just check`.
-- **Memory backend:** self-hosted **mem0** via mem0-mcp (`mem_search`, `mem_save`, `mem_get_observation`). Treat artifact store mode `engram` as **mem0**.
-- **Default artifact store:** engram (mem0) when mem0-mcp is available; optional hybrid mirrors to `openspec/changes/{slug}/`.
-- **Feasibility gate (hardware/CAN/CAD/bench):** after `sdd-explore`, before `sdd-propose`, run `feasibility-brief` skill and domain experts. Require `feasibility/{change}/brief` with **Go** or **Revise** before proposing. **No-Go** blocks unless user explicitly accepts risk (log acceptance in mem0). Pure Rust-only software changes skip this gate.
+- **Artifact store:** OpenSpec files only (`openspec/changes/{slug}/`). Memory MCP removed; treat legacy `engram`/`hybrid` as `openspec`.
+- **Default artifact store:** `openspec`.
+- **Feasibility gate (hardware/CAN/CAD/bench):** after `sdd-explore`, before `sdd-propose`, run `feasibility-brief` skill and domain experts. Require a brief with **Go** or **Revise** before proposing. **No-Go** blocks unless user explicitly accepts risk (record acceptance in the proposal / PR). Pure Rust-only software changes skip this gate.
 - **CAD safety in apply:** never `git restore` / overwrite `.SLDASM` without backup + explicit user OK (worktree-safety rule).
-- **Consul Memory Observatory:** browse mem0 evolution at `/memory` in Consul dev (`npm run dev` in `consul/`).

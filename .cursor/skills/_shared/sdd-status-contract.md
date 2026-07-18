@@ -24,28 +24,14 @@ Commands that select, continue, apply, verify, or archive an SDD change MUST fir
 
 ## Artifact Store Modes
 
-Marengo default is **engram** (mem0). Status MUST reflect the active store:
+Marengo default is **openspec**. Status MUST reflect the active store:
 
 | Mode | `artifactStore` token | Primary artifact refs |
 |------|----------------------|------------------------|
-| engram | `engram` | mem0 `topic_key` values under `sdd/{change}/{phase}` |
 | openspec | `openspec` | absolute paths under `openspec/changes/{change}/` |
-| hybrid | `hybrid` | both topic keys and filesystem paths |
 | none | `none` | inline only — no persisted refs |
 
-For **engram** and **hybrid**, populate `artifactTopicKeys` alongside `artifactPaths`:
-
-```yaml
-artifactTopicKeys:
-  proposal: ["sdd/{change}/proposal"]
-  specs: ["sdd/{change}/spec"]
-  design: ["sdd/{change}/design"]
-  tasks: ["sdd/{change}/tasks"]
-  applyProgress: ["sdd/{change}/apply-progress"]
-  verifyReport: ["sdd/{change}/verify-report"]
-```
-
-Executors MUST retrieve full content via `mem_get_by_topic_key` (preferred) or `mem_search` → `mem_get_observation`. Pass topic keys to executors, not artifact body content.
+Legacy: if status still says `engram` or `hybrid`, treat as `openspec` (memory backend removed).
 
 ## Status Schema
 
@@ -55,7 +41,7 @@ Return status as markdown with these fields, or as equivalent JSON when the host
 schemaName: gentle-ai.sdd-status
 schemaVersion: 1
 changeName: <change-name-or-null>
-artifactStore: engram | openspec | hybrid | none
+artifactStore: openspec | none
 planningHome:
   mode: repo-local
   path: <absolute path to openspec or repo root>
@@ -67,13 +53,6 @@ artifactPaths:
   tasks: [<absolute path>]
   applyProgress: [<absolute path>]
   verifyReport: [<absolute path>]
-artifactTopicKeys:
-  proposal: [<mem0 topic_key>]
-  specs: [<mem0 topic_key>]
-  design: [<mem0 topic_key>]
-  tasks: [<mem0 topic_key>]
-  applyProgress: [<mem0 topic_key>]
-  verifyReport: [<mem0 topic_key>]
 contextFiles:
   proposal: [<absolute readable files>]
   specs: [<absolute readable files>]
@@ -120,7 +99,7 @@ nextRecommended: propose | spec | design | tasks | apply | verify | archive | sd
 blockedReasons: []
 ```
 
-`phaseInstructions` is optional and appears only when instructions are requested. It carries only execution-phase keys (`apply`, `verify`, `archive`); planning-phase instructions (`propose`, `spec`, `design`, `tasks`) are surfaced in the dispatcher markdown, not this JSON map, so a consumer routing on a planning `nextRecommended` MUST NOT expect a matching `phaseInstructions` entry. Empty path/topic fields MUST be arrays, not null. `changeName` and `changeRoot` are nullable; all other sections should be present in fallback output so consumers can parse native and manual status the same way. When `artifactStore` is `engram` or `hybrid`, `artifactTopicKeys` is authoritative for retrieval; `artifactPaths` may be empty arrays. For `openspec`, paths are authoritative. Native `gentle-ai` status may still emit `artifactStore: openspec` — manual fallback for Marengo mem0 sessions MUST emit `engram` or `hybrid` when mem0 is active.
+`phaseInstructions` is optional and appears only when instructions are requested. It carries only execution-phase keys (`apply`, `verify`, `archive`); planning-phase instructions (`propose`, `spec`, `design`, `tasks`) are surfaced in the dispatcher markdown, not this JSON map, so a consumer routing on a planning `nextRecommended` MUST NOT expect a matching `phaseInstructions` entry. Empty path fields MUST be arrays, not null. `changeName` and `changeRoot` are nullable; all other sections should be present in fallback output so consumers can parse native and manual status the same way. For `openspec`, paths are authoritative.
 
 ## Envelope Translation
 
@@ -152,7 +131,7 @@ The orchestrator MUST carry `actionContext` into any phase launch.
 Every command that acts on a change MUST show status before launching an executor or performing archive work:
 
 - Active change selection and how it was resolved.
-- Artifact statuses and paths/topics used as context.
+- Artifact statuses and paths used as context.
 - Task progress and unchecked task list when tasks exist.
 - Next recommended action.
 - `blockedReasons` when `nextRecommended` is not `verify`, plus any edit-root blockers.

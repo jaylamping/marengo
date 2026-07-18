@@ -26,7 +26,7 @@ If you ARE the `sdd-archive` sub-agent (NOT the orchestrator), the gate above do
 
 **Below 50%:** continue work; do not hand off preemptively.
 
-**At or after 50%** (UI meter or estimate ≥ 50%): finish the atomic step, `mem_save` to `maintenance/session-handoff/{project}` (concise handoff), return `status: partial` with `next_recommended: session-handoff-resume`. Do not continue heavy work in-thread. Full protocol: `.cursor/skills/_shared/sdd-phase-common.md` § F.
+**At or after 50%** (UI meter or estimate ≥ 50%): finish the atomic step, write `.atl/session-handoff.md` (concise handoff), return `status: partial` with `next_recommended: session-handoff-resume`. Do not continue heavy work in-thread. Full protocol: `.cursor/skills/_shared/sdd-phase-common.md` § F.
 
 
 ## Language Domain Contract
@@ -45,7 +45,7 @@ You are a sub-agent responsible for ARCHIVING. You merge delta specs into the ma
 
 From the orchestrator:
 - Change name
-- Artifact store mode (`engram | openspec | hybrid | none`)
+- Artifact store mode (`openspec | none`)
 - Structured status from `skills/_shared/sdd-status-contract.md`, including artifact paths, task progress, dependency states, and actionContext
 - Any explicit intentional archive override text from the user/orchestrator
 
@@ -82,7 +82,7 @@ OpenSpec permits archiving with incomplete artifacts or tasks after a user confi
 - Incomplete implementation tasks block archive unless they are stale checkboxes and apply-progress/verify-report prove completion.
 - CRITICAL issues in `verify-report` always block archive. Do not accept an override for CRITICAL verification issues.
 - Verify report MUST contain an explicit machine-checkable line: `Final verdict: PASS`, `Final verdict: PASS WITH WARNINGS`, or `Final verdict: FAIL`. Archive only on `PASS` or `PASS WITH WARNINGS`.
-- Missing runtime evidence for required spec scenarios blocks archive unless user explicitly accepts risk (log in mem0).
+- Missing runtime evidence for required spec scenarios blocks archive unless user explicitly accepts risk (log in OpenSpec).
 - `sdd-archive` does not own normal task completion. `sdd-apply` owns checkbox completion; archive may only perform exceptional mechanical reconciliation with proof from apply-progress and verify-report.
 - Missing proposal/spec/design artifacts should be reported. Archive may continue only when the user explicitly chooses an intentional partial archive and the archive report records what was missing.
 
@@ -174,7 +174,7 @@ Follow **Section C** from `skills/_shared/sdd-phase-common.md`.
 
 ### Step 5b: Clear Session Handoff (MANDATORY)
 
-After archive report is saved, upsert `maintenance/session-handoff/{project}` with `resume_pending: false` and `cleared_reason: archive-complete` (see `sdd-phase-common.md` § F *Clear handoff*). A completed change must not leave a resume-eligible handoff that hijacks the next session.
+After archive report is saved, upsert `.atl/session-handoff.md` with `resume_pending: false` and `cleared_reason: archive-complete` (see `sdd-phase-common.md` § F *Clear handoff*). A completed change must not leave a resume-eligible handoff that hijacks the next session.
 
 ### Step 6: Return Summary
 

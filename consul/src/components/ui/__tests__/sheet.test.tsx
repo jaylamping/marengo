@@ -10,7 +10,7 @@ describe('Sheet primitive (GLINUI PR4)', () => {
     expect(classes).toContain('[border-top-color:var(--glass-refraction-top)]');
   });
 
-  it('keeps default variant opaque for logs/memory compatibility', () => {
+  it('keeps default variant opaque for logs sheet compatibility', () => {
     const defaultClasses = sheetContentVariants({ variant: 'default' });
     const glassClasses = sheetContentVariants({ variant: 'glass' });
     expect(defaultClasses).toContain('bg-popover');

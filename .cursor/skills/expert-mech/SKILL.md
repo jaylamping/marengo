@@ -29,7 +29,7 @@ Readonly reviewer rubric for loads, tolerances, materials, and assembly.
 - Weld specs: joint type, weld size, inspection method
 - Weight budget: total within target with margin
 
-## mem0
+## OpenSpec
 
 - Per change: `feasibility/{change}/expert/mech`
 - Heuristics: `expert/mech/{slug}`

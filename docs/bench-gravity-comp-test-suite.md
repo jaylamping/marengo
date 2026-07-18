@@ -917,7 +917,7 @@ behavior).
 
 Re-execute T1 through T9 in sequence on the final deployed build. If all gates
 pass, update `docs/bench-weighted-700g-results.md` verdict from
-"PASS WITH WARNINGS" to "PASS" and persist the result to mem0.
+"PASS WITH WARNINGS" to "PASS" and record the result in the results doc.
 
 ### Prerequisites
 
@@ -960,19 +960,7 @@ pass, update `docs/bench-weighted-700g-results.md` verdict from
      protocol results, and the artifact timestamps.
    - Strike through the three prior warnings with resolution references.
 
-4. Persist the verdict to mem0:
-
-```json
-{
-  "tool": "mem0_mem_save",
-  "title": "Gravity comp enhancement — bench verdict PASS",
-  "topic_key": "control/gravity/bench-verdict",
-  "content": "Gravity compensation enhancement bench suite verdict: PASS. Build: <git SHA>. Date: <ISO-8601>. All T1-T9 gates passed. URDF COM corrected 18in→14in (tau_g at pi/2 ~2.47 Nm). Friction-FF graded fade passes Layer 2 (jerk_rms<800, tau_ff slew<120). Negative-retarget descent gate holds (<2.0 rad/s through -0.85). Wrong-sign watchdog trips <50ms. Mode-switch kp ramp 20-tick, tau_ff_cmd delta <0.5 Nm. Artifacts: docs/bench-weighted-700g-results.md.\n- observed_at: <ISO-8601 UTC>\n- source_ref: docs/bench-gravity-comp-test-suite.md, docs/bench-weighted-700g-results.md\n- git_sha: <SHA>",
-  "type": "decision",
-  "project": "marengo",
-  "capture_prompt": false
-}
-```
+4. Record the verdict in `docs/bench-weighted-700g-results.md` (dated subsection with git SHA and T1–T9 outcomes). No separate memory store.
 
 ### Pass/fail criteria
 
@@ -981,7 +969,6 @@ pass, update `docs/bench-weighted-700g-results.md` verdict from
 | T1–T9 | every protocol's own gates PASS |
 | Final health | `pi_health` clean, deploy rev matches, `fault=0x0000` |
 | Verdict update | `bench-weighted-700g-results.md` verdict line reads `PASS` |
-| mem0 persistence | `control/gravity/bench-verdict` observation saved |
 
 ### Telemetry artifacts
 

@@ -19,7 +19,6 @@ Thin page components that serve as react-router `lazy()` entry points. Each page
 | `/simulation` | `simulation.tsx` | `SimulationPage` | `SimulationOverview` — simulation control and scenario browser |
 | `/subsystems` | `subsystems.tsx` | `SubsystemsPage` | `SubsystemsOverview` — inventory table with live joint data |
 | `/logs` | `logs.tsx` | `LogsPage` | `LogsOverview` — structured log viewer with live stream |
-| `/memory` | `memory.tsx` | `MemoryPage` | `MemoryOverview` — mem0 Memory Observatory |
 | `/testing` | `testing.tsx` | `TestingPage` | `TestingOverview` — MIT command testing interface |
 
 ## Data flow per page
@@ -29,7 +28,6 @@ DashboardPage:     [AppProviders booted Chappe bridge] → robotStore / hostMetr
 SimulationPage:    Static scenario data from data/simulation.ts → SimulationOverview
 SubsystemsPage:    robotInventory (static) + useLiveInventory (live overlay) → SubsystemsOverview
 LogsPage:          logBuffer singleton (ring buffer) + log-api.ts HTTP → LogsOverview
-MemoryPage:        mem0-api.ts HTTP (React Query) → MemoryOverview
 TestingPage:       testingStore (Zustand) → TestingOverview actions → chappe-client.ts HTTP POST
 ```
 
@@ -41,5 +39,4 @@ TestingPage:       testingStore (Zustand) → TestingOverview actions → chappe
 | Simulation | Static mock data | None |
 | Subsystems | `data/robot-inventory.ts` + `useLiveInventory` | RobotState from Chappe (optional enrichment) |
 | Logs | `logBuffer` + `log-api.ts` HTTP | Chappe LogEvent stream |
-| Memory | `mem0-api.ts` HTTP (React Query) | None (independent service) |
 | Testing | `testingStore` → `chappe-client.ts` POST | Chappe command and state feedback |

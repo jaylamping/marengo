@@ -26,7 +26,7 @@ If you ARE the `sdd-apply` sub-agent (NOT the orchestrator), the gate above does
 
 **Below 50%:** continue apply; do not hand off preemptively.
 
-**At or after 50%** (UI meter or estimate ≥ 50%): finish the atomic step, merge `apply-progress` if tasks remain, `mem_save` to `maintenance/session-handoff/{project}` (concise), return `status: partial` with `next_recommended: session-handoff-resume`. Do not continue apply in-thread. Full protocol: `.cursor/skills/_shared/sdd-phase-common.md` § F.
+**At or after 50%** (UI meter or estimate ≥ 50%): finish the atomic step, merge `apply-progress` if tasks remain, write `.atl/session-handoff.md` (concise), return `status: partial` with `next_recommended: session-handoff-resume`. Do not continue apply in-thread. Full protocol: `.cursor/skills/_shared/sdd-phase-common.md` § F.
 
 
 ## Language Domain Contract
@@ -46,7 +46,7 @@ You are a sub-agent responsible for IMPLEMENTATION. You receive specific tasks f
 From the orchestrator:
 - Change name
 - The specific task(s) to implement (e.g., "Phase 1, tasks 1.1-1.3")
-- Artifact store mode (`engram | openspec | hybrid | none`)
+- Artifact store mode (`openspec | none`)
 - Structured status from `skills/_shared/sdd-status-contract.md`: `schemaName`, `planningHome`, `changeRoot`, `artifactPaths`, `contextFiles`, `applyState`, task progress, dependency states, and `actionContext`
 - Delivery strategy and resolved workload decision (`ask-on-risk | auto-chain | single-pr | exception-ok`, plus PR slice or `size:exception` when applicable)
 
@@ -54,9 +54,9 @@ From the orchestrator:
 
 > Follow **Section B** (retrieval) and **Section C** (persistence) from `skills/_shared/sdd-phase-common.md`.
 
-- **engram**: Read `sdd/{change-name}/proposal`, `sdd/{change-name}/spec`, `sdd/{change-name}/design`, `sdd/{change-name}/tasks` (all required — keep tasks ID for updates). Mark tasks complete via `mem_update(id: {tasks-observation-id}, content: "...")`. Save progress as `sdd/{change-name}/apply-progress`.
+- **engram**: Read `sdd/{change-name}/proposal`, `sdd/{change-name}/spec`, `sdd/{change-name}/design`, `sdd/{change-name}/tasks` (all required — keep tasks ID for updates). Mark tasks complete via edit artifact file(id: {tasks-observation-id}, content: "...")`. Save progress as `sdd/{change-name}/apply-progress`.
 - **openspec**: Read and follow `skills/_shared/openspec-convention.md`. Update `tasks.md` with `[x]` marks.
-- **hybrid**: Follow BOTH conventions — persist progress to Engram (`mem_update` for tasks) AND update `tasks.md` with `[x]` marks on filesystem.
+- **hybrid**: Follow BOTH conventions — persist progress to Engram (edit artifact file for tasks) AND update `tasks.md` with `[x]` marks on filesystem.
 - **none**: Return progress only. Do not update project artifacts.
 
 ## Status and Workspace Guard
@@ -122,8 +122,8 @@ If neither delivery decision nor chain strategy is present, STOP before writing 
 
 Before starting work, check for existing apply-progress:
 
-1. `mem_search(query: "sdd/{change-name}/apply-progress", project: "{project}")`
-2. If found: `mem_get_observation(id)` → read the full content
+1. Read OpenSpec / `.atl` files
+2. If found: Read the full file from disk
 3. Parse which tasks are already marked complete
 4. Skip those tasks — start from the first incomplete task
 5. When saving your apply-progress in Step 6, MERGE: include all previously completed tasks PLUS your newly completed tasks in a single combined artifact
@@ -136,7 +136,7 @@ Read the cached testing capabilities to determine implementation mode:
 
 ```
 Read testing capabilities from:
-├── engram: mem_search("sdd/{project}/testing-capabilities") → mem_get_observation(id)
+├── engram: Read OpenSpec / `.atl` files
 ├── openspec: openspec/config.yaml → strict_tdd + testing section
 └── Fallback: check project files directly (package.json, go.mod, etc.)
 
@@ -198,7 +198,7 @@ Follow **Section C** from `skills/_shared/sdd-phase-common.md`.
 - artifact: `apply-progress`
 - topic_key: `sdd/{change-name}/apply-progress`
 - type: `architecture`
-- Also update the tasks artifact with `[x]` marks via `mem_update` (engram) or file edit (openspec/hybrid).
+- Also update the tasks artifact with `[x]` marks via edit artifact file (engram) or file edit (openspec/hybrid).
 
 #### Merge Protocol
 
@@ -272,5 +272,5 @@ If none, say "None."}
 - Apply any `rules.apply` from `openspec/config.yaml`
 - If Strict TDD Mode is active (Step 3), load `strict-tdd.md` and follow its cycle INSTEAD of Step 4
 - When Strict TDD is active, the `strict-tdd.md` module's rules OVERRIDE Step 4 entirely
-- If `mem_update` for tasks fails or observation ID is missing, return `status: blocked` — do NOT report ready for verify with stale unchecked tasks.
+- If edit artifact file for tasks fails or observation ID is missing, return `status: blocked` — do NOT report ready for verify with stale unchecked tasks.
 - Return envelope per **Section D** from `skills/_shared/sdd-phase-common.md`.

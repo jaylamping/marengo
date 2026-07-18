@@ -66,7 +66,6 @@ deploy-pi-wsl host="joey@marengo.local":
 # Rebuild Marengo MCP servers (Cursor: restart MCP after this)
 mcp-build:
     cd tools/marengo-pi-mcp && npm install && npm run build
-    cd tools/mem0-mcp && npm install && npm run build
 
 # Install Marengo Research MCP (Python/uv; restart marengo-research MCP after this)
 research-mcp-setup:

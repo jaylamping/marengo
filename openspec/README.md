@@ -1,5 +1,5 @@
-# SDD init placeholder
+# SDD / OpenSpec
 
-Run `/sdd-init` in Cursor to bootstrap project context in mem0 (`sdd/init/marengo`).
+Run `/sdd-init` in Cursor to bootstrap project OpenSpec layout (`openspec/config.yaml`, `openspec/specs/`, `openspec/changes/`).
 
-Hybrid mode (optional): `openspec/changes/{slug}/` holds human-readable artifacts when artifact store is set to hybrid.
+Active changes live under `openspec/changes/{slug}/`. Default artifact store mode is **openspec** (files only). There is no memory MCP.

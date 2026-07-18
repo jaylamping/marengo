@@ -19,26 +19,16 @@ Read the skill file at `.cursor/skills/sdd-apply/SKILL.md` and follow it exactly
 Also read shared conventions at `.cursor/skills/_shared/sdd-phase-common.md`.
 
 Execute all steps from the skill directly in this context window:
-1. Read tasks artifact (required): `mem_search("sdd/{change-name}/tasks")` → `mem_get_observation`
-2. Read spec artifact (required): `mem_search("sdd/{change-name}/spec")` → `mem_get_observation`
-3. Read design artifact (required): `mem_search("sdd/{change-name}/design")` → `mem_get_observation`
-4. Read previous apply-progress (if exists): `mem_search("sdd/{change-name}/apply-progress")` → if found, `mem_get_observation` → read and merge (skip completed tasks, merge when saving)
-5. Detect TDD mode from config or existing test patterns
+1. 2. 3. 4. 5. Detect TDD mode from config or existing test patterns
 6. Implement assigned tasks: in TDD mode follow RED → GREEN → REFACTOR; in standard mode write code then verify
 7. Match existing code patterns and conventions
 8. Mark each task `[x]` complete as you finish it
 9. Persist progress to active backend
 
-## Engram Save (mandatory)
+## Persistence
 
-After completing work, call `mem_save` with:
-- title: `"sdd/{change-name}/apply-progress"`
-- topic_key: `"sdd/{change-name}/apply-progress"`
-- type: `"architecture"`
-- project: `{project-name from context}`
-- capture_prompt: `false` when the Engram tool schema supports it; if an older schema rejects or does not expose the field, omit it rather than failing.
+Write artifacts under `openspec/changes/{change-name}/` per openspec-convention.md (or return inline if mode is `none`).
 
-Also update the tasks artifact with `[x]` marks via `mem_save` with same topic_key (mem0 upsert) or file edit (openspec/hybrid).
 
 ## Marengo CAD safety (mandatory)
 
@@ -46,14 +36,14 @@ Before touching `hardware/` or any `.SLDASM` / `.SLDPRT` file: run `git status`.
 
 ## Context Saturation (MANDATORY)
 
-Do not hand off before 50%. **At or after 50%:** finish atomic step, merge `apply-progress` if tasks remain → `mem_save` `maintenance/session-handoff/marengo` → return `status: partial` with `next_recommended: session-handoff-resume`. See `sdd-phase-common.md` § F.
+Do not hand off before 50%. **At or after 50%:** finish atomic step, merge `apply-progress` if tasks remain → write `.atl/session-handoff.md` → return `status: partial` with `next_recommended: session-handoff-resume`. See `sdd-phase-common.md` § F.
 
 ## Result Contract
 
 Return a structured result with these fields:
 - `status`: `done` | `blocked` | `partial`
 - `executive_summary`: one-sentence description of what was implemented (tasks done / total)
-- `artifacts`: list of files changed and topic_keys updated
+- `artifacts`: list of files changed and files updated
 - `next_recommended`: `sdd-verify` (if all tasks done) or `sdd-apply` again (if tasks remain)
 - `risks`: deviations from design, unexpected complexity, or blocked tasks
 - `skill_resolution`: `paths-injected` if exact skill paths were provided and loaded, otherwise `none`
