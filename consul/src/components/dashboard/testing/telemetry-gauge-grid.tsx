@@ -1,10 +1,13 @@
 import * as React from 'react';
 import { useRobotStore } from '@/state/robotStore';
 import { useTestingStore } from '@/state/testingStore';
+import { useCompoundStore } from '@/state/compoundStore';
 import { fetchConfigSnapshot, ConfigSnapshotDto } from '@/lib/config-api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { formatSigFig } from '@/lib/format';
+import { dashboardPanelCardClassName } from '@/components/dashboard/layout/constants';
+import { COMPOUND_TEST_PRESETS } from '@/data/compound-tests';
 
 const GAIN_LIMITS: Record<string, { kp_max: number; kd_max: number; tau_ff_max_nm: number; velocity_max_rad_s: number }> = {
   rs00: { kp_max: 500, kd_max: 5, tau_ff_max_nm: 17, velocity_max_rad_s: 50 },
@@ -16,15 +19,34 @@ const GAIN_LIMITS: Record<string, { kp_max: number; kd_max: number; tau_ff_max_n
 export function TelemetryGaugeGrid() {
   const { robotState } = useRobotStore();
   const { selectedJointNames } = useTestingStore();
+  const { selectedPresetId } = useCompoundStore();
   const [config, setConfig] = React.useState<ConfigSnapshotDto | null>(null);
 
   React.useEffect(() => {
     fetchConfigSnapshot().then(setConfig);
   }, []);
 
-  if (!robotState || selectedJointNames.length === 0) return null;
+  if (!robotState) return null;
 
-  const jointsToShow = robotState.joints.filter(j => selectedJointNames.includes(j.name));
+  let jointsToDisplay = selectedJointNames;
+  if (selectedPresetId) {
+    const preset = COMPOUND_TEST_PRESETS.find(p => p.id === selectedPresetId);
+    if (preset) {
+      jointsToDisplay = preset.joints;
+    }
+  }
+
+  if (jointsToDisplay.length === 0) {
+    return (
+      <Card variant="panel" className={dashboardPanelCardClassName}>
+        <CardContent className="py-8 text-center text-muted-foreground text-sm">
+          Select actuators to view telemetry.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const jointsToShow = robotState.joints.filter(j => jointsToDisplay.includes(j.name));
 
   return (
     <div className="grid gap-4">
@@ -43,8 +65,8 @@ export function TelemetryGaugeGrid() {
         const velPercent = velMax > 0 ? Math.abs(joint.velocity / velMax) * 100 : 0;
 
         return (
-          <Card key={joint.name}>
-            <CardHeader><CardTitle>{joint.name}</CardTitle></CardHeader>
+          <Card key={joint.name} variant="panel" className={dashboardPanelCardClassName}>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">{joint.name}</CardTitle></CardHeader>
             <CardContent className="space-y-2">
               <Gauge label="Position" value={joint.position} percent={posPercent} unit="rad" limit={`${posLower.toFixed(2)} → ${posUpper.toFixed(2)}`} />
               <Gauge label="Velocity" value={joint.velocity} percent={velPercent} unit="rad/s" limit={`±${velMax.toFixed(2)}`} />

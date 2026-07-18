@@ -7,6 +7,7 @@ import {
   type MitJointCommand,
 } from '@/gen/marengo/v1/marengo_pb';
 import { postTestingMitCommandBatch, postEnableCommand } from '@/lib/gateway-api';
+import { useCompoundStore } from '@/state/compoundStore';
 
 interface TestingStore {
   selectedJointNames: string[];
@@ -109,6 +110,7 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
   disable: async () => {
     await postEnableCommand(false);
     set({ isRunning: false });
+    useCompoundStore.getState().setIsRunning(false);
   },
 
   dispatchGainUpdate: async (jointName: string) => {

@@ -30,39 +30,118 @@ export type CandumpFrameDto = {
   line_no: number;
 };
 
+export type LogErrorKind =
+  | 'no_endpoint'
+  | 'unauthorized'
+  | 'not_found'
+  | 'unavailable'
+  | 'server'
+  | 'network';
+
+export type LogApiError = { kind: LogErrorKind; status?: number };
+
+export type LogApiResult<T> =
+  | { ok: true; data: T }
+  | { ok: false; error: LogApiError };
+
+export type AsyncSlice<T> = {
+  loading: boolean;
+  error: LogApiError | null;
+  data: T;
+};
+
+export type CandumpSummaryDto = {
+  frame_count: number;
+  bytes: number;
+  duration_s: number;
+  approx_hz: number;
+  interfaces: string[];
+  top_ids: string[];
+};
+
+function statusToKind(status: number): LogErrorKind {
+  if (status === 401) {
+    return 'unauthorized';
+  }
+  if (status === 404) {
+    return 'not_found';
+  }
+  if (status === 503) {
+    return 'unavailable';
+  }
+  if (status >= 500) {
+    return 'server';
+  }
+  return 'server';
+}
+
 function baseUrl(): string | null {
   return getChappeEndpoints()?.httpUrl ?? null;
 }
 
-async function logFetch<T>(path: string): Promise<T | null> {
+// Blob endpoints (bench/trace/candump bodies) may map store failures to HTTP 404,
+// so `not_found` can conflate "missing object" with upstream store errors.
+async function logFetch<T>(path: string): Promise<LogApiResult<T>> {
   const root = baseUrl();
   if (!root) {
-    return null;
+    return { ok: false, error: { kind: 'no_endpoint' } };
   }
   const token = import.meta.env.VITE_MARENGO_LOG_TOKEN as string | undefined;
   const headers: Record<string, string> = {};
   if (token?.trim()) {
     headers['x-marengo-log-token'] = token.trim();
   }
-  const res = await fetch(`${root}${path}`, { headers });
-  if (!res.ok) {
-    return null;
+  try {
+    const res = await fetch(`${root}${path}`, { headers });
+    if (!res.ok) {
+      return { ok: false, error: { kind: statusToKind(res.status), status: res.status } };
+    }
+    const data = (await res.json()) as T;
+    return { ok: true, data };
+  } catch {
+    return { ok: false, error: { kind: 'network' } };
   }
-  return (await res.json()) as T;
 }
 
-export async function fetchRecentLogs(limit = 5000): Promise<StructuredLogEntryDto[]> {
-  const data = await logFetch<{ entries: StructuredLogEntryDto[] }>(
+export function shouldShowLogErrorBanner(error: LogApiError | null | undefined): boolean {
+  return error != null && error.kind !== 'no_endpoint';
+}
+
+export function logErrorMessage(error: LogApiError): string {
+  switch (error.kind) {
+    case 'unauthorized':
+      return 'Log request rejected: gateway token invalid or required.';
+    case 'not_found':
+      return 'Log resource not found.';
+    case 'unavailable':
+      return 'Log store temporarily unavailable.';
+    case 'server':
+      return 'Log gateway returned a server error.';
+    case 'network':
+      return 'Could not reach the log gateway.';
+    case 'no_endpoint':
+      return '';
+  }
+}
+
+export async function fetchRecentLogs(
+  limit = 5000,
+): Promise<LogApiResult<StructuredLogEntryDto[]>> {
+  const result = await logFetch<{ entries: StructuredLogEntryDto[] }>(
     `/snapshot/logs/recent?limit=${limit}`,
   );
-  return data?.entries ?? [];
+  if (!result.ok) {
+    return result;
+  }
+  return { ok: true, data: result.data.entries };
 }
 
-export async function fetchSessions(limit = 50): Promise<LogSessionDto[]> {
-  const data = await logFetch<{ sessions: LogSessionDto[] }>(
-    `/logs/sessions?limit=${limit}`,
-  );
-  return data?.sessions ?? [];
+export async function fetchSessions(limit = 50): Promise<LogApiResult<LogSessionDto[]>> {
+  const result = await logFetch<{ sessions: LogSessionDto[] }>(`/logs/sessions?limit=${limit}`);
+  if (!result.ok) {
+    return result;
+  }
+  return { ok: true, data: result.data.sessions };
 }
 
 export async function fetchStructuredLogs(params: {
@@ -70,60 +149,53 @@ export async function fetchStructuredLogs(params: {
   level?: string;
   offset?: number;
   limit?: number;
-}): Promise<{ entries: StructuredLogEntryDto[]; total: number }> {
+}): Promise<LogApiResult<{ entries: StructuredLogEntryDto[]; total: number }>> {
   const search = new URLSearchParams();
   if (params.q) search.set('q', params.q);
   if (params.level) search.set('level', params.level);
   if (params.offset !== undefined) search.set('offset', String(params.offset));
   search.set('limit', String(params.limit ?? 200));
-  const data = await logFetch<{ entries: StructuredLogEntryDto[]; total: number }>(
+  return logFetch<{ entries: StructuredLogEntryDto[]; total: number }>(
     `/logs/structured?${search.toString()}`,
   );
-  return data ?? { entries: [], total: 0 };
 }
 
 export async function fetchCandumpPage(
   sessionId: string | 'latest',
   offset = 0,
   limit = 200,
-): Promise<{ frames: CandumpFrameDto[]; total_frames: number }> {
+): Promise<LogApiResult<{ frames: CandumpFrameDto[]; total_frames: number }>> {
   const path =
     sessionId === 'latest'
       ? `/logs/sessions/latest/candump?offset=${offset}&limit=${limit}`
       : `/logs/sessions/${encodeURIComponent(sessionId)}/candump?offset=${offset}&limit=${limit}`;
-  const data = await logFetch<{ frames: CandumpFrameDto[]; total_frames: number }>(path);
-  return data ?? { frames: [], total_frames: 0 };
+  return logFetch<{ frames: CandumpFrameDto[]; total_frames: number }>(path);
 }
 
-export async function fetchCandumpSummary(sessionId: string) {
-  return logFetch<{
-    frame_count: number;
-    bytes: number;
-    duration_s: number;
-    approx_hz: number;
-    interfaces: string[];
-    top_ids: string[];
-  }>(`/logs/sessions/${encodeURIComponent(sessionId)}/candump/summary`);
+export async function fetchCandumpSummary(
+  sessionId: string,
+): Promise<LogApiResult<CandumpSummaryDto>> {
+  return logFetch<CandumpSummaryDto>(
+    `/logs/sessions/${encodeURIComponent(sessionId)}/candump/summary`,
+  );
 }
 
 export async function fetchBenchLines(
   sessionId: string,
   offset = 0,
   limit = 200,
-): Promise<{ lines: string[]; total: number }> {
-  const data = await logFetch<{ lines: string[]; total: number }>(
+): Promise<LogApiResult<{ lines: string[]; total: number }>> {
+  return logFetch<{ lines: string[]; total: number }>(
     `/logs/sessions/${encodeURIComponent(sessionId)}/bench?offset=${offset}&limit=${limit}`,
   );
-  return data ?? { lines: [], total: 0 };
 }
 
 export async function fetchTraceLines(
   sessionId: string,
   offset = 0,
   limit = 200,
-): Promise<{ lines: string[]; total: number }> {
-  const data = await logFetch<{ lines: string[]; total: number }>(
+): Promise<LogApiResult<{ lines: string[]; total: number }>> {
+  return logFetch<{ lines: string[]; total: number }>(
     `/logs/sessions/${encodeURIComponent(sessionId)}/trace?offset=${offset}&limit=${limit}`,
   );
-  return data ?? { lines: [], total: 0 };
 }
