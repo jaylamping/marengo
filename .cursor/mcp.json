@@ -14,7 +14,7 @@
         "MARENGO_PI_HOST": "joey-robot.tail0b414.ts.net",
         "MARENGO_PI_USER": "joey",
         "MARENGO_PI_ROOT": "/opt/marengo",
-        "MARENGO_CONFIG_DIR": "/opt/marengo/config/bringup/shoulder_pitch_right_only",
+        "MARENGO_CONFIG_DIR": "/opt/marengo/config/bringup/arm_2dof_right",
         "MARENGO_BENCH_PROFILE": "bare_motor"
       }
     },
@@ -30,15 +30,6 @@
       "env": {
         "MARENGO_RESEARCH_CACHE_DIR": "${workspaceFolder}/.marengo-research",
         "MARENGO_WORKSPACE": "${workspaceFolder}"
-      }
-    },
-    "mem0": {
-      "command": "node",
-      "args": ["${workspaceFolder}/tools/mem0-mcp/dist/index.js"],
-      "env": {
-        "MEM0_API_URL": "https://joey-pc.tail0b414.ts.net:8888",
-        "MEM0_API_KEY": "${env:MEM0_API_KEY}",
-        "MEM0_USER_ID": "marengo-joey"
       }
     },
     "context7": {

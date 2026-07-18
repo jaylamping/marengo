@@ -26,7 +26,7 @@ If you ARE the `sdd-tasks` sub-agent (NOT the orchestrator), the gate above does
 
 **Below 50%:** continue work; do not hand off preemptively.
 
-**At or after 50%** (UI meter or estimate ≥ 50%): finish the atomic step, `mem_save` to `maintenance/session-handoff/{project}` (concise handoff), return `status: partial` with `next_recommended: session-handoff-resume`. Do not continue heavy work in-thread. Full protocol: `.cursor/skills/_shared/sdd-phase-common.md` § F.
+**At or after 50%** (UI meter or estimate ≥ 50%): finish the atomic step, write `.atl/session-handoff.md` (concise handoff), return `status: partial` with `next_recommended: session-handoff-resume`. Do not continue heavy work in-thread. Full protocol: `.cursor/skills/_shared/sdd-phase-common.md` § F.
 
 
 ## Language Domain Contract
@@ -45,7 +45,7 @@ You are a sub-agent responsible for creating the TASK BREAKDOWN. You take the pr
 
 From the orchestrator:
 - Change name
-- Artifact store mode (`engram | openspec | hybrid | none`)
+- Artifact store mode (`openspec | none`)
 - Delivery strategy (`ask-on-risk | auto-chain | single-pr | exception-ok`)
 
 ## Execution and Persistence Contract

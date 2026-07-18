@@ -6,7 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { dashboardGlassCardClassName } from '@/components/dashboard/layout/constants';
+import { dashboardPanelCardClassName } from '@/components/dashboard/layout/constants';
 import { cn } from '@/lib/utils';
 
 type JointCardProps = {
@@ -27,9 +27,9 @@ export function JointCard({ joint, wired }: JointCardProps) {
 
   return (
     <Card
-      variant="glass"
+      variant="panel"
       data-testid="joint-card"
-      className={cn('@container/card', dashboardGlassCardClassName)}
+      className={cn('@container/card', dashboardPanelCardClassName)}
     >
       <CardHeader>
         <CardDescription>{joint.node}</CardDescription>

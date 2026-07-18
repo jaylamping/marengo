@@ -1,11 +1,17 @@
 # SolidWorks editor lock files
 ~$*
-
+# CAD binaries — local SolidWorks tree only (not in git). Manifests + README stay tracked.
+cad/assemblies/
+cad/parts/
+cad/exports/
+cad/vendor/**
+!cad/vendor/incoming/
+cad/vendor/incoming/**
+!cad/vendor/incoming/README.md
 # CAD scratch copies (keep history in git, not duplicate assemblies)
 cad/**/*-OLD.*
 cad/**/*-OLD
 cad/**/*-BROKEN*
-
 /target/
 **/*.rs.bk
 .DS_Store
@@ -14,24 +20,19 @@ cad/**/*-BROKEN*
 .idea/
 .vscode/
 *.local
-
 # KiCad / fab artifacts (regenerate locally)
 hardware/electrical/**/gerbers/
 hardware/electrical/**/fp-info-cache
 hardware/electrical/**/-backups/
-
 # Frontend
 consul/node_modules/
 consul/.marengo-npm-stamp
 tools/marengo-pi-mcp/node_modules/
-tools/mem0-mcp/node_modules/
-tools/mem0-mcp/dist/
 tools/marengo-pi-mcp/dist/
 tools/protoc-*/
 consul/dist/
 consul/src/gen/*
 !consul/src/gen/.checksum
-
 # Local secrets / overrides
 .env
 *.pem
@@ -44,17 +45,31 @@ scripts/scratch_*.py
 tools/marengo-research-mcp/.venv/
 tools/marengo-research-mcp/**/__pycache__/
 scripts/daily-audit/__pycache__/
-
 # Pi bench session logs (runtime on device; not committed)
 var/log/
-
 # Local deploy staging (docker cross-build rsync bundle)
 .pi-deploy-staging/
 .pi-deploy/
 .pi-staging/
 /bin/
-
 # Local scratch notes (not docs); agent/session scratch above — delete when done
 /markdown
 # Local AI runtime state
+.omo/
 .atl/
+.agents/local.json
+.agents/generated/
+CLAUDE.md
+.agents/mcp_config.json
+.codex/
+.gemini/
+.mcp.json
+.vscode/mcp.json
+.claude/skills
+.cursor/
+.antigravity/
+.windsurf/
+.opencode/
+opencode.json
+.junie/mcp/
+.junie/skills

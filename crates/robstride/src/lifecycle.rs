@@ -43,6 +43,23 @@ pub fn encode_default_set_zero_position(device_id: u8) -> (u32, [u8; 8]) {
     encode_set_zero_position(DEFAULT_HOST_ID, device_id)
 }
 
+/// Active reporting (comm type 24) — manual §4.1.11 payload `01..06 F_CMD`; F_CMD 00=off, 01=on.
+pub fn encode_active_reporting(host_id: u8, device_id: u8, enable: bool) -> (u32, [u8; 8]) {
+    let f_cmd = if enable { 0x01 } else { 0x00 };
+    (
+        pack_typed_ext_id(
+            CommunicationType::ActiveReporting,
+            u16::from(host_id),
+            device_id,
+        ),
+        [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, f_cmd, 0x00],
+    )
+}
+
+pub fn encode_default_active_reporting(device_id: u8, enable: bool) -> (u32, [u8; 8]) {
+    encode_active_reporting(DEFAULT_HOST_ID, device_id, enable)
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::expect_used)]
@@ -72,5 +89,32 @@ mod tests {
         );
         assert_eq!(unpacked.extra_data, u16::from(DEFAULT_HOST_ID));
         assert_eq!(unpacked.device_id, 12);
+    }
+
+    #[test]
+    fn active_reporting_enable_matches_manual_section_4_1_11() {
+        let (id, data) = encode_active_reporting(DEFAULT_HOST_ID, 12, true);
+        assert_eq!(id, 0x1800_FD0C);
+        assert_eq!(data, [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x01, 0x00]);
+        let unpacked = unpack_ext_id(id).expect("extended id");
+        assert_eq!(
+            unpacked.comm_type,
+            CommunicationType::ActiveReporting.as_u8()
+        );
+        assert_eq!(unpacked.extra_data, u16::from(DEFAULT_HOST_ID));
+        assert_eq!(unpacked.device_id, 12);
+    }
+
+    #[test]
+    fn active_reporting_disable_uses_f_cmd_zero() {
+        let (id, data) = encode_active_reporting(DEFAULT_HOST_ID, 3, false);
+        assert_eq!(id, 0x1800_FD03);
+        assert_eq!(data, [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x00, 0x00]);
+        let unpacked = unpack_ext_id(id).expect("extended id");
+        assert_eq!(
+            unpacked.comm_type,
+            CommunicationType::ActiveReporting.as_u8()
+        );
+        assert_eq!(unpacked.device_id, 3);
     }
 }

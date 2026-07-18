@@ -3,6 +3,8 @@ import type { BenchProfile } from "./config.js";
 export const WEIGHTED_PROFILES: BenchProfile[] = [
   "weighted_single_arm",
   "arm_attached",
+  "roll_attached",
+  "arm_2dof_smoke",
 ];
 
 export interface MotionConfirmArgs {

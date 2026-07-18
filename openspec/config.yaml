@@ -1,0 +1,67 @@
+schema: spec-driven
+
+context: |
+  Project: Marengo — personal humanoid robot (CAD + wiring + URDF + Rust runtime).
+  Stack: Rust 1.88 workspace (Armée: 16 crates, 9 bins) + Consul (Vite 8, React 19, TypeScript 5.8, Vitest 4).
+  Wire: protobuf-first (proto/ → armee-proto + consul/src/gen/); Chappe IPC; Berthier → Davout → robstride motor path.
+  Active bench: config/bringup/arm_2dof_right/ on Pi (marengo-pi, marengo-gateway, motor-repl).
+  CI gate: just check / scripts/check.sh — buf lint, consul build, cargo fmt/clippy/test, deny, audit.
+  Conventions: AGENTS.md, docs/rust-patterns.md, docs/safety.md; no unwrap in crates/; no hand-edited gen/.
+
+strict_tdd: true
+
+testing:
+  detected: "2026-07-18"
+  runner:
+    rust:
+      command: cargo test --workspace
+      framework: cargo test
+    consul:
+      command: cd consul && npm test
+      framework: vitest
+  layers:
+    unit:
+      rust: true
+      consul: true
+    integration:
+      rust: true  # crate tests/, sim-harness, robstride socketcan (--ignored)
+      consul: true  # @testing-library/react + jsdom
+    e2e: false
+  coverage:
+    available: false
+  quality:
+    formatter:
+      rust: cargo fmt --all -- --check
+      consul: tsc -b (via npm run build)
+    linter:
+      rust: cargo clippy --workspace --all-targets -- -D warnings
+      proto: buf lint proto
+    typecheck:
+      consul: npm run typecheck
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes
+    - Respect motor safety path (Berthier → Davout → robstride); no CAN shortcuts
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Include sequence diagrams for complex flows
+    - Document architecture decisions with rationale
+    - Proto changes start in proto/; regenerate Rust + TS codegen
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+    - Forecast 400-line PR review budget per sdd-phase-common.md § E
+  apply:
+    - Follow existing code patterns in AGENTS.md and docs/rust-patterns.md
+    tdd: false
+    test_command: cargo test --workspace && cd consul && npm test
+  verify:
+    test_command: cargo test --workspace && cd consul && npm test
+    build_command: just check-native
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas
+    - Never hand-edit consul/src/gen/

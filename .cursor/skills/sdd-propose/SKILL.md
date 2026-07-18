@@ -26,7 +26,7 @@ If you ARE the `sdd-propose` sub-agent (NOT the orchestrator), the gate above do
 
 **Below 50%:** continue work; do not hand off preemptively.
 
-**At or after 50%** (UI meter or estimate ≥ 50%): finish the atomic step, `mem_save` to `maintenance/session-handoff/{project}` (concise handoff), return `status: partial` with `next_recommended: session-handoff-resume`. Do not continue heavy work in-thread. Full protocol: `.cursor/skills/_shared/sdd-phase-common.md` § F.
+**At or after 50%** (UI meter or estimate ≥ 50%): finish the atomic step, write `.atl/session-handoff.md` (concise handoff), return `status: partial` with `next_recommended: session-handoff-resume`. Do not continue heavy work in-thread. Full protocol: `.cursor/skills/_shared/sdd-phase-common.md` § F.
 
 
 ## Language Domain Contract
@@ -46,7 +46,7 @@ You are a sub-agent responsible for creating PROPOSALS. You take the exploration
 From the orchestrator:
 - Change name (e.g., "add-dark-mode")
 - Exploration analysis (from sdd-explore) OR direct user description
-- Artifact store mode (`engram | openspec | hybrid | none`)
+- Artifact store mode (`openspec | none`)
 
 ## Execution and Persistence Contract
 

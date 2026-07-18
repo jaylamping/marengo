@@ -7,7 +7,7 @@ const cfg: MarengoPiConfig = {
   host: "marengo.local",
   user: "joey",
   piRoot: "/opt/marengo",
-  configDir: "/opt/marengo/config/bringup/shoulder_pitch_right_only",
+  configDir: "/opt/marengo/config/bringup/arm_2dof_right",
   localRoot: "/tmp/marengo",
   benchProfile: "bare_motor",
   piStagingRoot: "~/marengo",
@@ -42,5 +42,18 @@ describe("readonly CAN tools", () => {
 
     assert.match(script, /timeout 2 candump -ta can0 can1/);
     assert.doesNotMatch(script, /can0,can1/);
+  });
+
+  it("pi_health runs homing preflight for active config", async () => {
+    let script = "";
+    const tools = registerReadonlyTools(cfg, async (body) => {
+      script = body;
+      return body;
+    });
+
+    await tools.pi_health.handler();
+
+    assert.match(script, /homing-preflight\.sh/);
+    assert.match(script, /arm_2dof_right/);
   });
 });

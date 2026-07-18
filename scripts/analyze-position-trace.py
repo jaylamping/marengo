@@ -49,6 +49,7 @@ class SegmentReport:
     tau_ff_max_slew_nm_s: float
     dq_traj_stutter_events: int
     jerk_rms_rad_s2: float
+    planner_event_counts: dict[str, int] = field(default_factory=dict)
     phase_counts: dict[str, int] = field(default_factory=dict)
     hints: list[str] = field(default_factory=list)
     gate_checks: dict[str, bool] = field(default_factory=dict)
@@ -287,7 +288,21 @@ def _analyze_segment(seg: list[dict[str, str]]) -> SegmentReport:
     for p in phases:
         phase_counts[p] = phase_counts.get(p, 0) + 1
 
+    planner_event_counts: dict[str, int] = {}
+    for r in seg:
+        if not _has(r, "planner_event"):
+            continue
+        ev = r["planner_event"].strip() or "tick"
+        planner_event_counts[ev] = planner_event_counts.get(ev, 0) + 1
+    churn = sum(
+        n for k, n in planner_event_counts.items() if k not in ("tick", "")
+    )
+
     hints: list[str] = []
+    if churn >= 8:
+        hints.append(
+            f"planner_event churn x{churn}: {planner_event_counts} — check reset/latch near target"
+        )
     lead_frac = sum(lead_sat) / len(lead_sat)
     if lead_frac > 0.35:
         hints.append(
@@ -335,6 +350,7 @@ def _analyze_segment(seg: list[dict[str, str]]) -> SegmentReport:
         tau_ff_max_slew_nm_s=max_tau_slew,
         dq_traj_stutter_events=stutter,
         jerk_rms_rad_s2=jerk_rms,
+        planner_event_counts=planner_event_counts,
         phase_counts=phase_counts,
         hints=hints,
         gate_checks={},
@@ -464,6 +480,8 @@ def _print_human(report: dict) -> None:
             f"dq_traj stutter={seg['dq_traj_stutter_events']}"
         )
         print(f"  phases: {seg['phase_counts']}")
+        if seg.get("planner_event_counts"):
+            print(f"  planner_events: {seg['planner_event_counts']}")
         if seg.get("gate_checks"):
             failed = [k for k, ok in seg["gate_checks"].items() if not ok]
             status = "PASS" if not failed else f"FAIL ({', '.join(failed)})"

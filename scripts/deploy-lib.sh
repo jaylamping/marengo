@@ -378,3 +378,54 @@ compose_ssh_preflight() {
   echo "    - Host SSH: ssh -o BatchMode=yes ${host} true" >&2
   return 1
 }
+
+# --- deploy revision (single writer: install-pi.sh → /opt/marengo/.deploy-rev) ---
+
+# Root install-pi runs git as root; without safe.directory git refuses /opt/marengo (owned by marengo).
+ensure_git_safe_directory() {
+  local repo_root="$1"
+  git config --global --add safe.directory "$repo_root" 2>/dev/null || true
+}
+
+# Write bundle-travelling .deploy-rev before rsync (SHA from deploy machine HEAD).
+stage_deploy_rev() {
+  local repo_root="$1"
+  local staging_dir="$2"
+  local sha ts
+  ensure_git_safe_directory "$repo_root"
+  sha="$(git -C "$repo_root" rev-parse HEAD)"
+  ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  printf '%s %s\n' "$sha" "$ts" >"${staging_dir}/.deploy-rev"
+}
+
+# Install .deploy-rev into INSTALL_ROOT.
+# Staged file applies only when bundle_root != install_root (rsync staging → /opt).
+# In-place install (same root) refreshes from git HEAD — never re-reads stale canonical file.
+install_deploy_rev() {
+  local bundle_root="$1"
+  local install_root="$2"
+  local content=""
+  local staged="${bundle_root}/.deploy-rev"
+  local same_root=false
+
+  if [[ "$bundle_root" == "$install_root" ]]; then
+    same_root=true
+  fi
+
+  ensure_git_safe_directory "$bundle_root"
+
+  if ! $same_root && [[ -f "$staged" ]]; then
+    content="$(tr -d '\r' <"$staged" | head -1)"
+  elif git -C "$bundle_root" rev-parse HEAD >/dev/null 2>&1; then
+    local sha ts
+    sha="$(git -C "$bundle_root" rev-parse HEAD)"
+    ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    content="${sha} ${ts}"
+  elif $same_root && [[ -f "${install_root}/.deploy-rev" ]]; then
+    content="$(tr -d '\r' <"${install_root}/.deploy-rev" | head -1)"
+  else
+    echo "error: no staged .deploy-rev, ${bundle_root} is not a git checkout, and no existing ${install_root}/.deploy-rev" >&2
+    return 1
+  fi
+  install -m 644 /dev/stdin "${install_root}/.deploy-rev" <<<"${content}"
+}

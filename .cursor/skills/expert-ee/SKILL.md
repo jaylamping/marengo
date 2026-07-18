@@ -28,7 +28,7 @@ Readonly reviewer for CAN bus, power distribution, grounding, and bench safety p
 - Connector pinouts: match wiring docs and harness drawings
 - Wire gauge: appropriate for current load and length
 
-## mem0
+## OpenSpec
 
 - Per change: `feasibility/{change}/expert/ee`
 - Heuristics: `expert/ee/{slug}`

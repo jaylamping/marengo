@@ -37,11 +37,18 @@
 
 mod friction;
 mod r#loop;
+mod position_feedforward;
+mod position_profile;
+mod position_setpoint;
 mod position_trace;
 mod position_trajectory;
+mod position_wave;
+
+#[cfg(test)]
+mod mode_isolation;
 
 pub use davout::ControlMode;
-pub use r#loop::{proto_control_mode, ControlLoop, LoopError};
+pub use r#loop::{proto_control_mode, ControlLoop, GainOverride, LoopError, TickPhaseAverages};
 
 use davout::{DavoutError, JointCommand, OperationalMode, Supervisor};
 use thiserror::Error;

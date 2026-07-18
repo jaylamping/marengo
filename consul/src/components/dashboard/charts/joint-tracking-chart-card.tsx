@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef } from 'react';
 
-import { dashboardGlassCardClassName } from '@/components/dashboard/layout/constants';
+import { dashboardPanelCardClassName } from '@/components/dashboard/layout/constants';
 import { ChartTimeRangeControls } from '@/components/dashboard/charts/chart-time-range-controls';
 import { dummyShoulderPitchTracking } from '@/components/dashboard/charts/constants';
 import { useChartTimeRange } from '@/components/dashboard/charts/hooks/use-chart-time-range';
@@ -77,8 +77,8 @@ export function JointTrackingChartCard({ series: _seriesProp }: JointTrackingCha
 
   return (
     <Card
-      variant="glass"
-      className={cn('@container/card', dashboardGlassCardClassName)}
+      variant="panel"
+      className={cn('@container/card', dashboardPanelCardClassName)}
     >
       <CardHeader>
         <CardTitle>{series.title}</CardTitle>

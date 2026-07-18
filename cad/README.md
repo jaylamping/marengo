@@ -1,10 +1,17 @@
-# CAD
+# CAD (local only)
 
-SolidWorks models, vendor imports, and CAD manifests for Marengo. Joint names, axes, and limits live in [hardware/docs/kinematics.md](../hardware/docs/kinematics.md). After export, runtime reads [assets/urdf/marengo.urdf](../assets/urdf/marengo.urdf).
+SolidWorks models and vendor imports are **not stored in git**. Keep your working tree under `cad/` on your machine (or a separate `marengo-cad` clone at the same path). Joint names, axes, and limits live in [hardware/docs/kinematics.md](../hardware/docs/kinematics.md). After export, runtime reads [assets/urdf/marengo.urdf](../assets/urdf/marengo.urdf).
 
-Root assembly: `assemblies/marengo.SLDASM`.
+Root assembly: `assemblies/marengo.SLDASM` (local).
 
-## Layout
+## What stays in this repo
+
+| Path | Purpose |
+|------|---------|
+| `manifests/` | MCP conventions, vendor registry, design packages (text JSON) |
+| `vendor/incoming/README.md` | Vendor intake notes |
+
+## Local layout (gitignored)
 
 | Path | Purpose |
 |------|---------|
@@ -12,10 +19,19 @@ Root assembly: `assemblies/marengo.SLDASM`.
 | `parts/` | Marengo-authored `.SLDPRT` by subsystem |
 | `vendor/` | Vendor STEP and imported `.SLDPRT` |
 | `vendor/incoming/` | Drop downloads here before promoting to `vendor/` |
-| `exports/` | Neutral STEP/STL from MCP `solidworks_export` (optional mirror of `assets/`) |
-| `manifests/` | Conventions, vendor registry, design packages (MCP audits) |
+| `exports/` | Neutral STEP/STL from MCP `solidworks_export` |
 
-Large binaries use Git LFS (root [.gitattributes](../.gitattributes)).
+## Setup
+
+Clone marengo for software, then restore CAD locally (backup, separate repo, or `git lfs pull` from an archive):
+
+```powershell
+# Example: sibling clone used only for CAD binaries
+git clone <marengo-cad-archive-url> C:\code\marengo-cad
+# Symlink or copy assemblies/parts/vendor into C:\code\marengo\cad\
+```
+
+SolidWorks MCP allowed root remains `C:/code/marengo` — your local `cad/` tree must exist there for automation.
 
 ## Naming
 
@@ -49,36 +65,29 @@ npm run promote:corner-bracket   # incoming → vendor_2028_corner_bracket_vendo
 
 Required on links and actuated joints before Brawner export:
 
-| Name | Use |
-|------|-----|
-| `urdf_link_frame` | Link origin / URDF `<origin>` |
-| `joint_axis` | Revolute/prismatic axis |
-| `mount_face` | Interface plane |
-| `shaft_axis` | Bearing / actuator bore |
-| `bolt_circle` | Fastener pattern |
-| `cable_exit` | Harness routing |
-| `tool_access` | End-effector clearance |
+| Name | Type | Purpose |
+|------|------|---------|
+| `urdf_link_frame` | coordinate system | Link origin for URDF |
+| `joint_axis` | axis | Revolute axis (right-hand rule) |
+| `cable_exit` | plane or point | Harness routing |
+| `mount_face` | plane | Actuator or bracket interface |
 
-Instance and joint names must match [hardware/docs/kinematics.md](../hardware/docs/kinematics.md).
+See [hardware/docs/kinematics.md](../hardware/docs/kinematics.md) for joint naming.
 
-## Hardware instances
+## Hardware folder
 
 Place fasteners, inserts, and purchased hardware under a top-level feature folder named `Hardware` (see `manifests/cad-conventions.json`). Use real Toolbox or vendor STEP components, not cosmetic-only geometry, so BOM and `marengo_hardware_coverage` can count them.
 
-## Vendor CAD and BOM
+## BOM alignment
 
 1. Add a row to [hardware/bom/master-bom.csv](../hardware/bom/master-bom.csv) with `part_id` aligned to [manifests/vendor-assets.json](manifests/vendor-assets.json) `id` when possible.
-2. Stage vendor STEP under `vendor/incoming/`, then promote to `vendor/`.
-3. Run MCP `marengo_vendor_registry_summary` and `marengo_hardware_coverage` before calling an assembly build-ready.
+2. Run `marengo_hardware_coverage` before major assembly saves.
 
-## Export to URDF (manual)
+## Workflow
 
-1. Model in SolidWorks under `assemblies/marengo.SLDASM`.
-2. Run MCP `marengo_urdf_readiness` and `marengo_kinematics_consistency`.
-3. Export with Brawner / sw2urdf to [assets/urdf/marengo.urdf](../assets/urdf/marengo.urdf).
-4. Run MCP `marengo_urdf_export_postcheck`.
-5. Copy meshes per [scripts/export-urdf.sh](../scripts/export-urdf.sh), then `./scripts/urdf-to-mjcf.sh` and `just check`.
-
-## MCP session
+1. Model in SolidWorks under `assemblies/marengo.SLDASM` (local).
+2. Run `marengo_design_review` before saving assemblies.
+3. Export URDF manually (Brawner) → `assets/urdf/marengo.urdf`.
+4. Run `scripts/validate-urdf.sh` and update [hardware/docs/kinematics.md](../hardware/docs/kinematics.md) if joints changed.
 
 Open [marengo.code-workspace](../marengo.code-workspace) (marengo + solidworks-mcp). Build MCP after worker changes: `npm run build` in `solidworks-mcp`. Allowed CAD root is `C:/code/marengo` only.

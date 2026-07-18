@@ -170,12 +170,13 @@ build_consul_assets() {
   ensure_consul_deps
   (
     cd "${ROOT}/consul"
-    npm run build
+    env -u VITE_CHAPPE_HTTP_URL -u VITE_CHAPPE_WEBTRANSPORT_URL npm run build
   )
   if [[ ! -f "${ROOT}/consul/dist/index.html" ]]; then
     echo "error: consul build did not produce dist/index.html" >&2
     exit 1
   fi
+  "${ROOT}/scripts/check-consul-dist.sh"
   log_step "Consul build done"
 }
 
@@ -222,6 +223,7 @@ mkdir -p "$STAGING/www"
 if [[ -d "${ROOT}/consul/dist" ]]; then
   stage_copy_tree "${ROOT}/consul/dist" "$STAGING/www" true
 fi
+stage_deploy_rev "${ROOT}" "${STAGING}"
 
 REMOTE_ROOT="${MARENGO_INSTALL_ROOT:-~/marengo}"
 compose_ssh_preflight "$PI_HOST"
@@ -233,7 +235,7 @@ if [[ "$DO_INSTALL" == true ]]; then
   log_step "install-pi.sh on ${PI_HOST}"
   # Narrow sudoers allow specific scripts only — not `sudo -n true`.
   if compose_ssh "$PI_HOST" "set -euo pipefail; sudo -n ${REMOTE_ROOT}/scripts/install-pi.sh"; then
-    compose_ssh "$PI_HOST" "echo \$(git -C /opt/marengo rev-parse HEAD 2>/dev/null || echo unknown) \$(date -u +%Y-%m-%dT%H:%M:%SZ) > ${REMOTE_ROOT}/.deploy-rev && cat ${REMOTE_ROOT}/.deploy-rev" || true
+    log_note "deploy rev staged: $(cat "${STAGING}/.deploy-rev")"
   else
     log_warn "passwordless sudo install failed (run once on Pi: sudo ${REMOTE_ROOT}/scripts/install-pi.sh)"
   fi

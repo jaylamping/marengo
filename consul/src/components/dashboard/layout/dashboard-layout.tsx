@@ -23,6 +23,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       className={dashboardLayoutRootClassName}
     >
       <SceneBackground />
+      <div className="app-vignette" aria-hidden />
       <SidebarProvider
         style={dashboardLayoutStyle}
         className={dashboardChromeClassName}

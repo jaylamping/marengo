@@ -27,11 +27,8 @@ Supporting crates: `armee-proto` (protobuf codegen), `armee-kinematics`, `robstr
 marengo/
 ├── Cargo.toml              # Armée workspace root
 ├── proto/                  # Protobuf wire types
-├── cad/                  # SolidWorks + vendor STEP (Git LFS)
-│   ├── assemblies/       # marengo.SLDASM tree
-│   ├── parts/            # Authored .SLDPRT
-│   ├── vendor/           # Vendor imports
-│   └── manifests/        # MCP conventions + registry
+├── cad/                  # SolidWorks tree (local only); manifests tracked for MCP
+│   └── manifests/        # MCP conventions + vendor registry (JSON)
 ├── hardware/             # Electrical, prints, BOM, hardware docs
 │   ├── electrical/       # PDB, harness, CAN docs
 │   ├── prints/             # STLs + slicer notes
@@ -49,7 +46,7 @@ marengo/
 └── scripts/                # URDF export, deploy helpers
 ```
 
-CAD, STL, and ONNX files go through Git LFS. See [.gitattributes](.gitattributes).
+ONNX policies use Git LFS when present. See [.gitattributes](.gitattributes). CAD binaries are local-only — [cad/README.md](cad/README.md).
 
 ## Software
 

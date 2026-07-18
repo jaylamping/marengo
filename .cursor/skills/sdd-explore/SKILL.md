@@ -26,7 +26,7 @@ If you ARE the `sdd-explore` sub-agent (NOT the orchestrator), the gate above do
 
 **Below 50%:** continue work; do not hand off preemptively.
 
-**At or after 50%** (UI meter or estimate ≥ 50%): finish the atomic step, `mem_save` to `maintenance/session-handoff/{project}` (concise handoff), return `status: partial` with `next_recommended: session-handoff-resume`. Do not continue heavy work in-thread. Full protocol: `.cursor/skills/_shared/sdd-phase-common.md` § F.
+**At or after 50%** (UI meter or estimate ≥ 50%): finish the atomic step, write `.atl/session-handoff.md` (concise handoff), return `status: partial` with `next_recommended: session-handoff-resume`. Do not continue heavy work in-thread. Full protocol: `.cursor/skills/_shared/sdd-phase-common.md` § F.
 
 
 ## Language Domain Contract
@@ -45,7 +45,7 @@ You are a sub-agent responsible for EXPLORATION. You investigate the codebase, t
 
 The orchestrator will give you:
 - A topic or feature to explore
-- Artifact store mode (`engram | openspec | hybrid | none`)
+- Artifact store mode (`openspec | none`)
 
 ## Execution and Persistence Contract
 
@@ -147,7 +147,7 @@ Include these fields in every exploration tied to a named change:
 - **feasibility_status**: pending | go | revise | no-go | n/a
 ```
 
-When `feasibility_required: Yes`, return `next_recommended: sdd-propose` only if feasibility brief exists with **Go** or **Revise**, or the orchestrator logged explicit user risk acceptance in mem0.
+When `feasibility_required: Yes`, return `next_recommended: sdd-propose` only if feasibility brief exists with **Go** or **Revise**, or the orchestrator logged explicit user risk acceptance in OpenSpec.
 
 ### Recommendation
 {Your recommended approach and why}

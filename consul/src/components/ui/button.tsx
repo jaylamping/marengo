@@ -9,9 +9,10 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/80",
-        glass:
-          "relative isolate overflow-hidden border-neutral-300/60 [border-top-color:var(--glass-refraction-top)] bg-white/50 text-foreground backdrop-blur-xl backdrop-saturate-[180%] shadow-[0_0_0_1px_rgb(255_255_255_/_0.4)_inset,0_10px_22px_-14px_rgb(15_23_42_/_0.18)] before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-white/70 before:to-transparent hover:-translate-y-px hover:bg-white/60 dark:border-white/[0.12] dark:bg-[linear-gradient(155deg,rgb(255_255_255_/_0.1),rgb(255_255_255_/_0.04))] dark:shadow-[0_0_0_1px_rgb(255_255_255_/_0.08)_inset,0_8px_20px_-12px_rgb(0_0_0_/_0.5)] dark:before:via-white/20",
+        default:
+          "bg-primary text-primary-foreground hover:bg-primary/85 hover:shadow-glow-accent",
+        panel:
+          "border-line bg-surface-2/50 text-foreground hover:border-line-strong hover:bg-surface-2",
         outline:
           "border-border hover:bg-input/50 hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:bg-input/30",
         secondary:

@@ -14,8 +14,8 @@ import { cn } from '@/lib/utils';
 
 const levelClasses = {
   info: 'text-muted-foreground',
-  warn: 'text-amber-400',
-  error: 'text-red-400',
+  warn: 'text-warning',
+  error: 'text-fault',
 } as const;
 
 type SimEventLogProps = {

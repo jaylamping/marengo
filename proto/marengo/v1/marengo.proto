@@ -20,6 +20,8 @@ message JointState {
   double position = 2;
   double velocity = 3;
   double effort = 4;
+  float temperature_c = 5;  // motor casing temperature (°C)
+  uint32 fault = 6;         // Robstride fault bitmask
 }
 
 message RobotState {
@@ -118,6 +120,8 @@ message MitJointCommand {
   double position = 4;
   double velocity = 5;
   double torque_ff = 6;
+  double ki = 7;  // integral gain (Testing page)
+  double fc = 8;  // Coulomb friction compensation (Testing page)
 }
 
 message MitCommandBatch {

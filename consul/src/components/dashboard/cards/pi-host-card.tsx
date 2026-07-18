@@ -26,20 +26,8 @@ import {
   useHostMetricsStore,
 } from '@/state/hostMetricsStore';
 import { useRobotStore } from '@/state/robotStore';
+import { formatUptime, bytesToGb } from '@/lib/host-card-utils';
 
-function formatUptime(seconds: bigint | number): string {
-  const total = Number(seconds);
-  const hours = Math.floor(total / 3600);
-  const minutes = Math.floor((total % 3600) / 60);
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  }
-  return `${minutes}m`;
-}
-
-function bytesToGb(bytes: bigint | number): number {
-  return Number(bytes) / 1024 ** 3;
-}
 
 function livePiMetrics(
   metrics: ReturnType<typeof useHostMetricsStore.getState>['piMetrics'],

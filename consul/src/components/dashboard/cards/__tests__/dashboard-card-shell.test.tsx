@@ -3,21 +3,22 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 
 import { DashboardCardShell } from '@/components/dashboard/cards/dashboard-card-shell';
-import { dashboardGlassCardClassName } from '@/components/dashboard/layout/constants';
+import { dashboardPanelCardClassName } from '@/components/dashboard/layout/constants';
 import { cardVariants } from '@/components/ui/card';
 
 afterEach(() => {
   cleanup();
 });
 
-describe('DashboardCardShell (overview glass)', () => {
-  it('uses cardVariants glass styling tokens', () => {
-    const classes = cardVariants({ variant: 'glass' });
-    expect(classes).toContain('backdrop-blur-xl');
-    expect(classes).toContain('[border-top-color:var(--glass-refraction-top)]');
+describe('DashboardCardShell (overview panel)', () => {
+  it('uses cardVariants panel styling tokens', () => {
+    const classes = cardVariants({ variant: 'panel' });
+    expect(classes).toContain('border-line');
+    expect(classes).toContain('bg-surface-1');
+    expect(classes).not.toContain('backdrop-blur');
   });
 
-  it('renders a glass card shell with panel pointer events', () => {
+  it('renders a panel card shell with panel pointer events', () => {
     render(
       <DashboardCardShell
         title="PI 5"
@@ -29,14 +30,14 @@ describe('DashboardCardShell (overview glass)', () => {
 
     const card = screen.getByText('PI 5').closest('[data-slot="card"]');
     expect(card).toBeTruthy();
-    expect(card?.className).toMatch(/backdrop-blur-xl/);
-    expect(card?.className).toContain(dashboardGlassCardClassName);
+    expect(card?.className).toContain('bg-surface-1');
+    expect(card?.className).toContain(dashboardPanelCardClassName);
   });
 
-  it('does not apply glass styling when variant is default', () => {
+  it('does not apply panel styling when variant is default', () => {
     const defaultClasses = cardVariants({ variant: 'default' });
-    const glassClasses = cardVariants({ variant: 'glass' });
-    expect(defaultClasses).not.toContain('backdrop-blur-xl');
-    expect(glassClasses).not.toEqual(defaultClasses);
+    const panelClasses = cardVariants({ variant: 'panel' });
+    expect(defaultClasses).not.toContain('border-line');
+    expect(panelClasses).not.toEqual(defaultClasses);
   });
 });

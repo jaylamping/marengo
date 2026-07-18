@@ -2,6 +2,8 @@ use std::path::Path;
 
 use armee_proto::prost::Message;
 use armee_proto::EnableRequest;
+use armee_proto::HomingComplete;
+use armee_proto::MitCommandBatch;
 use axum::{
     body::Body,
     extract::{Query, State},
@@ -86,6 +88,8 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
         .route("/logs/structured", get(logs::structured_logs))
         .route("/settings", get(logs::get_settings))
         .route("/command/enable", post(command_enable))
+        .route("/command/testing_mit", post(command_testing_mit))
+        .route("/command/home", post(command_home))
         .layer(cors)
         .with_state(state);
 
@@ -218,6 +222,46 @@ async fn command_enable(
             "robot/enable",
             "consul",
             "marengo.v1.EnableRequest",
+            payload,
+        )
+        .map_err(|e| (StatusCode::BAD_GATEWAY, e))?;
+    Ok(Json(OkResponse { ok: true }))
+}
+
+async fn command_testing_mit(
+    State(state): State<SharedState>,
+    body: axum::body::Bytes,
+) -> Result<Json<OkResponse>, (StatusCode, String)> {
+    let request = MitCommandBatch::decode(body.as_ref())
+        .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
+    let payload = request.encode_to_vec();
+    state
+        .publish_command_envelope(
+            "robot/testing/mit_command_batch",
+            "consul",
+            "marengo.v1.MitCommandBatch",
+            payload,
+        )
+        .map_err(|e| (StatusCode::BAD_GATEWAY, e))?;
+    Ok(Json(OkResponse { ok: true }))
+}
+
+async fn command_home(
+    State(state): State<SharedState>,
+) -> Result<Json<OkResponse>, (StatusCode, String)> {
+    let request = HomingComplete {
+        timestamp_ms: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64,
+        node_id: "consul".into(),
+    };
+    let payload = request.encode_to_vec();
+    state
+        .publish_command_envelope(
+            "robot/homing",
+            "consul",
+            "marengo.v1.HomingComplete",
             payload,
         )
         .map_err(|e| (StatusCode::BAD_GATEWAY, e))?;

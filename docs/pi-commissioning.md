@@ -116,7 +116,7 @@ RUST_LOG=robstride=info,davout=info,berthier=info,motor_repl=info
 | Milestone | `MARENGO_CONFIG_DIR` | Joints |
 |-----------|----------------------|--------|
 | **A — dual shoulders** | `config/bringup/shoulder_pitch_dual` | left/right pitch on can0/can1 |
-| **A1 — right bench only** | `config/bringup/shoulder_pitch_right_only` | `right_shoulder_pitch` on can0, id 2 |
+| **A1 — right bench only** | `config/bringup/arm_2dof_right` | `right_shoulder_pitch` on can0, id 2 |
 | **A1 — left bench only** | `config/bringup/shoulder_pitch_left_only` | `left_shoulder_pitch` on can1, id 12 (mirrors right tuning) |
 | **B — left 4-DOF arm** | `config/bringup/arm_4dof_left` or `config` | all on can0, IDs 11–14 |
 

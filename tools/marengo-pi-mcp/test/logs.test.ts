@@ -8,7 +8,7 @@ const cfg: MarengoPiConfig = {
   host: "marengo.local",
   user: "joey",
   piRoot: "/opt/marengo",
-  configDir: "/opt/marengo/config/bringup/shoulder_pitch_right_only",
+  configDir: "/opt/marengo/config/bringup/arm_2dof_right",
   localRoot: "/tmp/marengo",
   benchProfile: "bare_motor",
   piStagingRoot: "~/marengo",
@@ -79,6 +79,7 @@ describe("log tools", () => {
 
     assert.match(script, /grep -m1 -E "\^\[\[:space:\]\]\*\\\("/);
     assert.match(script, /sed -n "s\/\^\[\[:space:\]\]\*\(\\\(\[0-9\.\]\*\\\)\)/);
+    assert.match(script, /c=\$\{c:-0\}/);
     assert.match(script, /top CAN IDs/);
   });
 });

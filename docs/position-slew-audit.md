@@ -22,7 +22,7 @@ All `position_slew_rad_s` values in repo configs (2026-06-16):
 | `config/bringup/shoulder_pitch_weighted/control.yaml` | `left_shoulder_pitch`, `right_shoulder_pitch` | **15.0** (both) | 0.5 | No |
 | `config/bringup/shoulder_pitch_dual/control.yaml` | `left_shoulder_pitch`, `right_shoulder_pitch` | **15.0** (both) | 0.5 | No |
 | `config/bringup/shoulder_pitch_left_only/control.yaml` | `left_shoulder_pitch` | **0.15** | 0.10 | Yes (`v=1.0`, `a=6.0`) |
-| `config/bringup/shoulder_pitch_right_only/control.yaml` | `right_shoulder_pitch` | **0.15** | 0.10 | Yes (`v=2.0`, `a=4.8`) |
+| `config/bringup/arm_2dof_right/control.yaml` | `right_shoulder_pitch` | **0.15** | 0.10 | Yes (`v=2.0`, `a=4.8`) |
 
 **Serde defaults** (`crates/marengo-config/src/lib.rs`): `position_slew_rad_s = 0.25`, `position_trajectory_velocity_rad_s = 0.30`, `position_trajectory_accel_rad_s2 = 0.20`.
 
@@ -61,7 +61,7 @@ POSITION_SMALL_MOVE_VMAX_RAD = 0.06 rad  (~3.4°)
 
 - `v_max = clamp_v_max(joint, position_trajectory_velocity_rad_s)` (default **0.30** if omitted)
 - `a_max = position_trajectory_accel_rad_s2` (default **0.20**)
-- Profiles with `15.0` slew but **no** trajectory fields therefore use serde defaults for large moves — not the 2.0 rad/s tuned on `shoulder_pitch_right_only`
+- Profiles with `15.0` slew but **no** trajectory fields therefore use serde defaults for large moves — not the 2.0 rad/s tuned on `arm_2dof_right`
 
 ### MIT setpoint layer
 
@@ -95,7 +95,7 @@ POSITION_SMALL_MOVE_VMAX_RAD = 0.06 rad  (~3.4°)
 
 Evidence:
 
-1. **Corrected profiles exist** — `shoulder_pitch_right_only` and `shoulder_pitch_left_only` were deliberately changed from `15.0` to `0.15` with bench-oriented comments.
+ 1. **Corrected profiles exist** — `arm_2dof_right` and `shoulder_pitch_left_only` were deliberately changed from `15.0` to `0.15` with bench-oriented comments.
 2. **Documentation consensus** — ADR 0007, bench tuning notes, and test fixtures in `marengo-config` all use **0.15** for small moves.
 3. **100× magnitude** — `15.0` vs `0.15` matches a classic decimal-place error; no ADR or commit message argues that small retargets should run at cap speed.
 4. **Correlated stale fields** — profiles still at `15.0` also retain `max_lead: 0.5` and lack trajectory blocks, consistent with an unmaintained copy from `c954510`.
@@ -105,7 +105,7 @@ Evidence:
 ## Recommendation
 
 1. **Do not change YAML without bench evidence.** Wrong small-move cap can cause velocity trips, stick-slip, or harsh retargets on loaded arms.
-2. **Use `config/bringup/shoulder_pitch_right_only/control.yaml` as the reference** for shoulder pitch bring-up:
+ 2. **Use `config/bringup/arm_2dof_right/control.yaml` as the reference** for shoulder pitch bring-up:
    - `position_slew_rad_s: 0.15`
    - `position_slew_max_lead_rad: 0.10`
    - `position_trajectory_velocity_rad_s: 2.0`, `position_trajectory_accel_rad_s2: 4.8`

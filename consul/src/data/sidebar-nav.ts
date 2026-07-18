@@ -9,7 +9,6 @@ export type SidebarIconKey =
   | 'safety'
   | 'telemetry'
   | 'logs'
-  | 'memory'
   | 'settings'
   | 'docs'
   | 'search'
@@ -46,10 +45,10 @@ const sidebarNavMainBase: SidebarNavItem[] = [
   { title: 'Simulation', url: '/simulation', icon: 'simulation' },
   { title: 'Visualizer', url: '#', icon: 'visualizer' },
   { title: 'Subsystems', url: '/subsystems', icon: 'subsystems' },
+  { title: 'Testing', url: '/testing', icon: 'preset-tuning' },
   { title: 'Safety', url: '#', icon: 'safety' },
   { title: 'Telemetry', url: '#', icon: 'telemetry' },
   { title: 'Logs', url: '/logs', icon: 'logs' },
-  { title: 'Memory', url: '/memory', icon: 'memory' },
 ];
 
 const actuatorsNavItem: SidebarNavItem = {

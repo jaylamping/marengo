@@ -123,6 +123,9 @@ pub fn clamp_position_in_envelope(
     position_rad.clamp(lo, hi)
 }
 
+/// Operator hold-at within this band of a hard stop is a trajectory goal, not an instant MIT setpoint.
+const HOLD_TARGET_STOP_TOLERANCE_RAD: f64 = 0.005;
+
 /// Clamp operator target to soft bounds, then envelope at `dq_cmd`.
 pub fn clamp_hold_target(
     policy: &JointLimitPolicy,
@@ -131,6 +134,16 @@ pub fn clamp_hold_target(
     requested_rad: f64,
 ) -> f64 {
     let soft_clamped = requested_rad.clamp(policy.soft_lower(), policy.soft_upper());
+    if soft_clamped <= policy.hard_lower() + HOLD_TARGET_STOP_TOLERANCE_RAD
+        && q > policy.hard_lower()
+    {
+        return soft_clamped.max(policy.hard_lower());
+    }
+    if soft_clamped >= policy.hard_upper() - HOLD_TARGET_STOP_TOLERANCE_RAD
+        && q < policy.hard_upper()
+    {
+        return soft_clamped.min(policy.hard_upper());
+    }
     clamp_position_in_envelope(policy, q, dq_cmd, soft_clamped)
 }
 
@@ -191,6 +204,29 @@ mod tests {
             effort: 10.0,
             tau_ff_max: 5.0,
         }
+    }
+
+    #[test]
+    fn hold_at_home_not_clamped_by_kinetic_margin() {
+        let p = JointLimitPolicy {
+            bounds: JointLimitBounds::from_hard_and_soft(0.0, 3.14159, None, None),
+            margin: LimitMarginConfig {
+                min_rad: 0.01,
+                k_v_s: 0.02,
+                k_stop: 0.5,
+                velocity_deadband_rad_s: 0.02,
+                measured_fault_slack_rad: 0.005,
+                decel_rad_s2: 4.5,
+            },
+            velocity: 1.25,
+            effort: 5.0,
+            tau_ff_max: 5.0,
+        };
+        let clamped = clamp_hold_target(&p, 0.286, -1.25, 0.0);
+        assert!(
+            clamped.abs() < 1e-9,
+            "hold-at home must stay at hard lower, got {clamped}"
+        );
     }
 
     #[test]

@@ -4,14 +4,62 @@ use std::collections::BTreeSet;
 use std::env;
 use std::path::PathBuf;
 
+use armee_dynamics::max_gravity_torque_over_range;
 use berthier::{ControlLoop, ControlMode};
 use davout::{JointCommand, SpeedCommand};
 use marengo_config::{load_control_config, load_motors_config, resolve_repo_root};
 use robstride::RuntimeBus;
 use tracing::info;
-
 fn repo_root() -> PathBuf {
     resolve_repo_root()
+}
+
+/// Pre-flight gravity saturation check: refuse enable if max(|tau_g|) over the
+/// joint range exceeds the motor torque limit; warn above 80%.
+/// Returns `Ok(())` or `Err(exit_code)`.
+fn preflight_gravity_saturation(loop_ctrl: &mut ControlLoop<RuntimeBus>) -> Result<(), i32> {
+    // Collect per-joint range + torque limit from the supervisor first, so the
+    // &mut supervisor borrow ends before we borrow loop_ctrl for the dynamics model.
+    let joint_names: Vec<String> = loop_ctrl.joint_names().to_vec();
+    let joint_specs: Vec<(String, usize, f64, f64, f64)> = {
+        let supervisor = loop_ctrl.supervisor_mut();
+        let motors = &supervisor.motors.motors;
+        joint_names
+            .iter()
+            .enumerate()
+            .filter_map(|(i, joint)| {
+                let motor = motors.iter().find(|m| &m.joint == joint)?;
+                let policy = supervisor.joint_limit_policy(joint)?;
+                Some((
+                    joint.clone(),
+                    i,
+                    motor.bench.position_lower_rad,
+                    motor.bench.position_upper_rad,
+                    policy.tau_ff_max,
+                ))
+            })
+            .collect()
+    };
+    let model = loop_ctrl.dynamics_model();
+    let mut saturated = false;
+    for (joint, i, q_min, q_max, motor_tau_limit) in &joint_specs {
+        let tau_max = max_gravity_torque_over_range(model, *i, *q_min, *q_max, 20).unwrap_or(0.0);
+        if tau_max > *motor_tau_limit {
+            eprintln!(
+                "ERROR: gravity torque {tau_max:.3} Nm exceeds motor limit {motor_tau_limit:.3} Nm for joint {joint}. Use --force to override."
+            );
+            saturated = true;
+        } else if tau_max > 0.8 * *motor_tau_limit {
+            eprintln!(
+                "WARN: gravity torque {tau_max:.3} Nm is >80% of motor limit {motor_tau_limit:.3} Nm for joint {joint}"
+            );
+        }
+    }
+    if saturated {
+        Err(1)
+    } else {
+        Ok(())
+    }
 }
 
 fn usage() {
@@ -21,7 +69,7 @@ fn usage() {
          motor-repl [--config-dir PATH] [--can-interface can0] status\n  \
            motor-repl homing-status\n  \
            motor-repl home\n  \
-           motor-repl enable <operator_id>\n  \
+           motor-repl enable <operator_id> [--force]\n  \
            motor-repl disable\n  \
            motor-repl jog <joint> <position_rad>\n  \
            motor-repl speed <joint> <rad_s>\n  \
@@ -194,12 +242,23 @@ fn main() {
             println!("homing verified → Ready");
         }
         "enable" => {
-            let op = args.get(2).map(String::as_str).unwrap_or("bench");
+            let force = args.iter().any(|a| a == "--force");
+            let op = args
+                .iter()
+                .skip(2)
+                .find(|a| *a != "--force")
+                .map(String::as_str)
+                .unwrap_or("bench");
             if loop_ctrl.supervisor_mut().mode() != davout::OperationalMode::Ready {
                 if let Err(e) = loop_ctrl.supervisor_mut().set_homing_complete() {
                     eprintln!("enable blocked: {e}");
                     eprintln!("run set-zero for each joint, then home");
                     std::process::exit(1);
+                }
+            }
+            if !force {
+                if let Err(code) = preflight_gravity_saturation(&mut loop_ctrl) {
+                    std::process::exit(code);
                 }
             }
             if let Err(e) = loop_ctrl.supervisor_mut().request_enable(true) {

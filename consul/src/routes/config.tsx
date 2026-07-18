@@ -85,15 +85,15 @@ export const appRoutes: RouteObject[] = [
         },
       },
       {
-        path: '/memory',
+        path: '/testing',
         lazy: async () => {
-          const { MemoryPage } = await import('@/pages/memory');
+          const { TestingPage } = await import('@/pages/testing');
           return {
-            Component: MemoryPage,
+            Component: TestingPage,
             handle: {
               header: {
-                title: 'Memory',
-                subtitle: 'mem0 · marengo-joey · read-only',
+                title: 'Testing',
+                subtitle: 'interactive · multi-actuator · PID retune',
               },
             },
           };

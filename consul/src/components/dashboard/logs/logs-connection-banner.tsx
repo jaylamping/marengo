@@ -22,19 +22,18 @@ export function LogsConnectionBanner() {
     <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/30 px-3 py-2 text-sm">
       <span
         className={cn(
-          'inline-flex items-center gap-1.5 font-medium',
-          mode === 'webtransport' && 'text-emerald-600',
-          mode === 'http-stream' && 'text-amber-600',
+          'inline-flex items-center gap-1.5 font-mono text-xs uppercase tracking-[0.08em]',
+          mode === 'webtransport' && 'text-ok',
+          mode === 'http-stream' && 'text-warning',
           (mode === 'offline' || mode === 'reconnecting') && 'text-muted-foreground',
         )}
       >
         <span
           className={cn(
-            'size-2 rounded-full',
-            mode === 'webtransport' && 'bg-emerald-500',
-            mode === 'http-stream' && 'bg-amber-500',
-            mode === 'reconnecting' && 'bg-amber-400 animate-pulse',
-            mode === 'offline' && 'bg-muted-foreground',
+            'led',
+            mode === 'webtransport' && 'led-ok',
+            mode === 'http-stream' && 'led-accent',
+            mode === 'reconnecting' && 'led-accent led-live',
           )}
         />
         {mode}
