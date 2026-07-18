@@ -1,5 +1,5 @@
 export {
-  ChappeTelemetryHandlers,
+  type ChappeTelemetryHandlers,
   dispatchEnvelope,
   webTransportAvailable,
   connectWebTransport,
