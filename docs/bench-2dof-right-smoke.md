@@ -1,6 +1,6 @@
 # 2-DOF right arm — motion smoke
 
-Light **pitch + roll** motion smoke on `arm_2dof_right`. Run **once** after the
+Light **pitch + roll** motion smoke on `arm_3dof_right`. Run **once** after the
 [roll commissioning suite](bench-roll-test-suite.md) passes (`roll_attached`
 harness `pass: true`).
 
@@ -12,7 +12,7 @@ harness `pass: true`).
 Locked after roll 15° round-trip probe and **`arm_2dof_smoke` harness PASS**
 (deploy `ff9d554`). Roll ascent ~1 s, return to **q ≈ 0.0015 rad** at disable.
 Same joint tuning on **roll and pitch** in
-`config/bringup/arm_2dof_right/control.yaml`:
+`config/bringup/arm_3dof_right/control.yaml`:
 
 | Parameter | Value |
 |-----------|-------|
@@ -35,7 +35,7 @@ poses, full D4–D7 regression (see [bench-test-backlog.md](bench-test-backlog.m
 ## Prerequisites
 
 - Roll suite PASS (R0–R5, R8–R9).
-- Config: `config/bringup/arm_2dof_right/`.
+- Config: `config/bringup/arm_3dof_right/`.
 - Both joints Verified at arm-down home.
 
 ## Standard pre-flight (D0)
@@ -59,7 +59,7 @@ Same as roll R0: health, CAN, homing Verified, `fault=0`.
   "confirm": true,
   "confirm_weighted_motion": true,
   "profile": "arm_2dof_smoke",
-  "config_dir": "arm_2dof_right",
+  "config_dir": "arm_3dof_right",
   "script": [
     "home",
     "enable bench",
@@ -95,7 +95,7 @@ Analyze position trace: passive joint peak \|Δq\| < 30 mrad.
   "confirm": true,
   "confirm_weighted_motion": true,
   "profile": "arm_2dof_smoke",
-  "config_dir": "arm_2dof_right",
+  "config_dir": "arm_3dof_right",
   "skip_set_zero": true
 }
 ```

@@ -33,7 +33,7 @@ await runBenchHarness(cfg, runRemote, {
   confirm: true,
   confirm_weighted_motion: true,
   profile: "roll_attached",
-  config_dir: "arm_2dof_right",
+  config_dir: "arm_3dof_right",
   skip_set_zero: true,
 });
 

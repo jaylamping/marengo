@@ -152,9 +152,9 @@ export const robotInventory: InventoryItem[] = [
   actuator(24, 'left_wrist', 'left_arm', 'Offline', '—', '±1.6', 'unassigned', 'rs00', 18),
 
   // Right arm
-  actuator(25, 'right_shoulder_roll', 'right_arm', 'Enabled', '—', '±1.57', 'bench_2dof', 'rs03', 1),
-  actuator(26, 'right_shoulder_pitch', 'right_arm', 'Enabled', '—', '−0.9–3.17', 'bench_2dof', 'rs03', 2),
-  actuator(27, 'right_upper_arm_yaw', 'right_arm', 'Offline', '—', '±1.57', 'unassigned', 'rs02', 21),
+  actuator(25, 'right_shoulder_roll', 'right_arm', 'Enabled', '—', '±1.57', 'bench_3dof', 'rs03', 1),
+  actuator(26, 'right_shoulder_pitch', 'right_arm', 'Enabled', '—', '−0.9–3.17', 'bench_3dof', 'rs03', 2),
+  actuator(27, 'right_upper_arm_yaw', 'right_arm', 'Enabled', '—', '±1.57', 'bench_3dof', 'rs02', 3),
   actuator(28, 'right_elbow', 'right_arm', 'Offline', '—', '0–2.50', 'unassigned', 'rs02', 22),
   actuator(29, 'right_wrist', 'right_arm', 'Offline', '—', '±1.6', 'unassigned', 'rs00', 23),
 ];

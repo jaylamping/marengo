@@ -15,7 +15,7 @@ const cfg: MarengoPiConfig = {
   host: "marengo.local",
   user: "joey",
   piRoot: "/opt/marengo",
-  configDir: "/opt/marengo/config/bringup/arm_2dof_right",
+  configDir: "/opt/marengo/config/bringup/arm_3dof_right",
   localRoot: "/tmp/marengo",
   benchProfile: "bare_motor",
   piStagingRoot: "~/marengo",
@@ -111,7 +111,7 @@ describe("marengo-pi script tool", () => {
 
     await tools.pi_hold_on.handler({
       confirm: true,
-      config_dir: "arm_2dof_right",
+      config_dir: "arm_3dof_right",
       joint: "right_shoulder_pitch",
       set_zero: false,
       position_rad: 0.1,
@@ -120,7 +120,7 @@ describe("marengo-pi script tool", () => {
 
     assert.match(
       script,
- /export MARENGO_CONFIG_DIR='\/opt\/marengo\/config\/bringup\/arm_2dof_right'/,
+ /export MARENGO_CONFIG_DIR='\/opt\/marengo\/config\/bringup\/arm_3dof_right'/,
     );
     assert.doesNotMatch(
       script,
@@ -140,12 +140,12 @@ describe("marengo-pi script tool", () => {
     );
 
     await tools.pi_homing_status.handler({
-      config_dir: "arm_2dof_right",
+      config_dir: "arm_3dof_right",
     });
 
     assert.match(
       script,
-      /export MARENGO_CONFIG_DIR='\/opt\/marengo\/config\/bringup\/arm_2dof_right'/,
+      /export MARENGO_CONFIG_DIR='\/opt\/marengo\/config\/bringup\/arm_3dof_right'/,
     );
     assert.doesNotMatch(
       script,

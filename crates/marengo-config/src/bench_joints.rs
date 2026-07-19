@@ -98,11 +98,11 @@ mod tests {
     use crate::resolve_repo_root;
 
     #[test]
-    fn arm_2dof_right_accepts_right_joints() {
+    fn arm_3dof_right_accepts_right_joints() {
         let root = resolve_repo_root();
         let allowlist =
-            load_command_joint_allowlist_from(root.join("config/bringup/arm_2dof_right"))
-                .expect("2dof allowlist");
+            load_command_joint_allowlist_from(root.join("config/bringup/arm_3dof_right"))
+                .expect("3dof allowlist");
         assert_eq!(
             resolve_command_joint("right_shoulder_pitch", &allowlist),
             Some("right_shoulder_pitch")
@@ -110,6 +110,10 @@ mod tests {
         assert_eq!(
             resolve_command_joint("right_shoulder_roll", &allowlist),
             Some("right_shoulder_roll")
+        );
+        assert_eq!(
+            resolve_command_joint("right_upper_arm_yaw", &allowlist),
+            Some("right_upper_arm_yaw")
         );
         assert_eq!(
             resolve_command_joint("left_shoulder_pitch", &allowlist),

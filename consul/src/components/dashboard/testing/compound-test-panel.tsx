@@ -28,7 +28,7 @@ import { postTestingMitCommandBatch } from '@/lib/gateway-api';
 import { dashboardPanelCardClassName } from '@/components/dashboard/layout/constants';
 import { useConfigSnapshot } from '@/hooks/use-config-snapshot';
 
-/** Zero gains → Pi clears overrides and uses arm_2dof_right control.yaml impedance. */
+/** Zero gains → Pi clears overrides and uses arm_3dof_right control.yaml impedance. */
 const CONFIG_GAINS = { kp: 0, kd: 0, ki: 0, fc: 0 };
 
 export function CompoundTestPanel() {

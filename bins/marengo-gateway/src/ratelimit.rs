@@ -148,17 +148,9 @@ mod tests {
     fn tuning_bucket_allows_burst_then_rejects() {
         let limiter = RateLimiter::new();
         for _ in 0..10 {
-            assert!(limiter.allow(
-                "client-a",
-                "right_shoulder_pitch",
-                CommandBucket::Tuning
-            ));
+            assert!(limiter.allow("client-a", "right_shoulder_pitch", CommandBucket::Tuning));
         }
-        assert!(!limiter.allow(
-            "client-a",
-            "right_shoulder_pitch",
-            CommandBucket::Tuning
-        ));
+        assert!(!limiter.allow("client-a", "right_shoulder_pitch", CommandBucket::Tuning));
     }
 
     #[test]
@@ -173,22 +165,10 @@ mod tests {
     fn buckets_are_isolated_by_client_and_joint() {
         let limiter = RateLimiter::new();
         for _ in 0..10 {
-            assert!(limiter.allow(
-                "client-a",
-                "right_shoulder_pitch",
-                CommandBucket::Tuning
-            ));
+            assert!(limiter.allow("client-a", "right_shoulder_pitch", CommandBucket::Tuning));
         }
-        assert!(!limiter.allow(
-            "client-a",
-            "right_shoulder_pitch",
-            CommandBucket::Tuning
-        ));
-        assert!(limiter.allow(
-            "client-b",
-            "right_shoulder_pitch",
-            CommandBucket::Tuning
-        ));
+        assert!(!limiter.allow("client-a", "right_shoulder_pitch", CommandBucket::Tuning));
+        assert!(limiter.allow("client-b", "right_shoulder_pitch", CommandBucket::Tuning));
         assert!(limiter.allow("client-a", "right_shoulder_roll", CommandBucket::Tuning));
     }
 
@@ -198,17 +178,9 @@ mod tests {
         for _ in 0..10 {
             let _ = limiter.allow("client-a", "right_shoulder_roll", CommandBucket::Tuning);
         }
-        assert!(!limiter.allow(
-            "client-a",
-            "right_shoulder_roll",
-            CommandBucket::Tuning
-        ));
+        assert!(!limiter.allow("client-a", "right_shoulder_roll", CommandBucket::Tuning));
         thread::sleep(Duration::from_millis(120));
-        assert!(limiter.allow(
-            "client-a",
-            "right_shoulder_roll",
-            CommandBucket::Tuning
-        ));
+        assert!(limiter.allow("client-a", "right_shoulder_roll", CommandBucket::Tuning));
     }
 
     #[test]

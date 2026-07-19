@@ -95,7 +95,7 @@ Weighted profile (`weighted_single_arm`, `arm_attached`) needs `confirm: true` a
 {
   "confirm": true,
   "joint": "right_shoulder_pitch",
-"config_dir": "/opt/marengo/config/bringup/arm_2dof_right"
+"config_dir": "/opt/marengo/config/bringup/arm_3dof_right"
 }
 ```
 
@@ -124,7 +124,7 @@ Motion runs tee to `$MARENGO_ROOT/var/log/bench-latest.log`. Read with `pi_logs_
 { "confirm": true }
 ```
 
-Tool: `pi_motor_recover`. Disable drives, brief `status` with `fault=0x…`, prints `RECOVER_OK` or `RECOVER_FAIL`. Optional: `"config_dir": "/opt/marengo/config/bringup/arm_2dof_right"`.
+Tool: `pi_motor_recover`. Disable drives, brief `status` with `fault=0x…`, prints `RECOVER_OK` or `RECOVER_FAIL`. Optional: `"config_dir": "/opt/marengo/config/bringup/arm_3dof_right"`.
 
 ## Skills
 

@@ -7,7 +7,7 @@ const out = await runRollSoftVerify(
   cfg,
   async (body, timeoutMs) =>
     formatRemoteResult(await execRemote(cfg, body, { timeoutMs: timeoutMs ?? 150_000 })),
-  { config_dir: "arm_2dof_right" },
+  { config_dir: "arm_3dof_right" },
 );
 
 const logMatch = out.match(/log=([^\s]+)/);

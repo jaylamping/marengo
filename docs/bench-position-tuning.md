@@ -43,7 +43,7 @@ Operator smoothness is **required** even if analyzer passes.
 | Item | Value |
 |------|-------|
 | Pi | `joey@joey-robot.tail0b414.ts.net` |
-| Config | `arm_2dof_right` |
+| Config | `arm_3dof_right` |
 | Motor | `can0/id2` (`right_shoulder_pitch`) |
 | Deploy rev | `2d95ee5` local Pi build includes accel-limited small slew + `dq_traj` FF handoff fix; repo commit `2d95ee5` fixes MCP candump summary parsing |
 | Profile | `weighted_single_arm` via `pi_hold_on` |
@@ -385,7 +385,7 @@ Raising **v, kp, and fc together** guarantees fighting:
 
 **Recovery:** revert to Layer 2 baseline, PASS small move, then add **one** change per run with trace diff.
 
-## Current config (`arm_2dof_right`)
+## Current config (`arm_3dof_right`)
 
 **Locked on Pi 2026-06-13** after Berthier return-freeze fixes (`3f66ea2`) and full-range retest:
 

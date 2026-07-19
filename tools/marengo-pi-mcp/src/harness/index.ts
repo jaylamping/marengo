@@ -9,10 +9,11 @@ import { benchLogArchiveShell, benchCandumpStartShell, benchCandumpStopShell, sc
 
 const BENCH_CONFIG_WEIGHTED =
   "/opt/marengo/config/bringup/shoulder_pitch_weighted";
-const BENCH_CONFIG_2DOF = "/opt/marengo/config/bringup/arm_2dof_right";
+const BENCH_CONFIG_3DOF = "/opt/marengo/config/bringup/arm_3dof_right";
 
 const ROLL_JOINT = "right_shoulder_roll";
 const PITCH_JOINT = "right_shoulder_pitch";
+const YAW_JOINT = "right_upper_arm_yaw";
 
 function holdAt(joint: string, rad: number): string {
   return `hold-at ${joint} ${rad}`;
@@ -47,13 +48,13 @@ export function rollStagedDescentLines(): string[] {
   ];
 }
 
-function isTwoDofProfile(profile: BenchProfile): boolean {
+function isRightArmBenchProfile(profile: BenchProfile): boolean {
   return profile === "roll_attached" || profile === "arm_2dof_smoke";
 }
 
 function harnessSetZeroJoints(profile: BenchProfile): string[] {
-  if (isTwoDofProfile(profile)) {
-    return [ROLL_JOINT, PITCH_JOINT];
+  if (isRightArmBenchProfile(profile)) {
+    return [ROLL_JOINT, PITCH_JOINT, YAW_JOINT];
   }
   return ["left_shoulder_pitch", "right_shoulder_pitch"];
 }
@@ -70,8 +71,8 @@ export function harnessConfigDir(
     }
     return `${cfg.piRoot}/config/bringup/${configDir}`;
   }
-  if (isTwoDofProfile(profile)) {
-    return BENCH_CONFIG_2DOF;
+  if (isRightArmBenchProfile(profile)) {
+    return BENCH_CONFIG_3DOF;
   }
   if (profile === "weighted_single_arm" || profile === "arm_attached") {
     return BENCH_CONFIG_WEIGHTED;
@@ -274,7 +275,7 @@ export async function runBenchHarness(
   }
 
   // 4. gravity-preview 0 0 (single-joint / dual-pitch profiles only)
-  if (!isTwoDofProfile(profile)) {
+  if (!isRightArmBenchProfile(profile)) {
     if (
       !(await step(
         "gravity_preview_0_0",
@@ -288,7 +289,7 @@ export async function runBenchHarness(
     steps.push({
       name: "gravity_preview_skipped",
       ok: true,
-      output: "2-DOF roll/smoke profile — no gravity preview step",
+      output: "right-arm bench profile — no gravity preview step",
     });
   }
 

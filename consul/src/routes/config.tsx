@@ -35,7 +35,7 @@ export const appRoutes: RouteObject[] = [
         handle: {
           header: {
             title: 'Overview',
-            subtitle: 'arm_2dof_right · bench',
+            subtitle: 'arm_3dof_right · bench',
           },
         },
       },

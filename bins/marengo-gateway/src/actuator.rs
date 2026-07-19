@@ -35,8 +35,8 @@ pub async fn command_actuator(
     State(state): State<SharedState>,
     body: axum::body::Bytes,
 ) -> Result<Json<OkResponse>, (StatusCode, String)> {
-    let envelope = Envelope::decode(body.as_ref())
-        .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
+    let envelope =
+        Envelope::decode(body.as_ref()).map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
     if envelope.message_type != "marengo.v1.OperatorCommand" {
         return Err((
             StatusCode::BAD_REQUEST,
@@ -287,9 +287,8 @@ mod tests {
         let state = test_state();
         seed_limits(&state, "right_shoulder_pitch", 50.0, 5.0);
         let app = test_router(state);
-        let payload = armee_proto::actuator_command::Payload::Jog(armee_proto::JogCommand {
-            delta_rad: 0.1,
-        });
+        let payload =
+            armee_proto::actuator_command::Payload::Jog(armee_proto::JogCommand { delta_rad: 0.1 });
         let response = app
             .oneshot(
                 axum::http::Request::builder()
@@ -331,9 +330,8 @@ mod tests {
     async fn command_actuator_clamps_to_live_kp_max() {
         let bus = std::sync::Arc::new(Bus::default());
         let state = std::sync::Arc::new(
-            AppState::new(std::sync::Arc::clone(&bus)).with_command_joints(
-                CommandJointAllowlist::from_joints(["right_shoulder_pitch"]),
-            ),
+            AppState::new(std::sync::Arc::clone(&bus))
+                .with_command_joints(CommandJointAllowlist::from_joints(["right_shoulder_pitch"])),
         );
         seed_limits(&state, "right_shoulder_pitch", 20.0, 5.0);
         let mut rx = bus.subscribe(TOPIC_ACTUATOR_COMMAND);

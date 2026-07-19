@@ -4,7 +4,7 @@ context: |
   Project: Marengo — personal humanoid robot (CAD + wiring + URDF + Rust runtime).
   Stack: Rust 1.88 workspace (Armée: 16 crates, 9 bins) + Consul (Vite 8, React 19, TypeScript 5.8, Vitest 4).
   Wire: protobuf-first (proto/ → armee-proto + consul/src/gen/); Chappe IPC; Berthier → Davout → robstride motor path.
-  Active bench: config/bringup/arm_2dof_right/ on Pi (marengo-pi, marengo-gateway, motor-repl).
+  Active bench: config/bringup/arm_3dof_right/ on Pi (marengo-pi, marengo-gateway, motor-repl).
   CI gate: just check / scripts/check.sh — buf lint, consul build, cargo fmt/clippy/test, deny, audit.
   Conventions: AGENTS.md, docs/rust-patterns.md, docs/safety.md; no unwrap in crates/; no hand-edited gen/.
 

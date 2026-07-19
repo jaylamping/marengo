@@ -1,10 +1,10 @@
 # Roll commissioning — physical bench test suite
 
 Operator-runnable physical bench tests for **right shoulder roll** on the attached
-2-DOF arm (`arm_2dof_right`). Roll is Robstride RS03 on `can0`, `device_id=1`,
+3-DOF arm (`arm_3dof_right`). Roll is Robstride RS03 on `can0`, `device_id=1`,
 `direction=1`, limits **0 → π** (arm down → sky). Pitch (`device_id=2`,
-`direction=-1`) is enabled and held at **q=0** during roll motion so the
-two-motor enable path matches production.
+`direction=-1`) and upper-arm yaw (`device_id=3`, RS02) are enabled; pitch is held at **q=0** during roll motion so the
+multi-motor enable path matches production.
 
 **Not in scope:** URDF mass/COM tuning, gravity-comp accuracy, payload grids.
 See [bench-test-backlog.md](bench-test-backlog.md) for deferred gravity tests.
@@ -13,8 +13,8 @@ See [bench-test-backlog.md](bench-test-backlog.md) for deferred gravity tests.
 
 | Item | Value |
 |------|-------|
-| Config dir | `config/bringup/arm_2dof_right/` |
-| URDF | `assets/urdf/arm_2dof_right.urdf` (0.7 kg stub — intentional) |
+| Config dir | `config/bringup/arm_3dof_right/` |
+| URDF | `assets/urdf/arm_3dof_right.urdf` (0.7 kg stub — intentional) |
 | Roll joint | `right_shoulder_roll`, limits 0–3.14159 rad |
 | Pitch during roll tests | held at 0 rad (same marengo-pi session) |
 | Loop | 200 Hz control, 25 Hz Chappe state |
@@ -45,9 +45,9 @@ pi_motor_repl_status
 
 Pass: CAN `can0` UP, both joints homing **Verified**, `fault=0x0000`, deploy rev
 matches local `git rev-parse HEAD`. If not Verified, re–set-zero at mechanical
-arm-down (`pi_set_zero` with `config_dir: arm_2dof_right`).
+arm-down (`pi_set_zero` with `config_dir: arm_3dof_right`).
 
-**Runtime config:** set `MARENGO_CONFIG_DIR` to `arm_2dof_right` in
+**Runtime config:** set `MARENGO_CONFIG_DIR` to `arm_3dof_right` in
 `/etc/marengo/env`, or pass `config_dir` on every MCP motion call until updated.
 
 ## Operator safety contract
@@ -71,7 +71,7 @@ home).
   "confirm": true,
   "confirm_weighted_motion": true,
   "profile": "roll_attached",
-  "config_dir": "arm_2dof_right",
+  "config_dir": "arm_3dof_right",
   "script": [
     "home",
     "enable bench",
@@ -102,7 +102,7 @@ At arm-down home, both joints Verified:
 {
   "tool": "pi_set_zero",
   "confirm": true,
-  "config_dir": "arm_2dof_right",
+  "config_dir": "arm_3dof_right",
   "joint": "right_shoulder_roll"
 }
 ```
@@ -161,7 +161,7 @@ Single invocation (all R1–R5 motion steps + disable):
   "confirm": true,
   "confirm_weighted_motion": true,
   "profile": "roll_attached",
-  "config_dir": "arm_2dof_right",
+  "config_dir": "arm_3dof_right",
   "skip_set_zero": true
 }
 ```
