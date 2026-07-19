@@ -96,7 +96,7 @@
     <child link="right_forearm_link"/>
     <origin xyz="0 0 -0.24" rpy="0 0 0"/>
     <axis xyz="0 1 0"/>
-    <limit lower="0.0" upper="1.2" effort="17" velocity="2.0"/>
-    <safety_controller soft_lower_limit="0.0" soft_upper_limit="1.15" k_position="10" k_velocity="1"/>
+    <limit lower="-0.05" upper="1.2" effort="17" velocity="2.0"/>
+    <safety_controller soft_lower_limit="-0.05" soft_upper_limit="1.15" k_position="10" k_velocity="1"/>
   </joint>
 </robot>
