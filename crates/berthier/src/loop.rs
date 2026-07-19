@@ -1331,18 +1331,23 @@ impl<B: MotorBus> ControlLoop<B> {
 
     /// Advance per-joint planners toward latched targets.
     fn advance_position_commands(&mut self, q: &[f64]) -> Result<(), LoopError> {
+        // Analytical cosine dq for the wave joint (set with the position update below).
+        let mut wave_cmd_dq: Option<(usize, f64)> = None;
         if let Some(wave) = self.position_wave.as_mut() {
             let joint_name = self.joint_names[wave.joint_index].clone();
-            if let Some(target) = wave.target_at_tick(self.tick_count) {
+            let idx = wave.joint_index;
+            if let Some((target, dq_wave)) =
+                wave.target_and_velocity_at_tick(self.tick_count, self.loop_hz)
+            {
                 if let (Some(setpoints), Some(raw)) = (
                     self.position_setpoints.as_mut(),
                     self.position_setpoints_raw.as_mut(),
                 ) {
-                    setpoints[wave.joint_index] = target;
-                    raw[wave.joint_index] = target;
+                    setpoints[idx] = target;
+                    raw[idx] = target;
                 }
+                wave_cmd_dq = Some((idx, dq_wave));
             } else {
-                let idx = wave.joint_index;
                 let end = wave.end_position_rad();
                 self.position_wave = None;
                 if let (Some(setpoints), Some(raw)) = (
@@ -1412,8 +1417,23 @@ impl<B: MotorBus> ControlLoop<B> {
         if self.position_planner_events.is_none() {
             self.position_planner_events = Some(vec![PlannerEvent::Tick; self.joint_names.len()]);
         }
+        let wave_joint_index = self.position_wave.as_ref().map(|w| w.joint_index);
         for (i, name) in self.joint_names.iter().enumerate() {
             let mut event = PlannerEvent::Tick;
+            // Cosine wave: drive q_traj with analytical dq (finite-diff chase was noisy/choppy).
+            if wave_joint_index == Some(i) {
+                let target = targets[i];
+                let dq_raw = wave_cmd_dq
+                    .filter(|(ji, _)| *ji == i)
+                    .map(|(_, d)| d)
+                    .unwrap_or(0.0);
+                let dq = dq_raw.clamp(-v_max_caps[i], v_max_caps[i]);
+                planners[i].resume_cruise_toward(target, dq);
+                if let Some(events) = self.position_planner_events.as_mut() {
+                    events[i] = event;
+                }
+                continue;
+            }
             let cfg = self.supervisor.control.control.joints.get(name);
             let a_max = cfg
                 .map(|c| c.position_trajectory_accel_rad_s2)
@@ -2007,6 +2027,24 @@ mod tests {
         assert!(planner_should_latch_on_overshoot_hold(
             -0.70, -0.641, -0.641, 0.0, 0.02
         ));
+        // Descent retarget start (wave reverse): q_traj still above target — must NOT latch.
+        assert!(!planner_should_latch_on_overshoot_hold(
+            0.76, 0.76, 0.4, 0.0, 0.02
+        ));
+    }
+
+    #[test]
+    fn clamp_does_not_jump_on_descent_retarget_start() {
+        // Wave reverse: q_traj still at measured q above a lower target — follow lead, don't snap.
+        let q_des = clamp_trajectory_setpoint(0.76, 0.76, 0.4, 0.12, None, 0.0);
+        assert!(
+            (q_des - 0.76).abs() < 0.13,
+            "descent retarget must not command target before planner arrives: {q_des}"
+        );
+        assert!(
+            (q_des - 0.4).abs() > 0.2,
+            "q_des must stay near q, not jump to 0.4: {q_des}"
+        );
     }
 
     #[test]

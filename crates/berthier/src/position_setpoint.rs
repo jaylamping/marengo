@@ -88,6 +88,9 @@ pub fn low_angle_breakaway_active(
 ///
 /// Cruise retarget velocity inflates kinetic margin (~0.12 rad at 1.25 rad/s), which blocks
 /// `hold-at 0` on joints whose lower limit is 0 — the target gets clamped to `hard_lower + margin`.
+///
+/// When `hard_lower` is slightly negative (bench roll −0.05), operator home is still `0`, so the
+/// gate is `max(hard_lower + band, band)` — not `hard_lower + band` alone.
 pub fn envelope_dq_cmd_for_hold_clamp(
     policy: Option<&JointLimitPolicy>,
     q: f64,
@@ -99,10 +102,8 @@ pub fn envelope_dq_cmd_for_hold_clamp(
         return dq_cmd;
     };
     let home_band = POSITION_HOME_SETTLE_RAD;
-    if requested_rad <= policy.hard_lower() + home_band
-        && q > requested_rad + home_band
-        && dq_cmd < 0.0
-    {
+    let lower_home_gate = (policy.hard_lower() + home_band).max(home_band);
+    if requested_rad <= lower_home_gate && q > requested_rad + home_band && dq_cmd < 0.0 {
         return -dq_cmd.abs().min(slew_rad_s);
     }
     if requested_rad >= policy.hard_upper() - home_band
@@ -306,6 +307,10 @@ pub fn planner_should_resync_stuck_lead(
 }
 
 /// Arm past latched target and at rest — stop trapezoid hunting (hold overshoot wiggle).
+///
+/// Requires the planner reference to be *at* the target (`|q_traj - target| ≤ tol`), not merely
+/// on the far side of it. Using `q_traj >= target` for positive targets falsely latches at the
+/// start of a descent retarget (e.g. wave reverse 0.8 → 0.4) and commands a MIT jump.
 pub fn planner_should_latch_on_overshoot_hold(
     q: f64,
     q_traj: f64,
@@ -313,14 +318,15 @@ pub fn planner_should_latch_on_overshoot_hold(
     dq_filtered: f64,
     velocity_deadband: f64,
 ) -> bool {
-    let target_reached_by_planner = if target >= 0.0 {
-        q_traj >= target - POSITION_SETTLE_TOLERANCE_RAD
+    let planner_at_target = (q_traj - target).abs() <= POSITION_SETTLE_TOLERANCE_RAD;
+    let overshot = if target >= 0.0 {
+        q > target + POSITION_RETURN_RESYNC_RAD
     } else {
-        q_traj <= target + POSITION_SETTLE_TOLERANCE_RAD
+        q < target - POSITION_RETURN_RESYNC_RAD
     };
     target.abs() > POSITION_RETURN_FREEZE_Q_MAX_RAD
-        && target_reached_by_planner
-        && (q - target).abs() > POSITION_RETURN_RESYNC_RAD
+        && planner_at_target
+        && overshot
         && dq_filtered.abs() < velocity_deadband
 }
 
@@ -416,10 +422,13 @@ pub fn clamp_trajectory_setpoint(
     }
 
     let settle_error = target - q;
+    // Snap to target only when the planner has actually arrived near it — not when a
+    // fresh descent retarget still has q_traj ≫ target (wave reverse fault).
+    let planner_near_target = (q_traj - target).abs() <= max_lead + TOL;
     let overshot_past_target = if target >= 0.0 {
-        q > target + POSITION_RETURN_RESYNC_RAD && q_traj >= target - TOL
+        q > target + POSITION_RETURN_RESYNC_RAD && planner_near_target && q_traj >= target - TOL
     } else {
-        q < target - POSITION_RETURN_RESYNC_RAD && q_traj <= target + TOL
+        q < target - POSITION_RETURN_RESYNC_RAD && planner_near_target && q_traj <= target + TOL
     };
     if overshot_past_target && target.abs() > POSITION_RETURN_FREEZE_Q_MAX_RAD {
         q_des = target;
@@ -459,11 +468,8 @@ pub fn planner_premature_hold(planner: &JointPositionPlanner, q: f64, target: f6
         return false;
     }
     let tol = POSITION_SETTLE_TOLERANCE_RAD;
-    if target >= 0.0 {
-        planner.q_traj >= target - tol
-    } else {
-        planner.q_traj <= target + tol
-    }
+    // Planner reference finished at target; measured q has not arrived yet (lag on ascent or descent).
+    (planner.q_traj - target).abs() <= tol
 }
 
 /// Virtual trapezoid latched at target while measured `q` overshot — planner at target, arm past.
@@ -472,10 +478,13 @@ pub fn planner_overshot_at_hold(planner: &JointPositionPlanner, q: f64, target: 
         return false;
     }
     let tol = POSITION_SETTLE_TOLERANCE_RAD;
+    if (planner.q_traj - target).abs() > tol {
+        return false;
+    }
     if target >= 0.0 {
-        q > target + POSITION_RETURN_RESYNC_RAD && planner.q_traj >= target - tol
+        q > target + POSITION_RETURN_RESYNC_RAD
     } else {
-        q < target - POSITION_RETURN_RESYNC_RAD && planner.q_traj <= target + tol
+        q < target - POSITION_RETURN_RESYNC_RAD
     }
 }
 

@@ -279,26 +279,102 @@ fn drain_testing_commands(
         let Ok(batch) = MitCommandBatch::decode(envelope.payload.as_slice()) else {
             continue;
         };
+        // Proto ControlMode::POSITION = 4 (see marengo.proto).
+        let want_position = batch.mode == 4;
         for joint in &batch.joints {
-            loop_ctrl.apply_gain_override(
-                &joint.name,
-                GainOverride {
-                    kp: joint.kp,
-                    kd: joint.kd,
-                    ki: joint.ki,
-                    fc: joint.fc,
-                },
-            );
-            debug!(
-                joint = %joint.name,
-                kp = joint.kp,
-                kd = joint.kd,
-                ki = joint.ki,
-                fc = joint.fc,
-                "applied testing gain override"
-            );
+            // Consul Wave: `wave:<joint>:<min>:<max>:<cycles>:<half_period_sec>`
+            // starts Berthier in-loop triangle (continuous; no endpoint holds).
+            if let Some(wave) = parse_testing_wave_command(&joint.name) {
+                match loop_ctrl.start_position_wave(
+                    wave.joint,
+                    wave.min_rad,
+                    wave.max_rad,
+                    wave.cycles,
+                    wave.half_period_sec,
+                ) {
+                    Ok(duration_sec) => {
+                        info!(
+                            joint = wave.joint,
+                            min_rad = wave.min_rad,
+                            max_rad = wave.max_rad,
+                            cycles = wave.cycles,
+                            half_period_sec = wave.half_period_sec,
+                            duration_sec,
+                            "testing position wave started"
+                        );
+                    }
+                    Err(e) => {
+                        warn!(
+                            joint = %joint.name,
+                            error = %e,
+                            "testing position wave rejected"
+                        );
+                    }
+                }
+                continue;
+            }
+            let has_gain = joint.kp != 0.0 || joint.kd != 0.0 || joint.ki != 0.0 || joint.fc != 0.0;
+            if has_gain {
+                loop_ctrl.apply_gain_override(
+                    &joint.name,
+                    GainOverride {
+                        kp: joint.kp,
+                        kd: joint.kd,
+                        ki: joint.ki,
+                        fc: joint.fc,
+                    },
+                );
+            } else {
+                // Use control.yaml impedance gains for Position mode.
+                loop_ctrl.clear_gain_override(&joint.name);
+            }
+            if want_position {
+                let result = if loop_ctrl.control_mode() == ControlMode::Position {
+                    loop_ctrl
+                        .set_joint_position_setpoint(joint.name.as_str(), joint.position)
+                        .and_then(|()| loop_ctrl.ensure_active_for_motion())
+                } else {
+                    loop_ctrl.enter_position_hold_at(Some(joint.name.as_str()), joint.position)
+                };
+                if let Err(e) = result {
+                    warn!(
+                        joint = %joint.name,
+                        position = joint.position,
+                        error = %e,
+                        "testing position hold rejected"
+                    );
+                }
+            }
         }
     }
+}
+
+struct TestingWaveCommand<'a> {
+    joint: &'a str,
+    min_rad: f64,
+    max_rad: f64,
+    cycles: u32,
+    half_period_sec: f64,
+}
+
+fn parse_testing_wave_command(name: &str) -> Option<TestingWaveCommand<'_>> {
+    let rest = name.strip_prefix("wave:")?;
+    let mut parts = rest.split(':');
+    let joint = parts.next()?;
+    let min_rad: f64 = parts.next()?.parse().ok()?;
+    let max_rad: f64 = parts.next()?.parse().ok()?;
+    let cycles: u32 = parts.next()?.parse().ok()?;
+    let half_period_sec: f64 = parts.next()?.parse().ok()?;
+    if parts.next().is_some() || joint.is_empty() || cycles == 0 || half_period_sec <= 0.0 {
+        return None;
+    }
+    Some(TestingWaveCommand {
+        joint,
+        min_rad,
+        max_rad,
+        cycles,
+        half_period_sec,
+    })
 }
 
 fn publish_safety(

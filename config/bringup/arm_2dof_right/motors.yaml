@@ -12,7 +12,8 @@ motors:
     recv_can_id: 0x241
     firmware_version: "0.3.1.42"
     bench:
-      position_lower_rad: 0.0
+      # Allow small negative overshoot near home (teach saw -0.009 before Davout trip).
+      position_lower_rad: -0.05
       position_upper_rad: 3.14159
       velocity_limit_rad_s: 2.0
       torque_limit_nm: 5.0
@@ -28,6 +29,7 @@ motors:
     firmware_version: "0.3.1.42"
     bench:
       position_lower_rad: -0.9
-      position_upper_rad: 3.17
+      # Raised from 3.17 — manual wave pose measured ~3.19 before fault.
+      position_upper_rad: 3.25
       velocity_limit_rad_s: 2.0
       torque_limit_nm: 5.0

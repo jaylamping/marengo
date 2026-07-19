@@ -134,9 +134,10 @@ pub fn clamp_hold_target(
     requested_rad: f64,
 ) -> f64 {
     let soft_clamped = requested_rad.clamp(policy.soft_lower(), policy.soft_upper());
-    if soft_clamped <= policy.hard_lower() + HOLD_TARGET_STOP_TOLERANCE_RAD
-        && q > policy.hard_lower()
-    {
+    // Near hard_lower *or* operator zero-home when hard_lower is slightly negative (roll −0.05).
+    let lower_gate =
+        (policy.hard_lower() + HOLD_TARGET_STOP_TOLERANCE_RAD).max(HOLD_TARGET_STOP_TOLERANCE_RAD);
+    if soft_clamped <= lower_gate && q > soft_clamped {
         return soft_clamped.max(policy.hard_lower());
     }
     if soft_clamped >= policy.hard_upper() - HOLD_TARGET_STOP_TOLERANCE_RAD
@@ -204,6 +205,29 @@ mod tests {
             effort: 10.0,
             tau_ff_max: 5.0,
         }
+    }
+
+    #[test]
+    fn hold_at_home_not_clamped_when_hard_lower_slightly_negative() {
+        let p = JointLimitPolicy {
+            bounds: JointLimitBounds::from_hard_and_soft(-0.05, 3.14159, Some(-0.05), Some(3.14159)),
+            margin: LimitMarginConfig {
+                min_rad: 0.01,
+                k_v_s: 0.02,
+                k_stop: 0.5,
+                velocity_deadband_rad_s: 0.02,
+                measured_fault_slack_rad: 0.005,
+                decel_rad_s2: 4.5,
+            },
+            velocity: 1.25,
+            effort: 5.0,
+            tau_ff_max: 5.0,
+        };
+        let clamped = clamp_hold_target(&p, 0.75, -1.25, 0.0);
+        assert!(
+            clamped.abs() < 1e-9,
+            "hold-at 0 with hard_lower=-0.05 must not kinetic-clamp, got {clamped}"
+        );
     }
 
     #[test]
