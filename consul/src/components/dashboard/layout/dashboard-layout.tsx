@@ -14,15 +14,17 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 
 type DashboardLayoutProps = {
   children: ReactNode;
+  /** Pause ambient dust WebGL during route transitions. */
+  scenePaused?: boolean;
 };
 
-export function DashboardLayout({ children }: DashboardLayoutProps) {
+export function DashboardLayout({ children, scenePaused = false }: DashboardLayoutProps) {
   return (
     <div
       data-testid="dashboard-layout-root"
       className={dashboardLayoutRootClassName}
     >
-      <SceneBackground />
+      <SceneBackground paused={scenePaused} />
       <div className="app-vignette" aria-hidden />
       <SidebarProvider
         style={dashboardLayoutStyle}

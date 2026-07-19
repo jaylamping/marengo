@@ -19,7 +19,12 @@ const UrdfScene = lazy(async () => {
   return { default: module.UrdfScene };
 });
 
-export function OverviewPosturePanel() {
+type OverviewPosturePanelProps = {
+  /** Pause the R3F loop while Overview is soft-cached off-route. */
+  active?: boolean;
+};
+
+export function OverviewPosturePanel({ active = true }: OverviewPosturePanelProps) {
   const connected = useRobotStore((s) => s.connected);
   const live = isChappeLive();
   const feedLabel = !live ? 'Demo pose' : connected ? 'Live pose' : 'Waiting';
@@ -40,6 +45,7 @@ export function OverviewPosturePanel() {
             className="h-full w-full"
             camera={{ position: [0.55, 0.35, 0.85], fov: 42, near: 0.01, far: 20 }}
             dpr={1}
+            frameloop={active ? 'always' : 'never'}
             gl={{ antialias: false, alpha: false, powerPreference: 'low-power' }}
           >
             <color attach="background" args={['#1a1d24']} />

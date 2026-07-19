@@ -6,8 +6,16 @@ import { sceneBackgroundClassName } from '@/components/dashboard/layout/constant
 import { SceneBackground } from '@/components/dashboard/layout/scene-background';
 
 vi.mock('@react-three/fiber', () => ({
-  Canvas: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="r3f-canvas">{children}</div>
+  Canvas: ({
+    children,
+    frameloop,
+  }: {
+    children: React.ReactNode;
+    frameloop?: string;
+  }) => (
+    <div data-testid="r3f-canvas" data-frameloop={frameloop ?? 'always'}>
+      {children}
+    </div>
   ),
 }));
 
@@ -28,5 +36,12 @@ describe('SceneBackground', () => {
     expect(screen.getByTestId('r3f-canvas')).toBeTruthy();
     expect(screen.getByTestId('dust-backdrop')).toBeTruthy();
     expect(screen.queryByTestId('urdf-scene')).toBeNull();
+  });
+
+  it('pauses the R3F frameloop when requested', () => {
+    render(<SceneBackground paused />);
+    expect(screen.getByTestId('r3f-canvas').getAttribute('data-frameloop')).toBe(
+      'never',
+    );
   });
 });

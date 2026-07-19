@@ -20,25 +20,34 @@ const JointTrackingChartCard = lazy(async () => {
   return { default: module.JointTrackingChartCard };
 });
 
-export function DashboardOverview() {
+type DashboardOverviewProps = {
+  /** When false, pause posture WebGL and drop live chart subscriptions. */
+  active?: boolean;
+};
+
+export function DashboardOverview({ active = true }: DashboardOverviewProps) {
   return (
     <div className={dashboardOverviewClassName}>
       <RobotModelProvider urdfXml={SHOULDER_PITCH_RIGHT_ONLY_URDF}>
         <div className={dashboardOverviewHeroClassName} data-testid="overview-hero">
           <DeferredMount fallback={<ChartSectionSkeleton />} timeoutMs={400}>
             <Suspense fallback={<ChartSectionSkeleton />}>
-              <OverviewPosturePanel />
+              <OverviewPosturePanel active={active} />
             </Suspense>
           </DeferredMount>
-          <DeferredMount fallback={<ChartSectionSkeleton />} timeoutMs={200}>
-            <Suspense fallback={<ChartSectionSkeleton />}>
-              <JointTrackingChartCard />
-            </Suspense>
-          </DeferredMount>
+          {active ? (
+            <DeferredMount fallback={<ChartSectionSkeleton />} timeoutMs={200}>
+              <Suspense fallback={<ChartSectionSkeleton />}>
+                <JointTrackingChartCard />
+              </Suspense>
+            </DeferredMount>
+          ) : (
+            <ChartSectionSkeleton />
+          )}
         </div>
       </RobotModelProvider>
 
-      <SectionCards />
+      {active ? <SectionCards /> : null}
     </div>
   );
 }

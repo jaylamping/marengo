@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import { dashboardLogsClassName } from '@/components/dashboard/layout/constants';
+import { DeferredMount } from '@/components/dashboard/layout/deferred-mount';
 import { logsArchivePanelShellClassName, logsTabsVariant } from '@/components/dashboard/logs/constants';
 import { CandumpFrameTable } from '@/components/dashboard/logs/candump-frame-table';
 import { VirtualLinesList } from '@/components/dashboard/logs/virtual-lines-list';
@@ -13,6 +14,7 @@ import { LogsSessionList } from '@/components/dashboard/logs/logs-session-list';
 import { LogsToolbar } from '@/components/dashboard/logs/logs-toolbar';
 import { LogsVirtualTable } from '@/components/dashboard/logs/logs-virtual-table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useArchiveSessions, type ArchiveView } from '@/hooks/use-archive-sessions';
 import { useCandumpData, CAN_PAGE } from '@/hooks/use-candump-data';
 import { useLogDetailSheet } from '@/hooks/use-log-detail-sheet';
@@ -81,11 +83,16 @@ function LogsOverviewInner() {
       {mode === 'live' ? (
         <LogsFilterProvider>
           <LogsToolbar autoFollow={autoFollow} onAutoFollowChange={setAutoFollow} />
-          <LogsVirtualTable
-            autoFollow={autoFollow && mode === 'live'}
-            selectedLogId={selectedLog?.id ?? null}
-            onSelectLog={handleSelectLog}
-          />
+          <DeferredMount
+            fallback={<Skeleton className="min-h-0 flex-1 w-full rounded-[4px]" />}
+            timeoutMs={120}
+          >
+            <LogsVirtualTable
+              autoFollow={autoFollow && mode === 'live'}
+              selectedLogId={selectedLog?.id ?? null}
+              onSelectLog={handleSelectLog}
+            />
+          </DeferredMount>
         </LogsFilterProvider>
       ) : null}
 
