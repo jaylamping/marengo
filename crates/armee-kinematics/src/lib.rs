@@ -74,6 +74,16 @@ pub mod fixtures {
     pub fn arm_4dof_mjcf() -> PathBuf {
         repo_root().join("assets/mjcf/arm_4dof.xml")
     }
+
+    /// Right 4-DOF bench URDF (`assets/urdf/arm_4dof_right.urdf`).
+    pub fn arm_4dof_right_urdf() -> PathBuf {
+        repo_root().join("assets/urdf/arm_4dof_right.urdf")
+    }
+
+    /// Right 4-DOF bench MJCF (`assets/mjcf/arm_4dof_right.xml`).
+    pub fn arm_4dof_right_mjcf() -> PathBuf {
+        repo_root().join("assets/mjcf/arm_4dof_right.xml")
+    }
 }
 
 /// Position limits for a revolute/prismatic joint (radians or meters).
@@ -207,6 +217,21 @@ mod tests {
         assert_eq!(actuated_joint_count(&robot), 4);
         let names = actuated_joint_names(&robot);
         assert!(names.contains(&"elbow".to_string()));
+    }
+
+    #[test]
+    fn loads_arm_4dof_right_urdf() {
+        let path = fixtures::arm_4dof_right_urdf();
+        let robot = load_urdf(&path).expect("arm_4dof_right");
+        assert_eq!(actuated_joint_count(&robot), 4);
+        let names = actuated_joint_names(&robot);
+        assert!(names.contains(&"right_elbow_pitch".to_string()));
+        let elbow = robot
+            .joints
+            .iter()
+            .find(|j| j.name == "right_elbow_pitch")
+            .expect("elbow joint");
+        assert!((elbow.axis.xyz[1] - 1.0).abs() < 1e-9, "elbow axis must be +Y");
     }
 
     #[test]

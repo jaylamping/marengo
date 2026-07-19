@@ -5,7 +5,7 @@ import type { ConfigSnapshotDto } from '@/lib/config-api';
 import { robotInventory } from '@/data/robot-inventory';
 
 const snapshot: ConfigSnapshotDto = {
-  profile: 'arm_3dof_right',
+  profile: 'arm_4dof_right',
   config_dir: '/opt/marengo/config',
   joints: ['right_shoulder_roll', 'right_shoulder_pitch', 'right_upper_arm_yaw'],
   motors: [

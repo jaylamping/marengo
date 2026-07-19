@@ -8,7 +8,7 @@ const cfg: MarengoPiConfig = {
   host: "marengo.local",
   user: "joey",
   piRoot: "/opt/marengo",
-  configDir: "/opt/marengo/config/bringup/arm_3dof_right",
+  configDir: "/opt/marengo/config/bringup/arm_4dof_right",
   localRoot: "/tmp/marengo",
   benchProfile: "bare_motor",
   piStagingRoot: "~/marengo",

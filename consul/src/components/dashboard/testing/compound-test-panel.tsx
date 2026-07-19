@@ -35,7 +35,7 @@ import { dashboardPanelCardClassName } from '@/components/dashboard/layout/const
 import { useConfigSnapshot } from '@/hooks/use-config-snapshot';
 import { useTeachStore } from '@/state/teachStore';
 
-/** Zero gains → Pi clears overrides and uses arm_3dof_right control.yaml impedance. */
+/** Zero gains → Pi clears overrides and uses arm_4dof_right control.yaml impedance. */
 const CONFIG_GAINS = { kp: 0, kd: 0, ki: 0, fc: 0 };
 
 export function CompoundTestPanel() {
@@ -133,7 +133,7 @@ export function CompoundTestPanel() {
       const base = COMPOUND_TEST_PRESETS.find((p) => p.id === selectedPresetId);
       if (!shouldHome || !base) return;
       const teach = useTeachStore.getState();
-      const profile = config?.profile ?? 'arm_3dof_right';
+      const profile = config?.profile ?? 'arm_4dof_right';
       const liveFp = liveFingerprint(
         profile,
         base.joints,
@@ -225,7 +225,7 @@ export function CompoundTestPanel() {
     if (!base) return;
     const teachState = useTeachStore.getState();
     const overlayEntry = teachState.overlays[selectedPresetId];
-    const profile = config?.profile ?? 'arm_3dof_right';
+    const profile = config?.profile ?? 'arm_4dof_right';
     const liveFp = liveFingerprint(
       profile,
       base.joints,
@@ -439,7 +439,7 @@ export function CompoundTestPanel() {
   const playableSelected = React.useMemo(() => {
     if (!selectedBase || !selectedPresetId) return null;
     const entry = overlays[selectedPresetId];
-    const profile = config?.profile ?? 'arm_3dof_right';
+    const profile = config?.profile ?? 'arm_4dof_right';
     const liveFp = liveFingerprint(
       profile,
       selectedBase.joints,

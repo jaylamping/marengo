@@ -38,31 +38,41 @@ describe("bench profile metadata", () => {
   });
 
   it("marks right-arm bringup profiles via configBringup", () => {
-    const right: BenchProfile[] = [
-      "roll_attached",
-      "arm_2dof_smoke",
-      "yaw_attached",
-    ];
-    for (const p of right) {
+    const right3: BenchProfile[] = ["roll_attached", "arm_2dof_smoke"];
+    for (const p of right3) {
       assert.equal(isRightArmBenchProfile(p), true);
       assert.equal(
         harnessConfigDir(cfg, p),
         "/opt/marengo/config/bringup/arm_3dof_right",
       );
     }
+    for (const p of ["yaw_attached", "elbow_attached"] as BenchProfile[]) {
+      assert.equal(isRightArmBenchProfile(p), true);
+      assert.equal(
+        harnessConfigDir(cfg, p),
+        "/opt/marengo/config/bringup/arm_4dof_right",
+      );
+    }
   });
 
-  it("selects arm_3dof_right for yaw_attached", () => {
+  it("selects arm_4dof_right for yaw_attached and elbow_attached", () => {
     assert.equal(
       harnessConfigDir(cfg, "yaw_attached"),
-      "/opt/marengo/config/bringup/arm_3dof_right",
+      "/opt/marengo/config/bringup/arm_4dof_right",
+    );
+    assert.equal(
+      harnessConfigDir(cfg, "elbow_attached"),
+      "/opt/marengo/config/bringup/arm_4dof_right",
     );
   });
 
-  it("includes yaw in right-arm set-zero joints", () => {
-    const joints = BENCH_PROFILE_META.yaw_attached.setZeroJoints;
-    assert.ok(joints.includes("right_upper_arm_yaw"));
-    assert.ok(joints.includes("right_shoulder_pitch"));
-    assert.ok(joints.includes("right_shoulder_roll"));
+  it("includes yaw and elbow in 4-DOF set-zero joints", () => {
+    for (const profile of ["yaw_attached", "elbow_attached"] as const) {
+      const joints = BENCH_PROFILE_META[profile].setZeroJoints;
+      assert.ok(joints.includes("right_upper_arm_yaw"));
+      assert.ok(joints.includes("right_elbow_pitch"));
+      assert.ok(joints.includes("right_shoulder_pitch"));
+      assert.ok(joints.includes("right_shoulder_roll"));
+    }
   });
 });

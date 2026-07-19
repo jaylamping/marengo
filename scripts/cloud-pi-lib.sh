@@ -6,7 +6,7 @@
 : "${MARENGO_PI_HOST:=joey-robot.tail0b414.ts.net}"
 : "${MARENGO_PI_USER:=joey}"
 : "${MARENGO_PI_ROOT:=/opt/marengo}"
-: "${MARENGO_CONFIG_DIR:=/opt/marengo/config/bringup/arm_3dof_right}"
+: "${MARENGO_CONFIG_DIR:=/opt/marengo/config/bringup/arm_4dof_right}"
 : "${MARENGO_CLOUD_SSH_DIR:=${HOME}/.marengo-cloud-ssh}"
 : "${MARENGO_TAILSCALE_STATE_DIR:=${HOME}/.tailscale}"
 : "${MARENGO_TAILSCALE_SOCKS:=localhost:1055}"

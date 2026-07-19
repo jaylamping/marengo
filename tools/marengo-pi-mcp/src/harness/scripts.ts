@@ -9,6 +9,7 @@ import { profileMeta } from "../bench-profiles.js";
 const ROLL_JOINT = "right_shoulder_roll";
 const PITCH_JOINT = "right_shoulder_pitch";
 const YAW_JOINT = "right_upper_arm_yaw";
+const ELBOW_JOINT = "right_elbow_pitch";
 
 function holdAt(joint: string, rad: number): string {
   return `hold-at ${joint} ${rad}`;
@@ -172,6 +173,89 @@ const SCRIPT_SUITES: Partial<Record<BenchProfile, () => HarnessScriptSuite>> = {
     ],
   }),
 
+  elbow_attached: () => {
+    const pitchHold0 = holdAt(PITCH_JOINT, 0);
+    const rollHold0 = holdAt(ROLL_JOINT, 0);
+    const yawHold0 = holdAt(YAW_JOINT, 0);
+    return {
+      passKind: "smoke",
+      operatorSignoffRequired: true,
+      note: {
+        name: "elbow_suite_smoke_note",
+        output:
+          "elbow_attached harness is smoke (fault/exit heuristics only). " +
+          "Run after E6 GravityComp sign (docs/bench-elbow-test-suite.md). " +
+          "Amplitudes stay inside discovery envelope (≤0.6 rad). " +
+          "Elevated pitch steps require operator support. " +
+          "JSON pass=true with pass_kind=smoke is NOT commissioning complete.",
+      },
+      scripts: [
+        {
+          name: "elbow_sign_probe",
+          timeoutSec: 55,
+          lines: [
+            "home",
+            "enable bench",
+            pitchHold0,
+            rollHold0,
+            yawHold0,
+            "sleep 2",
+            holdAt(ELBOW_JOINT, 0.25),
+            "sleep 8",
+            holdAt(ELBOW_JOINT, 0),
+            "sleep 8",
+            "status",
+            "disable",
+            "quit",
+          ],
+        },
+        {
+          name: "elbow_hold_ladder",
+          timeoutSec: 90,
+          lines: [
+            "home",
+            "enable bench",
+            pitchHold0,
+            rollHold0,
+            yawHold0,
+            "sleep 2",
+            holdAt(ELBOW_JOINT, 0.3),
+            "sleep 12",
+            holdAt(ELBOW_JOINT, 0.6),
+            "sleep 12",
+            holdAt(ELBOW_JOINT, 0),
+            "sleep 12",
+            "status",
+            "disable",
+            "quit",
+          ],
+        },
+        {
+          name: "elbow_elevated_cross_talk",
+          timeoutSec: 100,
+          lines: [
+            "home",
+            "enable bench",
+            rollHold0,
+            yawHold0,
+            "sleep 2",
+            holdAt(PITCH_JOINT, 0.3),
+            "sleep 8",
+            holdAt(ELBOW_JOINT, 0.4),
+            "sleep 12",
+            holdAt(ELBOW_JOINT, 0),
+            "sleep 8",
+            holdAt(PITCH_JOINT, 0),
+            "sleep 10",
+            "status",
+            "disable",
+            "quit",
+          ],
+        },
+      ],
+    };
+  },
+
   yaw_attached: () => {
     const pitchHold0 = holdAt(PITCH_JOINT, 0);
     const rollHold0 = holdAt(ROLL_JOINT, 0);
@@ -184,6 +268,7 @@ const SCRIPT_SUITES: Partial<Record<BenchProfile, () => HarnessScriptSuite>> = {
           "yaw_attached harness is smoke (fault/exit heuristics only). " +
           "Y3–Y4 ±50 mrad / pitch-drift sign-off requires operator review of " +
           "position-trace-latest.csv + candump — see docs/bench-yaw-test-suite.md. " +
+          "Runs on arm_4dof_right (elbow held at zero when present). " +
           "JSON pass=true with pass_kind=smoke is NOT commissioning complete.",
       },
       scripts: [

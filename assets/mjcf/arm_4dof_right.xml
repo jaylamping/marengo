@@ -1,0 +1,26 @@
+<mujoco model="arm_4dof_right">
+  <!-- Mirrors assets/urdf/arm_4dof_right.urdf joint order and axes (pitch Y, roll X, yaw Z, elbow Y). -->
+  <compiler angle="radian"/>
+  <option gravity="0 0 -9.81"/>
+  <worldbody>
+    <body name="base_link">
+      <geom type="cylinder" size="0.04 0.05" rgba="0.5 0.5 0.5 1"/>
+      <body name="right_shoulder_pitch_link" pos="0 0 0">
+        <joint name="right_shoulder_pitch" type="hinge" axis="0 1 0" range="-0.9 3.25"/>
+        <geom type="sphere" size="0.03" rgba="0.6 0.6 0.6 1"/>
+        <body name="right_shoulder_roll_link" pos="0.05 0 0">
+          <joint name="right_shoulder_roll" type="hinge" axis="1 0 0" range="-0.05 3.14159"/>
+          <geom type="sphere" size="0.03" rgba="0.65 0.65 0.65 1"/>
+          <body name="right_upper_arm_link" pos="0.08 0 0">
+            <joint name="right_upper_arm_yaw" type="hinge" axis="0 0 1" range="-1.57 1.57"/>
+            <geom type="capsule" fromto="0 0 0 0 0 -0.24" size="0.03" rgba="0.23 0.51 0.96 1"/>
+            <body name="right_forearm_link" pos="0 0 -0.24">
+              <joint name="right_elbow_pitch" type="hinge" axis="0 1 0" range="0 1.2"/>
+              <geom type="capsule" fromto="0 0 0 0 0 -0.2" size="0.025" rgba="0.35 0.6 0.95 1"/>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+</mujoco>

@@ -1,9 +1,10 @@
 # Yaw commissioning — physical bench test suite
 
 Operator-runnable physical bench tests for **right upper-arm yaw** on the attached
-3-DOF arm (`arm_3dof_right`). Yaw is Robstride RS02 on `can0`, `device_id=3`,
-provisional `direction=1`, limits **±1.57 rad**. Pitch (id 2) and roll (id 1)
-are enabled; during yaw probes they are held at **q=0** unless noted (Y4).
+4-DOF arm (`arm_4dof_right`). Yaw is Robstride RS02 on `can0`, `device_id=3`,
+provisional `direction=1`, limits **±1.57 rad**. Pitch (id 2), roll (id 1), and
+elbow pitch (id 4) are enabled; during yaw probes they are held at **q=0**
+unless noted (Y4).
 
 **Not in scope:** URDF mass/COM tuning, gravity-comp accuracy, Wave teach overlays.
 See [bench-roll-test-suite.md](bench-roll-test-suite.md) and
@@ -13,8 +14,8 @@ See [bench-roll-test-suite.md](bench-roll-test-suite.md) and
 
 | Item | Value |
 |------|-------|
-| Config dir | `config/bringup/arm_3dof_right/` |
-| URDF | `assets/urdf/arm_3dof_right.urdf` |
+| Config dir | `config/bringup/arm_4dof_right/` |
+| URDF | `assets/urdf/arm_4dof_right.urdf` |
 | Yaw joint | `right_upper_arm_yaw`, limits −1.57…1.57 rad |
 | Pitch / roll during Y1–Y3 | held at 0 rad |
 | Loop | 200 Hz control, 25 Hz Chappe state |
@@ -51,7 +52,7 @@ pi_motor_repl_status
 Pass: `can0` UP, **roll + pitch + yaw** homing **Verified**, `fault=0x0000`,
 deploy rev matches `git rev-parse HEAD`. If yaw is Unhomed, complete Y2 first.
 
-**Runtime config:** `MARENGO_CONFIG_DIR=.../arm_3dof_right` in `/etc/marengo/env`.
+**Runtime config:** `MARENGO_CONFIG_DIR=.../arm_4dof_right` in `/etc/marengo/env`.
 
 ## Operator safety contract
 
@@ -80,7 +81,7 @@ No fault. Return to 0.
   "confirm": true,
   "confirm_weighted_motion": true,
   "profile": "yaw_attached",
-  "config_dir": "arm_3dof_right",
+  "config_dir": "arm_4dof_right",
   "script": [
     "home",
     "enable bench",
@@ -117,7 +118,7 @@ At the mechanical yaw reference (see above):
 {
   "tool": "pi_set_zero",
   "confirm": true,
-  "config_dir": "arm_3dof_right",
+  "config_dir": "arm_4dof_right",
   "joint": "right_upper_arm_yaw"
 }
 ```
@@ -175,7 +176,7 @@ Harness JSON includes:
   "confirm": true,
   "confirm_weighted_motion": true,
   "profile": "yaw_attached",
-  "config_dir": "arm_3dof_right",
+  "config_dir": "arm_4dof_right",
   "skip_set_zero": true
 }
 ```

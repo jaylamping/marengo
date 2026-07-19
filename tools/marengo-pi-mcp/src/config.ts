@@ -42,7 +42,7 @@ export function loadConfig(): MarengoPiConfig {
     piRoot: env("MARENGO_PI_ROOT", "/opt/marengo"),
     configDir: env(
       "MARENGO_CONFIG_DIR",
-      "/opt/marengo/config/bringup/arm_3dof_right",
+      "/opt/marengo/config/bringup/arm_4dof_right",
     ),
     localRoot: env("MARENGO_LOCAL_ROOT", defaultLocalRoot()),
     sshIdentityFile: process.env.SSH_IDENTITY_FILE?.trim() || undefined,

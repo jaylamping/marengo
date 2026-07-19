@@ -14,7 +14,8 @@ config/
 ├── motors_humanoid.yaml      # Full humanoid motor map (future)
 ├── robot_humanoid.yaml       # Full humanoid robot config (future)
 └── bringup/                  # Bench bringup profiles (override root configs)
-    ├── arm_3dof_right/               # bench default
+    ├── arm_4dof_right/               # bench default (roll/pitch/yaw/elbow)
+    ├── arm_3dof_right/               # right 3-DOF regression slice
     ├── shoulder_pitch_left_only/
     ├── shoulder_pitch_dual/
     ├── shoulder_pitch_weighted/     # Weighted arm test (700g)
@@ -27,7 +28,7 @@ Each bringup profile contains: `control.yaml`, `motors.yaml`, `robot.yaml`, `hom
 
 | Task | Location |
 |------|----------|
- | Bench default profile | `bringup/arm_3dof_right/` |
+| Bench default profile | `bringup/arm_4dof_right/` |
 | Velocity caps | `control.yaml` → `resolve_joint_velocity_cap` (ADR 0010) |
 | Danger zone rules | `control.yaml` (measured `q`/`dq` based) |
 | Motor direction/gearing | `motors.yaml` (Davout applies transforms) |
@@ -38,7 +39,7 @@ Each bringup profile contains: `control.yaml`, `motors.yaml`, `robot.yaml`, `hom
 ## CONVENTIONS
 
 - **Velocity caps resolve only from `control.yaml`** — `motors.yaml`/`robot.yaml`/URDF velocity fields do NOT override (ADR 0010).
-- Profile selection via `MARENGO_CONFIG_DIR` env var (e.g. `config/bringup/arm_3dof_right`).
+- Profile selection via `MARENGO_CONFIG_DIR` env var (e.g. `config/bringup/arm_4dof_right`).
 - Edit locally → `pi_sync_bench_config` (MCP) or `scripts/pi-remote.sh` to sync to Pi.
 - Danger zone rules evaluate **measured** `q`/`dq`, not commanded MIT fields.
 

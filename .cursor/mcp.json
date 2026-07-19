@@ -18,8 +18,8 @@
         "MARENGO_PI_HOST": "marengo.local",
         "MARENGO_PI_USER": "joey",
         "MARENGO_PI_ROOT": "/opt/marengo",
-        "MARENGO_CONFIG_DIR": "/opt/marengo/config/bringup/arm_2dof_right",
-        "MARENGO_BENCH_PROFILE": "bare_motor",
+        "MARENGO_CONFIG_DIR": "/opt/marengo/config/bringup/arm_4dof_right",
+        "MARENGO_BENCH_PROFILE": "elbow_attached",
         "SSH_IDENTITY_FILE": "/home/joey/.ssh/id_ed25519_marengo"
       }
     },

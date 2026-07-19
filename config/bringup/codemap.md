@@ -8,7 +8,8 @@ Each profile folder contains a full set: `robot.yaml`, `motors.yaml`, `control.y
 
 | Profile | Use case |
 |---------|----------|
-| `arm_3dof_right` | Default right-shoulder bench (MCP default) |
+| `arm_3dof_right` | Right 3-DOF regression slice |
+| `arm_4dof_right` | Default right 4-DOF bench (MCP default) |
 | `arm_4dof_left` | Left 4-DOF arm bring-up |
 | `shoulder_pitch_dual` | Dual shoulder pitch motors |
 | `shoulder_pitch_left_only` | Left shoulder only |

@@ -123,6 +123,23 @@ mod tests {
     }
 
     #[test]
+    fn arm_4dof_right_accepts_elbow_pitch() {
+        let root = resolve_repo_root();
+        let allowlist =
+            load_command_joint_allowlist_from(root.join("config/bringup/arm_4dof_right"))
+                .expect("4dof right allowlist");
+        assert_eq!(
+            resolve_command_joint("right_elbow_pitch", &allowlist),
+            Some("right_elbow_pitch")
+        );
+        assert_eq!(
+            resolve_command_joint("right_shoulder_pitch", &allowlist),
+            Some("right_shoulder_pitch")
+        );
+        assert_eq!(resolve_command_joint("elbow", &allowlist), None);
+    }
+
+    #[test]
     fn arm_4dof_left_accepts_short_and_left_aliases() {
         let root = resolve_repo_root();
         let allowlist =

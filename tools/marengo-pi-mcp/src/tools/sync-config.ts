@@ -10,6 +10,8 @@ const benchUrdfAssets = [
   "shoulder_pitch_right_only.urdf",
   "shoulder_pitch_weighted.urdf",
   "shoulder_pitch_left_bare.urdf",
+  "arm_4dof_right.urdf",
+  "arm_3dof_right.urdf",
 ] as const;
 
 type BenchUrdfAsset = (typeof benchUrdfAssets)[number];
@@ -264,7 +266,7 @@ export async function runSyncBenchUrdfAssets(
 export const syncBenchConfigSchema = z.object({
   profile: z
     .string()
-    .default("arm_3dof_right")
+    .default("arm_4dof_right")
     .describe("Bringup folder under config/bringup/"),
   install_to_opt: z
     .boolean()

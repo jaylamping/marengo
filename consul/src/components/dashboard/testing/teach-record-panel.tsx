@@ -146,7 +146,7 @@ export function TeachRecordPanel() {
       setLastError('Cannot Apply — need ≥2 included landmarks with full-q snapshots.');
       return;
     }
-    const profile = config?.profile ?? 'arm_3dof_right';
+    const profile = config?.profile ?? 'arm_4dof_right';
     const fp = liveFingerprint(profile, joints, piMetrics?.build);
     const liveEpoch = useTeachStore.getState().liveCalibrationEpoch;
     const session = createTeachSession(fp, WAVE_PRESET_ID, landmarks, {

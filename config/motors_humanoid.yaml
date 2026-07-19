@@ -304,7 +304,7 @@ motors:
       position_upper_rad: 1.57
       velocity_limit_rad_s: 0.5
       torque_limit_nm: 3.0
-  - joint: right_elbow
+  - joint: right_elbow_pitch
     driver: robstride
     motor_type: rs02
     can_interface: can4
@@ -318,7 +318,7 @@ motors:
       position_upper_rad: 2.5
       velocity_limit_rad_s: 0.5
       torque_limit_nm: 3.0
-  - joint: right_wrist
+  - joint: right_lower_arm_yaw
     driver: robstride
     motor_type: rs00
     can_interface: can4

@@ -216,6 +216,32 @@ mod tests {
         );
     }
 
+    fn arm_4dof_right_joints() -> Vec<String> {
+        vec![
+            "right_shoulder_pitch".to_string(),
+            "right_shoulder_roll".to_string(),
+            "right_upper_arm_yaw".to_string(),
+            "right_elbow_pitch".to_string(),
+        ]
+    }
+
+    #[test]
+    fn arm_4dof_right_elbow_torque_changes_with_pose() {
+        let path = fixtures::arm_4dof_right_urdf();
+        let model = gravity_model_from_urdf(&path, &arm_4dof_right_joints()).expect("model");
+        let q_down = vec![0.2, 0.0, 0.0, 0.3];
+        let q_up = vec![1.2, 0.3, 0.0, 0.9];
+        let tau_down = model.gravity_torques(&q_down).expect("down");
+        let tau_up = model.gravity_torques(&q_up).expect("up");
+        assert_eq!(tau_down.len(), 4);
+        assert!(
+            (tau_up[3] - tau_down[3]).abs() > 1e-4
+                || tau_up.iter().map(|t| t.abs()).sum::<f64>()
+                    != tau_down.iter().map(|t| t.abs()).sum::<f64>(),
+            "elbow/pose gravity should differ: down={tau_down:?} up={tau_up:?}",
+        );
+    }
+
     fn shoulder_pitch_joints() -> Vec<String> {
         vec![
             "left_shoulder_pitch".to_string(),
