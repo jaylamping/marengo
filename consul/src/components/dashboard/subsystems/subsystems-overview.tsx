@@ -18,7 +18,7 @@ type SubsystemsOverviewProps = {
 export function SubsystemsOverview({ inventory }: SubsystemsOverviewProps) {
   return (
     <div className={dashboardSubsystemsClassName} data-testid="subsystems-overview">
-      <DeferredMount fallback={<InventoryTableSkeleton />} timeoutMs={1500}>
+      <DeferredMount fallback={<InventoryTableSkeleton />} timeoutMs={2500}>
         <Suspense fallback={<InventoryTableSkeleton />}>
           <InventoryDataTable data={inventory} />
         </Suspense>

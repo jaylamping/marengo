@@ -37,6 +37,7 @@ export function SidebarNavMain({ items }: SidebarNavMainProps) {
                   end={item.url === '/'}
                   onMouseEnter={() => warmRoute(item.url)}
                   onFocus={() => warmRoute(item.url)}
+                  onPointerDown={() => warmRoute(item.url)}
                 >
                   {({ isActive }) => (
                     <SidebarMenuButton

@@ -12,6 +12,27 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  /**
+   * Pre-bundle heavy deps at dev-server start so first navigation does not
+   * cold-transform three/recharts/dnd-kit on the main thread (multi-second hangs).
+   */
+  optimizeDeps: {
+    include: [
+      'three',
+      '@react-three/fiber',
+      '@react-three/drei',
+      'recharts',
+      '@tanstack/react-table',
+      '@tanstack/react-virtual',
+      '@tanstack/react-query',
+      '@dnd-kit/core',
+      '@dnd-kit/sortable',
+      '@dnd-kit/utilities',
+      '@dnd-kit/modifiers',
+      'motion',
+      '@bufbuild/protobuf',
+    ],
+  },
   server: {
     port: 5173,
     // Live telemetry: set VITE_CHAPPE_* in .env.local (see consul/.env.example).

@@ -54,13 +54,8 @@ export function RootLayout() {
   }, [pathname]);
 
   useEffect(() => {
-    const warm = () => prefetchHeavyRoutes();
-    if (typeof requestIdleCallback === 'undefined') {
-      const timer = window.setTimeout(warm, 400);
-      return () => window.clearTimeout(timer);
-    }
-    const idle = requestIdleCallback(warm, { timeout: 2500 });
-    return () => cancelIdleCallback(idle);
+    // Eager: Overview longtasks starve requestIdleCallback-based warmup.
+    prefetchHeavyRoutes();
   }, []);
 
   return (
