@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo } from 'react';
 
 import { dashboardPanelCardClassName } from '@/components/dashboard/layout/constants';
 import { ChartTimeRangeControls } from '@/components/dashboard/charts/chart-time-range-controls';
@@ -6,9 +6,13 @@ import { dummyShoulderPitchTracking } from '@/components/dashboard/charts/consta
 import { useChartTimeRange } from '@/components/dashboard/charts/hooks/use-chart-time-range';
 import { useThrottledValue } from '@/hooks/use-throttled-value';
 import { isChappeLive } from '@/lib/chappe-config';
+import {
+  jointChartCopy,
+  resolveJointChartFeed,
+} from '@/lib/telemetry-source';
 import { useRobotStore } from '@/state/robotStore';
 import { JointTrackingAreaChart } from '@/components/dashboard/charts/joint-tracking-area-chart';
-import type { JointTrackingPoint, JointTrackingSeries } from '@/components/dashboard/charts/types';
+import type { JointTrackingSeries } from '@/components/dashboard/charts/types';
 import { filterTrackingPointsByTimeRange } from '@/components/dashboard/charts/utils';
 import {
   Card,
@@ -47,23 +51,31 @@ export function JointTrackingChartCard({ series: _seriesProp }: JointTrackingCha
 
   const [selectedJoint, setSelectedJoint] = useState<string>(defaultJoint || jointNames[0]);
 
-  // Live points for the selected joint
   const livePoints = trackingPointsByJoint[selectedJoint] || [];
   const chartPoints = useThrottledValue(livePoints, CHART_RENDER_MS);
 
   const jointSpec = model.getJoint(selectedJoint);
 
   const series: JointTrackingSeries = useMemo(() => {
-    const title = jointSpec ? `${selectedJoint} (live)` : 'Joint Tracking (live)';
-    const description = jointSpec
-      ? `Measured position from Chappe robot/state. Type: ${jointSpec.type}.`
-      : 'Live · Chappe';
+    const live = isChappeLive();
+    const feed = resolveJointChartFeed({
+      live,
+      connected,
+      pointCount: chartPoints.length,
+    });
+    const copy = jointChartCopy(selectedJoint, feed, jointSpec?.type);
+    const points =
+      feed === 'live'
+        ? chartPoints
+        : feed === 'demo'
+          ? dummyShoulderPitchTracking.points
+          : [];
     return {
       jointName: selectedJoint,
-      title,
-      description,
-      descriptionShort: 'Live · Chappe',
-      points: (isChappeLive() && connected && chartPoints.length > 0 ? chartPoints : dummyShoulderPitchTracking.points),
+      title: copy.title,
+      description: copy.description,
+      descriptionShort: copy.descriptionShort,
+      points,
       limits: jointSpec?.limit,
       safety: jointSpec?.safety,
     };
