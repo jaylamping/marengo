@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "${ROOT}"
 
-HITS="$(rg '(println|eprintln)!' crates/ --glob '*.rs' -l 2>/dev/null || true)"
+HITS="$(rg '(println|eprintln)!' crates/ --glob '*.rs' --glob '!**/build.rs' -l 2>/dev/null || true)"
 if [[ -n "${HITS}" ]]; then
   echo "error: println!/eprintln! in library crates (use tracing instead):"
   echo "${HITS}"
