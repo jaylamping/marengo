@@ -1,4 +1,4 @@
-//! Golden-value tests for tau_g from the `arm_2dof_right` URDF.
+//! Golden-value tests for tau_g from the `arm_3dof_right` URDF.
 //!
 //! Golden values AFTER COM correction (18in → 14in, 2026-06-19).
 //! Source: computed from corrected URDF + bench Phase 4 validation.
@@ -11,11 +11,11 @@
 use armee_dynamics::{gravity_model_from_urdf, DynamicsModel};
 use std::path::Path;
 
-/// Build the gravity model from the arm_2dof_right URDF (single joint).
+/// Build the gravity model from the arm_3dof_right URDF (single joint).
 fn model() -> armee_dynamics::UrdfGravityModel {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/urdf/arm_2dof_right.urdf");
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/urdf/arm_3dof_right.urdf");
     gravity_model_from_urdf(&path, &["right_shoulder_pitch".to_string()])
-        .expect("build UrdfGravityModel from arm_2dof_right.urdf")
+        .expect("build UrdfGravityModel from arm_3dof_right.urdf")
 }
 
 #[test]

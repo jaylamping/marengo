@@ -49,7 +49,7 @@ Each configured motor is addressed by (`can_interface`, `device_id`). Device IDs
 | `upper_arm_yaw` | 13 | RS02 | |
 | `elbow` | 14 | RS02 | |
 
-All on `can0`. Right arm (future, `can1`): pitch **2** (torso, commissioned), roll **1**, yaw **3**, elbow **4**.
+All on `can0`. Right arm bench (`arm_3dof_right`, `can0`): roll **1**, pitch **2**, yaw **3**; elbow **4** (not yet wired).
 
 **Legacy 4-DOF template (superseded):** IDs 1–4 on single bus — do not use on commissioned hardware.
 

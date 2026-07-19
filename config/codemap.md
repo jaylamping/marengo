@@ -15,7 +15,7 @@
 Bringup **profiles** under `bringup/` swap complete config trees for specific bench setups (right-only arm, weighted, dual pitch, etc.).
 
 ## Flow
-1. Operator sets `MARENGO_CONFIG_DIR=/opt/marengo/config/bringup/arm_2dof_right`
+1. Operator sets `MARENGO_CONFIG_DIR=/opt/marengo/config/bringup/arm_3dof_right`
 2. marengo-config loaders parse all YAML files
 3. Davout builds limit tables; Berthier loads gains; robstride maps device_ids
 4. MCP `pi_sync_bench_config` rsyncs local profile edits to Pi

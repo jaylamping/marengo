@@ -16,3 +16,5 @@ homing:
       method: manual_reference
     right_shoulder_pitch:
       method: manual_reference
+    right_upper_arm_yaw:
+      method: manual_reference

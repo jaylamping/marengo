@@ -29,7 +29,7 @@ physically support the arm for the first enable at any elevated pose.
 
 - Actuator: Robstride RS03, `can0`, `device_id=2`, `direction=-1`, `gear_ratio=1.0`.
 - Load: 700 g arm at ~14 in (0.3556 m) effective COM.
-- Config dir: `config/bringup/arm_2dof_right/`.
+- Config dir: `config/bringup/arm_3dof_right/`.
 - Control: `kp=8, kd=2, slew=0.15, v=1.45, fc=0.15, tau_ff_rate_limit=60`.
 - Bench limits: position −0.9 to 3.17 rad, velocity 2.0 rad/s, torque 5.0 Nm.
 - Loop 200 Hz, Chappe state 25 Hz.
@@ -302,7 +302,7 @@ weighted_single_arm + 200 g (900 g)}`:
 2. Sync config:
 
 ```json
-{ "tool": "pi_sync_bench_config", "profile": "arm_2dof_right", "install_to_opt": true }
+{ "tool": "pi_sync_bench_config", "profile": "arm_3dof_right", "install_to_opt": true }
 ```
 
 3. Read-only preview to confirm the model reflects the new mass:
@@ -385,7 +385,7 @@ For each speed `v ∈ {0.1, 0.5, 1.0} rad/s` and each direction
    `position_trajectory_velocity_rad_s` and `pi_sync_bench_config`):
 
 ```json
-{ "tool": "pi_sync_bench_config", "profile": "arm_2dof_right", "install_to_opt": true }
+{ "tool": "pi_sync_bench_config", "profile": "arm_3dof_right", "install_to_opt": true }
 ```
 
 2. Run the move. Positive direction at the configured speed:
@@ -552,11 +552,11 @@ transients.
 
 **Part A — trip test.**
 
-1. Edit `config/bringup/arm_2dof_right/motors.yaml`:
+1. Edit `config/bringup/arm_3dof_right/motors.yaml`:
    `direction: -1` → `direction: 1` (inverted). Sync:
 
 ```json
-{ "tool": "pi_sync_bench_config", "profile": "arm_2dof_right", "install_to_opt": true }
+{ "tool": "pi_sync_bench_config", "profile": "arm_3dof_right", "install_to_opt": true }
 ```
 
 2. Enable with gravity-on at a pose where tau_g is non-trivial (0.5 rad):
@@ -596,7 +596,7 @@ transients.
    spurious trip:
 
 ```json
-{ "tool": "pi_sync_bench_config", "profile": "arm_2dof_right", "install_to_opt": true }
+{ "tool": "pi_sync_bench_config", "profile": "arm_3dof_right", "install_to_opt": true }
 ```
 
 ```json

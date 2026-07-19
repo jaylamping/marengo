@@ -19,12 +19,12 @@ Agent: append here when investigation suggests a load/model test and the user is
 
 ---
 
-### 2026-06-22 — arm_2dof_right motion smoke (D1–D3)
+### 2026-06-22 — arm_3dof_right motion smoke (D1–D3)
 
 - **Status:** done
 - **Hypothesis:** shared position-hold tuning lets pitch and roll move cleanly with matched impedance and group velocity caps
 - **Log evidence:** Pi `/opt/marengo/var/log/bench-20260622T002026Z.log` (+ position-trace, candump same stamp); deploy `ff9d554`
-- **Suggested run:** `pi_bench_harness` profile `arm_2dof_smoke`, `config_dir: arm_2dof_right`, `skip_set_zero: true` after Verified zeros
+- **Suggested run:** `pi_bench_harness` profile `arm_2dof_smoke`, `config_dir: arm_3dof_right`, `skip_set_zero: true` after Verified zeros
 - **Blocked on:** —
 - **Result:** PASS all steps (pitch hold 0.3 rad, roll hold 0.785 rad, cross-talk). Operator: best movement since bench start. Baseline in [bench-2dof-right-smoke.md](bench-2dof-right-smoke.md).
 

@@ -1315,7 +1315,7 @@ mod tests {
     #[test]
     fn missing_control_joint_rejected() {
         let root = repo_root();
-        let config_dir = root.join("config/bringup/arm_2dof_right");
+        let config_dir = root.join("config/bringup/arm_3dof_right");
         let robot = load_robot_config_from(&config_dir).expect("robot");
         let mut control = load_control_config_from(&config_dir).expect("control");
         control.control.joints.remove("right_shoulder_pitch");
@@ -1327,7 +1327,7 @@ mod tests {
     #[test]
     fn trajectory_velocity_above_effective_cap_rejected() {
         let root = repo_root();
-        let config_dir = root.join("config/bringup/arm_2dof_right");
+        let config_dir = root.join("config/bringup/arm_3dof_right");
         let robot = load_robot_config_from(&config_dir).expect("robot");
         let motors = load_motors_config_from(&config_dir).expect("motors");
         let mut control = load_control_config_from(&config_dir).expect("control");

@@ -5,9 +5,9 @@ import type { ConfigSnapshotDto } from '@/lib/config-api';
 import { robotInventory } from '@/data/robot-inventory';
 
 const snapshot: ConfigSnapshotDto = {
-  profile: 'arm_2dof_right',
+  profile: 'arm_3dof_right',
   config_dir: '/opt/marengo/config',
-  joints: ['right_shoulder_roll', 'right_shoulder_pitch'],
+  joints: ['right_shoulder_roll', 'right_shoulder_pitch', 'right_upper_arm_yaw'],
   motors: [
     {
       joint: 'right_shoulder_roll',
@@ -35,7 +35,7 @@ describe('enrichInventory', () => {
     const roll = enriched.find((r) => r.name === 'right_shoulder_roll');
     expect(roll?.node).toBe('RS03 · can0 · id 1');
     expect(roll?.limit).toBe('±1.57');
-    expect(roll?.preset).toBe('bench_2dof');
+    expect(roll?.preset).toBe('bench_3dof');
   });
 
   it('does not mutate the base catalog', () => {

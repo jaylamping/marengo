@@ -1,11 +1,12 @@
 /**
- * Wired bench joints for the active bringup profile (`arm_2dof_right`).
- * Must match `robot.joints` in `config/bringup/arm_2dof_right/robot.yaml`
+ * Wired bench joints for the active bringup profile (`arm_3dof_right`).
+ * Must match `robot.joints` in `config/bringup/arm_3dof_right/robot.yaml`
  * and the gateway command allowlist loaded from `MARENGO_CONFIG_DIR`.
  */
 export const WIRED_BENCH_JOINTS = [
   'right_shoulder_roll',
   'right_shoulder_pitch',
+  'right_upper_arm_yaw',
 ] as const;
 
 export type WiredBenchJoint = (typeof WIRED_BENCH_JOINTS)[number];
@@ -33,6 +34,12 @@ export const DISPLAY_STATIC_JOINT_LIMITS: Record<WiredBenchJoint, StaticJointLim
     kdMax: 5,
     velocityMaxRadS: 2.0,
     tauFfMaxNm: 5.0,
+  },
+  right_upper_arm_yaw: {
+    kpMax: 50,
+    kdMax: 5,
+    velocityMaxRadS: 2.0,
+    tauFfMaxNm: 3.0,
   },
 };
 

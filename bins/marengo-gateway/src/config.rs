@@ -341,6 +341,8 @@ fn apply_control_patch(
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::expect_used, clippy::unwrap_used)]
+
     use super::*;
 
     #[test]
@@ -374,9 +376,9 @@ motors:
     }
 
     #[test]
-    fn arm_2dof_right_profile_loads() {
+    fn arm_3dof_right_profile_loads() {
         let root = marengo_config::resolve_repo_root();
-        let config_dir = root.join("config/bringup/arm_2dof_right");
+        let config_dir = root.join("config/bringup/arm_3dof_right");
         if !config_dir.is_dir() {
             return;
         }
@@ -386,8 +388,8 @@ motors:
         validate_control_config(&control).expect("control valid");
         validate_motors_against_robot(&robot, &motors).expect("motors align");
         validate_control_against_limits(&robot, &motors, &control).expect("limits align");
-        assert_eq!(robot.robot.joints.len(), 2);
-        assert_eq!(motors.motors.len(), 2);
+        assert_eq!(robot.robot.joints.len(), 3);
+        assert_eq!(motors.motors.len(), 3);
         let urdf = root.join(&robot.robot.urdf);
         assert!(urdf.is_file(), "URDF missing: {}", urdf.display());
     }

@@ -75,7 +75,7 @@ const wiredJoint: InventoryItem = {
   status: 'Enabled',
   value: '0.12',
   limit: '±1.57',
-  preset: 'bench_2dof',
+  preset: 'bench_3dof',
   node: 'RS03 · can0 · id 1',
 };
 
@@ -119,7 +119,7 @@ describe('JointCard read-only shell', () => {
 });
 
 describe('ActuatorsOverview', () => {
-  it('renders joint cards for right 2-DOF wired joints plus inventory actuators', () => {
+  it('renders joint cards for right 3-DOF wired joints plus inventory actuators', () => {
     render(<ActuatorsOverview />);
 
     const overview = screen.getByTestId('actuators-overview');
