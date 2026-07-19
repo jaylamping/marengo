@@ -98,7 +98,8 @@ export async function runSyncMain(
     return steps.join("\n\n---\n\n");
   }
 
-  // cross-build from Mac
+  // cross-build from local HEAD (current branch). Do NOT checkout main —
+  // that steals the workspace off feature branches and deploys the wrong rev.
   const status = await execLocal(
     "git",
     ["status", "--porcelain", "--untracked-files=no"],
@@ -108,36 +109,18 @@ export async function runSyncMain(
     return `Local repo dirty — commit or stash first:\n${status.stdout}`;
   }
 
-  const fetch = await execLocal(
+  const branch = await execLocal(
     "git",
-    ["fetch", "origin", "main"],
-    { cwd: cfg.localRoot, timeoutMs: 120_000 },
-  );
-  steps.push(`[local git fetch]\n${formatRemoteResult(fetch)}`);
-  if (fetch.exitCode !== 0) return steps.join("\n\n");
-
-  const checkout = await execLocal(
-    "git",
-    ["checkout", "main"],
+    ["rev-parse", "--abbrev-ref", "HEAD"],
     { cwd: cfg.localRoot },
   );
-  steps.push(`[local checkout main]\n${formatRemoteResult(checkout)}`);
-  if (checkout.exitCode !== 0) return steps.join("\n\n");
-
-  const pull = await execLocal(
-    "git",
-    ["pull", "--ff-only", "origin", "main"],
-    { cwd: cfg.localRoot, timeoutMs: 120_000 },
-  );
-  steps.push(`[local pull]\n${formatRemoteResult(pull)}`);
-  if (pull.exitCode !== 0) return steps.join("\n\n");
-
   const rev = await execLocal("git", ["rev-parse", "HEAD"], {
     cwd: cfg.localRoot,
   });
   const head = rev.stdout.trim();
+  const branchName = branch.stdout.trim() || "(detached)";
+  steps.push(`[local HEAD] ${branchName} ${head}`);
   steps.push(`[deploy rev] ${head}`);
-
   const deploy = localDeployCommand(cfg);
   const deployResult = await execLocal(deploy.cmd, deploy.args, {
     cwd: cfg.localRoot,

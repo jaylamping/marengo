@@ -9,11 +9,11 @@ description: Sync Marengo main to the Pi — pi_sync_main cross-build deploy wit
 
 ## Tool
 
-**`pi_sync_main`** — local `git pull main` → `deploy-pi.sh --install joey@marengo.local` → `.deploy-rev` → **poll until gateway `/health` OK** (default 180s). On Mac/Windows: uses `deploy-pi-docker.sh` automatically.
+**`pi_sync_main`** — deploy **current local HEAD** (whatever branch is checked out) via `deploy-pi.sh --install` → `.deploy-rev` → **poll until gateway `/health` OK** (default 180s). On Mac/Windows: uses `deploy-pi-docker.sh` automatically. Does **not** `git checkout main` (that stole feature-branch workspaces).
 
 **`pi_wait_deploy`** — poll only (when deploy already happened): pass `expected_rev` from `git rev-parse HEAD`.
 
-Optional: `strategy: "pi_native"` for on-Pi build (slow). `wait_for_ready: false` to skip polling.
+Optional: `strategy: "pi_native"` for on-Pi build (slow; still syncs Pi tree to `origin/main`). `wait_for_ready: false` to skip polling.
 
 Requires marengo repo open as Cursor workspace (server derives `localRoot` from install path; override with `MARENGO_LOCAL_ROOT` only if needed).
 
