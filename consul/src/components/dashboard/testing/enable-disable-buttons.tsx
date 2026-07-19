@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
 export function EnableDisableButtons() {
-  const { operationalMode } = useRobotStore();
+  const operationalMode = useRobotStore((s) => s.operationalMode);
   const { enable, disable } = useTestingStore();
   const [homing, setHoming] = React.useState(false);
 

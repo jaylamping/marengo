@@ -39,8 +39,8 @@ export function OverviewPosturePanel() {
           <Canvas
             className="h-full w-full"
             camera={{ position: [0.55, 0.35, 0.85], fov: 42, near: 0.01, far: 20 }}
-            dpr={[1, 1.5]}
-            gl={{ antialias: true, alpha: false }}
+            dpr={1}
+            gl={{ antialias: false, alpha: false, powerPreference: 'low-power' }}
           >
             <color attach="background" args={['#1a1d24']} />
             <ambientLight intensity={0.55} />

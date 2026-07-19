@@ -17,7 +17,7 @@ const GAIN_LIMITS: Record<string, { kp_max: number; kd_max: number; tau_ff_max_n
 };
 
 export function TelemetryGaugeGrid() {
-  const { robotState } = useRobotStore();
+  const robotState = useRobotStore((s) => s.robotState);
   const { selectedJointNames } = useTestingStore();
   const { selectedPresetId } = useCompoundStore();
   const [config, setConfig] = React.useState<ConfigSnapshotDto | null>(null);

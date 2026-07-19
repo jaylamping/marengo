@@ -48,7 +48,8 @@ export function CompoundTestPanel() {
   } = useCompoundStore();
 
   const { dryRun, toggleDryRun } = useTestingStore();
-  const { robotState, operationalMode } = useRobotStore();
+  const robotState = useRobotStore((s) => s.robotState);
+  const operationalMode = useRobotStore((s) => s.operationalMode);
   const [config, setConfig] = React.useState<ConfigSnapshotDto | null>(null);
 
   // Raise keyframes, then optional Berthier in-loop wave (no endpoint holds).

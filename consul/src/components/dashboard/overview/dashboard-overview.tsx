@@ -6,10 +6,14 @@ import {
   dashboardOverviewHeroClassName,
 } from '@/components/dashboard/layout/constants';
 import { ChartSectionSkeleton } from '@/components/dashboard/overview/chart-section-skeleton';
-import { OverviewPosturePanel } from '@/components/dashboard/overview/overview-posture-panel';
 import { SectionCards } from '@/components/dashboard/section-cards';
 import { RobotModelProvider } from '@/urdf/RobotModelContext';
 import { SHOULDER_PITCH_RIGHT_ONLY_URDF } from '@/assets/urdf/shoulder-pitch-right-only';
+
+const OverviewPosturePanel = lazy(async () => {
+  const module = await import('@/components/dashboard/overview/overview-posture-panel');
+  return { default: module.OverviewPosturePanel };
+});
 
 const JointTrackingChartCard = lazy(async () => {
   const module = await import('@/components/dashboard/charts/joint-tracking-chart-card');
@@ -21,10 +25,12 @@ export function DashboardOverview() {
     <div className={dashboardOverviewClassName}>
       <RobotModelProvider urdfXml={SHOULDER_PITCH_RIGHT_ONLY_URDF}>
         <div className={dashboardOverviewHeroClassName} data-testid="overview-hero">
-          <DeferredMount fallback={<ChartSectionSkeleton />} timeoutMs={120}>
-            <OverviewPosturePanel />
+          <DeferredMount fallback={<ChartSectionSkeleton />} timeoutMs={400}>
+            <Suspense fallback={<ChartSectionSkeleton />}>
+              <OverviewPosturePanel />
+            </Suspense>
           </DeferredMount>
-          <DeferredMount fallback={<ChartSectionSkeleton />} timeoutMs={120}>
+          <DeferredMount fallback={<ChartSectionSkeleton />} timeoutMs={200}>
             <Suspense fallback={<ChartSectionSkeleton />}>
               <JointTrackingChartCard />
             </Suspense>

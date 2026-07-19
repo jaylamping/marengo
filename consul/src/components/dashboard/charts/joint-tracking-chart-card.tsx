@@ -12,7 +12,10 @@ import {
 } from '@/lib/telemetry-source';
 import { useRobotStore } from '@/state/robotStore';
 import { JointTrackingAreaChart } from '@/components/dashboard/charts/joint-tracking-area-chart';
-import type { JointTrackingSeries } from '@/components/dashboard/charts/types';
+import type {
+  JointTrackingPoint,
+  JointTrackingSeries,
+} from '@/components/dashboard/charts/types';
 import { filterTrackingPointsByTimeRange } from '@/components/dashboard/charts/utils';
 import {
   Card,
@@ -33,13 +36,13 @@ import { cn } from '@/lib/utils';
 import { useRobotModel } from '@/urdf/RobotModelContext';
 
 const CHART_RENDER_MS = 300;
+const EMPTY_POINTS: JointTrackingPoint[] = [];
 
 type JointTrackingChartCardProps = {
   series?: JointTrackingSeries; // deprecated, will be removed when URDF is fully wired
 };
 
 export function JointTrackingChartCard({ series: _seriesProp }: JointTrackingChartCardProps) {
-  const trackingPointsByJoint = useRobotStore((s) => s.trackingPointsByJoint);
   const connected = useRobotStore((s) => s.connected);
 
   const model = useRobotModel();
@@ -51,7 +54,9 @@ export function JointTrackingChartCard({ series: _seriesProp }: JointTrackingCha
 
   const [selectedJoint, setSelectedJoint] = useState<string>(defaultJoint || jointNames[0]);
 
-  const livePoints = trackingPointsByJoint[selectedJoint] || [];
+  const livePoints = useRobotStore(
+    (s) => s.trackingPointsByJoint[selectedJoint] ?? EMPTY_POINTS,
+  );
   const chartPoints = useThrottledValue(livePoints, CHART_RENDER_MS);
 
   const jointSpec = model.getJoint(selectedJoint);

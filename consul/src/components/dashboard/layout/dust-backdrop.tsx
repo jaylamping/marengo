@@ -4,7 +4,7 @@ import { useReducedMotion } from 'motion/react';
 import * as THREE from 'three';
 
 /** Particle count — dense enough to read as dust, cheap enough for continuous idle. */
-const DUST_COUNT = 720;
+const DUST_COUNT = 360;
 /** Soft gray only — amber stays the sole chromatic element in Consul. */
 const DUST_COLOR = '#b8c0cc';
 /** Near-black void matched to Launch Day `--background`. */
@@ -77,6 +77,9 @@ export function DustBackdrop() {
   const pointsRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.PointsMaterial>(null);
   const opacity = useRef(0);
+  const documentHidden = useRef(
+    typeof document !== 'undefined' ? document.hidden : false,
+  );
   const dust = useMemo(() => seedDust(DUST_COUNT), []);
   const map = useMemo(() => makeSoftCircleTexture(), []);
 
@@ -89,10 +92,22 @@ export function DustBackdrop() {
     };
   }, [scene, map]);
 
+  useEffect(() => {
+    const onVisibility = () => {
+      documentHidden.current = document.hidden;
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, []);
+
   useFrame((_, delta) => {
     const material = materialRef.current;
     const points = pointsRef.current;
     if (!material || !points) return;
+
+    if (documentHidden.current) {
+      return;
+    }
 
     if (opacity.current < TARGET_OPACITY) {
       opacity.current = Math.min(
