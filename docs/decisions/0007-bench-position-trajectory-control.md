@@ -43,7 +43,7 @@ See [rust-patterns.md](../rust-patterns.md) §7.
 
 ## Update 2026-06-13: weighted full-range timing (locked)
 
-After **`3f66ea2`** (high-q return freeze skip, stuck-lead resync, return breakaway onset) and trajectory retune on `shoulder_pitch_right_only`:
+After **`3f66ea2`** (high-q return freeze skip, stuck-lead resync, return breakaway onset) and trajectory retune on `arm_2dof_right`:
 
 | Parameter | Value | Rationale |
 |-----------|-------|-----------|
@@ -86,7 +86,7 @@ Manipulator hold/ramp control (MIT [Manipulator Control](http://manipulation.csa
 | Friction FF | `target − q` | **`q_des − q`** (bounded lead) |
 | Damping scale | `target − q` | **`q_traj − q` while ramping**; settle error near goal |
 
-Documented in [rust-patterns.md](../rust-patterns.md) §7 (joint space / hold-at). Right weighted bench tuning: `shoulder_pitch_right_only` — `position_slew_rad_s=0.08`, `max_lead=0.03`, velocity limits 2.0 rad/s, `fc=0.5` restored.
+Documented in [rust-patterns.md](../rust-patterns.md) §7 (joint space / hold-at). Right weighted bench tuning: `arm_2dof_right` — `position_slew_rad_s=0.08`, `max_lead=0.03`, velocity limits 2.0 rad/s, `fc=0.5` restored.
 
 Large scripted sweeps in this ADR still require explicit trajectory velocity/acceleration planning; single-joint `hold-at` to 90° is retestable with the interim fix.
 

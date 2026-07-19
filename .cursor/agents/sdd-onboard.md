@@ -24,7 +24,7 @@ Read `.cursor/skills/sdd-onboard/SKILL.md` and `.cursor/skills/_shared/sdd-phase
 
 ## Context Saturation (MANDATORY)
 
-Do not hand off before 50%. **At or after 50%:** finish the atomic step → `mem_save` `maintenance/session-handoff/marengo` (concise) → return `status: partial` with `next_recommended: session-handoff-resume`. See `sdd-phase-common.md` § F.
+Do not hand off before 50%. **At or after 50%:** finish the atomic step → write `.atl/session-handoff.md` (concise) → return `status: partial` with `next_recommended: session-handoff-resume`. See `sdd-phase-common.md` § F.
 
 ## Result Contract
 

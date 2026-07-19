@@ -3,7 +3,7 @@ name: sdd-propose
 description: >
   Create a change proposal with intent, scope, and approach. Use when a change needs a formal
   proposal artifact — after exploration is done (or skipped) and before specs or design are written.
-  Produces proposal.md or the engram proposal artifact.
+  Produces `openspec/changes/{change}/proposal.md`.
 # model: composer-2.5-fast
 model: claude-4.6-sonnet-medium-thinking
 readonly: false
@@ -33,29 +33,24 @@ Read the skill file at `.cursor/skills/sdd-propose/SKILL.md` and follow it exact
 Also read shared conventions at `.cursor/skills/_shared/sdd-phase-common.md`.
 
 Execute all steps from the skill directly in this context window:
-1. Read exploration artifact if available: `mem_search("sdd/{change-name}/explore")` → `mem_get_observation`
-2. Draft the proposal: intent, scope, approach, rollback plan, affected modules
-3. Persist to active backend (engram, openspec, or hybrid)
+1. 2. Draft the proposal: intent, scope, approach, rollback plan, affected modules
+3. Persist via OpenSpec files (default) or inline if mode is `none`
 
-## Engram Save (mandatory)
+## Persistence
 
-After completing work, call `mem_save` with:
-- title: `"sdd/{change-name}/proposal"`
-- topic_key: `"sdd/{change-name}/proposal"`
-- type: `"architecture"`
-- project: `{project-name from context}`
-- capture_prompt: `false` when the Engram tool schema supports it; if an older schema rejects or does not expose the field, omit it rather than failing.
+Write artifacts under `openspec/changes/{change-name}/` per openspec-convention.md (or return inline if mode is `none`).
+
 
 ## Context Saturation (MANDATORY)
 
-Do not hand off before 50%. **At or after 50%:** finish the atomic step → `mem_save` `maintenance/session-handoff/marengo` (concise) → return `status: partial` with `next_recommended: session-handoff-resume`. See `sdd-phase-common.md` § F.
+Do not hand off before 50%. **At or after 50%:** finish the atomic step → write `.atl/session-handoff.md` (concise) → return `status: partial` with `next_recommended: session-handoff-resume`. See `sdd-phase-common.md` § F.
 
 ## Result Contract
 
 Return a structured result with these fields:
 - `status`: `done` | `blocked` | `partial`
 - `executive_summary`: one-sentence description of the proposed change and its approach
-- `artifacts`: topic_keys or file paths written (e.g. `sdd/{change-name}/proposal`)
+- `artifacts`: file paths written (e.g. `openspec/changes/{change-name}/proposal` (see openspec-convention))
 - `next_recommended`: `sdd-spec` and `sdd-design` (can run in parallel)
 - `risks`: architectural risks or open questions identified during proposal
 - `skill_resolution`: `paths-injected` if exact skill paths were provided and loaded, otherwise `none`

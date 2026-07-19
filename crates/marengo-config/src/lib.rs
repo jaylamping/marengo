@@ -26,6 +26,13 @@
 //! Change joint names, motor types, or bench caps here — then update URDF and
 //! `hardware/docs/kinematics.md` together.
 
+mod bench_joints;
+
+pub use bench_joints::{
+    load_command_joint_allowlist, load_command_joint_allowlist_from, resolve_command_joint,
+    CommandJointAllowlist,
+};
+
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
@@ -104,6 +111,18 @@ pub struct MotorEntry {
 
 fn default_gear_ratio() -> f64 {
     1.0
+}
+
+fn default_feedback_poll_budget_us() -> u64 {
+    3000
+}
+
+fn default_feedback_drain_quiet_us() -> u64 {
+    300
+}
+
+fn default_active_reporting_diagnostics() -> bool {
+    false
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -199,6 +218,10 @@ pub struct ControlSection {
     pub loop_hz: u32,
     pub chappe_state_hz: u32,
     pub comm_watchdog_ms: u64,
+    #[serde(default = "default_feedback_poll_budget_us")]
+    pub feedback_poll_budget_us: u64,
+    #[serde(default = "default_feedback_drain_quiet_us")]
+    pub feedback_drain_quiet_us: u64,
     pub tau_ff_rate_limit_nm_per_s: f64,
     pub disable_on_exit: bool,
     #[serde(default)]
@@ -208,6 +231,61 @@ pub struct ControlSection {
     pub actuator_groups: HashMap<String, ActuatorGroupEntry>,
     pub joints: HashMap<String, JointControlEntry>,
     pub danger_zones: Vec<DangerZoneRule>,
+    /// GravityComp wrong-sign watchdog (ADR 0015). Trips when sign(torque_ff)
+    /// opposes the expected sign sustained over `min_opposition_ticks`.
+    #[serde(default)]
+    pub wrong_sign_watchdog: WrongSignWatchdogConfig,
+}
+
+/// Config-driven sign table for the GravityComp wrong-sign watchdog (ADR 0015).
+///
+/// Davout does not recompute `tau_g` (crate boundary). Instead, the expected sign
+/// of `torque_ff` is config-driven: `expected_sign_at_positive_q` tells the
+/// watchdog what sign the motor torque should have when `q > 0`.
+#[derive(Debug, Clone, Deserialize)]
+pub struct WrongSignWatchdogConfig {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    /// Expected sign of `torque_ff` when `q > 0` (depends on URDF joint axis + motor direction).
+    #[serde(default = "default_expected_sign")]
+    pub expected_sign_at_positive_q: i8,
+    /// Minimum `|dq|` (rad/s) to consider sign (below this, sign is undefined).
+    #[serde(default = "default_min_velocity")]
+    pub min_velocity_rad_s: f64,
+    /// Consecutive opposition ticks required to trip.
+    #[serde(default = "default_min_opposition_ticks")]
+    pub min_opposition_ticks: u32,
+    /// Grace period ticks after enable (no trip during this window).
+    #[serde(default = "default_grace_period_ticks")]
+    pub grace_period_ticks: u32,
+}
+
+impl Default for WrongSignWatchdogConfig {
+    fn default() -> Self {
+        Self {
+            enabled: default_true(),
+            expected_sign_at_positive_q: default_expected_sign(),
+            min_velocity_rad_s: default_min_velocity(),
+            min_opposition_ticks: default_min_opposition_ticks(),
+            grace_period_ticks: default_grace_period_ticks(),
+        }
+    }
+}
+
+fn default_expected_sign() -> i8 {
+    -1
+}
+
+fn default_min_velocity() -> f64 {
+    0.05
+}
+
+fn default_min_opposition_ticks() -> u32 {
+    10
+}
+
+fn default_grace_period_ticks() -> u32 {
+    20
 }
 
 /// Shared tuning for a named actuator grouping (e.g. shoulder pitch L/R, hips).
@@ -221,6 +299,8 @@ pub struct ActuatorGroupEntry {
 pub struct ControlBenchSection {
     #[serde(default)]
     pub allow_firmware_speed_mode: bool,
+    #[serde(default = "default_active_reporting_diagnostics")]
+    pub active_reporting_diagnostics: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -544,6 +624,7 @@ pub fn validate_control_against_limits(
 pub struct ModeGains {
     pub kp: f64,
     pub kd: f64,
+    pub ki: f64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -562,6 +643,9 @@ pub struct DangerZoneRule {
     pub velocity_below_rad_s: f64,
     pub action: String,
     pub max_velocity_rad_s: f64,
+    /// Optional torque cap (Nm) when `action` is `clamp_torque`.
+    #[serde(default)]
+    pub max_torque_nm: Option<f64>,
 }
 
 /// Load `config/homing.yaml` relative to `repo_root` (honours `MARENGO_CONFIG_DIR`).
@@ -799,6 +883,7 @@ pub fn motor_for_joint<'a>(motors: &'a MotorsConfigFile, joint: &str) -> Option<
     motors.motors.iter().find(|m| m.joint == joint)
 }
 
+/// Bench-wired joints eligible for actuator commands (4-DOF left arm bring-up).
 #[cfg(test)]
 mod tests {
     #![allow(clippy::expect_used)]
@@ -912,6 +997,9 @@ mod tests {
     fn control_yaml_parses() {
         let cfg = load_control_config(repo_root()).expect("control.yaml");
         assert_eq!(cfg.control.loop_hz, 200);
+        assert_eq!(cfg.control.feedback_poll_budget_us, 3000);
+        assert_eq!(cfg.control.feedback_drain_quiet_us, 300);
+        assert!(!cfg.control.bench.active_reporting_diagnostics);
         assert!(cfg.control.motor_type_defaults.contains_key("rs03"));
     }
 
@@ -948,8 +1036,16 @@ mod tests {
             "right_shoulder_pitch".to_string(),
             JointControlEntry {
                 motor_type: MotorType::Rs03,
-                gravity_comp: ModeGains { kp: 0.0, kd: 0.0 },
-                impedance: ModeGains { kp: 8.0, kd: 1.0 },
+                gravity_comp: ModeGains {
+                    kp: 0.0,
+                    kd: 0.0,
+                    ki: 0.0,
+                },
+                impedance: ModeGains {
+                    kp: 8.0,
+                    kd: 1.0,
+                    ki: 0.0,
+                },
                 friction: FrictionGains {
                     fc: 0.0,
                     fv: 0.0,
@@ -984,6 +1080,8 @@ mod tests {
             loop_hz: 200,
             chappe_state_hz: 50,
             comm_watchdog_ms: 50,
+            feedback_poll_budget_us: 3000,
+            feedback_drain_quiet_us: 300,
             tau_ff_rate_limit_nm_per_s: 20.0,
             disable_on_exit: true,
             bench: ControlBenchSection::default(),
@@ -991,6 +1089,7 @@ mod tests {
             actuator_groups,
             joints,
             danger_zones: vec![],
+            wrong_sign_watchdog: WrongSignWatchdogConfig::default(),
         }
     }
 
@@ -1065,7 +1164,7 @@ mod tests {
     #[test]
     fn missing_control_joint_rejected() {
         let root = repo_root();
-        let config_dir = root.join("config/bringup/shoulder_pitch_right_only");
+        let config_dir = root.join("config/bringup/arm_2dof_right");
         let robot = load_robot_config_from(&config_dir).expect("robot");
         let mut control = load_control_config_from(&config_dir).expect("control");
         control.control.joints.remove("right_shoulder_pitch");
@@ -1077,7 +1176,7 @@ mod tests {
     #[test]
     fn trajectory_velocity_above_effective_cap_rejected() {
         let root = repo_root();
-        let config_dir = root.join("config/bringup/shoulder_pitch_right_only");
+        let config_dir = root.join("config/bringup/arm_2dof_right");
         let robot = load_robot_config_from(&config_dir).expect("robot");
         let motors = load_motors_config_from(&config_dir).expect("motors");
         let mut control = load_control_config_from(&config_dir).expect("control");

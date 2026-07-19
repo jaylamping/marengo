@@ -1,5 +1,20 @@
-# SDD init placeholder
+# SDD / OpenSpec
 
-Run `/sdd-init` in Cursor to bootstrap project context in mem0 (`sdd/init/marengo`).
+Spec-driven development artifacts for Marengo. Default store mode is **openspec** (files only; no memory MCP).
 
-Hybrid mode (optional): `openspec/changes/{slug}/` holds human-readable artifacts when artifact store is set to hybrid.
+## Layout
+
+```
+openspec/
+├── config.yaml          # Project context, testing, phase rules
+├── specs/               # Main specs (source of truth after archive)
+└── changes/
+    ├── archive/         # Completed changes (YYYY-MM-DD-{slug}/)
+    └── {slug}/          # Active change artifacts + state.yaml
+```
+
+## Active change
+
+- **log-api-error-states** — SDD onboarding cycle (Consul log-api error/loading states)
+
+Run `/sdd-explore log-api-error-states` to start the explore phase.

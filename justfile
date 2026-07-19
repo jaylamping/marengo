@@ -59,14 +59,17 @@ deploy-pi-docker host="joey@marengo.local":
 deploy-pi-docker-binaries host="joey@marengo.local":
     MARENGO_SKIP_CONSUL=1 ./scripts/deploy-pi-docker.sh {{host}}
 
-# WSL2 native cross-build (no Docker) — run once: ./scripts/setup-wsl-pi-cross.sh
+# WSL2 one-shot: SSH/git/cross-GCC/mise/MCP (run once per machine)
+setup-wsl:
+    ./scripts/setup-wsl-dev.sh
+
+# WSL2 native cross-build (no Docker) — run once: just setup-wsl
 deploy-pi-wsl host="joey@marengo.local":
     ./scripts/deploy-pi.sh --install {{host}}
 
 # Rebuild Marengo MCP servers (Cursor: restart MCP after this)
 mcp-build:
     cd tools/marengo-pi-mcp && npm install && npm run build
-    cd tools/mem0-mcp && npm install && npm run build
 
 # Install Marengo Research MCP (Python/uv; restart marengo-research MCP after this)
 research-mcp-setup:

@@ -253,7 +253,8 @@ mod tests {
         urdf_joints.sort();
 
         assert_eq!(
-            urdf_joints, config_joints,
+            urdf_joints,
+            config_joints,
             "actuated joints in {} must match config/robot_humanoid.yaml",
             urdf_path.display()
         );

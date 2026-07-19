@@ -16,6 +16,10 @@ fi
 
 echo "Installing Marengo to ${INSTALL_ROOT} (user ${RUN_USER})"
 
+# Bench default: stop always-on control so manual/MCP sessions own marengo-pi.
+systemctl stop marengo-pi.service 2>/dev/null || true
+pkill -f "${INSTALL_ROOT}/bin/marengo-pi" 2>/dev/null || true
+
 if ! id "$RUN_USER" &>/dev/null; then
   useradd --system --home "$INSTALL_ROOT" --shell /usr/sbin/nologin "$RUN_USER"
 fi
@@ -71,12 +75,19 @@ fi
 rsync -a --delete "${ROOT}/config/" "${INSTALL_ROOT}/config/"
 rsync -a "${ROOT}/assets/" "${INSTALL_ROOT}/assets/"
 rsync -a "${ROOT}/scripts/" "${INSTALL_ROOT}/scripts/"
-if [[ -d "${ROOT}/www" ]]; then
-  rsync -a --delete "${ROOT}/www/" "${INSTALL_ROOT}/www/"
+WWW_SRC=""
+if [[ -d "${ROOT}/consul/dist" ]] && [[ -f "${ROOT}/consul/dist/index.html" ]]; then
+  WWW_SRC="${ROOT}/consul/dist"
+elif [[ -d "${ROOT}/www" ]] && [[ -f "${ROOT}/www/index.html" ]]; then
+  WWW_SRC="${ROOT}/www"
+fi
+if [[ -n "$WWW_SRC" ]]; then
+  rsync -a --delete "${WWW_SRC}/" "${INSTALL_ROOT}/www/"
 else
-  echo "warning: ${ROOT}/www missing — Consul UI not installed (run deploy-pi from dev machine)" >&2
+  echo "warning: no Consul UI (consul/dist or www/index.html missing — run pi-native-build or cross deploy)" >&2
 fi
 chmod 755 "${INSTALL_ROOT}/scripts/can-up.sh"
+chmod 755 "${INSTALL_ROOT}/scripts/homing-preflight.sh" 2>/dev/null || true
 chown -R root:"${RUN_USER}" "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets" "${INSTALL_ROOT}/scripts"
 chmod -R g+rwX "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets" "${INSTALL_ROOT}/scripts"
 
@@ -133,13 +144,29 @@ fi
 if [[ -f "${INSTALL_ROOT}/bin/marengo-log-cli" ]]; then
   systemctl enable --now marengo-log-maintenance.timer
 fi
+if [[ -f "${INSTALL_ROOT}/bin/marengo-pi" ]]; then
+  systemctl enable marengo-pi.service
+  systemctl restart marengo-pi.service
+fi
 
 echo "Done. CAN (can0/can1) should be UP — verify: ip -br link show type can"
+if [[ -x "${INSTALL_ROOT}/bin/motor-repl" ]] && [[ -x "${INSTALL_ROOT}/scripts/homing-preflight.sh" ]]; then
+  BENCH_CFG="${INSTALL_ROOT}/config/bringup/arm_2dof_right"
+  if [[ -f /etc/marengo/env ]] && grep -q '^MARENGO_CONFIG_DIR=' /etc/marengo/env 2>/dev/null; then
+    BENCH_CFG="$(grep '^MARENGO_CONFIG_DIR=' /etc/marengo/env | tail -1 | cut -d= -f2- | tr -d "\"'")"
+    if [[ "$BENCH_CFG" != /* ]]; then
+      BENCH_CFG="${INSTALL_ROOT}/${BENCH_CFG}"
+    fi
+  fi
+  echo ""
+  MARENGO_ROOT="${INSTALL_ROOT}" MARENGO_CONFIG_DIR="${BENCH_CFG}" \
+    "${INSTALL_ROOT}/scripts/homing-preflight.sh" || true
+fi
 echo "Next:"
 echo "  1. Edit /etc/marengo/env (MARENGO_ROOT, MARENGO_CONFIG_DIR)"
 echo "  2. Consul UI: https://marengo.local:8444 (gateway enabled on boot; accept self-signed cert once)"
 echo "  3. Bench motion: run marengo-pi / motor-repl manually (do not enable marengo-pi.service unless you want always-on control)"
-echo "  4. Example: MARENGO_CONFIG_DIR=config/bringup/shoulder_pitch_right_only ${INSTALL_ROOT}/bin/motor-repl status"
+echo "  4. Example: MARENGO_CONFIG_DIR=config/bringup/arm_2dof_right ${INSTALL_ROOT}/bin/motor-repl status"
 echo "  5. Local dev Consul: VITE_CHAPPE_* in consul/.env.local (see consul/.env.example)"
 PI_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
 if [[ -n "${PI_IP}" ]] && [[ -f /etc/marengo/env ]]; then

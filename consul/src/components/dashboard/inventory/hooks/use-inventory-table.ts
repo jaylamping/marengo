@@ -1,18 +1,6 @@
 import * as React from 'react';
 import {
-  KeyboardSensor,
-  MouseSensor,
-  TouchSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-  type UniqueIdentifier,
-} from '@dnd-kit/core';
-import { arrayMove } from '@dnd-kit/sortable';
-import {
   getCoreRowModel,
-  getFacetedRowModel,
-  getFacetedUniqueValues,
   getFilteredRowModel,
   getSortedRowModel,
   useReactTable,
@@ -35,11 +23,10 @@ import {
   buildGroupedSections,
   countExpandedGroups,
   filterInventoryByView,
-  getVisibleRowIds,
 } from '@/components/dashboard/inventory/utils';
 
-export function useInventoryTable(initialData: InventoryItem[]) {
-  const [data, setData] = React.useState(() => initialData);
+export function useInventoryTable(data: InventoryItem[]) {
+  // Parent owns data stability (enriched query / static catalog — not live Chappe).
   const [activeView, setActiveView] = React.useState<InventoryView>('all');
   const [collapsedGroups, setCollapsedGroups] = React.useState<
     Set<InventoryGroup>
@@ -51,22 +38,10 @@ export function useInventoryTable(initialData: InventoryItem[]) {
     [],
   );
   const [sorting, setSorting] = React.useState<SortingState>([]);
-  const sortableId = React.useId();
-
-  const sensors = useSensors(
-    useSensor(MouseSensor, {}),
-    useSensor(TouchSensor, {}),
-    useSensor(KeyboardSensor, {}),
-  );
 
   const filteredData = React.useMemo(
     () => filterInventoryByView(data, activeView),
     [activeView, data],
-  );
-
-  const dataIds = React.useMemo<UniqueIdentifier[]>(
-    () => getVisibleRowIds(filteredData, collapsedGroups),
-    [collapsedGroups, filteredData],
   );
 
   const table = useReactTable({
@@ -87,13 +62,12 @@ export function useInventoryTable(initialData: InventoryItem[]) {
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getFacetedRowModel: getFacetedRowModel(),
-    getFacetedUniqueValues: getFacetedUniqueValues(),
   });
 
+  const rowModel = table.getRowModel();
   const groupedSections = React.useMemo(
-    () => buildGroupedSections(table.getRowModel().rows),
-    [table],
+    () => buildGroupedSections(rowModel.rows),
+    [rowModel.rows],
   );
 
   const viewCounts = React.useMemo(
@@ -130,33 +104,13 @@ export function useInventoryTable(initialData: InventoryItem[]) {
     setCollapsedGroups(new Set(INVENTORY_GROUP_ORDER));
   }, []);
 
-  const handleDragEnd = React.useCallback(
-    (event: DragEndEvent) => {
-      const { active, over } = event;
-      if (!active || !over || active.id === over.id) {
-        return;
-      }
-
-      setData((current) => {
-        const oldIndex = dataIds.indexOf(active.id);
-        const newIndex = dataIds.indexOf(over.id);
-        return arrayMove(current, oldIndex, newIndex);
-      });
-    },
-    [dataIds],
-  );
-
   return {
     activeView,
     setActiveView,
     collapsedGroups,
     data,
-    dataIds,
     expandedGroupCount,
     groupedSections,
-    handleDragEnd,
-    sensors,
-    sortableId,
     table,
     toggleGroup,
     expandAllGroups,

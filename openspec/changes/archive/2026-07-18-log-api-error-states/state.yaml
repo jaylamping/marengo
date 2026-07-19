@@ -1,0 +1,63 @@
+change: log-api-error-states
+created_at: "2026-07-18T11:05:00Z"
+phase: archive
+completed_phases:
+  - init
+  - propose
+  - spec
+  - design
+  - tasks
+  - apply
+  - verify
+  - archive
+status: archived
+archived_at: "2026-07-18T11:58:00Z"
+archived_to: openspec/changes/archive/2026-07-18-log-api-error-states/
+delivery_strategy: single-pr
+branch: feat/log-api-error-states
+apply_progress:
+  completed_at: "2026-07-18T11:55:00Z"
+  mode: Standard
+  tasks_complete: 17
+  tasks_total: 17
+  test_results:
+    npm_test: "86 passed (17 files) via docker compose run dev"
+    tsc_b: pass
+    vite_build: "blocked — pre-existing MISSING_EXPORT ChappeTelemetryHandlers in chappe-transport.ts (unrelated to this change)"
+verify_progress:
+  completed_at: "2026-07-18T11:57:00Z"
+  verdict: PASS WITH WARNINGS
+  report: verify-report.md
+  ready_for_archive: true
+  compliance:
+    compliant: 7
+    partial: 3
+    non_compliant: 0
+  issues:
+    critical: 0
+    warning: 2
+    suggestion: 1
+  test_results:
+    npm_test: "86 passed (17 files) via docker compose run dev (apply phase evidence)"
+    tsc_b: pass
+    vite_build: "FAIL — pre-existing ChappeTelemetryHandlers type-only export in chappe-client.ts (out of scope)"
+notes: |
+  Bootstrap change for SDD onboarding. Targets Consul log-api error/loading states
+  (consul/src/lib/log-api.ts and dashboard logs components).
+  Proposal revised 2026-07-18 after adversarial /interrogate: added per-resource async
+  state, try/catch in logFetch, all exported fetch* in scope, expanded success criteria,
+  search guard, no_endpoint quiet mode, gateway fidelity limit note.
+  Spec phase completed 2026-07-18: log-api-error-model full spec with 10 requirements,
+  18 scenarios covering Result type, status mapping, hooks, UI, search guard, tests.
+  Design phase completed 2026-07-18: design.md with 5 architecture decisions (Result union,
+  named per-resource slices, inline destructive banners, quiet no_endpoint, search line-fetch
+  guard), ordered status→kind map, 9-file change table, LogApiResult/LogApiError contracts,
+  testing strategy, and non-goals (gateway, config-api, live hydrate UI).
+  Tasks phase completed 2026-07-18: 4 phases, 17 tasks; ~320-380 est. lines; Medium budget
+  risk; single PR; ask-on-risk decision gate before apply.
+  Apply phase completed 2026-07-18: LogApiResult on all fetch* exports, per-resource hook
+  slices, UI error banners with quiet no_endpoint, archive search HTTP vs SQLite fix,
+  log-api.test.ts + component regression tests; delivery single-pr on feat/log-api-error-states.
+  Verify phase completed 2026-07-18: PASS WITH WARNINGS — 17/17 tasks, 7 compliant + 3 partial
+  scenarios (hook slice independence, no_endpoint quiet, search guard source-verified only),
+  no CRITICAL gaps; vite build failure pre-existing and out of scope. Ready for archive.

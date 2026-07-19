@@ -1,4 +1,9 @@
-import type { LogSessionDto } from '@/lib/log-api';
+import {
+  logErrorMessage,
+  shouldShowLogErrorBanner,
+  type LogApiError,
+  type LogSessionDto,
+} from '@/lib/log-api';
 import { logsSessionListShellClassName } from '@/components/dashboard/logs/constants';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -7,6 +12,8 @@ type Props = {
   sessions: LogSessionDto[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  error?: LogApiError | null;
+  loading?: boolean;
 };
 
 const HOT_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -19,7 +26,23 @@ function sessionLifecycle(session: LogSessionDto, index: number): 'hot' | 'archi
   return 'archived';
 }
 
-export function LogsSessionList({ sessions, selectedId, onSelect }: Props) {
+export function LogsSessionList({ sessions, selectedId, onSelect, error = null, loading = false }: Props) {
+  if (shouldShowLogErrorBanner(error)) {
+    return (
+      <div className={cn(logsSessionListShellClassName, 'p-4 text-sm text-destructive')}>
+        {logErrorMessage(error!)}
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className={cn(logsSessionListShellClassName, 'p-4 text-sm text-muted-foreground')}>
+        Loading sessions…
+      </div>
+    );
+  }
+
   if (sessions.length === 0) {
     return (
       <div className={cn(logsSessionListShellClassName, 'p-4 text-sm text-muted-foreground')}>

@@ -1,8 +1,11 @@
 //! Operator gateway: HTTP CRUD snapshots/commands + WebTransport telemetry streams.
 
+mod actuator;
+mod config;
 mod framing;
 mod http;
 mod logs;
+mod ratelimit;
 mod state;
 mod webtransport;
 
@@ -106,9 +109,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = Arc::new(Bus::default());
     chappe::tracing_layer::init_subscriber(Some(Arc::clone(&bus)), "marengo-gateway");
     if logs::log_token_from_env().is_none() {
-        tracing::warn!(
-            "MARENGO_GATEWAY_LOG_TOKEN is unset; log HTTP routes are unauthenticated"
-        );
+        tracing::warn!("MARENGO_GATEWAY_LOG_TOKEN is unset; log HTTP routes are unauthenticated");
     }
     let state_holder: Arc<std::sync::Mutex<Option<state::SharedState>>> =
         Arc::new(std::sync::Mutex::new(None));
@@ -136,7 +137,23 @@ async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     };
 
     let ipc = IpcListener::spawn_server(args.socket_path.clone(), on_frame)?;
-    let mut app_state = state::AppState::new(Arc::clone(&bus)).with_ipc(ipc);
+    let command_joints = match marengo_config::load_command_joint_allowlist() {
+        Ok(allowlist) => {
+            let joints: Vec<_> = allowlist.iter().collect();
+            info!(?joints, "loaded actuator command joint allowlist");
+            allowlist
+        }
+        Err(e) => {
+            tracing::warn!(
+                error = %e,
+                "failed to load command joint allowlist; actuator commands will be rejected"
+            );
+            marengo_config::CommandJointAllowlist::empty()
+        }
+    };
+    let mut app_state = state::AppState::new(Arc::clone(&bus))
+        .with_command_joints(command_joints)
+        .with_ipc(ipc);
     if let Some(log_services) = logs {
         app_state = app_state.with_logs(log_services);
     }

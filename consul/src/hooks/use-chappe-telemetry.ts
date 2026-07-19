@@ -56,12 +56,14 @@ export function useChappeTelemetry(): void {
   const setPiMetrics = useHostMetricsStore((s) => s.setPiMetrics);
   const setJetsonMetrics = useHostMetricsStore((s) => s.setJetsonMetrics);
 
+  const disposedRef = useRef(false);
   useEffect(() => {
     if (!isChappeLive()) {
       return;
     }
 
     enableChappeLiveLogs();
+    disposedRef.current = false;
     let dispose: (() => void) | undefined;
 
     const publishRobotState = throttleTrailing((state: RobotState) => {
@@ -131,10 +133,15 @@ export function useChappeTelemetry(): void {
         }
       },
     }).then((fn) => {
-      dispose = fn;
+      if (!disposedRef.current) {
+        dispose = fn;
+      } else {
+        fn?.();
+      }
     });
 
     return () => {
+      disposedRef.current = true;
       dispose?.();
       setConnected(false);
       setTransportMode('offline');

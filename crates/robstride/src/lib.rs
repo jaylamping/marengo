@@ -47,8 +47,9 @@ pub use bus::{
 pub use bus::{SocketCanBus, SocketCanRouter};
 pub use comm::{pack_ext_id, unpack_ext_id, CommunicationType, ExtendedId, DEFAULT_HOST_ID};
 pub use lifecycle::{
-    encode_default_disable, encode_default_enable, encode_default_set_zero_position,
-    encode_disable, encode_enable, encode_set_zero_position,
+    encode_active_reporting, encode_default_active_reporting, encode_default_disable,
+    encode_default_enable, encode_default_set_zero_position, encode_disable, encode_enable,
+    encode_set_zero_position,
 };
 pub use mit::{encode_mit, mit_rx_id, mit_tx_id, MitCommand, MitFeedback};
 pub use params::{
@@ -81,6 +82,46 @@ mod tests {
     use super::comm::{pack_typed_ext_id, unpack_ext_id, CommunicationType, DEFAULT_HOST_ID};
     use super::mit::{encode_mit, MitCommand};
     use super::CanFrame;
+
+    fn status_frame(device_id: u8) -> CanFrame {
+        CanFrame {
+            id: pack_typed_ext_id(
+                CommunicationType::OperationStatus,
+                u16::from(device_id),
+                DEFAULT_HOST_ID,
+            ),
+            data: [0x7F, 0xFF, 0x7F, 0xFF, 0x7F, 0xFF, 0x00, 0xC8],
+            extended: true,
+        }
+    }
+
+    /// Returns scripted RX batches in order; empty batches simulate inter-frame gaps.
+    struct ScriptBus {
+        batches: Vec<Vec<CanFrame>>,
+        index: usize,
+    }
+
+    impl ScriptBus {
+        fn new(batches: Vec<Vec<CanFrame>>) -> Self {
+            Self { batches, index: 0 }
+        }
+    }
+
+    impl super::CanBus for ScriptBus {
+        fn send_frame(&mut self, _frame: &CanFrame) -> Result<(), super::BusError> {
+            Ok(())
+        }
+
+        fn recv_frames(&mut self, out: &mut Vec<CanFrame>) -> Result<(), super::BusError> {
+            if self.index < self.batches.len() {
+                out.extend(self.batches[self.index].iter().cloned());
+                self.index += 1;
+            }
+            Ok(())
+        }
+    }
+
+    impl MotorBus for ScriptBus {}
 
     #[derive(Default)]
     struct RoutedMemoryBus {
@@ -188,7 +229,12 @@ mod tests {
         let mut states = HashMap::new();
         let types = HashMap::from([(1u8, MotorType::Rs03)]);
         let err = bus
-            .recv_all(&types, &mut states, Duration::from_millis(5))
+            .recv_all(
+                &types,
+                &mut states,
+                Duration::from_millis(5),
+                Duration::from_micros(300),
+            )
             .expect_err("timeout");
         assert!(matches!(err, super::bus::BusError::RecvTimeout));
     }
@@ -210,7 +256,12 @@ mod tests {
         let mut states = HashMap::new();
         let types = HashMap::from([(1u8, MotorType::Rs03), (2u8, MotorType::Rs02)]);
         let count = bus
-            .recv_all(&types, &mut states, Duration::from_millis(1))
+            .recv_all(
+                &types,
+                &mut states,
+                Duration::from_millis(1),
+                Duration::from_micros(300),
+            )
             .expect("status frames");
         assert_eq!(count, 2);
         assert_eq!(states.len(), 2);
@@ -228,7 +279,12 @@ mod tests {
         let mut states = HashMap::new();
         let types = HashMap::from([(1u8, MotorType::Rs03)]);
         let count = bus
-            .recv_all(&types, &mut states, Duration::from_millis(1))
+            .recv_all(
+                &types,
+                &mut states,
+                Duration::from_millis(1),
+                Duration::from_micros(300),
+            )
             .expect("fault report");
         assert_eq!(count, 1);
         assert_eq!(states[&1].fault, 0x1234);
@@ -254,12 +310,94 @@ mod tests {
         ]);
 
         let count = bus
-            .recv_all_addressed(&types, &mut states, Duration::from_millis(1))
+            .recv_all_addressed(
+                &types,
+                &mut states,
+                Duration::from_millis(1),
+                Duration::from_micros(300),
+            )
             .expect("addressed status");
 
         assert_eq!(count, 1);
         assert!(!states.contains_key(&can0_id1));
         assert!(states.contains_key(&can1_id1));
+    }
+
+    #[test]
+    fn recv_all_addressed_zero_budget_single_pass() {
+        let mut bus = ScriptBus::new(vec![vec![status_frame(1)], vec![status_frame(1)]]);
+        let mut states = HashMap::new();
+        let types = HashMap::from([(MotorAddress::new("can0", 1), MotorType::Rs03)]);
+
+        let count = bus
+            .recv_all_addressed(
+                &types,
+                &mut states,
+                Duration::ZERO,
+                Duration::from_micros(300),
+            )
+            .expect("zero-budget drain");
+
+        assert_eq!(count, 1);
+        assert!(states.contains_key(&MotorAddress::new("can0", 1)));
+        let second = bus
+            .recv_all_addressed(
+                &types,
+                &mut states,
+                Duration::ZERO,
+                Duration::from_micros(300),
+            )
+            .expect("second zero-budget drain");
+        assert_eq!(second, 1);
+    }
+
+    #[test]
+    fn recv_all_addressed_drains_four_motor_burst_across_gaps() {
+        let mut bus = ScriptBus::new(vec![
+            vec![status_frame(1)],
+            vec![],
+            vec![status_frame(2)],
+            vec![status_frame(3)],
+            vec![status_frame(4)],
+        ]);
+        let mut states = HashMap::new();
+        let types = HashMap::from([
+            (MotorAddress::new("can0", 1), MotorType::Rs03),
+            (MotorAddress::new("can0", 2), MotorType::Rs02),
+            (MotorAddress::new("can0", 3), MotorType::Rs03),
+            (MotorAddress::new("can0", 4), MotorType::Rs02),
+        ]);
+        let count = bus
+            .recv_all_addressed(
+                &types,
+                &mut states,
+                Duration::from_millis(10),
+                Duration::from_micros(200),
+            )
+            .expect("four-motor burst");
+        assert_eq!(count, 4);
+        assert_eq!(states.len(), 4);
+    }
+
+    #[test]
+    fn recv_all_stops_when_budget_exhausted_before_quiet() {
+        let mut bus = ScriptBus::new((0..64).map(|id| vec![status_frame(id % 8 + 1)]).collect());
+        let mut states = HashMap::new();
+        let types = HashMap::from([(1u8, MotorType::Rs03)]);
+        let started = std::time::Instant::now();
+        let count = bus
+            .recv_all(
+                &types,
+                &mut states,
+                Duration::from_millis(2),
+                Duration::from_millis(50),
+            )
+            .expect("budget-limited drain");
+        let elapsed = started.elapsed();
+        assert!(count > 0);
+        assert!(count < 64);
+        assert!(elapsed >= Duration::from_millis(2));
+        assert!(elapsed < Duration::from_millis(20));
     }
 
     #[cfg(all(feature = "socketcan", target_os = "linux"))]

@@ -9,8 +9,7 @@ const labelVariants = cva(
     variants: {
       variant: {
         default: "",
-        glass:
-          "rounded-md border border-white/20 [border-top-color:var(--glass-refraction-top)] bg-[var(--glass-1-surface)] px-2 py-1 dark:border-white/[0.14] dark:bg-white/[0.05]",
+        panel: "rounded-sm border border-line bg-surface-1 px-2 py-1",
         outline: "rounded-md border border-[var(--color-border)] px-2 py-1 dark:border-white/20",
         ghost: "rounded-md px-2 py-1 text-[var(--color-foreground)]/75"
       },

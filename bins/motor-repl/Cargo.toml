@@ -20,6 +20,7 @@ name = "motor-repl"
 path = "src/main.rs"
 
 [dependencies]
+armee-dynamics.workspace = true
 berthier = { path = "../../crates/berthier" }
 davout.workspace = true
 marengo-config.workspace = true

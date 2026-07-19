@@ -14,7 +14,8 @@
 //! - [`danger_zones`](marengo_config::DangerZoneRule) from `config/control.yaml` (clamp or fault on rule hit).
 //! - Comm watchdog: stale feedback → [`DavoutError::CommWatchdog`].
 //! - [`disable_all`]: best-effort zero-torque MIT on shutdown.
-//! - [`refresh_feedback`]: poll bus, update [`MotorState`] cache (via robstride).
+//! - [`refresh_feedback`]: blocking poll up to `feedback_poll_budget_us` (REPL / set-zero).
+//! - [`drain_feedback`]: non-blocking RX queue drain (Berthier control loop).
 //!
 //! ## Does not
 //!
@@ -56,8 +57,8 @@ use marengo_config::{
     load_control_config, load_homing_config, load_motors_config, load_robot_config,
     motor_for_joint, motor_type_key, resolve_joint_velocity_cap, resolve_urdf_path,
     validate_control_against_limits, validate_motors_against_robot,
-    validate_robot_control_joint_coverage, ControlConfigFile,
-    HomingConfigFile, MotorEntry, MotorType, MotorsConfigFile, RobotConfigFile,
+    validate_robot_control_joint_coverage, ControlConfigFile, HomingConfigFile, MotorEntry,
+    MotorType, MotorsConfigFile, RobotConfigFile,
 };
 use marengo_homing::{verify_manual_reference, HomingRegistry, VerifyError};
 use robstride::AddressedMitCommand;
@@ -139,6 +140,8 @@ pub enum DavoutError {
     Homing { message: String },
     #[error("homing verify on {joint}: {message}")]
     HomingVerify { joint: String, message: String },
+    #[error("wrong-sign watchdog: gravity-comp torque opposes motion for {ticks} ticks on joint {joint}")]
+    WrongSignWatchdog { joint: String, ticks: u32 },
 }
 
 pub use marengo_homing::JointHomingState;
@@ -150,13 +153,20 @@ enum EnablePolicy {
     ZeroCalibration,
 }
 
-const FEEDBACK_VELOCITY_LIMIT_TRIPS: u8 = 2;
-const FEEDBACK_VELOCITY_CORROBORATION_EPS_RAD_S: f64 = 0.05;
+const FEEDBACK_VELOCITY_LIMIT_TRIPS: u8 = 3;
+/// Measured (position-derived) speed must exceed `limit + margin` before tripping.
+/// Absorbs encoder quantization and planner cruise at the nominal cap without disabling.
+const FEEDBACK_VELOCITY_FAULT_MARGIN_RAD_S: f64 = 0.50;
+
+#[derive(Debug, Clone, Copy, Default)]
+struct WrongSignState {
+    opposition_ticks: u32,
+    ticks_since_enable: u32,
+}
 
 #[derive(Debug, Clone, Copy)]
 struct FeedbackSample {
     position_rad: f64,
-    velocity_rad_s: f64,
     received_at: Instant,
 }
 
@@ -178,7 +188,11 @@ pub struct Supervisor<B: MotorBus> {
     last_tau_ff: HashMap<String, f64>,
     feedback_velocity_trips: HashMap<String, u8>,
     last_feedback_samples: HashMap<String, FeedbackSample>,
+    wrong_sign_state: HashMap<String, WrongSignState>,
     last_tick: Option<Instant>,
+    active_reporting_armed: bool,
+    /// Status frames decoded in the most recent [`Self::refresh_feedback`] poll.
+    last_refresh_frames: usize,
 }
 
 impl<B: MotorBus> Supervisor<B> {
@@ -227,8 +241,16 @@ impl<B: MotorBus> Supervisor<B> {
             last_tau_ff: HashMap::new(),
             feedback_velocity_trips: HashMap::new(),
             last_feedback_samples: HashMap::new(),
+            wrong_sign_state: HashMap::new(),
             last_tick: None,
+            active_reporting_armed: false,
+            last_refresh_frames: 0,
         })
+    }
+
+    /// Frames received in the last [`Self::refresh_feedback`] call (0 if none or timeout).
+    pub fn last_refresh_frame_count(&self) -> usize {
+        self.last_refresh_frames
     }
 
     pub fn homing_registry(&self) -> &HomingRegistry {
@@ -263,6 +285,55 @@ impl<B: MotorBus> Supervisor<B> {
             .map(|s| f64::from(s.position_rad))
     }
 
+    /// Joint-space feedback velocity (rad/s) if available.
+    pub fn joint_velocity_rad(&self, joint: &str) -> Option<f64> {
+        let motor = motor_for_joint(&self.motors, joint)?;
+        let address = MotorAddress::from(motor);
+        let raw = self.motor_states.get(&address)?;
+        motor_to_joint_state(motor, *raw)
+            .ok()
+            .map(|s| f64::from(s.velocity_rad_s))
+    }
+
+    /// Joint-space feedback torque (Nm) if available.
+    pub fn joint_torque_rad(&self, joint: &str) -> Option<f64> {
+        let motor = motor_for_joint(&self.motors, joint)?;
+        let address = MotorAddress::from(motor);
+        let raw = self.motor_states.get(&address)?;
+        motor_to_joint_state(motor, *raw)
+            .ok()
+            .map(|s| f64::from(s.torque_nm))
+    }
+
+    /// Override synthetic feedback for one joint (unit tests / replay without CAN RX).
+    pub fn set_synthetic_joint_feedback(
+        &mut self,
+        joint: &str,
+        position_rad: f32,
+        velocity_rad_s: f32,
+    ) -> Result<(), DavoutError> {
+        let motor = motor_for_joint(&self.motors, joint)
+            .ok_or_else(|| DavoutError::UnknownJoint {
+                joint: joint.to_string(),
+            })?
+            .clone();
+        let address = MotorAddress::from(&motor);
+        let now = Instant::now();
+        self.motor_states.insert(
+            address,
+            MotorState {
+                position_rad,
+                velocity_rad_s,
+                torque_nm: 0.0,
+                temperature_c: 0.0,
+                fault: 0,
+                updated: Some(now),
+            },
+        );
+        self.last_recv = Some(now);
+        Ok(())
+    }
+
     /// Mark supervisor Ready when every configured joint is Verified.
     pub fn set_homing_complete(&mut self) -> Result<(), DavoutError> {
         if self.hardware_estop {
@@ -274,6 +345,7 @@ impl<B: MotorBus> Supervisor<B> {
                 message: e.to_string(),
             })?;
         self.mode = OperationalMode::Ready;
+        self.sync_active_reporting();
         debug!("supervisor READY (all joints verified)");
         Ok(())
     }
@@ -345,6 +417,19 @@ impl<B: MotorBus> Supervisor<B> {
         debug!(?mode, "control mode set");
     }
 
+    /// Seed the tau_ff rate limiter with current measured torque for each joint.
+    ///
+    /// Called on mode transitions to ensure the rate limiter slews from the correct
+    /// starting point. Do NOT clear `last_tau_ff` — that would cause `rate_limit_tau_ff`
+    /// to use `unwrap_or(target)`, passing torque through unclamped (safety regression).
+    pub fn seed_tau_ff_rate_limiter(&mut self) {
+        for motor in &self.motors.motors {
+            let joint = &motor.joint;
+            let measured = self.joint_torque_rad(joint).unwrap_or(0.0);
+            self.last_tau_ff.insert(joint.clone(), measured);
+        }
+    }
+
     pub fn motor_states(&self) -> &HashMap<MotorAddress, MotorState> {
         &self.motor_states
     }
@@ -376,6 +461,8 @@ impl<B: MotorBus> Supervisor<B> {
     }
 
     pub fn set_hardware_estop(&mut self, asserted: bool) {
+        // Runtime GPIO/input wiring is not yet integrated on the Pi bench — see
+        // docs/position-hold-control-review.md (hardware E-stop gap).
         self.hardware_estop = asserted;
         if asserted {
             self.mode = OperationalMode::Disabled;
@@ -383,6 +470,7 @@ impl<B: MotorBus> Supervisor<B> {
             self.active_since = None;
             self.feedback_velocity_trips.clear();
             self.last_feedback_samples.clear();
+            self.wrong_sign_state.clear();
             warn!("hardware E-stop asserted — disabled");
         }
     }
@@ -392,6 +480,7 @@ impl<B: MotorBus> Supervisor<B> {
             return;
         }
         self.mode = OperationalMode::Ready;
+        self.sync_active_reporting();
         debug!("supervisor READY (unchecked — deprecated)");
     }
 
@@ -445,6 +534,9 @@ impl<B: MotorBus> Supervisor<B> {
             }
             self.mode = OperationalMode::Active;
             self.active_since = Some(Instant::now());
+            self.wrong_sign_state.clear();
+            self.last_tick = None;
+            self.sync_active_reporting();
             info!(motor_count = self.motors.motors.len(), "supervisor ACTIVE");
         } else {
             self.disable_all()?;
@@ -452,15 +544,33 @@ impl<B: MotorBus> Supervisor<B> {
         Ok(())
     }
 
-    /// Poll CAN feedback; updates watchdog timestamp on success.
+    /// Frames received in the last control tick (pre- and post-send drains combined).
+    pub fn begin_tick_feedback(&mut self) {
+        self.last_refresh_frames = 0;
+    }
+
+    /// Non-blocking drain of pending CAN status frames (control-loop path).
+    ///
+    /// Does not wait for the next MIT response; uses whatever is already in the
+    /// SocketCAN RX queue from the previous tick's transmit.
+    pub fn drain_feedback(&mut self) -> Result<usize, DavoutError> {
+        self.poll_feedback(Duration::ZERO)
+    }
+
+    /// Poll CAN feedback up to [`feedback_poll_budget_us`](marengo_config::ControlSection::feedback_poll_budget_us).
     pub fn refresh_feedback(&mut self) -> Result<usize, DavoutError> {
-        let timeout = self.feedback_poll_timeout();
+        self.poll_feedback(self.feedback_poll_timeout())
+    }
+
+    fn poll_feedback(&mut self, budget: Duration) -> Result<usize, DavoutError> {
+        let quiet = self.feedback_drain_quiet();
         let mut raw_states = HashMap::new();
         match self
             .bus
-            .recv_all_addressed(&self.motor_types, &mut raw_states, timeout)
+            .recv_all_addressed(&self.motor_types, &mut raw_states, budget, quiet)
         {
             Ok(n) => {
+                self.last_refresh_frames = self.last_refresh_frames.saturating_add(n);
                 let received_at = Instant::now();
                 if n > 0 {
                     trace!(count = n, "received motor feedback batch");
@@ -509,42 +619,39 @@ impl<B: MotorBus> Supervisor<B> {
                 joint: motor.joint.clone(),
             })?;
         let raw_velocity = f64::from(state.velocity_rad_s);
-        let velocity = raw_velocity.abs();
         let position = f64::from(state.position_rad);
         let previous = self.last_feedback_samples.get(&motor.joint).copied();
         let position_velocity = previous.and_then(|prev| {
             let dt = received_at.duration_since(prev.received_at).as_secs_f64();
             (dt > 0.0).then_some((position - prev.position_rad) / dt)
         });
-        let sanitized_velocity = position_velocity.unwrap_or(0.0);
-        state.velocity_rad_s = sanitized_velocity as f32;
-        if velocity > lim.velocity {
-            if position_velocity
-                .map(|v| v.abs() <= lim.velocity + FEEDBACK_VELOCITY_CORROBORATION_EPS_RAD_S)
-                .unwrap_or(true)
-            {
-                info!(
-                    joint = %motor.joint,
-                    position_rad = position,
-                    previous_position_rad = previous.map(|prev| prev.position_rad),
-                    raw_velocity_rad_s = raw_velocity,
-                    previous_velocity_rad_s = previous.map(|prev| prev.velocity_rad_s),
-                    position_velocity_rad_s = position_velocity,
-                    sanitized_velocity_rad_s = sanitized_velocity,
-                    limit_rad_s = lim.velocity,
-                    "ignored uncorroborated feedback velocity spike"
-                );
-                self.feedback_velocity_trips.remove(&motor.joint);
-                self.last_feedback_samples.insert(
-                    motor.joint.clone(),
-                    FeedbackSample {
-                        position_rad: position,
-                        velocity_rad_s: sanitized_velocity,
-                        received_at,
-                    },
-                );
-                return Ok(());
-            }
+        let measured_velocity = position_velocity.unwrap_or(raw_velocity);
+        state.velocity_rad_s = measured_velocity as f32;
+        let fault_threshold = lim.velocity + FEEDBACK_VELOCITY_FAULT_MARGIN_RAD_S;
+
+        if raw_velocity.abs() > lim.velocity && measured_velocity.abs() <= fault_threshold {
+            debug!(
+                joint = %motor.joint,
+                position_rad = position,
+                previous_position_rad = previous.map(|prev| prev.position_rad),
+                raw_velocity_rad_s = raw_velocity,
+                measured_velocity_rad_s = measured_velocity,
+                fault_threshold_rad_s = fault_threshold,
+                limit_rad_s = lim.velocity,
+                "ignored uncorroborated feedback velocity spike"
+            );
+            self.feedback_velocity_trips.remove(&motor.joint);
+            self.last_feedback_samples.insert(
+                motor.joint.clone(),
+                FeedbackSample {
+                    position_rad: position,
+                    received_at,
+                },
+            );
+            return Ok(());
+        }
+
+        if measured_velocity.abs() > fault_threshold {
             let trips = self
                 .feedback_velocity_trips
                 .entry(motor.joint.clone())
@@ -554,9 +661,9 @@ impl<B: MotorBus> Supervisor<B> {
                 joint = %motor.joint,
                 position_rad = position,
                 previous_position_rad = previous.map(|prev| prev.position_rad),
-                velocity_rad_s = raw_velocity,
-                previous_velocity_rad_s = previous.map(|prev| prev.velocity_rad_s),
-                position_velocity_rad_s = position_velocity,
+                raw_velocity_rad_s = raw_velocity,
+                measured_velocity_rad_s = measured_velocity,
+                fault_threshold_rad_s = fault_threshold,
                 limit_rad_s = lim.velocity,
                 trips = *trips,
                 "feedback velocity limit exceeded"
@@ -565,14 +672,16 @@ impl<B: MotorBus> Supervisor<B> {
                 motor.joint.clone(),
                 FeedbackSample {
                     position_rad: position,
-                    velocity_rad_s: sanitized_velocity,
                     received_at,
                 },
             );
             if *trips >= FEEDBACK_VELOCITY_LIMIT_TRIPS {
                 return Err(DavoutError::Limit {
                     joint: motor.joint.clone(),
-                    message: format!("feedback |velocity| {velocity} > {}", lim.velocity),
+                    message: format!(
+                        "feedback |velocity| {measured_velocity} > {fault_threshold} (limit {} + margin {})",
+                        lim.velocity, FEEDBACK_VELOCITY_FAULT_MARGIN_RAD_S
+                    ),
                 });
             }
         } else {
@@ -582,7 +691,6 @@ impl<B: MotorBus> Supervisor<B> {
             motor.joint.clone(),
             FeedbackSample {
                 position_rad: position,
-                velocity_rad_s: sanitized_velocity,
                 received_at,
             },
         );
@@ -840,17 +948,41 @@ impl<B: MotorBus> Supervisor<B> {
         self.active_since = None;
         self.feedback_velocity_trips.clear();
         self.last_feedback_samples.clear();
+        self.wrong_sign_state.clear();
+        self.last_tick = None;
+        self.sync_active_reporting();
         debug!("supervisor DISABLED");
         Ok(())
     }
 
-    fn feedback_poll_timeout(&self) -> Duration {
-        let watchdog = Duration::from_millis(self.control.control.comm_watchdog_ms);
-        if watchdog.is_zero() {
-            Duration::from_millis(1)
-        } else {
-            watchdog.min(Duration::from_millis(1))
+    fn active_reporting_desired(&self) -> bool {
+        self.control.control.bench.active_reporting_diagnostics
+            && self.mode == OperationalMode::Disabled
+    }
+
+    /// Enable or disable firmware active reporting (comm type 24) per bench config and mode.
+    pub fn sync_active_reporting(&mut self) {
+        let desired = self.active_reporting_desired();
+        if desired == self.active_reporting_armed {
+            return;
         }
+        for motor in &self.motors.motors {
+            let address = MotorAddress::from(motor);
+            if desired {
+                let _ = self.bus.enable_active_reporting_at(&address);
+            } else {
+                let _ = self.bus.disable_active_reporting_at(&address);
+            }
+        }
+        self.active_reporting_armed = desired;
+    }
+
+    fn feedback_poll_timeout(&self) -> Duration {
+        Duration::from_micros(self.control.control.feedback_poll_budget_us)
+    }
+
+    fn feedback_drain_quiet(&self) -> Duration {
+        Duration::from_micros(self.control.control.feedback_drain_quiet_us)
     }
 
     pub fn filter_mit_command(
@@ -897,10 +1029,17 @@ impl<B: MotorBus> Supervisor<B> {
         let q_meas = self
             .joint_position_rad(&out.joint)
             .unwrap_or(out.position_rad);
+        let dq_meas = self.joint_velocity_rad(&out.joint).unwrap_or(0.0);
+        let dq_envelope = if out.velocity_rad_s.abs() >= dq_meas.abs() {
+            out.velocity_rad_s
+        } else if dq_meas.abs() > 1e-9 {
+            dq_meas
+        } else {
+            out.velocity_rad_s
+        };
         let keepalive = out.kp == 0.0 && out.kd == 0.0 && out.torque_ff_nm == 0.0;
         if !keepalive {
-            let clamped =
-                clamp_position_in_envelope(lim, q_meas, out.velocity_rad_s, out.position_rad);
+            let clamped = clamp_position_in_envelope(lim, q_meas, dq_envelope, out.position_rad);
             if (clamped - out.position_rad).abs() > 1e-9 {
                 trace!(
                     joint = %out.joint,
@@ -935,7 +1074,7 @@ impl<B: MotorBus> Supervisor<B> {
             });
         }
         let vel_cap = lim.velocity;
-        self.apply_danger_zone_clamps(&mut out);
+        self.apply_danger_zone_clamps(&mut out, q_meas, dq_meas);
         if out.velocity_rad_s.abs() > vel_cap {
             return Err(DavoutError::Limit {
                 joint: out.joint.clone(),
@@ -955,7 +1094,63 @@ impl<B: MotorBus> Supervisor<B> {
             previous_tick,
         );
 
+        self.check_wrong_sign_watchdog(&out, q_meas, dq_meas)?;
+
         Ok(out)
+    }
+
+    fn check_wrong_sign_watchdog(
+        &mut self,
+        out: &MitJointCommand,
+        q_meas: f64,
+        dq_meas: f64,
+    ) -> Result<(), DavoutError> {
+        if self.control_mode != ControlMode::GravityComp {
+            return Ok(());
+        }
+        let cfg = &self.control.control.wrong_sign_watchdog;
+        if !cfg.enabled {
+            return Ok(());
+        }
+        let state = self.wrong_sign_state.entry(out.joint.clone()).or_default();
+        state.ticks_since_enable = state.ticks_since_enable.saturating_add(1);
+
+        if state.ticks_since_enable <= cfg.grace_period_ticks {
+            return Ok(());
+        }
+        if dq_meas.abs() <= cfg.min_velocity_rad_s {
+            return Ok(());
+        }
+
+        let expected_sign = if q_meas >= 0.0 {
+            cfg.expected_sign_at_positive_q as f64
+        } else {
+            -(cfg.expected_sign_at_positive_q as f64)
+        };
+        let actual_sign = out.torque_ff_nm.signum();
+
+        if actual_sign == 0.0 || actual_sign == expected_sign {
+            state.opposition_ticks = 0;
+            return Ok(());
+        }
+
+        state.opposition_ticks = state.opposition_ticks.saturating_add(1);
+        if state.opposition_ticks >= cfg.min_opposition_ticks {
+            warn!(
+                joint = %out.joint,
+                ticks = state.opposition_ticks,
+                torque_ff_nm = out.torque_ff_nm,
+                q_meas,
+                dq_meas,
+                expected_sign,
+                "wrong-sign watchdog tripped"
+            );
+            return Err(DavoutError::WrongSignWatchdog {
+                joint: out.joint.clone(),
+                ticks: state.opposition_ticks,
+            });
+        }
+        Ok(())
     }
 
     fn speed_cap_for_joint(&self, joint: &str) -> Result<f64, DavoutError> {
@@ -979,22 +1174,30 @@ impl<B: MotorBus> Supervisor<B> {
         Ok(out)
     }
 
-    fn apply_danger_zone_clamps(&self, cmd: &mut MitJointCommand) {
+    fn apply_danger_zone_clamps(&self, cmd: &mut MitJointCommand, q_meas: f64, dq_meas: f64) {
         for rule in &self.control.control.danger_zones {
             if rule.joint != cmd.joint {
                 continue;
             }
-            if cmd.position_rad <= rule.position_above_rad
-                || cmd.velocity_rad_s >= rule.velocity_below_rad_s
-            {
+            if q_meas <= rule.position_above_rad || dq_meas >= rule.velocity_below_rad_s {
                 continue;
             }
-            if rule.action == "clamp_velocity" {
-                if cmd.velocity_rad_s < 0.0 {
-                    cmd.velocity_rad_s = cmd.velocity_rad_s.max(-rule.max_velocity_rad_s);
-                } else {
-                    cmd.velocity_rad_s = cmd.velocity_rad_s.min(rule.max_velocity_rad_s);
+            match rule.action.as_str() {
+                "clamp_velocity" => {
+                    if cmd.velocity_rad_s < 0.0 {
+                        cmd.velocity_rad_s = cmd.velocity_rad_s.max(-rule.max_velocity_rad_s);
+                    } else {
+                        cmd.velocity_rad_s = cmd.velocity_rad_s.min(rule.max_velocity_rad_s);
+                    }
                 }
+                "clamp_torque" => {
+                    let cap = rule
+                        .max_torque_nm
+                        .unwrap_or(rule.max_velocity_rad_s)
+                        .max(0.0);
+                    cmd.torque_ff_nm = cmd.torque_ff_nm.clamp(-cap, cap);
+                }
+                _ => {}
             }
         }
     }
@@ -1250,14 +1453,51 @@ mod tests {
         let prev = Instant::now() - Duration::from_millis(10);
         let out1 = rate_limit_tau_ff(&mut last, "j1", 10.0, 100.0, Some(prev));
         let out2 = rate_limit_tau_ff(&mut last, "j2", 10.0, 100.0, Some(prev));
-        assert!((out1 - 1.0).abs() < 0.05, "j1 slew expected ~1.0, got {out1}");
-        assert!((out2 - 1.0).abs() < 0.05, "j2 slew expected ~1.0, got {out2}");
+        assert!(
+            (out1 - 1.0).abs() < 0.05,
+            "j1 slew expected ~1.0, got {out1}"
+        );
+        assert!(
+            (out2 - 1.0).abs() < 0.05,
+            "j2 slew expected ~1.0, got {out2}"
+        );
+    }
+
+    #[test]
+    fn rate_limiter_seeds_on_mode_transition() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        bench_ready_active(&mut sup);
+
+        // Set feedback with known position/velocity (torque_nm will be 0.0).
+        sup.set_synthetic_joint_feedback("shoulder_pitch", 1.0, 0.5)
+            .expect("feedback");
+
+        // Set last_tau_ff to a known value different from measured torque (0.0).
+        sup.last_tau_ff.insert("shoulder_pitch".to_string(), 5.0);
+
+        // Seed — should update last_tau_ff to measured torque (0.0), not clear or keep 5.0.
+        sup.seed_tau_ff_rate_limiter();
+
+        let seeded = sup.last_tau_ff.get("shoulder_pitch").copied();
+        assert!(
+            seeded.is_some(),
+            "shoulder_pitch should still have an entry (not cleared)"
+        );
+        assert!(
+            (seeded.expect("shoulder_pitch should still have an entry") - 0.0).abs() < 1e-9,
+            "expected measured torque 0.0, got {}",
+            seeded.expect("shoulder_pitch should still have an entry")
+        );
     }
 
     #[test]
     fn clamp_velocity_danger_zone_limits_downward_speed() {
         let bus = MemoryBus::default();
         let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        sup.seed_synthetic_feedback();
+        sup.set_synthetic_joint_feedback("shoulder_pitch", 1.0, -0.5)
+            .expect("feedback");
         let motor = motor_for_joint(&sup.motors, "shoulder_pitch")
             .expect("motor")
             .clone();
@@ -1266,10 +1506,10 @@ mod tests {
                 MitJointCommand {
                     joint: "shoulder_pitch".to_string(),
                     kp: 10.0,
-                    kd: 1.0,
+                    kd: 0.0,
                     position_rad: 1.0,
                     velocity_rad_s: -0.5,
-                    torque_ff_nm: 0.0,
+                    torque_ff_nm: 2.0,
                 },
                 &motor,
             )
@@ -1277,6 +1517,36 @@ mod tests {
         assert!(
             filtered.velocity_rad_s >= -0.05 - 1e-9,
             "expected clamp to max_velocity_rad_s 0.05, got {}",
+            filtered.velocity_rad_s
+        );
+    }
+
+    #[test]
+    fn danger_zone_skips_when_measured_q_below_threshold() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        sup.seed_synthetic_feedback();
+        sup.set_synthetic_joint_feedback("shoulder_pitch", 0.2, -0.5)
+            .expect("feedback");
+        let motor = motor_for_joint(&sup.motors, "shoulder_pitch")
+            .expect("motor")
+            .clone();
+        let filtered = sup
+            .filter_mit_command(
+                MitJointCommand {
+                    joint: "shoulder_pitch".to_string(),
+                    kp: 10.0,
+                    kd: 0.0,
+                    position_rad: 0.2,
+                    velocity_rad_s: -0.5,
+                    torque_ff_nm: 0.0,
+                },
+                &motor,
+            )
+            .expect("filter");
+        assert!(
+            (filtered.velocity_rad_s + 0.5).abs() < 1e-9,
+            "rule requires measured q > 0.5, got velocity {}",
             filtered.velocity_rad_s
         );
     }
@@ -1448,49 +1718,44 @@ mod tests {
     fn active_feedback_velocity_above_limit_faults() {
         let bus = RoutedMemoryBus::default();
         let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
-        sup.motors.motors[0].can_interface = "can0".to_string();
-        sup.motors.motors[0].device_id = 1;
-        sup.motor_types = sup
-            .motors
-            .motors
-            .iter()
-            .map(|m| (MotorAddress::from(m), m.motor_type))
-            .collect();
         bench_ready_active(&mut sup);
-        sup.bus.rx.push(ReceivedCanFrame {
-            interface: Some("can0".to_string()),
-            frame: CanFrame {
-                id: robstride::pack_ext_id(2, 1, robstride::DEFAULT_HOST_ID),
-                data: [0x7f, 0xff, 0x7f, 0xff, 0x7f, 0xff, 0x00, 0xc8],
-                extended: true,
-            },
-        });
+        let motor = sup.motors.motors[0].clone();
+        let limit = sup.limits.get(&motor.joint).expect("limits").velocity;
+        let overspeed = limit + FEEDBACK_VELOCITY_FAULT_MARGIN_RAD_S + 0.15;
+        let dt = 0.005;
+        let t0 = Instant::now();
+        let mut pos = 0.30_f32;
+        let mut state = MotorState {
+            position_rad: pos,
+            velocity_rad_s: 0.0,
+            torque_nm: 0.0,
+            temperature_c: 25.0,
+            fault: 0,
+            updated: Some(t0),
+        };
+        sup.check_feedback_velocity(&motor, &mut state, t0)
+            .expect("seed sample");
 
-        sup.refresh_feedback().expect("initial feedback");
-        sup.bus.rx.push(ReceivedCanFrame {
-            interface: Some("can0".to_string()),
-            frame: CanFrame {
-                id: robstride::pack_ext_id(2, 1, robstride::DEFAULT_HOST_ID),
-                data: [0x8f, 0xff, 0xff, 0xff, 0x7f, 0xff, 0x00, 0xc8],
-                extended: true,
-            },
-        });
-
-        sup.refresh_feedback()
-            .expect("first corroborated overspeed warns only");
-        sup.bus.rx.push(ReceivedCanFrame {
-            interface: Some("can0".to_string()),
-            frame: CanFrame {
-                id: robstride::pack_ext_id(2, 1, robstride::DEFAULT_HOST_ID),
-                data: [0x9f, 0xff, 0xff, 0xff, 0x7f, 0xff, 0x00, 0xc8],
-                extended: true,
-            },
-        });
-
-        let err = sup.refresh_feedback().expect_err("overspeed feedback");
-
-        assert!(matches!(err, DavoutError::Limit { .. }));
-        assert!(err.to_string().contains("feedback |velocity|"));
+        for step in 1..=u64::from(FEEDBACK_VELOCITY_LIMIT_TRIPS) {
+            pos += (overspeed * dt) as f32;
+            let t = t0 + Duration::from_secs_f64(dt * step as f64);
+            let mut sample = MotorState {
+                position_rad: pos,
+                velocity_rad_s: overspeed as f32,
+                torque_nm: 0.0,
+                temperature_c: 25.0,
+                fault: 0,
+                updated: Some(t),
+            };
+            let result = sup.check_feedback_velocity(&motor, &mut sample, t);
+            if step < u64::from(FEEDBACK_VELOCITY_LIMIT_TRIPS) {
+                result.expect("warn-only overspeed sample");
+            } else {
+                let err = result.expect_err("sustained overspeed feedback");
+                assert!(matches!(err, DavoutError::Limit { .. }));
+                assert!(err.to_string().contains("feedback |velocity|"));
+            }
+        }
     }
 
     #[test]
@@ -1527,6 +1792,45 @@ mod tests {
             .get(&MotorAddress::new("can0", 1))
             .expect("sanitized state cached");
         assert_eq!(state.velocity_rad_s, 0.0);
+    }
+
+    #[test]
+    fn cruise_near_limit_measured_velocity_does_not_fault() {
+        let bus = RoutedMemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        bench_ready_active(&mut sup);
+        let motor = sup.motors.motors[0].clone();
+        let limit = sup.limits.get(&motor.joint).expect("limits").velocity;
+        let t0 = Instant::now();
+        let mut first = MotorState {
+            position_rad: 0.30,
+            velocity_rad_s: 5.0,
+            torque_nm: 0.0,
+            temperature_c: 25.0,
+            fault: 0,
+            updated: Some(t0),
+        };
+        sup.check_feedback_velocity(&motor, &mut first, t0)
+            .expect("seed sample");
+
+        let near_limit = limit + 0.10;
+        let dt = 0.005;
+        let mut pos = 0.30_f32;
+        for i in 0..5 {
+            pos += (near_limit * dt) as f32;
+            let t = t0 + Duration::from_secs_f64(dt * f64::from(i + 1));
+            let mut state = MotorState {
+                position_rad: pos,
+                velocity_rad_s: 5.0,
+                torque_nm: 0.0,
+                temperature_c: 25.0,
+                fault: 0,
+                updated: Some(t),
+            };
+            sup.check_feedback_velocity(&motor, &mut state, t)
+                .expect("near-limit cruise should stay enabled");
+        }
+        assert!(sup.feedback_velocity_trips.is_empty());
     }
 
     #[test]
@@ -1629,6 +1933,152 @@ mod tests {
         assert!(matches!(err, DavoutError::CommWatchdog { ms: 1 }));
     }
 
+    fn type24_tx_frames(tx: &[CanFrame]) -> Vec<&CanFrame> {
+        tx.iter()
+            .filter(|f| {
+                robstride::unpack_ext_id(f.id)
+                    .map(|u| u.comm_type == robstride::CommunicationType::ActiveReporting.as_u8())
+                    .unwrap_or(false)
+            })
+            .collect()
+    }
+
+    #[test]
+    fn active_reporting_default_false_sends_no_type24() {
+        let bus = MemoryBus::default();
+        let sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        assert_eq!(sup.mode(), OperationalMode::Disabled);
+        assert!(type24_tx_frames(&sup.bus.tx).is_empty());
+    }
+
+    #[test]
+    fn active_reporting_sends_type24_only_when_disabled_and_flag_true() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        sup.control.control.bench.active_reporting_diagnostics = true;
+        sup.sync_active_reporting();
+        let type24 = type24_tx_frames(&sup.bus.tx);
+        assert_eq!(type24.len(), sup.motors.motors.len());
+        for frame in type24 {
+            assert_eq!(frame.data[6], 0x01, "enable F_CMD");
+        }
+        let tx_before = sup.bus.tx.len();
+        bench_ready_active(&mut sup);
+        assert!(!sup.active_reporting_armed);
+        let new_frames = &sup.bus.tx[tx_before..];
+        for frame in type24_tx_frames(new_frames) {
+            assert_eq!(frame.data[6], 0x00, "disable before leaving Disabled");
+        }
+    }
+
+    #[test]
+    fn active_reporting_zero_tx_during_active_mit_batch() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        sup.control.control.bench.active_reporting_diagnostics = true;
+        sup.sync_active_reporting();
+        bench_ready_active(&mut sup);
+        let motor = motor_for_joint(&sup.motors, "elbow")
+            .expect("motor")
+            .clone();
+        let tx_before = sup.bus.tx.len();
+        sup.send_mit_joint(
+            MitJointCommand {
+                joint: "elbow".to_string(),
+                kp: 0.0,
+                kd: 0.0,
+                position_rad: 0.5,
+                velocity_rad_s: 0.0,
+                torque_ff_nm: 1.0,
+            },
+            &motor,
+        )
+        .expect("send");
+        assert!(!sup.bus.tx.is_empty());
+        let new_frames = &sup.bus.tx[tx_before..];
+        assert!(
+            type24_tx_frames(new_frames).is_empty(),
+            "MIT batch must not include type-24 frames"
+        );
+    }
+
+    #[test]
+    fn active_reporting_disables_before_ready_transition() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        sup.control.control.bench.active_reporting_diagnostics = true;
+        sup.sync_active_reporting();
+        assert_eq!(type24_tx_frames(&sup.bus.tx).len(), sup.motors.motors.len());
+        bench_verify_all_joints(&mut sup);
+        let tx_before = sup.bus.tx.len();
+        sup.set_homing_complete().expect("ready");
+        let off_frames = type24_tx_frames(&sup.bus.tx[tx_before..]);
+        assert_eq!(off_frames.len(), sup.motors.motors.len());
+        for frame in off_frames {
+            assert_eq!(frame.data[6], 0x00, "disable F_CMD before Ready");
+        }
+    }
+
+    #[test]
+    fn no_comm_type_22_in_robstride_surface() {
+        assert!(robstride::CommunicationType::from_u8(22).is_none());
+    }
+
+    #[test]
+    fn feedback_poll_timeout_honors_budget_not_watchdog_cap() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        sup.control.control.comm_watchdog_ms = 50;
+        sup.control.control.feedback_poll_budget_us = 3000;
+        sup.control.control.feedback_drain_quiet_us = 300;
+        assert_eq!(
+            sup.feedback_poll_timeout(),
+            Duration::from_micros(3000),
+            "poll budget must not be capped at 1 ms by comm_watchdog_ms"
+        );
+    }
+
+    #[test]
+    fn comm_watchdog_unchanged_despite_larger_poll_budget() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        sup.control.control.comm_watchdog_ms = 50;
+        sup.control.control.feedback_poll_budget_us = 3000;
+        sup.control.control.feedback_drain_quiet_us = 300;
+        bench_ready_active(&mut sup);
+        std::thread::sleep(Duration::from_millis(10));
+        let motor = motor_for_joint(&sup.motors, "elbow")
+            .expect("motor")
+            .clone();
+        sup.send_mit_joint(
+            MitJointCommand {
+                joint: "elbow".to_string(),
+                kp: 0.0,
+                kd: 0.0,
+                position_rad: 0.0,
+                velocity_rad_s: 0.0,
+                torque_ff_nm: 0.0,
+            },
+            &motor,
+        )
+        .expect("watchdog should not fire at 10 ms silence");
+        std::thread::sleep(Duration::from_millis(45));
+        let err = sup
+            .send_mit_joint(
+                MitJointCommand {
+                    joint: "elbow".to_string(),
+                    kp: 0.0,
+                    kd: 0.0,
+                    position_rad: 0.0,
+                    velocity_rad_s: 0.0,
+                    torque_ff_nm: 0.0,
+                },
+                &motor,
+            )
+            .expect_err("watchdog");
+        assert!(matches!(err, DavoutError::CommWatchdog { ms: 50 }));
+    }
+
     #[test]
     fn filter_command_clamps_position_into_envelope() {
         let bus = MemoryBus::default();
@@ -1644,5 +2094,219 @@ mod tests {
         let policy = sup.joint_limit_policy("elbow").expect("policy");
         assert!(out.position_rad <= policy.hard_upper());
         assert!(out.position_rad < 99.0);
+    }
+
+    fn wrong_sign_sup() -> Supervisor<MemoryBus> {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        bench_ready_active(&mut sup);
+        sup.set_control_mode(ControlMode::GravityComp);
+        sup.set_synthetic_joint_feedback("shoulder_pitch", 1.0, 0.5)
+            .expect("feedback");
+        sup
+    }
+
+    fn wrong_sign_cmd() -> MitJointCommand {
+        MitJointCommand {
+            joint: "shoulder_pitch".to_string(),
+            kp: 0.0,
+            kd: 0.0,
+            position_rad: 1.0,
+            velocity_rad_s: 0.0,
+            // q > 0 → expected_sign = -1; +1.0 opposes it.
+            torque_ff_nm: 1.0,
+        }
+    }
+
+    #[test]
+    fn wrong_sign_watchdog_trips_on_sustained_opposition() {
+        let mut sup = wrong_sign_sup();
+        let motor = motor_for_joint(&sup.motors, "shoulder_pitch")
+            .expect("motor")
+            .clone();
+        let cmd = wrong_sign_cmd();
+        let grace = sup.control.control.wrong_sign_watchdog.grace_period_ticks;
+        let min_opp = sup.control.control.wrong_sign_watchdog.min_opposition_ticks;
+        for _ in 0..grace + min_opp - 1 {
+            sup.filter_mit_command(cmd.clone(), &motor)
+                .expect("no trip before threshold");
+        }
+        let err = sup
+            .filter_mit_command(cmd, &motor)
+            .expect_err("should trip on sustained opposition");
+        assert!(matches!(
+            err,
+            DavoutError::WrongSignWatchdog {
+                ticks, ..
+            } if ticks >= min_opp
+        ));
+    }
+
+    #[test]
+    fn wrong_sign_watchdog_no_trip_in_impedance() {
+        let mut sup = wrong_sign_sup();
+        sup.set_control_mode(ControlMode::Impedance);
+        let motor = motor_for_joint(&sup.motors, "shoulder_pitch")
+            .expect("motor")
+            .clone();
+        let cmd = wrong_sign_cmd();
+        let grace = sup.control.control.wrong_sign_watchdog.grace_period_ticks;
+        let min_opp = sup.control.control.wrong_sign_watchdog.min_opposition_ticks;
+        for _ in 0..grace + min_opp + 5 {
+            sup.filter_mit_command(cmd.clone(), &motor)
+                .expect("Impedance mode must not trip wrong-sign watchdog");
+        }
+    }
+
+    #[test]
+    fn wrong_sign_watchdog_grace_period() {
+        let mut sup = wrong_sign_sup();
+        let motor = motor_for_joint(&sup.motors, "shoulder_pitch")
+            .expect("motor")
+            .clone();
+        let cmd = wrong_sign_cmd();
+        let grace = sup.control.control.wrong_sign_watchdog.grace_period_ticks;
+        // Opposition during the entire grace window must not trip.
+        for _ in 0..grace {
+            sup.filter_mit_command(cmd.clone(), &motor)
+                .expect("grace period must not trip");
+        }
+        // State should show opposition has not accumulated past grace.
+        let state = sup
+            .wrong_sign_state
+            .get("shoulder_pitch")
+            .expect("state populated");
+        assert_eq!(state.opposition_ticks, 0);
+    }
+
+    #[test]
+    fn wrong_sign_watchdog_resets_on_enable() {
+        let mut sup = wrong_sign_sup();
+        let motor = motor_for_joint(&sup.motors, "shoulder_pitch")
+            .expect("motor")
+            .clone();
+        let cmd = wrong_sign_cmd();
+        let grace = sup.control.control.wrong_sign_watchdog.grace_period_ticks;
+        // Accumulate a few opposition ticks past grace.
+        for _ in 0..grace + 3 {
+            let _ = sup.filter_mit_command(cmd.clone(), &motor);
+        }
+        assert!(sup.wrong_sign_state.contains_key("shoulder_pitch"));
+        sup.disable_all().expect("disable");
+        assert!(sup.wrong_sign_state.is_empty());
+        // Re-enable clears state on the enable path too.
+        sup.set_homing_complete().expect("ready");
+        sup.request_enable(true).expect("enable");
+        assert!(sup.wrong_sign_state.is_empty());
+    }
+
+    #[test]
+    fn wrong_sign_watchdog_no_trip_when_velocity_below_threshold() {
+        let mut sup = wrong_sign_sup();
+        sup.set_synthetic_joint_feedback("shoulder_pitch", 1.0, 0.01)
+            .expect("feedback");
+        let motor = motor_for_joint(&sup.motors, "shoulder_pitch")
+            .expect("motor")
+            .clone();
+        let cmd = wrong_sign_cmd();
+        let grace = sup.control.control.wrong_sign_watchdog.grace_period_ticks;
+        let min_opp = sup.control.control.wrong_sign_watchdog.min_opposition_ticks;
+        for _ in 0..grace + min_opp + 5 {
+            sup.filter_mit_command(cmd.clone(), &motor)
+                .expect("near-zero velocity must not trip");
+        }
+    }
+
+    #[test]
+    fn wrong_sign_watchdog_no_trip_when_sign_matches() {
+        let mut sup = wrong_sign_sup();
+        let motor = motor_for_joint(&sup.motors, "shoulder_pitch")
+            .expect("motor")
+            .clone();
+        // q > 0 → expected_sign = -1; torque_ff = -1.0 matches → no trip.
+        let cmd = MitJointCommand {
+            joint: "shoulder_pitch".to_string(),
+            kp: 0.0,
+            kd: 0.0,
+            position_rad: 1.0,
+            velocity_rad_s: 0.0,
+            torque_ff_nm: -1.0,
+        };
+        let grace = sup.control.control.wrong_sign_watchdog.grace_period_ticks;
+        let min_opp = sup.control.control.wrong_sign_watchdog.min_opposition_ticks;
+        for _ in 0..grace + min_opp + 5 {
+            sup.filter_mit_command(cmd.clone(), &motor)
+                .expect("matching sign must not trip");
+        }
+    }
+
+    #[test]
+    fn disable_all_clears_last_tick() {
+        let mut sup = wrong_sign_sup();
+        let motor = motor_for_joint(&sup.motors, "shoulder_pitch")
+            .expect("motor")
+            .clone();
+        let cmd = MitJointCommand {
+            joint: "shoulder_pitch".to_string(),
+            kp: 0.0,
+            kd: 0.0,
+            position_rad: 1.0,
+            velocity_rad_s: 0.0,
+            torque_ff_nm: -1.0, // matching sign → no watchdog trip
+        };
+        let _ = sup.filter_mit_command(cmd, &motor);
+        assert!(sup.last_tick.is_some(), "last_tick set after a tick");
+        sup.disable_all().expect("disable");
+        assert!(
+            sup.last_tick.is_none(),
+            "disable_all must clear last_tick to prevent stale dt on re-enable"
+        );
+    }
+
+    #[test]
+    fn tau_ff_step_rate_limited_after_disable_gap() {
+        let mut sup = wrong_sign_sup();
+        let motor = motor_for_joint(&sup.motors, "shoulder_pitch")
+            .expect("motor")
+            .clone();
+        sup.seed_tau_ff_rate_limiter();
+        // Tick once at -0.5 Nm to establish a rate-limiter baseline.
+        let cmd_small = MitJointCommand {
+            joint: "shoulder_pitch".to_string(),
+            kp: 0.0,
+            kd: 0.0,
+            position_rad: 1.0,
+            velocity_rad_s: 0.0,
+            torque_ff_nm: -0.5,
+        };
+        let out1 = sup.filter_mit_command(cmd_small, &motor).expect("tick 1");
+        // Disable — simulates a safety trip / comm-watchdog gap.
+        sup.disable_all().expect("disable");
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        // Re-enable (mirrors the recovery path the Pi would take).
+        sup.set_homing_complete().expect("ready");
+        sup.request_enable(true).expect("enable");
+        // Large τ_ff step — must be rate-limited, NOT passed through.
+        let cmd_big = MitJointCommand {
+            joint: "shoulder_pitch".to_string(),
+            kp: 0.0,
+            kd: 0.0,
+            position_rad: 1.0,
+            velocity_rad_s: 0.0,
+            torque_ff_nm: -5.0,
+        };
+        let out2 = sup
+            .filter_mit_command(cmd_big, &motor)
+            .expect("tick after re-enable");
+        let rate = sup.control.control.tau_ff_rate_limit_nm_per_s;
+        let max_step = rate * 0.01; // default dt fallback (0.01 s)
+        let actual_step = (out2.torque_ff_nm - out1.torque_ff_nm).abs();
+        assert!(
+            actual_step <= max_step + 1e-6,
+            "τ_ff step {actual_step} must be <= rate-limited max_step {max_step} after disable gap \
+             (rate={rate} Nm/s, out1={}, out2={})",
+            out1.torque_ff_nm,
+            out2.torque_ff_nm,
+        );
     }
 }

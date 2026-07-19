@@ -3,7 +3,12 @@ import { useCallback, useState } from 'react';
 import { logsTabsVariant } from '@/components/dashboard/logs/constants';
 import { LogRow } from '@/components/dashboard/logs/log-row';
 import type { LogEntry, LogLevel } from '@/data/logs';
-import { fetchStructuredLogs } from '@/lib/log-api';
+import {
+  fetchStructuredLogs,
+  logErrorMessage,
+  shouldShowLogErrorBanner,
+  type StructuredLogEntryDto,
+} from '@/lib/log-api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -38,7 +43,7 @@ function mapProtoLevel(level: string): LogLevel {
   }
 }
 
-function dtoToEntry(row: Awaited<ReturnType<typeof fetchStructuredLogs>>['entries'][number]): LogEntry {
+function dtoToEntry(row: StructuredLogEntryDto): LogEntry {
   return {
     id: `search-${row.id}`,
     timestamp: row.timestamp_ms,
@@ -62,16 +67,28 @@ export function LogsArchiveSearch({
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [httpError, setHttpError] = useState(false);
 
   const runSearch = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setHttpError(false);
     const result = await fetchStructuredLogs({
       q: query.trim() || undefined,
       level: level || undefined,
       limit: 200,
     });
-    const filtered = result.entries.filter((row) => {
+    if (!result.ok) {
+      setEntries([]);
+      setTotal(0);
+      setLoading(false);
+      if (shouldShowLogErrorBanner(result.error)) {
+        setHttpError(true);
+        setError(logErrorMessage(result.error));
+      }
+      return;
+    }
+    const filtered = result.data.entries.filter((row) => {
       if (!target) {
         return true;
       }
@@ -81,9 +98,9 @@ export function LogsArchiveSearch({
       return row.target.includes(target);
     });
     setEntries(filtered.map(dtoToEntry));
-    setTotal(result.total);
+    setTotal(result.data.total);
     setLoading(false);
-    if (result.entries.length === 0 && !query.trim()) {
+    if (result.data.entries.length === 0 && !query.trim()) {
       setError('No structured logs in SQLite yet.');
     }
   }, [query, level, target]);
@@ -94,7 +111,7 @@ export function LogsArchiveSearch({
         <div className="min-w-[200px] flex-1">
           <label className="mb-1 block text-xs text-muted-foreground">FTS query</label>
           <Input
-            variant="glass"
+            variant="panel"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="joint, error, operator…"
@@ -141,7 +158,11 @@ export function LogsArchiveSearch({
           </Button>
         ))}
       </div>
-      {error ? <p className="text-sm text-muted-foreground">{error}</p> : null}
+      {error ? (
+        <p className={httpError ? 'text-sm text-destructive' : 'text-sm text-muted-foreground'}>
+          {error}
+        </p>
+      ) : null}
       <p className="text-xs text-muted-foreground">
         {entries.length} shown · {total} total matches (FTS over message, target, fields)
       </p>

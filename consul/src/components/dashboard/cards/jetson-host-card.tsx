@@ -16,20 +16,13 @@ import {
 } from '@/lib/format';
 import { isChappeLive } from '@/lib/chappe-config';
 import { hostCardDebugLines } from '@/lib/host-debug-info';
+import { demoBadge } from '@/lib/telemetry-source';
 import {
   hostMetricsStale,
   useHostMetricsStore,
 } from '@/state/hostMetricsStore';
+import { formatUptime } from '@/lib/host-card-utils';
 
-function formatUptime(seconds: bigint | number): string {
-  const total = Number(seconds);
-  const hours = Math.floor(total / 3600);
-  const minutes = Math.floor((total % 3600) / 60);
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  }
-  return `${minutes}m`;
-}
 
 function liveJetsonMetrics(
   metrics: ReturnType<typeof useHostMetricsStore.getState>['jetsonMetrics'],
@@ -107,16 +100,22 @@ export function JetsonHostCard({
       action={
         <StatusBadge
           label={
-            metricsLoading
-              ? 'Inactive'
-              : stale
-                ? 'stale'
-                : metrics?.online
-                  ? 'online'
-                  : 'offline'
+            !live
+              ? demoBadge().label
+              : metricsLoading
+                ? 'Inactive'
+                : stale
+                  ? 'stale'
+                  : metrics?.online
+                    ? 'online'
+                    : 'offline'
           }
           tone={
-            !metricsLoading && !stale && metrics?.online ? 'healthy' : 'muted'
+            !live
+              ? demoBadge().tone
+              : !metricsLoading && !stale && metrics?.online
+                ? 'healthy'
+                : 'muted'
           }
         />
       }
@@ -127,7 +126,7 @@ export function JetsonHostCard({
             value={placeholder}
             smoothValue={metrics?.cpuPercent}
             formatSmoothValue={formatPercent}
-            usagePercent={metrics?.cpuPercent ?? 0}
+            usagePercent={live ? (metrics?.cpuPercent ?? 0) : 0}
           />
           <MetricItem
             label="RAM"
@@ -138,7 +137,7 @@ export function JetsonHostCard({
             }
             valueClassName="text-xs"
             usagePercent={
-              metrics
+              live && metrics
                 ? computeRamUsagePercent(metrics.ramUsedGb, metrics.ramTotalGb)
                 : 0
             }
@@ -148,7 +147,7 @@ export function JetsonHostCard({
             value={placeholder}
             smoothValue={metrics?.gpuPercent}
             formatSmoothValue={formatPercent}
-            usagePercent={metrics?.gpuPercent ?? 0}
+            usagePercent={live ? (metrics?.gpuPercent ?? 0) : 0}
           />
           <MetricItem
             label="Temp"
@@ -159,18 +158,22 @@ export function JetsonHostCard({
         </MetricGrid>
       }
       footerPrimary={
-        metricsLoading
-          ? 'Waiting for telemetry'
-          : metrics
-            ? `Uptime ${metrics.uptime} · ${metrics.powerMode} · load ${formatLoad(metrics.load1m)}`
-            : placeholder
+        !live
+          ? 'Wireframe · synthetic host metrics'
+          : metricsLoading
+            ? 'Waiting for telemetry'
+            : metrics
+              ? `Uptime ${metrics.uptime} · ${metrics.powerMode} · load ${formatLoad(metrics.load1m)}`
+              : placeholder
       }
       footerSecondary={
-        stale
-          ? 'Host metrics stale'
-          : metrics
-            ? `${metrics.chappeRttMs.toFixed(1)} ms Chappe RTT`
-            : undefined
+        !live
+          ? 'Not measured from Chappe'
+          : stale
+            ? 'Host metrics stale'
+            : metrics
+              ? `${metrics.chappeRttMs.toFixed(1)} ms Chappe RTT`
+              : undefined
       }
     />
   );

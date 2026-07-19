@@ -21,6 +21,7 @@ axum-server = { version = "0.7", features = ["tls-rustls"] }
 bytes = "1"
 chappe = { path = "../../crates/chappe" }
 futures = "0.3"
+marengo-config.workspace = true
 marengo-support.workspace = true
 marengo-store = { path = "../../crates/marengo-store" }
 prost = { workspace = true }
@@ -30,6 +31,7 @@ rustls = { version = "0.23", default-features = false, features = ["ring", "std"
 rustls-pemfile = "2"
 serde = { workspace = true, features = ["derive"] }
 serde_json = "1"
+serde_yaml.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { version = "0.7", features = ["io"] }

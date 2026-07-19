@@ -100,7 +100,7 @@ export const LogRow = memo(function LogRow({
             </Badge>
           ))}
           {fields._truncated === 'true' ? (
-            <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-normal text-amber-500">
+            <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-normal text-warning">
               truncated
             </Badge>
           ) : null}

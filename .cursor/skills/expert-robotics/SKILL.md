@@ -29,7 +29,7 @@ Readonly reviewer for control stack, sim vs real, Pi bring-up, and Marengo archi
 - Safety: enable path, E-stop, position limits enforced at all layers
 - Pi deploy: `.deploy-rev` matches expected commit, logs clean
 
-## mem0
+## OpenSpec
 
 - Per change: `feasibility/{change}/expert/robotics`
 - Heuristics: `expert/robotics/{slug}`

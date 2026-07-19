@@ -1,6 +1,29 @@
 import type { RouteObject } from 'react-router-dom';
 
+import { isActuatorsFeatureEnabled } from '@/lib/feature-flags';
+import { ActuatorsPage } from '@/pages/actuators';
+import { DashboardPage } from '@/pages/dashboard';
+import { LogsPage } from '@/pages/logs';
+import { SimulationPage } from '@/pages/simulation';
+import { SubsystemsPage } from '@/pages/subsystems';
+import { TestingPage } from '@/pages/testing';
 import { RootLayout } from '@/routes/root-layout';
+
+/**
+ * Thin page shells are static imports so location updates immediately.
+ * Heavy bodies stay behind React.lazy + DeferredMount inside each page.
+ * (React Router route.lazy blocks pathname until the module resolves — that was the hang.)
+ */
+const actuatorsRoute: RouteObject = {
+  path: '/actuators',
+  Component: ActuatorsPage,
+  handle: {
+    header: {
+      title: 'Actuators',
+      subtitle: 'telemetry only · PR-1 shell',
+    },
+  },
+};
 
 export const appRoutes: RouteObject[] = [
   {
@@ -8,77 +31,53 @@ export const appRoutes: RouteObject[] = [
     children: [
       {
         path: '/',
-        lazy: async () => {
-          const { DashboardPage } = await import('@/pages/dashboard');
-          return {
-            Component: DashboardPage,
-            handle: {
-              header: {
-                title: 'Overview',
-                subtitle: 'marengo_arm_4dof · bench',
-              },
-            },
-          };
+        Component: DashboardPage,
+        handle: {
+          header: {
+            title: 'Overview',
+            subtitle: 'arm_2dof_right · bench',
+          },
         },
       },
       {
         path: '/simulation',
-        lazy: async () => {
-          const { SimulationPage } = await import('@/pages/simulation');
-          return {
-            Component: SimulationPage,
-            handle: {
-              header: {
-                title: 'Simulation',
-                subtitle: 'Isaac Sim · Isaac Lab · wireframe',
-              },
-            },
-          };
+        Component: SimulationPage,
+        handle: {
+          header: {
+            title: 'Simulation',
+            subtitle: 'Isaac Sim · Isaac Lab · wireframe',
+          },
         },
       },
+      ...(isActuatorsFeatureEnabled() ? [actuatorsRoute] : []),
       {
         path: '/subsystems',
-        lazy: async () => {
-          const { SubsystemsPage } = await import('@/pages/subsystems');
-          return {
-            Component: SubsystemsPage,
-            handle: {
-              header: {
-                title: 'Subsystems',
-                subtitle: 'devices · actuators · sensors',
-              },
-            },
-          };
+        Component: SubsystemsPage,
+        handle: {
+          header: {
+            title: 'Subsystems',
+            subtitle: 'devices · actuators · sensors',
+          },
         },
       },
       {
         path: '/logs',
-        lazy: async () => {
-          const { LogsPage } = await import('@/pages/logs');
-          return {
-            Component: LogsPage,
-            handle: {
-              header: {
-                title: 'Logs',
-                subtitle: 'live stream · virtualized',
-              },
-            },
-          };
+        Component: LogsPage,
+        handle: {
+          header: {
+            title: 'Logs',
+            subtitle: 'live stream · virtualized',
+          },
         },
       },
       {
-        path: '/memory',
-        lazy: async () => {
-          const { MemoryPage } = await import('@/pages/memory');
-          return {
-            Component: MemoryPage,
-            handle: {
-              header: {
-                title: 'Memory',
-                subtitle: 'mem0 · marengo-joey · read-only',
-              },
-            },
-          };
+        path: '/testing',
+        Component: TestingPage,
+        handle: {
+          header: {
+            title: 'Testing',
+            subtitle: 'interactive · multi-actuator · PID retune',
+          },
         },
       },
     ],

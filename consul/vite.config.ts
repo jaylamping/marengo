@@ -1,42 +1,51 @@
+/// <reference types="vitest/config" />
+import babel from '@rolldown/plugin-babel';
 import tailwindcss from '@tailwindcss/vite';
-import { defineConfig, loadEnv } from 'vite';
-import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite';
+import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import path from 'path';
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '');
-  const mem0Target = env.MEM0_API_URL?.replace(/\/$/, '');
-
-  return {
-    plugins: [react(), tailwindcss()],
-    resolve: {
-      alias: {
-        '@': path.resolve(__dirname, './src'),
-      },
+export default defineConfig({
+  plugins: [
+    react(),
+    // Personal operator UI — latest Chrome only; React Compiler is on by default.
+    babel({
+      presets: [reactCompilerPreset({ target: '19' })],
+    }),
+    tailwindcss(),
+  ],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
     },
-    server: {
-      port: 5173,
-      proxy: mem0Target
-        ? {
-            '/mem0-api': {
-              target: mem0Target,
-              changeOrigin: true,
-              rewrite: (p) => p.replace(/^\/mem0-api/, ''),
-              configure: (proxy) => {
-                proxy.on('proxyReq', (proxyReq) => {
-                  if (env.MEM0_API_KEY) {
-                    proxyReq.setHeader('X-API-Key', env.MEM0_API_KEY);
-                  }
-                });
-              },
-            },
-          }
-        : undefined,
-      // Live telemetry: set VITE_CHAPPE_* in .env.local (see consul/.env.example).
-      // WebTransport uses HTTP/3 to the gateway directly (not proxied through Vite).
-    },
-    build: {
+  },
+  /**
+   * Pre-bundle heavy deps at dev-server start so first navigation does not
+   * cold-transform three/recharts on the main thread.
+   */
+  optimizeDeps: {
+    include: [
+      'three',
+      '@react-three/fiber',
+      '@react-three/drei',
+      'recharts',
+      '@tanstack/react-table',
+      '@tanstack/react-virtual',
+      '@tanstack/react-query',
+      'motion',
+      '@bufbuild/protobuf',
+    ],
+  },
+  server: {
+    port: 5173,
+    // Live telemetry: set VITE_CHAPPE_* in .env.local (see consul/.env.example).
+    // WebTransport uses HTTP/3 to the gateway directly (not proxied through Vite).
+  },
+  build: {
+    target: 'chrome131',
+    // Three.js + main app both exceed Vite's 500 kB default; expected for this UI.
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -51,7 +60,6 @@ export default defineConfig(({ mode }) => {
 
           if (
             id.includes('@tanstack/react-virtual') ||
-            id.includes('@dnd-kit') ||
             id.includes('@tanstack/react-table') ||
             id.includes('@tanstack/table-core')
           ) {
@@ -68,9 +76,8 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
-    },
-    test: {
-      environment: 'jsdom',
-    },
-  };
+  },
+  test: {
+    environment: 'jsdom',
+  },
 });

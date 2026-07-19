@@ -9,6 +9,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import { prefetchRoute } from '@/lib/prefetch-routes';
 import { cn } from '@/lib/utils';
 
 type SidebarNavMainProps = {
@@ -19,6 +20,10 @@ function isRoutedItem(url: string) {
   return url.startsWith('/');
 }
 
+function warmRoute(url: string) {
+  prefetchRoute(url);
+}
+
 export function SidebarNavMain({ items }: SidebarNavMainProps) {
   return (
     <SidebarGroup>
@@ -27,14 +32,20 @@ export function SidebarNavMain({ items }: SidebarNavMainProps) {
           {items.map((item) => (
             <SidebarMenuItem key={item.title}>
               {isRoutedItem(item.url) ? (
-                <NavLink to={item.url} end={item.url === '/'}>
+                <NavLink
+                  to={item.url}
+                  end={item.url === '/'}
+                  onMouseEnter={() => warmRoute(item.url)}
+                  onFocus={() => warmRoute(item.url)}
+                  onPointerDown={() => warmRoute(item.url)}
+                >
                   {({ isActive }) => (
                     <SidebarMenuButton
                       tooltip={item.title}
                       isActive={isActive}
                       className={cn(
                         isActive &&
-                          'bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground',
+                          'bg-surface-2 text-accent hover:bg-surface-2 hover:text-accent active:bg-surface-2 active:text-accent',
                       )}
                     >
                       <SidebarIcon icon={item.icon} />

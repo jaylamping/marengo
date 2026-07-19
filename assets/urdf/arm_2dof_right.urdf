@@ -1,0 +1,72 @@
+<?xml version="1.0"?>
+<!-- Right 2-DOF bench: shoulder pitch (torso) → shoulder roll (arm sub-asm).
+     Matches config/bringup/arm_2dof_right/robot.yaml.
+     Axes per hardware/docs/kinematics.md (right arm table). -->
+<robot name="marengo_arm_2dof_right">
+  <link name="base_link">
+    <inertial>
+      <mass value="0.001"/>
+      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.04" length="0.10"/>
+      </geometry>
+      <material name="mount_gray">
+        <color rgba="0.5 0.5 0.5 1"/>
+      </material>
+    </visual>
+  </link>
+  <link name="right_shoulder_pitch_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.3"/>
+      <inertia ixx="0.002" ixy="0" ixz="0" iyy="0.002" iyz="0" izz="0.002"/>
+    </inertial>
+  </link>
+  <link name="right_shoulder_roll_link">
+    <inertial>
+      <origin xyz="0.05 0 0" rpy="0 0 0"/>
+      <mass value="0.3"/>
+      <inertia ixx="0.002" ixy="0" ixz="0" iyy="0.002" iyz="0" izz="0.002"/>
+    </inertial>
+  </link>
+  <link name="right_upper_arm_stub">
+    <inertial>
+      <mass value="0.7"/>
+      <origin xyz="0 0 -0.36" rpy="0 0 0"/>
+      <inertia ixx="0.001" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.0001"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 -0.2" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.03" length="0.4"/>
+      </geometry>
+      <material name="arm_blue">
+        <color rgba="0.23 0.51 0.96 1"/>
+      </material>
+    </visual>
+  </link>
+  <joint name="right_shoulder_pitch" type="revolute">
+    <parent link="base_link"/>
+    <child link="right_shoulder_pitch_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-0.9" upper="3.25" effort="60" velocity="2.0"/>
+    <safety_controller soft_lower_limit="-0.872665" soft_upper_limit="3.20" k_position="10" k_velocity="1"/>
+  </joint>
+  <joint name="right_shoulder_roll" type="revolute">
+    <parent link="right_shoulder_pitch_link"/>
+    <child link="right_shoulder_roll_link"/>
+    <origin xyz="0.05 0 0" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+    <limit lower="-0.05" upper="3.14159" effort="60" velocity="2.0"/>
+    <safety_controller soft_lower_limit="-0.05" soft_upper_limit="3.14159" k_position="10" k_velocity="1"/>
+  </joint>
+  <joint name="right_upper_arm_fixed" type="fixed">
+    <parent link="right_shoulder_roll_link"/>
+    <child link="right_upper_arm_stub"/>
+    <origin xyz="0.08 0 0" rpy="0 0 0"/>
+  </joint>
+</robot>

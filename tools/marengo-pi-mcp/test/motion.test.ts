@@ -2,7 +2,10 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { MarengoPiConfig } from "../src/config.js";
 import {
+  benchCanKernelDeltaShell,
+  benchCanKernelSnapshotShell,
   benchLogPruneShell,
+  expandScriptWithWaveWaits,
   marengoPiPipeTimeoutSec,
   registerMotionTools,
   scriptSleepTotalSec,
@@ -12,7 +15,7 @@ const cfg: MarengoPiConfig = {
   host: "marengo.local",
   user: "joey",
   piRoot: "/opt/marengo",
-  configDir: "/opt/marengo/config/bringup/shoulder_pitch_right_only",
+  configDir: "/opt/marengo/config/bringup/arm_2dof_right",
   localRoot: "/tmp/marengo",
   benchProfile: "bare_motor",
   piStagingRoot: "~/marengo",
@@ -23,6 +26,18 @@ describe("marengo-pi script tool", () => {
     assert.equal(scriptSleepTotalSec(["hold-at 0", "sleep 2", "sleep 1.5"]), 3.5);
     assert.equal(marengoPiPipeTimeoutSec(["sleep 35", "disable"], 15), 15);
     assert.equal(marengoPiPipeTimeoutSec(["home", "disable"], 20), 20);
+  });
+
+  it("expands wave lines with auto wait sleep", () => {
+    const expanded = expandScriptWithWaveWaits([
+      "wave right_shoulder_roll 0.4 1.0 4",
+      "hold-at right_shoulder_roll 0",
+    ]);
+    assert.deepEqual(expanded, [
+      "wave right_shoulder_roll 0.4 1.0 4",
+      "sleep 3.4",
+      "hold-at right_shoulder_roll 0",
+    ]);
   });
 
   it("keeps bench logs current when script exits nonzero", async () => {
@@ -49,7 +64,9 @@ describe("marengo-pi script tool", () => {
     assert.match(script, /position-trace-\$TS\.csv/);
     assert.match(script, /candump -t z/);
     assert.match(script, /candump-latest\.log/);
-    assert.match(script, /tail -n \+101/);
+    assert.match(script, /pkill -f/);
+    assert.match(script, /can kernel start:/);
+    assert.match(script, /can kernel delta/);
     assert.match(script, /exit "\$PIPE_STATUS"/);
   });
 
@@ -72,7 +89,7 @@ describe("marengo-pi script tool", () => {
       timeout_sec: 10,
     });
 
-    assert.match(script, /printf '%s\\n' "hold-at 0";/);
+    assert.match(script, /printf '%s\\n' "hold-at right_shoulder_pitch 0";/);
     assert.match(script, /sleep 10;/);
     assert.match(script, /sleep 6;/);
     assert.match(script, /printf '%s\\n' "disable";/);
@@ -94,7 +111,7 @@ describe("marengo-pi script tool", () => {
 
     await tools.pi_hold_on.handler({
       confirm: true,
-      config_dir: "shoulder_pitch_right_only",
+      config_dir: "arm_2dof_right",
       joint: "right_shoulder_pitch",
       set_zero: false,
       position_rad: 0.1,
@@ -103,7 +120,7 @@ describe("marengo-pi script tool", () => {
 
     assert.match(
       script,
-      /export MARENGO_CONFIG_DIR='\/opt\/marengo\/config\/bringup\/shoulder_pitch_right_only'/,
+ /export MARENGO_CONFIG_DIR='\/opt\/marengo\/config\/bringup\/arm_2dof_right'/,
     );
     assert.doesNotMatch(
       script,
@@ -123,12 +140,12 @@ describe("marengo-pi script tool", () => {
     );
 
     await tools.pi_homing_status.handler({
-      config_dir: "shoulder_pitch_right_only",
+      config_dir: "arm_2dof_right",
     });
 
     assert.match(
       script,
-      /export MARENGO_CONFIG_DIR='\/opt\/marengo\/config\/bringup\/shoulder_pitch_right_only'/,
+      /export MARENGO_CONFIG_DIR='\/opt\/marengo\/config\/bringup\/arm_2dof_right'/,
     );
     assert.doesNotMatch(
       script,
@@ -208,5 +225,13 @@ describe("marengo-pi script tool", () => {
     assert.match(script, /timeout 2 "\$PI_BIN" 2>&1 \|\| true/);
     assert.match(script, /test -x "\$PI_FALLBACK"/);
     assert.match(script, /\} \| timeout 10 \$PI_BIN/);
+  });
+
+  it("emits kernel counter snapshot helpers", () => {
+    assert.match(benchCanKernelSnapshotShell("start"), /CAN_KERNEL_START/);
+    assert.match(benchCanKernelSnapshotShell("end"), /CAN_KERNEL_END/);
+    assert.match(benchCanKernelDeltaShell(), /can kernel delta/);
+    assert.match(benchCanKernelDeltaShell(), /_rx0=\$\{_rx0:-0\}/);
+    assert.match(benchCanKernelDeltaShell(), /grep -m1 -E "\^\[\[:space:\]\]\*\\\("/);
   });
 });

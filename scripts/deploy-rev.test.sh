@@ -12,19 +12,6 @@ trap 'rm -rf "$TMP"' EXIT
 pass=0
 fail=0
 
-assert_eq() {
-  local label="$1"
-  local expected="$2"
-  local actual="$3"
-  if [[ "$actual" == "$expected" ]]; then
-    echo "ok: ${label}"
-    pass=$((pass + 1))
-  else
-    echo "FAIL: ${label} — expected '${expected}', got '${actual}'" >&2
-    fail=$((fail + 1))
-  fi
-}
-
 assert_file_first_field() {
   local label="$1"
   local path="$2"
@@ -68,6 +55,23 @@ git -C "${GIT_BUNDLE}" commit -q -m "fixture"
 GIT_SHA="$(git -C "${GIT_BUNDLE}" rev-parse HEAD)"
 install_deploy_rev "${GIT_BUNDLE}" "${GIT_INSTALL}"
 assert_file_first_field "install_deploy_rev falls back to bundle git HEAD" "${GIT_INSTALL}/.deploy-rev" "${GIT_SHA}"
+
+# --- in-place install: stale canonical .deploy-rev must not win over git HEAD ---
+INPLACE="${TMP}/inplace"
+mkdir -p "${INPLACE}"
+git init -q "${INPLACE}"
+git -C "${INPLACE}" config user.email "test@marengo.local"
+git -C "${INPLACE}" config user.name "deploy-rev test"
+echo "v1" >"${INPLACE}/README"
+git -C "${INPLACE}" add README
+git -C "${INPLACE}" commit -q -m "v1"
+printf '%s 2020-01-01T00:00:00Z\n' "0000000000000000000000000000000000000000" >"${INPLACE}/.deploy-rev"
+echo "v2" >>"${INPLACE}/README"
+git -C "${INPLACE}" add README
+git -C "${INPLACE}" commit -q -m "v2"
+SECOND_SHA="$(git -C "${INPLACE}" rev-parse HEAD)"
+install_deploy_rev "${INPLACE}" "${INPLACE}"
+assert_file_first_field "in-place install refreshes from git HEAD (not stale .deploy-rev)" "${INPLACE}/.deploy-rev" "${SECOND_SHA}"
 
 # --- format: SHA + UTC ISO8601 timestamp ---
 CONTENT="$(cat "${STAGING}/.deploy-rev")"

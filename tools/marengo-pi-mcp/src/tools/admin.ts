@@ -4,10 +4,12 @@ import { sudoCanUpCommand, sudoInstallCommand, sudoStagingInstallCommand } from 
 import { wrapRemote } from "../env.js";
 import { runSyncMain } from "./deploy.js";
 import { waitForDeployReady } from "./deploy-wait.js";
+import { cleanTreeSchema, runCleanTree } from "./clean-tree.js";
 import {
   runSyncBenchConfig,
   syncBenchConfigSchema,
 } from "./sync-config.js";
+import { syncTreeSchema, runSyncTree } from "./sync-tree.js";
 
 export function registerAdminTools(
   cfg: MarengoPiConfig,
@@ -47,6 +49,17 @@ export function registerAdminTools(
       },
     },
 
+    pi_sync_tree: {
+      description:
+        "Sync the Marengo Pi working tree with origin/main: fetch, checkout main, pull --ff-only. " +
+        "Fails if the Pi working tree is dirty. Does not build or install.",
+      inputSchema: syncTreeSchema,
+      handler: async () => {
+        return runSyncTree(cfg, runRemote);
+      },
+    },
+
+
     pi_wait_deploy: {
       description:
         "Poll Pi until .deploy-rev matches expected git SHA prefix and marengo-gateway /health OK",
@@ -78,7 +91,7 @@ export function registerAdminTools(
         install_to_opt?: boolean;
       }) => {
         return runSyncBenchConfig(cfg, runRemote, {
-          profile: args.profile ?? "shoulder_pitch_right_only",
+          profile: args.profile ?? "arm_2dof_right",
           install_to_opt: args.install_to_opt ?? true,
         });
       },
@@ -95,6 +108,16 @@ export function registerAdminTools(
       },
     },
 
+    pi_clean_tree: {
+      description:
+        "Clean the Marengo Pi working tree so pi_sync_main / pi_git_pull can run. " +
+        "Default mode stashes changes; use reset-hard or clean-untracked to discard. " +
+        "Requires confirm: true.",
+      inputSchema: cleanTreeSchema,
+      handler: async (args: { confirm: true; mode: "stash" | "reset-hard" | "clean-untracked" }) => {
+        return runCleanTree(cfg, runRemote, args);
+      },
+    },
     pi_git_pull: {
       description: "git pull in MARENGO_PI_ROOT on Pi (fails if dirty)",
       inputSchema: z.object({}),
@@ -121,11 +144,23 @@ export function registerAdminTools(
         const body = wrapRemote(
           cfg,
         [
-          'if [[ -f "${HOME}/.cargo/env" ]]; then set -a; source "${HOME}/.cargo/env"; set +a; fi',
-          'export PATH="${HOME}/.cargo/bin:/usr/local/cargo/bin:${PATH:-}"',
-          "command -v cargo >/dev/null || { echo 'error: cargo not on PATH'; exit 127; }",
-          "cargo build -p marengo-pi -p marengo-gateway -p motor-repl -p imu-probe --features socketcan,linux-i2c --release",
+          "sudo systemctl stop marengo-pi.service 2>/dev/null || true",
+          "sudo systemctl disable marengo-pi.service 2>/dev/null || true",
+          "sudo pkill -f /opt/marengo/bin/marengo-pi 2>/dev/null || true",
+          "sudo git config --global --add safe.directory \"$(pwd)\" 2>/dev/null || true",
+          "if [[ -x ./scripts/pi-native-build.sh ]]; then ./scripts/pi-native-build.sh; else",
+          '  if [[ -f "${HOME}/.cargo/env" ]]; then set -a; source "${HOME}/.cargo/env"; set +a; fi',
+          '  export PATH="${HOME}/.cargo/bin:/usr/local/cargo/bin:${PATH:-}"',
+          "  command -v cargo >/dev/null || { echo 'error: cargo not on PATH'; exit 127; }",
+          "  cargo build -p marengo-pi -p marengo-gateway -p marengo-log-cli -p motor-repl -p imu-probe --features socketcan,linux-i2c --release",
+          "  if command -v npm >/dev/null && [[ -f consul/package-lock.json ]]; then",
+          "    (cd consul && npm ci && env -u VITE_CHAPPE_HTTP_URL -u VITE_CHAPPE_WEBTRANSPORT_URL npm run build)",
+          "  fi",
+          "fi",
           sudoInstallCommand(cfg),
+          'SHA="$(git rev-parse HEAD)"; TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"; printf "%s %s\\n" "$SHA" "$TS" | sudo tee /opt/marengo/.deploy-rev >/dev/null',
+          "if [[ -f consul/dist/index.html ]]; then sudo rsync -a --delete consul/dist/ /opt/marengo/www/; fi",
+          "sudo systemctl restart marengo-gateway.service 2>/dev/null || true",
         ].join("\n"),
         );
         return runRemote(body, 900_000);

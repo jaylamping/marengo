@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -9,9 +11,12 @@ import {
 import { HugeiconsIcon } from '@hugeicons/react';
 import { MoreVerticalCircle01Icon } from '@hugeicons/core-free-icons';
 
+/** Menu content mounts only while open — 29× always-on menus were part of the hang. */
 export function RowActionsMenu() {
+  const [open, setOpen] = useState(false);
+
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger
         render={
           <Button
@@ -24,13 +29,15 @@ export function RowActionsMenu() {
         <HugeiconsIcon icon={MoreVerticalCircle01Icon} strokeWidth={2} />
         <span className="sr-only">Open menu</span>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-32">
-        <DropdownMenuItem>Zero / home</DropdownMenuItem>
-        <DropdownMenuItem>Apply preset</DropdownMenuItem>
-        <DropdownMenuItem>Disable</DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive">Clear fault</DropdownMenuItem>
-      </DropdownMenuContent>
+      {open ? (
+        <DropdownMenuContent align="end" className="w-32">
+          <DropdownMenuItem>Zero / home</DropdownMenuItem>
+          <DropdownMenuItem>Apply preset</DropdownMenuItem>
+          <DropdownMenuItem>Disable</DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem variant="destructive">Clear fault</DropdownMenuItem>
+        </DropdownMenuContent>
+      ) : null}
     </DropdownMenu>
   );
 }

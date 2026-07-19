@@ -1,11 +1,11 @@
-import { dashboardGlassCardClassName } from '@/components/dashboard/layout/constants';
+import { dashboardPanelCardClassName } from '@/components/dashboard/layout/constants';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
 export function ChartSectionSkeleton() {
   return (
-    <Card variant="glass" className={cn('@container/card', dashboardGlassCardClassName)}>
+    <Card variant="panel" className={cn('@container/card', dashboardPanelCardClassName)}>
       <CardHeader className="gap-2">
         <Skeleton className="h-4 w-40" />
         <Skeleton className="h-6 w-64" />

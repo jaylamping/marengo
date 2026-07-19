@@ -39,7 +39,7 @@ Reviewer for SolidWorks assemblies, parts, mates, in-context design patterns, an
 - BOM: component counts match assembly structure
 - Interference detection: no clashes in assembled state
 
-## mem0
+## OpenSpec
 
 - Per change: `feasibility/{change}/expert/cad`
 - Heuristics: `expert/cad/{slug}`

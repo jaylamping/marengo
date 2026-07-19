@@ -1,0 +1,33 @@
+---
+description: Do not use composer-2.5-fast unless a skill, rule, or human explicitly requests it.
+alwaysApply: true
+---
+
+# No composer-2.5-fast by default
+
+Do **not** select `composer-2.5-fast` for the session model, Task/subagent `model` overrides, or "mid-tier" / cheap-model defaults.
+
+## Allowed exceptions
+
+Use `composer-2.5-fast` only when **explicitly** requested by one of:
+
+- A skill (`SKILL.md` or its references)
+- A Cursor rule
+- A human in the conversation
+- An agent/persona definition that pins that exact model slug
+
+Vague cost/latency wording ("mid-tier", "fast", "cheap") is **not** an exception.
+
+## Default when Composer is appropriate
+
+Prefer `composer-2.5` (not `-fast`) unless an allowed exception above applies.
+
+## Fallback when `composer-2.5` is unavailable
+
+Do **not** fall back to `composer-2.5-fast`. Use the first available of:
+
+1. `grok-4.5-low` (prefer when the harness offers it)
+2. `grok-4.5`
+3. `cursor-grok-4.5-high`
+
+"Unavailable" means the dispatch/harness rejects the slug or it is not in the allowed model list — not a preference for speed or cost.

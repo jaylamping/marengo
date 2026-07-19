@@ -27,25 +27,20 @@ Execute all steps from the skill directly in this context window:
 
 Do NOT create or modify project files — your job is investigation only, not implementation.
 
-## Engram Save (mandatory when tied to a named change)
+## Persistence
 
-After completing work, call `mem_save` with:
-- title: `"sdd/{change-name}/explore"` (or `"sdd/explore/{topic-slug}"` if standalone)
-- topic_key: `"sdd/{change-name}/explore"`
-- type: `"architecture"`
-- project: `{project-name from context}`
-- capture_prompt: `false` when the Engram tool schema supports it; if an older schema rejects or does not expose the field, omit it rather than failing.
+When tied to a named change, write `openspec/changes/{change-name}/exploration.md` (or return inline if mode is `none`).
 
 ## Context Saturation (MANDATORY)
 
-Do not hand off before 50%. **At or after 50%:** finish the atomic step → `mem_save` `maintenance/session-handoff/marengo` (concise) → return `status: partial` with `next_recommended: session-handoff-resume`. See `sdd-phase-common.md` § F.
+Do not hand off before 50%. **At or after 50%:** finish the atomic step → write `.atl/session-handoff.md` (concise) → return `status: partial` with `next_recommended: session-handoff-resume`. See `sdd-phase-common.md` § F.
 
 ## Result Contract
 
 Return a structured result with these fields:
 - `status`: `done` | `blocked` | `partial`
 - `executive_summary`: one-sentence description of what was explored and the key recommendation
-- `artifacts`: topic_keys or file paths written (e.g. `sdd/{change-name}/explore`)
+- `artifacts`: file paths written (e.g. `openspec/changes/{change-name}/exploration.md`)
 - `next_recommended`: `sdd-propose` (if tied to a change) or `none` (if standalone)
 - `risks`: risks or blockers discovered during exploration
 - `skill_resolution`: `paths-injected` if exact skill paths were provided and loaded, otherwise `none`

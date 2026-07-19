@@ -27,24 +27,9 @@
 - References must be local files and stable relative to the skill directory when possible.
 - Quality gates: hard rules are observable, decision gates cover real forks, output contract states exactly what to return, and references resolve locally.
 
-## Engram Saves
+## Persistence
 
-```text
-mem_save title/topic_key: sdd/init/{project}
-type: architecture
-content: detected project context markdown
-capture_prompt: false when available
-
-mem_save title/topic_key: sdd/{project}/testing-capabilities
-type: config
-content: testing capabilities markdown
-capture_prompt: false when available
-
-mem_save title/topic_key: maintenance/skill-registry
-type: config
-content: registry markdown
-capture_prompt: false when available
-```
+Write OpenSpec skeleton files (below) and `.atl/skill-registry.md`. No memory MCP.
 
 ## OpenSpec Skeleton
 

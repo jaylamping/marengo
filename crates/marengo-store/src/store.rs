@@ -92,6 +92,25 @@ impl Store {
         Ok(())
     }
 
+    pub fn set_config_override(
+        &self,
+        key: &str,
+        value_json: &str,
+        source: &str,
+        updated_ms: u64,
+    ) -> Result<()> {
+        self.connection().execute(
+            "INSERT INTO config_overrides (key, value_json, updated_ms, source)
+             VALUES (?1, ?2, ?3, ?4)
+             ON CONFLICT(key) DO UPDATE SET
+               value_json = excluded.value_json,
+               updated_ms = excluded.updated_ms,
+               source = excluded.source",
+            params![key, value_json, updated_ms as i64, source],
+        )?;
+        Ok(())
+    }
+
     pub fn get_setting(&self, key: &str) -> Result<Option<String>> {
         let conn = self.connection();
         conn.query_row(
