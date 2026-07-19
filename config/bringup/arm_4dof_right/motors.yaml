@@ -55,7 +55,9 @@ motors:
     firmware_version: "0.3.1.42"
     bench:
       # Conservative discovery envelope; widen after Phase 5 measured soft limits.
-      position_lower_rad: 0.0
+      # Slightly negative lower so encoder noise at mechanical zero does not trip
+      # Davout keepalive hard-limit checks (same pattern as shoulder roll).
+      position_lower_rad: -0.05
       position_upper_rad: 1.2
       velocity_limit_rad_s: 1.0
       torque_limit_nm: 3.0
