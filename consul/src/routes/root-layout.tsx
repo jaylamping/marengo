@@ -1,19 +1,18 @@
-import { Suspense, lazy, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 
 import { DashboardLayout } from '@/components/dashboard/layout/dashboard-layout';
 import { PageLoadingFallback } from '@/components/dashboard/layout/page-loading-fallback';
 import { prefetchHeavyRoutes } from '@/lib/prefetch-routes';
-
-const DashboardPage = lazy(async () => {
-  const module = await import('@/pages/dashboard');
-  return { default: module.DashboardPage };
-});
+import { DashboardPage } from '@/pages/dashboard';
 
 /**
  * Persistent chrome + SceneBackground across routes.
  * Overview (WebGL posture) soft-stays mounted briefly after leave so nav
  * paint is not blocked by Three.js teardown on the same frame.
+ *
+ * DashboardPage is a static import (same as routes/config) — a lazy here was
+ * ineffective because the route shell already pulls it into the main chunk.
  */
 export function RootLayout() {
   const { pathname } = useLocation();

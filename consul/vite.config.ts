@@ -44,6 +44,8 @@ export default defineConfig({
   },
   build: {
     target: 'chrome131',
+    // Three.js + main app both exceed Vite's 500 kB default; expected for this UI.
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
         manualChunks(id) {
