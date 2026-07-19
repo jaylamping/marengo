@@ -30,20 +30,33 @@ export interface CompoundTestPreset {
   advance?: CompoundAdvanceMode;
   /** After raise keyframes finish, start Berthier PositionWave on this joint. */
   nativeWave?: NativePositionWave;
+  /**
+   * When Loop is on and keyframes finish (no nativeWave), restart at this segment
+   * instead of 0. Used by taught overlays so raise is not repeated.
+   */
+  loopFromSegment?: number;
 }
 
+/**
+ * Shipped Wave: raise includes yaw at provisional 0; roll wave stays nativeWave
+ * until a teach overlay replaces the wave phase. Loop extends nativeWave only
+ * (does not re-raise). Taught overlays clear nativeWave and set loopFromSegment.
+ *
+ * Do not add yaw to arm_out_forward / arm_fully_up until yaw suite Y3–Y4 PASS.
+ */
 export const COMPOUND_TEST_PRESETS: CompoundTestPreset[] = [
   {
     id: 'wave',
     name: 'Wave',
-    // Raise to taught pose, then Berthier cosine on roll (no endpoint holds).
-    description: 'Arm up, then continuous roll wave.',
-    joints: ['right_shoulder_pitch', 'right_shoulder_roll'],
+    description:
+      'Arm up (pitch/roll/yaw raise), then continuous roll wave. Taught overlays replace wave phase only after Apply.',
+    joints: ['right_shoulder_pitch', 'right_shoulder_roll', 'right_upper_arm_yaw'],
     loop: true,
     advance: 'timed',
     keyframes: {
       right_shoulder_pitch: [{ targetRad: 3.03, durationSec: 3.5 }],
       right_shoulder_roll: [{ targetRad: 0.42, durationSec: 3.5 }],
+      right_upper_arm_yaw: [{ targetRad: 0, durationSec: 3.5 }],
     },
     nativeWave: {
       joint: 'right_shoulder_roll',

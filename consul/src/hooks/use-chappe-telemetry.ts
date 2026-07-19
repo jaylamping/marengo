@@ -4,6 +4,7 @@ import { HostNodeRole, OperationalMode, type HostMetrics, type RobotState } from
 import { connectChappeStream } from '@/lib/chappe-client';
 import { isChappeLive } from '@/lib/chappe-config';
 import { appendLiveLog, enableChappeLiveLogs } from '@/lib/log-buffer';
+import { publishTeachSampleFromRobotState } from '@/lib/teach-sample-bus';
 import { throttleTrailing } from '@/lib/throttle-callback';
 import type { LogLevel } from '@/data/logs';
 import { useHostMetricsStore } from '@/state/hostMetricsStore';
@@ -90,6 +91,8 @@ export function useChappeTelemetry(): void {
         setConnected(false);
       },
       onRobotState: (state) => {
+        // Teach-record listens before UI throttle (~10 Hz store).
+        publishTeachSampleFromRobotState(state);
         publishRobotState(state);
       },
       onSafetyState: (safety) => {

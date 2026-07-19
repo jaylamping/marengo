@@ -294,7 +294,7 @@ No coverage tooling is configured. Expectation: `just check` passes before merge
 
 - Marked `#[ignore]` or require `--features socketcan`
 - Use `just vcan` / `just check-vcan` — never required for default `cargo test`
-- Physical bench protocols: [`docs/bench-gravity-comp-test-suite.md`](docs/bench-gravity-comp-test-suite.md), [`docs/bench-2dof-right-smoke.md`](docs/bench-2dof-right-smoke.md)
+- Physical bench protocols: [`docs/bench-gravity-comp-test-suite.md`](docs/bench-gravity-comp-test-suite.md), [`docs/bench-2dof-right-smoke.md`](docs/bench-2dof-right-smoke.md), [`docs/bench-yaw-test-suite.md`](docs/bench-yaw-test-suite.md), [`docs/bench-roll-test-suite.md`](docs/bench-roll-test-suite.md)
 
 ### Bench commissioning notes
 

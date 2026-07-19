@@ -9,6 +9,10 @@ harness `pass: true`).
 **Operator sign-off:** best motion quality on this bench to date. Do not change
 `control.yaml` or Berthier hold-at path without an A/B against this baseline.
 
+Yaw commissioning: [bench-yaw-test-suite.md](bench-yaw-test-suite.md) (`yaw_attached`).
+Wave in Consul adds yaw on **raise** only (provisional 0) and keeps roll `nativeWave`
+until Teach Record Apply. Do not ship yaw on other presets until Y3–Y4 + candump.
+
 Locked after roll 15° round-trip probe and **`arm_2dof_smoke` harness PASS**
 (deploy `ff9d554`). Roll ascent ~1 s, return to **q ≈ 0.0015 rad** at disable.
 Same joint tuning on **roll and pitch** in

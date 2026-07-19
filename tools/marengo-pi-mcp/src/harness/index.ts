@@ -1,62 +1,44 @@
 import type { BenchProfile, MarengoPiConfig } from "../config.js";
 import { sudoCanUpCommand } from "../config.js";
 import {
+  isRightArmBenchProfile,
+  profileMeta,
+} from "../bench-profiles.js";
+import {
   homingPreflightShell,
   homingStatusOutputOk,
 } from "../homing-preflight.js";
 import { shellQuote, wrapRemoteWithConfig } from "../env.js";
 import { benchLogArchiveShell, benchCandumpStartShell, benchCandumpStopShell, scriptSleepTotalSec } from "../tools/motion.js";
-
-const BENCH_CONFIG_WEIGHTED =
-  "/opt/marengo/config/bringup/shoulder_pitch_weighted";
-const BENCH_CONFIG_3DOF = "/opt/marengo/config/bringup/arm_3dof_right";
+import {
+  defaultPassKind,
+  harnessScriptSuite,
+  type HarnessPassKind,
+  type HarnessScriptSuite,
+} from "./scripts.js";
 
 const ROLL_JOINT = "right_shoulder_roll";
-const PITCH_JOINT = "right_shoulder_pitch";
-const YAW_JOINT = "right_upper_arm_yaw";
-
-function holdAt(joint: string, rad: number): string {
-  return `hold-at ${joint} ${rad}`;
-}
-
-function rollReturnHomeLines(): string[] {
-  return [
-    holdAt(ROLL_JOINT, 0.05),
-    "sleep 15",
-    holdAt(ROLL_JOINT, 0.02),
-    "sleep 15",
-    holdAt(ROLL_JOINT, 0),
-    "sleep 25",
-  ];
-}
 
 /** Staged descent only — use when roll is elevated (q > ~0.2 rad). Do not run from home. */
 export function rollStagedDescentLines(): string[] {
   return [
-    holdAt(ROLL_JOINT, 1.0),
+    `hold-at ${ROLL_JOINT} 1.0`,
     "sleep 15",
-    holdAt(ROLL_JOINT, 0.7),
+    `hold-at ${ROLL_JOINT} 0.7`,
     "sleep 15",
-    holdAt(ROLL_JOINT, 0.4),
+    `hold-at ${ROLL_JOINT} 0.4`,
     "sleep 15",
-    holdAt(ROLL_JOINT, 0.15),
+    `hold-at ${ROLL_JOINT} 0.15`,
     "sleep 12",
-    holdAt(ROLL_JOINT, 0.05),
+    `hold-at ${ROLL_JOINT} 0.05`,
     "sleep 12",
-    holdAt(ROLL_JOINT, 0),
+    `hold-at ${ROLL_JOINT} 0`,
     "sleep 15",
   ];
 }
 
-function isRightArmBenchProfile(profile: BenchProfile): boolean {
-  return profile === "roll_attached" || profile === "arm_2dof_smoke";
-}
-
 function harnessSetZeroJoints(profile: BenchProfile): string[] {
-  if (isRightArmBenchProfile(profile)) {
-    return [ROLL_JOINT, PITCH_JOINT, YAW_JOINT];
-  }
-  return ["left_shoulder_pitch", "right_shoulder_pitch"];
+  return profileMeta(profile).setZeroJoints;
 }
 
 /** Config profile for harness runs; weighted profile must use shoulder_pitch_weighted URDF. */
@@ -71,11 +53,9 @@ export function harnessConfigDir(
     }
     return `${cfg.piRoot}/config/bringup/${configDir}`;
   }
-  if (isRightArmBenchProfile(profile)) {
-    return BENCH_CONFIG_3DOF;
-  }
-  if (profile === "weighted_single_arm" || profile === "arm_attached") {
-    return BENCH_CONFIG_WEIGHTED;
+  const slug = profileMeta(profile).configBringup;
+  if (slug) {
+    return `${cfg.piRoot}/config/bringup/${slug}`;
   }
   return cfg.configDir;
 }
@@ -88,7 +68,20 @@ export interface HarnessStep {
 
 export interface HarnessResult {
   profile: BenchProfile;
+  /**
+   * Aggregate smoke/heuristic success (all steps ok, no faults).
+   * When pass_kind is "smoke", this does NOT mean commissioning gates (±50 mrad).
+   */
   pass: boolean;
+  /** smoke = fault/exit only; commissioning = metric gates evaluated. */
+  pass_kind: HarnessPassKind;
+  /**
+   * true/false only when pass_kind is commissioning; null for smoke
+   * (operator must review position-trace / candump).
+   */
+  commissioning_criteria_met: boolean | null;
+  /** When true, do not unlock Wave/teach progression from harness alone. */
+  operator_signoff_required: boolean;
   loaded_joint?: string;
   steps: HarnessStep[];
   faults: string[];
@@ -176,8 +169,19 @@ export async function runBenchHarness(
   const steps: HarnessStep[] = [];
   const faults: string[] = [];
   let logPath: string | undefined;
+  const scriptSuite = harnessScriptSuite(profile);
+  const passMeta: Pick<
+    HarnessResult,
+    "pass_kind" | "operator_signoff_required"
+  > = {
+    pass_kind: scriptSuite?.passKind ?? defaultPassKind(profile),
+    operator_signoff_required: scriptSuite?.operatorSignoffRequired ?? false,
+  };
 
   const remote = (body: string) => wrapRemoteWithConfig(cfg, body, configDir, debug);
+
+  const finish = () =>
+    formatHarnessResult(profile, loadedJoint, steps, faults, logPath, passMeta);
 
   async function step(
     name: string,
@@ -233,17 +237,17 @@ export async function runBenchHarness(
     ].join("\n"),
   );
   if (!(await step("health", healthBody, 30_000))) {
-    return formatHarnessResult(profile, loadedJoint, steps, faults, logPath);
+    return finish();
   }
 
   const canUpBody = remote(sudoCanUpCommand(cfg));
   if (!(await step("can_up", canUpBody, 60_000))) {
-    return formatHarnessResult(profile, loadedJoint, steps, faults, logPath);
+    return finish();
   }
 
   // 2. motor-repl status
   if (!(await step("motor_repl_status", remote("bin/motor-repl status"), 30_000))) {
-    return formatHarnessResult(profile, loadedJoint, steps, faults, logPath);
+    return finish();
   }
 
   // 3. set-zero (skipped by default)
@@ -251,7 +255,7 @@ export async function runBenchHarness(
     for (const joint of harnessSetZeroJoints(profile)) {
       const body = remote(`bin/motor-repl set-zero ${joint}`);
       if (!(await step(`set_zero_${joint}`, body, 30_000))) {
-        return formatHarnessResult(profile, loadedJoint, steps, faults, logPath);
+        return finish();
       }
     }
   } else {
@@ -271,11 +275,11 @@ export async function runBenchHarness(
       homingStatusOutputOk,
     ))
   ) {
-    return formatHarnessResult(profile, loadedJoint, steps, faults, logPath);
+    return finish();
   }
 
   // 4. gravity-preview 0 0 (single-joint / dual-pitch profiles only)
-  if (!isRightArmBenchProfile(profile)) {
+  if (!profileMeta(profile).skipGravityPreview) {
     if (
       !(await step(
         "gravity_preview_0_0",
@@ -283,174 +287,27 @@ export async function runBenchHarness(
         30_000,
       ))
     ) {
-      return formatHarnessResult(profile, loadedJoint, steps, faults, logPath);
+      return finish();
     }
   } else {
     steps.push({
       name: "gravity_preview_skipped",
       ok: true,
-      output: "right-arm bench profile — no gravity preview step",
+      output: isRightArmBenchProfile(profile)
+        ? "right-arm bench profile — no gravity preview step"
+        : "profile metadata skipGravityPreview",
     });
   }
 
-  if (profile === "roll_attached") {
-    const pitchHold0 = holdAt(PITCH_JOINT, 0);
-    const scripts: { name: string; lines: string[]; timeoutSec: number }[] = [
-      {
-        name: "roll_sign_probe",
-        timeoutSec: 40,
-        lines: [
-          "home",
-          "enable bench",
-          pitchHold0,
-          "sleep 2",
-          holdAt(ROLL_JOINT, 0.15),
-          "sleep 8",
-          ...rollReturnHomeLines(),
-          "status",
-          "disable",
-          "quit",
-        ],
-      },
-      {
-        name: "roll_hold_sweep",
-        timeoutSec: 90,
-        lines: [
-          "home",
-          "enable bench",
-          pitchHold0,
-          "sleep 2",
-          holdAt(ROLL_JOINT, 0.15),
-          "sleep 12",
-          holdAt(ROLL_JOINT, 0.785),
-          "sleep 15",
-          holdAt(ROLL_JOINT, 1.2),
-          "sleep 15",
-          holdAt(ROLL_JOINT, 1.57),
-          "sleep 15",
-          ...rollReturnHomeLines(),
-          "status",
-          "disable",
-          "quit",
-        ],
-      },
-      {
-        name: "roll_round_trip",
-        timeoutSec: 70,
-        lines: [
-          "home",
-          "enable bench",
-          pitchHold0,
-          "sleep 2",
-          holdAt(ROLL_JOINT, 1.57),
-          "sleep 25",
-          ...rollReturnHomeLines(),
-          "status",
-          "disable",
-          "quit",
-        ],
-      },
-    ];
-
-    for (const s of scripts) {
+  if (scriptSuite) {
+    await runScriptSuite(scriptSuite, async (s) => {
       const pipeSec = pipeTimeoutSec(s.lines, s.timeoutSec);
       const pipeCmd = marengoPiPipe(s.lines, pipeSec);
       const body = benchSessionWrapper(cfg, configDir, s.name, pipeCmd, debug);
-      if (!(await step(s.name, body, (pipeSec + 30) * 1000))) {
-        break;
-      }
-    }
-  } else if (profile === "arm_2dof_smoke") {
-    const scripts: { name: string; lines: string[]; timeoutSec: number }[] = [
-      {
-        name: "smoke_pitch_hold",
-        timeoutSec: 40,
-        lines: [
-          "home",
-          "enable bench",
-          holdAt(ROLL_JOINT, 0),
-          "sleep 2",
-          holdAt(PITCH_JOINT, 0.3),
-          "sleep 10",
-          holdAt(PITCH_JOINT, 0),
-          "sleep 10",
-          "status",
-          "disable",
-          "quit",
-        ],
-      },
-      {
-        name: "smoke_roll_hold",
-        timeoutSec: 45,
-        lines: [
-          "home",
-          "enable bench",
-          holdAt(PITCH_JOINT, 0),
-          "sleep 2",
-          holdAt(ROLL_JOINT, 0.785),
-          "sleep 15",
-          holdAt(ROLL_JOINT, 0),
-          "sleep 15",
-          "status",
-          "disable",
-          "quit",
-        ],
-      },
-      {
-        name: "smoke_cross_talk",
-        timeoutSec: 50,
-        lines: [
-          "home",
-          "enable bench",
-          holdAt(ROLL_JOINT, 0),
-          "sleep 2",
-          holdAt(PITCH_JOINT, 0.3),
-          "sleep 8",
-          "status",
-          holdAt(PITCH_JOINT, 0),
-          "sleep 8",
-          holdAt(ROLL_JOINT, 0.785),
-          "sleep 8",
-          "status",
-          holdAt(ROLL_JOINT, 0),
-          "sleep 8",
-          "disable",
-          "quit",
-        ],
-      },
-    ];
-
-    for (const s of scripts) {
-      const pipeSec = pipeTimeoutSec(s.lines, s.timeoutSec);
-      const pipeCmd = marengoPiPipe(s.lines, pipeSec);
-      const body = benchSessionWrapper(cfg, configDir, s.name, pipeCmd, debug);
-      if (!(await step(s.name, body, (pipeSec + 30) * 1000))) {
-        break;
-      }
-    }
-  } else if (profile === "bare_motor") {
-    const scripts: { name: string; lines: string[] }[] = [
-      {
-        name: "right_only_gravity",
-        lines: ["home", "enable bench", "status", "gravity-on", "status", "disable", "quit"],
-      },
-      {
-        name: "left_only_gravity",
-        lines: ["home", "enable bench", "status", "gravity-on", "status", "disable", "quit"],
-      },
-      {
-        name: "both_gravity",
-        lines: ["home", "enable bench", "status", "gravity-on", "status", "disable", "quit"],
-      },
-    ];
-
-    for (const s of scripts) {
-      const pipeCmd = marengoPiPipe(s.lines, 35);
-      const body = benchSessionWrapper(cfg, configDir, s.name, pipeCmd, debug);
-      if (!(await step(s.name, body, 45_000))) {
-        break;
-      }
-    }
+      return step(s.name, body, (pipeSec + 30) * 1000);
+    }, (name, output) => {
+      steps.push({ name, ok: true, output });
+    });
   } else if (profile === "weighted_single_arm") {
     const angles = args.gravity_angles ?? [0, 0.3, -0.3];
     for (const a of angles) {
@@ -458,7 +315,7 @@ export async function runBenchHarness(
       const q1 = loadedJoint === "right_shoulder_pitch" ? a : 0;
       const body = remote(`bin/motor-repl gravity-preview ${q0} ${q1}`);
       if (!(await step(`gravity_preview_${a}`, body, 30_000))) {
-        return formatHarnessResult(profile, loadedJoint, steps, faults, logPath);
+        return finish();
       }
     }
 
@@ -474,7 +331,22 @@ export async function runBenchHarness(
   await step("final_disable", remote("bin/motor-repl disable"), 15_000);
   await step("final_status", remote("bin/motor-repl status"), 15_000);
 
-  return formatHarnessResult(profile, loadedJoint, steps, faults, logPath);
+  return finish();
+}
+
+async function runScriptSuite(
+  suite: HarnessScriptSuite,
+  runOne: (s: HarnessScriptSuite["scripts"][number]) => Promise<boolean>,
+  pushNote: (name: string, output: string) => void,
+): Promise<void> {
+  if (suite.note) {
+    pushNote(suite.note.name, suite.note.output);
+  }
+  for (const s of suite.scripts) {
+    if (!(await runOne(s))) {
+      break;
+    }
+  }
 }
 
 function formatHarnessResult(
@@ -483,11 +355,16 @@ function formatHarnessResult(
   steps: HarnessStep[],
   faults: string[],
   logPath: string | undefined,
+  passMeta: Pick<HarnessResult, "pass_kind" | "operator_signoff_required">,
 ): string {
   const pass = steps.every((s) => s.ok) && faults.length === 0;
   const result: HarnessResult = {
     profile,
     pass,
+    pass_kind: passMeta.pass_kind,
+    commissioning_criteria_met:
+      passMeta.pass_kind === "commissioning" ? pass : null,
+    operator_signoff_required: passMeta.operator_signoff_required,
     loaded_joint: loadedJoint,
     steps: steps.map((s) => ({ name: s.name, ok: s.ok, output: s.output.slice(0, 500) })),
     faults,
@@ -495,9 +372,16 @@ function formatHarnessResult(
   };
 
   const summary = JSON.stringify(result, null, 2);
-  const human = steps
-    .map((s) => `[${s.ok ? "PASS" : "FAIL"}] ${s.name}`)
-    .join("\n");
+  const kindLabel =
+    passMeta.pass_kind === "smoke"
+      ? "SMOKE"
+      : "COMMISSIONING";
+  const human = [
+    `pass_kind=${passMeta.pass_kind} (${kindLabel}${
+      passMeta.operator_signoff_required ? "; operator sign-off still required" : ""
+    })`,
+    ...steps.map((s) => `[${s.ok ? "PASS" : "FAIL"}] ${s.name}`),
+  ].join("\n");
 
   return `${human}\n\n--- JSON ---\n${summary}`;
 }

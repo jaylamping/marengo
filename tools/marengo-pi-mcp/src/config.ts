@@ -1,13 +1,14 @@
 import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  BENCH_PROFILES,
+  type BenchProfile,
+  isBenchProfile,
+} from "./bench-profiles.js";
 
-export type BenchProfile =
-  | "bare_motor"
-  | "weighted_single_arm"
-  | "arm_attached"
-  | "roll_attached"
-  | "arm_2dof_smoke";
+export type { BenchProfile } from "./bench-profiles.js";
+export { BENCH_PROFILES, BENCH_PROFILE_META } from "./bench-profiles.js";
 
 export interface MarengoPiConfig {
   host: string;
@@ -45,8 +46,15 @@ export function loadConfig(): MarengoPiConfig {
     ),
     localRoot: env("MARENGO_LOCAL_ROOT", defaultLocalRoot()),
     sshIdentityFile: process.env.SSH_IDENTITY_FILE?.trim() || undefined,
-    benchProfile: (process.env.MARENGO_BENCH_PROFILE?.trim() ||
-      "bare_motor") as BenchProfile,
+    benchProfile: (() => {
+      const raw = process.env.MARENGO_BENCH_PROFILE?.trim() || "bare_motor";
+      if (!isBenchProfile(raw)) {
+        throw new Error(
+          `Invalid MARENGO_BENCH_PROFILE=${raw}; expected one of ${BENCH_PROFILES.join(", ")}`,
+        );
+      }
+      return raw;
+    })(),
     loadedJoint: process.env.MARENGO_LOADED_JOINT?.trim() || undefined,
     piStagingRoot: process.env.MARENGO_PI_STAGING_ROOT?.trim() || "~/marengo",
   };

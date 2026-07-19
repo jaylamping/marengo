@@ -8,6 +8,7 @@ import {
 } from '@/gen/marengo/v1/marengo_pb';
 import { postTestingMitCommandBatch, postEnableCommand } from '@/lib/gateway-api';
 import { useCompoundStore } from '@/state/compoundStore';
+import { useTeachStore } from '@/state/teachStore';
 
 interface TestingStore {
   selectedJointNames: string[];
@@ -48,6 +49,9 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
   setGain: (name, gain) => set((state) => ({ gains: { ...state.gains, [name]: gain } })),
   toggleDryRun: () => set((state) => ({ dryRun: !state.dryRun })),
   startTest: async () => {
+    if (useTeachStore.getState().recording) {
+      return;
+    }
     const { selectedJointNames, gains, setpointRad, dryRun } = get();
     set({ isRunning: true });
 
@@ -67,6 +71,8 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
 
 
     if (!dryRun) {
+      // POSITION ends GravityComp — clear teach preflight checkbox.
+      useTeachStore.getState().setGravityArmed(false);
       await postTestingMitCommandBatch(create(MitCommandBatchSchema, {
         timestampMs: BigInt(Date.now()),
         mode: ControlMode.POSITION,
@@ -77,6 +83,9 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
   stopTest: () => set({ isRunning: false }),
 
   returnHome: async () => {
+    if (useTeachStore.getState().recording) {
+      return;
+    }
     const { selectedJointNames, gains, dryRun } = get();
     set({ isRunning: false, setpointRad: 0 });
 
@@ -95,6 +104,7 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
     });
 
     if (!dryRun) {
+      useTeachStore.getState().setGravityArmed(false);
       await postTestingMitCommandBatch(create(MitCommandBatchSchema, {
         timestampMs: BigInt(Date.now()),
         mode: ControlMode.POSITION,
@@ -114,6 +124,10 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
   },
 
   dispatchGainUpdate: async (jointName: string) => {
+    // Teach Record requires GravityComp — IMPEDANCE posts end it mid-capture.
+    if (useTeachStore.getState().recording) {
+      return;
+    }
     const { gains, setpointRad, dryRun } = get();
     const gain = gains[jointName];
     if (!gain) {
@@ -130,6 +144,7 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
       torqueFf: 0,
     });
     if (!dryRun) {
+      useTeachStore.getState().setGravityArmed(false);
       await postTestingMitCommandBatch(create(MitCommandBatchSchema, {
         timestampMs: BigInt(Date.now()),
         mode: ControlMode.IMPEDANCE,

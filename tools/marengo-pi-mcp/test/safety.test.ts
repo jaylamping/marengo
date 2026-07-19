@@ -44,6 +44,7 @@ describe("validateMotionConfirm", () => {
 describe("requiresWeightedDoubleConfirm", () => {
   it("flags weighted profiles", () => {
     assert.equal(requiresWeightedDoubleConfirm("weighted_single_arm"), true);
+    assert.equal(requiresWeightedDoubleConfirm("yaw_attached"), true);
     assert.equal(requiresWeightedDoubleConfirm("bare_motor"), false);
   });
 });

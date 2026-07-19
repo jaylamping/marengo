@@ -1,19 +1,26 @@
 # consul/src/components/dashboard/testing/
 
-<!-- Fixer: Fill in this section with architectural understanding -->
-
 ## Responsibility
 
-<!-- What is this folder's job in the system? -->
+Operator Testing tab: manual hold-at/PID, compound presets (Wave), and teach-record
+(GravityComp capture → landmarks → Wave overlay).
 
 ## Design
 
-<!-- Key patterns, abstractions, architectural decisions -->
+- `compound-test-panel.tsx` — shipped presets + optional taught overlay; Wave keeps
+  `nativeWave` until Teach Apply.
+- `teach-record-panel.tsx` — separate UI; Record gated on gravity-armed + ACTIVE;
+  no POSITION posts during Record.
+- Cadence/dwell only in teach transit (not Berthier speed fantasy).
+- Soft-invalidate: set-zero bumps calibration epoch (`I set-zero'd`); overlay kept;
+  Wave blocked until Acknowledge & keep or Reset. Ordinary Home does not bump.
 
 ## Flow
 
-<!-- How does data/control flow through this module? -->
+Chappe RobotState → (unthrottled) teach-sample-bus → teachStore buffer → landmarks
+→ overlay in localStorage → compound runner resolves effective preset.
 
 ## Integration
 
-<!-- How does it connect to other parts of the system? -->
+`@/lib/teach-record`, `@/lib/teach-transit`, `@/state/teachStore`, gateway MIT batch
+for compound playback only.
