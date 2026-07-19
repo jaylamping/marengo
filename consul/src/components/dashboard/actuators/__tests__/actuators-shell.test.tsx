@@ -75,7 +75,7 @@ const wiredJoint: InventoryItem = {
   status: 'Enabled',
   value: '0.12',
   limit: '±1.57',
-  preset: 'bench_3dof',
+  preset: 'bench_4dof',
   node: 'RS03 · can0 · id 1',
 };
 
