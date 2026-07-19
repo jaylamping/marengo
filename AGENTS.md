@@ -300,7 +300,7 @@ No coverage tooling is configured. Expectation: `just check` passes before merge
 - Active profile: `config/bringup/arm_2dof_right/` — roll CAN id 1, pitch CAN id 2 on `can0`
 - **Pitch** raises arm (~π–2.8 rad); **roll** oscillates — do not swap roles
 - Re–set-zero at mechanical home when arm configuration changes
-- `pi_sync_bench_config` syncs YAML only — not `assets/urdf/`; verify gravity after URDF/COM edits
+- `pi_sync_bench_config` syncs YAML only — not `assets/urdf/`; use **`pi_sync_bench_urdf`** after URDF/COM edits, then verify gravity
 - Signed-off position-hold baseline: kp 18 / kd 3 / ki 5 — see bench smoke doc
 
 ---

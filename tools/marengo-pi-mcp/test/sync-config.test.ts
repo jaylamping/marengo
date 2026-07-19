@@ -6,6 +6,7 @@ import {
   benchUrdfInstallBody,
   benchUrdfStagingVerifyBody,
   directInstallRsyncLine,
+  remoteStepFailed,
 } from "../src/tools/sync-config.js";
 
 const cfg: MarengoPiConfig = {
@@ -43,6 +44,21 @@ describe("bench URDF sync", () => {
     assert.doesNotMatch(script, /sudo install/);
   });
 
+  it("fails closed when /opt is not writable (no stale inertial dump)", () => {
+    const script = benchUrdfInstallBody(
+      cfg,
+      ["shoulder_pitch_right_only.urdf"],
+    );
+
+    assert.match(script, /pi_install_staging/);
+    assert.match(script, /exit 1/);
+    // inertial grep only in the writable success branch — not after the else
+    const elseIdx = script.indexOf("cannot write");
+    assert.ok(elseIdx > 0);
+    const afterElse = script.slice(elseIdx);
+    assert.doesNotMatch(afterElse, /grep -A3 "<inertial>"/);
+  });
+
   it("verifies a single staged left bench URDF", () => {
     const script = benchUrdfStagingVerifyBody(
       cfg,
@@ -52,6 +68,13 @@ describe("bench URDF sync", () => {
     assert.match(script, /shoulder_pitch_left_bare\.urdf/);
     assert.match(script, /grep -A3 "<inertial>"/);
     assert.doesNotMatch(script, /shoulder_pitch_right_only\.urdf/);
+  });
+
+  it("detects non-zero remote exit markers for MCP isError", () => {
+    assert.equal(remoteStepFailed("ok\n[exit 0]"), false);
+    assert.equal(remoteStepFailed("fail\n[exit 1]"), true);
+    assert.equal(remoteStepFailed("timeout\n[exit 124]"), true);
+    assert.equal(remoteStepFailed("plain output"), false);
   });
 });
 

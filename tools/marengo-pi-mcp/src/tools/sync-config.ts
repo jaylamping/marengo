@@ -51,6 +51,11 @@ export function benchUrdfStagingVerifyBody(
   );
 }
 
+/** True when a remote step string includes a non-zero `[exit N]` from formatRemoteResult. */
+export function remoteStepFailed(output: string): boolean {
+  return /\[exit [1-9]\d*\]/.test(output);
+}
+
 export function benchUrdfInstallBody(
   cfg: MarengoPiConfig,
   assets: BenchUrdfAsset[],
@@ -68,18 +73,18 @@ export function benchUrdfInstallBody(
       "  for asset in " + assetNames + "; do",
       '    install -m 0644 "$SRC/$asset" "$DST/$asset"',
       '    echo "installed $DST/$asset (direct write)"',
-      "  done",
-      "else",
-      '  echo "warn: $DST not writable and passwordless sudo is unavailable"',
-      '  echo "run once on the Pi:"',
-      '  echo "  cd $HOME/marengo && sudo ./scripts/install-pi.sh"',
-      "fi",
-      "for asset in " + assetNames + "; do",
-      '  if [[ -f "$DST/$asset" ]]; then',
       '    echo "--- $DST/$asset"',
       '    grep -A3 "<inertial>" "$DST/$asset" | sed -n "1,4p"',
-      "  fi",
-      "done",
+      "  done",
+      "elif sudo -n /opt/marengo/scripts/can-up.sh can0 can1 2>/dev/null; then",
+      '  echo "warn: $DST not writable; run pi_install_staging to refresh /opt from ~/marengo"',
+      "  exit 1",
+      "else",
+      '  echo "warn: cannot write $DST and passwordless sudo is unavailable"',
+      '  echo "run once on the Pi:"',
+      '  echo "  cd $HOME/marengo && sudo ./scripts/install-pi.sh"',
+      "  exit 1",
+      "fi",
     ].join("\n"),
   );
 }
@@ -113,7 +118,7 @@ export async function runSyncBenchConfig(
     await runRemote(
       wrapRemote(
         cfg,
-        `mkdir -p ${shellQuote(`${expandStagingRoot(cfg)}/${remoteRel}`)}`,
+        `mkdir -p ${remotePathExpr(`${expandStagingRoot(cfg)}/${remoteRel}`)}`,
       ),
       15_000,
     );
@@ -129,7 +134,7 @@ export async function runSyncBenchConfig(
   }
 
   if (sync.exitCode !== 0) {
-    return steps.join("\n\n");
+    return `Error: config sync failed\n\n${steps.join("\n\n")}`;
   }
 
   const verifyBody = wrapRemote(
@@ -209,7 +214,7 @@ export async function runSyncBenchUrdfAssets(
     await runRemote(
       wrapRemote(
         cfg,
-        `mkdir -p ${shellQuote(`${expandStagingRoot(cfg)}/${remoteRel}`)}`,
+        `mkdir -p ${remotePathExpr(`${expandStagingRoot(cfg)}/${remoteRel}`)}`,
       ),
       15_000,
     );
@@ -228,7 +233,7 @@ export async function runSyncBenchUrdfAssets(
   }
 
   if (sync.exitCode !== 0) {
-    return steps.join("\n\n");
+    return `Error: URDF sync failed\n\n${steps.join("\n\n")}`;
   }
 
   const verifyStaging = await runRemote(
@@ -236,11 +241,17 @@ export async function runSyncBenchUrdfAssets(
     15_000,
   );
   steps.push(`[staging URDF inertials]\n${verifyStaging}`);
+  if (remoteStepFailed(verifyStaging)) {
+    return `Error: URDF staging verify failed\n\n${steps.join("\n\n---\n\n")}`;
+  }
 
   if (args.install_to_opt) {
     const installBody = benchUrdfInstallBody(cfg, args.assets);
     const install = await runRemote(installBody, 30_000);
     steps.push(`[install URDFs → ${remoteOpt}]\n${install}`);
+    if (remoteStepFailed(install)) {
+      return `Error: URDF install to ${remoteOpt} failed\n\n${steps.join("\n\n---\n\n")}`;
+    }
   } else {
     steps.push(
       `[note] Staging only. Bench with MARENGO_ROOT=${expandStagingRoot(cfg)} or install_to_opt: true.`,
@@ -270,5 +281,5 @@ export const syncBenchUrdfSchema = z.object({
   install_to_opt: z
     .boolean()
     .default(true)
-    .describe("Also install into /opt/marengo/assets/urdf when writable"),
+    .describe("Also install into /opt/marengo (requires writable assets/urdf or pi_install_staging)"),
 });
