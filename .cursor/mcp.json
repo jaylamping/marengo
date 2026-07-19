@@ -12,8 +12,8 @@
       "args": ["-y", "--package=@upstash/context7-mcp@2.2.5", "--", "context7-mcp"]
     },
     "marengo-pi": {
-      "command": "node",
-      "args": ["${workspaceFolder}/tools/marengo-pi-mcp/dist/index.js"],
+      "command": "bash",
+      "args": ["${workspaceFolder}/tools/marengo-pi-mcp/run-mcp.sh"],
       "env": {
         "MARENGO_PI_HOST": "marengo.local",
         "MARENGO_PI_USER": "joey",
