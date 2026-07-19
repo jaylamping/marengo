@@ -1,5 +1,5 @@
 import { execFile, spawn } from "node:child_process";
-import { delimiter } from "node:path";
+import { delimiter, dirname } from "node:path";
 import { promisify } from "node:util";
 import type { MarengoPiConfig } from "./config.js";
 import { sshTarget } from "./config.js";
@@ -123,7 +123,17 @@ export function localExecEnv(): NodeJS.ProcessEnv {
   const homeCargoBin = home
     ? [`${home}/.cargo/bin`, `${home}\\.cargo\\bin`]
     : [];
+  // Cursor MCP spawn PATH often lacks mise shims; deploy-pi.sh needs npm/node.
+  const nodeBin = dirname(process.execPath);
+  const miseBins = home
+    ? [
+        `${home}/.local/share/mise/shims`,
+        `${home}/.local/share/mise/installs/node/24.16.0/bin`,
+      ]
+    : [];
   const pathEntries = [
+    nodeBin,
+    ...miseBins,
     ...LOCAL_TOOL_PATHS,
     ...homeCargoBin,
     process.env.PATH ?? "",

@@ -56,4 +56,5 @@ resolve_node() {
 }
 
 NODE="$(resolve_node)"
+export PATH="$(dirname "${NODE}"):${HOME}/.local/share/mise/shims:${PATH:-}"
 exec "${NODE}" "${ROOT}/dist/index.js"
