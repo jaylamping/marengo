@@ -43,6 +43,10 @@ export const urdfPreviewPanelClassName =
 export const dashboardOverviewClassName =
   'flex flex-col gap-4 py-4 md:gap-6 md:py-6';
 
+/** Above-the-fold posture + tracking — primary operator question. */
+export const dashboardOverviewHeroClassName =
+  'grid grid-cols-1 gap-4 px-4 lg:px-6 @3xl/main:grid-cols-2 @3xl/main:items-stretch';
+
 export const dashboardLogsClassName =
   'flex min-h-0 flex-1 flex-col gap-4 px-4 py-4 lg:px-6';
 

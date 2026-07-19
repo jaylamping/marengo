@@ -90,7 +90,7 @@ export function JointTrackingChartCard({ series: _seriesProp }: JointTrackingCha
   return (
     <Card
       variant="panel"
-      className={cn('@container/card', dashboardPanelCardClassName)}
+      className={cn('@container/card flex h-full min-h-[20rem] flex-col', dashboardPanelCardClassName)}
     >
       <CardHeader>
         <CardTitle>{series.title}</CardTitle>
