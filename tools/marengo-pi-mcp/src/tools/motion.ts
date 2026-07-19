@@ -1,21 +1,16 @@
 import { z } from "zod";
 import type { BenchProfile, MarengoPiConfig } from "../config.js";
+import { BENCH_PROFILES } from "../bench-profiles.js";
 import { appendAudit } from "../audit.js";
 import { shellQuote, wrapRemote, wrapRemoteWithConfig } from "../env.js";
 import { validateMotionConfirm } from "../safety.js";
 
+const benchProfileZod = z.enum(BENCH_PROFILES);
+
 const motionConfirmSchema = z.object({
   confirm: z.literal(true),
   confirm_weighted_motion: z.literal(true).optional(),
-  profile: z
-    .enum([
-      "bare_motor",
-      "weighted_single_arm",
-      "arm_attached",
-      "roll_attached",
-      "arm_2dof_smoke",
-    ])
-    .optional(),
+  profile: benchProfileZod.optional(),
 });
 
 const BENCH_CONFIG_RIGHT =
@@ -598,7 +593,13 @@ export function registerMotionTools(
         );
         const out = await runRemote(body, verify ? 45_000 : 30_000);
         auditMotion("pi_set_zero", { ...args, joint, verify }, out, 0);
-        return out;
+        // Consul soft-invalidate is browser-local until a Chappe/gateway signal exists.
+        return (
+          `${out}\n\n` +
+          "NOTE: Consul teach overlays do not auto-bump on pi_set_zero. " +
+          "If a taught Wave overlay is applied, open Teach Record → click " +
+          '"I set-zero\'d" (or Reset overlay). Home alone does not invalidate.'
+        );
       },
     },
 
@@ -807,17 +808,9 @@ export function registerMotionTools(
 
     pi_bench_harness: {
       description:
-        "Profile-aware bench test matrix (bare_motor, weighted, roll_attached, arm_2dof_smoke)",
+        "Profile-aware bench test matrix (bare_motor, weighted, roll_attached, arm_2dof_smoke, yaw_attached)",
       inputSchema: motionConfirmSchema.extend({
-        profile: z
-          .enum([
-            "bare_motor",
-            "weighted_single_arm",
-            "arm_attached",
-            "roll_attached",
-            "arm_2dof_smoke",
-          ])
-          .optional(),
+        profile: benchProfileZod.optional(),
         config_dir: z.string().optional(),
         joints: z.array(z.string()).optional(),
         loaded_joint: z.string().optional(),

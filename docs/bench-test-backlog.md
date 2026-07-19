@@ -19,6 +19,17 @@ Agent: append here when investigation suggests a load/model test and the user is
 
 ---
 
+### 2026-07-19 — yaw commissioning (Y0–Y4)
+
+- **Status:** queued
+- **Hypothesis:** `right_upper_arm_yaw` (RS02 id 3) sign/direction and hold are correct before Wave raise + teach overlays use yaw
+- **Log evidence:** —
+- **Suggested run:** suite in [bench-yaw-test-suite.md](bench-yaw-test-suite.md); `pi_bench_harness` profile `yaw_attached`, `config_dir: arm_3dof_right`, `skip_set_zero: true` after Y2 Verified
+- **Blocked on:** operator at bench; mechanical yaw zero for Y2
+- **Result:** (pending) — gate Y3–Y4 + candump before shipping yaw on non-Wave presets
+
+---
+
 ### 2026-06-22 — arm_3dof_right motion smoke (D1–D3)
 
 - **Status:** done

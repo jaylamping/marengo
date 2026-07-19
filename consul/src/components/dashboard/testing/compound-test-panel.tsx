@@ -12,6 +12,12 @@ import {
   nativeWaveDurationSec,
   WAYPOINT_SETTLE_HOLD_SEC,
 } from '@/lib/compound-runner';
+import { overlayNeedsCalibrationAck } from '@/lib/teach-calibration';
+import {
+  liveFingerprint,
+  resolvePlayablePreset,
+} from '@/lib/teach-transit';
+import { useHostMetricsStore } from '@/state/hostMetricsStore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -27,6 +33,7 @@ import {
 import { postTestingMitCommandBatch } from '@/lib/gateway-api';
 import { dashboardPanelCardClassName } from '@/components/dashboard/layout/constants';
 import { useConfigSnapshot } from '@/hooks/use-config-snapshot';
+import { useTeachStore } from '@/state/teachStore';
 
 /** Zero gains → Pi clears overrides and uses arm_3dof_right control.yaml impedance. */
 const CONFIG_GAINS = { kp: 0, kd: 0, ki: 0, fc: 0 };
@@ -50,7 +57,18 @@ export function CompoundTestPanel() {
   const { dryRun, toggleDryRun } = useTestingStore();
   const robotState = useRobotStore((s) => s.robotState);
   const operationalMode = useRobotStore((s) => s.operationalMode);
+  const connected = useRobotStore((s) => s.connected);
   const { data: config = null } = useConfigSnapshot();
+  const teachRecording = useTeachStore((s) => s.recording);
+  const overlays = useTeachStore((s) => s.overlays);
+  const liveCalibrationEpoch = useTeachStore((s) => s.liveCalibrationEpoch);
+  const [overlayBlockReason, setOverlayBlockReason] = React.useState<string | null>(null);
+  /** True when the active run materializes a taught overlay (not shipped fallback). */
+  const usingOverlayRef = React.useRef(false);
+
+  React.useEffect(() => {
+    setOverlayBlockReason(null);
+  }, [selectedPresetId]);
 
   // Raise keyframes, then optional Berthier in-loop wave (no endpoint holds).
   const runnerRef = React.useRef<{
@@ -74,6 +92,8 @@ export function CompoundTestPanel() {
   });
 
   const postPositionBatch = React.useCallback(async (joints: MitJointCommand[]) => {
+    // POSITION ends GravityComp — clear teach preflight so Record cannot stay "armed".
+    useTeachStore.getState().setGravityArmed(false);
     await postTestingMitCommandBatch(
       create(MitCommandBatchSchema, {
         timestampMs: BigInt(Date.now()),
@@ -110,12 +130,35 @@ export function CompoundTestPanel() {
       setIsRunning(false);
       setProgress(0);
       const shouldHome = opts?.returnHome !== false;
-      const preset = COMPOUND_TEST_PRESETS.find((p) => p.id === selectedPresetId);
-      if (shouldHome && preset) {
-        void returnHome(preset.joints);
-      }
+      const base = COMPOUND_TEST_PRESETS.find((p) => p.id === selectedPresetId);
+      if (!shouldHome || !base) return;
+      const teach = useTeachStore.getState();
+      const profile = config?.profile ?? 'arm_3dof_right';
+      const liveFp = liveFingerprint(
+        profile,
+        base.joints,
+        useHostMetricsStore.getState().piMetrics?.build
+      );
+      const entry = selectedPresetId ? teach.overlays[selectedPresetId] : undefined;
+      const playable = resolvePlayablePreset(
+        base,
+        entry,
+        liveFp,
+        teach.liveCalibrationEpoch
+      );
+      const setPending = useCompoundStore.getState().setReturnHomePending;
+      setPending(true);
+      void (async () => {
+        try {
+          await returnHome(playable.preset.joints);
+          // Settle window so Teach Record cannot start mid-home.
+          await new Promise((r) => window.setTimeout(r, 2500));
+        } finally {
+          setPending(false);
+        }
+      })();
     },
-    [setIsRunning, setProgress, selectedPresetId, returnHome]
+    [setIsRunning, setProgress, selectedPresetId, returnHome, config?.profile]
   );
 
   // Stop runner on unmount (do not return-home on unmount — only explicit Stop)
@@ -129,17 +172,74 @@ export function CompoundTestPanel() {
     };
   }, [setIsRunning]);
 
-  // Fault / disable: stop playback but do NOT returnHome (re-enable + slam).
+  // Fault / disable / disconnect: stop playback but do NOT returnHome (re-enable + slam).
+  // Disconnect leaves operationalMode stale — require connected as well.
   React.useEffect(() => {
-    if (isRunning && operationalMode !== 'ACTIVE' && !dryRun) {
+    if (isRunning && !dryRun && (operationalMode !== 'ACTIVE' || !connected)) {
       stopRunner({ returnHome: false });
     }
-  }, [isRunning, operationalMode, dryRun, stopRunner]);
+  }, [isRunning, operationalMode, connected, dryRun, stopRunner]);
+
+  // Soft-invalidate mid-run: stop only when driving taught landmarks (not shipped fallback).
+  React.useEffect(() => {
+    if (!isRunning || !selectedPresetId || !usingOverlayRef.current) return;
+    const entry = overlays[selectedPresetId];
+    if (!entry) return;
+    if (
+      overlayNeedsCalibrationAck(entry.session, {
+        liveCalibrationEpoch,
+        ackedAtEpoch: entry.ackedAtEpoch,
+      })
+    ) {
+      stopRunner({ returnHome: true });
+      setOverlayBlockReason(
+        'Taught overlay needs Acknowledge & keep (or Reset) — stopped; shipped Wave still available after Stop settles.'
+      );
+    }
+  }, [
+    isRunning,
+    selectedPresetId,
+    overlays,
+    liveCalibrationEpoch,
+    stopRunner,
+  ]);
 
   const startRunner = React.useCallback(() => {
     if (!selectedPresetId) return;
-    const preset = COMPOUND_TEST_PRESETS.find((p) => p.id === selectedPresetId);
-    if (!preset) return;
+    if (useTeachStore.getState().recording) {
+      return;
+    }
+    if (useCompoundStore.getState().returnHomePending) {
+      setOverlayBlockReason('Wait for return-home to settle before starting Wave.');
+      return;
+    }
+    if (!dryRun && (operationalMode !== 'ACTIVE' || !connected)) {
+      setOverlayBlockReason(
+        !connected
+          ? 'Chappe disconnected — cannot start Wave until telemetry reconnects (or enable Dry Run).'
+          : 'Robot must be ACTIVE to start Wave (or enable Dry Run).'
+      );
+      return;
+    }
+    const base = COMPOUND_TEST_PRESETS.find((p) => p.id === selectedPresetId);
+    if (!base) return;
+    const teachState = useTeachStore.getState();
+    const overlayEntry = teachState.overlays[selectedPresetId];
+    const profile = config?.profile ?? 'arm_3dof_right';
+    const liveFp = liveFingerprint(
+      profile,
+      base.joints,
+      useHostMetricsStore.getState().piMetrics?.build
+    );
+    const playable = resolvePlayablePreset(
+      base,
+      overlayEntry,
+      liveFp,
+      teachState.liveCalibrationEpoch
+    );
+    const preset = playable.preset;
+    usingOverlayRef.current = playable.usingOverlay;
+    setOverlayBlockReason(playable.warning);
 
     const segmentCount = presetSegmentCount(preset.keyframes);
     if (segmentCount === 0) return;
@@ -309,11 +409,13 @@ export function CompoundTestPanel() {
           });
           return;
         }
-        if (!currentLoop) {
+        // Honor effective preset.loop (taught two-landmark overlays set loop:false).
+        if (!currentLoop || !preset.loop) {
           stopRunner({ returnHome: true });
           return;
         }
-        next = 0;
+        // Taught overlays: loop extrema only (skip re-raise).
+        next = preset.loopFromSegment ?? 0;
       }
 
       runnerRef.current.posting = true;
@@ -321,9 +423,43 @@ export function CompoundTestPanel() {
         runnerRef.current.posting = false;
       });
     }, 100);
-  }, [selectedPresetId, config, setProgress, setIsRunning, stopRunner, postPositionBatch]);
+  }, [
+    selectedPresetId,
+    config,
+    dryRun,
+    operationalMode,
+    connected,
+    setProgress,
+    setIsRunning,
+    stopRunner,
+    postPositionBatch,
+  ]);
 
-  const selectedPreset = COMPOUND_TEST_PRESETS.find((p) => p.id === selectedPresetId);
+  const selectedBase = COMPOUND_TEST_PRESETS.find((p) => p.id === selectedPresetId);
+  const playableSelected = React.useMemo(() => {
+    if (!selectedBase || !selectedPresetId) return null;
+    const entry = overlays[selectedPresetId];
+    const profile = config?.profile ?? 'arm_3dof_right';
+    const liveFp = liveFingerprint(
+      profile,
+      selectedBase.joints,
+      useHostMetricsStore.getState().piMetrics?.build
+    );
+    return resolvePlayablePreset(
+      selectedBase,
+      entry,
+      liveFp,
+      liveCalibrationEpoch
+    );
+  }, [
+    selectedBase,
+    selectedPresetId,
+    overlays,
+    config?.profile,
+    liveCalibrationEpoch,
+  ]);
+  const selectedPreset = playableSelected?.preset;
+  const usingTaughtOverlay = playableSelected?.usingOverlay ?? false;
 
   return (
     <div className="space-y-4">
@@ -347,6 +483,9 @@ export function CompoundTestPanel() {
                       {j}
                     </Badge>
                   ))}
+                  {overlays[preset.id] ? (
+                    <Badge className="text-xs font-normal">taught</Badge>
+                  ) : null}
                 </div>
               </CardContent>
             </Card>
@@ -358,12 +497,30 @@ export function CompoundTestPanel() {
             <div>
               <CardTitle className="text-xl">{selectedPreset.name}</CardTitle>
               <CardDescription className="mt-1">{selectedPreset.description}</CardDescription>
+              {usingTaughtOverlay ? (
+                <p className="text-xs text-muted-foreground mt-2">
+                  Using taught overlay (no nativeWave). Clear from Teach Record to restore
+                  roll cosine. A/B chop: compare overlay vs shipped nativeWave before making
+                  taught the default.
+                </p>
+              ) : selectedPreset.nativeWave ? (
+                <p className="text-xs text-muted-foreground mt-2">
+                  Loop extends nativeWave only (does not re-raise). Yaw on raise is provisional 0
+                  until yaw suite Y3–Y4.
+                </p>
+              ) : null}
+              {playableSelected?.warning ? (
+                <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                  {playableSelected.warning}
+                </p>
+              ) : null}
             </div>
             <Button
               variant="outline"
               size="sm"
               onClick={() => {
                 stopRunner({ returnHome: false });
+                setOverlayBlockReason(null);
                 setSelectedPresetId(null);
               }}
             >
@@ -461,6 +618,17 @@ export function CompoundTestPanel() {
                   style={{ width: `${progress * 100}%` }}
                 />
               </div>
+              {teachRecording ? (
+                <p className="text-xs text-destructive">
+                  Teach Record is active — Stop Record before starting Wave (POSITION posts
+                  end GravityComp).
+                </p>
+              ) : null}
+              {overlayBlockReason ? (
+                <p className="text-xs text-destructive" role="alert">
+                  {overlayBlockReason}
+                </p>
+              ) : null}
               <div className="flex gap-3">
                 {isRunning ? (
                   <Button
@@ -471,7 +639,14 @@ export function CompoundTestPanel() {
                     Stop
                   </Button>
                 ) : (
-                  <Button className="flex-1 font-bold" onClick={startRunner}>
+                  <Button
+                    className="flex-1 font-bold"
+                    onClick={startRunner}
+                    disabled={
+                      teachRecording ||
+                      (!dryRun && (operationalMode !== 'ACTIVE' || !connected))
+                    }
+                  >
                     Start
                   </Button>
                 )}
