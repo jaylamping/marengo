@@ -2,7 +2,12 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-export type BenchProfile = "bare_motor" | "weighted_single_arm" | "arm_attached";
+export type BenchProfile =
+  | "bare_motor"
+  | "weighted_single_arm"
+  | "arm_attached"
+  | "roll_attached"
+  | "arm_2dof_smoke";
 
 export interface MarengoPiConfig {
   host: string;
@@ -36,7 +41,7 @@ export function loadConfig(): MarengoPiConfig {
     piRoot: env("MARENGO_PI_ROOT", "/opt/marengo"),
     configDir: env(
       "MARENGO_CONFIG_DIR",
-      "/opt/marengo/config/bringup/shoulder_pitch_dual",
+      "/opt/marengo/config/bringup/arm_2dof_right",
     ),
     localRoot: env("MARENGO_LOCAL_ROOT", defaultLocalRoot()),
     sshIdentityFile: process.env.SSH_IDENTITY_FILE?.trim() || undefined,

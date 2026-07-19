@@ -19,33 +19,27 @@ Read the skill file at `.cursor/skills/sdd-tasks/SKILL.md` and follow it exactly
 Also read shared conventions at `.cursor/skills/_shared/sdd-phase-common.md`.
 
 Execute all steps from the skill directly in this context window:
-1. Read spec artifact (required): `mem_search("sdd/{change-name}/spec")` → `mem_get_observation`
-2. Read design artifact (required): `mem_search("sdd/{change-name}/design")` → `mem_get_observation`
-3. Break down into hierarchically numbered tasks (1.1, 1.2, 2.1, etc.) grouped by phase
+1. 2. 3. Break down into hierarchically numbered tasks (1.1, 1.2, 2.1, etc.) grouped by phase
 4. Each task must be atomic enough to complete in one session
 5. Map tasks to files from the design's file-change table
 6. Include Review Workload Forecast with exact guard-line format
-7. Persist tasks to active backend (engram, openspec, or hybrid)
+7. Persist tasks to active backend (openspec or none)
 
-## Engram Save (mandatory)
+## Persistence
 
-After completing work, call `mem_save` with:
-- title: `"sdd/{change-name}/tasks"`
-- topic_key: `"sdd/{change-name}/tasks"`
-- type: `"architecture"`
-- project: `{project-name from context}`
-- capture_prompt: `false` when the Engram tool schema supports it; if an older schema rejects or does not expose the field, omit it rather than failing.
+Write artifacts under `openspec/changes/{change-name}/` per openspec-convention.md (or return inline if mode is `none`).
+
 
 ## Context Saturation (MANDATORY)
 
-Do not hand off before 50%. **At or after 50%:** finish the atomic step → `mem_save` `maintenance/session-handoff/marengo` (concise) → return `status: partial` with `next_recommended: session-handoff-resume`. See `sdd-phase-common.md` § F.
+Do not hand off before 50%. **At or after 50%:** finish the atomic step → write `.atl/session-handoff.md` (concise) → return `status: partial` with `next_recommended: session-handoff-resume`. See `sdd-phase-common.md` § F.
 
 ## Result Contract
 
 Return a structured result with these fields:
 - `status`: `done` | `blocked` | `partial`
 - `executive_summary`: one-sentence description of the task breakdown (phase count, total task count)
-- `artifacts`: topic_keys or file paths written (e.g. `sdd/{change-name}/tasks`)
+- `artifacts`: file paths written (e.g. `openspec/changes/{change-name}/tasks` (see openspec-convention))
 - `next_recommended`: `sdd-apply` (or `blocked` if workload decision required)
 - `risks`: tasks that are large or have hidden dependencies, phases that may need splitting
 - `skill_resolution`: `paths-injected` if exact skill paths were provided and loaded, otherwise `none`

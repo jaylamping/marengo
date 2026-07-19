@@ -1,6 +1,8 @@
 # Optional native toolchain (container is source of truth). https://mise.jdx.dev/
+# Keep rust in sync with rust-toolchain.toml — mise must not force RUSTUP_TOOLCHAIN=stable
+# or it overrides the pinned 1.88 channel used by CI / just check.
 [tools]
-rust = "stable"
+rust = "1.88.0"
 node = "24.16.0"
 protoc = "28.3"
 buf = "1.47.2"

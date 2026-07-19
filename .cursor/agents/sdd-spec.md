@@ -19,30 +19,25 @@ Read the skill file at `.cursor/skills/sdd-spec/SKILL.md` and follow it exactly.
 Also read shared conventions at `.cursor/skills/_shared/sdd-phase-common.md`.
 
 Execute all steps from the skill directly in this context window:
-1. Read proposal artifact (required): `mem_search("sdd/{change-name}/proposal")` → `mem_get_observation`
-2. Write requirements using RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+1. 2. Write requirements using RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
 3. Write acceptance scenarios in Given/When/Then format for each requirement
-4. Persist spec to active backend (engram, openspec, or hybrid)
+4. Persist spec to active backend (openspec or none)
 
-## Engram Save (mandatory)
+## Persistence
 
-After completing work, call `mem_save` with:
-- title: `"sdd/{change-name}/spec"`
-- topic_key: `"sdd/{change-name}/spec"`
-- type: `"architecture"`
-- project: `{project-name from context}`
-- capture_prompt: `false` when the Engram tool schema supports it; if an older schema rejects or does not expose the field, omit it rather than failing.
+Write artifacts under `openspec/changes/{change-name}/` per openspec-convention.md (or return inline if mode is `none`).
+
 
 ## Context Saturation (MANDATORY)
 
-Do not hand off before 50%. **At or after 50%:** finish the atomic step → `mem_save` `maintenance/session-handoff/marengo` (concise) → return `status: partial` with `next_recommended: session-handoff-resume`. See `sdd-phase-common.md` § F.
+Do not hand off before 50%. **At or after 50%:** finish the atomic step → write `.atl/session-handoff.md` (concise) → return `status: partial` with `next_recommended: session-handoff-resume`. See `sdd-phase-common.md` § F.
 
 ## Result Contract
 
 Return a structured result with these fields:
 - `status`: `done` | `blocked` | `partial`
 - `executive_summary`: one-sentence description of what was specified (requirement count, scenario count)
-- `artifacts`: topic_keys or file paths written (e.g. `sdd/{change-name}/spec`)
+- `artifacts`: file paths written (e.g. `openspec/changes/{change-name}/spec` (see openspec-convention))
 - `next_recommended`: `sdd-tasks` (once design is also done)
 - `risks`: any ambiguous requirements or missing acceptance criteria
 - `skill_resolution`: `paths-injected` if exact skill paths were provided and loaded, otherwise `none`

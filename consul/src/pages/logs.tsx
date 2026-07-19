@@ -1,10 +1,17 @@
-import { DashboardLayout } from '@/components/dashboard/layout/dashboard-layout';
-import { LogsOverview } from '@/components/dashboard/logs/logs-overview';
+import { lazy } from 'react';
 
+import { DeferredLazyBody } from '@/components/dashboard/layout/deferred-lazy-body';
+
+const LogsOverview = lazy(async () => {
+  const module = await import('@/components/dashboard/logs/logs-overview');
+  return { default: module.LogsOverview };
+});
+
+/** Instant route shell — skeleton paints before the heavy body mounts. */
 export function LogsPage() {
   return (
-    <DashboardLayout>
+    <DeferredLazyBody>
       <LogsOverview />
-    </DashboardLayout>
+    </DeferredLazyBody>
   );
 }

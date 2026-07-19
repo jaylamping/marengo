@@ -5,10 +5,10 @@ import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { CheckmarkCircle02Icon, InformationCircleIcon, Alert02Icon, MultiplicationSignCircleIcon, Loading03Icon } from "@hugeicons/core-free-icons"
 
-export const toasterGlassStyle = {
-  "--normal-bg": "var(--glass-2-surface)",
+export const toasterPanelStyle = {
+  "--normal-bg": "var(--surface-2)",
   "--normal-text": "var(--popover-foreground)",
-  "--normal-border": "var(--glass-border)",
+  "--normal-border": "var(--line-strong)",
   "--border-radius": "var(--radius-lg)",
 } as React.CSSProperties
 
@@ -37,7 +37,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
           <HugeiconsIcon icon={Loading03Icon} strokeWidth={2} className="size-4 animate-spin" />
         ),
       }}
-      style={toasterGlassStyle}
+      style={toasterPanelStyle}
       toastOptions={{
         classNames: {
           toast: "cn-toast",

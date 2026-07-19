@@ -48,7 +48,8 @@ export const LogsVirtualTable = memo(function LogsVirtualTable({
         return index;
       }
 
-      return logBuffer.getEntry(entryIndex)?.id ?? index;
+      const id = logBuffer.getEntry(entryIndex)?.id;
+      return id != null ? `${id}@${entryIndex}` : index;
     },
   });
 
@@ -88,7 +89,7 @@ export const LogsVirtualTable = memo(function LogsVirtualTable({
 
               return (
                 <LogRow
-                  key={entry.id}
+                  key={virtualRow.key}
                   entry={entry}
                   selected={entry.id === selectedLogId}
                   onSelect={onSelectLog}

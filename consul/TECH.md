@@ -10,7 +10,8 @@ It is deliberately opinionated and will be updated as the real sharp edges move.
 |----------------------|----------------------------------|---------|
 | Framework            | **Vite 8 + React 19 + TypeScript** | React 19 compiler is the single biggest smoothness win available. Vite is still the fastest DX. |
 | Language             | TypeScript (strictest config)   | Non-negotiable for a codebase you will live in daily. |
-| Styling              | **Tailwind CSS 4** + **GLINUI CLI** (Radix primitives) | Primitives seeded via `glinui` CLI into `src/components/ui/*`; glass tokens additive in `index.css`. shadcn `base-mira` retired in PR-8. |
+| Styling              | **Tailwind CSS 4** + **GLINUI CLI** (Radix primitives) | Primitives seeded via `glinui` CLI into `src/components/ui/*`; “Launch Day” opaque panel tokens in `index.css` (glass tokens retired 2026-07). shadcn `base-mira` retired in PR-8. |
+| Typography           | **IBM Plex Sans** + **IBM Plex Mono** (`@fontsource`) | Plex Mono carries every number and tracked-uppercase micro-label; avionics-legend discipline. Inter retired 2026-07. |
 | Resizable Layout     | `react-resizable-panels` + shadcn `Resizable` wrapper | Exactly the Foxglove-style draggable panes we need. |
 | Command Palette      | `cmdk` (or kbar if we need more) | ⌘K to reach *anything* is table stakes for a functional tool. |
 
@@ -73,7 +74,7 @@ This stack is chosen so that in 2026–2027 Consul can be the best-feeling robot
 
 ---
 
-**Current status (June 2026)**: Dashboard shell + live Chappe telemetry path (gateway + WebTransport client). GLINUI foundation (PR-1): Radix-backed button/card/badge/input/tabs/checkbox with `--glass-*` tokens; select/dropdown/tooltip remain Base UI until PR-4/5/7. URDF-first 3D and session replay are next.
+**Current status (July 2026)**: Dashboard shell + live Chappe telemetry path (gateway + WebTransport client). “Launch Day” visual system landed: opaque `--surface-*` panel ramp + hairlines replacing all glass, amber-phosphor accent with armed/caution semantics, IBM Plex Sans/Mono typography, semantic LEDs and corner brackets, NASA SVS star-map backdrop drifting behind the fullscreen URDF canvas. Radix-backed primitives via GLINUI CLI; URDF-first 3D and session replay are next.
 
 ## UI primitive workflow
 

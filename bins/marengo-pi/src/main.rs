@@ -14,14 +14,17 @@ use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use armee_dynamics::max_gravity_torque_over_range;
 use armee_proto::prost::Message;
 use armee_proto::{
-    EnableRequest, Fault, FaultSeverity, Heartbeat, HomingComplete, OperationalMode as ProtoOpMode,
-    SafetyState,
+    EnableRequest, Fault, FaultSeverity, Heartbeat, HomingComplete, MitCommandBatch,
+    OperationalMode as ProtoOpMode, SafetyState,
 };
-use berthier::{proto_control_mode, ControlLoop, ControlMode};
+use berthier::{
+    proto_control_mode, ControlLoop, ControlMode, GainOverride, LoopError, TickPhaseAverages,
+};
 use chappe::Bus;
-use davout::{MotorAddress, OperationalMode};
+use davout::{DavoutError, MotorAddress, OperationalMode};
 use marengo_config::{
     load_control_config, load_motors_config, resolve_config_dir, resolve_repo_root,
     resolve_urdf_path,
@@ -52,6 +55,7 @@ enum PiCommand {
     Home,
     Enable {
         operator_id: String,
+        force: bool,
     },
     Disable,
     GravityOn,
@@ -63,6 +67,13 @@ enum PiCommand {
         joint: Option<String>,
         position_rad: f64,
     },
+    Wave {
+        joint: String,
+        min_rad: f64,
+        max_rad: f64,
+        cycles: u32,
+        half_period_sec: f64,
+    },
     HoldOff,
     Status,
     Quit,
@@ -73,8 +84,16 @@ fn parse_command(line: &str) -> Option<PiCommand> {
     match parts.next()? {
         "home" => Some(PiCommand::Home),
         "enable" => {
-            let operator_id = parts.next().unwrap_or("bench").to_string();
-            Some(PiCommand::Enable { operator_id })
+            let mut force = false;
+            let mut operator_id = "bench".to_string();
+            for tok in parts {
+                if tok == "force" || tok == "--force" {
+                    force = true;
+                } else if operator_id == "bench" {
+                    operator_id = tok.to_string();
+                }
+            }
+            Some(PiCommand::Enable { operator_id, force })
         }
         "disable" => Some(PiCommand::Disable),
         "gravity-on" | "gravity_on" => Some(PiCommand::GravityOn),
@@ -106,6 +125,42 @@ fn parse_command(line: &str) -> Option<PiCommand> {
                 }
             }
         }
+        "wave" => {
+            let tokens: Vec<_> = parts.collect();
+            match tokens.as_slice() {
+                [joint, min, max, cycles] => {
+                    let min_rad = min.parse().ok()?;
+                    let max_rad = max.parse().ok()?;
+                    let cycles = cycles.parse().ok()?;
+                    Some(PiCommand::Wave {
+                        joint: joint.to_string(),
+                        min_rad,
+                        max_rad,
+                        cycles,
+                        half_period_sec: 0.4,
+                    })
+                }
+                [joint, min, max, cycles, half_period] => {
+                    let min_rad = min.parse().ok()?;
+                    let max_rad = max.parse().ok()?;
+                    let cycles = cycles.parse().ok()?;
+                    let half_period_sec = half_period.parse().ok()?;
+                    Some(PiCommand::Wave {
+                        joint: joint.to_string(),
+                        min_rad,
+                        max_rad,
+                        cycles,
+                        half_period_sec,
+                    })
+                }
+                _ => {
+                    eprintln!(
+                        "wave usage: wave <joint> <min_rad> <max_rad> <cycles> [half_period_sec]"
+                    );
+                    None
+                }
+            }
+        }
         "status" => Some(PiCommand::Status),
         "quit" | "exit" => Some(PiCommand::Quit),
         "help" => {
@@ -123,11 +178,12 @@ fn print_usage() {
     eprintln!(
         "marengo-pi commands (stdin):\n  \
          home\n  \
-         enable [operator_id]\n  \
+         enable [operator_id] [force]\n  \
          disable\n  \
          gravity-on | gravity-off\n  \
          impedance-on | impedance-off\n  \
          hold-on | hold-at [joint] <rad> | hold-off\n  \
+         wave <joint> <min_rad> <max_rad> <cycles> [half_period_sec]\n  \
          status\n  \
          quit"
     );
@@ -212,6 +268,115 @@ fn drain_chappe_commands(
     }
 }
 
+fn drain_testing_commands(
+    loop_ctrl: &mut ControlLoop<RuntimeBus>,
+    testing_cmd_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
+) {
+    while let Ok(bytes) = testing_cmd_rx.try_recv() {
+        let Ok(envelope) = armee_proto::Envelope::decode(bytes.as_slice()) else {
+            continue;
+        };
+        let Ok(batch) = MitCommandBatch::decode(envelope.payload.as_slice()) else {
+            continue;
+        };
+        // Proto ControlMode::POSITION = 4 (see marengo.proto).
+        let want_position = batch.mode == 4;
+        for joint in &batch.joints {
+            // Consul Wave: `wave:<joint>:<min>:<max>:<cycles>:<half_period_sec>`
+            // starts Berthier in-loop triangle (continuous; no endpoint holds).
+            if let Some(wave) = parse_testing_wave_command(&joint.name) {
+                match loop_ctrl.start_position_wave(
+                    wave.joint,
+                    wave.min_rad,
+                    wave.max_rad,
+                    wave.cycles,
+                    wave.half_period_sec,
+                ) {
+                    Ok(duration_sec) => {
+                        info!(
+                            joint = wave.joint,
+                            min_rad = wave.min_rad,
+                            max_rad = wave.max_rad,
+                            cycles = wave.cycles,
+                            half_period_sec = wave.half_period_sec,
+                            duration_sec,
+                            "testing position wave started"
+                        );
+                    }
+                    Err(e) => {
+                        warn!(
+                            joint = %joint.name,
+                            error = %e,
+                            "testing position wave rejected"
+                        );
+                    }
+                }
+                continue;
+            }
+            let has_gain = joint.kp != 0.0 || joint.kd != 0.0 || joint.ki != 0.0 || joint.fc != 0.0;
+            if has_gain {
+                loop_ctrl.apply_gain_override(
+                    &joint.name,
+                    GainOverride {
+                        kp: joint.kp,
+                        kd: joint.kd,
+                        ki: joint.ki,
+                        fc: joint.fc,
+                    },
+                );
+            } else {
+                // Use control.yaml impedance gains for Position mode.
+                loop_ctrl.clear_gain_override(&joint.name);
+            }
+            if want_position {
+                let result = if loop_ctrl.control_mode() == ControlMode::Position {
+                    loop_ctrl
+                        .set_joint_position_setpoint(joint.name.as_str(), joint.position)
+                        .and_then(|()| loop_ctrl.ensure_active_for_motion())
+                } else {
+                    loop_ctrl.enter_position_hold_at(Some(joint.name.as_str()), joint.position)
+                };
+                if let Err(e) = result {
+                    warn!(
+                        joint = %joint.name,
+                        position = joint.position,
+                        error = %e,
+                        "testing position hold rejected"
+                    );
+                }
+            }
+        }
+    }
+}
+
+struct TestingWaveCommand<'a> {
+    joint: &'a str,
+    min_rad: f64,
+    max_rad: f64,
+    cycles: u32,
+    half_period_sec: f64,
+}
+
+fn parse_testing_wave_command(name: &str) -> Option<TestingWaveCommand<'_>> {
+    let rest = name.strip_prefix("wave:")?;
+    let mut parts = rest.split(':');
+    let joint = parts.next()?;
+    let min_rad: f64 = parts.next()?.parse().ok()?;
+    let max_rad: f64 = parts.next()?.parse().ok()?;
+    let cycles: u32 = parts.next()?.parse().ok()?;
+    let half_period_sec: f64 = parts.next()?.parse().ok()?;
+    if parts.next().is_some() || joint.is_empty() || cycles == 0 || half_period_sec <= 0.0 {
+        return None;
+    }
+    Some(TestingWaveCommand {
+        joint,
+        min_rad,
+        max_rad,
+        cycles,
+        half_period_sec,
+    })
+}
+
 fn publish_safety(
     chappe: &Bus,
     mode: OperationalMode,
@@ -284,6 +449,55 @@ fn print_status(loop_ctrl: &mut ControlLoop<RuntimeBus>, config_dir: &Path) {
     }
 }
 
+fn preflight_gravity_saturation(loop_ctrl: &mut ControlLoop<RuntimeBus>) -> Result<(), ()> {
+    // Collect per-joint range + torque limit from the supervisor first, so the
+    // &mut supervisor borrow ends before we borrow loop_ctrl for the dynamics model.
+    let joint_names: Vec<String> = loop_ctrl.joint_names().to_vec();
+    let joint_specs: Vec<(String, usize, f64, f64, f64)> = {
+        let supervisor = loop_ctrl.supervisor_mut();
+        let motors = &supervisor.motors.motors;
+        joint_names
+            .iter()
+            .enumerate()
+            .filter_map(|(i, joint)| {
+                let motor = motors.iter().find(|m| &m.joint == joint)?;
+                let policy = supervisor.joint_limit_policy(joint)?;
+                Some((
+                    joint.clone(),
+                    i,
+                    motor.bench.position_lower_rad,
+                    motor.bench.position_upper_rad,
+                    policy.tau_ff_max,
+                ))
+            })
+            .collect()
+    };
+    let model = loop_ctrl.dynamics_model();
+    let mut saturated = false;
+    for (joint, i, q_min, q_max, motor_tau_limit) in &joint_specs {
+        let tau_max = max_gravity_torque_over_range(model, *i, *q_min, *q_max, 20).unwrap_or(0.0);
+        if tau_max > *motor_tau_limit {
+            error!(
+                joint = %joint,
+                tau_max, motor_tau_limit = *motor_tau_limit,
+                "gravity saturation: tau_g exceeds motor torque limit"
+            );
+            saturated = true;
+        } else if tau_max > 0.8 * *motor_tau_limit {
+            warn!(
+                joint = %joint,
+                tau_max, motor_tau_limit = *motor_tau_limit,
+                "gravity torque >80% of motor limit"
+            );
+        }
+    }
+    if saturated {
+        Err(())
+    } else {
+        Ok(())
+    }
+}
+
 fn handle_command(
     loop_ctrl: &mut ControlLoop<RuntimeBus>,
     cmd: PiCommand,
@@ -294,10 +508,16 @@ fn handle_command(
             Ok(()) => println!("homing verified → Ready"),
             Err(e) => eprintln!("home failed: {e}"),
         },
-        PiCommand::Enable { operator_id } => {
+        PiCommand::Enable { operator_id, force } => {
             if loop_ctrl.supervisor_mut().mode() != davout::OperationalMode::Ready {
                 if let Err(e) = loop_ctrl.supervisor_mut().set_homing_complete() {
                     eprintln!("enable blocked: {e}");
+                    return true;
+                }
+            }
+            if !force {
+                if let Err(()) = preflight_gravity_saturation(loop_ctrl) {
+                    eprintln!("enable refused: gravity saturation exceeds motor limit (use 'enable <operator> force' to override)");
                     return true;
                 }
             }
@@ -363,6 +583,22 @@ fn handle_command(
                 }
             }
             Err(e) => eprintln!("hold-at failed: {e}"),
+        },
+        PiCommand::Wave {
+            joint,
+            min_rad,
+            max_rad,
+            cycles,
+            half_period_sec,
+        } => match loop_ctrl.start_position_wave(&joint, min_rad, max_rad, cycles, half_period_sec)
+        {
+            Ok(duration_sec) => {
+                println!(
+                    "position wave → {joint} {min_rad:.4}↔{max_rad:.4} rad ×{cycles} (~{duration_sec:.2}s, operational={:?})",
+                    loop_ctrl.supervisor_mut().mode()
+                );
+            }
+            Err(e) => eprintln!("wave failed: {e}"),
         },
         PiCommand::HoldOff => {
             loop_ctrl.clear_position_hold();
@@ -488,6 +724,7 @@ fn main() {
     }
     let mut enable_rx = chappe.subscribe("robot/enable");
     let mut homing_rx = chappe.subscribe("robot/homing");
+    let mut testing_cmd_rx = chappe.subscribe("robot/testing/mit_command_batch");
 
     let shutdown = Arc::new(AtomicBool::new(false));
     let shutdown_flag = Arc::clone(&shutdown);
@@ -497,6 +734,12 @@ fn main() {
     .is_err()
     {
         eprintln!("failed to install ctrl-c handler");
+        std::process::exit(1);
+    }
+
+    #[cfg(unix)]
+    if signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&shutdown)).is_err() {
+        eprintln!("failed to install SIGTERM handler");
         std::process::exit(1);
     }
 
@@ -528,6 +771,7 @@ fn main() {
         cmd_rx: &cmd_rx,
         enable_rx: &mut enable_rx,
         homing_rx: &mut homing_rx,
+        testing_cmd_rx: &mut testing_cmd_rx,
         shutdown: &shutdown,
     };
     run_control_loop(&mut loop_ctrl, &mut runtime);
@@ -547,6 +791,7 @@ struct ControlLoopRuntime<'a> {
     cmd_rx: &'a Receiver<PiCommand>,
     enable_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     homing_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
+    testing_cmd_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     shutdown: &'a Arc<AtomicBool>,
 }
 
@@ -562,21 +807,29 @@ fn run_control_loop(loop_ctrl: &mut ControlLoop<RuntimeBus>, runtime: &mut Contr
     while !runtime.shutdown.load(Ordering::SeqCst) {
         let tick_start = Instant::now();
 
+        let t = tick_start;
         while let Ok(cmd) = runtime.cmd_rx.try_recv() {
             if !handle_command(loop_ctrl, cmd, runtime.config_dir) {
                 runtime.shutdown.store(true, Ordering::SeqCst);
                 break;
             }
         }
+        let (outer_stdin_us, t_next) = phase_elapsed_us(t);
 
         drain_chappe_commands(loop_ctrl, runtime.enable_rx, runtime.homing_rx);
+        let (outer_chappe_drain_us, _t) = phase_elapsed_us(t_next);
+        drain_testing_commands(loop_ctrl, runtime.testing_cmd_rx);
 
         active_fault = match loop_ctrl.tick(Some(runtime.chappe.as_ref())) {
             Ok(()) => None,
             Err(e) => {
                 error!(error = %e, "control tick failed");
                 let _ = loop_ctrl.supervisor_mut().disable_all();
-                loop_ctrl.set_control_mode(ControlMode::Disabled);
+                let preserve_position_hold =
+                    matches!(&e, LoopError::Safety(DavoutError::CommWatchdog { .. }));
+                if !preserve_position_hold {
+                    loop_ctrl.set_control_mode(ControlMode::Disabled);
+                }
                 Some(e.to_string())
             }
         };
@@ -586,6 +839,8 @@ fn run_control_loop(loop_ctrl: &mut ControlLoop<RuntimeBus>, runtime: &mut Contr
             elapsed,
             period,
             loop_ctrl.supervisor_mut().last_refresh_frame_count(),
+            outer_stdin_us,
+            outer_chappe_drain_us,
         );
 
         let now = Instant::now();
@@ -610,6 +865,12 @@ fn run_control_loop(loop_ctrl: &mut ControlLoop<RuntimeBus>, runtime: &mut Contr
     }
 }
 
+fn phase_elapsed_us(since: Instant) -> (u64, Instant) {
+    let now = Instant::now();
+    let us = u64::try_from(now.duration_since(since).as_micros()).unwrap_or(u64::MAX);
+    (us, now)
+}
+
 /// Wall-clock loop stats accumulated between 1 Hz heartbeats.
 struct LoopTimingWindow {
     window_start: Instant,
@@ -619,6 +880,8 @@ struct LoopTimingWindow {
     tick_elapsed_sum_us: u64,
     overruns: u32,
     refresh_frames_sum: u32,
+    outer_stdin_us_sum: u64,
+    outer_chappe_drain_us_sum: u64,
 }
 
 impl LoopTimingWindow {
@@ -631,10 +894,19 @@ impl LoopTimingWindow {
             tick_elapsed_sum_us: 0,
             overruns: 0,
             refresh_frames_sum: 0,
+            outer_stdin_us_sum: 0,
+            outer_chappe_drain_us_sum: 0,
         }
     }
 
-    fn record_tick(&mut self, elapsed: Duration, period: Duration, refresh_frames: usize) {
+    fn record_tick(
+        &mut self,
+        elapsed: Duration,
+        period: Duration,
+        refresh_frames: usize,
+        outer_stdin_us: u64,
+        outer_chappe_drain_us: u64,
+    ) {
         self.iterations += 1;
         let us = u64::try_from(elapsed.as_micros()).unwrap_or(u64::MAX);
         self.tick_elapsed_sum_us = self.tick_elapsed_sum_us.saturating_add(us);
@@ -645,9 +917,13 @@ impl LoopTimingWindow {
         self.refresh_frames_sum = self
             .refresh_frames_sum
             .saturating_add(u32::try_from(refresh_frames).unwrap_or(u32::MAX));
+        self.outer_stdin_us_sum = self.outer_stdin_us_sum.saturating_add(outer_stdin_us);
+        self.outer_chappe_drain_us_sum = self
+            .outer_chappe_drain_us_sum
+            .saturating_add(outer_chappe_drain_us);
     }
 
-    fn log_and_reset(&mut self, loop_ctrl: &ControlLoop<RuntimeBus>) {
+    fn log_and_reset(&mut self, loop_ctrl: &mut ControlLoop<RuntimeBus>) {
         let wall_s = self.window_start.elapsed().as_secs_f64();
         if wall_s <= f64::EPSILON || self.iterations == 0 {
             *self = Self::new(loop_ctrl.tick_count());
@@ -656,6 +932,8 @@ impl LoopTimingWindow {
         let wall_hz = f64::from(self.iterations) / wall_s;
         let avg_us = self.tick_elapsed_sum_us / u64::from(self.iterations);
         let nominal_ticks = loop_ctrl.tick_count().saturating_sub(self.tick_count_start);
+        let outer_stdin_avg_us = self.outer_stdin_us_sum / u64::from(self.iterations);
+        let outer_chappe_drain_avg_us = self.outer_chappe_drain_us_sum / u64::from(self.iterations);
         debug!(
             configured_hz = loop_ctrl.configured_loop_hz(),
             wall_hz,
@@ -664,10 +942,36 @@ impl LoopTimingWindow {
             tick_elapsed_max_us = self.tick_elapsed_max_us,
             overruns = self.overruns,
             refresh_frames_per_sec = f64::from(self.refresh_frames_sum) / wall_s,
+            outer_stdin_avg_us,
+            outer_chappe_drain_avg_us,
             "loop timing"
         );
+        if let Some(phase) = loop_ctrl.take_tick_phase_averages() {
+            log_tick_phase_averages(phase);
+        }
         *self = Self::new(loop_ctrl.tick_count());
     }
+}
+
+fn log_tick_phase_averages(phase: TickPhaseAverages) {
+    let accounted = phase.feedback_us
+        + phase.gravity_us
+        + phase.planner_us
+        + phase.compose_us
+        + phase.send_us
+        + phase.chappe_us;
+    debug!(
+        phase_ticks = phase.ticks,
+        feedback_us = phase.feedback_us,
+        gravity_us = phase.gravity_us,
+        planner_us = phase.planner_us,
+        compose_us = phase.compose_us,
+        trace_us = phase.trace_us,
+        send_us = phase.send_us,
+        chappe_us = phase.chappe_us,
+        accounted_us = accounted,
+        "tick phase timing"
+    );
 }
 
 fn debug_status(loop_ctrl: &mut ControlLoop<RuntimeBus>, timing: &mut LoopTimingWindow) {

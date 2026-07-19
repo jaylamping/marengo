@@ -26,7 +26,7 @@ Readonly reviewer for URDF, joint axes, limits, and config alignment.
 - URDF mesh paths resolve, visual/collision geometry present
 - `armee-kinematics` crate: FK/IK results within tolerance of analytical model
 
-## mem0
+## OpenSpec
 
 - Per change: `feasibility/{change}/expert/kinematics`
 - Heuristics: `expert/kinematics/{slug}`

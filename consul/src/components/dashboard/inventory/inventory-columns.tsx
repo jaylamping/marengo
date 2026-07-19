@@ -1,6 +1,5 @@
 import type { ColumnDef } from '@tanstack/react-table';
 
-import { DragHandle } from '@/components/dashboard/inventory/cells/drag-handle';
 import { EditableFieldCell } from '@/components/dashboard/inventory/cells/editable-field-cell';
 import { InventoryNameCell } from '@/components/dashboard/inventory/cells/inventory-name-cell';
 import { InventoryStatusCell } from '@/components/dashboard/inventory/cells/inventory-status-cell';
@@ -11,11 +10,6 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 
 export const inventoryColumns: ColumnDef<InventoryRow>[] = [
-  {
-    id: 'drag',
-    header: () => null,
-    cell: ({ row }) => <DragHandle id={row.original.id} />,
-  },
   {
     id: 'select',
     header: ({ table }) => (

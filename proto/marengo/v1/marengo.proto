@@ -20,6 +20,8 @@ message JointState {
   double position = 2;
   double velocity = 3;
   double effort = 4;
+  float temperature_c = 5;  // motor casing temperature (°C)
+  uint32 fault = 6;         // Robstride fault bitmask
 }
 
 message RobotState {
@@ -118,6 +120,8 @@ message MitJointCommand {
   double position = 4;
   double velocity = 5;
   double torque_ff = 6;
+  double ki = 7;  // integral gain (Testing page)
+  double fc = 8;  // Coulomb friction compensation (Testing page)
 }
 
 message MitCommandBatch {
@@ -347,4 +351,110 @@ message CandumpSummary {
   double approx_hz = 4;
   repeated string interfaces = 5;
   repeated string top_ids = 6;
+}
+
+// --- Actuator harness (Consul / gateway / Pi overlay) ---
+
+message SessionStartRequest {
+  uint64 timestamp_ms = 1;
+  string operator_id = 2;
+}
+
+message SessionStartResponse {
+  string session_id = 1;
+  uint64 started_ms = 2;
+}
+
+message OperatorCommand {
+  uint64 timestamp_ms = 1;
+  string session_id = 2;
+  string operator_id = 3;
+  uint64 seq = 4;
+  ActuatorCommand command = 5;
+}
+
+message ActuatorCommand {
+  string joint = 1;
+  oneof payload {
+    TuningChange tuning = 10;
+    ModeChange mode = 11;
+    JogCommand jog = 12;
+    HoldCommand hold = 13;
+    PresetCommand preset = 14;
+    EnableChange enable = 15;
+  }
+}
+
+enum TuningTier {
+  TUNING_TIER_UNSPECIFIED = 0;
+  TUNING_TIER_RUNTIME_MIT = 1;
+  TUNING_TIER_CONFIG_OVERLAY = 2;
+  TUNING_TIER_FIRMWARE = 3;
+}
+
+message TuningChange {
+  TuningTier tier = 1;
+  string param = 2;
+  double value = 3;
+  bool persist = 4;
+}
+
+message ModeChange {
+  ControlMode mode = 1;
+}
+
+message JogCommand {
+  double delta_rad = 1;
+}
+
+message HoldCommand {
+  bool engage = 1;
+  double position_rad = 2;
+}
+
+message PresetCommand {
+  string preset_id = 1;
+}
+
+message EnableChange {
+  bool enable = 1;
+}
+
+message TuningChangeEvent {
+  uint64 timestamp_ms = 1;
+  string session_id = 2;
+  string operator_id = 3;
+  string joint = 4;
+  TuningTier tier = 5;
+  string param = 6;
+  double before = 7;
+  double after = 8;
+  bool persist = 9;
+}
+
+message ActionEvent {
+  uint64 timestamp_ms = 1;
+  string session_id = 2;
+  string operator_id = 3;
+  string joint = 4;
+  string action = 5;
+  uint64 revision = 6;
+  bool accepted = 7;
+  string reject_reason = 8;
+}
+
+message JointActuatorLimit {
+  string joint = 1;
+  double kp_max = 2;
+  double kd_max = 3;
+  double velocity_max_rad_s = 4;
+  double tau_ff_max_nm = 5;
+  double pos_lower_rad = 6;
+  double pos_upper_rad = 7;
+  bool wired = 8;
+}
+
+message ActuatorLimitSnapshot {
+  uint64 timestamp_ms = 1;
+  repeated JointActuatorLimit joints = 2;
 }

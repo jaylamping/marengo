@@ -10,7 +10,7 @@ type UsageBarProps = {
 
 function getFillClass(value: number): string {
   if (value >= 85) {
-    return 'bg-amber-500';
+    return 'bg-warning';
   }
 
   if (value >= 70) {

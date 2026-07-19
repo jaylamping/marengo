@@ -2,6 +2,8 @@ use std::path::Path;
 
 use armee_proto::prost::Message;
 use armee_proto::EnableRequest;
+use armee_proto::HomingComplete;
+use armee_proto::MitCommandBatch;
 use axum::{
     body::Body,
     extract::{Query, State},
@@ -16,6 +18,8 @@ use tokio_util::io::ReaderStream;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
 
+use crate::actuator;
+use crate::config;
 use crate::framing::{self, CHAPPE_STREAM_CONTENT_TYPE};
 use crate::logs;
 use crate::state::{filter_topics, SharedState};
@@ -72,6 +76,10 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
             "/snapshot/host/metrics/jetson",
             get(snapshot_host_metrics_jetson),
         )
+        .route(
+            "/snapshot/actuator/limits",
+            get(actuator::snapshot_actuator_limits),
+        )
         .route("/snapshot/logs/recent", get(logs::snapshot_logs_recent))
         .route("/logs/sessions", get(logs::list_sessions))
         .route("/logs/sessions/latest/candump", get(logs::latest_candump))
@@ -85,7 +93,12 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
         .route("/logs/sessions/{id}/download", get(logs::session_download))
         .route("/logs/structured", get(logs::structured_logs))
         .route("/settings", get(logs::get_settings))
+        .route("/config/snapshot", get(config::get_config_snapshot))
+        .route("/config/patch", post(config::post_config_patch))
         .route("/command/enable", post(command_enable))
+        .route("/command/testing_mit", post(command_testing_mit))
+        .route("/command/home", post(command_home))
+        .route("/command/actuator", post(actuator::command_actuator))
         .layer(cors)
         .with_state(state);
 
@@ -218,6 +231,46 @@ async fn command_enable(
             "robot/enable",
             "consul",
             "marengo.v1.EnableRequest",
+            payload,
+        )
+        .map_err(|e| (StatusCode::BAD_GATEWAY, e))?;
+    Ok(Json(OkResponse { ok: true }))
+}
+
+async fn command_testing_mit(
+    State(state): State<SharedState>,
+    body: axum::body::Bytes,
+) -> Result<Json<OkResponse>, (StatusCode, String)> {
+    let request = MitCommandBatch::decode(body.as_ref())
+        .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
+    let payload = request.encode_to_vec();
+    state
+        .publish_command_envelope(
+            "robot/testing/mit_command_batch",
+            "consul",
+            "marengo.v1.MitCommandBatch",
+            payload,
+        )
+        .map_err(|e| (StatusCode::BAD_GATEWAY, e))?;
+    Ok(Json(OkResponse { ok: true }))
+}
+
+async fn command_home(
+    State(state): State<SharedState>,
+) -> Result<Json<OkResponse>, (StatusCode, String)> {
+    let request = HomingComplete {
+        timestamp_ms: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64,
+        node_id: "consul".into(),
+    };
+    let payload = request.encode_to_vec();
+    state
+        .publish_command_envelope(
+            "robot/homing",
+            "consul",
+            "marengo.v1.HomingComplete",
             payload,
         )
         .map_err(|e| (StatusCode::BAD_GATEWAY, e))?;

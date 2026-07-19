@@ -22,7 +22,7 @@ export function wrapRemote(cfg: MarengoPiConfig, body: string, debug = false): s
   return `${remotePreamble(cfg, debug)}\n${body}`;
 }
 
-/** Remote script with optional config-dir override (e.g. shoulder_pitch_right_only). */
+/** Remote script with optional config-dir override (e.g. arm_2dof_right). */
 export function wrapRemoteWithConfig(
   cfg: MarengoPiConfig,
   body: string,

@@ -29,11 +29,11 @@ impl PositionTrace {
         let period_ticks = (u64::from(loop_hz.max(1)) / u64::from(trace_hz.max(1))).max(1);
         let file = OpenOptions::new().create(true).append(true).open(path)?;
         let is_new = file.metadata().map(|m| m.len() == 0).unwrap_or(true);
-        let mut writer = BufWriter::new(file);
+        let mut writer = BufWriter::with_capacity(512 * 1024, file);
         if is_new {
             writeln!(
                 writer,
-                "tick,t_ms,joint,q,dq,q_traj,dq_traj,q_des,target,target_raw,q_env_lo,q_env_hi,lead,lead_sat,settle_error,phase,friction_mode,tau_p,tau_g,tau_f,tau_d,tau_ff_cmd,tau_meas,dq_mit,kp,kd,joint_stuck,planner_frozen"
+                "tick,t_ms,joint,q,dq,q_traj,dq_traj,q_des,target,target_raw,q_env_lo,q_env_hi,lead,lead_sat,settle_error,phase,friction_mode,tau_p,tau_g,tau_f,tau_d,tau_ff_cmd,tau_meas,dq_mit,kp,kd,joint_stuck,planner_frozen,retarget_age_ms,planner_event"
             )?;
         }
         log_trace_enabled_once(path);
@@ -57,6 +57,7 @@ impl PositionTrace {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn flush(&mut self) -> std::io::Result<()> {
         self.writer.flush()
     }
@@ -90,12 +91,14 @@ pub struct PositionTraceRow<'a> {
     pub kd: f64,
     pub joint_stuck: bool,
     pub planner_frozen: bool,
+    pub retarget_age_ms: u64,
+    pub planner_event: &'a str,
 }
 
 impl PositionTraceRow<'_> {
     pub fn format_csv_with_meta(&self, tick: u64, t_ms: u64) -> String {
         format!(
-            "{tick},{t_ms},{joint},{q:.6},{dq:.6},{q_traj:.6},{dq_traj:.6},{q_des:.6},{target:.6},{target_raw:.6},{q_env_lo:.6},{q_env_hi:.6},{lead:.6},{lead_sat},{settle_error:.6},{phase},{friction_mode},{tau_p:.6},{tau_g:.6},{tau_f:.6},{tau_d:.6},{tau_ff_cmd:.6},{tau_meas:.6},{dq_mit:.6},{kp:.3},{kd:.3},{joint_stuck},{planner_frozen}",
+            "{tick},{t_ms},{joint},{q:.6},{dq:.6},{q_traj:.6},{dq_traj:.6},{q_des:.6},{target:.6},{target_raw:.6},{q_env_lo:.6},{q_env_hi:.6},{lead:.6},{lead_sat},{settle_error:.6},{phase},{friction_mode},{tau_p:.6},{tau_g:.6},{tau_f:.6},{tau_d:.6},{tau_ff_cmd:.6},{tau_meas:.6},{dq_mit:.6},{kp:.3},{kd:.3},{joint_stuck},{planner_frozen},{retarget_age_ms},{planner_event}",
             tick = tick,
             t_ms = t_ms,
             joint = csv_escape(self.joint),
@@ -124,6 +127,8 @@ impl PositionTraceRow<'_> {
             kd = self.kd,
             joint_stuck = if self.joint_stuck { 1 } else { 0 },
             planner_frozen = if self.planner_frozen { 1 } else { 0 },
+            retarget_age_ms = self.retarget_age_ms,
+            planner_event = csv_escape(self.planner_event),
         )
     }
 }
@@ -182,11 +187,13 @@ mod tests {
             kd: 1.0,
             joint_stuck: true,
             planner_frozen: false,
+            retarget_age_ms: 42,
+            planner_event: "tick",
         };
         let line = row.format_csv_with_meta(42, 1234);
         assert!(line.starts_with("42,1234,right_shoulder_pitch,"));
         assert!(line.contains(",1.740000,1.500000,0.120000,"));
         assert!(line.contains(",Cruise,traj_vel,"));
-        assert!(line.ends_with(",1,0"));
+        assert!(line.ends_with(",1,0,42,tick"));
     }
 }

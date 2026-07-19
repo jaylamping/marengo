@@ -7,43 +7,29 @@
         "SOLIDWORKS_MCP_ALLOWED_ROOTS": "${workspaceFolder}"
       }
     },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "--package=@upstash/context7-mcp@2.2.5", "--", "context7-mcp"]
+    },
     "marengo-pi": {
       "command": "node",
       "args": ["${workspaceFolder}/tools/marengo-pi-mcp/dist/index.js"],
       "env": {
-        "MARENGO_PI_HOST": "joey-robot.tail0b414.ts.net",
+        "MARENGO_PI_HOST": "marengo.local",
         "MARENGO_PI_USER": "joey",
         "MARENGO_PI_ROOT": "/opt/marengo",
-        "MARENGO_CONFIG_DIR": "/opt/marengo/config/bringup/shoulder_pitch_right_only",
-        "MARENGO_BENCH_PROFILE": "bare_motor"
+        "MARENGO_CONFIG_DIR": "/opt/marengo/config/bringup/arm_2dof_right",
+        "MARENGO_BENCH_PROFILE": "bare_motor",
+        "SSH_IDENTITY_FILE": "/home/joey/.ssh/id_ed25519_marengo"
       }
     },
     "marengo-research": {
-      "command": "powershell",
-      "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "${workspaceFolder}/tools/marengo-research-mcp/run-mcp.ps1"
-      ],
+      "command": "bash",
+      "args": ["${workspaceFolder}/tools/marengo-research-mcp/run-mcp.sh"],
       "env": {
         "MARENGO_RESEARCH_CACHE_DIR": "${workspaceFolder}/.marengo-research",
         "MARENGO_WORKSPACE": "${workspaceFolder}"
       }
-    },
-    "mem0": {
-      "command": "node",
-      "args": ["${workspaceFolder}/tools/mem0-mcp/dist/index.js"],
-      "env": {
-        "MEM0_API_URL": "https://joey-pc.tail0b414.ts.net:8888",
-        "MEM0_API_KEY": "${env:MEM0_API_KEY}",
-        "MEM0_USER_ID": "marengo-joey"
-      }
-    },
-    "context7": {
-      "command": "npx",
-      "args": ["-y", "--package=@upstash/context7-mcp@2.2.5", "--", "context7-mcp"]
     }
   }
 }

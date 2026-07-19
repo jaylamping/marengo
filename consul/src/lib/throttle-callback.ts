@@ -35,3 +35,20 @@ export function throttleTrailing<T extends (...args: never[]) => void>(
     }
   };
 }
+
+/** Trailing debounce: emit once after `waitMs` quiet time; last args win. */
+export function debounceTrailing<T extends (...args: never[]) => void>(
+  fn: T,
+  waitMs: number,
+): (...args: Parameters<T>) => void {
+  let timer: number | undefined;
+  return (...args: Parameters<T>) => {
+    if (timer !== undefined) {
+      window.clearTimeout(timer);
+    }
+    timer = window.setTimeout(() => {
+      timer = undefined;
+      fn(...args);
+    }, waitMs);
+  };
+}

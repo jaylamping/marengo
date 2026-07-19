@@ -3,22 +3,22 @@ import { dashboardPanelPointerClassName } from '@/components/dashboard/layout/co
 /** Re-enable pointer events on interactive simulation panels (Strategy C). */
 export const simOverviewShellClassName = dashboardPanelPointerClassName;
 
-/** Glass card variant for data-tier shells (tables, metrics, session). */
-export const simDataShellVariant = 'glass' as const;
+/** Panel card variant for data-tier shells (tables, metrics, session). */
+export const simDataShellVariant = 'panel' as const;
 
-/** Glass card variant for hero-tier surfaces (viewport placeholder). */
-export const simHeroShellVariant = 'glass' as const;
+/** Panel card variant for hero-tier surfaces (viewport placeholder). */
+export const simHeroShellVariant = 'panel' as const;
 
-/** Chrome tier — full blur + border for the transport control bar. */
+/** Chrome tier — opaque panel for the transport control bar. */
 export const simControlBarClassName =
-  'flex flex-wrap items-center gap-2 rounded-lg border border-white/20 [border-top-color:var(--glass-refraction-top)] bg-[var(--glass-2-surface)] px-4 py-3 backdrop-blur-xl backdrop-saturate-[180%] shadow-[0_0_0_1px_rgb(255_255_255_/_0.1)_inset,var(--shadow-glass-sm)] pointer-events-auto';
+  'flex flex-wrap items-center gap-2 rounded-lg border border-line bg-surface-1 px-4 py-3 shadow-[0_8px_24px_rgb(0_0_0/0.3)] pointer-events-auto';
 
-/** Data tier — opaque table rows inside a glass shell. */
-export const simTableRowClassName = 'bg-card/95 hover:bg-card';
+/** Data tier — opaque table rows inside a panel shell. */
+export const simTableRowClassName = 'bg-surface-0 hover:bg-surface-1';
 
-/** Data tier — opaque event log well inside a glass shell. */
+/** Data tier — opaque event log well inside a panel shell. */
 export const simEventLogWellClassName =
-  'max-h-48 space-y-2 overflow-y-auto rounded-md border bg-card/95 p-3 font-mono text-xs';
+  'max-h-48 space-y-2 overflow-y-auto rounded-md border border-line bg-surface-0 p-3 font-mono text-xs';
 
-/** Glass card shell for session/metrics cards using DashboardCardShell. */
+/** Panel card shell for session/metrics cards using DashboardCardShell. */
 export const simDashboardCardShellClassName = dashboardPanelPointerClassName;

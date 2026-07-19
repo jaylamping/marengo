@@ -81,7 +81,7 @@ pub fn build_product_id_request() -> [u8; 2] {
 pub fn report_payload_length(report_id: u8) -> Option<usize> {
     match report_id {
         REPORT_ACCELEROMETER | REPORT_GYROSCOPE => Some(10),
-        REPORT_ROTATION_VECTOR => Some(14),
+        REPORT_ROTATION_VECTOR => Some(12),
         REPORT_TIMESTAMP_REBASE | REPORT_BASE_TIMESTAMP => Some(5),
         0x14..=0x16 => Some(16), // raw accel / gyro / mag
         GET_FEATURE_RESPONSE => Some(17),
@@ -106,10 +106,9 @@ pub fn split_batch_reports(data: &[u8]) -> Result<Vec<&[u8]>, String> {
             break;
         };
         if index + required > data.len() {
-            return Err(format!(
-                "incomplete report {report_id:#04x}: need {required} bytes, have {}",
-                data.len() - index
-            ));
+            // Truncated report at end of batch — common with plain I2C reads.
+            // Discard the partial report; complete reports are still returned.
+            break;
         }
         slices.push(&data[index..index + required]);
         index += required;
@@ -117,15 +116,21 @@ pub fn split_batch_reports(data: &[u8]) -> Result<Vec<&[u8]>, String> {
     Ok(slices)
 }
 
+/// Parse a rotation vector report. The standard BNO085 rotation vector report is
+/// 14 bytes (id + status + 4×i16 quaternion + accuracy + u16 timestamp), but some
+/// firmware variants omit the 2-byte timestamp, producing 12 bytes. Parse a 12-byte
+/// minimum; the timestamp field is optional.
 pub fn parse_rotation_vector(report: &[u8]) -> Option<(f64, f64, f64, f64, u8)> {
-    if report.first().copied()? != REPORT_ROTATION_VECTOR || report.len() < 14 {
+    if report.first().copied()? != REPORT_ROTATION_VECTOR || report.len() < 12 {
         return None;
     }
+    // report[1] is status (unused in default BNO085 mode)
     let accuracy = report[2];
     let i = i16::from_le_bytes([report[4], report[5]]) as f64 * Q_POINT_14_SCALAR;
     let j = i16::from_le_bytes([report[6], report[7]]) as f64 * Q_POINT_14_SCALAR;
     let k = i16::from_le_bytes([report[8], report[9]]) as f64 * Q_POINT_14_SCALAR;
     let real = i16::from_le_bytes([report[10], report[11]]) as f64 * Q_POINT_14_SCALAR;
+    // bytes 12-13 are the optional u16 timestamp — ignored here
     Some((i, j, k, real, accuracy))
 }
 
@@ -195,12 +200,12 @@ mod tests {
 
     #[test]
     fn split_batch_two_reports() {
-        let mut data = vec![0u8; 24];
+        let mut data = vec![0u8; 22];
         data[0] = REPORT_ROTATION_VECTOR;
-        data[14] = REPORT_GYROSCOPE;
+        data[12] = REPORT_GYROSCOPE;
         let slices = split_batch_reports(&data).expect("split");
         assert_eq!(slices.len(), 2);
-        assert_eq!(slices[0].len(), 14);
+        assert_eq!(slices[0].len(), 12);
         assert_eq!(slices[1].len(), 10);
     }
 
@@ -213,7 +218,7 @@ mod tests {
         assert_eq!(slices.len(), 2);
         assert_eq!(slices[0].len(), 5);
         assert_eq!(slices[0][0], REPORT_BASE_TIMESTAMP);
-        assert_eq!(slices[1].len(), 14);
+        assert_eq!(slices[1].len(), 12);
         assert_eq!(slices[1][0], REPORT_ROTATION_VECTOR);
     }
 

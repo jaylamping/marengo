@@ -1,6 +1,11 @@
 @import 'tailwindcss';
-@import "tw-animate-css";
-@import "@fontsource-variable/inter";
+@import 'tw-animate-css';
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/500.css';
+@import '@fontsource/ibm-plex-sans/600.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+@import '@fontsource/ibm-plex-mono/600.css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -35,31 +40,94 @@
     @apply font-sans;
   }
 
-  :root {
-    --glass-bg: oklch(from var(--card) l c h / 0.55);
-    --glass-border: oklch(from var(--border) l c h / 0.35);
-    --glass-highlight: oklch(from var(--foreground) l c h / 0.12);
-    --glass-blur: 16px;
-    --glass-shadow: 0 8px 24px oklch(0 0 0 / 0.35);
-    --glass-refraction-top: oklch(from var(--foreground) l c h / 0.18);
-    --glass-1-surface: oklch(from var(--card) l c h / 0.45);
-    --glass-2-surface: oklch(from var(--card) l c h / 0.55);
-    --glass-3-surface: oklch(from var(--card) l c h / 0.65);
-    --glass-4-surface: oklch(from var(--card) l c h / 0.75);
-    --shadow-glass-sm: var(--glass-shadow);
-    --shadow-glass-md: 0 12px 32px oklch(0 0 0 / 0.4);
-    --color-surface: var(--card);
-    --color-foreground: var(--foreground);
-    --color-border: var(--border);
-    --color-accent: var(--primary);
-    --color-accent-foreground: var(--primary-foreground);
-    --color-background: var(--background);
+  ::selection {
+    background: oklch(0.82 0.155 78 / 0.28);
   }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--surface-3) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: var(--surface-3);
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+/* Consul "Launch Day" tokens — dark-only operator console.
+   Amber phosphor is the single chromatic accent: armed / caution / active / focus.
+   Glow is semantic only: armed (accent), fault (red), live-link (ok LED). */
+:root {
+  --background: oklch(0.145 0.006 260);
+  --foreground: oklch(0.92 0.004 260);
+  --faint: oklch(0.5 0.005 260);
+
+  --surface-0: oklch(0.165 0.007 260);
+  --surface-1: oklch(0.185 0.008 260);
+  --surface-2: oklch(0.215 0.009 260);
+  --surface-3: oklch(0.25 0.01 260);
+
+  --card: var(--surface-1);
+  --card-foreground: var(--foreground);
+  --popover: var(--surface-2);
+  --popover-foreground: var(--foreground);
+
+  --primary: oklch(0.82 0.155 78);
+  --primary-foreground: oklch(0.16 0.02 80);
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--foreground);
+  --muted: var(--surface-2);
+  --muted-foreground: oklch(0.62 0.005 260);
+  --accent: oklch(0.82 0.155 78);
+  --accent-foreground: oklch(0.16 0.02 80);
+  --accent-dim: oklch(0.62 0.11 78);
+  --accent-glow: oklch(0.82 0.155 78 / 0.4);
+
+  --ok: oklch(0.78 0.16 160);
+  --warning: var(--accent);
+  --fault: oklch(0.66 0.22 25);
+  --destructive: var(--fault);
+  --destructive-foreground: oklch(0.98 0.005 260);
+  --info: oklch(0.78 0.11 210);
+
+  --line: oklch(0.95 0.005 260 / 0.08);
+  --line-strong: oklch(0.95 0.005 260 / 0.14);
+  --border: var(--line);
+  --input: oklch(0.95 0.005 260 / 0.12);
+  --ring: var(--accent);
+
+  --chart-1: var(--accent);
+  --chart-2: var(--info);
+  --chart-3: var(--ok);
+  --chart-4: oklch(0.62 0.01 260);
+  --chart-5: oklch(0.7 0.15 330);
+
+  --radius: 0.25rem;
+
+  --sidebar: var(--surface-1);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--accent);
+  --sidebar-primary-foreground: var(--accent-foreground);
+  --sidebar-accent: var(--surface-2);
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: var(--line);
+  --sidebar-ring: var(--accent);
+
+  --glow-accent: 0 0 12px oklch(0.82 0.155 78 / 0.35), 0 0 2px oklch(0.82 0.155 78 / 0.5);
+  --glow-fault: 0 0 12px oklch(0.66 0.22 25 / 0.4), 0 0 2px oklch(0.66 0.22 25 / 0.55);
+  --glow-ok: 0 0 8px oklch(0.78 0.16 160 / 0.35);
 }
 
 @theme inline {
   --font-heading: var(--font-sans);
-  --font-sans: 'Inter Variable', sans-serif;
+  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -76,7 +144,16 @@
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-ok: var(--ok);
+  --color-warning: var(--warning);
+  --color-fault: var(--fault);
+  --color-info: var(--info);
+  --color-accent-dim: var(--accent-dim);
+  --color-accent-glow: var(--accent-glow);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -89,13 +166,16 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-surface-0: var(--surface-0);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-faint: var(--faint);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
-  --color-glass-bg: var(--glass-bg);
-  --color-glass-border: var(--glass-border);
-  --color-glass-highlight: var(--glass-highlight);
-  --color-glass-blur: var(--glass-blur);
-  --color-glass-shadow: var(--glass-shadow);
+  --shadow-glow-accent: var(--glow-accent);
+  --shadow-glow-fault: var(--glow-fault);
+  --shadow-glow-ok: var(--glow-ok);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -105,82 +185,100 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-:root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
-
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
-}
-
 @layer components {
+  /* Tracked uppercase instrument legend (panel titles, field labels). */
+  .micro-label {
+    @apply font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground;
+  }
+
+  /* Tabular mono readout — every number that reflects machine state. */
+  .data-value {
+    @apply font-mono tabular-nums;
+  }
+
+  /* Corner brackets — semantic only: surfaces that act on hardware.
+     Never decorative. Override hue via .panel-brackets-fault. */
+  .panel-brackets {
+    --_bracket: var(--accent);
+    background-image:
+      linear-gradient(var(--_bracket), var(--_bracket)),
+      linear-gradient(var(--_bracket), var(--_bracket)),
+      linear-gradient(var(--_bracket), var(--_bracket)),
+      linear-gradient(var(--_bracket), var(--_bracket)),
+      linear-gradient(var(--_bracket), var(--_bracket)),
+      linear-gradient(var(--_bracket), var(--_bracket)),
+      linear-gradient(var(--_bracket), var(--_bracket)),
+      linear-gradient(var(--_bracket), var(--_bracket));
+    background-repeat: no-repeat;
+    background-size:
+      8px 1px, 1px 8px,
+      8px 1px, 1px 8px,
+      8px 1px, 1px 8px,
+      8px 1px, 1px 8px;
+    background-position:
+      top left, top left,
+      top right, top right,
+      bottom left, bottom left,
+      bottom right, bottom right;
+  }
+
+  .panel-brackets-fault {
+    --_bracket: var(--fault);
+  }
+
+  /* Square status LEDs — the only always-on glow in the app. */
+  .led {
+    @apply inline-block size-1.5 shrink-0;
+    background: var(--muted-foreground);
+  }
+  .led-ok {
+    background: var(--ok);
+    box-shadow: 0 0 6px oklch(0.78 0.16 160 / 0.6);
+  }
+  .led-accent {
+    background: var(--accent);
+    box-shadow: 0 0 6px var(--accent-glow);
+  }
+  .led-fault {
+    background: var(--fault);
+    box-shadow: var(--glow-fault);
+  }
+  .led-live {
+    animation: led-pulse 2.4s ease-in-out infinite;
+  }
+
+  /* Single atmosphere layer: edge vignette. No grain, no scanlines. */
+  .app-vignette {
+    position: fixed;
+    inset: 0;
+    z-index: 45;
+    pointer-events: none;
+    background: radial-gradient(
+      ellipse at 50% 45%,
+      transparent 55%,
+      rgb(0 0 0 / 0.38) 100%
+    );
+  }
+
   .cn-toast {
-    backdrop-filter: blur(var(--glass-blur));
-    -webkit-backdrop-filter: blur(var(--glass-blur));
-    border-top-color: var(--glass-refraction-top) !important;
-    box-shadow:
-      0 0 0 1px rgb(255 255 255 / 0.1) inset,
-      var(--shadow-glass-sm);
+    background: var(--surface-2) !important;
+    border-color: var(--line-strong) !important;
+    box-shadow: 0 8px 24px rgb(0 0 0 / 0.5);
+  }
+}
+
+@keyframes led-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .led-live {
+    animation: none;
   }
 }

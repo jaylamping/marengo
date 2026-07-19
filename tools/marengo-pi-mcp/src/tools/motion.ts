@@ -8,12 +8,18 @@ const motionConfirmSchema = z.object({
   confirm: z.literal(true),
   confirm_weighted_motion: z.literal(true).optional(),
   profile: z
-    .enum(["bare_motor", "weighted_single_arm", "arm_attached"])
+    .enum([
+      "bare_motor",
+      "weighted_single_arm",
+      "arm_attached",
+      "roll_attached",
+      "arm_2dof_smoke",
+    ])
     .optional(),
 });
 
 const BENCH_CONFIG_RIGHT =
-  "/opt/marengo/config/bringup/shoulder_pitch_right_only";
+  "/opt/marengo/config/bringup/arm_2dof_right";
 const BENCH_CONFIG_LEFT =
   "/opt/marengo/config/bringup/shoulder_pitch_left_only";
 
@@ -173,6 +179,7 @@ const benchLogWrapper = (
     'LOG="$LOGDIR/bench-$TS.log"',
     'TRACE="$LOGDIR/position-trace-$TS.csv"',
     'export MARENGO_POSITION_TRACE="$TRACE"',
+    'export MARENGO_POSITION_TRACE_HZ="${MARENGO_POSITION_TRACE_HZ:-50}"',
     'export MARENGO_LOG_SESSION_ID="$TS"',
     `LABEL=${shellQuote(label)}`,
     marengoPiPkillLine(cfg),
@@ -260,6 +267,24 @@ export function scriptSleepTotalSec(script: string[]): number {
   return total;
 }
 
+/** After each `wave` line, insert a sleep for in-loop wave duration (+ slack). */
+export function expandScriptWithWaveWaits(script: string[]): string[] {
+  const out: string[] = [];
+  for (const line of script) {
+    out.push(line);
+    const waveMatch =
+      /^wave\s+\S+\s+[\d.]+\s+[\d.]+\s+(\d+)(?:\s+([\d.]+))?\s*$/i.exec(line.trim());
+    if (waveMatch) {
+      const cycles = Number(waveMatch[1]);
+      const halfPeriod =
+        waveMatch[2] !== undefined ? Number(waveMatch[2]) : 0.4;
+      const waitSec = Math.ceil((cycles * 2 * halfPeriod + 0.15) * 10) / 10;
+      out.push(`sleep ${waitSec}`);
+    }
+  }
+  return out;
+}
+
 /** Total pipe timeout passed to `timeout(1) marengo-pi`. */
 export function marengoPiPipeTimeoutSec(
   _script: string[],
@@ -295,12 +320,15 @@ function marengoPiTimedPipe(
   script: string[],
   dwellSec: number,
   returnHomeSec: number,
+  returnJoint?: string,
   binary = "$PI_BIN",
 ): string {
+  const returnHold =
+    returnJoint !== undefined ? `hold-at ${returnJoint} 0` : "hold-at 0";
   const commandLines = [
     ...script.map((l) => `printf '%s\\n' ${JSON.stringify(l)};`),
     `sleep ${dwellSec};`,
-    `printf '%s\\n' "hold-at 0";`,
+    `printf '%s\\n' ${JSON.stringify(returnHold)};`,
     `sleep ${returnHomeSec};`,
     `printf '%s\\n' "status";`,
     `printf '%s\\n' "disable";`,
@@ -337,13 +365,16 @@ function holdSessionRemoteBody(
   }
   lines.push(marengoPiBinarySelector(cfg));
   const holdLine =
-    args.positionRad !== undefined ? `hold-at ${args.positionRad}` : "hold-on";
+    args.positionRad !== undefined
+      ? `hold-at ${args.joint} ${args.positionRad}`
+      : "hold-on";
   lines.push(
     "set +e",
     marengoPiTimedPipe(
       ["home", `enable ${args.operator}`, holdLine],
       args.timeoutSec,
       args.returnHomeSec,
+      args.joint,
     ),
     "PIPE_STATUS=$?",
     "set -e",
@@ -480,7 +511,7 @@ export function registerMotionTools(
           .string()
           .optional()
           .describe(
-            "MARENGO_CONFIG_DIR (default /opt/marengo/config/bringup/shoulder_pitch_right_only)",
+            "MARENGO_CONFIG_DIR (default /opt/marengo/config/bringup/arm_2dof_right)",
           ),
       }),
       handler: async (args: {
@@ -539,7 +570,7 @@ export function registerMotionTools(
           .string()
           .optional()
           .describe(
-            "Override MARENGO_CONFIG_DIR (e.g. /opt/marengo/config/bringup/shoulder_pitch_right_only)",
+            "Override MARENGO_CONFIG_DIR (e.g. /opt/marengo/config/bringup/arm_2dof_right)",
           ),
         verify: z
           .boolean()
@@ -606,7 +637,7 @@ export function registerMotionTools(
           .string()
           .optional()
           .describe(
-            "MARENGO_CONFIG_DIR override (default: MCP env or shoulder_pitch_right_only)",
+            "MARENGO_CONFIG_DIR override (default: MCP env or arm_2dof_right)",
           ),
         joint: z.string().default("right_shoulder_pitch"),
         timeout_sec: z
@@ -746,8 +777,16 @@ export function registerMotionTools(
       }) => {
         const check = gate(args);
         if (!check.ok) return check.message;
-        const controlTimeoutSec = args.timeout_sec ?? DEFAULT_MOTION_TIMEOUT_SEC;
-        const script = ensureScriptQuit(args.script);
+        const expanded = expandScriptWithWaveWaits(args.script);
+        const sleepBudget = scriptSleepTotalSec(expanded);
+        const controlTimeoutSec =
+          args.timeout_sec !== undefined
+            ? args.timeout_sec
+            : Math.max(
+                DEFAULT_MOTION_TIMEOUT_SEC,
+                Math.ceil(sleepBudget + 10),
+              );
+        const script = ensureScriptQuit(expanded);
         const pipeTimeoutSec = marengoPiPipeTimeoutSec(script, controlTimeoutSec);
         const pipeCmd = [
           marengoPiBinarySelector(cfg),
@@ -768,10 +807,16 @@ export function registerMotionTools(
 
     pi_bench_harness: {
       description:
-        "Profile-aware bench test matrix (bare_motor or weighted_single_arm)",
+        "Profile-aware bench test matrix (bare_motor, weighted, roll_attached, arm_2dof_smoke)",
       inputSchema: motionConfirmSchema.extend({
         profile: z
-          .enum(["bare_motor", "weighted_single_arm", "arm_attached"])
+          .enum([
+            "bare_motor",
+            "weighted_single_arm",
+            "arm_attached",
+            "roll_attached",
+            "arm_2dof_smoke",
+          ])
           .optional(),
         config_dir: z.string().optional(),
         joints: z.array(z.string()).optional(),

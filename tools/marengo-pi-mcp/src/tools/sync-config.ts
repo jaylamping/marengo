@@ -253,7 +253,7 @@ export async function runSyncBenchUrdfAssets(
 export const syncBenchConfigSchema = z.object({
   profile: z
     .string()
-    .default("shoulder_pitch_right_only")
+    .default("arm_2dof_right")
     .describe("Bringup folder under config/bringup/"),
   install_to_opt: z
     .boolean()

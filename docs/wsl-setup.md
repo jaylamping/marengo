@@ -186,18 +186,20 @@ Optional: remove old Windows clone after WSL is verified to free disk.
 Best-effort; container remains source of truth ([dev-setup.md](dev-setup.md)).
 
 ```bash
-# rustup
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+# One-shot: SSH config, git identity, cross-GCC, mise, Pi MCP build
+./scripts/setup-wsl-dev.sh
 
-# Pi cross-build + deploy (native, cached target/ on ext4)
+# Or piecemeal:
 ./scripts/setup-wsl-pi-cross.sh
 just deploy-pi-wsl
 # Binary-only (skip consul): ./scripts/deploy-pi.sh --install --skip-consul joey@marengo.local
 
-# mise (matches mise.toml)
+# mise (matches mise.toml + rust-toolchain.toml 1.88)
 curl https://mise.run | sh
 cd ~/code/marengo && mise install
 ```
+
+After `setup-wsl-dev.sh`, **restart the marengo-pi MCP server** in Cursor so it picks up `.cursor/mcp.json` (WSL uses `SSH_IDENTITY_FILE` + `marengo.local`).
 
 ---
 
@@ -205,14 +207,18 @@ cd ~/code/marengo && mise install
 
 | Symptom | Fix |
 |---------|-----|
-| `failed to connect to docker API at npipe://...` | Start Docker Desktop; enable WSL integration; run commands **inside WSL**. |
+| `failed to connect to docker API at npipe://...` | Start Docker Desktop; enable WSL integration; run commands **inside WSL**. Avoid a `docker` shim that only calls `docker.exe` once the unix socket exists. |
+| `Permission denied (publickey)` to Pi | Ensure `~/.ssh/id_ed25519_marengo` + `~/.ssh/config` (`./scripts/setup-wsl-dev.sh`). Bare `ssh joey@marengo.local` must work. |
+| `Author identity unknown` on commit | Set git `user.name` / `user.email` (or re-run `setup-wsl-dev.sh`). |
 | Builds still slow | Confirm repo is `~/code/...`, not `/mnt/c/...`. Use `just deploy-pi-docker` (not bare `docker run`); 2nd run should reuse `cargo-target` / `cargo-registry` volumes. |
 | Deploy looks hung, no output | Use `./scripts/deploy-pi-docker.sh` (line-buffered + `CARGO_TERM_PROGRESS_WHEN=always`). Verbose: `MARENGO_DEPLOY_VERBOSE=1 just deploy-pi-docker`. |
-| Want native deploy without Docker | WSL2: `./scripts/setup-wsl-pi-cross.sh` then `just deploy-pi-wsl`. |
+| Want native deploy without Docker | WSL2: `./scripts/setup-wsl-pi-cross.sh` (needs `libc6-dev-arm64-cross`, not just the GCC package) then `just deploy-pi-wsl`. |
+| Cross-build fails: `bits/libc-header-start.h: No such file` | Install aarch64 libc headers: `sudo apt-get install -y libc6-dev-arm64-cross` (or re-run `./scripts/setup-wsl-pi-cross.sh`). |
 | `git lfs` smudge errors | `git lfs install && git lfs pull` inside WSL clone. |
 | Line-ending noise | In WSL clone: `git config core.autocrlf input`. |
 | Permission errors on `target/` | `docker compose build dev` (entrypoint chowns volumes). See [troubleshooting.md](troubleshooting.md). |
 | SolidWorks MCP can’t see files | MCP `SOLIDWORKS_MCP_ALLOWED_ROOTS` must match Windows CAD path; use Windows Cursor session for CAD. |
+| marengo-pi MCP missing in WSL | `just mcp-build`, confirm `.cursor/mcp.json` has `marengo-pi`, restart MCP servers. |
 
 ---
 

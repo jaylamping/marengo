@@ -41,9 +41,11 @@ control:
       gravity_comp:
         kp: 0.0
         kd: 0.0
+        ki: 0.0
       impedance:
         kp: 50.0
         kd: 2.0
+        ki: 0.0
       friction:
         fc: 0.0
         fv: 0.0
@@ -54,11 +56,13 @@ control:
       gravity_comp:
         kp: 0.0
         kd: 0.0
+        ki: 0.0
       impedance:
         kp: 12.0
         kd: 0.75
-      position_slew_rad_s: 15.0
-      position_slew_max_lead_rad: 0.5
+        ki: 0.0
+      position_slew_rad_s: 0.15
+      position_slew_max_lead_rad: 0.12
       position_hold_trim_rad: 0.0
       friction:
         fc: 0.0
@@ -70,9 +74,11 @@ control:
       gravity_comp:
         kp: 0.0
         kd: 0.0
+        ki: 0.0
       impedance:
         kp: 20.0
         kd: 1.0
+        ki: 0.0
       friction:
         fc: 0.0
         fv: 0.0
@@ -83,9 +89,11 @@ control:
       gravity_comp:
         kp: 0.0
         kd: 0.0
+        ki: 0.0
       impedance:
         kp: 20.0
         kd: 1.0
+        ki: 0.0
       friction:
         fc: 0.0
         fv: 0.0

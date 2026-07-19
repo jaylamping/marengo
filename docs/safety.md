@@ -60,6 +60,13 @@ See [ADR 0004](decisions/0004-control-modes-and-mit.md) and [hardware/docs/decis
 4. **Upright pose test:** slowly release support; elbow/upper arm must not free-fall.
 5. `gravity-off` / `disable` before leaving the bench.
 
+## Known software gaps (see also [position-hold-control-review.md](position-hold-control-review.md))
+
+- **Hardware E-stop wiring:** `Supervisor::set_hardware_estop` exists but Pi GPIO/input is not yet connected at runtime. Treat physical E-stop as authoritative; do not assume software `Disabled` reflects the hardware line until wired.
+- **Danger zones:** Rules evaluate **measured** joint `q`/`dq` (not commanded MIT fields). Prefer `clamp_torque` when Berthier sends `kd_mit = 0` and velocity clamps alone cannot slow gravity-driven descent.
+- **Limit envelope:** Davout uses `max(|dq_cmd|, |dq_meas|)` for velocity-scaled margins so gravity-driven motion cannot shrink the envelope unexpectedly.
+- **Fault latch policy:** Document whether specific faults require explicit operator reset before re-enable (TBD per fault class).
+
 ## When in doubt
 
 Disable drives, E-stop, and fix the fault before resuming.

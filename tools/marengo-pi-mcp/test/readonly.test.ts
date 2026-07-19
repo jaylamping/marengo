@@ -7,7 +7,7 @@ const cfg: MarengoPiConfig = {
   host: "marengo.local",
   user: "joey",
   piRoot: "/opt/marengo",
-  configDir: "/opt/marengo/config/bringup/shoulder_pitch_right_only",
+  configDir: "/opt/marengo/config/bringup/arm_2dof_right",
   localRoot: "/tmp/marengo",
   benchProfile: "bare_motor",
   piStagingRoot: "~/marengo",
@@ -54,6 +54,6 @@ describe("readonly CAN tools", () => {
     await tools.pi_health.handler();
 
     assert.match(script, /homing-preflight\.sh/);
-    assert.match(script, /shoulder_pitch_right_only/);
+    assert.match(script, /arm_2dof_right/);
   });
 });

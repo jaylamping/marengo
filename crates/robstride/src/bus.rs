@@ -119,6 +119,14 @@ pub trait CanBus {
         }));
         Ok(())
     }
+
+    /// Drain whatever is already queued without waiting for the next frame.
+    fn recv_frames_from_nonblocking(
+        &mut self,
+        out: &mut Vec<ReceivedCanFrame>,
+    ) -> Result<(), BusError> {
+        self.recv_frames_from(out)
+    }
 }
 
 fn send_encoded_frame<B: CanBus + ?Sized>(
@@ -368,8 +376,14 @@ pub trait MotorBus: CanBus {
         budget: Duration,
         quiet: Duration,
     ) -> Result<usize, BusError> {
-        let deadline = Instant::now() + budget;
         let mut frames = Vec::new();
+        if budget.is_zero() {
+            // Control-loop drain: never block waiting for the next MIT response.
+            self.recv_frames_from_nonblocking(&mut frames)?;
+            return Ok(ingest_addressed_frames(motor_types, states, &frames));
+        }
+
+        let deadline = Instant::now() + budget;
         let mut count = 0;
         let mut last_frame_at: Option<Instant> = None;
         loop {
@@ -391,111 +405,124 @@ pub trait MotorBus: CanBus {
                 continue;
             }
             last_frame_at = Some(Instant::now());
-            for received in &frames {
-                let frame = &received.frame;
-                if !frame.extended {
-                    trace_skipped_frame(
-                        received.interface.as_deref(),
-                        frame.id,
-                        "non-extended",
-                        None,
-                        None,
-                    );
-                    continue;
-                }
-                let Some(ext) = comm::unpack_ext_id(frame.id) else {
-                    trace_skipped_frame(
-                        received.interface.as_deref(),
-                        frame.id,
-                        "invalid-extended-id",
-                        None,
-                        None,
-                    );
-                    continue;
-                };
-                let Some(comm_type) = CommunicationType::from_u8(ext.comm_type) else {
-                    continue;
-                };
-                let device_id = comm::inbound_motor_device_id(frame.id, comm_type);
-                let Some(address) =
-                    address_for_frame(motor_types, received.interface.as_deref(), device_id)
-                else {
-                    trace_skipped_frame(
-                        received.interface.as_deref(),
-                        frame.id,
-                        "unconfigured-motor",
-                        Some(device_id),
-                        Some(ext.comm_type),
-                    );
-                    continue;
-                };
-                match comm_type {
-                    CommunicationType::OperationStatus => {
-                        let Some(motor_type) = motor_types.get(&address).copied() else {
-                            continue;
-                        };
-                        if let Some(fb) =
-                            mit::decode_mit_feedback(motor_type, frame.id, frame.data.as_slice())
-                        {
-                            tracing::trace!(
-                                interface = %address.interface,
-                                device_id = address.device_id,
-                                position_rad = fb.position_rad,
-                                velocity_rad_s = fb.velocity_rad_s,
-                                torque_nm = fb.torque_nm,
-                                temperature_c = fb.temperature_c,
-                                fault = fb.fault,
-                                "decoded Robstride status"
-                            );
-                            states.insert(
-                                address,
-                                MotorState {
-                                    position_rad: fb.position_rad,
-                                    velocity_rad_s: fb.velocity_rad_s,
-                                    torque_nm: fb.torque_nm,
-                                    temperature_c: fb.temperature_c,
-                                    fault: fb.fault,
-                                    updated: Some(Instant::now()),
-                                },
-                            );
-                            count += 1;
-                        } else {
-                            tracing::trace!(
-                                interface = %address.interface,
-                                device_id = address.device_id,
-                                can_id = format_args!("{:#010x}", frame.id),
-                                "failed to decode Robstride status frame"
-                            );
-                        }
-                    }
-                    CommunicationType::FaultReport => {
-                        if let Some(report) = decode_fault_report(frame.id, frame.data.as_slice()) {
-                            tracing::warn!(
-                                interface = %address.interface,
-                                device_id = report.device_id,
-                                fault = format_args!("{:#06x}", report.fault),
-                                "Robstride fault report"
-                            );
-                            let state = states.entry(address).or_default();
-                            state.fault = report.fault;
-                            state.updated = Some(Instant::now());
-                            count += 1;
-                        }
-                    }
-                    _ => {
-                        trace_skipped_frame(
-                            received.interface.as_deref(),
-                            frame.id,
-                            "unsupported-comm-type",
-                            Some(address.device_id),
-                            Some(ext.comm_type),
-                        );
-                    }
-                }
+            count += ingest_addressed_frames(motor_types, states, &frames);
+            if Instant::now() >= deadline {
+                return Ok(count);
             }
         }
         Err(BusError::RecvTimeout)
     }
+}
+
+fn ingest_addressed_frames(
+    motor_types: &HashMap<MotorAddress, MotorType>,
+    states: &mut HashMap<MotorAddress, MotorState>,
+    frames: &[ReceivedCanFrame],
+) -> usize {
+    let mut count = 0;
+    for received in frames {
+        let frame = &received.frame;
+        if !frame.extended {
+            trace_skipped_frame(
+                received.interface.as_deref(),
+                frame.id,
+                "non-extended",
+                None,
+                None,
+            );
+            continue;
+        }
+        let Some(ext) = comm::unpack_ext_id(frame.id) else {
+            trace_skipped_frame(
+                received.interface.as_deref(),
+                frame.id,
+                "invalid-extended-id",
+                None,
+                None,
+            );
+            continue;
+        };
+        let Some(comm_type) = CommunicationType::from_u8(ext.comm_type) else {
+            continue;
+        };
+        let device_id = comm::inbound_motor_device_id(frame.id, comm_type);
+        let Some(address) =
+            address_for_frame(motor_types, received.interface.as_deref(), device_id)
+        else {
+            trace_skipped_frame(
+                received.interface.as_deref(),
+                frame.id,
+                "unconfigured-motor",
+                Some(device_id),
+                Some(ext.comm_type),
+            );
+            continue;
+        };
+        match comm_type {
+            CommunicationType::OperationStatus => {
+                let Some(motor_type) = motor_types.get(&address).copied() else {
+                    continue;
+                };
+                if let Some(fb) =
+                    mit::decode_mit_feedback(motor_type, frame.id, frame.data.as_slice())
+                {
+                    tracing::trace!(
+                        interface = %address.interface,
+                        device_id = address.device_id,
+                        position_rad = fb.position_rad,
+                        velocity_rad_s = fb.velocity_rad_s,
+                        torque_nm = fb.torque_nm,
+                        temperature_c = fb.temperature_c,
+                        fault = fb.fault,
+                        "decoded Robstride status"
+                    );
+                    states.insert(
+                        address,
+                        MotorState {
+                            position_rad: fb.position_rad,
+                            velocity_rad_s: fb.velocity_rad_s,
+                            torque_nm: fb.torque_nm,
+                            temperature_c: fb.temperature_c,
+                            fault: fb.fault,
+                            updated: Some(Instant::now()),
+                        },
+                    );
+                    count += 1;
+                } else {
+                    tracing::trace!(
+                        interface = %address.interface,
+                        device_id = address.device_id,
+                        can_id = format_args!("{:#010x}", frame.id),
+                        "failed to decode Robstride status frame"
+                    );
+                }
+            }
+            CommunicationType::FaultReport => {
+                if let Some(report) = decode_fault_report(frame.id, frame.data.as_slice()) {
+                    tracing::warn!(
+                        interface = %address.interface,
+                        device_id = report.device_id,
+                        fault = format_args!("{:#06x}", report.fault),
+                        "Robstride fault report"
+                    );
+                    let state = states.entry(address).or_default();
+                    state.fault = report.fault;
+                    state.updated = Some(Instant::now());
+                    count += 1;
+                }
+            }
+            _ => {
+                trace_skipped_frame(
+                    received.interface.as_deref(),
+                    frame.id,
+                    "unsupported-comm-type",
+                    Some(address.device_id),
+                    Some(ext.comm_type),
+                );
+            }
+        }
+    }
+    count
 }
 
 fn address_for_frame(
@@ -642,6 +669,21 @@ impl CanBus for RuntimeBus {
             Self::Socket(bus) => bus.recv_frames_from(out),
             #[cfg(all(feature = "socketcan", target_os = "linux"))]
             Self::Router(bus) => bus.recv_frames_from(out),
+            #[cfg(not(all(feature = "socketcan", target_os = "linux")))]
+            _ => Err(socketcan_unavailable()),
+        }
+    }
+
+    fn recv_frames_from_nonblocking(
+        &mut self,
+        out: &mut Vec<ReceivedCanFrame>,
+    ) -> Result<(), BusError> {
+        let _ = out;
+        match self {
+            #[cfg(all(feature = "socketcan", target_os = "linux"))]
+            Self::Socket(bus) => bus.recv_frames_from_nonblocking(out),
+            #[cfg(all(feature = "socketcan", target_os = "linux"))]
+            Self::Router(bus) => bus.recv_frames_from_nonblocking(out),
             #[cfg(not(all(feature = "socketcan", target_os = "linux")))]
             _ => Err(socketcan_unavailable()),
         }
@@ -838,6 +880,77 @@ mod socketcan {
             }));
             Ok(())
         }
+
+        fn recv_frames_from_nonblocking(
+            &mut self,
+            out: &mut Vec<ReceivedCanFrame>,
+        ) -> Result<(), BusError> {
+            let mut frames = Vec::new();
+            self.recv_frames_nonblocking(&mut frames)?;
+            out.extend(frames.into_iter().map(|frame| ReceivedCanFrame {
+                interface: Some(self.interface.clone()),
+                frame,
+            }));
+            Ok(())
+        }
+    }
+
+    impl SocketCanBus {
+        fn recv_frames_nonblocking(&mut self, out: &mut Vec<CanFrame>) -> Result<(), BusError> {
+            let was_nonblocking = self
+                .socket
+                .nonblocking()
+                .map_err(|e| BusError::Driver(e.to_string()))?;
+            if !was_nonblocking {
+                self.socket
+                    .set_nonblocking(true)
+                    .map_err(|e| BusError::Driver(e.to_string()))?;
+            }
+            let result = self.recv_frames_nonblocking_inner(out);
+            if !was_nonblocking {
+                let _ = self.socket.set_nonblocking(false);
+            }
+            result
+        }
+
+        fn recv_frames_nonblocking_inner(
+            &mut self,
+            out: &mut Vec<CanFrame>,
+        ) -> Result<(), BusError> {
+            loop {
+                match self.socket.read_frame() {
+                    Ok(frame) => {
+                        let id = frame.raw_id();
+                        let mut data = [0u8; 8];
+                        let payload = frame.data();
+                        let len = payload.len().min(8);
+                        data[..len].copy_from_slice(&payload[..len]);
+                        out.push(CanFrame {
+                            id,
+                            data,
+                            extended: frame.is_extended(),
+                        });
+                    }
+                    Err(e)
+                        if matches!(
+                            e.kind(),
+                            ErrorKind::WouldBlock | ErrorKind::TimedOut | ErrorKind::Interrupted
+                        ) =>
+                    {
+                        break;
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            interface = %self.interface,
+                            error = %e,
+                            "SocketCAN nonblocking receive error"
+                        );
+                        return Err(BusError::Driver(e.to_string()));
+                    }
+                }
+            }
+            Ok(())
+        }
     }
 
     impl MotorBus for SocketCanBus {}
@@ -944,6 +1057,16 @@ mod socketcan {
         fn recv_frames_from(&mut self, out: &mut Vec<ReceivedCanFrame>) -> Result<(), BusError> {
             for socket in self.sockets.values_mut() {
                 socket.recv_frames_from(out)?;
+            }
+            Ok(())
+        }
+
+        fn recv_frames_from_nonblocking(
+            &mut self,
+            out: &mut Vec<ReceivedCanFrame>,
+        ) -> Result<(), BusError> {
+            for socket in self.sockets.values_mut() {
+                socket.recv_frames_from_nonblocking(out)?;
             }
             Ok(())
         }

@@ -1,5 +1,6 @@
 import { useRef, useMemo, useCallback } from 'react';
 import { useFrame } from '@react-three/fiber';
+import { Edges } from '@react-three/drei';
 import * as THREE from 'three';
 
 import { useRobotModel } from '@/urdf/RobotModelContext';
@@ -56,7 +57,8 @@ function LinkVisual({
 
   return (
     <mesh geometry={geometry} matrix={matrix} matrixAutoUpdate={false}>
-      <meshStandardMaterial color={color} roughness={0.5} metalness={0.2} />
+      <meshStandardMaterial color={color} roughness={0.55} metalness={0.55} />
+      <Edges threshold={30} color="#ffb000" />
     </mesh>
   );
 }
@@ -91,7 +93,7 @@ export function UrdfScene() {
         links.push({
           name,
           visuals: link?.visuals ?? [],
-          color: name === 'base_link' ? '#94a3b8' : '#3b82f6',
+          color: name === 'base_link' ? '#565d6b' : '#333a45',
         });
 
         for (const joint of model.joints.values()) {
@@ -136,7 +138,8 @@ export function UrdfScene() {
           ) : (
             <mesh>
               <boxGeometry args={[0.05, 0.05, 0.05]} />
-              <meshStandardMaterial color={color} roughness={0.5} metalness={0.2} />
+              <meshStandardMaterial color={color} roughness={0.55} metalness={0.55} />
+              <Edges threshold={30} color="#ffb000" />
             </mesh>
           )}
         </group>

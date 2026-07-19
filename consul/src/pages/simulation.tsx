@@ -1,10 +1,17 @@
-import { DashboardLayout } from '@/components/dashboard/layout/dashboard-layout';
-import { SimulationOverview } from '@/components/dashboard/simulation/simulation-overview';
+import { lazy } from 'react';
 
+import { DeferredLazyBody } from '@/components/dashboard/layout/deferred-lazy-body';
+
+const SimulationOverview = lazy(async () => {
+  const module = await import('@/components/dashboard/simulation/simulation-overview');
+  return { default: module.SimulationOverview };
+});
+
+/** Instant route shell — skeleton paints before the heavy body mounts. */
 export function SimulationPage() {
   return (
-    <DashboardLayout>
+    <DeferredLazyBody>
       <SimulationOverview />
-    </DashboardLayout>
+    </DeferredLazyBody>
   );
 }

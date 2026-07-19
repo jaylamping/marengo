@@ -8,7 +8,7 @@
 set -euo pipefail
 
 ROOT="${MARENGO_ROOT:-/opt/marengo}"
-CONFIG_DIR="${MARENGO_CONFIG_DIR:-${ROOT}/config/bringup/shoulder_pitch_right_only}"
+CONFIG_DIR="${MARENGO_CONFIG_DIR:-${ROOT}/config/bringup/arm_2dof_right}"
 STRICT="${HOMING_PREFLIGHT_STRICT:-false}"
 
 if [[ "$CONFIG_DIR" != /* ]]; then

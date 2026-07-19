@@ -4,12 +4,14 @@ import { sudoCanUpCommand, sudoInstallCommand, sudoStagingInstallCommand } from 
 import { wrapRemote } from "../env.js";
 import { runSyncMain } from "./deploy.js";
 import { waitForDeployReady } from "./deploy-wait.js";
+import { cleanTreeSchema, runCleanTree } from "./clean-tree.js";
 import {
   runSyncBenchConfig,
   runSyncBenchUrdfAssets,
   syncBenchConfigSchema,
   syncBenchUrdfSchema,
 } from "./sync-config.js";
+import { syncTreeSchema, runSyncTree } from "./sync-tree.js";
 
 export function registerAdminTools(
   cfg: MarengoPiConfig,
@@ -49,6 +51,17 @@ export function registerAdminTools(
       },
     },
 
+    pi_sync_tree: {
+      description:
+        "Sync the Marengo Pi working tree with origin/main: fetch, checkout main, pull --ff-only. " +
+        "Fails if the Pi working tree is dirty. Does not build or install.",
+      inputSchema: syncTreeSchema,
+      handler: async () => {
+        return runSyncTree(cfg, runRemote);
+      },
+    },
+
+
     pi_wait_deploy: {
       description:
         "Poll Pi until .deploy-rev matches expected git SHA prefix and marengo-gateway /health OK",
@@ -80,7 +93,7 @@ export function registerAdminTools(
         install_to_opt?: boolean;
       }) => {
         return runSyncBenchConfig(cfg, runRemote, {
-          profile: args.profile ?? "shoulder_pitch_right_only",
+          profile: args.profile ?? "arm_2dof_right",
           install_to_opt: args.install_to_opt ?? true,
         });
       },
@@ -110,6 +123,16 @@ export function registerAdminTools(
       },
     },
 
+    pi_clean_tree: {
+      description:
+        "Clean the Marengo Pi working tree so pi_sync_main / pi_git_pull can run. " +
+        "Default mode stashes changes; use reset-hard or clean-untracked to discard. " +
+        "Requires confirm: true.",
+      inputSchema: cleanTreeSchema,
+      handler: async (args: { confirm: true; mode: "stash" | "reset-hard" | "clean-untracked" }) => {
+        return runCleanTree(cfg, runRemote, args);
+      },
+    },
     pi_git_pull: {
       description: "git pull in MARENGO_PI_ROOT on Pi (fails if dirty)",
       inputSchema: z.object({}),

@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
 import { AppProviders } from '@/components/providers/app-providers';
-import { Toaster, toasterGlassStyle } from '@/components/ui/sonner';
+import { Toaster, toasterPanelStyle } from '@/components/ui/sonner';
 
 beforeAll(() => {
   Object.defineProperty(window, 'matchMedia', {
@@ -57,24 +57,24 @@ describe('AppProviders toast alignment (single GLINUI toaster)', () => {
   });
 });
 
-describe('Toaster GLINUI glass styling', () => {
-  it('uses cn-toast class and glass CSS variables', () => {
-    expect((toasterGlassStyle as Record<string, string>)['--normal-bg']).toBe(
-      'var(--glass-2-surface)',
+describe('Toaster panel styling', () => {
+  it('uses cn-toast class and panel CSS variables', () => {
+    expect((toasterPanelStyle as Record<string, string>)['--normal-bg']).toBe(
+      'var(--surface-2)',
     );
-    expect((toasterGlassStyle as Record<string, string>)['--normal-border']).toBe(
-      'var(--glass-border)',
+    expect((toasterPanelStyle as Record<string, string>)['--normal-border']).toBe(
+      'var(--line-strong)',
     );
   });
 
-  it('passes dark theme and glass style to Sonner', () => {
+  it('passes dark theme and panel style to Sonner', () => {
     render(<Toaster />);
 
     const toaster = document.querySelector('[data-sonner-toaster]');
     expect(toaster).toBeTruthy();
     expect(toaster?.getAttribute('data-theme')).toBe('dark');
     expect((toaster as HTMLElement).style.getPropertyValue('--normal-bg')).toBe(
-      'var(--glass-2-surface)',
+      'var(--surface-2)',
     );
   });
 });

@@ -65,16 +65,33 @@ The **Simulation** tab is the planned home for Isaac Sim / Isaac Lab: viewport s
 - Anything that makes the 3D view feel secondary
 - Any feature whose primary justification is “other people might find this useful”
 - GLINUI signature components (Meteor Shower, Typewriter, Pulsating Button) on operator data routes
+- Frosted glass / backdrop blur on any surface (retired 2026-07 — the “Launch Day” reskin)
+- Decorative motion or idle “alive” effects other than the dust backdrop drift
+- Gradients for beauty (legibility aids like the vignette excepted)
+- Playful empty states, illustrations, easter eggs
 
-## Glass and motion tiers (GLINUI migration)
+## Visual identity — “Launch Day”
 
-| Tier | Surfaces | Glass | Motion |
-|------|----------|-------|--------|
-| Chrome | sidebar, header, nav, tabs, control bar | full blur + border | mount ≤200ms; hover feedback |
-| Data | tables, charts, log/inventory rows | shell only; opaque rows | sort/filter ≤150ms; **no row animation** |
-| Hero | empty states, sim idle, welcome | full + atmosphere | stagger enter/exit allowed |
+Consul looks like the console a SpaceX engineer has open on launch day: calm, dense, perfectly aligned mono telemetry on near-black, where color is so scarce that a hue change means something. This is instrumentation for expensive hardware — nothing playful survives review.
 
-Decorative motion honors `prefers-reduced-motion`. Telemetry springs stay unchanged.
+- **Surfaces:** opaque layered panels (`--surface-0..3`) on a blue-black void, hairline borders (`--line` / `--line-strong`). No blur, no frost.
+- **Accent:** amber phosphor (`--accent`, ≈ #FFB000) with armed/caution semantics — active controls, armed machine state, chart-commanded series, focus rings. Never decoration.
+- **Status palette:** `--ok` green, `--warning` amber, `--fault` red, `--info` cyan (sparing). Nothing else carries chroma.
+- **Type:** IBM Plex Sans for UI text; IBM Plex Mono for every number, log line, and micro-label (10px uppercase, 0.14em tracking). No display fonts.
+- **Radius:** 4px. Sharp instruments, not consumer cards.
+- **LEDs (`.led*`):** the only always-on glow; live-link pulses at 2.4s (reduced-motion aware).
+- **Corner brackets (`.panel-brackets`):** semantic only — surfaces that act on hardware (e-stop, enable, armed tuning panels). Never on passive cards.
+- **Dust backdrop:** soft gray particles drift slowly in a near-black void behind the fullscreen canvas. The air moves; the robot (telemetry) stays rock solid. This is the single sanctioned ambient motion — procedural, no stock imagery.
+
+### Surface and motion tiers
+
+| Tier | Surfaces | Skin | Motion |
+|------|----------|------|--------|
+| Chrome | sidebar, header, nav, tabs, control bar | opaque panel + hairline | mount ≤200ms; hover feedback |
+| Data | tables, charts, log/inventory rows | panel shell; opaque rows | sort/filter ≤150ms; **no row animation** |
+| Hero | empty states, sim idle, welcome | panel + void | stagger enter/exit allowed |
+
+Glow is semantic only: armed (amber), fault (red), live-link (LED). Nominal state never glows. `prefers-reduced-motion` freezes the dust drift and LED pulse. Telemetry springs stay unchanged.
 
 ---
 

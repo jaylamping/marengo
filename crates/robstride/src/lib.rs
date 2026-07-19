@@ -324,6 +324,34 @@ mod tests {
     }
 
     #[test]
+    fn recv_all_addressed_zero_budget_single_pass() {
+        let mut bus = ScriptBus::new(vec![vec![status_frame(1)], vec![status_frame(1)]]);
+        let mut states = HashMap::new();
+        let types = HashMap::from([(MotorAddress::new("can0", 1), MotorType::Rs03)]);
+
+        let count = bus
+            .recv_all_addressed(
+                &types,
+                &mut states,
+                Duration::ZERO,
+                Duration::from_micros(300),
+            )
+            .expect("zero-budget drain");
+
+        assert_eq!(count, 1);
+        assert!(states.contains_key(&MotorAddress::new("can0", 1)));
+        let second = bus
+            .recv_all_addressed(
+                &types,
+                &mut states,
+                Duration::ZERO,
+                Duration::from_micros(300),
+            )
+            .expect("second zero-budget drain");
+        assert_eq!(second, 1);
+    }
+
+    #[test]
     fn recv_all_addressed_drains_four_motor_burst_across_gaps() {
         let mut bus = ScriptBus::new(vec![
             vec![status_frame(1)],

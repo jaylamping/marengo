@@ -16,7 +16,7 @@ Use this skill after installing, removing, creating, moving, or renaming skills,
 - The registry is an index, not a compiler or summary. `SKILL.md` remains the source of truth.
 - Do not generate or inject compact rules by default; preserve author intent by passing exact skill paths to subagents.
 - Always write `.atl/skill-registry.md` regardless of SDD persistence mode.
-- Save the registry to Engram as `topic_key: maintenance/skill-registry` when available, with `capture_prompt: false`.
+- Do not persist the registry to any memory MCP (removed).
 - Skip `sdd-*`, `_shared`, and `skill-registry`; deduplicate by skill name, preferring project-level skills over user-level skills.
 - Add `.atl/` to `.gitignore` when possible unless explicitly disabled.
 
@@ -34,8 +34,7 @@ Use this skill after installing, removing, creating, moving, or renaming skills,
 1. Scan all known user and project skill directories for `*/SKILL.md`.
 2. Read frontmatter only as needed to extract `name` and `description` trigger text.
 3. Render `.atl/skill-registry.md` with scanned sources, registry contract, skill name, trigger/description, scope, and exact path.
-4. Persist to Engram when available using `title: maintenance/skill-registry`, `topic_key: maintenance/skill-registry`, `type: config`, and `capture_prompt: false`.
-5. Return the registry path, skill count, cache status, and whether Engram was updated.
+4. Return the registry path, skill count, and cache status.
 
 ## Output Contract
 
@@ -44,6 +43,7 @@ Return:
 - Number of indexed skills.
 - Whether the cache was hit or regenerated.
 - Any skipped or duplicate skills when relevant.
+- Note that memory-MCP persistence is unavailable.
 
 ## References
 

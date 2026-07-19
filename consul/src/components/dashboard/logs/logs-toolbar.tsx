@@ -83,7 +83,7 @@ export const LogsToolbar = memo(function LogsToolbar({
         </Tabs>
 
         <Input
-          variant="glass"
+          variant="panel"
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}
           placeholder="Filter message, source, level…"

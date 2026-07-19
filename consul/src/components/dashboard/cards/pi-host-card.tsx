@@ -17,6 +17,7 @@ import {
   formatTempC,
 } from '@/lib/format';
 import { hostCardDebugLines } from '@/lib/host-debug-info';
+import { demoBadge } from '@/lib/telemetry-source';
 import {
   canWarning,
   chappeDegraded,
@@ -26,20 +27,8 @@ import {
   useHostMetricsStore,
 } from '@/state/hostMetricsStore';
 import { useRobotStore } from '@/state/robotStore';
+import { formatUptime, bytesToGb } from '@/lib/host-card-utils';
 
-function formatUptime(seconds: bigint | number): string {
-  const total = Number(seconds);
-  const hours = Math.floor(total / 3600);
-  const minutes = Math.floor((total % 3600) / 60);
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  }
-  return `${minutes}m`;
-}
-
-function bytesToGb(bytes: bigint | number): number {
-  return Number(bytes) / 1024 ** 3;
-}
 
 function livePiMetrics(
   metrics: ReturnType<typeof useHostMetricsStore.getState>['piMetrics'],
@@ -108,7 +97,11 @@ export function PiHostCard({ metrics: metricsProp }: PiHostCardProps) {
   let badgeTone: 'healthy' | 'warning' | 'muted' = metrics?.throttled
     ? 'warning'
     : 'healthy';
-  if (metricsLoading) {
+  if (!live) {
+    const demo = demoBadge();
+    badgeLabel = demo.label;
+    badgeTone = demo.tone;
+  } else if (metricsLoading) {
     badgeTone = 'muted';
   } else if (warnCan || warnDisk || warnChappe) {
     badgeLabel = warnCan ? 'CAN' : warnChappe ? 'chappe' : 'disk';
@@ -137,7 +130,7 @@ export function PiHostCard({ metrics: metricsProp }: PiHostCardProps) {
             value={placeholder}
             smoothValue={metrics?.cpuPercent}
             formatSmoothValue={formatPercent}
-            usagePercent={metrics?.cpuPercent ?? 0}
+            usagePercent={live ? (metrics?.cpuPercent ?? 0) : 0}
           />
           <MetricItem
             label="RAM"
@@ -148,7 +141,7 @@ export function PiHostCard({ metrics: metricsProp }: PiHostCardProps) {
             }
             valueClassName="text-xs"
             usagePercent={
-              metrics
+              live && metrics
                 ? computeRamUsagePercent(metrics.ramUsedGb, metrics.ramTotalGb)
                 : 0
             }
@@ -158,10 +151,11 @@ export function PiHostCard({ metrics: metricsProp }: PiHostCardProps) {
               label="Disk"
               value={formatRamUsage(metrics.diskUsedGb, metrics.diskTotalGb)}
               valueClassName="text-xs"
-              usagePercent={computeUsagePercent(
-                metrics.diskUsedGb,
-                metrics.diskTotalGb,
-              )}
+              usagePercent={
+                live
+                  ? computeUsagePercent(metrics.diskUsedGb, metrics.diskTotalGb)
+                  : 0
+              }
             />
           ) : null}
           {metrics?.logDiskUsedGb != null && metrics.logDiskBudgetGb != null ? (
@@ -172,10 +166,14 @@ export function PiHostCard({ metrics: metricsProp }: PiHostCardProps) {
                 metrics.logDiskBudgetGb,
               )}
               valueClassName="text-xs"
-              usagePercent={computeUsagePercent(
-                metrics.logDiskUsedGb,
-                metrics.logDiskBudgetGb,
-              )}
+              usagePercent={
+                live
+                  ? computeUsagePercent(
+                      metrics.logDiskUsedGb,
+                      metrics.logDiskBudgetGb,
+                    )
+                  : 0
+              }
             />
           ) : null}
           <MetricItem
@@ -193,14 +191,16 @@ export function PiHostCard({ metrics: metricsProp }: PiHostCardProps) {
         </MetricGrid>
       }
       footerPrimary={
-        metricsLoading
-          ? 'Waiting for telemetry'
-          : metrics
-            ? `Uptime ${metrics.uptime}`
-            : placeholder
+        !live
+          ? 'Wireframe · synthetic host metrics'
+          : metricsLoading
+            ? 'Waiting for telemetry'
+            : metrics
+              ? `Uptime ${metrics.uptime}`
+              : placeholder
       }
       footerSecondary={
-        stale ? 'Host metrics stale' : undefined
+        !live ? 'Not measured from Chappe' : stale ? 'Host metrics stale' : undefined
       }
     />
   );
