@@ -114,6 +114,10 @@ if [[ ! -f /etc/marengo/env ]]; then
   install -m 640 "${ROOT}/scripts/env.example" /etc/marengo/env
   chown root:"${RUN_USER}" /etc/marengo/env
 fi
+# Migrate renamed default bench profile (arm_2dof_right → arm_3dof_right).
+if [[ -f /etc/marengo/env ]] && grep -q 'arm_2dof_right' /etc/marengo/env 2>/dev/null; then
+  sed -i 's|config/bringup/arm_2dof_right|config/bringup/arm_3dof_right|g' /etc/marengo/env
+fi
 
 install -m 644 "${ROOT}/scripts/systemd/marengo-can.service" /etc/systemd/system/marengo-can.service
 install -m 644 "${ROOT}/scripts/systemd/marengo-pi.service" /etc/systemd/system/marengo-pi.service
