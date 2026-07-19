@@ -3,6 +3,7 @@
 mod host_metrics;
 #[cfg(all(target_os = "linux", feature = "linux-i2c"))]
 mod imu;
+mod overlay;
 
 use std::collections::BTreeSet;
 use std::env;
@@ -725,6 +726,7 @@ fn main() {
     let mut enable_rx = chappe.subscribe("robot/enable");
     let mut homing_rx = chappe.subscribe("robot/homing");
     let mut testing_cmd_rx = chappe.subscribe("robot/testing/mit_command_batch");
+    let mut actuator_rx = chappe.subscribe(overlay::TOPIC_ACTUATOR_COMMAND);
 
     let shutdown = Arc::new(AtomicBool::new(false));
     let shutdown_flag = Arc::clone(&shutdown);
@@ -742,6 +744,18 @@ fn main() {
         eprintln!("failed to install SIGTERM handler");
         std::process::exit(1);
     }
+
+    let persist_queue =
+        overlay::ConfigPersistQueue::spawn(Arc::clone(&chappe), Arc::clone(&shutdown));
+    let mut actuator_overlay =
+        match overlay::ActuatorOverlay::from_config_dir(&config_dir, persist_queue) {
+            Ok(o) => o,
+            Err(e) => {
+                eprintln!("actuator overlay allowlist: {e}");
+                std::process::exit(1);
+            }
+        };
+    actuator_overlay.mark_limits_dirty();
 
     #[cfg(all(target_os = "linux", feature = "linux-i2c"))]
     imu::spawn_imu_publisher(Arc::clone(&chappe), Arc::clone(&shutdown));
@@ -772,6 +786,8 @@ fn main() {
         enable_rx: &mut enable_rx,
         homing_rx: &mut homing_rx,
         testing_cmd_rx: &mut testing_cmd_rx,
+        actuator_rx: &mut actuator_rx,
+        actuator_overlay: &mut actuator_overlay,
         shutdown: &shutdown,
     };
     run_control_loop(&mut loop_ctrl, &mut runtime);
@@ -792,6 +808,8 @@ struct ControlLoopRuntime<'a> {
     enable_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     homing_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     testing_cmd_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
+    actuator_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
+    actuator_overlay: &'a mut overlay::ActuatorOverlay,
     shutdown: &'a Arc<AtomicBool>,
 }
 
@@ -817,8 +835,15 @@ fn run_control_loop(loop_ctrl: &mut ControlLoop<RuntimeBus>, runtime: &mut Contr
         let (outer_stdin_us, t_next) = phase_elapsed_us(t);
 
         drain_chappe_commands(loop_ctrl, runtime.enable_rx, runtime.homing_rx);
-        let (outer_chappe_drain_us, _t) = phase_elapsed_us(t_next);
+        let (outer_chappe_drain_us, t_after_chappe) = phase_elapsed_us(t_next);
         drain_testing_commands(loop_ctrl, runtime.testing_cmd_rx);
+        runtime.actuator_overlay.drain_commands(
+            loop_ctrl,
+            runtime.config_dir,
+            runtime.chappe,
+            runtime.actuator_rx,
+        );
+        let (_outer_actuator_us, _t) = phase_elapsed_us(t_after_chappe);
 
         active_fault = match loop_ctrl.tick(Some(runtime.chappe.as_ref())) {
             Ok(()) => None,
@@ -848,6 +873,13 @@ fn run_control_loop(loop_ctrl: &mut ControlLoop<RuntimeBus>, runtime: &mut Contr
             let mode = loop_ctrl.supervisor_mut().mode();
             if let Err(e) = publish_safety(runtime.chappe.as_ref(), mode, active_fault.as_deref()) {
                 warn!(error = %e, "failed to publish SafetyState");
+            }
+            if let Err(e) = runtime.actuator_overlay.maybe_publish_limits(
+                loop_ctrl.supervisor(),
+                runtime.chappe,
+                timestamp_ms(),
+            ) {
+                warn!(error = %e, "failed to publish ActuatorLimitSnapshot");
             }
             last_chappe = now;
         }

@@ -661,6 +661,15 @@ impl<B: MotorBus> ControlLoop<B> {
         &mut self.supervisor
     }
 
+    pub fn supervisor(&self) -> &Supervisor<B> {
+        &self.supervisor
+    }
+
+    /// Current Testing/actuator runtime gain override for `joint`, if any.
+    pub fn gain_override(&self, joint_name: &str) -> Option<&GainOverride> {
+        self.gain_overrides.get(joint_name)
+    }
+
     pub fn set_control_mode(&mut self, mode: ControlMode) {
         let previous = self.control_mode;
         if mode != ControlMode::Position {
