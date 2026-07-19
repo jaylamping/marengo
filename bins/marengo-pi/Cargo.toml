@@ -31,8 +31,12 @@ marengo-imu = { path = "../../crates/marengo-imu", optional = true }
 marengo-support.workspace = true
 marengo-host-metrics.workspace = true
 robstride = { path = "../../crates/robstride" }
+thiserror.workspace = true
 tokio = { version = "1", features = ["sync"] }
 tracing.workspace = true
+
+[dev-dependencies]
+tempfile = "3"
 
 [target.'cfg(unix)'.dependencies]
 signal-hook = "0.3"
