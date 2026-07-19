@@ -86,8 +86,13 @@ export function chappeMisconfigHint(): string | null {
     return null;
   }
 
+  // Vite often serves on localhost while .env bakes 127.0.0.1 (or vice versa).
+  if (LOCALHOST_HOSTS.has(bakedHost) && LOCALHOST_HOSTS.has(originHost)) {
+    return null;
+  }
+
   if (LOCALHOST_HOSTS.has(bakedHost)) {
-    return 'Baked dev URLs (127.0.0.1) — redeploy Consul with production env scrub';
+    return `Baked dev URLs (${bakedHost}) — redeploy Consul with production env scrub`;
   }
 
   return `Baked Chappe host (${bakedHost}) does not match page origin (${originHost})`;

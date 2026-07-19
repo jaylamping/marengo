@@ -96,6 +96,33 @@ describe('chappeMisconfigHint', () => {
     expect(chappeMisconfigHint()).toMatch(/baked|misconfig|redeploy/i);
   });
 
+  it('treats localhost and 127.0.0.1 as equivalent loopback hosts', async () => {
+    vi.stubEnv('VITE_CHAPPE_HTTP_URL', 'http://127.0.0.1:8080');
+    vi.stubEnv('VITE_CHAPPE_WEBTRANSPORT_URL', 'https://127.0.0.1:8443/chappe');
+    stubLocation({
+      protocol: 'http:',
+      hostname: 'localhost',
+      origin: 'http://localhost:5173',
+    });
+
+    const { chappeMisconfigHint } = await loadChappeConfig();
+    expect(chappeMisconfigHint()).toBeNull();
+  });
+
+  it('flags baked non-loopback host mismatch on page origin', async () => {
+    vi.stubEnv('VITE_CHAPPE_HTTP_URL', 'http://gateway.example:8080');
+    vi.stubEnv('VITE_CHAPPE_WEBTRANSPORT_URL', 'https://gateway.example:8443/chappe');
+    stubLocation({
+      protocol: 'http:',
+      hostname: 'localhost',
+      origin: 'http://localhost:5173',
+    });
+
+    const { chappeMisconfigHint } = await loadChappeConfig();
+    expect(chappeMisconfigHint()).toMatch(/gateway\.example/);
+    expect(chappeMisconfigHint()).toMatch(/localhost/);
+  });
+
   it('returns null for origin-derived endpoints on HTTPS', async () => {
     stubLocation({
       protocol: 'https:',

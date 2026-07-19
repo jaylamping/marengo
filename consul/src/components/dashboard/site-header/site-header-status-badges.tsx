@@ -3,7 +3,6 @@ import { Badge } from '@/components/ui/badge';
 import {
   chappeConnectionErrDetail,
   chappeMisconfigHint,
-  isChappeLive,
   resolveChappeEndpoints,
 } from '@/lib/chappe-config';
 import { useHostMetricsStore } from '@/state/hostMetricsStore';
