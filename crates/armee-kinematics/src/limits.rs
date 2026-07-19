@@ -210,7 +210,12 @@ mod tests {
     #[test]
     fn hold_at_home_not_clamped_when_hard_lower_slightly_negative() {
         let p = JointLimitPolicy {
-            bounds: JointLimitBounds::from_hard_and_soft(-0.05, 3.14159, Some(-0.05), Some(3.14159)),
+            bounds: JointLimitBounds::from_hard_and_soft(
+                -0.05,
+                3.14159,
+                Some(-0.05),
+                Some(3.14159),
+            ),
             margin: LimitMarginConfig {
                 min_rad: 0.01,
                 k_v_s: 0.02,

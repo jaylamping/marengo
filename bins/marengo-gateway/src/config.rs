@@ -138,12 +138,16 @@ pub async fn get_config_snapshot(
         .joints
         .iter()
         .filter_map(|joint| {
-            control.control.joints.get(joint).map(|entry| JointControlLimitsJson {
-                joint: joint.clone(),
-                position_soft_lower_rad: entry.position_soft_lower_rad,
-                position_soft_upper_rad: entry.position_soft_upper_rad,
-                velocity_max_rad_s: entry.velocity_max_rad_s,
-            })
+            control
+                .control
+                .joints
+                .get(joint)
+                .map(|entry| JointControlLimitsJson {
+                    joint: joint.clone(),
+                    position_soft_lower_rad: entry.position_soft_lower_rad,
+                    position_soft_upper_rad: entry.position_soft_upper_rad,
+                    velocity_max_rad_s: entry.velocity_max_rad_s,
+                })
         })
         .collect();
 
@@ -175,12 +179,14 @@ pub async fn post_config_patch(
     let motors_path = config_dir.join("motors.yaml");
     let control_path = config_dir.join("control.yaml");
 
-    let mut motors_doc: serde_yaml::Value =
-        serde_yaml::from_str(&std::fs::read_to_string(&motors_path).map_err(|_| StatusCode::NOT_FOUND)?)
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let mut control_doc: serde_yaml::Value =
-        serde_yaml::from_str(&std::fs::read_to_string(&control_path).map_err(|_| StatusCode::NOT_FOUND)?)
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let mut motors_doc: serde_yaml::Value = serde_yaml::from_str(
+        &std::fs::read_to_string(&motors_path).map_err(|_| StatusCode::NOT_FOUND)?,
+    )
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let mut control_doc: serde_yaml::Value = serde_yaml::from_str(
+        &std::fs::read_to_string(&control_path).map_err(|_| StatusCode::NOT_FOUND)?,
+    )
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     apply_motor_patch(&mut motors_doc, &patch.joint, &patch)
         .map_err(|_| StatusCode::BAD_REQUEST)?;
@@ -195,9 +201,12 @@ pub async fn post_config_patch(
     std::fs::write(&motors_path, &motors_text).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     std::fs::write(&control_path, &control_text).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let robot = load_robot_config_from(&config_dir).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let motors = load_motors_config_from(&config_dir).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let control = load_control_config_from(&config_dir).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let robot =
+        load_robot_config_from(&config_dir).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let motors =
+        load_motors_config_from(&config_dir).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let control =
+        load_control_config_from(&config_dir).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     validate_control_config(&control).map_err(|_| StatusCode::BAD_REQUEST)?;
     validate_motors_against_robot(&robot, &motors).map_err(|_| StatusCode::BAD_REQUEST)?;
     validate_control_against_limits(&robot, &motors, &control)
@@ -211,12 +220,7 @@ pub async fn post_config_patch(
         patch.operator_id.clone()
     };
     logs.store
-        .set_config_override(
-            &audit_key,
-            &audit_json,
-            &source,
-            marengo_store::now_ms(),
-        )
+        .set_config_override(&audit_key, &audit_json, &source, marengo_store::now_ms())
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(Json(ConfigPatchResultJson {
