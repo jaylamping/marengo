@@ -13,7 +13,7 @@ use armee_proto::{
     actuator_command, ActionEvent, ActuatorCommand, ActuatorLimitSnapshot, JointActuatorLimit,
     OperatorCommand, TuningChange, TuningChangeEvent, TuningTier,
 };
-use berthier::{ControlLoop, GainOverride};
+use berthier::{ControlLoop, ControlMode, GainOverride};
 use chappe::Bus;
 use davout::{MotorBus, Supervisor};
 use marengo_config::{
@@ -130,6 +130,19 @@ impl ActuatorOverlay {
                         skipped = n,
                         "actuator overlay: broadcast lagged; commands dropped"
                     );
+                    let event = ActionEvent {
+                        timestamp_ms: 0,
+                        session_id: String::new(),
+                        operator_id: String::new(),
+                        joint: String::new(),
+                        action: "tuning".to_string(),
+                        revision: AUDIT_REVISION.fetch_add(1, Ordering::Relaxed),
+                        accepted: false,
+                        reject_reason: format!(
+                            "broadcast lagged; skipped {n} actuator commands"
+                        ),
+                    };
+                    let _ = publish_action_event(chappe, &event);
                 }
                 Err(tokio::sync::broadcast::error::TryRecvError::Closed) => break,
             }
@@ -220,8 +233,18 @@ fn apply_tuning_change<B: MotorBus>(
             validate_joint_gains_against_motor_type(&draft, joint)?;
             if tuning.persist {
                 write_control_config_from(config_dir, &draft)?;
-                let reloaded = load_control_config_from(config_dir)?;
-                loop_ctrl.supervisor_mut().control = reloaded;
+                // Disk already matches `draft`. If reload fails, still commit draft to live
+                // so restart and runtime stay aligned with the durable write.
+                match load_control_config_from(config_dir) {
+                    Ok(reloaded) => loop_ctrl.supervisor_mut().control = reloaded,
+                    Err(e) => {
+                        warn!(
+                            error = %e,
+                            "control.yaml reload after persist failed; applying draft live"
+                        );
+                        loop_ctrl.supervisor_mut().control = draft;
+                    }
+                }
             } else {
                 loop_ctrl.supervisor_mut().control = draft;
             }
@@ -270,6 +293,22 @@ fn apply_runtime_param<B: MotorBus>(
 ) -> Result<(), OverlayError> {
     if !value.is_finite() {
         return Err(OverlayError::NonFinite(param.to_string()));
+    }
+    if value < 0.0 {
+        return Err(OverlayError::UnsupportedParam(format!(
+            "{param} must be >= 0"
+        )));
+    }
+    // GravityComp / TorqueOnly require kp=0, kd=0 with tau_g (docs/safety.md). GainOverride
+    // is applied after mode selection in Berthier and would defeat that contract.
+    match loop_ctrl.control_mode() {
+        ControlMode::GravityComp | ControlMode::TorqueOnly => {
+            return Err(OverlayError::UnsupportedParam(format!(
+                "{param} (RuntimeMit blocked in {:?}; keep kp=0 kd=0)",
+                loop_ctrl.control_mode()
+            )));
+        }
+        ControlMode::Disabled | ControlMode::Impedance | ControlMode::Position => {}
     }
     let mut ov = baseline_gain_override(loop_ctrl, joint);
     match param {
@@ -480,6 +519,31 @@ mod tests {
                 .expect_err(param);
             assert!(matches!(err, OverlayError::UnsupportedParam(_)));
         }
+        assert!(loop_ctrl.gain_override("elbow").is_none());
+    }
+
+    #[test]
+    fn runtime_overlay_rejects_under_gravity_comp() {
+        let mut overlay = ActuatorOverlay::new(allowlist_from_repo());
+        let mut loop_ctrl = test_loop();
+        loop_ctrl.set_control_mode(ControlMode::GravityComp);
+        let op = tuning_operator("elbow", "kp", 88.0, TuningTier::RuntimeMit as i32);
+        let err = overlay
+            .apply_operator_command(&mut loop_ctrl, &repo_root().join("config"), &op)
+            .expect_err("gravity comp");
+        assert!(matches!(err, OverlayError::UnsupportedParam(_)));
+        assert!(loop_ctrl.gain_override("elbow").is_none());
+    }
+
+    #[test]
+    fn runtime_overlay_rejects_negative_kp() {
+        let mut overlay = ActuatorOverlay::new(allowlist_from_repo());
+        let mut loop_ctrl = test_loop();
+        let op = tuning_operator("elbow", "kp", -1.0, TuningTier::RuntimeMit as i32);
+        let err = overlay
+            .apply_operator_command(&mut loop_ctrl, &repo_root().join("config"), &op)
+            .expect_err("negative");
+        assert!(matches!(err, OverlayError::UnsupportedParam(_)));
         assert!(loop_ctrl.gain_override("elbow").is_none());
     }
 

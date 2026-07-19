@@ -949,6 +949,16 @@ pub fn validate_joint_gains_against_motor_type(
             path: PathBuf::from("control.yaml"),
             message: format!("missing motor_type_defaults.{type_key}"),
         })?;
+    if entry.impedance.kp < 0.0
+        || entry.impedance.kd < 0.0
+        || entry.impedance.ki < 0.0
+        || entry.friction.fc < 0.0
+    {
+        return Err(ConfigError::Parse {
+            path: PathBuf::from("control.yaml"),
+            message: format!("joint {joint} gains must be >= 0"),
+        });
+    }
     if entry.impedance.kp > defaults.kp_max {
         return Err(ConfigError::Parse {
             path: PathBuf::from("control.yaml"),
@@ -1364,6 +1374,20 @@ mod tests {
             .impedance
             .kp = 9999.0;
         let err = validate_joint_gains_against_motor_type(&bad, "elbow").expect_err("over max");
+        assert!(matches!(err, ConfigError::Parse { .. }));
+    }
+
+    #[test]
+    fn validate_joint_gains_rejects_negative_kp() {
+        let cfg = load_control_config(repo_root()).expect("control");
+        let mut bad = cfg.clone();
+        bad.control
+            .joints
+            .get_mut("elbow")
+            .expect("elbow")
+            .impedance
+            .kp = -1.0;
+        let err = validate_joint_gains_against_motor_type(&bad, "elbow").expect_err("negative");
         assert!(matches!(err, ConfigError::Parse { .. }));
     }
 }
