@@ -89,8 +89,8 @@ Peak torque ratings from [ADR 0002](decisions/0002-robstride-protocol.md) (confi
 |-------|--------|-------|--------|
 | **RS04** | 120 Nm | **4** | `left_hip_pitch`, `right_hip_pitch`, `left_knee`, `right_knee` |
 | **RS03** | 60 Nm | **9** | `left/right_hip_roll`, `left/right_hip_yaw`, `waist_yaw`, `left/right_shoulder_roll`, `left/right_shoulder_pitch` |
-| **RS02** | 17 Nm | **8** | `left/right_ankle_pitch`, `left/right_ankle_roll`, `left/right_upper_arm_yaw`, `left/right_elbow` |
-|| **RS00** | 17 Nm | **2** | `left/right_wrist` |
+| **RS02** | 17 Nm | **8** | `left/right_ankle_pitch`, `left/right_ankle_roll`, `left/right_upper_arm_yaw`, `left_elbow`, `right_elbow_pitch` |
+| **RS00** | 17 Nm | **2** | `left_wrist`, `right_lower_arm_yaw` |
 
 **Leg rationale:** RS04 on **inner hip pitch** (primary stance/swing load) and **knee** (single-support peaks, G1-class ~90 Nm knee). RS03 on **outer hip** roll/yaw. RS02 on ankles.
 
@@ -149,8 +149,8 @@ Same limits as left; roll/pitch signs follow right-hand URDF convention.
 | `right_shoulder_pitch` | RS03 | torso → right_shoulder_pitch_link | Y | -0.9 | 3.17 | 60 |
 | `right_shoulder_roll` | RS03 | pitch → right_shoulder_roll_link | X | -1.57 | 1.57 | 60 |
 | `right_upper_arm_yaw` | RS02 | pitch → right_upper_arm | Z | -1.57 | 1.57 | 17 |
-| `right_elbow` | RS02 | upper_arm → right_forearm | Y | 0.0 | 2.5 | 17 |
-| `right_wrist` | RS00 | forearm → right_hand | Y | -1.6 | 1.6 | 17 |
+| `right_elbow_pitch` | RS02 | upper_arm → right_forearm | Y | 0.0 | 2.5 | 17 | **Upright hazard** — verify G-comp sign |
+| `right_lower_arm_yaw` | RS00 | forearm → right_hand | Y | -1.6 | 1.6 | 17 |
 
 Shoulder pitch hard limits match bench URDF/config (`[-0.9, 3.17]` rad); soft operator band is `[-0.872665, 3.141593]` rad (−50°…+180°, arm down = 0) per [ADR 0009](../../docs/decisions/0009-dynamic-position-limit-envelope.md).
 

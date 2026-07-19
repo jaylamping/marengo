@@ -11,11 +11,12 @@ const joints = [
   'right_shoulder_pitch',
   'right_shoulder_roll',
   'right_upper_arm_yaw',
+  'right_elbow_pitch',
 ];
 
 function session(epoch = 0) {
   return createTeachSession(
-    { profile: 'arm_3dof_right', joints, deployRev: 'abc1234' },
+    { profile: 'arm_4dof_right', joints, deployRev: 'abc1234' },
     'wave',
     [
       {
@@ -26,6 +27,7 @@ function session(epoch = 0) {
           right_shoulder_pitch: 0,
           right_shoulder_roll: 0,
           right_upper_arm_yaw: 0,
+          right_elbow_pitch: 0,
         },
         included: true,
       },
@@ -37,6 +39,7 @@ function session(epoch = 0) {
           right_shoulder_pitch: 3,
           right_shoulder_roll: 0.4,
           right_upper_arm_yaw: 0.1,
+          right_elbow_pitch: 1.0,
         },
         included: true,
       },
@@ -53,7 +56,7 @@ describe('parseTeachPersisted', () => {
         wave: {
           session: {
             version: TEACH_SESSION_VERSION,
-            profile: 'arm_3dof_right',
+            profile: 'arm_4dof_right',
             joints,
             deployRev: 'abc1234',
             presetId: 'wave',

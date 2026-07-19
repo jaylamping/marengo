@@ -13,6 +13,7 @@ const JOINTS = [
   'right_shoulder_pitch',
   'right_shoulder_roll',
   'right_upper_arm_yaw',
+  'right_elbow_pitch',
 ] as const;
 
 function makeWaveSamples(): TeachSample[] {
@@ -26,6 +27,7 @@ function makeWaveSamples(): TeachSample[] {
         right_shoulder_pitch: 0.01,
         right_shoulder_roll: 0,
         right_upper_arm_yaw: 0,
+        right_elbow_pitch: 0,
       },
     });
   }
@@ -38,6 +40,7 @@ function makeWaveSamples(): TeachSample[] {
         right_shoulder_pitch: 3.0 * u,
         right_shoulder_roll: 0.42 * u,
         right_upper_arm_yaw: 0.1 * Math.sin(u * Math.PI),
+        right_elbow_pitch: 1.0 * u,
       },
     });
   }
@@ -50,6 +53,7 @@ function makeWaveSamples(): TeachSample[] {
         right_shoulder_pitch: 3.0,
         right_shoulder_roll: 0.56 + 0.14 * Math.sin(phase),
         right_upper_arm_yaw: 0.2 * Math.sin(phase * 0.5),
+        right_elbow_pitch: 1.0,
       },
     });
   }
@@ -91,6 +95,7 @@ describe('teach-record landmarks', () => {
         right_shoulder_pitch: 0.001 * (i % 2),
         right_shoulder_roll: 0,
         right_upper_arm_yaw: 0,
+        right_elbow_pitch: 0,
       },
     }));
     expect(samplesHaveMotion(noise, [...JOINTS])).toBe(false);

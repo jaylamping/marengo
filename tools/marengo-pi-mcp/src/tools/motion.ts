@@ -14,7 +14,7 @@ const motionConfirmSchema = z.object({
 });
 
 const BENCH_CONFIG_RIGHT =
-  "/opt/marengo/config/bringup/arm_3dof_right";
+  "/opt/marengo/config/bringup/arm_4dof_right";
 const BENCH_CONFIG_LEFT =
   "/opt/marengo/config/bringup/shoulder_pitch_left_only";
 
@@ -154,7 +154,8 @@ function benchConfigDirForJoint(
   if (joint?.includes("left_shoulder")) {
     return BENCH_CONFIG_LEFT;
   }
-  if (joint?.includes("right_shoulder")) {
+  // Any right_* joint (shoulder, yaw, elbow) → active right 4-DOF profile.
+  if (joint?.startsWith("right_")) {
     return BENCH_CONFIG_RIGHT;
   }
   return undefined;
@@ -506,7 +507,7 @@ export function registerMotionTools(
           .string()
           .optional()
           .describe(
-            "MARENGO_CONFIG_DIR (default /opt/marengo/config/bringup/arm_3dof_right)",
+            "MARENGO_CONFIG_DIR (default /opt/marengo/config/bringup/arm_4dof_right)",
           ),
       }),
       handler: async (args: {
@@ -565,7 +566,7 @@ export function registerMotionTools(
           .string()
           .optional()
           .describe(
-            "Override MARENGO_CONFIG_DIR (e.g. /opt/marengo/config/bringup/arm_3dof_right)",
+            "Override MARENGO_CONFIG_DIR (e.g. /opt/marengo/config/bringup/arm_4dof_right)",
           ),
         verify: z
           .boolean()
@@ -638,7 +639,7 @@ export function registerMotionTools(
           .string()
           .optional()
           .describe(
-            "MARENGO_CONFIG_DIR override (default: MCP env or arm_3dof_right)",
+            "MARENGO_CONFIG_DIR override (default: MCP env or arm_4dof_right)",
           ),
         joint: z.string().default("right_shoulder_pitch"),
         timeout_sec: z

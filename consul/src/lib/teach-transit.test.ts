@@ -17,6 +17,7 @@ const joints = [
   'right_shoulder_pitch',
   'right_shoulder_roll',
   'right_upper_arm_yaw',
+  'right_elbow_pitch',
 ];
 
 function landmarks(): TeachLandmark[] {
@@ -29,6 +30,7 @@ function landmarks(): TeachLandmark[] {
         right_shoulder_pitch: 0,
         right_shoulder_roll: 0,
         right_upper_arm_yaw: 0,
+        right_elbow_pitch: 0,
       },
       included: true,
     },
@@ -40,6 +42,7 @@ function landmarks(): TeachLandmark[] {
         right_shoulder_pitch: 3,
         right_shoulder_roll: 0.42,
         right_upper_arm_yaw: 0.1,
+        right_elbow_pitch: 1.0,
       },
       included: true,
     },
@@ -51,6 +54,7 @@ function landmarks(): TeachLandmark[] {
         right_shoulder_pitch: 3,
         right_shoulder_roll: 0.7,
         right_upper_arm_yaw: 0.05,
+        right_elbow_pitch: 1.0,
       },
       included: true,
     },
@@ -81,7 +85,7 @@ describe('teach-transit cadence/dwell', () => {
     expect(landmarksToKeyframes([], joints, 1, 0)).toBeNull();
     const wave = COMPOUND_TEST_PRESETS.find((p) => p.id === 'wave')!;
     const session = createTeachSession(
-      { profile: 'arm_3dof_right', joints, deployRev: 'abc1234' },
+      { profile: 'arm_4dof_right', joints, deployRev: 'abc1234' },
       'wave',
       []
     );
@@ -93,12 +97,12 @@ describe('teach-transit cadence/dwell', () => {
   it('refuses Apply on fingerprint mismatch', () => {
     const wave = COMPOUND_TEST_PRESETS.find((p) => p.id === 'wave')!;
     const session = createTeachSession(
-      { profile: 'arm_3dof_right', joints, deployRev: 'aaa1111' },
+      { profile: 'arm_4dof_right', joints, deployRev: 'aaa1111' },
       'wave',
       landmarks()
     );
     const result = sessionToWaveOverlay(session, wave, {
-      profile: 'arm_3dof_right',
+      profile: 'arm_4dof_right',
       joints,
       deployRev: 'bbb2222',
     });
@@ -109,7 +113,7 @@ describe('teach-transit cadence/dwell', () => {
   it('builds overlay without nativeWave and with loopFromSegment', () => {
     const wave = COMPOUND_TEST_PRESETS.find((p) => p.id === 'wave')!;
     expect(wave.nativeWave).toBeDefined();
-    const fp = { profile: 'arm_3dof_right', joints, deployRev: 'abc1234' };
+    const fp = { profile: 'arm_4dof_right', joints, deployRev: 'abc1234' };
     const session = createTeachSession(fp, 'wave', landmarks());
     const result = sessionToWaveOverlay(session, wave, fp);
     expect(result.ok).toBe(true);
@@ -121,7 +125,7 @@ describe('teach-transit cadence/dwell', () => {
 
   it('two-landmark overlay does not loop (avoids re-raise)', () => {
     const wave = COMPOUND_TEST_PRESETS.find((p) => p.id === 'wave')!;
-    const fp = { profile: 'arm_3dof_right', joints, deployRev: 'abc1234' };
+    const fp = { profile: 'arm_4dof_right', joints, deployRev: 'abc1234' };
     const session = createTeachSession(fp, 'wave', landmarks().slice(0, 2));
     const result = sessionToWaveOverlay(session, wave, fp);
     expect(result.ok).toBe(true);
@@ -132,7 +136,7 @@ describe('teach-transit cadence/dwell', () => {
 
   it('sessionToWaveOverlay refuses version_mismatch and preset_mismatch', () => {
     const wave = COMPOUND_TEST_PRESETS.find((p) => p.id === 'wave')!;
-    const fp = { profile: 'arm_3dof_right', joints, deployRev: 'abc1234' };
+    const fp = { profile: 'arm_4dof_right', joints, deployRev: 'abc1234' };
     const session = createTeachSession(fp, 'wave', landmarks());
     const badVersion = sessionToWaveOverlay(
       { ...session, version: 99 as typeof TEACH_SESSION_VERSION },
@@ -165,7 +169,7 @@ describe('teach-transit cadence/dwell', () => {
     );
     expect(landmarksToKeyframes(partial, joints, 1, 0)).toBeNull();
     const wave = COMPOUND_TEST_PRESETS.find((p) => p.id === 'wave')!;
-    const fp = { profile: 'arm_3dof_right', joints, deployRev: 'abc1234' };
+    const fp = { profile: 'arm_4dof_right', joints, deployRev: 'abc1234' };
     const session = createTeachSession(fp, 'wave', partial);
     const result = sessionToWaveOverlay(session, wave, fp);
     expect(result.ok).toBe(false);
@@ -174,7 +178,7 @@ describe('teach-transit cadence/dwell', () => {
 
 
   it('liveFingerprint falls back from empty deployRev to gitSha', () => {
-    const fp = liveFingerprint('arm_3dof_right', joints, {
+    const fp = liveFingerprint('arm_4dof_right', joints, {
       deployRev: '',
       gitSha: 'abcdef1234567',
     });
@@ -182,13 +186,13 @@ describe('teach-transit cadence/dwell', () => {
     expect(
       fingerprintsMatch(
         fp,
-        liveFingerprint('arm_3dof_right', joints, { gitSha: 'abcdef1234567' })
+        liveFingerprint('arm_4dof_right', joints, { gitSha: 'abcdef1234567' })
       )
     ).toBe(true);
   });
 
   it('overlayReplayAllowed checks version + fingerprint', () => {
-    const fp = { profile: 'arm_3dof_right', joints, deployRev: 'abc1234' };
+    const fp = { profile: 'arm_4dof_right', joints, deployRev: 'abc1234' };
     const session = createTeachSession(fp, 'wave', landmarks(), {
       calibrationEpoch: 0,
     });
@@ -208,7 +212,7 @@ describe('teach-transit cadence/dwell', () => {
 
   it('resolvePlayablePreset falls back to shipped Wave when overlay refused', () => {
     const wave = COMPOUND_TEST_PRESETS.find((p) => p.id === 'wave')!;
-    const fp = { profile: 'arm_3dof_right', joints, deployRev: 'abc1234' };
+    const fp = { profile: 'arm_4dof_right', joints, deployRev: 'abc1234' };
     const session = createTeachSession(fp, 'wave', landmarks(), {
       calibrationEpoch: 0,
     });

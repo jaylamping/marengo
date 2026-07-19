@@ -15,11 +15,28 @@ describe("harnessScriptSuite", () => {
     assert.ok(suite.scripts.some((s) => s.name === "yaw_cross_talk"));
   });
 
+  it("elbow_attached is smoke with operator sign-off required", () => {
+    const suite = harnessScriptSuite("elbow_attached");
+    assert.ok(suite);
+    assert.equal(suite.passKind, "smoke");
+    assert.equal(suite.operatorSignoffRequired, true);
+    assert.equal(suite.note?.name, "elbow_suite_smoke_note");
+    assert.ok(suite.scripts.some((s) => s.name === "elbow_sign_probe"));
+    assert.ok(suite.scripts.some((s) => s.name === "elbow_hold_ladder"));
+    assert.ok(suite.scripts.some((s) => s.name === "elbow_elevated_cross_talk"));
+    assert.ok(
+      suite.scripts.some((s) =>
+        s.lines.some((line) => line.includes("right_elbow_pitch")),
+      ),
+    );
+  });
+
   it("scripted profiles share data-driven suite (no orphan copy-paste)", () => {
     for (const profile of [
       "roll_attached",
       "arm_2dof_smoke",
       "yaw_attached",
+      "elbow_attached",
       "bare_motor",
     ] as const) {
       const suite = harnessScriptSuite(profile);

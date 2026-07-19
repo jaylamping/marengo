@@ -10,6 +10,7 @@ export const BENCH_PROFILES = [
   "roll_attached",
   "arm_2dof_smoke",
   "yaw_attached",
+  "elbow_attached",
 ] as const;
 
 export type BenchProfile = (typeof BENCH_PROFILES)[number];
@@ -17,8 +18,17 @@ export type BenchProfile = (typeof BENCH_PROFILES)[number];
 const ROLL = "right_shoulder_roll";
 const PITCH = "right_shoulder_pitch";
 const YAW = "right_upper_arm_yaw";
+const ELBOW = "right_elbow_pitch";
 
-export type BenchBringupSlug = "arm_3dof_right" | "shoulder_pitch_weighted";
+export type BenchBringupSlug =
+  | "arm_3dof_right"
+  | "arm_4dof_right"
+  | "shoulder_pitch_weighted";
+
+const RIGHT_ARM_SLUGS: readonly BenchBringupSlug[] = [
+  "arm_3dof_right",
+  "arm_4dof_right",
+];
 
 export interface BenchProfileMeta {
   /** Relative bringup slug under config/bringup/; omit = use MARENGO_CONFIG_DIR. */
@@ -62,8 +72,14 @@ export const BENCH_PROFILE_META: Record<BenchProfile, BenchProfileMeta> = {
     skipGravityPreview: true,
   },
   yaw_attached: {
-    configBringup: "arm_3dof_right",
-    setZeroJoints: [ROLL, PITCH, YAW],
+    configBringup: "arm_4dof_right",
+    setZeroJoints: [ROLL, PITCH, YAW, ELBOW],
+    weighted: true,
+    skipGravityPreview: true,
+  },
+  elbow_attached: {
+    configBringup: "arm_4dof_right",
+    setZeroJoints: [ROLL, PITCH, YAW, ELBOW],
     weighted: true,
     skipGravityPreview: true,
   },
@@ -78,10 +94,10 @@ export function profileMeta(profile: BenchProfile): BenchProfileMeta {
 }
 
 export function isRightArmBenchProfile(profile: BenchProfile): boolean {
-  return profileMeta(profile).configBringup === "arm_3dof_right";
+  const slug = profileMeta(profile).configBringup;
+  return slug !== undefined && (RIGHT_ARM_SLUGS as readonly string[]).includes(slug);
 }
 
 export function weightedProfiles(): BenchProfile[] {
   return BENCH_PROFILES.filter((p) => BENCH_PROFILE_META[p].weighted);
 }
-

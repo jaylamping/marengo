@@ -19,13 +19,40 @@ Agent: append here when investigation suggests a load/model test and the user is
 
 ---
 
+### 2026-07-19 — elbow pitch commissioning (E0–E7)
+
+- **Status:** queued
+- **Hypothesis:** `right_elbow_pitch` (RS02 id 4) sign/direction, soft limits, and GravityComp sign are correct before Wave raise uses elbow
+- **Log evidence:** `pi_set_zero` enable saw id 4 in Davout; no feedback; candump lacks id-4 stream
+- **Suggested run:** suite in [bench-elbow-test-suite.md](bench-elbow-test-suite.md); `pi_bench_harness` profile `elbow_attached`, `config_dir: arm_4dof_right`
+- **Blocked on:** RS02 id 4 not answering on `can0` (Motor Studio ID / power / wiring); then operator set-zero at straight arm
+- **Result:** (pending) — software profile + harness ready; E1 hardware presence FAIL so far
+
+### 2026-07-19 — CAD refresh arm_4dof_right.urdf
+
+- **Status:** queued
+- **Hypothesis:** After CAD freeze, replace provisional masses/COM/link lengths so τ_g magnitude matches hardware
+- **Log evidence:** —
+- **Suggested run:** export URDF → sync → gravity suite magnitude checks
+- **Blocked on:** CAD designs finalized
+- **Result:** (pending)
+
+### 2026-07-19 — left arm joint rename mirror
+
+- **Status:** queued
+- **Hypothesis:** Mirror right vocabulary: `left_elbow`→`left_elbow_pitch`, `left_wrist`→`left_lower_arm_yaw`
+- **Log evidence:** —
+- **Suggested run:** humanoid + left bring-up rename wave
+- **Blocked on:** right 4-DOF bring-up complete
+- **Result:** (pending)
+
 ### 2026-07-19 — yaw commissioning (Y0–Y4)
 
 - **Status:** queued
 - **Hypothesis:** `right_upper_arm_yaw` (RS02 id 3) sign/direction and hold are correct before Wave raise + teach overlays use yaw
 - **Log evidence:** —
-- **Suggested run:** suite in [bench-yaw-test-suite.md](bench-yaw-test-suite.md); `pi_bench_harness` profile `yaw_attached`, `config_dir: arm_3dof_right`, `skip_set_zero: true` after Y2 Verified
-- **Blocked on:** operator at bench; mechanical yaw zero for Y2
+- **Suggested run:** suite in [bench-yaw-test-suite.md](bench-yaw-test-suite.md); `pi_bench_harness` profile `yaw_attached`, `config_dir: arm_4dof_right`, `skip_set_zero: true` after Y2 Verified
+- **Blocked on:** operator at bench; mechanical yaw zero for Y2; must run on `arm_4dof_right` (no skip from 3-DOF)
 - **Result:** (pending) — gate Y3–Y4 + candump before shipping yaw on non-Wave presets
 
 ---

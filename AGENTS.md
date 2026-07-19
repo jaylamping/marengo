@@ -21,7 +21,7 @@ Marengo is a **personal humanoid robot** in one repo: CAD, wiring, URDF, and the
 | **Fouché** | Jetson vision/LLM (scaffold) |
 | **Consul** | Operator web UI (Vite + React + TS) |
 
-Current execution slice is a **3-DOF right bench arm** (`config/bringup/arm_3dof_right/`); full humanoid is the long-term target ([`docs/roadmap.md`](docs/roadmap.md)).
+Current execution slice is a **4-DOF right bench arm** (`config/bringup/arm_4dof_right/`); full humanoid is the long-term target ([`docs/roadmap.md`](docs/roadmap.md)).
 
 ---
 
@@ -215,7 +215,8 @@ Single-pass trapezoidal planner + MIT setpoint clamp ([`docs/rust-patterns.md`](
 | `compose.yaml` | Docker dev/check/sim/vcan services |
 | `scripts/check.sh` | CI-parity gate script |
 | `proto/marengo/v1/marengo.proto` | Wire schema source of truth |
-| `config/bringup/arm_3dof_right/` | Active 3-DOF bench profile |
+| `config/bringup/arm_4dof_right/` | Active 4-DOF right bench profile |
+| `config/bringup/arm_3dof_right/` | Right 3-DOF regression slice |
 | `assets/urdf/marengo.urdf` | Kinematic source of truth |
 | `bins/marengo-pi/src/main.rs` | Pi control loop entry |
 | `bins/marengo-gateway/src/main.rs` | HTTP/WebTransport gateway |
@@ -298,7 +299,7 @@ No coverage tooling is configured. Expectation: `just check` passes before merge
 
 ### Bench commissioning notes
 
-- Active profile: `config/bringup/arm_3dof_right/` — roll CAN id 1, pitch CAN id 2, upper-arm yaw CAN id 3 on `can0`
+- Active profile: `config/bringup/arm_4dof_right/` — roll CAN id 1, pitch CAN id 2, upper-arm yaw CAN id 3, elbow pitch CAN id 4 on `can0`
 - **Pitch** raises arm (~π–2.8 rad); **roll** oscillates; **yaw** twists upper arm — do not swap roles
 - Re–set-zero at mechanical home when arm configuration changes
 - `pi_sync_bench_config` syncs YAML only — not `assets/urdf/`; use **`pi_sync_bench_urdf`** after URDF/COM edits, then verify gravity

@@ -98,6 +98,31 @@ describe("marengo-pi script tool", () => {
     assert.match(script, /bin\/motor-repl disable/);
   });
 
+  it("routes right_elbow_pitch holds to arm_4dof_right by default", async () => {
+    let script = "";
+    const tools = registerMotionTools(
+      cfg,
+      async (body) => {
+        script = body;
+        return body;
+      },
+      () => {},
+    );
+
+    await tools.pi_hold_on.handler({
+      confirm: true,
+      joint: "right_elbow_pitch",
+      set_zero: false,
+      position_rad: 0.25,
+      timeout_sec: 10,
+    });
+
+    assert.match(
+      script,
+      /export MARENGO_CONFIG_DIR='\/opt\/marengo\/config\/bringup\/arm_4dof_right'/,
+    );
+  });
+
   it("expands profile-like config_dir overrides before a hold test", async () => {
     let script = "";
     const tools = registerMotionTools(

@@ -38,25 +38,33 @@ export interface CompoundTestPreset {
 }
 
 /**
- * Shipped Wave: raise includes yaw at provisional 0; roll wave stays nativeWave
+ * Shipped Wave: raise includes yaw + elbow pitch; roll wave stays nativeWave
  * until a teach overlay replaces the wave phase. Loop extends nativeWave only
  * (does not re-raise). Taught overlays clear nativeWave and set loopFromSegment.
  *
- * Do not add yaw to arm_out_forward / arm_fully_up until yaw suite Y3–Y4 PASS.
+ * Live Wave raise uses Position (ends GravityComp) — keep the arm supported
+ * until Wave-pose G-comp sign is commissioned (docs/bench-elbow-test-suite.md E6).
+ * Do not add yaw/elbow to arm_out_forward / arm_fully_up until Y3–Y4 / E gates PASS.
  */
 export const COMPOUND_TEST_PRESETS: CompoundTestPreset[] = [
   {
     id: 'wave',
     name: 'Wave',
     description:
-      'Arm up (pitch/roll/yaw raise), then continuous roll wave. Taught overlays replace wave phase only after Apply.',
-    joints: ['right_shoulder_pitch', 'right_shoulder_roll', 'right_upper_arm_yaw'],
+      'Arm up (pitch/roll/yaw/elbow raise), then continuous roll wave. Taught overlays replace wave phase only after Apply. Support the arm until E6 Wave-pose G-comp is signed.',
+    joints: [
+      'right_shoulder_pitch',
+      'right_shoulder_roll',
+      'right_upper_arm_yaw',
+      'right_elbow_pitch',
+    ],
     loop: true,
     advance: 'timed',
     keyframes: {
       right_shoulder_pitch: [{ targetRad: 3.03, durationSec: 3.5 }],
       right_shoulder_roll: [{ targetRad: 0.42, durationSec: 3.5 }],
       right_upper_arm_yaw: [{ targetRad: 0, durationSec: 3.5 }],
+      right_elbow_pitch: [{ targetRad: 1.0, durationSec: 3.5 }],
     },
     nativeWave: {
       joint: 'right_shoulder_roll',

@@ -1094,6 +1094,23 @@ mod tests {
     }
 
     #[test]
+    fn arm_4dof_right_bringup_config_validates() {
+        let root = repo_root();
+        let config_dir = root.join("config/bringup/arm_4dof_right");
+        let robot = load_robot_config_from(&config_dir).expect("arm robot.yaml");
+        let motors = load_motors_config_from(&config_dir).expect("arm motors.yaml");
+        validate_motors_against_robot(&robot, &motors).expect("arm joints align");
+        assert_eq!(robot.robot.name, "marengo_arm_4dof_right");
+        assert!(robot.robot.urdf.contains("arm_4dof_right.urdf"));
+        let elbow = motor_for_joint(&motors, "right_elbow_pitch").expect("elbow");
+        assert_eq!(elbow.device_id, 4);
+        assert_eq!(elbow.can_interface, "can0");
+        load_control_config_from(&config_dir).expect("arm control.yaml");
+        let urdf = resolve_urdf_path(&root, &robot).expect("arm urdf");
+        assert!(urdf.ends_with("arm_4dof_right.urdf"));
+    }
+
+    #[test]
     fn shoulder_pitch_dual_bringup_config_validates() {
         let root = repo_root();
         let config_dir = root.join("config/bringup/shoulder_pitch_dual");

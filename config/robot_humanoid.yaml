@@ -29,5 +29,5 @@ robot:
     - right_shoulder_pitch
     - right_shoulder_roll
     - right_upper_arm_yaw
-    - right_elbow
-    - right_wrist
+    - right_elbow_pitch
+    - right_lower_arm_yaw

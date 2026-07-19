@@ -46,10 +46,17 @@ describe("bench harness config", () => {
     );
   });
 
-  it("selects arm_3dof_right for yaw_attached profile", () => {
+  it("selects arm_4dof_right for yaw_attached profile", () => {
     assert.equal(
       harnessConfigDir(cfg, "yaw_attached"),
-      "/opt/marengo/config/bringup/arm_3dof_right",
+      "/opt/marengo/config/bringup/arm_4dof_right",
+    );
+  });
+
+  it("selects arm_4dof_right for elbow_attached profile", () => {
+    assert.equal(
+      harnessConfigDir(cfg, "elbow_attached"),
+      "/opt/marengo/config/bringup/arm_4dof_right",
     );
   });
 });

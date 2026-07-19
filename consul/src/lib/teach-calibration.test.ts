@@ -10,6 +10,7 @@ const joints = [
   'right_shoulder_pitch',
   'right_shoulder_roll',
   'right_upper_arm_yaw',
+  'right_elbow_pitch',
 ];
 
 describe('teach soft-invalidate calibration', () => {
@@ -17,7 +18,7 @@ describe('teach soft-invalidate calibration', () => {
     expect(
       overlayNeedsCalibrationAck(
         createTeachSession(
-          { profile: 'arm_3dof_right', joints, deployRev: 'abc' },
+          { profile: 'arm_4dof_right', joints, deployRev: 'abc' },
           'wave',
           [],
           { calibrationEpoch: 2 }
@@ -29,7 +30,7 @@ describe('teach soft-invalidate calibration', () => {
 
   it('needs ack when live epoch advanced after set-zero mark', () => {
     const session = createTeachSession(
-      { profile: 'arm_3dof_right', joints, deployRev: 'abc' },
+      { profile: 'arm_4dof_right', joints, deployRev: 'abc' },
       'wave',
       [],
       { calibrationEpoch: 1 }
@@ -43,7 +44,7 @@ describe('teach soft-invalidate calibration', () => {
   });
 
   it('overlayReplayAllowed soft-blocks until ack', () => {
-    const fp = { profile: 'arm_3dof_right', joints, deployRev: 'abc1234' };
+    const fp = { profile: 'arm_4dof_right', joints, deployRev: 'abc1234' };
     const session = createTeachSession(fp, 'wave', [], { calibrationEpoch: 0 });
     expect(
       overlayReplayAllowed(session, fp, {
