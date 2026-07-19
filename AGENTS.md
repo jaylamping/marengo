@@ -193,6 +193,7 @@ Single-pass trapezoidal planner + MIT setpoint clamp ([`docs/rust-patterns.md`](
 - Position-hold an elevated arm without GravityComp (`kp=0, kd=0, torque_ff=τ_g`)
 - Enable motors without homing Verified + Davout state machine
 - Call synchronous `PositionTrace::flush()` in the Berthier 200 Hz loop (SD fsync trips watchdog)
+- Block on `control.yaml` persist (`ConfigOverlay` / `persist=true`) on the outer control loop — queue async SD writes (same watchdog class as `PositionTrace::flush`)
 - Reconstruct Robstride arbitration IDs at call sites — use `robstride::encode_*` helpers
 
 ### Hard rules (always)

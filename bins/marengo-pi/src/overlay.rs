@@ -3,10 +3,26 @@
 //! Runtime MIT uses the existing Testing-page gain path (kp/kd/ki/fc only). It never
 //! overrides position, velocity, or torque_ff — those stay under Berthier's planner /
 //! gravity law so live control quality is preserved.
+//!
+//! # ConfigOverlay persist
+//!
+//! `persist=true` applies the draft to live memory on the control thread, then queues an
+//! async YAML write on a background worker (same class of hazard as `PositionTrace::flush`
+//! — never block the 200 Hz path on SD I/O). Bursts coalesce: latest draft wins.
+//!
+//! **Trust boundary:** anyone who can publish `robot/actuator/command` already has
+//! enable/testing authority on this Chappe bus. `persist=true` is the durable-write
+//! escalation within that same trust — not a separate auth gate.
 
-use std::path::Path;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Arc;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::Duration;
+
+#[cfg(test)]
+use std::time::Instant;
 
 use armee_proto::prost::Message;
 use armee_proto::{
@@ -17,12 +33,12 @@ use berthier::{ControlLoop, ControlMode, GainOverride};
 use chappe::Bus;
 use davout::{MotorBus, Supervisor};
 use marengo_config::{
-    apply_joint_config_param, load_command_joint_allowlist_from, load_control_config_from,
-    motor_type_key, resolve_command_joint, validate_joint_gains_against_motor_type,
-    write_control_config_from, CommandJointAllowlist,
+    apply_joint_config_param, load_command_joint_allowlist_from, motor_type_key,
+    resolve_command_joint, validate_joint_gains_against_motor_type, write_control_config_from,
+    CommandJointAllowlist, ControlConfigFile,
 };
 use thiserror::Error;
-use tracing::warn;
+use tracing::{info, warn};
 
 pub const TOPIC_ACTUATOR_COMMAND: &str = "robot/actuator/command";
 pub const TOPIC_ACTUATOR_LIMITS: &str = "robot/actuator/limits";
@@ -43,6 +59,8 @@ pub enum OverlayError {
     UnsupportedParam(String),
     #[error("non-finite tuning value for {0}")]
     NonFinite(String),
+    #[error("persist queue unavailable: {0}")]
+    PersistQueue(String),
     #[error("config: {0}")]
     Config(#[from] marengo_config::ConfigError),
     #[error("chappe: {0}")]
@@ -55,21 +73,190 @@ pub enum OverlayOutcome {
     Action(ActionEvent),
 }
 
-pub struct ActuatorOverlay {
-    limits_dirty: bool,
-    allowlist: CommandJointAllowlist,
+/// Coalescing background writer for `control.yaml` (never runs on the control tick).
+pub struct ConfigPersistQueue {
+    pending: Arc<Mutex<PersistSlot>>,
+    wake_tx: SyncSender<()>,
 }
 
-impl ActuatorOverlay {
-    pub fn new(allowlist: CommandJointAllowlist) -> Self {
-        Self {
-            limits_dirty: true,
-            allowlist,
+struct PersistSlot {
+    request: Option<PersistRequest>,
+    writing: bool,
+}
+
+struct PersistRequest {
+    config_dir: PathBuf,
+    draft: ControlConfigFile,
+    timestamp_ms: u64,
+    session_id: String,
+    operator_id: String,
+    joint: String,
+    param: String,
+}
+
+impl ConfigPersistQueue {
+    /// Spawn a worker that serializes YAML writes; latest enqueued draft wins.
+    pub fn spawn(chappe: Arc<Bus>, shutdown: Arc<AtomicBool>) -> Self {
+        let (wake_tx, wake_rx) = sync_channel::<()>(1);
+        let pending = Arc::new(Mutex::new(PersistSlot {
+            request: None,
+            writing: false,
+        }));
+        let pending_worker = Arc::clone(&pending);
+        thread::spawn(move || persist_worker(pending_worker, wake_rx, chappe, shutdown));
+        Self { pending, wake_tx }
+    }
+
+    /// Queue a durable write. Replaces any not-yet-started request (coalesce).
+    ///
+    /// Fail-closed: if the worker is dead or the lock is poisoned, returns `Err` so the
+    /// caller must not claim persist succeeded (and should not apply live for persist).
+    fn enqueue(&self, request: PersistRequest) -> Result<(), OverlayError> {
+        {
+            let mut slot = self
+                .pending
+                .lock()
+                .map_err(|_| OverlayError::PersistQueue("lock poisoned".into()))?;
+            slot.request = Some(request);
+        }
+        match self.wake_tx.try_send(()) {
+            Ok(()) | Err(TrySendError::Full(())) => Ok(()),
+            Err(TrySendError::Disconnected(())) => {
+                Err(OverlayError::PersistQueue("worker disconnected".into()))
+            }
         }
     }
 
-    pub fn from_config_dir(config_dir: &Path) -> Result<Self, OverlayError> {
-        Ok(Self::new(load_command_joint_allowlist_from(config_dir)?))
+    /// Test helper: wait until no pending request and no in-flight write.
+    #[cfg(test)]
+    fn wait_idle_for_test(&self, timeout: Duration) -> bool {
+        let start = Instant::now();
+        while start.elapsed() < timeout {
+            if let Ok(slot) = self.pending.lock() {
+                if slot.request.is_none() && !slot.writing {
+                    return true;
+                }
+            }
+            thread::sleep(Duration::from_millis(5));
+        }
+        false
+    }
+
+    #[cfg(test)]
+    fn pending_count_for_test(&self) -> usize {
+        self.pending
+            .lock()
+            .map(|s| usize::from(s.request.is_some()))
+            .unwrap_or(0)
+    }
+}
+
+fn persist_worker(
+    pending: Arc<Mutex<PersistSlot>>,
+    wake_rx: Receiver<()>,
+    chappe: Arc<Bus>,
+    shutdown: Arc<AtomicBool>,
+) {
+    while !shutdown.load(Ordering::Relaxed) {
+        match wake_rx.recv_timeout(Duration::from_millis(200)) {
+            Ok(()) => {}
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => continue,
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
+        }
+        while wake_rx.try_recv().is_ok() {}
+
+        loop {
+            if shutdown.load(Ordering::Relaxed) {
+                return;
+            }
+            let request = {
+                let Ok(mut slot) = pending.lock() else {
+                    return;
+                };
+                let Some(req) = slot.request.take() else {
+                    break;
+                };
+                slot.writing = true;
+                req
+            };
+
+            let write_result = write_control_config_from(&request.config_dir, &request.draft);
+            if let Ok(mut slot) = pending.lock() {
+                slot.writing = false;
+            }
+
+            match write_result {
+                Ok(()) => {
+                    info!(
+                        joint = %request.joint,
+                        param = %request.param,
+                        session = %request.session_id,
+                        persist = true,
+                        "control.yaml persist write succeeded"
+                    );
+                    let event = ActionEvent {
+                        timestamp_ms: request.timestamp_ms,
+                        session_id: request.session_id,
+                        operator_id: request.operator_id,
+                        joint: request.joint,
+                        action: "config_persist".to_string(),
+                        revision: AUDIT_REVISION.fetch_add(1, Ordering::Relaxed),
+                        accepted: true,
+                        reject_reason: "disk write completed".to_string(),
+                    };
+                    let _ = publish_action_event(&chappe, &event);
+                }
+                Err(e) => {
+                    warn!(
+                        error = %e,
+                        joint = %request.joint,
+                        param = %request.param,
+                        session = %request.session_id,
+                        persist = true,
+                        "control.yaml persist write FAILED; live config may differ from disk"
+                    );
+                    let event = ActionEvent {
+                        timestamp_ms: request.timestamp_ms,
+                        session_id: request.session_id,
+                        operator_id: request.operator_id,
+                        joint: request.joint,
+                        action: "config_persist".to_string(),
+                        revision: AUDIT_REVISION.fetch_add(1, Ordering::Relaxed),
+                        accepted: false,
+                        reject_reason: format!(
+                            "async control.yaml write failed after live apply: {e}"
+                        ),
+                    };
+                    let _ = publish_action_event(&chappe, &event);
+                }
+            }
+        }
+    }
+}
+
+pub struct ActuatorOverlay {
+    limits_dirty: bool,
+    allowlist: CommandJointAllowlist,
+    persist: ConfigPersistQueue,
+}
+
+impl ActuatorOverlay {
+    pub fn new(allowlist: CommandJointAllowlist, persist: ConfigPersistQueue) -> Self {
+        Self {
+            limits_dirty: true,
+            allowlist,
+            persist,
+        }
+    }
+
+    pub fn from_config_dir(
+        config_dir: &Path,
+        persist: ConfigPersistQueue,
+    ) -> Result<Self, OverlayError> {
+        Ok(Self::new(
+            load_command_joint_allowlist_from(config_dir)?,
+            persist,
+        ))
     }
 
     pub fn mark_limits_dirty(&mut self) {
@@ -138,9 +325,7 @@ impl ActuatorOverlay {
                         action: "tuning".to_string(),
                         revision: AUDIT_REVISION.fetch_add(1, Ordering::Relaxed),
                         accepted: false,
-                        reject_reason: format!(
-                            "broadcast lagged; skipped {n} actuator commands"
-                        ),
+                        reject_reason: format!("broadcast lagged; skipped {n} actuator commands"),
                     };
                     let _ = publish_action_event(chappe, &event);
                 }
@@ -165,8 +350,7 @@ impl ActuatorOverlay {
 
         match cmd.payload {
             Some(actuator_command::Payload::Tuning(ref tuning)) => {
-                let event = apply_tuning_change(loop_ctrl, config_dir, operator, &joint, tuning)?;
-                Ok(vec![OverlayOutcome::Tuning(event)])
+                self.apply_tuning_change(loop_ctrl, config_dir, operator, &joint, tuning)
             }
             Some(actuator_command::Payload::Enable(_))
             | Some(actuator_command::Payload::Mode(_))
@@ -207,50 +391,84 @@ impl ActuatorOverlay {
     }
 }
 
-fn apply_tuning_change<B: MotorBus>(
-    loop_ctrl: &mut ControlLoop<B>,
-    config_dir: &Path,
-    operator: &OperatorCommand,
-    joint: &str,
-    tuning: &TuningChange,
-) -> Result<TuningChangeEvent, OverlayError> {
-    match TuningTier::try_from(tuning.tier) {
-        Ok(TuningTier::RuntimeMit) => {
-            let before = runtime_param_before(loop_ctrl, joint, &tuning.param)?;
-            apply_runtime_param(loop_ctrl, joint, &tuning.param, tuning.value)?;
-            let after = runtime_param_before(loop_ctrl, joint, &tuning.param)?;
-            Ok(tuning_event(operator, joint, tuning, before, after))
-        }
-        Ok(TuningTier::ConfigOverlay) => {
-            // Clone-then-commit: never leave live config mutated if persist/validate fails.
-            let mut draft = loop_ctrl.supervisor().control.clone();
-            let entry = draft
-                .control
-                .joints
-                .get_mut(joint)
-                .ok_or_else(|| OverlayError::NotWired(joint.to_string()))?;
-            let before = apply_joint_config_param(entry, &tuning.param, tuning.value)?;
-            validate_joint_gains_against_motor_type(&draft, joint)?;
-            if tuning.persist {
-                write_control_config_from(config_dir, &draft)?;
-                // Disk already matches `draft`. If reload fails, still commit draft to live
-                // so restart and runtime stay aligned with the durable write.
-                match load_control_config_from(config_dir) {
-                    Ok(reloaded) => loop_ctrl.supervisor_mut().control = reloaded,
-                    Err(e) => {
-                        warn!(
-                            error = %e,
-                            "control.yaml reload after persist failed; applying draft live"
-                        );
-                        loop_ctrl.supervisor_mut().control = draft;
-                    }
-                }
-            } else {
-                loop_ctrl.supervisor_mut().control = draft;
+impl ActuatorOverlay {
+    fn apply_tuning_change<B: MotorBus>(
+        &self,
+        loop_ctrl: &mut ControlLoop<B>,
+        config_dir: &Path,
+        operator: &OperatorCommand,
+        joint: &str,
+        tuning: &TuningChange,
+    ) -> Result<Vec<OverlayOutcome>, OverlayError> {
+        match TuningTier::try_from(tuning.tier) {
+            Ok(TuningTier::RuntimeMit) => {
+                let before = runtime_param_before(loop_ctrl, joint, &tuning.param)?;
+                apply_runtime_param(loop_ctrl, joint, &tuning.param, tuning.value)?;
+                let after = runtime_param_before(loop_ctrl, joint, &tuning.param)?;
+                Ok(vec![OverlayOutcome::Tuning(tuning_event(
+                    operator, joint, tuning, before, after,
+                ))])
             }
-            Ok(tuning_event(operator, joint, tuning, before, tuning.value))
+            Ok(TuningTier::ConfigOverlay) => {
+                // Clone-then-commit: never leave live config mutated if validate/enqueue fails.
+                let mut draft = loop_ctrl.supervisor().control.clone();
+                let entry = draft
+                    .control
+                    .joints
+                    .get_mut(joint)
+                    .ok_or_else(|| OverlayError::NotWired(joint.to_string()))?;
+                let before = apply_joint_config_param(entry, &tuning.param, tuning.value)?;
+                validate_joint_gains_against_motor_type(&draft, joint)?;
+
+                if tuning.persist {
+                    // Trust boundary: publishers on robot/actuator/command already hold
+                    // enable/testing authority; persist=true is durable-write escalation
+                    // in that same Chappe trust — not a separate auth check.
+                    self.persist.enqueue(PersistRequest {
+                        config_dir: config_dir.to_path_buf(),
+                        draft: draft.clone(),
+                        timestamp_ms: operator.timestamp_ms,
+                        session_id: operator.session_id.clone(),
+                        operator_id: operator.operator_id.clone(),
+                        joint: joint.to_string(),
+                        param: tuning.param.clone(),
+                    })?;
+                    warn!(
+                        joint = %joint,
+                        param = %tuning.param,
+                        session = %operator.session_id,
+                        persist = true,
+                        "ConfigOverlay persist=true queued (async SD write; live applied next)"
+                    );
+                }
+
+                // Live-first after enqueue succeeds so we never claim persist when the
+                // queue is dead. Background write failures emit ActionEvent accepted=false.
+                loop_ctrl.supervisor_mut().control = draft;
+
+                let mut outcomes = vec![OverlayOutcome::Tuning(tuning_event(
+                    operator,
+                    joint,
+                    tuning,
+                    before,
+                    tuning.value,
+                ))];
+                if tuning.persist {
+                    outcomes.push(OverlayOutcome::Action(action_event(
+                        operator,
+                        joint,
+                        "config_persist",
+                        true,
+                        Some(
+                            "queued async control.yaml write; live config already applied"
+                                .to_string(),
+                        ),
+                    )));
+                }
+                Ok(outcomes)
+            }
+            _ => Err(OverlayError::UnsupportedTier),
         }
-        _ => Err(OverlayError::UnsupportedTier),
     }
 }
 
@@ -456,7 +674,7 @@ mod tests {
     use armee_proto::actuator_command::Payload;
     use berthier::ControlLoop;
     use davout::MemoryBus;
-    use marengo_config::CommandJointAllowlist;
+    use marengo_config::{load_control_config_from, CommandJointAllowlist};
 
     use super::*;
 
@@ -470,6 +688,20 @@ mod tests {
 
     fn allowlist_from_repo() -> CommandJointAllowlist {
         load_command_joint_allowlist_from(repo_root().join("config")).expect("allowlist")
+    }
+
+    fn test_persist_queue() -> (ConfigPersistQueue, Arc<AtomicBool>) {
+        let shutdown = Arc::new(AtomicBool::new(false));
+        let queue = ConfigPersistQueue::spawn(Arc::new(Bus::new(16)), Arc::clone(&shutdown));
+        (queue, shutdown)
+    }
+
+    fn test_overlay() -> (ActuatorOverlay, Arc<AtomicBool>) {
+        let (persist, shutdown) = test_persist_queue();
+        (
+            ActuatorOverlay::new(allowlist_from_repo(), persist),
+            shutdown,
+        )
     }
 
     fn tuning_operator(joint: &str, param: &str, value: f64, tier: i32) -> OperatorCommand {
@@ -492,7 +724,7 @@ mod tests {
 
     #[test]
     fn runtime_overlay_applies_kp_via_gain_override() {
-        let mut overlay = ActuatorOverlay::new(allowlist_from_repo());
+        let (mut overlay, shutdown) = test_overlay();
         let mut loop_ctrl = test_loop();
         let op = tuning_operator("elbow", "kp", 88.0, TuningTier::RuntimeMit as i32);
         let outcomes = overlay
@@ -506,11 +738,12 @@ mod tests {
         assert!((event.after - 88.0).abs() < 1e-9);
         let ov = loop_ctrl.gain_override("elbow").expect("override");
         assert!((ov.kp - 88.0).abs() < 1e-9);
+        shutdown.store(true, Ordering::SeqCst);
     }
 
     #[test]
     fn runtime_overlay_rejects_pos_vel_torque_ff() {
-        let mut overlay = ActuatorOverlay::new(allowlist_from_repo());
+        let (mut overlay, shutdown) = test_overlay();
         let mut loop_ctrl = test_loop();
         for param in ["pos", "vel", "torque_ff"] {
             let op = tuning_operator("elbow", param, 1.0, TuningTier::RuntimeMit as i32);
@@ -520,11 +753,12 @@ mod tests {
             assert!(matches!(err, OverlayError::UnsupportedParam(_)));
         }
         assert!(loop_ctrl.gain_override("elbow").is_none());
+        shutdown.store(true, Ordering::SeqCst);
     }
 
     #[test]
     fn runtime_overlay_rejects_under_gravity_comp() {
-        let mut overlay = ActuatorOverlay::new(allowlist_from_repo());
+        let (mut overlay, shutdown) = test_overlay();
         let mut loop_ctrl = test_loop();
         loop_ctrl.set_control_mode(ControlMode::GravityComp);
         let op = tuning_operator("elbow", "kp", 88.0, TuningTier::RuntimeMit as i32);
@@ -533,11 +767,12 @@ mod tests {
             .expect_err("gravity comp");
         assert!(matches!(err, OverlayError::UnsupportedParam(_)));
         assert!(loop_ctrl.gain_override("elbow").is_none());
+        shutdown.store(true, Ordering::SeqCst);
     }
 
     #[test]
     fn runtime_overlay_rejects_negative_kp() {
-        let mut overlay = ActuatorOverlay::new(allowlist_from_repo());
+        let (mut overlay, shutdown) = test_overlay();
         let mut loop_ctrl = test_loop();
         let op = tuning_operator("elbow", "kp", -1.0, TuningTier::RuntimeMit as i32);
         let err = overlay
@@ -545,11 +780,12 @@ mod tests {
             .expect_err("negative");
         assert!(matches!(err, OverlayError::UnsupportedParam(_)));
         assert!(loop_ctrl.gain_override("elbow").is_none());
+        shutdown.store(true, Ordering::SeqCst);
     }
 
     #[test]
     fn runtime_overlay_clamps_kp_to_motor_type_max() {
-        let mut overlay = ActuatorOverlay::new(allowlist_from_repo());
+        let (mut overlay, shutdown) = test_overlay();
         let mut loop_ctrl = test_loop();
         let op = tuning_operator("elbow", "kp", 600.0, TuningTier::RuntimeMit as i32);
         overlay
@@ -558,6 +794,7 @@ mod tests {
         let ov = loop_ctrl.gain_override("elbow").expect("override");
         // rs02 kp_max is 500 in default config
         assert!(ov.kp <= 500.0 + 1e-9);
+        shutdown.store(true, Ordering::SeqCst);
     }
 
     #[test]
@@ -568,7 +805,7 @@ mod tests {
         for name in ["control.yaml", "robot.yaml", "motors.yaml", "homing.yaml"] {
             std::fs::copy(src.join(name), tmp.path().join(name)).expect("copy");
         }
-        let mut overlay = ActuatorOverlay::new(allowlist_from_repo());
+        let (mut overlay, shutdown) = test_overlay();
         let mut loop_ctrl =
             ControlLoop::from_repo(&root, MemoryBus::default(), 200, 50).expect("loop");
         let op = tuning_operator(
@@ -583,17 +820,18 @@ mod tests {
         assert!(matches!(err, OverlayError::Config(_)));
         let disk = load_control_config_from(tmp.path()).expect("disk");
         assert!(disk.control.joints["elbow"].impedance.kp < 9999.0);
+        shutdown.store(true, Ordering::SeqCst);
     }
 
     #[test]
-    fn config_overlay_writes_control_yaml_and_reloads() {
+    fn config_overlay_queues_persist_and_applies_live() {
         let root = repo_root();
         let src = root.join("config");
         let tmp = tempfile::tempdir().expect("tempdir");
         for name in ["control.yaml", "robot.yaml", "motors.yaml", "homing.yaml"] {
             std::fs::copy(src.join(name), tmp.path().join(name)).expect("copy");
         }
-        let mut overlay = ActuatorOverlay::new(allowlist_from_repo());
+        let (mut overlay, shutdown) = test_overlay();
         let mut loop_ctrl =
             ControlLoop::from_repo(&root, MemoryBus::default(), 200, 50).expect("loop");
         let op = tuning_operator(
@@ -602,30 +840,104 @@ mod tests {
             33.0,
             TuningTier::ConfigOverlay as i32,
         );
-        overlay
+        let outcomes = overlay
             .apply_operator_command(&mut loop_ctrl, tmp.path(), &op)
             .expect("apply");
-        let reloaded = load_control_config_from(tmp.path()).expect("reload disk");
-        assert!((reloaded.control.joints["elbow"].impedance.kp - 33.0).abs() < 1e-9);
+        assert!(outcomes
+            .iter()
+            .any(|o| matches!(o, OverlayOutcome::Tuning(_))));
+        assert!(outcomes.iter().any(|o| {
+            matches!(
+                o,
+                OverlayOutcome::Action(ActionEvent {
+                    action,
+                    accepted: true,
+                    ..
+                }) if action == "config_persist"
+            )
+        }));
         assert!(
             (loop_ctrl.supervisor().control.control.joints["elbow"]
                 .impedance
                 .kp
                 - 33.0)
                 .abs()
-                < 1e-9
+                < 1e-9,
+            "live must apply before disk write completes"
         );
+        assert!(
+            overlay.persist.wait_idle_for_test(Duration::from_secs(2)),
+            "persist worker did not drain"
+        );
+        let reloaded = load_control_config_from(tmp.path()).expect("reload disk");
+        assert!((reloaded.control.joints["elbow"].impedance.kp - 33.0).abs() < 1e-9);
+        shutdown.store(true, Ordering::SeqCst);
+    }
+
+    #[test]
+    fn persist_queue_coalesces_to_latest_draft() {
+        let root = repo_root();
+        let src = root.join("config");
+        let tmp = tempfile::tempdir().expect("tempdir");
+        for name in ["control.yaml", "robot.yaml", "motors.yaml", "homing.yaml"] {
+            std::fs::copy(src.join(name), tmp.path().join(name)).expect("copy");
+        }
+        let (queue, shutdown) = test_persist_queue();
+        let mut draft = load_control_config_from(tmp.path()).expect("load");
+        draft
+            .control
+            .joints
+            .get_mut("elbow")
+            .expect("elbow")
+            .impedance
+            .kp = 11.0;
+        queue
+            .enqueue(PersistRequest {
+                config_dir: tmp.path().to_path_buf(),
+                draft: draft.clone(),
+                timestamp_ms: 1,
+                session_id: "s".into(),
+                operator_id: "o".into(),
+                joint: "elbow".into(),
+                param: "impedance.kp".into(),
+            })
+            .expect("enqueue1");
+        draft
+            .control
+            .joints
+            .get_mut("elbow")
+            .expect("elbow")
+            .impedance
+            .kp = 44.0;
+        queue
+            .enqueue(PersistRequest {
+                config_dir: tmp.path().to_path_buf(),
+                draft,
+                timestamp_ms: 2,
+                session_id: "s".into(),
+                operator_id: "o".into(),
+                joint: "elbow".into(),
+                param: "impedance.kp".into(),
+            })
+            .expect("enqueue2");
+        // At most one pending slot (latest wins) — may already be writing.
+        assert!(queue.pending_count_for_test() <= 1);
+        assert!(queue.wait_idle_for_test(Duration::from_secs(2)));
+        let reloaded = load_control_config_from(tmp.path()).expect("reload");
+        assert!((reloaded.control.joints["elbow"].impedance.kp - 44.0).abs() < 1e-9);
+        shutdown.store(true, Ordering::SeqCst);
     }
 
     #[test]
     fn rejects_unwired_joint_with_not_wired_error() {
-        let mut overlay = ActuatorOverlay::new(allowlist_from_repo());
+        let (mut overlay, shutdown) = test_overlay();
         let mut loop_ctrl = test_loop();
         let op = tuning_operator("left_knee", "kp", 1.0, TuningTier::RuntimeMit as i32);
         let err = overlay
             .apply_operator_command(&mut loop_ctrl, &repo_root().join("config"), &op)
             .expect_err("unwired");
         assert!(matches!(err, OverlayError::NotWired(_)));
+        shutdown.store(true, Ordering::SeqCst);
     }
 
     #[test]

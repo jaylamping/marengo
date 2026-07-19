@@ -727,14 +727,6 @@ fn main() {
     let mut homing_rx = chappe.subscribe("robot/homing");
     let mut testing_cmd_rx = chappe.subscribe("robot/testing/mit_command_batch");
     let mut actuator_rx = chappe.subscribe(overlay::TOPIC_ACTUATOR_COMMAND);
-    let mut actuator_overlay = match overlay::ActuatorOverlay::from_config_dir(&config_dir) {
-        Ok(o) => o,
-        Err(e) => {
-            eprintln!("actuator overlay allowlist: {e}");
-            std::process::exit(1);
-        }
-    };
-    actuator_overlay.mark_limits_dirty();
 
     let shutdown = Arc::new(AtomicBool::new(false));
     let shutdown_flag = Arc::clone(&shutdown);
@@ -752,6 +744,18 @@ fn main() {
         eprintln!("failed to install SIGTERM handler");
         std::process::exit(1);
     }
+
+    let persist_queue =
+        overlay::ConfigPersistQueue::spawn(Arc::clone(&chappe), Arc::clone(&shutdown));
+    let mut actuator_overlay =
+        match overlay::ActuatorOverlay::from_config_dir(&config_dir, persist_queue) {
+            Ok(o) => o,
+            Err(e) => {
+                eprintln!("actuator overlay allowlist: {e}");
+                std::process::exit(1);
+            }
+        };
+    actuator_overlay.mark_limits_dirty();
 
     #[cfg(all(target_os = "linux", feature = "linux-i2c"))]
     imu::spawn_imu_publisher(Arc::clone(&chappe), Arc::clone(&shutdown));

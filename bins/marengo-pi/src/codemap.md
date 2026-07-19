@@ -7,6 +7,7 @@ Pi runtime implementation modules.
 | Module | Role |
 |--------|------|
 | `main.rs` | Entry, REPL, control loop, Chappe bridge, command parsing |
+| `overlay.rs` | Actuator harness tuning drain; async `control.yaml` persist queue |
 | `host_metrics.rs` | Periodic host metric publish |
 | `imu.rs` | Optional BNO085 read loop (linux-i2c feature) |
 

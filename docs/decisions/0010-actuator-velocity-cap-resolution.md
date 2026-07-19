@@ -53,7 +53,7 @@ Position and torque limits still use URDF + bench YAML as before (ADR 0009 envel
 - Shoulder bring-up profiles declare `actuator_groups.shoulder_pitch` instead of relying solely on global `rs03` defaults.
 - `motor_type_defaults.velocity_max_rad_s` remains the fallback for joints without override or group.
 - Operators set the cap they want in `control.yaml`; no hidden 0.5 rad/s ceiling from stale bench YAML.
-- Proto/Chappe tuning RPC and live overlay on Berthier are follow-ups; resolver API is stable for that path.
+- Proto/Chappe tuning overlay on Berthier is live (`marengo-pi` `ActuatorOverlay`); `persist=true` is durable-write escalation within the existing Chappe `robot/actuator/command` trust (no separate auth), and YAML I/O is async off the 200 Hz path.
 
 ## References
 
