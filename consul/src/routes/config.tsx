@@ -32,7 +32,7 @@ export const appRoutes: RouteObject[] = [
             handle: {
               header: {
                 title: 'Overview',
-                subtitle: 'marengo_arm_4dof · bench',
+                subtitle: 'arm_2dof_right · bench',
               },
             },
           };

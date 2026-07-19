@@ -34,7 +34,7 @@ export function SidebarNavMain({ items }: SidebarNavMainProps) {
                       isActive={isActive}
                       className={cn(
                         isActive &&
-                          'bg-surface-2 text-accent shadow-[inset_2px_0_0_var(--accent)] hover:bg-surface-2 hover:text-accent active:bg-surface-2 active:text-accent',
+                          'bg-surface-2 text-accent hover:bg-surface-2 hover:text-accent active:bg-surface-2 active:text-accent',
                       )}
                     >
                       <SidebarIcon icon={item.icon} />

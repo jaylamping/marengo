@@ -26,8 +26,10 @@ export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <SidebarNavMain items={getSidebarNavMain()} />
-        <SidebarPresetsNav items={sidebarPresets} />
-        <SidebarNavSecondary items={sidebarNavSecondary} className="mt-auto" />
+        {sidebarPresets.length > 0 ? <SidebarPresetsNav items={sidebarPresets} /> : null}
+        {sidebarNavSecondary.length > 0 ? (
+          <SidebarNavSecondary items={sidebarNavSecondary} className="mt-auto" />
+        ) : null}
       </SidebarContent>
       <SidebarFooter>
         <SidebarUserMenu user={sidebarUser} />

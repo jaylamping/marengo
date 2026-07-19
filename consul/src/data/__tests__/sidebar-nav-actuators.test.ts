@@ -21,4 +21,13 @@ describe('getSidebarNavMain actuators gating', () => {
     expect(actuators?.url).toBe('/actuators');
     expect(actuators?.icon).toBe('actuators');
   });
+
+  it('omits stub destinations from main nav', () => {
+    vi.stubEnv('VITE_FEATURE_ACTUATORS', 'false');
+    const urls = getSidebarNavMain().map((item) => item.url);
+    expect(urls.every((url) => url.startsWith('/'))).toBe(true);
+    expect(urls).not.toContain('#');
+    expect(getSidebarNavMain().map((item) => item.title)).not.toContain('Visualizer');
+    expect(getSidebarNavMain().map((item) => item.title)).not.toContain('Safety');
+  });
 });

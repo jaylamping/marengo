@@ -32,7 +32,7 @@ export const dashboardPanelCardClassName = dashboardPanelPointerClassName;
 
 /** Overview metric card grid (panel cards supply their own surface). */
 export const sectionCardsGridClassName =
-  'grid grid-cols-1 gap-4 px-4 lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4';
+  'grid grid-cols-1 gap-4 px-4 lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-3';
 
 export const dashboardMainClassName =
   '@container/main flex flex-1 flex-col gap-2';

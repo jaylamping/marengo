@@ -40,14 +40,12 @@ export const sidebarUser: SidebarUser = {
   avatar: '',
 };
 
+/** Live routes only — stubs stay out of the nav until they ship. */
 const sidebarNavMainBase: SidebarNavItem[] = [
   { title: 'Overview', url: '/', icon: 'overview' },
   { title: 'Simulation', url: '/simulation', icon: 'simulation' },
-  { title: 'Visualizer', url: '#', icon: 'visualizer' },
   { title: 'Subsystems', url: '/subsystems', icon: 'subsystems' },
   { title: 'Testing', url: '/testing', icon: 'preset-tuning' },
-  { title: 'Safety', url: '#', icon: 'safety' },
-  { title: 'Telemetry', url: '#', icon: 'telemetry' },
   { title: 'Logs', url: '/logs', icon: 'logs' },
 ];
 
@@ -69,14 +67,8 @@ export function getSidebarNavMain(): SidebarNavItem[] {
 /** @deprecated Use getSidebarNavMain() for feature-aware navigation. */
 export const sidebarNavMain: SidebarNavItem[] = sidebarNavMainBase;
 
-export const sidebarNavSecondary: SidebarNavItem[] = [
-  { title: 'Settings', url: '#', icon: 'settings' },
-  { title: 'Docs', url: '#', icon: 'docs' },
-  { title: 'Search', url: '#', icon: 'search' },
-];
+/** Reserved — empty until Settings/Docs/Search are real routes. */
+export const sidebarNavSecondary: SidebarNavItem[] = [];
 
-export const sidebarPresets: SidebarPresetItem[] = [
-  { name: 'golden_pose', url: '#', icon: 'preset-golden' },
-  { name: 'bench_default', url: '#', icon: 'preset-bench' },
-  { name: 'tuning_sweep', url: '#', icon: 'preset-tuning' },
-];
+/** Reserved — empty until pose presets apply real holds. */
+export const sidebarPresets: SidebarPresetItem[] = [];

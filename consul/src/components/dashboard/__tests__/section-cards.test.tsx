@@ -17,10 +17,6 @@ vi.mock('@/components/dashboard/cards/power-system-card', () => ({
   PowerSystemCard: () => <div data-testid="power-system-card" />,
 }));
 
-vi.mock('@/components/dashboard/cards/overview-placeholder-card', () => ({
-  OverviewPlaceholderCard: () => <div data-testid="placeholder-card" />,
-}));
-
 afterEach(() => {
   cleanup();
 });
@@ -28,11 +24,12 @@ afterEach(() => {
 describe('SectionCards (overview panel grid)', () => {
   it('uses the shared section grid class without legacy gradient selectors', () => {
     expect(sectionCardsGridClassName).toContain('grid');
+    expect(sectionCardsGridClassName).toContain('grid-cols-3');
     expect(sectionCardsGridClassName).not.toContain('bg-linear-to-t');
     expect(sectionCardsGridClassName).not.toContain('from-primary/5');
   });
 
-  it('renders all four overview host cards in the panel grid', () => {
+  it('renders the three live overview host cards', () => {
     render(<SectionCards />);
 
     const grid = screen.getByTestId('section-cards-grid');
@@ -40,6 +37,6 @@ describe('SectionCards (overview panel grid)', () => {
     expect(screen.getByTestId('pi-host-card')).toBeTruthy();
     expect(screen.getByTestId('jetson-host-card')).toBeTruthy();
     expect(screen.getByTestId('power-system-card')).toBeTruthy();
-    expect(screen.getByTestId('placeholder-card')).toBeTruthy();
+    expect(screen.queryByTestId('placeholder-card')).toBeNull();
   });
 });
