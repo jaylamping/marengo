@@ -1791,9 +1791,7 @@ mod tests {
             .set_homing_complete()
             .expect("ready");
         assert_eq!(loop_ctrl.supervisor_mut().mode(), OperationalMode::Ready);
-        loop_ctrl
-            .enter_position_hold_at(Some("shoulder_pitch"), 0.25)
-            .expect("hold-at");
+        // Stay Ready (do not call enter_position_hold*, which re-arms Active).
         loop_ctrl.tick(None).expect("tick");
         assert!(
             loop_ctrl.supervisor_mut().bus_mut().tx.is_empty(),
@@ -1889,6 +1887,7 @@ mod tests {
     #[test]
     fn enter_position_hold_latches_setpoints() {
         let mut loop_ctrl = test_loop();
+        bench_ready_active(&mut loop_ctrl);
         loop_ctrl.enter_position_hold().expect("hold");
         assert_eq!(loop_ctrl.control_mode(), ControlMode::Position);
         let sp = loop_ctrl.position_setpoints().expect("latched setpoints");
@@ -1898,6 +1897,7 @@ mod tests {
     #[test]
     fn hold_at_sets_joint_target() {
         let mut loop_ctrl = test_loop();
+        bench_ready_active(&mut loop_ctrl);
         loop_ctrl
             .enter_position_hold_at(Some("shoulder_pitch"), 0.42)
             .expect("hold-at");
@@ -1914,6 +1914,7 @@ mod tests {
     #[test]
     fn leaving_position_mode_clears_setpoints() {
         let mut loop_ctrl = test_loop();
+        bench_ready_active(&mut loop_ctrl);
         loop_ctrl.enter_position_hold().expect("hold");
         assert!(loop_ctrl.position_setpoints().is_some());
         loop_ctrl.set_control_mode(ControlMode::GravityComp);
@@ -2484,10 +2485,10 @@ mod tests {
     #[test]
     fn slew_max_lead_clamps_command_ahead_of_measured_q() {
         let mut loop_ctrl = test_loop();
+        bench_ready_active(&mut loop_ctrl);
         loop_ctrl
             .enter_position_hold_at(Some("shoulder_pitch"), 1.2)
             .expect("hold-at");
-        bench_ready_active(&mut loop_ctrl);
         loop_ctrl.tick(None).expect("tick");
         let i = loop_ctrl
             .joint_names()
@@ -2501,6 +2502,7 @@ mod tests {
     #[test]
     fn hold_at_ramps_command_not_instant_setpoint() {
         let mut loop_ctrl = test_loop();
+        bench_ready_active(&mut loop_ctrl);
         loop_ctrl
             .enter_position_hold_at(Some("shoulder_pitch"), 1.2)
             .expect("hold-at");
@@ -2513,7 +2515,6 @@ mod tests {
         assert!((target - 1.2).abs() < 1e-9);
         let cmd0 = loop_ctrl.position_hold_commands().expect("commands")[i];
         assert!(cmd0.abs() < 1e-6, "command starts at measured q≈0");
-        bench_ready_active(&mut loop_ctrl);
         loop_ctrl.tick(None).expect("tick");
         let cmd1 = loop_ctrl.position_hold_commands().expect("commands")[i];
         assert!(
@@ -2594,8 +2595,9 @@ mod tests {
     fn limit_clamped_sub_home_target_does_not_seed_downward_return() {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
+        // Past soft/hard lower (~-0.87/-0.9) so clamp_hold_target must raise the goal.
         loop_ctrl
-            .enter_position_hold_at(Some("shoulder_pitch"), -0.85)
+            .enter_position_hold_at(Some("shoulder_pitch"), -0.95)
             .expect("hold-at");
         let i = loop_ctrl
             .joint_names()
@@ -2604,7 +2606,7 @@ mod tests {
             .expect("joint index");
         let target = loop_ctrl.position_setpoints().expect("setpoints")[i];
         assert!(
-            target > -0.85,
+            target > -0.95,
             "requested lower-limit probe must clamp before planner reset"
         );
         let planner = &loop_ctrl.position_planners.as_ref().expect("planner")[i];

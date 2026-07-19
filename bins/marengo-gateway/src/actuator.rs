@@ -170,7 +170,7 @@ fn clamp_tuning_value(
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::expect_used)]
+    #![allow(clippy::expect_used, clippy::panic)]
 
     use super::*;
     use armee_proto::{
