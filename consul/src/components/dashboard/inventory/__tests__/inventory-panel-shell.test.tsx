@@ -63,10 +63,6 @@ describe('InventoryTableView panel shell', () => {
         table={table as never}
         groupedSections={[]}
         collapsedGroups={new Set()}
-        dataIds={[]}
-        sortableId="inventory-sortable"
-        sensors={[]}
-        onDragEnd={() => undefined}
         onToggleGroup={() => undefined}
       />,
     );
@@ -105,7 +101,7 @@ describe('InventoryTableToolbar panel shell', () => {
 });
 
 describe('InventoryRowDrawer panel shell', () => {
-  it('renders the device name trigger for drawer access', () => {
+  it('renders controlled drawer content for the selected device', () => {
     const item: InventoryItem = {
       id: 1,
       name: 'shoulder_pitch_r',
@@ -118,10 +114,10 @@ describe('InventoryRowDrawer panel shell', () => {
       node: 'can0:0x01',
     };
 
-    render(<InventoryRowDrawer item={item} />);
+    render(
+      <InventoryRowDrawer item={item} open onOpenChange={() => undefined} />,
+    );
 
-    expect(
-      screen.getByRole('button', { name: 'shoulder_pitch_r' }),
-    ).toBeTruthy();
+    expect(screen.getByText('shoulder_pitch_r')).toBeTruthy();
   });
 });

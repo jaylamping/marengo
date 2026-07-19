@@ -2,12 +2,12 @@ import * as React from 'react';
 import { useRobotStore } from '@/state/robotStore';
 import { useTestingStore } from '@/state/testingStore';
 import { useCompoundStore } from '@/state/compoundStore';
-import { fetchConfigSnapshot, ConfigSnapshotDto } from '@/lib/config-api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { formatSigFig } from '@/lib/format';
 import { dashboardPanelCardClassName } from '@/components/dashboard/layout/constants';
 import { COMPOUND_TEST_PRESETS } from '@/data/compound-tests';
+import { useConfigSnapshot } from '@/hooks/use-config-snapshot';
 
 const GAIN_LIMITS: Record<string, { kp_max: number; kd_max: number; tau_ff_max_nm: number; velocity_max_rad_s: number }> = {
   rs00: { kp_max: 500, kd_max: 5, tau_ff_max_nm: 17, velocity_max_rad_s: 50 },
@@ -20,11 +20,7 @@ export function TelemetryGaugeGrid() {
   const robotState = useRobotStore((s) => s.robotState);
   const { selectedJointNames } = useTestingStore();
   const { selectedPresetId } = useCompoundStore();
-  const [config, setConfig] = React.useState<ConfigSnapshotDto | null>(null);
-
-  React.useEffect(() => {
-    fetchConfigSnapshot().then(setConfig);
-  }, []);
+  const { data: config = null } = useConfigSnapshot();
 
   if (!robotState) return null;
 

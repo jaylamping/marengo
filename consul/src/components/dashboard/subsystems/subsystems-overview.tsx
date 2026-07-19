@@ -2,7 +2,6 @@ import { lazy, Suspense } from 'react';
 
 import type { InventoryItem } from '@/data/robot-inventory';
 
-import { DeferredMount } from '@/components/dashboard/layout/deferred-mount';
 import { dashboardSubsystemsClassName } from '@/components/dashboard/layout/constants';
 import { InventoryTableSkeleton } from '@/components/dashboard/inventory/inventory-table-skeleton';
 
@@ -15,14 +14,13 @@ type SubsystemsOverviewProps = {
   inventory: InventoryItem[];
 };
 
+/** Auto-loads the device table after paint — mount path no longer freezes nav. */
 export function SubsystemsOverview({ inventory }: SubsystemsOverviewProps) {
   return (
     <div className={dashboardSubsystemsClassName} data-testid="subsystems-overview">
-      <DeferredMount fallback={<InventoryTableSkeleton />} timeoutMs={2500}>
-        <Suspense fallback={<InventoryTableSkeleton />}>
-          <InventoryDataTable data={inventory} />
-        </Suspense>
-      </DeferredMount>
+      <Suspense fallback={<InventoryTableSkeleton />}>
+        <InventoryDataTable data={inventory} />
+      </Suspense>
     </div>
   );
 }

@@ -54,7 +54,6 @@ export function RootLayout() {
   }, [pathname]);
 
   useEffect(() => {
-    // Eager: Overview longtasks starve requestIdleCallback-based warmup.
     prefetchHeavyRoutes();
   }, []);
 

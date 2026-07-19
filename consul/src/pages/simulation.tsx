@@ -1,17 +1,17 @@
-import { lazy, Suspense } from 'react';
+import { lazy } from 'react';
 
-import { RouteBodyFallback } from '@/components/dashboard/layout/route-body-fallback';
+import { DeferredLazyBody } from '@/components/dashboard/layout/deferred-lazy-body';
 
 const SimulationOverview = lazy(async () => {
   const module = await import('@/components/dashboard/simulation/simulation-overview');
   return { default: module.SimulationOverview };
 });
 
-/** Thin route shell — SimulationOverview (~heavy UI) loads behind Suspense. */
+/** Instant route shell — skeleton paints before the heavy body mounts. */
 export function SimulationPage() {
   return (
-    <Suspense fallback={<RouteBodyFallback />}>
+    <DeferredLazyBody>
       <SimulationOverview />
-    </Suspense>
+    </DeferredLazyBody>
   );
 }

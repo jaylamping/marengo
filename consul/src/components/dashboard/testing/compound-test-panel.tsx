@@ -3,7 +3,6 @@ import { useCompoundStore } from '@/state/compoundStore';
 import { useTestingStore } from '@/state/testingStore';
 import { useRobotStore } from '@/state/robotStore';
 import { COMPOUND_TEST_PRESETS } from '@/data/compound-tests';
-import { fetchConfigSnapshot, ConfigSnapshotDto } from '@/lib/config-api';
 import {
   jointsSettled,
   presetSegmentCount,
@@ -27,6 +26,7 @@ import {
 } from '@/gen/marengo/v1/marengo_pb';
 import { postTestingMitCommandBatch } from '@/lib/gateway-api';
 import { dashboardPanelCardClassName } from '@/components/dashboard/layout/constants';
+import { useConfigSnapshot } from '@/hooks/use-config-snapshot';
 
 /** Zero gains → Pi clears overrides and uses arm_2dof_right control.yaml impedance. */
 const CONFIG_GAINS = { kp: 0, kd: 0, ki: 0, fc: 0 };
@@ -50,7 +50,7 @@ export function CompoundTestPanel() {
   const { dryRun, toggleDryRun } = useTestingStore();
   const robotState = useRobotStore((s) => s.robotState);
   const operationalMode = useRobotStore((s) => s.operationalMode);
-  const [config, setConfig] = React.useState<ConfigSnapshotDto | null>(null);
+  const { data: config = null } = useConfigSnapshot();
 
   // Raise keyframes, then optional Berthier in-loop wave (no endpoint holds).
   const runnerRef = React.useRef<{
@@ -72,10 +72,6 @@ export function CompoundTestPanel() {
     phase: 'raise',
     waveEndsAtMs: null,
   });
-
-  React.useEffect(() => {
-    fetchConfigSnapshot().then(setConfig);
-  }, []);
 
   const postPositionBatch = React.useCallback(async (joints: MitJointCommand[]) => {
     await postTestingMitCommandBatch(

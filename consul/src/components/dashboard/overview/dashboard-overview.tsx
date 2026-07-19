@@ -30,13 +30,13 @@ export function DashboardOverview({ active = true }: DashboardOverviewProps) {
     <div className={dashboardOverviewClassName}>
       <RobotModelProvider urdfXml={SHOULDER_PITCH_RIGHT_ONLY_URDF}>
         <div className={dashboardOverviewHeroClassName} data-testid="overview-hero">
-          <DeferredMount fallback={<ChartSectionSkeleton />} timeoutMs={400}>
+          <DeferredMount fallback={<ChartSectionSkeleton />} timeoutMs={400} strategy="idle">
             <Suspense fallback={<ChartSectionSkeleton />}>
               <OverviewPosturePanel active={active} />
             </Suspense>
           </DeferredMount>
           {active ? (
-            <DeferredMount fallback={<ChartSectionSkeleton />} timeoutMs={200}>
+            <DeferredMount fallback={<ChartSectionSkeleton />} timeoutMs={200} strategy="idle">
               <Suspense fallback={<ChartSectionSkeleton />}>
                 <JointTrackingChartCard />
               </Suspense>

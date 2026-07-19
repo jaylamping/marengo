@@ -1,12 +1,20 @@
 /// <reference types="vitest/config" />
+import babel from '@rolldown/plugin-babel';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import path from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    react(),
+    // Personal operator UI — latest Chrome only; React Compiler is on by default.
+    babel({
+      presets: [reactCompilerPreset({ target: '19' })],
+    }),
+    tailwindcss(),
+  ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -14,7 +22,7 @@ export default defineConfig({
   },
   /**
    * Pre-bundle heavy deps at dev-server start so first navigation does not
-   * cold-transform three/recharts/dnd-kit on the main thread (multi-second hangs).
+   * cold-transform three/recharts on the main thread.
    */
   optimizeDeps: {
     include: [
@@ -25,10 +33,6 @@ export default defineConfig({
       '@tanstack/react-table',
       '@tanstack/react-virtual',
       '@tanstack/react-query',
-      '@dnd-kit/core',
-      '@dnd-kit/sortable',
-      '@dnd-kit/utilities',
-      '@dnd-kit/modifiers',
       'motion',
       '@bufbuild/protobuf',
     ],
@@ -39,6 +43,7 @@ export default defineConfig({
     // WebTransport uses HTTP/3 to the gateway directly (not proxied through Vite).
   },
   build: {
+    target: 'chrome131',
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -53,7 +58,6 @@ export default defineConfig({
 
           if (
             id.includes('@tanstack/react-virtual') ||
-            id.includes('@dnd-kit') ||
             id.includes('@tanstack/react-table') ||
             id.includes('@tanstack/table-core')
           ) {

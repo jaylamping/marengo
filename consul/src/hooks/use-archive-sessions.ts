@@ -40,12 +40,15 @@ export function useArchiveSessions(mode: LogsMode) {
   useEffect(() => {
     setLogsPageActive(true);
     if (isChappeLive()) {
+      let cancelled = false;
       void fetchRecentLogs(SNAPSHOT_HYDRATE_LIMIT).then((result) => {
-        if (result.ok) {
-          hydrateLogsFromSnapshot(result.data);
+        if (cancelled || !result.ok) {
+          return;
         }
+        hydrateLogsFromSnapshot(result.data);
       });
       return () => {
+        cancelled = true;
         setLogsPageActive(false);
       };
     }

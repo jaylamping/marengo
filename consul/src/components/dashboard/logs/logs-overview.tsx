@@ -86,6 +86,7 @@ function LogsOverviewInner() {
           <DeferredMount
             fallback={<Skeleton className="min-h-0 flex-1 w-full rounded-[4px]" />}
             timeoutMs={120}
+            strategy="idle"
           >
             <LogsVirtualTable
               autoFollow={autoFollow && mode === 'live'}

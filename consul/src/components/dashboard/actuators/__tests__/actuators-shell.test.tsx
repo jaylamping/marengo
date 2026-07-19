@@ -12,6 +12,20 @@ vi.mock('@/hooks/use-live-inventory', () => ({
   useLiveInventory: (base: InventoryItem[]) => base,
 }));
 
+vi.mock('@/hooks/use-enriched-inventory', async () => {
+  const { robotInventory } = await import('@/data/robot-inventory');
+  return {
+    useEnrichedInventory: () => ({
+      data: robotInventory,
+      status: 'success',
+      fetchStatus: 'idle',
+      isFetching: false,
+      isPlaceholderData: false,
+      dataUpdatedAt: Date.now(),
+    }),
+  };
+});
+
 vi.mock('@/hooks/use-actuator-harness', () => ({
   useActuatorHarnessBootstrap: () => undefined,
 }));

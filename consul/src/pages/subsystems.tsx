@@ -1,21 +1,24 @@
-import { lazy, Suspense } from 'react';
+import { lazy } from 'react';
 
-import { RouteBodyFallback } from '@/components/dashboard/layout/route-body-fallback';
+import { DeferredLazyBody } from '@/components/dashboard/layout/deferred-lazy-body';
 import { robotInventory } from '@/data/robot-inventory';
-import { useLiveInventory } from '@/hooks/use-live-inventory';
+import { useEnrichedInventory } from '@/hooks/use-enriched-inventory';
 
 const SubsystemsOverview = lazy(async () => {
   const module = await import('@/components/dashboard/subsystems/subsystems-overview');
   return { default: module.SubsystemsOverview };
 });
 
-/** Thin route shell — inventory table graph stays out of the route module. */
+/**
+ * Instant route shell — enriched inventory from the shared config query (SWR + persist).
+ * No live overlay: config updates flow into the table; Chappe ticks do not.
+ */
 export function SubsystemsPage() {
-  const inventory = useLiveInventory(robotInventory);
+  const { data: inventory = robotInventory } = useEnrichedInventory();
 
   return (
-    <Suspense fallback={<RouteBodyFallback />}>
+    <DeferredLazyBody>
       <SubsystemsOverview inventory={inventory} />
-    </Suspense>
+    </DeferredLazyBody>
   );
 }

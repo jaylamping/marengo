@@ -25,7 +25,6 @@ import {
   DrawerFooter,
   DrawerHeader,
   DrawerTitle,
-  DrawerTrigger,
 } from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -43,21 +42,24 @@ import { ChartUpIcon } from '@hugeicons/core-free-icons';
 
 type InventoryRowDrawerProps = {
   item: InventoryRow;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 };
 
-export function InventoryRowDrawer({ item }: InventoryRowDrawerProps) {
+/** Single shared detail drawer — lazy-loaded so recharts stays off the table mount path. */
+export function InventoryRowDrawer({
+  item,
+  open,
+  onOpenChange,
+}: InventoryRowDrawerProps) {
   const isMobile = useIsMobile();
 
   return (
-    <Drawer direction={isMobile ? 'bottom' : 'right'}>
-      <DrawerTrigger asChild>
-        <Button
-          variant="link"
-          className="w-fit px-0 text-left font-mono text-sm text-foreground"
-        >
-          {item.name}
-        </Button>
-      </DrawerTrigger>
+    <Drawer
+      direction={isMobile ? 'bottom' : 'right'}
+      open={open}
+      onOpenChange={onOpenChange}
+    >
       <DrawerContent className={inventoryDrawerContentClassName}>
         <DrawerHeader className="gap-1">
           <DrawerTitle className="font-mono">{item.name}</DrawerTitle>

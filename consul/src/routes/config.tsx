@@ -1,20 +1,27 @@
 import type { RouteObject } from 'react-router-dom';
 
 import { isActuatorsFeatureEnabled } from '@/lib/feature-flags';
+import { ActuatorsPage } from '@/pages/actuators';
+import { DashboardPage } from '@/pages/dashboard';
+import { LogsPage } from '@/pages/logs';
+import { SimulationPage } from '@/pages/simulation';
+import { SubsystemsPage } from '@/pages/subsystems';
+import { TestingPage } from '@/pages/testing';
 import { RootLayout } from '@/routes/root-layout';
 
-/** Handles stay on the route object so headers work even when Overview is soft-cached. */
+/**
+ * Thin page shells are static imports so location updates immediately.
+ * Heavy bodies stay behind React.lazy + DeferredMount inside each page.
+ * (React Router route.lazy blocks pathname until the module resolves — that was the hang.)
+ */
 const actuatorsRoute: RouteObject = {
   path: '/actuators',
+  Component: ActuatorsPage,
   handle: {
     header: {
       title: 'Actuators',
       subtitle: 'telemetry only · PR-1 shell',
     },
-  },
-  lazy: async () => {
-    const { ActuatorsPage } = await import('@/pages/actuators');
-    return { Component: ActuatorsPage };
   },
 };
 
@@ -24,68 +31,53 @@ export const appRoutes: RouteObject[] = [
     children: [
       {
         path: '/',
+        Component: DashboardPage,
         handle: {
           header: {
             title: 'Overview',
             subtitle: 'arm_2dof_right · bench',
           },
         },
-        lazy: async () => {
-          const { DashboardPage } = await import('@/pages/dashboard');
-          return { Component: DashboardPage };
-        },
       },
       {
         path: '/simulation',
+        Component: SimulationPage,
         handle: {
           header: {
             title: 'Simulation',
             subtitle: 'Isaac Sim · Isaac Lab · wireframe',
           },
         },
-        lazy: async () => {
-          const { SimulationPage } = await import('@/pages/simulation');
-          return { Component: SimulationPage };
-        },
       },
       ...(isActuatorsFeatureEnabled() ? [actuatorsRoute] : []),
       {
         path: '/subsystems',
+        Component: SubsystemsPage,
         handle: {
           header: {
             title: 'Subsystems',
             subtitle: 'devices · actuators · sensors',
           },
         },
-        lazy: async () => {
-          const { SubsystemsPage } = await import('@/pages/subsystems');
-          return { Component: SubsystemsPage };
-        },
       },
       {
         path: '/logs',
+        Component: LogsPage,
         handle: {
           header: {
             title: 'Logs',
             subtitle: 'live stream · virtualized',
           },
         },
-        lazy: async () => {
-          const { LogsPage } = await import('@/pages/logs');
-          return { Component: LogsPage };
-        },
       },
       {
         path: '/testing',
+        Component: TestingPage,
         handle: {
           header: {
             title: 'Testing',
             subtitle: 'interactive · multi-actuator · PID retune',
           },
-        },
-        lazy: async () => {
-          const { TestingPage } = await import('@/pages/testing');
-          return { Component: TestingPage };
         },
       },
     ],

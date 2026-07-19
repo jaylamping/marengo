@@ -1,17 +1,17 @@
-import { lazy, Suspense } from 'react';
+import { lazy } from 'react';
 
-import { RouteBodyFallback } from '@/components/dashboard/layout/route-body-fallback';
+import { DeferredLazyBody } from '@/components/dashboard/layout/deferred-lazy-body';
 
 const LogsOverview = lazy(async () => {
   const module = await import('@/components/dashboard/logs/logs-overview');
   return { default: module.LogsOverview };
 });
 
-/** Thin route shell — LogsOverview loads behind Suspense. */
+/** Instant route shell — skeleton paints before the heavy body mounts. */
 export function LogsPage() {
   return (
-    <Suspense fallback={<RouteBodyFallback />}>
+    <DeferredLazyBody>
       <LogsOverview />
-    </Suspense>
+    </DeferredLazyBody>
   );
 }

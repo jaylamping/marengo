@@ -6,7 +6,7 @@ product
 
 ## Platform
 
-web
+web — latest Chrome only (personal cockpit; no legacy browser matrix). React Compiler is enabled in Vite.
 
 ## Users
 

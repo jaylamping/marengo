@@ -34,6 +34,8 @@ class LogBuffer {
   private notifyTimer: number | undefined;
   private lastNotifyAt = 0;
   private pendingLive: LogEntry[] = [];
+  /** Bumped on clear/new chunked insert so stale rAF hydrates abort. */
+  private insertGeneration = 0;
   private snapshot: LogBufferSnapshot = {
     version: 0,
     count: 0,
@@ -121,8 +123,12 @@ class LogBuffer {
   insertBatchChunked(batch: readonly LogEntry[], onComplete: () => void) {
     const chunkSize = 100;
     let offset = 0;
+    const generation = ++this.insertGeneration;
 
     const step = () => {
+      if (generation !== this.insertGeneration) {
+        return;
+      }
       const end = Math.min(offset + chunkSize, batch.length);
       this.insertBatch(batch.slice(offset, end));
       offset = end;
@@ -190,6 +196,7 @@ class LogBuffer {
   }
 
   clear() {
+    this.insertGeneration += 1;
     this.pendingLive = [];
     this.slots = [];
     this.head = 0;
@@ -373,9 +380,14 @@ export function hydrateLogsFromSnapshot(
   if (entries.length === 0) {
     return;
   }
+  // Include array index in React keys — store ids alone collide when a second
+  // hydrate races an in-flight chunked insert (Strict Mode double-fetch).
   const batch: LogEntry[] = entries
     .map((e, i) => ({
-      id: e.id !== undefined ? `snap-${e.id}` : `snap-${i}-${e.timestamp_ms}`,
+      id:
+        e.id !== undefined
+          ? `snap-${e.id}-${i}`
+          : `snap-${i}-${e.timestamp_ms}`,
       timestamp: e.timestamp_ms,
       level: mapProtoLevel(e.level),
       source: e.target,

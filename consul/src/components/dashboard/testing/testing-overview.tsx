@@ -47,7 +47,7 @@ export function TestingOverview() {
         </div>
       </div>
 
-      <DeferredMount fallback={<TestingBodySkeleton />} timeoutMs={120}>
+      <DeferredMount fallback={<TestingBodySkeleton />} timeoutMs={120} strategy="idle">
         <Tabs defaultValue="manual" className="w-full">
           <TabsList className="grid w-full max-w-md grid-cols-2 mb-6">
             <TabsTrigger value="manual">Manual Testing</TabsTrigger>

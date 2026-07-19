@@ -1,6 +1,6 @@
-import { lazy, Suspense } from 'react';
+import { lazy } from 'react';
 
-import { RouteBodyFallback } from '@/components/dashboard/layout/route-body-fallback';
+import { DeferredLazyBody } from '@/components/dashboard/layout/deferred-lazy-body';
 
 const ActuatorsOverview = lazy(async () => {
   const module = await import('@/components/dashboard/actuators/actuators-overview');
@@ -9,8 +9,8 @@ const ActuatorsOverview = lazy(async () => {
 
 export function ActuatorsPage() {
   return (
-    <Suspense fallback={<RouteBodyFallback />}>
+    <DeferredLazyBody>
       <ActuatorsOverview />
-    </Suspense>
+    </DeferredLazyBody>
   );
 }

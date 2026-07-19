@@ -1,17 +1,13 @@
 import * as React from 'react';
 import { useTestingStore } from '@/state/testingStore';
-import { fetchConfigSnapshot, ConfigSnapshotDto } from '@/lib/config-api';
 import { Slider } from '@/components/ui/slider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { dashboardPanelCardClassName } from '@/components/dashboard/layout/constants';
+import { useConfigSnapshot } from '@/hooks/use-config-snapshot';
 
 export function PidSliderPanel() {
   const { selectedJointNames, gains, setGain, dispatchGainUpdate } = useTestingStore();
-  const [config, setConfig] = React.useState<ConfigSnapshotDto | null>(null);
-
-  React.useEffect(() => {
-    fetchConfigSnapshot().then(setConfig);
-  }, []);
+  const { data: config = null } = useConfigSnapshot();
 
   // Practical tuning limits per Robstride motor type.
   const GAIN_LIMITS: Record<string, { kp_max: number; kd_max: number; ki_max: number; fc_max: number }> = {
