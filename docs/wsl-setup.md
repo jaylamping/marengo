@@ -218,7 +218,7 @@ After `setup-wsl-dev.sh`, **restart the marengo-pi MCP server** in Cursor so it 
 | Line-ending noise | In WSL clone: `git config core.autocrlf input`. |
 | Permission errors on `target/` | `docker compose build dev` (entrypoint chowns volumes). See [troubleshooting.md](troubleshooting.md). |
 | SolidWorks MCP can’t see files | MCP `SOLIDWORKS_MCP_ALLOWED_ROOTS` must match Windows CAD path; use Windows Cursor session for CAD. |
-| marengo-pi MCP missing in WSL | `just mcp-build`, confirm `.cursor/mcp.json` has `marengo-pi`, enable Project server, restart MCP. |
+| marengo-pi MCP missing / disabled in WSL | Usually disabled, not missing. Enable in MCP settings, or quit Cursor and run `just mcp-ensure-enabled --write`. Do **not** put profile/SSH env in `.cursor/mcp.json` (hash thrash auto-disables). Defaults are in `tools/marengo-pi-mcp/run-mcp.sh`. |
 | `spawn node ENOENT` on marengo-pi | Cursor's PATH lacks mise. mcp.json must use `bash` + `tools/marengo-pi-mcp/run-mcp.sh` (not bare `node`). Restart MCP after pull. |
 
 ---

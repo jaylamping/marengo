@@ -16,7 +16,7 @@ Host marengo.local
 
 Verify: `ssh joey@marengo.local 'echo ok'`
 
-If mDNS fails, set `MARENGO_PI_HOST` to the Pi IP in `mcp.json`.
+If mDNS fails, set `MARENGO_PI_HOST` in the environment before Cursor starts the MCP (or export it in your shell profile). Do not add it to `.cursor/mcp.json` — that env is hashed into Cursor’s MCP approval key and thrashing it auto-disables the server.
 
 ### Passwordless sudo (Pi)
 
@@ -64,6 +64,8 @@ If a tool still shows old behavior after `npm run build`, the Cursor MCP process
 
 Repo [`.cursor/mcp.json`](../../.cursor/mcp.json) uses `${workspaceFolder}` so the same file works on Windows and Mac. Open the marengo repo root as the Cursor workspace (or `marengo.code-workspace`).
 
+**Do not put `MARENGO_CONFIG_DIR` / `MARENGO_BENCH_PROFILE` / SSH env in `mcp.json`.** Cursor hashes those fields into an approval key; changing them auto-disables the project MCP until you re-enable it. Defaults live in [`run-mcp.sh`](run-mcp.sh) (and `src/config.ts` fallbacks). Override with shell env only when needed.
+
 `MARENGO_LOCAL_ROOT` is optional. The server derives the repo root from its install path. Override only for unusual clone layouts.
 
 After clone or pull that touches MCP sources:
@@ -73,6 +75,13 @@ just mcp-build
 ```
 
 Then restart the marengo-pi MCP server in Cursor.
+
+If the server shows as disabled after a config thrash:
+
+```bash
+# Quit Cursor first, then:
+just mcp-ensure-enabled --write
+```
 
 ## Tool summary
 

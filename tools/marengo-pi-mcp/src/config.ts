@@ -37,7 +37,7 @@ export function defaultLocalRoot(): string {
 
 export function loadConfig(): MarengoPiConfig {
   return {
-    host: env("MARENGO_PI_HOST", "marengo.local"),
+    host: env("MARENGO_PI_HOST", "joey-robot.tail0b414.ts.net"),
     user: env("MARENGO_PI_USER", "joey"),
     piRoot: env("MARENGO_PI_ROOT", "/opt/marengo"),
     configDir: env(
@@ -47,7 +47,7 @@ export function loadConfig(): MarengoPiConfig {
     localRoot: env("MARENGO_LOCAL_ROOT", defaultLocalRoot()),
     sshIdentityFile: process.env.SSH_IDENTITY_FILE?.trim() || undefined,
     benchProfile: (() => {
-      const raw = process.env.MARENGO_BENCH_PROFILE?.trim() || "bare_motor";
+      const raw = process.env.MARENGO_BENCH_PROFILE?.trim() || "elbow_attached";
       if (!isBenchProfile(raw)) {
         throw new Error(
           `Invalid MARENGO_BENCH_PROFILE=${raw}; expected one of ${BENCH_PROFILES.join(", ")}`,

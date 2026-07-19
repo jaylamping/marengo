@@ -22,10 +22,10 @@ describe("loadConfig / isBenchProfile", () => {
     assert.equal(isBenchProfile("not_a_profile"), false);
   });
 
-  it("defaults benchProfile to bare_motor", () => {
+  it("defaults benchProfile to elbow_attached", () => {
     delete process.env.MARENGO_BENCH_PROFILE;
     const cfg = loadConfig();
-    assert.equal(cfg.benchProfile, "bare_motor");
+    assert.equal(cfg.benchProfile, "elbow_attached");
   });
 
   it("throws on invalid MARENGO_BENCH_PROFILE", () => {

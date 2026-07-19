@@ -100,4 +100,4 @@ See [ADR 0011](decisions/0011-log-retention-and-archive.md) and [bench-position-
 
 ## Local dev (unchanged)
 
-Mac/Windows with LAN or Tailscale: keep using `marengo-pi` MCP and `MARENGO_PI_HOST` in `.cursor/mcp.json`.
+Mac/Windows with LAN or Tailscale: keep using `marengo-pi` MCP. Override `MARENGO_PI_HOST` via shell/`run-mcp.sh` defaults — not `.cursor/mcp.json` env (that thrash auto-disables the project MCP).
