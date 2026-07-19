@@ -1,5 +1,9 @@
 import { siteHeaderConfig } from '@/data/site-header';
-import { isChappeLive } from '@/lib/chappe-config';
+import {
+  chappeConnectionErrDetail,
+  chappeMisconfigHint,
+  resolveChappeEndpoints,
+} from '@/lib/chappe-config';
 import { cn } from '@/lib/utils';
 import { useHostMetricsStore } from '@/state/hostMetricsStore';
 import { useRobotStore } from '@/state/robotStore';
@@ -43,7 +47,12 @@ export function SiteHeaderStatusBadges() {
   const operationalMode = useRobotStore((s) => s.operationalMode);
   const gatewayError = useRobotStore((s) => s.gatewayError);
   const transportMode = useHostMetricsStore((s) => s.transportMode);
-  const live = isChappeLive();
+  const resolution = resolveChappeEndpoints();
+  const live = resolution.endpoints !== null;
+  const chappeErrDetail =
+    live && !connected && gatewayError
+      ? chappeConnectionErrDetail(resolution, chappeMisconfigHint())
+      : null;
 
   const machine = resolveMachineState(live, connected, operationalMode, gatewayError);
 
@@ -67,6 +76,7 @@ export function SiteHeaderStatusBadges() {
             ? 'border-accent/40 bg-surface-0'
             : 'border-line bg-surface-0',
         )}
+        title={chappeErrDetail ?? undefined}
       >
         <span className={machine.ledClassName} aria-hidden />
         <span

@@ -5,7 +5,16 @@ export type ChappeEndpoints = {
   webTransportUrl: string;
 };
 
+export type ChappeEndpointSource = 'baked' | 'derived' | 'none';
+
+export type ChappeResolution = {
+  endpoints: ChappeEndpoints | null;
+  source: ChappeEndpointSource;
+};
+
 const WEBTRANSPORT_PORT = '8443';
+
+const LOCALHOST_HOSTS = new Set(['127.0.0.1', 'localhost']);
 
 /** Robot-hosted Consul (HTTPS on gateway); same host, WebTransport on UDP :8443. */
 function endpointsFromRobotHostedPage(): ChappeEndpoints | null {
@@ -25,7 +34,7 @@ function endpointsFromRobotHostedPage(): ChappeEndpoints | null {
   };
 }
 
-export function getChappeEndpoints(): ChappeEndpoints | null {
+function bakedEndpointsFromEnv(): ChappeEndpoints | null {
   const httpUrl = import.meta.env.VITE_CHAPPE_HTTP_URL as string | undefined;
   const webTransportUrl = import.meta.env.VITE_CHAPPE_WEBTRANSPORT_URL as
     | string
@@ -36,11 +45,79 @@ export function getChappeEndpoints(): ChappeEndpoints | null {
       webTransportUrl: webTransportUrl.replace(/\/$/, ''),
     };
   }
-  return endpointsFromRobotHostedPage();
+  return null;
+}
+
+export function resolveChappeEndpoints(): ChappeResolution {
+  const baked = bakedEndpointsFromEnv();
+  if (baked) {
+    return { endpoints: baked, source: 'baked' };
+  }
+  const derived = endpointsFromRobotHostedPage();
+  if (derived) {
+    return { endpoints: derived, source: 'derived' };
+  }
+  return { endpoints: null, source: 'none' };
+}
+
+export function getChappeEndpoints(): ChappeEndpoints | null {
+  return resolveChappeEndpoints().endpoints;
 }
 
 export function isChappeLive(): boolean {
-  return getChappeEndpoints() !== null;
+  return resolveChappeEndpoints().endpoints !== null;
+}
+
+export function chappeMisconfigHint(): string | null {
+  const { endpoints, source } = resolveChappeEndpoints();
+  if (source !== 'baked' || !endpoints || typeof window === 'undefined') {
+    return null;
+  }
+
+  let bakedHost: string;
+  try {
+    bakedHost = new URL(endpoints.httpUrl).hostname;
+  } catch {
+    return null;
+  }
+
+  const originHost = window.location.hostname;
+  if (!originHost || bakedHost === originHost) {
+    return null;
+  }
+
+  // Vite often serves on localhost while .env bakes 127.0.0.1 (or vice versa).
+  if (LOCALHOST_HOSTS.has(bakedHost) && LOCALHOST_HOSTS.has(originHost)) {
+    return null;
+  }
+
+  if (LOCALHOST_HOSTS.has(bakedHost)) {
+    return `Baked dev URLs (${bakedHost}) — redeploy Consul with production env scrub`;
+  }
+
+  return `Baked Chappe host (${bakedHost}) does not match page origin (${originHost})`;
+}
+
+export function chappeConnectionErrDetail(
+  resolution: ChappeResolution,
+  misconfigHint: string | null,
+): string | null {
+  if (!resolution.endpoints) {
+    return null;
+  }
+
+  const lines = [
+    `HTTP: ${resolution.endpoints.httpUrl}`,
+    `WebTransport: ${resolution.endpoints.webTransportUrl}`,
+  ];
+
+  if (misconfigHint) {
+    lines.push(misconfigHint);
+  } else if (resolution.source === 'derived') {
+    lines.push('Gateway unreachable — check marengo-gateway on Pi');
+  }
+
+  return lines.join('\n');
 }
 
 export const CHAPPE_TOPICS = {
