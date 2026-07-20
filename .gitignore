@@ -1,5 +1,7 @@
 # SolidWorks editor lock files
 ~$*
+# Parallel-agent worktrees
+.worktrees/
 # CAD binaries — local SolidWorks tree only (not in git). Manifests + README stay tracked.
 cad/assemblies/
 cad/parts/
