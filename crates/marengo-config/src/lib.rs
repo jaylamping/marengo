@@ -1167,7 +1167,7 @@ mod tests {
         assert_eq!(cfg.control.loop_hz, 200);
         assert_eq!(cfg.control.feedback_poll_budget_us, 3000);
         assert_eq!(cfg.control.feedback_drain_quiet_us, 300);
-        assert!(!cfg.control.bench.active_reporting_diagnostics);
+        assert!(cfg.control.bench.active_reporting_diagnostics);
         assert!(cfg.control.motor_type_defaults.contains_key("rs03"));
     }
 
