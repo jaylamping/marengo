@@ -231,7 +231,10 @@ mod tests {
             .iter()
             .find(|j| j.name == "right_elbow_pitch")
             .expect("elbow joint");
-        assert!((elbow.axis.xyz[1] - 1.0).abs() < 1e-9, "elbow axis must be +Y");
+        assert!(
+            (elbow.axis.xyz[1] - 1.0).abs() < 1e-9,
+            "elbow axis must be +Y"
+        );
     }
 
     #[test]

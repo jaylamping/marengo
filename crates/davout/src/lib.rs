@@ -47,9 +47,7 @@ pub use armee_kinematics::JointLimitPolicy;
 
 mod active_reporting;
 
-pub use active_reporting::{
-    ActiveReportingLeaseError, ActiveReportingState, DEFAULT_LEASE_TTL,
-};
+pub use active_reporting::{ActiveReportingLeaseError, ActiveReportingState, DEFAULT_LEASE_TTL};
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -444,11 +442,10 @@ impl<B: MotorBus> Supervisor<B> {
             });
         }
         // Resolve before enabling so UnknownJoint cannot leave the bus ACTIVE.
-        let _motor = motor_for_joint(&self.motors, joint).ok_or_else(|| {
-            DavoutError::UnknownJoint {
+        let _motor =
+            motor_for_joint(&self.motors, joint).ok_or_else(|| DavoutError::UnknownJoint {
                 joint: joint.to_string(),
-            }
-        })?;
+            })?;
         if self.mode == OperationalMode::Active {
             return Err(DavoutError::Homing {
                 message: "set-zero refused while ACTIVE; disable motors first".into(),
@@ -1034,13 +1031,8 @@ impl<B: MotorBus> Supervisor<B> {
         let mode_active = self.mode == OperationalMode::Active;
         let global = self.control.control.bench.active_reporting_diagnostics;
         let now = Instant::now();
-        self.active_reporting.sync(
-            &mut self.bus,
-            &self.motors,
-            mode_active,
-            global,
-            now,
-        );
+        self.active_reporting
+            .sync(&mut self.bus, &self.motors, mode_active, global, now);
     }
 
     /// Expire TTLs and resync type-24 (call each control-loop iteration).
@@ -2221,7 +2213,10 @@ mod tests {
             .all(|m| !sup.active_reporting_applied(&m.joint)));
         let new_frames = &sup.bus.tx[tx_before..];
         for frame in type24_tx_frames(new_frames) {
-            assert_eq!(frame.data[6], 0x00, "disable before Active (MIT owns status)");
+            assert_eq!(
+                frame.data[6], 0x00,
+                "disable before Active (MIT owns status)"
+            );
         }
     }
 

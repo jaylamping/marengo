@@ -26,7 +26,7 @@ use berthier::{
     proto_control_mode, ControlLoop, ControlMode, GainOverride, LoopError, TickPhaseAverages,
 };
 use chappe::Bus;
-use davout::{DavoutError, DEFAULT_LEASE_TTL, MotorAddress, OperationalMode};
+use davout::{DavoutError, MotorAddress, OperationalMode, DEFAULT_LEASE_TTL};
 use marengo_config::{
     load_control_config, load_motors_config, resolve_config_dir, resolve_repo_root,
     resolve_urdf_path,
@@ -281,8 +281,7 @@ fn drain_chappe_commands(
                 let Ok(envelope) = armee_proto::Envelope::decode(bytes.as_slice()) else {
                     continue;
                 };
-                let Ok(request) =
-                    ActiveReportingLeaseRequest::decode(envelope.payload.as_slice())
+                let Ok(request) = ActiveReportingLeaseRequest::decode(envelope.payload.as_slice())
                 else {
                     continue;
                 };
@@ -335,24 +334,25 @@ fn handle_chappe_active_reporting_lease(
     loop_ctrl: &mut ControlLoop<RuntimeBus>,
     request: &ActiveReportingLeaseRequest,
 ) -> Result<(), DavoutError> {
-    let action = ActiveReportingLeaseAction::try_from(request.action).unwrap_or(
-        ActiveReportingLeaseAction::Unspecified,
-    );
+    let action = ActiveReportingLeaseAction::try_from(request.action)
+        .unwrap_or(ActiveReportingLeaseAction::Unspecified);
     match action {
-        ActiveReportingLeaseAction::Acquire => loop_ctrl
-            .supervisor_mut()
-            .acquire_active_reporting_lease(
+        ActiveReportingLeaseAction::Acquire => {
+            loop_ctrl.supervisor_mut().acquire_active_reporting_lease(
                 &request.joint,
                 &request.client_id,
                 &request.lease_id,
                 DEFAULT_LEASE_TTL,
-            ),
-        ActiveReportingLeaseAction::Renew => loop_ctrl.supervisor_mut().renew_active_reporting_lease(
-            &request.joint,
-            &request.client_id,
-            &request.lease_id,
-            DEFAULT_LEASE_TTL,
-        ),
+            )
+        }
+        ActiveReportingLeaseAction::Renew => {
+            loop_ctrl.supervisor_mut().renew_active_reporting_lease(
+                &request.joint,
+                &request.client_id,
+                &request.lease_id,
+                DEFAULT_LEASE_TTL,
+            )
+        }
         ActiveReportingLeaseAction::Release => loop_ctrl
             .supervisor_mut()
             .release_active_reporting_lease(&request.joint, &request.lease_id),
