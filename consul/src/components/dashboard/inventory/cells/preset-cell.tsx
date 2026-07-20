@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useInventoryOverridesStore } from '@/state/inventoryOverridesStore';
 
 type PresetCellProps = {
   itemId: number;
@@ -20,9 +21,13 @@ type PresetCellProps = {
 /** Text by default — Radix Select only mounts when assigning (was 22× on first paint). */
 export function PresetCell({ itemId, preset }: PresetCellProps) {
   const [editing, setEditing] = useState(false);
+  const applyPatch = useInventoryOverridesStore((state) => state.applyPatch);
+  const assignedPreset = useInventoryOverridesStore(
+    (state) => state.overrides[itemId]?.preset ?? preset,
+  );
 
-  if (preset !== 'unassigned') {
-    return <span className="font-mono text-xs">{preset}</span>;
+  if (assignedPreset !== 'unassigned') {
+    return <span className="font-mono text-xs">{assignedPreset}</span>;
   }
 
   if (!editing) {
@@ -47,6 +52,10 @@ export function PresetCell({ itemId, preset }: PresetCellProps) {
       <Select
         items={[...PRESET_OPTIONS]}
         defaultOpen
+        onValueChange={(value) => {
+          applyPatch(itemId, { preset: value });
+          setEditing(false);
+        }}
         onOpenChange={(open) => {
           if (!open) {
             setEditing(false);

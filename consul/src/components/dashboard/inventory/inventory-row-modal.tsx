@@ -267,7 +267,9 @@ export function InventoryRowModal({
                   }}
                   value={groupDraft}
                   onValueChange={(value) => {
-                    setGroupDraft(value as InventoryGroup);
+                    const group = value as InventoryGroup;
+                    setGroupDraft(group);
+                    onApply?.(item.id, { ...identityPatch(), group });
                     setGroupSelectOpen(false);
                   }}
                   items={GROUP_OPTIONS}
@@ -332,6 +334,7 @@ export function InventoryRowModal({
                   value={presetDraft}
                   onValueChange={(value) => {
                     setPresetDraft(value);
+                    onApply?.(item.id, { ...identityPatch(), preset: value });
                     setPresetSelectOpen(false);
                   }}
                   items={[...PRESET_OPTIONS_WITH_UNASSIGNED]}
