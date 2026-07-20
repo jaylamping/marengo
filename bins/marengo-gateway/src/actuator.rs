@@ -33,8 +33,18 @@ pub async fn snapshot_actuator_limits(State(state): State<SharedState>) -> Respo
 
 pub async fn command_actuator(
     State(state): State<SharedState>,
+    headers: HeaderMap,
     body: axum::body::Bytes,
 ) -> Result<Json<OkResponse>, (StatusCode, String)> {
+    // Same shared-token gate as log/config mutations. Fails open when
+    // MARENGO_GATEWAY_LOG_TOKEN is unset (LAN bench default). Not operator identity.
+    crate::logs::authorize_logs(&headers).map_err(|status| {
+        (
+            status,
+            "unauthorized: set x-marengo-log-token when MARENGO_GATEWAY_LOG_TOKEN is configured"
+                .to_string(),
+        )
+    })?;
     let envelope =
         Envelope::decode(body.as_ref()).map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
     if envelope.message_type != "marengo.v1.OperatorCommand" {
@@ -172,6 +182,9 @@ fn clamp_tuning_value(
 mod tests {
     #![allow(clippy::expect_used, clippy::panic)]
 
+    use std::ffi::OsString;
+    use std::sync::{Mutex, MutexGuard};
+
     use super::*;
     use armee_proto::{
         ActuatorCommand, JointActuatorLimit, OperatorCommand, TuningChange, TuningTier,
@@ -184,6 +197,48 @@ mod tests {
     use tower::ServiceExt;
 
     use crate::state::AppState;
+
+    const TEST_LOG_TOKEN: &str = "actuator-test-token";
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    struct EnvVarGuard {
+        _lock: MutexGuard<'static, ()>,
+        key: &'static str,
+        previous: Option<OsString>,
+    }
+
+    impl EnvVarGuard {
+        fn set(key: &'static str, value: &str) -> Self {
+            Self::replace(key, Some(value.into()))
+        }
+
+        fn remove(key: &'static str) -> Self {
+            Self::replace(key, None)
+        }
+
+        fn replace(key: &'static str, value: Option<OsString>) -> Self {
+            let lock = ENV_LOCK.lock().expect("environment lock");
+            let previous = std::env::var_os(key);
+            match value {
+                Some(value) => std::env::set_var(key, value),
+                None => std::env::remove_var(key),
+            }
+            Self {
+                _lock: lock,
+                key,
+                previous,
+            }
+        }
+    }
+
+    impl Drop for EnvVarGuard {
+        fn drop(&mut self) {
+            match self.previous.take() {
+                Some(value) => std::env::set_var(self.key, value),
+                None => std::env::remove_var(self.key),
+            }
+        }
+    }
 
     fn test_router(state: SharedState) -> Router {
         Router::new()
@@ -261,7 +316,45 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn command_actuator_requires_configured_log_token() {
+        let _token_guard = EnvVarGuard::set("MARENGO_GATEWAY_LOG_TOKEN", TEST_LOG_TOKEN);
+        let state = test_state();
+        seed_limits(&state, "right_shoulder_pitch", 50.0, 5.0);
+        let app = test_router(state);
+        let body = operator_envelope("right_shoulder_pitch", tuning_payload("kp", 10.0));
+
+        let unauthorized = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/command/actuator")
+                    .header("content-type", "application/x-protobuf")
+                    .body(Body::from(body.clone()))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(unauthorized.status(), StatusCode::UNAUTHORIZED);
+
+        let authorized = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/command/actuator")
+                    .header("content-type", "application/x-protobuf")
+                    .header("x-marengo-log-token", TEST_LOG_TOKEN)
+                    .body(Body::from(body))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(authorized.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
     async fn command_actuator_rejects_unwired_joint_with_403() {
+        let _token_guard = EnvVarGuard::remove("MARENGO_GATEWAY_LOG_TOKEN");
         let state = test_state();
         seed_limits(&state, "right_shoulder_pitch", 50.0, 5.0);
         let app = test_router(state);
@@ -284,6 +377,7 @@ mod tests {
 
     #[tokio::test]
     async fn command_actuator_rejects_non_tuning_with_400() {
+        let _token_guard = EnvVarGuard::remove("MARENGO_GATEWAY_LOG_TOKEN");
         let state = test_state();
         seed_limits(&state, "right_shoulder_pitch", 50.0, 5.0);
         let app = test_router(state);
@@ -308,6 +402,7 @@ mod tests {
 
     #[tokio::test]
     async fn command_actuator_rejects_without_limits_snapshot() {
+        let _token_guard = EnvVarGuard::remove("MARENGO_GATEWAY_LOG_TOKEN");
         let app = test_router(test_state());
         let response = app
             .oneshot(
@@ -328,6 +423,7 @@ mod tests {
 
     #[tokio::test]
     async fn command_actuator_clamps_to_live_kp_max() {
+        let _token_guard = EnvVarGuard::remove("MARENGO_GATEWAY_LOG_TOKEN");
         let bus = std::sync::Arc::new(Bus::default());
         let state = std::sync::Arc::new(
             AppState::new(std::sync::Arc::clone(&bus))
@@ -368,6 +464,7 @@ mod tests {
 
     #[tokio::test]
     async fn command_actuator_publishes_canonical_joint_for_left_alias() {
+        let _token_guard = EnvVarGuard::remove("MARENGO_GATEWAY_LOG_TOKEN");
         let bus = std::sync::Arc::new(Bus::default());
         let state = std::sync::Arc::new(
             AppState::new(std::sync::Arc::clone(&bus))
@@ -401,6 +498,7 @@ mod tests {
 
     #[tokio::test]
     async fn command_actuator_returns_429_when_rate_limited() {
+        let _token_guard = EnvVarGuard::remove("MARENGO_GATEWAY_LOG_TOKEN");
         let state = test_state();
         seed_limits(&state, "right_shoulder_pitch", 50.0, 5.0);
         let app = test_router(state);

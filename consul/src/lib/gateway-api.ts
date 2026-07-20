@@ -45,9 +45,16 @@ export async function postActuatorCommand(command: OperatorCommand): Promise<voi
     messageType: 'marengo.v1.OperatorCommand',
     payload: toBinary(OperatorCommandSchema, command),
   });
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/x-protobuf',
+  };
+  const token = import.meta.env.VITE_MARENGO_LOG_TOKEN as string | undefined;
+  if (token?.trim()) {
+    headers['x-marengo-log-token'] = token.trim();
+  }
   const res = await fetch(`${httpUrl}/command/actuator`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-protobuf' },
+    headers,
     body: toBinary(EnvelopeSchema, envelope),
   });
   if (!res.ok) {
