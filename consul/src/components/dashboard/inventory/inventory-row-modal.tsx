@@ -6,7 +6,10 @@ import {
   inventoryModalContentClassName,
 } from '@/components/dashboard/inventory/constants';
 import { isSubsystemInteractive } from '@/components/dashboard/inventory/subsystem-interactive';
-import type { InventoryRow } from '@/components/dashboard/inventory/types';
+import type {
+  InventoryIdentityPatch,
+  InventoryRow,
+} from '@/components/dashboard/inventory/types';
 import { INVENTORY_GROUP_LABELS, type InventoryGroup } from '@/data/robot-inventory';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -37,17 +40,10 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import {
   ArrowLeft01Icon,
   ArrowRight01Icon,
+  Edit01Icon,
 } from '@hugeicons/core-free-icons';
-import { MdOutlineEdit } from 'react-icons/md';
 
-export type InventoryIdentityPatch = {
-  name: string;
-  group: InventoryGroup;
-  kind: InventoryRow['kind'];
-  status: InventoryRow['status'];
-  preset: string;
-  limit: string;
-};
+export type { InventoryIdentityPatch };
 
 type InventoryRowModalProps = {
   item: InventoryRow;
@@ -55,7 +51,7 @@ type InventoryRowModalProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onNavigate: (item: InventoryRow) => void;
-  onApply?: (itemId: number, patch: InventoryIdentityPatch) => void;
+  onApply?: (itemId: number, patch: Partial<InventoryIdentityPatch>) => void;
 };
 
 const GROUP_OPTIONS = (
@@ -217,7 +213,7 @@ export function InventoryRowModal({
                       className={headerEditButtonClassName}
                       onClick={() => setEditingName(true)}
                     >
-                      <MdOutlineEdit className="size-3.5" />
+                      <HugeiconsIcon icon={Edit01Icon} strokeWidth={2} className="size-3.5" />
                     </Button>
                   </div>
                 )}
@@ -269,7 +265,7 @@ export function InventoryRowModal({
                   onValueChange={(value) => {
                     const group = value as InventoryGroup;
                     setGroupDraft(group);
-                    onApply?.(item.id, { ...identityPatch(), group });
+                    onApply?.(item.id, { group });
                     setGroupSelectOpen(false);
                   }}
                   items={GROUP_OPTIONS}
@@ -304,7 +300,7 @@ export function InventoryRowModal({
                     className={headerEditButtonClassName}
                     onClick={() => setGroupSelectOpen(true)}
                   >
-                    <MdOutlineEdit className="size-3" />
+                    <HugeiconsIcon icon={Edit01Icon} strokeWidth={2} className="size-3" />
                   </Button>
                 </span>
               )}
@@ -334,7 +330,7 @@ export function InventoryRowModal({
                   value={presetDraft}
                   onValueChange={(value) => {
                     setPresetDraft(value);
-                    onApply?.(item.id, { ...identityPatch(), preset: value });
+                    onApply?.(item.id, { preset: value });
                     setPresetSelectOpen(false);
                   }}
                   items={[...PRESET_OPTIONS_WITH_UNASSIGNED]}
@@ -369,7 +365,7 @@ export function InventoryRowModal({
                     className={headerEditButtonClassName}
                     onClick={() => setPresetSelectOpen(true)}
                   >
-                    <MdOutlineEdit className="size-3" />
+                    <HugeiconsIcon icon={Edit01Icon} strokeWidth={2} className="size-3" />
                   </Button>
                 </span>
               )}
@@ -426,7 +422,7 @@ export function InventoryRowModal({
               onLimitDraftChange={setLimitDraft}
               onApplyRange={(range) => {
                 setLimitDraft(range);
-                onApply?.(item.id, { ...identityPatch(), limit: range });
+                onApply?.(item.id, { limit: range });
               }}
               moveToDraft={moveToDraft}
               onMoveToDraftChange={setMoveToDraft}

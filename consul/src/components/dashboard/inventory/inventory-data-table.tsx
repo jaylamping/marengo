@@ -2,11 +2,13 @@ import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
 
 import { useInventoryTable } from '@/components/dashboard/inventory/hooks/use-inventory-table';
 import { InventoryDetailProvider } from '@/components/dashboard/inventory/inventory-detail-context';
-import type { InventoryIdentityPatch } from '@/components/dashboard/inventory/inventory-row-modal';
 import { InventoryTableFooter } from '@/components/dashboard/inventory/inventory-table-footer';
 import { InventoryTableToolbar } from '@/components/dashboard/inventory/inventory-table-toolbar';
 import { InventoryTableView } from '@/components/dashboard/inventory/inventory-table-view';
-import type { InventoryRow } from '@/components/dashboard/inventory/types';
+import type {
+  InventoryIdentityPatch,
+  InventoryRow,
+} from '@/components/dashboard/inventory/types';
 import { dashboardPanelPointerClassName } from '@/components/dashboard/layout/constants';
 import { Tabs } from '@/components/ui/tabs';
 import {
@@ -68,9 +70,12 @@ export function InventoryDataTable({ data }: InventoryDataTableProps) {
     setDetailItemId(item.id);
   }, []);
 
-  const applyPatch = useCallback((itemId: number, patch: InventoryIdentityPatch) => {
-    applyOverridePatch(itemId, patch);
-  }, [applyOverridePatch]);
+  const applyPatch = useCallback(
+    (itemId: number, patch: Partial<InventoryIdentityPatch>) => {
+      applyOverridePatch(itemId, patch);
+    },
+    [applyOverridePatch],
+  );
 
   return (
     <InventoryDetailProvider openItem={openItem}>
