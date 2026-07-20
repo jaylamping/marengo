@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Marengo Pi MCP First
 
-When working on Pi bench bring-up, CAN, motors, gravity, `motor-repl`, `marengo-pi`, config sync, logs, or shoulder pitch testing:
+When working on Pi bench bring-up, CAN, motors, gravity, `motor-repl`, `marengo-pi`, config sync, logs, deploy, or shoulder/arm testing:
 
 1. Use the available **marengo-pi MCP tools first** for Pi actions and verification.
 2. Do **not** ask the user to run shell commands, paste logs, deploy files, or verify software state when an MCP tool can do it.
@@ -14,11 +14,23 @@ When working on Pi bench bring-up, CAN, motors, gravity, `motor-repl`, `marengo-
 5. After motion troubleshooting (`pi_hold_on`, harness, scripted marengo-pi): always **`pi_candump_summary`** plus position trace — CAN is wire truth vs code trace.
 6. For motion tools, ask only for the required confirmation flags and any physical safety preconditions. Then run the tool yourself.
 7. Ask the user only for physical actions or credentials the MCP cannot perform: supporting the arm, keeping hands off, power-cycling, plugging hardware, entering sudo password, Motor Studio UI actions, or confirming weighted/live motion.
-8. If MCP tooling is stale or missing a capability, fix or extend the MCP toolchain, rebuild it, and use it rather than falling back to user-run commands.
+8. If MCP tooling is stale or missing a capability, fix or extend the MCP toolchain, rebuild it (`just mcp-build`), **restart the marengo-pi MCP server**, and use it rather than falling back to user-run commands.
 
-## Cloud agents (`CURSOR_AGENT=1`)
+## If marengo-pi MCP is “missing” or “not found” (local / WSL)
 
-When **marengo-pi MCP is unavailable** (typical in cloud sessions), use **`./scripts/pi-remote.sh`** with the same log-first order. Setup: [docs/cloud-pi-tailscale.md](../../docs/cloud-pi-tailscale.md).
+On this machine the server is configured in [`.cursor/mcp.json`](../mcp.json) as **`marengo-pi`**. If tools report the server not found or it is absent from the MCP catalog:
+
+1. Treat that as **disabled or needs restart**, not “unavailable.”
+2. **Enable or restart** the `marengo-pi` MCP server in Cursor (MCP panel / settings). Do not invent a shell workaround first.
+   On every host, a `sessionStart` hook (`session-start-marengo.mjs`) also runs `scripts/ensure-marengo-pi-mcp-enabled.py --write --best-effort` to scrub disabled/unapproved state when a chat opens.
+3. Re-discover tools and continue with `pi_*` tools.
+4. Only after enable/restart still fails, tell the user the MCP failed to start (with the error). Do not silently fall back to `deploy-pi.sh` / `pi-remote.sh` on local WSL.
+
+**Never** put `MARENGO_CONFIG_DIR` / `MARENGO_BENCH_PROFILE` / SSH env into `.cursor/mcp.json` — Cursor hashes that env and auto-disables the server when it changes. Defaults belong in `tools/marengo-pi-mcp/run-mcp.sh` (shared; optional `run-mcp.ps1` on Windows). Recovery: `just mcp-ensure-enabled --write` (Cursor quit first).
+
+## Cloud agents (`CURSOR_AGENT=1`) only
+
+When **marengo-pi MCP cannot run** in a cloud VM (no SSH MCP), use **`./scripts/pi-remote.sh`** with the same log-first order. Setup: [docs/cloud-pi-tailscale.md](../../docs/cloud-pi-tailscale.md).
 
 | MCP tool | Cloud equivalent |
 |----------|------------------|
@@ -32,6 +44,6 @@ When **marengo-pi MCP is unavailable** (typical in cloud sessions), use **`./scr
 | `pi_sync_main` | `pi-remote.sh deploy --install` |
 | `pi_read_file` | `pi-remote.sh ssh -- cat /opt/marengo/...` |
 
-Bad: “Paste the bench log from the Pi.”
+Bad: “Paste the bench log from the Pi.” / falling back to `just deploy-pi-wsl` because MCP looked disabled.
 
-Good: `./scripts/pi-remote.sh logs-last-fault` then report the result.
+Good: enable/restart `marengo-pi` MCP → `pi_sync_main` → report the result.

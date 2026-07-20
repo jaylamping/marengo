@@ -71,6 +71,11 @@ deploy-pi-wsl host="joey@marengo.local":
 mcp-build:
     cd tools/marengo-pi-mcp && npm install && npm run build
 
+# Clear Cursor disabled state / refresh approval for marengo-pi
+# (dry-run default; --write after quit; sessionStart hook uses --write --best-effort)
+mcp-ensure-enabled *args:
+    python3 ./scripts/ensure-marengo-pi-mcp-enabled.py {{args}}
+
 # Install Marengo Research MCP (Python/uv; restart marengo-research MCP after this)
 research-mcp-setup:
     cd tools/marengo-research-mcp && uv sync --extra dev

@@ -6,7 +6,13 @@ alwaysApply: true
 # Windows Shell Safety
 
 The default shell on this workspace is PowerShell. Avoid Bash-only command
-syntax unless the command is explicitly executed through `sh`.
+syntax unless the command is explicitly executed through `sh` / `bash`.
+
+**Enforced:** `.cursor/hooks/check-powershell-shell.mjs` runs on
+`beforeShellExecution` and **denies** bash-isms (`&&`, `||`, heredocs, `export`,
+`set -e`, `if [`, `[[`, etc.) on native Windows only, unless the command is
+wrapped in `bash`/`sh`/`wsl` or piped into `sh`. On macOS / Linux / WSL the hook
+allows bash syntax.
 
 ## PowerShell Sequencing
 
@@ -37,3 +43,9 @@ EOF
 After installing CLI tools with `winget` or `npm -g`, update `$env:Path` in the
 current session before verifying the command. New terminals may not see PATH
 changes until restarted.
+
+## Software vs CAD host
+
+- **Software** (`just check`, cargo, Pi deploy): WSL clone `~/code/marengo`.
+- **CAD / SolidWorks MCP**: Windows `C:\code\marengo`.
+- Session start injects which host you are on — do not invent bash pipelines on Windows.

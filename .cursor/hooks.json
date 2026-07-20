@@ -1,6 +1,19 @@
 {
   "version": 1,
   "hooks": {
+    "sessionStart": [
+      {
+        "command": "node \".cursor/hooks/session-start-marengo.mjs\"",
+        "timeout": 25
+      }
+    ],
+    "beforeShellExecution": [
+      {
+        "command": "node \".cursor/hooks/check-powershell-shell.mjs\"",
+        "timeout": 8,
+        "failClosed": false
+      }
+    ],
     "preToolUse": [
       {
         "command": "node \".cursor/skills/impeccable/scripts/hook-before-edit.mjs\"",

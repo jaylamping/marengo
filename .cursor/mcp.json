@@ -12,24 +12,12 @@
       "args": ["-y", "--package=@upstash/context7-mcp@2.2.5", "--", "context7-mcp"]
     },
     "marengo-pi": {
-      "command": "bash",
-      "args": ["${workspaceFolder}/tools/marengo-pi-mcp/run-mcp.sh"],
-      "env": {
-        "MARENGO_PI_HOST": "marengo.local",
-        "MARENGO_PI_USER": "joey",
-        "MARENGO_PI_ROOT": "/opt/marengo",
-        "MARENGO_CONFIG_DIR": "/opt/marengo/config/bringup/arm_4dof_right",
-        "MARENGO_BENCH_PROFILE": "elbow_attached",
-        "SSH_IDENTITY_FILE": "/home/joey/.ssh/id_ed25519_marengo"
-      }
+      "command": "node",
+      "args": ["${workspaceFolder}/tools/marengo-pi-mcp/launch.mjs"]
     },
     "marengo-research": {
-      "command": "bash",
-      "args": ["${workspaceFolder}/tools/marengo-research-mcp/run-mcp.sh"],
-      "env": {
-        "MARENGO_RESEARCH_CACHE_DIR": "${workspaceFolder}/.marengo-research",
-        "MARENGO_WORKSPACE": "${workspaceFolder}"
-      }
+      "command": "node",
+      "args": ["${workspaceFolder}/tools/marengo-research-mcp/launch.mjs"]
     }
   }
 }
