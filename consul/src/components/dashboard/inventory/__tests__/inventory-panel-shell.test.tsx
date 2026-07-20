@@ -71,7 +71,7 @@ describe('InventoryTableView panel shell', () => {
     const shell = screen.getByTestId('inventory-table-shell');
     expect(shell.className).toContain('bg-surface-1');
     expect(shell.className).toMatch(/pointer-events-auto/);
-    expect(screen.getByText('No devices match this view.')).toBeTruthy();
+    expect(screen.getByText('No devices in this view.')).toBeTruthy();
   });
 });
 

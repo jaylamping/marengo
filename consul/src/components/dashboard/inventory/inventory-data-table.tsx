@@ -83,7 +83,7 @@ export function InventoryDataTable({ data }: InventoryDataTableProps) {
           onExpandAll={expandAllGroups}
           onCollapseAll={collapseAllGroups}
         />
-        <div className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6">
+        <div className="relative flex flex-col gap-4 overflow-auto">
           <InventoryTableView
             table={table}
             groupedSections={groupedSections}

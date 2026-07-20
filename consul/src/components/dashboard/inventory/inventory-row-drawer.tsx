@@ -128,7 +128,10 @@ export function InventoryRowDrawer({
                   </ChartContainer>
                   <Separator />
                   <div className="grid gap-2">
-                    <div className="flex gap-2 leading-none font-medium">
+                    <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                      Tracking (placeholder)
+                    </div>
+                    <div className="flex gap-2 text-xs leading-none font-medium">
                       Max tracking error 0.06 Nm this session
                       <HugeiconsIcon
                         icon={ChartUpIcon}
@@ -136,9 +139,9 @@ export function InventoryRowDrawer({
                         className="size-4"
                       />
                     </div>
-                    <div className="text-muted-foreground">
-                      Dummy telemetry for layout. Will sync to live CAN feedback
-                      and time cursor when Chappe stream lands.
+                    <div className="text-xs text-muted-foreground">
+                      Layout fixture until live CAN feedback and time cursor
+                      land.
                     </div>
                   </div>
                   <Separator />

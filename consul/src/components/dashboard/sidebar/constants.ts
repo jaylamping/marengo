@@ -18,9 +18,9 @@ export const sidebarChromeClassName = ['z-30', dashboardPanelPointerClassName].j
   ' ',
 );
 
-/** Opaque panel shell for the dashboard site header. */
+/** Opaque panel shell for the dashboard site header (sticky within inset scroll). */
 export const siteHeaderPanelClassName = [
-  'relative z-30',
+  'sticky top-0 z-30',
   dashboardPanelPointerClassName,
   'border-b border-line bg-surface-1',
 ].join(' ');

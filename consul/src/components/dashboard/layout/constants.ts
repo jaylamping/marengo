@@ -19,7 +19,7 @@ export const dashboardLayoutRootClassName = 'relative h-svh';
  * is why the ambient backdrop vanished above the md breakpoint.
  */
 export const dashboardChromeClassName =
-  'relative z-20 min-h-svh bg-transparent has-data-[variant=inset]:bg-transparent';
+  'relative z-20 h-svh min-h-0 overflow-hidden bg-transparent has-data-[variant=inset]:bg-transparent';
 
 /** Main route shell — re-enable pointer events on panels via children. */
 export const dashboardMainPointerClassName = 'pointer-events-none';

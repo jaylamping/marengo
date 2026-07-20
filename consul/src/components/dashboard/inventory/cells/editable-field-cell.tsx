@@ -30,7 +30,7 @@ export function EditableFieldCell({
       <Button
         type="button"
         variant="ghost"
-        className={`justify-end px-1 font-mono text-xs text-foreground ${inputClassName}`}
+        className={`ml-auto justify-end px-1 font-mono text-xs text-foreground ${inputClassName}`}
         onClick={() => setEditing(true)}
       >
         {defaultValue}

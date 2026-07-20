@@ -24,10 +24,10 @@ import {
 import { TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
-  Add01Icon,
   ArrowDown01Icon,
   LeftToRightListBulletIcon,
 } from '@hugeicons/core-free-icons';
+import { cn } from '@/lib/utils';
 
 type InventoryTableToolbarProps = {
   activeView: InventoryView;
@@ -84,16 +84,26 @@ export function InventoryTableToolbar({
           </SelectGroup>
         </SelectContent>
       </Select>
-      <TabsList className="hidden **:data-[slot=badge]:size-5 **:data-[slot=badge]:rounded-full **:data-[slot=badge]:bg-muted-foreground/30 **:data-[slot=badge]:px-1 @4xl/main:flex">
+      <TabsList className="hidden **:data-[slot=badge]:size-5 **:data-[slot=badge]:rounded-sm **:data-[slot=badge]:px-1 @4xl/main:flex">
         <TabsTrigger value="all">All Devices</TabsTrigger>
         <TabsTrigger value="faults">
-          Faults <Badge variant="secondary">{viewCounts.faults}</Badge>
+          Faults{' '}
+          <Badge
+            variant="secondary"
+            className={cn(
+              viewCounts.faults > 0 &&
+                'border-fault/40 bg-fault/15 text-fault',
+            )}
+          >
+            {viewCounts.faults}
+          </Badge>
         </TabsTrigger>
         <TabsTrigger value="offline">
           Offline <Badge variant="secondary">{viewCounts.offline}</Badge>
         </TabsTrigger>
         <TabsTrigger value="unconfigured">
-          Unconfigured <Badge variant="secondary">{viewCounts.unconfigured}</Badge>
+          Unconfigured{' '}
+          <Badge variant="secondary">{viewCounts.unconfigured}</Badge>
         </TabsTrigger>
       </TabsList>
       <div className="flex items-center gap-2">
@@ -136,10 +146,6 @@ export function InventoryTableToolbar({
         </Button>
         <Button variant="ghost" size="sm" onClick={onCollapseAll}>
           Collapse all
-        </Button>
-        <Button variant="outline" size="sm">
-          <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />
-          <span className="hidden lg:inline">Add Device</span>
         </Button>
       </div>
     </div>

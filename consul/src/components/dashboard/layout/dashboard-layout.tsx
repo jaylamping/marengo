@@ -31,9 +31,9 @@ export function DashboardLayout({ children, scenePaused = false }: DashboardLayo
         className={dashboardChromeClassName}
       >
         <AppSidebar variant="inset" />
-        <SidebarInset className="bg-transparent">
+        <SidebarInset className="min-h-0 overflow-hidden bg-transparent">
           <SiteHeader />
-          <div className="flex min-h-0 flex-1 flex-col">
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
             <div
               data-testid="dashboard-main"
               className={`${dashboardMainClassName} ${dashboardMainPointerClassName} min-h-0`}

@@ -9,9 +9,14 @@ import type { InventoryRow } from '@/components/dashboard/inventory/types';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 
+export type InventoryColumnMeta = {
+  className?: string;
+};
+
 export const inventoryColumns: ColumnDef<InventoryRow>[] = [
   {
     id: 'select',
+    size: 40,
     header: ({ table }) => (
       <div className="flex items-center justify-center">
         <Checkbox
@@ -39,27 +44,35 @@ export const inventoryColumns: ColumnDef<InventoryRow>[] = [
   },
   {
     accessorKey: 'name',
+    size: 260,
     header: 'Name',
     cell: ({ row }) => <InventoryNameCell item={row.original} />,
     enableHiding: false,
   },
   {
     accessorKey: 'kind',
+    size: 100,
     header: 'Kind',
     cell: ({ row }) => (
-      <Badge variant="outline" className="px-1.5 capitalize text-muted-foreground">
+      <Badge
+        variant="outline"
+        className="px-1.5 font-mono text-[10px] capitalize tracking-[0.04em] text-muted-foreground"
+      >
         {row.original.kind}
       </Badge>
     ),
   },
   {
     accessorKey: 'status',
+    size: 120,
     header: 'Status',
     cell: ({ row }) => <InventoryStatusCell status={row.original.status} />,
   },
   {
     accessorKey: 'value',
-    header: () => <div className="w-full text-right">Reading</div>,
+    size: 110,
+    meta: { className: 'text-right' } satisfies InventoryColumnMeta,
+    header: () => <span className="block w-full text-right">Reading</span>,
     cell: ({ row }) => (
       <EditableFieldCell
         itemId={row.original.id}
@@ -72,7 +85,9 @@ export const inventoryColumns: ColumnDef<InventoryRow>[] = [
   },
   {
     accessorKey: 'limit',
-    header: () => <div className="w-full text-right">Range</div>,
+    size: 120,
+    meta: { className: 'text-right' } satisfies InventoryColumnMeta,
+    header: () => <span className="block w-full text-right">Range</span>,
     cell: ({ row }) => (
       <EditableFieldCell
         itemId={row.original.id}
@@ -86,6 +101,7 @@ export const inventoryColumns: ColumnDef<InventoryRow>[] = [
   },
   {
     accessorKey: 'preset',
+    size: 150,
     header: 'Preset',
     cell: ({ row }) => (
       <PresetCell itemId={row.original.id} preset={row.original.preset} />
@@ -93,6 +109,8 @@ export const inventoryColumns: ColumnDef<InventoryRow>[] = [
   },
   {
     id: 'actions',
+    size: 48,
+    meta: { className: 'text-right' } satisfies InventoryColumnMeta,
     cell: () => <RowActionsMenu />,
   },
 ];
