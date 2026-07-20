@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 
@@ -10,6 +11,7 @@ import {
   siteHeaderPanelClassName,
 } from '@/components/dashboard/sidebar/constants';
 import { Sidebar, SidebarProvider } from '@/components/ui/sidebar';
+import { TooltipProvider } from '@/components/ui/tooltip';
 
 vi.mock('@/hooks/use-mobile', () => ({
   useIsMobile: () => false,
@@ -21,11 +23,18 @@ vi.mock('react-router-dom', () => ({
 
 vi.mock('@/lib/chappe-config', () => ({
   isChappeLive: () => false,
+  resolveChappeEndpoints: () => ({ endpoints: null }),
+  chappeConnectionErrDetail: () => null,
+  chappeMisconfigHint: () => null,
 }));
 
 afterEach(() => {
   cleanup();
 });
+
+function renderWithProviders(ui: ReactElement) {
+  return render(<TooltipProvider>{ui}</TooltipProvider>);
+}
 
 describe('sidebar panel skin constants (chrome tier)', () => {
   it('maps sidebar tokens to opaque surface CSS variables', () => {
@@ -80,7 +89,7 @@ describe('Sidebar panel skin (CSS-only, no rewrite)', () => {
 
 describe('SiteHeader panel shell', () => {
   it('renders the route title as an instrument legend inside the panel header', () => {
-    render(
+    renderWithProviders(
       <SidebarProvider>
         <SiteHeader />
       </SidebarProvider>,
@@ -98,7 +107,7 @@ describe('SiteHeader panel shell', () => {
   });
 
   it('renders the dominant machine-state readout', () => {
-    render(
+    renderWithProviders(
       <SidebarProvider>
         <SiteHeader />
       </SidebarProvider>,

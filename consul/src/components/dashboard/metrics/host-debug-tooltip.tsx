@@ -44,7 +44,7 @@ export function HostDebugTooltip({ lines }: HostDebugTooltipProps) {
             key={line.label}
             className="grid w-full grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-left"
           >
-            <span className="text-background/70">{line.label}</span>
+            <span className="text-muted-foreground">{line.label}</span>
             <span className="break-all font-mono">{line.value}</span>
           </div>
         ))}
