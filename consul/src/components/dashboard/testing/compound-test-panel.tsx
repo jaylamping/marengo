@@ -2,7 +2,7 @@ import * as React from 'react';
 import { useCompoundStore } from '@/state/compoundStore';
 import { useTestingStore } from '@/state/testingStore';
 import { useRobotStore } from '@/state/robotStore';
-import { COMPOUND_TEST_PRESETS } from '@/data/compound-tests';
+import { COMPOUND_TEST_PRESETS, WAVE_POSE_GCOMP_SIGNED } from '@/data/compound-tests';
 import {
   jointsSettled,
   presetSegmentCount,
@@ -92,7 +92,8 @@ export function CompoundTestPanel() {
   });
 
   const postPositionBatch = React.useCallback(async (joints: MitJointCommand[]) => {
-    // POSITION ends GravityComp — clear teach preflight so Record cannot stay "armed".
+    // Position includes τ_g (ADR 0007) but leaves GravityComp mode — clear teach
+    // preflight so Record cannot stay "armed" after a Wave/compound start.
     useTeachStore.getState().setGravityArmed(false);
     await postTestingMitCommandBatch(
       create(MitCommandBatchSchema, {
@@ -223,6 +224,16 @@ export function CompoundTestPanel() {
     }
     const base = COMPOUND_TEST_PRESETS.find((p) => p.id === selectedPresetId);
     if (!base) return;
+    if (
+      !dryRun &&
+      base.id === 'wave' &&
+      !WAVE_POSE_GCOMP_SIGNED
+    ) {
+      setOverlayBlockReason(
+        'Live Wave is blocked until E6 Wave-pose GravityComp is signed (docs/bench-elbow-test-suite.md). Use Dry Run, or flip WAVE_POSE_GCOMP_SIGNED after sign-off.'
+      );
+      return;
+    }
     const teachState = useTeachStore.getState();
     const overlayEntry = teachState.overlays[selectedPresetId];
     const profile = config?.profile ?? 'arm_4dof_right';
@@ -620,8 +631,8 @@ export function CompoundTestPanel() {
               </div>
               {teachRecording ? (
                 <p className="text-xs text-destructive">
-                  Teach Record is active — Stop Record before starting Wave (POSITION posts
-                  end GravityComp).
+                  Teach Record is active — Stop Record before starting Wave (Position
+                  posts leave GravityComp mode).
                 </p>
               ) : null}
               {overlayBlockReason ? (
