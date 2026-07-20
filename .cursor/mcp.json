@@ -12,16 +12,12 @@
       "args": ["-y", "--package=@upstash/context7-mcp@2.2.5", "--", "context7-mcp"]
     },
     "marengo-pi": {
-      "command": "sh",
-      "args": ["${workspaceFolder}/tools/marengo-pi-mcp/run-mcp.sh"]
+      "command": "node",
+      "args": ["${workspaceFolder}/tools/marengo-pi-mcp/launch.mjs"]
     },
     "marengo-research": {
-      "command": "sh",
-      "args": ["${workspaceFolder}/tools/marengo-research-mcp/run-mcp.sh"],
-      "env": {
-        "MARENGO_RESEARCH_CACHE_DIR": "${workspaceFolder}/.marengo-research",
-        "MARENGO_WORKSPACE": "${workspaceFolder}"
-      }
+      "command": "node",
+      "args": ["${workspaceFolder}/tools/marengo-research-mcp/launch.mjs"]
     }
   }
 }

@@ -64,9 +64,9 @@ If a tool still shows old behavior after `npm run build`, the Cursor MCP process
 
 Repo [`.cursor/mcp.json`](../../.cursor/mcp.json) uses `${workspaceFolder}` so the same file works on **Windows, macOS, and Linux/WSL**.
 
-Both `marengo-pi` and `marengo-research` launch via **`sh`** + the POSIX `run-mcp.sh` scripts (Git `sh` on Windows, system `sh` on Mac/Linux). Keep profile / SSH defaults in the launchers — **not** in `mcp.json` `env` (that thrash auto-disables the project MCP).
+`marengo-pi` launches via **`node` + [`launch.mjs`](launch.mjs)** (same pattern as solidworks). Do **not** use bare `sh`/`bash` as the mcp.json command on Windows — Cursor's spawn PATH often lacks Git `sh`, which makes the server look "disabled".
 
-Windows also has [`run-mcp.ps1`](run-mcp.ps1) if you need a PowerShell-only fallback locally; do not put OS-specific commands back into the shared `mcp.json` or Mac/Windows will fight over the file.
+Profile / SSH defaults live in `launch.mjs` / `run-mcp.sh` / `run-mcp.ps1` — **not** in `mcp.json` `env` (that thrash auto-disables the project MCP). Optional Windows fallback: [`run-mcp.cmd`](run-mcp.cmd) / [`run-mcp.ps1`](run-mcp.ps1).
 
 `MARENGO_LOCAL_ROOT` is optional. The server derives the repo root from its install path. Override only for unusual clone layouts.
 

@@ -219,7 +219,7 @@ After `setup-wsl-dev.sh`, **restart the marengo-pi MCP server** in Cursor so it 
 | Permission errors on `target/` | `docker compose build dev` (entrypoint chowns volumes). See [troubleshooting.md](troubleshooting.md). |
 | SolidWorks MCP can’t see files | MCP `SOLIDWORKS_MCP_ALLOWED_ROOTS` must match Windows CAD path; use Windows Cursor session for CAD. |
 | marengo-pi MCP missing / disabled in WSL | Usually disabled, not missing. Enable in MCP settings, or quit Cursor and run `just mcp-ensure-enabled --write`. `sessionStart` also runs a best-effort ensure hook (Node). Do **not** put profile/SSH env in `.cursor/mcp.json` (hash thrash auto-disables). Defaults are in `tools/marengo-pi-mcp/run-mcp.sh` (shared Mac/Windows/WSL; `run-mcp.ps1` is optional Windows fallback). |
-| `spawn node ENOENT` on marengo-pi | Cursor's PATH lacks mise. mcp.json must use `sh` + `run-mcp.sh` (not bare `node`). Restart MCP after pull. On Windows, ensure Git for Windows `sh` is on PATH (not System32 WSL `bash.exe`). |
+| `spawn node ENOENT` / marengo-pi stuck disabled | Cursor PATH may lack mise/`sh`. Shared mcp.json uses `node` + `tools/marengo-pi-mcp/launch.mjs` (not bare `sh`). Restart MCP after pull. If the toggle is still off: Enable once in MCP settings (approval hash already written by `just mcp-ensure-enabled --write`). |
 
 ---
 
