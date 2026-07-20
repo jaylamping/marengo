@@ -64,9 +64,11 @@ If a tool still shows old behavior after `npm run build`, the Cursor MCP process
 
 Repo [`.cursor/mcp.json`](../../.cursor/mcp.json) uses `${workspaceFolder}` so the same file works on **Windows, macOS, and Linux/WSL**.
 
-`marengo-pi` launches via **`node` + [`launch.mjs`](launch.mjs)** (same pattern as solidworks). Do **not** use bare `sh`/`bash` as the mcp.json command on Windows — Cursor's spawn PATH often lacks Git `sh`, which makes the server look "disabled".
+**WSL / Linux / macOS (software home):** mcp.json uses **`bash` + [`run-mcp.sh`](run-mcp.sh)**. Cursor's spawn PATH often lacks mise `node`, so bare `node` + `launch.mjs` fails with `spawn node ENOENT`. The shell launcher finds mise (or `MARENGO_MCP_NODE`).
 
-Profile / SSH defaults live in `launch.mjs` / `run-mcp.sh` / `run-mcp.ps1` — **not** in `mcp.json` `env` (that thrash auto-disables the project MCP; see [ADR 0016](../../docs/decisions/0016-wsl-software-home.md)). Optional Windows fallback: [`run-mcp.cmd`](run-mcp.cmd) / [`run-mcp.ps1`](run-mcp.ps1).
+**Windows CAD session:** prefer [`run-mcp.cmd`](run-mcp.cmd) / [`run-mcp.ps1`](run-mcp.ps1) — Cursor often lacks Git `sh`/`bash`. [`launch.mjs`](launch.mjs) is the Node entry those wrappers exec once `node` is resolved.
+
+Profile / SSH defaults live in `launch.mjs` / `run-mcp.sh` / `run-mcp.ps1` — **not** in `mcp.json` `env` (that thrash auto-disables the project MCP; see [ADR 0016](../../docs/decisions/0016-wsl-software-home.md)).
 
 Open the marengo repo root as the Cursor workspace (WSL software session, or Windows UNC CAD session — ADR 0016).
 
