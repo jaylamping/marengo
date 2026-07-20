@@ -24,14 +24,14 @@ export function InventoryGroupHeaderRow({
   onToggle,
 }: InventoryGroupHeaderRowProps) {
   return (
-    <TableRow className="bg-muted/40 hover:bg-muted/60">
+    <TableRow className="bg-surface-2/60 hover:bg-surface-2">
       <TableCell colSpan={columnCount} className="p-0">
         <button
           type="button"
           aria-expanded={!isCollapsed}
           aria-controls={`inventory-group-${group}`}
           onClick={onToggle}
-          className="flex w-full items-center gap-2 px-4 py-2 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+          className="flex w-full items-center gap-2 px-4 py-2 text-left font-mono text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase"
         >
           <HugeiconsIcon
             icon={ArrowDown01Icon}

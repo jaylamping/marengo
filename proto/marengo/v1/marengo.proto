@@ -101,6 +101,17 @@ message HomingComplete {
   string node_id = 2;
 }
 
+// Firmware SetZero for one joint (mechanical reference already positioned).
+message SetZeroRequest {
+  uint64 timestamp_ms = 1;
+  string operator_id = 2;
+  string joint = 3;
+  // Server-side gate: must be true (UI/agent confirm). Reject otherwise.
+  bool confirm = 4;
+  // Operator attestation that sign/direction was checked (homing.yaml may require it).
+  bool sign_test_passed = 5;
+}
+
 // --- Control / MIT (OpenArm-style; see ADR 0004) ---
 
 enum ControlMode {

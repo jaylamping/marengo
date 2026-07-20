@@ -404,6 +404,57 @@ impl<B: MotorBus> Supervisor<B> {
         Ok(position)
     }
 
+    /// Free-drive calibration path for Consul/MCP: validate joint, enable if needed,
+    /// firmware SetZero, verify, then always disable.
+    ///
+    /// Refuses when already [`OperationalMode::Active`] so success cannot
+    /// `disable_all` out from under GravityComp / hold.
+    pub fn calibrate_joint_zero(
+        &mut self,
+        joint: &str,
+        operator: &str,
+        sign_test_passed: bool,
+    ) -> Result<f64, DavoutError> {
+        let joint = joint.trim();
+        if joint.is_empty() {
+            return Err(DavoutError::UnknownJoint {
+                joint: joint.to_string(),
+            });
+        }
+        // Resolve before enabling so UnknownJoint cannot leave the bus ACTIVE.
+        let _motor = motor_for_joint(&self.motors, joint).ok_or_else(|| {
+            DavoutError::UnknownJoint {
+                joint: joint.to_string(),
+            }
+        })?;
+        if self.mode == OperationalMode::Active {
+            return Err(DavoutError::Homing {
+                message: "set-zero refused while ACTIVE; disable motors first".into(),
+            });
+        }
+
+        // Enable is inside the closure so a mid-bus enable failure still runs
+        // disable_all (drives may be hardware-enabled while mode is still Disabled).
+        let result = (|| {
+            self.request_enable_for_calibration()?;
+            self.set_zero_position(joint)?;
+            let _ = self.refresh_feedback();
+            self.verify_zero_after_set(joint, operator, sign_test_passed)
+        })();
+
+        if let Err(disable_err) = self.disable_all() {
+            tracing::warn!(
+                error = %disable_err,
+                joint = %joint,
+                "disable_all after set-zero failed"
+            );
+            if result.is_ok() {
+                return Err(disable_err);
+            }
+        }
+        result
+    }
+
     pub fn mode(&self) -> OperationalMode {
         self.mode
     }
@@ -1440,6 +1491,114 @@ mod tests {
         let err = sup.request_enable(true).expect_err("blocked");
         assert!(matches!(err, DavoutError::Homing { .. }));
         let _ = std::fs::remove_file(temp);
+    }
+
+    #[test]
+    fn calibrate_joint_zero_refuses_while_active() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        bench_ready_active(&mut sup);
+        let joint = sup.motors.motors[0].joint.clone();
+        let err = sup
+            .calibrate_joint_zero(&joint, "test", true)
+            .expect_err("must refuse ACTIVE");
+        assert!(
+            matches!(err, DavoutError::Homing { ref message } if message.contains("ACTIVE")),
+            "got {err}"
+        );
+        assert_eq!(sup.mode(), OperationalMode::Active);
+    }
+
+    #[test]
+    fn calibrate_joint_zero_unknown_joint_before_enable() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        assert_eq!(sup.mode(), OperationalMode::Disabled);
+        let err = sup
+            .calibrate_joint_zero("not_a_real_joint", "test", true)
+            .expect_err("unknown");
+        assert!(matches!(err, DavoutError::UnknownJoint { .. }));
+        assert_eq!(
+            sup.mode(),
+            OperationalMode::Disabled,
+            "must not enable before joint resolve"
+        );
+    }
+
+    /// Fails `enable_drive_at` after N successful enables (simulates mid-bus CAN fault).
+    struct FailAfterNEnableBus {
+        inner: MemoryBus,
+        succeed: usize,
+        enable_calls: usize,
+        disable_calls: usize,
+    }
+
+    impl CanBus for FailAfterNEnableBus {
+        fn send_frame(&mut self, frame: &CanFrame) -> Result<(), BusError> {
+            self.inner.send_frame(frame)
+        }
+
+        fn send_frame_to(
+            &mut self,
+            address: &MotorAddress,
+            frame: &CanFrame,
+        ) -> Result<(), BusError> {
+            self.inner.send_frame_to(address, frame)
+        }
+
+        fn recv_frames_from(&mut self, out: &mut Vec<ReceivedCanFrame>) -> Result<(), BusError> {
+            self.inner.recv_frames_from(out)
+        }
+    }
+
+    impl MotorBus for FailAfterNEnableBus {
+        fn enable_drive_at(&mut self, address: &MotorAddress) -> Result<(), BusError> {
+            if self.enable_calls >= self.succeed {
+                return Err(BusError::Driver("injected enable failure".into()));
+            }
+            self.enable_calls += 1;
+            self.inner.enable_drive_at(address)
+        }
+
+        fn disable_drive_at(&mut self, address: &MotorAddress) -> Result<(), BusError> {
+            self.disable_calls += 1;
+            self.inner.disable_drive_at(address)
+        }
+    }
+
+    #[test]
+    fn calibrate_joint_zero_disables_after_partial_enable_failure() {
+        let motor_count = Supervisor::from_repo(repo_root(), MemoryBus::default())
+            .expect("supervisor")
+            .motors
+            .motors
+            .len();
+        assert!(
+            motor_count >= 2,
+            "bench profile needs >=2 motors to inject mid-enable failure"
+        );
+        let bus = FailAfterNEnableBus {
+            inner: MemoryBus::default(),
+            succeed: 1,
+            enable_calls: 0,
+            disable_calls: 0,
+        };
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let joint = sup.motors.motors[0].joint.clone();
+        let err = sup
+            .calibrate_joint_zero(&joint, "test", true)
+            .expect_err("partial enable must fail");
+        assert!(matches!(err, DavoutError::Bus(_)), "got {err}");
+        assert_eq!(
+            sup.mode(),
+            OperationalMode::Disabled,
+            "mode must not stick ACTIVE after failed calibration enable"
+        );
+        assert!(
+            sup.bus.disable_calls >= motor_count,
+            "disable_all must run after enable failure; disable_calls={}",
+            sup.bus.disable_calls
+        );
     }
 
     #[test]

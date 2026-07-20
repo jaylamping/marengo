@@ -14,13 +14,13 @@ export function InventoryTableFooter({
   totalDeviceCount,
 }: InventoryTableFooterProps) {
   return (
-    <div className="flex items-center justify-between text-sm text-muted-foreground">
+    <div className="flex items-center justify-between font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
       <div>
         {table.getFilteredSelectedRowModel().rows.length} of{' '}
         {table.getFilteredRowModel().rows.length} selected · {groupCount} groups ·{' '}
         {expandedGroupCount} expanded
       </div>
-      <div>{totalDeviceCount} total devices (dummy inventory)</div>
+      <div>{totalDeviceCount} devices</div>
     </div>
   );
 }

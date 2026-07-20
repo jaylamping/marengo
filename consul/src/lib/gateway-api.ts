@@ -145,3 +145,28 @@ export async function postHomeCommand(): Promise<void> {
     throw new Error(`home command failed: ${res.status} ${text}`);
   }
 }
+
+/** Firmware SetZero for one joint via gateway → Pi (briefly enables, then disables). */
+export async function postSetZeroCommand(
+  joint: string,
+  options: { signTestPassed: boolean },
+): Promise<void> {
+  const endpoints = getChappeEndpoints();
+  if (!endpoints) {
+    throw new Error('Chappe endpoints not configured');
+  }
+  const res = await fetch(`${endpoints.httpUrl}/command/set_zero`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      joint,
+      confirm: true,
+      sign_test_passed: options.signTestPassed,
+      client_id: 'consul',
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`set-zero failed: ${res.status} ${text}`);
+  }
+}

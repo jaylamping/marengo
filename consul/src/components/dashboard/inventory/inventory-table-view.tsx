@@ -1,13 +1,17 @@
 import * as React from 'react';
 import { flexRender } from '@tanstack/react-table';
 
-import { inventoryColumnCount } from '@/components/dashboard/inventory/inventory-columns';
+import {
+  inventoryColumnCount,
+  type InventoryColumnMeta,
+} from '@/components/dashboard/inventory/inventory-columns';
 import { inventoryTableShellClassName } from '@/components/dashboard/inventory/constants';
 import { InventoryGroupHeaderRow } from '@/components/dashboard/inventory/inventory-group-header-row';
 import { InventoryTableRow } from '@/components/dashboard/inventory/inventory-table-row';
 import type { InventoryGroupSection } from '@/components/dashboard/inventory/types';
 import type { InventoryGroup } from '@/data/robot-inventory';
 import type { InventoryTable } from '@/components/dashboard/inventory/utils';
+import { cn } from '@/lib/utils';
 import {
   Table,
   TableBody,
@@ -24,6 +28,20 @@ type InventoryTableViewProps = {
   onToggleGroup: (group: InventoryGroup) => void;
 };
 
+function columnMetaClassName(meta: unknown): string | undefined {
+  return (meta as InventoryColumnMeta | undefined)?.className;
+}
+
+function columnSize(column: {
+  getSize?: () => number;
+  columnDef: { size?: number };
+}): number | undefined {
+  if (typeof column.getSize === 'function') {
+    return column.getSize();
+  }
+  return column.columnDef.size;
+}
+
 export function InventoryTableView({
   table,
   groupedSections,
@@ -35,12 +53,20 @@ export function InventoryTableView({
       className={inventoryTableShellClassName}
       data-testid="inventory-table-shell"
     >
-      <Table>
-        <TableHeader className="sticky top-0 z-10 bg-muted">
+      <Table className="table-fixed">
+        <TableHeader className="sticky top-0 z-10 border-b border-line">
           {table.getHeaderGroups().map((headerGroup) => (
-            <TableRow key={headerGroup.id}>
+            <TableRow key={headerGroup.id} className="hover:bg-transparent">
               {headerGroup.headers.map((header) => (
-                <TableHead key={header.id} colSpan={header.colSpan}>
+                <TableHead
+                  key={header.id}
+                  colSpan={header.colSpan}
+                  className={cn(
+                    'bg-surface-2',
+                    columnMetaClassName(header.column.columnDef.meta),
+                  )}
+                  style={{ width: columnSize(header.column) }}
+                >
                   {header.isPlaceholder
                     ? null
                     : flexRender(
@@ -52,7 +78,7 @@ export function InventoryTableView({
             </TableRow>
           ))}
         </TableHeader>
-        <TableBody className="**:data-[slot=table-cell]:first:w-8">
+        <TableBody>
           {groupedSections.length ? (
             groupedSections.map(({ group, label, rows }) => {
               const isCollapsed = collapsedGroups.has(group);
@@ -81,7 +107,7 @@ export function InventoryTableView({
                 colSpan={inventoryColumnCount}
                 className="h-24 text-center"
               >
-                No devices match this view.
+                No devices in this view.
               </TableCell>
             </TableRow>
           )}

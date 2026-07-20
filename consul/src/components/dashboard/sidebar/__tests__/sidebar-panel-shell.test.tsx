@@ -47,9 +47,11 @@ describe('sidebar panel skin constants (chrome tier)', () => {
 });
 
 describe('site header panel shell constants', () => {
-  it('defines opaque panel chrome at z-30', () => {
+  it('defines opaque sticky panel chrome at z-30', () => {
     expect(siteHeaderPanelClassName).toContain('bg-surface-1');
     expect(siteHeaderPanelClassName).toContain('border-b');
+    expect(siteHeaderPanelClassName).toContain('sticky');
+    expect(siteHeaderPanelClassName).toContain('top-0');
     expect(siteHeaderPanelClassName).toContain('z-30');
     expect(siteHeaderPanelClassName).toContain('pointer-events-auto');
     expect(siteHeaderPanelClassName).not.toContain('backdrop-blur');
@@ -86,6 +88,8 @@ describe('SiteHeader panel shell', () => {
 
     const header = screen.getByRole('banner');
     expect(header.className).toContain('bg-surface-1');
+    expect(header.className).toContain('sticky');
+    expect(header.className).toContain('top-0');
     expect(header.className).toContain('z-30');
     expect(header.className).not.toContain('backdrop-blur');
     const heading = screen.getByRole('heading', { level: 1 });

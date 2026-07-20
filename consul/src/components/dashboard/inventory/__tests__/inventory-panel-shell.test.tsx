@@ -8,6 +8,7 @@ import {
   inventoryToolbarShellClassName,
 } from '@/components/dashboard/inventory/constants';
 import { InventoryRowDrawer } from '@/components/dashboard/inventory/inventory-row-drawer';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { InventoryTableToolbar } from '@/components/dashboard/inventory/inventory-table-toolbar';
 import { InventoryTableView } from '@/components/dashboard/inventory/inventory-table-view';
 import type { InventoryItem } from '@/data/robot-inventory';
@@ -70,7 +71,7 @@ describe('InventoryTableView panel shell', () => {
     const shell = screen.getByTestId('inventory-table-shell');
     expect(shell.className).toContain('bg-surface-1');
     expect(shell.className).toMatch(/pointer-events-auto/);
-    expect(screen.getByText('No devices match this view.')).toBeTruthy();
+    expect(screen.getByText('No devices in this view.')).toBeTruthy();
   });
 });
 
@@ -115,7 +116,9 @@ describe('InventoryRowDrawer panel shell', () => {
     };
 
     render(
-      <InventoryRowDrawer item={item} open onOpenChange={() => undefined} />,
+      <TooltipProvider>
+        <InventoryRowDrawer item={item} open onOpenChange={() => undefined} />
+      </TooltipProvider>,
     );
 
     expect(screen.getByText('shoulder_pitch_r')).toBeTruthy();

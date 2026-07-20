@@ -5,6 +5,9 @@ import { defineConfig } from 'vite';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import path from 'path';
 
+const reactRoot = path.resolve(__dirname, './node_modules/react');
+const reactDomRoot = path.resolve(__dirname, './node_modules/react-dom');
+
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
@@ -18,7 +21,15 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      // Absolute aliases prevent Vite dep re-optimization from serving two React
+      // copies after lockfile churn (null dispatcher / useState crashes).
+      react: reactRoot,
+      'react-dom': reactDomRoot,
+      'react/jsx-runtime': path.resolve(reactRoot, 'jsx-runtime.js'),
+      'react/jsx-dev-runtime': path.resolve(reactRoot, 'jsx-dev-runtime.js'),
+      'react/compiler-runtime': path.resolve(reactRoot, 'compiler-runtime.js'),
     },
+    dedupe: ['react', 'react-dom'],
   },
   /**
    * Pre-bundle heavy deps at dev-server start so first navigation does not
@@ -26,6 +37,12 @@ export default defineConfig({
    */
   optimizeDeps: {
     include: [
+      'react',
+      'react-dom',
+      'react/jsx-runtime',
+      'react/jsx-dev-runtime',
+      'react/compiler-runtime',
+      'zustand',
       'three',
       '@react-three/fiber',
       '@react-three/drei',

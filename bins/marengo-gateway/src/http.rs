@@ -4,6 +4,7 @@ use armee_proto::prost::Message;
 use armee_proto::EnableRequest;
 use armee_proto::HomingComplete;
 use armee_proto::MitCommandBatch;
+use armee_proto::SetZeroRequest;
 use axum::{
     body::Body,
     extract::{Query, State},
@@ -55,7 +56,11 @@ struct StreamQuery {
     topics: String,
 }
 
-/// API routes plus optional Consul SPA static files (`web_root` for robot-hosted HTTPS).
+    /// API routes plus optional Consul SPA static files (`web_root` for robot-hosted HTTPS).
+///
+/// CORS is intentionally permissive for Phase-1 LAN bench (ADR 0008): auth/mTLS is
+/// deferred. Motion commands still require confirm/attestation + a global-per-joint
+/// Motion rate limit that cannot be bypassed by rotating `client_id`.
 pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
     let cors = CorsLayer::new()
         .allow_origin(Any)
@@ -98,6 +103,7 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
         .route("/command/enable", post(command_enable))
         .route("/command/testing_mit", post(command_testing_mit))
         .route("/command/home", post(command_home))
+        .route("/command/set_zero", post(command_set_zero))
         .route("/command/actuator", post(actuator::command_actuator))
         .layer(cors)
         .with_state(state);
@@ -277,6 +283,87 @@ async fn command_home(
     Ok(Json(OkResponse { ok: true }))
 }
 
+#[derive(Deserialize)]
+struct SetZeroBody {
+    joint: String,
+    /// Must be true — UI/agent confirm dialog (forgeable without auth; still blocks footguns).
+    #[serde(default)]
+    confirm: bool,
+    /// Operator attestation that sign/direction was checked at mechanical home.
+    #[serde(default)]
+    sign_test_passed: bool,
+    /// Per-client rate-limit key (mirrors actuator `session_id`).
+    #[serde(default)]
+    client_id: String,
+}
+
+async fn command_set_zero(
+    State(state): State<SharedState>,
+    Json(body): Json<SetZeroBody>,
+) -> Result<Json<OkResponse>, (StatusCode, String)> {
+    let joint = body.joint.trim();
+    if joint.is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "joint required".into()));
+    }
+    if !body.confirm {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "confirm=true required for set-zero".into(),
+        ));
+    }
+    if !body.sign_test_passed {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "sign_test_passed=true required (operator attestation)".into(),
+        ));
+    }
+    let client_id = body.client_id.trim();
+    if client_id.is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "client_id required".into(),
+        ));
+    }
+    let canonical = marengo_config::resolve_command_joint(joint, &state.command_joints)
+        .map(|s| s.to_string())
+        .ok_or_else(|| {
+            (
+                StatusCode::FORBIDDEN,
+                format!("joint not command-eligible: {joint}"),
+            )
+        })?;
+
+    let bucket = crate::ratelimit::CommandBucket::Motion;
+    if !state.rate_limiter.allow(client_id, &canonical, bucket) {
+        return Err((
+            StatusCode::TOO_MANY_REQUESTS,
+            "set-zero rate limit exceeded".into(),
+        ));
+    }
+
+    let request = SetZeroRequest {
+        timestamp_ms: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64,
+        operator_id: "consul".into(),
+        joint: canonical.clone(),
+        confirm: true,
+        sign_test_passed: true,
+    };
+    let payload = request.encode_to_vec();
+    if let Err(e) = state.publish_command_envelope(
+        "robot/set_zero",
+        "consul",
+        "marengo.v1.SetZeroRequest",
+        payload,
+    ) {
+        state.rate_limiter.refund(client_id, &canonical, bucket);
+        return Err((StatusCode::BAD_GATEWAY, e));
+    }
+    Ok(Json(OkResponse { ok: true }))
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::expect_used)]
@@ -318,5 +405,103 @@ mod tests {
             .await
             .expect("response");
         assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn command_set_zero_requires_confirm_and_attestation() {
+        use marengo_config::CommandJointAllowlist;
+
+        let bus = std::sync::Arc::new(Bus::default());
+        let state = std::sync::Arc::new(
+            crate::state::AppState::new(std::sync::Arc::clone(&bus)).with_command_joints(
+                CommandJointAllowlist::from_joints(["right_shoulder_pitch"]),
+            ),
+        );
+        let app = router(state, None);
+        let response = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/command/set_zero")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        r#"{"joint":"right_shoulder_pitch","client_id":"t"}"#,
+                    ))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn command_set_zero_rejects_unwired_joint_with_403() {
+        use marengo_config::CommandJointAllowlist;
+
+        let bus = std::sync::Arc::new(Bus::default());
+        let state = std::sync::Arc::new(
+            crate::state::AppState::new(std::sync::Arc::clone(&bus)).with_command_joints(
+                CommandJointAllowlist::from_joints(["right_shoulder_pitch"]),
+            ),
+        );
+        let app = router(state, None);
+        let response = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/command/set_zero")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        r#"{"joint":"not_a_joint","confirm":true,"sign_test_passed":true,"client_id":"t"}"#,
+                    ))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test]
+    async fn command_set_zero_returns_429_when_rate_limited() {
+        use marengo_config::CommandJointAllowlist;
+
+        let bus = std::sync::Arc::new(Bus::default());
+        let state = std::sync::Arc::new(
+            crate::state::AppState::new(std::sync::Arc::clone(&bus)).with_command_joints(
+                CommandJointAllowlist::from_joints(["right_shoulder_pitch"]),
+            ),
+        );
+    // Burst with distinct client_ids must still share the Motion bucket.
+        let body_a = r#"{"joint":"right_shoulder_pitch","confirm":true,"sign_test_passed":true,"client_id":"flood-a"}"#;
+        let body_b = r#"{"joint":"right_shoulder_pitch","confirm":true,"sign_test_passed":true,"client_id":"flood-b"}"#;
+        let body_c = r#"{"joint":"right_shoulder_pitch","confirm":true,"sign_test_passed":true,"client_id":"flood-c"}"#;
+        for body in [body_a, body_b] {
+            let app = router(std::sync::Arc::clone(&state), None);
+            let response = app
+                .oneshot(
+                    axum::http::Request::builder()
+                        .method("POST")
+                        .uri("/command/set_zero")
+                        .header("content-type", "application/json")
+                        .body(Body::from(body))
+                        .expect("request"),
+                )
+                .await
+                .expect("response");
+            assert_eq!(response.status(), StatusCode::OK);
+        }
+        let app = router(state, None);
+        let response = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/command/set_zero")
+                    .header("content-type", "application/json")
+                    .body(Body::from(body_c))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
     }
 }
