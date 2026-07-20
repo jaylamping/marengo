@@ -1,4 +1,5 @@
 import { Area, AreaChart, CartesianGrid, XAxis } from 'recharts';
+import { useEffect, useState } from 'react';
 
 import {
   KIND_OPTIONS,
@@ -8,6 +9,7 @@ import {
   actuatorTrackingChartData,
   inventoryDrawerContentClassName,
 } from '@/components/dashboard/inventory/constants';
+import { SetLimitsPanel } from '@/components/dashboard/inventory/set-limits-panel';
 import type { InventoryRow } from '@/components/dashboard/inventory/types';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { INVENTORY_GROUP_LABELS } from '@/data/robot-inventory';
@@ -44,6 +46,7 @@ type InventoryRowDrawerProps = {
   item: InventoryRow;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onApplyLimit?: (itemId: number, limit: string) => void;
 };
 
 /** Single shared detail drawer — lazy-loaded so recharts stays off the table mount path. */
@@ -51,8 +54,14 @@ export function InventoryRowDrawer({
   item,
   open,
   onOpenChange,
+  onApplyLimit,
 }: InventoryRowDrawerProps) {
   const isMobile = useIsMobile();
+  const [limitDraft, setLimitDraft] = useState(item.limit);
+
+  useEffect(() => {
+    setLimitDraft(item.limit);
+  }, [item.id, item.limit]);
 
   return (
     <Drawer
@@ -68,56 +77,73 @@ export function InventoryRowDrawer({
           </DrawerDescription>
         </DrawerHeader>
         <div className="flex flex-col gap-4 overflow-y-auto px-4 text-sm">
-          {item.kind === 'actuator' && !isMobile ? (
+          {item.kind === 'actuator' ? (
             <>
-              <ChartContainer config={actuatorTrackingChartConfig}>
-                <AreaChart
-                  accessibilityLayer
-                  data={actuatorTrackingChartData}
-                  margin={{ left: 0, right: 10 }}
-                >
-                  <CartesianGrid vertical={false} />
-                  <XAxis
-                    dataKey="sample"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    hide
-                  />
-                  <ChartTooltip
-                    cursor={false}
-                    content={<ChartTooltipContent indicator="dot" />}
-                  />
-                  <Area
-                    dataKey="measured"
-                    type="natural"
-                    fill="var(--color-measured)"
-                    fillOpacity={0.6}
-                    stroke="var(--color-measured)"
-                    stackId="a"
-                  />
-                  <Area
-                    dataKey="commanded"
-                    type="natural"
-                    fill="var(--color-commanded)"
-                    fillOpacity={0.4}
-                    stroke="var(--color-commanded)"
-                    stackId="a"
-                  />
-                </AreaChart>
-              </ChartContainer>
+              <SetLimitsPanel
+                jointName={item.name}
+                currentLimit={limitDraft}
+                onApplyRange={(range) => {
+                  setLimitDraft(range);
+                  onApplyLimit?.(item.id, range);
+                }}
+              />
               <Separator />
-              <div className="grid gap-2">
-                <div className="flex gap-2 leading-none font-medium">
-                  Max tracking error 0.06 Nm this session
-                  <HugeiconsIcon icon={ChartUpIcon} strokeWidth={2} className="size-4" />
-                </div>
-                <div className="text-muted-foreground">
-                  Dummy telemetry for layout. Will sync to live CAN feedback and
-                  time cursor when Chappe stream lands.
-                </div>
-              </div>
-              <Separator />
+              {!isMobile ? (
+                <>
+                  <ChartContainer config={actuatorTrackingChartConfig}>
+                    <AreaChart
+                      accessibilityLayer
+                      data={actuatorTrackingChartData}
+                      margin={{ left: 0, right: 10 }}
+                    >
+                      <CartesianGrid vertical={false} />
+                      <XAxis
+                        dataKey="sample"
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        hide
+                      />
+                      <ChartTooltip
+                        cursor={false}
+                        content={<ChartTooltipContent indicator="dot" />}
+                      />
+                      <Area
+                        dataKey="measured"
+                        type="natural"
+                        fill="var(--color-measured)"
+                        fillOpacity={0.6}
+                        stroke="var(--color-measured)"
+                        stackId="a"
+                      />
+                      <Area
+                        dataKey="commanded"
+                        type="natural"
+                        fill="var(--color-commanded)"
+                        fillOpacity={0.4}
+                        stroke="var(--color-commanded)"
+                        stackId="a"
+                      />
+                    </AreaChart>
+                  </ChartContainer>
+                  <Separator />
+                  <div className="grid gap-2">
+                    <div className="flex gap-2 leading-none font-medium">
+                      Max tracking error 0.06 Nm this session
+                      <HugeiconsIcon
+                        icon={ChartUpIcon}
+                        strokeWidth={2}
+                        className="size-4"
+                      />
+                    </div>
+                    <div className="text-muted-foreground">
+                      Dummy telemetry for layout. Will sync to live CAN feedback
+                      and time cursor when Chappe stream lands.
+                    </div>
+                  </div>
+                  <Separator />
+                </>
+              ) : null}
             </>
           ) : null}
           <form className="flex flex-col gap-4">
@@ -168,7 +194,11 @@ export function InventoryRowDrawer({
               </div>
               <div className="flex flex-col gap-3">
                 <Label htmlFor="limit">Range</Label>
-                <Input id="limit" defaultValue={item.limit} />
+                <Input
+                  id="limit"
+                  value={limitDraft}
+                  onChange={(event) => setLimitDraft(event.target.value)}
+                />
               </div>
             </div>
             <div className="flex flex-col gap-3">
@@ -194,7 +224,15 @@ export function InventoryRowDrawer({
           </form>
         </div>
         <DrawerFooter>
-          <Button>Apply</Button>
+          <Button
+            type="button"
+            onClick={() => {
+              onApplyLimit?.(item.id, limitDraft);
+              onOpenChange(false);
+            }}
+          >
+            Apply
+          </Button>
           <DrawerClose asChild>
             <Button variant="outline">Cancel</Button>
           </DrawerClose>

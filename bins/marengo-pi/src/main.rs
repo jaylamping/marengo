@@ -19,7 +19,7 @@ use armee_dynamics::max_gravity_torque_over_range;
 use armee_proto::prost::Message;
 use armee_proto::{
     EnableRequest, Fault, FaultSeverity, Heartbeat, HomingComplete, MitCommandBatch,
-    OperationalMode as ProtoOpMode, SafetyState,
+    OperationalMode as ProtoOpMode, SafetyState, SetZeroRequest,
 };
 use berthier::{
     proto_control_mode, ControlLoop, ControlMode, GainOverride, LoopError, TickPhaseAverages,
@@ -242,6 +242,7 @@ fn drain_chappe_commands(
     loop_ctrl: &mut ControlLoop<RuntimeBus>,
     enable_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     homing_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
+    set_zero_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
 ) {
     while let Ok(bytes) = enable_rx.try_recv() {
         let Ok(envelope) = armee_proto::Envelope::decode(bytes.as_slice()) else {
@@ -267,6 +268,56 @@ fn drain_chappe_commands(
             info!("homing verified via Chappe");
         }
     }
+    while let Ok(bytes) = set_zero_rx.try_recv() {
+        let Ok(envelope) = armee_proto::Envelope::decode(bytes.as_slice()) else {
+            continue;
+        };
+        let Ok(request) = SetZeroRequest::decode(envelope.payload.as_slice()) else {
+            continue;
+        };
+        if let Err(e) = handle_chappe_set_zero(loop_ctrl, &request) {
+            warn!(
+                joint = %request.joint,
+                error = %e,
+                "Chappe set-zero failed"
+            );
+        }
+    }
+}
+
+/// Firmware SetZero for one joint (Consul Subsystems). Enables for calibration if needed,
+/// verifies near-zero, then disables so free-drive Set Limits can follow.
+fn handle_chappe_set_zero(
+    loop_ctrl: &mut ControlLoop<RuntimeBus>,
+    request: &SetZeroRequest,
+) -> Result<(), DavoutError> {
+    let joint = request.joint.trim();
+    if joint.is_empty() {
+        return Err(DavoutError::UnknownJoint {
+            joint: request.joint.clone(),
+        });
+    }
+    if loop_ctrl.supervisor_mut().mode() != OperationalMode::Active {
+        loop_ctrl
+            .supervisor_mut()
+            .request_enable_for_calibration()?;
+    }
+    loop_ctrl.supervisor_mut().set_zero_position(joint)?;
+    let _ = loop_ctrl.supervisor_mut().refresh_feedback();
+    let pos = loop_ctrl.supervisor_mut().verify_zero_after_set(
+        joint,
+        if request.operator_id.is_empty() {
+            "consul"
+        } else {
+            request.operator_id.as_str()
+        },
+        false,
+    )?;
+    info!(joint = %joint, pos_rad = pos, "set-zero verified via Chappe");
+    // Return to free-drive so Set Limits does not fight torque.
+    loop_ctrl.supervisor_mut().disable_all()?;
+    loop_ctrl.set_control_mode(ControlMode::Disabled);
+    Ok(())
 }
 
 fn drain_testing_commands(
@@ -725,6 +776,7 @@ fn main() {
     }
     let mut enable_rx = chappe.subscribe("robot/enable");
     let mut homing_rx = chappe.subscribe("robot/homing");
+    let mut set_zero_rx = chappe.subscribe("robot/set_zero");
     let mut testing_cmd_rx = chappe.subscribe("robot/testing/mit_command_batch");
     let mut actuator_rx = chappe.subscribe(overlay::TOPIC_ACTUATOR_COMMAND);
 
@@ -785,6 +837,7 @@ fn main() {
         cmd_rx: &cmd_rx,
         enable_rx: &mut enable_rx,
         homing_rx: &mut homing_rx,
+        set_zero_rx: &mut set_zero_rx,
         testing_cmd_rx: &mut testing_cmd_rx,
         actuator_rx: &mut actuator_rx,
         actuator_overlay: &mut actuator_overlay,
@@ -807,6 +860,7 @@ struct ControlLoopRuntime<'a> {
     cmd_rx: &'a Receiver<PiCommand>,
     enable_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     homing_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
+    set_zero_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     testing_cmd_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     actuator_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     actuator_overlay: &'a mut overlay::ActuatorOverlay,
@@ -834,7 +888,12 @@ fn run_control_loop(loop_ctrl: &mut ControlLoop<RuntimeBus>, runtime: &mut Contr
         }
         let (outer_stdin_us, t_next) = phase_elapsed_us(t);
 
-        drain_chappe_commands(loop_ctrl, runtime.enable_rx, runtime.homing_rx);
+        drain_chappe_commands(
+            loop_ctrl,
+            runtime.enable_rx,
+            runtime.homing_rx,
+            runtime.set_zero_rx,
+        );
         let (outer_chappe_drain_us, t_after_chappe) = phase_elapsed_us(t_next);
         drain_testing_commands(loop_ctrl, runtime.testing_cmd_rx);
         runtime.actuator_overlay.drain_commands(

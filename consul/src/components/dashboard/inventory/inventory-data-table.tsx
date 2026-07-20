@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useState } from 'react';
+import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
 
 import type { InventoryItem } from '@/data/robot-inventory';
 
@@ -12,7 +12,9 @@ import { dashboardPanelPointerClassName } from '@/components/dashboard/layout/co
 import { Tabs } from '@/components/ui/tabs';
 
 const InventoryRowDrawer = lazy(async () => {
-  const module = await import('@/components/dashboard/inventory/inventory-row-drawer');
+  const module = await import(
+    '@/components/dashboard/inventory/inventory-row-drawer'
+  );
   return { default: module.InventoryRowDrawer };
 });
 
@@ -22,6 +24,19 @@ type InventoryDataTableProps = {
 
 export function InventoryDataTable({ data }: InventoryDataTableProps) {
   const [detailItem, setDetailItem] = useState<InventoryRow | null>(null);
+  const [limitOverrides, setLimitOverrides] = useState<Record<number, string>>(
+    {},
+  );
+
+  const mergedData = useMemo(
+    () =>
+      data.map((item) => {
+        const override = limitOverrides[item.id];
+        return override === undefined ? item : { ...item, limit: override };
+      }),
+    [data, limitOverrides],
+  );
+
   const {
     activeView,
     setActiveView,
@@ -34,10 +49,23 @@ export function InventoryDataTable({ data }: InventoryDataTableProps) {
     expandAllGroups,
     collapseAllGroups,
     viewCounts,
-  } = useInventoryTable(data);
+  } = useInventoryTable(mergedData);
 
-  const openItem = useCallback((item: InventoryRow) => {
-    setDetailItem(item);
+  const openItem = useCallback(
+    (item: InventoryRow) => {
+      const override = limitOverrides[item.id];
+      setDetailItem(
+        override === undefined ? item : { ...item, limit: override },
+      );
+    },
+    [limitOverrides],
+  );
+
+  const applyLimit = useCallback((itemId: number, limit: string) => {
+    setLimitOverrides((previous) => ({ ...previous, [itemId]: limit }));
+    setDetailItem((previous) =>
+      previous && previous.id === itemId ? { ...previous, limit } : previous,
+    );
   }, []);
 
   return (
@@ -80,6 +108,7 @@ export function InventoryDataTable({ data }: InventoryDataTableProps) {
                 setDetailItem(null);
               }
             }}
+            onApplyLimit={applyLimit}
           />
         </Suspense>
       ) : null}

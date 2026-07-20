@@ -101,6 +101,13 @@ message HomingComplete {
   string node_id = 2;
 }
 
+// Firmware SetZero for one joint (mechanical reference already positioned).
+message SetZeroRequest {
+  uint64 timestamp_ms = 1;
+  string operator_id = 2;
+  string joint = 3;
+}
+
 // --- Control / MIT (OpenArm-style; see ADR 0004) ---
 
 enum ControlMode {

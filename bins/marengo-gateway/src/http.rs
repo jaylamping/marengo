@@ -4,6 +4,7 @@ use armee_proto::prost::Message;
 use armee_proto::EnableRequest;
 use armee_proto::HomingComplete;
 use armee_proto::MitCommandBatch;
+use armee_proto::SetZeroRequest;
 use axum::{
     body::Body,
     extract::{Query, State},
@@ -98,6 +99,7 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
         .route("/command/enable", post(command_enable))
         .route("/command/testing_mit", post(command_testing_mit))
         .route("/command/home", post(command_home))
+        .route("/command/set_zero", post(command_set_zero))
         .route("/command/actuator", post(actuator::command_actuator))
         .layer(cors)
         .with_state(state);
@@ -271,6 +273,39 @@ async fn command_home(
             "robot/homing",
             "consul",
             "marengo.v1.HomingComplete",
+            payload,
+        )
+        .map_err(|e| (StatusCode::BAD_GATEWAY, e))?;
+    Ok(Json(OkResponse { ok: true }))
+}
+
+#[derive(Deserialize)]
+struct SetZeroBody {
+    joint: String,
+}
+
+async fn command_set_zero(
+    State(state): State<SharedState>,
+    Json(body): Json<SetZeroBody>,
+) -> Result<Json<OkResponse>, (StatusCode, String)> {
+    let joint = body.joint.trim();
+    if joint.is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "joint required".into()));
+    }
+    let request = SetZeroRequest {
+        timestamp_ms: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64,
+        operator_id: "consul".into(),
+        joint: joint.to_string(),
+    };
+    let payload = request.encode_to_vec();
+    state
+        .publish_command_envelope(
+            "robot/set_zero",
+            "consul",
+            "marengo.v1.SetZeroRequest",
             payload,
         )
         .map_err(|e| (StatusCode::BAD_GATEWAY, e))?;
