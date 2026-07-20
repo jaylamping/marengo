@@ -1832,7 +1832,12 @@ mod tests {
     fn enable_sends_lifecycle_and_mit_run_mode() {
         let bus = MemoryBus::default();
         let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
-        bench_ready_active(&mut sup);
+        // Free-drive type-24 frames are covered elsewhere; this test asserts enable + MIT run mode.
+        sup.control.control.bench.active_reporting_diagnostics = false;
+        bench_verify_all_joints(&mut sup);
+        sup.set_homing_complete().expect("ready");
+        sup.bus.tx.clear();
+        sup.request_enable(true).expect("enable");
         assert_eq!(sup.mode(), OperationalMode::Active);
         assert_eq!(sup.bus.tx.len(), sup.motors.motors.len() * 2);
         let first = robstride::unpack_ext_id(sup.bus.tx[0].id).expect("enable id");
