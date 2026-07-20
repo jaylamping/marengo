@@ -64,26 +64,37 @@ export function formatJointRange(min: number, max: number): string {
   return `${loStr}\u2013${hi.toFixed(2)}`;
 }
 
+/** Minimum span (rad) before a listen session can propose Apply Limits. */
+export const MIN_PROPOSAL_SPAN_RAD = 0.05;
+
+/** Minimum distinct samples before proposing a range. */
+export const MIN_PROPOSAL_SAMPLES = 5;
+
 export function proposedRangeFromBounds(bounds: RunningBounds): string | null {
   if (
-    bounds.sampleCount < 2 ||
+    bounds.sampleCount < MIN_PROPOSAL_SAMPLES ||
     !Number.isFinite(bounds.min) ||
     !Number.isFinite(bounds.max)
   ) {
     return null;
   }
-  if (bounds.max - bounds.min < 1e-6) {
+  if (bounds.max - bounds.min < MIN_PROPOSAL_SPAN_RAD) {
     return null;
   }
   return formatJointRange(bounds.min, bounds.max);
 }
 
 /**
- * Live listen is free-drive: Chappe connected and motors not ACTIVE.
+ * Live listen is free-drive: Chappe connected and motors known non-ACTIVE.
+ * Mirror Set Zero: wait for operationalMode before starting (null is not safe).
  * Operator supports the assembly; no GravityComp / position hold.
  */
 export function canStartLimitListen(gate: LimitListenGate): boolean {
-  return gate.connected && gate.operationalMode !== 'ACTIVE';
+  return (
+    gate.connected &&
+    gate.operationalMode !== null &&
+    gate.operationalMode !== 'ACTIVE'
+  );
 }
 
 export function limitListenBlockReason(gate: LimitListenGate): string | null {
@@ -92,6 +103,9 @@ export function limitListenBlockReason(gate: LimitListenGate): string | null {
   }
   if (!gate.connected) {
     return 'Connect Chappe to listen.';
+  }
+  if (gate.operationalMode === null) {
+    return 'Waiting for operational mode…';
   }
   if (gate.operationalMode === 'ACTIVE') {
     return 'Disable motors first — ACTIVE (hold / GravityComp) fights manual sweeps.';

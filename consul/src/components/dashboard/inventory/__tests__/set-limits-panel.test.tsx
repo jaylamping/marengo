@@ -75,7 +75,25 @@ describe('SetLimitsPanel', () => {
       (screen.getByRole('button', { name: 'Set Limits' }) as HTMLButtonElement)
         .disabled,
     ).toBe(true);
-    expect(screen.getByText(/Disable motors first/i)).toBeTruthy();
+    expect(
+      screen.getAllByText(/Disable motors first/i).length,
+    ).toBeGreaterThanOrEqual(1);
+  });
+
+  it('blocks Set Zero when ACTIVE', () => {
+    useRobotStore.setState({ connected: true, operationalMode: 'ACTIVE' });
+    renderPanel(
+      <SetLimitsPanel
+        jointName="right_shoulder_pitch"
+        currentLimit="±1.57"
+        onApplyRange={vi.fn()}
+      />,
+    );
+    expect(
+      (screen.getByRole('button', { name: 'Set Zero' }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    expect(screen.getByText(/Set Zero refused while ACTIVE/i)).toBeTruthy();
   });
 
   it('shows Set Zero as destructive and requires dialog confirm before posting', async () => {
@@ -103,8 +121,22 @@ describe('SetLimitsPanel', () => {
     fireEvent.click(
       within(confirmDialog).getByRole('button', { name: 'Confirm Set Zero' }),
     );
+    expect(postSetZeroCommand).not.toHaveBeenCalled();
+    fireEvent.click(
+      within(confirmDialog).getByRole('checkbox', {
+        name: /Sign\/direction checked/i,
+      }),
+    );
+    fireEvent.click(
+      within(confirmDialog).getByRole('button', { name: 'Confirm Set Zero' }),
+    );
     await vi.waitFor(() => {
-      expect(postSetZeroCommand).toHaveBeenCalledWith('right_shoulder_pitch');
+      expect(postSetZeroCommand).toHaveBeenCalledWith('right_shoulder_pitch', {
+        signTestPassed: true,
+      });
+    });
+    await vi.waitFor(() => {
+      expect(screen.getByText(/Set Zero queued/i)).toBeTruthy();
     });
   });
 
@@ -122,8 +154,10 @@ describe('SetLimitsPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Set Limits' }));
     expect(screen.getByText('Listening')).toBeTruthy();
 
-    useLimitListenStore.getState().ingestPosition('right_shoulder_pitch', -0.5);
-    useLimitListenStore.getState().ingestPosition('right_shoulder_pitch', 1.2);
+    const store = useLimitListenStore.getState();
+    for (const pos of [-0.5, -0.4, 0.0, 0.8, 1.2]) {
+      store.ingestPosition('right_shoulder_pitch', pos);
+    }
 
     fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
     expect(screen.getByText('Review')).toBeTruthy();

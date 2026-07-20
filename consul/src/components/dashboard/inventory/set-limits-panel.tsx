@@ -19,7 +19,6 @@ import {
 import { subscribeTeachSamples } from '@/lib/teach-sample-bus';
 import { useLimitListenStore } from '@/state/limitListenStore';
 import { useRobotStore } from '@/state/robotStore';
-import { useTeachStore } from '@/state/teachStore';
 
 const SET_LIMITS_HELP =
   'Motors must be disabled (not ACTIVE) for Set Limits. Support the assembly, then sweep the joint to both hard stops while Consul samples position. Stop to propose min/max, then Apply to update Range. Set Zero briefly enables for firmware zero at the current pose, then disables again.';
@@ -53,12 +52,11 @@ export function SetLimitsPanel({
   const abort = useLimitListenStore((s) => s.abort);
   const discard = useLimitListenStore((s) => s.discard);
   const reset = useLimitListenStore((s) => s.reset);
-  const markCalibrationChanged = useTeachStore((s) => s.markCalibrationChanged);
-
   const [zeroBusy, setZeroBusy] = useState(false);
   const [zeroError, setZeroError] = useState<string | null>(null);
   const [zeroOk, setZeroOk] = useState(false);
   const [zeroConfirmOpen, setZeroConfirmOpen] = useState(false);
+  const [signTestPassed, setSignTestPassed] = useState(false);
 
   const confirmTitleId = useId();
   const confirmDescId = useId();
@@ -70,7 +68,20 @@ export function SetLimitsPanel({
   const gate = { connected, operationalMode };
   const canStart = canStartLimitListen(gate);
   const blockReason = limitListenBlockReason(gate);
-  const canSetZero = connected && !listening && !zeroBusy && !reviewing;
+  // Never Set Zero while ACTIVE — Pi refuses and would otherwise risk dropping hold.
+  const canSetZero =
+    connected &&
+    operationalMode !== null &&
+    operationalMode !== 'ACTIVE' &&
+    !listening &&
+    !zeroBusy &&
+    !reviewing;
+  const setZeroBlockReason =
+    connected && operationalMode === 'ACTIVE'
+      ? 'Disable motors first — Set Zero refused while ACTIVE.'
+      : connected && operationalMode === null
+        ? 'Waiting for operational mode…'
+        : null;
 
   const onLiveSample = useEffectEvent((name: string, position: number) => {
     ingestPosition(name, position);
@@ -144,14 +155,31 @@ export function SetLimitsPanel({
     bounds.lastPosition !== null ? bounds.lastPosition.toFixed(3) : '—';
 
   const runSetZero = async () => {
+    // Re-check before post — dialog can stay open across DISABLED→ACTIVE.
+    if (
+      !connected ||
+      operationalMode === null ||
+      operationalMode === 'ACTIVE' ||
+      !signTestPassed
+    ) {
+      setZeroError(
+        operationalMode === 'ACTIVE'
+          ? 'Set Zero refused while ACTIVE — disable motors first.'
+          : !signTestPassed
+            ? 'Confirm sign/direction at mechanical home before Set Zero.'
+            : 'Waiting for operational mode…',
+      );
+      return;
+    }
     setZeroBusy(true);
     setZeroError(null);
     setZeroOk(false);
     try {
-      await postSetZeroCommand(jointName);
-      markCalibrationChanged();
+      await postSetZeroCommand(jointName, { signTestPassed: true });
+      // Gateway 200 only means queued on Chappe — do not bump teach calibration yet.
       setZeroOk(true);
       setZeroConfirmOpen(false);
+      setSignTestPassed(false);
     } catch (e) {
       setZeroError(e instanceof Error ? e.message : 'Set Zero failed');
     } finally {
@@ -250,6 +278,12 @@ export function SetLimitsPanel({
         </p>
       ) : null}
 
+      {setZeroBlockReason && !listening && !reviewing && !zeroConfirmOpen ? (
+        <p className="text-xs text-muted-foreground" role="status">
+          {setZeroBlockReason}
+        </p>
+      ) : null}
+
       {reviewing && proposedRange ? (
         <div className="rounded-sm border border-accent/40 bg-accent/10 px-3 py-2 text-xs">
           <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-accent">
@@ -270,7 +304,8 @@ export function SetLimitsPanel({
       ) : null}
       {zeroOk ? (
         <p className="text-xs text-ok" role="status">
-          Set Zero sent — verify pos near 0, then Set Limits while disabled.
+          Set Zero queued — watch telemetry for pos near 0 and Disabled before
+          Set Limits. Calibration epoch is not bumped until zero is verified.
         </p>
       ) : null}
 
@@ -294,6 +329,18 @@ export function SetLimitsPanel({
               Replaces firmware zero at the current pose. Support the assembly
               at mechanical home before continuing.
             </p>
+            <label className="flex items-start gap-2 text-xs text-foreground">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={signTestPassed}
+                disabled={zeroBusy}
+                onChange={(e) => setSignTestPassed(e.target.checked)}
+              />
+              <span>
+                Sign/direction checked at mechanical home (required attestation).
+              </span>
+            </label>
           </div>
           <div className="flex flex-wrap justify-end gap-2">
             <Button
@@ -302,7 +349,10 @@ export function SetLimitsPanel({
               size="sm"
               disabled={zeroBusy}
               autoFocus
-              onClick={() => setZeroConfirmOpen(false)}
+              onClick={() => {
+                setZeroConfirmOpen(false);
+                setSignTestPassed(false);
+              }}
             >
               Cancel
             </Button>
@@ -310,7 +360,7 @@ export function SetLimitsPanel({
               type="button"
               variant="destructive"
               size="sm"
-              disabled={zeroBusy}
+              disabled={zeroBusy || !signTestPassed}
               onClick={() => {
                 void runSetZero();
               }}
@@ -358,7 +408,7 @@ export function SetLimitsPanel({
             <Button
               type="button"
               size="sm"
-              disabled={!canStart || zeroConfirmOpen}
+              disabled={!canStart || zeroConfirmOpen || zeroBusy || zeroOk}
               onClick={() => {
                 setZeroOk(false);
                 setZeroError(null);
@@ -375,10 +425,14 @@ export function SetLimitsPanel({
             variant="destructive"
             size="sm"
             disabled={!canSetZero}
-            title="Position joint at mechanical zero first. Briefly enables for firmware SetZero, then disables."
+            title={
+              setZeroBlockReason ??
+              'Position joint at mechanical zero first. Briefly enables for firmware SetZero, then disables.'
+            }
             onClick={() => {
               setZeroError(null);
               setZeroOk(false);
+              setSignTestPassed(false);
               setZeroConfirmOpen(true);
             }}
           >

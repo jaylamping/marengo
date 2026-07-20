@@ -18,8 +18,7 @@ const BUCKET_TTL: Duration = Duration::from_secs(600);
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CommandBucket {
     Tuning,
-    /// Reserved for motion commands in PR-5.
-    #[allow(dead_code)]
+    /// Motion-class / calibration commands (set-zero, reserved for PR-5 motion).
     Motion,
 }
 
@@ -87,7 +86,13 @@ impl RateLimiter {
             CommandBucket::Tuning => "tuning",
             CommandBucket::Motion => "motion",
         };
-        format!("{client_id}:{joint}:{kind}")
+        match bucket {
+            // Tuning stays per UI session so independent tabs don't starve each other.
+            CommandBucket::Tuning => format!("{client_id}:{joint}:{kind}"),
+            // Motion/calibration must not be keyed by attacker-chosen client_id —
+            // rotating the field would otherwise bypass the flood cap on set-zero.
+            CommandBucket::Motion => format!("__global__:{joint}:{kind}"),
+        }
     }
 
     fn bucket_config(bucket: CommandBucket) -> (f64, f64) {
@@ -159,6 +164,15 @@ mod tests {
         assert!(limiter.allow("client-a", "elbow", CommandBucket::Motion));
         assert!(limiter.allow("client-a", "elbow", CommandBucket::Motion));
         assert!(!limiter.allow("client-a", "elbow", CommandBucket::Motion));
+    }
+
+    #[test]
+    fn motion_bucket_ignores_client_id_rotation() {
+        let limiter = RateLimiter::new();
+        assert!(limiter.allow("client-a", "elbow", CommandBucket::Motion));
+        assert!(limiter.allow("client-b", "elbow", CommandBucket::Motion));
+        // Third attempt with a fresh client_id must still hit the shared Motion cap.
+        assert!(!limiter.allow("client-c", "elbow", CommandBucket::Motion));
     }
 
     #[test]

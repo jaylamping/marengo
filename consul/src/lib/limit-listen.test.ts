@@ -29,17 +29,22 @@ describe('limit-listen', () => {
     expect(formatJointRange(-0.9, 3.17)).toBe('−0.90–3.17');
   });
 
-  it('requires at least two distinct samples for a proposal', () => {
+  it('requires enough samples and span before proposing a range', () => {
     let b = emptyBounds();
     b = foldPosition(b, 0.4);
     expect(proposedRangeFromBounds(b)).toBeNull();
     b = foldPosition(b, 0.4);
     expect(proposedRangeFromBounds(b)).toBeNull();
+    b = foldPosition(b, 0.41);
+    b = foldPosition(b, 0.42);
+    b = foldPosition(b, 0.43);
+    // Five samples but span << MIN_PROPOSAL_SPAN_RAD
+    expect(proposedRangeFromBounds(b)).toBeNull();
     b = foldPosition(b, 1.2);
     expect(proposedRangeFromBounds(b)).toBe('0.40–1.20');
   });
 
-  it('gates live listen on connected and not ACTIVE', () => {
+  it('gates live listen on connected and known non-ACTIVE mode', () => {
     expect(
       canStartLimitListen({
         connected: true,
@@ -59,11 +64,23 @@ describe('limit-listen', () => {
       }),
     ).toBe(false);
     expect(
+      canStartLimitListen({
+        connected: true,
+        operationalMode: null,
+      }),
+    ).toBe(false);
+    expect(
       limitListenBlockReason({
         connected: true,
         operationalMode: 'ACTIVE',
       }),
     ).toMatch(/Disable motors/i);
+    expect(
+      limitListenBlockReason({
+        connected: true,
+        operationalMode: null,
+      }),
+    ).toMatch(/Waiting for operational mode/i);
     expect(
       limitListenBlockReason({
         connected: false,

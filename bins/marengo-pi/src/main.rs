@@ -244,6 +244,35 @@ fn drain_chappe_commands(
     homing_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     set_zero_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
 ) {
+    // Set-zero before enable so a same-tick enable(true) cannot flip ACTIVE and
+    // silently refuse a queued calibration (Consul already got publish ACK).
+    loop {
+        match set_zero_rx.try_recv() {
+            Ok(bytes) => {
+                let Ok(envelope) = armee_proto::Envelope::decode(bytes.as_slice()) else {
+                    continue;
+                };
+                let Ok(request) = SetZeroRequest::decode(envelope.payload.as_slice()) else {
+                    continue;
+                };
+                if let Err(e) = handle_chappe_set_zero(loop_ctrl, &request) {
+                    warn!(
+                        joint = %request.joint,
+                        error = %e,
+                        "Chappe set-zero failed"
+                    );
+                }
+            }
+            Err(tokio::sync::broadcast::error::TryRecvError::Empty) => break,
+            Err(tokio::sync::broadcast::error::TryRecvError::Lagged(n)) => {
+                warn!(
+                    skipped = n,
+                    "Chappe set_zero lagged; dropped oldest commands"
+                );
+            }
+            Err(tokio::sync::broadcast::error::TryRecvError::Closed) => break,
+        }
+    }
     while let Ok(bytes) = enable_rx.try_recv() {
         let Ok(envelope) = armee_proto::Envelope::decode(bytes.as_slice()) else {
             continue;
@@ -268,54 +297,40 @@ fn drain_chappe_commands(
             info!("homing verified via Chappe");
         }
     }
-    while let Ok(bytes) = set_zero_rx.try_recv() {
-        let Ok(envelope) = armee_proto::Envelope::decode(bytes.as_slice()) else {
-            continue;
-        };
-        let Ok(request) = SetZeroRequest::decode(envelope.payload.as_slice()) else {
-            continue;
-        };
-        if let Err(e) = handle_chappe_set_zero(loop_ctrl, &request) {
-            warn!(
-                joint = %request.joint,
-                error = %e,
-                "Chappe set-zero failed"
-            );
-        }
-    }
 }
 
-/// Firmware SetZero for one joint (Consul Subsystems). Enables for calibration if needed,
-/// verifies near-zero, then disables so free-drive Set Limits can follow.
+/// Firmware SetZero for one joint (Consul Subsystems). Delegates enable/verify/disable
+/// to Davout so free-drive Set Limits can follow without leaving motors ACTIVE on failure.
 fn handle_chappe_set_zero(
     loop_ctrl: &mut ControlLoop<RuntimeBus>,
     request: &SetZeroRequest,
 ) -> Result<(), DavoutError> {
-    let joint = request.joint.trim();
-    if joint.is_empty() {
-        return Err(DavoutError::UnknownJoint {
-            joint: request.joint.clone(),
+    if !request.confirm {
+        return Err(DavoutError::Homing {
+            message: "set-zero requires confirm=true".into(),
         });
     }
-    if loop_ctrl.supervisor_mut().mode() != OperationalMode::Active {
-        loop_ctrl
-            .supervisor_mut()
-            .request_enable_for_calibration()?;
+    if !request.sign_test_passed {
+        return Err(DavoutError::HomingVerify {
+            joint: request.joint.clone(),
+            message: "sign_test_passed required (operator attestation)".into(),
+        });
     }
-    loop_ctrl.supervisor_mut().set_zero_position(joint)?;
-    let _ = loop_ctrl.supervisor_mut().refresh_feedback();
-    let pos = loop_ctrl.supervisor_mut().verify_zero_after_set(
-        joint,
-        if request.operator_id.is_empty() {
-            "consul"
-        } else {
-            request.operator_id.as_str()
-        },
-        false,
+    let operator = if request.operator_id.is_empty() {
+        "consul"
+    } else {
+        request.operator_id.as_str()
+    };
+    let pos = loop_ctrl.supervisor_mut().calibrate_joint_zero(
+        &request.joint,
+        operator,
+        request.sign_test_passed,
     )?;
-    info!(joint = %joint, pos_rad = pos, "set-zero verified via Chappe");
-    // Return to free-drive so Set Limits does not fight torque.
-    loop_ctrl.supervisor_mut().disable_all()?;
+    info!(
+        joint = %request.joint.trim(),
+        pos_rad = pos,
+        "set-zero verified via Chappe"
+    );
     loop_ctrl.set_control_mode(ControlMode::Disabled);
     Ok(())
 }
