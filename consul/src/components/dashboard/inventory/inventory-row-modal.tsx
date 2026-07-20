@@ -37,8 +37,8 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import {
   ArrowLeft01Icon,
   ArrowRight01Icon,
-  Edit01Icon,
 } from '@hugeicons/core-free-icons';
+import { MdOutlineEdit } from 'react-icons/md';
 
 export type InventoryIdentityPatch = {
   name: string;
@@ -217,7 +217,7 @@ export function InventoryRowModal({
                       className={headerEditButtonClassName}
                       onClick={() => setEditingName(true)}
                     >
-                      <HugeiconsIcon icon={Edit01Icon} strokeWidth={2} className="size-3.5" />
+                      <MdOutlineEdit className="size-3.5" />
                     </Button>
                   </div>
                 )}
@@ -304,7 +304,7 @@ export function InventoryRowModal({
                     className={headerEditButtonClassName}
                     onClick={() => setGroupSelectOpen(true)}
                   >
-                    <HugeiconsIcon icon={Edit01Icon} strokeWidth={2} className="size-3" />
+                    <MdOutlineEdit className="size-3" />
                   </Button>
                 </span>
               )}
@@ -369,7 +369,7 @@ export function InventoryRowModal({
                     className={headerEditButtonClassName}
                     onClick={() => setPresetSelectOpen(true)}
                   >
-                    <HugeiconsIcon icon={Edit01Icon} strokeWidth={2} className="size-3" />
+                    <MdOutlineEdit className="size-3" />
                   </Button>
                 </span>
               )}
