@@ -62,11 +62,11 @@ If a tool still shows old behavior after `npm run build`, the Cursor MCP process
 
 ### Cursor `mcp.json`
 
-Repo [`.cursor/mcp.json`](../../.cursor/mcp.json) uses `${workspaceFolder}` so the same file works on Windows and Mac. Open the marengo repo root as the Cursor workspace (or `marengo.code-workspace`).
+Repo [`.cursor/mcp.json`](../../.cursor/mcp.json) uses `${workspaceFolder}` so the same file works on **Windows, macOS, and Linux/WSL**.
 
-**Windows Cursor** launches via [`run-mcp.ps1`](run-mcp.ps1) (PowerShell). **macOS / Linux / WSL Cursor** should use `bash` + [`run-mcp.sh`](run-mcp.sh) instead — System32 `bash.exe` on Windows is the WSL launcher and is not a safe MCP command.
+Both `marengo-pi` and `marengo-research` launch via **`sh`** + the POSIX `run-mcp.sh` scripts (Git `sh` on Windows, system `sh` on Mac/Linux). Keep profile / SSH defaults in the launchers — **not** in `mcp.json` `env` (that thrash auto-disables the project MCP).
 
-**Do not put `MARENGO_CONFIG_DIR` / `MARENGO_BENCH_PROFILE` / SSH env in `mcp.json`.** Cursor hashes those fields into an approval key; changing them auto-disables the project MCP until you re-enable it. Defaults live in the launchers (and `src/config.ts` fallbacks). Override with shell env only when needed.
+Windows also has [`run-mcp.ps1`](run-mcp.ps1) if you need a PowerShell-only fallback locally; do not put OS-specific commands back into the shared `mcp.json` or Mac/Windows will fight over the file.
 
 `MARENGO_LOCAL_ROOT` is optional. The server derives the repo root from its install path. Override only for unusual clone layouts.
 
@@ -78,7 +78,7 @@ just mcp-build
 
 Then restart the marengo-pi MCP server in Cursor.
 
-**Stay enabled:** `.cursor/hooks.json` runs `session-start-marengo.ps1` on `sessionStart` (`--write --best-effort`) so disabled/unapproved state is scrubbed when a chat opens. If the server still shows as disabled after a config thrash:
+**Stay enabled:** `.cursor/hooks.json` runs `session-start-marengo.mjs` on `sessionStart` (`--write --best-effort`) so disabled/unapproved state is scrubbed when a chat opens. If the server still shows as disabled after a config thrash:
 
 ```bash
 # Quit Cursor first for a hard write, then:

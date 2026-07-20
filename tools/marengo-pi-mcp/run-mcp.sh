@@ -43,14 +43,22 @@ resolve_node() {
   for candidate in \
     "${HOME}/.local/share/mise/shims/node" \
     "${HOME}/.local/share/mise/installs/node/24.16.0/bin/node" \
+    "${HOME}/AppData/Local/mise/shims/node.exe" \
+    "${HOME}/AppData/Local/mise/installs/node/24.16.0/node.exe" \
     /usr/local/bin/node \
-    /usr/bin/node
+    /usr/bin/node \
+    "/c/Program Files/nodejs/node.exe"
   do
     if [[ -x "${candidate}" ]]; then
       printf '%s\n' "${candidate}"
       return
     fi
   done
+  # Windows: `command -v` may find node.exe without -x on some mounts
+  if command -v node >/dev/null 2>&1; then
+    command -v node
+    return
+  fi
   echo "run-mcp.sh: node not found (mise PATH missing under Cursor). Install Node 24 or set MARENGO_MCP_NODE." >&2
   exit 127
 }

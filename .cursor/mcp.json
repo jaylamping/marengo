@@ -12,24 +12,12 @@
       "args": ["-y", "--package=@upstash/context7-mcp@2.2.5", "--", "context7-mcp"]
     },
     "marengo-pi": {
-      "command": "powershell",
-      "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "${workspaceFolder}/tools/marengo-pi-mcp/run-mcp.ps1"
-      ]
+      "command": "sh",
+      "args": ["${workspaceFolder}/tools/marengo-pi-mcp/run-mcp.sh"]
     },
     "marengo-research": {
-      "command": "powershell",
-      "args": [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "${workspaceFolder}/tools/marengo-research-mcp/run-mcp.ps1"
-      ],
+      "command": "sh",
+      "args": ["${workspaceFolder}/tools/marengo-research-mcp/run-mcp.sh"],
       "env": {
         "MARENGO_RESEARCH_CACHE_DIR": "${workspaceFolder}/.marengo-research",
         "MARENGO_WORKSPACE": "${workspaceFolder}"

@@ -3,13 +3,13 @@
   "hooks": {
     "sessionStart": [
       {
-        "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \".cursor/hooks/session-start-marengo.ps1\"",
+        "command": "node \".cursor/hooks/session-start-marengo.mjs\"",
         "timeout": 25
       }
     ],
     "beforeShellExecution": [
       {
-        "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \".cursor/hooks/check-powershell-shell.ps1\"",
+        "command": "node \".cursor/hooks/check-powershell-shell.mjs\"",
         "timeout": 8,
         "failClosed": false
       }

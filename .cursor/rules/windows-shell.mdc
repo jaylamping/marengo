@@ -8,10 +8,11 @@ alwaysApply: true
 The default shell on this workspace is PowerShell. Avoid Bash-only command
 syntax unless the command is explicitly executed through `sh` / `bash`.
 
-**Enforced:** `.cursor/hooks/check-powershell-shell.ps1` runs on
+**Enforced:** `.cursor/hooks/check-powershell-shell.mjs` runs on
 `beforeShellExecution` and **denies** bash-isms (`&&`, `||`, heredocs, `export`,
-`set -e`, `if [`, `[[`, etc.) unless the command is wrapped in `bash`/`sh`/`wsl`
-or piped into `sh` (the approved commit-heredoc pattern).
+`set -e`, `if [`, `[[`, etc.) on native Windows only, unless the command is
+wrapped in `bash`/`sh`/`wsl` or piped into `sh`. On macOS / Linux / WSL the hook
+allows bash syntax.
 
 ## PowerShell Sequencing
 
