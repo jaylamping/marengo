@@ -102,12 +102,19 @@ pub fn encode_mit(cmd: &MitCommand) -> (u32, [u8; 8]) {
 }
 
 /// Decode MIT feedback; returns `None` if frame length or ID is invalid.
+///
+/// Accepts OperationStatus (MIT replies) and ActiveReporting (type-24 free-drive
+/// sensing while limp).
 pub fn decode_mit_feedback(motor_type: MotorType, can_id: u32, data: &[u8]) -> Option<MitFeedback> {
     if data.len() < 8 {
         return None;
     }
     let unpacked = unpack_ext_id(can_id)?;
-    if CommunicationType::from_u8(unpacked.comm_type)? != CommunicationType::OperationStatus {
+    let comm = CommunicationType::from_u8(unpacked.comm_type)?;
+    if !matches!(
+        comm,
+        CommunicationType::OperationStatus | CommunicationType::ActiveReporting
+    ) {
         return None;
     }
     let ranges = MitRanges::for_motor_type(motor_type);
@@ -116,7 +123,7 @@ pub fn decode_mit_feedback(motor_type: MotorType, can_id: u32, data: &[u8]) -> O
     let t = vendor_u16_to_signed(read_be_u16(data, 4), ranges.torque_scale);
     let temp = f32::from(read_be_u16(data, 6)) * 0.1;
     Some(MitFeedback {
-        device_id: crate::comm::inbound_motor_device_id(can_id, CommunicationType::OperationStatus),
+        device_id: crate::comm::inbound_motor_device_id(can_id, comm),
         position_rad: p,
         velocity_rad_s: v,
         torque_nm: t,
@@ -195,6 +202,11 @@ mod tests {
         assert!((fb.velocity_rad_s - 2.0).abs() < 0.01);
         assert!((fb.torque_nm - 3.0).abs() < 0.01);
         assert!((fb.temperature_c - 32.1).abs() < 0.001);
+
+        let id24 = pack_typed_ext_id(CommunicationType::ActiveReporting, 3, DEFAULT_HOST_ID);
+        let fb24 = decode_mit_feedback(MotorType::Rs02, id24, &data).expect("type-24 feedback");
+        assert_eq!(fb24.device_id, 3);
+        assert!((fb24.position_rad - 1.0).abs() < 0.001);
     }
 
     #[test]

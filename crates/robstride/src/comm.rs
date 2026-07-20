@@ -44,13 +44,13 @@ impl CommunicationType {
     }
 }
 
-/// Motor id for **inbound** status/fault frames (host id in low byte, motor id at bits 8–15).
+/// Motor id for **inbound** status/fault/active-reporting frames (host id in low byte, motor id at bits 8–15).
 /// Outbound command/lifecycle frames use the motor id in the low byte.
 pub fn inbound_motor_device_id(can_id: u32, comm_type: CommunicationType) -> u8 {
     match comm_type {
-        CommunicationType::OperationStatus | CommunicationType::FaultReport => {
-            ((can_id >> 8) & 0xFF) as u8
-        }
+        CommunicationType::OperationStatus
+        | CommunicationType::FaultReport
+        | CommunicationType::ActiveReporting => ((can_id >> 8) & 0xFF) as u8,
         _ => (can_id & 0xFF) as u8,
     }
 }
@@ -93,6 +93,10 @@ mod tests {
         assert_eq!(
             inbound_motor_device_id(0x02800CFF, CommunicationType::OperationStatus),
             12
+        );
+        assert_eq!(
+            inbound_motor_device_id(0x180003FD, CommunicationType::ActiveReporting),
+            3
         );
         assert_eq!(
             inbound_motor_device_id(0x0300FF0C, CommunicationType::Enable),

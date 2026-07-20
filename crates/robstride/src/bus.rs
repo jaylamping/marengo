@@ -324,11 +324,9 @@ pub trait MotorBus: CanBus {
                     continue;
                 };
                 match CommunicationType::from_u8(ext.comm_type) {
-                    Some(CommunicationType::OperationStatus) => {
-                        let device_id = comm::inbound_motor_device_id(
-                            frame.id,
-                            CommunicationType::OperationStatus,
-                        );
+                    Some(comm @ CommunicationType::OperationStatus)
+                    | Some(comm @ CommunicationType::ActiveReporting) => {
+                        let device_id = comm::inbound_motor_device_id(frame.id, comm);
                         let Some(motor_type) = motor_types.get(&device_id).copied() else {
                             continue;
                         };
@@ -459,7 +457,7 @@ fn ingest_addressed_frames(
             continue;
         };
         match comm_type {
-            CommunicationType::OperationStatus => {
+            CommunicationType::OperationStatus | CommunicationType::ActiveReporting => {
                 let Some(motor_type) = motor_types.get(&address).copied() else {
                     continue;
                 };
