@@ -107,9 +107,10 @@ fn motor_type_label(motor_type: MotorType) -> String {
 
 pub async fn get_config_snapshot(
     State(state): State<SharedState>,
-    headers: HeaderMap,
 ) -> Result<Json<ConfigSnapshotJson>, StatusCode> {
-    authorize_logs(&headers)?;
+    // Read-only snapshot is LAN bench telemetry for Consul inventory — do not gate on
+    // MARENGO_GATEWAY_LOG_TOKEN (deployed www cannot bake that secret). Mutations stay
+    // behind authorize_logs via post_config_patch.
     let _logs = state.logs.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     let config_dir = resolve_config_dir();
     let robot = load_robot_config_from(&config_dir).map_err(|_| StatusCode::NOT_FOUND)?;
