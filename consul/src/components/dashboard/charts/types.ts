@@ -2,9 +2,13 @@ export type ChartTimeRange = 'session' | '5m' | '1m';
 
 export type JointTrackingPoint = {
   time: string;
+  /** Joint position (rad) — primary series for overview charts. */
   measured: number;
   /** Omitted in live Chappe mode until proto exposes commanded position. */
   commanded?: number;
+  velocity?: number;
+  torque?: number;
+  temperature?: number;
 };
 
 type JointLimits = {

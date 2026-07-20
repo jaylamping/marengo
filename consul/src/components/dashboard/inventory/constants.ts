@@ -70,6 +70,26 @@ export const STATUS_OPTIONS = [
   { label: 'Offline', value: 'Offline' },
 ] as const;
 
+export const actuatorTelemetryChartConfig = {
+  position: {
+    label: 'Pos (rad)',
+    color: 'var(--chart-1)',
+  },
+  torque: {
+    label: 'Torque (Nm)',
+    color: 'var(--chart-2)',
+  },
+  velocity: {
+    label: 'Velocity (rad/s)',
+    color: 'var(--chart-3)',
+  },
+  temperature: {
+    label: 'Temp (°C)',
+    color: 'var(--chart-5)',
+  },
+} satisfies ChartConfig;
+
+/** @deprecated Fixture series — live modal uses RobotState history. */
 export const actuatorTrackingChartData = [
   { sample: '0s', commanded: 0.42, measured: 0.38 },
   { sample: '10s', commanded: 0.61, measured: 0.58 },
@@ -80,6 +100,7 @@ export const actuatorTrackingChartData = [
   { sample: '60s', commanded: 0.78, measured: 0.73 },
 ];
 
+/** @deprecated Prefer actuatorTelemetryChartConfig. */
 export const actuatorTrackingChartConfig = {
   commanded: {
     label: 'Commanded (Nm)',

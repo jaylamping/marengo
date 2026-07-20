@@ -15,16 +15,25 @@ const TELEMETRY_UI_MS = 100;
 function applyRobotState(
   state: RobotState,
   setRobotState: (state: RobotState) => void,
-  appendTrackingPoint: (jointName: string, point: {
-    time: string;
-    measured: number;
-  }) => void,
+  appendTrackingPoint: (
+    jointName: string,
+    point: {
+      time: string;
+      measured: number;
+      velocity: number;
+      torque: number;
+      temperature: number;
+    },
+  ) => void,
 ) {
   setRobotState(state);
   for (const joint of state.joints) {
     appendTrackingPoint(joint.name, {
       time: String(Number(state.timestampMs % 10_000n)),
       measured: joint.position,
+      velocity: joint.velocity,
+      torque: joint.effort,
+      temperature: joint.temperatureC,
     });
   }
 }

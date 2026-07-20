@@ -164,12 +164,16 @@ describe('InventoryRowModal panel shell', () => {
     );
 
     expect(screen.getByTestId('inventory-row-modal')).toBeTruthy();
-    expect(screen.getByText('right_upper_arm_yaw')).toBeTruthy();
+    expect(screen.getAllByText('right_upper_arm_yaw').length).toBeGreaterThan(0);
+    expect(screen.getByLabelText('Edit name')).toBeTruthy();
+    expect(screen.getByLabelText('Edit location')).toBeTruthy();
+    expect(screen.getByLabelText('Edit preset')).toBeTruthy();
     expect(
       screen.getAllByText('Enabled').some((el) => el.getAttribute('data-slot') === 'badge'),
     ).toBe(true);
     expect(screen.queryByText('Armed')).toBeNull();
     expect(screen.queryByText('Dummy')).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Identity' })).toBeNull();
   });
 
   it('dithers actuator command surfaces for offline rows but keeps identity editable', () => {
@@ -188,7 +192,10 @@ describe('InventoryRowModal panel shell', () => {
     expect(
       screen.getAllByText('Offline').some((el) => el.getAttribute('data-slot') === 'badge'),
     ).toBe(true);
-    expect(screen.getByLabelText('Name')).not.toBeDisabled();
+    expect(screen.getByLabelText('Edit name')).not.toBeDisabled();
+    expect(screen.getByLabelText('Edit location')).toBeTruthy();
+    expect(screen.getByLabelText('Edit preset')).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Identity' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Homing' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Start sweep' })).toBeDisabled();
   });

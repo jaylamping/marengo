@@ -1,10 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { ActuatorDetailBody } from '@/components/dashboard/inventory/actuator-detail-body';
 import {
-  KIND_OPTIONS,
   PRESET_OPTIONS_WITH_UNASSIGNED,
-  STATUS_OPTIONS,
   inventoryModalContentClassName,
 } from '@/components/dashboard/inventory/constants';
 import { isSubsystemInteractive } from '@/components/dashboard/inventory/subsystem-interactive';
@@ -32,13 +30,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
 import { useActiveReportingLease } from '@/hooks/use-active-reporting-lease';
+import { cn } from '@/lib/utils';
 import { useRobotStore } from '@/state/robotStore';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
   ArrowLeft01Icon,
   ArrowRight01Icon,
+  Edit01Icon,
 } from '@hugeicons/core-free-icons';
 
 export type InventoryIdentityPatch = {
@@ -63,7 +62,19 @@ const GROUP_OPTIONS = (
   Object.entries(INVENTORY_GROUP_LABELS) as Array<[InventoryGroup, string]>
 ).map(([value, label]) => ({ value, label }));
 
-/** Centered single-subsystem detail modal — replaces the right drawer. */
+const headerChipTriggerClassName = cn(
+  'h-7 w-auto min-w-0 max-w-[12rem] gap-1 border-line bg-transparent px-2',
+  'font-mono text-[11px] tracking-wide text-muted-foreground',
+  'hover:border-line-strong hover:bg-surface-2 hover:text-foreground',
+  'data-[state=open]:border-line-strong data-[state=open]:bg-surface-2 data-[state=open]:text-foreground',
+);
+
+const headerEditButtonClassName = cn(
+  'size-6 shrink-0 text-muted-foreground',
+  'hover:bg-surface-2 hover:text-foreground',
+);
+
+/** Centered single-subsystem detail — chart-first; identity lives in the header. */
 export function InventoryRowModal({
   item,
   items,
@@ -83,21 +94,39 @@ export function InventoryRowModal({
     leaseState === 'requested' && operationalMode !== 'ACTIVE';
   const [nameDraft, setNameDraft] = useState(item.name);
   const [groupDraft, setGroupDraft] = useState<InventoryGroup>(item.group);
-  const [kindDraft, setKindDraft] = useState(item.kind);
-  const [statusDraft, setStatusDraft] = useState(item.status);
   const [presetDraft, setPresetDraft] = useState(item.preset);
   const [limitDraft, setLimitDraft] = useState(item.limit);
   const [moveToDraft, setMoveToDraft] = useState('');
+  const [editingName, setEditingName] = useState(false);
+  const [groupSelectOpen, setGroupSelectOpen] = useState(false);
+  const [presetSelectOpen, setPresetSelectOpen] = useState(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setNameDraft(item.name);
     setGroupDraft(item.group);
-    setKindDraft(item.kind);
-    setStatusDraft(item.status);
     setPresetDraft(item.preset);
     setLimitDraft(item.limit);
     setMoveToDraft('');
-  }, [item.id, item.name, item.group, item.kind, item.status, item.preset, item.limit]);
+    setEditingName(false);
+    setGroupSelectOpen(false);
+    setPresetSelectOpen(false);
+  }, [item.id, item.name, item.group, item.preset, item.limit]);
+
+  useEffect(() => {
+    if (!open) {
+      setEditingName(false);
+      setGroupSelectOpen(false);
+      setPresetSelectOpen(false);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (editingName) {
+      nameInputRef.current?.focus();
+      nameInputRef.current?.select();
+    }
+  }, [editingName]);
 
   const index = useMemo(
     () => items.findIndex((row) => row.id === item.id),
@@ -107,6 +136,15 @@ export function InventoryRowModal({
   const hasNext = index >= 0 && index < items.length - 1;
   const positionLabel =
     index >= 0 ? `${index + 1} / ${items.length}` : `— / ${items.length}`;
+
+  const identityPatch = (): InventoryIdentityPatch => ({
+    name: nameDraft,
+    group: groupDraft,
+    kind: item.kind,
+    status: item.status,
+    preset: presetDraft,
+    limit: limitDraft,
+  });
 
   useEffect(() => {
     if (!open) {
@@ -142,27 +180,64 @@ export function InventoryRowModal({
         className={inventoryModalContentClassName}
         data-testid="inventory-row-modal"
       >
-        <DialogHeader className="pr-16">
-          <div className="flex items-start justify-between gap-3">
+        <DialogHeader className="pr-3">
+          <div className="flex items-start justify-between gap-3 pr-9">
             <div className="min-w-0 flex-1">
-              <DialogTitle className="truncate font-mono text-base tracking-tight">
-                {item.name}
-              </DialogTitle>
-              <DialogDescription className="mt-1 font-mono text-[11px] tracking-wide">
-                {INVENTORY_GROUP_LABELS[item.group]} · {item.kind} · {item.node}
+              <DialogTitle className="sr-only">{nameDraft || item.name}</DialogTitle>
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                {editingName ? (
+                  <Input
+                    ref={nameInputRef}
+                    id="subsystem-name"
+                    aria-label="Name"
+                    value={nameDraft}
+                    onChange={(event) => setNameDraft(event.target.value)}
+                    onBlur={() => setEditingName(false)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === 'Escape') {
+                        event.preventDefault();
+                        setEditingName(false);
+                      }
+                    }}
+                    className={cn(
+                      'h-auto min-w-0 flex-1 border-line bg-surface-2 px-2 py-1',
+                      'font-mono text-base tracking-tight text-foreground',
+                    )}
+                  />
+                ) : (
+                  <div className="flex min-w-0 items-center gap-1">
+                    <p className="truncate font-mono text-base tracking-tight text-foreground">
+                      {nameDraft}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Edit name"
+                      className={headerEditButtonClassName}
+                      onClick={() => setEditingName(true)}
+                    >
+                      <HugeiconsIcon icon={Edit01Icon} strokeWidth={2} className="size-3.5" />
+                    </Button>
+                  </div>
+                )}
+                <Badge
+                  variant="outline"
+                  className="shrink-0 font-mono text-[10px] uppercase tracking-[0.14em]"
+                >
+                  {item.status}
+                </Badge>
+              </div>
+              <DialogDescription className="sr-only">
+                {INVENTORY_GROUP_LABELS[groupDraft]} · {item.kind} · {item.node} ·{' '}
+                {presetDraft}
               </DialogDescription>
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
-              <Badge
-                variant="outline"
-                className="font-mono text-[10px] uppercase tracking-[0.14em]"
-              >
-                {item.status}
-              </Badge>
               {showEnhancedLogging ? (
                 <Badge
-                  variant="secondary"
-                  className="font-mono text-[10px] uppercase tracking-[0.14em]"
+                  variant="outline"
+                  className="border-ok bg-ok/10 font-mono text-[10px] uppercase tracking-[0.14em] text-ok"
                 >
                   Enhanced logging
                 </Badge>
@@ -177,66 +252,32 @@ export function InventoryRowModal({
               ) : null}
             </div>
           </div>
-          <div className="mt-3 flex items-center gap-2">
-            <Button
-              type="button"
-              variant="panel"
-              size="icon-sm"
-              disabled={!hasPrev}
-              aria-label="Previous subsystem"
-              onClick={() => {
-                if (hasPrev) {
-                  onNavigate(items[index - 1]!);
-                }
-              }}
+          <div className="mt-1.5 flex items-center gap-3">
+            <div
+              className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1 gap-y-1.5"
+              aria-label="Identity"
             >
-              <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} />
-            </Button>
-            <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-              {positionLabel}
-            </span>
-            <Button
-              type="button"
-              variant="panel"
-              size="icon-sm"
-              disabled={!hasNext}
-              aria-label="Next subsystem"
-              onClick={() => {
-                if (hasNext) {
-                  onNavigate(items[index + 1]!);
-                }
-              }}
-            >
-              <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={2} />
-            </Button>
-          </div>
-        </DialogHeader>
-
-        <DialogBody className="flex flex-col gap-5">
-          <section className="flex flex-col gap-3" aria-label="Identity">
-            <h3 className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-              Identity
-            </h3>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="flex flex-col gap-2 sm:col-span-2">
-                <Label htmlFor="subsystem-name">Name</Label>
-                <Input
-                  id="subsystem-name"
-                  value={nameDraft}
-                  onChange={(event) => setNameDraft(event.target.value)}
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="subsystem-group">Location</Label>
+              {groupSelectOpen ? (
                 <Select
+                  open
+                  onOpenChange={(next) => {
+                    if (!next) {
+                      setGroupSelectOpen(false);
+                    }
+                  }}
                   value={groupDraft}
-                  onValueChange={(value) =>
-                    setGroupDraft(value as InventoryGroup)
-                  }
+                  onValueChange={(value) => {
+                    setGroupDraft(value as InventoryGroup);
+                    setGroupSelectOpen(false);
+                  }}
                   items={GROUP_OPTIONS}
                 >
-                  <SelectTrigger id="subsystem-group" className="w-full">
-                    <SelectValue placeholder="Select location" />
+                  <SelectTrigger
+                    id="subsystem-group"
+                    aria-label="Location"
+                    className={headerChipTriggerClassName}
+                  >
+                    <SelectValue placeholder="Location" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
@@ -248,64 +289,59 @@ export function InventoryRowModal({
                     </SelectGroup>
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="subsystem-kind">Kind</Label>
+              ) : (
+                <span className="inline-flex min-w-0 items-center gap-0.5">
+                  <span className="font-mono text-[11px] tracking-wide text-muted-foreground">
+                    {INVENTORY_GROUP_LABELS[groupDraft]}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Edit location"
+                    className={headerEditButtonClassName}
+                    onClick={() => setGroupSelectOpen(true)}
+                  >
+                    <HugeiconsIcon icon={Edit01Icon} strokeWidth={2} className="size-3" />
+                  </Button>
+                </span>
+              )}
+              <span className="font-mono text-[11px] text-muted-foreground" aria-hidden>
+                ·
+              </span>
+              <span className="font-mono text-[11px] tracking-wide text-muted-foreground">
+                {item.kind}
+              </span>
+              <span className="font-mono text-[11px] text-muted-foreground" aria-hidden>
+                ·
+              </span>
+              <span className="truncate font-mono text-[11px] tracking-wide text-muted-foreground">
+                {item.node}
+              </span>
+              <span className="font-mono text-[11px] text-muted-foreground" aria-hidden>
+                ·
+              </span>
+              {presetSelectOpen ? (
                 <Select
-                  value={kindDraft}
-                  onValueChange={(value) =>
-                    setKindDraft(value as InventoryRow['kind'])
-                  }
-                  items={[...KIND_OPTIONS]}
-                  disabled={!interactive}
-                >
-                  <SelectTrigger id="subsystem-kind" className="w-full">
-                    <SelectValue placeholder="Select kind" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {KIND_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="subsystem-status">Status</Label>
-                <Select
-                  value={statusDraft}
-                  onValueChange={(value) =>
-                    setStatusDraft(value as InventoryRow['status'])
-                  }
-                  items={[...STATUS_OPTIONS]}
-                  disabled={!interactive}
-                >
-                  <SelectTrigger id="subsystem-status" className="w-full">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {STATUS_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="subsystem-preset">Preset</Label>
-                <Select
+                  open
+                  onOpenChange={(next) => {
+                    if (!next) {
+                      setPresetSelectOpen(false);
+                    }
+                  }}
                   value={presetDraft}
-                  onValueChange={setPresetDraft}
+                  onValueChange={(value) => {
+                    setPresetDraft(value);
+                    setPresetSelectOpen(false);
+                  }}
                   items={[...PRESET_OPTIONS_WITH_UNASSIGNED]}
                 >
-                  <SelectTrigger id="subsystem-preset" className="w-full">
-                    <SelectValue placeholder="Select preset" />
+                  <SelectTrigger
+                    id="subsystem-preset"
+                    aria-label="Preset"
+                    className={headerChipTriggerClassName}
+                  >
+                    <SelectValue placeholder="Preset" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
@@ -317,80 +353,118 @@ export function InventoryRowModal({
                     </SelectGroup>
                   </SelectContent>
                 </Select>
-              </div>
+              ) : (
+                <span className="inline-flex min-w-0 items-center gap-0.5">
+                  <span className="font-mono text-[11px] tracking-wide text-muted-foreground">
+                    {presetDraft}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Edit preset"
+                    className={headerEditButtonClassName}
+                    onClick={() => setPresetSelectOpen(true)}
+                  >
+                    <HugeiconsIcon icon={Edit01Icon} strokeWidth={2} className="size-3" />
+                  </Button>
+                </span>
+              )}
             </div>
-            {!interactive ? (
-              <p className="text-xs text-muted-foreground" role="status">
-                Offline or unconfigured — name, location, and preset stay
-                editable; telemetry and motion stay locked until online and
-                configured.
-              </p>
-            ) : null}
-          </section>
-
-          {item.kind === 'actuator' ? (
-            <>
-              <Separator className="bg-line" />
-              <ActuatorDetailBody
-                item={item}
-                interactive={interactive}
-                limitDraft={limitDraft}
-                onLimitDraftChange={setLimitDraft}
-                onApplyRange={(range) => {
-                  setLimitDraft(range);
-                  onApply?.(item.id, {
-                    name: nameDraft,
-                    group: groupDraft,
-                    kind: kindDraft,
-                    status: statusDraft,
-                    preset: presetDraft,
-                    limit: range,
-                  });
-                }}
-                moveToDraft={moveToDraft}
-                onMoveToDraftChange={setMoveToDraft}
-              />
-            </>
-          ) : (
-            <>
-              <Separator className="bg-line" />
-              <section
-                className={!interactive ? 'opacity-40' : undefined}
-                aria-disabled={!interactive}
-              >
-                <h3 className="mb-3 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-                  Reading
-                </h3>
-                <div
-                  className={
-                    !interactive ? 'pointer-events-none select-none' : undefined
+            <div className="ml-auto flex shrink-0 items-center gap-1.5">
+              <Button
+                type="button"
+                variant="panel"
+                size="icon-sm"
+                disabled={!hasPrev}
+                aria-label="Previous subsystem"
+                onClick={() => {
+                  if (hasPrev) {
+                    onNavigate(items[index - 1]!);
                   }
-                  inert={!interactive ? true : undefined}
-                >
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="flex flex-col gap-2">
-                      <Label htmlFor="subsystem-value">Value</Label>
-                      <Input
-                        id="subsystem-value"
-                        className="font-mono"
-                        defaultValue={item.value}
-                        disabled={!interactive}
-                      />
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <Label htmlFor="subsystem-limit">Range</Label>
-                      <Input
-                        id="subsystem-limit"
-                        className="font-mono"
-                        value={limitDraft}
-                        disabled={!interactive}
-                        onChange={(event) => setLimitDraft(event.target.value)}
-                      />
-                    </div>
+                }}
+              >
+                <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} />
+              </Button>
+              <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                {positionLabel}
+              </span>
+              <Button
+                type="button"
+                variant="panel"
+                size="icon-sm"
+                disabled={!hasNext}
+                aria-label="Next subsystem"
+                onClick={() => {
+                  if (hasNext) {
+                    onNavigate(items[index + 1]!);
+                  }
+                }}
+              >
+                <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={2} />
+              </Button>
+            </div>
+          </div>
+          {!interactive ? (
+            <p className="mt-2 text-xs text-muted-foreground" role="status">
+              Offline or unconfigured — name, location, and preset stay
+              editable via the pencil controls; telemetry and motion stay locked
+              until online and configured.
+            </p>
+          ) : null}
+        </DialogHeader>
+
+        <DialogBody className="flex flex-col gap-5">
+          {item.kind === 'actuator' ? (
+            <ActuatorDetailBody
+              item={item}
+              interactive={interactive}
+              limitDraft={limitDraft}
+              onLimitDraftChange={setLimitDraft}
+              onApplyRange={(range) => {
+                setLimitDraft(range);
+                onApply?.(item.id, { ...identityPatch(), limit: range });
+              }}
+              moveToDraft={moveToDraft}
+              onMoveToDraftChange={setMoveToDraft}
+            />
+          ) : (
+            <section
+              className={!interactive ? 'opacity-40' : undefined}
+              aria-disabled={!interactive}
+            >
+              <h3 className="mb-3 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                Reading
+              </h3>
+              <div
+                className={
+                  !interactive ? 'pointer-events-none select-none' : undefined
+                }
+                inert={!interactive ? true : undefined}
+              >
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="subsystem-value">Value</Label>
+                    <Input
+                      id="subsystem-value"
+                      className="font-mono"
+                      defaultValue={item.value}
+                      disabled={!interactive}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="subsystem-limit">Range</Label>
+                    <Input
+                      id="subsystem-limit"
+                      className="font-mono"
+                      value={limitDraft}
+                      disabled={!interactive}
+                      onChange={(event) => setLimitDraft(event.target.value)}
+                    />
                   </div>
                 </div>
-              </section>
-            </>
+              </div>
+            </section>
           )}
         </DialogBody>
 
@@ -403,14 +477,7 @@ export function InventoryRowModal({
           <Button
             type="button"
             onClick={() => {
-              onApply?.(item.id, {
-                name: nameDraft,
-                group: groupDraft,
-                kind: kindDraft,
-                status: statusDraft,
-                preset: presetDraft,
-                limit: limitDraft,
-              });
+              onApply?.(item.id, identityPatch());
               onOpenChange(false);
             }}
           >

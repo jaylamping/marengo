@@ -1,16 +1,16 @@
-import type { ReactNode } from 'react';
-import { Area, AreaChart, CartesianGrid, XAxis } from 'recharts';
+import { useMemo, type ReactNode } from 'react';
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
 
-import {
-  actuatorTrackingChartConfig,
-  actuatorTrackingChartData,
-} from '@/components/dashboard/inventory/constants';
+import { actuatorTelemetryChartConfig } from '@/components/dashboard/inventory/constants';
 import { SetLimitsPanel } from '@/components/dashboard/inventory/set-limits-panel';
 import type { InventoryRow } from '@/components/dashboard/inventory/types';
+import type { JointTrackingPoint } from '@/components/dashboard/charts/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart';
@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import { useRobotStore } from '@/state/robotStore';
 
 type ActuatorDetailBodyProps = {
   item: InventoryRow;
@@ -27,6 +28,20 @@ type ActuatorDetailBodyProps = {
   onApplyRange: (range: string) => void;
   moveToDraft: string;
   onMoveToDraftChange: (value: string) => void;
+};
+
+type TelemetrySeriesKey = 'position' | 'torque' | 'velocity' | 'temperature';
+
+type ChartRow = {
+  time: string;
+  position: number;
+  torque: number;
+  velocity: number;
+  temperature: number;
+  positionRaw: number;
+  torqueRaw: number;
+  velocityRaw: number;
+  temperatureRaw: number;
 };
 
 /** Actuator-only command surface: telemetry, limits, actions, tests. */
@@ -39,6 +54,31 @@ export function ActuatorDetailBody({
   moveToDraft,
   onMoveToDraftChange,
 }: ActuatorDetailBodyProps) {
+  const connected = useRobotStore((s) => s.connected);
+  const joint = useRobotStore((s) =>
+    s.robotState?.joints.find((entry) => entry.name === item.name),
+  );
+  const history = useRobotStore(
+    (s) => s.trackingPointsByJoint[item.name] ?? EMPTY_POINTS,
+  );
+
+  const live = connected && joint !== undefined;
+  const posValue = live
+    ? formatFixed(joint.position, 3)
+    : formatReading(item.value);
+  const velocityValue = live ? formatFixed(joint.velocity, 3) : '—';
+  const torqueValue = live ? formatFixed(joint.effort, 3) : '—';
+  const tempValue = live ? formatFixed(joint.temperatureC, 1) : '—';
+  const faultValue = live
+    ? joint.fault === 0
+      ? 'none'
+      : `0x${joint.fault.toString(16).padStart(4, '0')}`
+    : item.status === 'Fault'
+      ? 'ACTIVE'
+      : 'none';
+
+  const chartData = useMemo(() => buildNormalizedChartRows(history), [history]);
+
   return (
     <div className="flex flex-col gap-5">
       <InteractiveSection
@@ -46,58 +86,97 @@ export function ActuatorDetailBody({
         title="Telemetry"
         hint="Live readings unlock when this actuator is online and configured."
       >
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <MetricCell label="Pos" value={formatReading(item.value)} unit="rad" />
-          <MetricCell label="Range" value={limitDraft || item.limit} />
-          <MetricCell label="Bus V" value="—" unit="V" />
-          <MetricCell label="Temp" value="—" unit="°C" />
-          <MetricCell label="Torque" value="—" unit="Nm" />
-          <MetricCell label="Velocity" value="—" unit="rad/s" />
-          <MetricCell label="Fault" value={item.status === 'Fault' ? 'ACTIVE' : 'none'} />
-          <MetricCell label="Node" value={item.node} />
-        </div>
         <ChartContainer
-          config={actuatorTrackingChartConfig}
-          className="mt-3 aspect-[3/1] w-full"
+          config={actuatorTelemetryChartConfig}
+          className="aspect-[3/1] w-full"
         >
-          <AreaChart
+          <LineChart
             accessibilityLayer
-            data={actuatorTrackingChartData}
+            data={chartData}
             margin={{ left: 0, right: 10, top: 4, bottom: 0 }}
           >
             <CartesianGrid vertical={false} />
             <XAxis
-              dataKey="sample"
+              dataKey="time"
               tickLine={false}
               axisLine={false}
               tickMargin={8}
               hide
             />
+            <YAxis hide domain={[0, 1]} />
             <ChartTooltip
               cursor={false}
-              content={<ChartTooltipContent indicator="dot" />}
+              content={
+                <ChartTooltipContent
+                  indicator="line"
+                  formatter={(value, name, item) => {
+                    const key = String(name) as TelemetrySeriesKey;
+                    const row = item.payload as ChartRow | undefined;
+                    const raw = rawFromRow(row, key);
+                    const label =
+                      actuatorTelemetryChartConfig[key]?.label ?? key;
+                    return (
+                      <div className="flex w-full items-center justify-between gap-4">
+                        <span className="text-muted-foreground">{label}</span>
+                        <span className="font-mono tabular-nums text-foreground">
+                          {raw === undefined
+                            ? formatFixed(Number(value), 3)
+                            : formatTooltip(key, raw)}
+                        </span>
+                      </div>
+                    );
+                  }}
+                />
+              }
             />
-            <Area
-              dataKey="measured"
-              type="natural"
-              fill="var(--color-measured)"
-              fillOpacity={0.6}
-              stroke="var(--color-measured)"
-              stackId="a"
+            <ChartLegend content={<ChartLegendContent />} />
+            <Line
+              dataKey="position"
+              type="monotone"
+              stroke="var(--color-position)"
+              strokeWidth={1.5}
+              dot={false}
+              isAnimationActive={false}
             />
-            <Area
-              dataKey="commanded"
-              type="natural"
-              fill="var(--color-commanded)"
-              fillOpacity={0.4}
-              stroke="var(--color-commanded)"
-              stackId="a"
+            <Line
+              dataKey="torque"
+              type="monotone"
+              stroke="var(--color-torque)"
+              strokeWidth={1.5}
+              dot={false}
+              isAnimationActive={false}
             />
-          </AreaChart>
+            <Line
+              dataKey="velocity"
+              type="monotone"
+              stroke="var(--color-velocity)"
+              strokeWidth={1.5}
+              dot={false}
+              isAnimationActive={false}
+            />
+            <Line
+              dataKey="temperature"
+              type="monotone"
+              stroke="var(--color-temperature)"
+              strokeWidth={1.5}
+              dot={false}
+              isAnimationActive={false}
+            />
+          </LineChart>
         </ChartContainer>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Tracking chart is a layout fixture until live CAN feedback and the
-          shared time cursor land.
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <MetricCell label="Pos" value={posValue} unit="rad" />
+          <MetricCell label="Range" value={limitDraft || item.limit} />
+          <MetricCell label="Bus V" value="—" unit="V" />
+          <MetricCell label="Temp" value={tempValue} unit="°C" />
+          <MetricCell label="Torque" value={torqueValue} unit="Nm" />
+          <MetricCell label="Velocity" value={velocityValue} unit="rad/s" />
+          <MetricCell label="Fault" value={faultValue} />
+          <MetricCell label="Node" value={item.node} />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Series are normalized to share the plot; tooltip shows engineering
+          units. Bus V is not in MIT / type-24 feedback yet.
         </p>
       </InteractiveSection>
 
@@ -194,6 +273,8 @@ export function ActuatorDetailBody({
   );
 }
 
+const EMPTY_POINTS: JointTrackingPoint[] = [];
+
 function InteractiveSection({
   interactive,
   title,
@@ -242,7 +323,6 @@ function InteractiveSection({
       data-interactive={interactive ? 'true' : 'false'}
     >
       {header}
-      {/* Same shell as SetLimitsPanel: title sits above, content inset from brackets. */}
       {brackets ? (
         <div
           className={cn(
@@ -293,4 +373,103 @@ function formatReading(value: string): string {
     return '—';
   }
   return value;
+}
+
+function formatFixed(value: number, digits: number): string {
+  if (!Number.isFinite(value)) {
+    return '—';
+  }
+  return value.toFixed(digits);
+}
+
+function formatTooltip(key: TelemetrySeriesKey, raw: number): string {
+  switch (key) {
+    case 'position':
+      return `${formatFixed(raw, 3)} rad`;
+    case 'torque':
+      return `${formatFixed(raw, 3)} Nm`;
+    case 'velocity':
+      return `${formatFixed(raw, 3)} rad/s`;
+    case 'temperature':
+      return `${formatFixed(raw, 1)} °C`;
+    default: {
+      const _exhaustive: never = key;
+      return _exhaustive;
+    }
+  }
+}
+
+function rawFromRow(
+  row: ChartRow | undefined,
+  key: TelemetrySeriesKey,
+): number | undefined {
+  if (!row) {
+    return undefined;
+  }
+  switch (key) {
+    case 'position':
+      return row.positionRaw;
+    case 'torque':
+      return row.torqueRaw;
+    case 'velocity':
+      return row.velocityRaw;
+    case 'temperature':
+      return row.temperatureRaw;
+    default: {
+      const _exhaustive: never = key;
+      return _exhaustive;
+    }
+  }
+}
+
+function buildNormalizedChartRows(history: JointTrackingPoint[]): ChartRow[] {
+  if (history.length === 0) {
+    return [];
+  }
+  const series = history.map((point) => ({
+    time: point.time,
+    position: point.measured,
+    torque: point.torque ?? 0,
+    velocity: point.velocity ?? 0,
+    temperature: point.temperature ?? 0,
+  }));
+  const positionScale = seriesScale(series.map((p) => p.position));
+  const torqueScale = seriesScale(series.map((p) => p.torque));
+  const velocityScale = seriesScale(series.map((p) => p.velocity));
+  const temperatureScale = seriesScale(series.map((p) => p.temperature));
+
+  return series.map((point) => ({
+    time: point.time,
+    position: normalize(point.position, positionScale),
+    torque: normalize(point.torque, torqueScale),
+    velocity: normalize(point.velocity, velocityScale),
+    temperature: normalize(point.temperature, temperatureScale),
+    positionRaw: point.position,
+    torqueRaw: point.torque,
+    velocityRaw: point.velocity,
+    temperatureRaw: point.temperature,
+  }));
+}
+
+function seriesScale(values: number[]): { min: number; max: number } {
+  let min = Number.POSITIVE_INFINITY;
+  let max = Number.NEGATIVE_INFINITY;
+  for (const value of values) {
+    if (!Number.isFinite(value)) {
+      continue;
+    }
+    min = Math.min(min, value);
+    max = Math.max(max, value);
+  }
+  if (!Number.isFinite(min) || !Number.isFinite(max)) {
+    return { min: 0, max: 1 };
+  }
+  if (Math.abs(max - min) < 1e-6) {
+    return { min: min - 0.5, max: max + 0.5 };
+  }
+  return { min, max };
+}
+
+function normalize(value: number, scale: { min: number; max: number }): number {
+  return (value - scale.min) / (scale.max - scale.min);
 }
