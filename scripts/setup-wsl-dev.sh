@@ -78,7 +78,15 @@ fi
 if command -v mise >/dev/null 2>&1; then
   mise trust >/dev/null 2>&1 || true
   mise install
-  ok "mise install (rust 1.88 / node 24)"
+  mise reshim
+  # Cursor agent / non-login PATH often has ~/.local/bin but not mise shims.
+  mkdir -p "${HOME}/.local/bin"
+  for shim in node npm npx corepack; do
+    if [[ -e "${HOME}/.local/share/mise/shims/${shim}" ]]; then
+      ln -sfn "${HOME}/.local/share/mise/shims/${shim}" "${HOME}/.local/bin/${shim}"
+    fi
+  done
+  ok "mise install (rust 1.88 / node 24) + ~/.local/bin shims"
 fi
 (cd "$ROOT" && unset RUSTUP_TOOLCHAIN && rustc --version)
 
