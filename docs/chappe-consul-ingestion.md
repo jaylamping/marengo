@@ -68,7 +68,7 @@ See [logging-taxonomy.md](logging-taxonomy.md) for the full funnel and S0–S3 t
 | `var/marengo.db` | Structured logs, session metadata, candump frame index |
 | `var/log/blobs/` | gzip bench/candump/trace archives |
 
-Optional `MARENGO_GATEWAY_LOG_TOKEN` / `VITE_MARENGO_LOG_TOKEN` for log HTTP routes on LAN.
+Optional `MARENGO_GATEWAY_LOG_TOKEN` on the Pi gates log HTTP (and config PATCH). Deploy bakes the matching `VITE_MARENGO_LOG_TOKEN` into Consul from `/etc/marengo/env` (or an explicit env override) — do not commit the token. Local Vite: set `VITE_MARENGO_LOG_TOKEN` in `consul/.env.local`.
 
 ## Deploy identity
 

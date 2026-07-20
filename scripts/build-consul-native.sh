@@ -5,6 +5,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ROOT="${1:-$ROOT}"
+# shellcheck source=deploy-lib.sh
+source "${ROOT}/scripts/deploy-lib.sh"
 
 if [[ "${SKIP_CONSUL:-false}" == true ]]; then
   echo "build-consul-native: SKIP_CONSUL=true — skipping"
@@ -19,6 +21,15 @@ fi
 if [[ ! -f "${ROOT}/consul/package-lock.json" ]]; then
   echo "error: ${ROOT}/consul/package-lock.json missing" >&2
   exit 1
+fi
+
+log_token="$(resolve_vite_marengo_log_token "" || true)"
+if [[ -n "$log_token" ]]; then
+  export VITE_MARENGO_LOG_TOKEN="$log_token"
+  echo "build-consul-native: baking VITE_MARENGO_LOG_TOKEN (${#log_token} chars)"
+else
+  unset VITE_MARENGO_LOG_TOKEN || true
+  echo "build-consul-native: no log token (logs HTTP may 401 if gateway requires one)"
 fi
 
 echo "build-consul-native: npm ci + build in ${ROOT}/consul"

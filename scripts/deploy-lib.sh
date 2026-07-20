@@ -398,6 +398,46 @@ stage_deploy_rev() {
   printf '%s %s\n' "$sha" "$ts" >"${staging_dir}/.deploy-rev"
 }
 
+# Resolve token for Consul production builds (baked as VITE_MARENGO_LOG_TOKEN).
+# Order: VITE_MARENGO_LOG_TOKEN → MARENGO_GATEWAY_LOG_TOKEN → Pi /etc/marengo/env via SSH.
+# Prints token only on stdout (callers must not log the value). Empty = no token.
+# Usage: token="$(resolve_vite_marengo_log_token [pi_host])"
+resolve_vite_marengo_log_token() {
+  local pi_host="${1:-${PI_HOST:-}}"
+  local token=""
+
+  if [[ -n "${VITE_MARENGO_LOG_TOKEN:-}" ]]; then
+    printf '%s' "${VITE_MARENGO_LOG_TOKEN}"
+    return 0
+  fi
+  if [[ -n "${MARENGO_GATEWAY_LOG_TOKEN:-}" ]]; then
+    printf '%s' "${MARENGO_GATEWAY_LOG_TOKEN}"
+    return 0
+  fi
+  if [[ -f /etc/marengo/env ]]; then
+    token="$(
+      grep -E '^MARENGO_GATEWAY_LOG_TOKEN=' /etc/marengo/env 2>/dev/null \
+        | head -1 \
+        | cut -d= -f2- \
+        | tr -d '\r\n' || true
+    )"
+    if [[ -n "$token" ]]; then
+      printf '%s' "$token"
+      return 0
+    fi
+  fi
+  if [[ -z "$pi_host" ]]; then
+    return 0
+  fi
+  token="$(
+    compose_ssh "$pi_host" \
+      "grep -E '^MARENGO_GATEWAY_LOG_TOKEN=' /etc/marengo/env 2>/dev/null | head -1 | cut -d= -f2-" \
+      2>/dev/null \
+      | tr -d '\r\n' || true
+  )"
+  printf '%s' "$token"
+}
+
 # Install .deploy-rev into INSTALL_ROOT.
 # Staged file applies only when bundle_root != install_root (rsync staging → /opt).
 # In-place install (same root) refreshes from git HEAD — never re-reads stale canonical file.

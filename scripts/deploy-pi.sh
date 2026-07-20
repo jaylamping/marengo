@@ -155,6 +155,15 @@ build_consul_assets() {
   fi
   log_step "Building Consul static assets"
   ensure_consul_deps
+  local log_token=""
+  log_token="$(resolve_vite_marengo_log_token "$PI_HOST" || true)"
+  if [[ -n "$log_token" ]]; then
+    export VITE_MARENGO_LOG_TOKEN="$log_token"
+    log_note "Baking VITE_MARENGO_LOG_TOKEN into Consul (${#log_token} chars)"
+  else
+    unset VITE_MARENGO_LOG_TOKEN || true
+    log_note "Consul build without log token (Pi token unset or unreachable)"
+  fi
   (
     cd "${ROOT}/consul"
     env -u VITE_CHAPPE_HTTP_URL -u VITE_CHAPPE_WEBTRANSPORT_URL npm run build
