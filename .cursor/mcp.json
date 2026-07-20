@@ -12,8 +12,14 @@
       "args": ["-y", "--package=@upstash/context7-mcp@2.2.5", "--", "context7-mcp"]
     },
     "marengo-pi": {
-      "command": "node",
-      "args": ["${workspaceFolder}/tools/marengo-pi-mcp/dist/index.js"]
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/tools/marengo-pi-mcp/run-mcp.ps1"
+      ]
     },
     "marengo-research": {
       "command": "powershell",

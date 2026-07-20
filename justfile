@@ -71,7 +71,8 @@ deploy-pi-wsl host="joey@marengo.local":
 mcp-build:
     cd tools/marengo-pi-mcp && npm install && npm run build
 
-# Clear Cursor disabled state / refresh approval for marengo-pi (dry-run; use --write after quit)
+# Clear Cursor disabled state / refresh approval for marengo-pi
+# (dry-run default; --write after quit; sessionStart hook uses --write --best-effort)
 mcp-ensure-enabled *args:
     python3 ./scripts/ensure-marengo-pi-mcp-enabled.py {{args}}
 

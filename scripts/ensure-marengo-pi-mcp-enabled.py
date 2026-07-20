@@ -13,8 +13,9 @@ This script:
 Prefer keeping profile/SSH defaults in `tools/marengo-pi-mcp/run-mcp.sh` (not
 mcp.json) so the approval hash stays stable.
 
-Close Cursor (or at least fully quit) before running with --write, otherwise the
-live state DB may race the WAL. Dry-run is the default.
+Close Cursor (or at least fully quit) before running with --write when possible,
+otherwise the live state DB may race the WAL. Dry-run is the default.
+sessionStart hooks may pass --write --best-effort to soft-fail on locks.
 """
 
 from __future__ import annotations
@@ -176,6 +177,7 @@ def process_workspace_db(
     identifier: str,
     *,
     write: bool,
+    best_effort: bool = False,
 ) -> tuple[list[str], list[str]]:
     snap = snapshot_db(db_path)
     con = sqlite3.connect(snap)
@@ -187,16 +189,24 @@ def process_workspace_db(
     con.close()
 
     if write and after != before:
-        live = sqlite3.connect(db_path)
-        lcur = live.cursor()
-        write_json_list(lcur, DISABLED_KEY, after)
-        if read_json_list(lcur, DISABLED_KEY_ALT) is not None:
-            # Keep alt key in sync when present.
-            alt = read_json_list(lcur, DISABLED_KEY_ALT)
-            if alt or DISABLED_KEY_ALT:
-                write_json_list(lcur, DISABLED_KEY_ALT, after)
-        live.commit()
-        live.close()
+        try:
+            live = sqlite3.connect(db_path)
+            lcur = live.cursor()
+            write_json_list(lcur, DISABLED_KEY, after)
+            if read_json_list(lcur, DISABLED_KEY_ALT) is not None:
+                # Keep alt key in sync when present.
+                alt = read_json_list(lcur, DISABLED_KEY_ALT)
+                if alt or DISABLED_KEY_ALT:
+                    write_json_list(lcur, DISABLED_KEY_ALT, after)
+            live.commit()
+            live.close()
+        except sqlite3.Error as exc:
+            msg = f"could not write workspace disabled list ({db_path}: {exc})"
+            if best_effort:
+                print(f"warning: {msg}", file=sys.stderr)
+                return before, before
+            print(f"error: {msg}", file=sys.stderr)
+            raise SystemExit(2) from exc
     return before, after
 
 
@@ -206,6 +216,7 @@ def process_global_approvals(
     key: str,
     *,
     write: bool,
+    best_effort: bool = False,
 ) -> tuple[list[str], list[str]]:
     snap = snapshot_db(global_db)
     con = sqlite3.connect(snap)
@@ -223,12 +234,15 @@ def process_global_approvals(
             live.commit()
             live.close()
         except sqlite3.Error as exc:
-            print(
-                f"error: could not write global approvals ({exc}). "
+            msg = (
+                f"could not write global approvals ({exc}). "
                 "Fully quit Cursor and re-run with --write, or enable "
-                "marengo-pi once in MCP settings (whitelist writes the new hash).",
-                file=sys.stderr,
+                "marengo-pi once in MCP settings (whitelist writes the new hash)."
             )
+            if best_effort:
+                print(f"warning: {msg}", file=sys.stderr)
+                return before, before
+            print(f"error: {msg}", file=sys.stderr)
             raise SystemExit(2) from exc
     return before, after
 
@@ -238,7 +252,15 @@ def main() -> int:
     parser.add_argument(
         "--write",
         action="store_true",
-        help="Apply changes (default is dry-run). Quit Cursor first.",
+        help="Apply changes (default is dry-run). Quit Cursor first when possible.",
+    )
+    parser.add_argument(
+        "--best-effort",
+        action="store_true",
+        help=(
+            "With --write: soft-fail on locked DBs (for sessionStart hooks while "
+            "Cursor is running). Still exits 0 when scrub/approve cannot complete."
+        ),
     )
     parser.add_argument(
         "--repo",
@@ -266,8 +288,9 @@ def main() -> int:
     print(f"Identifier:  {identifier}")
     print(f"Approval:    {key}")
     print(f"mcp.json:    {mcp_json}")
-    print(f"Mode:        {'WRITE' if args.write else 'dry-run'}")
-    if args.write:
+    print(f"Mode:        {'WRITE' if args.write else 'dry-run'}"
+          f"{' (best-effort)' if args.best_effort else ''}")
+    if args.write and not args.best_effort:
         print("NOTE: Cursor should be fully quit before --write.")
 
     ws_root = cursor_user / "workspaceStorage"
@@ -279,7 +302,9 @@ def main() -> int:
             continue
         if not is_marengo_workspace(wj):
             continue
-        before, after = process_workspace_db(db, identifier, write=args.write)
+        before, after = process_workspace_db(
+            db, identifier, write=args.write, best_effort=args.best_effort
+        )
         if before != after:
             changed = True
             print(f"\nworkspace {ws_dir.name}")
@@ -291,7 +316,11 @@ def main() -> int:
     global_db = cursor_user / "globalStorage" / "state.vscdb"
     if global_db.is_file():
         before, after = process_global_approvals(
-            global_db, identifier, key, write=args.write
+            global_db,
+            identifier,
+            key,
+            write=args.write,
+            best_effort=args.best_effort,
         )
         if before != after:
             changed = True

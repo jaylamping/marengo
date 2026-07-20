@@ -64,7 +64,9 @@ If a tool still shows old behavior after `npm run build`, the Cursor MCP process
 
 Repo [`.cursor/mcp.json`](../../.cursor/mcp.json) uses `${workspaceFolder}` so the same file works on Windows and Mac. Open the marengo repo root as the Cursor workspace (or `marengo.code-workspace`).
 
-**Do not put `MARENGO_CONFIG_DIR` / `MARENGO_BENCH_PROFILE` / SSH env in `mcp.json`.** Cursor hashes those fields into an approval key; changing them auto-disables the project MCP until you re-enable it. Defaults live in [`run-mcp.sh`](run-mcp.sh) (and `src/config.ts` fallbacks). Override with shell env only when needed.
+**Windows Cursor** launches via [`run-mcp.ps1`](run-mcp.ps1) (PowerShell). **macOS / Linux / WSL Cursor** should use `bash` + [`run-mcp.sh`](run-mcp.sh) instead — System32 `bash.exe` on Windows is the WSL launcher and is not a safe MCP command.
+
+**Do not put `MARENGO_CONFIG_DIR` / `MARENGO_BENCH_PROFILE` / SSH env in `mcp.json`.** Cursor hashes those fields into an approval key; changing them auto-disables the project MCP until you re-enable it. Defaults live in the launchers (and `src/config.ts` fallbacks). Override with shell env only when needed.
 
 `MARENGO_LOCAL_ROOT` is optional. The server derives the repo root from its install path. Override only for unusual clone layouts.
 
@@ -76,10 +78,10 @@ just mcp-build
 
 Then restart the marengo-pi MCP server in Cursor.
 
-If the server shows as disabled after a config thrash:
+**Stay enabled:** `.cursor/hooks.json` runs `session-start-marengo.ps1` on `sessionStart` (`--write --best-effort`) so disabled/unapproved state is scrubbed when a chat opens. If the server still shows as disabled after a config thrash:
 
 ```bash
-# Quit Cursor first, then:
+# Quit Cursor first for a hard write, then:
 just mcp-ensure-enabled --write
 ```
 

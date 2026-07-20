@@ -1,6 +1,19 @@
 {
   "version": 1,
   "hooks": {
+    "sessionStart": [
+      {
+        "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \".cursor/hooks/session-start-marengo.ps1\"",
+        "timeout": 25
+      }
+    ],
+    "beforeShellExecution": [
+      {
+        "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \".cursor/hooks/check-powershell-shell.ps1\"",
+        "timeout": 8,
+        "failClosed": false
+      }
+    ],
     "preToolUse": [
       {
         "command": "node \".cursor/skills/impeccable/scripts/hook-before-edit.mjs\"",
