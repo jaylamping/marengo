@@ -1,16 +1,20 @@
 import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
 
-import type { InventoryItem } from '@/data/robot-inventory';
-
 import { useInventoryTable } from '@/components/dashboard/inventory/hooks/use-inventory-table';
 import { InventoryDetailProvider } from '@/components/dashboard/inventory/inventory-detail-context';
-import type { InventoryIdentityPatch } from '@/components/dashboard/inventory/inventory-row-modal';
 import { InventoryTableFooter } from '@/components/dashboard/inventory/inventory-table-footer';
 import { InventoryTableToolbar } from '@/components/dashboard/inventory/inventory-table-toolbar';
 import { InventoryTableView } from '@/components/dashboard/inventory/inventory-table-view';
-import type { InventoryRow } from '@/components/dashboard/inventory/types';
+import type {
+  InventoryIdentityPatch,
+  InventoryRow,
+} from '@/components/dashboard/inventory/types';
 import { dashboardPanelPointerClassName } from '@/components/dashboard/layout/constants';
 import { Tabs } from '@/components/ui/tabs';
+import {
+  applyOverrides,
+  useInventoryOverridesStore,
+} from '@/state/inventoryOverridesStore';
 
 const InventoryRowModal = lazy(async () => {
   const module = await import(
@@ -20,22 +24,13 @@ const InventoryRowModal = lazy(async () => {
 });
 
 type InventoryDataTableProps = {
-  data: InventoryItem[];
+  data: InventoryRow[];
 };
-
-type FieldOverrides = Record<number, Partial<InventoryIdentityPatch>>;
-
-function applyOverrides(
-  item: InventoryItem,
-  overrides: FieldOverrides,
-): InventoryRow {
-  const patch = overrides[item.id];
-  return patch === undefined ? item : { ...item, ...patch };
-}
 
 export function InventoryDataTable({ data }: InventoryDataTableProps) {
   const [detailItemId, setDetailItemId] = useState<number | null>(null);
-  const [fieldOverrides, setFieldOverrides] = useState<FieldOverrides>({});
+  const fieldOverrides = useInventoryOverridesStore((state) => state.overrides);
+  const applyOverridePatch = useInventoryOverridesStore((state) => state.applyPatch);
 
   const mergedData = useMemo(
     () => data.map((item) => applyOverrides(item, fieldOverrides)),
@@ -75,12 +70,12 @@ export function InventoryDataTable({ data }: InventoryDataTableProps) {
     setDetailItemId(item.id);
   }, []);
 
-  const applyPatch = useCallback((itemId: number, patch: InventoryIdentityPatch) => {
-    setFieldOverrides((previous) => ({
-      ...previous,
-      [itemId]: patch,
-    }));
-  }, []);
+  const applyPatch = useCallback(
+    (itemId: number, patch: Partial<InventoryIdentityPatch>) => {
+      applyOverridePatch(itemId, patch);
+    },
+    [applyOverridePatch],
+  );
 
   return (
     <InventoryDetailProvider openItem={openItem}>

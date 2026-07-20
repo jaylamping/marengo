@@ -6,7 +6,10 @@ import {
   inventoryModalContentClassName,
 } from '@/components/dashboard/inventory/constants';
 import { isSubsystemInteractive } from '@/components/dashboard/inventory/subsystem-interactive';
-import type { InventoryRow } from '@/components/dashboard/inventory/types';
+import type {
+  InventoryIdentityPatch,
+  InventoryRow,
+} from '@/components/dashboard/inventory/types';
 import { INVENTORY_GROUP_LABELS, type InventoryGroup } from '@/data/robot-inventory';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -40,14 +43,7 @@ import {
   Edit01Icon,
 } from '@hugeicons/core-free-icons';
 
-export type InventoryIdentityPatch = {
-  name: string;
-  group: InventoryGroup;
-  kind: InventoryRow['kind'];
-  status: InventoryRow['status'];
-  preset: string;
-  limit: string;
-};
+export type { InventoryIdentityPatch };
 
 type InventoryRowModalProps = {
   item: InventoryRow;
@@ -55,7 +51,7 @@ type InventoryRowModalProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onNavigate: (item: InventoryRow) => void;
-  onApply?: (itemId: number, patch: InventoryIdentityPatch) => void;
+  onApply?: (itemId: number, patch: Partial<InventoryIdentityPatch>) => void;
 };
 
 const GROUP_OPTIONS = (
@@ -267,7 +263,9 @@ export function InventoryRowModal({
                   }}
                   value={groupDraft}
                   onValueChange={(value) => {
-                    setGroupDraft(value as InventoryGroup);
+                    const group = value as InventoryGroup;
+                    setGroupDraft(group);
+                    onApply?.(item.id, { group });
                     setGroupSelectOpen(false);
                   }}
                   items={GROUP_OPTIONS}
@@ -332,6 +330,7 @@ export function InventoryRowModal({
                   value={presetDraft}
                   onValueChange={(value) => {
                     setPresetDraft(value);
+                    onApply?.(item.id, { preset: value });
                     setPresetSelectOpen(false);
                   }}
                   items={[...PRESET_OPTIONS_WITH_UNASSIGNED]}
@@ -423,7 +422,7 @@ export function InventoryRowModal({
               onLimitDraftChange={setLimitDraft}
               onApplyRange={(range) => {
                 setLimitDraft(range);
-                onApply?.(item.id, { ...identityPatch(), limit: range });
+                onApply?.(item.id, { limit: range });
               }}
               moveToDraft={moveToDraft}
               onMoveToDraftChange={setMoveToDraft}

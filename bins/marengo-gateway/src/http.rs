@@ -1,11 +1,11 @@
 use std::path::Path;
 
+use armee_proto::prost::Message;
 use armee_proto::ActiveReportingLeaseRequest;
 use armee_proto::EnableRequest;
 use armee_proto::HomingComplete;
 use armee_proto::MitCommandBatch;
 use armee_proto::SetZeroRequest;
-use armee_proto::prost::Message;
 use axum::{
     body::Body,
     extract::{Query, State},
@@ -57,7 +57,7 @@ struct StreamQuery {
     topics: String,
 }
 
-    /// API routes plus optional Consul SPA static files (`web_root` for robot-hosted HTTPS).
+/// API routes plus optional Consul SPA static files (`web_root` for robot-hosted HTTPS).
 ///
 /// CORS is intentionally permissive for Phase-1 LAN bench (ADR 0008): auth/mTLS is
 /// deferred. Motion commands still require confirm/attestation + a global-per-joint
@@ -324,10 +324,7 @@ async fn command_set_zero(
     }
     let client_id = body.client_id.trim();
     if client_id.is_empty() {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            "client_id required".into(),
-        ));
+        return Err((StatusCode::BAD_REQUEST, "client_id required".into()));
     }
     let canonical = marengo_config::resolve_command_joint(joint, &state.command_joints)
         .map(|s| s.to_string())
@@ -510,9 +507,8 @@ mod tests {
 
         let bus = std::sync::Arc::new(Bus::default());
         let state = std::sync::Arc::new(
-            crate::state::AppState::new(std::sync::Arc::clone(&bus)).with_command_joints(
-                CommandJointAllowlist::from_joints(["right_shoulder_pitch"]),
-            ),
+            crate::state::AppState::new(std::sync::Arc::clone(&bus))
+                .with_command_joints(CommandJointAllowlist::from_joints(["right_shoulder_pitch"])),
         );
         let app = router(state, None);
         let response = app
@@ -537,9 +533,8 @@ mod tests {
 
         let bus = std::sync::Arc::new(Bus::default());
         let state = std::sync::Arc::new(
-            crate::state::AppState::new(std::sync::Arc::clone(&bus)).with_command_joints(
-                CommandJointAllowlist::from_joints(["right_shoulder_pitch"]),
-            ),
+            crate::state::AppState::new(std::sync::Arc::clone(&bus))
+                .with_command_joints(CommandJointAllowlist::from_joints(["right_shoulder_pitch"])),
         );
         let app = router(state, None);
         let response = app
@@ -564,11 +559,10 @@ mod tests {
 
         let bus = std::sync::Arc::new(Bus::default());
         let state = std::sync::Arc::new(
-            crate::state::AppState::new(std::sync::Arc::clone(&bus)).with_command_joints(
-                CommandJointAllowlist::from_joints(["right_shoulder_pitch"]),
-            ),
+            crate::state::AppState::new(std::sync::Arc::clone(&bus))
+                .with_command_joints(CommandJointAllowlist::from_joints(["right_shoulder_pitch"])),
         );
-    // Burst with distinct client_ids must still share the Motion bucket.
+        // Burst with distinct client_ids must still share the Motion bucket.
         let body_a = r#"{"joint":"right_shoulder_pitch","confirm":true,"sign_test_passed":true,"client_id":"flood-a"}"#;
         let body_b = r#"{"joint":"right_shoulder_pitch","confirm":true,"sign_test_passed":true,"client_id":"flood-b"}"#;
         let body_c = r#"{"joint":"right_shoulder_pitch","confirm":true,"sign_test_passed":true,"client_id":"flood-c"}"#;
