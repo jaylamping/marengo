@@ -112,6 +112,25 @@ message SetZeroRequest {
   bool sign_test_passed = 5;
 }
 
+// Per-joint Active Reporting (Robstride type-24) lease for diagnostics / free-drive sensing.
+enum ActiveReportingLeaseAction {
+  ACTIVE_REPORTING_LEASE_ACTION_UNSPECIFIED = 0;
+  ACTIVE_REPORTING_LEASE_ACTION_ACQUIRE = 1;
+  ACTIVE_REPORTING_LEASE_ACTION_RENEW = 2;
+  ACTIVE_REPORTING_LEASE_ACTION_RELEASE = 3;
+}
+
+message ActiveReportingLeaseRequest {
+  uint64 timestamp_ms = 1;
+  string operator_id = 2;
+  string joint = 3;
+  // Session / workflow key (bounded by gateway). Not a security boundary.
+  string client_id = 4;
+  ActiveReportingLeaseAction action = 5;
+  // Client-minted opaque id; required for renew/release. Acquire upserts this id.
+  string lease_id = 6;
+}
+
 // --- Control / MIT (OpenArm-style; see ADR 0004) ---
 
 enum ControlMode {

@@ -6,7 +6,7 @@ type InventoryNameCellProps = {
   item: InventoryRow;
 };
 
-/** Lightweight name cell — detail drawer mounts once at table level when opened. */
+/** Lightweight name cell — detail modal mounts once at table level when opened. */
 export function InventoryNameCell({ item }: InventoryNameCellProps) {
   const { openItem } = useInventoryDetail();
 

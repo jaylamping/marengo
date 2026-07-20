@@ -1,13 +1,16 @@
 // @vitest-environment jsdom
+import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 
 import {
   inventoryDrawerContentClassName,
+  inventoryModalContentClassName,
   inventoryTableShellClassName,
   inventoryToolbarShellClassName,
 } from '@/components/dashboard/inventory/constants';
-import { InventoryRowDrawer } from '@/components/dashboard/inventory/inventory-row-drawer';
+import { InventoryRowModal } from '@/components/dashboard/inventory/inventory-row-modal';
+import { isSubsystemInteractive } from '@/components/dashboard/inventory/subsystem-interactive';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { InventoryTableToolbar } from '@/components/dashboard/inventory/inventory-table-toolbar';
 import { InventoryTableView } from '@/components/dashboard/inventory/inventory-table-view';
@@ -18,9 +21,43 @@ vi.mock('@/hooks/use-mobile', () => ({
   useIsMobile: () => false,
 }));
 
+vi.mock('@/hooks/use-active-reporting-lease', () => ({
+  useActiveReportingLease: () => 'idle',
+}));
+
+vi.mock('@/components/dashboard/inventory/set-limits-panel', () => ({
+  SetLimitsPanel: ({ jointName }: { jointName: string }) => (
+    <div data-testid="set-limits-panel-stub">Set Limits stub · {jointName}</div>
+  ),
+}));
+
 afterEach(() => {
   cleanup();
 });
+
+const interactiveActuator: InventoryItem = {
+  id: 27,
+  name: 'right_upper_arm_yaw',
+  group: 'right_arm',
+  kind: 'actuator',
+  status: 'Enabled',
+  value: '0.12',
+  limit: '±1.57',
+  preset: 'bench_4dof',
+  node: 'RS82 · can0 · id 3',
+};
+
+const offlineActuator: InventoryItem = {
+  id: 24,
+  name: 'left_wrist',
+  group: 'left_arm',
+  kind: 'actuator',
+  status: 'Offline',
+  value: '—',
+  limit: '±1.6',
+  preset: 'unassigned',
+  node: 'RS00 · can0 · id 18',
+};
 
 describe('inventory panel shell constants (data + chrome tiers)', () => {
   it('defines a data-tier table shell with blur and pointer-events-auto', () => {
@@ -34,9 +71,20 @@ describe('inventory panel shell constants (data + chrome tiers)', () => {
     expect(inventoryToolbarShellClassName).toContain('pointer-events-auto');
   });
 
-  it('defines drawer content panel without row-level blur', () => {
+  it('defines modal content panel without row-level blur', () => {
+    expect(inventoryModalContentClassName).toContain('bg-surface-1');
+    expect(inventoryModalContentClassName).not.toContain('animate-in');
     expect(inventoryDrawerContentClassName).toContain('bg-surface-1');
-    expect(inventoryDrawerContentClassName).not.toContain('animate-in');
+  });
+});
+
+describe('isSubsystemInteractive', () => {
+  it('unlocks online configured actuators', () => {
+    expect(isSubsystemInteractive(interactiveActuator)).toBe(true);
+  });
+
+  it('locks offline or unassigned actuators', () => {
+    expect(isSubsystemInteractive(offlineActuator)).toBe(false);
   });
 });
 
@@ -101,26 +149,88 @@ describe('InventoryTableToolbar panel shell', () => {
   });
 });
 
-describe('InventoryRowDrawer panel shell', () => {
-  it('renders controlled drawer content for the selected device', () => {
-    const item: InventoryItem = {
-      id: 1,
-      name: 'shoulder_pitch_r',
-      group: 'right_arm',
-      kind: 'actuator',
-      status: 'Enabled',
-      value: '0.12',
-      limit: '±1.8',
-      preset: 'bench_default',
-      node: 'can0:0x01',
-    };
-
+describe('InventoryRowModal panel shell', () => {
+  it('renders centered modal for the selected device', () => {
     render(
       <TooltipProvider>
-        <InventoryRowDrawer item={item} open onOpenChange={() => undefined} />
+        <InventoryRowModal
+          item={interactiveActuator}
+          items={[offlineActuator, interactiveActuator]}
+          open
+          onOpenChange={() => undefined}
+          onNavigate={() => undefined}
+        />
       </TooltipProvider>,
     );
 
-    expect(screen.getByText('shoulder_pitch_r')).toBeTruthy();
+    expect(screen.getByTestId('inventory-row-modal')).toBeTruthy();
+    expect(screen.getByText('right_upper_arm_yaw')).toBeTruthy();
+    expect(
+      screen.getAllByText('Enabled').some((el) => el.getAttribute('data-slot') === 'badge'),
+    ).toBe(true);
+    expect(screen.queryByText('Armed')).toBeNull();
+    expect(screen.queryByText('Dummy')).toBeNull();
+  });
+
+  it('dithers actuator command surfaces for offline rows but keeps identity editable', () => {
+    render(
+      <TooltipProvider>
+        <InventoryRowModal
+          item={offlineActuator}
+          items={[offlineActuator, interactiveActuator]}
+          open
+          onOpenChange={() => undefined}
+          onNavigate={() => undefined}
+        />
+      </TooltipProvider>,
+    );
+
+    expect(
+      screen.getAllByText('Offline').some((el) => el.getAttribute('data-slot') === 'badge'),
+    ).toBe(true);
+    expect(screen.getByLabelText('Name')).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Homing' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Start sweep' })).toBeDisabled();
+  });
+
+  it('navigates prev/next within the provided list', () => {
+    const onNavigate = vi.fn();
+
+    render(
+      <TooltipProvider>
+        <InventoryRowModal
+          item={offlineActuator}
+          items={[offlineActuator, interactiveActuator]}
+          open
+          onOpenChange={() => undefined}
+          onNavigate={onNavigate}
+        />
+      </TooltipProvider>,
+    );
+
+    expect(screen.getByText('1 / 2')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Previous subsystem' })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next subsystem' }));
+    expect(onNavigate).toHaveBeenCalledWith(interactiveActuator);
+  });
+
+  it('shows actuator telemetry and tests when interactive', () => {
+    render(
+      <TooltipProvider>
+        <InventoryRowModal
+          item={interactiveActuator}
+          items={[interactiveActuator]}
+          open
+          onOpenChange={() => undefined}
+          onNavigate={() => undefined}
+        />
+      </TooltipProvider>,
+    );
+
+    const modal = screen.getByTestId('inventory-row-modal');
+    expect(within(modal).getByText('Telemetry')).toBeTruthy();
+    expect(within(modal).getByText('Tests')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Homing' })).not.toBeDisabled();
   });
 });

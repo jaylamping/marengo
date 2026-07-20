@@ -60,6 +60,10 @@ See [ADR 0004](decisions/0004-control-modes-and-mit.md) and [hardware/docs/decis
 4. **Upright pose test:** slowly release support; elbow/upper arm must not free-fall.
 5. `gravity-off` / `disable` before leaving the bench.
 
+## Active Reporting leases (type-24)
+
+Consul may hold a **per-joint Active Reporting lease** (operator UI: Enhanced logging) via gateway → Chappe → Davout when a subsystem modal is open. Leases never enable type-24 while operational mode is `ACTIVE` (MIT status replies own that path). Bench profiles with `active_reporting_diagnostics: true` already force type-24 when not ACTIVE, so a lease may be a wire no-op until that global flag is off — the lease path still ships for global-off workflows. HTTP 200 is publish ACK only; Consul shows **Enhanced logging**, not confirmed wire reporting. TTL expiry on the Pi is the backstop if release is lost. `client_id` is not an auth boundary (same honesty as set-zero).
+
 ## Known software gaps (see also [position-hold-control-review.md](position-hold-control-review.md))
 
 - **Hardware E-stop wiring:** `Supervisor::set_hardware_estop` exists but Pi GPIO/input is not yet connected at runtime. Treat physical E-stop as authoritative; do not assume software `Disabled` reflects the hardware line until wired.

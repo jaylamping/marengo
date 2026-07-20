@@ -4,6 +4,7 @@ import type { InventoryItem } from '@/data/robot-inventory';
 
 import { useInventoryTable } from '@/components/dashboard/inventory/hooks/use-inventory-table';
 import { InventoryDetailProvider } from '@/components/dashboard/inventory/inventory-detail-context';
+import type { InventoryIdentityPatch } from '@/components/dashboard/inventory/inventory-row-modal';
 import { InventoryTableFooter } from '@/components/dashboard/inventory/inventory-table-footer';
 import { InventoryTableToolbar } from '@/components/dashboard/inventory/inventory-table-toolbar';
 import { InventoryTableView } from '@/components/dashboard/inventory/inventory-table-view';
@@ -11,30 +12,34 @@ import type { InventoryRow } from '@/components/dashboard/inventory/types';
 import { dashboardPanelPointerClassName } from '@/components/dashboard/layout/constants';
 import { Tabs } from '@/components/ui/tabs';
 
-const InventoryRowDrawer = lazy(async () => {
+const InventoryRowModal = lazy(async () => {
   const module = await import(
-    '@/components/dashboard/inventory/inventory-row-drawer'
+    '@/components/dashboard/inventory/inventory-row-modal'
   );
-  return { default: module.InventoryRowDrawer };
+  return { default: module.InventoryRowModal };
 });
 
 type InventoryDataTableProps = {
   data: InventoryItem[];
 };
 
+type FieldOverrides = Record<number, Partial<InventoryIdentityPatch>>;
+
+function applyOverrides(
+  item: InventoryItem,
+  overrides: FieldOverrides,
+): InventoryRow {
+  const patch = overrides[item.id];
+  return patch === undefined ? item : { ...item, ...patch };
+}
+
 export function InventoryDataTable({ data }: InventoryDataTableProps) {
-  const [detailItem, setDetailItem] = useState<InventoryRow | null>(null);
-  const [limitOverrides, setLimitOverrides] = useState<Record<number, string>>(
-    {},
-  );
+  const [detailItemId, setDetailItemId] = useState<number | null>(null);
+  const [fieldOverrides, setFieldOverrides] = useState<FieldOverrides>({});
 
   const mergedData = useMemo(
-    () =>
-      data.map((item) => {
-        const override = limitOverrides[item.id];
-        return override === undefined ? item : { ...item, limit: override };
-      }),
-    [data, limitOverrides],
+    () => data.map((item) => applyOverrides(item, fieldOverrides)),
+    [data, fieldOverrides],
   );
 
   const {
@@ -51,21 +56,30 @@ export function InventoryDataTable({ data }: InventoryDataTableProps) {
     viewCounts,
   } = useInventoryTable(mergedData);
 
-  const openItem = useCallback(
-    (item: InventoryRow) => {
-      const override = limitOverrides[item.id];
-      setDetailItem(
-        override === undefined ? item : { ...item, limit: override },
-      );
-    },
-    [limitOverrides],
+  const navigationItems = useMemo(
+    () =>
+      groupedSections.flatMap((section) =>
+        section.rows.map((row) => row.original),
+      ),
+    [groupedSections],
   );
 
-  const applyLimit = useCallback((itemId: number, limit: string) => {
-    setLimitOverrides((previous) => ({ ...previous, [itemId]: limit }));
-    setDetailItem((previous) =>
-      previous && previous.id === itemId ? { ...previous, limit } : previous,
-    );
+  const detailItem = useMemo(() => {
+    if (detailItemId === null) {
+      return null;
+    }
+    return navigationItems.find((row) => row.id === detailItemId) ?? null;
+  }, [detailItemId, navigationItems]);
+
+  const openItem = useCallback((item: InventoryRow) => {
+    setDetailItemId(item.id);
+  }, []);
+
+  const applyPatch = useCallback((itemId: number, patch: InventoryIdentityPatch) => {
+    setFieldOverrides((previous) => ({
+      ...previous,
+      [itemId]: patch,
+    }));
   }, []);
 
   return (
@@ -100,15 +114,17 @@ export function InventoryDataTable({ data }: InventoryDataTableProps) {
       </Tabs>
       {detailItem ? (
         <Suspense fallback={null}>
-          <InventoryRowDrawer
+          <InventoryRowModal
             item={detailItem}
+            items={navigationItems}
             open
             onOpenChange={(open) => {
               if (!open) {
-                setDetailItem(null);
+                setDetailItemId(null);
               }
             }}
-            onApplyLimit={applyLimit}
+            onNavigate={(next) => setDetailItemId(next.id)}
+            onApply={applyPatch}
           />
         </Suspense>
       ) : null}

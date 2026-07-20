@@ -20,7 +20,14 @@ export const inventoryToolbarShellClassName = [
   inventoryPanelSurfaceClassName,
 ].join(' ');
 
+/** @deprecated Prefer inventoryModalContentClassName — drawer retired. */
 export const inventoryDrawerContentClassName = [
+  'border border-line bg-surface-1',
+  'shadow-[0_8px_32px_rgb(0_0_0/0.5)]',
+].join(' ');
+
+export const inventoryModalContentClassName = [
+  'w-[min(100vw-1.5rem,48rem)]',
   'border border-line bg-surface-1',
   'shadow-[0_8px_32px_rgb(0_0_0/0.5)]',
 ].join(' ');
@@ -38,6 +45,8 @@ export const INVENTORY_VIEW_OPTIONS: Array<{
 export const PRESET_OPTIONS = [
   { label: 'golden_pose', value: 'golden_pose' },
   { label: 'bench_default', value: 'bench_default' },
+  { label: 'bench_3dof', value: 'bench_3dof' },
+  { label: 'bench_4dof', value: 'bench_4dof' },
   { label: 'tuning_sweep', value: 'tuning_sweep' },
   { label: 'last_session', value: 'last_session' },
 ] as const;

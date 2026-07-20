@@ -170,3 +170,36 @@ export async function postSetZeroCommand(
     throw new Error(`set-zero failed: ${res.status} ${text}`);
   }
 }
+
+export type ActiveReportingLeaseActionName = 'acquire' | 'renew' | 'release';
+
+/** Per-joint type-24 Active Reporting lease via gateway → Pi (fire-and-forget ACK). */
+export async function postActiveReportingLease(options: {
+  joint: string;
+  clientId: string;
+  leaseId: string;
+  action: ActiveReportingLeaseActionName;
+  /** Prefer true for pagehide / unload release so the request outlives the page. */
+  keepalive?: boolean;
+}): Promise<void> {
+  const endpoints = getChappeEndpoints();
+  if (!endpoints) {
+    throw new Error('Chappe endpoints not configured');
+  }
+  const res = await fetch(`${endpoints.httpUrl}/command/active_reporting_lease`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      joint: options.joint,
+      client_id: options.clientId,
+      lease_id: options.leaseId,
+      action: options.action,
+    }),
+    keepalive: options.keepalive === true,
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`active-reporting lease ${options.action} failed: ${res.status} ${text}`);
+  }
+}
+

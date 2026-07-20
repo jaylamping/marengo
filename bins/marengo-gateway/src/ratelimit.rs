@@ -12,6 +12,10 @@ pub const TUNING_BURST: f64 = 10.0;
 pub const MOTION_REFILL_PER_SEC: f64 = 2.0;
 pub const MOTION_BURST: f64 = 2.0;
 
+/// Active-reporting lease heartbeats (StrictMode + renewals).
+pub const DIAGNOSTICS_REFILL_PER_SEC: f64 = 20.0;
+pub const DIAGNOSTICS_BURST: f64 = 20.0;
+
 /// Drop idle rate-limit keys after this idle period.
 const BUCKET_TTL: Duration = Duration::from_secs(600);
 
@@ -20,6 +24,8 @@ pub enum CommandBucket {
     Tuning,
     /// Motion-class / calibration commands (set-zero, reserved for PR-5 motion).
     Motion,
+    /// Type-24 lease acquire/renew (RELEASE bypasses the limiter).
+    Diagnostics,
 }
 
 #[derive(Debug)]
@@ -85,13 +91,16 @@ impl RateLimiter {
         let kind = match bucket {
             CommandBucket::Tuning => "tuning",
             CommandBucket::Motion => "motion",
+            CommandBucket::Diagnostics => "diagnostics",
         };
         match bucket {
             // Tuning stays per UI session so independent tabs don't starve each other.
             CommandBucket::Tuning => format!("{client_id}:{joint}:{kind}"),
             // Motion/calibration must not be keyed by attacker-chosen client_id —
             // rotating the field would otherwise bypass the flood cap on set-zero.
-            CommandBucket::Motion => format!("__global__:{joint}:{kind}"),
+            CommandBucket::Motion | CommandBucket::Diagnostics => {
+                format!("__global__:{joint}:{kind}")
+            }
         }
     }
 
@@ -99,6 +108,7 @@ impl RateLimiter {
         match bucket {
             CommandBucket::Tuning => (TUNING_BURST, TUNING_REFILL_PER_SEC),
             CommandBucket::Motion => (MOTION_BURST, MOTION_REFILL_PER_SEC),
+            CommandBucket::Diagnostics => (DIAGNOSTICS_BURST, DIAGNOSTICS_REFILL_PER_SEC),
         }
     }
 

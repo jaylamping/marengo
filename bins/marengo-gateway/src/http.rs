@@ -1,10 +1,11 @@
 use std::path::Path;
 
-use armee_proto::prost::Message;
+use armee_proto::ActiveReportingLeaseRequest;
 use armee_proto::EnableRequest;
 use armee_proto::HomingComplete;
 use armee_proto::MitCommandBatch;
 use armee_proto::SetZeroRequest;
+use armee_proto::prost::Message;
 use axum::{
     body::Body,
     extract::{Query, State},
@@ -104,6 +105,10 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
         .route("/command/testing_mit", post(command_testing_mit))
         .route("/command/home", post(command_home))
         .route("/command/set_zero", post(command_set_zero))
+        .route(
+            "/command/active_reporting_lease",
+            post(command_active_reporting_lease),
+        )
         .route("/command/actuator", post(actuator::command_actuator))
         .layer(cors)
         .with_state(state);
@@ -359,6 +364,98 @@ async fn command_set_zero(
         payload,
     ) {
         state.rate_limiter.refund(client_id, &canonical, bucket);
+        return Err((StatusCode::BAD_GATEWAY, e));
+    }
+    Ok(Json(OkResponse { ok: true }))
+}
+
+#[derive(Deserialize)]
+struct ActiveReportingLeaseBody {
+    joint: String,
+    #[serde(default)]
+    client_id: String,
+    /// acquire | renew | release
+    action: String,
+    #[serde(default)]
+    lease_id: String,
+}
+
+const MAX_LEASE_ID_LEN: usize = 64;
+const MAX_CLIENT_ID_LEN: usize = 64;
+
+async fn command_active_reporting_lease(
+    State(state): State<SharedState>,
+    Json(body): Json<ActiveReportingLeaseBody>,
+) -> Result<Json<OkResponse>, (StatusCode, String)> {
+    let joint = body.joint.trim();
+    if joint.is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "joint required".into()));
+    }
+    let client_id = body.client_id.trim();
+    if client_id.is_empty() || client_id.len() > MAX_CLIENT_ID_LEN {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "client_id required (max 64 chars)".into(),
+        ));
+    }
+    let lease_id = body.lease_id.trim();
+    if lease_id.is_empty() || lease_id.len() > MAX_LEASE_ID_LEN {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "lease_id required (max 64 chars)".into(),
+        ));
+    }
+    let action = match body.action.trim().to_ascii_lowercase().as_str() {
+        "acquire" => armee_proto::ActiveReportingLeaseAction::Acquire as i32,
+        "renew" => armee_proto::ActiveReportingLeaseAction::Renew as i32,
+        "release" => armee_proto::ActiveReportingLeaseAction::Release as i32,
+        _ => {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                "action must be acquire|renew|release".into(),
+            ));
+        }
+    };
+    let canonical = marengo_config::resolve_command_joint(joint, &state.command_joints)
+        .map(|s| s.to_string())
+        .ok_or_else(|| {
+            (
+                StatusCode::FORBIDDEN,
+                format!("joint not command-eligible: {joint}"),
+            )
+        })?;
+
+    // RELEASE must never be starved by acquire/renew heartbeats.
+    let is_release = action == armee_proto::ActiveReportingLeaseAction::Release as i32;
+    let bucket = crate::ratelimit::CommandBucket::Diagnostics;
+    if !is_release && !state.rate_limiter.allow(client_id, &canonical, bucket) {
+        return Err((
+            StatusCode::TOO_MANY_REQUESTS,
+            "active-reporting lease rate limit exceeded".into(),
+        ));
+    }
+
+    let request = ActiveReportingLeaseRequest {
+        timestamp_ms: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64,
+        operator_id: "consul".into(),
+        joint: canonical.clone(),
+        client_id: client_id.to_string(),
+        action,
+        lease_id: lease_id.to_string(),
+    };
+    let payload = request.encode_to_vec();
+    if let Err(e) = state.publish_command_envelope(
+        "robot/active_reporting_lease",
+        "consul",
+        "marengo.v1.ActiveReportingLeaseRequest",
+        payload,
+    ) {
+        if !is_release {
+            state.rate_limiter.refund(client_id, &canonical, bucket);
+        }
         return Err((StatusCode::BAD_GATEWAY, e));
     }
     Ok(Json(OkResponse { ok: true }))

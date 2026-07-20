@@ -18,14 +18,15 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use armee_dynamics::max_gravity_torque_over_range;
 use armee_proto::prost::Message;
 use armee_proto::{
-    EnableRequest, Fault, FaultSeverity, Heartbeat, HomingComplete, MitCommandBatch,
-    OperationalMode as ProtoOpMode, SafetyState, SetZeroRequest,
+    ActiveReportingLeaseAction, ActiveReportingLeaseRequest, EnableRequest, Fault, FaultSeverity,
+    Heartbeat, HomingComplete, MitCommandBatch, OperationalMode as ProtoOpMode, SafetyState,
+    SetZeroRequest,
 };
 use berthier::{
     proto_control_mode, ControlLoop, ControlMode, GainOverride, LoopError, TickPhaseAverages,
 };
 use chappe::Bus;
-use davout::{DavoutError, MotorAddress, OperationalMode};
+use davout::{DavoutError, DEFAULT_LEASE_TTL, MotorAddress, OperationalMode};
 use marengo_config::{
     load_control_config, load_motors_config, resolve_config_dir, resolve_repo_root,
     resolve_urdf_path,
@@ -243,6 +244,7 @@ fn drain_chappe_commands(
     enable_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     homing_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     set_zero_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
+    lease_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
 ) {
     // Set-zero before enable so a same-tick enable(true) cannot flip ACTIVE and
     // silently refuse a queued calibration (Consul already got publish ACK).
@@ -273,6 +275,36 @@ fn drain_chappe_commands(
             Err(tokio::sync::broadcast::error::TryRecvError::Closed) => break,
         }
     }
+    loop {
+        match lease_rx.try_recv() {
+            Ok(bytes) => {
+                let Ok(envelope) = armee_proto::Envelope::decode(bytes.as_slice()) else {
+                    continue;
+                };
+                let Ok(request) =
+                    ActiveReportingLeaseRequest::decode(envelope.payload.as_slice())
+                else {
+                    continue;
+                };
+                if let Err(e) = handle_chappe_active_reporting_lease(loop_ctrl, &request) {
+                    warn!(
+                        joint = %request.joint,
+                        lease_id = %request.lease_id,
+                        error = %e,
+                        "Chappe active-reporting lease failed"
+                    );
+                }
+            }
+            Err(tokio::sync::broadcast::error::TryRecvError::Empty) => break,
+            Err(tokio::sync::broadcast::error::TryRecvError::Lagged(n)) => {
+                warn!(
+                    skipped = n,
+                    "Chappe active_reporting_lease lagged; dropped oldest commands"
+                );
+            }
+            Err(tokio::sync::broadcast::error::TryRecvError::Closed) => break,
+        }
+    }
     while let Ok(bytes) = enable_rx.try_recv() {
         let Ok(envelope) = armee_proto::Envelope::decode(bytes.as_slice()) else {
             continue;
@@ -296,6 +328,37 @@ fn drain_chappe_commands(
         } else {
             info!("homing verified via Chappe");
         }
+    }
+}
+
+fn handle_chappe_active_reporting_lease(
+    loop_ctrl: &mut ControlLoop<RuntimeBus>,
+    request: &ActiveReportingLeaseRequest,
+) -> Result<(), DavoutError> {
+    let action = ActiveReportingLeaseAction::try_from(request.action).unwrap_or(
+        ActiveReportingLeaseAction::Unspecified,
+    );
+    match action {
+        ActiveReportingLeaseAction::Acquire => loop_ctrl
+            .supervisor_mut()
+            .acquire_active_reporting_lease(
+                &request.joint,
+                &request.client_id,
+                &request.lease_id,
+                DEFAULT_LEASE_TTL,
+            ),
+        ActiveReportingLeaseAction::Renew => loop_ctrl.supervisor_mut().renew_active_reporting_lease(
+            &request.joint,
+            &request.client_id,
+            &request.lease_id,
+            DEFAULT_LEASE_TTL,
+        ),
+        ActiveReportingLeaseAction::Release => loop_ctrl
+            .supervisor_mut()
+            .release_active_reporting_lease(&request.joint, &request.lease_id),
+        ActiveReportingLeaseAction::Unspecified => Err(DavoutError::Homing {
+            message: "active-reporting lease action unspecified".into(),
+        }),
     }
 }
 
@@ -792,6 +855,7 @@ fn main() {
     let mut enable_rx = chappe.subscribe("robot/enable");
     let mut homing_rx = chappe.subscribe("robot/homing");
     let mut set_zero_rx = chappe.subscribe("robot/set_zero");
+    let mut lease_rx = chappe.subscribe("robot/active_reporting_lease");
     let mut testing_cmd_rx = chappe.subscribe("robot/testing/mit_command_batch");
     let mut actuator_rx = chappe.subscribe(overlay::TOPIC_ACTUATOR_COMMAND);
 
@@ -853,6 +917,7 @@ fn main() {
         enable_rx: &mut enable_rx,
         homing_rx: &mut homing_rx,
         set_zero_rx: &mut set_zero_rx,
+        lease_rx: &mut lease_rx,
         testing_cmd_rx: &mut testing_cmd_rx,
         actuator_rx: &mut actuator_rx,
         actuator_overlay: &mut actuator_overlay,
@@ -876,6 +941,7 @@ struct ControlLoopRuntime<'a> {
     enable_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     homing_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     set_zero_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
+    lease_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     testing_cmd_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     actuator_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     actuator_overlay: &'a mut overlay::ActuatorOverlay,
@@ -908,6 +974,7 @@ fn run_control_loop(loop_ctrl: &mut ControlLoop<RuntimeBus>, runtime: &mut Contr
             runtime.enable_rx,
             runtime.homing_rx,
             runtime.set_zero_rx,
+            runtime.lease_rx,
         );
         let (outer_chappe_drain_us, t_after_chappe) = phase_elapsed_us(t_next);
         drain_testing_commands(loop_ctrl, runtime.testing_cmd_rx);
@@ -918,6 +985,8 @@ fn run_control_loop(loop_ctrl: &mut ControlLoop<RuntimeBus>, runtime: &mut Contr
             runtime.actuator_rx,
         );
         let (_outer_actuator_us, _t) = phase_elapsed_us(t_after_chappe);
+
+        loop_ctrl.supervisor_mut().tick_active_reporting_leases();
 
         active_fault = match loop_ctrl.tick(Some(runtime.chappe.as_ref())) {
             Ok(()) => None,

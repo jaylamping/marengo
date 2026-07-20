@@ -45,6 +45,12 @@
 
 pub use armee_kinematics::JointLimitPolicy;
 
+mod active_reporting;
+
+pub use active_reporting::{
+    ActiveReportingLeaseError, ActiveReportingState, DEFAULT_LEASE_TTL,
+};
+
 use std::collections::HashMap;
 use std::path::Path;
 use std::time::{Duration, Instant};
@@ -147,6 +153,18 @@ pub enum DavoutError {
 pub use marengo_homing::JointHomingState;
 pub use robstride::bus::{BusError, MemoryBus, MotorAddress, MotorBus};
 
+fn map_lease_error(err: ActiveReportingLeaseError) -> DavoutError {
+    match err {
+        ActiveReportingLeaseError::UnknownJoint { joint } => DavoutError::UnknownJoint { joint },
+        ActiveReportingLeaseError::InvalidLeaseId
+        | ActiveReportingLeaseError::InvalidClientId
+        | ActiveReportingLeaseError::TooManyLeases { .. }
+        | ActiveReportingLeaseError::MissingLease { .. } => DavoutError::Homing {
+            message: format!("active reporting lease: {err:?}"),
+        },
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EnablePolicy {
     Normal,
@@ -190,7 +208,7 @@ pub struct Supervisor<B: MotorBus> {
     last_feedback_samples: HashMap<String, FeedbackSample>,
     wrong_sign_state: HashMap<String, WrongSignState>,
     last_tick: Option<Instant>,
-    active_reporting_armed: bool,
+    active_reporting: ActiveReportingState,
     /// Status frames decoded in the most recent [`Self::refresh_feedback`] poll.
     last_refresh_frames: usize,
 }
@@ -243,7 +261,7 @@ impl<B: MotorBus> Supervisor<B> {
             last_feedback_samples: HashMap::new(),
             wrong_sign_state: HashMap::new(),
             last_tick: None,
-            active_reporting_armed: false,
+            active_reporting: ActiveReportingState::default(),
             last_refresh_frames: 0,
         };
         // Arm type-24 when configured so free-drive Set Limits can see motion while
@@ -1010,28 +1028,74 @@ impl<B: MotorBus> Supervisor<B> {
         Ok(())
     }
 
-    /// Free-drive sensing: type-24 when diagnostics flag is on and motors are not ACTIVE.
+    /// Free-drive sensing: type-24 per joint when diagnostics/leases say so and not ACTIVE.
     /// ACTIVE uses MIT status replies instead; type-24 must stay off then.
-    fn active_reporting_desired(&self) -> bool {
-        self.control.control.bench.active_reporting_diagnostics
-            && self.mode != OperationalMode::Active
+    pub fn sync_active_reporting(&mut self) {
+        let mode_active = self.mode == OperationalMode::Active;
+        let global = self.control.control.bench.active_reporting_diagnostics;
+        let now = Instant::now();
+        self.active_reporting.sync(
+            &mut self.bus,
+            &self.motors,
+            mode_active,
+            global,
+            now,
+        );
     }
 
-    /// Enable or disable firmware active reporting (comm type 24) per bench config and mode.
-    pub fn sync_active_reporting(&mut self) {
-        let desired = self.active_reporting_desired();
-        if desired == self.active_reporting_armed {
-            return;
-        }
-        for motor in &self.motors.motors {
-            let address = MotorAddress::from(motor);
-            if desired {
-                let _ = self.bus.enable_active_reporting_at(&address);
-            } else {
-                let _ = self.bus.disable_active_reporting_at(&address);
-            }
-        }
-        self.active_reporting_armed = desired;
+    /// Expire TTLs and resync type-24 (call each control-loop iteration).
+    pub fn tick_active_reporting_leases(&mut self) {
+        self.sync_active_reporting();
+    }
+
+    /// Acquire or upsert a client-minted lease for `joint`.
+    pub fn acquire_active_reporting_lease(
+        &mut self,
+        joint: &str,
+        client_id: &str,
+        lease_id: &str,
+        ttl: Duration,
+    ) -> Result<(), DavoutError> {
+        let now = Instant::now();
+        self.active_reporting
+            .acquire(joint, client_id, lease_id, ttl, now, &self.motors)
+            .map_err(map_lease_error)?;
+        self.sync_active_reporting();
+        Ok(())
+    }
+
+    /// Renew an existing lease by `lease_id`.
+    pub fn renew_active_reporting_lease(
+        &mut self,
+        joint: &str,
+        client_id: &str,
+        lease_id: &str,
+        ttl: Duration,
+    ) -> Result<(), DavoutError> {
+        let now = Instant::now();
+        self.active_reporting
+            .renew(joint, client_id, lease_id, ttl, now, &self.motors)
+            .map_err(map_lease_error)?;
+        self.sync_active_reporting();
+        Ok(())
+    }
+
+    /// Release a lease by `lease_id` (no-op if already gone).
+    pub fn release_active_reporting_lease(
+        &mut self,
+        joint: &str,
+        lease_id: &str,
+    ) -> Result<(), DavoutError> {
+        self.active_reporting
+            .release(joint, lease_id, &self.motors)
+            .map_err(map_lease_error)?;
+        self.sync_active_reporting();
+        Ok(())
+    }
+
+    /// True when type-24 is applied on for `joint` after last successful sync.
+    pub fn active_reporting_applied(&self, joint: &str) -> bool {
+        self.active_reporting.applied_on(joint)
     }
 
     fn feedback_poll_timeout(&self) -> Duration {
@@ -2112,26 +2176,35 @@ mod tests {
     fn active_reporting_default_false_sends_no_type24() {
         let bus = MemoryBus::default();
         let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
-        // Repo bench yaml may enable the flag; force off and re-sync.
+        // Repo bench yaml may enable the flag; force on then off to emit disables.
+        sup.control.control.bench.active_reporting_diagnostics = true;
+        sup.sync_active_reporting();
         sup.bus.tx.clear();
-        sup.active_reporting_armed = true;
         sup.control.control.bench.active_reporting_diagnostics = false;
         sup.sync_active_reporting();
-        assert!(!sup.active_reporting_armed);
         let off = type24_tx_frames(&sup.bus.tx);
         assert_eq!(off.len(), sup.motors.motors.len());
         for frame in off {
             assert_eq!(frame.data[6], 0x00, "disable F_CMD when flag false");
         }
+        assert!(sup
+            .motors
+            .motors
+            .iter()
+            .all(|m| !sup.active_reporting_applied(&m.joint)));
     }
 
     #[test]
     fn active_reporting_sends_type24_when_non_active_and_flag_true() {
         let bus = MemoryBus::default();
         let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
-        // from_repo syncs with default flag false — clear any prior tx, then arm.
+        // Normalize to off, then enable.
+        sup.control.control.bench.active_reporting_diagnostics = false;
+        sup.sync_active_reporting();
+        for m in &sup.motors.motors {
+            assert!(!sup.active_reporting_applied(&m.joint));
+        }
         sup.bus.tx.clear();
-        sup.active_reporting_armed = false;
         sup.control.control.bench.active_reporting_diagnostics = true;
         sup.sync_active_reporting();
         let type24 = type24_tx_frames(&sup.bus.tx);
@@ -2141,7 +2214,11 @@ mod tests {
         }
         let tx_before = sup.bus.tx.len();
         bench_ready_active(&mut sup);
-        assert!(!sup.active_reporting_armed);
+        assert!(sup
+            .motors
+            .motors
+            .iter()
+            .all(|m| !sup.active_reporting_applied(&m.joint)));
         let new_frames = &sup.bus.tx[tx_before..];
         for frame in type24_tx_frames(new_frames) {
             assert_eq!(frame.data[6], 0x00, "disable before Active (MIT owns status)");
@@ -2183,17 +2260,30 @@ mod tests {
     fn active_reporting_stays_armed_through_ready_for_free_drive() {
         let bus = MemoryBus::default();
         let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        // Normalize off then on so enable TX is observed.
+        sup.control.control.bench.active_reporting_diagnostics = false;
+        sup.sync_active_reporting();
+        for m in &sup.motors.motors {
+            assert!(!sup.active_reporting_applied(&m.joint));
+        }
         sup.bus.tx.clear();
-        sup.active_reporting_armed = false;
         sup.control.control.bench.active_reporting_diagnostics = true;
         sup.sync_active_reporting();
-        assert!(sup.active_reporting_armed);
+        assert!(sup
+            .motors
+            .motors
+            .iter()
+            .all(|m| sup.active_reporting_applied(&m.joint)));
         assert_eq!(type24_tx_frames(&sup.bus.tx).len(), sup.motors.motors.len());
         bench_verify_all_joints(&mut sup);
         let tx_before = sup.bus.tx.len();
         sup.set_homing_complete().expect("ready");
         assert_eq!(sup.mode(), OperationalMode::Ready);
-        assert!(sup.active_reporting_armed);
+        assert!(sup
+            .motors
+            .motors
+            .iter()
+            .all(|m| sup.active_reporting_applied(&m.joint)));
         let off_frames = type24_tx_frames(&sup.bus.tx[tx_before..]);
         assert!(
             off_frames.is_empty(),
