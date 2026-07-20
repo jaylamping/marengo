@@ -23,15 +23,15 @@ Root assembly: `assemblies/marengo.SLDASM` (local).
 
 ## Setup
 
-Clone marengo for software, then restore CAD locally (backup, separate repo, or `git lfs pull` from an archive):
+Software + tracked CAD sources live in **one** WSL clone (`~/code/marengo`). Open that
+tree from Windows Cursor via `\\wsl$\Ubuntu\home\<you>\code\marengo` for SolidWorks
+([ADR 0016](../docs/decisions/0016-wsl-software-home.md)).
 
-```powershell
-# Example: sibling clone used only for CAD binaries
-git clone <marengo-cad-archive-url> C:\code\marengo-cad
-# Symlink or copy assemblies/parts/vendor into C:\code\marengo\cad\
-```
+If CAD binaries are restored from backup/LFS archive, put them under that same
+tree’s `cad/` — do not create a second writeable `C:\code\marengo` clone.
 
-SolidWorks MCP allowed root remains `C:/code/marengo` — your local `cad/` tree must exist there for automation.
+SolidWorks MCP allowed root is `${workspaceFolder}` (the UNC workspace) — your
+local `cad/` tree must exist there for automation.
 
 ## Naming
 
@@ -90,4 +90,4 @@ Place fasteners, inserts, and purchased hardware under a top-level feature folde
 3. Export URDF manually (Brawner) → `assets/urdf/marengo.urdf`.
 4. Run `scripts/validate-urdf.sh` and update [hardware/docs/kinematics.md](../hardware/docs/kinematics.md) if joints changed.
 
-Open [marengo.code-workspace](../marengo.code-workspace) (marengo + solidworks-mcp). Build MCP after worker changes: `npm run build` in `solidworks-mcp`. Allowed CAD root is `C:/code/marengo` only.
+Open [marengo.code-workspace](../marengo.code-workspace) from the UNC WSL path (marengo + solidworks-mcp). Build MCP after worker changes: `npm run build` in `C:\code\solidworks-mcp`. Allowed CAD root is `${workspaceFolder}` (UNC software home).

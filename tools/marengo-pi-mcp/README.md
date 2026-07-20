@@ -66,7 +66,9 @@ Repo [`.cursor/mcp.json`](../../.cursor/mcp.json) uses `${workspaceFolder}` so t
 
 `marengo-pi` launches via **`node` + [`launch.mjs`](launch.mjs)** (same pattern as solidworks). Do **not** use bare `sh`/`bash` as the mcp.json command on Windows — Cursor's spawn PATH often lacks Git `sh`, which makes the server look "disabled".
 
-Profile / SSH defaults live in `launch.mjs` / `run-mcp.sh` / `run-mcp.ps1` — **not** in `mcp.json` `env` (that thrash auto-disables the project MCP). Optional Windows fallback: [`run-mcp.cmd`](run-mcp.cmd) / [`run-mcp.ps1`](run-mcp.ps1).
+Profile / SSH defaults live in `launch.mjs` / `run-mcp.sh` / `run-mcp.ps1` — **not** in `mcp.json` `env` (that thrash auto-disables the project MCP; see [ADR 0016](../../docs/decisions/0016-wsl-software-home.md)). Optional Windows fallback: [`run-mcp.cmd`](run-mcp.cmd) / [`run-mcp.ps1`](run-mcp.ps1).
+
+Open the marengo repo root as the Cursor workspace (WSL software session, or Windows UNC CAD session — ADR 0016).
 
 `MARENGO_LOCAL_ROOT` is optional. The server derives the repo root from its install path. Override only for unusual clone layouts.
 

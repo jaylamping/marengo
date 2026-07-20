@@ -140,44 +140,43 @@ cargo test --workspace
 
 ---
 
-## 7. Hybrid: SolidWorks stays on Windows
+## 7. Hybrid: SolidWorks stays on Windows (one git tree)
 
 SolidWorks and the MCP worker run on **Windows**. Software build/run uses **WSL**.
+There is **one** Marengo git clone — on WSL ext4. See [ADR 0016](decisions/0016-wsl-software-home.md).
 
 | Task | Where |
 |------|--------|
-| `just check`, Rust, Docker | WSL (`~/code/marengo`) |
-| SolidWorks CAD | Windows |
-| solidworks-mcp | Windows (`C:\code\solidworks-mcp`) |
-| MCP CAD root | Windows path in [`.cursor/mcp.json`](../.cursor/mcp.json) |
+| `just check`, Rust, Docker, marengo-pi MCP | WSL Cursor → `~/code/marengo` |
+| SolidWorks CAD + solidworks-mcp | Windows Cursor → `\\wsl$\Ubuntu\home\<you>\code\marengo` |
+| solidworks-mcp repo | Windows (`C:\code\solidworks-mcp`) |
+| MCP CAD root | `${workspaceFolder}` in [`.cursor/mcp.json`](../.cursor/mcp.json) (UNC workspace when on Windows) |
 
-**Two-repo layout:**
+**Do not** keep a second writeable clone at `C:\code\marengo`. That is how branch drift starts.
 
-- WSL: `~/code/marengo` — primary git clone for software
-- Windows: `C:\code\marengo` — optional second clone **only for CAD** if MCP must read `C:/code/marengo`
+**Cursor on WSL** (daily software): **WSL: Connect** → `/home/<you>/code/marengo`.
 
-**Avoid two divergent clones.** Prefer one git remote; sync via push/pull. For CAD-only Windows copy, pull before modeling; commit from WSL.
+**Cursor on Windows** (CAD only): open the same tree via UNC, e.g.
+`\\wsl$\Ubuntu\home\<you>\code\marengo` (or that path’s `marengo.code-workspace`).
 
-**Cursor on Windows** (when doing CAD): open `C:\code\marengo` + `marengo.code-workspace` so MCP paths in [`.cursor/mcp.json`](../.cursor/mcp.json) resolve.
-
-**Cursor on WSL** (when doing software): open `~/code/marengo` — faster checks; use Windows Cursor session when you need SolidWorks MCP.
+Pi MCP host defaults live in [`tools/marengo-pi-mcp/launch.mjs`](../tools/marengo-pi-mcp/launch.mjs) (and `run-mcp.sh` / `run-mcp.ps1`) — not as machine-specific env in `.cursor/mcp.json` (Cursor hashes that file’s env and can auto-disable servers).
 
 ---
 
 ## 8. Migrating from `C:\code\marengo`
 
-If you already have a Windows clone:
+If you still have a Windows clone:
 
-```bash
-# WSL — fresh clone (simplest)
-cd ~/code && git clone <repo-url> marengo && cd marengo && git lfs pull
+1. Ensure WSL `~/code/marengo` is up to date (`git status`, pull/rebase as needed).
+2. Copy any Windows-only uncommitted files into WSL (or discard them).
+3. Rename the Windows tree out of the way, then delete after a short seatbelt:
+
+```powershell
+Rename-Item -Path C:\code\marengo -NewName marengo.DEAD
+# After a week (or when sure): Remove-Item -Recurse -Force C:\code\marengo.DEAD
 ```
 
-Copy uncommitted work from Windows manually, or commit/stash on Windows first.
-
-Do **not** work daily from `/mnt/c/code/marengo` — that path is still slow.
-
-Optional: remove old Windows clone after WSL is verified to free disk.
+Do **not** work daily from `/mnt/c/code/marengo` — that path is still slow even before you retire it.
 
 ---
 
@@ -199,7 +198,9 @@ curl https://mise.run | sh
 cd ~/code/marengo && mise install
 ```
 
-After `setup-wsl-dev.sh`, **restart the marengo-pi MCP server** in Cursor so it picks up `.cursor/mcp.json` (WSL uses `SSH_IDENTITY_FILE` + `marengo.local`).
+After `setup-wsl-dev.sh`, **restart the marengo-pi MCP server** in Cursor.
+Defaults (Pi host, SSH identity under `~/.ssh/`, bench profile) come from
+`tools/marengo-pi-mcp/launch.mjs` / `run-mcp.sh`.
 
 ---
 
@@ -217,8 +218,8 @@ After `setup-wsl-dev.sh`, **restart the marengo-pi MCP server** in Cursor so it 
 | `git lfs` smudge errors | `git lfs install && git lfs pull` inside WSL clone. |
 | Line-ending noise | In WSL clone: `git config core.autocrlf input`. |
 | Permission errors on `target/` | `docker compose build dev` (entrypoint chowns volumes). See [troubleshooting.md](troubleshooting.md). |
-| SolidWorks MCP can’t see files | MCP `SOLIDWORKS_MCP_ALLOWED_ROOTS` must match Windows CAD path; use Windows Cursor session for CAD. |
-| marengo-pi MCP missing / disabled in WSL | Usually disabled, not missing. Enable in MCP settings, or quit Cursor and run `just mcp-ensure-enabled --write`. `sessionStart` also runs a best-effort ensure hook (Node). Do **not** put profile/SSH env in `.cursor/mcp.json` (hash thrash auto-disables). Defaults are in `tools/marengo-pi-mcp/run-mcp.sh` (shared Mac/Windows/WSL; `run-mcp.ps1` is optional Windows fallback). |
+| SolidWorks MCP can’t see files | Open Windows Cursor on `\\wsl$\...\code\marengo` so `${workspaceFolder}` matches the tree; restart solidworks MCP. |
+| marengo-pi MCP missing / disabled in WSL | Usually disabled, not missing. Enable in MCP settings, or quit Cursor and run `just mcp-ensure-enabled --write`. `sessionStart` also runs a best-effort ensure hook (Node). Do **not** put profile/SSH env in `.cursor/mcp.json` (hash thrash auto-disables). Defaults are in `tools/marengo-pi-mcp/launch.mjs` / `run-mcp.sh` (shared Mac/Windows/WSL; `run-mcp.ps1` is optional Windows fallback). |
 | `spawn node ENOENT` / marengo-pi stuck disabled | Cursor PATH may lack mise/`sh`. Shared mcp.json uses `node` + `tools/marengo-pi-mcp/launch.mjs` (not bare `sh`). Restart MCP after pull. If the toggle is still off: Enable once in MCP settings (approval hash already written by `just mcp-ensure-enabled --write`). |
 
 ---

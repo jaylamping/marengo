@@ -63,12 +63,14 @@ just check
 
 ## 8. CAD and SolidWorks MCP (Windows)
 
-For mechanical design with Cursor + SolidWorks:
+Daily software lives in WSL ([ADR 0016](decisions/0016-wsl-software-home.md)). For mechanical design with Cursor + SolidWorks:
 
-1. Open `marengo.code-workspace` (marengo + sibling `solidworks-mcp` repo).
-2. Build the MCP server: `cd ../solidworks-mcp && npm install && npm run build`.
-3. Cursor loads workspace MCP from [`.cursor/mcp.json`](../.cursor/mcp.json) (`SOLIDWORKS_MCP_ALLOWED_ROOTS=C:/code/marengo`).
+1. Open a **Windows** Cursor window on the WSL tree via UNC:
+   `\\wsl$\Ubuntu\home\<you>\code\marengo` (or that path’s `marengo.code-workspace` with sibling `solidworks-mcp`).
+2. Build the MCP server: `cd C:\code\solidworks-mcp && npm install && npm run build`.
+3. Cursor loads workspace MCP from [`.cursor/mcp.json`](../.cursor/mcp.json)
+   (`SOLIDWORKS_MCP_ALLOWED_ROOTS=${workspaceFolder}` → the UNC root).
 4. Model under [`cad/`](../cad/); run `marengo_design_review` before saving assemblies.
 5. URDF: manual Brawner export → `assets/urdf/marengo.urdf`, then MCP `marengo_urdf_export_postcheck` and [`scripts/export-urdf.sh`](../scripts/export-urdf.sh).
 
-CAD standards: [cad/README.md](../cad/README.md).
+CAD standards: [cad/README.md](../cad/README.md). WSL setup: [wsl-setup.md](wsl-setup.md).
