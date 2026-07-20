@@ -11,7 +11,8 @@ control:
   disable_on_exit: true
   bench:
     allow_firmware_speed_mode: false
-    active_reporting_diagnostics: false
+    # Type-24 position while Disabled/Ready (Consul Set Limits free-drive). Off while ACTIVE.
+    active_reporting_diagnostics: true
 
   motor_type_defaults:
     rs00:

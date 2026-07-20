@@ -224,7 +224,7 @@ impl<B: MotorBus> Supervisor<B> {
             .iter()
             .map(|m| (MotorAddress::from(m), m.motor_type))
             .collect();
-        Ok(Self {
+        let mut supervisor = Self {
             mode: OperationalMode::Disabled,
             control_mode: ControlMode::Disabled,
             hardware_estop: false,
@@ -245,7 +245,11 @@ impl<B: MotorBus> Supervisor<B> {
             last_tick: None,
             active_reporting_armed: false,
             last_refresh_frames: 0,
-        })
+        };
+        // Arm type-24 when configured so free-drive Set Limits can see motion while
+        // limp (Disabled/Ready). MIT Active still turns reporting off in sync below.
+        supervisor.sync_active_reporting();
+        Ok(supervisor)
     }
 
     /// Frames received in the last [`Self::refresh_feedback`] call (0 if none or timeout).
@@ -1006,9 +1010,11 @@ impl<B: MotorBus> Supervisor<B> {
         Ok(())
     }
 
+    /// Free-drive sensing: type-24 when diagnostics flag is on and motors are not ACTIVE.
+    /// ACTIVE uses MIT status replies instead; type-24 must stay off then.
     fn active_reporting_desired(&self) -> bool {
         self.control.control.bench.active_reporting_diagnostics
-            && self.mode == OperationalMode::Disabled
+            && self.mode != OperationalMode::Active
     }
 
     /// Enable or disable firmware active reporting (comm type 24) per bench config and mode.
@@ -2105,15 +2111,27 @@ mod tests {
     #[test]
     fn active_reporting_default_false_sends_no_type24() {
         let bus = MemoryBus::default();
-        let sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
-        assert_eq!(sup.mode(), OperationalMode::Disabled);
-        assert!(type24_tx_frames(&sup.bus.tx).is_empty());
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        // Repo bench yaml may enable the flag; force off and re-sync.
+        sup.bus.tx.clear();
+        sup.active_reporting_armed = true;
+        sup.control.control.bench.active_reporting_diagnostics = false;
+        sup.sync_active_reporting();
+        assert!(!sup.active_reporting_armed);
+        let off = type24_tx_frames(&sup.bus.tx);
+        assert_eq!(off.len(), sup.motors.motors.len());
+        for frame in off {
+            assert_eq!(frame.data[6], 0x00, "disable F_CMD when flag false");
+        }
     }
 
     #[test]
-    fn active_reporting_sends_type24_only_when_disabled_and_flag_true() {
+    fn active_reporting_sends_type24_when_non_active_and_flag_true() {
         let bus = MemoryBus::default();
         let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        // from_repo syncs with default flag false — clear any prior tx, then arm.
+        sup.bus.tx.clear();
+        sup.active_reporting_armed = false;
         sup.control.control.bench.active_reporting_diagnostics = true;
         sup.sync_active_reporting();
         let type24 = type24_tx_frames(&sup.bus.tx);
@@ -2126,7 +2144,7 @@ mod tests {
         assert!(!sup.active_reporting_armed);
         let new_frames = &sup.bus.tx[tx_before..];
         for frame in type24_tx_frames(new_frames) {
-            assert_eq!(frame.data[6], 0x00, "disable before leaving Disabled");
+            assert_eq!(frame.data[6], 0x00, "disable before Active (MIT owns status)");
         }
     }
 
@@ -2162,20 +2180,25 @@ mod tests {
     }
 
     #[test]
-    fn active_reporting_disables_before_ready_transition() {
+    fn active_reporting_stays_armed_through_ready_for_free_drive() {
         let bus = MemoryBus::default();
         let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        sup.bus.tx.clear();
+        sup.active_reporting_armed = false;
         sup.control.control.bench.active_reporting_diagnostics = true;
         sup.sync_active_reporting();
+        assert!(sup.active_reporting_armed);
         assert_eq!(type24_tx_frames(&sup.bus.tx).len(), sup.motors.motors.len());
         bench_verify_all_joints(&mut sup);
         let tx_before = sup.bus.tx.len();
         sup.set_homing_complete().expect("ready");
+        assert_eq!(sup.mode(), OperationalMode::Ready);
+        assert!(sup.active_reporting_armed);
         let off_frames = type24_tx_frames(&sup.bus.tx[tx_before..]);
-        assert_eq!(off_frames.len(), sup.motors.motors.len());
-        for frame in off_frames {
-            assert_eq!(frame.data[6], 0x00, "disable F_CMD before Ready");
-        }
+        assert!(
+            off_frames.is_empty(),
+            "Ready must keep type-24 for Set Limits free-drive sensing"
+        );
     }
 
     #[test]

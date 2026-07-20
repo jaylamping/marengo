@@ -86,6 +86,8 @@ export function proposedRangeFromBounds(bounds: RunningBounds): string | null {
 
 /**
  * Live listen is free-drive: Chappe connected and motors known non-ACTIVE.
+ * Pi must publish live joint positions while limp (bench
+ * `active_reporting_diagnostics` + Davout type-24 when not ACTIVE).
  * Mirror Set Zero: wait for operationalMode before starting (null is not safe).
  * Operator supports the assembly; no GravityComp / position hold.
  */
