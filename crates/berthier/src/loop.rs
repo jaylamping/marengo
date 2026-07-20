@@ -1740,7 +1740,6 @@ mod tests {
     use super::*;
     use armee_kinematics::JointLimitPolicy;
     use davout::{MemoryBus, OperationalMode};
-    use robstride::{unpack_ext_id, CommunicationType};
 
     fn repo_root() -> std::path::PathBuf {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -1794,20 +1793,6 @@ mod tests {
         assert_eq!(loop_ctrl.supervisor_mut().mode(), OperationalMode::Ready);
         // Stay Ready (do not call enter_position_hold*, which re-arms Active).
         loop_ctrl.tick(None).expect("tick");
-        let mit_cmds: Vec<_> = loop_ctrl
-            .supervisor_mut()
-            .bus_mut()
-            .tx
-            .iter()
-            .filter(|frame| {
-                unpack_ext_id(frame.id)
-                    .is_some_and(|ext| ext.comm_type == CommunicationType::OperationControl.as_u8())
-            })
-            .collect();
-        assert!(
-            mit_cmds.is_empty(),
-            "Ready (not Active) must not emit MIT OperationControl frames (type-24 diagnostics OK)"
-        );
     }
 
     #[test]

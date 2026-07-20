@@ -38,20 +38,31 @@ export interface CompoundTestPreset {
 }
 
 /**
+ * Flip to `true` only after docs/bench-elbow-test-suite.md **E6** Wave-pose
+ * GravityComp sign is recorded. Until then, live (non-dry-run) Wave Start is
+ * blocked in the compound panel — Position still carries τ_g, but unsupported
+ * elevated Wave raise is not commissioned.
+ */
+export const WAVE_POSE_GCOMP_SIGNED = false;
+
+/**
  * Shipped Wave: raise includes yaw + elbow pitch; roll wave stays nativeWave
  * until a teach overlay replaces the wave phase. Loop extends nativeWave only
  * (does not re-raise). Taught overlays clear nativeWave and set loopFromSegment.
  *
- * Live Wave raise uses Position (ends GravityComp) — keep the arm supported
- * until Wave-pose G-comp sign is commissioned (docs/bench-elbow-test-suite.md E6).
- * Do not add yaw/elbow to arm_out_forward / arm_fully_up until Y3–Y4 / E gates PASS.
+ * Live Wave raise posts ControlMode.POSITION. That is not "position-only" in the
+ * upright-pose sense: Berthier Position includes τ_g feedforward plus impedance
+ * (ADR 0007 / docs/safety.md). It does leave GravityComp mode, so Teach Record
+ * clears its gravity-armed checkbox. Keep the arm supported until Wave-pose
+ * G-comp sign is commissioned (docs/bench-elbow-test-suite.md E6). Do not add
+ * yaw/elbow to arm_out_forward / arm_fully_up until Y3–Y4 / E gates PASS.
  */
 export const COMPOUND_TEST_PRESETS: CompoundTestPreset[] = [
   {
     id: 'wave',
     name: 'Wave',
     description:
-      'Arm up (pitch/roll/yaw/elbow raise), then continuous roll wave. Taught overlays replace wave phase only after Apply. Support the arm until E6 Wave-pose G-comp is signed.',
+      'Arm up (pitch/roll/yaw/elbow raise under Position+τ_g), then continuous roll wave. Taught overlays replace wave phase only after Apply. Support the arm until E6 Wave-pose G-comp is signed.',
     joints: [
       'right_shoulder_pitch',
       'right_shoulder_roll',
