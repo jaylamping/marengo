@@ -185,6 +185,61 @@ export function sessionToWaveOverlay(
   };
 }
 
+export function sessionToKeyframeOverlay(
+  session: TeachSession,
+  base: CompoundTestPreset,
+  liveFingerprint: TeachFingerprint
+): { ok: true; preset: CompoundTestPreset } | { ok: false; error: TeachApplyError } {
+  if (session.version !== TEACH_SESSION_VERSION) {
+    return { ok: false, error: 'version_mismatch' };
+  }
+  if (session.presetId !== base.id) {
+    return { ok: false, error: 'preset_mismatch' };
+  }
+  if (!fingerprintsMatch(session, liveFingerprint)) {
+    return { ok: false, error: 'fingerprint_mismatch' };
+  }
+  if (!canApplyLandmarks(session.landmarks)) {
+    return { ok: false, error: 'empty_landmarks' };
+  }
+
+  const keyframes = landmarksToKeyframes(
+    session.landmarks,
+    session.joints,
+    session.cadenceScale,
+    session.settleDwellSec
+  );
+  if (!keyframes) {
+    return { ok: false, error: 'empty_landmarks' };
+  }
+
+  return {
+    ok: true,
+    preset: {
+      ...base,
+      description: `${base.description} [taught overlay]`,
+      joints: [...session.joints],
+      keyframes,
+      loop: base.teach.kind === 'replace-program' && base.teach.preserveLoop ? base.loop : false,
+      nativeWave: undefined,
+      loopFromSegment: undefined,
+    },
+  };
+}
+
+export function materializeTaughtPreset(
+  session: TeachSession,
+  base: CompoundTestPreset,
+  liveFingerprint: TeachFingerprint
+): { ok: true; preset: CompoundTestPreset } | { ok: false; error: TeachApplyError } {
+  switch (base.teach.kind) {
+    case 'replace-native-wave':
+      return sessionToWaveOverlay(session, base, liveFingerprint);
+    case 'replace-program':
+      return sessionToKeyframeOverlay(session, base, liveFingerprint);
+  }
+}
+
 /** Merge shipped preset with applied overlay (overlay wins when present). */
 export function resolveEffectivePreset(
   base: CompoundTestPreset,
@@ -230,7 +285,7 @@ export interface TeachOverlayGateInput {
 
 /**
  * Single play-time resolver: materialize overlay from session landmarks, or fall
- * back to shipped base so a refused/stale overlay never bricks Wave.
+ * back to shipped base so a refused or stale overlay never blocks a preset.
  */
 export function resolvePlayablePreset(
   base: CompoundTestPreset,
@@ -240,7 +295,7 @@ export function resolvePlayablePreset(
 ): {
   preset: CompoundTestPreset;
   usingOverlay: boolean;
-  /** Soft-cal / fingerprint issues — Wave still starts on shipped base. */
+  /** Soft-calibration and fingerprint issues still run the shipped preset. */
   warning: string | null;
 } {
   if (!entry) {
@@ -254,16 +309,16 @@ export function resolvePlayablePreset(
   if (!gate.ok) {
     const warning =
       gate.error === 'calibration_ack_required'
-        ? 'Taught overlay needs Acknowledge & keep (or Reset) — playing shipped Wave.'
-        : `Taught overlay unavailable (${gate.error}) — playing shipped Wave.`;
+        ? 'Taught overlay needs Acknowledge & keep (or Reset) — playing shipped preset.'
+        : `Taught overlay unavailable (${gate.error}) — playing shipped preset.`;
     return { preset: base, usingOverlay: false, warning };
   }
-  const built = sessionToWaveOverlay(entry.session, base, live);
+  const built = materializeTaughtPreset(entry.session, base, live);
   if (!built.ok) {
     return {
       preset: base,
       usingOverlay: false,
-      warning: `Taught overlay unavailable (${built.error}) — playing shipped Wave.`,
+      warning: `Taught overlay unavailable (${built.error}) — playing shipped preset.`,
     };
   }
   return { preset: built.preset, usingOverlay: true, warning: null };

@@ -7,8 +7,10 @@ import {
   fingerprintsMatch,
   liveFingerprint,
   landmarksToKeyframes,
+  materializeTaughtPreset,
   overlayReplayAllowed,
   resolvePlayablePreset,
+  sessionToKeyframeOverlay,
   sessionToWaveOverlay,
   TEACH_SESSION_VERSION,
 } from '@/lib/teach-transit';
@@ -132,6 +134,44 @@ describe('teach-transit cadence/dwell', () => {
     if (!result.ok) return;
     expect(result.preset.loop).toBe(false);
     expect(result.preset.loopFromSegment).toBeUndefined();
+  });
+
+  it('replaces a non-wave program with keyframes and preserves its loop policy', () => {
+    const base = COMPOUND_TEST_PRESETS.find((p) => p.id === 'arm_out_forward')!;
+    const fp = {
+      profile: 'arm_4dof_right',
+      joints: base.joints,
+      deployRev: 'abc1234',
+    };
+    const session = createTeachSession(
+      fp,
+      base.id,
+      landmarks().map((landmark) => ({
+        ...landmark,
+        q: {
+          right_shoulder_pitch: landmark.q.right_shoulder_pitch,
+          right_shoulder_roll: landmark.q.right_shoulder_roll,
+        },
+      }))
+    );
+    const result = sessionToKeyframeOverlay(session, base, fp);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.preset.keyframes.right_shoulder_pitch).toHaveLength(3);
+    expect(result.preset.loop).toBe(base.loop);
+    expect(result.preset.nativeWave).toBeUndefined();
+    expect(result.preset.loopFromSegment).toBeUndefined();
+  });
+
+  it('dispatches taught materialization from the preset capability', () => {
+    const wave = COMPOUND_TEST_PRESETS.find((p) => p.id === 'wave')!;
+    const fp = { profile: 'arm_4dof_right', joints, deployRev: 'abc1234' };
+    const result = materializeTaughtPreset(createTeachSession(fp, 'wave', landmarks()), wave, fp);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.preset.loopFromSegment).toBe(1);
   });
 
   it('sessionToWaveOverlay refuses version_mismatch and preset_mismatch', () => {

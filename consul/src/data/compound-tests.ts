@@ -5,6 +5,18 @@ export interface Keyframe {
 
 export type CompoundAdvanceMode = 'settle' | 'timed';
 
+export type TeachCapability =
+  | {
+      kind: 'replace-native-wave';
+      appliedDescription: string;
+      loopFromFirstMotionLandmark: true;
+    }
+  | {
+      kind: 'replace-program';
+      appliedDescription: string;
+      preserveLoop: boolean;
+    };
+
 /** In-loop Berthier cosine wave (via testing MIT name `wave:…`). */
 export interface NativePositionWave {
   joint: string;
@@ -21,6 +33,7 @@ export interface CompoundTestPreset {
   joints: string[];
   keyframes: Record<string, Keyframe[]>;
   loop: boolean;
+  teach: TeachCapability;
   /**
    * How keyframe segments advance.
    * - settle (default): dwell + measured near target.
@@ -70,6 +83,11 @@ export const COMPOUND_TEST_PRESETS: CompoundTestPreset[] = [
       'right_elbow_pitch',
     ],
     loop: true,
+    teach: {
+      kind: 'replace-native-wave',
+      appliedDescription: 'Taught overlay replaces the native wave phase.',
+      loopFromFirstMotionLandmark: true,
+    },
     advance: 'timed',
     keyframes: {
       right_shoulder_pitch: [{ targetRad: 3.03, durationSec: 3.5 }],
@@ -93,6 +111,11 @@ export const COMPOUND_TEST_PRESETS: CompoundTestPreset[] = [
     description: 'Raises the arm straight out forward.',
     joints: ['right_shoulder_pitch', 'right_shoulder_roll'],
     loop: false,
+    teach: {
+      kind: 'replace-program',
+      appliedDescription: 'Taught overlay replaces the shipped movement program.',
+      preserveLoop: true,
+    },
     keyframes: {
       right_shoulder_pitch: [{ targetRad: 1.4, durationSec: 1.5 }],
       right_shoulder_roll: [{ targetRad: 1.57, durationSec: 1.5 }],
@@ -104,6 +127,11 @@ export const COMPOUND_TEST_PRESETS: CompoundTestPreset[] = [
     description: 'Raises the arm fully up.',
     joints: ['right_shoulder_pitch', 'right_shoulder_roll'],
     loop: false,
+    teach: {
+      kind: 'replace-program',
+      appliedDescription: 'Taught overlay replaces the shipped movement program.',
+      preserveLoop: true,
+    },
     keyframes: {
       right_shoulder_pitch: [{ targetRad: 2.6, durationSec: 2.0 }],
       right_shoulder_roll: [{ targetRad: 1.57, durationSec: 2.0 }],
