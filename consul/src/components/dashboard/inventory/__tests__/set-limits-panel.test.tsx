@@ -160,7 +160,7 @@ describe('SetLimitsPanel', () => {
     });
   });
 
-  it('runs listen → review → apply with seeded samples', async () => {
+  it('runs listen → review → apply with exact measured bounds', async () => {
     useRobotStore.setState({ connected: true, operationalMode: 'DISABLED' });
     const onApplyRange = vi.fn();
     renderPanel(
@@ -185,14 +185,15 @@ describe('SetLimitsPanel', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Apply Limits' }));
     await vi.waitFor(() => {
-      expect(persistJointLimits).toHaveBeenCalledWith(
-        'right_shoulder_pitch',
-        '−0.50–1.20',
-      );
+      expect(persistJointLimits).toHaveBeenCalledWith('right_shoulder_pitch', {
+        lower: -0.5,
+        upper: 1.2,
+      });
     });
     await vi.waitFor(() => {
       expect(queryClient.invalidateQueries).toHaveBeenCalled();
       expect(onApplyRange).toHaveBeenCalledWith('−0.50–1.20');
+      expect(screen.getByText(/Restart marengo-pi/i)).toBeTruthy();
     });
   });
 
@@ -224,5 +225,36 @@ describe('SetLimitsPanel', () => {
     });
     expect(onApplyRange).not.toHaveBeenCalled();
     expect(screen.getByText('Review')).toBeTruthy();
+  });
+
+  it('keeps review when persistJointLimits rejects', async () => {
+    vi.mocked(persistJointLimits).mockRejectedValueOnce(new Error('network down'));
+    useRobotStore.setState({ connected: true, operationalMode: 'DISABLED' });
+    const onApplyRange = vi.fn();
+    renderPanel(
+      <SetLimitsPanel
+        jointName="right_shoulder_pitch"
+        currentLimit="±1.57"
+        onApplyRange={onApplyRange}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Set Limits' }));
+    const store = useLimitListenStore.getState();
+    for (const pos of [-0.5, -0.4, 0.0, 0.8, 1.2]) {
+      store.ingestPosition('right_shoulder_pitch', pos);
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Apply Limits' }));
+
+    await vi.waitFor(() => {
+      expect(screen.getByText(/network down/i)).toBeTruthy();
+    });
+    expect(onApplyRange).not.toHaveBeenCalled();
+    expect(screen.getByText('Review')).toBeTruthy();
+    expect(
+      (screen.getByRole('button', { name: 'Apply Limits' }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(false);
   });
 });

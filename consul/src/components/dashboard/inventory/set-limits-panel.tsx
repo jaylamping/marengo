@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useId, useState } from 'react';
+import { useEffect, useEffectEvent, useId, useRef, useState } from 'react';
 
 import { InformationCircleIcon } from '@hugeicons/core-free-icons';
 import { HugeiconsIcon } from '@hugeicons/react';
@@ -47,7 +47,7 @@ export function SetLimitsPanel({
   const phase = useLimitListenStore((s) => s.phase);
   const activeJoint = useLimitListenStore((s) => s.jointName);
   const bounds = useLimitListenStore((s) => s.bounds);
-  const proposedRange = useLimitListenStore((s) => s.proposedRange);
+  const proposal = useLimitListenStore((s) => s.proposal);
   const error = useLimitListenStore((s) => s.error);
   const start = useLimitListenStore((s) => s.start);
   const ingestPosition = useLimitListenStore((s) => s.ingestPosition);
@@ -63,6 +63,8 @@ export function SetLimitsPanel({
   const [applyBusy, setApplyBusy] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
   const [applyOk, setApplyOk] = useState<string | null>(null);
+  const applyInFlightRef = useRef(false);
+  const proposedRange = proposal?.display ?? null;
 
   const confirmTitleId = useId();
   const confirmDescId = useId();
@@ -202,29 +204,41 @@ export function SetLimitsPanel({
   };
 
   const runApplyLimits = async () => {
-    if (!proposedRange || applyBusy) {
+    if (!proposal || applyInFlightRef.current) {
       return;
     }
+    applyInFlightRef.current = true;
     setApplyBusy(true);
     setApplyError(null);
     setApplyOk(null);
     try {
-      const result = await persistJointLimits(jointName, proposedRange);
+      const result = await persistJointLimits(jointName, {
+        lower: proposal.lower,
+        upper: proposal.upper,
+      });
       if (!result.ok) {
         setApplyError(result.message);
         return;
       }
-      await queryClient.invalidateQueries({ queryKey: queryKeys.configSnapshot });
-      onApplyRange(proposedRange);
+      // Draft only — do not write inventoryOverridesStore; config snapshot is SoT.
+      onApplyRange(proposal.display);
       discard();
       setApplyOk(
         result.restartRequired
           ? `${result.message} Restart marengo-pi to load new hard limits.`
           : result.message,
       );
+      try {
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.configSnapshot,
+        });
+      } catch {
+        // YAML already written; a stale cache is recoverable on next refresh.
+      }
     } catch (e) {
       setApplyError(e instanceof Error ? e.message : 'Limits persist failed');
     } finally {
+      applyInFlightRef.current = false;
       setApplyBusy(false);
     }
   };
@@ -452,6 +466,7 @@ export function SetLimitsPanel({
                 disabled={applyBusy}
                 onClick={() => {
                   setApplyError(null);
+                  setApplyOk(null);
                   discard();
                 }}
               >
@@ -466,6 +481,8 @@ export function SetLimitsPanel({
               onClick={() => {
                 setZeroOk(false);
                 setZeroError(null);
+                setApplyOk(null);
+                setApplyError(null);
                 start(jointName);
               }}
             >

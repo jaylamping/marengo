@@ -77,20 +77,26 @@ export async function fetchConfigSnapshot(): Promise<ConfigSnapshotDto | null> {
 
 export async function patchConfig(
   patch: ConfigPatchDto,
+  init?: { signal?: AbortSignal },
 ): Promise<ConfigPatchResultDto | null> {
   const root = baseUrl();
   if (!root) {
     return null;
   }
-  const res = await fetch(`${root}/config/patch`, {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify(patch),
-  });
-  if (!res.ok) {
+  try {
+    const res = await fetch(`${root}/config/patch`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(patch),
+      signal: init?.signal,
+    });
+    if (!res.ok) {
+      return null;
+    }
+    return (await res.json()) as ConfigPatchResultDto;
+  } catch {
     return null;
   }
-  return (await res.json()) as ConfigPatchResultDto;
 }
 
 export function motorForJoint(

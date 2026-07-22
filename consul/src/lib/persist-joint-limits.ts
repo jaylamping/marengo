@@ -3,7 +3,7 @@ import {
   type ConfigPatchDto,
   type ConfigPatchResultDto,
 } from '@/lib/config-api';
-import { parseJointRange } from '@/lib/limit-listen';
+import type { JointRangeBounds } from '@/lib/limit-listen';
 
 export type PersistJointLimitsResult =
   | {
@@ -17,34 +17,51 @@ export type PersistJointLimitsResult =
 
 type PatchConfigFn = (
   patch: ConfigPatchDto,
+  init?: { signal?: AbortSignal },
 ) => Promise<ConfigPatchResultDto | null>;
 
+const DEFAULT_PATCH_TIMEOUT_MS = 15_000;
+
 /**
- * Persist Set Limits bounds to motors.yaml via gateway /config/patch.
- * Display-only localStorage overrides are not enough across refresh.
+ * Persist measured Set Limits bounds to motors.yaml via gateway /config/patch.
+ * Pass exact listen bounds — never a display Range string.
  */
 export async function persistJointLimits(
   joint: string,
-  range: string,
-  deps?: { patchConfig?: PatchConfigFn },
+  bounds: JointRangeBounds,
+  deps?: { patchConfig?: PatchConfigFn; timeoutMs?: number },
 ): Promise<PersistJointLimitsResult> {
-  const bounds = parseJointRange(range);
-  if (!bounds) {
-    return { ok: false, message: 'Could not parse proposed range.' };
+  if (
+    !Number.isFinite(bounds.lower) ||
+    !Number.isFinite(bounds.upper) ||
+    bounds.lower >= bounds.upper
+  ) {
+    return { ok: false, message: 'Invalid limit bounds.' };
   }
 
   const patch = deps?.patchConfig ?? patchConfig;
-  const result = await patch({
-    joint,
-    position_lower_rad: bounds.lower,
-    position_upper_rad: bounds.upper,
-  });
+  const timeoutMs = deps?.timeoutMs ?? DEFAULT_PATCH_TIMEOUT_MS;
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  let result: ConfigPatchResultDto | null;
+  try {
+    result = await patch(
+      {
+        joint,
+        position_lower_rad: bounds.lower,
+        position_upper_rad: bounds.upper,
+      },
+      { signal: controller.signal },
+    );
+  } finally {
+    window.clearTimeout(timer);
+  }
 
   if (!result) {
     return {
       ok: false,
       message:
-        'Gateway rejected the limits patch (is Chappe up, and is VITE_MARENGO_LOG_TOKEN set for /config/patch?).',
+        'Gateway rejected or timed out the limits patch (is Chappe up, and is VITE_MARENGO_LOG_TOKEN set for /config/patch?).',
     };
   }
   if (!result.ok) {
