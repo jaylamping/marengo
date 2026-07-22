@@ -20,5 +20,6 @@
     "tsBuildInfoFile": "./node_modules/.cache/tsconfig.tsbuildinfo"
   },
   "include": ["src", "../tools/compound-auto-learn/shared/**/*.ts"],
+  "exclude": ["../tools/compound-auto-learn/shared/**/*.test.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
