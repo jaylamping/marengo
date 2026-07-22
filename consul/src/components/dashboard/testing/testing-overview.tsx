@@ -21,11 +21,6 @@ const CompoundTestPanel = lazy(async () => {
   return { default: module.CompoundTestPanel };
 });
 
-const TeachRecordPanel = lazy(async () => {
-  const module = await import('@/components/dashboard/testing/teach-record-panel');
-  return { default: module.TeachRecordPanel };
-});
-
 function TestingBodySkeleton() {
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-12" data-testid="testing-body-skeleton">
@@ -54,10 +49,9 @@ export function TestingOverview() {
 
       <DeferredMount fallback={<TestingBodySkeleton />} timeoutMs={120} strategy="idle">
         <Tabs defaultValue="manual" className="w-full">
-          <TabsList className="grid w-full max-w-xl grid-cols-3 mb-6">
+          <TabsList className="grid w-full max-w-md grid-cols-2 mb-6">
             <TabsTrigger value="manual">Manual Testing</TabsTrigger>
             <TabsTrigger value="compound">Compound Tests</TabsTrigger>
-            <TabsTrigger value="teach">Teach Record</TabsTrigger>
           </TabsList>
 
           <TabsContent value="manual" className="mt-0">
@@ -85,19 +79,6 @@ export function TestingOverview() {
                 </Suspense>
                 <Separator />
                 <PidSliderPanel />
-              </div>
-              <div className="lg:col-span-4">
-                <TelemetryGaugeGrid />
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="teach" forceMount className="mt-0 data-[state=inactive]:hidden">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              <div className="lg:col-span-8 flex flex-col gap-6">
-                <Suspense fallback={<Skeleton className="h-64 w-full" />}>
-                  <TeachRecordPanel />
-                </Suspense>
               </div>
               <div className="lg:col-span-4">
                 <TelemetryGaugeGrid />

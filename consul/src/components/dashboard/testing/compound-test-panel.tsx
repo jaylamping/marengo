@@ -34,6 +34,7 @@ import { postTestingMitCommandBatch } from '@/lib/gateway-api';
 import { dashboardPanelCardClassName } from '@/components/dashboard/layout/constants';
 import { useConfigSnapshot } from '@/hooks/use-config-snapshot';
 import { useTeachStore } from '@/state/teachStore';
+import { RecordMovementPanel } from '@/components/dashboard/testing/record-movement-panel';
 
 /** Zero gains → Pi clears overrides and uses arm_4dof_right control.yaml impedance. */
 const CONFIG_GAINS = { kp: 0, kd: 0, ki: 0, fc: 0 };
@@ -63,6 +64,7 @@ export function CompoundTestPanel() {
   const overlays = useTeachStore((s) => s.overlays);
   const liveCalibrationEpoch = useTeachStore((s) => s.liveCalibrationEpoch);
   const [overlayBlockReason, setOverlayBlockReason] = React.useState<string | null>(null);
+  const [recordSectionOpen, setRecordSectionOpen] = React.useState(false);
   /** True when the active run materializes a taught overlay (not shipped fallback). */
   const usingOverlayRef = React.useRef(false);
 
@@ -152,7 +154,7 @@ export function CompoundTestPanel() {
       void (async () => {
         try {
           await returnHome(playable.preset.joints);
-          // Settle window so Teach Record cannot start mid-home.
+          // Keep recording from starting while the arm is settling at home.
           await new Promise((r) => window.setTimeout(r, 2500));
         } finally {
           setPending(false);
@@ -194,7 +196,7 @@ export function CompoundTestPanel() {
     ) {
       stopRunner({ returnHome: true });
       setOverlayBlockReason(
-        'Taught overlay needs Acknowledge & keep (or Reset) — stopped; shipped Wave still available after Stop settles.'
+        'Taught overlay needs Acknowledge & keep (or Reset). The shipped preset is available after Stop settles.'
       );
     }
   }, [
@@ -498,6 +500,18 @@ export function CompoundTestPanel() {
                     <Badge className="text-xs font-normal">taught</Badge>
                   ) : null}
                 </div>
+                <Button
+                  className="mt-4"
+                  size="sm"
+                  variant="outline"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setSelectedPresetId(preset.id);
+                    setRecordSectionOpen(true);
+                  }}
+                >
+                  Record Movement
+                </Button>
               </CardContent>
             </Card>
           ))}
@@ -510,7 +524,7 @@ export function CompoundTestPanel() {
               <CardDescription className="mt-1">{selectedPreset.description}</CardDescription>
               {usingTaughtOverlay ? (
                 <p className="text-xs text-muted-foreground mt-2">
-                  Using taught overlay (no nativeWave). Clear from Teach Record to restore
+                  Using taught overlay (no nativeWave). Clear from Record Movement to restore
                   roll cosine. A/B chop: compare overlay vs shipped nativeWave before making
                   taught the default.
                 </p>
@@ -530,8 +544,12 @@ export function CompoundTestPanel() {
               variant="outline"
               size="sm"
               onClick={() => {
+                if (useTeachStore.getState().recording) {
+                  useTeachStore.getState().stopRecording();
+                }
                 stopRunner({ returnHome: false });
                 setOverlayBlockReason(null);
+                setRecordSectionOpen(false);
                 setSelectedPresetId(null);
               }}
             >
@@ -571,6 +589,26 @@ export function CompoundTestPanel() {
                   );
                 })}
               </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                  Record Movement
+                </h4>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setRecordSectionOpen((open) => !open)}
+                >
+                  {recordSectionOpen ? 'Hide Record Movement' : 'Record Movement'}
+                </Button>
+              </div>
+              <RecordMovementPanel
+                presetId={selectedPreset.id}
+                open={recordSectionOpen}
+                onOpenChange={setRecordSectionOpen}
+              />
             </div>
 
             <div className="space-y-4">
@@ -631,8 +669,7 @@ export function CompoundTestPanel() {
               </div>
               {teachRecording ? (
                 <p className="text-xs text-destructive">
-                  Teach Record is active — Stop Record before starting Wave (Position
-                  posts leave GravityComp mode).
+                  Record Movement is active. Stop recording before starting this compound test.
                 </p>
               ) : null}
               {overlayBlockReason ? (
