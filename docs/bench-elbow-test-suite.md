@@ -92,6 +92,13 @@ Record “sign PASS / magnitude provisional / Wave-pose hold supported.”
 Wrong-sign watchdog is **disabled** on this profile during bring-up (see
 `control.yaml`); do not claim watchdog coverage.
 
+**2026-07-22:** PASS (sign). Root cause of earlier elevated runaway was provisional
+forearm mass **0.35 kg** vs weighed ~**75 g** distal of elbow
+(`assets/urdf/arm_4dof_right.urdf`). After mass update: near-home / pitch-only /
+modest flexed / Wave-pose (pitch≈2.91, elbow≈0.93) GravityComp held with arm
+supported; no velocity trips; candump clean. Magnitude still provisional (pitch
+sags under pure G-comp at modest elevation). `WAVE_POSE_GCOMP_SIGNED = true`.
+
 ## E7 — Automated smoke (`elbow_attached`)
 
 ```json

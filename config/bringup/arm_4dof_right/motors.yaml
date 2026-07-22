@@ -52,6 +52,8 @@ motors:
     can_interface: can0
     device_id: 4
     # Provisional — verify motor vs URDF +Y with a low-gain jog after set-zero.
+    # Note: flipping direction alone does not fix joint-space GravityComp sign
+    # (command + feedback both invert). Elevate-pose runaway needs URDF/τ_g sign.
     direction: 1
     gear_ratio: 1.0
     recv_can_id: 0x244

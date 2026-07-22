@@ -62,7 +62,7 @@ export interface CompoundTestPreset {
  * blocked in the compound panel — Position still carries τ_g, but unsupported
  * elevated Wave raise is not commissioned.
  */
-export const WAVE_POSE_GCOMP_SIGNED = false;
+export const WAVE_POSE_GCOMP_SIGNED = true;
 
 /**
  * Shipped Wave: raise includes yaw + elbow pitch; roll wave stays nativeWave
