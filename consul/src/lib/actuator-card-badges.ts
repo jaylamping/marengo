@@ -1,8 +1,16 @@
 export type ActuatorCardBadge = {
   id: string;
+  /** Short label — shown on text chips; used as tooltip title for icon chips. */
   label: string;
   /** Tailwind text/border tone — keep chroma semantic only. */
   tone: 'ok' | 'accent' | 'fault' | 'muted' | 'warning';
+  /**
+   * `icon` = dense glyph + tooltip (zero state).
+   * Drive / fault stay as text chips — those words are the signal.
+   */
+  presentation?: 'text' | 'icon';
+  /** Extra tooltip body when presentation is `icon`. */
+  detail?: string;
 };
 
 /**
@@ -40,9 +48,21 @@ export function resolveActuatorCardBadges(args: {
   }
 
   if (args.zeroed || args.operationalMode === 'READY' || args.operationalMode === 'ACTIVE') {
-    badges.push({ id: 'zero', label: 'ZEROED', tone: 'ok' });
+    badges.push({
+      id: 'zero',
+      label: 'ZEROED',
+      tone: 'ok',
+      presentation: 'icon',
+      detail: 'Encoder origin confirmed (set-zero or READY/ACTIVE sync).',
+    });
   } else {
-    badges.push({ id: 'zero', label: 'UNHOMED', tone: 'warning' });
+    badges.push({
+      id: 'zero',
+      label: 'UNHOMED',
+      tone: 'warning',
+      presentation: 'icon',
+      detail: 'Set zero before commanding this joint.',
+    });
   }
 
   return badges;

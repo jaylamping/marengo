@@ -10,6 +10,10 @@ describe('resolveActuatorCardBadges', () => {
       fault: 0,
     });
     expect(badges.map((b) => b.label)).toEqual(['DISABLED', 'UNHOMED']);
+    const zero = badges.find((b) => b.id === 'zero');
+    expect(zero?.presentation).toBe('icon');
+    expect(zero?.tone).toBe('warning');
+    expect(zero?.detail).toMatch(/Set zero/i);
   });
 
   it('shows ENABLED + ZEROED when ACTIVE', () => {
@@ -19,6 +23,10 @@ describe('resolveActuatorCardBadges', () => {
       fault: 0,
     });
     expect(badges.map((b) => b.label)).toEqual(['ENABLED', 'ZEROED']);
+    const zero = badges.find((b) => b.id === 'zero');
+    expect(zero?.presentation).toBe('icon');
+    expect(zero?.tone).toBe('ok');
+    expect(zero?.detail).toMatch(/origin confirmed/i);
   });
 
   it('surfaces FAULT first', () => {

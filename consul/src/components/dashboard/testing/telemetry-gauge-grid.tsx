@@ -1,15 +1,26 @@
 import * as React from 'react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import {
+  Alert02Icon,
+  ZeroCircleIcon,
+} from '@hugeicons/core-free-icons';
 import { useRobotStore } from '@/state/robotStore';
 import { useTestingStore } from '@/state/testingStore';
 import { useCompoundStore } from '@/state/compoundStore';
 import { useActuatorZeroStore } from '@/state/actuatorZeroStore';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { formatSigFig } from '@/lib/format';
 import {
   badgeToneClass,
   resolveActuatorCardBadges,
+  type ActuatorCardBadge,
 } from '@/lib/actuator-card-badges';
 import { dashboardPanelCardClassName } from '@/components/dashboard/layout/constants';
 import { compoundPresetById } from '@/data/compound-tests';
@@ -130,16 +141,7 @@ export function TelemetryGaugeGrid() {
               </CardTitle>
               <div className="flex flex-wrap items-center justify-end gap-1">
                 {badges.map((badge) => (
-                  <Badge
-                    key={badge.id}
-                    variant="outline"
-                    className={cn(
-                      'h-5 px-1.5 uppercase tracking-[0.12em]',
-                      badgeToneClass(badge.tone),
-                    )}
-                  >
-                    {badge.label}
-                  </Badge>
+                  <ActuatorStatusChip key={badge.id} badge={badge} />
                 ))}
               </div>
             </CardHeader>
@@ -176,6 +178,59 @@ export function TelemetryGaugeGrid() {
         );
       })}
     </div>
+  );
+}
+
+function ActuatorStatusChip({ badge }: { badge: ActuatorCardBadge }) {
+  if (badge.presentation === 'icon') {
+    const icon =
+      badge.tone === 'warning' ? Alert02Icon : ZeroCircleIcon;
+
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            tabIndex={0}
+            className="cursor-help outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label={badge.label}
+          >
+            <Badge
+              variant="outline"
+              className={cn(
+                'size-5 justify-center p-0',
+                badgeToneClass(badge.tone),
+              )}
+            >
+              <HugeiconsIcon icon={icon} strokeWidth={2} className="size-3" />
+            </Badge>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent
+          side="bottom"
+          align="end"
+          className="flex max-w-xs flex-col items-start gap-0.5 py-2 leading-relaxed"
+        >
+          <span className="font-mono text-[10px] uppercase tracking-[0.12em]">
+            {badge.label}
+          </span>
+          {badge.detail ? (
+            <span className="text-muted-foreground">{badge.detail}</span>
+          ) : null}
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return (
+    <Badge
+      variant="outline"
+      className={cn(
+        'h-5 px-1.5 uppercase tracking-[0.12em]',
+        badgeToneClass(badge.tone),
+      )}
+    >
+      {badge.label}
+    </Badge>
   );
 }
 
