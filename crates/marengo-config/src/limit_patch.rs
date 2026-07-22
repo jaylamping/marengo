@@ -6,6 +6,33 @@ use serde::{Deserialize, Serialize};
 
 use crate::{ConfigError, JointControlEntry, MotorEntry};
 
+/// ADR 0009 hard/soft gap (~27 mrad). Set Limits soft is taught-hard inset by this amount.
+pub const DEFAULT_SOFT_INSET_RAD: f64 = 0.027;
+
+/// Soft bounds inside hard with a positive inset (never soft≡hard when span allows).
+pub fn soft_limits_with_inset(hard_lower: f64, hard_upper: f64, inset: f64) -> (f64, f64) {
+    let span = hard_upper - hard_lower;
+    if !span.is_finite() || span <= 0.0 {
+        return (hard_lower, hard_upper);
+    }
+    let inset = inset.clamp(0.0, span * 0.25);
+    (hard_lower + inset, hard_upper - inset)
+}
+
+/// Fill missing soft fields from hard ± [`DEFAULT_SOFT_INSET_RAD`].
+pub fn ensure_soft_inset(patch: &mut LimitPatch) {
+    if patch.position_soft_lower_rad.is_some() && patch.position_soft_upper_rad.is_some() {
+        return;
+    }
+    let (lo, hi) = soft_limits_with_inset(
+        patch.position_lower_rad,
+        patch.position_upper_rad,
+        DEFAULT_SOFT_INSET_RAD,
+    );
+    patch.position_soft_lower_rad = Some(lo);
+    patch.position_soft_upper_rad = Some(hi);
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LimitPatch {
     pub joint: String,
@@ -195,6 +222,26 @@ mod tests {
             position_soft_lower_rad: None,
             position_soft_upper_rad: None,
         }
+    }
+
+    #[test]
+    fn soft_inset_is_inside_hard() {
+        let (lo, hi) = soft_limits_with_inset(-0.5, 0.95, DEFAULT_SOFT_INSET_RAD);
+        assert!((lo - (-0.5 + DEFAULT_SOFT_INSET_RAD)).abs() < 1e-12);
+        assert!((hi - (0.95 - DEFAULT_SOFT_INSET_RAD)).abs() < 1e-12);
+        assert!(lo < hi);
+    }
+
+    #[test]
+    fn ensure_soft_inset_fills_missing_soft() {
+        let mut patch = patch();
+        patch.position_soft_lower_rad = None;
+        patch.position_soft_upper_rad = None;
+        ensure_soft_inset(&mut patch);
+        assert!(patch.position_soft_lower_rad.is_some());
+        assert!(patch.position_soft_upper_rad.is_some());
+        assert!(patch.position_soft_lower_rad.unwrap() > patch.position_lower_rad);
+        assert!(patch.position_soft_upper_rad.unwrap() < patch.position_upper_rad);
     }
 
     #[test]

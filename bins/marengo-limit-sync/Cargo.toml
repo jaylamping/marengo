@@ -1,0 +1,20 @@
+[package]
+name = "marengo-limit-sync"
+version = "0.1.0"
+description = "Sync Set Limits hard/soft/URDF into a local git checkout (Durable-gated from Consul)"
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "marengo-limit-sync"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+marengo-config.workspace = true

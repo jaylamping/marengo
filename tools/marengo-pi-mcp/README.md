@@ -124,7 +124,7 @@ Weighted profile (`weighted_single_arm`, `arm_attached`) needs `confirm: true` a
 
 ### `pi_restart_marengo_pi`
 
-Stops leftover `marengo-pi` processes and restarts `marengo-pi.service` so Davout reloads hard position limits from `motors.yaml` (e.g. after Consul Set Limits). Requires `confirm: true`. Optional `mode: "stop"` skips systemd start. Does not touch `marengo-gateway`.
+Stops leftover `marengo-pi` processes and restarts `marengo-pi.service` so Davout reloads boot config (URDF + YAML). Numerical Set Limits Apply hot-reloads live limits and write-behind URDF without restart ([ADR 0012](../../docs/decisions/0012-config-db-overrides.md) / [ADR 0017](../../docs/decisions/0017-bench-set-limits-urdf-expand.md)); use restart for binary deploy, structural wiring, or after a failed persist left disk stale. Requires `confirm: true`. Optional `mode: "stop"` skips systemd start. Does not touch `marengo-gateway`.
 
 Canonical remote body: [`scripts/pi-restart-marengo-pi.sh`](../../scripts/pi-restart-marengo-pi.sh) (also used by `pi-remote.sh restart-marengo-pi` / `stop-marengo-pi`, and Consul `POST /control/restart-marengo-pi`). MCP embeds the local checkout copy so the tool works before the Pi has the new script installed.
 

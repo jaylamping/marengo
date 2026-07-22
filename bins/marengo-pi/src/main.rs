@@ -3,6 +3,7 @@
 mod host_metrics;
 #[cfg(all(target_os = "linux", feature = "linux-i2c"))]
 mod imu;
+mod limit_persist;
 mod overlay;
 
 use std::collections::BTreeSet;
@@ -876,8 +877,11 @@ fn main() {
         std::process::exit(1);
     }
 
-    let persist_queue =
-        overlay::ConfigPersistQueue::spawn(Arc::clone(&chappe), Arc::clone(&shutdown));
+    let persist_queue = overlay::ConfigPersistQueue::spawn(
+        Arc::clone(&chappe),
+        Arc::clone(&shutdown),
+        root.clone(),
+    );
     let mut actuator_overlay =
         match overlay::ActuatorOverlay::from_config_dir(&config_dir, persist_queue) {
             Ok(o) => o,

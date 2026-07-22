@@ -46,6 +46,7 @@
 pub use armee_kinematics::JointLimitPolicy;
 
 mod active_reporting;
+mod limit_envelope;
 
 pub use active_reporting::{ActiveReportingLeaseError, ActiveReportingState, DEFAULT_LEASE_TTL};
 
@@ -54,16 +55,14 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 use armee_kinematics::{
-    clamp_position_in_envelope, joint_limit_bounds, joint_limits, load_urdf,
-    measured_position_fault, LimitMarginConfig,
+    clamp_position_in_envelope, joint_limit_bounds, joint_limits, load_urdf, measured_position_fault,
+    LimitMarginConfig,
 };
 use marengo_config::{
-    apply_limit_patch_to_control, apply_limit_patch_to_motor, load_control_config,
-    load_homing_config, load_motors_config, load_robot_config, motor_for_joint, motor_type_key,
-    resolve_joint_velocity_cap, resolve_urdf_path, validate_control_against_limits,
-    validate_limit_patch, validate_motors_against_robot, validate_robot_control_joint_coverage,
-    ControlConfigFile, HomingConfigFile, LimitPatch, MotorEntry, MotorType, MotorsConfigFile,
-    RobotConfigFile,
+    load_control_config, load_homing_config, load_motors_config, load_robot_config, motor_for_joint,
+    motor_type_key, resolve_joint_velocity_cap, resolve_urdf_path, validate_control_against_limits,
+    validate_motors_against_robot, validate_robot_control_joint_coverage, ControlConfigFile,
+    HomingConfigFile, MotorEntry, MotorType, MotorsConfigFile, RobotConfigFile,
 };
 use marengo_homing::{verify_manual_reference, HomingRegistry, VerifyError};
 use robstride::AddressedMitCommand;
@@ -311,61 +310,6 @@ impl<B: MotorBus> Supervisor<B> {
         }
         validate_control_against_limits(&self.robot, &self.motors, &self.control)?;
         let limits = build_limits(&self.robot, &self.motors, &self.control, &self.urdf_robot)?;
-        self.limits = limits;
-        Ok(())
-    }
-
-    /// Apply a validated per-joint limit patch and atomically rebuild runtime policy.
-    pub fn apply_limit_patch(&mut self, patch: &LimitPatch) -> Result<(), DavoutError> {
-        if self.mode == OperationalMode::Active {
-            return Err(DavoutError::LimitPatchActive);
-        }
-        validate_limit_patch(patch)?;
-
-        let mut motors = self.motors.clone();
-        let mut control = self.control.clone();
-        let motor = motors
-            .motors
-            .iter_mut()
-            .find(|motor| motor.joint == patch.joint)
-            .ok_or_else(|| DavoutError::UnknownJoint {
-                joint: patch.joint.clone(),
-            })?;
-        apply_limit_patch_to_motor(motor, patch)?;
-        let control_entry = control
-            .control
-            .joints
-            .get_mut(&patch.joint)
-            .ok_or_else(|| DavoutError::UnknownJoint {
-                joint: patch.joint.clone(),
-            })?;
-        apply_limit_patch_to_control(control_entry, patch)?;
-
-        validate_control_against_limits(&self.robot, &motors, &control)?;
-        let limits = build_limits(&self.robot, &motors, &control, &self.urdf_robot)?;
-        let policy = limits
-            .get(&patch.joint)
-            .ok_or_else(|| DavoutError::UnknownJoint {
-                joint: patch.joint.clone(),
-            })?;
-        if let Some(sample) = self.last_feedback_samples.get(&patch.joint) {
-            if sample.position_rad < policy.hard_lower()
-                || sample.position_rad > policy.hard_upper()
-            {
-                return Err(DavoutError::Limit {
-                    joint: patch.joint.clone(),
-                    message: format!(
-                        "measured position {} outside proposed hard [{}, {}]",
-                        sample.position_rad,
-                        policy.hard_lower(),
-                        policy.hard_upper()
-                    ),
-                });
-            }
-        }
-
-        self.motors = motors;
-        self.control = control;
         self.limits = limits;
         Ok(())
     }
@@ -1580,8 +1524,10 @@ fn limit_margin_from_config(
 mod tests {
     #![allow(clippy::expect_used)]
 
-    use super::*;
+    use marengo_config::LimitPatch;
     use robstride::{CanBus, CanFrame, MemoryBus, ReceivedCanFrame};
+
+    use super::*;
 
     #[derive(Default)]
     struct RoutedMemoryBus {
@@ -1730,19 +1676,21 @@ mod tests {
     }
 
     #[test]
-    fn limit_patch_rejects_empty_urdf_intersection_without_mutation() {
+    fn limit_patch_expands_urdf_when_past_current_hard() {
         let mut sup = Supervisor::from_repo(repo_root(), MemoryBus::default()).expect("supervisor");
-        let before = *sup.joint_limit_policy("elbow").expect("policy");
+        let urdf_before = joint_limits(sup.urdf_robot(), "elbow").expect("urdf");
 
-        let err = sup
-            .apply_limit_patch(&elbow_limit_patch(3.0, 4.0))
-            .expect_err("bounds outside URDF must fail");
+        sup.apply_limit_patch(&elbow_limit_patch(-0.5, 3.0))
+            .expect("expand past URDF hard");
 
-        assert!(matches!(err, DavoutError::Limit { .. }));
-        assert_eq!(*sup.joint_limit_policy("elbow").expect("policy"), before);
-        let motor = motor_for_joint(&sup.motors, "elbow").expect("motor");
-        assert!((motor.bench.position_lower_rad - before.hard_lower()).abs() < 1e-9);
-        assert!((motor.bench.position_upper_rad - before.hard_upper()).abs() < 1e-9);
+        let policy = sup.joint_limit_policy("elbow").expect("policy");
+        assert!((policy.hard_lower() - (-0.5)).abs() < 1e-9);
+        assert!((policy.hard_upper() - 3.0).abs() < 1e-9);
+        let urdf_after = joint_limits(sup.urdf_robot(), "elbow").expect("urdf");
+        assert!(urdf_after.lower <= urdf_before.lower);
+        assert!(urdf_after.upper >= urdf_before.upper);
+        assert!((urdf_after.lower - (-0.5)).abs() < 1e-9);
+        assert!((urdf_after.upper - 3.0).abs() < 1e-9);
     }
 
     #[test]

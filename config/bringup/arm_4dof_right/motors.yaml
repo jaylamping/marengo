@@ -54,10 +54,9 @@ motors:
     recv_can_id: 0x244
     firmware_version: "0.3.1.42"
     bench:
-      # Conservative discovery envelope; widen after Phase 5 measured soft limits.
-      # Slightly negative lower so encoder noise at mechanical zero does not trip
-      # Davout keepalive hard-limit checks (same pattern as shoulder roll).
-      position_lower_rad: -0.05
-      position_upper_rad: 1.2
+      # Measured Set Limits sweep (2026-07-22). Keep within URDF elbow envelope
+      # (Davout hard = URDF ∩ bench). Live pose was ~-0.23 at Enable.
+      position_lower_rad: -0.50
+      position_upper_rad: 0.95
       velocity_limit_rad_s: 1.0
       torque_limit_nm: 3.0

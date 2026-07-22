@@ -24,7 +24,9 @@ use std::path::{Path, PathBuf};
 use thiserror::Error;
 use urdf_rs::{read_file, JointType};
 
+pub mod expand;
 pub mod limits;
+pub use expand::expand_urdf_joint_hard;
 pub use limits::{
     approach_velocity_cap, clamp_hold_target, clamp_position_in_envelope, effective_command_bounds,
     limit_margin_rad, measured_position_fault, JointLimitBounds, JointLimitPolicy,

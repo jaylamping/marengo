@@ -94,6 +94,8 @@ export type ConfigPatchResultDto = {
   ok: boolean;
   message: string;
   restart_required: boolean;
+  /** durable | pending | failed | n/a — Durable required before local git sync. */
+  persist_status?: string;
 };
 
 export type RestartMarengoPiResultDto = {
@@ -144,11 +146,34 @@ export async function patchConfig(
       signal: init?.signal,
     });
     if (!res.ok) {
-      return null;
+      if (res.status === 401) {
+        return {
+          ok: false,
+          message:
+            'Unauthorized — set VITE_MARENGO_LOG_TOKEN to match Pi MARENGO_GATEWAY_LOG_TOKEN, then restart Vite.',
+          restart_required: false,
+        };
+      }
+      return {
+        ok: false,
+        message: `Limits patch failed: HTTP ${res.status}`,
+        restart_required: false,
+      };
     }
     return (await res.json()) as ConfigPatchResultDto;
-  } catch {
-    return null;
+  } catch (e) {
+    const aborted =
+      (e instanceof DOMException && e.name === 'AbortError') ||
+      (e instanceof Error && e.name === 'AbortError');
+    return {
+      ok: false,
+      message: aborted
+        ? 'Limits patch timed out.'
+        : e instanceof Error
+          ? e.message
+          : 'Limits patch failed.',
+      restart_required: false,
+    };
   }
 }
 

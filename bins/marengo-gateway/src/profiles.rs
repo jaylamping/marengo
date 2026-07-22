@@ -5,7 +5,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use armee_proto::prost::Message;
 use armee_proto::{
-    actuator_command, ActionEvent, ActuatorCommand, Envelope, LimitPatchCommand, OperatorCommand,
+    actuator_command, ActionEvent, ActuatorCommand, LimitPatchCommand, OperatorCommand,
     PersistStatus as ProtoPersistStatus,
 };
 use axum::{
@@ -22,10 +22,14 @@ use marengo_config::{
 use serde::{Deserialize, Serialize};
 use tokio::time::timeout;
 
+use crate::action_ack::{
+    recv_action_ack, LIMIT_PATCH_PERSIST_ACTION, LIVE_LIMIT_PATCH_ACTION,
+};
 use crate::config::{authorize_config_mutation, snapshot_from_dir, ConfigSnapshotJson};
 use crate::state::{SharedState, TOPIC_ACTUATOR_COMMAND, TOPIC_AUDIT_ACTION};
 
 const LIVE_APPLY_TIMEOUT: Duration = Duration::from_secs(8);
+const LIMIT_PATCH_PERSIST_TIMEOUT: Duration = Duration::from_secs(12);
 
 #[derive(Debug, Serialize)]
 pub struct ProfileRevisionJson {
@@ -86,7 +90,7 @@ pub enum ApplyDecision {
     UnsupportedMembership,
 }
 
-#[derive(Debug, Clone, Copy, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum PersistStatus {
     Durable,
@@ -360,7 +364,12 @@ fn upsert_limits_apply(
     let revision = if decision == ApplyDecision::Noop {
         current_revision
     } else {
-        match upsert_joint_limits(target_dir, &after, request.expected_revision.as_deref()) {
+        match upsert_joint_limits(
+            repo_root,
+            target_dir,
+            &after,
+            request.expected_revision.as_deref(),
+        ) {
             Ok(result) => result.revision,
             Err(error) => {
                 return apply_error(
@@ -374,7 +383,7 @@ fn upsert_limits_apply(
             }
         }
     };
-    let _ = (repo_root, active_dir);
+    let _ = active_dir;
     (
         StatusCode::OK,
         Json(ApplyActuatorResultJson {
@@ -507,28 +516,81 @@ async fn apply_active_limit_patch(
 
     let wait = timeout(
         LIVE_APPLY_TIMEOUT,
-        recv_live_limit_patch_ack(&mut rx, &session_id, joint, &request.operator_id),
+        recv_action_ack(
+            &mut rx,
+            &session_id,
+            joint,
+            &request.operator_id,
+            LIVE_LIMIT_PATCH_ACTION,
+        ),
     )
     .await;
 
     match wait {
         Ok(event) if event.accepted => {
-            let persist_status = match ProtoPersistStatus::try_from(event.persist_status) {
+            // Live ACK is Pending; wait for write-behind Durable before claiming repo truth.
+            let persist_wait = timeout(
+                LIMIT_PATCH_PERSIST_TIMEOUT,
+                recv_action_ack(
+                    &mut rx,
+                    &session_id,
+                    joint,
+                    &request.operator_id,
+                    LIMIT_PATCH_PERSIST_ACTION,
+                ),
+            )
+            .await;
+            let persist_event = match persist_wait {
+                Ok(ev) => ev,
+                Err(_) => {
+                    return apply_error(
+                        StatusCode::GATEWAY_TIMEOUT,
+                        format!(
+                            "live limits applied for {joint}, but timed out waiting for durable persist"
+                        ),
+                        PersistStatus::Pending,
+                        Some(ApplyDecision::Overwrite),
+                        Some(before),
+                        Some(after),
+                    );
+                }
+            };
+            let persist_status = match ProtoPersistStatus::try_from(persist_event.persist_status) {
                 Ok(ProtoPersistStatus::Durable) => PersistStatus::Durable,
                 Ok(ProtoPersistStatus::Failed) => PersistStatus::Failed,
                 Ok(ProtoPersistStatus::Pending) => PersistStatus::Pending,
                 _ => PersistStatus::Pending,
             };
-            let revision = if event.config_revision.is_empty() {
-                current_revision
+            if persist_status == PersistStatus::Failed || !persist_event.accepted {
+                return apply_error(
+                    StatusCode::CONFLICT,
+                    if persist_event.reject_reason.is_empty() {
+                        format!("Pi live-applied {joint} but durable persist failed")
+                    } else {
+                        persist_event.reject_reason
+                    },
+                    PersistStatus::Failed,
+                    Some(ApplyDecision::Overwrite),
+                    Some(before),
+                    Some(after),
+                );
+            }
+            let revision = if persist_event.config_revision.is_empty() {
+                if event.config_revision.is_empty() {
+                    current_revision
+                } else {
+                    event.config_revision
+                }
             } else {
-                event.config_revision
+                persist_event.config_revision
             };
             (
                 StatusCode::OK,
                 Json(ApplyActuatorResultJson {
                     ok: true,
-                    message: format!("Applied live limits for {joint} on {target_slug}"),
+                    message: format!(
+                        "Applied live limits for {joint} on {target_slug} (durable; URDF expanded if needed)"
+                    ),
                     applied_live: true,
                     restart_required: false,
                     revision: Some(revision),
@@ -560,65 +622,6 @@ async fn apply_active_limit_patch(
             Some(after),
         ),
     }
-}
-
-/// Live apply ACK only. Write-behind uses `limit_patch_persist` so Failed/Durable
-/// cannot be mistaken for a live reject when the Pending event is lagged away.
-const LIVE_LIMIT_PATCH_ACTION: &str = "limit_patch";
-
-fn is_live_limit_patch_ack(session_id: &str, event: &ActionEvent) -> bool {
-    event.session_id == session_id && event.action == LIVE_LIMIT_PATCH_ACTION
-}
-
-async fn recv_live_limit_patch_ack(
-    rx: &mut tokio::sync::broadcast::Receiver<(String, Vec<u8>)>,
-    session_id: &str,
-    joint: &str,
-    operator_id: &str,
-) -> ActionEvent {
-    loop {
-        match rx.recv().await {
-            Ok((topic, bytes)) if topic == TOPIC_AUDIT_ACTION => {
-                if let Ok(event) = decode_action_event(&bytes) {
-                    if is_live_limit_patch_ack(session_id, &event) {
-                        return event;
-                    }
-                }
-            }
-            Ok(_) => continue,
-            Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
-            Err(tokio::sync::broadcast::error::RecvError::Closed) => {
-                return ActionEvent {
-                    timestamp_ms: 0,
-                    session_id: session_id.to_string(),
-                    operator_id: operator_id.to_string(),
-                    joint: joint.to_string(),
-                    action: LIVE_LIMIT_PATCH_ACTION.to_string(),
-                    revision: 0,
-                    accepted: false,
-                    reject_reason: "audit channel closed".to_string(),
-                    persist_status: ProtoPersistStatus::Failed as i32,
-                    config_revision: String::new(),
-                };
-            }
-        }
-    }
-}
-
-fn decode_action_event(envelope_bytes: &[u8]) -> Result<ActionEvent, ()> {
-    let env = Envelope::decode(envelope_bytes).map_err(|_| ())?;
-    ActionEvent::decode(env.payload.as_slice()).map_err(|_| ())
-}
-
-#[cfg(test)]
-fn encode_action_event_envelope(event: &ActionEvent) -> Vec<u8> {
-    Envelope {
-        timestamp_ms: event.timestamp_ms,
-        source_node: "test".to_string(),
-        message_type: "marengo.v1.ActionEvent".to_string(),
-        payload: event.encode_to_vec(),
-    }
-    .encode_to_vec()
 }
 
 fn add_joint_apply(
@@ -841,242 +844,5 @@ fn apply_error(
 }
 
 #[cfg(test)]
-mod tests {
-    #![allow(clippy::expect_used)]
-
-    use super::*;
-
-    fn limits(upper: f64) -> LimitPatch {
-        LimitPatch {
-            joint: "right_elbow_pitch".to_string(),
-            position_lower_rad: -0.1,
-            position_upper_rad: upper,
-            torque_limit_nm: Some(2.0),
-            position_soft_lower_rad: Some(-0.05),
-            position_soft_upper_rad: Some(upper - 0.05),
-            velocity_max_rad_s: Some(0.8),
-        }
-    }
-
-    #[test]
-    fn resolves_preset_id_or_profile_slug() {
-        assert_eq!(resolve_target_slug("bench_4dof"), Some("arm_4dof_right"));
-        assert_eq!(
-            resolve_target_slug("arm_3dof_right"),
-            Some("arm_3dof_right")
-        );
-        assert_eq!(resolve_target_slug("bench_unknown"), None);
-        assert_eq!(resolve_target_slug("../arm_4dof_right"), None);
-    }
-
-    #[test]
-    fn preview_classifies_add_overwrite_noop_and_unsupported() {
-        let source = limits(1.2);
-        assert_eq!(classify_preview(None, &source, true), ApplyDecision::Add);
-        assert_eq!(
-            classify_preview(Some(&limits(1.0)), &source, true),
-            ApplyDecision::Overwrite
-        );
-        assert_eq!(
-            classify_preview(Some(&source), &source, true),
-            ApplyDecision::Noop
-        );
-        assert_eq!(
-            classify_preview(None, &source, false),
-            ApplyDecision::UnsupportedMembership
-        );
-    }
-
-    #[test]
-    fn preview_reads_active_limits_without_writing_target() {
-        let root = marengo_config::resolve_repo_root();
-        let active = resolve_bringup_dir(&root, "arm_4dof_right").expect("active profile");
-        let target = resolve_bringup_dir(&root, "arm_3dof_right").expect("target profile");
-        let revision_before = profile_content_revision(&target).expect("revision");
-        let request = ApplyActuatorJson {
-            target_profile: "bench_3dof".to_string(),
-            expected_revision: Some(revision_before.clone()),
-            operator_id: "test-operator".to_string(),
-            op: ApplyOperation::Preview,
-            joint: "right_elbow_pitch".to_string(),
-            position_lower_rad: None,
-            position_upper_rad: None,
-            torque_limit_nm: None,
-            position_soft_lower_rad: None,
-            position_soft_upper_rad: None,
-            velocity_max_rad_s: None,
-        };
-
-        let (status, Json(result)) = apply_actuator(&root, &active, request);
-
-        assert_eq!(status, StatusCode::BAD_REQUEST);
-        assert_eq!(result.decision, Some(ApplyDecision::UnsupportedMembership));
-        assert!(result.after.is_some());
-        assert_eq!(
-            profile_content_revision(&target).expect("unchanged revision"),
-            revision_before
-        );
-    }
-
-    #[tokio::test]
-    async fn profile_snapshot_rejects_non_allowlisted_slug() {
-        let result = get_profile_snapshot(Path("../config".to_string())).await;
-        assert!(matches!(result, Err(StatusCode::NOT_FOUND)));
-    }
-
-    #[test]
-    fn inactive_upsert_advances_revision_and_rejects_stale_cas() {
-        let root = marengo_config::resolve_repo_root();
-        let source = resolve_bringup_dir(&root, "arm_3dof_right").expect("3dof");
-        let temp = tempfile::tempdir().expect("tempdir");
-        for name in ["robot.yaml", "motors.yaml", "control.yaml", "homing.yaml"] {
-            std::fs::copy(source.join(name), temp.path().join(name)).expect("copy");
-        }
-        // Point MARENGO_CONFIG_DIR away so active != target; write via upsert helper path.
-        let before = profile_content_revision(temp.path()).expect("rev");
-        let patch = LimitPatch {
-            joint: "right_shoulder_pitch".to_string(),
-            position_lower_rad: -0.5,
-            position_upper_rad: 2.5,
-            torque_limit_nm: Some(3.0),
-            position_soft_lower_rad: Some(-0.4),
-            position_soft_upper_rad: Some(2.4),
-            velocity_max_rad_s: None,
-        };
-        let ok = upsert_joint_limits(temp.path(), &patch, Some(&before)).expect("cas ok");
-        assert_ne!(ok.revision, before);
-        let stale = upsert_joint_limits(temp.path(), &patch, Some(&before));
-        assert!(stale.is_err(), "stale CAS must fail");
-    }
-
-    fn sample_action(
-        session_id: &str,
-        action: &str,
-        accepted: bool,
-        persist: ProtoPersistStatus,
-    ) -> ActionEvent {
-        ActionEvent {
-            timestamp_ms: 1,
-            session_id: session_id.to_string(),
-            operator_id: "op".to_string(),
-            joint: "right_elbow_pitch".to_string(),
-            action: action.to_string(),
-            revision: 1,
-            accepted,
-            reject_reason: if accepted {
-                String::new()
-            } else {
-                "rejected".to_string()
-            },
-            persist_status: persist as i32,
-            config_revision: "rev-1".to_string(),
-        }
-    }
-
-    #[test]
-    fn live_ack_matcher_ignores_write_behind_persist_action() {
-        let session = "sess-1";
-        assert!(is_live_limit_patch_ack(
-            session,
-            &sample_action(session, "limit_patch", true, ProtoPersistStatus::Pending)
-        ));
-        assert!(!is_live_limit_patch_ack(
-            session,
-            &sample_action(
-                session,
-                "limit_patch_persist",
-                false,
-                ProtoPersistStatus::Failed
-            )
-        ));
-        assert!(!is_live_limit_patch_ack(
-            "other",
-            &sample_action(session, "limit_patch", true, ProtoPersistStatus::Pending)
-        ));
-    }
-
-    #[tokio::test]
-    async fn recv_live_ack_skips_persist_failed_until_pending() {
-        let bus = std::sync::Arc::new(chappe::Bus::new(64));
-        let state = std::sync::Arc::new(crate::state::AppState::new(std::sync::Arc::clone(&bus)));
-        let mut rx = state.subscribe_envelopes();
-        let session = "sess-live";
-        state.ingest_runtime_frame(
-            TOPIC_AUDIT_ACTION.to_string(),
-            encode_action_event_envelope(&sample_action(
-                session,
-                "limit_patch_persist",
-                false,
-                ProtoPersistStatus::Failed,
-            )),
-        );
-        state.ingest_runtime_frame(
-            TOPIC_AUDIT_ACTION.to_string(),
-            encode_action_event_envelope(&sample_action(
-                session,
-                "limit_patch",
-                true,
-                ProtoPersistStatus::Pending,
-            )),
-        );
-        let event = timeout(
-            Duration::from_secs(1),
-            recv_live_limit_patch_ack(&mut rx, session, "right_elbow_pitch", "op"),
-        )
-        .await
-        .expect("ack");
-        assert!(event.accepted);
-        assert_eq!(event.action, "limit_patch");
-        assert_eq!(event.persist_status, ProtoPersistStatus::Pending as i32);
-    }
-
-    #[tokio::test]
-    async fn recv_live_ack_surfaces_live_reject() {
-        let bus = std::sync::Arc::new(chappe::Bus::new(64));
-        let state = std::sync::Arc::new(crate::state::AppState::new(std::sync::Arc::clone(&bus)));
-        let mut rx = state.subscribe_envelopes();
-        let session = "sess-reject";
-        state.ingest_runtime_frame(
-            TOPIC_AUDIT_ACTION.to_string(),
-            encode_action_event_envelope(&sample_action(
-                session,
-                "limit_patch",
-                false,
-                ProtoPersistStatus::NotApplicable,
-            )),
-        );
-        let event = timeout(
-            Duration::from_secs(1),
-            recv_live_limit_patch_ack(&mut rx, session, "right_elbow_pitch", "op"),
-        )
-        .await
-        .expect("ack");
-        assert!(!event.accepted);
-        assert_eq!(event.reject_reason, "rejected");
-    }
-
-    #[tokio::test]
-    async fn recv_live_ack_times_out_without_matching_session() {
-        let bus = std::sync::Arc::new(chappe::Bus::new(64));
-        let state = std::sync::Arc::new(crate::state::AppState::new(std::sync::Arc::clone(&bus)));
-        let mut rx = state.subscribe_envelopes();
-        state.ingest_runtime_frame(
-            TOPIC_AUDIT_ACTION.to_string(),
-            encode_action_event_envelope(&sample_action(
-                "other-session",
-                "limit_patch",
-                true,
-                ProtoPersistStatus::Pending,
-            )),
-        );
-        let timed_out = timeout(
-            Duration::from_millis(50),
-            recv_live_limit_patch_ack(&mut rx, "wanted-session", "right_elbow_pitch", "op"),
-        )
-        .await;
-        assert!(
-            timed_out.is_err(),
-            "mismatched session must not satisfy wait"
-        );
-    }
-}
+#[path = "profiles_tests.rs"]
+mod tests;

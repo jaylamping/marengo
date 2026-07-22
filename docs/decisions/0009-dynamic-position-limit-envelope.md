@@ -58,7 +58,7 @@ margin = min_rad + k_v_s * |dq_cmd| + k_stop * dq_cmd² / (2 * decel_rad_s2)
 ## Alternatives considered
 
 - **Static script margins** (`hold-at -0.85`): rejected — breaks when tuning or speed changes.
-- **Raise hard limits only**: rejected — mechanical / URDF truth unchanged.
+- **Raise hard limits only**: rejected for CAD/humanoid URDF immutability. **Bench bringup** Set Limits may expand URDF hard expand-only — see [ADR 0017](0017-bench-set-limits-urdf-expand.md).
 - **Davout-only clamp**: rejected — planner still targets soft limit; overshoot `q_des` path remains.
 
 ## References

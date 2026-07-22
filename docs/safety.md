@@ -64,12 +64,13 @@ See [ADR 0004](decisions/0004-control-modes-and-mit.md) and [hardware/docs/decis
 
 - **Surface:** numerical hard/soft position bounds, torque cap, and `velocity_max_rad_s` only. `device_id`, CAN interface, `direction`, motor type, gearing, and membership/DOF changes require YAML + restart (+ re-home when wiring/zero changes).
 - **Active refusal:** Davout refuses `apply_limit_patch` / `rebuild_limits` while operational mode is `ACTIVE`.
-- **ACK honesty:** Gateway must not claim live success on Chappe publish alone — wait for Pi `ActionEvent` (`limit_patch`) with `accepted` and `persist_status`.
-- **Persist-degraded ≠ NeedsRestart:** write-behind failure uses a distinct banner/retry. Restart while YAML is stale would revert live limits.
-- **Dual-writer:** Pi is the sole writer for the active profile; gateway disk transactions are for inactive bringup profiles only (CAS `expected_revision`).
+- **ACK honesty:** Gateway waits for live `limit_patch` Pending, then `limit_patch_persist` Durable/Failed, before HTTP success. Do not treat Pending alone as repo truth.
+- **URDF expand-only:** Bench Set Limits widens in-memory + on-disk URDF hard when taught hard exceeds URDF (Davout hard = URDF ∩ bench). Soft uses ADR 0009 inset in `control.yaml` (not soft≡hard). See [ADR 0017](decisions/0017-bench-set-limits-urdf-expand.md).
+- **Persist-degraded ≠ NeedsRestart:** write-behind failure uses a distinct banner/retry. Restart while YAML/URDF is stale would revert live limits.
+- **Dual-writer:** Pi is the sole writer for the active profile; gateway disk transactions are for inactive bringup profiles only (CAS `expected_revision`). Local git sync is Durable-gated via `marengo-limit-sync` only.
 - Soft bounds clamp into the new hard envelope in the same txn (Inventory Range must show post-clamp values).
 
-See [ADR 0012](decisions/0012-config-db-overrides.md).
+See [ADR 0012](decisions/0012-config-db-overrides.md) and [ADR 0017](decisions/0017-bench-set-limits-urdf-expand.md).
 
 ## Active Reporting leases (type-24)
 

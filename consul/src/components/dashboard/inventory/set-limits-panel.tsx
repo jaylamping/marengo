@@ -20,11 +20,12 @@ import { persistJointLimits } from '@/lib/persist-joint-limits';
 import { queryClient } from '@/lib/query-client';
 import { queryKeys } from '@/lib/query-keys';
 import { subscribeTeachSamples } from '@/lib/teach-sample-bus';
+import { useActuatorZeroStore } from '@/state/actuatorZeroStore';
 import { useLimitListenStore } from '@/state/limitListenStore';
 import { useRobotStore } from '@/state/robotStore';
 
 const SET_LIMITS_HELP =
-  'Motors must be disabled (not ACTIVE) for Set Limits. Support the assembly, then sweep the joint to both hard stops while Consul samples position. Stop to propose min/max, then Apply hot-reloads hard limits on the Pi (no restart). Persist failures show a separate degraded banner — do not restart to “fix” them. Set Zero briefly enables for firmware zero at the current pose, then disables again.';
+  'Motors must be disabled (not ACTIVE) for Set Limits. Support the assembly, then sweep the joint to both hard stops while Consul samples position. Stop to propose min/max, then Apply hot-reloads hard + soft (ADR 0009 inset) and expand-only URDF on the Pi (no restart; waits for durable persist). Persist failures show a separate degraded banner — do not restart to “fix” them. Set Zero briefly enables for firmware zero at the current pose, then disables again.';
 
 type SetLimitsPanelProps = {
   jointName: string;
@@ -193,6 +194,8 @@ export function SetLimitsPanel({
     try {
       await postSetZeroCommand(jointName, { signTestPassed: true });
       // Gateway 200 only means queued on Chappe — do not bump teach calibration yet.
+      // Unlock inventory Home once Set Zero is accepted for this joint.
+      useActuatorZeroStore.getState().markZeroed(jointName);
       setZeroOk(true);
       setZeroConfirmOpen(false);
       setSignTestPassed(false);

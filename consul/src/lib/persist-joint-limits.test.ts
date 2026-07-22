@@ -1,40 +1,80 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { persistJointLimits } from '@/lib/persist-joint-limits';
+import {
+  persistJointLimits,
+  softLimitsWithInset,
+  DEFAULT_SOFT_INSET_RAD,
+} from '@/lib/persist-joint-limits';
+
+describe('softLimitsWithInset', () => {
+  it('keeps ADR 0009 inset inside hard', () => {
+    const { softLower, softUpper } = softLimitsWithInset(-0.5, 0.95);
+    expect(softLower).toBeCloseTo(-0.5 + DEFAULT_SOFT_INSET_RAD, 6);
+    expect(softUpper).toBeCloseTo(0.95 - DEFAULT_SOFT_INSET_RAD, 6);
+    expect(softLower).toBeLessThan(softUpper);
+  });
+});
 
 describe('persistJointLimits', () => {
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  it('patches motors.yaml bench bounds from exact measured numbers', async () => {
+  it('patches hard + soft inset and syncs local only after durable', async () => {
     const patchConfig = vi.fn().mockResolvedValue({
       ok: true,
-      message: 'Updated right_shoulder_pitch',
+      message: 'Applied live limits',
       restart_required: false,
+      persist_status: 'durable',
     });
+    const localSync = vi.fn().mockResolvedValue('ok' as const);
 
     const result = await persistJointLimits(
       'right_shoulder_pitch',
       { lower: -0.506, upper: 1.206 },
-      { patchConfig },
+      { patchConfig, localSync },
     );
 
-    expect(result).toEqual({
-      ok: true,
-      lower: -0.506,
-      upper: 1.206,
-      restartRequired: false,
-      message: 'Updated right_shoulder_pitch',
-    });
+    const soft = softLimitsWithInset(-0.506, 1.206);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.softLower).toBeCloseTo(soft.softLower, 6);
+      expect(result.softUpper).toBeCloseTo(soft.softUpper, 6);
+      expect(result.persistStatus).toBe('durable');
+      expect(result.localSync).toBe('ok');
+      expect(result.message).toMatch(/Local checkout synced/i);
+    }
     expect(patchConfig).toHaveBeenCalledWith(
       {
         joint: 'right_shoulder_pitch',
         position_lower_rad: -0.506,
         position_upper_rad: 1.206,
+        position_soft_lower_rad: soft.softLower,
+        position_soft_upper_rad: soft.softUpper,
       },
       { signal: expect.any(AbortSignal) },
     );
+    expect(localSync).toHaveBeenCalled();
+  });
+
+  it('does not local-sync when persist is only pending', async () => {
+    const patchConfig = vi.fn().mockResolvedValue({
+      ok: true,
+      message: 'Applied live',
+      restart_required: false,
+      persist_status: 'pending',
+    });
+    const localSync = vi.fn().mockResolvedValue('ok' as const);
+    const result = await persistJointLimits(
+      'right_elbow_pitch',
+      { lower: -0.5, upper: 0.95 },
+      { patchConfig, localSync },
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.localSync).toBe('skipped');
+    }
+    expect(localSync).not.toHaveBeenCalled();
   });
 
   it('rejects inverted or non-finite bounds without calling the gateway', async () => {

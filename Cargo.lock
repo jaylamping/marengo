@@ -1388,10 +1388,12 @@ checksum = "112b39cec0b298b6c1999fee3e31427f74f676e4cb9879ed1a121b43661a4154"
 name = "marengo-config"
 version = "0.1.0"
 dependencies = [
+ "armee-kinematics",
  "serde",
  "serde_yaml",
  "tempfile",
  "thiserror 1.0.69",
+ "urdf-rs",
 ]
 
 [[package]]
@@ -1467,6 +1469,15 @@ dependencies = [
  "talleyrand",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "marengo-limit-sync"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "marengo-config",
 ]
 
 [[package]]

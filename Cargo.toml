@@ -20,6 +20,7 @@ members = [
     "bins/marengo-pi",
     "bins/marengo-gateway",
     "bins/marengo-log-cli",
+    "bins/marengo-limit-sync",
     "bins/marengo-jetson",
     "bins/probe",
     "bins/motor-repl",

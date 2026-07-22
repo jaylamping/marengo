@@ -1,5 +1,6 @@
 //! Operator gateway: HTTP CRUD snapshots/commands + WebTransport telemetry streams.
 
+mod action_ack;
 mod actuator;
 mod config;
 mod framing;

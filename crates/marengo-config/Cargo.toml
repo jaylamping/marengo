@@ -11,9 +11,11 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+armee-kinematics.workspace = true
 serde.workspace = true
 serde_yaml = "0.9"
 thiserror.workspace = true
+urdf-rs.workspace = true
 
 [dev-dependencies]
 tempfile = "3"

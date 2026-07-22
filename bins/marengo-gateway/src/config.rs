@@ -83,6 +83,8 @@ pub struct ConfigPatchResultJson {
     pub ok: bool,
     pub message: String,
     pub restart_required: bool,
+    /// `durable` | `pending` | `failed` | `n/a` — Durable required before local git sync.
+    pub persist_status: String,
 }
 
 fn resolve_repo_root() -> PathBuf {
@@ -216,6 +218,7 @@ pub async fn post_config_patch(
             ok: false,
             message: "joint name required".to_string(),
             restart_required: false,
+            persist_status: "failed".to_string(),
         }));
     }
     if patch.device_id.is_some() || patch.can_interface.is_some() || patch.direction.is_some() {
@@ -224,6 +227,7 @@ pub async fn post_config_patch(
             message: "motor address and direction changes are not supported by /config/patch"
                 .to_string(),
             restart_required: false,
+            persist_status: "failed".to_string(),
         }));
     }
 
@@ -275,6 +279,12 @@ pub async fn post_config_patch(
         ok: result.ok,
         message: result.message,
         restart_required: result.restart_required,
+        persist_status: match result.persist_status {
+            profiles::PersistStatus::Durable => "durable".to_string(),
+            profiles::PersistStatus::Pending => "pending".to_string(),
+            profiles::PersistStatus::Failed => "failed".to_string(),
+            profiles::PersistStatus::NotApplicable => "n/a".to_string(),
+        },
     }))
 }
 

@@ -30,6 +30,7 @@ mod bench_joints;
 mod bringup_presets;
 mod limit_patch;
 mod profile_txn;
+mod urdf_expand;
 
 pub use bench_joints::{
     load_command_joint_allowlist, load_command_joint_allowlist_from, resolve_command_joint,
@@ -41,12 +42,16 @@ pub use bringup_presets::{
     PresetProfileMapping, BRINGUP_PRESET_IDS, BRINGUP_PROFILE_SLUGS, PRESET_PROFILE_MAP,
 };
 pub use limit_patch::{
-    apply_limit_patch_to_control, apply_limit_patch_to_motor, validate_limit_patch, LimitPatch,
+    apply_limit_patch_to_control, apply_limit_patch_to_motor, ensure_soft_inset,
+    soft_limits_with_inset, validate_limit_patch, LimitPatch, DEFAULT_SOFT_INSET_RAD,
 };
 pub use profile_txn::{
     add_joint_from_source, joint_in_motors, joint_in_profile_urdf, limit_patch_from_motor,
     membership_slugs_for_joint, upsert_joint_limits, write_motors_and_control, AddJointResult,
     UpsertLimitResult,
+};
+pub use urdf_expand::{
+    apply_local_limit_patch, expand_urdf_file_to_cover_motors, write_motors_control_and_urdf,
 };
 
 use std::collections::{HashMap, HashSet};

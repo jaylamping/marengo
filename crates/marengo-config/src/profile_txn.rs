@@ -6,12 +6,13 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 
 use crate::{
-    apply_limit_patch_to_control, apply_limit_patch_to_motor, load_control_config_from,
-    load_homing_config_from, load_motors_config_from, load_robot_config_from,
-    profile_content_revision, validate_control_against_limits, validate_control_config,
-    validate_limit_patch, validate_motors_against_robot, validate_robot_control_joint_coverage,
-    ConfigError, ControlConfigFile, HomingConfigFile, LimitPatch, MotorsConfigFile,
-    RobotConfigFile, BRINGUP_PROFILE_SLUGS,
+    apply_limit_patch_to_control, apply_limit_patch_to_motor, ensure_soft_inset,
+    load_control_config_from, load_homing_config_from, load_motors_config_from,
+    load_robot_config_from, profile_content_revision, validate_control_against_limits,
+    validate_control_config, validate_limit_patch, validate_motors_against_robot,
+    validate_robot_control_joint_coverage, write_motors_control_and_urdf, ConfigError,
+    ControlConfigFile, HomingConfigFile, LimitPatch,
+    MotorsConfigFile, RobotConfigFile, BRINGUP_PROFILE_SLUGS,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -39,18 +40,21 @@ pub fn write_motors_and_control(
 }
 
 pub fn upsert_joint_limits(
+    repo_root: impl AsRef<Path>,
     config_dir: impl AsRef<Path>,
     patch: &LimitPatch,
     expected_revision: Option<&str>,
 ) -> Result<UpsertLimitResult, ConfigError> {
+    let repo_root = repo_root.as_ref();
     let config_dir = config_dir.as_ref();
     check_revision(config_dir, expected_revision)?;
     validate_limit_patch(patch)?;
+    let mut patch = patch.clone();
+    ensure_soft_inset(&mut patch);
 
     let robot = load_robot_config_from(config_dir)?;
     let mut motors = load_motors_config_from(config_dir)?;
     let mut control = load_control_config_from(config_dir)?;
-    let homing = load_homing_config_from(config_dir)?;
 
     let motor = motors
         .motors
@@ -62,7 +66,7 @@ pub fn upsert_joint_limits(
                 format!("joint {} not in motors.yaml", patch.joint),
             )
         })?;
-    apply_limit_patch_to_motor(motor, patch)?;
+    apply_limit_patch_to_motor(motor, &patch)?;
     let control_entry = control
         .control
         .joints
@@ -73,10 +77,11 @@ pub fn upsert_joint_limits(
                 format!("joint {} not in control.yaml", patch.joint),
             )
         })?;
-    apply_limit_patch_to_control(control_entry, patch)?;
+    apply_limit_patch_to_control(control_entry, &patch)?;
 
     validate_profile(&robot, &motors, &control)?;
-    write_profile(config_dir, &robot, &motors, &control, &homing)?;
+    // Single atomic path shared with Pi write-behind and local git sync.
+    write_motors_control_and_urdf(repo_root, config_dir, &motors, &control)?;
 
     Ok(UpsertLimitResult {
         revision: profile_content_revision(config_dir)?,
@@ -343,6 +348,23 @@ mod tests {
         }
     }
 
+    fn copy_profile_tree(profile: &str) -> (tempfile::TempDir, PathBuf) {
+        let root = resolve_repo_root();
+        let source = root.join("config/bringup").join(profile);
+        let temp = tempfile::tempdir().expect("tempdir");
+        let config_dir = temp.path().join("config/bringup").join(profile);
+        fs::create_dir_all(&config_dir).expect("config dir");
+        copy_profile(&source, &config_dir);
+        let robot = load_robot_config_from(&config_dir).expect("robot");
+        let urdf_rel = PathBuf::from(&robot.robot.urdf);
+        let urdf_dest = temp.path().join(&urdf_rel);
+        if let Some(parent) = urdf_dest.parent() {
+            fs::create_dir_all(parent).expect("urdf dir");
+        }
+        fs::copy(root.join(&urdf_rel), &urdf_dest).expect("copy urdf");
+        (temp, config_dir)
+    }
+
     fn elbow_patch() -> LimitPatch {
         LimitPatch {
             joint: "right_elbow_pitch".to_string(),
@@ -357,45 +379,41 @@ mod tests {
 
     #[test]
     fn upsert_writes_validated_limits_and_advances_revision() {
-        let root = resolve_repo_root();
-        let source = root.join("config/bringup/arm_4dof_right");
-        let temp = tempfile::tempdir().expect("tempdir");
-        copy_profile(&source, temp.path());
-        let before = profile_content_revision(temp.path()).expect("revision");
+        let (temp, config_dir) = copy_profile_tree("arm_4dof_right");
+        let before = profile_content_revision(&config_dir).expect("revision");
 
-        let result =
-            upsert_joint_limits(temp.path(), &elbow_patch(), Some(&before)).expect("upsert");
+        let result = upsert_joint_limits(temp.path(), &config_dir, &elbow_patch(), Some(&before))
+            .expect("upsert");
 
         assert_ne!(result.revision, before);
-        let motors = load_motors_config_from(temp.path()).expect("motors");
+        let motors = load_motors_config_from(&config_dir).expect("motors");
         let elbow = motors
             .motors
             .iter()
             .find(|motor| motor.joint == "right_elbow_pitch")
             .expect("elbow motor");
         assert_eq!(elbow.bench.position_upper_rad, 1.3);
-        let control = load_control_config_from(temp.path()).expect("control");
+        let control = load_control_config_from(&config_dir).expect("control");
         assert_eq!(
             control.control.joints["right_elbow_pitch"].position_soft_upper_rad,
             Some(1.3)
         );
         for name in PROFILE_FILES {
-            assert!(!temp.path().join(format!("{name}.tmp")).exists());
+            assert!(!config_dir.join(format!("{name}.tmp")).exists());
         }
     }
 
     #[test]
     fn upsert_rejects_stale_revision_without_writing() {
-        let root = resolve_repo_root();
-        let source = root.join("config/bringup/arm_4dof_right");
-        let temp = tempfile::tempdir().expect("tempdir");
-        copy_profile(&source, temp.path());
-        let before = profile_content_revision(temp.path()).expect("revision");
+        let (temp, config_dir) = copy_profile_tree("arm_4dof_right");
+        let before = profile_content_revision(&config_dir).expect("revision");
 
-        assert!(upsert_joint_limits(temp.path(), &elbow_patch(), Some("stale")).is_err());
+        assert!(
+            upsert_joint_limits(temp.path(), &config_dir, &elbow_patch(), Some("stale")).is_err()
+        );
 
         assert_eq!(
-            profile_content_revision(temp.path()).expect("revision after rejection"),
+            profile_content_revision(&config_dir).expect("revision after rejection"),
             before
         );
     }
@@ -464,7 +482,7 @@ mod tests {
         assert!(joint_in_motors(&profile, "right_elbow_pitch").expect("motor membership"));
         assert!(joint_in_profile_urdf(&root, &profile, "right_elbow_pitch").expect("URDF"));
         let patch = limit_patch_from_motor(&profile, "right_elbow_pitch").expect("limits");
-        assert_eq!(patch.position_upper_rad, 1.2);
+        assert!((patch.position_upper_rad - 0.95).abs() < 1e-9);
         let slugs = membership_slugs_for_joint(&root, "right_elbow_pitch").expect("slugs");
         assert!(slugs.iter().any(|slug| slug == "arm_4dof_right"));
         assert!(!slugs.iter().any(|slug| slug == "arm_3dof_right"));
