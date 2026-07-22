@@ -311,7 +311,11 @@ impl PositionHold {
 
     /// Force Hold at `q_traj` (tests: residual lead-follow / AscentStall scenarios).
     #[cfg(test)]
-    pub fn force_planner_hold_at(&mut self, joint_idx: usize, q_traj: f64) -> Result<(), HoldError> {
+    pub fn force_planner_hold_at(
+        &mut self,
+        joint_idx: usize,
+        q_traj: f64,
+    ) -> Result<(), HoldError> {
         let planner = self
             .planners
             .as_mut()
@@ -480,8 +484,7 @@ impl PositionHold {
 
     /// Latch clamped + raw targets together (wave drive / wave end).
     fn latch_joint_target(&mut self, idx: usize, target: f64) {
-        if let (Some(setpoints), Some(raw)) =
-            (self.setpoints.as_mut(), self.setpoints_raw.as_mut())
+        if let (Some(setpoints), Some(raw)) = (self.setpoints.as_mut(), self.setpoints_raw.as_mut())
         {
             setpoints[idx] = target;
             raw[idx] = target;
@@ -661,8 +664,7 @@ impl PositionHold {
                     *ms = 0;
                 }
                 let settle = targets[i] - world.q[i];
-                let approaching =
-                    planners[i].dq_traj * settle > POSITION_HOLD_ERROR_DEADBAND_RAD;
+                let approaching = planners[i].dq_traj * settle > POSITION_HOLD_ERROR_DEADBAND_RAD;
                 self.tick_effective_max_lead[i] = position_hold_effective_max_lead(
                     jp.max_lead,
                     retarget_age_ms[i],
@@ -841,8 +843,7 @@ impl PositionHold {
             }
             // Compose uses post-advance planner state (same tick) — one effective lead.
             let settle = targets[i] - world.q[i];
-            let approaching =
-                planners[i].dq_traj * settle > POSITION_HOLD_ERROR_DEADBAND_RAD;
+            let approaching = planners[i].dq_traj * settle > POSITION_HOLD_ERROR_DEADBAND_RAD;
             self.tick_effective_max_lead[i] = position_hold_effective_max_lead(
                 jp.max_lead,
                 retarget_age_ms[i],
@@ -919,19 +920,15 @@ impl PositionHold {
                 dq_traj,
             );
             let to_target = target - world.q[i];
-            let stuck_now = descent_stuck_mit_pull(
-                to_target,
-                world.q[i],
-                target,
-                dq,
-                jp.vel_deadband,
-                false,
-            );
+            let stuck_now =
+                descent_stuck_mit_pull(to_target, world.q[i], target, dq, jp.vel_deadband, false);
             if stuck_now {
                 Self::set_bool_at(&mut self.descent_was_stuck, i, true);
             }
             let was_stuck = Self::bool_at(&self.descent_was_stuck, i);
-            if !breakaway && was_stuck && descent_breakaway_confirmed(to_target, dq, jp.vel_deadband)
+            if !breakaway
+                && was_stuck
+                && descent_breakaway_confirmed(to_target, dq, jp.vel_deadband)
             {
                 breakaway = true;
                 Self::set_bool_at(&mut self.descent_breakaway, i, true);
@@ -949,12 +946,7 @@ impl PositionHold {
             let settling = matches!(traj_phase, TrapezoidPhase::Hold)
                 && settle_error.abs() <= POSITION_SETTLE_TOLERANCE_RAD;
             let sustained_low_angle_breakaway = approaching_target
-                && low_angle_breakaway_active(
-                    world.q[i],
-                    target,
-                    settle_error,
-                    approaching_target,
-                )
+                && low_angle_breakaway_active(world.q[i], target, settle_error, approaching_target)
                 && dq.abs() < jp.vel_deadband;
             let ff = compose_position_hold_feedforward(
                 world.tau_g[i],

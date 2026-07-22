@@ -881,11 +881,8 @@ impl<B: MotorBus> ControlLoop<B> {
                                 "position hold command"
                             );
                         }
-                        if should_log_position_onset(
-                            d.retarget_tick,
-                            self.tick_count,
-                            self.loop_hz,
-                        ) {
+                        if should_log_position_onset(d.retarget_tick, self.tick_count, self.loop_hz)
+                        {
                             debug!(
                                 joint = %name,
                                 retarget_age_ms = d.retarget_age_ms,
@@ -957,35 +954,35 @@ impl<B: MotorBus> ControlLoop<B> {
                     (phase.planner_us, t) = phase_elapsed_us(t);
                     for i in 0..self.joint_names.len() {
                         let name = self.joint_names[i].clone();
-                        let (base_kp, base_kd, tau_ff, q_des, mit_velocity) = match self.control_mode
-                        {
-                            ControlMode::GravityComp | ControlMode::TorqueOnly => {
-                                (0.0, 0.0, tau_g[i], q[i], 0.0)
-                            }
-                            ControlMode::Impedance => {
-                                let cfg = self.supervisor.control.control.joints.get(&name);
-                                let override_opt = self.gain_overrides.get(&name);
-                                let imp = cfg.map(|c| &c.impedance);
-                                let fr = cfg.map(|c| &c.friction);
-                                let kp = override_opt
-                                    .map(|ov| ov.kp)
-                                    .or_else(|| imp.map(|g| g.kp))
-                                    .unwrap_or(0.0);
-                                let kd = override_opt
-                                    .map(|ov| ov.kd)
-                                    .or_else(|| imp.map(|g| g.kd))
-                                    .unwrap_or(0.0);
-                                let dq = self.joint_velocity(&name);
-                                let tau_f = fr
-                                    .map(|f| {
-                                        let fc = override_opt.map(|ov| ov.fc).unwrap_or(f.fc);
-                                        friction_torque(dq, fc, f.fv, f.fo, f.k)
-                                    })
-                                    .unwrap_or(0.0);
-                                (kp, kd, tau_g[i] + tau_f, q[i], 0.0)
-                            }
-                            ControlMode::Position | ControlMode::Disabled => continue,
-                        };
+                        let (base_kp, base_kd, tau_ff, q_des, mit_velocity) =
+                            match self.control_mode {
+                                ControlMode::GravityComp | ControlMode::TorqueOnly => {
+                                    (0.0, 0.0, tau_g[i], q[i], 0.0)
+                                }
+                                ControlMode::Impedance => {
+                                    let cfg = self.supervisor.control.control.joints.get(&name);
+                                    let override_opt = self.gain_overrides.get(&name);
+                                    let imp = cfg.map(|c| &c.impedance);
+                                    let fr = cfg.map(|c| &c.friction);
+                                    let kp = override_opt
+                                        .map(|ov| ov.kp)
+                                        .or_else(|| imp.map(|g| g.kp))
+                                        .unwrap_or(0.0);
+                                    let kd = override_opt
+                                        .map(|ov| ov.kd)
+                                        .or_else(|| imp.map(|g| g.kd))
+                                        .unwrap_or(0.0);
+                                    let dq = self.joint_velocity(&name);
+                                    let tau_f = fr
+                                        .map(|f| {
+                                            let fc = override_opt.map(|ov| ov.fc).unwrap_or(f.fc);
+                                            friction_torque(dq, fc, f.fv, f.fo, f.k)
+                                        })
+                                        .unwrap_or(0.0);
+                                    (kp, kd, tau_g[i] + tau_f, q[i], 0.0)
+                                }
+                                ControlMode::Position | ControlMode::Disabled => continue,
+                            };
                         let (kp, kd) = if let Some(ov) = self.gain_overrides.get(&name) {
                             (ov.kp, ov.kd)
                         } else if let Some(ref ramp) = self.gain_ramp {
@@ -1229,10 +1226,10 @@ mod tests {
         descent_breakaway_confirmed, descent_stuck_mit_pull, planner_drifted_from_measurement,
         planner_overshoot_hold_while_moving, planner_premature_hold,
         planner_should_freeze_on_ascent_stall, planner_should_freeze_on_descent,
-        planner_should_latch_on_overshoot_hold,
-        planner_should_lead_follow_hold_short, planner_should_reopen_premature_hold,
-        planner_should_resync_stuck_lead, position_hold_effective_max_lead, position_hold_mit_kd,
-        position_hold_mit_velocity, reopen_planner_from_premature_hold,
+        planner_should_latch_on_overshoot_hold, planner_should_lead_follow_hold_short,
+        planner_should_reopen_premature_hold, planner_should_resync_stuck_lead,
+        position_hold_effective_max_lead, position_hold_mit_kd, position_hold_mit_velocity,
+        reopen_planner_from_premature_hold,
     };
     use crate::position_trajectory::{JointPositionPlanner, TrapezoidPhase};
     use armee_kinematics::JointLimitPolicy;
