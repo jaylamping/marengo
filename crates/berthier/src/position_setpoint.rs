@@ -60,6 +60,9 @@ pub fn position_hold_effective_max_lead(
 }
 
 /// Sustained lead boost in the ~0–30° friction-knee band (outlasts the 300 ms onset window).
+///
+/// Outbound (`approaching_target`) never sustains — lead boost there is onset-only via
+/// [`position_hold_effective_max_lead`]. Home-final and return/descent sides still boost.
 pub fn low_angle_breakaway_active(
     q: f64,
     target: f64,
@@ -73,14 +76,15 @@ pub fn low_angle_breakaway_active(
     if home_final_approach_stuck(q, target) {
         return true;
     }
+    // Outbound sustained boost disabled — prevents lead-unlimited hold-at that blocks
+    // stuck-lead resync (bench grind: q stuck, q_traj at target).
+    if approaching_target {
+        return false;
+    }
     if target > LOW_ANGLE_SPAN_MAX_RAD {
         return false;
     }
-    if approaching_target {
-        settle_error > POSITION_HOME_SETTLE_RAD
-    } else {
-        settle_error < -POSITION_HOME_SETTLE_RAD
-    }
+    settle_error < -POSITION_HOME_SETTLE_RAD
 }
 
 /// Downward planner speed after retarget/reset — large home returns seed closer to cruise.
@@ -187,41 +191,26 @@ pub fn outbound_low_angle_stuck_pull_rad(to_target: f64, effective_max_lead: f64
         .max(POSITION_DESCENT_STUCK_LEAD_RAD)
 }
 
-/// MIT pull while ascending toward target and stuck (narrow sync or lead-saturated knee).
+/// Ascent MIT pull-harder — **disabled**.
+///
+/// Increasing lead while stuck ascending worsens open-loop grind. Ascent stalls freeze the
+/// planner via [`planner_should_freeze_on_ascent_stall`]; descent uses [`descent_stuck_mit_pull`].
+/// Helpers [`outbound_low_angle_stuck`] / [`approach_stuck_mit_pull_lead_rad`] remain for tests.
 #[allow(clippy::too_many_arguments)]
 pub fn approach_stuck_mit_pull(
-    to_target: f64,
-    q: f64,
-    target: f64,
-    q_traj: f64,
-    dq_filtered: f64,
-    dq_traj: f64,
-    velocity_deadband: f64,
-    effective_max_lead: f64,
+    _to_target: f64,
+    _q: f64,
+    _target: f64,
+    _q_traj: f64,
+    _dq_filtered: f64,
+    _dq_traj: f64,
+    _velocity_deadband: f64,
+    _effective_max_lead: f64,
 ) -> bool {
-    if to_target <= POSITION_HOLD_ERROR_DEADBAND_RAD
-        || dq_traj <= POSITION_HOLD_ERROR_DEADBAND_RAD
-        || dq_filtered.abs() >= velocity_deadband
-        || q_traj < q - POSITION_SETTLE_TOLERANCE_RAD
-    {
-        return false;
-    }
-    let lag = q_traj - q;
-    if lag < POSITION_RETURN_RESYNC_RAD {
-        return true;
-    }
-    outbound_low_angle_stuck(
-        q,
-        target,
-        to_target,
-        dq_filtered,
-        velocity_deadband,
-        lag,
-        effective_max_lead,
-    )
+    false
 }
 
-/// Pull-up lead for [`approach_stuck_mit_pull`]: small-lag nudge vs knee lead-sat shove.
+/// Pull-up lead for disabled [`approach_stuck_mit_pull`] (kept for helper/tests).
 pub fn approach_stuck_mit_pull_lead_rad(to_target: f64, lag: f64, effective_max_lead: f64) -> f64 {
     if lag >= effective_max_lead - 1e-6 {
         outbound_low_angle_stuck_pull_rad(to_target, effective_max_lead)
@@ -381,7 +370,73 @@ pub fn planner_should_freeze_on_descent(
     }
 }
 
+/// Freeze planner while stuck ascending with `q_traj` ahead of measured `q`.
+///
+/// Owns outbound stalls (`target` not ≈0). Home return uses [`planner_should_freeze_on_descent`].
+/// Exit when synced (`|q_traj − q| < POSITION_RETURN_RESYNC_RAD`) or motion resumes toward target.
+pub fn planner_should_freeze_on_ascent_stall(
+    was_frozen: bool,
+    target: f64,
+    q: f64,
+    q_traj: f64,
+    to_target: f64,
+    dq_filtered: f64,
+    velocity_deadband: f64,
+) -> bool {
+    // Home return descent freeze owns target≈0.
+    if target.abs() <= POSITION_SETTLE_TOLERANCE_RAD {
+        return false;
+    }
+    let settle_band = return_settle_band(target);
+    if (q - target).abs() <= settle_band {
+        return false;
+    }
+    let lead = q_traj - q;
+    if was_frozen && lead.abs() < POSITION_RETURN_RESYNC_RAD {
+        return false;
+    }
+    let planner_ahead = to_target > POSITION_HOLD_ERROR_DEADBAND_RAD
+        && lead > POSITION_RETURN_RESYNC_RAD;
+    if !planner_ahead {
+        return false;
+    }
+    let exit_v = velocity_deadband * crate::friction::POSITION_STUCK_EXIT_VELOCITY_RATIO;
+    let moving_toward_target = if to_target > 0.0 {
+        dq_filtered >= exit_v
+    } else {
+        dq_filtered <= -exit_v
+    };
+    if was_frozen {
+        !moving_toward_target
+    } else {
+        dq_filtered.abs() < velocity_deadband
+    }
+}
+
+/// Reopen premature/overshoot Hold only when the arm is moving.
+///
+/// Stuck premature hold must not reopen — that keeps `q_traj` at target, flashes Cruise, then
+/// re-Holds → Reset oscillator. Prefer ascent-stall freeze / stuck-lead resync instead.
+pub fn planner_should_reopen_premature_hold(
+    planner: &JointPositionPlanner,
+    q: f64,
+    target: f64,
+    dq_filtered: f64,
+    velocity_deadband: f64,
+) -> bool {
+    if planner_overshoot_hold_while_moving(planner, q, target, dq_filtered, velocity_deadband) {
+        return true;
+    }
+    if !planner_premature_hold(planner, q, target) {
+        return false;
+    }
+    dq_filtered.abs() >= velocity_deadband
+}
+
 /// Trajectory setpoint clamp: brake when `q` outruns `q_traj`, follow when lagging toward target.
+///
+/// Always lead-bounded: `q_des` starts as `q_traj` clamped to `[q − max_lead, q + max_lead]`.
+/// Never drops the lead bound when `|q_traj − q| > max_lead` (open-loop follow is forbidden).
 pub fn clamp_trajectory_setpoint(
     q_traj: f64,
     q: f64,
@@ -392,17 +447,7 @@ pub fn clamp_trajectory_setpoint(
 ) -> f64 {
     const TOL: f64 = 1e-4;
     let to_target = target - q;
-    let lag = q_traj - q;
-    let mut q_des =
-        if to_target.abs() > TOL && lag.signum() == to_target.signum() && lag.abs() > max_lead {
-            if to_target > 0.0 {
-                q_traj.clamp(q, target)
-            } else {
-                q_traj.clamp(target, q)
-            }
-        } else {
-            q_traj.clamp(q - max_lead, q + max_lead)
-        };
+    let mut q_des = q_traj.clamp(q - max_lead, q + max_lead);
 
     if to_target.abs() > TOL {
         if to_target > 0.0 && q > q_traj && (q - q_traj) < POSITION_RETURN_RESYNC_RAD {
