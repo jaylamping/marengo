@@ -30,7 +30,8 @@ use crate::position_setpoint::{
     home_final_approach_stuck_pull_rad, low_angle_breakaway_active,
     planner_drifted_from_measurement, planner_should_freeze_on_ascent_stall,
     planner_should_freeze_on_descent, planner_should_latch_on_overshoot_hold,
-    planner_should_reopen_premature_hold, planner_should_resync_stuck_lead,
+    planner_should_reopen_premature_hold, planner_should_restart_hold_short_of_target,
+    planner_should_resync_stuck_lead,
     position_hold_effective_max_lead, position_hold_mit_kd, position_hold_mit_velocity,
     reopen_planner_from_premature_hold, POSITION_RETURN_DESCENT_SEED_RAD,
     POSITION_SETTLE_TOLERANCE_RAD,
@@ -1509,6 +1510,29 @@ impl<B: MotorBus> ControlLoop<B> {
             ) {
                 event = PlannerEvent::Reset;
                 reopen_planner_from_premature_hold(&mut planners[i], q[i], targets[i], v_max);
+            } else if planner_should_restart_hold_short_of_target(
+                &planners[i],
+                q[i],
+                targets[i],
+                dq_filtered[i],
+                vel_deadband,
+            ) {
+                // Residual Hold creep: restart short trapezoid from measured q (not reopen at target).
+                event = PlannerEvent::Reset;
+                planners[i].reset_target(q[i], targets[i]);
+                if let Some(cfg) = self.supervisor.control.control.joints.get(name) {
+                    planners[i].seed_downward_return_if_needed(
+                        q[i],
+                        targets[i],
+                        POSITION_RETURN_DESCENT_SEED_RAD,
+                        downward_return_seed_velocity(
+                            cfg.position_slew_rad_s,
+                            v_max,
+                            q[i],
+                            targets[i],
+                        ),
+                    );
+                }
             } else if planner_drifted_from_measurement(
                 &planners[i],
                 q[i],
@@ -1775,6 +1799,7 @@ mod tests {
     use crate::position_setpoint::{
         approach_stuck_mit_pull, planner_overshoot_hold_while_moving, planner_premature_hold,
         planner_should_freeze_on_ascent_stall, planner_should_reopen_premature_hold,
+        planner_should_restart_hold_short_of_target,
     };
     use armee_kinematics::JointLimitPolicy;
     use davout::{MemoryBus, OperationalMode};
@@ -2447,6 +2472,30 @@ mod tests {
     }
 
     #[test]
+    fn hold_short_of_target_restarts_from_measured_q() {
+        // Bench creep: Hold at 0.15 with q≈0.13 (inside premature 30 mrad band).
+        let mut planner = JointPositionPlanner::new_for_target(0.13, 0.15);
+        planner.q_traj = 0.15;
+        planner.dq_traj = 0.0;
+        planner.force_hold_for_test();
+        assert!(
+            !planner_premature_hold(&planner, 0.13, 0.15),
+            "0.02 rad short is inside return_settle_band — premature path does not fire"
+        );
+        assert!(planner_should_restart_hold_short_of_target(
+            &planner, 0.13, 0.15, 0.0, 0.02
+        ));
+        assert!(!planner_should_restart_hold_short_of_target(
+            &planner, 0.148, 0.15, 0.0, 0.02
+        ));
+        assert!(!planner_should_restart_hold_short_of_target(
+            &planner, 0.13, 0.15, 0.05, 0.02
+        ));
+        planner.reset_target(0.13, 0.15);
+        assert!((planner.q_traj - 0.13).abs() < 1e-12);
+    }
+
+    #[test]
     fn stuck_premature_hold_skips_reopen() {
         let mut planner = JointPositionPlanner::new_for_target(0.02, 0.15);
         planner.q_traj = 0.15;
@@ -2456,6 +2505,10 @@ mod tests {
         assert!(
             !planner_should_reopen_premature_hold(&planner, 0.02, 0.15, 0.0, 0.02),
             "stuck premature hold must not reopen (Reset oscillator)"
+        );
+        assert!(
+            planner_should_restart_hold_short_of_target(&planner, 0.02, 0.15, 0.0, 0.02),
+            "large shortfall still restarts from measured q"
         );
         // Moving toward target may reopen
         assert!(planner_should_reopen_premature_hold(

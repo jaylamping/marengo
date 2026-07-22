@@ -433,6 +433,44 @@ pub fn planner_should_reopen_premature_hold(
     dq_filtered.abs() >= velocity_deadband
 }
 
+/// Hold latched at target while measured `q` is still short — restart trapezoid from `q`.
+///
+/// Covers the residual band inside [`return_settle_band`] where premature-hold is false but the
+/// arm still has ~10–25 mrad to go. Leaving Hold parked there produces dead P-creep (bench:
+/// traj felt good to ~0.13, then stopped and crept to 0.15). Restart snaps `q_traj` to measured
+/// `q` (unlike reopen-at-target). Skip when overshot — latch/overshoot paths own that.
+pub fn planner_should_restart_hold_short_of_target(
+    planner: &JointPositionPlanner,
+    q: f64,
+    target: f64,
+    dq_filtered: f64,
+    velocity_deadband: f64,
+) -> bool {
+    if planner.phase() != TrapezoidPhase::Hold {
+        return false;
+    }
+    if (planner.q_traj - target).abs() > POSITION_SETTLE_TOLERANCE_RAD {
+        return false;
+    }
+    if dq_filtered.abs() >= velocity_deadband {
+        return false;
+    }
+    let short = if target >= 0.0 {
+        q < target - POSITION_HOME_SETTLE_RAD
+    } else {
+        q > target + POSITION_HOME_SETTLE_RAD
+    };
+    if !short {
+        return false;
+    }
+    // Overshoot past target — do not restart outbound.
+    if target >= 0.0 {
+        q <= target + POSITION_RETURN_RESYNC_RAD
+    } else {
+        q >= target - POSITION_RETURN_RESYNC_RAD
+    }
+}
+
 /// Trajectory setpoint clamp: brake when `q` outruns `q_traj`, follow when lagging toward target.
 ///
 /// Always lead-bounded: `q_des` starts as `q_traj` clamped to `[q − max_lead, q + max_lead]`.
