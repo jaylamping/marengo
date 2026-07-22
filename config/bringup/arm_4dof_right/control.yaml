@@ -156,12 +156,14 @@ control:
         k: 10.0
 
   danger_zones:
+    # Descent clamp (was 0.05 → ~30s from wave pose). 0.45 keeps a
+    # controlled lower while matching a human-paced return (~3–4s).
     - name: elevated_shoulder_pitch_fall
       joint: right_shoulder_pitch
       position_above_rad: 0.5
       velocity_below_rad_s: -0.1
       action: clamp_velocity
-      max_velocity_rad_s: 0.05
+      max_velocity_rad_s: 0.45
 
   # Policy (elbow bring-up): profile-global expected_sign cannot cover mixed
   # motor directions + new elbow τ_g DOF. Disable during commissioning; re-enable
