@@ -6,6 +6,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { SetLimitsPanel } from '@/components/dashboard/inventory/set-limits-panel';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useLimitListenStore } from '@/state/limitListenStore';
+import { useNeedsRestartStore } from '@/state/needsRestartStore';
 import { useRobotStore } from '@/state/robotStore';
 
 function renderPanel(ui: ReactElement) {
@@ -39,6 +40,11 @@ import { queryClient } from '@/lib/query-client';
 afterEach(() => {
   cleanup();
   useLimitListenStore.getState().reset();
+  useNeedsRestartStore.setState({
+    pendingRestartJoints: [],
+    restartDialogOpen: false,
+    dialogFromApply: false,
+  });
   useRobotStore.setState({ connected: false, operationalMode: null });
   vi.mocked(postSetZeroCommand).mockClear();
   vi.mocked(persistJointLimits).mockClear();
@@ -193,7 +199,10 @@ describe('SetLimitsPanel', () => {
     await vi.waitFor(() => {
       expect(queryClient.invalidateQueries).toHaveBeenCalled();
       expect(onApplyRange).toHaveBeenCalledWith('−0.50–1.20');
-      expect(screen.getByText(/Restart marengo-pi/i)).toBeTruthy();
+      expect(useNeedsRestartStore.getState().pendingRestartJoints).toContain(
+        'right_shoulder_pitch',
+      );
+      expect(useNeedsRestartStore.getState().restartDialogOpen).toBe(true);
     });
   });
 

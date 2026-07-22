@@ -48,6 +48,11 @@ export type ConfigPatchResultDto = {
   restart_required: boolean;
 };
 
+export type RestartMarengoPiResultDto = {
+  ok: boolean;
+  message: string;
+};
+
 function baseUrl(): string | null {
   return getChappeEndpoints()?.httpUrl ?? null;
 }
@@ -104,4 +109,44 @@ export function motorForJoint(
   joint: string,
 ): MotorConfigEntryDto | undefined {
   return snapshot?.motors.find((m) => m.joint === joint);
+}
+
+/** Restart marengo-pi so Davout reloads hard limits from motors.yaml. */
+export async function restartMarengoPi(init?: {
+  signal?: AbortSignal;
+}): Promise<RestartMarengoPiResultDto> {
+  const root = baseUrl();
+  if (!root) {
+    return { ok: false, message: 'Chappe HTTP URL not configured' };
+  }
+  try {
+    const res = await fetch(`${root}/control/restart-marengo-pi`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ confirm: true }),
+      signal: init?.signal,
+    });
+    const text = await res.text();
+    let parsed: RestartMarengoPiResultDto | null = null;
+    try {
+      parsed = JSON.parse(text) as RestartMarengoPiResultDto;
+    } catch {
+      parsed = null;
+    }
+    if (parsed && typeof parsed.ok === 'boolean') {
+      return {
+        ok: parsed.ok && res.ok,
+        message: parsed.message || res.statusText || `HTTP ${res.status}`,
+      };
+    }
+    return {
+      ok: false,
+      message: text.trim() || `HTTP ${res.status}`,
+    };
+  } catch (e) {
+    return {
+      ok: false,
+      message: e instanceof Error ? e.message : 'Restart request failed',
+    };
+  }
 }

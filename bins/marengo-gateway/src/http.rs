@@ -24,6 +24,7 @@ use crate::actuator;
 use crate::config;
 use crate::framing::{self, CHAPPE_STREAM_CONTENT_TYPE};
 use crate::logs;
+use crate::restart;
 use crate::state::{filter_topics, SharedState};
 
 #[derive(Serialize)]
@@ -101,6 +102,10 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
         .route("/settings", get(logs::get_settings))
         .route("/config/snapshot", get(config::get_config_snapshot))
         .route("/config/patch", post(config::post_config_patch))
+        .route(
+            "/control/restart-marengo-pi",
+            post(restart::post_restart_marengo_pi),
+        )
         .route("/command/enable", post(command_enable))
         .route("/command/testing_mit", post(command_testing_mit))
         .route("/command/home", post(command_home))
