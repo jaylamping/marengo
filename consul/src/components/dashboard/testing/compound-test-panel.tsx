@@ -175,6 +175,22 @@ export function CompoundTestPanel() {
     };
   }, [setIsRunning]);
 
+  // Compound Tests tab click clears selection → preset list (no return-home).
+  React.useEffect(() => {
+    if (selectedPresetId !== null) return;
+    if (useTeachStore.getState().recording) {
+      useTeachStore.getState().stopRecording();
+    }
+    setRecordSectionOpen(false);
+    setOverlayBlockReason(null);
+    if (runnerRef.current.intervalId !== null) {
+      window.clearInterval(runnerRef.current.intervalId);
+      runnerRef.current.intervalId = null;
+    }
+    setIsRunning(false);
+    setProgress(0);
+  }, [selectedPresetId, setIsRunning, setProgress]);
+
   // Fault / disable / disconnect: stop playback but do NOT returnHome (re-enable + slam).
   // Disconnect leaves operationalMode stale — require connected as well.
   React.useEffect(() => {

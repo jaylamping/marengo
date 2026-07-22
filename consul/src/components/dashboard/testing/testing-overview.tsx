@@ -15,6 +15,7 @@ import { EStopButton } from '@/components/dashboard/testing/e-stop-button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useCompoundStore } from '@/state/compoundStore';
 
 const CompoundTestPanel = lazy(async () => {
   const module = await import('@/components/dashboard/testing/compound-test-panel');
@@ -51,7 +52,14 @@ export function TestingOverview() {
         <Tabs defaultValue="manual" className="w-full">
           <TabsList className="grid w-full max-w-md grid-cols-2 mb-6">
             <TabsTrigger value="manual">Manual Testing</TabsTrigger>
-            <TabsTrigger value="compound">Compound Tests</TabsTrigger>
+            <TabsTrigger
+              value="compound"
+              onClick={() => {
+                useCompoundStore.getState().setSelectedPresetId(null);
+              }}
+            >
+              Compound Tests
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="manual" className="mt-0">
