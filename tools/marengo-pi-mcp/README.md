@@ -94,7 +94,8 @@ just mcp-ensure-enabled --write
 | Class | Confirm | Examples |
 |-------|---------|----------|
 | Read-only | No | `pi_logs_tail`, `pi_health`, `pi_motor_repl_status`, `pi_gravity_preview`, `pi_imu_probe` |
-| Admin | No | `pi_can_up`, `pi_sync_main`, `pi_sync_tree`, `pi_sync_bench_config`, `pi_sync_bench_urdf`, `pi_git_pull`, `pi_build` |
+| Admin | No | `pi_can_up`, `pi_sync_main`, `pi_sync_tree`, `pi_sync_bench_config`, `pi_sync_bench_urdf`, `pi_wait_deploy`, `pi_install_staging`, `pi_git_pull`, `pi_build` |
+| Admin | Yes | `pi_restart_marengo_pi`, `pi_clean_tree` |
 | Motion | Yes | `pi_motor_recover`, `pi_motor_disable`, `pi_set_zero`, `pi_homing_status`, `pi_hold_on`, `pi_hold_off`, `pi_bench_harness`, `pi_marengo_pi_script`, `pi_jog` |
 
 Weighted profile (`weighted_single_arm`, `arm_attached`) needs `confirm: true` and `confirm_weighted_motion: true`.
@@ -120,6 +121,16 @@ Weighted profile (`weighted_single_arm`, `arm_attached`) needs `confirm: true` a
 2. `./scripts/deploy-pi.sh joey@marengo.local`
 3. Remote `install-pi.sh` → `/opt/marengo`
 4. Writes `/opt/marengo/.deploy-rev`
+
+### `pi_restart_marengo_pi`
+
+Stops leftover `marengo-pi` processes and restarts `marengo-pi.service` so Davout reloads hard position limits from `motors.yaml` (e.g. after Consul Set Limits). Requires `confirm: true`. Optional `mode: "stop"` skips systemd start. Does not touch `marengo-gateway`.
+
+Canonical remote body: [`scripts/pi-restart-marengo-pi.sh`](../../scripts/pi-restart-marengo-pi.sh) (also used by `pi-remote.sh restart-marengo-pi` / `stop-marengo-pi`). MCP embeds the local checkout copy so the tool works before the Pi has the new script installed.
+
+```json
+{ "confirm": true }
+```
 
 ### `pi_sync_tree`
 

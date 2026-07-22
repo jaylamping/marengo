@@ -26,9 +26,14 @@ Host: **`marengo.local`** user **`joey`**. Pi root: **`/opt/marengo`**.
 
 ## Admin (no confirm)
 
-`pi_can_up`, **`pi_sync_main`** — see [marengo-pi-sync](../marengo-pi-sync/SKILL.md)
+`pi_can_up`, **`pi_sync_main`**, `pi_sync_bench_config`, `pi_sync_bench_urdf`, `pi_wait_deploy`, `pi_install_staging`, `pi_git_pull`, `pi_build` — see [marengo-pi-sync](../marengo-pi-sync/SKILL.md)
 
 **Config sync:** after editing `config/bringup/*/control.yaml` (or motors/robot) on the Mac, run **`pi_sync_bench_config`** with `profile: shoulder_pitch_right_only` or `shoulder_pitch_left_only`, `install_to_opt: true`; do not ask the user to run rsync/deploy manually. After editing bench URDF assets, run **`pi_sync_bench_urdf`** with the relevant `assets` list, `install_to_opt: true`; use the default asset list for right weighted/right-only COM calibration, or pass `shoulder_pitch_left_bare.urdf` for left-bench. If `/opt` install fails, run **`pi_install_staging`** (or passwordless `install-pi.sh`) and retry — do not trust stale `/opt` inertials. After URDF sync, verify gravity (`pi_gravity_preview` / hold) before treating COM edits as live.
+
+## Admin (confirm required)
+
+- **`pi_restart_marengo_pi`** — `{ "confirm": true }` (optional `mode: "stop"`). Reloads Davout hard limits from `motors.yaml` after Consul Set Limits Apply. Motors go limp — support elevated arms. Does not restart gateway.
+- **`pi_clean_tree`** — stash/reset Pi git tree when sync is blocked by dirt.
 
 ## Motion (confirm required)
 

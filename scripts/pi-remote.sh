@@ -23,6 +23,8 @@ Commands (read-only / admin — no motion):
   logs-structured [n]    GET /logs/structured (default 100)
   candump-summary        summarize candump-latest.log
   journal [unit]         journalctl (default marengo-pi)
+  restart-marengo-pi     stop + start marengo-pi.service (reload hard limits)
+  stop-marengo-pi        stop/pkill marengo-pi only (no start)
   ssh [--] <cmd...>      raw remote command
   deploy [--install]     cross-build + rsync (requires aarch64-linux-gnu-gcc)
   verify                 connectivity checks
@@ -119,6 +121,14 @@ REMOTE
   journal)
     unit="${1:-marengo-pi}"
     remote_script "journalctl -u '${unit}' -n 80 --no-pager 2>/dev/null || journalctl -n 80 --no-pager"
+    ;;
+  restart-marengo-pi | stop-marengo-pi)
+    # Same canonical body as MCP pi_restart_marengo_pi (scripts/pi-restart-marengo-pi.sh).
+    mode="restart"
+    if [[ "${cmd}" == "stop-marengo-pi" ]]; then
+      mode="stop"
+    fi
+    cloud_pi_ssh bash -s -- "${mode}" <"${ROOT}/scripts/pi-restart-marengo-pi.sh"
     ;;
   ssh)
     if [[ "${1:-}" == "--" ]]; then
