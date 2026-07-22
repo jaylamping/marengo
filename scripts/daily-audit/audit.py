@@ -266,12 +266,15 @@ def check_large_risky_diff(changed: list[str], report: Report) -> None:
 
 
 def check_adr_staleness(changed: list[str], report: Report) -> None:
-    adr_changed = any(
-        p.startswith("docs/decisions/") or p.startswith("hardware/docs/decisions/") for p in changed
-    )
+    """Flag crate/proto .rs edits whose mapped ADR/decision doc was not also changed.
+
+    Credits the exact path in ``ADR_MAP`` (including ``docs/safety.md`` for Davout),
+    not only files under ``docs/decisions/`` / ``hardware/docs/decisions/``.
+    """
+    changed_set = set(changed)
     for prefix, adr in ADR_MAP.items():
         touched = [p for p in changed if p.startswith(prefix) and p.endswith(".rs")]
-        if touched and not adr_changed:
+        if touched and adr not in changed_set:
             report.add(
                 Finding(
                     severity="warn",

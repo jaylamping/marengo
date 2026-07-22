@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from audit import (
     UNWRAP_RE,
+    check_adr_staleness,
     check_proto_checksum,
     production_rust_lines,
     strip_rust_tests,
@@ -75,6 +76,48 @@ class ProtoChecksumTests(unittest.TestCase):
             report,
         )
         self.assertTrue(report.clean)
+
+
+class AdrStalenessTests(unittest.TestCase):
+    def test_davout_without_safety_md_warns(self) -> None:
+        report = Report(date="2026-07-21")
+        check_adr_staleness(["crates/davout/src/active_reporting.rs"], report)
+        self.assertFalse(report.clean)
+        self.assertEqual(len(report.findings), 1)
+        self.assertIn("docs/safety.md", report.findings[0].rule)
+
+    def test_davout_with_safety_md_is_clean(self) -> None:
+        report = Report(date="2026-07-21")
+        check_adr_staleness(
+            [
+                "crates/davout/src/active_reporting.rs",
+                "docs/safety.md",
+            ],
+            report,
+        )
+        self.assertTrue(report.clean)
+
+    def test_robstride_with_hardware_adr_is_clean(self) -> None:
+        report = Report(date="2026-07-21")
+        check_adr_staleness(
+            [
+                "crates/robstride/src/bus.rs",
+                "hardware/docs/decisions/0002-robstride-protocol.md",
+            ],
+            report,
+        )
+        self.assertTrue(report.clean)
+
+    def test_unrelated_decision_doc_does_not_clear_davout(self) -> None:
+        report = Report(date="2026-07-21")
+        check_adr_staleness(
+            [
+                "crates/davout/src/lib.rs",
+                "docs/decisions/0001-protobuf-wire-types.md",
+            ],
+            report,
+        )
+        self.assertFalse(report.clean)
 
 
 if __name__ == "__main__":

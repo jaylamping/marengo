@@ -22,6 +22,7 @@
 - Extended arbitration ID: `(comm_type << 24) | (extra_data << 8) | device_id`.
 - **MIT Mode 0** — five-tuple: `p_des`, `v_des`, `kp`, `kd`, `t_ff`; torque is encoded in the extended ID `extra_data` field.
 - **Feedback:** `comm_type=2` status frames; decode position, velocity, torque, temperature, fault reports.
+- **Active Reporting:** `comm_type=24` free-drive sensing frames (manual §4.1.11) — see appendix below. Not a motor-command path.
 - **Lifecycle:** enable, disable, stop, `SetZero` per manual (parameter IDs may differ by model).
 - Firmware `run_mode` (`0x7005`): `0=MIT`, `1=Position`, `2=Speed`, `3=Current`.
 
@@ -63,6 +64,20 @@ For `scale = direction * gear_ratio`, Davout applies:
 1. Extended-frame roundtrip on all configured `device_id`s.
 2. Per-joint **sign test**: small `+t_ff`, verify direction vs URDF axis.
 3. `SetZero` / homing documented per motor before trusting `q` for `tau_g`.
+
+## Appendix: Active Reporting (comm type 24)
+
+Vendor free-drive sensing (manual §4.1.11; [Seeed RobStride control](https://wiki.seeedstudio.com/robstride_control/)). Marengo uses it only for **diagnostics / limp sensing**, never as a Berthier→Davout command bypass.
+
+| Aspect | Contract |
+|--------|----------|
+| Encode | `robstride::encode_active_reporting` / `encode_default_active_reporting` — payload `01..06 F_CMD` (`F_CMD` `00`=off, `01`=on); arbitration uses `CommunicationType::ActiveReporting` (=24) |
+| Decode | `decode_mit_feedback` accepts **OperationStatus** (`comm_type=2`) and **ActiveReporting** (`comm_type=24`) with the same MIT scale tables |
+| Bus | `MotorBus::enable_active_reporting_at` / `disable_active_reporting_at`; `recv_all` treats type-24 like status for MIT feedback |
+| When on | Davout sync: desired iff not ACTIVE and (global diagnostics or any unexpired lease). **Never** while operational mode is `ACTIVE` (MIT OperationControl + status own that path) |
+| Leases | Consul Enhanced-logging → gateway → Chappe → Davout (`crates/davout/src/active_reporting.rs`); TTL backstop; see [docs/safety.md](../../../docs/safety.md) |
+
+Unit coverage: `lifecycle.rs` §4.1.11 encode tests; `mit.rs` type-24 decode roundtrip; Davout lease/TTL/ACTIVE-exclusion tests.
 
 ## Appendix: vCAN test harness (SocketCAN)
 
