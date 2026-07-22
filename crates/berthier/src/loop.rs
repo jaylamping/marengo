@@ -13,11 +13,17 @@ use davout::{
     ControlMode, DavoutError, MitJointCommand as DavoutMit, MotorAddress, MotorBus,
     OperationalMode, Supervisor,
 };
-use marengo_config::{load_robot_config, motor_type_key, resolve_urdf_path, MotorTypeDefaults};
+use marengo_config::{
+    load_robot_config, motor_type_key, resolve_urdf_path, ModeGains, MotorTypeDefaults,
+};
 use thiserror::Error;
 use tracing::{debug, info};
 
-use crate::friction::{friction_torque, POSITION_HOLD_ERROR_DEADBAND_RAD};
+use crate::friction::POSITION_HOLD_ERROR_DEADBAND_RAD;
+use crate::mit_feedforward::{
+    mode_allows_gain_override, mode_clears_gain_overrides_on_enter, target_gains_from_yaml,
+    MitFeedforward, MitFfJointIn, MitFfOverride,
+};
 use crate::position_hold::{
     HoldError, HoldJointParams, HoldRetarget, HoldWorld, PositionHold, ADVANCE_MAX_LEAD_DEFAULT,
 };
@@ -531,6 +537,10 @@ impl<B: MotorBus> ControlLoop<B> {
         if previous != mode {
             info!(?previous, ?mode, "control mode transition");
         }
+        // GravityComp / TorqueOnly / Disabled must not keep Impedance Testing stiffness.
+        if mode_clears_gain_overrides_on_enter(mode) {
+            self.gain_overrides.clear();
+        }
         // Arm a kp/kd ramp for non-Disabled transitions (~100ms at 200Hz).
         // Disabled is excluded in both directions: instant disable for safety,
         // enable path bootstraps separately.
@@ -570,24 +580,24 @@ impl<B: MotorBus> ControlLoop<B> {
         }
     }
 
-    /// Target (kp, kd) per joint for a mode. GravityComp/TorqueOnly/Disabled → (0, 0);
-    /// Impedance/Position → config impedance gains.
+    /// Target (kp, kd) per joint from YAML (`gravity_comp` / `impedance`).
     fn target_gains_for_mode(&self, mode: ControlMode) -> Vec<(f64, f64)> {
-        match mode {
-            ControlMode::GravityComp | ControlMode::TorqueOnly | ControlMode::Disabled => {
-                vec![(0.0, 0.0); self.joint_names.len()]
-            }
-            ControlMode::Impedance | ControlMode::Position => self
-                .joint_names
-                .iter()
-                .map(|name| {
-                    let cfg = self.supervisor.control.control.joints.get(name);
-                    let kp = cfg.map(|c| c.impedance.kp).unwrap_or(0.0);
-                    let kd = cfg.map(|c| c.impedance.kd).unwrap_or(0.0);
-                    (kp, kd)
-                })
-                .collect(),
-        }
+        const ZERO: ModeGains = ModeGains {
+            kp: 0.0,
+            kd: 0.0,
+            ki: 0.0,
+        };
+        self.joint_names
+            .iter()
+            .map(|name| {
+                let cfg = self.supervisor.control.control.joints.get(name);
+                target_gains_from_yaml(
+                    mode,
+                    cfg.map(|c| &c.gravity_comp).unwrap_or(&ZERO),
+                    cfg.map(|c| &c.impedance).unwrap_or(&ZERO),
+                )
+            })
+            .collect()
     }
 
     pub fn control_mode(&self) -> ControlMode {
@@ -613,13 +623,34 @@ impl<B: MotorBus> ControlLoop<B> {
     // -- Gain override API -------------------------------------------
 
     /// Apply a per-joint gain override, clamped to motor-type safety limits.
+    ///
+    /// No-op under GravityComp / TorqueOnly / Disabled so Testing cannot stash
+    /// stiffness that snaps back on Impedance/Position enter.
     pub fn apply_gain_override(&mut self, joint_name: &str, gain_override: GainOverride) {
+        if !mode_allows_gain_override(self.control_mode) {
+            debug!(
+                ?self.control_mode,
+                joint = joint_name,
+                "ignore gain override in this control mode"
+            );
+            return;
+        }
         let clamped = self.clamp_override(joint_name, gain_override);
         self.gain_overrides.insert(joint_name.to_string(), clamped);
     }
 
     /// Batch-apply gain overrides for multiple joints.
+    ///
+    /// No-op under GravityComp / TorqueOnly / Disabled (same policy as
+    /// [`Self::apply_gain_override`]).
     pub fn apply_gain_overrides(&mut self, overrides: &HashMap<String, GainOverride>) {
+        if !mode_allows_gain_override(self.control_mode) {
+            debug!(
+                ?self.control_mode,
+                "ignore batch gain overrides in this control mode"
+            );
+            return;
+        }
         for (joint, ov) in overrides {
             let clamped = self.clamp_override(joint, ov.clone());
             self.gain_overrides.insert(joint.clone(), clamped);
@@ -952,58 +983,58 @@ impl<B: MotorBus> ControlLoop<B> {
                     }
                 } else {
                     (phase.planner_us, t) = phase_elapsed_us(t);
-                    for i in 0..self.joint_names.len() {
-                        let name = self.joint_names[i].clone();
-                        let (base_kp, base_kd, tau_ff, q_des, mit_velocity) =
-                            match self.control_mode {
-                                ControlMode::GravityComp | ControlMode::TorqueOnly => {
-                                    (0.0, 0.0, tau_g[i], q[i], 0.0)
+                    let ramp_progress = self
+                        .gain_ramp
+                        .as_ref()
+                        .map(|ramp| 1.0 - (ramp.ticks_remaining as f64 / ramp.total_ticks as f64));
+                    let ff_joints: Vec<MitFfJointIn> = self
+                        .joint_names
+                        .iter()
+                        .enumerate()
+                        .map(|(i, name)| {
+                            let cfg = self.supervisor.control.control.joints.get(name);
+                            let (ramp_kp, ramp_kd) = match (self.gain_ramp.as_ref(), ramp_progress)
+                            {
+                                (Some(ramp), Some(progress)) => {
+                                    let (from_kp, from_kd, to_kp, to_kd) = ramp.joints[i];
+                                    (
+                                        Some(from_kp + (to_kp - from_kp) * progress),
+                                        Some(from_kd + (to_kd - from_kd) * progress),
+                                    )
                                 }
-                                ControlMode::Impedance => {
-                                    let cfg = self.supervisor.control.control.joints.get(&name);
-                                    let override_opt = self.gain_overrides.get(&name);
-                                    let imp = cfg.map(|c| &c.impedance);
-                                    let fr = cfg.map(|c| &c.friction);
-                                    let kp = override_opt
-                                        .map(|ov| ov.kp)
-                                        .or_else(|| imp.map(|g| g.kp))
-                                        .unwrap_or(0.0);
-                                    let kd = override_opt
-                                        .map(|ov| ov.kd)
-                                        .or_else(|| imp.map(|g| g.kd))
-                                        .unwrap_or(0.0);
-                                    let dq = self.joint_velocity(&name);
-                                    let tau_f = fr
-                                        .map(|f| {
-                                            let fc = override_opt.map(|ov| ov.fc).unwrap_or(f.fc);
-                                            friction_torque(dq, fc, f.fv, f.fo, f.k)
-                                        })
-                                        .unwrap_or(0.0);
-                                    (kp, kd, tau_g[i] + tau_f, q[i], 0.0)
-                                }
-                                ControlMode::Position | ControlMode::Disabled => continue,
+                                _ => (None, None),
                             };
-                        let (kp, kd) = if let Some(ov) = self.gain_overrides.get(&name) {
-                            (ov.kp, ov.kd)
-                        } else if let Some(ref ramp) = self.gain_ramp {
-                            let progress =
-                                1.0 - (ramp.ticks_remaining as f64 / ramp.total_ticks as f64);
-                            let (from_kp, from_kd, to_kp, to_kd) = ramp.joints[i];
-                            let kp = from_kp + (to_kp - from_kp) * progress;
-                            let kd = from_kd + (to_kd - from_kd) * progress;
-                            (kp, kd)
-                        } else {
-                            (base_kp, base_kd)
-                        };
-                        batch.push(DavoutMit {
-                            joint: name.clone(),
-                            kp,
-                            kd,
-                            position_rad: q_des,
-                            velocity_rad_s: mit_velocity,
-                            torque_ff_nm: tau_ff,
-                        });
-                    }
+                            MitFfJointIn {
+                                name: name.clone(),
+                                q: q[i],
+                                dq: self.joint_velocity(name),
+                                tau_g: tau_g[i],
+                                gravity_comp: cfg.map(|c| c.gravity_comp.clone()).unwrap_or(
+                                    ModeGains {
+                                        kp: 0.0,
+                                        kd: 0.0,
+                                        ki: 0.0,
+                                    },
+                                ),
+                                impedance: cfg.map(|c| c.impedance.clone()).unwrap_or(ModeGains {
+                                    kp: 0.0,
+                                    kd: 0.0,
+                                    ki: 0.0,
+                                }),
+                                friction: cfg.map(|c| c.friction.clone()),
+                                override_gains: self.gain_overrides.get(name).map(|ov| {
+                                    MitFfOverride {
+                                        kp: ov.kp,
+                                        kd: ov.kd,
+                                        fc: ov.fc,
+                                    }
+                                }),
+                                ramp_kp,
+                                ramp_kd,
+                            }
+                        })
+                        .collect();
+                    batch = MitFeedforward::compose(self.control_mode, &ff_joints);
                 }
                 phase.trace_us = trace_us_this_tick;
                 (phase.compose_us, t) = phase_elapsed_us(t);
@@ -1438,6 +1469,66 @@ mod tests {
         loop_ctrl.set_control_mode(ControlMode::GravityComp);
         assert!(loop_ctrl.position_setpoints().is_none());
         assert_eq!(loop_ctrl.control_mode(), ControlMode::GravityComp);
+    }
+
+    #[test]
+    fn gravity_comp_enter_clears_sticky_gain_overrides() {
+        let mut loop_ctrl = test_loop();
+        bench_ready_active(&mut loop_ctrl);
+        loop_ctrl.set_control_mode(ControlMode::Impedance);
+        loop_ctrl.apply_gain_override(
+            "shoulder_pitch",
+            GainOverride {
+                kp: 50.0,
+                kd: 5.0,
+                ki: 0.0,
+                fc: 1.0,
+            },
+        );
+        assert!(!loop_ctrl.gain_overrides.is_empty());
+        loop_ctrl.set_control_mode(ControlMode::GravityComp);
+        assert!(
+            loop_ctrl.gain_overrides.is_empty(),
+            "Impedance→GravityComp must clear Testing overrides"
+        );
+    }
+
+    #[test]
+    fn apply_gain_override_ignored_under_gravity_comp() {
+        let mut loop_ctrl = test_loop();
+        loop_ctrl.set_control_mode(ControlMode::GravityComp);
+        loop_ctrl.apply_gain_override(
+            "shoulder_pitch",
+            GainOverride {
+                kp: 50.0,
+                kd: 5.0,
+                ki: 0.0,
+                fc: 1.0,
+            },
+        );
+        assert!(
+            loop_ctrl.gain_overrides.is_empty(),
+            "must not stash overrides under GravityComp"
+        );
+        // Enter Impedance must not resurrect planted stiffness.
+        loop_ctrl.set_control_mode(ControlMode::Impedance);
+        assert!(loop_ctrl.gain_overrides.is_empty());
+    }
+
+    #[test]
+    fn apply_gain_override_ignored_under_disabled() {
+        let mut loop_ctrl = test_loop();
+        assert_eq!(loop_ctrl.control_mode(), ControlMode::Disabled);
+        loop_ctrl.apply_gain_override(
+            "shoulder_pitch",
+            GainOverride {
+                kp: 50.0,
+                kd: 5.0,
+                ki: 0.0,
+                fc: 1.0,
+            },
+        );
+        assert!(loop_ctrl.gain_overrides.is_empty());
     }
 
     #[test]
@@ -2524,11 +2615,21 @@ mod tests {
     // Gain override tests
     // ════════════════════════════════════════════════════════════════
 
+    fn apply_override_in_impedance(
+        loop_ctrl: &mut ControlLoop<MemoryBus>,
+        joint: &str,
+        ov: GainOverride,
+    ) {
+        loop_ctrl.set_control_mode(ControlMode::Impedance);
+        loop_ctrl.apply_gain_override(joint, ov);
+    }
+
     #[test]
     fn apply_gain_override_clamps_kp_to_kp_max() {
         let mut loop_ctrl = test_loop();
         let joint = "shoulder_pitch";
-        loop_ctrl.apply_gain_override(
+        apply_override_in_impedance(
+            &mut loop_ctrl,
             joint,
             GainOverride {
                 kp: 6000.0,
@@ -2552,7 +2653,8 @@ mod tests {
     fn apply_gain_override_clamps_kd_to_kd_max() {
         let mut loop_ctrl = test_loop();
         let joint = "shoulder_pitch";
-        loop_ctrl.apply_gain_override(
+        apply_override_in_impedance(
+            &mut loop_ctrl,
             joint,
             GainOverride {
                 kp: 10.0,
@@ -2576,7 +2678,8 @@ mod tests {
     fn apply_gain_override_clamps_fc_to_tau_ff_max_nm() {
         let mut loop_ctrl = test_loop();
         let joint = "shoulder_pitch";
-        loop_ctrl.apply_gain_override(
+        apply_override_in_impedance(
+            &mut loop_ctrl,
             joint,
             GainOverride {
                 kp: 10.0,
@@ -2596,7 +2699,8 @@ mod tests {
     fn apply_gain_override_clamps_ki_to_kp_max() {
         let mut loop_ctrl = test_loop();
         let joint = "shoulder_pitch";
-        loop_ctrl.apply_gain_override(
+        apply_override_in_impedance(
+            &mut loop_ctrl,
             joint,
             GainOverride {
                 kp: 10.0,
@@ -2620,7 +2724,8 @@ mod tests {
     fn clear_gain_override_removes_entry() {
         let mut loop_ctrl = test_loop();
         let joint = "shoulder_pitch";
-        loop_ctrl.apply_gain_override(
+        apply_override_in_impedance(
+            &mut loop_ctrl,
             joint,
             GainOverride {
                 kp: 100.0,
@@ -2637,6 +2742,7 @@ mod tests {
     #[test]
     fn clear_all_overrides_removes_all() {
         let mut loop_ctrl = test_loop();
+        loop_ctrl.set_control_mode(ControlMode::Impedance);
         loop_ctrl.apply_gain_override(
             "shoulder_pitch",
             GainOverride {
@@ -2688,7 +2794,8 @@ mod tests {
     fn apply_gain_override_stores_within_limits_as_is() {
         let mut loop_ctrl = test_loop();
         let joint = "shoulder_pitch";
-        loop_ctrl.apply_gain_override(
+        apply_override_in_impedance(
+            &mut loop_ctrl,
             joint,
             GainOverride {
                 kp: 50.0,
