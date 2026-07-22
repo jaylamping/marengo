@@ -117,7 +117,7 @@ supervisor.send_mit_batch(joint_space_cmds)?;
 
 Position hold (`hold-at`) is Berthier's **joint-space motion primitive executor** — one law for every retarget, whether from operator `hold-at`, future Talleyrand joint streams, or Cartesian primitives resolved upstream. Talleyrand owns IK and multi-joint timing; Berthier does not. The law lives in `berthier::position_hold::PositionHold` (lifecycle + `tick`); `ControlLoop` builds `HoldWorld` and sends the MIT batch through Davout.
 
-**MIT feedforward** (`GravityComp` / `Impedance` / `TorqueOnly`) packs Active MIT outside Position: `berthier::mit_feedforward::MitFeedforward`. YAML `joints.*.gravity_comp` / `impedance` are the gain sources; Testing overrides are cleared on GravityComp/TorqueOnly enter and ignored under those modes. `TorqueOnly` currently aliases GravityComp (`τ_ff = τ_g`).
+**MIT feedforward** (`GravityComp` / `Impedance` / `TorqueOnly`) packs Active MIT outside Position: `berthier::mit_feedforward::MitFeedforward`. YAML `joints.*.gravity_comp` / `impedance` are the gain sources; Testing overrides are allowed only in Impedance/Position, cleared on GravityComp/TorqueOnly/Disabled enter, and ignored under those modes. `TorqueOnly` currently aliases GravityComp (`τ_ff = τ_g`).
 
 Control law (ADR 0007 one-pass):
 

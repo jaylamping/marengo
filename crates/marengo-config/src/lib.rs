@@ -588,6 +588,12 @@ pub fn validate_control_config(control: &ControlConfigFile) -> Result<(), Config
         // ADR 0004: GravityComp wire gains must be zero (YAML is source of truth).
         const EPS: f64 = 1e-9;
         let g = &entry.gravity_comp;
+        if !g.kp.is_finite() || !g.kd.is_finite() || !g.ki.is_finite() {
+            return Err(ConfigError::InvalidGravityCompGains {
+                joint: joint.clone(),
+                message: "gravity_comp kp/kd/ki must be finite".to_string(),
+            });
+        }
         if g.kp.abs() > EPS || g.kd.abs() > EPS || g.ki.abs() > EPS {
             return Err(ConfigError::InvalidGravityCompGains {
                 joint: joint.clone(),
@@ -1372,6 +1378,20 @@ mod tests {
             .kp = 1.0;
         let cfg = ControlConfigFile { control };
         let err = validate_control_config(&cfg).expect_err("non-zero gravity_comp");
+        assert!(matches!(err, ConfigError::InvalidGravityCompGains { .. }));
+    }
+
+    #[test]
+    fn nan_gravity_comp_gains_rejected() {
+        let mut control = sample_control_section();
+        control
+            .joints
+            .get_mut("right_shoulder_pitch")
+            .expect("joint")
+            .gravity_comp
+            .kd = f64::NAN;
+        let cfg = ControlConfigFile { control };
+        let err = validate_control_config(&cfg).expect_err("nan gravity_comp");
         assert!(matches!(err, ConfigError::InvalidGravityCompGains { .. }));
     }
 

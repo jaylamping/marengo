@@ -60,10 +60,11 @@ pub fn target_gains_from_yaml(
     }
 }
 
-/// Effective wire (kp, kd): YAML target, optional override (Impedance only), optional ramp.
+/// Effective wire (kp, kd): YAML target, optional override (Impedance / Position), optional ramp.
 ///
-/// GravityComp / TorqueOnly ignore Testing overrides (ADR 0004 hard-zero path) but still
-/// accept an active mode-transition ramp so kp/kd can slew toward the YAML zeros.
+/// GravityComp / TorqueOnly / Disabled ignore Testing overrides (ADR 0004 hard-zero path)
+/// but still accept an active mode-transition ramp so kp/kd can slew toward the YAML zeros.
+/// Callers should not *store* overrides in those modes (`mode_allows_gain_override`).
 pub fn effective_wire_gains(
     mode: ControlMode,
     target_kp: f64,

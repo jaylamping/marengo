@@ -23,7 +23,7 @@ use armee_proto::{
     actuator_command, ActionEvent, ActuatorCommand, ActuatorLimitSnapshot, JointActuatorLimit,
     LimitPatchCommand, OperatorCommand, PersistStatus, TuningChange, TuningChangeEvent, TuningTier,
 };
-use berthier::{ControlLoop, ControlMode, GainOverride};
+use berthier::{mode_allows_gain_override, ControlLoop, GainOverride};
 use chappe::Bus;
 use davout::{MotorBus, Supervisor};
 use marengo_config::{
@@ -461,16 +461,14 @@ fn apply_runtime_param<B: MotorBus>(
             "{param} must be >= 0"
         )));
     }
-    // GravityComp / TorqueOnly require kp=0, kd=0 with tau_g (docs/safety.md). GainOverride
-    // is applied after mode selection in Berthier and would defeat that contract.
-    match loop_ctrl.control_mode() {
-        ControlMode::GravityComp | ControlMode::TorqueOnly => {
-            return Err(OverlayError::UnsupportedParam(format!(
-                "{param} (RuntimeMit blocked in {:?}; keep kp=0 kd=0)",
-                loop_ctrl.control_mode()
-            )));
-        }
-        ControlMode::Disabled | ControlMode::Impedance | ControlMode::Position => {}
+    // Only Impedance / Position may stash Testing overrides. Under GravityComp /
+    // TorqueOnly / Disabled, Berthier no-ops apply — reject here so operators get
+    // feedback and cannot plant stiffness that snaps on Impedance/Position enter.
+    if !mode_allows_gain_override(loop_ctrl.control_mode()) {
+        return Err(OverlayError::UnsupportedParam(format!(
+            "{param} (RuntimeMit blocked in {:?})",
+            loop_ctrl.control_mode()
+        )));
     }
     let mut ov = baseline_gain_override(loop_ctrl, joint);
     match param {

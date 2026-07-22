@@ -9,7 +9,7 @@ use std::time::Instant;
 use armee_proto::actuator_command::Payload;
 use armee_proto::prost::Message;
 use armee_proto::{ActionEvent, Envelope};
-use berthier::ControlLoop;
+use berthier::{ControlLoop, ControlMode};
 use davout::MemoryBus;
 use marengo_config::{load_control_config_from, CommandJointAllowlist};
 use tokio::sync::broadcast;
@@ -126,6 +126,7 @@ fn tuning_operator(joint: &str, param: &str, value: f64, tier: i32) -> OperatorC
 fn runtime_overlay_applies_kp_via_gain_override() {
     let (mut overlay, shutdown) = test_overlay();
     let mut loop_ctrl = test_loop();
+    loop_ctrl.set_control_mode(ControlMode::Impedance);
     let op = tuning_operator("elbow", "kp", 88.0, TuningTier::RuntimeMit as i32);
     let outcomes = overlay
         .apply_operator_command(&mut loop_ctrl, &repo_root().join("config"), &op)
@@ -171,9 +172,24 @@ fn runtime_overlay_rejects_under_gravity_comp() {
 }
 
 #[test]
+fn runtime_overlay_rejects_under_disabled() {
+    let (mut overlay, shutdown) = test_overlay();
+    let mut loop_ctrl = test_loop();
+    assert_eq!(loop_ctrl.control_mode(), ControlMode::Disabled);
+    let op = tuning_operator("elbow", "kp", 88.0, TuningTier::RuntimeMit as i32);
+    let err = overlay
+        .apply_operator_command(&mut loop_ctrl, &repo_root().join("config"), &op)
+        .expect_err("disabled");
+    assert!(matches!(err, OverlayError::UnsupportedParam(_)));
+    assert!(loop_ctrl.gain_override("elbow").is_none());
+    shutdown.store(true, Ordering::SeqCst);
+}
+
+#[test]
 fn runtime_overlay_rejects_negative_kp() {
     let (mut overlay, shutdown) = test_overlay();
     let mut loop_ctrl = test_loop();
+    loop_ctrl.set_control_mode(ControlMode::Impedance);
     let op = tuning_operator("elbow", "kp", -1.0, TuningTier::RuntimeMit as i32);
     let err = overlay
         .apply_operator_command(&mut loop_ctrl, &repo_root().join("config"), &op)
@@ -187,6 +203,7 @@ fn runtime_overlay_rejects_negative_kp() {
 fn runtime_overlay_clamps_kp_to_motor_type_max() {
     let (mut overlay, shutdown) = test_overlay();
     let mut loop_ctrl = test_loop();
+    loop_ctrl.set_control_mode(ControlMode::Impedance);
     let op = tuning_operator("elbow", "kp", 600.0, TuningTier::RuntimeMit as i32);
     overlay
         .apply_operator_command(&mut loop_ctrl, &repo_root().join("config"), &op)

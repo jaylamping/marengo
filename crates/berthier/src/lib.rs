@@ -52,6 +52,7 @@ mod position_wave;
 mod mode_isolation;
 
 pub use davout::ControlMode;
+pub use mit_feedforward::mode_allows_gain_override;
 pub use r#loop::{proto_control_mode, ControlLoop, GainOverride, LoopError, TickPhaseAverages};
 
 use davout::{DavoutError, JointCommand, OperationalMode, Supervisor};

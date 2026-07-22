@@ -21,8 +21,8 @@ use tracing::{debug, info};
 
 use crate::friction::POSITION_HOLD_ERROR_DEADBAND_RAD;
 use crate::mit_feedforward::{
-    mode_clears_gain_overrides_on_enter, target_gains_from_yaml, MitFeedforward, MitFfJointIn,
-    MitFfOverride,
+    mode_allows_gain_override, mode_clears_gain_overrides_on_enter, target_gains_from_yaml,
+    MitFeedforward, MitFfJointIn, MitFfOverride,
 };
 use crate::position_hold::{
     HoldError, HoldJointParams, HoldRetarget, HoldWorld, PositionHold, ADVANCE_MAX_LEAD_DEFAULT,
@@ -623,13 +623,34 @@ impl<B: MotorBus> ControlLoop<B> {
     // -- Gain override API -------------------------------------------
 
     /// Apply a per-joint gain override, clamped to motor-type safety limits.
+    ///
+    /// No-op under GravityComp / TorqueOnly / Disabled so Testing cannot stash
+    /// stiffness that snaps back on Impedance/Position enter.
     pub fn apply_gain_override(&mut self, joint_name: &str, gain_override: GainOverride) {
+        if !mode_allows_gain_override(self.control_mode) {
+            debug!(
+                ?self.control_mode,
+                joint = joint_name,
+                "ignore gain override in this control mode"
+            );
+            return;
+        }
         let clamped = self.clamp_override(joint_name, gain_override);
         self.gain_overrides.insert(joint_name.to_string(), clamped);
     }
 
     /// Batch-apply gain overrides for multiple joints.
+    ///
+    /// No-op under GravityComp / TorqueOnly / Disabled (same policy as
+    /// [`Self::apply_gain_override`]).
     pub fn apply_gain_overrides(&mut self, overrides: &HashMap<String, GainOverride>) {
+        if !mode_allows_gain_override(self.control_mode) {
+            debug!(
+                ?self.control_mode,
+                "ignore batch gain overrides in this control mode"
+            );
+            return;
+        }
         for (joint, ov) in overrides {
             let clamped = self.clamp_override(joint, ov.clone());
             self.gain_overrides.insert(joint.clone(), clamped);
@@ -1470,6 +1491,44 @@ mod tests {
             loop_ctrl.gain_overrides.is_empty(),
             "Impedance→GravityComp must clear Testing overrides"
         );
+    }
+
+    #[test]
+    fn apply_gain_override_ignored_under_gravity_comp() {
+        let mut loop_ctrl = test_loop();
+        loop_ctrl.set_control_mode(ControlMode::GravityComp);
+        loop_ctrl.apply_gain_override(
+            "shoulder_pitch",
+            GainOverride {
+                kp: 50.0,
+                kd: 5.0,
+                ki: 0.0,
+                fc: 1.0,
+            },
+        );
+        assert!(
+            loop_ctrl.gain_overrides.is_empty(),
+            "must not stash overrides under GravityComp"
+        );
+        // Enter Impedance must not resurrect planted stiffness.
+        loop_ctrl.set_control_mode(ControlMode::Impedance);
+        assert!(loop_ctrl.gain_overrides.is_empty());
+    }
+
+    #[test]
+    fn apply_gain_override_ignored_under_disabled() {
+        let mut loop_ctrl = test_loop();
+        assert_eq!(loop_ctrl.control_mode(), ControlMode::Disabled);
+        loop_ctrl.apply_gain_override(
+            "shoulder_pitch",
+            GainOverride {
+                kp: 50.0,
+                kd: 5.0,
+                ki: 0.0,
+                fc: 1.0,
+            },
+        );
+        assert!(loop_ctrl.gain_overrides.is_empty());
     }
 
     #[test]
@@ -2556,11 +2615,17 @@ mod tests {
     // Gain override tests
     // ════════════════════════════════════════════════════════════════
 
+    fn apply_override_in_impedance(loop_ctrl: &mut ControlLoop<MemoryBus>, joint: &str, ov: GainOverride) {
+        loop_ctrl.set_control_mode(ControlMode::Impedance);
+        loop_ctrl.apply_gain_override(joint, ov);
+    }
+
     #[test]
     fn apply_gain_override_clamps_kp_to_kp_max() {
         let mut loop_ctrl = test_loop();
         let joint = "shoulder_pitch";
-        loop_ctrl.apply_gain_override(
+        apply_override_in_impedance(
+            &mut loop_ctrl,
             joint,
             GainOverride {
                 kp: 6000.0,
@@ -2584,7 +2649,8 @@ mod tests {
     fn apply_gain_override_clamps_kd_to_kd_max() {
         let mut loop_ctrl = test_loop();
         let joint = "shoulder_pitch";
-        loop_ctrl.apply_gain_override(
+        apply_override_in_impedance(
+            &mut loop_ctrl,
             joint,
             GainOverride {
                 kp: 10.0,
@@ -2608,7 +2674,8 @@ mod tests {
     fn apply_gain_override_clamps_fc_to_tau_ff_max_nm() {
         let mut loop_ctrl = test_loop();
         let joint = "shoulder_pitch";
-        loop_ctrl.apply_gain_override(
+        apply_override_in_impedance(
+            &mut loop_ctrl,
             joint,
             GainOverride {
                 kp: 10.0,
@@ -2628,7 +2695,8 @@ mod tests {
     fn apply_gain_override_clamps_ki_to_kp_max() {
         let mut loop_ctrl = test_loop();
         let joint = "shoulder_pitch";
-        loop_ctrl.apply_gain_override(
+        apply_override_in_impedance(
+            &mut loop_ctrl,
             joint,
             GainOverride {
                 kp: 10.0,
@@ -2652,7 +2720,8 @@ mod tests {
     fn clear_gain_override_removes_entry() {
         let mut loop_ctrl = test_loop();
         let joint = "shoulder_pitch";
-        loop_ctrl.apply_gain_override(
+        apply_override_in_impedance(
+            &mut loop_ctrl,
             joint,
             GainOverride {
                 kp: 100.0,
@@ -2669,6 +2738,7 @@ mod tests {
     #[test]
     fn clear_all_overrides_removes_all() {
         let mut loop_ctrl = test_loop();
+        loop_ctrl.set_control_mode(ControlMode::Impedance);
         loop_ctrl.apply_gain_override(
             "shoulder_pitch",
             GainOverride {
@@ -2720,7 +2790,8 @@ mod tests {
     fn apply_gain_override_stores_within_limits_as_is() {
         let mut loop_ctrl = test_loop();
         let joint = "shoulder_pitch";
-        loop_ctrl.apply_gain_override(
+        apply_override_in_impedance(
+            &mut loop_ctrl,
             joint,
             GainOverride {
                 kp: 50.0,
