@@ -25,4 +25,8 @@ describe('Button (Launch Day panel chrome)', () => {
     expect(defaultClasses).toContain('bg-primary');
     expect(panelClasses).not.toEqual(defaultClasses);
   });
+
+  it('uses pointer cursor for clickable buttons', () => {
+    expect(buttonVariants({ variant: 'default' })).toContain('cursor-pointer');
+  });
 });

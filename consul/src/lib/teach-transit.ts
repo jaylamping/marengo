@@ -134,28 +134,32 @@ export function landmarksToKeyframes(
   return keyframes;
 }
 
-/**
- * Build a Wave overlay: raise-once + looping extrema (no nativeWave).
- * First landmark is raise endpoint; remaining landmarks are the loop body.
- */
-export function sessionToWaveOverlay(
+type TeachMaterializeResult =
+  | { ok: true; preset: CompoundTestPreset }
+  | { ok: false; error: TeachApplyError };
+
+type PreparedTeachKeyframes =
+  | { ok: true; keyframes: Record<string, Keyframe[]> }
+  | { ok: false; error: TeachApplyError };
+
+/** Shared Apply/play gates — validate once, then capability-specific transform. */
+function prepareTeachKeyframes(
   session: TeachSession,
   base: CompoundTestPreset,
-  liveFingerprint: TeachFingerprint
-): { ok: true; preset: CompoundTestPreset } | { ok: false; error: TeachApplyError } {
+  live: TeachFingerprint
+): PreparedTeachKeyframes {
   if (session.version !== TEACH_SESSION_VERSION) {
     return { ok: false, error: 'version_mismatch' };
   }
   if (session.presetId !== base.id) {
     return { ok: false, error: 'preset_mismatch' };
   }
-  if (!fingerprintsMatch(session, liveFingerprint)) {
+  if (!fingerprintsMatch(session, live)) {
     return { ok: false, error: 'fingerprint_mismatch' };
   }
   if (!canApplyLandmarks(session.landmarks)) {
     return { ok: false, error: 'empty_landmarks' };
   }
-
   const keyframes = landmarksToKeyframes(
     session.landmarks,
     session.joints,
@@ -165,10 +169,29 @@ export function sessionToWaveOverlay(
   if (!keyframes) {
     return { ok: false, error: 'empty_landmarks' };
   }
+  return { ok: true, keyframes };
+}
+
+/**
+ * Build a Wave overlay: raise-once + looping extrema (no nativeWave).
+ * First landmark is raise endpoint; remaining landmarks are the loop body.
+ */
+export function sessionToWaveOverlay(
+  session: TeachSession,
+  base: CompoundTestPreset,
+  liveFingerprint: TeachFingerprint
+): TeachMaterializeResult {
+  const prepared = prepareTeachKeyframes(session, base, liveFingerprint);
+  if (!prepared.ok) return prepared;
+  if (base.teach.kind !== 'replace-native-wave') {
+    return { ok: false, error: 'preset_mismatch' };
+  }
 
   const included = includedLandmarks(session.landmarks);
   // Need raise + ≥1 extrema landmark to loop without re-raise.
   const canLoopExtrema = included.length > 2;
+  const loopFromSegment =
+    canLoopExtrema && base.teach.loopFromFirstMotionLandmark ? 1 : undefined;
 
   return {
     ok: true,
@@ -176,13 +199,55 @@ export function sessionToWaveOverlay(
       ...base,
       description: `${base.description} [taught overlay]`,
       joints: [...session.joints],
-      keyframes,
+      keyframes: prepared.keyframes,
       loop: canLoopExtrema,
       advance: 'timed',
       nativeWave: undefined,
-      loopFromSegment: canLoopExtrema ? 1 : undefined,
+      loopFromSegment,
     },
   };
+}
+
+export function sessionToKeyframeOverlay(
+  session: TeachSession,
+  base: CompoundTestPreset,
+  liveFingerprint: TeachFingerprint
+): TeachMaterializeResult {
+  const prepared = prepareTeachKeyframes(session, base, liveFingerprint);
+  if (!prepared.ok) return prepared;
+  if (base.teach.kind !== 'replace-program') {
+    return { ok: false, error: 'preset_mismatch' };
+  }
+
+  return {
+    ok: true,
+    preset: {
+      ...base,
+      description: `${base.description} [taught overlay]`,
+      joints: [...session.joints],
+      keyframes: prepared.keyframes,
+      loop: base.teach.preserveLoop ? base.loop : false,
+      nativeWave: undefined,
+      loopFromSegment: undefined,
+    },
+  };
+}
+
+export function materializeTaughtPreset(
+  session: TeachSession,
+  base: CompoundTestPreset,
+  liveFingerprint: TeachFingerprint
+): TeachMaterializeResult {
+  switch (base.teach.kind) {
+    case 'replace-native-wave':
+      return sessionToWaveOverlay(session, base, liveFingerprint);
+    case 'replace-program':
+      return sessionToKeyframeOverlay(session, base, liveFingerprint);
+    default: {
+      const _exhaustive: never = base.teach;
+      return _exhaustive;
+    }
+  }
 }
 
 /** Merge shipped preset with applied overlay (overlay wins when present). */
@@ -230,7 +295,7 @@ export interface TeachOverlayGateInput {
 
 /**
  * Single play-time resolver: materialize overlay from session landmarks, or fall
- * back to shipped base so a refused/stale overlay never bricks Wave.
+ * back to shipped base so a refused or stale overlay never blocks a preset.
  */
 export function resolvePlayablePreset(
   base: CompoundTestPreset,
@@ -240,7 +305,7 @@ export function resolvePlayablePreset(
 ): {
   preset: CompoundTestPreset;
   usingOverlay: boolean;
-  /** Soft-cal / fingerprint issues — Wave still starts on shipped base. */
+  /** Soft-calibration and fingerprint issues still run the shipped preset. */
   warning: string | null;
 } {
   if (!entry) {
@@ -254,16 +319,16 @@ export function resolvePlayablePreset(
   if (!gate.ok) {
     const warning =
       gate.error === 'calibration_ack_required'
-        ? 'Taught overlay needs Acknowledge & keep (or Reset) — playing shipped Wave.'
-        : `Taught overlay unavailable (${gate.error}) — playing shipped Wave.`;
+        ? 'Taught overlay needs Acknowledge & keep (or Reset) — playing shipped preset.'
+        : `Taught overlay unavailable (${gate.error}) — playing shipped preset.`;
     return { preset: base, usingOverlay: false, warning };
   }
-  const built = sessionToWaveOverlay(entry.session, base, live);
+  const built = materializeTaughtPreset(entry.session, base, live);
   if (!built.ok) {
     return {
       preset: base,
       usingOverlay: false,
-      warning: `Taught overlay unavailable (${built.error}) — playing shipped Wave.`,
+      warning: `Taught overlay unavailable (${built.error}) — playing shipped preset.`,
     };
   }
   return { preset: built.preset, usingOverlay: true, warning: null };

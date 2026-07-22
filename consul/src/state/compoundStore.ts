@@ -1,5 +1,5 @@
 import { create as createZustand } from 'zustand';
-import { COMPOUND_TEST_PRESETS } from '@/data/compound-tests';
+import { compoundPresetById } from '@/data/compound-tests';
 
 interface CompoundStore {
   selectedPresetId: string | null;
@@ -31,7 +31,7 @@ export const useCompoundStore = createZustand<CompoundStore>((set) => ({
   returnHomePending: false,
 
   setSelectedPresetId: (id) => {
-    const preset = id ? COMPOUND_TEST_PRESETS.find((p) => p.id === id) : null;
+    const preset = id ? compoundPresetById(id) : null;
     set({
       selectedPresetId: id,
       trims: {},
