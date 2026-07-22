@@ -6,6 +6,7 @@ mod framing;
 mod http;
 mod logs;
 mod ratelimit;
+mod restart;
 mod state;
 mod webtransport;
 

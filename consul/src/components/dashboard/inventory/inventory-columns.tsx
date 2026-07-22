@@ -6,6 +6,7 @@ import { InventoryStatusCell } from '@/components/dashboard/inventory/cells/inve
 import { PresetCell } from '@/components/dashboard/inventory/cells/preset-cell';
 import { RowActionsMenu } from '@/components/dashboard/inventory/cells/row-actions-menu';
 import type { InventoryRow } from '@/components/dashboard/inventory/types';
+import { NeedsRestartBadge } from '@/components/dashboard/needs-restart/needs-restart-badge';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 
@@ -89,14 +90,20 @@ export const inventoryColumns: ColumnDef<InventoryRow>[] = [
     meta: { className: 'text-right' } satisfies InventoryColumnMeta,
     header: () => <span className="block w-full text-right">Range</span>,
     cell: ({ row }) => (
-      <EditableFieldCell
-        itemId={row.original.id}
-        itemName={row.original.name}
-        field="limit"
-        label="Range"
-        defaultValue={row.original.limit}
-        inputClassName="h-8 w-24"
-      />
+      <div className="flex items-center justify-end gap-1.5">
+        <NeedsRestartBadge
+          variant="pending"
+          jointName={row.original.name}
+        />
+        <EditableFieldCell
+          itemId={row.original.id}
+          itemName={row.original.name}
+          field="limit"
+          label="Range"
+          defaultValue={row.original.limit}
+          inputClassName="h-8 w-24"
+        />
+      </div>
     ),
   },
   {

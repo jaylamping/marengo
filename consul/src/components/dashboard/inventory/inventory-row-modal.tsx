@@ -33,6 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { NeedsRestartBadge } from '@/components/dashboard/needs-restart/needs-restart-badge';
 import { useActiveReportingLease } from '@/hooks/use-active-reporting-lease';
 import { cn } from '@/lib/utils';
 import { useRobotStore } from '@/state/robotStore';
@@ -230,6 +231,7 @@ export function InventoryRowModal({
               </DialogDescription>
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
+              <NeedsRestartBadge variant="needs" />
               {showEnhancedLogging ? (
                 <Badge
                   variant="outline"

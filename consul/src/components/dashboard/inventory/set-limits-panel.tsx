@@ -21,10 +21,11 @@ import { queryClient } from '@/lib/query-client';
 import { queryKeys } from '@/lib/query-keys';
 import { subscribeTeachSamples } from '@/lib/teach-sample-bus';
 import { useLimitListenStore } from '@/state/limitListenStore';
+import { useNeedsRestartStore } from '@/state/needsRestartStore';
 import { useRobotStore } from '@/state/robotStore';
 
 const SET_LIMITS_HELP =
-  'Motors must be disabled (not ACTIVE) for Set Limits. Support the assembly, then sweep the joint to both hard stops while Consul samples position. Stop to propose min/max, then Apply writes motors.yaml bench limits via the gateway (restart marengo-pi to load hard limits into Davout). Set Zero briefly enables for firmware zero at the current pose, then disables again.';
+  'Motors must be disabled (not ACTIVE) for Set Limits. Support the assembly, then sweep the joint to both hard stops while Consul samples position. Stop to propose min/max, then Apply writes motors.yaml bench limits via the gateway. Restart marengo-pi (Needs restart) so Davout loads hard limits. Set Zero briefly enables for firmware zero at the current pose, then disables again.';
 
 type SetLimitsPanelProps = {
   jointName: string;
@@ -223,11 +224,11 @@ export function SetLimitsPanel({
       // Draft only — do not write inventoryOverridesStore; config snapshot is SoT.
       onApplyRange(proposal.display);
       discard();
-      setApplyOk(
-        result.restartRequired
-          ? `${result.message} Restart marengo-pi to load new hard limits.`
-          : result.message,
-      );
+      setApplyOk(result.message);
+      if (result.restartRequired) {
+        useNeedsRestartStore.getState().markJointNeedsRestart(jointName);
+        useNeedsRestartStore.getState().openRestartDialog({ fromApply: true });
+      }
       try {
         await queryClient.invalidateQueries({
           queryKey: queryKeys.configSnapshot,

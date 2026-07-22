@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 
+import { NeedsRestartBadge } from '@/components/dashboard/needs-restart/needs-restart-badge';
 import {
   Tooltip,
   TooltipContent,
@@ -208,6 +209,7 @@ export function SiteHeaderStatusBadges() {
 
   return (
     <div className="flex items-center gap-2">
+      <NeedsRestartBadge variant="needs" />
       <HeaderBadgeTooltip
         ariaLabel={`CAN bus ${siteHeaderConfig.bus}`}
         content={

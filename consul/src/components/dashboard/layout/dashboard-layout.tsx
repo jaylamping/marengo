@@ -8,6 +8,7 @@ import {
   dashboardMainPointerClassName,
 } from '@/components/dashboard/layout/constants';
 import { SceneBackground } from '@/components/dashboard/layout/scene-background';
+import { RestartConfirmDialog } from '@/components/dashboard/needs-restart/restart-confirm-dialog';
 import { AppSidebar } from '@/components/dashboard/sidebar/app-sidebar';
 import { SiteHeader } from '@/components/dashboard/site-header/site-header';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
@@ -43,6 +44,7 @@ export function DashboardLayout({ children, scenePaused = false }: DashboardLayo
           </div>
         </SidebarInset>
       </SidebarProvider>
+      <RestartConfirmDialog />
     </div>
   );
 }
