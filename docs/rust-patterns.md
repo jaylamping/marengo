@@ -115,7 +115,7 @@ supervisor.send_mit_batch(joint_space_cmds)?;
 - robstride operates in raw motor/CAN space only.
 - Davout owns `config/motors.yaml` `direction` / `gear_ratio` transforms in both directions.
 
-Position hold (`hold-at`) is Berthier's **joint-space motion primitive executor** — one law for every retarget, whether from operator `hold-at`, future Talleyrand joint streams, or Cartesian primitives resolved upstream. Talleyrand owns IK and multi-joint timing; Berthier does not.
+Position hold (`hold-at`) is Berthier's **joint-space motion primitive executor** — one law for every retarget, whether from operator `hold-at`, future Talleyrand joint streams, or Cartesian primitives resolved upstream. Talleyrand owns IK and multi-joint timing; Berthier does not. The law lives in `berthier::position_hold::PositionHold` (lifecycle + `tick`); `ControlLoop` builds `HoldWorld` and sends the MIT batch through Davout.
 
 Control law (ADR 0007 one-pass):
 

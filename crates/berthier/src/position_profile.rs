@@ -1,19 +1,4 @@
-//! Position-hold motion profile selection (small hold vs trajectory vs return).
-
-use crate::position_trajectory::is_gravity_assisted_return;
-
-/// Motion profile for position hold — drives planner speed and setpoint policy.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PositionMotionProfile {
-    /// Local retarget within `position_trajectory_threshold_rad`.
-    SmallHold,
-    /// Full trapezoid cruise toward a distant target.
-    TrajectoryMove,
-    /// Gravity-assisted return toward home.
-    ReturnHome,
-    /// Cross-home or limit-directed probe (distinct from ordinary return).
-    LimitProbe,
-}
+//! Position-hold cruise `v_max` selection and planner event tags.
 
 /// Planner event tag for trace CSV (`planner_event` column).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -71,24 +56,6 @@ pub fn position_hold_v_max(
     }
 }
 
-/// Classify the active motion profile for diagnostics and future policy gates.
-pub fn classify_position_profile(
-    q: f64,
-    target: f64,
-    move_dist: f64,
-    trajectory_threshold_rad: f64,
-) -> PositionMotionProfile {
-    if move_dist <= trajectory_threshold_rad {
-        PositionMotionProfile::SmallHold
-    } else if is_gravity_assisted_return(q, target) {
-        PositionMotionProfile::ReturnHome
-    } else if q * target < 0.0 {
-        PositionMotionProfile::LimitProbe
-    } else {
-        PositionMotionProfile::TrajectoryMove
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -109,13 +76,5 @@ mod tests {
         assert!((position_hold_v_max(0.1, 0.15, 2.0, 0.15, 0.0) - 0.15).abs() < 1e-12);
         assert!((position_hold_v_max(0.1, 0.15, 2.0, 0.15, 1.5) - 2.0).abs() < 1e-12);
         assert!((position_hold_v_max(1.57, 0.15, 2.0, 0.15, 0.0) - 2.0).abs() < 1e-12);
-    }
-
-    #[test]
-    fn classify_small_hold_at_layer2() {
-        assert_eq!(
-            classify_position_profile(0.0, 0.1, 0.1, 0.15),
-            PositionMotionProfile::SmallHold
-        );
     }
 }
