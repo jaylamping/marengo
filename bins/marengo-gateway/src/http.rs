@@ -24,6 +24,7 @@ use crate::actuator;
 use crate::config;
 use crate::framing::{self, CHAPPE_STREAM_CONTENT_TYPE};
 use crate::logs;
+use crate::profiles;
 use crate::restart;
 use crate::state::{filter_topics, SharedState};
 
@@ -101,7 +102,16 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
         .route("/logs/structured", get(logs::structured_logs))
         .route("/settings", get(logs::get_settings))
         .route("/config/snapshot", get(config::get_config_snapshot))
+        .route("/config/profiles", get(profiles::get_profiles))
+        .route(
+            "/config/profiles/{slug}/snapshot",
+            get(profiles::get_profile_snapshot),
+        )
         .route("/config/patch", post(config::post_config_patch))
+        .route(
+            "/config/actuators/apply",
+            post(profiles::post_apply_actuator),
+        )
         .route(
             "/control/restart-marengo-pi",
             post(restart::post_restart_marengo_pi),

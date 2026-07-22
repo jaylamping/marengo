@@ -27,10 +27,26 @@
 //! `hardware/docs/kinematics.md` together.
 
 mod bench_joints;
+mod bringup_presets;
+mod limit_patch;
+mod profile_txn;
 
 pub use bench_joints::{
     load_command_joint_allowlist, load_command_joint_allowlist_from, resolve_command_joint,
     CommandJointAllowlist,
+};
+pub use bringup_presets::{
+    bringup_dir_default_repo, derive_preset_label_for_joint, is_allowlisted_slug,
+    preset_id_for_profile, profile_content_revision, profile_slug_for_preset, resolve_bringup_dir,
+    PresetProfileMapping, BRINGUP_PRESET_IDS, BRINGUP_PROFILE_SLUGS, PRESET_PROFILE_MAP,
+};
+pub use limit_patch::{
+    apply_limit_patch_to_control, apply_limit_patch_to_motor, validate_limit_patch, LimitPatch,
+};
+pub use profile_txn::{
+    add_joint_from_source, joint_in_motors, joint_in_profile_urdf, limit_patch_from_motor,
+    membership_slugs_for_joint, upsert_joint_limits, write_motors_and_control, AddJointResult,
+    UpsertLimitResult,
 };
 
 use std::collections::{HashMap, HashSet};

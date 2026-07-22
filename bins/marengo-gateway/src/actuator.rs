@@ -183,7 +183,7 @@ mod tests {
     #![allow(clippy::expect_used, clippy::panic)]
 
     use std::ffi::OsString;
-    use std::sync::{Mutex, MutexGuard};
+    use std::sync::MutexGuard;
 
     use super::*;
     use armee_proto::{
@@ -196,10 +196,10 @@ mod tests {
     use marengo_config::CommandJointAllowlist;
     use tower::ServiceExt;
 
+    use crate::logs::lock_test_env;
     use crate::state::AppState;
 
     const TEST_LOG_TOKEN: &str = "actuator-test-token";
-    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     struct EnvVarGuard {
         _lock: MutexGuard<'static, ()>,
@@ -217,7 +217,7 @@ mod tests {
         }
 
         fn replace(key: &'static str, value: Option<OsString>) -> Self {
-            let lock = ENV_LOCK.lock().expect("environment lock");
+            let lock = lock_test_env();
             let previous = std::env::var_os(key);
             match value {
                 Some(value) => std::env::set_var(key, value),

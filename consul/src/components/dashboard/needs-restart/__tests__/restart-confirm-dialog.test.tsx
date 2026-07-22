@@ -19,9 +19,16 @@ afterEach(() => {
 
 beforeEach(() => {
   useNeedsRestartStore.setState({
-    pendingRestartJoints: ['right_elbow_pitch'],
+    pending: [
+      {
+        profile: 'arm_4dof_right',
+        joint: 'right_elbow_pitch',
+        reason: 'structural',
+        expected_revision: 'r1',
+      },
+    ],
     restartDialogOpen: false,
-    dialogFromApply: false,
+    dialogReason: null,
   });
   useRobotStore.setState({ connected: true, operationalMode: 'DISABLED' });
   vi.mocked(restartMarengoPi).mockClear();
@@ -45,19 +52,19 @@ describe('RestartConfirmDialog + NeedsRestartBadge', () => {
     await vi.waitFor(() => {
       expect(useNeedsRestartStore.getState().restartDialogOpen).toBe(false);
     });
-    expect(useNeedsRestartStore.getState().pendingRestartJoints).toEqual([
-      'right_elbow_pitch',
-    ]);
+    expect(useNeedsRestartStore.getState().pending.map((p) => p.joint)).toEqual(
+      ['right_elbow_pitch'],
+    );
     expect(restartMarengoPi).not.toHaveBeenCalled();
   });
 
   it('Restart now clears pending on success', async () => {
-    useNeedsRestartStore.getState().openRestartDialog();
+    useNeedsRestartStore.getState().openRestartDialog({ reason: 'structural' });
     render(<RestartConfirmDialog />);
     fireEvent.click(screen.getByTestId('restart-now-button'));
     await vi.waitFor(() => {
       expect(restartMarengoPi).toHaveBeenCalled();
-      expect(useNeedsRestartStore.getState().pendingRestartJoints).toEqual([]);
+      expect(useNeedsRestartStore.getState().pending).toEqual([]);
     });
   });
 
@@ -66,15 +73,15 @@ describe('RestartConfirmDialog + NeedsRestartBadge', () => {
       ok: false,
       message: 'boom',
     });
-    useNeedsRestartStore.getState().openRestartDialog();
+    useNeedsRestartStore.getState().openRestartDialog({ reason: 'structural' });
     render(<RestartConfirmDialog />);
     fireEvent.click(screen.getByTestId('restart-now-button'));
     await vi.waitFor(() => {
       expect(screen.getByText(/boom/i)).toBeTruthy();
     });
-    expect(useNeedsRestartStore.getState().pendingRestartJoints).toEqual([
-      'right_elbow_pitch',
-    ]);
+    expect(useNeedsRestartStore.getState().pending.map((p) => p.joint)).toEqual(
+      ['right_elbow_pitch'],
+    );
   });
 
   it('disables Restart now when ACTIVE', () => {

@@ -11,7 +11,7 @@ describe('persistJointLimits', () => {
     const patchConfig = vi.fn().mockResolvedValue({
       ok: true,
       message: 'Updated right_shoulder_pitch',
-      restart_required: true,
+      restart_required: false,
     });
 
     const result = await persistJointLimits(
@@ -24,7 +24,7 @@ describe('persistJointLimits', () => {
       ok: true,
       lower: -0.506,
       upper: 1.206,
-      restartRequired: true,
+      restartRequired: false,
       message: 'Updated right_shoulder_pitch',
     });
     expect(patchConfig).toHaveBeenCalledWith(

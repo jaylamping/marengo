@@ -310,3 +310,19 @@ No coverage tooling is configured. Expectation: `just check` passes before merge
 ## Repository Map
 
 Full hierarchical codemap at [`codemap.md`](codemap.md). Read it before starting any task; for deep work, also read that folder's `codemap.md`.
+
+---
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues on `jaylamping/marengo` via `gh`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: root `CONTEXT.md` + ADRs in `docs/decisions/`. See `docs/agents/domain.md`.

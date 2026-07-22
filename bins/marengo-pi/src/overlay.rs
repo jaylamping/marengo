@@ -27,15 +27,16 @@ use std::time::Instant;
 use armee_proto::prost::Message;
 use armee_proto::{
     actuator_command, ActionEvent, ActuatorCommand, ActuatorLimitSnapshot, JointActuatorLimit,
-    OperatorCommand, TuningChange, TuningChangeEvent, TuningTier,
+    LimitPatchCommand, OperatorCommand, PersistStatus, TuningChange, TuningChangeEvent, TuningTier,
 };
 use berthier::{ControlLoop, ControlMode, GainOverride};
 use chappe::Bus;
 use davout::{MotorBus, Supervisor};
 use marengo_config::{
     apply_joint_config_param, load_command_joint_allowlist_from, motor_type_key,
-    resolve_command_joint, validate_joint_gains_against_motor_type, write_control_config_from,
-    CommandJointAllowlist, ControlConfigFile,
+    profile_content_revision, resolve_command_joint, validate_joint_gains_against_motor_type,
+    write_control_config_from, write_motors_and_control, CommandJointAllowlist, ControlConfigFile,
+    LimitPatch, MotorsConfigFile,
 };
 use thiserror::Error;
 use tracing::{info, warn};
@@ -86,7 +87,9 @@ struct PersistSlot {
 
 struct PersistRequest {
     config_dir: PathBuf,
-    draft: ControlConfigFile,
+    /// When set, write motors.yaml + control.yaml atomically; otherwise control-only.
+    motors: Option<MotorsConfigFile>,
+    control: ControlConfigFile,
     timestamp_ms: u64,
     session_id: String,
     operator_id: String,
@@ -127,19 +130,32 @@ impl ConfigPersistQueue {
         }
     }
 
-    /// Test helper: wait until no pending request and no in-flight write.
-    #[cfg(test)]
-    fn wait_idle_for_test(&self, timeout: Duration) -> bool {
+    /// True while a write is queued or in flight (restart must drain first).
+    pub fn is_busy(&self) -> bool {
+        self.pending
+            .lock()
+            .map(|slot| slot.request.is_some() || slot.writing)
+            .unwrap_or(true)
+    }
+
+    /// Block until the persist queue is idle or `timeout` elapses.
+    pub fn wait_idle(&self, timeout: Duration) -> bool {
+        #[cfg(test)]
         let start = Instant::now();
+        #[cfg(not(test))]
+        let start = std::time::Instant::now();
         while start.elapsed() < timeout {
-            if let Ok(slot) = self.pending.lock() {
-                if slot.request.is_none() && !slot.writing {
-                    return true;
-                }
+            if !self.is_busy() {
+                return true;
             }
             thread::sleep(Duration::from_millis(5));
         }
         false
+    }
+
+    #[cfg(test)]
+    fn wait_idle_for_test(&self, timeout: Duration) -> bool {
+        self.wait_idle(timeout)
     }
 
     #[cfg(test)]
@@ -180,7 +196,12 @@ fn persist_worker(
                 req
             };
 
-            let write_result = write_control_config_from(&request.config_dir, &request.draft);
+            let write_result = match &request.motors {
+                Some(motors) => {
+                    write_motors_and_control(&request.config_dir, motors, &request.control)
+                }
+                None => write_control_config_from(&request.config_dir, &request.control),
+            };
             if let Ok(mut slot) = pending.lock() {
                 slot.writing = false;
             }
@@ -192,17 +213,23 @@ fn persist_worker(
                         param = %request.param,
                         session = %request.session_id,
                         persist = true,
-                        "control.yaml persist write succeeded"
+                        "config persist write succeeded"
                     );
+                    let config_revision =
+                        profile_content_revision(&request.config_dir).unwrap_or_default();
                     let event = ActionEvent {
                         timestamp_ms: request.timestamp_ms,
                         session_id: request.session_id,
                         operator_id: request.operator_id,
                         joint: request.joint,
-                        action: "config_persist".to_string(),
+                        // Write-behind uses a distinct action so gateway live-wait
+                        // (action == "limit_patch") cannot treat Durable/Failed as the apply ACK.
+                        action: persist_audit_action(&request.param).to_string(),
                         revision: AUDIT_REVISION.fetch_add(1, Ordering::Relaxed),
                         accepted: true,
                         reject_reason: "disk write completed".to_string(),
+                        persist_status: PersistStatus::Durable as i32,
+                        config_revision,
                     };
                     let _ = publish_action_event(&chappe, &event);
                 }
@@ -213,19 +240,19 @@ fn persist_worker(
                         param = %request.param,
                         session = %request.session_id,
                         persist = true,
-                        "control.yaml persist write FAILED; live config may differ from disk"
+                        "config persist write FAILED; live config may differ from disk"
                     );
                     let event = ActionEvent {
                         timestamp_ms: request.timestamp_ms,
                         session_id: request.session_id,
                         operator_id: request.operator_id,
                         joint: request.joint,
-                        action: "config_persist".to_string(),
+                        action: persist_audit_action(&request.param).to_string(),
                         revision: AUDIT_REVISION.fetch_add(1, Ordering::Relaxed),
                         accepted: false,
-                        reject_reason: format!(
-                            "async control.yaml write failed after live apply: {e}"
-                        ),
+                        reject_reason: format!("async config write failed after live apply: {e}"),
+                        persist_status: PersistStatus::Failed as i32,
+                        config_revision: String::new(),
                     };
                     let _ = publish_action_event(&chappe, &event);
                 }
@@ -287,8 +314,14 @@ impl ActuatorOverlay {
                                 if let Err(e) = publish_outcome(chappe, &outcome) {
                                     warn!(error = %e, "failed to publish overlay audit event");
                                 }
-                                if matches!(outcome, OverlayOutcome::Tuning(_)) {
-                                    self.limits_dirty = true;
+                                match &outcome {
+                                    OverlayOutcome::Tuning(_) => self.limits_dirty = true,
+                                    OverlayOutcome::Action(event)
+                                        if event.action == "limit_patch" && event.accepted =>
+                                    {
+                                        self.limits_dirty = true;
+                                    }
+                                    OverlayOutcome::Action(_) => {}
                                 }
                             }
                         }
@@ -305,6 +338,8 @@ impl ActuatorOverlay {
                                     action_label(cmd),
                                     false,
                                     Some(e.to_string()),
+                                    PersistStatus::NotApplicable,
+                                    String::new(),
                                 );
                                 let _ = publish_action_event(chappe, &event);
                             }
@@ -326,6 +361,8 @@ impl ActuatorOverlay {
                         revision: AUDIT_REVISION.fetch_add(1, Ordering::Relaxed),
                         accepted: false,
                         reject_reason: format!("broadcast lagged; skipped {n} actuator commands"),
+                        persist_status: PersistStatus::NotApplicable as i32,
+                        config_revision: String::new(),
                     };
                     let _ = publish_action_event(chappe, &event);
                 }
@@ -352,6 +389,9 @@ impl ActuatorOverlay {
             Some(actuator_command::Payload::Tuning(ref tuning)) => {
                 self.apply_tuning_change(loop_ctrl, config_dir, operator, &joint, tuning)
             }
+            Some(actuator_command::Payload::LimitPatch(ref patch)) => {
+                self.apply_limit_patch_command(loop_ctrl, config_dir, operator, &joint, patch)
+            }
             Some(actuator_command::Payload::Enable(_))
             | Some(actuator_command::Payload::Mode(_))
             | Some(actuator_command::Payload::Jog(_))
@@ -363,11 +403,18 @@ impl ActuatorOverlay {
                     action_label(cmd),
                     false,
                     Some("motion commands gated until motion unlock".to_string()),
+                    PersistStatus::NotApplicable,
+                    String::new(),
                 );
                 Ok(vec![OverlayOutcome::Action(event)])
             }
             None => Err(OverlayError::MissingCommand),
         }
+    }
+
+    /// Drain write-behind before process exit / restart.
+    pub fn wait_persist_idle(&self, timeout: Duration) -> bool {
+        self.persist.wait_idle(timeout)
     }
 
     pub fn maybe_publish_limits<B: MotorBus>(
@@ -426,7 +473,8 @@ impl ActuatorOverlay {
                     // in that same Chappe trust — not a separate auth check.
                     self.persist.enqueue(PersistRequest {
                         config_dir: config_dir.to_path_buf(),
-                        draft: draft.clone(),
+                        motors: None,
+                        control: draft.clone(),
                         timestamp_ms: operator.timestamp_ms,
                         session_id: operator.session_id.clone(),
                         operator_id: operator.operator_id.clone(),
@@ -463,12 +511,106 @@ impl ActuatorOverlay {
                             "queued async control.yaml write; live config already applied"
                                 .to_string(),
                         ),
+                        PersistStatus::Pending,
+                        String::new(),
                     )));
                 }
                 Ok(outcomes)
             }
             _ => Err(OverlayError::UnsupportedTier),
         }
+    }
+
+    fn apply_limit_patch_command<B: MotorBus>(
+        &self,
+        loop_ctrl: &mut ControlLoop<B>,
+        config_dir: &Path,
+        operator: &OperatorCommand,
+        joint: &str,
+        patch_cmd: &LimitPatchCommand,
+    ) -> Result<Vec<OverlayOutcome>, OverlayError> {
+        let current_revision = profile_content_revision(config_dir)?;
+        if !patch_cmd.expected_revision.is_empty()
+            && patch_cmd.expected_revision != current_revision
+        {
+            return Err(OverlayError::Config(marengo_config::ConfigError::Parse {
+                path: config_dir.to_path_buf(),
+                message: format!(
+                    "profile revision mismatch: expected {}, found {current_revision}",
+                    patch_cmd.expected_revision
+                ),
+            }));
+        }
+        let patch = LimitPatch {
+            joint: joint.to_string(),
+            position_lower_rad: patch_cmd.position_lower_rad,
+            position_upper_rad: patch_cmd.position_upper_rad,
+            torque_limit_nm: patch_cmd.torque_limit_nm,
+            position_soft_lower_rad: patch_cmd.position_soft_lower_rad,
+            position_soft_upper_rad: patch_cmd.position_soft_upper_rad,
+            velocity_max_rad_s: patch_cmd.velocity_max_rad_s,
+        };
+
+        // Snapshot for rollback if the persist queue is dead after a successful live apply.
+        let motors_before = loop_ctrl.supervisor().motors.clone();
+        let control_before = loop_ctrl.supervisor().control.clone();
+        loop_ctrl
+            .supervisor_mut()
+            .apply_limit_patch(&patch)
+            .map_err(|e| {
+                OverlayError::Config(marengo_config::ConfigError::Parse {
+                    path: config_dir.to_path_buf(),
+                    message: e.to_string(),
+                })
+            })?;
+
+        let motors = loop_ctrl.supervisor().motors.clone();
+        let control = loop_ctrl.supervisor().control.clone();
+        if let Err(error) = self.persist.enqueue(PersistRequest {
+            config_dir: config_dir.to_path_buf(),
+            motors: Some(motors),
+            control,
+            timestamp_ms: operator.timestamp_ms,
+            session_id: operator.session_id.clone(),
+            operator_id: operator.operator_id.clone(),
+            joint: joint.to_string(),
+            param: "limit_patch".into(),
+        }) {
+            loop_ctrl.supervisor_mut().motors = motors_before;
+            loop_ctrl.supervisor_mut().control = control_before;
+            loop_ctrl.supervisor_mut().rebuild_limits().map_err(|e| {
+                OverlayError::Config(marengo_config::ConfigError::Parse {
+                    path: config_dir.to_path_buf(),
+                    message: format!(
+                        "limit_patch rollback failed after enqueue error ({error}): {e}"
+                    ),
+                })
+            })?;
+            return Err(error);
+        }
+        warn!(
+            joint = %joint,
+            session = %operator.session_id,
+            "limit_patch applied live; async motors+control persist queued"
+        );
+        Ok(vec![OverlayOutcome::Action(action_event(
+            operator,
+            joint,
+            "limit_patch",
+            true,
+            Some("applied in memory; persist pending".to_string()),
+            PersistStatus::Pending,
+            current_revision,
+        ))])
+    }
+}
+
+/// Audit `action` for async write-behind (never `"limit_patch"`, which is the live ACK).
+fn persist_audit_action(param: &str) -> &'static str {
+    if param == "limit_patch" {
+        "limit_patch_persist"
+    } else {
+        "config_persist"
     }
 }
 
@@ -611,6 +753,8 @@ fn action_event(
     action: &str,
     accepted: bool,
     reject_reason: Option<String>,
+    persist_status: PersistStatus,
+    config_revision: String,
 ) -> ActionEvent {
     ActionEvent {
         timestamp_ms: operator.timestamp_ms,
@@ -621,6 +765,8 @@ fn action_event(
         revision: AUDIT_REVISION.fetch_add(1, Ordering::Relaxed),
         accepted,
         reject_reason: reject_reason.unwrap_or_default(),
+        persist_status: persist_status as i32,
+        config_revision,
     }
 }
 
@@ -632,6 +778,7 @@ fn action_label(cmd: &ActuatorCommand) -> &'static str {
         Some(actuator_command::Payload::Hold(_)) => "hold",
         Some(actuator_command::Payload::Preset(_)) => "preset",
         Some(actuator_command::Payload::Tuning(_)) => "tuning",
+        Some(actuator_command::Payload::LimitPatch(_)) => "limit_patch",
         None => "unknown",
     }
 }
@@ -672,9 +819,12 @@ mod tests {
     #![allow(clippy::expect_used)]
 
     use armee_proto::actuator_command::Payload;
+    use armee_proto::prost::Message;
+    use armee_proto::{ActionEvent, Envelope};
     use berthier::ControlLoop;
     use davout::MemoryBus;
     use marengo_config::{load_control_config_from, CommandJointAllowlist};
+    use tokio::sync::broadcast;
 
     use super::*;
 
@@ -690,18 +840,60 @@ mod tests {
         load_command_joint_allowlist_from(repo_root().join("config")).expect("allowlist")
     }
 
-    fn test_persist_queue() -> (ConfigPersistQueue, Arc<AtomicBool>) {
+    fn test_persist_queue() -> (ConfigPersistQueue, Arc<AtomicBool>, Arc<Bus>) {
         let shutdown = Arc::new(AtomicBool::new(false));
-        let queue = ConfigPersistQueue::spawn(Arc::new(Bus::new(16)), Arc::clone(&shutdown));
-        (queue, shutdown)
+        let bus = Arc::new(Bus::new(16));
+        let queue = ConfigPersistQueue::spawn(Arc::clone(&bus), Arc::clone(&shutdown));
+        (queue, shutdown, bus)
     }
 
     fn test_overlay() -> (ActuatorOverlay, Arc<AtomicBool>) {
-        let (persist, shutdown) = test_persist_queue();
+        let (persist, shutdown, _bus) = test_persist_queue();
         (
             ActuatorOverlay::new(allowlist_from_repo(), persist),
             shutdown,
         )
+    }
+
+    fn test_overlay_with_bus() -> (ActuatorOverlay, Arc<AtomicBool>, Arc<Bus>) {
+        let (persist, shutdown, bus) = test_persist_queue();
+        (
+            ActuatorOverlay::new(allowlist_from_repo(), persist),
+            shutdown,
+            bus,
+        )
+    }
+
+    fn copy_profile_to_temp() -> (tempfile::TempDir, String) {
+        let root = repo_root();
+        let src = root.join("config");
+        let tmp = tempfile::tempdir().expect("tempdir");
+        for name in ["control.yaml", "robot.yaml", "motors.yaml", "homing.yaml"] {
+            std::fs::copy(src.join(name), tmp.path().join(name)).expect("copy");
+        }
+        let revision = profile_content_revision(tmp.path()).expect("revision");
+        (tmp, revision)
+    }
+
+    fn limit_patch_op(revision: String) -> OperatorCommand {
+        OperatorCommand {
+            timestamp_ms: 1,
+            session_id: "limit-test".into(),
+            operator_id: "test".into(),
+            seq: 1,
+            command: Some(ActuatorCommand {
+                joint: "elbow".into(),
+                payload: Some(Payload::LimitPatch(LimitPatchCommand {
+                    position_lower_rad: 0.1,
+                    position_upper_rad: 1.4,
+                    torque_limit_nm: Some(2.0),
+                    position_soft_lower_rad: Some(0.0),
+                    position_soft_upper_rad: Some(2.0),
+                    velocity_max_rad_s: None,
+                    expected_revision: revision,
+                })),
+            }),
+        }
     }
 
     fn tuning_operator(joint: &str, param: &str, value: f64, tier: i32) -> OperatorCommand {
@@ -882,7 +1074,7 @@ mod tests {
         for name in ["control.yaml", "robot.yaml", "motors.yaml", "homing.yaml"] {
             std::fs::copy(src.join(name), tmp.path().join(name)).expect("copy");
         }
-        let (queue, shutdown) = test_persist_queue();
+        let (queue, shutdown, _bus) = test_persist_queue();
         let mut draft = load_control_config_from(tmp.path()).expect("load");
         draft
             .control
@@ -894,7 +1086,8 @@ mod tests {
         queue
             .enqueue(PersistRequest {
                 config_dir: tmp.path().to_path_buf(),
-                draft: draft.clone(),
+                motors: None,
+                control: draft.clone(),
                 timestamp_ms: 1,
                 session_id: "s".into(),
                 operator_id: "o".into(),
@@ -912,7 +1105,8 @@ mod tests {
         queue
             .enqueue(PersistRequest {
                 config_dir: tmp.path().to_path_buf(),
-                draft,
+                motors: None,
+                control: draft,
                 timestamp_ms: 2,
                 session_id: "s".into(),
                 operator_id: "o".into(),
@@ -953,5 +1147,151 @@ mod tests {
             .expect("elbow");
         assert!(elbow.wired);
         assert!(elbow.kp_max > 0.0);
+    }
+
+    #[test]
+    fn limit_patch_applies_live_and_queues_persist() {
+        let root = repo_root();
+        let (tmp, revision) = copy_profile_to_temp();
+        let (mut overlay, shutdown) = test_overlay();
+        let mut loop_ctrl =
+            ControlLoop::from_repo(&root, MemoryBus::default(), 200, 50).expect("loop");
+        let op = limit_patch_op(revision);
+        let outcomes = overlay
+            .apply_operator_command(&mut loop_ctrl, tmp.path(), &op)
+            .expect("apply");
+        assert!(outcomes.iter().any(|o| {
+            matches!(
+                o,
+                OverlayOutcome::Action(ActionEvent {
+                    action,
+                    accepted: true,
+                    persist_status,
+                    ..
+                }) if action == "limit_patch"
+                    && *persist_status == PersistStatus::Pending as i32
+            )
+        }));
+        let policy = loop_ctrl
+            .supervisor()
+            .joint_limit_policy("elbow")
+            .expect("policy");
+        assert!((policy.hard_upper() - 1.4).abs() < 1e-9);
+        assert!(
+            overlay.persist.wait_idle_for_test(Duration::from_secs(2)),
+            "persist drain"
+        );
+        let motors = marengo_config::load_motors_config_from(tmp.path()).expect("motors");
+        let elbow = motors
+            .motors
+            .iter()
+            .find(|m| m.joint == "elbow")
+            .expect("elbow");
+        assert!((elbow.bench.position_upper_rad - 1.4).abs() < 1e-9);
+        shutdown.store(true, Ordering::SeqCst);
+    }
+
+    #[test]
+    fn limit_patch_rolls_back_live_when_persist_queue_dead() {
+        let root = repo_root();
+        let (tmp, revision) = copy_profile_to_temp();
+        let shutdown = Arc::new(AtomicBool::new(true));
+        let bus = Arc::new(Bus::new(16));
+        let persist = ConfigPersistQueue::spawn(Arc::clone(&bus), Arc::clone(&shutdown));
+        // Let the worker observe shutdown and drop its wake receiver.
+        thread::sleep(Duration::from_millis(50));
+        let mut overlay = ActuatorOverlay::new(allowlist_from_repo(), persist);
+        let mut loop_ctrl =
+            ControlLoop::from_repo(&root, MemoryBus::default(), 200, 50).expect("loop");
+        let before = *loop_ctrl
+            .supervisor()
+            .joint_limit_policy("elbow")
+            .expect("policy");
+        let err = overlay
+            .apply_operator_command(&mut loop_ctrl, tmp.path(), &limit_patch_op(revision))
+            .expect_err("dead persist queue");
+        assert!(matches!(err, OverlayError::PersistQueue(_)));
+        let after = *loop_ctrl
+            .supervisor()
+            .joint_limit_policy("elbow")
+            .expect("policy");
+        assert_eq!(after.hard_upper(), before.hard_upper());
+        assert_eq!(after.hard_lower(), before.hard_lower());
+    }
+
+    #[test]
+    fn limit_patch_persist_failure_emits_distinct_failed_action() {
+        let root = repo_root();
+        let (tmp, revision) = copy_profile_to_temp();
+        let (mut overlay, shutdown, bus) = test_overlay_with_bus();
+        let mut audit = bus.subscribe(TOPIC_AUDIT_ACTION);
+        let mut loop_ctrl =
+            ControlLoop::from_repo(&root, MemoryBus::default(), 200, 50).expect("loop");
+        // Make the profile dir unwritable before apply so enqueue succeeds but write-behind fails.
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(tmp.path(), std::fs::Permissions::from_mode(0o555))
+                .expect("chmod");
+        }
+        #[cfg(not(unix))]
+        {
+            // Best-effort on non-unix: remove a required write target after copy.
+            let _ = std::fs::remove_file(tmp.path().join("motors.yaml"));
+            let _ = std::fs::File::create(tmp.path().join("motors.yaml"));
+            let mut perms = std::fs::metadata(tmp.path().join("motors.yaml"))
+                .expect("meta")
+                .permissions();
+            perms.set_readonly(true);
+            std::fs::set_permissions(tmp.path().join("motors.yaml"), perms).expect("readonly");
+        }
+        overlay
+            .apply_operator_command(&mut loop_ctrl, tmp.path(), &limit_patch_op(revision))
+            .expect("apply");
+        assert!(
+            overlay.persist.wait_idle_for_test(Duration::from_secs(2)),
+            "persist drain"
+        );
+        let deadline = Instant::now() + Duration::from_secs(2);
+        let mut saw_failed = false;
+        while Instant::now() < deadline {
+            match audit.try_recv() {
+                Ok(bytes) => {
+                    let Ok(env) = Envelope::decode(bytes.as_slice()) else {
+                        continue;
+                    };
+                    let Ok(event) = ActionEvent::decode(env.payload.as_slice()) else {
+                        continue;
+                    };
+                    if event.action == "limit_patch_persist"
+                        && !event.accepted
+                        && event.persist_status == PersistStatus::Failed as i32
+                    {
+                        saw_failed = true;
+                        break;
+                    }
+                    // Live Pending ACK must keep action limit_patch (not the persist action).
+                    if event.action == "limit_patch" {
+                        assert!(event.accepted);
+                        assert_eq!(event.persist_status, PersistStatus::Pending as i32);
+                    }
+                }
+                Err(broadcast::error::TryRecvError::Empty) => {
+                    thread::sleep(Duration::from_millis(10));
+                }
+                Err(broadcast::error::TryRecvError::Lagged(_)) => continue,
+                Err(broadcast::error::TryRecvError::Closed) => break,
+            }
+        }
+        assert!(
+            saw_failed,
+            "expected limit_patch_persist Failed ActionEvent"
+        );
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = std::fs::set_permissions(tmp.path(), std::fs::Permissions::from_mode(0o755));
+        }
+        shutdown.store(true, Ordering::SeqCst);
     }
 }

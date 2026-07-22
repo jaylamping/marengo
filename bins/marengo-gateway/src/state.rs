@@ -1,8 +1,10 @@
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 
 use armee_proto::prost::Message;
 use armee_proto::{
-    ActuatorLimitSnapshot, Heartbeat, HostMetrics, ImuSample, RobotState, SafetyState,
+    ActionEvent, ActuatorLimitSnapshot, Heartbeat, HostMetrics, ImuSample, PersistStatus,
+    RobotState, SafetyState,
 };
 use chappe::ipc::IpcListener;
 use chappe::Bus;
@@ -67,6 +69,10 @@ pub struct AppState {
     pub rate_limiter: RateLimiter,
     /// Command-eligible joints from the active bringup profile.
     pub command_joints: CommandJointAllowlist,
+    /// True after a live apply whose write-behind failed (distinct from NeedsRestart).
+    persist_degraded: AtomicBool,
+    /// True while a config persist is pending (restart must wait / refuse).
+    persist_pending: AtomicBool,
 }
 
 impl AppState {
@@ -81,7 +87,17 @@ impl AppState {
             envelope_tx,
             rate_limiter: RateLimiter::new(),
             command_joints: CommandJointAllowlist::empty(),
+            persist_degraded: AtomicBool::new(false),
+            persist_pending: AtomicBool::new(false),
         }
+    }
+
+    pub fn persist_degraded(&self) -> bool {
+        self.persist_degraded.load(Ordering::Relaxed)
+    }
+
+    pub fn persist_pending(&self) -> bool {
+        self.persist_pending.load(Ordering::Relaxed)
     }
 
     pub fn with_command_joints(mut self, command_joints: CommandJointAllowlist) -> Self {
@@ -125,6 +141,24 @@ impl AppState {
         if topic == TOPIC_LOGS {
             if let (Some(logs), Some(event)) = (&self.logs, decode_log_payload(&payload)) {
                 logs.ingest_log_event(&event);
+            }
+        }
+        if topic == TOPIC_AUDIT_ACTION {
+            if let Ok(event) = decode_envelope_payload::<ActionEvent>(&payload) {
+                match PersistStatus::try_from(event.persist_status) {
+                    Ok(PersistStatus::Pending) => {
+                        self.persist_pending.store(true, Ordering::Relaxed);
+                    }
+                    Ok(PersistStatus::Durable) => {
+                        self.persist_pending.store(false, Ordering::Relaxed);
+                        self.persist_degraded.store(false, Ordering::Relaxed);
+                    }
+                    Ok(PersistStatus::Failed) => {
+                        self.persist_pending.store(false, Ordering::Relaxed);
+                        self.persist_degraded.store(true, Ordering::Relaxed);
+                    }
+                    _ => {}
+                }
             }
         }
         self.update_snapshot(&topic, &payload);

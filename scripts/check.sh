@@ -9,6 +9,18 @@ if [[ "${CI:-}" == "true" ]]; then
   CI_MODE=true
 fi
 
+fail() {
+  echo "error: $*" >&2
+  exit 1
+}
+
+# Buf ships via Consul's npm deps — install before any buf gate.
+echo "==> consul: npm ci"
+(
+  cd consul
+  npm ci
+)
+
 BUF="${ROOT}/consul/node_modules/.bin/buf"
 if [[ ! -x "${BUF}" ]]; then
   BUF="$(command -v buf || true)"
@@ -17,12 +29,15 @@ fi
 echo "==> buf lint"
 if [[ -x "${BUF}" ]]; then
   "${BUF}" lint proto
+elif [[ "${CI_MODE}" == true ]]; then
+  fail "buf not found (expected consul/node_modules/.bin/buf after npm ci)"
 else
   echo "warn: buf not found, skipping lint (run inside dev container)"
 fi
 
 echo "==> buf breaking (PR only)"
-if [[ -x "${BUF}" ]] && [[ "${CI_MODE}" == true ]] && [[ "${GITHUB_EVENT_NAME:-}" == "pull_request" ]]; then
+if [[ "${CI_MODE}" == true ]] && [[ "${GITHUB_EVENT_NAME:-}" == "pull_request" ]]; then
+  [[ -x "${BUF}" ]] || fail "buf not found; cannot run buf breaking"
   AGAINST="${BUF_BREAKING_AGAINST:-}"
   AGAINST_DIR=""
   if [[ -z "${AGAINST}" ]]; then
@@ -40,19 +55,17 @@ if [[ -x "${BUF}" ]] && [[ "${CI_MODE}" == true ]] && [[ "${GITHUB_EVENT_NAME:-}
     fi
   fi
   if [[ -z "${AGAINST}" ]] || [[ ! -f "${AGAINST}/marengo/v1/marengo.proto" ]]; then
-    echo "warn: could not materialize base proto for buf breaking, skipping"
-  else
-    "${BUF}" breaking proto --against "${AGAINST}"
+    fail "could not materialize base proto for buf breaking (AGAINST=${AGAINST:-<empty>})"
   fi
+  "${BUF}" breaking proto --against "${AGAINST}"
   if [[ -n "${AGAINST_DIR}" ]]; then
     rm -rf "${AGAINST_DIR}"
   fi
 fi
 
-echo "==> consul: npm ci, gen:proto, build, audit"
+echo "==> consul: gen:proto, build, audit"
 (
   cd consul
-  npm ci
   npm run gen:proto
   test -f src/gen/marengo/v1/marengo_pb.ts
   "${ROOT}/scripts/proto-checksum.sh"
@@ -86,6 +99,8 @@ cargo test --workspace
 echo "==> cargo deny"
 if command -v cargo-deny >/dev/null 2>&1; then
   cargo deny check --disable-fetch
+elif [[ "${CI_MODE}" == true ]]; then
+  fail "cargo-deny not installed"
 else
   echo "warn: cargo-deny not installed, skipping"
 fi
@@ -97,6 +112,8 @@ if command -v cargo-audit >/dev/null 2>&1; then
   else
     cargo audit || echo "warn: cargo audit reported advisories"
   fi
+elif [[ "${CI_MODE}" == true ]]; then
+  fail "cargo-audit not installed"
 else
   echo "warn: cargo-audit not installed, skipping"
 fi

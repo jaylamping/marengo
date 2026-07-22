@@ -124,6 +124,18 @@ pub async fn post_restart_marengo_pi(
         ));
     }
 
+    if state.persist_pending() {
+        warn!("restart refused: config persist queue still pending");
+        return Ok((
+            StatusCode::CONFLICT,
+            Json(RestartMarengoPiResultJson {
+                ok: false,
+                message: "config write-behind still pending — wait for durable ACK before restart"
+                    .to_string(),
+            }),
+        ));
+    }
+
     let Ok(guard) = restart_lock().try_lock() else {
         return Ok((
             StatusCode::CONFLICT,
@@ -230,7 +242,13 @@ async fn run_restart_script(
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
+    #![allow(
+        clippy::await_holding_lock,
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::panic
+    )]
+
     use super::*;
     use armee_proto::prost::Message;
     use armee_proto::{Envelope, Heartbeat, OperationalMode, SafetyState};
@@ -242,10 +260,10 @@ mod tests {
     use std::sync::Arc;
     use tower::ServiceExt;
 
+    use crate::logs::lock_test_env;
     use crate::state::AppState;
 
     const TOKEN: &str = "restart-test-token";
-    static ENV_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
     fn envelope_bytes<M: armee_proto::prost::Message>(message_type: &str, msg: &M) -> Vec<u8> {
         let mut payload = Vec::new();
@@ -323,7 +341,7 @@ mod tests {
 
     #[tokio::test]
     async fn restart_fails_closed_without_token() {
-        let _env = ENV_LOCK.lock().await;
+        let _env = lock_test_env();
         std::env::remove_var("MARENGO_GATEWAY_LOG_TOKEN");
         std::env::remove_var("MARENGO_RESTART_SKIP_SUDO");
         std::env::remove_var("MARENGO_RESTART_MARENGO_PI_SCRIPT");
@@ -345,7 +363,7 @@ mod tests {
 
     #[tokio::test]
     async fn restart_refuses_active_with_fresh_heartbeat() {
-        let _env = ENV_LOCK.lock().await;
+        let _env = lock_test_env();
         std::env::set_var("MARENGO_GATEWAY_LOG_TOKEN", TOKEN);
         let now = now_ms();
         let state = state_with_safety(OperationalMode::Active, Some(now));
@@ -368,7 +386,7 @@ mod tests {
 
     #[tokio::test]
     async fn restart_allows_active_with_stale_heartbeat_via_stub() {
-        let _env = ENV_LOCK.lock().await;
+        let _env = lock_test_env();
         std::env::set_var("MARENGO_GATEWAY_LOG_TOKEN", TOKEN);
         let dir = tempfile::tempdir().expect("tempdir");
         let stub_path = dir.path().join("restart-stub.sh");
@@ -418,7 +436,7 @@ mod tests {
 
     #[tokio::test]
     async fn restart_requires_confirm() {
-        let _env = ENV_LOCK.lock().await;
+        let _env = lock_test_env();
         std::env::set_var("MARENGO_GATEWAY_LOG_TOKEN", TOKEN);
         let state = state_with_safety(OperationalMode::Disabled, None);
         let app = router(state);

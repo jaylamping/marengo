@@ -1,0 +1,20 @@
+name: Load marengo-dev image
+description: Download the marengo-dev image artifact from build-image and load it into Docker.
+
+runs:
+  using: composite
+  steps:
+    - name: Download dev image artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: marengo-dev-image
+        path: ${{ runner.temp }}/marengo-dev-image
+
+    - name: Load into Docker
+      shell: bash
+      run: |
+        set -euo pipefail
+        archive="${{ runner.temp }}/marengo-dev-image/marengo-dev.tar.zst"
+        test -f "${archive}"
+        zstd -d -c "${archive}" | docker load
+        docker image inspect marengo-dev:local >/dev/null

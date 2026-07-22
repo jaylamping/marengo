@@ -111,7 +111,11 @@ export const inventoryColumns: ColumnDef<InventoryRow>[] = [
     size: 150,
     header: 'Preset',
     cell: ({ row }) => (
-      <PresetCell itemId={row.original.id} preset={row.original.preset} />
+      <PresetCell
+        itemId={row.original.id}
+        preset={row.original.preset}
+        jointName={row.original.name}
+      />
     ),
   },
   {

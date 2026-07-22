@@ -412,7 +412,29 @@ message ActuatorCommand {
     HoldCommand hold = 13;
     PresetCommand preset = 14;
     EnableChange enable = 15;
+    LimitPatchCommand limit_patch = 16;
   }
+}
+
+/// Numerical hard/soft/velocity limits for an existing joint (hot-reload surface).
+message LimitPatchCommand {
+  double position_lower_rad = 1;
+  double position_upper_rad = 2;
+  optional double torque_limit_nm = 3;
+  optional double position_soft_lower_rad = 4;
+  optional double position_soft_upper_rad = 5;
+  optional double velocity_max_rad_s = 6;
+  /// CAS token from GET /config/profiles (content hash of bringup YAML).
+  string expected_revision = 7;
+}
+
+/// Write-behind status for config mutations (limits / control overlay).
+enum PersistStatus {
+  PERSIST_STATUS_UNSPECIFIED = 0;
+  PERSIST_STATUS_PENDING = 1;
+  PERSIST_STATUS_DURABLE = 2;
+  PERSIST_STATUS_FAILED = 3;
+  PERSIST_STATUS_NOT_APPLICABLE = 4;
 }
 
 enum TuningTier {
@@ -471,6 +493,9 @@ message ActionEvent {
   uint64 revision = 6;
   bool accepted = 7;
   string reject_reason = 8;
+  PersistStatus persist_status = 9;
+  /// Profile content revision after apply (CAS token for Consul).
+  string config_revision = 10;
 }
 
 message JointActuatorLimit {

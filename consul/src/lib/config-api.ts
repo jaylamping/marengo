@@ -26,6 +26,54 @@ export type ConfigSnapshotDto = {
     position_soft_upper_rad?: number;
     velocity_max_rad_s?: number;
   }[];
+  revision?: string;
+  persist_ok?: boolean;
+};
+
+export type ProfilesDto = {
+  active_slug: string;
+  profiles: { slug: string; revision: string }[];
+  presets: { preset_id: string; profile_slug: string }[];
+};
+
+export type ApplyActuatorDto = {
+  target_profile: string;
+  expected_revision?: string;
+  operator_id: string;
+  op: 'upsert_limits' | 'add_joint' | 'preview';
+  joint: string;
+  position_lower_rad?: number;
+  position_upper_rad?: number;
+  torque_limit_nm?: number;
+  position_soft_lower_rad?: number;
+  position_soft_upper_rad?: number;
+  velocity_max_rad_s?: number;
+};
+
+export type ApplyActuatorResultDto = {
+  ok: boolean;
+  message: string;
+  applied_live: boolean;
+  restart_required: boolean;
+  revision?: string | null;
+  persist_status: 'durable' | 'pending' | 'failed' | 'n/a';
+  decision?:
+    | 'add'
+    | 'overwrite'
+    | 'noop'
+    | 'unmapped_preset'
+    | 'unsupported_membership'
+    | null;
+  before?: {
+    joint: string;
+    position_lower_rad: number;
+    position_upper_rad: number;
+  } | null;
+  after?: {
+    joint: string;
+    position_lower_rad: number;
+    position_upper_rad: number;
+  } | null;
 };
 
 export type ConfigPatchDto = {
@@ -99,6 +147,61 @@ export async function patchConfig(
       return null;
     }
     return (await res.json()) as ConfigPatchResultDto;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchProfiles(): Promise<ProfilesDto | null> {
+  const root = baseUrl();
+  if (!root) {
+    return null;
+  }
+  try {
+    const res = await fetch(`${root}/config/profiles`, { headers: authHeaders() });
+    if (!res.ok) {
+      return null;
+    }
+    return (await res.json()) as ProfilesDto;
+  } catch {
+    return null;
+  }
+}
+
+export async function applyActuatorConfig(
+  body: ApplyActuatorDto,
+  init?: { signal?: AbortSignal },
+): Promise<ApplyActuatorResultDto | null> {
+  const root = baseUrl();
+  if (!root) {
+    return null;
+  }
+  try {
+    const res = await fetch(`${root}/config/actuators/apply`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(body),
+      signal: init?.signal,
+    });
+    const text = await res.text();
+    let parsed: ApplyActuatorResultDto | null = null;
+    try {
+      parsed = JSON.parse(text) as ApplyActuatorResultDto;
+    } catch {
+      parsed = null;
+    }
+    if (parsed && typeof parsed.ok === 'boolean') {
+      return parsed;
+    }
+    return res.ok
+      ? null
+      : {
+          ok: false,
+          message: text.trim() || `HTTP ${res.status}`,
+          applied_live: false,
+          restart_required: false,
+          persist_status: 'failed',
+        };
   } catch {
     return null;
   }

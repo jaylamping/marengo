@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
   packages: read
@@ -36,24 +40,35 @@ jobs:
               - 'proto/**'
               - '.github/workflows/ci.yml'
 
-  # Build once, push to GHCR (same-repo pushes/PRs), populate GHA layer cache.
+  # Ensure content-hash image exists on GHCR (skip rebuild on hit). No artifact handoff.
   build-image:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      handoff: ${{ steps.handoff.outputs.mode }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set dev image tag
+      - name: Image metadata
+        id: meta
         env:
-          DEV_IMAGE_TAG: dev-${{ hashFiles('docker/Dockerfile.dev', 'rust-toolchain.toml') }}
-        run: echo "DEV_IMAGE_TAG=${DEV_IMAGE_TAG}" >> "$GITHUB_ENV"
-
-      - name: Capture runner uid/gid
+          TAG: dev-${{ hashFiles('docker/Dockerfile.dev', 'docker/docker-entrypoint.sh', 'rust-toolchain.toml') }}
         run: |
-          echo "MARENGO_UID=$(id -u)" >> "$GITHUB_ENV"
-          echo "MARENGO_GID=$(id -g)" >> "$GITHUB_ENV"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "DEV_IMAGE_TAG=${TAG}" >> "$GITHUB_ENV"
+
+      - name: Same-repo push allowed
+        id: push
+        run: |
+          if [[ "${{ github.event_name }}" != "pull_request" ]] \
+            || [[ "${{ github.event.pull_request.head.repo.full_name }}" == "${{ github.repository }}" ]]; then
+            echo "allowed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "allowed=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: docker/setup-buildx-action@v3
 
@@ -63,15 +78,33 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Check if image already exists
+        id: exists
+        run: |
+          set -euo pipefail
+          ref="${{ env.DEV_IMAGE }}:${{ env.DEV_IMAGE_TAG }}"
+          if docker buildx imagetools inspect "${ref}" >/dev/null 2>&1; then
+            echo "hit=true" >> "$GITHUB_OUTPUT"
+            echo "dev image cache hit: ${ref}"
+          else
+            echo "hit=false" >> "$GITHUB_OUTPUT"
+            echo "dev image cache miss: ${ref}"
+          fi
+
+      - name: Capture runner uid/gid
+        if: steps.exists.outputs.hit != 'true'
+        run: |
+          echo "MARENGO_UID=$(id -u)" >> "$GITHUB_ENV"
+          echo "MARENGO_GID=$(id -g)" >> "$GITHUB_ENV"
+
       - name: Build and push dev image
+        if: steps.exists.outputs.hit != 'true' && steps.push.outputs.allowed == 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
           file: docker/Dockerfile.dev
-          push: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
-          tags: |
-            ${{ env.DEV_IMAGE }}:${{ env.DEV_IMAGE_TAG }}
-            ${{ env.DEV_IMAGE }}:latest
+          push: true
+          tags: ${{ env.DEV_IMAGE }}:${{ env.DEV_IMAGE_TAG }}
           build-args: |
             MARENGO_UID=${{ env.MARENGO_UID }}
             MARENGO_GID=${{ env.MARENGO_GID }}
@@ -80,51 +113,21 @@ jobs:
             type=registry,ref=${{ env.DEV_IMAGE }}:latest
           cache-to: type=gha,scope=dev-image,mode=max
 
-  check:
-    runs-on: ubuntu-latest
-    needs: build-image
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set dev image tag
-        env:
-          DEV_IMAGE_TAG: dev-${{ hashFiles('docker/Dockerfile.dev', 'rust-toolchain.toml') }}
-        run: echo "DEV_IMAGE_TAG=${DEV_IMAGE_TAG}" >> "$GITHUB_ENV"
-
-      - name: Capture runner uid/gid
-        run: |
-          echo "MARENGO_UID=$(id -u)" >> "$GITHUB_ENV"
-          echo "MARENGO_GID=$(id -g)" >> "$GITHUB_ENV"
-
-      - uses: docker/setup-buildx-action@v3
-
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Resolve dev image
-        id: dev-image
+      - name: Point latest at new tag
+        if: >-
+          steps.exists.outputs.hit != 'true'
+          && steps.push.outputs.allowed == 'true'
+          && github.event_name == 'push'
+          && github.ref == 'refs/heads/main'
         run: |
           set -euo pipefail
-          tagged="${{ env.DEV_IMAGE }}:${{ env.DEV_IMAGE_TAG }}"
-          if docker pull "${tagged}"; then
-            docker tag "${tagged}" marengo-dev:local
-            echo "source=ghcr" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          if docker pull "${{ env.DEV_IMAGE }}:latest"; then
-            docker tag "${{ env.DEV_IMAGE }}:latest" marengo-dev:local
-            echo "source=ghcr-latest" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          echo "source=build" >> "$GITHUB_OUTPUT"
+          docker buildx imagetools create \
+            -t "${{ env.DEV_IMAGE }}:latest" \
+            "${{ env.DEV_IMAGE }}:${{ env.DEV_IMAGE_TAG }}"
 
-      - name: Build dev image fallback
-        if: steps.dev-image.outputs.source == 'build'
+      # Fork PRs cannot push to GHCR — keep local load + artifact for that rare path.
+      - name: Build and load dev image (fork)
+        if: steps.exists.outputs.hit != 'true' && steps.push.outputs.allowed != 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -137,6 +140,50 @@ jobs:
           cache-from: |
             type=gha,scope=dev-image
             type=registry,ref=${{ env.DEV_IMAGE }}:latest
+          cache-to: type=gha,scope=dev-image,mode=max
+
+      - name: Export dev image artifact (fork)
+        if: steps.exists.outputs.hit != 'true' && steps.push.outputs.allowed != 'true'
+        run: |
+          set -euo pipefail
+          docker save marengo-dev:local | zstd -T0 -o "${{ runner.temp }}/marengo-dev.tar.zst"
+          ls -lh "${{ runner.temp }}/marengo-dev.tar.zst"
+
+      - name: Upload dev image artifact (fork)
+        if: steps.exists.outputs.hit != 'true' && steps.push.outputs.allowed != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: marengo-dev-image
+          path: ${{ runner.temp }}/marengo-dev.tar.zst
+          retention-days: 1
+          compression-level: 0
+
+      - name: Set handoff mode
+        id: handoff
+        run: |
+          if [[ "${{ steps.exists.outputs.hit }}" == "true" ]] \
+            || [[ "${{ steps.push.outputs.allowed }}" == "true" ]]; then
+            echo "mode=registry" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=artifact" >> "$GITHUB_OUTPUT"
+          fi
+
+  check:
+    runs-on: ubuntu-latest
+    needs: build-image
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/pull-dev-image
+        if: needs.build-image.outputs.handoff == 'registry'
+        with:
+          image: ${{ env.DEV_IMAGE }}
+          tag: ${{ needs.build-image.outputs.tag }}
+
+      - uses: ./.github/actions/load-dev-image
+        if: needs.build-image.outputs.handoff == 'artifact'
 
       - name: Restore Cargo cache
         uses: actions/cache@v4
@@ -149,10 +196,11 @@ jobs:
           restore-keys: |
             cargo-${{ runner.os }}-
 
-      - name: Restore consul node_modules cache
+      # npm ci deletes node_modules; cache the download cache instead.
+      - name: Restore npm download cache
         uses: actions/cache@v4
         with:
-          path: consul/node_modules
+          path: .ci-cache/npm
           key: consul-npm-${{ runner.os }}-${{ hashFiles('consul/package-lock.json') }}
           restore-keys: |
             consul-npm-${{ runner.os }}-
@@ -164,18 +212,21 @@ jobs:
           mkdir -p .ci-buf-against
           git archive "${{ github.event.pull_request.base.sha }}" proto | tar -x -C .ci-buf-against
           test -f .ci-buf-against/proto/marengo/v1/marengo.proto
-          echo "BUF_BREAKING_AGAINST=${{ github.workspace }}/.ci-buf-against/proto" >> "$GITHUB_ENV"
+          # Container mounts the workspace at /workspace (not github.workspace).
+          echo "BUF_BREAKING_AGAINST=/workspace/.ci-buf-against/proto" >> "$GITHUB_ENV"
 
       - name: Run check.sh in container
         run: |
-          mkdir -p .ci-cache/cargo/registry .ci-cache/cargo/git target
+          mkdir -p .ci-cache/cargo/registry .ci-cache/cargo/git .ci-cache/npm target
           docker run --rm \
             -v "${{ github.workspace }}:/workspace" \
             -v "${{ github.workspace }}/.ci-cache/cargo/registry:/usr/local/cargo/registry" \
             -v "${{ github.workspace }}/.ci-cache/cargo/git:/usr/local/cargo/git" \
+            -v "${{ github.workspace }}/.ci-cache/npm:/home/marengo/.npm" \
             -v "${{ github.workspace }}/target:/workspace/target" \
             -w /workspace \
             -e CI=true \
+            -e npm_config_cache=/home/marengo/.npm \
             -e GITHUB_EVENT_NAME="${{ github.event_name }}" \
             -e GITHUB_BASE_SHA="${{ github.event.pull_request.base.sha || '' }}" \
             -e BUF_BREAKING_AGAINST="${{ env.BUF_BREAKING_AGAINST || '' }}" \
@@ -191,55 +242,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set dev image tag
-        env:
-          DEV_IMAGE_TAG: dev-${{ hashFiles('docker/Dockerfile.dev', 'rust-toolchain.toml') }}
-        run: echo "DEV_IMAGE_TAG=${DEV_IMAGE_TAG}" >> "$GITHUB_ENV"
-
-      - name: Capture runner uid/gid
-        run: |
-          echo "MARENGO_UID=$(id -u)" >> "$GITHUB_ENV"
-          echo "MARENGO_GID=$(id -g)" >> "$GITHUB_ENV"
-
-      - uses: docker/setup-buildx-action@v3
-
-      - uses: docker/login-action@v3
+      - uses: ./.github/actions/pull-dev-image
+        if: needs.build-image.outputs.handoff == 'registry'
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          image: ${{ env.DEV_IMAGE }}
+          tag: ${{ needs.build-image.outputs.tag }}
 
-      - name: Resolve dev image
-        id: dev-image
-        run: |
-          set -euo pipefail
-          tagged="${{ env.DEV_IMAGE }}:${{ env.DEV_IMAGE_TAG }}"
-          if docker pull "${tagged}"; then
-            docker tag "${tagged}" marengo-dev:local
-            echo "source=ghcr" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          if docker pull "${{ env.DEV_IMAGE }}:latest"; then
-            docker tag "${{ env.DEV_IMAGE }}:latest" marengo-dev:local
-            echo "source=ghcr-latest" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          echo "source=build" >> "$GITHUB_OUTPUT"
-
-      - name: Build dev image fallback
-        if: steps.dev-image.outputs.source == 'build'
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: docker/Dockerfile.dev
-          load: true
-          tags: marengo-dev:local
-          build-args: |
-            MARENGO_UID=${{ env.MARENGO_UID }}
-            MARENGO_GID=${{ env.MARENGO_GID }}
-          cache-from: |
-            type=gha,scope=dev-image
-            type=registry,ref=${{ env.DEV_IMAGE }}:latest
+      - uses: ./.github/actions/load-dev-image
+        if: needs.build-image.outputs.handoff == 'artifact'
 
       - name: Restore Cargo cache
         uses: actions/cache/restore@v4
@@ -275,55 +285,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set dev image tag
-        env:
-          DEV_IMAGE_TAG: dev-${{ hashFiles('docker/Dockerfile.dev', 'rust-toolchain.toml') }}
-        run: echo "DEV_IMAGE_TAG=${DEV_IMAGE_TAG}" >> "$GITHUB_ENV"
-
-      - name: Capture runner uid/gid
-        run: |
-          echo "MARENGO_UID=$(id -u)" >> "$GITHUB_ENV"
-          echo "MARENGO_GID=$(id -g)" >> "$GITHUB_ENV"
-
-      - uses: docker/setup-buildx-action@v3
-
-      - uses: docker/login-action@v3
+      - uses: ./.github/actions/pull-dev-image
+        if: needs.build-image.outputs.handoff == 'registry'
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          image: ${{ env.DEV_IMAGE }}
+          tag: ${{ needs.build-image.outputs.tag }}
 
-      - name: Resolve dev image
-        id: dev-image
-        run: |
-          set -euo pipefail
-          tagged="${{ env.DEV_IMAGE }}:${{ env.DEV_IMAGE_TAG }}"
-          if docker pull "${tagged}"; then
-            docker tag "${tagged}" marengo-dev:local
-            echo "source=ghcr" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          if docker pull "${{ env.DEV_IMAGE }}:latest"; then
-            docker tag "${{ env.DEV_IMAGE }}:latest" marengo-dev:local
-            echo "source=ghcr-latest" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          echo "source=build" >> "$GITHUB_OUTPUT"
-
-      - name: Build dev image fallback
-        if: steps.dev-image.outputs.source == 'build'
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: docker/Dockerfile.dev
-          load: true
-          tags: marengo-dev:local
-          build-args: |
-            MARENGO_UID=${{ env.MARENGO_UID }}
-            MARENGO_GID=${{ env.MARENGO_GID }}
-          cache-from: |
-            type=gha,scope=dev-image
-            type=registry,ref=${{ env.DEV_IMAGE }}:latest
+      - uses: ./.github/actions/load-dev-image
+        if: needs.build-image.outputs.handoff == 'artifact'
 
       - name: Restore Cargo cache
         uses: actions/cache/restore@v4

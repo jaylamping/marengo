@@ -1,0 +1,28 @@
+name: Pull marengo-dev image
+description: Pull a content-hash marengo-dev tag from GHCR and retag as marengo-dev:local.
+
+inputs:
+  image:
+    description: GHCR repository (e.g. ghcr.io/owner/marengo-dev)
+    required: true
+  tag:
+    description: Image tag (e.g. dev-<hash>)
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ github.token }}
+
+    - name: Pull and retag
+      shell: bash
+      run: |
+        set -euo pipefail
+        ref="${{ inputs.image }}:${{ inputs.tag }}"
+        docker pull "${ref}"
+        docker tag "${ref}" marengo-dev:local
+        docker image inspect marengo-dev:local >/dev/null
