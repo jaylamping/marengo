@@ -5,6 +5,11 @@ version: 3.9.1
 license: Apache 2.0
 ---
 
+## Workspace rules (mandatory)
+
+Honor `.cursor/skills/_shared/workspace-rules.md` before task-specific work (always-apply `.cursor/rules/`, including Explore/Library model routing).
+
+
 Designs and iterates production-grade frontend interfaces. Real working code, committed design choices, exceptional craft.
 
 ## Setup

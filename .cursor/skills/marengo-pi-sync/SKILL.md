@@ -3,6 +3,11 @@ name: marengo-pi-sync
 description: Sync Marengo main to the Pi — pi_sync_main cross-build deploy without user confirm. Use when user says sync pi, deploy, push fixes to pi, or pi_health shows stale .deploy-rev.
 ---
 
+## Workspace rules (mandatory)
+
+Honor `.cursor/skills/_shared/workspace-rules.md` before task-specific work (always-apply `.cursor/rules/`, including Explore/Library model routing).
+
+
 # Marengo Pi sync-with-main
 
 **Pre-authorized — no confirm.** Rebuild + deploy is always OK.

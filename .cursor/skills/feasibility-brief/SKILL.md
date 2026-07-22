@@ -1,5 +1,9 @@
 # Feasibility Brief (Marengo)
 
+## Workspace rules (mandatory)
+
+Honor `.cursor/skills/_shared/workspace-rules.md` before task-specific work (always-apply `.cursor/rules/`, including Explore/Library model routing). When launching experts, follow `.cursor/skills/_shared/skill-resolver.md` (inject `workspace-rules.md` first).
+
 Run after `sdd-explore`, before `sdd-propose`, when the change touches hardware, CAD, CAN, motors, or Pi bench bring-up.
 
 ## Skip when

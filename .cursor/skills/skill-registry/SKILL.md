@@ -48,4 +48,5 @@ Return:
 ## References
 
 - `docs/skill-style-guide.md` — how skills should be authored before indexing.
-- `skills/_shared/skill-resolver.md` — how delegators use the index.
+- `.cursor/skills/_shared/skill-resolver.md` — how delegators use the index.
+- `.cursor/skills/_shared/workspace-rules.md` — always-apply Cursor rules every skill must honor (including Explore/Library model routing).

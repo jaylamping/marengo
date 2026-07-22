@@ -3,6 +3,11 @@ name: marengo-pi-mcp
 description: SSH Marengo Pi bench control via MCP — log-first investigation, confirm-gated motion, pi_bench_harness. Use when debugging CAN/motors/gravity on marengo.local or when the user mentions Pi bench, motor-repl, marengo-pi, or shoulder pitch bring-up.
 ---
 
+## Workspace rules (mandatory)
+
+Honor `.cursor/skills/_shared/workspace-rules.md` before task-specific work (always-apply `.cursor/rules/`, including Explore/Library model routing).
+
+
 # Marengo Pi MCP
 
 MCP server: `tools/marengo-pi-mcp/` (configure in `.cursor/mcp.json`).

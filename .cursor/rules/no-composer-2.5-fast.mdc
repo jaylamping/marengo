@@ -12,7 +12,7 @@ Do **not** select `composer-2.5-fast` for the session model, Task/subagent `mode
 Use `composer-2.5-fast` only when **explicitly** requested by one of:
 
 - A skill (`SKILL.md` or its references)
-- A Cursor rule
+- A Cursor rule (including `.cursor/rules/explore-library-models.mdc` for Explore / Exploration / Library tasks)
 - A human in the conversation
 - An agent/persona definition that pins that exact model slug
 

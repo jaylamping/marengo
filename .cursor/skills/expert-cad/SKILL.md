@@ -6,6 +6,11 @@ readonly: false
 background: false
 ---
 
+## Workspace rules (mandatory)
+
+Honor `.cursor/skills/_shared/workspace-rules.md` before task-specific work (always-apply `.cursor/rules/`, including Explore/Library model routing).
+
+
 # Expert — CAD
 
 Reviewer for SolidWorks assemblies, parts, mates, in-context design patterns, and missing SolidWorks MCP capabilities.

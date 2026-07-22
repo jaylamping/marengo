@@ -35,18 +35,20 @@ Prefer the smallest useful set. If more than five skills match, keep the five mo
 
 ### Step 3: Pass Skill Paths
 
-Inject paths, not summaries:
+Inject paths, not summaries. **Always include** the workspace-rules contract first
+(so Explore/Library model routing and other always-apply rules are not dropped):
 
 ```markdown
 ## Skills to load before work
 
 Read these exact files before reading, writing, reviewing, testing, or creating artifacts:
 
+- {repo}/.cursor/skills/_shared/workspace-rules.md
 - /absolute/path/to/skills/go-testing/SKILL.md
 - /absolute/path/to/skills/typescript/SKILL.md
 ```
 
-The sub-agent MUST read those files before task-specific work. `SKILL.md` is the runtime contract and source of truth.
+The sub-agent MUST read those files before task-specific work. `SKILL.md` is the runtime contract and source of truth. `workspace-rules.md` indexes `.cursor/rules/` (including `explore-library-models.mdc`).
 
 ### Step 4: Report Resolution
 

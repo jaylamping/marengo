@@ -3,6 +3,11 @@ name: marengo-research-mcp
 description: Humanoid robotics research MCP — prefer research_humanoid first; cite URLs; use vendor docs for motor/CAN questions.
 ---
 
+## Workspace rules (mandatory)
+
+Honor `.cursor/skills/_shared/workspace-rules.md` before task-specific work (always-apply `.cursor/rules/`, including Explore/Library model routing).
+
+
 # Marengo Research MCP
 
 Use when the user asks about humanoid robotics research, papers, open-source stacks, vendor motor docs, or industry standards.

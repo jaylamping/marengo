@@ -1,5 +1,9 @@
 # Research Robotics Ingest (weekly automation)
 
+## Workspace rules (mandatory)
+
+Honor `.cursor/skills/_shared/workspace-rules.md` before task-specific work (always-apply `.cursor/rules/`, including Explore/Library model routing).
+
 Populate `docs/research/robotics/` with curated humanoid/control/Pi bring-up notes.
 
 ## Schedule

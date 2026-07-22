@@ -1,0 +1,23 @@
+---
+description: Prefer Composer 2.5 fast (first-party) and GPT 5.4 nano (API) for Explore/Library work.
+alwaysApply: true
+---
+
+# Explore / Exploration / Library model routing
+
+When the task is **Explore**, **Exploration**, or **Library** (including `subagent_type="explore"`, codebase exploration, docs/library lookup, and similar read-mostly discovery):
+
+| Pool | Prefer | Slug |
+|------|--------|------|
+| **First Party** | Composer 2.5 fast | `composer-2.5-fast` |
+| **API** | GPT 5.4 nano | `gpt-5.4-nano-medium` |
+
+## How to apply
+
+- Prefer these models for session model choice and Task/subagent `model` overrides on Explore/Exploration/Library work.
+- This rule is an **explicit allowed exception** to `.cursor/rules/no-composer-2.5-fast.mdc`.
+- Do **not** use these cheap/fast defaults for implementation, design, verify, or other non-explore work unless another rule/skill pins them.
+
+## Out of scope
+
+Implementation, refactor, CAD, Pi motion, SDD propose/design/verify, and review agents keep their own model pins (see `docs/ai-sdd.md` and other rules).

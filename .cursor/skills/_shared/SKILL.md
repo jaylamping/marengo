@@ -12,7 +12,13 @@ metadata:
 ## Purpose
 
 This directory stores shared reference documents consumed by real SDD skills
-(for example: `sdd-phase-common.md`, `persistence-contract.md`).
+(for example: `sdd-phase-common.md`, `persistence-contract.md`,
+`workspace-rules.md`).
+
+## Workspace rules
+
+All project skills and delegated sub-agents MUST honor `workspace-rules.md`
+(indexes always-apply `.cursor/rules/`, including Explore/Library model routing).
 
 ## Not Invokable
 

@@ -12,6 +12,11 @@ metadata:
   delegate_only: true
 ---
 
+## Workspace rules (mandatory)
+
+Honor `.cursor/skills/_shared/workspace-rules.md` before task-specific work (always-apply `.cursor/rules/`, including Explore/Library model routing).
+
+
 > **ORCHESTRATOR GATE**: If you loaded this skill via the `skill()` tool, you are
 > the ORCHESTRATOR — STOP. Do NOT execute phase work inline. You coordinate the
 > onboarding walkthrough: narrate, ask the user, and **delegate each SDD phase**

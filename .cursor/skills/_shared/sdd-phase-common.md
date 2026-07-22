@@ -6,10 +6,11 @@ Executor boundary: every SDD phase agent is an EXECUTOR, not an orchestrator. Do
 
 ## A. Skill Loading
 
+0. **Workspace rules (mandatory first):** Read `.cursor/skills/_shared/workspace-rules.md` and honor the `.cursor/rules/` files it indexes — including `explore-library-models.mdc` for Explore/Exploration/Library work and `no-composer-2.5-fast.mdc` for default model selection. Skill/agent `model:` frontmatter wins when set.
 1. Check if the orchestrator injected a `## Skills to load before work` block in your launch prompt. If yes, read those exact `SKILL.md` files before task-specific work.
 2. If no skills block was provided, check for `SKILL: Load` instructions. If present, load those exact skill files.
 3. If neither was provided, read `.atl/skill-registry.md` from the project root if it exists. From the registry's skills index, match triggers to your task and read the exact listed `SKILL.md` paths.
-4. If no registry exists, proceed with your phase skill only.
+4. If no registry exists, proceed with your phase skill only (after step 0).
 
 NOTE: the preferred path is (1) — exact skill paths selected by the orchestrator. Paths (2) and (3) are fallbacks. Searching the registry is SKILL LOADING, not delegation. If `## Skills to load before work` is present, IGNORE redundant `SKILL: Load` instructions.
 

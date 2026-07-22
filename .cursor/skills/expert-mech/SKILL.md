@@ -7,6 +7,11 @@ readonly: true
 background: false
 ---
 
+## Workspace rules (mandatory)
+
+Honor `.cursor/skills/_shared/workspace-rules.md` before task-specific work (always-apply `.cursor/rules/`, including Explore/Library model routing).
+
+
 # Expert — Mechanical
 
 Readonly reviewer rubric for loads, tolerances, materials, and assembly.

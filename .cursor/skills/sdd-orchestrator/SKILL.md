@@ -6,6 +6,11 @@ disable-model-invocation: true
 user-invocable: false
 ---
 
+## Workspace rules (mandatory)
+
+Honor `.cursor/skills/_shared/workspace-rules.md` before task-specific work (always-apply `.cursor/rules/`, including Explore/Library model routing).
+
+
 ## Orchestrator gate
 
 If you loaded this as an **executor** phase agent, ignore this file. If you are the **sdd-orchestrator** agent, follow `.cursor/agents/sdd-orchestrator.md` and `.cursor/rules/gentle-ai-sdd.mdc`.

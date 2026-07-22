@@ -25,4 +25,4 @@ Persona governs **chat replies only**, not code, comments, UI copy, commits, or 
 
 ## Contextual Skill Loading (MANDATORY)
 
-Before responding, check whether any skill in `.cursor/skills/` matches the task. Read matching `SKILL.md` files before generating the reply.
+Before responding, check whether any skill in `.cursor/skills/` matches the task. Read matching `SKILL.md` files before generating the reply. Skills must honor `.cursor/skills/_shared/workspace-rules.md` (always-apply `.cursor/rules/`, including Explore/Library model routing).
