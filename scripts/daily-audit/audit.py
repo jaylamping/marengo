@@ -26,12 +26,24 @@ SAFETY_PREFIXES = RISKY_PREFIXES + (
     "crates/marengo-config/",
 )
 
-ADR_MAP = {
-    "crates/robstride/": "hardware/docs/decisions/0002-robstride-protocol.md",
-    "crates/davout/": "docs/safety.md",
-    "crates/berthier/": "docs/decisions/0007-bench-position-trajectory-control.md",
-    "proto/": "docs/decisions/0001-protobuf-wire-types.md",
-}
+@dataclass(frozen=True)
+class AdrRule:
+    """Path-pairing rule: source edits under ``prefix`` with matching suffixes need ``adr``."""
+
+    prefix: str
+    adr: str
+    source_suffixes: tuple[str, ...] = (".rs",)
+
+
+ADR_RULES: tuple[AdrRule, ...] = (
+    AdrRule("crates/robstride/", "hardware/docs/decisions/0002-robstride-protocol.md"),
+    AdrRule("crates/davout/", "docs/safety.md"),
+    AdrRule("crates/berthier/", "docs/decisions/0007-bench-position-trajectory-control.md"),
+    AdrRule("proto/", "docs/decisions/0001-protobuf-wire-types.md", (".proto",)),
+)
+
+# prefix → ADR path (rubric / callers that only need the mapping)
+ADR_MAP = {rule.prefix: rule.adr for rule in ADR_RULES}
 
 UNWRAP_RE = re.compile(r"\.unwrap\s*\(|\.expect\s*\(")
 COMMENT_LINE_RE = re.compile(r"^\s*//")
@@ -239,11 +251,17 @@ def diff_line_count(path: str, since: str) -> tuple[int, int]:
     return added, deleted
 
 
+def _sources_for_rule(rule: AdrRule, changed: list[str]) -> list[str]:
+    return [
+        path
+        for path in changed
+        if path.startswith(rule.prefix) and path.endswith(rule.source_suffixes)
+    ]
+
+
 def paired_adr_updated(path: str, changed: list[str]) -> bool:
-    for prefix, adr in ADR_MAP.items():
-        if path.startswith(prefix) and adr in changed:
-            return True
-    return False
+    changed_set = set(changed)
+    return any(path.startswith(rule.prefix) and rule.adr in changed_set for rule in ADR_RULES)
 
 
 def check_large_risky_diff(changed: list[str], report: Report) -> None:
@@ -266,22 +284,23 @@ def check_large_risky_diff(changed: list[str], report: Report) -> None:
 
 
 def check_adr_staleness(changed: list[str], report: Report) -> None:
-    """Flag crate/proto .rs edits whose mapped ADR/decision doc was not also changed.
+    """Flag source edits whose mapped ADR/decision doc was not also changed.
 
-    Credits the exact path in ``ADR_MAP`` (including ``docs/safety.md`` for Davout),
-    not only files under ``docs/decisions/`` / ``hardware/docs/decisions/``.
+    Credits the exact path on each ``AdrRule`` (including ``docs/safety.md`` for Davout).
+    Source suffixes are per-rule (``.rs`` for crates, ``.proto`` for ``proto/``).
+    Path membership only — not a substantive docs-quality check.
     """
     changed_set = set(changed)
-    for prefix, adr in ADR_MAP.items():
-        touched = [p for p in changed if p.startswith(prefix) and p.endswith(".rs")]
-        if touched and adr not in changed_set:
+    for rule in ADR_RULES:
+        touched = _sources_for_rule(rule, changed)
+        if touched and rule.adr not in changed_set:
             report.add(
                 Finding(
                     severity="warn",
                     category="docs",
                     file=touched[0],
-                    rule=f"ADR staleness — {adr} may need update",
-                    message=f"Changed under {prefix} without ADR/decision doc update",
+                    rule=f"ADR staleness — {rule.adr} may need update",
+                    message=f"Changed under {rule.prefix} without ADR/decision doc update",
                 )
             )
 

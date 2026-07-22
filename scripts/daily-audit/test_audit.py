@@ -10,12 +10,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from audit import (
+    ADR_RULES,
     UNWRAP_RE,
     check_adr_staleness,
     check_proto_checksum,
     production_rust_lines,
     strip_rust_tests,
-    Finding,
     Report,
 )
 
@@ -79,45 +79,62 @@ class ProtoChecksumTests(unittest.TestCase):
 
 
 class AdrStalenessTests(unittest.TestCase):
-    def test_davout_without_safety_md_warns(self) -> None:
-        report = Report(date="2026-07-21")
-        check_adr_staleness(["crates/davout/src/active_reporting.rs"], report)
-        self.assertFalse(report.clean)
-        self.assertEqual(len(report.findings), 1)
-        self.assertIn("docs/safety.md", report.findings[0].rule)
+    """Path-membership cases for every ``ADR_RULES`` entry (content fidelity out of scope)."""
 
-    def test_davout_with_safety_md_is_clean(self) -> None:
+    # Representative source path per rule + an ADR that must NOT clear that rule.
+    SAMPLE_SOURCES = {
+        "crates/robstride/": "crates/robstride/src/bus.rs",
+        "crates/davout/": "crates/davout/src/active_reporting.rs",
+        "crates/berthier/": "crates/berthier/src/loop.rs",
+        "proto/": "proto/marengo/v1/marengo.proto",
+    }
+    UNRELATED_ADR = {
+        "crates/robstride/": "docs/safety.md",
+        "crates/davout/": "docs/decisions/0001-protobuf-wire-types.md",
+        "crates/berthier/": "docs/safety.md",
+        "proto/": "docs/safety.md",
+    }
+
+    def test_every_rule_covered_by_sample(self) -> None:
+        self.assertEqual(set(self.SAMPLE_SOURCES), {rule.prefix for rule in ADR_RULES})
+
+    def test_without_mapped_adr_warns(self) -> None:
+        for rule in ADR_RULES:
+            with self.subTest(prefix=rule.prefix):
+                report = Report(date="2026-07-21")
+                check_adr_staleness([self.SAMPLE_SOURCES[rule.prefix]], report)
+                self.assertFalse(report.clean)
+                self.assertEqual(len(report.findings), 1)
+                self.assertIn(rule.adr, report.findings[0].rule)
+
+    def test_with_mapped_adr_is_clean(self) -> None:
+        for rule in ADR_RULES:
+            with self.subTest(prefix=rule.prefix):
+                report = Report(date="2026-07-21")
+                check_adr_staleness(
+                    [self.SAMPLE_SOURCES[rule.prefix], rule.adr],
+                    report,
+                )
+                self.assertTrue(report.clean)
+
+    def test_unrelated_adr_does_not_clear(self) -> None:
+        for rule in ADR_RULES:
+            with self.subTest(prefix=rule.prefix):
+                report = Report(date="2026-07-21")
+                check_adr_staleness(
+                    [
+                        self.SAMPLE_SOURCES[rule.prefix],
+                        self.UNRELATED_ADR[rule.prefix],
+                    ],
+                    report,
+                )
+                self.assertFalse(report.clean)
+
+    def test_proto_rs_alone_does_not_trigger_proto_rule(self) -> None:
+        """armee-proto .rs under proto/ must not pretend to be a wire-schema edit."""
         report = Report(date="2026-07-21")
-        check_adr_staleness(
-            [
-                "crates/davout/src/active_reporting.rs",
-                "docs/safety.md",
-            ],
-            report,
-        )
+        check_adr_staleness(["proto/build.rs"], report)
         self.assertTrue(report.clean)
-
-    def test_robstride_with_hardware_adr_is_clean(self) -> None:
-        report = Report(date="2026-07-21")
-        check_adr_staleness(
-            [
-                "crates/robstride/src/bus.rs",
-                "hardware/docs/decisions/0002-robstride-protocol.md",
-            ],
-            report,
-        )
-        self.assertTrue(report.clean)
-
-    def test_unrelated_decision_doc_does_not_clear_davout(self) -> None:
-        report = Report(date="2026-07-21")
-        check_adr_staleness(
-            [
-                "crates/davout/src/lib.rs",
-                "docs/decisions/0001-protobuf-wire-types.md",
-            ],
-            report,
-        )
-        self.assertFalse(report.clean)
 
 
 if __name__ == "__main__":
