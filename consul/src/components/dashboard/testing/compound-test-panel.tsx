@@ -35,6 +35,8 @@ import { dashboardPanelCardClassName } from '@/components/dashboard/layout/const
 import { useConfigSnapshot } from '@/hooks/use-config-snapshot';
 import { useTeachStore } from '@/state/teachStore';
 import { RecordMovementPanel } from '@/components/dashboard/testing/record-movement-panel';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowLeft01Icon } from '@hugeicons/core-free-icons';
 
 /** Zero gains → Pi clears overrides and uses arm_4dof_right control.yaml impedance. */
 const CONFIG_GAINS = { kp: 0, kd: 0, ki: 0, fc: 0 };
@@ -522,43 +524,48 @@ export function CompoundTestPanel() {
         </div>
       ) : (
         <Card variant="panel" className={dashboardPanelCardClassName}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b border-border/50">
-            <div>
-              <CardTitle className="text-xl">{selectedPreset.name}</CardTitle>
-              <CardDescription className="mt-1">{selectedPreset.description}</CardDescription>
-              {usingTaughtOverlay ? (
-                <p className="text-xs text-muted-foreground mt-2">
-                  Using taught overlay (no nativeWave). Clear from Record Movement to restore
-                  roll cosine. A/B chop: compare overlay vs shipped nativeWave before making
-                  taught the default.
-                </p>
-              ) : selectedPreset.nativeWave ? (
-                <p className="text-xs text-muted-foreground mt-2">
-                  Loop extends nativeWave only (does not re-raise). Yaw on raise is provisional 0
-                  until yaw suite Y3–Y4.
-                </p>
-              ) : null}
-              {playableSelected?.warning ? (
-                <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
-                  {playableSelected.warning}
-                </p>
-              ) : null}
+          <CardHeader className="space-y-0 pb-4 border-b border-border/50">
+            <div className="flex items-start gap-2">
+              <Button
+                type="button"
+                variant="panel"
+                size="icon-sm"
+                className="mt-0.5 shrink-0"
+                aria-label="Back to presets"
+                onClick={() => {
+                  if (useTeachStore.getState().recording) {
+                    useTeachStore.getState().stopRecording();
+                  }
+                  stopRunner({ returnHome: false });
+                  setOverlayBlockReason(null);
+                  setRecordSectionOpen(false);
+                  setSelectedPresetId(null);
+                }}
+              >
+                <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} />
+              </Button>
+              <div className="min-w-0 flex-1">
+                <CardTitle className="text-xl">{selectedPreset.name}</CardTitle>
+                <CardDescription className="mt-1">{selectedPreset.description}</CardDescription>
+                {usingTaughtOverlay ? (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Using taught overlay (no nativeWave). Clear from Record Movement to restore
+                    roll cosine. A/B chop: compare overlay vs shipped nativeWave before making
+                    taught the default.
+                  </p>
+                ) : selectedPreset.nativeWave ? (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Loop extends nativeWave only (does not re-raise). Yaw on raise is provisional 0
+                    until yaw suite Y3–Y4.
+                  </p>
+                ) : null}
+                {playableSelected?.warning ? (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                    {playableSelected.warning}
+                  </p>
+                ) : null}
+              </div>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                if (useTeachStore.getState().recording) {
-                  useTeachStore.getState().stopRecording();
-                }
-                stopRunner({ returnHome: false });
-                setOverlayBlockReason(null);
-                setRecordSectionOpen(false);
-                setSelectedPresetId(null);
-              }}
-            >
-              Back to Presets
-            </Button>
           </CardHeader>
           <CardContent className="space-y-8 pt-6">
             <div className="space-y-4">
