@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
   packages: read
@@ -73,7 +77,6 @@ jobs:
           tags: |
             marengo-dev:local
             ${{ env.DEV_IMAGE }}:${{ env.DEV_IMAGE_TAG }}
-            ${{ env.DEV_IMAGE }}:latest
           build-args: |
             MARENGO_UID=${{ env.MARENGO_UID }}
             MARENGO_GID=${{ env.MARENGO_GID }}
@@ -82,11 +85,18 @@ jobs:
             type=registry,ref=${{ env.DEV_IMAGE }}:latest
           cache-to: type=gha,scope=dev-image,mode=max
 
-      - name: Push dev image to GHCR
+      # Content-hash tag is safe from any same-repo run; :latest tracks main only.
+      - name: Push content-hash tag to GHCR
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         run: |
           set -euo pipefail
           docker push "${{ env.DEV_IMAGE }}:${{ env.DEV_IMAGE_TAG }}"
+
+      - name: Push latest tag to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          set -euo pipefail
+          docker tag marengo-dev:local "${{ env.DEV_IMAGE }}:latest"
           docker push "${{ env.DEV_IMAGE }}:latest"
 
       - name: Export dev image artifact
@@ -124,10 +134,11 @@ jobs:
           restore-keys: |
             cargo-${{ runner.os }}-
 
-      - name: Restore consul node_modules cache
+      # npm ci deletes node_modules; cache the download cache instead.
+      - name: Restore npm download cache
         uses: actions/cache@v4
         with:
-          path: consul/node_modules
+          path: .ci-cache/npm
           key: consul-npm-${{ runner.os }}-${{ hashFiles('consul/package-lock.json') }}
           restore-keys: |
             consul-npm-${{ runner.os }}-
@@ -144,14 +155,16 @@ jobs:
 
       - name: Run check.sh in container
         run: |
-          mkdir -p .ci-cache/cargo/registry .ci-cache/cargo/git target
+          mkdir -p .ci-cache/cargo/registry .ci-cache/cargo/git .ci-cache/npm target
           docker run --rm \
             -v "${{ github.workspace }}:/workspace" \
             -v "${{ github.workspace }}/.ci-cache/cargo/registry:/usr/local/cargo/registry" \
             -v "${{ github.workspace }}/.ci-cache/cargo/git:/usr/local/cargo/git" \
+            -v "${{ github.workspace }}/.ci-cache/npm:/home/marengo/.npm" \
             -v "${{ github.workspace }}/target:/workspace/target" \
             -w /workspace \
             -e CI=true \
+            -e npm_config_cache=/home/marengo/.npm \
             -e GITHUB_EVENT_NAME="${{ github.event_name }}" \
             -e GITHUB_BASE_SHA="${{ github.event.pull_request.base.sha || '' }}" \
             -e BUF_BREAKING_AGAINST="${{ env.BUF_BREAKING_AGAINST || '' }}" \

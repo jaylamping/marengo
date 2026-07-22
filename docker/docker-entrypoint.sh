@@ -18,6 +18,8 @@ if [[ "$(id -u)" -eq 0 ]]; then
   ensure_dir_owned_by_marengo /workspace/target
   ensure_dir_owned_by_marengo /usr/local/cargo/registry
   ensure_dir_owned_by_marengo /usr/local/cargo/git
+  # CI bind-mounts the npm download cache here; chown so npm ci can write.
+  ensure_dir_owned_by_marengo /home/marengo/.npm
 
   if [[ $# -eq 0 ]]; then
     set -- bash
