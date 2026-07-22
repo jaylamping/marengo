@@ -12,9 +12,10 @@ When working on Pi bench bring-up, CAN, motors, gravity, `motor-repl`, `marengo-
 3. Use read-only/admin MCP tools without asking permission: `pi_health`, `pi_can_status`, `pi_can_up`, `pi_motor_repl_status`, `pi_logs_*`, **`pi_candump_summary`**, `pi_journal`, `pi_candump_once`, `pi_read_file`, `pi_sync_bench_config`, **`pi_sync_bench_urdf`**, **`pi_sync_main`**, and **`pi_wait_deploy`**.
 4. **Deploy / sync:** after pushing fixes that affect Pi or Consul, run **`pi_sync_main`** yourself (polls gateway until ready). Never ask the user to run `deploy-pi.sh`, `install-pi.sh`, or rsync manually. Use **`pi_wait_deploy`** if deploy already ran and you only need to poll.
 5. After motion troubleshooting (`pi_hold_on`, harness, scripted marengo-pi): always **`pi_candump_summary`** plus position trace — CAN is wire truth vs code trace.
-6. For motion tools, ask only for the required confirmation flags and any physical safety preconditions. Then run the tool yourself.
-7. Ask the user only for physical actions or credentials the MCP cannot perform: supporting the arm, keeping hands off, power-cycling, plugging hardware, entering sudo password, Motor Studio UI actions, or confirming weighted/live motion.
-8. If MCP tooling is stale or missing a capability, fix or extend the MCP toolchain, rebuild it (`just mcp-build`), **restart the marengo-pi MCP server**, and use it rather than falling back to user-run commands.
+6. For motion tools **and** `pi_restart_marengo_pi` / `pi_clean_tree`, ask only for the required confirmation flags and any physical safety preconditions. Then run the tool yourself.
+7. After Consul Set Limits / `motors.yaml` hard-bound writes that must reload into Davout, run **`pi_restart_marengo_pi`** with `confirm: true` (arm supported if elevated) — do not ask the user to SSH-restart marengo-pi.
+8. Ask the user only for physical actions or credentials the MCP cannot perform: supporting the arm, keeping hands off, power-cycling, plugging hardware, entering sudo password, Motor Studio UI actions, or confirming weighted/live motion.
+9. If MCP tooling is stale or missing a capability, fix or extend the MCP toolchain, rebuild it (`just mcp-build`), **restart the marengo-pi MCP server**, and use it rather than falling back to user-run commands.
 
 ## If marengo-pi MCP is “missing” or “not found” (local / WSL)
 
@@ -42,6 +43,7 @@ When **marengo-pi MCP cannot run** in a cloud VM (no SSH MCP), use **`./scripts/
 | `pi_candump_summary` | `pi-remote.sh candump-summary` |
 | `pi_journal` | `pi-remote.sh journal` |
 | `pi_sync_main` | `pi-remote.sh deploy --install` |
+| `pi_restart_marengo_pi` | `pi-remote.sh restart-marengo-pi` / `stop-marengo-pi` |
 | `pi_read_file` | `pi-remote.sh ssh -- cat /opt/marengo/...` |
 
 Bad: “Paste the bench log from the Pi.” / falling back to `just deploy-pi-wsl` because MCP looked disabled.

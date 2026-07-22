@@ -23,6 +23,8 @@ Commands (read-only / admin — no motion):
   logs-structured [n]    GET /logs/structured (default 100)
   candump-summary        summarize candump-latest.log
   journal [unit]         journalctl (default marengo-pi)
+  restart-marengo-pi     stop + start marengo-pi.service (reload hard limits)
+  stop-marengo-pi        stop/pkill marengo-pi only (no start)
   ssh [--] <cmd...>      raw remote command
   deploy [--install]     cross-build + rsync (requires aarch64-linux-gnu-gcc)
   verify                 connectivity checks
@@ -119,6 +121,62 @@ REMOTE
   journal)
     unit="${1:-marengo-pi}"
     remote_script "journalctl -u '${unit}' -n 80 --no-pager 2>/dev/null || journalctl -n 80 --no-pager"
+    ;;
+  restart-marengo-pi)
+    remote_script "$(cat <<'REMOTE'
+echo '=== before ==='
+systemctl is-active marengo-pi.service 2>/dev/null || echo inactive
+pgrep -af '/opt/marengo/bin/marengo-pi|/bin/marengo-pi' || echo '(no marengo-pi process)'
+echo
+echo '=== stop ==='
+sudo systemctl stop marengo-pi.service 2>/dev/null || true
+sudo pkill -f '/opt/marengo/bin/marengo-pi' 2>/dev/null || true
+pkill -f '/opt/marengo/bin/marengo-pi' 2>/dev/null || true
+for i in 1 2 3 4 5 6 7 8 9 10; do
+  pgrep -f '/opt/marengo/bin/marengo-pi' >/dev/null 2>&1 || break
+  sleep 0.2
+done
+echo
+echo '=== start ==='
+if systemctl cat marengo-pi.service >/dev/null 2>&1; then
+  sudo systemctl start marengo-pi.service
+  sleep 1
+  systemctl is-active marengo-pi.service || true
+else
+  echo 'error: marengo-pi.service unit not found — process stopped; start manually' >&2
+  exit 1
+fi
+echo
+echo '=== after ==='
+systemctl is-active marengo-pi.service 2>/dev/null || echo inactive
+pgrep -af '/opt/marengo/bin/marengo-pi|/bin/marengo-pi' || echo '(no marengo-pi process)'
+echo
+echo 'Hard limits / motors.yaml reload on marengo-pi process start.'
+REMOTE
+)"
+    ;;
+  stop-marengo-pi)
+    remote_script "$(cat <<'REMOTE'
+echo '=== before ==='
+systemctl is-active marengo-pi.service 2>/dev/null || echo inactive
+pgrep -af '/opt/marengo/bin/marengo-pi|/bin/marengo-pi' || echo '(no marengo-pi process)'
+echo
+echo '=== stop ==='
+sudo systemctl stop marengo-pi.service 2>/dev/null || true
+sudo pkill -f '/opt/marengo/bin/marengo-pi' 2>/dev/null || true
+pkill -f '/opt/marengo/bin/marengo-pi' 2>/dev/null || true
+for i in 1 2 3 4 5 6 7 8 9 10; do
+  pgrep -f '/opt/marengo/bin/marengo-pi' >/dev/null 2>&1 || break
+  sleep 0.2
+done
+echo
+echo '=== stop-only (not starting systemd unit) ==='
+echo
+echo '=== after ==='
+systemctl is-active marengo-pi.service 2>/dev/null || echo inactive
+pgrep -af '/opt/marengo/bin/marengo-pi|/bin/marengo-pi' || echo '(no marengo-pi process)'
+REMOTE
+)"
     ;;
   ssh)
     if [[ "${1:-}" == "--" ]]; then

@@ -12,6 +12,10 @@ import {
   syncBenchUrdfSchema,
 } from "./sync-config.js";
 import { syncTreeSchema, runSyncTree } from "./sync-tree.js";
+import {
+  restartMarengoPiSchema,
+  runRestartMarengoPi,
+} from "./restart-marengo-pi.js";
 
 export function registerAdminTools(
   cfg: MarengoPiConfig,
@@ -133,6 +137,19 @@ export function registerAdminTools(
         return runCleanTree(cfg, runRemote, args);
       },
     },
+
+    pi_restart_marengo_pi: {
+      description:
+        "Stop or restart marengo-pi.service (and any leftover /opt/marengo/bin/marengo-pi process). " +
+        "Use after Consul Set Limits / motors.yaml hard-bound changes so Davout reloads position limits. " +
+        "Motors go limp during stop — support elevated arms. Requires confirm: true. " +
+        "Does not restart marengo-gateway.",
+      inputSchema: restartMarengoPiSchema,
+      handler: async (args: { confirm: true; mode: "restart" | "stop" }) => {
+        return runRestartMarengoPi(cfg, runRemote, args);
+      },
+    },
+
     pi_git_pull: {
       description: "git pull in MARENGO_PI_ROOT on Pi (fails if dirty)",
       inputSchema: z.object({}),
