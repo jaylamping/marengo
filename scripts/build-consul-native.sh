@@ -36,7 +36,9 @@ echo "build-consul-native: npm ci + build in ${ROOT}/consul"
 (
   cd "${ROOT}/consul"
   npm ci
-  env -u VITE_CHAPPE_HTTP_URL -u VITE_CHAPPE_WEBTRANSPORT_URL npm run build
+  env -u VITE_CHAPPE_HTTP_URL -u VITE_CHAPPE_WEBTRANSPORT_URL \
+    VITE_AUTO_LEARN_URL= VITE_AUTO_LEARN_TOKEN= \
+    npm run build
 )
 
 if [[ ! -f "${ROOT}/consul/dist/index.html" ]]; then

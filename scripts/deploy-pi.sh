@@ -166,7 +166,11 @@ build_consul_assets() {
   fi
   (
     cd "${ROOT}/consul"
-    env -u VITE_CHAPPE_HTTP_URL -u VITE_CHAPPE_WEBTRANSPORT_URL npm run build
+    # Auto Learn BFF is operator-machine only — never bake local URL/token into Pi www.
+    # Set empty (don't unset): Vite prefers process env over .env.local.
+    env -u VITE_CHAPPE_HTTP_URL -u VITE_CHAPPE_WEBTRANSPORT_URL \
+      VITE_AUTO_LEARN_URL= VITE_AUTO_LEARN_TOKEN= \
+      npm run build
   )
   if [[ ! -f "${ROOT}/consul/dist/index.html" ]]; then
     echo "error: consul build did not produce dist/index.html" >&2

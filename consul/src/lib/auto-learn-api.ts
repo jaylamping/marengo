@@ -10,18 +10,19 @@ export type AutoLearnApiResult =
   | { ok: true; response: AutoLearnResponse }
   | { ok: false; error: AutoLearnApiError };
 
-function envTrim(key: 'VITE_AUTO_LEARN_URL' | 'VITE_AUTO_LEARN_TOKEN'): string | null {
-  const value = (import.meta.env[key] as string | undefined)?.trim();
-  return value || null;
-}
-
 export function autoLearnConfig(): {
   url: string | null;
   token: string | null;
 } {
+  // Static import.meta.env.*. Dynamic import.meta.env[key] makes Vite inline
+  // the entire env object (including VITE_CHAPPE_* names) into production dist.
+  const url = (import.meta.env.VITE_AUTO_LEARN_URL as string | undefined)?.trim();
+  const token = (
+    import.meta.env.VITE_AUTO_LEARN_TOKEN as string | undefined
+  )?.trim();
   return {
-    url: envTrim('VITE_AUTO_LEARN_URL'),
-    token: envTrim('VITE_AUTO_LEARN_TOKEN'),
+    url: url || null,
+    token: token || null,
   };
 }
 
