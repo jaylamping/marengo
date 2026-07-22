@@ -60,6 +60,17 @@ See [ADR 0004](decisions/0004-control-modes-and-mit.md) and [hardware/docs/decis
 4. **Upright pose test:** slowly release support; elbow/upper arm must not free-fall.
 5. `gravity-off` / `disable` before leaving the bench.
 
+## Config hot-reload (limits)
+
+- **Surface:** numerical hard/soft position bounds, torque cap, and `velocity_max_rad_s` only. `device_id`, CAN interface, `direction`, motor type, gearing, and membership/DOF changes require YAML + restart (+ re-home when wiring/zero changes).
+- **Active refusal:** Davout refuses `apply_limit_patch` / `rebuild_limits` while operational mode is `ACTIVE`.
+- **ACK honesty:** Gateway must not claim live success on Chappe publish alone — wait for Pi `ActionEvent` (`limit_patch`) with `accepted` and `persist_status`.
+- **Persist-degraded ≠ NeedsRestart:** write-behind failure uses a distinct banner/retry. Restart while YAML is stale would revert live limits.
+- **Dual-writer:** Pi is the sole writer for the active profile; gateway disk transactions are for inactive bringup profiles only (CAS `expected_revision`).
+- Soft bounds clamp into the new hard envelope in the same txn (Inventory Range must show post-clamp values).
+
+See [ADR 0012](decisions/0012-config-db-overrides.md).
+
 ## Active Reporting leases (type-24)
 
 Consul may hold a **per-joint Active Reporting lease** (operator UI: Enhanced logging) via gateway → Chappe → Davout when a subsystem modal is open. Leases never enable type-24 while operational mode is `ACTIVE` (MIT status replies own that path). Bench profiles with `active_reporting_diagnostics: true` already force type-24 when not ACTIVE, so a lease may be a wire no-op until that global flag is off — the lease path still ships for global-off workflows. HTTP 200 is publish ACK only; Consul shows **Enhanced logging**, not confirmed wire reporting. TTL expiry on the Pi is the backstop if release is lost. `client_id` is not an auth boundary (same honesty as set-zero).
