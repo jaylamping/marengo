@@ -6,7 +6,10 @@ import {
   MitJointCommandSchema,
   type MitJointCommand,
 } from '@/gen/marengo/v1/marengo_pb';
-import { postTestingMitCommandBatch, postEnableCommand } from '@/lib/gateway-api';
+import {
+  postTestingMitCommandBatch,
+  postEnableCommand,
+} from '@/lib/gateway-api';
 import { useCompoundStore } from '@/state/compoundStore';
 import { useTeachStore } from '@/state/teachStore';
 
@@ -14,7 +17,12 @@ interface TestingStore {
   selectedJointNames: string[];
   mode: 'hold' | 'sweep';
   setpointRad: number;
-  sweep: { startRad: number; endRad: number; stepRad: number; durationSec: number };
+  sweep: {
+    startRad: number;
+    endRad: number;
+    stepRad: number;
+    durationSec: number;
+  };
   gains: Record<string, { kp: number; kd: number; ki: number; fc: number }>;
   dryRun: boolean;
   isRunning: boolean;
@@ -23,7 +31,10 @@ interface TestingStore {
   deselectJoint: (name: string) => void;
   setMode: (mode: 'hold' | 'sweep') => void;
   setSetpoint: (rad: number) => void;
-  setGain: (name: string, gain: { kp: number; kd: number; ki: number; fc: number }) => void;
+  setGain: (
+    name: string,
+    gain: { kp: number; kd: number; ki: number; fc: number },
+  ) => void;
   toggleDryRun: () => void;
   startTest: () => Promise<void>;
   returnHome: () => Promise<void>;
@@ -42,14 +53,21 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
   dryRun: true,
   isRunning: false,
 
-  selectJoint: (name) => set((state) => ({ selectedJointNames: [...state.selectedJointNames, name] })),
-  deselectJoint: (name) => set((state) => ({ selectedJointNames: state.selectedJointNames.filter((n) => n !== name) })),
+  selectJoint: (name) =>
+    set((state) => ({
+      selectedJointNames: [...state.selectedJointNames, name],
+    })),
+  deselectJoint: (name) =>
+    set((state) => ({
+      selectedJointNames: state.selectedJointNames.filter((n) => n !== name),
+    })),
   setMode: (mode) => set({ mode }),
   setSetpoint: (setpointRad) => set({ setpointRad }),
-  setGain: (name, gain) => set((state) => ({ gains: { ...state.gains, [name]: gain } })),
+  setGain: (name, gain) =>
+    set((state) => ({ gains: { ...state.gains, [name]: gain } })),
   toggleDryRun: () => set((state) => ({ dryRun: !state.dryRun })),
   startTest: async () => {
-    if (useTeachStore.getState().recording) {
+    if (useTeachStore.getState().capture.kind === 'recording') {
       return;
     }
     const { selectedJointNames, gains, setpointRad, dryRun } = get();
@@ -69,21 +87,22 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
       });
     });
 
-
     if (!dryRun) {
       // POSITION ends GravityComp — clear teach preflight checkbox.
       useTeachStore.getState().setGravityArmed(false);
-      await postTestingMitCommandBatch(create(MitCommandBatchSchema, {
-        timestampMs: BigInt(Date.now()),
-        mode: ControlMode.POSITION,
-        joints,
-      }));
+      await postTestingMitCommandBatch(
+        create(MitCommandBatchSchema, {
+          timestampMs: BigInt(Date.now()),
+          mode: ControlMode.POSITION,
+          joints,
+        }),
+      );
     }
   },
   stopTest: () => set({ isRunning: false }),
 
   returnHome: async () => {
-    if (useTeachStore.getState().recording) {
+    if (useTeachStore.getState().capture.kind === 'recording') {
       return;
     }
     const { selectedJointNames, gains, dryRun } = get();
@@ -105,11 +124,13 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
 
     if (!dryRun) {
       useTeachStore.getState().setGravityArmed(false);
-      await postTestingMitCommandBatch(create(MitCommandBatchSchema, {
-        timestampMs: BigInt(Date.now()),
-        mode: ControlMode.POSITION,
-        joints,
-      }));
+      await postTestingMitCommandBatch(
+        create(MitCommandBatchSchema, {
+          timestampMs: BigInt(Date.now()),
+          mode: ControlMode.POSITION,
+          joints,
+        }),
+      );
     }
   },
 
@@ -125,7 +146,7 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
 
   dispatchGainUpdate: async (jointName: string) => {
     // Teach Record requires GravityComp — IMPEDANCE posts end it mid-capture.
-    if (useTeachStore.getState().recording) {
+    if (useTeachStore.getState().capture.kind === 'recording') {
       return;
     }
     const { gains, setpointRad, dryRun } = get();
@@ -145,11 +166,13 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
     });
     if (!dryRun) {
       useTeachStore.getState().setGravityArmed(false);
-      await postTestingMitCommandBatch(create(MitCommandBatchSchema, {
-        timestampMs: BigInt(Date.now()),
-        mode: ControlMode.IMPEDANCE,
-        joints: [joint],
-      }));
+      await postTestingMitCommandBatch(
+        create(MitCommandBatchSchema, {
+          timestampMs: BigInt(Date.now()),
+          mode: ControlMode.IMPEDANCE,
+          joints: [joint],
+        }),
+      );
     }
   },
 }));

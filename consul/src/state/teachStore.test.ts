@@ -44,7 +44,7 @@ function session(epoch = 0) {
         included: true,
       },
     ],
-    { calibrationEpoch: epoch }
+    { calibrationEpoch: epoch },
   );
 }
 
@@ -76,7 +76,7 @@ describe('parseTeachPersisted', () => {
     expect(parsed.overlays.wave.session.calibrationEpoch).toBe(2);
     expect(parsed.overlays.wave.ackedAtEpoch).toBe(2);
     expect(
-      (parsed.overlays.wave as { preset?: unknown }).preset
+      (parsed.overlays.wave as { preset?: unknown }).preset,
     ).toBeUndefined();
   });
 
@@ -92,12 +92,8 @@ describe('useTeachStore', () => {
   beforeEach(() => {
     localStorage.clear();
     useTeachStore.setState({
-      recording: false,
-      recordingPresetId: null,
-      draftPresetId: null,
+      capture: { kind: 'idle' },
       gravityArmed: false,
-      samples: [],
-      landmarks: [],
       cadenceScale: 1,
       settleDwellSec: 0.15,
       lastError: null,
@@ -125,25 +121,17 @@ describe('useTeachStore', () => {
       ackedAtEpoch: 0,
     });
     useTeachStore.setState({
-      samples: [{ tMs: 1, q: { right_shoulder_pitch: 1 } }],
-      landmarks: [
-        {
-          id: 'x',
-          label: 'x',
-          tSec: 0,
-          q: { right_shoulder_pitch: 0 },
-          included: true,
-        },
-      ],
-      recording: true,
+      capture: {
+        kind: 'recording',
+        presetId: 'wave',
+        samples: [{ tMs: 1, q: { right_shoulder_pitch: 1 } }],
+      },
     });
     useTeachStore.getState().markCalibrationChanged();
     const st = useTeachStore.getState();
     expect(st.liveCalibrationEpoch).toBe(1);
     expect(st.overlays.wave).toBeDefined();
-    expect(st.samples).toEqual([]);
-    expect(st.landmarks).toEqual([]);
-    expect(st.recording).toBe(false);
+    expect(st.capture).toEqual({ kind: 'idle' });
     expect(st.lastError).toMatch(/Calibration marked dirty/);
   });
 
@@ -178,7 +166,7 @@ describe('useTeachStore', () => {
       tMs: 1,
       q: { right_shoulder_pitch: 0.5 },
     });
-    expect(useTeachStore.getState().samples).toEqual([]);
+    expect(useTeachStore.getState().capture).toEqual({ kind: 'idle' });
   });
 
   it('finishRecording extracts landmarks and retains the draft preset', () => {
@@ -198,10 +186,11 @@ describe('useTeachStore', () => {
 
     const state = useTeachStore.getState();
     expect(result.kind).toBe('extracted');
-    expect(state.recording).toBe(false);
-    expect(state.recordingPresetId).toBeNull();
-    expect(state.draftPresetId).toBe('arm_out_forward');
-    expect(state.landmarks.length).toBeGreaterThan(0);
+    expect(state.capture.kind).toBe('draft');
+    if (state.capture.kind === 'draft') {
+      expect(state.capture.presetId).toBe('arm_out_forward');
+      expect(state.capture.landmarks.length).toBeGreaterThan(0);
+    }
   });
 
   it('cancelRecording abandons capture and draft', () => {
@@ -210,10 +199,7 @@ describe('useTeachStore', () => {
     store.appendSample({ tMs: 1, q: { right_shoulder_pitch: 0.5 } });
     store.cancelRecording();
     const state = useTeachStore.getState();
-    expect(state.recording).toBe(false);
-    expect(state.draftPresetId).toBeNull();
-    expect(state.samples).toEqual([]);
-    expect(state.landmarks).toEqual([]);
+    expect(state.capture).toEqual({ kind: 'idle' });
   });
 
   it('applyOverlay returns false when persist fails', () => {

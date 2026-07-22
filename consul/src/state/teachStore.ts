@@ -28,6 +28,32 @@ export type FinishRecordingResult =
   | { kind: 'no_motion' }
   | { kind: 'not_recording' };
 
+export type TeachCapture =
+  | { kind: 'idle' }
+  | { kind: 'recording'; presetId: string; samples: TeachSample[] }
+  | {
+      kind: 'draft';
+      presetId: string;
+      samples: TeachSample[];
+      landmarks: TeachLandmark[];
+    };
+
+export function captureIsRecording(capture: TeachCapture): boolean {
+  return capture.kind === 'recording';
+}
+
+export function capturePresetId(capture: TeachCapture): string | null {
+  return capture.kind === 'idle' ? null : capture.presetId;
+}
+
+export function captureSamples(capture: TeachCapture): TeachSample[] {
+  return capture.kind === 'idle' ? [] : capture.samples;
+}
+
+export function captureLandmarks(capture: TeachCapture): TeachLandmark[] {
+  return capture.kind === 'draft' ? capture.landmarks : [];
+}
+
 /** Pure parse for tests + loadPersisted. Strips legacy frozen `preset` field. */
 export function parseTeachPersisted(raw: string | null): TeachPersisted {
   if (!raw) {
@@ -79,7 +105,7 @@ function loadPersisted(): TeachPersisted {
 
 function persistAll(
   liveCalibrationEpoch: number,
-  overlays: Record<string, TeachOverlayEntry>
+  overlays: Record<string, TeachOverlayEntry>,
 ): boolean {
   if (typeof window === 'undefined') return true;
   try {
@@ -92,12 +118,8 @@ function persistAll(
 }
 
 interface TeachStore {
-  recording: boolean;
-  recordingPresetId: string | null;
-  draftPresetId: string | null;
+  capture: TeachCapture;
   gravityArmed: boolean;
-  samples: TeachSample[];
-  landmarks: TeachLandmark[];
   cadenceScale: number;
   settleDwellSec: number;
   lastError: string | null;
@@ -126,7 +148,7 @@ interface TeachStore {
   acknowledgeCalibration: (presetId: string) => void;
   applyOverlay: (
     presetId: string,
-    entry: Omit<TeachOverlayEntry, 'ackedAtEpoch'> & { ackedAtEpoch?: number }
+    entry: Omit<TeachOverlayEntry, 'ackedAtEpoch'> & { ackedAtEpoch?: number },
   ) => boolean;
   clearOverlay: (presetId: string) => boolean;
   getOverlaySession: (presetId: string) => TeachSession | null;
@@ -136,12 +158,8 @@ interface TeachStore {
 const initial = loadPersisted();
 
 export const useTeachStore = createZustand<TeachStore>((set, get) => ({
-  recording: false,
-  recordingPresetId: null,
-  draftPresetId: null,
+  capture: { kind: 'idle' },
   gravityArmed: false,
-  samples: [],
-  landmarks: [],
   cadenceScale: 1,
   settleDwellSec: 0.15,
   lastError: null,
@@ -151,36 +169,25 @@ export const useTeachStore = createZustand<TeachStore>((set, get) => ({
   setGravityArmed: (gravityArmed) => set({ gravityArmed }),
   startRecording: (presetId) =>
     set({
-      recording: true,
-      recordingPresetId: presetId,
-      draftPresetId: presetId,
-      samples: [],
-      landmarks: [],
+      capture: { kind: 'recording', presetId, samples: [] },
       lastError: null,
     }),
   finishRecording: (joints) => {
     const state = get();
-    if (!state.recordingPresetId) {
+    if (state.capture.kind !== 'recording') {
       return { kind: 'not_recording' };
     }
-    const buf = state.samples;
-    const draftPresetId = state.recordingPresetId;
-    if (!samplesHaveMotion(buf, joints)) {
+    const { presetId, samples } = state.capture;
+    if (!samplesHaveMotion(samples, joints)) {
       set({
-        recording: false,
-        recordingPresetId: null,
-        draftPresetId,
-        landmarks: [],
+        capture: { kind: 'draft', presetId, samples, landmarks: [] },
         lastError: 'No motion in buffer. Nothing to apply.',
       });
       return { kind: 'no_motion' };
     }
-    const extracted = extractLandmarks(buf, joints);
+    const extracted = extractLandmarks(samples, joints);
     set({
-      recording: false,
-      recordingPresetId: null,
-      draftPresetId,
-      landmarks: extracted,
+      capture: { kind: 'draft', presetId, samples, landmarks: extracted },
       lastError: canApplyLandmarks(extracted)
         ? null
         : 'Landmark extraction failed. Do not apply this draft.',
@@ -189,30 +196,40 @@ export const useTeachStore = createZustand<TeachStore>((set, get) => ({
   },
   cancelRecording: () =>
     set({
-      recording: false,
-      recordingPresetId: null,
-      draftPresetId: null,
-      samples: [],
-      landmarks: [],
+      capture: { kind: 'idle' },
       lastError: null,
     }),
   appendSample: (sample) =>
     set((state) => {
-      if (!state.recordingPresetId) return state;
+      if (state.capture.kind !== 'recording') return state;
       const next =
-        state.samples.length > 50_000
-          ? [...state.samples.slice(-40_000), sample]
-          : [...state.samples, sample];
-      return { samples: next };
+        state.capture.samples.length > 50_000
+          ? [...state.capture.samples.slice(-40_000), sample]
+          : [...state.capture.samples, sample];
+      return { capture: { ...state.capture, samples: next } };
     }),
-  clearSamples: () => set({ samples: [] }),
-  setLandmarks: (landmarks) => set({ landmarks }),
+  clearSamples: () =>
+    set((state) => {
+      if (state.capture.kind === 'idle') return state;
+      return { capture: { ...state.capture, samples: [] } };
+    }),
+  setLandmarks: (landmarks) =>
+    set((state) => {
+      if (state.capture.kind !== 'draft') return state;
+      return { capture: { ...state.capture, landmarks } };
+    }),
   setLandmarkIncluded: (id, included) =>
-    set((state) => ({
-      landmarks: state.landmarks.map((l) =>
-        l.id === id ? { ...l, included } : l
-      ),
-    })),
+    set((state) => {
+      if (state.capture.kind !== 'draft') return state;
+      return {
+        capture: {
+          ...state.capture,
+          landmarks: state.capture.landmarks.map((landmark) =>
+            landmark.id === id ? { ...landmark, included } : landmark,
+          ),
+        },
+      };
+    }),
   setCadenceScale: (cadenceScale) => set({ cadenceScale }),
   setSettleDwellSec: (settleDwellSec) => set({ settleDwellSec }),
   setLastError: (lastError) => set({ lastError }),
@@ -231,11 +248,7 @@ export const useTeachStore = createZustand<TeachStore>((set, get) => ({
       liveCalibrationEpoch: next,
       lastError:
         'Calibration marked dirty — re-record after set-zero (or Acknowledge & keep / Reset overlay).',
-      samples: [],
-      landmarks: [],
-      recording: false,
-      recordingPresetId: null,
-      draftPresetId: null,
+      capture: { kind: 'idle' },
     });
   },
 

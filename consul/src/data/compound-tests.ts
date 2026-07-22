@@ -113,7 +113,8 @@ export const COMPOUND_TEST_PRESETS: CompoundTestPreset[] = [
     loop: false,
     teach: {
       kind: 'replace-program',
-      appliedDescription: 'Taught overlay replaces the shipped movement program.',
+      appliedDescription:
+        'Taught overlay replaces the shipped movement program.',
       preserveLoop: true,
     },
     keyframes: {
@@ -129,7 +130,8 @@ export const COMPOUND_TEST_PRESETS: CompoundTestPreset[] = [
     loop: false,
     teach: {
       kind: 'replace-program',
-      appliedDescription: 'Taught overlay replaces the shipped movement program.',
+      appliedDescription:
+        'Taught overlay replaces the shipped movement program.',
       preserveLoop: true,
     },
     keyframes: {
@@ -138,3 +140,11 @@ export const COMPOUND_TEST_PRESETS: CompoundTestPreset[] = [
     },
   },
 ];
+
+const compoundPresetsById = new Map(
+  COMPOUND_TEST_PRESETS.map((preset) => [preset.id, preset]),
+);
+
+export function compoundPresetById(id: string): CompoundTestPreset | undefined {
+  return compoundPresetsById.get(id);
+}
