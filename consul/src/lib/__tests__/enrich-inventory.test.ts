@@ -35,7 +35,7 @@ describe('enrichInventory', () => {
     const roll = enriched.find((r) => r.name === 'right_shoulder_roll');
     expect(roll?.node).toBe('RS03 · can0 · id 1');
     expect(roll?.limit).toBe('±1.57');
-    expect(roll?.preset).toBe('bench_3dof');
+    expect(roll?.preset).toBe('bench_4dof');
   });
 
   it('does not mutate the base catalog', () => {

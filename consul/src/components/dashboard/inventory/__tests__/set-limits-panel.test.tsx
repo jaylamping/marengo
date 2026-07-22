@@ -22,7 +22,7 @@ vi.mock('@/lib/persist-joint-limits', () => ({
     ok: true,
     lower: -0.5,
     upper: 1.2,
-    restartRequired: true,
+    restartRequired: false,
     message: 'Updated right_shoulder_pitch',
   })),
 }));
@@ -41,9 +41,9 @@ afterEach(() => {
   cleanup();
   useLimitListenStore.getState().reset();
   useNeedsRestartStore.setState({
-    pendingRestartJoints: [],
+    pending: [],
     restartDialogOpen: false,
-    dialogFromApply: false,
+    dialogReason: null,
   });
   useRobotStore.setState({ connected: false, operationalMode: null });
   vi.mocked(postSetZeroCommand).mockClear();
@@ -199,10 +199,8 @@ describe('SetLimitsPanel', () => {
     await vi.waitFor(() => {
       expect(queryClient.invalidateQueries).toHaveBeenCalled();
       expect(onApplyRange).toHaveBeenCalledWith('−0.50–1.20');
-      expect(useNeedsRestartStore.getState().pendingRestartJoints).toContain(
-        'right_shoulder_pitch',
-      );
-      expect(useNeedsRestartStore.getState().restartDialogOpen).toBe(true);
+      expect(useNeedsRestartStore.getState().pending).toEqual([]);
+      expect(useNeedsRestartStore.getState().restartDialogOpen).toBe(false);
     });
   });
 

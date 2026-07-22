@@ -1,5 +1,6 @@
 import type { ConfigSnapshotDto } from '@/lib/config-api';
 import type { InventoryItem } from '@/data/robot-inventory';
+import { deriveMembershipPreset } from '@/lib/bringup-presets';
 
 function formatBenchLimit(lower: number, upper: number): string {
   const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
@@ -39,11 +40,18 @@ export function enrichInventory(
     const lower = soft?.position_soft_lower_rad ?? motor.bench.position_lower_rad;
     const upper = soft?.position_soft_upper_rad ?? motor.bench.position_upper_rad;
 
+    const membershipPreset = deriveMembershipPreset(
+      row.name,
+      snapshot.profile,
+      snapshot.joints,
+    );
+
     return {
       ...row,
       limit: formatBenchLimit(lower, upper),
       node: `${motor.motor_type.toUpperCase()} · ${motor.can_interface} · id ${motor.device_id}`,
-      preset: row.preset === 'unassigned' ? snapshot.profile : row.preset,
+      // Membership-derived bench_* is SoT for mapped presets; catalog tags stay on the row.
+      preset: membershipPreset ?? row.preset,
     };
   });
 }

@@ -1,55 +1,93 @@
 import { create } from 'zustand';
 
+export type RestartReason = 'structural' | 'wiring';
+
+export type PendingRestart = {
+  profile: string;
+  joint: string;
+  reason: RestartReason;
+  expected_revision: string;
+};
+
 type NeedsRestartState = {
-  pendingRestartJoints: string[];
+  pending: PendingRestart[];
   restartDialogOpen: boolean;
-  /** Richer copy when opened immediately after Set Limits Apply. */
-  dialogFromApply: boolean;
+  /** Dialog opened for structural/wiring membership — not Set Limits. */
+  dialogReason: RestartReason | null;
+  markNeedsRestart: (entry: PendingRestart) => void;
+  /** @deprecated Prefer markNeedsRestart with reason. */
   markJointNeedsRestart: (joint: string) => void;
   clearNeedsRestart: () => void;
-  openRestartDialog: (opts?: { fromApply?: boolean }) => void;
+  openRestartDialog: (opts?: { reason?: RestartReason }) => void;
   closeRestartDialog: () => void;
   isJointPending: (joint: string) => boolean;
 };
 
 export const useNeedsRestartStore = create<NeedsRestartState>((set, get) => ({
-  pendingRestartJoints: [],
+  pending: [],
   restartDialogOpen: false,
-  dialogFromApply: false,
+  dialogReason: null,
 
-  markJointNeedsRestart: (joint) => {
-    const name = joint.trim();
-    if (!name) {
+  markNeedsRestart: (entry) => {
+    const joint = entry.joint.trim();
+    if (!joint) {
       return;
     }
     set((state) => {
-      if (state.pendingRestartJoints.includes(name)) {
+      if (
+        state.pending.some(
+          (p) =>
+            p.joint === joint &&
+            p.profile === entry.profile &&
+            p.reason === entry.reason,
+        )
+      ) {
         return state;
       }
       return {
-        pendingRestartJoints: [...state.pendingRestartJoints, name],
+        pending: [
+          ...state.pending,
+          {
+            ...entry,
+            joint,
+          },
+        ],
       };
     });
   },
 
+  markJointNeedsRestart: (joint) => {
+    get().markNeedsRestart({
+      profile: 'active',
+      joint,
+      reason: 'wiring',
+      expected_revision: '',
+    });
+  },
+
   clearNeedsRestart: () => {
-    set({ pendingRestartJoints: [], restartDialogOpen: false, dialogFromApply: false });
+    set({ pending: [], restartDialogOpen: false, dialogReason: null });
   },
 
   openRestartDialog: (opts) => {
     set({
       restartDialogOpen: true,
-      dialogFromApply: opts?.fromApply === true,
+      dialogReason: opts?.reason ?? 'structural',
     });
   },
 
   closeRestartDialog: () => {
-    set({ restartDialogOpen: false, dialogFromApply: false });
+    set({ restartDialogOpen: false, dialogReason: null });
   },
 
-  isJointPending: (joint) => get().pendingRestartJoints.includes(joint.trim()),
+  isJointPending: (joint) =>
+    get().pending.some((p) => p.joint === joint.trim()),
 }));
 
 export function selectNeedsRestart(state: NeedsRestartState): boolean {
-  return state.pendingRestartJoints.length > 0;
+  return state.pending.length > 0;
+}
+
+export function selectPendingJoints(state: NeedsRestartState): string[] {
+  return state.pending.map((p) => p.joint);
 }

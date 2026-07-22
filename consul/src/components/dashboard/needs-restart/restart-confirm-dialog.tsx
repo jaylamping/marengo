@@ -15,12 +15,12 @@ import { useNeedsRestartStore } from '@/state/needsRestartStore';
 import { useRobotStore } from '@/state/robotStore';
 
 /**
- * Shared “Would you like to restart now?” dialog for Set Limits Apply and all
- * Needs restart / Pending restart badges.
+ * Shared restart dialog for structural / wiring NeedsRestart badges.
+ * Not used for ordinary Set Limits (those hot-reload without restart).
  */
 export function RestartConfirmDialog() {
   const open = useNeedsRestartStore((s) => s.restartDialogOpen);
-  const fromApply = useNeedsRestartStore((s) => s.dialogFromApply);
+  const dialogReason = useNeedsRestartStore((s) => s.dialogReason);
   const closeRestartDialog = useNeedsRestartStore((s) => s.closeRestartDialog);
   const clearNeedsRestart = useNeedsRestartStore((s) => s.clearNeedsRestart);
   const operationalMode = useRobotStore((s) => s.operationalMode);
@@ -29,8 +29,12 @@ export function RestartConfirmDialog() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const activeBlocks =
-    connected && operationalMode === 'ACTIVE';
+  const activeBlocks = connected && operationalMode === 'ACTIVE';
+
+  const description =
+    dialogReason === 'wiring'
+      ? 'Motor wiring or identity changed in the active profile. Restart marengo-pi so Davout reloads motors.yaml.'
+      : 'A joint was added to the active bringup profile. Restart marengo-pi so Davout loads the new DOF.';
 
   return (
     <Dialog
@@ -51,10 +55,7 @@ export function RestartConfirmDialog() {
         <DialogHeader>
           <DialogTitle>Would you like to restart now?</DialogTitle>
           <DialogDescription>
-            {fromApply
-              ? 'Hard limits were saved to motors.yaml. Restart marengo-pi so Davout loads them.'
-              : 'Restart marengo-pi so Davout reloads hard limits from motors.yaml.'}{' '}
-            Motors will go limp — support elevated arms.
+            {description} Motors will go limp — support elevated arms.
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="space-y-2">

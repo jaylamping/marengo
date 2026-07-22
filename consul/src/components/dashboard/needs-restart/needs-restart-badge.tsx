@@ -44,7 +44,7 @@ export function NeedsRestartBadge({
         'inline-flex shrink-0 items-center border border-accent/50 bg-accent/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.14em] text-accent transition-colors hover:bg-accent/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         className,
       )}
-      title="Hard limits saved — restart marengo-pi to load them into Davout"
+      title="Active profile membership or wiring changed — restart marengo-pi to load it"
       onClick={() => {
         openRestartDialog();
       }}
