@@ -503,7 +503,6 @@ export function CompoundTestPanel() {
                 <Button
                   className="mt-4"
                   size="sm"
-                  variant="outline"
                   onClick={(event) => {
                     event.stopPropagation();
                     setSelectedPresetId(preset.id);
@@ -598,7 +597,7 @@ export function CompoundTestPanel() {
                 </h4>
                 <Button
                   size="sm"
-                  variant="outline"
+                  variant={recordSectionOpen ? 'outline' : 'default'}
                   onClick={() => setRecordSectionOpen((open) => !open)}
                 >
                   {recordSectionOpen ? 'Hide Record Movement' : 'Record Movement'}
