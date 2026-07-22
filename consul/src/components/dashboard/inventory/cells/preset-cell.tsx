@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 import { useInventoryOverridesStore } from '@/state/inventoryOverridesStore';
 
 type PresetCellProps = {
@@ -18,17 +19,14 @@ type PresetCellProps = {
   preset: string;
 };
 
-/** Text by default — Radix Select only mounts when assigning (was 22× on first paint). */
+/** Text by default — Radix Select only mounts when editing (was 22× on first paint). */
 export function PresetCell({ itemId, preset }: PresetCellProps) {
   const [editing, setEditing] = useState(false);
   const applyPatch = useInventoryOverridesStore((state) => state.applyPatch);
   const assignedPreset = useInventoryOverridesStore(
     (state) => state.overrides[itemId]?.preset ?? preset,
   );
-
-  if (assignedPreset !== 'unassigned') {
-    return <span className="font-mono text-xs">{assignedPreset}</span>;
-  }
+  const isUnassigned = assignedPreset === 'unassigned';
 
   if (!editing) {
     return (
@@ -36,10 +34,14 @@ export function PresetCell({ itemId, preset }: PresetCellProps) {
         type="button"
         variant="ghost"
         size="sm"
-        className="h-8 px-2 font-mono text-xs text-muted-foreground"
+        className={cn(
+          'h-8 px-2 font-mono text-xs',
+          isUnassigned ? 'text-muted-foreground' : 'text-foreground',
+        )}
+        aria-label={isUnassigned ? 'Assign preset' : `Edit preset ${assignedPreset}`}
         onClick={() => setEditing(true)}
       >
-        Assign preset
+        {isUnassigned ? 'Assign preset' : assignedPreset}
       </Button>
     );
   }
@@ -52,6 +54,7 @@ export function PresetCell({ itemId, preset }: PresetCellProps) {
       <Select
         items={[...PRESET_OPTIONS]}
         defaultOpen
+        value={isUnassigned ? undefined : assignedPreset}
         onValueChange={(value) => {
           applyPatch(itemId, { preset: value });
           setEditing(false);

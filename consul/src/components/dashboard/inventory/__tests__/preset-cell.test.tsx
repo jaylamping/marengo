@@ -38,7 +38,7 @@ afterEach(() => {
   cleanup();
 });
 
-describe('PresetCell assign path', () => {
+describe('PresetCell', () => {
   beforeEach(() => {
     localStorage.clear();
     useInventoryOverridesStore.setState({ overrides: {} });
@@ -54,5 +54,18 @@ describe('PresetCell assign path', () => {
       preset: 'bench_4dof',
     });
     expect(localStorage.getItem(INVENTORY_OVERRIDES_STORAGE_KEY)).toContain('bench_4dof');
+  });
+
+  it('lets an already-assigned preset be changed and persisted', () => {
+    render(<PresetCell itemId={25} preset="bench_3dof" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit preset bench_3dof' }));
+    fireEvent.click(screen.getByRole('button', { name: 'pick bench_4dof' }));
+
+    expect(useInventoryOverridesStore.getState().overrides[25]).toEqual({
+      preset: 'bench_4dof',
+    });
+    expect(localStorage.getItem(INVENTORY_OVERRIDES_STORAGE_KEY)).toContain('bench_4dof');
+    expect(screen.getByRole('button', { name: 'Edit preset bench_4dof' })).toBeTruthy();
   });
 });
