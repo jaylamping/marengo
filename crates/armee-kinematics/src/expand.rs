@@ -16,9 +16,7 @@ pub fn expand_urdf_joint_hard(
     if !hard_lower.is_finite() || !hard_upper.is_finite() || hard_lower >= hard_upper {
         return Err(UrdfError::Read {
             path: joint_name.to_string(),
-            message: format!(
-                "invalid hard envelope [{hard_lower}, {hard_upper}] for expand"
-            ),
+            message: format!("invalid hard envelope [{hard_lower}, {hard_upper}] for expand"),
         });
     }
     let joint = robot
@@ -87,8 +85,9 @@ mod tests {
             .expect("joint")
             .limit
             .lower;
-        assert!(expand_urdf_joint_hard(&mut robot, "right_elbow_pitch", -0.8, 0.5)
-            .expect("expand"));
+        assert!(
+            expand_urdf_joint_hard(&mut robot, "right_elbow_pitch", -0.8, 0.5).expect("expand")
+        );
         let joint = robot
             .joints
             .iter()

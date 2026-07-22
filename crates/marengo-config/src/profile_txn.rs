@@ -11,8 +11,8 @@ use crate::{
     load_robot_config_from, profile_content_revision, validate_control_against_limits,
     validate_control_config, validate_limit_patch, validate_motors_against_robot,
     validate_robot_control_joint_coverage, write_motors_control_and_urdf, ConfigError,
-    ControlConfigFile, HomingConfigFile, LimitPatch,
-    MotorsConfigFile, RobotConfigFile, BRINGUP_PROFILE_SLUGS,
+    ControlConfigFile, HomingConfigFile, LimitPatch, MotorsConfigFile, RobotConfigFile,
+    BRINGUP_PROFILE_SLUGS,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]

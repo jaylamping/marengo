@@ -77,9 +77,7 @@ impl ConfigPersistQueue {
             writing: false,
         }));
         let pending_worker = Arc::clone(&pending);
-        thread::spawn(move || {
-            persist_worker(pending_worker, wake_rx, chappe, shutdown, repo_root)
-        });
+        thread::spawn(move || persist_worker(pending_worker, wake_rx, chappe, shutdown, repo_root));
         Self { pending, wake_tx }
     }
 
