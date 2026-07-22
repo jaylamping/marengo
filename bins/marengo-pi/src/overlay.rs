@@ -14,8 +14,7 @@
 //! enable/testing authority on this Chappe bus. `persist=true` is the durable-write
 //! escalation within that same trust — not a separate auth gate.
 
-use std::path::{Path, PathBuf};
-use std::sync::atomic::AtomicBool;
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 

@@ -5,7 +5,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use armee_proto::prost::Message;
 use armee_proto::{
-    actuator_command, ActionEvent, ActuatorCommand, LimitPatchCommand, OperatorCommand,
+    actuator_command, ActuatorCommand, LimitPatchCommand, OperatorCommand,
     PersistStatus as ProtoPersistStatus,
 };
 use axum::{
@@ -26,7 +26,7 @@ use crate::action_ack::{
     recv_action_ack, LIMIT_PATCH_PERSIST_ACTION, LIVE_LIMIT_PATCH_ACTION,
 };
 use crate::config::{authorize_config_mutation, snapshot_from_dir, ConfigSnapshotJson};
-use crate::state::{SharedState, TOPIC_ACTUATOR_COMMAND, TOPIC_AUDIT_ACTION};
+use crate::state::{SharedState, TOPIC_ACTUATOR_COMMAND};
 
 const LIVE_APPLY_TIMEOUT: Duration = Duration::from_secs(8);
 const LIMIT_PATCH_PERSIST_TIMEOUT: Duration = Duration::from_secs(12);
