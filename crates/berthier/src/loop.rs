@@ -2615,7 +2615,11 @@ mod tests {
     // Gain override tests
     // ════════════════════════════════════════════════════════════════
 
-    fn apply_override_in_impedance(loop_ctrl: &mut ControlLoop<MemoryBus>, joint: &str, ov: GainOverride) {
+    fn apply_override_in_impedance(
+        loop_ctrl: &mut ControlLoop<MemoryBus>,
+        joint: &str,
+        ov: GainOverride,
+    ) {
         loop_ctrl.set_control_mode(ControlMode::Impedance);
         loop_ctrl.apply_gain_override(joint, ov);
     }
