@@ -118,7 +118,9 @@ export function useAutoLearnController(presetId: string) {
       return;
     }
     if (!configured) {
-      setAutoLearnError('Set VITE_AUTO_LEARN_URL and VITE_AUTO_LEARN_TOKEN');
+      setAutoLearnError(
+        'Set Auto Learn operator token (Vite VITE_AUTO_LEARN_OPERATOR_TOKEN or paste in panel) and ensure gateway is reachable',
+      );
       return;
     }
 

@@ -10,7 +10,9 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { useAutoLearnController } from '@/hooks/use-auto-learn-controller';
+import { setAutoLearnOperatorToken } from '@/lib/auto-learn-token';
 import { cn } from '@/lib/utils';
 
 const STAGES: AutoLearnStage[] = ['crawl', 'walk', 'run'];
@@ -61,6 +63,8 @@ export function AutoLearnPanel({
     null | 'generate' | 'advance'
   >(null);
   const [hardwareConfirmOpen, setHardwareConfirmOpen] = React.useState(false);
+  const [tokenDraft, setTokenDraft] = React.useState('');
+  const [, setTokenEpoch] = React.useState(0);
 
   const logsConfirm = error?.startsWith('LOGS_CONFIRM:') ?? false;
   const displayError = logsConfirm
@@ -219,9 +223,41 @@ export function AutoLearnPanel({
         </div>
 
         {!configured ? (
-          <p className="font-mono text-xs text-destructive">
-            Set VITE_AUTO_LEARN_URL and VITE_AUTO_LEARN_TOKEN
-          </p>
+          <div className="space-y-2 rounded-md border border-border/60 bg-muted/20 p-3">
+            <p className="font-mono text-xs text-muted-foreground">
+              Operator token required for Pi www (must match{' '}
+              <span className="text-foreground/80">
+                MARENGO_AUTO_LEARN_OPERATOR_TOKEN
+              </span>{' '}
+              on Pi). Dev: set{' '}
+              <span className="text-foreground/80">
+                VITE_AUTO_LEARN_OPERATOR_TOKEN
+              </span>{' '}
+              in .env.local, or paste below.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                type="password"
+                autoComplete="off"
+                placeholder="Auto Learn operator token"
+                value={tokenDraft}
+                className="max-w-md font-mono text-xs"
+                onChange={(e) => setTokenDraft(e.target.value)}
+              />
+              <Button
+                type="button"
+                size="sm"
+                disabled={!tokenDraft.trim()}
+                onClick={() => {
+                  setAutoLearnOperatorToken(tokenDraft.trim());
+                  setTokenDraft('');
+                  setTokenEpoch((n) => n + 1);
+                }}
+              >
+                Save
+              </Button>
+            </div>
+          </div>
         ) : null}
 
         {logsConfirm ? (

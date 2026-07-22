@@ -5,10 +5,14 @@
     "moduleResolution": "bundler",
     "strict": true,
     "skipLibCheck": true,
-    "noEmit": true,
+    "outDir": "dist",
+    "rootDir": ".",
+    "declaration": true,
+    "sourceMap": true,
     "types": ["node"],
     "esModuleInterop": true,
     "resolveJsonModule": true
   },
-  "include": ["shared/**/*.ts", "src/**/*.ts"]
+  "include": ["shared/**/*.ts", "src/**/*.ts"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }

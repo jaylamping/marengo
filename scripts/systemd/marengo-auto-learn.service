@@ -1,0 +1,18 @@
+[Unit]
+Description=Marengo Auto Learn BFF (Cursor agent, loopback)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=marengo
+WorkingDirectory=/opt/marengo/tools/compound-auto-learn
+EnvironmentFile=-/etc/marengo/env
+Environment=MARENGO_AUTO_LEARN_CWD=/opt/marengo/var/auto-learn-cwd
+Environment=PATH=/opt/marengo/tools/node/bin:/usr/local/bin:/usr/bin
+ExecStart=/opt/marengo/scripts/run-auto-learn.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

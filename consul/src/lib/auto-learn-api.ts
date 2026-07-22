@@ -1,4 +1,6 @@
 import type { AutoLearnRequest, AutoLearnResponse } from '@marengo/compound-auto-learn';
+import { getChappeEndpoints } from '@/lib/chappe-config';
+import { getAutoLearnOperatorToken } from '@/lib/auto-learn-token';
 
 export type AutoLearnApiError =
   | { kind: 'not_configured'; message: string }
@@ -10,25 +12,41 @@ export type AutoLearnApiResult =
   | { ok: true; response: AutoLearnResponse }
   | { ok: false; error: AutoLearnApiError };
 
+const NOT_CONFIGURED_MESSAGE =
+  'Set Auto Learn operator token (Vite VITE_AUTO_LEARN_OPERATOR_TOKEN or paste in panel) and ensure gateway is reachable';
+
 export function autoLearnConfig(): {
   url: string | null;
   token: string | null;
 } {
-  // Static import.meta.env.*. Dynamic import.meta.env[key] makes Vite inline
-  // the entire env object (including VITE_CHAPPE_* names) into production dist.
-  const url = (import.meta.env.VITE_AUTO_LEARN_URL as string | undefined)?.trim();
-  const token = (
-    import.meta.env.VITE_AUTO_LEARN_TOKEN as string | undefined
-  )?.trim();
+  const httpUrl = getChappeEndpoints()?.httpUrl ?? null;
+  const url = httpUrl ? `${httpUrl}/v1/auto-learn` : null;
   return {
-    url: url || null,
-    token: token || null,
+    url,
+    token: getAutoLearnOperatorToken(),
   };
 }
 
 export function autoLearnConfigured(): boolean {
   const { url, token } = autoLearnConfig();
   return Boolean(url && token);
+}
+
+function httpErrorMessage(status: number, body: Record<string, unknown>): string {
+  const err = typeof body.error === 'string' ? body.error : '';
+  if (status === 401) {
+    return 'Unauthorized — Auto Learn operator token mismatch (x-marengo-auto-learn-token vs MARENGO_AUTO_LEARN_OPERATOR_TOKEN)';
+  }
+  if (status === 503) {
+    if (err === 'auto_learn_upstream_token_missing') {
+      return 'Auto Learn upstream token missing on Pi (set AUTO_LEARN_TOKEN for compound-auto-learn)';
+    }
+    if (err === 'auto_learn_unavailable') {
+      return 'Auto Learn unavailable on Pi — is compound-auto-learn running behind the gateway?';
+    }
+    return err || 'Auto Learn unavailable (HTTP 503)';
+  }
+  return err || `Auto Learn HTTP ${status}`;
 }
 
 export async function postAutoLearn(
@@ -41,18 +59,18 @@ export async function postAutoLearn(
       ok: false,
       error: {
         kind: 'not_configured',
-        message: 'Set VITE_AUTO_LEARN_URL and VITE_AUTO_LEARN_TOKEN',
+        message: NOT_CONFIGURED_MESSAGE,
       },
     };
   }
 
   try {
-    const res = await fetch(`${url.replace(/\/$/, '')}/v1/auto-learn`, {
+    const res = await fetch(url, {
       method: 'POST',
       signal,
       headers: {
         'content-type': 'application/json',
-        authorization: `Bearer ${token}`,
+        'x-marengo-auto-learn-token': token,
       },
       body: JSON.stringify(request),
     });
@@ -73,10 +91,7 @@ export async function postAutoLearn(
         error: {
           kind: 'http',
           status: res.status,
-          message:
-            typeof body.error === 'string'
-              ? body.error
-              : `Auto Learn HTTP ${res.status}`,
+          message: httpErrorMessage(res.status, body),
         },
       };
     }
@@ -93,7 +108,7 @@ export async function postAutoLearn(
       error: {
         kind: 'network',
         message:
-          err instanceof Error ? err.message : 'Could not reach Auto Learn BFF',
+          err instanceof Error ? err.message : 'Could not reach Auto Learn via gateway',
       },
     };
   }

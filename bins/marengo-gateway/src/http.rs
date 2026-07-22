@@ -8,7 +8,7 @@ use armee_proto::MitCommandBatch;
 use armee_proto::SetZeroRequest;
 use axum::{
     body::Body,
-    extract::{Query, State},
+    extract::{DefaultBodyLimit, Query, State},
     http::{header, HeaderMap, StatusCode},
     response::{IntoResponse, Response},
     routing::{get, post},
@@ -21,12 +21,16 @@ use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
 
 use crate::actuator;
+use crate::auto_learn;
 use crate::config;
 use crate::framing::{self, CHAPPE_STREAM_CONTENT_TYPE};
 use crate::logs;
 use crate::profiles;
 use crate::restart;
 use crate::state::{filter_topics, SharedState};
+
+/// Matches Auto Learn local server + reverse-proxy body cap (256 KiB).
+const AUTO_LEARN_BODY_LIMIT: usize = 256 * 1024;
 
 #[derive(Serialize)]
 struct HealthResponse {
@@ -125,6 +129,10 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
             post(command_active_reporting_lease),
         )
         .route("/command/actuator", post(actuator::command_actuator))
+        .route(
+            "/v1/auto-learn",
+            post(auto_learn::post_auto_learn).layer(DefaultBodyLimit::max(AUTO_LEARN_BODY_LIMIT)),
+        )
         .layer(cors)
         .with_state(state);
 

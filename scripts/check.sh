@@ -78,6 +78,13 @@ echo "==> consul: gen:proto, build, audit"
   fi
 )
 
+echo "==> compound-auto-learn: npm ci + test"
+(
+  cd tools/compound-auto-learn
+  npm ci
+  npm test
+)
+
 echo "==> validate fixtures (URDF + MJCF)"
 "${ROOT}/scripts/validate-urdf.sh"
 

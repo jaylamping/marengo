@@ -37,7 +37,7 @@ echo "build-consul-native: npm ci + build in ${ROOT}/consul"
   cd "${ROOT}/consul"
   npm ci
   env -u VITE_CHAPPE_HTTP_URL -u VITE_CHAPPE_WEBTRANSPORT_URL \
-    VITE_AUTO_LEARN_URL= VITE_AUTO_LEARN_TOKEN= \
+    VITE_AUTO_LEARN_URL= VITE_AUTO_LEARN_TOKEN= VITE_AUTO_LEARN_OPERATOR_TOKEN= \
     npm run build
 )
 

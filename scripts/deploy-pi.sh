@@ -169,7 +169,7 @@ build_consul_assets() {
     # Auto Learn BFF is operator-machine only — never bake local URL/token into Pi www.
     # Set empty (don't unset): Vite prefers process env over .env.local.
     env -u VITE_CHAPPE_HTTP_URL -u VITE_CHAPPE_WEBTRANSPORT_URL \
-      VITE_AUTO_LEARN_URL= VITE_AUTO_LEARN_TOKEN= \
+      VITE_AUTO_LEARN_URL= VITE_AUTO_LEARN_TOKEN= VITE_AUTO_LEARN_OPERATOR_TOKEN= \
       npm run build
   )
   if [[ ! -f "${ROOT}/consul/dist/index.html" ]]; then
@@ -222,6 +222,21 @@ stage_copy_tree "${ROOT}/scripts" "$STAGING/scripts"
 mkdir -p "$STAGING/www"
 if [[ -d "${ROOT}/consul/dist" ]]; then
   stage_copy_tree "${ROOT}/consul/dist" "$STAGING/www" true
+fi
+# Auto Learn BFF sources — rebuild on Pi (no host node_modules / dist).
+if [[ -f "${ROOT}/tools/compound-auto-learn/package.json" ]]; then
+  mkdir -p "$STAGING/tools/compound-auto-learn"
+  if command -v rsync >/dev/null 2>&1; then
+    rsync -a \
+      --exclude node_modules \
+      --exclude dist \
+      "${ROOT}/tools/compound-auto-learn/" \
+      "$STAGING/tools/compound-auto-learn/"
+  else
+    stage_copy_tree "${ROOT}/tools/compound-auto-learn" "$STAGING/tools/compound-auto-learn"
+    rm -rf "$STAGING/tools/compound-auto-learn/node_modules" \
+      "$STAGING/tools/compound-auto-learn/dist"
+  fi
 fi
 stage_deploy_rev "${ROOT}" "${STAGING}"
 

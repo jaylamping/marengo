@@ -271,6 +271,8 @@ mod tests {
                 tau_ff_max_nm: 3.0,
                 pos_lower_rad: -1.0,
                 pos_upper_rad: 1.0,
+                pos_soft_lower_rad: -0.9,
+                pos_soft_upper_rad: 0.9,
                 wired: true,
             }],
         };

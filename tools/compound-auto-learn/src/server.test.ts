@@ -171,4 +171,54 @@ describe('auto-learn server', () => {
     });
     expect(res.status).toBe(400);
   });
+
+  it('GET /health returns ok and cursorKeyPresent without auth', async () => {
+    const prev = process.env.CURSOR_API_KEY;
+    delete process.env.CURSOR_API_KEY;
+    try {
+      const svc = createAutoLearnServer({
+        token,
+        port: 18790,
+        promptFn: async () => goodJson,
+      });
+      await svc.listen();
+      close = () => svc.close();
+      const res = await fetch(`http://127.0.0.1:${svc.port}/health`);
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as {
+        ok: boolean;
+        cursorKeyPresent: boolean;
+      };
+      expect(body).toEqual({ ok: true, cursorKeyPresent: false });
+    } finally {
+      if (prev === undefined) delete process.env.CURSOR_API_KEY;
+      else process.env.CURSOR_API_KEY = prev;
+    }
+  });
+
+  it('GET /health reports cursorKeyPresent when key is set', async () => {
+    const prev = process.env.CURSOR_API_KEY;
+    process.env.CURSOR_API_KEY = 'test-key-not-a-secret-value';
+    try {
+      const svc = createAutoLearnServer({
+        token,
+        port: 18791,
+        promptFn: async () => goodJson,
+      });
+      await svc.listen();
+      close = () => svc.close();
+      const res = await fetch(`http://127.0.0.1:${svc.port}/health`);
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as {
+        ok: boolean;
+        cursorKeyPresent: boolean;
+      };
+      expect(body.ok).toBe(true);
+      expect(body.cursorKeyPresent).toBe(true);
+      expect(JSON.stringify(body)).not.toContain('test-key');
+    } finally {
+      if (prev === undefined) delete process.env.CURSOR_API_KEY;
+      else process.env.CURSOR_API_KEY = prev;
+    }
+  });
 });

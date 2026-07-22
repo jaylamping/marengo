@@ -158,9 +158,83 @@ sed -i "s|WorkingDirectory=.*|WorkingDirectory=${INSTALL_ROOT}|" /etc/systemd/sy
 sed -i "s|User=.*|User=${RUN_USER}|" /etc/systemd/system/marengo-gateway.service
 sed -i "s|ExecStart=.*|ExecStart=${INSTALL_ROOT}/bin/marengo-gateway --http-listen [::]:8080 --https-listen [::]:8444 --web-root ${INSTALL_ROOT}/www --wt-listen [::]:8443 --chappe-socket /run/marengo/chappe.sock|" /etc/systemd/system/marengo-gateway.service
 
+# Auto Learn BFF (optional — only when staged with the deploy bundle).
+AUTO_LEARN_SRC="${ROOT}/tools/compound-auto-learn"
+AUTO_LEARN_DST="${INSTALL_ROOT}/tools/compound-auto-learn"
+AUTO_LEARN_NODE_VER="v24.16.0"
+AUTO_LEARN_NODE_PREFIX="${INSTALL_ROOT}/tools/node"
+env_file_has_nonempty() {
+  local key="$1"
+  local line val
+  [[ -f /etc/marengo/env ]] || return 1
+  line="$(grep -E "^${key}=" /etc/marengo/env 2>/dev/null | tail -1 || true)"
+  [[ -n "$line" ]] || return 1
+  val="${line#*=}"
+  val="${val%\"}"
+  val="${val#\"}"
+  val="${val%\'}"
+  val="${val#\'}"
+  [[ -n "${val//[[:space:]]/}" ]]
+}
+if [[ -f "${AUTO_LEARN_SRC}/package.json" ]]; then
+  echo "Installing Auto Learn BFF → ${AUTO_LEARN_DST}"
+  mkdir -p "${INSTALL_ROOT}/tools" "${INSTALL_ROOT}/var/auto-learn-cwd"
+  chown "${RUN_USER}:${RUN_USER}" "${INSTALL_ROOT}/var/auto-learn-cwd"
+
+  NEED_NODE=true
+  if [[ -x "${AUTO_LEARN_NODE_PREFIX}/bin/node" ]]; then
+    if [[ "$("${AUTO_LEARN_NODE_PREFIX}/bin/node" -v 2>/dev/null || true)" == "${AUTO_LEARN_NODE_VER}" ]]; then
+      NEED_NODE=false
+    fi
+  fi
+  if [[ "$NEED_NODE" == true ]]; then
+    NODE_TARBALL="node-${AUTO_LEARN_NODE_VER}-linux-arm64.tar.xz"
+    NODE_URL="https://nodejs.org/dist/${AUTO_LEARN_NODE_VER}/${NODE_TARBALL}"
+    NODE_TMP="$(mktemp -d)"
+    echo "Installing Node ${AUTO_LEARN_NODE_VER} linux-arm64 → ${AUTO_LEARN_NODE_PREFIX}"
+    if command -v curl >/dev/null 2>&1; then
+      curl -fsSL "$NODE_URL" -o "${NODE_TMP}/${NODE_TARBALL}"
+    else
+      wget -qO "${NODE_TMP}/${NODE_TARBALL}" "$NODE_URL"
+    fi
+    tar -xJf "${NODE_TMP}/${NODE_TARBALL}" -C "$NODE_TMP"
+    mkdir -p "$AUTO_LEARN_NODE_PREFIX"
+    rsync -a --delete "${NODE_TMP}/node-${AUTO_LEARN_NODE_VER}-linux-arm64/" "${AUTO_LEARN_NODE_PREFIX}/"
+    rm -rf "$NODE_TMP"
+  fi
+
+  mkdir -p "$AUTO_LEARN_DST"
+  rsync -a --delete \
+    --exclude node_modules \
+    --exclude dist \
+    "${AUTO_LEARN_SRC}/" "${AUTO_LEARN_DST}/"
+  chown -R "${RUN_USER}:${RUN_USER}" "$AUTO_LEARN_DST" "$AUTO_LEARN_NODE_PREFIX"
+
+  # Build needs esbuild (devDependency); end state matches npm ci --omit=dev + dist/.
+  sudo -u "$RUN_USER" env \
+    PATH="${AUTO_LEARN_NODE_PREFIX}/bin:/usr/local/bin:/usr/bin" \
+    HOME="$(getent passwd "$RUN_USER" | cut -d: -f6)" \
+    bash -c "set -euo pipefail; cd '${AUTO_LEARN_DST}'; npm ci; npm run build; npm prune --omit=dev"
+
+  if [[ -f "${ROOT}/scripts/systemd/marengo-auto-learn.service" ]]; then
+    install -m 644 "${ROOT}/scripts/systemd/marengo-auto-learn.service" \
+      /etc/systemd/system/marengo-auto-learn.service
+  fi
+fi
+
 chown -R "${RUN_USER}:${RUN_USER}" "${INSTALL_ROOT}"
 chown -R root:"${RUN_USER}" "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets" "${INSTALL_ROOT}/scripts" "${INSTALL_ROOT}/var" 2>/dev/null || true
 chmod -R g+rwX "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets" "${INSTALL_ROOT}/scripts" "${INSTALL_ROOT}/var" 2>/dev/null || true
+# Auto Learn cwd + tool tree stay owned by the runtime user.
+if [[ -d "${INSTALL_ROOT}/var/auto-learn-cwd" ]]; then
+  chown "${RUN_USER}:${RUN_USER}" "${INSTALL_ROOT}/var/auto-learn-cwd"
+fi
+if [[ -d "${AUTO_LEARN_DST}" ]]; then
+  chown -R "${RUN_USER}:${RUN_USER}" "$AUTO_LEARN_DST"
+fi
+if [[ -d "${AUTO_LEARN_NODE_PREFIX}" ]]; then
+  chown -R "${RUN_USER}:${RUN_USER}" "$AUTO_LEARN_NODE_PREFIX"
+fi
 
 install_deploy_rev "${ROOT}" "${INSTALL_ROOT}"
 chown root:root "${INSTALL_ROOT}/.deploy-rev"
@@ -178,6 +252,16 @@ fi
 if [[ -f "${INSTALL_ROOT}/bin/marengo-pi" ]]; then
   systemctl enable marengo-pi.service
   systemctl restart marengo-pi.service
+fi
+# Enable Auto Learn when installed; start when secrets exist (wrapper exits 0 if unset).
+if [[ -f /etc/systemd/system/marengo-auto-learn.service ]]; then
+  chmod 755 "${INSTALL_ROOT}/scripts/run-auto-learn.sh" 2>/dev/null || true
+  systemctl enable marengo-auto-learn.service
+  if env_file_has_nonempty CURSOR_API_KEY && env_file_has_nonempty AUTO_LEARN_TOKEN; then
+    systemctl restart marengo-auto-learn.service
+  else
+    echo "Auto Learn BFF enabled but idle (set CURSOR_API_KEY and AUTO_LEARN_TOKEN in /etc/marengo/env, then: systemctl restart marengo-auto-learn)"
+  fi
 fi
 
 echo "Done. CAN (can0/can1) should be UP — verify: ip -br link show type can"

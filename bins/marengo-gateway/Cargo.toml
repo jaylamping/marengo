@@ -27,6 +27,7 @@ marengo-store = { path = "../../crates/marengo-store" }
 prost = { workspace = true }
 quinn = "0.11"
 rcgen = "0.13"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
 rustls-pemfile = "2"
 serde = { workspace = true, features = ["derive"] }

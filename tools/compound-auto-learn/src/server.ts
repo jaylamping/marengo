@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { resolve as pathResolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { defaultPromptFn, runAutoLearnPrompt, type PromptFn } from './agent';
 import { parseAndAssertResponse, parseAutoLearnRequest } from './parse';
 
@@ -8,6 +8,7 @@ const DEFAULT_PORT = 8787;
 const BODY_LIMIT = 256 * 1024;
 const RATE_WINDOW_MS = 60_000;
 const RATE_MAX = 20;
+
 /** Local Vite only (port may bump when 5173 is taken). */
 function isAllowedCorsOrigin(origin: string | undefined): origin is string {
   if (!origin) return false;
@@ -64,7 +65,7 @@ function sendJson(
   if (isAllowedCorsOrigin(origin)) {
     headers['access-control-allow-origin'] = origin;
     headers['access-control-allow-headers'] = 'authorization, content-type';
-    headers['access-control-allow-methods'] = 'POST, OPTIONS';
+    headers['access-control-allow-methods'] = 'GET, POST, OPTIONS';
     headers.vary = 'Origin';
   }
   res.writeHead(status, headers);
@@ -76,6 +77,13 @@ function authorize(req: IncomingMessage, token: string): boolean {
   if (header === `Bearer ${token}`) return true;
   const alt = req.headers['x-auto-learn-token'];
   return typeof alt === 'string' && alt === token;
+}
+
+function healthBody(): { ok: true; cursorKeyPresent: boolean } {
+  return {
+    ok: true,
+    cursorKeyPresent: Boolean(process.env.CURSOR_API_KEY?.trim()),
+  };
 }
 
 export function createAutoLearnServer(opts: ServerOptions = {}) {
@@ -96,7 +104,14 @@ export function createAutoLearnServer(opts: ServerOptions = {}) {
       return;
     }
 
-    if (req.method !== 'POST' || req.url !== '/v1/auto-learn') {
+    const urlPath = req.url?.split('?')[0] ?? '';
+
+    if (req.method === 'GET' && urlPath === '/health') {
+      sendJson(res, 200, healthBody(), origin);
+      return;
+    }
+
+    if (req.method !== 'POST' || urlPath !== '/v1/auto-learn') {
       sendJson(res, 404, { error: 'not_found' }, origin);
       return;
     }
@@ -172,7 +187,7 @@ export function createAutoLearnServer(opts: ServerOptions = {}) {
   };
 }
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
   if (!process.env.CURSOR_API_KEY?.trim()) {
     console.error('CURSOR_API_KEY is required');
     process.exit(1);
@@ -180,11 +195,28 @@ async function main(): Promise<void> {
   const svc = createAutoLearnServer();
   await svc.listen();
   console.log(
-    `compound-auto-learn listening on http://${svc.host}:${svc.port}/v1/auto-learn`,
+    `compound-auto-learn listening on http://${svc.host}:${svc.port} (GET /health, POST /v1/auto-learn)`,
   );
 }
 
-const entry = process.argv[1] ? pathResolve(process.argv[1]) : '';
-if (entry && fileURLToPath(import.meta.url) === entry) {
+/** True when this module is the process entry (tsx src/server.ts or node dist/server.js). */
+export function isMainModule(
+  metaUrl: string = import.meta.url,
+  argv1: string | undefined = process.argv[1],
+): boolean {
+  if (!argv1) return false;
+  try {
+    return metaUrl === pathToFileURL(pathResolve(argv1)).href;
+  } catch {
+    // Fallback: compare absolute filesystem paths
+    try {
+      return fileURLToPath(metaUrl) === pathResolve(argv1);
+    } catch {
+      return false;
+    }
+  }
+}
+
+if (isMainModule()) {
   void main();
 }

@@ -3,15 +3,18 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "main": "dist/server.js",
   "exports": {
     ".": "./shared/index.ts",
     "./shared": "./shared/index.ts"
   },
   "scripts": {
     "dev": "tsx src/server.ts",
-    "start": "tsx src/server.ts",
+    "build": "esbuild src/server.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/server.js",
+    "start": "node dist/server.js",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "spike:agent": "node scripts/spike-agent-prompt.mjs"
   },
   "engines": {
     "node": "^24.16.0"
@@ -22,6 +25,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
+    "esbuild": "^0.25.0",
     "tsx": "^4.20.0",
     "typescript": "^5.8.0",
     "vitest": "^3.2.0"

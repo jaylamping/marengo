@@ -2,6 +2,7 @@
 
 mod action_ack;
 mod actuator;
+mod auto_learn;
 mod config;
 mod framing;
 mod http;
