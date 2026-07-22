@@ -27,8 +27,7 @@ use std::time::Instant;
 use armee_proto::prost::Message;
 use armee_proto::{
     actuator_command, ActionEvent, ActuatorCommand, ActuatorLimitSnapshot, JointActuatorLimit,
-    LimitPatchCommand, OperatorCommand, PersistStatus, TuningChange, TuningChangeEvent,
-    TuningTier,
+    LimitPatchCommand, OperatorCommand, PersistStatus, TuningChange, TuningChangeEvent, TuningTier,
 };
 use berthier::{ControlLoop, ControlMode, GainOverride};
 use chappe::Bus;
@@ -257,9 +256,7 @@ fn persist_worker(
                         },
                         revision: AUDIT_REVISION.fetch_add(1, Ordering::Relaxed),
                         accepted: false,
-                        reject_reason: format!(
-                            "async config write failed after live apply: {e}"
-                        ),
+                        reject_reason: format!("async config write failed after live apply: {e}"),
                         persist_status: PersistStatus::Failed as i32,
                         config_revision: String::new(),
                     };
@@ -562,10 +559,12 @@ impl ActuatorOverlay {
         loop_ctrl
             .supervisor_mut()
             .apply_limit_patch(&patch)
-            .map_err(|e| OverlayError::Config(marengo_config::ConfigError::Parse {
-                path: config_dir.to_path_buf(),
-                message: e.to_string(),
-            }))?;
+            .map_err(|e| {
+                OverlayError::Config(marengo_config::ConfigError::Parse {
+                    path: config_dir.to_path_buf(),
+                    message: e.to_string(),
+                })
+            })?;
 
         let motors = loop_ctrl.supervisor().motors.clone();
         let control = loop_ctrl.supervisor().control.clone();
