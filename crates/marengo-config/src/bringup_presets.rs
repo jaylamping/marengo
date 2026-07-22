@@ -134,6 +134,8 @@ pub fn derive_preset_label_for_joint(
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::expect_used, clippy::unwrap_used)]
+
     use super::*;
 
     #[test]

@@ -121,7 +121,7 @@ fn invalid_patch(message: impl Into<String>) -> ConfigError {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::expect_used)]
+    #![allow(clippy::expect_used, clippy::unwrap_used)]
 
     use crate::{
         FrictionGains, JointControlEntry, ModeGains, MotorBenchLimits, MotorEntry, MotorType,

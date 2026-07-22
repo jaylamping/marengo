@@ -324,7 +324,7 @@ fn transaction_error(path: impl AsRef<Path>, message: impl Into<String>) -> Conf
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::expect_used)]
+    #![allow(clippy::expect_used, clippy::unwrap_used)]
 
     use std::fs;
 
