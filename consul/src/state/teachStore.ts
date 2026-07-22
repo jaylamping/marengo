@@ -82,6 +82,8 @@ function persistAll(
 
 interface TeachStore {
   recording: boolean;
+  recordingPresetId: string | null;
+  draftPresetId: string | null;
   gravityArmed: boolean;
   samples: TeachSample[];
   landmarks: TeachLandmark[];
@@ -92,7 +94,8 @@ interface TeachStore {
   overlays: Record<string, TeachOverlayEntry>;
 
   setGravityArmed: (armed: boolean) => void;
-  setRecording: (recording: boolean) => void;
+  startRecording: (presetId: string) => void;
+  stopRecording: () => void;
   appendSample: (sample: TeachSample) => void;
   clearSamples: () => void;
   setLandmarks: (landmarks: TeachLandmark[]) => void;
@@ -117,6 +120,8 @@ const initial = loadPersisted();
 
 export const useTeachStore = createZustand<TeachStore>((set, get) => ({
   recording: false,
+  recordingPresetId: null,
+  draftPresetId: null,
   gravityArmed: false,
   samples: [],
   landmarks: [],
@@ -127,10 +132,16 @@ export const useTeachStore = createZustand<TeachStore>((set, get) => ({
   overlays: initial.overlays,
 
   setGravityArmed: (gravityArmed) => set({ gravityArmed }),
-  setRecording: (recording) => set({ recording }),
+  startRecording: (presetId) =>
+    set({
+      recording: true,
+      recordingPresetId: presetId,
+      draftPresetId: presetId,
+    }),
+  stopRecording: () => set({ recording: false, recordingPresetId: null }),
   appendSample: (sample) =>
     set((state) => {
-      if (!state.recording) return state;
+      if (!state.recordingPresetId) return state;
       const next =
         state.samples.length > 50_000
           ? [...state.samples.slice(-40_000), sample]
@@ -167,6 +178,8 @@ export const useTeachStore = createZustand<TeachStore>((set, get) => ({
       samples: [],
       landmarks: [],
       recording: false,
+      recordingPresetId: null,
+      draftPresetId: null,
     });
   },
 
@@ -227,6 +240,8 @@ export const useTeachStore = createZustand<TeachStore>((set, get) => ({
   resetSession: () =>
     set({
       recording: false,
+      recordingPresetId: null,
+      draftPresetId: null,
       samples: [],
       landmarks: [],
       lastError: null,

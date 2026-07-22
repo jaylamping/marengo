@@ -93,6 +93,8 @@ describe('useTeachStore', () => {
     localStorage.clear();
     useTeachStore.setState({
       recording: false,
+      recordingPresetId: null,
+      draftPresetId: null,
       gravityArmed: false,
       samples: [],
       landmarks: [],
@@ -177,5 +179,18 @@ describe('useTeachStore', () => {
       q: { right_shoulder_pitch: 0.5 },
     });
     expect(useTeachStore.getState().samples).toEqual([]);
+  });
+
+  it('binds recording and its retained draft to one preset', () => {
+    const store = useTeachStore.getState();
+    store.startRecording('arm_out_forward');
+    store.appendSample({ tMs: 1, q: { right_shoulder_pitch: 0.5 } });
+    store.stopRecording();
+
+    const state = useTeachStore.getState();
+    expect(state.recording).toBe(false);
+    expect(state.recordingPresetId).toBeNull();
+    expect(state.draftPresetId).toBe('arm_out_forward');
+    expect(state.samples).toHaveLength(1);
   });
 });
