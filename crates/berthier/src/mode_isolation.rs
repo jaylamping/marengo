@@ -127,19 +127,4 @@ proptest! {
         );
     }
 
-    #[test]
-    fn gravitycomp_tau_ff_equals_tau_g(tau_g in -5.0..5.0f64) {
-        // GravityComp mode: kp=0, kd=0, tau_ff=tau_g, q_des=q, mit_velocity=0.
-        // This is the pure feedforward — no extra terms.
-        let kp = 0.0;
-        let kd = 0.0;
-        let tau_ff = tau_g;
-        // Verify: no position feedback (kp=0), no damping (kd=0), tau_ff is exactly tau_g.
-        prop_assert_eq!(kp, 0.0);
-        prop_assert_eq!(kd, 0.0);
-        prop_assert!(
-            (tau_ff - tau_g).abs() < 1e-12,
-            "GravityComp tau_ff must equal tau_g"
-        );
-    }
 }

@@ -78,6 +78,8 @@ pub enum ConfigError {
     InvalidActuatorGroup { group: String, message: String },
     #[error("invalid velocity on joint {joint}: {message}")]
     InvalidVelocity { joint: String, message: String },
+    #[error("invalid gravity_comp gains on joint {joint}: {message}")]
+    InvalidGravityCompGains { joint: String, message: String },
     #[error("joint {joint} in robot.yaml has no entry in control.yaml")]
     MissingControlJoint { joint: String },
 }
@@ -582,6 +584,15 @@ pub fn validate_control_config(control: &ControlConfigFile) -> Result<(), Config
                     message: "velocity_max_rad_s must be > 0".to_string(),
                 });
             }
+        }
+        // ADR 0004: GravityComp wire gains must be zero (YAML is source of truth).
+        const EPS: f64 = 1e-9;
+        let g = &entry.gravity_comp;
+        if g.kp.abs() > EPS || g.kd.abs() > EPS || g.ki.abs() > EPS {
+            return Err(ConfigError::InvalidGravityCompGains {
+                joint: joint.clone(),
+                message: "gravity_comp kp/kd/ki must be 0.0 (ADR 0004)".to_string(),
+            });
         }
     }
     Ok(())
@@ -1348,6 +1359,20 @@ mod tests {
         let cfg = ControlConfigFile { control };
         let err = validate_control_config(&cfg).expect_err("duplicate");
         assert!(matches!(err, ConfigError::InvalidActuatorGroup { .. }));
+    }
+
+    #[test]
+    fn non_zero_gravity_comp_gains_rejected() {
+        let mut control = sample_control_section();
+        control
+            .joints
+            .get_mut("right_shoulder_pitch")
+            .expect("joint")
+            .gravity_comp
+            .kp = 1.0;
+        let cfg = ControlConfigFile { control };
+        let err = validate_control_config(&cfg).expect_err("non-zero gravity_comp");
+        assert!(matches!(err, ConfigError::InvalidGravityCompGains { .. }));
     }
 
     #[test]
