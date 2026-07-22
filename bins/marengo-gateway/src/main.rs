@@ -5,6 +5,7 @@ mod config;
 mod framing;
 mod http;
 mod logs;
+mod profiles;
 mod ratelimit;
 mod restart;
 mod state;

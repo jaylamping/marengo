@@ -20,10 +20,19 @@ use crate::state::SharedState;
 
 const BATCH_MAX: usize = 100;
 const BATCH_INTERVAL: std::time::Duration = std::time::Duration::from_millis(500);
+#[cfg(test)]
+static TEST_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 /// Upper bound on log inserts queued for the DB writer. Bounded (not unbounded)
 /// so a runaway producer applies backpressure / drops instead of growing the
 /// queue until the process is OOM-killed.
 const BATCH_QUEUE_CAPACITY: usize = 16_384;
+
+#[cfg(test)]
+pub(crate) fn lock_test_env() -> std::sync::MutexGuard<'static, ()> {
+    TEST_ENV_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
 
 #[derive(Serialize)]
 pub struct StructuredLogListJson {
@@ -544,6 +553,7 @@ mod tests {
 
     #[test]
     fn log_token_from_env_filters_empty() {
+        let _env = lock_test_env();
         const KEY: &str = "MARENGO_GATEWAY_LOG_TOKEN";
         let saved = std::env::var(KEY).ok();
         std::env::set_var(KEY, "");
