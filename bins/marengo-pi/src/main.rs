@@ -925,6 +925,11 @@ fn main() {
     };
     run_control_loop(&mut loop_ctrl, &mut runtime);
 
+    // Drain write-behind before exit so restart cannot reload stale YAML over live limits.
+    if !actuator_overlay.wait_persist_idle(std::time::Duration::from_secs(5)) {
+        warn!("config persist queue still busy after shutdown drain window");
+    }
+
     if control.control.disable_on_exit {
         if let Err(e) = loop_ctrl.supervisor_mut().disable_all() {
             warn!(error = %e, "disable_all on shutdown failed");
