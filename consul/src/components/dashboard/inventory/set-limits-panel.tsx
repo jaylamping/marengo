@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useId, useState } from 'react';
+import { useEffect, useEffectEvent, useId, useRef, useState } from 'react';
 
 import { InformationCircleIcon } from '@hugeicons/core-free-icons';
 import { HugeiconsIcon } from '@hugeicons/react';
@@ -16,12 +16,15 @@ import {
   canStartLimitListen,
   limitListenBlockReason,
 } from '@/lib/limit-listen';
+import { persistJointLimits } from '@/lib/persist-joint-limits';
+import { queryClient } from '@/lib/query-client';
+import { queryKeys } from '@/lib/query-keys';
 import { subscribeTeachSamples } from '@/lib/teach-sample-bus';
 import { useLimitListenStore } from '@/state/limitListenStore';
 import { useRobotStore } from '@/state/robotStore';
 
 const SET_LIMITS_HELP =
-  'Motors must be disabled (not ACTIVE) for Set Limits. Support the assembly, then sweep the joint to both hard stops while Consul samples position. Stop to propose min/max, then Apply to update Range. Set Zero briefly enables for firmware zero at the current pose, then disables again.';
+  'Motors must be disabled (not ACTIVE) for Set Limits. Support the assembly, then sweep the joint to both hard stops while Consul samples position. Stop to propose min/max, then Apply writes motors.yaml bench limits via the gateway (restart marengo-pi to load hard limits into Davout). Set Zero briefly enables for firmware zero at the current pose, then disables again.';
 
 type SetLimitsPanelProps = {
   jointName: string;
@@ -44,7 +47,7 @@ export function SetLimitsPanel({
   const phase = useLimitListenStore((s) => s.phase);
   const activeJoint = useLimitListenStore((s) => s.jointName);
   const bounds = useLimitListenStore((s) => s.bounds);
-  const proposedRange = useLimitListenStore((s) => s.proposedRange);
+  const proposal = useLimitListenStore((s) => s.proposal);
   const error = useLimitListenStore((s) => s.error);
   const start = useLimitListenStore((s) => s.start);
   const ingestPosition = useLimitListenStore((s) => s.ingestPosition);
@@ -57,6 +60,11 @@ export function SetLimitsPanel({
   const [zeroOk, setZeroOk] = useState(false);
   const [zeroConfirmOpen, setZeroConfirmOpen] = useState(false);
   const [signTestPassed, setSignTestPassed] = useState(false);
+  const [applyBusy, setApplyBusy] = useState(false);
+  const [applyError, setApplyError] = useState<string | null>(null);
+  const [applyOk, setApplyOk] = useState<string | null>(null);
+  const applyInFlightRef = useRef(false);
+  const proposedRange = proposal?.display ?? null;
 
   const confirmTitleId = useId();
   const confirmDescId = useId();
@@ -131,6 +139,14 @@ export function SetLimitsPanel({
   }, [zeroOk]);
 
   useEffect(() => {
+    if (!applyOk) {
+      return;
+    }
+    const timer = window.setTimeout(() => setApplyOk(null), 6000);
+    return () => window.clearTimeout(timer);
+  }, [applyOk]);
+
+  useEffect(() => {
     if (!zeroConfirmOpen) {
       return;
     }
@@ -184,6 +200,46 @@ export function SetLimitsPanel({
       setZeroError(e instanceof Error ? e.message : 'Set Zero failed');
     } finally {
       setZeroBusy(false);
+    }
+  };
+
+  const runApplyLimits = async () => {
+    if (!proposal || applyInFlightRef.current) {
+      return;
+    }
+    applyInFlightRef.current = true;
+    setApplyBusy(true);
+    setApplyError(null);
+    setApplyOk(null);
+    try {
+      const result = await persistJointLimits(jointName, {
+        lower: proposal.lower,
+        upper: proposal.upper,
+      });
+      if (!result.ok) {
+        setApplyError(result.message);
+        return;
+      }
+      // Draft only — do not write inventoryOverridesStore; config snapshot is SoT.
+      onApplyRange(proposal.display);
+      discard();
+      setApplyOk(
+        result.restartRequired
+          ? `${result.message} Restart marengo-pi to load new hard limits.`
+          : result.message,
+      );
+      try {
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.configSnapshot,
+        });
+      } catch {
+        // YAML already written; a stale cache is recoverable on next refresh.
+      }
+    } catch (e) {
+      setApplyError(e instanceof Error ? e.message : 'Limits persist failed');
+    } finally {
+      applyInFlightRef.current = false;
+      setApplyBusy(false);
     }
   };
 
@@ -297,6 +353,17 @@ export function SetLimitsPanel({
         </div>
       ) : null}
 
+      {applyError ? (
+        <p className="text-xs text-fault" role="status">
+          {applyError}
+        </p>
+      ) : null}
+      {applyOk ? (
+        <p className="text-xs text-ok" role="status">
+          {applyOk}
+        </p>
+      ) : null}
+
       {zeroError ? (
         <p className="text-xs text-fault" role="status">
           {zeroError}
@@ -385,21 +452,23 @@ export function SetLimitsPanel({
                 type="button"
                 size="sm"
                 className="bg-accent text-accent-foreground hover:bg-accent/90"
+                disabled={applyBusy || !proposedRange}
                 onClick={() => {
-                  if (!proposedRange) {
-                    return;
-                  }
-                  onApplyRange(proposedRange);
-                  discard();
+                  void runApplyLimits();
                 }}
               >
-                Apply Limits
+                {applyBusy ? 'Saving…' : 'Apply Limits'}
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => discard()}
+                disabled={applyBusy}
+                onClick={() => {
+                  setApplyError(null);
+                  setApplyOk(null);
+                  discard();
+                }}
               >
                 Discard
               </Button>
@@ -412,6 +481,8 @@ export function SetLimitsPanel({
               onClick={() => {
                 setZeroOk(false);
                 setZeroError(null);
+                setApplyOk(null);
+                setApplyError(null);
                 start(jointName);
               }}
             >

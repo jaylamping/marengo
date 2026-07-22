@@ -421,8 +421,8 @@ export function InventoryRowModal({
               limitDraft={limitDraft}
               onLimitDraftChange={setLimitDraft}
               onApplyRange={(range) => {
+                // Draft only — Set Limits persists via gateway config patch.
                 setLimitDraft(range);
-                onApply?.(item.id, { limit: range });
               }}
               moveToDraft={moveToDraft}
               onMoveToDraftChange={setMoveToDraft}

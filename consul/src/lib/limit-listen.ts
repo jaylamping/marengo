@@ -64,13 +64,57 @@ export function formatJointRange(min: number, max: number): string {
   return `${loStr}\u2013${hi.toFixed(2)}`;
 }
 
+export type JointRangeBounds = {
+  lower: number;
+  upper: number;
+};
+
+export function parseJointRange(range: string): JointRangeBounds | null {
+  const trimmed = range.trim();
+  if (!trimmed || trimmed === '—' || trimmed === '-') {
+    return null;
+  }
+
+  const symmetric = trimmed.match(/^[±]\s*(-?\d+(?:\.\d+)?)\s*$/u);
+  if (symmetric) {
+    const mag = Number(symmetric[1]);
+    if (!Number.isFinite(mag) || mag < 0) {
+      return null;
+    }
+    return { lower: -mag, upper: mag };
+  }
+
+  const normalized = trimmed
+    .replace(/\u2212/g, '-')
+    .replace(/\u2013|\u2014/g, '-');
+  const asymmetric = normalized.match(
+    /^(-?\d+(?:\.\d+)?)\s*-\s*(-?\d+(?:\.\d+)?)$/u,
+  );
+  if (!asymmetric) {
+    return null;
+  }
+  const a = Number(asymmetric[1]);
+  const b = Number(asymmetric[2]);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) {
+    return null;
+  }
+  return { lower: Math.min(a, b), upper: Math.max(a, b) };
+}
+
 /** Minimum span (rad) before a listen session can propose Apply Limits. */
 export const MIN_PROPOSAL_SPAN_RAD = 0.05;
 
 /** Minimum distinct samples before proposing a range. */
 export const MIN_PROPOSAL_SAMPLES = 5;
 
-export function proposedRangeFromBounds(bounds: RunningBounds): string | null {
+export type ProposedJointLimits = JointRangeBounds & {
+  display: string;
+};
+
+/** Exact measured bounds for persistence; display string is UI-only. */
+export function proposedLimitsFromBounds(
+  bounds: RunningBounds,
+): ProposedJointLimits | null {
   if (
     bounds.sampleCount < MIN_PROPOSAL_SAMPLES ||
     !Number.isFinite(bounds.min) ||
@@ -81,7 +125,17 @@ export function proposedRangeFromBounds(bounds: RunningBounds): string | null {
   if (bounds.max - bounds.min < MIN_PROPOSAL_SPAN_RAD) {
     return null;
   }
-  return formatJointRange(bounds.min, bounds.max);
+  const lower = Math.min(bounds.min, bounds.max);
+  const upper = Math.max(bounds.min, bounds.max);
+  return {
+    lower,
+    upper,
+    display: formatJointRange(lower, upper),
+  };
+}
+
+export function proposedRangeFromBounds(bounds: RunningBounds): string | null {
+  return proposedLimitsFromBounds(bounds)?.display ?? null;
 }
 
 /**

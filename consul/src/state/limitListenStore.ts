@@ -3,7 +3,8 @@ import { create } from 'zustand';
 import {
   emptyBounds,
   foldPosition,
-  proposedRangeFromBounds,
+  proposedLimitsFromBounds,
+  type ProposedJointLimits,
   type RunningBounds,
 } from '@/lib/limit-listen';
 
@@ -13,7 +14,7 @@ interface LimitListenState {
   jointName: string | null;
   phase: LimitListenPhase;
   bounds: RunningBounds;
-  proposedRange: string | null;
+  proposal: ProposedJointLimits | null;
   error: string | null;
 
   start: (jointName: string) => void;
@@ -28,7 +29,7 @@ const initial = {
   jointName: null as string | null,
   phase: 'idle' as LimitListenPhase,
   bounds: emptyBounds(),
-  proposedRange: null as string | null,
+  proposal: null as ProposedJointLimits | null,
   error: null as string | null,
 };
 
@@ -40,7 +41,7 @@ export const useLimitListenStore = create<LimitListenState>((set, get) => ({
       jointName,
       phase: 'listening',
       bounds: emptyBounds(),
-      proposedRange: null,
+      proposal: null,
       error: null,
     }),
 
@@ -49,8 +50,7 @@ export const useLimitListenStore = create<LimitListenState>((set, get) => ({
     if (state.phase !== 'listening' || state.jointName !== jointName) {
       return;
     }
-    const bounds = foldPosition(state.bounds, position);
-    set({ bounds });
+    set({ bounds: foldPosition(state.bounds, position) });
   },
 
   stop: () => {
@@ -58,18 +58,18 @@ export const useLimitListenStore = create<LimitListenState>((set, get) => ({
     if (state.phase !== 'listening') {
       return;
     }
-    const proposed = proposedRangeFromBounds(state.bounds);
-    if (!proposed) {
+    const proposal = proposedLimitsFromBounds(state.bounds);
+    if (!proposal) {
       set({
         phase: 'idle',
-        proposedRange: null,
+        proposal: null,
         error: 'Need motion across both limits before stopping.',
       });
       return;
     }
     set({
       phase: 'review',
-      proposedRange: proposed,
+      proposal,
       error: null,
     });
   },
@@ -77,7 +77,7 @@ export const useLimitListenStore = create<LimitListenState>((set, get) => ({
   abort: (error) =>
     set({
       phase: 'idle',
-      proposedRange: null,
+      proposal: null,
       error,
     }),
 
@@ -85,7 +85,7 @@ export const useLimitListenStore = create<LimitListenState>((set, get) => ({
     set({
       phase: 'idle',
       bounds: emptyBounds(),
-      proposedRange: null,
+      proposal: null,
       error: null,
     }),
 
