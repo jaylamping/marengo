@@ -500,17 +500,6 @@ export function CompoundTestPanel() {
                     <Badge className="text-xs font-normal">taught</Badge>
                   ) : null}
                 </div>
-                <Button
-                  className="mt-4"
-                  size="sm"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setSelectedPresetId(preset.id);
-                    setRecordSectionOpen(true);
-                  }}
-                >
-                  Record Movement
-                </Button>
               </CardContent>
             </Card>
           ))}
