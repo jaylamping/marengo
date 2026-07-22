@@ -207,10 +207,7 @@ fn rewrite_joint_envelope_attrs(
             block = rewrite_tag_attrs(
                 &block,
                 "<safety_controller",
-                &[
-                    ("soft_lower_limit", soft_lo),
-                    ("soft_upper_limit", soft_hi),
-                ],
+                &[("soft_lower_limit", soft_lo), ("soft_upper_limit", soft_hi)],
             )?;
         }
     }
@@ -222,11 +219,7 @@ fn rewrite_joint_envelope_attrs(
     Ok(out)
 }
 
-fn rewrite_tag_attrs(
-    block: &str,
-    tag_open: &str,
-    attrs: &[(&str, f64)],
-) -> Result<String, String> {
+fn rewrite_tag_attrs(block: &str, tag_open: &str, attrs: &[(&str, f64)]) -> Result<String, String> {
     let limit_start = block
         .find(tag_open)
         .ok_or_else(|| format!("{tag_open} tag missing"))?;
@@ -265,9 +258,7 @@ fn replace_attr(tag: &str, name: &str, value: f64) -> Result<String, String> {
 
 fn format_limit_value(value: f64) -> String {
     let text = format!("{value:.6}");
-    text.trim_end_matches('0')
-        .trim_end_matches('.')
-        .to_string()
+    text.trim_end_matches('0').trim_end_matches('.').to_string()
 }
 
 #[cfg(test)]
@@ -285,8 +276,7 @@ mod tests {
         let root = resolve_repo_root();
         let src = root.join("assets/urdf/arm_4dof.urdf");
         let xml = fs::read_to_string(&src).expect("read");
-        let out =
-            rewrite_joint_envelope_attrs(&xml, "elbow", -0.5, 3.0, None).expect("rewrite");
+        let out = rewrite_joint_envelope_attrs(&xml, "elbow", -0.5, 3.0, None).expect("rewrite");
         assert!(out.contains("lower=\"-0.5\""));
         assert!(out.contains("upper=\"3\""));
         assert!(out.contains("name=\"shoulder_pitch\""));
@@ -297,14 +287,9 @@ mod tests {
         let root = resolve_repo_root();
         let src = root.join("assets/urdf/arm_4dof_right.urdf");
         let xml = fs::read_to_string(&src).expect("read");
-        let out = rewrite_joint_envelope_attrs(
-            &xml,
-            "right_elbow_pitch",
-            -0.8,
-            1.2,
-            Some((-0.8, 1.15)),
-        )
-        .expect("rewrite");
+        let out =
+            rewrite_joint_envelope_attrs(&xml, "right_elbow_pitch", -0.8, 1.2, Some((-0.8, 1.15)))
+                .expect("rewrite");
         assert!(out.contains("lower=\"-0.8\""));
         assert!(out.contains("soft_lower_limit=\"-0.8\""));
     }

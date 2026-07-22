@@ -28,13 +28,10 @@ fn allowlist_from_repo() -> CommandJointAllowlist {
     load_command_joint_allowlist_from(repo_root().join("config")).expect("allowlist")
 }
 
-fn test_persist_queue_at(
-    install_root: PathBuf,
-) -> (ConfigPersistQueue, Arc<AtomicBool>, Arc<Bus>) {
+fn test_persist_queue_at(install_root: PathBuf) -> (ConfigPersistQueue, Arc<AtomicBool>, Arc<Bus>) {
     let shutdown = Arc::new(AtomicBool::new(false));
     let bus = Arc::new(Bus::new(16));
-    let queue =
-        ConfigPersistQueue::spawn(Arc::clone(&bus), Arc::clone(&shutdown), install_root);
+    let queue = ConfigPersistQueue::spawn(Arc::clone(&bus), Arc::clone(&shutdown), install_root);
     (queue, shutdown, bus)
 }
 
@@ -58,9 +55,7 @@ fn test_overlay_at(install_root: PathBuf) -> (ActuatorOverlay, Arc<AtomicBool>) 
     )
 }
 
-fn test_overlay_with_bus_at(
-    install_root: PathBuf,
-) -> (ActuatorOverlay, Arc<AtomicBool>, Arc<Bus>) {
+fn test_overlay_with_bus_at(install_root: PathBuf) -> (ActuatorOverlay, Arc<AtomicBool>, Arc<Bus>) {
     let (persist, shutdown, bus) = test_persist_queue_at(install_root);
     (
         ActuatorOverlay::new(allowlist_from_repo(), persist),
@@ -211,8 +206,7 @@ fn config_overlay_rejects_over_max_kp_before_persist() {
         std::fs::copy(src.join(name), tmp.path().join(name)).expect("copy");
     }
     let (mut overlay, shutdown) = test_overlay();
-    let mut loop_ctrl =
-        ControlLoop::from_repo(&root, MemoryBus::default(), 200, 50).expect("loop");
+    let mut loop_ctrl = ControlLoop::from_repo(&root, MemoryBus::default(), 200, 50).expect("loop");
     let op = tuning_operator(
         "elbow",
         "impedance.kp",
@@ -237,8 +231,7 @@ fn config_overlay_queues_persist_and_applies_live() {
         std::fs::copy(src.join(name), tmp.path().join(name)).expect("copy");
     }
     let (mut overlay, shutdown) = test_overlay();
-    let mut loop_ctrl =
-        ControlLoop::from_repo(&root, MemoryBus::default(), 200, 50).expect("loop");
+    let mut loop_ctrl = ControlLoop::from_repo(&root, MemoryBus::default(), 200, 50).expect("loop");
     let op = tuning_operator(
         "elbow",
         "impedance.kp",
@@ -371,8 +364,7 @@ fn limit_patch_applies_live_and_queues_persist() {
     let root = repo_root();
     let (tmp, config_dir, revision) = copy_profile_to_temp();
     let (mut overlay, shutdown) = test_overlay_at(tmp.path().to_path_buf());
-    let mut loop_ctrl =
-        ControlLoop::from_repo(&root, MemoryBus::default(), 200, 50).expect("loop");
+    let mut loop_ctrl = ControlLoop::from_repo(&root, MemoryBus::default(), 200, 50).expect("loop");
     let op = limit_patch_op(revision);
     let outcomes = overlay
         .apply_operator_command(&mut loop_ctrl, &config_dir, &op)
@@ -422,8 +414,7 @@ fn limit_patch_rolls_back_live_when_persist_queue_dead() {
     // Let the worker observe shutdown and drop its wake receiver.
     thread::sleep(Duration::from_millis(50));
     let mut overlay = ActuatorOverlay::new(allowlist_from_repo(), persist);
-    let mut loop_ctrl =
-        ControlLoop::from_repo(&root, MemoryBus::default(), 200, 50).expect("loop");
+    let mut loop_ctrl = ControlLoop::from_repo(&root, MemoryBus::default(), 200, 50).expect("loop");
     let before = *loop_ctrl
         .supervisor()
         .joint_limit_policy("elbow")
@@ -463,8 +454,7 @@ fn limit_patch_persist_failure_emits_distinct_failed_action() {
     let (tmp, config_dir, revision) = copy_profile_to_temp();
     let (mut overlay, shutdown, bus) = test_overlay_with_bus_at(tmp.path().to_path_buf());
     let mut audit = bus.subscribe(TOPIC_AUDIT_ACTION);
-    let mut loop_ctrl =
-        ControlLoop::from_repo(&root, MemoryBus::default(), 200, 50).expect("loop");
+    let mut loop_ctrl = ControlLoop::from_repo(&root, MemoryBus::default(), 200, 50).expect("loop");
     // Make the profile dir unwritable before apply so enqueue succeeds but write-behind fails.
     #[cfg(unix)]
     {

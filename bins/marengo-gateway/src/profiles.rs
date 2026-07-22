@@ -22,9 +22,7 @@ use marengo_config::{
 use serde::{Deserialize, Serialize};
 use tokio::time::timeout;
 
-use crate::action_ack::{
-    recv_action_ack, LIMIT_PATCH_PERSIST_ACTION, LIVE_LIMIT_PATCH_ACTION,
-};
+use crate::action_ack::{recv_action_ack, LIMIT_PATCH_PERSIST_ACTION, LIVE_LIMIT_PATCH_ACTION};
 use crate::config::{authorize_config_mutation, snapshot_from_dir, ConfigSnapshotJson};
 use crate::state::{SharedState, TOPIC_ACTUATOR_COMMAND};
 

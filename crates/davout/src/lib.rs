@@ -55,14 +55,15 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 use armee_kinematics::{
-    clamp_position_in_envelope, joint_limit_bounds, joint_limits, load_urdf, measured_position_fault,
-    LimitMarginConfig,
+    clamp_position_in_envelope, joint_limit_bounds, joint_limits, load_urdf,
+    measured_position_fault, LimitMarginConfig,
 };
 use marengo_config::{
-    load_control_config, load_homing_config, load_motors_config, load_robot_config, motor_for_joint,
-    motor_type_key, resolve_joint_velocity_cap, resolve_urdf_path, validate_control_against_limits,
-    validate_motors_against_robot, validate_robot_control_joint_coverage, ControlConfigFile,
-    HomingConfigFile, MotorEntry, MotorType, MotorsConfigFile, RobotConfigFile,
+    load_control_config, load_homing_config, load_motors_config, load_robot_config,
+    motor_for_joint, motor_type_key, resolve_joint_velocity_cap, resolve_urdf_path,
+    validate_control_against_limits, validate_motors_against_robot,
+    validate_robot_control_joint_coverage, ControlConfigFile, HomingConfigFile, MotorEntry,
+    MotorType, MotorsConfigFile, RobotConfigFile,
 };
 use marengo_homing::{verify_manual_reference, HomingRegistry, VerifyError};
 use robstride::AddressedMitCommand;

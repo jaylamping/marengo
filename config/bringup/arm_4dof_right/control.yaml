@@ -47,11 +47,14 @@ control:
         kp: 18.0
         kd: 3.0
         ki: 5.0
-      position_slew_rad_s: 0.15
+      # Slew too slow through the friction knee stick-slips (R1 hitch at q≈0.023).
+      # Keep small holds on traj with a moderate cruise — between snap (1.25/4.5) and struggle.
+      # a=2.5 made decel ~12% of a 0.785 move (felt hesitant in the last 10–20%); a=4.0 ≈8%.
+      position_slew_rad_s: 0.35
       position_slew_max_lead_rad: 0.12
-      position_trajectory_threshold_rad: 0.15
-      position_trajectory_velocity_rad_s: 1.25
-      position_trajectory_accel_rad_s2: 4.5
+      position_trajectory_threshold_rad: 0.12
+      position_trajectory_velocity_rad_s: 0.7
+      position_trajectory_accel_rad_s2: 4.0
       position_trajectory_velocity_deadband_rad: 0.02
       position_hold_trim_rad: 0.0
       position_limit_margin_min_rad: 0.01

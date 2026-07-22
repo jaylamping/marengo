@@ -272,6 +272,8 @@ mod tests {
                 pos_lower_rad: -1.0,
                 pos_upper_rad: 1.0,
                 wired: true,
+                pos_soft_lower_rad: -1.0,
+                pos_soft_upper_rad: 1.0,
             }],
         };
         let envelope = Envelope {
