@@ -4,6 +4,11 @@ Light **pitch + roll** motion smoke on `arm_3dof_right`. Run **once** after the
 [roll commissioning suite](bench-roll-test-suite.md) passes (`roll_attached`
 harness `pass: true`).
 
+**Config note:** The former bringup folder `config/bringup/arm_2dof_right/` was
+renamed to `arm_3dof_right` when yaw RS02 (CAN id 3) was added. This smoke still
+exercises only roll + pitch (`motors.yaml` ids 1–2); yaw stays at home. See
+[pi-commissioning.md](pi-commissioning.md) Phase 3 profile lineage.
+
 ## Position-hold baseline — signed off (2026-06-22)
 
 **Operator sign-off:** best motion quality on this bench to date. Do not change

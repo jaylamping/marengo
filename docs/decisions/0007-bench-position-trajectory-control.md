@@ -3,6 +3,18 @@
 **Status:** Accepted (2026-06-13 one-pass: always-trapezoid joint executor, two-rule friction, MIT `dq_ref`)  
 **Date:** 2026-05-26
 
+## Update 2026-07-21: sign-test ownership (R6)
+
+Berthier stays in **joint space** only. Motor-space sign / `direction` / CAN decode assertions must not live in Berthier tests (AGENTS.md R6 — Berthier must not touch CAN).
+
+| Layer | Owns sign verification |
+|-------|------------------------|
+| `armee-dynamics` → Berthier | Joint-space `tau_g` polarity at positive `q` (`crates/berthier/tests/sign_cross_crate.rs`) |
+| Davout | Joint↔motor `direction` / `gear_ratio` transform on MIT `torque_ff` and feedback |
+| robstride | Raw MIT encode/decode in motor coordinates only |
+
+Commit `b26793e` removed robstride CAN-frame sign checks from Berthier (and the robstride test dep). Gate before gravity-comp still requires a per-joint sign test on the wire — that evidence lives in Davout/robstride tests and bench procedure ([safety.md](../safety.md)), not Berthier.
+
 ## Update 2026-06-15: weighted hold-at friction and onset helpers (implemented)
 
 After the one-pass refactor, weighted shoulder `hold-at` tuning (`6646c12`…`d2e5108`) added **bench-only onset behavior** without reintroducing a friction mode zoo. Two friction modes remain (`traj_vel`, `settle`); loop-level latches are separate from friction classification.

@@ -121,6 +121,8 @@ RUST_LOG=robstride=info,davout=info,berthier=info,motor_repl=info
 | **A1 — left bench only** | `config/bringup/shoulder_pitch_left_only` | `left_shoulder_pitch` on can1, id 12 (mirrors right tuning) |
 | **B — left 4-DOF arm** | `config/bringup/arm_4dof_left` or `config` | all on can0, IDs 11–14 |
 
+**Profile lineage (right arm):** `arm_2dof_right` (roll id 1 + pitch id 2) was renamed to `arm_3dof_right` when upper-arm yaw RS02 id 3 landed (`6f70c64`). Pitch/roll motor rows and directions are unchanged; yaw is provisional until the [yaw suite](bench-yaw-test-suite.md) signs direction. Active 4-DOF default is `arm_4dof_right` (adds elbow pitch id 4). Light pitch+roll smoke still uses the 3-DOF tree — see [bench-2dof-right-smoke.md](bench-2dof-right-smoke.md).
+
 Single-shoulder bench profiles use conservative position hold tuning while feedback velocity guards are active. The current right-only profile uses impedance **kp=8 / kd=1.25**, trapezoid **v=2.0 / a=4.8**, slew **0.15 rad/s**, max lead **0.10**, and trim **0.0** once firmware zero is set at arm-down. Operator shoulder-pitch limits are **[-0.872665, 3.141593] rad** (arm down = 0, -50° to +180°) from URDF `safety_controller`; hard bench/URDF limits are **[-0.9, 3.17] rad**. Berthier/Davout apply a velocity-scaled command envelope (ADR 0009) so fast moves shrink the commandable band before hard limits — full-range sweeps may reach soft limits only after decel, not in one gravity-assisted leg.
 
 ### Homing (interim — manual reference)

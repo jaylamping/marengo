@@ -47,6 +47,6 @@ Use `research_humanoid` or `audit-research` CLI. Each finding needs a **project 
 - Scan **open PRs** fully, not only last-24h commits on `main`
 - Flag PRs open >7 days touching safety paths
 - Run `cargo audit` when advisory-db available
-- Map changed crates to [decisions/](decisions/) ADRs
+- Map changed crates/proto sources to their paired ADR/decision doc (`ADR_RULES` / `ADR_MAP` in `scripts/daily-audit/audit.py` — `.rs` for crates, `.proto` for `proto/`; includes [safety.md](safety.md) for Davout)
 - Note sibling repo `solidworks-mcp` when CAD automation changes
 - Prefer `search_vendor_docs` for motor/CAN questions
