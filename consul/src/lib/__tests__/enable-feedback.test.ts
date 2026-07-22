@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import { create } from '@bufbuild/protobuf';
 import {
+  ActuatorLimitSnapshotSchema,
   FaultSchema,
   FaultSeverity,
+  JointActuatorLimitSchema,
   JointStateSchema,
   OperationalMode,
   RobotStateSchema,
@@ -51,7 +53,41 @@ describe('diagnoseEnableDisabledTrip', () => {
     control_limits: [],
   };
 
-  it('names joints outside motors bench', () => {
+  const liveHard = create(ActuatorLimitSnapshotSchema, {
+    timestampMs: 1n,
+    joints: [
+      create(JointActuatorLimitSchema, {
+        joint: 'right_elbow_pitch',
+        kpMax: 50,
+        kdMax: 5,
+        velocityMaxRadS: 1.5,
+        tauFfMaxNm: 3,
+        posLowerRad: -0.4,
+        posUpperRad: 1.0,
+        wired: true,
+        posSoftLowerRad: -0.37,
+        posSoftUpperRad: 0.97,
+      }),
+    ],
+  });
+
+  it('names joints outside Davout hard when live snapshot is present', () => {
+    const robot = create(RobotStateSchema, {
+      timestampMs: 0n,
+      joints: [
+        create(JointStateSchema, {
+          name: 'right_elbow_pitch',
+          position: -0.45,
+        }),
+      ],
+    });
+    // Inside motors.yaml bench (-0.5) but outside live Davout hard (-0.4).
+    expect(diagnoseEnableDisabledTrip(robot, config, liveHard)).toMatch(
+      /outside Davout hard/i,
+    );
+  });
+
+  it('falls back to motors bench when live snapshot is missing', () => {
     const robot = create(RobotStateSchema, {
       timestampMs: 0n,
       joints: [
@@ -66,7 +102,7 @@ describe('diagnoseEnableDisabledTrip', () => {
     );
   });
 
-  it('flags URDF clamp when poses sit inside motors.yaml', () => {
+  it('points at journal when poses sit inside hard envelope', () => {
     const robot = create(RobotStateSchema, {
       timestampMs: 0n,
       joints: [
@@ -76,7 +112,9 @@ describe('diagnoseEnableDisabledTrip', () => {
         }),
       ],
     });
-    expect(diagnoseEnableDisabledTrip(robot, config)).toMatch(/URDF hard clamp/i);
+    expect(diagnoseEnableDisabledTrip(robot, config, liveHard)).toMatch(
+      /Pi journal/i,
+    );
   });
 });
 

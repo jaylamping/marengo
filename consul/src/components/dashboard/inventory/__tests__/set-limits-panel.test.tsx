@@ -15,6 +15,7 @@ function renderPanel(ui: ReactElement) {
 
 vi.mock('@/lib/gateway-api', () => ({
   postSetZeroCommand: vi.fn(async () => undefined),
+  fetchActuatorLimits: vi.fn(async () => null),
 }));
 
 vi.mock('@/lib/persist-joint-limits', () => ({

@@ -58,6 +58,9 @@ control:
       position_limit_margin_k_v_s: 0.02
       position_limit_margin_k_stop: 0.5
       position_limit_measured_fault_slack_rad: 0.005
+      # Soft from Set Limits (ADR 0009 inset); hard lower kept at URDF -0.05 for enable margin.
+      position_soft_lower_rad: -0.023
+      position_soft_upper_rad: 2.552468250274658
       friction:
         fc: 0.08
         fv: 0.0
@@ -84,6 +87,8 @@ control:
       position_limit_margin_k_v_s: 0.02
       position_limit_margin_k_stop: 0.5
       position_limit_measured_fault_slack_rad: 0.005
+      position_soft_lower_rad: -0.8734737138748169
+      position_soft_upper_rad: 2.8983904819488524
       friction:
         fc: 0.08
         fv: 0.0
@@ -110,6 +115,8 @@ control:
       position_limit_margin_k_v_s: 0.02
       position_limit_margin_k_stop: 0.5
       position_limit_measured_fault_slack_rad: 0.005
+      position_soft_lower_rad: -0.7227563362121582
+      position_soft_upper_rad: 0.4999389152526855
       friction:
         fc: 0.05
         fv: 0.0
@@ -137,6 +144,8 @@ control:
       position_limit_margin_k_v_s: 0.02
       position_limit_margin_k_stop: 0.5
       position_limit_measured_fault_slack_rad: 0.005
+      position_soft_lower_rad: -0.3833526175022125
+      position_soft_upper_rad: 1.0077015857696534
       friction:
         fc: 0.05
         fv: 0.0

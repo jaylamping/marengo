@@ -26,10 +26,6 @@ vi.mock('@/hooks/use-enriched-inventory', async () => {
   };
 });
 
-vi.mock('@/hooks/use-actuator-harness', () => ({
-  useActuatorHarnessBootstrap: () => undefined,
-}));
-
 vi.mock('@/state/robotStore', () => ({
   useRobotStore: (selector: (s: { connected: boolean }) => unknown) =>
     selector({ connected: false }),

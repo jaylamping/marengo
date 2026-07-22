@@ -8,6 +8,12 @@ import type { JointRangeBounds } from '@/lib/limit-listen';
 /** ADR 0009 hard/soft gap (~27 mrad). */
 export const DEFAULT_SOFT_INSET_RAD = 0.027;
 
+/**
+ * Pad measured Set Limits hard bounds so enable at the swept min/max does not
+ * immediately trip Davout (encoder jitter / settling can sit ~1–10 mrad past the sample).
+ */
+export const DEFAULT_HARD_MARGIN_RAD = 0.03;
+
 export type PersistJointLimitsResult =
   | {
       ok: true;
@@ -76,7 +82,9 @@ export async function persistJointLimits(
     return { ok: false, message: 'Invalid limit bounds.' };
   }
 
-  const { softLower, softUpper } = softLimitsWithInset(bounds.lower, bounds.upper);
+  const hardLower = bounds.lower - DEFAULT_HARD_MARGIN_RAD;
+  const hardUpper = bounds.upper + DEFAULT_HARD_MARGIN_RAD;
+  const { softLower, softUpper } = softLimitsWithInset(hardLower, hardUpper);
   const patch = deps?.patchConfig ?? patchConfig;
   const timeoutMs = deps?.timeoutMs ?? DEFAULT_PATCH_TIMEOUT_MS;
   const controller = new AbortController();
@@ -86,8 +94,8 @@ export async function persistJointLimits(
     result = await patch(
       {
         joint,
-        position_lower_rad: bounds.lower,
-        position_upper_rad: bounds.upper,
+        position_lower_rad: hardLower,
+        position_upper_rad: hardUpper,
         position_soft_lower_rad: softLower,
         position_soft_upper_rad: softUpper,
       },
@@ -120,8 +128,8 @@ export async function persistJointLimits(
     localSync = await sync({
       profile: deps?.profile ?? 'arm_4dof_right',
       joint,
-      lower: bounds.lower,
-      upper: bounds.upper,
+      lower: hardLower,
+      upper: hardUpper,
       softLower,
       softUpper,
     });
@@ -138,8 +146,8 @@ export async function persistJointLimits(
 
   return {
     ok: true,
-    lower: bounds.lower,
-    upper: bounds.upper,
+    lower: hardLower,
+    upper: hardUpper,
     softLower,
     softUpper,
     restartRequired: result.restart_required,

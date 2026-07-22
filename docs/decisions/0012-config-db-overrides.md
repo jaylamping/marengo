@@ -21,3 +21,14 @@ Operators need to change joint hard/soft limits and gains from Consul without tr
 - Set Limits no longer opens the NeedsRestart dialog on success.
 - Consul invalidates the live snapshot after ACK; inactive toasts name the target profile.
 - Syncing repo YAML onto a dirty Pi can clobber unrecovered write-behind — operators should treat persist-failed as a flush/retry event.
+
+## Consul UI contract (operator Range SoT)
+
+| Layer | Source of truth |
+|-------|-----------------|
+| **Enable / hard-limit faults** | Davout in-memory `JointLimitPolicy` hard = `URDF ∩ motors.yaml bench` |
+| **Consul Range (Inventory + Testing gauges)** | `GET /snapshot/actuator/limits` → `JointActuatorLimit.pos_*` (and soft `pos_soft_*`) |
+| **Disk `GET /config/snapshot`** | Boot seed / edit forms / CAS revision — **not** live Range when the actuator snapshot is present |
+| **YAML / URDF on disk** | Write-behind after Durable ACK; deploy can clobber unrecovered writes |
+
+Do not diagnose Enable trips from disk soft limits alone. Prefer the actuator limit snapshot; if poses sit inside hard, point at Pi journal (CAN ENOBUFS, watchdog).

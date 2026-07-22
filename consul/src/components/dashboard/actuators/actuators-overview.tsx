@@ -6,10 +6,8 @@ import { isWiredBenchJoint } from '@/data/actuator-joints';
 import { robotInventory } from '@/data/robot-inventory';
 import { useEnrichedInventory } from '@/hooks/use-enriched-inventory';
 import { useLiveInventory } from '@/hooks/use-live-inventory';
-import { useActuatorHarnessBootstrap } from '@/hooks/use-actuator-harness';
 
 export function ActuatorsOverview() {
-  useActuatorHarnessBootstrap();
   const { data: enriched = robotInventory } = useEnrichedInventory();
   const actuatorInventory = useMemo(
     () => enriched.filter((item) => item.kind === 'actuator'),

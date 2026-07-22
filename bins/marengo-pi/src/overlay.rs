@@ -506,9 +506,16 @@ pub fn build_limit_snapshot<B: MotorBus>(
         let velocity = supervisor
             .joint_velocity_cap(joint)
             .unwrap_or(defaults.velocity_max_rad_s);
-        let (pos_lower, pos_upper) = policy
-            .map(|p| (p.hard_lower(), p.hard_upper()))
-            .unwrap_or((0.0, 0.0));
+        let (pos_lower, pos_upper, soft_lower, soft_upper) = policy
+            .map(|p| {
+                (
+                    p.hard_lower(),
+                    p.hard_upper(),
+                    p.soft_lower(),
+                    p.soft_upper(),
+                )
+            })
+            .unwrap_or((0.0, 0.0, 0.0, 0.0));
         let tau_ff_max = policy
             .map(|p| p.tau_ff_max)
             .unwrap_or(defaults.tau_ff_max_nm);
@@ -521,6 +528,8 @@ pub fn build_limit_snapshot<B: MotorBus>(
             pos_lower_rad: pos_lower,
             pos_upper_rad: pos_upper,
             wired: allowlist.contains(joint),
+            pos_soft_lower_rad: soft_lower,
+            pos_soft_upper_rad: soft_upper,
         });
     }
     ActuatorLimitSnapshot {

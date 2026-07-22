@@ -121,6 +121,14 @@ export function findSnapshotLimit(
   return snapshot.joints.find((entry) => entry.joint === canonical) ?? null;
 }
 
+/** Live Davout position envelope (hard = enable/fault SoT; soft = ADR 0009 inset). */
+export type LiveJointEnvelope = {
+  hardLowerRad: number;
+  hardUpperRad: number;
+  softLowerRad: number;
+  softUpperRad: number;
+};
+
 /** Live snapshot caps only — never fall back to static display limits for commands. */
 export function liveJointLimits(
   jointName: string,
@@ -135,6 +143,41 @@ export function liveJointLimits(
     kdMax: live.kdMax,
     velocityMaxRadS: live.velocityMaxRadS,
     tauFfMaxNm: live.tauFfMaxNm,
+  };
+}
+
+/**
+ * Davout effective position envelope from ActuatorLimitSnapshot.
+ * Hard is URDF ∩ motors.yaml bench — the only range UI/enable should trust.
+ */
+export function liveJointEnvelope(
+  jointName: string,
+  snapshot: ActuatorLimitSnapshot | null,
+): LiveJointEnvelope | null {
+  const live = findSnapshotLimit(snapshot, jointName);
+  if (!live) {
+    return null;
+  }
+  const hardLowerRad = live.posLowerRad;
+  const hardUpperRad = live.posUpperRad;
+  if (
+    !Number.isFinite(hardLowerRad) ||
+    !Number.isFinite(hardUpperRad) ||
+    hardLowerRad >= hardUpperRad
+  ) {
+    return null;
+  }
+  const softLowerRad = Number.isFinite(live.posSoftLowerRad)
+    ? live.posSoftLowerRad
+    : hardLowerRad;
+  const softUpperRad = Number.isFinite(live.posSoftUpperRad)
+    ? live.posSoftUpperRad
+    : hardUpperRad;
+  return {
+    hardLowerRad,
+    hardUpperRad,
+    softLowerRad,
+    softUpperRad,
   };
 }
 

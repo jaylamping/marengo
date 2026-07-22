@@ -504,9 +504,13 @@ message JointActuatorLimit {
   double kd_max = 3;
   double velocity_max_rad_s = 4;
   double tau_ff_max_nm = 5;
+  /// Davout effective hard envelope (URDF ∩ motors.yaml bench). Enable / fault SoT.
   double pos_lower_rad = 6;
   double pos_upper_rad = 7;
   bool wired = 8;
+  /// Soft envelope from Davout policy (control soft, clamped into hard).
+  double pos_soft_lower_rad = 9;
+  double pos_soft_upper_rad = 10;
 }
 
 message ActuatorLimitSnapshot {

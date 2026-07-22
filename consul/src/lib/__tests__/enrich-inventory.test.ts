@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
+import { create } from '@bufbuild/protobuf';
+
+import {
+  ActuatorLimitSnapshotSchema,
+  JointActuatorLimitSchema,
+} from '@/gen/marengo/v1/marengo_pb';
 import { enrichInventory } from '@/lib/enrich-inventory';
 import type { ConfigSnapshotDto } from '@/lib/config-api';
 import { robotInventory } from '@/data/robot-inventory';
@@ -22,25 +28,57 @@ const snapshot: ConfigSnapshotDto = {
       },
     },
   ],
-  control_limits: [],
+  control_limits: [
+    {
+      joint: 'right_shoulder_roll',
+      position_soft_lower_rad: -1.0,
+      position_soft_upper_rad: 1.0,
+    },
+  ],
 };
 
 describe('enrichInventory', () => {
-  it('returns base unchanged when snapshot is null', () => {
-    expect(enrichInventory(robotInventory, null)).toBe(robotInventory);
+  it('returns base unchanged when snapshot and limits are null', () => {
+    expect(enrichInventory(robotInventory, null, null)).toBe(robotInventory);
   });
 
-  it('overlays motor node and limits for matched actuators', () => {
-    const enriched = enrichInventory(robotInventory, snapshot);
+  it('overlays motor node and disk limits when live snapshot is missing', () => {
+    const enriched = enrichInventory(robotInventory, snapshot, null);
     const roll = enriched.find((r) => r.name === 'right_shoulder_roll');
     expect(roll?.node).toBe('RS03 · can0 · id 1');
-    expect(roll?.limit).toBe('±1.57');
+    // Soft preferred over bench when only disk config is available.
+    expect(roll?.limit).toBe('±1');
     expect(roll?.preset).toBe('bench_4dof');
+  });
+
+  it('prefers Davout hard envelope over disk soft for Range', () => {
+    const limits = create(ActuatorLimitSnapshotSchema, {
+      timestampMs: 1n,
+      joints: [
+        create(JointActuatorLimitSchema, {
+          joint: 'right_shoulder_roll',
+          kpMax: 50,
+          kdMax: 5,
+          velocityMaxRadS: 2,
+          tauFfMaxNm: 5,
+          posLowerRad: -0.05,
+          posUpperRad: 2.58,
+          wired: true,
+          posSoftLowerRad: 0.0,
+          posSoftUpperRad: 2.55,
+        }),
+      ],
+    });
+    const enriched = enrichInventory(robotInventory, snapshot, limits);
+    const roll = enriched.find((r) => r.name === 'right_shoulder_roll');
+    expect(roll?.limit).toBe('-0.05–2.58');
   });
 
   it('does not mutate the base catalog', () => {
     const before = robotInventory.find((r) => r.name === 'right_shoulder_roll')?.node;
     enrichInventory(robotInventory, snapshot);
-    expect(robotInventory.find((r) => r.name === 'right_shoulder_roll')?.node).toBe(before);
+    expect(robotInventory.find((r) => r.name === 'right_shoulder_roll')?.node).toBe(
+      before,
+    );
   });
 });

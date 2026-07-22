@@ -1,6 +1,8 @@
 #![allow(clippy::expect_used)]
 
-use std::sync::atomic::Ordering;
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::thread;
 use std::time::Instant;
 
@@ -358,6 +360,10 @@ fn limit_snapshot_marks_wired_joints() {
         .expect("elbow");
     assert!(elbow.wired);
     assert!(elbow.kp_max > 0.0);
+    assert!(elbow.pos_upper_rad > elbow.pos_lower_rad);
+    assert!(elbow.pos_soft_upper_rad >= elbow.pos_soft_lower_rad);
+    assert!(elbow.pos_soft_lower_rad >= elbow.pos_lower_rad - 1e-9);
+    assert!(elbow.pos_soft_upper_rad <= elbow.pos_upper_rad + 1e-9);
 }
 
 #[test]

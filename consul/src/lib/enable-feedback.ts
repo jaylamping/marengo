@@ -1,6 +1,12 @@
-import type { Fault, RobotState, SafetyState } from '@/gen/marengo/v1/marengo_pb';
+import type {
+  ActuatorLimitSnapshot,
+  Fault,
+  RobotState,
+  SafetyState,
+} from '@/gen/marengo/v1/marengo_pb';
 import type { ConfigSnapshotDto } from '@/lib/config-api';
 import type { OperationalModeLabel } from '@/state/robotStore';
+import { liveJointEnvelope } from '@/state/actuatorStore';
 
 export function formatSafetyFaults(faults: Fault[]): string {
   if (faults.length === 0) return '';
@@ -13,8 +19,6 @@ export function formatSafetyFaults(faults: Fault[]): string {
     .join(' · ');
 }
 
-const POS_SLACK_RAD = 0.02;
-
 export type JointPoseHint = {
   name: string;
   position: number;
@@ -22,59 +26,82 @@ export type JointPoseHint = {
   upper: number;
 };
 
-/** Compare live poses to motors.yaml bench (Consul snapshot). Davout hard = URDF ∩ bench. */
+type HardBounds = { lower: number; upper: number };
+
+function hardBoundsForJoint(
+  joint: string,
+  limitSnapshot: ActuatorLimitSnapshot | null | undefined,
+  config: ConfigSnapshotDto | null | undefined,
+): HardBounds | null {
+  const envelope = liveJointEnvelope(joint, limitSnapshot ?? null);
+  if (envelope) {
+    return { lower: envelope.hardLowerRad, upper: envelope.hardUpperRad };
+  }
+  const bench = config?.motors?.find((m) => m.joint === joint)?.bench;
+  if (!bench) {
+    return null;
+  }
+  return {
+    lower: bench.position_lower_rad,
+    upper: bench.position_upper_rad,
+  };
+}
+
+/**
+ * Compare live poses to Davout hard envelope (ActuatorLimitSnapshot).
+ * Falls back to motors.yaml bench only when the live snapshot is missing.
+ */
 export function diagnoseEnableDisabledTrip(
   robotState: RobotState | null | undefined,
   config: ConfigSnapshotDto | null | undefined,
+  limitSnapshot?: ActuatorLimitSnapshot | null,
 ): string {
   const joints = robotState?.joints ?? [];
   if (joints.length === 0) {
     return 'Enable posted, but motors returned to DISABLED (hard-limit / safety trip — check Pi journal).';
   }
 
-  const motorsByJoint = new Map(
-    (config?.motors ?? []).map((m) => [m.joint, m.bench] as const),
-  );
-
-  const outsideMotors: JointPoseHint[] = [];
-  const withinMotors: JointPoseHint[] = [];
+  const outsideHard: JointPoseHint[] = [];
+  const withinHard: JointPoseHint[] = [];
+  let usedLiveSnapshot = false;
 
   for (const j of joints) {
-    const bench = motorsByJoint.get(j.name);
-    if (!bench) continue;
+    const bounds = hardBoundsForJoint(j.name, limitSnapshot, config);
+    if (!bounds) continue;
+    if (liveJointEnvelope(j.name, limitSnapshot ?? null)) {
+      usedLiveSnapshot = true;
+    }
     const hint: JointPoseHint = {
       name: j.name,
       position: j.position,
-      lower: bench.position_lower_rad,
-      upper: bench.position_upper_rad,
+      lower: bounds.lower,
+      upper: bounds.upper,
     };
-    if (
-      j.position < bench.position_lower_rad - POS_SLACK_RAD ||
-      j.position > bench.position_upper_rad + POS_SLACK_RAD
-    ) {
-      outsideMotors.push(hint);
+    if (j.position < bounds.lower || j.position > bounds.upper) {
+      outsideHard.push(hint);
     } else {
-      withinMotors.push(hint);
+      withinHard.push(hint);
     }
   }
 
-  if (outsideMotors.length > 0) {
-    const detail = outsideMotors
+  if (outsideHard.length > 0) {
+    const source = usedLiveSnapshot ? 'Davout hard' : 'motors bench';
+    const detail = outsideHard
       .map(
         (h) =>
-          `${h.name} at ${h.position.toFixed(3)} outside motors bench [${h.lower.toFixed(2)}, ${h.upper.toFixed(2)}]`,
+          `${h.name} at ${h.position.toFixed(3)} outside ${source} [${h.lower.toFixed(2)}, ${h.upper.toFixed(2)}]`,
       )
       .join(' · ');
     return `Enable posted, but motors returned to DISABLED — ${detail}.`;
   }
 
-  if (withinMotors.length > 0) {
-    const detail = withinMotors
+  if (withinHard.length > 0) {
+    const detail = withinHard
       .map((h) => `${h.name}=${h.position.toFixed(3)}`)
       .join(', ');
     return (
-      `Enable posted, but motors returned to DISABLED — poses within motors.yaml (${detail}), ` +
-      `so Davout likely hit URDF hard clamp (effective = URDF ∩ bench). Sync URDF + restart marengo-pi.`
+      `Enable posted, but motors returned to DISABLED — poses within hard envelope (${detail}). ` +
+      `Check Pi journal (CAN ENOBUFS / txqueuelen, watchdog, or other safety trip).`
     );
   }
 
@@ -91,6 +118,7 @@ export function interpretPostEnableWatch(args: {
   safetyState: SafetyState | null;
   robotState?: RobotState | null;
   config?: ConfigSnapshotDto | null;
+  limitSnapshot?: ActuatorLimitSnapshot | null;
 }): { done: boolean; message: string | null; kind: 'ok' | 'error' | 'pending' } {
   const faults = args.safetyState?.activeFaults ?? [];
   if (faults.length > 0) {
@@ -113,7 +141,11 @@ export function interpretPostEnableWatch(args: {
     return {
       done: true,
       kind: 'error',
-      message: diagnoseEnableDisabledTrip(args.robotState, args.config),
+      message: diagnoseEnableDisabledTrip(
+        args.robotState,
+        args.config,
+        args.limitSnapshot,
+      ),
     };
   }
 

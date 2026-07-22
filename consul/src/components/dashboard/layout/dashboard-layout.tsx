@@ -12,6 +12,7 @@ import { RestartConfirmDialog } from '@/components/dashboard/needs-restart/resta
 import { AppSidebar } from '@/components/dashboard/sidebar/app-sidebar';
 import { SiteHeader } from '@/components/dashboard/site-header/site-header';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
+import { useActuatorHarnessBootstrap } from '@/hooks/use-actuator-harness';
 
 type DashboardLayoutProps = {
   children: ReactNode;
@@ -20,6 +21,9 @@ type DashboardLayoutProps = {
 };
 
 export function DashboardLayout({ children, scenePaused = false }: DashboardLayoutProps) {
+  // Poll Davout ActuatorLimitSnapshot app-wide (ADR 0012 memory SoT for ranges).
+  useActuatorHarnessBootstrap();
+
   return (
     <div
       data-testid="dashboard-layout-root"

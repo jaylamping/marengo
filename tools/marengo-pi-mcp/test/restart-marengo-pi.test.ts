@@ -38,13 +38,15 @@ describe("pi_restart_marengo_pi", () => {
     assert.match(script, /Hard limits \/ motors\.yaml reload/);
   });
 
-  it("embeds the canonical script with mode as argv1", () => {
+  it("prefers passwordless installed script then embeds fallback", () => {
     const restartBody = restartMarengoPiShell("restart", script);
-    assert.match(restartBody, /^set -- 'restart'\n/);
+    assert.match(restartBody, /sudo -n "\$INSTALLED" 'restart'/);
+    assert.match(restartBody, /set -- 'restart'\n/);
     assert.ok(restartBody.includes(script.replace(/^#![^\n]*\n/, "")));
 
-    const stopBody = restartMarengoPiShell("stop", script);
-    assert.match(stopBody, /^set -- 'stop'\n/);
+    const stopBody = restartMarengoPiShell("stop", script, "/opt/marengo/scripts/pi-restart-marengo-pi.sh");
+    assert.match(stopBody, /sudo -n "\$INSTALLED" 'stop'/);
+    assert.match(stopBody, /set -- 'stop'\n/);
   });
 
   it("rejects invalid mode at the shell entrypoint", () => {

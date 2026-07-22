@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
-import type { MarengoPiConfig } from "../config.js";
+import { type MarengoPiConfig, piScriptPath } from "../config.js";
 import { shellQuote, wrapRemote } from "../env.js";
 
 export const restartMarengoPiSchema = z.object({
@@ -32,15 +32,24 @@ export function loadRestartMarengoPiScript(localRoot: string): string {
 }
 
 /**
- * Remote shell body: run the canonical script with mode as $1.
- * Embeds the local file so the tool works before the Pi has the new script installed.
+ * Remote shell body: prefer passwordless `sudo -n /opt/.../pi-restart-marengo-pi.sh`
+ * (deploy-user sudoers). Fall back to embedding the local checkout copy.
  */
 export function restartMarengoPiShell(
   mode: "restart" | "stop",
   scriptSource: string,
+  installedScriptPath = "/opt/marengo/scripts/pi-restart-marengo-pi.sh",
 ): string {
   const body = scriptSource.replace(/\r\n/g, "\n").replace(/^#![^\n]*\n/, "");
-  return [`set -- ${shellQuote(mode)}`, body].join("\n");
+  return [
+    `INSTALLED=${shellQuote(installedScriptPath)}`,
+    `if [[ -x "$INSTALLED" ]] && sudo -n "$INSTALLED" ${shellQuote(mode)}; then`,
+    "  exit 0",
+    "fi",
+    `echo "warning: passwordless sudo $INSTALLED failed; falling back to embedded script" >&2`,
+    `set -- ${shellQuote(mode)}`,
+    body,
+  ].join("\n");
 }
 
 export async function runRestartMarengoPi(
@@ -49,5 +58,9 @@ export async function runRestartMarengoPi(
   args: RestartMarengoPiArgs,
 ): Promise<string> {
   const script = loadRestartMarengoPiScript(cfg.localRoot);
-  return runRemote(wrapRemote(cfg, restartMarengoPiShell(args.mode, script)), 60_000);
+  const installed = piScriptPath(cfg, "pi-restart-marengo-pi.sh");
+  return runRemote(
+    wrapRemote(cfg, restartMarengoPiShell(args.mode, script, installed)),
+    60_000,
+  );
 }

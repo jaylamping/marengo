@@ -14,6 +14,7 @@ import {
 import { dashboardPanelCardClassName } from '@/components/dashboard/layout/constants';
 import { compoundPresetById } from '@/data/compound-tests';
 import { useConfigSnapshot } from '@/hooks/use-config-snapshot';
+import { liveJointEnvelope, useActuatorStore } from '@/state/actuatorStore';
 
 const GAIN_LIMITS: Record<
   string,
@@ -47,6 +48,7 @@ export function TelemetryGaugeGrid() {
   const { selectedJointNames } = useTestingStore();
   const { selectedPresetId } = useCompoundStore();
   const { data: config = null } = useConfigSnapshot();
+  const limitSnapshot = useActuatorStore((s) => s.limitSnapshot);
 
   if (!robotState) return null;
 
@@ -81,12 +83,24 @@ export function TelemetryGaugeGrid() {
         );
         const limits =
           GAIN_LIMITS[motorConfig?.motor_type ?? 'rs03'] ?? GAIN_LIMITS.rs03;
+        const liveCaps = limitSnapshot?.joints.find((j) => j.joint === joint.name);
         const torqueLimit =
-          motorConfig?.bench.torque_limit_nm ?? limits.tau_ff_max_nm;
-        const posUpper = motorConfig?.bench.position_upper_rad ?? Math.PI;
-        const posLower = motorConfig?.bench.position_lower_rad ?? -Math.PI;
+          liveCaps?.tauFfMaxNm ??
+          motorConfig?.bench.torque_limit_nm ??
+          limits.tau_ff_max_nm;
+        const envelope = liveJointEnvelope(joint.name, limitSnapshot);
+        const posUpper =
+          envelope?.hardUpperRad ??
+          motorConfig?.bench.position_upper_rad ??
+          Math.PI;
+        const posLower =
+          envelope?.hardLowerRad ??
+          motorConfig?.bench.position_lower_rad ??
+          -Math.PI;
         const velMax =
-          controlLimit?.velocity_max_rad_s ?? limits.velocity_max_rad_s;
+          liveCaps?.velocityMaxRadS ??
+          controlLimit?.velocity_max_rad_s ??
+          limits.velocity_max_rad_s;
 
         const posRange = posUpper - posLower;
         const posPercent =

@@ -7,6 +7,7 @@ import { useConfigSnapshot } from '@/hooks/use-config-snapshot';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useActuatorZeroStore } from '@/state/actuatorZeroStore';
+import { useActuatorStore } from '@/state/actuatorStore';
 import { cn } from '@/lib/utils';
 
 export function EnableDisableButtons() {
@@ -14,6 +15,7 @@ export function EnableDisableButtons() {
   const robotState = useRobotStore((s) => s.robotState);
   const safetyState = useRobotStore((s) => s.safetyState);
   const { data: config = null } = useConfigSnapshot();
+  const limitSnapshot = useActuatorStore((s) => s.limitSnapshot);
   const { enable, disable } = useTestingStore();
   const [homing, setHoming] = React.useState(false);
   const [enabling, setEnabling] = React.useState(false);
@@ -76,6 +78,7 @@ export function EnableDisableButtons() {
         safetyState: useRobotStore.getState().safetyState,
         robotState: useRobotStore.getState().robotState,
         config,
+        limitSnapshot: useActuatorStore.getState().limitSnapshot,
       });
       if (result.message) {
         setEnableMessage(result.message);
@@ -92,7 +95,7 @@ export function EnableDisableButtons() {
       }
     }, 150);
     return () => window.clearInterval(id);
-  }, [enableWatchGen, operationalMode, safetyState, robotState, config]);
+  }, [enableWatchGen, operationalMode, safetyState, robotState, config, limitSnapshot]);
 
   const enableBlocked =
     operationalMode !== null && operationalMode !== 'READY';

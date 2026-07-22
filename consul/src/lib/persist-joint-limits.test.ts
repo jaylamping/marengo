@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   persistJointLimits,
   softLimitsWithInset,
+  DEFAULT_HARD_MARGIN_RAD,
   DEFAULT_SOFT_INSET_RAD,
 } from '@/lib/persist-joint-limits';
 
@@ -35,9 +36,13 @@ describe('persistJointLimits', () => {
       { patchConfig, localSync },
     );
 
-    const soft = softLimitsWithInset(-0.506, 1.206);
+    const hardLower = -0.506 - DEFAULT_HARD_MARGIN_RAD;
+    const hardUpper = 1.206 + DEFAULT_HARD_MARGIN_RAD;
+    const soft = softLimitsWithInset(hardLower, hardUpper);
     expect(result.ok).toBe(true);
     if (result.ok) {
+      expect(result.lower).toBeCloseTo(hardLower, 6);
+      expect(result.upper).toBeCloseTo(hardUpper, 6);
       expect(result.softLower).toBeCloseTo(soft.softLower, 6);
       expect(result.softUpper).toBeCloseTo(soft.softUpper, 6);
       expect(result.persistStatus).toBe('durable');
@@ -47,8 +52,8 @@ describe('persistJointLimits', () => {
     expect(patchConfig).toHaveBeenCalledWith(
       {
         joint: 'right_shoulder_pitch',
-        position_lower_rad: -0.506,
-        position_upper_rad: 1.206,
+        position_lower_rad: hardLower,
+        position_upper_rad: hardUpper,
         position_soft_lower_rad: soft.softLower,
         position_soft_upper_rad: soft.softUpper,
       },

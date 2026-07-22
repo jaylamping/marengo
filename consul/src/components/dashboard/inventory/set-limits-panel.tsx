@@ -11,7 +11,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { postSetZeroCommand } from '@/lib/gateway-api';
+import { fetchActuatorLimits, postSetZeroCommand } from '@/lib/gateway-api';
 import {
   canStartLimitListen,
   limitListenBlockReason,
@@ -20,12 +20,13 @@ import { persistJointLimits } from '@/lib/persist-joint-limits';
 import { queryClient } from '@/lib/query-client';
 import { queryKeys } from '@/lib/query-keys';
 import { subscribeTeachSamples } from '@/lib/teach-sample-bus';
+import { useActuatorStore } from '@/state/actuatorStore';
 import { useActuatorZeroStore } from '@/state/actuatorZeroStore';
 import { useLimitListenStore } from '@/state/limitListenStore';
 import { useRobotStore } from '@/state/robotStore';
 
 const SET_LIMITS_HELP =
-  'Motors must be disabled (not ACTIVE) for Set Limits. Support the assembly, then sweep the joint to both hard stops while Consul samples position. Stop to propose min/max, then Apply hot-reloads hard + soft (ADR 0009 inset) and expand-only URDF on the Pi (no restart; waits for durable persist). Persist failures show a separate degraded banner — do not restart to “fix” them. Set Zero briefly enables for firmware zero at the current pose, then disables again.';
+  'Motors must be disabled (not ACTIVE) for Set Limits. Support the assembly, then sweep the joint to both hard stops while Consul samples position. Stop to propose min/max, then Apply hot-reloads Davout in-memory hard (+30 mrad margin) and soft (ADR 0009 inset), expand-only URDF, and YAML write-behind (no restart). Inventory/Testing Range reads that live Davout snapshot — not disk soft alone. Persist failures show a separate degraded banner — do not restart to “fix” them. Set Zero briefly enables for firmware zero at the current pose, then disables again.';
 
 type SetLimitsPanelProps = {
   jointName: string;
@@ -236,8 +237,11 @@ export function SetLimitsPanel({
         await queryClient.invalidateQueries({
           queryKey: queryKeys.configSnapshot,
         });
+        // Refresh Davout ActuatorLimitSnapshot immediately (UI Range SoT).
+        const live = await fetchActuatorLimits();
+        useActuatorStore.getState().setLimitSnapshot(live);
       } catch {
-        // Live apply already ACK'd; a stale cache is recoverable on next refresh.
+        // Live apply already ACK'd; poll/bootstrap recovers stale ranges.
       }
     } catch (e) {
       setApplyError(e instanceof Error ? e.message : 'Limits persist failed');

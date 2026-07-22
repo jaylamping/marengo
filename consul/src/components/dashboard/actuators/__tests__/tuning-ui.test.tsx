@@ -16,6 +16,7 @@ import {
 import {
   findSnapshotLimit,
   jointLimitMax,
+  liveJointEnvelope,
   liveJointLimits,
   resolveJointLimits,
 } from '@/state/actuatorStore';
@@ -64,6 +65,32 @@ describe('resolveJointLimits', () => {
     expect(jointLimitMax('right_shoulder_roll', null, 'kp')).toBeNull();
     expect(resolveJointLimits('right_shoulder_roll', null)).toEqual(staticLimits);
     expect(findSnapshotLimit(null, 'right_shoulder_roll')).toBeNull();
+  });
+
+  it('exposes Davout hard/soft envelope from the live snapshot', () => {
+    const snapshot = create(ActuatorLimitSnapshotSchema, {
+      timestampMs: 1n,
+      joints: [
+        create(JointActuatorLimitSchema, {
+          joint: 'right_elbow_pitch',
+          kpMax: 50,
+          kdMax: 5,
+          velocityMaxRadS: 1.5,
+          tauFfMaxNm: 3,
+          posLowerRad: -0.5,
+          posUpperRad: 0.95,
+          wired: true,
+          posSoftLowerRad: -0.47,
+          posSoftUpperRad: 0.92,
+        }),
+      ],
+    });
+    expect(liveJointEnvelope('right_elbow_pitch', snapshot)).toEqual({
+      hardLowerRad: -0.5,
+      hardUpperRad: 0.95,
+      softLowerRad: -0.47,
+      softUpperRad: 0.92,
+    });
   });
 });
 
