@@ -2508,6 +2508,40 @@ mod tests {
     }
 
     #[test]
+    fn home_return_lead_follows_from_above_not_past_home() {
+        // Bench 1.57 return: stuck Hold at q≈0.018 with q_traj=0 — must finish downward.
+        let mut above = JointPositionPlanner::new_for_target(0.018, 0.0);
+        above.q_traj = 0.0;
+        above.dq_traj = 0.0;
+        above.force_hold_for_test();
+        assert!(
+            planner_should_lead_follow_hold_short(&above, 0.018, 0.0, 0.0, 0.02),
+            "home residual from above must lead-follow downward"
+        );
+        apply_lead_follow_hold_short(&mut above, 0.018, 0.0, 0.12, 0.35);
+        assert!(
+            above.dq_traj < 0.0,
+            "home residual cruise must be toward home (negative)"
+        );
+
+        // Past-home (pull-through undershoot): must NOT lead-follow back up — that oscillates.
+        let mut past = JointPositionPlanner::new_for_target(-0.006, 0.0);
+        past.q_traj = 0.0;
+        past.dq_traj = 0.0;
+        past.force_hold_for_test();
+        assert!(
+            !planner_should_lead_follow_hold_short(&past, -0.006, 0.0, 0.0, 0.02),
+            "past-home Hold must not lead-follow upward"
+        );
+        // Active Cruise@target with +dq (the oscillating bench state) also rejected.
+        past.resume_cruise_toward(0.0, 0.35);
+        assert!(
+            !planner_should_lead_follow_hold_short(&past, -0.006, 0.0, 0.08, 0.02),
+            "past-home Cruise@target +dq must not keep lead-following"
+        );
+    }
+
+    #[test]
     fn stuck_premature_hold_skips_reopen() {
         let mut planner = JointPositionPlanner::new_for_target(0.02, 0.15);
         planner.q_traj = 0.15;

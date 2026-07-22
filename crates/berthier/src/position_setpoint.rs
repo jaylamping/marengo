@@ -439,6 +439,12 @@ pub fn planner_should_reopen_premature_hold(
 /// to target and thrashes (bench: 9 resets, q stuck ~0.13). Lead-follow keeps
 /// `q_traj = q ± lead` so P stays engaged while the reference tracks the arm. Applies whenever
 /// Hold and short (including after a prior lead-follow park). Skip overshoot.
+///
+/// Bidirectional: outbound finishes from below a positive target; home return (`target≈0`)
+/// finishes from *above* only. The old `target >= 0 ⇒ q < target − settle` rule treated
+/// `target=0` as short only when already past home (`q < −settle`), so residual never closed
+/// the stuck-above-home band and then lead-followed *up* from `q≈−0.006` (bench 1.57 return
+/// oscillation: Cruise `dq_traj=+0.35` + freeze thrash).
 pub fn planner_should_lead_follow_hold_short(
     planner: &JointPositionPlanner,
     q: f64,
@@ -446,7 +452,11 @@ pub fn planner_should_lead_follow_hold_short(
     _dq_filtered: f64,
     _velocity_deadband: f64,
 ) -> bool {
-    let short = if target >= 0.0 {
+    let home = target.abs() <= POSITION_SETTLE_TOLERANCE_RAD;
+    let short = if home {
+        // Home: still above settle — finish downward. Past-home is overshoot, not short.
+        q > POSITION_HOME_SETTLE_RAD
+    } else if target > 0.0 {
         q < target - POSITION_HOME_SETTLE_RAD
     } else {
         q > target + POSITION_HOME_SETTLE_RAD
@@ -455,7 +465,11 @@ pub fn planner_should_lead_follow_hold_short(
         return false;
     }
     // Overshoot past target — latch/overshoot paths own that.
-    let not_overshot = if target >= 0.0 {
+    // Home: `short` already requires q > settle (past-home excluded); no high-side cap —
+    // q=0.05 above home is still short, not overshoot.
+    let not_overshot = if home {
+        true
+    } else if target > 0.0 {
         q <= target + POSITION_RETURN_RESYNC_RAD
     } else {
         q >= target - POSITION_RETURN_RESYNC_RAD
