@@ -134,6 +134,44 @@ export function landmarksToKeyframes(
   return keyframes;
 }
 
+type TeachMaterializeResult =
+  | { ok: true; preset: CompoundTestPreset }
+  | { ok: false; error: TeachApplyError };
+
+type PreparedTeachKeyframes =
+  | { ok: true; keyframes: Record<string, Keyframe[]> }
+  | { ok: false; error: TeachApplyError };
+
+/** Shared Apply/play gates — validate once, then capability-specific transform. */
+function prepareTeachKeyframes(
+  session: TeachSession,
+  base: CompoundTestPreset,
+  live: TeachFingerprint
+): PreparedTeachKeyframes {
+  if (session.version !== TEACH_SESSION_VERSION) {
+    return { ok: false, error: 'version_mismatch' };
+  }
+  if (session.presetId !== base.id) {
+    return { ok: false, error: 'preset_mismatch' };
+  }
+  if (!fingerprintsMatch(session, live)) {
+    return { ok: false, error: 'fingerprint_mismatch' };
+  }
+  if (!canApplyLandmarks(session.landmarks)) {
+    return { ok: false, error: 'empty_landmarks' };
+  }
+  const keyframes = landmarksToKeyframes(
+    session.landmarks,
+    session.joints,
+    session.cadenceScale,
+    session.settleDwellSec
+  );
+  if (!keyframes) {
+    return { ok: false, error: 'empty_landmarks' };
+  }
+  return { ok: true, keyframes };
+}
+
 /**
  * Build a Wave overlay: raise-once + looping extrema (no nativeWave).
  * First landmark is raise endpoint; remaining landmarks are the loop body.
@@ -142,33 +180,18 @@ export function sessionToWaveOverlay(
   session: TeachSession,
   base: CompoundTestPreset,
   liveFingerprint: TeachFingerprint
-): { ok: true; preset: CompoundTestPreset } | { ok: false; error: TeachApplyError } {
-  if (session.version !== TEACH_SESSION_VERSION) {
-    return { ok: false, error: 'version_mismatch' };
-  }
-  if (session.presetId !== base.id) {
+): TeachMaterializeResult {
+  const prepared = prepareTeachKeyframes(session, base, liveFingerprint);
+  if (!prepared.ok) return prepared;
+  if (base.teach.kind !== 'replace-native-wave') {
     return { ok: false, error: 'preset_mismatch' };
-  }
-  if (!fingerprintsMatch(session, liveFingerprint)) {
-    return { ok: false, error: 'fingerprint_mismatch' };
-  }
-  if (!canApplyLandmarks(session.landmarks)) {
-    return { ok: false, error: 'empty_landmarks' };
-  }
-
-  const keyframes = landmarksToKeyframes(
-    session.landmarks,
-    session.joints,
-    session.cadenceScale,
-    session.settleDwellSec
-  );
-  if (!keyframes) {
-    return { ok: false, error: 'empty_landmarks' };
   }
 
   const included = includedLandmarks(session.landmarks);
   // Need raise + ≥1 extrema landmark to loop without re-raise.
   const canLoopExtrema = included.length > 2;
+  const loopFromSegment =
+    canLoopExtrema && base.teach.loopFromFirstMotionLandmark ? 1 : undefined;
 
   return {
     ok: true,
@@ -176,11 +199,11 @@ export function sessionToWaveOverlay(
       ...base,
       description: `${base.description} [taught overlay]`,
       joints: [...session.joints],
-      keyframes,
+      keyframes: prepared.keyframes,
       loop: canLoopExtrema,
       advance: 'timed',
       nativeWave: undefined,
-      loopFromSegment: canLoopExtrema ? 1 : undefined,
+      loopFromSegment,
     },
   };
 }
@@ -189,28 +212,11 @@ export function sessionToKeyframeOverlay(
   session: TeachSession,
   base: CompoundTestPreset,
   liveFingerprint: TeachFingerprint
-): { ok: true; preset: CompoundTestPreset } | { ok: false; error: TeachApplyError } {
-  if (session.version !== TEACH_SESSION_VERSION) {
-    return { ok: false, error: 'version_mismatch' };
-  }
-  if (session.presetId !== base.id) {
+): TeachMaterializeResult {
+  const prepared = prepareTeachKeyframes(session, base, liveFingerprint);
+  if (!prepared.ok) return prepared;
+  if (base.teach.kind !== 'replace-program') {
     return { ok: false, error: 'preset_mismatch' };
-  }
-  if (!fingerprintsMatch(session, liveFingerprint)) {
-    return { ok: false, error: 'fingerprint_mismatch' };
-  }
-  if (!canApplyLandmarks(session.landmarks)) {
-    return { ok: false, error: 'empty_landmarks' };
-  }
-
-  const keyframes = landmarksToKeyframes(
-    session.landmarks,
-    session.joints,
-    session.cadenceScale,
-    session.settleDwellSec
-  );
-  if (!keyframes) {
-    return { ok: false, error: 'empty_landmarks' };
   }
 
   return {
@@ -219,8 +225,8 @@ export function sessionToKeyframeOverlay(
       ...base,
       description: `${base.description} [taught overlay]`,
       joints: [...session.joints],
-      keyframes,
-      loop: base.teach.kind === 'replace-program' && base.teach.preserveLoop ? base.loop : false,
+      keyframes: prepared.keyframes,
+      loop: base.teach.preserveLoop ? base.loop : false,
       nativeWave: undefined,
       loopFromSegment: undefined,
     },
@@ -231,7 +237,7 @@ export function materializeTaughtPreset(
   session: TeachSession,
   base: CompoundTestPreset,
   liveFingerprint: TeachFingerprint
-): { ok: true; preset: CompoundTestPreset } | { ok: false; error: TeachApplyError } {
+): TeachMaterializeResult {
   switch (base.teach.kind) {
     case 'replace-native-wave':
       return sessionToWaveOverlay(session, base, liveFingerprint);

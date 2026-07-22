@@ -177,12 +177,18 @@ export function CompoundTestPanel() {
     };
   }, [setIsRunning]);
 
+  const closePresetDetail = React.useCallback(() => {
+    useTeachStore.getState().cancelRecording();
+    stopRunner({ returnHome: false });
+    setOverlayBlockReason(null);
+    setRecordSectionOpen(false);
+    setSelectedPresetId(null);
+  }, [stopRunner, setSelectedPresetId]);
+
   // Compound Tests tab click clears selection → preset list (no return-home).
   React.useEffect(() => {
     if (selectedPresetId !== null) return;
-    if (useTeachStore.getState().recording) {
-      useTeachStore.getState().stopRecording();
-    }
+    useTeachStore.getState().cancelRecording();
     setRecordSectionOpen(false);
     setOverlayBlockReason(null);
     if (runnerRef.current.intervalId !== null) {
@@ -532,15 +538,7 @@ export function CompoundTestPanel() {
                 size="icon-sm"
                 className="mt-0.5 shrink-0"
                 aria-label="Back to presets"
-                onClick={() => {
-                  if (useTeachStore.getState().recording) {
-                    useTeachStore.getState().stopRecording();
-                  }
-                  stopRunner({ returnHome: false });
-                  setOverlayBlockReason(null);
-                  setRecordSectionOpen(false);
-                  setSelectedPresetId(null);
-                }}
+                onClick={closePresetDetail}
               >
                 <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} />
               </Button>

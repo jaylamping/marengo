@@ -15,7 +15,7 @@ import { Slider } from '@/components/ui/slider';
 import { COMPOUND_TEST_PRESETS } from '@/data/compound-tests';
 import { useConfigSnapshot } from '@/hooks/use-config-snapshot';
 import { overlayNeedsCalibrationAck } from '@/lib/teach-calibration';
-import { canApplyLandmarks, extractLandmarks, samplesHaveMotion } from '@/lib/teach-record';
+import { canApplyLandmarks } from '@/lib/teach-record';
 import { subscribeTeachSamples } from '@/lib/teach-sample-bus';
 import { createTeachSession, liveFingerprint, materializeTaughtPreset } from '@/lib/teach-transit';
 import { useCompoundStore } from '@/state/compoundStore';
@@ -54,17 +54,15 @@ export function RecordMovementPanel({
   const liveCalibrationEpoch = useTeachStore((state) => state.liveCalibrationEpoch);
   const setGravityArmed = useTeachStore((state) => state.setGravityArmed);
   const startRecording = useTeachStore((state) => state.startRecording);
-  const stopRecording = useTeachStore((state) => state.stopRecording);
+  const finishRecording = useTeachStore((state) => state.finishRecording);
+  const cancelRecording = useTeachStore((state) => state.cancelRecording);
   const appendSample = useTeachStore((state) => state.appendSample);
-  const clearSamples = useTeachStore((state) => state.clearSamples);
-  const setLandmarks = useTeachStore((state) => state.setLandmarks);
   const setLandmarkIncluded = useTeachStore((state) => state.setLandmarkIncluded);
   const setCadenceScale = useTeachStore((state) => state.setCadenceScale);
   const setSettleDwellSec = useTeachStore((state) => state.setSettleDwellSec);
   const setLastError = useTeachStore((state) => state.setLastError);
   const applyOverlay = useTeachStore((state) => state.applyOverlay);
   const clearOverlay = useTeachStore((state) => state.clearOverlay);
-  const resetSession = useTeachStore((state) => state.resetSession);
   const markCalibrationChanged = useTeachStore((state) => state.markCalibrationChanged);
   const acknowledgeCalibration = useTeachStore((state) => state.acknowledgeCalibration);
 
@@ -80,15 +78,8 @@ export function RecordMovementPanel({
   React.useEffect(() => {
     if (!recordingPresetId || recordingPresetId === presetId) return;
     const prior = COMPOUND_TEST_PRESETS.find((preset) => preset.id === recordingPresetId);
-    const buf = useTeachStore.getState().samples;
-    stopRecording();
-    if (!prior) return;
-    if (!samplesHaveMotion(buf, prior.joints)) {
-      setLandmarks([]);
-      return;
-    }
-    setLandmarks(extractLandmarks(buf, prior.joints));
-  }, [presetId, recordingPresetId, stopRecording, setLandmarks]);
+    finishRecording(prior?.joints ?? []);
+  }, [presetId, recordingPresetId, finishRecording]);
 
   React.useEffect(() => {
     if (!isRecordingThisPreset) return;
@@ -98,14 +89,14 @@ export function RecordMovementPanel({
   React.useEffect(() => {
     if (!isRecordingThisPreset) return;
     if (operationalMode !== 'ACTIVE' || !connected) {
-      stopRecording();
+      finishRecording(base?.joints ?? []);
       setLastError(
         !connected
           ? 'Record stopped because Chappe disconnected.'
           : 'Record stopped because the robot left ACTIVE.'
       );
     }
-  }, [isRecordingThisPreset, operationalMode, connected, stopRecording, setLastError]);
+  }, [isRecordingThisPreset, operationalMode, connected, finishRecording, base?.joints, setLastError]);
 
   if (!base || !open) return null;
 
@@ -126,25 +117,11 @@ export function RecordMovementPanel({
       );
       return;
     }
-    clearSamples();
-    setLandmarks([]);
-    setLastError(null);
     startRecording(presetId);
   };
 
   const stopRecord = () => {
-    const buf = useTeachStore.getState().samples;
-    stopRecording();
-    if (!samplesHaveMotion(buf, joints)) {
-      setLandmarks([]);
-      setLastError('No motion in buffer. Nothing to apply.');
-      return;
-    }
-    const extracted = extractLandmarks(buf, joints);
-    setLandmarks(extracted);
-    setLastError(
-      canApplyLandmarks(extracted) ? null : 'Landmark extraction failed. Do not apply this draft.'
-    );
+    finishRecording(joints);
   };
 
   const apply = () => {
@@ -168,7 +145,9 @@ export function RecordMovementPanel({
       setLastError(`Apply refused: ${result.error}`);
       return;
     }
-    applyOverlay(presetId, { session, ackedAtEpoch: epoch });
+    if (!applyOverlay(presetId, { session, ackedAtEpoch: epoch })) {
+      return;
+    }
     const compound = useCompoundStore.getState();
     if (!compound.isRunning) compound.setLoop(result.preset.loop);
   };
@@ -232,7 +211,7 @@ export function RecordMovementPanel({
                 size="sm"
                 variant="outline"
                 onClick={() => {
-                  resetSession();
+                  cancelRecording();
                   clearOverlay(presetId);
                 }}
               >
@@ -269,7 +248,7 @@ export function RecordMovementPanel({
           <Button
             variant="ghost"
             onClick={() => {
-              resetSession();
+              cancelRecording();
               clearOverlay(presetId);
             }}
           >

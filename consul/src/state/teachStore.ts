@@ -1,6 +1,12 @@
 import { create as createZustand } from 'zustand';
 import { initialAckEpoch } from '@/lib/teach-calibration';
-import type { TeachLandmark, TeachSample } from '@/lib/teach-record';
+import {
+  canApplyLandmarks,
+  extractLandmarks,
+  samplesHaveMotion,
+  type TeachLandmark,
+  type TeachSample,
+} from '@/lib/teach-record';
 import type { TeachSession } from '@/lib/teach-transit';
 
 export const TEACH_STORAGE_KEY = 'marengo.teach.overlays.v1';
@@ -16,6 +22,11 @@ export interface TeachPersisted {
   liveCalibrationEpoch: number;
   overlays: Record<string, TeachOverlayEntry>;
 }
+
+export type FinishRecordingResult =
+  | { kind: 'extracted'; landmarkCount: number }
+  | { kind: 'no_motion' }
+  | { kind: 'not_recording' };
 
 /** Pure parse for tests + loadPersisted. Strips legacy frozen `preset` field. */
 export function parseTeachPersisted(raw: string | null): TeachPersisted {
@@ -95,7 +106,13 @@ interface TeachStore {
 
   setGravityArmed: (armed: boolean) => void;
   startRecording: (presetId: string) => void;
-  stopRecording: () => void;
+  /**
+   * Stop capture and extract landmarks for `joints`. Sole finalize path for
+   * Stop / preset-switch / disconnect — never leave samples without landmarks.
+   */
+  finishRecording: (joints: string[]) => FinishRecordingResult;
+  /** Abandon in-flight capture and draft (Back / tab / Reset). */
+  cancelRecording: () => void;
   appendSample: (sample: TeachSample) => void;
   clearSamples: () => void;
   setLandmarks: (landmarks: TeachLandmark[]) => void;
@@ -110,8 +127,8 @@ interface TeachStore {
   applyOverlay: (
     presetId: string,
     entry: Omit<TeachOverlayEntry, 'ackedAtEpoch'> & { ackedAtEpoch?: number }
-  ) => void;
-  clearOverlay: (presetId: string) => void;
+  ) => boolean;
+  clearOverlay: (presetId: string) => boolean;
   getOverlaySession: (presetId: string) => TeachSession | null;
   resetSession: () => void;
 }
@@ -137,8 +154,48 @@ export const useTeachStore = createZustand<TeachStore>((set, get) => ({
       recording: true,
       recordingPresetId: presetId,
       draftPresetId: presetId,
+      samples: [],
+      landmarks: [],
+      lastError: null,
     }),
-  stopRecording: () => set({ recording: false, recordingPresetId: null }),
+  finishRecording: (joints) => {
+    const state = get();
+    if (!state.recordingPresetId) {
+      return { kind: 'not_recording' };
+    }
+    const buf = state.samples;
+    const draftPresetId = state.recordingPresetId;
+    if (!samplesHaveMotion(buf, joints)) {
+      set({
+        recording: false,
+        recordingPresetId: null,
+        draftPresetId,
+        landmarks: [],
+        lastError: 'No motion in buffer. Nothing to apply.',
+      });
+      return { kind: 'no_motion' };
+    }
+    const extracted = extractLandmarks(buf, joints);
+    set({
+      recording: false,
+      recordingPresetId: null,
+      draftPresetId,
+      landmarks: extracted,
+      lastError: canApplyLandmarks(extracted)
+        ? null
+        : 'Landmark extraction failed. Do not apply this draft.',
+    });
+    return { kind: 'extracted', landmarkCount: extracted.length };
+  },
+  cancelRecording: () =>
+    set({
+      recording: false,
+      recordingPresetId: null,
+      draftPresetId: null,
+      samples: [],
+      landmarks: [],
+      lastError: null,
+    }),
   appendSample: (sample) =>
     set((state) => {
       if (!state.recordingPresetId) return state;
@@ -170,7 +227,6 @@ export const useTeachStore = createZustand<TeachStore>((set, get) => ({
       });
       return;
     }
-    // Clear in-memory landmarks/samples so Apply cannot re-stamp pre-zero poses.
     set({
       liveCalibrationEpoch: next,
       lastError:
@@ -218,9 +274,10 @@ export const useTeachStore = createZustand<TeachStore>((set, get) => ({
         lastError:
           'Apply failed — localStorage write blocked (quota or private mode).',
       });
-      return;
+      return false;
     }
     set({ overlays, lastError: null });
+    return true;
   },
 
   clearOverlay: (presetId) => {
@@ -230,20 +287,13 @@ export const useTeachStore = createZustand<TeachStore>((set, get) => ({
       set({
         lastError: 'Reset overlay failed — localStorage write blocked.',
       });
-      return;
+      return false;
     }
     set({ overlays });
+    return true;
   },
 
   getOverlaySession: (presetId) => get().overlays[presetId]?.session ?? null,
 
-  resetSession: () =>
-    set({
-      recording: false,
-      recordingPresetId: null,
-      draftPresetId: null,
-      samples: [],
-      landmarks: [],
-      lastError: null,
-    }),
+  resetSession: () => get().cancelRecording(),
 }));

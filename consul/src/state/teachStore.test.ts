@@ -181,16 +181,53 @@ describe('useTeachStore', () => {
     expect(useTeachStore.getState().samples).toEqual([]);
   });
 
-  it('binds recording and its retained draft to one preset', () => {
+  it('finishRecording extracts landmarks and retains the draft preset', () => {
     const store = useTeachStore.getState();
+    const teachJoints = ['right_shoulder_pitch', 'right_shoulder_roll'];
     store.startRecording('arm_out_forward');
-    store.appendSample({ tMs: 1, q: { right_shoulder_pitch: 0.5 } });
-    store.stopRecording();
+    for (let i = 0; i < 24; i++) {
+      store.appendSample({
+        tMs: i * 50,
+        q: {
+          right_shoulder_pitch: i < 12 ? 0 : 1.4,
+          right_shoulder_roll: i < 12 ? 0 : 1.0,
+        },
+      });
+    }
+    const result = store.finishRecording(teachJoints);
 
     const state = useTeachStore.getState();
+    expect(result.kind).toBe('extracted');
     expect(state.recording).toBe(false);
     expect(state.recordingPresetId).toBeNull();
     expect(state.draftPresetId).toBe('arm_out_forward');
-    expect(state.samples).toHaveLength(1);
+    expect(state.landmarks.length).toBeGreaterThan(0);
+  });
+
+  it('cancelRecording abandons capture and draft', () => {
+    const store = useTeachStore.getState();
+    store.startRecording('wave');
+    store.appendSample({ tMs: 1, q: { right_shoulder_pitch: 0.5 } });
+    store.cancelRecording();
+    const state = useTeachStore.getState();
+    expect(state.recording).toBe(false);
+    expect(state.draftPresetId).toBeNull();
+    expect(state.samples).toEqual([]);
+    expect(state.landmarks).toEqual([]);
+  });
+
+  it('applyOverlay returns false when persist fails', () => {
+    const spy = vi
+      .spyOn(Storage.prototype, 'setItem')
+      .mockImplementation(() => {
+        throw new Error('quota');
+      });
+    const ok = useTeachStore.getState().applyOverlay('wave', {
+      session: session(0),
+      ackedAtEpoch: 0,
+    });
+    expect(ok).toBe(false);
+    expect(useTeachStore.getState().overlays.wave).toBeUndefined();
+    spy.mockRestore();
   });
 });
