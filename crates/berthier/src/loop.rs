@@ -891,11 +891,8 @@ impl<B: MotorBus> ControlLoop<B> {
                                 "position hold command"
                             );
                         }
-                        if should_log_position_onset(
-                            d.retarget_tick,
-                            self.tick_count,
-                            self.loop_hz,
-                        ) {
+                        if should_log_position_onset(d.retarget_tick, self.tick_count, self.loop_hz)
+                        {
                             debug!(
                                 joint = %name,
                                 retarget_age_ms = d.retarget_age_ms,
@@ -965,9 +962,10 @@ impl<B: MotorBus> ControlLoop<B> {
                     }
                 } else {
                     (phase.planner_us, t) = phase_elapsed_us(t);
-                    let ramp_progress = self.gain_ramp.as_ref().map(|ramp| {
-                        1.0 - (ramp.ticks_remaining as f64 / ramp.total_ticks as f64)
-                    });
+                    let ramp_progress = self
+                        .gain_ramp
+                        .as_ref()
+                        .map(|ramp| 1.0 - (ramp.ticks_remaining as f64 / ramp.total_ticks as f64));
                     let ff_joints: Vec<MitFfJointIn> = self
                         .joint_names
                         .iter()
@@ -990,20 +988,18 @@ impl<B: MotorBus> ControlLoop<B> {
                                 q: q[i],
                                 dq: self.joint_velocity(name),
                                 tau_g: tau_g[i],
-                                gravity_comp: cfg
-                                    .map(|c| c.gravity_comp.clone())
-                                    .unwrap_or(ModeGains {
+                                gravity_comp: cfg.map(|c| c.gravity_comp.clone()).unwrap_or(
+                                    ModeGains {
                                         kp: 0.0,
                                         kd: 0.0,
                                         ki: 0.0,
-                                    }),
-                                impedance: cfg
-                                    .map(|c| c.impedance.clone())
-                                    .unwrap_or(ModeGains {
-                                        kp: 0.0,
-                                        kd: 0.0,
-                                        ki: 0.0,
-                                    }),
+                                    },
+                                ),
+                                impedance: cfg.map(|c| c.impedance.clone()).unwrap_or(ModeGains {
+                                    kp: 0.0,
+                                    kd: 0.0,
+                                    ki: 0.0,
+                                }),
                                 friction: cfg.map(|c| c.friction.clone()),
                                 override_gains: self.gain_overrides.get(name).map(|ov| {
                                     MitFfOverride {
@@ -1240,10 +1236,10 @@ mod tests {
         descent_breakaway_confirmed, descent_stuck_mit_pull, planner_drifted_from_measurement,
         planner_overshoot_hold_while_moving, planner_premature_hold,
         planner_should_freeze_on_ascent_stall, planner_should_freeze_on_descent,
-        planner_should_latch_on_overshoot_hold,
-        planner_should_lead_follow_hold_short, planner_should_reopen_premature_hold,
-        planner_should_resync_stuck_lead, position_hold_effective_max_lead, position_hold_mit_kd,
-        position_hold_mit_velocity, reopen_planner_from_premature_hold,
+        planner_should_latch_on_overshoot_hold, planner_should_lead_follow_hold_short,
+        planner_should_reopen_premature_hold, planner_should_resync_stuck_lead,
+        position_hold_effective_max_lead, position_hold_mit_kd, position_hold_mit_velocity,
+        reopen_planner_from_premature_hold,
     };
     use crate::position_trajectory::{JointPositionPlanner, TrapezoidPhase};
     use armee_kinematics::JointLimitPolicy;
