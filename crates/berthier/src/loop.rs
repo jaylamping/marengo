@@ -30,8 +30,8 @@ use crate::position_setpoint::{
     home_final_approach_stuck_pull_rad, low_angle_breakaway_active,
     planner_drifted_from_measurement, planner_should_freeze_on_ascent_stall,
     planner_should_freeze_on_descent, planner_should_latch_on_overshoot_hold,
-    planner_should_reopen_premature_hold, planner_should_restart_hold_short_of_target,
-    planner_should_resync_stuck_lead,
+    apply_lead_follow_hold_short, planner_should_lead_follow_hold_short,
+    planner_should_reopen_premature_hold, planner_should_resync_stuck_lead,
     position_hold_effective_max_lead, position_hold_mit_kd, position_hold_mit_velocity,
     reopen_planner_from_premature_hold, POSITION_RETURN_DESCENT_SEED_RAD,
     POSITION_SETTLE_TOLERANCE_RAD,
@@ -1510,29 +1510,23 @@ impl<B: MotorBus> ControlLoop<B> {
             ) {
                 event = PlannerEvent::Reset;
                 reopen_planner_from_premature_hold(&mut planners[i], q[i], targets[i], v_max);
-            } else if planner_should_restart_hold_short_of_target(
+            } else if planner_should_lead_follow_hold_short(
                 &planners[i],
                 q[i],
                 targets[i],
                 dq_filtered[i],
                 vel_deadband,
             ) {
-                // Residual Hold creep: restart short trapezoid from measured q (not reopen at target).
-                event = PlannerEvent::Reset;
-                planners[i].reset_target(q[i], targets[i]);
-                if let Some(cfg) = self.supervisor.control.control.joints.get(name) {
-                    planners[i].seed_downward_return_if_needed(
-                        q[i],
-                        targets[i],
-                        POSITION_RETURN_DESCENT_SEED_RAD,
-                        downward_return_seed_velocity(
-                            cfg.position_slew_rad_s,
-                            v_max,
-                            q[i],
-                            targets[i],
-                        ),
-                    );
-                }
+                // Residual Hold: keep cruise dq_traj + friction; freeze open-loop tick (no reset thrash).
+                let slew = cfg.map(|c| c.position_slew_rad_s).unwrap_or(0.15);
+                apply_lead_follow_hold_short(
+                    &mut planners[i],
+                    q[i],
+                    targets[i],
+                    effective_max_lead,
+                    slew,
+                );
+                event = PlannerEvent::FreezeEnter;
             } else if planner_drifted_from_measurement(
                 &planners[i],
                 q[i],
@@ -1583,7 +1577,15 @@ impl<B: MotorBus> ControlLoop<B> {
                 dq_filtered,
                 vel_deadband,
             );
-            let freeze = freeze_descent || freeze_ascent;
+            // Lead-follow residual must not tick open-loop toward target (re-creates thrash).
+            let lead_follow = planner_should_lead_follow_hold_short(
+                &planners[i],
+                q[i],
+                targets[i],
+                dq_filtered,
+                vel_deadband,
+            );
+            let freeze = freeze_descent || freeze_ascent || lead_follow;
             if freeze && !was_frozen {
                 event = PlannerEvent::FreezeEnter;
             } else if was_frozen && !freeze {
@@ -1797,9 +1799,10 @@ mod tests {
 
     use super::*;
     use crate::position_setpoint::{
-        approach_stuck_mit_pull, planner_overshoot_hold_while_moving, planner_premature_hold,
-        planner_should_freeze_on_ascent_stall, planner_should_reopen_premature_hold,
-        planner_should_restart_hold_short_of_target,
+        apply_lead_follow_hold_short, approach_stuck_mit_pull,
+        planner_overshoot_hold_while_moving, planner_premature_hold,
+        planner_should_freeze_on_ascent_stall, planner_should_lead_follow_hold_short,
+        planner_should_reopen_premature_hold,
     };
     use armee_kinematics::JointLimitPolicy;
     use davout::{MemoryBus, OperationalMode};
@@ -2472,7 +2475,7 @@ mod tests {
     }
 
     #[test]
-    fn hold_short_of_target_restarts_from_measured_q() {
+    fn hold_short_of_target_lead_follows_from_measured_q() {
         // Bench creep: Hold at 0.15 with q≈0.13 (inside premature 30 mrad band).
         let mut planner = JointPositionPlanner::new_for_target(0.13, 0.15);
         planner.q_traj = 0.15;
@@ -2482,17 +2485,22 @@ mod tests {
             !planner_premature_hold(&planner, 0.13, 0.15),
             "0.02 rad short is inside return_settle_band — premature path does not fire"
         );
-        assert!(planner_should_restart_hold_short_of_target(
+        assert!(planner_should_lead_follow_hold_short(
             &planner, 0.13, 0.15, 0.0, 0.02
         ));
-        assert!(!planner_should_restart_hold_short_of_target(
+        assert!(!planner_should_lead_follow_hold_short(
             &planner, 0.148, 0.15, 0.0, 0.02
         ));
-        assert!(!planner_should_restart_hold_short_of_target(
-            &planner, 0.13, 0.15, 0.05, 0.02
-        ));
-        planner.reset_target(0.13, 0.15);
-        assert!((planner.q_traj - 0.13).abs() < 1e-12);
+        apply_lead_follow_hold_short(&mut planner, 0.13, 0.15, 0.12, 0.35);
+        assert!(
+            (planner.q_traj - 0.15).abs() < 1e-12,
+            "residual < max_lead ⇒ q_traj at target (full remaining lead)"
+        );
+        assert!(
+            planner.dq_traj > 0.0,
+            "non-zero cruise dq keeps traj friction during residual finish"
+        );
+        assert_eq!(planner.phase(), TrapezoidPhase::Cruise);
     }
 
     #[test]
@@ -2507,8 +2515,8 @@ mod tests {
             "stuck premature hold must not reopen (Reset oscillator)"
         );
         assert!(
-            planner_should_restart_hold_short_of_target(&planner, 0.02, 0.15, 0.0, 0.02),
-            "large shortfall still restarts from measured q"
+            planner_should_lead_follow_hold_short(&planner, 0.02, 0.15, 0.0, 0.02),
+            "large shortfall lead-follows from measured q"
         );
         // Moving toward target may reopen
         assert!(planner_should_reopen_premature_hold(

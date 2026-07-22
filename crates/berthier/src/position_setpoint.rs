@@ -433,26 +433,20 @@ pub fn planner_should_reopen_premature_hold(
     dq_filtered.abs() >= velocity_deadband
 }
 
-/// Hold latched at target while measured `q` is still short — restart trapezoid from `q`.
+/// Hold while measured `q` is still short of target — lead-follow from `q`.
 ///
-/// Covers the residual band inside [`return_settle_band`] where premature-hold is false but the
-/// arm still has ~10–25 mrad to go. Leaving Hold parked there produces dead P-creep (bench:
-/// traj felt good to ~0.13, then stopped and crept to 0.15). Restart snaps `q_traj` to measured
-/// `q` (unlike reopen-at-target). Skip when overshot — latch/overshoot paths own that.
-pub fn planner_should_restart_hold_short_of_target(
+/// Parking `q_traj` at target produces dead P-creep; restarting a full trapezoid races `q_traj`
+/// to target and thrashes (bench: 9 resets, q stuck ~0.13). Lead-follow keeps
+/// `q_traj = q ± lead` so P stays engaged while the reference tracks the arm. Applies whenever
+/// Hold and short (including after a prior lead-follow park). Skip overshoot.
+pub fn planner_should_lead_follow_hold_short(
     planner: &JointPositionPlanner,
     q: f64,
     target: f64,
-    dq_filtered: f64,
-    velocity_deadband: f64,
+    _dq_filtered: f64,
+    _velocity_deadband: f64,
 ) -> bool {
     if planner.phase() != TrapezoidPhase::Hold {
-        return false;
-    }
-    if (planner.q_traj - target).abs() > POSITION_SETTLE_TOLERANCE_RAD {
-        return false;
-    }
-    if dq_filtered.abs() >= velocity_deadband {
         return false;
     }
     let short = if target >= 0.0 {
@@ -463,12 +457,40 @@ pub fn planner_should_restart_hold_short_of_target(
     if !short {
         return false;
     }
-    // Overshoot past target — do not restart outbound.
+    // Overshoot past target — latch/overshoot paths own that.
     if target >= 0.0 {
         q <= target + POSITION_RETURN_RESYNC_RAD
     } else {
         q >= target - POSITION_RETURN_RESYNC_RAD
     }
+}
+
+/// Finish a short Hold with reference at/near target and non-zero cruise `dq_traj`.
+///
+/// Open-loop tick stays frozen (caller). Non-zero `dq_traj` keeps trajectory-velocity friction
+/// engaged so the last ~20 mrad does not feel like a dead stop + P-creep. When remaining is
+/// below `max_lead`, `q_traj` equals `target` — that is geometrically required for full lead.
+pub fn apply_lead_follow_hold_short(
+    planner: &mut JointPositionPlanner,
+    q: f64,
+    target: f64,
+    max_lead: f64,
+    slew_rad_s: f64,
+) {
+    let dir = (target - q).signum();
+    if dir == 0.0 {
+        planner.latch_at_target(target);
+        return;
+    }
+    let remaining = (target - q).abs();
+    if remaining <= POSITION_HOME_SETTLE_RAD {
+        planner.latch_at_target(target);
+        return;
+    }
+    let lead = remaining.min(max_lead);
+    let q_ref = q + dir * lead;
+    let v = slew_rad_s.max(POSITION_HOME_SETTLE_RAD);
+    planner.resume_cruise_toward(q_ref, dir * v);
 }
 
 /// Trajectory setpoint clamp: brake when `q` outruns `q_traj`, follow when lagging toward target.

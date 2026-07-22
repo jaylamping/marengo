@@ -57,6 +57,13 @@ impl JointPositionPlanner {
         self.phase = TrapezoidPhase::Hold;
     }
 
+    /// Hold the reference at an arbitrary pose (lead-follow residual finish).
+    pub fn hold_reference_at(&mut self, q_traj: f64) {
+        self.q_traj = q_traj;
+        self.dq_traj = 0.0;
+        self.phase = TrapezoidPhase::Hold;
+    }
+
     /// Resume cruise after virtual hold latched before measured `q` settled.
     pub fn resume_cruise_toward(&mut self, q_traj: f64, dq_traj: f64) {
         self.q_traj = q_traj;
