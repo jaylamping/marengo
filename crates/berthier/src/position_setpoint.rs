@@ -166,6 +166,8 @@ pub fn position_hold_mit_kd(
 }
 
 /// Outbound friction-knee stall: lead saturated, no motion, target still in low-angle band.
+/// Retained for unit tests; production ascent path uses freeze + AscentStall (no MIT pull).
+#[allow(dead_code)]
 pub fn outbound_low_angle_stuck(
     q: f64,
     target: f64,
@@ -185,6 +187,7 @@ pub fn outbound_low_angle_stuck(
 }
 
 /// MIT pull-up lead while stuck in [`outbound_low_angle_stuck`].
+#[allow(dead_code)]
 pub fn outbound_low_angle_stuck_pull_rad(to_target: f64, effective_max_lead: f64) -> f64 {
     to_target
         .min(effective_max_lead)
@@ -196,7 +199,7 @@ pub fn outbound_low_angle_stuck_pull_rad(to_target: f64, effective_max_lead: f64
 /// Increasing lead while stuck ascending worsens open-loop grind. Ascent stalls freeze the
 /// planner via [`planner_should_freeze_on_ascent_stall`]; descent uses [`descent_stuck_mit_pull`].
 /// Helpers [`outbound_low_angle_stuck`] / [`approach_stuck_mit_pull_lead_rad`] remain for tests.
-#[allow(clippy::too_many_arguments)]
+#[allow(dead_code, clippy::too_many_arguments)]
 pub fn approach_stuck_mit_pull(
     _to_target: f64,
     _q: f64,
@@ -211,6 +214,7 @@ pub fn approach_stuck_mit_pull(
 }
 
 /// Pull-up lead for disabled [`approach_stuck_mit_pull`] (kept for helper/tests).
+#[allow(dead_code)]
 pub fn approach_stuck_mit_pull_lead_rad(to_target: f64, lag: f64, effective_max_lead: f64) -> f64 {
     if lag >= effective_max_lead - 1e-6 {
         outbound_low_angle_stuck_pull_rad(to_target, effective_max_lead)
@@ -395,8 +399,8 @@ pub fn planner_should_freeze_on_ascent_stall(
     if was_frozen && lead.abs() < POSITION_RETURN_RESYNC_RAD {
         return false;
     }
-    let planner_ahead = to_target > POSITION_HOLD_ERROR_DEADBAND_RAD
-        && lead > POSITION_RETURN_RESYNC_RAD;
+    let planner_ahead =
+        to_target > POSITION_HOLD_ERROR_DEADBAND_RAD && lead > POSITION_RETURN_RESYNC_RAD;
     if !planner_ahead {
         return false;
     }

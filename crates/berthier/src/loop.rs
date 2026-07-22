@@ -25,16 +25,15 @@ use crate::position_profile::{
     classify_position_profile, position_hold_v_max, position_profile_v_max, PlannerEvent,
 };
 use crate::position_setpoint::{
-    clamp_trajectory_setpoint, descent_breakaway_confirmed, descent_stuck_mit_pull,
-    downward_return_seed_velocity, envelope_dq_cmd_for_hold_clamp,
+    apply_lead_follow_hold_short, clamp_trajectory_setpoint, descent_breakaway_confirmed,
+    descent_stuck_mit_pull, downward_return_seed_velocity, envelope_dq_cmd_for_hold_clamp,
     home_final_approach_stuck_pull_rad, low_angle_breakaway_active,
     planner_drifted_from_measurement, planner_should_freeze_on_ascent_stall,
     planner_should_freeze_on_descent, planner_should_latch_on_overshoot_hold,
-    apply_lead_follow_hold_short, planner_should_lead_follow_hold_short,
-    planner_should_reopen_premature_hold, planner_should_resync_stuck_lead,
-    position_hold_effective_max_lead, position_hold_mit_kd, position_hold_mit_velocity,
-    reopen_planner_from_premature_hold, POSITION_RETURN_DESCENT_SEED_RAD,
-    POSITION_SETTLE_TOLERANCE_RAD,
+    planner_should_lead_follow_hold_short, planner_should_reopen_premature_hold,
+    planner_should_resync_stuck_lead, position_hold_effective_max_lead, position_hold_mit_kd,
+    position_hold_mit_velocity, reopen_planner_from_premature_hold,
+    POSITION_RETURN_DESCENT_SEED_RAD, POSITION_SETTLE_TOLERANCE_RAD,
 };
 
 /// Sustained ascent-stall freeze duration before tick faults (disable path).
@@ -69,9 +68,7 @@ pub enum LoopError {
     InvalidWavePeriod,
     #[error("missing motor feedback for joint {joint}")]
     MissingFeedback { joint: String },
-    #[error(
-        "position hold: ascent stall on {joint} — planner frozen ahead of arm for {ms} ms"
-    )]
+    #[error("position hold: ascent stall on {joint} — planner frozen ahead of arm for {ms} ms")]
     AscentStall { joint: String, ms: u64 },
 }
 
@@ -124,13 +121,16 @@ pub struct ControlLoop<B: MotorBus> {
     position_retarget_tick: Option<Vec<u64>>,
     /// EMA-filtered measured velocity per joint for position-hold damping FF only.
     position_dq_filtered: Option<Vec<f64>>,
-    /// Hysteresis: planner tick frozen while arm stuck lagging on descent or ascent stall.
+    /// Hysteresis: planner tick frozen (descent || ascent stall || lead-follow).
     position_planner_frozen: Option<Vec<bool>>,
+    /// Ascent-stall hysteresis only — must not share lead-follow / descent freeze state.
+    position_ascent_frozen: Option<Vec<bool>>,
     /// Once set, descent MIT pull stays off until next retarget.
     position_descent_breakaway: Option<Vec<bool>>,
     /// Set when MIT pull applied on descent; breakaway latch requires this.
     position_descent_was_stuck: Option<Vec<bool>>,
-    /// Accumulated ms while ascent-stall freeze holds (fault at [`POSITION_ASCENT_STALL_FAULT_MS`]).
+    /// Accumulated ms while true ascent-stall freeze holds (fault at [`POSITION_ASCENT_STALL_FAULT_MS`]).
+    /// Does not accumulate during lead-follow residual finish or while `dq` progresses toward target.
     position_ascent_stall_ms: Option<Vec<u64>>,
     /// Last planner event per joint (trace CSV `planner_event`).
     position_planner_events: Option<Vec<PlannerEvent>>,
@@ -255,6 +255,7 @@ impl<B: MotorBus> ControlLoop<B> {
             position_retarget_tick: None,
             position_dq_filtered: None,
             position_planner_frozen: None,
+            position_ascent_frozen: None,
             position_integral_error: None,
             position_descent_breakaway: None,
             position_descent_was_stuck: None,
@@ -411,6 +412,9 @@ impl<B: MotorBus> ControlLoop<B> {
         if let Some(frozen) = self.position_planner_frozen.as_mut() {
             frozen[joint_index] = false;
         }
+        if let Some(ascent) = self.position_ascent_frozen.as_mut() {
+            ascent[joint_index] = false;
+        }
         if let Some(breakaway) = self.position_descent_breakaway.as_mut() {
             breakaway[joint_index] = false;
         }
@@ -431,6 +435,9 @@ impl<B: MotorBus> ControlLoop<B> {
         let n = self.joint_names.len();
         if self.position_planner_frozen.is_none() {
             self.position_planner_frozen = Some(vec![false; n]);
+        }
+        if self.position_ascent_frozen.is_none() {
+            self.position_ascent_frozen = Some(vec![false; n]);
         }
         if self.position_descent_breakaway.is_none() {
             self.position_descent_breakaway = Some(vec![false; n]);
@@ -479,6 +486,9 @@ impl<B: MotorBus> ControlLoop<B> {
         self.init_descent_latch_state();
         if let Some(frozen) = self.position_planner_frozen.as_mut() {
             frozen.fill(false);
+        }
+        if let Some(ascent) = self.position_ascent_frozen.as_mut() {
+            ascent.fill(false);
         }
         if let Some(breakaway) = self.position_descent_breakaway.as_mut() {
             breakaway.fill(false);
@@ -563,6 +573,7 @@ impl<B: MotorBus> ControlLoop<B> {
         self.position_retarget_tick = None;
         self.position_dq_filtered = None;
         self.position_planner_frozen = None;
+        self.position_ascent_frozen = None;
         self.position_descent_breakaway = None;
         self.position_descent_was_stuck = None;
         self.position_ascent_stall_ms = None;
@@ -701,6 +712,7 @@ impl<B: MotorBus> ControlLoop<B> {
             self.position_retarget_tick = None;
             self.position_dq_filtered = None;
             self.position_planner_frozen = None;
+            self.position_ascent_frozen = None;
             self.position_descent_breakaway = None;
             self.position_integral_error = None;
             self.position_descent_was_stuck = None;
@@ -1552,13 +1564,18 @@ impl<B: MotorBus> ControlLoop<B> {
             let lag = q[i] - planners[i].q_traj;
             let to_target = targets[i] - q[i];
             let dq_filtered = dq_filtered[i];
-            let was_frozen = self
+            let was_planner_frozen = self
                 .position_planner_frozen
                 .as_ref()
                 .and_then(|f| f.get(i).copied())
                 .unwrap_or(false);
+            let was_ascent_frozen = self
+                .position_ascent_frozen
+                .as_ref()
+                .and_then(|f| f.get(i).copied())
+                .unwrap_or(false);
             let freeze_descent = planner_should_freeze_on_descent(
-                was_frozen,
+                was_planner_frozen,
                 targets[i],
                 q[i],
                 to_target,
@@ -1569,7 +1586,7 @@ impl<B: MotorBus> ControlLoop<B> {
                 max_lead,
             );
             let freeze_ascent = planner_should_freeze_on_ascent_stall(
-                was_frozen,
+                was_ascent_frozen,
                 targets[i],
                 q[i],
                 planners[i].q_traj,
@@ -1586,16 +1603,24 @@ impl<B: MotorBus> ControlLoop<B> {
                 vel_deadband,
             );
             let freeze = freeze_descent || freeze_ascent || lead_follow;
-            if freeze && !was_frozen {
+            if freeze && !was_planner_frozen {
                 event = PlannerEvent::FreezeEnter;
-            } else if was_frozen && !freeze {
+            } else if was_planner_frozen && !freeze {
                 event = PlannerEvent::FreezeExit;
             }
             if let Some(frozen) = self.position_planner_frozen.as_mut() {
                 frozen[i] = freeze;
             }
+            if let Some(ascent) = self.position_ascent_frozen.as_mut() {
+                ascent[i] = freeze_ascent;
+            }
             let tick_ms = 1000 / u64::from(self.loop_hz.max(1));
-            if freeze_ascent {
+            // True ascent stall only: lead-follow residual must not arm AscentStall, and any
+            // progress toward target pauses/resets the fuse (slow knee crawl must not disable).
+            let progressing_toward_target =
+                (to_target > 0.0 && dq_filtered > 0.0) || (to_target < 0.0 && dq_filtered < 0.0);
+            let arm_ascent_stall = freeze_ascent && !lead_follow && !progressing_toward_target;
+            if arm_ascent_stall {
                 let stall_ms = self
                     .position_ascent_stall_ms
                     .as_mut()
@@ -1759,6 +1784,33 @@ impl<B: MotorBus> ControlLoop<B> {
         let planner = self.position_planners.as_ref()?.get(i)?;
         Some((planner.q_traj, planner.dq_traj))
     }
+
+    /// Test-only: force Hold at `q_traj` (residual lead-follow / AscentStall scenarios).
+    #[cfg(test)]
+    pub fn test_force_planner_hold_at(
+        &mut self,
+        joint: &str,
+        q_traj: f64,
+    ) -> Result<(), LoopError> {
+        let i = self
+            .joint_names
+            .iter()
+            .position(|n| n == joint)
+            .ok_or_else(|| LoopError::UnknownJoint {
+                joint: joint.to_string(),
+            })?;
+        let planner = self
+            .position_planners
+            .as_mut()
+            .and_then(|p| p.get_mut(i))
+            .ok_or_else(|| LoopError::MissingSetpoint {
+                joint: joint.to_string(),
+            })?;
+        planner.q_traj = q_traj;
+        planner.dq_traj = 0.0;
+        planner.force_hold_for_test();
+        Ok(())
+    }
 }
 
 /// High-rate onset logs for the first window after retarget (`MARENGO_POSITION_ONSET_LOG_MS`, default 250).
@@ -1799,10 +1851,9 @@ mod tests {
 
     use super::*;
     use crate::position_setpoint::{
-        apply_lead_follow_hold_short, approach_stuck_mit_pull,
-        planner_overshoot_hold_while_moving, planner_premature_hold,
-        planner_should_freeze_on_ascent_stall, planner_should_lead_follow_hold_short,
-        planner_should_reopen_premature_hold,
+        apply_lead_follow_hold_short, approach_stuck_mit_pull, planner_overshoot_hold_while_moving,
+        planner_premature_hold, planner_should_freeze_on_ascent_stall,
+        planner_should_lead_follow_hold_short, planner_should_reopen_premature_hold,
     };
     use armee_kinematics::JointLimitPolicy;
     use davout::{MemoryBus, OperationalMode};
@@ -2462,7 +2513,13 @@ mod tests {
         ));
         // Synced → exit
         assert!(!planner_should_freeze_on_ascent_stall(
-            true, target, q, q + 0.01, to_target, 0.0, deadband
+            true,
+            target,
+            q,
+            q + 0.01,
+            to_target,
+            0.0,
+            deadband
         ));
         // Motion toward target → exit
         assert!(!planner_should_freeze_on_ascent_stall(
@@ -2472,6 +2529,105 @@ mod tests {
         assert!(!planner_should_freeze_on_ascent_stall(
             false, 0.0, 0.08, 0.02, -0.08, 0.0, deadband
         ));
+    }
+
+    #[test]
+    fn ascent_stall_faults_tick_after_sustained_freeze() {
+        let mut loop_ctrl = test_loop();
+        bench_ready_active(&mut loop_ctrl);
+        let joint = "shoulder_pitch";
+        loop_ctrl
+            .supervisor_mut()
+            .set_synthetic_joint_feedback(joint, 0.02, 0.0)
+            .expect("feedback");
+        loop_ctrl
+            .enter_position_hold_at(Some(joint), 0.15)
+            .expect("hold-at");
+        let mut faulted = false;
+        for _ in 0..600 {
+            loop_ctrl
+                .supervisor_mut()
+                .set_synthetic_joint_feedback(joint, 0.02, 0.0)
+                .expect("feedback");
+            match loop_ctrl.tick(None) {
+                Ok(()) => {}
+                Err(err) => {
+                    assert!(
+                        matches!(
+                            &err,
+                            LoopError::AscentStall { joint: j, ms }
+                                if j == joint && *ms >= POSITION_ASCENT_STALL_FAULT_MS
+                        ),
+                        "unexpected tick error: {err:?}"
+                    );
+                    faulted = true;
+                    break;
+                }
+            }
+        }
+        assert!(
+            faulted,
+            "stuck outbound ascent must AscentStall within ~3s of freeze"
+        );
+    }
+
+    #[test]
+    fn ascent_stall_counter_resets_on_progress_toward_target() {
+        let mut loop_ctrl = test_loop();
+        bench_ready_active(&mut loop_ctrl);
+        let joint = "shoulder_pitch";
+        loop_ctrl
+            .supervisor_mut()
+            .set_synthetic_joint_feedback(joint, 0.02, 0.0)
+            .expect("feedback");
+        loop_ctrl
+            .enter_position_hold_at(Some(joint), 0.15)
+            .expect("hold-at");
+        // Build freeze / partial stall (~0.5 s stuck).
+        for _ in 0..100 {
+            loop_ctrl
+                .supervisor_mut()
+                .set_synthetic_joint_feedback(joint, 0.02, 0.0)
+                .expect("feedback");
+            loop_ctrl.tick(None).expect("pre-progress tick");
+        }
+        // Crawl toward target below exit_v — must reset fuse, not disable.
+        for _ in 0..500 {
+            loop_ctrl
+                .supervisor_mut()
+                .set_synthetic_joint_feedback(joint, 0.02, 0.01)
+                .expect("feedback");
+            loop_ctrl
+                .tick(None)
+                .expect("progress toward target must not AscentStall");
+        }
+    }
+
+    #[test]
+    fn lead_follow_residual_does_not_ascent_stall() {
+        let mut loop_ctrl = test_loop();
+        bench_ready_active(&mut loop_ctrl);
+        let joint = "shoulder_pitch";
+        // Remaining 0.05 ∈ (resync 0.03, max_lead] — lead-follow residual, not true stall.
+        loop_ctrl
+            .supervisor_mut()
+            .set_synthetic_joint_feedback(joint, 0.10, 0.0)
+            .expect("feedback");
+        loop_ctrl
+            .enter_position_hold_at(Some(joint), 0.15)
+            .expect("hold-at");
+        loop_ctrl
+            .test_force_planner_hold_at(joint, 0.15)
+            .expect("force Hold@target");
+        for _ in 0..500 {
+            loop_ctrl
+                .supervisor_mut()
+                .set_synthetic_joint_feedback(joint, 0.10, 0.0)
+                .expect("feedback");
+            loop_ctrl
+                .tick(None)
+                .expect("lead-follow residual must not AscentStall");
+        }
     }
 
     #[test]
