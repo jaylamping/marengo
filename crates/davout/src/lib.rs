@@ -58,11 +58,12 @@ use armee_kinematics::{
     measured_position_fault, LimitMarginConfig,
 };
 use marengo_config::{
-    load_control_config, load_homing_config, load_motors_config, load_robot_config,
-    motor_for_joint, motor_type_key, resolve_joint_velocity_cap, resolve_urdf_path,
-    validate_control_against_limits, validate_motors_against_robot,
-    validate_robot_control_joint_coverage, ControlConfigFile, HomingConfigFile, MotorEntry,
-    MotorType, MotorsConfigFile, RobotConfigFile,
+    apply_limit_patch_to_control, apply_limit_patch_to_motor, load_control_config,
+    load_homing_config, load_motors_config, load_robot_config, motor_for_joint, motor_type_key,
+    resolve_joint_velocity_cap, resolve_urdf_path, validate_control_against_limits,
+    validate_limit_patch, validate_motors_against_robot, validate_robot_control_joint_coverage,
+    ControlConfigFile, HomingConfigFile, LimitPatch, MotorEntry, MotorType, MotorsConfigFile,
+    RobotConfigFile,
 };
 use marengo_homing::{verify_manual_reference, HomingRegistry, VerifyError};
 use robstride::AddressedMitCommand;
@@ -146,6 +147,8 @@ pub enum DavoutError {
     HomingVerify { joint: String, message: String },
     #[error("wrong-sign watchdog: gravity-comp torque opposes motion for {ticks} ticks on joint {joint}")]
     WrongSignWatchdog { joint: String, ticks: u32 },
+    #[error("runtime limit changes are refused while supervisor is ACTIVE")]
+    LimitPatchActive,
 }
 
 pub use marengo_homing::JointHomingState;
@@ -192,6 +195,8 @@ pub struct Supervisor<B: MotorBus> {
     control_mode: ControlMode,
     hardware_estop: bool,
     limits: HashMap<String, JointLimitPolicy>,
+    robot: RobotConfigFile,
+    urdf_robot: urdf_rs::Robot,
     pub motors: MotorsConfigFile,
     pub control: ControlConfigFile,
     pub homing_config: HomingConfigFile,
@@ -245,6 +250,8 @@ impl<B: MotorBus> Supervisor<B> {
             control_mode: ControlMode::Disabled,
             hardware_estop: false,
             limits,
+            robot,
+            urdf_robot,
             motors,
             control,
             homing_config,
@@ -293,6 +300,74 @@ impl<B: MotorBus> Supervisor<B> {
     /// Command velocity cap (rad/s) from control.yaml resolution. ADR 0010.
     pub fn joint_velocity_cap(&self, joint: &str) -> Option<f64> {
         self.limits.get(joint).map(|lim| lim.velocity)
+    }
+
+    /// Rebuild runtime limit policies from the supervisor's in-memory configuration.
+    ///
+    /// The existing policies remain installed if validation or rebuilding fails.
+    pub fn rebuild_limits(&mut self) -> Result<(), DavoutError> {
+        if self.mode == OperationalMode::Active {
+            return Err(DavoutError::LimitPatchActive);
+        }
+        validate_control_against_limits(&self.robot, &self.motors, &self.control)?;
+        let limits = build_limits(&self.robot, &self.motors, &self.control, &self.urdf_robot)?;
+        self.limits = limits;
+        Ok(())
+    }
+
+    /// Apply a validated per-joint limit patch and atomically rebuild runtime policy.
+    pub fn apply_limit_patch(&mut self, patch: &LimitPatch) -> Result<(), DavoutError> {
+        if self.mode == OperationalMode::Active {
+            return Err(DavoutError::LimitPatchActive);
+        }
+        validate_limit_patch(patch)?;
+
+        let mut motors = self.motors.clone();
+        let mut control = self.control.clone();
+        let motor = motors
+            .motors
+            .iter_mut()
+            .find(|motor| motor.joint == patch.joint)
+            .ok_or_else(|| DavoutError::UnknownJoint {
+                joint: patch.joint.clone(),
+            })?;
+        apply_limit_patch_to_motor(motor, patch)?;
+        let control_entry = control
+            .control
+            .joints
+            .get_mut(&patch.joint)
+            .ok_or_else(|| DavoutError::UnknownJoint {
+                joint: patch.joint.clone(),
+            })?;
+        apply_limit_patch_to_control(control_entry, patch)?;
+
+        validate_control_against_limits(&self.robot, &motors, &control)?;
+        let limits = build_limits(&self.robot, &motors, &control, &self.urdf_robot)?;
+        let policy = limits
+            .get(&patch.joint)
+            .ok_or_else(|| DavoutError::UnknownJoint {
+                joint: patch.joint.clone(),
+            })?;
+        if let Some(sample) = self.last_feedback_samples.get(&patch.joint) {
+            if sample.position_rad < policy.hard_lower()
+                || sample.position_rad > policy.hard_upper()
+            {
+                return Err(DavoutError::Limit {
+                    joint: patch.joint.clone(),
+                    message: format!(
+                        "measured position {} outside proposed hard [{}, {}]",
+                        sample.position_rad,
+                        policy.hard_lower(),
+                        policy.hard_upper()
+                    ),
+                });
+            }
+        }
+
+        self.motors = motors;
+        self.control = control;
+        self.limits = limits;
+        Ok(())
     }
 
     /// Joint-space feedback position (rad) if available.
@@ -1401,7 +1476,7 @@ fn motor_to_joint_state(motor: &MotorEntry, raw: MotorState) -> Result<MotorStat
     })
 }
 
-fn build_limits(
+pub(crate) fn build_limits(
     robot: &RobotConfigFile,
     motors: &MotorsConfigFile,
     control: &ControlConfigFile,
@@ -1417,6 +1492,18 @@ fn build_limits(
             })?;
         bounds.hard_lower = urdf_lim.lower.max(motor.bench.position_lower_rad);
         bounds.hard_upper = urdf_lim.upper.min(motor.bench.position_upper_rad);
+        if bounds.hard_lower >= bounds.hard_upper {
+            return Err(DavoutError::Limit {
+                joint: joint_name.clone(),
+                message: format!(
+                    "URDF [{}, {}] and bench [{}, {}] hard bounds do not overlap",
+                    urdf_lim.lower,
+                    urdf_lim.upper,
+                    motor.bench.position_lower_rad,
+                    motor.bench.position_upper_rad
+                ),
+            });
+        }
         if let Some(joint_cfg) = control.control.joints.get(joint_name) {
             if let Some(lo) = joint_cfg.position_soft_lower_rad {
                 bounds.soft_lower = lo.clamp(bounds.hard_lower, bounds.hard_upper);
@@ -1585,6 +1672,108 @@ mod tests {
             OperationalMode::Disabled,
             "must not enable before joint resolve"
         );
+    }
+
+    fn elbow_limit_patch(lower: f64, upper: f64) -> LimitPatch {
+        LimitPatch {
+            joint: "elbow".to_string(),
+            position_lower_rad: lower,
+            position_upper_rad: upper,
+            torque_limit_nm: None,
+            position_soft_lower_rad: None,
+            position_soft_upper_rad: None,
+            velocity_max_rad_s: None,
+        }
+    }
+
+    #[test]
+    fn limit_patch_refuses_while_active() {
+        let mut sup = Supervisor::from_repo(repo_root(), MemoryBus::default()).expect("supervisor");
+        bench_ready_active(&mut sup);
+        let before = *sup.joint_limit_policy("elbow").expect("policy");
+
+        let err = sup
+            .apply_limit_patch(&elbow_limit_patch(0.1, 1.5))
+            .expect_err("must refuse ACTIVE");
+
+        assert!(matches!(err, DavoutError::LimitPatchActive));
+        assert_eq!(*sup.joint_limit_policy("elbow").expect("policy"), before);
+    }
+
+    #[test]
+    fn limit_patch_rebuilds_runtime_policy() {
+        let mut sup = Supervisor::from_repo(repo_root(), MemoryBus::default()).expect("supervisor");
+
+        sup.apply_limit_patch(&elbow_limit_patch(0.1, 1.5))
+            .expect("apply patch");
+
+        let policy = sup.joint_limit_policy("elbow").expect("policy");
+        assert!((policy.hard_lower() - 0.1).abs() < 1e-9);
+        assert!((policy.hard_upper() - 1.5).abs() < 1e-9);
+    }
+
+    #[test]
+    fn rebuild_limits_uses_in_memory_config() {
+        let mut sup = Supervisor::from_repo(repo_root(), MemoryBus::default()).expect("supervisor");
+        let motor = sup
+            .motors
+            .motors
+            .iter_mut()
+            .find(|motor| motor.joint == "elbow")
+            .expect("motor");
+        motor.bench.position_upper_rad = 1.4;
+
+        sup.rebuild_limits().expect("rebuild");
+
+        let policy = sup.joint_limit_policy("elbow").expect("policy");
+        assert!((policy.hard_upper() - 1.4).abs() < 1e-9);
+    }
+
+    #[test]
+    fn limit_patch_rejects_empty_urdf_intersection_without_mutation() {
+        let mut sup = Supervisor::from_repo(repo_root(), MemoryBus::default()).expect("supervisor");
+        let before = *sup.joint_limit_policy("elbow").expect("policy");
+
+        let err = sup
+            .apply_limit_patch(&elbow_limit_patch(3.0, 4.0))
+            .expect_err("bounds outside URDF must fail");
+
+        assert!(matches!(err, DavoutError::Limit { .. }));
+        assert_eq!(*sup.joint_limit_policy("elbow").expect("policy"), before);
+        let motor = motor_for_joint(&sup.motors, "elbow").expect("motor");
+        assert!((motor.bench.position_lower_rad - before.hard_lower()).abs() < 1e-9);
+        assert!((motor.bench.position_upper_rad - before.hard_upper()).abs() < 1e-9);
+    }
+
+    #[test]
+    fn limit_patch_rejects_inverted_bounds_without_mutation() {
+        let mut sup = Supervisor::from_repo(repo_root(), MemoryBus::default()).expect("supervisor");
+        let before = *sup.joint_limit_policy("elbow").expect("policy");
+
+        let err = sup
+            .apply_limit_patch(&elbow_limit_patch(1.5, 0.1))
+            .expect_err("inverted bounds must fail");
+
+        assert!(matches!(err, DavoutError::Config(_)));
+        assert_eq!(*sup.joint_limit_policy("elbow").expect("policy"), before);
+    }
+
+    #[test]
+    fn limit_patch_rejects_measured_position_outside_new_bounds() {
+        let mut sup = Supervisor::from_repo(repo_root(), MemoryBus::default()).expect("supervisor");
+        sup.last_feedback_samples.insert(
+            "elbow".to_string(),
+            FeedbackSample {
+                position_rad: 1.0,
+                received_at: Instant::now(),
+            },
+        );
+
+        let err = sup
+            .apply_limit_patch(&elbow_limit_patch(0.1, 0.9))
+            .expect_err("measured q must remain inside hard bounds");
+
+        assert!(matches!(err, DavoutError::Limit { .. }));
     }
 
     /// Fails `enable_drive_at` after N successful enables (simulates mid-bus CAN fault).
