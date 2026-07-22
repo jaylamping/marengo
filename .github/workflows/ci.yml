@@ -139,7 +139,8 @@ jobs:
           mkdir -p .ci-buf-against
           git archive "${{ github.event.pull_request.base.sha }}" proto | tar -x -C .ci-buf-against
           test -f .ci-buf-against/proto/marengo/v1/marengo.proto
-          echo "BUF_BREAKING_AGAINST=${{ github.workspace }}/.ci-buf-against/proto" >> "$GITHUB_ENV"
+          # Container mounts the workspace at /workspace (not github.workspace).
+          echo "BUF_BREAKING_AGAINST=/workspace/.ci-buf-against/proto" >> "$GITHUB_ENV"
 
       - name: Run check.sh in container
         run: |
