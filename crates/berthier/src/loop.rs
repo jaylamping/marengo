@@ -1517,7 +1517,8 @@ impl<B: MotorBus> ControlLoop<B> {
                 dq_filtered[i],
                 vel_deadband,
             ) {
-                // Residual Hold: keep cruise dq_traj + friction; freeze open-loop tick (no reset thrash).
+                // Residual finish: cruise dq_traj + friction; tick must stay frozen (tick would
+                // snap Cruise@target back to Hold/dq=0 — bench 596a9d0 regression).
                 let slew = cfg.map(|c| c.position_slew_rad_s).unwrap_or(0.15);
                 apply_lead_follow_hold_short(
                     &mut planners[i],
@@ -1526,7 +1527,6 @@ impl<B: MotorBus> ControlLoop<B> {
                     effective_max_lead,
                     slew,
                 );
-                event = PlannerEvent::FreezeEnter;
             } else if planner_drifted_from_measurement(
                 &planners[i],
                 q[i],
@@ -2501,6 +2501,10 @@ mod tests {
             "non-zero cruise dq keeps traj friction during residual finish"
         );
         assert_eq!(planner.phase(), TrapezoidPhase::Cruise);
+        // Must keep lead-following while Cruise@target so tick stays frozen.
+        assert!(planner_should_lead_follow_hold_short(
+            &planner, 0.13, 0.15, 0.0, 0.02
+        ));
     }
 
     #[test]

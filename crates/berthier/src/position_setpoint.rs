@@ -446,9 +446,6 @@ pub fn planner_should_lead_follow_hold_short(
     _dq_filtered: f64,
     _velocity_deadband: f64,
 ) -> bool {
-    if planner.phase() != TrapezoidPhase::Hold {
-        return false;
-    }
     let short = if target >= 0.0 {
         q < target - POSITION_HOME_SETTLE_RAD
     } else {
@@ -458,10 +455,23 @@ pub fn planner_should_lead_follow_hold_short(
         return false;
     }
     // Overshoot past target — latch/overshoot paths own that.
-    if target >= 0.0 {
+    let not_overshot = if target >= 0.0 {
         q <= target + POSITION_RETURN_RESYNC_RAD
     } else {
         q >= target - POSITION_RETURN_RESYNC_RAD
+    };
+    if !not_overshot {
+        return false;
+    }
+    match planner.phase() {
+        // Initial residual: open-loop Hold parked at/near target.
+        TrapezoidPhase::Hold => (planner.q_traj - target).abs() <= POSITION_RETURN_RESYNC_RAD,
+        // Active residual finish: cruise dq kept, open-loop tick must stay frozen.
+        TrapezoidPhase::Cruise => {
+            (planner.q_traj - target).abs() <= POSITION_SETTLE_TOLERANCE_RAD
+                && planner.dq_traj.abs() > POSITION_SETTLE_TOLERANCE_RAD
+        }
+        TrapezoidPhase::Accelerate | TrapezoidPhase::Decelerate => false,
     }
 }
 
