@@ -610,6 +610,7 @@ fn decode_action_event(envelope_bytes: &[u8]) -> Result<ActionEvent, ()> {
     ActionEvent::decode(env.payload.as_slice()).map_err(|_| ())
 }
 
+#[cfg(test)]
 fn encode_action_event_envelope(event: &ActionEvent) -> Vec<u8> {
     Envelope {
         timestamp_ms: event.timestamp_ms,
