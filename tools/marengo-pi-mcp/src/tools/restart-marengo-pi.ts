@@ -1,6 +1,8 @@
+import fs from "node:fs";
+import path from "node:path";
 import { z } from "zod";
 import type { MarengoPiConfig } from "../config.js";
-import { wrapRemote } from "../env.js";
+import { shellQuote, wrapRemote } from "../env.js";
 
 export const restartMarengoPiSchema = z.object({
   confirm: z
@@ -19,50 +21,26 @@ export const restartMarengoPiSchema = z.object({
 
 export type RestartMarengoPiArgs = z.infer<typeof restartMarengoPiSchema>;
 
-/** Remote shell body (no preamble). Exported for unit tests. */
-export function restartMarengoPiShell(mode: "restart" | "stop"): string {
-  const lines = [
-    "echo '=== before ==='",
-    "systemctl is-active marengo-pi.service 2>/dev/null || echo inactive",
-    "pgrep -af '/opt/marengo/bin/marengo-pi|/bin/marengo-pi' || echo '(no marengo-pi process)'",
-    "echo",
-    "echo '=== stop ==='",
-    "sudo systemctl stop marengo-pi.service 2>/dev/null || true",
-    "sudo pkill -f '/opt/marengo/bin/marengo-pi' 2>/dev/null || true",
-    "pkill -f '/opt/marengo/bin/marengo-pi' 2>/dev/null || true",
-    "for i in 1 2 3 4 5 6 7 8 9 10; do",
-    "  pgrep -f '/opt/marengo/bin/marengo-pi' >/dev/null 2>&1 || break",
-    "  sleep 0.2",
-    "done",
-  ];
+/** Path to the canonical shell (repo scripts/). */
+export function restartMarengoPiScriptPath(localRoot: string): string {
+  return path.join(localRoot, "scripts", "pi-restart-marengo-pi.sh");
+}
 
-  if (mode === "restart") {
-    lines.push(
-      "echo",
-      "echo '=== start ==='",
-      "if systemctl cat marengo-pi.service >/dev/null 2>&1; then",
-      "  sudo systemctl start marengo-pi.service",
-      "  sleep 1",
-      "  systemctl is-active marengo-pi.service || true",
-      "else",
-      "  echo 'error: marengo-pi.service unit not found — process stopped; start manually' >&2",
-      "  exit 1",
-      "fi",
-    );
-  } else {
-    lines.push("echo", "echo '=== stop-only (not starting systemd unit) ==='");
-  }
+/** Load canonical script text from the local Marengo checkout. */
+export function loadRestartMarengoPiScript(localRoot: string): string {
+  return fs.readFileSync(restartMarengoPiScriptPath(localRoot), "utf8");
+}
 
-  lines.push(
-    "echo",
-    "echo '=== after ==='",
-    "systemctl is-active marengo-pi.service 2>/dev/null || echo inactive",
-    "pgrep -af '/opt/marengo/bin/marengo-pi|/bin/marengo-pi' || echo '(no marengo-pi process)'",
-    "echo",
-    "echo 'Hard limits / motors.yaml reload on marengo-pi process start.'",
-  );
-
-  return lines.join("\n");
+/**
+ * Remote shell body: run the canonical script with mode as $1.
+ * Embeds the local file so the tool works before the Pi has the new script installed.
+ */
+export function restartMarengoPiShell(
+  mode: "restart" | "stop",
+  scriptSource: string,
+): string {
+  const body = scriptSource.replace(/\r\n/g, "\n").replace(/^#![^\n]*\n/, "");
+  return [`set -- ${shellQuote(mode)}`, body].join("\n");
 }
 
 export async function runRestartMarengoPi(
@@ -70,5 +48,6 @@ export async function runRestartMarengoPi(
   runRemote: (body: string, timeoutMs?: number) => Promise<string>,
   args: RestartMarengoPiArgs,
 ): Promise<string> {
-  return runRemote(wrapRemote(cfg, restartMarengoPiShell(args.mode)), 60_000);
+  const script = loadRestartMarengoPiScript(cfg.localRoot);
+  return runRemote(wrapRemote(cfg, restartMarengoPiShell(args.mode, script)), 60_000);
 }

@@ -88,6 +88,7 @@ else
 fi
 chmod 755 "${INSTALL_ROOT}/scripts/can-up.sh"
 chmod 755 "${INSTALL_ROOT}/scripts/homing-preflight.sh" 2>/dev/null || true
+chmod 755 "${INSTALL_ROOT}/scripts/pi-restart-marengo-pi.sh" 2>/dev/null || true
 chown -R root:"${RUN_USER}" "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets" "${INSTALL_ROOT}/scripts"
 chmod -R g+rwX "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets" "${INSTALL_ROOT}/scripts"
 

@@ -126,6 +126,8 @@ Weighted profile (`weighted_single_arm`, `arm_attached`) needs `confirm: true` a
 
 Stops leftover `marengo-pi` processes and restarts `marengo-pi.service` so Davout reloads hard position limits from `motors.yaml` (e.g. after Consul Set Limits). Requires `confirm: true`. Optional `mode: "stop"` skips systemd start. Does not touch `marengo-gateway`.
 
+Canonical remote body: [`scripts/pi-restart-marengo-pi.sh`](../../scripts/pi-restart-marengo-pi.sh) (also used by `pi-remote.sh restart-marengo-pi` / `stop-marengo-pi`). MCP embeds the local checkout copy so the tool works before the Pi has the new script installed.
+
 ```json
 { "confirm": true }
 ```

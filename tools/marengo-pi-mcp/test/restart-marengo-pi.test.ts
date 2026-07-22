@@ -1,11 +1,19 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { defaultLocalRoot } from "../src/config.js";
 import {
+  loadRestartMarengoPiScript,
   restartMarengoPiSchema,
+  restartMarengoPiScriptPath,
   restartMarengoPiShell,
 } from "../src/tools/restart-marengo-pi.js";
 
 describe("pi_restart_marengo_pi", () => {
+  const localRoot = defaultLocalRoot();
+  const scriptPath = restartMarengoPiScriptPath(localRoot);
+  const script = loadRestartMarengoPiScript(localRoot);
+
   it("requires confirm: true", () => {
     assert.throws(() => restartMarengoPiSchema.parse({ confirm: false }));
     assert.throws(() => restartMarengoPiSchema.parse({}));
@@ -22,18 +30,26 @@ describe("pi_restart_marengo_pi", () => {
     assert.equal(parsed.mode, "stop");
   });
 
-  it("restart shell stops then starts the unit", () => {
-    const shell = restartMarengoPiShell("restart");
-    assert.match(shell, /systemctl stop marengo-pi\.service/);
-    assert.match(shell, /pkill -f '\/opt\/marengo\/bin\/marengo-pi'/);
-    assert.match(shell, /systemctl start marengo-pi\.service/);
-    assert.doesNotMatch(shell, /stop-only/);
+  it("loads the canonical scripts/pi-restart-marengo-pi.sh", () => {
+    assert.match(scriptPath, /pi-restart-marengo-pi\.sh$/);
+    assert.match(script, /systemctl stop marengo-pi\.service/);
+    assert.match(script, /systemctl start marengo-pi\.service/);
+    assert.match(script, /stop-only/);
+    assert.match(script, /Hard limits \/ motors\.yaml reload/);
   });
 
-  it("stop shell does not start the unit", () => {
-    const shell = restartMarengoPiShell("stop");
-    assert.match(shell, /systemctl stop marengo-pi\.service/);
-    assert.match(shell, /stop-only/);
-    assert.doesNotMatch(shell, /systemctl start marengo-pi\.service/);
+  it("embeds the canonical script with mode as argv1", () => {
+    const restartBody = restartMarengoPiShell("restart", script);
+    assert.match(restartBody, /^set -- 'restart'\n/);
+    assert.ok(restartBody.includes(script.replace(/^#![^\n]*\n/, "")));
+
+    const stopBody = restartMarengoPiShell("stop", script);
+    assert.match(stopBody, /^set -- 'stop'\n/);
+  });
+
+  it("rejects invalid mode at the shell entrypoint", () => {
+    const r = spawnSync("bash", [scriptPath, "bogus"], { encoding: "utf8" });
+    assert.notEqual(r.status, 0);
+    assert.match(r.stderr, /usage:.*restart\|stop/);
   });
 });
