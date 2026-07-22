@@ -46,6 +46,8 @@ export type AutoLearnLogContext = {
 export type AutoLearnBasePreset = {
   name: string;
   description: string;
+  /** Joint-language gesture brief — primary intent for landmark proposals. */
+  movementBrief: string;
   joints: string[];
   teachKind: TeachKind;
   keyframes: Record<string, { targetRad: number; durationSec: number }[]>;

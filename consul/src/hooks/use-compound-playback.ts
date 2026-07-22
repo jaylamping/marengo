@@ -202,7 +202,9 @@ export function useCompoundPlayback() {
       );
       return;
     }
-    if (!dryRun && (operationalMode !== 'ACTIVE' || !connected)) {
+    // Read live — Test proposal sets Dry Run then starts in the same tick.
+    const dryRunNow = useTestingStore.getState().dryRun;
+    if (!dryRunNow && (operationalMode !== 'ACTIVE' || !connected)) {
       setOverlayBlockReason(
         !connected
           ? 'Chappe disconnected — cannot start Wave until telemetry reconnects (or enable Dry Run).'
@@ -213,7 +215,7 @@ export function useCompoundPlayback() {
 
     const base = compoundPresetById(selectedPresetId);
     if (!base) return;
-    if (!dryRun && base.id === 'wave' && !WAVE_POSE_GCOMP_SIGNED) {
+    if (!dryRunNow && base.id === 'wave' && !WAVE_POSE_GCOMP_SIGNED) {
       setOverlayBlockReason(
         'Live Wave is blocked until E6 Wave-pose GravityComp is signed (docs/bench-elbow-test-suite.md). Use Dry Run, or flip WAVE_POSE_GCOMP_SIGNED after sign-off.',
       );

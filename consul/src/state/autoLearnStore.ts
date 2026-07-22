@@ -30,6 +30,10 @@ interface AutoLearnStore {
   logAttachNote: string | null;
   draft: AutoLearnDraft | null;
   lastGenerateAtMs: number | null;
+  /** Operator ran Test proposal (dry-run or hardware) for this draft. */
+  proposalTested: boolean;
+  /** One-line review strip hint after test/apply. */
+  reviewHint: string | null;
   /** Applied via Auto Learn for Dry Run soft-gate / speed clamp. */
   appliedMeta: Record<
     string,
@@ -43,8 +47,10 @@ interface AutoLearnStore {
   clearFeedback: () => void;
   setStatus: (status: AutoLearnStatus, error?: string | null) => void;
   setLogAttachNote: (note: string | null) => void;
+  setReviewHint: (hint: string | null) => void;
   setDraft: (draft: AutoLearnDraft | null) => void;
   setLandmarkIncluded: (id: string, included: boolean) => void;
+  markProposalTested: (mode?: 'dry_run' | 'hardware') => void;
   markApplied: (presetId: string, stage: AutoLearnStage) => void;
   clearApplied: (presetId: string) => void;
   bumpGeneration: () => number;
@@ -60,6 +66,8 @@ export const useAutoLearnStore = createZustand<AutoLearnStore>((set, get) => ({
   logAttachNote: null,
   draft: null,
   lastGenerateAtMs: null,
+  proposalTested: false,
+  reviewHint: null,
   appliedMeta: {},
   requestGeneration: 0,
 
@@ -69,12 +77,15 @@ export const useAutoLearnStore = createZustand<AutoLearnStore>((set, get) => ({
   clearFeedback: () => set({ feedback: '' }),
   setStatus: (status, error = null) => set({ status, error }),
   setLogAttachNote: (logAttachNote) => set({ logAttachNote }),
+  setReviewHint: (reviewHint) => set({ reviewHint }),
   setDraft: (draft) => {
     const prev = get();
     set({
       draft,
       status: draft ? 'draft' : prev.status === 'draft' ? 'idle' : prev.status,
       lastGenerateAtMs: draft ? Date.now() : prev.lastGenerateAtMs,
+      proposalTested: false,
+      reviewHint: null,
     });
   },
   setLandmarkIncluded: (id, included) =>
@@ -86,8 +97,19 @@ export const useAutoLearnStore = createZustand<AutoLearnStore>((set, get) => ({
           landmarks: state.draft.landmarks.map((lm) =>
             lm.id === id ? { ...lm, included } : lm,
           ),
+          // Inclusion edits invalidate the last Dry Run.
         },
+        proposalTested: false,
+        reviewHint: null,
       };
+    }),
+  markProposalTested: (mode = 'dry_run') =>
+    set({
+      proposalTested: true,
+      reviewHint:
+        mode === 'hardware'
+          ? 'Live hardware test started — support the arm, watch Playback. Apply when it looks right.'
+          : 'Dry Run started — watch Playback progress. Apply when it looks right.',
     }),
   markApplied: (presetId, stage) =>
     set((state) => ({
@@ -96,6 +118,7 @@ export const useAutoLearnStore = createZustand<AutoLearnStore>((set, get) => ({
         ...state.appliedMeta,
         [presetId]: { stage, source: 'auto_learn' },
       },
+      reviewHint: 'Overlay committed for this preset.',
     })),
   clearApplied: (presetId) =>
     set((state) => {
@@ -114,5 +137,7 @@ export const useAutoLearnStore = createZustand<AutoLearnStore>((set, get) => ({
       error: null,
       draft: null,
       logAttachNote: null,
+      proposalTested: false,
+      reviewHint: null,
     }),
 }));

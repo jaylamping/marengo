@@ -6,7 +6,10 @@ import {
   type AutoLearnLandmark,
   type AutoLearnStage,
 } from '@marengo/compound-auto-learn';
-import { compoundPresetById } from '@/data/compound-tests';
+import {
+  compoundPresetById,
+  WAVE_POSE_GCOMP_SIGNED,
+} from '@/data/compound-tests';
 import { useConfigSnapshot } from '@/hooks/use-config-snapshot';
 import { autoLearnConfigured, postAutoLearn } from '@/lib/auto-learn-api';
 import { buildAutoLearnLogContext } from '@/lib/auto-learn-logs';
@@ -22,6 +25,7 @@ import { useCompoundStore } from '@/state/compoundStore';
 import { useHostMetricsStore } from '@/state/hostMetricsStore';
 import { useRobotStore } from '@/state/robotStore';
 import { useTeachStore } from '@/state/teachStore';
+import { useTestingStore } from '@/state/testingStore';
 
 function setAutoLearnError(message: string): void {
   useAutoLearnStore.getState().setStatus('error', message);
@@ -37,6 +41,8 @@ export function useAutoLearnController(presetId: string) {
   const base = compoundPresetById(presetId);
   const { data: config = null } = useConfigSnapshot();
   const robotState = useRobotStore((s) => s.robotState);
+  const connected = useRobotStore((s) => s.connected);
+  const operationalMode = useRobotStore((s) => s.operationalMode);
   const piMetrics = useHostMetricsStore((s) => s.piMetrics);
   const compoundRunning = useCompoundStore((s) => s.isRunning);
   const capture = useTeachStore((s) => s.capture);
@@ -48,6 +54,8 @@ export function useAutoLearnController(presetId: string) {
   const status = useAutoLearnStore((s) => s.status);
   const error = useAutoLearnStore((s) => s.error);
   const logAttachNote = useAutoLearnStore((s) => s.logAttachNote);
+  const proposalTested = useAutoLearnStore((s) => s.proposalTested);
+  const reviewHint = useAutoLearnStore((s) => s.reviewHint);
   const draft = useAutoLearnStore((s) => s.draft);
   const draftForPreset = draft?.presetId === presetId ? draft : null;
 
@@ -195,17 +203,18 @@ export function useAutoLearnController(presetId: string) {
     });
   };
 
-  const applyOverlay = () => {
+  /** Load draft into teach overlay so Playback can resolve it. */
+  const commitDraftOverlay = (): boolean => {
     const store = useTeachStore.getState();
     const draftState = useAutoLearnStore.getState().draft;
     if (!base || !draftState || draftState.presetId !== presetId) {
       setAutoLearnError('No Auto Learn draft');
-      return;
+      return false;
     }
     const landmarks = draftState.landmarks as TeachLandmark[];
     if (!canApplyLandmarks(landmarks)) {
       setAutoLearnError('Need enough included landmarks to apply');
-      return;
+      return false;
     }
     const fingerprint = liveFingerprint(
       config?.profile ?? 'arm_4dof_right',
@@ -216,7 +225,7 @@ export function useAutoLearnController(presetId: string) {
       setAutoLearnError(
         'Fingerprint unknown — wait for Pi host metrics / deployRev',
       );
-      return;
+      return false;
     }
 
     const built = buildAutoLearnRequest({
@@ -231,7 +240,7 @@ export function useAutoLearnController(presetId: string) {
     });
     if (!built.ok) {
       setAutoLearnError(built.message);
-      return;
+      return false;
     }
     const asserted = assertAutoLearnResponse(built.request, {
       stage: draftState.stage,
@@ -244,7 +253,7 @@ export function useAutoLearnController(presetId: string) {
     });
     if (!asserted.ok) {
       setAutoLearnError(assertFailuresMessage(asserted.failures));
-      return;
+      return false;
     }
 
     const epoch = store.liveCalibrationEpoch;
@@ -256,14 +265,67 @@ export function useAutoLearnController(presetId: string) {
     const result = materializeTaughtPreset(session, base, fingerprint);
     if (!result.ok) {
       setAutoLearnError(`Apply refused: ${result.error}`);
-      return;
+      return false;
     }
     if (!store.applyOverlay(presetId, { session, ackedAtEpoch: epoch })) {
       setAutoLearnError(store.lastError ?? 'Apply failed');
-      return;
+      return false;
     }
     const compound = useCompoundStore.getState();
     if (!compound.isRunning) compound.setLoop(result.preset.loop);
+    const env = stageEnvelope(draftState.stage);
+    compound.setSpeedMultiplier(
+      Math.min(draftState.speedMultiplier, env.maxSpeedMultiplier),
+    );
+    store.setCadenceScale(draftState.cadenceScale);
+    store.setSettleDwellSec(draftState.settleDwellSec);
+    return true;
+  };
+
+  const testProposal = (startRunner: () => void) => {
+    if (recording || compoundRunning) {
+      setAutoLearnError('Stop recording / compound playback first');
+      return;
+    }
+    if (!commitDraftOverlay()) return;
+    useTestingStore.getState().setDryRun(true);
+    useAutoLearnStore.getState().markProposalTested('dry_run');
+    useAutoLearnStore.getState().setStatus('draft');
+    startRunner();
+  };
+
+  const hardwareBlockReason = ((): string | null => {
+    if (!connected) {
+      return 'Live test needs Chappe connected.';
+    }
+    if (operationalMode !== 'ACTIVE') {
+      return `Live test needs motors ACTIVE (Enable). Current: ${operationalMode ?? 'unknown'}.`;
+    }
+    if (base?.id === 'wave' && !WAVE_POSE_GCOMP_SIGNED) {
+      return 'Live Wave blocked until E6 Wave-pose GravityComp is signed (WAVE_POSE_GCOMP_SIGNED). Use Dry Run Test proposal until then.';
+    }
+    return null;
+  })();
+
+  const testOnHardware = (startRunner: () => void) => {
+    if (recording || compoundRunning) {
+      setAutoLearnError('Stop recording / compound playback first');
+      return;
+    }
+    if (hardwareBlockReason) {
+      setAutoLearnError(hardwareBlockReason);
+      return;
+    }
+    if (!commitDraftOverlay()) return;
+    useTestingStore.getState().setDryRun(false);
+    useAutoLearnStore.getState().markProposalTested('hardware');
+    useAutoLearnStore.getState().setStatus('draft');
+    startRunner();
+  };
+
+  const applyOverlay = () => {
+    const draftState = useAutoLearnStore.getState().draft;
+    if (!commitDraftOverlay() || !draftState) return;
     useAutoLearnStore.getState().markApplied(presetId, draftState.stage);
   };
 
@@ -274,16 +336,20 @@ export function useAutoLearnController(presetId: string) {
 
   return {
     configured,
+    movementBrief: base?.movementBrief ?? null,
     stage,
     includeLogs,
     feedback,
     status,
     error,
     logAttachNote,
+    reviewHint,
     draft: draftForPreset,
     hasPrior,
+    proposalTested,
     recording,
     compoundRunning,
+    hardwareBlockReason,
     setStage: (s: AutoLearnStage) => useAutoLearnStore.getState().setStage(s),
     setIncludeLogs: (v: boolean) =>
       useAutoLearnStore.getState().setIncludeLogs(v),
@@ -293,6 +359,8 @@ export function useAutoLearnController(presetId: string) {
       useAutoLearnStore.getState().setLandmarkIncluded(id, included),
     autoLearn,
     advanceStage,
+    testProposal,
+    testOnHardware,
     applyOverlay,
     discard,
   };

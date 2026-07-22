@@ -59,6 +59,7 @@ const requestSchema = z.object({
   base: z.object({
     name: z.string(),
     description: z.string(),
+    movementBrief: z.string().min(1),
     joints: z.array(z.string()).min(1),
     teachKind: z.enum(['replace-native-wave', 'replace-program']),
     keyframes: z.record(

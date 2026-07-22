@@ -36,6 +36,7 @@ interface TestingStore {
     gain: { kp: number; kd: number; ki: number; fc: number },
   ) => void;
   toggleDryRun: () => void;
+  setDryRun: (dryRun: boolean) => void;
   startTest: () => Promise<void>;
   returnHome: () => Promise<void>;
   stopTest: () => void;
@@ -66,6 +67,7 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
   setGain: (name, gain) =>
     set((state) => ({ gains: { ...state.gains, [name]: gain } })),
   toggleDryRun: () => set((state) => ({ dryRun: !state.dryRun })),
+  setDryRun: (dryRun) => set({ dryRun }),
   startTest: async () => {
     if (useTeachStore.getState().capture.kind === 'recording') {
       return;

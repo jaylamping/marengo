@@ -91,6 +91,7 @@ export function buildAutoLearnRequest(args: {
       base: {
         name: args.preset.name,
         description: args.preset.description,
+        movementBrief: args.preset.movementBrief,
         joints: [...args.preset.joints],
         teachKind: args.preset.teach.kind,
         keyframes: args.preset.keyframes,

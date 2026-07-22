@@ -44,6 +44,7 @@ function sampleRequest(): AutoLearnRequest {
     base: {
       name: 'Arm Out',
       description: 'test',
+      movementBrief: 'Raise the arm forward to a held pose.',
       joints: ['right_shoulder_pitch', 'right_shoulder_roll'],
       teachKind: 'replace-program',
       keyframes: {},
@@ -82,6 +83,27 @@ describe('auto-learn server', () => {
   afterEach(async () => {
     if (close) await close();
     close = null;
+  });
+
+  it('allows CORS preflight from Vite on :5174', async () => {
+    const svc = createAutoLearnServer({
+      token,
+      port: 18786,
+      promptFn: async () => goodJson,
+    });
+    await svc.listen();
+    close = () => svc.close();
+    const res = await fetch(`http://127.0.0.1:${svc.port}/v1/auto-learn`, {
+      method: 'OPTIONS',
+      headers: {
+        origin: 'http://localhost:5174',
+        'access-control-request-method': 'POST',
+      },
+    });
+    expect(res.status).toBe(204);
+    expect(res.headers.get('access-control-allow-origin')).toBe(
+      'http://localhost:5174',
+    );
   });
 
   it('rejects missing auth', async () => {

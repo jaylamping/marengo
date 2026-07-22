@@ -2,6 +2,7 @@ import { useMemo, type ReactNode } from 'react';
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
 
 import { actuatorTelemetryChartConfig } from '@/components/dashboard/inventory/constants';
+import { HomeActuatorButton } from '@/components/dashboard/inventory/home-actuator-button';
 import { SetLimitsPanel } from '@/components/dashboard/inventory/set-limits-panel';
 import type { InventoryRow } from '@/components/dashboard/inventory/types';
 import type { JointTrackingPoint } from '@/components/dashboard/charts/types';
@@ -202,13 +203,14 @@ export function ActuatorDetailBody({
       <InteractiveSection
         interactive={interactive}
         title="Actions"
-        hint="Homing and calibration stay locked until the link is interactive."
+        hint="Home moves a zero'd joint to 0 rad. Calibration stays locked until that path ships."
         brackets
       >
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" size="sm" variant="panel" disabled={!interactive}>
-            Homing
-          </Button>
+        <div className="flex flex-wrap items-start gap-2">
+          <HomeActuatorButton
+            jointName={item.name}
+            interactive={interactive}
+          />
           <Button type="button" size="sm" variant="panel" disabled={!interactive}>
             Calibration
           </Button>
@@ -217,8 +219,8 @@ export function ActuatorDetailBody({
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          Homing / calibration post to gateway when those commands ship. Set
-          Zero lives under Limits.
+          Home requires Set Zero (Limits) then Enable / ACTIVE. Calibration
+          posts to gateway when that command ships.
         </p>
       </InteractiveSection>
 

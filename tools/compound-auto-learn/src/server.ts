@@ -8,10 +8,22 @@ const DEFAULT_PORT = 8787;
 const BODY_LIMIT = 256 * 1024;
 const RATE_WINDOW_MS = 60_000;
 const RATE_MAX = 20;
-const CORS_ORIGINS = new Set([
-  'http://127.0.0.1:5173',
-  'http://localhost:5173',
-]);
+/** Local Vite only (port may bump when 5173 is taken). */
+function isAllowedCorsOrigin(origin: string | undefined): origin is string {
+  if (!origin) return false;
+  let url: URL;
+  try {
+    url = new URL(origin);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== 'http:') return false;
+  if (url.hostname !== '127.0.0.1' && url.hostname !== 'localhost') {
+    return false;
+  }
+  const port = Number(url.port || '80');
+  return port >= 5173 && port <= 5199;
+}
 
 type RateBucket = { count: number; resetAt: number };
 
@@ -49,7 +61,7 @@ function sendJson(
   const headers: Record<string, string> = {
     'content-type': 'application/json; charset=utf-8',
   };
-  if (origin && CORS_ORIGINS.has(origin)) {
+  if (isAllowedCorsOrigin(origin)) {
     headers['access-control-allow-origin'] = origin;
     headers['access-control-allow-headers'] = 'authorization, content-type';
     headers['access-control-allow-methods'] = 'POST, OPTIONS';

@@ -19,25 +19,32 @@ interface AutoLearnPanelProps {
   presetId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Compound Playback Start — Dry Run / live hardware tests. */
+  onStartPlayback: () => void;
 }
 
 export function AutoLearnPanel({
   presetId,
   open,
   onOpenChange,
+  onStartPlayback,
 }: AutoLearnPanelProps) {
   const {
     configured,
+    movementBrief,
     stage,
     includeLogs,
     feedback,
     status,
     error,
     logAttachNote,
+    reviewHint,
     draft,
     hasPrior,
+    proposalTested,
     recording,
     compoundRunning,
+    hardwareBlockReason,
     setStage,
     setIncludeLogs,
     setFeedback,
@@ -45,12 +52,15 @@ export function AutoLearnPanel({
     setLandmarkIncluded,
     autoLearn,
     advanceStage,
+    testProposal,
+    testOnHardware,
     applyOverlay,
     discard,
   } = useAutoLearnController(presetId);
   const [pendingAction, setPendingAction] = React.useState<
     null | 'generate' | 'advance'
   >(null);
+  const [hardwareConfirmOpen, setHardwareConfirmOpen] = React.useState(false);
 
   const logsConfirm = error?.startsWith('LOGS_CONFIRM:') ?? false;
   const displayError = logsConfirm
@@ -63,6 +73,10 @@ export function AutoLearnPanel({
     }
   }, [logsConfirm, pendingAction]);
 
+  React.useEffect(() => {
+    setHardwareConfirmOpen(false);
+  }, [draft?.description, draft?.stage, presetId]);
+
   if (!open) return null;
 
   const busy = status === 'calling' || recording || compoundRunning;
@@ -73,8 +87,8 @@ export function AutoLearnPanel({
         <div>
           <CardTitle className="text-lg">Auto Learn</CardTitle>
           <CardDescription>
-            Cursor proposes a stage-capped teach overlay. Review, Dry Run, then
-            Apply. Manual Movement is separate.
+            Cursor proposes a stage-capped teach overlay. Test proposal (Dry
+            Run), then Apply. Manual Movement is separate.
           </CardDescription>
         </div>
         <Button size="sm" variant="ghost" onClick={() => onOpenChange(false)}>
@@ -82,6 +96,15 @@ export function AutoLearnPanel({
         </Button>
       </CardHeader>
       <CardContent className="space-y-4">
+        {movementBrief ? (
+          <p className="rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-sm leading-relaxed text-muted-foreground">
+            <span className="mb-1 block font-mono text-[10px] uppercase tracking-[0.14em] text-foreground/70">
+              Movement brief
+            </span>
+            {movementBrief}
+          </p>
+        ) : null}
+
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex gap-1">
             {STAGES.map((s) => {
@@ -263,11 +286,84 @@ export function AutoLearnPanel({
                 </li>
               ))}
             </ul>
+            <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+              Test proposal = Dry Run · Test on hardware = live motors · Apply
+              commits the overlay
+            </p>
+            {hardwareBlockReason ? (
+              <p
+                className="font-mono text-xs text-amber-600 dark:text-amber-400"
+                role="status"
+              >
+                {hardwareBlockReason}
+              </p>
+            ) : null}
+            {reviewHint ? (
+              <p className="font-mono text-xs text-amber-600 dark:text-amber-400">
+                {reviewHint}
+              </p>
+            ) : null}
+            {hardwareConfirmOpen ? (
+              <div className="space-y-2 rounded-md border border-border/60 bg-muted/20 p-3">
+                <p className="font-mono text-xs text-amber-600 dark:text-amber-400">
+                  Live motors will move. Arm supported, Dry Run off, stage speed
+                  ceiling still applies. Continue?
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="destructive"
+                    disabled={busy || !!hardwareBlockReason}
+                    onClick={() => {
+                      setHardwareConfirmOpen(false);
+                      testOnHardware(onStartPlayback);
+                    }}
+                  >
+                    Start live test
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => setHardwareConfirmOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : null}
             <div className="flex flex-wrap gap-2">
-              <Button type="button" onClick={() => applyOverlay()}>
+              <Button
+                type="button"
+                disabled={busy || hardwareConfirmOpen}
+                onClick={() => testProposal(onStartPlayback)}
+              >
+                Test proposal
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={busy || hardwareConfirmOpen || !!hardwareBlockReason}
+                onClick={() => setHardwareConfirmOpen(true)}
+              >
+                Test on hardware
+              </Button>
+              <Button
+                type="button"
+                variant={proposalTested ? 'default' : 'outline'}
+                disabled={busy || hardwareConfirmOpen}
+                onClick={() => applyOverlay()}
+              >
                 Apply overlay
               </Button>
-              <Button type="button" variant="outline" onClick={() => discard()}>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy || hardwareConfirmOpen}
+                onClick={() => discard()}
+              >
                 Discard
               </Button>
             </div>

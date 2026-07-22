@@ -2,9 +2,15 @@ import * as React from 'react';
 import { useRobotStore } from '@/state/robotStore';
 import { useTestingStore } from '@/state/testingStore';
 import { useCompoundStore } from '@/state/compoundStore';
+import { useActuatorZeroStore } from '@/state/actuatorZeroStore';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { formatSigFig } from '@/lib/format';
+import {
+  badgeToneClass,
+  resolveActuatorCardBadges,
+} from '@/lib/actuator-card-badges';
 import { dashboardPanelCardClassName } from '@/components/dashboard/layout/constants';
 import { compoundPresetById } from '@/data/compound-tests';
 import { useConfigSnapshot } from '@/hooks/use-config-snapshot';
@@ -36,6 +42,8 @@ const GAIN_LIMITS: Record<
 
 export function TelemetryGaugeGrid() {
   const robotState = useRobotStore((s) => s.robotState);
+  const operationalMode = useRobotStore((s) => s.operationalMode);
+  const zeroed = useActuatorZeroStore((s) => s.zeroed);
   const { selectedJointNames } = useTestingStore();
   const { selectedPresetId } = useCompoundStore();
   const { data: config = null } = useConfigSnapshot();
@@ -90,14 +98,36 @@ export function TelemetryGaugeGrid() {
         const velPercent =
           velMax > 0 ? Math.abs(joint.velocity / velMax) * 100 : 0;
 
+        const badges = resolveActuatorCardBadges({
+          operationalMode,
+          zeroed: Boolean(zeroed[joint.name]),
+          fault: joint.fault,
+        });
+
         return (
           <Card
             key={joint.name}
             variant="panel"
             className={dashboardPanelCardClassName}
           >
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">{joint.name}</CardTitle>
+            <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0 pb-2">
+              <CardTitle className="text-sm uppercase tracking-wide">
+                {joint.name}
+              </CardTitle>
+              <div className="flex flex-wrap items-center justify-end gap-1">
+                {badges.map((badge) => (
+                  <Badge
+                    key={badge.id}
+                    variant="outline"
+                    className={cn(
+                      'h-5 px-1.5 uppercase tracking-[0.12em]',
+                      badgeToneClass(badge.tone),
+                    )}
+                  >
+                    {badge.label}
+                  </Badge>
+                ))}
+              </div>
             </CardHeader>
             <CardContent className="space-y-2">
               <Gauge

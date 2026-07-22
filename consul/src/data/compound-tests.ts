@@ -29,7 +29,13 @@ export interface NativePositionWave {
 export interface CompoundTestPreset {
   id: string;
   name: string;
+  /** Short UI card copy. */
   description: string;
+  /**
+   * Kinematic / behavioral brief for Auto Learn prompts.
+   * Describes what the gesture should look like in joint language — not UI chrome.
+   */
+  movementBrief: string;
   joints: string[];
   keyframes: Record<string, Keyframe[]>;
   loop: boolean;
@@ -76,6 +82,8 @@ export const COMPOUND_TEST_PRESETS: CompoundTestPreset[] = [
     name: 'Wave',
     description:
       'Arm up (pitch/roll/yaw/elbow raise under Position+τ_g), then continuous roll wave. Taught overlays replace wave phase only after Apply. Support the arm until E6 Wave-pose G-comp is signed.',
+    movementBrief:
+      'A waving motion raises the arm using the shoulder pitch actuator while moving the shoulder roll actuator outward to position the arm away from the body. The elbow pitch actuator bends the elbow so the forearm is held in a comfortable, upright position, while the upper arm yaw actuator rotates back and forth to create the primary side-to-side waving motion. The shoulder roll actuator can move slightly in coordination with the upper arm yaw to make the gesture appear smoother and more natural, while the shoulder pitch and elbow pitch remain mostly stable to maintain the overall waving posture. Teach overlays should encode a raise landmark, then at least two wave extrema (prefer yaw as the oscillating DOF, with optional small coordinated roll). Shipped continuous phase uses a native roll wave until a teach overlay replaces it.',
     joints: [
       'right_shoulder_pitch',
       'right_shoulder_roll',
@@ -109,6 +117,8 @@ export const COMPOUND_TEST_PRESETS: CompoundTestPreset[] = [
     id: 'arm_out_forward',
     name: 'Arm Out Forward',
     description: 'Raises the arm straight out forward.',
+    movementBrief:
+      'Reach the arm straight out in front of the body to about shoulder height. Shoulder pitch raises the upper arm forward; shoulder roll opens the arm away from the torso so the hand clears the body. Motion is a single coordinated raise to a held forward pose — no waving or oscillation. Keep both joints moving smoothly toward the forward targets without overshooting stage step budgets.',
     joints: ['right_shoulder_pitch', 'right_shoulder_roll'],
     loop: false,
     teach: {
@@ -126,6 +136,8 @@ export const COMPOUND_TEST_PRESETS: CompoundTestPreset[] = [
     id: 'arm_fully_up',
     name: 'Arm Fully Up',
     description: 'Raises the arm fully up.',
+    movementBrief:
+      'Raise the arm overhead into a near-vertical reach. Shoulder pitch drives most of the lift from hang toward upright; shoulder roll keeps the arm clear of the torso as it rises. End in a stable elevated pose with both joints held — no wave or side-to-side oscillation. Prefer a progressive raise through one or more intermediate landmarks rather than a single slam from live to peak.',
     joints: ['right_shoulder_pitch', 'right_shoulder_roll'],
     loop: false,
     teach: {

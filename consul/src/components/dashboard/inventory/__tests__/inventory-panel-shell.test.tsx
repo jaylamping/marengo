@@ -196,7 +196,7 @@ describe('InventoryRowModal panel shell', () => {
     expect(screen.getByLabelText('Edit location')).toBeTruthy();
     expect(screen.getByLabelText('Edit preset')).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'Identity' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Homing' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Home' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Start sweep' })).toBeDisabled();
   });
 
@@ -238,6 +238,7 @@ describe('InventoryRowModal panel shell', () => {
     const modal = screen.getByTestId('inventory-row-modal');
     expect(within(modal).getByText('Telemetry')).toBeTruthy();
     expect(within(modal).getByText('Tests')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Homing' })).not.toBeDisabled();
+    // Home stays locked until the joint is marked zero'd and motors are ACTIVE.
+    expect(screen.getByRole('button', { name: 'Home' })).toBeDisabled();
   });
 });

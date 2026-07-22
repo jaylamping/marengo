@@ -24,7 +24,7 @@ VITE_AUTO_LEARN_TOKEN=...     # must match AUTO_LEARN_TOKEN
 
 - Binds `127.0.0.1` only.
 - Requires `Authorization: Bearer $AUTO_LEARN_TOKEN`.
-- CORS allows local Vite (`127.0.0.1:5173` / `localhost:5173`) only.
+- CORS allows local Vite only (`localhost` / `127.0.0.1`, ports 5173–5199).
 - Opt-in session logs are allowlisted summaries sent to Cursor when Consul attaches them.
 
 ## Tests

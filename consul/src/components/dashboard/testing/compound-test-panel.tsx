@@ -249,6 +249,7 @@ export function CompoundTestPanel() {
                 presetId={selectedPreset.id}
                 open={autoLearnOpen}
                 onOpenChange={setAutoLearnOpen}
+                onStartPlayback={startRunner}
               />
             </section>
             <section className="space-y-3">
@@ -336,6 +337,18 @@ export function CompoundTestPanel() {
                 <p className="text-xs text-destructive">
                   Manual Movement recording is active. Stop recording before
                   starting this compound test.
+                </p>
+              ) : null}
+              {!dryRun && !connected ? (
+                <p className="text-xs text-amber-600 dark:text-amber-400" role="status">
+                  Live Start needs Chappe connected — currently disconnected.
+                  Reconnect telemetry or leave Dry Run on.
+                </p>
+              ) : null}
+              {!dryRun && connected && operationalMode !== 'ACTIVE' ? (
+                <p className="text-xs text-amber-600 dark:text-amber-400" role="status">
+                  Live Start needs motors ACTIVE (Enable). Current mode:{' '}
+                  {operationalMode ?? 'unknown'}.
                 </p>
               ) : null}
               {overlayBlockReason ? (

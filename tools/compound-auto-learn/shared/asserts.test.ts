@@ -51,6 +51,7 @@ function baseRequest(
     base: {
       name: 'Arm Out',
       description: 'test',
+      movementBrief: 'Raise the arm forward to a held pose.',
       joints: ['right_shoulder_pitch', 'right_shoulder_roll'],
       teachKind: 'replace-program',
       keyframes: {},
@@ -162,6 +163,7 @@ describe('assertAutoLearnResponse', () => {
       base: {
         name: 'Wave',
         description: 'wave',
+        movementBrief: 'Wave with yaw oscillation after raise.',
         joints: ['right_shoulder_pitch', 'right_shoulder_roll'],
         teachKind: 'replace-native-wave',
         keyframes: {},
