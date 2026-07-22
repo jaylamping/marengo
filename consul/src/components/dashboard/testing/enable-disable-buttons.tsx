@@ -67,6 +67,15 @@ export function EnableDisableButtons() {
     }
   };
 
+  const handleDisable = () => {
+    // Cancel post-enable watch so intentional Disable does not look like a
+    // failed Enable (watch would otherwise re-diagnose DISABLED → error).
+    setEnableWatchGen(0);
+    setEnableMessage(null);
+    setEnableKind('pending');
+    void disable();
+  };
+
   React.useEffect(() => {
     if (enableWatchGen === 0) return;
     const startedAt = enableWatchStartedAt.current;
@@ -133,13 +142,7 @@ export function EnableDisableButtons() {
         >
           {enabling ? 'Enabling…' : 'Enable'}
         </Button>
-        <Button
-          variant="destructive"
-          onClick={() => {
-            setEnableMessage(null);
-            void disable();
-          }}
-        >
+        <Button variant="destructive" onClick={handleDisable}>
           Disable
         </Button>
       </div>
