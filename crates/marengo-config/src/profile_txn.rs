@@ -482,7 +482,8 @@ mod tests {
         assert!(joint_in_motors(&profile, "right_elbow_pitch").expect("motor membership"));
         assert!(joint_in_profile_urdf(&root, &profile, "right_elbow_pitch").expect("URDF"));
         let patch = limit_patch_from_motor(&profile, "right_elbow_pitch").expect("limits");
-        assert!((patch.position_upper_rad - 0.95).abs() < 1e-9);
+        // Matches config/bringup/arm_4dof_right/motors.yaml (Davout live hard).
+        assert!((patch.position_upper_rad - 1.034701585769653).abs() < 1e-9);
         let slugs = membership_slugs_for_joint(&root, "right_elbow_pitch").expect("slugs");
         assert!(slugs.iter().any(|slug| slug == "arm_4dof_right"));
         assert!(!slugs.iter().any(|slug| slug == "arm_3dof_right"));
