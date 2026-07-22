@@ -237,6 +237,10 @@ export function materializeTaughtPreset(
       return sessionToWaveOverlay(session, base, liveFingerprint);
     case 'replace-program':
       return sessionToKeyframeOverlay(session, base, liveFingerprint);
+    default: {
+      const _exhaustive: never = base.teach;
+      return _exhaustive;
+    }
   }
 }
 

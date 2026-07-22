@@ -78,10 +78,17 @@ export function RecordMovementPanel({
   });
 
   React.useEffect(() => {
-    if (recordingPresetId && recordingPresetId !== presetId) {
-      stopRecording();
+    if (!recordingPresetId || recordingPresetId === presetId) return;
+    const prior = COMPOUND_TEST_PRESETS.find((preset) => preset.id === recordingPresetId);
+    const buf = useTeachStore.getState().samples;
+    stopRecording();
+    if (!prior) return;
+    if (!samplesHaveMotion(buf, prior.joints)) {
+      setLandmarks([]);
+      return;
     }
-  }, [presetId, recordingPresetId, stopRecording]);
+    setLandmarks(extractLandmarks(buf, prior.joints));
+  }, [presetId, recordingPresetId, stopRecording, setLandmarks]);
 
   React.useEffect(() => {
     if (!isRecordingThisPreset) return;
@@ -126,13 +133,14 @@ export function RecordMovementPanel({
   };
 
   const stopRecord = () => {
+    const buf = useTeachStore.getState().samples;
     stopRecording();
-    if (!samplesHaveMotion(samples, joints)) {
+    if (!samplesHaveMotion(buf, joints)) {
       setLandmarks([]);
       setLastError('No motion in buffer. Nothing to apply.');
       return;
     }
-    const extracted = extractLandmarks(samples, joints);
+    const extracted = extractLandmarks(buf, joints);
     setLandmarks(extracted);
     setLastError(
       canApplyLandmarks(extracted) ? null : 'Landmark extraction failed. Do not apply this draft.'
