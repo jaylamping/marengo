@@ -8,6 +8,7 @@ Development tooling vendored into the repo. Not part of the Rust workspace or co
 tools/
 ├── marengo-pi-mcp/           # Node/TS MCP server: Pi bench tools (health, logs, CAN, deploy)
 ├── marengo-research-mcp/     # Python/uv MCP server: research tooling
+├── compound-auto-learn/      # Local BFF: Cursor Agent.prompt for Compound Auto Learn
 └── protoc-28.3-win64/        # Vendored protoc binary (Windows x64)
 ```
 
@@ -17,6 +18,7 @@ tools/
 |------|----------|
 | Rebuild Pi MCP | `just mcp-build` or `cd tools/marengo-pi-mcp && npm install && npm run build` |
 | Research MCP setup | `just research-mcp-setup` (uv sync) |
+| Compound Auto Learn BFF | `cd tools/compound-auto-learn && npm start` (see README; loopback + `AUTO_LEARN_TOKEN`) |
 | MCP config | `.cursor/mcp.json` (which servers Cursor loads) |
 | Protoc (Windows) | `tools/protoc-28.3-win64/` (used by proto codegen) |
 

@@ -9,6 +9,7 @@ import {
   liveFingerprint,
   materializeTaughtPreset,
 } from '@/lib/teach-transit';
+import { useAutoLearnStore } from '@/state/autoLearnStore';
 import { useCompoundStore } from '@/state/compoundStore';
 import { useHostMetricsStore } from '@/state/hostMetricsStore';
 import { useRobotStore } from '@/state/robotStore';
@@ -20,7 +21,13 @@ import {
   useTeachStore,
 } from '@/state/teachStore';
 
-export function useRecordMovementController(presetId: string) {
+function clearAutoLearnForPreset(presetId: string): void {
+  const auto = useAutoLearnStore.getState();
+  auto.clearApplied(presetId);
+  auto.setDraft(null);
+}
+
+export function useManualMovementController(presetId: string) {
   const base = compoundPresetById(presetId);
   const operationalMode = useRobotStore((state) => state.operationalMode);
   const connected = useRobotStore((state) => state.connected);
@@ -65,8 +72,9 @@ export function useRecordMovementController(presetId: string) {
   }, [isRecordingThisPreset]);
 
   React.useEffect(() => {
-    if (!isRecordingThisPreset || (operationalMode === 'ACTIVE' && connected))
+    if (!isRecordingThisPreset || (operationalMode === 'ACTIVE' && connected)) {
       return;
+    }
     const store = useTeachStore.getState();
     store.finishRecording(joints);
     store.setLastError(
@@ -124,6 +132,7 @@ export function useRecordMovementController(presetId: string) {
       return;
     }
     if (!store.applyOverlay(presetId, { session, ackedAtEpoch: epoch })) return;
+    clearAutoLearnForPreset(presetId);
     const compound = useCompoundStore.getState();
     if (!compound.isRunning) compound.setLoop(result.preset.loop);
   };
@@ -151,6 +160,7 @@ export function useRecordMovementController(presetId: string) {
     const store = useTeachStore.getState();
     store.cancelRecording();
     store.clearOverlay(presetId);
+    clearAutoLearnForPreset(presetId);
   };
 
   return {

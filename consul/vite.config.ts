@@ -21,6 +21,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@marengo/compound-auto-learn': path.resolve(
+        __dirname,
+        '../tools/compound-auto-learn/shared/index.ts',
+      ),
       // Absolute aliases prevent Vite dep re-optimization from serving two React
       // copies after lockfile churn (null dispatcher / useState crashes).
       react: reactRoot,

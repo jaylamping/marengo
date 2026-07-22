@@ -12,7 +12,7 @@ use axum::{
 };
 use marengo_config::{
     load_control_config_from, load_motors_config_from, load_robot_config_from,
-    profile_content_revision, MotorType,
+    profile_content_revision, resolve_joint_velocity_cap, MotorType,
 };
 use serde::{Deserialize, Serialize};
 
@@ -132,21 +132,31 @@ pub fn snapshot_from_dir(config_dir: &Path) -> Result<ConfigSnapshotJson, Status
         })
         .collect();
 
+    // ADR 0010: caps resolve joint > actuator_groups > motor_type_defaults.
+    // Per-joint YAML often omits velocity_max_rad_s (bench uses actuator_groups).
     let control_limits: Vec<JointControlLimitsJson> = robot
         .robot
         .joints
         .iter()
         .filter_map(|joint| {
-            control
-                .control
-                .joints
-                .get(joint)
-                .map(|entry| JointControlLimitsJson {
-                    joint: joint.clone(),
-                    position_soft_lower_rad: entry.position_soft_lower_rad,
-                    position_soft_upper_rad: entry.position_soft_upper_rad,
-                    velocity_max_rad_s: entry.velocity_max_rad_s,
-                })
+            let entry = control.control.joints.get(joint)?;
+            let motor_type = motors
+                .motors
+                .iter()
+                .find(|m| m.joint == *joint)
+                .map(|m| m.motor_type);
+            let velocity_max_rad_s = match motor_type {
+                Some(mt) => resolve_joint_velocity_cap(joint, mt, &control.control)
+                    .ok()
+                    .or(entry.velocity_max_rad_s),
+                None => entry.velocity_max_rad_s,
+            };
+            Some(JointControlLimitsJson {
+                joint: joint.clone(),
+                position_soft_lower_rad: entry.position_soft_lower_rad,
+                position_soft_upper_rad: entry.position_soft_upper_rad,
+                velocity_max_rad_s,
+            })
         })
         .collect();
 
@@ -295,5 +305,21 @@ mod tests {
         assert_eq!(motors.motors.len(), 3);
         let urdf = root.join(&robot.robot.urdf);
         assert!(urdf.is_file(), "URDF missing: {}", urdf.display());
+    }
+
+    #[test]
+    fn arm_4dof_snapshot_resolves_actuator_group_velocity() {
+        let root = marengo_config::resolve_repo_root();
+        let config_dir = root.join("config/bringup/arm_4dof_right");
+        if !config_dir.is_dir() {
+            return;
+        }
+        let snap = snapshot_from_dir(&config_dir).expect("snapshot");
+        let pitch = snap
+            .control_limits
+            .iter()
+            .find(|c| c.joint == "right_shoulder_pitch")
+            .expect("pitch limits");
+        assert_eq!(pitch.velocity_max_rad_s, Some(2.5));
     }
 }

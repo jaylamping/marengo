@@ -13,14 +13,17 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { dashboardPanelCardClassName } from '@/components/dashboard/layout/constants';
-import { RecordMovementPanel } from '@/components/dashboard/testing/record-movement-panel';
+import { AutoLearnPanel } from '@/components/dashboard/testing/auto-learn-panel';
+import { ManualMovementPanel } from '@/components/dashboard/testing/manual-movement-panel';
 import {
   COMPOUND_TEST_PRESETS,
   compoundPresetById,
 } from '@/data/compound-tests';
 import { useCompoundPlayback } from '@/hooks/use-compound-playback';
 import { useConfigSnapshot } from '@/hooks/use-config-snapshot';
+import { stageEnvelope } from '@marengo/compound-auto-learn';
 import { liveFingerprint, resolvePlayablePreset } from '@/lib/teach-transit';
+import { useAutoLearnStore } from '@/state/autoLearnStore';
 import { useCompoundStore } from '@/state/compoundStore';
 import { useHostMetricsStore } from '@/state/hostMetricsStore';
 import { useRobotStore } from '@/state/robotStore';
@@ -52,23 +55,60 @@ export function CompoundTestPanel() {
   const { data: config = null } = useConfigSnapshot();
   const { overlayBlockReason, setOverlayBlockReason, startRunner, stopRunner } =
     useCompoundPlayback();
-  const [recordSectionOpen, setRecordSectionOpen] = React.useState(false);
+  const [manualSectionOpen, setManualSectionOpen] = React.useState(false);
+  const [autoLearnOpen, setAutoLearnOpen] = React.useState(true);
+  const [dryRunConfirmOpen, setDryRunConfirmOpen] = React.useState(false);
   const recording = captureIsRecording(capture);
+  const autoLearnDraft = useAutoLearnStore((s) => s.draft);
+  const autoLearnApplied = useAutoLearnStore((s) =>
+    selectedPresetId ? s.appliedMeta[selectedPresetId] : undefined,
+  );
+  const draftForPreset =
+    autoLearnDraft?.presetId === selectedPresetId ? autoLearnDraft : null;
+  const clampSpeedForAutoLearn = Boolean(draftForPreset || autoLearnApplied);
+  const autoLearnStage =
+    draftForPreset?.stage ??
+    autoLearnApplied?.stage ??
+    useAutoLearnStore.getState().stage;
+  const speedCeiling = stageEnvelope(autoLearnStage).maxSpeedMultiplier;
 
   const closePresetDetail = React.useCallback(() => {
     useTeachStore.getState().cancelRecording();
     stopRunner({ returnHome: false });
     setOverlayBlockReason(null);
-    setRecordSectionOpen(false);
+    setManualSectionOpen(false);
+    setAutoLearnOpen(false);
     setSelectedPresetId(null);
   }, [setOverlayBlockReason, setSelectedPresetId, stopRunner]);
 
   React.useEffect(() => {
     if (selectedPresetId !== null) return;
     useTeachStore.getState().cancelRecording();
-    setRecordSectionOpen(false);
+    setManualSectionOpen(false);
     setOverlayBlockReason(null);
   }, [selectedPresetId, setOverlayBlockReason]);
+
+  React.useEffect(() => {
+    if (!selectedPresetId) return;
+    const auto = useAutoLearnStore.getState();
+    const hasOverlay = Boolean(overlays[selectedPresetId]);
+    const lastAuto =
+      auto.draft?.presetId === selectedPresetId ||
+      Boolean(auto.appliedMeta[selectedPresetId]);
+    setAutoLearnOpen(!hasOverlay || lastAuto);
+  }, [selectedPresetId, overlays]);
+
+  React.useEffect(() => {
+    if (!clampSpeedForAutoLearn) return;
+    if (speedMultiplier > speedCeiling) {
+      setSpeedMultiplier(speedCeiling);
+    }
+  }, [
+    clampSpeedForAutoLearn,
+    setSpeedMultiplier,
+    speedCeiling,
+    speedMultiplier,
+  ]);
 
   const selectedBase = selectedPresetId
     ? compoundPresetById(selectedPresetId)
@@ -195,22 +235,41 @@ export function CompoundTestPanel() {
             <section className="space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                  Record Movement
+                  Auto Learn
                 </h4>
                 <Button
                   size="sm"
-                  variant={recordSectionOpen ? 'outline' : 'default'}
-                  onClick={() => setRecordSectionOpen((open) => !open)}
+                  variant={autoLearnOpen ? 'outline' : 'default'}
+                  onClick={() => setAutoLearnOpen((open) => !open)}
                 >
-                  {recordSectionOpen
-                    ? 'Hide Record Movement'
-                    : 'Record Movement'}
+                  {autoLearnOpen ? 'Hide Auto Learn' : 'Auto Learn'}
                 </Button>
               </div>
-              <RecordMovementPanel
+              <AutoLearnPanel
                 presetId={selectedPreset.id}
-                open={recordSectionOpen}
-                onOpenChange={setRecordSectionOpen}
+                open={autoLearnOpen}
+                onOpenChange={setAutoLearnOpen}
+              />
+            </section>
+            <section className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                  Manual Movement
+                </h4>
+                <Button
+                  size="sm"
+                  variant={manualSectionOpen ? 'outline' : 'default'}
+                  onClick={() => setManualSectionOpen((open) => !open)}
+                >
+                  {manualSectionOpen
+                    ? 'Hide Manual Movement'
+                    : 'Manual Movement'}
+                </Button>
+              </div>
+              <ManualMovementPanel
+                presetId={selectedPreset.id}
+                open={manualSectionOpen}
+                onOpenChange={setManualSectionOpen}
               />
             </section>
             <section className="space-y-4">
@@ -226,8 +285,8 @@ export function CompoundTestPanel() {
                   <Slider
                     value={[speedMultiplier]}
                     min={0.25}
-                    max={2}
-                    step={0.25}
+                    max={clampSpeedForAutoLearn ? speedCeiling : 2}
+                    step={0.05}
                     onValueChange={(value) => setSpeedMultiplier(value[0])}
                   />
                 </div>
@@ -275,14 +334,40 @@ export function CompoundTestPanel() {
               </div>
               {recording ? (
                 <p className="text-xs text-destructive">
-                  Record Movement is active. Stop recording before starting this
-                  compound test.
+                  Manual Movement recording is active. Stop recording before
+                  starting this compound test.
                 </p>
               ) : null}
               {overlayBlockReason ? (
                 <p className="text-xs text-destructive" role="alert">
                   {overlayBlockReason}
                 </p>
+              ) : null}
+              {dryRunConfirmOpen ? (
+                <div className="space-y-2 rounded-md border border-border/60 bg-muted/20 p-3">
+                  <p className="font-mono text-xs text-amber-600 dark:text-amber-400">
+                    Auto Learn draft/overlay — Dry Run is off. Start live anyway?
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => {
+                        setDryRunConfirmOpen(false);
+                        startRunner();
+                      }}
+                    >
+                      Start live
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setDryRunConfirmOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
               ) : null}
               {isRunning ? (
                 <Button
@@ -295,9 +380,20 @@ export function CompoundTestPanel() {
               ) : (
                 <Button
                   className="flex-1 font-bold"
-                  onClick={startRunner}
+                  onClick={() => {
+                    if (
+                      !dryRun &&
+                      clampSpeedForAutoLearn &&
+                      !dryRunConfirmOpen
+                    ) {
+                      setDryRunConfirmOpen(true);
+                      return;
+                    }
+                    startRunner();
+                  }}
                   disabled={
                     recording ||
+                    dryRunConfirmOpen ||
                     (!dryRun && (operationalMode !== 'ACTIVE' || !connected))
                   }
                 >

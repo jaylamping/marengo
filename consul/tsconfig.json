@@ -11,11 +11,14 @@
     "resolveJsonModule": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@marengo/compound-auto-learn": [
+        "../tools/compound-auto-learn/shared/index.ts"
+      ]
     },
     "types": ["vite/client"],
     "tsBuildInfoFile": "./node_modules/.cache/tsconfig.tsbuildinfo"
   },
-  "include": ["src"],
+  "include": ["src", "../tools/compound-auto-learn/shared/**/*.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

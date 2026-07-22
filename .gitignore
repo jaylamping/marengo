@@ -28,6 +28,7 @@ hardware/electrical/**/-backups/
 consul/node_modules/
 consul/.marengo-npm-stamp
 tools/marengo-pi-mcp/node_modules/
+tools/compound-auto-learn/node_modules/
 tools/marengo-pi-mcp/dist/
 tools/protoc-*/
 consul/dist/

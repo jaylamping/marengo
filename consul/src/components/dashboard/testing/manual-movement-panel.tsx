@@ -10,22 +10,22 @@ import {
 } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
-import { useRecordMovementController } from '@/hooks/use-record-movement-controller';
+import { useManualMovementController } from '@/hooks/use-manual-movement-controller';
 import { canApplyLandmarks } from '@/lib/teach-record';
 import { useTeachStore } from '@/state/teachStore';
 
-interface RecordMovementPanelProps {
+interface ManualMovementPanelProps {
   presetId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function RecordMovementPanel({
+export function ManualMovementPanel({
   presetId,
   open,
   onOpenChange,
-}: RecordMovementPanelProps) {
-  const controller = useRecordMovementController(presetId);
+}: ManualMovementPanelProps) {
+  const controller = useManualMovementController(presetId);
   const setGravityArmed = useTeachStore((state) => state.setGravityArmed);
   const setLandmarkIncluded = useTeachStore(
     (state) => state.setLandmarkIncluded,
@@ -45,9 +45,10 @@ export function RecordMovementPanel({
     <Card variant="panel" className={dashboardPanelCardClassName}>
       <CardHeader className="flex flex-row items-start justify-between gap-4">
         <div>
-          <CardTitle className="text-lg">Record Movement</CardTitle>
+          <CardTitle className="text-lg">Manual Movement</CardTitle>
           <CardDescription>
-            {controller.base.teach.appliedDescription}
+            {controller.base.teach.appliedDescription} GravityComp teach-record
+            path (separate from Auto Learn).
           </CardDescription>
         </div>
         <Button size="sm" variant="ghost" onClick={() => onOpenChange(false)}>
@@ -113,7 +114,7 @@ export function RecordMovementPanel({
               onClick={controller.startRecord}
               disabled={!controller.canRecord || controller.recording}
             >
-              Record Movement
+              Manual Movement
             </Button>
           )}
           <Button
