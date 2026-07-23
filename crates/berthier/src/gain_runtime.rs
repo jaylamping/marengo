@@ -176,8 +176,7 @@ impl GainRuntime {
 
     /// Effective per-joint (kp, kd): interpolated ramp if active, else `targets`.
     pub fn current_effective_gains(&self, targets: &[(f64, f64)]) -> Vec<(f64, f64)> {
-        self.ramp_gains()
-            .unwrap_or_else(|| targets.to_vec())
+        self.ramp_gains().unwrap_or_else(|| targets.to_vec())
     }
 
     /// Decrement ramp after MIT send; clear when finished.
@@ -368,8 +367,14 @@ mod tests {
         assert!((kp - 40.0).abs() < 1e-12);
         assert!((kd - 4.0).abs() < 1e-12);
 
-        let (kp, kd) =
-            effective_wire_gains(ControlMode::Impedance, 18.0, 3.0, None, Some(9.0), Some(1.5));
+        let (kp, kd) = effective_wire_gains(
+            ControlMode::Impedance,
+            18.0,
+            3.0,
+            None,
+            Some(9.0),
+            Some(1.5),
+        );
         assert!((kp - 9.0).abs() < 1e-12);
         assert!((kd - 1.5).abs() < 1e-12);
 
@@ -391,7 +396,9 @@ mod tests {
         assert!(mode_allows_gain_override(ControlMode::Impedance));
         assert!(mode_allows_gain_override(ControlMode::Position));
         assert!(!mode_allows_gain_override(ControlMode::GravityComp));
-        assert!(mode_clears_gain_overrides_on_enter(ControlMode::GravityComp));
+        assert!(mode_clears_gain_overrides_on_enter(
+            ControlMode::GravityComp
+        ));
         assert!(!mode_clears_gain_overrides_on_enter(ControlMode::Position));
     }
 }

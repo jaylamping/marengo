@@ -592,13 +592,14 @@ impl<B: MotorBus> ControlLoop<B> {
             .keys()
             .map(|j| (j.clone(), self.clamp_limits_for(j)))
             .collect();
-        self.gains.apply_batch(self.control_mode, overrides, |joint| {
-            limits.get(joint).copied().unwrap_or(GainClampLimits {
-                kp_max: f64::MAX,
-                kd_max: f64::MAX,
-                tau_ff_max: f64::MAX,
-            })
-        });
+        self.gains
+            .apply_batch(self.control_mode, overrides, |joint| {
+                limits.get(joint).copied().unwrap_or(GainClampLimits {
+                    kp_max: f64::MAX,
+                    kd_max: f64::MAX,
+                    tau_ff_max: f64::MAX,
+                })
+            });
     }
 
     /// Remove the gain override for a single joint, reverting to config gains.
@@ -641,9 +642,7 @@ impl<B: MotorBus> ControlLoop<B> {
             .map(|name| {
                 let cfg = self.supervisor.control.control.joints.get(name);
                 JointModeGains {
-                    gravity_comp: cfg
-                        .map(|c| &c.gravity_comp)
-                        .unwrap_or(&ZERO_STATIC),
+                    gravity_comp: cfg.map(|c| &c.gravity_comp).unwrap_or(&ZERO_STATIC),
                     impedance: cfg.map(|c| &c.impedance).unwrap_or(missing_impedance),
                 }
             })
@@ -2527,9 +2526,7 @@ mod tests {
                 fc: 1.0,
             },
         );
-        let stored = loop_ctrl
-            .gain_override(joint)
-            .expect("override stored");
+        let stored = loop_ctrl.gain_override(joint).expect("override stored");
         assert!(
             (stored.kp - 5000.0).abs() < 1e-9,
             "kp clamped: {}",
@@ -2551,9 +2548,7 @@ mod tests {
                 fc: 1.0,
             },
         );
-        let stored = loop_ctrl
-            .gain_override(joint)
-            .expect("override stored");
+        let stored = loop_ctrl.gain_override(joint).expect("override stored");
         assert!(
             (stored.kd - 100.0).abs() < 1e-9,
             "kd clamped: {}",
@@ -2575,9 +2570,7 @@ mod tests {
                 fc: 10.0,
             },
         );
-        let stored = loop_ctrl
-            .gain_override(joint)
-            .expect("override stored");
+        let stored = loop_ctrl.gain_override(joint).expect("override stored");
         assert!((stored.fc - 5.0).abs() < 1e-9, "fc clamped: {}", stored.fc);
     }
 
@@ -2595,9 +2588,7 @@ mod tests {
                 fc: 1.0,
             },
         );
-        let stored = loop_ctrl
-            .gain_override(joint)
-            .expect("override stored");
+        let stored = loop_ctrl.gain_override(joint).expect("override stored");
         assert!(
             (stored.ki - 5000.0).abs() < 1e-9,
             "ki clamped: {}",
@@ -2691,9 +2682,7 @@ mod tests {
                 fc: 1.5,
             },
         );
-        let stored = loop_ctrl
-            .gain_override(joint)
-            .expect("override stored");
+        let stored = loop_ctrl.gain_override(joint).expect("override stored");
         assert!((stored.kp - 50.0).abs() < 1e-9);
         assert!((stored.kd - 5.0).abs() < 1e-9);
         assert!((stored.ki - 0.5).abs() < 1e-9);
