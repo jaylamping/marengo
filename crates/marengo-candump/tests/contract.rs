@@ -13,17 +13,24 @@ fn fixture(name: &str) -> PathBuf {
 }
 
 fn fixture_bytes(name: &str) -> Vec<u8> {
-    fs::read(fixture(name)).expect("fixture readable")
+    fs::read(fixture(name)).unwrap_or_else(|e| panic!("fixture {name} readable: {e}"))
+}
+
+fn inspect_ok(
+    bytes: &[u8],
+    request: InspectRequest,
+) -> marengo_candump::Inspection {
+    Candump::plain()
+        .inspect_bytes(bytes, request)
+        .unwrap_or_else(|e| panic!("inspect: {e}"))
 }
 
 #[test]
 fn delta_summary_counts_and_rate() {
-    let report = Candump::plain()
-        .inspect_bytes(
-            &fixture_bytes("delta.log"),
-            InspectRequest::summary(TimestampMode::Delta),
-        )
-        .expect("delta inspect");
+    let report = inspect_ok(
+        &fixture_bytes("delta.log"),
+        InspectRequest::summary(TimestampMode::Delta),
+    );
     let s = &report.summary;
     assert_eq!(s.parsed_frames, 4, "four accepted frames");
     assert_eq!(s.total_lines, 4, "four input lines");
@@ -31,7 +38,9 @@ fn delta_summary_counts_and_rate() {
         (s.duration_s - 0.02).abs() < 1e-9,
         "duration from first to last"
     );
-    let hz = s.approx_hz.expect("nonzero duration yields rate");
+    let hz = s
+        .approx_hz
+        .unwrap_or_else(|| panic!("nonzero duration yields rate"));
     assert!((hz - 200.0).abs() < 1e-6, "4 frames / 0.02s = 200 Hz");
     assert!(
         report.frames.is_empty(),
@@ -41,13 +50,11 @@ fn delta_summary_counts_and_rate() {
 
 #[test]
 fn absolute_retains_unix_and_normalizes_offset() {
-    let page = FramePage::new(0, 10).expect("page");
-    let report = Candump::plain()
-        .inspect_bytes(
-            &fixture_bytes("absolute.log"),
-            InspectRequest::page(TimestampMode::Absolute, page),
-        )
-        .expect("absolute inspect");
+    let page = FramePage::new(0, 10).unwrap_or_else(|e| panic!("page: {e}"));
+    let report = inspect_ok(
+        &fixture_bytes("absolute.log"),
+        InspectRequest::page(TimestampMode::Absolute, page),
+    );
     assert_eq!(report.summary.parsed_frames, 3);
     assert!((report.summary.duration_s - 1.0).abs() < 1e-9);
     assert_eq!(report.frames.len(), 3);
@@ -64,12 +71,10 @@ fn absolute_retains_unix_and_normalizes_offset() {
 
 #[test]
 fn malformed_lines_count_but_do_not_parse() {
-    let report = Candump::plain()
-        .inspect_bytes(
-            &fixture_bytes("malformed.log"),
-            InspectRequest::summary(TimestampMode::Delta),
-        )
-        .expect("malformed inspect");
+    let report = inspect_ok(
+        &fixture_bytes("malformed.log"),
+        InspectRequest::summary(TimestampMode::Delta),
+    );
     assert_eq!(report.summary.parsed_frames, 3, "only classic valid frames");
     assert_eq!(
         report.summary.total_lines, 9,
@@ -79,12 +84,10 @@ fn malformed_lines_count_but_do_not_parse() {
 
 #[test]
 fn mixed_interfaces_sort_lexically_with_per_iface_counts() {
-    let report = Candump::plain()
-        .inspect_bytes(
-            &fixture_bytes("mixed-interface.log"),
-            InspectRequest::summary(TimestampMode::Delta),
-        )
-        .expect("mixed inspect");
+    let report = inspect_ok(
+        &fixture_bytes("mixed-interface.log"),
+        InspectRequest::summary(TimestampMode::Delta),
+    );
     let names: Vec<_> = report
         .summary
         .interfaces
@@ -104,13 +107,13 @@ fn gzip_matches_plain_delta() {
             fixture("delta.log"),
             InspectRequest::summary(TimestampMode::Delta),
         )
-        .expect("plain path");
+        .unwrap_or_else(|e| panic!("plain path: {e}"));
     let gz = Candump::plain()
         .inspect_path(
             fixture("delta.log.gz"),
             InspectRequest::summary(TimestampMode::Delta),
         )
-        .expect("gzip path");
+        .unwrap_or_else(|e| panic!("gzip path: {e}"));
     assert_eq!(plain.summary.parsed_frames, gz.summary.parsed_frames);
     assert_eq!(plain.summary.total_lines, gz.summary.total_lines);
     assert!((plain.summary.duration_s - gz.summary.duration_s).abs() < 1e-12);
@@ -130,14 +133,10 @@ fn top_ids_sort_count_desc_then_id_asc() {
 (0.004000) can0 701#AA
 (0.005000) can0 702#AA
 ";
-    let report = Candump::plain()
-        .inspect_bytes(
-            bytes,
-            InspectRequest::summary(TimestampMode::Delta)
-                .with_top_id_limit(3)
-                .expect("limit"),
-        )
-        .expect("sort inspect");
+    let request = InspectRequest::summary(TimestampMode::Delta)
+        .with_top_id_limit(3)
+        .unwrap_or_else(|e| panic!("limit: {e}"));
+    let report = inspect_ok(bytes, request);
     let ids: Vec<_> = report
         .summary
         .top_ids
@@ -149,12 +148,13 @@ fn top_ids_sort_count_desc_then_id_asc() {
 
 #[test]
 fn timestamp_regression_fails_inspection() {
-    let err = Candump::plain()
-        .inspect_bytes(
-            &fixture_bytes("regression.log"),
-            InspectRequest::summary(TimestampMode::Delta),
-        )
-        .expect_err("regression must fail");
+    let err = match Candump::plain().inspect_bytes(
+        &fixture_bytes("regression.log"),
+        InspectRequest::summary(TimestampMode::Delta),
+    ) {
+        Ok(_) => panic!("regression must fail"),
+        Err(e) => e,
+    };
     let msg = err.to_string();
     assert!(
         msg.contains("timestamp regressed"),
@@ -171,10 +171,8 @@ bad
 (0.010000) can0 702#BB
 (0.020000) can0 703#CC
 ";
-    let page = FramePage::new(1, 1).expect("page");
-    let report = Candump::plain()
-        .inspect_bytes(bytes, InspectRequest::page(TimestampMode::Delta, page))
-        .expect("page inspect");
+    let page = FramePage::new(1, 1).unwrap_or_else(|e| panic!("page: {e}"));
+    let report = inspect_ok(bytes, InspectRequest::page(TimestampMode::Delta, page));
     assert_eq!(report.summary.parsed_frames, 3);
     assert_eq!(report.frames.len(), 1);
     assert_eq!(report.frames[0].can_id.get(), 0x702);
@@ -183,10 +181,10 @@ bad
 
 #[test]
 fn can_id_json_roundtrip_canonical_hex() {
-    let id = CanId::new(0x028002FF).expect("id");
-    let json = serde_json::to_string(&id).expect("ser");
+    let id = CanId::new(0x028002FF).unwrap_or_else(|e| panic!("id: {e}"));
+    let json = serde_json::to_string(&id).unwrap_or_else(|e| panic!("ser: {e}"));
     assert_eq!(json, "\"028002FF\"");
-    let back: CanId = serde_json::from_str(&json).expect("de");
+    let back: CanId = serde_json::from_str(&json).unwrap_or_else(|e| panic!("de: {e}"));
     assert_eq!(back, id);
 }
 
@@ -200,9 +198,12 @@ fn frame_page_rejects_zero_and_oversize_limit() {
 #[test]
 fn inspect_path_io_error_includes_path() {
     let missing = fixture("does-not-exist.log");
-    let err = Candump::plain()
+    let err = match Candump::plain()
         .inspect_path(&missing, InspectRequest::summary(TimestampMode::Delta))
-        .expect_err("missing file");
+    {
+        Ok(_) => panic!("missing file"),
+        Err(e) => e,
+    };
     let msg = err.to_string();
     assert!(
         msg.contains("does-not-exist.log"),
