@@ -26,7 +26,9 @@ fn candump_summary_json_matches_golden() {
             "candump",
             "summary",
             "--file",
-            fixture("delta.log").to_str().unwrap_or_else(|_| panic!("utf8 path")),
+            fixture("delta.log")
+                .to_str()
+                .unwrap_or_else(|_| panic!("utf8 path")),
             "--timestamp",
             "delta",
             "--format",
@@ -39,9 +41,11 @@ fn candump_summary_json_matches_golden() {
         "cli failed: {}",
         String::from_utf8_lossy(&output.stderr)
     );
-    let actual: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|e| panic!("stdout is json: {e}"));
+    let actual: serde_json::Value =
+        serde_json::from_slice(&output.stdout).unwrap_or_else(|e| panic!("stdout is json: {e}"));
     let expected: serde_json::Value = serde_json::from_str(
-        &fs::read_to_string(golden("delta_summary.json")).unwrap_or_else(|e| panic!("golden readable: {e}")),
+        &fs::read_to_string(golden("delta_summary.json"))
+            .unwrap_or_else(|e| panic!("golden readable: {e}")),
     )
     .unwrap_or_else(|e| panic!("golden is json: {e}"));
     assert_eq!(actual, expected, "CLI json stdout drifted from golden");
@@ -55,7 +59,9 @@ fn candump_summary_text_emits_key_values() {
             "candump",
             "summary",
             "--file",
-            fixture("delta.log").to_str().unwrap_or_else(|_| panic!("utf8 path")),
+            fixture("delta.log")
+                .to_str()
+                .unwrap_or_else(|_| panic!("utf8 path")),
             "--timestamp",
             "delta",
             "--format",

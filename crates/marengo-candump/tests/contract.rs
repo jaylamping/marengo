@@ -16,10 +16,7 @@ fn fixture_bytes(name: &str) -> Vec<u8> {
     fs::read(fixture(name)).unwrap_or_else(|e| panic!("fixture {name} readable: {e}"))
 }
 
-fn inspect_ok(
-    bytes: &[u8],
-    request: InspectRequest,
-) -> marengo_candump::Inspection {
+fn inspect_ok(bytes: &[u8], request: InspectRequest) -> marengo_candump::Inspection {
     Candump::plain()
         .inspect_bytes(bytes, request)
         .unwrap_or_else(|e| panic!("inspect: {e}"))
