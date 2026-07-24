@@ -104,6 +104,7 @@ describe('fetch* helpers preserve failures', () => {
     ['fetchStructuredLogs', () => fetchStructuredLogs({})],
     ['fetchCandumpPage', () => fetchCandumpPage('latest')],
     ['fetchCandumpSummary', () => fetchCandumpSummary('sess-1')],
+    ['fetchCandumpSummaryLatest', () => fetchCandumpSummary('latest')],
     ['fetchBenchLines', () => fetchBenchLines('sess-1')],
     ['fetchTraceLines', () => fetchTraceLines('sess-1')],
   ] as const)('%s returns ok:false on HTTP failure', async (_name, run) => {

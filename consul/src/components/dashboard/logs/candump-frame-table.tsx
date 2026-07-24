@@ -16,6 +16,17 @@ type Props = {
   loading?: boolean;
 };
 
+function frameOffset(frame: CandumpFrameDto): number {
+  return frame.offset_s ?? frame.delta_s;
+}
+
+function dash(value: string | number | undefined | null): string {
+  if (value == null || value === '') {
+    return '—';
+  }
+  return String(value);
+}
+
 export const CandumpFrameTable = memo(function CandumpFrameTable({
   frames,
   total,
@@ -64,10 +75,12 @@ export const CandumpFrameTable = memo(function CandumpFrameTable({
         </div>
       </div>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border">
-        <div className="grid shrink-0 grid-cols-[minmax(88px,0.2fr)_minmax(48px,0.12fr)_minmax(72px,0.15fr)_minmax(0,1fr)] border-b bg-card px-2 py-2 text-left text-xs text-muted-foreground">
+        <div className="grid shrink-0 grid-cols-[minmax(88px,0.14fr)_minmax(48px,0.08fr)_minmax(72px,0.12fr)_minmax(96px,0.16fr)_minmax(72px,0.12fr)_minmax(0,1fr)] border-b bg-card px-2 py-2 text-left text-xs text-muted-foreground">
           <span>Δt</span>
           <span>if</span>
           <span>id</span>
+          <span>joint</span>
+          <span>comm</span>
           <span>data</span>
         </div>
         <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
@@ -89,18 +102,23 @@ export const CandumpFrameTable = memo(function CandumpFrameTable({
                 if (!frame) {
                   return null;
                 }
+                const commLabel =
+                  frame.comm_type_name ??
+                  (frame.comm_type != null ? String(frame.comm_type) : null);
                 return (
                   <div
                     key={virtualRow.key}
-                    className="absolute left-0 top-0 grid w-full grid-cols-[minmax(88px,0.2fr)_minmax(48px,0.12fr)_minmax(72px,0.15fr)_minmax(0,1fr)] border-b px-2 py-1 font-mono text-xs"
+                    className="absolute left-0 top-0 grid w-full grid-cols-[minmax(88px,0.14fr)_minmax(48px,0.08fr)_minmax(72px,0.12fr)_minmax(96px,0.16fr)_minmax(72px,0.12fr)_minmax(0,1fr)] border-b px-2 py-1 font-mono text-xs"
                     style={{
                       height: `${virtualRow.size}px`,
                       transform: `translateY(${virtualRow.start}px)`,
                     }}
                   >
-                    <span className="truncate tabular-nums">{frame.delta_s.toFixed(6)}</span>
+                    <span className="truncate tabular-nums">{frameOffset(frame).toFixed(6)}</span>
                     <span className="truncate">{frame.interface}</span>
                     <span className="truncate">{frame.can_id}</span>
+                    <span className="truncate">{dash(frame.joint)}</span>
+                    <span className="truncate">{dash(commLabel)}</span>
                     <span className="truncate">{frame.data}</span>
                   </div>
                 );
