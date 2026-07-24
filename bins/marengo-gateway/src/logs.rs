@@ -72,27 +72,58 @@ pub struct LogSessionMetaJson {
 #[derive(Serialize)]
 pub struct CandumpPageJson {
     frames: Vec<CandumpFrameJson>,
+    /// Compatibility alias of `parsed_frames` (clamped to u32).
     total_frames: u32,
     offset: u32,
+    parsed_frames: u64,
+    total_lines: u64,
 }
 
 #[derive(Serialize)]
 pub struct CandumpFrameJson {
+    /// Compatibility alias of `offset_s`.
     delta_s: f64,
+    offset_s: f64,
     interface: String,
     can_id: String,
     data: String,
     line_no: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    timestamp_unix_us: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    comm_type: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    comm_type_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    joint: Option<String>,
 }
 
 #[derive(Serialize)]
+pub struct CandumpIdCountJson {
+    can_id: String,
+    count: u64,
+}
+
+#[derive(Serialize)]
+pub struct CandumpInterfaceSummaryJson {
+    name: String,
+    parsed_frames: u64,
+    approx_hz: Option<f64>,
+}
+
+/// Canonical summary JSON (matches `marengo-candump::Summary` / CLI), plus
+/// one-release legacy aliases `frame_count` and `bytes`.
+#[derive(Serialize)]
 pub struct CandumpSummaryJson {
+    parsed_frames: u64,
+    total_lines: u64,
+    source_bytes: u64,
+    duration_s: f64,
+    approx_hz: Option<f64>,
+    interfaces: Vec<CandumpInterfaceSummaryJson>,
+    top_ids: Vec<CandumpIdCountJson>,
     frame_count: u32,
     bytes: u64,
-    duration_s: f64,
-    approx_hz: f64,
-    interfaces: Vec<String>,
-    top_ids: Vec<String>,
 }
 
 pub struct LogServices {
@@ -100,6 +131,69 @@ pub struct LogServices {
     pub ring: Arc<LogRingBuffer>,
     batch_tx: mpsc::Sender<LogEventInsert>,
     dropped: Arc<std::sync::atomic::AtomicU64>,
+}
+
+fn candump_frame_json(f: marengo_candump::Frame) -> CandumpFrameJson {
+    let offset_s = f.offset.as_secs_f64();
+    let (comm_type, comm_type_name, joint) = match f.enrichment {
+        Some(enr) => (
+            Some(u32::from(enr.comm_type)),
+            enr.comm_type_name,
+            enr.joint,
+        ),
+        None => (None, None, None),
+    };
+    CandumpFrameJson {
+        delta_s: offset_s,
+        offset_s,
+        interface: f.interface,
+        can_id: f.can_id.to_canonical_hex(),
+        data: f.data.iter().map(|b| format!("{b:02X}")).collect(),
+        line_no: u32::try_from(f.source_line.get()).unwrap_or(u32::MAX),
+        timestamp_unix_us: f.unix_time.map(|t| t.get()),
+        comm_type,
+        comm_type_name,
+        joint,
+    }
+}
+
+fn candump_summary_json(summary: marengo_candump::Summary) -> CandumpSummaryJson {
+    CandumpSummaryJson {
+        frame_count: u32::try_from(summary.parsed_frames).unwrap_or(u32::MAX),
+        bytes: summary.source_bytes,
+        parsed_frames: summary.parsed_frames,
+        total_lines: summary.total_lines,
+        source_bytes: summary.source_bytes,
+        duration_s: summary.duration_s,
+        approx_hz: summary.approx_hz,
+        interfaces: summary
+            .interfaces
+            .into_iter()
+            .map(|i| CandumpInterfaceSummaryJson {
+                name: i.name,
+                parsed_frames: i.parsed_frames,
+                approx_hz: i.approx_hz,
+            })
+            .collect(),
+        top_ids: summary
+            .top_ids
+            .into_iter()
+            .map(|c| CandumpIdCountJson {
+                can_id: c.can_id.to_canonical_hex(),
+                count: c.count,
+            })
+            .collect(),
+    }
+}
+
+fn candump_page_json(inspection: marengo_candump::Inspection, offset: u32) -> CandumpPageJson {
+    CandumpPageJson {
+        total_frames: u32::try_from(inspection.summary.parsed_frames).unwrap_or(u32::MAX),
+        offset,
+        parsed_frames: inspection.summary.parsed_frames,
+        total_lines: inspection.summary.total_lines,
+        frames: inspection.frames.into_iter().map(candump_frame_json).collect(),
+    }
 }
 
 impl LogServices {
@@ -361,24 +455,11 @@ pub async fn session_candump(
 ) -> Result<Json<CandumpPageJson>, StatusCode> {
     authorize_logs(&headers)?;
     let logs = state.logs.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    let (frames, total) = logs
+    let inspection = logs
         .store
         .read_candump_page(&id, query.offset, query.limit)
         .map_err(|_| StatusCode::NOT_FOUND)?;
-    Ok(Json(CandumpPageJson {
-        total_frames: u32::try_from(total).unwrap_or(u32::MAX),
-        offset: query.offset,
-        frames: frames
-            .into_iter()
-            .map(|f| CandumpFrameJson {
-                delta_s: f.offset.as_secs_f64(),
-                interface: f.interface,
-                can_id: f.can_id.to_canonical_hex(),
-                data: f.data.iter().map(|b| format!("{b:02X}")).collect(),
-                line_no: u32::try_from(f.source_line.get()).unwrap_or(u32::MAX),
-            })
-            .collect(),
-    }))
+    Ok(Json(candump_page_json(inspection, query.offset)))
 }
 
 pub async fn latest_candump(
@@ -388,24 +469,11 @@ pub async fn latest_candump(
 ) -> Result<Json<CandumpPageJson>, StatusCode> {
     authorize_logs(&headers)?;
     let logs = state.logs.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    let (frames, total) = logs
+    let inspection = logs
         .store
         .read_hot_candump_page(query.offset, query.limit)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    Ok(Json(CandumpPageJson {
-        total_frames: u32::try_from(total).unwrap_or(u32::MAX),
-        offset: query.offset,
-        frames: frames
-            .into_iter()
-            .map(|f| CandumpFrameJson {
-                delta_s: f.offset.as_secs_f64(),
-                interface: f.interface,
-                can_id: f.can_id.to_canonical_hex(),
-                data: f.data.iter().map(|b| format!("{b:02X}")).collect(),
-                line_no: u32::try_from(f.source_line.get()).unwrap_or(u32::MAX),
-            })
-            .collect(),
-    }))
+    Ok(Json(candump_page_json(inspection, query.offset)))
 }
 
 pub async fn session_candump_summary(
@@ -419,18 +487,20 @@ pub async fn session_candump_summary(
         .store
         .candump_summary(&id)
         .map_err(|_| StatusCode::NOT_FOUND)?;
-    Ok(Json(CandumpSummaryJson {
-        frame_count: u32::try_from(summary.parsed_frames).unwrap_or(u32::MAX),
-        bytes: summary.source_bytes,
-        duration_s: summary.duration_s,
-        approx_hz: summary.approx_hz.unwrap_or(0.0),
-        interfaces: summary.interfaces.into_iter().map(|i| i.name).collect(),
-        top_ids: summary
-            .top_ids
-            .into_iter()
-            .map(|c| c.can_id.to_canonical_hex())
-            .collect(),
-    }))
+    Ok(Json(candump_summary_json(summary)))
+}
+
+pub async fn latest_candump_summary(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+) -> Result<Json<CandumpSummaryJson>, StatusCode> {
+    authorize_logs(&headers)?;
+    let logs = state.logs.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+    let summary = logs
+        .store
+        .hot_candump_summary()
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(Json(candump_summary_json(summary)))
 }
 
 #[derive(Deserialize)]
