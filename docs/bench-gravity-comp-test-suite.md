@@ -49,7 +49,7 @@ Position-trace columns (30): `tick,t_ms,joint,q,dq,q_traj,dq_traj,q_des,target,t
 ```bash
 python scripts/analyze-position-trace.py /opt/marengo/var/log/position-trace-latest.csv
 python scripts/analyze-position-trace.py trace.csv --gate layer2 --tau-ff-rate-limit 60
-python scripts/analyze-candump-log.py /opt/marengo/var/log/candump-latest.log
+marengo-log-cli candump summary --file /opt/marengo/var/log/candump-latest.log --timestamp delta --format text
 ```
 
 ## Standard pre-flight (run before every protocol)
