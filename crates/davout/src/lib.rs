@@ -1537,7 +1537,7 @@ mod tests {
     #![allow(clippy::expect_used)]
 
     use marengo_config::LimitPatch;
-    use robstride::{CanBus, CanFrame, MemoryBus, ReceivedCanFrame};
+    use robstride::{CanBus, CanFrame, CommunicationType, MemoryBus, ReceivedCanFrame};
 
     use super::*;
 
@@ -2104,6 +2104,105 @@ mod tests {
         assert!((fb.torque_nm - 1.2).abs() < 1e-6);
         assert_eq!(fb.temperature_c, 42.0);
         assert_eq!(fb.fault, 7);
+    }
+
+    /// Status RX → `motor_to_joint_state` → cache → facade (not synthetic / not direct insert).
+    fn status_frame_motor_space(
+        device_id: u8,
+        motor_type: MotorType,
+        position_rad: f32,
+        velocity_rad_s: f32,
+        torque_nm: f32,
+        temperature_c: f32,
+    ) -> CanFrame {
+        let ranges = robstride::motor_type::MitRanges::for_motor_type(motor_type);
+        let to_u16 = |value: f32, scale: f32| -> u16 {
+            let clamped = value.clamp(-scale, scale);
+            ((clamped / scale + 1.0) * 0x7FFF as f32)
+                .round()
+                .clamp(0.0, u16::MAX as f32) as u16
+        };
+        let mut data = [0u8; 8];
+        data[0..2].copy_from_slice(&to_u16(position_rad, ranges.position_scale).to_be_bytes());
+        data[2..4].copy_from_slice(&to_u16(velocity_rad_s, ranges.velocity_scale).to_be_bytes());
+        data[4..6].copy_from_slice(&to_u16(torque_nm, ranges.torque_scale).to_be_bytes());
+        let temp_raw = ((temperature_c / 0.1).round() as u16).to_be_bytes();
+        data[6..8].copy_from_slice(&temp_raw);
+        CanFrame {
+            id: robstride::pack_ext_id(
+                CommunicationType::OperationStatus.as_u8(),
+                u16::from(device_id),
+                robstride::DEFAULT_HOST_ID,
+            ),
+            data,
+            extended: true,
+        }
+    }
+
+    #[test]
+    fn joint_feedback_transforms_once_on_refresh_with_inverted_scale() {
+        let bus = RoutedMemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let joint = "elbow".to_string();
+        for m in &mut sup.motors.motors {
+            if m.joint == joint {
+                m.direction = -1;
+                m.gear_ratio = 2.0;
+                m.can_interface = "can0".to_string();
+            }
+        }
+        let motor = motor_for_joint(&sup.motors, &joint).expect("elbow").clone();
+        assert_eq!(motor.direction, -1);
+        assert!((motor.gear_ratio - 2.0).abs() < 1e-9);
+        sup.motor_types = sup
+            .motors
+            .motors
+            .iter()
+            .map(|m| (MotorAddress::from(m), m.motor_type))
+            .collect();
+
+        // Motor-space sample; scale = direction * gear = -2 → joint (0.5, 0.25, 4.0).
+        let motor_pos = -1.0_f32;
+        let motor_vel = -0.5_f32;
+        let motor_tau = -2.0_f32;
+        sup.bus.rx.push(ReceivedCanFrame {
+            interface: Some("can0".to_string()),
+            frame: status_frame_motor_space(
+                motor.device_id,
+                motor.motor_type,
+                motor_pos,
+                motor_vel,
+                motor_tau,
+                25.0,
+            ),
+        });
+
+        assert_eq!(sup.refresh_feedback().expect("refresh"), 1);
+        let fb = sup.joint_feedback(&joint).expect("feedback");
+        assert!(
+            (fb.position_rad - 0.5).abs() < 1e-3,
+            "expected joint-space 0.5 after one transform, got {}",
+            fb.position_rad
+        );
+        assert!(
+            (fb.velocity_rad_s - 0.25).abs() < 1e-3,
+            "expected joint-space 0.25, got {}",
+            fb.velocity_rad_s
+        );
+        assert!(
+            (fb.torque_nm - 4.0).abs() < 1e-2,
+            "expected joint-space 4.0 Nm, got {}",
+            fb.torque_nm
+        );
+        // Double-transform would yield position motor/scale² = -1/4 = -0.25.
+        assert!(
+            (fb.position_rad + 0.25).abs() > 0.1,
+            "must not re-transform on read"
+        );
+        assert!(
+            (sup.joint_position_rad(&joint).expect("pos") - 0.5).abs() < 1e-3,
+            "scalar accessor must match facade"
+        );
     }
 
     #[test]
