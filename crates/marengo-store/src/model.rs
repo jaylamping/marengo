@@ -45,5 +45,3 @@ pub struct StructuredLogQuery {
     pub offset: u32,
     pub limit: u32,
 }
-
-// Candump frame/summary types live in marengo-candump; re-exported from lib.rs.

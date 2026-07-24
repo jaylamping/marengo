@@ -1,8 +1,13 @@
 //! Archive bench sessions, maintain SQLite log store on Pi.
+//! Candump inspection uses `marengo-candump` directly (no DB required).
 
 use std::path::PathBuf;
+use std::process::ExitCode;
 
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
+use marengo_candump::{
+    format_inspection_text, Candump, FramePage, InspectRequest, Inspection, TimestampMode,
+};
 use marengo_store::{
     import_journal, resolve_db_path, resolve_marengo_root, Store, DEFAULT_ARCHIVE_DAYS,
     DEFAULT_HOT_KEEP, JOURNAL_UNITS,
@@ -46,6 +51,11 @@ enum Commands {
     DiskUsage,
     /// Import systemd journal into log_events (marengo-* units).
     JournalImport,
+    /// Inspect a candump capture (plain or gzip).
+    Candump {
+        #[command(subcommand)]
+        action: CandumpAction,
+    },
 }
 
 #[derive(Subcommand)]
@@ -70,18 +80,147 @@ enum SessionAction {
     },
 }
 
-fn open_store(cli: &Cli) -> Result<Store, Box<dyn std::error::Error>> {
-    let root = cli.root.clone().unwrap_or_else(resolve_marengo_root);
-    let db = cli.db.clone().unwrap_or_else(resolve_db_path);
-    Ok(Store::open(db, root)?)
+#[derive(Subcommand)]
+enum CandumpAction {
+    Summary(CandumpArgs),
+    Page {
+        #[command(flatten)]
+        common: CandumpArgs,
+        #[arg(long, default_value_t = 0)]
+        offset: u64,
+        #[arg(long, default_value_t = 200)]
+        limit: u32,
+    },
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[derive(clap::Args)]
+struct CandumpArgs {
+    #[arg(long)]
+    file: PathBuf,
+    #[arg(long, value_enum)]
+    timestamp: CliTimestampMode,
+    #[arg(long, value_enum, default_value = "text")]
+    format: OutputFormat,
+    #[arg(long)]
+    enrich: bool,
+    #[arg(long, requires = "enrich")]
+    config_dir: Option<PathBuf>,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+enum CliTimestampMode {
+    Delta,
+    Absolute,
+}
+
+impl From<CliTimestampMode> for TimestampMode {
+    fn from(value: CliTimestampMode) -> Self {
+        match value {
+            CliTimestampMode::Delta => TimestampMode::Delta,
+            CliTimestampMode::Absolute => TimestampMode::Absolute,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+enum OutputFormat {
+    Text,
+    Json,
+}
+
+fn build_candump(args: &CandumpArgs) -> Result<Candump, Box<dyn std::error::Error>> {
+    if !args.enrich {
+        return Ok(Candump::plain());
+    }
+    #[cfg(feature = "robstride-enrichment")]
+    {
+        let dir = args
+            .config_dir
+            .as_ref()
+            .ok_or("--enrich requires --config-dir pointing at a motors.yaml directory")?;
+        Ok(Candump::with_robstride_from_config_dir(dir)?)
+    }
+    #[cfg(not(feature = "robstride-enrichment"))]
+    {
+        let _ = &args.config_dir;
+        Err("--enrich requires the robstride-enrichment feature".into())
+    }
+}
+
+fn inspect_request(action: &CandumpAction) -> Result<InspectRequest, Box<dyn std::error::Error>> {
+    match action {
+        CandumpAction::Summary(args) => Ok(InspectRequest::summary(args.timestamp.into())),
+        CandumpAction::Page {
+            common,
+            offset,
+            limit,
+        } => {
+            let page = FramePage::new(*offset, *limit)?;
+            Ok(InspectRequest::page(common.timestamp.into(), page))
+        }
+    }
+}
+
+fn candump_args(action: &CandumpAction) -> &CandumpArgs {
+    match action {
+        CandumpAction::Summary(args) => args,
+        CandumpAction::Page { common, .. } => common,
+    }
+}
+
+fn write_inspection(
+    format: OutputFormat,
+    inspection: &Inspection,
+) -> Result<(), Box<dyn std::error::Error>> {
+    match format {
+        OutputFormat::Json => {
+            serde_json::to_writer_pretty(std::io::stdout(), inspection)?;
+            println!();
+        }
+        OutputFormat::Text => {
+            print!("{}", format_inspection_text(inspection));
+        }
+    }
+    Ok(())
+}
+
+fn run_candump(action: CandumpAction) -> Result<(), Box<dyn std::error::Error>> {
+    let args = candump_args(&action);
+    let request = inspect_request(&action)?;
+    let candump = build_candump(args)?;
+    let report = candump.inspect_path(&args.file, request)?;
+    write_inspection(args.format, &report)?;
+    Ok(())
+}
+
+fn main() -> ExitCode {
     init_tracing();
     let cli = Cli::parse();
-    let store = open_store(&cli)?;
+    let Cli { command, root, db } = cli;
 
-    match cli.command {
+    let result = match command {
+        Commands::Candump { action } => run_candump(action),
+        command => run_store_command(root, db, command),
+    };
+
+    match result {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(err) => {
+            eprintln!("error: {err}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+fn run_store_command(
+    root: Option<PathBuf>,
+    db: Option<PathBuf>,
+    command: Commands,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let root = root.unwrap_or_else(resolve_marengo_root);
+    let db = db.unwrap_or_else(resolve_db_path);
+    let store = Store::open(db, root)?;
+    match command {
         Commands::Session { action } => match action {
             SessionAction::Register {
                 id,
@@ -127,6 +266,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let n = import_journal(&store, JOURNAL_UNITS)?;
             println!("imported {n} journal lines");
         }
+        Commands::Candump { .. } => unreachable!("candump handled before store open"),
     }
     Ok(())
 }
