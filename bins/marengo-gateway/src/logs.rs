@@ -192,7 +192,11 @@ fn candump_page_json(inspection: marengo_candump::Inspection, offset: u32) -> Ca
         offset,
         parsed_frames: inspection.summary.parsed_frames,
         total_lines: inspection.summary.total_lines,
-        frames: inspection.frames.into_iter().map(candump_frame_json).collect(),
+        frames: inspection
+            .frames
+            .into_iter()
+            .map(candump_frame_json)
+            .collect(),
     }
 }
 

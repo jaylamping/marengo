@@ -348,7 +348,11 @@ impl Candump {
 pub fn format_inspection_text(inspection: &Inspection) -> String {
     let mut out = String::new();
     let s = &inspection.summary;
-    push_kv(&mut out, "timestamp_mode", format!("{:?}", inspection.timestamp_mode).to_ascii_lowercase());
+    push_kv(
+        &mut out,
+        "timestamp_mode",
+        format!("{:?}", inspection.timestamp_mode).to_ascii_lowercase(),
+    );
     push_kv(&mut out, "total_lines", s.total_lines);
     push_kv(&mut out, "parsed_frames", s.parsed_frames);
     push_kv(&mut out, "source_bytes", s.source_bytes);

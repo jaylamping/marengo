@@ -4,9 +4,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use marengo_candump::{
-    Candump, CanId, FramePage, InspectRequest, TimestampMode,
-};
+use marengo_candump::{CanId, Candump, FramePage, InspectRequest, TimestampMode};
 
 fn fixture(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -29,10 +27,16 @@ fn delta_summary_counts_and_rate() {
     let s = &report.summary;
     assert_eq!(s.parsed_frames, 4, "four accepted frames");
     assert_eq!(s.total_lines, 4, "four input lines");
-    assert!((s.duration_s - 0.02).abs() < 1e-9, "duration from first to last");
+    assert!(
+        (s.duration_s - 0.02).abs() < 1e-9,
+        "duration from first to last"
+    );
     let hz = s.approx_hz.expect("nonzero duration yields rate");
     assert!((hz - 200.0).abs() < 1e-6, "4 frames / 0.02s = 200 Hz");
-    assert!(report.frames.is_empty(), "summary request keeps no page frames");
+    assert!(
+        report.frames.is_empty(),
+        "summary request keeps no page frames"
+    );
 }
 
 #[test]
@@ -197,10 +201,7 @@ fn frame_page_rejects_zero_and_oversize_limit() {
 fn inspect_path_io_error_includes_path() {
     let missing = fixture("does-not-exist.log");
     let err = Candump::plain()
-        .inspect_path(
-            &missing,
-            InspectRequest::summary(TimestampMode::Delta),
-        )
+        .inspect_path(&missing, InspectRequest::summary(TimestampMode::Delta))
         .expect_err("missing file");
     let msg = err.to_string();
     assert!(

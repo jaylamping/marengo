@@ -39,8 +39,7 @@ fn candump_summary_json_matches_golden() {
         "cli failed: {}",
         String::from_utf8_lossy(&output.stderr)
     );
-    let actual: serde_json::Value =
-        serde_json::from_slice(&output.stdout).expect("stdout is json");
+    let actual: serde_json::Value = serde_json::from_slice(&output.stdout).expect("stdout is json");
     let expected: serde_json::Value = serde_json::from_str(
         &fs::read_to_string(golden("delta_summary.json")).expect("golden readable"),
     )

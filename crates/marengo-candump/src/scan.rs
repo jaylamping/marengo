@@ -113,10 +113,12 @@ fn scan_reader(
     let mut buf = Vec::new();
     loop {
         buf.clear();
-        let read = reader.read_until(b'\n', &mut buf).map_err(|source| Error::Io {
-            path: PathBuf::from("<stream>"),
-            source,
-        })?;
+        let read = reader
+            .read_until(b'\n', &mut buf)
+            .map_err(|source| Error::Io {
+                path: PathBuf::from("<stream>"),
+                source,
+            })?;
         if read == 0 {
             break;
         }
@@ -162,11 +164,7 @@ impl Accumulator {
         }
     }
 
-    fn ingest_line(
-        &mut self,
-        buf: &[u8],
-        enrichment: &EnrichmentMode,
-    ) -> Result<(), Error> {
+    fn ingest_line(&mut self, buf: &[u8], enrichment: &EnrichmentMode) -> Result<(), Error> {
         self.total_lines = self.total_lines.saturating_add(1);
         let line_no = NonZeroU64::new(self.total_lines).ok_or_else(|| Error::Io {
             path: PathBuf::from("<stream>"),
@@ -267,7 +265,9 @@ impl Accumulator {
             .into_iter()
             .take(usize::from(self.top_id_limit))
             .filter_map(|(id, count)| {
-                CanId::new(id).ok().map(|can_id| CanIdCount { can_id, count })
+                CanId::new(id)
+                    .ok()
+                    .map(|can_id| CanIdCount { can_id, count })
             })
             .collect();
 
@@ -399,9 +399,7 @@ fn enrich_robstride(
     let ext = robstride::comm::unpack_ext_id(can_id.get())?;
     let known = robstride::comm::CommunicationType::from_u8(ext.comm_type);
     let comm_type_name = known.map(comm_type_label);
-    let device_id = known.map(|kind| {
-        robstride::comm::inbound_motor_device_id(can_id.get(), kind)
-    });
+    let device_id = known.map(|kind| robstride::comm::inbound_motor_device_id(can_id.get(), kind));
     let joint = device_id.and_then(|id| catalog.lookup(interface, id).map(str::to_string));
     Some(FrameEnrichment {
         comm_type: ext.comm_type,
