@@ -1,5 +1,7 @@
 //! Contract tests against the public Candump inspection seam only.
 
+#![allow(clippy::panic)]
+
 use std::fs;
 use std::path::PathBuf;
 use std::time::Duration;

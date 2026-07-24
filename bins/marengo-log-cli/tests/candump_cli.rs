@@ -1,3 +1,5 @@
+#![allow(clippy::panic)]
+
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
@@ -28,7 +30,7 @@ fn candump_summary_json_matches_golden() {
             "--file",
             fixture("delta.log")
                 .to_str()
-                .unwrap_or_else(|_| panic!("utf8 path")),
+                .unwrap_or_else(|| panic!("utf8 path")),
             "--timestamp",
             "delta",
             "--format",
@@ -61,7 +63,7 @@ fn candump_summary_text_emits_key_values() {
             "--file",
             fixture("delta.log")
                 .to_str()
-                .unwrap_or_else(|_| panic!("utf8 path")),
+                .unwrap_or_else(|| panic!("utf8 path")),
             "--timestamp",
             "delta",
             "--format",
