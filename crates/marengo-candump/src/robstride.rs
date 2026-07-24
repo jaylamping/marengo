@@ -1,5 +1,3 @@
-#![cfg(feature = "robstride-enrichment")]
-
 use std::collections::HashMap;
 
 use marengo_config::MotorsConfigFile;
