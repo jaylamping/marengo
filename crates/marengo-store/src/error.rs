@@ -6,6 +6,8 @@ pub enum StoreError {
     Sqlite(#[from] rusqlite::Error),
     #[error("io: {0}")]
     Io(#[from] std::io::Error),
+    #[error("candump: {0}")]
+    Candump(#[from] marengo_candump::Error),
     #[error("{0}")]
     Message(String),
 }

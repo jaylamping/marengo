@@ -73,7 +73,7 @@ impl CanId {
         self.0 > Self::STANDARD_MAX
     }
 
-    fn to_canonical_hex(self) -> String {
+    pub fn to_canonical_hex(self) -> String {
         if self.is_extended() {
             format!("{:08X}", self.0)
         } else {

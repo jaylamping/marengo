@@ -1,4 +1,4 @@
-pub const SCHEMA_VERSION: i64 = 2;
+pub const SCHEMA_VERSION: i64 = 3;
 
 pub const MIGRATION_001: &str = r"
 CREATE TABLE IF NOT EXISTS settings (
@@ -51,13 +51,6 @@ CREATE TABLE IF NOT EXISTS log_sessions (
 );
 CREATE INDEX IF NOT EXISTS log_sessions_started ON log_sessions(started_ms);
 
-CREATE TABLE IF NOT EXISTS candump_frame_index (
-  session_id TEXT NOT NULL,
-  line_no INTEGER NOT NULL,
-  byte_offset INTEGER NOT NULL,
-  PRIMARY KEY (session_id, line_no)
-);
-
 CREATE TABLE IF NOT EXISTS config_overrides (
   key TEXT PRIMARY KEY,
   value_json TEXT NOT NULL,
@@ -98,4 +91,8 @@ CREATE TRIGGER log_events_au AFTER UPDATE ON log_events BEGIN
 END;
 
 INSERT INTO log_events_fts(log_events_fts) VALUES('rebuild');
+";
+
+pub const MIGRATION_003: &str = r"
+DROP TABLE IF EXISTS candump_frame_index;
 ";

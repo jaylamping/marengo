@@ -8,9 +8,8 @@ mod store;
 
 pub use error::{Result, StoreError};
 pub use journal::{import_journal, JOURNAL_UNITS};
-pub use model::{
-    CandumpFrame, CandumpSummary, LogEventInsert, LogEventRow, LogSessionRow, StructuredLogQuery,
-};
+pub use marengo_candump::{Frame as CandumpFrame, Summary as CandumpSummary};
+pub use model::{LogEventInsert, LogEventRow, LogSessionRow, StructuredLogQuery};
 pub use paths::{
     blob_dir, default_db_path, log_dir, resolve_db_path, resolve_marengo_root,
     DEFAULT_ARCHIVE_DAYS, DEFAULT_HOT_KEEP, DEFAULT_LOG_DISK_BUDGET_BYTES,

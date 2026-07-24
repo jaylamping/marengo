@@ -366,16 +366,16 @@ pub async fn session_candump(
         .read_candump_page(&id, query.offset, query.limit)
         .map_err(|_| StatusCode::NOT_FOUND)?;
     Ok(Json(CandumpPageJson {
-        total_frames: total,
+        total_frames: u32::try_from(total).unwrap_or(u32::MAX),
         offset: query.offset,
         frames: frames
             .into_iter()
             .map(|f| CandumpFrameJson {
-                delta_s: f.delta_s,
+                delta_s: f.offset.as_secs_f64(),
                 interface: f.interface,
-                can_id: f.can_id,
-                data: f.data,
-                line_no: f.line_no,
+                can_id: f.can_id.to_canonical_hex(),
+                data: f.data.iter().map(|b| format!("{b:02X}")).collect(),
+                line_no: u32::try_from(f.source_line.get()).unwrap_or(u32::MAX),
             })
             .collect(),
     }))
@@ -393,16 +393,16 @@ pub async fn latest_candump(
         .read_hot_candump_page(query.offset, query.limit)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(Json(CandumpPageJson {
-        total_frames: total,
+        total_frames: u32::try_from(total).unwrap_or(u32::MAX),
         offset: query.offset,
         frames: frames
             .into_iter()
             .map(|f| CandumpFrameJson {
-                delta_s: f.delta_s,
+                delta_s: f.offset.as_secs_f64(),
                 interface: f.interface,
-                can_id: f.can_id,
-                data: f.data,
-                line_no: f.line_no,
+                can_id: f.can_id.to_canonical_hex(),
+                data: f.data.iter().map(|b| format!("{b:02X}")).collect(),
+                line_no: u32::try_from(f.source_line.get()).unwrap_or(u32::MAX),
             })
             .collect(),
     }))
@@ -420,12 +420,16 @@ pub async fn session_candump_summary(
         .candump_summary(&id)
         .map_err(|_| StatusCode::NOT_FOUND)?;
     Ok(Json(CandumpSummaryJson {
-        frame_count: summary.frame_count,
-        bytes: summary.bytes,
+        frame_count: u32::try_from(summary.parsed_frames).unwrap_or(u32::MAX),
+        bytes: summary.source_bytes,
         duration_s: summary.duration_s,
-        approx_hz: summary.approx_hz,
-        interfaces: summary.interfaces,
-        top_ids: summary.top_ids,
+        approx_hz: summary.approx_hz.unwrap_or(0.0),
+        interfaces: summary.interfaces.into_iter().map(|i| i.name).collect(),
+        top_ids: summary
+            .top_ids
+            .into_iter()
+            .map(|c| c.can_id.to_canonical_hex())
+            .collect(),
     }))
 }
 

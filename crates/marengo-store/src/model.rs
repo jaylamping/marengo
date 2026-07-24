@@ -46,21 +46,4 @@ pub struct StructuredLogQuery {
     pub limit: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CandumpFrame {
-    pub delta_s: f64,
-    pub interface: String,
-    pub can_id: String,
-    pub data: String,
-    pub line_no: u32,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct CandumpSummary {
-    pub frame_count: u32,
-    pub bytes: u64,
-    pub duration_s: f64,
-    pub approx_hz: f64,
-    pub interfaces: Vec<String>,
-    pub top_ids: Vec<String>,
-}
+// Candump frame/summary types live in marengo-candump; re-exported from lib.rs.
