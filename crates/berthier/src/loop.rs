@@ -498,6 +498,13 @@ impl<B: MotorBus> ControlLoop<B> {
 
     pub fn set_control_mode(&mut self, mode: ControlMode) {
         let previous = self.control_mode;
+        // Capture ramp endpoints before mutating mode or clearing overrides.
+        let from = {
+            let prev_targets = self.target_gains_for_mode(previous);
+            self.gains
+                .wire_gains_now(previous, &self.joint_names, &prev_targets)
+        };
+        let to = self.target_gains_for_mode(mode);
         if mode != ControlMode::Position {
             self.position_hold.clear();
             self.last_position_diag = None;
@@ -508,11 +515,6 @@ impl<B: MotorBus> ControlLoop<B> {
         if previous != mode {
             info!(?previous, ?mode, "control mode transition");
         }
-        // Capture from/to before on_mode_enter replaces the ramp. Order matches
-        // prior ControlLoop: mode is already updated, so no-ramp `from` uses the
-        // new mode's YAML targets (same as the previous inlined path).
-        let from = self.current_effective_gains();
-        let to = self.target_gains_for_mode(mode);
         let arm_ramp = mode != ControlMode::Disabled && previous != ControlMode::Disabled;
         self.gains.on_mode_enter(previous, mode, &from, &to);
         if arm_ramp {
@@ -521,13 +523,6 @@ impl<B: MotorBus> ControlLoop<B> {
             // causes unclamped torque step via unwrap_or(target)).
             self.supervisor.seed_tau_ff_rate_limiter();
         }
-    }
-
-    /// Effective per-joint (kp, kd) right now: interpolated ramp value if a ramp
-    /// is in progress, otherwise the target gains for the current mode.
-    fn current_effective_gains(&self) -> Vec<(f64, f64)> {
-        let targets = self.target_gains_for_mode(self.control_mode);
-        self.gains.current_effective_gains(&targets)
     }
 
     /// Target (kp, kd) per joint from YAML (`gravity_comp` / `impedance`).

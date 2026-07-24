@@ -186,9 +186,39 @@ impl GainRuntime {
         )
     }
 
-    /// Effective per-joint (kp, kd): interpolated ramp if active, else `targets`.
-    pub fn current_effective_gains(&self, targets: &[(f64, f64)]) -> Vec<(f64, f64)> {
-        self.ramp_gains().unwrap_or_else(|| targets.to_vec())
+    /// Effective per-joint wire (kp, kd) for `mode`: override > ramp > `targets`.
+    ///
+    /// `targets.len()` must equal `joint_names.len()`. Used to capture ramp
+    /// startpoints before a mode transition mutates overrides / mode.
+    pub fn wire_gains_now(
+        &self,
+        mode: ControlMode,
+        joint_names: &[String],
+        targets: &[(f64, f64)],
+    ) -> Vec<(f64, f64)> {
+        assert_eq!(
+            targets.len(),
+            joint_names.len(),
+            "GainRuntime::wire_gains_now: targets must be parallel to joint_names"
+        );
+        let ramp = self.ramp_gains();
+        joint_names
+            .iter()
+            .enumerate()
+            .map(|(i, name)| {
+                let (target_kp, target_kd) = targets[i];
+                let ov = if mode_allows_gain_override(mode) {
+                    self.overrides.get(name).map(|o| (o.kp, o.kd))
+                } else {
+                    None
+                };
+                let (ramp_kp, ramp_kd) = match ramp.as_ref() {
+                    Some(r) if i < r.len() => (Some(r[i].0), Some(r[i].1)),
+                    _ => (None, None),
+                };
+                effective_wire_gains(mode, target_kp, target_kd, ov, ramp_kp, ramp_kd)
+            })
+            .collect()
     }
 
     /// Decrement ramp after MIT send; clear when finished.
@@ -533,6 +563,53 @@ mod tests {
             &[(18.0, 3.0)],
         );
         assert!(rt.ramp_gains().is_none());
+    }
+
+    #[test]
+    fn wire_gains_now_uses_override_before_mode_enter_clears() {
+        let joint = "j0".to_string();
+        let mut rt = GainRuntime::new();
+        rt.apply(
+            ControlMode::Impedance,
+            &joint,
+            GainOverride {
+                kp: 40.0,
+                kd: 4.0,
+                ki: 0.0,
+                fc: 0.0,
+            },
+            limits(),
+        );
+        let from = rt.wire_gains_now(ControlMode::Impedance, &[joint.clone()], &[(18.0, 3.0)]);
+        assert!((from[0].0 - 40.0).abs() < 1e-12);
+        assert!((from[0].1 - 4.0).abs() < 1e-12);
+
+        rt.on_mode_enter(
+            ControlMode::Impedance,
+            ControlMode::GravityComp,
+            &from,
+            &[(0.0, 0.0)],
+        );
+        assert!(rt.get(&joint).is_none());
+        let g = gravity_yaml(0.0, 0.0);
+        let z = impedance_yaml(18.0, 3.0, 0.0);
+        let yaml = [JointModeGains {
+            gravity_comp: &g,
+            impedance: &z,
+        }];
+        let out = rt.resolve_all(ControlMode::GravityComp, &[joint], &yaml);
+        // First ramp tick: progress 0 → wire = from (override), not YAML zeros.
+        assert!((out[0].wire_kp - 40.0).abs() < 1e-12);
+        assert!((out[0].wire_kd - 4.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn wire_gains_now_falls_back_to_yaml_without_override() {
+        let joint = "j0".to_string();
+        let rt = GainRuntime::new();
+        let from = rt.wire_gains_now(ControlMode::Impedance, &[joint], &[(18.0, 3.0)]);
+        assert!((from[0].0 - 18.0).abs() < 1e-12);
+        assert!((from[0].1 - 3.0).abs() < 1e-12);
     }
 
     #[test]
