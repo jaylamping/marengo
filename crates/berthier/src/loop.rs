@@ -593,13 +593,7 @@ impl<B: MotorBus> ControlLoop<B> {
             .map(|j| (j.clone(), self.clamp_limits_for(j)))
             .collect();
         self.gains
-            .apply_batch(self.control_mode, overrides, |joint| {
-                limits.get(joint).copied().unwrap_or(GainClampLimits {
-                    kp_max: f64::MAX,
-                    kd_max: f64::MAX,
-                    tau_ff_max: f64::MAX,
-                })
-            });
+            .apply_batch(self.control_mode, overrides, &limits);
     }
 
     /// Remove the gain override for a single joint, reverting to config gains.

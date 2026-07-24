@@ -103,18 +103,24 @@ impl GainRuntime {
     }
 
     /// Batch apply. Same mode gate as [`Self::apply`].
+    ///
+    /// Joints without an entry in `limits` are skipped (never unclamped).
     pub fn apply_batch(
         &mut self,
         mode: ControlMode,
         overrides: &HashMap<String, GainOverride>,
-        limits_for: impl Fn(&str) -> GainClampLimits,
+        limits: &HashMap<String, GainClampLimits>,
     ) {
         if !mode_allows_gain_override(mode) {
             debug!(?mode, "ignore batch gain overrides in this control mode");
             return;
         }
         for (joint, ov) in overrides {
-            let clamped = clamp_override(joint, ov.clone(), limits_for(joint));
+            let Some(lim) = limits.get(joint).copied() else {
+                debug!(joint = %joint, "skip gain override without clamp limits");
+                continue;
+            };
+            let clamped = clamp_override(joint, ov.clone(), lim);
             self.overrides.insert(joint.clone(), clamped);
         }
     }
@@ -142,7 +148,13 @@ impl GainRuntime {
         if mode_clears_gain_overrides_on_enter(next) {
             self.overrides.clear();
         }
-        if next != ControlMode::Disabled && previous != ControlMode::Disabled {
+        // Disabled ticks do not advance the ramp; drop it so a mid-transition
+        // ramp cannot poison the next non-Disabled mode.
+        if next == ControlMode::Disabled {
+            self.ramp = None;
+            return;
+        }
+        if previous != ControlMode::Disabled {
             let n = from_gains.len().min(to_gains.len());
             self.ramp = Some(GainRamp {
                 joints: (0..n)
@@ -199,15 +211,17 @@ impl GainRuntime {
         joint_names: &[String],
         yaml: &[JointModeGains<'_>],
     ) -> Vec<ResolvedGains> {
+        assert_eq!(
+            yaml.len(),
+            joint_names.len(),
+            "GainRuntime::resolve_all: yaml must be parallel to joint_names"
+        );
         let ramp = self.ramp_gains();
         joint_names
             .iter()
             .enumerate()
             .map(|(i, name)| {
-                let y = yaml.get(i).copied().unwrap_or(JointModeGains {
-                    gravity_comp: &ZERO_GAINS,
-                    impedance: &ZERO_GAINS,
-                });
+                let y = yaml[i];
                 let (target_kp, target_kd) =
                     target_gains_from_yaml(mode, y.gravity_comp, y.impedance);
                 let ov = if mode_allows_gain_override(mode) {
@@ -245,12 +259,6 @@ impl GainRuntime {
             .collect()
     }
 }
-
-const ZERO_GAINS: ModeGains = ModeGains {
-    kp: 0.0,
-    kd: 0.0,
-    ki: 0.0,
-};
 
 fn ramp_progress(ramp: &GainRamp) -> f64 {
     1.0 - (f64::from(ramp.ticks_remaining) / f64::from(ramp.total_ticks))
@@ -352,6 +360,7 @@ pub fn effective_wire_gains(
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
 
     /// Characterization pin: override beats ramp; ramp beats YAML; G-comp ignores override.
     #[test]
@@ -400,5 +409,158 @@ mod tests {
             ControlMode::GravityComp
         ));
         assert!(!mode_clears_gain_overrides_on_enter(ControlMode::Position));
+    }
+
+    fn impedance_yaml(kp: f64, kd: f64, ki: f64) -> ModeGains {
+        ModeGains { kp, kd, ki }
+    }
+
+    fn gravity_yaml(kp: f64, kd: f64) -> ModeGains {
+        ModeGains { kp, kd, ki: 0.0 }
+    }
+
+    fn limits() -> GainClampLimits {
+        GainClampLimits {
+            kp_max: 100.0,
+            kd_max: 20.0,
+            tau_ff_max: 10.0,
+        }
+    }
+
+    #[test]
+    fn resolve_all_gravity_comp_ignores_override_but_accepts_ramp() {
+        let joint = "j0".to_string();
+        let mut rt = GainRuntime::new();
+        rt.apply(
+            ControlMode::Impedance,
+            &joint,
+            GainOverride {
+                kp: 40.0,
+                kd: 4.0,
+                ki: 1.0,
+                fc: 0.5,
+            },
+            limits(),
+        );
+        // Impedance → GravityComp: clear overrides, arm ramp.
+        rt.on_mode_enter(
+            ControlMode::Impedance,
+            ControlMode::GravityComp,
+            &[(18.0, 3.0)],
+            &[(0.0, 0.0)],
+        );
+        assert!(rt.get(&joint).is_none());
+
+        let g = gravity_yaml(0.0, 0.0);
+        let z = impedance_yaml(18.0, 3.0, 0.0);
+        let yaml = [JointModeGains {
+            gravity_comp: &g,
+            impedance: &z,
+        }];
+        let out = rt.resolve_all(ControlMode::GravityComp, &[joint.clone()], &yaml);
+        assert_eq!(out.len(), 1);
+        // First tick of ramp: progress 0 → wire = from (18, 3), not override.
+        assert!((out[0].wire_kp - 18.0).abs() < 1e-12);
+        assert!((out[0].wire_kd - 3.0).abs() < 1e-12);
+        assert!(out[0].law_fc.is_none());
+    }
+
+    #[test]
+    fn resolve_all_law_ignores_ramp_while_wire_uses_it() {
+        let joint = "j0".to_string();
+        let mut rt = GainRuntime::new();
+        rt.on_mode_enter(
+            ControlMode::Impedance,
+            ControlMode::Position,
+            &[(5.0, 0.5)],
+            &[(20.0, 1.0)],
+        );
+        let g = gravity_yaml(0.0, 0.0);
+        let z = impedance_yaml(20.0, 1.0, 0.0);
+        let yaml = [JointModeGains {
+            gravity_comp: &g,
+            impedance: &z,
+        }];
+        let out = rt.resolve_all(ControlMode::Position, &[joint], &yaml);
+        assert!((out[0].law_kp - 20.0).abs() < 1e-12);
+        assert!((out[0].law_kd - 1.0).abs() < 1e-12);
+        assert!((out[0].wire_kp - 5.0).abs() < 1e-12);
+        assert!((out[0].wire_kd - 0.5).abs() < 1e-12);
+    }
+
+    #[test]
+    fn on_mode_enter_clears_overrides_before_arming_ramp() {
+        let joint = "j0".to_string();
+        let mut rt = GainRuntime::new();
+        rt.apply(
+            ControlMode::Impedance,
+            &joint,
+            GainOverride {
+                kp: 40.0,
+                kd: 4.0,
+                ki: 0.0,
+                fc: 0.0,
+            },
+            limits(),
+        );
+        rt.on_mode_enter(
+            ControlMode::Impedance,
+            ControlMode::GravityComp,
+            &[(40.0, 4.0)],
+            &[(0.0, 0.0)],
+        );
+        assert!(rt.get(&joint).is_none());
+        assert!(rt.ramp_gains().is_some());
+    }
+
+    #[test]
+    fn disabled_enter_clears_stale_ramp() {
+        let mut rt = GainRuntime::new();
+        rt.on_mode_enter(
+            ControlMode::Impedance,
+            ControlMode::GravityComp,
+            &[(18.0, 3.0)],
+            &[(0.0, 0.0)],
+        );
+        assert!(rt.ramp_gains().is_some());
+        rt.on_mode_enter(ControlMode::GravityComp, ControlMode::Disabled, &[], &[]);
+        assert!(rt.ramp_gains().is_none());
+        // Re-enter Impedance from Disabled must not revive the abandoned ramp.
+        rt.on_mode_enter(
+            ControlMode::Disabled,
+            ControlMode::Impedance,
+            &[(0.0, 0.0)],
+            &[(18.0, 3.0)],
+        );
+        assert!(rt.ramp_gains().is_none());
+    }
+
+    #[test]
+    fn apply_batch_skips_joints_without_limits() {
+        let mut rt = GainRuntime::new();
+        let mut overrides = HashMap::new();
+        overrides.insert(
+            "known".to_string(),
+            GainOverride {
+                kp: 10.0,
+                kd: 1.0,
+                ki: 0.0,
+                fc: 0.0,
+            },
+        );
+        overrides.insert(
+            "unknown".to_string(),
+            GainOverride {
+                kp: 99.0,
+                kd: 9.0,
+                ki: 0.0,
+                fc: 0.0,
+            },
+        );
+        let mut limits_map = HashMap::new();
+        limits_map.insert("known".to_string(), limits());
+        rt.apply_batch(ControlMode::Impedance, &overrides, &limits_map);
+        assert!(rt.get("known").is_some());
+        assert!(rt.get("unknown").is_none());
     }
 }
