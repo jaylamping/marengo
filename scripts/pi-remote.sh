@@ -108,13 +108,11 @@ if ! test -f "$F"; then
   echo "(no candump-latest.log)"
   exit 0
 fi
-lines=$(wc -l < "$F" | tr -d " ")
-bytes=$(wc -c < "$F" | tr -d " ")
-echo "file=$F lines=$lines bytes=$bytes"
-first=$(grep -m1 -E "^[[:space:]]*\\(" "$F" 2>/dev/null || true)
-last=$(grep -E "^[[:space:]]*\\(" "$F" | tail -n 1 || true)
-echo "first=$first"
-echo "last=$last"
+if ! command -v marengo-log-cli >/dev/null 2>&1; then
+  echo '{"error":"marengo-log-cli not found on PATH — deploy/install Pi binaries first"}'
+  exit 0
+fi
+marengo-log-cli candump summary --file "$F" --timestamp delta --format json
 REMOTE
 )"
     ;;

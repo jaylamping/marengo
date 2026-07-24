@@ -113,41 +113,23 @@ export function registerLogTools(
 
     pi_candump_summary: {
       description:
-        "Summarize candump-latest.log: frame count, duration, approximate Hz (after pi_hold_on/harness)",
+        "Summarize candump-latest.log via marengo-log-cli (parsed_frames, duration, Hz, top IDs)",
       inputSchema: z.object({}),
       handler: async () => {
+        const file = `${logDir}/candump-latest.log`;
         const body = wrapRemote(
           cfg,
           [
-            `F=${JSON.stringify(`${logDir}/candump-latest.log`)}`,
+            `F=${JSON.stringify(file)}`,
             'if ! test -f "$F"; then',
             '  echo "(no candump-latest.log — run pi_hold_on or pi_bench_harness first)"',
             "  exit 0",
             "fi",
-            'lines=$(wc -l < "$F" | tr -d " ")',
-            'bytes=$(wc -c < "$F" | tr -d " ")',
-            'echo "file=$F lines=$lines bytes=$bytes"',
-            'first=$(grep -m1 -E "^[[:space:]]*\\(" "$F" 2>/dev/null || true)',
-            'last=$(grep -E "^[[:space:]]*\\(" "$F" | tail -n 1 || true)',
-            'echo "first=$first"',
-            'echo "last=$last"',
-            "if [ -n \"$first\" ] && [ -n \"$last\" ]; then",
-            '  t0=$(echo "$first" | sed -n "s/^[[:space:]]*(\\([0-9.]*\\)).*/\\1/p")',
-            '  t1=$(echo "$last" | sed -n "s/^[[:space:]]*(\\([0-9.]*\\)).*/\\1/p")',
-            '  if [ -n "$t0" ] && [ -n "$t1" ]; then',
-            '    dur=$(awk -v t0="$t0" -v t1="$t1" \'BEGIN { d=t1-t0; if (d>0) printf "%.3f", d; else print "0" }\')',
-            '    hz=$(awk -v n="$lines" -v t0="$t0" -v t1="$t1" \'BEGIN { d=t1-t0; if (d>0) printf "%.1f", n/d; else print "n/a" }\')',
-            '    echo "duration_sec=$dur approx_hz=$hz"',
-            '  fi',
+            'if ! command -v marengo-log-cli >/dev/null 2>&1; then',
+            '  echo \'{"error":"marengo-log-cli not found on PATH — deploy/install Pi binaries first"}\'',
+            "  exit 0",
             "fi",
-            'echo "--- per-interface ---"',
-            'for _if in can0 can1 can2; do',
-            '  c=$(grep -c " ${_if} " "$F" 2>/dev/null || true)',
-            '  c=${c:-0}',
-            '  if [ "$c" -gt 0 ] 2>/dev/null; then echo "${_if}_frames=$c"; fi',
-            "done",
-            'echo "--- top CAN IDs ---"',
-            "awk '/^[[:space:]]*\\(/ { ids[$3]++ } END { for (id in ids) print ids[id], id }' \"$F\" | sort -nr | head -n 10",
+            'marengo-log-cli candump summary --file "$F" --timestamp delta --format json',
           ].join("\n"),
         );
         return runRemote(body, 15_000);
