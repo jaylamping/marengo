@@ -20,10 +20,10 @@ use thiserror::Error;
 use tracing::{debug, info};
 
 use crate::friction::POSITION_HOLD_ERROR_DEADBAND_RAD;
-use crate::mit_feedforward::{
-    mode_allows_gain_override, mode_clears_gain_overrides_on_enter, target_gains_from_yaml,
-    MitFeedforward, MitFfJointIn, MitFfOverride,
+use crate::gain_runtime::{
+    target_gains_from_yaml, GainClampLimits, GainOverride, GainRuntime, JointModeGains,
 };
+use crate::mit_feedforward::{MitFeedforward, MitFfJointIn};
 use crate::position_hold::{
     HoldError, HoldJointParams, HoldRetarget, HoldWorld, PositionHold, ADVANCE_MAX_LEAD_DEFAULT,
 };
@@ -72,32 +72,6 @@ impl From<HoldError> for LoopError {
     }
 }
 
-/// Per-joint kp/kd transition ramp for smooth mode switching.
-///
-/// When armed, kp/kd are interpolated from `from` to `to` values over `total_ticks`.
-/// Only applies to transitions between non-Disabled modes. tau_ff is NOT ramped
-/// here — Davout's `rate_limit_tau_ff` owns that.
-#[derive(Debug, Clone)]
-struct GainRamp {
-    /// Per-joint: (from_kp, from_kd, to_kp, to_kd)
-    joints: Vec<(f64, f64, f64, f64)>,
-    /// Ticks remaining in the ramp.
-    ticks_remaining: u32,
-    /// Total ticks in the ramp (for interpolation).
-    total_ticks: u32,
-}
-
-/// Per-joint runtime gain override for Testing page.
-/// When present, these values take precedence over config-sourced gains.
-/// All values are pre-clamped to motor_type_defaults limits on insertion.
-#[derive(Debug, Clone, PartialEq)]
-pub struct GainOverride {
-    pub kp: f64,
-    pub kd: f64,
-    pub ki: f64,
-    pub fc: f64,
-}
-
 /// Realtime control loop facade.
 pub struct ControlLoop<B: MotorBus> {
     supervisor: Supervisor<B>,
@@ -119,10 +93,8 @@ pub struct ControlLoop<B: MotorBus> {
     last_operational_mode: OperationalMode,
     /// Ticks allowed without joint feedback immediately after enable (post-homing tick_count > 0).
     active_feedback_grace_ticks: u8,
-    /// Active kp/kd transition ramp (None when no ramp in progress).
-    gain_ramp: Option<GainRamp>,
-    /// Per-joint runtime gain overrides (Testing page).
-    gain_overrides: HashMap<String, GainOverride>,
+    /// Testing overrides + mode-transition kp/kd ramp + per-tick resolve.
+    gains: GainRuntime,
     /// In-loop triangle wave on one joint while others hold fixed setpoints.
     position_wave: Option<PositionWave>,
 }
@@ -231,8 +203,7 @@ impl<B: MotorBus> ControlLoop<B> {
             tick_phase: TickPhaseAccumulator::default(),
             last_operational_mode: OperationalMode::Disabled,
             active_feedback_grace_ticks: 0,
-            gain_ramp: None,
-            gain_overrides: HashMap::new(),
+            gains: GainRuntime::new(),
             position_wave: None,
         })
     }
@@ -522,11 +493,18 @@ impl<B: MotorBus> ControlLoop<B> {
 
     /// Current Testing/actuator runtime gain override for `joint`, if any.
     pub fn gain_override(&self, joint_name: &str) -> Option<&GainOverride> {
-        self.gain_overrides.get(joint_name)
+        self.gains.get(joint_name)
     }
 
     pub fn set_control_mode(&mut self, mode: ControlMode) {
         let previous = self.control_mode;
+        // Capture ramp endpoints before mutating mode or clearing overrides.
+        let from = {
+            let prev_targets = self.target_gains_for_mode(previous);
+            self.gains
+                .wire_gains_now(previous, &self.joint_names, &prev_targets)
+        };
+        let to = self.target_gains_for_mode(mode);
         if mode != ControlMode::Position {
             self.position_hold.clear();
             self.last_position_diag = None;
@@ -537,46 +515,13 @@ impl<B: MotorBus> ControlLoop<B> {
         if previous != mode {
             info!(?previous, ?mode, "control mode transition");
         }
-        // GravityComp / TorqueOnly / Disabled must not keep Impedance Testing stiffness.
-        if mode_clears_gain_overrides_on_enter(mode) {
-            self.gain_overrides.clear();
-        }
-        // Arm a kp/kd ramp for non-Disabled transitions (~100ms at 200Hz).
-        // Disabled is excluded in both directions: instant disable for safety,
-        // enable path bootstraps separately.
-        if mode != ControlMode::Disabled && previous != ControlMode::Disabled {
-            let n = self.joint_names.len();
-            let from = self.current_effective_gains();
-            let to = self.target_gains_for_mode(mode);
-            self.gain_ramp = Some(GainRamp {
-                joints: (0..n)
-                    .map(|i| (from[i].0, from[i].1, to[i].0, to[i].1))
-                    .collect(),
-                ticks_remaining: 20,
-                total_ticks: 20,
-            });
+        let arm_ramp = mode != ControlMode::Disabled && previous != ControlMode::Disabled;
+        self.gains.on_mode_enter(previous, mode, &from, &to);
+        if arm_ramp {
             // Seed the tau_ff rate limiter with current measured torque so the rate
             // limiter slews from the correct starting point (NOT cleared — clearing
             // causes unclamped torque step via unwrap_or(target)).
             self.supervisor.seed_tau_ff_rate_limiter();
-        }
-    }
-
-    /// Effective per-joint (kp, kd) right now: interpolated ramp value if a ramp
-    /// is in progress, otherwise the target gains for the current mode.
-    fn current_effective_gains(&self) -> Vec<(f64, f64)> {
-        if let Some(ref ramp) = self.gain_ramp {
-            let progress = 1.0 - (ramp.ticks_remaining as f64 / ramp.total_ticks as f64);
-            ramp.joints
-                .iter()
-                .map(|(from_kp, from_kd, to_kp, to_kd)| {
-                    let kp = from_kp + (to_kp - from_kp) * progress;
-                    let kd = from_kd + (to_kd - from_kd) * progress;
-                    (kp, kd)
-                })
-                .collect()
-        } else {
-            self.target_gains_for_mode(self.control_mode)
         }
     }
 
@@ -627,16 +572,9 @@ impl<B: MotorBus> ControlLoop<B> {
     /// No-op under GravityComp / TorqueOnly / Disabled so Testing cannot stash
     /// stiffness that snaps back on Impedance/Position enter.
     pub fn apply_gain_override(&mut self, joint_name: &str, gain_override: GainOverride) {
-        if !mode_allows_gain_override(self.control_mode) {
-            debug!(
-                ?self.control_mode,
-                joint = joint_name,
-                "ignore gain override in this control mode"
-            );
-            return;
-        }
-        let clamped = self.clamp_override(joint_name, gain_override);
-        self.gain_overrides.insert(joint_name.to_string(), clamped);
+        let limits = self.clamp_limits_for(joint_name);
+        self.gains
+            .apply(self.control_mode, joint_name, gain_override, limits);
     }
 
     /// Batch-apply gain overrides for multiple joints.
@@ -644,27 +582,23 @@ impl<B: MotorBus> ControlLoop<B> {
     /// No-op under GravityComp / TorqueOnly / Disabled (same policy as
     /// [`Self::apply_gain_override`]).
     pub fn apply_gain_overrides(&mut self, overrides: &HashMap<String, GainOverride>) {
-        if !mode_allows_gain_override(self.control_mode) {
-            debug!(
-                ?self.control_mode,
-                "ignore batch gain overrides in this control mode"
-            );
-            return;
-        }
-        for (joint, ov) in overrides {
-            let clamped = self.clamp_override(joint, ov.clone());
-            self.gain_overrides.insert(joint.clone(), clamped);
-        }
+        // Precompute limits: apply_batch's closure cannot borrow `self` while `gains` is mut.
+        let limits: HashMap<String, GainClampLimits> = overrides
+            .keys()
+            .map(|j| (j.clone(), self.clamp_limits_for(j)))
+            .collect();
+        self.gains
+            .apply_batch(self.control_mode, overrides, &limits);
     }
 
     /// Remove the gain override for a single joint, reverting to config gains.
     pub fn clear_gain_override(&mut self, joint_name: &str) {
-        self.gain_overrides.remove(joint_name);
+        self.gains.clear(joint_name);
     }
 
     /// Remove all gain overrides, reverting to config gains for every joint.
     pub fn clear_all_overrides(&mut self) {
-        self.gain_overrides.clear();
+        self.gains.clear_all();
     }
 
     /// Resolve [MotorTypeDefaults] for a joint from the control config.
@@ -674,55 +608,34 @@ impl<B: MotorBus> ControlLoop<B> {
         self.supervisor.control.control.motor_type_defaults.get(key)
     }
 
-    /// Clamp an incoming override to motor-type safety limits.
-    /// Logs a warning when any field is clamped.
-    fn clamp_override(&self, joint_name: &str, ov: GainOverride) -> GainOverride {
+    fn clamp_limits_for(&self, joint_name: &str) -> GainClampLimits {
         let defaults = self.resolve_motor_type_defaults(joint_name);
-        let kp_max = defaults.map(|d| d.kp_max).unwrap_or(f64::MAX);
-        let kd_max = defaults.map(|d| d.kd_max).unwrap_or(f64::MAX);
-        let tau_ff_max = defaults.map(|d| d.tau_ff_max_nm).unwrap_or(f64::MAX);
+        GainClampLimits {
+            kp_max: defaults.map(|d| d.kp_max).unwrap_or(f64::MAX),
+            kd_max: defaults.map(|d| d.kd_max).unwrap_or(f64::MAX),
+            tau_ff_max: defaults.map(|d| d.tau_ff_max_nm).unwrap_or(f64::MAX),
+        }
+    }
 
-        let mut clamped = ov;
-
-        if clamped.kp > kp_max {
-            tracing::warn!(
-                joint = %joint_name,
-                kp = clamped.kp,
-                kp_max,
-                "clamping kp override to kp_max"
-            );
-            clamped.kp = kp_max;
-        }
-        if clamped.kd > kd_max {
-            tracing::warn!(
-                joint = %joint_name,
-                kd = clamped.kd,
-                kd_max,
-                "clamping kd override to kd_max"
-            );
-            clamped.kd = kd_max;
-        }
-        // No ki_max in MotorTypeDefaults; conservative: ki \u2264 kp_max.
-        if clamped.ki > kp_max {
-            tracing::warn!(
-                joint = %joint_name,
-                ki = clamped.ki,
-                kp_max,
-                "clamping ki override to kp_max (conservative)"
-            );
-            clamped.ki = kp_max;
-        }
-        if clamped.fc > tau_ff_max {
-            tracing::warn!(
-                joint = %joint_name,
-                fc = clamped.fc,
-                tau_ff_max,
-                "clamping fc override to tau_ff_max_nm"
-            );
-            clamped.fc = tau_ff_max;
-        }
-
-        clamped
+    fn joint_mode_gains_yaml(
+        &self,
+        missing_impedance: &'static ModeGains,
+    ) -> Vec<JointModeGains<'_>> {
+        static ZERO_STATIC: ModeGains = ModeGains {
+            kp: 0.0,
+            kd: 0.0,
+            ki: 0.0,
+        };
+        self.joint_names
+            .iter()
+            .map(|name| {
+                let cfg = self.supervisor.control.control.joints.get(name);
+                JointModeGains {
+                    gravity_comp: cfg.map(|c| &c.gravity_comp).unwrap_or(&ZERO_STATIC),
+                    impedance: cfg.map(|c| &c.impedance).unwrap_or(missing_impedance),
+                }
+            })
+            .collect()
     }
 
     /// One control cycle: recv → compute → send → optional Chappe publish.
@@ -786,6 +699,15 @@ impl<B: MotorBus> ControlLoop<B> {
                 let mut trace_us_this_tick = 0u64;
 
                 if self.control_mode == ControlMode::Position {
+                    static POSITION_DEFAULT_IMPEDANCE: ModeGains = ModeGains {
+                        kp: 20.0,
+                        kd: 1.0,
+                        ki: 0.0,
+                    };
+                    let yaml = self.joint_mode_gains_yaml(&POSITION_DEFAULT_IMPEDANCE);
+                    let resolved =
+                        self.gains
+                            .resolve_all(self.control_mode, &self.joint_names, &yaml);
                     let dq_meas: Vec<f64> = self
                         .joint_names
                         .iter()
@@ -794,28 +716,20 @@ impl<B: MotorBus> ControlLoop<B> {
                     let joint_params: Vec<HoldJointParams> = self
                         .joint_names
                         .iter()
-                        .map(|name| {
+                        .enumerate()
+                        .map(|(i, name)| {
                             let cfg = self.supervisor.control.control.joints.get(name);
-                            let override_opt = self.gain_overrides.get(name);
+                            let r = &resolved[i];
                             let mut friction = cfg.map(|c| c.friction.clone());
-                            if let Some(ov) = override_opt {
+                            if let Some(fc) = r.law_fc {
                                 if let Some(ref mut f) = friction {
-                                    f.fc = ov.fc;
+                                    f.fc = fc;
                                 }
                             }
                             HoldJointParams {
-                                kp: override_opt
-                                    .map(|ov| ov.kp)
-                                    .or_else(|| cfg.map(|c| c.impedance.kp))
-                                    .unwrap_or(20.0),
-                                kd: override_opt
-                                    .map(|ov| ov.kd)
-                                    .or_else(|| cfg.map(|c| c.impedance.kd))
-                                    .unwrap_or(1.0),
-                                ki: override_opt
-                                    .map(|ov| ov.ki)
-                                    .or_else(|| cfg.map(|c| c.impedance.ki))
-                                    .unwrap_or(0.0),
+                                kp: r.law_kp,
+                                kd: r.law_kd,
+                                ki: r.law_ki,
                                 max_lead: cfg.map(|c| c.position_slew_max_lead_rad).unwrap_or(0.15),
                                 vel_deadband: cfg
                                     .map(|c| c.position_trajectory_velocity_deadband_rad)
@@ -859,19 +773,10 @@ impl<B: MotorBus> ControlLoop<B> {
                     };
                     (phase.planner_us, t) = phase_elapsed_us(t);
                     for (i, mut cmd) in hold_out.mit.into_iter().enumerate() {
-                        let name = &self.joint_names[i];
-                        // Position MIT wire: compose owns `kd` (`kd_mit`, usually 0). Ramp/override
-                        // may scale `kp` only — never resurrect impedance `kd` onto the bus.
-                        cmd.kp = if let Some(ov) = self.gain_overrides.get(name) {
-                            ov.kp
-                        } else if let Some(ref ramp) = self.gain_ramp {
-                            let progress =
-                                1.0 - (ramp.ticks_remaining as f64 / ramp.total_ticks as f64);
-                            let (from_kp, _from_kd, to_kp, _to_kd) = ramp.joints[i];
-                            from_kp + (to_kp - from_kp) * progress
-                        } else {
-                            cmd.kp
-                        };
+                        // Position MIT wire: compose owns `kd` (`kd_mit`, usually 0).
+                        // Resolved `wire_kp` may scale kp (override > ramp > law);
+                        // never rewrite `kd`.
+                        cmd.kp = resolved[i].wire_kp;
                         batch.push(cmd);
                     }
                     for (i, d) in hold_out.diag.iter().enumerate() {
@@ -983,54 +888,31 @@ impl<B: MotorBus> ControlLoop<B> {
                     }
                 } else {
                     (phase.planner_us, t) = phase_elapsed_us(t);
-                    let ramp_progress = self
-                        .gain_ramp
-                        .as_ref()
-                        .map(|ramp| 1.0 - (ramp.ticks_remaining as f64 / ramp.total_ticks as f64));
+                    static ZERO_IMPEDANCE: ModeGains = ModeGains {
+                        kp: 0.0,
+                        kd: 0.0,
+                        ki: 0.0,
+                    };
+                    let yaml = self.joint_mode_gains_yaml(&ZERO_IMPEDANCE);
+                    let resolved =
+                        self.gains
+                            .resolve_all(self.control_mode, &self.joint_names, &yaml);
                     let ff_joints: Vec<MitFfJointIn> = self
                         .joint_names
                         .iter()
                         .enumerate()
                         .map(|(i, name)| {
                             let cfg = self.supervisor.control.control.joints.get(name);
-                            let (ramp_kp, ramp_kd) = match (self.gain_ramp.as_ref(), ramp_progress)
-                            {
-                                (Some(ramp), Some(progress)) => {
-                                    let (from_kp, from_kd, to_kp, to_kd) = ramp.joints[i];
-                                    (
-                                        Some(from_kp + (to_kp - from_kp) * progress),
-                                        Some(from_kd + (to_kd - from_kd) * progress),
-                                    )
-                                }
-                                _ => (None, None),
-                            };
+                            let r = &resolved[i];
                             MitFfJointIn {
                                 name: name.clone(),
                                 q: q[i],
                                 dq: self.joint_velocity(name),
                                 tau_g: tau_g[i],
-                                gravity_comp: cfg.map(|c| c.gravity_comp.clone()).unwrap_or(
-                                    ModeGains {
-                                        kp: 0.0,
-                                        kd: 0.0,
-                                        ki: 0.0,
-                                    },
-                                ),
-                                impedance: cfg.map(|c| c.impedance.clone()).unwrap_or(ModeGains {
-                                    kp: 0.0,
-                                    kd: 0.0,
-                                    ki: 0.0,
-                                }),
                                 friction: cfg.map(|c| c.friction.clone()),
-                                override_gains: self.gain_overrides.get(name).map(|ov| {
-                                    MitFfOverride {
-                                        kp: ov.kp,
-                                        kd: ov.kd,
-                                        fc: ov.fc,
-                                    }
-                                }),
-                                ramp_kp,
-                                ramp_kd,
+                                wire_kp: r.wire_kp,
+                                wire_kd: r.wire_kd,
+                                fc: r.law_fc,
                             }
                         })
                         .collect();
@@ -1042,12 +924,7 @@ impl<B: MotorBus> ControlLoop<B> {
                 self.supervisor.send_mit_batch(batch)?;
                 (phase.send_us, t) = phase_elapsed_us(t);
                 let _ = self.supervisor.drain_feedback();
-                if let Some(ref mut ramp) = self.gain_ramp {
-                    ramp.ticks_remaining = ramp.ticks_remaining.saturating_sub(1);
-                    if ramp.ticks_remaining == 0 {
-                        self.gain_ramp = None;
-                    }
-                }
+                self.gains.advance_tick();
             } else {
                 // Robstride only streams status after MIT frames; hold current q with zero
                 // gains/torque so comm watchdog stays fresh between enable and gravity-on.
@@ -1485,10 +1362,10 @@ mod tests {
                 fc: 1.0,
             },
         );
-        assert!(!loop_ctrl.gain_overrides.is_empty());
+        assert!(loop_ctrl.gain_override("shoulder_pitch").is_some());
         loop_ctrl.set_control_mode(ControlMode::GravityComp);
         assert!(
-            loop_ctrl.gain_overrides.is_empty(),
+            loop_ctrl.gain_override("shoulder_pitch").is_none(),
             "Impedance→GravityComp must clear Testing overrides"
         );
     }
@@ -1507,12 +1384,12 @@ mod tests {
             },
         );
         assert!(
-            loop_ctrl.gain_overrides.is_empty(),
+            loop_ctrl.gain_override("shoulder_pitch").is_none(),
             "must not stash overrides under GravityComp"
         );
         // Enter Impedance must not resurrect planted stiffness.
         loop_ctrl.set_control_mode(ControlMode::Impedance);
-        assert!(loop_ctrl.gain_overrides.is_empty());
+        assert!(loop_ctrl.gain_override("shoulder_pitch").is_none());
     }
 
     #[test]
@@ -1528,7 +1405,7 @@ mod tests {
                 fc: 1.0,
             },
         );
-        assert!(loop_ctrl.gain_overrides.is_empty());
+        assert!(loop_ctrl.gain_override("shoulder_pitch").is_none());
     }
 
     #[test]
@@ -2638,10 +2515,7 @@ mod tests {
                 fc: 1.0,
             },
         );
-        let stored = loop_ctrl
-            .gain_overrides
-            .get(joint)
-            .expect("override stored");
+        let stored = loop_ctrl.gain_override(joint).expect("override stored");
         assert!(
             (stored.kp - 5000.0).abs() < 1e-9,
             "kp clamped: {}",
@@ -2663,10 +2537,7 @@ mod tests {
                 fc: 1.0,
             },
         );
-        let stored = loop_ctrl
-            .gain_overrides
-            .get(joint)
-            .expect("override stored");
+        let stored = loop_ctrl.gain_override(joint).expect("override stored");
         assert!(
             (stored.kd - 100.0).abs() < 1e-9,
             "kd clamped: {}",
@@ -2688,10 +2559,7 @@ mod tests {
                 fc: 10.0,
             },
         );
-        let stored = loop_ctrl
-            .gain_overrides
-            .get(joint)
-            .expect("override stored");
+        let stored = loop_ctrl.gain_override(joint).expect("override stored");
         assert!((stored.fc - 5.0).abs() < 1e-9, "fc clamped: {}", stored.fc);
     }
 
@@ -2709,10 +2577,7 @@ mod tests {
                 fc: 1.0,
             },
         );
-        let stored = loop_ctrl
-            .gain_overrides
-            .get(joint)
-            .expect("override stored");
+        let stored = loop_ctrl.gain_override(joint).expect("override stored");
         assert!(
             (stored.ki - 5000.0).abs() < 1e-9,
             "ki clamped: {}",
@@ -2734,9 +2599,9 @@ mod tests {
                 fc: 2.0,
             },
         );
-        assert!(loop_ctrl.gain_overrides.contains_key(joint));
+        assert!(loop_ctrl.gain_override(joint).is_some());
         loop_ctrl.clear_gain_override(joint);
-        assert!(!loop_ctrl.gain_overrides.contains_key(joint));
+        assert!(loop_ctrl.gain_override(joint).is_none());
     }
 
     #[test]
@@ -2761,15 +2626,17 @@ mod tests {
                 fc: 3.0,
             },
         );
-        assert_eq!(loop_ctrl.gain_overrides.len(), 2);
+        assert!(loop_ctrl.gain_override("shoulder_pitch").is_some());
+        assert!(loop_ctrl.gain_override("shoulder_roll").is_some());
         loop_ctrl.clear_all_overrides();
-        assert!(loop_ctrl.gain_overrides.is_empty());
+        assert!(loop_ctrl.gain_override("shoulder_pitch").is_none());
+        assert!(loop_ctrl.gain_override("shoulder_roll").is_none());
     }
 
     #[test]
     fn no_override_config_gains_unchanged() {
         let loop_ctrl = test_loop();
-        assert!(loop_ctrl.gain_overrides.is_empty());
+        assert!(loop_ctrl.gain_override("shoulder_pitch").is_none());
         let cfg = loop_ctrl
             .supervisor
             .control
@@ -2804,10 +2671,7 @@ mod tests {
                 fc: 1.5,
             },
         );
-        let stored = loop_ctrl
-            .gain_overrides
-            .get(joint)
-            .expect("override stored");
+        let stored = loop_ctrl.gain_override(joint).expect("override stored");
         assert!((stored.kp - 50.0).abs() < 1e-9);
         assert!((stored.kd - 5.0).abs() < 1e-9);
         assert!((stored.ki - 0.5).abs() < 1e-9);
