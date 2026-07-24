@@ -527,7 +527,7 @@ impl Store {
         session_id: &str,
         offset: u32,
         limit: u32,
-    ) -> Result<(Vec<marengo_candump::Frame>, u64)> {
+    ) -> Result<marengo_candump::Inspection> {
         let session = self
             .get_session(session_id)?
             .ok_or_else(|| StoreError::msg("session not found"))?;
@@ -535,34 +535,38 @@ impl Store {
             .candump_blob
             .ok_or_else(|| StoreError::msg("no candump blob"))?;
         let page = marengo_candump::FramePage::new(u64::from(offset), limit)?;
-        let inspection = self.candump.inspect_path(
+        Ok(self.candump.inspect_path(
             &path,
             marengo_candump::InspectRequest::page(marengo_candump::TimestampMode::Delta, page),
-        )?;
-        Ok((
-            inspection.frames,
-            inspection.summary.parsed_frames,
-        ))
+        )?)
     }
 
     pub fn read_hot_candump_page(
         &self,
         offset: u32,
         limit: u32,
-    ) -> Result<(Vec<marengo_candump::Frame>, u64)> {
+    ) -> Result<marengo_candump::Inspection> {
         let hot = log_dir(&self.marengo_root).join("candump-latest.log");
         if !hot.exists() {
-            return Ok((Vec::new(), 0));
+            return Ok(marengo_candump::Inspection {
+                timestamp_mode: marengo_candump::TimestampMode::Delta,
+                summary: marengo_candump::Summary {
+                    total_lines: 0,
+                    parsed_frames: 0,
+                    source_bytes: 0,
+                    duration_s: 0.0,
+                    approx_hz: None,
+                    interfaces: Vec::new(),
+                    top_ids: Vec::new(),
+                },
+                frames: Vec::new(),
+            });
         }
         let page = marengo_candump::FramePage::new(u64::from(offset), limit)?;
-        let inspection = self.candump.inspect_path(
+        Ok(self.candump.inspect_path(
             &hot,
             marengo_candump::InspectRequest::page(marengo_candump::TimestampMode::Delta, page),
-        )?;
-        Ok((
-            inspection.frames,
-            inspection.summary.parsed_frames,
-        ))
+        )?)
     }
 
     pub fn candump_summary(&self, session_id: &str) -> Result<marengo_candump::Summary> {
@@ -576,6 +580,28 @@ impl Store {
             .candump
             .inspect_path(
                 &path,
+                marengo_candump::InspectRequest::summary(marengo_candump::TimestampMode::Delta),
+            )?
+            .summary)
+    }
+
+    pub fn hot_candump_summary(&self) -> Result<marengo_candump::Summary> {
+        let hot = log_dir(&self.marengo_root).join("candump-latest.log");
+        if !hot.exists() {
+            return Ok(marengo_candump::Summary {
+                total_lines: 0,
+                parsed_frames: 0,
+                source_bytes: 0,
+                duration_s: 0.0,
+                approx_hz: None,
+                interfaces: Vec::new(),
+                top_ids: Vec::new(),
+            });
+        }
+        Ok(self
+            .candump
+            .inspect_path(
+                &hot,
                 marengo_candump::InspectRequest::summary(marengo_candump::TimestampMode::Delta),
             )?
             .summary)
@@ -884,12 +910,12 @@ mod tests {
             "(0.000000) can0 701#AABBCCDD\n(0.010000) can0 702#11223344\n",
         )?;
         let store = Store::open(&db, dir.path())?;
-        let (frames, total) = store.read_hot_candump_page(0, 10)?;
-        assert_eq!(total, 2, "parsed frame count");
-        assert_eq!(frames.len(), 2);
-        assert_eq!(frames[0].interface, "can0");
-        assert_eq!(frames[0].can_id.get(), 0x701);
-        assert_eq!(frames[0].data, vec![0xAA, 0xBB, 0xCC, 0xDD]);
+        let inspection = store.read_hot_candump_page(0, 10)?;
+        assert_eq!(inspection.summary.parsed_frames, 2, "parsed frame count");
+        assert_eq!(inspection.frames.len(), 2);
+        assert_eq!(inspection.frames[0].interface, "can0");
+        assert_eq!(inspection.frames[0].can_id.get(), 0x701);
+        assert_eq!(inspection.frames[0].data, vec![0xAA, 0xBB, 0xCC, 0xDD]);
         Ok(())
     }
 }
