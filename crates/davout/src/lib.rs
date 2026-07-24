@@ -37,6 +37,9 @@
 //!   robstride::send_mit / mit_control_all
 //!        ▲
 //!   motor_states (joint space) ◄── direction/gear_ratio ◄── recv_all (motor space) ◄── CAN feedback
+//!        │
+//!        ▼
+//!   Supervisor::joint_feedback (JointFeedback) — control / publish seam
 //! ```
 //!
 //! Limits are built from [`armee_kinematics`] + [`marengo_config`] at startup.
@@ -95,6 +98,19 @@ pub struct JointCommand {
     pub position_rad: f64,
     pub velocity_rad_s: f64,
     pub torque_nm: f64,
+}
+
+/// Joint-space feedback sample for one actuated joint.
+///
+/// Cache values are already joint-space after [`Supervisor`] poll / synthetic insert.
+/// Callers read this facade; they do not address the bus or re-apply direction/gear.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct JointFeedback {
+    pub position_rad: f64,
+    pub velocity_rad_s: f64,
+    pub torque_nm: f64,
+    pub temperature_c: f32,
+    pub fault: u16,
 }
 
 /// MIT command for one joint (after filtering).
@@ -315,34 +331,33 @@ impl<B: MotorBus> Supervisor<B> {
         Ok(())
     }
 
-    /// Joint-space feedback position (rad) if available.
-    pub fn joint_position_rad(&self, joint: &str) -> Option<f64> {
+    /// Joint-space feedback sample if available (cache is already joint-space).
+    pub fn joint_feedback(&self, joint: &str) -> Option<JointFeedback> {
         let motor = motor_for_joint(&self.motors, joint)?;
         let address = MotorAddress::from(motor);
-        let raw = self.motor_states.get(&address)?;
-        motor_to_joint_state(motor, *raw)
-            .ok()
-            .map(|s| f64::from(s.position_rad))
+        let state = self.motor_states.get(&address)?;
+        Some(JointFeedback {
+            position_rad: f64::from(state.position_rad),
+            velocity_rad_s: f64::from(state.velocity_rad_s),
+            torque_nm: f64::from(state.torque_nm),
+            temperature_c: state.temperature_c,
+            fault: state.fault,
+        })
+    }
+
+    /// Joint-space feedback position (rad) if available.
+    pub fn joint_position_rad(&self, joint: &str) -> Option<f64> {
+        self.joint_feedback(joint).map(|s| s.position_rad)
     }
 
     /// Joint-space feedback velocity (rad/s) if available.
     pub fn joint_velocity_rad(&self, joint: &str) -> Option<f64> {
-        let motor = motor_for_joint(&self.motors, joint)?;
-        let address = MotorAddress::from(motor);
-        let raw = self.motor_states.get(&address)?;
-        motor_to_joint_state(motor, *raw)
-            .ok()
-            .map(|s| f64::from(s.velocity_rad_s))
+        self.joint_feedback(joint).map(|s| s.velocity_rad_s)
     }
 
     /// Joint-space feedback torque (Nm) if available.
     pub fn joint_torque_rad(&self, joint: &str) -> Option<f64> {
-        let motor = motor_for_joint(&self.motors, joint)?;
-        let address = MotorAddress::from(motor);
-        let raw = self.motor_states.get(&address)?;
-        motor_to_joint_state(motor, *raw)
-            .ok()
-            .map(|s| f64::from(s.torque_nm))
+        self.joint_feedback(joint).map(|s| s.torque_nm)
     }
 
     /// Override synthetic feedback for one joint (unit tests / replay without CAN RX).
@@ -518,10 +533,6 @@ impl<B: MotorBus> Supervisor<B> {
             let measured = self.joint_torque_rad(joint).unwrap_or(0.0);
             self.last_tau_ff.insert(joint.clone(), measured);
         }
-    }
-
-    pub fn motor_states(&self) -> &HashMap<MotorAddress, MotorState> {
-        &self.motor_states
     }
 
     /// Seed zero feedback for all configured motors (unit tests without CAN RX).
@@ -1526,7 +1537,7 @@ mod tests {
     #![allow(clippy::expect_used)]
 
     use marengo_config::LimitPatch;
-    use robstride::{CanBus, CanFrame, MemoryBus, ReceivedCanFrame};
+    use robstride::{CanBus, CanFrame, CommunicationType, MemoryBus, ReceivedCanFrame};
 
     use super::*;
 
@@ -2035,6 +2046,165 @@ mod tests {
         assert_eq!(joint.fault, 7);
     }
 
+    /// Synthetic insert writes joint space; inverted direction must not re-transform on read.
+    #[test]
+    fn joint_feedback_preserves_synthetic_joint_space_with_inverted_direction() {
+        let mut sup = Supervisor::from_repo(repo_root(), MemoryBus::default()).expect("supervisor");
+        let pitch = motor_for_joint(&sup.motors, "shoulder_pitch")
+            .expect("shoulder_pitch")
+            .joint
+            .clone();
+        for m in &mut sup.motors.motors {
+            if m.joint == pitch {
+                m.direction = -1;
+            }
+        }
+        assert_eq!(
+            motor_for_joint(&sup.motors, &pitch)
+                .expect("pitch")
+                .direction,
+            -1
+        );
+        sup.set_synthetic_joint_feedback(&pitch, 1.0, 0.0)
+            .expect("synthetic");
+        let fb = sup.joint_feedback(&pitch).expect("feedback");
+        assert!(
+            (fb.position_rad - 1.0).abs() < 1e-9,
+            "expected joint-space 1.0 without re-transform, got {}",
+            fb.position_rad
+        );
+        assert!(
+            (sup.joint_position_rad(&pitch).expect("position") - 1.0).abs() < 1e-9,
+            "scalar accessor must match joint_feedback"
+        );
+    }
+
+    #[test]
+    fn joint_feedback_exposes_temperature_and_fault() {
+        let mut sup = Supervisor::from_repo(repo_root(), MemoryBus::default()).expect("supervisor");
+        let motor = motor_for_joint(&sup.motors, "shoulder_pitch")
+            .expect("motor")
+            .clone();
+        let address = MotorAddress::from(&motor);
+        let now = Instant::now();
+        sup.motor_states.insert(
+            address,
+            MotorState {
+                position_rad: 0.5,
+                velocity_rad_s: 0.1,
+                torque_nm: 1.2,
+                temperature_c: 42.0,
+                fault: 7,
+                updated: Some(now),
+            },
+        );
+        let fb = sup.joint_feedback("shoulder_pitch").expect("feedback");
+        assert!((fb.position_rad - 0.5).abs() < 1e-6);
+        assert!((fb.velocity_rad_s - 0.1).abs() < 1e-6);
+        assert!((fb.torque_nm - 1.2).abs() < 1e-6);
+        assert_eq!(fb.temperature_c, 42.0);
+        assert_eq!(fb.fault, 7);
+    }
+
+    /// Status RX → `motor_to_joint_state` → cache → facade (not synthetic / not direct insert).
+    fn status_frame_motor_space(
+        device_id: u8,
+        motor_type: MotorType,
+        position_rad: f32,
+        velocity_rad_s: f32,
+        torque_nm: f32,
+        temperature_c: f32,
+    ) -> CanFrame {
+        let ranges = robstride::motor_type::MitRanges::for_motor_type(motor_type);
+        let to_u16 = |value: f32, scale: f32| -> u16 {
+            let clamped = value.clamp(-scale, scale);
+            ((clamped / scale + 1.0) * 0x7FFF as f32)
+                .round()
+                .clamp(0.0, u16::MAX as f32) as u16
+        };
+        let mut data = [0u8; 8];
+        data[0..2].copy_from_slice(&to_u16(position_rad, ranges.position_scale).to_be_bytes());
+        data[2..4].copy_from_slice(&to_u16(velocity_rad_s, ranges.velocity_scale).to_be_bytes());
+        data[4..6].copy_from_slice(&to_u16(torque_nm, ranges.torque_scale).to_be_bytes());
+        let temp_raw = ((temperature_c / 0.1).round() as u16).to_be_bytes();
+        data[6..8].copy_from_slice(&temp_raw);
+        CanFrame {
+            id: robstride::pack_ext_id(
+                CommunicationType::OperationStatus.as_u8(),
+                u16::from(device_id),
+                robstride::DEFAULT_HOST_ID,
+            ),
+            data,
+            extended: true,
+        }
+    }
+
+    #[test]
+    fn joint_feedback_transforms_once_on_refresh_with_inverted_scale() {
+        let bus = RoutedMemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let joint = "elbow".to_string();
+        for m in &mut sup.motors.motors {
+            if m.joint == joint {
+                m.direction = -1;
+                m.gear_ratio = 2.0;
+                m.can_interface = "can0".to_string();
+            }
+        }
+        let motor = motor_for_joint(&sup.motors, &joint).expect("elbow").clone();
+        assert_eq!(motor.direction, -1);
+        assert!((motor.gear_ratio - 2.0).abs() < 1e-9);
+        sup.motor_types = sup
+            .motors
+            .motors
+            .iter()
+            .map(|m| (MotorAddress::from(m), m.motor_type))
+            .collect();
+
+        // Motor-space sample; scale = direction * gear = -2 → joint (0.5, 0.25, 4.0).
+        let motor_pos = -1.0_f32;
+        let motor_vel = -0.5_f32;
+        let motor_tau = -2.0_f32;
+        sup.bus.rx.push(ReceivedCanFrame {
+            interface: Some("can0".to_string()),
+            frame: status_frame_motor_space(
+                motor.device_id,
+                motor.motor_type,
+                motor_pos,
+                motor_vel,
+                motor_tau,
+                25.0,
+            ),
+        });
+
+        assert_eq!(sup.refresh_feedback().expect("refresh"), 1);
+        let fb = sup.joint_feedback(&joint).expect("feedback");
+        assert!(
+            (fb.position_rad - 0.5).abs() < 1e-3,
+            "expected joint-space 0.5 after one transform, got {}",
+            fb.position_rad
+        );
+        assert!(
+            (fb.velocity_rad_s - 0.25).abs() < 1e-3,
+            "expected joint-space 0.25, got {}",
+            fb.velocity_rad_s
+        );
+        assert!(
+            (fb.torque_nm - 4.0).abs() < 1e-2,
+            "expected joint-space 4.0 Nm, got {}",
+            fb.torque_nm
+        );
+        // Double-transform would yield position motor/scale² = -1/4 = -0.25.
+        assert!(
+            (fb.position_rad + 0.25).abs() > 0.1,
+            "must not re-transform on read"
+        );
+        assert!(
+            (sup.joint_position_rad(&joint).expect("pos") - 0.5).abs() < 1e-3,
+            "scalar accessor must match facade"
+        );
+    }
+
     #[test]
     fn feedback_state_is_keyed_by_bus_address() {
         let bus = RoutedMemoryBus::default();
@@ -2070,12 +2240,10 @@ mod tests {
         let count = sup.refresh_feedback().expect("feedback");
 
         assert_eq!(count, 2);
-        assert!(sup
-            .motor_states()
-            .contains_key(&MotorAddress::new("can0", 1)));
-        assert!(sup
-            .motor_states()
-            .contains_key(&MotorAddress::new("can1", 1)));
+        let j0 = sup.motors.motors[0].joint.clone();
+        let j1 = sup.motors.motors[1].joint.clone();
+        assert!(sup.joint_feedback(&j0).is_some());
+        assert!(sup.joint_feedback(&j1).is_some());
     }
 
     #[test]
@@ -2151,10 +2319,8 @@ mod tests {
             .expect("stationary repeated spike remains ignored");
 
         assert!(sup.feedback_velocity_trips.is_empty());
-        let state = sup
-            .motor_states()
-            .get(&MotorAddress::new("can0", 1))
-            .expect("sanitized state cached");
+        let joint = sup.motors.motors[0].joint.clone();
+        let state = sup.joint_feedback(&joint).expect("sanitized state cached");
         assert_eq!(state.velocity_rad_s, 0.0);
     }
 

@@ -27,7 +27,7 @@ use berthier::{
     proto_control_mode, ControlLoop, ControlMode, GainOverride, LoopError, TickPhaseAverages,
 };
 use chappe::Bus;
-use davout::{DavoutError, MotorAddress, OperationalMode, DEFAULT_LEASE_TTL};
+use davout::{DavoutError, OperationalMode, DEFAULT_LEASE_TTL};
 use marengo_config::{
     load_control_config, load_motors_config, resolve_config_dir, resolve_repo_root,
     resolve_urdf_path,
@@ -560,8 +560,7 @@ fn print_status(loop_ctrl: &mut ControlLoop<RuntimeBus>, config_dir: &Path) {
         control_mode,
     );
     for motor in &supervisor.motors.motors {
-        let address = MotorAddress::from(motor);
-        match supervisor.motor_states().get(&address) {
+        match supervisor.joint_feedback(&motor.joint) {
             Some(state) => println!(
                 "{} ({}/id{}): pos={:.4} rad vel={:.4} rad/s torque={:.4} Nm fault={:#06x}",
                 motor.joint,
@@ -1164,15 +1163,14 @@ fn debug_status(loop_ctrl: &mut ControlLoop<RuntimeBus>, timing: &mut LoopTiming
     let supervisor = loop_ctrl.supervisor_mut();
     let operational = supervisor.mode();
     for motor in &supervisor.motors.motors {
-        let address = MotorAddress::from(motor);
-        if let Some(state) = supervisor.motor_states().get(&address) {
+        if let Some(state) = supervisor.joint_feedback(&motor.joint) {
             debug!(
                 joint = %motor.joint,
                 interface = %motor.can_interface,
                 device_id = motor.device_id,
-                pos = f64::from(state.position_rad),
-                vel = f64::from(state.velocity_rad_s),
-                torque = f64::from(state.torque_nm),
+                pos = state.position_rad,
+                vel = state.velocity_rad_s,
+                torque = state.torque_nm,
                 operational = ?operational,
                 control = ?proto_control_mode(control_mode),
                 "feedback"

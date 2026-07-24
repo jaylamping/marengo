@@ -10,8 +10,7 @@ use armee_kinematics::clamp_hold_target;
 use armee_proto::{ControlMode as ProtoControlMode, JointState, RobotState};
 use chappe::Bus;
 use davout::{
-    ControlMode, DavoutError, MitJointCommand as DavoutMit, MotorAddress, MotorBus,
-    OperationalMode, Supervisor,
+    ControlMode, DavoutError, MitJointCommand as DavoutMit, MotorBus, OperationalMode, Supervisor,
 };
 use marengo_config::{
     load_robot_config, motor_type_key, resolve_urdf_path, ModeGains, MotorTypeDefaults,
@@ -973,13 +972,7 @@ impl<B: MotorBus> ControlLoop<B> {
     }
 
     fn has_joint_feedback(&self, joint: &str) -> bool {
-        self.supervisor
-            .motors
-            .motors
-            .iter()
-            .find(|m| m.joint == joint)
-            .and_then(|m| self.supervisor.motor_states().get(&MotorAddress::from(m)))
-            .is_some()
+        self.supervisor.joint_feedback(joint).is_some()
     }
 
     fn read_positions(&self) -> Vec<f64> {
@@ -987,12 +980,8 @@ impl<B: MotorBus> ControlLoop<B> {
             .iter()
             .map(|name| {
                 self.supervisor
-                    .motors
-                    .motors
-                    .iter()
-                    .find(|m| &m.joint == name)
-                    .and_then(|m| self.supervisor.motor_states().get(&MotorAddress::from(m)))
-                    .map(|s| f64::from(s.position_rad))
+                    .joint_feedback(name)
+                    .map(|s| s.position_rad)
                     .unwrap_or(0.0)
             })
             .collect()
@@ -1000,23 +989,15 @@ impl<B: MotorBus> ControlLoop<B> {
 
     fn joint_velocity(&self, joint: &str) -> f64 {
         self.supervisor
-            .motors
-            .motors
-            .iter()
-            .find(|m| m.joint == joint)
-            .and_then(|m| self.supervisor.motor_states().get(&MotorAddress::from(m)))
-            .map(|s| f64::from(s.velocity_rad_s))
+            .joint_feedback(joint)
+            .map(|s| s.velocity_rad_s)
             .unwrap_or(0.0)
     }
 
     fn joint_torque(&self, joint: &str) -> f64 {
         self.supervisor
-            .motors
-            .motors
-            .iter()
-            .find(|m| m.joint == joint)
-            .and_then(|m| self.supervisor.motor_states().get(&MotorAddress::from(m)))
-            .map(|s| f64::from(s.torque_nm))
+            .joint_feedback(joint)
+            .map(|s| s.torque_nm)
             .unwrap_or(0.0)
     }
 
@@ -1026,18 +1007,12 @@ impl<B: MotorBus> ControlLoop<B> {
             .iter()
             .zip(q.iter())
             .map(|(name, &position)| {
-                let state = self
-                    .supervisor
-                    .motors
-                    .motors
-                    .iter()
-                    .find(|m| &m.joint == name)
-                    .and_then(|m| self.supervisor.motor_states().get(&MotorAddress::from(m)));
+                let state = self.supervisor.joint_feedback(name);
                 JointState {
                     name: name.clone(),
                     position,
-                    velocity: state.map(|s| f64::from(s.velocity_rad_s)).unwrap_or(0.0),
-                    effort: state.map(|s| f64::from(s.torque_nm)).unwrap_or(0.0),
+                    velocity: state.map(|s| s.velocity_rad_s).unwrap_or(0.0),
+                    effort: state.map(|s| s.torque_nm).unwrap_or(0.0),
                     temperature_c: state.map(|s| s.temperature_c).unwrap_or(0.0),
                     fault: state.map(|s| u32::from(s.fault)).unwrap_or(0),
                 }
