@@ -2221,9 +2221,7 @@ mod tests {
 
         assert!(sup.feedback_velocity_trips.is_empty());
         let joint = sup.motors.motors[0].joint.clone();
-        let state = sup
-            .joint_feedback(&joint)
-            .expect("sanitized state cached");
+        let state = sup.joint_feedback(&joint).expect("sanitized state cached");
         assert_eq!(state.velocity_rad_s, 0.0);
     }
 

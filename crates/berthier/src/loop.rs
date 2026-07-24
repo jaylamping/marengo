@@ -10,8 +10,7 @@ use armee_kinematics::clamp_hold_target;
 use armee_proto::{ControlMode as ProtoControlMode, JointState, RobotState};
 use chappe::Bus;
 use davout::{
-    ControlMode, DavoutError, MitJointCommand as DavoutMit, MotorBus,
-    OperationalMode, Supervisor,
+    ControlMode, DavoutError, MitJointCommand as DavoutMit, MotorBus, OperationalMode, Supervisor,
 };
 use marengo_config::{
     load_robot_config, motor_type_key, resolve_urdf_path, ModeGains, MotorTypeDefaults,
