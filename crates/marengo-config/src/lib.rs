@@ -27,20 +27,20 @@
 //! `hardware/docs/kinematics.md` together.
 
 mod bench_joints;
-mod bringup_presets;
+mod completeness;
+mod config_revision;
 mod limit_patch;
 mod profile_txn;
 mod urdf_expand;
+mod urdf_merge;
 
 pub use bench_joints::{
-    load_command_joint_allowlist, load_command_joint_allowlist_from, resolve_command_joint,
+    apply_joint_subset, joint_subset_from_env, load_command_joint_allowlist,
+    load_command_joint_allowlist_from, resolve_command_joint, validate_joint_subset,
     CommandJointAllowlist,
 };
-pub use bringup_presets::{
-    bringup_dir_default_repo, derive_preset_label_for_joint, is_allowlisted_slug,
-    preset_id_for_profile, profile_content_revision, profile_slug_for_preset, resolve_bringup_dir,
-    PresetProfileMapping, BRINGUP_PRESET_IDS, BRINGUP_PROFILE_SLUGS, PRESET_PROFILE_MAP,
-};
+pub use completeness::{completeness_report, CompletenessReport, CompletenessWarning};
+pub use config_revision::profile_content_revision;
 pub use limit_patch::{
     apply_limit_patch_to_control, apply_limit_patch_to_motor, ensure_soft_inset,
     soft_limits_with_inset, validate_limit_patch, LimitPatch, DEFAULT_SOFT_INSET_RAD,
@@ -52,6 +52,11 @@ pub use profile_txn::{
 };
 pub use urdf_expand::{
     apply_local_limit_patch, expand_urdf_file_to_cover_motors, write_motors_control_and_urdf,
+};
+pub use urdf_merge::{
+    apply_merge_xml, merge_preview_from_paths, merge_preview_from_robots, simulate_merge_xml,
+    unresolved_critical_fields, validate_merged_urdf_xml, FieldDiff, FieldResolution, MergePreview,
+    ResolutionChoice,
 };
 
 use std::collections::{HashMap, HashSet};
@@ -82,6 +87,10 @@ pub enum ConfigError {
     InvalidGravityCompGains { joint: String, message: String },
     #[error("joint {joint} in robot.yaml has no entry in control.yaml")]
     MissingControlJoint { joint: String },
+    #[error("MARENGO_JOINT_SUBSET names unknown joint {joint} (not in robot.joints)")]
+    UnknownJointSubset { joint: String },
+    #[error("MARENGO_JOINT_SUBSET intersects to zero joints")]
+    EmptyJointSubset,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -184,11 +193,19 @@ pub fn resolve_repo_root() -> PathBuf {
         .unwrap_or_else(|_| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."))
 }
 
-/// Config directory: `MARENGO_CONFIG_DIR` or `<repo_root>/config`.
+/// Pi install default; dev falls back to `<repo_root>/config` when unset and path missing.
+pub const DEFAULT_PI_CONFIG_DIR: &str = "/opt/marengo/config";
+
+/// Config directory: `MARENGO_CONFIG_DIR`, else `/opt/marengo/config` when present, else `<repo_root>/config`.
 pub fn resolve_config_dir(repo_root: impl AsRef<Path>) -> PathBuf {
-    std::env::var("MARENGO_CONFIG_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| repo_root.as_ref().join("config"))
+    if let Ok(dir) = std::env::var("MARENGO_CONFIG_DIR") {
+        return PathBuf::from(dir);
+    }
+    let pi_default = PathBuf::from(DEFAULT_PI_CONFIG_DIR);
+    if pi_default.is_dir() {
+        return pi_default;
+    }
+    repo_root.as_ref().join("config")
 }
 
 /// Load `robot.yaml` from `config_dir`.
@@ -1086,11 +1103,10 @@ mod tests {
     #[test]
     fn robot_yaml_parses() {
         let cfg = load_robot_config(repo_root()).expect("robot.yaml");
-        assert_eq!(cfg.robot.name, "marengo_arm_4dof");
-        assert!(cfg.robot.urdf.contains("arm_4dof"));
+        assert_eq!(cfg.robot.name, "marengo_arm_4dof_right");
+        assert!(cfg.robot.urdf.contains("marengo.urdf"));
         assert!(cfg.robot.bench.max_joint_velocity_rad_s > 0.0);
         assert_eq!(cfg.robot.joints.len(), 4);
-        assert!(cfg.robot.urdf.contains("arm_4dof"));
     }
 
     #[test]
@@ -1099,8 +1115,8 @@ mod tests {
         let motors = load_motors_config(repo_root()).expect("motors");
         assert_eq!(motors.motors.len(), 4);
         validate_motors_against_robot(&robot, &motors).expect("joint names align");
-        let m = motor_for_joint(&motors, "shoulder_roll").expect("shoulder_roll");
-        assert_eq!(m.device_id, 11);
+        let m = motor_for_joint(&motors, "right_shoulder_roll").expect("right_shoulder_roll");
+        assert_eq!(m.device_id, 1);
         assert_eq!(m.motor_type, MotorType::Rs03);
     }
 
@@ -1117,54 +1133,20 @@ mod tests {
     }
 
     #[test]
-    fn arm_4dof_left_bringup_config_validates() {
+    fn master_config_validates_four_dof_right_bench() {
         let root = repo_root();
-        let config_dir = root.join("config/bringup/arm_4dof_left");
-        let robot = load_robot_config_from(&config_dir).expect("arm robot.yaml");
-        let motors = load_motors_config_from(&config_dir).expect("arm motors.yaml");
-        validate_motors_against_robot(&robot, &motors).expect("arm joints align");
-        assert_eq!(
-            motor_for_joint(&motors, "shoulder_pitch")
-                .expect("pitch")
-                .device_id,
-            12
-        );
-    }
-
-    #[test]
-    fn arm_4dof_right_bringup_config_validates() {
-        let root = repo_root();
-        let config_dir = root.join("config/bringup/arm_4dof_right");
-        let robot = load_robot_config_from(&config_dir).expect("arm robot.yaml");
-        let motors = load_motors_config_from(&config_dir).expect("arm motors.yaml");
-        validate_motors_against_robot(&robot, &motors).expect("arm joints align");
+        let config_dir = resolve_config_dir(&root);
+        let robot = load_robot_config_from(&config_dir).expect("robot.yaml");
+        let motors = load_motors_config_from(&config_dir).expect("motors.yaml");
+        validate_motors_against_robot(&robot, &motors).expect("joints align");
         assert_eq!(robot.robot.name, "marengo_arm_4dof_right");
-        assert!(robot.robot.urdf.contains("arm_4dof_right.urdf"));
+        assert!(robot.robot.urdf.contains("marengo.urdf"));
         let elbow = motor_for_joint(&motors, "right_elbow_pitch").expect("elbow");
         assert_eq!(elbow.device_id, 4);
         assert_eq!(elbow.can_interface, "can0");
-        load_control_config_from(&config_dir).expect("arm control.yaml");
-        let urdf = resolve_urdf_path(&root, &robot).expect("arm urdf");
-        assert!(urdf.ends_with("arm_4dof_right.urdf"));
-    }
-
-    #[test]
-    fn shoulder_pitch_dual_bringup_config_validates() {
-        let root = repo_root();
-        let config_dir = root.join("config/bringup/shoulder_pitch_dual");
-        let robot = load_robot_config_from(&config_dir).expect("bringup robot.yaml");
-        let motors = load_motors_config_from(&config_dir).expect("bringup motors.yaml");
-        assert_eq!(motors.motors.len(), 2);
-        validate_motors_against_robot(&robot, &motors).expect("bringup joints align");
-        let left = motor_for_joint(&motors, "left_shoulder_pitch").expect("left");
-        let right = motor_for_joint(&motors, "right_shoulder_pitch").expect("right");
-        assert_eq!(left.device_id, 12);
-        assert_eq!(left.can_interface, "can1");
-        assert_eq!(right.device_id, 2);
-        assert_eq!(right.can_interface, "can0");
-        let urdf = resolve_urdf_path(&root, &robot).expect("bringup urdf");
-        assert!(urdf.ends_with("shoulder_pitch_dual.urdf"));
-        load_control_config_from(&config_dir).expect("bringup control.yaml");
+        load_control_config_from(&config_dir).expect("control.yaml");
+        let urdf = resolve_urdf_path(&root, &robot).expect("urdf");
+        assert!(urdf.ends_with("marengo.urdf"));
     }
 
     #[test]
@@ -1176,8 +1158,8 @@ mod tests {
     #[test]
     fn production_urdf_resolves() {
         let cfg = load_robot_config(repo_root()).expect("robot.yaml");
-        let path = resolve_urdf_path(repo_root(), &cfg).expect("arm_4dof.urdf");
-        assert!(path.ends_with("arm_4dof.urdf"));
+        let path = resolve_urdf_path(repo_root(), &cfg).expect("marengo.urdf");
+        assert!(path.ends_with("marengo.urdf"));
     }
 
     #[test]
@@ -1186,17 +1168,9 @@ mod tests {
         assert!((cfg.homing.zero_verify_tolerance_rad - 0.05).abs() < 1e-9);
         let roll = cfg
             .homing
-            .effective_joint("shoulder_roll")
-            .expect("shoulder_roll");
+            .effective_joint("right_shoulder_roll")
+            .expect("right_shoulder_roll");
         assert!(matches!(roll.method, HomingMethod::ManualReference));
-    }
-
-    #[test]
-    fn shoulder_pitch_dual_homing_parses() {
-        let root = repo_root();
-        let config_dir = root.join("config/bringup/shoulder_pitch_dual");
-        let cfg = load_homing_config_from(&config_dir).expect("bringup homing.yaml");
-        assert_eq!(cfg.homing.joints.len(), 2);
     }
 
     #[test]
@@ -1398,7 +1372,7 @@ mod tests {
     #[test]
     fn missing_control_joint_rejected() {
         let root = repo_root();
-        let config_dir = root.join("config/bringup/arm_3dof_right");
+        let config_dir = resolve_config_dir(&root);
         let robot = load_robot_config_from(&config_dir).expect("robot");
         let mut control = load_control_config_from(&config_dir).expect("control");
         control.control.joints.remove("right_shoulder_pitch");
@@ -1410,7 +1384,7 @@ mod tests {
     #[test]
     fn trajectory_velocity_above_effective_cap_rejected() {
         let root = repo_root();
-        let config_dir = root.join("config/bringup/arm_3dof_right");
+        let config_dir = resolve_config_dir(&root);
         let robot = load_robot_config_from(&config_dir).expect("robot");
         let motors = load_motors_config_from(&config_dir).expect("motors");
         let mut control = load_control_config_from(&config_dir).expect("control");
@@ -1434,16 +1408,19 @@ mod tests {
             std::fs::copy(src.join(name), tmp.path().join(name)).expect("copy config");
         }
         let mut cfg = load_control_config_from(tmp.path()).expect("load");
-        let before = cfg.control.joints["elbow"].impedance.kp;
+        let before = cfg.control.joints["right_elbow_pitch"].impedance.kp;
         cfg.control
             .joints
-            .get_mut("elbow")
+            .get_mut("right_elbow_pitch")
             .expect("elbow")
             .impedance
             .kp = before + 3.0;
         write_control_config_from(tmp.path(), &cfg).expect("write");
         let reloaded = load_control_config_from(tmp.path()).expect("reload");
-        assert!((reloaded.control.joints["elbow"].impedance.kp - (before + 3.0)).abs() < 1e-9);
+        assert!(
+            (reloaded.control.joints["right_elbow_pitch"].impedance.kp - (before + 3.0)).abs()
+                < 1e-9
+        );
     }
 
     #[test]
@@ -1452,11 +1429,12 @@ mod tests {
         let mut bad = cfg.clone();
         bad.control
             .joints
-            .get_mut("elbow")
+            .get_mut("right_elbow_pitch")
             .expect("elbow")
             .impedance
             .kp = 9999.0;
-        let err = validate_joint_gains_against_motor_type(&bad, "elbow").expect_err("over max");
+        let err = validate_joint_gains_against_motor_type(&bad, "right_elbow_pitch")
+            .expect_err("over max");
         assert!(matches!(err, ConfigError::Parse { .. }));
     }
 
@@ -1466,11 +1444,12 @@ mod tests {
         let mut bad = cfg.clone();
         bad.control
             .joints
-            .get_mut("elbow")
+            .get_mut("right_elbow_pitch")
             .expect("elbow")
             .impedance
             .kp = -1.0;
-        let err = validate_joint_gains_against_motor_type(&bad, "elbow").expect_err("negative");
+        let err = validate_joint_gains_against_motor_type(&bad, "right_elbow_pitch")
+            .expect_err("negative");
         assert!(matches!(err, ConfigError::Parse { .. }));
     }
 }

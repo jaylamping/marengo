@@ -11,7 +11,7 @@ One repository for a personal humanoid robot: CAD, wiring, URDF, and the Rust ru
 | `bins/marengo-gateway/src/main.rs` | HTTP/WebTransport gateway for Consul |
 | `bins/motor-repl/src/main.rs` | Bench motor CLI (bring-up, set-zero, jog) |
 | `consul/` | Vite+React operator dashboard (npm workspace) |
-| `config/` | robot.yaml, motors.yaml, control.yaml + bringup profiles |
+| `config/` | robot.yaml, motors.yaml, control.yaml, homing.yaml — master hardware SoT |
 | `proto/marengo/v1/marengo.proto` | Wire schemas for Chappe (proto-first, ADR 0001) |
 | `assets/urdf/` | URDF exported from CAD — kinematic source of truth |
 | `justfile` | Developer task runner (check, deploy, sim) |
@@ -38,7 +38,7 @@ Consul (React) ←HTTP/WT→ marengo-gateway ←IPC→ Chappe ← marengo-pi
 |-----------|------------------------|--------------|
 | `crates/` | Armée libraries: kinematics, dynamics, control loop, safety gateway, CAN driver, config, Chappe bus | [View Map](crates/codemap.md) |
 | `bins/` | Thin runtimes: Pi control, gateway, motor REPL, Jetson, log CLI, probes | [View Map](bins/codemap.md) |
-| `config/` | Declarative YAML: robot, motors, control, homing + bringup profiles | [View Map](config/codemap.md) |
+| `config/` | Declarative YAML: robot, motors, control, homing (master SoT) | [View Map](config/codemap.md) |
 | `proto/` | Protobuf wire types for Chappe (Rust + TS codegen) | [View Map](proto/codemap.md) |
 | `consul/` | Operator web UI — telemetry, enable, testing panels, URDF preview | [View Map](consul/codemap.md) |
 | `scripts/` | Cross-build, deploy-pi, check.sh, Pi install, vcan setup | [View Map](scripts/codemap.md) |

@@ -15,12 +15,9 @@ use marengo_config::{
 #[command(name = "marengo-limit-sync")]
 #[command(about = "Sync taught joint limits into the local Marengo checkout")]
 struct Args {
-    /// Repository root (contains config/bringup and assets/urdf).
+    /// Repository root (contains config/ and assets/urdf/).
     #[arg(long)]
     repo_root: PathBuf,
-    /// Bringup profile slug (allowlisted).
-    #[arg(long)]
-    profile: String,
     /// Joint name.
     #[arg(long)]
     joint: String,
@@ -58,16 +55,11 @@ fn main() -> ExitCode {
     };
     ensure_soft_inset(&mut patch);
 
-    match apply_local_limit_patch(&args.repo_root, &args.profile, &patch) {
+    match apply_local_limit_patch(&args.repo_root, &patch) {
         Ok(()) => {
             eprintln!(
-                "local limit sync ok: profile={} joint={} hard=[{}, {}] soft=[{}, {}]",
-                args.profile,
-                patch.joint,
-                patch.position_lower_rad,
-                patch.position_upper_rad,
-                soft_lo,
-                soft_hi
+                "local limit sync ok: joint={} hard=[{}, {}] soft=[{}, {}]",
+                patch.joint, patch.position_lower_rad, patch.position_upper_rad, soft_lo, soft_hi
             );
             ExitCode::SUCCESS
         }

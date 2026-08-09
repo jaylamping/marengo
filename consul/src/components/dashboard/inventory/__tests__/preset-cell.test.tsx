@@ -10,22 +10,6 @@ import {
   useInventoryOverridesStore,
 } from '@/state/inventoryOverridesStore';
 
-vi.mock('@/lib/config-api', () => ({
-  applyActuatorConfig: vi.fn(async () => ({
-    ok: true,
-    message: 'preview',
-    applied_live: false,
-    restart_required: false,
-    persist_status: 'n/a',
-    decision: 'noop',
-    revision: 'abc',
-  })),
-}));
-
-vi.mock('@/lib/query-client', () => ({
-  queryClient: { invalidateQueries: vi.fn(async () => undefined) },
-}));
-
 vi.mock('sonner', () => ({
   toast: {
     message: vi.fn(),
@@ -46,9 +30,6 @@ vi.mock('@/components/ui/select', () => {
       <div data-testid="preset-select-stub">
         <button type="button" onClick={() => onValueChange?.('golden_pose')}>
           pick golden_pose
-        </button>
-        <button type="button" onClick={() => onValueChange?.('bench_4dof')}>
-          pick bench_4dof
         </button>
         {children}
       </div>
@@ -71,12 +52,12 @@ describe('PresetCell', () => {
     useInventoryOverridesStore.setState({ overrides: {} });
   });
 
-  it('persists unmapped catalog presets through the inventory overrides store', () => {
+  it('persists catalog preset tags through the inventory overrides store only', () => {
     render(
       <PresetCell itemId={20} preset="unassigned" jointName="right_elbow_pitch" />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Assign preset' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Assign preset tag' }));
     fireEvent.click(screen.getByRole('button', { name: 'pick golden_pose' }));
 
     expect(useInventoryOverridesStore.getState().overrides[20]).toEqual({
@@ -85,24 +66,5 @@ describe('PresetCell', () => {
     expect(localStorage.getItem(INVENTORY_OVERRIDES_STORAGE_KEY)).toContain(
       'golden_pose',
     );
-  });
-
-  it('routes mapped bench presets through the apply API instead of localStorage', async () => {
-    const { applyActuatorConfig } = await import('@/lib/config-api');
-    render(
-      <PresetCell
-        itemId={25}
-        preset="bench_3dof"
-        jointName="right_shoulder_pitch"
-      />,
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: 'Edit preset bench_3dof' }));
-    fireEvent.click(screen.getByRole('button', { name: 'pick bench_4dof' }));
-
-    await vi.waitFor(() => {
-      expect(applyActuatorConfig).toHaveBeenCalled();
-    });
-    expect(useInventoryOverridesStore.getState().overrides[25]).toBeUndefined();
   });
 });

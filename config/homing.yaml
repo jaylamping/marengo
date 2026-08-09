@@ -1,10 +1,6 @@
-# Per-joint homing and zero reference (ADR 0006).
-# See docs/homing.md
-
 homing:
   zero_verify_tolerance_rad: 0.05
-  calibration_record_path: var/calibration/zero_registry.yaml
-
+  calibration_record_path: /opt/marengo/var/calibration/zero_registry.yaml
   defaults:
     method: manual_reference
     home_offset_rad: 0.0
@@ -15,20 +11,12 @@ homing:
     backoff_rad: 0.05
     sign_test_required: true
     allow_sensor_overlap: false
-
   joints:
-    shoulder_roll:
+    right_shoulder_roll:
       method: manual_reference
-      # Target when Hall hardware installed:
-      # method: hall_three_sensor
-      # home_offset_rad: 0.0
-      # sensors:
-      #   home: { gpio: 23, active_high: true }
-      #   min_limit: { gpio: 24, active_high: true }
-      #   max_limit: { gpio: 25, active_high: true }
-    shoulder_pitch:
+    right_shoulder_pitch:
       method: manual_reference
-    upper_arm_yaw:
+    right_upper_arm_yaw:
       method: manual_reference
-    elbow:
+    right_elbow_pitch:
       method: manual_reference

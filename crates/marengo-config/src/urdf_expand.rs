@@ -7,7 +7,7 @@ use armee_kinematics::{expand_urdf_joint_hard, load_urdf};
 
 use crate::{
     apply_limit_patch_to_control, apply_limit_patch_to_motor, ensure_soft_inset,
-    is_allowlisted_slug, load_control_config_from, load_motors_config_from, load_robot_config_from,
+    load_control_config_from, load_motors_config_from, load_robot_config_from, resolve_config_dir,
     resolve_urdf_path, validate_limit_patch, write_motors_and_control, ConfigError,
     MotorsConfigFile,
 };
@@ -131,21 +131,14 @@ pub fn write_motors_control_and_urdf(
 /// Apply local checkout limit sync: motors hard, control soft inset, expand-only URDF.
 pub fn apply_local_limit_patch(
     repo_root: impl AsRef<Path>,
-    profile_slug: &str,
     patch: &crate::LimitPatch,
 ) -> Result<(), ConfigError> {
     let repo_root = repo_root.as_ref();
-    if !is_allowlisted_slug(profile_slug) {
-        return Err(ConfigError::Parse {
-            path: repo_root.to_path_buf(),
-            message: format!("profile slug {profile_slug} is not an allowlisted bringup"),
-        });
-    }
-    let config_dir = repo_root.join("config/bringup").join(profile_slug);
+    let config_dir = resolve_config_dir(repo_root);
     if !config_dir.is_dir() {
         return Err(ConfigError::Io {
             path: config_dir,
-            message: "bringup profile directory missing".into(),
+            message: "master config directory missing".into(),
         });
     }
 
@@ -274,18 +267,19 @@ mod tests {
     #[test]
     fn rewrite_updates_elbow_hard_only() {
         let root = resolve_repo_root();
-        let src = root.join("assets/urdf/arm_4dof.urdf");
+        let src = root.join("assets/urdf/marengo.urdf");
         let xml = fs::read_to_string(&src).expect("read");
-        let out = rewrite_joint_envelope_attrs(&xml, "elbow", -0.5, 3.0, None).expect("rewrite");
+        let out = rewrite_joint_envelope_attrs(&xml, "right_elbow_pitch", -0.5, 3.0, None)
+            .expect("rewrite");
         assert!(out.contains("lower=\"-0.5\""));
         assert!(out.contains("upper=\"3\""));
-        assert!(out.contains("name=\"shoulder_pitch\""));
+        assert!(out.contains("name=\"right_shoulder_pitch\""));
     }
 
     #[test]
     fn rewrite_updates_soft_from_mutated_model() {
         let root = resolve_repo_root();
-        let src = root.join("assets/urdf/arm_4dof_right.urdf");
+        let src = root.join("assets/urdf/marengo.urdf");
         let xml = fs::read_to_string(&src).expect("read");
         let out =
             rewrite_joint_envelope_attrs(&xml, "right_elbow_pitch", -0.8, 1.2, Some((-0.8, 1.15)))
@@ -298,14 +292,14 @@ mod tests {
     fn expand_file_covers_motors_and_round_trips() {
         let root = resolve_repo_root();
         let tmp = tempfile::tempdir().expect("tmp");
-        let urdf_path = tmp.path().join("arm_4dof.urdf");
-        fs::copy(root.join("assets/urdf/arm_4dof.urdf"), &urdf_path).expect("copy");
+        let urdf_path = tmp.path().join("marengo.urdf");
+        fs::copy(root.join("assets/urdf/marengo.urdf"), &urdf_path).expect("copy");
 
         let mut motors = load_motors_config_from(root.join("config")).expect("motors");
         let elbow = motors
             .motors
             .iter_mut()
-            .find(|m| m.joint == "elbow")
+            .find(|m| m.joint == "right_elbow_pitch")
             .expect("elbow");
         elbow.bench = MotorBenchLimits {
             position_lower_rad: -0.5,
@@ -316,7 +310,7 @@ mod tests {
 
         assert!(expand_urdf_file_to_cover_motors(&urdf_path, &motors).expect("expand"));
         let robot = load_urdf(&urdf_path).expect("reload");
-        let lim = joint_limits(&robot, "elbow").expect("limits");
+        let lim = joint_limits(&robot, "right_elbow_pitch").expect("limits");
         assert!((lim.lower - (-0.5)).abs() < 1e-9);
         assert!((lim.upper - 3.0).abs() < 1e-9);
         assert!(!expand_urdf_file_to_cover_motors(&urdf_path, &motors).expect("noop"));
@@ -334,8 +328,8 @@ mod tests {
             fs::copy(root.join("config").join(name), config_dir.join(name)).expect("yaml");
         }
         fs::copy(
-            root.join("assets/urdf/arm_4dof.urdf"),
-            assets.join("arm_4dof.urdf"),
+            root.join("assets/urdf/marengo.urdf"),
+            assets.join("marengo.urdf"),
         )
         .expect("urdf");
 
@@ -344,14 +338,14 @@ mod tests {
         let elbow = motors
             .motors
             .iter_mut()
-            .find(|m| m.joint == "elbow")
+            .find(|m| m.joint == "right_elbow_pitch")
             .expect("elbow");
         elbow.bench.position_lower_rad = -0.4;
         elbow.bench.position_upper_rad = 2.8;
 
         write_motors_control_and_urdf(tmp.path(), &config_dir, &motors, &control).expect("write");
-        let robot = load_urdf(assets.join("arm_4dof.urdf")).expect("urdf");
-        let lim = joint_limits(&robot, "elbow").expect("limits");
+        let robot = load_urdf(assets.join("marengo.urdf")).expect("urdf");
+        let lim = joint_limits(&robot, "right_elbow_pitch").expect("limits");
         assert!(lim.lower <= -0.4 + 1e-9);
         assert!(lim.upper >= 2.8 - 1e-9);
     }

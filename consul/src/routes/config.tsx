@@ -3,6 +3,7 @@ import type { RouteObject } from 'react-router-dom';
 import { isActuatorsFeatureEnabled } from '@/lib/feature-flags';
 import { ActuatorsPage } from '@/pages/actuators';
 import { DashboardPage } from '@/pages/dashboard';
+import { HardwarePage } from '@/pages/hardware';
 import { LogsPage } from '@/pages/logs';
 import { SimulationPage } from '@/pages/simulation';
 import { SubsystemsPage } from '@/pages/subsystems';
@@ -57,6 +58,16 @@ export const appRoutes: RouteObject[] = [
           header: {
             title: 'Subsystems',
             subtitle: 'devices · actuators · sensors',
+          },
+        },
+      },
+      {
+        path: '/hardware',
+        Component: HardwarePage,
+        handle: {
+          header: {
+            title: 'Hardware',
+            subtitle: 'master config · URDF · Set Limits',
           },
         },
       },

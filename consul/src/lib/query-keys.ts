@@ -1,6 +1,7 @@
 /** Shared TanStack Query keys for Consul gateway data. */
 export const queryKeys = {
   configSnapshot: ['config', 'snapshot'] as const,
+  hardwareCompleteness: ['hardware', 'completeness'] as const,
 } as const;
 
 export function isPersistableQueryKey(queryKey: readonly unknown[]): boolean {

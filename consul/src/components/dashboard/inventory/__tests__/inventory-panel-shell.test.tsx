@@ -25,9 +25,9 @@ vi.mock('@/hooks/use-active-reporting-lease', () => ({
   useActiveReportingLease: () => 'idle',
 }));
 
-vi.mock('@/components/dashboard/inventory/set-limits-panel', () => ({
-  SetLimitsPanel: ({ jointName }: { jointName: string }) => (
-    <div data-testid="set-limits-panel-stub">Set Limits stub · {jointName}</div>
+vi.mock('@/components/dashboard/hardware/hardware-settings-sheet', () => ({
+  InventoryLimitsReadOnly: ({ jointName }: { jointName: string }) => (
+    <div data-testid="inventory-limits-readonly-stub">Limits stub · {jointName}</div>
   ),
 }));
 

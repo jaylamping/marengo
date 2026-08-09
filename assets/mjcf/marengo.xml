@@ -1,14 +1,24 @@
 <mujoco model="marengo">
-  <option timestep="0.002" gravity="0 0 -9.81"/>
+  <!-- Mirrors assets/urdf/marengo.urdf (right 4-DOF bench). -->
+  <compiler angle="radian"/>
+  <option gravity="0 0 -9.81"/>
   <worldbody>
-    <body name="base_link" pos="0 0 0">
-      <geom type="box" size="0.05 0.05 0.02" mass="1"/>
-      <body name="link1" pos="0 0 0.1">
-        <joint name="joint1" type="hinge" axis="0 0 1" range="-1.57 1.57" damping="0.1"/>
-        <geom type="capsule" fromto="0 0 0 0.2 0 0" size="0.02" mass="0.5"/>
-        <body name="link2" pos="0.2 0 0">
-          <joint name="joint2" type="hinge" axis="0 0 1" range="-1.0 1.0" damping="0.1"/>
-          <geom type="capsule" fromto="0 0 0 0.15 0 0" size="0.015" mass="0.25"/>
+    <body name="base_link">
+      <geom type="cylinder" size="0.04 0.05" rgba="0.5 0.5 0.5 1"/>
+      <body name="right_shoulder_pitch_link" pos="0 0 0">
+        <joint name="right_shoulder_pitch" type="hinge" axis="0 1 0" range="-0.9 3.25"/>
+        <geom type="sphere" size="0.03" rgba="0.6 0.6 0.6 1"/>
+        <body name="right_shoulder_roll_link" pos="0.05 0 0">
+          <joint name="right_shoulder_roll" type="hinge" axis="1 0 0" range="-0.05 3.14159"/>
+          <geom type="sphere" size="0.03" rgba="0.65 0.65 0.65 1"/>
+          <body name="right_upper_arm_link" pos="0.08 0 0">
+            <joint name="right_upper_arm_yaw" type="hinge" axis="0 0 1" range="-1.57 1.57"/>
+            <geom type="capsule" fromto="0 0 0 0 0 -0.24" size="0.03" rgba="0.23 0.51 0.96 1"/>
+            <body name="right_forearm_link" pos="0 0 -0.24">
+              <joint name="right_elbow_pitch" type="hinge" axis="0 1 0" range="-0.50 1.2"/>
+              <geom type="capsule" fromto="0 0 0 0 0 -0.2" size="0.025" rgba="0.35 0.6 0.95 1"/>
+            </body>
+          </body>
         </body>
       </body>
     </body>

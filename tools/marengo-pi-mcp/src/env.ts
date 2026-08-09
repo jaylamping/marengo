@@ -22,15 +22,23 @@ export function wrapRemote(cfg: MarengoPiConfig, body: string, debug = false): s
   return `${remotePreamble(cfg, debug)}\n${body}`;
 }
 
-/** Remote script with optional config-dir override (e.g. arm_3dof_right). */
+/** Remote script with optional config-dir and joint-subset overrides. */
 export function wrapRemoteWithConfig(
   cfg: MarengoPiConfig,
   body: string,
   configDir?: string,
   debug = false,
+  jointSubset?: string,
 ): string {
   const effective = configDir ? { ...cfg, configDir } : cfg;
-  return wrapRemote(effective, body, debug);
+  const parts = [remotePreamble(effective, debug)];
+  if (jointSubset) {
+    parts.push(`export MARENGO_JOINT_SUBSET=${shellQuote(jointSubset)}`);
+  } else {
+    parts.push("unset MARENGO_JOINT_SUBSET");
+  }
+  parts.push(body);
+  return parts.join("\n");
 }
 
 export function shellQuote(s: string): string {

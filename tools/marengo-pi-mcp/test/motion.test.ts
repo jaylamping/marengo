@@ -15,7 +15,7 @@ const cfg: MarengoPiConfig = {
   host: "marengo.local",
   user: "joey",
   piRoot: "/opt/marengo",
-  configDir: "/opt/marengo/config/bringup/arm_3dof_right",
+  configDir: "/opt/marengo/config",
   localRoot: "/tmp/marengo",
   benchProfile: "bare_motor",
   piStagingRoot: "~/marengo",
@@ -98,7 +98,7 @@ describe("marengo-pi script tool", () => {
     assert.match(script, /bin\/motor-repl disable/);
   });
 
-  it("routes right_elbow_pitch holds to arm_4dof_right by default", async () => {
+  it("routes right_elbow_pitch holds to master config by default", async () => {
     let script = "";
     const tools = registerMotionTools(
       cfg,
@@ -119,11 +119,11 @@ describe("marengo-pi script tool", () => {
 
     assert.match(
       script,
-      /export MARENGO_CONFIG_DIR='\/opt\/marengo\/config\/bringup\/arm_4dof_right'/,
+      /export MARENGO_CONFIG_DIR='\/opt\/marengo\/config'/,
     );
   });
 
-  it("expands profile-like config_dir overrides before a hold test", async () => {
+  it("uses master config for legacy bringup slug overrides", async () => {
     let script = "";
     const tools = registerMotionTools(
       cfg,
@@ -145,15 +145,11 @@ describe("marengo-pi script tool", () => {
 
     assert.match(
       script,
- /export MARENGO_CONFIG_DIR='\/opt\/marengo\/config\/bringup\/arm_3dof_right'/,
-    );
-    assert.doesNotMatch(
-      script,
-      /export MARENGO_CONFIG_DIR='shoulder_pitch_right_only'/,
+      /export MARENGO_CONFIG_DIR='\/opt\/marengo\/config'/,
     );
   });
 
-  it("expands profile-like config_dir overrides for homing status", async () => {
+  it("uses master config for homing status with legacy slug", async () => {
     let script = "";
     const tools = registerMotionTools(
       cfg,
@@ -170,11 +166,7 @@ describe("marengo-pi script tool", () => {
 
     assert.match(
       script,
-      /export MARENGO_CONFIG_DIR='\/opt\/marengo\/config\/bringup\/arm_3dof_right'/,
-    );
-    assert.doesNotMatch(
-      script,
-      /export MARENGO_CONFIG_DIR='shoulder_pitch_right_only'/,
+      /export MARENGO_CONFIG_DIR='\/opt\/marengo\/config'/,
     );
   });
 

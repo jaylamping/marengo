@@ -1192,13 +1192,13 @@ mod tests {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
         loop_ctrl
-            .enter_position_hold_at(Some("shoulder_pitch"), 0.25)
+            .enter_position_hold_at(Some("right_shoulder_pitch"), 0.25)
             .expect("hold-at");
         loop_ctrl.tick(None).expect("tick");
         loop_ctrl.supervisor_mut().disable_all().expect("disable");
         assert_eq!(loop_ctrl.supervisor_mut().mode(), OperationalMode::Disabled);
         loop_ctrl
-            .enter_position_hold_at(Some("shoulder_pitch"), 0.0)
+            .enter_position_hold_at(Some("right_shoulder_pitch"), 0.0)
             .expect("hold-at home");
         assert_eq!(loop_ctrl.supervisor_mut().mode(), OperationalMode::Active);
         assert_eq!(loop_ctrl.control_mode(), ControlMode::Position);
@@ -1212,7 +1212,7 @@ mod tests {
         loop_ctrl.supervisor_mut().clear_motor_states();
         loop_ctrl.set_control_mode(ControlMode::Position);
         loop_ctrl
-            .enter_position_hold_at(Some("shoulder_pitch"), 0.25)
+            .enter_position_hold_at(Some("right_shoulder_pitch"), 0.25)
             .expect("hold-at");
         let err = loop_ctrl.tick(None).expect_err("missing feedback");
         assert!(matches!(err, LoopError::MissingFeedback { .. }));
@@ -1241,7 +1241,7 @@ mod tests {
             .expect("enable");
         loop_ctrl.set_control_mode(ControlMode::Position);
         loop_ctrl
-            .enter_position_hold_at(Some("shoulder_pitch"), 0.25)
+            .enter_position_hold_at(Some("right_shoulder_pitch"), 0.25)
             .expect("hold-at");
         loop_ctrl
             .tick(None)
@@ -1272,13 +1272,13 @@ mod tests {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
         loop_ctrl
-            .enter_position_hold_at(Some("shoulder_pitch"), 0.42)
+            .enter_position_hold_at(Some("right_shoulder_pitch"), 0.42)
             .expect("hold-at");
         let sp = loop_ctrl.position_setpoints().expect("setpoints");
         let i = loop_ctrl
             .joint_names()
             .iter()
-            .position(|n| n == "shoulder_pitch")
+            .position(|n| n == "right_shoulder_pitch")
             .expect("joint index");
         assert!((sp[i] - 0.42).abs() < 1e-9);
         assert_eq!(loop_ctrl.control_mode(), ControlMode::Position);
@@ -1288,7 +1288,7 @@ mod tests {
     fn same_target_hold_at_preserves_active_wave() {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
-        let joint = "shoulder_pitch";
+        let joint = "right_shoulder_pitch";
         loop_ctrl
             .enter_position_hold_at(Some(joint), 0.1)
             .expect("hold-at");
@@ -1329,7 +1329,7 @@ mod tests {
         bench_ready_active(&mut loop_ctrl);
         loop_ctrl.set_control_mode(ControlMode::Impedance);
         loop_ctrl.apply_gain_override(
-            "shoulder_pitch",
+            "right_shoulder_pitch",
             GainOverride {
                 kp: 50.0,
                 kd: 5.0,
@@ -1337,10 +1337,10 @@ mod tests {
                 fc: 1.0,
             },
         );
-        assert!(loop_ctrl.gain_override("shoulder_pitch").is_some());
+        assert!(loop_ctrl.gain_override("right_shoulder_pitch").is_some());
         loop_ctrl.set_control_mode(ControlMode::GravityComp);
         assert!(
-            loop_ctrl.gain_override("shoulder_pitch").is_none(),
+            loop_ctrl.gain_override("right_shoulder_pitch").is_none(),
             "Impedance→GravityComp must clear Testing overrides"
         );
     }
@@ -1350,7 +1350,7 @@ mod tests {
         let mut loop_ctrl = test_loop();
         loop_ctrl.set_control_mode(ControlMode::GravityComp);
         loop_ctrl.apply_gain_override(
-            "shoulder_pitch",
+            "right_shoulder_pitch",
             GainOverride {
                 kp: 50.0,
                 kd: 5.0,
@@ -1359,12 +1359,12 @@ mod tests {
             },
         );
         assert!(
-            loop_ctrl.gain_override("shoulder_pitch").is_none(),
+            loop_ctrl.gain_override("right_shoulder_pitch").is_none(),
             "must not stash overrides under GravityComp"
         );
         // Enter Impedance must not resurrect planted stiffness.
         loop_ctrl.set_control_mode(ControlMode::Impedance);
-        assert!(loop_ctrl.gain_override("shoulder_pitch").is_none());
+        assert!(loop_ctrl.gain_override("right_shoulder_pitch").is_none());
     }
 
     #[test]
@@ -1372,7 +1372,7 @@ mod tests {
         let mut loop_ctrl = test_loop();
         assert_eq!(loop_ctrl.control_mode(), ControlMode::Disabled);
         loop_ctrl.apply_gain_override(
-            "shoulder_pitch",
+            "right_shoulder_pitch",
             GainOverride {
                 kp: 50.0,
                 kd: 5.0,
@@ -1380,7 +1380,7 @@ mod tests {
                 fc: 1.0,
             },
         );
-        assert!(loop_ctrl.gain_override("shoulder_pitch").is_none());
+        assert!(loop_ctrl.gain_override("right_shoulder_pitch").is_none());
     }
 
     #[test]
@@ -1388,7 +1388,7 @@ mod tests {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
         loop_ctrl
-            .enter_position_hold_at(Some("shoulder_pitch"), 0.25)
+            .enter_position_hold_at(Some("right_shoulder_pitch"), 0.25)
             .expect("hold-at");
         loop_ctrl.tick(None).expect("tick");
         assert_eq!(loop_ctrl.supervisor_mut().mode(), OperationalMode::Active);
@@ -1399,12 +1399,12 @@ mod tests {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
         loop_ctrl
-            .enter_position_hold_at(Some("shoulder_pitch"), 0.25)
+            .enter_position_hold_at(Some("right_shoulder_pitch"), 0.25)
             .expect("hold-at");
         let i = loop_ctrl
             .joint_names()
             .iter()
-            .position(|n| n == "shoulder_pitch")
+            .position(|n| n == "right_shoulder_pitch")
             .expect("joint");
         loop_ctrl.tick(None).expect("tick");
         let cmd = loop_ctrl.position_hold_commands().expect("cmd")[i];
@@ -1883,7 +1883,7 @@ mod tests {
     fn ascent_stall_faults_tick_after_sustained_freeze() {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
-        let joint = "shoulder_pitch";
+        let joint = "right_shoulder_pitch";
         loop_ctrl
             .supervisor_mut()
             .set_synthetic_joint_feedback(joint, 0.02, 0.0)
@@ -1923,7 +1923,7 @@ mod tests {
     fn ascent_stall_counter_resets_on_progress_toward_target() {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
-        let joint = "shoulder_pitch";
+        let joint = "right_shoulder_pitch";
         loop_ctrl
             .supervisor_mut()
             .set_synthetic_joint_feedback(joint, 0.02, 0.0)
@@ -1955,7 +1955,7 @@ mod tests {
     fn lead_follow_residual_does_not_ascent_stall() {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
-        let joint = "shoulder_pitch";
+        let joint = "right_shoulder_pitch";
         // Remaining 0.05 ∈ (resync 0.03, max_lead] — lead-follow residual, not true stall.
         loop_ctrl
             .supervisor_mut()
@@ -2227,13 +2227,13 @@ mod tests {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
         loop_ctrl
-            .enter_position_hold_at(Some("shoulder_pitch"), 1.2)
+            .enter_position_hold_at(Some("right_shoulder_pitch"), 1.2)
             .expect("hold-at");
         loop_ctrl.tick(None).expect("tick");
         let i = loop_ctrl
             .joint_names()
             .iter()
-            .position(|n| n == "shoulder_pitch")
+            .position(|n| n == "right_shoulder_pitch")
             .expect("joint");
         let cmd = loop_ctrl.position_hold_commands().expect("cmd")[i];
         assert!(cmd < 0.2, "first tick must not jump to 1.2 rad target");
@@ -2244,12 +2244,12 @@ mod tests {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
         loop_ctrl
-            .enter_position_hold_at(Some("shoulder_pitch"), 1.2)
+            .enter_position_hold_at(Some("right_shoulder_pitch"), 1.2)
             .expect("hold-at");
         let i = loop_ctrl
             .joint_names()
             .iter()
-            .position(|n| n == "shoulder_pitch")
+            .position(|n| n == "right_shoulder_pitch")
             .expect("joint index");
         let target = loop_ctrl.position_setpoints().expect("target")[i];
         assert!((target - 1.2).abs() < 1e-9);
@@ -2337,12 +2337,12 @@ mod tests {
         bench_ready_active(&mut loop_ctrl);
         // Past soft/hard lower (~-0.87/-0.9) so clamp_hold_target must raise the goal.
         loop_ctrl
-            .enter_position_hold_at(Some("shoulder_pitch"), -0.95)
+            .enter_position_hold_at(Some("right_shoulder_pitch"), -0.95)
             .expect("hold-at");
         let i = loop_ctrl
             .joint_names()
             .iter()
-            .position(|n| n == "shoulder_pitch")
+            .position(|n| n == "right_shoulder_pitch")
             .expect("joint index");
         let target = loop_ctrl.position_setpoints().expect("setpoints")[i];
         assert!(
@@ -2350,7 +2350,7 @@ mod tests {
             "requested lower-limit probe must clamp before planner reset"
         );
         let (_q_traj, dq_traj) = loop_ctrl
-            .test_planner_state("shoulder_pitch")
+            .test_planner_state("right_shoulder_pitch")
             .expect("planner");
         assert!(
             dq_traj.abs() < 1e-12,
@@ -2372,7 +2372,7 @@ mod tests {
     fn layer2_hold_at_uses_slew_profile_not_trajectory() {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
-        let joint = "shoulder_pitch";
+        let joint = "right_shoulder_pitch";
         let cfg = loop_ctrl
             .supervisor
             .control
@@ -2408,7 +2408,7 @@ mod tests {
     fn layer2_replay_return_home_stays_on_slew_profile() {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
-        let joint = "shoulder_pitch";
+        let joint = "right_shoulder_pitch";
         let cfg = loop_ctrl
             .supervisor
             .control
@@ -2479,7 +2479,7 @@ mod tests {
     #[test]
     fn apply_gain_override_clamps_kp_to_kp_max() {
         let mut loop_ctrl = test_loop();
-        let joint = "shoulder_pitch";
+        let joint = "right_shoulder_pitch";
         apply_override_in_impedance(
             &mut loop_ctrl,
             joint,
@@ -2501,7 +2501,7 @@ mod tests {
     #[test]
     fn apply_gain_override_clamps_kd_to_kd_max() {
         let mut loop_ctrl = test_loop();
-        let joint = "shoulder_pitch";
+        let joint = "right_shoulder_pitch";
         apply_override_in_impedance(
             &mut loop_ctrl,
             joint,
@@ -2523,7 +2523,7 @@ mod tests {
     #[test]
     fn apply_gain_override_clamps_fc_to_tau_ff_max_nm() {
         let mut loop_ctrl = test_loop();
-        let joint = "shoulder_pitch";
+        let joint = "right_shoulder_pitch";
         apply_override_in_impedance(
             &mut loop_ctrl,
             joint,
@@ -2541,7 +2541,7 @@ mod tests {
     #[test]
     fn apply_gain_override_clamps_ki_to_kp_max() {
         let mut loop_ctrl = test_loop();
-        let joint = "shoulder_pitch";
+        let joint = "right_shoulder_pitch";
         apply_override_in_impedance(
             &mut loop_ctrl,
             joint,
@@ -2563,7 +2563,7 @@ mod tests {
     #[test]
     fn clear_gain_override_removes_entry() {
         let mut loop_ctrl = test_loop();
-        let joint = "shoulder_pitch";
+        let joint = "right_shoulder_pitch";
         apply_override_in_impedance(
             &mut loop_ctrl,
             joint,
@@ -2584,7 +2584,7 @@ mod tests {
         let mut loop_ctrl = test_loop();
         loop_ctrl.set_control_mode(ControlMode::Impedance);
         loop_ctrl.apply_gain_override(
-            "shoulder_pitch",
+            "right_shoulder_pitch",
             GainOverride {
                 kp: 100.0,
                 kd: 10.0,
@@ -2593,7 +2593,7 @@ mod tests {
             },
         );
         loop_ctrl.apply_gain_override(
-            "shoulder_roll",
+            "right_shoulder_roll",
             GainOverride {
                 kp: 200.0,
                 kd: 20.0,
@@ -2601,23 +2601,23 @@ mod tests {
                 fc: 3.0,
             },
         );
-        assert!(loop_ctrl.gain_override("shoulder_pitch").is_some());
-        assert!(loop_ctrl.gain_override("shoulder_roll").is_some());
+        assert!(loop_ctrl.gain_override("right_shoulder_pitch").is_some());
+        assert!(loop_ctrl.gain_override("right_shoulder_roll").is_some());
         loop_ctrl.clear_all_overrides();
-        assert!(loop_ctrl.gain_override("shoulder_pitch").is_none());
-        assert!(loop_ctrl.gain_override("shoulder_roll").is_none());
+        assert!(loop_ctrl.gain_override("right_shoulder_pitch").is_none());
+        assert!(loop_ctrl.gain_override("right_shoulder_roll").is_none());
     }
 
     #[test]
     fn no_override_config_gains_unchanged() {
         let loop_ctrl = test_loop();
-        assert!(loop_ctrl.gain_override("shoulder_pitch").is_none());
+        assert!(loop_ctrl.gain_override("right_shoulder_pitch").is_none());
         let cfg = loop_ctrl
             .supervisor
             .control
             .control
             .joints
-            .get("shoulder_pitch")
+            .get("right_shoulder_pitch")
             .expect("joint cfg exists");
         // Config gains exist and are non-zero (exact values depend on repo config).
         assert!(
@@ -2635,7 +2635,7 @@ mod tests {
     #[test]
     fn apply_gain_override_stores_within_limits_as_is() {
         let mut loop_ctrl = test_loop();
-        let joint = "shoulder_pitch";
+        let joint = "right_shoulder_pitch";
         apply_override_in_impedance(
             &mut loop_ctrl,
             joint,

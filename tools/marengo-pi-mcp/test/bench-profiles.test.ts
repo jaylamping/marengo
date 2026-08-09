@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   BENCH_PROFILES,
   BENCH_PROFILE_META,
+  harnessJointSubset,
   isRightArmBenchProfile,
   weightedProfiles,
   type BenchProfile,
@@ -15,7 +16,7 @@ const cfg: MarengoPiConfig = {
   host: "marengo.local",
   user: "joey",
   piRoot: "/opt/marengo",
-  configDir: "/opt/marengo/config/bringup/shoulder_pitch_dual",
+  configDir: "/opt/marengo/config",
   localRoot: "/tmp/marengo",
   benchProfile: "bare_motor",
   piStagingRoot: "~/marengo",
@@ -37,32 +38,27 @@ describe("bench profile metadata", () => {
     assert.deepEqual(WEIGHTED_PROFILES, weightedProfiles());
   });
 
-  it("marks right-arm bringup profiles via configBringup", () => {
+  it("uses master config dir for right-arm profiles", () => {
     const right3: BenchProfile[] = ["roll_attached", "arm_2dof_smoke"];
     for (const p of right3) {
       assert.equal(isRightArmBenchProfile(p), true);
+      assert.equal(harnessConfigDir(cfg, p), "/opt/marengo/config");
       assert.equal(
-        harnessConfigDir(cfg, p),
-        "/opt/marengo/config/bringup/arm_3dof_right",
+        harnessJointSubset(p),
+        "right_shoulder_roll,right_shoulder_pitch,right_upper_arm_yaw",
       );
     }
     for (const p of ["yaw_attached", "elbow_attached"] as BenchProfile[]) {
       assert.equal(isRightArmBenchProfile(p), true);
-      assert.equal(
-        harnessConfigDir(cfg, p),
-        "/opt/marengo/config/bringup/arm_4dof_right",
-      );
+      assert.equal(harnessConfigDir(cfg, p), "/opt/marengo/config");
+      assert.ok(harnessJointSubset(p)?.includes("right_elbow_pitch"));
     }
   });
 
-  it("selects arm_4dof_right for yaw_attached and elbow_attached", () => {
+  it("maps 3-DOF smoke to MARENGO_JOINT_SUBSET", () => {
     assert.equal(
-      harnessConfigDir(cfg, "yaw_attached"),
-      "/opt/marengo/config/bringup/arm_4dof_right",
-    );
-    assert.equal(
-      harnessConfigDir(cfg, "elbow_attached"),
-      "/opt/marengo/config/bringup/arm_4dof_right",
+      harnessJointSubset("arm_2dof_smoke"),
+      "right_shoulder_roll,right_shoulder_pitch,right_upper_arm_yaw",
     );
   });
 

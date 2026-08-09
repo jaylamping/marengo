@@ -23,8 +23,8 @@ use tower_http::services::{ServeDir, ServeFile};
 use crate::actuator;
 use crate::config;
 use crate::framing::{self, CHAPPE_STREAM_CONTENT_TYPE};
+use crate::hardware;
 use crate::logs;
-use crate::profiles;
 use crate::restart;
 use crate::state::{filter_topics, SharedState};
 
@@ -106,15 +106,23 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
         .route("/logs/structured", get(logs::structured_logs))
         .route("/settings", get(logs::get_settings))
         .route("/config/snapshot", get(config::get_config_snapshot))
-        .route("/config/profiles", get(profiles::get_profiles))
-        .route(
-            "/config/profiles/{slug}/snapshot",
-            get(profiles::get_profile_snapshot),
-        )
         .route("/config/patch", post(config::post_config_patch))
+        .route("/hardware/completeness", get(hardware::get_completeness))
+        .route("/hardware/urdf", get(hardware::get_urdf))
+        .route("/hardware/urdf/upload", post(hardware::post_urdf_upload))
         .route(
-            "/config/actuators/apply",
-            post(profiles::post_apply_actuator),
+            "/hardware/urdf/resolve-preview",
+            post(hardware::post_resolve_preview),
+        )
+        .route("/hardware/urdf/activate", post(hardware::post_activate))
+        .route("/hardware/urdf/archive", get(hardware::get_archive_list))
+        .route(
+            "/hardware/urdf/archive/{id}",
+            get(hardware::get_archive_fetch),
+        )
+        .route(
+            "/hardware/urdf/archive/{id}/restore",
+            post(hardware::post_archive_restore),
         )
         .route(
             "/control/restart-marengo-pi",

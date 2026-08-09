@@ -745,8 +745,8 @@ fn usage() {
     eprintln!(
         "marengo-pi — Pi control runtime (Berthier → Davout → SocketCAN)\n\
          Usage: marengo-pi [--config-dir PATH] [--no-stdin-ctl]\n\
-         Env:  MARENGO_ROOT, MARENGO_CONFIG_DIR — override repo/config paths\n\
-         Bring-up: MARENGO_CONFIG_DIR=config/bringup/shoulder_pitch_dual"
+         Env:  MARENGO_ROOT, MARENGO_CONFIG_DIR (default /opt/marengo/config on Pi)\n\
+         Dev:  unset MARENGO_CONFIG_DIR to use <repo>/config"
     );
 }
 

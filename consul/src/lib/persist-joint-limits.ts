@@ -126,7 +126,7 @@ export async function persistJointLimits(
   if (persistStatus === 'durable') {
     const sync = deps?.localSync ?? defaultLocalLimitSync;
     localSync = await sync({
-      profile: deps?.profile ?? 'arm_4dof_right',
+      profile: deps?.profile ?? 'master',
       joint,
       lower: hardLower,
       upper: hardUpper,
