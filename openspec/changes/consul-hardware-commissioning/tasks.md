@@ -53,11 +53,11 @@ Chain strategy: stacked-to-main
 
 ## Phase 4: Hardware Facets / Commands UI (PR4)
 
-- [ ] 4.1 Add facet derivation + badge priority (Fault>OutOfLimits>Offline>Active>Ready>Online) in `consul/src/lib/commissioning.ts`, `consul/src/state/robotStore.ts`
-- [ ] 4.2 Remove `actuatorZeroStore` localStorage readiness; derive Reference from wire only
-- [ ] 4.3 Render facet badges and limb/robot aggregation in `consul/src/components/dashboard/hardware/**`
-- [ ] 4.4 Co-locate Set Limits + Set Zero on Hardware settings; ACTIVE guard; wire-gate Enable UI until facets live
-- [ ] 4.5 Vitest: badge priority, Ready-from-wire, Set Limits ACTIVE guard, warnings non-blocking
+- [x] 4.1 Add facet derivation + badge priority (Fault>OutOfLimits>Offline>Active>Ready>Online) in `consul/src/lib/commissioning.ts`, `consul/src/state/robotStore.ts`
+- [x] 4.2 Remove `actuatorZeroStore` localStorage readiness; derive Reference from wire only
+- [x] 4.3 Render facet badges and limb/robot aggregation in `consul/src/components/dashboard/hardware/**`
+- [x] 4.4 Co-locate Set Limits + Set Zero on Hardware settings; ACTIVE guard; wire-gate Enable UI until facets live
+- [x] 4.5 Vitest: badge priority, Ready-from-wire, Set Limits ACTIVE guard, warnings non-blocking
 
 ## Phase 5: Scope Persistence + Targeted Enable (PR5)
 

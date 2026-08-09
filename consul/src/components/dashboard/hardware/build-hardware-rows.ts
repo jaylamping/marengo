@@ -1,6 +1,13 @@
 import type { CompletenessWarningDto } from '@/lib/hardware-api';
 import type { ConfigSnapshotDto } from '@/lib/config-api';
-import type { ActuatorLimitSnapshot } from '@/gen/marengo/v1/marengo_pb';
+import type { ActuatorLimitSnapshot, RobotState } from '@/gen/marengo/v1/marengo_pb';
+import {
+  MASTER_LIMBS,
+  buildFacetSnapshots,
+  resolveJointBadge,
+  type CommissioningBadge,
+  type JointFacetSnapshot,
+} from '@/lib/commissioning';
 import { liveJointEnvelope } from '@/state/actuatorStore';
 
 export type HardwareJointRow = {
@@ -17,6 +24,8 @@ export type HardwareJointRow = {
   diskSoftLower: number | null;
   diskSoftUpper: number | null;
   direction: number | null;
+  badge: CommissioningBadge;
+  facet: JointFacetSnapshot;
 };
 
 function formatRange(lower: number, upper: number): string {
@@ -34,16 +43,45 @@ function warningsForJoint(
   return warnings.filter((w) => w.joint === joint);
 }
 
+export function masterJointNames(snapshot: ConfigSnapshotDto | null): string[] {
+  const fromSnapshot = snapshot?.joints ?? snapshot?.motors.map((m) => m.joint) ?? [];
+  const limbMembers = Object.values(MASTER_LIMBS).flat();
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const name of [...fromSnapshot, ...limbMembers]) {
+    if (!name || seen.has(name)) continue;
+    seen.add(name);
+    out.push(name);
+  }
+  return out;
+}
+
+export function buildHardwareFacetSnapshots(
+  snapshot: ConfigSnapshotDto | null,
+  robotState: RobotState | null | undefined,
+): JointFacetSnapshot[] {
+  const joints = masterJointNames(snapshot);
+  const motorMapped = new Set(snapshot?.motors.map((m) => m.joint) ?? []);
+  return buildFacetSnapshots({
+    jointNames: joints,
+    motorMappedJoints: motorMapped,
+    robotState,
+  });
+}
+
 export function buildHardwareRows(
   snapshot: ConfigSnapshotDto | null,
   completenessWarnings: CompletenessWarningDto[],
   limitSnapshot: ActuatorLimitSnapshot | null,
+  robotState?: RobotState | null,
 ): HardwareJointRow[] {
   const joints = snapshot?.joints ?? snapshot?.motors.map((m) => m.joint) ?? [];
   const motorsByJoint = new Map(snapshot?.motors.map((m) => [m.joint, m] as const));
   const softByJoint = new Map(
     snapshot?.control_limits.map((c) => [c.joint, c] as const),
   );
+  const facets = buildHardwareFacetSnapshots(snapshot, robotState);
+  const facetByJoint = new Map(facets.map((f) => [f.name, f] as const));
 
   return joints.map((joint) => {
     const motor = motorsByJoint.get(joint);
@@ -55,6 +93,15 @@ export function buildHardwareRows(
       : motor
         ? formatRange(motor.bench.position_lower_rad, motor.bench.position_upper_rad)
         : '—';
+    const facet = facetByJoint.get(joint) ?? {
+      name: joint,
+      online: false,
+      motorMapped: motor != null,
+      fault: 0,
+      outOfLimits: false,
+      driveActive: false,
+      homingState: undefined,
+    };
 
     return {
       joint,
@@ -70,6 +117,8 @@ export function buildHardwareRows(
       diskSoftLower: soft?.position_soft_lower_rad ?? null,
       diskSoftUpper: soft?.position_soft_upper_rad ?? null,
       direction: motor?.direction ?? null,
+      badge: resolveJointBadge(facet),
+      facet,
     };
   });
 }

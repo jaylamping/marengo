@@ -4,9 +4,11 @@ import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 
 import {
+  buildHardwareFacetSnapshots,
   buildHardwareRows,
   countCompletenessWarnings,
 } from '@/components/dashboard/hardware/build-hardware-rows';
+import { CommissioningAggregation } from '@/components/dashboard/hardware/commissioning-aggregation';
 import {
   CompletenessSummaryBadge,
   StatusLegend,
@@ -21,9 +23,11 @@ import {
   ToggleGroupItem,
 } from '@/components/ui/toggle-group';
 import { useConfigSnapshot } from '@/hooks/use-config-snapshot';
+import { robotWireFacetsLive } from '@/lib/commissioning';
 import { fetchCompleteness } from '@/lib/hardware-api';
 import { queryKeys } from '@/lib/query-keys';
 import { useActuatorStore } from '@/state/actuatorStore';
+import { useRobotStore } from '@/state/robotStore';
 
 type ViewMode = 'table' | 'stage';
 
@@ -36,6 +40,8 @@ export function HardwareOverview() {
 
   const { data: snapshot } = useConfigSnapshot();
   const limitSnapshot = useActuatorStore((s) => s.limitSnapshot);
+  const robotState = useRobotStore((s) => s.robotState);
+  const wireLive = robotWireFacetsLive(robotState);
 
   const completenessQuery = useQuery({
     queryKey: queryKeys.hardwareCompleteness,
@@ -50,8 +56,12 @@ export function HardwareOverview() {
       ? 'ok'
       : 'unknown';
   const rows = useMemo(
-    () => buildHardwareRows(snapshot ?? null, warnings, limitSnapshot),
-    [snapshot, warnings, limitSnapshot],
+    () => buildHardwareRows(snapshot ?? null, warnings, limitSnapshot, robotState),
+    [snapshot, warnings, limitSnapshot, robotState],
+  );
+  const facets = useMemo(
+    () => buildHardwareFacetSnapshots(snapshot ?? null, robotState),
+    [snapshot, robotState],
   );
 
   const rowsWithRange = useMemo(
@@ -100,6 +110,21 @@ export function HardwareOverview() {
             size="sm"
             variant="secondary"
             className="gap-1.5"
+            data-testid="hardware-enable-ready-in-scope"
+            disabled
+            title={
+              wireLive
+                ? 'Enable all Ready in scope lands with Phase 5 targeted enable'
+                : 'Enable gated until live wire facets (non-UNSPECIFIED homing_state)'
+            }
+          >
+            Enable all Ready in scope
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            className="gap-1.5"
             data-testid="hardware-import-btn"
             onClick={() => setImportOpen(true)}
           >
@@ -134,6 +159,8 @@ export function HardwareOverview() {
         gapCount={gapCount}
         descriptionOnlyCount={descriptionOnlyCount}
       />
+
+      <CommissioningAggregation facets={facets} />
 
       {view === 'table' ? (
         <HardwareTable

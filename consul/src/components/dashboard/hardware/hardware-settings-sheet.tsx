@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 
+import { CommissioningBadgeChip } from '@/components/dashboard/hardware/commissioning-badge';
 import { SetLimitsPanel } from '@/components/dashboard/inventory/set-limits-panel';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -42,8 +43,11 @@ export function HardwareSettingsSheet({
               <SheetTitle className="font-sans text-base tracking-tight">
                 {row.joint}
               </SheetTitle>
-              <SheetDescription className="micro-label">
-                {row.onCan ? `on can · id ${row.canId}` : 'description only'}
+              <SheetDescription className="micro-label flex flex-wrap items-center gap-2">
+                <span>
+                  {row.onCan ? `on can · id ${row.canId}` : 'description only'}
+                </span>
+                <CommissioningBadgeChip badge={row.badge} />
               </SheetDescription>
             </SheetHeader>
 
@@ -127,11 +131,24 @@ export function HardwareSettingsSheet({
                 </section>
               ) : null}
 
-              <SetLimitsPanel
-                jointName={row.joint}
-                currentLimit={row.liveRange}
-                onApplyRange={onApplyRange}
-              />
+              <section
+                className="flex flex-col gap-2"
+                data-testid="hardware-commissioning-commands"
+              >
+                <h3 className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                  Commissioning · Set Limits + Set Zero
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Durable calibration lives here. Set Limits requires motors not
+                  ACTIVE; Set Zero captures mechanical reference (Ready follows
+                  wire Verified).
+                </p>
+                <SetLimitsPanel
+                  jointName={row.joint}
+                  currentLimit={row.liveRange}
+                  onApplyRange={onApplyRange}
+                />
+              </section>
             </div>
           </>
         ) : null}
