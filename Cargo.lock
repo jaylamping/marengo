@@ -1480,6 +1480,7 @@ dependencies = [
 name = "marengo-homing"
 version = "0.1.0"
 dependencies = [
+ "armee-proto",
  "chrono",
  "marengo-config",
  "serde",

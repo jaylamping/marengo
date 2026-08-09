@@ -560,9 +560,12 @@ fn print_status(loop_ctrl: &mut ControlLoop<RuntimeBus>, config_dir: &Path) {
         control_mode,
     );
     for motor in &supervisor.motors.motors {
+        let (homing_state, drive_active, out_of_limits) =
+            supervisor.joint_commissioning_wire(&motor.joint);
         match supervisor.joint_feedback(&motor.joint) {
             Some(state) => println!(
-                "{} ({}/id{}): pos={:.4} rad vel={:.4} rad/s torque={:.4} Nm fault={:#06x}",
+                "{} ({}/id{}): pos={:.4} rad vel={:.4} rad/s torque={:.4} Nm fault={:#06x} \
+                 homing={} drive_active={} out_of_limits={}",
                 motor.joint,
                 motor.can_interface,
                 motor.device_id,
@@ -570,10 +573,18 @@ fn print_status(loop_ctrl: &mut ControlLoop<RuntimeBus>, config_dir: &Path) {
                 state.velocity_rad_s,
                 state.torque_nm,
                 state.fault,
+                homing_state,
+                drive_active,
+                out_of_limits,
             ),
             None => println!(
-                "{} ({}/id{}): no feedback yet",
-                motor.joint, motor.can_interface, motor.device_id,
+                "{} ({}/id{}): no feedback yet homing={} drive_active={} out_of_limits={}",
+                motor.joint,
+                motor.can_interface,
+                motor.device_id,
+                homing_state,
+                drive_active,
+                out_of_limits,
             ),
         }
     }
@@ -1163,6 +1174,8 @@ fn debug_status(loop_ctrl: &mut ControlLoop<RuntimeBus>, timing: &mut LoopTiming
     let supervisor = loop_ctrl.supervisor_mut();
     let operational = supervisor.mode();
     for motor in &supervisor.motors.motors {
+        let (homing_state, drive_active, out_of_limits) =
+            supervisor.joint_commissioning_wire(&motor.joint);
         if let Some(state) = supervisor.joint_feedback(&motor.joint) {
             debug!(
                 joint = %motor.joint,
@@ -1171,9 +1184,21 @@ fn debug_status(loop_ctrl: &mut ControlLoop<RuntimeBus>, timing: &mut LoopTiming
                 pos = state.position_rad,
                 vel = state.velocity_rad_s,
                 torque = state.torque_nm,
+                homing_state,
+                drive_active,
+                out_of_limits,
                 operational = ?operational,
                 control = ?proto_control_mode(control_mode),
                 "feedback"
+            );
+        } else {
+            debug!(
+                joint = %motor.joint,
+                homing_state,
+                drive_active,
+                out_of_limits,
+                operational = ?operational,
+                "no feedback"
             );
         }
     }

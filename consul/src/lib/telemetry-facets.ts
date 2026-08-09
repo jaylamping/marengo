@@ -3,15 +3,17 @@
  * Never consults localStorage / actuatorZeroStore — Ready only from wire.
  */
 
+import { JointHomingState } from '@/gen/marengo/v1/marengo_pb';
+
 export type TelemetryReferenceFacet = 'unknown' | 'ready' | 'not_ready';
 
-/** Proto JointHomingState ordinals (reserved until codegen lands in PR3). */
+/** Proto JointHomingState ordinals from codegen (PR3 wire). */
 export const JointHomingStateWire = {
-  UNSPECIFIED: 0,
-  UNHOMED: 1,
-  HOMING: 2,
-  VERIFIED: 3,
-  FAULTED: 4,
+  UNSPECIFIED: JointHomingState.UNSPECIFIED,
+  UNHOMED: JointHomingState.UNHOMED,
+  HOMING: JointHomingState.HOMING,
+  VERIFIED: JointHomingState.VERIFIED,
+  FAULTED: JointHomingState.FAULTED,
 } as const;
 
 type JointLike = {

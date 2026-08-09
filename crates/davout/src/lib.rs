@@ -315,6 +315,28 @@ impl<B: MotorBus> Supervisor<B> {
         self.homing.joint_state(joint)
     }
 
+    /// Whether Davout currently has this joint's drive enabled (ACTIVE mode).
+    ///
+    /// Phase 5 refines this with `active_joints` for targeted enable; until then
+    /// all configured motors share the supervisor ACTIVE/Disabled boundary.
+    pub fn joint_drive_active(&self, joint: &str) -> bool {
+        self.mode == OperationalMode::Active && self.motors.motors.iter().any(|m| m.joint == joint)
+    }
+
+    pub fn joint_out_of_limits(&self, joint: &str) -> bool {
+        self.homing.is_out_of_limits(joint)
+    }
+
+    /// Wire facets for one joint: proto homing ordinal, drive_active, out_of_limits.
+    pub fn joint_commissioning_wire(&self, joint: &str) -> (i32, bool, bool) {
+        let homing = marengo_homing::to_proto_homing_state(self.joint_homing_state(joint)) as i32;
+        (
+            homing,
+            self.joint_drive_active(joint),
+            self.joint_out_of_limits(joint),
+        )
+    }
+
     /// Per-joint limit policy (hard/soft bounds + margin config). ADR 0009.
     pub fn joint_limit_policy(&self, joint: &str) -> Option<&JointLimitPolicy> {
         self.limits.get(joint)
@@ -806,7 +828,7 @@ impl<B: MotorBus> Supervisor<B> {
     }
 
     fn check_feedback_position(
-        &self,
+        &mut self,
         motor: &MotorEntry,
         state: &MotorState,
     ) -> Result<(), DavoutError> {
@@ -821,6 +843,7 @@ impl<B: MotorBus> Supervisor<B> {
             })?;
         let position = f64::from(state.position_rad);
         if measured_position_fault(position, lim) {
+            self.homing.mark_out_of_limits(&motor.joint);
             return Err(DavoutError::Limit {
                 joint: motor.joint.clone(),
                 message: format!(
@@ -1605,6 +1628,62 @@ mod tests {
         let err = sup.request_enable(true).expect_err("blocked");
         assert!(matches!(err, DavoutError::Homing { .. }));
         let _ = std::fs::remove_file(temp);
+    }
+
+    #[test]
+    fn commissioning_wire_publishes_drive_active_and_homing() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let joint = "right_elbow_pitch".to_string();
+        let (homing, drive, ool) = sup.joint_commissioning_wire(&joint);
+        assert_eq!(
+            homing,
+            marengo_homing::to_proto_homing_state(marengo_homing::JointHomingState::Unhomed) as i32
+        );
+        assert!(!drive);
+        assert!(!ool);
+
+        bench_ready_active(&mut sup);
+        let (homing, drive, ool) = sup.joint_commissioning_wire(&joint);
+        assert_eq!(
+            homing,
+            marengo_homing::to_proto_homing_state(marengo_homing::JointHomingState::Verified)
+                as i32
+        );
+        assert!(drive);
+        assert!(!ool);
+
+        sup.disable_all().expect("disable");
+        let (_, drive, _) = sup.joint_commissioning_wire(&joint);
+        assert!(!drive);
+    }
+
+    #[test]
+    fn measured_position_fault_marks_out_of_limits() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        bench_ready_active(&mut sup);
+        let joint = "right_elbow_pitch".to_string();
+        let lim = *sup.joint_limit_policy(&joint).expect("policy");
+        let outside = lim.hard_upper() + lim.margin.measured_fault_slack_rad + 0.5;
+        let motor = marengo_config::motor_for_joint(&sup.motors, &joint)
+            .expect("motor")
+            .clone();
+        let state = MotorState {
+            position_rad: outside as f32,
+            velocity_rad_s: 0.0,
+            torque_nm: 0.0,
+            temperature_c: 0.0,
+            fault: 0,
+            updated: Some(Instant::now()),
+        };
+        let err = sup
+            .check_feedback_position(&motor, &state)
+            .expect_err("out of limits");
+        assert!(matches!(err, DavoutError::Limit { .. }));
+        assert!(sup.joint_out_of_limits(&joint));
+        let (_, _, ool) = sup.joint_commissioning_wire(&joint);
+        assert!(ool);
     }
 
     #[test]

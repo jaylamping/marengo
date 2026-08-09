@@ -45,11 +45,11 @@ Chain strategy: stacked-to-main
 
 ## Phase 3: Proto / Codegen / Runtime Wire Facets (PR3)
 
-- [ ] 3.1 Add `JointHomingState`, `homing_state`, `drive_active`, `out_of_limits` to `proto/marengo/v1/marengo.proto`; `buf lint`; regen Rust + `consul/src/gen/`
-- [ ] 3.2 Map homing registry → proto in `crates/marengo-homing/src/{lib.rs,commissioning.rs,registry.rs}`; OutOfLimits from verification/Davout
-- [ ] 3.3 Publish per-joint `drive_active` and facets in `crates/davout/src/lib.rs`, `crates/berthier/src/loop.rs`, `bins/marengo-pi/src/main.rs`
-- [ ] 3.4 Add anatomical `limbs` to `config/robot.yaml`; Ready aggregation Joint→Limb→Robot (unbuilt Offline non-blocking)
-- [ ] 3.5 Rust tests: proto round-trip, aggregation, OutOfLimits mapping, old-wire UNSPECIFIED gating
+- [x] 3.1 Add `JointHomingState`, `homing_state`, `drive_active`, `out_of_limits` to `proto/marengo/v1/marengo.proto`; `buf lint`; regen Rust + `consul/src/gen/`
+- [x] 3.2 Map homing registry → proto in `crates/marengo-homing/src/{lib.rs,commissioning.rs,registry.rs}`; OutOfLimits from verification/Davout
+- [x] 3.3 Publish per-joint `drive_active` and facets in `crates/davout/src/lib.rs`, `crates/berthier/src/loop.rs`, `bins/marengo-pi/src/main.rs`
+- [x] 3.4 Add anatomical `limbs` to `config/robot.yaml`; Ready aggregation Joint→Limb→Robot (unbuilt Offline non-blocking)
+- [x] 3.5 Rust tests: proto round-trip, aggregation, OutOfLimits mapping, old-wire UNSPECIFIED gating
 
 ## Phase 4: Hardware Facets / Commands UI (PR4)
 

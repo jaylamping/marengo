@@ -12,8 +12,8 @@ mod tests {
 
     use super::prost::Message;
     use super::{
-        EnableRequest, Envelope, Fault, FaultSeverity, Heartbeat, ImuSample, JointState,
-        OperationalMode, RobotState, SafetyState,
+        EnableRequest, Envelope, Fault, FaultSeverity, Heartbeat, ImuSample, JointHomingState,
+        JointState, OperationalMode, RobotState, SafetyState,
     };
 
     #[test]
@@ -39,12 +39,30 @@ mod tests {
                 effort: 0.0,
                 temperature_c: 25.0,
                 fault: 0,
+                homing_state: JointHomingState::Verified as i32,
+                drive_active: true,
+                out_of_limits: false,
             }],
         };
         let bytes = msg.encode_to_vec();
         let decoded = RobotState::decode(bytes.as_slice()).expect("decode");
         assert_eq!(decoded.joints.len(), 1);
         assert!((decoded.joints[0].position - 0.1).abs() < f64::EPSILON);
+        assert_eq!(
+            decoded.joints[0].homing_state,
+            JointHomingState::Verified as i32
+        );
+        assert!(decoded.joints[0].drive_active);
+        assert!(!decoded.joints[0].out_of_limits);
+    }
+
+    #[test]
+    fn joint_homing_state_unspecified_is_zero() {
+        assert_eq!(JointHomingState::Unspecified as i32, 0);
+        assert_eq!(JointHomingState::Unhomed as i32, 1);
+        assert_eq!(JointHomingState::Homing as i32, 2);
+        assert_eq!(JointHomingState::Verified as i32, 3);
+        assert_eq!(JointHomingState::Faulted as i32, 4);
     }
 
     #[test]

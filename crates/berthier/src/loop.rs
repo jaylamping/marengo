@@ -1008,6 +1008,8 @@ impl<B: MotorBus> ControlLoop<B> {
             .zip(q.iter())
             .map(|(name, &position)| {
                 let state = self.supervisor.joint_feedback(name);
+                let (homing_state, drive_active, out_of_limits) =
+                    self.supervisor.joint_commissioning_wire(name);
                 JointState {
                     name: name.clone(),
                     position,
@@ -1015,6 +1017,9 @@ impl<B: MotorBus> ControlLoop<B> {
                     effort: state.map(|s| s.torque_nm).unwrap_or(0.0),
                     temperature_c: state.map(|s| s.temperature_c).unwrap_or(0.0),
                     fault: state.map(|s| u32::from(s.fault)).unwrap_or(0),
+                    homing_state,
+                    drive_active,
+                    out_of_limits,
                 }
             })
             .collect();
