@@ -1,0 +1,25 @@
+change: consul-hardware-sot
+created_at: "2026-08-09T12:21:00Z"
+updated_at: "2026-08-09T12:21:00Z"
+phase: propose
+completed_phases:
+  - propose
+status: active
+artifact_store: openspec
+branch: jl/hardware-openspec-5293
+delivery_order:
+  - sot
+  - api
+  - ui
+  - inventory-deploy-cutover
+next_recommended:
+  - sdd-spec
+  - sdd-design
+feasibility:
+  status: pending
+  gate: before-apply
+  reason: software and bench config/URDF co-design
+blockers: []
+notes: |
+  Product decisions are locked by wayfinder grilling issue #110.
+  OpenSpec context still names arm_3dof_right; this change cuts runtime over to master config.
