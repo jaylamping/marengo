@@ -1,10 +1,9 @@
 change: consul-hardware-sot
 created_at: "2026-08-09T12:22:00Z"
-phase: spec
+phase: design
 completed_phases:
   - init
   - propose
-  - spec
 status: active
 branch: jl/hardware-openspec-5293
 delivery_strategy: vertical-pr
@@ -24,14 +23,6 @@ feasibility:
   required_before_apply: true
   artifact: openspec/changes/consul-hardware-sot/feasibility-brief.md
   verdict: pending
-spec_progress:
-  completed_at: "2026-08-09T12:30:00Z"
-  domains:
-    - hardware-description-sot
-    - hardware-management-api
-    - hardware-operator-workspace
-  requirements: 19
-  scenarios: 28
 notes: |
   One OpenSpec change; implementation order SoT → API → UI → inventory/deploy.
   Completeness v1 warn-only on gateway/marengo-config; Consul renders only.
@@ -40,6 +31,7 @@ notes: |
   Set Limits durable path only on Hardware; ADR 0012 memory SoT + write-behind; ADR 0017 expand-only URDF.
   Limb subsets ephemeral against master — never alternate URDF SoTs.
   Deferred: table polish, offline pruning, 3D-as-default.
-  Spec phase completed 2026-08-09: three new capability specs (19 requirements, 28 scenarios).
-  Locked grilling #110 honored — no alternate SoTs, no completeness hard gates.
-  Next: sdd-design (feasibility-brief Go required before apply).
+  Design (2026-08-09): gateway hardware.rs (URDF lifecycle + completeness); marengo-config
+  urdf_merge + completeness modules; profiles.rs retired phase 2; reuse POST /config/patch for
+  Set Limits; MARENGO_JOINT_SUBSET for ephemeral harness subsets phase 4; feasibility Go before
+  phase 1 apply.
