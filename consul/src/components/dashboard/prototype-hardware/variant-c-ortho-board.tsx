@@ -33,7 +33,7 @@ export function VariantC() {
   const gaps = PROTO_JOINTS.filter((j) => j.completenessWarn);
 
   return (
-    <div className="flex h-[calc(100vh-9rem)] min-h-[30rem] flex-col gap-3">
+    <div className="flex h-[calc(100vh-9rem)] min-h-[30rem] flex-col gap-3 pointer-events-auto">
       <header
         className={cn(
           'flex items-center justify-between gap-3 rounded-lg border border-dashed px-4 py-3 transition-colors',

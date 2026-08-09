@@ -1,72 +1,266 @@
 /**
- * PROTOTYPE — skeleton the Hardware picker is drawn from.
+ * PROTOTYPE — body-space definition for a stylized humanoid robot.
  *
- * Body-space metres, Three.js convention: +X right, +Y up, +Z toward viewer.
- * Anchors double as joint marker positions so markers always land on a bone.
+ * +X right, +Y up, +Z toward viewer. Coordinates are metres.
+ * Armor plates are box extents; joints are spheres that also host markers.
  */
 
 export type Vec3 = readonly [number, number, number];
 
-export const ANCHORS = {
-  ankle_r: [0.1, 0.08, 0],
-  ankle_l: [-0.1, 0.08, 0],
-  toe_r: [0.1, 0.03, 0.11],
-  toe_l: [-0.1, 0.03, 0.11],
-  knee_r: [0.11, 0.5, 0.012],
-  knee_l: [-0.11, 0.5, 0.012],
-  hip_r: [0.1, 0.9, 0],
-  hip_l: [-0.1, 0.9, 0],
-  pelvis: [0, 0.92, 0],
-  spine: [0, 1.12, 0],
-  chest: [0, 1.32, 0],
-  neck: [0, 1.44, 0],
-  head: [0, 1.58, 0],
-  shoulder_r: [0.19, 1.38, 0],
-  shoulder_l: [-0.19, 1.38, 0],
-  upper_arm_r: [0.25, 1.3, 0.02],
-  upper_arm_l: [-0.25, 1.3, 0.02],
-  elbow_r: [0.27, 1.06, 0.02],
-  elbow_l: [-0.27, 1.06, 0.02],
-  wrist_r: [0.28, 0.83, 0.03],
-  wrist_l: [-0.28, 0.83, 0.03],
-} satisfies Record<string, Vec3>;
+export type Limb = 'torso' | 'right_arm' | 'left_arm' | 'right_leg' | 'left_leg';
 
-export type AnchorName = keyof typeof ANCHORS;
+export type AnchorName =
+  | 'head'
+  | 'neck'
+  | 'chest'
+  | 'abdomen'
+  | 'pelvis'
+  | 'shoulder_r'
+  | 'shoulder_l'
+  | 'upper_arm_r'
+  | 'upper_arm_l'
+  | 'elbow_r'
+  | 'elbow_l'
+  | 'forearm_r'
+  | 'forearm_l'
+  | 'wrist_r'
+  | 'wrist_l'
+  | 'hip_r'
+  | 'hip_l'
+  | 'thigh_r'
+  | 'thigh_l'
+  | 'knee_r'
+  | 'knee_l'
+  | 'shin_r'
+  | 'shin_l'
+  | 'ankle_r'
+  | 'ankle_l'
+  | 'foot_r'
+  | 'foot_l';
 
-export type Bone = {
-  from: AnchorName;
-  to: AnchorName;
-  radius: number;
-  /** Which limb this bone belongs to, for focus dimming. */
-  limb: 'torso' | 'right_arm' | 'left_arm' | 'right_leg' | 'left_leg';
+/** Articulation centres + plate midpoints. */
+export const ANCHORS: Record<AnchorName, Vec3> = {
+  head: [0, 1.62, 0.02],
+  neck: [0, 1.48, 0],
+  chest: [0, 1.3, 0.02],
+  abdomen: [0, 1.1, 0.01],
+  pelvis: [0, 0.94, 0],
+
+  shoulder_r: [0.22, 1.4, 0],
+  shoulder_l: [-0.22, 1.4, 0],
+  upper_arm_r: [0.28, 1.22, 0.01],
+  upper_arm_l: [-0.28, 1.22, 0.01],
+  elbow_r: [0.3, 1.02, 0.02],
+  elbow_l: [-0.3, 1.02, 0.02],
+  forearm_r: [0.31, 0.86, 0.03],
+  forearm_l: [-0.31, 0.86, 0.03],
+  wrist_r: [0.32, 0.7, 0.03],
+  wrist_l: [-0.32, 0.7, 0.03],
+
+  hip_r: [0.11, 0.9, 0],
+  hip_l: [-0.11, 0.9, 0],
+  thigh_r: [0.12, 0.66, 0.01],
+  thigh_l: [-0.12, 0.66, 0.01],
+  knee_r: [0.12, 0.46, 0.02],
+  knee_l: [-0.12, 0.46, 0.02],
+  shin_r: [0.12, 0.26, 0.01],
+  shin_l: [-0.12, 0.26, 0.01],
+  ankle_r: [0.12, 0.08, 0.02],
+  ankle_l: [-0.12, 0.08, 0.02],
+  foot_r: [0.12, 0.04, 0.08],
+  foot_l: [-0.12, 0.04, 0.08],
 };
 
-export const BONES: Bone[] = [
-  { from: 'pelvis', to: 'spine', radius: 0.075, limb: 'torso' },
-  { from: 'spine', to: 'chest', radius: 0.085, limb: 'torso' },
-  { from: 'chest', to: 'neck', radius: 0.045, limb: 'torso' },
-  { from: 'neck', to: 'head', radius: 0.062, limb: 'torso' },
-  { from: 'chest', to: 'shoulder_r', radius: 0.05, limb: 'torso' },
-  { from: 'chest', to: 'shoulder_l', radius: 0.05, limb: 'torso' },
-  { from: 'pelvis', to: 'hip_r', radius: 0.055, limb: 'torso' },
-  { from: 'pelvis', to: 'hip_l', radius: 0.055, limb: 'torso' },
+export type ArmorPlate = {
+  anchor: AnchorName;
+  size: Vec3;
+  /** Euler XYZ radians. */
+  rotation?: Vec3;
+  offset?: Vec3;
+  limb: Limb;
+  kind: 'shell' | 'metal' | 'visor' | 'glow';
+  /** Default box. Cylinders read as limb tubes; spheres as helmets. */
+  shape?: 'box' | 'cylinder' | 'sphere';
+};
 
-  { from: 'shoulder_r', to: 'upper_arm_r', radius: 0.044, limb: 'right_arm' },
-  { from: 'upper_arm_r', to: 'elbow_r', radius: 0.04, limb: 'right_arm' },
-  { from: 'elbow_r', to: 'wrist_r', radius: 0.033, limb: 'right_arm' },
+/** Hard-shell plating — this is what makes it read as a robot, not a mannequin. */
+export const ARMOR: ArmorPlate[] = [
+  // Head / helmet
+  {
+    anchor: 'head',
+    size: [0.17, 0.17, 0.17],
+    limb: 'torso',
+    kind: 'shell',
+    shape: 'sphere',
+  },
+  {
+    anchor: 'head',
+    size: [0.13, 0.045, 0.04],
+    offset: [0, 0.01, 0.075],
+    limb: 'torso',
+    kind: 'visor',
+  },
+  // Neck collar
+  { anchor: 'neck', size: [0.1, 0.06, 0.1], limb: 'torso', kind: 'metal' },
+  // Chest + abdomen + pelvis
+  { anchor: 'chest', size: [0.36, 0.3, 0.2], limb: 'torso', kind: 'shell' },
+  {
+    anchor: 'chest',
+    size: [0.16, 0.12, 0.04],
+    offset: [0, 0.02, 0.105],
+    limb: 'torso',
+    kind: 'glow',
+  },
+  { anchor: 'abdomen', size: [0.26, 0.16, 0.16], limb: 'torso', kind: 'shell' },
+  { anchor: 'pelvis', size: [0.3, 0.14, 0.18], limb: 'torso', kind: 'metal' },
 
-  { from: 'shoulder_l', to: 'upper_arm_l', radius: 0.044, limb: 'left_arm' },
-  { from: 'upper_arm_l', to: 'elbow_l', radius: 0.04, limb: 'left_arm' },
-  { from: 'elbow_l', to: 'wrist_l', radius: 0.033, limb: 'left_arm' },
+  // Shoulders (pauldrons)
+  {
+    anchor: 'shoulder_r',
+    size: [0.15, 0.1, 0.14],
+    offset: [0.05, 0.04, 0],
+    limb: 'right_arm',
+    kind: 'metal',
+  },
+  {
+    anchor: 'shoulder_l',
+    size: [0.15, 0.1, 0.14],
+    offset: [-0.05, 0.04, 0],
+    limb: 'left_arm',
+    kind: 'metal',
+  },
 
-  { from: 'hip_r', to: 'knee_r', radius: 0.055, limb: 'right_leg' },
-  { from: 'knee_r', to: 'ankle_r', radius: 0.045, limb: 'right_leg' },
-  { from: 'ankle_r', to: 'toe_r', radius: 0.038, limb: 'right_leg' },
+  // Upper arms — cylinders
+  {
+    anchor: 'upper_arm_r',
+    size: [0.09, 0.22, 0.09],
+    limb: 'right_arm',
+    kind: 'shell',
+    shape: 'cylinder',
+  },
+  {
+    anchor: 'upper_arm_l',
+    size: [0.09, 0.22, 0.09],
+    limb: 'left_arm',
+    kind: 'shell',
+    shape: 'cylinder',
+  },
+  // Forearms
+  {
+    anchor: 'forearm_r',
+    size: [0.075, 0.2, 0.075],
+    limb: 'right_arm',
+    kind: 'shell',
+    shape: 'cylinder',
+  },
+  {
+    anchor: 'forearm_l',
+    size: [0.075, 0.2, 0.075],
+    limb: 'left_arm',
+    kind: 'shell',
+    shape: 'cylinder',
+  },
+  // Hands
+  {
+    anchor: 'wrist_r',
+    size: [0.07, 0.08, 0.05],
+    offset: [0, -0.02, 0.01],
+    limb: 'right_arm',
+    kind: 'metal',
+  },
+  {
+    anchor: 'wrist_l',
+    size: [0.07, 0.08, 0.05],
+    offset: [0, -0.02, 0.01],
+    limb: 'left_arm',
+    kind: 'metal',
+  },
 
-  { from: 'hip_l', to: 'knee_l', radius: 0.055, limb: 'left_leg' },
-  { from: 'knee_l', to: 'ankle_l', radius: 0.045, limb: 'left_leg' },
-  { from: 'ankle_l', to: 'toe_l', radius: 0.038, limb: 'left_leg' },
+  // Thighs / shins — cylinders
+  {
+    anchor: 'thigh_r',
+    size: [0.11, 0.32, 0.11],
+    limb: 'right_leg',
+    kind: 'shell',
+    shape: 'cylinder',
+  },
+  {
+    anchor: 'thigh_l',
+    size: [0.11, 0.32, 0.11],
+    limb: 'left_leg',
+    kind: 'shell',
+    shape: 'cylinder',
+  },
+  {
+    anchor: 'shin_r',
+    size: [0.09, 0.28, 0.09],
+    limb: 'right_leg',
+    kind: 'shell',
+    shape: 'cylinder',
+  },
+  {
+    anchor: 'shin_l',
+    size: [0.09, 0.28, 0.09],
+    limb: 'left_leg',
+    kind: 'shell',
+    shape: 'cylinder',
+  },
+  // Feet
+  {
+    anchor: 'foot_r',
+    size: [0.1, 0.06, 0.2],
+    limb: 'right_leg',
+    kind: 'metal',
+  },
+  {
+    anchor: 'foot_l',
+    size: [0.1, 0.06, 0.2],
+    limb: 'left_leg',
+    kind: 'metal',
+  },
 ];
 
-/** Orbit/look-at target — roughly the sternum. */
-export const RIG_FOCUS: Vec3 = [0, 1.05, 0];
+export type JointBall = {
+  anchor: AnchorName;
+  radius: number;
+  limb: Limb;
+};
+
+/** Exposed spherical actuators between armor plates. */
+export const JOINT_BALLS: JointBall[] = [
+  { anchor: 'shoulder_r', radius: 0.055, limb: 'right_arm' },
+  { anchor: 'elbow_r', radius: 0.045, limb: 'right_arm' },
+  { anchor: 'wrist_r', radius: 0.035, limb: 'right_arm' },
+  { anchor: 'shoulder_l', radius: 0.055, limb: 'left_arm' },
+  { anchor: 'elbow_l', radius: 0.045, limb: 'left_arm' },
+  { anchor: 'wrist_l', radius: 0.035, limb: 'left_arm' },
+  { anchor: 'hip_r', radius: 0.055, limb: 'right_leg' },
+  { anchor: 'knee_r', radius: 0.048, limb: 'right_leg' },
+  { anchor: 'ankle_r', radius: 0.04, limb: 'right_leg' },
+  { anchor: 'hip_l', radius: 0.055, limb: 'left_leg' },
+  { anchor: 'knee_l', radius: 0.048, limb: 'left_leg' },
+  { anchor: 'ankle_l', radius: 0.04, limb: 'left_leg' },
+  { anchor: 'neck', radius: 0.04, limb: 'torso' },
+];
+
+/** Coloured marker sits slightly proud of its joint ball. */
+export const MARKER_RADIUS = 0.05;
+
+export const RIG_BOUNDS = (() => {
+  let minY = Infinity;
+  let maxY = -Infinity;
+  let maxAbsX = 0;
+  for (const point of Object.values(ANCHORS)) {
+    minY = Math.min(minY, point[1]);
+    maxY = Math.max(maxY, point[1]);
+    maxAbsX = Math.max(maxAbsX, Math.abs(point[0]));
+  }
+  return {
+    min: [-maxAbsX - 0.2, 0, -0.25] as Vec3,
+    max: [maxAbsX + 0.2, maxY + 0.16, 0.25] as Vec3,
+  };
+})();
+
+export const RIG_CENTER: Vec3 = [0, (RIG_BOUNDS.min[1] + RIG_BOUNDS.max[1]) / 2, 0];
+export const RIG_HEIGHT = RIG_BOUNDS.max[1] - RIG_BOUNDS.min[1];
+export const RIG_WIDTH = RIG_BOUNDS.max[0] - RIG_BOUNDS.min[0];

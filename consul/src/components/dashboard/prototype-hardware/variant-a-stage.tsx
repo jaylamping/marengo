@@ -28,7 +28,7 @@ export function VariantA() {
   );
 
   return (
-    <div className="relative flex h-[calc(100vh-9rem)] min-h-[30rem] flex-col overflow-hidden rounded-lg border border-line bg-surface-0">
+    <div className="relative flex h-[calc(100vh-9rem)] min-h-[30rem] flex-col overflow-hidden rounded-lg border border-line bg-surface-0 pointer-events-auto">
       <HumanoidViewport
         className="absolute inset-0"
         selectedId={selectedId}

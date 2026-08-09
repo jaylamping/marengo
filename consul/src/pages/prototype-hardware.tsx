@@ -14,7 +14,7 @@ export function PrototypeHardwarePage() {
   const variant = (params.get('variant') ?? 'A').toUpperCase();
 
   return (
-    <div className="relative px-1 pb-16" data-prototype="hardware-page">
+    <div className="relative px-1 pb-16 pointer-events-auto" data-prototype="hardware-page">
       <div className="mb-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 font-mono text-[11px] text-amber-100/90">
         PROTOTYPE — Hardware UI variants for issue #100. Not production. Use ← → or the
         bar below. Prefer reacting with “A header + C board” style notes.

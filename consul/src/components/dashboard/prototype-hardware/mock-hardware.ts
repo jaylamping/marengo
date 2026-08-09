@@ -1,6 +1,8 @@
 /** PROTOTYPE mock — not live SoT */
 
-import { ANCHORS, type AnchorName, type Vec3 } from './humanoid-rig';
+import { ANCHORS, type AnchorName, type Limb, type Vec3 } from './humanoid-rig';
+
+export type { Limb };
 
 export type FieldSource = 'urdf' | 'motors.yaml' | 'control.yaml' | 'homing.yaml';
 
@@ -12,8 +14,6 @@ export type MappedField = {
   warn?: boolean;
   incoming?: string;
 };
-
-export type Limb = 'torso' | 'right_arm' | 'left_arm' | 'right_leg' | 'left_leg';
 
 export type ProtoJoint = {
   id: string;

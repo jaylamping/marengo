@@ -44,7 +44,7 @@ export function VariantB() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-9rem)] min-h-[30rem] flex-col gap-3">
+    <div className="flex h-[calc(100vh-9rem)] min-h-[30rem] flex-col gap-3 pointer-events-auto">
       <header className="flex items-end justify-between gap-3 border-b border-line pb-3">
         <PageTitle note="limb-first · rail picks the focus set" />
         <div className="flex items-center gap-2">

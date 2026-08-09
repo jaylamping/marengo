@@ -61,5 +61,8 @@ export function HumanoidViewport({
     sceneRef.current?.setFocusLimb(focusLimb);
   }, [focusLimb]);
 
-  return <div ref={containerRef} className={cn('relative', className)} />;
+  // Dashboard main is pointer-events-none (dust backdrop); re-enable for WebGL.
+  return (
+    <div ref={containerRef} className={cn('relative pointer-events-auto', className)} />
+  );
 }

@@ -6,25 +6,25 @@ Three variants on `/prototype/hardware?variant=A|B|C`, switchable via the floati
 
 | Key | Name        | Structure                                                                     |
 | --- | ----------- | ----------------------------------------------------------------------------- |
-| A   | Stage       | Full-bleed orbiting humanoid; chrome floats; click joint → settings sheet      |
-| B   | Limb rail   | Limb cards pick the focus set; humanoid dims to match; list is the picker      |
+| A   | Stage       | Full-bleed orbiting robot; chrome floats; click joint → settings sheet         |
+| B   | Limb rail   | Limb cards pick the focus set; robot dims to match; list is the picker         |
 | C   | Ortho board | Locked orthographic elevation (no orbit); header is the drop target            |
 
 Run: `cd consul && npm run dev:prototype-hardware`
 
 ## 3D layer
 
-Vanilla **Three.js** — no `@react-three/fiber`, no `drei`.
+Vanilla **Three.js** (no `@react-three/fiber` / `drei`), following
+[`sickn33/antigravity-awesome-skills` `threejs-skills`](https://www.skills.sh/sickn33/antigravity-awesome-skills/threejs-skills):
+scene/camera/renderer, `MeshStandardMaterial` + lights, `OrbitControls`, raycast
+picking, soft shadows, ACES tone mapping, `setAnimationLoop`, dispose on teardown.
 
-| File                   | Job                                                                            |
-| ---------------------- | ------------------------------------------------------------------------------ |
-| `humanoid-rig.ts`      | Skeleton anchors + bones in body-space metres                                   |
-| `humanoid-scene.ts`    | Renderer, camera, lights, raycast picking, DOM label overlay, dirty-flag loop   |
-| `humanoid-viewport.tsx`| React mount point; drives the scene imperatively so state never rebuilds WebGL  |
+| File                    | Job                                                                            |
+| ----------------------- | ------------------------------------------------------------------------------ |
+| `humanoid-rig.ts`       | Armor plates + joint balls in body-space metres                                 |
+| `humanoid-scene.ts`     | WebGL scene, picking, DOM label overlay, dirty-flagged render loop              |
+| `humanoid-viewport.tsx` | React mount; drives the scene imperatively so state never rebuilds WebGL        |
 
-Picking uses oversized invisible hit spheres so a 28 mm joint marker is still easy to
-click. Hover raycasts are throttled to 40 ms, and the frame loop only renders when
-something actually changed.
-
-Colour follows `DESIGN.md`: green LED = on CAN, amber = completeness gap, grey =
-description only, amber ring = selection.
+The figure is a stylized humanoid robot (shell plating, dark metal joints, chest
+glow, visor) — not real URDF meshes. Coloured status LEDs sit on actuated joints:
+green = on CAN, amber = completeness gap, grey = description only.
