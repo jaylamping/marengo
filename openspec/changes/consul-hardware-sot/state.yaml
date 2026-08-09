@@ -1,12 +1,13 @@
 change: consul-hardware-sot
 created_at: "2026-08-09T12:22:00Z"
-phase: tasks
+phase: apply
 completed_phases:
   - init
   - propose
   - feasibility
   - spec
   - design
+  - tasks
 status: active
 branch: jl/hardware-openspec-5293
 delivery_strategy: vertical-pr
@@ -27,6 +28,14 @@ feasibility:
   artifact: openspec/changes/consul-hardware-sot/feasibility-brief.md
   verdict: Go
   completed_at: "2026-08-09T12:25:00Z"
+tasks:
+  artifact: openspec/changes/consul-hardware-sot/tasks.md
+  completed_at: "2026-08-09T12:30:00Z"
+  phase_counts:
+    sot: 10
+    api: 13
+    ui: 12
+    inventory-deploy: 9
 notes: |
   One OpenSpec change; implementation order SoT → API → UI → inventory/deploy.
   Completeness v1 warn-only on gateway/marengo-config; Consul renders only.
@@ -38,4 +47,4 @@ notes: |
   Design (2026-08-09): gateway hardware.rs (URDF lifecycle + completeness); marengo-config
   urdf_merge + completeness modules; profiles.rs retired phase 2; reuse POST /config/patch for
   Set Limits; MARENGO_JOINT_SUBSET for ephemeral harness subsets phase 4.
-  Feasibility Go — apply unblocked after tasks.md exists.
+  Feasibility Go — tasks.md complete; ready for sdd-apply (feature-branch-chain PR1 SoT).
