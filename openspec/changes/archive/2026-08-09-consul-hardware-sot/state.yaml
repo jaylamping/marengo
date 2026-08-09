@@ -1,0 +1,78 @@
+change: consul-hardware-sot
+created_at: "2026-08-09T12:22:00Z"
+phase: archive
+completed_phases:
+  - init
+  - propose
+  - feasibility
+  - spec
+  - design
+  - tasks
+  - apply
+  - verify
+  - archive
+status: archived
+archived_at: "2026-08-09T15:51:00Z"
+archived_to: openspec/changes/archive/2026-08-09-consul-hardware-sot/
+branch: jl/hardware-openspec-5293
+delivery_strategy: vertical-pr
+vertical_phases:
+  - sot
+  - api
+  - ui
+  - inventory-deploy
+locked_decisions_source: "grilling #110"
+related_tickets:
+  - "#96"
+  - "#110"
+  - "#111"
+  - "#108"
+  - "#100"
+feasibility:
+  required_before_apply: true
+  artifact: openspec/changes/archive/2026-08-09-consul-hardware-sot/feasibility-brief.md
+  verdict: Go
+  completed_at: "2026-08-09T12:25:00Z"
+tasks:
+  artifact: openspec/changes/archive/2026-08-09-consul-hardware-sot/tasks.md
+  completed_at: "2026-08-09T12:30:00Z"
+  phase_counts:
+    sot: 10
+    api: 13
+    ui: 12
+    inventory-deploy: 9
+apply_progress:
+  completed_at: "2026-08-09T13:00:00Z"
+  mode: vertical-pr-chain
+  tasks_complete: 44
+  tasks_total: 44
+  phases:
+    - sot
+    - api
+    - ui
+    - inventory-deploy
+verify_progress:
+  completed_at: "2026-08-09T13:10:00Z"
+  verdict: PASS WITH WARNINGS
+  report: verify-report.md
+  ready_for_archive: true
+  issues:
+    critical: 0
+    warning: 5
+verify:
+  artifact: openspec/changes/archive/2026-08-09-consul-hardware-sot/verify-report.md
+  verdict: pass-with-warnings
+  completed_at: "2026-08-09T13:10:00Z"
+  notes: |
+    ./scripts/check.sh ok; Pi smoke operator-deferred (smoke-phase4.md).
+archive:
+  completed_at: "2026-08-09T15:51:00Z"
+  report: archive-report.md
+  specs_synced:
+    - hardware-description-sot
+    - hardware-management-api
+    - hardware-operator-workspace
+notes: |
+  One OpenSpec change; SoT → API → UI → inventory/deploy applied.
+  Completeness warn-only on gateway; full URDF archive API; Hardware workspace shipped.
+  Archived 2026-08-09 after verify PASS WITH WARNINGS; Pi smoke operator-deferred.
