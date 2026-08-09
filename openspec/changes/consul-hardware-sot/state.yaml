@@ -24,7 +24,8 @@ related_tickets:
 feasibility:
   required_before_apply: true
   artifact: openspec/changes/consul-hardware-sot/feasibility-brief.md
-  verdict: pending
+  verdict: go
+  completed_at: "2026-08-09T12:30:00Z"
 next_recommended:
   - sdd-spec
   - sdd-design
