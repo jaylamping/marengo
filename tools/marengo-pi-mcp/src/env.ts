@@ -34,6 +34,8 @@ export function wrapRemoteWithConfig(
   const parts = [remotePreamble(effective, debug)];
   if (jointSubset) {
     parts.push(`export MARENGO_JOINT_SUBSET=${shellQuote(jointSubset)}`);
+  } else {
+    parts.push("unset MARENGO_JOINT_SUBSET");
   }
   parts.push(body);
   return parts.join("\n");

@@ -116,6 +116,7 @@ function pipeTimeoutSec(script: string[], minSec = 30): number {
 
 function benchSessionWrapper(
   cfg: MarengoPiConfig,
+  profile: BenchProfile,
   configDir: string,
   label: string,
   pipeCmd: string,
@@ -152,6 +153,7 @@ function benchSessionWrapper(
     ].join("\n"),
     configDir,
     debug,
+    harnessJointSubset(profile),
   );
 }
 
@@ -308,7 +310,7 @@ export async function runBenchHarness(
     await runScriptSuite(scriptSuite, async (s) => {
       const pipeSec = pipeTimeoutSec(s.lines, s.timeoutSec);
       const pipeCmd = marengoPiPipe(s.lines, pipeSec);
-      const body = benchSessionWrapper(cfg, configDir, s.name, pipeCmd, debug);
+      const body = benchSessionWrapper(cfg, profile, configDir, s.name, pipeCmd, debug);
       return step(s.name, body, (pipeSec + 30) * 1000);
     }, (name, output) => {
       steps.push({ name, ok: true, output });
@@ -328,7 +330,14 @@ export async function runBenchHarness(
       ["home", "enable bench", "status", "gravity-on", "status", "disable", "quit"],
       40,
     );
-    const body = benchSessionWrapper(cfg, configDir, "weighted_gravity_on", pipeCmd, debug);
+    const body = benchSessionWrapper(
+      cfg,
+      profile,
+      configDir,
+      "weighted_gravity_on",
+      pipeCmd,
+      debug,
+    );
     await step("weighted_gravity_on", body, 50_000);
   }
 

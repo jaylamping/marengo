@@ -33,7 +33,7 @@ Host: **`marengo.local`** user **`joey`**. Pi root: **`/opt/marengo`**.
 
 `pi_can_up`, **`pi_sync_main`**, `pi_sync_bench_config`, `pi_sync_bench_urdf`, `pi_wait_deploy`, `pi_install_staging`, `pi_git_pull`, `pi_build` — see [marengo-pi-sync](../marengo-pi-sync/SKILL.md)
 
-**Config sync:** after editing `config/bringup/*/control.yaml` (or motors/robot) on the Mac, run **`pi_sync_bench_config`** with `profile: shoulder_pitch_right_only` or `shoulder_pitch_left_only`, `install_to_opt: true`; do not ask the user to run rsync/deploy manually. After editing bench URDF assets, run **`pi_sync_bench_urdf`** with the relevant `assets` list, `install_to_opt: true`; use the default asset list for right weighted/right-only COM calibration, or pass `shoulder_pitch_left_bare.urdf` for left-bench. If `/opt` install fails, run **`pi_install_staging`** (or passwordless `install-pi.sh`) and retry — do not trust stale `/opt` inertials. After URDF sync, verify gravity (`pi_gravity_preview` / hold) before treating COM edits as live.
+**Config sync:** edit the master `config/{robot,motors,control,homing}.yaml` files, then run **`pi_sync_bench_config`** with only `install_to_opt: true`; the tool has no profile argument. After editing the live bench URDF, run **`pi_sync_bench_urdf`** with `install_to_opt: true`; its default asset is `marengo.urdf`. Historical seed assets use `archive/seed-*/contributor.urdf` and must be named explicitly in `assets`. If `/opt` install fails, run **`pi_install_staging`** (or passwordless `install-pi.sh`) and retry — do not trust stale `/opt` inertials. After URDF sync, verify gravity (`pi_gravity_preview` / hold) before treating COM edits as live.
 
 ## Admin (confirm required)
 
@@ -51,7 +51,7 @@ Ask the user only for physical actions or required safety confirmations: support
 3. `RECOVER_FAIL` or arm still limp → user **power-cycles drive**, then run **`pi_motor_recover`** again.
 4. Optional first step: **`pi_hold_off`** (confirm) if `marengo-pi` was running.
 
-Motion tools pick **`config_dir`** from **`joint`** when omitted: `right_shoulder_pitch` → `shoulder_pitch_right_only`, `left_shoulder_pitch` → `shoulder_pitch_left_only`. Otherwise default right-only. Set `MARENGO_PI_HOST` to Pi IP if `.local` fails.
+Omitted **`config_dir`** always means the master `/opt/marengo/config`. Narrow a scripted harness to a limb with **`MARENGO_JOINT_SUBSET`**, normally supplied by harness profile metadata; do not select alternate bringup folders. Set `MARENGO_PI_HOST` to the Pi IP if `.local` fails.
 
 | Profile | Params |
 |---------|--------|
@@ -62,11 +62,11 @@ Prefer **`pi_bench_harness`** for debug sessions. Sustained control uses **`pi_m
 
 **Encoder zero (replaces Motor Studio):** position arm at mechanical zero → **`pi_set_zero`** with `confirm: true`. Then **`pi_homing_status`**; all joints must be `Verified` before **`home`** / enable. `pi_hold_on` defaults `set_zero: false` — only set true when intentionally recalibrating.
 
-**Backdrive:** use **`gravity-on`** in `pi_marengo_pi_script` with **`timeout_sec: 15`** (default). Script `["home","enable bench","gravity-on"]`, `joint: left_shoulder_pitch` or right equivalent. Stay within ±1.0 rad during manual moves. Bump timeout only when the move needs it (e.g. gravity assist to arm-down: `timeout_sec: 60`).
+**Backdrive:** use **`gravity-on`** in `pi_marengo_pi_script` with **`timeout_sec: 15`** (default). Script `["home","enable bench","gravity-on"]` against the master config. Stay within the commissioned joint envelope during manual moves. Bump timeout only when the move needs it (e.g. gravity assist to arm-down: `timeout_sec: 60`).
 
-**Position hold:** **`pi_hold_on`** (`confirm: true`, `joint: left_shoulder_pitch` for left bench) — set-zero, `hold-on` or `position_rad` for `hold-at`, **15 s default**, logs to `var/log`. Pass **`timeout_sec`** explicitly for long traverses (π rad at 0.25 rad/s ≈ 20 s → use ≥ 30). **`pi_hold_off`** with same `joint` to stop. Current right-only bench tuning: **kp=12, kd=2.0**, slew **0.10 rad/s**, max_lead **0.03**, trim **0.0** after set-zero at arm-down; feedback velocity guard disables on sustained overspeed above the effective bench cap. Operator limits are **[-0.872665, 3.141593] rad** (-50° to +180°); hard bench/URDF envelope is **[-0.9, 3.17] rad**. Sync profile to Pi before hold tests if YAML changed locally. **Hands off** during scripted round trips.
+**Position hold:** **`pi_hold_on`** (`confirm: true`) — set-zero, `hold-on` or `position_rad` for `hold-at`, **15 s default**, logs to `var/log`. Pass **`timeout_sec`** explicitly for long traverses (π rad at 0.25 rad/s ≈ 20 s → use ≥ 30). **`pi_hold_off`** with the same `joint` to stop. Current master right-arm tuning: **kp=12, kd=2.0**, slew **0.10 rad/s**, max_lead **0.03**, trim **0.0** after set-zero at arm-down; feedback velocity guard disables on sustained overspeed above the effective bench cap. Sync the master config to the Pi before hold tests if YAML changed locally. **Hands off** during scripted round trips.
 
-**Left bench round trip (hands off):** `pi_marengo_pi_script` with `joint: left_shoulder_pitch`, script `home` → `enable bench` → `hold-at 0` (pause) → `hold-at 1.570796` → `hold-at 0` → `disable`, `timeout_sec` ≥ 30 for full round trip (default 15 is for short probes only).
+**Right pitch round trip (hands off):** `pi_marengo_pi_script` with `joint: right_shoulder_pitch`, script `home` → `enable bench` → `hold-at 0` (pause) → `hold-at 1.570796` → `hold-at 0` → `disable`, `timeout_sec` ≥ 30 for the full round trip (default 15 is for short probes only).
 
 **Weighted proposals:** if logs suggest load/model issues, ask user to run weighted bench now; if deferred, append [docs/bench-test-backlog.md](../../docs/bench-test-backlog.md).
 
@@ -91,6 +91,6 @@ Every `pi_hold_on` / harness run auto-records:
 
 Compare: trace smooth + candump jerky → firmware/mechanical; both jerky → control tuning; candump rate ≠ ~400/s/motor → comm/scheduling issue.
 
-Commissioned map: right `can0`/id **2**, left `can1`/id **12**. Bench profiles: `shoulder_pitch_right_only`, `shoulder_pitch_left_only` (mirrored tuning); dual: `shoulder_pitch_dual`.
+Master right-arm map on `can0`: roll id **1**, pitch id **2**, upper-arm yaw id **3**, elbow pitch id **4**. Harness profiles narrow this master configuration through `MARENGO_JOINT_SUBSET`.
 
 Docs: [pi-commissioning.md](../../docs/pi-commissioning.md), [tools/marengo-pi-mcp/README.md](../../tools/marengo-pi-mcp/README.md).

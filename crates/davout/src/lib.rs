@@ -236,9 +236,16 @@ impl<B: MotorBus> Supervisor<B> {
     /// Build supervisor from repo `config/` and URDF limits.
     pub fn from_repo(repo_root: impl AsRef<Path>, bus: B) -> Result<Self, DavoutError> {
         let root = repo_root.as_ref();
-        let robot = load_robot_config(root)?;
-        let motors = load_motors_config(root)?;
-        let control = load_control_config(root)?;
+        let mut robot = load_robot_config(root)?;
+        let mut motors = load_motors_config(root)?;
+        let mut control = load_control_config(root)?;
+        if let Some(subset) = marengo_config::joint_subset_from_env() {
+            marengo_config::apply_joint_subset(&mut robot, &mut motors, &mut control, &subset)?;
+            info!(
+                joint_count = robot.robot.joints.len(),
+                "applied MARENGO_JOINT_SUBSET to Davout robot/motors/control"
+            );
+        }
         let homing_config = load_homing_config(root)?;
         validate_motors_against_robot(&robot, &motors)?;
         validate_robot_control_joint_coverage(&robot, &control)?;

@@ -246,7 +246,9 @@ pub fn simulate_merge_xml(
             format!("kinematics-critical fields unresolved: {detail}"),
         ));
     }
-    apply_merge_xml(master_xml, contributor_xml, &preview, resolutions)
+    let merged = apply_merge_xml(master_xml, contributor_xml, &preview, resolutions)?;
+    validate_merged_urdf_xml(&merged)?;
+    Ok(merged)
 }
 
 pub fn apply_merge_xml(
@@ -278,10 +280,15 @@ pub fn apply_merge_xml(
         return Ok(merged);
     }
 
+    let master = load_urdf_from_str(master_xml, path)?;
+    let master_links: HashSet<&str> = master.links.iter().map(|l| l.name.as_str()).collect();
     let contributor = load_urdf_from_str(contributor_xml, path)?;
     let links_to_copy = collect_links_for_joints(&contributor, &preview.new_joints);
     let mut blocks = Vec::new();
     for link_name in links_to_copy {
+        if master_links.contains(link_name.as_str()) {
+            continue;
+        }
         let block = extract_xml_block(contributor_xml, "link", &link_name)
             .map_err(|message| parse_error(path, message))?;
         blocks.push(block);
@@ -294,6 +301,73 @@ pub fn apply_merge_xml(
     insert_before_robot_close(&mut merged, &blocks)
         .map_err(|message| parse_error(path, message))?;
     Ok(merged)
+}
+
+/// Structural checks before promoting a merged URDF to live SoT.
+pub fn validate_merged_urdf_xml(xml: &str) -> Result<(), ConfigError> {
+    let path = Path::new("marengo.urdf");
+    let robot = load_urdf_from_str(xml, path)?;
+    let mut link_names = HashSet::new();
+    for link in &robot.links {
+        if !link_names.insert(link.name.as_str()) {
+            return Err(parse_error(
+                path,
+                format!("duplicate link name {}", link.name),
+            ));
+        }
+    }
+    let mut joint_names = HashSet::new();
+    for joint in &robot.joints {
+        if !joint_names.insert(joint.name.as_str()) {
+            return Err(parse_error(
+                path,
+                format!("duplicate joint name {}", joint.name),
+            ));
+        }
+        if !link_names.contains(joint.parent.link.as_str()) {
+            return Err(parse_error(
+                path,
+                format!(
+                    "joint {} parent link {} missing",
+                    joint.name, joint.parent.link
+                ),
+            ));
+        }
+        if !link_names.contains(joint.child.link.as_str()) {
+            return Err(parse_error(
+                path,
+                format!(
+                    "joint {} child link {} missing",
+                    joint.name, joint.child.link
+                ),
+            ));
+        }
+        let axis = joint.axis.xyz.0;
+        let norm = (axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2]).sqrt();
+        if !norm.is_finite() || norm < 1e-9 {
+            return Err(parse_error(
+                path,
+                format!("joint {} has zero/non-finite axis", joint.name),
+            ));
+        }
+        if matches!(
+            joint.joint_type,
+            JointType::Revolute | JointType::Prismatic
+        ) {
+            let lower = joint.limit.lower;
+            let upper = joint.limit.upper;
+            if lower.is_finite() && upper.is_finite() && lower > upper {
+                return Err(parse_error(
+                    path,
+                    format!(
+                        "joint {} has inverted limits lower={lower} > upper={upper}",
+                        joint.name
+                    ),
+                ));
+            }
+        }
+    }
+    Ok(())
 }
 
 fn load_urdf_from_str(xml: &str, path: &Path) -> Result<urdf_rs::Robot, ConfigError> {
@@ -373,7 +447,8 @@ fn rewrite_joint_type(xml: &str, joint: &str, joint_type: &str) -> Result<String
     } else {
         tag = tag.replace('>', &format!(" type=\"{joint_type}\">"));
     }
-    let updated = format!("{}{}", &block[..open], tag);
+    // Preserve the remainder of the joint block after the opening tag (parent/child/…).
+    let updated = format!("{}{}{}", &block[..open], tag, &rel[end + 1..]);
     replace_joint_block(xml, joint, &updated)
 }
 
@@ -680,5 +755,71 @@ mod tests {
         let contributor_robot = load_urdf_from_str(&contributor, Path::new("c.urdf")).expect("c");
         let trimmed_preview = merge_preview_from_robots(&master_robot, &contributor_robot);
         assert_eq!(trimmed_preview.new_joints.len(), 0);
+    }
+
+    #[test]
+    fn rewrite_joint_type_preserves_joint_body() {
+        let (master, mut contributor) = axis_conflict_fixture();
+        // Force a type conflict by rewriting contributor pitch to continuous.
+        contributor = contributor.replace(
+            "<joint name=\"right_shoulder_pitch\" type=\"revolute\">",
+            "<joint name=\"right_shoulder_pitch\" type=\"continuous\">",
+        );
+        let preview = merge_preview_from_robots(
+            &load_urdf_from_str(&master, Path::new("m.urdf")).expect("m"),
+            &load_urdf_from_str(&contributor, Path::new("c.urdf")).expect("c"),
+        );
+        assert!(
+            preview
+                .field_diffs
+                .iter()
+                .any(|d| d.joint == "right_shoulder_pitch" && d.field == "type"),
+            "expected type diff: {:?}",
+            preview.field_diffs
+        );
+        let resolutions: Vec<FieldResolution> = preview
+            .field_diffs
+            .iter()
+            .filter(|d| d.kinematics_critical)
+            .map(|d| FieldResolution {
+                joint: d.joint.clone(),
+                field: d.field.clone(),
+                choice: if d.field == "type" {
+                    ResolutionChoice::Contributor
+                } else {
+                    ResolutionChoice::Master
+                },
+            })
+            .collect();
+        let merged = simulate_merge_xml(&master, &contributor, &resolutions).expect("merged");
+        let robot = load_urdf_from_str(&merged, Path::new("merged.urdf")).expect("parse");
+        let pitch = robot
+            .joints
+            .iter()
+            .find(|j| j.name == "right_shoulder_pitch")
+            .expect("pitch joint present with parent/child/axis");
+        assert_eq!(pitch.parent.link, "base_link");
+        assert!(!pitch.child.link.is_empty());
+        assert!(matches!(pitch.joint_type, JointType::Continuous));
+    }
+
+    #[test]
+    fn validate_merged_urdf_rejects_duplicate_link() {
+        let bad = r#"<?xml version="1.0"?>
+<robot name="dup">
+  <link name="base_link"/>
+  <link name="base_link"/>
+  <link name="child"/>
+  <joint name="j1" type="revolute">
+    <parent link="base_link"/>
+    <child link="child"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="0" upper="1" effort="1" velocity="1"/>
+  </joint>
+</robot>
+"#;
+        let err = validate_merged_urdf_xml(bad).expect_err("dup link");
+        assert!(err.to_string().contains("duplicate link"), "{err}");
     }
 }

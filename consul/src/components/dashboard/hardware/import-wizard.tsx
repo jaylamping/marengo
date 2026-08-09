@@ -23,6 +23,7 @@ import {
 } from '@/lib/hardware-api';
 import { queryClient } from '@/lib/query-client';
 import { queryKeys } from '@/lib/query-keys';
+import { useRobotStore } from '@/state/robotStore';
 
 type ImportWizardProps = {
   open: boolean;
@@ -49,6 +50,9 @@ export function ImportWizard({ open, onOpenChange, onActivated }: ImportWizardPr
   const [resolutions, setResolutions] = useState<ResolutionMap>({});
   const [unresolved, setUnresolved] = useState<string[]>([]);
   const [activateMessage, setActivateMessage] = useState<string | null>(null);
+  const [restartRequired, setRestartRequired] = useState(false);
+  const operationalMode = useRobotStore((state) => state.operationalMode);
+  const activationBlocked = operationalMode === 'ACTIVE';
 
   const reset = useCallback(() => {
     setStep('pick');
@@ -59,6 +63,7 @@ export function ImportWizard({ open, onOpenChange, onActivated }: ImportWizardPr
     setResolutions({});
     setUnresolved([]);
     setActivateMessage(null);
+    setRestartRequired(false);
   }, []);
 
   const handleOpenChange = (next: boolean) => {
@@ -127,6 +132,10 @@ export function ImportWizard({ open, onOpenChange, onActivated }: ImportWizardPr
     if (!uploadId) {
       return;
     }
+    if (activationBlocked) {
+      setError('URDF activation refused while ACTIVE — disable motors first.');
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -139,6 +148,7 @@ export function ImportWizard({ open, onOpenChange, onActivated }: ImportWizardPr
         return;
       }
       setActivateMessage(result.message);
+      setRestartRequired(result.restart_required === true);
       setStep('done');
       await queryClient.invalidateQueries({ queryKey: queryKeys.configSnapshot });
       await queryClient.invalidateQueries({ queryKey: queryKeys.hardwareCompleteness });
@@ -192,6 +202,12 @@ export function ImportWizard({ open, onOpenChange, onActivated }: ImportWizardPr
 
         {error ? (
           <p className="text-xs text-fault" role="status">{error}</p>
+        ) : null}
+
+        {step === 'resolve' && activationBlocked && !error ? (
+          <p className="text-xs text-fault" role="status">
+            URDF activation refused while ACTIVE — disable motors first.
+          </p>
         ) : null}
 
         {step === 'pick' ? (
@@ -284,7 +300,14 @@ export function ImportWizard({ open, onOpenChange, onActivated }: ImportWizardPr
         ) : null}
 
         {step === 'done' ? (
-          <p className="text-sm text-ok" role="status">{activateMessage}</p>
+          <div className="flex flex-col gap-2" role="status">
+            <p className="text-sm text-ok">{activateMessage}</p>
+            {restartRequired ? (
+              <p className="text-xs text-accent">
+                marengo-pi must be restarted before the new URDF is enforced.
+              </p>
+            ) : null}
+          </div>
         ) : null}
 
         <DialogFooter className="gap-2 sm:gap-0">
@@ -299,7 +322,7 @@ export function ImportWizard({ open, onOpenChange, onActivated }: ImportWizardPr
           {step === 'resolve' ? (
             <Button
               type="button"
-              disabled={busy || !canActivate}
+              disabled={busy || !canActivate || activationBlocked}
               data-testid="import-accept"
               onClick={() => void runActivate()}
             >

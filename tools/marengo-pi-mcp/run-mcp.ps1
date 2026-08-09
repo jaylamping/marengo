@@ -8,7 +8,7 @@ if (-not $env:MARENGO_PI_HOST) { $env:MARENGO_PI_HOST = 'joey-robot.tail0b414.ts
 if (-not $env:MARENGO_PI_USER) { $env:MARENGO_PI_USER = 'joey' }
 if (-not $env:MARENGO_PI_ROOT) { $env:MARENGO_PI_ROOT = '/opt/marengo' }
 if (-not $env:MARENGO_CONFIG_DIR) {
-    $env:MARENGO_CONFIG_DIR = '/opt/marengo/config/bringup/arm_4dof_right'
+    $env:MARENGO_CONFIG_DIR = '/opt/marengo/config'
 }
 if (-not $env:MARENGO_BENCH_PROFILE) { $env:MARENGO_BENCH_PROFILE = 'elbow_attached' }
 

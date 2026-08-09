@@ -1,7 +1,7 @@
 //! Hardware description API: completeness + URDF lifecycle (master SoT).
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use axum::{
@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::config::authorize_config_mutation;
+use crate::restart::{now_ms, refuse_active_fresh, HEARTBEAT_FRESH_MS};
 use crate::state::SharedState;
 
 const LIVE_URDF_REL: &str = "marengo.urdf";
@@ -65,6 +66,7 @@ pub struct ActivateUrdfResultJson {
     pub message: String,
     pub checksum_sha256: String,
     pub completeness: CompletenessReport,
+    pub restart_required: bool,
 }
 
 #[derive(Serialize)]
@@ -128,14 +130,49 @@ fn new_upload_id() -> String {
     format!("upload-{ms}")
 }
 
+fn validate_upload_id(id: &str) -> Result<&str, StatusCode> {
+    if id.is_empty() || id.len() > 64 {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    let mut chars = id.chars();
+    let Some(first) = chars.next() else {
+        return Err(StatusCode::BAD_REQUEST);
+    };
+    if !first.is_ascii_alphanumeric()
+        || chars.any(|c| !(c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-')))
+    {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    if Path::new(id)
+        .components()
+        .any(|component| !matches!(component, Component::Normal(_)))
+    {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    Ok(id)
+}
+
+fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), StatusCode> {
+    let tmp = path.with_extension("tmp");
+    if fs::write(&tmp, bytes).is_err() {
+        let _ = fs::remove_file(&tmp);
+        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    }
+    if fs::rename(&tmp, path).is_err() {
+        let _ = fs::remove_file(&tmp);
+        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    }
+    Ok(())
+}
+
 fn authorize_urdf_read(headers: &HeaderMap) -> Result<(), StatusCode> {
     authorize_config_mutation(headers)
 }
 
-pub async fn get_completeness(
-    State(state): State<SharedState>,
-) -> Result<Json<CompletenessJson>, StatusCode> {
-    let _logs = state.logs.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+pub async fn get_completeness() -> Result<Json<CompletenessJson>, StatusCode> {
     let root = repo_root();
     let dir = config_dir();
     let report = completeness_report(&root, &dir).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -191,10 +228,7 @@ pub async fn post_resolve_preview(
     Json(body): Json<ResolvePreviewJson>,
 ) -> Result<Json<ResolvePreviewResultJson>, StatusCode> {
     authorize_config_mutation(&headers)?;
-    let upload_id = body.upload_id.trim();
-    if upload_id.is_empty() {
-        return Err(StatusCode::BAD_REQUEST);
-    }
+    let upload_id = validate_upload_id(&body.upload_id)?;
     let root = repo_root();
     let contributor_path = staging_dir(&root, upload_id).join(CONTRIBUTOR_NAME);
     if !contributor_path.is_file() {
@@ -220,13 +254,25 @@ pub async fn post_resolve_preview(
 }
 
 pub async fn post_activate(
+    State(state): State<SharedState>,
     headers: HeaderMap,
     Json(body): Json<ActivateUrdfJson>,
 ) -> Result<(StatusCode, Json<ActivateUrdfResultJson>), StatusCode> {
     authorize_config_mutation(&headers)?;
-    let upload_id = body.upload_id.trim();
-    if upload_id.is_empty() {
-        return Err(StatusCode::BAD_REQUEST);
+    let upload_id = validate_upload_id(&body.upload_id)?;
+    let mode = state.snapshot_safety().map(|s| s.mode);
+    let heartbeat_ts_ms = state.snapshot_heartbeat().map(|h| h.timestamp_ms);
+    if refuse_active_fresh(mode, heartbeat_ts_ms, now_ms(), HEARTBEAT_FRESH_MS) {
+        return Ok((
+            StatusCode::CONFLICT,
+            Json(ActivateUrdfResultJson {
+                ok: false,
+                message: "urdf activate refused while operational mode Active".to_string(),
+                checksum_sha256: String::new(),
+                completeness: CompletenessReport { warnings: vec![] },
+                restart_required: false,
+            }),
+        ));
     }
     let root = repo_root();
     let staging = staging_dir(&root, upload_id);
@@ -256,6 +302,7 @@ pub async fn post_activate(
                 message: format!("kinematics-critical fields unresolved: {detail}"),
                 checksum_sha256: String::new(),
                 completeness: CompletenessReport { warnings: vec![] },
+                restart_required: false,
             }),
         ));
     }
@@ -269,20 +316,8 @@ pub async fn post_activate(
     fs::create_dir_all(&archive).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let archive_contributor = archive.join(CONTRIBUTOR_NAME);
     let archive_replaced = archive.join(REPLACED_ACTIVE_NAME);
-    fs::write(&archive_contributor, contributor_bytes.as_bytes())
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    fs::write(&archive_replaced, replaced_active.as_bytes())
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    let tmp = master_path.with_extension("urdf.tmp");
-    fs::write(&tmp, &merged).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    if fs::rename(&tmp, &master_path).is_err() {
-        let _ = fs::remove_file(&tmp);
-        return Err(StatusCode::INTERNAL_SERVER_ERROR);
-    }
-
-    let _ = fs::remove_dir_all(&staging);
-
+    write_atomic(&archive_contributor, contributor_bytes.as_bytes())?;
+    write_atomic(&archive_replaced, replaced_active.as_bytes())?;
     let checksum = sha256_hex(merged.as_bytes());
     let manifest = serde_json::json!({
         "upload_id": upload_id,
@@ -296,11 +331,41 @@ pub async fn post_activate(
         "replaced_active_checksum_sha256": sha256_hex(replaced_active.as_bytes()),
         "resolutions": body.resolutions,
     });
-    fs::write(
-        archive.join("manifest.json"),
-        serde_json::to_string_pretty(&manifest).unwrap_or_default(),
-    )
-    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let manifest_bytes =
+        serde_json::to_vec_pretty(&manifest).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    write_atomic(&archive.join("manifest.json"), &manifest_bytes)?;
+
+    let tmp = master_path.with_extension("urdf.tmp");
+    if fs::write(&tmp, &merged).is_err() {
+        let _ = fs::remove_file(&tmp);
+        return Ok((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ActivateUrdfResultJson {
+                ok: false,
+                message: "archive was saved but activate failed: could not write live URDF"
+                    .to_string(),
+                checksum_sha256: String::new(),
+                completeness: CompletenessReport { warnings: vec![] },
+                restart_required: false,
+            }),
+        ));
+    }
+    if fs::rename(&tmp, &master_path).is_err() {
+        let _ = fs::remove_file(&tmp);
+        return Ok((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ActivateUrdfResultJson {
+                ok: false,
+                message: "archive was saved but activate failed: could not promote live URDF"
+                    .to_string(),
+                checksum_sha256: String::new(),
+                completeness: CompletenessReport { warnings: vec![] },
+                restart_required: false,
+            }),
+        ));
+    }
+
+    let _ = fs::remove_dir_all(&staging);
 
     let completeness =
         completeness_report(&root, config_dir()).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -312,11 +377,13 @@ pub async fn post_activate(
             message: format!("Activated merged URDF for upload {upload_id}"),
             checksum_sha256: checksum,
             completeness,
+            restart_required: true,
         }),
     ))
 }
 
-pub async fn get_archive_list() -> Result<Json<ArchiveListJson>, StatusCode> {
+pub async fn get_archive_list(headers: HeaderMap) -> Result<Json<ArchiveListJson>, StatusCode> {
+    authorize_urdf_read(&headers)?;
     let root = repo_root();
     let archive_root = urdf_assets_root(&root).join("archive");
     let mut entries = Vec::new();
@@ -356,10 +423,13 @@ pub async fn get_archive_list() -> Result<Json<ArchiveListJson>, StatusCode> {
 }
 
 pub async fn get_archive_fetch(
+    headers: HeaderMap,
     AxumPath(upload_id): AxumPath<String>,
 ) -> Result<Json<ArchiveFetchJson>, StatusCode> {
+    authorize_urdf_read(&headers)?;
+    let upload_id = validate_upload_id(&upload_id)?;
     let root = repo_root();
-    let archive = archive_dir(&root, &upload_id);
+    let archive = archive_dir(&root, upload_id);
     if !archive.is_dir() {
         return Err(StatusCode::NOT_FOUND);
     }
@@ -381,7 +451,7 @@ pub async fn get_archive_fetch(
         None
     };
     Ok(Json(ArchiveFetchJson {
-        upload_id,
+        upload_id: upload_id.to_string(),
         manifest,
         contributor_urdf,
         replaced_active_urdf,
@@ -393,13 +463,14 @@ pub async fn post_archive_restore(
     AxumPath(upload_id): AxumPath<String>,
 ) -> Result<Json<UrdfUploadResultJson>, StatusCode> {
     authorize_config_mutation(&headers)?;
+    let upload_id = validate_upload_id(&upload_id)?;
     let root = repo_root();
-    let archive = archive_dir(&root, &upload_id);
+    let archive = archive_dir(&root, upload_id);
     let contributor_path = archive.join(CONTRIBUTOR_NAME);
     if !contributor_path.is_file() {
         return Err(StatusCode::NOT_FOUND);
     }
-    let staging = staging_dir(&root, &upload_id);
+    let staging = staging_dir(&root, upload_id);
     fs::create_dir_all(&staging).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let dest = staging.join(CONTRIBUTOR_NAME);
     fs::copy(&contributor_path, &dest).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -409,7 +480,7 @@ pub async fn post_archive_restore(
         merge_preview_from_paths(&master_path, &dest).map_err(|_| StatusCode::BAD_REQUEST)?;
     Ok(Json(UrdfUploadResultJson {
         ok: true,
-        upload_id,
+        upload_id: upload_id.to_string(),
         preview,
     }))
 }

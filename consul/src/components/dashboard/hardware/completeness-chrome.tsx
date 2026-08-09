@@ -5,11 +5,32 @@ import { cn } from '@/lib/utils';
 
 export function CompletenessSummaryBadge({
   count,
+  state = 'ok',
   className,
 }: {
   count: number;
+  state?: 'ok' | 'unknown' | 'error';
   className?: string;
 }) {
+  if (state !== 'ok') {
+    const unavailable = state === 'error';
+    return (
+      <span
+        className={cn(
+          'inline-flex h-8 items-center gap-1.5 rounded-lg border bg-surface-1 px-2.5',
+          unavailable
+            ? 'border-fault/40 text-fault'
+            : 'border-line text-muted-foreground',
+          className,
+        )}
+        title={unavailable ? 'Completeness unavailable' : 'Completeness status unknown'}
+      >
+        <HugeiconsIcon icon={Alert02Icon} size={14} />
+        <span className="data-value text-[11px]">?</span>
+        <span className="micro-label">gaps</span>
+      </span>
+    );
+  }
   if (count <= 0) {
     return (
       <span
