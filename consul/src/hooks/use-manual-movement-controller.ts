@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { compoundPresetById } from '@/data/compound-tests';
 import { useConfigSnapshot } from '@/hooks/use-config-snapshot';
+import { DEFAULT_OPERATOR_PROFILE } from '@/lib/bringup-presets';
 import { overlayNeedsCalibrationAck } from '@/lib/teach-calibration';
 import { canApplyLandmarks } from '@/lib/teach-record';
 import { subscribeTeachSamples } from '@/lib/teach-sample-bus';
@@ -116,7 +117,7 @@ export function useManualMovementController(presetId: string) {
       return;
     }
     const fingerprint = liveFingerprint(
-      config?.profile ?? 'arm_4dof_right',
+      config?.profile ?? DEFAULT_OPERATOR_PROFILE,
       joints,
       piMetrics?.build,
     );

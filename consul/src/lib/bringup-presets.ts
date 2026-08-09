@@ -1,3 +1,6 @@
+/** Fallback when config snapshot profile is unavailable — master inventory only. */
+export const DEFAULT_OPERATOR_PROFILE = 'master';
+
 /** Server registry mirror for client-side membership labels (GET /config/profiles is SoT). */
 export const PRESET_TO_PROFILE: Record<string, string> = {
   bench_3dof: 'arm_3dof_right',

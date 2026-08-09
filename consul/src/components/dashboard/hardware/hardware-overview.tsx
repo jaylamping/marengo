@@ -9,6 +9,7 @@ import {
   countCompletenessWarnings,
 } from '@/components/dashboard/hardware/build-hardware-rows';
 import { CommissioningAggregation } from '@/components/dashboard/hardware/commissioning-aggregation';
+import { CommissioningScopeEditor } from '@/components/dashboard/hardware/commissioning-scope-editor';
 import {
   CompletenessSummaryBadge,
   StatusLegend,
@@ -161,6 +162,8 @@ export function HardwareOverview() {
       />
 
       <CommissioningAggregation facets={facets} />
+
+      <CommissioningScopeEditor />
 
       {view === 'table' ? (
         <HardwareTable

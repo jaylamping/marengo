@@ -100,6 +100,15 @@ vi.mock('@/lib/persist-joint-limits', () => ({
 vi.mock('@/lib/gateway-api', () => ({
   postSetZeroCommand: vi.fn(),
   fetchActuatorLimits: vi.fn(async () => null),
+  fetchCommissioningScope: vi.fn(async () => ({
+    version: 1,
+    joints: [],
+    ceiling: null,
+    effective: [],
+    persisted: false,
+  })),
+  putCommissioningScope: vi.fn(),
+  deleteCommissioningScope: vi.fn(),
 }));
 
 function renderHardware() {

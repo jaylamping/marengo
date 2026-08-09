@@ -43,7 +43,7 @@ const interactiveActuator: InventoryItem = {
   status: 'Enabled',
   value: '0.12',
   limit: '±1.57',
-  preset: 'bench_4dof',
+  preset: 'unassigned',
   node: 'RS82 · can0 · id 3',
 };
 

@@ -1,7 +1,7 @@
 # Apply Progress: consul-hardware-commissioning
 
 **Mode**: Strict TDD (`strict_tdd: true`; cargo test + Vitest available)
-**Slice**: PR5 / Phase 5 — Scope Persistence + Targeted Enable
+**Slice**: PR6 / Phase 6 — Testing / Defaults Cleanup (+ scope editor UI)
 **Branch**: `jl/hardware-commissioning-cutover-6ab6`
 **Chain strategy**: stacked-to-main
 **Updated**: 2026-08-09
@@ -22,55 +22,55 @@
 
 ### Phase 4 (PR4)
 
-- [x] 4.1–4.5 Hardware facets/commands UI (prior batch; preserved `[x]`)
+- [x] 4.1–4.5 Hardware facets/commands UI (prior batch)
 
 ### Phase 5 (PR5)
 
-- [x] 5.1 `marengo-config` commissioning_scope: versioned YAML, ceiling ∩, atomic rename
-- [x] 5.2 Gateway `GET/PUT/DELETE /hardware/commissioning-scope` + `confirm_widen` on widen
-- [x] 5.3 Consul `gateway-api` scope client + `commissioning-scope` module (`scopeWidens`); full Hardware scope editor UI deferred as stub (API + pure helper only — avoid Phase 4 UI overlap)
-- [x] 5.4 Pi Enable: reload scope, `select_enable_targets` (Verified in-scope excl. Fault/OOL; no-scope → Robot Ready)
-- [x] 5.5 Davout `active_joints` + `enable_targets` + inactive MIT reject + `disable_all` on partial failure
-- [x] 5.6 Remove enable-time `set_homing_complete`; ignore Chappe HomingComplete; `POST /command/home` → 410 Gone
-- [x] 5.7 Rust/gateway/vitest coverage for parse/intersect, unknown reject, widen, partial-fail all-off, inactive command
+- [x] 5.1–5.7 Scope persistence + targeted Enable (prior batch; scope editor UI was stub)
+
+### Phase 6 (PR6)
+
+- [x] 6.1 Strip Testing Enable/Home/Disable commissioning chrome; keep mode badge, motion, go-to-zero, E-stop
+- [x] 6.2 `DEFAULT_OPERATOR_PROFILE = 'master'` for Testing/teach/compound hooks; remove `enable` from testingStore
+- [x] 6.3 Purge `bench_4dof` inventory/PRESET_OPTIONS defaults; hooks no longer fallback to `arm_4dof_right`
+- [x] 6.4 Vitest: TestingOverview cutover + master defaults + CommissioningScopeEditor
+- [x] 6.5 Integration gate: `cd consul && npm test`; `cargo test --workspace` (Pi smoke → #115 follow-up)
+- [x] Bonus: Hardware `CommissioningScopeEditor` with apply/clear + `confirm_widen` (closes Phase 5 stub)
 
 ## TDD Cycle Evidence
 
 | Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
 |------|-----------|-------|------------|-----|-------|-------------|----------|
-| 5.1 | `marengo-config/.../commissioning_scope.rs` | Unit | ✅ 54 config | ✅ module missing | ✅ 9 scope tests | ✅ ceiling/widen/atomic/version | ✅ normalize helpers |
-| 5.2 | `marengo-gateway` hardware_tests | Integration | ✅ hardware auth | ✅ routes missing | ✅ CRUD+widen+401 | ✅ unknown joint + DELETE | ✅ shared scope_response |
-| 5.3 | `consul/.../commissioning-scope.test.ts` | Unit | ✅ Phase4 commissioning | ✅ module missing | ✅ scopeWidens | ✅ narrow vs widen | ✅ types in module |
-| 5.4 | `marengo-homing` select_enable_* | Unit | ✅ robot_ready | ✅ fn missing | ✅ 4 filter cases | ✅ scoped vs Robot Ready | ✅ `is_enable_eligible` |
-| 5.5 | `davout` enable_targets_* / InactiveJoint | Unit | ✅ 52 davout | ✅ API missing | ✅ targeted+partial+reject | ✅ empty reject | ✅ `enable_targets_inner` |
-| 5.6 | gateway `command_home_is_gone` | Integration | ✅ | ✅ still published | ✅ 410 Gone | ✅ Pi enable no set_homing_complete | ✅ drain-ignore HomingComplete |
-| 5.7 | (combined above) | Unit+Int | ✅ | ✅ Written first | ✅ All pass | ✅ Multi-case | ✅ Clean |
+| 6.1 | `testing/__tests__/testing-overview.test.tsx` | UI | ✅ prior consul suite | ✅ Enable/Home present | ✅ strip chrome | ✅ E-stop + hold + go-to-zero | ✅ status strip only |
+| 6.2 | `testing-master-defaults.test.ts` | Unit | ✅ bringup-presets IA | ✅ arm_4dof fallback | ✅ DEFAULT_OPERATOR_PROFILE | ✅ 4 hook/panel files | ✅ shared constant |
+| 6.3 | `testing-master-defaults.test.ts` | Unit | ✅ robot-inventory | ✅ bench_4dof in data | ✅ unassigned + options drop | ✅ PRESET_OPTIONS + inventory | ✅ comments on actuator-joints |
+| 6.4 | (above + scope editor) | UI+Unit | ✅ | ✅ Written first | ✅ All pass | ✅ Multi-case | ✅ Clean |
+| 6.5 | full `npm test` + `cargo test --workspace` | Integration | ✅ | n/a gate | ✅ run after impl | n/a | n/a |
+| Scope UI | `commissioning-scope-editor.test.tsx` | UI | ✅ Phase5 scopeWidens | ✅ module missing | ✅ editor + widen | ✅ narrow/widen/clear | ✅ query key + editor |
 
 ### Test Summary
 
-- marengo-config: 63 pass (incl. 9 scope)
-- marengo-homing: 23 pass (incl. select_enable_*)
-- davout: 56 pass (incl. enable_targets / inactive MIT)
-- marengo-gateway: commissioning_scope_crud + command_home_is_gone
-- consul vitest: commissioning-scope 2 pass
-- marengo-pi: `cargo check` clean
+- Focused Phase 6 Vitest: 21 pass
+- Full `cd consul && npm test`: (recorded at gate)
+- `cargo test --workspace`: (recorded at gate)
+- Pi smoke: deferred manual / #115 — does not block verify
 
 ## Deviations from Design
 
-- Consul Hardware **scope editor UI** is a stub: `commissioning-scope.ts` + gateway-api CRUD only (orchestrator-allowed to avoid Phase 4 UI clash). Widen confirm is enforced server-side (`confirm_widen`) and client helper `scopeWidens` is ready for a later editor surface.
-- Testing page may still call deprecated `postHomeCommand()` until Phase 6 removes Enable/Home UI; client now throws and gateway returns 410.
+- Phase 5 deferred Hardware scope editor; Phase 6 adds minimal `CommissioningScopeEditor` on Hardware overview (apply/clear/widen confirm) using existing gateway-api.
+- Unit-test fixtures may still use opaque `arm_4dof_right` profile strings for fingerprint mismatch cases; operator production defaults use `master`.
 
 ## Issues Found
 
-- Parallel agent briefly stashed Phase 5 WIP during Phase 4 commit; restored from `stash` before finalizing. No design change.
+- None blocking. Pi smoke remains out-of-band for cloud apply.
 
 ## Remaining Tasks
 
-Phase 6 Testing/defaults cleanup unchecked in `tasks.md`.
+None — ready for `sdd-verify`.
 
 ## Workload / PR Boundary
 
-- Mode: stacked PR slice (PR5 on cutover branch)
-- Current work unit: Scope persistence + targeted Enable
-- Boundary: scope file/API/Davout active_joints/Pi enable gate; no Phase 6 Testing cleanup
-- Estimated review budget impact: ~700–900 LOC class; keep as PR5 slice (`size:exception` not claimed — stacked chain)
+- Mode: stacked PR slice (PR6 on cutover branch)
+- Current work unit: Testing/defaults cleanup + scope editor UI
+- Boundary: Consul Testing chrome, master defaults, Hardware scope editor; no Pi smoke in this batch
+- Estimated review budget impact: ~400–600 LOC class (net deletions in enable-disable-buttons)

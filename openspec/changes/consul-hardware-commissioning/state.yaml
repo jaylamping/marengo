@@ -6,8 +6,9 @@ grilling: 116
 branch: jl/hardware-commissioning-cutover-6ab6
 created: 2026-08-09
 phase: apply
-status: phase5_done
+status: ready_for_verify
 notes: |
-  Phase 1–5 applied on jl/hardware-commissioning-cutover-6ab6 (PR1–PR5 stacked until split).
-  Next: Phase 6 Testing/defaults cleanup.
+  Phases 1–6 applied on jl/hardware-commissioning-cutover-6ab6 (stacked until split).
+  Phase 6: Testing Enable/Home removed; master defaults; scope editor UI; Vitest + cargo gates.
+  Pi smoke (restart, scope persist, explicit Enable, partial-failure all-off) is manual follow-up for #115 — not blocking verify.
   Blocks #115. Folded glossary from PR #117 into CONTEXT.md.

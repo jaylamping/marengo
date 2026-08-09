@@ -71,8 +71,8 @@ Chain strategy: stacked-to-main
 
 ## Phase 6: Testing / Defaults Cleanup (PR6)
 
-- [ ] 6.1 Remove Enable/Home from `consul/src/components/dashboard/testing/enable-disable-buttons.tsx`; keep motion, go-to-zero, E-stop
-- [ ] 6.2 Default Testing hooks to master inventory in `consul/src/state/testingStore.ts`, `use-manual-movement-controller.ts`, related hooks
-- [ ] 6.3 Purge remaining `arm_4dof_right`/`bench_4dof` defaults in `consul/src/data/robot-inventory.ts`, teach/compound hooks
-- [ ] 6.4 Vitest: Testing absent Enable/Home; motion/E-stop present; master hook defaults
-- [ ] 6.5 Integration gate: `cargo test --workspace`, `cd consul && npm test`, proto regen build; Pi smoke (restart, scope persist, explicit Enable, partial-failure all-off)
+- [x] 6.1 Remove Enable/Home from `consul/src/components/dashboard/testing/enable-disable-buttons.tsx`; keep motion, go-to-zero, E-stop
+- [x] 6.2 Default Testing hooks to master inventory in `consul/src/state/testingStore.ts`, `use-manual-movement-controller.ts`, related hooks
+- [x] 6.3 Purge remaining `arm_4dof_right`/`bench_4dof` defaults in `consul/src/data/robot-inventory.ts`, teach/compound hooks
+- [x] 6.4 Vitest: Testing absent Enable/Home; motion/E-stop present; master hook defaults
+- [x] 6.5 Integration gate: `cargo test --workspace`, `cd consul && npm test`, proto regen build; Pi smoke (restart, scope persist, explicit Enable, partial-failure all-off)

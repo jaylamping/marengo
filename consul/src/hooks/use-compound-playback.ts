@@ -19,6 +19,7 @@ import {
   segmentTargets,
   WAYPOINT_SETTLE_HOLD_SEC,
 } from '@/lib/compound-runner';
+import { DEFAULT_OPERATOR_PROFILE } from '@/lib/bringup-presets';
 import { postTestingMitCommandBatch } from '@/lib/gateway-api';
 import { overlayNeedsCalibrationAck } from '@/lib/teach-calibration';
 import { liveFingerprint, resolvePlayablePreset } from '@/lib/teach-transit';
@@ -120,7 +121,7 @@ export function useCompoundPlayback() {
       if (!base) return;
 
       const teach = useTeachStore.getState();
-      const profile = config?.profile ?? 'arm_4dof_right';
+      const profile = config?.profile ?? DEFAULT_OPERATOR_PROFILE;
       const liveFp = liveFingerprint(
         profile,
         base.joints,
@@ -224,7 +225,7 @@ export function useCompoundPlayback() {
 
     const teach = useTeachStore.getState();
     const liveFp = liveFingerprint(
-      config?.profile ?? 'arm_4dof_right',
+      config?.profile ?? DEFAULT_OPERATOR_PROFILE,
       base.joints,
       useHostMetricsStore.getState().piMetrics?.build,
     );
