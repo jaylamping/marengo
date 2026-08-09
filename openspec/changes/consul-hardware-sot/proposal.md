@@ -46,7 +46,7 @@ Deliver vertical PRs: (1) SoT cutover, (2) API/completeness, (3) Hardware UI, (4
 Before cutover, snapshot Pi state and archive checksummed YAML/URDF inputs. Roll back gateway, Consul, runtime paths, and sync tools together; restore prior YAML/profile pointers and archived URDF, restart, then verify the 4-DOF bench. Never mix old/new writers.
 
 ## Dependencies
-- A `feasibility-brief` **Go** is required before apply; none is persisted yet because this is software plus bench config/URDF co-design.
+- The persisted `feasibility-brief` records **Go** for this software plus bench config/URDF co-design; retain it as an apply gate.
 
 ## Success Criteria
 - [ ] Pi, gateway, Consul, deploy, and MCP use one master config and URDF.
