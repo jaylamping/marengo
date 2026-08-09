@@ -91,6 +91,57 @@ pub fn wire_homing_is_unspecified(raw: i32) -> bool {
     )
 }
 
+/// Joint is eligible for Enable: Verified, Online, not Fault, not OutOfLimits.
+pub fn is_enable_eligible(joint: &JointFacetInput) -> bool {
+    joint.online && joint.is_ready_healthy()
+}
+
+/// Resolve Enable targets.
+///
+/// - `effective_scope = Some(...)`: enable Verified in-scope joints (skip others); does **not**
+///   require full-master Robot Ready.
+/// - `effective_scope = None` (no persisted scope file): require [`robot_ready`] on
+///   `master_joints`, then target eligible loaded joints from `loaded_joints`.
+///
+/// Returns an error string when the resulting target set is empty or Robot Ready fails.
+pub fn select_enable_targets(
+    master_joints: &[JointFacetInput],
+    loaded_joints: &[JointFacetInput],
+    effective_scope: Option<&[String]>,
+) -> Result<Vec<String>, String> {
+    match effective_scope {
+        Some(scope) => {
+            let scope_set: std::collections::HashSet<&str> =
+                scope.iter().map(String::as_str).collect();
+            let mut targets: Vec<String> = loaded_joints
+                .iter()
+                .filter(|j| scope_set.contains(j.name.as_str()) && is_enable_eligible(j))
+                .map(|j| j.name.clone())
+                .collect();
+            targets.sort();
+            if targets.is_empty() {
+                return Err("no Verified in-scope joints eligible for enable".into());
+            }
+            Ok(targets)
+        }
+        None => {
+            if !robot_ready(master_joints) {
+                return Err("Enable requires full-master Robot Ready when no commissioning scope is set".into());
+            }
+            let mut targets: Vec<String> = loaded_joints
+                .iter()
+                .filter(|j| is_enable_eligible(j))
+                .map(|j| j.name.clone())
+                .collect();
+            targets.sort();
+            if targets.is_empty() {
+                return Err("no loaded joints eligible for enable".into());
+            }
+            Ok(targets)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::expect_used)]
@@ -320,5 +371,103 @@ mod tests {
             true,
         )];
         assert!(!robot_ready(&master));
+    }
+
+    #[test]
+    fn scoped_enable_skips_unhomed_and_out_of_limits() {
+        let loaded = vec![
+            facet(
+                "a",
+                JointHomingState::Verified,
+                true,
+                true,
+                false,
+                false,
+            ),
+            facet(
+                "b",
+                JointHomingState::Unhomed,
+                true,
+                true,
+                false,
+                false,
+            ),
+            facet(
+                "c",
+                JointHomingState::Verified,
+                true,
+                true,
+                false,
+                true,
+            ),
+        ];
+        let scope = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+        let targets = select_enable_targets(&loaded, &loaded, Some(&scope)).expect("targets");
+        assert_eq!(targets, vec!["a".to_string()]);
+    }
+
+    #[test]
+    fn scoped_enable_does_not_require_robot_ready() {
+        let master = vec![
+            facet(
+                "a",
+                JointHomingState::Verified,
+                true,
+                true,
+                false,
+                false,
+            ),
+            facet(
+                "b",
+                JointHomingState::Unhomed,
+                true,
+                true,
+                false,
+                false,
+            ),
+        ];
+        let scope = vec!["a".to_string()];
+        let targets = select_enable_targets(&master, &master, Some(&scope)).expect("scoped");
+        assert_eq!(targets, vec!["a".to_string()]);
+        assert!(!robot_ready(&master));
+    }
+
+    #[test]
+    fn no_scope_enable_requires_robot_ready() {
+        let master = vec![
+            facet(
+                "a",
+                JointHomingState::Verified,
+                true,
+                true,
+                false,
+                false,
+            ),
+            facet(
+                "b",
+                JointHomingState::Unhomed,
+                true,
+                true,
+                false,
+                false,
+            ),
+        ];
+        let err = select_enable_targets(&master, &master, None).expect_err("blocked");
+        assert!(err.contains("Robot Ready"));
+    }
+
+    #[test]
+    fn scoped_enable_rejects_empty_eligible_set() {
+        let loaded = vec![facet(
+            "a",
+            JointHomingState::Unhomed,
+            true,
+            true,
+            false,
+            false,
+        )];
+        let scope = vec!["a".to_string()];
+        let err = select_enable_targets(&loaded, &loaded, Some(&scope)).expect_err("empty");
+        assert!(err.contains("no Verified"));
     }
 }

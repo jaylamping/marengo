@@ -1550,6 +1550,7 @@ dependencies = [
  "ctrlc",
  "davout",
  "marengo-config",
+ "marengo-homing",
  "marengo-host-metrics",
  "marengo-imu",
  "marengo-support",

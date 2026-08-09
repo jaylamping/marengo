@@ -61,13 +61,13 @@ Chain strategy: stacked-to-main
 
 ## Phase 5: Scope Persistence + Targeted Enable (PR5)
 
-- [ ] 5.1 Implement `crates/marengo-config/src/commissioning_scope.rs`: versioned YAML, ceiling intersection, atomic rename
-- [ ] 5.2 Gateway CRUD `GET/PUT/DELETE /hardware/commissioning-scope` in `bins/marengo-gateway/src/{http.rs,hardware.rs}`; `confirm_widen` on widen
-- [ ] 5.3 Scope client in `consul/src/lib/gateway-api.ts`; Hardware scope editor with widen confirm
-- [ ] 5.4 Pi Enable: reload scope, filter Verified in-scope excluding Fault/OutOfLimits; no-scope requires full-master Robot Ready
-- [ ] 5.5 Davout `active_joints`: targeted enable, reject commands outside set, `disable_all` on partial failure
-- [ ] 5.6 Remove enable-time `set_homing_complete` from `bins/marengo-pi/src/main.rs`; retire `POST /command/home` operator path
-- [ ] 5.7 Rust/gateway tests: scope parse/intersect, unknown joint reject, widen confirm, partial-failure all-off, inactive-command rejection
+- [x] 5.1 Implement `crates/marengo-config/src/commissioning_scope.rs`: versioned YAML, ceiling intersection, atomic rename
+- [x] 5.2 Gateway CRUD `GET/PUT/DELETE /hardware/commissioning-scope` in `bins/marengo-gateway/src/{http.rs,hardware.rs}`; `confirm_widen` on widen
+- [x] 5.3 Scope client in `consul/src/lib/gateway-api.ts`; Hardware scope editor with widen confirm
+- [x] 5.4 Pi Enable: reload scope, filter Verified in-scope excluding Fault/OutOfLimits; no-scope requires full-master Robot Ready
+- [x] 5.5 Davout `active_joints`: targeted enable, reject commands outside set, `disable_all` on partial failure
+- [x] 5.6 Remove enable-time `set_homing_complete` from `bins/marengo-pi/src/main.rs`; retire `POST /command/home` operator path
+- [x] 5.7 Rust/gateway tests: scope parse/intersect, unknown joint reject, widen confirm, partial-failure all-off, inactive-command rejection
 
 ## Phase 6: Testing / Defaults Cleanup (PR6)
 

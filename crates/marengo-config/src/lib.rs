@@ -27,6 +27,7 @@
 //! `hardware/docs/kinematics.md` together.
 
 mod bench_joints;
+mod commissioning_scope;
 mod completeness;
 mod config_revision;
 mod limit_patch;
@@ -38,6 +39,11 @@ pub use bench_joints::{
     apply_joint_subset, joint_subset_from_env, load_command_joint_allowlist,
     load_command_joint_allowlist_from, resolve_command_joint, validate_joint_subset,
     CommandJointAllowlist,
+};
+pub use commissioning_scope::{
+    clear_commissioning_scope, default_commissioning_scope_path, effective_commissioning_scope,
+    load_commissioning_scope, save_commissioning_scope, scope_widens,
+    validate_commissioning_scope_joints, CommissioningScopeFile, COMMISSIONING_SCOPE_VERSION,
 };
 pub use completeness::{completeness_report, CompletenessReport, CompletenessWarning};
 pub use config_revision::profile_content_revision;

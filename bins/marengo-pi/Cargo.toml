@@ -27,6 +27,7 @@ chappe = { path = "../../crates/chappe" }
 ctrlc = "3.4"
 davout = { path = "../../crates/davout" }
 marengo-config.workspace = true
+marengo-homing.workspace = true
 marengo-imu = { path = "../../crates/marengo-imu", optional = true }
 marengo-support.workspace = true
 marengo-host-metrics.workspace = true

@@ -10,8 +10,9 @@ mod verify;
 
 pub use calibration::{CalibrationRecord, JointCalibration};
 pub use commissioning::{
-    from_proto_homing_state, limb_ready, robot_ready, to_proto_homing_state,
-    verify_error_is_out_of_limits, wire_homing_is_unspecified, JointFacetInput,
+    from_proto_homing_state, is_enable_eligible, limb_ready, robot_ready, select_enable_targets,
+    to_proto_homing_state, verify_error_is_out_of_limits, wire_homing_is_unspecified,
+    JointFacetInput,
 };
 pub use registry::HomingRegistry;
 pub use sensor::{
