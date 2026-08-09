@@ -1,5 +1,7 @@
 /** PROTOTYPE mock — not live SoT */
 
+import { ANCHORS, type AnchorName, type Vec3 } from './humanoid-rig';
+
 export type FieldSource = 'urdf' | 'motors.yaml' | 'control.yaml' | 'homing.yaml';
 
 export type MappedField = {
@@ -11,16 +13,20 @@ export type MappedField = {
   incoming?: string;
 };
 
+export type Limb = 'torso' | 'right_arm' | 'left_arm' | 'right_leg' | 'left_leg';
+
 export type ProtoJoint = {
   id: string;
   label: string;
-  limb: 'torso' | 'right_arm' | 'left_arm' | 'right_leg' | 'left_leg';
+  limb: Limb;
   onCan: boolean;
   completenessWarn: boolean;
-  /** Rough body-space position for stick/schematic pickers */
-  pos: [number, number, number];
+  /** Skeleton anchor the joint marker sits on. */
+  anchor: AnchorName;
   fields: MappedField[];
 };
+
+export const jointPosition = (joint: ProtoJoint): Vec3 => ANCHORS[joint.anchor];
 
 const jointFields = (id: string): MappedField[] => [
   {
@@ -88,7 +94,7 @@ export const PROTO_JOINTS: ProtoJoint[] = [
     limb: 'right_arm',
     onCan: true,
     completenessWarn: false,
-    pos: [0.35, 1.35, 0],
+    anchor: 'shoulder_r',
     fields: jointFields('right_shoulder_roll'),
   },
   {
@@ -97,7 +103,7 @@ export const PROTO_JOINTS: ProtoJoint[] = [
     limb: 'right_arm',
     onCan: true,
     completenessWarn: false,
-    pos: [0.45, 1.2, 0.05],
+    anchor: 'upper_arm_r',
     fields: jointFields('right_shoulder_pitch'),
   },
   {
@@ -106,7 +112,7 @@ export const PROTO_JOINTS: ProtoJoint[] = [
     limb: 'right_arm',
     onCan: true,
     completenessWarn: true,
-    pos: [0.55, 0.9, 0.05],
+    anchor: 'elbow_r',
     fields: jointFields('right_elbow_pitch'),
   },
   {
@@ -115,7 +121,7 @@ export const PROTO_JOINTS: ProtoJoint[] = [
     limb: 'left_arm',
     onCan: false,
     completenessWarn: true,
-    pos: [-0.35, 1.35, 0],
+    anchor: 'shoulder_l',
     fields: jointFields('left_shoulder_roll'),
   },
   {
@@ -124,7 +130,7 @@ export const PROTO_JOINTS: ProtoJoint[] = [
     limb: 'left_arm',
     onCan: false,
     completenessWarn: true,
-    pos: [-0.45, 1.2, 0.05],
+    anchor: 'upper_arm_l',
     fields: jointFields('left_shoulder_pitch'),
   },
   {
@@ -133,7 +139,7 @@ export const PROTO_JOINTS: ProtoJoint[] = [
     limb: 'right_leg',
     onCan: false,
     completenessWarn: true,
-    pos: [0.12, 0.7, 0],
+    anchor: 'hip_r',
     fields: jointFields('right_hip_pitch'),
   },
   {
@@ -142,7 +148,7 @@ export const PROTO_JOINTS: ProtoJoint[] = [
     limb: 'left_leg',
     onCan: false,
     completenessWarn: true,
-    pos: [-0.12, 0.7, 0],
+    anchor: 'hip_l',
     fields: jointFields('left_hip_pitch'),
   },
 ];

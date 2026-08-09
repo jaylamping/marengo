@@ -1,22 +1,19 @@
 /**
- * PROTOTYPE Variant A — Stage: full-bleed 3D is the page.
- * Question line: "Three variants of Hardware, ?variant= on /prototype/hardware."
+ * PROTOTYPE Variant A — Stage: the humanoid is the page.
+ * Chrome floats over a full-bleed picker; everything else lives in the sheet.
  */
-import { Alert02Icon, Upload01Icon } from '@hugeicons/core-free-icons';
-import { HugeiconsIcon } from '@hugeicons/react';
 import { useMemo, useState } from 'react';
 
-import { Button } from '@/components/ui/button';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-
+import { HumanoidViewport } from './humanoid-viewport';
 import { JointSettingsSheet } from './joint-settings-sheet';
-import { PROTO_JOINTS, WARN_COUNT, type ProtoJoint } from './mock-hardware';
-import { StickHumanoidCanvas } from './stick-humanoid';
+import { PROTO_JOINTS, type ProtoJoint } from './mock-hardware';
+import {
+  CompletenessBadge,
+  ImportButton,
+  PageTitle,
+  StatusLegend,
+  openImportStub,
+} from './proto-chrome';
 
 export const variantName = 'Stage';
 
@@ -30,85 +27,55 @@ export function VariantA() {
     [joints, selectedId],
   );
 
-  const select = (id: string) => {
-    setSelectedId(id);
-    setSheetOpen(true);
-  };
-
   return (
-    <div className="relative flex h-[calc(100vh-5.5rem)] min-h-[28rem] flex-col overflow-hidden rounded-lg border border-line bg-surface-0">
-      <header className="absolute top-0 right-0 left-0 z-10 flex items-center justify-between gap-3 px-4 py-3">
-        <div>
-          <h1 className="font-sans text-lg tracking-tight text-foreground">
-            Hardware
-          </h1>
-          <p className="font-mono text-[11px] text-muted-foreground">
-            master · marengo.urdf · click a joint
-          </p>
+    <div className="relative flex h-[calc(100vh-9rem)] min-h-[30rem] flex-col overflow-hidden rounded-lg border border-line bg-surface-0">
+      <HumanoidViewport
+        className="absolute inset-0"
+        selectedId={selectedId}
+        onSelect={(id) => {
+          setSelectedId(id);
+          setSheetOpen(id !== null);
+        }}
+      />
+
+      <header className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-3 p-4">
+        <div className="pointer-events-auto rounded-lg border border-line bg-surface-0 px-3 py-2">
+          <PageTitle note="master · marengo.urdf · click a joint" />
         </div>
-        <div className="flex items-center gap-2">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-line bg-surface-1/80 text-orange-400 backdrop-blur"
-                  aria-label={`${WARN_COUNT} completeness warnings`}
-                >
-                  <HugeiconsIcon icon={Alert02Icon} size={18} />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {WARN_COUNT} completeness gaps (warn only)
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <Button
-            type="button"
-            size="sm"
-            variant="secondary"
-            className="gap-1.5"
-            onClick={() => {
-              // stub import
-              window.alert(
-                'PROTOTYPE: Import / drop would open resolve wizard',
-              );
-            }}
-          >
-            <HugeiconsIcon icon={Upload01Icon} size={16} />
-            Import
-          </Button>
+        <div className="pointer-events-auto flex items-center gap-2">
+          <CompletenessBadge />
+          <ImportButton onImport={openImportStub} />
         </div>
       </header>
 
-      <StickHumanoidCanvas
-        className="absolute inset-0"
-        selectedId={selectedId}
-        onSelect={select}
-      />
-
-      <div className="pointer-events-none absolute right-4 bottom-4 left-4 flex justify-between font-mono text-[10px] text-muted-foreground">
-        <span>teal = on CAN · slate = description · amber = selected · orange orb = warn</span>
-        <span>state: selected={selectedId ?? 'none'}</span>
-      </div>
+      <footer className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-end justify-between gap-3 p-4">
+        <StatusLegend className="rounded-lg border border-line bg-surface-0 px-3 py-2" />
+        <span className="micro-label rounded-lg border border-line bg-surface-0 px-3 py-2">
+          drag to orbit · scroll to zoom
+        </span>
+      </footer>
 
       <JointSettingsSheet
         joint={selected}
         open={sheetOpen}
-        onOpenChange={setSheetOpen}
+        onOpenChange={(open) => {
+          setSheetOpen(open);
+          if (!open) setSelectedId(null);
+        }}
         onAcceptIncoming={(fieldId) => {
           setJoints((prev) =>
-            prev.map((j) => {
-              if (j.id !== selectedId) return j;
-              return {
-                ...j,
-                fields: j.fields.map((f) =>
-                  f.id === fieldId && f.incoming
-                    ? { ...f, value: f.incoming, incoming: undefined }
-                    : f,
-                ),
-              };
-            }),
+            prev.map((joint) =>
+              joint.id === selectedId
+                ? {
+                    ...joint,
+                    fields: joint.fields.map((field) =>
+                      field.id === fieldId && field.incoming
+                        ? { ...field, value: field.incoming, incoming: undefined }
+                        : field,
+                    ),
+                  }
+                : joint,
+            ),
           );
         }}
       />

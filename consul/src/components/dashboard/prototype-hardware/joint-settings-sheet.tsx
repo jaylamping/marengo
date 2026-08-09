@@ -1,5 +1,6 @@
 /**
- * PROTOTYPE — unified mapped-field sheet (shared content shape only).
+ * PROTOTYPE — unified mapped-field sheet: one joint, every source, source tags
+ * per field. Colour is scarce on purpose: amber only where a decision is owed.
  */
 import { Button } from '@/components/ui/button';
 import {
@@ -12,14 +13,7 @@ import {
 } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 
-import type { MappedField, ProtoJoint } from './mock-hardware';
-
-const SOURCE_STYLE: Record<MappedField['source'], string> = {
-  urdf: 'text-sky-300/90',
-  'motors.yaml': 'text-violet-300/90',
-  'control.yaml': 'text-emerald-300/90',
-  'homing.yaml': 'text-amber-300/90',
-};
+import type { ProtoJoint } from './mock-hardware';
 
 export function JointSettingsSheet({
   joint,
@@ -32,70 +26,64 @@ export function JointSettingsSheet({
   onOpenChange: (open: boolean) => void;
   onAcceptIncoming?: (fieldId: string) => void;
 }) {
+  const incomingCount = joint?.fields.filter((field) => field.incoming).length ?? 0;
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="right"
-        variant="panel"
-        className="w-full sm:max-w-md"
-        showOverlay
-      >
+      <SheetContent side="right" variant="panel" className="w-full sm:max-w-md" showOverlay>
         {joint ? (
           <>
             <SheetHeader className="border-b border-line">
               <SheetTitle className="font-sans text-base tracking-tight">
                 {joint.label}
               </SheetTitle>
-              <SheetDescription className="font-mono text-[11px] text-muted-foreground">
-                {joint.id} · {joint.onCan ? 'on CAN' : 'description only'} ·
-                sources tagged per field
+              <SheetDescription className="micro-label">
+                {joint.id} · {joint.onCan ? 'on can' : 'description only'}
               </SheetDescription>
             </SheetHeader>
-            <div className="flex-1 space-y-3 overflow-y-auto px-6 py-4">
-              {joint.fields.map((f) => (
+
+            <div className="flex-1 overflow-y-auto px-6 py-2">
+              {joint.fields.map((field) => (
                 <div
-                  key={f.id}
+                  key={field.id}
                   className={cn(
-                    'grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 border-b border-line/60 py-2',
-                    f.warn && 'bg-orange-500/5',
+                    'grid grid-cols-[1fr_auto] items-start gap-x-3 border-b border-line py-2.5',
+                    field.warn && 'border-l-2 border-l-accent pl-2',
                   )}
                 >
                   <div className="min-w-0">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-sm text-foreground">{f.label}</span>
-                      {f.warn ? (
-                        <span className="font-mono text-[10px] text-orange-400">
-                          warn
-                        </span>
-                      ) : null}
-                    </div>
-                    <div
-                      className={cn(
-                        'font-mono text-[10px]',
-                        SOURCE_STYLE[f.source],
-                      )}
-                    >
-                      {f.source}
+                    <div className="text-sm text-foreground">{field.label}</div>
+                    <div className="micro-label mt-0.5">
+                      {field.source}
+                      {field.warn ? <span className="text-accent"> · gap</span> : null}
                     </div>
                   </div>
-                  <div className="text-right font-mono text-sm tabular-nums">
-                    {f.value}
-                    {f.incoming ? (
+                  <div className="text-right">
+                    <div className="data-value text-sm text-foreground">{field.value}</div>
+                    {field.incoming ? (
                       <button
                         type="button"
-                        className="mt-1 block text-[11px] text-amber-300 underline-offset-2 hover:underline"
-                        onClick={() => onAcceptIncoming?.(f.id)}
+                        className="data-value mt-1 text-[11px] text-accent underline-offset-2 hover:underline"
+                        onClick={() => onAcceptIncoming?.(field.id)}
                       >
-                        incoming {f.incoming} → accept
+                        incoming {field.incoming} · accept
                       </button>
                     ) : null}
                   </div>
                 </div>
               ))}
             </div>
+
             <SheetFooter className="border-t border-line">
-              <Button type="button" variant="secondary" className="w-full">
-                Accept all incoming (stub)
+              <Button
+                type="button"
+                variant={incomingCount > 0 ? 'default' : 'secondary'}
+                className="w-full"
+                disabled={incomingCount === 0}
+              >
+                {incomingCount > 0
+                  ? `Accept ${incomingCount} incoming → active`
+                  : 'No incoming changes'}
               </Button>
             </SheetFooter>
           </>
