@@ -1,0 +1,12 @@
+change: consul-hardware-commissioning
+title: Hardware commissioning + Consul master chrome cutover
+issue: 118
+map: 96
+grilling: 116
+branch: jl/hardware-commissioning-cutover-6ab6
+created: 2026-08-09
+phase: explore
+status: in_progress
+notes: |
+  Locked by grilling #116. Fold glossary PR #117.
+  Blocks #115 re-zero smoke. Destination of Wayfinder map #96.
