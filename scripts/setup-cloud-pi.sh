@@ -85,7 +85,7 @@ Secrets (Cursor Cloud Agents → Secrets):
   TAILSCALE_AUTH_KEY              Runtime Secret — ephemeral/reusable auth key
   MARENGO_PI_SSH_PRIVATE_KEY_B64  Runtime Secret — base64 ed25519 deploy key
   MARENGO_PI_HOST                 Environment Variable (default joey-robot.tail0b414.ts.net)
-  MARENGO_GATEWAY_LOG_TOKEN       Runtime Secret (optional, if set on Pi gateway)
+  MARENGO_GATEWAY_LOG_TOKEN       Runtime Secret (optional; else loaded from Pi /etc/marengo/env via SSH)
 EOF
     ;;
   *)
