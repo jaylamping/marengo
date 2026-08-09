@@ -13,3 +13,4 @@ notes: |
   Spec phase complete: 4 domain deltas (2 new, 2 modified).
   Design written at design.md. Before tasks, reconcile Robot Ready and no-scope
   Enable clauses in hardware-commissioning-state/spec.md with the approved proposal.
+  Context handoff pending; resume at spec reconciliation, then generate tasks.
