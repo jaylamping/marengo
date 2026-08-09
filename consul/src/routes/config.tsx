@@ -7,6 +7,7 @@ import { LogsPage } from '@/pages/logs';
 import { SimulationPage } from '@/pages/simulation';
 import { SubsystemsPage } from '@/pages/subsystems';
 import { TestingPage } from '@/pages/testing';
+import { PrototypeHardwarePage } from '@/pages/prototype-hardware';
 import { RootLayout } from '@/routes/root-layout';
 
 /**
@@ -80,6 +81,21 @@ export const appRoutes: RouteObject[] = [
           },
         },
       },
+      // PROTOTYPE — Wayfinder #100; remove with throwaway branch
+      ...(import.meta.env.DEV
+        ? [
+            {
+              path: '/prototype/hardware',
+              Component: PrototypeHardwarePage,
+              handle: {
+                header: {
+                  title: 'Hardware (prototype)',
+                  subtitle: 'throwaway · ?variant=A|B|C',
+                },
+              },
+            } satisfies RouteObject,
+          ]
+        : []),
     ],
   },
 ];
