@@ -48,6 +48,48 @@ fn delta_summary_counts_and_rate() {
 }
 
 #[test]
+fn ascii_candump_matches_log_format_delta() {
+    // Default `candump -t z` (no `-L`) — harness / Pi wire shape.
+    let ascii = inspect_ok(
+        &fixture_bytes("ascii.log"),
+        InspectRequest::summary(TimestampMode::Delta),
+    );
+    let compact = inspect_ok(
+        &fixture_bytes("delta.log"),
+        InspectRequest::summary(TimestampMode::Delta),
+    );
+    assert_eq!(ascii.summary.parsed_frames, compact.summary.parsed_frames);
+    assert_eq!(ascii.summary.total_lines, compact.summary.total_lines);
+    assert!((ascii.summary.duration_s - compact.summary.duration_s).abs() < 1e-12);
+    assert_eq!(
+        ascii.summary.top_ids.len(),
+        compact.summary.top_ids.len(),
+        "same ID multiset"
+    );
+    for (a, c) in ascii
+        .summary
+        .top_ids
+        .iter()
+        .zip(compact.summary.top_ids.iter())
+    {
+        assert_eq!(a.can_id, c.can_id);
+        assert_eq!(a.count, c.count);
+    }
+
+    let page = FramePage::new(3, 1).unwrap_or_else(|e| panic!("page: {e}"));
+    let framed = inspect_ok(
+        &fixture_bytes("ascii.log"),
+        InspectRequest::page(TimestampMode::Delta, page),
+    );
+    assert_eq!(framed.frames.len(), 1);
+    assert_eq!(framed.frames[0].can_id.get(), 0x0280_02FF);
+    assert_eq!(
+        framed.frames[0].data,
+        [0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77]
+    );
+}
+
+#[test]
 fn absolute_retains_unix_and_normalizes_offset() {
     let page = FramePage::new(0, 10).unwrap_or_else(|e| panic!("page: {e}"));
     let report = inspect_ok(

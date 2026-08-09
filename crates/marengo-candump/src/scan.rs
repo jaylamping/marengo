@@ -315,6 +315,9 @@ fn parse_frame_fields(buf: &[u8]) -> Option<ParsedFields> {
         return None;
     }
 
+    // Accept both can-utils wire shapes used on the bench:
+    // - log (`-L`): `(ts) iface ID#HEX…`
+    // - ASCII (default `candump -t z`): `(ts) iface ID [dlc] XX YY…`
     let id_part = parts[2];
     let (id_hex, data_hex_owned) = if let Some((id, hex)) = id_part.split_once('#') {
         let mut data = hex.to_string();
@@ -327,6 +330,8 @@ fn parse_frame_fields(buf: &[u8]) -> Option<ParsedFields> {
         (id, data)
     } else if parts.len() == 3 {
         (id_part, String::new())
+    } else if is_ascii_dlc_token(parts[3]) {
+        (id_part, parts[4..].join(" "))
     } else {
         return None;
     };
@@ -370,6 +375,17 @@ fn hex_nibble(b: u8) -> Option<u8> {
         b'A'..=b'F' => Some(b - b'A' + 10),
         _ => None,
     }
+}
+
+/// Default can-utils ASCII DLC field, e.g. `[8]` or `[0]`.
+fn is_ascii_dlc_token(token: &str) -> bool {
+    let bytes = token.as_bytes();
+    if bytes.len() < 3 || bytes[0] != b'[' || bytes[bytes.len() - 1] != b']' {
+        return false;
+    }
+    bytes[1..bytes.len() - 1]
+        .iter()
+        .all(|b| b.is_ascii_digit())
 }
 
 fn enrich_frame(

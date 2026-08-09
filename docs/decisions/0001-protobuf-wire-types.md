@@ -31,13 +31,14 @@ Use **Protocol Buffers** as the source of truth for all inter-service wire types
 
 ### Candump HTTP/proto evolution (2026-07)
 
-Gateway candump diagnostics (`CandumpFrame`, `CandumpPage`, `CandumpSummary`) grew enrichment and clearer counters while keeping wire compatibility for older Consul clients:
+Gateway candump diagnostics (`CandumpFrame`, `CandumpPage`, `CandumpSummary`) grew enrichment and clearer counters. Protobuf and HTTP are related but not identical:
 
-- **Deprecated projections** (still populated where useful): `CandumpFrame.delta_s` → prefer `offset_s`; `CandumpPage.total_frames` → prefer `parsed_frames` / `total_lines`; `CandumpSummary` fields 1–2 and 4–6 (`frame_count`, `bytes`, `approx_hz`, `interfaces`, `top_ids`) → prefer fields 7–12 (`parsed_frames`, `total_lines`, `top_id_counts`, `interface_summaries`, `parsed_frame_hz`, `source_bytes`).
-- **New optional enrichment** on `CandumpFrame`: `timestamp_unix_us`, `comm_type`, `comm_type_name`, `joint` (Robstride decode-only labels for operator forensics).
-- **Explicit timestamp mode** via `CandumpTimestampMode` on `CandumpPage` (Delta or Absolute; no Auto).
+- **True one-release HTTP aliases:** `CandumpFrame.delta_s` (= `offset_s`), `CandumpPage.total_frames` (= `parsed_frames` clamped to u32), `CandumpSummary.frame_count` / `bytes` (= `parsed_frames` / `source_bytes`). Prefer the non-alias names in new clients.
+- **HTTP shape change (not a silent shim):** gateway JSON keeps keys `interfaces`, `top_ids`, and `approx_hz`, but `interfaces`/`top_ids` are now object arrays (`{name,parsed_frames,approx_hz}` / `{can_id,count}`) and `approx_hz` is `number | null`. Proto’s parallel names (`interface_summaries`, `top_id_counts`, `parsed_frame_hz`) describe the richer model; gateway currently serves the enriched objects under the old keys.
+- **New optional enrichment** on frames: `timestamp_unix_us`, `comm_type`, `comm_type_name`, `joint` (Robstride decode-only labels for operator forensics).
+- **Timestamp mode:** proto `CandumpPage.timestamp_mode` is explicit (Delta or Absolute; no Auto). Gateway/store archive and hot paths currently always inspect as Delta; Absolute is used by CLI when requested. Page JSON may omit `timestamp_mode` until that field is plumbed through HTTP.
 
-Consumers must treat deprecated fields as compatibility shims and prefer the non-deprecated names. Log archive/HTTP surface for candump sessions is owned by [ADR 0011](0011-log-retention-and-archive.md); parsing/enrichment lives in `marengo-candump`.
+Log archive/HTTP surface for candump sessions is owned by [ADR 0011](0011-log-retention-and-archive.md); parsing/enrichment lives in `marengo-candump` (accepts both `candump -L` `ID#HEX` and default ASCII `ID [dlc] XX…` lines).
 
 ## Alternatives considered
 

@@ -2,7 +2,8 @@
 //!
 //! Owns candump syntax, timestamp normalization, counting, deterministic
 //! summaries, gzip detection, parsed-frame paging, and optional Robstride
-//! enrichment. Callers choose [`TimestampMode`]; there is no Auto.
+//! enrichment. Accepts can-utils log (`ID#HEX`) and default ASCII
+//! (`ID [dlc] XX…`) lines. Callers choose [`TimestampMode`]; there is no Auto.
 //!
 //! ## Responsibilities
 //!
