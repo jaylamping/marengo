@@ -15,7 +15,7 @@
             <joint name="right_upper_arm_yaw" type="hinge" axis="0 0 1" range="-1.57 1.57"/>
             <geom type="capsule" fromto="0 0 0 0 0 -0.24" size="0.03" rgba="0.23 0.51 0.96 1"/>
             <body name="right_forearm_link" pos="0 0 -0.24">
-              <joint name="right_elbow_pitch" type="hinge" axis="0 1 0" range="0 1.2"/>
+              <joint name="right_elbow_pitch" type="hinge" axis="0 1 0" range="-0.50 1.2"/>
               <geom type="capsule" fromto="0 0 0 0 0 -0.2" size="0.025" rgba="0.35 0.6 0.95 1"/>
             </body>
           </body>

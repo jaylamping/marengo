@@ -138,20 +138,53 @@ if [[ ! -f /etc/marengo/env ]]; then
   install -m 640 "${ROOT}/scripts/env.example" /etc/marengo/env
   chown root:"${RUN_USER}" /etc/marengo/env
 fi
-# Migrate legacy bringup profile paths to master config tree.
+# Migrate legacy bringup profile paths carefully.
+# Only auto-migrate profiles that are equivalent to master right 4-DOF.
+# Non-equivalent benches (3-DOF, left, weighted, …) require an explicit ack.
+MARENGO_ALLOW_NONEQUIV_BRINGUP_MIGRATE="${MARENGO_ALLOW_NONEQUIV_BRINGUP_MIGRATE:-0}"
 if [[ -f /etc/marengo/env ]] && grep -q 'config/bringup/' /etc/marengo/env 2>/dev/null; then
-  sed -i 's|/opt/marengo/config/bringup/[^[:space:]"'"'"']*|/opt/marengo/config|g' /etc/marengo/env
-  sed -i 's|config/bringup/[^[:space:]"'"'"']*|config|g' /etc/marengo/env
-fi
-# Migrate renamed default bench profiles.
-if [[ -f /etc/marengo/env ]] && grep -q 'arm_2dof_right' /etc/marengo/env 2>/dev/null; then
-  sed -i 's|config/bringup/arm_2dof_right|config|g' /etc/marengo/env
-fi
-if [[ -f /etc/marengo/env ]] && grep -q 'arm_3dof_right' /etc/marengo/env 2>/dev/null; then
-  sed -i 's|config/bringup/arm_3dof_right|config|g' /etc/marengo/env
-fi
-if [[ -f /etc/marengo/env ]] && grep -q 'arm_4dof_right' /etc/marengo/env 2>/dev/null; then
-  sed -i 's|config/bringup/arm_4dof_right|config|g' /etc/marengo/env
+  bringup_slugs="$(
+    grep -oE 'config/bringup/[^[:space:]"'\'']+' /etc/marengo/env 2>/dev/null \
+      | sed 's|.*/||' | sort -u || true
+  )"
+  if [[ -n "${bringup_slugs}" ]]; then
+    install -m 640 /etc/marengo/env "/etc/marengo/env.bak.$(date -u +%Y%m%dT%H%M%SZ)"
+  fi
+  for slug in ${bringup_slugs}; do
+    case "${slug}" in
+      arm_4dof_right|arm_2dof_right)
+        echo "install-pi: migrating bringup/${slug} → master config/"
+        sed -i "s|/opt/marengo/config/bringup/${slug}|/opt/marengo/config|g" /etc/marengo/env
+        sed -i "s|config/bringup/${slug}|config|g" /etc/marengo/env
+        ;;
+      arm_3dof_right)
+        if [[ "${MARENGO_ALLOW_NONEQUIV_BRINGUP_MIGRATE}" == "1" ]]; then
+          echo "install-pi: migrating bringup/${slug} → master config/ with JOINT_SUBSET (explicit ack)"
+          sed -i "s|/opt/marengo/config/bringup/${slug}|/opt/marengo/config|g" /etc/marengo/env
+          sed -i "s|config/bringup/${slug}|config|g" /etc/marengo/env
+          if ! grep -q '^MARENGO_JOINT_SUBSET=' /etc/marengo/env 2>/dev/null; then
+            printf '\n# Auto-set on 3-DOF → master migration (install-pi.sh)\nMARENGO_JOINT_SUBSET=right_shoulder_roll,right_shoulder_pitch,right_upper_arm_yaw\n' \
+              >> /etc/marengo/env
+          fi
+        else
+          echo "error: /etc/marengo/env points at bringup/${slug}, which is not equivalent to master right 4-DOF." >&2
+          echo "error: re-run with MARENGO_ALLOW_NONEQUIV_BRINGUP_MIGRATE=1 to migrate and set MARENGO_JOINT_SUBSET, or edit env manually." >&2
+          exit 1
+        fi
+        ;;
+      *)
+        if [[ "${MARENGO_ALLOW_NONEQUIV_BRINGUP_MIGRATE}" == "1" ]]; then
+          echo "warning: migrating non-equivalent bringup/${slug} → master config/ (explicit ack; verify CAN map / JOINT_SUBSET)" >&2
+          sed -i "s|/opt/marengo/config/bringup/${slug}|/opt/marengo/config|g" /etc/marengo/env
+          sed -i "s|config/bringup/${slug}|config|g" /etc/marengo/env
+        else
+          echo "error: /etc/marengo/env points at bringup/${slug}; refusing blind cutover to master right 4-DOF." >&2
+          echo "error: set MARENGO_ALLOW_NONEQUIV_BRINGUP_MIGRATE=1 after confirming the joint/CAN map, or point MARENGO_CONFIG_DIR at /opt/marengo/config yourself." >&2
+          exit 1
+        fi
+        ;;
+    esac
+  done
 fi
 
 install -m 644 "${ROOT}/scripts/systemd/marengo-can.service" /etc/systemd/system/marengo-can.service

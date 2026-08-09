@@ -8,7 +8,8 @@ use std::env;
 use std::path::Path;
 
 use crate::{
-    load_robot_config_from, resolve_config_dir, resolve_repo_root, ConfigError, RobotConfigFile,
+    load_robot_config_from, resolve_config_dir, resolve_repo_root, ConfigError, ControlConfigFile,
+    MotorsConfigFile, RobotConfigFile,
 };
 
 /// Joints that may appear in actuator harness commands for the active profile.
@@ -69,7 +70,11 @@ pub fn load_command_joint_allowlist_from(
     let robot = load_robot_config_from(config_dir)?;
     let mut allowlist = CommandJointAllowlist::from_robot(&robot);
     if let Some(subset) = joint_subset_from_env() {
+        validate_joint_subset(&robot, &subset)?;
         allowlist = allowlist.intersect_subset(&subset);
+        if allowlist.iter().next().is_none() {
+            return Err(ConfigError::EmptyJointSubset);
+        }
     }
     Ok(allowlist)
 }
@@ -88,6 +93,61 @@ pub fn joint_subset_from_env() -> Option<HashSet<String>> {
     } else {
         Some(joints)
     }
+}
+
+/// Fail closed when any subset name is missing from `robot.joints`.
+pub fn validate_joint_subset(
+    robot: &RobotConfigFile,
+    subset: &HashSet<String>,
+) -> Result<(), ConfigError> {
+    let known: HashSet<&str> = robot.robot.joints.iter().map(String::as_str).collect();
+    for name in subset {
+        if !known.contains(name.as_str()) {
+            return Err(ConfigError::UnknownJointSubset {
+                joint: name.clone(),
+            });
+        }
+    }
+    Ok(())
+}
+
+/// Narrow robot/motors/control to `MARENGO_JOINT_SUBSET` (preserves robot.joints order).
+///
+/// Used by Davout boot so Enable/homing/limits match the ephemeral wired set — not only
+/// the command allowlist overlay.
+pub fn apply_joint_subset(
+    robot: &mut RobotConfigFile,
+    motors: &mut MotorsConfigFile,
+    control: &mut ControlConfigFile,
+    subset: &HashSet<String>,
+) -> Result<(), ConfigError> {
+    validate_joint_subset(robot, subset)?;
+    let filtered: Vec<String> = robot
+        .robot
+        .joints
+        .iter()
+        .filter(|j| subset.contains(*j))
+        .cloned()
+        .collect();
+    if filtered.is_empty() {
+        return Err(ConfigError::EmptyJointSubset);
+    }
+    let keep: HashSet<String> = filtered.iter().cloned().collect();
+    robot.robot.joints = filtered;
+    motors.motors.retain(|m| keep.contains(&m.joint));
+    if motors.motors.is_empty() {
+        return Err(ConfigError::EmptyJointSubset);
+    }
+    control.control.joints.retain(|name, _| keep.contains(name));
+    control.control.actuator_groups.retain(|_, group| {
+        group.joints.retain(|j| keep.contains(j));
+        !group.joints.is_empty()
+    });
+    control
+        .control
+        .danger_zones
+        .retain(|zone| keep.contains(&zone.joint));
+    Ok(())
 }
 
 /// Resolve an operator/inventory joint name to a wired canonical name.
@@ -208,5 +268,42 @@ mod tests {
             resolve_command_joint("elbow", &allowlist),
             Some("right_elbow_pitch")
         );
+    }
+
+    #[test]
+    fn validate_joint_subset_rejects_unknown_names() {
+        let robot = load_robot_config_from(resolve_config_dir(resolve_repo_root())).expect("robot");
+        let subset: HashSet<String> = ["not_a_joint".to_string()].into_iter().collect();
+        let err = validate_joint_subset(&robot, &subset).expect_err("unknown");
+        assert!(matches!(err, ConfigError::UnknownJointSubset { .. }));
+    }
+
+    #[test]
+    fn apply_joint_subset_filters_motors_and_preserves_order() {
+        use crate::{load_control_config_from, load_motors_config_from};
+
+        let config_dir = resolve_config_dir(resolve_repo_root());
+        let mut robot = load_robot_config_from(&config_dir).expect("robot");
+        let mut motors = load_motors_config_from(&config_dir).expect("motors");
+        let mut control = load_control_config_from(&config_dir).expect("control");
+        let subset: HashSet<String> = [
+            "right_shoulder_roll".to_string(),
+            "right_shoulder_pitch".to_string(),
+            "right_upper_arm_yaw".to_string(),
+        ]
+        .into_iter()
+        .collect();
+        apply_joint_subset(&mut robot, &mut motors, &mut control, &subset).expect("subset");
+        assert_eq!(
+            robot.robot.joints,
+            vec![
+                "right_shoulder_roll".to_string(),
+                "right_shoulder_pitch".to_string(),
+                "right_upper_arm_yaw".to_string(),
+            ]
+        );
+        assert_eq!(motors.motors.len(), 3);
+        assert!(motors.motors.iter().all(|m| m.joint != "right_elbow_pitch"));
+        assert!(!control.control.joints.contains_key("right_elbow_pitch"));
     }
 }

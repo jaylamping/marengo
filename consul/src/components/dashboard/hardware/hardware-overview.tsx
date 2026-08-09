@@ -43,7 +43,12 @@ export function HardwareOverview() {
     staleTime: 30_000,
   });
 
-  const warnings = completenessQuery.data?.warnings ?? [];
+  const warnings = completenessQuery.data ? completenessQuery.data.warnings : [];
+  const completenessState = completenessQuery.isError
+    ? 'error'
+    : completenessQuery.data
+      ? 'ok'
+      : 'unknown';
   const rows = useMemo(
     () => buildHardwareRows(snapshot ?? null, warnings, limitSnapshot),
     [snapshot, warnings, limitSnapshot],
@@ -89,7 +94,7 @@ export function HardwareOverview() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <CompletenessSummaryBadge count={warnCount} />
+          <CompletenessSummaryBadge count={warnCount} state={completenessState} />
           <Button
             type="button"
             size="sm"

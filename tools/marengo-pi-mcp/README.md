@@ -111,9 +111,13 @@ Weighted profile (`weighted_single_arm`, `arm_attached`) needs `confirm: true` a
 {
   "confirm": true,
   "joint": "right_shoulder_pitch",
-"config_dir": "/opt/marengo/config/bringup/arm_3dof_right"
+  "config_dir": "/opt/marengo/config"
 }
 ```
+
+Omit `config_dir` to use `/opt/marengo/config`. For a 3-DOF harness run,
+select the harness profile that exports `MARENGO_JOINT_SUBSET`; do not point
+`MARENGO_CONFIG_DIR` at a separate bringup tree.
 
 ### `pi_sync_main`
 
@@ -150,7 +154,7 @@ Motion runs tee to `$MARENGO_ROOT/var/log/bench-latest.log`. Read with `pi_logs_
 { "confirm": true }
 ```
 
-Tool: `pi_motor_recover`. Disable drives, brief `status` with `fault=0x…`, prints `RECOVER_OK` or `RECOVER_FAIL`. Optional: `"config_dir": "/opt/marengo/config/bringup/arm_3dof_right"`.
+Tool: `pi_motor_recover`. Disable drives, brief `status` with `fault=0x…`, prints `RECOVER_OK` or `RECOVER_FAIL`. Optional: `"config_dir": "/opt/marengo/config"`; omission uses the same master directory.
 
 ## Skills
 

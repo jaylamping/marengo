@@ -4,10 +4,10 @@ Single source of truth for joint names, axes, limits, link dimensions, and actua
 
 | Model | URDF | Status |
 |-------|------|--------|
-| Humanoid (target) | [`assets/urdf/marengo.urdf`](../../assets/urdf/marengo.urdf) | CAD in progress; URDF placeholder until Brawner export |
-| Arm (4 DOF, bring-up) | [`assets/urdf/arm_4dof.urdf`](../../assets/urdf/arm_4dof.urdf) | Current bench slice; same arm chain as humanoid, not a separate robot |
+| Right arm (4 DOF, live) | [`assets/urdf/marengo.urdf`](../../assets/urdf/marengo.urdf) | Current master SoT; same arm chain as the target humanoid, not a separate robot |
+| Historical slices | [`assets/urdf/archive/seed-*/contributor.urdf`](../../assets/urdf/archive/) | Archive seeds only; never selected as the live runtime SoT |
 
-Full body: [`config/robot_humanoid.yaml`](../../config/robot_humanoid.yaml) + [`config/motors_humanoid.yaml`](../../config/motors_humanoid.yaml). Active bring-up: [`config/robot.yaml`](../../config/robot.yaml) for the wired 4-DOF arm until remaining joints are commissioned. Milestones: [`docs/roadmap.md`](../../docs/roadmap.md).
+Full-body target: [`config/robot_humanoid.yaml`](../../config/robot_humanoid.yaml) + [`config/motors_humanoid.yaml`](../../config/motors_humanoid.yaml). Live bench: master [`config/robot.yaml`](../../config/robot.yaml), [`config/motors.yaml`](../../config/motors.yaml), and [`assets/urdf/marengo.urdf`](../../assets/urdf/marengo.urdf) for the wired right 4-DOF arm. Old 3-DOF and 4-DOF contributors are preserved at [`archive/seed-arm_3dof_right/contributor.urdf`](../../assets/urdf/archive/seed-arm_3dof_right/contributor.urdf) and [`archive/seed-arm_4dof_right/contributor.urdf`](../../assets/urdf/archive/seed-arm_4dof_right/contributor.urdf). Milestones: [`docs/roadmap.md`](../../docs/roadmap.md).
 
 ---
 
@@ -146,40 +146,42 @@ Same limits as left; roll/pitch signs follow right-hand URDF convention.
 
 | Joint | Actuator | Parent → Child | Axis | Lower | Upper | Effort |
 |-------|----------|----------------|------|-------|-------|--------|
-| `right_shoulder_pitch` | RS03 | torso → right_shoulder_pitch_link | Y | -0.9 | 3.17 | 60 |
-| `right_shoulder_roll` | RS03 | pitch → right_shoulder_roll_link | X | -1.57 | 1.57 | 60 |
+| `right_shoulder_pitch` | RS03 | torso → right_shoulder_pitch_link | Y | -0.9 | 3.25 | 60 |
+| `right_shoulder_roll` | RS03 | pitch → right_shoulder_roll_link | X | -0.05 | 3.14159 | 60 |
 | `right_upper_arm_yaw` | RS02 | pitch → right_upper_arm | Z | -1.57 | 1.57 | 17 |
-| `right_elbow_pitch` | RS02 | upper_arm → right_forearm | Y | 0.0 | 2.5 | 17 | **Upright hazard** — verify G-comp sign |
+| `right_elbow_pitch` | RS02 | upper_arm → right_forearm | Y | -0.50 | 1.2 | 17 | **Upright hazard** — verify G-comp sign |
 | `right_lower_arm_yaw` | RS00 | forearm → right_hand | Y | -1.6 | 1.6 | 17 |
 
-Shoulder pitch hard limits match bench URDF/config (`[-0.9, 3.17]` rad); soft operator band is `[-0.872665, 3.141593]` rad (−50°…+180°, arm down = 0) per [ADR 0009](../../docs/decisions/0009-dynamic-position-limit-envelope.md).
+The promoted right-arm hard limits above match `assets/urdf/marengo.urdf`; Davout intersects them with the measured bounds in `config/motors.yaml`. URDF soft limits are pitch `[-0.872665, 3.20]`, roll `[-0.05, 3.14159]`, yaw `[-1.57, 1.57]`, and elbow `[-0.50, 1.15]` rad per [ADR 0009](../../docs/decisions/0009-dynamic-position-limit-envelope.md).
 
 Masses and inertials in URDF are **estimates** until CAD export; re-run MuJoCo cross-check after export ([ADR 0005](../../docs/decisions/0005-dynamics-library.md)).
 
 ---
 
-## 4-DOF arm bring-up (joint table)
+## Live 4-DOF right bench arm
 
-Subset of humanoid arm kinematics (shoulder roll/pitch, upper-arm yaw, elbow); currently wired per [`config/robot.yaml`](../../config/robot.yaml).
+This promoted subset of humanoid arm kinematics is the live master model in
+[`assets/urdf/marengo.urdf`](../../assets/urdf/marengo.urdf) and is wired per
+[`config/robot.yaml`](../../config/robot.yaml).
 
 | Joint | Actuator | Parent → Child | Axis (joint) | Lower (rad) | Upper (rad) | Effort (Nm) | Notes |
 |-------|----------|----------------|--------------|-------------|-------------|-------------|-------|
-| `shoulder_pitch` | RS03 | base → shoulder_pitch_link | Z (after fixed rpy) | -0.9 | 3.17 | 60 | Soft −50°…+180°; **upright hazard** when q > ~0.5 rad; maps to humanoid pitch-at-torso |
-| `shoulder_roll` | RS03 | pitch → shoulder_roll_link | Z | -1.57 | 1.57 | 60 | Distal roll on arm sub-asm |
-| `upper_arm_yaw` | RS02 | pitch → upper_arm_link | Z | -1.57 | 1.57 | 17 | |
-| `elbow` | RS02 | upper_arm → forearm | Z | 0.0 | 2.5 | 17 | **Upright hazard** — verify G-comp sign |
+| `right_shoulder_pitch` | RS03 | base_link → right_shoulder_pitch_link | Y | -0.9 | 3.25 | 60 | Soft `[-0.872665, 3.20]`; **upright hazard** when q > ~0.5 rad |
+| `right_shoulder_roll` | RS03 | pitch → right_shoulder_roll_link | X | -0.05 | 3.14159 | 60 | Soft equals hard |
+| `right_upper_arm_yaw` | RS02 | roll → right_upper_arm_link | Z | -1.57 | 1.57 | 17 | Soft equals hard |
+| `right_elbow_pitch` | RS02 | upper_arm → right_forearm_link | Y | -0.50 | 1.2 | 17 | Soft `[-0.50, 1.15]`; **upright hazard** — verify G-comp sign |
 
 ---
 
 ## Upright / elevated poses
 
-Documented incident (arm bring-up): arm elevated, control stopped, arm fell without gravity feedforward. Applies to **shoulder_pitch** and **elbow** on the bring-up arm and full humanoid arms.
+Documented incident (arm bring-up): arm elevated, control stopped, arm fell without gravity feedforward. Applies to **`right_shoulder_pitch`** and **`right_elbow_pitch`** on the live bench arm and to the corresponding full-humanoid joints.
 
 Before bring-up tests with elevated shoulder/elbow:
 
 1. Run per-joint `torque_ff` sign test.
 2. Use **GravityComp** only until impedance is tuned.
-3. Apply `danger_zones` in `config/control.yaml` for shoulder_pitch + downward velocity.
+3. Apply `danger_zones` in `config/control.yaml` for `right_shoulder_pitch` + downward velocity.
 
 Leg bring-up: start with **hip pitch** and **knee** RS04 sign tests under load before closing the ankle loop.
 
@@ -193,6 +195,6 @@ Leg bring-up: start with **hip pitch** and **knee** RS04 sign tests under load b
 | `torso_link` | Upper torso 2020 frame; shoulder **pitch** RS03 inside cage at shoulder plane (rev-a layout) |
 | `left_foot` / `right_foot` | Sole contact; Z = floor in standing neutral |
 | `left_hand` / `right_hand` | Tool frame placeholder (TCP when gripper defined) |
-| `forearm_link` | Arm bring-up tool frame (full humanoid: `left_hand` / `right_hand`) |
+| `right_forearm_link` | Live right-arm bench tool frame (full humanoid: `left_hand` / `right_hand`) |
 
 Named CAD geometry: see [cad/README.md](../../cad/README.md).

@@ -15,14 +15,6 @@ import path from 'node:path';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const PORT = Number(process.env.LIMIT_SYNC_PORT || 8790);
-const ALLOWED = new Set([
-  'arm_4dof_right',
-  'arm_3dof_right',
-  'arm_4dof',
-  'shoulder_pitch_dual',
-  'shoulder_pitch_right',
-  'shoulder_pitch_left',
-]);
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -49,13 +41,12 @@ const server = createServer(async (req, res) => {
   }
   try {
     const body = JSON.parse(await readBody(req));
-    const profile = String(body.profile || '');
     const joint = String(body.joint || '');
     const lower = Number(body.lower);
     const upper = Number(body.upper);
     const softLower = body.soft_lower != null ? Number(body.soft_lower) : undefined;
     const softUpper = body.soft_upper != null ? Number(body.soft_upper) : undefined;
-    if (!ALLOWED.has(profile) || !joint || !Number.isFinite(lower) || !Number.isFinite(upper)) {
+    if (!joint || !Number.isFinite(lower) || !Number.isFinite(upper)) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: false, message: 'invalid payload' }));
       return;
@@ -68,7 +59,7 @@ const server = createServer(async (req, res) => {
       res.end(JSON.stringify({ ok: false, message: 'invalid soft bounds' }));
       return;
     }
-    if (profile.includes('..') || joint.includes('..') || joint.includes('/')) {
+    if (joint.includes('..') || joint.includes('/') || joint.includes('\\')) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: false, message: 'path rejected' }));
       return;
@@ -79,8 +70,6 @@ const server = createServer(async (req, res) => {
     const args = [
       '--repo-root',
       ROOT,
-      '--profile',
-      profile,
       '--joint',
       joint,
       '--lower',

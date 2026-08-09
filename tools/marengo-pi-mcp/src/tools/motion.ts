@@ -464,7 +464,7 @@ export function registerMotionTools(
           .string()
           .optional()
           .describe(
-            "MARENGO_CONFIG_DIR override (default: right-only bench for bare_motor)",
+            "MARENGO_CONFIG_DIR override (default: master /opt/marengo/config)",
           ),
       }),
       handler: async (args: {
@@ -491,7 +491,8 @@ export function registerMotionTools(
       description:
         "Recover after drive fault (replaces Motor Studio clear + manual SSH). " +
         "pkill marengo-pi → motor-repl disable → brief enable/status → prints RECOVER_OK or RECOVER_FAIL. " +
-        "Logs to var/log/bench-latest.log. Args: confirm:true; optional config_dir (default right-only bench).",
+        "Logs to var/log/bench-latest.log. Args: confirm:true; optional config_dir " +
+        "(default master /opt/marengo/config).",
       inputSchema: motionConfirmSchema.extend({
         config_dir: z
           .string()
@@ -622,7 +623,7 @@ export function registerMotionTools(
     pi_hold_on: {
       description:
         "Compliant position hold: set-zero (optional), home, enable, hold-on or hold-at. " +
-        "Uses kp/kd/slew/trim from control.yaml (right-only bench: kp=12 kd=0.75). Logs to var/log. " +
+        "Uses kp/kd/slew/trim from master /opt/marengo/config/control.yaml. Logs to var/log. " +
         "Call pi_sync_bench_config first if control.yaml was edited locally.",
       inputSchema: motionConfirmSchema.extend({
         config_dir: z
@@ -700,7 +701,7 @@ export function registerMotionTools(
     pi_hold_off: {
       description:
         "Stop hold: pkill marengo-pi and motor-repl disable. " +
-        "Optional joint picks left/right bench config_dir when config_dir omitted.",
+        "Omitted config_dir uses master /opt/marengo/config.",
       inputSchema: motionConfirmSchema.extend({
         joint: z.string().optional(),
         config_dir: z.string().optional(),

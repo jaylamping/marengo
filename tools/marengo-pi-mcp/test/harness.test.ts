@@ -1,8 +1,9 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { MarengoPiConfig } from "../src/config.js";
-import { harnessConfigDir } from "../src/harness/index.js";
+import { harnessConfigDir, runBenchHarness } from "../src/harness/index.js";
 import { harnessJointSubset } from "../src/bench-profiles.js";
+import { wrapRemoteWithConfig } from "../src/env.js";
 
 const cfg: MarengoPiConfig = {
   host: "marengo.local",
@@ -45,5 +46,30 @@ describe("bench harness config", () => {
       harnessJointSubset("roll_attached"),
       "right_shoulder_roll,right_shoulder_pitch,right_upper_arm_yaw",
     );
+  });
+
+  it("exports the profile joint subset in scripted harness sessions", async () => {
+    const bodies: string[] = [];
+    await runBenchHarness(
+      cfg,
+      async (body) => {
+        bodies.push(body);
+        return body.includes("homing-preflight.sh") ? "homing=Verified" : "ok";
+      },
+      { profile: "arm_2dof_smoke", skip_set_zero: true },
+    );
+
+    const scripted = bodies.find((body) => body.includes("=== bench harness"));
+    assert.ok(scripted);
+    assert.match(
+      scripted,
+      /export MARENGO_JOINT_SUBSET='right_shoulder_roll,right_shoulder_pitch,right_upper_arm_yaw'/,
+    );
+  });
+
+  it("clears a sourced joint subset when no override is supplied", () => {
+    const wrapped = wrapRemoteWithConfig(cfg, "true", cfg.configDir);
+    assert.match(wrapped, /unset MARENGO_JOINT_SUBSET/);
+    assert.doesNotMatch(wrapped, /export MARENGO_JOINT_SUBSET=/);
   });
 });

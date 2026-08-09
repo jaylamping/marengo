@@ -7,6 +7,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { HardwareOverview } from '@/components/dashboard/hardware/hardware-overview';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import {
+  activateUrdf,
+  fetchCompleteness,
+  uploadUrdf,
+} from '@/lib/hardware-api';
 import { useRobotStore } from '@/state/robotStore';
 
 vi.mock('@/lib/hardware-api', () => ({
@@ -113,6 +118,27 @@ describe('HardwareOverview', () => {
     expect(screen.getByText(/gaps/)).toBeTruthy();
   });
 
+  it('shows zero gaps only after completeness succeeds with no warnings', async () => {
+    vi.mocked(fetchCompleteness).mockResolvedValueOnce({ warnings: [] });
+
+    renderHardware();
+
+    expect(await screen.findByText('0 gaps')).toBeTruthy();
+    expect(screen.getByTitle('No completeness warnings')).toBeTruthy();
+  });
+
+  it('shows completeness unavailable when the fetch fails', async () => {
+    vi.mocked(fetchCompleteness).mockRejectedValueOnce(
+      new Error('hardware completeness failed: HTTP 503'),
+    );
+
+    renderHardware();
+
+    expect(await screen.findByTitle('Completeness unavailable')).toBeTruthy();
+    expect(screen.queryByText('0 gaps')).toBeNull();
+    expect(screen.queryByTitle('No completeness warnings')).toBeNull();
+  });
+
   it('does not disable Import when warnings are present', async () => {
     renderHardware();
     await waitFor(() => {
@@ -135,5 +161,77 @@ describe('HardwareOverview', () => {
     const setLimits = screen.getByRole('button', { name: 'Set Limits' }) as HTMLButtonElement;
     expect(setLimits.disabled).toBe(true);
     expect(screen.getAllByText(/Disable motors first/i).length).toBeGreaterThan(0);
+  });
+
+  it('refuses URDF activation while motors are ACTIVE', async () => {
+    useRobotStore.setState({ connected: true, operationalMode: 'ACTIVE' });
+    vi.mocked(uploadUrdf).mockResolvedValueOnce({
+      ok: true,
+      upload_id: 'upload-active-gate',
+      preview: {
+        overlapping_joints: [],
+        new_joints: [],
+        field_diffs: [],
+      },
+    });
+
+    renderHardware();
+    fireEvent.click(screen.getByTestId('hardware-import-btn'));
+
+    const file = new File(['<robot name="test" />'], 'test.urdf', {
+      type: 'application/xml',
+    });
+    Object.defineProperty(file, 'text', {
+      value: vi.fn(async () => '<robot name="test" />'),
+    });
+    fireEvent.change(await screen.findByTestId('import-file-input'), {
+      target: { files: [file] },
+    });
+
+    const accept = await screen.findByTestId('import-accept') as HTMLButtonElement;
+    expect(accept.disabled).toBe(true);
+    expect(screen.getByText(/URDF activation refused while ACTIVE/i)).toBeTruthy();
+    fireEvent.click(accept);
+    expect(activateUrdf).not.toHaveBeenCalled();
+  });
+
+  it('reports when activation requires a marengo-pi restart', async () => {
+    useRobotStore.setState({ connected: true, operationalMode: 'DISABLED' });
+    vi.mocked(uploadUrdf).mockResolvedValueOnce({
+      ok: true,
+      upload_id: 'upload-restart',
+      preview: {
+        overlapping_joints: [],
+        new_joints: [],
+        field_diffs: [],
+      },
+    });
+    vi.mocked(activateUrdf).mockResolvedValueOnce({
+      ok: true,
+      message: 'URDF activated.',
+      checksum_sha256: 'abc123',
+      completeness: { warnings: [] },
+      restart_required: true,
+    });
+
+    renderHardware();
+    fireEvent.click(screen.getByTestId('hardware-import-btn'));
+
+    const file = new File(['<robot name="test" />'], 'test.urdf', {
+      type: 'application/xml',
+    });
+    Object.defineProperty(file, 'text', {
+      value: vi.fn(async () => '<robot name="test" />'),
+    });
+    fireEvent.change(await screen.findByTestId('import-file-input'), {
+      target: { files: [file] },
+    });
+
+    const accept = await screen.findByTestId('import-accept');
+    fireEvent.click(accept);
+
+    expect(
+      await screen.findByText(/marengo-pi must be restarted before the new URDF is enforced/i),
+    ).toBeTruthy();
   });
 });

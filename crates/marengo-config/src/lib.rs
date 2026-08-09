@@ -35,8 +35,9 @@ mod urdf_expand;
 mod urdf_merge;
 
 pub use bench_joints::{
-    joint_subset_from_env, load_command_joint_allowlist, load_command_joint_allowlist_from,
-    resolve_command_joint, CommandJointAllowlist,
+    apply_joint_subset, joint_subset_from_env, load_command_joint_allowlist,
+    load_command_joint_allowlist_from, resolve_command_joint, validate_joint_subset,
+    CommandJointAllowlist,
 };
 pub use completeness::{completeness_report, CompletenessReport, CompletenessWarning};
 pub use config_revision::profile_content_revision;
@@ -54,7 +55,8 @@ pub use urdf_expand::{
 };
 pub use urdf_merge::{
     apply_merge_xml, merge_preview_from_paths, merge_preview_from_robots, simulate_merge_xml,
-    unresolved_critical_fields, FieldDiff, FieldResolution, MergePreview, ResolutionChoice,
+    unresolved_critical_fields, validate_merged_urdf_xml, FieldDiff, FieldResolution, MergePreview,
+    ResolutionChoice,
 };
 
 use std::collections::{HashMap, HashSet};
@@ -85,6 +87,10 @@ pub enum ConfigError {
     InvalidGravityCompGains { joint: String, message: String },
     #[error("joint {joint} in robot.yaml has no entry in control.yaml")]
     MissingControlJoint { joint: String },
+    #[error("MARENGO_JOINT_SUBSET names unknown joint {joint} (not in robot.joints)")]
+    UnknownJointSubset { joint: String },
+    #[error("MARENGO_JOINT_SUBSET intersects to zero joints")]
+    EmptyJointSubset,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
