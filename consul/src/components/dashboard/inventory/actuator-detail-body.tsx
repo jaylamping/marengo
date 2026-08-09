@@ -3,7 +3,7 @@ import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
 
 import { actuatorTelemetryChartConfig } from '@/components/dashboard/inventory/constants';
 import { HomeActuatorButton } from '@/components/dashboard/inventory/home-actuator-button';
-import { SetLimitsPanel } from '@/components/dashboard/inventory/set-limits-panel';
+import { InventoryLimitsReadOnly } from '@/components/dashboard/hardware/hardware-settings-sheet';
 import type { InventoryRow } from '@/components/dashboard/inventory/types';
 import type { JointTrackingPoint } from '@/components/dashboard/charts/types';
 import { Badge } from '@/components/ui/badge';
@@ -186,15 +186,11 @@ export function ActuatorDetailBody({
       <InteractiveSection
         interactive={interactive}
         title="Limits"
-        hint="Set Limits and Set Zero require a live, configured actuator."
+        hint="Set Limits moved to Hardware — live range shown read-only here."
       >
-        <SetLimitsPanel
+        <InventoryLimitsReadOnly
           jointName={item.name}
-          currentLimit={limitDraft}
-          onApplyRange={(range) => {
-            onLimitDraftChange(range);
-            onApplyRange(range);
-          }}
+          liveRange={limitDraft || item.limit}
         />
       </InteractiveSection>
 

@@ -1,0 +1,139 @@
+// @vitest-environment jsdom
+import '@testing-library/jest-dom/vitest';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+import { HardwareOverview } from '@/components/dashboard/hardware/hardware-overview';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { useRobotStore } from '@/state/robotStore';
+
+vi.mock('@/lib/hardware-api', () => ({
+  fetchCompleteness: vi.fn(async () => ({
+    warnings: [
+      {
+        code: 'missing_mass',
+        severity: 'warn',
+        joint: 'right_elbow_pitch',
+        message: 'gap for test',
+      },
+    ],
+  })),
+  uploadUrdf: vi.fn(),
+  resolveUrdfPreview: vi.fn(),
+  activateUrdf: vi.fn(),
+  fetchUrdfArchiveList: vi.fn(async () => ({ entries: [] })),
+  restoreUrdfArchive: vi.fn(),
+  fetchLiveUrdf: vi.fn(),
+}));
+
+vi.mock('@/lib/config-api', () => ({
+  fetchConfigSnapshot: vi.fn(async () => ({
+    profile: 'master',
+    config_dir: '/opt/marengo/config',
+    joints: ['right_shoulder_roll', 'right_shoulder_pitch'],
+    motors: [
+      {
+        joint: 'right_shoulder_roll',
+        can_interface: 'can0',
+        device_id: 1,
+        direction: 1,
+        motor_type: 'rs03',
+        bench: {
+          position_lower_rad: -0.05,
+          position_upper_rad: 2.5,
+          torque_limit_nm: 5,
+        },
+      },
+      {
+        joint: 'right_shoulder_pitch',
+        can_interface: 'can0',
+        device_id: 2,
+        direction: -1,
+        motor_type: 'rs03',
+        bench: {
+          position_lower_rad: -0.9,
+          position_upper_rad: 2.9,
+          torque_limit_nm: 5,
+        },
+      },
+    ],
+    control_limits: [],
+  })),
+}));
+
+vi.mock('@/lib/persist-joint-limits', () => ({
+  persistJointLimits: vi.fn(),
+}));
+
+vi.mock('@/lib/gateway-api', () => ({
+  postSetZeroCommand: vi.fn(),
+  fetchActuatorLimits: vi.fn(async () => null),
+}));
+
+function renderHardware() {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter>
+        <TooltipProvider>
+          <HardwareOverview />
+        </TooltipProvider>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
+afterEach(() => {
+  cleanup();
+  useRobotStore.setState({ connected: false, operationalMode: null });
+  vi.clearAllMocks();
+});
+
+beforeEach(() => {
+  class ResizeObserverMock {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  vi.stubGlobal('ResizeObserver', ResizeObserverMock);
+});
+
+describe('HardwareOverview', () => {
+  it('renders table-first hardware workspace with warn badges', async () => {
+    renderHardware();
+    expect(screen.getByTestId('hardware-overview')).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.getByTestId('hardware-row-right_shoulder_roll')).toBeTruthy();
+    });
+    expect(screen.getByTitle(/1 completeness gaps/i)).toBeTruthy();
+    expect(screen.getByText(/gaps/)).toBeTruthy();
+  });
+
+  it('does not disable Import when warnings are present', async () => {
+    renderHardware();
+    await waitFor(() => {
+      expect(screen.getByTestId('hardware-import-btn')).toBeTruthy();
+    });
+    const importBtn = screen.getByTestId('hardware-import-btn') as HTMLButtonElement;
+    expect(importBtn.disabled).toBe(false);
+  });
+
+  it('blocks Set Limits in sheet when motors ACTIVE', async () => {
+    useRobotStore.setState({ connected: true, operationalMode: 'ACTIVE' });
+    renderHardware();
+    await waitFor(() => {
+      expect(screen.getByTestId('hardware-row-right_shoulder_roll')).toBeTruthy();
+    });
+    fireEvent.click(screen.getByTestId('hardware-row-right_shoulder_roll'));
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeTruthy();
+    });
+    const setLimits = screen.getByRole('button', { name: 'Set Limits' }) as HTMLButtonElement;
+    expect(setLimits.disabled).toBe(true);
+    expect(screen.getAllByText(/Disable motors first/i).length).toBeGreaterThan(0);
+  });
+});

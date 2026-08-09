@@ -60,18 +60,18 @@ Chain strategy: feature-branch-chain
 
 ## Phase 3: UI
 
-- [ ] 3.1 Create `consul/src/lib/hardware-api.ts` — completeness, URDF read/upload/resolve/activate/archive client
-- [ ] 3.2 Add `/hardware` route in `consul/src/routes/**`; table-first layout with nav entry
-- [ ] 3.3 Create `consul/src/components/dashboard/hardware/` — actuator/joint table, warn badges from completeness
-- [ ] 3.4 Add optional Table/3D toggle (vanilla Three.js); 3D view read-only, no durable writes
-- [ ] 3.5 Unified settings sheet — live actuator snapshot vs disk `GET /config/snapshot` labels (ADR 0012)
-- [ ] 3.6 Import wizard — upload, field-level resolve picks, Accept → activate API, Cancel preserves master
-- [ ] 3.7 Set Limits on Hardware sheet — `persistJointLimits` via `/config/patch`; ACTIVE guard; `persist_status` UI
-- [ ] 3.8 Modify `persist-joint-limits.ts` — remove default `arm_4dof_right` profile; Hardware-only durable path
-- [ ] 3.9 Strip durable Set Limits from `set-limits-panel.tsx` — read-only + deep-link to `/hardware`
-- [ ] 3.10 Remove `fetchProfiles` / `applyActuatorConfig` consumers from `config-api.ts`
-- [ ] 3.11 RED: Vitest — warnings do not disable Accept/Apply; Set Limits blocked when ACTIVE; Inventory no persist
-- [ ] 3.12 GREEN: `cd consul && npm test && npm run build`
+- [x] 3.1 Create `consul/src/lib/hardware-api.ts` — completeness, URDF read/upload/resolve/activate/archive client
+- [x] 3.2 Add `/hardware` route in `consul/src/routes/**`; table-first layout with nav entry
+- [x] 3.3 Create `consul/src/components/dashboard/hardware/` — actuator/joint table, warn badges from completeness
+- [x] 3.4 Add optional Table/3D toggle (vanilla Three.js); 3D view read-only, no durable writes
+- [x] 3.5 Unified settings sheet — live actuator snapshot vs disk `GET /config/snapshot` labels (ADR 0012)
+- [x] 3.6 Import wizard — upload, field-level resolve picks, Accept → activate API, Cancel preserves master
+- [x] 3.7 Set Limits on Hardware sheet — `persistJointLimits` via `/config/patch`; ACTIVE guard; `persist_status` UI
+- [x] 3.8 Modify `persist-joint-limits.ts` — remove default `arm_4dof_right` profile; Hardware-only durable path
+- [x] 3.9 Strip durable Set Limits from `set-limits-panel.tsx` — read-only + deep-link to `/hardware`
+- [x] 3.10 Remove `fetchProfiles` / `applyActuatorConfig` consumers from `config-api.ts`
+- [x] 3.11 RED: Vitest — warnings do not disable Accept/Apply; Set Limits blocked when ACTIVE; Inventory no persist
+- [x] 3.12 GREEN: `cd consul && npm test && npm run build`
 
 **Phase 3 budget:** ~450–600 lines | High
 

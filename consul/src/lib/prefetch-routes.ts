@@ -4,6 +4,7 @@ const BODY_PREFETCHERS: Record<string, () => Promise<unknown>> = {
   '/logs': () => import('@/components/dashboard/logs/logs-overview'),
   '/simulation': () => import('@/components/dashboard/simulation/simulation-overview'),
   '/subsystems': () => import('@/components/dashboard/subsystems/subsystems-overview'),
+  '/hardware': () => import('@/components/dashboard/hardware/hardware-overview'),
   '/actuators': () => import('@/components/dashboard/actuators/actuators-overview'),
 };
 
