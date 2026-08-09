@@ -29,6 +29,16 @@ Use **Protocol Buffers** as the source of truth for all inter-service wire types
 - **CI:** Install both; run `cargo build` and `consul` `gen:proto` in pipeline.
 - **Workflow:** API changes start in `proto/marengo/v1/*.proto`, then regenerate Rust/TS.
 
+### Candump HTTP/proto evolution (2026-07)
+
+Gateway candump diagnostics (`CandumpFrame`, `CandumpPage`, `CandumpSummary`) grew enrichment and clearer counters while keeping wire compatibility for older Consul clients:
+
+- **Deprecated projections** (still populated where useful): `CandumpFrame.delta_s` → prefer `offset_s`; `CandumpPage.total_frames` → prefer `parsed_frames` / `total_lines`; `CandumpSummary` fields 1–2 and 4–6 (`frame_count`, `bytes`, `approx_hz`, `interfaces`, `top_ids`) → prefer fields 7–12 (`parsed_frames`, `total_lines`, `top_id_counts`, `interface_summaries`, `parsed_frame_hz`, `source_bytes`).
+- **New optional enrichment** on `CandumpFrame`: `timestamp_unix_us`, `comm_type`, `comm_type_name`, `joint` (Robstride decode-only labels for operator forensics).
+- **Explicit timestamp mode** via `CandumpTimestampMode` on `CandumpPage` (Delta or Absolute; no Auto).
+
+Consumers must treat deprecated fields as compatibility shims and prefer the non-deprecated names. Log archive/HTTP surface for candump sessions is owned by [ADR 0011](0011-log-retention-and-archive.md); parsing/enrichment lives in `marengo-candump`.
+
 ## Alternatives considered
 
 - JSON / serde-only: simpler debugging, weaker cross-language contracts and evolution story.
