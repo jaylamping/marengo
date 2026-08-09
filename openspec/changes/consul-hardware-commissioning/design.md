@@ -6,7 +6,7 @@ Hardware joins master `robot.yaml`/motor metadata with `RobotState`; it owns com
 
 `marengo-config` owns a shared, versioned scope loader. Gateway provides authenticated CRUD; marengo-pi reloads the file for every Enable and intersects it with its boot-time `MARENGO_JOINT_SUBSET`. Davout owns targeted drive activation and the active-joint command boundary.
 
-**Spec reconciliation:** the approved proposal is normative: Robot Ready covers every master actuated joint, and absent persisted scope requires Robot Ready before targeting loaded master joints. Conflicting scope-relative Robot Ready/no-scope clauses in `hardware-commissioning-state/spec.md` require correction before task generation.
+**Spec reconciliation:** done. `hardware-commissioning-state` and `hardware-management-api` match the approved proposal: Robot Ready is full-master (unbuilt Offline do not block; scope does not redefine Ready); no scope file requires Robot Ready before Enable; persisted scope enables Verified in-scope without full Robot Ready.
 
 ## Architecture Decisions
 
@@ -91,4 +91,4 @@ Rust unit tests cover scope parsing/intersection, aggregation, out-of-limits map
 
 ## Open Questions
 
-None. Reconcile the two identified spec clauses to the approved proposal before tasks.
+None.

@@ -5,12 +5,9 @@ map: 96
 grilling: 116
 branch: jl/hardware-commissioning-cutover-6ab6
 created: 2026-08-09
-phase: design
-status: needs_spec_reconciliation
+phase: tasks
+status: ready_for_apply
 notes: |
-  Locked by grilling #116. Fold glossary PR #117.
-  Blocks #115 re-zero smoke. Destination of Wayfinder map #96.
-  Spec phase complete: 4 domain deltas (2 new, 2 modified).
-  Design written at design.md. Before tasks, reconcile Robot Ready and no-scope
-  Enable clauses in hardware-commissioning-state/spec.md with the approved proposal.
-  Context handoff pending; resume at spec reconciliation, then generate tasks.
+  Proposal approved by user. Spec + design complete; Robot Ready/no-scope
+  reconciled to proposal. Fold glossary PR #117. Blocks #115.
+  tasks.md written; six ~400-line PR slices. Apply wire (PR3) before facet UI (PR4).
