@@ -27,21 +27,18 @@
 //! `hardware/docs/kinematics.md` together.
 
 mod bench_joints;
-mod bringup_compat;
+mod completeness;
 mod config_revision;
 mod limit_patch;
 mod profile_txn;
 mod urdf_expand;
+mod urdf_merge;
 
 pub use bench_joints::{
     load_command_joint_allowlist, load_command_joint_allowlist_from, resolve_command_joint,
     CommandJointAllowlist,
 };
-pub use bringup_compat::{
-    bringup_dir_default_repo, derive_preset_label_for_joint, is_allowlisted_slug,
-    preset_id_for_profile, profile_slug_for_preset, resolve_bringup_dir, PresetProfileMapping,
-    BRINGUP_PRESET_IDS, BRINGUP_PROFILE_SLUGS, PRESET_PROFILE_MAP,
-};
+pub use completeness::{completeness_report, CompletenessReport, CompletenessWarning};
 pub use config_revision::profile_content_revision;
 pub use limit_patch::{
     apply_limit_patch_to_control, apply_limit_patch_to_motor, ensure_soft_inset,
@@ -54,6 +51,10 @@ pub use profile_txn::{
 };
 pub use urdf_expand::{
     apply_local_limit_patch, expand_urdf_file_to_cover_motors, write_motors_control_and_urdf,
+};
+pub use urdf_merge::{
+    apply_merge_xml, merge_preview_from_paths, merge_preview_from_robots, simulate_merge_xml,
+    unresolved_critical_fields, FieldDiff, FieldResolution, MergePreview, ResolutionChoice,
 };
 
 use std::collections::{HashMap, HashSet};

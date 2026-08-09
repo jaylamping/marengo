@@ -42,19 +42,19 @@ Chain strategy: feature-branch-chain
 
 ## Phase 2: API
 
-- [ ] 2.1 Create `crates/marengo-config/src/completeness.rs` — warn-only v1 rules (mass/COM, kinematics, hard limits, config coverage)
-- [ ] 2.2 RED: `completeness` unit tests — missing mass, unmapped joint, limit gap; no `blocking` flag
-- [ ] 2.3 Create `crates/marengo-config/src/urdf_merge.rs` — joint-name overlap, field diff, kinematics-critical detection (#108)
-- [ ] 2.4 RED: `urdf_merge` fixture tests — axis/origin/parent conflicts require explicit resolution
-- [ ] 2.5 GREEN: export modules from `marengo-config/src/lib.rs`; `cargo test -p marengo-config`
-- [ ] 2.6 Create `bins/marengo-gateway/src/hardware.rs` — `GET /hardware/completeness`, `GET /hardware/urdf`
-- [ ] 2.7 Add URDF lifecycle routes: upload → `staging/`, resolve-preview, activate, archive list/fetch/restore
-- [ ] 2.8 Wire auth (`x-marengo-log-token`) on mutations; atomic activate writes `marengo.urdf` + archives contributor
-- [ ] 2.9 Register routes in `http.rs`; delete `profiles.rs` and `/config/profiles*` from route table
-- [ ] 2.10 Modify `config.rs` — master snapshot paths only; remove inactive profile apply paths
-- [ ] 2.11 RED: gateway axum/temp-dir tests — unauthorized read rejected; activate archives; completeness advisory (upload not blocked)
-- [ ] 2.12 GREEN: `cargo test -p marengo-gateway`; retire `profiles_tests.rs` or replace with hardware tests
-- [ ] 2.13 Verify `POST /config/patch` unchanged for Set Limits (`persist_status` pending/durable/failed)
+- [x] 2.1 Create `crates/marengo-config/src/completeness.rs` — warn-only v1 rules (mass/COM, kinematics, hard limits, config coverage)
+- [x] 2.2 RED: `completeness` unit tests — missing mass, unmapped joint, limit gap; no `blocking` flag
+- [x] 2.3 Create `crates/marengo-config/src/urdf_merge.rs` — joint-name overlap, field diff, kinematics-critical detection (#108)
+- [x] 2.4 RED: `urdf_merge` fixture tests — axis/origin/parent conflicts require explicit resolution
+- [x] 2.5 GREEN: export modules from `marengo-config/src/lib.rs`; `cargo test -p marengo-config`
+- [x] 2.6 Create `bins/marengo-gateway/src/hardware.rs` — `GET /hardware/completeness`, `GET /hardware/urdf`
+- [x] 2.7 Add URDF lifecycle routes: upload → `staging/`, resolve-preview, activate, archive list/fetch/restore
+- [x] 2.8 Wire auth (`x-marengo-log-token`) on mutations; atomic activate writes `marengo.urdf` + archives contributor
+- [x] 2.9 Register routes in `http.rs`; delete `profiles.rs` and `/config/profiles*` from route table
+- [x] 2.10 Modify `config.rs` — master snapshot paths only; remove inactive profile apply paths
+- [x] 2.11 RED: gateway axum/temp-dir tests — unauthorized read rejected; activate archives; completeness advisory (upload not blocked)
+- [x] 2.12 GREEN: `cargo test -p marengo-gateway`; retire `profiles_tests.rs` or replace with hardware tests
+- [x] 2.13 Verify `POST /config/patch` unchanged for Set Limits (`persist_status` pending/durable/failed)
 
 **Phase 2 budget:** ~500–650 lines | High
 

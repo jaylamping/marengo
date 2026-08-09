@@ -18,4 +18,5 @@ Typed loaders for master `config/*.yaml`.
 | `profile_txn.rs` | Limit upsert, master YAML atomic writes |
 | `urdf_expand.rs` | Expand-only URDF hard envelope (ADR 0017) |
 | `bench_joints.rs` | Command joint allowlist from `robot.joints` |
-| `bringup_compat.rs` | Deprecated stubs until gateway retires `/config/profiles*` |
+| `completeness.rs` | Warn-only hardware completeness v1 |
+| `urdf_merge.rs` | Joint-keyed URDF merge preview + apply |
