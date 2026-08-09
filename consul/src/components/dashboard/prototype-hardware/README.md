@@ -25,6 +25,7 @@ picking, soft shadows, ACES tone mapping, `setAnimationLoop`, dispose on teardow
 | `humanoid-scene.ts`     | WebGL scene, picking, DOM label overlay, dirty-flagged render loop              |
 | `humanoid-viewport.tsx` | React mount; drives the scene imperatively so state never rebuilds WebGL        |
 
-The figure is a stylized humanoid robot (shell plating, dark metal joints, chest
-glow, visor) — not real URDF meshes. Coloured status LEDs sit on actuated joints:
-green = on CAN, amber = completeness gap, grey = description only.
+The figure is a throwaway Bender-from-Futurama homage (corrugated limbs, dome
+head, cream visor/grill) — not real URDF meshes and not production art. Coloured
+status LEDs sit on actuated joints: green = on CAN, amber = completeness gap,
+grey = description only.

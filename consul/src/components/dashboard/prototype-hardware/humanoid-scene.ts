@@ -1,19 +1,17 @@
 /**
- * PROTOTYPE — vanilla Three.js humanoid robot joint picker.
+ * PROTOTYPE — vanilla Three.js Bender-style joint picker.
  *
- * Built against sickn33/antigravity-awesome-skills `threejs-skills`:
- * scene/camera/renderer, MeshStandardMaterial + lights, OrbitControls,
- * raycast picking, shadow maps, ACES tone mapping, dispose on teardown.
- *
- * No react-three-fiber. React mounts the viewport; this class owns WebGL.
+ * Throwaway homage for Wayfinder reaction, not production art.
+ * Patterns from sickn33/antigravity-awesome-skills `threejs-skills`:
+ * scene/camera/renderer, lit materials, OrbitControls, raycast picking,
+ * soft shadows, ACES tone mapping, setAnimationLoop, dispose on teardown.
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 import {
   ANCHORS,
-  ARMOR,
-  JOINT_BALLS,
+  BENDER,
   MARKER_RADIUS,
   RIG_CENTER,
   RIG_HEIGHT,
@@ -24,19 +22,12 @@ import {
 import { jointPosition, type ProtoJoint } from './mock-hardware';
 
 const COLOR = {
-  void: 0x121418,
-  shell: 0xc8ccd2,
-  metal: 0x2a2f36,
-  bead: 0x1a1e24,
-  edge: 0x6a7280,
-  grid: 0x2a3038,
+  void: 0x0a0a0a,
+  grid: 0x22262c,
   accent: 0xffb000,
   ok: 0x2fd39b,
   neutral: 0x7c838d,
-  visor: 0x1a3040,
-  glow: 0x5ec8ff,
   key: 0xffffff,
-  rim: 0x8fb4d6,
 } as const;
 
 export type SceneStyle = 'solid' | 'schematic';
@@ -69,6 +60,29 @@ function statusColor(joint: ProtoJoint): number {
   return COLOR.neutral;
 }
 
+/** Corrugated dryer-hose limb (Bender's arms/legs). */
+function corrugatedCylinder(
+  radius: number,
+  height: number,
+  ridges = 12,
+  radial = 18,
+): THREE.CylinderGeometry {
+  const geometry = new THREE.CylinderGeometry(radius, radius, height, radial, ridges * 2);
+  const position = geometry.attributes.position;
+  for (let i = 0; i < position.count; i += 1) {
+    const x = position.getX(i);
+    const y = position.getY(i);
+    const z = position.getZ(i);
+    const angle = Math.atan2(z, x);
+    const t = (y + height / 2) / height;
+    const wave = 1 + 0.32 * Math.sin(t * ridges * Math.PI * 2);
+    position.setXYZ(i, Math.cos(angle) * radius * wave, y, Math.sin(angle) * radius * wave);
+  }
+  position.needsUpdate = true;
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
 export class HumanoidScene {
   private readonly container: HTMLElement;
   private readonly overlay: HTMLDivElement;
@@ -86,9 +100,11 @@ export class HumanoidScene {
   private readonly limbParts: LimbPart[] = [];
   private readonly selectionRing: THREE.Mesh;
   private readonly disposables: { dispose: () => void }[] = [];
+  private readonly materials = new Map<string, THREE.Material>();
 
   private readonly onSelect: (id: string | null) => void;
   private readonly onHover: ((id: string | null) => void) | undefined;
+  private readonly style: SceneStyle;
 
   private selectedId: string | null = null;
   private hoveredId: string | null = null;
@@ -104,6 +120,7 @@ export class HumanoidScene {
     this.container = container;
     this.onSelect = options.onSelect;
     this.onHover = options.onHover;
+    this.style = style;
 
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
@@ -113,10 +130,10 @@ export class HumanoidScene {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.1;
+    this.renderer.toneMappingExposure = 1.25;
     this.renderer.shadowMap.enabled = ground && style === 'solid';
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.renderer.setClearColor(COLOR.void, style === 'schematic' ? 1 : 0.92);
+    this.renderer.setClearColor(COLOR.void, 1);
     this.renderer.domElement.style.display = 'block';
     this.renderer.domElement.style.width = '100%';
     this.renderer.domElement.style.height = '100%';
@@ -130,7 +147,7 @@ export class HumanoidScene {
 
     if (orbit) {
       this.camera = new THREE.PerspectiveCamera(32, 1, 0.05, 100);
-      this.camera.position.set(1.35, RIG_CENTER[1] + 0.35, 2.5);
+      this.camera.position.set(1.5, RIG_CENTER[1] + 0.2, 2.7);
     } else {
       this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.01, 100);
       this.camera.position.set(0, RIG_CENTER[1], 6);
@@ -142,7 +159,7 @@ export class HumanoidScene {
       this.controls.enableDamping = true;
       this.controls.dampingFactor = 0.08;
       this.controls.enablePan = false;
-      this.controls.minDistance = 1.4;
+      this.controls.minDistance = 1.5;
       this.controls.maxDistance = 5.5;
       this.controls.minPolarAngle = Math.PI * 0.18;
       this.controls.maxPolarAngle = Math.PI * 0.58;
@@ -153,15 +170,14 @@ export class HumanoidScene {
     }
 
     this.scene.add(this.robot);
-    this.addLights(style, ground);
+    this.addLights(ground);
     if (ground) this.addGround();
-    this.addArmor(style);
-    this.addJointBalls(style);
+    this.buildBender();
 
     this.selectionRing = this.buildSelectionRing();
     this.scene.add(this.selectionRing);
 
-    for (const joint of joints) this.addJointMarker(joint, style);
+    for (const joint of joints) this.addJointMarker(joint);
 
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(container);
@@ -175,36 +191,95 @@ export class HumanoidScene {
     this.renderer.setAnimationLoop(this.tick);
   }
 
+  // ---------------------------------------------------------------- mats
+
+  private mat(
+    key: string,
+    opts: ConstructorParameters<typeof THREE.MeshStandardMaterial>[0] & {
+      basic?: boolean;
+    },
+  ): THREE.Material {
+    const existing = this.materials.get(key);
+    if (existing) return existing;
+
+    const material =
+      this.style === 'schematic' || opts.basic
+        ? new THREE.MeshBasicMaterial({
+            color: opts.color,
+          })
+        : new THREE.MeshStandardMaterial({
+            color: opts.color,
+            roughness: opts.roughness ?? 0.45,
+            metalness: opts.metalness ?? 0.65,
+            ...(opts.emissive !== undefined ? { emissive: opts.emissive } : {}),
+            ...(opts.emissiveIntensity !== undefined
+              ? { emissiveIntensity: opts.emissiveIntensity }
+              : {}),
+          });
+    this.materials.set(key, material);
+    this.disposables.push(material);
+    return material;
+  }
+
+  private addPart(
+    geometry: THREE.BufferGeometry,
+    material: THREE.Material,
+    position: THREE.Vector3,
+    limb: Limb,
+    rotation?: THREE.Euler,
+  ): THREE.Mesh {
+    this.disposables.push(geometry);
+    // Clone so limb focus can dim opacity without affecting shared mats.
+    const owned = material.clone();
+    this.disposables.push(owned);
+    const mesh = new THREE.Mesh(geometry, owned);
+    mesh.position.copy(position);
+    if (rotation) mesh.rotation.copy(rotation);
+    mesh.castShadow = this.style === 'solid';
+    mesh.receiveShadow = this.style === 'solid';
+    this.robot.add(mesh);
+    this.limbParts.push({ mesh, limb });
+
+    if (this.style === 'schematic') {
+      const edges = new THREE.EdgesGeometry(geometry, 20);
+      const lineMat = new THREE.LineBasicMaterial({ color: BENDER.cream });
+      const outline = new THREE.LineSegments(edges, lineMat);
+      outline.position.copy(position);
+      if (rotation) outline.rotation.copy(rotation);
+      this.robot.add(outline);
+      this.limbParts.push({ mesh: outline, limb });
+      this.disposables.push(edges, lineMat);
+    }
+
+    return mesh;
+  }
+
   // ---------------------------------------------------------------- build
 
-  private addLights(style: SceneStyle, ground: boolean) {
-    if (style === 'schematic') {
-      this.scene.add(new THREE.AmbientLight(0xffffff, 1.6));
+  private addLights(ground: boolean) {
+    if (this.style === 'schematic') {
+      this.scene.add(new THREE.AmbientLight(0xffffff, 1.4));
       return;
     }
 
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.35));
-    this.scene.add(new THREE.HemisphereLight(0xb8c8d8, 0x101218, 0.55));
+    this.scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+    this.scene.add(new THREE.HemisphereLight(0xd0d8e0, 0x101418, 0.55));
 
-    const key = new THREE.DirectionalLight(COLOR.key, 1.8);
-    key.position.set(2.2, 4.5, 2.8);
+    const key = new THREE.DirectionalLight(COLOR.key, 1.6);
+    key.position.set(2.4, 4.2, 3);
     key.castShadow = ground;
     key.shadow.mapSize.set(1024, 1024);
     key.shadow.camera.near = 0.5;
     key.shadow.camera.far = 14;
-    key.shadow.camera.left = -1.8;
-    key.shadow.camera.right = 1.8;
+    key.shadow.camera.left = -2;
+    key.shadow.camera.right = 2;
     key.shadow.camera.top = 2.6;
     key.shadow.camera.bottom = -0.2;
     key.shadow.normalBias = 0.02;
     this.scene.add(key);
 
-    const rim = new THREE.DirectionalLight(COLOR.rim, 1.0);
-    rim.position.set(-2.8, 2.2, -2.2);
-    this.scene.add(rim);
-
-    const fill = new THREE.DirectionalLight(0xffffff, 0.35);
-    fill.position.set(0, 1.5, 3);
+    const fill = new THREE.DirectionalLight(0xffffff, 0.45);
+    fill.position.set(-2, 2, 2);
     this.scene.add(fill);
   }
 
@@ -212,139 +287,245 @@ export class HumanoidScene {
     const grid = new THREE.GridHelper(5, 20, COLOR.grid, COLOR.grid);
     const gridMaterial = grid.material as THREE.Material;
     gridMaterial.transparent = true;
-    gridMaterial.opacity = 0.4;
+    gridMaterial.opacity = 0.35;
     this.scene.add(grid);
     this.disposables.push(grid.geometry, gridMaterial);
 
-    const shadowGeometry = new THREE.CircleGeometry(1.4, 48);
-    const shadowMaterial = new THREE.ShadowMaterial({ opacity: 0.5 });
-    const shadowPlane = new THREE.Mesh(shadowGeometry, shadowMaterial);
-    shadowPlane.rotation.x = -Math.PI / 2;
-    shadowPlane.position.y = 0.001;
-    shadowPlane.receiveShadow = true;
-    this.scene.add(shadowPlane);
-    this.disposables.push(shadowGeometry, shadowMaterial);
-  }
-
-  private materialFor(
-    kind: 'shell' | 'metal' | 'visor' | 'glow' | 'bead',
-    style: SceneStyle,
-  ): THREE.Material {
-    if (style === 'schematic') {
-      const material = new THREE.MeshBasicMaterial({
-        color:
-          kind === 'visor' || kind === 'glow'
-            ? COLOR.edge
-            : kind === 'metal' || kind === 'bead'
-              ? 0x14181e
-              : 0x1c222b,
-      });
-      this.disposables.push(material);
-      return material;
-    }
-
-    const specs: Record<typeof kind, ConstructorParameters<typeof THREE.MeshStandardMaterial>[0]> =
-      {
-        shell: {
-          color: COLOR.shell,
-          roughness: 0.35,
-          metalness: 0.55,
-        },
-        metal: {
-          color: COLOR.metal,
-          roughness: 0.4,
-          metalness: 0.85,
-        },
-        bead: {
-          color: COLOR.bead,
-          roughness: 0.35,
-          metalness: 0.9,
-        },
-        visor: {
-          color: COLOR.visor,
-          roughness: 0.15,
-          metalness: 0.7,
-          emissive: COLOR.glow,
-          emissiveIntensity: 0.35,
-        },
-        glow: {
-          color: COLOR.glow,
-          roughness: 0.4,
-          metalness: 0.2,
-          emissive: COLOR.glow,
-          emissiveIntensity: 0.7,
-        },
-      };
-
-    const material = new THREE.MeshStandardMaterial(specs[kind]);
-    this.disposables.push(material);
-    return material;
-  }
-
-  private addArmor(style: SceneStyle) {
-    const schematic = style === 'schematic';
-    const mats = {
-      shell: this.materialFor('shell', style),
-      metal: this.materialFor('metal', style),
-      visor: this.materialFor('visor', style),
-      glow: this.materialFor('glow', style),
-    };
-
-    for (const plate of ARMOR) {
-      const [sx, sy, sz] = plate.size;
-      const shape = plate.shape ?? 'box';
-      const geometry =
-        shape === 'sphere'
-          ? new THREE.SphereGeometry(Math.max(sx, sy, sz) / 2, schematic ? 14 : 24, 16)
-          : shape === 'cylinder'
-            ? new THREE.CylinderGeometry(sx / 2, sx / 2, sy, schematic ? 12 : 20)
-            : new THREE.BoxGeometry(sx, sy, sz);
-      this.disposables.push(geometry);
-
-      const mesh = new THREE.Mesh(geometry, mats[plate.kind]);
-      const base = vec(ANCHORS[plate.anchor]);
-      if (plate.offset) {
-        base.add(vec(plate.offset));
-      }
-      mesh.position.copy(base);
-      if (plate.rotation) {
-        mesh.rotation.set(plate.rotation[0], plate.rotation[1], plate.rotation[2]);
-      }
-      mesh.castShadow = !schematic;
-      mesh.receiveShadow = !schematic;
-      this.robot.add(mesh);
-      this.limbParts.push({ mesh, limb: plate.limb });
-
-      if (schematic) {
-        const edges = new THREE.EdgesGeometry(geometry, 18);
-        const edgeMat = new THREE.LineBasicMaterial({ color: COLOR.edge });
-        const outline = new THREE.LineSegments(edges, edgeMat);
-        outline.position.copy(mesh.position);
-        outline.rotation.copy(mesh.rotation);
-        this.robot.add(outline);
-        this.limbParts.push({ mesh: outline, limb: plate.limb });
-        this.disposables.push(edges, edgeMat);
-      }
+    if (this.style === 'solid') {
+      const shadowGeometry = new THREE.CircleGeometry(1.2, 48);
+      const shadowMaterial = new THREE.ShadowMaterial({ opacity: 0.55 });
+      const shadowPlane = new THREE.Mesh(shadowGeometry, shadowMaterial);
+      shadowPlane.rotation.x = -Math.PI / 2;
+      shadowPlane.position.y = 0.001;
+      shadowPlane.receiveShadow = true;
+      this.scene.add(shadowPlane);
+      this.disposables.push(shadowGeometry, shadowMaterial);
     }
   }
 
-  private addJointBalls(style: SceneStyle) {
-    const material = this.materialFor('bead', style);
-    const schematic = style === 'schematic';
+  private buildBender() {
+    const metal = this.mat('metal', {
+      color: BENDER.metal,
+      roughness: 0.4,
+      metalness: 0.7,
+    });
+    const metalDark = this.mat('metal-dark', {
+      color: BENDER.metalDark,
+      roughness: 0.45,
+      metalness: 0.75,
+    });
+    const cream = this.mat('cream', {
+      color: BENDER.cream,
+      roughness: 0.55,
+      metalness: 0.1,
+      emissive: this.style === 'solid' ? BENDER.cream : undefined,
+      emissiveIntensity: this.style === 'solid' ? 0.15 : undefined,
+    });
+    const pupil = this.mat('pupil', {
+      color: BENDER.pupil,
+      roughness: 0.8,
+      metalness: 0.1,
+    });
 
-    for (const ball of JOINT_BALLS) {
-      const geometry = new THREE.SphereGeometry(ball.radius, schematic ? 12 : 20, 14);
-      this.disposables.push(geometry);
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.position.copy(vec(ANCHORS[ball.anchor]));
-      mesh.castShadow = !schematic;
-      this.robot.add(mesh);
-      this.limbParts.push({ mesh, limb: ball.limb });
+    // --- Head (cylinder + dome + antenna) ---
+    const headY = 1.48;
+    this.addPart(
+      new THREE.CylinderGeometry(0.16, 0.16, 0.3, 32),
+      metal,
+      new THREE.Vector3(0, headY, 0),
+      'torso',
+    );
+    this.addPart(
+      new THREE.SphereGeometry(0.16, 32, 20, 0, Math.PI * 2, 0, Math.PI / 2),
+      metal,
+      new THREE.Vector3(0, headY + 0.15, 0),
+      'torso',
+    );
+    // Antenna
+    this.addPart(
+      new THREE.CylinderGeometry(0.014, 0.02, 0.11, 12),
+      metalDark,
+      new THREE.Vector3(0, headY + 0.32, 0),
+      'torso',
+    );
+    this.addPart(
+      new THREE.SphereGeometry(0.03, 14, 12),
+      metal,
+      new THREE.Vector3(0, headY + 0.39, 0),
+      'torso',
+    );
+
+    // Visor housing
+    this.addPart(
+      new THREE.BoxGeometry(0.24, 0.11, 0.09),
+      metalDark,
+      new THREE.Vector3(0, headY + 0.02, 0.125),
+      'torso',
+    );
+    // Eyes — cream discs + square pupils
+    for (const x of [-0.055, 0.055]) {
+      this.addPart(
+        new THREE.CircleGeometry(0.042, 24),
+        cream,
+        new THREE.Vector3(x, headY + 0.02, 0.172),
+        'torso',
+      );
+      this.addPart(
+        new THREE.PlaneGeometry(0.018, 0.018),
+        pupil,
+        new THREE.Vector3(x, headY + 0.02, 0.174),
+        'torso',
+      );
+    }
+
+    // Mouth grill
+    this.addPart(
+      new THREE.BoxGeometry(0.15, 0.075, 0.045),
+      metalDark,
+      new THREE.Vector3(0, headY - 0.1, 0.135),
+      'torso',
+    );
+    for (let row = 0; row < 2; row += 1) {
+      for (let col = 0; col < 4; col += 1) {
+        this.addPart(
+          new THREE.PlaneGeometry(0.026, 0.022),
+          cream,
+          new THREE.Vector3(-0.048 + col * 0.032, headY - 0.085 - row * 0.03, 0.16),
+          'torso',
+        );
+      }
+    }
+
+    // Neck stub so the head isn't floating
+    this.addPart(
+      new THREE.CylinderGeometry(0.07, 0.09, 0.08, 20),
+      metalDark,
+      new THREE.Vector3(0, 1.28, 0),
+      'torso',
+    );
+
+    // --- Torso (slightly tapered cylinder + chest door) ---
+    this.addPart(
+      new THREE.CylinderGeometry(0.22, 0.26, 0.55, 32),
+      metal,
+      new THREE.Vector3(0, 0.98, 0),
+      'torso',
+    );
+    // Chest door
+    this.addPart(
+      new THREE.BoxGeometry(0.18, 0.22, 0.04),
+      metalDark,
+      new THREE.Vector3(0, 1.05, 0.2),
+      'torso',
+    );
+    this.addPart(
+      new THREE.SphereGeometry(0.018, 12, 10),
+      this.mat('knob', { color: BENDER.doorKnob, roughness: 0.5, metalness: 0.8 }),
+      new THREE.Vector3(0.07, 1.05, 0.225),
+      'torso',
+    );
+
+    // Shoulder balls
+    for (const side of [-1, 1] as const) {
+      const limb: Limb = side > 0 ? 'right_arm' : 'left_arm';
+      this.addPart(
+        new THREE.SphereGeometry(0.08, 20, 16),
+        metal,
+        new THREE.Vector3(side * 0.26, 1.22, 0),
+        limb,
+      );
+    }
+
+    // Arms — corrugated tubes
+    this.buildLimb('right_arm', [
+      [ANCHORS.shoulder_r, ANCHORS.elbow_r, 0.055],
+      [ANCHORS.elbow_r, ANCHORS.wrist_r, 0.05],
+    ]);
+    this.buildLimb('left_arm', [
+      [ANCHORS.shoulder_l, ANCHORS.elbow_l, 0.055],
+      [ANCHORS.elbow_l, ANCHORS.wrist_l, 0.05],
+    ]);
+
+    // Hands — paddle + fingers
+    for (const side of [-1, 1] as const) {
+      const limb: Limb = side > 0 ? 'right_arm' : 'left_arm';
+      const wrist = vec(side > 0 ? ANCHORS.wrist_r : ANCHORS.wrist_l);
+      this.addPart(
+        new THREE.BoxGeometry(0.1, 0.04, 0.08),
+        metal,
+        wrist.clone().add(new THREE.Vector3(0, -0.04, 0.01)),
+        limb,
+      );
+      for (let f = 0; f < 3; f += 1) {
+        this.addPart(
+          new THREE.BoxGeometry(0.025, 0.07, 0.025),
+          metal,
+          wrist.clone().add(new THREE.Vector3(side * (-0.03 + f * 0.03), -0.1, 0.02)),
+          limb,
+        );
+      }
+    }
+
+    // Hip balls + legs
+    for (const side of [-1, 1] as const) {
+      const limb: Limb = side > 0 ? 'right_leg' : 'left_leg';
+      this.addPart(
+        new THREE.SphereGeometry(0.07, 18, 14),
+        metal,
+        new THREE.Vector3(side * 0.1, 0.72, 0),
+        limb,
+      );
+    }
+    this.buildLimb('right_leg', [
+      [ANCHORS.hip_r, ANCHORS.knee_r, 0.06],
+      [ANCHORS.knee_r, ANCHORS.ankle_r, 0.055],
+    ]);
+    this.buildLimb('left_leg', [
+      [ANCHORS.hip_l, ANCHORS.knee_l, 0.06],
+      [ANCHORS.knee_l, ANCHORS.ankle_l, 0.055],
+    ]);
+
+    // Dome feet — hemisphere with flat on the floor, dome up
+    for (const side of [-1, 1] as const) {
+      const limb: Limb = side > 0 ? 'right_leg' : 'left_leg';
+      this.addPart(
+        new THREE.SphereGeometry(0.13, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+        metal,
+        new THREE.Vector3(side * 0.12, 0.01, 0.03),
+        limb,
+      );
+    }
+  }
+
+  private buildLimb(
+    limb: Limb,
+    segments: [Vec3, Vec3, number][],
+  ) {
+    const metal = this.mat('metal', {
+      color: BENDER.metal,
+      roughness: 0.4,
+      metalness: 0.7,
+    });
+    const up = new THREE.Vector3(0, 1, 0);
+
+    for (const [fromV, toV, radius] of segments) {
+      const from = vec(fromV);
+      const to = vec(toV);
+      const direction = to.clone().sub(from);
+      const length = direction.length();
+      const geometry = corrugatedCylinder(radius, length, 10, 16);
+      const mesh = this.addPart(
+        geometry,
+        metal,
+        from.clone().add(to).multiplyScalar(0.5),
+        limb,
+      );
+      mesh.quaternion.setFromUnitVectors(up, direction.normalize());
     }
   }
 
   private buildSelectionRing(): THREE.Mesh {
-    const geometry = new THREE.TorusGeometry(MARKER_RADIUS + 0.018, 0.006, 10, 40);
+    const geometry = new THREE.TorusGeometry(MARKER_RADIUS + 0.02, 0.007, 10, 40);
     const material = new THREE.MeshBasicMaterial({
       color: COLOR.accent,
       transparent: true,
@@ -358,25 +539,24 @@ export class HumanoidScene {
     return ring;
   }
 
-  private addJointMarker(joint: ProtoJoint, style: SceneStyle) {
+  private addJointMarker(joint: ProtoJoint) {
     const position = vec(jointPosition(joint));
-    // Sit the marker slightly proud of the joint so it reads as a status LED.
-    position.z += 0.04;
+    position.z += 0.05;
     const baseColor = new THREE.Color(statusColor(joint));
 
     const geometry =
-      style === 'schematic'
-        ? new THREE.CircleGeometry(MARKER_RADIUS * 0.85, 28)
-        : new THREE.SphereGeometry(MARKER_RADIUS, 20, 16);
+      this.style === 'schematic'
+        ? new THREE.CircleGeometry(MARKER_RADIUS * 0.9, 24)
+        : new THREE.SphereGeometry(MARKER_RADIUS, 18, 14);
     const material =
-      style === 'schematic'
+      this.style === 'schematic'
         ? new THREE.MeshBasicMaterial({ color: baseColor })
         : new THREE.MeshStandardMaterial({
             color: baseColor,
             emissive: baseColor,
-            emissiveIntensity: 0.55,
-            roughness: 0.25,
-            metalness: 0.2,
+            emissiveIntensity: 0.65,
+            roughness: 0.3,
+            metalness: 0.15,
           });
     this.disposables.push(geometry, material);
 
@@ -436,7 +616,7 @@ export class HumanoidScene {
     if (width === 0 || height === 0) return;
 
     const aspect = width / height;
-    const margin = 1.18;
+    const margin = 1.15;
     const fitHeight = RIG_HEIGHT * margin;
     const fitWidth = RIG_WIDTH * margin;
 
@@ -517,7 +697,7 @@ export class HumanoidScene {
       material.color.copy(visual.baseColor);
       if (dimmed) material.color.multiplyScalar(0.35);
       if ('emissiveIntensity' in material) {
-        material.emissiveIntensity = isSelected ? 1.1 : isHovered ? 0.8 : 0.55;
+        material.emissiveIntensity = isSelected ? 1.1 : isHovered ? 0.85 : 0.65;
       }
 
       visual.label.style.opacity = isSelected || isHovered ? '1' : '0';
@@ -530,7 +710,7 @@ export class HumanoidScene {
         material.transparent = dimmed;
         material.needsUpdate = true;
       }
-      material.opacity = dimmed ? 0.22 : 1;
+      material.opacity = dimmed ? 0.2 : 1;
     }
 
     const selected = this.selectedId ? this.visuals.get(this.selectedId) : undefined;
