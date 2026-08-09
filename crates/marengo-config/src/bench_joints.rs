@@ -138,10 +138,7 @@ pub fn apply_joint_subset(
     if motors.motors.is_empty() {
         return Err(ConfigError::EmptyJointSubset);
     }
-    control
-        .control
-        .joints
-        .retain(|name, _| keep.contains(name));
+    control.control.joints.retain(|name, _| keep.contains(name));
     control.control.actuator_groups.retain(|_, group| {
         group.joints.retain(|j| keep.contains(j));
         !group.joints.is_empty()
@@ -306,10 +303,7 @@ mod tests {
             ]
         );
         assert_eq!(motors.motors.len(), 3);
-        assert!(motors
-            .motors
-            .iter()
-            .all(|m| m.joint != "right_elbow_pitch"));
+        assert!(motors.motors.iter().all(|m| m.joint != "right_elbow_pitch"));
         assert!(!control.control.joints.contains_key("right_elbow_pitch"));
     }
 }

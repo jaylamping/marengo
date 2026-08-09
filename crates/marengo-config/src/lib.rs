@@ -55,8 +55,8 @@ pub use urdf_expand::{
 };
 pub use urdf_merge::{
     apply_merge_xml, merge_preview_from_paths, merge_preview_from_robots, simulate_merge_xml,
-    unresolved_critical_fields, validate_merged_urdf_xml, FieldDiff, FieldResolution,
-    MergePreview, ResolutionChoice,
+    unresolved_critical_fields, validate_merged_urdf_xml, FieldDiff, FieldResolution, MergePreview,
+    ResolutionChoice,
 };
 
 use std::collections::{HashMap, HashSet};

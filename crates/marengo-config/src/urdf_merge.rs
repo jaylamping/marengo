@@ -350,10 +350,7 @@ pub fn validate_merged_urdf_xml(xml: &str) -> Result<(), ConfigError> {
                 format!("joint {} has zero/non-finite axis", joint.name),
             ));
         }
-        if matches!(
-            joint.joint_type,
-            JointType::Revolute | JointType::Prismatic
-        ) {
+        if matches!(joint.joint_type, JointType::Revolute | JointType::Prismatic) {
             let lower = joint.limit.lower;
             let upper = joint.limit.upper;
             if lower.is_finite() && upper.is_finite() && lower > upper {
