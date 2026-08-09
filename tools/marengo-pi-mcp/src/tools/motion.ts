@@ -13,10 +13,7 @@ const motionConfirmSchema = z.object({
   profile: benchProfileZod.optional(),
 });
 
-const BENCH_CONFIG_RIGHT =
-  "/opt/marengo/config/bringup/arm_4dof_right";
-const BENCH_CONFIG_LEFT =
-  "/opt/marengo/config/bringup/shoulder_pitch_left_only";
+const BENCH_CONFIG_MASTER = "/opt/marengo/config";
 
 /** Keep newest N timestamped bench artifacts; symlinks (bench-latest.*) untouched. */
 export const BENCH_LOG_KEEP_COUNT = 50;
@@ -139,26 +136,19 @@ function normalizeBenchConfigDir(cfg: MarengoPiConfig, configDir: string): strin
   if (configDir.startsWith("/") || configDir.startsWith("~/")) {
     return configDir;
   }
-  return `${cfg.piRoot}/config/bringup/${configDir}`;
+  return cfg.configDir;
 }
 
-/** Single-shoulder bench profile from joint name when config_dir omitted. */
+/** Master config when config_dir omitted (legacy bringup slugs ignored). */
 function benchConfigDirForJoint(
   cfg: MarengoPiConfig,
-  joint?: string,
+  _joint?: string,
   configDir?: string,
 ): string | undefined {
   if (configDir) {
     return normalizeBenchConfigDir(cfg, configDir);
   }
-  if (joint?.includes("left_shoulder")) {
-    return BENCH_CONFIG_LEFT;
-  }
-  // Any right_* joint (shoulder, yaw, elbow) → active right 4-DOF profile.
-  if (joint?.startsWith("right_")) {
-    return BENCH_CONFIG_RIGHT;
-  }
-  return undefined;
+  return BENCH_CONFIG_MASTER;
 }
 
 const benchLogWrapper = (
@@ -507,7 +497,7 @@ export function registerMotionTools(
           .string()
           .optional()
           .describe(
-            "MARENGO_CONFIG_DIR (default /opt/marengo/config/bringup/arm_4dof_right)",
+            "MARENGO_CONFIG_DIR (default /opt/marengo/config)",
           ),
       }),
       handler: async (args: {
@@ -521,7 +511,7 @@ export function registerMotionTools(
         const configDir = benchConfigDirForJoint(
           cfg,
           undefined,
-          args.config_dir ?? BENCH_CONFIG_RIGHT,
+          args.config_dir ?? BENCH_CONFIG_MASTER,
         );
         const pipeCmd = [
           motorRecoverRemoteBody(cfg),
@@ -543,7 +533,7 @@ export function registerMotionTools(
       handler: async (args: { config_dir?: string }) => {
         const configDir =
           benchConfigDirForJoint(cfg, undefined, args.config_dir) ??
-          BENCH_CONFIG_RIGHT;
+          BENCH_CONFIG_MASTER;
         const body = wrapRemoteWithConfig(
           cfg,
           "bin/motor-repl homing-status",
@@ -566,7 +556,7 @@ export function registerMotionTools(
           .string()
           .optional()
           .describe(
-            "Override MARENGO_CONFIG_DIR (e.g. /opt/marengo/config/bringup/arm_4dof_right)",
+            "Override MARENGO_CONFIG_DIR (e.g. /opt/marengo/config)",
           ),
         verify: z
           .boolean()
@@ -586,7 +576,7 @@ export function registerMotionTools(
         const joint = args.joint ?? "right_shoulder_pitch";
         const verify = args.verify ?? true;
         const configDir =
-          benchConfigDirForJoint(cfg, joint, args.config_dir) ?? BENCH_CONFIG_RIGHT;
+          benchConfigDirForJoint(cfg, joint, args.config_dir) ?? BENCH_CONFIG_MASTER;
         const body = wrapRemoteWithConfig(
           cfg,
           zeroActuatorRemoteBody(joint, verify),
@@ -639,7 +629,7 @@ export function registerMotionTools(
           .string()
           .optional()
           .describe(
-            "MARENGO_CONFIG_DIR override (default: MCP env or arm_4dof_right)",
+            "MARENGO_CONFIG_DIR override (default: MCP env or /opt/marengo/config)",
           ),
         joint: z.string().default("right_shoulder_pitch"),
         timeout_sec: z
@@ -687,7 +677,7 @@ export function registerMotionTools(
         const returnHomeSec = args.return_home_sec ?? DEFAULT_RETURN_HOME_SEC;
         const joint = args.joint ?? "right_shoulder_pitch";
         const configDir =
-          benchConfigDirForJoint(cfg, joint, args.config_dir) ?? BENCH_CONFIG_RIGHT;
+          benchConfigDirForJoint(cfg, joint, args.config_dir) ?? BENCH_CONFIG_MASTER;
         const pipeCmd = holdSessionRemoteBody(cfg, {
           joint,
           setZero: args.set_zero ?? true,
@@ -726,7 +716,7 @@ export function registerMotionTools(
         if (!check.ok) return check.message;
         const configDir =
           benchConfigDirForJoint(cfg, args.joint, args.config_dir) ??
-          BENCH_CONFIG_RIGHT;
+          BENCH_CONFIG_MASTER;
         const body = wrapRemoteWithConfig(
           cfg,
           [marengoPiPkillLine(cfg), "bin/motor-repl disable"].join(
@@ -748,7 +738,7 @@ export function registerMotionTools(
           .string()
           .optional()
           .describe(
-            "When config_dir omitted, left/right shoulder picks shoulder_pitch_*_only profile",
+            "When config_dir omitted, uses master /opt/marengo/config",
           ),
         config_dir: z
           .string()

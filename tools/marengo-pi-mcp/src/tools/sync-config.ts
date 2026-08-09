@@ -6,7 +6,17 @@ import { shellQuote, wrapRemote, wrapRemoteWithConfig } from "../env.js";
 import { sshTarget } from "../config.js";
 import { execLocal, formatRemoteResult } from "../ssh.js";
 
+const MASTER_CONFIG_FILES = [
+  "robot.yaml",
+  "motors.yaml",
+  "control.yaml",
+  "homing.yaml",
+] as const;
+
+const MASTER_URDF = "marengo.urdf" as const;
+
 const benchUrdfAssets = [
+  MASTER_URDF,
   "shoulder_pitch_right_only.urdf",
   "shoulder_pitch_weighted.urdf",
   "shoulder_pitch_left_bare.urdf",
@@ -15,6 +25,10 @@ const benchUrdfAssets = [
 ] as const;
 
 type BenchUrdfAsset = (typeof benchUrdfAssets)[number];
+
+const ADR_0017_URDF_SYNC_NOTE =
+  "[ADR 0017] Sync marengo.urdf only after Set Limits persist_status=durable on the Pi, " +
+  "or pull Pi URDF to local before deploy — unchecked sync can clobber expand-only limits.";
 
 function expandStagingRoot(cfg: MarengoPiConfig): string {
   if (cfg.piStagingRoot.startsWith("~/")) {
@@ -95,12 +109,11 @@ export async function runSyncBenchConfig(
   cfg: MarengoPiConfig,
   runRemote: (body: string, timeoutMs?: number) => Promise<string>,
   args: {
-    profile: string;
     install_to_opt: boolean;
   },
 ): Promise<string> {
-  const localDir = path.join(cfg.localRoot, "config", "bringup", args.profile);
-  const remoteRel = `config/bringup/${args.profile}`;
+  const localDir = path.join(cfg.localRoot, "config");
+  const remoteRel = "config";
   const remoteStaging = `${cfg.piStagingRoot}/${remoteRel}`.replace(/\/+/g, "/");
   const remoteOpt = `${cfg.piRoot}/${remoteRel}`;
 
@@ -108,7 +121,7 @@ export async function runSyncBenchConfig(
     "rsync",
     [
       "-av",
-      `${localDir}/`,
+      ...MASTER_CONFIG_FILES.map((f) => path.join(localDir, f)),
       `${sshTarget(cfg)}:${remoteStaging}/`,
     ],
     { cwd: cfg.localRoot, timeoutMs: 60_000 },
@@ -127,7 +140,10 @@ export async function runSyncBenchConfig(
     steps.push("[mkdir staging]");
     sync = await execLocal(
       "scp",
-      ["-r", `${localDir}/.`, `${sshTarget(cfg)}:${remoteStaging}/`],
+      [
+        ...MASTER_CONFIG_FILES.map((f) => path.join(localDir, f)),
+        `${sshTarget(cfg)}:${remoteStaging}/`,
+      ],
       { cwd: cfg.localRoot, timeoutMs: 60_000 },
     );
     steps.push(`[local scp fallback]\n${formatRemoteResult(sync)}`);
@@ -210,7 +226,10 @@ export async function runSyncBenchUrdfAssets(
     { cwd: cfg.localRoot, timeoutMs: 60_000 },
   );
 
-  const steps: string[] = [`[local URDF sync → ${remoteStaging}]`];
+  const steps: string[] = [
+    ADR_0017_URDF_SYNC_NOTE,
+    `[local URDF sync → ${remoteStaging}]`,
+  ];
 
   if (sync.exitCode !== 0) {
     await runRemote(
@@ -235,7 +254,7 @@ export async function runSyncBenchUrdfAssets(
   }
 
   if (sync.exitCode !== 0) {
-    return `Error: URDF sync failed\n\n${steps.join("\n\n")}`;
+    return `Error: URDF sync failed\n\n${steps.join("\n\n---\n\n")}`;
   }
 
   const verifyStaging = await runRemote(
@@ -254,6 +273,11 @@ export async function runSyncBenchUrdfAssets(
     if (remoteStepFailed(install)) {
       return `Error: URDF install to ${remoteOpt} failed\n\n${steps.join("\n\n---\n\n")}`;
     }
+    if (args.assets.includes(MASTER_URDF)) {
+      steps.push(
+        "[note] Live master URDF updated. Restart marengo-pi after structural kinematics changes.",
+      );
+    }
   } else {
     steps.push(
       `[note] Staging only. Bench with MARENGO_ROOT=${expandStagingRoot(cfg)} or install_to_opt: true.`,
@@ -264,22 +288,21 @@ export async function runSyncBenchUrdfAssets(
 }
 
 export const syncBenchConfigSchema = z.object({
-  profile: z
-    .string()
-    .default("arm_4dof_right")
-    .describe("Bringup folder under config/bringup/"),
   install_to_opt: z
     .boolean()
     .default(true)
-    .describe("Also rsync into /opt/marengo (requires passwordless sudo)"),
+    .describe("Also rsync into /opt/marengo/config (requires passwordless sudo)"),
 });
 
 export const syncBenchUrdfSchema = z.object({
   assets: z
     .array(z.enum(benchUrdfAssets))
     .nonempty()
-    .default(["shoulder_pitch_right_only.urdf", "shoulder_pitch_weighted.urdf"])
-    .describe("Bench URDF asset filenames under assets/urdf/"),
+    .default([MASTER_URDF])
+    .describe(
+      "URDF filenames under assets/urdf/ (default live marengo.urdf). " +
+        "ADR 0017: sync only after durable Set Limits or pull Pi URDF first.",
+    ),
   install_to_opt: z
     .boolean()
     .default(true)

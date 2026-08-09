@@ -2,6 +2,7 @@ import type { BenchProfile, MarengoPiConfig } from "../config.js";
 import { sudoCanUpCommand } from "../config.js";
 import {
   isRightArmBenchProfile,
+  harnessJointSubset,
   profileMeta,
 } from "../bench-profiles.js";
 import {
@@ -41,21 +42,18 @@ function harnessSetZeroJoints(profile: BenchProfile): string[] {
   return profileMeta(profile).setZeroJoints;
 }
 
-/** Config profile for harness runs; weighted profile must use shoulder_pitch_weighted URDF. */
+/** Master config dir for harness runs; optional absolute override only. */
 export function harnessConfigDir(
   cfg: MarengoPiConfig,
-  profile: BenchProfile,
+  _profile: BenchProfile,
   configDir?: string,
 ): string {
   if (configDir) {
     if (configDir.startsWith("/") || configDir.startsWith("~/")) {
       return configDir;
     }
-    return `${cfg.piRoot}/config/bringup/${configDir}`;
-  }
-  const slug = profileMeta(profile).configBringup;
-  if (slug) {
-    return `${cfg.piRoot}/config/bringup/${slug}`;
+    // Legacy bringup slug — master tree only after consul-hardware-sot cutover.
+    return cfg.configDir;
   }
   return cfg.configDir;
 }
@@ -178,7 +176,14 @@ export async function runBenchHarness(
     operator_signoff_required: scriptSuite?.operatorSignoffRequired ?? false,
   };
 
-  const remote = (body: string) => wrapRemoteWithConfig(cfg, body, configDir, debug);
+  const remote = (body: string) =>
+    wrapRemoteWithConfig(
+      cfg,
+      body,
+      configDir,
+      debug,
+      harnessJointSubset(profile),
+    );
 
   const finish = () =>
     formatHarnessResult(profile, loadedJoint, steps, faults, logPath, passMeta);

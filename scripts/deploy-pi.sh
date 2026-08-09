@@ -218,6 +218,7 @@ cp "${ROOT}/target/${TARGET}/release/motor-repl" "$STAGING/target/release/"
 cp "${ROOT}/target/${TARGET}/release/imu-probe" "$STAGING/target/release/"
 stage_copy_tree "${ROOT}/config" "$STAGING/config"
 stage_copy_tree "${ROOT}/assets" "$STAGING/assets"
+log_note "Staging master SoT: config/ + assets/urdf/marengo.urdf"
 stage_copy_tree "${ROOT}/scripts" "$STAGING/scripts"
 mkdir -p "$STAGING/www"
 if [[ -d "${ROOT}/consul/dist" ]]; then

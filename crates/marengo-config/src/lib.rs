@@ -35,8 +35,8 @@ mod urdf_expand;
 mod urdf_merge;
 
 pub use bench_joints::{
-    load_command_joint_allowlist, load_command_joint_allowlist_from, resolve_command_joint,
-    CommandJointAllowlist,
+    joint_subset_from_env, load_command_joint_allowlist, load_command_joint_allowlist_from,
+    resolve_command_joint, CommandJointAllowlist,
 };
 pub use completeness::{completeness_report, CompletenessReport, CompletenessWarning};
 pub use config_revision::profile_content_revision;

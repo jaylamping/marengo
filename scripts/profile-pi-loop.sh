@@ -8,7 +8,7 @@ set -euo pipefail
 
 MODE="${1:-A}"
 ROOT="${MARENGO_ROOT:-/opt/marengo}"
-CFG="${MARENGO_CONFIG_DIR:-$ROOT/config/bringup/arm_4dof_right}"
+CFG="${MARENGO_CONFIG_DIR:-$ROOT/config}"
 export MARENGO_ROOT="$ROOT"
 export MARENGO_CONFIG_DIR="$CFG"
 

@@ -89,15 +89,13 @@ export function registerAdminTools(
 
     pi_sync_bench_config: {
       description:
-        "Rsync a bringup profile (control.yaml, motors.yaml, robot.yaml, homing.yaml) from local repo to Pi. " +
-        "Use after editing config on Mac; sets ~/marengo and optionally /opt/marengo.",
+        "Rsync master config (robot/motors/control/homing.yaml) from local repo config/ to Pi. " +
+        "Use after editing master YAML on the workstation; sets ~/marengo and optionally /opt/marengo/config.",
       inputSchema: syncBenchConfigSchema,
       handler: async (args: {
-        profile?: string;
         install_to_opt?: boolean;
       }) => {
         return runSyncBenchConfig(cfg, runRemote, {
-          profile: args.profile ?? "arm_4dof_right",
           install_to_opt: args.install_to_opt ?? true,
         });
       },
@@ -105,8 +103,9 @@ export function registerAdminTools(
 
     pi_sync_bench_urdf: {
       description:
-        "Rsync selected bench URDF assets from local assets/urdf to the Pi. " +
-        "Use after editing bench URDF COM/mass assets; sets ~/marengo and optionally /opt/marengo.",
+        "Rsync live marengo.urdf (and optional archive slice URDFs) from local assets/urdf to the Pi. " +
+        "ADR 0017: prefer sync only after Set Limits persist_status=durable, or pull Pi URDF before deploy — " +
+        "unchecked sync can clobber expand-only bench limits.",
       inputSchema: syncBenchUrdfSchema,
       handler: async (args: z.infer<typeof syncBenchUrdfSchema>) => {
         return runSyncBenchUrdfAssets(cfg, runRemote, {

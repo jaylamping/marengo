@@ -77,14 +77,14 @@ Chain strategy: feature-branch-chain
 
 ## Phase 4: inventory/deploy
 
-- [ ] 4.1 Inventory panels read-only limits from live snapshot; deep-link to `/hardware` for calibration
-- [ ] 4.2 Update `scripts/deploy-pi.sh`, `install-pi.sh`, `env.example` — `MARENGO_CONFIG_DIR=/opt/marengo/config`, master URDF paths
-- [ ] 4.3 Update `scripts/pi-remote.sh`, `cloud-pi-lib.sh`, `homing-preflight.sh`, `profile-pi-loop.sh` off bringup defaults
-- [ ] 4.4 Retarget `tools/marengo-pi-mcp/src/tools/sync-config.ts` — sync root `config/` + `assets/urdf/marengo.urdf`
-- [ ] 4.5 Update MCP `pi_sync_bench_config` / `pi_sync_bench_urdf` descriptions and defaults; Durable-gated URDF sync (ADR 0017)
-- [ ] 4.6 Add optional `MARENGO_JOINT_SUBSET` env — runtime joint allowlist in `bench_joints.rs` / marengo-pi overlay (ephemeral 3-DOF smoke)
-- [ ] 4.7 Update `tools/marengo-pi-mcp/test/*.ts` — master paths, subset harness; `just mcp-build`
-- [ ] 4.8 Integration: overlay write-behind order URDF-first on master paths (`overlay_tests` or marengo-pi tests)
-- [ ] 4.9 Smoke checklist: deploy master tree, `pi_sync_main`, bench Enable/homing/gravity on 4-DOF (operator or Tailscale)
+- [x] 4.1 Inventory panels read-only limits from live snapshot; deep-link to `/hardware` for calibration
+- [x] 4.2 Update `scripts/deploy-pi.sh`, `install-pi.sh`, `env.example` — `MARENGO_CONFIG_DIR=/opt/marengo/config`, master URDF paths
+- [x] 4.3 Update `scripts/pi-remote.sh`, `cloud-pi-lib.sh`, `homing-preflight.sh`, `profile-pi-loop.sh` off bringup defaults
+- [x] 4.4 Retarget `tools/marengo-pi-mcp/src/tools/sync-config.ts` — sync root `config/` + `assets/urdf/marengo.urdf`
+- [x] 4.5 Update MCP `pi_sync_bench_config` / `pi_sync_bench_urdf` descriptions and defaults; Durable-gated URDF sync (ADR 0017)
+- [x] 4.6 Add optional `MARENGO_JOINT_SUBSET` env — runtime joint allowlist in `bench_joints.rs` / marengo-pi overlay (ephemeral 3-DOF smoke)
+- [x] 4.7 Update `tools/marengo-pi-mcp/test/*.ts` — master paths, subset harness; `just mcp-build`
+- [x] 4.8 Integration: overlay write-behind order URDF-first on master paths (`overlay_tests` or marengo-pi tests)
+- [x] 4.9 Smoke checklist: deploy master tree, `pi_sync_main`, bench Enable/homing/gravity on 4-DOF (operator or Tailscale) — see `smoke-phase4.md`; Pi steps not run in cloud
 
 **Phase 4 budget:** ~350–450 lines | Medium

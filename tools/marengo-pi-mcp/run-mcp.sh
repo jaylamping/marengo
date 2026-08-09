@@ -11,7 +11,7 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 export MARENGO_PI_HOST="${MARENGO_PI_HOST:-joey-robot.tail0b414.ts.net}"
 export MARENGO_PI_USER="${MARENGO_PI_USER:-joey}"
 export MARENGO_PI_ROOT="${MARENGO_PI_ROOT:-/opt/marengo}"
-export MARENGO_CONFIG_DIR="${MARENGO_CONFIG_DIR:-/opt/marengo/config/bringup/arm_4dof_right}"
+export MARENGO_CONFIG_DIR="${MARENGO_CONFIG_DIR:-/opt/marengo/config}"
 export MARENGO_BENCH_PROFILE="${MARENGO_BENCH_PROFILE:-elbow_attached}"
 
 if [[ -z "${SSH_IDENTITY_FILE:-}" ]]; then

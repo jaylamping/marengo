@@ -1,6 +1,9 @@
 /**
  * Single source of truth for MCP bench harness profile metadata.
  * Add a profile here — do not scatter enums across motion/safety/harness.
+ *
+ * Master config lives at `/opt/marengo/config` (repo `config/`). Limb subsets are
+ * ephemeral via `MARENGO_JOINT_SUBSET` — never alternate bringup YAML trees.
  */
 
 export const BENCH_PROFILES = [
@@ -20,19 +23,12 @@ const PITCH = "right_shoulder_pitch";
 const YAW = "right_upper_arm_yaw";
 const ELBOW = "right_elbow_pitch";
 
-export type BenchBringupSlug =
-  | "arm_3dof_right"
-  | "arm_4dof_right"
-  | "shoulder_pitch_weighted";
-
-const RIGHT_ARM_SLUGS: readonly BenchBringupSlug[] = [
-  "arm_3dof_right",
-  "arm_4dof_right",
-];
+const RIGHT_ARM_THREE_DOF = [ROLL, PITCH, YAW] as const;
+const RIGHT_ARM_FOUR_DOF = [ROLL, PITCH, YAW, ELBOW] as const;
 
 export interface BenchProfileMeta {
-  /** Relative bringup slug under config/bringup/; omit = use MARENGO_CONFIG_DIR. */
-  configBringup?: BenchBringupSlug;
+  /** Ephemeral `MARENGO_JOINT_SUBSET` for harness runs on master config. */
+  jointSubset?: readonly string[];
   setZeroJoints: string[];
   /** Requires confirm_weighted_motion. */
   weighted: boolean;
@@ -48,38 +44,36 @@ export const BENCH_PROFILE_META: Record<BenchProfile, BenchProfileMeta> = {
     skipGravityPreview: false,
   },
   weighted_single_arm: {
-    configBringup: "shoulder_pitch_weighted",
     setZeroJoints: ["left_shoulder_pitch", "right_shoulder_pitch"],
     weighted: true,
     skipGravityPreview: false,
   },
   arm_attached: {
-    configBringup: "shoulder_pitch_weighted",
     setZeroJoints: ["left_shoulder_pitch", "right_shoulder_pitch"],
     weighted: true,
     skipGravityPreview: false,
   },
   roll_attached: {
-    configBringup: "arm_3dof_right",
-    setZeroJoints: [ROLL, PITCH, YAW],
+    jointSubset: RIGHT_ARM_THREE_DOF,
+    setZeroJoints: [...RIGHT_ARM_THREE_DOF],
     weighted: true,
     skipGravityPreview: true,
   },
   arm_2dof_smoke: {
-    configBringup: "arm_3dof_right",
-    setZeroJoints: [ROLL, PITCH, YAW],
+    jointSubset: RIGHT_ARM_THREE_DOF,
+    setZeroJoints: [...RIGHT_ARM_THREE_DOF],
     weighted: true,
     skipGravityPreview: true,
   },
   yaw_attached: {
-    configBringup: "arm_4dof_right",
-    setZeroJoints: [ROLL, PITCH, YAW, ELBOW],
+    jointSubset: RIGHT_ARM_FOUR_DOF,
+    setZeroJoints: [...RIGHT_ARM_FOUR_DOF],
     weighted: true,
     skipGravityPreview: true,
   },
   elbow_attached: {
-    configBringup: "arm_4dof_right",
-    setZeroJoints: [ROLL, PITCH, YAW, ELBOW],
+    jointSubset: RIGHT_ARM_FOUR_DOF,
+    setZeroJoints: [...RIGHT_ARM_FOUR_DOF],
     weighted: true,
     skipGravityPreview: true,
   },
@@ -94,8 +88,13 @@ export function profileMeta(profile: BenchProfile): BenchProfileMeta {
 }
 
 export function isRightArmBenchProfile(profile: BenchProfile): boolean {
-  const slug = profileMeta(profile).configBringup;
-  return slug !== undefined && (RIGHT_ARM_SLUGS as readonly string[]).includes(slug);
+  return profileMeta(profile).setZeroJoints.some((j) => j.startsWith("right_"));
+}
+
+/** Comma-separated `MARENGO_JOINT_SUBSET` for harness SSH sessions. */
+export function harnessJointSubset(profile: BenchProfile): string | undefined {
+  const subset = profileMeta(profile).jointSubset;
+  return subset?.length ? subset.join(",") : undefined;
 }
 
 export function weightedProfiles(): BenchProfile[] {

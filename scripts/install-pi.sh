@@ -138,12 +138,20 @@ if [[ ! -f /etc/marengo/env ]]; then
   install -m 640 "${ROOT}/scripts/env.example" /etc/marengo/env
   chown root:"${RUN_USER}" /etc/marengo/env
 fi
+# Migrate legacy bringup profile paths to master config tree.
+if [[ -f /etc/marengo/env ]] && grep -q 'config/bringup/' /etc/marengo/env 2>/dev/null; then
+  sed -i 's|/opt/marengo/config/bringup/[^[:space:]"'"'"']*|/opt/marengo/config|g' /etc/marengo/env
+  sed -i 's|config/bringup/[^[:space:]"'"'"']*|config|g' /etc/marengo/env
+fi
 # Migrate renamed default bench profiles.
 if [[ -f /etc/marengo/env ]] && grep -q 'arm_2dof_right' /etc/marengo/env 2>/dev/null; then
-  sed -i 's|config/bringup/arm_2dof_right|config/bringup/arm_4dof_right|g' /etc/marengo/env
+  sed -i 's|config/bringup/arm_2dof_right|config|g' /etc/marengo/env
 fi
 if [[ -f /etc/marengo/env ]] && grep -q 'arm_3dof_right' /etc/marengo/env 2>/dev/null; then
-  sed -i 's|config/bringup/arm_3dof_right|config/bringup/arm_4dof_right|g' /etc/marengo/env
+  sed -i 's|config/bringup/arm_3dof_right|config|g' /etc/marengo/env
+fi
+if [[ -f /etc/marengo/env ]] && grep -q 'arm_4dof_right' /etc/marengo/env 2>/dev/null; then
+  sed -i 's|config/bringup/arm_4dof_right|config|g' /etc/marengo/env
 fi
 
 install -m 644 "${ROOT}/scripts/systemd/marengo-can.service" /etc/systemd/system/marengo-can.service
@@ -182,7 +190,7 @@ fi
 
 echo "Done. CAN (can0/can1) should be UP — verify: ip -br link show type can"
 if [[ -x "${INSTALL_ROOT}/bin/motor-repl" ]] && [[ -x "${INSTALL_ROOT}/scripts/homing-preflight.sh" ]]; then
-  BENCH_CFG="${INSTALL_ROOT}/config/bringup/arm_4dof_right"
+  BENCH_CFG="${INSTALL_ROOT}/config"
   if [[ -f /etc/marengo/env ]] && grep -q '^MARENGO_CONFIG_DIR=' /etc/marengo/env 2>/dev/null; then
     BENCH_CFG="$(grep '^MARENGO_CONFIG_DIR=' /etc/marengo/env | tail -1 | cut -d= -f2- | tr -d "\"'")"
     if [[ "$BENCH_CFG" != /* ]]; then
@@ -197,7 +205,7 @@ echo "Next:"
 echo "  1. Edit /etc/marengo/env (MARENGO_ROOT, MARENGO_CONFIG_DIR)"
 echo "  2. Consul UI: https://marengo.local:8444 (gateway enabled on boot; accept self-signed cert once)"
 echo "  3. Bench motion: run marengo-pi / motor-repl manually (do not enable marengo-pi.service unless you want always-on control)"
-echo "  4. Example: MARENGO_CONFIG_DIR=config/bringup/arm_4dof_right ${INSTALL_ROOT}/bin/motor-repl status"
+echo "  4. Example: MARENGO_CONFIG_DIR=config ${INSTALL_ROOT}/bin/motor-repl status"
 echo "  5. Local dev Consul: VITE_CHAPPE_* in consul/.env.local (see consul/.env.example)"
 PI_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
 if [[ -n "${PI_IP}" ]] && [[ -f /etc/marengo/env ]]; then

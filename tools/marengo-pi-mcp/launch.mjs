@@ -21,7 +21,7 @@ setDefault("MARENGO_PI_USER", "joey");
 setDefault("MARENGO_PI_ROOT", "/opt/marengo");
 setDefault(
   "MARENGO_CONFIG_DIR",
-  "/opt/marengo/config/bringup/arm_4dof_right",
+  "/opt/marengo/config",
 );
 setDefault("MARENGO_BENCH_PROFILE", "elbow_attached");
 
