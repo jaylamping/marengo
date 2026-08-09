@@ -29,12 +29,12 @@ Chain strategy: stacked-to-main
 
 ## Phase 1: IA / Chrome + Glossary (PR1)
 
-- [ ] 1.1 Add `/telemetry` route stub and sidebar entry in `consul/src/routes/config.tsx`, `consul/src/data/sidebar-nav.ts`
-- [ ] 1.2 Redirect `/subsystems` → `/telemetry` in `consul/src/pages/subsystems.tsx`
-- [ ] 1.3 Remove `/actuators` route, page, and sidebar entry (`consul/src/pages/actuators.tsx`, `consul/src/components/dashboard/actuators/**`)
-- [ ] 1.4 Replace `bench_4dof`/`arm_4dof_right` strings in `consul/src/routes/config.tsx`, `consul/src/data/site-header.ts`, `consul/src/lib/bringup-presets.ts`, overview subtitle
-- [ ] 1.5 Fold PR #117 glossary into root `CONTEXT.md` (facet labels, anatomy, scope terms)
-- [ ] 1.6 Vitest: nav targets Telemetry, Actuators absent, overview master chrome (`consul/src/**/__tests__/`)
+- [x] 1.1 Add `/telemetry` route stub and sidebar entry in `consul/src/routes/config.tsx`, `consul/src/data/sidebar-nav.ts`
+- [x] 1.2 Redirect `/subsystems` → `/telemetry` in `consul/src/pages/subsystems.tsx`
+- [x] 1.3 Remove `/actuators` route, page, and sidebar entry (`consul/src/pages/actuators.tsx`, `consul/src/components/dashboard/actuators/**`)
+- [x] 1.4 Replace `bench_4dof`/`arm_4dof_right` strings in `consul/src/routes/config.tsx`, `consul/src/data/site-header.ts`, `consul/src/lib/bringup-presets.ts`, overview subtitle
+- [x] 1.5 Fold PR #117 glossary into root `CONTEXT.md` (facet labels, anatomy, scope terms)
+- [x] 1.6 Vitest: nav targets Telemetry, Actuators absent, overview master chrome (`consul/src/**/__tests__/`)
 
 ## Phase 2: Telemetry Read-Only (PR2)
 

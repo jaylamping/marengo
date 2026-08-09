@@ -1,5 +1,3 @@
-import { isActuatorsFeatureEnabled } from '@/lib/feature-flags';
-
 export type SidebarIconKey =
   | 'overview'
   | 'simulation'
@@ -45,28 +43,18 @@ export const sidebarUser: SidebarUser = {
 const sidebarNavMainBase: SidebarNavItem[] = [
   { title: 'Overview', url: '/', icon: 'overview' },
   { title: 'Simulation', url: '/simulation', icon: 'simulation' },
-  { title: 'Subsystems', url: '/subsystems', icon: 'subsystems' },
+  { title: 'Telemetry', url: '/telemetry', icon: 'telemetry' },
   { title: 'Hardware', url: '/hardware', icon: 'hardware' },
   { title: 'Testing', url: '/testing', icon: 'preset-tuning' },
   { title: 'Logs', url: '/logs', icon: 'logs' },
 ];
 
-const actuatorsNavItem: SidebarNavItem = {
-  title: 'Actuators',
-  url: '/actuators',
-  icon: 'actuators',
-};
-
-/** Main nav with feature-gated Actuators entry after Simulation. */
+/** Main nav — Telemetry replaces Subsystems; Actuators retired. */
 export function getSidebarNavMain(): SidebarNavItem[] {
-  if (!isActuatorsFeatureEnabled()) {
-    return sidebarNavMainBase;
-  }
-  const [overview, simulation, ...rest] = sidebarNavMainBase;
-  return [overview, simulation, actuatorsNavItem, ...rest];
+  return sidebarNavMainBase;
 }
 
-/** @deprecated Use getSidebarNavMain() for feature-aware navigation. */
+/** @deprecated Use getSidebarNavMain(). */
 export const sidebarNavMain: SidebarNavItem[] = sidebarNavMainBase;
 
 /** Reserved — empty until Settings/Docs/Search are real routes. */
