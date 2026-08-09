@@ -62,9 +62,9 @@ pub mod fixtures {
         repo_root().join("assets/urdf/marengo.urdf")
     }
 
-    /// 4-DOF arm bring-up URDF (`assets/urdf/arm_4dof.urdf`) — humanoid arm subset.
+    /// 4-DOF arm bring-up URDF (archived slice; live master is [`production_urdf`](fn@production_urdf)).
     pub fn arm_4dof_urdf() -> PathBuf {
-        repo_root().join("assets/urdf/arm_4dof.urdf")
+        repo_root().join("assets/urdf/archive/seed-arm_4dof/contributor.urdf")
     }
 
     /// Production Marengo MJCF (`assets/mjcf/marengo.xml`).
@@ -77,9 +77,9 @@ pub mod fixtures {
         repo_root().join("assets/mjcf/arm_4dof.xml")
     }
 
-    /// Right 4-DOF bench URDF (`assets/urdf/arm_4dof_right.urdf`).
+    /// Right 4-DOF bench URDF (archived slice; live master is [`production_urdf`](fn@production_urdf)).
     pub fn arm_4dof_right_urdf() -> PathBuf {
-        repo_root().join("assets/urdf/arm_4dof_right.urdf")
+        repo_root().join("assets/urdf/archive/seed-arm_4dof_right/contributor.urdf")
     }
 
     /// Right 4-DOF bench MJCF (`assets/mjcf/arm_4dof_right.xml`).
@@ -209,7 +209,9 @@ mod tests {
     fn loads_production_urdf() {
         let path = fixtures::production_urdf();
         let robot = load_urdf(&path).expect("production urdf");
-        assert_eq!(actuated_joint_count(&robot), 2);
+        assert_eq!(actuated_joint_count(&robot), 4);
+        let names = actuated_joint_names(&robot);
+        assert!(names.contains(&"right_elbow_pitch".to_string()));
     }
 
     #[test]

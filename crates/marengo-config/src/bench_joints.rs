@@ -1,4 +1,4 @@
-//! Command-eligible joints from the active bringup `robot.yaml`.
+//! Command-eligible joints from master `robot.yaml`.
 //!
 //! The allowlist is the loaded profile's `robot.joints` — not a hardcoded left/right
 //! bench table. Inventory aliases resolve only when their canonical name is wired.
@@ -44,7 +44,7 @@ impl CommandJointAllowlist {
     }
 }
 
-/// Load command allowlist from `MARENGO_CONFIG_DIR` (or `<repo>/config`).
+/// Load command allowlist from `MARENGO_CONFIG_DIR` (or master `<repo>/config`).
 pub fn load_command_joint_allowlist() -> Result<CommandJointAllowlist, ConfigError> {
     load_command_joint_allowlist_from(resolve_config_dir(resolve_repo_root()))
 }
@@ -58,9 +58,6 @@ pub fn load_command_joint_allowlist_from(
 }
 
 /// Resolve an operator/inventory joint name to a wired canonical name.
-///
-/// Single entry point replacing the old `normalize_joint_alias` /
-/// `is_wired_bench_joint` / `resolve_command_joint` trio.
 pub fn resolve_command_joint<'a>(
     input: &str,
     allowlist: &'a CommandJointAllowlist,
@@ -95,14 +92,13 @@ mod tests {
     #![allow(clippy::expect_used)]
 
     use super::*;
-    use crate::resolve_repo_root;
+    use crate::{resolve_config_dir, resolve_repo_root, resolve_urdf_path};
 
     #[test]
-    fn arm_3dof_right_accepts_right_joints() {
+    fn master_config_accepts_right_four_dof_joints() {
         let root = resolve_repo_root();
-        let allowlist =
-            load_command_joint_allowlist_from(root.join("config/bringup/arm_3dof_right"))
-                .expect("3dof allowlist");
+        let allowlist = load_command_joint_allowlist_from(resolve_config_dir(&root))
+            .expect("master allowlist");
         assert_eq!(
             resolve_command_joint("right_shoulder_pitch", &allowlist),
             Some("right_shoulder_pitch")
@@ -116,47 +112,25 @@ mod tests {
             Some("right_upper_arm_yaw")
         );
         assert_eq!(
-            resolve_command_joint("left_shoulder_pitch", &allowlist),
-            None
-        );
-        assert_eq!(resolve_command_joint("shoulder_pitch", &allowlist), None);
-    }
-
-    #[test]
-    fn arm_4dof_right_accepts_elbow_pitch() {
-        let root = resolve_repo_root();
-        let allowlist =
-            load_command_joint_allowlist_from(root.join("config/bringup/arm_4dof_right"))
-                .expect("4dof right allowlist");
-        assert_eq!(
             resolve_command_joint("right_elbow_pitch", &allowlist),
             Some("right_elbow_pitch")
         );
         assert_eq!(
-            resolve_command_joint("right_shoulder_pitch", &allowlist),
-            Some("right_shoulder_pitch")
+            resolve_command_joint("left_shoulder_pitch", &allowlist),
+            None
         );
         assert_eq!(resolve_command_joint("elbow", &allowlist), None);
     }
 
     #[test]
-    fn arm_4dof_left_accepts_short_and_left_aliases() {
+    fn master_boot_resolution_uses_repo_config_when_pi_path_missing() {
         let root = resolve_repo_root();
-        let allowlist =
-            load_command_joint_allowlist_from(root.join("config/bringup/arm_4dof_left"))
-                .expect("4dof allowlist");
-        assert_eq!(
-            resolve_command_joint("shoulder_pitch", &allowlist),
-            Some("shoulder_pitch")
-        );
-        assert_eq!(
-            resolve_command_joint("left_shoulder_pitch", &allowlist),
-            Some("shoulder_pitch")
-        );
-        assert_eq!(
-            resolve_command_joint("right_shoulder_pitch", &allowlist),
-            None
-        );
+        let config_dir = resolve_config_dir(&root);
+        assert!(config_dir.ends_with("config"));
+        let robot = load_robot_config_from(&config_dir).expect("robot");
+        assert_eq!(robot.robot.urdf, "assets/urdf/marengo.urdf");
+        let path = resolve_urdf_path(&root, &robot).expect("urdf");
+        assert!(path.ends_with("marengo.urdf"));
     }
 
     #[test]

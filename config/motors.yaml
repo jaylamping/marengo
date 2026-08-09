@@ -1,63 +1,63 @@
-# Left 4-DOF arm on can0 — device IDs 11–14 (see hardware ADR 0001).
-# motor_type per hardware/docs/decisions/0002-robstride-protocol.md
+# Right 4-DOF bench — roll (1) + pitch (2) + yaw (3) + elbow pitch (4) on can0.
+# ID block: right arm 1–10 (hardware ADR 0001).
+#
+# Bench envelopes from Set Limits (2026-07-22). Davout hard = URDF ∩ bench.
+# Roll lower kept at URDF -0.05 (not flush to measured min) so home pose ~-0.01 enables.
 motors:
-  - joint: shoulder_roll
+  - joint: right_shoulder_roll
     driver: robstride
     motor_type: rs03
     can_interface: can0
-    device_id: 11
+    device_id: 1
     direction: 1
     gear_ratio: 1.0
-    recv_can_id: 0x24b
+    recv_can_id: 0x241
     firmware_version: "0.3.1.42"
     bench:
-      position_lower_rad: -1.57
-      position_upper_rad: 1.57
-      # DEPRECATED: command velocity caps come from control.yaml (ADR 0010).
-      velocity_limit_rad_s: 0.5
+      position_lower_rad: -0.05
+      position_upper_rad: 2.579468250274658
+      velocity_limit_rad_s: 2.0
       torque_limit_nm: 5.0
-  - joint: shoulder_pitch
+  - joint: right_shoulder_pitch
     driver: robstride
     motor_type: rs03
     can_interface: can0
-    device_id: 12
-    direction: 1
+    device_id: 2
+    direction: -1
     gear_ratio: 1.0
-    recv_can_id: 0x24c
+    recv_can_id: 0x242
     firmware_version: "0.3.1.42"
     bench:
-      position_lower_rad: -0.9
-      position_upper_rad: 3.17
-      # DEPRECATED: command velocity caps come from control.yaml (ADR 0010).
-      velocity_limit_rad_s: 0.5
+      position_lower_rad: -0.9004737138748169
+      position_upper_rad: 2.9253904819488525
+      velocity_limit_rad_s: 2.0
       torque_limit_nm: 5.0
-  - joint: upper_arm_yaw
+  - joint: right_upper_arm_yaw
     driver: robstride
     motor_type: rs02
     can_interface: can0
-    device_id: 13
+    device_id: 3
     direction: 1
     gear_ratio: 1.0
-    recv_can_id: 0x24d
+    recv_can_id: 0x243
     firmware_version: "0.3.1.42"
     bench:
-      position_lower_rad: -1.57
-      position_upper_rad: 1.57
-      # DEPRECATED: command velocity caps come from control.yaml (ADR 0010).
-      velocity_limit_rad_s: 0.5
+      position_lower_rad: -0.7497563362121582
+      position_upper_rad: 0.5269389152526855
+      velocity_limit_rad_s: 2.0
       torque_limit_nm: 3.0
-  - joint: elbow
+  - joint: right_elbow_pitch
     driver: robstride
     motor_type: rs02
     can_interface: can0
-    device_id: 14
+    device_id: 4
+    # Provisional — verify motor vs URDF +Y with a low-gain jog after set-zero.
     direction: 1
     gear_ratio: 1.0
-    recv_can_id: 0x24e
+    recv_can_id: 0x244
     firmware_version: "0.3.1.42"
     bench:
-      position_lower_rad: 0.0
-      position_upper_rad: 2.5
-      # DEPRECATED: command velocity caps come from control.yaml (ADR 0010).
-      velocity_limit_rad_s: 0.5
+      position_lower_rad: -0.4103526175022125
+      position_upper_rad: 1.034701585769653
+      velocity_limit_rad_s: 1.0
       torque_limit_nm: 3.0

@@ -27,16 +27,16 @@ Chain strategy: feature-branch-chain
 
 ## Phase 1: SoT
 
-- [ ] 1.1 Copy `config/bringup/arm_4dof_right/{robot,motors,control,homing}.yaml` → root `config/`; set `robot.urdf: assets/urdf/marengo.urdf`
-- [ ] 1.2 Promote `assets/urdf/arm_4dof_right.urdf` → `assets/urdf/marengo.urdf`; archive placeholder + slice URDFs under `assets/urdf/archive/<upload-id>/` with `manifest.json`
-- [ ] 1.3 Add `assets/urdf/staging/.gitkeep`; seed archive manifests per #108 (checksum, source, timestamp)
-- [ ] 1.4 Delete `config/bringup/**` runtime SoT; update `config/AGENTS.md` + `codemap.md` for master-only tree
-- [ ] 1.5 Default `MARENGO_CONFIG_DIR` to `/opt/marengo/config` in `marengo-config`, `bins/marengo-pi`, `scripts/env.example`
-- [ ] 1.6 Remove bringup profile reads in `crates/marengo-config/src/bringup_presets.rs` and `bench_joints.rs`; delete or retire `bringup_presets.rs`
-- [ ] 1.7 Retarget `profile_txn.rs` + `urdf_expand.rs` to master paths only (no inactive profile CAS)
-- [ ] 1.8 Update `marengo-config` tests/fixtures off `bringup/` paths; RED tests for master boot resolution
-- [ ] 1.9 GREEN: `cargo test -p marengo-config`; URDF validation script passes on promoted `marengo.urdf`
-- [ ] 1.10 Update `docs/decisions/0012-config-db-overrides.md` disk SoT paths; gate: feasibility **Go** recorded before merge
+- [x] 1.1 Copy `config/bringup/arm_4dof_right/{robot,motors,control,homing}.yaml` → root `config/`; set `robot.urdf: assets/urdf/marengo.urdf`
+- [x] 1.2 Promote `assets/urdf/arm_4dof_right.urdf` → `assets/urdf/marengo.urdf`; archive placeholder + slice URDFs under `assets/urdf/archive/<upload-id>/` with `manifest.json`
+- [x] 1.3 Add `assets/urdf/staging/.gitkeep`; seed archive manifests per #108 (checksum, source, timestamp)
+- [x] 1.4 Delete `config/bringup/**` runtime SoT; update `config/AGENTS.md` + `codemap.md` for master-only tree
+- [x] 1.5 Default `MARENGO_CONFIG_DIR` to `/opt/marengo/config` in `marengo-config`, `bins/marengo-pi`, `scripts/env.example`
+- [x] 1.6 Remove bringup profile reads in `crates/marengo-config/src/bringup_presets.rs` and `bench_joints.rs`; delete or retire `bringup_presets.rs`
+- [x] 1.7 Retarget `profile_txn.rs` + `urdf_expand.rs` to master paths only (no inactive profile CAS)
+- [x] 1.8 Update `marengo-config` tests/fixtures off `bringup/` paths; RED tests for master boot resolution
+- [x] 1.9 GREEN: `cargo test -p marengo-config`; URDF validation script passes on promoted `marengo.urdf`
+- [x] 1.10 Update `docs/decisions/0012-config-db-overrides.md` disk SoT paths; gate: feasibility **Go** recorded before merge
 
 **Phase 1 budget:** ~350–450 lines | Medium
 

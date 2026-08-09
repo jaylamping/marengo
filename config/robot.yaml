@@ -1,13 +1,13 @@
-# Robot runtime parameters (4-DOF arm bring-up — first wired humanoid subsystem)
+# Master hardware description — right 4-DOF bench (roll + pitch + yaw + elbow on can0).
+# Durable SoT: root config/ + assets/urdf/marengo.urdf (Pi: /opt/marengo/config/).
 robot:
-  name: marengo_arm_4dof
-  urdf: assets/urdf/arm_4dof.urdf
+  name: marengo_arm_4dof_right
+  urdf: assets/urdf/marengo.urdf
   bench:
-    # DEPRECATED: command velocity caps come from control.yaml (ADR 0010).
-    max_joint_velocity_rad_s: 0.5
+    max_joint_velocity_rad_s: 2.0
     max_joint_torque_nm: 5.0
   joints:
-    - shoulder_pitch
-    - shoulder_roll
-    - upper_arm_yaw
-    - elbow
+    - right_shoulder_roll
+    - right_shoulder_pitch
+    - right_upper_arm_yaw
+    - right_elbow_pitch

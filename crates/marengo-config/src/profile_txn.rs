@@ -1,4 +1,4 @@
-//! Validated, compare-and-swap transactions for bringup profile YAML.
+//! Validated, compare-and-swap transactions for master config YAML.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -8,12 +8,12 @@ use serde::Serialize;
 use crate::{
     apply_limit_patch_to_control, apply_limit_patch_to_motor, ensure_soft_inset,
     load_control_config_from, load_homing_config_from, load_motors_config_from,
-    load_robot_config_from, profile_content_revision, validate_control_against_limits,
+    load_robot_config_from, resolve_config_dir, validate_control_against_limits,
     validate_control_config, validate_limit_patch, validate_motors_against_robot,
     validate_robot_control_joint_coverage, write_motors_control_and_urdf, ConfigError,
     ControlConfigFile, HomingConfigFile, LimitPatch, MotorsConfigFile, RobotConfigFile,
-    BRINGUP_PROFILE_SLUGS,
 };
+use crate::config_revision::profile_content_revision;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UpsertLimitResult {
@@ -222,19 +222,17 @@ pub fn limit_patch_from_motor(
     })
 }
 
+/// Profiles containing `joint` in master `motors.yaml` (master-only after SoT cutover).
 pub fn membership_slugs_for_joint(
     repo_root: impl AsRef<Path>,
     joint: &str,
 ) -> Result<Vec<String>, ConfigError> {
-    let bringup_root = repo_root.as_ref().join("config/bringup");
-    let mut memberships = Vec::new();
-    for slug in BRINGUP_PROFILE_SLUGS {
-        let profile = bringup_root.join(slug);
-        if joint_in_motors(&profile, joint)? {
-            memberships.push((*slug).to_string());
-        }
+    let config_dir = resolve_config_dir(repo_root);
+    if joint_in_motors(&config_dir, joint)? {
+        Ok(vec!["master".to_string()])
+    } else {
+        Ok(vec![])
     }
-    Ok(memberships)
 }
 
 fn check_revision(config_dir: &Path, expected_revision: Option<&str>) -> Result<(), ConfigError> {
@@ -332,29 +330,33 @@ mod tests {
     #![allow(clippy::expect_used, clippy::unwrap_used)]
 
     use std::fs;
+    use std::path::{Path, PathBuf};
+    use std::sync::{Mutex, OnceLock};
 
     use crate::{
         load_control_config_from, load_homing_config_from, load_motors_config_from,
-        load_robot_config_from, profile_content_revision, resolve_repo_root,
+        load_robot_config_from, profile_content_revision, resolve_config_dir, resolve_repo_root,
     };
 
     use super::*;
 
-    const PROFILE_FILES: [&str; 4] = ["robot.yaml", "motors.yaml", "control.yaml", "homing.yaml"];
-
-    fn copy_profile(source: &Path, target: &Path) {
-        for name in PROFILE_FILES {
-            fs::copy(source.join(name), target.join(name)).expect("copy profile file");
-        }
+    fn profile_txn_test_lock() -> std::sync::MutexGuard<'static, ()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+            .lock()
+            .expect("profile_txn test lock")
     }
 
-    fn copy_profile_tree(profile: &str) -> (tempfile::TempDir, PathBuf) {
+    const PROFILE_FILES: [&str; 4] = ["robot.yaml", "motors.yaml", "control.yaml", "homing.yaml"];
+
+    fn copy_master_config_tree() -> (tempfile::TempDir, PathBuf) {
         let root = resolve_repo_root();
-        let source = root.join("config/bringup").join(profile);
         let temp = tempfile::tempdir().expect("tempdir");
-        let config_dir = temp.path().join("config/bringup").join(profile);
+        let config_dir = temp.path().join("config");
         fs::create_dir_all(&config_dir).expect("config dir");
-        copy_profile(&source, &config_dir);
+        for name in PROFILE_FILES {
+            fs::copy(root.join("config").join(name), config_dir.join(name)).expect("copy profile file");
+        }
         let robot = load_robot_config_from(&config_dir).expect("robot");
         let urdf_rel = PathBuf::from(&robot.robot.urdf);
         let urdf_dest = temp.path().join(&urdf_rel);
@@ -363,6 +365,57 @@ mod tests {
         }
         fs::copy(root.join(&urdf_rel), &urdf_dest).expect("copy urdf");
         (temp, config_dir)
+    }
+
+    fn copy_three_dof_subset(temp_root: &Path) -> PathBuf {
+        let root = resolve_repo_root();
+        let config_dir = temp_root.join("config");
+        fs::create_dir_all(&config_dir).expect("config dir");
+        for name in PROFILE_FILES {
+            fs::copy(root.join("config").join(name), config_dir.join(name)).expect("copy");
+        }
+        let mut robot = load_robot_config_from(&config_dir).expect("robot");
+        robot.robot.joints.retain(|j| j != "right_elbow_pitch");
+        fs::write(
+            config_dir.join("robot.yaml"),
+            serde_yaml::to_string(&robot).expect("robot yaml"),
+        )
+        .expect("write robot");
+        let mut motors = load_motors_config_from(&config_dir).expect("motors");
+        motors.motors.retain(|m| m.joint != "right_elbow_pitch");
+        fs::write(
+            config_dir.join("motors.yaml"),
+            serde_yaml::to_string(&motors).expect("motors yaml"),
+        )
+        .expect("write motors");
+        let mut control = load_control_config_from(&config_dir).expect("control");
+        control.control.joints.remove("right_elbow_pitch");
+        control.control.actuator_groups.remove("elbow");
+        fs::write(
+            config_dir.join("control.yaml"),
+            serde_yaml::to_string(&control).expect("control yaml"),
+        )
+        .expect("write control");
+        let mut homing = load_homing_config_from(&config_dir).expect("homing");
+        homing.homing.joints.remove("right_elbow_pitch");
+        fs::write(
+            config_dir.join("homing.yaml"),
+            serde_yaml::to_string(&homing).expect("homing yaml"),
+        )
+        .expect("write homing");
+        let urdf_src = root.join("assets/urdf/archive/seed-arm_3dof_right/contributor.urdf");
+        let urdf_dest = temp_root.join("assets/urdf/marengo.urdf");
+        if let Some(parent) = urdf_dest.parent() {
+            fs::create_dir_all(parent).expect("urdf parent");
+        }
+        robot.robot.urdf = "assets/urdf/marengo.urdf".to_string();
+        fs::write(
+            config_dir.join("robot.yaml"),
+            serde_yaml::to_string(&robot).expect("robot yaml"),
+        )
+        .expect("write robot urdf path");
+        fs::copy(urdf_src, &urdf_dest).expect("3dof urdf");
+        config_dir
     }
 
     fn elbow_patch() -> LimitPatch {
@@ -379,7 +432,8 @@ mod tests {
 
     #[test]
     fn upsert_writes_validated_limits_and_advances_revision() {
-        let (temp, config_dir) = copy_profile_tree("arm_4dof_right");
+        let _guard = profile_txn_test_lock();
+        let (temp, config_dir) = copy_master_config_tree();
         let before = profile_content_revision(&config_dir).expect("revision");
 
         let result = upsert_joint_limits(temp.path(), &config_dir, &elbow_patch(), Some(&before))
@@ -405,7 +459,8 @@ mod tests {
 
     #[test]
     fn upsert_rejects_stale_revision_without_writing() {
-        let (temp, config_dir) = copy_profile_tree("arm_4dof_right");
+        let _guard = profile_txn_test_lock();
+        let (temp, config_dir) = copy_master_config_tree();
         let before = profile_content_revision(&config_dir).expect("revision");
 
         assert!(
@@ -420,36 +475,35 @@ mod tests {
 
     #[test]
     fn adds_joint_when_target_urdf_declares_it() {
+        let _guard = profile_txn_test_lock();
         let root = resolve_repo_root();
-        let source = root.join("config/bringup/arm_4dof_right");
-        let target_source = root.join("config/bringup/arm_3dof_right");
+        let source = resolve_config_dir(&root);
         let temp = tempfile::tempdir().expect("tempdir");
-        copy_profile(&target_source, temp.path());
-        let mut robot = load_robot_config_from(temp.path()).expect("robot");
-        robot.robot.urdf = "assets/urdf/arm_4dof_right.urdf".to_string();
-        fs::write(
-            temp.path().join("robot.yaml"),
-            serde_yaml::to_string(&robot).expect("serialize robot"),
-        )
-        .expect("write robot");
+        let target_dir = copy_three_dof_subset(temp.path());
+        let full_urdf = root.join("assets/urdf/marengo.urdf");
+        let urdf_dest = temp.path().join("assets/urdf/marengo.urdf");
+        if let Some(parent) = urdf_dest.parent() {
+            fs::create_dir_all(parent).expect("urdf dir");
+        }
+        fs::copy(&full_urdf, &urdf_dest).expect("full urdf");
 
-        let result = add_joint_from_source(&root, temp.path(), &source, "right_elbow_pitch", None)
+        let result = add_joint_from_source(temp.path(), &target_dir, &source, "right_elbow_pitch", None)
             .expect("add elbow");
 
         assert_eq!(result.joint, "right_elbow_pitch");
-        assert!(load_robot_config_from(temp.path())
+        assert!(load_robot_config_from(&target_dir)
             .expect("robot")
             .robot
             .joints
             .iter()
             .any(|joint| joint == "right_elbow_pitch"));
-        assert!(joint_in_motors(temp.path(), "right_elbow_pitch").expect("membership"));
-        assert!(load_control_config_from(temp.path())
+        assert!(joint_in_motors(&target_dir, "right_elbow_pitch").expect("membership"));
+        assert!(load_control_config_from(&target_dir)
             .expect("control")
             .control
             .joints
             .contains_key("right_elbow_pitch"));
-        assert!(load_homing_config_from(temp.path())
+        assert!(load_homing_config_from(&target_dir)
             .expect("homing")
             .homing
             .joints
@@ -458,34 +512,33 @@ mod tests {
 
     #[test]
     fn refuses_elbow_when_target_urdf_is_three_dof() {
+        let _guard = profile_txn_test_lock();
         let root = resolve_repo_root();
-        let source = root.join("config/bringup/arm_4dof_right");
-        let target_source = root.join("config/bringup/arm_3dof_right");
+        let source = resolve_config_dir(&root);
         let temp = tempfile::tempdir().expect("tempdir");
-        copy_profile(&target_source, temp.path());
-        let before = profile_content_revision(temp.path()).expect("revision");
+        let target_dir = copy_three_dof_subset(temp.path());
+        let before = profile_content_revision(&target_dir).expect("revision");
 
         assert!(
-            add_joint_from_source(&root, temp.path(), &source, "right_elbow_pitch", None).is_err()
+            add_joint_from_source(temp.path(), &target_dir, &source, "right_elbow_pitch", None).is_err()
         );
         assert_eq!(
-            profile_content_revision(temp.path()).expect("revision after rejection"),
+            profile_content_revision(&target_dir).expect("revision after rejection"),
             before
         );
     }
 
     #[test]
-    fn reports_profile_membership_and_current_limits() {
+    fn reports_master_membership_and_current_limits() {
         let root = resolve_repo_root();
-        let profile = root.join("config/bringup/arm_4dof_right");
+        let profile = resolve_config_dir(&root);
 
         assert!(joint_in_motors(&profile, "right_elbow_pitch").expect("motor membership"));
         assert!(joint_in_profile_urdf(&root, &profile, "right_elbow_pitch").expect("URDF"));
         let patch = limit_patch_from_motor(&profile, "right_elbow_pitch").expect("limits");
-        // Matches config/bringup/arm_4dof_right/motors.yaml (Davout live hard).
         assert!((patch.position_upper_rad - 1.034701585769653).abs() < 1e-9);
         let slugs = membership_slugs_for_joint(&root, "right_elbow_pitch").expect("slugs");
-        assert!(slugs.iter().any(|slug| slug == "arm_4dof_right"));
-        assert!(!slugs.iter().any(|slug| slug == "arm_3dof_right"));
+        assert!(slugs.iter().any(|slug| slug == "master"));
+        assert!(!slugs.is_empty());
     }
 }
