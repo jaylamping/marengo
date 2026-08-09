@@ -24,10 +24,15 @@ export type LogSessionDto = {
 
 export type CandumpFrameDto = {
   delta_s: number;
+  offset_s: number;
   interface: string;
   can_id: string;
   data: string;
   line_no: number;
+  timestamp_unix_us?: number;
+  comm_type?: number;
+  comm_type_name?: string;
+  joint?: string;
 };
 
 export type LogErrorKind =
@@ -50,13 +55,27 @@ export type AsyncSlice<T> = {
   data: T;
 };
 
+export type CandumpIdCountDto = {
+  can_id: string;
+  count: number;
+};
+
+export type CandumpInterfaceSummaryDto = {
+  name: string;
+  parsed_frames: number;
+  approx_hz: number | null;
+};
+
 export type CandumpSummaryDto = {
-  frame_count: number;
-  bytes: number;
+  parsed_frames: number;
+  total_lines: number;
+  source_bytes: number;
   duration_s: number;
-  approx_hz: number;
-  interfaces: string[];
-  top_ids: string[];
+  approx_hz: number | null;
+  interfaces: CandumpInterfaceSummaryDto[];
+  top_ids: CandumpIdCountDto[];
+  frame_count?: number;
+  bytes?: number;
 };
 
 function statusToKind(status: number): LogErrorKind {
@@ -164,20 +183,22 @@ export async function fetchCandumpPage(
   sessionId: string | 'latest',
   offset = 0,
   limit = 200,
-): Promise<LogApiResult<{ frames: CandumpFrameDto[]; total_frames: number }>> {
+): Promise<LogApiResult<{ frames: CandumpFrameDto[]; total_frames: number; parsed_frames?: number }>> {
   const path =
     sessionId === 'latest'
       ? `/logs/sessions/latest/candump?offset=${offset}&limit=${limit}`
       : `/logs/sessions/${encodeURIComponent(sessionId)}/candump?offset=${offset}&limit=${limit}`;
-  return logFetch<{ frames: CandumpFrameDto[]; total_frames: number }>(path);
+  return logFetch<{ frames: CandumpFrameDto[]; total_frames: number; parsed_frames?: number }>(path);
 }
 
 export async function fetchCandumpSummary(
-  sessionId: string,
+  sessionId: string | 'latest',
 ): Promise<LogApiResult<CandumpSummaryDto>> {
-  return logFetch<CandumpSummaryDto>(
-    `/logs/sessions/${encodeURIComponent(sessionId)}/candump/summary`,
-  );
+  const path =
+    sessionId === 'latest'
+      ? '/logs/sessions/latest/candump/summary'
+      : `/logs/sessions/${encodeURIComponent(sessionId)}/candump/summary`;
+  return logFetch<CandumpSummaryDto>(path);
 }
 
 export async function fetchBenchLines(

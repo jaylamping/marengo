@@ -11,19 +11,26 @@ use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 
 use crate::error::{Result, StoreError};
-use crate::migrations::{MIGRATION_001, MIGRATION_002, SCHEMA_VERSION};
-use crate::model::{
-    CandumpFrame, CandumpSummary, LogEventInsert, LogEventRow, LogSessionRow, StructuredLogQuery,
-};
+use crate::migrations::{MIGRATION_001, MIGRATION_002, MIGRATION_003, SCHEMA_VERSION};
+use crate::model::{LogEventInsert, LogEventRow, LogSessionRow, StructuredLogQuery};
 use crate::paths::{blob_dir, log_dir};
 
 pub struct Store {
     conn: Mutex<Connection>,
     marengo_root: PathBuf,
+    candump: marengo_candump::Candump,
 }
 
 impl Store {
     pub fn open(db_path: impl AsRef<Path>, marengo_root: impl AsRef<Path>) -> Result<Self> {
+        Self::open_with_candump(db_path, marengo_root, marengo_candump::Candump::plain())
+    }
+
+    pub fn open_with_candump(
+        db_path: impl AsRef<Path>,
+        marengo_root: impl AsRef<Path>,
+        candump: marengo_candump::Candump,
+    ) -> Result<Self> {
         if let Some(parent) = db_path.as_ref().parent() {
             fs::create_dir_all(parent)?;
         }
@@ -33,6 +40,7 @@ impl Store {
         let store = Self {
             conn: Mutex::new(conn),
             marengo_root: marengo_root.as_ref().to_path_buf(),
+            candump,
         };
         store.migrate()?;
         Ok(store)
@@ -58,6 +66,9 @@ impl Store {
         let version = self.schema_version()?.unwrap_or(0);
         if version < 2 {
             self.connection().execute_batch(MIGRATION_002)?;
+        }
+        if version < 3 {
+            self.connection().execute_batch(MIGRATION_003)?;
         }
         self.set_setting("schema_version", &SCHEMA_VERSION.to_string(), now)?;
         if self.get_setting("log_archive_days")?.is_none() {
@@ -299,10 +310,6 @@ impl Store {
                     let _ = fs::remove_file(&path);
                 }
             }
-            conn.execute(
-                "DELETE FROM candump_frame_index WHERE session_id = ?1",
-                params![id],
-            )?;
             conn.execute("DELETE FROM log_sessions WHERE id = ?1", params![id])?;
         }
 
@@ -430,11 +437,18 @@ impl Store {
             let gz_path = self.gzip_to_blob(&path, &session_id)?;
             self.update_session_blob(&session_id, &path, &gz_path)?;
             if pattern.contains("candump") {
-                let count = self.build_candump_index(&session_id, &gz_path, true)?;
-                let bytes = fs::metadata(&gz_path).map(|m| m.len()).unwrap_or(0);
+                let inspection = self.candump.inspect_path(
+                    &gz_path,
+                    marengo_candump::InspectRequest::summary(marengo_candump::TimestampMode::Delta),
+                )?;
+                let bytes = inspection.summary.source_bytes;
                 self.connection().execute(
                     "UPDATE log_sessions SET candump_frame_count = ?1, candump_bytes = ?2 WHERE id = ?3",
-                    params![count as i64, bytes as i64, session_id],
+                    params![
+                        inspection.summary.parsed_frames as i64,
+                        bytes as i64,
+                        session_id
+                    ],
                 )?;
             }
             fs::remove_file(&path)?;
@@ -493,43 +507,6 @@ impl Store {
         Ok(())
     }
 
-    pub fn build_candump_index(
-        &self,
-        session_id: &str,
-        blob_path: &Path,
-        gzipped: bool,
-    ) -> Result<u32> {
-        self.connection().execute(
-            "DELETE FROM candump_frame_index WHERE session_id = ?1",
-            params![session_id],
-        )?;
-        let file = File::open(blob_path)?;
-        let mut reader: Box<dyn BufRead> = if gzipped {
-            Box::new(BufReader::new(GzDecoder::new(file)))
-        } else {
-            Box::new(BufReader::new(file))
-        };
-        let mut line_no = 0u32;
-        let mut offset = 0u64;
-        let mut buf = Vec::new();
-        loop {
-            buf.clear();
-            let read = reader.read_until(b'\n', &mut buf)?;
-            if read == 0 {
-                break;
-            }
-            if !buf.iter().all(|b| b.is_ascii_whitespace()) {
-                self.connection().execute(
-                    "INSERT INTO candump_frame_index (session_id, line_no, byte_offset) VALUES (?1, ?2, ?3)",
-                    params![session_id, line_no as i64, offset as i64],
-                )?;
-                line_no += 1;
-            }
-            offset += read as u64;
-        }
-        Ok(line_no)
-    }
-
     pub fn read_bench_page(
         &self,
         session_id: &str,
@@ -550,37 +527,84 @@ impl Store {
         session_id: &str,
         offset: u32,
         limit: u32,
-    ) -> Result<(Vec<CandumpFrame>, u32)> {
+    ) -> Result<marengo_candump::Inspection> {
         let session = self
             .get_session(session_id)?
             .ok_or_else(|| StoreError::msg("session not found"))?;
         let path = session
             .candump_blob
             .ok_or_else(|| StoreError::msg("no candump blob"))?;
-        let gz = path.ends_with(".gz");
-        read_candump_frames(&path, gz, session_id, self, offset, limit)
+        let page = marengo_candump::FramePage::new(u64::from(offset), limit)?;
+        Ok(self.candump.inspect_path(
+            &path,
+            marengo_candump::InspectRequest::page(marengo_candump::TimestampMode::Delta, page),
+        )?)
     }
 
     pub fn read_hot_candump_page(
         &self,
         offset: u32,
         limit: u32,
-    ) -> Result<(Vec<CandumpFrame>, u32)> {
+    ) -> Result<marengo_candump::Inspection> {
         let hot = log_dir(&self.marengo_root).join("candump-latest.log");
         if !hot.exists() {
-            return Ok((Vec::new(), 0));
+            return Ok(marengo_candump::Inspection {
+                timestamp_mode: marengo_candump::TimestampMode::Delta,
+                summary: marengo_candump::Summary {
+                    total_lines: 0,
+                    parsed_frames: 0,
+                    source_bytes: 0,
+                    duration_s: 0.0,
+                    approx_hz: None,
+                    interfaces: Vec::new(),
+                    top_ids: Vec::new(),
+                },
+                frames: Vec::new(),
+            });
         }
-        read_candump_lines_file(&hot, false, offset, limit)
+        let page = marengo_candump::FramePage::new(u64::from(offset), limit)?;
+        Ok(self.candump.inspect_path(
+            &hot,
+            marengo_candump::InspectRequest::page(marengo_candump::TimestampMode::Delta, page),
+        )?)
     }
 
-    pub fn candump_summary(&self, session_id: &str) -> Result<CandumpSummary> {
+    pub fn candump_summary(&self, session_id: &str) -> Result<marengo_candump::Summary> {
         let session = self
             .get_session(session_id)?
             .ok_or_else(|| StoreError::msg("session not found"))?;
         let path = session
             .candump_blob
             .ok_or_else(|| StoreError::msg("no candump blob"))?;
-        summarize_candump(&path, path.ends_with(".gz"))
+        Ok(self
+            .candump
+            .inspect_path(
+                &path,
+                marengo_candump::InspectRequest::summary(marengo_candump::TimestampMode::Delta),
+            )?
+            .summary)
+    }
+
+    pub fn hot_candump_summary(&self) -> Result<marengo_candump::Summary> {
+        let hot = log_dir(&self.marengo_root).join("candump-latest.log");
+        if !hot.exists() {
+            return Ok(marengo_candump::Summary {
+                total_lines: 0,
+                parsed_frames: 0,
+                source_bytes: 0,
+                duration_s: 0.0,
+                approx_hz: None,
+                interfaces: Vec::new(),
+                top_ids: Vec::new(),
+            });
+        }
+        Ok(self
+            .candump
+            .inspect_path(
+                &hot,
+                marengo_candump::InspectRequest::summary(marengo_candump::TimestampMode::Delta),
+            )?
+            .summary)
     }
 
     pub fn read_trace_page(
@@ -796,136 +820,6 @@ fn read_text_page(path: &str, offset: u32, limit: u32) -> Result<(Vec<String>, u
     Ok((all[start..end].to_vec(), total))
 }
 
-fn read_candump_frames(
-    path: &str,
-    gz: bool,
-    _session_id: &str,
-    _store: &Store,
-    offset: u32,
-    limit: u32,
-) -> Result<(Vec<CandumpFrame>, u32)> {
-    read_candump_lines_file(Path::new(path), gz, offset, limit)
-}
-
-fn read_candump_lines_file(
-    path: &Path,
-    gz: bool,
-    offset: u32,
-    limit: u32,
-) -> Result<(Vec<CandumpFrame>, u32)> {
-    let file = File::open(path)?;
-    let mut reader: Box<dyn BufRead> = if gz {
-        Box::new(BufReader::new(GzDecoder::new(file)))
-    } else {
-        Box::new(BufReader::new(file))
-    };
-    let mut frames = Vec::new();
-    let mut line_no = 0u32;
-    let mut buf = Vec::new();
-    loop {
-        buf.clear();
-        if reader.read_until(b'\n', &mut buf)? == 0 {
-            break;
-        }
-        if buf.iter().all(|b| b.is_ascii_whitespace()) {
-            continue;
-        }
-        if line_no >= offset && frames.len() < limit as usize {
-            if let Some(frame) = parse_candump_line(&buf, line_no) {
-                frames.push(frame);
-            }
-        }
-        line_no += 1;
-    }
-    Ok((frames, line_no))
-}
-
-fn parse_candump_line(buf: &[u8], line_no: u32) -> Option<CandumpFrame> {
-    let line = std::str::from_utf8(buf).ok()?.trim();
-    if line.is_empty() {
-        return None;
-    }
-    let parts: Vec<&str> = line.split_whitespace().collect();
-    if parts.len() < 3 {
-        return None;
-    }
-    let delta_s = parts[0]
-        .trim_start_matches('(')
-        .trim_end_matches(')')
-        .parse()
-        .ok()?;
-    let iface = parts[1].to_string();
-    let id_part = parts[2];
-    let (can_id, mut data) = if let Some((id, hex)) = id_part.split_once('#') {
-        (id.to_string(), hex.to_string())
-    } else {
-        (id_part.to_string(), String::new())
-    };
-    if parts.len() > 3 {
-        if !data.is_empty() {
-            data.push(' ');
-        }
-        data.push_str(&parts[3..].join(" "));
-    }
-    Some(CandumpFrame {
-        delta_s,
-        interface: iface,
-        can_id,
-        data,
-        line_no,
-    })
-}
-
-fn summarize_candump(path: &str, gz: bool) -> Result<CandumpSummary> {
-    let file = File::open(path)?;
-    let mut reader: Box<dyn BufRead> = if gz {
-        Box::new(BufReader::new(GzDecoder::new(file)))
-    } else {
-        Box::new(BufReader::new(file))
-    };
-    let mut count = 0u32;
-    let mut first_delta = None::<f64>;
-    let mut last_delta = None::<f64>;
-    let mut id_counts: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
-    let mut ifaces: std::collections::HashSet<String> = std::collections::HashSet::new();
-    let mut buf = Vec::new();
-    let bytes = fs::metadata(path).map(|m| m.len()).unwrap_or(0);
-    loop {
-        buf.clear();
-        if reader.read_until(b'\n', &mut buf)? == 0 {
-            break;
-        }
-        if let Some(frame) = parse_candump_line(&buf, count) {
-            if first_delta.is_none() {
-                first_delta = Some(frame.delta_s);
-            }
-            last_delta = Some(frame.delta_s);
-            *id_counts.entry(frame.can_id.clone()).or_insert(0) += 1;
-            ifaces.insert(frame.interface);
-            count += 1;
-        }
-    }
-    let duration = match (first_delta, last_delta) {
-        (Some(a), Some(b)) => (b - a).max(0.0),
-        _ => 0.0,
-    };
-    let approx_hz = if duration > 0.0 {
-        count as f64 / duration
-    } else {
-        0.0
-    };
-    let mut top: Vec<(String, u32)> = id_counts.into_iter().collect();
-    top.sort_by(|a, b| b.1.cmp(&a.1));
-    Ok(CandumpSummary {
-        frame_count: count,
-        bytes,
-        duration_s: duration,
-        approx_hz,
-        interfaces: ifaces.into_iter().collect(),
-        top_ids: top.into_iter().take(10).map(|(id, _)| id).collect(),
-    })
-}
-
 fn dir_size(path: &Path) -> Result<u64> {
     let mut total = 0u64;
     if path.is_file() {
@@ -1005,11 +899,23 @@ mod tests {
     }
 
     #[test]
-    fn parse_candump_delta_line() -> Result<()> {
-        let frame = parse_candump_line(b"(0.001234) can0 701#AABBCCDD\n", 0)
-            .ok_or_else(|| StoreError::msg("expected candump frame"))?;
-        assert_eq!(frame.interface, "can0");
-        assert_eq!(frame.can_id, "701");
+    fn candump_page_delegates_to_deep_module() -> Result<()> {
+        let dir = tempdir()?;
+        let db = dir.path().join("candump.db");
+        let log_dir = dir.path().join("var").join("log");
+        fs::create_dir_all(&log_dir)?;
+        let hot = log_dir.join("candump-latest.log");
+        fs::write(
+            &hot,
+            "(0.000000) can0 701#AABBCCDD\n(0.010000) can0 702#11223344\n",
+        )?;
+        let store = Store::open(&db, dir.path())?;
+        let inspection = store.read_hot_candump_page(0, 10)?;
+        assert_eq!(inspection.summary.parsed_frames, 2, "parsed frame count");
+        assert_eq!(inspection.frames.len(), 2);
+        assert_eq!(inspection.frames[0].interface, "can0");
+        assert_eq!(inspection.frames[0].can_id.get(), 0x701);
+        assert_eq!(inspection.frames[0].data, vec![0xAA, 0xBB, 0xCC, 0xDD]);
         Ok(())
     }
 }

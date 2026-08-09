@@ -27,6 +27,17 @@ const emptySummarySlice = (): AsyncSlice<string> => ({
   data: '',
 });
 
+function formatSummaryLine(summary: {
+  parsed_frames: number;
+  total_lines: number;
+  approx_hz: number | null;
+  duration_s: number;
+}): string {
+  const hz =
+    summary.approx_hz == null ? 'n/a' : `${summary.approx_hz.toFixed(1)} Hz`;
+  return `${summary.parsed_frames} frames (${summary.total_lines} lines) · ${hz} · ${summary.duration_s.toFixed(2)}s`;
+}
+
 export function useCandumpData(mode: LogsMode, selectedSession: string | null) {
   const [pageState, setPageState] = useState<AsyncSlice<CandumpPageData>>(emptyPageSlice);
   const [summaryState, setSummaryState] = useState<AsyncSlice<string>>(emptySummarySlice);
@@ -43,7 +54,10 @@ export function useCandumpData(mode: LogsMode, selectedSession: string | null) {
         setPageState({
           loading: false,
           error: null,
-          data: { frames: result.data.frames, total: result.data.total_frames },
+          data: {
+            frames: result.data.frames,
+            total: result.data.parsed_frames ?? result.data.total_frames,
+          },
         });
         return;
       }
@@ -54,23 +68,18 @@ export function useCandumpData(mode: LogsMode, selectedSession: string | null) {
       });
     });
 
-    if (selectedSession) {
-      setSummaryState((prev) => ({ ...prev, loading: true, error: null }));
-      void fetchCandumpSummary(selectedSession).then((result) => {
-        if (result.ok) {
-          const summary = result.data;
-          setSummaryState({
-            loading: false,
-            error: null,
-            data: `${summary.frame_count} frames · ${summary.approx_hz.toFixed(1)} Hz · ${summary.duration_s.toFixed(2)}s`,
-          });
-          return;
-        }
-        setSummaryState({ loading: false, error: result.error, data: '' });
-      });
-    } else {
-      setSummaryState({ loading: false, error: null, data: 'live candump-latest.log' });
-    }
+    setSummaryState((prev) => ({ ...prev, loading: true, error: null }));
+    void fetchCandumpSummary(id).then((result) => {
+      if (result.ok) {
+        setSummaryState({
+          loading: false,
+          error: null,
+          data: formatSummaryLine(result.data),
+        });
+        return;
+      }
+      setSummaryState({ loading: false, error: result.error, data: '' });
+    });
   }, [mode, selectedSession, canOffset]);
 
   return {

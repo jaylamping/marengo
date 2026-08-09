@@ -1,0 +1,25 @@
+[package]
+name = "marengo-candump"
+version = "0.1.0"
+description = "Deep module for candump parse, summarize, page, and optional Robstride enrichment"
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = []
+robstride-enrichment = ["dep:robstride", "dep:marengo-config"]
+
+[dependencies]
+flate2 = "1"
+serde = { workspace = true, features = ["derive"] }
+thiserror.workspace = true
+robstride = { workspace = true, optional = true }
+marengo-config = { workspace = true, optional = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

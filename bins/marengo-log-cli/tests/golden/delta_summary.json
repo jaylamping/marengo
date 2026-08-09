@@ -1,0 +1,37 @@
+{
+  "timestamp_mode": "delta",
+  "summary": {
+    "total_lines": 4,
+    "parsed_frames": 4,
+    "source_bytes": 129,
+    "duration_s": 0.02,
+    "approx_hz": 200.0,
+    "interfaces": [
+      {
+        "name": "can0",
+        "parsed_frames": 3,
+        "approx_hz": 150.0
+      },
+      {
+        "name": "can1",
+        "parsed_frames": 1,
+        "approx_hz": 50.0
+      }
+    ],
+    "top_ids": [
+      {
+        "can_id": "701",
+        "count": 2
+      },
+      {
+        "can_id": "702",
+        "count": 1
+      },
+      {
+        "can_id": "028002FF",
+        "count": 1
+      }
+    ]
+  },
+  "frames": []
+}

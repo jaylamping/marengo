@@ -37,7 +37,7 @@ an approximate post-probe pose.
 
 ```bash
 python scripts/analyze-position-trace.py /opt/marengo/var/log/position-trace-latest.csv
-python scripts/analyze-candump-log.py /opt/marengo/var/log/candump-latest.log
+marengo-log-cli candump summary --file /opt/marengo/var/log/candump-latest.log --timestamp delta --format text
 ```
 
 ## Standard pre-flight (Y0)

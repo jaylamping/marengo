@@ -91,6 +91,10 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
         .route("/snapshot/logs/recent", get(logs::snapshot_logs_recent))
         .route("/logs/sessions", get(logs::list_sessions))
         .route("/logs/sessions/latest/candump", get(logs::latest_candump))
+        .route(
+            "/logs/sessions/latest/candump/summary",
+            get(logs::latest_candump_summary),
+        )
         .route("/logs/sessions/{id}/bench", get(logs::session_bench))
         .route("/logs/sessions/{id}/trace", get(logs::session_trace))
         .route("/logs/sessions/{id}/candump", get(logs::session_candump))

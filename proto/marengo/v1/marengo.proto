@@ -361,26 +361,60 @@ message StructuredLogList {
 }
 
 message CandumpFrame {
-  double delta_s = 1;
+  double delta_s = 1 [deprecated = true]; // populated with normalized offset
   string interface = 2;
   string can_id = 3;
   string data = 4;
   uint32 line_no = 5;
+
+  optional uint64 timestamp_unix_us = 6;
+  optional uint32 comm_type = 7;
+  optional string comm_type_name = 8;
+  optional string joint = 9;
+  double offset_s = 10;
+}
+
+enum CandumpTimestampMode {
+  CANDUMP_TIMESTAMP_MODE_UNSPECIFIED = 0;
+  CANDUMP_TIMESTAMP_MODE_DELTA = 1;
+  CANDUMP_TIMESTAMP_MODE_ABSOLUTE = 2;
 }
 
 message CandumpPage {
   repeated CandumpFrame frames = 1;
-  uint32 total_frames = 2;
+  uint32 total_frames = 2 [deprecated = true];
   uint32 offset = 3;
+  CandumpTimestampMode timestamp_mode = 4;
+  uint64 parsed_frames = 5;
+  uint64 total_lines = 6;
+}
+
+message CandumpIdCount {
+  string can_id = 1;
+  uint64 count = 2;
+}
+
+message CandumpInterfaceSummary {
+  string name = 1;
+  uint64 parsed_frames = 2;
+  optional double approx_hz = 3;
 }
 
 message CandumpSummary {
-  uint32 frame_count = 1;
-  uint64 bytes = 2;
+  // Existing fields 1..6 retained as compatibility projections.
+  uint32 frame_count = 1 [deprecated = true];
+  uint64 bytes = 2 [deprecated = true];
   double duration_s = 3;
-  double approx_hz = 4;
-  repeated string interfaces = 5;
-  repeated string top_ids = 6;
+  double approx_hz = 4 [deprecated = true];
+  repeated string interfaces = 5 [deprecated = true];
+  repeated string top_ids = 6 [deprecated = true];
+
+  uint64 parsed_frames = 7;
+  uint64 total_lines = 8;
+  repeated CandumpIdCount top_id_counts = 9;
+  repeated CandumpInterfaceSummary interface_summaries = 10;
+  optional double parsed_frame_hz = 11;
+  uint64 source_bytes = 12;
 }
 
 // --- Actuator harness (Consul / gateway / Pi overlay) ---

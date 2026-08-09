@@ -36,7 +36,6 @@ scripts/
 ├── bench-log-prune.sh        # Prune old bench logs
 ├── bench-set-weighted-mass.sh # Set weighted-arm mass for bench tests
 ├── measure-can-mit-rate.sh   # CAN MIT frame rate measurement
-├── analyze-candump-log.py    # Parse candump logs
 ├── analyze-position-trace.py # Parse position traces
 ├── profile-pi-loop.sh        # Pi control loop profiling
 ├── ci-vcan-host-setup.sh     # CI: vCAN host setup
@@ -54,7 +53,7 @@ scripts/
 | Deploy to Pi (macOS) | `./scripts/deploy-pi.sh --install` |
 | Deploy to Pi (Docker/Windows) | `./scripts/deploy-pi-docker.sh` |
 | Pi health/logs (cloud) | `./scripts/pi-remote.sh health` / `logs-tail` / `logs-grep` |
-| CAN diagnostics | `./scripts/measure-can-mit-rate.sh`, `analyze-candump-log.py` |
+| CAN diagnostics | `./scripts/measure-can-mit-rate.sh`, `marengo-log-cli candump summary` |
 | URDF export | `./scripts/export-urdf.sh` |
 | Sim conversion | `./scripts/urdf-to-mjcf.sh` |
 

@@ -173,7 +173,7 @@ Check usage: `pi_logs_list` (gateway sessions + hot `du -sh`). After motion: **`
 
 Local analysis:
 ```bash
-python scripts/analyze-candump-log.py candump-latest.log
+marengo-log-cli candump summary --file candump-latest.log --timestamp delta --format text
 ```
 
 ### Analyze a run locally

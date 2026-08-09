@@ -117,14 +117,36 @@ async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let state_holder: Arc<std::sync::Mutex<Option<state::SharedState>>> =
         Arc::new(std::sync::Mutex::new(None));
 
-    let logs = match Store::open_default() {
-        Ok(store) => {
-            info!("marengo-store opened");
-            Some(LogServices::open(store))
-        }
-        Err(e) => {
-            tracing::warn!(error = %e, "marengo-store unavailable; log persistence disabled");
-            None
+    let logs = {
+        let root = marengo_store::resolve_marengo_root();
+        let db = marengo_store::resolve_db_path();
+        let config_dir = marengo_config::resolve_config_dir(&root);
+        let candump = match marengo_candump::Candump::with_robstride_from_config_dir(&config_dir) {
+            Ok(c) => {
+                info!(
+                    config_dir = %config_dir.display(),
+                    "candump robstride enrichment enabled"
+                );
+                c
+            }
+            Err(e) => {
+                tracing::warn!(
+                    error = %e,
+                    config_dir = %config_dir.display(),
+                    "candump enrichment unavailable; using plain parser"
+                );
+                marengo_candump::Candump::plain()
+            }
+        };
+        match Store::open_with_candump(db, root, candump) {
+            Ok(store) => {
+                info!("marengo-store opened");
+                Some(LogServices::open(store))
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "marengo-store unavailable; log persistence disabled");
+                None
+            }
         }
     };
 

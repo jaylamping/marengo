@@ -14,8 +14,18 @@ workspace = true
 name = "marengo-log-cli"
 path = "src/main.rs"
 
+[features]
+default = ["robstride-enrichment"]
+robstride-enrichment = ["marengo-candump/robstride-enrichment"]
+
 [dependencies]
 clap = { version = "4", features = ["derive", "env"] }
+marengo-candump = { workspace = true }
 marengo-store = { path = "../../crates/marengo-store" }
+serde_json.workspace = true
 tracing.workspace = true
 marengo-support.workspace = true
+
+[dev-dependencies]
+assert_cmd = "2"
+serde_json.workspace = true

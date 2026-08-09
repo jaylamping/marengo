@@ -68,7 +68,7 @@ describe("log tools", () => {
     assert.match(script, /tail -n 100 /);
   });
 
-  it("pi_candump_summary accepts leading whitespace in candump timestamps", async () => {
+  it("pi_candump_summary invokes marengo-log-cli JSON summary", async () => {
     let script = "";
     const tools = registerLogTools(cfg, async (body) => {
       script = body;
@@ -77,9 +77,13 @@ describe("log tools", () => {
 
     await tools.pi_candump_summary.handler({});
 
-    assert.match(script, /grep -m1 -E "\^\[\[:space:\]\]\*\\\("/);
-    assert.match(script, /sed -n "s\/\^\[\[:space:\]\]\*\(\\\(\[0-9\.\]\*\\\)\)/);
-    assert.match(script, /c=\$\{c:-0\}/);
-    assert.match(script, /top CAN IDs/);
+    assert.match(
+      script,
+      /marengo-log-cli candump summary --file "\$F" --timestamp delta --format json/,
+    );
+    assert.match(script, /command -v marengo-log-cli/);
+    assert.match(script, /"error":"marengo-log-cli not found/);
+    assert.doesNotMatch(script, /awk /);
+    assert.doesNotMatch(script, /wc -l/);
   });
 });

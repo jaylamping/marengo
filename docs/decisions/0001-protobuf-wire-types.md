@@ -29,6 +29,17 @@ Use **Protocol Buffers** as the source of truth for all inter-service wire types
 - **CI:** Install both; run `cargo build` and `consul` `gen:proto` in pipeline.
 - **Workflow:** API changes start in `proto/marengo/v1/*.proto`, then regenerate Rust/TS.
 
+### Candump HTTP/proto evolution (2026-07)
+
+Gateway candump diagnostics (`CandumpFrame`, `CandumpPage`, `CandumpSummary`) grew enrichment and clearer counters. Protobuf and HTTP are related but not identical:
+
+- **True one-release HTTP aliases:** `CandumpFrame.delta_s` (= `offset_s`), `CandumpPage.total_frames` (= `parsed_frames` clamped to u32), `CandumpSummary.frame_count` / `bytes` (= `parsed_frames` / `source_bytes`). Prefer the non-alias names in new clients.
+- **HTTP shape change (not a silent shim):** gateway JSON keeps keys `interfaces`, `top_ids`, and `approx_hz`, but `interfaces`/`top_ids` are now object arrays (`{name,parsed_frames,approx_hz}` / `{can_id,count}`) and `approx_hz` is `number | null`. Proto’s parallel names (`interface_summaries`, `top_id_counts`, `parsed_frame_hz`) describe the richer model; gateway currently serves the enriched objects under the old keys.
+- **New optional enrichment** on frames: `timestamp_unix_us`, `comm_type`, `comm_type_name`, `joint` (Robstride decode-only labels for operator forensics).
+- **Timestamp mode:** proto `CandumpPage.timestamp_mode` is explicit (Delta or Absolute; no Auto). Gateway/store archive and hot paths currently always inspect as Delta; Absolute is used by CLI when requested. Page JSON may omit `timestamp_mode` until that field is plumbed through HTTP.
+
+Log archive/HTTP surface for candump sessions is owned by [ADR 0011](0011-log-retention-and-archive.md); parsing/enrichment lives in `marengo-candump` (accepts both `candump -L` `ID#HEX` and default ASCII `ID [dlc] XX…` lines).
+
 ## Alternatives considered
 
 - JSON / serde-only: simpler debugging, weaker cross-language contracts and evolution story.

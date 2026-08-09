@@ -22,6 +22,7 @@ bytes = "1"
 chappe = { path = "../../crates/chappe" }
 futures = "0.3"
 marengo-config.workspace = true
+marengo-candump = { workspace = true, features = ["robstride-enrichment"] }
 marengo-support.workspace = true
 marengo-store = { path = "../../crates/marengo-store" }
 prost = { workspace = true }
