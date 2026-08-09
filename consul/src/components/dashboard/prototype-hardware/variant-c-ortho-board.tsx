@@ -79,7 +79,11 @@ export function VariantC() {
         <div className="pointer-events-none absolute top-[22%] left-1/2 h-[38%] w-[12%] -translate-x-1/2 rounded-2xl border border-slate-600/50 bg-slate-800/30" />
         <div className="pointer-events-none absolute top-[12%] left-1/2 h-[8%] w-[8%] -translate-x-1/2 rounded-full border border-slate-600/50 bg-slate-800/30" />
 
-        <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+        <svg
+          className="pointer-events-none absolute inset-0 z-0 h-full w-full"
+          viewBox="0 0 100 100"
+          preserveAspectRatio="xMidYMid meet"
+        >
           {/* simple bone lines */}
           <line x1="50" y1="28" x2="68" y2="32" stroke="#475569" strokeWidth="0.4" />
           <line x1="68" y1="32" x2="78" y2="48" stroke="#475569" strokeWidth="0.4" />
@@ -99,7 +103,7 @@ export function VariantC() {
               setSheetOpen(true);
             }}
             className={cn(
-              'absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 transition-transform',
+              'absolute z-10 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 transition-transform',
               selectedId === n.id && 'scale-125 border-amber-300 bg-amber-400',
               selectedId !== n.id &&
                 n.completenessWarn &&
