@@ -12,7 +12,7 @@ Add these in [Cursor → Cloud Agents → Secrets](https://cursor.com/dashboard/
 | `MARENGO_PI_SSH_PRIVATE_KEY_B64` | **Runtime Secret** | Base64 of the `id_ed25519_marengo` private key authorized on the Pi. **macOS:** `base64 -i ~/.ssh/id_ed25519_marengo \| tr -d '\\n'`. **Linux:** `base64 -w0 ~/.ssh/id_ed25519_marengo`. |
 | `MARENGO_PI_HOST` | Environment Variable | `joey-robot.tail0b414.ts.net` (or your Pi MagicDNS name). |
 | `MARENGO_PI_USER` | Environment Variable | `joey` |
-| `MARENGO_GATEWAY_LOG_TOKEN` | Runtime Secret (optional) | Only if `MARENGO_GATEWAY_LOG_TOKEN` is set on the Pi gateway. |
+| `MARENGO_GATEWAY_LOG_TOKEN` | Runtime Secret (optional) | Only if you want to avoid an SSH round-trip. When unset, `cloud_pi_curl_gateway` loads the token from Pi `/etc/marengo/env` over SSH (same value the gateway uses). |
 
 Do **not** commit private keys or auth keys to the repo.
 
@@ -99,7 +99,7 @@ See [ADR 0011](decisions/0011-log-retention-and-archive.md) and [bench-position-
 | `TAILSCALE_AUTH_KEY not set` | Add secret; restart cloud agent |
 | `Could not resolve hostname` | Tailscale not connected — check `/tmp/tailscaled.log`, re-run `--connect` |
 | `Permission denied (publickey)` | Wrong or missing `MARENGO_PI_SSH_PRIVATE_KEY_B64` |
-| `GET /logs/sessions` 401 | Set `MARENGO_GATEWAY_LOG_TOKEN` secret to match Pi |
+| `GET /logs/sessions` 401 | Token missing or wrong. Prefer re-running verify (SSH auto-loads from Pi `/etc/marengo/env`). Or set `MARENGO_GATEWAY_LOG_TOKEN` secret to match Pi. |
 | SSH works, rsync deploy fails | `export MARENGO_SSH_DIR=$HOME/.marengo-cloud-ssh` before `deploy-pi.sh` |
 | `marengo-pi` MCP missing in cloud | Expected — use `pi-remote.sh` (MCP runs on local Cursor only today) |
 

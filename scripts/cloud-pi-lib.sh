@@ -186,9 +186,34 @@ cloud_pi_gateway_url() {
   printf 'http://%s:8080' "${MARENGO_PI_HOST}"
 }
 
+# Load MARENGO_GATEWAY_LOG_TOKEN when unset: Cursor secret → Pi /etc/marengo/env via SSH.
+# Never prints the token value. Cached after first attempt (success or empty).
+_cloud_pi_log_token_checked=0
+cloud_pi_ensure_log_token() {
+  if [[ "${_cloud_pi_log_token_checked}" -eq 1 ]]; then
+    return 0
+  fi
+  _cloud_pi_log_token_checked=1
+  if [[ -n "${MARENGO_GATEWAY_LOG_TOKEN:-}" ]]; then
+    return 0
+  fi
+  local token=""
+  token="$(
+    cloud_pi_ssh \
+      "grep -E '^MARENGO_GATEWAY_LOG_TOKEN=' /etc/marengo/env 2>/dev/null | head -1 | cut -d= -f2-" \
+      2>/dev/null \
+      | tr -d '\r\n' || true
+  )"
+  if [[ -n "${token}" ]]; then
+    export MARENGO_GATEWAY_LOG_TOKEN="${token}"
+    cloud_pi_log "Loaded gateway log token from Pi /etc/marengo/env (${#token} chars)"
+  fi
+}
+
 cloud_pi_curl_gateway() {
   local path="$1"
   shift
+  cloud_pi_ensure_log_token
   cloud_pi_tailscale_proxy_env
   local args=(-fsS)
   if [[ -n "${MARENGO_GATEWAY_LOG_TOKEN:-}" ]]; then
@@ -239,7 +264,12 @@ cloud_pi_verify() {
     head -c 400 /tmp/marengo-sessions.json
     printf '\n'
   else
-    cloud_pi_warn "GET /logs/sessions failed (token required or gateway log store unavailable)"
+    cloud_pi_ensure_log_token
+    if [[ -z "${MARENGO_GATEWAY_LOG_TOKEN:-}" ]]; then
+      cloud_pi_warn "GET /logs/sessions failed (no MARENGO_GATEWAY_LOG_TOKEN in env or Pi /etc/marengo/env; gateway may require a token)"
+    else
+      cloud_pi_warn "GET /logs/sessions failed (token rejected or gateway log store unavailable)"
+    fi
     ok=false
   fi
 
