@@ -37,7 +37,17 @@ cloud_pi_install_tailscale() {
     return 0
   fi
   cloud_pi_log "Installing Tailscale"
-  curl -fsSL https://tailscale.com/install.sh | sh
+  # Official installer may need root for apt; Cursor VMs typically have passwordless sudo.
+  if [[ "${EUID}" -eq 0 ]]; then
+    curl -fsSL https://tailscale.com/install.sh | sh
+  else
+    curl -fsSL https://tailscale.com/install.sh | sudo sh
+  fi
+  hash -r 2>/dev/null || true
+  if ! cloud_pi_tailscale_installed; then
+    echo "error: Tailscale install finished but tailscale/tailscaled not on PATH" >&2
+    return 1
+  fi
 }
 
 cloud_pi_install_packages() {

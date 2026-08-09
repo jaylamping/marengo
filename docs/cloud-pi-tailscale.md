@@ -26,11 +26,14 @@ Ensure your tailnet allows the cloud agent hostname (`cursor-cloud-*`) to reach 
 
 ## How it works
 
-1. **`.cursor/environment.json`** runs `setup-cloud-pi.sh` on agent boot:
-   - Installs Tailscale, cross-GCC, and builds `marengo-pi-mcp`
+1. **`.cursor/environment.json`** `install` runs `setup-cloud.sh` then `setup-cloud-pi.sh --prepare`:
+   - Installs **Node.js ≥ 24.16** (NodeSource) before Consul `npm ci` — base cloud images ship Node 22, which fails Consul `engines`
+   - Installs protoc / cargo tools, bootstraps the workspace, Tailscale, cross-GCC, and builds `marengo-pi-mcp`
+2. **`start`** runs `setup-cloud-pi.sh --start-daemon` then `--connect`:
    - Starts `tailscaled` with **userspace networking** ([Cursor docs](https://cursor.com/docs/cloud-agent/setup#running-tailscale))
+   - If Tailscale was never installed (failed install snapshot), start re-runs prepare
    - Connects with `TAILSCALE_AUTH_KEY` and writes SSH config under `~/.marengo-cloud-ssh/`
-2. Agents use **`./scripts/pi-remote.sh`** instead of MCP when `marengo-pi` MCP is unavailable.
+3. Agents use **`./scripts/pi-remote.sh`** instead of MCP when `marengo-pi` MCP is unavailable.
 
 ## Verify after secrets are set
 
@@ -91,6 +94,8 @@ See [ADR 0011](decisions/0011-log-retention-and-archive.md) and [bench-position-
 
 | Symptom | Fix |
 |---------|-----|
+| Environment setup / install fails with `EBADENGINE` / Node v22 | Cursor images ship Node 22 ahead of PATH (`/exec-daemon/node`, nvm). Latest `setup-cloud.sh` installs Node ≥24.16 and shims it into `/usr/local/cargo/bin`. Re-run install or trigger a new environment build. |
+| `tailscaled: No such file or directory` | Install never finished — re-run `./scripts/setup-cloud.sh && ./scripts/setup-cloud-pi.sh --verify` |
 | `TAILSCALE_AUTH_KEY not set` | Add secret; restart cloud agent |
 | `Could not resolve hostname` | Tailscale not connected — check `/tmp/tailscaled.log`, re-run `--connect` |
 | `Permission denied (publickey)` | Wrong or missing `MARENGO_PI_SSH_PRIVATE_KEY_B64` |
