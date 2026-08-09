@@ -580,15 +580,12 @@ pub struct PutCommissioningScopeBody {
     pub confirm_widen: bool,
 }
 
-fn scope_response(
-    persisted: Option<&CommissioningScopeFile>,
-) -> CommissioningScopeResponse {
+fn scope_response(persisted: Option<&CommissioningScopeFile>) -> CommissioningScopeResponse {
     let ceiling_set = joint_subset_from_env();
     let ceiling = ceiling_joints();
     match persisted {
         Some(scope) => {
-            let effective =
-                effective_commissioning_scope(&scope.joints, ceiling_set.as_ref());
+            let effective = effective_commissioning_scope(&scope.joints, ceiling_set.as_ref());
             CommissioningScopeResponse {
                 version: scope.version,
                 joints: scope.joints.clone(),

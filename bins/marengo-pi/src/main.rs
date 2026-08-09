@@ -215,7 +215,9 @@ fn spawn_stdin_commands(tx: Sender<PiCommand>) {
     });
 }
 
-fn joint_facets_for_enable(supervisor: &davout::Supervisor<RuntimeBus>) -> (Vec<JointFacetInput>, Vec<JointFacetInput>) {
+fn joint_facets_for_enable(
+    supervisor: &davout::Supervisor<RuntimeBus>,
+) -> (Vec<JointFacetInput>, Vec<JointFacetInput>) {
     let loaded_names: BTreeSet<String> = supervisor
         .motors
         .motors
@@ -248,11 +250,7 @@ fn joint_facets_for_enable(supervisor: &davout::Supervisor<RuntimeBus>) -> (Vec<
             drive_active: supervisor.joint_drive_active(name),
         });
     }
-    let loaded: Vec<JointFacetInput> = master
-        .iter()
-        .filter(|j| j.motor_mapped)
-        .cloned()
-        .collect();
+    let loaded: Vec<JointFacetInput> = master.iter().filter(|j| j.motor_mapped).cloned().collect();
     (master, loaded)
 }
 
@@ -262,9 +260,9 @@ fn resolve_enable_targets(
     let scope_path = default_commissioning_scope_path();
     let persisted = load_commissioning_scope(&scope_path).map_err(|e| e.to_string())?;
     let ceiling = joint_subset_from_env();
-    let effective = persisted.as_ref().map(|scope| {
-        effective_commissioning_scope(&scope.joints, ceiling.as_ref())
-    });
+    let effective = persisted
+        .as_ref()
+        .map(|scope| effective_commissioning_scope(&scope.joints, ceiling.as_ref()));
     let (master, loaded) = joint_facets_for_enable(supervisor);
     select_enable_targets(&master, &loaded, effective.as_deref())
 }

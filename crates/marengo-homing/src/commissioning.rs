@@ -126,7 +126,10 @@ pub fn select_enable_targets(
         }
         None => {
             if !robot_ready(master_joints) {
-                return Err("Enable requires full-master Robot Ready when no commissioning scope is set".into());
+                return Err(
+                    "Enable requires full-master Robot Ready when no commissioning scope is set"
+                        .into(),
+                );
             }
             let mut targets: Vec<String> = loaded_joints
                 .iter()
@@ -376,30 +379,9 @@ mod tests {
     #[test]
     fn scoped_enable_skips_unhomed_and_out_of_limits() {
         let loaded = vec![
-            facet(
-                "a",
-                JointHomingState::Verified,
-                true,
-                true,
-                false,
-                false,
-            ),
-            facet(
-                "b",
-                JointHomingState::Unhomed,
-                true,
-                true,
-                false,
-                false,
-            ),
-            facet(
-                "c",
-                JointHomingState::Verified,
-                true,
-                true,
-                false,
-                true,
-            ),
+            facet("a", JointHomingState::Verified, true, true, false, false),
+            facet("b", JointHomingState::Unhomed, true, true, false, false),
+            facet("c", JointHomingState::Verified, true, true, false, true),
         ];
         let scope = vec!["a".to_string(), "b".to_string(), "c".to_string()];
         let targets = select_enable_targets(&loaded, &loaded, Some(&scope)).expect("targets");
@@ -409,22 +391,8 @@ mod tests {
     #[test]
     fn scoped_enable_does_not_require_robot_ready() {
         let master = vec![
-            facet(
-                "a",
-                JointHomingState::Verified,
-                true,
-                true,
-                false,
-                false,
-            ),
-            facet(
-                "b",
-                JointHomingState::Unhomed,
-                true,
-                true,
-                false,
-                false,
-            ),
+            facet("a", JointHomingState::Verified, true, true, false, false),
+            facet("b", JointHomingState::Unhomed, true, true, false, false),
         ];
         let scope = vec!["a".to_string()];
         let targets = select_enable_targets(&master, &master, Some(&scope)).expect("scoped");
@@ -435,22 +403,8 @@ mod tests {
     #[test]
     fn no_scope_enable_requires_robot_ready() {
         let master = vec![
-            facet(
-                "a",
-                JointHomingState::Verified,
-                true,
-                true,
-                false,
-                false,
-            ),
-            facet(
-                "b",
-                JointHomingState::Unhomed,
-                true,
-                true,
-                false,
-                false,
-            ),
+            facet("a", JointHomingState::Verified, true, true, false, false),
+            facet("b", JointHomingState::Unhomed, true, true, false, false),
         ];
         let err = select_enable_targets(&master, &master, None).expect_err("blocked");
         assert!(err.contains("Robot Ready"));

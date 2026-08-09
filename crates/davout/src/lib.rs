@@ -1790,7 +1790,10 @@ mod tests {
                 &motor,
             )
             .expect_err("inactive");
-        assert!(matches!(err, DavoutError::InactiveJoint { .. }), "got {err}");
+        assert!(
+            matches!(err, DavoutError::InactiveJoint { .. }),
+            "got {err}"
+        );
     }
 
     #[test]

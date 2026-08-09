@@ -242,11 +242,8 @@ mod tests {
     #[test]
     fn validate_rejects_unknown_joint() {
         let master = vec!["right_shoulder_roll".to_string()];
-        let err = validate_commissioning_scope_joints(
-            &["left_wrist_roll".to_string()],
-            &master,
-        )
-        .expect_err("unknown");
+        let err = validate_commissioning_scope_joints(&["left_wrist_roll".to_string()], &master)
+            .expect_err("unknown");
         assert!(matches!(err, ConfigError::UnknownJointSubset { .. }));
     }
 
@@ -254,19 +251,15 @@ mod tests {
     fn load_missing_returns_none() {
         let dir = tempdir().expect("temp");
         let path = dir.path().join("commissioning-scope.yaml");
-        assert!(load_commissioning_scope(&path)
-            .expect("load")
-            .is_none());
+        assert!(load_commissioning_scope(&path).expect("load").is_none());
     }
 
     #[test]
     fn save_load_round_trip_atomic() {
         let dir = tempdir().expect("temp");
         let path = dir.path().join("var").join("commissioning-scope.yaml");
-        let scope = CommissioningScopeFile::normalized([
-            "right_shoulder_pitch",
-            "right_shoulder_roll",
-        ]);
+        let scope =
+            CommissioningScopeFile::normalized(["right_shoulder_pitch", "right_shoulder_roll"]);
         save_commissioning_scope(&path, &scope).expect("save");
         assert!(!path.with_extension("yaml.tmp").exists());
         let loaded = load_commissioning_scope(&path)
@@ -285,9 +278,7 @@ mod tests {
         )
         .expect("save");
         clear_commissioning_scope(&path).expect("clear");
-        assert!(load_commissioning_scope(&path)
-            .expect("load")
-            .is_none());
+        assert!(load_commissioning_scope(&path).expect("load").is_none());
     }
 
     #[test]

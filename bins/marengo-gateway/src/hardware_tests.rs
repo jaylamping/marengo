@@ -531,9 +531,12 @@ robot:
         .await
         .expect("resp");
     assert_eq!(get0.status(), StatusCode::OK);
-    let body0: serde_json::Value =
-        serde_json::from_slice(&axum::body::to_bytes(get0.into_body(), 1 << 20).await.expect("b"))
-            .expect("json");
+    let body0: serde_json::Value = serde_json::from_slice(
+        &axum::body::to_bytes(get0.into_body(), 1 << 20)
+            .await
+            .expect("b"),
+    )
+    .expect("json");
     assert_eq!(body0["persisted"], false);
 
     // PUT unknown joint rejected
