@@ -383,9 +383,7 @@ fn is_ascii_dlc_token(token: &str) -> bool {
     if bytes.len() < 3 || bytes[0] != b'[' || bytes[bytes.len() - 1] != b']' {
         return false;
     }
-    bytes[1..bytes.len() - 1]
-        .iter()
-        .all(|b| b.is_ascii_digit())
+    bytes[1..bytes.len() - 1].iter().all(|b| b.is_ascii_digit())
 }
 
 fn enrich_frame(
