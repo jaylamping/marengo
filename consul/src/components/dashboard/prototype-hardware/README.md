@@ -6,26 +6,30 @@ Three variants on `/prototype/hardware?variant=A|B|C`, switchable via the floati
 
 | Key | Name        | Structure                                                                     |
 | --- | ----------- | ----------------------------------------------------------------------------- |
-| A   | Stage       | Full-bleed orbiting robot; chrome floats; click joint → settings sheet         |
+| A   | Table · 3D  | **Preferred.** Joint data table by default; header toggle reveals Bender 3D   |
 | B   | Limb rail   | Limb cards pick the focus set; robot dims to match; list is the picker         |
 | C   | Ortho board | Locked orthographic elevation (no orbit); header is the drop target            |
 
 Run: `cd consul && npm run dev:prototype-hardware`
 
+## Preferred direction (A)
+
+- Default chrome is a joint **data table** (status, limb, CAN, gaps, sources).
+- Click a row → same unified settings sheet (source-tagged fields, Accept incoming).
+- Header **Table / 3D** toggle swaps in the Bender-style Three.js picker without changing the sheet contract.
+- 3D stays optional until it has enough polish to be the primary surface.
+
 ## 3D layer
 
 Vanilla **Three.js** (no `@react-three/fiber` / `drei`), following
-[`sickn33/antigravity-awesome-skills` `threejs-skills`](https://www.skills.sh/sickn33/antigravity-awesome-skills/threejs-skills):
-scene/camera/renderer, `MeshStandardMaterial` + lights, `OrbitControls`, raycast
-picking, soft shadows, ACES tone mapping, `setAnimationLoop`, dispose on teardown.
+[`sickn33/antigravity-awesome-skills` `threejs-skills`](https://www.skills.sh/sickn33/antigravity-awesome-skills/threejs-skills).
 
-| File                    | Job                                                                            |
-| ----------------------- | ------------------------------------------------------------------------------ |
-| `humanoid-rig.ts`       | Armor plates + joint balls in body-space metres                                 |
-| `humanoid-scene.ts`     | WebGL scene, picking, DOM label overlay, dirty-flagged render loop              |
-| `humanoid-viewport.tsx` | React mount; drives the scene imperatively so state never rebuilds WebGL        |
+| File                     | Job                                                                           |
+| ------------------------ | ----------------------------------------------------------------------------- |
+| `humanoid-rig.ts`        | Bender anchors + palette                                                       |
+| `humanoid-scene.ts`      | WebGL scene, picking, DOM label overlay, dirty-flagged render loop             |
+| `humanoid-viewport.tsx`  | React mount; drives the scene imperatively so state never rebuilds WebGL       |
 
-The figure is a throwaway Bender-from-Futurama homage (corrugated limbs, dome
-head, cream visor/grill) — not real URDF meshes and not production art. Coloured
-status LEDs sit on actuated joints: green = on CAN, amber = completeness gap,
+The figure is a throwaway Bender-from-Futurama homage — not real URDF meshes and not
+production art. Coloured status LEDs: green = on CAN, amber = completeness gap,
 grey = description only.

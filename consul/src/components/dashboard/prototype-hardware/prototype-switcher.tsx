@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 export const HARDWARE_PROTO_VARIANTS = [
-  { key: 'A', name: 'Stage' },
+  { key: 'A', name: 'Table · 3D' },
   { key: 'B', name: 'Limb rail' },
   { key: 'C', name: 'Ortho board' },
 ] as const;
