@@ -24,6 +24,8 @@ pub enum PersistStatus {
     Durable,
     Pending,
     Failed,
+    /// Retained for Consul `persist_status: "n/a"` wire compatibility.
+    #[allow(dead_code)]
     #[serde(rename = "n/a")]
     NotApplicable,
 }
@@ -95,9 +97,7 @@ pub async fn apply_limit_patch_async(
     if let Some(expected) = request.expected_revision.as_deref() {
         if expected != current_revision {
             return limit_patch_error(
-                format!(
-                    "config revision mismatch: expected {expected}, found {current_revision}"
-                ),
+                format!("config revision mismatch: expected {expected}, found {current_revision}"),
                 PersistStatus::Failed,
                 Some(before),
                 Some(after),

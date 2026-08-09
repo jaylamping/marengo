@@ -133,12 +133,11 @@ pub fn completeness_report(
             ));
             continue;
         }
-        let urdf_limits = joint_limits(&urdf_robot, &motor.joint).map_err(|error| {
-            ConfigError::Parse {
+        let urdf_limits =
+            joint_limits(&urdf_robot, &motor.joint).map_err(|error| ConfigError::Parse {
                 path: urdf_path.clone(),
                 message: error.to_string(),
-            }
-        })?;
+            })?;
         if motor.bench.position_lower_rad < urdf_limits.lower - EPS {
             warnings.push(warn(
                 "limit_gap_lower",
@@ -207,7 +206,11 @@ mod tests {
         }
         let assets = tmp.path().join("assets/urdf");
         fs::create_dir_all(&assets).expect("assets");
-        fs::copy(root.join("assets/urdf/marengo.urdf"), assets.join("marengo.urdf")).expect("urdf");
+        fs::copy(
+            root.join("assets/urdf/marengo.urdf"),
+            assets.join("marengo.urdf"),
+        )
+        .expect("urdf");
 
         let mut robot = load_robot_config_from(&config_dir).expect("robot");
         robot.robot.joints.push("phantom_joint".to_string());
@@ -274,7 +277,11 @@ mod tests {
         }
         let assets = tmp.path().join("assets/urdf");
         fs::create_dir_all(&assets).expect("assets");
-        fs::copy(root.join("assets/urdf/marengo.urdf"), assets.join("marengo.urdf")).expect("urdf");
+        fs::copy(
+            root.join("assets/urdf/marengo.urdf"),
+            assets.join("marengo.urdf"),
+        )
+        .expect("urdf");
 
         let mut motors = load_motors_config_from(&config_dir).expect("motors");
         let elbow = motors
@@ -294,7 +301,8 @@ mod tests {
             report
                 .warnings
                 .iter()
-                .any(|w| w.code == "limit_gap_upper" && w.joint.as_deref() == Some("right_elbow_pitch")),
+                .any(|w| w.code == "limit_gap_upper"
+                    && w.joint.as_deref() == Some("right_elbow_pitch")),
             "expected limit_gap_upper: {:?}",
             report.warnings
         );

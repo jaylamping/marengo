@@ -1634,7 +1634,7 @@ mod tests {
 
     fn elbow_limit_patch(lower: f64, upper: f64) -> LimitPatch {
         LimitPatch {
-            joint: "elbow".to_string(),
+            joint: "right_elbow_pitch".to_string(),
             position_lower_rad: lower,
             position_upper_rad: upper,
             torque_limit_nm: None,
@@ -1648,14 +1648,17 @@ mod tests {
     fn limit_patch_refuses_while_active() {
         let mut sup = Supervisor::from_repo(repo_root(), MemoryBus::default()).expect("supervisor");
         bench_ready_active(&mut sup);
-        let before = *sup.joint_limit_policy("elbow").expect("policy");
+        let before = *sup.joint_limit_policy("right_elbow_pitch").expect("policy");
 
         let err = sup
             .apply_limit_patch(&elbow_limit_patch(0.1, 1.5))
             .expect_err("must refuse ACTIVE");
 
         assert!(matches!(err, DavoutError::LimitPatchActive));
-        assert_eq!(*sup.joint_limit_policy("elbow").expect("policy"), before);
+        assert_eq!(
+            *sup.joint_limit_policy("right_elbow_pitch").expect("policy"),
+            before
+        );
     }
 
     #[test]
@@ -1665,7 +1668,7 @@ mod tests {
         sup.apply_limit_patch(&elbow_limit_patch(0.1, 1.5))
             .expect("apply patch");
 
-        let policy = sup.joint_limit_policy("elbow").expect("policy");
+        let policy = sup.joint_limit_policy("right_elbow_pitch").expect("policy");
         assert!((policy.hard_lower() - 0.1).abs() < 1e-9);
         assert!((policy.hard_upper() - 1.5).abs() < 1e-9);
     }
@@ -1677,28 +1680,30 @@ mod tests {
             .motors
             .motors
             .iter_mut()
-            .find(|motor| motor.joint == "elbow")
+            .find(|motor| motor.joint == "right_elbow_pitch")
             .expect("motor");
-        motor.bench.position_upper_rad = 1.4;
+        // Master URDF elbow hard upper is 1.2 — set bench below that so rebuild
+        // uses the in-memory bench cap (URDF ∩ bench).
+        motor.bench.position_upper_rad = 1.0;
 
         sup.rebuild_limits().expect("rebuild");
 
-        let policy = sup.joint_limit_policy("elbow").expect("policy");
-        assert!((policy.hard_upper() - 1.4).abs() < 1e-9);
+        let policy = sup.joint_limit_policy("right_elbow_pitch").expect("policy");
+        assert!((policy.hard_upper() - 1.0).abs() < 1e-9);
     }
 
     #[test]
     fn limit_patch_expands_urdf_when_past_current_hard() {
         let mut sup = Supervisor::from_repo(repo_root(), MemoryBus::default()).expect("supervisor");
-        let urdf_before = joint_limits(sup.urdf_robot(), "elbow").expect("urdf");
+        let urdf_before = joint_limits(sup.urdf_robot(), "right_elbow_pitch").expect("urdf");
 
         sup.apply_limit_patch(&elbow_limit_patch(-0.5, 3.0))
             .expect("expand past URDF hard");
 
-        let policy = sup.joint_limit_policy("elbow").expect("policy");
+        let policy = sup.joint_limit_policy("right_elbow_pitch").expect("policy");
         assert!((policy.hard_lower() - (-0.5)).abs() < 1e-9);
         assert!((policy.hard_upper() - 3.0).abs() < 1e-9);
-        let urdf_after = joint_limits(sup.urdf_robot(), "elbow").expect("urdf");
+        let urdf_after = joint_limits(sup.urdf_robot(), "right_elbow_pitch").expect("urdf");
         assert!(urdf_after.lower <= urdf_before.lower);
         assert!(urdf_after.upper >= urdf_before.upper);
         assert!((urdf_after.lower - (-0.5)).abs() < 1e-9);
@@ -1708,21 +1713,24 @@ mod tests {
     #[test]
     fn limit_patch_rejects_inverted_bounds_without_mutation() {
         let mut sup = Supervisor::from_repo(repo_root(), MemoryBus::default()).expect("supervisor");
-        let before = *sup.joint_limit_policy("elbow").expect("policy");
+        let before = *sup.joint_limit_policy("right_elbow_pitch").expect("policy");
 
         let err = sup
             .apply_limit_patch(&elbow_limit_patch(1.5, 0.1))
             .expect_err("inverted bounds must fail");
 
         assert!(matches!(err, DavoutError::Config(_)));
-        assert_eq!(*sup.joint_limit_policy("elbow").expect("policy"), before);
+        assert_eq!(
+            *sup.joint_limit_policy("right_elbow_pitch").expect("policy"),
+            before
+        );
     }
 
     #[test]
     fn limit_patch_rejects_measured_position_outside_new_bounds() {
         let mut sup = Supervisor::from_repo(repo_root(), MemoryBus::default()).expect("supervisor");
         sup.last_feedback_samples.insert(
-            "elbow".to_string(),
+            "right_elbow_pitch".to_string(),
             FeedbackSample {
                 position_rad: 1.0,
                 received_at: Instant::now(),
@@ -1840,16 +1848,17 @@ mod tests {
         bench_ready_active(&mut sup);
 
         // Set feedback with known position/velocity (torque_nm will be 0.0).
-        sup.set_synthetic_joint_feedback("shoulder_pitch", 1.0, 0.5)
+        sup.set_synthetic_joint_feedback("right_shoulder_pitch", 1.0, 0.5)
             .expect("feedback");
 
         // Set last_tau_ff to a known value different from measured torque (0.0).
-        sup.last_tau_ff.insert("shoulder_pitch".to_string(), 5.0);
+        sup.last_tau_ff
+            .insert("right_shoulder_pitch".to_string(), 5.0);
 
         // Seed — should update last_tau_ff to measured torque (0.0), not clear or keep 5.0.
         sup.seed_tau_ff_rate_limiter();
 
-        let seeded = sup.last_tau_ff.get("shoulder_pitch").copied();
+        let seeded = sup.last_tau_ff.get("right_shoulder_pitch").copied();
         assert!(
             seeded.is_some(),
             "shoulder_pitch should still have an entry (not cleared)"
@@ -1866,15 +1875,15 @@ mod tests {
         let bus = MemoryBus::default();
         let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
         sup.seed_synthetic_feedback();
-        sup.set_synthetic_joint_feedback("shoulder_pitch", 1.0, -0.5)
+        sup.set_synthetic_joint_feedback("right_shoulder_pitch", 1.0, -0.5)
             .expect("feedback");
-        let motor = motor_for_joint(&sup.motors, "shoulder_pitch")
+        let motor = motor_for_joint(&sup.motors, "right_shoulder_pitch")
             .expect("motor")
             .clone();
         let filtered = sup
             .filter_mit_command(
                 MitJointCommand {
-                    joint: "shoulder_pitch".to_string(),
+                    joint: "right_shoulder_pitch".to_string(),
                     kp: 10.0,
                     kd: 0.0,
                     position_rad: 1.0,
@@ -1885,8 +1894,8 @@ mod tests {
             )
             .expect("filter");
         assert!(
-            filtered.velocity_rad_s >= -0.05 - 1e-9,
-            "expected clamp to max_velocity_rad_s 0.05, got {}",
+            filtered.velocity_rad_s >= -0.45 - 1e-9,
+            "expected clamp to max_velocity_rad_s 0.45, got {}",
             filtered.velocity_rad_s
         );
     }
@@ -1896,15 +1905,15 @@ mod tests {
         let bus = MemoryBus::default();
         let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
         sup.seed_synthetic_feedback();
-        sup.set_synthetic_joint_feedback("shoulder_pitch", 0.2, -0.5)
+        sup.set_synthetic_joint_feedback("right_shoulder_pitch", 0.2, -0.5)
             .expect("feedback");
-        let motor = motor_for_joint(&sup.motors, "shoulder_pitch")
+        let motor = motor_for_joint(&sup.motors, "right_shoulder_pitch")
             .expect("motor")
             .clone();
         let filtered = sup
             .filter_mit_command(
                 MitJointCommand {
-                    joint: "shoulder_pitch".to_string(),
+                    joint: "right_shoulder_pitch".to_string(),
                     kp: 10.0,
                     kd: 0.0,
                     position_rad: 0.2,
@@ -1927,7 +1936,7 @@ mod tests {
         let sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
         let err = sup
             .filter_command(JointCommand {
-                joint: "shoulder_roll".to_string(),
+                joint: "right_shoulder_roll".to_string(),
                 position_rad: 0.0,
                 velocity_rad_s: 99.0,
                 torque_nm: 0.0,
@@ -1944,7 +1953,7 @@ mod tests {
         sup.set_homing_complete().expect("ready");
         let err = sup
             .send_joint_command(JointCommand {
-                joint: "shoulder_roll".to_string(),
+                joint: "right_shoulder_roll".to_string(),
                 position_rad: 0.0,
                 velocity_rad_s: 0.0,
                 torque_nm: 0.0,
@@ -1958,12 +1967,12 @@ mod tests {
         let bus = MemoryBus::default();
         let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
         bench_ready_active(&mut sup);
-        let motor = motor_for_joint(&sup.motors, "elbow")
+        let motor = motor_for_joint(&sup.motors, "right_elbow_pitch")
             .expect("motor")
             .clone();
         sup.send_mit_joint(
             MitJointCommand {
-                joint: "elbow".to_string(),
+                joint: "right_elbow_pitch".to_string(),
                 kp: 0.0,
                 kd: 0.0,
                 position_rad: 0.5,
@@ -2008,7 +2017,7 @@ mod tests {
         bench_ready_active(&mut sup);
         let err = sup
             .send_speed_command(SpeedCommand {
-                joint: "elbow".to_string(),
+                joint: "right_elbow_pitch".to_string(),
                 velocity_rad_s: 0.1,
             })
             .expect_err("speed mode disabled");
@@ -2021,7 +2030,7 @@ mod tests {
             &Supervisor::from_repo(repo_root(), MemoryBus::default())
                 .expect("supervisor")
                 .motors,
-            "elbow",
+            "right_elbow_pitch",
         )
         .expect("motor")
         .clone();
@@ -2050,8 +2059,8 @@ mod tests {
     #[test]
     fn joint_feedback_preserves_synthetic_joint_space_with_inverted_direction() {
         let mut sup = Supervisor::from_repo(repo_root(), MemoryBus::default()).expect("supervisor");
-        let pitch = motor_for_joint(&sup.motors, "shoulder_pitch")
-            .expect("shoulder_pitch")
+        let pitch = motor_for_joint(&sup.motors, "right_shoulder_pitch")
+            .expect("right_shoulder_pitch")
             .joint
             .clone();
         for m in &mut sup.motors.motors {
@@ -2082,7 +2091,7 @@ mod tests {
     #[test]
     fn joint_feedback_exposes_temperature_and_fault() {
         let mut sup = Supervisor::from_repo(repo_root(), MemoryBus::default()).expect("supervisor");
-        let motor = motor_for_joint(&sup.motors, "shoulder_pitch")
+        let motor = motor_for_joint(&sup.motors, "right_shoulder_pitch")
             .expect("motor")
             .clone();
         let address = MotorAddress::from(&motor);
@@ -2098,7 +2107,9 @@ mod tests {
                 updated: Some(now),
             },
         );
-        let fb = sup.joint_feedback("shoulder_pitch").expect("feedback");
+        let fb = sup
+            .joint_feedback("right_shoulder_pitch")
+            .expect("feedback");
         assert!((fb.position_rad - 0.5).abs() < 1e-6);
         assert!((fb.velocity_rad_s - 0.1).abs() < 1e-6);
         assert!((fb.torque_nm - 1.2).abs() < 1e-6);
@@ -2143,7 +2154,7 @@ mod tests {
     fn joint_feedback_transforms_once_on_refresh_with_inverted_scale() {
         let bus = RoutedMemoryBus::default();
         let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
-        let joint = "elbow".to_string();
+        let joint = "right_elbow_pitch".to_string();
         for m in &mut sup.motors.motors {
             if m.joint == joint {
                 m.direction = -1;
@@ -2151,7 +2162,9 @@ mod tests {
                 m.can_interface = "can0".to_string();
             }
         }
-        let motor = motor_for_joint(&sup.motors, &joint).expect("elbow").clone();
+        let motor = motor_for_joint(&sup.motors, &joint)
+            .expect("right_elbow_pitch")
+            .clone();
         assert_eq!(motor.direction, -1);
         assert!((motor.gear_ratio - 2.0).abs() < 1e-9);
         sup.motor_types = sup
@@ -2405,14 +2418,14 @@ mod tests {
         let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
         bench_ready_active(&mut sup);
         sup.bus.tx.clear();
-        let mut motor = motor_for_joint(&sup.motors, "elbow")
+        let mut motor = motor_for_joint(&sup.motors, "right_elbow_pitch")
             .expect("motor")
             .clone();
         motor.direction = -1;
         motor.gear_ratio = 2.0;
         sup.send_mit_joint(
             MitJointCommand {
-                joint: "elbow".to_string(),
+                joint: "right_elbow_pitch".to_string(),
                 kp: 8.0,
                 kd: 4.0,
                 position_rad: 0.5,
@@ -2444,13 +2457,13 @@ mod tests {
         sup.control.control.comm_watchdog_ms = 1;
         bench_ready_active(&mut sup);
         std::thread::sleep(Duration::from_millis(2));
-        let motor = motor_for_joint(&sup.motors, "elbow")
+        let motor = motor_for_joint(&sup.motors, "right_elbow_pitch")
             .expect("motor")
             .clone();
         let err = sup
             .send_mit_joint(
                 MitJointCommand {
-                    joint: "elbow".to_string(),
+                    joint: "right_elbow_pitch".to_string(),
                     kp: 0.0,
                     kd: 0.0,
                     position_rad: 0.0,
@@ -2536,13 +2549,13 @@ mod tests {
         sup.control.control.bench.active_reporting_diagnostics = true;
         sup.sync_active_reporting();
         bench_ready_active(&mut sup);
-        let motor = motor_for_joint(&sup.motors, "elbow")
+        let motor = motor_for_joint(&sup.motors, "right_elbow_pitch")
             .expect("motor")
             .clone();
         let tx_before = sup.bus.tx.len();
         sup.send_mit_joint(
             MitJointCommand {
-                joint: "elbow".to_string(),
+                joint: "right_elbow_pitch".to_string(),
                 kp: 0.0,
                 kd: 0.0,
                 position_rad: 0.5,
@@ -2623,12 +2636,12 @@ mod tests {
         sup.control.control.feedback_drain_quiet_us = 300;
         bench_ready_active(&mut sup);
         std::thread::sleep(Duration::from_millis(10));
-        let motor = motor_for_joint(&sup.motors, "elbow")
+        let motor = motor_for_joint(&sup.motors, "right_elbow_pitch")
             .expect("motor")
             .clone();
         sup.send_mit_joint(
             MitJointCommand {
-                joint: "elbow".to_string(),
+                joint: "right_elbow_pitch".to_string(),
                 kp: 0.0,
                 kd: 0.0,
                 position_rad: 0.0,
@@ -2642,7 +2655,7 @@ mod tests {
         let err = sup
             .send_mit_joint(
                 MitJointCommand {
-                    joint: "elbow".to_string(),
+                    joint: "right_elbow_pitch".to_string(),
                     kp: 0.0,
                     kd: 0.0,
                     position_rad: 0.0,
@@ -2661,13 +2674,13 @@ mod tests {
         let sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
         let out = sup
             .filter_command(JointCommand {
-                joint: "elbow".to_string(),
+                joint: "right_elbow_pitch".to_string(),
                 position_rad: 99.0,
                 velocity_rad_s: 0.0,
                 torque_nm: 0.0,
             })
             .expect("clamp");
-        let policy = sup.joint_limit_policy("elbow").expect("policy");
+        let policy = sup.joint_limit_policy("right_elbow_pitch").expect("policy");
         assert!(out.position_rad <= policy.hard_upper());
         assert!(out.position_rad < 99.0);
     }
@@ -2675,16 +2688,19 @@ mod tests {
     fn wrong_sign_sup() -> Supervisor<MemoryBus> {
         let bus = MemoryBus::default();
         let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        // Master control.yaml disables the watchdog during elbow commissioning;
+        // force-enable for unit coverage of the trip path.
+        sup.control.control.wrong_sign_watchdog.enabled = true;
         bench_ready_active(&mut sup);
         sup.set_control_mode(ControlMode::GravityComp);
-        sup.set_synthetic_joint_feedback("shoulder_pitch", 1.0, 0.5)
+        sup.set_synthetic_joint_feedback("right_shoulder_pitch", 1.0, 0.5)
             .expect("feedback");
         sup
     }
 
     fn wrong_sign_cmd() -> MitJointCommand {
         MitJointCommand {
-            joint: "shoulder_pitch".to_string(),
+            joint: "right_shoulder_pitch".to_string(),
             kp: 0.0,
             kd: 0.0,
             position_rad: 1.0,
@@ -2697,7 +2713,7 @@ mod tests {
     #[test]
     fn wrong_sign_watchdog_trips_on_sustained_opposition() {
         let mut sup = wrong_sign_sup();
-        let motor = motor_for_joint(&sup.motors, "shoulder_pitch")
+        let motor = motor_for_joint(&sup.motors, "right_shoulder_pitch")
             .expect("motor")
             .clone();
         let cmd = wrong_sign_cmd();
@@ -2722,7 +2738,7 @@ mod tests {
     fn wrong_sign_watchdog_no_trip_in_impedance() {
         let mut sup = wrong_sign_sup();
         sup.set_control_mode(ControlMode::Impedance);
-        let motor = motor_for_joint(&sup.motors, "shoulder_pitch")
+        let motor = motor_for_joint(&sup.motors, "right_shoulder_pitch")
             .expect("motor")
             .clone();
         let cmd = wrong_sign_cmd();
@@ -2737,7 +2753,7 @@ mod tests {
     #[test]
     fn wrong_sign_watchdog_grace_period() {
         let mut sup = wrong_sign_sup();
-        let motor = motor_for_joint(&sup.motors, "shoulder_pitch")
+        let motor = motor_for_joint(&sup.motors, "right_shoulder_pitch")
             .expect("motor")
             .clone();
         let cmd = wrong_sign_cmd();
@@ -2750,7 +2766,7 @@ mod tests {
         // State should show opposition has not accumulated past grace.
         let state = sup
             .wrong_sign_state
-            .get("shoulder_pitch")
+            .get("right_shoulder_pitch")
             .expect("state populated");
         assert_eq!(state.opposition_ticks, 0);
     }
@@ -2758,7 +2774,7 @@ mod tests {
     #[test]
     fn wrong_sign_watchdog_resets_on_enable() {
         let mut sup = wrong_sign_sup();
-        let motor = motor_for_joint(&sup.motors, "shoulder_pitch")
+        let motor = motor_for_joint(&sup.motors, "right_shoulder_pitch")
             .expect("motor")
             .clone();
         let cmd = wrong_sign_cmd();
@@ -2767,7 +2783,7 @@ mod tests {
         for _ in 0..grace + 3 {
             let _ = sup.filter_mit_command(cmd.clone(), &motor);
         }
-        assert!(sup.wrong_sign_state.contains_key("shoulder_pitch"));
+        assert!(sup.wrong_sign_state.contains_key("right_shoulder_pitch"));
         sup.disable_all().expect("disable");
         assert!(sup.wrong_sign_state.is_empty());
         // Re-enable clears state on the enable path too.
@@ -2779,9 +2795,9 @@ mod tests {
     #[test]
     fn wrong_sign_watchdog_no_trip_when_velocity_below_threshold() {
         let mut sup = wrong_sign_sup();
-        sup.set_synthetic_joint_feedback("shoulder_pitch", 1.0, 0.01)
+        sup.set_synthetic_joint_feedback("right_shoulder_pitch", 1.0, 0.01)
             .expect("feedback");
-        let motor = motor_for_joint(&sup.motors, "shoulder_pitch")
+        let motor = motor_for_joint(&sup.motors, "right_shoulder_pitch")
             .expect("motor")
             .clone();
         let cmd = wrong_sign_cmd();
@@ -2796,12 +2812,12 @@ mod tests {
     #[test]
     fn wrong_sign_watchdog_no_trip_when_sign_matches() {
         let mut sup = wrong_sign_sup();
-        let motor = motor_for_joint(&sup.motors, "shoulder_pitch")
+        let motor = motor_for_joint(&sup.motors, "right_shoulder_pitch")
             .expect("motor")
             .clone();
         // q > 0 → expected_sign = -1; torque_ff = -1.0 matches → no trip.
         let cmd = MitJointCommand {
-            joint: "shoulder_pitch".to_string(),
+            joint: "right_shoulder_pitch".to_string(),
             kp: 0.0,
             kd: 0.0,
             position_rad: 1.0,
@@ -2819,11 +2835,11 @@ mod tests {
     #[test]
     fn disable_all_clears_last_tick() {
         let mut sup = wrong_sign_sup();
-        let motor = motor_for_joint(&sup.motors, "shoulder_pitch")
+        let motor = motor_for_joint(&sup.motors, "right_shoulder_pitch")
             .expect("motor")
             .clone();
         let cmd = MitJointCommand {
-            joint: "shoulder_pitch".to_string(),
+            joint: "right_shoulder_pitch".to_string(),
             kp: 0.0,
             kd: 0.0,
             position_rad: 1.0,
@@ -2842,13 +2858,13 @@ mod tests {
     #[test]
     fn tau_ff_step_rate_limited_after_disable_gap() {
         let mut sup = wrong_sign_sup();
-        let motor = motor_for_joint(&sup.motors, "shoulder_pitch")
+        let motor = motor_for_joint(&sup.motors, "right_shoulder_pitch")
             .expect("motor")
             .clone();
         sup.seed_tau_ff_rate_limiter();
         // Tick once at -0.5 Nm to establish a rate-limiter baseline.
         let cmd_small = MitJointCommand {
-            joint: "shoulder_pitch".to_string(),
+            joint: "right_shoulder_pitch".to_string(),
             kp: 0.0,
             kd: 0.0,
             position_rad: 1.0,
@@ -2864,7 +2880,7 @@ mod tests {
         sup.request_enable(true).expect("enable");
         // Large τ_ff step — must be rate-limited, NOT passed through.
         let cmd_big = MitJointCommand {
-            joint: "shoulder_pitch".to_string(),
+            joint: "right_shoulder_pitch".to_string(),
             kp: 0.0,
             kd: 0.0,
             position_rad: 1.0,

@@ -1411,7 +1411,10 @@ mod tests {
             .kp = before + 3.0;
         write_control_config_from(tmp.path(), &cfg).expect("write");
         let reloaded = load_control_config_from(tmp.path()).expect("reload");
-        assert!((reloaded.control.joints["right_elbow_pitch"].impedance.kp - (before + 3.0)).abs() < 1e-9);
+        assert!(
+            (reloaded.control.joints["right_elbow_pitch"].impedance.kp - (before + 3.0)).abs()
+                < 1e-9
+        );
     }
 
     #[test]
@@ -1424,7 +1427,8 @@ mod tests {
             .expect("elbow")
             .impedance
             .kp = 9999.0;
-        let err = validate_joint_gains_against_motor_type(&bad, "right_elbow_pitch").expect_err("over max");
+        let err = validate_joint_gains_against_motor_type(&bad, "right_elbow_pitch")
+            .expect_err("over max");
         assert!(matches!(err, ConfigError::Parse { .. }));
     }
 
@@ -1438,7 +1442,8 @@ mod tests {
             .expect("elbow")
             .impedance
             .kp = -1.0;
-        let err = validate_joint_gains_against_motor_type(&bad, "right_elbow_pitch").expect_err("negative");
+        let err = validate_joint_gains_against_motor_type(&bad, "right_elbow_pitch")
+            .expect_err("negative");
         assert!(matches!(err, ConfigError::Parse { .. }));
     }
 }

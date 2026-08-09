@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Update loaded-side mass in assets/urdf/shoulder_pitch_weighted.urdf after scale measurement.
+# Update loaded-side mass in the archived weighted URDF after scale measurement.
 set -euo pipefail
 
 usage() {
@@ -21,7 +21,7 @@ fi
 mass="$1"
 side="$2"
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
-urdf="${repo_root}/assets/urdf/shoulder_pitch_weighted.urdf"
+urdf="${repo_root}/assets/urdf/archive/seed-shoulder_pitch_weighted/contributor.urdf"
 
 if ! [[ "$mass" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
   echo "invalid mass_kg: $mass" >&2

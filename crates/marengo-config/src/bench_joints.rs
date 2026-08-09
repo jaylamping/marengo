@@ -134,8 +134,8 @@ mod tests {
     #[test]
     fn master_config_accepts_right_four_dof_joints() {
         let root = resolve_repo_root();
-        let allowlist = load_command_joint_allowlist_from(resolve_config_dir(&root))
-            .expect("master allowlist");
+        let allowlist =
+            load_command_joint_allowlist_from(resolve_config_dir(&root)).expect("master allowlist");
         assert_eq!(
             resolve_command_joint("right_shoulder_pitch", &allowlist),
             Some("right_shoulder_pitch")

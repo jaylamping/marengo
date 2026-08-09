@@ -52,12 +52,11 @@ describe("bench URDF sync", () => {
   });
 
   it("verifies a single staged archive URDF", () => {
-    const script = benchUrdfStagingVerifyBody(
-      cfg,
-      ["shoulder_pitch_left_bare.urdf"],
-    );
+    const script = benchUrdfStagingVerifyBody(cfg, [
+      "archive/seed-shoulder_pitch_left_bare/contributor.urdf",
+    ]);
 
-    assert.match(script, /shoulder_pitch_left_bare\.urdf/);
+    assert.match(script, /seed-shoulder_pitch_left_bare\/contributor\.urdf/);
     assert.match(script, /grep -A3 "<inertial>"/);
     assert.doesNotMatch(script, /marengo\.urdf/);
   });

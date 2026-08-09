@@ -127,7 +127,12 @@ fn runtime_overlay_applies_kp_via_gain_override() {
     let (mut overlay, shutdown) = test_overlay();
     let mut loop_ctrl = test_loop();
     loop_ctrl.set_control_mode(ControlMode::Impedance);
-    let op = tuning_operator("right_elbow_pitch", "kp", 88.0, TuningTier::RuntimeMit as i32);
+    let op = tuning_operator(
+        "right_elbow_pitch",
+        "kp",
+        88.0,
+        TuningTier::RuntimeMit as i32,
+    );
     let outcomes = overlay
         .apply_operator_command(&mut loop_ctrl, &repo_root().join("config"), &op)
         .expect("apply");
@@ -137,7 +142,9 @@ fn runtime_overlay_applies_kp_via_gain_override() {
         return;
     };
     assert!((event.after - 88.0).abs() < 1e-9);
-    let ov = loop_ctrl.gain_override("right_elbow_pitch").expect("override");
+    let ov = loop_ctrl
+        .gain_override("right_elbow_pitch")
+        .expect("override");
     assert!((ov.kp - 88.0).abs() < 1e-9);
     shutdown.store(true, Ordering::SeqCst);
 }
@@ -147,7 +154,12 @@ fn runtime_overlay_rejects_pos_vel_torque_ff() {
     let (mut overlay, shutdown) = test_overlay();
     let mut loop_ctrl = test_loop();
     for param in ["pos", "vel", "torque_ff"] {
-        let op = tuning_operator("right_elbow_pitch", param, 1.0, TuningTier::RuntimeMit as i32);
+        let op = tuning_operator(
+            "right_elbow_pitch",
+            param,
+            1.0,
+            TuningTier::RuntimeMit as i32,
+        );
         let err = overlay
             .apply_operator_command(&mut loop_ctrl, &repo_root().join("config"), &op)
             .expect_err(param);
@@ -162,7 +174,12 @@ fn runtime_overlay_rejects_under_gravity_comp() {
     let (mut overlay, shutdown) = test_overlay();
     let mut loop_ctrl = test_loop();
     loop_ctrl.set_control_mode(ControlMode::GravityComp);
-    let op = tuning_operator("right_elbow_pitch", "kp", 88.0, TuningTier::RuntimeMit as i32);
+    let op = tuning_operator(
+        "right_elbow_pitch",
+        "kp",
+        88.0,
+        TuningTier::RuntimeMit as i32,
+    );
     let err = overlay
         .apply_operator_command(&mut loop_ctrl, &repo_root().join("config"), &op)
         .expect_err("gravity comp");
@@ -176,7 +193,12 @@ fn runtime_overlay_rejects_under_disabled() {
     let (mut overlay, shutdown) = test_overlay();
     let mut loop_ctrl = test_loop();
     assert_eq!(loop_ctrl.control_mode(), ControlMode::Disabled);
-    let op = tuning_operator("right_elbow_pitch", "kp", 88.0, TuningTier::RuntimeMit as i32);
+    let op = tuning_operator(
+        "right_elbow_pitch",
+        "kp",
+        88.0,
+        TuningTier::RuntimeMit as i32,
+    );
     let err = overlay
         .apply_operator_command(&mut loop_ctrl, &repo_root().join("config"), &op)
         .expect_err("disabled");
@@ -190,7 +212,12 @@ fn runtime_overlay_rejects_negative_kp() {
     let (mut overlay, shutdown) = test_overlay();
     let mut loop_ctrl = test_loop();
     loop_ctrl.set_control_mode(ControlMode::Impedance);
-    let op = tuning_operator("right_elbow_pitch", "kp", -1.0, TuningTier::RuntimeMit as i32);
+    let op = tuning_operator(
+        "right_elbow_pitch",
+        "kp",
+        -1.0,
+        TuningTier::RuntimeMit as i32,
+    );
     let err = overlay
         .apply_operator_command(&mut loop_ctrl, &repo_root().join("config"), &op)
         .expect_err("negative");
@@ -204,11 +231,18 @@ fn runtime_overlay_clamps_kp_to_motor_type_max() {
     let (mut overlay, shutdown) = test_overlay();
     let mut loop_ctrl = test_loop();
     loop_ctrl.set_control_mode(ControlMode::Impedance);
-    let op = tuning_operator("right_elbow_pitch", "kp", 600.0, TuningTier::RuntimeMit as i32);
+    let op = tuning_operator(
+        "right_elbow_pitch",
+        "kp",
+        600.0,
+        TuningTier::RuntimeMit as i32,
+    );
     overlay
         .apply_operator_command(&mut loop_ctrl, &repo_root().join("config"), &op)
         .expect("apply");
-    let ov = loop_ctrl.gain_override("right_elbow_pitch").expect("override");
+    let ov = loop_ctrl
+        .gain_override("right_elbow_pitch")
+        .expect("override");
     // rs02 kp_max is 500 in default config
     assert!(ov.kp <= 500.0 + 1e-9);
     shutdown.store(true, Ordering::SeqCst);

@@ -17,11 +17,11 @@ const MASTER_URDF = "marengo.urdf" as const;
 
 const benchUrdfAssets = [
   MASTER_URDF,
-  "shoulder_pitch_right_only.urdf",
-  "shoulder_pitch_weighted.urdf",
-  "shoulder_pitch_left_bare.urdf",
-  "arm_4dof_right.urdf",
-  "arm_3dof_right.urdf",
+  "archive/seed-shoulder_pitch_right_bare/contributor.urdf",
+  "archive/seed-shoulder_pitch_weighted/contributor.urdf",
+  "archive/seed-shoulder_pitch_left_bare/contributor.urdf",
+  "archive/seed-arm_4dof_right/contributor.urdf",
+  "archive/seed-arm_3dof_right/contributor.urdf",
 ] as const;
 
 type BenchUrdfAsset = (typeof benchUrdfAssets)[number];
@@ -87,6 +87,7 @@ export function benchUrdfInstallBody(
       `DST=${shellQuote(remoteOpt)}`,
       'if [[ -d "$DST" && -w "$DST" ]]; then',
       "  for asset in " + assetNames + "; do",
+      '    mkdir -p "$(dirname "$DST/$asset")"',
       '    install -m 0644 "$SRC/$asset" "$DST/$asset"',
       '    echo "installed $DST/$asset (direct write)"',
       '    echo "--- $DST/$asset"',

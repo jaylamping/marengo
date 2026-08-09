@@ -269,8 +269,8 @@ mod tests {
         let root = resolve_repo_root();
         let src = root.join("assets/urdf/marengo.urdf");
         let xml = fs::read_to_string(&src).expect("read");
-        let out =
-            rewrite_joint_envelope_attrs(&xml, "right_elbow_pitch", -0.5, 3.0, None).expect("rewrite");
+        let out = rewrite_joint_envelope_attrs(&xml, "right_elbow_pitch", -0.5, 3.0, None)
+            .expect("rewrite");
         assert!(out.contains("lower=\"-0.5\""));
         assert!(out.contains("upper=\"3\""));
         assert!(out.contains("name=\"right_shoulder_pitch\""));
@@ -327,7 +327,11 @@ mod tests {
         for name in ["robot.yaml", "motors.yaml", "control.yaml", "homing.yaml"] {
             fs::copy(root.join("config").join(name), config_dir.join(name)).expect("yaml");
         }
-        fs::copy(root.join("assets/urdf/marengo.urdf"), assets.join("marengo.urdf")).expect("urdf");
+        fs::copy(
+            root.join("assets/urdf/marengo.urdf"),
+            assets.join("marengo.urdf"),
+        )
+        .expect("urdf");
 
         let mut motors = load_motors_config_from(&config_dir).expect("motors");
         let control = load_control_config_from(&config_dir).expect("control");

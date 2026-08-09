@@ -52,6 +52,7 @@ pub fn decode_action_event(envelope_bytes: &[u8]) -> Result<ActionEvent, ()> {
 }
 
 #[cfg(test)]
+#[allow(dead_code)] // shared test helper for ActionEvent envelopes
 pub fn encode_action_event_envelope(event: &ActionEvent) -> Vec<u8> {
     Envelope {
         timestamp_ms: event.timestamp_ms,

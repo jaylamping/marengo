@@ -2,6 +2,8 @@
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use armee_kinematics::{actuated_joint_names, load_urdf};
 use urdf_rs::JointType;
@@ -109,16 +111,13 @@ pub fn merge_preview_from_robots(
 
     let mut field_diffs = Vec::new();
     for joint_name in &overlapping_joints {
-        let master_joint = master
-            .joints
-            .iter()
-            .find(|j| j.name == *joint_name)
-            .expect("overlap joint in master");
-        let contributor_joint = contributor
-            .joints
-            .iter()
-            .find(|j| j.name == *joint_name)
-            .expect("overlap joint in contributor");
+        let Some(master_joint) = master.joints.iter().find(|j| j.name == *joint_name) else {
+            continue;
+        };
+        let Some(contributor_joint) = contributor.joints.iter().find(|j| j.name == *joint_name)
+        else {
+            continue;
+        };
         push_joint_field_diffs(&mut field_diffs, master_joint, contributor_joint);
     }
 
@@ -271,13 +270,8 @@ pub fn apply_merge_xml(
         if choice != ResolutionChoice::Contributor {
             continue;
         }
-        merged = rewrite_joint_field(
-            &merged,
-            &diff.joint,
-            &diff.field,
-            &diff.contributor_value,
-        )
-        .map_err(|message| parse_error(path, message))?;
+        merged = rewrite_joint_field(&merged, &diff.joint, &diff.field, &diff.contributor_value)
+            .map_err(|message| parse_error(path, message))?;
     }
 
     if preview.new_joints.is_empty() {
@@ -303,9 +297,18 @@ pub fn apply_merge_xml(
 }
 
 fn load_urdf_from_str(xml: &str, path: &Path) -> Result<urdf_rs::Robot, ConfigError> {
+    // Unique per call so parallel tests do not race on a pid-only temp path.
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+    let seq = SEQ.fetch_add(1, Ordering::Relaxed);
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
     let tmp = std::env::temp_dir().join(format!(
-        "marengo-merge-{}.urdf",
-        std::process::id()
+        "marengo-merge-{}-{}-{}.urdf",
+        std::process::id(),
+        nanos,
+        seq
     ));
     std::fs::write(&tmp, xml).map_err(|e| ConfigError::Io {
         path: tmp.clone(),
@@ -356,18 +359,17 @@ fn rewrite_joint_type(xml: &str, joint: &str, joint_type: &str) -> Result<String
         .find("<joint")
         .ok_or_else(|| format!("joint open tag missing for {joint}"))?;
     let rel = &block[open..];
-    let end = rel.find('>').ok_or_else(|| format!("joint open unclosed for {joint}"))?;
+    let end = rel
+        .find('>')
+        .ok_or_else(|| format!("joint open unclosed for {joint}"))?;
     let mut tag = rel[..=end].to_string();
     if let Some(type_idx) = tag.find("type=\"") {
         let start = type_idx + "type=\"".len();
         let rest = &tag[start..];
-        let close = rest.find('"').ok_or_else(|| format!("type attr unclosed for {joint}"))?;
-        tag = format!(
-            "{}{}{}",
-            &tag[..start],
-            joint_type,
-            &rest[close..]
-        );
+        let close = rest
+            .find('"')
+            .ok_or_else(|| format!("type attr unclosed for {joint}"))?;
+        tag = format!("{}{}{}", &tag[..start], joint_type, &rest[close..]);
     } else {
         tag = tag.replace('>', &format!(" type=\"{joint_type}\">"));
     }
@@ -470,11 +472,10 @@ fn rewrite_vec3_attr(tag: &str, name: &str, values: &[f64]) -> Result<String, St
         .ok_or_else(|| format!("attribute {name} missing"))?;
     let start = idx + key.len();
     let rest = &tag[start..];
-    let end = rest.find('"').ok_or_else(|| format!("attribute {name} unclosed"))?;
-    let formatted = format!(
-        "{:.6} {:.6} {:.6}",
-        values[0], values[1], values[2]
-    );
+    let end = rest
+        .find('"')
+        .ok_or_else(|| format!("attribute {name} unclosed"))?;
+    let formatted = format!("{:.6} {:.6} {:.6}", values[0], values[1], values[2]);
     let mut out = String::with_capacity(tag.len() + 16);
     out.push_str(&tag[..start]);
     out.push_str(&formatted);
@@ -482,7 +483,12 @@ fn rewrite_vec3_attr(tag: &str, name: &str, values: &[f64]) -> Result<String, St
     Ok(out)
 }
 
-fn rewrite_tag_string_attr(tag: &str, tag_open: &str, attr: &str, value: &str) -> Result<String, String> {
+fn rewrite_tag_string_attr(
+    tag: &str,
+    tag_open: &str,
+    attr: &str,
+    value: &str,
+) -> Result<String, String> {
     let start = tag
         .find(tag_open)
         .ok_or_else(|| format!("{tag_open} tag missing"))?;
@@ -499,12 +505,7 @@ fn rewrite_tag_string_attr(tag: &str, tag_open: &str, attr: &str, value: &str) -
         let close = rest
             .find('"')
             .ok_or_else(|| format!("attribute {attr} unclosed"))?;
-        fragment = format!(
-            "{}{}{}",
-            &fragment[..value_start],
-            value,
-            &rest[close..]
-        );
+        fragment = format!("{}{}{}", &fragment[..value_start], value, &rest[close..]);
     } else {
         fragment.push_str(&format!(" {attr}=\"{value}\""));
     }
@@ -518,7 +519,9 @@ fn replace_numeric_attr(tag: &str, name: &str, value: f64) -> Result<String, Str
         .ok_or_else(|| format!("attribute {name} missing"))?;
     let value_start = idx + key.len();
     let rest = &tag[value_start..];
-    let end = rest.find('"').ok_or_else(|| format!("attribute {name} unclosed"))?;
+    let end = rest
+        .find('"')
+        .ok_or_else(|| format!("attribute {name} unclosed"))?;
     let mut out = String::with_capacity(tag.len() + 8);
     out.push_str(&tag[..value_start]);
     out.push_str(&format_limit_value(value));
@@ -611,7 +614,9 @@ mod tests {
             preview
                 .field_diffs
                 .iter()
-                .any(|d| d.joint == "right_shoulder_pitch" && d.field == "axis" && d.kinematics_critical),
+                .any(|d| d.joint == "right_shoulder_pitch"
+                    && d.field == "axis"
+                    && d.kinematics_critical),
             "expected axis diff: {:?}",
             preview.field_diffs
         );
@@ -658,15 +663,18 @@ mod tests {
     fn merge_preview_lists_new_joints_from_contributor() {
         let root = resolve_repo_root();
         let master = fs::read_to_string(root.join("assets/urdf/marengo.urdf")).expect("master");
-        let contributor =
-            fs::read_to_string(root.join("assets/urdf/archive/seed-arm_3dof_right/contributor.urdf"))
-                .expect("3dof");
+        let contributor = fs::read_to_string(
+            root.join("assets/urdf/archive/seed-arm_3dof_right/contributor.urdf"),
+        )
+        .expect("3dof");
         let preview = merge_preview_from_paths(
             root.join("assets/urdf/marengo.urdf"),
             root.join("assets/urdf/archive/seed-arm_3dof_right/contributor.urdf"),
         )
         .expect("preview");
-        assert!(preview.overlapping_joints.contains(&"right_shoulder_pitch".to_string()));
+        assert!(preview
+            .overlapping_joints
+            .contains(&"right_shoulder_pitch".to_string()));
         assert!(preview.new_joints.is_empty());
         let master_robot = load_urdf_from_str(&master, Path::new("m.urdf")).expect("m");
         let contributor_robot = load_urdf_from_str(&contributor, Path::new("c.urdf")).expect("c");

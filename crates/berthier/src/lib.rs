@@ -127,7 +127,7 @@ mod tests {
             .expect("verify");
         ctrl.supervisor_mut().set_homing_complete().expect("ready");
         ctrl.supervisor_mut().request_enable(true).expect("enable");
-        ctrl.command_position("shoulder_roll", 0.05)
+        ctrl.command_position("right_shoulder_roll", 0.05)
             .expect("position");
     }
 }

@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 
+use crate::config_revision::profile_content_revision;
 use crate::{
     apply_limit_patch_to_control, apply_limit_patch_to_motor, ensure_soft_inset,
     load_control_config_from, load_homing_config_from, load_motors_config_from,
@@ -13,7 +14,6 @@ use crate::{
     validate_robot_control_joint_coverage, write_motors_control_and_urdf, ConfigError,
     ControlConfigFile, HomingConfigFile, LimitPatch, MotorsConfigFile, RobotConfigFile,
 };
-use crate::config_revision::profile_content_revision;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UpsertLimitResult {
@@ -355,7 +355,8 @@ mod tests {
         let config_dir = temp.path().join("config");
         fs::create_dir_all(&config_dir).expect("config dir");
         for name in PROFILE_FILES {
-            fs::copy(root.join("config").join(name), config_dir.join(name)).expect("copy profile file");
+            fs::copy(root.join("config").join(name), config_dir.join(name))
+                .expect("copy profile file");
         }
         let robot = load_robot_config_from(&config_dir).expect("robot");
         let urdf_rel = PathBuf::from(&robot.robot.urdf);
@@ -487,8 +488,9 @@ mod tests {
         }
         fs::copy(&full_urdf, &urdf_dest).expect("full urdf");
 
-        let result = add_joint_from_source(temp.path(), &target_dir, &source, "right_elbow_pitch", None)
-            .expect("add elbow");
+        let result =
+            add_joint_from_source(temp.path(), &target_dir, &source, "right_elbow_pitch", None)
+                .expect("add elbow");
 
         assert_eq!(result.joint, "right_elbow_pitch");
         assert!(load_robot_config_from(&target_dir)
@@ -519,9 +521,14 @@ mod tests {
         let target_dir = copy_three_dof_subset(temp.path());
         let before = profile_content_revision(&target_dir).expect("revision");
 
-        assert!(
-            add_joint_from_source(temp.path(), &target_dir, &source, "right_elbow_pitch", None).is_err()
-        );
+        assert!(add_joint_from_source(
+            temp.path(),
+            &target_dir,
+            &source,
+            "right_elbow_pitch",
+            None
+        )
+        .is_err());
         assert_eq!(
             profile_content_revision(&target_dir).expect("revision after rejection"),
             before

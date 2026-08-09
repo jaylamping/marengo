@@ -1,4 +1,4 @@
-#![allow(clippy::expect_used, clippy::unwrap_used)]
+#![allow(clippy::await_holding_lock, clippy::expect_used, clippy::unwrap_used)]
 
 use std::fs;
 
@@ -20,10 +20,7 @@ fn test_app(state: crate::state::SharedState) -> axum::Router {
 
 fn auth_headers() -> HeaderMap {
     let mut headers = HeaderMap::new();
-    headers.insert(
-        "x-marengo-log-token",
-        HeaderValue::from_static(TEST_TOKEN),
-    );
+    headers.insert("x-marengo-log-token", HeaderValue::from_static(TEST_TOKEN));
     headers
 }
 
@@ -75,7 +72,11 @@ async fn completeness_is_advisory_and_upload_not_blocked() {
     let assets = tmp.path().join("assets/urdf");
     fs::create_dir_all(assets.join("staging")).expect("staging");
     fs::create_dir_all(assets.join("archive")).expect("archive");
-    fs::copy(root.join("assets/urdf/marengo.urdf"), assets.join("marengo.urdf")).expect("urdf");
+    fs::copy(
+        root.join("assets/urdf/marengo.urdf"),
+        assets.join("marengo.urdf"),
+    )
+    .expect("urdf");
 
     let config_dir = tmp.path().join("config");
     fs::create_dir_all(&config_dir).expect("config");
@@ -146,7 +147,11 @@ async fn activate_archives_replaced_active_and_promotes_merge() {
     let assets = tmp.path().join("assets/urdf");
     fs::create_dir_all(assets.join("staging")).expect("staging");
     fs::create_dir_all(assets.join("archive")).expect("archive");
-    fs::copy(root.join("assets/urdf/marengo.urdf"), assets.join("marengo.urdf")).expect("urdf");
+    fs::copy(
+        root.join("assets/urdf/marengo.urdf"),
+        assets.join("marengo.urdf"),
+    )
+    .expect("urdf");
 
     let config_dir = tmp.path().join("config");
     fs::create_dir_all(&config_dir).expect("config");

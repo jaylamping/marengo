@@ -12,8 +12,8 @@ use axum::{
     Json,
 };
 use marengo_config::{
-    completeness_report, merge_preview_from_paths, simulate_merge_xml,
-    unresolved_critical_fields, CompletenessReport, FieldResolution, MergePreview,
+    completeness_report, merge_preview_from_paths, simulate_merge_xml, unresolved_critical_fields,
+    CompletenessReport, FieldResolution, MergePreview,
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -100,9 +100,7 @@ pub fn live_urdf_path(repo_root: &Path) -> PathBuf {
 }
 
 pub fn staging_dir(repo_root: &Path, upload_id: &str) -> PathBuf {
-    urdf_assets_root(repo_root)
-        .join("staging")
-        .join(upload_id)
+    urdf_assets_root(repo_root).join("staging").join(upload_id)
 }
 
 pub fn archive_dir(repo_root: &Path, upload_id: &str) -> PathBuf {
@@ -119,7 +117,7 @@ fn config_dir() -> PathBuf {
 
 fn sha256_hex(bytes: &[u8]) -> String {
     let digest = Sha256::digest(bytes);
-    format!("{:x}", digest)
+    format!("{digest:x}")
 }
 
 fn new_upload_id() -> String {
@@ -238,7 +236,8 @@ pub async fn post_activate(
     }
 
     let master_path = live_urdf_path(&root);
-    let master_xml = fs::read_to_string(&master_path).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let master_xml =
+        fs::read_to_string(&master_path).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let contributor_xml =
         fs::read_to_string(&contributor_path).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let preview = merge_preview_from_paths(&master_path, &contributor_path)
@@ -277,7 +276,7 @@ pub async fn post_activate(
 
     let tmp = master_path.with_extension("urdf.tmp");
     fs::write(&tmp, &merged).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    if let Err(_) = fs::rename(&tmp, &master_path) {
+    if fs::rename(&tmp, &master_path).is_err() {
         let _ = fs::remove_file(&tmp);
         return Err(StatusCode::INTERNAL_SERVER_ERROR);
     }
@@ -303,8 +302,8 @@ pub async fn post_activate(
     )
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let completeness = completeness_report(&root, &config_dir())
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let completeness =
+        completeness_report(&root, config_dir()).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok((
         StatusCode::OK,
@@ -324,7 +323,11 @@ pub async fn get_archive_list() -> Result<Json<ArchiveListJson>, StatusCode> {
     if archive_root.is_dir() {
         for entry in fs::read_dir(&archive_root).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)? {
             let entry = entry.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-            if !entry.file_type().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?.is_dir() {
+            if !entry
+                .file_type()
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+                .is_dir()
+            {
                 continue;
             }
             let upload_id = entry.file_name().to_string_lossy().to_string();
@@ -362,13 +365,15 @@ pub async fn get_archive_fetch(
     }
     let manifest_path = archive.join("manifest.json");
     let manifest = if manifest_path.is_file() {
-        let text = fs::read_to_string(&manifest_path).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        let text =
+            fs::read_to_string(&manifest_path).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         serde_json::from_str(&text).unwrap_or(serde_json::Value::Null)
     } else {
         serde_json::Value::Null
     };
     let contributor_path = archive.join(CONTRIBUTOR_NAME);
-    let contributor_urdf = fs::read_to_string(&contributor_path).map_err(|_| StatusCode::NOT_FOUND)?;
+    let contributor_urdf =
+        fs::read_to_string(&contributor_path).map_err(|_| StatusCode::NOT_FOUND)?;
     let replaced_path = archive.join(REPLACED_ACTIVE_NAME);
     let replaced_active_urdf = if replaced_path.is_file() {
         Some(fs::read_to_string(&replaced_path).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?)
@@ -400,7 +405,8 @@ pub async fn post_archive_restore(
     fs::copy(&contributor_path, &dest).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let master_path = live_urdf_path(&root);
-    let preview = merge_preview_from_paths(&master_path, &dest).map_err(|_| StatusCode::BAD_REQUEST)?;
+    let preview =
+        merge_preview_from_paths(&master_path, &dest).map_err(|_| StatusCode::BAD_REQUEST)?;
     Ok(Json(UrdfUploadResultJson {
         ok: true,
         upload_id,
@@ -415,18 +421,16 @@ fn simulate_merge_from_staging(
 ) -> Result<String, marengo_config::ConfigError> {
     let master_path = live_urdf_path(repo_root);
     let contributor_path = staging_dir(repo_root, upload_id).join(CONTRIBUTOR_NAME);
-    let master_xml = fs::read_to_string(&master_path).map_err(|error| {
-        marengo_config::ConfigError::Io {
+    let master_xml =
+        fs::read_to_string(&master_path).map_err(|error| marengo_config::ConfigError::Io {
             path: master_path,
             message: error.to_string(),
-        }
-    })?;
-    let contributor_xml = fs::read_to_string(&contributor_path).map_err(|error| {
-        marengo_config::ConfigError::Io {
+        })?;
+    let contributor_xml =
+        fs::read_to_string(&contributor_path).map_err(|error| marengo_config::ConfigError::Io {
             path: contributor_path,
             message: error.to_string(),
-        }
-    })?;
+        })?;
     simulate_merge_xml(&master_xml, &contributor_xml, resolutions)
 }
 
@@ -439,8 +443,14 @@ fn read_manifest_summary(path: &Path) -> Option<ArchiveEntryJson> {
             .and_then(|v| v.as_str())
             .unwrap_or_default()
             .to_string(),
-        archived_at: value.get("archived_at").and_then(|v| v.as_str()).map(str::to_string),
-        source: value.get("source").and_then(|v| v.as_str()).map(str::to_string),
+        archived_at: value
+            .get("archived_at")
+            .and_then(|v| v.as_str())
+            .map(str::to_string),
+        source: value
+            .get("source")
+            .and_then(|v| v.as_str())
+            .map(str::to_string),
         checksum_sha256: value
             .get("checksum_sha256")
             .and_then(|v| v.as_str())

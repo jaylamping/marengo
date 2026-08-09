@@ -59,11 +59,7 @@ fn main() -> ExitCode {
         Ok(()) => {
             eprintln!(
                 "local limit sync ok: joint={} hard=[{}, {}] soft=[{}, {}]",
-                patch.joint,
-                patch.position_lower_rad,
-                patch.position_upper_rad,
-                soft_lo,
-                soft_hi
+                patch.joint, patch.position_lower_rad, patch.position_upper_rad, soft_lo, soft_hi
             );
             ExitCode::SUCCESS
         }

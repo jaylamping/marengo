@@ -1,6 +1,6 @@
 change: consul-hardware-sot
 created_at: "2026-08-09T12:22:00Z"
-phase: apply
+phase: verify
 completed_phases:
   - init
   - propose
@@ -8,6 +8,8 @@ completed_phases:
   - spec
   - design
   - tasks
+  - apply
+  - verify
 status: active
 branch: jl/hardware-openspec-5293
 delivery_strategy: vertical-pr
@@ -36,15 +38,13 @@ tasks:
     api: 13
     ui: 12
     inventory-deploy: 9
+verify:
+  artifact: openspec/changes/consul-hardware-sot/verify-report.md
+  verdict: pass-with-warnings
+  completed_at: "2026-08-09T13:10:00Z"
+  notes: |
+    ./scripts/check.sh ok; Pi smoke operator-deferred (smoke-phase4.md).
 notes: |
-  One OpenSpec change; implementation order SoT → API → UI → inventory/deploy.
-  Completeness v1 warn-only on gateway/marengo-config; Consul renders only.
-  Master YAML at root config/ (collapse arm_4dof_right); retire /config/profiles*.
-  Master URDF marengo.urdf (promote arm_4dof_right.urdf day-1); staging/ + archive/<upload-id>/.
-  Set Limits durable path only on Hardware; ADR 0012 memory SoT + write-behind; ADR 0017 expand-only URDF.
-  Limb subsets ephemeral against master — never alternate URDF SoTs.
-  Deferred: table polish, offline pruning, 3D-as-default.
-  Design (2026-08-09): gateway hardware.rs (URDF lifecycle + completeness); marengo-config
-  urdf_merge + completeness modules; profiles.rs retired phase 2; reuse POST /config/patch for
-  Set Limits; MARENGO_JOINT_SUBSET for ephemeral harness subsets phase 4.
-  Feasibility Go — tasks.md complete; ready for sdd-apply (feature-branch-chain PR1 SoT).
+  One OpenSpec change; SoT → API → UI → inventory/deploy applied.
+  Completeness warn-only on gateway; full URDF archive API; Hardware workspace shipped.
+  Next: sdd-archive after PR review + optional bench smoke.
