@@ -51,8 +51,8 @@
 ### Test Summary
 
 - Focused Phase 6 Vitest: 21 pass
-- Full `cd consul && npm test`: (recorded at gate)
-- `cargo test --workspace`: (recorded at gate)
+- Full `cd consul && npm test`: **54 files / 288 tests passed**
+- `cargo test --workspace`: **passed** (no failures)
 - Pi smoke: deferred manual / #115 — does not block verify
 
 ## Deviations from Design
