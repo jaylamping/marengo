@@ -20,7 +20,16 @@ run_prepare() {
   fi
 }
 
+ensure_tailscale_ready() {
+  # Install can fail mid-bootstrap (e.g. old Node) and leave start with no binaries.
+  if ! cloud_pi_tailscale_installed; then
+    cloud_pi_warn "Tailscale not installed — running prepare (packages + Tailscale)"
+    run_prepare
+  fi
+}
+
 run_start_daemon() {
+  ensure_tailscale_ready
   cloud_pi_start_tailscaled || true
   if [[ -n "${TAILSCALE_AUTH_KEY:-}" ]]; then
     cloud_pi_tailscale_up || true
@@ -28,6 +37,7 @@ run_start_daemon() {
 }
 
 run_connect() {
+  ensure_tailscale_ready
   cloud_pi_tailscale_up
   cloud_pi_write_ssh_config
 }
