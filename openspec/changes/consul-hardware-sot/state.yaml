@@ -1,9 +1,12 @@
 change: consul-hardware-sot
 created_at: "2026-08-09T12:22:00Z"
+updated_at: "2026-08-09T12:22:00Z"
 phase: propose
 completed_phases:
   - init
+  - propose
 status: active
+artifact_store: openspec
 branch: jl/hardware-openspec-5293
 delivery_strategy: vertical-pr
 vertical_phases:
@@ -22,6 +25,10 @@ feasibility:
   required_before_apply: true
   artifact: openspec/changes/consul-hardware-sot/feasibility-brief.md
   verdict: pending
+next_recommended:
+  - sdd-spec
+  - sdd-design
+blockers: []
 notes: |
   One OpenSpec change; implementation order SoT → API → UI → inventory/deploy.
   Completeness v1 warn-only on gateway/marengo-config; Consul renders only.
