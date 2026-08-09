@@ -1,25 +1,32 @@
 change: consul-hardware-sot
-created_at: "2026-08-09T12:21:00Z"
-updated_at: "2026-08-09T12:21:00Z"
+created_at: "2026-08-09T12:22:00Z"
 phase: propose
 completed_phases:
-  - propose
+  - init
 status: active
-artifact_store: openspec
 branch: jl/hardware-openspec-5293
-delivery_order:
+delivery_strategy: vertical-pr
+vertical_phases:
   - sot
   - api
   - ui
-  - inventory-deploy-cutover
-next_recommended:
-  - sdd-spec
-  - sdd-design
+  - inventory-deploy
+locked_decisions_source: "grilling #110"
+related_tickets:
+  - "#96"
+  - "#110"
+  - "#111"
+  - "#108"
+  - "#100"
 feasibility:
-  status: pending
-  gate: before-apply
-  reason: software and bench config/URDF co-design
-blockers: []
+  required_before_apply: true
+  artifact: openspec/changes/consul-hardware-sot/feasibility-brief.md
+  verdict: pending
 notes: |
-  Product decisions are locked by wayfinder grilling issue #110.
-  OpenSpec context still names arm_3dof_right; this change cuts runtime over to master config.
+  One OpenSpec change; implementation order SoT → API → UI → inventory/deploy.
+  Completeness v1 warn-only on gateway/marengo-config; Consul renders only.
+  Master YAML at root config/ (collapse arm_4dof_right); retire /config/profiles*.
+  Master URDF marengo.urdf (promote arm_4dof_right.urdf day-1); staging/ + archive/<upload-id>/.
+  Set Limits durable path only on Hardware; ADR 0012 memory SoT + write-behind; ADR 0017 expand-only URDF.
+  Limb subsets ephemeral against master — never alternate URDF SoTs.
+  Deferred: table polish, offline pruning, 3D-as-default.
