@@ -55,13 +55,26 @@ const actuatorsNavItem: SidebarNavItem = {
   icon: 'actuators',
 };
 
+/** PROTOTYPE — Hardware UI variants (dev only). */
+const prototypeHardwareNavItem: SidebarNavItem = {
+  title: 'Hardware proto',
+  url: '/prototype/hardware',
+  icon: 'settings',
+};
+
 /** Main nav with feature-gated Actuators entry after Simulation. */
 export function getSidebarNavMain(): SidebarNavItem[] {
-  if (!isActuatorsFeatureEnabled()) {
-    return sidebarNavMainBase;
+  const withActuators = (() => {
+    if (!isActuatorsFeatureEnabled()) {
+      return sidebarNavMainBase;
+    }
+    const [overview, simulation, ...rest] = sidebarNavMainBase;
+    return [overview, simulation, actuatorsNavItem, ...rest];
+  })();
+  if (import.meta.env.DEV) {
+    return [...withActuators, prototypeHardwareNavItem];
   }
-  const [overview, simulation, ...rest] = sidebarNavMainBase;
-  return [overview, simulation, actuatorsNavItem, ...rest];
+  return withActuators;
 }
 
 /** @deprecated Use getSidebarNavMain() for feature-aware navigation. */

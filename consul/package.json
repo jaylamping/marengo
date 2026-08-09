@@ -12,6 +12,7 @@
     "predev": "npm run gen:proto",
     "prebuild": "npm run gen:proto",
     "dev": "vite",
+    "dev:prototype-hardware": "vite --open /prototype/hardware?variant=A",
     "dev:mock-chappe": "npx --yes tsx scripts/mock-chappe-server.mts",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
