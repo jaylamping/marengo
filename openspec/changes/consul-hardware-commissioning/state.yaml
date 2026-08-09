@@ -6,8 +6,8 @@ grilling: 116
 branch: jl/hardware-commissioning-cutover-6ab6
 created: 2026-08-09
 phase: apply
-status: phase1_done
+status: phase2_done
 notes: |
-  Phase 1 (PR1 IA/chrome + glossary) applied on jl/hardware-commissioning-cutover-6ab6.
-  Next: Phase 2 Telemetry read-only (PR2). Apply wire (PR3) before facet UI (PR4).
+  Phase 1–2 applied on jl/hardware-commissioning-cutover-6ab6 (PR1+PR2 stacked until split).
+  Next: Phase 3 proto/codegen/runtime wire facets (PR3). Deploy wire before facet UI (PR4).
   Blocks #115. Folded glossary from PR #117 into CONTEXT.md.

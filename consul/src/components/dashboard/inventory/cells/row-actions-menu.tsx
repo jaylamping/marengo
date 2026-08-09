@@ -1,19 +1,23 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { MoreVerticalCircle01Icon } from '@hugeicons/core-free-icons';
 
-/** Menu content mounts only while open — 29× always-on menus were part of the hang. */
+/**
+ * Row overflow menu — Telemetry is read-only; commissioning lives on Hardware.
+ * Menu content mounts only while open (avoid N always-on menus).
+ */
 export function RowActionsMenu() {
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -30,12 +34,15 @@ export function RowActionsMenu() {
         <span className="sr-only">Open menu</span>
       </DropdownMenuTrigger>
       {open ? (
-        <DropdownMenuContent align="end" className="w-32">
-          <DropdownMenuItem>Zero / home</DropdownMenuItem>
-          <DropdownMenuItem>Apply preset</DropdownMenuItem>
-          <DropdownMenuItem>Disable</DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive">Clear fault</DropdownMenuItem>
+        <DropdownMenuContent align="end" className="w-40">
+          <DropdownMenuItem
+            onClick={() => {
+              setOpen(false);
+              void navigate('/hardware');
+            }}
+          >
+            Open on Hardware
+          </DropdownMenuItem>
         </DropdownMenuContent>
       ) : null}
     </DropdownMenu>

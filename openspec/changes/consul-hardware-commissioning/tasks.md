@@ -38,10 +38,10 @@ Chain strategy: stacked-to-main
 
 ## Phase 2: Telemetry Read-Only (PR2)
 
-- [ ] 2.1 Create `consul/src/pages/telemetry.tsx` and `consul/src/components/dashboard/telemetry/**` from Inventory table (live enrichment, no commands)
-- [ ] 2.2 Strip Set Limits/Enable/Home/go-to-zero from Inventory modals; read-only limit display with Hardware redirect copy
-- [ ] 2.3 Wire-gate facets: unknown placeholders when `homing_state` absent (no localStorage Ready)
-- [ ] 2.4 Vitest: Telemetry render, `/subsystems` redirect, no commissioning actions, read-only limit display
+- [x] 2.1 Create `consul/src/pages/telemetry.tsx` and `consul/src/components/dashboard/telemetry/**` from Inventory table (live enrichment, no commands)
+- [x] 2.2 Strip Set Limits/Enable/Home/go-to-zero from Inventory modals; read-only limit display with Hardware redirect copy
+- [x] 2.3 Wire-gate facets: unknown placeholders when `homing_state` absent (no localStorage Ready)
+- [x] 2.4 Vitest: Telemetry render, `/subsystems` redirect, no commissioning actions, read-only limit display
 
 ## Phase 3: Proto / Codegen / Runtime Wire Facets (PR3)
 

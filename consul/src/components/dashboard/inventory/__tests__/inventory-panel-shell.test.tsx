@@ -196,8 +196,9 @@ describe('InventoryRowModal panel shell', () => {
     expect(screen.getByLabelText('Edit location')).toBeTruthy();
     expect(screen.getByLabelText('Edit preset')).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'Identity' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Home' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Start sweep' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Home' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Start sweep' })).toBeNull();
+    expect(screen.getByTestId('inventory-limits-readonly-stub')).toBeTruthy();
   });
 
   it('navigates prev/next within the provided list', () => {
@@ -222,7 +223,7 @@ describe('InventoryRowModal panel shell', () => {
     expect(onNavigate).toHaveBeenCalledWith(interactiveActuator);
   });
 
-  it('shows actuator telemetry and tests when interactive', () => {
+  it('shows actuator telemetry and read-only limits without commissioning actions', () => {
     render(
       <TooltipProvider>
         <InventoryRowModal
@@ -237,8 +238,9 @@ describe('InventoryRowModal panel shell', () => {
 
     const modal = screen.getByTestId('inventory-row-modal');
     expect(within(modal).getByText('Telemetry')).toBeTruthy();
-    expect(within(modal).getByText('Tests')).toBeTruthy();
-    // Home stays locked until the joint is marked zero'd and motors are ACTIVE.
-    expect(screen.getByRole('button', { name: 'Home' })).toBeDisabled();
+    expect(within(modal).queryByText('Tests')).toBeNull();
+    expect(within(modal).queryByRole('button', { name: 'Home' })).toBeNull();
+    expect(within(modal).queryByRole('button', { name: 'Go' })).toBeNull();
+    expect(within(modal).getByTestId('inventory-limits-readonly-stub')).toBeTruthy();
   });
 });

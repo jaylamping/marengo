@@ -2,12 +2,11 @@ import { useMemo, type ReactNode } from 'react';
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
 
 import { actuatorTelemetryChartConfig } from '@/components/dashboard/inventory/constants';
-import { HomeActuatorButton } from '@/components/dashboard/inventory/home-actuator-button';
 import { InventoryLimitsReadOnly } from '@/components/dashboard/hardware/hardware-settings-sheet';
+import { TelemetryReferenceFacetBadge } from '@/components/dashboard/telemetry/telemetry-reference-facet';
 import type { InventoryRow } from '@/components/dashboard/inventory/types';
 import type { JointTrackingPoint } from '@/components/dashboard/charts/types';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import {
   ChartContainer,
   ChartLegend,
@@ -15,8 +14,6 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { useRobotStore } from '@/state/robotStore';
@@ -45,15 +42,15 @@ type ChartRow = {
   temperatureRaw: number;
 };
 
-/** Actuator-only command surface: telemetry, limits, actions, tests. */
+/**
+ * Actuator detail for Telemetry / Inventory modals — live readings + read-only
+ * limits. Commissioning (Set Limits, Set Zero, Enable, Home, go-to-zero) lives
+ * on Hardware / Testing only.
+ */
 export function ActuatorDetailBody({
   item,
   interactive,
   limitDraft,
-  onLimitDraftChange,
-  onApplyRange,
-  moveToDraft,
-  onMoveToDraftChange,
 }: ActuatorDetailBodyProps) {
   const connected = useRobotStore((s) => s.connected);
   const joint = useRobotStore((s) =>
@@ -87,6 +84,12 @@ export function ActuatorDetailBody({
         title="Telemetry"
         hint="Live readings unlock when this actuator is online and configured."
       >
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+            Reference
+          </span>
+          <TelemetryReferenceFacetBadge jointName={item.name} />
+        </div>
         <ChartContainer
           config={actuatorTelemetryChartConfig}
           className="aspect-[3/1] w-full"
@@ -194,79 +197,10 @@ export function ActuatorDetailBody({
         />
       </InteractiveSection>
 
-      <Separator className="bg-line" />
-
-      <InteractiveSection
-        interactive={interactive}
-        title="Actions"
-        hint="Home moves a zero'd joint to 0 rad. Calibration stays locked until that path ships."
-        brackets
-      >
-        <div className="flex flex-wrap items-start gap-2">
-          <HomeActuatorButton
-            jointName={item.name}
-            interactive={interactive}
-          />
-          <Button type="button" size="sm" variant="panel" disabled={!interactive}>
-            Calibration
-          </Button>
-          <Button type="button" size="sm" variant="outline" disabled={!interactive}>
-            Recover fault
-          </Button>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Home requires Set Zero (Limits) then Enable / ACTIVE. Calibration
-          posts to gateway when that command ships.
-        </p>
-      </InteractiveSection>
-
-      <Separator className="bg-line" />
-
-      <InteractiveSection
-        interactive={interactive}
-        title="Tests"
-        hint="Motion tests stay locked on offline or unconfigured actuators."
-        brackets
-      >
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="move-to" className="font-mono text-[10px] uppercase tracking-[0.14em]">
-              Move to (rad)
-            </Label>
-            <div className="flex gap-2">
-              <Input
-                id="move-to"
-                className="font-mono tabular-nums"
-                value={moveToDraft}
-                disabled={!interactive}
-                onChange={(event) => onMoveToDraftChange(event.target.value)}
-                placeholder="0.00"
-              />
-              <Button type="button" size="sm" disabled={!interactive}>
-                Go
-              </Button>
-            </div>
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label className="font-mono text-[10px] uppercase tracking-[0.14em]">
-              Sweep between limits
-            </Label>
-            <Button
-              type="button"
-              size="sm"
-              variant="panel"
-              disabled={!interactive}
-              className="w-fit"
-            >
-              Start sweep
-            </Button>
-          </div>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Move-to and sweep are UI-ready stubs — they do not queue motion until
-          the harness command path is exposed here.
-        </p>
-      </InteractiveSection>
+      <p className="text-xs text-muted-foreground" role="note">
+        Set Limits, Set Zero, Enable, and Home live on Hardware. Motion and
+        zero moves live on Testing — not from this Telemetry detail.
+      </p>
     </div>
   );
 }
