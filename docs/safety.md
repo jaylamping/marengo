@@ -77,6 +77,8 @@ See [ADR 0012](decisions/0012-config-db-overrides.md) and [ADR 0017](decisions/0
 
 Consul may hold a **per-joint Active Reporting lease** (operator UI: Enhanced logging) via gateway → Chappe → Davout when a Hardware joint settings sheet (Set Limits) or Telemetry actuator modal is open. Leases never enable type-24 while operational mode is `ACTIVE` (MIT status replies own that path). Bench profiles with `active_reporting_diagnostics: true` already force type-24 when not ACTIVE, so a lease may be a wire no-op until that global flag is off — the lease path still ships for global-off workflows. HTTP 200 is publish ACK only; Consul shows **Enhanced logging**, not confirmed wire reporting. TTL expiry on the Pi is the backstop if release is lost. `client_id` is not an auth boundary (same honesty as set-zero).
 
+While free-drive sensing is desired, Davout **re-asserts** type-24 enable on a ~1 s heartbeat and when a joint’s feedback goes stale (~200 ms with no RX). Motors can drop Active Reporting mid-sweep; without retry, Consul freezes on the last sample and Set Limits Apply would teach a tiny band.
+
 ## Known software gaps (see also [position-hold-control-review.md](position-hold-control-review.md))
 
 - **Hardware E-stop wiring:** `Supervisor::set_hardware_estop` exists but Pi GPIO/input is not yet connected at runtime. Treat physical E-stop as authoritative; do not assume software `Disabled` reflects the hardware line until wired.
