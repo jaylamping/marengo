@@ -115,6 +115,13 @@ supervisor.send_mit_batch(joint_space_cmds)?;
 - robstride operates in raw motor/CAN space only.
 - Davout owns `config/motors.yaml` `direction` / `gear_ratio` transforms in both directions.
 
+**Scoped commissioning Enable** (Hardware commissioning):
+
+- Resolve targets with `Supervisor::resolve_enable_targets` → `marengo_homing::select_enable_targets` (no scope file → full-master Robot Ready; persisted scope → Verified in-scope only). Never call `set_homing_complete` on Enable or motion re-arm — Verified is Set Zero only.
+- Energize with `Supervisor::enable_targets`. While Active, a different joint set returns `ActiveSetChangeRefused` (Disable first). Partial enable failure still `disable_all`.
+- Berthier MIT keepalive / GravityComp / Position and MissingFeedback checks must cover only `supervisor.active_joints()` — never all loaded `joint_names` after a scoped Enable.
+- `RobotState` omits joints without CAN feedback so Consul Online ≠ mere protobuf membership.
+
 Position hold (`hold-at`) is Berthier's **joint-space motion primitive executor** — one law for every retarget, whether from operator `hold-at`, future Talleyrand joint streams, or Cartesian primitives resolved upstream. Talleyrand owns IK and multi-joint timing; Berthier does not. The law lives in `berthier::position_hold::PositionHold` (lifecycle + `tick`); `ControlLoop` builds `HoldWorld` and sends the MIT batch through Davout.
 
 **MIT feedforward** (`GravityComp` / `Impedance` / `TorqueOnly`) packs Active MIT outside Position: `berthier::mit_feedforward::MitFeedforward`. YAML `joints.*.gravity_comp` / `impedance` are the gain sources; Testing overrides are allowed only in Impedance/Position, cleared on GravityComp/TorqueOnly/Disabled enter, and ignored under those modes. `TorqueOnly` currently aliases GravityComp (`τ_ff = τ_g`).

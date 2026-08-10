@@ -29,11 +29,9 @@ use berthier::{
 use chappe::Bus;
 use davout::{DavoutError, OperationalMode, DEFAULT_LEASE_TTL};
 use marengo_config::{
-    default_commissioning_scope_path, effective_commissioning_scope, joint_subset_from_env,
-    load_commissioning_scope, load_control_config, load_motors_config, load_robot_config,
-    resolve_config_dir, resolve_repo_root, resolve_urdf_path,
+    load_control_config, load_motors_config, resolve_config_dir, resolve_repo_root,
+    resolve_urdf_path,
 };
-use marengo_homing::{select_enable_targets, JointFacetInput, JointHomingState};
 use robstride::RuntimeBus;
 use tracing::{debug, error, info, warn};
 
@@ -215,65 +213,16 @@ fn spawn_stdin_commands(tx: Sender<PiCommand>) {
     });
 }
 
-fn joint_facets_for_enable(
-    supervisor: &davout::Supervisor<RuntimeBus>,
-) -> (Vec<JointFacetInput>, Vec<JointFacetInput>) {
-    let loaded_names: BTreeSet<String> = supervisor
-        .motors
-        .motors
-        .iter()
-        .map(|m| m.joint.clone())
-        .collect();
-    // Full master from disk (unfiltered) so no-scope Robot Ready is not redefined by scope/ceiling.
-    let master_names: Vec<String> = load_robot_config(repo_root())
-        .map(|r| r.robot.joints)
-        .unwrap_or_else(|_| loaded_names.iter().cloned().collect());
-
-    let mut master = Vec::with_capacity(master_names.len());
-    for name in &master_names {
-        let motor_mapped = loaded_names.contains(name);
-        let feedback = supervisor.joint_feedback(name);
-        let online = feedback.is_some();
-        let fault = feedback.map(|f| f.fault != 0).unwrap_or(false)
-            || supervisor.joint_homing_state(name) == JointHomingState::Faulted;
-        master.push(JointFacetInput {
-            name: name.clone(),
-            homing_state: if motor_mapped {
-                supervisor.joint_homing_state(name)
-            } else {
-                JointHomingState::Unhomed
-            },
-            online,
-            motor_mapped,
-            fault,
-            out_of_limits: supervisor.joint_out_of_limits(name),
-            drive_active: supervisor.joint_drive_active(name),
-        });
-    }
-    let loaded: Vec<JointFacetInput> = master.iter().filter(|j| j.motor_mapped).cloned().collect();
-    (master, loaded)
-}
-
-fn resolve_enable_targets(
-    supervisor: &davout::Supervisor<RuntimeBus>,
-) -> Result<Vec<String>, String> {
-    let scope_path = default_commissioning_scope_path();
-    let persisted = load_commissioning_scope(&scope_path).map_err(|e| e.to_string())?;
-    let ceiling = joint_subset_from_env();
-    let effective = persisted
-        .as_ref()
-        .map(|scope| effective_commissioning_scope(&scope.joints, ceiling.as_ref()));
-    let (master, loaded) = joint_facets_for_enable(supervisor);
-    select_enable_targets(&master, &loaded, effective.as_deref())
-}
-
 fn handle_chappe_enable(
     loop_ctrl: &mut ControlLoop<RuntimeBus>,
     request: &EnableRequest,
 ) -> Result<(), String> {
     if request.enable {
         // Never call set_homing_complete on enable — Verified is Set Zero only.
-        let targets = resolve_enable_targets(loop_ctrl.supervisor_mut())?;
+        let targets = loop_ctrl
+            .supervisor()
+            .resolve_enable_targets(repo_root())
+            .map_err(|e| e.to_string())?;
         loop_ctrl
             .supervisor_mut()
             .enable_targets(&targets)
@@ -708,7 +657,10 @@ fn handle_command(
                     return true;
                 }
             }
-            match resolve_enable_targets(loop_ctrl.supervisor_mut()) {
+            match loop_ctrl
+                .supervisor()
+                .resolve_enable_targets(repo_root())
+            {
                 Ok(targets) => match loop_ctrl.supervisor_mut().enable_targets(&targets) {
                     Ok(()) => println!(
                         "enabled (operator={operator_id}) targets={}",

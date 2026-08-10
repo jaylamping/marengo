@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/toggle-group';
 import { useConfigSnapshot } from '@/hooks/use-config-snapshot';
 import { robotWireFacetsLive } from '@/lib/commissioning';
+import { postEnableCommand } from '@/lib/gateway-api';
 import { fetchCompleteness } from '@/lib/hardware-api';
 import { queryKeys } from '@/lib/query-keys';
 import { useActuatorStore } from '@/state/actuatorStore';
@@ -38,11 +39,32 @@ export function HardwareOverview() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [rangeOverrides, setRangeOverrides] = useState<Record<string, string>>({});
+  const [enableBusy, setEnableBusy] = useState(false);
+  const [enableError, setEnableError] = useState<string | null>(null);
 
   const { data: snapshot } = useConfigSnapshot();
   const limitSnapshot = useActuatorStore((s) => s.limitSnapshot);
   const robotState = useRobotStore((s) => s.robotState);
+  const operationalMode = useRobotStore((s) => s.operationalMode);
   const wireLive = robotWireFacetsLive(robotState);
+  const canEnable =
+    wireLive && !enableBusy && operationalMode !== 'ACTIVE';
+
+  const onEnableReadyInScope = async () => {
+    if (!canEnable) {
+      return;
+    }
+    setEnableBusy(true);
+    setEnableError(null);
+    try {
+      await postEnableCommand(true);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setEnableError(message);
+    } finally {
+      setEnableBusy(false);
+    }
+  };
 
   const completenessQuery = useQuery({
     queryKey: queryKeys.hardwareCompleteness,
@@ -112,15 +134,28 @@ export function HardwareOverview() {
             variant="secondary"
             className="gap-1.5"
             data-testid="hardware-enable-ready-in-scope"
-            disabled
+            disabled={!canEnable}
             title={
-              wireLive
-                ? 'Enable all Ready in scope lands with Phase 5 targeted enable'
-                : 'Enable gated until live wire facets (non-UNSPECIFIED homing_state)'
+              operationalMode === 'ACTIVE'
+                ? 'Already Active — Disable before changing the enable set'
+                : wireLive
+                  ? 'Enable Verified joints in commissioning scope (Pi resolves targets)'
+                  : 'Enable gated until live wire facets (non-UNSPECIFIED homing_state)'
             }
+            onClick={() => {
+              void onEnableReadyInScope();
+            }}
           >
             Enable all Ready in scope
           </Button>
+          {enableError ? (
+            <span
+              className="micro-label text-destructive"
+              data-testid="hardware-enable-error"
+            >
+              {enableError}
+            </span>
+          ) : null}
           <Button
             type="button"
             size="sm"

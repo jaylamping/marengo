@@ -62,13 +62,16 @@ use armee_kinematics::{
     measured_position_fault, LimitMarginConfig,
 };
 use marengo_config::{
-    load_control_config, load_homing_config, load_motors_config, load_robot_config,
-    motor_for_joint, motor_type_key, resolve_joint_velocity_cap, resolve_urdf_path,
-    validate_control_against_limits, validate_motors_against_robot,
+    default_commissioning_scope_path, effective_commissioning_scope, joint_subset_from_env,
+    load_commissioning_scope, load_control_config, load_homing_config, load_motors_config,
+    load_robot_config, motor_for_joint, motor_type_key, resolve_joint_velocity_cap,
+    resolve_urdf_path, validate_control_against_limits, validate_motors_against_robot,
     validate_robot_control_joint_coverage, ControlConfigFile, HomingConfigFile, MotorEntry,
     MotorType, MotorsConfigFile, RobotConfigFile,
 };
-use marengo_homing::{verify_manual_reference, HomingRegistry, VerifyError};
+use marengo_homing::{
+    select_enable_targets, verify_manual_reference, HomingRegistry, JointFacetInput, VerifyError,
+};
 use robstride::AddressedMitCommand;
 use robstride::{MitCommand, MotorState, ParameterId, ParameterValue, RunMode};
 use thiserror::Error;
@@ -167,6 +170,8 @@ pub enum DavoutError {
     WrongSignWatchdog { joint: String, ticks: u32 },
     #[error("runtime limit changes are refused while supervisor is ACTIVE")]
     LimitPatchActive,
+    #[error("active enable set cannot change while ACTIVE; disable first")]
+    ActiveSetChangeRefused,
 }
 
 pub use marengo_homing::JointHomingState;
@@ -669,8 +674,10 @@ impl<B: MotorBus> Supervisor<B> {
 
     /// Enable only the listed joints. On any enable/run-mode failure, [`disable_all`].
     ///
-    /// Does not require supervisor Ready / all-joint Verified — callers (marengo-pi)
-    /// MUST pre-filter eligibility. Empty targets are rejected.
+    /// Does not require supervisor Ready / all-joint Verified — callers
+    /// MUST pre-filter eligibility ([`Self::resolve_enable_targets`]). Empty targets are
+    /// rejected. While Active, a different joint set is refused
+    /// ([`DavoutError::ActiveSetChangeRefused`]); operators must Disable then Enable.
     pub fn enable_targets(&mut self, joints: &[String]) -> Result<(), DavoutError> {
         if self.hardware_estop {
             return Err(DavoutError::Estop);
@@ -693,10 +700,69 @@ impl<B: MotorBus> Supervisor<B> {
             if want == have {
                 return Ok(());
             }
-            // Different set while Active — drop to Disabled first.
-            self.disable_all()?;
+            return Err(DavoutError::ActiveSetChangeRefused);
         }
         self.enable_targets_inner(joints)
+    }
+
+    /// Master + loaded joint facets for commissioning / Enable eligibility.
+    ///
+    /// `online` requires live CAN feedback. Master names come from the caller (full
+    /// `robot.yaml` joints, not the loaded subset).
+    pub fn commissioning_facets(
+        &self,
+        master_joint_names: &[String],
+    ) -> (Vec<JointFacetInput>, Vec<JointFacetInput>) {
+        let loaded_names: HashSet<&str> = self
+            .motors
+            .motors
+            .iter()
+            .map(|m| m.joint.as_str())
+            .collect();
+        let mut master = Vec::with_capacity(master_joint_names.len());
+        for name in master_joint_names {
+            let motor_mapped = loaded_names.contains(name.as_str());
+            let feedback = self.joint_feedback(name);
+            let online = feedback.is_some();
+            let fault = feedback.map(|f| f.fault != 0).unwrap_or(false)
+                || self.joint_homing_state(name) == JointHomingState::Faulted;
+            master.push(JointFacetInput {
+                name: name.clone(),
+                homing_state: if motor_mapped {
+                    self.joint_homing_state(name)
+                } else {
+                    JointHomingState::Unhomed
+                },
+                online,
+                motor_mapped,
+                fault,
+                out_of_limits: self.joint_out_of_limits(name),
+                drive_active: self.joint_drive_active(name),
+            });
+        }
+        let loaded: Vec<JointFacetInput> =
+            master.iter().filter(|j| j.motor_mapped).cloned().collect();
+        (master, loaded)
+    }
+
+    /// Resolve scoped Enable targets from persisted commissioning scope + facets.
+    ///
+    /// No scope file → full-master Robot Ready required. Persisted scope → Verified
+    /// in-scope joints only. Never calls [`Self::set_homing_complete`].
+    pub fn resolve_enable_targets(
+        &self,
+        repo_root: impl AsRef<Path>,
+    ) -> Result<Vec<String>, DavoutError> {
+        let scope_path = default_commissioning_scope_path();
+        let persisted = load_commissioning_scope(&scope_path)?;
+        let ceiling = joint_subset_from_env();
+        let effective = persisted
+            .as_ref()
+            .map(|scope| effective_commissioning_scope(&scope.joints, ceiling.as_ref()));
+        let master_names = load_robot_config(repo_root.as_ref())?.robot.joints;
+        let (master, loaded) = self.commissioning_facets(&master_names);
+        select_enable_targets(&master, &loaded, effective.as_deref())
+            .map_err(|message| DavoutError::Homing { message })
     }
 
     fn enable_targets_inner(&mut self, joints: &[String]) -> Result<(), DavoutError> {
@@ -1733,6 +1799,28 @@ mod tests {
         assert!(sup.joint_drive_active(&a));
         assert!(!sup.joint_drive_active(&b));
         assert_eq!(sup.active_joints().len(), 1);
+        // Idempotent same-set Enable while Active.
+        sup.enable_targets(&[a.clone()]).expect("same set");
+        assert_eq!(sup.mode(), OperationalMode::Active);
+    }
+
+    #[test]
+    fn enable_targets_refuses_different_set_while_active() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let a = "right_shoulder_roll".to_string();
+        let b = "right_shoulder_pitch".to_string();
+        sup.enable_targets(&[a.clone()]).expect("enable one");
+        let err = sup
+            .enable_targets(&[a.clone(), b.clone()])
+            .expect_err("set change");
+        assert!(
+            matches!(err, DavoutError::ActiveSetChangeRefused),
+            "got {err}"
+        );
+        assert_eq!(sup.mode(), OperationalMode::Active);
+        assert!(sup.joint_drive_active(&a));
+        assert!(!sup.joint_drive_active(&b));
     }
 
     #[test]

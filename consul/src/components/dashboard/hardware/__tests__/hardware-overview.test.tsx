@@ -99,6 +99,7 @@ vi.mock('@/lib/persist-joint-limits', () => ({
 
 vi.mock('@/lib/gateway-api', () => ({
   postSetZeroCommand: vi.fn(),
+  postEnableCommand: vi.fn(async () => undefined),
   fetchActuatorLimits: vi.fn(async () => null),
   fetchCommissioningScope: vi.fn(async () => ({
     version: 1,
@@ -353,8 +354,12 @@ describe('HardwareOverview', () => {
     expect(screen.getByTestId('limb-ready-right_arm')).toBeTruthy();
   });
 
-  it('shows Enable control disabled (wire/Phase-5 gated) and warnings do not block Set Limits entry', async () => {
-    useRobotStore.setState({ connected: true, operationalMode: 'DISABLED' });
+  it('keeps Enable disabled without live wire facets; Set Limits still opens', async () => {
+    useRobotStore.setState({
+      connected: true,
+      operationalMode: 'DISABLED',
+      robotState: null,
+    });
     renderHardware();
     await waitFor(() => {
       expect(screen.getByTestId('hardware-row-right_shoulder_roll')).toBeTruthy();
@@ -372,5 +377,31 @@ describe('HardwareOverview', () => {
     expect(screen.getByRole('button', { name: 'Set Zero' })).toBeTruthy();
     const setLimits = screen.getByRole('button', { name: 'Set Limits' }) as HTMLButtonElement;
     expect(setLimits.disabled).toBe(false);
+  });
+
+  it('posts Enable when wire facets are live', async () => {
+    const { postEnableCommand } = await import('@/lib/gateway-api');
+    useRobotStore.setState({
+      connected: true,
+      operationalMode: 'DISABLED',
+      robotState: {
+        $typeName: 'marengo.v1.RobotState',
+        timestamp: { $typeName: 'google.protobuf.Timestamp', seconds: 0n, nanos: 0 },
+        joints: [
+          wireJoint('right_shoulder_roll'),
+          wireJoint('right_shoulder_pitch'),
+        ],
+      } as never,
+    });
+
+    renderHardware();
+    const enable = (await screen.findByTestId(
+      'hardware-enable-ready-in-scope',
+    )) as HTMLButtonElement;
+    expect(enable.disabled).toBe(false);
+    fireEvent.click(enable);
+    await waitFor(() => {
+      expect(postEnableCommand).toHaveBeenCalledWith(true);
+    });
   });
 });

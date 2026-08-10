@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   MASTER_LIMBS,
   aggregateWorstBadge,
+  buildFacetSnapshots,
   isReferenceReady,
+  jointFacetFromWire,
   limbReady,
   resolveJointBadge,
   robotReady,
@@ -225,5 +227,39 @@ describe('limbReady / robotReady aggregation', () => {
       'right_elbow_pitch',
       'right_lower_arm_yaw',
     ]);
+  });
+});
+
+describe('jointFacetFromWire / buildFacetSnapshots presence', () => {
+  it('marks missing wire online=false (no RobotState membership alone)', () => {
+    const offline = jointFacetFromWire({
+      name: 'right_shoulder_pitch',
+      motorMapped: true,
+      wire: null,
+    });
+    expect(offline.online).toBe(false);
+    // No wire homing_state → Unknown gate (not Online/Ready).
+    expect(resolveJointBadge(offline)).toBe('Unknown');
+  });
+
+  it('marks present wire Online/Ready; omitted joints stay offline', () => {
+    const snapshots = buildFacetSnapshots({
+      jointNames: ['right_shoulder_pitch', 'right_elbow_pitch'],
+      motorMappedJoints: new Set(['right_shoulder_pitch', 'right_elbow_pitch']),
+      robotState: {
+        joints: [
+          {
+            name: 'right_shoulder_pitch',
+            homingState: JointHomingState.VERIFIED,
+            driveActive: false,
+            outOfLimits: false,
+            fault: 0,
+          },
+        ],
+      } as never,
+    });
+    expect(snapshots[0]?.online).toBe(true);
+    expect(resolveJointBadge(snapshots[0]!)).toBe('Ready');
+    expect(snapshots[1]?.online).toBe(false);
   });
 });
