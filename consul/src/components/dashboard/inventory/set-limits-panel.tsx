@@ -227,7 +227,7 @@ export function SetLimitsPanel({
       setApplyOk(
         result.restartRequired
           ? result.message
-          : `${result.message} (live; no restart)`,
+          : `${result.message} — new durable SoT (live; deploy preserves)`,
       );
       // Live Set Limits must not open NeedsRestart / clear structural pending.
       try {
