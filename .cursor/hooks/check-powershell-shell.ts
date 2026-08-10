@@ -1,28 +1,29 @@
-#!/usr/bin/env node
 /**
  * Cross-platform beforeShellExecution hook.
  * On Windows (native, not WSL): deny bash-isms aimed at PowerShell.
  * On macOS / Linux / WSL: allow (bash is the agent shell).
+ *
+ * Invoked via: node ".cursor/hooks/check-powershell-shell.js"
+ * (built from this .ts — run `just mcp-build` after editing).
  */
-import { createInterface } from "node:readline";
 
-function readStdin() {
+function readStdin(): Promise<string> {
   return new Promise((resolve) => {
-    const chunks = [];
+    const chunks: string[] = [];
     process.stdin.setEncoding("utf8");
-    process.stdin.on("data", (c) => chunks.push(c));
+    process.stdin.on("data", (c: string) => chunks.push(c));
     process.stdin.on("end", () => resolve(chunks.join("")));
     process.stdin.on("error", () => resolve(""));
     if (process.stdin.isTTY) resolve("");
   });
 }
 
-function isWindowsNative() {
+function isWindowsNative(): boolean {
   if (process.env.WSL_DISTRO_NAME) return false;
   return process.platform === "win32";
 }
 
-function isExplicitUnixShell(cmd) {
+function isExplicitUnixShell(cmd: string): boolean {
   return (
     /^\s*(bash|sh|dash|zsh|wsl|wsl\.exe)\b/i.test(cmd) ||
     /\|\s*(sh|bash|dash|zsh)\b/i.test(cmd) ||
@@ -30,8 +31,8 @@ function isExplicitUnixShell(cmd) {
   );
 }
 
-function bashismIssues(cmd) {
-  const issues = [];
+function bashismIssues(cmd: string): string[] {
+  const issues: string[] = [];
   if (/&&|\|\|/.test(cmd)) {
     issues.push(
       'bash &&/|| chaining - use "; if ($LASTEXITCODE -eq 0) { ... }"',
@@ -68,14 +69,18 @@ function bashismIssues(cmd) {
   return issues;
 }
 
-function emit(obj) {
+function emit(obj: Record<string, unknown>): void {
   process.stdout.write(JSON.stringify(obj));
 }
 
+interface ShellPayload {
+  command?: unknown;
+}
+
 const raw = await readStdin();
-let payload = {};
+let payload: ShellPayload = {};
 try {
-  payload = raw ? JSON.parse(raw) : {};
+  payload = raw ? (JSON.parse(raw) as ShellPayload) : {};
 } catch {
   emit({ permission: "allow" });
   process.exit(0);

@@ -1,30 +1,10 @@
 #!/usr/bin/env bash
 # Launcher for Cursor MCP: Cursor's spawn PATH often lacks mise `node` (ENOENT).
 #
-# Keep profile / SSH defaults HERE (and in launch.mjs) — not in `.cursor/mcp.json`.
-# Cursor hashes mcp.json `env` into an approval key; changing that env
-# auto-disables the project MCP until you re-enable it in the UI (ADR 0016).
+# Profile / SSH defaults live in src/launch.ts → dist/launch.js — not here and
+# not in `.cursor/mcp.json` (env thrash auto-disables the project MCP; ADR 0016).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-
-# Stable connection + bench defaults (override via process env if needed).
-export MARENGO_PI_HOST="${MARENGO_PI_HOST:-joey-robot.tail0b414.ts.net}"
-export MARENGO_PI_USER="${MARENGO_PI_USER:-joey}"
-export MARENGO_PI_ROOT="${MARENGO_PI_ROOT:-/opt/marengo}"
-export MARENGO_CONFIG_DIR="${MARENGO_CONFIG_DIR:-/opt/marengo/config}"
-export MARENGO_BENCH_PROFILE="${MARENGO_BENCH_PROFILE:-elbow_attached}"
-
-if [[ -z "${SSH_IDENTITY_FILE:-}" ]]; then
-  for candidate in \
-    "${HOME}/.ssh/id_ed25519_marengo" \
-    "${HOME}/.ssh/id_ed25519"
-  do
-    if [[ -f "${candidate}" ]]; then
-      export SSH_IDENTITY_FILE="${candidate}"
-      break
-    fi
-  done
-fi
 
 resolve_node() {
   if [[ -n "${MARENGO_MCP_NODE:-}" && -x "${MARENGO_MCP_NODE}" ]]; then
@@ -65,4 +45,9 @@ resolve_node() {
 
 NODE="$(resolve_node)"
 export PATH="$(dirname "${NODE}"):${HOME}/.local/share/mise/shims:${PATH:-}"
-exec "${NODE}" "${ROOT}/dist/index.js"
+ENTRY="${ROOT}/dist/launch.js"
+if [[ ! -f "${ENTRY}" ]]; then
+  echo "run-mcp.sh: missing ${ENTRY} — run \`just mcp-build\` first." >&2
+  exit 1
+fi
+exec "${NODE}" "${ENTRY}"

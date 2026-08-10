@@ -1,30 +1,32 @@
-#!/usr/bin/env node
 /**
  * Cross-platform sessionStart: ensure marengo-pi MCP + inject shell/host context.
+ *
+ * Invoked via: node ".cursor/hooks/session-start-marengo.js"
+ * (built from this .ts — run `just mcp-build` after editing).
  */
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-function readStdin() {
+function readStdin(): Promise<string> {
   return new Promise((resolve) => {
-    const chunks = [];
+    const chunks: string[] = [];
     process.stdin.setEncoding("utf8");
-    process.stdin.on("data", (c) => chunks.push(c));
+    process.stdin.on("data", (c: string) => chunks.push(c));
     process.stdin.on("end", () => resolve(chunks.join("")));
     process.stdin.on("error", () => resolve(""));
     if (process.stdin.isTTY) resolve("");
   });
 }
 
-function isWindowsNative() {
+function isWindowsNative(): boolean {
   if (process.env.WSL_DISTRO_NAME) return false;
   return process.platform === "win32";
 }
 
-function findPython() {
-  const candidates =
+function findPython(): { bin: string; prefix: string[] } | null {
+  const candidates: Array<[string, string[]]> =
     process.platform === "win32"
       ? [
           ["py", ["-3"]],
@@ -45,16 +47,23 @@ function findPython() {
   return null;
 }
 
+interface SessionPayload {
+  workspace_roots?: unknown;
+  composer_mode?: string;
+}
+
 const raw = await readStdin();
-let payload = {};
+let payload: SessionPayload = {};
 try {
-  payload = raw ? JSON.parse(raw) : {};
+  payload = raw ? (JSON.parse(raw) as SessionPayload) : {};
 } catch {
   /* ignore */
 }
 
 const repo =
-  (Array.isArray(payload.workspace_roots) && payload.workspace_roots[0]) ||
+  (Array.isArray(payload.workspace_roots) &&
+    typeof payload.workspace_roots[0] === "string" &&
+    payload.workspace_roots[0]) ||
   process.env.CURSOR_PROJECT_DIR ||
   path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
@@ -98,7 +107,7 @@ if (fs.existsSync(ensureScript)) {
 const repoNorm = String(repo).replace(/\\/g, "/");
 const onWindowsClone = win && /^[A-Za-z]:\/code\/marengo/i.test(repoNorm);
 const onWslMount = /^\/mnt\/[a-z]\//i.test(repoNorm);
-let softwareHint;
+let softwareHint: string;
 if (onWindowsClone || onWslMount) {
   softwareHint =
     "Software work (cargo, just check, Pi deploy): prefer WSL clone at ~/code/marengo (ext4). This Windows/mount path is for CAD / SolidWorks MCP.";

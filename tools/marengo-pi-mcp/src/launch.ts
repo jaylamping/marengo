@@ -3,26 +3,25 @@
  * Cross-platform MCP entry for Cursor.
  * Prefer this over bare `sh`/`bash`: Cursor's spawn PATH often lacks Git shims
  * on Windows (and sometimes mise `node`). Defaults stay HERE — not in mcp.json.
+ *
+ * Compiled to `dist/launch.js` (`npm run build` / `just mcp-build`).
  */
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-const root = path.dirname(fileURLToPath(import.meta.url));
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const home = homedir();
 
-function setDefault(key, value) {
+function setDefault(key: string, value: string): void {
   if (!process.env[key]?.trim()) process.env[key] = value;
 }
 
 setDefault("MARENGO_PI_HOST", "joey-robot.tail0b414.ts.net");
 setDefault("MARENGO_PI_USER", "joey");
 setDefault("MARENGO_PI_ROOT", "/opt/marengo");
-setDefault(
-  "MARENGO_CONFIG_DIR",
-  "/opt/marengo/config",
-);
+setDefault("MARENGO_CONFIG_DIR", "/opt/marengo/config");
 setDefault("MARENGO_BENCH_PROFILE", "elbow_attached");
 
 if (!process.env.SSH_IDENTITY_FILE?.trim()) {
@@ -52,7 +51,7 @@ if (extra.length) {
 const entry = path.join(root, "dist", "index.js");
 if (!existsSync(entry)) {
   console.error(
-    `launch.mjs: missing ${entry} — run \`just mcp-build\` (or npm run build in tools/marengo-pi-mcp).`,
+    `launch: missing ${entry} — run \`just mcp-build\` (or npm run build in tools/marengo-pi-mcp).`,
   );
   process.exit(1);
 }

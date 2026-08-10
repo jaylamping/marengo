@@ -1,6 +1,7 @@
-#!/usr/bin/env node
 /**
  * Cross-platform research MCP entry (avoids `sh` missing from Cursor PATH on Windows).
+ *
+ * Run: node dist/launch.js (after `npm run build` / `just mcp-build`)
  */
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -8,8 +9,9 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const root = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(root, "..", "..");
+const here = path.dirname(fileURLToPath(import.meta.url));
+const pkgRoot = path.basename(here) === "dist" ? path.resolve(here, "..") : here;
+const repoRoot = path.resolve(pkgRoot, "..", "..");
 const home = homedir();
 
 if (!process.env.MARENGO_RESEARCH_CACHE_DIR?.trim()) {
@@ -46,7 +48,7 @@ const child = spawn(
   "uv",
   ["run", "python", "-m", "marengo_research_mcp.server"],
   {
-    cwd: root,
+    cwd: pkgRoot,
     env: process.env,
     stdio: "inherit",
     shell: process.platform === "win32",
@@ -54,8 +56,10 @@ const child = spawn(
   },
 );
 
-child.on("error", (err) => {
-  console.error(`launch.mjs: failed to start uv (${err.message}). Run: just research-mcp-setup`);
+child.on("error", (err: Error) => {
+  console.error(
+    `launch: failed to start uv (${err.message}). Run: just research-mcp-setup`,
+  );
   process.exit(127);
 });
 
