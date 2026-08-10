@@ -657,10 +657,7 @@ fn handle_command(
                     return true;
                 }
             }
-            match loop_ctrl
-                .supervisor()
-                .resolve_enable_targets(repo_root())
-            {
+            match loop_ctrl.supervisor().resolve_enable_targets(repo_root()) {
                 Ok(targets) => match loop_ctrl.supervisor_mut().enable_targets(&targets) {
                     Ok(()) => println!(
                         "enabled (operator={operator_id}) targets={}",
