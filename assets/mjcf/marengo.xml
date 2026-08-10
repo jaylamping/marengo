@@ -1,5 +1,5 @@
 <mujoco model="marengo">
-  <!-- Mirrors assets/urdf/marengo.urdf (right 4-DOF bench). -->
+  <!-- Mirrors assets/urdf/marengo.urdf (right 5-DOF bench). -->
   <compiler angle="radian"/>
   <option gravity="0 0 -9.81"/>
   <worldbody>
@@ -17,6 +17,10 @@
             <body name="right_forearm_link" pos="0 0 -0.24">
               <joint name="right_elbow_pitch" type="hinge" axis="0 1 0" range="-0.50 1.2"/>
               <geom type="capsule" fromto="0 0 0 0 0 -0.2" size="0.025" rgba="0.35 0.6 0.95 1"/>
+              <body name="right_hand_link" pos="0 0 -0.20">
+                <joint name="right_lower_arm_yaw" type="hinge" axis="0 1 0" range="-1.6 1.6"/>
+                <geom type="capsule" fromto="0 0 0 0 0 -0.06" size="0.02" rgba="0.45 0.7 0.98 1"/>
+              </body>
             </body>
           </body>
         </body>
