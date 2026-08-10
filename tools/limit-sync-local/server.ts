@@ -1,10 +1,9 @@
-#!/usr/bin/env node
 /**
  * Loopback writer for Consul Set Limits → local git checkout.
  * Shells out to `marengo-limit-sync` (same Rust expand path as the Pi).
  *
  *   just limit-sync-serve
- *   # or: node --experimental-strip-types tools/limit-sync-local/server.ts
+ *   # or: node tools/limit-sync-local/dist/server.js
  *
  * Consul: VITE_LIMIT_SYNC_URL=http://127.0.0.1:8790
  */
@@ -13,7 +12,9 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const here = path.dirname(fileURLToPath(import.meta.url));
+const pkgRoot = path.basename(here) === "dist" ? path.resolve(here, "..") : here;
+const ROOT = path.resolve(pkgRoot, "../..");
 const PORT = Number(process.env.LIMIT_SYNC_PORT || 8790);
 
 function readBody(req: IncomingMessage): Promise<string> {

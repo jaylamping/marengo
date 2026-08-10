@@ -4,20 +4,26 @@ REM Prefer mcp.json -> node dist\launch.js; this .cmd prepends common locations.
 setlocal
 set "ROOT=%~dp0"
 set "PATH=%USERPROFILE%\AppData\Local\mise\installs\node\24.16.0;%USERPROFILE%\AppData\Local\mise\shims;%ProgramFiles%\nodejs;%ProgramFiles%\Git\bin;%PATH%"
+set "ENTRY=%ROOT%dist\launch.js"
+
+if not exist "%ENTRY%" (
+  echo run-mcp.cmd: missing %ENTRY% — run `just mcp-build` first. 1>&2
+  exit /b 1
+)
 
 if defined MARENGO_MCP_NODE (
-  "%MARENGO_MCP_NODE%" "%ROOT%dist\launch.js"
+  "%MARENGO_MCP_NODE%" "%ENTRY%"
   exit /b %ERRORLEVEL%
 )
 
 where node >nul 2>&1
 if %ERRORLEVEL%==0 (
-  node "%ROOT%dist\launch.js"
+  node "%ENTRY%"
   exit /b %ERRORLEVEL%
 )
 
 if exist "%USERPROFILE%\AppData\Local\mise\installs\node\24.16.0\node.exe" (
-  "%USERPROFILE%\AppData\Local\mise\installs\node\24.16.0\node.exe" "%ROOT%dist\launch.js"
+  "%USERPROFILE%\AppData\Local\mise\installs\node\24.16.0\node.exe" "%ENTRY%"
   exit /b %ERRORLEVEL%
 )
 

@@ -4,10 +4,15 @@
   "type": "module",
   "description": "TypeScript Node launcher for the Python research MCP server",
   "scripts": {
-    "launch": "node --experimental-strip-types launch.ts",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "build": "tsc",
+    "launch": "node dist/launch.js",
+    "typecheck": "tsc --noEmit"
   },
   "engines": {
-    "node": ">=22.6"
+    "node": "^24.16.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "typescript": "^5.8.2"
   }
 }

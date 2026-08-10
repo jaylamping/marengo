@@ -4,10 +4,15 @@
   "type": "module",
   "description": "Loopback Set Limits → local git checkout via marengo-limit-sync",
   "scripts": {
-    "start": "node --experimental-strip-types server.ts",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit"
   },
   "engines": {
-    "node": ">=22.6"
+    "node": "^24.16.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "typescript": "^5.8.2"
   }
 }

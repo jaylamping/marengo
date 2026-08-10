@@ -82,7 +82,7 @@ just mcp-build
 
 Then restart the marengo-pi MCP server in Cursor.
 
-**Stay enabled:** `.cursor/hooks.json` runs `session-start-marengo.ts` on `sessionStart` (`--write --best-effort`) so disabled/unapproved state is scrubbed when a chat opens. If the server still shows as disabled after a config thrash:
+**Stay enabled:** `.cursor/hooks.json` runs `session-start-marengo.js` on `sessionStart` (`--write --best-effort`) so disabled/unapproved state is scrubbed when a chat opens. If the server still shows as disabled after a config thrash:
 
 ```bash
 # Quit Cursor first for a hard write, then:

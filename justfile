@@ -70,11 +70,15 @@ deploy-pi-wsl host="joey@marengo.local":
 # Local Set Limits → git checkout sync (Consul VITE_LIMIT_SYNC_URL=http://127.0.0.1:8790)
 limit-sync-serve:
     cargo build -p marengo-limit-sync
-    node --experimental-strip-types tools/limit-sync-local/server.ts
+    cd tools/limit-sync-local && npm install && npm run build && npm start
 
-# Rebuild Marengo MCP servers (Cursor: restart MCP after this)
+# Rebuild Marengo Node tooling (pi-mcp, hooks, limit-sync launch, research launch).
+# Cursor: restart MCP after this; hooks load committed .js (regen via this recipe).
 mcp-build:
-    cd tools/marengo-pi-mcp && npm install && npm run build
+    cd tools/marengo-pi-mcp && npm install && npm run build && npm run typecheck
+    cd tools/limit-sync-local && npm install && npm run build && npm run typecheck
+    cd tools/marengo-research-mcp && npm install && npm run build && npm run typecheck
+    cd .cursor/hooks && npm install && npm run build && npm run typecheck
 
 # Clear Cursor disabled state / refresh approval for marengo-pi
 # (dry-run default; --write after quit; sessionStart hook uses --write --best-effort)
@@ -83,7 +87,7 @@ mcp-ensure-enabled *args:
 
 # Install Marengo Research MCP (Python/uv; restart marengo-research MCP after this)
 research-mcp-setup:
-    cd tools/marengo-research-mcp && uv sync --extra dev
+    cd tools/marengo-research-mcp && uv sync --extra dev && npm install && npm run build
 
 # Local deterministic daily audit dry-run (full pipeline via run.sh)
 daily-audit:

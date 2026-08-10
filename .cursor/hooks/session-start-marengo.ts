@@ -1,8 +1,8 @@
-#!/usr/bin/env node
 /**
  * Cross-platform sessionStart: ensure marengo-pi MCP + inject shell/host context.
  *
- * Invoked via: node --experimental-strip-types ".cursor/hooks/session-start-marengo.ts"
+ * Invoked via: node ".cursor/hooks/session-start-marengo.js"
+ * (built from this .ts — run `just mcp-build` after editing).
  */
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";

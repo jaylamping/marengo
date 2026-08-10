@@ -3,12 +3,15 @@
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+    "rootDir": ".",
+    "outDir": ".",
     "strict": true,
     "skipLibCheck": true,
-    "noEmit": true,
+    "declaration": false,
+    "sourceMap": false,
     "types": ["node"],
-    "typeRoots": ["../../tools/marengo-pi-mcp/node_modules/@types"],
     "esModuleInterop": true
   },
-  "include": ["*.ts"]
+  "include": ["session-start-marengo.ts", "check-powershell-shell.ts"],
+  "exclude": ["node_modules"]
 }

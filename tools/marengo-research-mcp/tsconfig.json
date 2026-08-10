@@ -3,12 +3,15 @@
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+    "rootDir": ".",
+    "outDir": "dist",
     "strict": true,
     "skipLibCheck": true,
-    "noEmit": true,
+    "declaration": false,
+    "sourceMap": true,
     "types": ["node"],
-    "typeRoots": ["../marengo-pi-mcp/node_modules/@types"],
     "esModuleInterop": true
   },
-  "include": ["launch.ts"]
+  "include": ["launch.ts"],
+  "exclude": ["node_modules", "dist"]
 }

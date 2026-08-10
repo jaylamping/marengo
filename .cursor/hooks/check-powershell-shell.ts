@@ -1,10 +1,10 @@
-#!/usr/bin/env node
 /**
  * Cross-platform beforeShellExecution hook.
  * On Windows (native, not WSL): deny bash-isms aimed at PowerShell.
  * On macOS / Linux / WSL: allow (bash is the agent shell).
  *
- * Invoked via: node --experimental-strip-types ".cursor/hooks/check-powershell-shell.ts"
+ * Invoked via: node ".cursor/hooks/check-powershell-shell.js"
+ * (built from this .ts — run `just mcp-build` after editing).
  */
 
 function readStdin(): Promise<string> {
