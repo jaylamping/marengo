@@ -235,6 +235,8 @@ pub struct Supervisor<B: MotorBus> {
     wrong_sign_state: HashMap<String, WrongSignState>,
     last_tick: Option<Instant>,
     active_reporting: ActiveReportingState,
+    /// Last time each joint produced a feedback frame (for type-24 silence retry).
+    last_feedback_rx: HashMap<String, Instant>,
     /// Status frames decoded in the most recent [`Self::refresh_feedback`] poll.
     last_refresh_frames: usize,
     /// Joints whose drives were successfully enabled for the current Active session.
@@ -299,6 +301,7 @@ impl<B: MotorBus> Supervisor<B> {
             wrong_sign_state: HashMap::new(),
             last_tick: None,
             active_reporting: ActiveReportingState::default(),
+            last_feedback_rx: HashMap::new(),
             last_refresh_frames: 0,
             active_joints: HashSet::new(),
         };
@@ -613,6 +616,7 @@ impl<B: MotorBus> Supervisor<B> {
             self.active_joints.clear();
             self.feedback_velocity_trips.clear();
             self.last_feedback_samples.clear();
+            self.last_feedback_rx.clear();
             self.wrong_sign_state.clear();
             warn!("hardware E-stop asserted — disabled");
         }
@@ -856,6 +860,10 @@ impl<B: MotorBus> Supervisor<B> {
                     self.check_feedback_velocity(&motor, &mut state, received_at)?;
                     self.check_feedback_position(&motor, &state)?;
                     self.motor_states.insert(address, state);
+                    // Track RX even in free-drive (Disabled/Ready): Set Limits needs
+                    // silence detection so type-24 can be re-asserted when a motor drops.
+                    self.last_feedback_rx
+                        .insert(motor.joint.clone(), received_at);
                 }
                 self.last_recv = Some(received_at);
                 Ok(n)
@@ -1209,6 +1217,7 @@ impl<B: MotorBus> Supervisor<B> {
         self.active_joints.clear();
         self.feedback_velocity_trips.clear();
         self.last_feedback_samples.clear();
+        self.last_feedback_rx.clear();
         self.wrong_sign_state.clear();
         self.last_tick = None;
         self.sync_active_reporting();
@@ -1218,12 +1227,21 @@ impl<B: MotorBus> Supervisor<B> {
 
     /// Free-drive sensing: type-24 per joint when diagnostics/leases say so and not ACTIVE.
     /// ACTIVE uses MIT status replies instead; type-24 must stay off then.
+    ///
+    /// Re-asserts enable on a 1 s heartbeat and when a joint's feedback goes stale
+    /// while sensing is still desired (motors can drop Active Reporting mid-sweep).
     pub fn sync_active_reporting(&mut self) {
         let mode_active = self.mode == OperationalMode::Active;
         let global = self.control.control.bench.active_reporting_diagnostics;
         let now = Instant::now();
-        self.active_reporting
-            .sync(&mut self.bus, &self.motors, mode_active, global, now);
+        self.active_reporting.sync(
+            &mut self.bus,
+            &self.motors,
+            mode_active,
+            global,
+            now,
+            &self.last_feedback_rx,
+        );
     }
 
     /// Expire TTLs and resync type-24 (call each control-loop iteration).
