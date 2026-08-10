@@ -151,12 +151,12 @@ export const robotInventory: InventoryItem[] = [
   actuator(23, 'left_elbow', 'left_arm', 'Offline', '—', '0–2.50', 'unassigned'),
   actuator(24, 'left_wrist', 'left_arm', 'Offline', '—', '±1.6', 'unassigned'),
 
-  // Right arm — pitch (CAN id 1) before roll (CAN id 2)
+  // Right arm — pitch (CAN id 1) before roll (CAN id 2); lower-arm yaw CAN id 5
   actuator(26, 'right_shoulder_pitch', 'right_arm', 'Enabled', '—', '−0.9–3.17', 'bench_3dof'),
   actuator(25, 'right_shoulder_roll', 'right_arm', 'Enabled', '—', '±1.57', 'bench_3dof'),
   actuator(27, 'right_upper_arm_yaw', 'right_arm', 'Enabled', '—', '±1.57', 'unassigned'),
   actuator(28, 'right_elbow_pitch', 'right_arm', 'Enabled', '—', '0–1.20', 'unassigned'),
-  actuator(29, 'right_lower_arm_yaw', 'right_arm', 'Offline', '—', '±1.6', 'unassigned'),
+  actuator(29, 'right_lower_arm_yaw', 'right_arm', 'Enabled', '—', '±1.6', 'unassigned'),
 ];
 
 export function countByStatus(status: InventoryStatus): number {

@@ -20,3 +20,5 @@ homing:
       method: manual_reference
     right_elbow_pitch:
       method: manual_reference
+    right_lower_arm_yaw:
+      method: manual_reference
