@@ -31,10 +31,11 @@ that forced a second NTFS git clone.
    the allowed root. solidworks-mcp itself stays on Windows
    (`C:\code\solidworks-mcp`).
 4. **Pi MCP defaults** live in
-   [`tools/marengo-pi-mcp/launch.mjs`](../../tools/marengo-pi-mcp/launch.mjs)
-   (and `run-mcp.sh` / `run-mcp.ps1` for shell fallbacks), plus optional user
-   overrides. Do **not** put `MARENGO_CONFIG_DIR`, `MARENGO_BENCH_PROFILE`, or
-   machine SSH identity paths in repo `.cursor/mcp.json`.
+   [`tools/marengo-pi-mcp/src/launch.ts`](../../tools/marengo-pi-mcp/src/launch.ts)
+   (compiled to `dist/launch.js`; plus `run-mcp.sh` / `run-mcp.ps1` for shell
+   fallbacks), plus optional user overrides. Do **not** put
+   `MARENGO_CONFIG_DIR`, `MARENGO_BENCH_PROFILE`, or machine SSH identity paths
+   in repo `.cursor/mcp.json`.
 5. Retire any former `C:\code\marengo` clone: rename to `marengo.DEAD`, then
    delete after a short seatbelt window.
 

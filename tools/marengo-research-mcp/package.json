@@ -1,0 +1,13 @@
+{
+  "name": "marengo-research-mcp-launch",
+  "private": true,
+  "type": "module",
+  "description": "TypeScript Node launcher for the Python research MCP server",
+  "scripts": {
+    "launch": "node --experimental-strip-types launch.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "engines": {
+    "node": ">=22.6"
+  }
+}

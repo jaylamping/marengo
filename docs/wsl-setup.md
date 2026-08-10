@@ -159,7 +159,7 @@ There is **one** Marengo git clone — on WSL ext4. See [ADR 0016](decisions/001
 **Cursor on Windows** (CAD only): open the same tree via UNC, e.g.
 `\\wsl$\Ubuntu\home\<you>\code\marengo` (or that path’s `marengo.code-workspace`).
 
-Pi MCP host defaults live in [`tools/marengo-pi-mcp/launch.mjs`](../tools/marengo-pi-mcp/launch.mjs) (and `run-mcp.sh` / `run-mcp.ps1`) — not as machine-specific env in `.cursor/mcp.json` (Cursor hashes that file’s env and can auto-disable servers).
+Pi MCP host defaults live in [`tools/marengo-pi-mcp/src/launch.ts`](../tools/marengo-pi-mcp/src/launch.ts) (`dist/launch.js`, plus `run-mcp.sh` / `run-mcp.ps1`) — not as machine-specific env in `.cursor/mcp.json` (Cursor hashes that file’s env and can auto-disable servers).
 
 ---
 
@@ -200,7 +200,7 @@ cd ~/code/marengo && mise install
 
 After `setup-wsl-dev.sh`, **restart the marengo-pi MCP server** in Cursor.
 Defaults (Pi host, SSH identity under `~/.ssh/`, bench profile) come from
-`tools/marengo-pi-mcp/launch.mjs` / `run-mcp.sh`.
+`tools/marengo-pi-mcp/src/launch.ts` / `run-mcp.sh`.
 
 ---
 
@@ -219,7 +219,7 @@ Defaults (Pi host, SSH identity under `~/.ssh/`, bench profile) come from
 | Line-ending noise | In WSL clone: `git config core.autocrlf input`. |
 | Permission errors on `target/` | `docker compose build dev` (entrypoint chowns volumes). See [troubleshooting.md](troubleshooting.md). |
 | SolidWorks MCP can’t see files | Open Windows Cursor on `\\wsl$\...\code\marengo` so `${workspaceFolder}` matches the tree; restart solidworks MCP. |
-| marengo-pi MCP missing / disabled in WSL | Usually disabled, not missing. Enable in MCP settings, or quit Cursor and run `just mcp-ensure-enabled --write`. `sessionStart` also runs a best-effort ensure hook (Node). Do **not** put profile/SSH env in `.cursor/mcp.json` (hash thrash auto-disables). Defaults are in `tools/marengo-pi-mcp/run-mcp.sh` (WSL entry) / `launch.mjs` (Node entry after resolve). |
+| marengo-pi MCP missing / disabled in WSL | Usually disabled, not missing. Enable in MCP settings, or quit Cursor and run `just mcp-ensure-enabled --write`. `sessionStart` also runs a best-effort ensure hook (Node). Do **not** put profile/SSH env in `.cursor/mcp.json` (hash thrash auto-disables). Defaults are in `tools/marengo-pi-mcp/run-mcp.sh` (WSL entry) / `dist/launch.js` (Node entry after resolve). |
 | `spawn node ENOENT` / `node: command not found` | Cursor spawn PATH often has `~/.local/bin` but not mise shims, and non-interactive bash skips `mise activate`. Fix: `ln -sfn ~/.local/share/mise/shims/{node,npm,npx,corepack} ~/.local/bin/` (also done by `setup-wsl-dev.sh`), plus mise shims early in `~/.bashrc` / `~/.profile`. MCP still prefers `bash` + `tools/marengo-pi-mcp/run-mcp.sh`. Windows CAD: `run-mcp.cmd` / `run-mcp.ps1`. |
 
 ---

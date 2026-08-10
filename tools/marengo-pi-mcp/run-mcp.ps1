@@ -1,30 +1,9 @@
 # Launcher for Cursor MCP on Windows.
 # Cursor's spawn PATH often lacks mise `node` (ENOENT). Keep profile / SSH
-# defaults HERE — not in `.cursor/mcp.json` (env thrash auto-disables the server).
+# defaults in dist/launch.js (from src/launch.ts) — not in `.cursor/mcp.json`
+# (env thrash auto-disables the server).
 $ErrorActionPreference = 'Stop'
 $Root = $PSScriptRoot
-
-if (-not $env:MARENGO_PI_HOST) { $env:MARENGO_PI_HOST = 'joey-robot.tail0b414.ts.net' }
-if (-not $env:MARENGO_PI_USER) { $env:MARENGO_PI_USER = 'joey' }
-if (-not $env:MARENGO_PI_ROOT) { $env:MARENGO_PI_ROOT = '/opt/marengo' }
-if (-not $env:MARENGO_CONFIG_DIR) {
-    $env:MARENGO_CONFIG_DIR = '/opt/marengo/config'
-}
-if (-not $env:MARENGO_BENCH_PROFILE) { $env:MARENGO_BENCH_PROFILE = 'elbow_attached' }
-
-if (-not $env:SSH_IDENTITY_FILE) {
-    $home = $env:USERPROFILE
-    if (-not $home) { $home = $env:HOME }
-    foreach ($candidate in @(
-            (Join-Path $home '.ssh\id_ed25519_marengo'),
-            (Join-Path $home '.ssh\id_ed25519')
-        )) {
-        if (Test-Path -LiteralPath $candidate) {
-            $env:SSH_IDENTITY_FILE = $candidate
-            break
-        }
-    }
-}
 
 function Resolve-MarengoNode {
     if ($env:MARENGO_MCP_NODE -and (Test-Path -LiteralPath $env:MARENGO_MCP_NODE)) {
@@ -60,7 +39,7 @@ function Resolve-MarengoNode {
 
 $Node = Resolve-MarengoNode
 $env:PATH = "$(Split-Path -Parent $Node);$env:PATH"
-$Entry = Join-Path $Root 'dist\index.js'
+$Entry = Join-Path $Root 'dist\launch.js'
 if (-not (Test-Path -LiteralPath $Entry)) {
     throw "run-mcp.ps1: missing $Entry — run ``just mcp-build`` first."
 }

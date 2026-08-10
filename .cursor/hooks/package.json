@@ -1,0 +1,12 @@
+{
+  "name": "marengo-cursor-hooks",
+  "private": true,
+  "type": "module",
+  "description": "Cursor sessionStart / beforeShellExecution hooks (TypeScript via Node strip-types)",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "engines": {
+    "node": ">=22.6"
+  }
+}

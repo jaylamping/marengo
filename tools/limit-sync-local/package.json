@@ -1,0 +1,13 @@
+{
+  "name": "limit-sync-local",
+  "private": true,
+  "type": "module",
+  "description": "Loopback Set Limits → local git checkout via marengo-limit-sync",
+  "scripts": {
+    "start": "node --experimental-strip-types server.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "engines": {
+    "node": ">=22.6"
+  }
+}

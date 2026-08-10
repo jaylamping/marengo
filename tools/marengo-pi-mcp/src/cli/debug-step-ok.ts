@@ -1,7 +1,8 @@
-import { loadConfig } from "../dist/config.js";
-import { execRemote } from "../dist/ssh.js";
+import { loadConfig } from "../config.js";
+import { execRemote } from "../ssh.js";
 
-function defaultStepOk(out) {
+/** Diagnostic variant of harness step-ok (logs which check failed). */
+function debugStepOk(out: string): boolean {
   if (out.includes("[exit ") && !out.match(/\[exit 0\]/)) {
     console.log("fail: exit");
     return false;
@@ -25,6 +26,6 @@ const cfg = loadConfig();
 const full = await execRemote(cfg, "cat /opt/marengo/var/log/bench-latest.log", {
   timeoutMs: 30_000,
 });
-console.log("stepOk", defaultStepOk(full.stdout));
+console.log("stepOk", debugStepOk(full.stdout));
 console.log("failed count", (full.stdout.match(/failed/gi) ?? []).length);
 console.log("fault non-zero", (full.stdout.match(/fault=0x[0-9a-fA-F]*[1-9a-fA-F]/g) ?? []));

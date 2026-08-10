@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Launcher for Cursor MCP: Cursor's spawn PATH often lacks mise `node` (ENOENT).
 #
-# Keep profile / SSH defaults HERE (and in launch.mjs) — not in `.cursor/mcp.json`.
+# Keep profile / SSH defaults HERE (and in src/launch.ts → dist/launch.js) — not in `.cursor/mcp.json`.
 # Cursor hashes mcp.json `env` into an approval key; changing that env
 # auto-disables the project MCP until you re-enable it in the UI (ADR 0016).
 set -euo pipefail

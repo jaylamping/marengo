@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 /**
  * Cross-platform research MCP entry (avoids `sh` missing from Cursor PATH on Windows).
+ *
+ * Run: node --experimental-strip-types launch.ts
  */
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -54,8 +56,10 @@ const child = spawn(
   },
 );
 
-child.on("error", (err) => {
-  console.error(`launch.mjs: failed to start uv (${err.message}). Run: just research-mcp-setup`);
+child.on("error", (err: Error) => {
+  console.error(
+    `launch: failed to start uv (${err.message}). Run: just research-mcp-setup`,
+  );
   process.exit(127);
 });
 

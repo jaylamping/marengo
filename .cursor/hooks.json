@@ -3,13 +3,13 @@
   "hooks": {
     "sessionStart": [
       {
-        "command": "node \".cursor/hooks/session-start-marengo.mjs\"",
+        "command": "node --experimental-strip-types \".cursor/hooks/session-start-marengo.ts\"",
         "timeout": 25
       }
     ],
     "beforeShellExecution": [
       {
-        "command": "node \".cursor/hooks/check-powershell-shell.mjs\"",
+        "command": "node --experimental-strip-types \".cursor/hooks/check-powershell-shell.ts\"",
         "timeout": 8,
         "failClosed": false
       }

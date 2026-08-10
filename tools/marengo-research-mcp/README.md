@@ -2,7 +2,7 @@
 
 Python MCP server for humanoid robotics research: papers, code, forums, vendor docs, Hugging Face, standards, and general web. Also runs headless for the daily audit.
 
-`GITHUB_TOKEN` is optional but helps with rate limits. The launcher (`run-mcp.ps1` / `run-mcp.sh`) pulls it from `gh auth token` when you are logged in via GitHub CLI.
+`GITHUB_TOKEN` is optional but helps with rate limits. The launcher (`run-mcp.ps1` / `run-mcp.sh`) pulls it from `gh auth token` when you are logged in via GitHub CLI. On Windows when `sh` is missing from Cursor’s PATH, use `node --experimental-strip-types launch.ts` as the Node entry (same defaults).
 
 ## Setup
 

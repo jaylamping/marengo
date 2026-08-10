@@ -1,10 +1,10 @@
-import { loadConfig } from "../dist/config.js";
-import { execRemote, formatRemoteResult } from "../dist/ssh.js";
-import { runBenchHarness } from "../dist/harness/index.js";
+import { loadConfig } from "../config.js";
+import { execRemote, formatRemoteResult } from "../ssh.js";
+import { runBenchHarness } from "../harness/index.js";
 
 const cfg = loadConfig();
 let rollOut = "";
-const runRemote = async (body, timeoutMs) => {
+const runRemote = async (body: string, timeoutMs?: number): Promise<string> => {
   const formatted = formatRemoteResult(
     await execRemote(cfg, body, { timeoutMs: timeoutMs ?? 120_000 }),
   );
@@ -14,7 +14,8 @@ const runRemote = async (body, timeoutMs) => {
   return formatted;
 };
 
-function defaultStepOk(out) {
+/** Diagnostic checks for roll probe output (mirrors harness defaults, with logging). */
+function debugRollStepOk(out: string): boolean {
   const exitMatch = out.match(/\[exit (\d+)\]/);
   const checks = {
     exit:
@@ -30,12 +31,10 @@ function defaultStepOk(out) {
 }
 
 await runBenchHarness(cfg, runRemote, {
-  confirm: true,
-  confirm_weighted_motion: true,
   profile: "roll_attached",
   config_dir: "arm_3dof_right",
   skip_set_zero: true,
 });
 
-console.log("roll stepOk", defaultStepOk(rollOut));
+console.log("roll stepOk", debugRollStepOk(rollOut));
 console.log("tail", rollOut.slice(-800));
