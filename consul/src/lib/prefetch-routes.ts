@@ -3,9 +3,8 @@ const BODY_PREFETCHERS: Record<string, () => Promise<unknown>> = {
   '/testing': () => import('@/components/dashboard/testing/testing-overview'),
   '/logs': () => import('@/components/dashboard/logs/logs-overview'),
   '/simulation': () => import('@/components/dashboard/simulation/simulation-overview'),
-  '/subsystems': () => import('@/components/dashboard/subsystems/subsystems-overview'),
+  '/telemetry': () => import('@/pages/telemetry'),
   '/hardware': () => import('@/components/dashboard/hardware/hardware-overview'),
-  '/actuators': () => import('@/components/dashboard/actuators/actuators-overview'),
 };
 
 const warmed = new Set<string>();

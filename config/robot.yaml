@@ -11,3 +11,18 @@ robot:
     - right_shoulder_pitch
     - right_upper_arm_yaw
     - right_elbow_pitch
+  # Anatomical membership for Joint→Limb→Robot Ready aggregation.
+  # Limb members may include unbuilt Offline inventory; those do not block Ready.
+  limbs:
+    right_arm:
+      - right_shoulder_roll
+      - right_shoulder_pitch
+      - right_upper_arm_yaw
+      - right_elbow_pitch
+      - right_lower_arm_yaw
+    left_arm:
+      - left_shoulder_roll
+      - left_shoulder_pitch
+      - left_upper_arm_yaw
+      - left_elbow
+      - left_wrist

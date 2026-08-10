@@ -12,8 +12,12 @@ use axum::{
     Json,
 };
 use marengo_config::{
-    completeness_report, merge_preview_from_paths, simulate_merge_xml, unresolved_critical_fields,
-    CompletenessReport, FieldResolution, MergePreview,
+    clear_commissioning_scope, completeness_report, default_commissioning_scope_path,
+    effective_commissioning_scope, joint_subset_from_env, load_commissioning_scope,
+    load_robot_config_from, merge_preview_from_paths, save_commissioning_scope, scope_widens,
+    simulate_merge_xml, unresolved_critical_fields, validate_commissioning_scope_joints,
+    CommissioningScopeFile, CompletenessReport, FieldResolution, MergePreview,
+    COMMISSIONING_SCOPE_VERSION,
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -543,6 +547,115 @@ fn format_timestamp() -> String {
         .map(|d| d.as_millis())
         .unwrap_or(0);
     format!("{ms}")
+}
+
+fn scope_path() -> PathBuf {
+    default_commissioning_scope_path()
+}
+
+fn ceiling_joints() -> Option<Vec<String>> {
+    joint_subset_from_env().map(|set| {
+        let mut v: Vec<String> = set.into_iter().collect();
+        v.sort();
+        v
+    })
+}
+
+#[derive(Serialize)]
+pub struct CommissioningScopeResponse {
+    pub version: u32,
+    /// Persisted joints (empty when no scope file).
+    pub joints: Vec<String>,
+    /// `MARENGO_JOINT_SUBSET` ceiling when set.
+    pub ceiling: Option<Vec<String>>,
+    /// persisted ∩ ceiling (empty when no scope file).
+    pub effective: Vec<String>,
+    pub persisted: bool,
+}
+
+#[derive(Deserialize)]
+pub struct PutCommissioningScopeBody {
+    pub joints: Vec<String>,
+    #[serde(default)]
+    pub confirm_widen: bool,
+}
+
+fn scope_response(persisted: Option<&CommissioningScopeFile>) -> CommissioningScopeResponse {
+    let ceiling_set = joint_subset_from_env();
+    let ceiling = ceiling_joints();
+    match persisted {
+        Some(scope) => {
+            let effective = effective_commissioning_scope(&scope.joints, ceiling_set.as_ref());
+            CommissioningScopeResponse {
+                version: scope.version,
+                joints: scope.joints.clone(),
+                ceiling,
+                effective,
+                persisted: true,
+            }
+        }
+        None => CommissioningScopeResponse {
+            version: COMMISSIONING_SCOPE_VERSION,
+            joints: vec![],
+            ceiling,
+            effective: vec![],
+            persisted: false,
+        },
+    }
+}
+
+pub async fn get_commissioning_scope(
+    headers: HeaderMap,
+) -> Result<Json<CommissioningScopeResponse>, StatusCode> {
+    authorize_config_mutation(&headers)?;
+    let loaded = load_commissioning_scope(scope_path()).map_err(|e| {
+        tracing::warn!(error = %e, "commissioning scope load failed");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    Ok(Json(scope_response(loaded.as_ref())))
+}
+
+pub async fn put_commissioning_scope(
+    headers: HeaderMap,
+    Json(body): Json<PutCommissioningScopeBody>,
+) -> Result<Json<CommissioningScopeResponse>, (StatusCode, String)> {
+    authorize_config_mutation(&headers).map_err(|s| (s, "unauthorized".into()))?;
+    let master = load_robot_config_from(config_dir())
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let next = CommissioningScopeFile::normalized(body.joints);
+    validate_commissioning_scope_joints(&next.joints, &master.robot.joints)
+        .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
+
+    let path = scope_path();
+    let previous = load_commissioning_scope(&path)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let ceiling = joint_subset_from_env();
+    let prev_effective = previous
+        .as_ref()
+        .map(|s| effective_commissioning_scope(&s.joints, ceiling.as_ref()))
+        .unwrap_or_default();
+    let next_effective = effective_commissioning_scope(&next.joints, ceiling.as_ref());
+    if scope_widens(&prev_effective, &next_effective) && !body.confirm_widen {
+        return Err((
+            StatusCode::CONFLICT,
+            "confirm_widen=true required when effective scope grows".into(),
+        ));
+    }
+
+    save_commissioning_scope(&path, &next)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    Ok(Json(scope_response(Some(&next))))
+}
+
+pub async fn delete_commissioning_scope(
+    headers: HeaderMap,
+) -> Result<Json<CommissioningScopeResponse>, StatusCode> {
+    authorize_config_mutation(&headers)?;
+    clear_commissioning_scope(scope_path()).map_err(|e| {
+        tracing::warn!(error = %e, "commissioning scope clear failed");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    Ok(Json(scope_response(None)))
 }
 
 #[cfg(test)]

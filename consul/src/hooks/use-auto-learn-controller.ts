@@ -14,6 +14,7 @@ import { useConfigSnapshot } from '@/hooks/use-config-snapshot';
 import { autoLearnConfigured, postAutoLearn } from '@/lib/auto-learn-api';
 import { buildAutoLearnLogContext } from '@/lib/auto-learn-logs';
 import { buildAutoLearnRequest } from '@/lib/auto-learn-snapshot';
+import { DEFAULT_OPERATOR_PROFILE } from '@/lib/bringup-presets';
 import { canApplyLandmarks, type TeachLandmark } from '@/lib/teach-record';
 import {
   createTeachSession,
@@ -217,7 +218,7 @@ export function useAutoLearnController(presetId: string) {
       return false;
     }
     const fingerprint = liveFingerprint(
-      config?.profile ?? 'arm_4dof_right',
+      config?.profile ?? DEFAULT_OPERATOR_PROFILE,
       base.joints,
       piMetrics?.build,
     );

@@ -21,7 +21,6 @@ import { queryClient } from '@/lib/query-client';
 import { queryKeys } from '@/lib/query-keys';
 import { subscribeTeachSamples } from '@/lib/teach-sample-bus';
 import { useActuatorStore } from '@/state/actuatorStore';
-import { useActuatorZeroStore } from '@/state/actuatorZeroStore';
 import { useLimitListenStore } from '@/state/limitListenStore';
 import { useRobotStore } from '@/state/robotStore';
 
@@ -194,9 +193,7 @@ export function SetLimitsPanel({
     setZeroOk(false);
     try {
       await postSetZeroCommand(jointName, { signTestPassed: true });
-      // Gateway 200 only means queued on Chappe — do not bump teach calibration yet.
-      // Unlock inventory Home once Set Zero is accepted for this joint.
-      useActuatorZeroStore.getState().markZeroed(jointName);
+      // Gateway 200 only means queued on Chappe — Reference Ready follows wire Verified.
       setZeroOk(true);
       setZeroConfirmOpen(false);
       setSignTestPassed(false);

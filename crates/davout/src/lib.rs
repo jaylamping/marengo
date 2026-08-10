@@ -53,7 +53,7 @@ mod limit_envelope;
 
 pub use active_reporting::{ActiveReportingLeaseError, ActiveReportingState, DEFAULT_LEASE_TTL};
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::time::{Duration, Instant};
 
@@ -62,13 +62,16 @@ use armee_kinematics::{
     measured_position_fault, LimitMarginConfig,
 };
 use marengo_config::{
-    load_control_config, load_homing_config, load_motors_config, load_robot_config,
-    motor_for_joint, motor_type_key, resolve_joint_velocity_cap, resolve_urdf_path,
-    validate_control_against_limits, validate_motors_against_robot,
+    default_commissioning_scope_path, effective_commissioning_scope, joint_subset_from_env,
+    load_commissioning_scope, load_control_config, load_homing_config, load_motors_config,
+    load_robot_config, motor_for_joint, motor_type_key, resolve_joint_velocity_cap,
+    resolve_urdf_path, validate_control_against_limits, validate_motors_against_robot,
     validate_robot_control_joint_coverage, ControlConfigFile, HomingConfigFile, MotorEntry,
     MotorType, MotorsConfigFile, RobotConfigFile,
 };
-use marengo_homing::{verify_manual_reference, HomingRegistry, VerifyError};
+use marengo_homing::{
+    select_enable_targets, verify_manual_reference, HomingRegistry, JointFacetInput, VerifyError,
+};
 use robstride::AddressedMitCommand;
 use robstride::{MitCommand, MotorState, ParameterId, ParameterValue, RunMode};
 use thiserror::Error;
@@ -147,6 +150,8 @@ pub enum DavoutError {
     Estop,
     #[error("unknown joint {joint}")]
     UnknownJoint { joint: String },
+    #[error("joint {joint} is not in the active enable set")]
+    InactiveJoint { joint: String },
     #[error("comm watchdog: no feedback for {ms} ms")]
     CommWatchdog { ms: u64 },
     #[error("danger zone {name} triggered on {joint}")]
@@ -165,6 +170,8 @@ pub enum DavoutError {
     WrongSignWatchdog { joint: String, ticks: u32 },
     #[error("runtime limit changes are refused while supervisor is ACTIVE")]
     LimitPatchActive,
+    #[error("active enable set cannot change while ACTIVE; disable first")]
+    ActiveSetChangeRefused,
 }
 
 pub use marengo_homing::JointHomingState;
@@ -230,6 +237,8 @@ pub struct Supervisor<B: MotorBus> {
     active_reporting: ActiveReportingState,
     /// Status frames decoded in the most recent [`Self::refresh_feedback`] poll.
     last_refresh_frames: usize,
+    /// Joints whose drives were successfully enabled for the current Active session.
+    active_joints: HashSet<String>,
 }
 
 impl<B: MotorBus> Supervisor<B> {
@@ -291,6 +300,7 @@ impl<B: MotorBus> Supervisor<B> {
             last_tick: None,
             active_reporting: ActiveReportingState::default(),
             last_refresh_frames: 0,
+            active_joints: HashSet::new(),
         };
         // Arm type-24 when configured so free-drive Set Limits can see motion while
         // limp (Disabled/Ready). MIT Active still turns reporting off in sync below.
@@ -313,6 +323,30 @@ impl<B: MotorBus> Supervisor<B> {
 
     pub fn joint_homing_state(&self, joint: &str) -> JointHomingState {
         self.homing.joint_state(joint)
+    }
+
+    /// Whether Davout currently has this joint's drive enabled (ACTIVE + in set).
+    pub fn joint_drive_active(&self, joint: &str) -> bool {
+        self.mode == OperationalMode::Active && self.active_joints.contains(joint)
+    }
+
+    /// Joints currently in the Active enable set (empty when not Active).
+    pub fn active_joints(&self) -> &HashSet<String> {
+        &self.active_joints
+    }
+
+    pub fn joint_out_of_limits(&self, joint: &str) -> bool {
+        self.homing.is_out_of_limits(joint)
+    }
+
+    /// Wire facets for one joint: proto homing ordinal, drive_active, out_of_limits.
+    pub fn joint_commissioning_wire(&self, joint: &str) -> (i32, bool, bool) {
+        let homing = marengo_homing::to_proto_homing_state(self.joint_homing_state(joint)) as i32;
+        (
+            homing,
+            self.joint_drive_active(joint),
+            self.joint_out_of_limits(joint),
+        )
     }
 
     /// Per-joint limit policy (hard/soft bounds + margin config). ADR 0009.
@@ -576,6 +610,7 @@ impl<B: MotorBus> Supervisor<B> {
             self.mode = OperationalMode::Disabled;
             self.control_mode = ControlMode::Disabled;
             self.active_since = None;
+            self.active_joints.clear();
             self.feedback_velocity_trips.clear();
             self.last_feedback_samples.clear();
             self.wrong_sign_state.clear();
@@ -629,8 +664,116 @@ impl<B: MotorBus> Supervisor<B> {
                     return Err(DavoutError::NotActive { mode });
                 }
             }
-            for motor in &self.motors.motors {
-                let address = MotorAddress::from(motor);
+            let targets: Vec<String> = self.motors.motors.iter().map(|m| m.joint.clone()).collect();
+            self.enable_targets_inner(&targets)?;
+        } else {
+            self.disable_all()?;
+        }
+        Ok(())
+    }
+
+    /// Enable only the listed joints. On any enable/run-mode failure, [`disable_all`].
+    ///
+    /// Does not require supervisor Ready / all-joint Verified — callers
+    /// MUST pre-filter eligibility ([`Self::resolve_enable_targets`]). Empty targets are
+    /// rejected. While Active, a different joint set is refused
+    /// ([`DavoutError::ActiveSetChangeRefused`]); operators must Disable then Enable.
+    pub fn enable_targets(&mut self, joints: &[String]) -> Result<(), DavoutError> {
+        if self.hardware_estop {
+            return Err(DavoutError::Estop);
+        }
+        if joints.is_empty() {
+            return Err(DavoutError::Homing {
+                message: "enable targets empty".into(),
+            });
+        }
+        for joint in joints {
+            if motor_for_joint(&self.motors, joint).is_none() {
+                return Err(DavoutError::UnknownJoint {
+                    joint: joint.clone(),
+                });
+            }
+        }
+        if self.mode == OperationalMode::Active {
+            let want: HashSet<&str> = joints.iter().map(String::as_str).collect();
+            let have: HashSet<&str> = self.active_joints.iter().map(String::as_str).collect();
+            if want == have {
+                return Ok(());
+            }
+            return Err(DavoutError::ActiveSetChangeRefused);
+        }
+        self.enable_targets_inner(joints)
+    }
+
+    /// Master + loaded joint facets for commissioning / Enable eligibility.
+    ///
+    /// `online` requires live CAN feedback. Master names come from the caller (full
+    /// `robot.yaml` joints, not the loaded subset).
+    pub fn commissioning_facets(
+        &self,
+        master_joint_names: &[String],
+    ) -> (Vec<JointFacetInput>, Vec<JointFacetInput>) {
+        let loaded_names: HashSet<&str> = self
+            .motors
+            .motors
+            .iter()
+            .map(|m| m.joint.as_str())
+            .collect();
+        let mut master = Vec::with_capacity(master_joint_names.len());
+        for name in master_joint_names {
+            let motor_mapped = loaded_names.contains(name.as_str());
+            let feedback = self.joint_feedback(name);
+            let online = feedback.is_some();
+            let fault = feedback.map(|f| f.fault != 0).unwrap_or(false)
+                || self.joint_homing_state(name) == JointHomingState::Faulted;
+            master.push(JointFacetInput {
+                name: name.clone(),
+                homing_state: if motor_mapped {
+                    self.joint_homing_state(name)
+                } else {
+                    JointHomingState::Unhomed
+                },
+                online,
+                motor_mapped,
+                fault,
+                out_of_limits: self.joint_out_of_limits(name),
+                drive_active: self.joint_drive_active(name),
+            });
+        }
+        let loaded: Vec<JointFacetInput> =
+            master.iter().filter(|j| j.motor_mapped).cloned().collect();
+        (master, loaded)
+    }
+
+    /// Resolve scoped Enable targets from persisted commissioning scope + facets.
+    ///
+    /// No scope file → full-master Robot Ready required. Persisted scope → Verified
+    /// in-scope joints only. Never calls [`Self::set_homing_complete`].
+    pub fn resolve_enable_targets(
+        &self,
+        repo_root: impl AsRef<Path>,
+    ) -> Result<Vec<String>, DavoutError> {
+        let scope_path = default_commissioning_scope_path();
+        let persisted = load_commissioning_scope(&scope_path)?;
+        let ceiling = joint_subset_from_env();
+        let effective = persisted
+            .as_ref()
+            .map(|scope| effective_commissioning_scope(&scope.joints, ceiling.as_ref()));
+        let master_names = load_robot_config(repo_root.as_ref())?.robot.joints;
+        let (master, loaded) = self.commissioning_facets(&master_names);
+        select_enable_targets(&master, &loaded, effective.as_deref())
+            .map_err(|message| DavoutError::Homing { message })
+    }
+
+    fn enable_targets_inner(&mut self, joints: &[String]) -> Result<(), DavoutError> {
+        let result = (|| {
+            for joint in joints {
+                let motor = motor_for_joint(&self.motors, joint)
+                    .ok_or_else(|| DavoutError::UnknownJoint {
+                        joint: joint.clone(),
+                    })?
+                    .clone();
+                let address = MotorAddress::from(&motor);
                 info!(
                     joint = %motor.joint,
                     interface = %address.interface,
@@ -640,14 +783,30 @@ impl<B: MotorBus> Supervisor<B> {
                 self.bus.enable_drive_at(&address)?;
                 self.bus.set_run_mode_at(&address, RunMode::Mit)?;
             }
+            self.active_joints = joints.iter().cloned().collect();
             self.mode = OperationalMode::Active;
             self.active_since = Some(Instant::now());
             self.wrong_sign_state.clear();
             self.last_tick = None;
             self.sync_active_reporting();
-            info!(motor_count = self.motors.motors.len(), "supervisor ACTIVE");
-        } else {
-            self.disable_all()?;
+            info!(motor_count = joints.len(), "supervisor ACTIVE (targeted)");
+            Ok(())
+        })();
+        if let Err(err) = &result {
+            warn!(error = %err, "targeted enable failed — disable_all");
+            let _ = self.disable_all();
+        }
+        result
+    }
+
+    fn require_active_joint(&self, joint: &str) -> Result<(), DavoutError> {
+        if self.mode != OperationalMode::Active {
+            return Err(DavoutError::NotActive { mode: self.mode });
+        }
+        if !self.active_joints.contains(joint) {
+            return Err(DavoutError::InactiveJoint {
+                joint: joint.to_string(),
+            });
         }
         Ok(())
     }
@@ -806,7 +965,7 @@ impl<B: MotorBus> Supervisor<B> {
     }
 
     fn check_feedback_position(
-        &self,
+        &mut self,
         motor: &MotorEntry,
         state: &MotorState,
     ) -> Result<(), DavoutError> {
@@ -821,6 +980,7 @@ impl<B: MotorBus> Supervisor<B> {
             })?;
         let position = f64::from(state.position_rad);
         if measured_position_fault(position, lim) {
+            self.homing.mark_out_of_limits(&motor.joint);
             return Err(DavoutError::Limit {
                 joint: motor.joint.clone(),
                 message: format!(
@@ -908,9 +1068,7 @@ impl<B: MotorBus> Supervisor<B> {
         if self.hardware_estop {
             return Err(DavoutError::Estop);
         }
-        if self.mode != OperationalMode::Active {
-            return Err(DavoutError::NotActive { mode: self.mode });
-        }
+        self.require_active_joint(&cmd.joint)?;
         let filtered = self.filter_mit_command(cmd, motor)?;
         let scale = motor_position_scale(motor)?;
         let wire = MitCommand {
@@ -934,15 +1092,13 @@ impl<B: MotorBus> Supervisor<B> {
         let batch_tick = Instant::now();
         for cmd in cmds {
             let joint = cmd.joint.clone();
+            self.require_active_joint(&joint)?;
             let motor = motor_for_joint(&self.motors, &joint)
                 .ok_or(DavoutError::UnknownJoint { joint })?
                 .clone();
             self.check_comm_watchdog()?;
             if self.hardware_estop {
                 return Err(DavoutError::Estop);
-            }
-            if self.mode != OperationalMode::Active {
-                return Err(DavoutError::NotActive { mode: self.mode });
             }
             let filtered = self.filter_mit_command_at_tick(cmd, &motor, self.last_tick)?;
             let scale = motor_position_scale(&motor)?;
@@ -974,9 +1130,7 @@ impl<B: MotorBus> Supervisor<B> {
         if self.hardware_estop {
             return Err(DavoutError::Estop);
         }
-        if self.mode != OperationalMode::Active {
-            return Err(DavoutError::NotActive { mode: self.mode });
-        }
+        self.require_active_joint(&cmd.joint)?;
         if !self.control.control.bench.allow_firmware_speed_mode {
             return Err(DavoutError::FirmwareSpeedModeDisabled);
         }
@@ -1017,9 +1171,7 @@ impl<B: MotorBus> Supervisor<B> {
         if self.hardware_estop {
             return Err(DavoutError::Estop);
         }
-        if self.mode != OperationalMode::Active {
-            return Err(DavoutError::NotActive { mode: self.mode });
-        }
+        self.require_active_joint(joint)?;
         let motor = motor_for_joint(&self.motors, joint)
             .ok_or_else(|| DavoutError::UnknownJoint {
                 joint: joint.to_string(),
@@ -1054,6 +1206,7 @@ impl<B: MotorBus> Supervisor<B> {
         self.mode = OperationalMode::Disabled;
         self.control_mode = ControlMode::Disabled;
         self.active_since = None;
+        self.active_joints.clear();
         self.feedback_velocity_trips.clear();
         self.last_feedback_samples.clear();
         self.wrong_sign_state.clear();
@@ -1605,6 +1758,166 @@ mod tests {
         let err = sup.request_enable(true).expect_err("blocked");
         assert!(matches!(err, DavoutError::Homing { .. }));
         let _ = std::fs::remove_file(temp);
+    }
+
+    #[test]
+    fn commissioning_wire_publishes_drive_active_and_homing() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let joint = "right_elbow_pitch".to_string();
+        let (homing, drive, ool) = sup.joint_commissioning_wire(&joint);
+        assert_eq!(
+            homing,
+            marengo_homing::to_proto_homing_state(marengo_homing::JointHomingState::Unhomed) as i32
+        );
+        assert!(!drive);
+        assert!(!ool);
+
+        bench_ready_active(&mut sup);
+        let (homing, drive, ool) = sup.joint_commissioning_wire(&joint);
+        assert_eq!(
+            homing,
+            marengo_homing::to_proto_homing_state(marengo_homing::JointHomingState::Verified)
+                as i32
+        );
+        assert!(drive);
+        assert!(!ool);
+
+        sup.disable_all().expect("disable");
+        let (_, drive, _) = sup.joint_commissioning_wire(&joint);
+        assert!(!drive);
+    }
+
+    #[test]
+    fn enable_targets_sets_active_joints_and_drive_active() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let a = "right_shoulder_roll".to_string();
+        let b = "right_shoulder_pitch".to_string();
+        sup.enable_targets(&[a.clone()]).expect("enable one");
+        assert_eq!(sup.mode(), OperationalMode::Active);
+        assert!(sup.joint_drive_active(&a));
+        assert!(!sup.joint_drive_active(&b));
+        assert_eq!(sup.active_joints().len(), 1);
+        // Idempotent same-set Enable while Active.
+        sup.enable_targets(&[a.clone()]).expect("same set");
+        assert_eq!(sup.mode(), OperationalMode::Active);
+    }
+
+    #[test]
+    fn enable_targets_refuses_different_set_while_active() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let a = "right_shoulder_roll".to_string();
+        let b = "right_shoulder_pitch".to_string();
+        sup.enable_targets(&[a.clone()]).expect("enable one");
+        let err = sup
+            .enable_targets(&[a.clone(), b.clone()])
+            .expect_err("set change");
+        assert!(
+            matches!(err, DavoutError::ActiveSetChangeRefused),
+            "got {err}"
+        );
+        assert_eq!(sup.mode(), OperationalMode::Active);
+        assert!(sup.joint_drive_active(&a));
+        assert!(!sup.joint_drive_active(&b));
+    }
+
+    #[test]
+    fn enable_targets_partial_failure_disables_all() {
+        let motor_count = Supervisor::from_repo(repo_root(), MemoryBus::default())
+            .expect("supervisor")
+            .motors
+            .motors
+            .len();
+        assert!(motor_count >= 2);
+        let bus = FailAfterNEnableBus {
+            inner: MemoryBus::default(),
+            succeed: 1,
+            enable_calls: 0,
+            disable_calls: 0,
+        };
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let joints: Vec<String> = sup
+            .motors
+            .motors
+            .iter()
+            .take(2)
+            .map(|m| m.joint.clone())
+            .collect();
+        let err = sup.enable_targets(&joints).expect_err("partial");
+        assert!(matches!(err, DavoutError::Bus(_)), "got {err}");
+        assert_eq!(sup.mode(), OperationalMode::Disabled);
+        assert!(sup.active_joints().is_empty());
+        assert!(
+            sup.bus.disable_calls >= motor_count,
+            "disable_all after partial enable"
+        );
+    }
+
+    #[test]
+    fn mit_command_rejected_outside_active_joints() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let a = "right_shoulder_roll".to_string();
+        let b = "right_shoulder_pitch".to_string();
+        sup.enable_targets(&[a.clone()]).expect("enable");
+        let motor = marengo_config::motor_for_joint(&sup.motors, &b)
+            .expect("motor")
+            .clone();
+        let err = sup
+            .send_mit_joint(
+                MitJointCommand {
+                    joint: b.clone(),
+                    kp: 0.0,
+                    kd: 0.0,
+                    position_rad: 0.0,
+                    velocity_rad_s: 0.0,
+                    torque_ff_nm: 0.0,
+                },
+                &motor,
+            )
+            .expect_err("inactive");
+        assert!(
+            matches!(err, DavoutError::InactiveJoint { .. }),
+            "got {err}"
+        );
+    }
+
+    #[test]
+    fn enable_targets_rejects_empty() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let err = sup.enable_targets(&[]).expect_err("empty");
+        assert!(matches!(err, DavoutError::Homing { .. }));
+    }
+
+    #[test]
+    fn measured_position_fault_marks_out_of_limits() {
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        bench_ready_active(&mut sup);
+        let joint = "right_elbow_pitch".to_string();
+        let lim = *sup.joint_limit_policy(&joint).expect("policy");
+        let outside = lim.hard_upper() + lim.margin.measured_fault_slack_rad + 0.5;
+        let motor = marengo_config::motor_for_joint(&sup.motors, &joint)
+            .expect("motor")
+            .clone();
+        let state = MotorState {
+            position_rad: outside as f32,
+            velocity_rad_s: 0.0,
+            torque_nm: 0.0,
+            temperature_c: 0.0,
+            fault: 0,
+            updated: Some(Instant::now()),
+        };
+        let err = sup
+            .check_feedback_position(&motor, &state)
+            .expect_err("out of limits");
+        assert!(matches!(err, DavoutError::Limit { .. }));
+        assert!(sup.joint_out_of_limits(&joint));
+        let (_, _, ool) = sup.joint_commissioning_wire(&joint);
+        assert!(ool);
     }
 
     #[test]

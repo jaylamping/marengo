@@ -46,7 +46,6 @@ export const PRESET_OPTIONS = [
   { label: 'golden_pose', value: 'golden_pose' },
   { label: 'bench_default', value: 'bench_default' },
   { label: 'bench_3dof', value: 'bench_3dof' },
-  { label: 'bench_4dof', value: 'bench_4dof' },
   { label: 'tuning_sweep', value: 'tuning_sweep' },
   { label: 'last_session', value: 'last_session' },
 ] as const;

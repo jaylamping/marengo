@@ -469,3 +469,195 @@ fn authorize_config_mutation_matches_log_token() {
     let headers = auth_headers();
     assert!(authorize_config_mutation(&headers).is_ok());
 }
+
+#[tokio::test]
+async fn commissioning_scope_crud_auth_widen_and_unknown() {
+    let _env = lock_test_env();
+    let tmp = tempfile::tempdir().expect("temp");
+    let repo = tmp.path();
+    let config_dir = repo.join("config");
+    fs::create_dir_all(&config_dir).expect("config dir");
+    // Minimal robot.yaml master joints for validation.
+    fs::write(
+        config_dir.join("robot.yaml"),
+        r#"
+robot:
+  name: test
+  urdf: assets/urdf/marengo.urdf
+  bench:
+    max_joint_velocity_rad_s: 1.0
+    max_joint_torque_nm: 10.0
+  joints:
+    - right_shoulder_roll
+    - right_shoulder_pitch
+    - right_upper_arm_yaw
+"#,
+    )
+    .expect("robot");
+    std::env::set_var("MARENGO_ROOT", repo);
+    std::env::set_var("MARENGO_CONFIG_DIR", config_dir.as_os_str());
+    std::env::set_var(
+        "MARENGO_JOINT_SUBSET",
+        "right_shoulder_roll,right_shoulder_pitch,right_upper_arm_yaw",
+    );
+    std::env::set_var(TOKEN_ENV, TEST_TOKEN);
+
+    let state = std::sync::Arc::new(AppState::new(std::sync::Arc::new(Bus::default())));
+    let app = test_app(state);
+
+    // Missing auth → 401
+    let unauth = app
+        .clone()
+        .oneshot(
+            axum::http::Request::builder()
+                .uri("/hardware/commissioning-scope")
+                .body(Body::empty())
+                .expect("req"),
+        )
+        .await
+        .expect("resp");
+    assert_eq!(unauth.status(), StatusCode::UNAUTHORIZED);
+
+    // GET empty
+    let get0 = app
+        .clone()
+        .oneshot(
+            axum::http::Request::builder()
+                .uri("/hardware/commissioning-scope")
+                .header("x-marengo-log-token", TEST_TOKEN)
+                .body(Body::empty())
+                .expect("req"),
+        )
+        .await
+        .expect("resp");
+    assert_eq!(get0.status(), StatusCode::OK);
+    let body0: serde_json::Value = serde_json::from_slice(
+        &axum::body::to_bytes(get0.into_body(), 1 << 20)
+            .await
+            .expect("b"),
+    )
+    .expect("json");
+    assert_eq!(body0["persisted"], false);
+
+    // PUT unknown joint rejected
+    let bad = app
+        .clone()
+        .oneshot(
+            axum::http::Request::builder()
+                .method("PUT")
+                .uri("/hardware/commissioning-scope")
+                .header("x-marengo-log-token", TEST_TOKEN)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"joints":["left_wrist_roll"],"confirm_widen":true}"#,
+                ))
+                .expect("req"),
+        )
+        .await
+        .expect("resp");
+    assert_eq!(bad.status(), StatusCode::BAD_REQUEST);
+
+    // PUT narrow set (from empty → first write is a widen)
+    let put_widen_missing = app
+        .clone()
+        .oneshot(
+            axum::http::Request::builder()
+                .method("PUT")
+                .uri("/hardware/commissioning-scope")
+                .header("x-marengo-log-token", TEST_TOKEN)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"joints":["right_shoulder_roll","right_shoulder_pitch"]}"#,
+                ))
+                .expect("req"),
+        )
+        .await
+        .expect("resp");
+    assert_eq!(put_widen_missing.status(), StatusCode::CONFLICT);
+
+    let put_ok = app
+        .clone()
+        .oneshot(
+            axum::http::Request::builder()
+                .method("PUT")
+                .uri("/hardware/commissioning-scope")
+                .header("x-marengo-log-token", TEST_TOKEN)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"joints":["right_shoulder_roll","right_shoulder_pitch"],"confirm_widen":true}"#,
+                ))
+                .expect("req"),
+        )
+        .await
+        .expect("resp");
+    assert_eq!(put_ok.status(), StatusCode::OK);
+    let put_body: serde_json::Value = serde_json::from_slice(
+        &axum::body::to_bytes(put_ok.into_body(), 1 << 20)
+            .await
+            .expect("b"),
+    )
+    .expect("json");
+    assert_eq!(put_body["persisted"], true);
+    assert_eq!(put_body["effective"].as_array().expect("arr").len(), 2);
+
+    // Narrow without confirm_widen
+    let put_narrow = app
+        .clone()
+        .oneshot(
+            axum::http::Request::builder()
+                .method("PUT")
+                .uri("/hardware/commissioning-scope")
+                .header("x-marengo-log-token", TEST_TOKEN)
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"joints":["right_shoulder_roll"]}"#))
+                .expect("req"),
+        )
+        .await
+        .expect("resp");
+    assert_eq!(put_narrow.status(), StatusCode::OK);
+
+    // DELETE clears
+    let del = app
+        .clone()
+        .oneshot(
+            axum::http::Request::builder()
+                .method("DELETE")
+                .uri("/hardware/commissioning-scope")
+                .header("x-marengo-log-token", TEST_TOKEN)
+                .body(Body::empty())
+                .expect("req"),
+        )
+        .await
+        .expect("resp");
+    assert_eq!(del.status(), StatusCode::OK);
+    let del_body: serde_json::Value = serde_json::from_slice(
+        &axum::body::to_bytes(del.into_body(), 1 << 20)
+            .await
+            .expect("b"),
+    )
+    .expect("json");
+    assert_eq!(del_body["persisted"], false);
+
+    std::env::remove_var(TOKEN_ENV);
+    std::env::remove_var("MARENGO_ROOT");
+    std::env::remove_var("MARENGO_CONFIG_DIR");
+    std::env::remove_var("MARENGO_JOINT_SUBSET");
+}
+
+#[tokio::test]
+async fn command_home_is_gone() {
+    let _env = lock_test_env();
+    let state = std::sync::Arc::new(AppState::new(std::sync::Arc::new(Bus::default())));
+    let app = test_app(state);
+    let response = app
+        .oneshot(
+            axum::http::Request::builder()
+                .method("POST")
+                .uri("/command/home")
+                .body(Body::empty())
+                .expect("req"),
+        )
+        .await
+        .expect("resp");
+    assert_eq!(response.status(), StatusCode::GONE);
+}

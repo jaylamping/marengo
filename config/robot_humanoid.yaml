@@ -31,3 +31,32 @@ robot:
     - right_upper_arm_yaw
     - right_elbow_pitch
     - right_lower_arm_yaw
+  limbs:
+    torso:
+      - waist_yaw
+    left_leg:
+      - left_hip_yaw
+      - left_hip_roll
+      - left_hip_pitch
+      - left_knee
+      - left_ankle_pitch
+      - left_ankle_roll
+    right_leg:
+      - right_hip_yaw
+      - right_hip_roll
+      - right_hip_pitch
+      - right_knee
+      - right_ankle_pitch
+      - right_ankle_roll
+    left_arm:
+      - left_shoulder_pitch
+      - left_shoulder_roll
+      - left_upper_arm_yaw
+      - left_elbow
+      - left_wrist
+    right_arm:
+      - right_shoulder_pitch
+      - right_shoulder_roll
+      - right_upper_arm_yaw
+      - right_elbow_pitch
+      - right_lower_arm_yaw

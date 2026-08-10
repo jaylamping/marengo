@@ -27,6 +27,7 @@
 //! `hardware/docs/kinematics.md` together.
 
 mod bench_joints;
+mod commissioning_scope;
 mod completeness;
 mod config_revision;
 mod limit_patch;
@@ -38,6 +39,11 @@ pub use bench_joints::{
     apply_joint_subset, joint_subset_from_env, load_command_joint_allowlist,
     load_command_joint_allowlist_from, resolve_command_joint, validate_joint_subset,
     CommandJointAllowlist,
+};
+pub use commissioning_scope::{
+    clear_commissioning_scope, default_commissioning_scope_path, effective_commissioning_scope,
+    load_commissioning_scope, save_commissioning_scope, scope_widens,
+    validate_commissioning_scope_joints, CommissioningScopeFile, COMMISSIONING_SCOPE_VERSION,
 };
 pub use completeness::{completeness_report, CompletenessReport, CompletenessWarning};
 pub use config_revision::profile_content_revision;
@@ -104,6 +110,10 @@ pub struct RobotSection {
     pub urdf: String,
     pub bench: BenchSection,
     pub joints: Vec<String>,
+    /// Anatomical limb → joint membership for commissioning aggregation.
+    /// Members may include unbuilt Offline inventory not listed in `joints`.
+    #[serde(default)]
+    pub limbs: std::collections::BTreeMap<String, Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1107,6 +1117,10 @@ mod tests {
         assert!(cfg.robot.urdf.contains("marengo.urdf"));
         assert!(cfg.robot.bench.max_joint_velocity_rad_s > 0.0);
         assert_eq!(cfg.robot.joints.len(), 4);
+        let right = cfg.robot.limbs.get("right_arm").expect("right_arm limb");
+        assert!(right.contains(&"right_elbow_pitch".to_string()));
+        assert!(right.contains(&"right_lower_arm_yaw".to_string()));
+        assert!(cfg.robot.limbs.contains_key("left_arm"));
     }
 
     #[test]

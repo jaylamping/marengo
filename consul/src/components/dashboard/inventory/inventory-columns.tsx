@@ -67,7 +67,13 @@ export const inventoryColumns: ColumnDef<InventoryRow>[] = [
     accessorKey: 'status',
     size: 120,
     header: 'Status',
-    cell: ({ row }) => <InventoryStatusCell status={row.original.status} />,
+    cell: ({ row }) => (
+      <InventoryStatusCell
+        status={row.original.status}
+        jointName={row.original.name}
+        kind={row.original.kind}
+      />
+    ),
   },
   {
     accessorKey: 'value',

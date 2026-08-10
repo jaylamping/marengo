@@ -26,7 +26,7 @@ describe('parseInventoryOverridesPersisted', () => {
           version: 1,
           overrides: {
             27: {
-              preset: 'bench_4dof',
+              preset: 'unassigned',
               group: 'not_a_group',
               kind: 'actuator',
               status: 'Hacked',
@@ -38,7 +38,7 @@ describe('parseInventoryOverridesPersisted', () => {
     ).toEqual({
       version: 1,
       overrides: {
-        27: { preset: 'bench_4dof', kind: 'actuator', name: 'yaw' },
+        27: { preset: 'unassigned', kind: 'actuator', name: 'yaw' },
       },
     });
   });

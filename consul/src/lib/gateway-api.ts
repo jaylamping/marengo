@@ -9,11 +9,16 @@ import {
   ActuatorLimitSnapshotSchema,
   EnableRequestSchema,
   EnvelopeSchema,
-  HomingCompleteSchema,
   MitCommandBatchSchema,
   OperatorCommandSchema,
 } from '@/gen/marengo/v1/marengo_pb';
 import { getChappeEndpoints } from '@/lib/chappe-config';
+import type {
+  CommissioningScopeResponse,
+  PutCommissioningScopeBody,
+} from '@/lib/commissioning-scope';
+
+export type { CommissioningScopeResponse, PutCommissioningScopeBody };
 
 function requireEndpoints() {
   const endpoints = getChappeEndpoints();
@@ -21,6 +26,18 @@ function requireEndpoints() {
     throw new Error('Chappe endpoints not configured');
   }
   return endpoints;
+}
+
+function authHeaders(json = true): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (json) {
+    headers['Content-Type'] = 'application/json';
+  }
+  const token = import.meta.env.VITE_MARENGO_LOG_TOKEN as string | undefined;
+  if (token?.trim()) {
+    headers['x-marengo-log-token'] = token.trim();
+  }
+  return headers;
 }
 
 export async function fetchActuatorLimits(): Promise<ActuatorLimitSnapshot | null> {
@@ -133,24 +150,52 @@ export async function postTestingMitCommandBatch(batch: MitCommandBatch): Promis
   }
 }
 
+/** @deprecated Operator HomingComplete retired — gateway returns 410 Gone. */
 export async function postHomeCommand(): Promise<void> {
-  const endpoints = getChappeEndpoints();
-  if (!endpoints) {
-    throw new Error('Chappe endpoints not configured');
-  }
-  const request = create(HomingCompleteSchema, {
-    timestampMs: BigInt(Date.now()),
-    nodeId: 'consul',
-  });
-  const res = await fetch(`${endpoints.httpUrl}/command/home`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-protobuf' },
-    body: toBinary(HomingCompleteSchema, request),
+  throw new Error(
+    'POST /command/home retired; use Hardware Set Zero per joint (not Testing Home)',
+  );
+}
+
+export async function fetchCommissioningScope(): Promise<CommissioningScopeResponse> {
+  const { httpUrl } = requireEndpoints();
+  const res = await fetch(`${httpUrl}/hardware/commissioning-scope`, {
+    headers: authHeaders(false),
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`home command failed: ${res.status} ${text}`);
+    throw new Error(`commissioning scope GET failed: ${res.status} ${text}`);
   }
+  return (await res.json()) as CommissioningScopeResponse;
+}
+
+export async function putCommissioningScope(
+  body: PutCommissioningScopeBody,
+): Promise<CommissioningScopeResponse> {
+  const { httpUrl } = requireEndpoints();
+  const res = await fetch(`${httpUrl}/hardware/commissioning-scope`, {
+    method: 'PUT',
+    headers: authHeaders(true),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`commissioning scope PUT failed: ${res.status} ${text}`);
+  }
+  return (await res.json()) as CommissioningScopeResponse;
+}
+
+export async function deleteCommissioningScope(): Promise<CommissioningScopeResponse> {
+  const { httpUrl } = requireEndpoints();
+  const res = await fetch(`${httpUrl}/hardware/commissioning-scope`, {
+    method: 'DELETE',
+    headers: authHeaders(false),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`commissioning scope DELETE failed: ${res.status} ${text}`);
+  }
+  return (await res.json()) as CommissioningScopeResponse;
 }
 
 /** Firmware SetZero for one joint via gateway → Pi (briefly enables, then disables). */
@@ -209,4 +254,3 @@ export async function postActiveReportingLease(options: {
     throw new Error(`active-reporting lease ${options.action} failed: ${res.status} ${text}`);
   }
 }
-

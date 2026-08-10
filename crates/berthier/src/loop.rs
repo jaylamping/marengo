@@ -1,7 +1,7 @@
 //! Periodic control loop (OpenArm-style refresh → compute → MIT send).
 
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
@@ -75,6 +75,8 @@ impl From<HoldError> for LoopError {
 pub struct ControlLoop<B: MotorBus> {
     supervisor: Supervisor<B>,
     dynamics: UrdfGravityModel,
+    /// Repo root for commissioning-scope / robot.yaml resolution on re-arm.
+    repo_root: PathBuf,
     joint_names: Vec<String>,
     control_mode: ControlMode,
     /// Position-hold lifecycle + control law ([`PositionHold`]).
@@ -189,6 +191,7 @@ impl<B: MotorBus> ControlLoop<B> {
         Ok(Self {
             supervisor,
             dynamics,
+            repo_root: root.to_path_buf(),
             joint_names,
             control_mode: ControlMode::Disabled,
             position_hold: PositionHold::new(n_joints),
@@ -446,14 +449,27 @@ impl<B: MotorBus> ControlLoop<B> {
         Ok(())
     }
 
-    /// Re-arm drives after a safety disable when homing is still verified.
+    /// Re-arm drives after a safety disable via scoped commissioning Enable.
+    ///
+    /// Never calls [`Supervisor::set_homing_complete`] — Verified is Set Zero only.
+    /// Targets come from [`Supervisor::resolve_enable_targets`] (persisted scope or
+    /// full-master Robot Ready).
     pub fn ensure_active_for_motion(&mut self) -> Result<(), LoopError> {
         if self.supervisor.mode() == OperationalMode::Active {
             return Ok(());
         }
-        self.supervisor.set_homing_complete()?;
-        self.supervisor.request_enable(true)?;
+        let targets = self.supervisor.resolve_enable_targets(&self.repo_root)?;
+        self.supervisor.enable_targets(&targets)?;
         Ok(())
+    }
+
+    /// MIT / MissingFeedback apply only to Davout `active_joints` while Active.
+    fn filter_mit_to_active(&self, batch: Vec<DavoutMit>) -> Vec<DavoutMit> {
+        let active = self.supervisor.active_joints();
+        batch
+            .into_iter()
+            .filter(|cmd| active.contains(&cmd.joint))
+            .collect()
     }
 
     /// Enter position hold with an explicit setpoint (single-joint bench: one angle; multi-joint: joint name required).
@@ -659,8 +675,8 @@ impl<B: MotorBus> ControlLoop<B> {
 
         let needs_joint_feedback = operational_mode == OperationalMode::Active
             && self.control_mode != ControlMode::Disabled;
-        let all_have_feedback = self
-            .joint_names
+        let active_names: Vec<&String> = self.supervisor.active_joints().iter().collect();
+        let all_have_feedback = active_names
             .iter()
             .all(|name| self.has_joint_feedback(name));
         // First tick (or first ticks after enable) may run before CAN status arrives.
@@ -668,10 +684,10 @@ impl<B: MotorBus> ControlLoop<B> {
             && !all_have_feedback
             && (self.tick_count == 0 || self.active_feedback_grace_ticks > 0);
         if needs_joint_feedback && !feedback_bootstrap {
-            for name in &self.joint_names {
+            for name in &active_names {
                 if !self.has_joint_feedback(name) {
                     return Err(LoopError::MissingFeedback {
-                        joint: name.clone(),
+                        joint: (*name).clone(),
                     });
                 }
             }
@@ -920,6 +936,7 @@ impl<B: MotorBus> ControlLoop<B> {
                 phase.trace_us = trace_us_this_tick;
                 (phase.compose_us, t) = phase_elapsed_us(t);
 
+                let batch = self.filter_mit_to_active(batch);
                 self.supervisor.send_mit_batch(batch)?;
                 (phase.send_us, t) = phase_elapsed_us(t);
                 let _ = self.supervisor.drain_feedback();
@@ -927,10 +944,13 @@ impl<B: MotorBus> ControlLoop<B> {
             } else {
                 // Robstride only streams status after MIT frames; hold current q with zero
                 // gains/torque so comm watchdog stays fresh between enable and gravity-on.
+                // Scoped Enable: keepalive only for Davout active_joints.
+                let active = self.supervisor.active_joints();
                 let batch: Vec<DavoutMit> = self
                     .joint_names
                     .iter()
                     .zip(q.iter())
+                    .filter(|(name, _)| active.contains(*name))
                     .map(|(name, &position_rad)| DavoutMit {
                         joint: name.clone(),
                         kp: 0.0,
@@ -1002,20 +1022,27 @@ impl<B: MotorBus> ControlLoop<B> {
     }
 
     fn publish_robot_state(&self, chappe: &Bus, q: &[f64]) -> Result<(), LoopError> {
+        // Presence = CAN feedback. Omit joints without feedback so Consul Online
+        // cannot treat RobotState membership alone as live (commissioning facets).
         let joints: Vec<JointState> = self
             .joint_names
             .iter()
             .zip(q.iter())
-            .map(|(name, &position)| {
-                let state = self.supervisor.joint_feedback(name);
-                JointState {
+            .filter_map(|(name, &position)| {
+                let state = self.supervisor.joint_feedback(name)?;
+                let (homing_state, drive_active, out_of_limits) =
+                    self.supervisor.joint_commissioning_wire(name);
+                Some(JointState {
                     name: name.clone(),
                     position,
-                    velocity: state.map(|s| s.velocity_rad_s).unwrap_or(0.0),
-                    effort: state.map(|s| s.torque_nm).unwrap_or(0.0),
-                    temperature_c: state.map(|s| s.temperature_c).unwrap_or(0.0),
-                    fault: state.map(|s| u32::from(s.fault)).unwrap_or(0),
-                }
+                    velocity: state.velocity_rad_s,
+                    effort: state.torque_nm,
+                    temperature_c: state.temperature_c,
+                    fault: u32::from(state.fault),
+                    homing_state,
+                    drive_active,
+                    out_of_limits,
+                })
             })
             .collect();
         let timestamp_ms = std::time::SystemTime::now()
@@ -1185,6 +1212,40 @@ mod tests {
             n,
             "Active + Disabled control mode must send zero-gain MIT keepalive per joint"
         );
+    }
+
+    #[test]
+    fn tick_partial_enable_sends_mit_only_for_active_joints() {
+        let mut loop_ctrl = test_loop();
+        let motors = loop_ctrl.supervisor_mut().motors.motors.clone();
+        loop_ctrl
+            .supervisor_mut()
+            .homing_registry_mut()
+            .bench_mark_all_verified(&motors)
+            .expect("verify");
+        let one = motors[0].joint.clone();
+        loop_ctrl
+            .supervisor_mut()
+            .enable_targets(&[one.clone()])
+            .expect("scoped enable");
+        loop_ctrl.supervisor_mut().seed_synthetic_feedback();
+        assert_eq!(loop_ctrl.supervisor_mut().mode(), OperationalMode::Active);
+        loop_ctrl.supervisor_mut().bus_mut().tx.clear();
+        loop_ctrl.tick(None).expect("keepalive tick");
+        assert_eq!(
+            loop_ctrl.supervisor_mut().bus_mut().tx.len(),
+            1,
+            "keepalive MIT must cover only active_joints"
+        );
+        loop_ctrl.set_control_mode(ControlMode::GravityComp);
+        loop_ctrl.supervisor_mut().bus_mut().tx.clear();
+        loop_ctrl.tick(None).expect("gravity tick");
+        assert_eq!(
+            loop_ctrl.supervisor_mut().bus_mut().tx.len(),
+            1,
+            "GravityComp MIT must cover only active_joints"
+        );
+        assert!(loop_ctrl.supervisor().active_joints().contains(&one));
     }
 
     #[test]

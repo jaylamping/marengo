@@ -7,12 +7,37 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { HardwareOverview } from '@/components/dashboard/hardware/hardware-overview';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { JointHomingState } from '@/gen/marengo/v1/marengo_pb';
 import {
   activateUrdf,
   fetchCompleteness,
   uploadUrdf,
 } from '@/lib/hardware-api';
 import { useRobotStore } from '@/state/robotStore';
+
+function wireJoint(
+  name: string,
+  overrides: {
+    fault?: number;
+    outOfLimits?: boolean;
+    driveActive?: boolean;
+    homingState?: JointHomingState;
+    position?: number;
+  } = {},
+) {
+  return {
+    $typeName: 'marengo.v1.JointState' as const,
+    name,
+    position: overrides.position ?? 0,
+    velocity: 0,
+    effort: 0,
+    temperatureC: 30,
+    fault: overrides.fault ?? 0,
+    homingState: overrides.homingState ?? JointHomingState.VERIFIED,
+    driveActive: overrides.driveActive ?? false,
+    outOfLimits: overrides.outOfLimits ?? false,
+  };
+}
 
 vi.mock('@/lib/hardware-api', () => ({
   fetchCompleteness: vi.fn(async () => ({
@@ -74,7 +99,17 @@ vi.mock('@/lib/persist-joint-limits', () => ({
 
 vi.mock('@/lib/gateway-api', () => ({
   postSetZeroCommand: vi.fn(),
+  postEnableCommand: vi.fn(async () => undefined),
   fetchActuatorLimits: vi.fn(async () => null),
+  fetchCommissioningScope: vi.fn(async () => ({
+    version: 1,
+    joints: [],
+    ceiling: null,
+    effective: [],
+    persisted: false,
+  })),
+  putCommissioningScope: vi.fn(),
+  deleteCommissioningScope: vi.fn(),
 }));
 
 function renderHardware() {
@@ -94,7 +129,11 @@ function renderHardware() {
 
 afterEach(() => {
   cleanup();
-  useRobotStore.setState({ connected: false, operationalMode: null });
+  useRobotStore.setState({
+    connected: false,
+    operationalMode: null,
+    robotState: null,
+  });
   vi.clearAllMocks();
 });
 
@@ -233,5 +272,136 @@ describe('HardwareOverview', () => {
     expect(
       await screen.findByText(/marengo-pi must be restarted before the new URDF is enforced/i),
     ).toBeTruthy();
+  });
+
+  it('renders facet badges from wire with Fault priority over Active', async () => {
+    useRobotStore.setState({
+      connected: true,
+      robotState: {
+        $typeName: 'marengo.v1.RobotState',
+        timestamp: { $typeName: 'google.protobuf.Timestamp', seconds: 0n, nanos: 0 },
+        joints: [
+          wireJoint('right_shoulder_roll', {
+            driveActive: true,
+            fault: 0x10,
+            homingState: JointHomingState.VERIFIED,
+          }),
+          wireJoint('right_shoulder_pitch', {
+            homingState: JointHomingState.VERIFIED,
+          }),
+        ],
+      } as never,
+    });
+
+    renderHardware();
+    const roll = await screen.findByTestId('hardware-row-right_shoulder_roll');
+    expect(roll.querySelector('[data-testid="commissioning-badge"]')?.textContent).toMatch(
+      /Fault/i,
+    );
+    const pitch = screen.getByTestId('hardware-row-right_shoulder_pitch');
+    expect(pitch.querySelector('[data-testid="commissioning-badge"]')?.textContent).toMatch(
+      /Ready/i,
+    );
+  });
+
+  it('shows Ready from wire Verified — not browser zero marks', async () => {
+    useRobotStore.setState({
+      connected: true,
+      robotState: {
+        $typeName: 'marengo.v1.RobotState',
+        timestamp: { $typeName: 'google.protobuf.Timestamp', seconds: 0n, nanos: 0 },
+        joints: [
+          wireJoint('right_shoulder_roll', {
+            homingState: JointHomingState.UNHOMED,
+          }),
+          wireJoint('right_shoulder_pitch', {
+            homingState: JointHomingState.VERIFIED,
+          }),
+        ],
+      } as never,
+    });
+
+    renderHardware();
+    const roll = await screen.findByTestId('hardware-row-right_shoulder_roll');
+    expect(roll.querySelector('[data-testid="commissioning-badge"]')?.textContent).toMatch(
+      /Online/i,
+    );
+    expect(roll.querySelector('[data-testid="commissioning-badge"]')?.textContent).not.toMatch(
+      /Ready/i,
+    );
+    const pitch = screen.getByTestId('hardware-row-right_shoulder_pitch');
+    expect(pitch.querySelector('[data-testid="commissioning-badge"]')?.textContent).toMatch(
+      /Ready/i,
+    );
+  });
+
+  it('renders limb and robot aggregation summary', async () => {
+    useRobotStore.setState({
+      connected: true,
+      robotState: {
+        $typeName: 'marengo.v1.RobotState',
+        timestamp: { $typeName: 'google.protobuf.Timestamp', seconds: 0n, nanos: 0 },
+        joints: [
+          wireJoint('right_shoulder_roll'),
+          wireJoint('right_shoulder_pitch'),
+        ],
+      } as never,
+    });
+
+    renderHardware();
+    expect(await screen.findByTestId('commissioning-aggregation')).toBeTruthy();
+    expect(screen.getByTestId('robot-ready-badge')).toBeTruthy();
+    expect(screen.getByTestId('limb-ready-right_arm')).toBeTruthy();
+  });
+
+  it('keeps Enable disabled without live wire facets; Set Limits still opens', async () => {
+    useRobotStore.setState({
+      connected: true,
+      operationalMode: 'DISABLED',
+      robotState: null,
+    });
+    renderHardware();
+    await waitFor(() => {
+      expect(screen.getByTestId('hardware-row-right_shoulder_roll')).toBeTruthy();
+    });
+
+    const enable = screen.getByTestId('hardware-enable-ready-in-scope') as HTMLButtonElement;
+    expect(enable.disabled).toBe(true);
+    expect(enable.textContent).toMatch(/Enable/i);
+
+    fireEvent.click(screen.getByTestId('hardware-row-right_shoulder_roll'));
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeTruthy();
+    });
+    expect(screen.getByRole('button', { name: 'Set Limits' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Set Zero' })).toBeTruthy();
+    const setLimits = screen.getByRole('button', { name: 'Set Limits' }) as HTMLButtonElement;
+    expect(setLimits.disabled).toBe(false);
+  });
+
+  it('posts Enable when wire facets are live', async () => {
+    const { postEnableCommand } = await import('@/lib/gateway-api');
+    useRobotStore.setState({
+      connected: true,
+      operationalMode: 'DISABLED',
+      robotState: {
+        $typeName: 'marengo.v1.RobotState',
+        timestamp: { $typeName: 'google.protobuf.Timestamp', seconds: 0n, nanos: 0 },
+        joints: [
+          wireJoint('right_shoulder_roll'),
+          wireJoint('right_shoulder_pitch'),
+        ],
+      } as never,
+    });
+
+    renderHardware();
+    const enable = (await screen.findByTestId(
+      'hardware-enable-ready-in-scope',
+    )) as HTMLButtonElement;
+    expect(enable.disabled).toBe(false);
+    fireEvent.click(enable);
+    await waitFor(() => {
+      expect(postEnableCommand).toHaveBeenCalledWith(true);
+    });
   });
 });

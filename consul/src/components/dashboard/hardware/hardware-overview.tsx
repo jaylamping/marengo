@@ -4,9 +4,12 @@ import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 
 import {
+  buildHardwareFacetSnapshots,
   buildHardwareRows,
   countCompletenessWarnings,
 } from '@/components/dashboard/hardware/build-hardware-rows';
+import { CommissioningAggregation } from '@/components/dashboard/hardware/commissioning-aggregation';
+import { CommissioningScopeEditor } from '@/components/dashboard/hardware/commissioning-scope-editor';
 import {
   CompletenessSummaryBadge,
   StatusLegend,
@@ -21,9 +24,12 @@ import {
   ToggleGroupItem,
 } from '@/components/ui/toggle-group';
 import { useConfigSnapshot } from '@/hooks/use-config-snapshot';
+import { robotWireFacetsLive } from '@/lib/commissioning';
+import { postEnableCommand } from '@/lib/gateway-api';
 import { fetchCompleteness } from '@/lib/hardware-api';
 import { queryKeys } from '@/lib/query-keys';
 import { useActuatorStore } from '@/state/actuatorStore';
+import { useRobotStore } from '@/state/robotStore';
 
 type ViewMode = 'table' | 'stage';
 
@@ -33,9 +39,32 @@ export function HardwareOverview() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [rangeOverrides, setRangeOverrides] = useState<Record<string, string>>({});
+  const [enableBusy, setEnableBusy] = useState(false);
+  const [enableError, setEnableError] = useState<string | null>(null);
 
   const { data: snapshot } = useConfigSnapshot();
   const limitSnapshot = useActuatorStore((s) => s.limitSnapshot);
+  const robotState = useRobotStore((s) => s.robotState);
+  const operationalMode = useRobotStore((s) => s.operationalMode);
+  const wireLive = robotWireFacetsLive(robotState);
+  const canEnable =
+    wireLive && !enableBusy && operationalMode !== 'ACTIVE';
+
+  const onEnableReadyInScope = async () => {
+    if (!canEnable) {
+      return;
+    }
+    setEnableBusy(true);
+    setEnableError(null);
+    try {
+      await postEnableCommand(true);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setEnableError(message);
+    } finally {
+      setEnableBusy(false);
+    }
+  };
 
   const completenessQuery = useQuery({
     queryKey: queryKeys.hardwareCompleteness,
@@ -50,8 +79,12 @@ export function HardwareOverview() {
       ? 'ok'
       : 'unknown';
   const rows = useMemo(
-    () => buildHardwareRows(snapshot ?? null, warnings, limitSnapshot),
-    [snapshot, warnings, limitSnapshot],
+    () => buildHardwareRows(snapshot ?? null, warnings, limitSnapshot, robotState),
+    [snapshot, warnings, limitSnapshot, robotState],
+  );
+  const facets = useMemo(
+    () => buildHardwareFacetSnapshots(snapshot ?? null, robotState),
+    [snapshot, robotState],
   );
 
   const rowsWithRange = useMemo(
@@ -100,6 +133,34 @@ export function HardwareOverview() {
             size="sm"
             variant="secondary"
             className="gap-1.5"
+            data-testid="hardware-enable-ready-in-scope"
+            disabled={!canEnable}
+            title={
+              operationalMode === 'ACTIVE'
+                ? 'Already Active — Disable before changing the enable set'
+                : wireLive
+                  ? 'Enable Verified joints in commissioning scope (Pi resolves targets)'
+                  : 'Enable gated until live wire facets (non-UNSPECIFIED homing_state)'
+            }
+            onClick={() => {
+              void onEnableReadyInScope();
+            }}
+          >
+            Enable all Ready in scope
+          </Button>
+          {enableError ? (
+            <span
+              className="micro-label text-destructive"
+              data-testid="hardware-enable-error"
+            >
+              {enableError}
+            </span>
+          ) : null}
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            className="gap-1.5"
             data-testid="hardware-import-btn"
             onClick={() => setImportOpen(true)}
           >
@@ -134,6 +195,10 @@ export function HardwareOverview() {
         gapCount={gapCount}
         descriptionOnlyCount={descriptionOnlyCount}
       />
+
+      <CommissioningAggregation facets={facets} />
+
+      <CommissioningScopeEditor />
 
       {view === 'table' ? (
         <HardwareTable

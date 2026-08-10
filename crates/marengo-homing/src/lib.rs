@@ -3,11 +3,17 @@
 //! Pure logic — GPIO/hardware I/O lives in bins via [`SensorProvider`].
 
 mod calibration;
+mod commissioning;
 mod registry;
 mod sensor;
 mod verify;
 
 pub use calibration::{CalibrationRecord, JointCalibration};
+pub use commissioning::{
+    from_proto_homing_state, is_enable_eligible, limb_ready, robot_ready, select_enable_targets,
+    to_proto_homing_state, verify_error_is_out_of_limits, wire_homing_is_unspecified,
+    JointFacetInput,
+};
 pub use registry::HomingRegistry;
 pub use sensor::{
     classify_sensor_pattern, MemorySensorProvider, SensorHealth, SensorPattern, SensorProvider,

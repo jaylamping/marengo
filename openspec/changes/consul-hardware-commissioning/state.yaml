@@ -1,0 +1,14 @@
+change: consul-hardware-commissioning
+title: Hardware commissioning + Consul master chrome cutover
+issue: 118
+map: 96
+grilling: 116
+branch: jl/hardware-commissioning-cutover-6ab6
+pr: 119
+created: 2026-08-09
+phase: verify
+status: pass_with_warnings
+notes: |
+  All Phase 1–6 applied. Consul 288 + cargo workspace pass.
+  Pi smoke deferred to #115. CI just check pending on PR.
+  Folded glossary #117. Ready for human review / archive after merge.

@@ -218,17 +218,21 @@ fn handle_chappe_enable(
     request: &EnableRequest,
 ) -> Result<(), String> {
     if request.enable {
-        if loop_ctrl.supervisor_mut().mode() != davout::OperationalMode::Ready {
-            loop_ctrl
-                .supervisor_mut()
-                .set_homing_complete()
-                .map_err(|e| e.to_string())?;
-        }
+        // Never call set_homing_complete on enable — Verified is Set Zero only.
+        let targets = loop_ctrl
+            .supervisor()
+            .resolve_enable_targets(repo_root())
+            .map_err(|e| e.to_string())?;
         loop_ctrl
             .supervisor_mut()
-            .request_enable(true)
+            .enable_targets(&targets)
             .map_err(|e| e.to_string())?;
-        info!(operator = %request.operator_id, "enable via Chappe");
+        info!(
+            operator = %request.operator_id,
+            target_count = targets.len(),
+            targets = ?targets,
+            "enable via Chappe (targeted)"
+        );
     } else {
         loop_ctrl
             .supervisor_mut()
@@ -323,11 +327,8 @@ fn drain_chappe_commands(
         let Ok(_homing) = HomingComplete::decode(envelope.payload.as_slice()) else {
             continue;
         };
-        if let Err(e) = loop_ctrl.supervisor_mut().set_homing_complete() {
-            warn!(error = %e, "Chappe homing rejected");
-        } else {
-            info!("homing verified via Chappe");
-        }
+        // Operator HomingComplete / Testing Home retired — ignore wire (compat drain).
+        warn!("ignoring retired HomingComplete on robot/homing (use Hardware Set Zero)");
     }
 }
 
@@ -560,9 +561,12 @@ fn print_status(loop_ctrl: &mut ControlLoop<RuntimeBus>, config_dir: &Path) {
         control_mode,
     );
     for motor in &supervisor.motors.motors {
+        let (homing_state, drive_active, out_of_limits) =
+            supervisor.joint_commissioning_wire(&motor.joint);
         match supervisor.joint_feedback(&motor.joint) {
             Some(state) => println!(
-                "{} ({}/id{}): pos={:.4} rad vel={:.4} rad/s torque={:.4} Nm fault={:#06x}",
+                "{} ({}/id{}): pos={:.4} rad vel={:.4} rad/s torque={:.4} Nm fault={:#06x} \
+                 homing={} drive_active={} out_of_limits={}",
                 motor.joint,
                 motor.can_interface,
                 motor.device_id,
@@ -570,10 +574,18 @@ fn print_status(loop_ctrl: &mut ControlLoop<RuntimeBus>, config_dir: &Path) {
                 state.velocity_rad_s,
                 state.torque_nm,
                 state.fault,
+                homing_state,
+                drive_active,
+                out_of_limits,
             ),
             None => println!(
-                "{} ({}/id{}): no feedback yet",
-                motor.joint, motor.can_interface, motor.device_id,
+                "{} ({}/id{}): no feedback yet homing={} drive_active={} out_of_limits={}",
+                motor.joint,
+                motor.can_interface,
+                motor.device_id,
+                homing_state,
+                drive_active,
+                out_of_limits,
             ),
         }
     }
@@ -639,21 +651,21 @@ fn handle_command(
             Err(e) => eprintln!("home failed: {e}"),
         },
         PiCommand::Enable { operator_id, force } => {
-            if loop_ctrl.supervisor_mut().mode() != davout::OperationalMode::Ready {
-                if let Err(e) = loop_ctrl.supervisor_mut().set_homing_complete() {
-                    eprintln!("enable blocked: {e}");
-                    return true;
-                }
-            }
             if !force {
                 if let Err(()) = preflight_gravity_saturation(loop_ctrl) {
                     eprintln!("enable refused: gravity saturation exceeds motor limit (use 'enable <operator> force' to override)");
                     return true;
                 }
             }
-            match loop_ctrl.supervisor_mut().request_enable(true) {
-                Ok(()) => println!("enabled (operator={operator_id})"),
-                Err(e) => eprintln!("enable failed: {e}"),
+            match loop_ctrl.supervisor().resolve_enable_targets(repo_root()) {
+                Ok(targets) => match loop_ctrl.supervisor_mut().enable_targets(&targets) {
+                    Ok(()) => println!(
+                        "enabled (operator={operator_id}) targets={}",
+                        targets.join(",")
+                    ),
+                    Err(e) => eprintln!("enable failed: {e}"),
+                },
+                Err(e) => eprintln!("enable blocked: {e}"),
             }
         }
         PiCommand::Disable => {
@@ -1163,6 +1175,8 @@ fn debug_status(loop_ctrl: &mut ControlLoop<RuntimeBus>, timing: &mut LoopTiming
     let supervisor = loop_ctrl.supervisor_mut();
     let operational = supervisor.mode();
     for motor in &supervisor.motors.motors {
+        let (homing_state, drive_active, out_of_limits) =
+            supervisor.joint_commissioning_wire(&motor.joint);
         if let Some(state) = supervisor.joint_feedback(&motor.joint) {
             debug!(
                 joint = %motor.joint,
@@ -1171,9 +1185,21 @@ fn debug_status(loop_ctrl: &mut ControlLoop<RuntimeBus>, timing: &mut LoopTiming
                 pos = state.position_rad,
                 vel = state.velocity_rad_s,
                 torque = state.torque_nm,
+                homing_state,
+                drive_active,
+                out_of_limits,
                 operational = ?operational,
                 control = ?proto_control_mode(control_mode),
                 "feedback"
+            );
+        } else {
+            debug!(
+                joint = %motor.joint,
+                homing_state,
+                drive_active,
+                out_of_limits,
+                operational = ?operational,
+                "no feedback"
             );
         }
     }

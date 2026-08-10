@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils';
 
 import type { HardwareJointRow } from '@/components/dashboard/hardware/build-hardware-rows';
+import { CommissioningBadgeChip } from '@/components/dashboard/hardware/commissioning-badge';
 import {
   JointStatusDot,
 } from '@/components/dashboard/hardware/completeness-chrome';
@@ -18,6 +19,7 @@ export function HardwareTable({ rows, selectedJoint, onSelect }: HardwareTablePr
         <thead className="sticky top-0 z-[1] bg-surface-2">
           <tr className="border-b border-line">
             <th className="micro-label px-3 py-2 font-medium">Status</th>
+            <th className="micro-label px-3 py-2 font-medium">Facet</th>
             <th className="micro-label px-3 py-2 font-medium">Joint</th>
             <th className="micro-label px-3 py-2 font-medium">CAN</th>
             <th className="micro-label px-3 py-2 font-medium">Range (live)</th>
@@ -43,6 +45,9 @@ export function HardwareTable({ rows, selectedJoint, onSelect }: HardwareTablePr
                     onCan={row.onCan}
                     hasWarnings={row.warningCount > 0}
                   />
+                </td>
+                <td className="px-3 py-2.5">
+                  <CommissioningBadgeChip badge={row.badge} />
                 </td>
                 <td className="px-3 py-2.5">
                   <div className="text-sm text-foreground">{row.joint}</div>

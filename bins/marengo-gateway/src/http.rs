@@ -3,7 +3,6 @@ use std::path::Path;
 use armee_proto::prost::Message;
 use armee_proto::ActiveReportingLeaseRequest;
 use armee_proto::EnableRequest;
-use armee_proto::HomingComplete;
 use armee_proto::MitCommandBatch;
 use armee_proto::SetZeroRequest;
 use axum::{
@@ -125,12 +124,19 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
             post(hardware::post_archive_restore),
         )
         .route(
+            "/hardware/commissioning-scope",
+            get(hardware::get_commissioning_scope)
+                .put(hardware::put_commissioning_scope)
+                .delete(hardware::delete_commissioning_scope),
+        )
+        .route(
             "/control/restart-marengo-pi",
             post(restart::post_restart_marengo_pi),
         )
         .route("/command/enable", post(command_enable))
         .route("/command/testing_mit", post(command_testing_mit))
-        .route("/command/home", post(command_home))
+        // Retired: operator HomingComplete / Testing Home — use Hardware Set Zero.
+        .route("/command/home", post(command_home_retired))
         .route("/command/set_zero", post(command_set_zero))
         .route(
             "/command/active_reporting_lease",
@@ -293,26 +299,11 @@ async fn command_testing_mit(
     Ok(Json(OkResponse { ok: true }))
 }
 
-async fn command_home(
-    State(state): State<SharedState>,
-) -> Result<Json<OkResponse>, (StatusCode, String)> {
-    let request = HomingComplete {
-        timestamp_ms: std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_millis() as u64,
-        node_id: "consul".into(),
-    };
-    let payload = request.encode_to_vec();
-    state
-        .publish_command_envelope(
-            "robot/homing",
-            "consul",
-            "marengo.v1.HomingComplete",
-            payload,
-        )
-        .map_err(|e| (StatusCode::BAD_GATEWAY, e))?;
-    Ok(Json(OkResponse { ok: true }))
+async fn command_home_retired() -> (StatusCode, String) {
+    (
+        StatusCode::GONE,
+        "POST /command/home retired; use Hardware Set Zero per joint".into(),
+    )
 }
 
 #[derive(Deserialize)]

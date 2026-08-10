@@ -11,7 +11,7 @@ import type { ConfigSnapshotDto } from '@/lib/config-api';
 import { robotInventory } from '@/data/robot-inventory';
 
 const snapshot: ConfigSnapshotDto = {
-  profile: 'arm_4dof_right',
+  profile: 'arm_3dof_right',
   config_dir: '/opt/marengo/config',
   joints: ['right_shoulder_roll', 'right_shoulder_pitch', 'right_upper_arm_yaw'],
   motors: [
@@ -48,7 +48,7 @@ describe('enrichInventory', () => {
     expect(roll?.node).toBe('RS03 · can0 · id 1');
     // Soft preferred over bench when only disk config is available.
     expect(roll?.limit).toBe('±1');
-    expect(roll?.preset).toBe('bench_4dof');
+    expect(roll?.preset).toBe('bench_3dof');
   });
 
   it('prefers Davout hard envelope over disk soft for Range', () => {
