@@ -1,9 +1,7 @@
 import type { ColumnDef } from '@tanstack/react-table';
 
-import { EditableFieldCell } from '@/components/dashboard/inventory/cells/editable-field-cell';
 import { InventoryNameCell } from '@/components/dashboard/inventory/cells/inventory-name-cell';
 import { InventoryStatusCell } from '@/components/dashboard/inventory/cells/inventory-status-cell';
-import { PresetCell } from '@/components/dashboard/inventory/cells/preset-cell';
 import { RowActionsMenu } from '@/components/dashboard/inventory/cells/row-actions-menu';
 import type { InventoryRow } from '@/components/dashboard/inventory/types';
 import { NeedsRestartBadge } from '@/components/dashboard/needs-restart/needs-restart-badge';
@@ -14,6 +12,15 @@ export type InventoryColumnMeta = {
   className?: string;
 };
 
+function ReadOnlyMonoCell({ value }: { value: string }) {
+  return (
+    <span className="ml-auto block w-full text-right font-mono text-xs text-foreground">
+      {value}
+    </span>
+  );
+}
+
+/** Telemetry table columns — read-only; no preset assign or editable Range. */
 export const inventoryColumns: ColumnDef<InventoryRow>[] = [
   {
     id: 'select',
@@ -80,15 +87,7 @@ export const inventoryColumns: ColumnDef<InventoryRow>[] = [
     size: 110,
     meta: { className: 'text-right' } satisfies InventoryColumnMeta,
     header: () => <span className="block w-full text-right">Reading</span>,
-    cell: ({ row }) => (
-      <EditableFieldCell
-        itemId={row.original.id}
-        itemName={row.original.name}
-        field="value"
-        label="Reading"
-        defaultValue={row.original.value}
-      />
-    ),
+    cell: ({ row }) => <ReadOnlyMonoCell value={row.original.value} />,
   },
   {
     accessorKey: 'limit',
@@ -101,27 +100,8 @@ export const inventoryColumns: ColumnDef<InventoryRow>[] = [
           variant="pending"
           jointName={row.original.name}
         />
-        <EditableFieldCell
-          itemId={row.original.id}
-          itemName={row.original.name}
-          field="limit"
-          label="Range"
-          defaultValue={row.original.limit}
-          inputClassName="h-8 w-24"
-        />
+        <ReadOnlyMonoCell value={row.original.limit} />
       </div>
-    ),
-  },
-  {
-    accessorKey: 'preset',
-    size: 150,
-    header: 'Preset',
-    cell: ({ row }) => (
-      <PresetCell
-        itemId={row.original.id}
-        preset={row.original.preset}
-        jointName={row.original.name}
-      />
     ),
   },
   {

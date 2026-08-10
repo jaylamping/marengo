@@ -143,6 +143,8 @@ describe('Telemetry / Inventory modal — no commissioning actions', () => {
 
     expect(within(modal).queryByRole('button', { name: 'Set Limits' })).toBeNull();
     expect(within(modal).queryByRole('button', { name: 'Apply Limits' })).toBeNull();
+    expect(within(modal).queryByRole('button', { name: 'Apply' })).toBeNull();
+    expect(within(modal).queryByLabelText('Edit preset')).toBeNull();
     expect(within(modal).queryByRole('button', { name: 'Home' })).toBeNull();
     expect(within(modal).queryByRole('button', { name: 'Go' })).toBeNull();
     expect(within(modal).queryByRole('button', { name: 'Start sweep' })).toBeNull();

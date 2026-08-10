@@ -101,6 +101,10 @@ Durable bench Set Limits (live limit patch with write-behind per ADR 0012 and UR
 Telemetry (formerly Inventory) MUST NOT expose a durable Set Limits Apply path to gateway limit patch or profile txn persist. Telemetry MAY show read-only limit display from live snapshot. Any Telemetry limit UI MUST NOT write motors, control, or URDF durably.
 (Previously: referred to Inventory route; now Telemetry read-only successor.)
 
+### Requirement: Telemetry without presets or editable Range
+
+Telemetry MUST NOT offer Assign preset / bench preset editing, editable Range cells, or identity Apply for local catalog overrides. Preset column assign controls are retired; Range is display-only.
+
 #### Scenario: Telemetry cannot persist limits
 
 - GIVEN the operator is on Telemetry for an actuator

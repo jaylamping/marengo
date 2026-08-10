@@ -90,6 +90,14 @@ describe('TelemetryOverview', () => {
     expect(await screen.findByTestId('inventory-table-shell')).toBeTruthy();
   });
 
+  it('does not offer Assign preset or editable Range controls', async () => {
+    renderTelemetry();
+    const overview = await screen.findByTestId('telemetry-overview');
+    expect(within(overview).queryByRole('button', { name: /Assign preset/i })).toBeNull();
+    expect(within(overview).queryByRole('columnheader', { name: /^Preset$/i })).toBeNull();
+    expect(within(overview).queryByRole('button', { name: /^Range$/i })).toBeNull();
+  });
+
   it('shows unknown Reference facet when wire homing_state is absent', async () => {
     useActuatorZeroStore.getState().markZeroed('right_shoulder_pitch');
     useRobotStore.setState({
