@@ -10,7 +10,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import { useActiveReportingLease } from '@/hooks/use-active-reporting-lease';
 import { cn } from '@/lib/utils';
+import { useRobotStore } from '@/state/robotStore';
 
 import type { HardwareJointRow } from '@/components/dashboard/hardware/build-hardware-rows';
 
@@ -34,6 +36,15 @@ export function HardwareSettingsSheet({
   onOpenChange,
   onApplyRange,
 }: HardwareSettingsSheetProps) {
+  const operationalMode = useRobotStore((s) => s.operationalMode);
+  const leaseEnabled = open && row != null && row.onCan;
+  const leaseState = useActiveReportingLease({
+    joint: leaseEnabled ? row.joint : null,
+    enabled: leaseEnabled,
+  });
+  const showEnhancedLogging =
+    leaseState === 'requested' && operationalMode !== 'ACTIVE';
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" variant="panel" className="w-full sm:max-w-md" showOverlay>
@@ -48,6 +59,15 @@ export function HardwareSettingsSheet({
                   {row.onCan ? `on can · id ${row.canId}` : 'description only'}
                 </span>
                 <CommissioningBadgeChip badge={row.badge} />
+                {showEnhancedLogging ? (
+                  <Badge
+                    variant="outline"
+                    className="font-mono text-[10px] uppercase tracking-[0.14em] text-accent"
+                    data-testid="hardware-enhanced-logging"
+                  >
+                    Enhanced logging
+                  </Badge>
+                ) : null}
               </SheetDescription>
             </SheetHeader>
 
@@ -57,30 +77,30 @@ export function HardwareSettingsSheet({
                   Limits (ADR 0012)
                 </h3>
                 <LimitField
-                  label="Live hard min (rad)"
+                  label="Live hard range (rad)"
                   value={row.liveRange}
-                  tag="live snapshot"
+                  tag="live Davout snapshot · Set Limits SoT"
                   highlight
                 />
                 <LimitField
                   label="Disk hard min (rad)"
                   value={formatLimit(row.diskHardLower)}
-                  tag="boot seed · motors.yaml"
+                  tag="write-behind · motors.yaml"
                 />
                 <LimitField
                   label="Disk hard max (rad)"
                   value={formatLimit(row.diskHardUpper)}
-                  tag="boot seed · motors.yaml"
+                  tag="write-behind · motors.yaml"
                 />
                 <LimitField
                   label="Disk soft min (rad)"
                   value={formatLimit(row.diskSoftLower)}
-                  tag="control.yaml"
+                  tag="write-behind · control.yaml"
                 />
                 <LimitField
                   label="Disk soft max (rad)"
                   value={formatLimit(row.diskSoftUpper)}
-                  tag="control.yaml"
+                  tag="write-behind · control.yaml"
                 />
               </section>
 
@@ -139,9 +159,11 @@ export function HardwareSettingsSheet({
                   Commissioning · Set Limits + Set Zero
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  Durable calibration lives here. Set Limits requires motors not
-                  ACTIVE; Set Zero captures mechanical reference (Ready follows
-                  wire Verified).
+                  Apply Limits replaces the durable hard/soft SoT on the Pi
+                  (live Davout + motors/control write-behind; URDF expand-only).
+                  Deploy preserves those taught envelopes by default. Motors must
+                  stay not ACTIVE while listening; Set Zero captures mechanical
+                  reference (Ready follows wire Verified).
                 </p>
                 <SetLimitsPanel
                   jointName={row.joint}

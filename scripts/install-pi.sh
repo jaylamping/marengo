@@ -72,9 +72,39 @@ if [[ -f "$IMU_PROBE_BIN" ]]; then
   install -m 755 "$IMU_PROBE_BIN" "${INSTALL_ROOT}/bin/imu-probe"
 fi
 
+# Set Limits Apply writes durable hard/soft (+ expand-only URDF) on the Pi.
+# Backup those envelopes before rsync so deploy cannot clobber them (ADR 0012/0017).
+# Opt out: MARENGO_REPLACE_LIMITS=1
+TAUGHT_BACKUP=""
+if [[ "${MARENGO_REPLACE_LIMITS:-0}" != "1" ]] && [[ -f "${INSTALL_ROOT}/config/motors.yaml" ]]; then
+  TAUGHT_BACKUP="$(mktemp -d)"
+  mkdir -p "${TAUGHT_BACKUP}/config" "${TAUGHT_BACKUP}/assets/urdf"
+  cp -a "${INSTALL_ROOT}/config/motors.yaml" "${TAUGHT_BACKUP}/config/" || true
+  if [[ -f "${INSTALL_ROOT}/config/control.yaml" ]]; then
+    cp -a "${INSTALL_ROOT}/config/control.yaml" "${TAUGHT_BACKUP}/config/" || true
+  fi
+  if [[ -f "${INSTALL_ROOT}/assets/urdf/marengo.urdf" ]]; then
+    cp -a "${INSTALL_ROOT}/assets/urdf/marengo.urdf" "${TAUGHT_BACKUP}/assets/urdf/" || true
+  fi
+  echo "install-pi: backed up taught limits for preserve merge"
+fi
+
 rsync -a --delete "${ROOT}/config/" "${INSTALL_ROOT}/config/"
 rsync -a "${ROOT}/assets/" "${INSTALL_ROOT}/assets/"
 rsync -a "${ROOT}/scripts/" "${INSTALL_ROOT}/scripts/"
+
+if [[ -n "${TAUGHT_BACKUP}" ]]; then
+  if [[ -f "${ROOT}/scripts/preserve-taught-limits.py" ]]; then
+    python3 "${ROOT}/scripts/preserve-taught-limits.py" \
+      --previous "${TAUGHT_BACKUP}" \
+      --install-root "${INSTALL_ROOT}" \
+      || echo "warning: preserve-taught-limits failed; Pi may have lost taught Set Limits" >&2
+  else
+    echo "warning: preserve-taught-limits.py missing from deploy bundle" >&2
+  fi
+  rm -rf "${TAUGHT_BACKUP}"
+fi
+
 WWW_SRC=""
 if [[ -d "${ROOT}/consul/dist" ]] && [[ -f "${ROOT}/consul/dist/index.html" ]]; then
   WWW_SRC="${ROOT}/consul/dist"

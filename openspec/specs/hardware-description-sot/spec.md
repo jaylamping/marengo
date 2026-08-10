@@ -74,6 +74,22 @@ Bench Set Limits Apply MUST expand-only widen URDF `<limit>` hard when taught ha
 - WHEN Set Limits Apply runs
 - THEN URDF hard is not narrowed; effective hard remains URDF ∩ bench
 
+### Requirement: Deploy preserves Set Limits taught envelopes
+
+`install-pi.sh` MUST NOT clobber Pi taught motors hard, control soft, or expand-only URDF hard for overlapping joints when replacing `/opt/marengo/config` and URDF from a deploy bundle. After config/assets rsync, install MUST merge previous Pi taught envelopes onto the installed tree unless `MARENGO_REPLACE_LIMITS=1`.
+
+#### Scenario: Deploy keeps taught hard after Set Limits Apply
+
+- GIVEN Pi motors.yaml hard for a joint was updated by Set Limits Apply (`persist_status: durable`)
+- WHEN `install-pi.sh` rsyncs a git checkout with different seed hard bounds
+- THEN the installed motors hard for that joint remains the previously taught values
+
+#### Scenario: Operator opts into git limit replace
+
+- GIVEN `MARENGO_REPLACE_LIMITS=1` is set for install
+- WHEN `install-pi.sh` runs
+- THEN taught-limit preserve merge is skipped and the deploy bundle limits are installed as-is
+
 ### Requirement: No alternate description SoTs
 
 The system MUST NOT create durable alternate URDF or YAML trees for limb subsets, profiles, or imports. Ephemeral views MAY filter master data in memory only.

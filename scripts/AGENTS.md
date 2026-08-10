@@ -22,6 +22,7 @@ scripts/
 ├── deploy-pi-docker.ps1      # PowerShell wrapper
 ├── deploy-jetson.sh          # Jetson deploy
 ├── install-pi.sh             # Install staging tree → /opt/marengo on Pi
+├── preserve-taught-limits.py # Keep Set Limits hard/soft/URDF across install rsync
 ├── pi-remote.sh              # Cloud fallback: SSH to Pi for health/logs/deploy
 ├── pi-native-build.sh        # Native cargo build on Pi
 ├── pi-bno085-shtp-init.py    # BNO085 SHTP init verification
