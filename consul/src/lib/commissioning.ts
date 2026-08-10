@@ -180,6 +180,12 @@ export function robotReady(masterJoints: readonly JointFacetSnapshot[]): boolean
   return limbReady(masterJoints);
 }
 
+/**
+ * Build a facet from a RobotState joint row.
+ *
+ * Online means live CAN feedback: Berthier omits joints without feedback from
+ * `RobotState.joints`, so a missing wire row is Offline (not "present but silent").
+ */
 export function jointFacetFromWire(args: {
   name: string;
   motorMapped: boolean;
@@ -199,6 +205,7 @@ export function jointFacetFromWire(args: {
   }
   return {
     name: args.name,
+    // Wire presence implies feedback-backed publish (see berthier publish_robot_state).
     online: true,
     motorMapped: args.motorMapped,
     fault: wire.fault ?? 0,
