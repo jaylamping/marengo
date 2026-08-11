@@ -7,6 +7,7 @@ import { SimulationPage } from '@/pages/simulation';
 import { SubsystemsPage } from '@/pages/subsystems';
 import { TelemetryPage } from '@/pages/telemetry';
 import { TestingPage } from '@/pages/testing';
+import { SidebarUpdatePreviewPage } from '@/pages/sidebar-update-preview';
 import { RootLayout } from '@/routes/root-layout';
 
 /**
@@ -15,6 +16,14 @@ import { RootLayout } from '@/routes/root-layout';
  * (React Router route.lazy blocks pathname until the module resolves — that was the hang.)
  */
 export const appRoutes: RouteObject[] = [
+  ...(import.meta.env.DEV
+    ? [
+        {
+          path: '/dev/sidebar-update-preview',
+          Component: SidebarUpdatePreviewPage,
+        } satisfies RouteObject,
+      ]
+    : []),
   {
     element: <RootLayout />,
     children: [

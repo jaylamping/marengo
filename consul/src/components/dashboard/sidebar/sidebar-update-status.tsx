@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Loading03Icon, RefreshIcon } from '@hugeicons/core-free-icons';
+import { Loading03Icon } from '@hugeicons/core-free-icons';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { toast } from 'sonner';
 
@@ -13,7 +13,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { cn } from '@/lib/utils';
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from '@/components/ui/avatar';
+import {
+  SidebarUpdateButton,
+  SidebarUpdateStatusView,
+  phaseLabel,
+  statusCaption,
+  type SidebarUpdateUiMode,
+} from '@/components/dashboard/sidebar/sidebar-update-status-view';
+import type { SidebarUser } from '@/data/sidebar-nav';
 import {
   SELF_UPDATE_TIMEOUT_MS,
   clearSelfUpdateSession,
@@ -28,9 +40,10 @@ import {
 const IDLE_POLL_MS = 60_000;
 const BUSY_POLL_MS = 2_500;
 
-type UiMode = 'unknown' | 'current' | 'stale' | 'upstream_unknown' | 'updating' | 'failed';
-
-function deriveMode(status: VersionStatusDto | null, forceUpdating: boolean): UiMode {
+function deriveMode(
+  status: VersionStatusDto | null,
+  forceUpdating: boolean,
+): SidebarUpdateUiMode {
   if (forceUpdating) return 'updating';
   if (!status) return 'unknown';
   if (status.deploy.state === 'running') return 'updating';
@@ -48,66 +61,20 @@ function deriveMode(status: VersionStatusDto | null, forceUpdating: boolean): Ui
   return 'unknown';
 }
 
-function phaseLabel(phase: string | undefined): string | null {
-  if (!phase) return null;
-  const map: Record<string, string> = {
-    init: 'Init',
-    dirty: 'Dirty tree',
-    fetch: 'Fetch',
-    lfs: 'LFS',
-    build: 'Build',
-    install: 'Install',
-    enqueue: 'Queued',
-    done: 'Done',
-    timeout: 'Timed out',
-    orphan: 'Interrupted',
-    error: 'Error',
-  };
-  return map[phase] ?? phase;
+function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('')
+    .slice(0, 2);
 }
 
-function statusLedClass(mode: UiMode): string {
-  switch (mode) {
-    case 'current':
-      return 'led led-ok';
-    case 'stale':
-      return 'led led-info';
-    case 'failed':
-      return 'led led-fault';
-    case 'updating':
-      return 'led led-info led-live';
-    case 'upstream_unknown':
-    case 'unknown':
-      return 'led';
-    default: {
-      const _exhaustive: never = mode;
-      return _exhaustive;
-    }
-  }
-}
+type SidebarUpdateStatusProps = {
+  user: SidebarUser;
+};
 
-function statusCaption(mode: UiMode, shaLabel: string, phase: string | null): string {
-  switch (mode) {
-    case 'updating':
-      return phase ? `Updating · ${phase}` : 'Updating…';
-    case 'stale':
-      return `rev ${shaLabel} · behind`;
-    case 'upstream_unknown':
-      return `rev ${shaLabel} · offline`;
-    case 'failed':
-      return `rev ${shaLabel} · failed`;
-    case 'current':
-      return `rev ${shaLabel}`;
-    case 'unknown':
-      return 'rev —';
-    default: {
-      const _exhaustive: never = mode;
-      return _exhaustive;
-    }
-  }
-}
-
-export function SidebarUpdateStatus() {
+/** Identity row (Update chip when stale) + rev/Check status under it. */
+export function SidebarUpdateStatus({ user }: SidebarUpdateStatusProps) {
   const [status, setStatus] = useState<VersionStatusDto | null>(null);
   const [checking, setChecking] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -118,11 +85,11 @@ export function SidebarUpdateStatus() {
   const session = readSelfUpdateSession();
   const forceUpdating = Boolean(session) || deployBusy;
   const mode = deriveMode(status, forceUpdating && status?.deploy.state !== 'failed');
-  const updating = mode === 'updating';
-  const showUpdate = mode === 'stale' && !updating && !checking;
   const shaLabel = status?.deploy_sha ? shortSha(status.deploy_sha) : '—';
-  const phase = updating ? phaseLabel(status?.deploy.phase) : null;
+  const phase = mode === 'updating' ? phaseLabel(status?.deploy.phase) : null;
   const caption = statusCaption(mode, shaLabel, phase);
+  const showUpdate = mode === 'stale' && !checking;
+  const initials = getInitials(user.name);
 
   useEffect(() => {
     let cancelled = false;
@@ -230,82 +197,36 @@ export function SidebarUpdateStatus() {
   };
 
   return (
-    <div
-      className="flex w-full flex-col gap-1.5 border-t border-line px-2 pt-2"
-      data-testid="sidebar-update-status"
-    >
-      <div className="flex min-w-0 items-center gap-1.5">
-        <span className={statusLedClass(mode)} aria-hidden />
-        <span
-          className="micro-label min-w-0 flex-1 truncate normal-case tracking-normal"
-          title={status?.deploy_sha || undefined}
-        >
-          {caption}
-        </span>
-        {updating ? (
-          <HugeiconsIcon
-            icon={Loading03Icon}
-            strokeWidth={2}
-            className="size-3.5 shrink-0 animate-spin text-info motion-reduce:animate-none"
-            data-testid="sidebar-update-spinner"
-            aria-hidden
-          />
-        ) : null}
-      </div>
-
-      {error ? (
-        <p className="text-[10px] leading-snug text-fault" role="alert">
-          {error}
-        </p>
-      ) : null}
-
-      <div className="flex flex-wrap items-center gap-1">
-        <Button
-          type="button"
-          variant="ghost"
-          size="xs"
-          className="h-6 px-1.5 text-muted-foreground hover:text-foreground"
-          disabled={updating || checking}
-          data-testid="check-for-updates"
-          aria-label="Check for updates"
-          title="Check for updates"
-          onClick={onCheck}
-        >
-          {checking ? (
-            <HugeiconsIcon
-              icon={Loading03Icon}
-              strokeWidth={2}
-              className="size-3 animate-spin motion-reduce:animate-none"
-              data-icon="inline-start"
+    <>
+      <div className="flex w-full flex-col">
+        <div className="flex w-full items-center gap-2 rounded-md px-2 py-1.5">
+          <Avatar className="size-8 rounded-lg grayscale">
+            <AvatarImage src={user.avatar} alt={user.name} />
+            <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
+          </Avatar>
+          <div className="grid min-w-0 flex-1 text-left text-sm leading-tight">
+            <span className="truncate font-medium">{user.name}</span>
+            <span className="truncate font-mono text-xs text-muted-foreground">
+              {user.context}
+            </span>
+          </div>
+          {showUpdate ? (
+            <SidebarUpdateButton
+              onClick={() => {
+                setError(null);
+                setConfirmOpen(true);
+              }}
             />
-          ) : (
-            <HugeiconsIcon
-              icon={RefreshIcon}
-              strokeWidth={2}
-              className="size-3"
-              data-icon="inline-start"
-            />
-          )}
-          Check
-        </Button>
-
-        {showUpdate ? (
-          <button
-            type="button"
-            data-testid="sidebar-update-button"
-            className={cn(
-              'inline-flex h-6 shrink-0 items-center border border-info/50 bg-info/10 px-2 font-mono text-[10px] uppercase tracking-[0.14em] text-info transition-colors',
-              'hover:bg-info/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            )}
-            title="Install latest main onto the Pi"
-            onClick={() => {
-              setError(null);
-              setConfirmOpen(true);
-            }}
-          >
-            Update
-          </button>
-        ) : null}
+          ) : null}
+        </div>
+        <SidebarUpdateStatusView
+          mode={mode}
+          caption={caption}
+          shaTitle={status?.deploy_sha || undefined}
+          checking={checking}
+          error={error}
+          onCheck={onCheck}
+        />
       </div>
 
       <Dialog
@@ -376,6 +297,6 @@ export function SidebarUpdateStatus() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

@@ -54,6 +54,12 @@ function status(partial: Record<string, unknown>) {
   };
 }
 
+const previewUser = {
+  name: 'Joey',
+  context: 'live',
+  avatar: '',
+};
+
 describe('SidebarUpdateStatus', () => {
   beforeEach(() => {
     clearSelfUpdateSession();
@@ -76,7 +82,7 @@ describe('SidebarUpdateStatus', () => {
   });
 
   it('shows Check for updates and toasts already current', async () => {
-    render(<SidebarUpdateStatus />);
+    render(<SidebarUpdateStatus user={previewUser} />);
     await waitFor(() => expect(fetchVersionStatus).toHaveBeenCalled());
     fetchVersionStatus.mockResolvedValueOnce(
       status({
@@ -88,15 +94,16 @@ describe('SidebarUpdateStatus', () => {
     await waitFor(() => expect(toastInfo).toHaveBeenCalledWith('Already up to date'));
   });
 
-  it('shows Update when stale and opens confirm dialog', async () => {
+  it('shows Update next to identity when stale and opens confirm dialog', async () => {
     fetchVersionStatus.mockResolvedValue(
       status({
         update_available: true,
         upstream_sha: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
       }),
     );
-    render(<SidebarUpdateStatus />);
+    render(<SidebarUpdateStatus user={previewUser} />);
     await waitFor(() => expect(screen.getByTestId('sidebar-update-button')).toBeTruthy());
+    expect(screen.getByText('Joey')).toBeTruthy();
     fireEvent.click(screen.getByTestId('sidebar-update-button'));
     expect(screen.getByTestId('update-confirm-dialog')).toBeTruthy();
   });
@@ -118,7 +125,7 @@ describe('SidebarUpdateStatus', () => {
         },
       }),
     );
-    render(<SidebarUpdateStatus />);
+    render(<SidebarUpdateStatus user={previewUser} />);
     await waitFor(() => expect(screen.getByTestId('sidebar-update-spinner')).toBeTruthy());
     expect(screen.queryByTestId('sidebar-update-button')).toBeNull();
   });
