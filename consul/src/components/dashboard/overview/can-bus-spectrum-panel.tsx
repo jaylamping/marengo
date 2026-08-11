@@ -495,7 +495,7 @@ function CaptureBody({
           title={capture.error.kind === 'no_endpoint' ? 'No gateway' : 'Capture unreachable'}
           detail={
             capture.error.kind === 'no_endpoint'
-              ? 'Wireframe — VITE_CHAPPE_HTTP_URL unset. Header CAN0 is a static profile label, not live bus state.'
+              ? 'Wireframe — no Chappe HTTP endpoint configured. Header CAN0 is a static profile label, not live bus state.'
               : 'Candump HTTP failed. Link meters still sample host metrics when Chappe is up.'
           }
         />
