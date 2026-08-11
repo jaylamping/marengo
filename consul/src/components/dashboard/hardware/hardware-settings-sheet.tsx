@@ -56,7 +56,7 @@ export function HardwareSettingsSheet({
       <SheetContent
         side="right"
         variant="panel"
-        className="w-full sm:max-w-lg"
+        className="w-full sm:max-w-2xl"
         showOverlay
         onOpenAutoFocus={focusSheetOnOpen}
       >
