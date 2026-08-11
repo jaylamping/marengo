@@ -33,10 +33,12 @@ describe('version-api helpers', () => {
     writeSelfUpdateSession({
       jobId: 'j1',
       startedAtMs: 123,
+      targetSha: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
     });
     expect(readSelfUpdateSession()).toEqual({
       jobId: 'j1',
       startedAtMs: 123,
+      targetSha: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
     });
     clearSelfUpdateSession();
     expect(readSelfUpdateSession()).toBeNull();

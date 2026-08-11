@@ -11,15 +11,19 @@ import {
   clearSelfUpdateSession,
   fetchVersionStatus,
   readSelfUpdateSession,
+  shasMatch,
   shortSha,
   startSelfDeploy,
   writeSelfUpdateSession,
+  type SelfUpdateSession,
   type UpdateUiState,
   type VersionStatusDto,
 } from '@/lib/version-api';
 
 const IDLE_POLL_MS = 60_000;
 const BUSY_POLL_MS = 2_500;
+/** Cap hung `/version/status` fetches so a gateway restart cannot freeze the poll loop. */
+export const POLL_FETCH_TIMEOUT_MS = 5_000;
 
 const UI_STATES: ReadonlySet<string> = new Set([
   'unknown',
@@ -41,6 +45,45 @@ type DeriveSidebarUpdateModeOpts = {
   stickyFailed?: boolean;
 };
 
+/** True when installed deploy-rev already matches the job/session target. */
+export function installedOnWatchTarget(
+  status: VersionStatusDto,
+  session?: Pick<SelfUpdateSession, 'targetSha'> | null,
+): boolean {
+  const targets = [session?.targetSha, status.deploy.target_sha].filter(
+    (value): value is string => Boolean(value && value.trim()),
+  );
+  return targets.some((target) => shasMatch(status.deploy_sha, target));
+}
+
+export type WatchOutcome = 'success' | 'failed' | null;
+
+/**
+ * Decide whether a watched self-update can leave the Updating chrome.
+ * Success includes “deploy-rev already on target” so a stale Queued/running
+ * ledger after install cannot pin the sidebar forever.
+ */
+export function resolveWatchOutcome(
+  status: VersionStatusDto,
+  session: SelfUpdateSession,
+): WatchOutcome {
+  const sameJob = !status.deploy.job_id || status.deploy.job_id === session.jobId;
+  if (sameJob && (status.deploy.state === 'failed' || status.ui_state === 'failed')) {
+    return 'failed';
+  }
+  if (
+    sameJob &&
+    status.deploy.state === 'succeeded' &&
+    status.ready_for_target
+  ) {
+    return 'success';
+  }
+  if (installedOnWatchTarget(status, session)) {
+    return 'success';
+  }
+  return null;
+}
+
 /** Prefer gateway `ui_state`; fall back only for older gateways mid-rollout. */
 export function deriveSidebarUpdateMode(
   status: VersionStatusDto | null,
@@ -55,12 +98,19 @@ export function deriveSidebarUpdateMode(
   if (watchingJob) {
     if (!status) return 'updating';
     const jobState = status.deploy.state;
-    if (jobState === 'running' || status.ui_state === 'updating') {
-      return 'updating';
-    }
     // Gateway maps Failed+behind → Stale for retry chrome; keep Failed while watching.
     if (jobState === 'failed' || status.ui_state === 'failed') {
       return 'failed';
+    }
+    // Install already landed — do not keep “Updating · Queued” on a stale ledger.
+    if (installedOnWatchTarget(status)) {
+      if (status.ui_state && UI_STATES.has(status.ui_state) && status.ui_state !== 'updating') {
+        return status.ui_state;
+      }
+      return status.update_available ? 'stale' : 'current';
+    }
+    if (jobState === 'running' || status.ui_state === 'updating') {
+      return 'updating';
     }
     if (jobState !== 'succeeded') {
       return 'updating';
@@ -125,54 +175,77 @@ export function useSidebarSelfUpdate() {
     };
 
     const tick = async (refresh: boolean) => {
-      const next = await fetchVersionStatus({ refresh });
-      if (cancelled) return;
-      setStatus(next);
+      let next: VersionStatusDto | null = null;
+      const controller = new AbortController();
+      const abortTimer = window.setTimeout(() => {
+        controller.abort();
+      }, POLL_FETCH_TIMEOUT_MS);
+      try {
+        next = await fetchVersionStatus({
+          refresh,
+          signal: controller.signal,
+        });
+        if (cancelled) return;
+        setStatus(next);
 
-      const sess = readSelfUpdateSession();
-      if (sess) {
-        const timedOut = Date.now() - sess.startedAtMs > SELF_UPDATE_TIMEOUT_MS;
-        // Timeout even when status is null (gateway bounce / persistent unreachable).
-        if (timedOut) {
-          stopWatching();
-          setStickyFailed(false);
-          setError('Timed out — see /opt/marengo/var/self-update.log');
-          toast.error('Update timed out');
-        } else if (next) {
-          const sameJob =
-            !next.deploy.job_id || next.deploy.job_id === sess.jobId;
-          if (sameJob && next.deploy.state === 'failed') {
-            // Sticky Failed before clearing watch — same React turn as setStatus.
-            setStickyFailed(true);
+        const sess = readSelfUpdateSession();
+        if (sess) {
+          const timedOut = Date.now() - sess.startedAtMs > SELF_UPDATE_TIMEOUT_MS;
+          // Timeout even when status is null (gateway bounce / persistent unreachable).
+          if (timedOut) {
             stopWatching();
-            const msg = next.deploy.message || 'Self-update failed';
-            setError(msg);
-            toast.error(msg);
-          } else if (
-            sameJob &&
-            next.deploy.state === 'succeeded' &&
-            next.ready_for_target &&
-            !reloadArmed.current
-          ) {
-            reloadArmed.current = true;
             setStickyFailed(false);
-            stopWatching();
-            toast.success('Update complete');
-            window.setTimeout(() => {
-              window.location.reload();
-            }, 400);
+            setError('Timed out — see /opt/marengo/var/self-update.log');
+            toast.error('Update timed out');
+          } else if (next) {
+            const outcome = resolveWatchOutcome(next, sess);
+            if (outcome === 'failed') {
+              // Sticky Failed before clearing watch — same React turn as setStatus.
+              setStickyFailed(true);
+              stopWatching();
+              const msg = next.deploy.message || 'Self-update failed';
+              setError(msg);
+              toast.error(msg);
+            } else if (outcome === 'success' && !reloadArmed.current) {
+              reloadArmed.current = true;
+              setStickyFailed(false);
+              stopWatching();
+              // Stale running/enqueue ledger can still report ui_state=updating —
+              // paint current immediately so “Updating · Queued” cannot linger until reload.
+              setStatus({
+                ...next,
+                update_available: false,
+                ready_for_target: true,
+                ui_state: 'current',
+                deploy: {
+                  ...next.deploy,
+                  state: 'succeeded',
+                  phase: 'done',
+                },
+              });
+              toast.success('Update complete');
+              window.setTimeout(() => {
+                window.location.reload();
+              }, 400);
+            }
           }
         }
+      } catch {
+        // Aborted / network error during gateway restart — keep watching; finally reschedules.
+        if (cancelled) return;
+      } finally {
+        window.clearTimeout(abortTimer);
+        if (!cancelled) {
+          setWatchingJob(Boolean(readSelfUpdateSession()));
+          const busy = Boolean(readSelfUpdateSession()) || isBusyStatus(next);
+          timer = window.setTimeout(
+            () => {
+              void tick(false);
+            },
+            busy ? BUSY_POLL_MS : IDLE_POLL_MS,
+          );
+        }
       }
-      setWatchingJob(Boolean(readSelfUpdateSession()));
-
-      const busy = Boolean(readSelfUpdateSession()) || isBusyStatus(next);
-      timer = window.setTimeout(
-        () => {
-          void tick(false);
-        },
-        busy ? BUSY_POLL_MS : IDLE_POLL_MS,
-      );
     };
 
     void tick(false);
@@ -237,6 +310,7 @@ export function useSidebarSelfUpdate() {
       writeSelfUpdateSession({
         jobId: result.job_id,
         startedAtMs: Date.now(),
+        ...(result.target_sha ? { targetSha: result.target_sha } : {}),
       });
       setWatchingJob(true);
       setDeployBusy(false);

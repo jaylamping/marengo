@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { deriveSidebarUpdateMode } from '@/components/dashboard/sidebar/use-sidebar-self-update';
+import {
+  deriveSidebarUpdateMode,
+  resolveWatchOutcome,
+} from '@/components/dashboard/sidebar/use-sidebar-self-update';
 import type { VersionStatusDto } from '@/lib/version-api';
 
 function status(
@@ -93,5 +96,49 @@ describe('deriveSidebarUpdateMode', () => {
         stickyFailed: true,
       }),
     ).toBe('updating');
+  });
+
+  it('leaves Updating when watched target SHA is already installed (stale Queued ledger)', () => {
+    const target = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+    expect(
+      deriveSidebarUpdateMode(
+        status({
+          deploy_sha: target,
+          upstream_sha: target,
+          update_available: false,
+          ui_state: 'updating',
+          ready_for_target: false,
+          deploy: {
+            state: 'running',
+            phase: 'enqueue',
+            job_id: 'j1',
+            target_sha: target,
+          },
+        }),
+        { watchingJob: true },
+      ),
+    ).toBe('current');
+  });
+
+  it('resolveWatchOutcome succeeds when deploy-rev matches target despite Queued phase', () => {
+    const target = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+    expect(
+      resolveWatchOutcome(
+        status({
+          deploy_sha: target,
+          upstream_sha: target,
+          update_available: false,
+          ui_state: 'updating',
+          ready_for_target: false,
+          deploy: {
+            state: 'running',
+            phase: 'enqueue',
+            job_id: 'j1',
+            target_sha: target,
+          },
+        }),
+        { jobId: 'j1', startedAtMs: 1, targetSha: target },
+      ),
+    ).toBe('success');
   });
 });

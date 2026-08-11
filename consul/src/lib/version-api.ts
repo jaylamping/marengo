@@ -68,6 +68,8 @@ const SESSION_KEY = 'consul.selfUpdate';
 export type SelfUpdateSession = {
   jobId: string;
   startedAtMs: number;
+  /** Upstream/target SHA from `/control/deploy` when known. */
+  targetSha?: string;
 };
 
 function baseUrl(): string | null {
@@ -106,7 +108,15 @@ export function readSelfUpdateSession(): SelfUpdateSession | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as SelfUpdateSession;
     if (!parsed?.jobId || typeof parsed.startedAtMs !== 'number') return null;
-    return { jobId: parsed.jobId, startedAtMs: parsed.startedAtMs };
+    const targetSha =
+      typeof parsed.targetSha === 'string' && parsed.targetSha.trim()
+        ? parsed.targetSha.trim()
+        : undefined;
+    return {
+      jobId: parsed.jobId,
+      startedAtMs: parsed.startedAtMs,
+      ...(targetSha ? { targetSha } : {}),
+    };
   } catch {
     return null;
   }
