@@ -57,10 +57,10 @@ export interface CompoundTestPreset {
 }
 
 /**
- * Flip to `true` only after docs/bench-elbow-test-suite.md **E6** Wave-pose
- * GravityComp sign is recorded. Until then, live (non-dry-run) Wave Start is
- * blocked in the compound panel — Position still carries τ_g, but unsupported
- * elevated Wave raise is not commissioned.
+ * Flip to `true` only after playbook §4c Wave-pose G-comp PASSes
+ * (`docs/commissioning/limb-playbook.md`). Until then, live (non-dry-run) Wave
+ * Start is blocked in the compound panel — Position still carries τ_g, but
+ * unsupported elevated Wave raise is not commissioned.
  */
 export const WAVE_POSE_GCOMP_SIGNED = false;
 
@@ -72,16 +72,16 @@ export const WAVE_POSE_GCOMP_SIGNED = false;
  * Live Wave raise posts ControlMode.POSITION. That is not "position-only" in the
  * upright-pose sense: Berthier Position includes τ_g feedforward plus impedance
  * (ADR 0007 / docs/safety.md). It does leave GravityComp mode, so Teach Record
- * clears its gravity-armed checkbox. Keep the arm supported until Wave-pose
- * G-comp sign is commissioned (docs/bench-elbow-test-suite.md E6). Do not add
- * yaw/elbow to arm_out_forward / arm_fully_up until Y3–Y4 / E gates PASS.
+ * clears its gravity-armed checkbox. Keep the arm supported until playbook §4c
+ * Wave-pose G-comp is signed. Do not add yaw/elbow to arm_out_forward /
+ * arm_fully_up until those playbook gates PASS.
  */
 export const COMPOUND_TEST_PRESETS: CompoundTestPreset[] = [
   {
     id: 'wave',
     name: 'Wave',
     description:
-      'Arm up (pitch/roll/yaw/elbow raise under Position+τ_g), then continuous roll wave. Taught overlays replace wave phase only after Apply. Support the arm until E6 Wave-pose G-comp is signed.',
+      'Arm up (pitch/roll/yaw/elbow raise under Position+τ_g), then continuous roll wave. Taught overlays replace wave phase only after Apply. Support the arm until playbook §4c Wave-pose G-comp is signed.',
     movementBrief:
       'A waving motion raises the arm using the shoulder pitch actuator while moving the shoulder roll actuator outward to position the arm away from the body. The elbow pitch actuator bends the elbow so the forearm is held in a comfortable, upright position, while the upper arm yaw actuator rotates back and forth to create the primary side-to-side waving motion. The shoulder roll actuator can move slightly in coordination with the upper arm yaw to make the gesture appear smoother and more natural, while the shoulder pitch and elbow pitch remain mostly stable to maintain the overall waving posture. Teach overlays should encode a raise landmark, then at least two wave extrema (prefer yaw as the oscillating DOF, with optional small coordinated roll). Shipped continuous phase uses a native roll wave until a teach overlay replaces it.',
     joints: [

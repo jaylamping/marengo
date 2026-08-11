@@ -121,7 +121,7 @@ RUST_LOG=robstride=info,davout=info,berthier=info,motor_repl=info
 | **A1 — left bench only** | `config/bringup/shoulder_pitch_left_only` | `left_shoulder_pitch` on can1, id 12 (mirrors right tuning) |
 | **B — left 4-DOF arm** | `config/bringup/arm_4dof_left` or `config` | all on can0, IDs 11–14 |
 
-**Profile lineage (right arm):** `arm_2dof_right` (historically roll id 1 + pitch id 2) was renamed to `arm_3dof_right` when upper-arm yaw RS02 id 3 landed (`6f70c64`). Pitch/roll directions are unchanged; current right-bench IDs are pitch 1 and roll 2. Yaw is provisional until the [yaw suite](bench-yaw-test-suite.md) signs direction. Active 4-DOF default is `arm_4dof_right` (adds elbow pitch id 4). Light pitch+roll smoke still uses the 3-DOF tree — see [bench-2dof-right-smoke.md](bench-2dof-right-smoke.md).
+**Profile lineage (right arm):** `arm_2dof_right` (historically roll id 1 + pitch id 2) was renamed to `arm_3dof_right` when upper-arm yaw RS02 id 3 landed (`6f70c64`). Pitch/roll directions are unchanged; current right-bench IDs are pitch 1 and roll 2. Active 4-DOF default is `arm_4dof_right` (adds elbow pitch id 4). Limb motion commissioning SoT: [limb-playbook.md](commissioning/limb-playbook.md).
 
 Single-shoulder bench profiles use conservative position hold tuning while feedback velocity guards are active. The current right-only profile uses impedance **kp=8 / kd=1.25**, trapezoid **v=2.0 / a=4.8**, slew **0.15 rad/s**, max lead **0.10**, and trim **0.0** once firmware zero is set at arm-down. Operator shoulder-pitch limits are **[-0.872665, 3.141593] rad** (arm down = 0, -50° to +180°) from URDF `safety_controller`; hard bench/URDF limits are **[-0.9, 3.17] rad**. Berthier/Davout apply a velocity-scaled command envelope (ADR 0009) so fast moves shrink the commandable band before hard limits — full-range sweeps may reach soft limits only after decel, not in one gravity-assisted leg.
 
@@ -179,9 +179,9 @@ MARENGO_CONFIG_DIR=config/bringup/shoulder_pitch_dual ./target/release/marengo-p
 # stdin: home / enable bench / gravity-on / status / disable / quit
 ```
 
-### Phase 5b — Weighted gravity sign test
+### Phase 5b — Limb commissioning
 
-After bare-motor sign checks, run the asymmetric-load procedure in [bench-weighted-gravity-sign.md](bench-weighted-gravity-sign.md) (`shoulder_pitch_weighted` profile, `weighted_single_arm` harness).
+After Pi bring-up and bare-motor sanity, run the limb motion SoT: [limb-playbook.md](commissioning/limb-playbook.md) (Sign → G-comp → … → Limb sign-off).
 
 ## Phase 7 — Milestone B (left arm on can0)
 
@@ -255,7 +255,7 @@ Cursor agents can drive the Pi over SSH via [`tools/marengo-pi-mcp/`](../tools/m
 - **Deploy:** `pi_sync_main` (pull `main`, cross-build, `install-pi.sh`) — pre-authorized.
 - **Motion:** `confirm: true`; weighted profile also needs `confirm_weighted_motion: true` after two chat approvals.
 - **Session logs:** harness and `pi_marengo_pi_script` tee to `$MARENGO_ROOT/var/log/bench-latest.log`.
-- **Weighted tests backlog:** [bench-test-backlog.md](bench-test-backlog.md)
+- **Limb commissioning SoT:** [limb-playbook.md](commissioning/limb-playbook.md)
 
 ```bash
 # Manual bench run with session log (same paths MCP uses)

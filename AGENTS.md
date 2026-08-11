@@ -296,7 +296,7 @@ No coverage tooling is configured. Expectation: `just check` passes before merge
 
 - Marked `#[ignore]` or require `--features socketcan`
 - Use `just vcan` / `just check-vcan` — never required for default `cargo test`
-- Physical bench protocols: [`docs/bench-gravity-comp-test-suite.md`](docs/bench-gravity-comp-test-suite.md), [`docs/bench-2dof-right-smoke.md`](docs/bench-2dof-right-smoke.md), [`docs/bench-yaw-test-suite.md`](docs/bench-yaw-test-suite.md), [`docs/bench-roll-test-suite.md`](docs/bench-roll-test-suite.md)
+- Physical limb commissioning: [`docs/commissioning/limb-playbook.md`](docs/commissioning/limb-playbook.md)
 
 ### Bench commissioning notes
 
@@ -305,7 +305,7 @@ No coverage tooling is configured. Expectation: `just check` passes before merge
 - **Pitch** raises arm (~π–2.8 rad); **roll** oscillates; **yaw** twists upper arm — do not swap roles
 - Re–set-zero at mechanical home when arm configuration changes
 - `pi_sync_bench_config` syncs YAML only — not `assets/urdf/`; use **`pi_sync_bench_urdf`** after URDF/COM edits, then verify gravity
-- Signed-off position-hold baseline: kp 18 / kd 3 / ki 5 — see bench smoke doc
+- Position-hold / mode gates: follow [`docs/commissioning/limb-playbook.md`](docs/commissioning/limb-playbook.md) and current `config/control.yaml`
 
 ---
 

@@ -40,7 +40,7 @@ Constants: `POSITION_HOLD_ONSET_MS = 300`, `POSITION_STUCK_EXIT_VELOCITY_RATIO =
 | **Descent breakaway latch** | MIT pull-down on descent clears after measured motion confirms breakaway |
 | **Planner freeze** | Holds trajectory state when overshoot would re-accelerate into Davout velocity cap |
 
-See [bench-position-tuning.md](../bench-position-tuning.md) friction row and position-hold trace columns `friction_mode`, `planner_frozen`, `joint_stuck`.
+See [rust-patterns.md](../rust-patterns.md) §7 and position-hold trace columns `friction_mode`, `planner_frozen`, `joint_stuck`.
 
 ## Update 2026-06-13: one-pass simplification (implemented)
 
@@ -66,7 +66,7 @@ After **`3f66ea2`** (high-q return freeze skip, stuck-lead resync, return breaka
 | `impedance` | kp=8, kd=1.25 | Layer 2 baseline + return damping |
 | `friction.fc` | 0.25 | Reduced from 0.35 after jerk trials |
 
-Bench verification (2026-06-13): weighted `hold-at` 0 → 1.570796 → 0 — outbound **~1.2 s**, return **~3 s**, `fault=0`, no `planner_frozen`. Documented in [bench-position-tuning.md](../bench-position-tuning.md).
+Bench verification (2026-06-13): weighted `hold-at` 0 → 1.570796 → 0 — outbound **~1.2 s**, return **~3 s**, `fault=0`, no `planner_frozen`. Limb motion SoT is now [limb-playbook.md](../commissioning/limb-playbook.md).
 
 ## Update 2026-06-13: hold-at planner/MIT split (superseded)
 
