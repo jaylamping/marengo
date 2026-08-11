@@ -190,7 +190,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     }
 
     state::spawn_bus_fanout(Arc::clone(&state));
-    deploy::init_upstream_cache_from_disk();
+    marengo_deploy::init_upstream_cache_from_disk();
 
     if args.demo {
         info!("demo publisher enabled (no marengo-pi required)");
