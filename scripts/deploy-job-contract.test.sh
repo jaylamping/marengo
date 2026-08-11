@@ -23,9 +23,15 @@ ENQUEUE="${ROOT}/scripts/pi-enqueue-self-update.sh"
 WORKER="${ROOT}/scripts/pi-self-update.sh"
 
 assert_ok "enqueue script writes phase enqueue" \
-  grep -q '"phase": "enqueue"' "${ENQUEUE}"
-assert_ok "enqueue script writes state running" \
-  grep -q '"state": "running"' "${ENQUEUE}"
+  grep -q 'write_job_atomic "running" "enqueued" "enqueue"' "${ENQUEUE}"
+assert_ok "enqueue job template includes state field" \
+  grep -q '"state":' "${ENQUEUE}"
+assert_ok "enqueue uses flock for single-flight" \
+  grep -q 'flock -n' "${ENQUEUE}"
+assert_ok "enqueue refuses active unit instead of stop" \
+  grep -q 'already active' "${ENQUEUE}"
+assert_ok "enqueue marks failed when systemd-run fails" \
+  grep -q 'systemd-run failed' "${ENQUEUE}"
 for key in job_id target_sha result_sha unit_name started_at updated_at message; do
   assert_ok "enqueue job JSON includes ${key}" \
     grep -q "\"${key}\"" "${ENQUEUE}"
@@ -33,6 +39,8 @@ done
 
 assert_ok "self-update write_job includes phase field" \
   grep -q '"phase":' "${WORKER}"
+assert_ok "self-update uses atomic mv for job file" \
+  grep -q 'mv -f' "${WORKER}"
 for phase in init dirty fetch lfs build install done; do
   assert_ok "self-update references phase ${phase}" \
     grep -Eq "(write_job|fail).*[\"']${phase}[\"']|[\"']${phase}[\"']" "${WORKER}"

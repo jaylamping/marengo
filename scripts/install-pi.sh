@@ -244,6 +244,16 @@ chown -R "${RUN_USER}:${RUN_USER}" "${INSTALL_ROOT}"
 chown -R root:"${RUN_USER}" "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets" "${INSTALL_ROOT}/scripts" "${INSTALL_ROOT}/var" 2>/dev/null || true
 chmod -R g+rwX "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets" "${INSTALL_ROOT}/scripts" "${INSTALL_ROOT}/var" 2>/dev/null || true
 
+# Re-harden sudo targets AFTER recursive scripts ownership (must stay root:root 0755).
+if [[ -f "${INSTALL_ROOT}/scripts/pi-restart-marengo-pi.sh" ]]; then
+  chown root:root "${INSTALL_ROOT}/scripts/pi-restart-marengo-pi.sh"
+  chmod 0755 "${INSTALL_ROOT}/scripts/pi-restart-marengo-pi.sh"
+fi
+if [[ -f "${INSTALL_ROOT}/scripts/pi-enqueue-self-update.sh" ]]; then
+  chown root:root "${INSTALL_ROOT}/scripts/pi-enqueue-self-update.sh"
+  chmod 0755 "${INSTALL_ROOT}/scripts/pi-enqueue-self-update.sh"
+fi
+
 install_deploy_rev "${ROOT}" "${INSTALL_ROOT}"
 chown root:root "${INSTALL_ROOT}/.deploy-rev"
 chmod 644 "${INSTALL_ROOT}/.deploy-rev"

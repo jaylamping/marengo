@@ -10,6 +10,7 @@ STAGING="${MARENGO_STAGING_ROOT:-/home/${DEPLOY_USER}/marengo}"
 OPT_ROOT="${MARENGO_ROOT:-/opt/marengo}"
 JOB_DIR="${MARENGO_DEPLOY_JOB_DIR:-${OPT_ROOT}/var}"
 JOB_FILE="${MARENGO_DEPLOY_JOB_FILE:-${JOB_DIR}/deploy-job.json}"
+LOCK_FILE="${MARENGO_DEPLOY_JOB_LOCK:-${JOB_DIR}/deploy-job.lock}"
 SCRIPT="${STAGING}/scripts/pi-self-update.sh"
 UNIT="marengo-self-update"
 
@@ -19,6 +20,14 @@ if [[ "$(id -u)" -ne 0 ]]; then
 fi
 if [[ -z "${TARGET_SHA}" || -z "${JOB_ID}" ]]; then
   echo "usage: $0 <target_sha> <job_id>" >&2
+  exit 2
+fi
+if [[ ! "${TARGET_SHA}" =~ ^[0-9a-fA-F]{7,40}$ ]]; then
+  echo "error: target_sha must be a git SHA" >&2
+  exit 2
+fi
+if [[ ! "${JOB_ID}" =~ ^[A-Za-z0-9._:-]+$ ]]; then
+  echo "error: job_id contains unsafe characters" >&2
   exit 2
 fi
 if [[ ! -x "${SCRIPT}" ]]; then
@@ -33,29 +42,49 @@ if getent group marengo >/dev/null 2>&1; then
   chmod 775 "${JOB_DIR}" 2>/dev/null || true
 fi
 
-# Replace any prior transient unit.
-systemctl stop "${UNIT}.service" 2>/dev/null || true
-systemctl reset-failed "${UNIT}.service" 2>/dev/null || true
+# Refuse overlapping workers — do not stop an in-flight unit.
+if systemctl is-active --quiet "${UNIT}.service" 2>/dev/null; then
+  echo "error: unit ${UNIT}.service already active" >&2
+  exit 1
+fi
 
-NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-cat >"${JOB_FILE}" <<EOF
+exec 9>"${LOCK_FILE}"
+if ! flock -n 9; then
+  echo "error: another enqueue holds ${LOCK_FILE}" >&2
+  exit 1
+fi
+
+write_job_atomic() {
+  local state="$1"
+  local message="$2"
+  local phase="$3"
+  local now tmp
+  now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  tmp="${JOB_FILE}.tmp.$$"
+  cat >"${tmp}" <<EOF
 {
-  "state": "running",
+  "state": "${state}",
   "job_id": "${JOB_ID}",
   "target_sha": "${TARGET_SHA}",
   "result_sha": "",
   "unit_name": "${UNIT}",
-  "started_at": "${NOW}",
-  "updated_at": "${NOW}",
-  "message": "enqueued",
-  "phase": "enqueue"
+  "started_at": "${now}",
+  "updated_at": "${now}",
+  "message": "${message}",
+  "phase": "${phase}"
 }
 EOF
-chgrp marengo "${JOB_FILE}" 2>/dev/null || true
-chmod 664 "${JOB_FILE}" 2>/dev/null || true
+  mv -f "${tmp}" "${JOB_FILE}"
+  chgrp marengo "${JOB_FILE}" 2>/dev/null || true
+  chmod 664 "${JOB_FILE}" 2>/dev/null || true
+}
+
+systemctl reset-failed "${UNIT}.service" 2>/dev/null || true
+
+write_job_atomic "running" "enqueued" "enqueue"
 
 # Detached from caller cgroup; runs as deploy user with that user's HOME/cargo.
-systemd-run \
+if ! systemd-run \
   --unit="${UNIT}" \
   --uid="${DEPLOY_USER}" \
   --gid="${DEPLOY_USER}" \
@@ -70,6 +99,10 @@ systemd-run \
   --setenv="MARENGO_SELF_UPDATE_UNIT=${UNIT}" \
   --setenv="HOME=/home/${DEPLOY_USER}" \
   --setenv="USER=${DEPLOY_USER}" \
-  /bin/bash "${SCRIPT}"
+  /bin/bash "${SCRIPT}"; then
+  write_job_atomic "failed" "systemd-run failed" "error"
+  echo "error: systemd-run failed for ${UNIT}" >&2
+  exit 1
+fi
 
 echo "enqueued unit=${UNIT} job_id=${JOB_ID} target=${TARGET_SHA}"

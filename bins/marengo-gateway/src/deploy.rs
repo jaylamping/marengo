@@ -1,5 +1,7 @@
 //! Thin HTTP adapters for deploy status and self-update control.
 
+use std::sync::OnceLock;
+
 use axum::{
     extract::{Query, State},
     http::{HeaderMap, StatusCode},
@@ -7,13 +9,20 @@ use axum::{
 };
 use marengo_deploy::{
     current_version_status, enqueue_self_update, fetch_upstream_sha, load_reconciled_job,
-    new_job_id, shas_match,
+    new_job_id, shas_match, web_root_ready, DeployJobState,
 };
 use serde::{Deserialize, Serialize};
+use tokio::sync::Mutex;
 use tracing::{info, warn};
 
 use crate::restart::{authorize_restart, now_ms, refuse_active_fresh, HEARTBEAT_FRESH_MS};
 use crate::state::SharedState;
+
+static DEPLOY_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+
+fn deploy_lock() -> &'static Mutex<()> {
+    DEPLOY_LOCK.get_or_init(|| Mutex::new(()))
+}
 
 #[derive(Debug, Deserialize)]
 pub struct VersionStatusQuery {
@@ -68,6 +77,19 @@ pub async fn post_control_deploy(
         ));
     }
 
+    let Ok(_guard) = deploy_lock().try_lock() else {
+        return Ok((
+            StatusCode::CONFLICT,
+            Json(DeployResponseJson {
+                ok: false,
+                message: "deploy already in progress".to_string(),
+                already_current: None,
+                job_id: None,
+                target_sha: None,
+            }),
+        ));
+    };
+
     let mode = state.snapshot_safety().map(|snapshot| snapshot.mode);
     let heartbeat = state
         .snapshot_heartbeat()
@@ -100,7 +122,7 @@ pub async fn post_control_deploy(
     }
 
     let (deploy, job) = load_reconciled_job();
-    if job.state == marengo_deploy::DeployJobState::Running {
+    if job.state == DeployJobState::Running {
         return Ok((
             StatusCode::CONFLICT,
             Json(DeployResponseJson {
@@ -127,7 +149,8 @@ pub async fn post_control_deploy(
         ));
     }
 
-    if !deploy.sha.is_empty() && shas_match(&deploy.sha, &upstream_sha) {
+    // Matching rev alone is not "current" if Consul www is missing — allow repair enqueue.
+    if !deploy.sha.is_empty() && shas_match(&deploy.sha, &upstream_sha) && web_root_ready() {
         return Ok((
             StatusCode::OK,
             Json(DeployResponseJson {

@@ -54,7 +54,7 @@ impl Default for DeployPhase {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
 pub struct DeployJob {
     pub state: DeployJobState,
     #[serde(default)]
@@ -75,12 +75,47 @@ pub struct DeployJob {
     pub phase: DeployPhase,
 }
 
-/// Read a job file, treating a missing or malformed file as an idle job.
+/// Result of reading the on-disk job ledger.
+#[derive(Debug, Clone, PartialEq)]
+pub enum JobFileRead {
+    /// No job file yet.
+    Missing,
+    /// Parsed job.
+    Ok(DeployJob),
+    /// File exists but is not valid DeployJob JSON — fail closed for enqueue.
+    Corrupt,
+}
+
+/// Read a job file without coercing corruption to Idle.
+pub fn read_job_file_strict(path: &Path) -> JobFileRead {
+    match std::fs::read_to_string(path) {
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => JobFileRead::Missing,
+        Err(_) => JobFileRead::Corrupt,
+        Ok(raw) => {
+            let trimmed = raw.trim();
+            if trimmed.is_empty() {
+                return JobFileRead::Missing;
+            }
+            match serde_json::from_str::<DeployJob>(trimmed) {
+                Ok(job) => JobFileRead::Ok(job),
+                Err(_) => JobFileRead::Corrupt,
+            }
+        }
+    }
+}
+
+/// Read a job file. Missing → idle. Corrupt → failed sentinel (never Idle).
 pub fn read_job_file(path: &Path) -> DeployJob {
-    let Ok(raw) = std::fs::read_to_string(path) else {
-        return DeployJob::default();
-    };
-    serde_json::from_str(&raw).unwrap_or_else(|_| DeployJob::default())
+    match read_job_file_strict(path) {
+        JobFileRead::Missing => DeployJob::default(),
+        JobFileRead::Ok(job) => job,
+        JobFileRead::Corrupt => DeployJob {
+            state: DeployJobState::Failed,
+            message: "corrupt deploy-job.json — refusing Idle fallback".to_string(),
+            phase: DeployPhase::Error,
+            ..DeployJob::default()
+        },
+    }
 }
 
 /// Atomically write a job file, creating its parent directory as needed.
@@ -256,5 +291,16 @@ mod tests {
         let job: DeployJob =
             serde_json::from_str(r#"{"state":"running","phase":"future_phase"}"#).expect("json");
         assert_eq!(job.phase, DeployPhase::Unknown);
+    }
+
+    #[test]
+    fn corrupt_job_file_fails_closed_not_idle() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("deploy-job.json");
+        std::fs::write(&path, "{not-json").expect("write");
+        assert_eq!(read_job_file_strict(&path), JobFileRead::Corrupt);
+        let job = read_job_file(&path);
+        assert_eq!(job.state, DeployJobState::Failed);
+        assert_ne!(job.state, DeployJobState::Idle);
     }
 }

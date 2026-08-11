@@ -68,7 +68,8 @@ export function useSidebarSelfUpdate() {
   const shaLabel = status?.deploy_sha ? shortSha(status.deploy_sha) : '—';
   const phase = mode === 'updating' ? phaseLabel(status?.deploy.phase) : null;
   const caption = statusCaption(mode, shaLabel, phase);
-  const showUpdate = mode === 'stale' && !checking;
+  // Stale (behind) or Failed (retry / www repair) — never hide Update behind sticky failure.
+  const showUpdate = (mode === 'stale' || mode === 'failed') && !checking;
 
   useEffect(() => {
     let cancelled = false;
@@ -138,6 +139,10 @@ export function useSidebarSelfUpdate() {
       const state: UpdateUiState | undefined = next.ui_state;
       if (state === 'upstream_unknown' || (!state && !next.upstream_ok)) {
         toast.message('GitHub unreachable — showing installed rev');
+        return;
+      }
+      if (state === 'failed' || next.deploy.state === 'failed') {
+        toast.message(next.deploy.message || 'Last update failed — use Update to retry');
         return;
       }
       if (state === 'stale' || (!state && next.update_available)) {

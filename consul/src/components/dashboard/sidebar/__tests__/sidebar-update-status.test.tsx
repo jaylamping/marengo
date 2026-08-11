@@ -112,6 +112,28 @@ describe('SidebarUpdateStatus', () => {
     expect(screen.getByTestId('update-confirm-dialog')).toBeTruthy();
   });
 
+  it('shows Update when last job failed so retry is possible', async () => {
+    fetchVersionStatus.mockResolvedValue(
+      status({
+        update_available: false,
+        ui_state: 'failed',
+        deploy: {
+          state: 'failed',
+          job_id: 'j1',
+          target_sha: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+          result_sha: '',
+          unit_name: 'marengo-self-update',
+          started_at: '2026-08-11T00:00:00Z',
+          updated_at: '2026-08-11T00:01:00Z',
+          message: 'www missing',
+          phase: 'error',
+        },
+      }),
+    );
+    render(<SidebarUpdateStatus user={previewUser} />);
+    await waitFor(() => expect(screen.getByTestId('sidebar-update-button')).toBeTruthy());
+  });
+
   it('shows spinner while deploy job is running', async () => {
     fetchVersionStatus.mockResolvedValue(
       status({

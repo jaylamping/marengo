@@ -116,7 +116,9 @@ export function SidebarUpdatePreviewPage() {
               <div className="w-[16.5rem] bg-sidebar px-0 py-1">
                 <SidebarIdentityRow
                   user={previewUser(frame.context)}
-                  showUpdate={frame.mode === 'stale' && !frame.checking}
+                  showUpdate={
+                    (frame.mode === 'stale' || frame.mode === 'failed') && !frame.checking
+                  }
                   onUpdate={() => setConfirmOpen(true)}
                 />
                 <SidebarUpdateStatusView

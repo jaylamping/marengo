@@ -42,7 +42,8 @@ write_job() {
   local phase="${3:-}"
   local result_sha="${4:-}"
   local tmp msg_esc
-  tmp="$(mktemp)"
+  # Same-directory tmp + rename so readers never see a torn JSON object.
+  tmp="${JOB_FILE}.tmp.$$"
   msg_esc="$(json_escape "${message}")"
   cat >"${tmp}" <<EOF
 {
@@ -57,10 +58,13 @@ write_job() {
   "phase": "${phase}"
 }
 EOF
-  if ! cp "${tmp}" "${JOB_FILE}" 2>/dev/null; then
-    sudo -n cp "${tmp}" "${JOB_FILE}" 2>/dev/null || cat "${tmp}" >"${JOB_FILE}" || true
+  if ! mv -f "${tmp}" "${JOB_FILE}" 2>/dev/null; then
+    if ! sudo -n mv -f "${tmp}" "${JOB_FILE}" 2>/dev/null; then
+      rm -f "${tmp}"
+      echo "error: cannot write job file ${JOB_FILE}" >&2
+      return 1
+    fi
   fi
-  rm -f "${tmp}"
   chmod 664 "${JOB_FILE}" 2>/dev/null || sudo -n chmod 664 "${JOB_FILE}" 2>/dev/null || true
 }
 
@@ -68,7 +72,7 @@ fail() {
   local message="$1"
   local phase="${2:-error}"
   echo "error: ${message}" >&2
-  write_job "failed" "${message}" "${phase}"
+  write_job "failed" "${message}" "${phase}" || true
   exit 1
 }
 

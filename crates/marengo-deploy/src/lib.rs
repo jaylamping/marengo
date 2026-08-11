@@ -21,8 +21,8 @@ pub mod upstream;
 pub use enqueue::{enqueue_self_update, new_job_id};
 pub use error::{DeployError, Result};
 pub use job::{
-    load_reconciled_job, read_job_file, reconcile_job, write_job_file, DeployJob, DeployJobState,
-    DeployPhase, DEPLOY_JOB_MAX_AGE_SECS,
+    load_reconciled_job, read_job_file, read_job_file_strict, reconcile_job, write_job_file,
+    DeployJob, DeployJobState, DeployPhase, JobFileRead, DEPLOY_JOB_MAX_AGE_SECS,
 };
 pub use paths::{
     resolve_deploy_rev_path, resolve_enqueue_script, resolve_job_file_path,
@@ -31,6 +31,6 @@ pub use paths::{
 pub use rev::{parse_deploy_rev, read_deploy_rev, shas_match, ParsedDeployRev};
 pub use status::{
     assemble_version_status, current_version_status, derive_ui_state, ready_for_target,
-    UpdateUiState, VersionStatus,
+    web_root_ready, UpdateUiState, VersionStatus,
 };
 pub use upstream::{fetch_upstream_sha, init_upstream_cache_from_disk, UPSTREAM_CACHE_TTL_SECS};
