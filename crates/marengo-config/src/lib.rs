@@ -1131,7 +1131,14 @@ mod tests {
         validate_motors_against_robot(&robot, &motors).expect("joint names align");
 
         let expected: &[(&str, &str, u8, i8, u32, MotorType)] = &[
-            ("right_shoulder_pitch", "can0", 1, -1, 0x241, MotorType::Rs03),
+            (
+                "right_shoulder_pitch",
+                "can0",
+                1,
+                -1,
+                0x241,
+                MotorType::Rs03,
+            ),
             ("right_shoulder_roll", "can0", 2, 1, 0x242, MotorType::Rs03),
             ("right_upper_arm_yaw", "can0", 3, 1, 0x243, MotorType::Rs02),
             ("right_elbow_pitch", "can0", 4, 1, 0x244, MotorType::Rs02),
