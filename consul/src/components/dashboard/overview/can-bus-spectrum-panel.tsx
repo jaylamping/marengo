@@ -240,21 +240,21 @@ function MicroLog({ lines }: { lines: MicroLogLine[] }) {
   }
   return (
     <div
-      className="min-h-0 flex-1 overflow-hidden rounded-[4px] border border-line bg-surface-0"
+      className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[4px] border border-line bg-surface-0"
       data-testid="can-micro-log"
     >
-      <div className="grid grid-cols-[3.5rem_2rem_3.75rem_minmax(0,1fr)_minmax(4rem,1.1fr)] gap-1 border-b border-line px-2 py-1">
+      <div className="grid grid-cols-[3.5rem_2rem_4.5rem_minmax(0,1fr)_minmax(5rem,1.2fr)] gap-1 border-b border-line px-2 py-1">
         {(['Δt', 'if', 'id', 'joint', 'data'] as const).map((label) => (
           <span key={label} className="micro-label">
             {label}
           </span>
         ))}
       </div>
-      <ul className="max-h-[11rem] divide-y divide-line overflow-auto">
+      <ul className="min-h-0 flex-1 divide-y divide-line overflow-auto">
         {[...lines].reverse().map((line) => (
           <li
             key={`${line.lineNo}-${line.canId}-${line.offsetS}`}
-            className="grid grid-cols-[3.5rem_2rem_3.75rem_minmax(0,1fr)_minmax(4rem,1.1fr)] gap-1 px-2 py-[3px] font-mono text-[11px] tabular-nums text-foreground"
+            className="grid grid-cols-[3.5rem_2rem_4.5rem_minmax(0,1fr)_minmax(5rem,1.2fr)] gap-1 px-2 py-[3px] font-mono text-[11px] tabular-nums text-foreground"
           >
             <span className="text-muted-foreground">{line.offsetS.toFixed(3)}</span>
             <span>{line.iface.replace(/^can/, '')}</span>
@@ -333,7 +333,7 @@ function LinkActivityChart({ samples }: { samples: CanLinkActivitySample[] }) {
 
   return (
     <div
-      className="mt-auto flex min-h-0 flex-1 flex-col gap-1.5 border-t border-line pt-3"
+      className="flex shrink-0 flex-col gap-1.5 border-t border-line pt-3"
       data-testid="can-link-activity"
     >
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
@@ -351,8 +351,8 @@ function LinkActivityChart({ samples }: { samples: CanLinkActivitySample[] }) {
       </div>
       <ChartContainer
         config={linkActivityChartConfig}
-        className="aspect-auto h-full min-h-[8.5rem] w-full flex-1"
-        initialDimension={{ width: 360, height: 140 }}
+        className="aspect-auto h-[7.25rem] w-full min-h-[7.25rem]"
+        initialDimension={{ width: 960, height: 116 }}
       >
         <LineChart
           accessibilityLayer
@@ -417,7 +417,7 @@ export function CanBusSpectrumPanel({ active = true }: CanBusSpectrumPanelProps)
     <Card
       variant="panel"
       className={cn(
-        '@container/card flex h-full min-h-[20rem] flex-col',
+        '@container/card flex w-full min-h-[22rem] flex-col',
         dashboardPanelCardClassName,
       )}
       data-testid="overview-can-bus-panel"
@@ -431,7 +431,15 @@ export function CanBusSpectrumPanel({ active = true }: CanBusSpectrumPanelProps)
             : ' · candump-latest'}
         </CardDescription>
         <CardAction>
-          <LiveChip live={spectrum.live} />
+          <div className="flex items-center gap-3">
+            <LiveChip live={spectrum.live} />
+            <Link
+              to={spectrum.logsCanHref}
+              className="font-mono text-[10px] uppercase tracking-[0.14em] text-accent outline-none transition-colors duration-150 hover:text-accent-dim focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              Open Logs · CAN
+            </Link>
+          </div>
         </CardAction>
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col gap-3 px-2 pb-4 sm:px-4">
@@ -468,24 +476,27 @@ export function CanBusSpectrumPanel({ active = true }: CanBusSpectrumPanelProps)
         ) : null}
 
         {hot ? (
-          <>
-            <div className="grid grid-cols-3 gap-3 border-b border-line pb-3">
-              <MetricReadout
-                label="Rate"
-                value={formatHz(spectrum.sessionApproxHz)}
-                unit="Hz"
-              />
-              <MetricReadout
-                label="Frames"
-                value={spectrum.parsedFrames.toLocaleString()}
-              />
-              <MetricReadout
-                label="Window"
-                value={spectrum.durationS.toFixed(2)}
-                unit="s"
-              />
+          <div className="grid min-h-[14rem] flex-1 gap-4 @3xl/card:grid-cols-[11rem_minmax(16rem,0.85fr)_minmax(0,1.35fr)]">
+            <div className="flex min-w-0 flex-col gap-3 border-b border-line pb-3 @3xl/card:border-b-0 @3xl/card:border-r @3xl/card:pb-0 @3xl/card:pr-4">
+              <div className="grid grid-cols-3 gap-3 @3xl/card:grid-cols-1 @3xl/card:gap-2.5">
+                <MetricReadout
+                  label="Rate"
+                  value={formatHz(spectrum.sessionApproxHz)}
+                  unit="Hz"
+                />
+                <MetricReadout
+                  label="Frames"
+                  value={spectrum.parsedFrames.toLocaleString()}
+                />
+                <MetricReadout
+                  label="Window"
+                  value={spectrum.durationS.toFixed(2)}
+                  unit="s"
+                />
+              </div>
+              <InterfaceStrip partitions={spectrum.partitions} />
             </div>
-            <div className="grid min-h-0 gap-3 @md/card:grid-cols-[1.35fr_0.85fr]">
+            <div className="flex min-h-0 min-w-0 flex-col gap-3 border-b border-line pb-3 @3xl/card:border-b-0 @3xl/card:border-r @3xl/card:pb-0 @3xl/card:pr-4">
               <div className="min-w-0 space-y-1.5">
                 <div className="micro-label">Top IDs</div>
                 <IdHistogram bands={spectrum.bands} />
@@ -495,21 +506,14 @@ export function CanBusSpectrumPanel({ active = true }: CanBusSpectrumPanelProps)
                 <RateSparkline samples={spectrum.rateHz} />
               </div>
             </div>
-            <InterfaceStrip partitions={spectrum.partitions} />
-            <MicroLog lines={spectrum.microLog} />
-          </>
+            <div className="flex min-h-[12rem] min-w-0 flex-col gap-1.5">
+              <div className="micro-label">Tail</div>
+              <MicroLog lines={spectrum.microLog} />
+            </div>
+          </div>
         ) : null}
 
         <LinkActivityChart samples={linkActivity} />
-
-        <div className="flex shrink-0 items-center gap-2 pt-0.5">
-          <Link
-            to={spectrum.logsCanHref}
-            className="font-mono text-[10px] uppercase tracking-[0.14em] text-accent outline-none transition-colors duration-150 hover:text-accent-dim focus-visible:ring-1 focus-visible:ring-ring"
-          >
-            Open Logs · CAN
-          </Link>
-        </div>
       </CardContent>
     </Card>
   );
