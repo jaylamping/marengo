@@ -16,6 +16,12 @@ import { useRobotStore } from '@/state/robotStore';
 
 import type { HardwareJointRow } from '@/components/dashboard/hardware/build-hardware-rows';
 
+/** Avoid auto-focusing the Set Limits help trigger (Radix Tooltip opens on focus). */
+function focusSheetOnOpen(event: Event) {
+  event.preventDefault();
+  (event.currentTarget as HTMLElement).focus();
+}
+
 function formatLimit(value: number | null): string {
   if (value === null || !Number.isFinite(value)) {
     return '—';
@@ -47,7 +53,13 @@ export function HardwareSettingsSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" variant="panel" className="w-full sm:max-w-md" showOverlay>
+      <SheetContent
+        side="right"
+        variant="panel"
+        className="w-full sm:max-w-md"
+        showOverlay
+        onOpenAutoFocus={focusSheetOnOpen}
+      >
         {row ? (
           <>
             <SheetHeader className="border-b border-line">
