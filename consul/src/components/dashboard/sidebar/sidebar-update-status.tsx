@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
 import {
   SELF_UPDATE_TIMEOUT_MS,
   clearSelfUpdateSession,
@@ -47,6 +48,65 @@ function deriveMode(status: VersionStatusDto | null, forceUpdating: boolean): Ui
   return 'unknown';
 }
 
+function phaseLabel(phase: string | undefined): string | null {
+  if (!phase) return null;
+  const map: Record<string, string> = {
+    init: 'Init',
+    dirty: 'Dirty tree',
+    fetch: 'Fetch',
+    lfs: 'LFS',
+    build: 'Build',
+    install: 'Install',
+    enqueue: 'Queued',
+    done: 'Done',
+    timeout: 'Timed out',
+    orphan: 'Interrupted',
+    error: 'Error',
+  };
+  return map[phase] ?? phase;
+}
+
+function statusLedClass(mode: UiMode): string {
+  switch (mode) {
+    case 'current':
+      return 'led led-ok';
+    case 'stale':
+      return 'led led-info';
+    case 'failed':
+      return 'led led-fault';
+    case 'updating':
+      return 'led led-info led-live';
+    case 'upstream_unknown':
+    case 'unknown':
+      return 'led';
+    default: {
+      const _exhaustive: never = mode;
+      return _exhaustive;
+    }
+  }
+}
+
+function statusCaption(mode: UiMode, shaLabel: string, phase: string | null): string {
+  switch (mode) {
+    case 'updating':
+      return phase ? `Updating · ${phase}` : 'Updating…';
+    case 'stale':
+      return `rev ${shaLabel} · behind`;
+    case 'upstream_unknown':
+      return `rev ${shaLabel} · offline`;
+    case 'failed':
+      return `rev ${shaLabel} · failed`;
+    case 'current':
+      return `rev ${shaLabel}`;
+    case 'unknown':
+      return 'rev —';
+    default: {
+      const _exhaustive: never = mode;
+      return _exhaustive;
+    }
+  }
+}
+
 export function SidebarUpdateStatus() {
   const [status, setStatus] = useState<VersionStatusDto | null>(null);
   const [checking, setChecking] = useState(false);
@@ -58,6 +118,11 @@ export function SidebarUpdateStatus() {
   const session = readSelfUpdateSession();
   const forceUpdating = Boolean(session) || deployBusy;
   const mode = deriveMode(status, forceUpdating && status?.deploy.state !== 'failed');
+  const updating = mode === 'updating';
+  const showUpdate = mode === 'stale' && !updating && !checking;
+  const shaLabel = status?.deploy_sha ? shortSha(status.deploy_sha) : '—';
+  const phase = updating ? phaseLabel(status?.deploy.phase) : null;
+  const caption = statusCaption(mode, shaLabel, phase);
 
   useEffect(() => {
     let cancelled = false;
@@ -73,7 +138,7 @@ export function SidebarUpdateStatus() {
         const timedOut = Date.now() - sess.startedAtMs > SELF_UPDATE_TIMEOUT_MS;
         if (timedOut) {
           clearSelfUpdateSession();
-          setError('Update timed out — check Pi logs /opt/marengo/var/self-update.log');
+          setError('Timed out — see /opt/marengo/var/self-update.log');
           toast.error('Update timed out');
         } else if (next.deploy.state === 'failed') {
           clearSelfUpdateSession();
@@ -95,9 +160,7 @@ export function SidebarUpdateStatus() {
       }
 
       const busy =
-        Boolean(readSelfUpdateSession()) ||
-        next?.deploy.state === 'running' ||
-        (next?.deploy.state === 'succeeded' && Boolean(readSelfUpdateSession()));
+        Boolean(readSelfUpdateSession()) || next?.deploy.state === 'running';
       timer = window.setTimeout(
         () => {
           void tick(false);
@@ -121,11 +184,11 @@ export function SidebarUpdateStatus() {
       setChecking(false);
       setStatus(next);
       if (!next) {
-        toast.error('Could not reach gateway version status');
+        toast.error('Gateway unreachable');
         return;
       }
       if (!next.upstream_ok) {
-        toast.message('Installed rev shown — GitHub unreachable');
+        toast.message('GitHub unreachable — showing installed rev');
         return;
       }
       if (next.update_available) {
@@ -166,47 +229,53 @@ export function SidebarUpdateStatus() {
     })();
   };
 
-  const shaLabel = status?.deploy_sha ? shortSha(status.deploy_sha) : '—';
-  const updating = mode === 'updating';
-  const showUpdate = mode === 'stale' && !updating && !checking;
-
   return (
-    <div className="flex w-full flex-col gap-1.5 px-2 pb-1" data-testid="sidebar-update-status">
-      <div className="flex items-center justify-between gap-2 font-mono text-[10px] text-muted-foreground">
-        <span className="truncate" title={status?.deploy_sha || undefined}>
-          {updating ? 'Updating…' : `rev ${shaLabel}`}
-          {mode === 'stale' ? ' · stale' : null}
-          {mode === 'upstream_unknown' ? ' · upstream?' : null}
-          {mode === 'failed' ? ' · failed' : null}
+    <div
+      className="flex w-full flex-col gap-1.5 border-t border-line px-2 pt-2"
+      data-testid="sidebar-update-status"
+    >
+      <div className="flex min-w-0 items-center gap-1.5">
+        <span className={statusLedClass(mode)} aria-hidden />
+        <span
+          className="micro-label min-w-0 flex-1 truncate normal-case tracking-normal"
+          title={status?.deploy_sha || undefined}
+        >
+          {caption}
         </span>
         {updating ? (
           <HugeiconsIcon
             icon={Loading03Icon}
             strokeWidth={2}
-            className="size-3.5 shrink-0 animate-spin text-sky-400"
+            className="size-3.5 shrink-0 animate-spin text-info motion-reduce:animate-none"
             data-testid="sidebar-update-spinner"
+            aria-hidden
           />
         ) : null}
       </div>
+
       {error ? (
         <p className="text-[10px] leading-snug text-fault" role="alert">
           {error}
         </p>
       ) : null}
-      <div className="flex flex-wrap gap-1">
+
+      <div className="flex flex-wrap items-center gap-1">
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           size="xs"
+          className="h-6 px-1.5 text-muted-foreground hover:text-foreground"
           disabled={updating || checking}
           data-testid="check-for-updates"
+          aria-label="Check for updates"
+          title="Check for updates"
           onClick={onCheck}
         >
           {checking ? (
             <HugeiconsIcon
               icon={Loading03Icon}
               strokeWidth={2}
-              className="size-3 animate-spin"
+              className="size-3 animate-spin motion-reduce:animate-none"
               data-icon="inline-start"
             />
           ) : (
@@ -217,21 +286,25 @@ export function SidebarUpdateStatus() {
               data-icon="inline-start"
             />
           )}
-          Check for updates
+          Check
         </Button>
+
         {showUpdate ? (
-          <Button
+          <button
             type="button"
-            size="xs"
-            className="border-sky-600/40 bg-sky-600 text-white hover:bg-sky-500"
             data-testid="sidebar-update-button"
+            className={cn(
+              'inline-flex h-6 shrink-0 items-center border border-info/50 bg-info/10 px-2 font-mono text-[10px] uppercase tracking-[0.14em] text-info transition-colors',
+              'hover:bg-info/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            )}
+            title="Install latest main onto the Pi"
             onClick={() => {
               setError(null);
               setConfirmOpen(true);
             }}
           >
             Update
-          </Button>
+          </button>
         ) : null}
       </div>
 
@@ -248,18 +321,23 @@ export function SidebarUpdateStatus() {
           data-testid="update-confirm-dialog"
         >
           <DialogHeader>
-            <DialogTitle>Update Marengo now?</DialogTitle>
+            <DialogTitle>Update Marengo?</DialogTitle>
             <DialogDescription>
-              Pulls the latest GitHub main onto the Pi, builds natively, and installs to
-              /opt/marengo. Expect several minutes of downtime. Support elevated arms —
-              motors go limp during install.
+              Pins GitHub main on the Pi, builds natively, and installs to /opt/marengo.
+              Several minutes of downtime. Support elevated arms — motors go limp during
+              install.
             </DialogDescription>
           </DialogHeader>
-          <DialogBody>
+          <DialogBody className="space-y-2">
             {status?.upstream_sha ? (
               <p className="font-mono text-xs text-muted-foreground">
-                Target {shortSha(status.upstream_sha)}
-                {status.deploy_sha ? ` ← ${shortSha(status.deploy_sha)}` : null}
+                <span className="text-info">{shortSha(status.upstream_sha)}</span>
+                {status.deploy_sha ? (
+                  <>
+                    <span className="text-faint"> ← </span>
+                    {shortSha(status.deploy_sha)}
+                  </>
+                ) : null}
               </p>
             ) : null}
           </DialogBody>
@@ -276,12 +354,24 @@ export function SidebarUpdateStatus() {
             <Button
               type="button"
               size="sm"
-              className="border-sky-600/40 bg-sky-600 text-white hover:bg-sky-500"
+              className="border-info/40 bg-info/90 text-background hover:bg-info"
               disabled={deployBusy}
               data-testid="confirm-update-button"
               onClick={onConfirmUpdate}
             >
-              {deployBusy ? 'Starting…' : 'Update now'}
+              {deployBusy ? (
+                <>
+                  <HugeiconsIcon
+                    icon={Loading03Icon}
+                    strokeWidth={2}
+                    className="size-3.5 animate-spin motion-reduce:animate-none"
+                    data-icon="inline-start"
+                  />
+                  Starting…
+                </>
+              ) : (
+                'Update now'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

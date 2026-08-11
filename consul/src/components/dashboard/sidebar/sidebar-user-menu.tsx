@@ -29,7 +29,7 @@ export function SidebarUserMenu({ user }: SidebarUserMenuProps) {
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <div className="flex w-full flex-col gap-1">
+        <div className="flex w-full flex-col">
           <div className="flex w-full items-center gap-2 rounded-md px-2 py-1.5">
             <Avatar className="size-8 rounded-lg grayscale">
               <AvatarImage src={user.avatar} alt={user.name} />
