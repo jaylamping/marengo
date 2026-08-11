@@ -13,13 +13,16 @@ if [[ "${SKIP_CONSUL:-false}" == true ]]; then
   exit 0
 fi
 
-if ! command -v npm >/dev/null 2>&1; then
+ensure_user_node_in_path || true
+if ! command -v npm >/dev/null 2>&1 || ! command -v node >/dev/null 2>&1; then
   # Silent skip left /opt/marengo/www on a stale bundle after Set Limits / UI
   # fixes landed in git (self-update reported success; Apply still ±30 mrad pad).
-  echo "error: npm not found — cannot rebuild Consul UI for install-pi www/" >&2
-  echo "error: install Node ≥24 on the Pi, or set SKIP_CONSUL=true only for binary-only installs" >&2
+  echo "error: npm/node not found — cannot rebuild Consul UI for install-pi www/" >&2
+  echo "error: install Node ≥24 under ~/.local/node-v24.16.0 (Pi) or on PATH; SKIP_CONSUL=true only for binary-only installs" >&2
+  echo "error: PATH=${PATH}" >&2
   exit 1
 fi
+echo "build-consul-native: node $(node -v) npm $(npm -v)"
 
 if [[ ! -f "${ROOT}/consul/package-lock.json" ]]; then
   echo "error: ${ROOT}/consul/package-lock.json missing" >&2
