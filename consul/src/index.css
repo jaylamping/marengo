@@ -251,6 +251,11 @@
     animation: led-pulse 2.4s ease-in-out infinite;
   }
 
+  /* Brief success flash for Set Limits / Set Zero ACK (header badge). */
+  .badge-applied-flash {
+    animation: applied-flash 0.55s cubic-bezier(0.16, 1, 0.3, 1) 0s 3 both;
+  }
+
   /* Single atmosphere layer: edge vignette. No grain, no scanlines. */
   .app-vignette {
     position: fixed;
@@ -281,8 +286,22 @@
   }
 }
 
+@keyframes applied-flash {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .led-live {
+    animation: none;
+  }
+
+  .badge-applied-flash {
     animation: none;
   }
 }

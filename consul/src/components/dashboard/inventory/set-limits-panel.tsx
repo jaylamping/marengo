@@ -63,9 +63,10 @@ export function SetLimitsPanel({
   const [signTestPassed, setSignTestPassed] = useState(false);
   const [applyBusy, setApplyBusy] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
-  const [applyOk, setApplyOk] = useState<string | null>(null);
+  const [applyOk, setApplyOk] = useState(false);
   const applyInFlightRef = useRef(false);
   const proposedRange = proposal?.display ?? null;
+  const showAppliedFlash = zeroOk || applyOk;
 
   const confirmTitleId = useId();
   const confirmDescId = useId();
@@ -135,7 +136,7 @@ export function SetLimitsPanel({
     if (!zeroOk) {
       return;
     }
-    const timer = window.setTimeout(() => setZeroOk(false), 4000);
+    const timer = window.setTimeout(() => setZeroOk(false), 2200);
     return () => window.clearTimeout(timer);
   }, [zeroOk]);
 
@@ -143,7 +144,7 @@ export function SetLimitsPanel({
     if (!applyOk) {
       return;
     }
-    const timer = window.setTimeout(() => setApplyOk(null), 6000);
+    const timer = window.setTimeout(() => setApplyOk(false), 2200);
     return () => window.clearTimeout(timer);
   }, [applyOk]);
 
@@ -211,7 +212,7 @@ export function SetLimitsPanel({
     applyInFlightRef.current = true;
     setApplyBusy(true);
     setApplyError(null);
-    setApplyOk(null);
+    setApplyOk(false);
     try {
       const result = await persistJointLimits(jointName, {
         lower: proposal.lower,
@@ -224,11 +225,7 @@ export function SetLimitsPanel({
       // Draft only — do not write inventoryOverridesStore; config snapshot is SoT.
       onApplyRange(proposal.display);
       discard();
-      setApplyOk(
-        result.restartRequired
-          ? result.message
-          : `${result.message} — new durable SoT (live; deploy preserves)`,
-      );
+      setApplyOk(true);
       if (result.localSync === 'failed') {
         setApplyError(
           'Local checkout sync failed — is just limit-sync-serve running?',
@@ -289,25 +286,37 @@ export function SetLimitsPanel({
             </TooltipContent>
           </Tooltip>
         </div>
-        {listening ? (
-          <Badge className="border-accent/40 bg-accent/15 font-mono text-[10px] uppercase tracking-[0.14em] text-accent">
-            Listening
-          </Badge>
-        ) : reviewing ? (
-          <Badge
-            variant="secondary"
-            className="font-mono text-[10px] uppercase tracking-[0.14em]"
-          >
-            Review
-          </Badge>
-        ) : (
-          <Badge
-            variant="outline"
-            className="font-mono text-[10px] uppercase tracking-[0.14em]"
-          >
-            Idle
-          </Badge>
-        )}
+        <div className="flex items-center gap-2">
+          {showAppliedFlash ? (
+            <Badge
+              className="badge-applied-flash border-[color:var(--ok)]/40 bg-[color:var(--ok)]/15 font-mono text-[10px] uppercase tracking-[0.14em] text-[color:var(--ok)]"
+              role="status"
+              aria-live="polite"
+              data-testid="set-limits-applied"
+            >
+              Applied
+            </Badge>
+          ) : null}
+          {listening ? (
+            <Badge className="border-accent/40 bg-accent/15 font-mono text-[10px] uppercase tracking-[0.14em] text-accent">
+              Listening
+            </Badge>
+          ) : reviewing ? (
+            <Badge
+              variant="secondary"
+              className="font-mono text-[10px] uppercase tracking-[0.14em]"
+            >
+              Review
+            </Badge>
+          ) : (
+            <Badge
+              variant="outline"
+              className="font-mono text-[10px] uppercase tracking-[0.14em]"
+            >
+              Idle
+            </Badge>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
@@ -368,21 +377,10 @@ export function SetLimitsPanel({
           {applyError}
         </p>
       ) : null}
-      {applyOk ? (
-        <p className="text-xs text-ok" role="status">
-          {applyOk}
-        </p>
-      ) : null}
 
       {zeroError ? (
         <p className="text-xs text-fault" role="status">
           {zeroError}
-        </p>
-      ) : null}
-      {zeroOk ? (
-        <p className="text-xs text-ok" role="status">
-          Set Zero queued — watch telemetry for pos near 0 and Disabled before
-          Set Limits. Calibration epoch is not bumped until zero is verified.
         </p>
       ) : null}
 
@@ -476,7 +474,7 @@ export function SetLimitsPanel({
                 disabled={applyBusy}
                 onClick={() => {
                   setApplyError(null);
-                  setApplyOk(null);
+                  setApplyOk(false);
                   discard();
                 }}
               >
@@ -487,11 +485,11 @@ export function SetLimitsPanel({
             <Button
               type="button"
               size="sm"
-              disabled={!canStart || zeroConfirmOpen || zeroBusy || zeroOk}
+              disabled={!canStart || zeroConfirmOpen || zeroBusy}
               onClick={() => {
                 setZeroOk(false);
                 setZeroError(null);
-                setApplyOk(null);
+                setApplyOk(false);
                 setApplyError(null);
                 start(jointName);
               }}

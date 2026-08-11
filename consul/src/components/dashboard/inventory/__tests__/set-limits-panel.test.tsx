@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import '@testing-library/jest-dom/vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 
 import { SetLimitsPanel } from '@/components/dashboard/inventory/set-limits-panel';
@@ -163,7 +164,10 @@ describe('SetLimitsPanel', () => {
       });
     });
     await vi.waitFor(() => {
-      expect(screen.getByText(/Set Zero queued/i)).toBeTruthy();
+      expect(screen.getByTestId('set-limits-applied')).toHaveTextContent(
+        'Applied',
+      );
+      expect(screen.queryByText(/Set Zero queued/i)).toBeNull();
     });
   });
 
@@ -202,6 +206,11 @@ describe('SetLimitsPanel', () => {
       expect(onApplyRange).toHaveBeenCalledWith('−0.50–1.20');
       expect(useNeedsRestartStore.getState().pending).toEqual([]);
       expect(useNeedsRestartStore.getState().restartDialogOpen).toBe(false);
+      expect(screen.getByTestId('set-limits-applied')).toHaveTextContent(
+        'Applied',
+      );
+      expect(screen.getByText('Idle')).toBeTruthy();
+      expect(screen.queryByText(/new durable SoT/i)).toBeNull();
     });
   });
 
