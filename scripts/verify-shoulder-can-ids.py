@@ -13,8 +13,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-# (path, must_match_patterns, must_not_match_patterns)
-CHECKS: list[tuple[Path, list[str], list[str]]] = [
+PathChecks = tuple[Path, list[str], list[str]]
+
+FILE_CHECKS: list[PathChecks] = [
     (
         ROOT / "config" / "motors.yaml",
         [
@@ -46,10 +47,36 @@ CHECKS: list[tuple[Path, list[str], list[str]]] = [
     ),
 ]
 
+JOINT_DIRECTION: dict[str, int] = {
+    "right_shoulder_pitch": -1,
+    "right_shoulder_roll": 1,
+}
+
+
+def joint_field_pattern(joint: str, field: str, value: str) -> str:
+    return (
+        rf"^  - joint:\s*{re.escape(joint)}\b"
+        rf"(?:(?!^  - joint:)[\s\S])*?^\s+{re.escape(field)}:\s*{re.escape(value)}\b"
+    )
+
+
+def check_joint_directions(motors_text: str) -> list[str]:
+    failures: list[str] = []
+    for joint, direction in JOINT_DIRECTION.items():
+        if not re.search(
+            joint_field_pattern(joint, "direction", str(direction)),
+            motors_text,
+            re.MULTILINE,
+        ):
+            failures.append(
+                f"config/motors.yaml: {joint} direction must remain {direction}"
+            )
+    return failures
+
 
 def main() -> int:
     failures: list[str] = []
-    for path, must, must_not in CHECKS:
+    for path, must, must_not in FILE_CHECKS:
         if not path.is_file():
             failures.append(f"missing file: {path}")
             continue
@@ -62,19 +89,7 @@ def main() -> int:
                 failures.append(f"{path.relative_to(ROOT)}: stale /{pat}/")
 
     motors = (ROOT / "config" / "motors.yaml").read_text(encoding="utf-8")
-    # Direction stays with the joint, not the CAN id.
-    if not re.search(
-        r"^  - joint:\s*right_shoulder_pitch\b(?:(?!^  - joint:)[\s\S])*?^\s+direction:\s*-1\b",
-        motors,
-        re.MULTILINE,
-    ):
-        failures.append("config/motors.yaml: pitch direction must remain -1")
-    if not re.search(
-        r"^  - joint:\s*right_shoulder_roll\b(?:(?!^  - joint:)[\s\S])*?^\s+direction:\s*1\b",
-        motors,
-        re.MULTILINE,
-    ):
-        failures.append("config/motors.yaml: roll direction must remain 1")
+    failures.extend(check_joint_directions(motors))
 
     if failures:
         print("shoulder CAN id verify FAILED:")
