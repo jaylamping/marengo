@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   persistJointLimits,
   softLimitsWithInset,
-  DEFAULT_HARD_MARGIN_RAD,
   DEFAULT_SOFT_INSET_RAD,
 } from '@/lib/persist-joint-limits';
 
@@ -103,7 +102,7 @@ describe('persistJointLimits', () => {
     }
   });
 
-  it('patches hard + soft inset and syncs local only after durable', async () => {
+  it('patches taught hard + soft inset (no silent ±30 mrad widen) after durable', async () => {
     const patchConfig = vi.fn().mockResolvedValue({
       ok: true,
       message: 'Applied live limits',
@@ -114,12 +113,12 @@ describe('persistJointLimits', () => {
 
     const result = await persistJointLimits(
       'right_shoulder_pitch',
-      { lower: -0.506, upper: 1.206 },
+      { lower: -1.4, upper: 3.19 },
       { patchConfig, localSync },
     );
 
-    const hardLower = -0.506 - DEFAULT_HARD_MARGIN_RAD;
-    const hardUpper = 1.206 + DEFAULT_HARD_MARGIN_RAD;
+    const hardLower = -1.4;
+    const hardUpper = 3.19;
     const soft = softLimitsWithInset(hardLower, hardUpper);
     expect(result.ok).toBe(true);
     if (result.ok) {

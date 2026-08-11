@@ -8,12 +8,6 @@ import type { JointRangeBounds } from '@/lib/limit-listen';
 /** ADR 0009 hard/soft gap (~27 mrad). */
 export const DEFAULT_SOFT_INSET_RAD = 0.027;
 
-/**
- * Pad measured Set Limits hard bounds so enable at the swept min/max does not
- * immediately trip Davout (encoder jitter / settling can sit ~1–10 mrad past the sample).
- */
-export const DEFAULT_HARD_MARGIN_RAD = 0.03;
-
 export type LocalLimitSyncStatus = 'ok' | 'skipped' | 'failed';
 
 export type PersistJointLimitsResult =
@@ -84,8 +78,11 @@ export async function persistJointLimits(
     return { ok: false, message: 'Invalid limit bounds.' };
   }
 
-  const hardLower = bounds.lower - DEFAULT_HARD_MARGIN_RAD;
-  const hardUpper = bounds.upper + DEFAULT_HARD_MARGIN_RAD;
+  // Persist taught hard as SoT (what the operator swept). Enable-at-stop jitter
+  // is covered by Davout `position_limit_measured_fault_slack_rad` (~30 mrad),
+  // not by silently widening motors.yaml hard on every Apply.
+  const hardLower = bounds.lower;
+  const hardUpper = bounds.upper;
   const { softLower, softUpper } = softLimitsWithInset(hardLower, hardUpper);
   const patch = deps?.patchConfig ?? patchConfig;
   const timeoutMs = deps?.timeoutMs ?? DEFAULT_PATCH_TIMEOUT_MS;

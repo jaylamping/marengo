@@ -27,7 +27,7 @@ import { useLimitListenStore } from '@/state/limitListenStore';
 import { useRobotStore } from '@/state/robotStore';
 
 const SET_LIMITS_HELP =
-  'Motors must be disabled (not ACTIVE) for Set Limits. Support the assembly, then sweep the joint to both hard stops while Consul samples position (Hardware holds an Active Reporting lease for free-drive sensing). Stop to propose min/max, then Apply Limits becomes the new durable SoT: hot-reloads Davout hard (+30 mrad margin) and soft (ADR 0009 inset), expand-only URDF, and YAML write-behind (no restart). Later deploys preserve those taught envelopes unless MARENGO_REPLACE_LIMITS=1. Hardware Range reads the live Davout snapshot. Persist failures show a separate degraded banner — do not restart to “fix” them. Set Zero briefly enables for firmware zero at the current pose, then disables again.';
+  'Motors must be disabled (not ACTIVE) for Set Limits. Support the assembly, then sweep the joint to both hard stops while Consul samples position (Hardware holds an Active Reporting lease for free-drive sensing). Stop to propose min/max, then Apply Limits becomes the new durable SoT: hot-reloads Davout hard to the taught min/max (soft = ADR 0009 inset), expand-only URDF, and YAML write-behind (no restart). Encoder jitter at the stop is covered by Davout measured-fault slack (~30 mrad), not by rewriting the stored hard. Later deploys preserve those taught envelopes unless MARENGO_REPLACE_LIMITS=1. Hardware Range reads the live Davout snapshot. Persist failures show a separate degraded banner — do not restart to “fix” them. Set Zero briefly enables for firmware zero at the current pose, then disables again.';
 
 type SetLimitsPanelProps = {
   jointName: string;
