@@ -83,7 +83,7 @@ export function buildHardwareRows(
   const facets = buildHardwareFacetSnapshots(snapshot, robotState);
   const facetByJoint = new Map(facets.map((f) => [f.name, f] as const));
 
-  return joints.map((joint) => {
+  const rows = joints.map((joint) => {
     const motor = motorsByJoint.get(joint);
     const soft = softByJoint.get(joint);
     const jointWarnings = warningsForJoint(completenessWarnings, joint);
@@ -121,6 +121,25 @@ export function buildHardwareRows(
       facet,
     };
   });
+
+  return rows.sort(compareHardwareRowsByCanAddress);
+}
+
+/** Bus name, then device id; unwired joints (null id) sort last. */
+export function compareHardwareRowsByCanAddress(
+  a: Pick<HardwareJointRow, 'canInterface' | 'canId' | 'joint'>,
+  b: Pick<HardwareJointRow, 'canInterface' | 'canId' | 'joint'>,
+): number {
+  const ifaceA = a.canInterface ?? '\uffff';
+  const ifaceB = b.canInterface ?? '\uffff';
+  const ifaceCmp = ifaceA.localeCompare(ifaceB);
+  if (ifaceCmp !== 0) return ifaceCmp;
+
+  const idA = a.canId ?? Number.POSITIVE_INFINITY;
+  const idB = b.canId ?? Number.POSITIVE_INFINITY;
+  if (idA !== idB) return idA - idB;
+
+  return a.joint.localeCompare(b.joint);
 }
 
 export function countCompletenessWarnings(warnings: CompletenessWarningDto[]): number {
