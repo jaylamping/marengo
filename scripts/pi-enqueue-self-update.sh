@@ -13,6 +13,7 @@ JOB_FILE="${MARENGO_DEPLOY_JOB_FILE:-${JOB_DIR}/deploy-job.json}"
 LOCK_FILE="${MARENGO_DEPLOY_JOB_LOCK:-${JOB_DIR}/deploy-job.lock}"
 SCRIPT="${STAGING}/scripts/pi-self-update.sh"
 UNIT="marengo-self-update"
+REPO_URL="${MARENGO_GIT_URL:-https://github.com/jaylamping/marengo.git}"
 
 if [[ "$(id -u)" -ne 0 ]]; then
   echo "error: must run as root (via sudo -n)" >&2
@@ -30,6 +31,26 @@ if [[ ! "${JOB_ID}" =~ ^[A-Za-z0-9._:-]+$ ]]; then
   echo "error: job_id contains unsafe characters" >&2
   exit 2
 fi
+
+ensure_staging_git() {
+  # Deploy rsync trees under ~/marengo lack .git; heal before looking for the worker.
+  if [[ -d "${STAGING}/.git" ]]; then
+    return 0
+  fi
+  echo "bootstrapping git clone at ${STAGING}"
+  if [[ -e "${STAGING}" ]]; then
+    local bak="${STAGING}.not-a-git.bak.$(date -u +%Y%m%dT%H%M%SZ)"
+    mv "${STAGING}" "${bak}"
+    echo "moved non-git staging to ${bak}"
+  fi
+  if ! sudo -u "${DEPLOY_USER}" -H env GIT_TERMINAL_PROMPT=0     git clone "${REPO_URL}" "${STAGING}"; then
+    echo "error: git clone failed (${REPO_URL} -> ${STAGING})" >&2
+    exit 1
+  fi
+}
+
+ensure_staging_git
+
 if [[ ! -x "${SCRIPT}" ]]; then
   echo "error: self-update script missing or not executable: ${SCRIPT}" >&2
   exit 1
