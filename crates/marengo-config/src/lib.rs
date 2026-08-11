@@ -1129,9 +1129,11 @@ mod tests {
         let motors = load_motors_config(repo_root()).expect("motors");
         assert_eq!(motors.motors.len(), 4);
         validate_motors_against_robot(&robot, &motors).expect("joint names align");
-        let m = motor_for_joint(&motors, "right_shoulder_roll").expect("right_shoulder_roll");
-        assert_eq!(m.device_id, 1);
-        assert_eq!(m.motor_type, MotorType::Rs03);
+        let pitch = motor_for_joint(&motors, "right_shoulder_pitch").expect("right_shoulder_pitch");
+        assert_eq!(pitch.device_id, 1);
+        let roll = motor_for_joint(&motors, "right_shoulder_roll").expect("right_shoulder_roll");
+        assert_eq!(roll.device_id, 2);
+        assert_eq!(pitch.motor_type, MotorType::Rs03);
     }
 
     #[test]
@@ -1293,10 +1295,10 @@ mod tests {
             driver: "robstride".to_string(),
             motor_type: MotorType::Rs03,
             can_interface: "can0".to_string(),
-            device_id: 2,
+            device_id: 1,
             direction: -1,
             gear_ratio: 1.0,
-            recv_can_id: 0x242,
+            recv_can_id: 0x241,
             firmware_version: "test".to_string(),
             bench: MotorBenchLimits {
                 position_lower_rad: -0.9,

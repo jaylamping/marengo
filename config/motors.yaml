@@ -1,35 +1,35 @@
-# Right 4-DOF bench — roll (1) + pitch (2) + yaw (3) + elbow pitch (4) on can0.
+# Right 4-DOF bench — pitch (1) + roll (2) + yaw (3) + elbow pitch (4) on can0.
 # ID block: right arm 1–10 (hardware ADR 0001).
 #
 # Bench envelopes from Set Limits (2026-07-22). Davout hard = URDF ∩ bench.
 # Roll lower kept at URDF -0.05 (not flush to measured min) so home pose ~-0.01 enables.
 motors:
-  - joint: right_shoulder_roll
-    driver: robstride
-    motor_type: rs03
-    can_interface: can0
-    device_id: 1
-    direction: 1
-    gear_ratio: 1.0
-    recv_can_id: 0x241
-    firmware_version: "0.3.1.42"
-    bench:
-      position_lower_rad: -0.05
-      position_upper_rad: 2.579468250274658
-      velocity_limit_rad_s: 2.0
-      torque_limit_nm: 5.0
   - joint: right_shoulder_pitch
     driver: robstride
     motor_type: rs03
     can_interface: can0
-    device_id: 2
+    device_id: 1
     direction: -1
     gear_ratio: 1.0
-    recv_can_id: 0x242
+    recv_can_id: 0x241
     firmware_version: "0.3.1.42"
     bench:
       position_lower_rad: -0.9004737138748169
       position_upper_rad: 2.9253904819488525
+      velocity_limit_rad_s: 2.0
+      torque_limit_nm: 5.0
+  - joint: right_shoulder_roll
+    driver: robstride
+    motor_type: rs03
+    can_interface: can0
+    device_id: 2
+    direction: 1
+    gear_ratio: 1.0
+    recv_can_id: 0x242
+    firmware_version: "0.3.1.42"
+    bench:
+      position_lower_rad: -0.05
+      position_upper_rad: 2.579468250274658
       velocity_limit_rad_s: 2.0
       torque_limit_nm: 5.0
   - joint: right_upper_arm_yaw
