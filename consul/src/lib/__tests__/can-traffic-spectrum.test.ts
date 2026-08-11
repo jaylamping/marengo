@@ -22,7 +22,7 @@ const emptyLive: CanLiveChip = {
   rxErrorCount: null,
 };
 
-function summary(partial: Partial<CandumpSummaryDto> = {}): CandumpSummaryDto {
+function makeSummary(partial: Partial<CandumpSummaryDto> = {}): CandumpSummaryDto {
   return {
     parsed_frames: 100,
     total_lines: 100,
@@ -38,7 +38,7 @@ function summary(partial: Partial<CandumpSummaryDto> = {}): CandumpSummaryDto {
   };
 }
 
-function frame(partial: Partial<CandumpFrameDto> = {}): CandumpFrameDto {
+function makeFrame(partial: Partial<CandumpFrameDto> = {}): CandumpFrameDto {
   return {
     delta_s: 1,
     offset_s: 1,
@@ -60,7 +60,7 @@ describe('can-traffic-spectrum', () => {
 
   it('treats empty dump as absent, not an error', () => {
     const spectrum = buildCanTrafficSpectrum({
-      summary: summary({ parsed_frames: 0, top_ids: [], interfaces: [] }),
+      summary: makeSummary({ parsed_frames: 0, top_ids: [], interfaces: [] }),
       page: { frames: [], total: 0 },
       live: emptyLive,
       previous: null,
@@ -76,9 +76,9 @@ describe('can-traffic-spectrum', () => {
 
   it('builds bands and micro-log from a hot dump', () => {
     const spectrum = buildCanTrafficSpectrum({
-      summary: summary(),
+      summary: makeSummary(),
       page: {
-        frames: [frame({ line_no: 1 }), frame({ line_no: 2, can_id: '0x002' })],
+        frames: [makeFrame({ line_no: 1 }), makeFrame({ line_no: 2, can_id: '0x002' })],
         total: 100,
       },
       live: emptyLive,
@@ -98,20 +98,20 @@ describe('can-traffic-spectrum', () => {
 
   it('marks unchanged fingerprints stale after the freshness window', () => {
     const first = buildCanTrafficSpectrum({
-      summary: summary(),
-      page: { frames: [frame()], total: 100 },
+      summary: makeSummary(),
+      page: { frames: [makeFrame()], total: 100 },
       live: emptyLive,
       previous: null,
       nowMs: 1_000,
       summaryError: null,
       pageError: null,
     });
-    const fp = captureFingerprint(summary(), { frames: [frame()], total: 100 });
+    const fp = captureFingerprint(makeSummary(), { frames: [makeFrame()], total: 100 });
     expect(first.fingerprint).toBe(fp);
 
     const stale = buildCanTrafficSpectrum({
-      summary: summary(),
-      page: { frames: [frame()], total: 100 },
+      summary: makeSummary(),
+      page: { frames: [makeFrame()], total: 100 },
       live: emptyLive,
       previous: first,
       nowMs: 1_000 + STALE_AFTER_MS,
@@ -138,7 +138,7 @@ describe('can-traffic-spectrum', () => {
 
   it('projects a fixed micro-log tail', () => {
     const frames = Array.from({ length: 30 }, (_, i) =>
-      frame({ line_no: i + 1, can_id: `0x${i.toString(16)}` }),
+      makeFrame({ line_no: i + 1, can_id: `0x${i.toString(16)}` }),
     );
     const lines = projectMicroLog(frames, 24);
     expect(lines).toHaveLength(24);
@@ -169,20 +169,18 @@ describe('can-traffic-spectrum', () => {
   });
 
   it('preserves prior sparkline samples across rebuilds', () => {
-    const previous: CanTrafficSpectrum = {
-      ...buildCanTrafficSpectrum({
-        summary: summary({ approx_hz: 10 }),
-        page: { frames: [frame()], total: 100 },
-        live: emptyLive,
-        previous: null,
-        nowMs: 1_000,
-        summaryError: null,
-        pageError: null,
-      }),
-    };
+    const previous: CanTrafficSpectrum = buildCanTrafficSpectrum({
+      summary: makeSummary({ approx_hz: 10 }),
+      page: { frames: [makeFrame()], total: 100 },
+      live: emptyLive,
+      previous: null,
+      nowMs: 1_000,
+      summaryError: null,
+      pageError: null,
+    });
     const next = buildCanTrafficSpectrum({
-      summary: summary({ approx_hz: 20, parsed_frames: 101, total_lines: 101 }),
-      page: { frames: [frame({ line_no: 2 })], total: 101 },
+      summary: makeSummary({ approx_hz: 20, parsed_frames: 101, total_lines: 101 }),
+      page: { frames: [makeFrame({ line_no: 2 })], total: 101 },
       live: emptyLive,
       previous,
       nowMs: 3_000,
