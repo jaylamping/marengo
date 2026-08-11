@@ -27,7 +27,7 @@ describe('persistJointLimits', () => {
     vi.restoreAllMocks();
   });
 
-  it('does not probe loopback limit-sync when VITE_LIMIT_SYNC_URL is unset', async () => {
+  it('warns when VITE_LIMIT_SYNC_URL is unset after Durable Apply', async () => {
     const fetchSpy = vi
       .spyOn(globalThis, 'fetch')
       .mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
@@ -46,8 +46,9 @@ describe('persistJointLimits', () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.localSync).toBe('skipped');
-      expect(result.message).not.toMatch(/Local checkout/i);
+      expect(result.localSync).toBe('missing_config');
+      expect(result.message).toMatch(/VITE_LIMIT_SYNC_URL/i);
+      expect(result.message).toMatch(/limit-sync-serve/i);
     }
     expect(fetchSpy).not.toHaveBeenCalled();
   });

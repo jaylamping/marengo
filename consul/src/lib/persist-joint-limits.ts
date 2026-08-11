@@ -14,6 +14,8 @@ export const DEFAULT_SOFT_INSET_RAD = 0.027;
  */
 export const DEFAULT_HARD_MARGIN_RAD = 0.03;
 
+export type LocalLimitSyncStatus = 'ok' | 'skipped' | 'failed' | 'missing_config';
+
 export type PersistJointLimitsResult =
   | {
       ok: true;
@@ -23,7 +25,7 @@ export type PersistJointLimitsResult =
       softUpper: number;
       restartRequired: boolean;
       persistStatus: string;
-      localSync: 'ok' | 'skipped' | 'failed';
+      localSync: LocalLimitSyncStatus;
       message: string;
     }
   | { ok: false; message: string };
@@ -40,7 +42,7 @@ export type LocalLimitSyncFn = (args: {
   upper: number;
   softLower: number;
   softUpper: number;
-}) => Promise<'ok' | 'skipped' | 'failed'>;
+}) => Promise<LocalLimitSyncStatus>;
 
 const DEFAULT_PATCH_TIMEOUT_MS = 30_000;
 
@@ -122,7 +124,7 @@ export async function persistJointLimits(
   }
 
   const persistStatus = result.persist_status ?? 'unknown';
-  let localSync: 'ok' | 'skipped' | 'failed' = 'skipped';
+  let localSync: LocalLimitSyncStatus = 'skipped';
   if (persistStatus === 'durable') {
     const sync = deps?.localSync ?? defaultLocalLimitSync;
     localSync = await sync({
@@ -138,9 +140,11 @@ export async function persistJointLimits(
   const localNote =
     localSync === 'ok'
       ? ' Local checkout synced.'
-      : localSync === 'failed'
-        ? ' Local checkout sync failed (Pi durable).'
-        : '';
+      : localSync === 'missing_config'
+        ? ' Local checkout sync not configured — set VITE_LIMIT_SYNC_URL and run just limit-sync-serve.'
+        : localSync === 'failed'
+          ? ' Local checkout sync failed — is just limit-sync-serve running?'
+          : '';
 
   return {
     ok: true,
@@ -162,12 +166,12 @@ async function defaultLocalLimitSync(args: {
   upper: number;
   softLower: number;
   softUpper: number;
-}): Promise<'ok' | 'skipped' | 'failed'> {
+}): Promise<LocalLimitSyncStatus> {
   const base = (
     import.meta.env.VITE_LIMIT_SYNC_URL as string | undefined
   )?.trim();
   if (!base) {
-    return 'skipped';
+    return 'missing_config';
   }
   try {
     const res = await fetch(`${base.replace(/\/$/, '')}/local/limit-patch`, {
@@ -182,9 +186,6 @@ async function defaultLocalLimitSync(args: {
         soft_upper: args.softUpper,
       }),
     });
-    if (res.status === 404 || res.status === 0) {
-      return 'skipped';
-    }
     if (!res.ok) {
       return 'failed';
     }
