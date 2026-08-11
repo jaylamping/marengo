@@ -142,39 +142,40 @@ export function SidebarUpdateStatusView({
           <HugeiconsIcon
             icon={Loading03Icon}
             strokeWidth={2}
-            className="size-3.5 shrink-0 animate-spin text-info motion-reduce:animate-none"
+            className="ml-auto size-3.5 shrink-0 animate-spin text-info motion-reduce:animate-none"
             data-testid="sidebar-update-spinner"
             aria-hidden
           />
-        ) : null}
-        <Button
-          type="button"
-          variant="ghost"
-          size="xs"
-          className="ml-auto h-6 shrink-0 px-1.5 text-muted-foreground hover:text-foreground"
-          disabled={updating || checking}
-          data-testid="check-for-updates"
-          aria-label="Check for updates"
-          title="Check for updates"
-          onClick={onCheck}
-        >
-          {checking ? (
-            <HugeiconsIcon
-              icon={Loading03Icon}
-              strokeWidth={2}
-              className="size-3 animate-spin motion-reduce:animate-none"
-              data-icon="inline-start"
-            />
-          ) : (
-            <HugeiconsIcon
-              icon={RefreshIcon}
-              strokeWidth={2}
-              className="size-3"
-              data-icon="inline-start"
-            />
-          )}
-          Check
-        </Button>
+        ) : (
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            className="ml-auto h-6 shrink-0 px-1.5 text-muted-foreground hover:text-foreground"
+            disabled={checking}
+            data-testid="check-for-updates"
+            aria-label="Check for updates"
+            title="Check for updates"
+            onClick={onCheck}
+          >
+            {checking ? (
+              <HugeiconsIcon
+                icon={Loading03Icon}
+                strokeWidth={2}
+                className="size-3 animate-spin motion-reduce:animate-none"
+                data-icon="inline-start"
+              />
+            ) : (
+              <HugeiconsIcon
+                icon={RefreshIcon}
+                strokeWidth={2}
+                className="size-3"
+                data-icon="inline-start"
+              />
+            )}
+            Check
+          </Button>
+        )}
       </div>
 
       {error ? (

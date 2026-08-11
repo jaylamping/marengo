@@ -128,5 +128,6 @@ describe('SidebarUpdateStatus', () => {
     render(<SidebarUpdateStatus user={previewUser} />);
     await waitFor(() => expect(screen.getByTestId('sidebar-update-spinner')).toBeTruthy());
     expect(screen.queryByTestId('sidebar-update-button')).toBeNull();
+    expect(screen.queryByTestId('check-for-updates')).toBeNull();
   });
 });
