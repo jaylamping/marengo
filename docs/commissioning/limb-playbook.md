@@ -23,7 +23,7 @@ Joint vector order everywhere:
 | `taught_envelope` | Soft/hard from Set Limits (live config) + MIT/safety caps | DOF1–4 taught 2026-07-22 (~27 mrad soft inset); DOF5 kinematics envelope until re-teach; MIT caps 2.5/2.5/2.0/1.5/1.5 rad/s; pitch `elevated_shoulder_pitch_fall` (0.45 rad/s descent) |
 | `commissioning_velocity_baseline` | Manual @ bus voltage, derated — **reference only** for sizing ladder rungs | RS03 **9.4** / RS02 **19.3** / RS00 **14.8** rad/s @ 24 V → pitch·roll 9.4, yaw·elbow 19.3, lower-arm yaw 14.8 |
 | `gcomp_poses` | Three-band static poses within taught envelope | See defaults below (full 5-DOF; pitch-banded) |
-| `wave_pose` | Elevated multi-joint pose for Wave unlock (subset of elevated band) | TBD — pitch/roll/yaw/elbow raise posture used by Consul Wave |
+| `wave_pose` | Elevated multi-joint hold for §4c Wave-pose G-comp (commissioning pose) | See defaults below — **not** tied to the current Consul Wave preset |
 | `standard_payload` | Tip-mounted Limb-standard payload | Assembled **0.5–0.8 kg**, tip/distal mount; weigh every attach |
 | `torque_only_tau_cmd` | Open-loop step magnitudes / dwells / order | See defaults below (~10% Davout limit per motor class) |
 
@@ -36,6 +36,14 @@ Joint vector order everywhere:
 | elevated | `[1.80, 2.50, 0.00, 0.60, 0.00]` |
 
 Stay inside `taught_envelope` soft limits (~0.15 rad margin preferred). Arm-down roll is `0.15` so soft-lower margin meets that preference (soft lo ≈ `-0.023`). Support the arm on first enable at elevated.
+
+### `wave_pose` defaults (`right_arm`)
+
+| Field | Default |
+|-------|---------|
+| `q` (rad) | `[0.42, 2.75, 0.00, 0.95, 0.00]` |
+
+Clamped from an older Wave raise sketch into taught soft (~0.15 pitch / ~0.06 elbow margin). Distinct from elevated `gcomp_poses` (different roll/elbow). Tunable — edit if the hold needs a safer or better-coupled posture. **Do not** treat the shipped Consul `compound-tests` Wave raise as SoT (poor 2–3 DOF example; left untouched).
 
 ### `torque_only_tau_cmd` defaults (`right_arm`)
 
@@ -122,19 +130,21 @@ All online `joints[]` in `GravityComp`.
 
 Campaign shape is static multi-joint poses + float (not scripted multi-joint GravityComp trajectories — those belong to the Position ladder).
 
-### 4c. Wave-pose G-comp (Consul Wave unlock)
+### 4c. Wave-pose G-comp (commissioning hold)
 
-**Unlocks** live Consul Wave (`WAVE_POSE_GCOMP_SIGNED`). Do **not** flip that flag until this gate PASSes.
+**Job:** prove GravityComp at the elevated multi-joint `wave_pose` (pitch/roll/yaw/elbow raise band). This is a **commissioning hold**, not automatic unlock of live Consul Wave.
 
 Prerequisite: §4b coupled G-comp green (or at least elevated-band residuals green for the Wave joint set).
 
 | Gate | Criterion | Harness |
 |------|-----------|---------|
-| Wave-pose hold | At `wave_pose` (elevated multi-joint raise covering pitch/roll/yaw/elbow for the Wave preset), under `GravityComp`, with initial operator support then careful release per [safety.md](../safety.md) | _TODO: wave_pose_gcomp_ |
+| Wave-pose hold | At `wave_pose`, under `GravityComp`, with initial operator support then careful release per [safety.md](../safety.md) | _TODO: wave_pose_gcomp_ |
 | Residuals | same bars as §4b at that pose | analyzer _TODO_ |
 | No free-fall | elevated release does not runaway / fault / watchdog-trip | manual + logs |
 
-Record: date, git rev, `wave_pose` joint angles, residual summary → then set `WAVE_POSE_GCOMP_SIGNED = true`.
+Record: date, git rev, `wave_pose` joint angles, residual summary.
+
+**Live Consul Wave** (`WAVE_POSE_GCOMP_SIGNED`): keep **`false`** until a redesigned Wave gesture exists and is signed against its own raise pose. Passing §4c alone does **not** flip the flag. Do not retarget the current shipped Wave preset as part of this gate.
 
 ---
 
