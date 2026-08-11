@@ -1129,11 +1129,21 @@ mod tests {
         let motors = load_motors_config(repo_root()).expect("motors");
         assert_eq!(motors.motors.len(), 4);
         validate_motors_against_robot(&robot, &motors).expect("joint names align");
-        let pitch = motor_for_joint(&motors, "right_shoulder_pitch").expect("right_shoulder_pitch");
-        assert_eq!(pitch.device_id, 1);
-        let roll = motor_for_joint(&motors, "right_shoulder_roll").expect("right_shoulder_roll");
-        assert_eq!(roll.device_id, 2);
-        assert_eq!(pitch.motor_type, MotorType::Rs03);
+
+        let expected: &[(&str, &str, u8, i8, u32, MotorType)] = &[
+            ("right_shoulder_pitch", "can0", 1, -1, 0x241, MotorType::Rs03),
+            ("right_shoulder_roll", "can0", 2, 1, 0x242, MotorType::Rs03),
+            ("right_upper_arm_yaw", "can0", 3, 1, 0x243, MotorType::Rs02),
+            ("right_elbow_pitch", "can0", 4, 1, 0x244, MotorType::Rs02),
+        ];
+        for &(joint, iface, device_id, direction, recv, motor_type) in expected {
+            let m = motor_for_joint(&motors, joint).unwrap_or_else(|| panic!("missing {joint}"));
+            assert_eq!(m.can_interface, iface, "{joint} can_interface");
+            assert_eq!(m.device_id, device_id, "{joint} device_id");
+            assert_eq!(m.direction, direction, "{joint} direction");
+            assert_eq!(m.recv_can_id, recv, "{joint} recv_can_id");
+            assert_eq!(m.motor_type, motor_type, "{joint} motor_type");
+        }
     }
 
     #[test]
