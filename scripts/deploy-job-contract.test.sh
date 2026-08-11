@@ -32,6 +32,10 @@ assert_ok "enqueue refuses active unit instead of stop" \
   grep -q 'already active' "${ENQUEUE}"
 assert_ok "enqueue marks failed when systemd-run fails" \
   grep -q 'systemd-run failed' "${ENQUEUE}"
+assert_ok "enqueue sets WorkingDirectory via systemd-run" \
+  grep -q -- '--working-directory=' "${ENQUEUE}"
+assert_ok "enqueue does not pass --same-dir= (flag takes no argument)" \
+  bash -c '! grep -q -- "--same-dir=" "$0"' "${ENQUEUE}"
 for key in job_id target_sha result_sha unit_name started_at updated_at message; do
   assert_ok "enqueue job JSON includes ${key}" \
     grep -q "\"${key}\"" "${ENQUEUE}"
