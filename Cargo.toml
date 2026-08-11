@@ -67,7 +67,7 @@ marengo-store = { path = "crates/marengo-store" }
 marengo-candump = { path = "crates/marengo-candump", default-features = false }
 marengo-deploy = { path = "crates/marengo-deploy" }
 sim-harness = { path = "crates/sim-harness" }
-time = { version = "0.3", features = ["std"] }
+time = { version = "0.3", features = ["std", "formatting"] }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
