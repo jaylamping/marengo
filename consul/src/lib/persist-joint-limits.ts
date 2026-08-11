@@ -163,8 +163,6 @@ async function defaultLocalLimitSync(args: {
   softLower: number;
   softUpper: number;
 }): Promise<'ok' | 'skipped' | 'failed'> {
-  // Static import.meta.env.*. Dynamic import.meta.env[key] makes Vite inline
-  // the entire env object (including VITE_CHAPPE_* names) into production dist.
   const base = (
     import.meta.env.VITE_LIMIT_SYNC_URL as string | undefined
   )?.trim();
