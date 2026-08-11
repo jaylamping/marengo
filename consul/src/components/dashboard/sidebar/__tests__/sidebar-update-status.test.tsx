@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SidebarUpdateStatus } from '@/components/dashboard/sidebar/sidebar-update-status';
+import { POLL_FETCH_TIMEOUT_MS } from '@/components/dashboard/sidebar/use-sidebar-self-update';
 import {
   SELF_UPDATE_TIMEOUT_MS,
   clearSelfUpdateSession,
@@ -85,6 +86,7 @@ describe('SidebarUpdateStatus', () => {
 
   afterEach(() => {
     cleanup();
+    vi.useRealTimers();
   });
 
   it('shows Check for updates and toasts already current', async () => {
@@ -209,5 +211,101 @@ describe('SidebarUpdateStatus', () => {
       expect(screen.queryByTestId('sidebar-update-spinner')).toBeNull(),
     );
     expect(screen.queryByText(/^Updating/)).toBeNull();
+  });
+
+  it('resumes polling after a hung version status fetch during update', async () => {
+    vi.useFakeTimers();
+    const target = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+    writeSelfUpdateSession({
+      jobId: 'j-hang-fetch',
+      startedAtMs: Date.now(),
+      targetSha: target,
+    });
+    fetchVersionStatus.mockImplementation(
+      (opts?: { signal?: AbortSignal }) =>
+        new Promise((_resolve, reject) => {
+          const signal = opts?.signal;
+          if (!signal) {
+            // Hang forever when callers omit AbortSignal (pre-fix behavior).
+            return;
+          }
+          const onAbort = () => {
+            reject(new DOMException('The operation was aborted.', 'AbortError'));
+          };
+          if (signal.aborted) {
+            onAbort();
+            return;
+          }
+          signal.addEventListener('abort', onAbort, { once: true });
+        }),
+    );
+    render(<SidebarUpdateStatus user={previewUser} />);
+    expect(fetchVersionStatus).toHaveBeenCalledTimes(1);
+    expect(fetchVersionStatus.mock.calls[0]?.[0]?.signal).toBeInstanceOf(
+      AbortSignal,
+    );
+
+    fetchVersionStatus.mockResolvedValue(
+      status({
+        deploy_sha: target,
+        upstream_sha: target,
+        update_available: false,
+        ready_for_target: true,
+        ui_state: 'current',
+        deploy: {
+          state: 'succeeded',
+          job_id: 'j-hang-fetch',
+          target_sha: target,
+          result_sha: target,
+          unit_name: 'marengo-self-update',
+          started_at: '2026-08-11T00:00:00Z',
+          updated_at: '2026-08-11T00:05:00Z',
+          message: 'installed',
+          phase: 'done',
+        },
+      }),
+    );
+
+    // Abort hung fetch, then allow the busy-poll reschedule to fire.
+    await vi.advanceTimersByTimeAsync(POLL_FETCH_TIMEOUT_MS);
+    await vi.advanceTimersByTimeAsync(2_500);
+    expect(fetchVersionStatus.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(toastSuccess).toHaveBeenCalledWith('Update complete');
+  });
+
+  it('clears Updating · Queued when deploy-rev already matches the watched target', async () => {
+    const target = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+    writeSelfUpdateSession({
+      jobId: 'j-queued',
+      startedAtMs: Date.now(),
+      targetSha: target,
+    });
+    fetchVersionStatus.mockResolvedValue(
+      status({
+        deploy_sha: target,
+        upstream_sha: target,
+        update_available: false,
+        ready_for_target: false,
+        ui_state: 'updating',
+        deploy: {
+          state: 'running',
+          job_id: 'j-queued',
+          target_sha: target,
+          result_sha: '',
+          unit_name: 'marengo-self-update',
+          started_at: '2026-08-11T00:00:00Z',
+          updated_at: '2026-08-11T00:00:00Z',
+          message: 'enqueued',
+          phase: 'enqueue',
+        },
+      }),
+    );
+    render(<SidebarUpdateStatus user={previewUser} />);
+    await waitFor(() =>
+      expect(toastSuccess).toHaveBeenCalledWith('Update complete'),
+    );
+    await waitFor(() =>
+      expect(screen.queryByText(/^Updating/)).toBeNull(),
+    );
   });
 });
