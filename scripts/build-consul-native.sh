@@ -14,8 +14,11 @@ if [[ "${SKIP_CONSUL:-false}" == true ]]; then
 fi
 
 if ! command -v npm >/dev/null 2>&1; then
-  echo "warning: npm not found — skipping Consul UI build" >&2
-  exit 0
+  # Silent skip left /opt/marengo/www on a stale bundle after Set Limits / UI
+  # fixes landed in git (self-update reported success; Apply still ±30 mrad pad).
+  echo "error: npm not found — cannot rebuild Consul UI for install-pi www/" >&2
+  echo "error: install Node ≥24 on the Pi, or set SKIP_CONSUL=true only for binary-only installs" >&2
+  exit 1
 fi
 
 if [[ ! -f "${ROOT}/consul/package-lock.json" ]]; then
