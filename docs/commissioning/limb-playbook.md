@@ -239,7 +239,7 @@ Un-aliased semantics: `τ_ff = τ_cmd` only (no `τ_g` / friction), hard-zero kp
 | Position @ 50% | full rung shape at **effective** 50% speed (§5 speed law): per-joint interior sweeps **and** multi-joint path; same trip classification as ch. 5a | _TODO: payload_ladder_50_ |
 | Near-limit @ 25% | per-joint soft approach at effective 25% speed; clamp-without-fault = pass; fault latch / runaway = fail | _TODO: payload_near_limit_ |
 
-**Out of payload critical:** Limits confirm, Sign, per-joint G-comp, Wave-pose unlock, Impedance, TorqueOnly, Disabled hygiene, full 25/50/75/100% ladder.
+**Out of payload critical:** Limits confirm, Sign, per-joint G-comp, Wave-pose hold (§4c), Impedance, TorqueOnly, Disabled hygiene, full 25/50/75/100% ladder.
 
 **Fail policy:** any gate fail ⇒ payload chapter fail; re-weigh / re-sync / re-verify gravity and retry allowed; no relaxed pass bars under load.
 
