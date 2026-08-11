@@ -18,6 +18,7 @@ import { Hardware3dView } from '@/components/dashboard/hardware/hardware-3d-view
 import { HardwareSettingsSheet } from '@/components/dashboard/hardware/hardware-settings-sheet';
 import { HardwareTable } from '@/components/dashboard/hardware/hardware-table';
 import { ImportWizard } from '@/components/dashboard/hardware/import-wizard';
+import { dashboardPanelPointerClassName } from '@/components/dashboard/layout/constants';
 import { Button } from '@/components/ui/button';
 import {
   ToggleGroup,
@@ -116,7 +117,7 @@ export function HardwareOverview() {
 
   return (
     <div
-      className="flex min-h-0 flex-1 flex-col gap-4 p-4"
+      className={`flex min-h-0 flex-1 flex-col gap-4 p-4 ${dashboardPanelPointerClassName}`}
       data-testid="hardware-overview"
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
