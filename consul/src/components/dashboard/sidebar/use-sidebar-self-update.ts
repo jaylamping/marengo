@@ -23,7 +23,7 @@ import {
 const IDLE_POLL_MS = 60_000;
 const BUSY_POLL_MS = 2_500;
 /** Cap hung `/version/status` fetches so a gateway restart cannot freeze the poll loop. */
-export const POLL_FETCH_TIMEOUT_MS = 8_000;
+export const POLL_FETCH_TIMEOUT_MS = 5_000;
 
 const UI_STATES: ReadonlySet<string> = new Set([
   'unknown',
