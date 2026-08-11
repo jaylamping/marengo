@@ -9,7 +9,7 @@ use armee_proto::SetZeroRequest;
 use axum::{
     body::Body,
     extract::{Query, State},
-    http::{header, HeaderMap, StatusCode},
+    http::{header, HeaderMap, HeaderValue, StatusCode},
     response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
@@ -17,11 +17,14 @@ use axum::{
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use tokio_util::io::ReaderStream;
+use tower::ServiceBuilder;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
+use tower_http::set_header::SetResponseHeaderLayer;
 
 use crate::actuator;
 use crate::config;
+use crate::deploy;
 use crate::framing::{self, CHAPPE_STREAM_CONTENT_TYPE};
 use crate::hardware;
 use crate::logs;
@@ -134,6 +137,8 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
             "/control/restart-marengo-pi",
             post(restart::post_restart_marengo_pi),
         )
+        .route("/version/status", get(deploy::get_version_status))
+        .route("/control/deploy", post(deploy::post_control_deploy))
         .route("/command/enable", post(command_enable))
         .route("/command/testing_mit", post(command_testing_mit))
         // Retired: operator HomingComplete / Testing Home — use Hardware Set Zero.
@@ -157,9 +162,21 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
             let assets = root.join("assets");
             let mut router = api;
             if assets.is_dir() {
-                router = router.nest_service("/assets", ServeDir::new(assets));
+                let assets_svc = ServiceBuilder::new()
+                    .layer(SetResponseHeaderLayer::overriding(
+                        header::CACHE_CONTROL,
+                        HeaderValue::from_static("public, max-age=31536000, immutable"),
+                    ))
+                    .service(ServeDir::new(assets));
+                router = router.nest_service("/assets", assets_svc);
             }
-            router.fallback_service(ServeFile::new(index))
+            let index_svc = ServiceBuilder::new()
+                .layer(SetResponseHeaderLayer::overriding(
+                    header::CACHE_CONTROL,
+                    HeaderValue::from_static("no-cache"),
+                ))
+                .service(ServeFile::new(index));
+            router.fallback_service(index_svc)
         }
         None => api,
     }

@@ -3,6 +3,7 @@
 mod action_ack;
 mod actuator;
 mod config;
+mod deploy;
 mod framing;
 mod hardware;
 mod http;
@@ -189,6 +190,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     }
 
     state::spawn_bus_fanout(Arc::clone(&state));
+    marengo_deploy::init_upstream_cache_from_disk();
 
     if args.demo {
         info!("demo publisher enabled (no marengo-pi required)");

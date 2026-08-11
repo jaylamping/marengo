@@ -21,6 +21,7 @@
 | `marengo-support` | — | `init_tracing()`, repo-root resolution, shared utils |
 | `marengo-host-metrics` | — | Host-level metrics (CPU, temp, etc.) |
 | `marengo-store` | — | Bench session / log archive SQL store |
+| `marengo-deploy` | — | Self-update jobs, revisions, upstream status, and enqueueing |
 | `sim-harness` | — | Sim test helpers |
 
 ## WHERE TO LOOK
