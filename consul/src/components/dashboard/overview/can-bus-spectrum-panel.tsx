@@ -293,7 +293,7 @@ function CaptureStatus({
 }) {
   return (
     <div
-      className="shrink-0 border-b border-line pb-2.5"
+      className="shrink-0 rounded-[4px] border border-line bg-surface-0 px-3 py-2.5"
       data-testid="can-capture-status"
     >
       <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-foreground">
