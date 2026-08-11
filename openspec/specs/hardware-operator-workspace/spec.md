@@ -84,6 +84,22 @@ Inventory MUST NOT expose a durable Set Limits Apply path to gateway limit patch
 - WHEN they attempt an action that previously persisted Set Limits
 - THEN no durable limit patch is sent and UI directs to Hardware for calibration
 
+### Requirement: Telemetry read-only (no presets, no editable Range)
+
+Telemetry (`/telemetry`) MUST be a read-only live inventory. It MUST NOT offer Assign preset / bench preset editing, editable Range cells that look like Set Limits, or identity Apply that writes local catalog overrides. Range MAY display live snapshot text; Set Limits Apply remains Hardware-only.
+
+#### Scenario: No Assign preset on Telemetry
+
+- GIVEN the operator is on `/telemetry`
+- WHEN the device table renders
+- THEN no Preset column assign control is offered
+
+#### Scenario: Range is display-only on Telemetry
+
+- GIVEN an actuator row shows a Range value
+- WHEN the operator clicks the Range cell
+- THEN no inline edit / fake save path opens; calibration is directed to Hardware
+
 ### Requirement: Automated verification
 
 Consul tests MUST cover Hardware route render, warning-non-blocking behavior, Set Limits ACTIVE guard, and Inventory absence of durable persist. Phase gate: `cd consul && npm test` passes for UI changes in this change.

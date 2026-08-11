@@ -5,10 +5,7 @@ import { InventoryDetailProvider } from '@/components/dashboard/inventory/invent
 import { InventoryTableFooter } from '@/components/dashboard/inventory/inventory-table-footer';
 import { InventoryTableToolbar } from '@/components/dashboard/inventory/inventory-table-toolbar';
 import { InventoryTableView } from '@/components/dashboard/inventory/inventory-table-view';
-import type {
-  InventoryIdentityPatch,
-  InventoryRow,
-} from '@/components/dashboard/inventory/types';
+import type { InventoryRow } from '@/components/dashboard/inventory/types';
 import { dashboardPanelPointerClassName } from '@/components/dashboard/layout/constants';
 import { Tabs } from '@/components/ui/tabs';
 import {
@@ -30,8 +27,6 @@ type InventoryDataTableProps = {
 export function InventoryDataTable({ data }: InventoryDataTableProps) {
   const [detailItemId, setDetailItemId] = useState<number | null>(null);
   const fieldOverrides = useInventoryOverridesStore((state) => state.overrides);
-  const applyOverridePatch = useInventoryOverridesStore((state) => state.applyPatch);
-
   const mergedData = useMemo(
     () => data.map((item) => applyOverrides(item, fieldOverrides)),
     [data, fieldOverrides],
@@ -69,13 +64,6 @@ export function InventoryDataTable({ data }: InventoryDataTableProps) {
   const openItem = useCallback((item: InventoryRow) => {
     setDetailItemId(item.id);
   }, []);
-
-  const applyPatch = useCallback(
-    (itemId: number, patch: Partial<InventoryIdentityPatch>) => {
-      applyOverridePatch(itemId, patch);
-    },
-    [applyOverridePatch],
-  );
 
   return (
     <InventoryDetailProvider openItem={openItem}>
@@ -119,7 +107,6 @@ export function InventoryDataTable({ data }: InventoryDataTableProps) {
               }
             }}
             onNavigate={(next) => setDetailItemId(next.id)}
-            onApply={applyPatch}
           />
         </Suspense>
       ) : null}

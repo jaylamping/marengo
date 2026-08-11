@@ -165,9 +165,11 @@ describe('InventoryRowModal panel shell', () => {
 
     expect(screen.getByTestId('inventory-row-modal')).toBeTruthy();
     expect(screen.getAllByText('right_upper_arm_yaw').length).toBeGreaterThan(0);
-    expect(screen.getByLabelText('Edit name')).toBeTruthy();
-    expect(screen.getByLabelText('Edit location')).toBeTruthy();
-    expect(screen.getByLabelText('Edit preset')).toBeTruthy();
+    expect(screen.queryByLabelText('Edit name')).toBeNull();
+    expect(screen.queryByLabelText('Edit location')).toBeNull();
+    expect(screen.queryByLabelText('Edit preset')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Apply' })).toBeNull();
+    expect(screen.getAllByRole('button', { name: 'Close' }).length).toBeGreaterThan(0);
     expect(
       screen.getAllByText('Enabled').some((el) => el.getAttribute('data-slot') === 'badge'),
     ).toBe(true);
@@ -176,7 +178,7 @@ describe('InventoryRowModal panel shell', () => {
     expect(screen.queryByRole('heading', { name: 'Identity' })).toBeNull();
   });
 
-  it('dithers actuator command surfaces for offline rows but keeps identity editable', () => {
+  it('keeps Telemetry detail read-only for offline rows (no identity/preset edit)', () => {
     render(
       <TooltipProvider>
         <InventoryRowModal
@@ -192,9 +194,9 @@ describe('InventoryRowModal panel shell', () => {
     expect(
       screen.getAllByText('Offline').some((el) => el.getAttribute('data-slot') === 'badge'),
     ).toBe(true);
-    expect(screen.getByLabelText('Edit name')).not.toBeDisabled();
-    expect(screen.getByLabelText('Edit location')).toBeTruthy();
-    expect(screen.getByLabelText('Edit preset')).toBeTruthy();
+    expect(screen.queryByLabelText('Edit name')).toBeNull();
+    expect(screen.queryByLabelText('Edit location')).toBeNull();
+    expect(screen.queryByLabelText('Edit preset')).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Identity' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Home' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Start sweep' })).toBeNull();

@@ -68,13 +68,16 @@ See [ADR 0004](decisions/0004-control-modes-and-mit.md) and [hardware/docs/decis
 - **URDF expand-only:** Bench Set Limits widens in-memory + on-disk URDF hard when taught hard exceeds URDF (Davout hard = URDF ∩ bench). Soft uses ADR 0009 inset in `control.yaml` (not soft≡hard). See [ADR 0017](decisions/0017-bench-set-limits-urdf-expand.md).
 - **Persist-degraded ≠ NeedsRestart:** write-behind failure uses a distinct banner/retry. Restart while YAML/URDF is stale would revert live limits.
 - **Dual-writer:** Pi owns live apply and YAML/URDF write-behind. Gateway master-tree transactions use CAS `expected_revision` for durable YAML/URDF edits on the single master SoT; there are no inactive bringup profiles. Local git sync is Durable-gated via `marengo-limit-sync` only.
+- **Deploy must not clobber Set Limits:** `install-pi.sh` preserves previous Pi motors hard + control soft + expand-only URDF union for overlapping joints after config rsync (Set Limits Apply remains SoT). Opt out with `MARENGO_REPLACE_LIMITS=1` when intentionally shipping git limit changes over taught envelopes.
 - Soft bounds clamp into the new hard envelope in the same txn (Inventory Range must show post-clamp values).
 
 See [ADR 0012](decisions/0012-config-db-overrides.md) and [ADR 0017](decisions/0017-bench-set-limits-urdf-expand.md).
 
 ## Active Reporting leases (type-24)
 
-Consul may hold a **per-joint Active Reporting lease** (operator UI: Enhanced logging) via gateway → Chappe → Davout when a subsystem modal is open. Leases never enable type-24 while operational mode is `ACTIVE` (MIT status replies own that path). Bench profiles with `active_reporting_diagnostics: true` already force type-24 when not ACTIVE, so a lease may be a wire no-op until that global flag is off — the lease path still ships for global-off workflows. HTTP 200 is publish ACK only; Consul shows **Enhanced logging**, not confirmed wire reporting. TTL expiry on the Pi is the backstop if release is lost. `client_id` is not an auth boundary (same honesty as set-zero).
+Consul may hold a **per-joint Active Reporting lease** (operator UI: Enhanced logging) via gateway → Chappe → Davout when a Hardware joint settings sheet (Set Limits) or Telemetry actuator modal is open. Leases never enable type-24 while operational mode is `ACTIVE` (MIT status replies own that path). Bench profiles with `active_reporting_diagnostics: true` already force type-24 when not ACTIVE, so a lease may be a wire no-op until that global flag is off — the lease path still ships for global-off workflows. HTTP 200 is publish ACK only; Consul shows **Enhanced logging**, not confirmed wire reporting. TTL expiry on the Pi is the backstop if release is lost. `client_id` is not an auth boundary (same honesty as set-zero).
+
+While free-drive sensing is desired, Davout **re-asserts** type-24 enable on a ~1 s heartbeat and when a joint’s feedback goes stale (~200 ms with no RX). Motors can drop Active Reporting mid-sweep; without retry, Consul freezes on the last sample and Set Limits Apply would teach a tiny band.
 
 ## Known software gaps (see also [position-hold-control-review.md](position-hold-control-review.md))
 

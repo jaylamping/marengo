@@ -1,70 +1,30 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ReactNode } from 'react';
+import { cleanup, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { PresetCell } from '@/components/dashboard/inventory/cells/preset-cell';
-import {
-  INVENTORY_OVERRIDES_STORAGE_KEY,
-  useInventoryOverridesStore,
-} from '@/state/inventoryOverridesStore';
-
-vi.mock('sonner', () => ({
-  toast: {
-    message: vi.fn(),
-    success: vi.fn(),
-    error: vi.fn(),
-  },
-}));
-
-vi.mock('@/components/ui/select', () => {
-  return {
-    Select: ({
-      onValueChange,
-      children,
-    }: {
-      onValueChange?: (value: string) => void;
-      children?: ReactNode;
-    }) => (
-      <div data-testid="preset-select-stub">
-        <button type="button" onClick={() => onValueChange?.('golden_pose')}>
-          pick golden_pose
-        </button>
-        {children}
-      </div>
-    ),
-    SelectTrigger: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
-    SelectValue: () => null,
-    SelectContent: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
-    SelectGroup: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
-    SelectItem: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
-  };
-});
 
 afterEach(() => {
   cleanup();
 });
 
 describe('PresetCell', () => {
-  beforeEach(() => {
-    localStorage.clear();
-    useInventoryOverridesStore.setState({ overrides: {} });
-  });
-
-  it('persists catalog preset tags through the inventory overrides store only', () => {
+  it('is read-only and does not offer Assign preset', () => {
     render(
       <PresetCell itemId={20} preset="unassigned" jointName="right_elbow_pitch" />,
     );
+    expect(screen.getByTestId('preset-cell-readonly')).toHaveTextContent('—');
+    expect(screen.queryByRole('button', { name: /Assign preset/i })).toBeNull();
+  });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Assign preset tag' }));
-    fireEvent.click(screen.getByRole('button', { name: 'pick golden_pose' }));
-
-    expect(useInventoryOverridesStore.getState().overrides[20]).toEqual({
-      preset: 'golden_pose',
-    });
-    expect(localStorage.getItem(INVENTORY_OVERRIDES_STORAGE_KEY)).toContain(
-      'golden_pose',
+  it('shows catalog tag text without an edit control', () => {
+    render(
+      <PresetCell itemId={1} preset="bench_default" jointName="pi5_can_hat" />,
     );
+    expect(screen.getByTestId('preset-cell-readonly')).toHaveTextContent(
+      'bench_default',
+    );
+    expect(screen.queryByRole('button')).toBeNull();
   });
 });
