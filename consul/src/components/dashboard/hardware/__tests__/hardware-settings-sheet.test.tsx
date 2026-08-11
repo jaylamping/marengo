@@ -76,6 +76,14 @@ describe('HardwareSettingsSheet', () => {
     expect(screen.getByTestId('hardware-enhanced-logging')).toBeTruthy();
     expect(screen.getByText(/replaces the durable hard\/soft SoT/i)).toBeTruthy();
     expect(screen.getByTestId('set-limits-panel')).toBeTruthy();
+    const commissioning = screen.getByTestId('hardware-commissioning-commands');
+    const limitsHeading = screen.getByRole('heading', {
+      name: /Limits \(ADR 0012\)/i,
+    });
+    expect(
+      commissioning.compareDocumentPosition(limitsHeading) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it('does not request a lease when the sheet is closed', () => {
