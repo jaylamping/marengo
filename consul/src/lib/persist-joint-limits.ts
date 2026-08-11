@@ -140,9 +140,7 @@ export async function persistJointLimits(
       ? ' Local checkout synced.'
       : localSync === 'failed'
         ? ' Local checkout sync failed (Pi durable).'
-        : persistStatus === 'durable'
-          ? ' Local checkout not synced (marengo-limit-sync unavailable).'
-          : '';
+        : '';
 
   return {
     ok: true,
@@ -165,9 +163,14 @@ async function defaultLocalLimitSync(args: {
   softLower: number;
   softUpper: number;
 }): Promise<'ok' | 'skipped' | 'failed'> {
-  const base =
-    (import.meta.env.VITE_LIMIT_SYNC_URL as string | undefined)?.trim() ||
-    'http://127.0.0.1:8790';
+  // Static import.meta.env.*. Dynamic import.meta.env[key] makes Vite inline
+  // the entire env object (including VITE_CHAPPE_* names) into production dist.
+  const base = (
+    import.meta.env.VITE_LIMIT_SYNC_URL as string | undefined
+  )?.trim();
+  if (!base) {
+    return 'skipped';
+  }
   try {
     const res = await fetch(`${base.replace(/\/$/, '')}/local/limit-patch`, {
       method: 'POST',
@@ -189,6 +192,6 @@ async function defaultLocalLimitSync(args: {
     }
     return 'ok';
   } catch {
-    return 'skipped';
+    return 'failed';
   }
 }

@@ -80,6 +80,29 @@ describe('persistJointLimits', () => {
     );
   });
 
+  it('marks opted-in local sync failed when fetch throws', async () => {
+    vi.stubEnv('VITE_LIMIT_SYNC_URL', 'http://127.0.0.1:8790');
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'));
+    const patchConfig = vi.fn().mockResolvedValue({
+      ok: true,
+      message: 'Applied live limits',
+      restart_required: false,
+      persist_status: 'durable',
+    });
+
+    const result = await persistJointLimits(
+      'right_shoulder_pitch',
+      { lower: -0.5, upper: 1.2 },
+      { patchConfig },
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.localSync).toBe('failed');
+      expect(result.message).toMatch(/Local checkout sync failed/i);
+    }
+  });
+
   it('patches hard + soft inset and syncs local only after durable', async () => {
     const patchConfig = vi.fn().mockResolvedValue({
       ok: true,

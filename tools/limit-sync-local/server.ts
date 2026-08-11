@@ -34,8 +34,16 @@ interface LimitPatchBody {
   soft_upper?: unknown;
 }
 
+const ALLOWED_ORIGINS = new Set([
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+]);
+
 const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
-  res.setHeader("Access-Control-Allow-Origin", "http://localhost:5173");
+  const origin = req.headers.origin;
+  if (origin && ALLOWED_ORIGINS.has(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   if (req.method === "OPTIONS") {
