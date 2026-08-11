@@ -1,5 +1,12 @@
 import { Link } from 'react-router-dom';
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ReferenceLine,
+  XAxis,
+  YAxis,
+} from 'recharts';
 
 import { dashboardPanelCardClassName } from '@/components/dashboard/layout/constants';
 import {
@@ -79,6 +86,7 @@ function shortJoint(name: string | undefined): string {
 function LiveChip({ live }: { live: CanLiveChip }) {
   const label = live.iface ?? 'can';
   const state = live.canState?.length ? live.canState : '—';
+  const known = state !== '—';
   const nominal = !live.warn && state === 'ERROR-ACTIVE';
   return (
     <span
@@ -96,7 +104,8 @@ function LiveChip({ live }: { live: CanLiveChip }) {
       <span
         className={cn(
           'led',
-          live.warn ? 'led-accent' : 'led-ok',
+          live.warn && 'led-accent',
+          !live.warn && known && 'led-ok',
           nominal && 'led-live',
         )}
         aria-hidden
@@ -121,7 +130,7 @@ function MetricReadout({
     <div className="min-w-0">
       <div className="micro-label">{label}</div>
       <div className="mt-0.5 flex items-baseline gap-1 font-mono tabular-nums">
-        <span className="text-sm font-semibold text-foreground">{value}</span>
+        <span className="data-value text-sm text-foreground">{value}</span>
         {unit ? (
           <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
             {unit}
@@ -236,10 +245,7 @@ function MicroLog({ lines }: { lines: MicroLogLine[] }) {
     >
       <div className="grid grid-cols-[3.5rem_2rem_3.75rem_minmax(0,1fr)_minmax(4rem,1.1fr)] gap-1 border-b border-line px-2 py-1">
         {(['Δt', 'if', 'id', 'joint', 'data'] as const).map((label) => (
-          <span
-            key={label}
-            className="micro-label"
-          >
+          <span key={label} className="micro-label">
             {label}
           </span>
         ))}
@@ -278,6 +284,45 @@ function formatBps(value: number): string {
   return Math.round(value).toString();
 }
 
+function CaptureStatus({
+  title,
+  detail,
+}: {
+  title: string;
+  detail: string;
+}) {
+  return (
+    <div
+      className="shrink-0 border-b border-line pb-2.5"
+      data-testid="can-capture-status"
+    >
+      <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-foreground">
+        {title}
+      </p>
+      <p className="mt-0.5 max-w-[42ch] text-xs text-muted-foreground">{detail}</p>
+    </div>
+  );
+}
+
+function SeriesKey({
+  color,
+  label,
+}: {
+  color: string;
+  label: string;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+      <span
+        className="size-1.5 shrink-0 rounded-[1px]"
+        style={{ background: color }}
+        aria-hidden
+      />
+      {label}
+    </span>
+  );
+}
+
 function LinkActivityChart({ samples }: { samples: CanLinkActivitySample[] }) {
   const data = samples.map((sample) => ({
     t: sample.atMs,
@@ -287,67 +332,77 @@ function LinkActivityChart({ samples }: { samples: CanLinkActivitySample[] }) {
   const latest = samples[samples.length - 1];
 
   return (
-    <div className="mt-auto shrink-0 space-y-1.5 border-t border-line pt-3" data-testid="can-link-activity">
-      <div className="flex items-baseline justify-between gap-2">
-        <div className="micro-label">Link activity</div>
+    <div
+      className="mt-auto flex min-h-0 flex-1 flex-col gap-1.5 border-t border-line pt-3"
+      data-testid="can-link-activity"
+    >
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <div className="flex items-center gap-3">
+          <div className="micro-label">Link</div>
+          <SeriesKey color="var(--info)" label="RX" />
+          <SeriesKey color="var(--chart-4)" label="TX" />
+        </div>
         <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
-          rx {formatBps(latest?.rxBps ?? 0)} · tx {formatBps(latest?.txBps ?? 0)} B/s
+          <span className="text-foreground/90">{formatBps(latest?.rxBps ?? 0)}</span>
+          {' / '}
+          <span className="text-foreground/90">{formatBps(latest?.txBps ?? 0)}</span>
+          {' B/s'}
         </span>
       </div>
       <ChartContainer
         config={linkActivityChartConfig}
-        className="aspect-auto h-[7.5rem] w-full min-h-[7.5rem]"
-        initialDimension={{ width: 360, height: 120 }}
+        className="aspect-auto h-full min-h-[8.5rem] w-full flex-1"
+        initialDimension={{ width: 360, height: 140 }}
       >
-        <AreaChart data={data} margin={{ left: 0, right: 4, top: 4, bottom: 0 }}>
-          <defs>
-            <linearGradient id="fillCanRx" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="var(--color-rx)" stopOpacity={0.45} />
-              <stop offset="95%" stopColor="var(--color-rx)" stopOpacity={0.02} />
-            </linearGradient>
-            <linearGradient id="fillCanTx" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="var(--color-tx)" stopOpacity={0.35} />
-              <stop offset="95%" stopColor="var(--color-tx)" stopOpacity={0.02} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid vertical={false} stroke="var(--color-line)" strokeDasharray="2 4" />
+        <LineChart
+          accessibilityLayer
+          data={data}
+          margin={{ left: 0, right: 4, top: 6, bottom: 2 }}
+        >
+          <CartesianGrid
+            vertical={false}
+            stroke="var(--line)"
+            strokeDasharray="2 4"
+          />
           <XAxis dataKey="t" hide />
           <YAxis
             width={28}
             tickLine={false}
             axisLine={false}
             tickMargin={4}
-            tick={{ fontSize: 9, fontFamily: 'var(--font-mono)' }}
+            tick={{ fontSize: 10, fontFamily: 'var(--font-mono)' }}
             tickFormatter={formatBps}
             domain={[0, (max: number) => Math.max(8, max * 1.15)]}
           />
+          {/* Zero rail — idle bus still reads as a live instrument. */}
+          <ReferenceLine y={0} stroke="var(--line-strong)" strokeWidth={1} />
           <ChartTooltip
             cursor={false}
             isAnimationActive={false}
             content={
               <ChartTooltipContent
-                labelFormatter={() => 'link'}
-                indicator="dot"
+                labelFormatter={() => 'B/s'}
+                indicator="line"
               />
             }
           />
-          <Area
+          <Line
             dataKey="rx"
             type="monotone"
-            fill="url(#fillCanRx)"
             stroke="var(--color-rx)"
-            strokeWidth={1.25}
+            strokeWidth={1.5}
+            dot={false}
             isAnimationActive={false}
           />
-          <Area
+          <Line
             dataKey="tx"
             type="monotone"
-            fill="url(#fillCanTx)"
             stroke="var(--color-tx)"
-            strokeWidth={1.25}
+            strokeWidth={1.5}
+            dot={false}
             isAnimationActive={false}
           />
-        </AreaChart>
+        </LineChart>
       </ChartContainer>
     </div>
   );
@@ -387,34 +442,21 @@ export function CanBusSpectrumPanel({ active = true }: CanBusSpectrumPanelProps)
         ) : null}
 
         {loading && !hot && !showError ? (
-          <div className="rounded-[4px] border border-line bg-surface-0 px-3 py-2.5">
-            <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-              Loading capture…
-            </p>
-          </div>
+          <CaptureStatus title="Loading capture" detail="Polling candump-latest…" />
         ) : null}
 
         {!loading && spectrum.source === 'empty' && !showError ? (
-          <div className="rounded-[4px] border border-line bg-surface-0 px-3 py-2.5">
-            <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-foreground">
-              No harness candump yet
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Link graph below still tracks host-metrics rx/tx when the Pi is up.
-            </p>
-          </div>
+          <CaptureStatus
+            title="No harness candump"
+            detail="Link meters below still track host rx/tx when the Pi is up."
+          />
         ) : null}
 
         {!loading && spectrum.source === 'unavailable' && !showError ? (
-          <div className="rounded-[4px] border border-line bg-surface-0 px-3 py-2.5">
-            <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-foreground">
-              Gateway offline
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Candump HTTP unreachable. Link graph still samples host metrics when
-              Chappe is up.
-            </p>
-          </div>
+          <CaptureStatus
+            title="Gateway offline"
+            detail="Candump HTTP down. Link meters still sample host metrics when Chappe is up."
+          />
         ) : null}
 
         {hot ? (
@@ -452,7 +494,7 @@ export function CanBusSpectrumPanel({ active = true }: CanBusSpectrumPanelProps)
 
         <LinkActivityChart samples={linkActivity} />
 
-        <div className="flex shrink-0 items-center justify-between gap-2 pt-0.5">
+        <div className="flex shrink-0 items-center gap-2 pt-0.5">
           <Link
             to={spectrum.logsCanHref}
             className="font-mono text-[10px] uppercase tracking-[0.14em] text-accent outline-none transition-colors duration-150 hover:text-accent-dim focus-visible:ring-1 focus-visible:ring-ring"

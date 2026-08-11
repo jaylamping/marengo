@@ -58,10 +58,11 @@ describe('CanBusSpectrumPanel', () => {
     );
     expect(screen.getByTestId('overview-can-bus-panel')).toBeTruthy();
     expect(screen.getByText('CAN bus')).toBeTruthy();
-    expect(screen.getByText(/No harness candump yet/i)).toBeTruthy();
+    expect(screen.getByText(/No harness candump/i)).toBeTruthy();
     expect(screen.getByTestId('can-live-chip').textContent).toMatch(/can0/);
     expect(screen.getByTestId('can-link-activity')).toBeTruthy();
-    expect(screen.getByText(/Link activity/i)).toBeTruthy();
+    expect(screen.getByTestId('can-capture-status')).toBeTruthy();
+    expect(screen.getByText(/^Link$/i)).toBeTruthy();
     expect(screen.getByRole('link', { name: /Open Logs/i }).getAttribute('href')).toBe(
       '/logs',
     );
@@ -78,6 +79,7 @@ describe('CanBusSpectrumPanel', () => {
       </MemoryRouter>,
     );
     expect(screen.getByText(/Loading capture/i)).toBeTruthy();
+    expect(screen.getByTestId('can-link-activity')).toBeTruthy();
   });
 
   it('does not render zeroed spectrum chrome when capture is unavailable', () => {
