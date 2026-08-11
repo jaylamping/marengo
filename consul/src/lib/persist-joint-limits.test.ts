@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   persistJointLimits,
@@ -17,8 +17,67 @@ describe('softLimitsWithInset', () => {
 });
 
 describe('persistJointLimits', () => {
+  beforeEach(() => {
+    vi.stubEnv('VITE_LIMIT_SYNC_URL', '');
+  });
+
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  it('does not probe loopback limit-sync when VITE_LIMIT_SYNC_URL is unset', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    const patchConfig = vi.fn().mockResolvedValue({
+      ok: true,
+      message: 'Applied live limits',
+      restart_required: false,
+      persist_status: 'durable',
+    });
+
+    const result = await persistJointLimits(
+      'right_shoulder_pitch',
+      { lower: -0.5, upper: 1.2 },
+      { patchConfig },
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.localSync).toBe('skipped');
+      expect(result.message).not.toMatch(/Local checkout/i);
+    }
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('POSTs local limit-patch only when VITE_LIMIT_SYNC_URL is set', async () => {
+    vi.stubEnv('VITE_LIMIT_SYNC_URL', 'http://127.0.0.1:8790');
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    const patchConfig = vi.fn().mockResolvedValue({
+      ok: true,
+      message: 'Applied live limits',
+      restart_required: false,
+      persist_status: 'durable',
+    });
+
+    const result = await persistJointLimits(
+      'right_shoulder_pitch',
+      { lower: -0.5, upper: 1.2 },
+      { patchConfig },
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.localSync).toBe('ok');
+    }
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'http://127.0.0.1:8790/local/limit-patch',
+      expect.objectContaining({ method: 'POST' }),
+    );
   });
 
   it('patches hard + soft inset and syncs local only after durable', async () => {
