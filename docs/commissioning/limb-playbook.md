@@ -11,16 +11,45 @@ Read [docs/safety.md](../safety.md) before any enable or elevated pose. Motion t
 
 ## Parameters (per limb)
 
+Values below are **starting defaults for this instance** — edit the tables (or override for a single run) if a gate needs a safer / stronger / better-coupled pose or step. Chapter gates reference these names; they do not hard-code magnitudes in the criterion text.
+
+Joint vector order everywhere:  
+`[right_shoulder_roll, right_shoulder_pitch, right_upper_arm_yaw, right_elbow_pitch, right_lower_arm_yaw]` (rad).
+
 | Param | Purpose | Example (`right_arm`) |
 |-------|---------|------------------------|
 | `limb` | Anatomical group from `robot.yaml` | `right_arm` |
 | `joints[]` | Online / motor-mapped members of `limb` | `right_shoulder_roll`, `right_shoulder_pitch`, `right_upper_arm_yaw`, `right_elbow_pitch`, `right_lower_arm_yaw` |
 | `taught_envelope` | Soft/hard from Set Limits (live config) + MIT/safety caps | DOF1–4 taught 2026-07-22 (~27 mrad soft inset); DOF5 kinematics envelope until re-teach; MIT caps 2.5/2.5/2.0/1.5/1.5 rad/s; pitch `elevated_shoulder_pitch_fall` (0.45 rad/s descent) |
 | `commissioning_velocity_baseline` | Manual @ bus voltage, derated — **reference only** for sizing ladder rungs | RS03 **9.4** / RS02 **19.3** / RS00 **14.8** rad/s @ 24 V → pitch·roll 9.4, yaw·elbow 19.3, lower-arm yaw 14.8 |
-| `gcomp_poses` | Three-band static poses within taught envelope | TBD — arm-down / mid / elevated joint angles per limb |
+| `gcomp_poses` | Three-band static poses within taught envelope | See defaults below (full 5-DOF; pitch-banded) |
 | `wave_pose` | Elevated multi-joint pose for Wave unlock (subset of elevated band) | TBD — pitch/roll/yaw/elbow raise posture used by Consul Wave |
 | `standard_payload` | Tip-mounted Limb-standard payload | Assembled **0.5–0.8 kg**, tip/distal mount; weigh every attach |
-| `torque_only_tau_cmd` | Open-loop step magnitudes / dwells | TBD — fill before TorqueOnly chapter runs |
+| `torque_only_tau_cmd` | Open-loop step magnitudes / dwells / order | See defaults below (~10% Davout limit per motor class) |
+
+### `gcomp_poses` defaults (`right_arm`)
+
+| Band | `q` (rad) |
+|------|-----------|
+| arm-down | `[0.10, 0.00, 0.00, 0.00, 0.00]` |
+| mid | `[1.20, 1.00, 0.00, 0.35, 0.00]` |
+| elevated | `[1.80, 2.50, 0.00, 0.60, 0.00]` |
+
+Stay inside `taught_envelope` soft limits (~0.15 rad margin preferred). Support the arm on first enable at elevated.
+
+### `torque_only_tau_cmd` defaults (`right_arm`)
+
+| Field | Default |
+|-------|---------|
+| RS03 (pitch, roll) `|τ_cmd|` | **0.50 Nm** (bidirectional ±) |
+| RS02 / RS00 (upper yaw, elbow, lower yaw) `|τ_cmd|` | **0.30 Nm** (bidirectional ±) |
+| Dwell | **2 s** per polarity |
+| Waveform | open-loop **step** (not sine) |
+| Pose for steps | **arm-down** `gcomp_poses` |
+| Joint order | **distal → proximal:** lower_arm_yaw → elbow → upper_arm_yaw → roll → pitch |
+| Mid contrast | mid `gcomp_poses`, **`τ_cmd = 0`** (prove no auto `τ_g`) |
+
+Not an industry-canon magnitude — conservative Marengo starting point. Raise/lower `|τ_cmd|` or dwell per run if friction/sign is unclear or motion is too brisk; keep Davout caps respected and elevated TorqueOnly supported.
 
 ---
 
@@ -171,8 +200,8 @@ Un-aliased semantics: `τ_ff = τ_cmd` only (no `τ_g` / friction), hard-zero kp
 
 | Gate | Criterion | Harness |
 |------|-----------|---------|
-| τ_cmd steps | bidirectional low open-loop steps at arm-down using `torque_only_tau_cmd`; correct sign; caps respected; no runaway | _TODO: torque_only_steps_ |
-| No-τ_g contrast | mid-pose: does **not** auto-inject full `τ_g` | _TODO_ |
+| τ_cmd steps | bidirectional open-loop steps at arm-down per `torque_only_tau_cmd` (magnitudes, dwell, distal→proximal order); correct sign; caps respected; no runaway | _TODO: torque_only_steps_ |
+| No-τ_g contrast | mid `gcomp_poses` with `τ_cmd = 0`: does **not** auto-inject full `τ_g` | _TODO_ |
 | Disabled hygiene | clean enter/exit of `Disabled` | _TODO_ |
 
 ---
