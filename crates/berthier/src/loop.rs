@@ -96,6 +96,9 @@ pub struct ControlLoop<B: MotorBus> {
     active_feedback_grace_ticks: u8,
     /// Testing overrides + mode-transition kp/kd ramp + per-tick resolve.
     gains: GainRuntime,
+    /// Per-joint latched open-loop torque command (Nm) for [`ControlMode::TorqueOnly`].
+    /// Default unset → 0. Cleared when leaving TorqueOnly.
+    torque_cmds: HashMap<String, f64>,
     /// In-loop triangle wave on one joint while others hold fixed setpoints.
     position_wave: Option<PositionWave>,
 }
@@ -206,6 +209,7 @@ impl<B: MotorBus> ControlLoop<B> {
             last_operational_mode: OperationalMode::Disabled,
             active_feedback_grace_ticks: 0,
             gains: GainRuntime::new(),
+            torque_cmds: HashMap::new(),
             position_wave: None,
         })
     }
@@ -525,6 +529,9 @@ impl<B: MotorBus> ControlLoop<B> {
             self.last_position_diag = None;
             self.position_wave = None;
         }
+        if previous == ControlMode::TorqueOnly && mode != ControlMode::TorqueOnly {
+            self.torque_cmds.clear();
+        }
         self.control_mode = mode;
         self.supervisor.set_control_mode(mode);
         if previous != mode {
@@ -538,6 +545,34 @@ impl<B: MotorBus> ControlLoop<B> {
             // causes unclamped torque step via unwrap_or(target)).
             self.supervisor.seed_tau_ff_rate_limiter();
         }
+    }
+
+    /// Latch a per-joint open-loop torque command for [`ControlMode::TorqueOnly`].
+    ///
+    /// Values persist until cleared or until leaving TorqueOnly. Default when unset is 0.
+    pub fn set_torque_cmd(&mut self, joint_name: &str, tau_nm: f64) -> Result<(), LoopError> {
+        if !self.joint_names.iter().any(|n| n == joint_name) {
+            return Err(LoopError::UnknownJoint {
+                joint: joint_name.to_string(),
+            });
+        }
+        self.torque_cmds.insert(joint_name.to_string(), tau_nm);
+        Ok(())
+    }
+
+    /// Remove one joint's latched torque command (reverts to 0).
+    pub fn clear_torque_cmd(&mut self, joint_name: &str) {
+        self.torque_cmds.remove(joint_name);
+    }
+
+    /// Clear all latched TorqueOnly torque commands.
+    pub fn clear_torque_cmds(&mut self) {
+        self.torque_cmds.clear();
+    }
+
+    /// Latched `τ_cmd` for a joint, or `0.0` when unset.
+    pub fn torque_cmd(&self, joint_name: &str) -> f64 {
+        self.torque_cmds.get(joint_name).copied().unwrap_or(0.0)
     }
 
     /// Target (kp, kd) per joint from YAML (`gravity_comp` / `impedance`).
@@ -924,6 +959,7 @@ impl<B: MotorBus> ControlLoop<B> {
                                 q: q[i],
                                 dq: self.joint_velocity(name),
                                 tau_g: tau_g[i],
+                                tau_cmd: self.torque_cmd(name),
                                 friction: cfg.map(|c| c.friction.clone()),
                                 wire_kp: r.wire_kp,
                                 wire_kd: r.wire_kd,
@@ -1382,6 +1418,40 @@ mod tests {
         loop_ctrl.set_control_mode(ControlMode::GravityComp);
         assert!(loop_ctrl.position_setpoints().is_none());
         assert_eq!(loop_ctrl.control_mode(), ControlMode::GravityComp);
+    }
+
+    #[test]
+    fn torque_cmd_defaults_zero_and_latches() {
+        let mut loop_ctrl = test_loop();
+        let joint = "right_shoulder_pitch";
+        assert!((loop_ctrl.torque_cmd(joint)).abs() < 1e-12);
+        loop_ctrl.set_torque_cmd(joint, 0.25).expect("set");
+        assert!((loop_ctrl.torque_cmd(joint) - 0.25).abs() < 1e-12);
+        loop_ctrl.clear_torque_cmd(joint);
+        assert!((loop_ctrl.torque_cmd(joint)).abs() < 1e-12);
+    }
+
+    #[test]
+    fn leaving_torque_only_clears_torque_cmds() {
+        let mut loop_ctrl = test_loop();
+        let joint = "right_shoulder_pitch";
+        loop_ctrl.set_control_mode(ControlMode::TorqueOnly);
+        loop_ctrl.set_torque_cmd(joint, 0.4).expect("set");
+        assert!((loop_ctrl.torque_cmd(joint) - 0.4).abs() < 1e-12);
+        loop_ctrl.set_control_mode(ControlMode::GravityComp);
+        assert!(
+            (loop_ctrl.torque_cmd(joint)).abs() < 1e-12,
+            "leave TorqueOnly must clear τ_cmd latch"
+        );
+    }
+
+    #[test]
+    fn set_torque_cmd_rejects_unknown_joint() {
+        let mut loop_ctrl = test_loop();
+        let err = loop_ctrl
+            .set_torque_cmd("not_a_joint", 0.1)
+            .expect_err("unknown");
+        assert!(matches!(err, LoopError::UnknownJoint { .. }));
     }
 
     #[test]

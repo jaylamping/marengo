@@ -11,7 +11,7 @@ Owns `ControlLoop::tick` — the heartbeat of the robot. Also provides a legacy 
 - `ControlLoop<B: MotorBus>` — realtime tick facade; holds `Supervisor<B>`, `UrdfGravityModel`, `PositionHold`, `GainRuntime`, Chappe bus reference, and tick-phase timing accumulators.
 - `GainRuntime` — sticky Testing `GainOverride` map + mode-transition kp/kd ramp + per-tick `resolve_all` → `ResolvedGains` (law_* + wire_*).
 - `PositionHold` — owns latched targets, trapezoid planners, freeze/breakaway latches, and Position-mode MIT compose (`tick` → `HoldTickOut`).
-- `MitFeedforward` — Active MIT packing for GravityComp / Impedance / TorqueOnly from pre-resolved wire gains + τ_ff; TorqueOnly aliases GravityComp today.
+- `MitFeedforward` — Active MIT packing for GravityComp / Impedance / TorqueOnly from pre-resolved wire gains + τ_ff; TorqueOnly uses latched `τ_cmd` (hard-zero kp/kd).
 - `Controller<B: MotorBus>` — lighter facade wrapping `Supervisor<B>` for single-joint commands (REPL / bench).
 - `ControlMode` — re-exported from `davout`: `Disabled`, `GravityComp`, `TorqueOnly`, `Impedance`, `Position`.
 - `GainOverride` — runtime per-joint gain override from Testing page; clamped to motor-type safety limits; cleared on GravityComp/TorqueOnly/Disabled enter.
@@ -35,7 +35,7 @@ Owns `ControlLoop::tick` — the heartbeat of the robot. Also provides a legacy 
 3. **Gravity comp**: `dynamics.gravity_torques(&q)` — armee-dynamics virtual-work gradient produces tau_g.
 4. **Resolve gains**: `GainRuntime::resolve_all` — law_* (override or impedance YAML) + wire_* (override > ramp > YAML target).
 5. **Position hold** (Position mode only): `PositionHold::tick(HoldWorld)` with law_* params; patch MIT `kp` from `wire_kp` only.
-6. **Compose MIT batch** (non-Position modes): `MitFeedforward::compose` — GravityComp/TorqueOnly `τ_ff=τ_g` with wire gains; Impedance adds friction (`fc` from resolve) + wire gains.
+6. **Compose MIT batch** (non-Position modes): `MitFeedforward::compose` — GravityComp `τ_ff=τ_g` with wire gains; TorqueOnly `τ_ff=τ_cmd` (kp/kd=0); Impedance adds friction (`fc` from resolve) + wire gains.
 7. **Send batch**: `Supervisor::send_mit_batch(cmds)` — goes through Davout's filter pipeline; then `GainRuntime::advance_tick`.
 8. **Publish Chappe telemetry** at reduced rate (e.g. 20 Hz vs 200 Hz loop).
 
