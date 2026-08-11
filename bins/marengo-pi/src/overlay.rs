@@ -118,6 +118,7 @@ impl ActuatorOverlay {
                     };
                     match self.apply_operator_command(loop_ctrl, config_dir, &operator) {
                         Ok(outcomes) => {
+                            let mut publish_limits_now = false;
                             for outcome in outcomes {
                                 if let Err(e) = publish_outcome(chappe, &outcome) {
                                     warn!(error = %e, "failed to publish overlay audit event");
@@ -128,8 +129,24 @@ impl ActuatorOverlay {
                                         if event.action == "limit_patch" && event.accepted =>
                                     {
                                         self.limits_dirty = true;
+                                        // Publish before write-behind Durable ACK returns to
+                                        // Consul — do not wait for the next chappe_state_hz
+                                        // tick or GET /snapshot/actuator/limits can lag disk.
+                                        publish_limits_now = true;
                                     }
                                     OverlayOutcome::Action(_) => {}
+                                }
+                            }
+                            if publish_limits_now {
+                                if let Err(e) = self.maybe_publish_limits(
+                                    loop_ctrl.supervisor(),
+                                    chappe,
+                                    operator.timestamp_ms,
+                                ) {
+                                    warn!(
+                                        error = %e,
+                                        "failed to publish ActuatorLimitSnapshot after limit_patch"
+                                    );
                                 }
                             }
                         }

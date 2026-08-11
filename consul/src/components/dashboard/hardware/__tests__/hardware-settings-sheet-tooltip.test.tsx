@@ -22,15 +22,20 @@ vi.mock('@/lib/gateway-api', () => ({
 vi.mock('@/lib/persist-joint-limits', () => ({
   persistJointLimits: vi.fn(async () => ({
     ok: true,
-    lower: -0.5,
-    upper: 1.2,
+    lower: -0.53,
+    upper: 1.23,
+    softLower: -0.503,
+    softUpper: 1.203,
     restartRequired: false,
+    persistStatus: 'durable',
+    localSync: 'skipped',
     message: 'ok',
   })),
 }));
 
 vi.mock('@/lib/query-client', () => ({
   queryClient: {
+    setQueryData: vi.fn(),
     invalidateQueries: vi.fn(async () => undefined),
   },
 }));
