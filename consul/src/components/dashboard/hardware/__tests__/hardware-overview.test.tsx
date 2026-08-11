@@ -100,6 +100,7 @@ vi.mock('@/lib/persist-joint-limits', () => ({
 vi.mock('@/lib/gateway-api', () => ({
   postSetZeroCommand: vi.fn(),
   postEnableCommand: vi.fn(async () => undefined),
+  postActiveReportingLease: vi.fn(async () => undefined),
   fetchActuatorLimits: vi.fn(async () => null),
   fetchCommissioningScope: vi.fn(async () => ({
     version: 1,
@@ -111,6 +112,15 @@ vi.mock('@/lib/gateway-api', () => ({
   putCommissioningScope: vi.fn(),
   deleteCommissioningScope: vi.fn(),
 }));
+
+vi.mock('@/lib/chappe-config', async () => {
+  const actual =
+    await vi.importActual<typeof import('@/lib/chappe-config')>('@/lib/chappe-config');
+  return {
+    ...actual,
+    isChappeLive: () => true,
+  };
+});
 
 function renderHardware() {
   const client = new QueryClient({
@@ -163,6 +173,50 @@ describe('HardwareOverview', () => {
     });
     expect(screen.getByTitle(/1 completeness gaps/i)).toBeTruthy();
     expect(screen.getByText(/gaps/)).toBeTruthy();
+  });
+
+  it('acquires Active Reporting leases for all on-CAN joints while the page is open', async () => {
+    const { postActiveReportingLease } = await import('@/lib/gateway-api');
+    renderHardware();
+    await waitFor(() => {
+      expect(screen.getByTestId('hardware-row-right_shoulder_roll')).toBeTruthy();
+    });
+    await waitFor(() => {
+      expect(postActiveReportingLease).toHaveBeenCalledWith(
+        expect.objectContaining({
+          joint: 'right_shoulder_roll',
+          action: 'acquire',
+        }),
+      );
+      expect(postActiveReportingLease).toHaveBeenCalledWith(
+        expect.objectContaining({
+          joint: 'right_shoulder_pitch',
+          action: 'acquire',
+        }),
+      );
+    });
+  });
+
+  it('holds Active Reporting leases for on-CAN joints without opening a row', async () => {
+    const { postActiveReportingLease } = await import('@/lib/gateway-api');
+    renderHardware();
+    await waitFor(() => {
+      expect(screen.getByTestId('hardware-row-right_shoulder_pitch')).toBeTruthy();
+    });
+    await waitFor(() => {
+      expect(postActiveReportingLease).toHaveBeenCalledWith(
+        expect.objectContaining({
+          joint: 'right_shoulder_pitch',
+          action: 'acquire',
+        }),
+      );
+      expect(postActiveReportingLease).toHaveBeenCalledWith(
+        expect.objectContaining({
+          joint: 'right_shoulder_roll',
+          action: 'acquire',
+        }),
+      );
+    });
   });
 
   it('shows zero gaps only after completeness succeeds with no warnings', async () => {
