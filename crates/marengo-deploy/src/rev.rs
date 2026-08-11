@@ -59,6 +59,8 @@ pub fn read_deploy_rev(path: &Path) -> ParsedDeployRev {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::expect_used)]
+
     use super::*;
     use std::io::Write;
 

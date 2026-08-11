@@ -137,6 +137,8 @@ fn read_log_tail(path: &Path, max_bytes: usize) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::expect_used)]
+
     use super::*;
     use crate::job::DeployPhase;
 

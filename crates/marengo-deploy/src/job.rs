@@ -80,10 +80,7 @@ pub fn read_job_file(path: &Path) -> DeployJob {
     let Ok(raw) = std::fs::read_to_string(path) else {
         return DeployJob::default();
     };
-    match serde_json::from_str(&raw) {
-        Ok(job) => job,
-        Err(_) => DeployJob::default(),
-    }
+    serde_json::from_str(&raw).unwrap_or_else(|_| DeployJob::default())
 }
 
 /// Atomically write a job file, creating its parent directory as needed.
@@ -155,10 +152,7 @@ pub fn reconcile_job(job: &mut DeployJob, deploy_sha: &str, max_age_secs: u64) -
         job.updated_at = format_unix_iso(unix_now());
         return true;
     }
-    let started = match parse_iso_unix(&job.started_at) {
-        Some(value) => value,
-        None => 0,
-    };
+    let started = parse_iso_unix(&job.started_at).map_or(0, |value| value);
     if started > 0 && unix_now().saturating_sub(started) > max_age_secs {
         job.state = DeployJobState::Failed;
         job.message = format!("stale running job older than {max_age_secs}s");
@@ -207,6 +201,8 @@ fn unit_is_active(unit: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::expect_used)]
+
     use super::*;
 
     #[test]

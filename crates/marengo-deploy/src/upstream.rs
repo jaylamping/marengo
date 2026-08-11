@@ -201,9 +201,9 @@ fn load_upstream_disk_cache() -> Option<(String, u64, bool)> {
     let value: serde_json::Value = serde_json::from_str(&raw).ok()?;
     let sha = value.get("sha")?.as_str()?.to_string();
     let fetched_at = value.get("fetched_at_unix")?.as_u64()?;
-    let ok = match value.get("ok").and_then(serde_json::Value::as_bool) {
-        Some(value) => value,
-        None => false,
-    };
+    let ok = value
+        .get("ok")
+        .and_then(serde_json::Value::as_bool)
+        .is_some_and(|value| value);
     (!sha.is_empty()).then_some((sha, fetched_at, ok))
 }
