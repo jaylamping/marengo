@@ -489,7 +489,7 @@ struct MotorStatusPollBody {
 }
 
 /// Light Hardware-page solicit: Pi re-TX Disable (type-4) per motor → OperationStatus.
-/// Rate-limited to ~1 request / 2 s globally so the bus is not flooded.
+/// Rate-limited (~0.5/s, burst 2) globally so the bus is not flooded.
 async fn command_motor_status_poll(
     State(state): State<SharedState>,
     Json(body): Json<MotorStatusPollBody>,
@@ -672,7 +672,7 @@ mod tests {
         let bus = std::sync::Arc::new(Bus::default());
         let state = std::sync::Arc::new(crate::state::AppState::new(std::sync::Arc::clone(&bus)));
         let app = router(std::sync::Arc::clone(&state), None);
-        let ok = app
+        let ok_a = app
             .oneshot(
                 axum::http::Request::builder()
                     .method("POST")
@@ -683,7 +683,21 @@ mod tests {
             )
             .await
             .expect("response");
-        assert_eq!(ok.status(), StatusCode::OK);
+        assert_eq!(ok_a.status(), StatusCode::OK);
+
+        let app = router(std::sync::Arc::clone(&state), None);
+        let ok_b = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/command/motor_status_poll")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"client_id":"consul-b"}"#))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(ok_b.status(), StatusCode::OK);
 
         let app = router(state, None);
         let limited = app
@@ -692,7 +706,7 @@ mod tests {
                     .method("POST")
                     .uri("/command/motor_status_poll")
                     .header("content-type", "application/json")
-                    .body(Body::from(r#"{"client_id":"consul-b"}"#))
+                    .body(Body::from(r#"{"client_id":"consul-c"}"#))
                     .expect("request"),
             )
             .await

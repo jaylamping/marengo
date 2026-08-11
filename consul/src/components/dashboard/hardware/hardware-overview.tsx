@@ -84,7 +84,7 @@ export function HardwareOverview() {
     () => buildHardwareRows(snapshot ?? null, warnings, limitSnapshot, robotState),
     [snapshot, warnings, limitSnapshot, robotState],
   );
-  // Light Disable solicit (~2 s) so Facet/Ready update without type-24 on every motor.
+  // Light Disable solicit (~2.5 s). Davout skips motors already under type-24 (diagnostics/lease).
   useMotorStatusPoll({
     enabled: operationalMode !== 'ACTIVE',
   });

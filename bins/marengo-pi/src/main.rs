@@ -311,18 +311,10 @@ fn drain_chappe_commands(
         }
     }
     // Collapse bursts: only the latest solicit matters before the next control tick.
-    let mut latest_status_poll: Option<MotorStatusPollRequest> = None;
+    let mut status_poll_payloads: Vec<Vec<u8>> = Vec::new();
     loop {
         match status_poll_rx.try_recv() {
-            Ok(bytes) => {
-                let Ok(envelope) = armee_proto::Envelope::decode(bytes.as_slice()) else {
-                    continue;
-                };
-                let Ok(request) = MotorStatusPollRequest::decode(envelope.payload.as_slice()) else {
-                    continue;
-                };
-                latest_status_poll = Some(request);
-            }
+            Ok(bytes) => status_poll_payloads.push(bytes),
             Err(tokio::sync::broadcast::error::TryRecvError::Empty) => break,
             Err(tokio::sync::broadcast::error::TryRecvError::Lagged(n)) => {
                 warn!(
@@ -333,7 +325,8 @@ fn drain_chappe_commands(
             Err(tokio::sync::broadcast::error::TryRecvError::Closed) => break,
         }
     }
-    if let Some(request) = latest_status_poll {
+    if let Some(request) = latest_motor_status_poll(status_poll_payloads.iter().map(Vec::as_slice))
+    {
         if let Err(e) = loop_ctrl.supervisor_mut().solicit_status_feedback() {
             warn!(
                 operator = %request.operator_id,
@@ -1206,6 +1199,25 @@ fn log_tick_phase_averages(phase: TickPhaseAverages) {
     );
 }
 
+/// Decode one Chappe envelope carrying `MotorStatusPollRequest` (testable seam).
+fn decode_motor_status_poll_envelope(bytes: &[u8]) -> Option<MotorStatusPollRequest> {
+    let envelope = armee_proto::Envelope::decode(bytes).ok()?;
+    MotorStatusPollRequest::decode(envelope.payload.as_slice()).ok()
+}
+
+/// Collapse a burst of status-poll envelope payloads to the latest valid request.
+fn latest_motor_status_poll<'a>(
+    payloads: impl IntoIterator<Item = &'a [u8]>,
+) -> Option<MotorStatusPollRequest> {
+    let mut latest = None;
+    for bytes in payloads {
+        if let Some(request) = decode_motor_status_poll_envelope(bytes) {
+            latest = Some(request);
+        }
+    }
+    latest
+}
+
 fn debug_status(loop_ctrl: &mut ControlLoop<RuntimeBus>, timing: &mut LoopTimingWindow) {
     timing.log_and_reset(loop_ctrl);
     let control_mode = loop_ctrl.control_mode();
@@ -1239,5 +1251,45 @@ fn debug_status(loop_ctrl: &mut ControlLoop<RuntimeBus>, timing: &mut LoopTiming
                 "no feedback"
             );
         }
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::panic)]
+mod status_poll_tests {
+    use super::*;
+    use armee_proto::Envelope;
+
+    fn encode_poll(operator_id: &str, timestamp_ms: u64) -> Vec<u8> {
+        let request = MotorStatusPollRequest {
+            timestamp_ms,
+            operator_id: operator_id.into(),
+        };
+        let envelope = Envelope {
+            timestamp_ms,
+            source_node: "gateway".into(),
+            message_type: "marengo.v1.MotorStatusPollRequest".into(),
+            payload: request.encode_to_vec(),
+        };
+        envelope.encode_to_vec()
+    }
+
+    #[test]
+    fn latest_motor_status_poll_keeps_last_valid_envelope() {
+        let first = encode_poll("consul-a", 1);
+        let garbage = b"not-an-envelope".to_vec();
+        let second = encode_poll("consul-b", 2);
+        let Some(latest) =
+            latest_motor_status_poll([first.as_slice(), garbage.as_slice(), second.as_slice()])
+        else {
+            panic!("expected latest status poll");
+        };
+        assert_eq!(latest.operator_id, "consul-b");
+        assert_eq!(latest.timestamp_ms, 2);
+    }
+
+    #[test]
+    fn decode_motor_status_poll_envelope_rejects_garbage() {
+        assert!(decode_motor_status_poll_envelope(b"nope").is_none());
     }
 }

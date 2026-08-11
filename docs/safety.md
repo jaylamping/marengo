@@ -75,7 +75,9 @@ See [ADR 0012](decisions/0012-config-db-overrides.md) and [ADR 0017](decisions/0
 
 ## Hardware status poll (type-4 solicit)
 
-While the **Hardware** page is open and operational mode is not `ACTIVE`, Consul POSTs `/command/motor_status_poll` about once every 2 s (gateway global rate limit). Gateway → Chappe `robot/motor_status_poll` → Davout `solicit_status_feedback`, which re-TX RobStride **Disable (type-4)** once per loaded motor. Motors reply with **OperationStatus (type-2)**; the normal 200 Hz drain updates `RobotState` so Online/Ready facets refresh without continuous Active Reporting. No-op while `ACTIVE` (MIT status replies own that path). HTTP 200 is publish ACK only.
+While the **Hardware** page is open and operational mode is not `ACTIVE`, Consul POSTs `/command/motor_status_poll` about once every 2.5 s (gateway global rate limit ~0.5/s, burst 2). Gateway → Chappe `robot/motor_status_poll` → Davout `solicit_status_feedback`, which re-TX RobStride **Disable (type-4)** once per loaded motor that does **not** already desire Active Reporting (global `active_reporting_diagnostics` or an unexpired sheet/modal lease). Motors reply with **OperationStatus (type-2)**; the normal 200 Hz drain updates `RobotState`. No-op while `ACTIVE` (MIT status replies own that path). Best-effort per motor on TX failure. HTTP 200 is publish ACK only.
+
+While not `ACTIVE`, Davout omits free-drive feedback older than ~5 s from `joint_feedback` / `RobotState` so Consul Online/Offline tracks recent RX rather than sticky cache membership after the first successful poll.
 
 ## Active Reporting leases (type-24)
 

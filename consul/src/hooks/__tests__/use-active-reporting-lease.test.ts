@@ -2,10 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, renderHook, waitFor } from '@testing-library/react';
 
-import {
-  useActiveReportingLease,
-  useActiveReportingLeases,
-} from '@/hooks/use-active-reporting-lease';
+import { useActiveReportingLease } from '@/hooks/use-active-reporting-lease';
 
 type LeaseArgs = {
   joint: string;
@@ -77,43 +74,5 @@ describe('useActiveReportingLease', () => {
     );
     expect(result.current).toBe('idle');
     expect(postLease).not.toHaveBeenCalled();
-  });
-});
-
-describe('useActiveReportingLeases', () => {
-  it('acquires every joint and releases all on cleanup', async () => {
-    const { unmount } = renderHook(() =>
-      useActiveReportingLeases({
-        joints: ['right_shoulder_pitch', 'right_shoulder_roll'],
-        enabled: true,
-      }),
-    );
-
-    await waitFor(() => {
-      expect(postLease).toHaveBeenCalledWith(
-        expect.objectContaining({
-          joint: 'right_shoulder_pitch',
-          action: 'acquire',
-        }),
-      );
-      expect(postLease).toHaveBeenCalledWith(
-        expect.objectContaining({
-          joint: 'right_shoulder_roll',
-          action: 'acquire',
-        }),
-      );
-    });
-
-    unmount();
-
-    await waitFor(() => {
-      const releases = postLease.mock.calls.filter(
-        ([args]) => args.action === 'release',
-      );
-      expect(releases.map(([args]) => args.joint).sort()).toEqual([
-        'right_shoulder_pitch',
-        'right_shoulder_roll',
-      ]);
-    });
   });
 });

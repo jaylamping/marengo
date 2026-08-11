@@ -187,8 +187,9 @@ export function robotReady(masterJoints: readonly JointFacetSnapshot[]): boolean
 /**
  * Build a facet from a RobotState joint row.
  *
- * Online means live CAN feedback: Berthier omits joints without feedback from
- * `RobotState.joints`, so a missing wire row is Offline (not "present but silent").
+ * Online means live CAN feedback: Berthier omits joints without feedback (or with
+ * free-drive samples older than Davout's sensing TTL) from `RobotState.joints`, so a
+ * missing wire row is Offline — including motors that went silent after first contact.
  */
 export function jointFacetFromWire(args: {
   name: string;

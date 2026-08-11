@@ -16,9 +16,9 @@ pub const MOTION_BURST: f64 = 2.0;
 pub const DIAGNOSTICS_REFILL_PER_SEC: f64 = 20.0;
 pub const DIAGNOSTICS_BURST: f64 = 20.0;
 
-/// Hardware-page motor status solicit (~1 poll / 2 s globally).
+/// Hardware-page motor status solicit (~1 poll / 2.5 s globally; burst 2 for remount).
 pub const STATUS_POLL_REFILL_PER_SEC: f64 = 0.5;
-pub const STATUS_POLL_BURST: f64 = 1.0;
+pub const STATUS_POLL_BURST: f64 = 2.0;
 
 /// Drop idle rate-limit keys after this idle period.
 const BUCKET_TTL: Duration = Duration::from_secs(600);
@@ -236,9 +236,10 @@ mod tests {
     }
 
     #[test]
-    fn status_poll_bucket_allows_one_then_rejects_until_refill() {
+    fn status_poll_bucket_allows_burst_then_rejects_until_refill() {
         let limiter = RateLimiter::new();
         assert!(limiter.allow("client-a", "_", CommandBucket::StatusPoll));
-        assert!(!limiter.allow("client-b", "_", CommandBucket::StatusPoll));
+        assert!(limiter.allow("client-b", "_", CommandBucket::StatusPoll));
+        assert!(!limiter.allow("client-c", "_", CommandBucket::StatusPoll));
     }
 }

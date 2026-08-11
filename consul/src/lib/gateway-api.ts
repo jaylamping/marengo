@@ -223,7 +223,7 @@ export async function postSetZeroCommand(
   }
 }
 
-/** Light Hardware-page status solicit (Disable type-4 → OperationStatus). ~1/2s gateway cap. */
+/** Light Hardware-page status solicit (Disable type-4 → OperationStatus). Gateway ~0.5/s burst 2. */
 export async function postMotorStatusPoll(): Promise<void> {
   const endpoints = getChappeEndpoints();
   if (!endpoints) {

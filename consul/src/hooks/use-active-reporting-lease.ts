@@ -8,12 +8,6 @@ const RENEW_MS = 10_000;
 
 export type ActiveReportingLeaseUiState = 'idle' | 'requested' | 'failed';
 
-type HeldLease = {
-  joint: string;
-  leaseId: string;
-  clientId: string;
-};
-
 function mintLeaseId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -21,75 +15,65 @@ function mintLeaseId(): string {
   return `lease-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-function stableJointKey(joints: readonly string[]): string {
-  return [...joints].filter(Boolean).sort().join('\0');
-}
-
 /**
- * Holds Active Reporting (type-24) leases for many joints while `enabled`.
- * HTTP 200 means publish ACK only — not confirmed wire reporting.
+ * Holds a per-joint Active Reporting (type-24) lease while `enabled`.
+ * HTTP 200 means publish ACK only — UI shows Enhanced logging, not wire confirmation.
  */
-export function useActiveReportingLeases(options: {
-  joints: readonly string[];
+export function useActiveReportingLease(options: {
+  joint: string | null;
   enabled: boolean;
 }): ActiveReportingLeaseUiState {
-  const { joints, enabled } = options;
-  const jointKey = stableJointKey(joints);
+  const { joint, enabled } = options;
   const [uiState, setUiState] = useState<ActiveReportingLeaseUiState>('idle');
-  const leasesRef = useRef<HeldLease[]>([]);
+  const leaseRef = useRef<{ joint: string; leaseId: string; clientId: string } | null>(
+    null,
+  );
 
   useEffect(() => {
-    const jointList = jointKey.length > 0 ? jointKey.split('\0') : [];
-    if (!enabled || jointList.length === 0 || !isChappeLive()) {
+    if (!enabled || !joint || !isChappeLive()) {
       setUiState('idle');
       return;
     }
 
     let cancelled = false;
     const clientId = ensureClientId();
-    const held: HeldLease[] = jointList.map((joint) => ({
-      joint,
-      leaseId: mintLeaseId(),
-      clientId,
-    }));
-    leasesRef.current = held;
+    const leaseId = mintLeaseId();
+    leaseRef.current = { joint, leaseId, clientId };
     setUiState('idle');
 
-    const releaseAll = (keepalive: boolean) => {
-      const current = leasesRef.current;
-      leasesRef.current = [];
-      for (const lease of current) {
-        void postActiveReportingLease({
-          joint: lease.joint,
-          clientId: lease.clientId,
-          leaseId: lease.leaseId,
-          action: 'release',
-          keepalive,
-        }).catch(() => {
-          // Best-effort; TTL expiry is the backstop.
-        });
+    const release = (keepalive: boolean) => {
+      const held = leaseRef.current;
+      if (!held) {
+        return;
       }
+      leaseRef.current = null;
+      void postActiveReportingLease({
+        joint: held.joint,
+        clientId: held.clientId,
+        leaseId: held.leaseId,
+        action: 'release',
+        keepalive,
+      }).catch(() => {
+        // Best-effort; TTL expiry is the backstop.
+      });
     };
 
     const onPageHide = () => {
-      releaseAll(true);
+      release(true);
     };
     window.addEventListener('pagehide', onPageHide);
 
-    void Promise.all(
-      held.map((lease) =>
-        postActiveReportingLease({
-          joint: lease.joint,
-          clientId: lease.clientId,
-          leaseId: lease.leaseId,
-          action: 'acquire',
-        }),
-      ),
-    )
+    void postActiveReportingLease({
+      joint,
+      clientId,
+      leaseId,
+      action: 'acquire',
+    })
       .then(() => {
-        if (!cancelled) {
-          setUiState('requested');
+        if (cancelled) {
+          return;
         }
+        setUiState('requested');
       })
       .catch(() => {
         if (!cancelled) {
@@ -98,20 +82,16 @@ export function useActiveReportingLeases(options: {
       });
 
     const renewTimer = window.setInterval(() => {
-      const current = leasesRef.current;
-      if (current.length === 0 || cancelled) {
+      const held = leaseRef.current;
+      if (!held || cancelled) {
         return;
       }
-      void Promise.all(
-        current.map((lease) =>
-          postActiveReportingLease({
-            joint: lease.joint,
-            clientId: lease.clientId,
-            leaseId: lease.leaseId,
-            action: 'renew',
-          }),
-        ),
-      )
+      void postActiveReportingLease({
+        joint: held.joint,
+        clientId: held.clientId,
+        leaseId: held.leaseId,
+        action: 'renew',
+      })
         .then(() => {
           if (!cancelled) {
             setUiState('requested');
@@ -128,25 +108,10 @@ export function useActiveReportingLeases(options: {
       cancelled = true;
       window.clearInterval(renewTimer);
       window.removeEventListener('pagehide', onPageHide);
-      releaseAll(false);
+      release(false);
       setUiState('idle');
     };
-  }, [enabled, jointKey]);
+  }, [enabled, joint]);
 
   return uiState;
-}
-
-/**
- * Holds a per-joint Active Reporting (type-24) lease while `enabled`.
- * HTTP 200 means publish ACK only — UI shows Enhanced logging, not wire confirmation.
- */
-export function useActiveReportingLease(options: {
-  joint: string | null;
-  enabled: boolean;
-}): ActiveReportingLeaseUiState {
-  const { joint, enabled } = options;
-  return useActiveReportingLeases({
-    joints: joint ? [joint] : [],
-    enabled: Boolean(enabled && joint),
-  });
 }
