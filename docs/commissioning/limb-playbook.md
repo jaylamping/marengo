@@ -15,9 +15,10 @@ Read [docs/safety.md](../safety.md) before any enable or elevated pose. Motion t
 |-------|---------|------------------------|
 | `limb` | Anatomical group from `robot.yaml` | `right_arm` |
 | `joints[]` | Online / motor-mapped members of `limb` | `right_shoulder_roll`, `right_shoulder_pitch`, `right_upper_arm_yaw`, `right_elbow_pitch`, `right_lower_arm_yaw` |
-| `taught_envelope` | Soft/hard from Set Limits (live config) | DOF1–4 taught 2026-07-22 (~27 mrad soft inset); DOF5 kinematics envelope until re-teach |
-| `commissioning_velocity_baseline` | Manual @ bus voltage, derated; **write into config before Position ladder** | RS03 **9.4** / RS02 **19.3** / RS00 **14.8** rad/s @ 24 V → pitch·roll 9.4, yaw·elbow 19.3, lower-arm yaw 14.8 |
+| `taught_envelope` | Soft/hard from Set Limits (live config) + MIT/safety caps | DOF1–4 taught 2026-07-22 (~27 mrad soft inset); DOF5 kinematics envelope until re-teach; MIT caps 2.5/2.5/2.0/1.5/1.5 rad/s; pitch `elevated_shoulder_pitch_fall` (0.45 rad/s descent) |
+| `commissioning_velocity_baseline` | Manual @ bus voltage, derated — **reference only** for sizing ladder rungs | RS03 **9.4** / RS02 **19.3** / RS00 **14.8** rad/s @ 24 V → pitch·roll 9.4, yaw·elbow 19.3, lower-arm yaw 14.8 |
 | `gcomp_poses` | Three-band static poses within taught envelope | TBD — arm-down / mid / elevated joint angles per limb |
+| `wave_pose` | Elevated multi-joint pose for Wave unlock (subset of elevated band) | TBD — pitch/roll/yaw/elbow raise posture used by Consul Wave |
 | `standard_payload` | Tip-mounted Limb-standard payload | Assembled **0.5–0.8 kg**, tip/distal mount; weigh every attach |
 | `torque_only_tau_cmd` | Open-loop step magnitudes / dwells | TBD — fill before TorqueOnly chapter runs |
 
@@ -91,15 +92,38 @@ All online `joints[]` in `GravityComp`.
 
 Campaign shape is static multi-joint poses + float (not scripted multi-joint GravityComp trajectories — those belong to the Position ladder).
 
+### 4c. Wave-pose G-comp (Consul Wave unlock)
+
+**Unlocks** live Consul Wave (`WAVE_POSE_GCOMP_SIGNED`). Do **not** flip that flag until this gate PASSes.
+
+Prerequisite: §4b coupled G-comp green (or at least elevated-band residuals green for the Wave joint set).
+
+| Gate | Criterion | Harness |
+|------|-----------|---------|
+| Wave-pose hold | At `wave_pose` (elevated multi-joint raise covering pitch/roll/yaw/elbow for the Wave preset), under `GravityComp`, with initial operator support then careful release per [safety.md](../safety.md) | _TODO: wave_pose_gcomp_ |
+| Residuals | same bars as §4b at that pose | analyzer _TODO_ |
+| No free-fall | elevated release does not runaway / fault / watchdog-trip | manual + logs |
+
+Record: date, git rev, `wave_pose` joint angles, residual summary → then set `WAVE_POSE_GCOMP_SIGNED = true`.
+
 ---
 
 ## 5. Position speed ladder
 
-**Before start:** write `commissioning_velocity_baseline` into runtime config (trajectory cruise and related velocity caps as needed) so the robot matches this chapter. Baselines are SoT for the ladder — not whatever cruise/caps happen to be in YAML today.
+**Speed law (mandatory):** effective rung speed for each joint is
+
+`min(% × commissioning_velocity_baseline, live safety ceiling)`
+
+where **live safety ceiling** is the tightest of current `velocity_max_rad_s` (MIT/Davout), configured trajectory cruise ceilings, and danger-zone clamps (e.g. `elevated_shoulder_pitch_fall`).
+
+- `commissioning_velocity_baseline` sizes the ladder; it is **not** a license to raise safety caps in this chapter.
+- **Do not** raise `velocity_max_rad_s` / MIT caps / danger-zone limits as part of the Position ladder. Cap changes are a separate Limits/caps commission.
+- If `% × baseline` exceeds the live ceiling, run the rung at the ceiling and record it as **cap-limited** (still must pass trip class).
+- **Before each rung:** write `position_trajectory_velocity_rad_s` (and related cruise fields) to the **effective** rung speed, sync config (`pi_sync_bench_config`), confirm readback.
 
 ### 5a. Interior ladder
 
-Rungs: **25% / 50% / 75% / 100%** of each joint’s commissioning baseline.
+Rungs: **25% / 50% / 75% / 100%** of each joint’s commissioning baseline, then min’d with the live safety ceiling (above).
 
 At each rung:
 
@@ -115,7 +139,19 @@ After the interior ladder:
 
 | Gate | Criterion | Harness |
 |------|-----------|---------|
-| Soft approach | per-joint toward soft at **25–50%** baseline; safe envelope clamp / limit reaction without fault latch = **pass**; fault latch or runaway = **fail**; controlled interior return | _TODO: ladder_near_limit_ |
+| Soft approach | per-joint toward soft at **25–50%** of baseline (then min’d with live safety ceiling); safe envelope clamp / limit reaction without fault latch = **pass**; fault latch or runaway = **fail**; controlled interior return | _TODO: ladder_near_limit_ |
+
+### 5c. Cross-axis hold (yaw / isolation DOFs)
+
+For joints expected to move with neighbors held (example: `right_upper_arm_yaw` with pitch/roll/elbow held):
+
+| Gate | Criterion | Harness |
+|------|-----------|---------|
+| ±50 mrad hold | command a ±50 mrad step (or hold band) about the reference; settle inside ±50 mrad of command | _TODO: cross_axis_hold_ |
+| Cross-talk | non-commanded joints (esp. shoulder pitch) drift `< 50 mrad` peak during the hold window; review `position-trace-latest.csv` + `candump` | operator + trace |
+| Trip class | same as §5a interior | logs |
+
+Harness smoke (`yaw_attached`, etc.) is **not** this gate; smoke `pass_kind=smoke` ≠ commissioning complete.
 
 ---
 
@@ -146,20 +182,22 @@ Un-aliased semantics: `τ_ff = τ_cmd` only (no `τ_g` / friction), hard-zero kp
 **Job:** safety under load — dynamics honesty **and** envelope/motion stress with tip mass; not a full mode re-commission.
 
 1. Assemble Limb-standard payload (tip/distal, **0.5–0.8 kg** band)
-2. Weigh on a scale (**every attach**); record kg + mount note
-3. Write mass into active URDF/config → sync to Pi
-4. Run critical subset below
-5. Detach fixture and **restore unweighted model** (do not leave weighted mass live)
+2. Weigh on a scale (**every attach**); record kg + mount note (lever / COM offset)
+3. Update the **active** URDF tip mass **and** mount/COM for that fixture (not YAML-only; do not edit archived `assets/urdf/archive/seed-*` unless promoting into the live tree)
+4. Sync URDF to Pi with **`pi_sync_bench_urdf`** (`install_to_opt: true`) — **`pi_sync_bench_config` does not push URDF/meshes**
+5. Verify gravity against the tip load (`pi_gravity_preview` and/or supported hold) **before** running gates
+6. Run critical subset below
+7. Detach fixture; restore unweighted URDF/COM; **`pi_sync_bench_urdf` again**; re-verify unweighted gravity before declaring the chapter done (do not leave weighted mass live)
 
 | Gate | Criterion | Harness |
 |------|-----------|---------|
 | Coupled G-comp | same procedure + bars as ch. 4b (three-band + float + spot-checks) | _TODO: payload_coupled_gcomp_ |
-| Position @ 50% | full rung shape: per-joint interior sweeps **and** multi-joint path; same trip classification as ch. 5a | _TODO: payload_ladder_50_ |
-| Near-limit @ 25% | per-joint soft approach at 25% baseline; clamp-without-fault = pass; fault latch / runaway = fail | _TODO: payload_near_limit_ |
+| Position @ 50% | full rung shape at **effective** 50% speed (§5 speed law): per-joint interior sweeps **and** multi-joint path; same trip classification as ch. 5a | _TODO: payload_ladder_50_ |
+| Near-limit @ 25% | per-joint soft approach at effective 25% speed; clamp-without-fault = pass; fault latch / runaway = fail | _TODO: payload_near_limit_ |
 
-**Out of payload critical:** Limits confirm, Sign, per-joint G-comp, Impedance, TorqueOnly, Disabled hygiene, full 25/50/75/100% ladder.
+**Out of payload critical:** Limits confirm, Sign, per-joint G-comp, Wave-pose unlock, Impedance, TorqueOnly, Disabled hygiene, full 25/50/75/100% ladder.
 
-**Fail policy:** any gate fail ⇒ payload chapter fail; re-weigh / re-sync and retry allowed; no relaxed pass bars under load.
+**Fail policy:** any gate fail ⇒ payload chapter fail; re-weigh / re-sync / re-verify gravity and retry allowed; no relaxed pass bars under load.
 
 ---
 
@@ -167,8 +205,8 @@ Un-aliased semantics: `τ_ff = τ_cmd` only (no `τ_g` / friction), hard-zero kp
 
 | Gate | Criterion |
 |------|-----------|
-| Checklist complete | chapters 1–8 green for this `limb` |
-| Record | date, git rev, commissioning baselines written, payload mass + mount note, operator |
+| Checklist complete | chapters 1–8 green for this `limb` (including §4c Wave-pose if Wave is in scope) |
+| Record | date, git rev, effective ladder speeds / cap-limited rungs, payload mass + mount note, Wave unlock, operator |
 
 Harness: _TODO: limb_signoff_bundle_
 

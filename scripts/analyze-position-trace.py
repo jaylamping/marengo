@@ -71,7 +71,8 @@ class OnsetReport:
     hints: list[str] = field(default_factory=list)
 
 
-# Layer 2 weighted hold-at 0.1 — see docs/bench-position-tuning.md
+# Layer 2 hold-at 0.1 analyzer gate (non-SoT debug). Limb Position SoT is
+# docs/commissioning/limb-playbook.md §5; these constants are local to --gate layer2.
 LAYER2_APPROACH_TARGET_RAD = 0.1
 LAYER2_HOME_START_MAX_RAD = 0.005
 LAYER2_LEAD_SAT_MAX = 0.10

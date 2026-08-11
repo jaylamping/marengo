@@ -68,7 +68,7 @@ Prefer **`pi_bench_harness`** for debug sessions. Sustained control uses **`pi_m
 
 **Right pitch round trip (hands off):** `pi_marengo_pi_script` with `joint: right_shoulder_pitch`, script `home` → `enable bench` → `hold-at 0` (pause) → `hold-at 1.570796` → `hold-at 0` → `disable`, `timeout_sec` ≥ 30 for the full round trip (default 15 is for short probes only).
 
-**Weighted proposals:** if logs suggest load/model issues, ask user to run weighted bench now; if deferred, append [docs/bench-test-backlog.md](../../docs/bench-test-backlog.md).
+**Weighted / tip-load proposals:** if logs suggest load/model issues, ask the user to run [limb playbook §8 Payload critical gates](../../docs/commissioning/limb-playbook.md) now; if deferred, record a follow-up on the [Limb commissioning playbook](https://github.com/jaylamping/marengo/issues/150) map (do not revive deleted `docs/bench-*.md` backlogs).
 
 ## Bench workflow
 

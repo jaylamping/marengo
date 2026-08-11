@@ -303,7 +303,7 @@ export function useAutoLearnController(presetId: string) {
       return `Live test needs motors ACTIVE (Enable). Current: ${operationalMode ?? 'unknown'}.`;
     }
     if (base?.id === 'wave' && !WAVE_POSE_GCOMP_SIGNED) {
-      return 'Live Wave blocked until E6 Wave-pose GravityComp is signed (WAVE_POSE_GCOMP_SIGNED). Use Dry Run Test proposal until then.';
+      return 'Live Wave blocked until playbook §4c Wave-pose G-comp is signed (WAVE_POSE_GCOMP_SIGNED). Use Dry Run Test proposal until then.';
     }
     return null;
   })();

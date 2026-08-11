@@ -37,7 +37,7 @@ export interface HarnessScript {
 export interface HarnessScriptSuite {
   /** Smoke = fault/exit heuristics only; commissioning = metric gates (e.g. ±50 mrad). */
   passKind: HarnessPassKind;
-  /** When true, green smoke must not be treated as Y3–Y4 / wave unlock. */
+  /** When true, green smoke must not be treated as §5c / §4c unlock. */
   operatorSignoffRequired: boolean;
   /** Informational step prepended before scripts (always ok). */
   note?: { name: string; output: string };
@@ -184,7 +184,7 @@ const SCRIPT_SUITES: Partial<Record<BenchProfile, () => HarnessScriptSuite>> = {
         name: "elbow_suite_smoke_note",
         output:
           "elbow_attached harness is smoke (fault/exit heuristics only). " +
-          "Run after elbow GravityComp sign per docs/commissioning/limb-playbook.md. " +
+          "Run after per-joint G-comp (limb-playbook §4a) for elbow. " +
           "Amplitudes stay inside discovery envelope (≤0.6 rad). " +
           "Elevated pitch steps require operator support. " +
           "JSON pass=true with pass_kind=smoke is NOT commissioning complete.",
@@ -266,8 +266,8 @@ const SCRIPT_SUITES: Partial<Record<BenchProfile, () => HarnessScriptSuite>> = {
         name: "yaw_suite_smoke_note",
         output:
           "yaw_attached harness is smoke (fault/exit heuristics only). " +
-          "Y3–Y4 ±50 mrad / pitch-drift sign-off requires operator review of " +
-          "position-trace-latest.csv + candump — see docs/commissioning/limb-playbook.md. " +
+          "Cross-axis hold sign-off is limb-playbook §5c (±50 mrad hold + " +
+          "cross-talk <50 mrad) — review position-trace-latest.csv + candump. " +
           "Runs on arm_4dof_right (elbow held at zero when present). " +
           "JSON pass=true with pass_kind=smoke is NOT commissioning complete.",
       },
