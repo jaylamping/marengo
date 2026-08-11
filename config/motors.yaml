@@ -1,3 +1,4 @@
+# Right 4-DOF bench — pitch (1) + roll (2) + yaw (3) + elbow pitch (4) on can0.
 # ID block: right arm 1–10 (hardware ADR 0001).
 #
 # Bench envelopes from Set Limits (2026-07-22). Davout hard = URDF ∩ bench.
