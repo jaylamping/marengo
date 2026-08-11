@@ -486,7 +486,9 @@ fn default_position_limit_margin_k_stop() -> f64 {
 }
 
 fn default_position_limit_measured_fault_slack_rad() -> f64 {
-    0.005
+    // Bench Set Limits stores taught hard; enable/settle jitter uses this slack
+    // instead of silently widening motors.yaml (was Consul ±30 mrad pad).
+    0.03
 }
 
 /// YAML key for [`MotorType`] in `motor_type_defaults`.
