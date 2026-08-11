@@ -4,7 +4,7 @@ import { deriveSidebarUpdateMode } from '@/components/dashboard/sidebar/use-side
 import type { VersionStatusDto } from '@/lib/version-api';
 
 function status(
-  partial: Partial<VersionStatusDto> & {
+  partial: Omit<Partial<VersionStatusDto>, 'deploy'> & {
     deploy?: Partial<VersionStatusDto['deploy']>;
   } = {},
 ): VersionStatusDto {
