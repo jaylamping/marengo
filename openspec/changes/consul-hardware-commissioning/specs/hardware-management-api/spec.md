@@ -26,13 +26,19 @@
 
 ### Requirement: Commissioning scope read and write
 
-The gateway MUST expose authenticated commissioning scope CRUD backed by `/opt/marengo/var/commissioning-scope.yaml` on the Pi. Read MUST return version, joint list, and effective scope (after ceiling intersection). Write MUST validate joint names against loaded master inventory, persist atomically, and reject unknown joints.
+The gateway MUST expose commissioning scope CRUD backed by `/opt/marengo/var/commissioning-scope.yaml` on the Pi. **Read (`GET`) MUST NOT require** `x-marengo-log-token` (LAN-bench parity with `/config/snapshot` so Consul www without a baked secret can load scope). Read MUST return version, joint list, ceiling (`MARENGO_JOINT_SUBSET` when set), and effective scope (after ceiling intersection). **Write (`PUT`) and clear (`DELETE`) MUST require** the gateway log token. Write MUST validate joint names against loaded master inventory, persist atomically, and reject unknown joints.
 
 #### Scenario: Read effective scope
 
 - GIVEN persisted scope lists four joints and `MARENGO_JOINT_SUBSET` lists three of them
-- WHEN the client GETs commissioning scope
-- THEN response includes persisted list, ceiling, and effective intersection
+- WHEN the client GETs commissioning scope without a log token
+- THEN the request succeeds and the response includes persisted list, ceiling, and effective intersection
+
+#### Scenario: Mutations require log token
+
+- GIVEN `MARENGO_GATEWAY_LOG_TOKEN` is configured
+- WHEN the client PUTs or DELETEs commissioning scope without `x-marengo-log-token`
+- THEN the request is rejected with 401 and disk scope is unchanged
 
 #### Scenario: Write rejects unknown joint
 

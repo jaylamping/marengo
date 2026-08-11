@@ -471,7 +471,7 @@ fn authorize_config_mutation_matches_log_token() {
 }
 
 #[tokio::test]
-async fn commissioning_scope_crud_auth_widen_and_unknown() {
+async fn commissioning_scope_read_open_mutations_gated_widen_and_unknown() {
     let _env = lock_test_env();
     let tmp = tempfile::tempdir().expect("temp");
     let repo = tmp.path();
@@ -505,26 +505,12 @@ robot:
     let state = std::sync::Arc::new(AppState::new(std::sync::Arc::new(Bus::default())));
     let app = test_app(state);
 
-    // Missing auth → 401
-    let unauth = app
-        .clone()
-        .oneshot(
-            axum::http::Request::builder()
-                .uri("/hardware/commissioning-scope")
-                .body(Body::empty())
-                .expect("req"),
-        )
-        .await
-        .expect("resp");
-    assert_eq!(unauth.status(), StatusCode::UNAUTHORIZED);
-
-    // GET empty
+    // GET is read-only (no token) — LAN-bench parity with /config/snapshot.
     let get0 = app
         .clone()
         .oneshot(
             axum::http::Request::builder()
                 .uri("/hardware/commissioning-scope")
-                .header("x-marengo-log-token", TEST_TOKEN)
                 .body(Body::empty())
                 .expect("req"),
         )
@@ -538,6 +524,40 @@ robot:
     )
     .expect("json");
     assert_eq!(body0["persisted"], false);
+    assert_eq!(body0["version"], 1);
+    assert_eq!(body0["effective"].as_array().expect("effective").len(), 0);
+    let ceiling = body0["ceiling"].as_array().expect("ceiling");
+    assert_eq!(ceiling.len(), 3);
+
+    // Mutations still require the log token.
+    let put_unauth = app
+        .clone()
+        .oneshot(
+            axum::http::Request::builder()
+                .method("PUT")
+                .uri("/hardware/commissioning-scope")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"joints":["right_shoulder_roll"],"confirm_widen":true}"#,
+                ))
+                .expect("req"),
+        )
+        .await
+        .expect("resp");
+    assert_eq!(put_unauth.status(), StatusCode::UNAUTHORIZED);
+
+    let delete_unauth = app
+        .clone()
+        .oneshot(
+            axum::http::Request::builder()
+                .method("DELETE")
+                .uri("/hardware/commissioning-scope")
+                .body(Body::empty())
+                .expect("req"),
+        )
+        .await
+        .expect("resp");
+    assert_eq!(delete_unauth.status(), StatusCode::UNAUTHORIZED);
 
     // PUT unknown joint rejected
     let bad = app
