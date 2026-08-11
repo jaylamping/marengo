@@ -2348,6 +2348,9 @@ mod tests {
 
         let bus = MemoryBus::default();
         let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        // Ignore init/sync side effects; status poll itself must not start type-24.
+        sup.control.control.bench.active_reporting_diagnostics = false;
+        sup.bus.tx.clear();
         let n = sup.motors.motors.len();
         assert!(n >= 1);
         sup.solicit_status_feedback().expect("solicit");
