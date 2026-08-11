@@ -11,6 +11,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { applyConfigSnapshotLimits } from '@/lib/apply-config-snapshot-limits';
+import type { ConfigSnapshotDto } from '@/lib/config-api';
 import { fetchActuatorLimits, postSetZeroCommand } from '@/lib/gateway-api';
 import {
   canStartLimitListen,
@@ -236,6 +238,19 @@ export function SetLimitsPanel({
       }
       // Live Set Limits must not open NeedsRestart / clear structural pending.
       try {
+        // Patch Disk hard/soft in the React Query cache from the Durable ACK
+        // payload before refetch — avoids a frame (or refresh) that still shows
+        // pre-Apply motors.yaml bounds while /config/snapshot is in flight.
+        queryClient.setQueryData<ConfigSnapshotDto | null>(
+          queryKeys.configSnapshot,
+          (prev) =>
+            applyConfigSnapshotLimits(prev, jointName, {
+              lower: result.lower,
+              upper: result.upper,
+              softLower: result.softLower,
+              softUpper: result.softUpper,
+            }) ?? prev ?? null,
+        );
         await queryClient.invalidateQueries({
           queryKey: queryKeys.configSnapshot,
         });

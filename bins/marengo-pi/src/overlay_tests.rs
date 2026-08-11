@@ -4,11 +4,11 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use armee_proto::actuator_command::Payload;
 use armee_proto::prost::Message;
-use armee_proto::{ActionEvent, Envelope};
+use armee_proto::{ActionEvent, ActuatorLimitSnapshot, Envelope};
 use berthier::{ControlLoop, ControlMode};
 use davout::MemoryBus;
 use marengo_config::{load_control_config_from, CommandJointAllowlist};
@@ -571,5 +571,67 @@ fn limit_patch_persist_failure_emits_distinct_failed_action() {
         use std::os::unix::fs::PermissionsExt;
         let _ = std::fs::set_permissions(tmp.path(), std::fs::Permissions::from_mode(0o755));
     }
+    shutdown.store(true, Ordering::SeqCst);
+}
+
+#[test]
+fn limit_patch_publishes_actuator_limits_before_chappe_tick() {
+    // Regression: Consul refresh after Durable Set Limits must read the live
+    // ActuatorLimitSnapshot, not wait up to 1/chappe_state_hz for maybe_publish_limits.
+    let root = repo_root();
+    let (tmp, config_dir, revision) = copy_profile_to_temp();
+    let (mut overlay, shutdown, bus) = test_overlay_with_bus_at(tmp.path().to_path_buf());
+    let mut limits_rx = bus.subscribe(TOPIC_ACTUATOR_LIMITS);
+    let mut loop_ctrl = ControlLoop::from_repo(&root, MemoryBus::default(), 200, 50).expect("loop");
+
+    let op = limit_patch_op(revision);
+    let envelope = Envelope {
+        timestamp_ms: op.timestamp_ms,
+        source_node: "marengo-gateway".into(),
+        message_type: "marengo.v1.OperatorCommand".into(),
+        payload: op.encode_to_vec(),
+    };
+    let (cmd_tx, mut cmd_rx) = broadcast::channel::<Vec<u8>>(4);
+    cmd_tx
+        .send(envelope.encode_to_vec())
+        .expect("enqueue limit_patch envelope");
+
+    overlay.drain_commands(&mut loop_ctrl, &config_dir, &bus, &mut cmd_rx);
+
+    let deadline = Instant::now() + Duration::from_millis(200);
+    let mut saw_limits = false;
+    while Instant::now() < deadline {
+        match limits_rx.try_recv() {
+            Ok(bytes) => {
+                let Ok(env) = Envelope::decode(bytes.as_slice()) else {
+                    continue;
+                };
+                let Ok(snap) = ActuatorLimitSnapshot::decode(env.payload.as_slice()) else {
+                    continue;
+                };
+                let elbow = snap
+                    .joints
+                    .iter()
+                    .find(|j| j.joint == "right_elbow_pitch")
+                    .expect("right_elbow_pitch in snapshot");
+                assert!(
+                    (elbow.pos_upper_rad - 1.4).abs() < 1e-9,
+                    "live snapshot must reflect patched hard upper, got {}",
+                    elbow.pos_upper_rad
+                );
+                saw_limits = true;
+                break;
+            }
+            Err(broadcast::error::TryRecvError::Empty) => {
+                thread::sleep(Duration::from_millis(5));
+            }
+            Err(broadcast::error::TryRecvError::Lagged(_)) => continue,
+            Err(broadcast::error::TryRecvError::Closed) => break,
+        }
+    }
+    assert!(
+        saw_limits,
+        "limit_patch must publish ActuatorLimitSnapshot immediately via drain_commands"
+    );
     shutdown.store(true, Ordering::SeqCst);
 }

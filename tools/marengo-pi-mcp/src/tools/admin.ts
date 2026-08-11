@@ -140,7 +140,9 @@ export function registerAdminTools(
     pi_restart_marengo_pi: {
       description:
         "Stop or restart marengo-pi.service (and any leftover /opt/marengo/bin/marengo-pi process). " +
-        "Use after Consul Set Limits / motors.yaml hard-bound changes so Davout reloads position limits. " +
+        "Numerical Set Limits Apply hot-reloads Davout in-memory hard bounds + write-behind YAML/URDF " +
+        "(ADR 0012 / 0017) — do not restart for a successful Durable Apply. Prefer restart after binary " +
+        "deploy, structural wiring changes, or a failed persist that left disk stale vs live. " +
         "Motors go limp during stop — support elevated arms. Requires confirm: true. " +
         "Does not restart marengo-gateway.",
       inputSchema: restartMarengoPiSchema,

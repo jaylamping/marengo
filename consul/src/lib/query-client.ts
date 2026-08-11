@@ -44,7 +44,8 @@ export const persistOptions: ConsulPersistOptions | null = queryPersister
   ? {
       persister: queryPersister,
       maxAge: QUERY_CACHE_MAX_AGE_MS,
-      buster: 'consul-query-v2',
+      // v3: stop dehydrating config snapshot (Set Limits refresh stale-read).
+      buster: 'consul-query-v3',
       dehydrateOptions: {
         shouldDehydrateQuery: (query) =>
           defaultShouldDehydrateQuery(query) && isPersistableQueryKey(query.queryKey),
