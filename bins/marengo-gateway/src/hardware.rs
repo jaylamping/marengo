@@ -604,10 +604,11 @@ fn scope_response(persisted: Option<&CommissioningScopeFile>) -> CommissioningSc
     }
 }
 
-pub async fn get_commissioning_scope(
-    headers: HeaderMap,
-) -> Result<Json<CommissioningScopeResponse>, StatusCode> {
-    authorize_config_mutation(&headers)?;
+pub async fn get_commissioning_scope() -> Result<Json<CommissioningScopeResponse>, StatusCode> {
+    // Read-only on the LAN bench: do not require x-marengo-log-token (same reason as
+    // `/config/snapshot` — deployed Consul www may omit the baked secret). Response also
+    // includes `ceiling` (MARENGO_JOINT_SUBSET) which snapshot does not. PUT/DELETE stay
+    // fail-closed via authorize_config_mutation.
     let loaded = load_commissioning_scope(scope_path()).map_err(|e| {
         tracing::warn!(error = %e, "commissioning scope load failed");
         StatusCode::INTERNAL_SERVER_ERROR

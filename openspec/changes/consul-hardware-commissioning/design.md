@@ -4,7 +4,7 @@
 
 Hardware joins master `robot.yaml`/motor metadata with `RobotState`; it owns commissioning mutations. Telemetry renders the same rows with live values but no commands. Runtime truth remains `marengo-homing` + Davout and is published through Chappe—never browser storage.
 
-`marengo-config` owns a shared, versioned scope loader. Gateway provides authenticated CRUD; marengo-pi reloads the file for every Enable and intersects it with its boot-time `MARENGO_JOINT_SUBSET`. Davout owns targeted drive activation and the active-joint command boundary.
+`marengo-config` owns a shared, versioned scope loader. Gateway provides scope CRUD (open GET; token-gated PUT/DELETE); marengo-pi reloads the file for every Enable and intersects it with its boot-time `MARENGO_JOINT_SUBSET`. Davout owns targeted drive activation and the active-joint command boundary.
 
 **Spec reconciliation:** done. `hardware-commissioning-state` and `hardware-management-api` match the approved proposal: Robot Ready is full-master (unbuilt Offline do not block; scope does not redefine Ready); no scope file requires Robot Ready before Enable; persisted scope enables Verified in-scope without full Robot Ready.
 
@@ -15,7 +15,7 @@ Hardware joins master `robot.yaml`/motor metadata with `RobotState`; it owns com
 | Wire facets | Add proto `JointHomingState` (`UNSPECIFIED`, `UNHOMED`, `HOMING`, `VERIFIED`, `FAULTED`) and `JointState.homing_state=7`, `drive_active=8`, `out_of_limits=9`. Unspecified gates old runtimes; omission/last-seen feedback means Offline. | HTTP homing snapshot or localStorage: split/fabricated truth. |
 | Anatomy/Ready | Add anatomical `limbs` membership to master `robot.yaml`. Joint Ready = Verified; Limb Ready covers online or motor-mapped built members (unbuilt members do not block); Robot Ready covers all master actuated joints. `SafetyState.mode` remains FSM state, not this aggregation. | Name-prefix/static Inventory grouping. |
 | Scope format | `/opt/marengo/var/commissioning-scope.yaml`: `version: 1` plus sorted unique canonical `joints`. Store expanded joints, not limb labels, so later group edits cannot silently widen scope. Atomic rename; unknown joints rejected. | Session/localStorage scope or persisting limb aliases. |
-| Scope API | Authenticated `GET/PUT/DELETE /hardware/commissioning-scope`; GET returns persisted, startup ceiling, and effective intersection. PUT requires `confirm_widen=true` only when effective scope grows. | New Chappe scope message: unnecessary second persistence path. |
+| Scope API | `GET /hardware/commissioning-scope` is unauthenticated (LAN-bench parity with `/config/snapshot`; may expose `ceiling` from `MARENGO_JOINT_SUBSET`). `PUT`/`DELETE` require `x-marengo-log-token`. GET returns persisted, startup ceiling, and effective intersection. PUT requires `confirm_widen=true` only when effective scope grows. | New Chappe scope message: unnecessary second persistence path. |
 | Enable filtering | Reuse `EnableRequest`. With scope, target effective joints that are Verified, Online, fault-free, and in bounds; skip others. Without a scope file, require full Robot Ready and all loaded master targets Online/Nominal. Empty target rejects. | Extending request with client-selected joints: TOCTOU/bypass risk. |
 | Atomic activation | Davout tracks `active_joints`, enables only validated targets, and on any enable/run-mode failure calls `disable_all`. Berthier emits/checks feedback only for active joints; Davout rejects commands outside that set. | Global `mode==ACTIVE` as per-joint authority. |
 
