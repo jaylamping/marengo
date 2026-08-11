@@ -131,8 +131,13 @@ if command -v git-lfs >/dev/null 2>&1 || git lfs version >/dev/null 2>&1; then
 fi
 
 write_job "running" "native build" "build"
-if [[ -x ./scripts/pi-native-build.sh ]]; then
-  ./scripts/pi-native-build.sh || fail "pi-native-build.sh failed" "build"
+# Prefer exec bit; fall back to bash so a 100644 tree never fails as "missing".
+if [[ -f ./scripts/pi-native-build.sh ]]; then
+  if [[ -x ./scripts/pi-native-build.sh ]]; then
+    ./scripts/pi-native-build.sh || fail "pi-native-build.sh failed" "build"
+  else
+    bash ./scripts/pi-native-build.sh || fail "pi-native-build.sh failed" "build"
+  fi
 else
   fail "pi-native-build.sh missing" "build"
 fi

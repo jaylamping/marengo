@@ -179,7 +179,7 @@ export function registerAdminTools(
           "sudo systemctl disable marengo-pi.service 2>/dev/null || true",
           "sudo pkill -f /opt/marengo/bin/marengo-pi 2>/dev/null || true",
           "sudo git config --global --add safe.directory \"$(pwd)\" 2>/dev/null || true",
-          "if [[ -x ./scripts/pi-native-build.sh ]]; then ./scripts/pi-native-build.sh; else",
+          "if [[ -f ./scripts/pi-native-build.sh ]]; then bash ./scripts/pi-native-build.sh; else",
           '  if [[ -f "${HOME}/.cargo/env" ]]; then set -a; source "${HOME}/.cargo/env"; set +a; fi',
           '  export PATH="${HOME}/.cargo/bin:/usr/local/cargo/bin:${PATH:-}"',
           "  command -v cargo >/dev/null || { echo 'error: cargo not on PATH'; exit 127; }",
