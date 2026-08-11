@@ -31,11 +31,11 @@ Joint vector order everywhere:
 
 | Band | `q` (rad) |
 |------|-----------|
-| arm-down | `[0.10, 0.00, 0.00, 0.00, 0.00]` |
+| arm-down | `[0.15, 0.00, 0.00, 0.00, 0.00]` |
 | mid | `[1.20, 1.00, 0.00, 0.35, 0.00]` |
 | elevated | `[1.80, 2.50, 0.00, 0.60, 0.00]` |
 
-Stay inside `taught_envelope` soft limits (~0.15 rad margin preferred). Support the arm on first enable at elevated.
+Stay inside `taught_envelope` soft limits (~0.15 rad margin preferred). Arm-down roll is `0.15` so soft-lower margin meets that preference (soft lo ≈ `-0.023`). Support the arm on first enable at elevated.
 
 ### `torque_only_tau_cmd` defaults (`right_arm`)
 
@@ -46,10 +46,11 @@ Stay inside `taught_envelope` soft limits (~0.15 rad margin preferred). Support 
 | Dwell | **2 s** per polarity |
 | Waveform | open-loop **step** (not sine) |
 | Pose for steps | **arm-down** `gcomp_poses` |
+| Isolation | **One joint at a time.** Before each step: all other joints `τ_cmd = 0` (clear latches — `torque-cmd` sticks until cleared / leave TorqueOnly). After each polarity: return that joint to `0` and settle before the next joint. |
 | Joint order | **distal → proximal:** lower_arm_yaw → elbow → upper_arm_yaw → roll → pitch |
-| Mid contrast | mid `gcomp_poses`, **`τ_cmd = 0`** (prove no auto `τ_g`) |
+| Mid contrast | mid `gcomp_poses`, **`τ_cmd = 0` on all joints**; **continuous physical support required** (pitch ≥ `elevated_shoulder_pitch_fall` / 0.5 rad — do not release) |
 
-Not an industry-canon magnitude — conservative Marengo starting point. Raise/lower `|τ_cmd|` or dwell per run if friction/sign is unclear or motion is too brisk; keep Davout caps respected and elevated TorqueOnly supported.
+Not an industry-canon magnitude — conservative Marengo starting point. Lower `|τ_cmd|` or dwell if motion is too brisk; if sign is unclear, stop and re-run §3 Sign (do not raise open-loop torque to “force” a sign). Keep Davout caps respected.
 
 ---
 
@@ -196,12 +197,16 @@ Harness smoke (`yaw_attached`, etc.) is **not** this gate; smoke `pass_kind=smok
 
 ## 7. TorqueOnly
 
-Un-aliased semantics: `τ_ff = τ_cmd` only (no `τ_g` / friction), hard-zero kp/kd, `q_des = q`, `v_des = 0`. Operator latch via `torque-cmd` / Testing overlay (default 0; cleared on leave). `gravity-off` enters TorqueOnly with `τ_cmd ≡ 0`. Davout caps apply; wrong-sign watchdog remains GravityComp-only. Elevated TorqueOnly only with physical support.
+Un-aliased semantics: `τ_ff = τ_cmd` only (no `τ_g` / friction), hard-zero kp/kd, `q_des = q`, `v_des = 0`. Operator latch via `torque-cmd` / Testing overlay (default 0; cleared on leave). `gravity-off` enters TorqueOnly with `τ_cmd ≡ 0`. Davout caps apply; wrong-sign watchdog remains GravityComp-only.
+
+**Support:** any TorqueOnly hold with shoulder pitch ≥ `elevated_shoulder_pitch_fall` (`0.5` rad) — including mid contrast and elevated band — requires **continuous physical support**. Do not release under zero-FF TorqueOnly.
+
+**Latch hygiene:** `τ_cmd` is sticky per joint. Campaigns must keep **one joint active**; clear / zero all others before each step.
 
 | Gate | Criterion | Harness |
 |------|-----------|---------|
-| τ_cmd steps | bidirectional open-loop steps at arm-down per `torque_only_tau_cmd` (magnitudes, dwell, distal→proximal order); correct sign; caps respected; no runaway | _TODO: torque_only_steps_ |
-| No-τ_g contrast | mid `gcomp_poses` with `τ_cmd = 0`: does **not** auto-inject full `τ_g` | _TODO_ |
+| τ_cmd steps | bidirectional open-loop steps at arm-down per `torque_only_tau_cmd` (magnitudes, dwell, **one joint at a time**, clear others, distal→proximal order); correct sign; caps respected; no runaway | _TODO: torque_only_steps_ |
+| No-τ_g contrast | mid `gcomp_poses` with **all** `τ_cmd = 0`, **arm supported**: does **not** auto-inject full `τ_g` | _TODO_ |
 | Disabled hygiene | clean enter/exit of `Disabled` | _TODO_ |
 
 ---
