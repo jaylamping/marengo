@@ -2,7 +2,7 @@
 
 Operator-runnable physical bench tests for **right upper-arm yaw** on the attached
 4-DOF arm (`arm_4dof_right`). Yaw is Robstride RS02 on `can0`, `device_id=3`,
-provisional `direction=1`, limits **±1.57 rad**. Pitch (id 2), roll (id 1), and
+provisional `direction=1`, limits **±1.57 rad**. Pitch (id 1), roll (id 2), and
 elbow pitch (id 4) are enabled; during yaw probes they are held at **q=0**
 unless noted (Y4).
 

@@ -44,7 +44,7 @@ Operator smoothness is **required** even if analyzer passes.
 |------|-------|
 | Pi | `joey@joey-robot.tail0b414.ts.net` |
 | Config | `arm_3dof_right` |
-| Motor | `can0/id2` (`right_shoulder_pitch`) |
+| Motor | `can0/id1` (`right_shoulder_pitch`) |
 | Deploy rev | `2d95ee5` local Pi build includes accel-limited small slew + `dq_traj` FF handoff fix; repo commit `2d95ee5` fixes MCP candump summary parsing |
 | Profile | `weighted_single_arm` via `pi_hold_on` |
 
@@ -131,7 +131,7 @@ Set `MARENGO_POSITION_TRACE_HZ=50` only to shrink CSVs during long sweeps.
 
 RS03 does **not** expose a fixed “CAN frequency” in our stack — MIT mode is **passive**: exchange rate = whatever the host sends (200 Hz today). Inner motor current loop is faster; that is not visible on CAN.
 
-**Verify on bench:** while holding, run `scripts/measure-can-mit-rate.sh can0 2` — expect **~400 frames/s** on can0 with one right shoulder RS03 (200 TX + 200 RX).
+**Verify on bench:** while holding, run `scripts/measure-can-mit-rate.sh can0 1` — expect **~400 frames/s** on can0 with one right shoulder RS03 (200 TX + 200 RX).
 
 **Debug jerk:** compare **200 Hz trace** (code/planner) vs **candump** (wire) vs **1 Hz text log** (operator eyeball only). If trace looks smooth but arm jerks, suspect firmware/MIT or mechanical load; if trace shows stairs at 200 Hz, suspect Berthier/Davout.
 

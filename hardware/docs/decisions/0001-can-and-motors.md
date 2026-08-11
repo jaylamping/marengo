@@ -38,7 +38,7 @@ Each configured motor is addressed by (`can_interface`, `device_id`). Device IDs
 | Joint | `can_interface` | `device_id` | Motor |
 |-------|-----------------|-------------|-------|
 | `left_shoulder_pitch` | can1 | 12 | RS03 |
-| `right_shoulder_pitch` | can0 | 2 | RS03 |
+| `right_shoulder_pitch` | can0 | 1 | RS03 |
 
 **Left 4-DOF arm (Milestone B)** — [`config/bringup/arm_4dof_left/`](../../../config/bringup/arm_4dof_left/) / [`config/motors.yaml`](../../../config/motors.yaml):
 
@@ -49,7 +49,7 @@ Each configured motor is addressed by (`can_interface`, `device_id`). Device IDs
 | `upper_arm_yaw` | 13 | RS02 | |
 | `elbow` | 14 | RS02 | |
 
-All on `can0`. Right arm bench (`arm_4dof_right`, `can0`): roll **1**, pitch **2**, yaw **3**, elbow pitch **4** (`right_elbow_pitch`). Regression slice `arm_3dof_right` omits elbow.
+All on `can0`. Right arm bench (`arm_4dof_right`, `can0`): pitch **1**, roll **2**, yaw **3**, elbow pitch **4** (`right_elbow_pitch`). Regression slice `arm_3dof_right` omits elbow.
 
 **Legacy 4-DOF template (superseded):** IDs 1–4 on single bus — do not use on commissioned hardware.
 

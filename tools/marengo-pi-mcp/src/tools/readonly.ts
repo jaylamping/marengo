@@ -28,7 +28,7 @@ export function registerReadonlyTools(
             "echo '=== git (may lag rsync) ==='",
             "git log -1 --oneline 2>/dev/null || echo '(not a git checkout)'",
             "echo",
-            "echo '=== commissioned motors (can0/id2, can1/id12) ==='",
+            "echo '=== commissioned motors (can0/id1, can1/id12) ==='",
             `grep -E 'can_interface|device_id|joint:' ${shellQuote(`${cfg.configDir}/motors.yaml`)} 2>/dev/null || echo '(motors.yaml not found)'`,
             homingHealthShell(),
             "echo",

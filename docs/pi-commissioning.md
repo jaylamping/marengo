@@ -2,14 +2,14 @@
 #
 # Hardware confirmed (prototype):
 #   left_shoulder_pitch  can1  device_id 12  firmware 0.3.1.42
-#   right_shoulder_pitch can0  device_id 2   firmware 0.3.1.42
+#   right_shoulder_pitch can0  device_id 1   firmware 0.3.1.42
 #
 # See also: docs/safety.md, hardware/electrical/wiring/can_topology.md
 
 ## Phase 0 — Bench pre-flight
 
 - [ ] CAD joint names deferred; YAML uses `*_shoulder_pitch`
-- [x] Firmware IDs: left **12**, right **2**; set-zero after ID change
+- [x] Firmware IDs: left **12**, right **1**; set-zero after ID change
 - [ ] CAN termination verified (`0x3041 can_status` in Robstride tool if bus errors)
 - [ ] E-stop ordered: NC mushroom in **motor power** path (TWTADE/Schneider); GPIO 17 sense optional initially
 
@@ -116,12 +116,12 @@ RUST_LOG=robstride=info,davout=info,berthier=info,motor_repl=info
 | Milestone | `MARENGO_CONFIG_DIR` | Joints |
 |-----------|----------------------|--------|
 | **A — dual shoulders** | `config/bringup/shoulder_pitch_dual` | left/right pitch on can0/can1 |
-| **A1 — right bench** | `config/bringup/arm_4dof_right` | roll id 1, pitch id 2, yaw id 3, elbow pitch id 4 on can0 |
+| **A1 — right bench** | `config/bringup/arm_4dof_right` | pitch id 1, roll id 2, yaw id 3, elbow pitch id 4 on can0 |
 | **A1 — right 3-DOF regression** | `config/bringup/arm_3dof_right` | roll/pitch/yaw only (no elbow) |
 | **A1 — left bench only** | `config/bringup/shoulder_pitch_left_only` | `left_shoulder_pitch` on can1, id 12 (mirrors right tuning) |
 | **B — left 4-DOF arm** | `config/bringup/arm_4dof_left` or `config` | all on can0, IDs 11–14 |
 
-**Profile lineage (right arm):** `arm_2dof_right` (roll id 1 + pitch id 2) was renamed to `arm_3dof_right` when upper-arm yaw RS02 id 3 landed (`6f70c64`). Pitch/roll motor rows and directions are unchanged; yaw is provisional until the [yaw suite](bench-yaw-test-suite.md) signs direction. Active 4-DOF default is `arm_4dof_right` (adds elbow pitch id 4). Light pitch+roll smoke still uses the 3-DOF tree — see [bench-2dof-right-smoke.md](bench-2dof-right-smoke.md).
+**Profile lineage (right arm):** `arm_2dof_right` (historically roll id 1 + pitch id 2) was renamed to `arm_3dof_right` when upper-arm yaw RS02 id 3 landed (`6f70c64`). Pitch/roll directions are unchanged; current right-bench IDs are pitch 1 and roll 2. Yaw is provisional until the [yaw suite](bench-yaw-test-suite.md) signs direction. Active 4-DOF default is `arm_4dof_right` (adds elbow pitch id 4). Light pitch+roll smoke still uses the 3-DOF tree — see [bench-2dof-right-smoke.md](bench-2dof-right-smoke.md).
 
 Single-shoulder bench profiles use conservative position hold tuning while feedback velocity guards are active. The current right-only profile uses impedance **kp=8 / kd=1.25**, trapezoid **v=2.0 / a=4.8**, slew **0.15 rad/s**, max lead **0.10**, and trim **0.0** once firmware zero is set at arm-down. Operator shoulder-pitch limits are **[-0.872665, 3.141593] rad** (arm down = 0, -50° to +180°) from URDF `safety_controller`; hard bench/URDF limits are **[-0.9, 3.17] rad**. Berthier/Davout apply a velocity-scaled command envelope (ADR 0009) so fast moves shrink the commandable band before hard limits — full-range sweeps may reach soft limits only after decel, not in one gravity-assisted leg.
 
@@ -153,7 +153,7 @@ RUST_LOG=robstride=trace,davout=debug \
 MARENGO_CAN_INTERFACE=can0 ./target/release/motor-repl --can-interface can0 status
 ```
 
-**Pass:** both interfaces open; trace shows TX/RX for id **2** on can0 (robot right) and id **12** on can1 (robot left).
+**Pass:** both interfaces open; trace shows TX/RX for id **1** on can0 (robot right) and id **12** on can1 (robot left).
 
 Raw bus (motor power on):
 

@@ -18,7 +18,7 @@ const snapshot: ConfigSnapshotDto = {
     {
       joint: 'right_shoulder_roll',
       can_interface: 'can0',
-      device_id: 1,
+      device_id: 2,
       direction: 1,
       motor_type: 'rs03',
       bench: {
@@ -45,7 +45,7 @@ describe('enrichInventory', () => {
   it('overlays motor node and disk limits when live snapshot is missing', () => {
     const enriched = enrichInventory(robotInventory, snapshot, null);
     const roll = enriched.find((r) => r.name === 'right_shoulder_roll');
-    expect(roll?.node).toBe('RS03 · can0 · id 1');
+    expect(roll?.node).toBe('RS03 · can0 · id 2');
     // Soft preferred over bench when only disk config is available.
     expect(roll?.limit).toBe('±1');
     expect(roll?.preset).toBe('bench_3dof');

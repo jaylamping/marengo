@@ -2,7 +2,7 @@
 
 Operator-runnable physical bench test suite for the Marengo gravity-compensation
 enhancement. Target rig: **single right-shoulder-pitch actuator** (Robstride RS03,
-`can0`, `device_id=2`, `direction=-1`, `gear_ratio=1.0`) with a **700 g weighted
+`can0`, `device_id=1`, `direction=-1`, `gear_ratio=1.0`) with a **700 g weighted
 arm at ~14 in effective COM** (URDF COM corrected from 18 in).
 
 This document is the authority for the bench phase of the enhancement. Each
@@ -27,7 +27,7 @@ physically support the arm for the first enable at any elevated pose.
 
 ## Bench hardware
 
-- Actuator: Robstride RS03, `can0`, `device_id=2`, `direction=-1`, `gear_ratio=1.0`.
+- Actuator: Robstride RS03, `can0`, `device_id=1`, `direction=-1`, `gear_ratio=1.0`.
 - Load: 700 g arm at ~14 in (0.3556 m) effective COM.
 - Config dir: `config/bringup/arm_3dof_right/`.
 - Control: `kp=8, kd=2, slew=0.15, v=1.45, fc=0.15, tau_ff_rate_limit=60`.
