@@ -32,6 +32,10 @@ assert_ok "enqueue refuses active unit instead of stop" \
   grep -q 'already active' "${ENQUEUE}"
 assert_ok "enqueue marks failed when systemd-run fails" \
   grep -q 'systemd-run failed' "${ENQUEUE}"
+assert_ok "enqueue bootstraps missing git staging clone" \
+  grep -q 'ensure_staging_git' "${ENQUEUE}"
+assert_ok "enqueue clone uses MARENGO_GIT_URL default" \
+  grep -q 'MARENGO_GIT_URL' "${ENQUEUE}"
 assert_ok "enqueue sets WorkingDirectory via systemd-run" \
   grep -q -- '--working-directory=' "${ENQUEUE}"
 assert_ok "enqueue does not pass --same-dir= (flag takes no argument)" \
@@ -45,6 +49,12 @@ assert_ok "self-update write_job includes phase field" \
   grep -q '"phase":' "${WORKER}"
 assert_ok "self-update uses atomic mv for job file" \
   grep -q 'mv -f' "${WORKER}"
+assert_ok "self-update bootstraps missing git staging clone" \
+  grep -q 'ensure_staging_git' "${WORKER}"
+assert_ok "self-update clone uses MARENGO_GIT_URL default" \
+  grep -q 'MARENGO_GIT_URL' "${WORKER}"
+assert_ok "self-update moves non-git staging aside before clone" \
+  grep -q 'not-a-git.bak' "${WORKER}"
 for phase in init dirty fetch lfs build install done; do
   assert_ok "self-update references phase ${phase}" \
     grep -Eq "(write_job|fail).*[\"']${phase}[\"']|[\"']${phase}[\"']" "${WORKER}"

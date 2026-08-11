@@ -10,6 +10,8 @@ STAGING="${MARENGO_STAGING_ROOT:-${HOME}/marengo}"
 OPT_ROOT="${MARENGO_ROOT:-/opt/marengo}"
 LOG_FILE="${MARENGO_SELF_UPDATE_LOG:-${OPT_ROOT}/var/self-update.log}"
 UNIT_NAME="${MARENGO_SELF_UPDATE_UNIT:-}"
+# Public HTTPS by default; override for private mirrors / deploy keys.
+REPO_URL="${MARENGO_GIT_URL:-https://github.com/jaylamping/marengo.git}"
 
 if [[ -z "${TARGET_SHA}" ]]; then
   echo "usage: TARGET_SHA=<40-char> $0" >&2
@@ -76,18 +78,35 @@ fail() {
   exit 1
 }
 
+ensure_staging_git() {
+  # Self-update builds from a real clone. Deploy rsync trees under ~/marengo
+  # (www/, .deploy-rev, no .git) used to fail opaquely at "git fetch failed".
+  if [[ -d "${STAGING}/.git" ]]; then
+    return 0
+  fi
+  write_job "running" "bootstrapping git clone at ${STAGING}" "init"
+  if [[ -e "${STAGING}" ]]; then
+    local bak="${STAGING}.not-a-git.bak.$(date -u +%Y%m%dT%H%M%SZ)"
+    mv "${STAGING}" "${bak}" || fail "cannot move non-git staging aside: ${STAGING}" "init"
+    echo "moved non-git staging to ${bak}"
+  fi
+  GIT_TERMINAL_PROMPT=0 git clone "${REPO_URL}" "${STAGING}" \
+    || fail "git clone failed (${REPO_URL} -> ${STAGING})" "init"
+}
+
 STARTED_AT="$(now_iso)"
 JOB_ID="${JOB_ID:-$(date -u +%Y%m%dT%H%M%SZ)-$$}"
 write_job "running" "starting self-update" "init"
 
+ensure_staging_git
 cd "${STAGING}" || fail "staging root missing: ${STAGING}" "init"
+sudo git config --global --add safe.directory "${STAGING}" 2>/dev/null || true
 
 if [[ -n "$(git status --porcelain)" ]]; then
   fail "dirty working tree:$(printf '\n%s' "$(git status --short)")" "dirty"
 fi
 
 write_job "running" "fetching ${TARGET_SHA}" "fetch"
-sudo git config --global --add safe.directory "${STAGING}" 2>/dev/null || true
 git fetch origin || fail "git fetch failed" "fetch"
 
 # Pin exact commit (accept short or full SHA from GitHub tip).
