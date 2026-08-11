@@ -454,8 +454,16 @@ export function CanBusSpectrumPanel({ active = true }: CanBusSpectrumPanelProps)
 
         {!loading && spectrum.source === 'unavailable' && !showError ? (
           <CaptureStatus
-            title="Gateway offline"
-            detail="Candump HTTP down. Link meters still sample host metrics when Chappe is up."
+            title={
+              spectrum.errorKind?.kind === 'no_endpoint'
+                ? 'No gateway'
+                : 'Capture unreachable'
+            }
+            detail={
+              spectrum.errorKind?.kind === 'no_endpoint'
+                ? 'Wireframe — VITE_CHAPPE_HTTP_URL unset. Header CAN0 is a static profile label, not live bus state.'
+                : 'Candump HTTP failed. Link meters still sample host metrics when Chappe is up.'
+            }
           />
         ) : null}
 

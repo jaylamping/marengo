@@ -94,7 +94,8 @@ describe('CanBusSpectrumPanel', () => {
         <CanBusSpectrumPanel />
       </MemoryRouter>,
     );
-    expect(screen.getByText(/Gateway offline/i)).toBeTruthy();
+    expect(screen.getByText(/No gateway/i)).toBeTruthy();
+    expect(screen.getByText(/Wireframe/i)).toBeTruthy();
     expect(screen.queryByText('Top IDs')).toBeNull();
     expect(screen.queryByText('Rate')).toBeNull();
     expect(screen.getByTestId('can-link-activity')).toBeTruthy();
