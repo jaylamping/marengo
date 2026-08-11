@@ -84,6 +84,27 @@ export function HardwareSettingsSheet({
             </SheetHeader>
 
             <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-4">
+              <section
+                className="flex flex-col gap-2"
+                data-testid="hardware-commissioning-commands"
+              >
+                <h3 className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                  Commissioning · Set Limits + Set Zero
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Apply Limits replaces the durable hard/soft SoT on the Pi
+                  (live Davout + motors/control write-behind; URDF expand-only).
+                  Deploy preserves those taught envelopes by default. Motors must
+                  stay not ACTIVE while listening; Set Zero captures mechanical
+                  reference (Ready follows wire Verified).
+                </p>
+                <SetLimitsPanel
+                  jointName={row.joint}
+                  currentLimit={row.liveRange}
+                  onApplyRange={onApplyRange}
+                />
+              </section>
+
               <section className="flex flex-col gap-2">
                 <h3 className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
                   Limits (ADR 0012)
@@ -162,27 +183,6 @@ export function HardwareSettingsSheet({
                   ))}
                 </section>
               ) : null}
-
-              <section
-                className="flex flex-col gap-2"
-                data-testid="hardware-commissioning-commands"
-              >
-                <h3 className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-                  Commissioning · Set Limits + Set Zero
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  Apply Limits replaces the durable hard/soft SoT on the Pi
-                  (live Davout + motors/control write-behind; URDF expand-only).
-                  Deploy preserves those taught envelopes by default. Motors must
-                  stay not ACTIVE while listening; Set Zero captures mechanical
-                  reference (Ready follows wire Verified).
-                </p>
-                <SetLimitsPanel
-                  jointName={row.joint}
-                  currentLimit={row.liveRange}
-                  onApplyRange={onApplyRange}
-                />
-              </section>
             </div>
           </>
         ) : null}
