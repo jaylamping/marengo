@@ -30,12 +30,48 @@ const UI_STATES: ReadonlySet<string> = new Set([
   'failed',
 ]);
 
+type DeriveSidebarUpdateModeOpts = {
+  deployBusy?: boolean;
+  /** sessionStorage bookmark from this tab's Update click; survives reload. */
+  watchingJob?: boolean;
+  /**
+   * After a watched job fails we clear the session (idle poll) but keep Failed
+   * chrome so gateway Failed→Stale does not flash "behind".
+   */
+  stickyFailed?: boolean;
+};
+
 /** Prefer gateway `ui_state`; fall back only for older gateways mid-rollout. */
 export function deriveSidebarUpdateMode(
   status: VersionStatusDto | null,
-  deployBusy: boolean,
+  opts: DeriveSidebarUpdateModeOpts = {},
 ): SidebarUpdateUiMode {
-  if (deployBusy && status?.ui_state !== 'failed') return 'updating';
+  const deployBusy = opts.deployBusy ?? false;
+  const watchingJob = opts.watchingJob ?? false;
+  const stickyFailed = opts.stickyFailed ?? false;
+
+  if (deployBusy) return 'updating';
+
+  if (watchingJob) {
+    if (!status) return 'updating';
+    const jobState = status.deploy.state;
+    if (jobState === 'running' || status.ui_state === 'updating') {
+      return 'updating';
+    }
+    // Gateway maps Failed+behind → Stale for retry chrome; keep Failed while watching.
+    if (jobState === 'failed' || status.ui_state === 'failed') {
+      return 'failed';
+    }
+    if (jobState !== 'succeeded') {
+      return 'updating';
+    }
+  }
+
+  // Session cleared on failure for idle polling — sticky keeps Failed (not "behind").
+  if (stickyFailed) {
+    return 'failed';
+  }
+
   if (!status) return 'unknown';
   if (status.ui_state && UI_STATES.has(status.ui_state)) {
     return status.ui_state;
@@ -61,10 +97,18 @@ export function useSidebarSelfUpdate() {
   const [checking, setChecking] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deployBusy, setDeployBusy] = useState(false);
+  const [watchingJob, setWatchingJob] = useState(
+    () => Boolean(readSelfUpdateSession()),
+  );
+  const [stickyFailed, setStickyFailed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const reloadArmed = useRef(false);
 
-  const mode = deriveSidebarUpdateMode(status, deployBusy);
+  const mode = deriveSidebarUpdateMode(status, {
+    deployBusy,
+    watchingJob,
+    stickyFailed,
+  });
   const shaLabel = status?.deploy_sha ? shortSha(status.deploy_sha) : '—';
   const phase = mode === 'updating' ? phaseLabel(status?.deploy.phase) : null;
   const caption = statusCaption(mode, shaLabel, phase);
@@ -75,39 +119,52 @@ export function useSidebarSelfUpdate() {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
 
+    const stopWatching = () => {
+      clearSelfUpdateSession();
+      setWatchingJob(false);
+    };
+
     const tick = async (refresh: boolean) => {
       const next = await fetchVersionStatus({ refresh });
       if (cancelled) return;
       setStatus(next);
 
       const sess = readSelfUpdateSession();
-      if (sess && next) {
+      if (sess) {
         const timedOut = Date.now() - sess.startedAtMs > SELF_UPDATE_TIMEOUT_MS;
-        const sameJob =
-          !next.deploy.job_id || next.deploy.job_id === sess.jobId;
+        // Timeout even when status is null (gateway bounce / persistent unreachable).
         if (timedOut) {
-          clearSelfUpdateSession();
+          stopWatching();
+          setStickyFailed(false);
           setError('Timed out — see /opt/marengo/var/self-update.log');
           toast.error('Update timed out');
-        } else if (sameJob && next.deploy.state === 'failed') {
-          clearSelfUpdateSession();
-          const msg = next.deploy.message || 'Self-update failed';
-          setError(msg);
-          toast.error(msg);
-        } else if (
-          sameJob &&
-          next.deploy.state === 'succeeded' &&
-          next.ready_for_target &&
-          !reloadArmed.current
-        ) {
-          reloadArmed.current = true;
-          clearSelfUpdateSession();
-          toast.success('Update complete');
-          window.setTimeout(() => {
-            window.location.reload();
-          }, 400);
+        } else if (next) {
+          const sameJob =
+            !next.deploy.job_id || next.deploy.job_id === sess.jobId;
+          if (sameJob && next.deploy.state === 'failed') {
+            // Sticky Failed before clearing watch — same React turn as setStatus.
+            setStickyFailed(true);
+            stopWatching();
+            const msg = next.deploy.message || 'Self-update failed';
+            setError(msg);
+            toast.error(msg);
+          } else if (
+            sameJob &&
+            next.deploy.state === 'succeeded' &&
+            next.ready_for_target &&
+            !reloadArmed.current
+          ) {
+            reloadArmed.current = true;
+            setStickyFailed(false);
+            stopWatching();
+            toast.success('Update complete');
+            window.setTimeout(() => {
+              window.location.reload();
+            }, 400);
+          }
         }
       }
+      setWatchingJob(Boolean(readSelfUpdateSession()));
 
       const busy = Boolean(readSelfUpdateSession()) || isBusyStatus(next);
       timer = window.setTimeout(
@@ -129,6 +186,7 @@ export function useSidebarSelfUpdate() {
     void (async () => {
       setChecking(true);
       setError(null);
+      setStickyFailed(false);
       const next = await fetchVersionStatus({ refresh: true });
       setChecking(false);
       setStatus(next);
@@ -162,6 +220,7 @@ export function useSidebarSelfUpdate() {
     void (async () => {
       setDeployBusy(true);
       setError(null);
+      setStickyFailed(false);
       const result = await startSelfDeploy();
       if (result.already_current) {
         setDeployBusy(false);
@@ -179,6 +238,7 @@ export function useSidebarSelfUpdate() {
         jobId: result.job_id,
         startedAtMs: Date.now(),
       });
+      setWatchingJob(true);
       setDeployBusy(false);
       setConfirmOpen(false);
       toast.message('Updating Marengo…');
