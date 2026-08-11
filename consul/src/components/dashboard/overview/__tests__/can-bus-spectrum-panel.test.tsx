@@ -4,9 +4,9 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 import { CanBusSpectrumPanel } from '@/components/dashboard/overview/can-bus-spectrum-panel';
-import type { CanTrafficSpectrum } from '@/lib/can-traffic-spectrum';
+import type { CanTrafficSpectrumView } from '@/hooks/use-can-traffic-spectrum';
 
-const emptySpectrum: CanTrafficSpectrum = {
+const emptySpectrum: CanTrafficSpectrumView = {
   source: 'empty',
   presence: 'absent',
   fingerprint: null,
@@ -29,14 +29,19 @@ const emptySpectrum: CanTrafficSpectrum = {
   },
   errorKind: null,
   logsCanHref: '/logs',
+  loading: false,
 };
 
+const mockView = vi.fn((): CanTrafficSpectrumView => emptySpectrum);
+
 vi.mock('@/hooks/use-can-traffic-spectrum', () => ({
-  useCanTrafficSpectrum: vi.fn(() => emptySpectrum),
+  useCanTrafficSpectrum: () => mockView(),
 }));
 
 afterEach(() => {
   cleanup();
+  mockView.mockReset();
+  mockView.mockImplementation(() => emptySpectrum);
 });
 
 describe('CanBusSpectrumPanel', () => {
@@ -48,10 +53,40 @@ describe('CanBusSpectrumPanel', () => {
     );
     expect(screen.getByTestId('overview-can-bus-panel')).toBeTruthy();
     expect(screen.getByText('CAN bus')).toBeTruthy();
-    expect(screen.getAllByText(/No harness candump yet/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/No harness candump yet/i)).toBeTruthy();
     expect(screen.getByTestId('can-live-chip').textContent).toMatch(/can0/);
     expect(screen.getByRole('link', { name: /Open Logs/i }).getAttribute('href')).toBe(
       '/logs',
     );
+  });
+
+  it('shows a loading capture state before the first poll settles', () => {
+    mockView.mockImplementation(() => ({
+      ...emptySpectrum,
+      loading: true,
+    }));
+    render(
+      <MemoryRouter>
+        <CanBusSpectrumPanel />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText(/Loading capture/i)).toBeTruthy();
+  });
+
+  it('does not render zeroed spectrum chrome when capture is unavailable', () => {
+    mockView.mockImplementation(() => ({
+      ...emptySpectrum,
+      source: 'unavailable',
+      loading: false,
+      errorKind: { kind: 'no_endpoint' },
+    }));
+    render(
+      <MemoryRouter>
+        <CanBusSpectrumPanel />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText(/Gateway offline/i)).toBeTruthy();
+    expect(screen.queryByText('Top IDs')).toBeNull();
+    expect(screen.queryByText('Rate')).toBeNull();
   });
 });

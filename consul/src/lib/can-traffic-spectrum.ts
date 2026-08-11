@@ -110,14 +110,20 @@ export function appendHzSample(
   sample: HzSample,
   cap = SPARKLINE_CAP,
 ): HzSample[] {
-  return [...previous, sample].slice(-Math.max(1, cap));
+  if (cap <= 0) {
+    return [];
+  }
+  return [...previous, sample].slice(-Math.floor(cap));
 }
 
 export function projectMicroLog(
   frames: CandumpFrameDto[],
   limit = MICRO_LOG_LIMIT,
 ): MicroLogLine[] {
-  return frames.slice(-Math.max(0, limit)).map((frame) => ({
+  if (limit <= 0) {
+    return [];
+  }
+  return frames.slice(-Math.floor(limit)).map((frame) => ({
     lineNo: frame.line_no,
     offsetS: frame.offset_s ?? frame.delta_s,
     iface: frame.interface,
@@ -174,6 +180,17 @@ function buildPartitions(summary: CandumpSummaryDto): InterfacePartition[] {
       share: share01(item.parsed_frames, summary.parsed_frames),
       approxHz: item.approx_hz,
     }));
+}
+
+function estimatePageHz(frames: CandumpFrameDto[]): number | null {
+  if (frames.length < 2) {
+    return null;
+  }
+  const first = frames[0]?.offset_s ?? frames[0]?.delta_s;
+  const last = frames[frames.length - 1]?.offset_s ?? frames[frames.length - 1]?.delta_s;
+  const span = last - first;
+  const hz = (frames.length - 1) / span;
+  return span > 0 && Number.isFinite(hz) ? hz : null;
 }
 
 function idleSpectrum(
@@ -233,10 +250,14 @@ export function buildCanTrafficSpectrum(input: BuildSpectrumInput): CanTrafficSp
     : 'live';
 
   let rateHz = previous?.rateHz ?? [];
-  if (summary.approx_hz != null && Number.isFinite(summary.approx_hz)) {
+  const approxHz =
+    summary.approx_hz != null && Number.isFinite(summary.approx_hz)
+      ? summary.approx_hz
+      : estimatePageHz(page?.frames ?? []);
+  if (approxHz != null) {
     const last = rateHz[rateHz.length - 1];
-    if (last == null || last.atMs !== nowMs || last.hz !== summary.approx_hz) {
-      rateHz = appendHzSample(rateHz, { atMs: nowMs, hz: summary.approx_hz });
+    if (last == null || last.atMs !== nowMs || last.hz !== approxHz) {
+      rateHz = appendHzSample(rateHz, { atMs: nowMs, hz: approxHz });
     }
   }
 

@@ -40,14 +40,21 @@ function idleView(nowMs: number): CanTrafficSpectrum {
   });
 }
 
+export type CanTrafficSpectrumView = CanTrafficSpectrum & {
+  loading: boolean;
+};
+
 export function useCanTrafficSpectrum({
   active,
   sessionId = 'latest',
-}: UseCanTrafficSpectrumArgs): CanTrafficSpectrum {
+}: UseCanTrafficSpectrumArgs): CanTrafficSpectrumView {
   const piMetrics = useHostMetricsStore((s) => s.piMetrics);
   const [spectrum, setSpectrum] = useState<CanTrafficSpectrum>(() => idleView(Date.now()));
+  const [loading, setLoading] = useState(true);
   const spectrumRef = useRef(spectrum);
+  const loadingRef = useRef(loading);
   spectrumRef.current = spectrum;
+  loadingRef.current = loading;
 
   useEffect(() => {
     if (!active) {
@@ -56,6 +63,7 @@ export function useCanTrafficSpectrum({
 
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    setLoading(true);
 
     const poll = async () => {
       const [summaryResult, pageResult] = await Promise.all([
@@ -87,6 +95,7 @@ export function useCanTrafficSpectrum({
           nowMs: Date.now(),
         }),
       );
+      setLoading(false);
     };
 
     const tick = () => {
@@ -118,8 +127,8 @@ export function useCanTrafficSpectrum({
   }, [active, piMetrics]);
 
   if (!active) {
-    return spectrumRef.current;
+    return { ...spectrumRef.current, loading: loadingRef.current };
   }
 
-  return spectrum;
+  return { ...spectrum, loading };
 }

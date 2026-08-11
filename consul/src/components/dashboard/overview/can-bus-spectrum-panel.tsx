@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { dashboardPanelCardClassName } from '@/components/dashboard/layout/constants';
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -29,24 +30,37 @@ function presenceCopy(spectrum: CanTrafficSpectrum): string {
     return 'Capture unavailable';
   }
   if (spectrum.source === 'empty') {
-    return 'No harness candump yet';
+    return 'No harness capture';
   }
   if (spectrum.presence === 'stale') {
-    return 'Hot dump unchanged';
+    return 'Dump unchanged';
   }
-  return 'Hot dump updating';
+  return 'Dump updating';
 }
 
 function formatHz(value: number | null): string {
   if (value == null || !Number.isFinite(value)) {
-    return 'n/a';
+    return '—';
   }
-  return `${value.toFixed(1)} Hz`;
+  return value.toFixed(1);
+}
+
+function shortJoint(name: string | undefined): string {
+  if (!name) {
+    return '—';
+  }
+  return name
+    .replace(/^right_/, 'r_')
+    .replace(/^left_/, 'l_')
+    .replace(/shoulder_/, 'sh_')
+    .replace(/upper_arm_/, 'ua_')
+    .replace(/lower_arm_/, 'la_');
 }
 
 function LiveChip({ live }: { live: CanLiveChip }) {
   const label = live.iface ?? 'can';
   const state = live.canState?.length ? live.canState : '—';
+  const nominal = !live.warn && state === 'ERROR-ACTIVE';
   return (
     <span
       className={cn(
@@ -54,37 +68,75 @@ function LiveChip({ live }: { live: CanLiveChip }) {
         live.warn ? 'text-warning' : 'text-muted-foreground',
       )}
       data-testid="can-live-chip"
+      title={
+        live.txErrorCount != null || live.rxErrorCount != null
+          ? `err tx ${live.txErrorCount ?? '—'} / rx ${live.rxErrorCount ?? '—'}`
+          : undefined
+      }
     >
       <span
-        className={cn('led', live.warn ? 'led-accent' : 'led-ok')}
+        className={cn(
+          'led',
+          live.warn ? 'led-accent' : 'led-ok',
+          nominal && 'led-live',
+        )}
         aria-hidden
       />
-      {label} · {state}
+      {label}
+      <span className="text-foreground/80">·</span>
+      {state}
     </span>
+  );
+}
+
+function MetricReadout({
+  label,
+  value,
+  unit,
+}: {
+  label: string;
+  value: string;
+  unit?: string;
+}) {
+  return (
+    <div className="min-w-0">
+      <div className="micro-label">{label}</div>
+      <div className="mt-0.5 flex items-baseline gap-1 font-mono tabular-nums">
+        <span className="text-sm font-semibold text-foreground">{value}</span>
+        {unit ? (
+          <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+            {unit}
+          </span>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
 function IdHistogram({ bands }: { bands: CanIdBand[] }) {
   if (bands.length === 0) {
-    return <p className="text-sm text-muted-foreground">No ID spectrum yet.</p>;
+    return (
+      <p className="font-mono text-[11px] text-muted-foreground">No ID traffic</p>
+    );
   }
+  const maxShare = Math.max(...bands.map((b) => b.share), 0.001);
   return (
     <div className="flex min-h-0 flex-col gap-1" data-testid="can-id-histogram">
       {bands.slice(0, 8).map((band) => (
         <div
           key={band.canId}
-          className="grid grid-cols-[5.5rem_1fr_2.5rem] items-center gap-2"
+          className="grid grid-cols-[4.75rem_minmax(0,1fr)_2.25rem] items-center gap-2"
         >
-          <span className="truncate font-mono text-[11px] text-foreground">
+          <span className="truncate font-mono text-[11px] tabular-nums text-foreground">
             {band.canId}
           </span>
-          <div className="h-1.5 overflow-hidden rounded-[2px] bg-surface-2">
+          <div className="h-1 overflow-hidden rounded-[2px] bg-surface-2">
             <div
-              className="h-full bg-info"
-              style={{ width: `${Math.max(2, band.share * 100)}%` }}
+              className="h-full bg-info/90 transition-[width] duration-150 ease-out motion-reduce:transition-none"
+              style={{ width: `${Math.max(3, (band.share / maxShare) * 100)}%` }}
             />
           </div>
-          <span className="text-right font-mono text-[10px] text-muted-foreground">
+          <span className="text-right font-mono text-[10px] tabular-nums text-muted-foreground">
             {band.count}
           </span>
         </div>
@@ -96,25 +148,28 @@ function IdHistogram({ bands }: { bands: CanIdBand[] }) {
 function RateSparkline({ samples }: { samples: HzSample[] }) {
   if (samples.length < 2) {
     return (
-      <div className="flex h-10 items-end font-mono text-[10px] text-muted-foreground">
-        rate trail —
+      <div
+        className="flex h-9 items-end font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground"
+        data-testid="can-rate-sparkline"
+      >
+        rate —
       </div>
     );
   }
   const max = Math.max(...samples.map((s) => s.hz), 1);
-  const width = 120;
+  const width = 160;
   const height = 36;
   const points = samples
     .map((sample, index) => {
       const x = (index / (samples.length - 1)) * width;
-      const y = height - (sample.hz / max) * (height - 2) - 1;
+      const y = height - (sample.hz / max) * (height - 4) - 2;
       return `${x},${y}`;
     })
     .join(' ');
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
-      className="h-10 w-full text-accent"
+      className="h-9 w-full text-info"
       data-testid="can-rate-sparkline"
       aria-hidden
     >
@@ -122,6 +177,8 @@ function RateSparkline({ samples }: { samples: HzSample[] }) {
         fill="none"
         stroke="currentColor"
         strokeWidth="1.25"
+        strokeLinejoin="round"
+        strokeLinecap="round"
         points={points}
       />
     </svg>
@@ -133,11 +190,16 @@ function InterfaceStrip({ partitions }: { partitions: InterfacePartition[] }) {
     return null;
   }
   return (
-    <div className="flex flex-wrap gap-2 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+    <div className="flex flex-wrap gap-x-3 gap-y-1">
       {partitions.map((part) => (
-        <span key={part.name}>
-          {part.name} {part.frameCount}
-          {part.approxHz != null ? ` · ${part.approxHz.toFixed(0)}Hz` : ''}
+        <span
+          key={part.name}
+          className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground"
+        >
+          <span className="text-foreground/90">{part.name}</span>
+          {' · '}
+          {part.frameCount}
+          {part.approxHz != null ? ` · ${part.approxHz.toFixed(0)} Hz` : ''}
         </span>
       ))}
     </div>
@@ -150,29 +212,36 @@ function MicroLog({ lines }: { lines: MicroLogLine[] }) {
   }
   return (
     <div
-      className="min-h-0 flex-1 overflow-auto rounded-[4px] border border-line bg-surface-0"
+      className="min-h-0 flex-1 overflow-hidden rounded-[4px] border border-line bg-surface-0"
       data-testid="can-micro-log"
     >
-      <div className="grid grid-cols-[3.25rem_2.25rem_3.5rem_minmax(0,1fr)_minmax(0,1.2fr)] gap-1 border-b border-line px-2 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-        <span>Δt</span>
-        <span>if</span>
-        <span>id</span>
-        <span>joint</span>
-        <span>data</span>
+      <div className="grid grid-cols-[3.5rem_2rem_3.75rem_minmax(0,1fr)_minmax(4rem,1.1fr)] gap-1 border-b border-line px-2 py-1">
+        {(['Δt', 'if', 'id', 'joint', 'data'] as const).map((label) => (
+          <span
+            key={label}
+            className="micro-label"
+          >
+            {label}
+          </span>
+        ))}
       </div>
-      <ul className="divide-y divide-line">
+      <ul className="max-h-[11rem] divide-y divide-line overflow-auto">
         {[...lines].reverse().map((line) => (
           <li
-            key={`${line.lineNo}-${line.canId}`}
-            className="grid grid-cols-[3.25rem_2.25rem_3.5rem_minmax(0,1fr)_minmax(0,1.2fr)] gap-1 px-2 py-0.5 font-mono text-[11px] text-foreground"
+            key={`${line.lineNo}-${line.canId}-${line.offsetS}`}
+            className="grid grid-cols-[3.5rem_2rem_3.75rem_minmax(0,1fr)_minmax(4rem,1.1fr)] gap-1 px-2 py-[3px] font-mono text-[11px] tabular-nums text-foreground"
           >
             <span className="text-muted-foreground">{line.offsetS.toFixed(3)}</span>
             <span>{line.iface.replace(/^can/, '')}</span>
             <span>{line.canId}</span>
-            <span className="truncate text-muted-foreground">
-              {line.joint ?? line.commTypeName ?? '—'}
+            <span className="truncate text-muted-foreground" title={line.joint}>
+              {shortJoint(line.joint) !== '—'
+                ? shortJoint(line.joint)
+                : (line.commTypeName ?? '—')}
             </span>
-            <span className="truncate text-muted-foreground">{line.dataHead}</span>
+            <span className="truncate text-muted-foreground" title={line.dataHead}>
+              {line.dataHead}
+            </span>
           </li>
         ))}
       </ul>
@@ -181,8 +250,9 @@ function MicroLog({ lines }: { lines: MicroLogLine[] }) {
 }
 
 export function CanBusSpectrumPanel({ active = true }: CanBusSpectrumPanelProps) {
-  const spectrum = useCanTrafficSpectrum({ active });
+  const { loading, ...spectrum } = useCanTrafficSpectrum({ active });
   const showError = shouldShowLogErrorBanner(spectrum.errorKind);
+  const hot = spectrum.source === 'hot-dump';
 
   return (
     <Card
@@ -193,19 +263,17 @@ export function CanBusSpectrumPanel({ active = true }: CanBusSpectrumPanelProps)
       )}
       data-testid="overview-can-bus-panel"
     >
-      <CardHeader className="shrink-0 gap-2">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <CardTitle>CAN bus</CardTitle>
-            <CardDescription>
-              {presenceCopy(spectrum)}
-              {spectrum.source === 'hot-dump'
-                ? ` · ${spectrum.parsedFrames} frames · ${formatHz(spectrum.sessionApproxHz)}`
-                : ''}
-            </CardDescription>
-          </div>
+      <CardHeader className="shrink-0">
+        <CardTitle>CAN bus</CardTitle>
+        <CardDescription>
+          {presenceCopy(spectrum)}
+          {hot
+            ? ` · ${spectrum.parsedFrames.toLocaleString()} frames · ${formatHz(spectrum.sessionApproxHz)} Hz`
+            : ' · candump-latest'}
+        </CardDescription>
+        <CardAction>
           <LiveChip live={spectrum.live} />
-        </div>
+        </CardAction>
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col gap-3 px-2 pb-4 sm:px-4">
         {showError ? (
@@ -214,41 +282,81 @@ export function CanBusSpectrumPanel({ active = true }: CanBusSpectrumPanelProps)
           </p>
         ) : null}
 
-        {spectrum.source === 'empty' && !showError ? (
-          <div className="flex min-h-[8rem] flex-1 flex-col justify-center gap-2 rounded-[4px] border border-line bg-surface-0 px-3 py-4">
-            <p className="text-sm text-foreground">No harness candump yet</p>
-            <p className="text-sm text-muted-foreground">
-              Bench captures write candump-latest.log. Live controller state still
-              shows above when host metrics are flowing.
+        {loading && !hot && !showError ? (
+          <div className="flex min-h-[8rem] flex-1 items-center rounded-[4px] border border-line bg-surface-0 px-3">
+            <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+              Loading capture…
             </p>
           </div>
-        ) : (
+        ) : null}
+
+        {!loading && spectrum.source === 'empty' && !showError ? (
+          <div className="flex min-h-[8rem] flex-1 flex-col justify-center gap-1 rounded-[4px] border border-line bg-surface-0 px-3 py-4">
+            <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-foreground">
+              No harness candump yet
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Controller state still streams above when host metrics are live.
+            </p>
+          </div>
+        ) : null}
+
+        {!loading && spectrum.source === 'unavailable' && !showError ? (
+          <div className="flex min-h-[8rem] flex-1 flex-col justify-center gap-1 rounded-[4px] border border-line bg-surface-0 px-3 py-4">
+            <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-foreground">
+              Gateway offline
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Candump HTTP unreachable. Live chip still reflects host metrics when
+              Chappe is up.
+            </p>
+          </div>
+        ) : null}
+
+        {hot ? (
           <>
-            <div className="grid gap-3 @md/card:grid-cols-[1.4fr_0.8fr]">
-              <IdHistogram bands={spectrum.bands} />
-              <div className="flex flex-col gap-1">
-                <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-                  Bus rate
-                </span>
+            <div className="grid grid-cols-3 gap-3 border-b border-line pb-3">
+              <MetricReadout
+                label="Rate"
+                value={formatHz(spectrum.sessionApproxHz)}
+                unit="Hz"
+              />
+              <MetricReadout
+                label="Frames"
+                value={spectrum.parsedFrames.toLocaleString()}
+              />
+              <MetricReadout
+                label="Window"
+                value={spectrum.durationS.toFixed(2)}
+                unit="s"
+              />
+            </div>
+            <div className="grid min-h-0 gap-3 @md/card:grid-cols-[1.35fr_0.85fr]">
+              <div className="min-w-0 space-y-1.5">
+                <div className="micro-label">Top IDs</div>
+                <IdHistogram bands={spectrum.bands} />
+              </div>
+              <div className="min-w-0 space-y-1.5">
+                <div className="micro-label">Bus rate</div>
                 <RateSparkline samples={spectrum.rateHz} />
               </div>
             </div>
             <InterfaceStrip partitions={spectrum.partitions} />
             <MicroLog lines={spectrum.microLog} />
           </>
-        )}
+        ) : null}
 
-        <div className="flex shrink-0 items-center justify-between gap-2 pt-1">
+        <div className="flex shrink-0 items-center justify-between gap-2 pt-0.5">
           <Link
             to={spectrum.logsCanHref}
-            className="font-mono text-[10px] uppercase tracking-[0.14em] text-accent hover:underline"
+            className="font-mono text-[10px] uppercase tracking-[0.14em] text-accent outline-none transition-colors duration-150 hover:text-accent-dim focus-visible:ring-1 focus-visible:ring-ring"
           >
-            Open Logs → CAN
+            Open Logs · CAN
           </Link>
-          {spectrum.live.txErrorCount != null || spectrum.live.rxErrorCount != null ? (
-            <span className="font-mono text-[10px] text-muted-foreground">
-              err tx {spectrum.live.txErrorCount ?? '—'} / rx{' '}
-              {spectrum.live.rxErrorCount ?? '—'}
+          {spectrum.live.rxBytesPerSec != null || spectrum.live.txBytesPerSec != null ? (
+            <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
+              link rx {spectrum.live.rxBytesPerSec ?? '—'} · tx{' '}
+              {spectrum.live.txBytesPerSec ?? '—'} B/s
             </span>
           ) : null}
         </div>
