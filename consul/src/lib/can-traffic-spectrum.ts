@@ -3,6 +3,7 @@ import {
   type CandumpFrameDto,
   type CandumpSummaryDto,
   type LogApiError,
+  type LogApiResult,
 } from '@/lib/log-api';
 import { canWarning } from '@/state/hostMetricsStore';
 
@@ -17,20 +18,16 @@ export const STALE_AFTER_MS = 8_000;
 export const LOGS_CAN_HREF = '/logs';
 
 export type Share01 = number & { readonly __brand: 'Share01' };
-export type SpectrumSource = 'hot-dump' | 'empty' | 'unavailable';
-export type CapturePresence = 'absent' | 'stale' | 'live';
 
 export type CanIdBand = {
   canId: string;
   count: number;
   share: Share01;
-  joint?: string;
 };
 
 export type InterfacePartition = {
   name: string;
   frameCount: number;
-  share: Share01;
   approxHz: number | null;
 };
 
@@ -66,11 +63,10 @@ export type CanLiveChip = {
   rxErrorCount: number | null;
 };
 
-export type CanTrafficSpectrum = {
-  source: SpectrumSource;
-  presence: CapturePresence;
-  fingerprint: string | null;
+export type SpectrumDump = {
+  fingerprint: string;
   capturedAtMs: number;
+  freshness: 'live' | 'stale';
   durationS: number;
   parsedFrames: number;
   sessionApproxHz: number | null;
@@ -78,19 +74,23 @@ export type CanTrafficSpectrum = {
   partitions: InterfacePartition[];
   rateHz: HzSample[];
   microLog: MicroLogLine[];
-  live: CanLiveChip;
-  errorKind: LogApiError | null;
-  logsCanHref: string;
+  /** Set when summary succeeded but the last-N page fetch failed. */
+  tailError: LogApiError | null;
 };
 
-export type BuildSpectrumInput = {
-  summary: CandumpSummaryDto | null;
-  page: { frames: CandumpFrameDto[]; total: number } | null;
+/** Discriminated capture model — impossible combinations are unrepresentable. */
+export type CaptureState =
+  | { status: 'empty'; live: CanLiveChip }
+  | { status: 'unavailable'; live: CanLiveChip; error: LogApiError }
+  | { status: 'ready'; live: CanLiveChip; dump: SpectrumDump };
+
+export type FoldCaptureInput = {
+  summaryResult: LogApiResult<CandumpSummaryDto>;
+  /** Null when summary failed or dump is empty (page not requested). */
+  pageResult: LogApiResult<{ frames: CandumpFrameDto[]; total: number }> | null;
   live: CanLiveChip;
-  previous: CanTrafficSpectrum | null;
+  previous: CaptureState | null;
   nowMs: number;
-  summaryError: LogApiError | null;
-  pageError: LogApiError | null;
 };
 
 export function share01(numerator: number, denominator: number): Share01 {
@@ -98,6 +98,17 @@ export function share01(numerator: number, denominator: number): Share01 {
     return 0 as Share01;
   }
   return Math.min(1, numerator / denominator) as Share01;
+}
+
+/** Frame offset for the last `limit` frames (gateway pages from the start). */
+export function candumpTailOffset(
+  parsedFrames: number,
+  limit = TAIL_PAGE_LIMIT,
+): number {
+  if (!(parsedFrames > 0) || !(limit > 0)) {
+    return 0;
+  }
+  return Math.max(0, Math.floor(parsedFrames) - Math.floor(limit));
 }
 
 export function readCanLiveChip(metrics: HostMetrics | null): CanLiveChip {
@@ -140,22 +151,6 @@ export function appendLinkActivity(
   return [...previous, sample].slice(-Math.floor(cap));
 }
 
-export function seedLinkActivity(
-  nowMs: number,
-  live: CanLiveChip,
-  count = 24,
-  tickMs = ACTIVITY_TICK_MS,
-): CanLinkActivitySample[] {
-  const rx = live.rxBytesPerSec ?? 0;
-  const tx = live.txBytesPerSec ?? 0;
-  const n = Math.max(2, count);
-  return Array.from({ length: n }, (_, i) => ({
-    atMs: nowMs - (n - 1 - i) * tickMs,
-    rxBps: rx,
-    txBps: tx,
-  }));
-}
-
 export function projectMicroLog(
   frames: CandumpFrameDto[],
   limit = MICRO_LOG_LIMIT,
@@ -175,12 +170,9 @@ export function projectMicroLog(
 }
 
 export function captureFingerprint(
-  summary: CandumpSummaryDto | null,
+  summary: CandumpSummaryDto,
   page: { frames: CandumpFrameDto[]; total: number } | null,
-): string | null {
-  if (!summary || summary.parsed_frames === 0) {
-    return null;
-  }
+): string {
   const last = page?.frames[page.frames.length - 1];
   return [
     summary.parsed_frames,
@@ -217,7 +209,6 @@ function buildPartitions(summary: CandumpSummaryDto): InterfacePartition[] {
     .map((item) => ({
       name: item.name,
       frameCount: item.parsed_frames,
-      share: share01(item.parsed_frames, summary.parsed_frames),
       approxHz: item.approx_hz,
     }));
 }
@@ -233,63 +224,39 @@ function estimatePageHz(frames: CandumpFrameDto[]): number | null {
   return span > 0 && Number.isFinite(hz) ? hz : null;
 }
 
-function idleSpectrum(
-  live: CanLiveChip,
-  nowMs: number,
-  source: SpectrumSource,
-  errorKind: LogApiError | null,
-  rateHz: HzSample[],
-): CanTrafficSpectrum {
-  return {
-    source,
-    presence: 'absent',
-    fingerprint: null,
-    capturedAtMs: nowMs,
-    durationS: 0,
-    parsedFrames: 0,
-    sessionApproxHz: null,
-    bands: [],
-    partitions: [],
-    rateHz,
-    microLog: [],
-    live,
-    errorKind,
-    logsCanHref: LOGS_CAN_HREF,
-  };
+function previousRateHz(previous: CaptureState | null): HzSample[] {
+  return previous?.status === 'ready' ? previous.dump.rateHz : [];
 }
 
-export function buildCanTrafficSpectrum(input: BuildSpectrumInput): CanTrafficSpectrum {
-  const { summary, page, live, previous, nowMs, summaryError, pageError } = input;
-  const transportError = summaryError ?? pageError;
+export function foldCaptureState(input: FoldCaptureInput): CaptureState {
+  const { summaryResult, pageResult, live, previous, nowMs } = input;
 
-  if (transportError && !summary) {
-    return idleSpectrum(
-      live,
-      nowMs,
-      'unavailable',
-      transportError,
-      previous?.rateHz ?? [],
-    );
+  if (!summaryResult.ok) {
+    return { status: 'unavailable', live, error: summaryResult.error };
   }
 
-  if (!summary || summary.parsed_frames === 0) {
-    return idleSpectrum(live, nowMs, 'empty', null, previous?.rateHz ?? []);
+  const summary = summaryResult.data;
+  if (summary.parsed_frames === 0) {
+    return { status: 'empty', live };
   }
+
+  const page = pageResult?.ok
+    ? { frames: pageResult.data.frames, total: pageResult.data.total }
+    : null;
+  const tailError =
+    pageResult == null ? null : pageResult.ok ? null : pageResult.error;
 
   const bands = buildBands(summary);
   const partitions = buildPartitions(summary);
   const microLog = projectMicroLog(page?.frames ?? []);
   const fingerprint = captureFingerprint(summary, page);
-  const prevFp = previous?.fingerprint ?? null;
-  const unchanged = fingerprint != null && fingerprint === prevFp;
-  const capturedAtMs = unchanged ? (previous?.capturedAtMs ?? nowMs) : nowMs;
-  const presence: CapturePresence = unchanged
-    ? nowMs - capturedAtMs >= STALE_AFTER_MS
-      ? 'stale'
-      : 'live'
-    : 'live';
+  const prevDump = previous?.status === 'ready' ? previous.dump : null;
+  const unchanged = prevDump != null && prevDump.fingerprint === fingerprint;
+  const capturedAtMs = unchanged ? prevDump.capturedAtMs : nowMs;
+  const freshness =
+    unchanged && nowMs - capturedAtMs >= STALE_AFTER_MS ? 'stale' : 'live';
 
-  let rateHz = previous?.rateHz ?? [];
+  let rateHz = previousRateHz(previous);
   const approxHz =
     summary.approx_hz != null && Number.isFinite(summary.approx_hz)
       ? summary.approx_hz
@@ -302,19 +269,25 @@ export function buildCanTrafficSpectrum(input: BuildSpectrumInput): CanTrafficSp
   }
 
   return {
-    source: 'hot-dump',
-    presence,
-    fingerprint,
-    capturedAtMs,
-    durationS: summary.duration_s,
-    parsedFrames: summary.parsed_frames,
-    sessionApproxHz: summary.approx_hz,
-    bands,
-    partitions,
-    rateHz,
-    microLog,
+    status: 'ready',
     live,
-    errorKind: null,
-    logsCanHref: LOGS_CAN_HREF,
+    dump: {
+      fingerprint,
+      capturedAtMs,
+      freshness,
+      durationS: summary.duration_s,
+      parsedFrames: summary.parsed_frames,
+      sessionApproxHz: summary.approx_hz,
+      bands,
+      partitions,
+      rateHz,
+      microLog,
+      tailError,
+    },
   };
+}
+
+/** Keep live chip fresh without rebuilding dump metrics. */
+export function withLiveChip(state: CaptureState, live: CanLiveChip): CaptureState {
+  return { ...state, live };
 }

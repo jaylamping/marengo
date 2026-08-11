@@ -5,14 +5,14 @@ import {
   ACTIVITY_CAP,
   STALE_AFTER_MS,
   appendLinkActivity,
-  buildCanTrafficSpectrum,
+  candumpTailOffset,
   captureFingerprint,
+  foldCaptureState,
   projectMicroLog,
   readCanLiveChip,
-  seedLinkActivity,
   share01,
   type CanLiveChip,
-  type CanTrafficSpectrum,
+  type CaptureState,
 } from '@/lib/can-traffic-spectrum';
 
 const emptyLive: CanLiveChip = {
@@ -61,85 +61,117 @@ describe('can-traffic-spectrum', () => {
     expect(share01(0, 0)).toBe(0);
   });
 
-  it('treats empty dump as absent, not an error', () => {
-    const spectrum = buildCanTrafficSpectrum({
-      summary: makeSummary({ parsed_frames: 0, top_ids: [], interfaces: [] }),
-      page: { frames: [], total: 0 },
+  it('computes a last-N candump page offset', () => {
+    expect(candumpTailOffset(109_259, 48)).toBe(109_211);
+    expect(candumpTailOffset(10, 48)).toBe(0);
+    expect(candumpTailOffset(0, 48)).toBe(0);
+  });
+
+  it('treats empty dump as empty, not an error', () => {
+    const capture = foldCaptureState({
+      summaryResult: {
+        ok: true,
+        data: makeSummary({ parsed_frames: 0, top_ids: [], interfaces: [] }),
+      },
+      pageResult: null,
       live: emptyLive,
       previous: null,
       nowMs: 1_000,
-      summaryError: null,
-      pageError: null,
     });
-    expect(spectrum.source).toBe('empty');
-    expect(spectrum.presence).toBe('absent');
-    expect(spectrum.errorKind).toBeNull();
-    expect(spectrum.bands).toHaveLength(0);
+    expect(capture).toEqual({ status: 'empty', live: emptyLive });
   });
 
   it('builds bands and micro-log from a hot dump', () => {
-    const spectrum = buildCanTrafficSpectrum({
-      summary: makeSummary(),
-      page: {
-        frames: [makeFrame({ line_no: 1 }), makeFrame({ line_no: 2, can_id: '0x002' })],
-        total: 100,
+    const capture = foldCaptureState({
+      summaryResult: { ok: true, data: makeSummary() },
+      pageResult: {
+        ok: true,
+        data: {
+          frames: [makeFrame({ line_no: 1 }), makeFrame({ line_no: 2, can_id: '0x002' })],
+          total: 100,
+        },
       },
       live: emptyLive,
       previous: null,
       nowMs: 2_000,
-      summaryError: null,
-      pageError: null,
     });
-    expect(spectrum.source).toBe('hot-dump');
-    expect(spectrum.presence).toBe('live');
-    expect(spectrum.bands[0]).toMatchObject({ canId: '0x001', count: 60, share: 0.6 });
-    expect(spectrum.partitions[0]?.name).toBe('can0');
-    expect(spectrum.microLog).toHaveLength(2);
-    expect(spectrum.microLog[1]?.joint).toBe('right_shoulder_pitch');
-    expect(spectrum.rateHz).toEqual([{ atMs: 2_000, hz: 40 }]);
+    expect(capture.status).toBe('ready');
+    if (capture.status !== 'ready') return;
+    expect(capture.dump.freshness).toBe('live');
+    expect(capture.dump.bands[0]).toMatchObject({ canId: '0x001', count: 60, share: 0.6 });
+    expect(capture.dump.partitions[0]?.name).toBe('can0');
+    expect(capture.dump.microLog).toHaveLength(2);
+    expect(capture.dump.microLog[1]?.joint).toBe('right_shoulder_pitch');
+    expect(capture.dump.rateHz).toEqual([{ atMs: 2_000, hz: 40 }]);
+    expect(capture.dump.tailError).toBeNull();
+  });
+
+  it('keeps summary ready when the tail page fails', () => {
+    const capture = foldCaptureState({
+      summaryResult: { ok: true, data: makeSummary() },
+      pageResult: { ok: false, error: { kind: 'network' } },
+      live: emptyLive,
+      previous: null,
+      nowMs: 2_000,
+    });
+    expect(capture.status).toBe('ready');
+    if (capture.status !== 'ready') return;
+    expect(capture.dump.bands).toHaveLength(2);
+    expect(capture.dump.microLog).toHaveLength(0);
+    expect(capture.dump.tailError?.kind).toBe('network');
   });
 
   it('marks unchanged fingerprints stale after the freshness window', () => {
-    const first = buildCanTrafficSpectrum({
-      summary: makeSummary(),
-      page: { frames: [makeFrame()], total: 100 },
+    const first = foldCaptureState({
+      summaryResult: { ok: true, data: makeSummary() },
+      pageResult: {
+        ok: true,
+        data: { frames: [makeFrame()], total: 100 },
+      },
       live: emptyLive,
       previous: null,
       nowMs: 1_000,
-      summaryError: null,
-      pageError: null,
     });
-    const fp = captureFingerprint(makeSummary(), { frames: [makeFrame()], total: 100 });
-    expect(first.fingerprint).toBe(fp);
+    const fp = captureFingerprint(makeSummary(), {
+      frames: [makeFrame()],
+      total: 100,
+    });
+    expect(first.status).toBe('ready');
+    if (first.status !== 'ready') return;
+    expect(first.dump.fingerprint).toBe(fp);
 
-    const stale = buildCanTrafficSpectrum({
-      summary: makeSummary(),
-      page: { frames: [makeFrame()], total: 100 },
+    const stale = foldCaptureState({
+      summaryResult: { ok: true, data: makeSummary() },
+      pageResult: {
+        ok: true,
+        data: { frames: [makeFrame()], total: 100 },
+      },
       live: emptyLive,
       previous: first,
       nowMs: 1_000 + STALE_AFTER_MS,
-      summaryError: null,
-      pageError: null,
     });
-    expect(stale.presence).toBe('stale');
-    expect(stale.capturedAtMs).toBe(1_000);
+    expect(stale.status).toBe('ready');
+    if (stale.status !== 'ready') return;
+    expect(stale.dump.freshness).toBe('stale');
+    expect(stale.dump.capturedAtMs).toBe(1_000);
   });
 
-  it('maps transport failure without summary to unavailable', () => {
-    const spectrum = buildCanTrafficSpectrum({
-      summary: null,
-      page: null,
+  it('maps summary transport failure to unavailable', () => {
+    const capture = foldCaptureState({
+      summaryResult: { ok: false, error: { kind: 'unauthorized' } },
+      pageResult: null,
       live: emptyLive,
       previous: null,
       nowMs: 1_000,
-      summaryError: { kind: 'unauthorized' },
-      pageError: null,
     });
-    expect(spectrum.source).toBe('unavailable');
-    expect(spectrum.errorKind?.kind).toBe('unauthorized');
+    expect(capture).toEqual({
+      status: 'unavailable',
+      live: emptyLive,
+      error: { kind: 'unauthorized' },
+    });
   });
 
-  it('projects a fixed micro-log tail', () => {
+  it('projects a fixed micro-log window from the end of a page', () => {
     const frames = Array.from({ length: 30 }, (_, i) =>
       makeFrame({ line_no: i + 1, can_id: `0x${i.toString(16)}` }),
     );
@@ -171,41 +203,37 @@ describe('can-traffic-spectrum', () => {
     expect(chip.txErrorCount).toBe(3);
   });
 
-  it('preserves prior sparkline samples across rebuilds', () => {
-    const previous: CanTrafficSpectrum = buildCanTrafficSpectrum({
-      summary: makeSummary({ approx_hz: 10 }),
-      page: { frames: [makeFrame()], total: 100 },
+  it('preserves prior sparkline samples across ready rebuilds', () => {
+    const previous: CaptureState = foldCaptureState({
+      summaryResult: { ok: true, data: makeSummary({ approx_hz: 10 }) },
+      pageResult: {
+        ok: true,
+        data: { frames: [makeFrame()], total: 100 },
+      },
       live: emptyLive,
       previous: null,
       nowMs: 1_000,
-      summaryError: null,
-      pageError: null,
     });
-    const next = buildCanTrafficSpectrum({
-      summary: makeSummary({ approx_hz: 20, parsed_frames: 101, total_lines: 101 }),
-      page: { frames: [makeFrame({ line_no: 2 })], total: 101 },
+    const next = foldCaptureState({
+      summaryResult: {
+        ok: true,
+        data: makeSummary({ approx_hz: 20, parsed_frames: 101, total_lines: 101 }),
+      },
+      pageResult: {
+        ok: true,
+        data: { frames: [makeFrame({ line_no: 2 })], total: 101 },
+      },
       live: emptyLive,
       previous,
       nowMs: 3_000,
-      summaryError: null,
-      pageError: null,
     });
-    expect(next.rateHz.map((s) => s.hz)).toEqual([10, 20]);
-  });
-
-  it('seeds a flat link-activity series so the chart has geometry immediately', () => {
-    const seeded = seedLinkActivity(10_000, {
-      ...emptyLive,
-      rxBytesPerSec: 40,
-      txBytesPerSec: 8,
-    }, 4, 1_000);
-    expect(seeded).toHaveLength(4);
-    expect(seeded[0]).toEqual({ atMs: 7_000, rxBps: 40, txBps: 8 });
-    expect(seeded[3]).toEqual({ atMs: 10_000, rxBps: 40, txBps: 8 });
+    expect(next.status).toBe('ready');
+    if (next.status !== 'ready') return;
+    expect(next.dump.rateHz.map((s) => s.hz)).toEqual([10, 20]);
   });
 
   it('appends link-activity samples and caps the rolling window', () => {
-    let series = seedLinkActivity(0, emptyLive, 2, 1_000);
+    let series: ReturnType<typeof appendLinkActivity> = [];
     for (let i = 1; i <= ACTIVITY_CAP + 5; i += 1) {
       series = appendLinkActivity(series, {
         atMs: i * 1_000,

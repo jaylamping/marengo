@@ -24,14 +24,16 @@ import {
   type ChartConfig,
 } from '@/components/ui/chart';
 import { useCanTrafficSpectrum } from '@/hooks/use-can-traffic-spectrum';
-import type {
-  CanIdBand,
-  CanLinkActivitySample,
-  CanLiveChip,
-  CanTrafficSpectrum,
-  HzSample,
-  InterfacePartition,
-  MicroLogLine,
+import {
+  LOGS_CAN_HREF,
+  type CanIdBand,
+  type CanLinkActivitySample,
+  type CanLiveChip,
+  type CaptureState,
+  type HzSample,
+  type InterfacePartition,
+  type MicroLogLine,
+  type SpectrumDump,
 } from '@/lib/can-traffic-spectrum';
 import { logErrorMessage, shouldShowLogErrorBanner } from '@/lib/log-api';
 import { cn } from '@/lib/utils';
@@ -51,17 +53,19 @@ type CanBusSpectrumPanelProps = {
   active?: boolean;
 };
 
-function presenceCopy(spectrum: CanTrafficSpectrum): string {
-  if (spectrum.source === 'unavailable') {
-    return 'Capture unavailable';
+function presenceCopy(capture: CaptureState): string {
+  switch (capture.status) {
+    case 'unavailable':
+      return 'Capture unavailable';
+    case 'empty':
+      return 'No harness capture';
+    case 'ready':
+      return capture.dump.freshness === 'stale' ? 'Dump unchanged' : 'Dump updating';
+    default: {
+      const _exhaustive: never = capture;
+      return _exhaustive;
+    }
   }
-  if (spectrum.source === 'empty') {
-    return 'No harness capture';
-  }
-  if (spectrum.presence === 'stale') {
-    return 'Dump unchanged';
-  }
-  return 'Dump updating';
 }
 
 function formatHz(value: number | null): string {
@@ -408,10 +412,105 @@ function LinkActivityChart({ samples }: { samples: CanLinkActivitySample[] }) {
   );
 }
 
+function HotDumpBody({ dump }: { dump: SpectrumDump }) {
+  const tailError =
+    dump.tailError != null && shouldShowLogErrorBanner(dump.tailError)
+      ? dump.tailError
+      : null;
+  return (
+    <div className="grid gap-3 @3xl/card:grid-cols-[10.5rem_minmax(14rem,0.85fr)_minmax(0,1.35fr)]">
+      <div className="flex min-w-0 flex-col gap-2.5 border-b border-line pb-2.5 @3xl/card:border-b-0 @3xl/card:border-r @3xl/card:pb-0 @3xl/card:pr-3">
+        <div className="grid grid-cols-3 gap-3 @3xl/card:grid-cols-1 @3xl/card:gap-2">
+          <MetricReadout
+            label="Rate"
+            value={formatHz(dump.sessionApproxHz)}
+            unit="Hz"
+          />
+          <MetricReadout label="Frames" value={dump.parsedFrames.toLocaleString()} />
+          <MetricReadout
+            label="Window"
+            value={dump.durationS.toFixed(2)}
+            unit="s"
+          />
+        </div>
+        <InterfaceStrip partitions={dump.partitions} />
+      </div>
+      <div className="flex min-w-0 flex-col gap-2.5 border-b border-line pb-2.5 @3xl/card:border-b-0 @3xl/card:border-r @3xl/card:pb-0 @3xl/card:pr-3">
+        <div className="min-w-0 space-y-1">
+          <div className="micro-label">Top IDs</div>
+          <IdHistogram bands={dump.bands} />
+        </div>
+        <div className="min-w-0 space-y-1">
+          <div className="micro-label">Bus rate</div>
+          <RateSparkline samples={dump.rateHz} />
+        </div>
+      </div>
+      <div className="flex min-w-0 flex-col gap-1">
+        <div className="flex items-baseline justify-between gap-2">
+          <div className="micro-label">Tail</div>
+          {tailError ? (
+            <span className="font-mono text-[10px] text-destructive">
+              {logErrorMessage(tailError)}
+            </span>
+          ) : null}
+        </div>
+        <MicroLog lines={dump.microLog} />
+      </div>
+    </div>
+  );
+}
+
+function CaptureBody({
+  capture,
+  loading,
+}: {
+  capture: CaptureState;
+  loading: boolean;
+}) {
+  if (capture.status === 'ready') {
+    return <HotDumpBody dump={capture.dump} />;
+  }
+
+  if (loading) {
+    return <CaptureStatus title="Loading capture" detail="Polling candump-latest…" />;
+  }
+
+  switch (capture.status) {
+    case 'empty':
+      return (
+        <CaptureStatus
+          title="No harness candump"
+          detail="Link meters below still track host rx/tx when the Pi is up."
+        />
+      );
+    case 'unavailable': {
+      const showBanner = shouldShowLogErrorBanner(capture.error);
+      if (showBanner) {
+        return (
+          <p className="text-sm text-destructive">{logErrorMessage(capture.error)}</p>
+        );
+      }
+      return (
+        <CaptureStatus
+          title={capture.error.kind === 'no_endpoint' ? 'No gateway' : 'Capture unreachable'}
+          detail={
+            capture.error.kind === 'no_endpoint'
+              ? 'Wireframe — VITE_CHAPPE_HTTP_URL unset. Header CAN0 is a static profile label, not live bus state.'
+              : 'Candump HTTP failed. Link meters still sample host metrics when Chappe is up.'
+          }
+        />
+      );
+    }
+    default: {
+      const _exhaustive: never = capture;
+      return _exhaustive;
+    }
+  }
+}
+
 export function CanBusSpectrumPanel({ active = true }: CanBusSpectrumPanelProps) {
-  const { loading, linkActivity, ...spectrum } = useCanTrafficSpectrum({ active });
-  const showError = shouldShowLogErrorBanner(spectrum.errorKind);
-  const hot = spectrum.source === 'hot-dump';
+  const { capture, loading, linkActivity } = useCanTrafficSpectrum({ active });
+  const ready = capture.status === 'ready';
 
   return (
     <Card
@@ -425,16 +524,16 @@ export function CanBusSpectrumPanel({ active = true }: CanBusSpectrumPanelProps)
       <CardHeader className="shrink-0">
         <CardTitle>CAN bus</CardTitle>
         <CardDescription>
-          {presenceCopy(spectrum)}
-          {hot
-            ? ` · ${spectrum.parsedFrames.toLocaleString()} frames · ${formatHz(spectrum.sessionApproxHz)} Hz`
+          {presenceCopy(capture)}
+          {ready
+            ? ` · ${capture.dump.parsedFrames.toLocaleString()} frames · ${formatHz(capture.dump.sessionApproxHz)} Hz`
             : ' · candump-latest'}
         </CardDescription>
         <CardAction>
           <div className="flex items-center gap-3">
-            <LiveChip live={spectrum.live} />
+            <LiveChip live={capture.live} />
             <Link
-              to={spectrum.logsCanHref}
+              to={LOGS_CAN_HREF}
               className="font-mono text-[10px] uppercase tracking-[0.14em] text-accent outline-none transition-colors duration-150 hover:text-accent-dim focus-visible:ring-1 focus-visible:ring-ring"
             >
               Open Logs · CAN
@@ -443,76 +542,7 @@ export function CanBusSpectrumPanel({ active = true }: CanBusSpectrumPanelProps)
         </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-2.5 px-2 pb-3 sm:px-4">
-        {showError ? (
-          <p className="text-sm text-destructive">
-            {logErrorMessage(spectrum.errorKind!)}
-          </p>
-        ) : null}
-
-        {loading && !hot && !showError ? (
-          <CaptureStatus title="Loading capture" detail="Polling candump-latest…" />
-        ) : null}
-
-        {!loading && spectrum.source === 'empty' && !showError ? (
-          <CaptureStatus
-            title="No harness candump"
-            detail="Link meters below still track host rx/tx when the Pi is up."
-          />
-        ) : null}
-
-        {!loading && spectrum.source === 'unavailable' && !showError ? (
-          <CaptureStatus
-            title={
-              spectrum.errorKind?.kind === 'no_endpoint'
-                ? 'No gateway'
-                : 'Capture unreachable'
-            }
-            detail={
-              spectrum.errorKind?.kind === 'no_endpoint'
-                ? 'Wireframe — VITE_CHAPPE_HTTP_URL unset. Header CAN0 is a static profile label, not live bus state.'
-                : 'Candump HTTP failed. Link meters still sample host metrics when Chappe is up.'
-            }
-          />
-        ) : null}
-
-        {hot ? (
-          <div className="grid gap-3 @3xl/card:grid-cols-[10.5rem_minmax(14rem,0.85fr)_minmax(0,1.35fr)]">
-            <div className="flex min-w-0 flex-col gap-2.5 border-b border-line pb-2.5 @3xl/card:border-b-0 @3xl/card:border-r @3xl/card:pb-0 @3xl/card:pr-3">
-              <div className="grid grid-cols-3 gap-3 @3xl/card:grid-cols-1 @3xl/card:gap-2">
-                <MetricReadout
-                  label="Rate"
-                  value={formatHz(spectrum.sessionApproxHz)}
-                  unit="Hz"
-                />
-                <MetricReadout
-                  label="Frames"
-                  value={spectrum.parsedFrames.toLocaleString()}
-                />
-                <MetricReadout
-                  label="Window"
-                  value={spectrum.durationS.toFixed(2)}
-                  unit="s"
-                />
-              </div>
-              <InterfaceStrip partitions={spectrum.partitions} />
-            </div>
-            <div className="flex min-w-0 flex-col gap-2.5 border-b border-line pb-2.5 @3xl/card:border-b-0 @3xl/card:border-r @3xl/card:pb-0 @3xl/card:pr-3">
-              <div className="min-w-0 space-y-1">
-                <div className="micro-label">Top IDs</div>
-                <IdHistogram bands={spectrum.bands} />
-              </div>
-              <div className="min-w-0 space-y-1">
-                <div className="micro-label">Bus rate</div>
-                <RateSparkline samples={spectrum.rateHz} />
-              </div>
-            </div>
-            <div className="flex min-w-0 flex-col gap-1">
-              <div className="micro-label">Tail</div>
-              <MicroLog lines={spectrum.microLog} />
-            </div>
-          </div>
-        ) : null}
-
+        <CaptureBody capture={capture} loading={loading} />
         <LinkActivityChart samples={linkActivity} />
       </CardContent>
     </Card>

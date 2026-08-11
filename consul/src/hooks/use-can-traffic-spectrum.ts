@@ -1,23 +1,18 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import {
   ACTIVITY_TICK_MS,
   SPECTRUM_POLL_MS,
   TAIL_PAGE_LIMIT,
   appendLinkActivity,
-  buildCanTrafficSpectrum,
+  candumpTailOffset,
+  foldCaptureState,
   readCanLiveChip,
-  seedLinkActivity,
+  withLiveChip,
   type CanLinkActivitySample,
-  type CanTrafficSpectrum,
+  type CaptureState,
 } from '@/lib/can-traffic-spectrum';
-import {
-  fetchCandumpPage,
-  fetchCandumpSummary,
-  type CandumpFrameDto,
-  type CandumpSummaryDto,
-  type LogApiError,
-} from '@/lib/log-api';
+import { fetchCandumpPage, fetchCandumpSummary } from '@/lib/log-api';
 import { useHostMetricsStore } from '@/state/hostMetricsStore';
 
 export type UseCanTrafficSpectrumArgs = {
@@ -25,47 +20,25 @@ export type UseCanTrafficSpectrumArgs = {
   sessionId?: string | 'latest';
 };
 
-type PollSlices = {
-  summary: CandumpSummaryDto | null;
-  page: { frames: CandumpFrameDto[]; total: number } | null;
-  summaryError: LogApiError | null;
-  pageError: LogApiError | null;
-};
-
-function idleView(nowMs: number): CanTrafficSpectrum {
-  return buildCanTrafficSpectrum({
-    summary: null,
-    page: null,
-    live: readCanLiveChip(null),
-    previous: null,
-    nowMs,
-    summaryError: null,
-    pageError: null,
-  });
-}
-
-export type CanTrafficSpectrumView = CanTrafficSpectrum & {
+export type CanTrafficSpectrumView = {
+  capture: CaptureState;
   loading: boolean;
-  /** Rolling CAN link rx/tx Bps from host metrics — independent of candump. */
+  /** Observed host-metrics rx/tx samples only (never fabricated history). */
   linkActivity: CanLinkActivitySample[];
 };
+
+function initialCapture(): CaptureState {
+  return { status: 'empty', live: readCanLiveChip(null) };
+}
 
 export function useCanTrafficSpectrum({
   active,
   sessionId = 'latest',
 }: UseCanTrafficSpectrumArgs): CanTrafficSpectrumView {
   const piMetrics = useHostMetricsStore((s) => s.piMetrics);
-  const [spectrum, setSpectrum] = useState<CanTrafficSpectrum>(() => idleView(Date.now()));
+  const [capture, setCapture] = useState<CaptureState>(initialCapture);
   const [loading, setLoading] = useState(true);
-  const [linkActivity, setLinkActivity] = useState<CanLinkActivitySample[]>(() =>
-    seedLinkActivity(Date.now(), readCanLiveChip(null)),
-  );
-  const spectrumRef = useRef(spectrum);
-  const loadingRef = useRef(loading);
-  const linkActivityRef = useRef(linkActivity);
-  spectrumRef.current = spectrum;
-  loadingRef.current = loading;
-  linkActivityRef.current = linkActivity;
+  const [linkActivity, setLinkActivity] = useState<CanLinkActivitySample[]>([]);
 
   useEffect(() => {
     if (!active) {
@@ -77,32 +50,42 @@ export function useCanTrafficSpectrum({
     setLoading(true);
 
     const poll = async () => {
-      const [summaryResult, pageResult] = await Promise.all([
-        fetchCandumpSummary(sessionId),
-        fetchCandumpPage(sessionId, 0, TAIL_PAGE_LIMIT),
-      ]);
+      const summaryResult = await fetchCandumpSummary(sessionId);
       if (cancelled) {
         return;
       }
 
-      const slices: PollSlices = {
-        summary: summaryResult.ok ? summaryResult.data : null,
-        page: pageResult.ok
-          ? {
-              frames: pageResult.data.frames,
-              total:
-                pageResult.data.parsed_frames ?? pageResult.data.total_frames,
-            }
-          : null,
-        summaryError: summaryResult.ok ? null : summaryResult.error,
-        pageError: pageResult.ok ? null : pageResult.error,
-      };
+      let pageResult: Awaited<ReturnType<typeof fetchCandumpPage>> | null = null;
+      if (summaryResult.ok && summaryResult.data.parsed_frames > 0) {
+        const offset = candumpTailOffset(
+          summaryResult.data.parsed_frames,
+          TAIL_PAGE_LIMIT,
+        );
+        pageResult = await fetchCandumpPage(sessionId, offset, TAIL_PAGE_LIMIT);
+      }
+      if (cancelled) {
+        return;
+      }
 
-      setSpectrum((prev) =>
-        buildCanTrafficSpectrum({
-          ...slices,
+      setCapture((previous) =>
+        foldCaptureState({
+          summaryResult,
+          pageResult:
+            pageResult == null
+              ? null
+              : pageResult.ok
+                ? {
+                    ok: true,
+                    data: {
+                      frames: pageResult.data.frames,
+                      total:
+                        pageResult.data.parsed_frames ??
+                        pageResult.data.total_frames,
+                    },
+                  }
+                : pageResult,
           live: readCanLiveChip(useHostMetricsStore.getState().piMetrics),
-          previous: prev,
+          previous,
           nowMs: Date.now(),
         }),
       );
@@ -131,13 +114,9 @@ export function useCanTrafficSpectrum({
     if (!active) {
       return;
     }
-    setSpectrum((prev) => ({
-      ...prev,
-      live: readCanLiveChip(piMetrics),
-    }));
+    setCapture((prev) => withLiveChip(prev, readCanLiveChip(piMetrics)));
   }, [active, piMetrics]);
 
-  // Always sample link throughput so the activity graph fills even with no candump.
   useEffect(() => {
     if (!active) {
       return;
@@ -157,13 +136,5 @@ export function useCanTrafficSpectrum({
     return () => clearInterval(id);
   }, [active]);
 
-  if (!active) {
-    return {
-      ...spectrumRef.current,
-      loading: loadingRef.current,
-      linkActivity: linkActivityRef.current,
-    };
-  }
-
-  return { ...spectrum, loading, linkActivity };
+  return { capture, loading, linkActivity };
 }

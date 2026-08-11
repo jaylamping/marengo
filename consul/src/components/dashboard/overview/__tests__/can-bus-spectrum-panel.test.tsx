@@ -6,38 +6,27 @@ import { MemoryRouter } from 'react-router-dom';
 import { CanBusSpectrumPanel } from '@/components/dashboard/overview/can-bus-spectrum-panel';
 import type { CanTrafficSpectrumView } from '@/hooks/use-can-traffic-spectrum';
 
-const emptySpectrum: CanTrafficSpectrumView = {
-  source: 'empty',
-  presence: 'absent',
-  fingerprint: null,
-  capturedAtMs: 0,
-  durationS: 0,
-  parsedFrames: 0,
-  sessionApproxHz: null,
-  bands: [],
-  partitions: [],
-  rateHz: [],
-  microLog: [],
-  live: {
-    iface: 'can0',
-    canState: 'ERROR-ACTIVE',
-    warn: false,
-    rxBytesPerSec: null,
-    txBytesPerSec: null,
-    txErrorCount: null,
-    rxErrorCount: null,
+const emptyView: CanTrafficSpectrumView = {
+  capture: {
+    status: 'empty',
+    live: {
+      iface: 'can0',
+      canState: 'ERROR-ACTIVE',
+      warn: false,
+      rxBytesPerSec: null,
+      txBytesPerSec: null,
+      txErrorCount: null,
+      rxErrorCount: null,
+    },
   },
-  errorKind: null,
-  logsCanHref: '/logs',
   loading: false,
   linkActivity: [
     { atMs: 1_000, rxBps: 0, txBps: 0 },
-    { atMs: 2_000, rxBps: 0, txBps: 0 },
-    { atMs: 3_000, rxBps: 12, txBps: 4 },
+    { atMs: 2_000, rxBps: 12, txBps: 4 },
   ],
 };
 
-const mockView = vi.fn((): CanTrafficSpectrumView => emptySpectrum);
+const mockView = vi.fn((): CanTrafficSpectrumView => emptyView);
 
 vi.mock('@/hooks/use-can-traffic-spectrum', () => ({
   useCanTrafficSpectrum: () => mockView(),
@@ -46,7 +35,7 @@ vi.mock('@/hooks/use-can-traffic-spectrum', () => ({
 afterEach(() => {
   cleanup();
   mockView.mockReset();
-  mockView.mockImplementation(() => emptySpectrum);
+  mockView.mockImplementation(() => emptyView);
 });
 
 describe('CanBusSpectrumPanel', () => {
@@ -70,7 +59,7 @@ describe('CanBusSpectrumPanel', () => {
 
   it('shows a loading capture state before the first poll settles', () => {
     mockView.mockImplementation(() => ({
-      ...emptySpectrum,
+      ...emptyView,
       loading: true,
     }));
     render(
@@ -84,10 +73,13 @@ describe('CanBusSpectrumPanel', () => {
 
   it('does not render zeroed spectrum chrome when capture is unavailable', () => {
     mockView.mockImplementation(() => ({
-      ...emptySpectrum,
-      source: 'unavailable',
+      ...emptyView,
       loading: false,
-      errorKind: { kind: 'no_endpoint' },
+      capture: {
+        status: 'unavailable',
+        live: emptyView.capture.live,
+        error: { kind: 'no_endpoint' },
+      },
     }));
     render(
       <MemoryRouter>
