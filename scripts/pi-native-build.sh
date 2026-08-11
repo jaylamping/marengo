@@ -4,6 +4,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=deploy-lib.sh
+source "${ROOT}/scripts/deploy-lib.sh"
 
 if [[ -f "${HOME}/.cargo/env" ]]; then
   set -a
@@ -12,6 +14,9 @@ if [[ -f "${HOME}/.cargo/env" ]]; then
   set +a
 fi
 export PATH="${HOME}/.cargo/bin:/usr/local/cargo/bin:${PATH:-}"
+ensure_cargo_in_path || true
+# systemd-run self-update has a minimal PATH; Node lives under ~/.local on the Pi.
+ensure_user_node_in_path || true
 
 if ! command -v cargo >/dev/null 2>&1; then
   echo "error: cargo not on PATH (install Rust on Pi or use cross deploy)" >&2
