@@ -63,6 +63,10 @@ enum PiCommand {
     Disable,
     GravityOn,
     GravityOff,
+    TorqueCmd {
+        joint: String,
+        tau_nm: f64,
+    },
     ImpedanceOn,
     ImpedanceOff,
     HoldOn,
@@ -101,6 +105,11 @@ fn parse_command(line: &str) -> Option<PiCommand> {
         "disable" => Some(PiCommand::Disable),
         "gravity-on" | "gravity_on" => Some(PiCommand::GravityOn),
         "gravity-off" | "gravity_off" => Some(PiCommand::GravityOff),
+        "torque-cmd" | "torque_cmd" => {
+            let joint = parts.next()?.to_string();
+            let tau_nm = parts.next()?.parse().ok()?;
+            Some(PiCommand::TorqueCmd { joint, tau_nm })
+        }
         "impedance-on" | "impedance_on" => Some(PiCommand::ImpedanceOn),
         "impedance-off" | "impedance_off" => Some(PiCommand::ImpedanceOff),
         "hold-on" | "hold_on" => Some(PiCommand::HoldOn),
@@ -184,6 +193,7 @@ fn print_usage() {
          enable [operator_id] [force]\n  \
          disable\n  \
          gravity-on | gravity-off\n  \
+         torque-cmd <joint> <nm>\n  \
          impedance-on | impedance-off\n  \
          hold-on | hold-at [joint] <rad> | hold-off\n  \
          wave <joint> <min_rad> <max_rad> <cycles> [half_period_sec]\n  \
@@ -709,9 +719,21 @@ fn handle_command(
             );
         }
         PiCommand::GravityOff => {
-            loop_ctrl.set_control_mode(ControlMode::Disabled);
-            println!("control mode → Disabled");
+            loop_ctrl.enter_torque_only_zero();
+            println!(
+                "control mode → TorqueOnly (τ_cmd≡0; operational={:?})",
+                loop_ctrl.supervisor_mut().mode()
+            );
         }
+        PiCommand::TorqueCmd { joint, tau_nm } => match loop_ctrl.set_torque_cmd(&joint, tau_nm) {
+            Ok(()) => {
+                println!(
+                    "τ_cmd {joint} = {tau_nm:.4} Nm (mode=TorqueOnly, operational={:?})",
+                    loop_ctrl.supervisor_mut().mode()
+                );
+            }
+            Err(e) => eprintln!("torque-cmd failed: {e}"),
+        },
         PiCommand::ImpedanceOn => {
             loop_ctrl.set_control_mode(ControlMode::Impedance);
             println!(

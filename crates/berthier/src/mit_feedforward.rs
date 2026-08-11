@@ -2,7 +2,8 @@
 //!
 //! ControlLoop / [`crate::gain_runtime::GainRuntime`] resolve wire gains; this
 //! module packs `τ_ff` + pre-resolved wire kp/kd. Dynamics (`τ_g`) stay in
-//! `armee-dynamics`. TorqueOnly currently aliases GravityComp (`τ_ff = τ_g`).
+//! `armee-dynamics`. TorqueOnly uses operator `τ_cmd` only (no `τ_g` / friction);
+//! kp/kd are hard-zero on the wire.
 
 use davout::{ControlMode, MitJointCommand};
 use marengo_config::FrictionGains;
@@ -19,6 +20,8 @@ pub struct MitFfJointIn {
     pub q: f64,
     pub dq: f64,
     pub tau_g: f64,
+    /// Operator / Testing latched torque command (Nm). Used only in TorqueOnly.
+    pub tau_cmd: f64,
     pub friction: Option<FrictionGains>,
     /// Pre-resolved MIT wire kp (override > ramp > YAML).
     pub wire_kp: f64,
@@ -42,8 +45,9 @@ impl MitFeedforward {
         }
         let mut batch = Vec::with_capacity(joints.len());
         for j in joints {
-            let (tau_ff, q_des, mit_velocity) = match mode {
-                ControlMode::GravityComp | ControlMode::TorqueOnly => (j.tau_g, j.q, 0.0),
+            let (tau_ff, q_des, mit_velocity, kp, kd) = match mode {
+                ControlMode::GravityComp => (j.tau_g, j.q, 0.0, j.wire_kp, j.wire_kd),
+                ControlMode::TorqueOnly => (j.tau_cmd, j.q, 0.0, 0.0, 0.0),
                 ControlMode::Impedance => {
                     let tau_f = j
                         .friction
@@ -53,14 +57,14 @@ impl MitFeedforward {
                             friction_torque(j.dq, fc, f.fv, f.fo, f.k)
                         })
                         .unwrap_or(0.0);
-                    (j.tau_g + tau_f, j.q, 0.0)
+                    (j.tau_g + tau_f, j.q, 0.0, j.wire_kp, j.wire_kd)
                 }
                 ControlMode::Position | ControlMode::Disabled => continue,
             };
             batch.push(MitJointCommand {
                 joint: j.name.clone(),
-                kp: j.wire_kp,
-                kd: j.wire_kd,
+                kp,
+                kd,
                 position_rad: q_des,
                 velocity_rad_s: mit_velocity,
                 torque_ff_nm: tau_ff,
@@ -81,6 +85,7 @@ mod tests {
             q: 0.3,
             dq: 0.0,
             tau_g,
+            tau_cmd: 0.0,
             friction: None,
             wire_kp: 0.0,
             wire_kd: 0.0,
@@ -110,12 +115,24 @@ mod tests {
     }
 
     #[test]
-    fn torque_only_aliases_gravity_comp() {
-        let g = MitFeedforward::compose(ControlMode::GravityComp, &[joint("j0", 0.8)]);
-        let t = MitFeedforward::compose(ControlMode::TorqueOnly, &[joint("j0", 0.8)]);
-        assert_eq!(g[0].kp, t[0].kp);
-        assert_eq!(g[0].kd, t[0].kd);
-        assert!((g[0].torque_ff_nm - t[0].torque_ff_nm).abs() < 1e-12);
+    fn torque_only_uses_tau_cmd_not_tau_g() {
+        let mut j = joint("j0", 0.8);
+        j.tau_cmd = 0.35;
+        j.wire_kp = 18.0;
+        j.wire_kd = 3.0;
+        let out = MitFeedforward::compose(ControlMode::TorqueOnly, &[j]);
+        assert_eq!(out.len(), 1);
+        assert!((out[0].torque_ff_nm - 0.35).abs() < 1e-12);
+        assert!((out[0].kp).abs() < 1e-12, "TorqueOnly hard-zeros kp");
+        assert!((out[0].kd).abs() < 1e-12, "TorqueOnly hard-zeros kd");
+        assert!((out[0].position_rad - 0.3).abs() < 1e-12);
+        assert!((out[0].velocity_rad_s).abs() < 1e-12);
+    }
+
+    #[test]
+    fn torque_only_defaults_tau_cmd_to_zero() {
+        let out = MitFeedforward::compose(ControlMode::TorqueOnly, &[joint("j0", 1.5)]);
+        assert!((out[0].torque_ff_nm).abs() < 1e-12);
     }
 
     #[test]
