@@ -229,14 +229,9 @@ export function SetLimitsPanel({
           ? result.message
           : `${result.message} — new durable SoT (live; deploy preserves)`,
       );
-      if (
-        result.localSync === 'missing_config' ||
-        result.localSync === 'failed'
-      ) {
+      if (result.localSync === 'failed') {
         setApplyError(
-          result.localSync === 'missing_config'
-            ? 'Local checkout sync not configured — set VITE_LIMIT_SYNC_URL and run just limit-sync-serve.'
-            : 'Local checkout sync failed — is just limit-sync-serve running?',
+          'Local checkout sync failed — is just limit-sync-serve running?',
         );
       }
       // Live Set Limits must not open NeedsRestart / clear structural pending.

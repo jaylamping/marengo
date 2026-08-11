@@ -14,7 +14,7 @@ export const DEFAULT_SOFT_INSET_RAD = 0.027;
  */
 export const DEFAULT_HARD_MARGIN_RAD = 0.03;
 
-export type LocalLimitSyncStatus = 'ok' | 'skipped' | 'failed' | 'missing_config';
+export type LocalLimitSyncStatus = 'ok' | 'skipped' | 'failed';
 
 export type PersistJointLimitsResult =
   | {
@@ -140,11 +140,9 @@ export async function persistJointLimits(
   const localNote =
     localSync === 'ok'
       ? ' Local checkout synced.'
-      : localSync === 'missing_config'
-        ? ' Local checkout sync not configured — set VITE_LIMIT_SYNC_URL and run just limit-sync-serve.'
-        : localSync === 'failed'
-          ? ' Local checkout sync failed — is just limit-sync-serve running?'
-          : '';
+      : localSync === 'failed'
+        ? ' Local checkout sync failed — is just limit-sync-serve running?'
+        : '';
 
   return {
     ok: true,
@@ -171,7 +169,7 @@ async function defaultLocalLimitSync(args: {
     import.meta.env.VITE_LIMIT_SYNC_URL as string | undefined
   )?.trim();
   if (!base) {
-    return 'missing_config';
+    return 'skipped';
   }
   try {
     const res = await fetch(`${base.replace(/\/$/, '')}/local/limit-patch`, {
