@@ -84,12 +84,12 @@ systemctl reset-failed "${UNIT}.service" 2>/dev/null || true
 write_job_atomic "running" "enqueued" "enqueue"
 
 # Detached from caller cgroup; runs as deploy user with that user's HOME/cargo.
+# --same-dir is a flag (no =false). Omit it; WorkingDirectory= sets the cwd.
 if ! systemd-run \
   --unit="${UNIT}" \
   --uid="${DEPLOY_USER}" \
   --gid="${DEPLOY_USER}" \
   --collect \
-  --same-dir=false \
   --working-directory="${STAGING}" \
   --setenv="TARGET_SHA=${TARGET_SHA}" \
   --setenv="JOB_ID=${JOB_ID}" \
