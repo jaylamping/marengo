@@ -77,6 +77,7 @@ fn usage() {
            motor-repl set-zero <joint> [--sign-tested]\n  \
            motor-repl gravity-on\n  \
            motor-repl gravity-off\n  \
+           motor-repl torque-cmd <joint> <nm>\n  \
            motor-repl gravity-preview [q0 q1 q2 q3]\n\
          Homing: set-zero each joint at mechanical reference, then home, then enable.\n\
          Uses SocketCAN; prefer test harness or simulation before live CAN.\n\
@@ -385,8 +386,28 @@ fn main() {
             println!("control mode → GravityComp (use marengo-pi or tick loop on bench)");
         }
         "gravity-off" => {
-            loop_ctrl.set_control_mode(ControlMode::Disabled);
-            println!("control mode → Disabled");
+            loop_ctrl.enter_torque_only_zero();
+            println!("control mode → TorqueOnly (τ_cmd≡0; use torque-cmd for nonzero steps)");
+        }
+        "torque-cmd" => {
+            if args.len() < 4 {
+                eprintln!("usage: motor-repl torque-cmd <joint> <nm>");
+                std::process::exit(1);
+            }
+            let joint = &args[2];
+            let tau: f64 = args[3].parse().unwrap_or_else(|_| {
+                eprintln!("invalid torque Nm: {}", args[3]);
+                std::process::exit(1);
+            });
+            match loop_ctrl.set_torque_cmd(joint, tau) {
+                Ok(()) => {
+                    println!("τ_cmd {joint} = {tau:.4} Nm (mode=TorqueOnly)");
+                }
+                Err(e) => {
+                    eprintln!("torque-cmd failed: {e}");
+                    std::process::exit(1);
+                }
+            }
         }
         "gravity-preview" => {
             let joint_count = loop_ctrl.supervisor_mut().motors.motors.len();

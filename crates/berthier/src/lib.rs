@@ -10,6 +10,7 @@
 //! - Control modes: gravity comp, impedance, position, torque-only ([`ControlMode`]).
 //! - Position hold law lives in [`position_hold::PositionHold`] (targets, planners, MIT compose).
 //! - MIT feedforward for GravityComp / Impedance / TorqueOnly: [`mit_feedforward::MitFeedforward`].
+//! - TorqueOnly operator latch: [`torque_cmd::TorqueCmdLatch`] (`τ_cmd`; cleared on leave).
 //! - Optional friction feedforward (`friction` module) in impedance and position modes.
 //! - Publish [`RobotState`](armee_proto::RobotState) on Chappe (lower rate than the motor loop).
 //! - Legacy [`Controller`]: single-joint position commands through Davout (REPL / bring-up).
@@ -48,6 +49,7 @@ mod position_setpoint;
 mod position_trace;
 mod position_trajectory;
 mod position_wave;
+mod torque_cmd;
 
 #[cfg(test)]
 mod mode_isolation;

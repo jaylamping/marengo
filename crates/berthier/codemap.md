@@ -8,16 +8,18 @@ Owns `ControlLoop::tick` — the heartbeat of the robot. Also provides a legacy 
 ## Design
 
 ### Core types
-- `ControlLoop<B: MotorBus>` — realtime tick facade; holds `Supervisor<B>`, `UrdfGravityModel`, `PositionHold`, `GainRuntime`, Chappe bus reference, and tick-phase timing accumulators.
+- `ControlLoop<B: MotorBus>` — realtime tick facade; holds `Supervisor<B>`, `UrdfGravityModel`, `PositionHold`, `GainRuntime`, `TorqueCmdLatch`, Chappe bus reference, and tick-phase timing accumulators.
 - `GainRuntime` — sticky Testing `GainOverride` map + mode-transition kp/kd ramp + per-tick `resolve_all` → `ResolvedGains` (law_* + wire_*).
+- `TorqueCmdLatch` — per-joint latched open-loop `τ_cmd` for TorqueOnly; cleared on leave / `enter_torque_only_zero`.
 - `PositionHold` — owns latched targets, trapezoid planners, freeze/breakaway latches, and Position-mode MIT compose (`tick` → `HoldTickOut`).
-- `MitFeedforward` — Active MIT packing for GravityComp / Impedance / TorqueOnly from pre-resolved wire gains + τ_ff; TorqueOnly aliases GravityComp today.
+- `MitFeedforward` — Active MIT packing for GravityComp / Impedance / TorqueOnly from pre-resolved wire gains + τ_ff; TorqueOnly uses latched `τ_cmd` (hard-zero kp/kd).
 - `Controller<B: MotorBus>` — lighter facade wrapping `Supervisor<B>` for single-joint commands (REPL / bench).
 - `ControlMode` — re-exported from `davout`: `Disabled`, `GravityComp`, `TorqueOnly`, `Impedance`, `Position`.
 - `GainOverride` — runtime per-joint gain override from Testing page; clamped to motor-type safety limits; cleared on GravityComp/TorqueOnly/Disabled enter.
 
 ### Modules (position-hold subsystem, `ControlMode::Position`)
 - `gain_runtime` — `GainRuntime`, ModeGainPolicy (`mode_allows_gain_override`, `target_gains_from_yaml`, `effective_wire_gains`), override clamp, ramp arm/advance, `resolve_all`.
+- `torque_cmd` — `TorqueCmdLatch` storage for operator `τ_cmd`; ControlLoop owns enter-zero / leave-clear policy.
 - `position_trajectory` — `JointPositionPlanner`: trapezoidal acceleration/cruise/deceleration/hold planner per joint. Supports `seed_downward_return_if_needed` for gravity-assisted returns toward home.
 - `position_feedforward` — `compose_position_hold_feedforward`: tau_g + tau_f (Coulomb + viscous friction) + tau_d (damping based on EMA-filtered velocity).
 - `position_setpoint` — Setpoint mapping from planner reference to MIT q_des: clamp to limit envelope, breakaway detection, stuck-pull lead, descent freeze hysteresis, low-angle breakaway logic.
@@ -35,7 +37,7 @@ Owns `ControlLoop::tick` — the heartbeat of the robot. Also provides a legacy 
 3. **Gravity comp**: `dynamics.gravity_torques(&q)` — armee-dynamics virtual-work gradient produces tau_g.
 4. **Resolve gains**: `GainRuntime::resolve_all` — law_* (override or impedance YAML) + wire_* (override > ramp > YAML target).
 5. **Position hold** (Position mode only): `PositionHold::tick(HoldWorld)` with law_* params; patch MIT `kp` from `wire_kp` only.
-6. **Compose MIT batch** (non-Position modes): `MitFeedforward::compose` — GravityComp/TorqueOnly `τ_ff=τ_g` with wire gains; Impedance adds friction (`fc` from resolve) + wire gains.
+6. **Compose MIT batch** (non-Position modes): `MitFeedforward::compose` — GravityComp `τ_ff=τ_g` with wire gains; TorqueOnly `τ_ff=τ_cmd` (kp/kd=0); Impedance adds friction (`fc` from resolve) + wire gains.
 7. **Send batch**: `Supervisor::send_mit_batch(cmds)` — goes through Davout's filter pipeline; then `GainRuntime::advance_tick`.
 8. **Publish Chappe telemetry** at reduced rate (e.g. 20 Hz vs 200 Hz loop).
 

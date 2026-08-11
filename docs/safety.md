@@ -58,7 +58,7 @@ See [ADR 0004](decisions/0004-control-modes-and-mit.md) and [hardware/docs/decis
 2. `motor-repl home` → `enable` only with arm supported.
 3. `gravity-on` — verify backdrivability and no runaway.
 4. **Upright pose test:** slowly release support; elbow/upper arm must not free-fall.
-5. `gravity-off` / `disable` before leaving the bench.
+5. `disable` before leaving the bench (`gravity-off` enters TorqueOnly with `τ_cmd≡0` — diagnostic no-FF, not a full disable).
 
 ## Config hot-reload (limits)
 
