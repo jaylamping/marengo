@@ -27,7 +27,6 @@ export type InventoryItem = {
   node: string;
 };
 
-/** Shown until gateway config snapshot overlays bus + device_id. */
 export const ACTUATOR_NODE_UNAVAILABLE = 'configuration unavailable';
 
 export const INVENTORY_GROUP_ORDER: InventoryGroup[] = [
