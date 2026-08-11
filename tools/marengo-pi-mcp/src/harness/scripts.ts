@@ -184,7 +184,7 @@ const SCRIPT_SUITES: Partial<Record<BenchProfile, () => HarnessScriptSuite>> = {
         name: "elbow_suite_smoke_note",
         output:
           "elbow_attached harness is smoke (fault/exit heuristics only). " +
-          "Run after E6 GravityComp sign (docs/bench-elbow-test-suite.md). " +
+          "Run after elbow GravityComp sign per docs/commissioning/limb-playbook.md. " +
           "Amplitudes stay inside discovery envelope (≤0.6 rad). " +
           "Elevated pitch steps require operator support. " +
           "JSON pass=true with pass_kind=smoke is NOT commissioning complete.",
@@ -267,7 +267,7 @@ const SCRIPT_SUITES: Partial<Record<BenchProfile, () => HarnessScriptSuite>> = {
         output:
           "yaw_attached harness is smoke (fault/exit heuristics only). " +
           "Y3–Y4 ±50 mrad / pitch-drift sign-off requires operator review of " +
-          "position-trace-latest.csv + candump — see docs/bench-yaw-test-suite.md. " +
+          "position-trace-latest.csv + candump — see docs/commissioning/limb-playbook.md. " +
           "Runs on arm_4dof_right (elbow held at zero when present). " +
           "JSON pass=true with pass_kind=smoke is NOT commissioning complete.",
       },

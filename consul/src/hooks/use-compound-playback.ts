@@ -218,7 +218,7 @@ export function useCompoundPlayback() {
     if (!base) return;
     if (!dryRunNow && base.id === 'wave' && !WAVE_POSE_GCOMP_SIGNED) {
       setOverlayBlockReason(
-        'Live Wave is blocked until E6 Wave-pose GravityComp is signed (docs/bench-elbow-test-suite.md). Use Dry Run, or flip WAVE_POSE_GCOMP_SIGNED after sign-off.',
+        'Live Wave is blocked until Wave-pose GravityComp is signed (docs/commissioning/limb-playbook.md). Use Dry Run, or flip WAVE_POSE_GCOMP_SIGNED after sign-off.',
       );
       return;
     }

@@ -57,9 +57,9 @@ export interface CompoundTestPreset {
 }
 
 /**
- * Flip to `true` only after docs/bench-elbow-test-suite.md **E6** Wave-pose
- * GravityComp sign is recorded. Until then, live (non-dry-run) Wave Start is
- * blocked in the compound panel — Position still carries τ_g, but unsupported
+ * Flip to `true` only after Wave-pose GravityComp sign is recorded per
+ * docs/commissioning/limb-playbook.md. Until then, live (non-dry-run) Wave Start
+ * is blocked in the compound panel — Position still carries τ_g, but unsupported
  * elevated Wave raise is not commissioned.
  */
 export const WAVE_POSE_GCOMP_SIGNED = false;
@@ -73,8 +73,8 @@ export const WAVE_POSE_GCOMP_SIGNED = false;
  * upright-pose sense: Berthier Position includes τ_g feedforward plus impedance
  * (ADR 0007 / docs/safety.md). It does leave GravityComp mode, so Teach Record
  * clears its gravity-armed checkbox. Keep the arm supported until Wave-pose
- * G-comp sign is commissioned (docs/bench-elbow-test-suite.md E6). Do not add
- * yaw/elbow to arm_out_forward / arm_fully_up until Y3–Y4 / E gates PASS.
+ * G-comp is signed via docs/commissioning/limb-playbook.md. Do not add yaw/elbow
+ * to arm_out_forward / arm_fully_up until those playbook gates PASS.
  */
 export const COMPOUND_TEST_PRESETS: CompoundTestPreset[] = [
   {

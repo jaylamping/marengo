@@ -18,7 +18,7 @@ fn repo_root() -> PathBuf {
 fn tau_g_sign_positive_at_positive_q() {
     // At q=0.3 rad, tau_g should be POSITIVE for the right_shoulder_pitch joint.
     // Gravity pulls the arm down; the motor must push up (= positive joint torque).
-    // Golden value from bench-weighted-700g-results.md Phase 1.
+    // Sign/magnitude contract for the archived seed URDF stub (below).
     let model_path = repo_root().join("assets/urdf/archive/seed-arm_3dof_right/contributor.urdf");
     let model =
         armee_dynamics::gravity_model_from_urdf(&model_path, &["right_shoulder_pitch".to_string()])
