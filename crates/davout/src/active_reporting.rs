@@ -202,9 +202,7 @@ impl ActiveReportingState {
                 false
             } else {
                 match last_feedback_rx.get(joint) {
-                    Some(t) => {
-                        now.saturating_duration_since(*t) >= ACTIVE_REPORTING_FEEDBACK_STALE
-                    }
+                    Some(t) => now.saturating_duration_since(*t) >= ACTIVE_REPORTING_FEEDBACK_STALE,
                     // Enabled on paper but never saw RX — retry after stale window.
                     None => self
                         .last_enable_tx
