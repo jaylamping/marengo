@@ -147,6 +147,14 @@ beforeEach(() => {
 });
 
 describe('HardwareOverview', () => {
+  it('opts into pointer events under Strategy C main shell', () => {
+    renderHardware();
+    // dashboardMainPointerClassName is pointer-events-none; panels must re-enable.
+    expect(screen.getByTestId('hardware-overview').className).toContain(
+      'pointer-events-auto',
+    );
+  });
+
   it('renders table-first hardware workspace with warn badges', async () => {
     renderHardware();
     expect(screen.getByTestId('hardware-overview')).toBeTruthy();
