@@ -144,16 +144,16 @@ export const robotInventory: InventoryItem[] = [
   actuator(18, 'right_ankle_pitch', 'right_leg', 'Offline', '—', '−1.0–0.8', 'unassigned'),
   actuator(19, 'right_ankle_roll', 'right_leg', 'Offline', '—', '±0.5', 'unassigned'),
 
-  // Left arm
-  actuator(20, 'left_shoulder_roll', 'left_arm', 'Offline', '—', '±1.57', 'unassigned'),
+  // Left arm — pitch before roll so catalog order matches CAN id SoT when unwired
   actuator(21, 'left_shoulder_pitch', 'left_arm', 'Offline', '—', '−0.9–3.17', 'unassigned'),
+  actuator(20, 'left_shoulder_roll', 'left_arm', 'Offline', '—', '±1.57', 'unassigned'),
   actuator(22, 'left_upper_arm_yaw', 'left_arm', 'Offline', '—', '±1.57', 'unassigned'),
   actuator(23, 'left_elbow', 'left_arm', 'Offline', '—', '0–2.50', 'unassigned'),
   actuator(24, 'left_wrist', 'left_arm', 'Offline', '—', '±1.6', 'unassigned'),
 
-  // Right arm
-  actuator(25, 'right_shoulder_roll', 'right_arm', 'Enabled', '—', '±1.57', 'bench_3dof'),
+  // Right arm — pitch (CAN id 1) before roll (CAN id 2)
   actuator(26, 'right_shoulder_pitch', 'right_arm', 'Enabled', '—', '−0.9–3.17', 'bench_3dof'),
+  actuator(25, 'right_shoulder_roll', 'right_arm', 'Enabled', '—', '±1.57', 'bench_3dof'),
   actuator(27, 'right_upper_arm_yaw', 'right_arm', 'Enabled', '—', '±1.57', 'unassigned'),
   actuator(28, 'right_elbow_pitch', 'right_arm', 'Enabled', '—', '0–1.20', 'unassigned'),
   actuator(29, 'right_lower_arm_yaw', 'right_arm', 'Offline', '—', '±1.6', 'unassigned'),
