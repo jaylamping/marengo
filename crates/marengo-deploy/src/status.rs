@@ -41,10 +41,13 @@ pub fn derive_ui_state(
     upstream_ok: bool,
     update_available: bool,
     job: &DeployJob,
+    ready_for_target: bool,
 ) -> UpdateUiState {
     match job.state {
         DeployJobState::Failed => UpdateUiState::Failed,
         DeployJobState::Running => UpdateUiState::Updating,
+        // Keep the sidebar in Updating until www/rev readiness lands after install.
+        DeployJobState::Succeeded if !ready_for_target => UpdateUiState::Updating,
         DeployJobState::Idle | DeployJobState::Succeeded => {
             if !upstream_ok {
                 UpdateUiState::UpstreamUnknown
@@ -89,7 +92,13 @@ pub fn assemble_version_status(
     };
     let ready_for_target = ready_for_target(&deploy.sha, target_for_ready, &job)
         && job.state == DeployJobState::Succeeded;
-    let ui_state = derive_ui_state(&deploy.sha, upstream_ok, update_available, &job);
+    let ui_state = derive_ui_state(
+        &deploy.sha,
+        upstream_ok,
+        update_available,
+        &job,
+        ready_for_target,
+    );
 
     VersionStatus {
         deploy_sha: deploy.sha,
@@ -152,11 +161,21 @@ mod tests {
     #[test]
     fn ui_state_prioritizes_failed_and_running_jobs() {
         assert_eq!(
-            derive_ui_state("", false, false, &job(DeployJobState::Failed)),
+            derive_ui_state("", false, false, &job(DeployJobState::Failed), false),
             UpdateUiState::Failed
         );
         assert_eq!(
-            derive_ui_state("", false, false, &job(DeployJobState::Running)),
+            derive_ui_state("", false, false, &job(DeployJobState::Running), false),
+            UpdateUiState::Updating
+        );
+        assert_eq!(
+            derive_ui_state(
+                "abcdef0",
+                true,
+                false,
+                &job(DeployJobState::Succeeded),
+                false
+            ),
             UpdateUiState::Updating
         );
     }
@@ -164,25 +183,36 @@ mod tests {
     #[test]
     fn ui_state_distinguishes_current_stale_and_unknown() {
         assert_eq!(
-            derive_ui_state("", true, false, &job(DeployJobState::Idle)),
+            derive_ui_state("", true, false, &job(DeployJobState::Idle), false),
             UpdateUiState::Unknown
         );
         assert_eq!(
-            derive_ui_state("abcdef0", false, false, &job(DeployJobState::Idle)),
+            derive_ui_state("abcdef0", false, false, &job(DeployJobState::Idle), false),
             UpdateUiState::UpstreamUnknown
         );
         assert_eq!(
-            derive_ui_state("abcdef0", true, true, &job(DeployJobState::Idle)),
+            derive_ui_state("abcdef0", true, true, &job(DeployJobState::Idle), false),
             UpdateUiState::Stale
         );
         assert_eq!(
-            derive_ui_state("abcdef0", true, false, &job(DeployJobState::Idle)),
+            derive_ui_state("abcdef0", true, false, &job(DeployJobState::Idle), true),
+            UpdateUiState::Current
+        );
+        assert_eq!(
+            derive_ui_state(
+                "abcdef0",
+                true,
+                false,
+                &job(DeployJobState::Succeeded),
+                true
+            ),
             UpdateUiState::Current
         );
     }
 
     #[test]
     fn assemble_status_serializes_typed_phase_and_ui_state() {
+        std::env::set_var("MARENGO_SKIP_WWW_READY", "1");
         let status = assemble_version_status(
             ParsedDeployRev {
                 sha: "abcdef0".to_string(),
@@ -192,13 +222,16 @@ mod tests {
             true,
             0,
             DeployJob {
+                target_sha: "abcdef0".to_string(),
                 phase: DeployPhase::Done,
                 ..job(DeployJobState::Succeeded)
             },
             None,
         );
+        std::env::remove_var("MARENGO_SKIP_WWW_READY");
         let json = serde_json::to_value(status).expect("serialize");
         assert_eq!(json["ui_state"], "current");
         assert_eq!(json["deploy"]["phase"], "done");
+        assert_eq!(json["ready_for_target"], true);
     }
 }

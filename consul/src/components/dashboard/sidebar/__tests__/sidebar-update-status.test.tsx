@@ -39,6 +39,7 @@ function status(partial: Record<string, unknown>) {
     upstream_ok: true,
     update_available: true,
     ready_for_target: false,
+    ui_state: 'stale',
     deploy: {
       state: 'idle',
       job_id: '',
@@ -48,7 +49,7 @@ function status(partial: Record<string, unknown>) {
       started_at: '',
       updated_at: '',
       message: '',
-      phase: '',
+      phase: 'init',
     },
     ...partial,
   };
@@ -72,6 +73,7 @@ describe('SidebarUpdateStatus', () => {
     fetchVersionStatus.mockResolvedValue(
       status({
         update_available: false,
+        ui_state: 'current',
         upstream_sha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       }),
     );
@@ -87,6 +89,7 @@ describe('SidebarUpdateStatus', () => {
     fetchVersionStatus.mockResolvedValueOnce(
       status({
         update_available: false,
+        ui_state: 'current',
         upstream_sha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       }),
     );
@@ -98,6 +101,7 @@ describe('SidebarUpdateStatus', () => {
     fetchVersionStatus.mockResolvedValue(
       status({
         update_available: true,
+        ui_state: 'stale',
         upstream_sha: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
       }),
     );
@@ -112,6 +116,7 @@ describe('SidebarUpdateStatus', () => {
     fetchVersionStatus.mockResolvedValue(
       status({
         update_available: true,
+        ui_state: 'updating',
         deploy: {
           state: 'running',
           job_id: 'j1',

@@ -14,31 +14,45 @@ import {
   shortSha,
   startSelfDeploy,
   writeSelfUpdateSession,
+  type UpdateUiState,
   type VersionStatusDto,
 } from '@/lib/version-api';
 
 const IDLE_POLL_MS = 60_000;
 const BUSY_POLL_MS = 2_500;
 
+const UI_STATES: ReadonlySet<string> = new Set([
+  'unknown',
+  'current',
+  'stale',
+  'upstream_unknown',
+  'updating',
+  'failed',
+]);
+
+/** Prefer gateway `ui_state`; fall back only for older gateways mid-rollout. */
 export function deriveSidebarUpdateMode(
   status: VersionStatusDto | null,
-  forceUpdating: boolean,
+  deployBusy: boolean,
 ): SidebarUpdateUiMode {
-  if (forceUpdating) return 'updating';
+  if (deployBusy && status?.ui_state !== 'failed') return 'updating';
   if (!status) return 'unknown';
+  if (status.ui_state && UI_STATES.has(status.ui_state)) {
+    return status.ui_state;
+  }
+  // Legacy inference — remove once all Pi gateways serve ui_state.
   if (status.deploy.state === 'running') return 'updating';
   if (status.deploy.state === 'failed') return 'failed';
-  if (
-    status.deploy.state === 'succeeded' &&
-    status.ready_for_target &&
-    readSelfUpdateSession()
-  ) {
-    return 'updating';
-  }
   if (!status.upstream_ok) return 'upstream_unknown';
   if (status.update_available) return 'stale';
   if (status.deploy_sha) return 'current';
   return 'unknown';
+}
+
+function isBusyStatus(status: VersionStatusDto | null): boolean {
+  if (!status) return false;
+  if (status.ui_state === 'updating') return true;
+  return status.deploy.state === 'running';
 }
 
 /** Polling + deploy mutation controller for sidebar self-update chrome. */
@@ -50,12 +64,7 @@ export function useSidebarSelfUpdate() {
   const [error, setError] = useState<string | null>(null);
   const reloadArmed = useRef(false);
 
-  const session = readSelfUpdateSession();
-  const forceUpdating = Boolean(session) || deployBusy;
-  const mode = deriveSidebarUpdateMode(
-    status,
-    forceUpdating && status?.deploy.state !== 'failed',
-  );
+  const mode = deriveSidebarUpdateMode(status, deployBusy);
   const shaLabel = status?.deploy_sha ? shortSha(status.deploy_sha) : '—';
   const phase = mode === 'updating' ? phaseLabel(status?.deploy.phase) : null;
   const caption = statusCaption(mode, shaLabel, phase);
@@ -73,16 +82,19 @@ export function useSidebarSelfUpdate() {
       const sess = readSelfUpdateSession();
       if (sess && next) {
         const timedOut = Date.now() - sess.startedAtMs > SELF_UPDATE_TIMEOUT_MS;
+        const sameJob =
+          !next.deploy.job_id || next.deploy.job_id === sess.jobId;
         if (timedOut) {
           clearSelfUpdateSession();
           setError('Timed out — see /opt/marengo/var/self-update.log');
           toast.error('Update timed out');
-        } else if (next.deploy.state === 'failed') {
+        } else if (sameJob && next.deploy.state === 'failed') {
           clearSelfUpdateSession();
           const msg = next.deploy.message || 'Self-update failed';
           setError(msg);
           toast.error(msg);
         } else if (
+          sameJob &&
           next.deploy.state === 'succeeded' &&
           next.ready_for_target &&
           !reloadArmed.current
@@ -96,8 +108,7 @@ export function useSidebarSelfUpdate() {
         }
       }
 
-      const busy =
-        Boolean(readSelfUpdateSession()) || next?.deploy.state === 'running';
+      const busy = Boolean(readSelfUpdateSession()) || isBusyStatus(next);
       timer = window.setTimeout(
         () => {
           void tick(false);
@@ -124,11 +135,12 @@ export function useSidebarSelfUpdate() {
         toast.error('Gateway unreachable');
         return;
       }
-      if (!next.upstream_ok) {
+      const state: UpdateUiState | undefined = next.ui_state;
+      if (state === 'upstream_unknown' || (!state && !next.upstream_ok)) {
         toast.message('GitHub unreachable — showing installed rev');
         return;
       }
-      if (next.update_available) {
+      if (state === 'stale' || (!state && next.update_available)) {
         toast.message('Update available');
         return;
       }
@@ -152,7 +164,7 @@ export function useSidebarSelfUpdate() {
         toast.info('Already up to date');
         return;
       }
-      if (!result.ok || !result.job_id || !result.target_sha) {
+      if (!result.ok || !result.job_id) {
         setDeployBusy(false);
         setError(result.message);
         toast.error(result.message);
@@ -160,7 +172,6 @@ export function useSidebarSelfUpdate() {
       }
       writeSelfUpdateSession({
         jobId: result.job_id,
-        targetSha: result.target_sha,
         startedAtMs: Date.now(),
       });
       setDeployBusy(false);

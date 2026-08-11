@@ -6,9 +6,9 @@
 //! typed status snapshot consumed by operator clients.
 //!
 //! It does not own HTTP routing, Axum request/response handling, gateway
-//! authentication, SharedState safety gates, Consul UI behavior, or the
-//! `pi-self-update.sh` script contract. The gateway is an adapter around this
-//! crate and remains responsible for those transport and safety concerns.
+//! authentication, SharedState safety gates, or Consul UI behavior. The
+//! on-disk job JSON schema is owned here; `scripts/pi-*-self-update.sh` must
+//! stay aligned (see `tests/job_script_contract.rs`).
 
 pub mod enqueue;
 mod error;

@@ -21,6 +21,7 @@ Workspace library crates implementing the Marengo humanoid robot's control stack
 | `marengo-store` | Time-series key-value store for telemetry replay |
 | `marengo-imu` | IMU driver and frame publishing |
 | `marengo-host-metrics` | Host-level CPU/Mem/Disk metrics for health dashboard |
+| `marengo-deploy` | Pi self-update jobs, `.deploy-rev`, upstream tip, typed version status |
 | `fouche` | Vision crate (in development) |
 | `talleyrand` | Planning crate (in development) |
 | `sim-harness` | Simulation test harness |

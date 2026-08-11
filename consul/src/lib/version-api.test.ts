@@ -29,15 +29,13 @@ describe('version-api helpers', () => {
     expect(shortSha('abcdef0123456789 2026-08-11T00:00:00Z')).toBe('abcdef0');
   });
 
-  it('sessionStorage roundtrip for self-update resume', () => {
+  it('sessionStorage roundtrip for self-update watch bookmark', () => {
     writeSelfUpdateSession({
       jobId: 'j1',
-      targetSha: 'abcdef0123456789',
       startedAtMs: 123,
     });
     expect(readSelfUpdateSession()).toEqual({
       jobId: 'j1',
-      targetSha: 'abcdef0123456789',
       startedAtMs: 123,
     });
     clearSelfUpdateSession();

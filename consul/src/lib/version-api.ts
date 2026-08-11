@@ -3,6 +3,22 @@ import { parseDeployRev } from '@/lib/host-debug-info';
 
 export type DeployJobState = 'idle' | 'running' | 'succeeded' | 'failed';
 
+/** Phases written by pi-enqueue / pi-self-update (mirrors Rust `DeployPhase`). */
+export type DeployPhase =
+  | 'init'
+  | 'dirty'
+  | 'fetch'
+  | 'lfs'
+  | 'build'
+  | 'install'
+  | 'enqueue'
+  | 'done'
+  | 'timeout'
+  | 'orphan'
+  | 'error'
+  | 'unknown'
+  | (string & {});
+
 export type DeployJobDto = {
   state: DeployJobState;
   job_id: string;
@@ -12,8 +28,17 @@ export type DeployJobDto = {
   started_at: string;
   updated_at: string;
   message: string;
-  phase: string;
+  phase: DeployPhase;
 };
+
+/** Authoritative sidebar mode from `GET /version/status` (Rust `UpdateUiState`). */
+export type UpdateUiState =
+  | 'unknown'
+  | 'current'
+  | 'stale'
+  | 'upstream_unknown'
+  | 'updating'
+  | 'failed';
 
 export type VersionStatusDto = {
   deploy_sha: string;
@@ -25,6 +50,8 @@ export type VersionStatusDto = {
   ready_for_target: boolean;
   deploy: DeployJobDto;
   log_tail?: string | null;
+  /** Present on gateways with marengo-deploy; prefer over client-side inference. */
+  ui_state?: UpdateUiState;
 };
 
 export type DeployResponseDto = {
@@ -37,9 +64,9 @@ export type DeployResponseDto = {
 
 const SESSION_KEY = 'consul.selfUpdate';
 
+/** Browser bookmark for the update this tab started (reload/timeout only). */
 export type SelfUpdateSession = {
   jobId: string;
-  targetSha: string;
   startedAtMs: number;
 };
 
@@ -78,8 +105,8 @@ export function readSelfUpdateSession(): SelfUpdateSession | null {
     const raw = sessionStorage.getItem(SESSION_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as SelfUpdateSession;
-    if (!parsed?.jobId || !parsed?.targetSha) return null;
-    return parsed;
+    if (!parsed?.jobId || typeof parsed.startedAtMs !== 'number') return null;
+    return { jobId: parsed.jobId, startedAtMs: parsed.startedAtMs };
   } catch {
     return null;
   }

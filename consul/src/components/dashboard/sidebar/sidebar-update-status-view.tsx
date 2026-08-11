@@ -17,7 +17,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import type { SidebarUser } from '@/data/sidebar-nav';
-import { shortSha } from '@/lib/version-api';
+import { shortSha, type DeployPhase } from '@/lib/version-api';
 import { cn } from '@/lib/utils';
 
 export type SidebarUpdateUiMode =
@@ -58,22 +58,23 @@ export function statusLedClass(mode: SidebarUpdateUiMode): string {
   }
 }
 
-export function phaseLabel(phase: string | undefined): string | null {
-  if (!phase) return null;
-  const map: Record<string, string> = {
-    init: 'Init',
-    dirty: 'Dirty tree',
-    fetch: 'Fetch',
-    lfs: 'LFS',
-    build: 'Build',
-    install: 'Install',
-    enqueue: 'Queued',
-    done: 'Done',
-    timeout: 'Timed out',
-    orphan: 'Interrupted',
-    error: 'Error',
-  };
-  return map[phase] ?? phase;
+const PHASE_LABELS: Record<string, string> = {
+  init: 'Init',
+  dirty: 'Dirty tree',
+  fetch: 'Fetch',
+  lfs: 'LFS',
+  build: 'Build',
+  install: 'Install',
+  enqueue: 'Queued',
+  done: 'Done',
+  timeout: 'Timed out',
+  orphan: 'Interrupted',
+  error: 'Error',
+};
+
+export function phaseLabel(phase: DeployPhase | undefined): string | null {
+  if (!phase || phase === 'unknown') return null;
+  return PHASE_LABELS[phase] ?? phase;
 }
 
 export function statusCaption(
