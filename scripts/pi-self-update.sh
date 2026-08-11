@@ -122,17 +122,10 @@ sudo pkill -f /opt/marengo/bin/marengo-pi 2>/dev/null || true
 
 INSTALL_SCRIPT="${STAGING}/scripts/install-pi.sh"
 [[ -x "${INSTALL_SCRIPT}" ]] || fail "install script missing: ${INSTALL_SCRIPT}" "install"
+# install-pi owns .deploy-rev, www/, and gateway/pi unit restarts.
 sudo -n "${INSTALL_SCRIPT}" || fail "install-pi.sh failed" "install"
 
-# Ensure deploy-rev + www even if install-pi on Pi is older.
-TS="$(now_iso)"
-printf '%s %s\n' "${TARGET_SHA}" "${TS}" | sudo tee "${OPT_ROOT}/.deploy-rev" >/dev/null
-if [[ -f consul/dist/index.html ]]; then
-  sudo rsync -a --delete consul/dist/ "${OPT_ROOT}/www/"
-fi
-
-# Mark succeeded before gateway restart (this unit survives outside gateway cgroup).
+# Job file after install returns — gateway already restarted inside install-pi;
+# this unit runs outside the gateway cgroup so the write still lands.
 write_job "succeeded" "installed ${TARGET_SHA}" "done" "${TARGET_SHA}"
-
-sudo systemctl restart marengo-gateway.service 2>/dev/null || true
 echo "pi-self-update: done ${TARGET_SHA}"
