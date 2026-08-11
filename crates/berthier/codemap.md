@@ -8,8 +8,9 @@ Owns `ControlLoop::tick` — the heartbeat of the robot. Also provides a legacy 
 ## Design
 
 ### Core types
-- `ControlLoop<B: MotorBus>` — realtime tick facade; holds `Supervisor<B>`, `UrdfGravityModel`, `PositionHold`, `GainRuntime`, Chappe bus reference, and tick-phase timing accumulators.
+- `ControlLoop<B: MotorBus>` — realtime tick facade; holds `Supervisor<B>`, `UrdfGravityModel`, `PositionHold`, `GainRuntime`, `TorqueCmdLatch`, Chappe bus reference, and tick-phase timing accumulators.
 - `GainRuntime` — sticky Testing `GainOverride` map + mode-transition kp/kd ramp + per-tick `resolve_all` → `ResolvedGains` (law_* + wire_*).
+- `TorqueCmdLatch` — per-joint latched open-loop `τ_cmd` for TorqueOnly; cleared on leave / `enter_torque_only_zero`.
 - `PositionHold` — owns latched targets, trapezoid planners, freeze/breakaway latches, and Position-mode MIT compose (`tick` → `HoldTickOut`).
 - `MitFeedforward` — Active MIT packing for GravityComp / Impedance / TorqueOnly from pre-resolved wire gains + τ_ff; TorqueOnly uses latched `τ_cmd` (hard-zero kp/kd).
 - `Controller<B: MotorBus>` — lighter facade wrapping `Supervisor<B>` for single-joint commands (REPL / bench).
@@ -18,6 +19,7 @@ Owns `ControlLoop::tick` — the heartbeat of the robot. Also provides a legacy 
 
 ### Modules (position-hold subsystem, `ControlMode::Position`)
 - `gain_runtime` — `GainRuntime`, ModeGainPolicy (`mode_allows_gain_override`, `target_gains_from_yaml`, `effective_wire_gains`), override clamp, ramp arm/advance, `resolve_all`.
+- `torque_cmd` — `TorqueCmdLatch` storage for operator `τ_cmd`; ControlLoop owns enter-zero / leave-clear policy.
 - `position_trajectory` — `JointPositionPlanner`: trapezoidal acceleration/cruise/deceleration/hold planner per joint. Supports `seed_downward_return_if_needed` for gravity-assisted returns toward home.
 - `position_feedforward` — `compose_position_hold_feedforward`: tau_g + tau_f (Coulomb + viscous friction) + tau_d (damping based on EMA-filtered velocity).
 - `position_setpoint` — Setpoint mapping from planner reference to MIT q_des: clamp to limit envelope, breakaway detection, stuck-pull lead, descent freeze hysteresis, low-angle breakaway logic.

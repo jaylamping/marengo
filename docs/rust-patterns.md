@@ -124,7 +124,7 @@ supervisor.send_mit_batch(joint_space_cmds)?;
 
 Position hold (`hold-at`) is Berthier's **joint-space motion primitive executor** — one law for every retarget, whether from operator `hold-at`, future Talleyrand joint streams, or Cartesian primitives resolved upstream. Talleyrand owns IK and multi-joint timing; Berthier does not. The law lives in `berthier::position_hold::PositionHold` (lifecycle + `tick`); `ControlLoop` builds `HoldWorld` and sends the MIT batch through Davout.
 
-**MIT feedforward** (`GravityComp` / `Impedance` / `TorqueOnly`) packs Active MIT outside Position: `berthier::mit_feedforward::MitFeedforward`. YAML `joints.*.gravity_comp` / `impedance` are the gain sources; Testing overrides are allowed only in Impedance/Position, cleared on GravityComp/TorqueOnly/Disabled enter, and ignored under those modes. `TorqueOnly` packs `τ_ff = τ_cmd` (operator latch via `ControlLoop::set_torque_cmd`; default 0; cleared on leave) with hard-zero kp/kd — not `τ_g`. Operator `gravity-off` enters TorqueOnly with `τ_cmd ≡ 0`.
+**MIT feedforward** (`GravityComp` / `Impedance` / `TorqueOnly`) packs Active MIT outside Position: `berthier::mit_feedforward::MitFeedforward`. YAML `joints.*.gravity_comp` / `impedance` are the gain sources; Testing overrides are allowed only in Impedance/Position, cleared on GravityComp/TorqueOnly/Disabled enter, and ignored under those modes. `TorqueOnly` packs `τ_ff = τ_cmd` (latch in `TorqueCmdLatch` via `ControlLoop::set_torque_cmd`, which enters TorqueOnly; default 0; cleared on leave) with hard-zero kp/kd — not `τ_g`. Operator `gravity-off` calls `enter_torque_only_zero()` so `τ_cmd ≡ 0` even when already in TorqueOnly.
 
 Control law (ADR 0007 one-pass):
 

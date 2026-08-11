@@ -30,6 +30,7 @@ use crate::position_profile::position_profile_v_max;
 use crate::position_setpoint::{downward_return_seed_velocity, envelope_dq_cmd_for_hold_clamp};
 use crate::position_trace::{PositionTrace, PositionTraceRow};
 use crate::position_wave::PositionWave;
+use crate::torque_cmd::TorqueCmdLatch;
 
 #[derive(Debug, Error)]
 pub enum LoopError {
@@ -57,6 +58,8 @@ pub enum LoopError {
     MissingFeedback { joint: String },
     #[error("position hold: ascent stall on {joint} — planner frozen ahead of arm for {ms} ms")]
     AscentStall { joint: String, ms: u64 },
+    #[error("torque cmd: non-finite τ_cmd for joint {joint}")]
+    NonFiniteTorqueCmd { joint: String },
 }
 
 impl From<HoldError> for LoopError {
@@ -96,9 +99,8 @@ pub struct ControlLoop<B: MotorBus> {
     active_feedback_grace_ticks: u8,
     /// Testing overrides + mode-transition kp/kd ramp + per-tick resolve.
     gains: GainRuntime,
-    /// Per-joint latched open-loop torque command (Nm) for [`ControlMode::TorqueOnly`].
-    /// Default unset → 0. Cleared when leaving TorqueOnly.
-    torque_cmds: HashMap<String, f64>,
+    /// Per-joint latched open-loop `τ_cmd` (Nm) for [`ControlMode::TorqueOnly`].
+    torque_cmds: TorqueCmdLatch,
     /// In-loop triangle wave on one joint while others hold fixed setpoints.
     position_wave: Option<PositionWave>,
 }
@@ -209,7 +211,7 @@ impl<B: MotorBus> ControlLoop<B> {
             last_operational_mode: OperationalMode::Disabled,
             active_feedback_grace_ticks: 0,
             gains: GainRuntime::new(),
-            torque_cmds: HashMap::new(),
+            torque_cmds: TorqueCmdLatch::new(),
             position_wave: None,
         })
     }
@@ -530,7 +532,7 @@ impl<B: MotorBus> ControlLoop<B> {
             self.position_wave = None;
         }
         if previous == ControlMode::TorqueOnly && mode != ControlMode::TorqueOnly {
-            self.torque_cmds.clear();
+            self.torque_cmds.on_leave_torque_only();
         }
         self.control_mode = mode;
         self.supervisor.set_control_mode(mode);
@@ -547,32 +549,51 @@ impl<B: MotorBus> ControlLoop<B> {
         }
     }
 
+    /// Enter [`ControlMode::TorqueOnly`] with `τ_cmd ≡ 0` (operator `gravity-off`).
+    ///
+    /// Clears any prior latch before the mode transition so a same-mode
+    /// `gravity-off` after `torque-cmd` still yields true no-FF.
+    pub fn enter_torque_only_zero(&mut self) {
+        self.torque_cmds.clear_all();
+        self.set_control_mode(ControlMode::TorqueOnly);
+    }
+
     /// Latch a per-joint open-loop torque command for [`ControlMode::TorqueOnly`].
     ///
-    /// Values persist until cleared or until leaving TorqueOnly. Default when unset is 0.
+    /// Enters TorqueOnly when not already there. Values persist until cleared or
+    /// until leaving TorqueOnly. Default when unset is 0. Rejects unknown joints
+    /// and non-finite values.
     pub fn set_torque_cmd(&mut self, joint_name: &str, tau_nm: f64) -> Result<(), LoopError> {
         if !self.joint_names.iter().any(|n| n == joint_name) {
             return Err(LoopError::UnknownJoint {
                 joint: joint_name.to_string(),
             });
         }
-        self.torque_cmds.insert(joint_name.to_string(), tau_nm);
+        if !tau_nm.is_finite() {
+            return Err(LoopError::NonFiniteTorqueCmd {
+                joint: joint_name.to_string(),
+            });
+        }
+        if self.control_mode != ControlMode::TorqueOnly {
+            self.set_control_mode(ControlMode::TorqueOnly);
+        }
+        self.torque_cmds.set(joint_name, tau_nm);
         Ok(())
     }
 
     /// Remove one joint's latched torque command (reverts to 0).
     pub fn clear_torque_cmd(&mut self, joint_name: &str) {
-        self.torque_cmds.remove(joint_name);
+        self.torque_cmds.clear(joint_name);
     }
 
     /// Clear all latched TorqueOnly torque commands.
     pub fn clear_torque_cmds(&mut self) {
-        self.torque_cmds.clear();
+        self.torque_cmds.clear_all();
     }
 
     /// Latched `τ_cmd` for a joint, or `0.0` when unset.
     pub fn torque_cmd(&self, joint_name: &str) -> f64 {
-        self.torque_cmds.get(joint_name).copied().unwrap_or(0.0)
+        self.torque_cmds.get(joint_name)
     }
 
     /// Target (kp, kd) per joint from YAML (`gravity_comp` / `impedance`).
@@ -1421,11 +1442,13 @@ mod tests {
     }
 
     #[test]
-    fn torque_cmd_defaults_zero_and_latches() {
+    fn set_torque_cmd_enters_torque_only_and_latches() {
         let mut loop_ctrl = test_loop();
         let joint = "right_shoulder_pitch";
+        assert_eq!(loop_ctrl.control_mode(), ControlMode::Disabled);
         assert!((loop_ctrl.torque_cmd(joint)).abs() < 1e-12);
         loop_ctrl.set_torque_cmd(joint, 0.25).expect("set");
+        assert_eq!(loop_ctrl.control_mode(), ControlMode::TorqueOnly);
         assert!((loop_ctrl.torque_cmd(joint) - 0.25).abs() < 1e-12);
         loop_ctrl.clear_torque_cmd(joint);
         assert!((loop_ctrl.torque_cmd(joint)).abs() < 1e-12);
@@ -1435,7 +1458,6 @@ mod tests {
     fn leaving_torque_only_clears_torque_cmds() {
         let mut loop_ctrl = test_loop();
         let joint = "right_shoulder_pitch";
-        loop_ctrl.set_control_mode(ControlMode::TorqueOnly);
         loop_ctrl.set_torque_cmd(joint, 0.4).expect("set");
         assert!((loop_ctrl.torque_cmd(joint) - 0.4).abs() < 1e-12);
         loop_ctrl.set_control_mode(ControlMode::GravityComp);
@@ -1446,12 +1468,92 @@ mod tests {
     }
 
     #[test]
+    fn enter_torque_only_zero_clears_nonzero_latch() {
+        let mut loop_ctrl = test_loop();
+        let joint = "right_shoulder_pitch";
+        loop_ctrl.set_torque_cmd(joint, 0.5).expect("set");
+        assert!((loop_ctrl.torque_cmd(joint) - 0.5).abs() < 1e-12);
+        loop_ctrl.enter_torque_only_zero();
+        assert_eq!(loop_ctrl.control_mode(), ControlMode::TorqueOnly);
+        assert!(
+            (loop_ctrl.torque_cmd(joint)).abs() < 1e-12,
+            "gravity-off / enter_torque_only_zero must force τ_cmd≡0"
+        );
+    }
+
+    #[test]
     fn set_torque_cmd_rejects_unknown_joint() {
         let mut loop_ctrl = test_loop();
         let err = loop_ctrl
             .set_torque_cmd("not_a_joint", 0.1)
             .expect_err("unknown");
         assert!(matches!(err, LoopError::UnknownJoint { .. }));
+    }
+
+    #[test]
+    fn set_torque_cmd_rejects_non_finite() {
+        let mut loop_ctrl = test_loop();
+        let joint = "right_shoulder_pitch";
+        let err = loop_ctrl.set_torque_cmd(joint, f64::NAN).expect_err("nan");
+        assert!(matches!(err, LoopError::NonFiniteTorqueCmd { .. }));
+        let err = loop_ctrl
+            .set_torque_cmd(joint, f64::INFINITY)
+            .expect_err("inf");
+        assert!(matches!(err, LoopError::NonFiniteTorqueCmd { .. }));
+    }
+
+    #[test]
+    fn torque_only_tick_packs_latched_tau_cmd_on_wire() {
+        use robstride::{encode_mit, MitCommand};
+
+        let mut loop_ctrl = test_loop();
+        bench_ready_active(&mut loop_ctrl);
+        let joint = "right_shoulder_pitch";
+        let tau_cmd = 0.35;
+        loop_ctrl.set_torque_cmd(joint, tau_cmd).expect("set");
+        // Ensure rate-limiter dt allows the full step from seeded measured torque.
+        std::thread::sleep(Duration::from_millis(20));
+        loop_ctrl.supervisor_mut().bus_mut().tx.clear();
+        loop_ctrl.tick(None).expect("tick");
+
+        let motor = loop_ctrl
+            .supervisor()
+            .motors
+            .motors
+            .iter()
+            .find(|m| m.joint == joint)
+            .expect("pitch motor")
+            .clone();
+        let scale = f64::from(motor.direction) * motor.gear_ratio;
+        let expected = MitCommand {
+            device_id: motor.device_id,
+            motor_type: motor.motor_type,
+            position_rad: 0.0,
+            velocity_rad_s: 0.0,
+            kp: 0.0,
+            kd: 0.0,
+            torque_ff_nm: (tau_cmd / scale) as f32,
+        };
+        let (expected_id, expected_data) = encode_mit(&expected);
+        let frame = loop_ctrl
+            .supervisor_mut()
+            .bus_mut()
+            .tx
+            .iter()
+            .find(|f| {
+                robstride::unpack_ext_id(f.id)
+                    .map(|u| u.device_id == motor.device_id)
+                    .unwrap_or(false)
+            })
+            .expect("MIT frame for pitch");
+        assert_eq!(
+            frame.id, expected_id,
+            "torque_ff + device id must match τ_cmd"
+        );
+        assert_eq!(
+            frame.data, expected_data,
+            "kp/kd hard-zero and q_des=q on wire"
+        );
     }
 
     #[test]

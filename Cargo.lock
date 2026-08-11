@@ -319,6 +319,7 @@ dependencies = [
  "davout",
  "marengo-config",
  "proptest",
+ "robstride",
  "thiserror 1.0.69",
  "tracing",
 ]

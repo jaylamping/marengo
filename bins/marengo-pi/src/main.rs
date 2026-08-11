@@ -719,7 +719,7 @@ fn handle_command(
             );
         }
         PiCommand::GravityOff => {
-            loop_ctrl.set_control_mode(ControlMode::TorqueOnly);
+            loop_ctrl.enter_torque_only_zero();
             println!(
                 "control mode → TorqueOnly (τ_cmd≡0; operational={:?})",
                 loop_ctrl.supervisor_mut().mode()
@@ -727,9 +727,6 @@ fn handle_command(
         }
         PiCommand::TorqueCmd { joint, tau_nm } => match loop_ctrl.set_torque_cmd(&joint, tau_nm) {
             Ok(()) => {
-                if loop_ctrl.control_mode() != ControlMode::TorqueOnly {
-                    loop_ctrl.set_control_mode(ControlMode::TorqueOnly);
-                }
                 println!(
                     "τ_cmd {joint} = {tau_nm:.4} Nm (mode=TorqueOnly, operational={:?})",
                     loop_ctrl.supervisor_mut().mode()

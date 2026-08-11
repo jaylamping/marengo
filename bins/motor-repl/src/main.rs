@@ -386,7 +386,7 @@ fn main() {
             println!("control mode → GravityComp (use marengo-pi or tick loop on bench)");
         }
         "gravity-off" => {
-            loop_ctrl.set_control_mode(ControlMode::TorqueOnly);
+            loop_ctrl.enter_torque_only_zero();
             println!("control mode → TorqueOnly (τ_cmd≡0; use torque-cmd for nonzero steps)");
         }
         "torque-cmd" => {
@@ -401,9 +401,6 @@ fn main() {
             });
             match loop_ctrl.set_torque_cmd(joint, tau) {
                 Ok(()) => {
-                    if loop_ctrl.control_mode() != ControlMode::TorqueOnly {
-                        loop_ctrl.set_control_mode(ControlMode::TorqueOnly);
-                    }
                     println!("τ_cmd {joint} = {tau:.4} Nm (mode=TorqueOnly)");
                 }
                 Err(e) => {
