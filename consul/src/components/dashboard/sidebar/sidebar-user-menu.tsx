@@ -38,7 +38,7 @@ export function SidebarUserMenu({ user }: SidebarUserMenuProps) {
             <div className="grid min-w-0 flex-1 text-left text-sm leading-tight">
               <span className="truncate font-medium">{user.name}</span>
               <span className="truncate font-mono text-xs text-muted-foreground">
-                {user.email}
+                {user.context}
               </span>
             </div>
           </div>

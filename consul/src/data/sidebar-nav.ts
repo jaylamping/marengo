@@ -29,15 +29,24 @@ export type SidebarPresetItem = {
 
 export type SidebarUser = {
   name: string;
-  email: string;
+  /** Bench context under the name — `local` (Vite dev) or `live` (Pi-hosted build). */
+  context: string;
   avatar: string;
 };
 
-export const sidebarUser: SidebarUser = {
-  name: 'Joey',
-  email: 'local · can0',
-  avatar: '',
-};
+/** `local` under Vite dev; `live` for production builds served from the Pi. */
+export function sidebarContextLabel(isProd: boolean = import.meta.env.PROD): string {
+  return isProd ? 'live' : 'local';
+}
+
+/** Operator identity; context flips with Vite production vs development builds. */
+export function getSidebarUser(): SidebarUser {
+  return {
+    name: 'Joey',
+    context: sidebarContextLabel(),
+    avatar: '',
+  };
+}
 
 /** Live routes only — stubs stay out of the nav until they ship. */
 const sidebarNavMainBase: SidebarNavItem[] = [
