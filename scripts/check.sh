@@ -117,6 +117,9 @@ echo "==> log inventory (informational)"
 echo "==> println guard (crates/)"
 "${ROOT}/scripts/check-println-crates.sh"
 
+echo "==> right-bench shoulder CAN ids (pitch=1, roll=2)"
+python3 "${ROOT}/scripts/verify-shoulder-can-ids.py"
+
 echo "==> cargo fmt"
 cargo fmt --all -- --check
 
