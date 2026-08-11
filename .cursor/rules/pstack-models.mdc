@@ -1,0 +1,10 @@
+---
+description: pstack per-role model choices (overrides skill defaults)
+alwaysApply: true
+---
+
+# pstack model configuration. One line per role. Delete a line to fall back to the skill default.
+# `inherit-parent` or `auto` as a value: the role runs on the parent chat model (omit Task `model`).
+
+# Interrogate: Grok + API only. Never use composer-* here (slow, low signal on this panel).
+interrogate reviewers: gpt-5.6-sol-high, cursor-grok-4.5-high, gpt-5.6-luna-xhigh
