@@ -20,8 +20,8 @@ use armee_dynamics::max_gravity_torque_over_range;
 use armee_proto::prost::Message;
 use armee_proto::{
     ActiveReportingLeaseAction, ActiveReportingLeaseRequest, EnableRequest, Fault, FaultSeverity,
-    Heartbeat, HomingComplete, MitCommandBatch, OperationalMode as ProtoOpMode, SafetyState,
-    SetZeroRequest,
+    Heartbeat, HomingComplete, MitCommandBatch, MotorStatusPollRequest,
+    OperationalMode as ProtoOpMode, SafetyState, SetZeroRequest,
 };
 use berthier::{
     proto_control_mode, ControlLoop, ControlMode, GainOverride, LoopError, TickPhaseAverages,
@@ -250,6 +250,7 @@ fn drain_chappe_commands(
     homing_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     set_zero_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     lease_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
+    status_poll_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
 ) {
     // Set-zero before enable so a same-tick enable(true) cannot flip ACTIVE and
     // silently refuse a queued calibration (Consul already got publish ACK).
@@ -307,6 +308,38 @@ fn drain_chappe_commands(
                 );
             }
             Err(tokio::sync::broadcast::error::TryRecvError::Closed) => break,
+        }
+    }
+    // Collapse bursts: only the latest solicit matters before the next control tick.
+    let mut latest_status_poll: Option<MotorStatusPollRequest> = None;
+    loop {
+        match status_poll_rx.try_recv() {
+            Ok(bytes) => {
+                let Ok(envelope) = armee_proto::Envelope::decode(bytes.as_slice()) else {
+                    continue;
+                };
+                let Ok(request) = MotorStatusPollRequest::decode(envelope.payload.as_slice()) else {
+                    continue;
+                };
+                latest_status_poll = Some(request);
+            }
+            Err(tokio::sync::broadcast::error::TryRecvError::Empty) => break,
+            Err(tokio::sync::broadcast::error::TryRecvError::Lagged(n)) => {
+                warn!(
+                    skipped = n,
+                    "Chappe motor_status_poll lagged; dropped oldest commands"
+                );
+            }
+            Err(tokio::sync::broadcast::error::TryRecvError::Closed) => break,
+        }
+    }
+    if let Some(request) = latest_status_poll {
+        if let Err(e) = loop_ctrl.supervisor_mut().solicit_status_feedback() {
+            warn!(
+                operator = %request.operator_id,
+                error = %e,
+                "Chappe motor status poll failed"
+            );
         }
     }
     while let Ok(bytes) = enable_rx.try_recv() {
@@ -868,6 +901,7 @@ fn main() {
     let mut homing_rx = chappe.subscribe("robot/homing");
     let mut set_zero_rx = chappe.subscribe("robot/set_zero");
     let mut lease_rx = chappe.subscribe("robot/active_reporting_lease");
+    let mut status_poll_rx = chappe.subscribe("robot/motor_status_poll");
     let mut testing_cmd_rx = chappe.subscribe("robot/testing/mit_command_batch");
     let mut actuator_rx = chappe.subscribe(overlay::TOPIC_ACTUATOR_COMMAND);
 
@@ -933,6 +967,7 @@ fn main() {
         homing_rx: &mut homing_rx,
         set_zero_rx: &mut set_zero_rx,
         lease_rx: &mut lease_rx,
+        status_poll_rx: &mut status_poll_rx,
         testing_cmd_rx: &mut testing_cmd_rx,
         actuator_rx: &mut actuator_rx,
         actuator_overlay: &mut actuator_overlay,
@@ -962,6 +997,7 @@ struct ControlLoopRuntime<'a> {
     homing_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     set_zero_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     lease_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
+    status_poll_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     testing_cmd_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     actuator_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     actuator_overlay: &'a mut overlay::ActuatorOverlay,
@@ -995,6 +1031,7 @@ fn run_control_loop(loop_ctrl: &mut ControlLoop<RuntimeBus>, runtime: &mut Contr
             runtime.homing_rx,
             runtime.set_zero_rx,
             runtime.lease_rx,
+            runtime.status_poll_rx,
         );
         let (outer_chappe_drain_us, t_after_chappe) = phase_elapsed_us(t_next);
         drain_testing_commands(loop_ctrl, runtime.testing_cmd_rx);

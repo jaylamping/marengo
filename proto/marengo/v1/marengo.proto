@@ -144,6 +144,14 @@ message ActiveReportingLeaseRequest {
   string lease_id = 6;
 }
 
+// Light Hardware-page status solicit: Pi re-TX Disable (type-4) per loaded motor so
+// each replies with OperationStatus (type-2). No continuous Active Reporting.
+// Joint list is always the Pi's loaded motors.yaml — not client-supplied.
+message MotorStatusPollRequest {
+  uint64 timestamp_ms = 1;
+  string operator_id = 2;
+}
+
 // --- Control / MIT (OpenArm-style; see ADR 0004) ---
 
 enum ControlMode {

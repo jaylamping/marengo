@@ -24,8 +24,8 @@ import {
   ToggleGroup,
   ToggleGroupItem,
 } from '@/components/ui/toggle-group';
-import { useActiveReportingLeases } from '@/hooks/use-active-reporting-lease';
 import { useConfigSnapshot } from '@/hooks/use-config-snapshot';
+import { useMotorStatusPoll } from '@/hooks/use-motor-status-poll';
 import { robotWireFacetsLive } from '@/lib/commissioning';
 import { postEnableCommand } from '@/lib/gateway-api';
 import { fetchCompleteness } from '@/lib/hardware-api';
@@ -84,13 +84,8 @@ export function HardwareOverview() {
     () => buildHardwareRows(snapshot ?? null, warnings, limitSnapshot, robotState),
     [snapshot, warnings, limitSnapshot, robotState],
   );
-  const onCanJoints = useMemo(
-    () => rows.filter((row) => row.onCan).map((row) => row.joint),
-    [rows],
-  );
-  // Page-level type-24 leases so Facet/Ready update without opening each row sheet.
-  useActiveReportingLeases({
-    joints: onCanJoints,
+  // Light Disable solicit (~2 s) so Facet/Ready update without type-24 on every motor.
+  useMotorStatusPoll({
     enabled: operationalMode !== 'ACTIVE',
   });
   const facets = useMemo(

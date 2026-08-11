@@ -1225,6 +1225,24 @@ impl<B: MotorBus> Supervisor<B> {
         Ok(())
     }
 
+    /// Light status solicit for Hardware-page sensing (no continuous type-24).
+    ///
+    /// When not [`OperationalMode::Active`], re-TX RobStride Disable (type-4) once per
+    /// loaded motor. Motors reply with OperationStatus (type-2); the normal control-loop
+    /// drain picks those up on the next tick. No-op while Active (MIT owns feedback).
+    pub fn solicit_status_feedback(&mut self) -> Result<(), DavoutError> {
+        if self.mode == OperationalMode::Active {
+            return Ok(());
+        }
+        for motor in &self.motors.motors {
+            let address = MotorAddress::from(motor);
+            self.bus
+                .disable_drive_at(&address)
+                .map_err(DavoutError::from)?;
+        }
+        Ok(())
+    }
+
     /// Free-drive sensing: type-24 per joint when diagnostics/leases say so and not ACTIVE.
     /// ACTIVE uses MIT status replies instead; type-24 must stay off then.
     ///
@@ -2322,6 +2340,55 @@ mod tests {
         .expect("send");
         assert!(!sup.bus.tx.is_empty());
         assert!(sup.bus.tx[0].extended);
+    }
+
+    #[test]
+    fn solicit_status_feedback_sends_one_disable_per_motor_when_not_active() {
+        use robstride::comm::{unpack_ext_id, CommunicationType};
+
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let n = sup.motors.motors.len();
+        assert!(n >= 1);
+        sup.solicit_status_feedback().expect("solicit");
+        let disable_tx: Vec<_> = sup
+            .bus
+            .tx
+            .iter()
+            .filter(|frame| {
+                unpack_ext_id(frame.id)
+                    .map(|u| u.comm_type == CommunicationType::Disable.as_u8())
+                    .unwrap_or(false)
+            })
+            .collect();
+        assert_eq!(disable_tx.len(), n);
+        assert!(
+            !sup.bus.tx.iter().any(|frame| {
+                unpack_ext_id(frame.id)
+                    .map(|u| u.comm_type == CommunicationType::ActiveReporting.as_u8())
+                    .unwrap_or(false)
+            }),
+            "status poll must not enable type-24"
+        );
+    }
+
+    #[test]
+    fn solicit_status_feedback_is_noop_when_active() {
+        use robstride::comm::{unpack_ext_id, CommunicationType};
+
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        bench_ready_active(&mut sup);
+        sup.bus.tx.clear();
+        sup.solicit_status_feedback().expect("solicit");
+        assert!(
+            !sup.bus.tx.iter().any(|frame| {
+                unpack_ext_id(frame.id)
+                    .map(|u| u.comm_type == CommunicationType::Disable.as_u8())
+                    .unwrap_or(false)
+            }),
+            "must not solicit while Active"
+        );
     }
 
     #[test]

@@ -101,6 +101,7 @@ vi.mock('@/lib/gateway-api', () => ({
   postSetZeroCommand: vi.fn(),
   postEnableCommand: vi.fn(async () => undefined),
   postActiveReportingLease: vi.fn(async () => undefined),
+  postMotorStatusPoll: vi.fn(async () => undefined),
   fetchActuatorLimits: vi.fn(async () => null),
   fetchCommissioningScope: vi.fn(async () => ({
     version: 1,
@@ -175,48 +176,18 @@ describe('HardwareOverview', () => {
     expect(screen.getByText(/gaps/)).toBeTruthy();
   });
 
-  it('acquires Active Reporting leases for all on-CAN joints while the page is open', async () => {
-    const { postActiveReportingLease } = await import('@/lib/gateway-api');
+  it('polls motor status while the Hardware page is open (no page-level AR)', async () => {
+    const { postMotorStatusPoll, postActiveReportingLease } = await import(
+      '@/lib/gateway-api'
+    );
     renderHardware();
     await waitFor(() => {
       expect(screen.getByTestId('hardware-row-right_shoulder_roll')).toBeTruthy();
     });
     await waitFor(() => {
-      expect(postActiveReportingLease).toHaveBeenCalledWith(
-        expect.objectContaining({
-          joint: 'right_shoulder_roll',
-          action: 'acquire',
-        }),
-      );
-      expect(postActiveReportingLease).toHaveBeenCalledWith(
-        expect.objectContaining({
-          joint: 'right_shoulder_pitch',
-          action: 'acquire',
-        }),
-      );
+      expect(postMotorStatusPoll).toHaveBeenCalled();
     });
-  });
-
-  it('holds Active Reporting leases for on-CAN joints without opening a row', async () => {
-    const { postActiveReportingLease } = await import('@/lib/gateway-api');
-    renderHardware();
-    await waitFor(() => {
-      expect(screen.getByTestId('hardware-row-right_shoulder_pitch')).toBeTruthy();
-    });
-    await waitFor(() => {
-      expect(postActiveReportingLease).toHaveBeenCalledWith(
-        expect.objectContaining({
-          joint: 'right_shoulder_pitch',
-          action: 'acquire',
-        }),
-      );
-      expect(postActiveReportingLease).toHaveBeenCalledWith(
-        expect.objectContaining({
-          joint: 'right_shoulder_roll',
-          action: 'acquire',
-        }),
-      );
-    });
+    expect(postActiveReportingLease).not.toHaveBeenCalled();
   });
 
   it('shows zero gaps only after completeness succeeds with no warnings', async () => {
