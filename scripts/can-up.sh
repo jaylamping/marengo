@@ -8,6 +8,8 @@ set -euo pipefail
 BITRATE="${MARENGO_CAN_BITRATE:-1000000}"
 # SocketCAN TX queue depth; override with MARENGO_CAN_TXQUEUELEN if needed.
 TXQUEUELEN="${MARENGO_CAN_TXQUEUELEN:-1000}"
+# Auto-recover mcp251x bus-off (0 = stay down until manual ip link bounce).
+RESTART_MS="${MARENGO_CAN_RESTART_MS:-100}"
 if [ $# -eq 0 ]; then
   INTERFACES=(can0 can1)
 else
@@ -20,7 +22,7 @@ for iface in "${INTERFACES[@]}"; do
     exit 1
   fi
   ip link set "$iface" down 2>/dev/null || true
-  ip link set "$iface" type can bitrate "$BITRATE"
+  ip link set "$iface" type can bitrate "$BITRATE" restart-ms "$RESTART_MS"
   ip link set "$iface" txqueuelen "$TXQUEUELEN"
   ip link set "$iface" up
   ip -br link show "$iface"
