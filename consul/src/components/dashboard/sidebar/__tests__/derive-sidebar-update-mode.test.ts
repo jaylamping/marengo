@@ -72,4 +72,26 @@ describe('deriveSidebarUpdateMode', () => {
       ),
     ).toBe('stale');
   });
+
+  it('keeps failed after stickyFailed even when not watching', () => {
+    expect(
+      deriveSidebarUpdateMode(
+        status({
+          ui_state: 'stale',
+          update_available: true,
+          deploy: { state: 'failed', phase: 'error', message: 'boom' },
+        }),
+        { watchingJob: false, stickyFailed: true },
+      ),
+    ).toBe('failed');
+  });
+
+  it('stickyFailed does not override deployBusy updating', () => {
+    expect(
+      deriveSidebarUpdateMode(status({ ui_state: 'stale' }), {
+        deployBusy: true,
+        stickyFailed: true,
+      }),
+    ).toBe('updating');
+  });
 });
