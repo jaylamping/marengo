@@ -1,4 +1,4 @@
-# Control tuning for right 4-DOF bench (roll + pitch + yaw + elbow pitch).
+# Control tuning for right 5-DOF bench (roll + pitch + yaw + elbow + lower-arm yaw).
 control:
   loop_hz: 200
   chappe_state_hz: 25
@@ -11,6 +11,11 @@ control:
     active_reporting_diagnostics: true
 
   motor_type_defaults:
+    rs00:
+      kp_max: 500
+      kd_max: 5
+      tau_ff_max_nm: 3.0
+      velocity_max_rad_s: 2.0
     rs02:
       kp_max: 500
       kd_max: 5
@@ -34,6 +39,9 @@ control:
       velocity_max_rad_s: 2.0
     elbow:
       joints: [right_elbow_pitch]
+      velocity_max_rad_s: 1.5
+    lower_arm_yaw:
+      joints: [right_lower_arm_yaw]
       velocity_max_rad_s: 1.5
 
   joints:
@@ -151,6 +159,35 @@ control:
       position_soft_upper_rad: 1.0077015857696534
       friction:
         fc: 0.05
+        fv: 0.0
+        fo: 0.0
+        k: 10.0
+    right_lower_arm_yaw:
+      motor_type: rs00
+      gravity_comp:
+        kp: 0.0
+        kd: 0.0
+        ki: 0.0
+      impedance:
+        # Conservative first-light gains (RS00); retune after sign/zero verify.
+        kp: 10.0
+        kd: 1.2
+        ki: 0.0
+      position_slew_rad_s: 0.12
+      position_slew_max_lead_rad: 0.10
+      position_trajectory_threshold_rad: 0.15
+      position_trajectory_velocity_rad_s: 0.8
+      position_trajectory_accel_rad_s2: 2.5
+      position_trajectory_velocity_deadband_rad: 0.02
+      position_hold_trim_rad: 0.0
+      position_limit_margin_min_rad: 0.01
+      position_limit_margin_k_v_s: 0.02
+      position_limit_margin_k_stop: 0.5
+      position_limit_measured_fault_slack_rad: 0.005
+      position_soft_lower_rad: -1.55
+      position_soft_upper_rad: 1.55
+      friction:
+        fc: 0.04
         fv: 0.0
         fo: 0.0
         k: 10.0

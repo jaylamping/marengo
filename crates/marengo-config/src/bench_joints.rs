@@ -192,7 +192,7 @@ mod tests {
     use crate::{resolve_config_dir, resolve_repo_root, resolve_urdf_path};
 
     #[test]
-    fn master_config_accepts_right_four_dof_joints() {
+    fn master_config_accepts_right_five_dof_joints() {
         let root = resolve_repo_root();
         let allowlist =
             load_command_joint_allowlist_from(resolve_config_dir(&root)).expect("master allowlist");
@@ -211,6 +211,10 @@ mod tests {
         assert_eq!(
             resolve_command_joint("right_elbow_pitch", &allowlist),
             Some("right_elbow_pitch")
+        );
+        assert_eq!(
+            resolve_command_joint("right_lower_arm_yaw", &allowlist),
+            Some("right_lower_arm_yaw")
         );
         assert_eq!(
             resolve_command_joint("left_shoulder_pitch", &allowlist),

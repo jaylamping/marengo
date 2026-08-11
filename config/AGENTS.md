@@ -21,7 +21,7 @@ Pi durable layout: `/opt/marengo/config/` (same four YAML files). Historical bri
 
 | Task | Location |
 |------|----------|
-| Active bench config | Root `config/` (4-DOF right arm) |
+| Active bench config | Root `config/` (5-DOF right arm) |
 | Velocity caps | `control.yaml` → `resolve_joint_velocity_cap` (ADR 0010) |
 | Danger zone rules | `control.yaml` (measured `q`/`dq` based) |
 | Motor direction/gearing | `motors.yaml` (Davout applies transforms) |

@@ -209,9 +209,10 @@ mod tests {
     fn loads_production_urdf() {
         let path = fixtures::production_urdf();
         let robot = load_urdf(&path).expect("production urdf");
-        assert_eq!(actuated_joint_count(&robot), 4);
+        assert_eq!(actuated_joint_count(&robot), 5);
         let names = actuated_joint_names(&robot);
         assert!(names.contains(&"right_elbow_pitch".to_string()));
+        assert!(names.contains(&"right_lower_arm_yaw".to_string()));
     }
 
     #[test]

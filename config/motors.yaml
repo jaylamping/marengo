@@ -1,6 +1,8 @@
+# Right 5-DOF bench — pitch (1) + roll (2) + yaw (3) + elbow pitch (4) + lower-arm yaw (5) on can0.
 # ID block: right arm 1–10 (hardware ADR 0001).
 #
-# Bench envelopes from Set Limits (2026-07-22). Davout hard = URDF ∩ bench.
+# Bench envelopes from Set Limits (2026-07-22) for DOF 1–4. Davout hard = URDF ∩ bench.
+# Lower-arm yaw: provisional kinematics envelope until first Set Limits pass.
 # Roll lower kept at URDF -0.05 (not flush to measured min) so home pose ~-0.01 enables.
 motors:
   - joint: right_shoulder_pitch
@@ -58,5 +60,21 @@ motors:
     bench:
       position_lower_rad: -0.4103526175022125
       position_upper_rad: 1.034701585769653
+      velocity_limit_rad_s: 1.0
+      torque_limit_nm: 3.0
+  - joint: right_lower_arm_yaw
+    driver: robstride
+    motor_type: rs00
+    can_interface: can0
+    device_id: 5
+    # Provisional — verify motor vs URDF +Y with a low-gain jog after set-zero.
+    direction: 1
+    gear_ratio: 1.0
+    recv_can_id: 0x245
+    firmware_version: "0.0.0-pending"
+    bench:
+      # Kinematics envelope until measured Set Limits on the bench.
+      position_lower_rad: -1.6
+      position_upper_rad: 1.6
       velocity_limit_rad_s: 1.0
       torque_limit_nm: 3.0

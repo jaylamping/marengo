@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
-<!-- Master live URDF — right 4-DOF bench (promoted from arm_4dof_right.urdf).
+<!-- Master live URDF — right 5-DOF bench (roll/pitch/yaw/elbow/lower-arm yaw).
      Matches config/robot.yaml. Pi path: /opt/marengo/assets/urdf/marengo.urdf.
      PROVISIONAL: masses/COM/link lengths are ballpark until CAD export.
      Axes per hardware/docs/kinematics.md (right arm table). -->
-<robot name="marengo_arm_4dof_right">
+<robot name="marengo_arm_5dof_right">
   <link name="base_link">
     <inertial>
       <mass value="0.001"/>
@@ -65,6 +65,22 @@
       </material>
     </visual>
   </link>
+  <link name="right_hand_link">
+    <inertial>
+      <mass value="0.12"/>
+      <origin xyz="0 0 -0.04" rpy="0 0 0"/>
+      <inertia ixx="0.00008" ixy="0" ixz="0" iyy="0.00008" iyz="0" izz="0.00004"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 -0.03" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.02" length="0.06"/>
+      </geometry>
+      <material name="hand_blue">
+        <color rgba="0.45 0.7 0.98 1"/>
+      </material>
+    </visual>
+  </link>
   <joint name="right_shoulder_pitch" type="revolute">
     <parent link="base_link"/>
     <child link="right_shoulder_pitch_link"/>
@@ -97,5 +113,14 @@
     <axis xyz="0 1 0"/>
     <limit lower="-0.50" upper="1.2" effort="17" velocity="2.0"/>
     <safety_controller soft_lower_limit="-0.50" soft_upper_limit="1.15" k_position="10" k_velocity="1"/>
+  </joint>
+  <!-- Axis Y per hardware/docs/kinematics.md right-arm table (forearm → hand). -->
+  <joint name="right_lower_arm_yaw" type="revolute">
+    <parent link="right_forearm_link"/>
+    <child link="right_hand_link"/>
+    <origin xyz="0 0 -0.20" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1.6" upper="1.6" effort="17" velocity="2.0"/>
+    <safety_controller soft_lower_limit="-1.55" soft_upper_limit="1.55" k_position="10" k_velocity="1"/>
   </joint>
 </robot>

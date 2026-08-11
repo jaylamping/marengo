@@ -1113,10 +1113,10 @@ mod tests {
     #[test]
     fn robot_yaml_parses() {
         let cfg = load_robot_config(repo_root()).expect("robot.yaml");
-        assert_eq!(cfg.robot.name, "marengo_arm_4dof_right");
+        assert_eq!(cfg.robot.name, "marengo_arm_5dof_right");
         assert!(cfg.robot.urdf.contains("marengo.urdf"));
         assert!(cfg.robot.bench.max_joint_velocity_rad_s > 0.0);
-        assert_eq!(cfg.robot.joints.len(), 4);
+        assert_eq!(cfg.robot.joints.len(), 5);
         let right = cfg.robot.limbs.get("right_arm").expect("right_arm limb");
         assert!(right.contains(&"right_elbow_pitch".to_string()));
         assert!(right.contains(&"right_lower_arm_yaw".to_string()));
@@ -1127,7 +1127,7 @@ mod tests {
     fn motors_yaml_parses_and_matches_robot() {
         let robot = load_robot_config(repo_root()).expect("robot");
         let motors = load_motors_config(repo_root()).expect("motors");
-        assert_eq!(motors.motors.len(), 4);
+        assert_eq!(motors.motors.len(), 5);
         validate_motors_against_robot(&robot, &motors).expect("joint names align");
 
         let expected: &[(&str, &str, u8, i8, u32, MotorType)] = &[
@@ -1142,6 +1142,14 @@ mod tests {
             ("right_shoulder_roll", "can0", 2, 1, 0x242, MotorType::Rs03),
             ("right_upper_arm_yaw", "can0", 3, 1, 0x243, MotorType::Rs02),
             ("right_elbow_pitch", "can0", 4, 1, 0x244, MotorType::Rs02),
+            (
+                "right_lower_arm_yaw",
+                "can0",
+                5,
+                1,
+                0x245,
+                MotorType::Rs00,
+            ),
         ];
         for &(joint, iface, device_id, direction, recv, motor_type) in expected {
             let m = motor_for_joint(&motors, joint).expect("missing joint in motors.yaml");
@@ -1166,17 +1174,20 @@ mod tests {
     }
 
     #[test]
-    fn master_config_validates_four_dof_right_bench() {
+    fn master_config_validates_five_dof_right_bench() {
         let root = repo_root();
         let config_dir = resolve_config_dir(&root);
         let robot = load_robot_config_from(&config_dir).expect("robot.yaml");
         let motors = load_motors_config_from(&config_dir).expect("motors.yaml");
         validate_motors_against_robot(&robot, &motors).expect("joints align");
-        assert_eq!(robot.robot.name, "marengo_arm_4dof_right");
+        assert_eq!(robot.robot.name, "marengo_arm_5dof_right");
         assert!(robot.robot.urdf.contains("marengo.urdf"));
         let elbow = motor_for_joint(&motors, "right_elbow_pitch").expect("elbow");
         assert_eq!(elbow.device_id, 4);
         assert_eq!(elbow.can_interface, "can0");
+        let lower = motor_for_joint(&motors, "right_lower_arm_yaw").expect("lower_arm_yaw");
+        assert_eq!(lower.device_id, 5);
+        assert_eq!(lower.can_interface, "can0");
         load_control_config_from(&config_dir).expect("control.yaml");
         let urdf = resolve_urdf_path(&root, &robot).expect("urdf");
         assert!(urdf.ends_with("marengo.urdf"));

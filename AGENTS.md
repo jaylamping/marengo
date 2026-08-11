@@ -21,7 +21,7 @@ Marengo is a **personal humanoid robot** in one repo: CAD, wiring, URDF, and the
 | **Fouché** | Jetson vision/LLM (scaffold) |
 | **Consul** | Operator web UI (Vite + React + TS) |
 
-Current execution slice is a **4-DOF right bench arm** defined by the master
+Current execution slice is a **5-DOF right bench arm** defined by the master
 [`config/`](config/) tree and [`assets/urdf/marengo.urdf`](assets/urdf/marengo.urdf);
 full humanoid is the long-term target ([`docs/roadmap.md`](docs/roadmap.md)).
 
@@ -217,7 +217,7 @@ Single-pass trapezoidal planner + MIT setpoint clamp ([`docs/rust-patterns.md`](
 | `compose.yaml` | Docker dev/check/sim/vcan services |
 | `scripts/check.sh` | CI-parity gate script |
 | `proto/marengo/v1/marengo.proto` | Wire schema source of truth |
-| `config/{robot,motors,control,homing}.yaml` | Master 4-DOF right bench configuration |
+| `config/{robot,motors,control,homing}.yaml` | Master 5-DOF right bench configuration |
 | `assets/urdf/marengo.urdf` | Kinematic source of truth |
 | `bins/marengo-pi/src/main.rs` | Pi control loop entry |
 | `bins/marengo-gateway/src/main.rs` | HTTP/WebTransport gateway |
@@ -300,7 +300,7 @@ No coverage tooling is configured. Expectation: `just check` passes before merge
 
 ### Bench commissioning notes
 
-- Master `config/`: pitch CAN id 1, roll CAN id 2, upper-arm yaw CAN id 3, elbow pitch CAN id 4 on `can0`
+- Master `config/`: pitch CAN id 1, roll CAN id 2, upper-arm yaw CAN id 3, elbow pitch CAN id 4, lower-arm yaw CAN id 5 on `can0`
 - For the 3-DOF smoke slice, set `MARENGO_JOINT_SUBSET=right_shoulder_roll,right_shoulder_pitch,right_upper_arm_yaw` (the harness profile metadata does this automatically)
 - **Pitch** raises arm (~π–2.8 rad); **roll** oscillates; **yaw** twists upper arm — do not swap roles
 - Re–set-zero at mechanical home when arm configuration changes
