@@ -8,6 +8,7 @@ import {
   type CommissioningBadge,
   type JointFacetSnapshot,
 } from '@/lib/commissioning';
+import { compareCanAddress } from '@/lib/can-address-order';
 import { liveJointEnvelope } from '@/state/actuatorStore';
 
 export type HardwareJointRow = {
@@ -130,16 +131,10 @@ export function compareHardwareRowsByCanAddress(
   a: Pick<HardwareJointRow, 'canInterface' | 'canId' | 'joint'>,
   b: Pick<HardwareJointRow, 'canInterface' | 'canId' | 'joint'>,
 ): number {
-  const ifaceA = a.canInterface ?? '\uffff';
-  const ifaceB = b.canInterface ?? '\uffff';
-  const ifaceCmp = ifaceA.localeCompare(ifaceB);
-  if (ifaceCmp !== 0) return ifaceCmp;
-
-  const idA = a.canId ?? Number.POSITIVE_INFINITY;
-  const idB = b.canId ?? Number.POSITIVE_INFINITY;
-  if (idA !== idB) return idA - idB;
-
-  return a.joint.localeCompare(b.joint);
+  return compareCanAddress(
+    { canInterface: a.canInterface, canId: a.canId, joint: a.joint },
+    { canInterface: b.canInterface, canId: b.canId, joint: b.joint },
+  );
 }
 
 export function countCompletenessWarnings(warnings: CompletenessWarningDto[]): number {

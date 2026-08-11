@@ -30,6 +30,30 @@ const snapshot: ConfigSnapshotDto = {
         torque_limit_nm: 60,
       },
     },
+    {
+      joint: 'right_shoulder_pitch',
+      can_interface: 'can0',
+      device_id: 1,
+      direction: -1,
+      motor_type: 'rs03',
+      bench: {
+        position_lower_rad: -0.9,
+        position_upper_rad: 3.17,
+        torque_limit_nm: 60,
+      },
+    },
+    {
+      joint: 'right_upper_arm_yaw',
+      can_interface: 'can0',
+      device_id: 3,
+      direction: 1,
+      motor_type: 'rs02',
+      bench: {
+        position_lower_rad: -1.57,
+        position_upper_rad: 1.57,
+        torque_limit_nm: 17,
+      },
+    },
   ],
   control_limits: [
     {
@@ -87,5 +111,24 @@ describe('enrichInventory', () => {
     expect(robotInventory.find((r) => r.name === 'right_shoulder_roll')?.node).toBe(
       before,
     );
+  });
+
+  it('orders right-arm actuators by CAN device id (pitch before roll)', () => {
+    const enriched = enrichInventory(robotInventory, snapshot, null);
+    const rightArm = enriched.filter((r) => r.group === 'right_arm');
+    expect(rightArm.map((r) => r.name)).toEqual([
+      'right_shoulder_pitch',
+      'right_shoulder_roll',
+      'right_upper_arm_yaw',
+      'right_elbow_pitch',
+      'right_lower_arm_yaw',
+    ]);
+    expect(rightArm.map((r) => r.node)).toEqual([
+      'RS03 · can0 · id 1',
+      'RS03 · can0 · id 2',
+      'RS02 · can0 · id 3',
+      'configuration unavailable',
+      'configuration unavailable',
+    ]);
   });
 });
