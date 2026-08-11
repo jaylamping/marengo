@@ -30,6 +30,11 @@ const emptySpectrum: CanTrafficSpectrumView = {
   errorKind: null,
   logsCanHref: '/logs',
   loading: false,
+  linkActivity: [
+    { atMs: 1_000, rxBps: 0, txBps: 0 },
+    { atMs: 2_000, rxBps: 0, txBps: 0 },
+    { atMs: 3_000, rxBps: 12, txBps: 4 },
+  ],
 };
 
 const mockView = vi.fn((): CanTrafficSpectrumView => emptySpectrum);
@@ -45,7 +50,7 @@ afterEach(() => {
 });
 
 describe('CanBusSpectrumPanel', () => {
-  it('renders the overview CAN panel with empty-capture copy', () => {
+  it('renders the overview CAN panel with empty-capture copy and link activity graph', () => {
     render(
       <MemoryRouter>
         <CanBusSpectrumPanel />
@@ -55,6 +60,8 @@ describe('CanBusSpectrumPanel', () => {
     expect(screen.getByText('CAN bus')).toBeTruthy();
     expect(screen.getByText(/No harness candump yet/i)).toBeTruthy();
     expect(screen.getByTestId('can-live-chip').textContent).toMatch(/can0/);
+    expect(screen.getByTestId('can-link-activity')).toBeTruthy();
+    expect(screen.getByText(/Link activity/i)).toBeTruthy();
     expect(screen.getByRole('link', { name: /Open Logs/i }).getAttribute('href')).toBe(
       '/logs',
     );
@@ -88,5 +95,6 @@ describe('CanBusSpectrumPanel', () => {
     expect(screen.getByText(/Gateway offline/i)).toBeTruthy();
     expect(screen.queryByText('Top IDs')).toBeNull();
     expect(screen.queryByText('Rate')).toBeNull();
+    expect(screen.getByTestId('can-link-activity')).toBeTruthy();
   });
 });

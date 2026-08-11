@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 
 import { dashboardPanelCardClassName } from '@/components/dashboard/layout/constants';
 import {
@@ -9,9 +10,16 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from '@/components/ui/chart';
 import { useCanTrafficSpectrum } from '@/hooks/use-can-traffic-spectrum';
 import type {
   CanIdBand,
+  CanLinkActivitySample,
   CanLiveChip,
   CanTrafficSpectrum,
   HzSample,
@@ -20,6 +28,17 @@ import type {
 } from '@/lib/can-traffic-spectrum';
 import { logErrorMessage, shouldShowLogErrorBanner } from '@/lib/log-api';
 import { cn } from '@/lib/utils';
+
+const linkActivityChartConfig = {
+  rx: {
+    label: 'RX',
+    color: 'var(--info)',
+  },
+  tx: {
+    label: 'TX',
+    color: 'var(--chart-4)',
+  },
+} satisfies ChartConfig;
 
 type CanBusSpectrumPanelProps = {
   active?: boolean;
@@ -249,8 +268,93 @@ function MicroLog({ lines }: { lines: MicroLogLine[] }) {
   );
 }
 
+function formatBps(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) {
+    return '0';
+  }
+  if (value >= 1000) {
+    return `${(value / 1000).toFixed(1)}k`;
+  }
+  return Math.round(value).toString();
+}
+
+function LinkActivityChart({ samples }: { samples: CanLinkActivitySample[] }) {
+  const data = samples.map((sample) => ({
+    t: sample.atMs,
+    rx: sample.rxBps,
+    tx: sample.txBps,
+  }));
+  const latest = samples[samples.length - 1];
+
+  return (
+    <div className="mt-auto shrink-0 space-y-1.5 border-t border-line pt-3" data-testid="can-link-activity">
+      <div className="flex items-baseline justify-between gap-2">
+        <div className="micro-label">Link activity</div>
+        <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
+          rx {formatBps(latest?.rxBps ?? 0)} · tx {formatBps(latest?.txBps ?? 0)} B/s
+        </span>
+      </div>
+      <ChartContainer
+        config={linkActivityChartConfig}
+        className="aspect-auto h-[7.5rem] w-full min-h-[7.5rem]"
+        initialDimension={{ width: 360, height: 120 }}
+      >
+        <AreaChart data={data} margin={{ left: 0, right: 4, top: 4, bottom: 0 }}>
+          <defs>
+            <linearGradient id="fillCanRx" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="var(--color-rx)" stopOpacity={0.45} />
+              <stop offset="95%" stopColor="var(--color-rx)" stopOpacity={0.02} />
+            </linearGradient>
+            <linearGradient id="fillCanTx" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="var(--color-tx)" stopOpacity={0.35} />
+              <stop offset="95%" stopColor="var(--color-tx)" stopOpacity={0.02} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid vertical={false} stroke="var(--color-line)" strokeDasharray="2 4" />
+          <XAxis dataKey="t" hide />
+          <YAxis
+            width={28}
+            tickLine={false}
+            axisLine={false}
+            tickMargin={4}
+            tick={{ fontSize: 9, fontFamily: 'var(--font-mono)' }}
+            tickFormatter={formatBps}
+            domain={[0, (max: number) => Math.max(8, max * 1.15)]}
+          />
+          <ChartTooltip
+            cursor={false}
+            isAnimationActive={false}
+            content={
+              <ChartTooltipContent
+                labelFormatter={() => 'link'}
+                indicator="dot"
+              />
+            }
+          />
+          <Area
+            dataKey="rx"
+            type="monotone"
+            fill="url(#fillCanRx)"
+            stroke="var(--color-rx)"
+            strokeWidth={1.25}
+            isAnimationActive={false}
+          />
+          <Area
+            dataKey="tx"
+            type="monotone"
+            fill="url(#fillCanTx)"
+            stroke="var(--color-tx)"
+            strokeWidth={1.25}
+            isAnimationActive={false}
+          />
+        </AreaChart>
+      </ChartContainer>
+    </div>
+  );
+}
+
 export function CanBusSpectrumPanel({ active = true }: CanBusSpectrumPanelProps) {
-  const { loading, ...spectrum } = useCanTrafficSpectrum({ active });
+  const { loading, linkActivity, ...spectrum } = useCanTrafficSpectrum({ active });
   const showError = shouldShowLogErrorBanner(spectrum.errorKind);
   const hot = spectrum.source === 'hot-dump';
 
@@ -283,7 +387,7 @@ export function CanBusSpectrumPanel({ active = true }: CanBusSpectrumPanelProps)
         ) : null}
 
         {loading && !hot && !showError ? (
-          <div className="flex min-h-[8rem] flex-1 items-center rounded-[4px] border border-line bg-surface-0 px-3">
+          <div className="rounded-[4px] border border-line bg-surface-0 px-3 py-2.5">
             <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
               Loading capture…
             </p>
@@ -291,23 +395,23 @@ export function CanBusSpectrumPanel({ active = true }: CanBusSpectrumPanelProps)
         ) : null}
 
         {!loading && spectrum.source === 'empty' && !showError ? (
-          <div className="flex min-h-[8rem] flex-1 flex-col justify-center gap-1 rounded-[4px] border border-line bg-surface-0 px-3 py-4">
+          <div className="rounded-[4px] border border-line bg-surface-0 px-3 py-2.5">
             <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-foreground">
               No harness candump yet
             </p>
-            <p className="text-xs text-muted-foreground">
-              Controller state still streams above when host metrics are live.
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Link graph below still tracks host-metrics rx/tx when the Pi is up.
             </p>
           </div>
         ) : null}
 
         {!loading && spectrum.source === 'unavailable' && !showError ? (
-          <div className="flex min-h-[8rem] flex-1 flex-col justify-center gap-1 rounded-[4px] border border-line bg-surface-0 px-3 py-4">
+          <div className="rounded-[4px] border border-line bg-surface-0 px-3 py-2.5">
             <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-foreground">
               Gateway offline
             </p>
-            <p className="text-xs text-muted-foreground">
-              Candump HTTP unreachable. Live chip still reflects host metrics when
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Candump HTTP unreachable. Link graph still samples host metrics when
               Chappe is up.
             </p>
           </div>
@@ -346,6 +450,8 @@ export function CanBusSpectrumPanel({ active = true }: CanBusSpectrumPanelProps)
           </>
         ) : null}
 
+        <LinkActivityChart samples={linkActivity} />
+
         <div className="flex shrink-0 items-center justify-between gap-2 pt-0.5">
           <Link
             to={spectrum.logsCanHref}
@@ -353,12 +459,6 @@ export function CanBusSpectrumPanel({ active = true }: CanBusSpectrumPanelProps)
           >
             Open Logs · CAN
           </Link>
-          {spectrum.live.rxBytesPerSec != null || spectrum.live.txBytesPerSec != null ? (
-            <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
-              link rx {spectrum.live.rxBytesPerSec ?? '—'} · tx{' '}
-              {spectrum.live.txBytesPerSec ?? '—'} B/s
-            </span>
-          ) : null}
         </div>
       </CardContent>
     </Card>

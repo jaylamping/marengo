@@ -9,6 +9,8 @@ import { canWarning } from '@/state/hostMetricsStore';
 export const TOP_ID_BANDS = 12;
 export const MICRO_LOG_LIMIT = 24;
 export const SPARKLINE_CAP = 32;
+export const ACTIVITY_CAP = 60;
+export const ACTIVITY_TICK_MS = 1_000;
 export const SPECTRUM_POLL_MS = 2_000;
 export const TAIL_PAGE_LIMIT = 48;
 export const STALE_AFTER_MS = 8_000;
@@ -35,6 +37,13 @@ export type InterfacePartition = {
 export type HzSample = {
   atMs: number;
   hz: number;
+};
+
+/** Rolling link throughput sample from host metrics (independent of candump). */
+export type CanLinkActivitySample = {
+  atMs: number;
+  rxBps: number;
+  txBps: number;
 };
 
 export type MicroLogLine = {
@@ -114,6 +123,37 @@ export function appendHzSample(
     return [];
   }
   return [...previous, sample].slice(-Math.floor(cap));
+}
+
+export function appendLinkActivity(
+  previous: CanLinkActivitySample[],
+  sample: CanLinkActivitySample,
+  cap = ACTIVITY_CAP,
+): CanLinkActivitySample[] {
+  if (cap <= 0) {
+    return [];
+  }
+  const last = previous[previous.length - 1];
+  if (last != null && last.atMs === sample.atMs) {
+    return [...previous.slice(0, -1), sample].slice(-Math.floor(cap));
+  }
+  return [...previous, sample].slice(-Math.floor(cap));
+}
+
+export function seedLinkActivity(
+  nowMs: number,
+  live: CanLiveChip,
+  count = 24,
+  tickMs = ACTIVITY_TICK_MS,
+): CanLinkActivitySample[] {
+  const rx = live.rxBytesPerSec ?? 0;
+  const tx = live.txBytesPerSec ?? 0;
+  const n = Math.max(2, count);
+  return Array.from({ length: n }, (_, i) => ({
+    atMs: nowMs - (n - 1 - i) * tickMs,
+    rxBps: rx,
+    txBps: tx,
+  }));
 }
 
 export function projectMicroLog(

@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest';
 
 import type { CandumpFrameDto, CandumpSummaryDto } from '@/lib/log-api';
 import {
+  ACTIVITY_CAP,
   STALE_AFTER_MS,
+  appendLinkActivity,
   buildCanTrafficSpectrum,
   captureFingerprint,
   projectMicroLog,
   readCanLiveChip,
+  seedLinkActivity,
   share01,
   type CanLiveChip,
   type CanTrafficSpectrum,
@@ -188,5 +191,29 @@ describe('can-traffic-spectrum', () => {
       pageError: null,
     });
     expect(next.rateHz.map((s) => s.hz)).toEqual([10, 20]);
+  });
+
+  it('seeds a flat link-activity series so the chart has geometry immediately', () => {
+    const seeded = seedLinkActivity(10_000, {
+      ...emptyLive,
+      rxBytesPerSec: 40,
+      txBytesPerSec: 8,
+    }, 4, 1_000);
+    expect(seeded).toHaveLength(4);
+    expect(seeded[0]).toEqual({ atMs: 7_000, rxBps: 40, txBps: 8 });
+    expect(seeded[3]).toEqual({ atMs: 10_000, rxBps: 40, txBps: 8 });
+  });
+
+  it('appends link-activity samples and caps the rolling window', () => {
+    let series = seedLinkActivity(0, emptyLive, 2, 1_000);
+    for (let i = 1; i <= ACTIVITY_CAP + 5; i += 1) {
+      series = appendLinkActivity(series, {
+        atMs: i * 1_000,
+        rxBps: i,
+        txBps: 0,
+      });
+    }
+    expect(series).toHaveLength(ACTIVITY_CAP);
+    expect(series[series.length - 1]?.rxBps).toBe(ACTIVITY_CAP + 5);
   });
 });

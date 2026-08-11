@@ -1,10 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 
 import {
+  ACTIVITY_TICK_MS,
   SPECTRUM_POLL_MS,
   TAIL_PAGE_LIMIT,
+  appendLinkActivity,
   buildCanTrafficSpectrum,
   readCanLiveChip,
+  seedLinkActivity,
+  type CanLinkActivitySample,
   type CanTrafficSpectrum,
 } from '@/lib/can-traffic-spectrum';
 import {
@@ -42,6 +46,8 @@ function idleView(nowMs: number): CanTrafficSpectrum {
 
 export type CanTrafficSpectrumView = CanTrafficSpectrum & {
   loading: boolean;
+  /** Rolling CAN link rx/tx Bps from host metrics — independent of candump. */
+  linkActivity: CanLinkActivitySample[];
 };
 
 export function useCanTrafficSpectrum({
@@ -51,10 +57,15 @@ export function useCanTrafficSpectrum({
   const piMetrics = useHostMetricsStore((s) => s.piMetrics);
   const [spectrum, setSpectrum] = useState<CanTrafficSpectrum>(() => idleView(Date.now()));
   const [loading, setLoading] = useState(true);
+  const [linkActivity, setLinkActivity] = useState<CanLinkActivitySample[]>(() =>
+    seedLinkActivity(Date.now(), readCanLiveChip(null)),
+  );
   const spectrumRef = useRef(spectrum);
   const loadingRef = useRef(loading);
+  const linkActivityRef = useRef(linkActivity);
   spectrumRef.current = spectrum;
   loadingRef.current = loading;
+  linkActivityRef.current = linkActivity;
 
   useEffect(() => {
     if (!active) {
@@ -126,9 +137,33 @@ export function useCanTrafficSpectrum({
     }));
   }, [active, piMetrics]);
 
+  // Always sample link throughput so the activity graph fills even with no candump.
+  useEffect(() => {
+    if (!active) {
+      return;
+    }
+    const sample = () => {
+      const live = readCanLiveChip(useHostMetricsStore.getState().piMetrics);
+      setLinkActivity((prev) =>
+        appendLinkActivity(prev, {
+          atMs: Date.now(),
+          rxBps: live.rxBytesPerSec ?? 0,
+          txBps: live.txBytesPerSec ?? 0,
+        }),
+      );
+    };
+    sample();
+    const id = setInterval(sample, ACTIVITY_TICK_MS);
+    return () => clearInterval(id);
+  }, [active]);
+
   if (!active) {
-    return { ...spectrumRef.current, loading: loadingRef.current };
+    return {
+      ...spectrumRef.current,
+      loading: loadingRef.current,
+      linkActivity: linkActivityRef.current,
+    };
   }
 
-  return { ...spectrum, loading };
+  return { ...spectrum, loading, linkActivity };
 }
