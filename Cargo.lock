@@ -1441,6 +1441,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "marengo-deploy"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 1.0.69",
+ "time",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "marengo-gateway"
 version = "0.1.0"
 dependencies = [
@@ -1453,6 +1466,7 @@ dependencies = [
  "futures",
  "marengo-candump",
  "marengo-config",
+ "marengo-deploy",
  "marengo-store",
  "marengo-support",
  "prost",
