@@ -1144,7 +1144,7 @@ mod tests {
             ("right_elbow_pitch", "can0", 4, 1, 0x244, MotorType::Rs02),
         ];
         for &(joint, iface, device_id, direction, recv, motor_type) in expected {
-            let m = motor_for_joint(&motors, joint).unwrap_or_else(|| panic!("missing {joint}"));
+            let m = motor_for_joint(&motors, joint).expect("missing joint in motors.yaml");
             assert_eq!(m.can_interface, iface, "{joint} can_interface");
             assert_eq!(m.device_id, device_id, "{joint} device_id");
             assert_eq!(m.direction, direction, "{joint} direction");
