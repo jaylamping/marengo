@@ -4,6 +4,7 @@ use armee_proto::prost::Message;
 use armee_proto::ActiveReportingLeaseRequest;
 use armee_proto::EnableRequest;
 use armee_proto::MitCommandBatch;
+use armee_proto::MotorStatusPollRequest;
 use armee_proto::SetZeroRequest;
 use axum::{
     body::Body,
@@ -141,6 +142,10 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
         .route(
             "/command/active_reporting_lease",
             post(command_active_reporting_lease),
+        )
+        .route(
+            "/command/motor_status_poll",
+            post(command_motor_status_poll),
         )
         .route("/command/actuator", post(actuator::command_actuator))
         .layer(cors)
@@ -476,6 +481,54 @@ async fn command_active_reporting_lease(
     Ok(Json(OkResponse { ok: true }))
 }
 
+#[derive(Deserialize)]
+struct MotorStatusPollBody {
+    /// Rate-limit key only (global StatusPoll bucket ignores rotation).
+    #[serde(default)]
+    client_id: String,
+}
+
+/// Light Hardware-page solicit: Pi re-TX Disable (type-4) per motor → OperationStatus.
+/// Rate-limited (~0.5/s, burst 2) globally so the bus is not flooded.
+async fn command_motor_status_poll(
+    State(state): State<SharedState>,
+    Json(body): Json<MotorStatusPollBody>,
+) -> Result<Json<OkResponse>, (StatusCode, String)> {
+    let client_id = body.client_id.trim();
+    if client_id.is_empty() || client_id.len() > MAX_CLIENT_ID_LEN {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "client_id required (max 64 chars)".into(),
+        ));
+    }
+    let bucket = crate::ratelimit::CommandBucket::StatusPoll;
+    if !state.rate_limiter.allow(client_id, "_", bucket) {
+        return Err((
+            StatusCode::TOO_MANY_REQUESTS,
+            "motor status poll rate limit exceeded".into(),
+        ));
+    }
+
+    let request = MotorStatusPollRequest {
+        timestamp_ms: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64,
+        operator_id: "consul".into(),
+    };
+    let payload = request.encode_to_vec();
+    if let Err(e) = state.publish_command_envelope(
+        "robot/motor_status_poll",
+        "consul",
+        "marengo.v1.MotorStatusPollRequest",
+        payload,
+    ) {
+        state.rate_limiter.refund(client_id, "_", bucket);
+        return Err((StatusCode::BAD_GATEWAY, e));
+    }
+    Ok(Json(OkResponse { ok: true }))
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::expect_used)]
@@ -612,5 +665,52 @@ mod tests {
             .await
             .expect("response");
         assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
+    }
+
+    #[tokio::test]
+    async fn command_motor_status_poll_rate_limits_globally() {
+        let bus = std::sync::Arc::new(Bus::default());
+        let state = std::sync::Arc::new(crate::state::AppState::new(std::sync::Arc::clone(&bus)));
+        let app = router(std::sync::Arc::clone(&state), None);
+        let ok_a = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/command/motor_status_poll")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"client_id":"consul-a"}"#))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(ok_a.status(), StatusCode::OK);
+
+        let app = router(std::sync::Arc::clone(&state), None);
+        let ok_b = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/command/motor_status_poll")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"client_id":"consul-b"}"#))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(ok_b.status(), StatusCode::OK);
+
+        let app = router(state, None);
+        let limited = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/command/motor_status_poll")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"client_id":"consul-c"}"#))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(limited.status(), StatusCode::TOO_MANY_REQUESTS);
     }
 }

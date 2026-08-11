@@ -139,11 +139,38 @@ describe('resolveJointBadge priority Fault>OutOfLimits>Offline>Active>Ready>Onli
     ).toBe('Online');
   });
 
-  it('Unknown when wire facets are not live', () => {
+  it('Online when feedback is live but homing_state is UNSPECIFIED', () => {
     expect(
       resolveJointBadge(
         facet({
           name: 'j',
+          online: true,
+          homingState: JointHomingState.UNSPECIFIED,
+        }),
+      ),
+    ).toBe('Online');
+  });
+
+  it('Offline when motor-mapped but silent with no live homing facet', () => {
+    expect(
+      resolveJointBadge(
+        facet({
+          name: 'j',
+          online: false,
+          motorMapped: true,
+          homingState: JointHomingState.UNSPECIFIED,
+        }),
+      ),
+    ).toBe('Offline');
+  });
+
+  it('Unknown only for description-only joints with no wire presence', () => {
+    expect(
+      resolveJointBadge(
+        facet({
+          name: 'j',
+          online: false,
+          motorMapped: false,
           homingState: JointHomingState.UNSPECIFIED,
         }),
       ),
@@ -238,8 +265,8 @@ describe('jointFacetFromWire / buildFacetSnapshots presence', () => {
       wire: null,
     });
     expect(offline.online).toBe(false);
-    // No wire homing_state → Unknown gate (not Online/Ready).
-    expect(resolveJointBadge(offline)).toBe('Unknown');
+    // Motor-mapped but no RobotState row → Offline (not Unknown/Ready).
+    expect(resolveJointBadge(offline)).toBe('Offline');
   });
 
   it('marks present wire Online/Ready; omitted joints stay offline', () => {

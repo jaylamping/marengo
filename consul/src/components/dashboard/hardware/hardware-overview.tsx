@@ -25,6 +25,7 @@ import {
   ToggleGroupItem,
 } from '@/components/ui/toggle-group';
 import { useConfigSnapshot } from '@/hooks/use-config-snapshot';
+import { useMotorStatusPoll } from '@/hooks/use-motor-status-poll';
 import { robotWireFacetsLive } from '@/lib/commissioning';
 import { postEnableCommand } from '@/lib/gateway-api';
 import { fetchCompleteness } from '@/lib/hardware-api';
@@ -83,6 +84,10 @@ export function HardwareOverview() {
     () => buildHardwareRows(snapshot ?? null, warnings, limitSnapshot, robotState),
     [snapshot, warnings, limitSnapshot, robotState],
   );
+  // Light Disable solicit (~2.5 s). Davout skips motors already under type-24 (diagnostics/lease).
+  useMotorStatusPoll({
+    enabled: operationalMode !== 'ACTIVE',
+  });
   const facets = useMemo(
     () => buildHardwareFacetSnapshots(snapshot ?? null, robotState),
     [snapshot, robotState],

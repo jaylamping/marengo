@@ -57,6 +57,13 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::time::{Duration, Instant};
 
+/// Free-drive / Hardware-page sensing TTL for `RobotState` presence.
+///
+/// While not [`OperationalMode::Active`], `joint_feedback` omits samples older than this so
+/// Consul Online/Offline tracks recent RX (status poll or type-24), not sticky cache membership.
+/// Sized at ~2× Consul `MOTOR_STATUS_POLL_MS` (2.5 s) so one missed poll does not flap Offline.
+pub const FREE_DRIVE_FEEDBACK_TTL: Duration = Duration::from_secs(5);
+
 use armee_kinematics::{
     clamp_position_in_envelope, joint_limit_bounds, joint_limits, load_urdf,
     measured_position_fault, LimitMarginConfig,
@@ -376,10 +383,17 @@ impl<B: MotorBus> Supervisor<B> {
     }
 
     /// Joint-space feedback sample if available (cache is already joint-space).
+    ///
+    /// While not [`OperationalMode::Active`], returns `None` when the sample is older than
+    /// [`FREE_DRIVE_FEEDBACK_TTL`] so Berthier omits the joint from `RobotState` (Consul Offline).
+    /// ACTIVE keeps the last MIT sample without TTL — the comm watchdog owns that path.
     pub fn joint_feedback(&self, joint: &str) -> Option<JointFeedback> {
         let motor = motor_for_joint(&self.motors, joint)?;
         let address = MotorAddress::from(motor);
         let state = self.motor_states.get(&address)?;
+        if self.mode != OperationalMode::Active && state.is_stale(FREE_DRIVE_FEEDBACK_TTL) {
+            return None;
+        }
         Some(JointFeedback {
             position_rad: f64::from(state.position_rad),
             velocity_rad_s: f64::from(state.velocity_rad_s),
@@ -1222,6 +1236,45 @@ impl<B: MotorBus> Supervisor<B> {
         self.last_tick = None;
         self.sync_active_reporting();
         debug!("supervisor DISABLED");
+        Ok(())
+    }
+
+    /// Light status solicit for Hardware-page sensing (no continuous type-24).
+    ///
+    /// When not [`OperationalMode::Active`], re-TX RobStride Disable (type-4) once per
+    /// loaded motor that does **not** already desire Active Reporting (global diagnostics
+    /// or an unexpired lease). Motors reply with OperationStatus (type-2); the normal
+    /// control-loop drain picks those up on the next tick.
+    ///
+    /// No-op while Active (MIT owns feedback). Skips motors already covered by type-24 so
+    /// the poll does not fight Set Limits / bench diagnostics. Best-effort per motor —
+    /// one TX failure does not abort the rest of the bus (same honesty as [`Self::disable_all`]).
+    pub fn solicit_status_feedback(&mut self) -> Result<(), DavoutError> {
+        if self.mode == OperationalMode::Active {
+            return Ok(());
+        }
+        let global = self.control.control.bench.active_reporting_diagnostics;
+        let now = Instant::now();
+        let targets: Vec<(String, MotorAddress)> = self
+            .motors
+            .motors
+            .iter()
+            .filter(|motor| {
+                !self
+                    .active_reporting
+                    .desired(&motor.joint, false, global, now)
+            })
+            .map(|motor| (motor.joint.clone(), MotorAddress::from(motor)))
+            .collect();
+        for (joint, address) in targets {
+            if let Err(e) = self.bus.disable_drive_at(&address) {
+                warn!(
+                    joint = %joint,
+                    error = %e,
+                    "status solicit Disable TX failed; continuing remaining motors"
+                );
+            }
+        }
         Ok(())
     }
 
@@ -2322,6 +2375,258 @@ mod tests {
         .expect("send");
         assert!(!sup.bus.tx.is_empty());
         assert!(sup.bus.tx[0].extended);
+    }
+
+    #[test]
+    fn solicit_status_feedback_sends_one_disable_per_motor_when_not_active() {
+        use robstride::comm::{unpack_ext_id, CommunicationType};
+
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        // Ignore init/sync side effects; status poll itself must not start type-24.
+        sup.control.control.bench.active_reporting_diagnostics = false;
+        sup.bus.tx.clear();
+        let n = sup.motors.motors.len();
+        assert!(n >= 1);
+        sup.solicit_status_feedback().expect("solicit");
+        let disable_tx: Vec<_> = sup
+            .bus
+            .tx
+            .iter()
+            .filter(|frame| {
+                unpack_ext_id(frame.id)
+                    .map(|u| u.comm_type == CommunicationType::Disable.as_u8())
+                    .unwrap_or(false)
+            })
+            .collect();
+        assert_eq!(disable_tx.len(), n);
+        assert!(
+            !sup.bus.tx.iter().any(|frame| {
+                unpack_ext_id(frame.id)
+                    .map(|u| u.comm_type == CommunicationType::ActiveReporting.as_u8())
+                    .unwrap_or(false)
+            }),
+            "status poll must not enable type-24"
+        );
+    }
+
+    #[test]
+    fn solicit_status_feedback_is_noop_when_active() {
+        use robstride::comm::{unpack_ext_id, CommunicationType};
+
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        bench_ready_active(&mut sup);
+        sup.bus.tx.clear();
+        sup.solicit_status_feedback().expect("solicit");
+        assert!(
+            !sup.bus.tx.iter().any(|frame| {
+                unpack_ext_id(frame.id)
+                    .map(|u| u.comm_type == CommunicationType::Disable.as_u8())
+                    .unwrap_or(false)
+            }),
+            "must not solicit while Active"
+        );
+    }
+
+    #[test]
+    fn solicit_status_feedback_skips_motors_when_global_ar_desired() {
+        use robstride::comm::{unpack_ext_id, CommunicationType};
+
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        // Master bench config: diagnostics already desires type-24 for every joint.
+        assert!(sup.control.control.bench.active_reporting_diagnostics);
+        sup.bus.tx.clear();
+        sup.solicit_status_feedback().expect("solicit");
+        assert!(
+            !sup.bus.tx.iter().any(|frame| {
+                unpack_ext_id(frame.id)
+                    .map(|u| u.comm_type == CommunicationType::Disable.as_u8())
+                    .unwrap_or(false)
+            }),
+            "must not Disable-solicit motors already covered by type-24 diagnostics"
+        );
+    }
+
+    #[test]
+    fn solicit_status_feedback_skips_leased_joint_only() {
+        use robstride::comm::{unpack_ext_id, CommunicationType};
+
+        let bus = MemoryBus::default();
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        assert!(sup.motors.motors.len() >= 2);
+        sup.control.control.bench.active_reporting_diagnostics = false;
+        let leased = sup.motors.motors[0].joint.clone();
+        sup.acquire_active_reporting_lease(&leased, "consul", "lease-1", DEFAULT_LEASE_TTL)
+            .expect("lease");
+        sup.bus.tx.clear();
+        sup.solicit_status_feedback().expect("solicit");
+        let disable_device_ids: Vec<u8> = sup
+            .bus
+            .tx
+            .iter()
+            .filter_map(|frame| {
+                unpack_ext_id(frame.id).and_then(|u| {
+                    (u.comm_type == CommunicationType::Disable.as_u8()).then_some(u.device_id)
+                })
+            })
+            .collect();
+        let leased_id = MotorAddress::from(&sup.motors.motors[0]).device_id;
+        assert!(
+            !disable_device_ids.contains(&leased_id),
+            "leased joint must not receive Disable solicit"
+        );
+        assert_eq!(
+            disable_device_ids.len(),
+            sup.motors.motors.len() - 1,
+            "all non-leased motors still solicited"
+        );
+    }
+
+    /// Fails the first N `disable_drive_at` calls, then succeeds (partial solicit).
+    struct FailFirstNDisableBus {
+        inner: MemoryBus,
+        fail_first: usize,
+        disable_calls: usize,
+    }
+
+    impl CanBus for FailFirstNDisableBus {
+        fn send_frame(&mut self, frame: &CanFrame) -> Result<(), BusError> {
+            self.inner.send_frame(frame)
+        }
+
+        fn send_frame_to(
+            &mut self,
+            address: &MotorAddress,
+            frame: &CanFrame,
+        ) -> Result<(), BusError> {
+            self.inner.send_frame_to(address, frame)
+        }
+
+        fn recv_frames_from(&mut self, out: &mut Vec<ReceivedCanFrame>) -> Result<(), BusError> {
+            self.inner.recv_frames_from(out)
+        }
+    }
+
+    impl MotorBus for FailFirstNDisableBus {
+        fn disable_drive_at(&mut self, address: &MotorAddress) -> Result<(), BusError> {
+            if self.disable_calls < self.fail_first {
+                self.disable_calls += 1;
+                return Err(BusError::Driver("injected disable failure".into()));
+            }
+            self.disable_calls += 1;
+            self.inner.disable_drive_at(address)
+        }
+    }
+
+    #[test]
+    fn solicit_status_feedback_continues_after_partial_tx_failure() {
+        use robstride::comm::{unpack_ext_id, CommunicationType};
+
+        let motor_count = Supervisor::from_repo(repo_root(), MemoryBus::default())
+            .expect("supervisor")
+            .motors
+            .motors
+            .len();
+        assert!(motor_count >= 2);
+        let bus = FailFirstNDisableBus {
+            inner: MemoryBus::default(),
+            fail_first: 1,
+            disable_calls: 0,
+        };
+        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        sup.control.control.bench.active_reporting_diagnostics = false;
+        sup.bus.inner.tx.clear();
+        sup.solicit_status_feedback()
+            .expect("solicit must not fail closed");
+        let disable_tx: Vec<_> = sup
+            .bus
+            .inner
+            .tx
+            .iter()
+            .filter(|frame| {
+                unpack_ext_id(frame.id)
+                    .map(|u| u.comm_type == CommunicationType::Disable.as_u8())
+                    .unwrap_or(false)
+            })
+            .collect();
+        assert_eq!(
+            disable_tx.len(),
+            motor_count - 1,
+            "remaining motors still solicited after first TX failure"
+        );
+        assert_eq!(sup.bus.disable_calls, motor_count);
+    }
+
+    #[test]
+    fn joint_feedback_omits_stale_samples_when_not_active() {
+        let mut sup = Supervisor::from_repo(repo_root(), MemoryBus::default()).expect("supervisor");
+        assert_ne!(sup.mode(), OperationalMode::Active);
+        let motor = motor_for_joint(&sup.motors, "right_shoulder_pitch")
+            .expect("motor")
+            .clone();
+        let address = MotorAddress::from(&motor);
+        let stale_at = Instant::now()
+            .checked_sub(FREE_DRIVE_FEEDBACK_TTL + Duration::from_millis(1))
+            .expect("clock");
+        sup.motor_states.insert(
+            address.clone(),
+            MotorState {
+                position_rad: 0.5,
+                velocity_rad_s: 0.0,
+                torque_nm: 0.0,
+                temperature_c: 25.0,
+                fault: 0,
+                updated: Some(stale_at),
+            },
+        );
+        assert!(
+            sup.joint_feedback("right_shoulder_pitch").is_none(),
+            "stale free-drive sample must not publish Online"
+        );
+
+        // Fresh sample is visible again.
+        sup.motor_states.insert(
+            address,
+            MotorState {
+                position_rad: 0.5,
+                velocity_rad_s: 0.0,
+                torque_nm: 0.0,
+                temperature_c: 25.0,
+                fault: 0,
+                updated: Some(Instant::now()),
+            },
+        );
+        assert!(sup.joint_feedback("right_shoulder_pitch").is_some());
+    }
+
+    #[test]
+    fn joint_feedback_keeps_stale_samples_while_active() {
+        let mut sup = Supervisor::from_repo(repo_root(), MemoryBus::default()).expect("supervisor");
+        bench_ready_active(&mut sup);
+        let motor = motor_for_joint(&sup.motors, "right_shoulder_pitch")
+            .expect("motor")
+            .clone();
+        let address = MotorAddress::from(&motor);
+        let stale_at = Instant::now()
+            .checked_sub(FREE_DRIVE_FEEDBACK_TTL + Duration::from_secs(1))
+            .expect("clock");
+        sup.motor_states.insert(
+            address,
+            MotorState {
+                position_rad: 0.5,
+                velocity_rad_s: 0.0,
+                torque_nm: 0.0,
+                temperature_c: 25.0,
+                fault: 0,
+                updated: Some(stale_at),
+            },
+        );
+        assert!(
+            sup.joint_feedback("right_shoulder_pitch").is_some(),
+            "ACTIVE path keeps last MIT sample; comm watchdog owns silence"
+        );
     }
 
     #[test]

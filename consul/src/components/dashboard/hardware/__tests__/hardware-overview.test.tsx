@@ -100,6 +100,8 @@ vi.mock('@/lib/persist-joint-limits', () => ({
 vi.mock('@/lib/gateway-api', () => ({
   postSetZeroCommand: vi.fn(),
   postEnableCommand: vi.fn(async () => undefined),
+  postActiveReportingLease: vi.fn(async () => undefined),
+  postMotorStatusPoll: vi.fn(async () => undefined),
   fetchActuatorLimits: vi.fn(async () => null),
   fetchCommissioningScope: vi.fn(async () => ({
     version: 1,
@@ -111,6 +113,15 @@ vi.mock('@/lib/gateway-api', () => ({
   putCommissioningScope: vi.fn(),
   deleteCommissioningScope: vi.fn(),
 }));
+
+vi.mock('@/lib/chappe-config', async () => {
+  const actual =
+    await vi.importActual<typeof import('@/lib/chappe-config')>('@/lib/chappe-config');
+  return {
+    ...actual,
+    isChappeLive: () => true,
+  };
+});
 
 function renderHardware() {
   const client = new QueryClient({
@@ -163,6 +174,20 @@ describe('HardwareOverview', () => {
     });
     expect(screen.getByTitle(/1 completeness gaps/i)).toBeTruthy();
     expect(screen.getByText(/gaps/)).toBeTruthy();
+  });
+
+  it('polls motor status while the Hardware page is open (no page-level AR)', async () => {
+    const { postMotorStatusPoll, postActiveReportingLease } = await import(
+      '@/lib/gateway-api'
+    );
+    renderHardware();
+    await waitFor(() => {
+      expect(screen.getByTestId('hardware-row-right_shoulder_roll')).toBeTruthy();
+    });
+    await waitFor(() => {
+      expect(postMotorStatusPoll).toHaveBeenCalled();
+    });
+    expect(postActiveReportingLease).not.toHaveBeenCalled();
   });
 
   it('shows zero gaps only after completeness succeeds with no warnings', async () => {

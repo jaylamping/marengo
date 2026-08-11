@@ -20,8 +20,8 @@ use armee_dynamics::max_gravity_torque_over_range;
 use armee_proto::prost::Message;
 use armee_proto::{
     ActiveReportingLeaseAction, ActiveReportingLeaseRequest, EnableRequest, Fault, FaultSeverity,
-    Heartbeat, HomingComplete, MitCommandBatch, OperationalMode as ProtoOpMode, SafetyState,
-    SetZeroRequest,
+    Heartbeat, HomingComplete, MitCommandBatch, MotorStatusPollRequest,
+    OperationalMode as ProtoOpMode, SafetyState, SetZeroRequest,
 };
 use berthier::{
     proto_control_mode, ControlLoop, ControlMode, GainOverride, LoopError, TickPhaseAverages,
@@ -250,6 +250,7 @@ fn drain_chappe_commands(
     homing_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     set_zero_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     lease_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
+    status_poll_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
 ) {
     // Set-zero before enable so a same-tick enable(true) cannot flip ACTIVE and
     // silently refuse a queued calibration (Consul already got publish ACK).
@@ -307,6 +308,31 @@ fn drain_chappe_commands(
                 );
             }
             Err(tokio::sync::broadcast::error::TryRecvError::Closed) => break,
+        }
+    }
+    // Collapse bursts: only the latest solicit matters before the next control tick.
+    let mut status_poll_payloads: Vec<Vec<u8>> = Vec::new();
+    loop {
+        match status_poll_rx.try_recv() {
+            Ok(bytes) => status_poll_payloads.push(bytes),
+            Err(tokio::sync::broadcast::error::TryRecvError::Empty) => break,
+            Err(tokio::sync::broadcast::error::TryRecvError::Lagged(n)) => {
+                warn!(
+                    skipped = n,
+                    "Chappe motor_status_poll lagged; dropped oldest commands"
+                );
+            }
+            Err(tokio::sync::broadcast::error::TryRecvError::Closed) => break,
+        }
+    }
+    if let Some(request) = latest_motor_status_poll(status_poll_payloads.iter().map(Vec::as_slice))
+    {
+        if let Err(e) = loop_ctrl.supervisor_mut().solicit_status_feedback() {
+            warn!(
+                operator = %request.operator_id,
+                error = %e,
+                "Chappe motor status poll failed"
+            );
         }
     }
     while let Ok(bytes) = enable_rx.try_recv() {
@@ -868,6 +894,7 @@ fn main() {
     let mut homing_rx = chappe.subscribe("robot/homing");
     let mut set_zero_rx = chappe.subscribe("robot/set_zero");
     let mut lease_rx = chappe.subscribe("robot/active_reporting_lease");
+    let mut status_poll_rx = chappe.subscribe("robot/motor_status_poll");
     let mut testing_cmd_rx = chappe.subscribe("robot/testing/mit_command_batch");
     let mut actuator_rx = chappe.subscribe(overlay::TOPIC_ACTUATOR_COMMAND);
 
@@ -933,6 +960,7 @@ fn main() {
         homing_rx: &mut homing_rx,
         set_zero_rx: &mut set_zero_rx,
         lease_rx: &mut lease_rx,
+        status_poll_rx: &mut status_poll_rx,
         testing_cmd_rx: &mut testing_cmd_rx,
         actuator_rx: &mut actuator_rx,
         actuator_overlay: &mut actuator_overlay,
@@ -962,6 +990,7 @@ struct ControlLoopRuntime<'a> {
     homing_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     set_zero_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     lease_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
+    status_poll_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     testing_cmd_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     actuator_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     actuator_overlay: &'a mut overlay::ActuatorOverlay,
@@ -995,6 +1024,7 @@ fn run_control_loop(loop_ctrl: &mut ControlLoop<RuntimeBus>, runtime: &mut Contr
             runtime.homing_rx,
             runtime.set_zero_rx,
             runtime.lease_rx,
+            runtime.status_poll_rx,
         );
         let (outer_chappe_drain_us, t_after_chappe) = phase_elapsed_us(t_next);
         drain_testing_commands(loop_ctrl, runtime.testing_cmd_rx);
@@ -1169,6 +1199,25 @@ fn log_tick_phase_averages(phase: TickPhaseAverages) {
     );
 }
 
+/// Decode one Chappe envelope carrying `MotorStatusPollRequest` (testable seam).
+fn decode_motor_status_poll_envelope(bytes: &[u8]) -> Option<MotorStatusPollRequest> {
+    let envelope = armee_proto::Envelope::decode(bytes).ok()?;
+    MotorStatusPollRequest::decode(envelope.payload.as_slice()).ok()
+}
+
+/// Collapse a burst of status-poll envelope payloads to the latest valid request.
+fn latest_motor_status_poll<'a>(
+    payloads: impl IntoIterator<Item = &'a [u8]>,
+) -> Option<MotorStatusPollRequest> {
+    let mut latest = None;
+    for bytes in payloads {
+        if let Some(request) = decode_motor_status_poll_envelope(bytes) {
+            latest = Some(request);
+        }
+    }
+    latest
+}
+
 fn debug_status(loop_ctrl: &mut ControlLoop<RuntimeBus>, timing: &mut LoopTimingWindow) {
     timing.log_and_reset(loop_ctrl);
     let control_mode = loop_ctrl.control_mode();
@@ -1202,5 +1251,45 @@ fn debug_status(loop_ctrl: &mut ControlLoop<RuntimeBus>, timing: &mut LoopTiming
                 "no feedback"
             );
         }
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::panic)]
+mod status_poll_tests {
+    use super::*;
+    use armee_proto::Envelope;
+
+    fn encode_poll(operator_id: &str, timestamp_ms: u64) -> Vec<u8> {
+        let request = MotorStatusPollRequest {
+            timestamp_ms,
+            operator_id: operator_id.into(),
+        };
+        let envelope = Envelope {
+            timestamp_ms,
+            source_node: "gateway".into(),
+            message_type: "marengo.v1.MotorStatusPollRequest".into(),
+            payload: request.encode_to_vec(),
+        };
+        envelope.encode_to_vec()
+    }
+
+    #[test]
+    fn latest_motor_status_poll_keeps_last_valid_envelope() {
+        let first = encode_poll("consul-a", 1);
+        let garbage = b"not-an-envelope".to_vec();
+        let second = encode_poll("consul-b", 2);
+        let Some(latest) =
+            latest_motor_status_poll([first.as_slice(), garbage.as_slice(), second.as_slice()])
+        else {
+            panic!("expected latest status poll");
+        };
+        assert_eq!(latest.operator_id, "consul-b");
+        assert_eq!(latest.timestamp_ms, 2);
+    }
+
+    #[test]
+    fn decode_motor_status_poll_envelope_rejects_garbage() {
+        assert!(decode_motor_status_poll_envelope(b"nope").is_none());
     }
 }

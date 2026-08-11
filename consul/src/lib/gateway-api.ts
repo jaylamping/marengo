@@ -223,6 +223,25 @@ export async function postSetZeroCommand(
   }
 }
 
+/** Light Hardware-page status solicit (Disable type-4 → OperationStatus). Gateway ~0.5/s burst 2. */
+export async function postMotorStatusPoll(): Promise<void> {
+  const endpoints = getChappeEndpoints();
+  if (!endpoints) {
+    throw new Error('Chappe endpoints not configured');
+  }
+  const res = await fetch(`${endpoints.httpUrl}/command/motor_status_poll`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      client_id: 'consul',
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`motor status poll failed: ${res.status} ${text}`);
+  }
+}
+
 export type ActiveReportingLeaseActionName = 'acquire' | 'renew' | 'release';
 
 /** Per-joint type-24 Active Reporting lease via gateway → Pi (fire-and-forget ACK). */

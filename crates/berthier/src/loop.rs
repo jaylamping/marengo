@@ -1022,8 +1022,8 @@ impl<B: MotorBus> ControlLoop<B> {
     }
 
     fn publish_robot_state(&self, chappe: &Bus, q: &[f64]) -> Result<(), LoopError> {
-        // Presence = CAN feedback. Omit joints without feedback so Consul Online
-        // cannot treat RobotState membership alone as live (commissioning facets).
+        // Presence = fresh CAN feedback. Davout omits stale free-drive samples
+        // (FREE_DRIVE_FEEDBACK_TTL) so Consul Online tracks recent RX, not sticky cache.
         let joints: Vec<JointState> = self
             .joint_names
             .iter()

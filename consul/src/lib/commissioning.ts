@@ -120,11 +120,15 @@ function isReadyHealthy(joint: JointFacetSnapshot): boolean {
 /**
  * Resolve the primary badge for a joint.
  * Priority: Fault > OutOfLimits > Offline > Active > Ready > Online.
- * Unknown when wire facets are not live (old runtime gate).
+ *
+ * Unknown is only for description-only joints (no CAN map, no feedback).
+ * Live feedback with UNSPECIFIED/missing homing_state is still Online (or
+ * Active/Fault/…) — never Unknown. Motor-mapped but silent → Offline.
  */
 export function resolveJointBadge(joint: JointFacetSnapshot): CommissioningBadge {
-  if (!wireFacetsLive(joint.homingState)) {
-    return 'Unknown';
+  const facetsLive = wireFacetsLive(joint.homingState);
+  if (!joint.online && !facetsLive) {
+    return joint.motorMapped ? 'Offline' : 'Unknown';
   }
   const faulted = joint.fault !== 0 || isHomingFaulted(joint.homingState);
   if (faulted) {
@@ -139,7 +143,7 @@ export function resolveJointBadge(joint: JointFacetSnapshot): CommissioningBadge
   if (joint.driveActive) {
     return 'Active';
   }
-  if (isReferenceReady(joint.homingState)) {
+  if (facetsLive && isReferenceReady(joint.homingState)) {
     return 'Ready';
   }
   return 'Online';
@@ -183,8 +187,9 @@ export function robotReady(masterJoints: readonly JointFacetSnapshot[]): boolean
 /**
  * Build a facet from a RobotState joint row.
  *
- * Online means live CAN feedback: Berthier omits joints without feedback from
- * `RobotState.joints`, so a missing wire row is Offline (not "present but silent").
+ * Online means live CAN feedback: Berthier omits joints without feedback (or with
+ * free-drive samples older than Davout's sensing TTL) from `RobotState.joints`, so a
+ * missing wire row is Offline — including motors that went silent after first contact.
  */
 export function jointFacetFromWire(args: {
   name: string;
