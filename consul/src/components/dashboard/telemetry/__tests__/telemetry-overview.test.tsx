@@ -27,7 +27,7 @@ vi.mock('@/lib/config-api', () => ({
       {
         joint: 'right_shoulder_roll',
         can_interface: 'can0',
-        device_id: 1,
+        device_id: 2,
         direction: 1,
         motor_type: 'rs03',
         bench: {
@@ -39,7 +39,7 @@ vi.mock('@/lib/config-api', () => ({
       {
         joint: 'right_shoulder_pitch',
         can_interface: 'can0',
-        device_id: 2,
+        device_id: 1,
         direction: -1,
         motor_type: 'rs03',
         bench: {

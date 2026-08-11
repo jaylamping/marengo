@@ -8,7 +8,10 @@ import {
 } from '@/gen/marengo/v1/marengo_pb';
 import { enrichInventory } from '@/lib/enrich-inventory';
 import type { ConfigSnapshotDto } from '@/lib/config-api';
-import { robotInventory } from '@/data/robot-inventory';
+import {
+  ACTUATOR_NODE_UNAVAILABLE,
+  robotInventory,
+} from '@/data/robot-inventory';
 
 const snapshot: ConfigSnapshotDto = {
   profile: 'arm_3dof_right',
@@ -18,7 +21,7 @@ const snapshot: ConfigSnapshotDto = {
     {
       joint: 'right_shoulder_roll',
       can_interface: 'can0',
-      device_id: 1,
+      device_id: 2,
       direction: 1,
       motor_type: 'rs03',
       bench: {
@@ -42,11 +45,15 @@ describe('enrichInventory', () => {
     expect(enrichInventory(robotInventory, null, null)).toBe(robotInventory);
   });
 
+  it('keeps actuators without hardcoded CAN wiring until a snapshot arrives', () => {
+    const roll = robotInventory.find((r) => r.name === 'right_shoulder_roll');
+    expect(roll?.node).toBe(ACTUATOR_NODE_UNAVAILABLE);
+  });
+
   it('overlays motor node and disk limits when live snapshot is missing', () => {
     const enriched = enrichInventory(robotInventory, snapshot, null);
     const roll = enriched.find((r) => r.name === 'right_shoulder_roll');
-    expect(roll?.node).toBe('RS03 · can0 · id 1');
-    // Soft preferred over bench when only disk config is available.
+    expect(roll?.node).toBe('RS03 · can0 · id 2');
     expect(roll?.limit).toBe('±1');
     expect(roll?.preset).toBe('bench_3dof');
   });

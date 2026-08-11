@@ -7,7 +7,7 @@ Validates `tau_g` sign on **real hardware** before repeating elevated-pose gravi
 ## Prerequisites
 
 - [safety.md](safety.md) read; E-stop reachable
-- Both shoulder pitch motors commissioned (left can1/id 12, right can0/id 2)
+- Both shoulder pitch motors commissioned (left can1/id 12, right can0/id 1)
 - Left set-zero fixed (host `0xFD` + payload `0x01` per backlog)
 - Pi deployed (`pi_sync_main`) and CAN up (`pi_can_up`)
 - **Measured** loaded-side mass in `shoulder_pitch_weighted.urdf` (see below)

@@ -1,8 +1,8 @@
 # Roll commissioning — physical bench test suite
 
 Operator-runnable physical bench tests for **right shoulder roll** on the attached
-3-DOF arm (`arm_3dof_right`). Roll is Robstride RS03 on `can0`, `device_id=1`,
-`direction=1`, limits **0 → π** (arm down → sky). Pitch (`device_id=2`,
+3-DOF arm (`arm_3dof_right`). Roll is Robstride RS03 on `can0`, `device_id=2`,
+`direction=1`, limits **0 → π** (arm down → sky). Pitch (`device_id=1`,
 `direction=-1`) and upper-arm yaw (`device_id=3`, RS02) are enabled; pitch is held at **q=0** during roll motion so the
 multi-motor enable path matches production.
 

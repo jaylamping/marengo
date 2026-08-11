@@ -29,7 +29,7 @@ vi.mock('@/lib/config-api', () => ({
       {
         joint: 'right_shoulder_pitch',
         can_interface: 'can0',
-        device_id: 2,
+        device_id: 1,
         direction: -1,
         motor_type: 'rs03',
         bench: {
@@ -52,7 +52,7 @@ const actuator: InventoryItem = {
   value: '1.20',
   limit: '−0.90–2.90',
   preset: 'unassigned',
-  node: 'RS03 · can0 · id 2',
+  node: 'RS03 · can0 · id 1',
 };
 
 function LocationProbe() {

@@ -1129,9 +1129,28 @@ mod tests {
         let motors = load_motors_config(repo_root()).expect("motors");
         assert_eq!(motors.motors.len(), 4);
         validate_motors_against_robot(&robot, &motors).expect("joint names align");
-        let m = motor_for_joint(&motors, "right_shoulder_roll").expect("right_shoulder_roll");
-        assert_eq!(m.device_id, 1);
-        assert_eq!(m.motor_type, MotorType::Rs03);
+
+        let expected: &[(&str, &str, u8, i8, u32, MotorType)] = &[
+            (
+                "right_shoulder_pitch",
+                "can0",
+                1,
+                -1,
+                0x241,
+                MotorType::Rs03,
+            ),
+            ("right_shoulder_roll", "can0", 2, 1, 0x242, MotorType::Rs03),
+            ("right_upper_arm_yaw", "can0", 3, 1, 0x243, MotorType::Rs02),
+            ("right_elbow_pitch", "can0", 4, 1, 0x244, MotorType::Rs02),
+        ];
+        for &(joint, iface, device_id, direction, recv, motor_type) in expected {
+            let m = motor_for_joint(&motors, joint).expect("missing joint in motors.yaml");
+            assert_eq!(m.can_interface, iface, "{joint} can_interface");
+            assert_eq!(m.device_id, device_id, "{joint} device_id");
+            assert_eq!(m.direction, direction, "{joint} direction");
+            assert_eq!(m.recv_can_id, recv, "{joint} recv_can_id");
+            assert_eq!(m.motor_type, motor_type, "{joint} motor_type");
+        }
     }
 
     #[test]
@@ -1293,10 +1312,10 @@ mod tests {
             driver: "robstride".to_string(),
             motor_type: MotorType::Rs03,
             can_interface: "can0".to_string(),
-            device_id: 2,
+            device_id: 1,
             direction: -1,
             gear_ratio: 1.0,
-            recv_can_id: 0x242,
+            recv_can_id: 0x241,
             firmware_version: "test".to_string(),
             bench: MotorBenchLimits {
                 position_lower_rad: -0.9,
