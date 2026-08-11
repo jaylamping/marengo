@@ -15,13 +15,13 @@ const OverviewPosturePanel = lazy(async () => {
   return { default: module.OverviewPosturePanel };
 });
 
-const JointTrackingChartCard = lazy(async () => {
-  const module = await import('@/components/dashboard/charts/joint-tracking-chart-card');
-  return { default: module.JointTrackingChartCard };
+const CanBusSpectrumPanel = lazy(async () => {
+  const module = await import('@/components/dashboard/overview/can-bus-spectrum-panel');
+  return { default: module.CanBusSpectrumPanel };
 });
 
 type DashboardOverviewProps = {
-  /** When false, pause posture WebGL and drop live chart subscriptions. */
+  /** When false, pause posture WebGL and drop CAN spectrum polling. */
   active?: boolean;
 };
 
@@ -38,7 +38,7 @@ export function DashboardOverview({ active = true }: DashboardOverviewProps) {
           {active ? (
             <DeferredMount fallback={<ChartSectionSkeleton />} timeoutMs={200} strategy="idle">
               <Suspense fallback={<ChartSectionSkeleton />}>
-                <JointTrackingChartCard />
+                <CanBusSpectrumPanel active={active} />
               </Suspense>
             </DeferredMount>
           ) : (
