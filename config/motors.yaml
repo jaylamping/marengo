@@ -38,7 +38,8 @@ motors:
     motor_type: rs02
     can_interface: can0
     device_id: 3
-    direction: 1
+    # Live sign check (2026-08-11): +q = outwards (match lower_arm_yaw).
+    direction: -1
     gear_ratio: 1.0
     recv_can_id: 0x243
     firmware_version: "0.3.1.42"
