@@ -31,4 +31,6 @@ None. All five candidates produced artifacts + `RATIONALE.md`.
 
 ## Verification
 
-See Phase F log after `cargo test -p berthier`.
+- `cargo test -p berthier`: 155 lib + 2 integration passed
+- `cargo clippy -p berthier --all-targets -- -D warnings`: clean
+- `cargo fmt --all -- --check`: clean
