@@ -1086,7 +1086,12 @@ impl PositionHold {
                 q_env_lo,
                 q_env_hi,
                 retarget_tick,
-                ascent_stall_ms: self.ascent_stall_ms_at(i),
+                ascent_stall_ms: self
+                    .ascent_recovery
+                    .as_ref()
+                    .and_then(|v| v.get(i).copied())
+                    .unwrap_or_default()
+                    .stalled_ms(),
             });
             mit.push(DavoutMit {
                 joint: name.clone(),
@@ -1375,8 +1380,13 @@ mod tests {
             }
         }
 
-        let fuse_armed_tick = fuse_armed_tick.expect("recovery fuse must arm");
-        let fault_tick = fault_tick.expect("true outbound stall must still fail closed");
+        assert!(fuse_armed_tick.is_some(), "recovery fuse must arm");
+        assert!(
+            fault_tick.is_some(),
+            "true outbound stall must still fail closed"
+        );
+        let fuse_armed_tick = fuse_armed_tick.unwrap();
+        let fault_tick = fault_tick.unwrap();
         assert!(
             max_reference_lead > POSITION_RETURN_RESYNC_RAD * 2.0,
             "recovery never crossed the former freeze band: {max_reference_lead}"
