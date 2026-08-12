@@ -2199,30 +2199,74 @@ mod tests {
     }
 
     #[test]
-    fn lead_follow_residual_does_not_ascent_stall() {
+    fn lead_follow_residual_within_resync_band_does_not_ascent_stall() {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
         let joint = "right_shoulder_pitch";
-        // Remaining 0.05 ∈ (resync 0.03, max_lead] — lead-follow residual, not true stall.
+        let q = 0.125;
+        let target = 0.15;
         loop_ctrl
             .supervisor_mut()
-            .set_synthetic_joint_feedback(joint, 0.10, 0.0)
+            .set_synthetic_joint_feedback(joint, q, 0.0)
             .expect("feedback");
         loop_ctrl
-            .enter_position_hold_at(Some(joint), 0.15)
+            .enter_position_hold_at(Some(joint), target)
             .expect("hold-at");
         loop_ctrl
-            .test_force_planner_hold_at(joint, 0.15)
+            .test_force_planner_hold_at(joint, target)
             .expect("force Hold@target");
         for _ in 0..500 {
             loop_ctrl
                 .supervisor_mut()
-                .set_synthetic_joint_feedback(joint, 0.10, 0.0)
+                .set_synthetic_joint_feedback(joint, q, 0.0)
                 .expect("feedback");
             loop_ctrl
                 .tick(None)
-                .expect("lead-follow residual must not AscentStall");
+                .expect("lead-follow residual within resync band must not AscentStall");
         }
+    }
+
+    #[test]
+    fn lead_follow_stuck_residual_faults_closed() {
+        let mut loop_ctrl = test_loop();
+        bench_ready_active(&mut loop_ctrl);
+        let joint = "right_shoulder_pitch";
+        let q = 1.333;
+        let target = 1.40;
+        loop_ctrl
+            .supervisor_mut()
+            .set_synthetic_joint_feedback(joint, q, 0.0)
+            .expect("feedback");
+        loop_ctrl
+            .enter_position_hold_at(Some(joint), target)
+            .expect("hold-at");
+        loop_ctrl
+            .test_force_planner_hold_at(joint, target)
+            .expect("force Hold@target");
+
+        let mut fault = None;
+        for _ in 0..500 {
+            loop_ctrl
+                .supervisor_mut()
+                .set_synthetic_joint_feedback(joint, q, 0.0)
+                .expect("feedback");
+            match loop_ctrl.tick(None) {
+                Ok(()) => {}
+                Err(err) => {
+                    fault = Some(err);
+                    break;
+                }
+            }
+        }
+
+        assert!(
+            matches!(
+                fault,
+                Some(LoopError::AscentStall { joint: ref j, ms })
+                    if j == joint && ms >= POSITION_ASCENT_STALL_FAULT_MS
+            ),
+            "lead-follow stuck residual must AscentStall within 2.5s; got {fault:?}"
+        );
     }
 
     #[test]
