@@ -298,11 +298,12 @@ mod tests {
         .into_iter()
         .collect();
         apply_joint_subset(&mut robot, &mut motors, &mut control, &subset).expect("subset");
+        // Preserve robot.yaml / URDF chain order (pitch → roll → …), not HashSet iteration.
         assert_eq!(
             robot.robot.joints,
             vec![
-                "right_shoulder_roll".to_string(),
                 "right_shoulder_pitch".to_string(),
+                "right_shoulder_roll".to_string(),
                 "right_upper_arm_yaw".to_string(),
             ]
         );

@@ -1157,9 +1157,9 @@ mod tests {
                 MotorType::Rs03,
             ),
             ("right_shoulder_roll", "can0", 2, 1, 0x242, MotorType::Rs03),
-            ("right_upper_arm_yaw", "can0", 3, 1, 0x243, MotorType::Rs02),
-            ("right_elbow_pitch", "can0", 4, 1, 0x244, MotorType::Rs02),
-            ("right_lower_arm_yaw", "can0", 5, 1, 0x245, MotorType::Rs00),
+            ("right_upper_arm_yaw", "can0", 3, -1, 0x243, MotorType::Rs02),
+            ("right_elbow_pitch", "can0", 4, -1, 0x244, MotorType::Rs02),
+            ("right_lower_arm_yaw", "can0", 5, -1, 0x245, MotorType::Rs00),
         ];
         for &(joint, iface, device_id, direction, recv, motor_type) in expected {
             let m = motor_for_joint(&motors, joint).expect("missing joint in motors.yaml");
