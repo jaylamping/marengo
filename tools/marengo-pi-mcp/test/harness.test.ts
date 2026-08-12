@@ -44,7 +44,7 @@ describe("bench harness config", () => {
   it("exports joint subset for roll_attached", () => {
     assert.equal(
       harnessJointSubset("roll_attached"),
-      "right_shoulder_roll,right_shoulder_pitch,right_upper_arm_yaw",
+      "right_shoulder_pitch,right_shoulder_roll,right_upper_arm_yaw",
     );
   });
 
@@ -63,7 +63,7 @@ describe("bench harness config", () => {
     assert.ok(scripted);
     assert.match(
       scripted,
-      /export MARENGO_JOINT_SUBSET='right_shoulder_roll,right_shoulder_pitch,right_upper_arm_yaw'/,
+      /export MARENGO_JOINT_SUBSET='right_shoulder_pitch,right_shoulder_roll,right_upper_arm_yaw'/,
     );
   });
 

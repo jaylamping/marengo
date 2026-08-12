@@ -23,8 +23,9 @@ const PITCH = "right_shoulder_pitch";
 const YAW = "right_upper_arm_yaw";
 const ELBOW = "right_elbow_pitch";
 
-const RIGHT_ARM_THREE_DOF = [ROLL, PITCH, YAW] as const;
-const RIGHT_ARM_FOUR_DOF = [ROLL, PITCH, YAW, ELBOW] as const;
+// Pitch-first — matches robot.yaml / URDF chain order.
+const RIGHT_ARM_THREE_DOF = [PITCH, ROLL, YAW] as const;
+const RIGHT_ARM_FOUR_DOF = [PITCH, ROLL, YAW, ELBOW] as const;
 
 export interface BenchProfileMeta {
   /** Ephemeral `MARENGO_JOINT_SUBSET` for harness runs on master config. */
