@@ -410,6 +410,20 @@ pub fn planner_should_recover_ascent_stall(
     planner_ahead && dq_filtered.abs() < velocity_deadband
 }
 
+/// Outbound lead-follow is stuck beyond the residual resync band.
+pub fn lead_follow_stuck_residual(
+    lead_follow: bool,
+    q: f64,
+    target: f64,
+    dq_filtered: f64,
+    velocity_deadband: f64,
+) -> bool {
+    lead_follow
+        && target > POSITION_SETTLE_TOLERANCE_RAD
+        && target - q > POSITION_RETURN_RESYNC_RAD
+        && dq_filtered.abs() < velocity_deadband
+}
+
 /// Reopen premature/overshoot Hold only when the arm is moving.
 ///
 /// Stuck premature hold must not reopen. That keeps `q_traj` at target, flashes Cruise, then

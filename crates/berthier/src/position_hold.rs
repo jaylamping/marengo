@@ -18,11 +18,12 @@ use crate::position_profile::{position_hold_v_max, PlannerEvent};
 use crate::position_setpoint::{
     apply_lead_follow_hold_short, clamp_trajectory_setpoint, descent_breakaway_confirmed,
     descent_stuck_mit_pull, downward_return_seed_velocity, home_final_approach_stuck_pull_rad,
-    low_angle_breakaway_active, planner_drifted_from_measurement, planner_should_freeze_on_descent,
-    planner_should_latch_on_overshoot_hold, planner_should_lead_follow_hold_short,
-    planner_should_recover_ascent_stall, planner_should_reopen_premature_hold,
-    planner_should_resync_stuck_lead, position_hold_effective_max_lead, position_hold_mit_kd,
-    position_hold_mit_velocity, reopen_planner_from_premature_hold,
+    lead_follow_stuck_residual, low_angle_breakaway_active, planner_drifted_from_measurement,
+    planner_should_freeze_on_descent, planner_should_latch_on_overshoot_hold,
+    planner_should_lead_follow_hold_short, planner_should_recover_ascent_stall,
+    planner_should_reopen_premature_hold, planner_should_resync_stuck_lead,
+    position_hold_effective_max_lead, position_hold_mit_kd, position_hold_mit_velocity,
+    reopen_planner_from_premature_hold, POSITION_HOME_FINAL_PULL_THROUGH_RAD,
     POSITION_RETURN_DESCENT_SEED_RAD, POSITION_SETTLE_TOLERANCE_RAD,
 };
 use crate::position_trajectory::{
@@ -202,6 +203,7 @@ pub struct PositionHold {
     integral_error: Option<Vec<f64>>,
     /// Post-advance effective max lead for compose (FIX A: one value per joint per tick).
     tick_effective_max_lead: Vec<f64>,
+    tick_stuck_residual: Vec<bool>,
 }
 
 impl PositionHold {
@@ -220,6 +222,7 @@ impl PositionHold {
             planner_events: None,
             integral_error: None,
             tick_effective_max_lead: vec![0.0; n_joints],
+            tick_stuck_residual: vec![false; n_joints],
         }
     }
 
@@ -686,6 +689,7 @@ impl PositionHold {
         // Finished waves stay Some until advance returns so this index still matches.
         let wave_joint_index = world.wave.as_ref().map(|w| w.joint_index);
         let dt = world.dt;
+        self.tick_stuck_residual.fill(false);
 
         for i in 0..self.n_joints {
             let name = &world.joint_names[i];
@@ -825,7 +829,15 @@ impl PositionHold {
                 dq_f,
                 jp.advance_vel_deadband,
             );
-            let ascent_recovering = !lead_follow
+            let stuck_residual = lead_follow_stuck_residual(
+                lead_follow,
+                world.q[i],
+                targets[i],
+                dq_f,
+                jp.advance_vel_deadband,
+            );
+            self.tick_stuck_residual[i] = stuck_residual;
+            let ascent_recovering = (!lead_follow || stuck_residual)
                 && planner_should_recover_ascent_stall(
                     was_ascent_recovering,
                     targets[i],
@@ -835,7 +847,7 @@ impl PositionHold {
                     dq_f,
                     jp.advance_vel_deadband,
                 );
-            let freeze = freeze_descent || lead_follow;
+            let freeze = freeze_descent || (lead_follow && !stuck_residual);
             if freeze && !was_planner_frozen {
                 event = PlannerEvent::FreezeEnter;
             } else if was_planner_frozen && !freeze {
@@ -975,6 +987,7 @@ impl PositionHold {
                 dq_traj,
             );
             let to_target = target - world.q[i];
+            let stuck_residual = self.tick_stuck_residual.get(i).copied().unwrap_or(false);
             let stuck_now =
                 descent_stuck_mit_pull(to_target, world.q[i], target, dq, jp.vel_deadband, false);
             if stuck_now {
@@ -992,6 +1005,11 @@ impl PositionHold {
             if joint_stuck {
                 let stuck_pull = home_final_approach_stuck_pull_rad(world.q[i], target);
                 q_des = q_des.min(world.q[i] - stuck_pull);
+            }
+            if stuck_residual {
+                let pull_through = (target + POSITION_HOME_FINAL_PULL_THROUGH_RAD)
+                    .min(world.q[i] + effective_max_lead);
+                q_des = q_des.max(pull_through);
             }
             if let Some(policy) = limit_policy {
                 q_des = clamp_position_in_envelope(policy, world.q[i], dq_traj, q_des);
@@ -1400,6 +1418,46 @@ mod tests {
             "resync must not reset the recovery fuse; armed={fuse_armed_tick} faulted={fault_tick}"
         );
         Ok(())
+    }
+
+    #[test]
+    fn lead_follow_stuck_residual_arms_recovery_and_pulls_past_target() {
+        let q = [1.333];
+        let target = [1.40];
+        let dq = [0.0];
+        let tau_g = [0.0];
+        let params = [test_joint_params()];
+        let names = [String::from("j0")];
+        let mut hold = PositionHold::new(1);
+        hold.arm(&q, &target, 0);
+        hold.force_planner_hold_at(0, target[0]).unwrap();
+        let mut wave = None;
+
+        let out = hold
+            .tick(HoldWorld {
+                q: &q,
+                dq_meas: &dq,
+                tau_g: &tau_g,
+                joints: &params,
+                joint_names: &names,
+                dt: 0.005,
+                hz: 200,
+                tick_count: 100,
+                wave: &mut wave,
+            })
+            .unwrap();
+
+        assert_eq!(out.diag[0].planner_event, PlannerEvent::AscentBreakaway);
+        assert!(out.diag[0].ascent_stall_ms > 0);
+        assert!(
+            (out.diag[0].q_des - (target[0] + POSITION_HOME_FINAL_PULL_THROUGH_RAD)).abs() < 1e-9,
+            "stuck residual must pull q_des past target; got {}",
+            out.diag[0].q_des
+        );
+        assert!(
+            out.diag[0].q_des - q[0] <= params[0].max_lead + 1e-9,
+            "stuck residual pull must stay within max lead"
+        );
     }
 
     #[test]

@@ -1194,13 +1194,13 @@ mod tests {
     use crate::position_hold::POSITION_ASCENT_STALL_FAULT_MS;
     use crate::position_setpoint::{
         apply_lead_follow_hold_short, approach_stuck_mit_pull, clamp_trajectory_setpoint,
-        descent_breakaway_confirmed, descent_stuck_mit_pull, planner_drifted_from_measurement,
-        planner_overshoot_hold_while_moving, planner_premature_hold,
-        planner_should_freeze_on_descent, planner_should_latch_on_overshoot_hold,
-        planner_should_lead_follow_hold_short, planner_should_recover_ascent_stall,
-        planner_should_reopen_premature_hold, planner_should_resync_stuck_lead,
-        position_hold_effective_max_lead, position_hold_mit_kd, position_hold_mit_velocity,
-        reopen_planner_from_premature_hold,
+        descent_breakaway_confirmed, descent_stuck_mit_pull, lead_follow_stuck_residual,
+        planner_drifted_from_measurement, planner_overshoot_hold_while_moving,
+        planner_premature_hold, planner_should_freeze_on_descent,
+        planner_should_latch_on_overshoot_hold, planner_should_lead_follow_hold_short,
+        planner_should_recover_ascent_stall, planner_should_reopen_premature_hold,
+        planner_should_resync_stuck_lead, position_hold_effective_max_lead, position_hold_mit_kd,
+        position_hold_mit_velocity, reopen_planner_from_premature_hold,
     };
     use crate::position_trajectory::{JointPositionPlanner, TrapezoidPhase};
     use armee_kinematics::JointLimitPolicy;
@@ -2124,6 +2124,22 @@ mod tests {
         // Home return owned by descent freeze
         assert!(!planner_should_recover_ascent_stall(
             false, 0.0, 0.08, 0.02, -0.08, 0.0, deadband
+        ));
+    }
+
+    #[test]
+    fn lead_follow_stuck_residual_requires_outbound_gap_and_zero_velocity() {
+        let deadband = 0.02;
+        assert!(lead_follow_stuck_residual(true, 1.333, 1.40, 0.0, deadband));
+        assert!(!lead_follow_stuck_residual(
+            false, 1.333, 1.40, 0.0, deadband
+        ));
+        assert!(!lead_follow_stuck_residual(
+            true, 0.125, 0.15, 0.0, deadband
+        ));
+        assert!(!lead_follow_stuck_residual(true, -0.05, 0.0, 0.0, deadband));
+        assert!(!lead_follow_stuck_residual(
+            true, 1.333, 1.40, deadband, deadband
         ));
     }
 
