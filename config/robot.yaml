@@ -1,5 +1,6 @@
-# Master hardware description — right 5-DOF bench (roll + pitch + yaw + elbow + lower-arm yaw on can0).
+# Master hardware description — right 5-DOF bench (pitch + roll + yaw + elbow + lower-arm yaw on can0).
 # Durable SoT: root config/ + assets/urdf/marengo.urdf (Pi: /opt/marengo/config/).
+# Joint vector order matches URDF chain (pitch → roll → …) and motors.yaml list order.
 robot:
   name: marengo_arm_5dof_right
   urdf: assets/urdf/marengo.urdf
@@ -7,8 +8,8 @@ robot:
     max_joint_velocity_rad_s: 2.0
     max_joint_torque_nm: 5.0
   joints:
-    - right_shoulder_roll
     - right_shoulder_pitch
+    - right_shoulder_roll
     - right_upper_arm_yaw
     - right_elbow_pitch
     - right_lower_arm_yaw
@@ -16,8 +17,8 @@ robot:
   # Limb members may include unbuilt Offline inventory; those do not block Ready.
   limbs:
     right_arm:
-      - right_shoulder_roll
       - right_shoulder_pitch
+      - right_shoulder_roll
       - right_upper_arm_yaw
       - right_elbow_pitch
       - right_lower_arm_yaw

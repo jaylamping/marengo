@@ -1119,9 +1119,24 @@ mod tests {
         assert!(cfg.robot.urdf.contains("marengo.urdf"));
         assert!(cfg.robot.bench.max_joint_velocity_rad_s > 0.0);
         assert_eq!(cfg.robot.joints.len(), 5);
+        // Match URDF chain + motors.yaml list order (pitch before roll).
+        assert_eq!(
+            cfg.robot.joints,
+            vec![
+                "right_shoulder_pitch".to_string(),
+                "right_shoulder_roll".to_string(),
+                "right_upper_arm_yaw".to_string(),
+                "right_elbow_pitch".to_string(),
+                "right_lower_arm_yaw".to_string(),
+            ]
+        );
         let right = cfg.robot.limbs.get("right_arm").expect("right_arm limb");
         assert!(right.contains(&"right_elbow_pitch".to_string()));
         assert!(right.contains(&"right_lower_arm_yaw".to_string()));
+        assert_eq!(
+            right.first().map(String::as_str),
+            Some("right_shoulder_pitch")
+        );
         assert!(cfg.robot.limbs.contains_key("left_arm"));
     }
 

@@ -45,7 +45,7 @@ describe("bench profile metadata", () => {
       assert.equal(harnessConfigDir(cfg, p), "/opt/marengo/config");
       assert.equal(
         harnessJointSubset(p),
-        "right_shoulder_roll,right_shoulder_pitch,right_upper_arm_yaw",
+        "right_shoulder_pitch,right_shoulder_roll,right_upper_arm_yaw",
       );
     }
     for (const p of ["yaw_attached", "elbow_attached"] as BenchProfile[]) {
@@ -58,7 +58,7 @@ describe("bench profile metadata", () => {
   it("maps 3-DOF smoke to MARENGO_JOINT_SUBSET", () => {
     assert.equal(
       harnessJointSubset("arm_2dof_smoke"),
-      "right_shoulder_roll,right_shoulder_pitch,right_upper_arm_yaw",
+      "right_shoulder_pitch,right_shoulder_roll,right_upper_arm_yaw",
     );
   });
 
