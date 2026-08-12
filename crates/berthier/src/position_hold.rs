@@ -1327,7 +1327,6 @@ mod tests {
         hold.arm(&q, &target, 0);
 
         let mut max_reference_lead: f64 = 0.0;
-        let mut previous_reference_lead = 0.0;
         let mut resyncs = 0_u32;
         let mut saw_breakaway = false;
         let mut fuse_armed_tick = None;
@@ -1366,7 +1365,6 @@ mod tests {
                         "bounded recovery exceeded MIT lead cap: {mit_lead}"
                     );
                     assert_eq!(out.diag[0].ascent_stall_ms, hold.ascent_stall_ms_at(0));
-                    previous_reference_lead = reference_lead;
                 }
                 Err(HoldError::AscentStall { ms, .. }) => {
                     assert!(ms >= POSITION_ASCENT_STALL_FAULT_MS);
@@ -1391,7 +1389,6 @@ mod tests {
             fault_tick.saturating_sub(fuse_armed_tick) <= 410,
             "resync must not reset the recovery fuse; armed={fuse_armed_tick} faulted={fault_tick}"
         );
-        let _ = previous_reference_lead;
         Ok(())
     }
 
