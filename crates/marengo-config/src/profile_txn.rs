@@ -427,7 +427,8 @@ mod tests {
             torque_limit_nm: Some(2.0),
             position_soft_lower_rad: Some(-0.2),
             position_soft_upper_rad: Some(1.4),
-            velocity_max_rad_s: Some(1.0),
+            // Must stay ≥ control.yaml cruise (1.43); matches actuator_groups.elbow.
+            velocity_max_rad_s: Some(1.5),
         }
     }
 
