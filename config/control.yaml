@@ -120,7 +120,8 @@ control:
       position_slew_rad_s: 0.15
       position_slew_max_lead_rad: 0.12
       position_trajectory_threshold_rad: 0.15
-      position_trajectory_velocity_rad_s: 1.0
+      # Comfort cruise ≈ roll RS03 ratio × RS02 manual no-load @48 V (0.70/20.94 × 42.94).
+      position_trajectory_velocity_rad_s: 1.43
       position_trajectory_accel_rad_s2: 3.0
       position_trajectory_velocity_deadband_rad: 0.02
       position_hold_trim_rad: 0.0
@@ -150,7 +151,8 @@ control:
       position_slew_rad_s: 0.12
       position_slew_max_lead_rad: 0.10
       position_trajectory_threshold_rad: 0.15
-      position_trajectory_velocity_rad_s: 0.8
+      # Comfort cruise ≈ roll RS03 ratio × RS02 manual no-load @48 V (0.70/20.94 × 42.94).
+      position_trajectory_velocity_rad_s: 1.43
       position_trajectory_accel_rad_s2: 2.5
       position_trajectory_velocity_deadband_rad: 0.02
       position_hold_trim_rad: 0.0
@@ -180,7 +182,8 @@ control:
       position_slew_rad_s: 0.12
       position_slew_max_lead_rad: 0.10
       position_trajectory_threshold_rad: 0.15
-      position_trajectory_velocity_rad_s: 0.8
+      # Comfort cruise ≈ roll RS03 ratio × RS00 manual no-load @48 V (0.70/20.94 × 32.99).
+      position_trajectory_velocity_rad_s: 1.10
       position_trajectory_accel_rad_s2: 2.5
       position_trajectory_velocity_deadband_rad: 0.02
       position_hold_trim_rad: 0.0
