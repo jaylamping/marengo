@@ -13,13 +13,13 @@ Read [docs/safety.md](../safety.md) before any enable or elevated pose. Motion t
 
 Values below are **starting defaults for this instance** — edit the tables (or override for a single run) if a gate needs a safer / stronger / better-coupled pose or step. Chapter gates reference these names; they do not hard-code magnitudes in the criterion text.
 
-Joint vector order everywhere:  
-`[right_shoulder_roll, right_shoulder_pitch, right_upper_arm_yaw, right_elbow_pitch, right_lower_arm_yaw]` (rad).
+Joint vector order everywhere (matches `robot.yaml` / URDF chain):  
+`[right_shoulder_pitch, right_shoulder_roll, right_upper_arm_yaw, right_elbow_pitch, right_lower_arm_yaw]` (rad).
 
 | Param | Purpose | Example (`right_arm`) |
 |-------|---------|------------------------|
 | `limb` | Anatomical group from `robot.yaml` | `right_arm` |
-| `joints[]` | Online / motor-mapped members of `limb` | `right_shoulder_roll`, `right_shoulder_pitch`, `right_upper_arm_yaw`, `right_elbow_pitch`, `right_lower_arm_yaw` |
+| `joints[]` | Online / motor-mapped members of `limb` | `right_shoulder_pitch`, `right_shoulder_roll`, `right_upper_arm_yaw`, `right_elbow_pitch`, `right_lower_arm_yaw` |
 | `taught_envelope` | Soft/hard from Set Limits (live config) + MIT/safety caps | DOF1–4 taught 2026-07-22 (~27 mrad soft inset); DOF5 kinematics envelope until re-teach; MIT caps 2.5/2.5/2.0/1.5/1.5 rad/s; pitch `elevated_shoulder_pitch_fall` (0.45 rad/s descent) |
 | `commissioning_velocity_baseline` | Manual @ bus voltage, derated — **reference only** for sizing ladder rungs | RS03 **9.4** / RS02 **19.3** / RS00 **14.8** rad/s @ 24 V → pitch·roll 9.4, yaw·elbow 19.3, lower-arm yaw 14.8 |
 | `gcomp_poses` | Three-band static poses within taught envelope | See defaults below (full 5-DOF; pitch-banded) |
@@ -31,9 +31,9 @@ Joint vector order everywhere:
 
 | Band | `q` (rad) |
 |------|-----------|
-| arm-down | `[0.15, 0.00, 0.00, 0.00, 0.00]` |
-| mid | `[1.20, 1.00, 0.00, 0.35, 0.00]` |
-| elevated | `[1.80, 2.50, 0.00, 0.60, 0.00]` |
+| arm-down | `[0.00, 0.15, 0.00, 0.00, 0.00]` |
+| mid | `[1.00, 1.20, 0.00, 0.35, 0.00]` |
+| elevated | `[2.50, 1.80, 0.00, 0.60, 0.00]` |
 
 Stay inside `taught_envelope` soft limits (~0.15 rad margin preferred). Arm-down roll is `0.15` so soft-lower margin meets that preference (soft lo ≈ `-0.023`). Support the arm on first enable at elevated.
 
@@ -41,7 +41,7 @@ Stay inside `taught_envelope` soft limits (~0.15 rad margin preferred). Arm-down
 
 | Field | Default |
 |-------|---------|
-| `q` (rad) | `[0.42, 2.75, 0.00, 0.55, 0.00]` |
+| `q` (rad) | `[2.75, 0.42, 0.00, 0.55, 0.00]` |
 
 Raise for §4c and Consul Wave (elbow centered so the wave phase can nod). Distinct from elevated `gcomp_poses` (different roll/elbow). Tunable — if you change it, retarget Wave raise keyframes to match.
 

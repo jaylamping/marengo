@@ -78,7 +78,7 @@ fn usage() {
            motor-repl gravity-on\n  \
            motor-repl gravity-off\n  \
            motor-repl torque-cmd <joint> <nm>\n  \
-           motor-repl gravity-preview [q0 q1 q2 q3]\n\
+           motor-repl gravity-preview [q...]  (robot.yaml joint order)\n\
          Homing: set-zero each joint at mechanical reference, then home, then enable.\n\
          Uses SocketCAN; prefer test harness or simulation before live CAN.\n\
          Env: MARENGO_ROOT, MARENGO_CONFIG_DIR (e.g. config/bringup/shoulder_pitch_dual)"
@@ -410,7 +410,9 @@ fn main() {
             }
         }
         "gravity-preview" => {
-            let joint_count = loop_ctrl.supervisor_mut().motors.motors.len();
+            // q / τ vectors follow robot.yaml joint order (same as dynamics), not motors.yaml list order.
+            let names = loop_ctrl.joint_names().to_vec();
+            let joint_count = names.len();
             let q: Vec<f64> = if args.len() >= 2 + joint_count {
                 args[2..2 + joint_count]
                     .iter()
@@ -431,14 +433,7 @@ fn main() {
                     std::process::exit(1);
                 }
             };
-            for (name, t) in loop_ctrl
-                .supervisor_mut()
-                .motors
-                .motors
-                .iter()
-                .map(|m| &m.joint)
-                .zip(tau.iter())
-            {
+            for (name, t) in names.iter().zip(tau.iter()) {
                 println!("{name}: tau_g = {t:.4} Nm");
             }
         }

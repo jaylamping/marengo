@@ -97,7 +97,7 @@ export const COMPOUND_TEST_PRESETS: CompoundTestPreset[] = [
       loopFromFirstMotionLandmark: true,
     },
     advance: 'timed',
-    // Matches docs/commissioning/limb-playbook.md `wave_pose` (roll, pitch, yaw, elbow).
+    // Matches docs/commissioning/limb-playbook.md `wave_pose` (pitch, roll, yaw, elbow).
     keyframes: {
       right_shoulder_pitch: [{ targetRad: 2.75, durationSec: 3.5 }],
       right_shoulder_roll: [{ targetRad: 0.42, durationSec: 3.5 }],

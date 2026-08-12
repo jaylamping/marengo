@@ -301,7 +301,7 @@ No coverage tooling is configured. Expectation: `just check` passes before merge
 ### Bench commissioning notes
 
 - Master `config/`: pitch CAN id 1, roll CAN id 2, upper-arm yaw CAN id 3, elbow pitch CAN id 4, lower-arm yaw CAN id 5 on `can0`
-- For the 3-DOF smoke slice, set `MARENGO_JOINT_SUBSET=right_shoulder_roll,right_shoulder_pitch,right_upper_arm_yaw` (the harness profile metadata does this automatically)
+- For the 3-DOF smoke slice, set `MARENGO_JOINT_SUBSET=right_shoulder_pitch,right_shoulder_roll,right_upper_arm_yaw` (the harness profile metadata does this automatically)
 - **Pitch** raises arm (~π–2.8 rad); **roll** oscillates; **yaw** twists upper arm — do not swap roles
 - Re–set-zero at mechanical home when arm configuration changes
 - `pi_sync_bench_config` syncs YAML only — not `assets/urdf/`; use **`pi_sync_bench_urdf`** after URDF/COM edits, then verify gravity
