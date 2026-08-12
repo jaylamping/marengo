@@ -1,6 +1,6 @@
 //! Position-hold lifecycle and per-tick control law (`ControlMode::Position`).
 //!
-//! [`PositionHold`] owns latched targets, planners, freeze/breakaway latches, and integral
+//! [`PositionHold`] owns latched targets, planners, recovery/breakaway latches, and integral
 //! state. [`ControlLoop`](crate::ControlLoop) builds a [`HoldWorld`] each tick and sends the
 //! returned MIT batch through Davout.
 
@@ -18,13 +18,12 @@ use crate::position_profile::{position_hold_v_max, PlannerEvent};
 use crate::position_setpoint::{
     apply_lead_follow_hold_short, clamp_trajectory_setpoint, descent_breakaway_confirmed,
     descent_stuck_mit_pull, downward_return_seed_velocity, home_final_approach_stuck_pull_rad,
-    low_angle_breakaway_active, planner_drifted_from_measurement,
-    planner_should_freeze_on_ascent_stall, planner_should_freeze_on_descent,
+    low_angle_breakaway_active, planner_drifted_from_measurement, planner_should_freeze_on_descent,
     planner_should_latch_on_overshoot_hold, planner_should_lead_follow_hold_short,
-    planner_should_reopen_premature_hold, planner_should_resync_stuck_lead,
-    position_hold_effective_max_lead, position_hold_mit_kd, position_hold_mit_velocity,
-    reopen_planner_from_premature_hold, POSITION_RETURN_DESCENT_SEED_RAD,
-    POSITION_SETTLE_TOLERANCE_RAD,
+    planner_should_recover_ascent_stall, planner_should_reopen_premature_hold,
+    planner_should_resync_stuck_lead, position_hold_effective_max_lead, position_hold_mit_kd,
+    position_hold_mit_velocity, reopen_planner_from_premature_hold,
+    POSITION_RETURN_DESCENT_SEED_RAD, POSITION_SETTLE_TOLERANCE_RAD,
 };
 use crate::position_trajectory::{
     filter_dq_ema, JointPositionPlanner, TrapezoidPhase, POSITION_DAMPING_DQ_FILTER_ALPHA,
@@ -35,14 +34,52 @@ use crate::position_wave::PositionWave;
 /// Compose used `unwrap_or(0.15)`; keep that split.
 pub const ADVANCE_MAX_LEAD_DEFAULT: f64 = 0.10;
 
-/// Sustained ascent-stall freeze duration before tick faults (disable path).
+/// Sustained ascent recovery without measured progress before tick faults (disable path).
 pub const POSITION_ASCENT_STALL_FAULT_MS: u64 = 2000;
 
 const MAX_INTEGRAL_NM: f64 = 0.5;
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+enum AscentRecovery {
+    #[default]
+    Idle,
+    Active {
+        stalled_ms: u64,
+    },
+}
+
+impl AscentRecovery {
+    fn is_active(self) -> bool {
+        matches!(self, Self::Active { .. })
+    }
+
+    fn stalled_ms(self) -> u64 {
+        match self {
+            Self::Idle => 0,
+            Self::Active { stalled_ms } => stalled_ms,
+        }
+    }
+
+    fn update(&mut self, active: bool, progressing: bool, tick_ms: u64) -> u64 {
+        if !active {
+            *self = Self::Idle;
+            return 0;
+        }
+        let stalled_ms = if progressing {
+            0
+        } else {
+            self.stalled_ms().saturating_add(tick_ms)
+        };
+        *self = Self::Active { stalled_ms };
+        stalled_ms
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum HoldError {
-    #[error("position hold: ascent stall on {joint} — planner frozen ahead of arm for {ms} ms")]
+    #[error(
+        "position hold: ascent stall on {joint}: no progress during bounded recovery for {ms} ms"
+    )]
     AscentStall { joint: String, ms: u64 },
     #[error("position hold: no setpoint latched for joint {joint}")]
     MissingSetpoint { joint: String },
@@ -137,6 +174,8 @@ pub struct HoldJointDiag {
     pub q_env_lo: f64,
     pub q_env_hi: f64,
     pub retarget_tick: Option<u64>,
+    /// Ascent-recovery fuse accumulator (ms); 0 when Idle / exempt.
+    pub ascent_stall_ms: u64,
 }
 
 /// Output of [`PositionHold::tick`]: MIT batch + per-joint diag.
@@ -156,10 +195,9 @@ pub struct PositionHold {
     retarget_tick: Option<Vec<u64>>,
     dq_filtered: Option<Vec<f64>>,
     planner_frozen: Option<Vec<bool>>,
-    ascent_frozen: Option<Vec<bool>>,
+    ascent_recovery: Option<Vec<AscentRecovery>>,
     descent_breakaway: Option<Vec<bool>>,
     descent_was_stuck: Option<Vec<bool>>,
-    ascent_stall_ms: Option<Vec<u64>>,
     planner_events: Option<Vec<PlannerEvent>>,
     integral_error: Option<Vec<f64>>,
     /// Post-advance effective max lead for compose (FIX A: one value per joint per tick).
@@ -176,10 +214,9 @@ impl PositionHold {
             retarget_tick: None,
             dq_filtered: None,
             planner_frozen: None,
-            ascent_frozen: None,
+            ascent_recovery: None,
             descent_breakaway: None,
             descent_was_stuck: None,
-            ascent_stall_ms: None,
             planner_events: None,
             integral_error: None,
             tick_effective_max_lead: vec![0.0; n_joints],
@@ -350,27 +387,35 @@ impl PositionHold {
 
     #[cfg(test)]
     pub fn ascent_stall_ms_at(&self, joint_idx: usize) -> u64 {
-        self.ascent_stall_ms
+        self.ascent_recovery
             .as_ref()
             .and_then(|v| v.get(joint_idx).copied())
-            .unwrap_or(0)
+            .unwrap_or_default()
+            .stalled_ms()
     }
 
     #[cfg(test)]
     pub fn set_ascent_stall_ms_for_test(&mut self, joint_idx: usize, ms: u64) {
         self.init_latch_state();
-        if let Some(v) = self.ascent_stall_ms.as_mut() {
-            if joint_idx < v.len() {
-                v[joint_idx] = ms;
+        if let Some(recovery) = self.ascent_recovery.as_mut() {
+            if joint_idx < recovery.len() {
+                recovery[joint_idx] = AscentRecovery::Active { stalled_ms: ms };
             }
         }
     }
 
     #[cfg(test)]
-    pub fn set_ascent_frozen_for_test(&mut self, joint_idx: usize, frozen: bool) {
+    pub fn set_ascent_recovery_for_test(&mut self, joint_idx: usize, active: bool) {
         self.init_latch_state();
-        Self::set_bool_at(&mut self.ascent_frozen, joint_idx, frozen);
-        Self::set_bool_at(&mut self.planner_frozen, joint_idx, frozen);
+        if let Some(recovery) = self.ascent_recovery.as_mut() {
+            if let Some(state) = recovery.get_mut(joint_idx) {
+                *state = if active {
+                    AscentRecovery::Active { stalled_ms: 0 }
+                } else {
+                    AscentRecovery::Idle
+                };
+            }
+        }
     }
 
     #[cfg(test)]
@@ -434,23 +479,21 @@ impl PositionHold {
         self.dq_filtered = Some(vec![0.0; self.n_joints]);
         self.init_latch_state();
         Self::fill_bool(&mut self.planner_frozen, false);
-        Self::fill_bool(&mut self.ascent_frozen, false);
+        if let Some(recovery) = self.ascent_recovery.as_mut() {
+            recovery.fill(AscentRecovery::Idle);
+        }
         Self::fill_bool(&mut self.descent_breakaway, false);
         Self::fill_bool(&mut self.descent_was_stuck, false);
-        if let Some(stall_ms) = self.ascent_stall_ms.as_mut() {
-            stall_ms.fill(0);
-        }
     }
 
     fn init_latch_state(&mut self) {
         let n = self.n_joints;
         Self::ensure_bool_vec(&mut self.planner_frozen, n);
-        Self::ensure_bool_vec(&mut self.ascent_frozen, n);
+        if self.ascent_recovery.is_none() {
+            self.ascent_recovery = Some(vec![AscentRecovery::Idle; n]);
+        }
         Self::ensure_bool_vec(&mut self.descent_breakaway, n);
         Self::ensure_bool_vec(&mut self.descent_was_stuck, n);
-        if self.ascent_stall_ms.is_none() {
-            self.ascent_stall_ms = Some(vec![0; n]);
-        }
         if self.integral_error.is_none() {
             self.integral_error = Some(vec![0.0; n]);
         }
@@ -496,12 +539,11 @@ impl PositionHold {
         self.retarget_tick
             .get_or_insert_with(|| vec![0; self.n_joints])[joint_idx] = tick;
         Self::set_bool_at(&mut self.planner_frozen, joint_idx, false);
-        Self::set_bool_at(&mut self.ascent_frozen, joint_idx, false);
+        if let Some(recovery) = self.ascent_recovery.as_mut() {
+            recovery[joint_idx] = AscentRecovery::Idle;
+        }
         Self::set_bool_at(&mut self.descent_breakaway, joint_idx, false);
         Self::set_bool_at(&mut self.descent_was_stuck, joint_idx, false);
-        if let Some(stall_ms) = self.ascent_stall_ms.as_mut() {
-            stall_ms[joint_idx] = 0;
-        }
         if let Some(integral) = self.integral_error.as_mut() {
             integral[joint_idx] = 0.0;
         }
@@ -658,10 +700,13 @@ impl PositionHold {
                 let dq = dq_raw.clamp(-v_max_caps[i], v_max_caps[i]);
                 planners[i].resume_cruise_toward(target, dq);
                 // Wave owns the joint — do not carry a pre-wave AscentStall fuse across.
-                Self::set_bool_at(&mut self.ascent_frozen, i, false);
                 Self::set_bool_at(&mut self.planner_frozen, i, false);
-                if let Some(ms) = self.ascent_stall_ms.as_mut().and_then(|s| s.get_mut(i)) {
-                    *ms = 0;
+                if let Some(recovery) = self
+                    .ascent_recovery
+                    .as_mut()
+                    .and_then(|states| states.get_mut(i))
+                {
+                    *recovery = AscentRecovery::Idle;
                 }
                 let settle = targets[i] - world.q[i];
                 let approaching = planners[i].dq_traj * settle > POSITION_HOLD_ERROR_DEADBAND_RAD;
@@ -756,7 +801,12 @@ impl PositionHold {
             let to_target = targets[i] - world.q[i];
             let dq_f = dq_filtered[i];
             let was_planner_frozen = Self::bool_at(&self.planner_frozen, i);
-            let was_ascent_frozen = Self::bool_at(&self.ascent_frozen, i);
+            let was_ascent_recovering = self
+                .ascent_recovery
+                .as_ref()
+                .and_then(|states| states.get(i).copied())
+                .unwrap_or_default()
+                .is_active();
             let freeze_descent = planner_should_freeze_on_descent(
                 was_planner_frozen,
                 targets[i],
@@ -768,15 +818,6 @@ impl PositionHold {
                 jp.advance_vel_deadband,
                 jp.advance_max_lead,
             );
-            let freeze_ascent = planner_should_freeze_on_ascent_stall(
-                was_ascent_frozen,
-                targets[i],
-                world.q[i],
-                planners[i].q_traj,
-                to_target,
-                dq_f,
-                jp.advance_vel_deadband,
-            );
             let lead_follow = planner_should_lead_follow_hold_short(
                 &planners[i],
                 world.q[i],
@@ -784,29 +825,38 @@ impl PositionHold {
                 dq_f,
                 jp.advance_vel_deadband,
             );
-            let freeze = freeze_descent || freeze_ascent || lead_follow;
+            let ascent_recovering = !lead_follow
+                && planner_should_recover_ascent_stall(
+                    was_ascent_recovering,
+                    targets[i],
+                    world.q[i],
+                    planners[i].q_traj,
+                    to_target,
+                    dq_f,
+                    jp.advance_vel_deadband,
+                );
+            let freeze = freeze_descent || lead_follow;
             if freeze && !was_planner_frozen {
                 event = PlannerEvent::FreezeEnter;
             } else if was_planner_frozen && !freeze {
                 event = PlannerEvent::FreezeExit;
             }
             Self::set_bool_at(&mut self.planner_frozen, i, freeze);
-            Self::set_bool_at(&mut self.ascent_frozen, i, freeze_ascent);
             let tick_ms = 1000 / u64::from(world.hz.max(1));
             let progressing_toward_target =
                 (to_target > 0.0 && dq_f > 0.0) || (to_target < 0.0 && dq_f < 0.0);
-            let arm_ascent_stall = freeze_ascent && !lead_follow && !progressing_toward_target;
-            if let Some(ms) = self.ascent_stall_ms.as_mut().and_then(|s| s.get_mut(i)) {
-                if arm_ascent_stall {
-                    *ms = ms.saturating_add(tick_ms);
-                    if *ms >= POSITION_ASCENT_STALL_FAULT_MS {
-                        return Err(HoldError::AscentStall {
-                            joint: name.clone(),
-                            ms: *ms,
-                        });
-                    }
-                } else {
-                    *ms = 0;
+            if let Some(recovery) = self
+                .ascent_recovery
+                .as_mut()
+                .and_then(|states| states.get_mut(i))
+            {
+                let stalled_ms =
+                    recovery.update(ascent_recovering, progressing_toward_target, tick_ms);
+                if stalled_ms >= POSITION_ASCENT_STALL_FAULT_MS {
+                    return Err(HoldError::AscentStall {
+                        joint: name.clone(),
+                        ms: stalled_ms,
+                    });
                 }
             }
             if planner_should_latch_on_overshoot_hold(
@@ -840,6 +890,11 @@ impl PositionHold {
                     }
                     planners[i].q_traj = clamped;
                 }
+            }
+            // Tag recovery ticks for the position trace / 1 Hz hold log so operators can tell
+            // Berthier policy from a Davout limit trip. Resync / latch / envelope keep priority.
+            if ascent_recovering && matches!(event, PlannerEvent::Tick) {
+                event = PlannerEvent::AscentBreakaway;
             }
             // Compose uses post-advance planner state (same tick) — one effective lead.
             let settle = targets[i] - world.q[i];
@@ -1031,6 +1086,12 @@ impl PositionHold {
                 q_env_lo,
                 q_env_hi,
                 retarget_tick,
+                ascent_stall_ms: self
+                    .ascent_recovery
+                    .as_ref()
+                    .and_then(|v| v.get(i).copied())
+                    .unwrap_or_default()
+                    .stalled_ms(),
             });
             mit.push(DavoutMit {
                 joint: name.clone(),
@@ -1050,6 +1111,7 @@ impl PositionHold {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use crate::position_setpoint::POSITION_RETURN_RESYNC_RAD;
 
     fn test_joint_params() -> HoldJointParams {
         HoldJointParams {
@@ -1075,9 +1137,9 @@ mod tests {
     fn same_target_retarget_is_full_noop_on_planner_and_fuse() {
         let mut hold = PositionHold::new(1);
         hold.arm(&[0.2], &[0.8], 100);
-        // Lead in (resync, advance_max_lead] so freeze stays armed and drift-reset does not fire.
+        // Lead in (resync, advance_max_lead] keeps bounded recovery active.
         hold.force_planner_cruise_at(0, 0.26, 0.05).unwrap();
-        hold.set_ascent_frozen_for_test(0, true);
+        hold.set_ascent_recovery_for_test(0, true);
         hold.set_ascent_stall_ms_for_test(0, 1500);
         let (q_traj_before, dq_before) = hold.planner_state(0).unwrap();
 
@@ -1150,7 +1212,7 @@ mod tests {
         let tau_g = [0.0, 0.0];
         // Lead 0.06 rad: above resync exit, below advance_max_lead drift reset.
         hold.force_planner_cruise_at(1, 0.26, 0.05).unwrap();
-        hold.set_ascent_frozen_for_test(1, true);
+        hold.set_ascent_recovery_for_test(1, true);
         hold.set_ascent_stall_ms_for_test(1, POSITION_ASCENT_STALL_FAULT_MS);
         let world = HoldWorld {
             q: &q,
@@ -1209,7 +1271,6 @@ mod tests {
         let mut hold = PositionHold::new(1);
         hold.arm(&[0.0], &[0.5], 0);
         hold.force_planner_cruise_at(0, 0.12, 0.05).unwrap();
-        hold.set_ascent_frozen_for_test(0, true);
         let mut params = test_joint_params();
         params.advance_max_lead = 0.20;
         params.max_lead = 0.05;
@@ -1225,7 +1286,7 @@ mod tests {
             tau_g: &tau_g,
             joints: &[params.clone()],
             joint_names: &names,
-            dt: 0.005,
+            dt: 0.0,
             hz: 200,
             tick_count,
             wave: &mut wave,
@@ -1254,5 +1315,158 @@ mod tests {
             out.diag[0].q_des
         );
         const _: () = assert!(ADVANCE_MAX_LEAD_DEFAULT < 0.15);
+    }
+
+    #[test]
+    fn outbound_ascent_stall_retries_to_lead_cap_before_fault() -> Result<(), HoldError> {
+        let q = [0.02];
+        let target = [0.30];
+        let dq = [0.0];
+        let tau_g = [0.0];
+        let names = [String::from("j0")];
+        let mut params = test_joint_params();
+        params.max_lead = 0.12;
+        params.advance_max_lead = 0.12;
+        let params = [params];
+        let mut hold = PositionHold::new(1);
+        hold.arm(&q, &target, 0);
+
+        let mut max_reference_lead: f64 = 0.0;
+        let mut resyncs = 0_u32;
+        let mut saw_breakaway = false;
+        let mut fuse_armed_tick = None;
+        let mut fault_tick = None;
+
+        for tick_count in 100..700 {
+            let mut wave = None;
+            let world = HoldWorld {
+                q: &q,
+                dq_meas: &dq,
+                tau_g: &tau_g,
+                joints: &params,
+                joint_names: &names,
+                dt: 0.005,
+                hz: 200,
+                tick_count,
+                wave: &mut wave,
+            };
+            match hold.tick(world) {
+                Ok(out) => {
+                    let (q_traj, _) = hold.planner_state(0).unwrap();
+                    let reference_lead = q_traj - q[0];
+                    let mit_lead = out.mit[0].position_rad - q[0];
+                    max_reference_lead = max_reference_lead.max(reference_lead);
+                    if out.diag[0].planner_event == PlannerEvent::ResyncStuckLead {
+                        resyncs += 1;
+                    }
+                    if out.diag[0].planner_event == PlannerEvent::AscentBreakaway {
+                        saw_breakaway = true;
+                    }
+                    if hold.ascent_stall_ms_at(0) > 0 && fuse_armed_tick.is_none() {
+                        fuse_armed_tick = Some(tick_count);
+                    }
+                    assert!(
+                        mit_lead <= params[0].max_lead + 1e-9,
+                        "bounded recovery exceeded MIT lead cap: {mit_lead}"
+                    );
+                    assert_eq!(out.diag[0].ascent_stall_ms, hold.ascent_stall_ms_at(0));
+                }
+                Err(HoldError::AscentStall { ms, .. }) => {
+                    assert!(ms >= POSITION_ASCENT_STALL_FAULT_MS);
+                    fault_tick = Some(tick_count);
+                    break;
+                }
+                Err(err) => return Err(err),
+            }
+        }
+
+        assert!(fuse_armed_tick.is_some(), "recovery fuse must arm");
+        assert!(
+            fault_tick.is_some(),
+            "true outbound stall must still fail closed"
+        );
+        let fuse_armed_tick = fuse_armed_tick.unwrap();
+        let fault_tick = fault_tick.unwrap();
+        assert!(
+            max_reference_lead > POSITION_RETURN_RESYNC_RAD * 2.0,
+            "recovery never crossed the former freeze band: {max_reference_lead}"
+        );
+        assert!(resyncs >= 1, "recovery never resynced at the lead cap");
+        assert!(saw_breakaway, "recovery ticks must tag ascent_breakaway");
+        // 2 s at 200 Hz is 400 ticks after fuse arm. If resync cleared the fuse, the
+        // fault would land hundreds of ticks later (each re-ramp is ~tens of ticks).
+        assert!(
+            fault_tick.saturating_sub(fuse_armed_tick) <= 410,
+            "resync must not reset the recovery fuse; armed={fuse_armed_tick} faulted={fault_tick}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn ascent_recovery_releases_and_resumes_when_arm_moves() {
+        let mut hold = PositionHold::new(1);
+        hold.arm(&[0.20], &[0.80], 0);
+        hold.force_planner_cruise_at(0, 0.26, 0.05).unwrap();
+
+        let params = [test_joint_params()];
+        let names = [String::from("j0")];
+        let tau_g = [0.0];
+        let q_stuck = [0.20];
+        let dq_stuck = [0.0];
+        for tick in 100..160 {
+            let mut wave = None;
+            hold.tick(HoldWorld {
+                q: &q_stuck,
+                dq_meas: &dq_stuck,
+                tau_g: &tau_g,
+                joints: &params,
+                joint_names: &names,
+                dt: 0.005,
+                hz: 200,
+                tick_count: tick,
+                wave: &mut wave,
+            })
+            .unwrap();
+        }
+        assert!(
+            hold.ascent_stall_ms_at(0) > 0,
+            "fuse must be counting during stuck recovery"
+        );
+
+        // Breakaway: arm moves toward target above the recovery exit velocity.
+        let mut q = 0.20;
+        for tick in 160..=400 {
+            q += 0.001;
+            let q_arr = [q];
+            let dq = [0.20];
+            let mut wave = None;
+            let out = hold
+                .tick(HoldWorld {
+                    q: &q_arr,
+                    dq_meas: &dq,
+                    tau_g: &tau_g,
+                    joints: &params,
+                    joint_names: &names,
+                    dt: 0.005,
+                    hz: 200,
+                    tick_count: tick,
+                    wave: &mut wave,
+                })
+                .unwrap();
+            assert!(
+                out.diag[0].q_des - q <= test_joint_params().max_lead + 1e-9,
+                "commanded lead must stay bounded after release"
+            );
+        }
+        assert_eq!(
+            hold.ascent_stall_ms_at(0),
+            0,
+            "progress toward target must reset the fuse"
+        );
+        let (q_traj, dq_traj) = hold.planner_state(0).unwrap();
+        assert!(
+            q_traj > 0.30 && dq_traj > 0.0,
+            "planner must resume advancing toward target after release; q_traj={q_traj} dq_traj={dq_traj}"
+        );
     }
 }

@@ -10,6 +10,8 @@ pub enum PlannerEvent {
     FreezeExit,
     ResyncStuckLead,
     EnvelopeClamp,
+    /// Outbound ascent recovery is active (planner advancing inside the lead bound).
+    AscentBreakaway,
 }
 
 impl PlannerEvent {
@@ -22,6 +24,7 @@ impl PlannerEvent {
             Self::FreezeExit => "freeze_exit",
             Self::ResyncStuckLead => "resync",
             Self::EnvelopeClamp => "envelope_clamp",
+            Self::AscentBreakaway => "ascent_breakaway",
         }
     }
 }
