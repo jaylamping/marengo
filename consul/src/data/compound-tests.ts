@@ -81,14 +81,15 @@ export const COMPOUND_TEST_PRESETS: CompoundTestPreset[] = [
     id: 'wave',
     name: 'Wave',
     description:
-      'Arm up to wave_pose (pitch/roll/yaw/elbow under Position+τ_g), then continuous elbow-pitch wave. Taught overlays replace wave phase only after Apply. Live Start blocked until WAVE_POSE_GCOMP_SIGNED.',
+      'Arm up to wave_pose (pitch/roll/yaw/elbow/lower under Position+τ_g), then continuous elbow-pitch wave. Taught overlays replace wave phase only after Apply. Live Start blocked until WAVE_POSE_GCOMP_SIGNED.',
     movementBrief:
-      'Raise the arm to the commissioned wave_pose: shoulder pitch high, shoulder roll slightly open from the body, upper-arm yaw near zero, elbow bent to a mid raise so the forearm can nod. Then oscillate elbow pitch between the wave extrema while holding pitch, roll, and yaw steady — a recognizable bye-wave (forearm folding), not upper-arm twist or shoulder-roll wag. Teach overlays should encode a raise landmark, then at least two elbow-pitch wave extrema (optional small coordinated roll later). Shipped continuous phase uses native elbow_pitch wave until a teach overlay replaces it.',
+      'Raise the arm to the commissioned wave_pose from operator demo: shoulder pitch about mid-high (~1.8 rad), shoulder roll open (~0.68), upper-arm yaw near zero, elbow bent near ~0.97 so the forearm can nod, lower-arm yaw twisted out (~1.47). Then oscillate elbow pitch between the wave extrema while holding pitch, roll, yaw, and lower yaw steady — a recognizable bye-wave (forearm folding), not upper-arm twist or shoulder-roll wag. Teach overlays should encode a raise landmark, then at least two elbow-pitch wave extrema. Shipped continuous phase uses native elbow_pitch wave until a teach overlay replaces it.',
     joints: [
       'right_shoulder_pitch',
       'right_shoulder_roll',
       'right_upper_arm_yaw',
       'right_elbow_pitch',
+      'right_lower_arm_yaw',
     ],
     loop: true,
     teach: {
@@ -97,17 +98,19 @@ export const COMPOUND_TEST_PRESETS: CompoundTestPreset[] = [
       loopFromFirstMotionLandmark: true,
     },
     advance: 'timed',
-    // Matches docs/commissioning/limb-playbook.md `wave_pose` (pitch, roll, yaw, elbow).
+    // Matches docs/commissioning/limb-playbook.md `wave_pose` (pitch-first robot.yaml order).
     keyframes: {
-      right_shoulder_pitch: [{ targetRad: 2.75, durationSec: 3.5 }],
-      right_shoulder_roll: [{ targetRad: 0.42, durationSec: 3.5 }],
-      right_upper_arm_yaw: [{ targetRad: 0, durationSec: 3.5 }],
-      right_elbow_pitch: [{ targetRad: 0.55, durationSec: 3.5 }],
+      right_shoulder_pitch: [{ targetRad: 1.8, durationSec: 3.5 }],
+      right_shoulder_roll: [{ targetRad: 0.68, durationSec: 3.5 }],
+      right_upper_arm_yaw: [{ targetRad: -0.11, durationSec: 3.5 }],
+      right_elbow_pitch: [{ targetRad: 0.97, durationSec: 3.5 }],
+      right_lower_arm_yaw: [{ targetRad: 1.47, durationSec: 3.5 }],
     },
     nativeWave: {
       joint: 'right_elbow_pitch',
-      minRad: 0.3,
-      maxRad: 0.8,
+      // Clipped to taught elbow upper (~1.03); demo extrema went to ~1.42.
+      minRad: 0.55,
+      maxRad: 1.0,
       // Long enough that Loop does not re-arm mid-swing (re-start was the chop).
       cycles: 50,
       halfPeriodSec: 1.4,

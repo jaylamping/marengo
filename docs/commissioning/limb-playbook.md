@@ -41,11 +41,11 @@ Stay inside `taught_envelope` soft limits (~0.15 rad margin preferred). Arm-down
 
 | Field | Default |
 |-------|---------|
-| `q` (rad) | `[2.75, 0.42, 0.00, 0.55, 0.00]` |
+| `q` (rad) | `[1.80, 0.68, -0.11, 0.97, 1.47]` |
 
-Raise for §4c and Consul Wave (elbow centered so the wave phase can nod). Distinct from elevated `gcomp_poses` (different roll/elbow). Tunable — if you change it, retarget Wave raise keyframes to match.
+Operator-demo median core (sessions `011817Z` + `012049Z`, pitch≳1.5 cluster; issue [#170](https://github.com/jaylamping/marengo/issues/170)). Distinct from elevated `gcomp_poses` (lower pitch, non-zero lower-arm yaw). Tunable — if you change it, retarget Wave raise keyframes to match.
 
-**Wave phase (Consul `nativeWave`):** `right_elbow_pitch` **0.30 … 0.80** rad, halfPeriod **1.4 s**, **50** cycles; pitch/roll/upper_yaw/lower_yaw held at raise.
+**Wave phase (Consul `nativeWave`):** `right_elbow_pitch` **0.55 … 1.00** rad, halfPeriod **1.4 s**, **50** cycles; pitch/roll/upper_yaw/lower_yaw held at raise. Demo elbow extrema reached ~1.42 (past taught upper ≈1.03) — phase clipped to the envelope; re-teach elbow limits before widening.
 
 ### `torque_only_tau_cmd` defaults (`right_arm`)
 
