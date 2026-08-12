@@ -166,7 +166,7 @@ pub fn position_hold_mit_kd(
 }
 
 /// Outbound friction-knee stall: lead saturated, no motion, target still in low-angle band.
-/// Retained for unit tests; production ascent path uses freeze + AscentStall (no MIT pull).
+/// Retained for unit tests; production ascent recovery advances the bounded planner (no MIT pull).
 #[allow(dead_code)]
 pub fn outbound_low_angle_stuck(
     q: f64,
@@ -196,8 +196,9 @@ pub fn outbound_low_angle_stuck_pull_rad(to_target: f64, effective_max_lead: f64
 
 /// Ascent MIT pull-harder — **disabled**.
 ///
-/// Increasing lead while stuck ascending worsens open-loop grind. Ascent stalls freeze the
-/// planner via [`planner_should_freeze_on_ascent_stall`]; descent uses [`descent_stuck_mit_pull`].
+/// Increasing `q_des` outside the planner worsens open-loop grind. Ascent stalls use bounded
+/// planner recovery via [`planner_should_recover_ascent_stall`]; descent uses
+/// [`descent_stuck_mit_pull`].
 /// Helpers [`outbound_low_angle_stuck`] / [`approach_stuck_mit_pull_lead_rad`] remain for tests.
 #[allow(dead_code, clippy::too_many_arguments)]
 pub fn approach_stuck_mit_pull(
@@ -374,12 +375,13 @@ pub fn planner_should_freeze_on_descent(
     }
 }
 
-/// Freeze planner while stuck ascending with `q_traj` ahead of measured `q`.
+/// Keep bounded planner recovery active while an ascending arm remains stuck.
 ///
 /// Owns outbound stalls (`target` not ≈0). Home return uses [`planner_should_freeze_on_descent`].
-/// Exit when synced (`|q_traj − q| < POSITION_RETURN_RESYNC_RAD`) or motion resumes toward target.
-pub fn planner_should_freeze_on_ascent_stall(
-    was_frozen: bool,
+/// Recovery starts above the resync band and stays active across stuck-lead resync. It exits after
+/// confirmed motion toward the target or after the arm reaches the settle band.
+pub fn planner_should_recover_ascent_stall(
+    was_recovering: bool,
     target: f64,
     q: f64,
     q_traj: f64,
@@ -395,32 +397,23 @@ pub fn planner_should_freeze_on_ascent_stall(
     if (q - target).abs() <= settle_band {
         return false;
     }
-    let lead = q_traj - q;
-    if was_frozen && lead.abs() < POSITION_RETURN_RESYNC_RAD {
+    let exit_v = velocity_deadband * crate::friction::POSITION_STUCK_EXIT_VELOCITY_RATIO;
+    if to_target > 0.0 && dq_filtered >= exit_v {
         return false;
     }
+    if was_recovering {
+        return true;
+    }
+    let lead = q_traj - q;
     let planner_ahead =
         to_target > POSITION_HOLD_ERROR_DEADBAND_RAD && lead > POSITION_RETURN_RESYNC_RAD;
-    if !planner_ahead {
-        return false;
-    }
-    let exit_v = velocity_deadband * crate::friction::POSITION_STUCK_EXIT_VELOCITY_RATIO;
-    let moving_toward_target = if to_target > 0.0 {
-        dq_filtered >= exit_v
-    } else {
-        dq_filtered <= -exit_v
-    };
-    if was_frozen {
-        !moving_toward_target
-    } else {
-        dq_filtered.abs() < velocity_deadband
-    }
+    planner_ahead && dq_filtered.abs() < velocity_deadband
 }
 
 /// Reopen premature/overshoot Hold only when the arm is moving.
 ///
-/// Stuck premature hold must not reopen — that keeps `q_traj` at target, flashes Cruise, then
-/// re-Holds → Reset oscillator. Prefer ascent-stall freeze / stuck-lead resync instead.
+/// Stuck premature hold must not reopen. That keeps `q_traj` at target, flashes Cruise, then
+/// re-Holds into a Reset oscillator. Prefer ascent recovery and stuck-lead resync instead.
 pub fn planner_should_reopen_premature_hold(
     planner: &JointPositionPlanner,
     q: f64,

@@ -56,7 +56,9 @@ pub enum LoopError {
     InvalidWavePeriod,
     #[error("missing motor feedback for joint {joint}")]
     MissingFeedback { joint: String },
-    #[error("position hold: ascent stall on {joint} — planner frozen ahead of arm for {ms} ms")]
+    #[error(
+        "position hold: ascent stall on {joint}: no progress during bounded recovery for {ms} ms"
+    )]
     AscentStall { joint: String, ms: u64 },
     #[error("torque cmd: non-finite τ_cmd for joint {joint}")]
     NonFiniteTorqueCmd { joint: String },
@@ -870,6 +872,8 @@ impl<B: MotorBus> ControlLoop<B> {
                                 retarget_age_ms = d.retarget_age_ms,
                                 joint_stuck = d.joint_stuck,
                                 planner_frozen = d.planner_frozen,
+                                ascent_stall_ms = d.ascent_stall_ms,
+                                planner_event = d.planner_event.as_str(),
                                 phase = %d.phase,
                                 kp = d.kp,
                                 kd = d.kd,
@@ -1192,8 +1196,8 @@ mod tests {
         apply_lead_follow_hold_short, approach_stuck_mit_pull, clamp_trajectory_setpoint,
         descent_breakaway_confirmed, descent_stuck_mit_pull, planner_drifted_from_measurement,
         planner_overshoot_hold_while_moving, planner_premature_hold,
-        planner_should_freeze_on_ascent_stall, planner_should_freeze_on_descent,
-        planner_should_latch_on_overshoot_hold, planner_should_lead_follow_hold_short,
+        planner_should_freeze_on_descent, planner_should_latch_on_overshoot_hold,
+        planner_should_lead_follow_hold_short, planner_should_recover_ascent_stall,
         planner_should_reopen_premature_hold, planner_should_resync_stuck_lead,
         position_hold_effective_max_lead, position_hold_mit_kd, position_hold_mit_velocity,
         reopen_planner_from_premature_hold,
@@ -2083,18 +2087,17 @@ mod tests {
     }
 
     #[test]
-    fn ascent_stall_freezes_planner() {
+    fn ascent_stall_enters_bounded_recovery() {
         let q = 0.02;
         let target = 0.15;
         let q_traj = 0.125;
         let to_target = target - q;
         let deadband = 0.02;
-        assert!(planner_should_freeze_on_ascent_stall(
+        assert!(planner_should_recover_ascent_stall(
             false, target, q, q_traj, to_target, 0.0, deadband
         ));
-        // Synced → exit
-        assert!(!planner_should_freeze_on_ascent_stall(
-            true,
+        assert!(!planner_should_recover_ascent_stall(
+            false,
             target,
             q,
             q + 0.01,
@@ -2102,18 +2105,30 @@ mod tests {
             0.0,
             deadband
         ));
+        assert!(
+            planner_should_recover_ascent_stall(
+                true,
+                target,
+                q,
+                q + 0.01,
+                to_target,
+                0.0,
+                deadband
+            ),
+            "stuck-lead resync must preserve recovery"
+        );
         // Motion toward target → exit
-        assert!(!planner_should_freeze_on_ascent_stall(
+        assert!(!planner_should_recover_ascent_stall(
             true, target, q, q_traj, to_target, 0.03, deadband
         ));
         // Home return owned by descent freeze
-        assert!(!planner_should_freeze_on_ascent_stall(
+        assert!(!planner_should_recover_ascent_stall(
             false, 0.0, 0.08, 0.02, -0.08, 0.0, deadband
         ));
     }
 
     #[test]
-    fn ascent_stall_faults_tick_after_sustained_freeze() {
+    fn ascent_stall_faults_tick_after_bounded_recovery() {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
         let joint = "right_shoulder_pitch";
@@ -2148,7 +2163,7 @@ mod tests {
         }
         assert!(
             faulted,
-            "stuck outbound ascent must AscentStall within ~3s of freeze"
+            "stuck outbound ascent must AscentStall within ~3s of recovery"
         );
     }
 
@@ -2164,7 +2179,6 @@ mod tests {
         loop_ctrl
             .enter_position_hold_at(Some(joint), 0.15)
             .expect("hold-at");
-        // Build freeze / partial stall (~0.5 s stuck).
         for _ in 0..100 {
             loop_ctrl
                 .supervisor_mut()
