@@ -20,8 +20,8 @@ use armee_dynamics::max_gravity_torque_over_range;
 use armee_proto::prost::Message;
 use armee_proto::{
     ActiveReportingLeaseAction, ActiveReportingLeaseRequest, EnableRequest, Fault, FaultSeverity,
-    Heartbeat, HomingComplete, MitCommandBatch, OperationalMode as ProtoOpMode, SafetyState,
-    SetZeroRequest,
+    Heartbeat, HomingComplete, MitCommandBatch, MotorStatusPollRequest,
+    OperationalMode as ProtoOpMode, SafetyState, SetZeroRequest,
 };
 use berthier::{
     proto_control_mode, ControlLoop, ControlMode, GainOverride, LoopError, TickPhaseAverages,
@@ -63,6 +63,10 @@ enum PiCommand {
     Disable,
     GravityOn,
     GravityOff,
+    TorqueCmd {
+        joint: String,
+        tau_nm: f64,
+    },
     ImpedanceOn,
     ImpedanceOff,
     HoldOn,
@@ -101,6 +105,11 @@ fn parse_command(line: &str) -> Option<PiCommand> {
         "disable" => Some(PiCommand::Disable),
         "gravity-on" | "gravity_on" => Some(PiCommand::GravityOn),
         "gravity-off" | "gravity_off" => Some(PiCommand::GravityOff),
+        "torque-cmd" | "torque_cmd" => {
+            let joint = parts.next()?.to_string();
+            let tau_nm = parts.next()?.parse().ok()?;
+            Some(PiCommand::TorqueCmd { joint, tau_nm })
+        }
         "impedance-on" | "impedance_on" => Some(PiCommand::ImpedanceOn),
         "impedance-off" | "impedance_off" => Some(PiCommand::ImpedanceOff),
         "hold-on" | "hold_on" => Some(PiCommand::HoldOn),
@@ -184,6 +193,7 @@ fn print_usage() {
          enable [operator_id] [force]\n  \
          disable\n  \
          gravity-on | gravity-off\n  \
+         torque-cmd <joint> <nm>\n  \
          impedance-on | impedance-off\n  \
          hold-on | hold-at [joint] <rad> | hold-off\n  \
          wave <joint> <min_rad> <max_rad> <cycles> [half_period_sec]\n  \
@@ -218,17 +228,21 @@ fn handle_chappe_enable(
     request: &EnableRequest,
 ) -> Result<(), String> {
     if request.enable {
-        if loop_ctrl.supervisor_mut().mode() != davout::OperationalMode::Ready {
-            loop_ctrl
-                .supervisor_mut()
-                .set_homing_complete()
-                .map_err(|e| e.to_string())?;
-        }
+        // Never call set_homing_complete on enable — Verified is Set Zero only.
+        let targets = loop_ctrl
+            .supervisor()
+            .resolve_enable_targets(repo_root())
+            .map_err(|e| e.to_string())?;
         loop_ctrl
             .supervisor_mut()
-            .request_enable(true)
+            .enable_targets(&targets)
             .map_err(|e| e.to_string())?;
-        info!(operator = %request.operator_id, "enable via Chappe");
+        info!(
+            operator = %request.operator_id,
+            target_count = targets.len(),
+            targets = ?targets,
+            "enable via Chappe (targeted)"
+        );
     } else {
         loop_ctrl
             .supervisor_mut()
@@ -246,6 +260,7 @@ fn drain_chappe_commands(
     homing_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     set_zero_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     lease_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
+    status_poll_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
 ) {
     // Set-zero before enable so a same-tick enable(true) cannot flip ACTIVE and
     // silently refuse a queued calibration (Consul already got publish ACK).
@@ -305,6 +320,31 @@ fn drain_chappe_commands(
             Err(tokio::sync::broadcast::error::TryRecvError::Closed) => break,
         }
     }
+    // Collapse bursts: only the latest solicit matters before the next control tick.
+    let mut status_poll_payloads: Vec<Vec<u8>> = Vec::new();
+    loop {
+        match status_poll_rx.try_recv() {
+            Ok(bytes) => status_poll_payloads.push(bytes),
+            Err(tokio::sync::broadcast::error::TryRecvError::Empty) => break,
+            Err(tokio::sync::broadcast::error::TryRecvError::Lagged(n)) => {
+                warn!(
+                    skipped = n,
+                    "Chappe motor_status_poll lagged; dropped oldest commands"
+                );
+            }
+            Err(tokio::sync::broadcast::error::TryRecvError::Closed) => break,
+        }
+    }
+    if let Some(request) = latest_motor_status_poll(status_poll_payloads.iter().map(Vec::as_slice))
+    {
+        if let Err(e) = loop_ctrl.supervisor_mut().solicit_status_feedback() {
+            warn!(
+                operator = %request.operator_id,
+                error = %e,
+                "Chappe motor status poll failed"
+            );
+        }
+    }
     while let Ok(bytes) = enable_rx.try_recv() {
         let Ok(envelope) = armee_proto::Envelope::decode(bytes.as_slice()) else {
             continue;
@@ -323,11 +363,8 @@ fn drain_chappe_commands(
         let Ok(_homing) = HomingComplete::decode(envelope.payload.as_slice()) else {
             continue;
         };
-        if let Err(e) = loop_ctrl.supervisor_mut().set_homing_complete() {
-            warn!(error = %e, "Chappe homing rejected");
-        } else {
-            info!("homing verified via Chappe");
-        }
+        // Operator HomingComplete / Testing Home retired — ignore wire (compat drain).
+        warn!("ignoring retired HomingComplete on robot/homing (use Hardware Set Zero)");
     }
 }
 
@@ -560,9 +597,12 @@ fn print_status(loop_ctrl: &mut ControlLoop<RuntimeBus>, config_dir: &Path) {
         control_mode,
     );
     for motor in &supervisor.motors.motors {
+        let (homing_state, drive_active, out_of_limits) =
+            supervisor.joint_commissioning_wire(&motor.joint);
         match supervisor.joint_feedback(&motor.joint) {
             Some(state) => println!(
-                "{} ({}/id{}): pos={:.4} rad vel={:.4} rad/s torque={:.4} Nm fault={:#06x}",
+                "{} ({}/id{}): pos={:.4} rad vel={:.4} rad/s torque={:.4} Nm fault={:#06x} \
+                 homing={} drive_active={} out_of_limits={}",
                 motor.joint,
                 motor.can_interface,
                 motor.device_id,
@@ -570,10 +610,18 @@ fn print_status(loop_ctrl: &mut ControlLoop<RuntimeBus>, config_dir: &Path) {
                 state.velocity_rad_s,
                 state.torque_nm,
                 state.fault,
+                homing_state,
+                drive_active,
+                out_of_limits,
             ),
             None => println!(
-                "{} ({}/id{}): no feedback yet",
-                motor.joint, motor.can_interface, motor.device_id,
+                "{} ({}/id{}): no feedback yet homing={} drive_active={} out_of_limits={}",
+                motor.joint,
+                motor.can_interface,
+                motor.device_id,
+                homing_state,
+                drive_active,
+                out_of_limits,
             ),
         }
     }
@@ -639,21 +687,21 @@ fn handle_command(
             Err(e) => eprintln!("home failed: {e}"),
         },
         PiCommand::Enable { operator_id, force } => {
-            if loop_ctrl.supervisor_mut().mode() != davout::OperationalMode::Ready {
-                if let Err(e) = loop_ctrl.supervisor_mut().set_homing_complete() {
-                    eprintln!("enable blocked: {e}");
-                    return true;
-                }
-            }
             if !force {
                 if let Err(()) = preflight_gravity_saturation(loop_ctrl) {
                     eprintln!("enable refused: gravity saturation exceeds motor limit (use 'enable <operator> force' to override)");
                     return true;
                 }
             }
-            match loop_ctrl.supervisor_mut().request_enable(true) {
-                Ok(()) => println!("enabled (operator={operator_id})"),
-                Err(e) => eprintln!("enable failed: {e}"),
+            match loop_ctrl.supervisor().resolve_enable_targets(repo_root()) {
+                Ok(targets) => match loop_ctrl.supervisor_mut().enable_targets(&targets) {
+                    Ok(()) => println!(
+                        "enabled (operator={operator_id}) targets={}",
+                        targets.join(",")
+                    ),
+                    Err(e) => eprintln!("enable failed: {e}"),
+                },
+                Err(e) => eprintln!("enable blocked: {e}"),
             }
         }
         PiCommand::Disable => {
@@ -671,9 +719,21 @@ fn handle_command(
             );
         }
         PiCommand::GravityOff => {
-            loop_ctrl.set_control_mode(ControlMode::Disabled);
-            println!("control mode → Disabled");
+            loop_ctrl.enter_torque_only_zero();
+            println!(
+                "control mode → TorqueOnly (τ_cmd≡0; operational={:?})",
+                loop_ctrl.supervisor_mut().mode()
+            );
         }
+        PiCommand::TorqueCmd { joint, tau_nm } => match loop_ctrl.set_torque_cmd(&joint, tau_nm) {
+            Ok(()) => {
+                println!(
+                    "τ_cmd {joint} = {tau_nm:.4} Nm (mode=TorqueOnly, operational={:?})",
+                    loop_ctrl.supervisor_mut().mode()
+                );
+            }
+            Err(e) => eprintln!("torque-cmd failed: {e}"),
+        },
         PiCommand::ImpedanceOn => {
             loop_ctrl.set_control_mode(ControlMode::Impedance);
             println!(
@@ -745,8 +805,8 @@ fn usage() {
     eprintln!(
         "marengo-pi — Pi control runtime (Berthier → Davout → SocketCAN)\n\
          Usage: marengo-pi [--config-dir PATH] [--no-stdin-ctl]\n\
-         Env:  MARENGO_ROOT, MARENGO_CONFIG_DIR — override repo/config paths\n\
-         Bring-up: MARENGO_CONFIG_DIR=config/bringup/shoulder_pitch_dual"
+         Env:  MARENGO_ROOT, MARENGO_CONFIG_DIR (default /opt/marengo/config on Pi)\n\
+         Dev:  unset MARENGO_CONFIG_DIR to use <repo>/config"
     );
 }
 
@@ -856,6 +916,7 @@ fn main() {
     let mut homing_rx = chappe.subscribe("robot/homing");
     let mut set_zero_rx = chappe.subscribe("robot/set_zero");
     let mut lease_rx = chappe.subscribe("robot/active_reporting_lease");
+    let mut status_poll_rx = chappe.subscribe("robot/motor_status_poll");
     let mut testing_cmd_rx = chappe.subscribe("robot/testing/mit_command_batch");
     let mut actuator_rx = chappe.subscribe(overlay::TOPIC_ACTUATOR_COMMAND);
 
@@ -921,6 +982,7 @@ fn main() {
         homing_rx: &mut homing_rx,
         set_zero_rx: &mut set_zero_rx,
         lease_rx: &mut lease_rx,
+        status_poll_rx: &mut status_poll_rx,
         testing_cmd_rx: &mut testing_cmd_rx,
         actuator_rx: &mut actuator_rx,
         actuator_overlay: &mut actuator_overlay,
@@ -950,6 +1012,7 @@ struct ControlLoopRuntime<'a> {
     homing_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     set_zero_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     lease_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
+    status_poll_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     testing_cmd_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     actuator_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     actuator_overlay: &'a mut overlay::ActuatorOverlay,
@@ -983,6 +1046,7 @@ fn run_control_loop(loop_ctrl: &mut ControlLoop<RuntimeBus>, runtime: &mut Contr
             runtime.homing_rx,
             runtime.set_zero_rx,
             runtime.lease_rx,
+            runtime.status_poll_rx,
         );
         let (outer_chappe_drain_us, t_after_chappe) = phase_elapsed_us(t_next);
         drain_testing_commands(loop_ctrl, runtime.testing_cmd_rx);
@@ -1157,12 +1221,33 @@ fn log_tick_phase_averages(phase: TickPhaseAverages) {
     );
 }
 
+/// Decode one Chappe envelope carrying `MotorStatusPollRequest` (testable seam).
+fn decode_motor_status_poll_envelope(bytes: &[u8]) -> Option<MotorStatusPollRequest> {
+    let envelope = armee_proto::Envelope::decode(bytes).ok()?;
+    MotorStatusPollRequest::decode(envelope.payload.as_slice()).ok()
+}
+
+/// Collapse a burst of status-poll envelope payloads to the latest valid request.
+fn latest_motor_status_poll<'a>(
+    payloads: impl IntoIterator<Item = &'a [u8]>,
+) -> Option<MotorStatusPollRequest> {
+    let mut latest = None;
+    for bytes in payloads {
+        if let Some(request) = decode_motor_status_poll_envelope(bytes) {
+            latest = Some(request);
+        }
+    }
+    latest
+}
+
 fn debug_status(loop_ctrl: &mut ControlLoop<RuntimeBus>, timing: &mut LoopTimingWindow) {
     timing.log_and_reset(loop_ctrl);
     let control_mode = loop_ctrl.control_mode();
     let supervisor = loop_ctrl.supervisor_mut();
     let operational = supervisor.mode();
     for motor in &supervisor.motors.motors {
+        let (homing_state, drive_active, out_of_limits) =
+            supervisor.joint_commissioning_wire(&motor.joint);
         if let Some(state) = supervisor.joint_feedback(&motor.joint) {
             debug!(
                 joint = %motor.joint,
@@ -1171,10 +1256,62 @@ fn debug_status(loop_ctrl: &mut ControlLoop<RuntimeBus>, timing: &mut LoopTiming
                 pos = state.position_rad,
                 vel = state.velocity_rad_s,
                 torque = state.torque_nm,
+                homing_state,
+                drive_active,
+                out_of_limits,
                 operational = ?operational,
                 control = ?proto_control_mode(control_mode),
                 "feedback"
             );
+        } else {
+            debug!(
+                joint = %motor.joint,
+                homing_state,
+                drive_active,
+                out_of_limits,
+                operational = ?operational,
+                "no feedback"
+            );
         }
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::panic)]
+mod status_poll_tests {
+    use super::*;
+    use armee_proto::Envelope;
+
+    fn encode_poll(operator_id: &str, timestamp_ms: u64) -> Vec<u8> {
+        let request = MotorStatusPollRequest {
+            timestamp_ms,
+            operator_id: operator_id.into(),
+        };
+        let envelope = Envelope {
+            timestamp_ms,
+            source_node: "gateway".into(),
+            message_type: "marengo.v1.MotorStatusPollRequest".into(),
+            payload: request.encode_to_vec(),
+        };
+        envelope.encode_to_vec()
+    }
+
+    #[test]
+    fn latest_motor_status_poll_keeps_last_valid_envelope() {
+        let first = encode_poll("consul-a", 1);
+        let garbage = b"not-an-envelope".to_vec();
+        let second = encode_poll("consul-b", 2);
+        let Some(latest) =
+            latest_motor_status_poll([first.as_slice(), garbage.as_slice(), second.as_slice()])
+        else {
+            panic!("expected latest status poll");
+        };
+        assert_eq!(latest.operator_id, "consul-b");
+        assert_eq!(latest.timestamp_ms, 2);
+    }
+
+    #[test]
+    fn decode_motor_status_poll_envelope_rejects_garbage() {
+        assert!(decode_motor_status_poll_envelope(b"nope").is_none());
     }
 }

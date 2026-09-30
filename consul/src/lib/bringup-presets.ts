@@ -1,12 +1,13 @@
+/** Fallback when config snapshot profile is unavailable — master inventory only. */
+export const DEFAULT_OPERATOR_PROFILE = 'master';
+
 /** Server registry mirror for client-side membership labels (GET /config/profiles is SoT). */
 export const PRESET_TO_PROFILE: Record<string, string> = {
   bench_3dof: 'arm_3dof_right',
-  bench_4dof: 'arm_4dof_right',
 };
 
 export const PROFILE_TO_PRESET: Record<string, string> = {
   arm_3dof_right: 'bench_3dof',
-  arm_4dof_right: 'bench_4dof',
 };
 
 export function isMappedBringupPreset(presetId: string): boolean {

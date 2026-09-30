@@ -1,9 +1,8 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   persistJointLimits,
   softLimitsWithInset,
-  DEFAULT_HARD_MARGIN_RAD,
   DEFAULT_SOFT_INSET_RAD,
 } from '@/lib/persist-joint-limits';
 
@@ -17,11 +16,93 @@ describe('softLimitsWithInset', () => {
 });
 
 describe('persistJointLimits', () => {
-  afterEach(() => {
-    vi.useRealTimers();
+  beforeEach(() => {
+    vi.stubEnv('VITE_LIMIT_SYNC_URL', '');
   });
 
-  it('patches hard + soft inset and syncs local only after durable', async () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  it('skips local sync when VITE_LIMIT_SYNC_URL is unset after Durable Apply', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    const patchConfig = vi.fn().mockResolvedValue({
+      ok: true,
+      message: 'Applied live limits',
+      restart_required: false,
+      persist_status: 'durable',
+    });
+
+    const result = await persistJointLimits(
+      'right_shoulder_pitch',
+      { lower: -0.5, upper: 1.2 },
+      { patchConfig },
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.localSync).toBe('skipped');
+      expect(result.message).not.toMatch(/Local checkout/i);
+    }
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('POSTs local limit-patch only when VITE_LIMIT_SYNC_URL is set', async () => {
+    vi.stubEnv('VITE_LIMIT_SYNC_URL', 'http://127.0.0.1:8790');
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    const patchConfig = vi.fn().mockResolvedValue({
+      ok: true,
+      message: 'Applied live limits',
+      restart_required: false,
+      persist_status: 'durable',
+    });
+
+    const result = await persistJointLimits(
+      'right_shoulder_pitch',
+      { lower: -0.5, upper: 1.2 },
+      { patchConfig },
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.localSync).toBe('ok');
+    }
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'http://127.0.0.1:8790/local/limit-patch',
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it('marks opted-in local sync failed when fetch throws', async () => {
+    vi.stubEnv('VITE_LIMIT_SYNC_URL', 'http://127.0.0.1:8790');
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'));
+    const patchConfig = vi.fn().mockResolvedValue({
+      ok: true,
+      message: 'Applied live limits',
+      restart_required: false,
+      persist_status: 'durable',
+    });
+
+    const result = await persistJointLimits(
+      'right_shoulder_pitch',
+      { lower: -0.5, upper: 1.2 },
+      { patchConfig },
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.localSync).toBe('failed');
+      expect(result.message).toMatch(/Local checkout sync failed/i);
+    }
+  });
+
+  it('patches taught hard + soft inset (no silent ±30 mrad widen) after durable', async () => {
     const patchConfig = vi.fn().mockResolvedValue({
       ok: true,
       message: 'Applied live limits',
@@ -32,12 +113,12 @@ describe('persistJointLimits', () => {
 
     const result = await persistJointLimits(
       'right_shoulder_pitch',
-      { lower: -0.506, upper: 1.206 },
+      { lower: -1.4, upper: 3.19 },
       { patchConfig, localSync },
     );
 
-    const hardLower = -0.506 - DEFAULT_HARD_MARGIN_RAD;
-    const hardUpper = 1.206 + DEFAULT_HARD_MARGIN_RAD;
+    const hardLower = -1.4;
+    const hardUpper = 3.19;
     const soft = softLimitsWithInset(hardLower, hardUpper);
     expect(result.ok).toBe(true);
     if (result.ok) {

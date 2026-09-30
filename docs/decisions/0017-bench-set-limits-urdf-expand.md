@@ -22,7 +22,7 @@ ADR 0009 rejected raising hard limits alone because CAD/URDF was treated as immu
 
 - Taught ranges past the old URDF hard envelope become effective after Apply without restart.
 - Expand-only is a one-way ratchet on URDF hard; shrink uses motors∩URDF.
-- Deploy/`pi_sync_bench_urdf` from a checkout that never received the expand can clobber Pi URDF — sync local after Durable or pull from Pi before deploy.
+- Deploy/`pi_sync_bench_urdf` from a checkout that never received the expand can clobber Pi URDF — sync local after Durable or pull from Pi before deploy. `install-pi.sh` also merge-preserves previous Pi taught motors hard, control soft, and expand-only URDF union unless `MARENGO_REPLACE_LIMITS=1`.
 - Full-humanoid CAD URDF workflow stays out of Set Limits scope.
 
 ## References

@@ -1,7 +1,7 @@
 /**
- * Wired bench joints for the active bringup profile (`arm_4dof_right`).
- * Must match `robot.joints` in `config/bringup/arm_4dof_right/robot.yaml`
- * and the gateway command allowlist loaded from `MARENGO_CONFIG_DIR`.
+ * Wired right-arm joints commonly present on the Pi bench (master inventory names).
+ * Gateway command allowlist comes from the loaded config dir (`MARENGO_CONFIG_DIR`);
+ * operator defaults must not hardcode bringup profile slugs.
  */
 export const WIRED_BENCH_JOINTS = [
   'right_shoulder_roll',

@@ -46,6 +46,7 @@ pub fn verify_manual_reference(
 ) -> Result<VerifyOutcome, VerifyError> {
     if position_rad < lower || position_rad > upper {
         registry.set_state(&motor.joint, crate::JointHomingState::Faulted);
+        registry.mark_out_of_limits(&motor.joint);
         return Err(VerifyError::OutOfLimits {
             joint: motor.joint.clone(),
             position_rad,
@@ -182,5 +183,30 @@ mod tests {
         )
         .expect_err("tolerance");
         assert!(matches!(err, VerifyError::ZeroTolerance { .. }));
+        assert!(!reg.is_out_of_limits("shoulder_pitch"));
+    }
+
+    #[test]
+    fn verify_limit_breach_marks_out_of_limits() {
+        let mut reg = registry();
+        let err = verify_manual_reference(
+            &mut reg,
+            &motor(),
+            &homing_cfg(),
+            5.0,
+            -0.9,
+            3.17,
+            true,
+            "test",
+            None,
+        )
+        .expect_err("limits");
+        assert!(matches!(err, VerifyError::OutOfLimits { .. }));
+        assert!(crate::verify_error_is_out_of_limits(&err));
+        assert!(reg.is_out_of_limits("shoulder_pitch"));
+        assert_eq!(
+            reg.joint_state("shoulder_pitch"),
+            crate::JointHomingState::Faulted
+        );
     }
 }

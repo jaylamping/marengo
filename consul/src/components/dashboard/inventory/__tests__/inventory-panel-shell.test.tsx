@@ -25,9 +25,9 @@ vi.mock('@/hooks/use-active-reporting-lease', () => ({
   useActiveReportingLease: () => 'idle',
 }));
 
-vi.mock('@/components/dashboard/inventory/set-limits-panel', () => ({
-  SetLimitsPanel: ({ jointName }: { jointName: string }) => (
-    <div data-testid="set-limits-panel-stub">Set Limits stub · {jointName}</div>
+vi.mock('@/components/dashboard/hardware/hardware-settings-sheet', () => ({
+  InventoryLimitsReadOnly: ({ jointName }: { jointName: string }) => (
+    <div data-testid="inventory-limits-readonly-stub">Limits stub · {jointName}</div>
   ),
 }));
 
@@ -43,7 +43,7 @@ const interactiveActuator: InventoryItem = {
   status: 'Enabled',
   value: '0.12',
   limit: '±1.57',
-  preset: 'bench_4dof',
+  preset: 'bench_3dof',
   node: 'RS82 · can0 · id 3',
 };
 
@@ -165,9 +165,11 @@ describe('InventoryRowModal panel shell', () => {
 
     expect(screen.getByTestId('inventory-row-modal')).toBeTruthy();
     expect(screen.getAllByText('right_upper_arm_yaw').length).toBeGreaterThan(0);
-    expect(screen.getByLabelText('Edit name')).toBeTruthy();
-    expect(screen.getByLabelText('Edit location')).toBeTruthy();
-    expect(screen.getByLabelText('Edit preset')).toBeTruthy();
+    expect(screen.queryByLabelText('Edit name')).toBeNull();
+    expect(screen.queryByLabelText('Edit location')).toBeNull();
+    expect(screen.queryByLabelText('Edit preset')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Apply' })).toBeNull();
+    expect(screen.getAllByRole('button', { name: 'Close' }).length).toBeGreaterThan(0);
     expect(
       screen.getAllByText('Enabled').some((el) => el.getAttribute('data-slot') === 'badge'),
     ).toBe(true);
@@ -176,7 +178,7 @@ describe('InventoryRowModal panel shell', () => {
     expect(screen.queryByRole('heading', { name: 'Identity' })).toBeNull();
   });
 
-  it('dithers actuator command surfaces for offline rows but keeps identity editable', () => {
+  it('keeps Telemetry detail read-only for offline rows (no identity/preset edit)', () => {
     render(
       <TooltipProvider>
         <InventoryRowModal
@@ -192,12 +194,13 @@ describe('InventoryRowModal panel shell', () => {
     expect(
       screen.getAllByText('Offline').some((el) => el.getAttribute('data-slot') === 'badge'),
     ).toBe(true);
-    expect(screen.getByLabelText('Edit name')).not.toBeDisabled();
-    expect(screen.getByLabelText('Edit location')).toBeTruthy();
-    expect(screen.getByLabelText('Edit preset')).toBeTruthy();
+    expect(screen.queryByLabelText('Edit name')).toBeNull();
+    expect(screen.queryByLabelText('Edit location')).toBeNull();
+    expect(screen.queryByLabelText('Edit preset')).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Identity' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Home' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Start sweep' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Home' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Start sweep' })).toBeNull();
+    expect(screen.getByTestId('inventory-limits-readonly-stub')).toBeTruthy();
   });
 
   it('navigates prev/next within the provided list', () => {
@@ -222,7 +225,7 @@ describe('InventoryRowModal panel shell', () => {
     expect(onNavigate).toHaveBeenCalledWith(interactiveActuator);
   });
 
-  it('shows actuator telemetry and tests when interactive', () => {
+  it('shows actuator telemetry and read-only limits without commissioning actions', () => {
     render(
       <TooltipProvider>
         <InventoryRowModal
@@ -237,8 +240,9 @@ describe('InventoryRowModal panel shell', () => {
 
     const modal = screen.getByTestId('inventory-row-modal');
     expect(within(modal).getByText('Telemetry')).toBeTruthy();
-    expect(within(modal).getByText('Tests')).toBeTruthy();
-    // Home stays locked until the joint is marked zero'd and motors are ACTIVE.
-    expect(screen.getByRole('button', { name: 'Home' })).toBeDisabled();
+    expect(within(modal).queryByText('Tests')).toBeNull();
+    expect(within(modal).queryByRole('button', { name: 'Home' })).toBeNull();
+    expect(within(modal).queryByRole('button', { name: 'Go' })).toBeNull();
+    expect(within(modal).getByTestId('inventory-limits-readonly-stub')).toBeTruthy();
   });
 });

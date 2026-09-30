@@ -23,6 +23,7 @@ const sidebarIcons: Record<SidebarIconKey, typeof ThreeDViewIcon> = {
   actuators: CpuIcon,
   visualizer: ThreeDViewIcon,
   subsystems: CircuitBoardIcon,
+  hardware: ThreeDViewIcon,
   safety: Shield01Icon,
   telemetry: ChartHistogramIcon,
   logs: LeftToRightListBulletIcon,

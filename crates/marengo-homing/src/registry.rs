@@ -26,6 +26,7 @@ pub struct HomingRegistry {
     record_path: PathBuf,
     calibration: CalibrationRecord,
     joint_states: HashMap<String, JointHomingState>,
+    out_of_limits: HashMap<String, bool>,
     sensor_health: HashMap<String, crate::sensor::SensorHealth>,
     configured_joints: Vec<String>,
     zero_tolerance_rad: f64,
@@ -59,6 +60,7 @@ impl HomingRegistry {
             record_path,
             calibration,
             joint_states,
+            out_of_limits: HashMap::new(),
             sensor_health: HashMap::new(),
             configured_joints,
             zero_tolerance_rad,
@@ -70,6 +72,20 @@ impl HomingRegistry {
             .get(joint)
             .copied()
             .unwrap_or(JointHomingState::Unhomed)
+    }
+
+    pub fn is_out_of_limits(&self, joint: &str) -> bool {
+        self.out_of_limits.get(joint).copied().unwrap_or(false)
+    }
+
+    pub fn mark_out_of_limits(&mut self, joint: &str) {
+        if self.configured_joints.iter().any(|j| j == joint) {
+            self.out_of_limits.insert(joint.to_string(), true);
+        }
+    }
+
+    pub fn clear_out_of_limits(&mut self, joint: &str) {
+        self.out_of_limits.remove(joint);
     }
 
     pub fn all_verified(&self) -> bool {
@@ -158,6 +174,7 @@ impl HomingRegistry {
         self.calibration.upsert(entry);
         self.persist()?;
         self.set_state(&motor.joint, JointHomingState::Verified);
+        self.clear_out_of_limits(&motor.joint);
         Ok(())
     }
 

@@ -1,9 +1,15 @@
 import { create } from 'zustand';
 
-import type { RobotState, SafetyState, ImuSample } from '@/gen/marengo/v1/marengo_pb';
+import type {
+  JointState,
+  RobotState,
+  SafetyState,
+  ImuSample,
+} from '@/gen/marengo/v1/marengo_pb';
 import type { JointTrackingPoint } from '@/components/dashboard/charts/types';
 import { dummyShoulderPitchTracking } from '@/components/dashboard/charts/constants';
 import { isChappeLive } from '@/lib/chappe-config';
+import { robotWireFacetsLive } from '@/lib/commissioning';
 
 export type OperationalModeLabel = 'DISABLED' | 'READY' | 'ACTIVE' | null;
 
@@ -35,6 +41,21 @@ interface RobotStore {
   trackingPoints: JointTrackingPoint[]; // legacy alias or empty
   trackingPointsByJoint: JointTrackingPointByJoint;
   appendTrackingPoint: (jointName: string, point: JointTrackingPoint) => void;
+}
+
+/** Select a live JointState by name (wire truth for commissioning facets). */
+export function selectJointState(
+  state: Pick<RobotStore, 'robotState'>,
+  jointName: string,
+): JointState | undefined {
+  return state.robotState?.joints.find((j) => j.name === jointName);
+}
+
+/** True when RobotState publishes non-UNSPECIFIED homing facets. */
+export function selectWireFacetsLive(
+  state: Pick<RobotStore, 'robotState'>,
+): boolean {
+  return robotWireFacetsLive(state.robotState);
 }
 
 const initialTracking = isChappeLive()

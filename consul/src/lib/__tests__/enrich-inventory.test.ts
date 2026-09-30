@@ -8,23 +8,50 @@ import {
 } from '@/gen/marengo/v1/marengo_pb';
 import { enrichInventory } from '@/lib/enrich-inventory';
 import type { ConfigSnapshotDto } from '@/lib/config-api';
-import { robotInventory } from '@/data/robot-inventory';
+import {
+  ACTUATOR_NODE_UNAVAILABLE,
+  robotInventory,
+} from '@/data/robot-inventory';
 
 const snapshot: ConfigSnapshotDto = {
-  profile: 'arm_4dof_right',
+  profile: 'arm_3dof_right',
   config_dir: '/opt/marengo/config',
   joints: ['right_shoulder_roll', 'right_shoulder_pitch', 'right_upper_arm_yaw'],
   motors: [
     {
       joint: 'right_shoulder_roll',
       can_interface: 'can0',
-      device_id: 1,
+      device_id: 2,
       direction: 1,
       motor_type: 'rs03',
       bench: {
         position_lower_rad: -1.57,
         position_upper_rad: 1.57,
         torque_limit_nm: 60,
+      },
+    },
+    {
+      joint: 'right_shoulder_pitch',
+      can_interface: 'can0',
+      device_id: 1,
+      direction: -1,
+      motor_type: 'rs03',
+      bench: {
+        position_lower_rad: -0.9,
+        position_upper_rad: 3.17,
+        torque_limit_nm: 60,
+      },
+    },
+    {
+      joint: 'right_upper_arm_yaw',
+      can_interface: 'can0',
+      device_id: 3,
+      direction: 1,
+      motor_type: 'rs02',
+      bench: {
+        position_lower_rad: -1.57,
+        position_upper_rad: 1.57,
+        torque_limit_nm: 17,
       },
     },
   ],
@@ -42,13 +69,17 @@ describe('enrichInventory', () => {
     expect(enrichInventory(robotInventory, null, null)).toBe(robotInventory);
   });
 
+  it('keeps actuators without hardcoded CAN wiring until a snapshot arrives', () => {
+    const roll = robotInventory.find((r) => r.name === 'right_shoulder_roll');
+    expect(roll?.node).toBe(ACTUATOR_NODE_UNAVAILABLE);
+  });
+
   it('overlays motor node and disk limits when live snapshot is missing', () => {
     const enriched = enrichInventory(robotInventory, snapshot, null);
     const roll = enriched.find((r) => r.name === 'right_shoulder_roll');
-    expect(roll?.node).toBe('RS03 · can0 · id 1');
-    // Soft preferred over bench when only disk config is available.
+    expect(roll?.node).toBe('RS03 · can0 · id 2');
     expect(roll?.limit).toBe('±1');
-    expect(roll?.preset).toBe('bench_4dof');
+    expect(roll?.preset).toBe('bench_3dof');
   });
 
   it('prefers Davout hard envelope over disk soft for Range', () => {
@@ -80,5 +111,24 @@ describe('enrichInventory', () => {
     expect(robotInventory.find((r) => r.name === 'right_shoulder_roll')?.node).toBe(
       before,
     );
+  });
+
+  it('orders right-arm actuators by CAN device id (pitch before roll)', () => {
+    const enriched = enrichInventory(robotInventory, snapshot, null);
+    const rightArm = enriched.filter((r) => r.group === 'right_arm');
+    expect(rightArm.map((r) => r.name)).toEqual([
+      'right_shoulder_pitch',
+      'right_shoulder_roll',
+      'right_upper_arm_yaw',
+      'right_elbow_pitch',
+      'right_lower_arm_yaw',
+    ]);
+    expect(rightArm.map((r) => r.node)).toEqual([
+      'RS03 · can0 · id 1',
+      'RS03 · can0 · id 2',
+      'RS02 · can0 · id 3',
+      'configuration unavailable',
+      'configuration unavailable',
+    ]);
   });
 });

@@ -11,6 +11,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { applyConfigSnapshotLimits } from '@/lib/apply-config-snapshot-limits';
+import type { ConfigSnapshotDto } from '@/lib/config-api';
 import { fetchActuatorLimits, postSetZeroCommand } from '@/lib/gateway-api';
 import {
   canStartLimitListen,
@@ -21,12 +23,11 @@ import { queryClient } from '@/lib/query-client';
 import { queryKeys } from '@/lib/query-keys';
 import { subscribeTeachSamples } from '@/lib/teach-sample-bus';
 import { useActuatorStore } from '@/state/actuatorStore';
-import { useActuatorZeroStore } from '@/state/actuatorZeroStore';
 import { useLimitListenStore } from '@/state/limitListenStore';
 import { useRobotStore } from '@/state/robotStore';
 
 const SET_LIMITS_HELP =
-  'Motors must be disabled (not ACTIVE) for Set Limits. Support the assembly, then sweep the joint to both hard stops while Consul samples position. Stop to propose min/max, then Apply hot-reloads Davout in-memory hard (+30 mrad margin) and soft (ADR 0009 inset), expand-only URDF, and YAML write-behind (no restart). Inventory/Testing Range reads that live Davout snapshot — not disk soft alone. Persist failures show a separate degraded banner — do not restart to “fix” them. Set Zero briefly enables for firmware zero at the current pose, then disables again.';
+  'Motors must be disabled (not ACTIVE) for Set Limits. Support the assembly, then sweep the joint to both hard stops while Consul samples position (Hardware holds an Active Reporting lease for free-drive sensing). Stop to propose min/max, then Apply Limits becomes the new durable SoT: hot-reloads Davout hard to the taught min/max (soft = ADR 0009 inset), expand-only URDF, and YAML write-behind (no restart). Encoder jitter at the stop is covered by Davout measured-fault slack (~30 mrad), not by rewriting the stored hard. Later deploys preserve those taught envelopes unless MARENGO_REPLACE_LIMITS=1. Hardware Range reads the live Davout snapshot. Persist failures show a separate degraded banner — do not restart to “fix” them. Set Zero briefly enables for firmware zero at the current pose, then disables again.';
 
 type SetLimitsPanelProps = {
   jointName: string;
@@ -64,9 +65,10 @@ export function SetLimitsPanel({
   const [signTestPassed, setSignTestPassed] = useState(false);
   const [applyBusy, setApplyBusy] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
-  const [applyOk, setApplyOk] = useState<string | null>(null);
+  const [applyOk, setApplyOk] = useState(false);
   const applyInFlightRef = useRef(false);
   const proposedRange = proposal?.display ?? null;
+  const showAppliedFlash = zeroOk || applyOk;
 
   const confirmTitleId = useId();
   const confirmDescId = useId();
@@ -136,7 +138,7 @@ export function SetLimitsPanel({
     if (!zeroOk) {
       return;
     }
-    const timer = window.setTimeout(() => setZeroOk(false), 4000);
+    const timer = window.setTimeout(() => setZeroOk(false), 2200);
     return () => window.clearTimeout(timer);
   }, [zeroOk]);
 
@@ -144,7 +146,7 @@ export function SetLimitsPanel({
     if (!applyOk) {
       return;
     }
-    const timer = window.setTimeout(() => setApplyOk(null), 6000);
+    const timer = window.setTimeout(() => setApplyOk(false), 2200);
     return () => window.clearTimeout(timer);
   }, [applyOk]);
 
@@ -194,9 +196,7 @@ export function SetLimitsPanel({
     setZeroOk(false);
     try {
       await postSetZeroCommand(jointName, { signTestPassed: true });
-      // Gateway 200 only means queued on Chappe — do not bump teach calibration yet.
-      // Unlock inventory Home once Set Zero is accepted for this joint.
-      useActuatorZeroStore.getState().markZeroed(jointName);
+      // Gateway 200 only means queued on Chappe — Reference Ready follows wire Verified.
       setZeroOk(true);
       setZeroConfirmOpen(false);
       setSignTestPassed(false);
@@ -214,7 +214,7 @@ export function SetLimitsPanel({
     applyInFlightRef.current = true;
     setApplyBusy(true);
     setApplyError(null);
-    setApplyOk(null);
+    setApplyOk(false);
     try {
       const result = await persistJointLimits(jointName, {
         lower: proposal.lower,
@@ -227,13 +227,27 @@ export function SetLimitsPanel({
       // Draft only — do not write inventoryOverridesStore; config snapshot is SoT.
       onApplyRange(proposal.display);
       discard();
-      setApplyOk(
-        result.restartRequired
-          ? result.message
-          : `${result.message} (live; no restart)`,
-      );
+      setApplyOk(true);
+      if (result.localSync === 'failed') {
+        setApplyError(
+          'Local checkout sync failed — is just limit-sync-serve running?',
+        );
+      }
       // Live Set Limits must not open NeedsRestart / clear structural pending.
       try {
+        // Patch Disk hard/soft in the React Query cache from the Durable ACK
+        // payload before refetch — avoids a frame (or refresh) that still shows
+        // pre-Apply motors.yaml bounds while /config/snapshot is in flight.
+        queryClient.setQueryData<ConfigSnapshotDto | null>(
+          queryKeys.configSnapshot,
+          (prev) =>
+            applyConfigSnapshotLimits(prev, jointName, {
+              lower: result.lower,
+              upper: result.upper,
+              softLower: result.softLower,
+              softUpper: result.softUpper,
+            }) ?? prev ?? null,
+        );
         await queryClient.invalidateQueries({
           queryKey: queryKeys.configSnapshot,
         });
@@ -287,25 +301,37 @@ export function SetLimitsPanel({
             </TooltipContent>
           </Tooltip>
         </div>
-        {listening ? (
-          <Badge className="border-accent/40 bg-accent/15 font-mono text-[10px] uppercase tracking-[0.14em] text-accent">
-            Listening
-          </Badge>
-        ) : reviewing ? (
-          <Badge
-            variant="secondary"
-            className="font-mono text-[10px] uppercase tracking-[0.14em]"
-          >
-            Review
-          </Badge>
-        ) : (
-          <Badge
-            variant="outline"
-            className="font-mono text-[10px] uppercase tracking-[0.14em]"
-          >
-            Idle
-          </Badge>
-        )}
+        <div className="flex items-center gap-2">
+          {showAppliedFlash ? (
+            <Badge
+              className="badge-applied-flash border-[color:var(--ok)]/40 bg-[color:var(--ok)]/15 font-mono text-[10px] uppercase tracking-[0.14em] text-[color:var(--ok)]"
+              role="status"
+              aria-live="polite"
+              data-testid="set-limits-applied"
+            >
+              Applied
+            </Badge>
+          ) : null}
+          {listening ? (
+            <Badge className="border-accent/40 bg-accent/15 font-mono text-[10px] uppercase tracking-[0.14em] text-accent">
+              Listening
+            </Badge>
+          ) : reviewing ? (
+            <Badge
+              variant="secondary"
+              className="font-mono text-[10px] uppercase tracking-[0.14em]"
+            >
+              Review
+            </Badge>
+          ) : (
+            <Badge
+              variant="outline"
+              className="font-mono text-[10px] uppercase tracking-[0.14em]"
+            >
+              Idle
+            </Badge>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
@@ -366,21 +392,10 @@ export function SetLimitsPanel({
           {applyError}
         </p>
       ) : null}
-      {applyOk ? (
-        <p className="text-xs text-ok" role="status">
-          {applyOk}
-        </p>
-      ) : null}
 
       {zeroError ? (
         <p className="text-xs text-fault" role="status">
           {zeroError}
-        </p>
-      ) : null}
-      {zeroOk ? (
-        <p className="text-xs text-ok" role="status">
-          Set Zero queued — watch telemetry for pos near 0 and Disabled before
-          Set Limits. Calibration epoch is not bumped until zero is verified.
         </p>
       ) : null}
 
@@ -474,7 +489,7 @@ export function SetLimitsPanel({
                 disabled={applyBusy}
                 onClick={() => {
                   setApplyError(null);
-                  setApplyOk(null);
+                  setApplyOk(false);
                   discard();
                 }}
               >
@@ -485,11 +500,11 @@ export function SetLimitsPanel({
             <Button
               type="button"
               size="sm"
-              disabled={!canStart || zeroConfirmOpen || zeroBusy || zeroOk}
+              disabled={!canStart || zeroConfirmOpen || zeroBusy}
               onClick={() => {
                 setZeroOk(false);
                 setZeroError(null);
-                setApplyOk(null);
+                setApplyOk(false);
                 setApplyError(null);
                 start(jointName);
               }}

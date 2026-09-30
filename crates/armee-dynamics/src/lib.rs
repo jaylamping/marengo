@@ -252,7 +252,7 @@ mod tests {
     #[test]
     fn weighted_bench_right_heavier_at_pitch() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../assets/urdf/shoulder_pitch_weighted.urdf");
+            .join("../../assets/urdf/archive/seed-shoulder_pitch_weighted/contributor.urdf");
         let model =
             gravity_model_from_urdf(&path, &shoulder_pitch_joints()).expect("weighted model");
         let tau = model
@@ -267,8 +267,8 @@ mod tests {
     }
 
     fn arm_3dof_right_model() -> UrdfGravityModel {
-        let path =
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/urdf/arm_3dof_right.urdf");
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../assets/urdf/archive/seed-arm_3dof_right/contributor.urdf");
         gravity_model_from_urdf(&path, &["right_shoulder_pitch".to_string()])
             .expect("arm_3dof_right model")
     }

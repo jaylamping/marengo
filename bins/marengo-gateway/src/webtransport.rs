@@ -267,6 +267,10 @@ pub fn spawn_demo_publisher(state: SharedState) {
                     effort: 0.0,
                     temperature_c: 0.0,
                     fault: 0,
+                    // Demo publisher: Unhomed (non-UNSPECIFIED) so Consul wire-gate opens.
+                    homing_state: armee_proto::JointHomingState::Unhomed as i32,
+                    drive_active: false,
+                    out_of_limits: false,
                 }],
             };
             let safety = SafetyState {

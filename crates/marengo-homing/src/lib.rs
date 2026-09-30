@@ -3,11 +3,17 @@
 //! Pure logic — GPIO/hardware I/O lives in bins via [`SensorProvider`].
 
 mod calibration;
+mod commissioning;
 mod registry;
 mod sensor;
 mod verify;
 
 pub use calibration::{CalibrationRecord, JointCalibration};
+pub use commissioning::{
+    from_proto_homing_state, is_enable_eligible, limb_ready, robot_ready, select_enable_targets,
+    to_proto_homing_state, verify_error_is_out_of_limits, wire_homing_is_unspecified,
+    JointFacetInput,
+};
 pub use registry::HomingRegistry;
 pub use sensor::{
     classify_sensor_pattern, MemorySensorProvider, SensorHealth, SensorPattern, SensorProvider,
@@ -62,10 +68,10 @@ mod tests {
     fn effective_homing_lists_robot_joints() {
         let homing = load_homing_config(repo_root()).expect("homing");
         let joints = vec![
-            "shoulder_roll".to_string(),
-            "shoulder_pitch".to_string(),
-            "upper_arm_yaw".to_string(),
-            "elbow".to_string(),
+            "right_shoulder_roll".to_string(),
+            "right_shoulder_pitch".to_string(),
+            "right_upper_arm_yaw".to_string(),
+            "right_elbow_pitch".to_string(),
         ];
         let eff = effective_homing_for_robot(&homing, &joints);
         assert_eq!(eff.len(), 4);

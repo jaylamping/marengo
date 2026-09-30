@@ -9,17 +9,17 @@ Operators need to change joint hard/soft limits and gains from Consul without tr
 
 ## Decision
 
-1. **Active profile runtime SoT is in-memory on the Pi** (Davout / Berthier config aggregate). YAML under `MARENGO_CONFIG_DIR` is the boot seed and async write-behind.
+1. **Active runtime SoT is in-memory on the Pi** (Davout / Berthier config aggregate). Durable disk SoT is root `config/{robot,motors,control,homing}.yaml` and `assets/urdf/marengo.urdf` (Pi: `/opt/marengo/config/`, `/opt/marengo/assets/urdf/marengo.urdf`). `MARENGO_CONFIG_DIR` defaults to `/opt/marengo/config`.
 2. **Live numerical limit changes** (hard/soft position, torque cap, `velocity_max_rad_s`) go gateway → Chappe `LimitPatchCommand` → Pi validate/apply → ACK with `persist_status` (`pending` | `durable` | `failed`). HTTP success requires apply ACK, not publish alone.
-3. **Inactive bringup profiles** are updated only via atomic validate-then-commit disk transactions (`marengo-config` profile txn) with CAS `expected_revision`. `applied_live: false`.
-4. **Structural / wiring / membership** changes always require restart when the target is the active profile. Persist-degraded is **not** NeedsRestart (restart would reload stale YAML).
+3. **Master YAML/URDF disk edits** use atomic validate-then-commit (`marengo-config` profile txn) with CAS `expected_revision` on the master config dir. Legacy bringup profile paths are retired.
+4. **Structural / wiring / membership** changes always require restart when they affect the loaded master description. Persist-degraded is **not** NeedsRestart (restart would reload stale YAML).
 5. **`marengo.db` `config_overrides` / `settings`** remain audit / operator prefs — not the motor limit SoT.
 6. **One persist coordinator** on the Pi queues motors+control (and control-only overlay) writes; restart drains or refuses while pending.
 
 ## Consequences
 
 - Set Limits no longer opens the NeedsRestart dialog on success.
-- Consul invalidates the live snapshot after ACK; inactive toasts name the target profile.
+- Consul invalidates the live snapshot after ACK.
 - Syncing repo YAML onto a dirty Pi can clobber unrecovered write-behind — operators should treat persist-failed as a flush/retry event.
 
 ## Consul UI contract (operator Range SoT)

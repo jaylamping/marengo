@@ -78,6 +78,36 @@ echo "==> consul: gen:proto, build, audit"
   fi
 )
 
+echo "==> node tooling (marengo-pi-mcp, hooks, limit-sync, research launch)"
+(
+  cd "${ROOT}/tools/marengo-pi-mcp"
+  npm ci
+  npm run typecheck
+  npm test
+)
+(
+  cd "${ROOT}/tools/limit-sync-local"
+  npm ci
+  npm run typecheck
+)
+(
+  cd "${ROOT}/tools/marengo-research-mcp"
+  npm ci
+  npm run typecheck
+)
+(
+  cd "${ROOT}/.cursor/hooks"
+  npm ci
+  npm run typecheck
+  # Committed hook JS must match TypeScript sources (Cursor loads .js with no build step).
+  npm run build
+  if ! git -C "${ROOT}" diff --quiet -- .cursor/hooks/session-start-marengo.js .cursor/hooks/check-powershell-shell.js; then
+    echo "error: .cursor/hooks/*.js out of date — run \`just mcp-build\` and commit the regenerated JS" >&2
+    git -C "${ROOT}" --no-pager diff -- .cursor/hooks/session-start-marengo.js .cursor/hooks/check-powershell-shell.js || true
+    exit 1
+  fi
+)
+
 echo "==> validate fixtures (URDF + MJCF)"
 "${ROOT}/scripts/validate-urdf.sh"
 

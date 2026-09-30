@@ -14,7 +14,7 @@ export const restartMarengoPiSchema = z.object({
     .enum(["restart", "stop"])
     .default("restart")
     .describe(
-      "restart = systemctl stop/pkill then start marengo-pi.service (reloads motors.yaml hard limits); " +
+      "restart = systemctl stop/pkill then start marengo-pi.service (boot-reload YAML/URDF; not needed after Durable Set Limits Apply); " +
         "stop = stop/pkill only (do not start systemd unit)",
     ),
 });

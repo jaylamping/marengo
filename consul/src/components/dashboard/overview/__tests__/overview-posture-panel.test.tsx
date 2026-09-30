@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 
 import { OverviewPosturePanel } from '@/components/dashboard/overview/overview-posture-panel';
-import { dashboardOverviewHeroClassName } from '@/components/dashboard/layout/constants';
 
 vi.mock('@react-three/fiber', () => ({
   Canvas: ({ children }: { children: React.ReactNode }) => (
@@ -33,12 +32,5 @@ describe('OverviewPosturePanel', () => {
     render(<OverviewPosturePanel />);
     expect(screen.getByTestId('overview-posture-panel')).toBeTruthy();
     expect(screen.getByText(/Demo pose/i)).toBeTruthy();
-  });
-});
-
-describe('overview hero layout constants', () => {
-  it('uses a two-column hero above the KPI strip', () => {
-    expect(dashboardOverviewHeroClassName).toContain('grid');
-    expect(dashboardOverviewHeroClassName).toContain('@3xl/main:grid-cols-2');
   });
 });

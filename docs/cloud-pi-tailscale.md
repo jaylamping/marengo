@@ -81,7 +81,7 @@ export MARENGO_PI_HOST=joey-robot.tail0b414.ts.net
 
 ## Logging architecture
 
-See [ADR 0011](decisions/0011-log-retention-and-archive.md) and [bench-position-tuning.md](bench-position-tuning.md#log-retention).
+See [ADR 0011](decisions/0011-log-retention-and-archive.md).
 
 | Layer | Hot file | Cloud command |
 |-------|----------|---------------|

@@ -1,0 +1,8 @@
+{
+  "upload_id": "seed-shoulder_pitch_dual",
+  "source": "assets/urdf/shoulder_pitch_dual.urdf",
+  "archived_at": "20260809T120000Z",
+  "contributor_urdf": "contributor.urdf",
+  "checksum_sha256": "ef07bf46b11eb584c1be3beedda2fbac5fbc337708b004b47e6bb84d81e63cb8",
+  "notes": "Slice URDF archived at master SoT cutover (consul-hardware-sot phase 1)"
+}

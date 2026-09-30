@@ -23,7 +23,7 @@ Implement a **shared velocity-scaled command envelope** in `armee-kinematics` (`
 
 1. **Berthier (plan):** clamp `hold-at` targets; clamp planner `q_traj` after each tick; clamp `q_des` (including overshoot branch); approach `v_max` cap near envelope walls.
 2. **Davout (command):** clamp MIT `position_rad` into envelope; fault only if still outside hard after clamp (bug guard).
-3. **Davout (measured):** fault when feedback `q` exceeds hard ± `position_limit_measured_fault_slack_rad` (default 5 mrad).
+3. **Davout (measured):** fault when feedback `q` exceeds hard ± `position_limit_measured_fault_slack_rad` (default 30 mrad). Bench Set Limits persists **taught** hard into `motors.yaml`; this slack covers encoder settle/jitter at the stop so Consul must not silently widen stored hard by ±30 mrad.
 
 ### Margin formula
 
@@ -42,7 +42,7 @@ margin = min_rad + k_v_s * |dq_cmd| + k_stop * dq_cmd² / (2 * decel_rad_s2)
 | `position_limit_margin_min_rad` | 0.01 | Rest / crawl margin |
 | `position_limit_margin_k_v_s` | 0.02 | Linear speed term |
 | `position_limit_margin_k_stop` | 0.5 | Stopping-distance scale |
-| `position_limit_measured_fault_slack_rad` | 0.005 | Measured-q fault slack |
+| `position_limit_measured_fault_slack_rad` | 0.03 | Measured-q fault slack (taught-hard enable jitter) |
 | `position_soft_lower_rad` | (optional) | Override when URDF lacks `safety_controller` |
 | `position_soft_upper_rad` | (optional) | Same |
 

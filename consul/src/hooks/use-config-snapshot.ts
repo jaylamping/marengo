@@ -7,11 +7,11 @@ import { queryKeys } from '@/lib/query-keys';
 export const configSnapshotQueryOptions = {
   queryKey: queryKeys.configSnapshot,
   queryFn: fetchConfigSnapshot,
-  /** Always treat as stale so mount shows cache then background-refetches. */
+  /** Always stale: motors/control limits are write-behind and must not linger. */
   staleTime: 0,
 } as const;
 
-/** Gateway config snapshot — cache-first via Query persist, always refetch when stale. */
+/** Gateway config snapshot — in-memory Query cache only (not localStorage). */
 export function useConfigSnapshot() {
   return useQuery(configSnapshotQueryOptions);
 }

@@ -1,0 +1,17 @@
+{
+  "name": "marengo-cursor-hooks",
+  "private": true,
+  "type": "module",
+  "description": "Cursor sessionStart / beforeShellExecution hooks",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": "^24.16.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "typescript": "^5.8.2"
+  }
+}

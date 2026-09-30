@@ -89,15 +89,13 @@ export function registerAdminTools(
 
     pi_sync_bench_config: {
       description:
-        "Rsync a bringup profile (control.yaml, motors.yaml, robot.yaml, homing.yaml) from local repo to Pi. " +
-        "Use after editing config on Mac; sets ~/marengo and optionally /opt/marengo.",
+        "Rsync master config (robot/motors/control/homing.yaml) from local repo config/ to Pi. " +
+        "Use after editing master YAML on the workstation; sets ~/marengo and optionally /opt/marengo/config.",
       inputSchema: syncBenchConfigSchema,
       handler: async (args: {
-        profile?: string;
         install_to_opt?: boolean;
       }) => {
         return runSyncBenchConfig(cfg, runRemote, {
-          profile: args.profile ?? "arm_4dof_right",
           install_to_opt: args.install_to_opt ?? true,
         });
       },
@@ -105,8 +103,9 @@ export function registerAdminTools(
 
     pi_sync_bench_urdf: {
       description:
-        "Rsync selected bench URDF assets from local assets/urdf to the Pi. " +
-        "Use after editing bench URDF COM/mass assets; sets ~/marengo and optionally /opt/marengo.",
+        "Rsync live marengo.urdf (and optional archive slice URDFs) from local assets/urdf to the Pi. " +
+        "ADR 0017: prefer sync only after Set Limits persist_status=durable, or pull Pi URDF before deploy — " +
+        "unchecked sync can clobber expand-only bench limits.",
       inputSchema: syncBenchUrdfSchema,
       handler: async (args: z.infer<typeof syncBenchUrdfSchema>) => {
         return runSyncBenchUrdfAssets(cfg, runRemote, {
@@ -141,7 +140,9 @@ export function registerAdminTools(
     pi_restart_marengo_pi: {
       description:
         "Stop or restart marengo-pi.service (and any leftover /opt/marengo/bin/marengo-pi process). " +
-        "Use after Consul Set Limits / motors.yaml hard-bound changes so Davout reloads position limits. " +
+        "Numerical Set Limits Apply hot-reloads Davout in-memory hard bounds + write-behind YAML/URDF " +
+        "(ADR 0012 / 0017) — do not restart for a successful Durable Apply. Prefer restart after binary " +
+        "deploy, structural wiring changes, or a failed persist that left disk stale vs live. " +
         "Motors go limp during stop — support elevated arms. Requires confirm: true. " +
         "Does not restart marengo-gateway.",
       inputSchema: restartMarengoPiSchema,
@@ -180,7 +181,7 @@ export function registerAdminTools(
           "sudo systemctl disable marengo-pi.service 2>/dev/null || true",
           "sudo pkill -f /opt/marengo/bin/marengo-pi 2>/dev/null || true",
           "sudo git config --global --add safe.directory \"$(pwd)\" 2>/dev/null || true",
-          "if [[ -x ./scripts/pi-native-build.sh ]]; then ./scripts/pi-native-build.sh; else",
+          "if [[ -f ./scripts/pi-native-build.sh ]]; then bash ./scripts/pi-native-build.sh; else",
           '  if [[ -f "${HOME}/.cargo/env" ]]; then set -a; source "${HOME}/.cargo/env"; set +a; fi',
           '  export PATH="${HOME}/.cargo/bin:/usr/local/cargo/bin:${PATH:-}"',
           "  command -v cargo >/dev/null || { echo 'error: cargo not on PATH'; exit 127; }",

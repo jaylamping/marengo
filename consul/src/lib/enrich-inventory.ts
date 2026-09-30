@@ -1,6 +1,13 @@
 import type { ActuatorLimitSnapshot } from '@/gen/marengo/v1/marengo_pb';
 import type { ConfigSnapshotDto } from '@/lib/config-api';
-import type { InventoryItem } from '@/data/robot-inventory';
+import {
+  INVENTORY_GROUP_ORDER,
+  type InventoryItem,
+} from '@/data/robot-inventory';
+import {
+  compareCanAddress,
+  parseInventoryNodeCanAddress,
+} from '@/lib/can-address-order';
 import { deriveMembershipPreset } from '@/lib/bringup-presets';
 import { liveJointEnvelope } from '@/state/actuatorStore';
 
@@ -18,6 +25,39 @@ function formatBenchLimit(lower: number, upper: number): string {
  * Range SoT (ADR 0012): prefer ActuatorLimitSnapshot hard (URDF ∩ bench).
  * Disk config soft/bench is fallback only when the live snapshot is missing.
  */
+/** Within each limb group, actuators with CAN wiring sort by bus then device id. */
+export function sortInventoryByCanAddress(items: InventoryItem[]): InventoryItem[] {
+  const byGroup = new Map<InventoryItem['group'], InventoryItem[]>();
+  for (const item of items) {
+    const list = byGroup.get(item.group);
+    if (list) {
+      list.push(item);
+    } else {
+      byGroup.set(item.group, [item]);
+    }
+  }
+
+  const out: InventoryItem[] = [];
+  for (const group of INVENTORY_GROUP_ORDER) {
+    const list = byGroup.get(group);
+    if (!list) continue;
+    list.sort((a, b) => {
+      const pa = parseInventoryNodeCanAddress(a.node);
+      const pb = parseInventoryNodeCanAddress(b.node);
+      // Both unwired: keep catalog order (stable sort + equal keys).
+      if (pa.canId == null && pb.canId == null) {
+        return 0;
+      }
+      return compareCanAddress(
+        { canInterface: pa.canInterface, canId: pa.canId, joint: a.name },
+        { canInterface: pb.canInterface, canId: pb.canId, joint: b.name },
+      );
+    });
+    out.push(...list);
+  }
+  return out;
+}
+
 export function enrichInventory(
   base: InventoryItem[],
   snapshot: ConfigSnapshotDto | null,
@@ -34,7 +74,7 @@ export function enrichInventory(
     (snapshot?.control_limits ?? []).map((c) => [c.joint, c] as const),
   );
 
-  return base.map((row) => {
+  const enriched = base.map((row) => {
     if (row.kind !== 'actuator') {
       return row;
     }
@@ -69,4 +109,6 @@ export function enrichInventory(
       preset: membershipPreset ?? row.preset,
     };
   });
+
+  return sortInventoryByCanAddress(enriched);
 }

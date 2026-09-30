@@ -1,7 +1,6 @@
 //! Operator config snapshot + patch (Consul; ADR 0012).
 //!
-//! Active live limits go through Pi ACK (`/config/actuators/apply`). `/config/patch`
-//! is a thin facade for Set Limits compatibility.
+//! Active live limits go through Pi ACK (`POST /config/patch`).
 
 use std::path::{Path, PathBuf};
 
@@ -16,8 +15,8 @@ use marengo_config::{
 };
 use serde::{Deserialize, Serialize};
 
+use crate::limit_patch::{apply_limit_patch_async, LimitPatchRequest, PersistStatus};
 use crate::logs::log_token_from_env;
-use crate::profiles::{self, ApplyActuatorJson, ApplyOperation};
 use crate::state::SharedState;
 
 #[derive(Serialize)]
@@ -96,10 +95,13 @@ fn resolve_config_dir() -> PathBuf {
 }
 
 fn profile_name(config_dir: &Path) -> String {
+    if config_dir.ends_with("config") {
+        return "master".to_string();
+    }
     config_dir
         .file_name()
         .and_then(|n| n.to_str())
-        .unwrap_or("default")
+        .unwrap_or("master")
         .to_string()
 }
 
@@ -232,23 +234,15 @@ pub async fn post_config_patch(
     }
 
     let config_dir = resolve_config_dir();
-    let repo_root = resolve_repo_root();
-    let active_slug = config_dir
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("default")
-        .to_string();
     let revision = profile_content_revision(&config_dir).ok();
-    let apply = ApplyActuatorJson {
-        target_profile: active_slug,
-        expected_revision: revision,
+    let apply = LimitPatchRequest {
+        joint: patch.joint.clone(),
         operator_id: if patch.operator_id.is_empty() {
             "consul".to_string()
         } else {
             patch.operator_id.clone()
         },
-        op: ApplyOperation::UpsertLimits,
-        joint: patch.joint.clone(),
+        expected_revision: revision,
         position_lower_rad: patch.position_lower_rad,
         position_upper_rad: patch.position_upper_rad,
         torque_limit_nm: patch.torque_limit_nm,
@@ -256,8 +250,7 @@ pub async fn post_config_patch(
         position_soft_upper_rad: patch.position_soft_upper_rad,
         velocity_max_rad_s: patch.velocity_max_rad_s,
     };
-    let (_status, Json(result)) =
-        profiles::apply_actuator_async(state, &repo_root, &config_dir, apply).await;
+    let result = apply_limit_patch_async(state, &config_dir, apply).await;
 
     if result.ok {
         let audit_key = format!("config.patch.{}", patch.joint);
@@ -280,10 +273,10 @@ pub async fn post_config_patch(
         message: result.message,
         restart_required: result.restart_required,
         persist_status: match result.persist_status {
-            profiles::PersistStatus::Durable => "durable".to_string(),
-            profiles::PersistStatus::Pending => "pending".to_string(),
-            profiles::PersistStatus::Failed => "failed".to_string(),
-            profiles::PersistStatus::NotApplicable => "n/a".to_string(),
+            PersistStatus::Durable => "durable".to_string(),
+            PersistStatus::Pending => "pending".to_string(),
+            PersistStatus::Failed => "failed".to_string(),
+            PersistStatus::NotApplicable => "n/a".to_string(),
         },
     }))
 }
@@ -292,35 +285,12 @@ pub async fn post_config_patch(
 mod tests {
     #![allow(clippy::expect_used, clippy::unwrap_used)]
 
-    use marengo_config::{
-        validate_control_against_limits, validate_control_config, validate_motors_against_robot,
-    };
-
     use super::*;
 
     #[test]
-    fn arm_3dof_right_profile_loads() {
+    fn master_snapshot_resolves_actuator_group_velocity() {
         let root = marengo_config::resolve_repo_root();
-        let config_dir = root.join("config/bringup/arm_3dof_right");
-        if !config_dir.is_dir() {
-            return;
-        }
-        let robot = load_robot_config_from(&config_dir).expect("robot");
-        let motors = load_motors_config_from(&config_dir).expect("motors");
-        let control = load_control_config_from(&config_dir).expect("control");
-        validate_control_config(&control).expect("control valid");
-        validate_motors_against_robot(&robot, &motors).expect("motors align");
-        validate_control_against_limits(&robot, &motors, &control).expect("limits align");
-        assert_eq!(robot.robot.joints.len(), 3);
-        assert_eq!(motors.motors.len(), 3);
-        let urdf = root.join(&robot.robot.urdf);
-        assert!(urdf.is_file(), "URDF missing: {}", urdf.display());
-    }
-
-    #[test]
-    fn arm_4dof_snapshot_resolves_actuator_group_velocity() {
-        let root = marengo_config::resolve_repo_root();
-        let config_dir = root.join("config/bringup/arm_4dof_right");
+        let config_dir = root.join("config");
         if !config_dir.is_dir() {
             return;
         }

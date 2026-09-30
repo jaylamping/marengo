@@ -57,38 +57,39 @@ export interface CompoundTestPreset {
 }
 
 /**
- * Flip to `true` only after docs/bench-elbow-test-suite.md **E6** Wave-pose
- * GravityComp sign is recorded. Until then, live (non-dry-run) Wave Start is
- * blocked in the compound panel — Position still carries τ_g, but unsupported
- * elevated Wave raise is not commissioned.
+ * Flip to `true` only after playbook §4c Wave-pose G-comp PASSes **and** a
+ * documented live raise + elbow-wave smoke (`docs/commissioning/limb-playbook.md`).
+ * Until then, live (non-dry-run) Wave Start is blocked in the compound panel —
+ * Position still carries τ_g, but unsupported elevated Wave raise is not commissioned.
  */
 export const WAVE_POSE_GCOMP_SIGNED = false;
 
 /**
- * Shipped Wave: raise includes yaw + elbow pitch; roll wave stays nativeWave
- * until a teach overlay replaces the wave phase. Loop extends nativeWave only
- * (does not re-raise). Taught overlays clear nativeWave and set loopFromSegment.
+ * Wave: raise to playbook `wave_pose`, then continuous elbow_pitch nativeWave
+ * (forearm nod). Loop extends nativeWave only (does not re-raise). Taught
+ * overlays clear nativeWave and set loopFromSegment.
  *
  * Live Wave raise posts ControlMode.POSITION. That is not "position-only" in the
  * upright-pose sense: Berthier Position includes τ_g feedforward plus impedance
  * (ADR 0007 / docs/safety.md). It does leave GravityComp mode, so Teach Record
- * clears its gravity-armed checkbox. Keep the arm supported until Wave-pose
- * G-comp sign is commissioned (docs/bench-elbow-test-suite.md E6). Do not add
- * yaw/elbow to arm_out_forward / arm_fully_up until Y3–Y4 / E gates PASS.
+ * clears its gravity-armed checkbox. Keep the arm supported until
+ * WAVE_POSE_GCOMP_SIGNED. Do not add yaw/elbow to arm_out_forward /
+ * arm_fully_up until those playbook gates PASS.
  */
 export const COMPOUND_TEST_PRESETS: CompoundTestPreset[] = [
   {
     id: 'wave',
     name: 'Wave',
     description:
-      'Arm up (pitch/roll/yaw/elbow raise under Position+τ_g), then continuous roll wave. Taught overlays replace wave phase only after Apply. Support the arm until E6 Wave-pose G-comp is signed.',
+      'Arm up to wave_pose (pitch/roll/yaw/elbow/lower under Position+τ_g), then continuous elbow-pitch wave. Taught overlays replace wave phase only after Apply. Live Start blocked until WAVE_POSE_GCOMP_SIGNED.',
     movementBrief:
-      'A waving motion raises the arm using the shoulder pitch actuator while moving the shoulder roll actuator outward to position the arm away from the body. The elbow pitch actuator bends the elbow so the forearm is held in a comfortable, upright position, while the upper arm yaw actuator rotates back and forth to create the primary side-to-side waving motion. The shoulder roll actuator can move slightly in coordination with the upper arm yaw to make the gesture appear smoother and more natural, while the shoulder pitch and elbow pitch remain mostly stable to maintain the overall waving posture. Teach overlays should encode a raise landmark, then at least two wave extrema (prefer yaw as the oscillating DOF, with optional small coordinated roll). Shipped continuous phase uses a native roll wave until a teach overlay replaces it.',
+      'Raise the arm to the commissioned wave_pose from operator demo: shoulder pitch about mid-high (~1.8 rad), shoulder roll open (~0.68), upper-arm yaw near zero, elbow bent near ~0.97 so the forearm can nod, lower-arm yaw twisted out (~1.47). Then oscillate elbow pitch between the wave extrema while holding pitch, roll, yaw, and lower yaw steady — a recognizable bye-wave (forearm folding), not upper-arm twist or shoulder-roll wag. Teach overlays should encode a raise landmark, then at least two elbow-pitch wave extrema. Shipped continuous phase uses native elbow_pitch wave until a teach overlay replaces it.',
     joints: [
       'right_shoulder_pitch',
       'right_shoulder_roll',
       'right_upper_arm_yaw',
       'right_elbow_pitch',
+      'right_lower_arm_yaw',
     ],
     loop: true,
     teach: {
@@ -97,18 +98,20 @@ export const COMPOUND_TEST_PRESETS: CompoundTestPreset[] = [
       loopFromFirstMotionLandmark: true,
     },
     advance: 'timed',
+    // Matches docs/commissioning/limb-playbook.md `wave_pose` (pitch-first robot.yaml order).
     keyframes: {
-      right_shoulder_pitch: [{ targetRad: 3.03, durationSec: 3.5 }],
-      right_shoulder_roll: [{ targetRad: 0.42, durationSec: 3.5 }],
-      right_upper_arm_yaw: [{ targetRad: 0, durationSec: 3.5 }],
-      right_elbow_pitch: [{ targetRad: 1.0, durationSec: 3.5 }],
+      right_shoulder_pitch: [{ targetRad: 1.8, durationSec: 3.5 }],
+      right_shoulder_roll: [{ targetRad: 0.68, durationSec: 3.5 }],
+      right_upper_arm_yaw: [{ targetRad: -0.11, durationSec: 3.5 }],
+      right_elbow_pitch: [{ targetRad: 0.97, durationSec: 3.5 }],
+      right_lower_arm_yaw: [{ targetRad: 1.47, durationSec: 3.5 }],
     },
     nativeWave: {
-      joint: 'right_shoulder_roll',
-      minRad: 0.42,
-      maxRad: 0.7,
+      joint: 'right_elbow_pitch',
+      // Clipped to taught elbow upper (~1.03); demo extrema went to ~1.42.
+      minRad: 0.55,
+      maxRad: 1.0,
       // Long enough that Loop does not re-arm mid-swing (re-start was the chop).
-      // halfPeriod 1.4s: peak |dq| ≈ 0.31 rad/s — a bit faster than 1.6s, still under choppy 1.2s (~0.37).
       cycles: 50,
       halfPeriodSec: 1.4,
     },

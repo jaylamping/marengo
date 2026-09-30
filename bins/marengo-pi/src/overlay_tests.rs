@@ -4,11 +4,11 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use armee_proto::actuator_command::Payload;
 use armee_proto::prost::Message;
-use armee_proto::{ActionEvent, Envelope};
+use armee_proto::{ActionEvent, ActuatorLimitSnapshot, Envelope};
 use berthier::{ControlLoop, ControlMode};
 use davout::MemoryBus;
 use marengo_config::{load_control_config_from, CommandJointAllowlist};
@@ -75,8 +75,8 @@ fn copy_profile_to_temp() -> (tempfile::TempDir, PathBuf, String) {
     let assets = tmp.path().join("assets/urdf");
     std::fs::create_dir_all(&assets).expect("assets");
     std::fs::copy(
-        root.join("assets/urdf/arm_4dof.urdf"),
-        assets.join("arm_4dof.urdf"),
+        root.join("assets/urdf/marengo.urdf"),
+        assets.join("marengo.urdf"),
     )
     .expect("copy urdf");
     let revision = profile_content_revision(&config_dir).expect("revision");
@@ -90,7 +90,7 @@ fn limit_patch_op(revision: String) -> OperatorCommand {
         operator_id: "test".into(),
         seq: 1,
         command: Some(ActuatorCommand {
-            joint: "elbow".into(),
+            joint: "right_elbow_pitch".into(),
             payload: Some(Payload::LimitPatch(LimitPatchCommand {
                 position_lower_rad: 0.1,
                 position_upper_rad: 1.4,
@@ -127,7 +127,12 @@ fn runtime_overlay_applies_kp_via_gain_override() {
     let (mut overlay, shutdown) = test_overlay();
     let mut loop_ctrl = test_loop();
     loop_ctrl.set_control_mode(ControlMode::Impedance);
-    let op = tuning_operator("elbow", "kp", 88.0, TuningTier::RuntimeMit as i32);
+    let op = tuning_operator(
+        "right_elbow_pitch",
+        "kp",
+        88.0,
+        TuningTier::RuntimeMit as i32,
+    );
     let outcomes = overlay
         .apply_operator_command(&mut loop_ctrl, &repo_root().join("config"), &op)
         .expect("apply");
@@ -137,7 +142,9 @@ fn runtime_overlay_applies_kp_via_gain_override() {
         return;
     };
     assert!((event.after - 88.0).abs() < 1e-9);
-    let ov = loop_ctrl.gain_override("elbow").expect("override");
+    let ov = loop_ctrl
+        .gain_override("right_elbow_pitch")
+        .expect("override");
     assert!((ov.kp - 88.0).abs() < 1e-9);
     shutdown.store(true, Ordering::SeqCst);
 }
@@ -147,13 +154,18 @@ fn runtime_overlay_rejects_pos_vel_torque_ff() {
     let (mut overlay, shutdown) = test_overlay();
     let mut loop_ctrl = test_loop();
     for param in ["pos", "vel", "torque_ff"] {
-        let op = tuning_operator("elbow", param, 1.0, TuningTier::RuntimeMit as i32);
+        let op = tuning_operator(
+            "right_elbow_pitch",
+            param,
+            1.0,
+            TuningTier::RuntimeMit as i32,
+        );
         let err = overlay
             .apply_operator_command(&mut loop_ctrl, &repo_root().join("config"), &op)
             .expect_err(param);
         assert!(matches!(err, OverlayError::UnsupportedParam(_)));
     }
-    assert!(loop_ctrl.gain_override("elbow").is_none());
+    assert!(loop_ctrl.gain_override("right_elbow_pitch").is_none());
     shutdown.store(true, Ordering::SeqCst);
 }
 
@@ -162,12 +174,17 @@ fn runtime_overlay_rejects_under_gravity_comp() {
     let (mut overlay, shutdown) = test_overlay();
     let mut loop_ctrl = test_loop();
     loop_ctrl.set_control_mode(ControlMode::GravityComp);
-    let op = tuning_operator("elbow", "kp", 88.0, TuningTier::RuntimeMit as i32);
+    let op = tuning_operator(
+        "right_elbow_pitch",
+        "kp",
+        88.0,
+        TuningTier::RuntimeMit as i32,
+    );
     let err = overlay
         .apply_operator_command(&mut loop_ctrl, &repo_root().join("config"), &op)
         .expect_err("gravity comp");
     assert!(matches!(err, OverlayError::UnsupportedParam(_)));
-    assert!(loop_ctrl.gain_override("elbow").is_none());
+    assert!(loop_ctrl.gain_override("right_elbow_pitch").is_none());
     shutdown.store(true, Ordering::SeqCst);
 }
 
@@ -176,12 +193,17 @@ fn runtime_overlay_rejects_under_disabled() {
     let (mut overlay, shutdown) = test_overlay();
     let mut loop_ctrl = test_loop();
     assert_eq!(loop_ctrl.control_mode(), ControlMode::Disabled);
-    let op = tuning_operator("elbow", "kp", 88.0, TuningTier::RuntimeMit as i32);
+    let op = tuning_operator(
+        "right_elbow_pitch",
+        "kp",
+        88.0,
+        TuningTier::RuntimeMit as i32,
+    );
     let err = overlay
         .apply_operator_command(&mut loop_ctrl, &repo_root().join("config"), &op)
         .expect_err("disabled");
     assert!(matches!(err, OverlayError::UnsupportedParam(_)));
-    assert!(loop_ctrl.gain_override("elbow").is_none());
+    assert!(loop_ctrl.gain_override("right_elbow_pitch").is_none());
     shutdown.store(true, Ordering::SeqCst);
 }
 
@@ -190,12 +212,17 @@ fn runtime_overlay_rejects_negative_kp() {
     let (mut overlay, shutdown) = test_overlay();
     let mut loop_ctrl = test_loop();
     loop_ctrl.set_control_mode(ControlMode::Impedance);
-    let op = tuning_operator("elbow", "kp", -1.0, TuningTier::RuntimeMit as i32);
+    let op = tuning_operator(
+        "right_elbow_pitch",
+        "kp",
+        -1.0,
+        TuningTier::RuntimeMit as i32,
+    );
     let err = overlay
         .apply_operator_command(&mut loop_ctrl, &repo_root().join("config"), &op)
         .expect_err("negative");
     assert!(matches!(err, OverlayError::UnsupportedParam(_)));
-    assert!(loop_ctrl.gain_override("elbow").is_none());
+    assert!(loop_ctrl.gain_override("right_elbow_pitch").is_none());
     shutdown.store(true, Ordering::SeqCst);
 }
 
@@ -204,11 +231,18 @@ fn runtime_overlay_clamps_kp_to_motor_type_max() {
     let (mut overlay, shutdown) = test_overlay();
     let mut loop_ctrl = test_loop();
     loop_ctrl.set_control_mode(ControlMode::Impedance);
-    let op = tuning_operator("elbow", "kp", 600.0, TuningTier::RuntimeMit as i32);
+    let op = tuning_operator(
+        "right_elbow_pitch",
+        "kp",
+        600.0,
+        TuningTier::RuntimeMit as i32,
+    );
     overlay
         .apply_operator_command(&mut loop_ctrl, &repo_root().join("config"), &op)
         .expect("apply");
-    let ov = loop_ctrl.gain_override("elbow").expect("override");
+    let ov = loop_ctrl
+        .gain_override("right_elbow_pitch")
+        .expect("override");
     // rs02 kp_max is 500 in default config
     assert!(ov.kp <= 500.0 + 1e-9);
     shutdown.store(true, Ordering::SeqCst);
@@ -225,7 +259,7 @@ fn config_overlay_rejects_over_max_kp_before_persist() {
     let (mut overlay, shutdown) = test_overlay();
     let mut loop_ctrl = ControlLoop::from_repo(&root, MemoryBus::default(), 200, 50).expect("loop");
     let op = tuning_operator(
-        "elbow",
+        "right_elbow_pitch",
         "impedance.kp",
         9999.0,
         TuningTier::ConfigOverlay as i32,
@@ -235,7 +269,7 @@ fn config_overlay_rejects_over_max_kp_before_persist() {
         .expect_err("over max");
     assert!(matches!(err, OverlayError::Config(_)));
     let disk = load_control_config_from(tmp.path()).expect("disk");
-    assert!(disk.control.joints["elbow"].impedance.kp < 9999.0);
+    assert!(disk.control.joints["right_elbow_pitch"].impedance.kp < 9999.0);
     shutdown.store(true, Ordering::SeqCst);
 }
 
@@ -250,7 +284,7 @@ fn config_overlay_queues_persist_and_applies_live() {
     let (mut overlay, shutdown) = test_overlay();
     let mut loop_ctrl = ControlLoop::from_repo(&root, MemoryBus::default(), 200, 50).expect("loop");
     let op = tuning_operator(
-        "elbow",
+        "right_elbow_pitch",
         "impedance.kp",
         33.0,
         TuningTier::ConfigOverlay as i32,
@@ -272,7 +306,7 @@ fn config_overlay_queues_persist_and_applies_live() {
         )
     }));
     assert!(
-        (loop_ctrl.supervisor().control.control.joints["elbow"]
+        (loop_ctrl.supervisor().control.control.joints["right_elbow_pitch"]
             .impedance
             .kp
             - 33.0)
@@ -285,7 +319,7 @@ fn config_overlay_queues_persist_and_applies_live() {
         "persist worker did not drain"
     );
     let reloaded = load_control_config_from(tmp.path()).expect("reload disk");
-    assert!((reloaded.control.joints["elbow"].impedance.kp - 33.0).abs() < 1e-9);
+    assert!((reloaded.control.joints["right_elbow_pitch"].impedance.kp - 33.0).abs() < 1e-9);
     shutdown.store(true, Ordering::SeqCst);
 }
 
@@ -302,8 +336,8 @@ fn persist_queue_coalesces_to_latest_draft() {
     draft
         .control
         .joints
-        .get_mut("elbow")
-        .expect("elbow")
+        .get_mut("right_elbow_pitch")
+        .expect("right_elbow_pitch")
         .impedance
         .kp = 11.0;
     queue
@@ -314,15 +348,15 @@ fn persist_queue_coalesces_to_latest_draft() {
             timestamp_ms: 1,
             session_id: "s".into(),
             operator_id: "o".into(),
-            joint: "elbow".into(),
+            joint: "right_elbow_pitch".into(),
             param: "impedance.kp".into(),
         })
         .expect("enqueue1");
     draft
         .control
         .joints
-        .get_mut("elbow")
-        .expect("elbow")
+        .get_mut("right_elbow_pitch")
+        .expect("right_elbow_pitch")
         .impedance
         .kp = 44.0;
     queue
@@ -333,7 +367,7 @@ fn persist_queue_coalesces_to_latest_draft() {
             timestamp_ms: 2,
             session_id: "s".into(),
             operator_id: "o".into(),
-            joint: "elbow".into(),
+            joint: "right_elbow_pitch".into(),
             param: "impedance.kp".into(),
         })
         .expect("enqueue2");
@@ -341,7 +375,7 @@ fn persist_queue_coalesces_to_latest_draft() {
     assert!(queue.pending_count_for_test() <= 1);
     assert!(queue.wait_idle_for_test(Duration::from_secs(2)));
     let reloaded = load_control_config_from(tmp.path()).expect("reload");
-    assert!((reloaded.control.joints["elbow"].impedance.kp - 44.0).abs() < 1e-9);
+    assert!((reloaded.control.joints["right_elbow_pitch"].impedance.kp - 44.0).abs() < 1e-9);
     shutdown.store(true, Ordering::SeqCst);
 }
 
@@ -363,17 +397,17 @@ fn limit_snapshot_marks_wired_joints() {
     let sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
     let allowlist = allowlist_from_repo();
     let snap = build_limit_snapshot(&sup, &allowlist, 42);
-    let elbow = snap
+    let right_elbow_pitch = snap
         .joints
         .iter()
-        .find(|j| j.joint == "elbow")
-        .expect("elbow");
-    assert!(elbow.wired);
-    assert!(elbow.kp_max > 0.0);
-    assert!(elbow.pos_upper_rad > elbow.pos_lower_rad);
-    assert!(elbow.pos_soft_upper_rad >= elbow.pos_soft_lower_rad);
-    assert!(elbow.pos_soft_lower_rad >= elbow.pos_lower_rad - 1e-9);
-    assert!(elbow.pos_soft_upper_rad <= elbow.pos_upper_rad + 1e-9);
+        .find(|j| j.joint == "right_elbow_pitch")
+        .expect("right_elbow_pitch");
+    assert!(right_elbow_pitch.wired);
+    assert!(right_elbow_pitch.kp_max > 0.0);
+    assert!(right_elbow_pitch.pos_upper_rad > right_elbow_pitch.pos_lower_rad);
+    assert!(right_elbow_pitch.pos_soft_upper_rad >= right_elbow_pitch.pos_soft_lower_rad);
+    assert!(right_elbow_pitch.pos_soft_lower_rad >= right_elbow_pitch.pos_lower_rad - 1e-9);
+    assert!(right_elbow_pitch.pos_soft_upper_rad <= right_elbow_pitch.pos_upper_rad + 1e-9);
 }
 
 #[test]
@@ -400,7 +434,7 @@ fn limit_patch_applies_live_and_queues_persist() {
     }));
     let policy = loop_ctrl
         .supervisor()
-        .joint_limit_policy("elbow")
+        .joint_limit_policy("right_elbow_pitch")
         .expect("policy");
     assert!((policy.hard_upper() - 1.4).abs() < 1e-9);
     assert!(
@@ -408,12 +442,12 @@ fn limit_patch_applies_live_and_queues_persist() {
         "persist drain"
     );
     let motors = marengo_config::load_motors_config_from(&config_dir).expect("motors");
-    let elbow = motors
+    let right_elbow_pitch = motors
         .motors
         .iter()
-        .find(|m| m.joint == "elbow")
-        .expect("elbow");
-    assert!((elbow.bench.position_upper_rad - 1.4).abs() < 1e-9);
+        .find(|m| m.joint == "right_elbow_pitch")
+        .expect("right_elbow_pitch");
+    assert!((right_elbow_pitch.bench.position_upper_rad - 1.4).abs() < 1e-9);
     shutdown.store(true, Ordering::SeqCst);
 }
 
@@ -434,23 +468,23 @@ fn limit_patch_rolls_back_live_when_persist_queue_dead() {
     let mut loop_ctrl = ControlLoop::from_repo(&root, MemoryBus::default(), 200, 50).expect("loop");
     let before = *loop_ctrl
         .supervisor()
-        .joint_limit_policy("elbow")
+        .joint_limit_policy("right_elbow_pitch")
         .expect("policy");
     let urdf_before = loop_ctrl
         .supervisor()
         .urdf_robot()
         .joints
         .iter()
-        .find(|j| j.name == "elbow")
+        .find(|j| j.name == "right_elbow_pitch")
         .map(|j| (j.limit.lower, j.limit.upper))
-        .expect("elbow urdf");
+        .expect("right_elbow_pitch urdf");
     let err = overlay
         .apply_operator_command(&mut loop_ctrl, &config_dir, &limit_patch_op(revision))
         .expect_err("dead persist queue");
     assert!(matches!(err, OverlayError::PersistQueue(_)));
     let after = *loop_ctrl
         .supervisor()
-        .joint_limit_policy("elbow")
+        .joint_limit_policy("right_elbow_pitch")
         .expect("policy");
     assert_eq!(after.hard_upper(), before.hard_upper());
     assert_eq!(after.hard_lower(), before.hard_lower());
@@ -459,9 +493,9 @@ fn limit_patch_rolls_back_live_when_persist_queue_dead() {
         .urdf_robot()
         .joints
         .iter()
-        .find(|j| j.name == "elbow")
+        .find(|j| j.name == "right_elbow_pitch")
         .map(|j| (j.limit.lower, j.limit.upper))
-        .expect("elbow urdf");
+        .expect("right_elbow_pitch urdf");
     assert_eq!(urdf_after, urdf_before);
 }
 
@@ -537,5 +571,67 @@ fn limit_patch_persist_failure_emits_distinct_failed_action() {
         use std::os::unix::fs::PermissionsExt;
         let _ = std::fs::set_permissions(tmp.path(), std::fs::Permissions::from_mode(0o755));
     }
+    shutdown.store(true, Ordering::SeqCst);
+}
+
+#[test]
+fn limit_patch_publishes_actuator_limits_before_chappe_tick() {
+    // Regression: Consul refresh after Durable Set Limits must read the live
+    // ActuatorLimitSnapshot, not wait up to 1/chappe_state_hz for maybe_publish_limits.
+    let root = repo_root();
+    let (tmp, config_dir, revision) = copy_profile_to_temp();
+    let (mut overlay, shutdown, bus) = test_overlay_with_bus_at(tmp.path().to_path_buf());
+    let mut limits_rx = bus.subscribe(TOPIC_ACTUATOR_LIMITS);
+    let mut loop_ctrl = ControlLoop::from_repo(&root, MemoryBus::default(), 200, 50).expect("loop");
+
+    let op = limit_patch_op(revision);
+    let envelope = Envelope {
+        timestamp_ms: op.timestamp_ms,
+        source_node: "marengo-gateway".into(),
+        message_type: "marengo.v1.OperatorCommand".into(),
+        payload: op.encode_to_vec(),
+    };
+    let (cmd_tx, mut cmd_rx) = broadcast::channel::<Vec<u8>>(4);
+    cmd_tx
+        .send(envelope.encode_to_vec())
+        .expect("enqueue limit_patch envelope");
+
+    overlay.drain_commands(&mut loop_ctrl, &config_dir, &bus, &mut cmd_rx);
+
+    let deadline = Instant::now() + Duration::from_millis(200);
+    let mut saw_limits = false;
+    while Instant::now() < deadline {
+        match limits_rx.try_recv() {
+            Ok(bytes) => {
+                let Ok(env) = Envelope::decode(bytes.as_slice()) else {
+                    continue;
+                };
+                let Ok(snap) = ActuatorLimitSnapshot::decode(env.payload.as_slice()) else {
+                    continue;
+                };
+                let elbow = snap
+                    .joints
+                    .iter()
+                    .find(|j| j.joint == "right_elbow_pitch")
+                    .expect("right_elbow_pitch in snapshot");
+                assert!(
+                    (elbow.pos_upper_rad - 1.4).abs() < 1e-9,
+                    "live snapshot must reflect patched hard upper, got {}",
+                    elbow.pos_upper_rad
+                );
+                saw_limits = true;
+                break;
+            }
+            Err(broadcast::error::TryRecvError::Empty) => {
+                thread::sleep(Duration::from_millis(5));
+            }
+            Err(broadcast::error::TryRecvError::Lagged(_)) => continue,
+            Err(broadcast::error::TryRecvError::Closed) => break,
+        }
+    }
+    assert!(
+        saw_limits,
+        "limit_patch must publish ActuatorLimitSnapshot immediately via drain_commands"
+    );
     shutdown.store(true, Ordering::SeqCst);
 }

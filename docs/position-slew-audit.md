@@ -32,8 +32,8 @@ All `position_slew_rad_s` values in repo configs (2026-06-16):
 |--------|-------------|---------|
 | [ADR 0007](decisions/0007-bench-position-trajectory-control.md) | **0.15** | Small retargets (≤ ~60 mrad); right-only bench table |
 | [docs/tuning.md](tuning.md) | **0.25** | Default when field omitted |
-| [docs/bench-position-tuning.md](bench-position-tuning.md) | **0.15** | Active right-only small-move cap |
 | [docs/rust-patterns.md](rust-patterns.md) §7 | small-move cap | Moves ≤ ~60 mrad use `position_slew_rad_s`; larger use trajectory `v` |
+| Live `config/control.yaml` | per-joint | Authoritative slew / cruise for the active tree |
 
 ## Code path: how slew is applied
 
@@ -119,5 +119,5 @@ Evidence:
 
 - [ADR 0007 — bench position trajectory control](decisions/0007-bench-position-trajectory-control.md)
 - [ADR 0010 — actuator velocity cap resolution](decisions/0010-actuator-velocity-cap-resolution.md)
-- [bench-position-tuning.md](bench-position-tuning.md)
+- [Limb commissioning playbook](commissioning/limb-playbook.md)
 - [rust-patterns.md §7](rust-patterns.md)

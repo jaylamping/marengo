@@ -3,13 +3,13 @@ use std::path::Path;
 use armee_proto::prost::Message;
 use armee_proto::ActiveReportingLeaseRequest;
 use armee_proto::EnableRequest;
-use armee_proto::HomingComplete;
 use armee_proto::MitCommandBatch;
+use armee_proto::MotorStatusPollRequest;
 use armee_proto::SetZeroRequest;
 use axum::{
     body::Body,
     extract::{Query, State},
-    http::{header, HeaderMap, StatusCode},
+    http::{header, HeaderMap, HeaderValue, StatusCode},
     response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
@@ -17,14 +17,17 @@ use axum::{
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use tokio_util::io::ReaderStream;
+use tower::ServiceBuilder;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
+use tower_http::set_header::SetResponseHeaderLayer;
 
 use crate::actuator;
 use crate::config;
+use crate::deploy;
 use crate::framing::{self, CHAPPE_STREAM_CONTENT_TYPE};
+use crate::hardware;
 use crate::logs;
-use crate::profiles;
 use crate::restart;
 use crate::state::{filter_topics, SharedState};
 
@@ -106,27 +109,48 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
         .route("/logs/structured", get(logs::structured_logs))
         .route("/settings", get(logs::get_settings))
         .route("/config/snapshot", get(config::get_config_snapshot))
-        .route("/config/profiles", get(profiles::get_profiles))
-        .route(
-            "/config/profiles/{slug}/snapshot",
-            get(profiles::get_profile_snapshot),
-        )
         .route("/config/patch", post(config::post_config_patch))
+        .route("/hardware/completeness", get(hardware::get_completeness))
+        .route("/hardware/urdf", get(hardware::get_urdf))
+        .route("/hardware/urdf/upload", post(hardware::post_urdf_upload))
         .route(
-            "/config/actuators/apply",
-            post(profiles::post_apply_actuator),
+            "/hardware/urdf/resolve-preview",
+            post(hardware::post_resolve_preview),
+        )
+        .route("/hardware/urdf/activate", post(hardware::post_activate))
+        .route("/hardware/urdf/archive", get(hardware::get_archive_list))
+        .route(
+            "/hardware/urdf/archive/{id}",
+            get(hardware::get_archive_fetch),
+        )
+        .route(
+            "/hardware/urdf/archive/{id}/restore",
+            post(hardware::post_archive_restore),
+        )
+        .route(
+            "/hardware/commissioning-scope",
+            get(hardware::get_commissioning_scope)
+                .put(hardware::put_commissioning_scope)
+                .delete(hardware::delete_commissioning_scope),
         )
         .route(
             "/control/restart-marengo-pi",
             post(restart::post_restart_marengo_pi),
         )
+        .route("/version/status", get(deploy::get_version_status))
+        .route("/control/deploy", post(deploy::post_control_deploy))
         .route("/command/enable", post(command_enable))
         .route("/command/testing_mit", post(command_testing_mit))
-        .route("/command/home", post(command_home))
+        // Retired: operator HomingComplete / Testing Home — use Hardware Set Zero.
+        .route("/command/home", post(command_home_retired))
         .route("/command/set_zero", post(command_set_zero))
         .route(
             "/command/active_reporting_lease",
             post(command_active_reporting_lease),
+        )
+        .route(
+            "/command/motor_status_poll",
+            post(command_motor_status_poll),
         )
         .route("/command/actuator", post(actuator::command_actuator))
         .layer(cors)
@@ -138,9 +162,21 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
             let assets = root.join("assets");
             let mut router = api;
             if assets.is_dir() {
-                router = router.nest_service("/assets", ServeDir::new(assets));
+                let assets_svc = ServiceBuilder::new()
+                    .layer(SetResponseHeaderLayer::overriding(
+                        header::CACHE_CONTROL,
+                        HeaderValue::from_static("public, max-age=31536000, immutable"),
+                    ))
+                    .service(ServeDir::new(assets));
+                router = router.nest_service("/assets", assets_svc);
             }
-            router.fallback_service(ServeFile::new(index))
+            let index_svc = ServiceBuilder::new()
+                .layer(SetResponseHeaderLayer::overriding(
+                    header::CACHE_CONTROL,
+                    HeaderValue::from_static("no-cache"),
+                ))
+                .service(ServeFile::new(index));
+            router.fallback_service(index_svc)
         }
         None => api,
     }
@@ -285,26 +321,11 @@ async fn command_testing_mit(
     Ok(Json(OkResponse { ok: true }))
 }
 
-async fn command_home(
-    State(state): State<SharedState>,
-) -> Result<Json<OkResponse>, (StatusCode, String)> {
-    let request = HomingComplete {
-        timestamp_ms: std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_millis() as u64,
-        node_id: "consul".into(),
-    };
-    let payload = request.encode_to_vec();
-    state
-        .publish_command_envelope(
-            "robot/homing",
-            "consul",
-            "marengo.v1.HomingComplete",
-            payload,
-        )
-        .map_err(|e| (StatusCode::BAD_GATEWAY, e))?;
-    Ok(Json(OkResponse { ok: true }))
+async fn command_home_retired() -> (StatusCode, String) {
+    (
+        StatusCode::GONE,
+        "POST /command/home retired; use Hardware Set Zero per joint".into(),
+    )
 }
 
 #[derive(Deserialize)]
@@ -477,6 +498,54 @@ async fn command_active_reporting_lease(
     Ok(Json(OkResponse { ok: true }))
 }
 
+#[derive(Deserialize)]
+struct MotorStatusPollBody {
+    /// Rate-limit key only (global StatusPoll bucket ignores rotation).
+    #[serde(default)]
+    client_id: String,
+}
+
+/// Light Hardware-page solicit: Pi re-TX Disable (type-4) per motor → OperationStatus.
+/// Rate-limited (~0.5/s, burst 2) globally so the bus is not flooded.
+async fn command_motor_status_poll(
+    State(state): State<SharedState>,
+    Json(body): Json<MotorStatusPollBody>,
+) -> Result<Json<OkResponse>, (StatusCode, String)> {
+    let client_id = body.client_id.trim();
+    if client_id.is_empty() || client_id.len() > MAX_CLIENT_ID_LEN {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "client_id required (max 64 chars)".into(),
+        ));
+    }
+    let bucket = crate::ratelimit::CommandBucket::StatusPoll;
+    if !state.rate_limiter.allow(client_id, "_", bucket) {
+        return Err((
+            StatusCode::TOO_MANY_REQUESTS,
+            "motor status poll rate limit exceeded".into(),
+        ));
+    }
+
+    let request = MotorStatusPollRequest {
+        timestamp_ms: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64,
+        operator_id: "consul".into(),
+    };
+    let payload = request.encode_to_vec();
+    if let Err(e) = state.publish_command_envelope(
+        "robot/motor_status_poll",
+        "consul",
+        "marengo.v1.MotorStatusPollRequest",
+        payload,
+    ) {
+        state.rate_limiter.refund(client_id, "_", bucket);
+        return Err((StatusCode::BAD_GATEWAY, e));
+    }
+    Ok(Json(OkResponse { ok: true }))
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::expect_used)]
@@ -613,5 +682,52 @@ mod tests {
             .await
             .expect("response");
         assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
+    }
+
+    #[tokio::test]
+    async fn command_motor_status_poll_rate_limits_globally() {
+        let bus = std::sync::Arc::new(Bus::default());
+        let state = std::sync::Arc::new(crate::state::AppState::new(std::sync::Arc::clone(&bus)));
+        let app = router(std::sync::Arc::clone(&state), None);
+        let ok_a = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/command/motor_status_poll")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"client_id":"consul-a"}"#))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(ok_a.status(), StatusCode::OK);
+
+        let app = router(std::sync::Arc::clone(&state), None);
+        let ok_b = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/command/motor_status_poll")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"client_id":"consul-b"}"#))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(ok_b.status(), StatusCode::OK);
+
+        let app = router(state, None);
+        let limited = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/command/motor_status_poll")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"client_id":"consul-c"}"#))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(limited.status(), StatusCode::TOO_MANY_REQUESTS);
     }
 }

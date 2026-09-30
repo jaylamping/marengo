@@ -14,6 +14,7 @@ import { useConfigSnapshot } from '@/hooks/use-config-snapshot';
 import { autoLearnConfigured, postAutoLearn } from '@/lib/auto-learn-api';
 import { buildAutoLearnLogContext } from '@/lib/auto-learn-logs';
 import { buildAutoLearnRequest } from '@/lib/auto-learn-snapshot';
+import { DEFAULT_OPERATOR_PROFILE } from '@/lib/bringup-presets';
 import { canApplyLandmarks, type TeachLandmark } from '@/lib/teach-record';
 import {
   createTeachSession,
@@ -217,7 +218,7 @@ export function useAutoLearnController(presetId: string) {
       return false;
     }
     const fingerprint = liveFingerprint(
-      config?.profile ?? 'arm_4dof_right',
+      config?.profile ?? DEFAULT_OPERATOR_PROFILE,
       base.joints,
       piMetrics?.build,
     );
@@ -302,7 +303,7 @@ export function useAutoLearnController(presetId: string) {
       return `Live test needs motors ACTIVE (Enable). Current: ${operationalMode ?? 'unknown'}.`;
     }
     if (base?.id === 'wave' && !WAVE_POSE_GCOMP_SIGNED) {
-      return 'Live Wave blocked until E6 Wave-pose GravityComp is signed (WAVE_POSE_GCOMP_SIGNED). Use Dry Run Test proposal until then.';
+      return 'Live Wave blocked until §4c PASS + live raise+elbow-wave smoke (WAVE_POSE_GCOMP_SIGNED). Use Dry Run Test proposal until then.';
     }
     return null;
   })();

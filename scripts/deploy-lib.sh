@@ -52,6 +52,36 @@ ensure_cargo_in_path() {
   return 127
 }
 
+# Node/npm are often installed under ~/.local on the Pi but missing from the
+# minimal PATH used by systemd-run self-update (npm shebang needs `node` on PATH).
+ensure_user_node_in_path() {
+  if command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
+    return 0
+  fi
+  local d candidate
+  for d in \
+    "${HOME}/.local/node/bin" \
+    "${HOME}/.local/node-v24.16.0/bin" \
+    "${HOME}/.local/node-v24"*/bin
+  do
+    # Glob may expand to literal if no match — skip non-dirs.
+    [[ -d "${d}" ]] || continue
+    if [[ -x "${d}/node" && -e "${d}/npm" ]]; then
+      export PATH="${d}:${PATH}"
+      return 0
+    fi
+  done
+  # nvm layout: ~/.nvm/versions/node/v24.x.y/bin
+  if [[ -d "${HOME}/.nvm/versions/node" ]]; then
+    candidate="$(ls -1d "${HOME}/.nvm/versions/node"/v24.*/bin 2>/dev/null | sort -V | tail -n 1 || true)"
+    if [[ -n "${candidate}" && -x "${candidate}/node" ]]; then
+      export PATH="${candidate}:${PATH}"
+      return 0
+    fi
+  fi
+  return 1
+}
+
 ensure_pi_cross_target() {
   ensure_cargo_in_path || return $?
   local target="${MARENGO_PI_TARGET:-aarch64-unknown-linux-gnu}"

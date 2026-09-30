@@ -1,0 +1,8 @@
+{
+  "upload_id": "seed-placeholder-marengo",
+  "source": "assets/urdf/marengo.urdf",
+  "archived_at": "20260809T120000Z",
+  "contributor_urdf": "contributor.urdf",
+  "checksum_sha256": "ef79999330f8c985d3de22dc001921a9248417dbd0ef04bf219604cabbc78908",
+  "notes": "Pre-cutover 2-DOF humanoid placeholder (git seed)"
+}

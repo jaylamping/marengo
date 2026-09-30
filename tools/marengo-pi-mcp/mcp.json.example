@@ -6,7 +6,7 @@
       "MARENGO_PI_HOST": "192.168.87.170",
       "MARENGO_PI_USER": "joey",
       "MARENGO_PI_ROOT": "/opt/marengo",
-      "MARENGO_CONFIG_DIR": "/opt/marengo/config/bringup/arm_4dof_right",
+      "MARENGO_CONFIG_DIR": "/opt/marengo/config",
       "MARENGO_BENCH_PROFILE": "bare_motor"
     }
   }

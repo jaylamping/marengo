@@ -2,6 +2,14 @@
 # Native toolchain setup for Cursor Cloud VMs (no Docker).
 # Mirrors docker/Dockerfile.dev pins; run once per fresh VM, then ./scripts/bootstrap.sh.
 set -euo pipefail
+
+# Cloud agents advertise skill paths under /home/cursor; this image runs as ubuntu.
+if [[ ! -e /home/cursor ]] && [[ -d /home/ubuntu ]]; then
+  ln -sfn /home/ubuntu /home/cursor 2>/dev/null ||
+    sudo -n ln -sfn /home/ubuntu /home/cursor 2>/dev/null ||
+    true
+fi
+
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "${ROOT}"
 

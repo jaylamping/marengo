@@ -1,12 +1,13 @@
 import type { RouteObject } from 'react-router-dom';
 
-import { isActuatorsFeatureEnabled } from '@/lib/feature-flags';
-import { ActuatorsPage } from '@/pages/actuators';
 import { DashboardPage } from '@/pages/dashboard';
+import { HardwarePage } from '@/pages/hardware';
 import { LogsPage } from '@/pages/logs';
 import { SimulationPage } from '@/pages/simulation';
 import { SubsystemsPage } from '@/pages/subsystems';
+import { TelemetryPage } from '@/pages/telemetry';
 import { TestingPage } from '@/pages/testing';
+import { SidebarUpdatePreviewPage } from '@/pages/sidebar-update-preview';
 import { RootLayout } from '@/routes/root-layout';
 
 /**
@@ -14,18 +15,15 @@ import { RootLayout } from '@/routes/root-layout';
  * Heavy bodies stay behind React.lazy + DeferredMount inside each page.
  * (React Router route.lazy blocks pathname until the module resolves — that was the hang.)
  */
-const actuatorsRoute: RouteObject = {
-  path: '/actuators',
-  Component: ActuatorsPage,
-  handle: {
-    header: {
-      title: 'Actuators',
-      subtitle: 'telemetry only · PR-1 shell',
-    },
-  },
-};
-
 export const appRoutes: RouteObject[] = [
+  ...(import.meta.env.DEV
+    ? [
+        {
+          path: '/dev/sidebar-update-preview',
+          Component: SidebarUpdatePreviewPage,
+        } satisfies RouteObject,
+      ]
+    : []),
   {
     element: <RootLayout />,
     children: [
@@ -35,7 +33,7 @@ export const appRoutes: RouteObject[] = [
         handle: {
           header: {
             title: 'Overview',
-            subtitle: 'arm_4dof_right · bench',
+            subtitle: 'master inventory · robot.yaml',
           },
         },
       },
@@ -49,14 +47,33 @@ export const appRoutes: RouteObject[] = [
           },
         },
       },
-      ...(isActuatorsFeatureEnabled() ? [actuatorsRoute] : []),
+      {
+        path: '/telemetry',
+        Component: TelemetryPage,
+        handle: {
+          header: {
+            title: 'Telemetry',
+            subtitle: 'live · read-only',
+          },
+        },
+      },
       {
         path: '/subsystems',
         Component: SubsystemsPage,
         handle: {
           header: {
-            title: 'Subsystems',
-            subtitle: 'devices · actuators · sensors',
+            title: 'Telemetry',
+            subtitle: 'live · read-only',
+          },
+        },
+      },
+      {
+        path: '/hardware',
+        Component: HardwarePage,
+        handle: {
+          header: {
+            title: 'Hardware',
+            subtitle: 'master config · URDF · Set Limits',
           },
         },
       },

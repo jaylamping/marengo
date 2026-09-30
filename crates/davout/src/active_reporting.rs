@@ -13,6 +13,15 @@ use robstride::bus::{MotorAddress, MotorBus};
 /// Default lease lifetime when Consul holds a modal open.
 pub const DEFAULT_LEASE_TTL: Duration = Duration::from_secs(30);
 
+/// Re-send type-24 enable at least this often while free-drive sensing is desired.
+/// Motors can drop Active Reporting after motion/glitches; applied-only sync would
+/// never retry and Set Limits would freeze on a stale near-zero sample.
+pub const ACTIVE_REPORTING_HEARTBEAT: Duration = Duration::from_secs(1);
+
+/// If desired-on and no feedback arrives within this window after enable (or after
+/// the last RX), clear the applied bit so the next sync re-asserts type-24.
+pub const ACTIVE_REPORTING_FEEDBACK_STALE: Duration = Duration::from_millis(200);
+
 const MAX_LEASE_ID_LEN: usize = 64;
 const MAX_CLIENT_ID_LEN: usize = 64;
 const MAX_LEASES_PER_JOINT: usize = 8;
@@ -28,6 +37,8 @@ struct LeaseEntry {
 pub struct ActiveReportingState {
     leases: HashMap<String, HashMap<String, LeaseEntry>>,
     applied: HashMap<String, bool>,
+    /// Last successful type-24 enable TX time (for heartbeat refresh).
+    last_enable_tx: HashMap<String, Instant>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -42,6 +53,12 @@ pub enum ActiveReportingLeaseError {
 impl ActiveReportingState {
     pub fn clear_applied(&mut self) {
         self.applied.clear();
+        self.last_enable_tx.clear();
+    }
+
+    pub fn clear_applied_joint(&mut self, joint: &str) {
+        self.applied.remove(joint);
+        self.last_enable_tx.remove(joint);
     }
 
     pub fn applied_on(&self, joint: &str) -> bool {
@@ -159,6 +176,9 @@ impl ActiveReportingState {
     }
 
     /// Diff desired vs applied and send type-24 enables/disables. Updates applied only on Ok.
+    ///
+    /// While sensing is desired, also re-asserts enable on heartbeat and when
+    /// `last_feedback_rx` shows the joint has gone silent (free-drive dropout).
     pub fn sync<B: MotorBus>(
         &mut self,
         bus: &mut B,
@@ -166,13 +186,36 @@ impl ActiveReportingState {
         mode_active: bool,
         global_diagnostics: bool,
         now: Instant,
+        last_feedback_rx: &HashMap<String, Instant>,
     ) {
         self.expire_stale(now);
         for motor in &motors.motors {
             let joint = motor.joint.as_str();
             let want = self.desired(joint, mode_active, global_diagnostics, now);
             let have = self.applied_on(joint);
-            if want == have {
+            let heartbeat_due = self
+                .last_enable_tx
+                .get(joint)
+                .map(|t| now.saturating_duration_since(*t) >= ACTIVE_REPORTING_HEARTBEAT)
+                .unwrap_or(true);
+            let feedback_stale = if !have {
+                false
+            } else {
+                match last_feedback_rx.get(joint) {
+                    Some(t) => now.saturating_duration_since(*t) >= ACTIVE_REPORTING_FEEDBACK_STALE,
+                    // Enabled on paper but never saw RX — retry after stale window.
+                    None => self
+                        .last_enable_tx
+                        .get(joint)
+                        .map(|t| {
+                            now.saturating_duration_since(*t) >= ACTIVE_REPORTING_FEEDBACK_STALE
+                        })
+                        .unwrap_or(false),
+                }
+            };
+            let need_enable = want && (!have || heartbeat_due || feedback_stale);
+            let need_disable = !want && have;
+            if !need_enable && !need_disable {
                 continue;
             }
             let address = MotorAddress::from(motor);
@@ -183,6 +226,11 @@ impl ActiveReportingState {
             };
             if result.is_ok() {
                 self.applied.insert(joint.to_string(), want);
+                if want {
+                    self.last_enable_tx.insert(joint.to_string(), now);
+                } else {
+                    self.last_enable_tx.remove(joint);
+                }
             }
         }
     }
@@ -270,7 +318,8 @@ mod tests {
         state
             .acquire("j1", "c1", "lease-a", DEFAULT_LEASE_TTL, now, &motors)
             .expect("acquire");
-        state.sync(&mut bus, &motors, false, false, now);
+        let rx = HashMap::new();
+        state.sync(&mut bus, &motors, false, false, now, &rx);
         let cmds = type24_cmds(&bus);
         assert_eq!(cmds, vec![(1, 0x01)]);
         assert!(state.applied_on("j1"));
@@ -311,11 +360,12 @@ mod tests {
                 &motors,
             )
             .expect("acquire");
-        state.sync(&mut bus, &motors, false, false, now);
+        let rx = HashMap::new();
+        state.sync(&mut bus, &motors, false, false, now, &rx);
         assert!(state.applied_on("j1"));
         bus.tx.clear();
         let later = now + Duration::from_millis(50);
-        state.sync(&mut bus, &motors, false, false, later);
+        state.sync(&mut bus, &motors, false, false, later, &rx);
         assert_eq!(type24_cmds(&bus), vec![(1, 0x00)]);
         assert!(!state.applied_on("j1"));
     }
@@ -329,9 +379,90 @@ mod tests {
         state
             .acquire("j1", "c1", "lease-a", DEFAULT_LEASE_TTL, now, &motors)
             .expect("acquire");
-        state.sync(&mut bus, &motors, false, false, now);
+        let rx = HashMap::new();
+        state.sync(&mut bus, &motors, false, false, now, &rx);
         bus.tx.clear();
-        state.sync(&mut bus, &motors, true, false, now);
+        state.sync(&mut bus, &motors, true, false, now, &rx);
         assert_eq!(type24_cmds(&bus), vec![(1, 0x00)]);
+    }
+
+    #[test]
+    fn heartbeat_reasserts_enable_while_desired() {
+        let motors = motors_two();
+        let mut state = ActiveReportingState::default();
+        let mut bus = MemoryBus::default();
+        let now = Instant::now();
+        state
+            .acquire("j1", "c1", "lease-a", DEFAULT_LEASE_TTL, now, &motors)
+            .expect("acquire");
+        let mut rx = HashMap::new();
+        rx.insert("j1".into(), now);
+        state.sync(&mut bus, &motors, false, false, now, &rx);
+        assert_eq!(type24_cmds(&bus), vec![(1, 0x01)]);
+        bus.tx.clear();
+        // Fresh feedback — no re-TX until heartbeat.
+        rx.insert("j1".into(), now + Duration::from_millis(100));
+        state.sync(
+            &mut bus,
+            &motors,
+            false,
+            false,
+            now + Duration::from_millis(100),
+            &rx,
+        );
+        assert!(type24_cmds(&bus).is_empty());
+        // Heartbeat due with healthy RX — re-assert enable.
+        rx.insert("j1".into(), now + ACTIVE_REPORTING_HEARTBEAT);
+        state.sync(
+            &mut bus,
+            &motors,
+            false,
+            false,
+            now + ACTIVE_REPORTING_HEARTBEAT,
+            &rx,
+        );
+        assert_eq!(type24_cmds(&bus), vec![(1, 0x01)]);
+        assert!(state.applied_on("j1"));
+    }
+
+    #[test]
+    fn stale_feedback_reasserts_enable() {
+        let motors = motors_two();
+        let mut state = ActiveReportingState::default();
+        let mut bus = MemoryBus::default();
+        let now = Instant::now();
+        state
+            .acquire("j1", "c1", "lease-a", DEFAULT_LEASE_TTL, now, &motors)
+            .expect("acquire");
+        let rx_empty = HashMap::new();
+        state.sync(&mut bus, &motors, false, false, now, &rx_empty);
+        assert_eq!(type24_cmds(&bus), vec![(1, 0x01)]);
+        bus.tx.clear();
+        // No RX since enable — after stale window, re-assert.
+        let later = now + ACTIVE_REPORTING_FEEDBACK_STALE;
+        state.sync(&mut bus, &motors, false, false, later, &rx_empty);
+        assert_eq!(type24_cmds(&bus), vec![(1, 0x01)]);
+        assert!(state.applied_on("j1"));
+    }
+
+    #[test]
+    fn fresh_feedback_suppresses_stale_retry_before_heartbeat() {
+        let motors = motors_two();
+        let mut state = ActiveReportingState::default();
+        let mut bus = MemoryBus::default();
+        let now = Instant::now();
+        state
+            .acquire("j1", "c1", "lease-a", DEFAULT_LEASE_TTL, now, &motors)
+            .expect("acquire");
+        let mut rx = HashMap::new();
+        state.sync(&mut bus, &motors, false, false, now, &rx);
+        bus.tx.clear();
+        let later = now + ACTIVE_REPORTING_FEEDBACK_STALE;
+        rx.insert("j1".into(), later);
+        state.sync(&mut bus, &motors, false, false, later, &rx);
+        assert!(
+            type24_cmds(&bus).is_empty(),
+            "healthy feedback must not force re-enable before heartbeat"
+        );
     }
 }

@@ -11,6 +11,7 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+armee-proto.workspace = true
 marengo-config.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_yaml.workspace = true

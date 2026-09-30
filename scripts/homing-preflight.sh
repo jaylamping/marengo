@@ -8,7 +8,7 @@
 set -euo pipefail
 
 ROOT="${MARENGO_ROOT:-/opt/marengo}"
-CONFIG_DIR="${MARENGO_CONFIG_DIR:-${ROOT}/config/bringup/arm_4dof_right}"
+CONFIG_DIR="${MARENGO_CONFIG_DIR:-${ROOT}/config}"
 STRICT="${HOMING_PREFLIGHT_STRICT:-false}"
 
 if [[ "$CONFIG_DIR" != /* ]]; then

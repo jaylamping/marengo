@@ -1,22 +1,22 @@
-# crates/marengo-config/
+# marengo-config
 
-## Responsibility
-**Declarative YAML configuration** loader — typed parsers for `robot.yaml`, `motors.yaml`, `control.yaml`, `homing.yaml`, `network.yaml`. Single source for bench parameters; no realtime logic.
-
-## Design
-- **Repository/Loader** pattern: one struct per config file (`RobotConfigFile`, `MotorsConfigFile`, etc.).
-- Validation at load time: motor joints ⊆ robot joints, URDF path exists (`resolve_urdf_path`).
-- `MotorType` enum (RS00–RS04) shared with robstride encoding.
-- `DangerZoneRule`, control gains, loop Hz, comm watchdog thresholds from control.yaml.
+Typed loaders for master `config/*.yaml`.
 
 ## Flow
+
 1. Bin sets `MARENGO_CONFIG_DIR` or passes `--config-dir`
-2. `load_robot_config`, `load_motors_config`, `load_control_config` at startup
-3. Davout/Berthier hold parsed structs for loop lifetime
-4. Bringup profiles under `config/bringup/` swap full config trees per bench setup
+2. `resolve_config_dir` → `/opt/marengo/config` on Pi, else `<repo>/config` in dev
+3. Validate motors ⊆ `robot.joints`, resolve URDF path
+4. Profile txn / URDF expand target master paths only (no bringup CAS)
 
-## Integration
-- **Consumed by**: davout, berthier, armee-dynamics, robstride, marengo-homing, all bins
-- **Config root**: `config/` (see [config/codemap.md](../../config/codemap.md))
+## Modules
 
-**Detailed map**: [src/codemap.md](src/codemap.md)
+| File | Role |
+|------|------|
+| `lib.rs` | YAML structs, loaders, validation |
+| `config_revision.rs` | `profile_content_revision` CAS hash |
+| `profile_txn.rs` | Limit upsert, master YAML atomic writes |
+| `urdf_expand.rs` | Expand-only URDF hard envelope (ADR 0017) |
+| `bench_joints.rs` | Command joint allowlist from `robot.joints` |
+| `completeness.rs` | Warn-only hardware completeness v1 |
+| `urdf_merge.rs` | Joint-keyed URDF merge preview + apply |

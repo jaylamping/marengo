@@ -121,10 +121,9 @@ discontinuities; no planner-event churn near target.
 
 ## Related docs
 
-- [bench-90deg-calibrated-roundtrip.md](bench-90deg-calibrated-roundtrip.md) — 2026-06-20
-  calibrated 90° (`1.484` rad) weighted round trip, set-zero, return settle gap
-- [bench-position-tuning.md](bench-position-tuning.md) — Layer 2 gate thresholds
+- [Limb commissioning playbook](commissioning/limb-playbook.md) — limb motion SoT
 - [safety.md](safety.md) — motor path and enable rules
 - [ADR 0004](decisions/0004-control-modes-and-mit.md) — control modes
-- [ADR 0007](decisions/0007-position-hold-trajectory.md) — trapezoid planner
-- [ADR 0009](decisions/0009-limit-envelope.md) — velocity-scaled envelope
+- [ADR 0007](decisions/0007-bench-position-trajectory-control.md) — trapezoid planner
+- [ADR 0009](decisions/0009-dynamic-position-limit-envelope.md) — velocity-scaled envelope
+- [rust-patterns.md](rust-patterns.md) §7 — position-hold control law

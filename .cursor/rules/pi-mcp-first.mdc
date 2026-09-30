@@ -23,7 +23,7 @@ On this machine the server is configured in [`.cursor/mcp.json`](../mcp.json) as
 
 1. Treat that as **disabled or needs restart**, not “unavailable.”
 2. **Enable or restart** the `marengo-pi` MCP server in Cursor (MCP panel / settings). Do not invent a shell workaround first.
-   On every host, a `sessionStart` hook (`session-start-marengo.mjs`) also runs `scripts/ensure-marengo-pi-mcp-enabled.py --write --best-effort` to scrub disabled/unapproved state when a chat opens.
+   On every host, a `sessionStart` hook (`session-start-marengo.js`, built from the `.ts` source) also runs `scripts/ensure-marengo-pi-mcp-enabled.py --write --best-effort` to scrub disabled/unapproved state when a chat opens.
 3. Re-discover tools and continue with `pi_*` tools.
 4. Only after enable/restart still fails, tell the user the MCP failed to start (with the error). Do not silently fall back to `deploy-pi.sh` / `pi-remote.sh` on local WSL.
 

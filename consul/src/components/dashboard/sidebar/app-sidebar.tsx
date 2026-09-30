@@ -7,9 +7,9 @@ import { SidebarPresetsNav } from '@/components/dashboard/sidebar/sidebar-preset
 import { SidebarUserMenu } from '@/components/dashboard/sidebar/sidebar-user-menu';
 import {
   getSidebarNavMain,
+  getSidebarUser,
   sidebarNavSecondary,
   sidebarPresets,
-  sidebarUser,
 } from '@/data/sidebar-nav';
 import {
   Sidebar,
@@ -32,7 +32,7 @@ export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
         ) : null}
       </SidebarContent>
       <SidebarFooter>
-        <SidebarUserMenu user={sidebarUser} />
+        <SidebarUserMenu user={getSidebarUser()} />
       </SidebarFooter>
     </Sidebar>
   );

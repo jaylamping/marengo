@@ -8,11 +8,7 @@ import type { JointRangeBounds } from '@/lib/limit-listen';
 /** ADR 0009 hard/soft gap (~27 mrad). */
 export const DEFAULT_SOFT_INSET_RAD = 0.027;
 
-/**
- * Pad measured Set Limits hard bounds so enable at the swept min/max does not
- * immediately trip Davout (encoder jitter / settling can sit ~1–10 mrad past the sample).
- */
-export const DEFAULT_HARD_MARGIN_RAD = 0.03;
+export type LocalLimitSyncStatus = 'ok' | 'skipped' | 'failed';
 
 export type PersistJointLimitsResult =
   | {
@@ -23,7 +19,7 @@ export type PersistJointLimitsResult =
       softUpper: number;
       restartRequired: boolean;
       persistStatus: string;
-      localSync: 'ok' | 'skipped' | 'failed';
+      localSync: LocalLimitSyncStatus;
       message: string;
     }
   | { ok: false; message: string };
@@ -40,7 +36,7 @@ export type LocalLimitSyncFn = (args: {
   upper: number;
   softLower: number;
   softUpper: number;
-}) => Promise<'ok' | 'skipped' | 'failed'>;
+}) => Promise<LocalLimitSyncStatus>;
 
 const DEFAULT_PATCH_TIMEOUT_MS = 30_000;
 
@@ -82,8 +78,11 @@ export async function persistJointLimits(
     return { ok: false, message: 'Invalid limit bounds.' };
   }
 
-  const hardLower = bounds.lower - DEFAULT_HARD_MARGIN_RAD;
-  const hardUpper = bounds.upper + DEFAULT_HARD_MARGIN_RAD;
+  // Persist taught hard as SoT (what the operator swept). Enable-at-stop jitter
+  // is covered by Davout `position_limit_measured_fault_slack_rad` (~30 mrad),
+  // not by silently widening motors.yaml hard on every Apply.
+  const hardLower = bounds.lower;
+  const hardUpper = bounds.upper;
   const { softLower, softUpper } = softLimitsWithInset(hardLower, hardUpper);
   const patch = deps?.patchConfig ?? patchConfig;
   const timeoutMs = deps?.timeoutMs ?? DEFAULT_PATCH_TIMEOUT_MS;
@@ -122,11 +121,11 @@ export async function persistJointLimits(
   }
 
   const persistStatus = result.persist_status ?? 'unknown';
-  let localSync: 'ok' | 'skipped' | 'failed' = 'skipped';
+  let localSync: LocalLimitSyncStatus = 'skipped';
   if (persistStatus === 'durable') {
     const sync = deps?.localSync ?? defaultLocalLimitSync;
     localSync = await sync({
-      profile: deps?.profile ?? 'arm_4dof_right',
+      profile: deps?.profile ?? 'master',
       joint,
       lower: hardLower,
       upper: hardUpper,
@@ -139,10 +138,8 @@ export async function persistJointLimits(
     localSync === 'ok'
       ? ' Local checkout synced.'
       : localSync === 'failed'
-        ? ' Local checkout sync failed (Pi durable).'
-        : persistStatus === 'durable'
-          ? ' Local checkout not synced (marengo-limit-sync unavailable).'
-          : '';
+        ? ' Local checkout sync failed — is just limit-sync-serve running?'
+        : '';
 
   return {
     ok: true,
@@ -164,10 +161,13 @@ async function defaultLocalLimitSync(args: {
   upper: number;
   softLower: number;
   softUpper: number;
-}): Promise<'ok' | 'skipped' | 'failed'> {
-  const base =
-    (import.meta.env.VITE_LIMIT_SYNC_URL as string | undefined)?.trim() ||
-    'http://127.0.0.1:8790';
+}): Promise<LocalLimitSyncStatus> {
+  const base = (
+    import.meta.env.VITE_LIMIT_SYNC_URL as string | undefined
+  )?.trim();
+  if (!base) {
+    return 'skipped';
+  }
   try {
     const res = await fetch(`${base.replace(/\/$/, '')}/local/limit-patch`, {
       method: 'POST',
@@ -181,14 +181,11 @@ async function defaultLocalLimitSync(args: {
         soft_upper: args.softUpper,
       }),
     });
-    if (res.status === 404 || res.status === 0) {
-      return 'skipped';
-    }
     if (!res.ok) {
       return 'failed';
     }
     return 'ok';
   } catch {
-    return 'skipped';
+    return 'failed';
   }
 }

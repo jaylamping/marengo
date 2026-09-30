@@ -15,6 +15,16 @@ message Heartbeat {
   string node_id = 2;
 }
 
+// Per-joint homing / reference lifecycle published on RobotState.
+// UNSPECIFIED (0) means the publisher did not populate the field (old runtime gate).
+enum JointHomingState {
+  JOINT_HOMING_STATE_UNSPECIFIED = 0;
+  JOINT_HOMING_STATE_UNHOMED = 1;
+  JOINT_HOMING_STATE_HOMING = 2;
+  JOINT_HOMING_STATE_VERIFIED = 3;
+  JOINT_HOMING_STATE_FAULTED = 4;
+}
+
 message JointState {
   string name = 1;
   double position = 2;
@@ -22,6 +32,9 @@ message JointState {
   double effort = 4;
   float temperature_c = 5;  // motor casing temperature (°C)
   uint32 fault = 6;         // Robstride fault bitmask
+  JointHomingState homing_state = 7;
+  bool drive_active = 8;
+  bool out_of_limits = 9;
 }
 
 message RobotState {
@@ -129,6 +142,14 @@ message ActiveReportingLeaseRequest {
   ActiveReportingLeaseAction action = 5;
   // Client-minted opaque id; required for renew/release. Acquire upserts this id.
   string lease_id = 6;
+}
+
+// Light Hardware-page status solicit: Pi re-TX Disable (type-4) per loaded motor so
+// each replies with OperationStatus (type-2). No continuous Active Reporting.
+// Joint list is always the Pi's loaded motors.yaml — not client-supplied.
+message MotorStatusPollRequest {
+  uint64 timestamp_ms = 1;
+  string operator_id = 2;
 }
 
 // --- Control / MIT (OpenArm-style; see ADR 0004) ---

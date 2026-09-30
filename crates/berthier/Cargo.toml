@@ -24,4 +24,5 @@ tracing.workspace = true
 proptest = { workspace = true }
 davout = { workspace = true }
 armee-dynamics = { workspace = true }
+robstride = { workspace = true }
 

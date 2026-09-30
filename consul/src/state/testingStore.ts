@@ -38,9 +38,10 @@ interface TestingStore {
   toggleDryRun: () => void;
   setDryRun: (dryRun: boolean) => void;
   startTest: () => Promise<void>;
+  /** Motion go-to-zero for selected joints — not HomingComplete / Mark READY. */
   returnHome: () => Promise<void>;
   stopTest: () => void;
-  enable: () => Promise<void>;
+  /** E-stop / all-off path (not commissioning Enable). */
   disable: () => Promise<void>;
   dispatchGainUpdate: (jointName: string) => Promise<void>;
 }
@@ -134,10 +135,6 @@ export const useTestingStore = createZustand<TestingStore>((set, get) => ({
         }),
       );
     }
-  },
-
-  enable: async () => {
-    await postEnableCommand(true);
   },
 
   disable: async () => {

@@ -3,15 +3,15 @@
   "hooks": {
     "sessionStart": [
       {
-        "command": "node \".cursor/hooks/session-start-marengo.mjs\"",
+        "command": "node \".cursor/hooks/session-start-marengo.js\"",
         "timeout": 25
       }
     ],
     "beforeShellExecution": [
       {
-        "command": "node \".cursor/hooks/check-powershell-shell.mjs\"",
+        "command": "node \".cursor/hooks/check-powershell-shell.js\"",
         "timeout": 8,
-        "failClosed": false
+        "failClosed": true
       }
     ],
     "preToolUse": [

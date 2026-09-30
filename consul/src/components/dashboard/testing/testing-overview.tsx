@@ -39,6 +39,7 @@ export function TestingOverview() {
   return (
     <div
       className={`${dashboardOverviewClassName} ${dashboardPanelPointerClassName} px-4 lg:px-6 pb-8`}
+      data-testid="testing-overview"
     >
       <div className="sticky top-0 z-10 bg-surface-1 p-4 flex gap-4 items-center border-b border-line mb-6">
         <EnableDisableButtons />

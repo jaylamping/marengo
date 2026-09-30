@@ -1,7 +1,7 @@
 //! Periodic control loop (OpenArm-style refresh → compute → MIT send).
 
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
@@ -30,6 +30,7 @@ use crate::position_profile::position_profile_v_max;
 use crate::position_setpoint::{downward_return_seed_velocity, envelope_dq_cmd_for_hold_clamp};
 use crate::position_trace::{PositionTrace, PositionTraceRow};
 use crate::position_wave::PositionWave;
+use crate::torque_cmd::TorqueCmdLatch;
 
 #[derive(Debug, Error)]
 pub enum LoopError {
@@ -55,8 +56,12 @@ pub enum LoopError {
     InvalidWavePeriod,
     #[error("missing motor feedback for joint {joint}")]
     MissingFeedback { joint: String },
-    #[error("position hold: ascent stall on {joint} — planner frozen ahead of arm for {ms} ms")]
+    #[error(
+        "position hold: ascent stall on {joint}: no progress during bounded recovery for {ms} ms"
+    )]
     AscentStall { joint: String, ms: u64 },
+    #[error("torque cmd: non-finite τ_cmd for joint {joint}")]
+    NonFiniteTorqueCmd { joint: String },
 }
 
 impl From<HoldError> for LoopError {
@@ -75,6 +80,8 @@ impl From<HoldError> for LoopError {
 pub struct ControlLoop<B: MotorBus> {
     supervisor: Supervisor<B>,
     dynamics: UrdfGravityModel,
+    /// Repo root for commissioning-scope / robot.yaml resolution on re-arm.
+    repo_root: PathBuf,
     joint_names: Vec<String>,
     control_mode: ControlMode,
     /// Position-hold lifecycle + control law ([`PositionHold`]).
@@ -94,6 +101,8 @@ pub struct ControlLoop<B: MotorBus> {
     active_feedback_grace_ticks: u8,
     /// Testing overrides + mode-transition kp/kd ramp + per-tick resolve.
     gains: GainRuntime,
+    /// Per-joint latched open-loop `τ_cmd` (Nm) for [`ControlMode::TorqueOnly`].
+    torque_cmds: TorqueCmdLatch,
     /// In-loop triangle wave on one joint while others hold fixed setpoints.
     position_wave: Option<PositionWave>,
 }
@@ -189,6 +198,7 @@ impl<B: MotorBus> ControlLoop<B> {
         Ok(Self {
             supervisor,
             dynamics,
+            repo_root: root.to_path_buf(),
             joint_names,
             control_mode: ControlMode::Disabled,
             position_hold: PositionHold::new(n_joints),
@@ -203,6 +213,7 @@ impl<B: MotorBus> ControlLoop<B> {
             last_operational_mode: OperationalMode::Disabled,
             active_feedback_grace_ticks: 0,
             gains: GainRuntime::new(),
+            torque_cmds: TorqueCmdLatch::new(),
             position_wave: None,
         })
     }
@@ -446,14 +457,27 @@ impl<B: MotorBus> ControlLoop<B> {
         Ok(())
     }
 
-    /// Re-arm drives after a safety disable when homing is still verified.
+    /// Re-arm drives after a safety disable via scoped commissioning Enable.
+    ///
+    /// Never calls [`Supervisor::set_homing_complete`] — Verified is Set Zero only.
+    /// Targets come from [`Supervisor::resolve_enable_targets`] (persisted scope or
+    /// full-master Robot Ready).
     pub fn ensure_active_for_motion(&mut self) -> Result<(), LoopError> {
         if self.supervisor.mode() == OperationalMode::Active {
             return Ok(());
         }
-        self.supervisor.set_homing_complete()?;
-        self.supervisor.request_enable(true)?;
+        let targets = self.supervisor.resolve_enable_targets(&self.repo_root)?;
+        self.supervisor.enable_targets(&targets)?;
         Ok(())
+    }
+
+    /// MIT / MissingFeedback apply only to Davout `active_joints` while Active.
+    fn filter_mit_to_active(&self, batch: Vec<DavoutMit>) -> Vec<DavoutMit> {
+        let active = self.supervisor.active_joints();
+        batch
+            .into_iter()
+            .filter(|cmd| active.contains(&cmd.joint))
+            .collect()
     }
 
     /// Enter position hold with an explicit setpoint (single-joint bench: one angle; multi-joint: joint name required).
@@ -509,6 +533,9 @@ impl<B: MotorBus> ControlLoop<B> {
             self.last_position_diag = None;
             self.position_wave = None;
         }
+        if previous == ControlMode::TorqueOnly && mode != ControlMode::TorqueOnly {
+            self.torque_cmds.on_leave_torque_only();
+        }
         self.control_mode = mode;
         self.supervisor.set_control_mode(mode);
         if previous != mode {
@@ -522,6 +549,53 @@ impl<B: MotorBus> ControlLoop<B> {
             // causes unclamped torque step via unwrap_or(target)).
             self.supervisor.seed_tau_ff_rate_limiter();
         }
+    }
+
+    /// Enter [`ControlMode::TorqueOnly`] with `τ_cmd ≡ 0` (operator `gravity-off`).
+    ///
+    /// Clears any prior latch before the mode transition so a same-mode
+    /// `gravity-off` after `torque-cmd` still yields true no-FF.
+    pub fn enter_torque_only_zero(&mut self) {
+        self.torque_cmds.clear_all();
+        self.set_control_mode(ControlMode::TorqueOnly);
+    }
+
+    /// Latch a per-joint open-loop torque command for [`ControlMode::TorqueOnly`].
+    ///
+    /// Enters TorqueOnly when not already there. Values persist until cleared or
+    /// until leaving TorqueOnly. Default when unset is 0. Rejects unknown joints
+    /// and non-finite values.
+    pub fn set_torque_cmd(&mut self, joint_name: &str, tau_nm: f64) -> Result<(), LoopError> {
+        if !self.joint_names.iter().any(|n| n == joint_name) {
+            return Err(LoopError::UnknownJoint {
+                joint: joint_name.to_string(),
+            });
+        }
+        if !tau_nm.is_finite() {
+            return Err(LoopError::NonFiniteTorqueCmd {
+                joint: joint_name.to_string(),
+            });
+        }
+        if self.control_mode != ControlMode::TorqueOnly {
+            self.set_control_mode(ControlMode::TorqueOnly);
+        }
+        self.torque_cmds.set(joint_name, tau_nm);
+        Ok(())
+    }
+
+    /// Remove one joint's latched torque command (reverts to 0).
+    pub fn clear_torque_cmd(&mut self, joint_name: &str) {
+        self.torque_cmds.clear(joint_name);
+    }
+
+    /// Clear all latched TorqueOnly torque commands.
+    pub fn clear_torque_cmds(&mut self) {
+        self.torque_cmds.clear_all();
+    }
+
+    /// Latched `τ_cmd` for a joint, or `0.0` when unset.
+    pub fn torque_cmd(&self, joint_name: &str) -> f64 {
+        self.torque_cmds.get(joint_name)
     }
 
     /// Target (kp, kd) per joint from YAML (`gravity_comp` / `impedance`).
@@ -659,8 +733,8 @@ impl<B: MotorBus> ControlLoop<B> {
 
         let needs_joint_feedback = operational_mode == OperationalMode::Active
             && self.control_mode != ControlMode::Disabled;
-        let all_have_feedback = self
-            .joint_names
+        let active_names: Vec<&String> = self.supervisor.active_joints().iter().collect();
+        let all_have_feedback = active_names
             .iter()
             .all(|name| self.has_joint_feedback(name));
         // First tick (or first ticks after enable) may run before CAN status arrives.
@@ -668,10 +742,10 @@ impl<B: MotorBus> ControlLoop<B> {
             && !all_have_feedback
             && (self.tick_count == 0 || self.active_feedback_grace_ticks > 0);
         if needs_joint_feedback && !feedback_bootstrap {
-            for name in &self.joint_names {
+            for name in &active_names {
                 if !self.has_joint_feedback(name) {
                     return Err(LoopError::MissingFeedback {
-                        joint: name.clone(),
+                        joint: (*name).clone(),
                     });
                 }
             }
@@ -798,6 +872,8 @@ impl<B: MotorBus> ControlLoop<B> {
                                 retarget_age_ms = d.retarget_age_ms,
                                 joint_stuck = d.joint_stuck,
                                 planner_frozen = d.planner_frozen,
+                                ascent_stall_ms = d.ascent_stall_ms,
+                                planner_event = d.planner_event.as_str(),
                                 phase = %d.phase,
                                 kp = d.kp,
                                 kd = d.kd,
@@ -908,6 +984,7 @@ impl<B: MotorBus> ControlLoop<B> {
                                 q: q[i],
                                 dq: self.joint_velocity(name),
                                 tau_g: tau_g[i],
+                                tau_cmd: self.torque_cmd(name),
                                 friction: cfg.map(|c| c.friction.clone()),
                                 wire_kp: r.wire_kp,
                                 wire_kd: r.wire_kd,
@@ -920,6 +997,7 @@ impl<B: MotorBus> ControlLoop<B> {
                 phase.trace_us = trace_us_this_tick;
                 (phase.compose_us, t) = phase_elapsed_us(t);
 
+                let batch = self.filter_mit_to_active(batch);
                 self.supervisor.send_mit_batch(batch)?;
                 (phase.send_us, t) = phase_elapsed_us(t);
                 let _ = self.supervisor.drain_feedback();
@@ -927,10 +1005,13 @@ impl<B: MotorBus> ControlLoop<B> {
             } else {
                 // Robstride only streams status after MIT frames; hold current q with zero
                 // gains/torque so comm watchdog stays fresh between enable and gravity-on.
+                // Scoped Enable: keepalive only for Davout active_joints.
+                let active = self.supervisor.active_joints();
                 let batch: Vec<DavoutMit> = self
                     .joint_names
                     .iter()
                     .zip(q.iter())
+                    .filter(|(name, _)| active.contains(*name))
                     .map(|(name, &position_rad)| DavoutMit {
                         joint: name.clone(),
                         kp: 0.0,
@@ -1002,20 +1083,27 @@ impl<B: MotorBus> ControlLoop<B> {
     }
 
     fn publish_robot_state(&self, chappe: &Bus, q: &[f64]) -> Result<(), LoopError> {
+        // Presence = fresh CAN feedback. Davout omits stale free-drive samples
+        // (FREE_DRIVE_FEEDBACK_TTL) so Consul Online tracks recent RX, not sticky cache.
         let joints: Vec<JointState> = self
             .joint_names
             .iter()
             .zip(q.iter())
-            .map(|(name, &position)| {
-                let state = self.supervisor.joint_feedback(name);
-                JointState {
+            .filter_map(|(name, &position)| {
+                let state = self.supervisor.joint_feedback(name)?;
+                let (homing_state, drive_active, out_of_limits) =
+                    self.supervisor.joint_commissioning_wire(name);
+                Some(JointState {
                     name: name.clone(),
                     position,
-                    velocity: state.map(|s| s.velocity_rad_s).unwrap_or(0.0),
-                    effort: state.map(|s| s.torque_nm).unwrap_or(0.0),
-                    temperature_c: state.map(|s| s.temperature_c).unwrap_or(0.0),
-                    fault: state.map(|s| u32::from(s.fault)).unwrap_or(0),
-                }
+                    velocity: state.velocity_rad_s,
+                    effort: state.torque_nm,
+                    temperature_c: state.temperature_c,
+                    fault: u32::from(state.fault),
+                    homing_state,
+                    drive_active,
+                    out_of_limits,
+                })
             })
             .collect();
         let timestamp_ms = std::time::SystemTime::now()
@@ -1106,13 +1194,13 @@ mod tests {
     use crate::position_hold::POSITION_ASCENT_STALL_FAULT_MS;
     use crate::position_setpoint::{
         apply_lead_follow_hold_short, approach_stuck_mit_pull, clamp_trajectory_setpoint,
-        descent_breakaway_confirmed, descent_stuck_mit_pull, planner_drifted_from_measurement,
-        planner_overshoot_hold_while_moving, planner_premature_hold,
-        planner_should_freeze_on_ascent_stall, planner_should_freeze_on_descent,
+        descent_breakaway_confirmed, descent_stuck_mit_pull, lead_follow_stuck_residual,
+        planner_drifted_from_measurement, planner_overshoot_hold_while_moving,
+        planner_premature_hold, planner_should_freeze_on_descent,
         planner_should_latch_on_overshoot_hold, planner_should_lead_follow_hold_short,
-        planner_should_reopen_premature_hold, planner_should_resync_stuck_lead,
-        position_hold_effective_max_lead, position_hold_mit_kd, position_hold_mit_velocity,
-        reopen_planner_from_premature_hold,
+        planner_should_recover_ascent_stall, planner_should_reopen_premature_hold,
+        planner_should_resync_stuck_lead, position_hold_effective_max_lead, position_hold_mit_kd,
+        position_hold_mit_velocity, reopen_planner_from_premature_hold,
     };
     use crate::position_trajectory::{JointPositionPlanner, TrapezoidPhase};
     use armee_kinematics::JointLimitPolicy;
@@ -1188,17 +1276,51 @@ mod tests {
     }
 
     #[test]
+    fn tick_partial_enable_sends_mit_only_for_active_joints() {
+        let mut loop_ctrl = test_loop();
+        let motors = loop_ctrl.supervisor_mut().motors.motors.clone();
+        loop_ctrl
+            .supervisor_mut()
+            .homing_registry_mut()
+            .bench_mark_all_verified(&motors)
+            .expect("verify");
+        let one = motors[0].joint.clone();
+        loop_ctrl
+            .supervisor_mut()
+            .enable_targets(&[one.clone()])
+            .expect("scoped enable");
+        loop_ctrl.supervisor_mut().seed_synthetic_feedback();
+        assert_eq!(loop_ctrl.supervisor_mut().mode(), OperationalMode::Active);
+        loop_ctrl.supervisor_mut().bus_mut().tx.clear();
+        loop_ctrl.tick(None).expect("keepalive tick");
+        assert_eq!(
+            loop_ctrl.supervisor_mut().bus_mut().tx.len(),
+            1,
+            "keepalive MIT must cover only active_joints"
+        );
+        loop_ctrl.set_control_mode(ControlMode::GravityComp);
+        loop_ctrl.supervisor_mut().bus_mut().tx.clear();
+        loop_ctrl.tick(None).expect("gravity tick");
+        assert_eq!(
+            loop_ctrl.supervisor_mut().bus_mut().tx.len(),
+            1,
+            "GravityComp MIT must cover only active_joints"
+        );
+        assert!(loop_ctrl.supervisor().active_joints().contains(&one));
+    }
+
+    #[test]
     fn hold_at_reenables_after_safety_disable() {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
         loop_ctrl
-            .enter_position_hold_at(Some("shoulder_pitch"), 0.25)
+            .enter_position_hold_at(Some("right_shoulder_pitch"), 0.25)
             .expect("hold-at");
         loop_ctrl.tick(None).expect("tick");
         loop_ctrl.supervisor_mut().disable_all().expect("disable");
         assert_eq!(loop_ctrl.supervisor_mut().mode(), OperationalMode::Disabled);
         loop_ctrl
-            .enter_position_hold_at(Some("shoulder_pitch"), 0.0)
+            .enter_position_hold_at(Some("right_shoulder_pitch"), 0.0)
             .expect("hold-at home");
         assert_eq!(loop_ctrl.supervisor_mut().mode(), OperationalMode::Active);
         assert_eq!(loop_ctrl.control_mode(), ControlMode::Position);
@@ -1212,7 +1334,7 @@ mod tests {
         loop_ctrl.supervisor_mut().clear_motor_states();
         loop_ctrl.set_control_mode(ControlMode::Position);
         loop_ctrl
-            .enter_position_hold_at(Some("shoulder_pitch"), 0.25)
+            .enter_position_hold_at(Some("right_shoulder_pitch"), 0.25)
             .expect("hold-at");
         let err = loop_ctrl.tick(None).expect_err("missing feedback");
         assert!(matches!(err, LoopError::MissingFeedback { .. }));
@@ -1241,7 +1363,7 @@ mod tests {
             .expect("enable");
         loop_ctrl.set_control_mode(ControlMode::Position);
         loop_ctrl
-            .enter_position_hold_at(Some("shoulder_pitch"), 0.25)
+            .enter_position_hold_at(Some("right_shoulder_pitch"), 0.25)
             .expect("hold-at");
         loop_ctrl
             .tick(None)
@@ -1272,13 +1394,13 @@ mod tests {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
         loop_ctrl
-            .enter_position_hold_at(Some("shoulder_pitch"), 0.42)
+            .enter_position_hold_at(Some("right_shoulder_pitch"), 0.42)
             .expect("hold-at");
         let sp = loop_ctrl.position_setpoints().expect("setpoints");
         let i = loop_ctrl
             .joint_names()
             .iter()
-            .position(|n| n == "shoulder_pitch")
+            .position(|n| n == "right_shoulder_pitch")
             .expect("joint index");
         assert!((sp[i] - 0.42).abs() < 1e-9);
         assert_eq!(loop_ctrl.control_mode(), ControlMode::Position);
@@ -1288,7 +1410,7 @@ mod tests {
     fn same_target_hold_at_preserves_active_wave() {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
-        let joint = "shoulder_pitch";
+        let joint = "right_shoulder_pitch";
         loop_ctrl
             .enter_position_hold_at(Some(joint), 0.1)
             .expect("hold-at");
@@ -1324,12 +1446,127 @@ mod tests {
     }
 
     #[test]
+    fn set_torque_cmd_enters_torque_only_and_latches() {
+        let mut loop_ctrl = test_loop();
+        let joint = "right_shoulder_pitch";
+        assert_eq!(loop_ctrl.control_mode(), ControlMode::Disabled);
+        assert!((loop_ctrl.torque_cmd(joint)).abs() < 1e-12);
+        loop_ctrl.set_torque_cmd(joint, 0.25).expect("set");
+        assert_eq!(loop_ctrl.control_mode(), ControlMode::TorqueOnly);
+        assert!((loop_ctrl.torque_cmd(joint) - 0.25).abs() < 1e-12);
+        loop_ctrl.clear_torque_cmd(joint);
+        assert!((loop_ctrl.torque_cmd(joint)).abs() < 1e-12);
+    }
+
+    #[test]
+    fn leaving_torque_only_clears_torque_cmds() {
+        let mut loop_ctrl = test_loop();
+        let joint = "right_shoulder_pitch";
+        loop_ctrl.set_torque_cmd(joint, 0.4).expect("set");
+        assert!((loop_ctrl.torque_cmd(joint) - 0.4).abs() < 1e-12);
+        loop_ctrl.set_control_mode(ControlMode::GravityComp);
+        assert!(
+            (loop_ctrl.torque_cmd(joint)).abs() < 1e-12,
+            "leave TorqueOnly must clear τ_cmd latch"
+        );
+    }
+
+    #[test]
+    fn enter_torque_only_zero_clears_nonzero_latch() {
+        let mut loop_ctrl = test_loop();
+        let joint = "right_shoulder_pitch";
+        loop_ctrl.set_torque_cmd(joint, 0.5).expect("set");
+        assert!((loop_ctrl.torque_cmd(joint) - 0.5).abs() < 1e-12);
+        loop_ctrl.enter_torque_only_zero();
+        assert_eq!(loop_ctrl.control_mode(), ControlMode::TorqueOnly);
+        assert!(
+            (loop_ctrl.torque_cmd(joint)).abs() < 1e-12,
+            "gravity-off / enter_torque_only_zero must force τ_cmd≡0"
+        );
+    }
+
+    #[test]
+    fn set_torque_cmd_rejects_unknown_joint() {
+        let mut loop_ctrl = test_loop();
+        let err = loop_ctrl
+            .set_torque_cmd("not_a_joint", 0.1)
+            .expect_err("unknown");
+        assert!(matches!(err, LoopError::UnknownJoint { .. }));
+    }
+
+    #[test]
+    fn set_torque_cmd_rejects_non_finite() {
+        let mut loop_ctrl = test_loop();
+        let joint = "right_shoulder_pitch";
+        let err = loop_ctrl.set_torque_cmd(joint, f64::NAN).expect_err("nan");
+        assert!(matches!(err, LoopError::NonFiniteTorqueCmd { .. }));
+        let err = loop_ctrl
+            .set_torque_cmd(joint, f64::INFINITY)
+            .expect_err("inf");
+        assert!(matches!(err, LoopError::NonFiniteTorqueCmd { .. }));
+    }
+
+    #[test]
+    fn torque_only_tick_packs_latched_tau_cmd_on_wire() {
+        use robstride::{encode_mit, MitCommand};
+
+        let mut loop_ctrl = test_loop();
+        bench_ready_active(&mut loop_ctrl);
+        let joint = "right_shoulder_pitch";
+        let tau_cmd = 0.35;
+        loop_ctrl.set_torque_cmd(joint, tau_cmd).expect("set");
+        // Ensure rate-limiter dt allows the full step from seeded measured torque.
+        std::thread::sleep(Duration::from_millis(20));
+        loop_ctrl.supervisor_mut().bus_mut().tx.clear();
+        loop_ctrl.tick(None).expect("tick");
+
+        let motor = loop_ctrl
+            .supervisor()
+            .motors
+            .motors
+            .iter()
+            .find(|m| m.joint == joint)
+            .expect("pitch motor")
+            .clone();
+        let scale = f64::from(motor.direction) * motor.gear_ratio;
+        let expected = MitCommand {
+            device_id: motor.device_id,
+            motor_type: motor.motor_type,
+            position_rad: 0.0,
+            velocity_rad_s: 0.0,
+            kp: 0.0,
+            kd: 0.0,
+            torque_ff_nm: (tau_cmd / scale) as f32,
+        };
+        let (expected_id, expected_data) = encode_mit(&expected);
+        let frame = loop_ctrl
+            .supervisor_mut()
+            .bus_mut()
+            .tx
+            .iter()
+            .find(|f| {
+                robstride::unpack_ext_id(f.id)
+                    .map(|u| u.device_id == motor.device_id)
+                    .unwrap_or(false)
+            })
+            .expect("MIT frame for pitch");
+        assert_eq!(
+            frame.id, expected_id,
+            "torque_ff + device id must match τ_cmd"
+        );
+        assert_eq!(
+            frame.data, expected_data,
+            "kp/kd hard-zero and q_des=q on wire"
+        );
+    }
+
+    #[test]
     fn gravity_comp_enter_clears_sticky_gain_overrides() {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
         loop_ctrl.set_control_mode(ControlMode::Impedance);
         loop_ctrl.apply_gain_override(
-            "shoulder_pitch",
+            "right_shoulder_pitch",
             GainOverride {
                 kp: 50.0,
                 kd: 5.0,
@@ -1337,10 +1574,10 @@ mod tests {
                 fc: 1.0,
             },
         );
-        assert!(loop_ctrl.gain_override("shoulder_pitch").is_some());
+        assert!(loop_ctrl.gain_override("right_shoulder_pitch").is_some());
         loop_ctrl.set_control_mode(ControlMode::GravityComp);
         assert!(
-            loop_ctrl.gain_override("shoulder_pitch").is_none(),
+            loop_ctrl.gain_override("right_shoulder_pitch").is_none(),
             "Impedance→GravityComp must clear Testing overrides"
         );
     }
@@ -1350,7 +1587,7 @@ mod tests {
         let mut loop_ctrl = test_loop();
         loop_ctrl.set_control_mode(ControlMode::GravityComp);
         loop_ctrl.apply_gain_override(
-            "shoulder_pitch",
+            "right_shoulder_pitch",
             GainOverride {
                 kp: 50.0,
                 kd: 5.0,
@@ -1359,12 +1596,12 @@ mod tests {
             },
         );
         assert!(
-            loop_ctrl.gain_override("shoulder_pitch").is_none(),
+            loop_ctrl.gain_override("right_shoulder_pitch").is_none(),
             "must not stash overrides under GravityComp"
         );
         // Enter Impedance must not resurrect planted stiffness.
         loop_ctrl.set_control_mode(ControlMode::Impedance);
-        assert!(loop_ctrl.gain_override("shoulder_pitch").is_none());
+        assert!(loop_ctrl.gain_override("right_shoulder_pitch").is_none());
     }
 
     #[test]
@@ -1372,7 +1609,7 @@ mod tests {
         let mut loop_ctrl = test_loop();
         assert_eq!(loop_ctrl.control_mode(), ControlMode::Disabled);
         loop_ctrl.apply_gain_override(
-            "shoulder_pitch",
+            "right_shoulder_pitch",
             GainOverride {
                 kp: 50.0,
                 kd: 5.0,
@@ -1380,7 +1617,7 @@ mod tests {
                 fc: 1.0,
             },
         );
-        assert!(loop_ctrl.gain_override("shoulder_pitch").is_none());
+        assert!(loop_ctrl.gain_override("right_shoulder_pitch").is_none());
     }
 
     #[test]
@@ -1388,7 +1625,7 @@ mod tests {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
         loop_ctrl
-            .enter_position_hold_at(Some("shoulder_pitch"), 0.25)
+            .enter_position_hold_at(Some("right_shoulder_pitch"), 0.25)
             .expect("hold-at");
         loop_ctrl.tick(None).expect("tick");
         assert_eq!(loop_ctrl.supervisor_mut().mode(), OperationalMode::Active);
@@ -1399,12 +1636,12 @@ mod tests {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
         loop_ctrl
-            .enter_position_hold_at(Some("shoulder_pitch"), 0.25)
+            .enter_position_hold_at(Some("right_shoulder_pitch"), 0.25)
             .expect("hold-at");
         let i = loop_ctrl
             .joint_names()
             .iter()
-            .position(|n| n == "shoulder_pitch")
+            .position(|n| n == "right_shoulder_pitch")
             .expect("joint");
         loop_ctrl.tick(None).expect("tick");
         let cmd = loop_ctrl.position_hold_commands().expect("cmd")[i];
@@ -1850,18 +2087,17 @@ mod tests {
     }
 
     #[test]
-    fn ascent_stall_freezes_planner() {
+    fn ascent_stall_enters_bounded_recovery() {
         let q = 0.02;
         let target = 0.15;
         let q_traj = 0.125;
         let to_target = target - q;
         let deadband = 0.02;
-        assert!(planner_should_freeze_on_ascent_stall(
+        assert!(planner_should_recover_ascent_stall(
             false, target, q, q_traj, to_target, 0.0, deadband
         ));
-        // Synced → exit
-        assert!(!planner_should_freeze_on_ascent_stall(
-            true,
+        assert!(!planner_should_recover_ascent_stall(
+            false,
             target,
             q,
             q + 0.01,
@@ -1869,21 +2105,49 @@ mod tests {
             0.0,
             deadband
         ));
+        assert!(
+            planner_should_recover_ascent_stall(
+                true,
+                target,
+                q,
+                q + 0.01,
+                to_target,
+                0.0,
+                deadband
+            ),
+            "stuck-lead resync must preserve recovery"
+        );
         // Motion toward target → exit
-        assert!(!planner_should_freeze_on_ascent_stall(
+        assert!(!planner_should_recover_ascent_stall(
             true, target, q, q_traj, to_target, 0.03, deadband
         ));
         // Home return owned by descent freeze
-        assert!(!planner_should_freeze_on_ascent_stall(
+        assert!(!planner_should_recover_ascent_stall(
             false, 0.0, 0.08, 0.02, -0.08, 0.0, deadband
         ));
     }
 
     #[test]
-    fn ascent_stall_faults_tick_after_sustained_freeze() {
+    fn lead_follow_stuck_residual_requires_outbound_gap_and_zero_velocity() {
+        let deadband = 0.02;
+        assert!(lead_follow_stuck_residual(true, 1.333, 1.40, 0.0, deadband));
+        assert!(!lead_follow_stuck_residual(
+            false, 1.333, 1.40, 0.0, deadband
+        ));
+        assert!(!lead_follow_stuck_residual(
+            true, 0.125, 0.15, 0.0, deadband
+        ));
+        assert!(!lead_follow_stuck_residual(true, -0.05, 0.0, 0.0, deadband));
+        assert!(!lead_follow_stuck_residual(
+            true, 1.333, 1.40, deadband, deadband
+        ));
+    }
+
+    #[test]
+    fn ascent_stall_faults_tick_after_bounded_recovery() {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
-        let joint = "shoulder_pitch";
+        let joint = "right_shoulder_pitch";
         loop_ctrl
             .supervisor_mut()
             .set_synthetic_joint_feedback(joint, 0.02, 0.0)
@@ -1915,7 +2179,7 @@ mod tests {
         }
         assert!(
             faulted,
-            "stuck outbound ascent must AscentStall within ~3s of freeze"
+            "stuck outbound ascent must AscentStall within ~3s of recovery"
         );
     }
 
@@ -1923,7 +2187,7 @@ mod tests {
     fn ascent_stall_counter_resets_on_progress_toward_target() {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
-        let joint = "shoulder_pitch";
+        let joint = "right_shoulder_pitch";
         loop_ctrl
             .supervisor_mut()
             .set_synthetic_joint_feedback(joint, 0.02, 0.0)
@@ -1931,7 +2195,6 @@ mod tests {
         loop_ctrl
             .enter_position_hold_at(Some(joint), 0.15)
             .expect("hold-at");
-        // Build freeze / partial stall (~0.5 s stuck).
         for _ in 0..100 {
             loop_ctrl
                 .supervisor_mut()
@@ -1952,30 +2215,74 @@ mod tests {
     }
 
     #[test]
-    fn lead_follow_residual_does_not_ascent_stall() {
+    fn lead_follow_residual_within_resync_band_does_not_ascent_stall() {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
-        let joint = "shoulder_pitch";
-        // Remaining 0.05 ∈ (resync 0.03, max_lead] — lead-follow residual, not true stall.
+        let joint = "right_shoulder_pitch";
+        let q = 0.125;
+        let target = 0.15;
         loop_ctrl
             .supervisor_mut()
-            .set_synthetic_joint_feedback(joint, 0.10, 0.0)
+            .set_synthetic_joint_feedback(joint, q, 0.0)
             .expect("feedback");
         loop_ctrl
-            .enter_position_hold_at(Some(joint), 0.15)
+            .enter_position_hold_at(Some(joint), target)
             .expect("hold-at");
         loop_ctrl
-            .test_force_planner_hold_at(joint, 0.15)
+            .test_force_planner_hold_at(joint, target)
             .expect("force Hold@target");
         for _ in 0..500 {
             loop_ctrl
                 .supervisor_mut()
-                .set_synthetic_joint_feedback(joint, 0.10, 0.0)
+                .set_synthetic_joint_feedback(joint, q, 0.0)
                 .expect("feedback");
             loop_ctrl
                 .tick(None)
-                .expect("lead-follow residual must not AscentStall");
+                .expect("lead-follow residual within resync band must not AscentStall");
         }
+    }
+
+    #[test]
+    fn lead_follow_stuck_residual_faults_closed() {
+        let mut loop_ctrl = test_loop();
+        bench_ready_active(&mut loop_ctrl);
+        let joint = "right_shoulder_pitch";
+        let q = 1.333;
+        let target = 1.40;
+        loop_ctrl
+            .supervisor_mut()
+            .set_synthetic_joint_feedback(joint, q, 0.0)
+            .expect("feedback");
+        loop_ctrl
+            .enter_position_hold_at(Some(joint), target)
+            .expect("hold-at");
+        loop_ctrl
+            .test_force_planner_hold_at(joint, target)
+            .expect("force Hold@target");
+
+        let mut fault = None;
+        for _ in 0..500 {
+            loop_ctrl
+                .supervisor_mut()
+                .set_synthetic_joint_feedback(joint, q, 0.0)
+                .expect("feedback");
+            match loop_ctrl.tick(None) {
+                Ok(()) => {}
+                Err(err) => {
+                    fault = Some(err);
+                    break;
+                }
+            }
+        }
+
+        assert!(
+            matches!(
+                fault,
+                Some(LoopError::AscentStall { joint: ref j, ms })
+                    if j == joint && ms >= POSITION_ASCENT_STALL_FAULT_MS
+            ),
+            "lead-follow stuck residual must AscentStall within 2.5s; got {fault:?}"
+        );
     }
 
     #[test]
@@ -2227,13 +2534,13 @@ mod tests {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
         loop_ctrl
-            .enter_position_hold_at(Some("shoulder_pitch"), 1.2)
+            .enter_position_hold_at(Some("right_shoulder_pitch"), 1.2)
             .expect("hold-at");
         loop_ctrl.tick(None).expect("tick");
         let i = loop_ctrl
             .joint_names()
             .iter()
-            .position(|n| n == "shoulder_pitch")
+            .position(|n| n == "right_shoulder_pitch")
             .expect("joint");
         let cmd = loop_ctrl.position_hold_commands().expect("cmd")[i];
         assert!(cmd < 0.2, "first tick must not jump to 1.2 rad target");
@@ -2244,12 +2551,12 @@ mod tests {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
         loop_ctrl
-            .enter_position_hold_at(Some("shoulder_pitch"), 1.2)
+            .enter_position_hold_at(Some("right_shoulder_pitch"), 1.2)
             .expect("hold-at");
         let i = loop_ctrl
             .joint_names()
             .iter()
-            .position(|n| n == "shoulder_pitch")
+            .position(|n| n == "right_shoulder_pitch")
             .expect("joint index");
         let target = loop_ctrl.position_setpoints().expect("target")[i];
         assert!((target - 1.2).abs() < 1e-9);
@@ -2337,12 +2644,12 @@ mod tests {
         bench_ready_active(&mut loop_ctrl);
         // Past soft/hard lower (~-0.87/-0.9) so clamp_hold_target must raise the goal.
         loop_ctrl
-            .enter_position_hold_at(Some("shoulder_pitch"), -0.95)
+            .enter_position_hold_at(Some("right_shoulder_pitch"), -0.95)
             .expect("hold-at");
         let i = loop_ctrl
             .joint_names()
             .iter()
-            .position(|n| n == "shoulder_pitch")
+            .position(|n| n == "right_shoulder_pitch")
             .expect("joint index");
         let target = loop_ctrl.position_setpoints().expect("setpoints")[i];
         assert!(
@@ -2350,7 +2657,7 @@ mod tests {
             "requested lower-limit probe must clamp before planner reset"
         );
         let (_q_traj, dq_traj) = loop_ctrl
-            .test_planner_state("shoulder_pitch")
+            .test_planner_state("right_shoulder_pitch")
             .expect("planner");
         assert!(
             dq_traj.abs() < 1e-12,
@@ -2372,7 +2679,7 @@ mod tests {
     fn layer2_hold_at_uses_slew_profile_not_trajectory() {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
-        let joint = "shoulder_pitch";
+        let joint = "right_shoulder_pitch";
         let cfg = loop_ctrl
             .supervisor
             .control
@@ -2408,7 +2715,7 @@ mod tests {
     fn layer2_replay_return_home_stays_on_slew_profile() {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
-        let joint = "shoulder_pitch";
+        let joint = "right_shoulder_pitch";
         let cfg = loop_ctrl
             .supervisor
             .control
@@ -2479,7 +2786,7 @@ mod tests {
     #[test]
     fn apply_gain_override_clamps_kp_to_kp_max() {
         let mut loop_ctrl = test_loop();
-        let joint = "shoulder_pitch";
+        let joint = "right_shoulder_pitch";
         apply_override_in_impedance(
             &mut loop_ctrl,
             joint,
@@ -2501,7 +2808,7 @@ mod tests {
     #[test]
     fn apply_gain_override_clamps_kd_to_kd_max() {
         let mut loop_ctrl = test_loop();
-        let joint = "shoulder_pitch";
+        let joint = "right_shoulder_pitch";
         apply_override_in_impedance(
             &mut loop_ctrl,
             joint,
@@ -2523,7 +2830,7 @@ mod tests {
     #[test]
     fn apply_gain_override_clamps_fc_to_tau_ff_max_nm() {
         let mut loop_ctrl = test_loop();
-        let joint = "shoulder_pitch";
+        let joint = "right_shoulder_pitch";
         apply_override_in_impedance(
             &mut loop_ctrl,
             joint,
@@ -2541,7 +2848,7 @@ mod tests {
     #[test]
     fn apply_gain_override_clamps_ki_to_kp_max() {
         let mut loop_ctrl = test_loop();
-        let joint = "shoulder_pitch";
+        let joint = "right_shoulder_pitch";
         apply_override_in_impedance(
             &mut loop_ctrl,
             joint,
@@ -2563,7 +2870,7 @@ mod tests {
     #[test]
     fn clear_gain_override_removes_entry() {
         let mut loop_ctrl = test_loop();
-        let joint = "shoulder_pitch";
+        let joint = "right_shoulder_pitch";
         apply_override_in_impedance(
             &mut loop_ctrl,
             joint,
@@ -2584,7 +2891,7 @@ mod tests {
         let mut loop_ctrl = test_loop();
         loop_ctrl.set_control_mode(ControlMode::Impedance);
         loop_ctrl.apply_gain_override(
-            "shoulder_pitch",
+            "right_shoulder_pitch",
             GainOverride {
                 kp: 100.0,
                 kd: 10.0,
@@ -2593,7 +2900,7 @@ mod tests {
             },
         );
         loop_ctrl.apply_gain_override(
-            "shoulder_roll",
+            "right_shoulder_roll",
             GainOverride {
                 kp: 200.0,
                 kd: 20.0,
@@ -2601,23 +2908,23 @@ mod tests {
                 fc: 3.0,
             },
         );
-        assert!(loop_ctrl.gain_override("shoulder_pitch").is_some());
-        assert!(loop_ctrl.gain_override("shoulder_roll").is_some());
+        assert!(loop_ctrl.gain_override("right_shoulder_pitch").is_some());
+        assert!(loop_ctrl.gain_override("right_shoulder_roll").is_some());
         loop_ctrl.clear_all_overrides();
-        assert!(loop_ctrl.gain_override("shoulder_pitch").is_none());
-        assert!(loop_ctrl.gain_override("shoulder_roll").is_none());
+        assert!(loop_ctrl.gain_override("right_shoulder_pitch").is_none());
+        assert!(loop_ctrl.gain_override("right_shoulder_roll").is_none());
     }
 
     #[test]
     fn no_override_config_gains_unchanged() {
         let loop_ctrl = test_loop();
-        assert!(loop_ctrl.gain_override("shoulder_pitch").is_none());
+        assert!(loop_ctrl.gain_override("right_shoulder_pitch").is_none());
         let cfg = loop_ctrl
             .supervisor
             .control
             .control
             .joints
-            .get("shoulder_pitch")
+            .get("right_shoulder_pitch")
             .expect("joint cfg exists");
         // Config gains exist and are non-zero (exact values depend on repo config).
         assert!(
@@ -2635,7 +2942,7 @@ mod tests {
     #[test]
     fn apply_gain_override_stores_within_limits_as_is() {
         let mut loop_ctrl = test_loop();
-        let joint = "shoulder_pitch";
+        let joint = "right_shoulder_pitch";
         apply_override_in_impedance(
             &mut loop_ctrl,
             joint,

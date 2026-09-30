@@ -1,0 +1,8 @@
+{
+  "upload_id": "seed-arm_3dof_right",
+  "source": "assets/urdf/arm_3dof_right.urdf",
+  "archived_at": "20260809T120000Z",
+  "contributor_urdf": "contributor.urdf",
+  "checksum_sha256": "1db1a85e5e308dca327038b275c6d4487575db3009e4381646f58fc5ca6db8f2",
+  "notes": "Slice URDF archived at master SoT cutover (consul-hardware-sot phase 1)"
+}

@@ -22,6 +22,7 @@ import {
 import { useCompoundPlayback } from '@/hooks/use-compound-playback';
 import { useConfigSnapshot } from '@/hooks/use-config-snapshot';
 import { stageEnvelope } from '@marengo/compound-auto-learn';
+import { DEFAULT_OPERATOR_PROFILE } from '@/lib/bringup-presets';
 import { liveFingerprint, resolvePlayablePreset } from '@/lib/teach-transit';
 import { useAutoLearnStore } from '@/state/autoLearnStore';
 import { useCompoundStore } from '@/state/compoundStore';
@@ -116,7 +117,7 @@ export function CompoundTestPanel() {
   const playableSelected = React.useMemo(() => {
     if (!selectedBase || !selectedPresetId) return null;
     const liveFingerprintValue = liveFingerprint(
-      config?.profile ?? 'arm_4dof_right',
+      config?.profile ?? DEFAULT_OPERATOR_PROFILE,
       selectedBase.joints,
       useHostMetricsStore.getState().piMetrics?.build,
     );
@@ -347,8 +348,8 @@ export function CompoundTestPanel() {
               ) : null}
               {!dryRun && connected && operationalMode !== 'ACTIVE' ? (
                 <p className="text-xs text-amber-600 dark:text-amber-400" role="status">
-                  Live Start needs motors ACTIVE (Enable). Current mode:{' '}
-                  {operationalMode ?? 'unknown'}.
+                  Live Start needs motors ACTIVE (Enable on Hardware). Current
+                  mode: {operationalMode ?? 'unknown'}.
                 </p>
               ) : null}
               {overlayBlockReason ? (

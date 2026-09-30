@@ -161,7 +161,8 @@ mod tests {
     use super::*;
 
     fn arm_3dof_right_urdf() -> std::path::PathBuf {
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/urdf/arm_3dof_right.urdf")
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../assets/urdf/archive/seed-arm_3dof_right/contributor.urdf")
     }
 
     #[test]

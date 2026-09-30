@@ -201,6 +201,9 @@ mod tests {
                     effort: 0.0,
                     temperature_c: 0.0,
                     fault: 0,
+                    homing_state: 0,
+                    drive_active: false,
+                    out_of_limits: false,
                 }],
             },
         )
