@@ -200,7 +200,8 @@ its transport feature. None of the analytic gravity tests are ignored.
 
 The [second batch report](batch02-feedback-command-validity.md) records the
 CS01/CS03 receive-time and command admission repair, with CS04/CS14/CS15 still
-partial. Real baseline regressions catch empty drains, silent peers, NaN becoming
+partial, delivered in [PR214](https://github.com/jaylamping/marengo/pull/214).
+Real baseline regressions catch empty drains, silent peers, NaN becoming
 the RS03 -60 Nm wire endpoint, invalid policy, overlay/gain mutation, nonneutral
 startup output, re-enable between ticks, queued enable status and taught ranges
 excluding zero. Independent review and the primary gate pass: 547 workspace

@@ -74,7 +74,23 @@
       "evidence": "J:/code/marengo-migration-backup-20260929/batch02/docker-recurrence.md",
       "repair": "preserved/recreated only two stale runtime parents; no data/settings/VHD/source/CAD reset"
     },
-    "merge_policy": "Required primary and GitHub PR checks plus independent review before merge. No hardware acceptance inferred."
+    "merge_policy": "Required primary and GitHub PR checks plus independent review before merge. No hardware acceptance inferred.",
+    "pull_request": "https://github.com/jaylamping/marengo/pull/214",
+    "code_commit": "d4c869bb489862a865b08a6a0d5af6f507f28fb5",
+    "github_checks": {
+      "result": "passed",
+      "run_id": 36666906670,
+      "checked_commit": "d4c869bb489862a865b08a6a0d5af6f507f28fb5",
+      "jobs": [
+        "changes",
+        "build-image",
+        "check",
+        "sim",
+        "vcan"
+      ],
+      "evidence": "J:/code/marengo-migration-backup-20260929/batch02/github-first-run.log",
+      "final_merge_policy": "This documentation-only evidence update must also receive all applicable GitHub checks before merge. Exact final head/run/merge outcome is preserved in batch02/merge-receipt.json."
+    }
   },
   "findings": [
     {
@@ -90,9 +106,9 @@
         "Per-active-address original pose timestamps; strictly newer post-enable receive-time gate and watchdog deadline. Empty/unknown/inactive/fault-only/replayed traffic cannot renew pose.",
         "Enable drains before and after lifecycle writes; final drain failure disables. Controller uses enable marker for two neutral startup ticks; no gravity/PD from missing pose. Initial fourteen admission regressions fail on original source; two further queue/failure regressions and an unchanged independent probe prove the final enable race fix.",
         "Public wire startup and re-enable-between-ticks regressions fail before their corresponding repairs and pass in caller-green.log. See current_batch; CAN physical acquisition correlation remains an explicit hardware limitation.",
-        "Primary gate passed: 547 Rust, 355 frontend, 72 Pi MCP; independent review passed. Required GitHub merge checks pending; see batch02."
+        "Primary gate passed: 547 Rust, 355 frontend, 72 Pi MCP; independent review passed. All five GitHub code checks passed at d4c869b; final documentation head is rechecked before merge. See batch02."
       ],
-      "verified_commit_or_pr": null,
+      "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/214",
       "hardware_acceptance": "required before physical release",
       "implementation_batch": "batch02"
     },
@@ -125,9 +141,9 @@
         "Finite MIT/legacy/speed fields and feedback; nonnegative gains; checked transform/f32 conversion; complete batch/identity/route validation before output, rollback command history on failed admission.",
         "Driver typed numeric/register errors and atomic admission; baseline NaN second frame emitted raw torque zero (-60 Nm RS03 endpoint). Baseline also admits seven wrong-kind/negative firmware writes and unsupported byte modes. Public regressions now reject without prefix transmission.",
         "Berthier gain setters reject malformed/unknown-joint batches before mutation; Pi/overlay callers handle errors. Red/green public state and raw-wire proofs in current_batch; persistent fault authority tracked separately as CS12/CS13.",
-        "Primary gate passed: 547 Rust, 355 frontend, 72 Pi MCP; independent review passed. Required GitHub merge checks pending; see batch02."
+        "Primary gate passed: 547 Rust, 355 frontend, 72 Pi MCP; independent review passed. All five GitHub code checks passed at d4c869b; final documentation head is rechecked before merge. See batch02."
       ],
-      "verified_commit_or_pr": null,
+      "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/214",
       "hardware_acceptance": "required before physical release",
       "implementation_batch": "batch02"
     },
@@ -1547,7 +1563,7 @@
           "build-image",
           "check",
           "sim",
-          "check-vcan"
+          "vcan"
         ]
       }
     }
@@ -1556,5 +1572,15 @@
     "verified": 10,
     "partial": 6,
     "open": 85
+  },
+  "next_dependency_ready_batch": {
+    "findings": [
+      "CS04",
+      "CS12",
+      "CS13"
+    ],
+    "purpose": "Complete vendor fault evidence, propagate every ingestion error and retain fault state until explicit fresh recovery; then stop/reference transactions.",
+    "prerequisites": "CS01/CS03 verified; CS15 numeric admission repaired but immutable generation remains partial",
+    "hardware_constraint": "Recording buses and public protocol fixtures only; no robot connection or physical sign-off"
   }
 }

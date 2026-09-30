@@ -3,11 +3,14 @@
 Batch baseline: main `9215db0b70cca1de365d38154731cc8775dcb579`
 (merged PR213). Branch: `codex/feedback-command-validity`. All recording buses,
 scratch baselines, logs and CAD remain under `J:\code`. No robot was contacted.
+Delivery: [PR214](https://github.com/jaylamping/marengo/pull/214), code commit
+`d4c869bb489862a865b08a6a0d5af6f507f28fb5`.
 
 ## Result and scope
 
-CS01 and CS03 have verified software regressions, independent review and a passing
-primary gate. Final PR checks remain required before merge.
+CS01 and CS03 have verified software regressions, independent review, a passing
+primary gate and all five GitHub code checks. The final documentation head is
+rechecked before merge.
 CS04, CS14 and CS15 remain partial. This batch establishes command admission and
 receive-time freshness; persistent fault recovery, complete stop outcomes,
 immutable config generations and physical safety acceptance remain separate work.
@@ -98,8 +101,11 @@ deny/audit and the aarch64 release build complete. Summed Rust test-body time is
 Cargo audit reports the two known unmaintained dependencies (M01); Consul's two
 moderate advisories remain T31. Cargo deny exits successfully but emits 344
 registry index warnings: yanked-crate coverage is **unknown**, not clean. This
-scanner-coverage gap remains recorded with T26. Final required GitHub check,
-simulation and Linux vCAN results are recorded in the ledger before merge.
+scanner-coverage gap remains recorded with T26. GitHub run `36666906670` passes
+all five jobs at code commit `d4c869b`: changes, image, primary check, simulation
+and Linux vCAN. The documentation-only evidence commit receives its own final
+checks before merge; the exact head/run/merged SHA is preserved in the local
+`batch02/merge-receipt.json` and the PR record.
 
 Independent review of root bootstrap/overlay and of Davout/driver found and
 closed the enable queue race. The unchanged external probe fails before that
