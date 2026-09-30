@@ -29,7 +29,7 @@ services:
       - cargo-registry:/usr/local/cargo/registry
       - cargo-git:/usr/local/cargo/git
       - consul-node-modules:/workspace/consul/node_modules
-    command: ["./scripts/check.sh"]
+    command: ["bash", "./scripts/check.sh"]
 
   vcan:
     profiles: [vcan]
@@ -42,6 +42,10 @@ services:
     working_dir: /workspace
     volumes:
       - .:/workspace
+      - cargo-target:/workspace/target
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-git:/usr/local/cargo/git
+      - consul-node-modules:/workspace/consul/node_modules
     command: ["bash", "-c", "./scripts/vcan-up.sh && exec sleep infinity"]
     restart: unless-stopped
 
@@ -55,6 +59,8 @@ services:
     volumes:
       - .:/workspace
       - cargo-target:/workspace/target
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-git:/usr/local/cargo/git
       - consul-node-modules:/workspace/consul/node_modules
     network_mode: host
     command: ["bash", "-c", "./scripts/vcan-up.sh && for iface in vcan0 vcan1; do ip -details link show \"$$iface\"; done && cargo test -p robstride --features socketcan -- --ignored"]
@@ -69,10 +75,12 @@ services:
     volumes:
       - .:/workspace
       - cargo-target:/workspace/target
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-git:/usr/local/cargo/git
       - consul-node-modules:/workspace/consul/node_modules
     environment:
       MARENGO_SIM_MODEL: /workspace/sim/fixtures/minimal.xml
-    command: ["./scripts/check-sim.sh"]
+    command: ["bash", "./scripts/check-sim.sh"]
 
   deploy-pi:
     profiles: [deploy]

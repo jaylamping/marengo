@@ -69,7 +69,7 @@ const repo =
 
 const composerMode = payload.composer_mode || "unknown";
 const win = isWindowsNative();
-const shellName = win ? "Windows PowerShell" : "Unix/bash (macOS/Linux/WSL)";
+const shellName = win ? "Windows PowerShell" : "Unix/bash (macOS/Linux)";
 
 let mcpStatus = "skipped";
 let mcpDetail = "ensure script missing";
@@ -104,19 +104,13 @@ if (fs.existsSync(ensureScript)) {
   }
 }
 
-const repoNorm = String(repo).replace(/\\/g, "/");
-const onWindowsClone = win && /^[A-Za-z]:\/code\/marengo/i.test(repoNorm);
-const onWslMount = /^\/mnt\/[a-z]\//i.test(repoNorm);
 let softwareHint: string;
-if (onWindowsClone || onWslMount) {
+if (win) {
   softwareHint =
-    "Software work (cargo, just check, Pi deploy): prefer WSL clone at ~/code/marengo (ext4). This Windows/mount path is for CAD / SolidWorks MCP.";
-} else if (win) {
-  softwareHint =
-    "Shell is PowerShell — never emit bash &&/||/heredocs unless wrapped in bash/sh. beforeShellExecution will deny bash-isms.";
+    "Software and local CAD live in the host checkout at J:\\code\\marengo. Use Docker for full Linux workspace checks. Shell is PowerShell; wrap Unix recipes explicitly in Git for Windows sh when needed.";
 } else {
   softwareHint =
-    "Unix shell OK for bash syntax. Mac/Linux/WSL: keep software on the native clone (not /mnt/c).";
+    "Use the host checkout on macOS/Linux, with Docker for Linux runtime checks. Ubuntu is not a separate required software home.";
 }
 
 const ctx = `## Marengo session environment

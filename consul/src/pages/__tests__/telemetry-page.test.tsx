@@ -87,7 +87,11 @@ describe('TelemetryPage', () => {
   it('renders telemetry overview (not the Phase 1 stub)', async () => {
     renderPage();
     expect(screen.queryByTestId('telemetry-stub')).toBeNull();
-    expect(await screen.findByTestId('telemetry-overview')).toBeTruthy();
+    // The lazy body compiles on first import; host-mounted container sources
+    // can exceed Testing Library's default one-second async wait.
+    expect(
+      await screen.findByTestId('telemetry-overview', {}, { timeout: 5000 }),
+    ).toBeTruthy();
   });
 });
 

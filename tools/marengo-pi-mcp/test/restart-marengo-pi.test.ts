@@ -50,7 +50,11 @@ describe("pi_restart_marengo_pi", () => {
   });
 
   it("rejects invalid mode at the shell entrypoint", () => {
-    const r = spawnSync("bash", [scriptPath, "bogus"], { encoding: "utf8" });
+    // Git for Windows supplies sh; PATH may resolve bash to the WSL launcher.
+    const shell = process.platform === "win32" ? "sh" : "bash";
+    const r = spawnSync(shell, [scriptPath.replace(/\\/g, "/"), "bogus"], {
+      encoding: "utf8",
+    });
     assert.notEqual(r.status, 0);
     assert.match(r.stderr, /usage:.*restart\|stop/);
   });

@@ -10,7 +10,7 @@ import {
 import { appRoutes } from '@/routes/config';
 
 function childRoutes() {
-  const root = appRoutes[0];
+  const root = appRoutes.find((route) => route.children !== undefined);
   if (!root?.children) {
     throw new Error('expected RootLayout children');
   }

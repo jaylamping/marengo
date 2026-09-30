@@ -7,9 +7,9 @@ resolved in conversation or an ADR.
 
 | Term | Meaning |
 |------|---------|
-| **Software home** | The only Marengo git tree used for edit/commit of software and tracked CAD sources: WSL2 `~/code/marengo` on ext4. See [ADR 0016](docs/decisions/0016-wsl-software-home.md). |
-| **CAD session** | A Windows Cursor window opened on `\\wsl$\Ubuntu\home\<user>\code\marengo` so SolidWorks MCP (COM) can see the same tree. Not a second clone. |
-| **Software session** | Cursor connected to WSL with folder `~/code/marengo` — Rust, Consul, Docker/`just check`, marengo-pi MCP. |
+| **Software home** | The host checkout used for software and tracked CAD sources: `J:\code\marengo` on this Windows machine, and a host checkout of the same remote on macOS. Local CAD also lives under `J:\code`. See [ADR 0018](docs/decisions/0018-windows-macos-software-home.md). |
+| **CAD session** | A Windows editor opened on `J:\code\marengo`, with SolidWorks MCP (COM) using that same local CAD tree. |
+| **Software session** | A Windows or macOS editor opened on the host checkout. Rust, Consul, and MCP tools run on the host where supported; Docker runs the Linux workspace checks. |
 | **Portable MCP config** | Repo [`.cursor/mcp.json`](.cursor/mcp.json) uses `${workspaceFolder}` and launchers only. Host-specific Pi defaults belong in `tools/marengo-pi-mcp/src/launch.ts` (compiled to `dist/launch.js`, plus `run-mcp.sh` / `run-mcp.ps1`), not in that JSON env block. |
 | **Position hold** | Berthier’s joint-space motion primitive for `ControlMode::Position` (operator hold-at / hold-on): trapezoid advance policy plus MIT composition. Rust module/type: `PositionHold`. Not a separate control mode. _Avoid_: HoldExecutor, Controller (for this concept). |
 | **MIT feedforward** | Berthier’s Active MIT packing for `GravityComp` / `Impedance` / `TorqueOnly`: mode gains (hard-zero under GravityComp/TorqueOnly) plus τ_ff composition (`τ_g` vs operator `τ_cmd`). Rust module/type: `MitFeedforward`. Not dynamics (`armee-dynamics` owns τ_g). _Avoid_: GravityCompCompose, Controller (for this concept). |

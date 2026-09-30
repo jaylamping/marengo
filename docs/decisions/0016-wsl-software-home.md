@@ -1,6 +1,6 @@
 # ADR 0016: WSL ext4 is the software home
 
-**Status:** Accepted
+**Status:** Superseded on 2026-09-29 by [ADR 0018](0018-windows-macos-software-home.md)
 **Date:** 2026-07-19
 
 ## Context
