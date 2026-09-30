@@ -231,3 +231,18 @@ fatal aarch64 release build in101.788 s. Minimal simulation passes5/0. No new
 ignored tests or multi-second negative-sleep oracle is introduced. These warm
 results separate test execution from compile/install work; they do not establish
 a cold-build improvement or physical stop, OS signal delivery or plant behavior.
+
+## Eighth batch: real failed historical writes
+
+Two original-public tests fail unchanged1518176 before the staged-record repair,
+then pass with entire test bytes preserved. They distinguish failed insertion
+from replacing existing target history, preserving unrelated literal rows and
+local state/flags. Real typed filesystem errors, successful-write/retry/reload
+controls and cleanup execute before each decisive memory assertion. Regular-file
+parent blockers and exclusive guarded directory moves avoid permissions/sleep
+assumptions. Missing protoc is recorded as a zero-test setup failure.
+
+Bodies take0.01–0.02 s in native replay; compilation is recorded separately.
+No ignored tests or hardware dependencies are introduced. These tests qualify
+memory publication after write success; partial writes, crash durability,
+reference journaling and current drive permission remain separate acceptance.

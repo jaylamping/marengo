@@ -7,6 +7,7 @@ Joint **homing registry** — encoder zero verification, calibration record pers
 - `JointHomingState` tracked by Davout Supervisor; newly constructed registries always start `Unhomed`. Historical rows never grant current readiness, even if every legacy field appears to match.
 - `HomingRegistry::new` deterministically joins the supplied root and path. `with_record_path` binds an explicit path as supplied. Environment selection belongs to Supervisor/runtime composition.
 - Existing history is retained through `calibration()` and never rewritten by loading. Only `NotFound` means ordinary empty history; directory/encoding/other IO and YAML errors return public typed `RegistryError`.
+- Historical updates stage a candidate record and write it before publishing memory/local state. Failed writes preserve the prior target, unrelated rows and flags; a real retry can succeed. The existing in-place writer does not supply crash-safe storage or live reference permission.
 - Legacy scalar validation still records history/local policy state; it cannot grant Davout's private current-reference authority. Arbitrary state setters are crate-private and the synthetic bench-grant method is removed. Qualified reference/recovery remains follow-up work under ADR0023/CS05/CS06.
 - Homing methods and sensor inputs from `homing.yaml`
 
