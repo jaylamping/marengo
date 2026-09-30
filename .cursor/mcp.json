@@ -12,12 +12,12 @@
       "args": ["-y", "--package=@upstash/context7-mcp@2.2.5", "--", "context7-mcp"]
     },
     "marengo-pi": {
-      "command": "bash",
-      "args": ["${workspaceFolder}/tools/marengo-pi-mcp/run-mcp.sh"]
+      "command": "node",
+      "args": ["${workspaceFolder}/tools/marengo-pi-mcp/dist/launch.js"]
     },
     "marengo-research": {
-      "command": "bash",
-      "args": ["${workspaceFolder}/tools/marengo-research-mcp/run-mcp.sh"]
+      "command": "node",
+      "args": ["${workspaceFolder}/tools/marengo-research-mcp/dist/launch.js"]
     }
   }
 }

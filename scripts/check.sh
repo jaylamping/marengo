@@ -4,6 +4,13 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "${ROOT}"
 
+# Docker Desktop bind mounts may be owned by root while checks run as marengo.
+# Trust only this explicitly mounted checkout for each Git invocation.
+git_root() {
+  git -c "safe.directory=${ROOT}" -C "${ROOT}" "$@"
+}
+git_root rev-parse --show-toplevel >/dev/null
+
 CI_MODE=false
 if [[ "${CI:-}" == "true" ]]; then
   CI_MODE=true
@@ -43,14 +50,13 @@ if [[ "${CI_MODE}" == true ]] && [[ "${GITHUB_EVENT_NAME:-}" == "pull_request" ]
   if [[ -z "${AGAINST}" ]]; then
     BASE_SHA="${GITHUB_BASE_SHA:-}"
     if [[ -z "${BASE_SHA}" ]]; then
-      git fetch origin main 2>/dev/null || true
-      BASE_SHA="$(git rev-parse origin/main 2>/dev/null || git rev-parse main 2>/dev/null || true)"
+      git_root fetch origin main 2>/dev/null || true
+      BASE_SHA="$(git_root rev-parse origin/main 2>/dev/null || git_root rev-parse main 2>/dev/null || true)"
     fi
     if [[ -n "${BASE_SHA}" ]]; then
-      git config --global --add safe.directory "${ROOT}" 2>/dev/null || true
       AGAINST_DIR="$(mktemp -d)"
       # Never use buf `.git#branch=…` in Docker — shallow mounts mis-detect deletions.
-      git archive "${BASE_SHA}" proto | tar -x -C "${AGAINST_DIR}"
+      git_root archive "${BASE_SHA}" proto | tar -x -C "${AGAINST_DIR}"
       AGAINST="${AGAINST_DIR}/proto"
     fi
   fi
@@ -70,6 +76,7 @@ echo "==> consul: gen:proto, build, audit"
   test -f src/gen/marengo/v1/marengo_pb.ts
   "${ROOT}/scripts/proto-checksum.sh"
   npm run build --ignore-scripts
+  npm test -- --run
   "${ROOT}/scripts/check-consul-dist.sh"
   if [[ "${CI_MODE}" == true ]]; then
     npm audit --audit-level=high
@@ -101,9 +108,9 @@ echo "==> node tooling (marengo-pi-mcp, hooks, limit-sync, research launch)"
   npm run typecheck
   # Committed hook JS must match TypeScript sources (Cursor loads .js with no build step).
   npm run build
-  if ! git -C "${ROOT}" diff --quiet -- .cursor/hooks/session-start-marengo.js .cursor/hooks/check-powershell-shell.js; then
+  if ! git_root diff --quiet -- .cursor/hooks/session-start-marengo.js .cursor/hooks/check-powershell-shell.js; then
     echo "error: .cursor/hooks/*.js out of date — run \`just mcp-build\` and commit the regenerated JS" >&2
-    git -C "${ROOT}" --no-pager diff -- .cursor/hooks/session-start-marengo.js .cursor/hooks/check-powershell-shell.js || true
+    git_root --no-pager diff -- .cursor/hooks/session-start-marengo.js .cursor/hooks/check-powershell-shell.js || true
     exit 1
   fi
 )

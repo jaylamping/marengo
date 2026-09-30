@@ -1,5 +1,7 @@
 # Architecture
 
+Current implementation status and known failures are recorded in the [September 2026 architecture and repository review](reviews/2026-09-29-repository-review.md). The working robot is the five-joint right bench arm; planning/perception and some physical homing/simulation capabilities shown below remain future work.
+
 CAD, kinematics, and wiring describe the machine. The Rust workspace (Armée), message bus, control, safety, and planning consume that description. Scope and milestone order: [roadmap.md](roadmap.md).
 
 Wire types are defined once in [`proto/`](../proto/) as Protocol Buffers and generated into Rust ([`armee-proto`](../crates/armee-proto/)) and TypeScript ([`consul/src/gen/`](../consul/)). [ADR 0001](decisions/0001-protobuf-wire-types.md).

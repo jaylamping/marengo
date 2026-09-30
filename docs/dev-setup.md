@@ -2,7 +2,7 @@
 
 ## Docker (recommended)
 
-Use the container workflow unless you have a reason not to. Dev container setup: [onboarding.md](onboarding.md). Pi bring-up: [pi-commissioning.md](pi-commissioning.md).
+Open the host checkout (`J:\code\marengo` on Windows) and use Docker for full workspace checks. [Windows and macOS development](windows-macos-development.md) describes native frontend work, CAD, and Pi deployment. Dev container setup: [onboarding.md](onboarding.md). Pi bring-up: [pi-commissioning.md](pi-commissioning.md).
 
 ```bash
 docker compose build dev
@@ -71,24 +71,20 @@ git lfs install && git lfs pull
 ./scripts/deploy-pi.sh --install joey@marengo.local
 # or: just deploy-pi
 
-# Windows (no native aarch64 GCC): deploy via dev container (cached volumes + live logs)
-# Set MARENGO_PI_HOST to a resolvable name (Tailscale / IP) — marengo.local mDNS fails inside Docker.
-export MARENGO_PI_HOST=joey-robot.tail0b414.ts.net   # example
-./scripts/deploy-pi-docker.sh
-# or: just deploy-pi-docker
-# Binary-only (faster): just deploy-pi-docker-binaries
-# Verbose: MARENGO_DEPLOY_VERBOSE=1 just deploy-pi-docker
-
-# WSL2 (recommended for daily work): native cross-build on ext4 — see docs/wsl-setup.md
-./scripts/setup-wsl-pi-cross.sh
-just deploy-pi-wsl
-
 cargo build --workspace
 cd consul && mise exec -- npm ci && npm run gen:proto
 ./scripts/check.sh
 ```
 
-WSL2: clone inside the Linux filesystem (`~/code`), not `/mnt/c/`.
+Windows Pi cross-builds use the native PowerShell wrapper and Docker caches:
+
+```powershell
+Set-Location J:\code\marengo
+$env:MARENGO_PI_HOST = 'joey-robot.tail0b414.ts.net'
+powershell -NoProfile -File .\scripts\deploy-pi-docker.ps1
+```
+
+Use a resolvable Tailscale name or IP because mDNS may not resolve inside Docker. Full native Windows Rust builds are currently blocked by Chappe's Unix IPC types; `just check` supplies the Linux environment. Legacy WSL scripts remain available for explicitly requested use.
 
 ## Regenerating wire types
 

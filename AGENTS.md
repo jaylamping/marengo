@@ -13,7 +13,7 @@ Marengo is a **personal humanoid robot** in one repo: CAD, wiring, URDF, and the
 | Name | Role |
 |------|------|
 | **Marengo** | The robot (mechanical + electrical + software) |
-| **Armée** | Rust workspace (`Cargo.toml`) — 16 crates + 9 bins |
+| **Armée** | Rust workspace (`Cargo.toml`) — 18 crates + 10 bins |
 | **Chappe** | Inter-process message bus (binary protobuf) |
 | **Berthier** | Realtime control loop |
 | **Davout** | Safety supervisor — **sole path to motors** |
@@ -241,9 +241,9 @@ Single-pass trapezoidal planner + MIT setpoint clamp ([`docs/rust-patterns.md`](
 | Task runner | **just** (`just --list`) |
 | Proto tooling | **buf** + **protoc** 28.x |
 | Dev environment | **Container-first** — `docker compose` + `just check` ([`docs/onboarding.md`](docs/onboarding.md)) |
-| Native host | Best-effort ([`docs/dev-setup.md`](docs/dev-setup.md)) |
+| Native host | Windows checkout `J:\code\marengo`; macOS host checkout. Use Docker for Linux runtime checks ([ADR 0018](docs/decisions/0018-windows-macos-software-home.md)). No Ubuntu software checkout is required. |
 | Windows shell | PowerShell default — no `&&`/`||` (see `.cursor/rules/windows-shell.mdc`) |
-| Windows Rust tests | `chappe` Unix-socket tests fail natively — use `just check` in container |
+| Windows Rust tests | `chappe` currently does not compile natively because its IPC implementation uses Unix-only types — use `just check` in container for the full workspace; pure portable crates can be tested natively. |
 | Windows Pi Docker | Set `$env:DOCKER_HOST='npipe:////./pipe/dockerDesktopLinuxEngine'` before deploy scripts |
 | Formatting | rustfmt: 100 cols, Unix newlines (`rustfmt.toml`) |
 | Lint | clippy `-D warnings`; buf STANDARD lint on proto |
@@ -257,7 +257,7 @@ Single-pass trapezoidal planner + MIT setpoint clamp ([`docs/rust-patterns.md`](
 
 - **Never** call `Grep` / `search` with an empty `pattern` — it fails with `Pattern must not be empty`.
 - To **list or discover files**, use `Glob`, `find`, or `Read` — not grep with `""`.
-- Repo root is the opened workspace (e.g. `C:\code\marengo` on this machine) — do not invent other paths from usernames or handoff context.
+- Repo root is the opened workspace (`J:\code\marengo` on this Windows machine). Software, local CAD, and exported assets all live here. macOS uses its own host checkout of the same repository. Do not relocate work into WSL or invent paths from handoff context.
 
 ---
 
