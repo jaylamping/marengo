@@ -412,8 +412,9 @@ cleanup. Immutable terminals remain unusable. Original-public model-stamp red
 passes unchanged; a six-fixture management candidate regression passes unchanged;
 three production mutants are caught after real compiled positives. Independent
 Standards/Spec, strict affected460/0, primary743Rust/1 existing ignored,
-355frontend/72PiMCP/fatalARM and simulation5 pass. Exact-head GitHub delivery
-remains pending. Counts stay14verified,10partial,78open across102IDs.
+355frontend/72PiMCP/fatalARM and simulation5 pass. PR225 implementation6c10339/
+run36784341442 passes all five jobs, including73 actual virtual-CAN tests/0ignored.
+Final documentation/equal-tree main delivery remains pending. Counts stay14verified,10partial,78open across102IDs.
 R2b1 recoverable journal/owner-consumed durable receipt, R2b2 current selected
 grant and R3 installed clients follow; no physical acceptance or Wave/limit change.
 

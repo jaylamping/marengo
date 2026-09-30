@@ -76,7 +76,7 @@ package, gate, policy and normative inputs match final manifest
 roadmap and batch reports are excluded. Raw commands, complete logs, precise
 counts/timings, original/candidate archives, hashes and failure classes live at
 `J:/code/marengo-migration-backup-20260929/batch11`; exact receipts are in the ledger.
-Required exact-head GitHub delivery is pending.
+[PR225](https://github.com/jaylamping/marengo/pull/225) implementation `6c10339d99adab3c7fb6bcf9541ea34cf9013910` passes all five jobs in run36784341442, including **73 actual virtual-CAN driver tests, zero ignored**, and5simulation. Final documentation-head/equal-tree main delivery remains pending. A post-proof cache reset removes externally compiled mutation artifacts; source/tests are unchanged.
 
 All **102** finding dispositions remain **14 verified, 10 partial, 78 open**.
 CS05/CS06/CS07 remain partial. R2b1 must provide a bounded noncoalescing recoverable
