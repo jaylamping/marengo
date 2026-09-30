@@ -14,9 +14,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "${ROOT}"
 
 PROTOC_VERSION="${PROTOC_VERSION:-28.3}"
-CARGO_DENY_VERSION="${CARGO_DENY_VERSION:-0.16.3}"
-ADVISORY_DB_REV="${ADVISORY_DB_REV:-808b5a554ded31fe41863ecf7c9abf4c26e8cfcd}"
-ADVISORY_DB_DIR="/usr/local/cargo/advisory-db-pinned/github.com-a946fc29ac602819"
+CARGO_DENY_VERSION="${CARGO_DENY_VERSION:-0.20.2}"
+CARGO_AUDIT_VERSION="${CARGO_AUDIT_VERSION:-0.22.2}"
 # Match mise.toml / .nvmrc / consul engines (^24.16.0) and docker/Dockerfile.dev.
 NODE_MAJOR="${NODE_MAJOR:-24}"
 NODE_MIN_VERSION="${NODE_MIN_VERSION:-24.16.0}"
@@ -204,26 +203,16 @@ else
 fi
 cargo-deny --version
 
-echo "==> cargo-audit"
-if command -v cargo-audit >/dev/null 2>&1; then
+echo "==> cargo-audit ${CARGO_AUDIT_VERSION}"
+if cmd_reports_version cargo-audit "${CARGO_AUDIT_VERSION}"; then
   :
 else
-  cargo install cargo-audit --locked
+  install_cargo_tool cargo-audit "${CARGO_AUDIT_VERSION}"
 fi
 cargo-audit --version
 
-echo "==> advisory-db (pinned for cargo-deny 0.16.x)"
-${SUDO} mkdir -p /usr/local/cargo/advisory-db-pinned
-if [[ ! -d "${ADVISORY_DB_DIR}/.git" ]]; then
-  if [[ -e "${ADVISORY_DB_DIR}" ]]; then
-    ${SUDO} rm -rf "${ADVISORY_DB_DIR}"
-  fi
-  ${SUDO} git clone https://github.com/RustSec/advisory-db.git "${ADVISORY_DB_DIR}"
-fi
-${SUDO} git -C "${ADVISORY_DB_DIR}" fetch --depth 1 origin "${ADVISORY_DB_REV}" 2>/dev/null || true
-${SUDO} git -C "${ADVISORY_DB_DIR}" checkout -f "${ADVISORY_DB_REV}"
-${SUDO} git -C "${ADVISORY_DB_DIR}" clean -fd
-${SUDO} chown -R "$(target_owner)" /usr/local/cargo/advisory-db-pinned
+echo "==> current advisory DB and registry data (per-user Cargo cache)"
+cargo deny --locked fetch db index
 
 echo "==> workspace bootstrap"
 "${ROOT}/scripts/bootstrap.sh"

@@ -27,7 +27,7 @@ scripts/
 ├── pi-native-build.sh        # Native cargo build on Pi
 ├── pi-bno085-shtp-init.py    # BNO085 SHTP init verification
 ├── pi-i2c-plain-read.py      # Plain I2C read test (not smbus)
-├── setup-cloud.sh            # Cloud VM: protoc + cargo-deny + advisory-db
+├── setup-cloud.sh            # Cloud VM: protoc + pinned cargo-deny/cargo-audit tools
 ├── setup-cloud-pi.sh         # Cloud VM: Tailscale + SSH to Pi
 ├── setup-mac-pi-cross.sh     # macOS aarch64 cross-compile setup
 ├── setup-wsl-pi-cross.sh     # WSL2 cross-compile setup
@@ -61,6 +61,7 @@ scripts/
 ## CONVENTIONS
 
 - `check.sh` is the CI-parity entry point — `just check-native` wraps it.
+- `check-dependencies.sh` requires a current advisory database/index refresh and treats incomplete scanner coverage as a failure. Keep its scanner versions aligned between Docker and cloud setup.
 - Pi scripts assume Tailscale SSH in cloud, `marengo.local` mDNS on LAN.
 - `pi-remote.sh` is the cloud fallback when marengo-pi MCP is unavailable.
 - systemd units in `systemd/` are the production runtime definitions.
@@ -69,5 +70,5 @@ scripts/
 ## ANTI-PATTERNS
 
 - Asking user to paste Pi logs when `pi-remote.sh` can fetch them.
-- Running `cargo audit` that auto-updates the pinned advisory-db.
+- Suppressing advisory refresh or registry-index failures to make a dependency check pass.
 - Skipping `homing-preflight.sh` before first enable on bench.
