@@ -10,7 +10,7 @@
     "batch_id": "batch05",
     "branch": "codex/reference-history-admission",
     "baseline_main": "6ff2ed82191d9e602aa230cedb80ae10259cce71",
-    "status": "software slice locally verified; exact-head GitHub checks and safe merge pending",
+    "status": "software slice verified on implementation head; final evidence-head checks and safe merge required for delivery",
     "report": "batch05-reference-history-admission.md",
     "findings": [
       "CS05"
@@ -43,7 +43,53 @@
       "evidence": "J:/code/marengo-migration-backup-20260929/batch05/primary-check.log"
     },
     "required_github_gate": {
-      "result": "pending; all applicable exact-head checks required before safe merge"
+      "result": "pass",
+      "checked_implementation_head": "8c3f62e933cb301d0800415b73674bcea7ad1af4",
+      "run": 36691835812,
+      "url": "https://github.com/jaylamping/marengo/actions/runs/36691835812",
+      "jobs": [
+        {
+          "name": "build-image",
+          "conclusion": "success",
+          "url": "https://github.com/jaylamping/marengo/actions/runs/36691835812/job/109810602278"
+        },
+        {
+          "name": "changes",
+          "conclusion": "success",
+          "url": "https://github.com/jaylamping/marengo/actions/runs/36691835812/job/109810602450"
+        },
+        {
+          "name": "sim",
+          "conclusion": "success",
+          "url": "https://github.com/jaylamping/marengo/actions/runs/36691835812/job/109810693444"
+        },
+        {
+          "name": "check",
+          "conclusion": "success",
+          "url": "https://github.com/jaylamping/marengo/actions/runs/36691835812/job/109810693465"
+        },
+        {
+          "name": "vcan",
+          "conclusion": "success",
+          "url": "https://github.com/jaylamping/marengo/actions/runs/36691835812/job/109810693562"
+        }
+      ],
+      "rust_test_counts": {
+        "check": {
+          "passed": 639,
+          "ignored": 1
+        },
+        "sim": {
+          "passed": 5,
+          "ignored": 0
+        },
+        "vcan": {
+          "passed": 73,
+          "ignored": 0
+        }
+      },
+      "evidence": "J:/code/marengo-migration-backup-20260929/batch05/github-implementation-summary.json",
+      "final_head_policy": "Evidence-only followup must pass all five exact-head jobs before merge; final head/merge/main identities preserved in merge-receipt.json and copied into next iteration history"
     },
     "hardware_acceptance": "Not established; no physical robot operations, no limit or Wave sign-off changes",
     "known_limits": [
@@ -96,7 +142,9 @@
       "cost": "Original-test candidate compile6.85s, blocks0.11s, wall7.35s; local primary98.79s, feature10.66s, sim2.71s; no cross-cache/host speedup claim",
       "lock_sha256": "52fb481d34bbcdba9efbd5a594b3494d193db301ed2ed85cd91c43bddcc40ccb",
       "launcher_failure": "One bash login-shell PATH reset before Cargo; preserved separately, corrected launcher passes; not a behavioral red"
-    }
+    },
+    "implementation_pr": "https://github.com/jaylamping/marengo/pull/218",
+    "final_delivery_receipt": "J:/code/marengo-migration-backup-20260929/batch05/merge-receipt.json"
   },
   "findings": [
     {
@@ -184,11 +232,11 @@
       "status": "partial",
       "evidence": [
         "R1a removes every history-based startup grant, retains parsed rows/bytes and returns typed non-missing load failures before Supervisor diagnostic TX. Explicit library path binding and compatible Supervisor environment composition are implemented.",
-        "Four existing-public behavioral groups fail on exact merged6ff with56 production files unchanged, then pass byte-identically against frozen candidate source; all five mismatch children and real checked home/Enable exercised, no synthetic grant.",
-        "Local primary639Rust/1ignored,355frontend,72Pi-MCP,8vcan setup/4dependency contracts and fatal main aarch64 release pass; affected Linux338 including final Davout136, sim5 and independent review pass. Exact-head delivery is pending.",
+        "Four existing-public behavioral groups fail on exact merged 6ff with 56 production files unchanged, then pass byte-identically against frozen candidate source; all five mismatch children and real checked home/Enable exercised, no synthetic grant.",
+        "Local primary639Rust/1ignored,355frontend,72Pi-MCP,8vcan setup/4dependency contracts and fatal main aarch64 release pass; affected Linux338 including final Davout136, sim5 and independent review pass. All five implementation-head GitHub jobs pass at 8c3f62e/run 36691835812, including 73 real driver feature tests and zero ignored; final evidence-head delivery checks remain required.",
         "Private permit and owner/device/boot/config/model binding, legacy setter/direct scoped Enable bypasses, qualified SetZero/recovery and single-owner client cutover remain open; CS05 is not fully verified."
       ],
-      "verified_commit_or_pr": null,
+      "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/218",
       "hardware_acceptance": "required before physical release",
       "implementation_batch": "batch05"
     },
@@ -2069,11 +2117,12 @@
       "CS04"
     ],
     "purpose": "Remove naked current-reference grants and enforce private authority at every Enable path, then target-only SetZero preflight/cleanup with stop before storage and explicit unsupported capabilities.",
-    "prerequisites": "Batch05 R1a source and local primary/feature/sim plus independent review pass; require final exact-head GitHub checks and safe merge before next active production slice.",
+    "prerequisites": "Batch05 implementation head 8c3f62e has all local primary/feature/sim and five successful GitHub jobs with independent review; require final evidence-head checks and safe PR218 merge before next production edits.",
     "design_evidence": [
       "J:/code/marengo-migration-backup-20260929/batch03/next-reference-contract-plan.md",
       "J:\\code\\marengo-migration-backup-20260929\\batch04\\next-reference-plan.md",
-      "J:/code/marengo-migration-backup-20260929/batch05/next-reference-authority-plan.md"
+      "J:/code/marengo-migration-backup-20260929/batch05/next-reference-authority-plan.md",
+      "J:/code/marengo-migration-backup-20260929/batch05/next-reference-test-design.md"
     ],
     "hardware_constraint": "Public recording and virtual transports only; unsupported reference/drive capabilities must be explicit; no physical recovery/reference/commissioning is inferred"
   }

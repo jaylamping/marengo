@@ -281,8 +281,11 @@ home/normal Enable from historical data. Unique explicit-path fixtures replace
 shared PID paths and parent environment mutation. Local primary passes 639 Rust
 tests (one ignored), 355 frontend, 72 Pi-MCP and the script/dependency contracts;
 affected Linux strict lint and 338 tests pass, along with simulation smoke.
-Exact-head GitHub delivery checks remain pending. CS05 is partial until private
-grants and qualified reference/recovery transactions replace the remaining bypasses.
+All five implementation-head jobs pass at 8c3f62e in run 36691835812, including 73
+actual driver feature tests with none ignored. Delivery is
+[PR218](https://github.com/jaylamping/marengo/pull/218); final evidence-head checks
+remain required before safe merge. CS05 is partial until private grants and
+qualified reference/recovery transactions replace the remaining bypasses.
 The fresh motor-repl stop path's dependency on constructor success is explicit
 CS07/CS09 caller work; this is not a qualified emergency-stop CLI or a live
 commissioning release. No robot action or physical acceptance occurs here.

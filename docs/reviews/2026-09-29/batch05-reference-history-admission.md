@@ -5,7 +5,8 @@ Branch: `codex/reference-history-admission`. Active checkout/CAD:
 `J:\code\marengo`. Design:
 [ADR0022](../../decisions/0022-calibration-history-and-current-reference.md).
 
-Status: **R1a software slice locally verified; exact-head GitHub delivery checks and safe merge pending**. This report is
+Status: **R1a software slice verified on the implementation head; final evidence-head checks and safe merge required for delivery**. Review/delivery:
+[PR218](https://github.com/jaylamping/marengo/pull/218). This report is
 evidence of the bounded startup slice, not complete CS05 reference authority or
 a physical commissioning procedure. The full 101 finding IDs and eight
 maintenance tasks remain in the [ledger](implementation-ledger.json).
@@ -96,7 +97,8 @@ inflating the test inventory. No Cargo dependency or lock change is needed.
 | Native affected | Homing 29 tests and strict clippy pass. Davout's intermediate full 137 passed, then the dispatcher-only replacement passes four focused tests/strict clippy; final Linux integrated inventory is 136 Davout tests |
 | Simulation | Pass: five tests and minimal.xml engine smoke (`nq=2`, `nv=2`); production plant qualification remains open |
 | Independent review | Frozen code/contracts/runbook reviewed; no introduced blocker for the bounded R1a scope; exact receipt under batch05 evidence |
-| Exact-head GitHub | Pending; all applicable jobs must pass before safe merge |
+| Implementation-head GitHub | All five jobs pass at `8c3f62e933cb301d0800415b73674bcea7ad1af4`, [run36691835812](https://github.com/jaylamping/marengo/actions/runs/36691835812); actual outputs 639 check/one ignored, five sim/zero ignored, 73 driver feature/zero ignored |
+| Final evidence-head GitHub | Required before merge; the followup changes review/evidence docs only. Actual final-head and merged-main jobs are preserved in the delivery receipt below |
 
 Primary 98.79s, affected Linux 10.66s, simulation 2.71s. The original-test candidate
 replay compiles in 6.85s and runs both test blocks in 0.11s (7.35s command wall
@@ -107,6 +109,16 @@ test failure. The corrected non-login launcher passes. Primary keeps the known
 Consul Router advisories (T31) and allowed unmaintained paste (M01) explicit;
 software completion of those items is not claimed.
 
+The implementation-head vCAN job executes all 73 driver feature tests, including
+the six actual virtual-CAN cases and five Linux converters from batch04; it does
+not certify physical firmware/reference. Source/test/operator guidance remains
+identical after independent review and all local checks. The following evidence
+commit updates the report, index, roadmap and ledger only, and still requires
+all five successful exact-final-head checks before safe merge. The recoverable
+bundle, actual final/main hashes, run/job identities, tree equality and cleanup
+are preserved in `J:\code\marengo-migration-backup-20260929\batch05\merge-receipt.json`
+after delivery and copied into tracked batch history in the next iteration.
+
 ## Remaining scope and physical acceptance
 
 R1a does not make `record_verification`, public state setters, synthetic bench
@@ -114,8 +126,8 @@ grants, mutable registry access, unchecked Ready or direct scoped Enable safe
 production authority. Cached Set Zero, target-only calibration, stop-before-disk,
 immutable/recoverable persistence, owner/device/config/model identity, correlated
 client receipts and taught-reference invalidation remain follow-up findings.
-CS05 is **partial**: the startup software slice is verified locally and awaits
-exact-head delivery checks; the remaining reference authority is still open.
+CS05 is **partial**: the startup software slice is verified on the implementation
+head and awaits final evidence-head delivery checks; reference authority remains open.
 
 Separate CLI Set Zero/home/Pi processes cannot recover readiness from saved
 history. That former procedure is withdrawn in [homing.md](../../homing.md).
