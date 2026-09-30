@@ -40,6 +40,8 @@ Single-joint, legacy, and batch MIT sends share one admission path. Validate the
 
 Startup validates the combined robot/motor/control/homing policy. `validate_control_candidate` checks proposed control overlays against the installed companion configuration before installation or persistence; it does not install policy or rebuild limits.
 
+Calibration history is inspection data: every new Supervisor starts Unhomed, even with matching persisted rows. Both construction entry points share validation/initialization. `from_repo` selects the legacy OS-path environment override or configured root-relative path; `from_repo_with_calibration_record_path` takes its path as supplied and ignores that override. Corrupt/unreadable history returns before startup reporting TX. Public reference-grant/scoped-enable bypasses and qualified SetZero/recovery remain open (ADR0022).
+
 ### Joint↔motor transform
 - `direction` and `gear_ratio` from `motors.yaml`: position_rad *= scale, kp /= scale^2, kd /= scale^2, tau_ff /= scale where scale = direction * gear_ratio.
 - inverse transform applied on feedback: motor→joint state. Direction must be ±1 and gear ratio finite and positive.

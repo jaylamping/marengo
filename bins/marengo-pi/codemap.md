@@ -16,6 +16,11 @@
 4. `run_control_loop`: tick → publish RobotState/SafetyState/Heartbeat on Chappe
 5. `handle_command` for operator stdin; `drain_chappe_commands` for remote enable
 
+Fresh startup leaves all configured joints Unhomed regardless of saved history.
+Normal Enable requires current reference; the complete qualified transaction and
+client cutover remain open. Disable in the already running owner does not reload
+history or require reference readiness. See [homing](../../docs/homing.md).
+
 ## Integration
 - **Crates**: berthier, davout, robstride, chappe, marengo-config, armee-dynamics, marengo-host-metrics
 - **Consumed by**: systemd `marengo-pi.service` on bench Pi

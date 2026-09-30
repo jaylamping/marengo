@@ -160,7 +160,16 @@ identity, preserved high bits, unchanged pose freshness on fault-only RX, refusa
 of motion, and latch retention until an authorized reset. Protocol fixtures must
 come from the vendor format rather than an encode/decode self-roundtrip.
 
-### CS05: calibration history is distinct from current readiness (C2, P1, open)
+### CS05: calibration history is distinct from current readiness (C2, P1, partial)
+
+R1a ([batch05](batch05-reference-history-admission.md),
+[ADR0022](../../decisions/0022-calibration-history-and-current-reference.md))
+removes all history-based startup grants, preserves rows/bytes, surfaces typed
+non-missing load errors and binds resource paths explicitly. Exact/mismatched
+history, corruption and actual Supervisor home/Enable regressions pass unchanged
+after failing on merged 6ff. Local required gates pass; exact-head GitHub delivery
+checks remain recorded by the batch report/ledger. The following private grant,
+device/boot/config/model binding and current-evidence work remains required.
 
 Preserve historical audit rows, but do not mark them Verified on joint name
 alone. Bind device identity, interface, motor model, sign, gearing, reference

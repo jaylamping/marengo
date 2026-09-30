@@ -10,6 +10,7 @@
 - `JointCommand` / `MitJointCommand` / `SpeedCommand` — command DTOs before/after filtering.
 - `DavoutError` — typed invalid requests/runtime failures, persistent `FaultLatched`, and truthful aggregate `StopDelivery` errors.
 - `validate_control_candidate` — read-only combined policy validation for control overlays before live/durable installation.
+- `from_repo` / `from_repo_with_calibration_record_path` share one constructor. Composition selects the legacy environment or explicit supplied path; historical rows remain inspectable but startup state is Unhomed. History read/parse failures precede diagnostic TX, without a new reference grant or recovery capability (ADR0022).
 
 ## Flow
 Enable path: `request_enable` → complete bounded drain of old queued status → preflight/drive enable → complete final nonblocking drain → new receive session → `OperationalMode::Active`. Saturated preflush refuses activation; saturated/malformed final flush rolls back through all-address stop.

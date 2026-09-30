@@ -33,29 +33,35 @@ pub struct HomingRegistry {
 }
 
 impl HomingRegistry {
+    /// Bind the configured history resource deterministically. Environment
+    /// selection belongs to runtime composition, not this library.
     pub fn new(
         repo_root: impl AsRef<Path>,
         record_rel_path: &str,
         configured_joints: Vec<String>,
         zero_tolerance_rad: f64,
     ) -> Result<Self, RegistryError> {
-        let record_path = std::env::var("MARENGO_CALIBRATION_RECORD")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| repo_root.as_ref().join(record_rel_path));
-        let calibration = if record_path.is_file() {
-            load_calibration(&record_path).unwrap_or_default()
-        } else {
-            CalibrationRecord::default()
-        };
-        let mut joint_states: HashMap<String, JointHomingState> = configured_joints
+        Self::with_record_path(
+            repo_root.as_ref().join(record_rel_path),
+            configured_joints,
+            zero_tolerance_rad,
+        )
+    }
+
+    /// Load historical calibration without granting a current reference. A
+    /// missing resource is empty history; every other read/parse failure returns.
+    /// Construction never rewrites the resource. The path is used as supplied.
+    pub fn with_record_path(
+        record_path: impl AsRef<Path>,
+        configured_joints: Vec<String>,
+        zero_tolerance_rad: f64,
+    ) -> Result<Self, RegistryError> {
+        let record_path = record_path.as_ref().to_path_buf();
+        let calibration = load_calibration(&record_path)?;
+        let joint_states = configured_joints
             .iter()
             .map(|j| (j.clone(), JointHomingState::Unhomed))
             .collect();
-        for entry in &calibration.joints {
-            if joint_states.contains_key(&entry.joint) {
-                joint_states.insert(entry.joint.clone(), JointHomingState::Verified);
-            }
-        }
         Ok(Self {
             record_path,
             calibration,
@@ -207,7 +213,7 @@ impl HomingRegistry {
                 return Err(RegistryError::Joint {
                     joint: joint.clone(),
                     message: format!(
-                        "not verified (state {:?}); run set-zero and home first",
+                        "reference is not verified in this process (state {:?})",
                         self.joint_state(joint)
                     ),
                 });
@@ -242,90 +248,20 @@ impl HomingRegistry {
 }
 
 pub fn load_calibration(path: &Path) -> Result<CalibrationRecord, RegistryError> {
-    let text = fs::read_to_string(path).map_err(|e| RegistryError::Io {
-        path: path.to_path_buf(),
-        message: e.to_string(),
-    })?;
+    let text = match fs::read_to_string(path) {
+        Ok(text) => text,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(CalibrationRecord::default());
+        }
+        Err(error) => {
+            return Err(RegistryError::Io {
+                path: path.to_path_buf(),
+                message: error.to_string(),
+            });
+        }
+    };
     serde_yaml::from_str(&text).map_err(|e| RegistryError::Parse {
         path: path.to_path_buf(),
         message: e.to_string(),
     })
-}
-
-#[cfg(test)]
-mod tests {
-    #![allow(clippy::expect_used)]
-
-    use std::env;
-
-    use marengo_config::MotorType;
-
-    use super::*;
-
-    fn temp_record_path() -> PathBuf {
-        let dir = env::temp_dir().join(format!("marengo-homing-test-{}", std::process::id()));
-        dir.join("zero_registry.yaml")
-    }
-
-    fn sample_motor() -> MotorEntry {
-        MotorEntry {
-            joint: "shoulder_pitch".to_string(),
-            driver: "robstride".to_string(),
-            motor_type: MotorType::Rs03,
-            can_interface: "can0".to_string(),
-            device_id: 12,
-            direction: 1,
-            gear_ratio: 1.0,
-            recv_can_id: 0,
-            firmware_version: "0.3.1.42".to_string(),
-            bench: marengo_config::MotorBenchLimits {
-                position_lower_rad: -0.9,
-                position_upper_rad: 3.17,
-                velocity_limit_rad_s: 0.5,
-                torque_limit_nm: 5.0,
-            },
-        }
-    }
-
-    #[test]
-    fn require_ready_fails_when_unhomed() {
-        let root = env::temp_dir();
-        let rel = format!(
-            "marengo-homing-test-{}/zero_registry.yaml",
-            std::process::id()
-        );
-        let reg = HomingRegistry::new(&root, &rel, vec!["shoulder_pitch".to_string()], 0.05)
-            .expect("registry");
-        let err = reg.require_ready().expect_err("not ready");
-        assert!(matches!(err, RegistryError::Joint { .. }));
-    }
-
-    #[test]
-    fn record_verification_marks_joint_verified() {
-        let root = env::temp_dir();
-        let path = temp_record_path();
-        let rel = path
-            .strip_prefix(&root)
-            .unwrap_or(&path)
-            .to_string_lossy()
-            .to_string();
-        let mut reg = HomingRegistry::new(&root, &rel, vec!["shoulder_pitch".to_string()], 0.05)
-            .expect("registry");
-        reg.record_verification(
-            &sample_motor(),
-            "manual_reference",
-            0.0,
-            0.01,
-            true,
-            "test",
-            None,
-        )
-        .expect("record");
-        assert_eq!(
-            reg.joint_state("shoulder_pitch"),
-            JointHomingState::Verified
-        );
-        reg.require_ready().expect("ready");
-        let _ = fs::remove_file(&path);
-    }
 }

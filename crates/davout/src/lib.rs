@@ -63,7 +63,7 @@ pub use faults::{
 };
 
 use std::collections::{HashMap, HashSet};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 /// Free-drive / Hardware-page sensing TTL for `RobotState` presence.
@@ -284,8 +284,35 @@ pub struct Supervisor<B: MotorBus> {
 
 impl<B: MotorBus> Supervisor<B> {
     /// Build supervisor from repo `config/` and URDF limits.
+    ///
+    /// `MARENGO_CALIBRATION_RECORD` overrides the configured history path, with
+    /// relative overrides interpreted from the process working directory.
     pub fn from_repo(repo_root: impl AsRef<Path>, bus: B) -> Result<Self, DavoutError> {
-        let root = repo_root.as_ref();
+        let record_path = std::env::var_os("MARENGO_CALIBRATION_RECORD").map(PathBuf::from);
+        Self::from_repo_inner(repo_root.as_ref(), bus, record_path)
+    }
+
+    /// Build with an explicit calibration history path, ignoring the environment override.
+    ///
+    /// The path is used as supplied. History never grants current reference;
+    /// resource errors return before startup diagnostic traffic is transmitted.
+    pub fn from_repo_with_calibration_record_path(
+        repo_root: impl AsRef<Path>,
+        bus: B,
+        record_path: impl AsRef<Path>,
+    ) -> Result<Self, DavoutError> {
+        Self::from_repo_inner(
+            repo_root.as_ref(),
+            bus,
+            Some(record_path.as_ref().to_owned()),
+        )
+    }
+
+    fn from_repo_inner(
+        root: &Path,
+        bus: B,
+        record_path: Option<PathBuf>,
+    ) -> Result<Self, DavoutError> {
         let mut robot = load_robot_config(root)?;
         let mut motors = load_motors_config(root)?;
         let mut control = load_control_config(root)?;
@@ -301,9 +328,10 @@ impl<B: MotorBus> Supervisor<B> {
         validate_motors_against_robot(&robot, &motors)?;
         validate_robot_control_joint_coverage(&robot, &control)?;
         let homing_joints: Vec<String> = robot.robot.joints.clone();
-        let homing = HomingRegistry::new(
-            root,
-            &homing_config.homing.calibration_record_path,
+        let record_path =
+            record_path.unwrap_or_else(|| root.join(&homing_config.homing.calibration_record_path));
+        let homing = HomingRegistry::with_record_path(
+            record_path,
             homing_joints,
             homing_config.homing.zero_verify_tolerance_rad,
         )
@@ -2633,19 +2661,6 @@ mod tests {
         sup.set_homing_complete().expect("ready");
         sup.request_enable(true).expect("enable");
         sup.seed_synthetic_feedback();
-    }
-
-    #[test]
-    fn enable_blocked_without_verified_homing() {
-        let temp =
-            std::env::temp_dir().join(format!("marengo-homing-empty-{}.yaml", std::process::id()));
-        let _ = std::fs::write(&temp, "joints: []\n");
-        std::env::set_var("MARENGO_CALIBRATION_RECORD", &temp);
-        let bus = MemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
-        let err = sup.request_enable(true).expect_err("blocked");
-        assert!(matches!(err, DavoutError::Homing { .. }));
-        let _ = std::fs::remove_file(temp);
     }
 
     #[test]
