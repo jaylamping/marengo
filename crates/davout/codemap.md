@@ -20,7 +20,8 @@ Disabled ──[set_homing_complete]──► Ready ──[request_enable(true)]
 ### Core types
 - `Supervisor<B: MotorBus>` — owns installed state/motor/model policy, inspection-only homing history, pose cache, persistent `FaultAuthority`, private reference permission and the `MotorBus`. Ordinary repo constructors have no qualified acquisition capability.
 - `ReferenceAuthority` (`reference.rs`) — private owner-local, nonserializable, noncloneable reference permission. Relevant installed motor/frame/envelope/effective homing policy and the closed backend realm are bound independently of ordinary motion-stop generation.
-- `SimulationBus` (`simulation.rs`) — closed concrete finite in-memory raw/enveloped/timed/error scripts, source-indexed queues, typed impossible-wire consumer fixtures and declarative TX effects with observed trigger counts. Its specialized constructor declares an INITIAL virtual reference fixture; no wrapped bus, socket, callback, import or physical-state conversion exists.
+- `ReferenceOwner` (`reference_transaction.rs`) — one opaque reservation plus eight retained outcomes; one phase/one actual bounded report per advance, finite owner deadlines and immutable terminal cleanup. Closed virtual acquisition ends EvidenceStaged/CommitUnavailable without permission or history writes. Generic/physical owners remain Unsupported. The private consumer (`feedback_consumer.rs`) shares ordered hazard policy while each lifecycle owns its stop.
+- `SimulationBus` (`simulation.rs`, `simulation_reference.rs`) — closed concrete finite raw/enveloped/timed/error scripts, source-indexed queues, typed impossible-wire consumer fixtures and declarative TX effects. Its specialized constructor installs a private virtual acquisition backend independently of optional INITIAL coverage; actual addressed SetZero and exact raw pops carry private epoch/correlation metadata. No wrapped bus, socket, callback, import or physical-state conversion exists.
 - `SafetySnapshot` — owned read-only persistent records, complete and partial vendor domains, bounded first/latest receive-envelope and incomplete-work evidence, hardware input, stop generation, latest stop and first failed stop. Qualified recovery is unavailable in this slice.
 - `StopReport` — every address's zero-speed, neutral-MIT and ordinary-disable attempt, including bounded errors. Accepted writes do not prove physical acknowledgement.
 - `ControlMode` — re-exported to `berthier`: `Disabled`, `GravityComp`, `TorqueOnly`, `Impedance`, `Position`.
@@ -45,6 +46,20 @@ Startup validates the combined robot/motor/control/homing policy. `validate_cont
 Calibration history is inspection data: every ordinary new Supervisor starts Unhomed, even with matching persisted rows. Both construction entry points share validation/initialization. `from_repo` selects the legacy OS-path environment override or configured root-relative path; `from_repo_with_calibration_record_path` takes its path as supplied and ignores that override. Corrupt/unreadable history returns before startup reporting TX. Public mutable history, unchecked Ready, synthetic pose insertion and generic mutable transport access are removed (ADRs 0022/0023).
 
 Ready, normal/scoped Enable, Active shortcuts, commissioning facets and output use the private permission. Legacy cached verification, raw SetZero and calibration arming refuse before TX/persistence; target, method and sign refusals remain specific. Unknown/unqualified physical protocols cannot produce a successful reference. Only `Supervisor<SimulationBus>::from_simulation` and its explicit-history counterpart can declare virtual INITIAL coverage. Ordinary `from_repo` remains unreferenced even for SimulationBus. Read-only `bus()` is generic; specialized `bus_mut()` returns a restricted script/trace facade without transport extraction/replacement.
+
+Bounded virtual acquisition reserves without TX, stops every installed address,
+suspends actually applied reporting, completes old and post-arm flushes, Enables
+only its target and attempts addressed SetZero once. Wrong/untagged correlation
+is diagnostic until the finite deadline; whole-report hazards win over matching
+proof. Every terminal retains the actual all-address stop and reporting attempts;
+neither a terminal nor a request stamp is a permit. Busy normal receive, reporting
+sync/status solicitation and typed model/limit installs cannot interfere. Direct
+legacy field mutation is observed before forward actions and cancels against the
+original stop routes; a fresh stamp cannot reinstall a different drive/frame.
+Snapshot inspection permanently revokes mismatched INITIAL coverage and retains
+a live policy mismatch until mutable advance/cancel delivers cleanup. Restoring
+public fields cannot resume that transaction. Phase time is capped by finite
+overall remaining time before arithmetic; expiry wins a tied raw reply.
 
 Relevant policy mismatch is permanently observed through facets, admission and receive; restoring public fields does not revive reference. Receive uses installed address/type/transform lookup, preserving original peer fault evidence despite corrupted public routing. Active mismatch stops the original installed addresses after consuming every ordered receive event. Rebuild/limit patches, new faults and uncertain stop revoke reference. Successful ordinary Disable preserves intact reference while advancing motion-stop generation; it still requires new post-enable pose for later motion. Output-only gain/friction/torque-cap/watchdog changes may preserve reference after complete shared validation; envelope/trim/resolved velocity and homing/frame changes cannot. The current motor and type torque caps still bound output after slew. Fully immutable coordinated policy/model installation remains CS15 work.
 

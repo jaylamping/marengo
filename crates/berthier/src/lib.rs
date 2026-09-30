@@ -12,7 +12,9 @@
 //! - MIT feedforward for GravityComp / Impedance / TorqueOnly: [`mit_feedforward::MitFeedforward`].
 //! - TorqueOnly operator latch: [`torque_cmd::TorqueCmdLatch`] (`τ_cmd`; cleared on leave).
 //! - [`ControlLoop::inhibit_motion_for_shutdown`]: discard retained intent before
-//!   the runtime's configured Davout exit-stop attempt and persistence drain.
+//!   mandatory acquisition cleanup, configured Davout exit stop and persistence drain.
+//! - A busy Davout reference reservation owns the tick's bounded receive/cleanup;
+//!   Berthier inhibits intent without a competing drain or motion keepalive.
 //! - Optional friction feedforward (`friction` module) in impedance and position modes.
 //! - Publish [`RobotState`](armee_proto::RobotState) on Chappe (lower rate than the motor loop).
 //! - Legacy [`Controller`]: single-joint position commands through Davout (REPL / bring-up).

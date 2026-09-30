@@ -15,6 +15,7 @@ impl<B: MotorBus> Supervisor<B> {
     /// Expands in-memory URDF hard limits expand-only when the patch exceeds the current
     /// URDF envelope (bench Set Limits). Soft defaults to hard ± ADR 0009 inset when omitted.
     pub fn apply_limit_patch(&mut self, patch: &LimitPatch) -> Result<(), DavoutError> {
+        self.refuse_reference_interference("apply_limit_patch")?;
         if self.mode == OperationalMode::Active {
             return Err(DavoutError::LimitPatchActive);
         }
@@ -107,6 +108,7 @@ impl<B: MotorBus> Supervisor<B> {
         control: ControlConfigFile,
         urdf_robot: urdf_rs::Robot,
     ) -> Result<(), DavoutError> {
+        self.refuse_reference_interference("model restore")?;
         if self.mode == OperationalMode::Active {
             return Err(DavoutError::LimitPatchActive);
         }

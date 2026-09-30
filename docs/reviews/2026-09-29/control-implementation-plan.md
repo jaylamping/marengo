@@ -206,10 +206,22 @@ and equal-tree merged04e4ea2/main36738856051 each pass all five jobs, including
 fatal main release cross-build; backup/cleanup are complete. This does not supply crash-safe disk
 commit or Davout reference permission; CS05 remains partial.
 
+[Batch10](batch10-reference-acquisition-core.md) implements ADR0026's complete
+closed virtual R2a acquisition/cleanup contract. Exact raw-pop correlation,
+bounded deadlines/receive work, immutable all-address outcomes, live policy
+observation and Pi mandatory stop before storage qualify locally: seven actual
+candidate regressions pass unchanged, five deliberate production mutants are
+caught, strict affected453/0 and primary736Rust/1 existing ignored,355frontend,
+72PiMCP/fatal ARM release pass. Independent reviews accept the source. Exact-head
+GitHub delivery is pending. Staged evidence is unusable and writes no history;
+R2b recoverable journal/current grant, R3 clients and physical acceptance remain.
+
 ### CS06: Set Zero verifies a post-command response (C2, P1, partial)
 
 Batch06 removes cached/unqualified success and invalid scalar history writes.
-This is truthful refusal, not completed correlated transaction acquisition.
+Ordinary physical paths still refuse. Batch10's closed virtual acquisition now
+requires exact private SetZero epoch and raw-pop correlation before staging;
+it grants no reference. Durable/current physical verification remains incomplete.
 
 Calibration drains prior queued feedback, issues the zero command with a request
 generation/time, and requires a fresh correlated acknowledgement or documented
@@ -228,6 +240,11 @@ become a rejecting regression, not remain a characterization of the defect.
 Batch06 routes motor-repl calibration through central preflight, refusing the
 unqualified path before arming. Installed-owner cleanup/stop/client work below
 remains required; a startup-failing fresh CLI is not an emergency stop.
+
+Batch10's actual Pi owner performs mandatory reference cleanup before storage
+under both exit policies and retains failed stop delivery without a duplicate
+burst. The closed virtual transaction has cancel/timeout/hazard cleanup. CLI,
+gateway/MCP/proto priority stop and installed-owner reference clients remain open.
 
 Resolve the joint and attestations before enable, narrow calibration to the
 requested address, and route the CLI to the same calibration owner as the Pi.
@@ -505,7 +522,8 @@ Primary715/0/1, frontend355, PiMCP72, fatalARMrelease and strict affected432/0
 pass; independent Standards/Spec accept the exact source with one docs-only
 post-gate guidance correction. [PR223](https://github.com/jaylamping/marengo/pull/223)
 implementationeb1359c/run36755369469 passes all five jobs, including5simulation
-and73actual driver tests. Final-head/main delivery checks and cleanup remain pending.
+and73actual driver tests. Final97881d8/run36756367932 and equal-tree merged7a25bbb/main36757300231
+also pass all five jobs and fatal main release; verified backup and cleanup are complete.
 This is separate from physical noise/plant/drive/timing commissioning, existing
 dropout freshness and unfinished reference/config/model ownership.
 

@@ -4,7 +4,7 @@ Checked baseline: PR222 merge `04e4ea2474f67cb3947b74a72fd4dafb09625060`.
 Branch: `codex/measured-stall-progress`. Windows source, local CAD and all
 evidence remain under `J:\code`. Evidence root:
 `J:/code/marengo-migration-backup-20260929/batch09`.
-Status: verified software at the implementation head of [PR223](https://github.com/jaylamping/marengo/pull/223); final documentation-head and merged-main delivery remain pending.
+Status: verified software at the implementation head of [PR223](https://github.com/jaylamping/marengo/pull/223); final97881d8/run36756367932 and equal-tree merged7a25bbb/main36757300231 also pass all five jobs and the fatal main release. Verified backup and exact branch cleanup are complete.
 All five jobs pass at `eb1359cc82697966cc4e6d32db3fef72111e5999` in
 [run36755369469](https://github.com/jaylamping/marengo/actions/runs/36755369469).
 The102-ID ledger now records14 verified,10 partial and78 open findings.
@@ -154,10 +154,16 @@ honestly in the ledger rather than counted as behavioral reds.
 ## Delivery and remaining work
 
 Implementation `eb1359c`/run36755369469 passes all five jobs, with715Rust/1existingignored,355frontend,72PiMCP,5simulation and73actual driver tests.
-Final documentation-head and equal-tree merged-main exact-head checks remain
-pending. Record their actual commits/runs, all five jobs, fatal main release,
-verified all-refs backup and exact branch cleanup in the external merge receipt
-before delivery is complete. PR222's checked merge/backup/cleanup is reconciled in tracked history.
+Final `97881d8aa16a6a4815d6377c90c342d45e352edb`/run36756367932 and
+equal-tree merged `7a25bbbca0fad1ef579e979309acba666d4409da`/main36757300231
+each pass all five jobs with the same715Rust/1ignored,355frontend,72PiMCP,
+5simulation and73actual virtual-driver counts. Fatal main release passes.
+Checked/merged tree: `4dc75e94c0d4cdc2618cddb9f12f794cb32f8096`.
+All-refs backup SHA256 `a256fffcec5b41363e28b2205cfd3a30d13367101428bcc1dcb903b6931f7f24`
+is verified and contains the exact final branch. Only `codex/measured-stall-progress`
+at97881d8 was removed locally/remotely after main passed; all other branch
+references were preserved. External `batch09/merge-receipt.json` is complete.
+PR222's checked merge/backup/cleanup is reconciled in tracked history.
 
 No reference permission, robot operation, raised torque/velocity limits or Wave
 sign-off change. Decoded software grids do not qualify physical noise, timing,

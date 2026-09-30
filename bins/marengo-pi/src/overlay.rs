@@ -229,6 +229,14 @@ impl ActuatorOverlay {
         config_dir: &Path,
         operator: &OperatorCommand,
     ) -> Result<Vec<OverlayOutcome>, OverlayError> {
+        if loop_ctrl.supervisor().reference_busy() {
+            return Err(
+                berthier::LoopError::Safety(davout::DavoutError::ReferenceBusy {
+                    operation: "actuator overlay",
+                })
+                .into(),
+            );
+        }
         let cmd = operator
             .command
             .as_ref()

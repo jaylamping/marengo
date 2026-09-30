@@ -43,6 +43,11 @@ Owns `ControlLoop::tick` — the heartbeat of the robot. Also provides a legacy 
 - Small-move slew cases hold the raw encoder stationary and inspect planner/actual MIT output. Stationary controller stall cases use raw receive observations; the progress-reset law case supplies independent measured q/dq and fixed dt directly to production `PositionHold::tick`. These are software admission/output contracts, not plant tracking, reference acquisition, SetZero correlation or physical commissioning proof.
 
 ## Flow (`ControlLoop::tick`)
+While Davout owns a reference reservation, discard controller intent, advance
+that owner once, and publish diagnostic telemetry. There is no competing receive
+or motion MIT; terminal failure stays owned rather than triggering a duplicate
+runtime fallback stop. Normal flow below resumes only without a reservation.
+
 1. **Feedback drain**: `Supervisor::drain_feedback()` — non-blocking poll of CAN RX queue (frames buffered from prior tick's transmit).
 2. **Read positions**: joint-space q, dq from Davout's `MotorState` map via joint↔motor transform.
    A new Davout enable-session marker starts at most two missing-pose ticks of

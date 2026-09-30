@@ -15,7 +15,7 @@
 3. Spawn stdin reader + Chappe IPC bridge
 4. `run_control_loop`: tick → publish RobotState/SafetyState/Heartbeat on Chappe
 5. `handle_command` for operator stdin; `drain_chappe_commands` for remote enable
-6. Observed Quit/shutdown exits dispatch before later commands/ticks; `finish_owner_shutdown` clears intent, attempts the configured Davout stop and retains its exact result/report before closing and draining persistence.
+6. Observed Quit/shutdown exits dispatch before later commands/ticks; `finish_owner_shutdown` clears intent, performs mandatory live-reference cleanup even with `disable_on_exit=false`, applies the ordinary exit policy (reusing any reference stop), and retains distinct results before closing/draining persistence.
 
 The independent filesystem worker completes retained writes and matching local
 audit publication after owner exit. Typed drain outcomes preserve failed writes,

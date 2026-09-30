@@ -18,6 +18,9 @@
 //!   cannot authorize Ready, scoped Enable or motion. Physical acquisition is unsupported.
 //! - Closed [`simulation::SimulationBus`] INITIAL virtual fixtures share admission/output logic;
 //!   they do not qualify reference acquisition, SetZero correlation or persistence ordering.
+//! - [`Supervisor::begin_reference`] / [`Supervisor::advance_reference`]: a separately
+//!   qualified closed virtual transaction stages correlated evidence and owns bounded
+//!   cleanup. It cannot grant motion; durable commit and physical acquisition remain unavailable.
 //! - [`Supervisor::disable_all`]: all-address best-effort stop with honest delivery evidence.
 //! - [`refresh_feedback`]: blocking poll up to `feedback_poll_budget_us` (REPL / set-zero).
 //! - [`drain_feedback`]: non-blocking RX queue drain (Berthier control loop).
@@ -57,9 +60,17 @@ pub use armee_kinematics::JointLimitPolicy;
 
 mod active_reporting;
 mod faults;
+mod feedback_consumer;
 mod limit_envelope;
 mod reference;
+mod reference_transaction;
 pub mod simulation;
+
+pub use reference_transaction::{
+    ReferenceCancelReason, ReferenceCause, ReferenceCommit, ReferenceError, ReferenceFailureKind,
+    ReferenceHandle, ReferencePhase, ReferenceReceiveSummary, ReferenceReportingAttempt,
+    ReferenceRequest, ReferenceSnapshot, ReferenceStamp, ReferenceTerminal,
+};
 
 pub use active_reporting::{ActiveReportingLeaseError, ActiveReportingState, DEFAULT_LEASE_TTL};
 use faults::{bounded_message, FaultAuthority};
@@ -82,8 +93,7 @@ use std::time::{Duration, Instant};
 pub const FREE_DRIVE_FEEDBACK_TTL: Duration = Duration::from_secs(5);
 
 use armee_kinematics::{
-    clamp_position_in_envelope, joint_limit_bounds, joint_limits, load_urdf,
-    measured_position_fault, LimitMarginConfig,
+    clamp_position_in_envelope, joint_limit_bounds, joint_limits, load_urdf, LimitMarginConfig,
 };
 use marengo_config::{
     default_commissioning_scope_path, effective_commissioning_scope, joint_subset_from_env,
@@ -96,10 +106,7 @@ use marengo_config::{
 use marengo_homing::{select_enable_targets, HomingRegistry, JointFacetInput};
 use reference::ReferenceAuthority;
 use robstride::AddressedMitCommand;
-use robstride::{
-    DriveMode, FeedbackEvent, FeedbackObservation, MalformedFeedback, MitCommand, MotorState,
-    ParameterId, ParameterValue, RunMode, RxFrameKind, TimedCanFrame,
-};
+use robstride::{MitCommand, MotorState, ParameterId, ParameterValue, RunMode};
 use thiserror::Error;
 use tracing::{debug, info, trace, warn};
 
@@ -213,6 +220,8 @@ pub enum DavoutError {
     HomingVerify { joint: String, message: String },
     #[error("{operation}: qualified current-reference capability is unavailable")]
     ReferenceUnsupported { operation: &'static str },
+    #[error("reference transaction is busy; {operation} is refused")]
+    ReferenceBusy { operation: &'static str },
     #[error("wrong-sign watchdog: gravity-comp torque opposes motion for {ticks} ticks on joint {joint}")]
     WrongSignWatchdog { joint: String, ticks: u32 },
     #[error("runtime limit changes are refused while supervisor is ACTIVE")]
@@ -267,6 +276,7 @@ pub struct Supervisor<B: MotorBus> {
     pub homing_config: HomingConfigFile,
     homing: HomingRegistry,
     reference_authority: ReferenceAuthority,
+    reference_owner: reference_transaction::ReferenceOwner<B>,
     reference_realm_matches: Option<fn(&B, &Arc<()>) -> bool>,
     /// Installed routes remain stop targets even if a caller corrupts public policy.
     stop_motors: Vec<MotorEntry>,
@@ -368,6 +378,7 @@ impl<B: MotorBus> Supervisor<B> {
             homing_config,
             homing,
             reference_authority: ReferenceAuthority::default(),
+            reference_owner: reference_transaction::ReferenceOwner::default(),
             reference_realm_matches: None,
             motor_types,
             bus,
@@ -489,6 +500,7 @@ impl<B: MotorBus> Supervisor<B> {
     ///
     /// The existing policies remain installed if validation or rebuilding fails.
     pub fn rebuild_limits(&mut self) -> Result<(), DavoutError> {
+        self.refuse_reference_interference("rebuild_limits")?;
         if self.mode == OperationalMode::Active {
             return Err(DavoutError::LimitPatchActive);
         }
@@ -555,6 +567,7 @@ impl<B: MotorBus> Supervisor<B> {
 
     /// Mark supervisor Ready when every configured joint is Verified.
     pub fn set_homing_complete(&mut self) -> Result<(), DavoutError> {
+        self.refuse_reference_interference("set_homing_complete")?;
         self.require_fault_clear()?;
         if self.mode == OperationalMode::Active {
             return Err(DavoutError::Homing {
@@ -648,6 +661,7 @@ impl<B: MotorBus> Supervisor<B> {
     }
 
     fn ensure_reference_for(&mut self, joints: &[String]) -> Result<(), DavoutError> {
+        self.refuse_reference_interference("ordinary reference admission")?;
         self.require_fault_clear()?;
         if !self.reference_binding_valid() {
             if self.mode == OperationalMode::Active {
@@ -755,7 +769,11 @@ impl<B: MotorBus> Supervisor<B> {
             DeviceFaultEvidence::default(),
         );
         if first {
-            let _ = self.disable_all();
+            if self.reference_busy() {
+                self.abort_reference_for_hazard(message);
+            } else {
+                let _ = self.disable_all();
+            }
         }
     }
 
@@ -825,6 +843,9 @@ impl<B: MotorBus> Supervisor<B> {
     }
 
     pub fn set_control_mode(&mut self, mode: ControlMode) {
+        if self.reference_busy() {
+            return;
+        }
         self.control_mode = mode;
         debug!(?mode, "control mode set");
     }
@@ -857,6 +878,9 @@ impl<B: MotorBus> Supervisor<B> {
     }
 
     pub fn clear_motor_states(&mut self) {
+        if self.reference_busy() {
+            return;
+        }
         self.motor_states.clear();
     }
 
@@ -879,7 +903,11 @@ impl<B: MotorBus> Supervisor<B> {
                 DeviceFaultEvidence::default(),
             );
             if !was_asserted {
-                let _ = self.disable_all();
+                if self.reference_busy() {
+                    self.abort_reference_for_hazard("hardware E-stop input asserted");
+                } else {
+                    let _ = self.disable_all();
+                }
             }
             warn!("hardware E-stop input asserted — persistent fault");
         }
@@ -1098,11 +1126,13 @@ impl<B: MotorBus> Supervisor<B> {
     /// Does not wait for the next MIT response; uses whatever is already in the
     /// SocketCAN RX queue from the previous tick's transmit.
     pub fn drain_feedback(&mut self) -> Result<usize, DavoutError> {
+        self.refuse_reference_interference("ordinary feedback drain")?;
         self.poll_feedback(Duration::ZERO)
     }
 
     /// Poll CAN feedback up to [`feedback_poll_budget_us`](marengo_config::ControlSection::feedback_poll_budget_us).
     pub fn refresh_feedback(&mut self) -> Result<usize, DavoutError> {
+        self.refuse_reference_interference("ordinary feedback refresh")?;
         self.poll_feedback(self.feedback_poll_timeout())
     }
 
@@ -1120,280 +1150,9 @@ impl<B: MotorBus> Supervisor<B> {
             .recv_feedback_report(&self.motor_types, budget, quiet);
         let count = report.observations.len();
         self.last_refresh_frames = self.last_refresh_frames.saturating_add(count);
-        let mut first_error = None;
-        let mut first_transition = false;
-        let mut pose_candidates: HashMap<MotorAddress, (usize, MotorEntry, MotorState)> =
-            HashMap::new();
-        enum OrderedReceive {
-            Motor(FeedbackObservation),
-            Transport(TimedCanFrame),
-            Terminal(BusError),
-        }
-        let mut ordered: Vec<_> = report
-            .observations
-            .into_iter()
-            .map(|observation| (observation.order, 1_u8, OrderedReceive::Motor(observation)))
-            .collect();
-        ordered.extend(report.transport_frames.into_iter().map(|observation| {
-            (
-                observation.order,
-                1,
-                OrderedReceive::Transport(observation.frame),
-            )
-        }));
-        if let Some(error) = report.terminal_error {
-            // Actual backends supply the first error's raw position. Scripted reports
-            // without an ordinal put the terminal failure after their delivered prefix.
-            let order = report.terminal_error_order.unwrap_or_else(|| {
-                ordered
-                    .iter()
-                    .map(|(order, _, _)| order.saturating_add(1))
-                    .max()
-                    .unwrap_or(0)
-                    .max(report.raw_frames)
-            });
-            // A backend error preceded any later frame with this raw position.
-            ordered.push((order, 0, OrderedReceive::Terminal(error)));
-        }
-        ordered.sort_by_key(|(order, rank, _)| (*order, *rank));
-        // Do not return early: every available peer fault must reach authority,
-        // even if another pose is invalid or the drain ends in a transport error.
-        for (order, _, event) in ordered {
-            let observation = match event {
-                OrderedReceive::Motor(observation) => observation,
-                OrderedReceive::Terminal(error) => {
-                    if !matches!(error, BusError::RecvTimeout) {
-                        let error = DavoutError::Bus(error);
-                        first_transition |= self.record_runtime_error(&error);
-                        if first_error.is_none() {
-                            first_error = Some(error);
-                        }
-                    }
-                    continue;
-                }
-                OrderedReceive::Transport(frame) => {
-                    // Error envelopes belong to transport, never a vendor device-ID decoder.
-                    let evidence = ReceiveFrameEvidence {
-                        interface: frame.received.interface,
-                        can_id: frame.received.frame.id,
-                        extended: frame.received.frame.extended,
-                        received_at: frame.received_at,
-                        raw: frame.received.frame.data,
-                        payload_len: frame.received.payload_len,
-                        kind: frame.received.kind,
-                        reason: None,
-                    };
-                    first_transition |= self.fault_authority.record_receive(
-                        FaultClass::Transport,
-                        None,
-                        None,
-                        "received CAN error frame; physical bus state and error subscriptions unqualified",
-                        DeviceFaultEvidence::default(),
-                        ReceiveFaultEvidence::frame(evidence),
-                    );
-                    if first_error.is_none() {
-                        first_error = self.require_fault_clear().err();
-                    }
-                    continue;
-                }
-            };
-            let address = observation.address;
-            let Some(motor) = self
-                .stop_motors
-                .iter()
-                .find(|m| MotorAddress::from(*m) == address)
-                .cloned()
-            else {
-                continue;
-            };
-            let mut device = DeviceFaultEvidence {
-                received_at: Some(observation.received_at),
-                ..DeviceFaultEvidence::default()
-            };
-            let status = match observation.event {
-                FeedbackEvent::Malformed(malformed) => {
-                    first_transition |= self.record_malformed_feedback(
-                        &motor,
-                        &address,
-                        observation.received_at,
-                        observation.can_id,
-                        malformed,
-                    );
-                    if first_error.is_none() {
-                        first_error = self.require_fault_clear().err();
-                    }
-                    continue;
-                }
-                FeedbackEvent::DetailedFault(report) => {
-                    device.detailed_fault_bytes = report.fault_bytes();
-                    device.warning_bytes = report.warning_bytes();
-                    self.fault_authority.record_warning(
-                        &motor.joint,
-                        &address,
-                        device.warning_bytes,
-                    );
-                    if report.has_fault() {
-                        first_transition |= self.fault_authority.record(
-                            FaultClass::Device,
-                            Some(motor.joint.clone()),
-                            Some(address),
-                            "vendor detailed fault; word byte order and physical recovery unqualified",
-                            device,
-                        );
-                        if first_error.is_none() {
-                            first_error = self.require_fault_clear().err();
-                        }
-                    }
-                    continue;
-                }
-                FeedbackEvent::Status(status) => {
-                    device.status_flags = status.status_flags;
-                    device.drive_mode = Some(match status.drive_mode {
-                        DriveMode::Reset => 0,
-                        DriveMode::Calibration => 1,
-                        DriveMode::Run => 2,
-                        DriveMode::Reserved => 3,
-                    });
-                    status
-                }
-            };
-            if device.status_flags != 0 {
-                first_transition |= self.fault_authority.record(
-                    FaultClass::Device,
-                    Some(motor.joint.clone()),
-                    Some(address.clone()),
-                    "vendor status fault flags",
-                    device.clone(),
-                );
-                if first_error.is_none() {
-                    first_error = self.require_fault_clear().err();
-                }
-            }
-            let current_enable = self.mode == OperationalMode::Active
-                && self.active_joints.contains(&motor.joint)
-                && self
-                    .active_since
-                    .is_some_and(|enabled| observation.received_at > enabled);
-            if status.drive_mode == DriveMode::Reserved
-                || (current_enable && status.drive_mode != DriveMode::Run)
-            {
-                let error = DavoutError::InvalidFeedback {
-                    joint: motor.joint.clone(),
-                    message: format!("unexpected drive mode {:?} for {:?}; no qualified factory-calibration context", status.drive_mode, self.mode),
-                };
-                self.invalid_feedback.insert(address.clone());
-                first_transition |= self.fault_authority.record(
-                    FaultClass::DriveState,
-                    Some(motor.joint.clone()),
-                    Some(address),
-                    &error.to_string(),
-                    device,
-                );
-                if first_error.is_none() {
-                    first_error = Some(error);
-                }
-                continue;
-            }
-            let raw = MotorState {
-                position_rad: status.position_rad,
-                velocity_rad_s: status.velocity_rad_s,
-                torque_nm: status.torque_nm,
-                temperature_c: status.temperature_c,
-                fault: status.fault,
-                updated: Some(observation.received_at),
-            };
-            let prepared = (|| {
-                validate_motor_feedback(&motor.joint, &raw)?;
-                let state = motor_to_joint_state(&motor, raw)?;
-                validate_motor_feedback(&motor.joint, &state)?;
-                if observation.received_at > Instant::now() {
-                    return Err(DavoutError::InvalidFeedback {
-                        joint: motor.joint.clone(),
-                        message: "receive timestamp is in the future".into(),
-                    });
-                }
-                // Hard-position evidence is inspected on every ordered frame,
-                // even when two reads share a clock tick. Chronology only gates
-                // pose renewal and derivative scratch, not hazard retention.
-                self.check_feedback_position(&motor, &state)?;
-                Ok(state)
-            })();
-            let state = match prepared {
-                Ok(state) => state,
-                Err(error) => {
-                    self.invalid_feedback.insert(address);
-                    first_transition |= self.record_runtime_error(&error);
-                    if first_error.is_none() {
-                        first_error = Some(error);
-                    }
-                    continue;
-                }
-            };
-            if self
-                .motor_states
-                .get(&address)
-                .and_then(|state| state.updated)
-                .is_some_and(|previous| previous >= observation.received_at)
-            {
-                continue;
-            }
-            if pose_candidates
-                .get(&address)
-                .and_then(|(_, _, state)| state.updated)
-                .is_some_and(|previous| previous > observation.received_at)
-            {
-                continue;
-            }
-            pose_candidates.insert(address, (order, motor, state));
-        }
-        // Host read times cannot reconstruct the spacing of physical samples
-        // queued before this drain. Inspect every raw hazard above, but update
-        // position-derived velocity/trips only once per address per drain.
-        let mut pose_candidates: Vec<_> = pose_candidates.into_iter().collect();
-        pose_candidates.sort_unstable_by_key(|(_, (order, _, _))| *order);
-        for (address, (_, motor, mut state)) in pose_candidates {
-            let Some(received_at) = state.updated else {
-                continue;
-            };
-            if let Err(error) = self
-                .check_feedback_velocity(&motor, &mut state, received_at)
-                .and_then(|()| validate_motor_feedback(&motor.joint, &state))
-            {
-                self.invalid_feedback.insert(address);
-                first_transition |= self.record_runtime_error(&error);
-                if first_error.is_none() {
-                    first_error = Some(error);
-                }
-                continue;
-            }
-            self.invalid_feedback.remove(&address);
-            self.motor_states.insert(address, state);
-            self.last_feedback_rx.insert(motor.joint, received_at);
-        }
-        if !report.completion.is_complete() {
-            let error = DavoutError::Bus(BusError::ReceiveIncomplete {
-                completion: report.completion,
-            });
-            let message = format!(
-                "{error}; raw frames={}, read attempts={}",
-                report.raw_frames, report.read_attempts
-            );
-            first_transition |= self.fault_authority.record_receive(
-                FaultClass::Transport,
-                None,
-                None,
-                &message,
-                DeviceFaultEvidence::default(),
-                ReceiveFaultEvidence::incomplete(ReceiveDrainEvidence {
-                    completion: report.completion,
-                    raw_frames: report.raw_frames,
-                    read_attempts: report.read_attempts,
-                }),
-            );
-            if first_error.is_none() {
-                first_error = Some(error);
-            }
-        }
+        let consumption = self.consume_feedback_report(report);
+        let mut first_error = consumption.first_error;
+        let first_transition = consumption.first_transition;
         if first_transition {
             let _ = self.disable_all();
         }
@@ -1411,219 +1170,6 @@ impl<B: MotorBus> Supervisor<B> {
             Some(error) => Err(error),
             None => Ok(count),
         }
-    }
-
-    fn record_malformed_feedback(
-        &mut self,
-        motor: &MotorEntry,
-        address: &MotorAddress,
-        received_at: Instant,
-        can_id: u32,
-        malformed: MalformedFeedback,
-    ) -> bool {
-        let mut device = DeviceFaultEvidence {
-            received_at: Some(received_at),
-            ..DeviceFaultEvidence::default()
-        };
-        // RTR identifiers do not constitute vendor status/fault proof. Only a Data
-        // envelope can provide qualified header bits or actually received prefixes.
-        if malformed.kind == RxFrameKind::Data {
-            device.status_flags = malformed.status_flags.unwrap_or(0);
-            device.drive_mode = malformed.drive_mode.map(|mode| match mode {
-                DriveMode::Reset => 0,
-                DriveMode::Calibration => 1,
-                DriveMode::Run => 2,
-                DriveMode::Reserved => 3,
-            });
-            if can_id >> 24 == 21 {
-                let length = usize::from(malformed.payload_len).min(8);
-                for (index, byte) in malformed.raw.iter().copied().take(length).enumerate() {
-                    if index < 4 {
-                        device.partial_fault_bytes[index] = byte;
-                        device.partial_fault_available |= 1 << index;
-                    } else {
-                        device.partial_warning_bytes[index - 4] = byte;
-                        device.partial_warning_available |= 1 << (index - 4);
-                    }
-                }
-            }
-        }
-        let mut first = false;
-        if device.status_flags != 0 || device.partial_fault_bytes != [0; 4] {
-            first |= self.fault_authority.record(
-                FaultClass::Device,
-                Some(motor.joint.clone()),
-                Some(address.clone()),
-                "vendor fault evidence from malformed data; partial words remain unqualified",
-                device.clone(),
-            );
-        }
-        let current_enable = self.mode == OperationalMode::Active
-            && self.active_joints.contains(&motor.joint)
-            && self
-                .active_since
-                .is_some_and(|enabled| received_at > enabled);
-        if device.drive_mode == Some(3)
-            || (current_enable && device.drive_mode.is_some_and(|mode| mode != 2))
-        {
-            first |= self.fault_authority.record(
-                FaultClass::DriveState,
-                Some(motor.joint.clone()),
-                Some(address.clone()),
-                "unexpected drive mode in malformed Data status",
-                device.clone(),
-            );
-        }
-        self.invalid_feedback.insert(address.clone());
-        let error = DavoutError::Bus(BusError::MalformedFeedback {
-            address: address.clone(),
-            reason: malformed.reason,
-        });
-        first |= self.fault_authority.record_receive(
-            FaultClass::Feedback,
-            Some(motor.joint.clone()),
-            Some(address.clone()),
-            &error.to_string(),
-            device,
-            ReceiveFaultEvidence::frame(ReceiveFrameEvidence {
-                interface: Some(address.interface.clone()),
-                can_id,
-                // Configured vendor observations are recognized extended frames.
-                extended: true,
-                received_at,
-                raw: malformed.raw,
-                payload_len: malformed.payload_len,
-                kind: malformed.kind,
-                reason: Some(malformed.reason),
-            }),
-        );
-        first
-    }
-
-    fn check_feedback_velocity(
-        &mut self,
-        motor: &MotorEntry,
-        state: &mut MotorState,
-        received_at: Instant,
-    ) -> Result<(), DavoutError> {
-        if self.mode != OperationalMode::Active {
-            self.feedback_velocity_trips.remove(&motor.joint);
-            self.last_feedback_samples.remove(&motor.joint);
-            return Ok(());
-        }
-        let lim = self
-            .limits
-            .get(&motor.joint)
-            .ok_or_else(|| DavoutError::UnknownJoint {
-                joint: motor.joint.clone(),
-            })?;
-        let raw_velocity = f64::from(state.velocity_rad_s);
-        let position = f64::from(state.position_rad);
-        let previous = self.last_feedback_samples.get(&motor.joint).copied();
-        let position_velocity = previous.and_then(|prev| {
-            let dt = received_at.duration_since(prev.received_at).as_secs_f64();
-            (dt > 0.0).then_some((position - prev.position_rad) / dt)
-        });
-        let measured_velocity = position_velocity.unwrap_or(raw_velocity);
-        state.velocity_rad_s = measured_velocity as f32;
-        let fault_threshold = lim.velocity + FEEDBACK_VELOCITY_FAULT_MARGIN_RAD_S;
-
-        if raw_velocity.abs() > lim.velocity && measured_velocity.abs() <= fault_threshold {
-            debug!(
-                joint = %motor.joint,
-                position_rad = position,
-                previous_position_rad = previous.map(|prev| prev.position_rad),
-                raw_velocity_rad_s = raw_velocity,
-                measured_velocity_rad_s = measured_velocity,
-                fault_threshold_rad_s = fault_threshold,
-                limit_rad_s = lim.velocity,
-                "ignored uncorroborated feedback velocity spike"
-            );
-            self.feedback_velocity_trips.remove(&motor.joint);
-            self.last_feedback_samples.insert(
-                motor.joint.clone(),
-                FeedbackSample {
-                    position_rad: position,
-                    received_at,
-                },
-            );
-            return Ok(());
-        }
-
-        if measured_velocity.abs() > fault_threshold {
-            let trips = self
-                .feedback_velocity_trips
-                .entry(motor.joint.clone())
-                .and_modify(|count| *count = count.saturating_add(1))
-                .or_insert(1);
-            warn!(
-                joint = %motor.joint,
-                position_rad = position,
-                previous_position_rad = previous.map(|prev| prev.position_rad),
-                raw_velocity_rad_s = raw_velocity,
-                measured_velocity_rad_s = measured_velocity,
-                fault_threshold_rad_s = fault_threshold,
-                limit_rad_s = lim.velocity,
-                trips = *trips,
-                "feedback velocity limit exceeded"
-            );
-            self.last_feedback_samples.insert(
-                motor.joint.clone(),
-                FeedbackSample {
-                    position_rad: position,
-                    received_at,
-                },
-            );
-            if *trips >= FEEDBACK_VELOCITY_LIMIT_TRIPS {
-                return Err(DavoutError::Limit {
-                    joint: motor.joint.clone(),
-                    message: format!(
-                        "feedback |velocity| {measured_velocity} > {fault_threshold} (limit {} + margin {})",
-                        lim.velocity, FEEDBACK_VELOCITY_FAULT_MARGIN_RAD_S
-                    ),
-                });
-            }
-        } else {
-            self.feedback_velocity_trips.remove(&motor.joint);
-        }
-        self.last_feedback_samples.insert(
-            motor.joint.clone(),
-            FeedbackSample {
-                position_rad: position,
-                received_at,
-            },
-        );
-        Ok(())
-    }
-
-    fn check_feedback_position(
-        &mut self,
-        motor: &MotorEntry,
-        state: &MotorState,
-    ) -> Result<(), DavoutError> {
-        if self.mode != OperationalMode::Active {
-            return Ok(());
-        }
-        let lim = self
-            .limits
-            .get(&motor.joint)
-            .ok_or_else(|| DavoutError::UnknownJoint {
-                joint: motor.joint.clone(),
-            })?;
-        let position = f64::from(state.position_rad);
-        if measured_position_fault(position, lim) {
-            self.homing.mark_out_of_limits(&motor.joint);
-            return Err(DavoutError::Limit {
-                joint: motor.joint.clone(),
-                message: format!(
-                    "measured position {position} outside [{}, {}] (+ slack {})",
-                    lim.hard_lower(),
-                    lim.hard_upper(),
-                    lim.margin.measured_fault_slack_rad
-                ),
-            });
-        }
-        Ok(())
     }
 
     fn pose_is_current(&self, state: &MotorState, now: Instant) -> bool {
@@ -1892,6 +1438,7 @@ impl<B: MotorBus> Supervisor<B> {
 
     /// Best-effort speed reference zero for bench firmware speed mode.
     pub fn stop_speed_command(&mut self, joint: &str) -> Result<(), DavoutError> {
+        self.refuse_reference_interference("individual speed stop")?;
         let motor = motor_for_joint(&self.motors, joint)
             .ok_or_else(|| DavoutError::UnknownJoint {
                 joint: joint.to_string(),
@@ -1917,6 +1464,31 @@ impl<B: MotorBus> Supervisor<B> {
     /// Disable all drives (best-effort zero speed, zero-torque MIT, then DISABLE).
     #[tracing::instrument(skip(self))]
     pub fn disable_all(&mut self) -> Result<(), DavoutError> {
+        if self.reference_busy() {
+            let terminal =
+                self.cancel_live_reference_for_disable()
+                    .map_err(|error| DavoutError::Homing {
+                        message: error.to_string(),
+                    })?;
+            let failed_writes = terminal.stop.failed_writes();
+            return if failed_writes > 0 {
+                Err(DavoutError::StopDelivery { failed_writes })
+            } else {
+                Ok(())
+            };
+        }
+        let report = self.perform_stop(true);
+        let failed_writes = report.failed_writes();
+        if failed_writes > 0 {
+            Err(DavoutError::StopDelivery { failed_writes })
+        } else {
+            Ok(())
+        }
+    }
+
+    /// One all-address best-effort burst. Reference cleanup suppresses reporting
+    /// synchronization so a sensing lease cannot re-enable a stopped target.
+    fn perform_stop(&mut self, synchronize_reporting: bool) -> StopReport {
         if self.has_latched_fault() {
             self.reference_authority.revoke();
         }
@@ -1974,7 +1546,9 @@ impl<B: MotorBus> Supervisor<B> {
         self.wrong_sign_state.clear();
         self.last_tau_ff.clear();
         self.last_tick = None;
-        self.sync_active_reporting();
+        if synchronize_reporting {
+            self.sync_active_reporting();
+        }
         debug!("supervisor DISABLED");
         let failed_writes = report.failed_writes();
         if failed_writes > 0 {
@@ -1987,12 +1561,8 @@ impl<B: MotorBus> Supervisor<B> {
                 DeviceFaultEvidence::default(),
             );
         }
-        self.fault_authority.set_stop_report(report);
-        if failed_writes > 0 {
-            Err(DavoutError::StopDelivery { failed_writes })
-        } else {
-            Ok(())
-        }
+        self.fault_authority.set_stop_report(report.clone());
+        report
     }
 
     /// Light status solicit for Hardware-page sensing (no continuous type-24).
@@ -2006,6 +1576,9 @@ impl<B: MotorBus> Supervisor<B> {
     /// the poll does not fight Set Limits / bench diagnostics. Best-effort per motor —
     /// one TX failure does not abort the rest of the bus (same honesty as [`Self::disable_all`]).
     pub fn solicit_status_feedback(&mut self) -> Result<(), DavoutError> {
+        if self.reference_busy() {
+            return Ok(());
+        }
         if self.mode == OperationalMode::Active {
             return Ok(());
         }
@@ -2040,6 +1613,9 @@ impl<B: MotorBus> Supervisor<B> {
     /// Re-asserts enable on a 1 s heartbeat and when a joint's feedback goes stale
     /// while sensing is still desired (motors can drop Active Reporting mid-sweep).
     pub fn sync_active_reporting(&mut self) {
+        if self.reference_busy() {
+            return;
+        }
         let mode_active = self.mode == OperationalMode::Active;
         let global = self.control.control.bench.active_reporting_diagnostics;
         let now = Instant::now();

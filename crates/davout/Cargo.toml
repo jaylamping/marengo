@@ -15,6 +15,7 @@ armee-kinematics.workspace = true
 marengo-config.workspace = true
 marengo-homing.workspace = true
 robstride.workspace = true
+serde_json.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 urdf-rs.workspace = true

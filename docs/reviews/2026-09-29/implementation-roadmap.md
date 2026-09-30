@@ -386,9 +386,22 @@ affected432/0 pass. Independent reviews reverify all1042 source inputs; one
 docs-only guidance correction follows the executed gates, with1041 other inputs
 unchanged and all original bindings preserved. [PR223](https://github.com/jaylamping/marengo/pull/223)
 implementationeb1359c/run36755369469 passes all five jobs, including5simulation
-and73actual driver tests. Final/main delivery and cleanup remain pending.
+and73actual driver tests. Final97881d8/run36756367932 and equal-tree merged7a25bbb/main36757300231
+also pass all five jobs and fatal main release; verified backup and cleanup complete.
 Counts:14verified,10partial,78open.
 Bounded target-only reference R2a remains next; physical acceptance stays separate.
+
+## Tenth batch: bounded virtual reference acquisition
+
+[Batch10](batch10-reference-acquisition-core.md) implements ADR0026 R2a from
+checked7a25bbb: private target-only acquisition, exact raw-pop correlation,
+bounded receive/deadlines, immutable cleanup, controller ownership and mandatory
+Pi stop before storage. Seven candidate regressions pass unchanged; the frozen
+positive and five selected production mutants qualify the new tests. Strict
+affected453/0 and independent Standards/Spec pass. Primary: **736 Rust tests passed, one existing ignored; 355 frontend and 72 Pi MCP passed**, with fatal ARM release, format/lint/proto/build/deny/audit checks.
+Exact-head GitHub delivery remains pending. CS05/CS06/CS07 remain partial;
+R2b journal/grant and R3 installed clients follow. Counts stay14verified,
+10partial,78open; no physical acceptance, limits or Wave change.
 
 ## Completion and continuation
 

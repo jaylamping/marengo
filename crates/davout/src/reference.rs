@@ -67,6 +67,15 @@ impl ReferenceAuthority {
         self.generation.get()
     }
 
+    /// Every new acquisition invalidates prior coverage, including after an
+    /// earlier revocation. Refuse exhaustion before reserving or transmitting.
+    pub(crate) fn invalidate_for_acquisition(&self) -> Option<u64> {
+        let next = self.generation.get().checked_add(1)?;
+        self.revoked.set(true);
+        self.generation.set(next);
+        Some(next)
+    }
+
     pub(crate) fn contains(&self, joint: &str) -> bool {
         !self.revoked.get() && self.joints.contains(joint)
     }

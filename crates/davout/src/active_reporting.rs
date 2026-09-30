@@ -7,8 +7,8 @@
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
-use marengo_config::MotorsConfigFile;
-use robstride::bus::{MotorAddress, MotorBus};
+use marengo_config::{MotorEntry, MotorsConfigFile};
+use robstride::bus::{BusError, MotorAddress, MotorBus};
 
 /// Default lease lifetime when Consul holds a modal open.
 pub const DEFAULT_LEASE_TTL: Duration = Duration::from_secs(30);
@@ -50,7 +50,51 @@ pub enum ActiveReportingLeaseError {
     MissingLease { joint: String, lease_id: String },
 }
 
+/// One actual type-24 Off attempt on an installed route.
+#[derive(Debug)]
+pub(super) struct ReportingSuspendAttempt {
+    pub(super) joint: String,
+    pub(super) address: MotorAddress,
+    pub(super) error: Option<BusError>,
+}
+
+/// At most one Off attempt per installed motor that was applied On.
+/// Accepted writes do not acknowledge physical quiescence; the owner must drain.
+#[derive(Debug)]
+#[must_use]
+pub(super) struct ReportingSuspendReport {
+    pub(super) attempts: Vec<ReportingSuspendAttempt>,
+}
+
 impl ActiveReportingState {
+    /// Suspend previously applied streams without changing desired leases.
+    /// Every installed On route is attempted once even after another write fails.
+    /// Failed routes remain applied On; no retry or receive occurs in this call.
+    pub(super) fn suspend_applied<B: MotorBus>(
+        &mut self,
+        bus: &mut B,
+        installed_motors: &[MotorEntry],
+    ) -> ReportingSuspendReport {
+        let mut attempts = Vec::new();
+        for motor in installed_motors {
+            if !self.applied_on(&motor.joint) {
+                continue;
+            }
+            let address = MotorAddress::from(motor);
+            let error = bus.disable_active_reporting_at(&address).err();
+            if error.is_none() {
+                self.applied.insert(motor.joint.clone(), false);
+                self.last_enable_tx.remove(&motor.joint);
+            }
+            attempts.push(ReportingSuspendAttempt {
+                joint: motor.joint.clone(),
+                address,
+                error,
+            });
+        }
+        ReportingSuspendReport { attempts }
+    }
+
     pub fn clear_applied(&mut self) {
         self.applied.clear();
         self.last_enable_tx.clear();
