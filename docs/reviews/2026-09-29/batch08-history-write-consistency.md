@@ -7,7 +7,7 @@ Status: two existing-public failures reproduced and repaired; both unchanged
 replays pass; independent final reviews and strict affected checks pass; required
 primary and all five implementation-head CI jobs pass in
 [PR222](https://github.com/jaylamping/marengo/pull/222); final-head/equal-tree
-main delivery remains pending.
+main delivery and verified backup/branch cleanup are complete.
 
 ## Contract and scope
 
@@ -100,7 +100,10 @@ implementation head `d541bd57a90f97417eda3d83981bcb7f74f54c0b` in
 703 Rust/1 existing ignored, 355 frontend, 72 Pi MCP, 5 simulation and 73 actual
 virtual-CAN driver tests with none ignored. The committed 287-input manifest
 matches local gates and both independently reviewed probes. Final documentation
-head and equal-tree postmerge main checks remain pending. No new hardware-dependent
+head `7ddc243` passes all five jobs in run36738071460. Equal-tree merged
+`04e4ea2` passes all five main jobs in run36738856051, including the fatal
+aarch64 release build. External `merge-receipt.json` records the verified
+all-ref backup and exact completed-branch cleanup, preserving all other refs. No new hardware-dependent
 ignored test or sleep-based absence oracle is introduced. The known allowlisted paste maintenance warning remains M01.
 
 ## Reference continuation

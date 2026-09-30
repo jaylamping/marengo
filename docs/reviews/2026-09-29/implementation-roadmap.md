@@ -365,9 +365,28 @@ primary703Rust/1 existing ignored,355 frontend,72 Pi MCP and fatalcrossbuild,
 plus strict affected420/0 pass. [PR222](https://github.com/jaylamping/marengo/pull/222)
 passes all five jobs at implementation head `d541bd5` in run36736794717,
 including 73 actual virtual-CAN driver tests with none ignored and 5 simulation
-tests. Final-head/equal-tree main delivery remains pending.
+tests. Final `7ddc243`/run36738071460 and equal-tree merged `04e4ea2`/
+main36738856051 each pass all five jobs, including the fatal main release
+cross-build. Verified backup and exact branch cleanup are complete; the ledger
+history reconciles the external merge receipt.
 This does not provide crash-safe storage, a reference journal or current Davout
 permission; CS05 stays partial and the102 finding dispositions remain unchanged.
+
+## Ninth batch: measured ascent progress
+
+[Batch09](batch09-measured-stall-progress.md) repairs CS24 from checked04e4ea2.
+The geometric high-water watchdog is independent of velocity/planner recovery,
+watches only commanded unresolved ascent, preserves installed decoded-grid
+metadata through clear, and accumulates validated nominal Duration. All six
+actual original law/public-controller failures pass as byte-identical replays;
+the original raw crawl already passed and remains positive. Five new-interface
+numeric/period cases pass; two isolated production mutants are caught. Primary
+715Rust/1existingignored,355frontend,72PiMCP and fatalARMrelease plus strict
+affected432/0 pass. Independent reviews reverify all1042 source inputs; one
+docs-only guidance correction follows the executed gates, with1041 other inputs
+unchanged and all original bindings preserved. Exact-head GitHub checks and
+merged delivery are pending. Counts:13verified,10partial,78open,1implemented.
+Bounded target-only reference R2a remains next; physical acceptance stays separate.
 
 ## Completion and continuation
 
