@@ -136,15 +136,20 @@ supervisor.send_mit_batch(joint_space_cmds)?;
 overlay.wait_persist_idle(timeout);
 supervisor.disable_all()?;
 
-// GOOD — clear intent, attempt the configured stop, retain its outcome, then drain
+// GOOD — mandatory acquisition cleanup precedes optional ordinary stop and storage
 control.inhibit_motion_for_shutdown();
-let stop_result = control.supervisor_mut().disable_all();
-let stop_report = control.supervisor().safety_snapshot().last_stop;
+let reference_cleanup = control.supervisor_mut().cancel_reference_for_shutdown();
+let ordinary_stop = if reference_cleanup.is_none() && disable_on_exit {
+    Some(control.supervisor_mut().disable_all())
+} else { None };
 let persist = overlay.close_persist_and_drain(timeout);
-// A later persistence result cannot erase stop_result or stop_report.
+// Retain reference_cleanup and ordinary_stop separately from persistence.
 ```
 
-The runtime applies its existing `disable_on_exit` policy explicitly. Intent
+The runtime applies its existing `disable_on_exit` policy explicitly. A live
+reference reservation always performs mandatory cleanup first, even when that
+policy skips ordinary exit Disable. Reuse its actual report when ordinary stop
+is requested rather than duplicating the burst ([ADR0026](decisions/0026-bounded-virtual-reference-acquisition.md)). Intent
 inhibition clears retained controller commands; it does not confirm drive stop.
 Queue drain follows that stop attempt and must not gate it. Skipped stop, failed
 stop and unfinished persistence have distinct outcomes. No physical stop or
@@ -232,6 +237,17 @@ implementation. The mutable simulation facade exposes data scripts and trace,
 with no transport replacement/extraction or arbitrary callback. Observe actual
 script trigger counts, literal wire output, typed errors and preserved stop/fault
 evidence. Constructor grants do not qualify a reference transaction or hardware.
+
+The specialized virtual owner separately supports bounded acquisition without
+a grant. Begin reserves without TX; advance performs one phase and one shared
+64-frame/256-read allowance at most. A private SetZero effect binds the actual
+decoded reply pop to owner/realm/transaction/device epoch. Cache, timestamps and
+typed queue injection cannot qualify it. Inspect the whole ordered hazard stream
+before staging evidence, and retain same-call all-address cleanup and reporting
+Off results. Deadline equality, cancellation and uncertain delivery remain final.
+EvidenceStaged with CommitUnavailable cannot authorize Ready or output; durable
+journal/grant and installed clients remain separate work. New APIs use independent
+candidate conformance and selected mutants, not missing-method baseline reds.
 
 Keep public red-to-green probes byte-identical in separately bound archived
 snapshots. API-removal compile denials are isolation conformance, not behavioral

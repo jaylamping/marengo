@@ -7,6 +7,10 @@ mod limit_persist;
 mod overlay;
 
 #[cfg(test)]
+mod reference_busy_overlay_tests;
+#[cfg(test)]
+mod reference_shutdown_tests;
+#[cfg(test)]
 mod shutdown_tests;
 
 use std::collections::BTreeSet;
@@ -30,7 +34,9 @@ use berthier::{
     proto_control_mode, ControlLoop, ControlMode, GainOverride, LoopError, TickPhaseAverages,
 };
 use chappe::Bus;
-use davout::{DavoutError, MotorBus, OperationalMode, StopReport, DEFAULT_LEASE_TTL};
+use davout::{
+    DavoutError, MotorBus, OperationalMode, ReferenceTerminal, StopReport, DEFAULT_LEASE_TTL,
+};
 use marengo_config::{
     load_control_config, load_motors_config, resolve_config_dir, resolve_repo_root,
     resolve_urdf_path,
@@ -1048,6 +1054,12 @@ fn main() {
             "shutdown stop delivery evidence; physical stop unconfirmed"
         );
     }
+    if let Some(reference) = &outcome.mandatory_reference {
+        info!(
+            ?reference,
+            "mandatory reference cleanup preceded storage drain; physical stop unconfirmed"
+        );
+    }
     info!(
         persist_idle = outcome.persist_idle,
         status = ?outcome.persist.status,
@@ -1078,6 +1090,7 @@ enum ExitStopOutcome {
 struct ShutdownOutcome {
     persist_idle: bool,
     stop: ExitStopOutcome,
+    mandatory_reference: Option<ReferenceTerminal>,
     persist: PersistDrainReport,
 }
 
@@ -1093,12 +1106,25 @@ fn finish_owner_shutdown<B: MotorBus>(
     #[cfg(test)] before_persist_wait: Option<&BeforePersistWait<'_, B>>,
 ) -> ShutdownOutcome {
     loop_ctrl.inhibit_motion_for_shutdown();
+    let mandatory_reference = loop_ctrl.supervisor_mut().cancel_reference_for_shutdown();
     let stop = if disable_on_exit {
-        let result = loop_ctrl.supervisor_mut().disable_all();
+        let result = if let Some(reference) = &mandatory_reference {
+            let failed_writes = reference.stop.failed_writes();
+            if failed_writes > 0 {
+                Err(DavoutError::StopDelivery { failed_writes })
+            } else {
+                Ok(())
+            }
+        } else {
+            loop_ctrl.supervisor_mut().disable_all()
+        };
         if let Err(e) = &result {
             warn!(error = %e, "disable_all on shutdown failed");
         }
-        let report = loop_ctrl.supervisor().safety_snapshot().last_stop;
+        let report = mandatory_reference
+            .as_ref()
+            .map(|reference| reference.stop.clone())
+            .or_else(|| loop_ctrl.supervisor().safety_snapshot().last_stop);
         ExitStopOutcome::Attempted { result, report }
     } else {
         ExitStopOutcome::Skipped
@@ -1134,6 +1160,7 @@ fn finish_owner_shutdown<B: MotorBus>(
     ShutdownOutcome {
         persist_idle,
         stop,
+        mandatory_reference,
         persist,
     }
 }

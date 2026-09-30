@@ -203,6 +203,26 @@ impl ControlLoop<davout::simulation::SimulationBus> {
             Supervisor::from_simulation(root, bus, initial_reference)
         })
     }
+
+    /// Closed virtual owner with an isolated historical inspection file.
+    /// The supplied path ignores the process calibration-history override.
+    pub fn from_simulation_with_calibration_record_path(
+        repo_root: impl AsRef<Path>,
+        bus: davout::simulation::SimulationBus,
+        record_path: impl AsRef<Path>,
+        initial_reference: davout::simulation::InitialVirtualReference,
+        loop_hz: u32,
+        chappe_hz: u32,
+    ) -> Result<Self, LoopError> {
+        Self::from_repo_inner(repo_root.as_ref(), bus, loop_hz, chappe_hz, |root, bus| {
+            Supervisor::from_simulation_with_calibration_record_path(
+                root,
+                bus,
+                record_path,
+                initial_reference,
+            )
+        })
+    }
 }
 
 impl<B: MotorBus> ControlLoop<B> {
@@ -572,8 +592,19 @@ impl<B: MotorBus> ControlLoop<B> {
     }
 
     pub fn set_control_mode(&mut self, mode: ControlMode) {
+        if self.supervisor.reference_busy() {
+            return;
+        }
         self.synchronize_stop_generation();
         self.set_control_mode_inner(mode);
+    }
+
+    fn refuse_reference_intent(&self, operation: &'static str) -> Result<(), LoopError> {
+        if self.supervisor.reference_busy() {
+            Err(davout::DavoutError::ReferenceBusy { operation }.into())
+        } else {
+            Ok(())
+        }
     }
 
     /// Discard retained controller intent before the owner's graceful exit.
@@ -632,6 +663,7 @@ impl<B: MotorBus> ControlLoop<B> {
     /// until leaving TorqueOnly. Default when unset is 0. Rejects unknown joints
     /// and non-finite values.
     pub fn set_torque_cmd(&mut self, joint_name: &str, tau_nm: f64) -> Result<(), LoopError> {
+        self.refuse_reference_intent("torque intent")?;
         self.synchronize_stop_generation();
         if !self.joint_names.iter().any(|n| n == joint_name) {
             return Err(LoopError::UnknownJoint {
@@ -717,6 +749,7 @@ impl<B: MotorBus> ControlLoop<B> {
         joint_name: &str,
         gain_override: GainOverride,
     ) -> Result<(), LoopError> {
+        self.refuse_reference_intent("gain override")?;
         self.validate_gain_override(joint_name, &gain_override)?;
         let limits = self.clamp_limits_for(joint_name);
         self.gains
@@ -732,6 +765,7 @@ impl<B: MotorBus> ControlLoop<B> {
         &mut self,
         overrides: &HashMap<String, GainOverride>,
     ) -> Result<(), LoopError> {
+        self.refuse_reference_intent("gain overrides")?;
         for (joint, gains) in overrides {
             self.validate_gain_override(joint, gains)?;
         }
@@ -846,6 +880,40 @@ impl<B: MotorBus> ControlLoop<B> {
     fn tick_inner(&mut self, chappe: Option<&Bus>) -> Result<(), LoopError> {
         let mut phase = TickPhaseSample::default();
         let mut t = Instant::now();
+
+        if self.supervisor.reference_busy() {
+            self.discard_motion_intent();
+            let snapshot = self.supervisor.reference_snapshot();
+            if let Some(handle) = snapshot.handle {
+                self.supervisor
+                    .advance_reference(&handle)
+                    .map_err(|error| DavoutError::Homing {
+                        message: error.to_string(),
+                    })?;
+            }
+            self.last_stop_generation = self.supervisor.stop_generation();
+            self.last_enable_session = None;
+            (phase.feedback_us, t) = phase_elapsed_us(t);
+            // The transaction owns this tick's sole receive acquisition and
+            // cleanup. Its terminal is retained by Davout, including failures;
+            // returning Ok prevents a runtime fallback from duplicating stops.
+            let q = self.read_positions();
+            if let Some(bus) = chappe {
+                let now = Instant::now();
+                if self
+                    .last_chappe
+                    .map(|last| now.duration_since(last) >= self.chappe_publish_period)
+                    .unwrap_or(true)
+                {
+                    self.publish_robot_state(bus, &q)?;
+                    self.last_chappe = Some(now);
+                    phase.chappe_us = phase_elapsed_us(t).0;
+                }
+            }
+            self.tick_phase.record(phase);
+            self.tick_count += 1;
+            return Ok(());
+        }
 
         self.supervisor.begin_tick_feedback();
         self.supervisor.drain_feedback()?;

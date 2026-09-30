@@ -1,8 +1,9 @@
 //! Closed, finite in-memory transport for software admission and output tests.
 //!
 //! This type cannot wrap a transport, socket or callback. The specialized
-//! Supervisor constructor declares an INITIAL virtual reference fixture; it
-//! does not verify acquisition, firmware SetZero correlation or physical safety.
+//! Supervisor constructor separately installs a closed virtual acquisition
+//! backend and, optionally, an INITIAL reference fixture. Neither establishes
+//! physical firmware SetZero correlation, durable permission or physical safety.
 
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
@@ -15,6 +16,12 @@ use robstride::{
 };
 
 use crate::{DavoutError, Supervisor};
+
+#[path = "simulation_reference.rs"]
+mod reference_transport;
+
+use reference_transport::{QueuedProof, ReferenceState};
+pub use reference_transport::{ReferenceProofMode, ReferenceReplyRule};
 
 const MAX_SCRIPT_ITEMS: usize = 16_384;
 const MAX_TX_RULES: usize = 128;
@@ -40,6 +47,14 @@ pub enum SimulationError {
     Occurrence,
     #[error("typed consumer report exceeds the bounded receive contract")]
     ReportCapacity,
+    #[error("simulation reference context is active, stale or belongs to another owner")]
+    ReferenceContext,
+    #[error("simulation previous-transaction proof requires an actual prior reservation")]
+    PreviousTransaction,
+    #[error("simulation reference continuity counter is exhausted")]
+    ReferenceCounterExhausted,
+    #[error("simulation reference clock overflows")]
+    ReferenceClockOverflow,
 }
 
 /// Raw data is stamped on delivery; Timed preserves the supplied host timestamp.
@@ -98,13 +113,32 @@ pub struct TxRule {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RuleId(usize);
 
-#[derive(Debug)]
+enum RuleEffect {
+    Raw(TxRule),
+    Reference(ReferenceReplyRule),
+}
+
 struct InstalledRule {
     id: RuleId,
-    rule: TxRule,
+    effect: RuleEffect,
     matched: usize,
     triggered: usize,
+    proof_pops: usize,
     receive_source: usize,
+}
+
+struct QueuedReceive {
+    attempt: SimulationReceive,
+    proof: Option<QueuedProof>,
+}
+
+impl From<SimulationReceive> for QueuedReceive {
+    fn from(attempt: SimulationReceive) -> Self {
+        Self {
+            attempt,
+            proof: None,
+        }
+    }
 }
 
 /// One attempted write, including failed delivery. No physical acknowledgement.
@@ -118,7 +152,7 @@ pub struct SimulationTransmission {
 /// Finite data-only simulation realm. No wrapped arbitrary MotorBus or conversion.
 pub struct SimulationBus {
     realm: Arc<()>,
-    receive: Vec<VecDeque<SimulationReceive>>,
+    receive: Vec<VecDeque<QueuedReceive>>,
     reports: VecDeque<FeedbackReport>,
     rules: Vec<InstalledRule>,
     next_rule: usize,
@@ -126,12 +160,15 @@ pub struct SimulationBus {
     frames: Vec<CanFrame>,
     receive_cursor: usize,
     next_start: usize,
+    reference: ReferenceState,
 }
 
 impl Default for SimulationBus {
     fn default() -> Self {
+        let realm = Arc::new(());
         Self {
-            realm: Arc::new(()),
+            reference: ReferenceState::new(Arc::clone(&realm)),
+            realm,
             receive: vec![VecDeque::new()],
             reports: VecDeque::new(),
             rules: Vec::new(),
@@ -226,7 +263,7 @@ impl SimulationBus {
         if staged.len() > remaining {
             return Err(SimulationError::Capacity);
         }
-        self.receive[source].extend(staged);
+        self.receive[source].extend(staged.into_iter().map(QueuedReceive::from));
         Ok(())
     }
 
@@ -265,15 +302,81 @@ impl SimulationBus {
             return Err(SimulationError::Occurrence);
         }
         let id = RuleId(self.next_rule);
-        self.next_rule = self.next_rule.saturating_add(1);
+        self.next_rule = self
+            .next_rule
+            .checked_add(1)
+            .ok_or(SimulationError::Capacity)?;
         self.rules.push(InstalledRule {
             id,
-            rule,
+            effect: RuleEffect::Raw(rule),
             matched: 0,
             triggered: 0,
+            proof_pops: 0,
             receive_source: source,
         });
         Ok(id)
+    }
+
+    /// Install a finite SetZero effect. Public raw rules never mint correlation.
+    pub fn add_reference_reply_rule(
+        &mut self,
+        rule: ReferenceReplyRule,
+    ) -> Result<RuleId, SimulationError> {
+        self.add_reference_reply_rule_to_source(0, rule)
+    }
+
+    pub fn add_reference_reply_rule_to_source(
+        &mut self,
+        source: usize,
+        rule: ReferenceReplyRule,
+    ) -> Result<RuleId, SimulationError> {
+        if source >= self.receive.len() {
+            return Err(SimulationError::Source);
+        }
+        if self.rules.len() >= MAX_TX_RULES {
+            return Err(SimulationError::Capacity);
+        }
+        if matches!(rule.occurrence, TxOccurrence::Nth(0)) {
+            return Err(SimulationError::Occurrence);
+        }
+        if rule.proof == ReferenceProofMode::PreviousTransaction && !self.reference.has_previous() {
+            return Err(SimulationError::PreviousTransaction);
+        }
+        let id = RuleId(self.next_rule);
+        self.next_rule = self
+            .next_rule
+            .checked_add(1)
+            .ok_or(SimulationError::Capacity)?;
+        self.rules.push(InstalledRule {
+            id,
+            effect: RuleEffect::Reference(rule),
+            matched: 0,
+            triggered: 0,
+            proof_pops: 0,
+            receive_source: source,
+        });
+        Ok(id)
+    }
+
+    /// Actual SetZero rule triggers, never accepted evidence or physical ACKs.
+    pub fn reference_rule_trigger_count(&self, id: RuleId) -> usize {
+        self.rules
+            .iter()
+            .find(|rule| rule.id == id && matches!(&rule.effect, RuleEffect::Reference(_)))
+            .map_or(0, |rule| rule.triggered)
+    }
+
+    /// Actual tagged raw pops, including a discarded late reply after cancellation.
+    pub fn reference_rule_pop_count(&self, id: RuleId) -> usize {
+        self.rules
+            .iter()
+            .find(|rule| rule.id == id && matches!(&rule.effect, RuleEffect::Reference(_)))
+            .map_or(0, |rule| rule.proof_pops)
+    }
+
+    /// Checked monotonic virtual time, independent of host receive timestamps.
+    pub fn elapse_reference_clock(&mut self, elapsed: Duration) -> Result<(), SimulationError> {
+        self.reference.elapse(elapsed)
     }
 
     pub fn rule_trigger_count(&self, id: RuleId) -> usize {
@@ -297,14 +400,27 @@ impl SimulationBus {
                 message: SimulationError::Capacity.to_string(),
             });
         }
-        let mut failure = None;
+        // An actual target SetZero attempt changes the virtual coordinate even
+        // when a scripted effect reports uncertain send delivery.
+        let zero_attempt = self.reference.zero_attempt(address, frame);
+        let (zero_attempt, mut failure) = match zero_attempt {
+            Ok(attempt) => (attempt, None),
+            Err(error) => (None, Some(error.to_string())),
+        };
         let mut pending = self.pending_receive_count();
         for installed in &mut self.rules {
-            if !installed.rule.matcher.matches(address, frame) {
+            let (matched, occurrence) = match &installed.effect {
+                RuleEffect::Raw(rule) => (rule.matcher.matches(address, frame), rule.occurrence),
+                RuleEffect::Reference(rule) => (
+                    zero_attempt.is_some() && address == Some(&rule.address),
+                    rule.occurrence,
+                ),
+            };
+            if !matched {
                 continue;
             }
             installed.matched = installed.matched.saturating_add(1);
-            let triggered = match installed.rule.occurrence {
+            let triggered = match occurrence {
                 TxOccurrence::Nth(n) => installed.matched == n,
                 TxOccurrence::Every => true,
             };
@@ -312,15 +428,40 @@ impl SimulationBus {
                 continue;
             }
             installed.triggered = installed.triggered.saturating_add(1);
-            if pending + installed.rule.receive.len() > MAX_SCRIPT_ITEMS {
-                failure.get_or_insert_with(|| SimulationError::Capacity.to_string());
-            } else {
-                pending += installed.rule.receive.len();
-                self.receive[installed.receive_source]
-                    .extend(installed.rule.receive.iter().cloned());
-            }
-            if let Some(error) = &installed.rule.send_error {
-                failure.get_or_insert_with(|| error.clone());
+            match &installed.effect {
+                RuleEffect::Raw(rule) => {
+                    if pending + rule.receive.len() > MAX_SCRIPT_ITEMS {
+                        failure.get_or_insert_with(|| SimulationError::Capacity.to_string());
+                    } else {
+                        pending += rule.receive.len();
+                        self.receive[installed.receive_source]
+                            .extend(rule.receive.iter().cloned().map(QueuedReceive::from));
+                    }
+                    if let Some(error) = &rule.send_error {
+                        failure.get_or_insert_with(|| error.clone());
+                    }
+                }
+                RuleEffect::Reference(rule) => {
+                    if pending >= MAX_SCRIPT_ITEMS {
+                        failure.get_or_insert_with(|| SimulationError::Capacity.to_string());
+                    } else if let Some(attempt) = &zero_attempt {
+                        match self.reference.proof_for(attempt, installed.id, rule.proof) {
+                            Ok(proof) => {
+                                pending += 1;
+                                self.receive[installed.receive_source].push_back(QueuedReceive {
+                                    attempt: SimulationReceive::Received(rule.frame.clone()),
+                                    proof: Some(proof),
+                                });
+                            }
+                            Err(error) => {
+                                failure.get_or_insert_with(|| error.to_string());
+                            }
+                        }
+                    }
+                    if let Some(error) = &rule.send_error {
+                        failure.get_or_insert_with(|| error.clone());
+                    }
+                }
             }
         }
         self.frames.push(frame.clone());
@@ -422,6 +563,33 @@ impl<'a> SimulationAccess<'a> {
         self.bus.remove_tx_rule(id);
     }
 
+    pub fn add_reference_reply_rule(
+        &mut self,
+        rule: ReferenceReplyRule,
+    ) -> Result<RuleId, SimulationError> {
+        self.bus.add_reference_reply_rule(rule)
+    }
+
+    pub fn add_reference_reply_rule_to_source(
+        &mut self,
+        source: usize,
+        rule: ReferenceReplyRule,
+    ) -> Result<RuleId, SimulationError> {
+        self.bus.add_reference_reply_rule_to_source(source, rule)
+    }
+
+    pub fn reference_rule_trigger_count(&self, id: RuleId) -> usize {
+        self.bus.reference_rule_trigger_count(id)
+    }
+
+    pub fn reference_rule_pop_count(&self, id: RuleId) -> usize {
+        self.bus.reference_rule_pop_count(id)
+    }
+
+    pub fn elapse_reference_clock(&mut self, elapsed: Duration) -> Result<(), SimulationError> {
+        self.bus.elapse_reference_clock(elapsed)
+    }
+
     /// Inspect a saturated unread suffix through the real bounded raw engine.
     pub fn drain_raw(&mut self) -> robstride::RawReceiveReport {
         self.bus.recv_raw_report(
@@ -446,6 +614,7 @@ impl CanBus for SimulationBus {
     }
 
     fn begin_receive(&mut self) {
+        self.reference.begin_report();
         self.receive_cursor = self.next_start;
         self.next_start = (self.next_start + 1) % self.receive.len();
     }
@@ -453,19 +622,26 @@ impl CanBus for SimulationBus {
     fn recv_one_nonblocking(&mut self) -> Result<ReceiveAttempt, BusError> {
         let source = self.receive_cursor;
         self.receive_cursor = (self.receive_cursor + 1) % self.receive.len();
-        match self.receive[source]
+        let queued = self.receive[source]
             .pop_front()
-            .unwrap_or(SimulationReceive::Idle)
-        {
-            SimulationReceive::Received(received) => Ok(ReceiveAttempt::Frame(TimedCanFrame {
+            .unwrap_or_else(|| SimulationReceive::Idle.into());
+        let frame = match queued.attempt {
+            SimulationReceive::Received(received) => TimedCanFrame {
                 received_at: Instant::now(),
                 received,
-            })),
-            SimulationReceive::Timed(frame) => Ok(ReceiveAttempt::Frame(frame)),
-            SimulationReceive::Idle => Ok(ReceiveAttempt::Idle),
-            SimulationReceive::Interrupted => Ok(ReceiveAttempt::Interrupted),
-            SimulationReceive::Error(message) => Err(BusError::Driver(message)),
+            },
+            SimulationReceive::Timed(frame) => frame,
+            SimulationReceive::Idle => return Ok(ReceiveAttempt::Idle),
+            SimulationReceive::Interrupted => return Ok(ReceiveAttempt::Interrupted),
+            SimulationReceive::Error(message) => return Err(BusError::Driver(message)),
+        };
+        if let Some(proof) = &queued.proof {
+            if let Some(rule) = self.rules.iter_mut().find(|rule| rule.id == proof.rule) {
+                rule.proof_pops = rule.proof_pops.saturating_add(1);
+            }
         }
+        self.reference.popped(&frame, queued.proof);
+        Ok(ReceiveAttempt::Frame(frame))
     }
 }
 
@@ -477,6 +653,8 @@ impl MotorBus for SimulationBus {
         quiet: Duration,
     ) -> FeedbackReport {
         if let Some(report) = self.reports.pop_front() {
+            // Impossible-wire reports have no matching actual raw pop sidecar.
+            self.reference.clear_report();
             report
         } else {
             // Decode through the ordinary default MotorBus implementation using
@@ -520,6 +698,10 @@ impl Supervisor<SimulationBus> {
         &mut self,
         initial: InitialVirtualReference,
     ) -> Result<(), DavoutError> {
+        // Acquisition capability is separate from declared INITIAL permission.
+        // Ordinary generic constructors do not install this fixed private bridge.
+        self.reference_owner
+            .install_backend(self.bus.reference_backend());
         let joints: std::collections::HashSet<String> = match initial {
             InitialVirtualReference::Unreferenced => return Ok(()),
             InitialVirtualReference::AllConfigured => self
