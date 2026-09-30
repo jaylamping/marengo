@@ -43,7 +43,12 @@ pub struct MitFeedback {
     pub velocity_rad_s: f32,
     pub torque_nm: f32,
     pub temperature_c: f32,
+    /// Compatibility indication of the status flags; not a detailed-fault mask.
     pub fault: u16,
+    /// CAN-ID bits 16..21: undervoltage, overcurrent, overtemperature, magnetic
+    /// encoder, stall/overload and uncalibrated, respectively.
+    pub status_flags: u8,
+    pub drive_mode: crate::feedback::DriveMode,
 }
 
 /// Extended CAN arbitration ID for a neutral-torque MIT command to `device_id`.
@@ -143,7 +148,9 @@ pub fn decode_mit_feedback(motor_type: MotorType, can_id: u32, data: &[u8]) -> O
         velocity_rad_s: v,
         torque_nm: t,
         temperature_c: temp,
-        fault: 0,
+        fault: u16::from(((can_id >> 16) & 0x3f) as u8),
+        status_flags: ((can_id >> 16) & 0x3f) as u8,
+        drive_mode: crate::feedback::DriveMode::from_can_id(can_id),
     })
 }
 

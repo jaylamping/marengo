@@ -85,7 +85,7 @@ fn inject_status(
     data[2..4].copy_from_slice(&raw_velocity.to_be_bytes());
     data[4..6].copy_from_slice(&raw_torque.to_be_bytes());
     supervisor.bus_mut().rx_queue.push(CanFrame {
-        id: (2 << 24) | (u32::from(motor.device_id) << 8) | 0xfd,
+        id: (2 << 24) | (2 << 22) | (u32::from(motor.device_id) << 8) | 0xfd,
         data,
         extended: true,
     });

@@ -115,6 +115,14 @@ supervisor.send_mit_batch(joint_space_cmds)?;
 - robstride operates in raw motor/CAN space only.
 - Davout owns `config/motors.yaml` `direction` / `gear_ratio` transforms in both directions.
 
+**Feedback and fault authority** ([ADR 0020](decisions/0020-lossless-feedback-and-fault-authority.md)):
+
+- Consume ordered `FeedbackReport` observations and its terminal error together. Latest-state maps are compatibility views; healthy status cannot erase fault evidence.
+- Inspect every raw device/mode/position hazard before pose admission. Infer velocity once per address per drain; consecutive dequeue timestamps do not prove physical acquisition intervals.
+- Davout's private fault authority survives healthy feedback, Disable and cache operations. Invalid operator input is a rejected request; an observed runtime hazard latches and attempts all-address stop.
+- A stop attempt records every write failure. Software Disabled and accepted CAN writes do not certify a physical stop; ordinary stop payloads do not clear firmware faults.
+- Berthier propagates both post-send receive failures, checks the persistent latch before new planner/torque intent, and discards previous intent when Davout's stop generation changes. Explicit recovery and Pi/protobuf publication remain separate migration work.
+
 **Scoped commissioning Enable** (Hardware commissioning):
 
 - Resolve targets with `Supervisor::resolve_enable_targets` → `marengo_homing::select_enable_targets` (no scope file → full-master Robot Ready; persisted scope → Verified in-scope only). Never call `set_homing_complete` on Enable or motion re-arm — Verified is Set Zero only.

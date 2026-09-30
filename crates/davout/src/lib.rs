@@ -13,7 +13,8 @@
 //!   Berthier and dynamics stay in joint space; robstride stays in raw motor/CAN space.
 //! - [`danger_zones`](marengo_config::DangerZoneRule) from `config/control.yaml` (clamp or fault on rule hit).
 //! - Comm watchdog: stale feedback → [`DavoutError::CommWatchdog`].
-//! - [`disable_all`]: best-effort zero-torque MIT on shutdown.
+//! - Persistent [`SafetySnapshot`]: device/runtime faults survive pose replacement, disable and replay.
+//! - [`Supervisor::disable_all`]: all-address best-effort stop with honest delivery evidence.
 //! - [`refresh_feedback`]: blocking poll up to `feedback_poll_budget_us` (REPL / set-zero).
 //! - [`drain_feedback`]: non-blocking RX queue drain (Berthier control loop).
 //!
@@ -36,7 +37,7 @@
 //!        ▼
 //!   robstride::send_mit / mit_control_all
 //!        ▲
-//!   motor_states (joint space) ◄── direction/gear_ratio ◄── recv_all (motor space) ◄── CAN feedback
+//!   motor_states (joint space) ◄── direction/gear_ratio ◄── lossless feedback report ◄── CAN
 //!        │
 //!        ▼
 //!   Supervisor::joint_feedback (JointFeedback) — control / publish seam
@@ -45,13 +46,20 @@
 //! Limits are built from [`armee_kinematics`] + [`marengo_config`] at startup.
 //! See [safety.md](../../docs/safety.md), [ADR 0004](../../docs/decisions/0004-control-modes-and-mit.md),
 //! and [ADR 0009](../../docs/decisions/0009-dynamic-position-limit-envelope.md).
+//! Fault evidence/authority and unqualified recovery are defined by ADR 0020.
 
 pub use armee_kinematics::JointLimitPolicy;
 
 mod active_reporting;
+mod faults;
 mod limit_envelope;
 
 pub use active_reporting::{ActiveReportingLeaseError, ActiveReportingState, DEFAULT_LEASE_TTL};
+use faults::{bounded_message, FaultAuthority};
+pub use faults::{
+    DeviceFaultEvidence, DeviceWarning, FaultClass, FaultRecord, SafetySnapshot, StopAction,
+    StopAttempt, StopReport,
+};
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -80,7 +88,9 @@ use marengo_homing::{
     select_enable_targets, verify_manual_reference, HomingRegistry, JointFacetInput, VerifyError,
 };
 use robstride::AddressedMitCommand;
-use robstride::{MitCommand, MotorState, ParameterId, ParameterValue, RunMode};
+use robstride::{
+    DriveMode, FeedbackEvent, MitCommand, MotorState, ParameterId, ParameterValue, RunMode,
+};
 use thiserror::Error;
 use tracing::{debug, info, trace, warn};
 
@@ -179,6 +189,15 @@ pub enum DavoutError {
     InvalidMotorConfig { joint: String, message: String },
     #[error("motor fault on {joint}: 0x{fault:04x}")]
     MotorFault { joint: String, fault: u16 },
+    #[error("persistent safety fault {id} ({class:?}) on {joint:?}: {message}; qualified recovery unavailable")]
+    FaultLatched {
+        id: u64,
+        class: FaultClass,
+        joint: Option<String>,
+        message: String,
+    },
+    #[error("stop delivery failed for {failed_writes} writes; physical stop unconfirmed")]
+    StopDelivery { failed_writes: usize },
     #[error("homing: {message}")]
     Homing { message: String },
     #[error("homing verify on {joint}: {message}")]
@@ -234,6 +253,7 @@ pub struct Supervisor<B: MotorBus> {
     mode: OperationalMode,
     control_mode: ControlMode,
     hardware_estop: bool,
+    fault_authority: FaultAuthority,
     limits: HashMap<String, JointLimitPolicy>,
     robot: RobotConfigFile,
     urdf_robot: urdf_rs::Robot,
@@ -301,6 +321,7 @@ impl<B: MotorBus> Supervisor<B> {
             mode: OperationalMode::Disabled,
             control_mode: ControlMode::Disabled,
             hardware_estop: false,
+            fault_authority: FaultAuthority::default(),
             limits,
             robot,
             urdf_robot,
@@ -426,7 +447,9 @@ impl<B: MotorBus> Supervisor<B> {
             velocity_rad_s: f64::from(state.velocity_rad_s),
             torque_nm: f64::from(state.torque_nm),
             temperature_c: state.temperature_c,
-            fault: state.fault,
+            // Compatibility indication only. Full independent vendor domains
+            // remain available in safety_snapshot, including fault-only evidence.
+            fault: state.fault | u16::from(self.fault_authority.joint_is_faulted(joint)),
         })
     }
 
@@ -482,6 +505,12 @@ impl<B: MotorBus> Supervisor<B> {
 
     /// Mark supervisor Ready when every configured joint is Verified.
     pub fn set_homing_complete(&mut self) -> Result<(), DavoutError> {
+        self.require_fault_clear()?;
+        if self.mode == OperationalMode::Active {
+            return Err(DavoutError::Homing {
+                message: "Ready transition refused while ACTIVE; disable first".into(),
+            });
+        }
         if self.hardware_estop {
             return Ok(());
         }
@@ -561,6 +590,7 @@ impl<B: MotorBus> Supervisor<B> {
         operator: &str,
         sign_test_passed: bool,
     ) -> Result<f64, DavoutError> {
+        self.require_fault_clear()?;
         let joint = joint.trim();
         if joint.is_empty() {
             return Err(DavoutError::UnknownJoint {
@@ -583,7 +613,7 @@ impl<B: MotorBus> Supervisor<B> {
         let result = (|| {
             self.request_enable_for_calibration()?;
             self.set_zero_position(joint)?;
-            let _ = self.refresh_feedback();
+            self.refresh_feedback()?;
             self.verify_zero_after_set(joint, operator, sign_test_passed)
         })();
 
@@ -602,6 +632,99 @@ impl<B: MotorBus> Supervisor<B> {
 
     pub fn mode(&self) -> OperationalMode {
         self.mode
+    }
+
+    /// Persistent faults and last stop delivery, independent of pose caches.
+    /// This slice has no qualified reset/recovery API.
+    pub fn safety_snapshot(&self) -> SafetySnapshot {
+        self.fault_authority.snapshot(self.hardware_estop)
+    }
+
+    pub fn has_latched_fault(&self) -> bool {
+        self.fault_authority.is_latched()
+    }
+
+    /// Motion owners use this barrier to discard intent after stop/re-enable.
+    pub fn stop_generation(&self) -> u64 {
+        self.fault_authority.stop_generation()
+    }
+
+    fn require_fault_clear(&self) -> Result<(), DavoutError> {
+        if let Some(fault) = self.fault_authority.first_fault() {
+            return Err(DavoutError::FaultLatched {
+                id: fault.id,
+                class: fault.class,
+                joint: fault.joint.clone(),
+                message: fault.message.clone(),
+            });
+        }
+        Ok(())
+    }
+
+    /// Read-only admission gate for control-owner mode entry after diagnostic RX.
+    pub fn check_fault_authority(&self) -> Result<(), DavoutError> {
+        self.require_fault_clear()
+    }
+
+    /// Trusted control-owner failure hook; never an operator reset or enable.
+    pub fn latch_control_fault(&mut self, message: &str, joint: Option<&str>) {
+        let address = joint
+            .and_then(|name| motor_for_joint(&self.motors, name))
+            .map(MotorAddress::from);
+        let first = self.fault_authority.record(
+            FaultClass::Controller,
+            joint.filter(|_| address.is_some()).map(str::to_owned),
+            address,
+            message,
+            DeviceFaultEvidence::default(),
+        );
+        if first {
+            let _ = self.disable_all();
+        }
+    }
+
+    fn record_runtime_error(&mut self, error: &DavoutError) -> bool {
+        let (class, joint) = match error {
+            DavoutError::InvalidFeedback { joint, .. } | DavoutError::Limit { joint, .. } => {
+                (FaultClass::Feedback, Some(joint.as_str()))
+            }
+            DavoutError::CommWatchdog { joint, .. } => {
+                // An early nonneutral request without initial pose is rejected,
+                // but the bounded neutral bootstrap may still obtain feedback.
+                if self.active_since.is_some_and(|enabled| {
+                    enabled.elapsed()
+                        <= Duration::from_millis(self.control.control.comm_watchdog_ms)
+                }) {
+                    return false;
+                }
+                (FaultClass::Communication, Some(joint.as_str()))
+            }
+            DavoutError::MotorFault { joint, .. } => (FaultClass::Device, Some(joint.as_str())),
+            DavoutError::WrongSignWatchdog { joint, .. } => {
+                (FaultClass::WrongSign, Some(joint.as_str()))
+            }
+            DavoutError::DangerZone { joint, .. } => (FaultClass::DangerZone, Some(joint.as_str())),
+            DavoutError::Bus(BusError::Send { .. } | BusError::Driver(_)) => {
+                (FaultClass::Transport, None)
+            }
+            _ => return false,
+        };
+        let address = joint
+            .and_then(|name| motor_for_joint(&self.motors, name))
+            .map(MotorAddress::from);
+        self.fault_authority.record(
+            class,
+            joint.map(str::to_owned),
+            address,
+            &error.to_string(),
+            DeviceFaultEvidence::default(),
+        )
+    }
+
+    fn stop_after_runtime_error(&mut self, error: &DavoutError) {
+        if self.record_runtime_error(error) {
+            let _ = self.disable_all();
+        }
     }
 
     /// Read-only marker for the current successful drive-enable session.
@@ -678,24 +801,25 @@ impl<B: MotorBus> Supervisor<B> {
     pub fn set_hardware_estop(&mut self, asserted: bool) {
         // Runtime GPIO/input wiring is not yet integrated on the Pi bench — see
         // docs/position-hold-control-review.md (hardware E-stop gap).
+        let was_asserted = self.hardware_estop;
         self.hardware_estop = asserted;
         if asserted {
-            self.mode = OperationalMode::Disabled;
-            self.control_mode = ControlMode::Disabled;
-            self.active_since = None;
-            self.active_joints.clear();
-            self.feedback_velocity_trips.clear();
-            self.last_feedback_samples.clear();
-            self.last_feedback_rx.clear();
-            self.wrong_sign_state.clear();
-            self.last_tau_ff.clear();
-            self.last_tick = None;
-            warn!("hardware E-stop asserted — disabled");
+            self.fault_authority.record(
+                FaultClass::HardwareEstop,
+                None,
+                None,
+                "hardware E-stop input asserted; releasing input is not qualified recovery",
+                DeviceFaultEvidence::default(),
+            );
+            if !was_asserted {
+                let _ = self.disable_all();
+            }
+            warn!("hardware E-stop input asserted — persistent fault");
         }
     }
 
     pub fn set_homing_complete_unchecked(&mut self) {
-        if self.hardware_estop {
+        if self.hardware_estop || self.has_latched_fault() || self.mode == OperationalMode::Active {
             return;
         }
         self.mode = OperationalMode::Ready;
@@ -718,11 +842,20 @@ impl<B: MotorBus> Supervisor<B> {
         enable: bool,
         policy: EnablePolicy,
     ) -> Result<(), DavoutError> {
+        if !enable {
+            return self.disable_all();
+        }
+        self.require_fault_clear()?;
         if self.hardware_estop {
             return Err(DavoutError::Estop);
         }
         if enable {
             if self.mode == OperationalMode::Active {
+                if policy == EnablePolicy::ZeroCalibration {
+                    return Err(DavoutError::Homing {
+                        message: "calibration enable refused while ACTIVE; disable first".into(),
+                    });
+                }
                 return Ok(());
             }
             match (self.mode, policy) {
@@ -755,6 +888,7 @@ impl<B: MotorBus> Supervisor<B> {
     /// rejected. While Active, a different joint set is refused
     /// ([`DavoutError::ActiveSetChangeRefused`]); operators must Disable then Enable.
     pub fn enable_targets(&mut self, joints: &[String]) -> Result<(), DavoutError> {
+        self.require_fault_clear()?;
         if self.hardware_estop {
             return Err(DavoutError::Estop);
         }
@@ -800,7 +934,8 @@ impl<B: MotorBus> Supervisor<B> {
             let motor_mapped = loaded_names.contains(name.as_str());
             let feedback = self.joint_feedback(name);
             let online = feedback.is_some();
-            let fault = feedback.map(|f| f.fault != 0).unwrap_or(false)
+            let fault = self.fault_authority.joint_is_faulted(name)
+                || feedback.map(|f| f.fault != 0).unwrap_or(false)
                 || self.joint_homing_state(name) == JointHomingState::Faulted;
             master.push(JointFacetInput {
                 name: name.clone(),
@@ -829,6 +964,7 @@ impl<B: MotorBus> Supervisor<B> {
         &self,
         repo_root: impl AsRef<Path>,
     ) -> Result<Vec<String>, DavoutError> {
+        self.require_fault_clear()?;
         let scope_path = default_commissioning_scope_path();
         let persisted = load_commissioning_scope(&scope_path)?;
         let ceiling = joint_subset_from_env();
@@ -842,6 +978,7 @@ impl<B: MotorBus> Supervisor<B> {
     }
 
     fn enable_targets_inner(&mut self, joints: &[String]) -> Result<(), DavoutError> {
+        self.require_fault_clear()?;
         // Status has no command-generation field. Drain already queued traffic
         // before activation; only later received poses may authorize this session.
         self.poll_feedback(Duration::ZERO)?;
@@ -879,12 +1016,17 @@ impl<B: MotorBus> Supervisor<B> {
         })();
         if let Err(err) = &result {
             warn!(error = %err, "targeted enable failed — disable_all");
-            let _ = self.disable_all();
+            let already_stopped = self.has_latched_fault();
+            self.record_runtime_error(err);
+            if !already_stopped {
+                let _ = self.disable_all();
+            }
         }
         result
     }
 
     fn require_active_joint(&self, joint: &str) -> Result<(), DavoutError> {
+        self.require_fault_clear()?;
         if self.mode != OperationalMode::Active {
             return Err(DavoutError::NotActive { mode: self.mode });
         }
@@ -916,98 +1058,194 @@ impl<B: MotorBus> Supervisor<B> {
 
     fn poll_feedback(&mut self, budget: Duration) -> Result<usize, DavoutError> {
         let quiet = self.feedback_drain_quiet();
-        let mut raw_states = HashMap::new();
-        match self
+        let report = self
             .bus
-            .recv_all_addressed(&self.motor_types, &mut raw_states, budget, quiet)
-        {
-            Ok(n) => {
-                self.last_refresh_frames = self.last_refresh_frames.saturating_add(n);
-                let now = Instant::now();
-                if n > 0 {
-                    trace!(count = n, "received motor feedback batch");
+            .recv_feedback_report(&self.motor_types, budget, quiet);
+        let count = report.observations.len();
+        self.last_refresh_frames = self.last_refresh_frames.saturating_add(count);
+        let mut first_error = None;
+        let mut first_transition = false;
+        let mut pose_candidates: HashMap<MotorAddress, (usize, MotorEntry, MotorState)> =
+            HashMap::new();
+        // Do not return early: every available peer fault must reach authority,
+        // even if another pose is invalid or the drain ends in a transport error.
+        for (order, observation) in report.observations.into_iter().enumerate() {
+            let address = observation.address;
+            let Some(motor) = self
+                .motors
+                .motors
+                .iter()
+                .find(|m| MotorAddress::from(*m) == address)
+                .cloned()
+            else {
+                continue;
+            };
+            let mut device = DeviceFaultEvidence {
+                received_at: Some(observation.received_at),
+                ..DeviceFaultEvidence::default()
+            };
+            let status = match observation.event {
+                FeedbackEvent::DetailedFault(report) => {
+                    device.detailed_fault_bytes = report.fault_bytes();
+                    device.warning_bytes = report.warning_bytes();
+                    self.fault_authority.record_warning(
+                        &motor.joint,
+                        &address,
+                        device.warning_bytes,
+                    );
+                    if report.has_fault() {
+                        first_transition |= self.fault_authority.record(
+                            FaultClass::Device,
+                            Some(motor.joint.clone()),
+                            Some(address),
+                            "vendor detailed fault; word byte order and physical recovery unqualified",
+                            device,
+                        );
+                        if first_error.is_none() {
+                            first_error = self.require_fault_clear().err();
+                        }
+                    }
+                    continue;
                 }
-                for (address, raw) in raw_states {
-                    let Some(motor) = self
-                        .motors
-                        .motors
-                        .iter()
-                        .find(|m| MotorAddress::from(*m) == address)
-                    else {
-                        continue;
-                    };
-                    let motor = motor.clone();
-                    if raw.updated.is_none() {
-                        // A fault-only report has no position/velocity evidence;
-                        // ignore its default pose fields and retain fault evidence.
-                        self.motor_states
-                            .entry(address)
-                            .and_modify(|cached| cached.fault |= raw.fault)
-                            .or_insert(MotorState {
-                                fault: raw.fault,
-                                ..MotorState::default()
-                            });
-                        continue;
-                    }
-                    let prepared = (|| {
-                        validate_motor_feedback(&motor.joint, &raw)?;
-                        let state = motor_to_joint_state(&motor, raw)?;
-                        validate_motor_feedback(&motor.joint, &state)?;
-                        if let Some(received_at) = state.updated {
-                            if received_at > now {
-                                return Err(DavoutError::InvalidFeedback {
-                                    joint: motor.joint.clone(),
-                                    message: "receive timestamp is in the future".into(),
-                                });
-                            }
-                        }
-                        Ok(state)
-                    })();
-                    let mut state = match prepared {
-                        Ok(state) => state,
-                        Err(error) => {
-                            self.invalid_feedback.insert(address);
-                            return Err(error);
-                        }
-                    };
-                    let Some(received_at) = state.updated else {
-                        continue;
-                    };
-                    if self
-                        .motor_states
-                        .get(&address)
-                        .and_then(|cached| cached.updated)
-                        .is_some_and(|previous| previous >= received_at)
-                    {
-                        // A replayed/older sample must not replace newer pose or
-                        // clear the invalid-feedback gate. Retain fault evidence.
-                        if let Some(cached) = self.motor_states.get_mut(&address) {
-                            cached.fault |= state.fault;
-                        }
-                        continue;
-                    }
-                    if let Err(error) = self
-                        .check_feedback_velocity(&motor, &mut state, received_at)
-                        .and_then(|()| validate_motor_feedback(&motor.joint, &state))
-                        .and_then(|()| self.check_feedback_position(&motor, &state))
-                    {
-                        self.invalid_feedback.insert(address);
-                        return Err(error);
-                    }
-                    self.invalid_feedback.remove(&address);
-                    self.motor_states.insert(address, state);
-                    // Track RX even in free-drive (Disabled/Ready): Set Limits needs
-                    // silence detection so type-24 can be re-asserted when a motor drops.
-                    self.last_feedback_rx
-                        .insert(motor.joint.clone(), received_at);
+                FeedbackEvent::Status(status) => {
+                    device.status_flags = status.status_flags;
+                    device.drive_mode = Some(match status.drive_mode {
+                        DriveMode::Reset => 0,
+                        DriveMode::Calibration => 1,
+                        DriveMode::Run => 2,
+                        DriveMode::Reserved => 3,
+                    });
+                    status
                 }
-                Ok(n)
+            };
+            if device.status_flags != 0 {
+                first_transition |= self.fault_authority.record(
+                    FaultClass::Device,
+                    Some(motor.joint.clone()),
+                    Some(address.clone()),
+                    "vendor status fault flags",
+                    device.clone(),
+                );
+                if first_error.is_none() {
+                    first_error = self.require_fault_clear().err();
+                }
             }
-            Err(BusError::RecvTimeout) => Ok(0),
-            Err(e) => {
-                warn!(error = %e, "motor feedback receive failed");
-                Err(e.into())
+            let current_enable = self.mode == OperationalMode::Active
+                && self.active_joints.contains(&motor.joint)
+                && self
+                    .active_since
+                    .is_some_and(|enabled| observation.received_at > enabled);
+            if status.drive_mode == DriveMode::Reserved
+                || (current_enable && status.drive_mode != DriveMode::Run)
+            {
+                let error = DavoutError::InvalidFeedback {
+                    joint: motor.joint.clone(),
+                    message: format!("unexpected drive mode {:?} for {:?}; no qualified factory-calibration context", status.drive_mode, self.mode),
+                };
+                self.invalid_feedback.insert(address.clone());
+                first_transition |= self.fault_authority.record(
+                    FaultClass::DriveState,
+                    Some(motor.joint.clone()),
+                    Some(address),
+                    &error.to_string(),
+                    device,
+                );
+                if first_error.is_none() {
+                    first_error = Some(error);
+                }
+                continue;
             }
+            let raw = MotorState {
+                position_rad: status.position_rad,
+                velocity_rad_s: status.velocity_rad_s,
+                torque_nm: status.torque_nm,
+                temperature_c: status.temperature_c,
+                fault: status.fault,
+                updated: Some(observation.received_at),
+            };
+            let prepared = (|| {
+                validate_motor_feedback(&motor.joint, &raw)?;
+                let state = motor_to_joint_state(&motor, raw)?;
+                validate_motor_feedback(&motor.joint, &state)?;
+                if observation.received_at > Instant::now() {
+                    return Err(DavoutError::InvalidFeedback {
+                        joint: motor.joint.clone(),
+                        message: "receive timestamp is in the future".into(),
+                    });
+                }
+                // Hard-position evidence is inspected on every ordered frame,
+                // even when two reads share a clock tick. Chronology only gates
+                // pose renewal and derivative scratch, not hazard retention.
+                self.check_feedback_position(&motor, &state)?;
+                Ok(state)
+            })();
+            let state = match prepared {
+                Ok(state) => state,
+                Err(error) => {
+                    self.invalid_feedback.insert(address);
+                    first_transition |= self.record_runtime_error(&error);
+                    if first_error.is_none() {
+                        first_error = Some(error);
+                    }
+                    continue;
+                }
+            };
+            if self
+                .motor_states
+                .get(&address)
+                .and_then(|state| state.updated)
+                .is_some_and(|previous| previous >= observation.received_at)
+            {
+                continue;
+            }
+            if pose_candidates
+                .get(&address)
+                .and_then(|(_, _, state)| state.updated)
+                .is_some_and(|previous| previous > observation.received_at)
+            {
+                continue;
+            }
+            pose_candidates.insert(address, (order, motor, state));
+        }
+        // Host read times cannot reconstruct the spacing of physical samples
+        // queued before this drain. Inspect every raw hazard above, but update
+        // position-derived velocity/trips only once per address per drain.
+        let mut pose_candidates: Vec<_> = pose_candidates.into_iter().collect();
+        pose_candidates.sort_unstable_by_key(|(_, (order, _, _))| *order);
+        for (address, (_, motor, mut state)) in pose_candidates {
+            let Some(received_at) = state.updated else {
+                continue;
+            };
+            if let Err(error) = self
+                .check_feedback_velocity(&motor, &mut state, received_at)
+                .and_then(|()| validate_motor_feedback(&motor.joint, &state))
+            {
+                self.invalid_feedback.insert(address);
+                first_transition |= self.record_runtime_error(&error);
+                if first_error.is_none() {
+                    first_error = Some(error);
+                }
+                continue;
+            }
+            self.invalid_feedback.remove(&address);
+            self.motor_states.insert(address, state);
+            self.last_feedback_rx.insert(motor.joint, received_at);
+        }
+        if let Some(error) = report.terminal_error {
+            if !matches!(error, BusError::RecvTimeout) {
+                let error = DavoutError::Bus(error);
+                first_transition |= self.record_runtime_error(&error);
+                if first_error.is_none() {
+                    first_error = Some(error);
+                }
+            }
+        }
+        if first_transition {
+            let _ = self.disable_all();
+        }
+        match first_error {
+            Some(error) => Err(error),
+            None => Ok(count),
         }
     }
 
@@ -1151,6 +1389,7 @@ impl<B: MotorBus> Supervisor<B> {
     }
 
     fn check_comm_watchdog(&self, neutral_bootstrap: bool) -> Result<(), DavoutError> {
+        self.require_fault_clear()?;
         let max_ms = self.control.control.comm_watchdog_ms;
         if self.mode != OperationalMode::Active {
             return Ok(());
@@ -1262,6 +1501,7 @@ impl<B: MotorBus> Supervisor<B> {
         &mut self,
         cmds: Vec<(MitJointCommand, MotorEntry)>,
     ) -> Result<(), DavoutError> {
+        self.require_fault_clear()?;
         if self.hardware_estop {
             return Err(DavoutError::Estop);
         }
@@ -1318,12 +1558,27 @@ impl<B: MotorBus> Supervisor<B> {
             Err(error) => {
                 self.last_tau_ff = previous_tau;
                 self.wrong_sign_state = previous_sign;
+                // Limit here is a rejected request (gains/neutral position),
+                // unlike Limit produced while validating received feedback.
+                if matches!(
+                    error,
+                    DavoutError::CommWatchdog { .. }
+                        | DavoutError::MotorFault { .. }
+                        | DavoutError::WrongSignWatchdog { .. }
+                        | DavoutError::DangerZone { .. }
+                ) {
+                    self.stop_after_runtime_error(&error);
+                }
                 return Err(error);
             }
         };
         // Admission is atomic; delivery can still fail partway through a physical
         // bus write and is reported as an error for the owner's stop path.
-        self.bus.mit_control_all_at(&wires)?;
+        if let Err(error) = self.bus.mit_control_all_at(&wires) {
+            let error = DavoutError::Bus(error);
+            self.stop_after_runtime_error(&error);
+            return Err(error);
+        }
         self.last_tick = Some(batch_tick);
         Ok(())
     }
@@ -1334,8 +1589,8 @@ impl<B: MotorBus> Supervisor<B> {
     /// `run_mode=2`, caps the target velocity, writes `limit_spd`, then writes
     /// `spd_ref`.
     pub fn send_speed_command(&mut self, cmd: SpeedCommand) -> Result<f64, DavoutError> {
+        self.require_fault_clear()?;
         validate_finite(&cmd.joint, "velocity", cmd.velocity_rad_s)?;
-        self.check_comm_watchdog(false)?;
         if self.hardware_estop {
             return Err(DavoutError::Estop);
         }
@@ -1355,13 +1610,25 @@ impl<B: MotorBus> Supervisor<B> {
         let wire_velocity =
             checked_wire_float(&motor.joint, "speed", capped.velocity_rad_s * scale)?;
         let address = MotorAddress::from(&motor);
-        self.bus.set_run_mode_at(&address, RunMode::Speed)?;
-        self.bus.write_parameter_at(
-            &address,
-            ParameterId::LimitSpeed,
-            ParameterValue::F32(wire_cap),
-        )?;
-        self.bus.speed_control_at(&address, wire_velocity)?;
+        if let Err(error) = self.check_comm_watchdog(false) {
+            self.stop_after_runtime_error(&error);
+            return Err(error);
+        }
+        let result = (|| {
+            self.bus.set_run_mode_at(&address, RunMode::Speed)?;
+            self.bus.write_parameter_at(
+                &address,
+                ParameterId::LimitSpeed,
+                ParameterValue::F32(wire_cap),
+            )?;
+            self.bus.speed_control_at(&address, wire_velocity)?;
+            Ok::<(), BusError>(())
+        })();
+        if let Err(error) = result {
+            let error = DavoutError::Bus(error);
+            self.stop_after_runtime_error(&error);
+            return Err(error);
+        }
         Ok(capped.velocity_rad_s)
     }
 
@@ -1373,12 +1640,17 @@ impl<B: MotorBus> Supervisor<B> {
             })?
             .clone();
         let address = MotorAddress::from(&motor);
-        self.bus.speed_control_at(&address, 0.0)?;
+        if let Err(error) = self.bus.speed_control_at(&address, 0.0) {
+            let error = DavoutError::Bus(error);
+            self.stop_after_runtime_error(&error);
+            return Err(error);
+        }
         Ok(())
     }
 
     /// Set firmware zero for a joint after mechanical homing.
     pub fn set_zero_position(&mut self, joint: &str) -> Result<(), DavoutError> {
+        self.require_fault_clear()?;
         if self.hardware_estop {
             return Err(DavoutError::Estop);
         }
@@ -1389,16 +1661,32 @@ impl<B: MotorBus> Supervisor<B> {
             })?
             .clone();
         let address = MotorAddress::from(&motor);
-        self.bus.set_zero_position_at(&address)?;
+        if let Err(error) = self.bus.set_zero_position_at(&address) {
+            let error = DavoutError::Bus(error);
+            self.stop_after_runtime_error(&error);
+            return Err(error);
+        }
         Ok(())
     }
 
     /// Disable all drives (best-effort zero speed, zero-torque MIT, then DISABLE).
     #[tracing::instrument(skip(self))]
     pub fn disable_all(&mut self) -> Result<(), DavoutError> {
+        let generation = self.fault_authority.begin_stop();
+        let mut report = StopReport {
+            generation,
+            attempts: Vec::with_capacity(self.motors.motors.len() * 3),
+        };
         for motor in &self.motors.motors {
             let address = MotorAddress::from(motor);
-            let _ = self.bus.speed_control_at(&address, 0.0);
+            let result = self.bus.speed_control_at(&address, 0.0);
+            report.attempts.push(StopAttempt {
+                address: address.clone(),
+                action: StopAction::ZeroSpeed,
+                error: result
+                    .err()
+                    .map(|error| bounded_message(&error.to_string())),
+            });
             let wire = MitCommand {
                 device_id: motor.device_id,
                 motor_type: motor.motor_type,
@@ -1408,11 +1696,25 @@ impl<B: MotorBus> Supervisor<B> {
                 kd: 0.0,
                 torque_ff_nm: 0.0,
             };
-            let _ = self.bus.mit_control_all_at(&[AddressedMitCommand {
+            let result = self.bus.mit_control_all_at(&[AddressedMitCommand {
                 address: address.clone(),
                 command: wire,
             }]);
-            let _ = self.bus.disable_drive_at(&address);
+            report.attempts.push(StopAttempt {
+                address: address.clone(),
+                action: StopAction::NeutralMit,
+                error: result
+                    .err()
+                    .map(|error| bounded_message(&error.to_string())),
+            });
+            let result = self.bus.disable_drive_at(&address);
+            report.attempts.push(StopAttempt {
+                address,
+                action: StopAction::Disable,
+                error: result
+                    .err()
+                    .map(|error| bounded_message(&error.to_string())),
+            });
         }
         self.mode = OperationalMode::Disabled;
         self.control_mode = ControlMode::Disabled;
@@ -1426,7 +1728,22 @@ impl<B: MotorBus> Supervisor<B> {
         self.last_tick = None;
         self.sync_active_reporting();
         debug!("supervisor DISABLED");
-        Ok(())
+        let failed_writes = report.failed_writes();
+        if failed_writes > 0 {
+            self.fault_authority.record(
+                FaultClass::StopDelivery,
+                None,
+                None,
+                "one or more stop writes failed; physical stop unconfirmed",
+                DeviceFaultEvidence::default(),
+            );
+        }
+        self.fault_authority.set_stop_report(report);
+        if failed_writes > 0 {
+            Err(DavoutError::StopDelivery { failed_writes })
+        } else {
+            Ok(())
+        }
     }
 
     /// Light status solicit for Hardware-page sensing (no continuous type-24).
@@ -3179,7 +3496,7 @@ mod tests {
         sup.bus.rx.push(ReceivedCanFrame {
             interface: Some("can0".to_string()),
             frame: CanFrame {
-                id: robstride::pack_ext_id(2, 1, robstride::DEFAULT_HOST_ID),
+                id: robstride::pack_ext_id(2, 1, robstride::DEFAULT_HOST_ID) | (2 << 22),
                 data: status,
                 extended: true,
             },
@@ -3262,7 +3579,7 @@ mod tests {
         let stationary_overspeed = ReceivedCanFrame {
             interface: Some("can0".to_string()),
             frame: CanFrame {
-                id: robstride::pack_ext_id(2, 1, robstride::DEFAULT_HOST_ID),
+                id: robstride::pack_ext_id(2, 1, robstride::DEFAULT_HOST_ID) | (2 << 22),
                 data: [0x7f, 0xff, 0xff, 0xff, 0x7f, 0xff, 0x00, 0xc8],
                 extended: true,
             },

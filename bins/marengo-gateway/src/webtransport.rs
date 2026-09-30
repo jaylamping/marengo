@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use armee_proto::prost::Message;
 use armee_proto::GatewaySubscribe;
+use rustls::pki_types::{pem::PemObject, CertificateDer, PrivateKeyDer};
 use tracing::{debug, info, warn};
 use web_transport_quinn::{ServerBuilder, Session};
 
@@ -121,8 +122,7 @@ fn pem_valid_for_webtransport(
     cert_file: &Path,
 ) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
     let pem = std::fs::read(cert_file)?;
-    let mut pem_slice = pem.as_slice();
-    let mut certs = rustls_pemfile::certs(&mut pem_slice);
+    let mut certs = CertificateDer::pem_slice_iter(&pem);
     let first = match certs.next() {
         Some(Ok(c)) => c,
         _ => return Ok(false),
@@ -224,8 +224,8 @@ fn tls_material_from_pem_files(
 ) -> Result<TlsMaterial, Box<dyn std::error::Error + Send + Sync>> {
     let cert_pem = std::fs::read(cert_file)?;
     let key_pem = std::fs::read(key_file)?;
-    let certs = rustls_pemfile::certs(&mut cert_pem.as_slice()).collect::<Result<Vec<_>, _>>()?;
-    let key = rustls_pemfile::private_key(&mut key_pem.as_slice())?.ok_or("missing private key")?;
+    let certs = CertificateDer::pem_slice_iter(&cert_pem).collect::<Result<Vec<_>, _>>()?;
+    let key = PrivateKeyDer::from_pem_slice(&key_pem)?;
     let first = certs.first().ok_or("no certificate in PEM")?;
     let cert_sha256 = cert_sha256_from_der(first.as_ref());
     let cert_sha256_base64 =
@@ -444,11 +444,67 @@ mod tests {
     use super::*;
 
     #[test]
-    fn cert_hash_is_stable_for_der_roundtrip() {
-        let generated = rcgen::generate_simple_self_signed(vec!["localhost".into()]).expect("cert");
-        let der = generated.cert.der();
-        let a = cert_sha256_from_der(der);
-        let b = cert_sha256_from_der(der);
-        assert_eq!(a, b);
+    fn tls_material_retains_certificate_chain_and_matching_key() {
+        use sha2::{Digest, Sha256};
+        let dir = tempfile::tempdir().expect("fixture directory");
+        let cert_path = dir.path().join("cert.pem");
+        let key_path = dir.path().join("key.pem");
+        persist_bench_tls_pem(&cert_path, &key_path).expect("certificate fixture");
+        let first = CertificateDer::from_pem_slice(&std::fs::read(&cert_path).expect("PEM"))
+            .expect("fixture DER");
+        let second = rcgen::generate_simple_self_signed(vec!["chain.fixture".into()])
+            .expect("second certificate");
+        let mut chain = std::fs::read_to_string(&cert_path).expect("certificate text");
+        chain.push_str(&second.cert.pem());
+        std::fs::write(&cert_path, chain).expect("chain fixture");
+        let material = load_or_generate_tls(Some(cert_path), Some(key_path)).expect("load chain");
+        assert_eq!(material.certs.len(), 2);
+        assert_eq!(material.certs[0], first);
+        assert_eq!(material.certs[1].as_ref(), second.cert.der().as_ref());
+        let expected_hash = base64::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            Sha256::digest(first.as_ref()),
+        );
+        assert_eq!(material.cert_sha256_base64, expected_hash);
+        let config = rustls::ServerConfig::builder_with_provider(std::sync::Arc::new(
+            rustls::crypto::ring::default_provider(),
+        ))
+        .with_safe_default_protocol_versions()
+        .expect("TLS versions")
+        .with_no_client_auth()
+        .with_single_cert(material.certs, material.key);
+        assert!(
+            config.is_ok(),
+            "parsed private key must match the leaf certificate"
+        );
+    }
+
+    #[test]
+    fn tls_material_rejects_empty_or_malformed_private_key() {
+        for key_pem in [
+            "",
+            "-----BEGIN PRIVATE KEY-----\n!invalid!\n-----END PRIVATE KEY-----\n",
+        ] {
+            let dir = tempfile::tempdir().expect("fixture directory");
+            let cert_path = dir.path().join("cert.pem");
+            let key_path = dir.path().join("key.pem");
+            persist_bench_tls_pem(&cert_path, &key_path).expect("certificate fixture");
+            let before = std::fs::read(&cert_path).expect("certificate bytes");
+            std::fs::write(&key_path, key_pem).expect("bad key fixture");
+            assert!(load_or_generate_tls(Some(cert_path.clone()), Some(key_path)).is_err());
+            assert_eq!(std::fs::read(cert_path).expect("preserved cert"), before);
+        }
+    }
+
+    #[test]
+    fn tls_material_rejects_malformed_certificate_chain() {
+        let dir = tempfile::tempdir().expect("fixture directory");
+        let cert_path = dir.path().join("cert.pem");
+        let key_path = dir.path().join("key.pem");
+        persist_bench_tls_pem(&cert_path, &key_path).expect("certificate fixture");
+        let mut chain = std::fs::read_to_string(&cert_path).expect("certificate text");
+        chain.push_str("-----BEGIN CERTIFICATE-----\n!invalid!\n-----END CERTIFICATE-----\n");
+        std::fs::write(&cert_path, chain).expect("bad chain fixture");
+        assert!(load_or_generate_tls(Some(cert_path), Some(key_path)).is_err());
     }
 }

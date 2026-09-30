@@ -141,11 +141,14 @@ must not replace explicit boundary cases.
 
 ### CS04: complete fault decoding and explicit recovery (C1, P1, partial)
 
-Batch02 repairs fault-only pose timestamps. Complete fault decoding and latching
-below remain the next dependency-ready safety repair.
+Batch02 repairs fault-only pose timestamps. [Batch03](batch03-fault-authority.md)
+adds ordered raw fault/status domains and persistent authority. Malformed DLC,
+installed firmware qualification and explicit recovery remain open; the local
+primary, independent review and actual Linux virtual CAN CI pass.
 
-Represent detailed vendor faults with at least `u32`, decode documented status ID
-bits and drive mode separately, and retain the complete type-21 field. A fault
+Retain all four detailed-fault bytes and four warning bytes; a typed word/identity
+requires qualified firmware byte order. Decode documented status ID bits and
+drive mode separately, and retain the complete type-21 field. A fault
 report must not fabricate a zero position sample or count as new pose feedback.
 Davout latches decoded faults independently of later healthy status; clear only
 through an explicit recovery transaction with fresh evidence.
@@ -198,7 +201,13 @@ verification and persistence failure. Every armed path attempts stop; validation
 failures send no enable frames. Exit codes and user outcomes match the observed
 bus/result sequence. Source-string checks do not establish this contract.
 
-### CS08: stop failures remain visible (C2, P1, open)
+### CS08: stop failures remain visible (C2, P1, verified software repair)
+
+Batch03 adds typed failure return, all-address/action stop attempts and a
+read-only StopReport retaining first failed delivery alongside the initiating
+fault. The baseline all-TX failure now fails honestly. Publication through Pi
+and correlated command outcomes accompanies the CS13/C3 owner migration;
+physical confirmation and drive-side fail-safe remain separate acceptance.
 
 Attempt zero speed, neutral MIT and disable on every configured/active address,
 collect all failures, and return a typed aggregate outcome. Separate software
@@ -250,7 +259,12 @@ tests. When C1 adds an injectable control clock, replace the single 30 ms sleep
 with deterministic virtual time without losing its outgoing-frame assertion.
 Reference/fault recovery authorization is C2/C3, not implied by this limiter fix.
 
-### CS12: every feedback-ingestion violation takes effect (C1, P2, open)
+### CS12: every feedback-ingestion violation takes effect (C1, P2, verified software repair)
+
+Batch03 propagates both post-send drains and planner-entry errors, checks the
+persistent latch before new intent, and cancels retained intent after stop.
+Ten public baseline regressions fail before repair and pass the primary gate,
+including every ControlMode and actual post-send unsafe pose injection.
 
 Davout latches safety faults as it ingests feedback, before returning. Berthier
 propagates all pre-send, post-send and mode-entry refresh errors. Benign empty RX
@@ -262,7 +276,12 @@ overspeed or fault-bearing sample immediately after send. Test each control mode
 through real `ControlLoop::tick`; no subsequent motion is emitted, and fault
 state survives the next healthy/Disabled tick and a missed telemetry publication.
 
-### CS13: persistent fault state and stop generation (C1/C3, P2, open)
+### CS13: persistent fault state and stop generation (C1/C3, P2, partial)
+
+Batch03 implements private Davout authority and Berthier stop-generation
+invalidation. No reset API is supplied. Pi/protobuf publication, other owner
+failure classes, boot/device-qualified recovery, process-reconstruction bypass
+closure and queued-command session/generation admission remain open.
 
 Move the transient Pi `Option<String>` into Davout's fault authority with class,
 first occurrence, evidence and recovery policy. Publish it until explicit reset.

@@ -6,7 +6,11 @@ use std::time::{Duration, Instant};
 
 use davout::{JointCommand, MitJointCommand, SpeedCommand, Supervisor};
 use marengo_config::{MotorEntry, MotorType};
-use robstride::{BusError, CanBus, CanFrame, MemoryBus, MotorAddress, MotorBus, MotorState};
+use robstride::{
+    BusError, CanBus, CanFrame, DetailedFaultFeedback, DriveMode, FeedbackEvent,
+    FeedbackObservation, FeedbackReport, MemoryBus, MitFeedback, MotorAddress, MotorBus,
+    MotorState,
+};
 
 #[derive(Default)]
 struct ScriptBus {
@@ -22,16 +26,44 @@ impl CanBus for ScriptBus {
 }
 
 impl MotorBus for ScriptBus {
-    fn recv_all_addressed(
+    fn recv_feedback_report(
         &mut self,
         _types: &HashMap<MotorAddress, MotorType>,
-        states: &mut HashMap<MotorAddress, MotorState>,
         _budget: Duration,
         _quiet: Duration,
-    ) -> Result<usize, BusError> {
-        let count = self.pending.len();
-        states.extend(self.pending.drain());
-        Ok(count)
+    ) -> FeedbackReport {
+        let observations = self
+            .pending
+            .drain()
+            .map(|(address, state)| {
+                let event = if state.updated.is_some() {
+                    FeedbackEvent::Status(MitFeedback {
+                        device_id: address.device_id,
+                        position_rad: state.position_rad,
+                        velocity_rad_s: state.velocity_rad_s,
+                        torque_nm: state.torque_nm,
+                        temperature_c: state.temperature_c,
+                        fault: state.fault,
+                        status_flags: state.fault as u8,
+                        drive_mode: DriveMode::Run,
+                    })
+                } else {
+                    FeedbackEvent::DetailedFault(DetailedFaultFeedback {
+                        raw: [u8::from(state.fault != 0), 0, 0, 0, 0, 0, 0, 0],
+                    })
+                };
+                FeedbackObservation {
+                    address,
+                    received_at: state.updated.unwrap_or_else(Instant::now),
+                    can_id: 0,
+                    event,
+                }
+            })
+            .collect();
+        FeedbackReport {
+            observations,
+            terminal_error: None,
+        }
     }
 }
 
@@ -50,7 +82,7 @@ impl CanBus for EnableQueueBus {
             // A drive can reply during the Enable send, before Davout has
             // finished run-mode writes or established the new receive session.
             self.inner.rx_queue.push(CanFrame {
-                id: (2 << 24) | ((frame.id & 0xff) << 8) | 0xfd,
+                id: (2 << 24) | (2 << 22) | ((frame.id & 0xff) << 8) | 0xfd,
                 data: [0x7f, 0xff, 0x7f, 0xff, 0x7f, 0xff, 0, 0xc8],
                 extended: true,
             });
@@ -131,6 +163,35 @@ fn receive(supervisor: &mut Supervisor<ScriptBus>, motors: &[MotorEntry]) {
     supervisor.drain_feedback().expect("valid status");
 }
 
+fn assert_only_stop_traffic(frames: &[CanFrame]) {
+    for frame in frames {
+        assert!(
+            matches!(frame.id >> 24, 1 | 4 | 18 | 24),
+            "unexpected stop communication type {}",
+            frame.id >> 24
+        );
+        match frame.id >> 24 {
+            1 => {
+                assert_eq!((frame.id >> 8) & 0xffff, 0x7fff, "nonzero stop FF");
+                assert_eq!(&frame.data[2..4], &[0x7f, 0xff], "nonzero stop velocity");
+                assert_eq!(&frame.data[4..8], &[0, 0, 0, 0], "nonzero stop gains");
+            }
+            4 => assert_eq!(frame.data[0], 0, "ordinary stop cleared firmware fault"),
+            18 => assert_eq!(
+                &frame.data[4..8],
+                &[0, 0, 0, 0],
+                "nonzero speed/parameter write"
+            ),
+            24 => {
+                assert_eq!(&frame.data[0..6], &[1, 2, 3, 4, 5, 6]);
+                assert!(frame.data[6] <= 1);
+                assert_eq!(frame.data[7], 0);
+            }
+            _ => {}
+        }
+    }
+}
+
 #[test]
 fn nonneutral_motion_requires_post_enable_feedback_even_during_bootstrap() {
     let mut supervisor = supervisor::<ScriptBus>();
@@ -179,7 +240,7 @@ fn empty_drains_and_unknown_traffic_do_not_refresh_expired_pose() {
             supervisor.send_mit_batch(vec![command(&pitch)]).is_err(),
             "empty/unknown drains refreshed expired pose (unknown={unknown_traffic})"
         );
-        assert!(supervisor.bus_mut().tx.is_empty());
+        assert_only_stop_traffic(&supervisor.bus_mut().tx);
     }
 }
 
@@ -198,7 +259,7 @@ fn one_live_peer_cannot_mask_a_silent_active_motor() {
         supervisor.send_mit_batch(vec![command(&pitch)]).is_err(),
         "live pitch masked silent roll"
     );
-    assert!(supervisor.bus_mut().tx.is_empty());
+    assert_only_stop_traffic(&supervisor.bus_mut().tx);
 }
 
 #[test]
@@ -268,7 +329,7 @@ fn status_queued_during_enable_cannot_authorize_new_motion() {
     assert!(supervisor.bus_mut().inner.tx.is_empty());
 
     supervisor.bus_mut().inner.rx_queue.push(CanFrame {
-        id: (2 << 24) | (u32::from(pitch.device_id) << 8) | 0xfd,
+        id: (2 << 24) | (2 << 22) | (u32::from(pitch.device_id) << 8) | 0xfd,
         data: [0x7f, 0xff, 0x7f, 0xff, 0x7f, 0xff, 0, 0xc8],
         extended: true,
     });
@@ -487,7 +548,7 @@ fn nonfinite_feedback_is_rejected_before_cache_or_freshness_update() {
 }
 
 #[test]
-fn invalid_feedback_blocks_cached_pose_until_a_new_valid_sample_arrives() {
+fn new_valid_diagnostics_cannot_clear_an_invalid_feedback_fault() {
     let mut supervisor = supervisor::<ScriptBus>();
     let pitch = motor(&supervisor, "right_shoulder_pitch");
     activate(&mut supervisor, std::slice::from_ref(&pitch));
@@ -524,10 +585,13 @@ fn invalid_feedback_blocks_cached_pose_until_a_new_valid_sample_arrives() {
     assert!(supervisor.bus_mut().tx.is_empty());
 
     receive(&mut supervisor, std::slice::from_ref(&pitch));
-    supervisor
-        .send_mit_batch(vec![command(&pitch)])
-        .expect("new valid pose restores admission");
-    assert_eq!(supervisor.bus_mut().tx.len(), 1);
+    assert!(
+        supervisor.joint_feedback(&pitch.joint).is_some(),
+        "new valid diagnostic pose"
+    );
+    assert!(supervisor.send_mit_batch(vec![command(&pitch)]).is_err());
+    assert!(supervisor.has_latched_fault());
+    assert!(supervisor.bus_mut().tx.is_empty());
 }
 
 #[test]
@@ -544,7 +608,7 @@ fn replayed_sample_cannot_poison_current_pose_or_velocity_policy() {
     receive(&mut supervisor, std::slice::from_ref(&pitch));
 
     let mut replay = status(original);
-    replay.position_rad = 999.0;
+    replay.position_rad = 0.01; // Safe old pose must not replace current pose or mutate derivative trips.
     replay.velocity_rad_s = 50.0;
     supervisor
         .bus_mut()

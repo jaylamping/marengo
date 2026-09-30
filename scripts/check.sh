@@ -134,27 +134,9 @@ cargo clippy --workspace --all-targets -- -D warnings
 echo "==> cargo test"
 cargo test --workspace
 
-echo "==> cargo deny"
-if command -v cargo-deny >/dev/null 2>&1; then
-  cargo deny check --disable-fetch
-elif [[ "${CI_MODE}" == true ]]; then
-  fail "cargo-deny not installed"
-else
-  echo "warn: cargo-deny not installed, skipping"
-fi
-
-echo "==> cargo audit"
-if command -v cargo-audit >/dev/null 2>&1; then
-  if [[ "${CI_MODE}" == true ]]; then
-    cargo audit
-  else
-    cargo audit || echo "warn: cargo audit reported advisories"
-  fi
-elif [[ "${CI_MODE}" == true ]]; then
-  fail "cargo-audit not installed"
-else
-  echo "warn: cargo-audit not installed, skipping"
-fi
+echo "==> dependency gate contracts"
+bash "${ROOT}/scripts/check-dependencies.test.sh"
+bash "${ROOT}/scripts/check-dependencies.sh"
 
 echo "==> cross-build smoke (aarch64)"
 if command -v aarch64-linux-gnu-gcc >/dev/null 2>&1; then

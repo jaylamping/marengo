@@ -99,6 +99,8 @@ pub struct ControlLoop<B: MotorBus> {
     tick_phase: TickPhaseAccumulator,
     /// Previous enable-session marker, including re-enable between controller ticks.
     last_enable_session: Option<Instant>,
+    /// Stop invalidates retained planners even if Disable/Enable occurs between ticks.
+    last_stop_generation: u64,
     /// Ticks allowed without joint feedback immediately after enable (post-homing tick_count > 0).
     active_feedback_grace_ticks: u8,
     /// Testing overrides + mode-transition kp/kd ramp + per-tick resolve.
@@ -213,6 +215,7 @@ impl<B: MotorBus> ControlLoop<B> {
             position_trace: PositionTrace::from_env(loop_hz),
             tick_phase: TickPhaseAccumulator::default(),
             last_enable_session: None,
+            last_stop_generation: 0,
             active_feedback_grace_ticks: 0,
             gains: GainRuntime::new(),
             torque_cmds: TorqueCmdLatch::new(),
@@ -226,9 +229,14 @@ impl<B: MotorBus> ControlLoop<B> {
     }
 
     /// Capture current joint positions as hold targets and commands (no ramp).
-    pub fn latch_position_setpoints(&mut self) {
-        let q = self.refresh_joint_positions();
-        self.position_hold.arm(&q, &q, self.tick_count);
+    pub fn latch_position_setpoints(&mut self) -> Result<(), LoopError> {
+        let q = self.refresh_joint_positions()?;
+        self.latch_position_from_q(&q);
+        Ok(())
+    }
+
+    fn latch_position_from_q(&mut self, q: &[f64]) {
+        self.position_hold.arm(q, q, self.tick_count);
         for (i, name) in self.joint_names.iter().enumerate() {
             let dq = self.joint_velocity(name);
             self.position_hold.seed_dq_filter(i, dq);
@@ -249,15 +257,15 @@ impl<B: MotorBus> ControlLoop<B> {
         joint: &str,
         position_rad: f64,
     ) -> Result<(), LoopError> {
-        if !self.position_hold.is_armed() {
-            self.latch_position_setpoints();
-        }
         let Some(i) = self.joint_names.iter().position(|n| n == joint) else {
             return Err(LoopError::UnknownJoint {
                 joint: joint.to_string(),
             });
         };
-        let q_now = self.refresh_joint_positions();
+        let q_now = self.refresh_joint_positions()?;
+        if !self.position_hold.is_armed() {
+            self.latch_position_from_q(&q_now);
+        }
         let requested = self.hold_target_trim(joint, position_rad);
         let dq_cmd = self.estimated_retarget_dq_cmd(joint, q_now[i], requested);
         let slew = self
@@ -411,7 +419,7 @@ impl<B: MotorBus> ControlLoop<B> {
                 joint: joint.to_string(),
             });
         };
-        let q = self.refresh_joint_positions();
+        let q = self.refresh_joint_positions()?;
         let was_armed = self.position_hold.is_armed();
         self.position_hold.ensure_armed_from_q(&q, self.tick_count);
         if !was_armed {
@@ -453,7 +461,7 @@ impl<B: MotorBus> ControlLoop<B> {
 
     /// Latch current `q` and enter [`ControlMode::Position`] (gravity FF + impedance gains).
     pub fn enter_position_hold(&mut self) -> Result<(), LoopError> {
-        self.latch_position_setpoints();
+        self.latch_position_setpoints()?;
         self.ensure_active_for_motion()?;
         self.set_control_mode(ControlMode::Position);
         Ok(())
@@ -465,6 +473,7 @@ impl<B: MotorBus> ControlLoop<B> {
     /// Targets come from [`Supervisor::resolve_enable_targets`] (persisted scope or
     /// full-master Robot Ready).
     pub fn ensure_active_for_motion(&mut self) -> Result<(), LoopError> {
+        self.synchronize_stop_generation();
         if self.supervisor.mode() == OperationalMode::Active {
             return Ok(());
         }
@@ -488,7 +497,7 @@ impl<B: MotorBus> ControlLoop<B> {
         joint: Option<&str>,
         position_rad: f64,
     ) -> Result<(), LoopError> {
-        let q = self.refresh_joint_positions();
+        let q = self.refresh_joint_positions()?;
         if !self.position_hold.is_armed() {
             self.position_hold.arm(&q, &q, self.tick_count);
             for (i, name) in self.joint_names.iter().enumerate() {
@@ -522,6 +531,11 @@ impl<B: MotorBus> ControlLoop<B> {
     }
 
     pub fn set_control_mode(&mut self, mode: ControlMode) {
+        self.synchronize_stop_generation();
+        self.set_control_mode_inner(mode);
+    }
+
+    fn set_control_mode_inner(&mut self, mode: ControlMode) {
         let previous = self.control_mode;
         // Capture ramp endpoints before mutating mode or clearing overrides.
         let from = {
@@ -567,6 +581,7 @@ impl<B: MotorBus> ControlLoop<B> {
     /// until leaving TorqueOnly. Default when unset is 0. Rejects unknown joints
     /// and non-finite values.
     pub fn set_torque_cmd(&mut self, joint_name: &str, tau_nm: f64) -> Result<(), LoopError> {
+        self.synchronize_stop_generation();
         if !self.joint_names.iter().any(|n| n == joint_name) {
             return Err(LoopError::UnknownJoint {
                 joint: joint_name.to_string(),
@@ -577,6 +592,7 @@ impl<B: MotorBus> ControlLoop<B> {
                 joint: joint_name.to_string(),
             });
         }
+        self.supervisor.check_fault_authority()?;
         if self.control_mode != ControlMode::TorqueOnly {
             self.set_control_mode(ControlMode::TorqueOnly);
         }
@@ -749,6 +765,34 @@ impl<B: MotorBus> ControlLoop<B> {
 
     /// One control cycle: recv → compute → send → optional Chappe publish.
     pub fn tick(&mut self, chappe: Option<&Bus>) -> Result<(), LoopError> {
+        self.synchronize_stop_generation();
+        let result = self.tick_inner(chappe);
+        if let Err(error) = &result {
+            match error {
+                LoopError::MissingFeedback { joint } => self.supervisor.latch_control_fault(
+                    "current-enable feedback missing after neutral bootstrap",
+                    Some(joint),
+                ),
+                LoopError::AscentStall { joint, .. } => self.supervisor.latch_control_fault(
+                    "position recovery stalled without measured progress",
+                    Some(joint),
+                ),
+                _ => {}
+            }
+            if matches!(
+                error,
+                LoopError::Safety(_)
+                    | LoopError::MissingFeedback { .. }
+                    | LoopError::AscentStall { .. }
+            ) {
+                self.discard_motion_intent();
+                self.last_stop_generation = self.supervisor.stop_generation();
+            }
+        }
+        result
+    }
+
+    fn tick_inner(&mut self, chappe: Option<&Bus>) -> Result<(), LoopError> {
         let mut phase = TickPhaseSample::default();
         let mut t = Instant::now();
 
@@ -1034,7 +1078,7 @@ impl<B: MotorBus> ControlLoop<B> {
                 let batch = self.filter_mit_to_active(batch);
                 self.supervisor.send_mit_batch(batch)?;
                 (phase.send_us, t) = phase_elapsed_us(t);
-                let _ = self.supervisor.drain_feedback();
+                self.supervisor.drain_feedback()?;
                 self.gains.advance_tick();
             } else {
                 // Robstride only streams status after MIT frames; hold current q with zero
@@ -1070,7 +1114,7 @@ impl<B: MotorBus> ControlLoop<B> {
                 (phase.compose_us, t) = phase_elapsed_us(t);
                 self.supervisor.send_mit_batch(batch)?;
                 (phase.send_us, t) = phase_elapsed_us(t);
-                let _ = self.supervisor.drain_feedback();
+                self.supervisor.drain_feedback()?;
             }
         }
 
@@ -1093,9 +1137,32 @@ impl<B: MotorBus> ControlLoop<B> {
     }
 
     /// Poll bus feedback, then read cached joint positions for planner init.
-    fn refresh_joint_positions(&mut self) -> Vec<f64> {
-        let _ = self.supervisor.drain_feedback();
-        self.read_positions()
+    fn refresh_joint_positions(&mut self) -> Result<Vec<f64>, LoopError> {
+        self.synchronize_stop_generation();
+        if let Err(error) = self
+            .supervisor
+            .drain_feedback()
+            .and_then(|_| self.supervisor.check_fault_authority())
+        {
+            self.discard_motion_intent();
+            self.last_stop_generation = self.supervisor.stop_generation();
+            return Err(error.into());
+        }
+        Ok(self.read_positions())
+    }
+
+    fn discard_motion_intent(&mut self) {
+        self.set_control_mode_inner(ControlMode::Disabled);
+        self.torque_cmds.clear_all();
+        self.active_feedback_grace_ticks = 0;
+    }
+
+    fn synchronize_stop_generation(&mut self) {
+        let generation = self.supervisor.stop_generation();
+        if generation != self.last_stop_generation {
+            self.discard_motion_intent();
+            self.last_stop_generation = generation;
+        }
     }
 
     fn has_joint_feedback(&self, joint: &str) -> bool {

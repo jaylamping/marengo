@@ -217,6 +217,35 @@ generation ownership. Docker's stale runtime socket error recurred and the
 preserving recovery passed; M08 retains the unexplained initiating exit and
 upstream Windows socket dependency.
 
+## Third batch: persistent fault evidence and truthful stop
+
+The [third batch report](batch03-fault-authority.md) records ordered driver
+evidence, Davout's private fault authority, all-address stop outcomes and
+Berthier error/intent handling in [PR215](https://github.com/jaylamping/marengo/pull/215). CS08/CS12 are verified software repairs;
+CS04/CS13 remain partial. Primary and independent reviews pass: 598 Rust tests
+(one ignored), 355 frontend, 72 Pi MCP, strict lint/build and aarch64 release.
+Simulation's five tests and minimal engine smoke pass; they do not qualify the
+production plant. Docker Desktop's current kernel lacks virtual CAN, so that
+gate ran on GitHub Linux: both virtual CAN tests pass, including the new lossless
+report test in zero/positive budget modes. All five GitHub code checks pass at
+`3feeab4`; the final evidence revision receives applicable checks before merge.
+
+Three driver and fifteen Supervisor regressions fail on the unchanged baseline;
+ten controller regressions catch hidden errors, early intent installation and
+rearm/replay. Review found and fixed a new false-overspeed fault for valid queued
+traffic, preserving its positive public guard alongside hazard tests. Two weak
+fault/TLS tests are replaced with raw-domain/order and real chain/key/failure
+contracts. The remaining legacy test-quality audit stays open.
+
+Dependency scanning now requires current database/index fetch and treats
+incomplete coverage as a failure. The final primary scan has zero index
+failures; the newly exposed unmaintained PEM dependency is removed through the
+maintained parser and axum-server 0.8. Paste remains M01. T26 still requires its
+other behavior suites and production-tool audits. Next is frame-envelope
+integrity and bounded fair receive/enable flush work, followed by reference and
+recovery transactions; neither host dequeue time nor process reconstruction is
+physical recovery evidence.
+
 ## Completion and continuation
 
 The active thread heartbeat **Marengo repair loop** continues every 30 minutes

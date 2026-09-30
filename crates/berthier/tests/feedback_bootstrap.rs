@@ -46,6 +46,44 @@ fn assert_neutral_frames(controller: &mut ControlLoop<MemoryBus>) {
     }
 }
 
+fn assert_stopped(controller: &mut ControlLoop<MemoryBus>) {
+    let snapshot = controller.supervisor().safety_snapshot();
+    assert!(snapshot.is_latched());
+    assert_eq!(controller.control_mode(), ControlMode::Disabled);
+    let report = snapshot.last_stop.expect("stop outcome");
+    assert_eq!(report.failed_writes(), 0);
+    assert_eq!(
+        report.attempts.len(),
+        controller.supervisor().motors.motors.len() * 3
+    );
+    for frame in &controller.supervisor_mut().bus_mut().tx {
+        match (frame.id >> 24) & 0x1f {
+            1 => {
+                assert_eq!((frame.id >> 8) & 0xffff, 0x7fff);
+                assert_eq!(&frame.data[2..4], &[0x7f, 0xff]);
+                assert_eq!(&frame.data[4..8], &[0, 0, 0, 0]);
+            }
+            4 => assert_eq!(
+                frame.data, [0; 8],
+                "routine stop never clears device faults"
+            ),
+            18 => {
+                assert_eq!(
+                    &frame.data[0..2],
+                    &[0x0a, 0x70],
+                    "only zero speed during stop"
+                );
+                assert_eq!(&frame.data[4..8], &[0; 4]);
+            }
+            24 => {} // Free-drive diagnostics may resume after software Disable.
+            other => assert!(
+                matches!(other, 1 | 4 | 18 | 24),
+                "unexpected stop frame type {other}"
+            ),
+        }
+    }
+}
+
 #[test]
 fn active_feedback_bootstrap_emits_only_neutral_frames_then_expires() {
     let mut controller = enabled_controller();
@@ -58,7 +96,7 @@ fn active_feedback_bootstrap_emits_only_neutral_frames_then_expires() {
         controller.tick(None),
         Err(LoopError::MissingFeedback { .. })
     ));
-    assert!(controller.supervisor_mut().bus_mut().tx.is_empty());
+    assert_stopped(&mut controller);
 }
 
 #[test]
@@ -67,11 +105,6 @@ fn reenable_between_ticks_starts_a_new_bounded_neutral_bootstrap() {
     for _ in 0..2 {
         controller.tick(None).expect("first bootstrap tick");
     }
-    assert!(matches!(
-        controller.tick(None),
-        Err(LoopError::MissingFeedback { .. })
-    ));
-
     // No controller tick observes Disabled. The enable session, rather than
     // only the last observed operational mode, owns the fresh feedback window.
     controller
@@ -89,6 +122,7 @@ fn reenable_between_ticks_starts_a_new_bounded_neutral_bootstrap() {
         .supervisor_mut()
         .enable_targets(&targets)
         .expect("recording re-enable");
+    controller.set_control_mode(ControlMode::Impedance);
     controller.supervisor_mut().bus_mut().tx.clear();
     for _ in 0..2 {
         controller.tick(None).expect("new session bootstrap tick");
@@ -99,7 +133,7 @@ fn reenable_between_ticks_starts_a_new_bounded_neutral_bootstrap() {
         controller.tick(None),
         Err(LoopError::MissingFeedback { .. })
     ));
-    assert!(controller.supervisor_mut().bus_mut().tx.is_empty());
+    assert_stopped(&mut controller);
 }
 
 #[test]
@@ -131,6 +165,7 @@ fn neutral_bootstrap_supports_taught_ranges_that_exclude_zero() {
             .supervisor_mut()
             .enable_targets(&[joint.into()])
             .expect("scoped enable");
+        controller.set_control_mode(ControlMode::Impedance);
         assert!(controller.supervisor().joint_feedback(joint).is_none());
         controller.supervisor_mut().bus_mut().tx.clear();
         for _ in 0..2 {
@@ -157,6 +192,6 @@ fn neutral_bootstrap_supports_taught_ranges_that_exclude_zero() {
             controller.tick(None),
             Err(LoopError::MissingFeedback { .. })
         ));
-        assert!(controller.supervisor_mut().bus_mut().tx.is_empty());
+        assert_stopped(&mut controller);
     }
 }

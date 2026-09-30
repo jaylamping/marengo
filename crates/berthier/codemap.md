@@ -16,6 +16,7 @@ Owns `ControlLoop::tick` — the heartbeat of the robot. Also provides a legacy 
 - `Controller<B: MotorBus>` — lighter facade wrapping `Supervisor<B>` for single-joint commands (REPL / bench).
 - `ControlMode` — re-exported from `davout`: `Disabled`, `GravityComp`, `TorqueOnly`, `Impedance`, `Position`.
 - `GainOverride` — runtime per-joint gain override from Testing page; public setters reject unknown joints, nonfinite fields and negative gains before mutation, preflight batches, then clamp to motor-type limits; cleared on GravityComp/TorqueOnly/Disabled enter.
+- Davout's monotonic stop generation invalidates old planner, Wave and torque intent, including disable/re-enable between ticks. Planner refresh propagates receive errors and checks persistent fault authority before installing intent; new torque requests also check that authority.
 
 ### Modules (position-hold subsystem, `ControlMode::Position`)
 - `gain_runtime` — `GainRuntime`, ModeGainPolicy (`mode_allows_gain_override`, `target_gains_from_yaml`, `effective_wire_gains`), override clamp, ramp arm/advance, `resolve_all`.
@@ -43,7 +44,7 @@ Owns `ControlLoop::tick` — the heartbeat of the robot. Also provides a legacy 
 4. **Resolve gains**: `GainRuntime::resolve_all` — law_* (override or impedance YAML) + wire_* (override > ramp > YAML target).
 5. **Position hold** (Position mode only): `PositionHold::tick(HoldWorld)` with law_* params; patch MIT `kp` from `wire_kp` only.
 6. **Compose MIT batch** (non-Position modes): `MitFeedforward::compose` — GravityComp `τ_ff=τ_g` with wire gains; TorqueOnly `τ_ff=τ_cmd` (kp/kd=0); Impedance adds friction (`fc` from resolve) + wire gains.
-7. **Send batch**: `Supervisor::send_mit_batch(cmds)` — goes through Davout's filter pipeline; then `GainRuntime::advance_tick`.
+7. **Send batch**: `Supervisor::send_mit_batch(cmds)` — goes through Davout's filter pipeline; post-send feedback errors propagate before gain/tick success. Safety failures discard motion intent; missing-feedback exhaustion and ascent stalls additionally latch a controller fault through Davout and attempt stop.
 8. **Publish Chappe telemetry** at reduced rate (e.g. 20 Hz vs 200 Hz loop).
 
 ## Integration

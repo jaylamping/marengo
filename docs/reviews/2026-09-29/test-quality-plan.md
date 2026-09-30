@@ -130,6 +130,22 @@ The unchanged external queue probe independently confirms the enable repair.
 CS04 fault-latch, CS12 discarded-error and CS13 recovery tests still need their
 corresponding implementation; a green admission suite does not close them.
 
+Batch03 now supplies full ordered raw domains, a persistent supervisor latch,
+honest failed stop and controller propagation regressions. Three existing-driver
+API and fifteen Supervisor cases fail the unchanged e830 baseline; ten
+controller cases fail before repair and pass the final primary. New-interface
+snapshot/report tests are conformance evidence, not baseline compile-failure
+proof. A valid queued-pose case passed baseline, failed the intermediate
+candidate and passed after repair; it is retained to prevent false safety trips.
+Only the truncated private fault-word assertion and same-input TLS hash check
+are retired here. Real PEM chain/key/malformed-material tests preserve loader
+behavior. Primary has 598 Rust tests, 355 frontend and 72 Pi MCP passing; other
+legacy test replacements, persistent Pi publication/recovery and production
+plant acceptance remain required. Actual virtual CAN runs on Linux CI because
+the local Docker Desktop kernel rejects vcan; it cannot be invented as a local
+pass. Real scanner missing-index/database/refresh failures prove the repaired
+coverage gate, alongside four fast CLI failure-propagation contracts.
+
 Archived baseline and candidate sources must use separate Cargo target paths.
 Reusing identical container paths/mtime-based outputs produced one stale compile
 artifact in this batch; affected package artifacts were cleaned and the final
