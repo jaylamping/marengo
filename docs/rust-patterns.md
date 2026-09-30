@@ -185,6 +185,32 @@ Do not fold `max_lead` into the planner accumulator — that freezes the referen
 
 ## 9. Unsafe
 
+### Reference authority in safety tests
+
+Historical calibration and scalar verification are inspectable evidence, not
+motor permission. Davout owns private current-reference authority at Ready,
+every Enable path, receive conversion, public facets and motion output. Ordinary
+constructors cannot acquire it from a mutable registry, cached pose or recording
+bus. Unqualified reference requests return a typed refusal before arming or
+history writes; Disable remains independent of reference permission.
+
+Positive controller/safety tests use the concrete closed
+`davout::simulation::SimulationBus` and specialized `from_simulation` factory.
+`InitialVirtualReference` declares starting conditions only. Finite raw frames
+and transmit rules exercise the shared production receive/admission/stop/output
+implementation. The mutable simulation facade exposes data scripts and trace,
+with no transport replacement/extraction or arbitrary callback. Observe actual
+script trigger counts, literal wire output, typed errors and preserved stop/fault
+evidence. Constructor grants do not qualify a reference transaction or hardware.
+
+Keep public red-to-green probes byte-identical in separately bound archived
+snapshots. API-removal compile denials are isolation conformance, not behavioral
+baseline failures. Provide stationary or coherent measured inputs independent
+of planner output; a planner echo cannot prove controller tracking. Use fixed-dt
+law inputs for progress semantics, and raw controller/wire cases for fault and
+stop propagation. [ADR0023](decisions/0023-private-current-reference-authority.md)
+records the boundary and its remaining transaction work.
+
 - Workspace lint `unsafe_code = "forbid"` on all crates (see root `cargo.toml` `[workspace.lints]`) unless an ADR documents an exception.
 
 ## 10. Dependencies

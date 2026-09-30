@@ -75,7 +75,7 @@ at its external boundary.
 | C2: reference, enable, and stop transactions | C0 + C1 | `ReferenceSession` binds robot/model/motor identity and current-boot validity; `StopOutcome` records every address attempt and uncertainty; enable verifies drive-local limits/timeouts | CS05, CS06, CS07, CS08, CS09, CS10 |
 | C3: one motion owner and atomic requests | C1 + C2 | Runtime `MotionSession` accepts typed intent with request ID, generation, bounded lease and outcome; Berthier is its executor; CLI and Consul are clients | CS19, CS20; coordinated F01–F04/F07 and transport/auth work |
 | C4: one policy and durable config authority | C0 + C1 + C3 | Prepare a policy revision against fresh Disabled feedback; install an immutable generation; serialize persistence/URDF promotion and correlated outcomes in one owner | CS14, CS16; coordinated G04–G09/G21 and T02/T03 |
-| C5: trustworthy sensors and independent physics | C0; production controller scenarios also need C1–C4 | IMU separates new samples from diagnostic cache; dynamics validates supported topology; independent analytical and plant fixtures exercise real production control | CS17, CS18, CS21, newly identified CS23; coordinated T27/T28 |
+| C5: trustworthy sensors and independent physics | C0; production controller scenarios also need C1–C4 | IMU separates new samples from diagnostic cache; dynamics validates supported topology; independent analytical and plant fixtures exercise real production control | CS17, CS18, CS21, CS23, CS24; coordinated T27/T28 |
 | C6: desktop portability | Can begin independently; integrate with C1 transport work | Chappe separates platform-neutral framing/pubsub from Unix transport; compile-time selected adapters and portable pure tests; robot hardware backends stay Linux | CS22 = G11 |
 
 C0–C2 are prerequisites for returning to physical commissioning. C3 is a
@@ -182,7 +182,21 @@ identity field, failed sign attestation, invalid pose, incompatible model revisi
 and a new boot generation. Old records remain inspectable while enable emits no
 enable frame. Only fresh reference verification changes current readiness.
 
-### CS06: Set Zero verifies a post-command response (C2, P1, open)
+R1b ([batch06](batch06-private-reference-admission.md),
+[ADR0023](../../decisions/0023-private-current-reference-authority.md)) gates all
+Ready/Enable/output using private owner-local authority and closes mutable bus,
+registry and naked grant paths. Ordinary reference acquisition explicitly refuses
+before arming/write; only closed virtual initial conditions are admitted. Relevant
+observed policy edits revoke permanently, and rejected model restores are atomic.
+Same-type whole-owner replacement and coordinated controller/model installation
+remain CS15/CS21; qualified acquisition/device/reset/transaction evidence remains
+required. Local final primary and independent reviews pass; exact-head delivery
+is tracked by the ledger.
+
+### CS06: Set Zero verifies a post-command response (C2, P1, partial)
+
+Batch06 removes cached/unqualified success and invalid scalar history writes.
+This is truthful refusal, not completed correlated transaction acquisition.
 
 Calibration drains prior queued feedback, issues the zero command with a request
 generation/time, and requires a fresh correlated acknowledgement or documented
@@ -196,7 +210,11 @@ readback, successful new zero, and RX errors. Only the successful fresh response
 records reference verification. The current cached-feedback success test must
 become a rejecting regression, not remain a characterization of the defect.
 
-### CS07: one-shot calibration cleanup (C2, P1, open)
+### CS07: one-shot calibration cleanup (C2, P1, partial)
+
+Batch06 routes motor-repl calibration through central preflight, refusing the
+unqualified path before arming. Installed-owner cleanup/stop/client work below
+remains required; a startup-failing fresh CLI is not an emergency stop.
 
 Resolve the joint and attestations before enable, narrow calibration to the
 requested address, and route the CLI to the same calibration owner as the Pi.
@@ -445,6 +463,19 @@ shoulder compensation for its fixture is 46.5975 Nm; the old code returned
 rotated fixed attachments and unequal joint angles. This defect changes computed
 production gravity; software correction alone does not authorize recommissioning
 the robot or copying stale tuning into the corrected dynamics model.
+
+### CS24: measured progress after motion stops (C5, P1, open)
+
+The exact-c306 probe proves a positive velocity EMA tail continually resets the
+ascent stall fuse after encoder motion stops. Preserve the existing bound and
+torque/velocity ceilings. Define progress using bounded actual encoder
+displacement and a justified noise/quantization tolerance; do not simply copy a
+filtered epsilon from the failing output. Independent cases must cover motion
+then stiction, stationary quantization/noise, valid slow crawl, reversed motion,
+sample dropouts and target settle. Run the identical archived failing law probe
+after repair and prove actual ControlLoop fault, neutral/Disable frames and
+persistent latch. This remains separate from batch06 admission and from physical
+plant/commissioning acceptance; evidence is linked in the CS24 ledger row.
 
 ## Cross-cutting completion gates
 

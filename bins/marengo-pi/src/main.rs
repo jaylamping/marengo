@@ -400,8 +400,9 @@ fn handle_chappe_active_reporting_lease(
     }
 }
 
-/// Firmware SetZero for one joint (Consul Subsystems). Delegates enable/verify/disable
-/// to Davout so free-drive Set Limits can follow without leaving motors ACTIVE on failure.
+/// Submit a guarded reference request to Davout after explicit operator checks.
+/// The installed adapter currently refuses unqualified reference before arming;
+/// queue publication alone is not verification or an Applied receipt.
 fn handle_chappe_set_zero(
     loop_ctrl: &mut ControlLoop<RuntimeBus>,
     request: &SetZeroRequest,

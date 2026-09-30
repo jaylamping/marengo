@@ -14,6 +14,10 @@
 //! - Optional friction feedforward (`friction` module) in impedance and position modes.
 //! - Publish [`RobotState`](armee_proto::RobotState) on Chappe (lower rate than the motor loop).
 //! - Legacy [`Controller`]: single-joint position commands through Davout (REPL / bring-up).
+//! - Concrete closed simulation construction through [`ControlLoop::from_simulation`]
+//!   uses the same controller implementation with an explicit virtual initial
+//!   reference condition. It provides software output coverage, not reference
+//!   acquisition or physical commissioning proof.
 //!
 //! ## Does not
 //!
@@ -53,6 +57,10 @@ mod torque_cmd;
 
 #[cfg(test)]
 mod mode_isolation;
+
+#[cfg(test)]
+#[path = "../tests/support/mod.rs"]
+mod test_support;
 
 pub use davout::ControlMode;
 pub use gain_runtime::{mode_allows_gain_override, GainOverride};
@@ -120,16 +128,32 @@ mod tests {
     #[test]
     fn controller_commands_through_supervisor() {
         let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let bus = davout::MemoryBus::default();
-        let mut ctrl = Controller::from_repo(&root, bus).expect("controller");
-        let motors = ctrl.supervisor_mut().motors.motors.clone();
+        let supervisor = davout::Supervisor::from_simulation(
+            &root,
+            davout::simulation::SimulationBus::default(),
+            davout::simulation::InitialVirtualReference::Joints(vec!["right_shoulder_roll".into()]),
+        )
+        .expect("virtual initial reference");
+        let mut ctrl = Controller::new(supervisor);
         ctrl.supervisor_mut()
-            .homing_registry_mut()
-            .bench_mark_all_verified(&motors)
-            .expect("verify");
-        ctrl.supervisor_mut().set_homing_complete().expect("ready");
-        ctrl.supervisor_mut().request_enable(true).expect("enable");
+            .enable_targets(&["right_shoulder_roll".into()])
+            .expect("enable");
+        crate::test_support::queue_joint_status(
+            ctrl.supervisor_mut(),
+            "right_shoulder_roll",
+            0.0,
+            0.0,
+        );
+        ctrl.supervisor_mut()
+            .drain_feedback()
+            .expect("real raw status");
+        ctrl.supervisor_mut().bus_mut().clear_trace();
         ctrl.command_position("right_shoulder_roll", 0.05)
             .expect("position");
+        let frames = ctrl.supervisor_mut().bus().frames();
+        assert_eq!(frames.len(), 1);
+        // Literal master roll: device 2, positive direction, ratio 1, no torque.
+        assert_eq!(frames[0].id, 0x017f_ff02);
+        assert_eq!(frames[0].data, [0x80, 0x81, 0x7f, 0xff, 0, 0, 0, 0]);
     }
 }

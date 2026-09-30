@@ -1,16 +1,14 @@
 //! Bounded receive work and incomplete-view admission through the public supervisor.
 //! All transport traffic is a local recording; no hardware is opened.
 #![allow(clippy::expect_used)]
-
-use std::collections::{HashMap, VecDeque};
-use std::time::{Duration, Instant};
+use davout::simulation::{SimulationBus, SimulationReceive, TxMatcher, TxOccurrence, TxRule};
+use std::time::Instant;
 
 use davout::{FaultClass, MitJointCommand, OperationalMode, StopAction, Supervisor};
 use marengo_config::MotorEntry;
-use marengo_config::MotorType;
 use robstride::{
-    BusError, CanBus, CanFrame, FeedbackReport, MalformedReason, MemoryBus, MotorAddress, MotorBus,
-    ReceiveAttempt, ReceiveCompletion, ReceivedCanFrame, RxFrameKind, TimedCanFrame,
+    BusError, CanFrame, FeedbackReport, MalformedReason, MotorAddress, MotorBus, ReceiveCompletion,
+    ReceivedCanFrame, RxFrameKind, TimedCanFrame,
 };
 
 // The bounded receive contract permits at most 64 raw frames per poll. Unsupported and
@@ -25,9 +23,14 @@ fn noise() -> CanFrame {
     }
 }
 
-fn supervisor<B: MotorBus + Default>() -> Supervisor<B> {
+fn supervisor() -> Supervisor<SimulationBus> {
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-    Supervisor::from_repo(root, B::default()).expect("repo fixture")
+    Supervisor::from_simulation(
+        root,
+        SimulationBus::default(),
+        davout::simulation::InitialVirtualReference::AllConfigured,
+    )
+    .expect("repo fixture")
 }
 
 fn pitch<B: MotorBus>(supervisor: &Supervisor<B>) -> MotorEntry {
@@ -41,10 +44,11 @@ fn pitch<B: MotorBus>(supervisor: &Supervisor<B>) -> MotorEntry {
 }
 
 fn verify<B: MotorBus>(supervisor: &mut Supervisor<B>, motor: &MotorEntry) {
-    supervisor
-        .homing_registry_mut()
-        .bench_mark_all_verified(std::slice::from_ref(motor))
-        .expect("virtual reference");
+    assert_eq!(
+        supervisor.joint_homing_state(&motor.joint),
+        davout::JointHomingState::Verified,
+        "declared INITIAL virtual fixture"
+    );
 }
 
 fn run_status(motor: &MotorEntry) -> CanFrame {
@@ -66,42 +70,18 @@ fn command(motor: &MotorEntry) -> MitJointCommand {
     }
 }
 
-#[derive(Default)]
-struct EnableFloodBus {
-    inner: MemoryBus,
-}
-
-impl CanBus for EnableFloodBus {
-    fn send_frame(&mut self, frame: &CanFrame) -> Result<(), BusError> {
-        self.inner.send_frame(frame)?;
-        if frame.id >> 24 == 3 {
-            self.inner
-                .rx_queue
-                .extend(std::iter::repeat_with(noise).take(FLOOD_FRAMES));
-        }
-        Ok(())
-    }
-
-    fn recv_one_nonblocking(&mut self) -> Result<ReceiveAttempt, BusError> {
-        self.inner.recv_one_nonblocking()
-    }
-}
-
-impl MotorBus for EnableFloodBus {}
-
 #[test]
 fn finite_unknown_flood_cannot_be_fully_consumed_by_one_supervisor_poll() {
-    let mut supervisor = supervisor::<MemoryBus>();
+    let mut supervisor = supervisor();
     supervisor
         .bus_mut()
-        .rx_queue
-        .extend(std::iter::repeat_with(noise).take(FLOOD_FRAMES));
+        .queue_frames(std::iter::repeat_with(noise).take(FLOOD_FRAMES))
+        .expect("finite closed script");
     let _ = supervisor.drain_feedback();
 
     // Observe the suffix through the public raw receive API rather than assuming how MemoryBus
     // stores pending data. A bounded implementation may move rx_queue into a private deque.
-    let mut suffix = Vec::new();
-    let _ = supervisor.bus_mut().recv_frames(&mut suffix);
+    let suffix = supervisor.bus_mut().drain_raw().frames;
     assert!(
         !suffix.is_empty(),
         "one poll consumed every unsupported frame instead of bounding raw work"
@@ -110,38 +90,41 @@ fn finite_unknown_flood_cannot_be_fully_consumed_by_one_supervisor_poll() {
 
 #[test]
 fn ignored_incomplete_drain_cannot_authorize_motion_or_reenable() {
-    let mut supervisor = supervisor::<MemoryBus>();
+    let mut supervisor = supervisor();
     let motor = pitch(&supervisor);
     verify(&mut supervisor, &motor);
     supervisor
         .enable_targets(std::slice::from_ref(&motor.joint))
         .expect("enable");
-    supervisor.bus_mut().rx_queue.push(run_status(&motor));
+    supervisor
+        .bus_mut()
+        .queue_frame(run_status(&motor))
+        .expect("finite closed script");
     supervisor.drain_feedback().expect("current-session pose");
     supervisor
         .bus_mut()
-        .rx_queue
-        .extend(std::iter::repeat_with(noise).take(FLOOD_FRAMES));
+        .queue_frames(std::iter::repeat_with(noise).take(FLOOD_FRAMES))
+        .expect("finite closed script");
     let _ = supervisor.drain_feedback(); // Deliberately ignore the receive error.
-    supervisor.bus_mut().tx.clear();
+    supervisor.bus_mut().clear_trace();
     let motion = supervisor.send_mit_batch(vec![command(&motor)]);
     let reenable = supervisor.enable_targets(std::slice::from_ref(&motor.joint));
     assert!(
         motion.is_err() && reenable.is_err(),
         "incomplete safety view admitted motion={motion:?}, reenable={reenable:?}"
     );
-    assert!(supervisor.bus_mut().tx.is_empty());
+    assert!(supervisor.bus().frames().is_empty());
 }
 
 #[test]
 fn incomplete_pre_enable_flush_refuses_activation() {
-    let mut supervisor = supervisor::<MemoryBus>();
+    let mut supervisor = supervisor();
     let motor = pitch(&supervisor);
     verify(&mut supervisor, &motor);
     supervisor
         .bus_mut()
-        .rx_queue
-        .extend(std::iter::repeat_with(noise).take(FLOOD_FRAMES));
+        .queue_frames(std::iter::repeat_with(noise).take(FLOOD_FRAMES))
+        .expect("finite closed script");
     assert!(
         supervisor
             .enable_targets(std::slice::from_ref(&motor.joint))
@@ -151,17 +134,31 @@ fn incomplete_pre_enable_flush_refuses_activation() {
     assert_eq!(supervisor.mode(), OperationalMode::Disabled);
     assert_eq!(supervisor.enable_session_started_at(), None);
     assert!(supervisor
-        .bus_mut()
-        .tx
+        .bus()
+        .frames()
         .iter()
         .all(|frame| frame.id >> 24 != 3));
 }
 
 #[test]
 fn incomplete_post_enable_flush_rolls_back_before_session_marker() {
-    let mut supervisor = supervisor::<EnableFloodBus>();
+    let mut supervisor = supervisor();
     let motor = pitch(&supervisor);
     verify(&mut supervisor, &motor);
+    let rule = supervisor
+        .bus_mut()
+        .add_tx_rule(TxRule {
+            matcher: TxMatcher {
+                communication_type: Some(3),
+                ..TxMatcher::default()
+            },
+            occurrence: TxOccurrence::Nth(1),
+            receive: std::iter::repeat_with(|| SimulationReceive::from(noise()))
+                .take(FLOOD_FRAMES)
+                .collect(),
+            send_error: None,
+        })
+        .expect("enable-triggered finite flood");
     assert!(
         supervisor
             .enable_targets(std::slice::from_ref(&motor.joint))
@@ -170,47 +167,15 @@ fn incomplete_post_enable_flush_rolls_back_before_session_marker() {
     );
     assert_eq!(supervisor.mode(), OperationalMode::Disabled);
     assert_eq!(supervisor.enable_session_started_at(), None);
+    assert_eq!(supervisor.bus().rule_trigger_count(rule), 1);
     for configured in &supervisor.motors.motors.clone() {
-        assert!(supervisor.bus_mut().inner.tx.iter().any(|frame| {
+        assert!(supervisor.bus().frames().iter().any(|frame| {
             frame.id >> 24 == 4
                 && frame.id & 0xff == u32::from(configured.device_id)
                 && frame.data[0] == 0
         }));
     }
 }
-
-#[derive(Default)]
-struct EnvelopeBus {
-    tx: Vec<CanFrame>,
-    pending: VecDeque<ReceivedCanFrame>,
-    fail_after_prefix: bool,
-    equal_time: Option<Instant>,
-}
-
-impl CanBus for EnvelopeBus {
-    fn send_frame(&mut self, frame: &CanFrame) -> Result<(), BusError> {
-        self.tx.push(frame.clone());
-        Ok(())
-    }
-
-    fn recv_one_nonblocking(&mut self) -> Result<ReceiveAttempt, BusError> {
-        if let Some(received) = self.pending.pop_front() {
-            return Ok(ReceiveAttempt::Frame(TimedCanFrame {
-                received_at: self.equal_time.unwrap_or_else(Instant::now),
-                received,
-            }));
-        }
-        if self.fail_after_prefix {
-            self.fail_after_prefix = false;
-            return Err(BusError::Driver(
-                "terminal receive failure after prefix".into(),
-            ));
-        }
-        Ok(ReceiveAttempt::Idle)
-    }
-}
-
-impl MotorBus for EnvelopeBus {}
 
 fn data(id: u32, payload: &[u8]) -> ReceivedCanFrame {
     ReceivedCanFrame::new_data(Some("can0".into()), id, true, payload).expect("classic CAN fixture")
@@ -243,12 +208,12 @@ fn every_short_status_shape_latches_without_installing_pose() {
     let payload = [0x7f, 0xff, 0x7f, 0xff, 0x7f, 0xff, 0, 0xc8];
     for id in [0x0280_01fd, 0x1880_01fd] {
         for length in 0..8 {
-            let mut supervisor = supervisor::<EnvelopeBus>();
+            let mut supervisor = supervisor();
             let motor = pitch(&supervisor);
             supervisor
                 .bus_mut()
-                .pending
-                .push_back(data(id, &payload[..length]));
+                .queue_received(data(id, &payload[..length]))
+                .expect("finite closed script");
             assert!(supervisor.drain_feedback().is_err());
             assert!(supervisor.joint_feedback(&motor.joint).is_none());
             let snapshot = supervisor.safety_snapshot();
@@ -267,12 +232,15 @@ fn every_short_status_shape_latches_without_installing_pose() {
             );
             assert_eq!(&frame.raw[..length], &payload[..length]);
             assert_all_stop_attempts(&supervisor);
-            verify(&mut supervisor, &motor);
-            supervisor.bus_mut().tx.clear();
+            assert_eq!(
+                supervisor.joint_homing_state(&motor.joint),
+                marengo_homing::JointHomingState::Faulted
+            );
+            supervisor.bus_mut().clear_trace();
             assert!(supervisor
                 .enable_targets(std::slice::from_ref(&motor.joint))
                 .is_err());
-            assert!(supervisor.bus_mut().tx.is_empty());
+            assert!(supervisor.bus().frames().is_empty());
         }
     }
 }
@@ -280,12 +248,12 @@ fn every_short_status_shape_latches_without_installing_pose() {
 #[test]
 fn exact_eight_byte_status_data_remains_valid_for_both_status_types() {
     for id in [0x0280_01fd, 0x1880_01fd] {
-        let mut supervisor = supervisor::<EnvelopeBus>();
+        let mut supervisor = supervisor();
         let motor = pitch(&supervisor);
         supervisor
             .bus_mut()
-            .pending
-            .push_back(data(id, &[0x7f, 0xff, 0x7f, 0xff, 0x7f, 0xff, 0, 0xc8]));
+            .queue_received(data(id, &[0x7f, 0xff, 0x7f, 0xff, 0x7f, 0xff, 0, 0xc8]))
+            .expect("finite closed script");
         assert_eq!(supervisor.drain_feedback().expect("complete status"), 1);
         assert!(supervisor.joint_feedback(&motor.joint).is_some());
         assert!(!supervisor.has_latched_fault());
@@ -294,12 +262,15 @@ fn exact_eight_byte_status_data_remains_valid_for_both_status_types() {
 
 #[test]
 fn remote_fault_like_identifier_cannot_supply_pose_or_device_header_proof() {
-    let mut supervisor = supervisor::<EnvelopeBus>();
+    let mut supervisor = supervisor();
     let motor = pitch(&supervisor);
-    supervisor.bus_mut().pending.push_back(
-        ReceivedCanFrame::new_remote(Some("can0".into()), 0x02ff_01fd, true, 8)
-            .expect("RTR fixture"),
-    );
+    supervisor
+        .bus_mut()
+        .queue_received(
+            ReceivedCanFrame::new_remote(Some("can0".into()), 0x02ff_01fd, true, 8)
+                .expect("RTR fixture"),
+        )
+        .expect("finite closed script");
     assert!(supervisor.drain_feedback().is_err());
     assert!(supervisor.joint_feedback(&motor.joint).is_none());
     let snapshot = supervisor.safety_snapshot();
@@ -320,19 +291,30 @@ fn remote_fault_like_identifier_cannot_supply_pose_or_device_header_proof() {
 
 #[test]
 fn malformed_data_headers_partial_peer_fault_and_terminal_error_all_survive() {
-    let mut supervisor = supervisor::<EnvelopeBus>();
+    let mut supervisor = supervisor();
     let motor = pitch(&supervisor);
     verify(&mut supervisor, &motor);
     supervisor
         .enable_targets(std::slice::from_ref(&motor.joint))
         .expect("enable");
-    supervisor.bus_mut().pending.extend([
-        data(0x0291_01fd, &[0x7f, 0xff, 0x7f, 0xff, 0x7f, 0xff]),
-        data(0x1500_02fd, &[0, 0, 0x80, 0x40, 2, 0x80]),
-        data(0x0280_01fd, &[0x7f, 0xff, 0x7f, 0xff, 0x7f, 0xff, 0, 0xc8]),
-        data(0x0280_02fd, &[0x7f, 0xff, 0x7f, 0xff, 0x7f, 0xff, 0, 0xc8]),
-    ]);
-    supervisor.bus_mut().fail_after_prefix = true;
+    supervisor
+        .bus_mut()
+        .queue_attempts(
+            [
+                data(0x0291_01fd, &[0x7f, 0xff, 0x7f, 0xff, 0x7f, 0xff]),
+                data(0x1500_02fd, &[0, 0, 0x80, 0x40, 2, 0x80]),
+                data(0x0280_01fd, &[0x7f, 0xff, 0x7f, 0xff, 0x7f, 0xff, 0, 0xc8]),
+                data(0x0280_02fd, &[0x7f, 0xff, 0x7f, 0xff, 0x7f, 0xff, 0, 0xc8]),
+            ]
+            .map(SimulationReceive::Received),
+        )
+        .expect("finite envelope prefix");
+    supervisor
+        .bus_mut()
+        .queue_attempts([SimulationReceive::Error(
+            "terminal receive failure after prefix".into(),
+        )])
+        .expect("terminal error");
     assert!(supervisor.drain_feedback().is_err());
     let snapshot = supervisor.safety_snapshot();
     let first = snapshot.first_fault().expect("first header cause");
@@ -373,27 +355,30 @@ fn malformed_data_headers_partial_peer_fault_and_terminal_error_all_survive() {
         ReceiveCompletion::Failed
     );
     assert_all_stop_attempts(&supervisor);
-    supervisor.bus_mut().pending.push_back(data(
-        0x0280_01fd,
-        &[0x7f, 0xff, 0x7f, 0xff, 0x7f, 0xff, 0, 0xc8],
-    ));
+    supervisor
+        .bus_mut()
+        .queue_received(data(
+            0x0280_01fd,
+            &[0x7f, 0xff, 0x7f, 0xff, 0x7f, 0xff, 0, 0xc8],
+        ))
+        .expect("finite closed script");
     supervisor.drain_feedback().expect("healthy diagnostics");
     assert_eq!(
         supervisor.safety_snapshot().first_fault(),
         snapshot.first_fault()
     );
-    supervisor.bus_mut().tx.clear();
+    supervisor.bus_mut().clear_trace();
     assert!(supervisor.send_mit_batch(vec![command(&motor)]).is_err());
-    assert!(supervisor.bus_mut().tx.is_empty());
+    assert!(supervisor.bus().frames().is_empty());
 }
 
 #[test]
 fn partial_warning_is_a_protocol_fault_without_becoming_a_complete_device_fault() {
-    let mut supervisor = supervisor::<EnvelopeBus>();
+    let mut supervisor = supervisor();
     supervisor
         .bus_mut()
-        .pending
-        .push_back(data(0x1500_01fd, &[0, 0, 0, 0, 0x80]));
+        .queue_received(data(0x1500_01fd, &[0, 0, 0, 0, 0x80]))
+        .expect("finite closed script");
     assert!(supervisor.drain_feedback().is_err());
     let snapshot = supervisor.safety_snapshot();
     assert!(snapshot.observed_warnings.is_empty());
@@ -418,11 +403,14 @@ fn partial_warning_is_a_protocol_fault_without_becoming_a_complete_device_fault(
 
 #[test]
 fn kernel_error_envelope_is_transport_evidence_without_vendor_fault_decoding() {
-    let mut supervisor = supervisor::<EnvelopeBus>();
+    let mut supervisor = supervisor();
     let motor = pitch(&supervisor);
     let mut error_frame = data(0x02ff_01fd, &[1, 2, 4, 8, 16, 32, 64, 128]);
     error_frame.kind = RxFrameKind::Error;
-    supervisor.bus_mut().pending.push_back(error_frame);
+    supervisor
+        .bus_mut()
+        .queue_received(error_frame)
+        .expect("finite closed script");
     assert!(supervisor.drain_feedback().is_err());
     assert!(supervisor.joint_feedback(&motor.joint).is_none());
     let snapshot = supervisor.safety_snapshot();
@@ -442,43 +430,6 @@ fn kernel_error_envelope_is_transport_evidence_without_vendor_fault_decoding() {
     assert_all_stop_attempts(&supervisor);
 }
 
-#[derive(Default)]
-struct ReportBus {
-    inner: MemoryBus,
-    completion: Option<ReceiveCompletion>,
-    error: Option<BusError>,
-}
-
-impl CanBus for ReportBus {
-    fn send_frame(&mut self, frame: &CanFrame) -> Result<(), BusError> {
-        self.inner.send_frame(frame)
-    }
-
-    fn recv_one_nonblocking(&mut self) -> Result<ReceiveAttempt, BusError> {
-        self.inner.recv_one_nonblocking()
-    }
-}
-
-impl MotorBus for ReportBus {
-    fn recv_feedback_report(
-        &mut self,
-        types: &HashMap<MotorAddress, MotorType>,
-        budget: Duration,
-        quiet: Duration,
-    ) -> FeedbackReport {
-        let mut report = self.inner.recv_feedback_report(types, budget, quiet);
-        if let Some(completion) = self.completion.take() {
-            report.completion = completion;
-            report.raw_frames = 64;
-            report.read_attempts = 256;
-        }
-        if let Some(error) = self.error.take() {
-            report.terminal_error = Some(error);
-        }
-        report
-    }
-}
-
 #[test]
 fn every_incomplete_completion_blocks_even_without_a_terminal_error() {
     for completion in [
@@ -486,15 +437,26 @@ fn every_incomplete_completion_blocks_even_without_a_terminal_error() {
         ReceiveCompletion::Deadline,
         ReceiveCompletion::Failed,
     ] {
-        let mut supervisor = supervisor::<ReportBus>();
+        let mut supervisor = supervisor();
         let motor = pitch(&supervisor);
         verify(&mut supervisor, &motor);
         supervisor
             .enable_targets(std::slice::from_ref(&motor.joint))
             .expect("enable");
-        supervisor.bus_mut().inner.rx_queue.push(run_status(&motor));
+        supervisor
+            .bus_mut()
+            .queue_frame(run_status(&motor))
+            .expect("finite closed script");
         supervisor.drain_feedback().expect("current pose");
-        supervisor.bus_mut().completion = Some(completion);
+        supervisor
+            .bus_mut()
+            .queue_feedback_report(FeedbackReport {
+                completion,
+                raw_frames: 64,
+                read_attempts: 256,
+                ..FeedbackReport::default()
+            })
+            .expect("bounded incomplete consumer report");
         let _ = supervisor.drain_feedback();
         let snapshot = supervisor.safety_snapshot();
         let fault = snapshot.first_fault().expect("incomplete authority");
@@ -508,7 +470,10 @@ fn every_incomplete_completion_blocks_even_without_a_terminal_error() {
         assert_eq!(incomplete.raw_frames, 64);
         assert_eq!(incomplete.read_attempts, 256);
         assert_all_stop_attempts(&supervisor);
-        supervisor.bus_mut().inner.rx_queue.push(run_status(&motor));
+        supervisor
+            .bus_mut()
+            .queue_frame(run_status(&motor))
+            .expect("finite closed script");
         supervisor
             .drain_feedback()
             .expect("healthy complete diagnostics");
@@ -516,21 +481,21 @@ fn every_incomplete_completion_blocks_even_without_a_terminal_error() {
             supervisor.safety_snapshot().first_fault(),
             snapshot.first_fault()
         );
-        supervisor.bus_mut().inner.tx.clear();
+        supervisor.bus_mut().clear_trace();
         assert!(supervisor.send_mit_batch(vec![command(&motor)]).is_err());
         assert!(supervisor
             .enable_targets(std::slice::from_ref(&motor.joint))
             .is_err());
-        assert!(supervisor.bus_mut().inner.tx.is_empty());
+        assert!(supervisor.bus().frames().is_empty());
     }
 }
 
 #[test]
 fn new_typed_receive_errors_cannot_fall_through_runtime_authority() {
     for malformed in [false, true] {
-        let mut supervisor = supervisor::<ReportBus>();
+        let mut supervisor = supervisor();
         let motor = pitch(&supervisor);
-        supervisor.bus_mut().error = Some(if malformed {
+        let error = if malformed {
             BusError::MalformedFeedback {
                 address: MotorAddress::from(&motor),
                 reason: MalformedReason::NonDataFrame,
@@ -539,7 +504,15 @@ fn new_typed_receive_errors_cannot_fall_through_runtime_authority() {
             BusError::ReceiveIncomplete {
                 completion: ReceiveCompletion::WorkLimit,
             }
-        });
+        };
+        supervisor
+            .bus_mut()
+            .queue_feedback_report(FeedbackReport {
+                terminal_error: Some(error),
+                terminal_error_order: Some(0),
+                ..FeedbackReport::default()
+            })
+            .expect("typed consumer error");
         assert!(supervisor.drain_feedback().is_err());
         let snapshot = supervisor.safety_snapshot();
         assert_eq!(
@@ -556,11 +529,11 @@ fn new_typed_receive_errors_cannot_fall_through_runtime_authority() {
 
 #[test]
 fn unknown_flood_retains_work_limit_stats_and_attempts_every_stop() {
-    let mut supervisor = supervisor::<MemoryBus>();
+    let mut supervisor = supervisor();
     supervisor
         .bus_mut()
-        .rx_queue
-        .extend(std::iter::repeat_with(noise).take(FLOOD_FRAMES));
+        .queue_frames(std::iter::repeat_with(noise).take(FLOOD_FRAMES))
+        .expect("finite closed script");
     assert!(supervisor.drain_feedback().is_err());
     let snapshot = supervisor.safety_snapshot();
     let incomplete = snapshot
@@ -576,15 +549,14 @@ fn unknown_flood_retains_work_limit_stats_and_attempts_every_stop() {
     assert_all_stop_attempts(&supervisor);
     for motor in supervisor.motors.motors.clone() {
         assert!(supervisor
-            .bus_mut()
-            .tx
+            .bus()
+            .frames()
             .iter()
             .any(|frame| frame.id >> 24 == 4
                 && frame.id & 0xff == u32::from(motor.device_id)
                 && frame.data[0] == 0));
     }
-    let mut suffix = Vec::new();
-    let _ = supervisor.bus_mut().recv_frames(&mut suffix);
+    let suffix = supervisor.bus_mut().drain_raw().frames;
     assert_eq!(
         suffix.len(),
         64,
@@ -594,14 +566,20 @@ fn unknown_flood_retains_work_limit_stats_and_attempts_every_stop() {
 
 #[test]
 fn ordinary_empty_refresh_and_timeout_remain_benign() {
-    let mut supervisor = supervisor::<ReportBus>();
+    let mut supervisor = supervisor();
     // Startup may configure diagnostic Active Reporting; it is not a stop attempt.
-    supervisor.bus_mut().inner.tx.clear();
+    supervisor.bus_mut().clear_trace();
     assert_eq!(
         supervisor.refresh_feedback().expect("empty quiet timeout"),
         0
     );
-    supervisor.bus_mut().error = Some(BusError::RecvTimeout);
+    supervisor
+        .bus_mut()
+        .queue_feedback_report(FeedbackReport {
+            terminal_error: Some(BusError::RecvTimeout),
+            ..FeedbackReport::default()
+        })
+        .expect("benign complete timeout report");
     assert_eq!(
         supervisor
             .drain_feedback()
@@ -612,20 +590,31 @@ fn ordinary_empty_refresh_and_timeout_remain_benign() {
     assert!(!snapshot.is_latched());
     assert_eq!(snapshot.stop_generation, 0);
     assert!(snapshot.last_stop.is_none());
-    assert!(supervisor.bus_mut().inner.tx.is_empty());
+    assert!(supervisor.bus().frames().is_empty());
 }
 
 fn assert_interleaved_first_cause(transport_first: bool) {
-    let mut supervisor = supervisor::<EnvelopeBus>();
+    let mut supervisor = supervisor();
     let mut error_frame = data(0x02ff_01fd, &[1, 2, 4, 8, 16, 32, 64, 128]);
     error_frame.kind = RxFrameKind::Error;
     let fault_frame = data(0x1500_01fd, &[1, 0, 0, 0, 0, 0, 0, 0]);
-    supervisor.bus_mut().equal_time = Some(Instant::now());
-    supervisor.bus_mut().pending.extend(if transport_first {
-        [error_frame, fault_frame]
-    } else {
-        [fault_frame, error_frame]
-    });
+    let equal_time = Instant::now();
+    supervisor
+        .bus_mut()
+        .queue_attempts(
+            (if transport_first {
+                [error_frame, fault_frame]
+            } else {
+                [fault_frame, error_frame]
+            })
+            .map(|received| {
+                SimulationReceive::Timed(TimedCanFrame {
+                    received_at: equal_time,
+                    received,
+                })
+            }),
+        )
+        .expect("equal-time raw order");
     assert!(supervisor.drain_feedback().is_err());
     let snapshot = supervisor.safety_snapshot();
     assert_eq!(
@@ -657,41 +646,32 @@ fn vendor_fault_before_raw_error_preserves_device_as_first_cause_on_timestamp_ti
     assert_interleaved_first_cause(false);
 }
 
-#[derive(Default)]
-struct PeerErrorBus {
-    pending: VecDeque<Result<ReceivedCanFrame, BusError>>,
-}
-
-impl CanBus for PeerErrorBus {
-    fn send_frame(&mut self, _frame: &CanFrame) -> Result<(), BusError> {
-        Ok(())
-    }
-
-    fn receive_source_count(&self) -> usize {
-        2
-    }
-
-    fn recv_one_nonblocking(&mut self) -> Result<ReceiveAttempt, BusError> {
-        match self.pending.pop_front() {
-            Some(Ok(received)) => Ok(ReceiveAttempt::Frame(TimedCanFrame {
-                received_at: Instant::now(),
-                received,
-            })),
-            Some(Err(error)) => Err(error),
-            None => Ok(ReceiveAttempt::Idle),
-        }
-    }
-}
-
-impl MotorBus for PeerErrorBus {}
-
 #[test]
 fn backend_error_before_peer_fault_preserves_first_transport_cause_and_peer_evidence() {
-    let mut supervisor = supervisor::<PeerErrorBus>();
-    supervisor.bus_mut().pending.extend([
-        Err(BusError::Driver("first source receive failed".into())),
-        Ok(data(0x1500_02fd, &[0, 0, 0x80, 0x40, 0, 0, 0, 0])),
-    ]);
+    let mut supervisor = supervisor();
+    supervisor
+        .bus_mut()
+        .set_source_count(2)
+        .expect("two distinct local queues");
+    supervisor
+        .bus_mut()
+        .queue_to_source(
+            0,
+            [SimulationReceive::Error(
+                "first source receive failed".into(),
+            )],
+        )
+        .expect("source zero failure");
+    supervisor
+        .bus_mut()
+        .queue_to_source(
+            1,
+            [SimulationReceive::Received(data(
+                0x1500_02fd,
+                &[0, 0, 0x80, 0x40, 0, 0, 0, 0],
+            ))],
+        )
+        .expect("independent peer queue");
     assert!(supervisor.drain_feedback().is_err());
     let snapshot = supervisor.safety_snapshot();
     let first = snapshot.first_fault().expect("first backend cause");

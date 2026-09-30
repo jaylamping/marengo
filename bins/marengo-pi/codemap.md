@@ -18,7 +18,9 @@
 
 Fresh startup leaves all configured joints Unhomed regardless of saved history.
 Normal Enable requires current reference; the complete qualified transaction and
-client cutover remain open. Disable in the already running owner does not reload
+client cutover remain open. Davout's private permission gates scoped Enable as
+well as normal Enable; physical reference and Set Zero currently refuse before
+arming. Disable in the already running owner does not reload
 history or require reference readiness. See [homing](../../docs/homing.md).
 
 ## Integration

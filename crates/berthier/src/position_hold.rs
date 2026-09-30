@@ -1336,6 +1336,59 @@ mod tests {
     }
 
     #[test]
+    fn ascent_stall_counter_resets_on_independent_measured_progress() -> Result<(), HoldError> {
+        let mut hold = PositionHold::new(1);
+        hold.arm(&[0.02], &[0.15], 0);
+        let params = [test_joint_params()];
+        let names = [String::from("j0")];
+        let tau_g = [0.0];
+        let mut wave = None;
+        let mut largest_stall_ms = 0;
+        for tick_count in 1..=100 {
+            let out = hold.tick(HoldWorld {
+                q: &[0.02],
+                dq_meas: &[0.0],
+                tau_g: &tau_g,
+                joints: &params,
+                joint_names: &names,
+                dt: 0.005,
+                hz: 200,
+                tick_count,
+                wave: &mut wave,
+            })?;
+            largest_stall_ms = largest_stall_ms.max(out.diag[0].ascent_stall_ms);
+        }
+        assert!(
+            largest_stall_ms > 0,
+            "stationary observations must arm the actual recovery fuse"
+        );
+        for step in 1_u32..=500 {
+            // Independent measured trajectory: 0.01 rad/s over 5 ms steps.
+            // The production law sees coherent motion, not its own q_traj echo.
+            let position = 0.02 + f64::from(step) * 0.00005;
+            let out = hold.tick(HoldWorld {
+                q: &[position],
+                dq_meas: &[0.01],
+                tau_g: &tau_g,
+                joints: &params,
+                joint_names: &names,
+                dt: 0.005,
+                hz: 200,
+                tick_count: 100 + u64::from(step),
+                wave: &mut wave,
+            })?;
+            assert_eq!(
+                out.diag[0].ascent_stall_ms, 0,
+                "measured progress must reset the fuse on step {step}"
+            );
+            assert!(out.mit[0].position_rad.is_finite());
+        }
+        // Covers 2.5 s of controller time, beyond the 2 s no-progress fault
+        // threshold, without introducing a host sleep or receive-time shortcut.
+        Ok(())
+    }
+
+    #[test]
     fn outbound_ascent_stall_retries_to_lead_cap_before_fault() -> Result<(), HoldError> {
         let q = [0.02];
         let target = [0.30];

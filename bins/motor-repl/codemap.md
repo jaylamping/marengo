@@ -20,6 +20,10 @@ readiness between CLI processes. Full constructor errors (including corrupt
 history) occur before subcommand dispatch, so this fresh CLI is not a qualified
 emergency stop. Qualified reference and installed-owner client migration remain
 in the [repair roadmap](../../docs/reviews/2026-09-29/implementation-roadmap.md).
+Set Zero now makes one guarded Davout request; it does not enable drives first,
+send raw zero or certify cached feedback. The current physical adapter refuses
+unqualified reference before arming. This does not complete installed-owner
+client migration or general all-exit cleanup.
 
 ## Integration
 - **Primary bench tool** for MCP `pi_hold_on`, `pi_motor_recover`, `pi_set_zero`

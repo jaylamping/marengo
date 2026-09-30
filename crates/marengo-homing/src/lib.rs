@@ -4,6 +4,9 @@
 //! Construction preserves calibration history but starts every configured joint
 //! Unhomed; saved rows never grant current readiness. Resource selection is
 //! explicit and all non-missing history errors are returned.
+//! Legacy scalar checks record history only; Davout's private current-reference
+//! authority owns live Ready/Enable/output permission. Arbitrary local state
+//! setters and synthetic bench grants are not public construction interfaces.
 
 mod calibration;
 mod commissioning;

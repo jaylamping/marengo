@@ -1,40 +1,41 @@
 //! Safety contracts observed at the outgoing CAN boundary, without a physical drive.
 
 #![allow(clippy::expect_used)]
+use davout::simulation::SimulationBus;
 
-use davout::{MemoryBus, MitJointCommand, Supervisor};
+use davout::{MitJointCommand, Supervisor};
 use marengo_config::MotorEntry;
 use robstride::{CanFrame, CommunicationType};
 
-fn supervisor() -> Supervisor<MemoryBus> {
+fn supervisor() -> Supervisor<SimulationBus> {
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let mut supervisor =
-        Supervisor::from_repo(root, MemoryBus::default()).expect("valid repository fixture");
+    let mut supervisor = Supervisor::from_simulation(
+        root,
+        SimulationBus::default(),
+        davout::simulation::InitialVirtualReference::AllConfigured,
+    )
+    .expect("valid repository fixture");
     supervisor.control.control.comm_watchdog_ms = 1000;
     supervisor
 }
 
-fn activate(supervisor: &mut Supervisor<MemoryBus>, motor: &MotorEntry) {
+fn activate(supervisor: &mut Supervisor<SimulationBus>, motor: &MotorEntry) {
     activate_at_pose(supervisor, motor, 0.0, 0.0, 0.0);
 }
 
 fn activate_at_pose(
-    supervisor: &mut Supervisor<MemoryBus>,
+    supervisor: &mut Supervisor<SimulationBus>,
     motor: &MotorEntry,
     position: f64,
     velocity: f64,
     torque: f64,
 ) {
     supervisor
-        .homing_registry_mut()
-        .bench_mark_all_verified(std::slice::from_ref(motor))
-        .expect("test-only reference verification");
-    supervisor
         .enable_targets(std::slice::from_ref(&motor.joint))
         .expect("enable recording bus");
     // Obtain status in this enable session without seeding the torque limiter.
     inject_status(supervisor, motor, position, velocity, torque);
-    supervisor.bus_mut().tx.clear();
+    supervisor.bus_mut().clear_trace();
 }
 
 fn command(motor: &MotorEntry, torque_ff_nm: f64) -> MitJointCommand {
@@ -48,7 +49,7 @@ fn command(motor: &MotorEntry, torque_ff_nm: f64) -> MitJointCommand {
     }
 }
 
-fn pitch_motor(supervisor: &Supervisor<MemoryBus>) -> MotorEntry {
+fn pitch_motor(supervisor: &Supervisor<SimulationBus>) -> MotorEntry {
     supervisor
         .motors
         .motors
@@ -59,7 +60,7 @@ fn pitch_motor(supervisor: &Supervisor<MemoryBus>) -> MotorEntry {
 }
 
 fn inject_measured_torque(
-    supervisor: &mut Supervisor<MemoryBus>,
+    supervisor: &mut Supervisor<SimulationBus>,
     motor: &MotorEntry,
     joint_torque_nm: f64,
 ) {
@@ -67,7 +68,7 @@ fn inject_measured_torque(
 }
 
 fn inject_status(
-    supervisor: &mut Supervisor<MemoryBus>,
+    supervisor: &mut Supervisor<SimulationBus>,
     motor: &MotorEntry,
     joint_position_rad: f64,
     joint_velocity_rad_s: f64,
@@ -84,11 +85,14 @@ fn inject_status(
     data[0..2].copy_from_slice(&raw_position.to_be_bytes());
     data[2..4].copy_from_slice(&raw_velocity.to_be_bytes());
     data[4..6].copy_from_slice(&raw_torque.to_be_bytes());
-    supervisor.bus_mut().rx_queue.push(CanFrame {
-        id: (2 << 24) | (2 << 22) | (u32::from(motor.device_id) << 8) | 0xfd,
-        data,
-        extended: true,
-    });
+    supervisor
+        .bus_mut()
+        .queue_frame(CanFrame {
+            id: (2 << 24) | (2 << 22) | (u32::from(motor.device_id) << 8) | 0xfd,
+            data,
+            extended: true,
+        })
+        .expect("finite closed script");
     assert_eq!(supervisor.drain_feedback().expect("decode status"), 1);
 }
 
@@ -143,10 +147,10 @@ fn torque_output_contract_delayed_tick_does_not_accumulate_slew_credit() {
     );
 }
 
-fn last_wire_joint_torque(supervisor: &mut Supervisor<MemoryBus>, motor: &MotorEntry) -> f64 {
+fn last_wire_joint_torque(supervisor: &mut Supervisor<SimulationBus>, motor: &MotorEntry) -> f64 {
     let frame = supervisor
-        .bus_mut()
-        .tx
+        .bus()
+        .frames()
         .iter()
         .rev()
         .find(|frame| {

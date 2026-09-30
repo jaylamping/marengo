@@ -14,11 +14,13 @@ Disabled ──[set_homing_complete]──► Ready ──[request_enable(true)]
    └────────────────────[disable_all / E-stop]────────────────────────┘
 ```
 - `Disabled`: no motion possible, firmware may be idle.
-- `Ready`: all joints homing-verified, motors not yet enabled.
+- `Ready`: every loaded joint has private current-reference authority, motors not yet enabled.
 - `Active`: motors enabled; servo/FF motion requires current-session pose from every active motor address.
 
 ### Core types
-- `Supervisor<B: MotorBus>` — owns state/motor policy, homing registry, pose cache, persistent `FaultAuthority`, and the `MotorBus`. Constructed from repo config files.
+- `Supervisor<B: MotorBus>` — owns installed state/motor/model policy, inspection-only homing history, pose cache, persistent `FaultAuthority`, private reference permission and the `MotorBus`. Ordinary repo constructors have no qualified acquisition capability.
+- `ReferenceAuthority` (`reference.rs`) — private owner-local, nonserializable, noncloneable reference permission. Relevant installed motor/frame/envelope/effective homing policy and the closed backend realm are bound independently of ordinary motion-stop generation.
+- `SimulationBus` (`simulation.rs`) — closed concrete finite in-memory raw/enveloped/timed/error scripts, source-indexed queues, typed impossible-wire consumer fixtures and declarative TX effects with observed trigger counts. Its specialized constructor declares an INITIAL virtual reference fixture; no wrapped bus, socket, callback, import or physical-state conversion exists.
 - `SafetySnapshot` — owned read-only persistent records, complete and partial vendor domains, bounded first/latest receive-envelope and incomplete-work evidence, hardware input, stop generation, latest stop and first failed stop. Qualified recovery is unavailable in this slice.
 - `StopReport` — every address's zero-speed, neutral-MIT and ordinary-disable attempt, including bounded errors. Accepted writes do not prove physical acknowledgement.
 - `ControlMode` — re-exported to `berthier`: `Disabled`, `GravityComp`, `TorqueOnly`, `Impedance`, `Position`.
@@ -30,7 +32,7 @@ Disabled ──[set_homing_complete]──► Ready ──[request_enable(true)]
 ### Command admission (`admit_and_send_mit`)
 Single-joint, legacy, and batch MIT sends share one admission path. Validate the whole batch before emitting its first frame:
 
-1. Check E-stop, Active membership, configured motor mapping, and repeated joint names.
+1. Check E-stop, private current-reference authority, Active membership, configured motor mapping, and repeated joint names.
 2. Reject nonfinite position, velocity, gains, and FF; gains must be nonnegative.
 3. Filter each joint: kp/kd ceilings, velocity-scaled position envelope, hard bounds, danger-zone clamps, velocity ceiling, and wrong-sign policy.
 4. Apply the hard FF ceiling before and after slew. First enable starts from zero, and a delayed tick earns at most 10 ms of slew credit.
@@ -40,7 +42,11 @@ Single-joint, legacy, and batch MIT sends share one admission path. Validate the
 
 Startup validates the combined robot/motor/control/homing policy. `validate_control_candidate` checks proposed control overlays against the installed companion configuration before installation or persistence; it does not install policy or rebuild limits.
 
-Calibration history is inspection data: every new Supervisor starts Unhomed, even with matching persisted rows. Both construction entry points share validation/initialization. `from_repo` selects the legacy OS-path environment override or configured root-relative path; `from_repo_with_calibration_record_path` takes its path as supplied and ignores that override. Corrupt/unreadable history returns before startup reporting TX. Public reference-grant/scoped-enable bypasses and qualified SetZero/recovery remain open (ADR0022).
+Calibration history is inspection data: every ordinary new Supervisor starts Unhomed, even with matching persisted rows. Both construction entry points share validation/initialization. `from_repo` selects the legacy OS-path environment override or configured root-relative path; `from_repo_with_calibration_record_path` takes its path as supplied and ignores that override. Corrupt/unreadable history returns before startup reporting TX. Public mutable history, unchecked Ready, synthetic pose insertion and generic mutable transport access are removed (ADRs 0022/0023).
+
+Ready, normal/scoped Enable, Active shortcuts, commissioning facets and output use the private permission. Legacy cached verification, raw SetZero and calibration arming refuse before TX/persistence; target, method and sign refusals remain specific. Unknown/unqualified physical protocols cannot produce a successful reference. Only `Supervisor<SimulationBus>::from_simulation` and its explicit-history counterpart can declare virtual INITIAL coverage. Ordinary `from_repo` remains unreferenced even for SimulationBus. Read-only `bus()` is generic; specialized `bus_mut()` returns a restricted script/trace facade without transport extraction/replacement.
+
+Relevant policy mismatch is permanently observed through facets, admission and receive; restoring public fields does not revive reference. Receive uses installed address/type/transform lookup, preserving original peer fault evidence despite corrupted public routing. Active mismatch stops the original installed addresses after consuming every ordered receive event. Rebuild/limit patches, new faults and uncertain stop revoke reference. Successful ordinary Disable preserves intact reference while advancing motion-stop generation; it still requires new post-enable pose for later motion. Output-only gain/friction/torque-cap/watchdog changes may preserve reference after complete shared validation; envelope/trim/resolved velocity and homing/frame changes cannot. The current motor and type torque caps still bound output after slew. Fully immutable coordinated policy/model installation remains CS15 work.
 
 ### Joint↔motor transform
 - `direction` and `gear_ratio` from `motors.yaml`: position_rad *= scale, kp /= scale^2, kd /= scale^2, tau_ff /= scale where scale = direction * gear_ratio.
@@ -63,7 +69,7 @@ Calibration history is inspection data: every new Supervisor starts Unhomed, eve
 - The first runtime/device/feedback/transport/controller hazard retains its stable ID/cause, attempts all stops, and increments a Supervisor-lifetime stop generation. Later healthy/empty diagnostics do not clear authority or repeat the stop burst. Additional hazard evidence and secondary delivery failures are retained.
 - All motion, enable, calibration and SetZero routes consult the latch. `check_fault_authority` provides the same read-only gate to controller mode entry. `latch_control_fault` is a trusted owner hook for actual controller failures, not an operator reset.
 - Explicit Disable always attempts all configured addresses and advances stop generation; it never clears faults. Every newly asserted hardware-input edge attempts a stop, even after an existing fault; releasing the boolean does not reset authority. GPIO integration is still absent.
-- Checked Ready transition refuses Active; unchecked Ready is a no-op while Active. Calibration enable refuses existing Active motion so live drive/watchdog authority cannot disappear behind a Ready flag.
+- Checked Ready transition refuses Active; unchecked Ready is removed. Legacy calibration enable refuses before arming, including existing Active motion.
 - The latest stop report and first failed report distinguish transport acceptance from unconfirmed physical stop. No automatic recovery or firmware fault-clear transaction is implemented. See ADRs 0020/0021 and the remediation ledger for remaining Pi/protobuf generation/publication, reference and drive-local qualification. Receive bounds do not qualify TX latency, command-dispatch priority, kernel queue loss, physical acquisition time or Pi loop jitter.
 
 ## Flow
@@ -91,4 +97,4 @@ Berthier MitJointCommand batch
 - **Depends on**: `robstride` (MotorBus + CAN frames), `armee-kinematics` (limit envelope, URDF parsing), `marengo-config` (YAML configs), `marengo-homing` (homing registry), `chappe` (telemetry), `armee-proto` (wire types).
 - **Called by**: `berthier` (ControlLoop::tick → send_mit_batch), REPL binaries (motor-repl, homing tool).
 - **Does not**: compute tau_g, plan trajectories, encode CAN bytes, open SocketCAN.
-- **Intended safety contract**: application motion enters through Supervisor. Public mutable configuration, `bus_mut`, and synthetic feedback methods still permit trusted callers to bypass parts of that boundary; closing those APIs remains CS15. Replay/cache APIs cannot erase the new fault latch, but raw bus access remains a bypass. Persistent Pi publication/command generation, explicit qualified recovery, physical stop confirmation, reference provenance and drive-local readback remain separate work.
+- **Intended safety contract**: application motion enters through Supervisor. Mutable configuration remains compatibility surface: observed reference-changing edits permanently revoke permission, while installed cleanup routes cannot be redirected. Generic raw mutable transport and synthetic grants are closed. Persistent Pi publication/command generation, fully immutable coordinated policy/model installation, qualified reference transactions/recovery, physical stop confirmation and drive-local readback remain separate work. Virtual INITIAL fixture tests prove admission/output behavior, never physical acquisition or persist ordering.

@@ -23,6 +23,11 @@ Read this before enabling motors on the bench or robot.
 - **No blind hunting.** Out-of-range or stale-zero joints may only use constrained recovery (manual reference or sensor homing), not normal gravity/hold/impedance.
 - **Calibration audit.** Host registry at `var/calibration/zero_registry.yaml` records who/when/how zero was established; firmware `SetZero` alone is insufficient.
 - **Current reference.** Every fresh registry starts `Unhomed`; saved calibration is history and cannot authorize checked home or normal Enable. Corrupt/unreadable history returns an error without replacing its bytes. See [ADR 0022](decisions/0022-calibration-history-and-current-reference.md).
+- **Permission at output.** Davout's private owner-bound reference gates Ready,
+  scoped/normal Enable, Active shortcuts and output. Caller-set history flags
+  cannot grant it. Current physical reference/SetZero capability is unqualified
+  and refuses before arming; initial virtual test fixtures establish no hardware
+  readiness. See [ADR0023](decisions/0023-private-current-reference-authority.md).
 
 Manual reference and the three-Hall workflow remain commissioning targets. The
 qualified reference transaction and single-owner client cutover are incomplete;
@@ -100,7 +105,13 @@ While free-drive sensing is desired (sheet/modal lease or global diagnostics fla
 - **Limit envelope:** Davout uses `max(|dq_cmd|, |dq_meas|)` for velocity-scaled margins so gravity-driven motion cannot shrink the envelope unexpectedly.
 - **Fault authority:** Observed runtime hazards persist across later healthy feedback, Disable and cache clearing. Davout attempts every configured stop address and retains failures; send acceptance is not physical stop acknowledgement. Qualified recovery/reset is not implemented. See [ADR 0020](decisions/0020-lossless-feedback-and-fault-authority.md).
 - **Receive integrity and work:** Status/detail feedback requires exactly eight Data bytes. Malformed configured feedback, kernel errors and incomplete receive work latch through fault authority. Every poll is limited to 64 raw frames and 256 nonblocking read attempts across all interfaces, including noise and interruptions; both enable flushes require observed quiescence. Host read order/deadlines do not qualify physical acquisition, drive behavior or Pi jitter. See [ADR 0021](decisions/0021-bounded-can-ingress.md).
-- **Reference and stop callers:** History admission is repaired separately from the remaining cached Set Zero and direct grant/Enable bypasses. A fresh `motor-repl disable` constructs the full Supervisor first, so bad startup configuration/history can block its stop dispatch. Reference-independent stop through the installed owner and CLI/MCP migration remain required; use the physical E-stop as the independent stop path.
+- **Reference and stop callers:** Private admission closes legacy direct grants
+  and cached verification; qualified reference transactions and installed-owner
+  client migration remain incomplete. A fresh `motor-repl disable` constructs
+  the full Supervisor first, so bad startup configuration/history can block its
+  stop dispatch. Reference-independent stop through the installed owner and
+  CLI/MCP migration remain required; use the physical E-stop as the independent
+  stop path.
 
 ## When in doubt
 

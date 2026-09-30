@@ -153,3 +153,51 @@ candidate is rebuilt for the strict gate. Compile/setup failures never count as
 red regression proof. Exact assertion logs, suite timing and integrated counts
 are preserved in the ledger and batch report; no full-workspace mutation job or
 hardware tests are added to the edit loop.
+
+## Sixth batch: reference isolation and independent controller inputs
+
+The private admission slice uses a concrete closed finite SimulationBus through
+the real Supervisor and controller factories. Initial virtual references are
+declared starting conditions, not acquisition or commissioning evidence. Old
+positive cap, freshness, fault, failed-stop and bootstrap contracts migrate their
+setup while preserving typed failures and actual output assertions. Custom
+post-send callbacks become finite transmit rules whose trigger counts and actual
+MIT frames must be observed. Generic arbitrary-bus refusal probes retain an
+external Arc recording witness so removing mutable bus access cannot invalidate
+their byte-identical replay.
+
+An additional scalar matrix executes 22 actual assertion failures and one
+finite-history control on exact merged c306 with 1,414 original files unchanged.
+The identical23 cases, plus the prior four scalar probes, pass in a separate
+source-bound candidate snapshot. Unsupported Hall/None, malformed identities,
+nonfinite/reversed bounds, position/offset/tolerance errors neither alter state
+nor persist success. These validate history inputs, not physical reference.
+
+Berthier replaces one arithmetic identity property with actual Impedance versus
+GravityComp friction wire output. Two planner-echo replays now check independent
+stationary raw input, small-move rate/lead bounds and reachable nonzero wire
+output. A progress/reset scenario moves to actual PositionHold law inputs at
+fixed5ms, removing2.5s of wall pacing; actual controller stationary-fault and
+neutral-bootstrap/expiry cases remain. The intermediate Linux run passes 175
+cases with zero ignored, about 0.68s total assertion runtime. Final integrated
+qualification and exact-head delivery are recorded by the batch report/ledger.
+
+Test migration independently discovered **CS24**: real encoder motion followed
+by500 stationary samples does not trip the existing ascent fuse, because a
+positive EMA tail continually counts as progress. An exact-c306 unchanged-law
+probe executes one real failing assertion, zero ignored, with 51 unrelated cases
+filtered. Correcting invented initial-pose jumps in stationary fixtures does not
+repair this separate gap. CS24 remains open with its probe, source hashes and
+required measured-progress/noise/plant regressions. No filter, fuse duration,
+torque/velocity limit, physical operation or Wave sign-off changes in this slice.
+
+Final qualification supersedes the intermediate run: primary 689 Rust/1 existing
+ignored,355 frontend,72 Pi-tool cases; affected Linux 388/0 ignored; minimal sim 5.
+Model restore review adds five independent contracts, including two old-public
+exact-c306 assertion reds and two candidate reds/control repaired in byte-identical
+frozen replay. Davout final 159 cases preserve 133 after 3 obsolete API cases retire
+and add 26. Native 2+14 and Linux 2+4 meaningful type-isolation controls/denials pass;
+the guessed never-existing owner-pairing name is excluded from required counts.
+Two targeted receive-invariant mutants fail actual assertions. All proof kinds,
+setup failures, source hashes and command/assertion timing remain separately
+recorded; the ledger/report track exact-head delivery.

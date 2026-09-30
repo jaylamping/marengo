@@ -80,7 +80,7 @@ fn usage() {
            motor-repl torque-cmd <joint> <nm>\n  \
            motor-repl gravity-preview [q...]  (robot.yaml joint order)\n\
          Homing: saved calibration is history; every fresh process starts Unhomed.\n\
-         Qualified reference workflow is incomplete; see docs/homing.md.\n\
+         Physical reference/SetZero is unqualified and refuses before arming; see docs/homing.md.\n\
          Disable requires successful startup loading; use the independent physical E-stop when needed.\n\
          Uses SocketCAN; prefer test harness or simulation before live CAN.\n\
          Env: MARENGO_ROOT, MARENGO_CONFIG_DIR (e.g. config/bringup/shoulder_pitch_dual)"
@@ -361,26 +361,17 @@ fn main() {
                 std::process::exit(1);
             });
             let sign_tested = args.iter().any(|a| a == "--sign-tested");
-            if loop_ctrl.supervisor_mut().mode() != davout::OperationalMode::Active {
-                if let Err(e) = loop_ctrl.supervisor_mut().request_enable_for_calibration() {
-                    eprintln!("enable for set-zero failed: {e}");
-                    std::process::exit(1);
-                }
-            }
-            if let Err(e) = loop_ctrl.supervisor_mut().set_zero_position(joint) {
-                eprintln!("set-zero failed: {e}");
-                std::process::exit(1);
-            }
-            let _ = loop_ctrl.supervisor_mut().refresh_feedback();
+            // Davout owns preflight and capability admission. The current physical
+            // adapter refuses; this caller must not arm first or certify cached pose.
             match loop_ctrl
                 .supervisor_mut()
-                .verify_zero_after_set(joint, "bench", sign_tested)
+                .calibrate_joint_zero(joint, "bench", sign_tested)
             {
                 Ok(pos) => {
                     println!("set-zero {joint} verified pos={pos:.4} rad (SocketCAN {bus_label})");
                 }
                 Err(e) => {
-                    eprintln!("set-zero verify failed: {e}");
+                    eprintln!("set-zero refused: {e}");
                     std::process::exit(1);
                 }
             }

@@ -3,67 +3,23 @@
 #![allow(clippy::expect_used)]
 
 use berthier::{ControlLoop, ControlMode, LoopError};
-use davout::DavoutError;
-use robstride::{
-    BusError, CanBus, CanFrame, MemoryBus, MotorBus, ReceiveAttempt, ReceivedCanFrame,
-    TimedCanFrame,
+use davout::simulation::{
+    InitialVirtualReference, RuleId, SimulationBus, SimulationReceive, TxMatcher, TxOccurrence,
+    TxRule,
 };
-use std::collections::VecDeque;
-use std::time::Instant;
+use davout::DavoutError;
+use robstride::{CanFrame, ReceivedCanFrame};
 
-#[derive(Default)]
-struct RecordingBus {
-    inner: MemoryBus,
-    rx: VecDeque<ReceivedCanFrame>,
-    inject_after_mit: bool,
-    unsafe_pose_after_mit: bool,
-    fail_next_receive: bool,
-}
-
-impl CanBus for RecordingBus {
-    fn send_frame(&mut self, frame: &CanFrame) -> Result<(), BusError> {
-        self.inner.send_frame(frame)?;
-        if self.inject_after_mit && (frame.id >> 24) & 0x1f == 1 {
-            self.inject_after_mit = false;
-            self.fail_next_receive = true;
-        }
-        if self.unsafe_pose_after_mit && (frame.id >> 24) & 0x1f == 1 {
-            self.unsafe_pose_after_mit = false;
-            let mut unsafe_status = status();
-            unsafe_status.frame.data[0..2].copy_from_slice(&[0xff, 0xff]);
-            self.rx.push_back(unsafe_status);
-        }
-        Ok(())
-    }
-
-    fn recv_one_nonblocking(&mut self) -> Result<ReceiveAttempt, BusError> {
-        if std::mem::take(&mut self.fail_next_receive) {
-            return Err(BusError::Driver("injected receive failure".into()));
-        }
-        Ok(self
-            .rx
-            .pop_front()
-            .map_or(ReceiveAttempt::Idle, |received| {
-                ReceiveAttempt::Frame(TimedCanFrame {
-                    received,
-                    received_at: Instant::now(),
-                })
-            }))
-    }
-}
-
-impl MotorBus for RecordingBus {}
-
-fn controller() -> ControlLoop<RecordingBus> {
+fn controller() -> ControlLoop<SimulationBus> {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let mut controller = ControlLoop::from_repo(root, RecordingBus::default(), 200, 50)
-        .expect("repository controller");
-    let motors = controller.supervisor().motors.motors.clone();
-    controller
-        .supervisor_mut()
-        .homing_registry_mut()
-        .bench_mark_all_verified(&motors)
-        .expect("recording reference");
+    let mut controller = ControlLoop::from_simulation(
+        root,
+        SimulationBus::default(),
+        InitialVirtualReference::AllConfigured,
+        200,
+        50,
+    )
+    .expect("virtual initial reference fixture");
     controller
         .supervisor_mut()
         .set_homing_complete()
@@ -71,14 +27,42 @@ fn controller() -> ControlLoop<RecordingBus> {
     controller
 }
 
-fn enabled_controller() -> ControlLoop<RecordingBus> {
+fn enabled_controller() -> ControlLoop<SimulationBus> {
     let mut controller = controller();
     controller
         .supervisor_mut()
         .enable_targets(&["right_upper_arm_yaw".into()])
         .expect("recording enable");
-    controller.supervisor_mut().bus_mut().inner.tx.clear();
+    controller.supervisor_mut().bus_mut().clear_trace();
     controller
+}
+
+fn after_next_mit(
+    controller: &mut ControlLoop<SimulationBus>,
+    receive: SimulationReceive,
+) -> RuleId {
+    controller
+        .supervisor_mut()
+        .bus_mut()
+        .add_tx_rule(TxRule {
+            matcher: TxMatcher {
+                communication_type: Some(1),
+                device_id: Some(3),
+                interface: None,
+            },
+            occurrence: TxOccurrence::Nth(1),
+            receive: vec![receive],
+            send_error: None,
+        })
+        .expect("finite post-send script")
+}
+
+fn receive_failure(controller: &mut ControlLoop<SimulationBus>) {
+    controller
+        .supervisor_mut()
+        .bus_mut()
+        .queue_attempts([SimulationReceive::Error("injected receive failure".into())])
+        .expect("finite receive failure");
 }
 
 fn status() -> ReceivedCanFrame {
@@ -97,18 +81,21 @@ fn status() -> ReceivedCanFrame {
 fn bootstrap_tick_returns_post_send_receive_failure() {
     let mut controller = enabled_controller();
     controller.set_control_mode(ControlMode::Impedance);
-    controller.supervisor_mut().bus_mut().inject_after_mit = true;
+    let rule = after_next_mit(
+        &mut controller,
+        SimulationReceive::Error("injected receive failure".into()),
+    );
     let result = controller.tick(None);
+    assert_eq!(controller.supervisor().bus().rule_trigger_count(rule), 1);
     assert!(
         result.is_err(),
         "post-send receive failure was hidden: {result:?}"
     );
     assert!(
         controller
-            .supervisor_mut()
-            .bus_mut()
-            .inner
-            .tx
+            .supervisor()
+            .bus()
+            .frames()
             .iter()
             .any(|frame| (frame.id >> 24) & 0x1f == 1),
         "probe must reach real MIT send"
@@ -126,23 +113,34 @@ fn active_tick_returns_post_send_receive_failure_in_each_control_mode() {
         ControlMode::Disabled,
     ] {
         let mut controller = enabled_controller();
-        controller.supervisor_mut().bus_mut().rx.push_back(status());
+        controller
+            .supervisor_mut()
+            .bus_mut()
+            .queue_received(status())
+            .expect("raw status");
         if mode == ControlMode::Position {
             controller.enter_position_hold().expect("valid hold entry");
         } else {
             controller.set_control_mode(mode);
         }
-        controller.supervisor_mut().bus_mut().inject_after_mit = true;
+        let rule = after_next_mit(
+            &mut controller,
+            SimulationReceive::Error("injected receive failure".into()),
+        );
         let result = controller.tick(None);
+        assert_eq!(
+            controller.supervisor().bus().rule_trigger_count(rule),
+            1,
+            "{mode:?}: post-send script must fire"
+        );
         if result.is_ok() {
             hidden.push(mode);
         }
         assert!(
             controller
-                .supervisor_mut()
-                .bus_mut()
-                .inner
-                .tx
+                .supervisor()
+                .bus()
+                .frames()
                 .iter()
                 .any(|frame| (frame.id >> 24) & 0x1f == 1),
             "{mode:?}: actual MIT send required"
@@ -161,12 +159,18 @@ fn post_send_unsafe_pose_cannot_be_reported_as_a_successful_tick() {
         let mut controller = enabled_controller();
         controller.set_control_mode(ControlMode::Impedance);
         if fresh_pose {
-            controller.supervisor_mut().bus_mut().rx.push_back(status());
+            controller
+                .supervisor_mut()
+                .bus_mut()
+                .queue_received(status())
+                .expect("raw status");
         }
-        controller.supervisor_mut().bus_mut().unsafe_pose_after_mit = true;
+        let mut unsafe_status = status();
+        unsafe_status.frame.data[0..2].copy_from_slice(&[0xff, 0xff]);
+        let rule = after_next_mit(&mut controller, SimulationReceive::Received(unsafe_status));
         let result = controller.tick(None);
         assert!(
-            !controller.supervisor_mut().bus_mut().unsafe_pose_after_mit,
+            controller.supervisor().bus().rule_trigger_count(rule) == 1,
             "probe must reach actual MIT transmission before injecting feedback"
         );
         if !matches!(
@@ -187,19 +191,18 @@ fn post_send_unsafe_pose_cannot_be_reported_as_a_successful_tick() {
 #[test]
 fn hold_entry_rejects_receive_failure_before_installing_motion_intent() {
     let mut controller = controller();
-    controller.supervisor_mut().bus_mut().fail_next_receive = true;
+    receive_failure(&mut controller);
     let result = controller.enter_position_hold();
     assert!(
-        result.is_err(),
+        matches!(result, Err(LoopError::Safety(DavoutError::Bus(_)))),
         "mode-entry receive failure was hidden: {result:?}"
     );
     assert!(controller.position_setpoints().is_none());
     assert!(
         controller
-            .supervisor_mut()
-            .bus_mut()
-            .inner
-            .tx
+            .supervisor()
+            .bus()
+            .frames()
             .iter()
             .all(|frame| (frame.id >> 24) & 0x1f != 3),
         "rejected refresh must not enable"
@@ -209,19 +212,18 @@ fn hold_entry_rejects_receive_failure_before_installing_motion_intent() {
 #[test]
 fn target_entry_rejects_receive_failure_before_installing_motion_intent() {
     let mut controller = controller();
-    controller.supervisor_mut().bus_mut().fail_next_receive = true;
+    receive_failure(&mut controller);
     let result = controller.enter_position_hold_at(Some("right_upper_arm_yaw"), 0.1);
     assert!(
-        result.is_err(),
+        matches!(result, Err(LoopError::Safety(DavoutError::Bus(_)))),
         "target refresh failure was hidden: {result:?}"
     );
     assert!(controller.position_setpoints().is_none());
     assert!(
         controller
-            .supervisor_mut()
-            .bus_mut()
-            .inner
-            .tx
+            .supervisor()
+            .bus()
+            .frames()
             .iter()
             .all(|frame| (frame.id >> 24) & 0x1f != 3),
         "rejected refresh must not enable"
@@ -231,20 +233,19 @@ fn target_entry_rejects_receive_failure_before_installing_motion_intent() {
 #[test]
 fn wave_entry_rejects_receive_failure_before_installing_motion_intent() {
     let mut controller = controller();
-    controller.supervisor_mut().bus_mut().fail_next_receive = true;
+    receive_failure(&mut controller);
     let result = controller.start_position_wave("right_upper_arm_yaw", -0.1, 0.1, 1, 1.0);
     assert!(
-        result.is_err(),
+        matches!(result, Err(LoopError::Safety(DavoutError::Bus(_)))),
         "wave refresh failure was hidden: {result:?}"
     );
     assert!(controller.position_setpoints().is_none());
     assert!(!controller.position_wave_active());
     assert!(
         controller
-            .supervisor_mut()
-            .bus_mut()
-            .inner
-            .tx
+            .supervisor()
+            .bus()
+            .frames()
             .iter()
             .all(|frame| (frame.id >> 24) & 0x1f != 3),
         "rejected refresh must not enable"
@@ -257,24 +258,24 @@ fn already_observed_device_fault_rejects_hold_entry_without_installing_intent() 
     controller
         .supervisor_mut()
         .bus_mut()
-        .rx
-        .push_back(ReceivedCanFrame::full_data(
+        .queue_received(ReceivedCanFrame::full_data(
             Some("can0".into()),
             CanFrame {
                 id: 0x1500_0300,
                 data: [0xff, 0xff, 0xff, 0xff, 0, 0, 0, 0],
                 extended: true,
             },
-        ));
+        ))
+        .expect("literal device fault");
     let _ = controller.supervisor_mut().drain_feedback();
-    controller.supervisor_mut().bus_mut().inner.tx.clear();
+    controller.supervisor_mut().bus_mut().clear_trace();
     let result = controller.enter_position_hold();
     assert!(
         result.is_err(),
         "quiet diagnostic refresh must not grant fault recovery: {result:?}"
     );
     assert!(controller.position_setpoints().is_none());
-    assert!(controller.supervisor_mut().bus_mut().inner.tx.is_empty());
+    assert!(controller.supervisor().bus().frames().is_empty());
 }
 
 #[test]
@@ -283,17 +284,17 @@ fn already_observed_device_fault_rejects_new_torque_intent() {
     controller
         .supervisor_mut()
         .bus_mut()
-        .rx
-        .push_back(ReceivedCanFrame::full_data(
+        .queue_received(ReceivedCanFrame::full_data(
             Some("can0".into()),
             CanFrame {
                 id: 0x1500_0300,
                 data: [0xff, 0xff, 0xff, 0xff, 0, 0, 0, 0],
                 extended: true,
             },
-        ));
+        ))
+        .expect("literal device fault");
     let _ = controller.supervisor_mut().drain_feedback();
-    controller.supervisor_mut().bus_mut().inner.tx.clear();
+    controller.supervisor_mut().bus_mut().clear_trace();
     let result = controller.set_torque_cmd("right_upper_arm_yaw", 0.5);
     assert!(
         result.is_err(),
@@ -301,7 +302,7 @@ fn already_observed_device_fault_rejects_new_torque_intent() {
     );
     assert_eq!(controller.torque_cmd("right_upper_arm_yaw"), 0.0);
     assert_eq!(controller.control_mode(), ControlMode::Disabled);
-    assert!(controller.supervisor_mut().bus_mut().inner.tx.is_empty());
+    assert!(controller.supervisor().bus().frames().is_empty());
 }
 
 #[test]
@@ -319,7 +320,7 @@ fn exhausted_feedback_bootstrap_cannot_be_rearmed_by_disable_and_enable() {
         .supervisor_mut()
         .disable_all()
         .expect("recording stop");
-    controller.supervisor_mut().bus_mut().inner.tx.clear();
+    controller.supervisor_mut().bus_mut().clear_trace();
     let result = controller
         .supervisor_mut()
         .enable_targets(&["right_upper_arm_yaw".into()]);
@@ -327,7 +328,7 @@ fn exhausted_feedback_bootstrap_cannot_be_rearmed_by_disable_and_enable() {
         result.is_err(),
         "Disable must not clear missing-feedback authority: {result:?}"
     );
-    assert!(controller.supervisor_mut().bus_mut().inner.tx.is_empty());
+    assert!(controller.supervisor().bus().frames().is_empty());
 }
 
 #[test]

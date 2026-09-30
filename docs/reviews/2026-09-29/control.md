@@ -251,6 +251,36 @@ motion. Do not copy old bench acceptance or expected values from the defective
 algorithm into new tests. This repair does not finish CS21's production-model
 validation or T28's URDF/MJCF consistency work.
 
+### CS24 — A positive velocity filter tail prevents stall detection after motion stops
+
+**Priority:** P1. **Disposition:** open; discovered during batch06 test migration.
+
+On exact checked merge `c3068c09233aab8a142610fcdda0d8386057e70a`,
+`position_hold.rs` treats any filtered velocity toward the target as progress.
+After100 coherent advancing samples,500 stationary encoder observations at5ms
+leave a positive EMA tail. The reset condition repeatedly clears the ascent
+recovery accumulator, so the existing 2s fuse never trips even after 2.5s stopped.
+The measured filtered velocity after 100 stopped samples is about 3.2072e-15rad/s;
+this is floating-point decay, not encoder progress. Relevant unchanged source:
+[progress predicate](https://github.com/jaylamping/marengo/blob/c3068c09233aab8a142610fcdda0d8386057e70a/crates/berthier/src/position_hold.rs#L858),
+[fuse reset](https://github.com/jaylamping/marengo/blob/c3068c09233aab8a142610fcdda0d8386057e70a/crates/berthier/src/ascent_recovery.rs#L64).
+
+The independent added probe includes the actual unchanged law modules and calls
+`PositionHold::arm/tick` with coherent literal q/dq and fixed dt. It executes one
+real failing assertion, zero ignored, with 51 unrelated included-module tests
+filtered. All 1,414 archived original files retain their pre/post SHA256. This is
+law-level evidence, not published-crate API or a physical plant test. Exact
+source, logs, identity receipt and source manifest remain under
+`J:/code/marengo-migration-backup-20260929/batch06/controller-tail-evidence`.
+
+Replace sign-only filtered-velocity progress with a bounded measured encoder
+displacement/noise contract that admits genuine slow crawl but cannot count an
+EMA residual as motion. Keep current limits and fuse bound. Test motion followed
+by stationary observations, quantization/noise, slow real progress, wrong-way
+motion and dropouts with independent inputs; then qualify actual controller
+fault/stop wire output. Batch06 changes fixture setup, not this algorithm.
+Physical stiction/commissioning acceptance remains separate.
+
 ## Architectural gaps requiring explicit decisions
 
 1. **Drive-local timeout is not configured/read back.** `ParameterId::CanTimeout` exists ([crates/robstride/src/params.rs:33](https://github.com/jaylamping/marengo/blob/4bc77ba605834fdec04b436daa4bec67bca84fbb/crates/robstride/src/params.rs#L33)) but runtime never writes it. The host watchdog cannot act during a hang, crash, SIGKILL, or after a one-shot CLI exits. Vendor default can be zero/disabled; actual installed firmware settings were not read. Make a verified per-model timeout and torque-limit handshake part of enable and a hardware commissioning test. Model hold-up/arm support consequences of torque removal separately from preventing runaway.
@@ -274,7 +304,7 @@ validation or T28's URDF/MJCF consistency work.
 All commands are pure native Windows tests or MemoryBus/MockI2c source-linked reproductions. No hardware test was run.
 
 1. `cargo test --locked -p robstride -p armee-dynamics -p armee-kinematics -p marengo-config -p marengo-imu`: **129 passed**, **9 ignored**, no failures. Counts: robstride29, dynamics9, kinematics16, config63, IMU12.
-2. With `PROTOC` pointing to the recovered Windows protoc executable, `cargo test --locked -p davout -p marengo-homing`: **90 passed**, no failures/ignores (Davout67, homing23). Across these seven crates: **219 passed, 9 ignored**.
+2. With `PROTOC` pointing to the recovered Windows protoc executable, `cargo test --locked -p davout -p marengo-homing`: **90 passed**, no failures/ignores (Davout 67, homing23). Across these seven crates: **219 passed, 9 ignored**.
 3. Native Berthier/Pi/motor-repl test attempt: **blocked by Chappe library compile errors** (CS22); those tests are unverified here. Full hardware SocketCAN/Linux-I2C tests are unverified.
 4. `cargo test --locked -p armee-dynamics -- --ignored --nocapture`: fails the obsolete pure link-chain test. `cargo test --locked -p armee-dynamics --test golden_tau_g -- --ignored --nocapture`: **1 passed, 6 failed**, all stale-golden mismatches (CS21).
 5. Isolated source-linked reproductions use the actual reviewed crates with MemoryBus and MockI2c. An intentionally invalid calibration fixture stayed in the isolated evidence directory. These reproduced CS01, CS02, CS03, CS05, CS06, CS08, CS10, CS11, CS14, and CS16. They exercised the real nonblocking receive and command/filter behavior without opening CAN.

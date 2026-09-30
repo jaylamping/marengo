@@ -10,7 +10,7 @@ Marengo separates **home reference**, **semantic zero**, and **verified startup 
 | **Semantic zero** | The joint angle used by URDF, gravity, and control (`q = 0`). |
 | **Home offset** | `home_offset_rad`: maps detected home reference to semantic zero. `semantic_zero = home_reference + home_offset_rad`. |
 | **Firmware zero** | Robstride `SetZero` — encoder count stored in the motor drive. |
-| **Verified** | Current-process reference state required for normal enable; a historical row cannot establish it. |
+| **Verified** | Davout's private current-reference permission projected into live state; history or a caller-set flag cannot establish it. |
 | **Stale zero** | Calibration record or firmware zero is no longer trusted (motor swap, ID change, disassembly, failed verification). |
 
 ## Startup states
@@ -71,7 +71,7 @@ Configured per joint in `config/homing.yaml` (see [ADR 0006](decisions/0006-homi
 
 | Method | When to use |
 |--------|-------------|
-| `manual_reference` | **Target contract** — supported mechanical placement, explicit sign attestation and qualified evidence after Set Zero. Current cached-pose verification does not satisfy this contract. |
+| `manual_reference` | **Target contract** — supported mechanical placement, explicit sign attestation and qualified evidence after Set Zero. The installed adapter currently refuses unqualified reference. |
 | `hall_three_sensor` | **Unimplemented live workflow** — slow search, edge detect, backoff/re-approach, apply `home_offset_rad`, optional firmware `SetZero`. |
 | `none` | No physical reference workflow; it cannot establish live bench reference. |
 
@@ -83,10 +83,13 @@ fresh-process reference gate. `home` checks current readiness; it does not acqui
 a physical reference. The saved rows remain available and do not convey a grant
 between processes.
 
-The reference repair is still in progress: current Set Zero checks cached pose,
-and the CLI calibration path can enable peers or exit without reliable cleanup.
-Do not use unchecked readiness setters or synthetic bench grants to restore that
-sequence. A live commissioning procedure requires the remaining target-only
+Davout now keeps current-reference permission private and checks it at Ready,
+every Enable path and motor output. Legacy registry flags and scalar history
+checks cannot supply that permission. The installed Robstride adapter lacks a
+qualified device identity/reset/zero-readback contract, so reference, raw SetZero
+and cached verification requests refuse before arming or history persistence.
+The CLI submits one guarded request instead of enabling first and certifying a
+cached pose. A live commissioning procedure requires the remaining target-only
 preflight, stop-before-storage, qualified postcommand evidence and single-owner
 request/receipt work tracked as CS05/CS06/CS07 in the
 [repair roadmap](reviews/2026-09-29/implementation-roadmap.md).
@@ -96,6 +99,14 @@ commissioning. The fresh `motor-repl disable` path also requires full startup
 configuration and history loading; a corrupt resource can prevent it from
 reaching its stop writes. It is not a qualified emergency-stop mechanism. An
 accepted socket write or software Disabled state does not prove physical stop.
+
+Positive software tests construct a closed in-memory simulator with an explicit
+initial virtual reference fixture. It shares Davout/Berthier admission, receive,
+fault, stop and output logic, and records output locally. This fixture proves
+behavior from declared initial conditions; it does not prove reference
+acquisition, SetZero causality, durable transaction results or physical readiness.
+Ordinary constructors have no reference capability even with a recording bus.
+See [ADR0023](decisions/0023-private-current-reference-authority.md).
 
 ## Out-of-range recovery requirements
 
@@ -113,6 +124,11 @@ Blind position hunting without sensors or operator reference is **not** allowed.
 Host-side history: `var/calibration/zero_registry.yaml` by default, or an absolute bench path such as `/opt/marengo/var/calibration/zero_registry.yaml` for live Pi profiles. The path is configurable via `homing.yaml`; Supervisor composition accepts a runtime override with `MARENGO_CALIBRATION_RECORD`. A relative override retains its process-working-directory interpretation. The pure homing library uses its supplied path and does not read environment variables.
 
 Records per joint: device ID, interface, method, offset, timestamp, config revision, verification result, sign-test status and operator. Construction preserves loaded rows and existing bytes. The current writer replaces the previous row for a joint; it is not yet an immutable transaction audit log. Firmware `SetZero` or a saved row alone does not establish current reference.
+
+The legacy scalar manual-history validator rejects nonfinite pose/bounds/
+tolerance/offset, negative tolerance, empty/reversed bounds, joint mismatches
+and unsupported Hall/None methods before state or history mutation. A valid
+scalar history record still conveys no output permission or device evidence.
 
 ## Stale-zero triggers
 

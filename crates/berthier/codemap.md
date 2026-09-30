@@ -9,6 +9,7 @@ Owns `ControlLoop::tick` — the heartbeat of the robot. Also provides a legacy 
 
 ### Core types
 - `ControlLoop<B: MotorBus>` — realtime tick facade; holds `Supervisor<B>`, `UrdfGravityModel`, `PositionHold`, `GainRuntime`, `TorqueCmdLatch`, Chappe bus reference, and tick-phase timing accumulators.
+- Ordinary `ControlLoop::from_repo` receives no current-reference authority. The concrete `ControlLoop<davout::simulation::SimulationBus>::from_simulation` accepts a declared virtual initial condition through Davout's closed in-memory transport. Both factories share private model/config/state initialization and the same tick/admission/stop implementation; there is no unchecked supervisor-injection factory or alternate test policy.
 - `GainRuntime` — sticky Testing `GainOverride` map + mode-transition kp/kd ramp + per-tick `resolve_all` → `ResolvedGains` (law_* + wire_*).
 - `TorqueCmdLatch` — per-joint latched open-loop `τ_cmd` for TorqueOnly; cleared on leave / `enter_torque_only_zero`.
 - `PositionHold` — owns latched targets, trapezoid planners, freeze/breakaway latches, and Position-mode MIT compose (`tick` → `HoldTickOut`).
@@ -31,6 +32,14 @@ Owns `ControlLoop::tick` — the heartbeat of the robot. Also provides a legacy 
 - `position_trace` — Optional CSV trace file (`MARENGO_POSITION_TRACE` env var) for high-rate position-hold debugging.
 - `position_wave` — In-loop triangle wave generator on one joint while others hold (bench diagnostics).
 - `mode_isolation` (test-only) — Property tests verifying non-gravity FF components (tau_f, tau_d) are independent of tau_g changes.
+
+### Test contracts
+- Positive controller cases use the closed `SimulationBus`, finite raw status input and finite transmit-triggered receive scripts. Post-send hazards assert script trigger counts before their failure result; raw input passes through Davout's ordinary receive, freshness, bounds and fault checks.
+- `tests/simulation_admission.rs` checks ordinary construction remains unreferenced even with a simulation transport, and explicit simulation construction admits only declared joints.
+- `tests/feedback_bootstrap.rs` covers neutral solicitation, expiry, re-enable session separation and nonzero hard ranges installed before reference declaration in isolated resource trees.
+- `tests/feedback_failure_propagation.rs` covers receive errors in every control mode, unsafe post-send pose, failed mode-entry intent, latched fault refusal and stopped intent cancellation.
+- `tests/friction_mode_output.rs` checks actual wire torque responds to the impedance friction override while GravityComp ignores it; this replaces a local arithmetic identity property.
+- Small-move slew cases hold the raw encoder stationary and inspect planner/actual MIT output. Stationary controller stall cases use raw receive observations; the progress-reset law case supplies independent measured q/dq and fixed dt directly to production `PositionHold::tick`. These are software admission/output contracts, not plant tracking, reference acquisition, SetZero correlation or physical commissioning proof.
 
 ## Flow (`ControlLoop::tick`)
 1. **Feedback drain**: `Supervisor::drain_feedback()` — non-blocking poll of CAN RX queue (frames buffered from prior tick's transmit).

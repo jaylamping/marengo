@@ -74,7 +74,7 @@ fn historical_rows_cannot_authorize_checked_home_or_normal_enable() {
     // Master policy permits startup diagnostic reporting. Only energizing/motion
     // output is prohibited by this history admission contract.
     assert!(supervisor
-        .bus_mut()
+        .bus()
         .tx
         .iter()
         .all(|frame| !matches!(frame.id >> 24, 1 | 3)));

@@ -10,10 +10,11 @@ This is a review and recovery record. The control, stop, freshness, calibration,
 
 **Implementation follow-up:** The
 [complete implementation roadmap](2026-09-29/implementation-roadmap.md),
-[101-ID ledger](2026-09-29/implementation-ledger.json), and
+[102-ID ledger](2026-09-29/implementation-ledger.json), and
 [test-quality audit](2026-09-29/test-quality-plan.md) now track repairs and
 acceptance. Independent tests discovered CS23, a gravity COM translation defect,
-after this review's original 100-ID inventory. The ledger distinguishes verified
+and CS24, a stall fuse reset by a residual velocity filter tail, after this
+review's original 100-ID inventory. The ledger distinguishes verified
 repairs, partial work and outstanding findings; historical counts and validation
 below describe the completed review baseline.
 
