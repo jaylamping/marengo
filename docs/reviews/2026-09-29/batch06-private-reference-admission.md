@@ -2,8 +2,9 @@
 
 Baseline: checked PR218 merge `c3068c09233aab8a142610fcdda0d8386057e70a`.
 Decision: [ADR0023](../../decisions/0023-private-current-reference-authority.md).
-Active checkout: `J:\code\marengo`. Status: software slice locally qualified;
-exact-head GitHub checks and safe delivery remain required.
+Active checkout: `J:\code\marengo`. Status: software slice locally qualified and
+implementation-head GitHub checks pass; final evidence-head and safe delivery
+remain required. [PR219](https://github.com/jaylamping/marengo/pull/219).
 
 ## Problem and resulting boundary
 
@@ -85,8 +86,8 @@ progress-reset case calls the production law with coherent measured q/dq and fix
 dt, removing2.5s of wall pacing. Actual controller stationary stall, persistent
 fault/stop and bootstrap/expiry coverage remain. The first intermediate controller
 run exposed three setup failures; the next focused run passes 175 cases, zero
-ignored, about 0.68s assertion runtime. Final integrated rerun remains required for
-the last reachability assertions and Davout changes.
+ignored, about 0.68s assertion runtime. Final integrated Linux and primary reruns
+also pass with the last reachability assertions and Davout changes.
 
 Those failures prompted an independent probe of real motion followed by encoder
 stoppage. On unchanged c306, a positive EMA residue prevents the ascent fuse from
@@ -142,10 +143,20 @@ final 159 cases retain133 after 3 obsolete APIs are retired and add 26; Berthier
 No newly ignored tests. The sole lock change adds already-pinned serde_yaml as a
 Davout dev dependency; package identities/checksums/versions are unchanged.
 
-All applicable exact-head GitHub checks remain required before safe merge. The
-ledger records delivery and review receipts; external `batch06/merge-receipt.json`
-will preserve exact final/main hashes, tree equality, checked jobs and recoverable
-branch bundle for reconciliation in the next iteration.
+All five implementation-head GitHub jobs pass at
+`7951f10f874c3258602e8774b19882daf8f6b735` in
+[run36706934339](https://github.com/jaylamping/marengo/actions/runs/36706934339),
+including **73 actual virtual-CAN driver tests, zero ignored**. The check job
+repeats the 689 Rust/one ignored, 355 frontend and 72 Pi-tool results; simulation
+passes five harness tests. `github-implementation-verified.json` preserves counts
+and exact head binding under the evidence root above.
+
+The final evidence-head must pass all five jobs before safe merge, and the
+postmerge main run must pass with the identical checked tree. The ledger records
+delivery and review receipts; external `batch06/merge-receipt.json` will preserve
+exact final/main hashes, tree equality, checked jobs and the recoverable branch
+bundle for reconciliation in the next iteration. This avoids a self-referential
+commit for its own merge receipt.
 
 CS05, CS06 and CS07 stay partial. Bounded target-only acquisition, stop before storage, durable
 outcomes, correlated installed-owner clients and reference-independent priority

@@ -309,9 +309,13 @@ transport/private-factory isolation pass. Review discovers and fixes atomic mode
 restore, with two exact-c306 old-public and two candidate assertion reds repaired.
 Final primary passes 689 Rust/1 existing ignored,355 frontend and 72 Pi-tool tests
 with fatal main cross-build; affected Linux 388/0 ignored and minimal simulation 5
-pass. Standards has zero findings; Spec's one issue is resolved. Exact-head
-GitHub delivery remains required before merge. CS05/CS06/CS07 remain partial;
-qualified target-only transactions and installed-owner clients are next.
+pass. Standards has zero findings; Spec's one issue is resolved.
+[PR219](https://github.com/jaylamping/marengo/pull/219)'s implementation head
+`7951f10` passes all five GitHub jobs in run36706934339, including 73 actual
+virtual-CAN driver tests, zero ignored. Final evidence-head and postmerge main
+delivery checks remain required; the external batch06 merge receipt will bind
+those checked hashes and equal trees. CS05/CS06/CS07 remain partial; qualified
+target-only transactions and installed-owner clients are next.
 
 The independent law probe adds CS24 open: a positive EMA residue resets the stall
 fuse after real motion stops. Two receive-invariant mutants are killed, but this

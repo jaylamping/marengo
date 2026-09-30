@@ -10,7 +10,7 @@
     "batch_id": "batch06",
     "branch": "codex/current-reference-authority",
     "baseline_main": "c3068c09233aab8a142610fcdda0d8386057e70a",
-    "status": "software slice locally qualified; exact-head GitHub checks and safe delivery pending",
+    "status": "software slice locally qualified and implementation-head GitHub checks pass; final evidence-head and safe delivery pending",
     "report": "batch06-private-reference-admission.md",
     "findings": [
       "CS05",
@@ -69,7 +69,52 @@
       "main_aarch64_release": "passed, fatal on failure"
     },
     "required_github_gate": {
-      "result": "pending; all applicable exact-head checks before safe merge"
+      "result": "implementation head passes all five jobs; final evidence-head and postmerge main checks pending",
+      "implementation_head": "7951f10f874c3258602e8774b19882daf8f6b735",
+      "implementation_run": 36706934339,
+      "implementation_jobs": [
+        {
+          "name": "changes",
+          "conclusion": "success",
+          "url": "https://github.com/jaylamping/marengo/actions/runs/36706934339/job/109859277210"
+        },
+        {
+          "name": "build-image",
+          "conclusion": "success",
+          "url": "https://github.com/jaylamping/marengo/actions/runs/36706934339/job/109859277403"
+        },
+        {
+          "name": "vcan",
+          "conclusion": "success",
+          "url": "https://github.com/jaylamping/marengo/actions/runs/36706934339/job/109859400785"
+        },
+        {
+          "name": "sim",
+          "conclusion": "success",
+          "url": "https://github.com/jaylamping/marengo/actions/runs/36706934339/job/109859400821"
+        },
+        {
+          "name": "check",
+          "conclusion": "success",
+          "url": "https://github.com/jaylamping/marengo/actions/runs/36706934339/job/109859400933"
+        }
+      ],
+      "implementation_rust_test_counts": {
+        "check": {
+          "passed": 689,
+          "ignored": 1
+        },
+        "sim": {
+          "passed": 5,
+          "ignored": 0
+        },
+        "vcan": {
+          "passed": 73,
+          "ignored": 0
+        }
+      },
+      "final_head_gate": "pending; require all five exact-head jobs before safe merge",
+      "postmerge_main_gate": "pending; require all five jobs on equal checked tree"
     },
     "hardware_acceptance": "Not established; no robot operations, limit increases or Wave sign-off changes",
     "known_limits": [
@@ -175,8 +220,12 @@
         "remaining_blockers": 0,
         "report": "J:/code/marengo-migration-backup-20260929/batch06/independent-spec-review.md"
       },
-      "limits": "Scope is admission/output and atomic owner restore, not qualified hardware acquisition or immutable whole-controller model generation."
-    }
+      "limits": "Scope is admission/output and atomic owner restore, not qualified hardware acquisition or immutable whole-controller model generation.",
+      "reviewed_source_commit": "7951f10f874c3258602e8774b19882daf8f6b735",
+      "final_followup_scope": "Four review/evidence documents only; frozen source/test/manifest hashes unchanged."
+    },
+    "implementation_pr": "https://github.com/jaylamping/marengo/pull/219",
+    "final_delivery_receipt": "J:/code/marengo-migration-backup-20260929/batch06/merge-receipt.json"
   },
   "findings": [
     {
@@ -267,11 +316,12 @@
         "Four existing-public behavioral groups fail on exact merged 6ff with 56 production files unchanged, then pass byte-identically against frozen candidate source; all five mismatch children and real checked home/Enable exercised, no synthetic grant.",
         "Local primary 639Rust/1ignored,355frontend,72Pi-MCP,8vcan setup/4dependency contracts and fatal main aarch64 release pass; affected Linux 338 including final Davout 136, sim 5 and independent review pass. All five implementation-head GitHub jobs pass at 8c3f62e/run 36691835812, including 73 real driver feature tests and zero ignored; final evidence-head delivery checks remain required.",
         "R1b removes naked/current-cache grants and gates every Ready/Enable/Active/output path with private owner-local permission. Only closed initial virtual fixtures can grant; ordinary and physical reference acquisition/recovery explicitly refuse. Qualified transaction/device/reset/persistence/sign acceptance remains open.",
-        "Batch06 final primary 689Rust/1ignored,355frontend,72Pi-MCP; Linux 388/0ignored strict lint; sim 5; unchanged scalar/public/restore red-green, native 2+14 and Linux 2+4 isolation, two receive mutants and independent Standards/Spec reviews pass. Exact-head delivery pending."
+        "Batch06 final primary 689Rust/1ignored,355frontend,72Pi-MCP; Linux 388/0ignored strict lint; sim 5; unchanged scalar/public/restore red-green, native 2+14 and Linux 2+4 isolation, two receive mutants and independent Standards/Spec reviews pass. All five implementation-head GitHub jobs pass at 7951f10/run36706934339, including 73 actual driver feature tests/0 ignored; final evidence-head/postmerge delivery pending."
       ],
       "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/218",
       "hardware_acceptance": "required before physical release",
-      "implementation_batch": "batch06"
+      "implementation_batch": "batch06",
+      "implementation_pr": "https://github.com/jaylamping/marengo/pull/219"
     },
     {
       "id": "CS06",
@@ -288,7 +338,8 @@
       ],
       "verified_commit_or_pr": null,
       "hardware_acceptance": "required before physical release",
-      "implementation_batch": "batch06"
+      "implementation_batch": "batch06",
+      "implementation_pr": "https://github.com/jaylamping/marengo/pull/219"
     },
     {
       "id": "CS07",
@@ -306,7 +357,8 @@
       ],
       "verified_commit_or_pr": null,
       "hardware_acceptance": "required before physical release",
-      "implementation_batch": "batch06"
+      "implementation_batch": "batch06",
+      "implementation_pr": "https://github.com/jaylamping/marengo/pull/219"
     },
     {
       "id": "CS08",
@@ -441,7 +493,8 @@
       ],
       "verified_commit_or_pr": null,
       "hardware_acceptance": "required before physical release",
-      "implementation_batch": "batch02"
+      "implementation_batch": "batch02",
+      "implementation_pr": "https://github.com/jaylamping/marengo/pull/219"
     },
     {
       "id": "CS16",
@@ -2452,7 +2505,7 @@
       "CS15"
     ],
     "purpose": "R2a bounded owner reference/recovery engine with explicit unsupported physical capability, target-only begin/advance/cancel, immediate stop before durable work and correlated installed-owner clients. Replace initial virtual declarations with correlated virtual transaction fixtures in small slices.",
-    "prerequisites": "Batch06 local qualification complete; exact implementation/final-head and merged-main checks required before the next implementation baseline.",
+    "prerequisites": "Batch06 local and exact implementation-head qualification complete; final evidence-head and merged-main checks required before the next implementation baseline.",
     "design_evidence": [
       "J:/code/marengo-migration-backup-20260929/batch03/next-reference-contract-plan.md",
       "J:\\code\\marengo-migration-backup-20260929\\batch04\\next-reference-plan.md",
