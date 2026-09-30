@@ -21,6 +21,7 @@ Disabled ──[set_homing_complete]──► Ready ──[request_enable(true)]
 - `Supervisor<B: MotorBus>` — owns installed state/motor/model policy, inspection-only homing history, pose cache, persistent `FaultAuthority`, private reference permission and the `MotorBus`. Ordinary repo constructors have no qualified acquisition capability.
 - `ReferenceAuthority` (`reference.rs`) — private owner-local, nonserializable, noncloneable reference permission. Relevant installed motor/frame/envelope/effective homing policy and the closed backend realm are bound independently of ordinary motion-stop generation.
 - `ReferenceOwner` (`reference_transaction.rs`) — one opaque reservation plus eight retained outcomes; one phase/one actual bounded report per advance, finite owner deadlines and immutable terminal cleanup. Closed virtual acquisition ends EvidenceStaged/CommitUnavailable without permission or history writes. Generic/physical owners remain Unsupported. The private consumer (`feedback_consumer.rs`) shares ordered hazard policy while each lifecycle owns its stop.
+- `InstalledReferenceModel` (`reference_model.rs`) — bounded immutable private robot/URDF values and checked installation identity. Each successful typed rebuild/patch/restore replaces that identity, including equal values. Acquisition stamps and retained matched evidence bind it. `ReferenceStageStatus` is a live inspection-only continuity projection after actual cleanup, distinct from the immutable unusable terminal (ADR0027).
 - `SimulationBus` (`simulation.rs`, `simulation_reference.rs`) — closed concrete finite raw/enveloped/timed/error scripts, source-indexed queues, typed impossible-wire consumer fixtures and declarative TX effects. Its specialized constructor installs a private virtual acquisition backend independently of optional INITIAL coverage; actual addressed SetZero and exact raw pops carry private epoch/correlation metadata. No wrapped bus, socket, callback, import or physical-state conversion exists.
 - `SafetySnapshot` — owned read-only persistent records, complete and partial vendor domains, bounded first/latest receive-envelope and incomplete-work evidence, hardware input, stop generation, latest stop and first failed stop. Qualified recovery is unavailable in this slice.
 - `StopReport` — every address's zero-speed, neutral-MIT and ordinary-disable attempt, including bounded errors. Accepted writes do not prove physical acknowledgement.
@@ -60,6 +61,15 @@ Snapshot inspection permanently revokes mismatched INITIAL coverage and retains
 a live policy mismatch until mutable advance/cancel delivers cleanup. Restoring
 public fields cannot resume that transaction. Phase time is capped by finite
 overall remaining time before arithmetic; expiry wins a tied raw reply.
+
+Retained matched evidence is bounded by the existing outcome cache. One private
+validator observes post-cleanup owner/realm/address epoch/model/policy/reference/
+stop continuity and the original finite deadline. A stage is current only for
+the latest acquisition and successful cleanup. Observed mismatch is sticky;
+restoring public policy or the old model cannot revive it. Old-handle snapshots
+project that handle's own stage, and shutdown invalidates even a stopped stage.
+Inspection emits no frames and never supplies reference permission. Durable
+journal/commit and installed-owner clients remain separate work.
 
 Relevant policy mismatch is permanently observed through facets, admission and receive; restoring public fields does not revive reference. Receive uses installed address/type/transform lookup, preserving original peer fault evidence despite corrupted public routing. Active mismatch stops the original installed addresses after consuming every ordered receive event. Rebuild/limit patches, new faults and uncertain stop revoke reference. Successful ordinary Disable preserves intact reference while advancing motion-stop generation; it still requires new post-enable pose for later motion. Output-only gain/friction/torque-cap/watchdog changes may preserve reference after complete shared validation; envelope/trim/resolved velocity and homing/frame changes cannot. The current motor and type torque caps still bound output after slew. Fully immutable coordinated policy/model installation remains CS15 work.
 

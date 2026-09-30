@@ -47,6 +47,7 @@ tracing = "0.1"
 prost = "0.13"
 prost-build = "0.13"
 urdf-rs = "0.8"
+yaserde = "0.8"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 serde_yaml = "0.9"
 marengo-support = { path = "crates/marengo-support" }
