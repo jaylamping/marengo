@@ -6,7 +6,7 @@ Implementation modules for the Berthier realtime control loop and legacy single-
 ## Design
 | Module | Role |
 |--------|------|
-| `loop.rs` | `ControlLoop<B>` — main tick, mode dispatch, Chappe publish |
+| `loop.rs` | `ControlLoop<B>` — checked gain setters, enable-session neutral bootstrap, main tick, mode dispatch, Chappe publish |
 | `friction.rs` | Velocity-based friction feedforward |
 | `position_feedforward.rs` | PD torque for position hold |
 | `position_profile.rs` | Trapezoidal/s-curve position profiles |
@@ -20,6 +20,8 @@ Implementation modules for the Berthier realtime control loop and legacy single-
 `ControlLoop::tick` (loop.rs):
 1. `supervisor.drain_feedback()`
 2. `joint_positions()` → `q`
+   Require current-session active-joint feedback; at most two neutral solicitation
+   ticks precede `MissingFeedback`. Davout also checks the elapsed deadline.
 3. `dynamics_model.gravity_torques(&q)` → τ_g
 4. Mode branch: gravity-only / impedance / position / torque
 5. `supervisor.send_mit_batch(commands)`

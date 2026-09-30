@@ -483,7 +483,7 @@ fn drain_testing_commands(
             }
             let has_gain = joint.kp != 0.0 || joint.kd != 0.0 || joint.ki != 0.0 || joint.fc != 0.0;
             if has_gain {
-                loop_ctrl.apply_gain_override(
+                if let Err(error) = loop_ctrl.apply_gain_override(
                     &joint.name,
                     GainOverride {
                         kp: joint.kp,
@@ -491,7 +491,10 @@ fn drain_testing_commands(
                         ki: joint.ki,
                         fc: joint.fc,
                     },
-                );
+                ) {
+                    warn!(joint = %joint.name, error = %error, "testing gains rejected");
+                    continue;
+                }
             } else {
                 // Use control.yaml impedance gains for Position mode.
                 loop_ctrl.clear_gain_override(&joint.name);

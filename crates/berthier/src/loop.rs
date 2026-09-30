@@ -62,6 +62,8 @@ pub enum LoopError {
     AscentStall { joint: String, ms: u64 },
     #[error("torque cmd: non-finite τ_cmd for joint {joint}")]
     NonFiniteTorqueCmd { joint: String },
+    #[error("invalid gain override for {joint}: {field} must be finite and nonnegative")]
+    InvalidGainOverride { joint: String, field: &'static str },
 }
 
 impl From<HoldError> for LoopError {
@@ -95,8 +97,8 @@ pub struct ControlLoop<B: MotorBus> {
     position_trace: Option<PositionTrace>,
     /// Cumulative per-tick phase times for 1 Hz diagnostics (`take_tick_phase_averages`).
     tick_phase: TickPhaseAccumulator,
-    /// Previous supervisor mode (detect Active transition for feedback grace).
-    last_operational_mode: OperationalMode,
+    /// Previous enable-session marker, including re-enable between controller ticks.
+    last_enable_session: Option<Instant>,
     /// Ticks allowed without joint feedback immediately after enable (post-homing tick_count > 0).
     active_feedback_grace_ticks: u8,
     /// Testing overrides + mode-transition kp/kd ramp + per-tick resolve.
@@ -210,7 +212,7 @@ impl<B: MotorBus> ControlLoop<B> {
             loop_hz,
             position_trace: PositionTrace::from_env(loop_hz),
             tick_phase: TickPhaseAccumulator::default(),
-            last_operational_mode: OperationalMode::Disabled,
+            last_enable_session: None,
             active_feedback_grace_ticks: 0,
             gains: GainRuntime::new(),
             torque_cmds: TorqueCmdLatch::new(),
@@ -643,17 +645,29 @@ impl<B: MotorBus> ControlLoop<B> {
     ///
     /// No-op under GravityComp / TorqueOnly / Disabled so Testing cannot stash
     /// stiffness that snaps back on Impedance/Position enter.
-    pub fn apply_gain_override(&mut self, joint_name: &str, gain_override: GainOverride) {
+    pub fn apply_gain_override(
+        &mut self,
+        joint_name: &str,
+        gain_override: GainOverride,
+    ) -> Result<(), LoopError> {
+        self.validate_gain_override(joint_name, &gain_override)?;
         let limits = self.clamp_limits_for(joint_name);
         self.gains
             .apply(self.control_mode, joint_name, gain_override, limits);
+        Ok(())
     }
 
     /// Batch-apply gain overrides for multiple joints.
     ///
     /// No-op under GravityComp / TorqueOnly / Disabled (same policy as
     /// [`Self::apply_gain_override`]).
-    pub fn apply_gain_overrides(&mut self, overrides: &HashMap<String, GainOverride>) {
+    pub fn apply_gain_overrides(
+        &mut self,
+        overrides: &HashMap<String, GainOverride>,
+    ) -> Result<(), LoopError> {
+        for (joint, gains) in overrides {
+            self.validate_gain_override(joint, gains)?;
+        }
         // Precompute limits: apply_batch's closure cannot borrow `self` while `gains` is mut.
         let limits: HashMap<String, GainClampLimits> = overrides
             .keys()
@@ -661,6 +675,29 @@ impl<B: MotorBus> ControlLoop<B> {
             .collect();
         self.gains
             .apply_batch(self.control_mode, overrides, &limits);
+        Ok(())
+    }
+
+    fn validate_gain_override(&self, joint: &str, gains: &GainOverride) -> Result<(), LoopError> {
+        if !self.joint_names.iter().any(|name| name == joint) {
+            return Err(LoopError::UnknownJoint {
+                joint: joint.to_owned(),
+            });
+        }
+        for (field, value) in [
+            ("kp", gains.kp),
+            ("kd", gains.kd),
+            ("ki", gains.ki),
+            ("fc", gains.fc),
+        ] {
+            if !value.is_finite() || value < 0.0 {
+                return Err(LoopError::InvalidGainOverride {
+                    joint: joint.to_owned(),
+                    field,
+                });
+            }
+        }
+        Ok(())
     }
 
     /// Remove the gain override for a single joint, reverting to config gains.
@@ -722,13 +759,12 @@ impl<B: MotorBus> ControlLoop<B> {
         let q = self.read_positions();
 
         let operational_mode = self.supervisor.mode();
-        if operational_mode == OperationalMode::Active
-            && self.last_operational_mode != OperationalMode::Active
-        {
-            // Homing/disabled ticks advance tick_count before the first Active cycle.
+        let enable_session = self.supervisor.enable_session_started_at();
+        if enable_session.is_some() && enable_session != self.last_enable_session {
+            // A disable/re-enable can occur without any tick observing Disabled.
             self.active_feedback_grace_ticks = 2;
         }
-        self.last_operational_mode = operational_mode;
+        self.last_enable_session = enable_session;
 
         let needs_joint_feedback = operational_mode == OperationalMode::Active
             && self.control_mode != ControlMode::Disabled;
@@ -737,9 +773,8 @@ impl<B: MotorBus> ControlLoop<B> {
             .iter()
             .all(|name| self.has_joint_feedback(name));
         // First tick (or first ticks after enable) may run before CAN status arrives.
-        let feedback_bootstrap = needs_joint_feedback
-            && !all_have_feedback
-            && (self.tick_count == 0 || self.active_feedback_grace_ticks > 0);
+        let feedback_bootstrap =
+            needs_joint_feedback && !all_have_feedback && self.active_feedback_grace_ticks > 0;
         if needs_joint_feedback && !feedback_bootstrap {
             for name in &active_names {
                 if !self.has_joint_feedback(name) {
@@ -758,7 +793,7 @@ impl<B: MotorBus> ControlLoop<B> {
         }
 
         if self.supervisor.mode() == OperationalMode::Active {
-            if self.control_mode != ControlMode::Disabled {
+            if self.control_mode != ControlMode::Disabled && !feedback_bootstrap {
                 let tau_g = self.dynamics.gravity_torques(&q)?;
                 (phase.gravity_us, t) = phase_elapsed_us(t);
 
@@ -1003,7 +1038,8 @@ impl<B: MotorBus> ControlLoop<B> {
                 self.gains.advance_tick();
             } else {
                 // Robstride only streams status after MIT frames; hold current q with zero
-                // gains/torque so comm watchdog stays fresh between enable and gravity-on.
+                // gains/torque between enable and the first fresh pose. Bootstrap must
+                // never calculate gravity or PD output from missing or prior-session q.
                 // Scoped Enable: keepalive only for Davout active_joints.
                 let active = self.supervisor.active_joints();
                 let batch: Vec<DavoutMit> = self
@@ -1011,15 +1047,26 @@ impl<B: MotorBus> ControlLoop<B> {
                     .iter()
                     .zip(q.iter())
                     .filter(|(name, _)| active.contains(*name))
-                    .map(|(name, &position_rad)| DavoutMit {
-                        joint: name.clone(),
-                        kp: 0.0,
-                        kd: 0.0,
-                        position_rad,
-                        velocity_rad_s: 0.0,
-                        torque_ff_nm: 0.0,
+                    .map(|(name, &position_rad)| {
+                        let policy = self.supervisor.joint_limit_policy(name).ok_or_else(|| {
+                            LoopError::UnknownJoint {
+                                joint: name.clone(),
+                            }
+                        })?;
+                        // Missing current-session q falls back to zero, which
+                        // need not lie in a valid taught range. With zero gains,
+                        // this bounded target remains an inert status solicit.
+                        Ok(DavoutMit {
+                            joint: name.clone(),
+                            kp: 0.0,
+                            kd: 0.0,
+                            position_rad: position_rad
+                                .clamp(policy.hard_lower(), policy.hard_upper()),
+                            velocity_rad_s: 0.0,
+                            torque_ff_nm: 0.0,
+                        })
                     })
-                    .collect();
+                    .collect::<Result<_, LoopError>>()?;
                 (phase.compose_us, t) = phase_elapsed_us(t);
                 self.supervisor.send_mit_batch(batch)?;
                 (phase.send_us, t) = phase_elapsed_us(t);
@@ -1229,6 +1276,22 @@ mod tests {
             .request_enable(true)
             .expect("enable");
         loop_ctrl.supervisor_mut().seed_synthetic_feedback();
+    }
+
+    fn replay_feedback(
+        loop_ctrl: &mut ControlLoop<MemoryBus>,
+        joint: &str,
+        position: f32,
+        velocity: f32,
+    ) {
+        // These controller scenarios keep every other enabled joint stationary
+        // at zero. Each simulated tick supplies their status as well as the
+        // moving joint; a static pose is still a new observation.
+        loop_ctrl.supervisor_mut().seed_synthetic_feedback();
+        loop_ctrl
+            .supervisor_mut()
+            .set_synthetic_joint_feedback(joint, position, velocity)
+            .expect("finite replay feedback");
     }
 
     #[test]
@@ -1537,7 +1600,7 @@ mod tests {
             kd: 0.0,
             torque_ff_nm: (tau_cmd / scale) as f32,
         };
-        let (expected_id, expected_data) = encode_mit(&expected);
+        let (expected_id, expected_data) = encode_mit(&expected).expect("valid expected command");
         let frame = loop_ctrl
             .supervisor_mut()
             .bus_mut()
@@ -1564,15 +1627,17 @@ mod tests {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
         loop_ctrl.set_control_mode(ControlMode::Impedance);
-        loop_ctrl.apply_gain_override(
-            "right_shoulder_pitch",
-            GainOverride {
-                kp: 50.0,
-                kd: 5.0,
-                ki: 0.0,
-                fc: 1.0,
-            },
-        );
+        loop_ctrl
+            .apply_gain_override(
+                "right_shoulder_pitch",
+                GainOverride {
+                    kp: 50.0,
+                    kd: 5.0,
+                    ki: 0.0,
+                    fc: 1.0,
+                },
+            )
+            .expect("valid gain override");
         assert!(loop_ctrl.gain_override("right_shoulder_pitch").is_some());
         loop_ctrl.set_control_mode(ControlMode::GravityComp);
         assert!(
@@ -1585,15 +1650,17 @@ mod tests {
     fn apply_gain_override_ignored_under_gravity_comp() {
         let mut loop_ctrl = test_loop();
         loop_ctrl.set_control_mode(ControlMode::GravityComp);
-        loop_ctrl.apply_gain_override(
-            "right_shoulder_pitch",
-            GainOverride {
-                kp: 50.0,
-                kd: 5.0,
-                ki: 0.0,
-                fc: 1.0,
-            },
-        );
+        loop_ctrl
+            .apply_gain_override(
+                "right_shoulder_pitch",
+                GainOverride {
+                    kp: 50.0,
+                    kd: 5.0,
+                    ki: 0.0,
+                    fc: 1.0,
+                },
+            )
+            .expect("valid gain override");
         assert!(
             loop_ctrl.gain_override("right_shoulder_pitch").is_none(),
             "must not stash overrides under GravityComp"
@@ -1607,15 +1674,17 @@ mod tests {
     fn apply_gain_override_ignored_under_disabled() {
         let mut loop_ctrl = test_loop();
         assert_eq!(loop_ctrl.control_mode(), ControlMode::Disabled);
-        loop_ctrl.apply_gain_override(
-            "right_shoulder_pitch",
-            GainOverride {
-                kp: 50.0,
-                kd: 5.0,
-                ki: 0.0,
-                fc: 1.0,
-            },
-        );
+        loop_ctrl
+            .apply_gain_override(
+                "right_shoulder_pitch",
+                GainOverride {
+                    kp: 50.0,
+                    kd: 5.0,
+                    ki: 0.0,
+                    fc: 1.0,
+                },
+            )
+            .expect("valid gain override");
         assert!(loop_ctrl.gain_override("right_shoulder_pitch").is_none());
     }
 
@@ -2147,19 +2216,13 @@ mod tests {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
         let joint = "right_shoulder_pitch";
-        loop_ctrl
-            .supervisor_mut()
-            .set_synthetic_joint_feedback(joint, 0.02, 0.0)
-            .expect("feedback");
+        replay_feedback(&mut loop_ctrl, joint, 0.02, 0.0);
         loop_ctrl
             .enter_position_hold_at(Some(joint), 0.15)
             .expect("hold-at");
         let mut faulted = false;
         for _ in 0..600 {
-            loop_ctrl
-                .supervisor_mut()
-                .set_synthetic_joint_feedback(joint, 0.02, 0.0)
-                .expect("feedback");
+            replay_feedback(&mut loop_ctrl, joint, 0.02, 0.0);
             match loop_ctrl.tick(None) {
                 Ok(()) => {}
                 Err(err) => {
@@ -2187,26 +2250,17 @@ mod tests {
         let mut loop_ctrl = test_loop();
         bench_ready_active(&mut loop_ctrl);
         let joint = "right_shoulder_pitch";
-        loop_ctrl
-            .supervisor_mut()
-            .set_synthetic_joint_feedback(joint, 0.02, 0.0)
-            .expect("feedback");
+        replay_feedback(&mut loop_ctrl, joint, 0.02, 0.0);
         loop_ctrl
             .enter_position_hold_at(Some(joint), 0.15)
             .expect("hold-at");
         for _ in 0..100 {
-            loop_ctrl
-                .supervisor_mut()
-                .set_synthetic_joint_feedback(joint, 0.02, 0.0)
-                .expect("feedback");
+            replay_feedback(&mut loop_ctrl, joint, 0.02, 0.0);
             loop_ctrl.tick(None).expect("pre-progress tick");
         }
         // Crawl toward target below exit_v — must reset fuse, not disable.
         for _ in 0..500 {
-            loop_ctrl
-                .supervisor_mut()
-                .set_synthetic_joint_feedback(joint, 0.02, 0.01)
-                .expect("feedback");
+            replay_feedback(&mut loop_ctrl, joint, 0.02, 0.01);
             loop_ctrl
                 .tick(None)
                 .expect("progress toward target must not AscentStall");
@@ -2220,10 +2274,7 @@ mod tests {
         let joint = "right_shoulder_pitch";
         let q = 0.125;
         let target = 0.15;
-        loop_ctrl
-            .supervisor_mut()
-            .set_synthetic_joint_feedback(joint, q, 0.0)
-            .expect("feedback");
+        replay_feedback(&mut loop_ctrl, joint, q, 0.0);
         loop_ctrl
             .enter_position_hold_at(Some(joint), target)
             .expect("hold-at");
@@ -2231,10 +2282,7 @@ mod tests {
             .test_force_planner_hold_at(joint, target)
             .expect("force Hold@target");
         for _ in 0..500 {
-            loop_ctrl
-                .supervisor_mut()
-                .set_synthetic_joint_feedback(joint, q, 0.0)
-                .expect("feedback");
+            replay_feedback(&mut loop_ctrl, joint, q, 0.0);
             loop_ctrl
                 .tick(None)
                 .expect("lead-follow residual within resync band must not AscentStall");
@@ -2248,10 +2296,7 @@ mod tests {
         let joint = "right_shoulder_pitch";
         let q = 1.333;
         let target = 1.40;
-        loop_ctrl
-            .supervisor_mut()
-            .set_synthetic_joint_feedback(joint, q, 0.0)
-            .expect("feedback");
+        replay_feedback(&mut loop_ctrl, joint, q, 0.0);
         loop_ctrl
             .enter_position_hold_at(Some(joint), target)
             .expect("hold-at");
@@ -2261,10 +2306,7 @@ mod tests {
 
         let mut fault = None;
         for _ in 0..500 {
-            loop_ctrl
-                .supervisor_mut()
-                .set_synthetic_joint_feedback(joint, q, 0.0)
-                .expect("feedback");
+            replay_feedback(&mut loop_ctrl, joint, q, 0.0);
             match loop_ctrl.tick(None) {
                 Ok(()) => {}
                 Err(err) => {
@@ -2698,10 +2740,7 @@ mod tests {
         for _ in 0..120 {
             let (q_traj, dq_traj) = loop_ctrl.test_planner_state(joint).unwrap_or((0.0, 0.0));
             max_dq = max_dq.max(dq_traj.abs());
-            loop_ctrl
-                .supervisor_mut()
-                .set_synthetic_joint_feedback(joint, q_traj as f32, dq_traj as f32)
-                .expect("feedback");
+            replay_feedback(&mut loop_ctrl, joint, q_traj as f32, dq_traj as f32);
             loop_ctrl.tick(None).expect("tick");
         }
         assert!(
@@ -2732,10 +2771,7 @@ mod tests {
             .expect("hold-at");
         for _ in 0..400 {
             let (q_traj, dq_traj) = loop_ctrl.test_planner_state(joint).unwrap_or((0.0, 0.0));
-            loop_ctrl
-                .supervisor_mut()
-                .set_synthetic_joint_feedback(joint, q_traj as f32, dq_traj as f32)
-                .expect("feedback");
+            replay_feedback(&mut loop_ctrl, joint, q_traj as f32, dq_traj as f32);
             loop_ctrl.tick(None).expect("tick");
         }
         loop_ctrl
@@ -2753,10 +2789,7 @@ mod tests {
             let step = (q_traj - prev_q_des).abs();
             max_q_des_step = max_q_des_step.max(step);
             prev_q_des = q_traj;
-            loop_ctrl
-                .supervisor_mut()
-                .set_synthetic_joint_feedback(joint, q_traj as f32, dq_traj as f32)
-                .expect("feedback");
+            replay_feedback(&mut loop_ctrl, joint, q_traj as f32, dq_traj as f32);
             loop_ctrl.tick(None).expect("tick");
         }
         assert!(
@@ -2779,7 +2812,9 @@ mod tests {
         ov: GainOverride,
     ) {
         loop_ctrl.set_control_mode(ControlMode::Impedance);
-        loop_ctrl.apply_gain_override(joint, ov);
+        loop_ctrl
+            .apply_gain_override(joint, ov)
+            .expect("valid gain override");
     }
 
     #[test]
@@ -2889,24 +2924,28 @@ mod tests {
     fn clear_all_overrides_removes_all() {
         let mut loop_ctrl = test_loop();
         loop_ctrl.set_control_mode(ControlMode::Impedance);
-        loop_ctrl.apply_gain_override(
-            "right_shoulder_pitch",
-            GainOverride {
-                kp: 100.0,
-                kd: 10.0,
-                ki: 0.0,
-                fc: 2.0,
-            },
-        );
-        loop_ctrl.apply_gain_override(
-            "right_shoulder_roll",
-            GainOverride {
-                kp: 200.0,
-                kd: 20.0,
-                ki: 0.0,
-                fc: 3.0,
-            },
-        );
+        loop_ctrl
+            .apply_gain_override(
+                "right_shoulder_pitch",
+                GainOverride {
+                    kp: 100.0,
+                    kd: 10.0,
+                    ki: 0.0,
+                    fc: 2.0,
+                },
+            )
+            .expect("valid gain override");
+        loop_ctrl
+            .apply_gain_override(
+                "right_shoulder_roll",
+                GainOverride {
+                    kp: 200.0,
+                    kd: 20.0,
+                    ki: 0.0,
+                    fc: 3.0,
+                },
+            )
+            .expect("valid gain override");
         assert!(loop_ctrl.gain_override("right_shoulder_pitch").is_some());
         assert!(loop_ctrl.gain_override("right_shoulder_roll").is_some());
         loop_ctrl.clear_all_overrides();

@@ -10,8 +10,7 @@ use crate::{
     apply_limit_patch_to_control, apply_limit_patch_to_motor, ensure_soft_inset,
     load_control_config_from, load_homing_config_from, load_motors_config_from,
     load_robot_config_from, resolve_config_dir, validate_control_against_limits,
-    validate_control_config, validate_limit_patch, validate_motors_against_robot,
-    validate_robot_control_joint_coverage, write_motors_control_and_urdf, ConfigError,
+    validate_limit_patch, validate_safety_config, write_motors_control_and_urdf, ConfigError,
     ControlConfigFile, HomingConfigFile, LimitPatch, MotorsConfigFile, RobotConfigFile,
 };
 
@@ -254,9 +253,6 @@ fn validate_profile(
     motors: &MotorsConfigFile,
     control: &ControlConfigFile,
 ) -> Result<(), ConfigError> {
-    validate_control_config(control)?;
-    validate_motors_against_robot(robot, motors)?;
-    validate_robot_control_joint_coverage(robot, control)?;
     validate_control_against_limits(robot, motors, control)
 }
 
@@ -267,6 +263,7 @@ fn write_profile(
     control: &ControlConfigFile,
     homing: &HomingConfigFile,
 ) -> Result<(), ConfigError> {
+    validate_safety_config(robot, motors, control, homing)?;
     let documents = [
         serialize_yaml(config_dir, "robot.yaml", robot)?,
         serialize_yaml(config_dir, "motors.yaml", motors)?,

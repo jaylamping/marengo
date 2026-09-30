@@ -28,8 +28,7 @@ use chappe::Bus;
 use davout::{MotorBus, Supervisor};
 use marengo_config::{
     apply_joint_config_param, ensure_soft_inset, load_command_joint_allowlist_from, motor_type_key,
-    profile_content_revision, resolve_command_joint, validate_joint_gains_against_motor_type,
-    CommandJointAllowlist, LimitPatch,
+    profile_content_revision, resolve_command_joint, CommandJointAllowlist, LimitPatch,
 };
 use thiserror::Error;
 use tracing::warn;
@@ -61,6 +60,8 @@ pub enum OverlayError {
     Config(#[from] marengo_config::ConfigError),
     #[error("chappe: {0}")]
     Chappe(#[from] chappe::BusError),
+    #[error("controller: {0}")]
+    Controller(#[from] berthier::LoopError),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -290,7 +291,7 @@ impl ActuatorOverlay {
                     .get_mut(joint)
                     .ok_or_else(|| OverlayError::NotWired(joint.to_string()))?;
                 let before = apply_joint_config_param(entry, &tuning.param, tuning.value)?;
-                validate_joint_gains_against_motor_type(&draft, joint)?;
+                loop_ctrl.supervisor().validate_control_candidate(&draft)?;
 
                 if tuning.persist {
                     // Trust boundary: publishers on robot/actuator/command already hold
@@ -501,7 +502,7 @@ fn apply_runtime_param<B: MotorBus>(
         other => return Err(OverlayError::UnsupportedParam(other.to_string())),
     }
     // Clamps to motor_type_defaults inside Berthier — same path as Testing page.
-    loop_ctrl.apply_gain_override(joint, ov);
+    loop_ctrl.apply_gain_override(joint, ov)?;
     Ok(())
 }
 

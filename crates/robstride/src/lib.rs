@@ -1,7 +1,7 @@
 //! # robstride — Robstride CAN driver (MIT Mode 0)
 //!
 //! Hardware transport for RS00–RS04 actuators: encode/decode MIT frames, send/recv on CAN.
-//! **No control policy** — only bytes on the bus and a feedback cache.
+//! **No control policy** — checked numeric encoding, bytes on the bus and a feedback cache.
 //!
 //! ## Responsibilities
 //!
@@ -9,9 +9,9 @@
 //! - [`mit`](mit): pack/unpack MIT `{kp, kd, q, dq, tau_ff}` per [`MotorType`](marengo_config::MotorType).
 //! - [`bus::MotorBus`]: `mit_control_all`, lifecycle, parameter writes, status receive.
 //! - [`params`](params): firmware `run_mode` and parameter read/write frames.
+//! - [`command`](command): typed rejection of nonfinite input, negative gains and wrong register types.
 //! - [`lifecycle`](lifecycle): enable, disable, and set-zero frames.
 //! - [`state::MotorState`]: last `q`, `dq`, `tau`, fault per `device_id`.
-//! - [`protocol`](protocol): legacy 11-bit stub (tests only; do not use on bench).
 //! - Optional SocketCAN backend (`socketcan` feature, Linux).
 //!
 //! ## Does not
@@ -32,20 +32,21 @@
 
 pub mod bus;
 pub mod comm;
+pub mod command;
 pub mod lifecycle;
 pub mod mit;
 pub mod motor_type;
 pub mod params;
-pub mod protocol;
 pub mod state;
 
 pub use bus::{
-    send_mit, send_motion, send_motion_legacy, AddressedMitCommand, BusError, CanBus, CanFrame,
-    JointMotion, MemoryBus, MotorAddress, MotorBus, ReceivedCanFrame, RuntimeBus,
+    send_mit, send_motion, AddressedMitCommand, BusError, CanBus, CanFrame, JointMotion, MemoryBus,
+    MotorAddress, MotorBus, ReceivedCanFrame, RuntimeBus,
 };
 #[cfg(all(feature = "socketcan", target_os = "linux"))]
 pub use bus::{SocketCanBus, SocketCanRouter};
 pub use comm::{pack_ext_id, unpack_ext_id, CommunicationType, ExtendedId, DEFAULT_HOST_ID};
+pub use command::{CommandError, CommandField};
 pub use lifecycle::{
     encode_active_reporting, encode_default_active_reporting, encode_default_disable,
     encode_default_enable, encode_default_set_zero_position, encode_disable, encode_enable,
@@ -54,10 +55,7 @@ pub use lifecycle::{
 pub use mit::{encode_mit, mit_rx_id, mit_tx_id, MitCommand, MitFeedback};
 pub use params::{
     encode_current_ref, encode_position_ref, encode_read_parameter, encode_set_run_mode,
-    encode_speed_ref, encode_write_parameter, ParameterId, ParameterValue, RunMode,
-};
-pub use protocol::{
-    command_can_id, decode_feedback, encode_command, MotionCommand, MotionFeedback,
+    encode_speed_ref, encode_write_parameter, ParameterId, ParameterKind, ParameterValue, RunMode,
 };
 pub use state::MotorState;
 
@@ -166,7 +164,7 @@ mod tests {
             kd: 0.0,
             torque_ff_nm: 1.0,
         };
-        let (id, _) = encode_mit(&cmd);
+        let (id, _) = encode_mit(&cmd).expect("valid command");
         let unpacked = unpack_ext_id(id).expect("extended id");
         assert_eq!(
             unpacked.comm_type,
@@ -468,7 +466,7 @@ mod tests {
                 },
             ])
             .expect("send routed vcan frames");
-        let expected_id = encode_mit(&cmd).0;
+        let expected_id = encode_mit(&cmd).expect("valid command").0;
         let deadline = std::time::Instant::now() + Duration::from_millis(100);
         let mut frames: Vec<ReceivedCanFrame> = Vec::new();
         while std::time::Instant::now() < deadline {

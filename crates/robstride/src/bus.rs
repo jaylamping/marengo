@@ -7,10 +7,10 @@ use marengo_config::{MotorEntry, MotorType, MotorsConfigFile};
 use thiserror::Error;
 
 use crate::comm::{self, CommunicationType};
+use crate::command::CommandError;
 use crate::lifecycle;
 use crate::mit::{self, MitCommand};
 use crate::params::{self, ParameterId, ParameterValue, RunMode};
-use crate::protocol::MotionCommand;
 use crate::state::MotorState;
 
 fn trace_skipped_frame(
@@ -32,6 +32,8 @@ fn trace_skipped_frame(
 
 #[derive(Debug, Error)]
 pub enum BusError {
+    #[error("invalid motor command: {0}")]
+    InvalidCommand(#[from] CommandError),
     #[error("CAN send failed: {message}")]
     Send { message: String },
     #[error("unknown joint {joint}")]
@@ -40,6 +42,13 @@ pub enum BusError {
     UnknownMotorAddress { interface: String, device_id: u8 },
     #[error("duplicate motor address {interface}:{device_id}")]
     DuplicateMotorAddress { interface: String, device_id: u8 },
+    #[error("duplicate command for motor {device_id}")]
+    DuplicateCommand { device_id: u8 },
+    #[error("command motor {command_device_id} does not match routed address {address:?}")]
+    CommandAddressMismatch {
+        address: MotorAddress,
+        command_device_id: u8,
+    },
     #[error("driver error: {0}")]
     Driver(String),
     #[error("recv timeout")]
@@ -99,6 +108,12 @@ pub struct ReceivedCanFrame {
 /// Sends encoded Robstride frames.
 pub trait CanBus {
     fn send_frame(&mut self, frame: &CanFrame) -> Result<(), BusError>;
+
+    /// Check a route without transmitting. Configured backends override this so
+    /// an invalid later destination cannot allow a valid batch prefix to escape.
+    fn validate_address(&self, _address: &MotorAddress) -> Result<(), BusError> {
+        Ok(())
+    }
 
     fn send_frame_to(&mut self, _address: &MotorAddress, frame: &CanFrame) -> Result<(), BusError> {
         self.send_frame(frame)
@@ -165,17 +180,49 @@ fn send_encoded_frame_to<B: CanBus + ?Sized>(
 
 /// Motor bus: MIT commands + feedback cache.
 pub trait MotorBus: CanBus {
+    /// Validate the complete batch before emitting the first motion frame.
+    /// Transport failures can still occur after some valid frames were sent.
     fn mit_control_all(&mut self, cmds: &[MitCommand]) -> Result<(), BusError> {
+        for (index, cmd) in cmds.iter().enumerate() {
+            cmd.validate()?;
+            if cmds[..index]
+                .iter()
+                .any(|prior| prior.device_id == cmd.device_id)
+            {
+                return Err(BusError::DuplicateCommand {
+                    device_id: cmd.device_id,
+                });
+            }
+        }
         for cmd in cmds {
-            let (id, data) = mit::encode_mit(cmd);
+            let (id, data) = mit::encode_mit(cmd)?;
             send_encoded_frame(self, id, data)?;
         }
         Ok(())
     }
 
     fn mit_control_all_at(&mut self, cmds: &[AddressedMitCommand]) -> Result<(), BusError> {
+        for (index, cmd) in cmds.iter().enumerate() {
+            cmd.command.validate()?;
+            if cmd.command.device_id != cmd.address.device_id {
+                return Err(BusError::CommandAddressMismatch {
+                    address: cmd.address.clone(),
+                    command_device_id: cmd.command.device_id,
+                });
+            }
+            if cmds[..index]
+                .iter()
+                .any(|prior| prior.address == cmd.address)
+            {
+                return Err(BusError::DuplicateMotorAddress {
+                    interface: cmd.address.interface.clone(),
+                    device_id: cmd.address.device_id,
+                });
+            }
+            self.validate_address(&cmd.address)?;
+        }
         for cmd in cmds {
-            let (id, data) = mit::encode_mit(&cmd.command);
+            let (id, data) = mit::encode_mit(&cmd.command)?;
             send_encoded_frame_to(self, &cmd.address, id, data)?;
         }
         Ok(())
@@ -233,7 +280,7 @@ pub trait MotorBus: CanBus {
         value: ParameterValue,
     ) -> Result<(), BusError> {
         let (id, data) =
-            params::encode_write_parameter(comm::DEFAULT_HOST_ID, device_id, parameter, value);
+            params::encode_write_parameter(comm::DEFAULT_HOST_ID, device_id, parameter, value)?;
         send_encoded_frame(self, id, data)
     }
 
@@ -248,7 +295,7 @@ pub trait MotorBus: CanBus {
             address.device_id,
             parameter,
             value,
-        );
+        )?;
         send_encoded_frame_to(self, address, id, data)
     }
 
@@ -263,7 +310,7 @@ pub trait MotorBus: CanBus {
     }
 
     fn speed_control(&mut self, device_id: u8, velocity_rad_s: f32) -> Result<(), BusError> {
-        let (id, data) = params::encode_speed_ref(device_id, velocity_rad_s);
+        let (id, data) = params::encode_speed_ref(device_id, velocity_rad_s)?;
         send_encoded_frame(self, id, data)
     }
 
@@ -272,7 +319,7 @@ pub trait MotorBus: CanBus {
         address: &MotorAddress,
         velocity_rad_s: f32,
     ) -> Result<(), BusError> {
-        let (id, data) = params::encode_speed_ref(address.device_id, velocity_rad_s);
+        let (id, data) = params::encode_speed_ref(address.device_id, velocity_rad_s)?;
         send_encoded_frame_to(self, address, id, data)
     }
 
@@ -356,7 +403,6 @@ pub trait MotorBus: CanBus {
                         if let Some(report) = decode_fault_report(frame.id, frame.data.as_slice()) {
                             let state = states.entry(report.device_id).or_default();
                             state.fault = report.fault;
-                            state.updated = Some(Instant::now());
                             count += 1;
                         }
                     }
@@ -505,7 +551,6 @@ fn ingest_addressed_frames(
                     );
                     let state = states.entry(address).or_default();
                     state.fault = report.fault;
-                    state.updated = Some(Instant::now());
                     count += 1;
                 }
             }
@@ -624,6 +669,18 @@ impl RuntimeBus {
 }
 
 impl CanBus for RuntimeBus {
+    fn validate_address(&self, address: &MotorAddress) -> Result<(), BusError> {
+        let _ = address;
+        match self {
+            #[cfg(all(feature = "socketcan", target_os = "linux"))]
+            Self::Socket(bus) => bus.validate_address(address),
+            #[cfg(all(feature = "socketcan", target_os = "linux"))]
+            Self::Router(bus) => bus.validate_address(address),
+            #[cfg(not(all(feature = "socketcan", target_os = "linux")))]
+            _ => Err(socketcan_unavailable()),
+        }
+    }
+
     fn send_frame(&mut self, frame: &CanFrame) -> Result<(), BusError> {
         let _ = frame;
         match self {
@@ -728,22 +785,6 @@ pub fn send_motion<B: MotorBus>(bus: &mut B, motion: &JointMotion) -> Result<(),
     send_mit(bus, &cmd)
 }
 
-/// Encode legacy motion as standard (non-extended) stub for compatibility tests.
-pub fn send_motion_legacy<B: CanBus>(bus: &mut B, motion: &JointMotion) -> Result<(), BusError> {
-    let cmd = MotionCommand {
-        device_id: motion.device_id,
-        position_rad: motion.position_rad,
-        velocity_rad_s: motion.velocity_rad_s,
-        torque_nm: motion.torque_nm,
-    };
-    let (id, data) = crate::protocol::encode_command(&cmd);
-    bus.send_frame(&CanFrame {
-        id,
-        data,
-        extended: false,
-    })
-}
-
 #[cfg(all(feature = "socketcan", target_os = "linux"))]
 mod socketcan {
     use super::*;
@@ -789,6 +830,16 @@ mod socketcan {
     }
 
     impl CanBus for SocketCanBus {
+        fn validate_address(&self, address: &MotorAddress) -> Result<(), BusError> {
+            if address.interface != self.interface {
+                return Err(BusError::UnknownMotorAddress {
+                    interface: address.interface.clone(),
+                    device_id: address.device_id,
+                });
+            }
+            Ok(())
+        }
+
         fn send_frame(&mut self, frame: &CanFrame) -> Result<(), BusError> {
             tracing::trace!(
                 interface = %self.interface,
@@ -820,9 +871,10 @@ mod socketcan {
 
         fn send_frame_to(
             &mut self,
-            _address: &MotorAddress,
+            address: &MotorAddress,
             frame: &CanFrame,
         ) -> Result<(), BusError> {
+            self.validate_address(address)?;
             self.send_frame(frame)
         }
 
@@ -995,6 +1047,16 @@ mod socketcan {
     }
 
     impl CanBus for SocketCanRouter {
+        fn validate_address(&self, address: &MotorAddress) -> Result<(), BusError> {
+            if !self.addresses.contains(address) || !self.sockets.contains_key(&address.interface) {
+                return Err(BusError::UnknownMotorAddress {
+                    interface: address.interface.clone(),
+                    device_id: address.device_id,
+                });
+            }
+            Ok(())
+        }
+
         fn send_frame(&mut self, frame: &CanFrame) -> Result<(), BusError> {
             if self.sockets.len() == 1 {
                 let Some(socket) = self.sockets.values_mut().next() else {

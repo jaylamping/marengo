@@ -196,6 +196,27 @@ precheck; the complete workspace fixture coverage remains. Required GitHub PR
 checks validate this final script before merge. Linux vCAN runs separately with
 its transport feature. None of the analytic gravity tests are ignored.
 
+## Second batch: feedback and numeric admission
+
+The [second batch report](batch02-feedback-command-validity.md) records the
+CS01/CS03 receive-time and command admission repair, with CS04/CS14/CS15 still
+partial, delivered in [PR214](https://github.com/jaylamping/marengo/pull/214).
+Real baseline regressions catch empty drains, silent peers, NaN becoming
+the RS03 -60 Nm wire endpoint, invalid policy, overlay/gain mutation, nonneutral
+startup output, re-enable between ticks, queued enable status and taught ranges
+excluding zero. Independent review and the primary gate pass: 547 workspace
+Rust tests (one ignored), 355 frontend and 72 Pi MCP tests. Required GitHub
+checks remain recorded separately before merge. Cargo deny's yanked-crate
+registry coverage warns and remains unknown; T26 records the gap.
+
+Four shallow/unused driver tests are replaced by public raw-wire and failure
+matrices. Existing controller replays now supply status for stationary enabled
+peers; their meaningful planner/stall assertions remain. This batch does not
+complete fault latching, stop confirmation, reference verification or config
+generation ownership. Docker's stale runtime socket error recurred and the
+preserving recovery passed; M08 retains the unexplained initiating exit and
+upstream Windows socket dependency.
+
 ## Completion and continuation
 
 The active thread heartbeat **Marengo repair loop** continues every 30 minutes

@@ -13,7 +13,7 @@ Low-level Robstride protocol implementation and bus backends.
 | `params.rs` | Firmware parameter read/write |
 | `state.rs` | Per-motor feedback cache |
 | `motor_type.rs` | RS00–RS04 type constants |
-| `protocol.rs` | Legacy 11-bit stub (tests only) |
+| `command.rs` | Typed numeric command validation errors |
 
 ## Flow
 TX: `MitCommand` → `encode_mit` → `pack_ext_id` → CAN socket
