@@ -566,6 +566,16 @@ impl<B: MotorBus> ControlLoop<B> {
         self.set_control_mode_inner(mode);
     }
 
+    /// Discard retained controller intent before the owner's graceful exit.
+    ///
+    /// Clears Position/Wave, runtime gains, latched torque and feedback grace
+    /// through the existing intent lifecycle. This performs no drive stop writes
+    /// and confirms no physical stop; the owner must apply its configured Davout
+    /// exit-stop policy before waiting for persistence.
+    pub fn inhibit_motion_for_shutdown(&mut self) {
+        self.discard_motion_intent();
+    }
+
     fn set_control_mode_inner(&mut self, mode: ControlMode) {
         let previous = self.control_mode;
         // Capture ramp endpoints before mutating mode or clearing overrides.

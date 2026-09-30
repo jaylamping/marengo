@@ -98,6 +98,23 @@ Consul may hold **Active Reporting leases** (operator UI: Enhanced logging) via 
 
 While free-drive sensing is desired (sheet/modal lease or global diagnostics flag), Davout **re-asserts** type-24 enable on a ~1 s heartbeat and when a joint’s feedback goes stale (~200 ms with no RX). Motors can drop Active Reporting mid-sweep; without retry, Consul freezes on the last sample and Set Limits Apply would teach a tiny band.
 
+## Graceful owner shutdown
+
+The installed Pi exits dispatch when Quit or the shared shutdown flag is observed,
+then discards retained controller intent and attempts the configured Davout exit
+stop before waiting for persistence. It retains the exact stop Result/StopReport;
+an explicitly skipped stop and a failed delivery remain distinct from successful
+storage. An already admitted synchronous operation completes before the next
+shutdown check. This does not establish command-flood priority or hard preemption.
+
+Closing persistence admission leaves accepted retained/in-flight work on its
+independent worker. Bounded drain reports real write/publication failures,
+unfinished work and actual observed thread termination. Timeout does not cancel
+filesystem I/O. Local publication, Disabled intent and accepted stop writes do
+not establish client delivery or physical stop/support acceptance. See
+[ADR0024](decisions/0024-stop-before-persistence-shutdown.md) and the
+[software evidence](reviews/2026-09-29/batch07-stop-before-persistence.md).
+
 ## Known software gaps (see also [position-hold-control-review.md](position-hold-control-review.md))
 
 - **Hardware E-stop wiring:** `Supervisor::set_hardware_estop` exists but Pi GPIO/input is not yet connected at runtime. Treat physical E-stop as authoritative; do not assume software `Disabled` reflects the hardware line until wired.

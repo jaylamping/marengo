@@ -18,6 +18,7 @@ Owns `ControlLoop::tick` — the heartbeat of the robot. Also provides a legacy 
 - `ControlMode` — re-exported from `davout`: `Disabled`, `GravityComp`, `TorqueOnly`, `Impedance`, `Position`.
 - `GainOverride` — runtime per-joint gain override from Testing page; public setters reject unknown joints, nonfinite fields and negative gains before mutation, preflight batches, then clamp to motor-type limits; cleared on GravityComp/TorqueOnly/Disabled enter.
 - Davout's monotonic stop generation invalidates old planner, Wave and torque intent, including disable/re-enable between ticks. Planner refresh propagates receive errors and checks persistent fault authority before installing intent; new torque requests also check that authority.
+- `ControlLoop::inhibit_motion_for_shutdown` discards that same retained intent before the runtime applies its configured Davout exit-stop policy. It performs no drive writes and establishes no physical stop.
 
 ### Modules (position-hold subsystem, `ControlMode::Position`)
 - `gain_runtime` — `GainRuntime`, ModeGainPolicy (`mode_allows_gain_override`, `target_gains_from_yaml`, `effective_wire_gains`), override clamp, ramp arm/advance, `resolve_all`.

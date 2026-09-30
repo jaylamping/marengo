@@ -248,7 +248,7 @@ the complete recording. Outcomes retain each failed attempt and do not report
 confirmed stopped. A drive-local timeout and power-cut test are additional
 hardware acceptance, because no host code can guarantee stop after SIGKILL.
 
-### CS09: stop precedes persistence drain (C2, P1, open)
+### CS09: stop precedes persistence drain (C2, P1, verified software repair)
 
 The shutdown owner immediately inhibits new commands and attempts stop, records
 the outcome, then waits for durable writes. It may bound that wait and mark
@@ -259,6 +259,18 @@ Assert stop attempts precede the wait and no later motion runs after shutdown.
 Exercise SIGTERM/SIGINT through a software runtime fixture where available;
 code-order/source matching alone is insufficient. Hardware timeout behavior
 remains a separate commissioned requirement.
+
+[Batch07](batch07-stop-before-persistence.md) now inhibits intent and retains the
+configured Davout stop result/report before typed bounded drain. Six unchanged
+behavioral replays cover order, retained work, publication lifetime, closed
+admission, Quit and the shared owner flag changing during an admitted stop.
+Actual storage failures/timeouts preserve the initiating failed-stop report;
+no-disable policy reports Skipped. Required primary and strict affected gates
+pass. All five implementation-head jobs pass at `3939b3d` in run36728845164,
+including73 actual virtual-CAN driver tests with none ignored;
+[PR221](https://github.com/jaylamping/marengo/pull/221)'s final evidence-head and
+equal-tree main checks remain required. Actual OS signal registration/delivery
+and physical acceptance remain unexecuted.
 
 ### CS10: total torque contract and drive-side backstop (C2, P1, open)
 
