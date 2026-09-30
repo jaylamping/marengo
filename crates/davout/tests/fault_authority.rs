@@ -349,7 +349,7 @@ fn same_drain_fault_cannot_disappear_before_healthy_status() {
 #[derive(Default)]
 struct FailingBus {
     tx: Vec<CanFrame>,
-    rx: Vec<CanFrame>,
+    rx: std::collections::VecDeque<CanFrame>,
     fail_receive: bool,
     fail_send_type: Option<u32>,
 }
@@ -365,15 +365,20 @@ impl CanBus for FailingBus {
         Ok(())
     }
 
-    fn recv_frames(&mut self, out: &mut Vec<CanFrame>) -> Result<(), BusError> {
-        out.append(&mut self.rx);
+    fn recv_one_nonblocking(&mut self) -> Result<robstride::ReceiveAttempt, BusError> {
+        if let Some(frame) = self.rx.pop_front() {
+            return Ok(robstride::ReceiveAttempt::Frame(robstride::TimedCanFrame {
+                received_at: std::time::Instant::now(),
+                received: robstride::ReceivedCanFrame::full_data(None, frame),
+            }));
+        }
         if self.fail_receive {
             self.fail_receive = false;
             return Err(BusError::Driver(
                 "injected receive failure after prefix".into(),
             ));
         }
-        Ok(())
+        Ok(robstride::ReceiveAttempt::Idle)
     }
 }
 
@@ -397,7 +402,7 @@ fn failing_supervisor() -> (Supervisor<FailingBus>, MotorEntry) {
     supervisor
         .enable_targets(std::slice::from_ref(&pitch.joint))
         .expect("enable");
-    supervisor.bus_mut().rx.push(status(&pitch));
+    supervisor.bus_mut().rx.push_back(status(&pitch));
     supervisor.drain_feedback().expect("new Run status");
     (supervisor, pitch)
 }
@@ -405,10 +410,10 @@ fn failing_supervisor() -> (Supervisor<FailingBus>, MotorEntry) {
 #[test]
 fn received_fault_prefix_survives_terminal_rx_error_and_healthy_retry() {
     let (mut supervisor, pitch) = failing_supervisor();
-    supervisor.bus_mut().rx.push(fault(&pitch));
+    supervisor.bus_mut().rx.push_back(fault(&pitch));
     supervisor.bus_mut().fail_receive = true;
     assert!(supervisor.drain_feedback().is_err());
-    supervisor.bus_mut().rx.push(status(&pitch));
+    supervisor.bus_mut().rx.push_back(status(&pitch));
     let _ = supervisor.drain_feedback();
     supervisor.bus_mut().tx.clear();
     assert!(
@@ -449,7 +454,7 @@ fn set_zero_transport_uncertainty_cannot_be_cleared_by_healthy_feedback() {
     supervisor.bus_mut().fail_send_type = Some(6);
     assert!(supervisor.set_zero_position(&pitch.joint).is_err());
     supervisor.bus_mut().fail_send_type = None;
-    supervisor.bus_mut().rx.push(status(&pitch));
+    supervisor.bus_mut().rx.push_back(status(&pitch));
     let _ = supervisor.drain_feedback();
     supervisor.bus_mut().tx.clear();
     assert!(

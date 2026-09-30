@@ -7,112 +7,84 @@
   "roadmap": "implementation-roadmap.md",
   "count_note": "101 IDs including explicit overlaps and cross-cutting tooling findings, not 101 independent defects.",
   "current_batch": {
-    "batch_id": "batch03",
-    "branch": "codex/fault-evidence-authority",
-    "baseline_main": "e830bc5952ddc587186eec36bba08f5ffc01147a",
-    "report": "batch03-fault-authority.md",
+    "batch_id": "batch04",
+    "branch": "codex/bounded-can-ingress",
+    "baseline_main": "d50d0a63a407a7b1f8f2e01501eb59a2e251cbec",
+    "status": "local gates and independent source reviews pass; candidate virtual CAN and final GitHub checks pending",
+    "report": "batch04-bounded-can-ingress.md",
     "findings": [
-      "CS08",
-      "CS12"
-    ],
-    "partial_findings": [
-      "CS04",
-      "CS13",
-      "T26"
+      "CS04"
     ],
     "maintenance_tasks": [
-      "M01"
+      "M06"
     ],
+    "partial_findings": [
+      "T26"
+    ],
+    "decision": "../../decisions/0021-bounded-can-ingress.md",
+    "evidence_root": "J:/code/marengo-migration-backup-20260929/batch04",
     "required_primary_gate": {
-      "result": "passed",
+      "result": "pass",
       "command": "docker compose run --rm -e CI=true -e GITHUB_REF=refs/heads/main check",
-      "rust_passed": 598,
-      "rust_ignored": 1,
-      "consul_passed": 355,
-      "pi_mcp_passed": 72,
-      "dependency_contracts": 4,
-      "registry_index_failures": 0,
-      "other_checks": "format, clippy -D warnings, proto/build, current deny/audit, Consul high-severity audit and aarch64 release build",
-      "log": "J:/code/marengo-migration-backup-20260929/batch03/primary.log",
-      "summary": "J:/code/marengo-migration-backup-20260929/batch03/primary-summary.json",
-      "wall_seconds": 107.6939412
+      "finished_utc": "2026-09-30T07:21:57.2023045Z",
+      "elapsed_seconds": 101.9566328,
+      "rust_tests_passed": 630,
+      "rust_tests_ignored": 1,
+      "frontend_tests_passed": 355,
+      "pi_mcp_tests_passed": 72,
+      "vcan_script_contracts_passed": 8,
+      "dependency_gate_contracts_passed": 4,
+      "dependency_scan": "Mandatory current database/index fetch and strict index coverage passed for 400 locked crates; allowed unmaintained paste remains M01",
+      "aarch64_release_smoke": "pass; CI=true and main ref, not a warning-only local check",
+      "evidence": "J:\\code\\marengo-migration-backup-20260929\\batch04\\primary-check.log"
     },
-    "simulation": {
-      "result": "passed",
-      "tests": 5,
-      "engine_smoke": "minimal two-DOF fixture, not production plant acceptance",
-      "log": "J:/code/marengo-migration-backup-20260929/batch03/sim.log"
+    "baseline_socketcan_evidence_pr": "https://github.com/jaylamping/marengo/pull/216",
+    "baseline_evidence_policy": "Temporary draft, unchanged production driver; preserve specific behavioral failures then close without merging.",
+    "hardware_acceptance": "Not established; no physical robot operations, no limit or Wave sign-off changes",
+    "affected_linux_feature_gate": {
+      "result": "pass",
+      "command": "cargo clippy --locked -p robstride -p davout -p berthier --all-targets --features robstride/socketcan -- -D warnings; cargo test --locked -p robstride -p davout -p berthier --features robstride/socketcan",
+      "finished_utc": "2026-09-30T07:18:30.7504188Z",
+      "elapsed_seconds": 11.9098407,
+      "tests_passed": 373,
+      "vcan_tests_ignored": 6,
+      "linux_converter_tests_passed": 5,
+      "evidence": "J:\\code\\marengo-migration-backup-20260929\\batch04\\affected-linux-gate.log"
     },
-    "socketcan": {
-      "feature_clippy": "passed",
-      "local_vcan": "unavailable",
-      "local_reason": "Docker Desktop kernel 6.6.87.2-microsoft-standard-WSL2+ rejects a short-name vcan interface with Unknown device type",
-      "local_evidence": "J:/code/marengo-migration-backup-20260929/batch03/vcan-kernel-probe.log",
-      "required_linux_ci": "passed",
-      "no_physical_interfaces": true,
-      "linux_tests_passed": 2,
-      "evidence": "J:/code/marengo-migration-backup-20260929/batch03/github-vcan-summary.json"
+    "simulation_gate": {
+      "result": "pass",
+      "command": "docker compose --profile sim run --rm --no-deps check-sim",
+      "tests_passed": 5,
+      "python_smoke": "minimal.xml nq=2 nv=2",
+      "scope": "Fixture/runtime smoke only; production model and independent plant acceptance remain open",
+      "evidence": "J:\\code\\marengo-migration-backup-20260929\\batch04\\sim-check.log"
     },
-    "scanners": {
-      "deny": "0.20.2",
-      "audit": "0.22.2",
-      "advisory_db": "f23b768236fe2880e4cfa167da662cad8ca79240",
-      "final_lock_sha256": "52FB481D34BBCDBA9EFBD5A594B3494D193DB301ED2ED85CD91C43BDDCC40CCB",
-      "coverage": "complete for recorded primary scan",
-      "crate_dependencies": 400,
-      "allowed_warning": "paste 1.0.15 unmaintained; M01",
-      "evidence": "J:/code/marengo-migration-backup-20260929/batch03/scanner-evidence.md",
-      "real_failure_fixtures": "J:/code/marengo-migration-backup-20260929/batch03/real-failure-fixtures-summary.log"
-    },
-    "independent_review": "passed: driver/Supervisor and controller/TLS/scanner review receipts; request-origin, equal-time hazard, inactive peer mode and introduced queued-pose derivative regressions found and corrected. Final public positive backlog regression retained.",
-    "review_receipts": [
-      "J:/code/marengo-migration-backup-20260929/batch03/driver-supervisor-review.md",
-      "J:/code/marengo-migration-backup-20260929/batch03/test-quality-driver-review-receipt.md"
+    "independent_reviews": [
+      {
+        "result": "no introduced blocker found",
+        "scope": "Frozen receive, supervisor, adapter, regression and final CI wiring",
+        "evidence": "J:\\code\\marengo-migration-backup-20260929\\batch04\\independent-ingress-review.md"
+      },
+      {
+        "result": "no introduced blocker found",
+        "scope": "Independent cross-layer transport/authority and pinned single IO audit",
+        "evidence": "J:\\code\\marengo-migration-backup-20260929\\batch04\\transport-supervisor-review.md"
+      }
     ],
-    "red_green_evidence": [
-      "J:/code/marengo-migration-backup-20260929/batch03/robstride-existing-api-red.log",
-      "J:/code/marengo-migration-backup-20260929/batch03/robstride-final-green.log",
-      "J:/code/marengo-migration-backup-20260929/batch03/davout-full-boundary-baseline-red.log",
-      "J:/code/marengo-migration-backup-20260929/batch03/davout-suite-green.log",
-      "J:/code/marengo-migration-backup-20260929/batch03/davout-request-origin-red-intermediate.log",
-      "J:/code/marengo-migration-backup-20260929/batch03/davout-equal-time-red-intermediate.log",
-      "J:/code/marengo-migration-backup-20260929/batch03/davout-scoped-peer-red-intermediate.log",
-      "J:/code/marengo-migration-backup-20260929/batch03/queued-pose-baseline-green.log",
-      "J:/code/marengo-migration-backup-20260929/batch03/queued-pose-candidate-red.log",
-      "J:/code/marengo-migration-backup-20260929/batch03/queued-pose-candidate-green.log",
-      "J:/code/marengo-migration-backup-20260929/batch03/davout-queued-pose-regression-green.log",
-      "J:/code/marengo-migration-backup-20260929/batch03/berthier-red.log",
-      "J:/code/marengo-migration-backup-20260929/batch03/affected-linux-gate.log",
-      "J:/code/marengo-migration-backup-20260929/batch03/primary-summary.json"
-    ],
-    "test_replacements": "Retired truncated private u16 fault assertion and same-input TLS hash equality; added literal full-domain order/error contracts, real chain/key/malformed PEM behavior, 15 baseline-red Supervisor regressions, 10 baseline-red controller regressions and a positive queued-pose guard. Entire legacy test audit remains incomplete.",
-    "scope_limits": [
-      "CS04 raw detailed word/firmware qualification, malformed DLC and explicit recovery remain partial",
-      "CS13 Pi/protobuf publication, other runtime-owner failures, process reconstruction and command/session generation remain partial",
-      "CS15 public mutable config/raw bus/synthetic APIs remain trusted bypasses",
-      "M06 bounded/fair continuous receive work and Pi jitter remain open",
-      "T26 other behavior suites and tool audits remain partial",
-      "M01 paste remains unmaintained",
-      "No physical stop acknowledgement, GPIO wiring, reference/readback or model/commissioning acceptance"
-    ],
-    "merge_policy": "Required primary and independent review passed; all applicable GitHub checks, including actual Linux virtual CAN, must pass on the final head before merge. No physical acceptance inferred.",
-    "github_checks": {
-      "result": "passed",
-      "run_id": 36674876363,
-      "checked_commit": "3feeab4b75824e72639792b3fd83f393e4121a5d",
-      "jobs": [
-        "changes",
-        "build-image",
-        "check",
-        "sim",
-        "vcan"
-      ],
-      "evidence": "J:/code/marengo-migration-backup-20260929/batch03/github-first-run.json",
-      "summary": "J:/code/marengo-migration-backup-20260929/batch03/github-first-summary.json",
-      "final_merge_policy": "This evidence-only revision also receives all applicable checks before merge; exact final head, run and merge outcome are preserved in batch03/merge-receipt.json."
+    "baseline_socketcan_evidence": {
+      "commit": "ba8f11671f1a00189431f5fcc127e5aa790dd097",
+      "run": 36678785246,
+      "pr": "https://github.com/jaylamping/marengo/pull/216",
+      "result": "Three actual behavioral assertion failures on unchanged production d50d0a6; other jobs pass",
+      "scope": "First short DLC0 and RTR requested DLC0 cases and first-port backlog before peer fault; remaining matrix cases require candidate green",
+      "disposition": "Closed without merge; remote branch deleted after source, logs and branch bundle preserved",
+      "original_three_regressions_unchanged": true,
+      "evidence": "J:\\code\\marengo-migration-backup-20260929\\batch04\\github-baseline-summary.json"
     },
-    "pull_request": "https://github.com/jaylamping/marengo/pull/215",
-    "code_commit": "3feeab4b75824e72639792b3fd83f393e4121a5d"
+    "required_github_gate": {
+      "result": "pending",
+      "requirement": "All five applicable checks must pass at exact final candidate head, including six actual vCAN tests and five Linux converter tests"
+    }
   },
   "findings": [
     {
@@ -181,11 +153,12 @@
       "evidence": [
         "Lossless addressed observations preserve six status flags, drive mode and all four fault/four warning bytes plus terminal-error prefix. Persistent authority cannot be cleared by later healthy status, Disable, replay/cache clearing or synthetic seeding. Baseline driver and Supervisor behavioral failures are now green.",
         "Every raw device/mode/position hazard is inspected before coalesced pose admission; positive queued-pose regression catches introduced false overspeed. Fault-only traffic has no pose side effect; warnings are separate.",
-        "Still required: malformed DLC/remote frame handling, installed firmware and detailed word qualification, and explicit fresh recovery; no invented endian decoding or physical proof. See batch03."
+        "Still required: installed firmware/detailed-word qualification and explicit fresh recovery; no invented endian decoding or physical proof. Frame class/DLC integrity and receive/flush bounds are implemented in batch04.",
+        "Batch04 preserves Data/Remote/Error class and actual length, exact-eight vendor feedback, partial malformed evidence, raw hazard order and typed kernel errors. One engine bounds all traffic/interruptions to 64 raw frames and 256 reads, rotates peer visits and refuses incomplete activation flushes. Three portable and four Supervisor unchanged-public baseline regressions are green; integrated Linux feature gate passes. Candidate actual RuntimeBus virtual-CAN coverage remains required before merge."
       ],
       "verified_commit_or_pr": null,
       "hardware_acceptance": "required before physical release",
-      "implementation_batch": "batch03",
+      "implementation_batch": "batch04",
       "implementation_pr": "https://github.com/jaylamping/marengo/pull/215"
     },
     {
@@ -354,7 +327,8 @@
       "status": "partial",
       "evidence": [
         "Shared validation covers numeric/timing/identity/transform/mapping/type/envelope/gain/friction/margin/homing policy before startup and writers; full-profile overlay preflight precedes enqueue/live mutation. Baseline admitted 52 malformed policy cases plus missing danger torque cap/ki-over-cap; new public matrices and rollback tests pass.",
-        "Still required: immutable validated installed policy, close raw bus/config/synthetic bypasses, strict unknown/duplicate YAML key policy, full model consistency and coordinated generation install/persistence."
+        "Still required: immutable validated installed policy, close raw bus/config/synthetic bypasses, strict unknown/duplicate YAML key policy, full model consistency and coordinated generation install/persistence.",
+        "Known residual raw SocketCAN standard-ID hole: StandardId::new(frame.id as u16) narrows before checking the u32 domain, so 0x10001 aliases 1. Static source finding, not introduced by batch04; add checked standard-ID admission and a no-transmit invalid-request regression with the remaining raw bypass work."
       ],
       "verified_commit_or_pr": null,
       "hardware_acceptance": "required before physical release",
@@ -1414,11 +1388,12 @@
       "evidence": [
         "Frontend tests were added in PR212. Batch03 replaces the obsolete scanner/database pin with cargo-deny 0.20.2, cargo-audit 0.22.2, mandatory live fetch and -D index-failure. Final primary has zero index-failure diagnostics and all deny checks pass; 400 dependencies audited against recorded current database.",
         "Real old scanner returned success with 344 missing-index warnings. Real modern default policy also passed incomplete metadata; strict policy rejected it. Missing index, unreachable database and failed warm-cache refresh now fail the actual helper before downstream work.",
-        "Python, other executed shell suites, Compound and remaining tool dependency audits are still open. No whole-suite quality or permanent security claim."
+        "Python, other executed shell suites, Compound and remaining tool dependency audits are still open. No whole-suite quality or permanent security claim.",
+        "Batch04 gates eight real vcan-up entrypoint/failure contracts in the primary script. The required serial Linux vCAN job now includes the five actual dependency converter contracts instead of filtering them out with --ignored; its candidate execution remains pending. Remaining unrelated behavior suites and tool audits stay open."
       ],
       "verified_commit_or_pr": null,
       "hardware_acceptance": "not established by this software repair",
-      "implementation_batch": "batch03",
+      "implementation_batch": "batch04",
       "implementation_pr": "https://github.com/jaylamping/marengo/pull/215"
     },
     {
@@ -1546,9 +1521,14 @@
     {
       "id": "M06",
       "work_package": "WP05",
-      "status": "open",
+      "status": "partial",
       "title": "Bound realtime command work and measure loop jitter",
-      "acceptance": "Priority stop/fault cannot wait behind bulk commands; disk/audit work stays outside the control owner. Deterministic flood/stalled-I/O tests pass; actual Pi jitter measurements remain a physical runtime gate."
+      "acceptance": "Priority stop/fault cannot wait behind bulk commands; disk/audit work stays outside the control owner. Deterministic flood/stalled-I/O tests pass; actual Pi jitter measurements remain a physical runtime gate.",
+      "evidence": [
+        "Batch04 implements global finite/fair CAN receive and both activation flushes, with unread suffix preservation and explicit completion authority. Native and Linux behavior/strict lint gates pass; actual virtual CAN remains a required merge gate."
+      ],
+      "remaining": "Pi command queues, priority stop/fault, disk/audit separation and actual runtime jitter remain open; host time budgets are soft deadlines, not measured hard realtime.",
+      "implementation_batch": "batch04"
     },
     {
       "id": "M07",
@@ -1716,26 +1696,140 @@
         "evidence": "J:/code/marengo-migration-backup-20260929/batch02/github-first-run.log",
         "final_merge_policy": "This documentation-only evidence update must also receive all applicable GitHub checks before merge. Exact final head/run/merge outcome is preserved in batch02/merge-receipt.json."
       }
+    },
+    {
+      "batch_id": "batch03",
+      "branch": "codex/fault-evidence-authority",
+      "baseline_main": "e830bc5952ddc587186eec36bba08f5ffc01147a",
+      "report": "batch03-fault-authority.md",
+      "findings": [
+        "CS08",
+        "CS12"
+      ],
+      "partial_findings": [
+        "CS04",
+        "CS13",
+        "T26"
+      ],
+      "maintenance_tasks": [
+        "M01"
+      ],
+      "required_primary_gate": {
+        "result": "passed",
+        "command": "docker compose run --rm -e CI=true -e GITHUB_REF=refs/heads/main check",
+        "rust_passed": 598,
+        "rust_ignored": 1,
+        "consul_passed": 355,
+        "pi_mcp_passed": 72,
+        "dependency_contracts": 4,
+        "registry_index_failures": 0,
+        "other_checks": "format, clippy -D warnings, proto/build, current deny/audit, Consul high-severity audit and aarch64 release build",
+        "log": "J:/code/marengo-migration-backup-20260929/batch03/primary.log",
+        "summary": "J:/code/marengo-migration-backup-20260929/batch03/primary-summary.json",
+        "wall_seconds": 107.6939412
+      },
+      "simulation": {
+        "result": "passed",
+        "tests": 5,
+        "engine_smoke": "minimal two-DOF fixture, not production plant acceptance",
+        "log": "J:/code/marengo-migration-backup-20260929/batch03/sim.log"
+      },
+      "socketcan": {
+        "feature_clippy": "passed",
+        "local_vcan": "unavailable",
+        "local_reason": "Docker Desktop kernel 6.6.87.2-microsoft-standard-WSL2+ rejects a short-name vcan interface with Unknown device type",
+        "local_evidence": "J:/code/marengo-migration-backup-20260929/batch03/vcan-kernel-probe.log",
+        "required_linux_ci": "passed",
+        "no_physical_interfaces": true,
+        "linux_tests_passed": 2,
+        "evidence": "J:/code/marengo-migration-backup-20260929/batch03/github-vcan-summary.json"
+      },
+      "scanners": {
+        "deny": "0.20.2",
+        "audit": "0.22.2",
+        "advisory_db": "f23b768236fe2880e4cfa167da662cad8ca79240",
+        "final_lock_sha256": "52FB481D34BBCDBA9EFBD5A594B3494D193DB301ED2ED85CD91C43BDDCC40CCB",
+        "coverage": "complete for recorded primary scan",
+        "crate_dependencies": 400,
+        "allowed_warning": "paste 1.0.15 unmaintained; M01",
+        "evidence": "J:/code/marengo-migration-backup-20260929/batch03/scanner-evidence.md",
+        "real_failure_fixtures": "J:/code/marengo-migration-backup-20260929/batch03/real-failure-fixtures-summary.log"
+      },
+      "independent_review": "passed: driver/Supervisor and controller/TLS/scanner review receipts; request-origin, equal-time hazard, inactive peer mode and introduced queued-pose derivative regressions found and corrected. Final public positive backlog regression retained.",
+      "review_receipts": [
+        "J:/code/marengo-migration-backup-20260929/batch03/driver-supervisor-review.md",
+        "J:/code/marengo-migration-backup-20260929/batch03/test-quality-driver-review-receipt.md"
+      ],
+      "red_green_evidence": [
+        "J:/code/marengo-migration-backup-20260929/batch03/robstride-existing-api-red.log",
+        "J:/code/marengo-migration-backup-20260929/batch03/robstride-final-green.log",
+        "J:/code/marengo-migration-backup-20260929/batch03/davout-full-boundary-baseline-red.log",
+        "J:/code/marengo-migration-backup-20260929/batch03/davout-suite-green.log",
+        "J:/code/marengo-migration-backup-20260929/batch03/davout-request-origin-red-intermediate.log",
+        "J:/code/marengo-migration-backup-20260929/batch03/davout-equal-time-red-intermediate.log",
+        "J:/code/marengo-migration-backup-20260929/batch03/davout-scoped-peer-red-intermediate.log",
+        "J:/code/marengo-migration-backup-20260929/batch03/queued-pose-baseline-green.log",
+        "J:/code/marengo-migration-backup-20260929/batch03/queued-pose-candidate-red.log",
+        "J:/code/marengo-migration-backup-20260929/batch03/queued-pose-candidate-green.log",
+        "J:/code/marengo-migration-backup-20260929/batch03/davout-queued-pose-regression-green.log",
+        "J:/code/marengo-migration-backup-20260929/batch03/berthier-red.log",
+        "J:/code/marengo-migration-backup-20260929/batch03/affected-linux-gate.log",
+        "J:/code/marengo-migration-backup-20260929/batch03/primary-summary.json"
+      ],
+      "test_replacements": "Retired truncated private u16 fault assertion and same-input TLS hash equality; added literal full-domain order/error contracts, real chain/key/malformed PEM behavior, 15 baseline-red Supervisor regressions, 10 baseline-red controller regressions and a positive queued-pose guard. Entire legacy test audit remains incomplete.",
+      "scope_limits": [
+        "CS04 raw detailed word/firmware qualification, malformed DLC and explicit recovery remain partial",
+        "CS13 Pi/protobuf publication, other runtime-owner failures, process reconstruction and command/session generation remain partial",
+        "CS15 public mutable config/raw bus/synthetic APIs remain trusted bypasses",
+        "M06 bounded/fair continuous receive work and Pi jitter remain open",
+        "T26 other behavior suites and tool audits remain partial",
+        "M01 paste remains unmaintained",
+        "No physical stop acknowledgement, GPIO wiring, reference/readback or model/commissioning acceptance"
+      ],
+      "merge_policy": "Required primary and independent review passed; all applicable GitHub checks, including actual Linux virtual CAN, must pass on the final head before merge. No physical acceptance inferred.",
+      "github_checks": {
+        "result": "passed",
+        "run_id": 36674876363,
+        "checked_commit": "3feeab4b75824e72639792b3fd83f393e4121a5d",
+        "jobs": [
+          "changes",
+          "build-image",
+          "check",
+          "sim",
+          "vcan"
+        ],
+        "evidence": "J:/code/marengo-migration-backup-20260929/batch03/github-first-run.json",
+        "summary": "J:/code/marengo-migration-backup-20260929/batch03/github-first-summary.json",
+        "final_merge_policy": "This evidence-only revision also receives all applicable checks before merge; exact final head, run and merge outcome are preserved in batch03/merge-receipt.json."
+      },
+      "pull_request": "https://github.com/jaylamping/marengo/pull/215",
+      "code_commit": "3feeab4b75824e72639792b3fd83f393e4121a5d",
+      "merged_commit": "d50d0a63a407a7b1f8f2e01501eb59a2e251cbec",
+      "merged_at": "2026-09-30T06:08:36Z",
+      "final_checked_head": "e1f095d6057738ae19a50e0c59edf77656c15b81",
+      "final_github_run": 36676172389,
+      "merge_receipt": "J:/code/marengo-migration-backup-20260929/batch03/merge-receipt.json"
     }
   ],
   "finding_status_counts": {
-    "open": 82,
+    "verified": 12,
     "partial": 7,
-    "verified": 12
+    "open": 82
   },
   "next_dependency_ready_batch": {
     "findings": [
+      "CS05",
+      "CS06",
+      "CS07"
+    ],
+    "related_partial_findings": [
       "CS04"
     ],
-    "maintenance_tasks": [
-      "M06"
-    ],
-    "purpose": "Preserve receive envelope/DLC/Remote distinction and bound/fairly schedule actual transport drains, including fail-closed enable flush completion; then reference/recovery transactions.",
-    "prerequisites": "Batch03 authority/stop boundary must merge after actual Linux vCAN checks; CS01/CS03 verified",
+    "purpose": "Separate calibration history from a current reference grant, require truthful post-command evidence/capabilities, and make one-shot set-zero cleanup a scoped transaction before durable recording.",
+    "prerequisites": "Batch04 local primary/Linux/sim and independent reviews pass; exact candidate GitHub virtual-CAN/check success and merge still required",
     "design_evidence": [
-      "J:/code/marengo-migration-backup-20260929/batch03/next-transport-contract-plan.md",
       "J:/code/marengo-migration-backup-20260929/batch03/next-reference-contract-plan.md"
     ],
-    "hardware_constraint": "Public recording and virtual transports only; firmware/readback/reference and physical commissioning remain explicit external requirements"
+    "hardware_constraint": "Public recording and virtual transports only; unsupported reference/drive capabilities must be explicit; no physical recovery/reference/commissioning is inferred"
   }
 }

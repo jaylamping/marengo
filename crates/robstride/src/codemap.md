@@ -6,7 +6,9 @@ Low-level Robstride protocol implementation and bus backends.
 ## Design
 | Module | Role |
 |--------|------|
-| `bus.rs` | `MotorBus` trait, `MemoryBus`, `SocketCanBus`, `RuntimeBus` |
+| `bus.rs` | Required one-read `CanBus`, checked `MotorBus`, RX envelope/conversion, deque MemoryBus, fair SocketCAN router and RuntimeBus |
+| `receive.rs` | Shared raw receive engine, 64-frame/256-attempt bounds, deadlines, full source-pass completion, retained prefix/error |
+| `feedback.rs` | Status/detail/malformed observations and transport frames with common raw ordinals; compatibility projection |
 | `comm.rs` | 29-bit extended ID pack/unpack, `CommunicationType` |
 | `mit.rs` | MIT Mode 0 encode/decode, `MitCommand`, `MitFeedback` |
 | `lifecycle.rs` | Enable, disable, set-zero frames |
@@ -17,7 +19,7 @@ Low-level Robstride protocol implementation and bus backends.
 
 ## Flow
 TX: `MitCommand` → `encode_mit` → `pack_ext_id` → CAN socket
-RX: CAN frame → `unpack_ext_id` → `decode_mit` → `MotorState` update
+RX: one nonblocking source read → length/class envelope + host time → shared bounded report → exact-eight Data decode or malformed/transport evidence → ordered report for Davout; `MotorState` is only a compatibility view.
 
 ## Integration
 - No upstream crate dependencies beyond marengo-config for motor type metadata

@@ -19,7 +19,7 @@ Disabled ──[set_homing_complete]──► Ready ──[request_enable(true)]
 
 ### Core types
 - `Supervisor<B: MotorBus>` — owns state/motor policy, homing registry, pose cache, persistent `FaultAuthority`, and the `MotorBus`. Constructed from repo config files.
-- `SafetySnapshot` — owned read-only persistent records, raw status/detailed/warning domains, hardware input, stop generation, latest stop and first failed stop. Qualified recovery is unavailable in this slice.
+- `SafetySnapshot` — owned read-only persistent records, complete and partial vendor domains, bounded first/latest receive-envelope and incomplete-work evidence, hardware input, stop generation, latest stop and first failed stop. Qualified recovery is unavailable in this slice.
 - `StopReport` — every address's zero-speed, neutral-MIT and ordinary-disable attempt, including bounded errors. Accepted writes do not prove physical acknowledgement.
 - `ControlMode` — re-exported to `berthier`: `Disabled`, `GravityComp`, `TorqueOnly`, `Impedance`, `Position`.
 - `JointCommand` — legacy single-joint command (position + velocity + torque).
@@ -45,22 +45,24 @@ Startup validates the combined robot/motor/control/homing policy. `validate_cont
 - inverse transform applied on feedback: motor→joint state. Direction must be ±1 and gear ratio finite and positive.
 
 ### Feedback processing
-- `drain_feedback` — non-blocking poll (control loop path, budget = 0).
+- `drain_feedback` — non-blocking poll (control loop path, budget = 0), with Robstride's total 64-raw-frame/256-read-attempt limits. Unknown and unsupported traffic consumes raw work before decoding.
 - `refresh_feedback` — blocking poll up to `feedback_poll_budget_us` (REPL / set-zero).
-- Consume Robstride's lossless ordered report, including observations before a terminal transport error. Every configured status is checked for finite raw/transformed fields, original receive time and measured hard-position evidence before chronology can skip it. All peer faults are retained even if an earlier pose is invalid.
+- Merge motor observations, CAN Error envelopes and the first backend failure by their raw per-poll delivery ordinals. A backend failure precedes later same-ordinal peer frames; host timestamp ties cannot reorder the initiating cause. Every configured status is checked for finite raw/transformed fields, original receive time and measured hard-position evidence before chronology can skip it. All peer faults are retained even if an earlier pose or transport event is invalid.
+- Status types 2/24 and detailed type 21 require exact eight-byte extended Data envelopes. Recognized malformed shapes latch without installing pose or renewing freshness. Data-only status headers and partial detailed/warning bytes remain separate evidence with available-byte masks; Remote identifiers never supply vendor status/fault proof. Error envelopes remain global transport evidence without vendor device-ID decoding.
+- Idle/Quiet report completion is an observed host quiescence fact. WorkLimit/Deadline/Failed completion latches Transport independently of the terminal error, attempts all-address stop, and blocks later admission even when callers ignore the receive Result. Stops/re-enable do not synchronously empty an unread saturated suffix. Default empty blocking refresh and ordinary RecvTimeout remain benign when completion is complete.
 - Vendor status flags, drive mode, four detailed-fault bytes and four warning bytes are separate domains. Full detailed word byte order and physical recovery remain unqualified; `JointFeedback.fault` is a compatibility nonzero indication, not a union of vendor bit identities.
 - Reserved mode cannot publish admissible pose. A post-enable status from an enabled address must be Run; Reset/Calibration latches and stops. Reset from an unenabled scoped peer remains diagnostic. Mechanical SetZero enable is not a qualified factory-calibration context.
 - Empty drains, unknown addresses, fresh peers, and fault-only reports cannot refresh another motor's pose. Fault-only reports retain fault evidence without creating a zero pose. Older/replayed samples cannot replace a newer pose or mutate derivative policy state.
 - Invalid feedback latches independent fault authority despite an older valid cache. A newer valid pose may restore diagnostic visibility, but it cannot restore motion permission. Active getters omit absent, invalid, stale and prior-enable pose.
 - Inspect every raw frame's fault/mode/position evidence, including timestamp ties, then select the latest admissible pose per address for derivative/cache admission. Position-derived velocity/trips update once per address per drain: host dequeue spacing cannot recover physical acquisition spacing in a queued burst.
-- Drain queued status before enable writes and again after enable/run-mode writes, before creating the session marker. Status queued during those writes cannot authorize the new session. CAN status has no command-generation identifier; traffic arriving after the final drain remains uncorrelated, and session freshness cannot identify every delayed physical packet.
+- Require complete bounded drains before enable writes and again after enable/run-mode writes, before creating the session marker. An incomplete preflush refuses activation; an incomplete/malformed final flush stops and rolls back. Status queued during those writes cannot authorize the new session. CAN status has no command-generation identifier; traffic arriving after the final drain remains uncorrelated, and session freshness cannot identify every delayed physical packet.
 
 ### Fault and stop lifecycle
 - The first runtime/device/feedback/transport/controller hazard retains its stable ID/cause, attempts all stops, and increments a Supervisor-lifetime stop generation. Later healthy/empty diagnostics do not clear authority or repeat the stop burst. Additional hazard evidence and secondary delivery failures are retained.
 - All motion, enable, calibration and SetZero routes consult the latch. `check_fault_authority` provides the same read-only gate to controller mode entry. `latch_control_fault` is a trusted owner hook for actual controller failures, not an operator reset.
 - Explicit Disable always attempts all configured addresses and advances stop generation; it never clears faults. Every newly asserted hardware-input edge attempts a stop, even after an existing fault; releasing the boolean does not reset authority. GPIO integration is still absent.
 - Checked Ready transition refuses Active; unchecked Ready is a no-op while Active. Calibration enable refuses existing Active motion so live drive/watchdog authority cannot disappear behind a Ready flag.
-- The latest stop report and first failed report distinguish transport acceptance from unconfirmed physical stop. No automatic recovery or firmware fault-clear transaction is implemented. See ADR 0020 and the remediation ledger for remaining Pi/protobuf generation/publication, reference and drive-local qualification.
+- The latest stop report and first failed report distinguish transport acceptance from unconfirmed physical stop. No automatic recovery or firmware fault-clear transaction is implemented. See ADRs 0020/0021 and the remediation ledger for remaining Pi/protobuf generation/publication, reference and drive-local qualification. Receive bounds do not qualify TX latency, command-dispatch priority, kernel queue loss, physical acquisition time or Pi loop jitter.
 
 ## Flow
 ```

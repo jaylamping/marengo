@@ -5,11 +5,12 @@ use std::time::Instant;
 
 use davout::{FaultClass, MitJointCommand, StopAction, Supervisor};
 use marengo_config::MotorEntry;
-use robstride::{BusError, CanBus, CanFrame, MemoryBus, MotorBus, ReceivedCanFrame, TimedCanFrame};
+use robstride::{BusError, CanBus, CanFrame, MemoryBus, MotorBus, ReceiveAttempt};
 
 #[derive(Default)]
 struct EqualTimeBus {
     inner: MemoryBus,
+    received_at: Option<Instant>,
 }
 
 impl CanBus for EqualTimeBus {
@@ -17,19 +18,16 @@ impl CanBus for EqualTimeBus {
         self.inner.send_frame(frame)
     }
 
-    fn recv_timed_frames_from_nonblocking(
-        &mut self,
-        out: &mut Vec<TimedCanFrame>,
-    ) -> Result<(), BusError> {
-        let received_at = Instant::now();
-        out.extend(self.inner.rx_queue.drain(..).map(|frame| TimedCanFrame {
-            received_at,
-            received: ReceivedCanFrame {
-                interface: None,
-                frame,
-            },
-        }));
-        Ok(())
+    fn begin_receive(&mut self) {
+        self.received_at = Some(Instant::now());
+    }
+
+    fn recv_one_nonblocking(&mut self) -> Result<ReceiveAttempt, BusError> {
+        let mut attempt = self.inner.recv_one_nonblocking()?;
+        if let ReceiveAttempt::Frame(frame) = &mut attempt {
+            frame.received_at = self.received_at.unwrap_or_else(Instant::now);
+        }
+        Ok(attempt)
     }
 }
 
@@ -176,15 +174,15 @@ impl CanBus for EvidenceBus {
         Ok(())
     }
 
-    fn recv_frames(&mut self, out: &mut Vec<CanFrame>) -> Result<(), BusError> {
-        self.inner.recv_frames(out)?;
-        if self.fail_receive {
+    fn recv_one_nonblocking(&mut self) -> Result<ReceiveAttempt, BusError> {
+        let attempt = self.inner.recv_one_nonblocking()?;
+        if matches!(attempt, ReceiveAttempt::Idle) && self.fail_receive {
             self.fail_receive = false;
             return Err(BusError::Driver(
                 "terminal error after observed prefix".into(),
             ));
         }
-        Ok(())
+        Ok(attempt)
     }
 }
 

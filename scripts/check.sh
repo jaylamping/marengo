@@ -134,6 +134,9 @@ cargo clippy --workspace --all-targets -- -D warnings
 echo "==> cargo test"
 cargo test --workspace
 
+echo "==> virtual CAN setup contracts (no interfaces required)"
+bash "${ROOT}/scripts/vcan-up.test.sh"
+
 echo "==> dependency gate contracts"
 bash "${ROOT}/scripts/check-dependencies.test.sh"
 bash "${ROOT}/scripts/check-dependencies.sh"

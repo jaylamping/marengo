@@ -4,12 +4,17 @@
 
 use berthier::{ControlLoop, ControlMode, LoopError};
 use davout::DavoutError;
-use robstride::{BusError, CanBus, CanFrame, MemoryBus, MotorBus, ReceivedCanFrame};
+use robstride::{
+    BusError, CanBus, CanFrame, MemoryBus, MotorBus, ReceiveAttempt, ReceivedCanFrame,
+    TimedCanFrame,
+};
+use std::collections::VecDeque;
+use std::time::Instant;
 
 #[derive(Default)]
 struct RecordingBus {
     inner: MemoryBus,
-    rx: Vec<ReceivedCanFrame>,
+    rx: VecDeque<ReceivedCanFrame>,
     inject_after_mit: bool,
     unsafe_pose_after_mit: bool,
     fail_next_receive: bool,
@@ -26,17 +31,24 @@ impl CanBus for RecordingBus {
             self.unsafe_pose_after_mit = false;
             let mut unsafe_status = status();
             unsafe_status.frame.data[0..2].copy_from_slice(&[0xff, 0xff]);
-            self.rx.push(unsafe_status);
+            self.rx.push_back(unsafe_status);
         }
         Ok(())
     }
 
-    fn recv_frames_from(&mut self, out: &mut Vec<ReceivedCanFrame>) -> Result<(), BusError> {
+    fn recv_one_nonblocking(&mut self) -> Result<ReceiveAttempt, BusError> {
         if std::mem::take(&mut self.fail_next_receive) {
             return Err(BusError::Driver("injected receive failure".into()));
         }
-        out.append(&mut self.rx);
-        Ok(())
+        Ok(self
+            .rx
+            .pop_front()
+            .map_or(ReceiveAttempt::Idle, |received| {
+                ReceiveAttempt::Frame(TimedCanFrame {
+                    received,
+                    received_at: Instant::now(),
+                })
+            }))
     }
 }
 
@@ -71,14 +83,14 @@ fn enabled_controller() -> ControlLoop<RecordingBus> {
 
 fn status() -> ReceivedCanFrame {
     // Manual status: type 2, Run mode 2, motor 3, host 0; centered pose/speed/torque.
-    ReceivedCanFrame {
-        interface: Some("can0".into()),
-        frame: CanFrame {
+    ReceivedCanFrame::full_data(
+        Some("can0".into()),
+        CanFrame {
             id: 0x0280_0300,
             data: [0x7f, 0xff, 0x7f, 0xff, 0x7f, 0xff, 0x00, 0xc8],
             extended: true,
         },
-    }
+    )
 }
 
 #[test]
@@ -114,7 +126,7 @@ fn active_tick_returns_post_send_receive_failure_in_each_control_mode() {
         ControlMode::Disabled,
     ] {
         let mut controller = enabled_controller();
-        controller.supervisor_mut().bus_mut().rx.push(status());
+        controller.supervisor_mut().bus_mut().rx.push_back(status());
         if mode == ControlMode::Position {
             controller.enter_position_hold().expect("valid hold entry");
         } else {
@@ -149,7 +161,7 @@ fn post_send_unsafe_pose_cannot_be_reported_as_a_successful_tick() {
         let mut controller = enabled_controller();
         controller.set_control_mode(ControlMode::Impedance);
         if fresh_pose {
-            controller.supervisor_mut().bus_mut().rx.push(status());
+            controller.supervisor_mut().bus_mut().rx.push_back(status());
         }
         controller.supervisor_mut().bus_mut().unsafe_pose_after_mit = true;
         let result = controller.tick(None);
@@ -246,14 +258,14 @@ fn already_observed_device_fault_rejects_hold_entry_without_installing_intent() 
         .supervisor_mut()
         .bus_mut()
         .rx
-        .push(ReceivedCanFrame {
-            interface: Some("can0".into()),
-            frame: CanFrame {
+        .push_back(ReceivedCanFrame::full_data(
+            Some("can0".into()),
+            CanFrame {
                 id: 0x1500_0300,
                 data: [0xff, 0xff, 0xff, 0xff, 0, 0, 0, 0],
                 extended: true,
             },
-        });
+        ));
     let _ = controller.supervisor_mut().drain_feedback();
     controller.supervisor_mut().bus_mut().inner.tx.clear();
     let result = controller.enter_position_hold();
@@ -272,14 +284,14 @@ fn already_observed_device_fault_rejects_new_torque_intent() {
         .supervisor_mut()
         .bus_mut()
         .rx
-        .push(ReceivedCanFrame {
-            interface: Some("can0".into()),
-            frame: CanFrame {
+        .push_back(ReceivedCanFrame::full_data(
+            Some("can0".into()),
+            CanFrame {
                 id: 0x1500_0300,
                 data: [0xff, 0xff, 0xff, 0xff, 0, 0, 0, 0],
                 extended: true,
             },
-        });
+        ));
     let _ = controller.supervisor_mut().drain_feedback();
     controller.supervisor_mut().bus_mut().inner.tx.clear();
     let result = controller.set_torque_cmd("right_upper_arm_yaw", 0.5);

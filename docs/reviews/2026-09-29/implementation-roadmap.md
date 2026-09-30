@@ -227,8 +227,8 @@ CS04/CS13 remain partial. Primary and independent reviews pass: 598 Rust tests
 Simulation's five tests and minimal engine smoke pass; they do not qualify the
 production plant. Docker Desktop's current kernel lacks virtual CAN, so that
 gate ran on GitHub Linux: both virtual CAN tests pass, including the new lossless
-report test in zero/positive budget modes. All five GitHub code checks pass at
-`3feeab4`; the final evidence revision receives applicable checks before merge.
+report test in zero/positive budget modes. All five GitHub checks pass at the
+final head `e1f095d`; PR215 merged as `d50d0a6`.
 
 Three driver and fifteen Supervisor regressions fail on the unchanged baseline;
 ten controller regressions catch hidden errors, early intent installation and
@@ -245,6 +245,21 @@ other behavior suites and production-tool audits. Next is frame-envelope
 integrity and bounded fair receive/enable flush work, followed by reference and
 recovery transactions; neither host dequeue time nor process reconstruction is
 physical recovery evidence.
+
+## Fourth batch: frame integrity and bounded ingress
+
+The [fourth batch report](batch04-bounded-can-ingress.md) starts from PR215's
+checked merge `d50d0a6`. [ADR0021](../../decisions/0021-bounded-can-ingress.md)
+defines separate receive class/length evidence, a required nonblocking backend
+primitive, one finite total work budget, rotating interface fairness and honest
+flush completion. Public baseline failures and real Linux SocketCAN regressions
+precede candidate qualification. Local primary passes with 630 Rust tests (one
+ignored), 355 frontend, 72 Pi-MCP and eight virtual-setup contracts. The affected
+Linux feature check passes 373 tests, including five actual converter contracts;
+six virtual tests still require GitHub's kernel. Simulation smoke and two
+independent reviews pass. The serial vCAN job now includes all feature tests.
+CS04, M06 and T26 remain partial; no hardware acceptance is inferred.
+Reference/recovery follows the checked merge of this bounded transport slice.
 
 ## Completion and continuation
 

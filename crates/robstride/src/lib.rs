@@ -12,9 +12,13 @@
 //! - [`command`](command): typed rejection of nonfinite input, negative gains and wrong register types.
 //! - [`lifecycle`](lifecycle): enable, disable, and set-zero frames.
 //! - [`feedback`]: addressed observations retain status flags, drive mode and complete raw
-//!   detailed-fault/warning payloads, including a prefix received before a transport error.
+//!   detailed-fault/warning payloads, malformed prefixes and transport errors in raw delivery order.
+//! - [`receive`]: one shared nonblocking engine caps every poll at 64 raw frames and 256
+//!   read attempts, preserving unread suffixes and distinguishing quiescence from incomplete work.
 //! - [`state::MotorState`]: replaceable latest-state compatibility projection, not fault authority.
 //! - Optional SocketCAN backend (`socketcan` feature, Linux).
+//!   Received envelopes retain actual classic-CAN length and Data/Remote/Error class;
+//!   only extended Data frames with exactly eight bytes become status or detailed faults.
 //!
 //! ## Does not
 //!
@@ -40,11 +44,13 @@ pub mod lifecycle;
 pub mod mit;
 pub mod motor_type;
 pub mod params;
+pub mod receive;
 pub mod state;
 
 pub use bus::{
     send_mit, send_motion, AddressedMitCommand, BusError, CanBus, CanFrame, JointMotion, MemoryBus,
-    MotorAddress, MotorBus, ReceivedCanFrame, RuntimeBus, TimedCanFrame,
+    MemoryRxQueue, MotorAddress, MotorBus, ReceivedCanFrame, RuntimeBus, RxFrameKind,
+    TimedCanFrame,
 };
 #[cfg(all(feature = "socketcan", target_os = "linux"))]
 pub use bus::{SocketCanBus, SocketCanRouter};
@@ -52,6 +58,7 @@ pub use comm::{pack_ext_id, unpack_ext_id, CommunicationType, ExtendedId, DEFAUL
 pub use command::{CommandError, CommandField};
 pub use feedback::{
     DetailedFaultFeedback, DriveMode, FeedbackEvent, FeedbackObservation, FeedbackReport,
+    MalformedFeedback, MalformedReason, TransportObservation,
 };
 pub use lifecycle::{
     encode_active_reporting, encode_default_active_reporting, encode_default_disable,
@@ -62,6 +69,10 @@ pub use mit::{encode_mit, mit_rx_id, mit_tx_id, MitCommand, MitFeedback};
 pub use params::{
     encode_current_ref, encode_position_ref, encode_read_parameter, encode_set_run_mode,
     encode_speed_ref, encode_write_parameter, ParameterId, ParameterKind, ParameterValue, RunMode,
+};
+pub use receive::{
+    RawReceiveReport, ReceiveAttempt, ReceiveCompletion, ReceiveLimits, MAX_RX_ATTEMPTS_PER_POLL,
+    MAX_RX_FRAMES_PER_POLL,
 };
 pub use state::MotorState;
 
@@ -103,11 +114,16 @@ mod tests {
     struct ScriptBus {
         batches: Vec<Vec<CanFrame>>,
         index: usize,
+        offset: usize,
     }
 
     impl ScriptBus {
         fn new(batches: Vec<Vec<CanFrame>>) -> Self {
-            Self { batches, index: 0 }
+            Self {
+                batches,
+                index: 0,
+                offset: 0,
+            }
         }
     }
 
@@ -116,12 +132,23 @@ mod tests {
             Ok(())
         }
 
-        fn recv_frames(&mut self, out: &mut Vec<CanFrame>) -> Result<(), super::BusError> {
-            if self.index < self.batches.len() {
-                out.extend(self.batches[self.index].iter().cloned());
+        fn recv_one_nonblocking(&mut self) -> Result<super::ReceiveAttempt, super::BusError> {
+            while let Some(batch) = self.batches.get(self.index) {
+                if batch.is_empty() {
+                    self.index += 1;
+                    return Ok(super::ReceiveAttempt::Idle);
+                }
+                if let Some(frame) = batch.get(self.offset) {
+                    self.offset += 1;
+                    return Ok(super::ReceiveAttempt::Frame(super::TimedCanFrame {
+                        received_at: std::time::Instant::now(),
+                        received: ReceivedCanFrame::full_data(None, frame.clone()),
+                    }));
+                }
                 self.index += 1;
+                self.offset = 0;
             }
-            Ok(())
+            Ok(super::ReceiveAttempt::Idle)
         }
     }
 
@@ -148,12 +175,14 @@ mod tests {
             Ok(())
         }
 
-        fn recv_frames_from(
-            &mut self,
-            out: &mut Vec<ReceivedCanFrame>,
-        ) -> Result<(), super::BusError> {
-            out.append(&mut self.rx);
-            Ok(())
+        fn recv_one_nonblocking(&mut self) -> Result<super::ReceiveAttempt, super::BusError> {
+            if self.rx.is_empty() {
+                return Ok(super::ReceiveAttempt::Idle);
+            }
+            Ok(super::ReceiveAttempt::Frame(super::TimedCanFrame {
+                received_at: std::time::Instant::now(),
+                received: self.rx.remove(0),
+            }))
         }
     }
 
@@ -277,14 +306,14 @@ mod tests {
         let mut bus = RoutedMemoryBus::default();
         let can0_id1 = MotorAddress::new("can0", 1);
         let can1_id1 = MotorAddress::new("can1", 1);
-        bus.rx.push(ReceivedCanFrame {
-            interface: Some("can1".to_string()),
-            frame: CanFrame {
+        bus.rx.push(ReceivedCanFrame::full_data(
+            Some("can1".to_string()),
+            CanFrame {
                 id: pack_typed_ext_id(CommunicationType::OperationStatus, 1, DEFAULT_HOST_ID),
                 data: [0x7F, 0xFF, 0x7F, 0xFF, 0x7F, 0xFF, 0x00, 0xC8],
                 extended: true,
             },
-        });
+        ));
         let mut states = HashMap::new();
         let types = HashMap::from([
             (can0_id1.clone(), MotorType::Rs03),
@@ -307,7 +336,7 @@ mod tests {
 
     #[test]
     fn recv_all_addressed_zero_budget_single_pass() {
-        let mut bus = ScriptBus::new(vec![vec![status_frame(1)], vec![status_frame(1)]]);
+        let mut bus = ScriptBus::new(vec![vec![status_frame(1)], vec![], vec![status_frame(1)]]);
         let mut states = HashMap::new();
         let types = HashMap::from([(MotorAddress::new("can0", 1), MotorType::Rs03)]);
 
@@ -362,24 +391,22 @@ mod tests {
     }
 
     #[test]
-    fn recv_all_stops_when_budget_exhausted_before_quiet() {
-        let mut bus = ScriptBus::new((0..64).map(|id| vec![status_frame(id % 8 + 1)]).collect());
+    fn recv_all_preserves_a_valid_prefix_when_work_is_incomplete() {
+        let mut bus = ScriptBus::new((0..65).map(|_| vec![status_frame(1)]).collect());
         let mut states = HashMap::new();
         let types = HashMap::from([(1u8, MotorType::Rs03)]);
-        let started = std::time::Instant::now();
-        let count = bus
-            .recv_all(
-                &types,
-                &mut states,
-                Duration::from_millis(2),
-                Duration::from_millis(50),
-            )
-            .expect("budget-limited drain");
-        let elapsed = started.elapsed();
-        assert!(count > 0);
-        assert!(count < 64);
-        assert!(elapsed >= Duration::from_millis(2));
-        assert!(elapsed < Duration::from_millis(20));
+        let error = bus
+            .recv_all(&types, &mut states, Duration::ZERO, Duration::ZERO)
+            .expect_err("a prefix is not a complete drain");
+        assert!(matches!(
+            error,
+            super::BusError::ReceiveIncomplete {
+                completion: super::ReceiveCompletion::WorkLimit,
+            }
+        ));
+        assert_eq!(states[&1].position_rad, 0.0);
+        assert_eq!(states[&1].temperature_c, 20.0);
+        assert!(states[&1].updated.is_some());
     }
 
     #[cfg(all(feature = "socketcan", target_os = "linux"))]

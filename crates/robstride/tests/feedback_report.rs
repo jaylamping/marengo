@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 use marengo_config::MotorType;
 use robstride::{
     BusError, CanBus, CanFrame, DriveMode, FeedbackEvent, MemoryBus, MotorAddress, MotorBus,
-    MotorState, ReceivedCanFrame, TimedCanFrame,
+    MotorState, ReceiveAttempt, ReceivedCanFrame, TimedCanFrame,
 };
 
 const POSE: [u8; 8] = [0x7f, 0xff, 0x7f, 0xff, 0x7f, 0xff, 0x00, 0xc8];
@@ -96,7 +96,7 @@ fn every_raw_fault_and_status_survives_all_same_batch_orders() {
         vec![first.clone(), second.clone(), healthy.clone()],
     ] {
         let mut bus = MemoryBus {
-            rx_queue: sequence.clone(),
+            rx_queue: sequence.clone().into(),
             ..MemoryBus::default()
         };
         let report = bus.recv_feedback_report(&types(), Duration::ZERO, Duration::ZERO);
@@ -106,6 +106,7 @@ fn every_raw_fault_and_status_survives_all_same_batch_orders() {
             assert_eq!(observed.can_id, raw.id);
             match observed.event {
                 FeedbackEvent::DetailedFault(fault) => assert_eq!(fault.raw, raw.data),
+                FeedbackEvent::Malformed(_) => panic!("full data is not malformed"),
                 FeedbackEvent::Status(status) => {
                     assert_eq!(raw.id, 0x0280_01fd);
                     assert_eq!(status.status_flags, 0);
@@ -126,19 +127,14 @@ impl CanBus for TimedBus {
         Ok(())
     }
 
-    fn recv_timed_frames_from(&mut self, out: &mut Vec<TimedCanFrame>) -> Result<(), BusError> {
-        out.append(&mut self.frames);
+    fn recv_one_nonblocking(&mut self) -> Result<ReceiveAttempt, BusError> {
+        if !self.frames.is_empty() {
+            return Ok(ReceiveAttempt::Frame(self.frames.remove(0)));
+        }
         match self.error.take() {
             Some(error) => Err(error),
-            None => Ok(()),
+            None => Ok(ReceiveAttempt::Idle),
         }
-    }
-
-    fn recv_timed_frames_from_nonblocking(
-        &mut self,
-        out: &mut Vec<TimedCanFrame>,
-    ) -> Result<(), BusError> {
-        self.recv_timed_frames_from(out)
     }
 }
 
@@ -147,10 +143,7 @@ impl MotorBus for TimedBus {}
 fn timed(interface: Option<&str>, id: u32, data: [u8; 8], received_at: Instant) -> TimedCanFrame {
     TimedCanFrame {
         received_at,
-        received: ReceivedCanFrame {
-            interface: interface.map(str::to_string),
-            frame: frame(id, data),
-        },
+        received: ReceivedCanFrame::full_data(interface.map(str::to_string), frame(id, data)),
     }
 }
 
