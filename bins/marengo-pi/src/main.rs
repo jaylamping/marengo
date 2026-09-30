@@ -6,6 +6,9 @@ mod imu;
 mod limit_persist;
 mod overlay;
 
+#[cfg(test)]
+mod shutdown_tests;
+
 use std::collections::BTreeSet;
 use std::env;
 use std::io::{self, BufRead};
@@ -27,13 +30,15 @@ use berthier::{
     proto_control_mode, ControlLoop, ControlMode, GainOverride, LoopError, TickPhaseAverages,
 };
 use chappe::Bus;
-use davout::{DavoutError, OperationalMode, DEFAULT_LEASE_TTL};
+use davout::{DavoutError, MotorBus, OperationalMode, StopReport, DEFAULT_LEASE_TTL};
 use marengo_config::{
     load_control_config, load_motors_config, resolve_config_dir, resolve_repo_root,
     resolve_urdf_path,
 };
 use robstride::RuntimeBus;
 use tracing::{debug, error, info, warn};
+
+use crate::limit_persist::{PersistDrainReport, PersistDrainStatus};
 
 fn repo_root() -> PathBuf {
     resolve_repo_root()
@@ -223,8 +228,8 @@ fn spawn_stdin_commands(tx: Sender<PiCommand>) {
     });
 }
 
-fn handle_chappe_enable(
-    loop_ctrl: &mut ControlLoop<RuntimeBus>,
+fn handle_chappe_enable<B: MotorBus>(
+    loop_ctrl: &mut ControlLoop<B>,
     request: &EnableRequest,
 ) -> Result<(), String> {
     if request.enable {
@@ -254,17 +259,21 @@ fn handle_chappe_enable(
     Ok(())
 }
 
-fn drain_chappe_commands(
-    loop_ctrl: &mut ControlLoop<RuntimeBus>,
+fn drain_chappe_commands<B: MotorBus>(
+    loop_ctrl: &mut ControlLoop<B>,
     enable_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     homing_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     set_zero_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     lease_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     status_poll_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
+    shutdown: &AtomicBool,
 ) {
     // Set-zero before enable so a same-tick enable(true) cannot flip ACTIVE and
     // silently refuse a queued calibration (Consul already got publish ACK).
     loop {
+        if shutdown.load(Ordering::SeqCst) {
+            return;
+        }
         match set_zero_rx.try_recv() {
             Ok(bytes) => {
                 let Ok(envelope) = armee_proto::Envelope::decode(bytes.as_slice()) else {
@@ -273,6 +282,9 @@ fn drain_chappe_commands(
                 let Ok(request) = SetZeroRequest::decode(envelope.payload.as_slice()) else {
                     continue;
                 };
+                if shutdown.load(Ordering::SeqCst) {
+                    return;
+                }
                 if let Err(e) = handle_chappe_set_zero(loop_ctrl, &request) {
                     warn!(
                         joint = %request.joint,
@@ -292,6 +304,9 @@ fn drain_chappe_commands(
         }
     }
     loop {
+        if shutdown.load(Ordering::SeqCst) {
+            return;
+        }
         match lease_rx.try_recv() {
             Ok(bytes) => {
                 let Ok(envelope) = armee_proto::Envelope::decode(bytes.as_slice()) else {
@@ -301,6 +316,9 @@ fn drain_chappe_commands(
                 else {
                     continue;
                 };
+                if shutdown.load(Ordering::SeqCst) {
+                    return;
+                }
                 if let Err(e) = handle_chappe_active_reporting_lease(loop_ctrl, &request) {
                     warn!(
                         joint = %request.joint,
@@ -323,6 +341,9 @@ fn drain_chappe_commands(
     // Collapse bursts: only the latest solicit matters before the next control tick.
     let mut status_poll_payloads: Vec<Vec<u8>> = Vec::new();
     loop {
+        if shutdown.load(Ordering::SeqCst) {
+            return;
+        }
         match status_poll_rx.try_recv() {
             Ok(bytes) => status_poll_payloads.push(bytes),
             Err(tokio::sync::broadcast::error::TryRecvError::Empty) => break,
@@ -337,6 +358,9 @@ fn drain_chappe_commands(
     }
     if let Some(request) = latest_motor_status_poll(status_poll_payloads.iter().map(Vec::as_slice))
     {
+        if shutdown.load(Ordering::SeqCst) {
+            return;
+        }
         if let Err(e) = loop_ctrl.supervisor_mut().solicit_status_feedback() {
             warn!(
                 operator = %request.operator_id,
@@ -345,18 +369,27 @@ fn drain_chappe_commands(
             );
         }
     }
-    while let Ok(bytes) = enable_rx.try_recv() {
+    while !shutdown.load(Ordering::SeqCst) {
+        let Ok(bytes) = enable_rx.try_recv() else {
+            break;
+        };
         let Ok(envelope) = armee_proto::Envelope::decode(bytes.as_slice()) else {
             continue;
         };
         let Ok(request) = EnableRequest::decode(envelope.payload.as_slice()) else {
             continue;
         };
+        if shutdown.load(Ordering::SeqCst) {
+            return;
+        }
         if let Err(e) = handle_chappe_enable(loop_ctrl, &request) {
             warn!(error = %e, "Chappe enable request failed");
         }
     }
-    while let Ok(bytes) = homing_rx.try_recv() {
+    while !shutdown.load(Ordering::SeqCst) {
+        let Ok(bytes) = homing_rx.try_recv() else {
+            break;
+        };
         let Ok(envelope) = armee_proto::Envelope::decode(bytes.as_slice()) else {
             continue;
         };
@@ -368,8 +401,8 @@ fn drain_chappe_commands(
     }
 }
 
-fn handle_chappe_active_reporting_lease(
-    loop_ctrl: &mut ControlLoop<RuntimeBus>,
+fn handle_chappe_active_reporting_lease<B: MotorBus>(
+    loop_ctrl: &mut ControlLoop<B>,
     request: &ActiveReportingLeaseRequest,
 ) -> Result<(), DavoutError> {
     let action = ActiveReportingLeaseAction::try_from(request.action)
@@ -403,8 +436,8 @@ fn handle_chappe_active_reporting_lease(
 /// Submit a guarded reference request to Davout after explicit operator checks.
 /// The installed adapter currently refuses unqualified reference before arming;
 /// queue publication alone is not verification or an Applied receipt.
-fn handle_chappe_set_zero(
-    loop_ctrl: &mut ControlLoop<RuntimeBus>,
+fn handle_chappe_set_zero<B: MotorBus>(
+    loop_ctrl: &mut ControlLoop<B>,
     request: &SetZeroRequest,
 ) -> Result<(), DavoutError> {
     if !request.confirm {
@@ -437,11 +470,15 @@ fn handle_chappe_set_zero(
     Ok(())
 }
 
-fn drain_testing_commands(
-    loop_ctrl: &mut ControlLoop<RuntimeBus>,
+fn drain_testing_commands<B: MotorBus>(
+    loop_ctrl: &mut ControlLoop<B>,
     testing_cmd_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
+    shutdown: &AtomicBool,
 ) {
-    while let Ok(bytes) = testing_cmd_rx.try_recv() {
+    while !shutdown.load(Ordering::SeqCst) {
+        let Ok(bytes) = testing_cmd_rx.try_recv() else {
+            break;
+        };
         let Ok(envelope) = armee_proto::Envelope::decode(bytes.as_slice()) else {
             continue;
         };
@@ -451,6 +488,9 @@ fn drain_testing_commands(
         // Proto ControlMode::POSITION = 4 (see marengo.proto).
         let want_position = batch.mode == 4;
         for joint in &batch.joints {
+            if shutdown.load(Ordering::SeqCst) {
+                return;
+            }
             // Consul Wave: `wave:<joint>:<min>:<max>:<cycles>:<half_period_sec>`
             // starts Berthier in-loop triangle (continuous; no endpoint holds).
             if let Some(wave) = parse_testing_wave_command(&joint.name) {
@@ -501,6 +541,9 @@ fn drain_testing_commands(
                 loop_ctrl.clear_gain_override(&joint.name);
             }
             if want_position {
+                if shutdown.load(Ordering::SeqCst) {
+                    return;
+                }
                 let result = if loop_ctrl.control_mode() == ControlMode::Position {
                     loop_ctrl
                         .set_joint_position_setpoint(joint.name.as_str(), joint.position)
@@ -590,7 +633,7 @@ fn publish_heartbeat(chappe: &Bus) -> Result<(), chappe::BusError> {
     )
 }
 
-fn print_status(loop_ctrl: &mut ControlLoop<RuntimeBus>, config_dir: &Path) {
+fn print_status<B: MotorBus>(loop_ctrl: &mut ControlLoop<B>, config_dir: &Path) {
     let control_mode = loop_ctrl.control_mode();
     let supervisor = loop_ctrl.supervisor_mut();
     let operational = supervisor.mode();
@@ -631,7 +674,7 @@ fn print_status(loop_ctrl: &mut ControlLoop<RuntimeBus>, config_dir: &Path) {
     }
 }
 
-fn preflight_gravity_saturation(loop_ctrl: &mut ControlLoop<RuntimeBus>) -> Result<(), ()> {
+fn preflight_gravity_saturation<B: MotorBus>(loop_ctrl: &mut ControlLoop<B>) -> Result<(), ()> {
     // Collect per-joint range + torque limit from the supervisor first, so the
     // &mut supervisor borrow ends before we borrow loop_ctrl for the dynamics model.
     let joint_names: Vec<String> = loop_ctrl.joint_names().to_vec();
@@ -680,8 +723,8 @@ fn preflight_gravity_saturation(loop_ctrl: &mut ControlLoop<RuntimeBus>) -> Resu
     }
 }
 
-fn handle_command(
-    loop_ctrl: &mut ControlLoop<RuntimeBus>,
+fn handle_command<B: MotorBus>(
+    loop_ctrl: &mut ControlLoop<B>,
     cmd: PiCommand,
     config_dir: &Path,
 ) -> bool {
@@ -941,11 +984,7 @@ fn main() {
         std::process::exit(1);
     }
 
-    let persist_queue = overlay::ConfigPersistQueue::spawn(
-        Arc::clone(&chappe),
-        Arc::clone(&shutdown),
-        root.clone(),
-    );
+    let persist_queue = overlay::ConfigPersistQueue::spawn(Arc::clone(&chappe), root.clone());
     let mut actuator_overlay =
         match overlay::ActuatorOverlay::from_config_dir(&config_dir, persist_queue) {
             Ok(o) => o,
@@ -994,17 +1033,109 @@ fn main() {
     };
     run_control_loop(&mut loop_ctrl, &mut runtime);
 
-    // Drain write-behind before exit so restart cannot reload stale YAML over live limits.
-    if !actuator_overlay.wait_persist_idle(std::time::Duration::from_secs(5)) {
-        warn!("config persist queue still busy after shutdown drain window");
+    let outcome = finish_owner_shutdown(
+        &mut loop_ctrl,
+        &actuator_overlay,
+        control.control.disable_on_exit,
+        Duration::from_secs(5),
+        #[cfg(test)]
+        None,
+    );
+    if let ExitStopOutcome::Attempted { result, report } = &outcome.stop {
+        info!(
+            writes_accepted = result.is_ok(),
+            ?report,
+            "shutdown stop delivery evidence; physical stop unconfirmed"
+        );
     }
+    info!(
+        persist_idle = outcome.persist_idle,
+        status = ?outcome.persist.status,
+        successful_requests = outcome.persist.successful_writes,
+        failed_requests = outcome.persist.failed_writes,
+        publication_failures = outcome.persist.publication_failures,
+        pending_requests = outcome.persist.pending_requests,
+        in_flight = outcome.persist.in_flight,
+        worker_terminated = outcome.persist.worker_terminated,
+        worker_error = ?outcome.persist.worker_error,
+        coalesced_requests = outcome.persist.coalesced_requests,
+        ?outcome,
+        "owner shutdown outcome"
+    );
+    info!("marengo-pi stopped");
+}
 
-    if control.control.disable_on_exit {
-        if let Err(e) = loop_ctrl.supervisor_mut().disable_all() {
+#[derive(Debug)]
+enum ExitStopOutcome {
+    Skipped,
+    Attempted {
+        result: Result<(), DavoutError>,
+        report: Option<StopReport>,
+    },
+}
+
+#[derive(Debug)]
+struct ShutdownOutcome {
+    persist_idle: bool,
+    stop: ExitStopOutcome,
+    persist: PersistDrainReport,
+}
+
+#[cfg(test)]
+type BeforePersistWait<'a, B> = dyn Fn(&ControlLoop<B>) + 'a;
+
+/// Composition of the installed owner's graceful exit and its write-behind queue.
+fn finish_owner_shutdown<B: MotorBus>(
+    loop_ctrl: &mut ControlLoop<B>,
+    actuator_overlay: &overlay::ActuatorOverlay,
+    disable_on_exit: bool,
+    persist_timeout: Duration,
+    #[cfg(test)] before_persist_wait: Option<&BeforePersistWait<'_, B>>,
+) -> ShutdownOutcome {
+    loop_ctrl.inhibit_motion_for_shutdown();
+    let stop = if disable_on_exit {
+        let result = loop_ctrl.supervisor_mut().disable_all();
+        if let Err(e) = &result {
             warn!(error = %e, "disable_all on shutdown failed");
         }
+        let report = loop_ctrl.supervisor().safety_snapshot().last_stop;
+        ExitStopOutcome::Attempted { result, report }
+    } else {
+        ExitStopOutcome::Skipped
+    };
+
+    #[cfg(test)]
+    if let Some(observer) = before_persist_wait {
+        observer(loop_ctrl);
     }
-    info!("marengo-pi stopped");
+    let persist = actuator_overlay.close_persist_and_drain(persist_timeout);
+    let persist_idle = persist.is_idle();
+    match persist.status {
+        PersistDrainStatus::Complete => {}
+        PersistDrainStatus::CompletedWithFailures => {
+            warn!(
+                ?persist,
+                "config persist shutdown drain completed with failures"
+            );
+        }
+        PersistDrainStatus::TimedOut => {
+            warn!(
+                ?persist,
+                "config persist shutdown drain timed out; work unfinished"
+            );
+        }
+        PersistDrainStatus::WorkerFailed => {
+            error!(
+                ?persist,
+                "config persist worker failed during shutdown drain"
+            );
+        }
+    }
+    ShutdownOutcome {
+        persist_idle,
+        stop,
+        persist,
+    }
 }
 
 struct ControlLoopRuntime<'a> {
@@ -1024,7 +1155,10 @@ struct ControlLoopRuntime<'a> {
 }
 
 #[tracing::instrument(skip(loop_ctrl, runtime))]
-fn run_control_loop(loop_ctrl: &mut ControlLoop<RuntimeBus>, runtime: &mut ControlLoopRuntime<'_>) {
+fn run_control_loop<B: MotorBus>(
+    loop_ctrl: &mut ControlLoop<B>,
+    runtime: &mut ControlLoopRuntime<'_>,
+) {
     let period = loop_ctrl.loop_period();
     let chappe_period = Duration::from_secs_f64(1.0 / f64::from(runtime.chappe_state_hz.max(1)));
     let mut last_chappe = Instant::now();
@@ -1032,14 +1166,23 @@ fn run_control_loop(loop_ctrl: &mut ControlLoop<RuntimeBus>, runtime: &mut Contr
     let mut active_fault: Option<String>;
     let mut timing = LoopTimingWindow::new(loop_ctrl.tick_count());
 
-    while !runtime.shutdown.load(Ordering::SeqCst) {
+    'control: while !runtime.shutdown.load(Ordering::SeqCst) {
         let tick_start = Instant::now();
 
         let t = tick_start;
-        while let Ok(cmd) = runtime.cmd_rx.try_recv() {
+        loop {
+            if runtime.shutdown.load(Ordering::SeqCst) {
+                break 'control;
+            }
+            let Ok(cmd) = runtime.cmd_rx.try_recv() else {
+                break;
+            };
+            if runtime.shutdown.load(Ordering::SeqCst) {
+                break 'control;
+            }
             if !handle_command(loop_ctrl, cmd, runtime.config_dir) {
                 runtime.shutdown.store(true, Ordering::SeqCst);
-                break;
+                break 'control;
             }
         }
         let (outer_stdin_us, t_next) = phase_elapsed_us(t);
@@ -1051,18 +1194,32 @@ fn run_control_loop(loop_ctrl: &mut ControlLoop<RuntimeBus>, runtime: &mut Contr
             runtime.set_zero_rx,
             runtime.lease_rx,
             runtime.status_poll_rx,
+            runtime.shutdown,
         );
+        if runtime.shutdown.load(Ordering::SeqCst) {
+            break;
+        }
         let (outer_chappe_drain_us, t_after_chappe) = phase_elapsed_us(t_next);
-        drain_testing_commands(loop_ctrl, runtime.testing_cmd_rx);
-        runtime.actuator_overlay.drain_commands(
+        drain_testing_commands(loop_ctrl, runtime.testing_cmd_rx, runtime.shutdown);
+        if runtime.shutdown.load(Ordering::SeqCst) {
+            break;
+        }
+        runtime.actuator_overlay.drain_commands_until_shutdown(
             loop_ctrl,
             runtime.config_dir,
             runtime.chappe,
             runtime.actuator_rx,
+            runtime.shutdown,
         );
         let (_outer_actuator_us, _t) = phase_elapsed_us(t_after_chappe);
 
+        if runtime.shutdown.load(Ordering::SeqCst) {
+            break;
+        }
         loop_ctrl.supervisor_mut().tick_active_reporting_leases();
+        if runtime.shutdown.load(Ordering::SeqCst) {
+            break;
+        }
 
         active_fault = match loop_ctrl.tick(Some(runtime.chappe.as_ref())) {
             Ok(()) => None,
@@ -1077,6 +1234,9 @@ fn run_control_loop(loop_ctrl: &mut ControlLoop<RuntimeBus>, runtime: &mut Contr
                 Some(e.to_string())
             }
         };
+        if runtime.shutdown.load(Ordering::SeqCst) {
+            break;
+        }
 
         let elapsed = tick_start.elapsed();
         timing.record_tick(
@@ -1174,7 +1334,7 @@ impl LoopTimingWindow {
             .saturating_add(outer_chappe_drain_us);
     }
 
-    fn log_and_reset(&mut self, loop_ctrl: &mut ControlLoop<RuntimeBus>) {
+    fn log_and_reset<B: MotorBus>(&mut self, loop_ctrl: &mut ControlLoop<B>) {
         let wall_s = self.window_start.elapsed().as_secs_f64();
         if wall_s <= f64::EPSILON || self.iterations == 0 {
             *self = Self::new(loop_ctrl.tick_count());
@@ -1244,7 +1404,7 @@ fn latest_motor_status_poll<'a>(
     latest
 }
 
-fn debug_status(loop_ctrl: &mut ControlLoop<RuntimeBus>, timing: &mut LoopTimingWindow) {
+fn debug_status<B: MotorBus>(loop_ctrl: &mut ControlLoop<B>, timing: &mut LoopTimingWindow) {
     timing.log_and_reset(loop_ctrl);
     let control_mode = loop_ctrl.control_mode();
     let supervisor = loop_ctrl.supervisor_mut();

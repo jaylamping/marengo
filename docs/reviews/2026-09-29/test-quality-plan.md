@@ -201,3 +201,33 @@ the guessed never-existing owner-pairing name is excluded from required counts.
 Two targeted receive-invariant mutants fail actual assertions. All proof kinds,
 setup failures, source hashes and command/assertion timing remain separately
 recorded; the ledger/report track exact-head delivery.
+
+## Seventh batch: real shutdown and storage contracts
+
+[Batch07](batch07-stop-before-persistence.md) supplies six actual assertion-red
+and byte-identical immediate repaired replays. Each archive proves source
+identity and compiles the actual extracted/candidate owner and worker. Extraction
+and retained pre-cutover code are explicitly separate from unchanged original
+binary execution. Five original regression function bodies also remain identical
+in final source. Compile/setup/lint failures and classifier corrections are
+excluded from behavioral evidence; new drain API timeout/unwind cases are
+conformance, not missing-API reds.
+
+The private pending-count bound, chmod-plus-sleep write failure and delayed limits
+snapshot poll are replaced with actual first/latest disk writes and matching
+events, valid live admission followed by a regular-file parent blocker, and
+immediate actual snapshot decoding. The obsolete getter is removed. Failed-stop
+matrices preserve all fifteen attempts and the exact initiating report across
+real Durable, Failed and TimedOut storage. Skipped policy and reachable closed
+virtual Active gain/torque/Wave cleanup remain distinct from physical acceptance.
+An independent review caught a test gap: Quit alone could miss removed external
+flag checks. The additional actual-runtime matrix raises the shared flag during
+a literal admitted stop, retains later commands and prevents later ticks; the
+same probe fails retained old dispatch and passes guarded dispatch.
+
+Final strict affected checks pass205 tests, including30 Pi tests in0.52 s body
+time; full gate passes701 Rust/1 existing ignored,355 frontend,72 Pi MCP and the
+fatal aarch64 release build in101.788 s. Minimal simulation passes5/0. No new
+ignored tests or multi-second negative-sleep oracle is introduced. These warm
+results separate test execution from compile/install work; they do not establish
+a cold-build improvement or physical stop, OS signal delivery or plant behavior.

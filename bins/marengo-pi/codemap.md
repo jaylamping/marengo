@@ -4,7 +4,7 @@
 **Primary Pi runtime** — CAN I/O, Berthier control loop, Chappe telemetry publish, stdin operator REPL, and optional IMU/host metrics.
 
 ## Design
-- **Event loop**: `run_control_loop` at configured Hz; parallel tokio tasks for stdin and Chappe command drain.
+- **Event loop**: `run_control_loop` owns command dispatch and ticks at configured Hz; stdin and the Chappe IPC bridge supply its queues.
 - `PiCommand` enum: enable, disable, status, set-zero, hold-on, hold-at, gravity-on, quit.
 - Chappe subscribers for `EnableRequest`, homing commands, testing panel commands from Consul.
 - Preflight `preflight_gravity_saturation` before enable (refuses if τ_g exceeds motor limits).
@@ -15,6 +15,13 @@
 3. Spawn stdin reader + Chappe IPC bridge
 4. `run_control_loop`: tick → publish RobotState/SafetyState/Heartbeat on Chappe
 5. `handle_command` for operator stdin; `drain_chappe_commands` for remote enable
+6. Observed Quit/shutdown exits dispatch before later commands/ticks; `finish_owner_shutdown` clears intent, attempts the configured Davout stop and retains its exact result/report before closing and draining persistence.
+
+The independent filesystem worker completes retained writes and matching local
+audit publication after owner exit. Typed drain outcomes preserve failed writes,
+worker failure and unfinished work; actual thread joining establishes termination.
+Local publication and transport stop acceptance do not establish client delivery
+or physical stop. Existing no-disable exit policy reports a skipped stop.
 
 Fresh startup leaves all configured joints Unhomed regardless of saved history.
 Normal Enable requires current reference; the complete qualified transaction and

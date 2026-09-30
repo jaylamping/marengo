@@ -129,6 +129,33 @@ supervisor.send_mit_batch(joint_space_cmds)?;
 - Implement the required nonblocking receive primitive explicitly. Share one total frame/read-attempt budget across sources and rounds; truncating the result of an unbounded callback does not bound work.
 - Treat observed idle/quiet separately from work/deadline exhaustion. Incomplete drains retain evidence and cannot satisfy either enable flush. Latest-state projections must expose incomplete work rather than silently accept a prefix.
 
+**Graceful owner shutdown** ([ADR0024](decisions/0024-stop-before-persistence-shutdown.md)):
+
+```rust
+// BAD — storage can postpone the motor stop attempt
+overlay.wait_persist_idle(timeout);
+supervisor.disable_all()?;
+
+// GOOD — clear intent, attempt the configured stop, retain its outcome, then drain
+control.inhibit_motion_for_shutdown();
+let stop_result = control.supervisor_mut().disable_all();
+let stop_report = control.supervisor().safety_snapshot().last_stop;
+let persist = overlay.close_persist_and_drain(timeout);
+// A later persistence result cannot erase stop_result or stop_report.
+```
+
+The runtime applies its existing `disable_on_exit` policy explicitly. Intent
+inhibition clears retained controller commands; it does not confirm drive stop.
+Queue drain follows that stop attempt and must not gate it. Skipped stop, failed
+stop and unfinished persistence have distinct outcomes. No physical stop or
+support acceptance follows from a software Disabled state or successful writes.
+Owner shutdown closes write admission; it must not terminate accepted work.
+Keep the writer alive through the actual local completion publication, then
+report pending/in-flight work, failures and observed thread termination separately.
+A timed-out drain does not cancel filesystem I/O or confirm client delivery.
+Dispatch checks the owner flag before later commands and ticks; synchronous
+handlers already admitted are not interrupted by that check.
+
 **Scoped commissioning Enable** (Hardware commissioning):
 
 The following describes the existing scoped caller path, whose private grant and

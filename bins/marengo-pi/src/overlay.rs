@@ -15,6 +15,7 @@
 //! escalation within that same trust — not a separate auth gate.
 
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -33,7 +34,7 @@ use marengo_config::{
 use thiserror::Error;
 use tracing::warn;
 
-use crate::limit_persist::{next_audit_revision, PersistError, PersistRequest};
+use crate::limit_persist::{next_audit_revision, PersistDrainReport, PersistError, PersistRequest};
 
 pub use crate::limit_persist::ConfigPersistQueue;
 
@@ -99,6 +100,8 @@ impl ActuatorOverlay {
         self.limits_dirty = true;
     }
 
+    /// Archived subsystem probes exercise this same dispatch with no owner exit.
+    #[cfg(test)]
     pub fn drain_commands<B: MotorBus>(
         &mut self,
         loop_ctrl: &mut ControlLoop<B>,
@@ -106,7 +109,27 @@ impl ActuatorOverlay {
         chappe: &Arc<Bus>,
         rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     ) {
+        self.drain_commands_until_shutdown(
+            loop_ctrl,
+            config_dir,
+            chappe,
+            rx,
+            &AtomicBool::new(false),
+        );
+    }
+
+    pub fn drain_commands_until_shutdown<B: MotorBus>(
+        &mut self,
+        loop_ctrl: &mut ControlLoop<B>,
+        config_dir: &Path,
+        chappe: &Arc<Bus>,
+        rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
+        shutdown: &AtomicBool,
+    ) {
         loop {
+            if shutdown.load(Ordering::SeqCst) {
+                return;
+            }
             match rx.try_recv() {
                 Ok(bytes) => {
                     let Ok(envelope) = armee_proto::Envelope::decode(bytes.as_slice()) else {
@@ -117,6 +140,9 @@ impl ActuatorOverlay {
                         warn!("actuator overlay: undecodable OperatorCommand dropped");
                         continue;
                     };
+                    if shutdown.load(Ordering::SeqCst) {
+                        return;
+                    }
                     match self.apply_operator_command(loop_ctrl, config_dir, &operator) {
                         Ok(outcomes) => {
                             let mut publish_limits_now = false;
@@ -238,7 +264,13 @@ impl ActuatorOverlay {
         }
     }
 
-    /// Drain write-behind before process exit / restart.
+    /// Close write admission and report retained work before exit / restart.
+    pub(crate) fn close_persist_and_drain(&self, timeout: Duration) -> PersistDrainReport {
+        self.persist.close_and_drain(timeout)
+    }
+
+    /// Nonclosing idle observation retained for unchanged regression probes.
+    #[cfg(test)]
     pub fn wait_persist_idle(&self, timeout: Duration) -> bool {
         self.persist.wait_idle(timeout)
     }

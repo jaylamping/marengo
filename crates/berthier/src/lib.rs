@@ -11,6 +11,8 @@
 //! - Position hold law lives in [`position_hold::PositionHold`] (targets, planners, MIT compose).
 //! - MIT feedforward for GravityComp / Impedance / TorqueOnly: [`mit_feedforward::MitFeedforward`].
 //! - TorqueOnly operator latch: [`torque_cmd::TorqueCmdLatch`] (`τ_cmd`; cleared on leave).
+//! - [`ControlLoop::inhibit_motion_for_shutdown`]: discard retained intent before
+//!   the runtime's configured Davout exit-stop attempt and persistence drain.
 //! - Optional friction feedforward (`friction` module) in impedance and position modes.
 //! - Publish [`RobotState`](armee_proto::RobotState) on Chappe (lower rate than the motor loop).
 //! - Legacy [`Controller`]: single-joint position commands through Davout (REPL / bring-up).

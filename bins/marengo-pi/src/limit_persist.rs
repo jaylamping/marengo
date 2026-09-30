@@ -1,14 +1,13 @@
 //! Coalescing write-behind for control.yaml / motors+URDF (never on the 200 Hz tick).
 
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
-use std::sync::{Arc, Mutex};
-use std::thread;
-use std::time::Duration;
-
 #[cfg(test)]
-use std::time::Instant;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+use std::time::{Duration, Instant};
 
 use armee_proto::{ActionEvent, PersistStatus};
 use chappe::Bus;
@@ -18,6 +17,38 @@ use marengo_config::{
 };
 use thiserror::Error;
 use tracing::{info, warn};
+
+#[cfg(test)]
+#[path = "limit_persist_tests.rs"]
+mod tests;
+
+#[cfg(test)]
+#[path = "limit_persist_qualification_tests.rs"]
+mod qualification_tests;
+
+#[cfg(test)]
+type PersistRequestObserver = Arc<dyn Fn(&PersistRequest) + Send + Sync>;
+
+/// Observers/gates at the actual worker's I/O boundaries; never replace a write.
+#[cfg(test)]
+#[derive(Default)]
+pub(crate) struct PersistTestHooks {
+    pub before_write: Option<PersistRequestObserver>,
+    pub before_publish: Option<PersistRequestObserver>,
+    pub on_worker_exit: Option<Arc<dyn Fn() + Send + Sync>>,
+}
+
+#[cfg(test)]
+struct WorkerExitObserver(Option<Arc<dyn Fn() + Send + Sync>>);
+
+#[cfg(test)]
+impl Drop for WorkerExitObserver {
+    fn drop(&mut self) {
+        if let Some(observer) = &self.0 {
+            observer();
+        }
+    }
+}
 
 const TOPIC_AUDIT_ACTION: &str = "robot/audit/action";
 
@@ -46,12 +77,103 @@ pub enum PersistError {
 /// Coalescing background writer for config YAML (+ expand-only URDF when motors present).
 pub struct ConfigPersistQueue {
     pending: Arc<Mutex<PersistSlot>>,
+    changed: Arc<Condvar>,
     wake_tx: SyncSender<()>,
+    worker: Mutex<Option<thread::JoinHandle<()>>>,
 }
 
 struct PersistSlot {
     request: Option<PersistRequest>,
     writing: bool,
+    accepting: bool,
+    worker_done: bool,
+    worker_error: Option<String>,
+    successful_writes: u64,
+    failed_writes: u64,
+    publication_failures: u64,
+    coalesced_requests: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum PersistDrainStatus {
+    Complete,
+    CompletedWithFailures,
+    TimedOut,
+    WorkerFailed,
+}
+
+/// Per-retained-request filesystem results and local publication outcomes.
+/// A timeout leaves the worker running; it does not cancel its filesystem work.
+/// Counters finalize after the local publication attempt returns. In-flight
+/// includes writes already on disk whose matching completion has not returned;
+/// it does not imply that the disk is unchanged. Coalesced requests are counted
+/// separately and receive no invented completion event.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PersistDrainReport {
+    pub status: PersistDrainStatus,
+    pub successful_writes: u64,
+    pub failed_writes: u64,
+    pub publication_failures: u64,
+    pub pending_requests: usize,
+    pub in_flight: bool,
+    pub worker_terminated: bool,
+    pub worker_error: Option<String>,
+    pub coalesced_requests: u64,
+}
+
+impl PersistDrainReport {
+    fn from_slot(slot: &PersistSlot, worker_terminated: bool) -> Self {
+        let pending_requests = usize::from(slot.request.is_some());
+        let status = if slot.worker_error.is_some() {
+            PersistDrainStatus::WorkerFailed
+        } else if !worker_terminated || pending_requests != 0 || slot.writing {
+            PersistDrainStatus::TimedOut
+        } else if slot.failed_writes != 0 || slot.publication_failures != 0 {
+            PersistDrainStatus::CompletedWithFailures
+        } else {
+            PersistDrainStatus::Complete
+        };
+        Self {
+            status,
+            successful_writes: slot.successful_writes,
+            failed_writes: slot.failed_writes,
+            publication_failures: slot.publication_failures,
+            pending_requests,
+            in_flight: slot.writing,
+            worker_terminated,
+            worker_error: slot.worker_error.clone(),
+            coalesced_requests: slot.coalesced_requests,
+        }
+    }
+
+    pub fn is_idle(&self) -> bool {
+        self.pending_requests == 0 && !self.in_flight
+    }
+}
+
+/// Publish worker completion even during unwinding, retaining unfinished work.
+struct WorkerCompletion {
+    pending: Arc<Mutex<PersistSlot>>,
+    changed: Arc<Condvar>,
+    completed_normally: bool,
+}
+
+impl Drop for WorkerCompletion {
+    fn drop(&mut self) {
+        let mut slot = self.pending.lock().unwrap_or_else(|error| {
+            let mut slot = error.into_inner();
+            slot.worker_error
+                .get_or_insert_with(|| "persist state lock poisoned".into());
+            slot
+        });
+        slot.accepting = false;
+        slot.worker_done = true;
+        if !self.completed_normally {
+            slot.worker_error
+                .get_or_insert_with(|| "persist worker exited unexpectedly".into());
+        }
+        self.changed.notify_all();
+    }
 }
 
 pub(crate) struct PersistRequest {
@@ -70,35 +192,155 @@ impl ConfigPersistQueue {
     /// Spawn a worker that serializes YAML writes; latest enqueued draft wins.
     ///
     /// `repo_root` is resolved once at boot (install root with `assets/urdf/`).
-    pub fn spawn(chappe: Arc<Bus>, shutdown: Arc<AtomicBool>, repo_root: PathBuf) -> Self {
+    pub fn spawn(chappe: Arc<Bus>, repo_root: PathBuf) -> Self {
+        Self::spawn_inner(
+            chappe,
+            repo_root,
+            #[cfg(test)]
+            PersistTestHooks::default(),
+        )
+    }
+
+    /// Keep the archived probe interface; its owner flag does not control the worker.
+    #[cfg(test)]
+    pub(crate) fn spawn_with_test_hooks(
+        chappe: Arc<Bus>,
+        _owner_shutdown: Arc<AtomicBool>,
+        repo_root: PathBuf,
+        hooks: PersistTestHooks,
+    ) -> Self {
+        Self::spawn_inner(chappe, repo_root, hooks)
+    }
+
+    fn spawn_inner(
+        chappe: Arc<Bus>,
+        repo_root: PathBuf,
+        #[cfg(test)] hooks: PersistTestHooks,
+    ) -> Self {
         let (wake_tx, wake_rx) = sync_channel::<()>(1);
         let pending = Arc::new(Mutex::new(PersistSlot {
             request: None,
             writing: false,
+            accepting: true,
+            worker_done: false,
+            worker_error: None,
+            successful_writes: 0,
+            failed_writes: 0,
+            publication_failures: 0,
+            coalesced_requests: 0,
         }));
+        let changed = Arc::new(Condvar::new());
         let pending_worker = Arc::clone(&pending);
-        thread::spawn(move || persist_worker(pending_worker, wake_rx, chappe, shutdown, repo_root));
-        Self { pending, wake_tx }
+        let changed_worker = Arc::clone(&changed);
+        let worker = thread::spawn(move || {
+            persist_worker(
+                pending_worker,
+                changed_worker,
+                wake_rx,
+                chappe,
+                repo_root,
+                #[cfg(test)]
+                hooks,
+            )
+        });
+        Self {
+            pending,
+            changed,
+            wake_tx,
+            worker: Mutex::new(Some(worker)),
+        }
     }
 
     /// Queue a durable write. Replaces any not-yet-started request (coalesce).
     pub(crate) fn enqueue(&self, request: PersistRequest) -> Result<(), PersistError> {
-        {
-            let mut slot = self
-                .pending
-                .lock()
-                .map_err(|_| PersistError::Queue("lock poisoned".into()))?;
-            slot.request = Some(request);
+        let mut slot = self
+            .pending
+            .lock()
+            .map_err(|_| PersistError::Queue("lock poisoned".into()))?;
+        if !slot.accepting || slot.worker_done || slot.worker_error.is_some() {
+            return Err(PersistError::Queue("queue admission closed".into()));
         }
         match self.wake_tx.try_send(()) {
-            Ok(()) | Err(TrySendError::Full(())) => Ok(()),
+            Ok(()) | Err(TrySendError::Full(())) => {
+                if slot.request.replace(request).is_some() {
+                    slot.coalesced_requests = slot.coalesced_requests.saturating_add(1);
+                }
+                self.changed.notify_all();
+                Ok(())
+            }
             Err(TrySendError::Disconnected(())) => {
+                slot.accepting = false;
+                slot.worker_error
+                    .get_or_insert_with(|| "persist worker disconnected".into());
+                self.changed.notify_all();
                 Err(PersistError::Queue("worker disconnected".into()))
             }
         }
     }
 
+    /// Close admission, drain retained work and observe actual thread termination.
+    /// Never joins a worker that has not finished; unfinished I/O remains explicit.
+    pub(crate) fn close_and_drain(&self, timeout: Duration) -> PersistDrainReport {
+        let start = Instant::now();
+        let mut slot = self.pending.lock().unwrap_or_else(|error| {
+            let mut slot = error.into_inner();
+            slot.worker_error
+                .get_or_insert_with(|| "persist state lock poisoned".into());
+            slot
+        });
+        slot.accepting = false;
+        // Nonblocking wake under the same admission lock: a closing queue cannot
+        // race a later successful enqueue or replace its retained request.
+        let _ = self.wake_tx.try_send(());
+        self.changed.notify_all();
+        loop {
+            let terminated = self.join_finished_worker(&mut slot);
+            let remaining = timeout.saturating_sub(start.elapsed());
+            if terminated || remaining.is_zero() {
+                return PersistDrainReport::from_slot(&slot, terminated);
+            }
+            // The completion guard runs just before thread return. Wait briefly
+            // for JoinHandle::is_finished rather than equating the guard with exit.
+            let wait = if slot.worker_done {
+                remaining.min(Duration::from_millis(1))
+            } else {
+                remaining
+            };
+            slot = match self.changed.wait_timeout(slot, wait) {
+                Ok((slot, _)) => slot,
+                Err(error) => {
+                    let (mut slot, _) = error.into_inner();
+                    slot.worker_error
+                        .get_or_insert_with(|| "persist state lock poisoned".into());
+                    slot
+                }
+            };
+        }
+    }
+
+    fn join_finished_worker(&self, slot: &mut PersistSlot) -> bool {
+        let Ok(mut worker) = self.worker.lock() else {
+            slot.worker_error
+                .get_or_insert_with(|| "persist worker handle lock poisoned".into());
+            return false;
+        };
+        let Some(handle) = worker.as_ref() else {
+            return true;
+        };
+        if !handle.is_finished() {
+            return false;
+        }
+        if let Some(handle) = worker.take() {
+            if handle.join().is_err() {
+                slot.worker_error
+                    .get_or_insert_with(|| "persist worker panicked".into());
+            }
+        }
+        true
+    }
+
     /// True while a write is queued or in flight (restart must drain first).
+    #[cfg(test)]
     pub fn is_busy(&self) -> bool {
         self.pending
             .lock()
@@ -107,11 +349,9 @@ impl ConfigPersistQueue {
     }
 
     /// Block until the persist queue is idle or `timeout` elapses.
+    #[cfg(test)]
     pub fn wait_idle(&self, timeout: Duration) -> bool {
-        #[cfg(test)]
         let start = Instant::now();
-        #[cfg(not(test))]
-        let start = std::time::Instant::now();
         while start.elapsed() < timeout {
             if !self.is_busy() {
                 return true;
@@ -125,13 +365,15 @@ impl ConfigPersistQueue {
     pub(crate) fn wait_idle_for_test(&self, timeout: Duration) -> bool {
         self.wait_idle(timeout)
     }
+}
 
-    #[cfg(test)]
-    pub(crate) fn pending_count_for_test(&self) -> usize {
-        self.pending
-            .lock()
-            .map(|s| usize::from(s.request.is_some()))
-            .unwrap_or(0)
+impl Drop for ConfigPersistQueue {
+    fn drop(&mut self) {
+        if let Ok(mut slot) = self.pending.lock() {
+            slot.accepting = false;
+        }
+        let _ = self.wake_tx.try_send(());
+        self.changed.notify_all();
     }
 }
 
@@ -146,23 +388,41 @@ fn persist_audit_action(param: &str) -> &'static str {
 
 fn persist_worker(
     pending: Arc<Mutex<PersistSlot>>,
+    changed: Arc<Condvar>,
     wake_rx: Receiver<()>,
     chappe: Arc<Bus>,
-    shutdown: Arc<AtomicBool>,
     repo_root: PathBuf,
+    #[cfg(test)] hooks: PersistTestHooks,
 ) {
-    while !shutdown.load(Ordering::Relaxed) {
+    #[cfg(test)]
+    let _exit_observer = WorkerExitObserver(hooks.on_worker_exit.clone());
+    let mut completion = WorkerCompletion {
+        pending: Arc::clone(&pending),
+        changed: Arc::clone(&changed),
+        completed_normally: false,
+    };
+    loop {
+        {
+            let Ok(slot) = pending.lock() else {
+                return;
+            };
+            if !slot.accepting && slot.request.is_none() {
+                break;
+            }
+        }
         match wake_rx.recv_timeout(Duration::from_millis(200)) {
             Ok(()) => {}
             Err(std::sync::mpsc::RecvTimeoutError::Timeout) => continue,
-            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                let Ok(mut slot) = pending.lock() else {
+                    return;
+                };
+                slot.accepting = false;
+            }
         }
         while wake_rx.try_recv().is_ok() {}
 
         loop {
-            if shutdown.load(Ordering::Relaxed) {
-                return;
-            }
             let request = {
                 let Ok(mut slot) = pending.lock() else {
                     return;
@@ -174,6 +434,11 @@ fn persist_worker(
                 req
             };
 
+            #[cfg(test)]
+            if let Some(observer) = &hooks.before_write {
+                observer(&request);
+            }
+
             let write_result = match &request.motors {
                 Some(motors) => write_motors_control_and_urdf(
                     &repo_root,
@@ -183,11 +448,13 @@ fn persist_worker(
                 ),
                 None => write_control_config_from(&request.config_dir, &request.control),
             };
-            if let Ok(mut slot) = pending.lock() {
-                slot.writing = false;
+            #[cfg(test)]
+            if let Some(observer) = &hooks.before_publish {
+                observer(&request);
             }
 
-            match write_result {
+            let write_succeeded = write_result.is_ok();
+            let publication_result = match write_result {
                 Ok(()) => {
                     info!(
                         joint = %request.joint,
@@ -212,7 +479,7 @@ fn persist_worker(
                         persist_status: PersistStatus::Durable as i32,
                         config_revision,
                     };
-                    let _ = publish_action_event(&chappe, &event);
+                    publish_action_event(&chappe, &event)
                 }
                 Err(e) => {
                     warn!(
@@ -235,9 +502,26 @@ fn persist_worker(
                         persist_status: PersistStatus::Failed as i32,
                         config_revision: String::new(),
                     };
-                    let _ = publish_action_event(&chappe, &event);
+                    publish_action_event(&chappe, &event)
                 }
+            };
+            if let Err(error) = &publication_result {
+                warn!(error = %error, "config persist completion publication failed");
             }
+            let Ok(mut slot) = pending.lock() else {
+                return;
+            };
+            if write_succeeded {
+                slot.successful_writes = slot.successful_writes.saturating_add(1);
+            } else {
+                slot.failed_writes = slot.failed_writes.saturating_add(1);
+            }
+            if publication_result.is_err() {
+                slot.publication_failures = slot.publication_failures.saturating_add(1);
+            }
+            slot.writing = false;
+            changed.notify_all();
         }
     }
+    completion.completed_normally = true;
 }

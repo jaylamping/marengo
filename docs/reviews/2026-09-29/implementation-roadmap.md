@@ -312,16 +312,37 @@ with fatal main cross-build; affected Linux 388/0 ignored and minimal simulation
 pass. Standards has zero findings; Spec's one issue is resolved.
 [PR219](https://github.com/jaylamping/marengo/pull/219)'s implementation head
 `7951f10` passes all five GitHub jobs in run36706934339, including 73 actual
-virtual-CAN driver tests, zero ignored. Final evidence-head and postmerge main
-delivery checks remain required; the external batch06 merge receipt will bind
-those checked hashes and equal trees. CS05/CS06/CS07 remain partial; qualified
-target-only transactions and installed-owner clients are next.
+virtual-CAN driver tests, zero ignored. Final evidence-head `792fb894` passes
+all five jobs in run36708482153; checked merge `eae4fc3` passes all five
+postmerge main jobs in run36709130567, including fatal aarch64 release, with
+the identical checked tree. The batch06 ledger history reconciles the external
+merge receipt and verified branch backup/cleanup. CS05/CS06/CS07 remain partial;
+qualified target-only transactions and installed-owner clients are next.
 
 The independent law probe adds CS24 open: a positive EMA residue resets the stall
 fuse after real motion stops. Two receive-invariant mutants are killed, but this
 separate control algorithm is unchanged. There are 102 traceable IDs:12 verified,
 10 partial,80 open. Hardware and whole-controller model/plant acceptance are
 explicit remaining work; no robot operation or Wave/limit change occurs.
+
+## Seventh batch: stop before persistence
+
+The next dependency-ready slice starts from checked `eae4fc3` under
+[ADR0024](../../decisions/0024-stop-before-persistence-shutdown.md). It prioritizes
+CS09's stop-before-storage lifecycle ahead of the bounded reference engine.
+Six actual regressions now have byte-identical immediate repaired replays:
+stop-before-storage, retained work after owner exit, publication-before-idle,
+closed owner admission, Quit and external owner-flag changes preventing later
+dispatch/ticks. New-interface
+drain conformance proves truthful timeout and actual worker-unwind outcomes.
+Failed/skipped stop and Active intent cleanup qualify independently. Required
+primary passes701 Rust/1 existing ignored,355 frontend,72 Pi MCP and fatal aarch64
+release; strict affected205/0 and minimal simulation5/0 also pass. CS09 is
+implemented awaiting exact-head delivery:12 verified,10 partial,79 open and
+1 implemented across102 IDs. The
+[batch report](batch07-stop-before-persistence.md) tracks independent parity
+extraction, one-at-a-time actual behavioral proof, worker outcomes and required
+delivery checks. All 102 findings retain their existing dispositions at start.
 
 ## Completion and continuation
 
