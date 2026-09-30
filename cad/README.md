@@ -23,14 +23,14 @@ Root assembly: `assemblies/marengo.SLDASM` (local).
 
 ## Setup
 
-Software + tracked CAD sources live in **one** WSL clone (`~/code/marengo`). Open that
-tree from Windows Cursor via `\\wsl$\Ubuntu\home\<you>\code\marengo` for SolidWorks
-([ADR 0016](../docs/decisions/0016-wsl-software-home.md)).
+Software and local CAD sources live together at **`J:\code\marengo`** on Windows.
+Open that host checkout for software and SolidWorks
+([ADR 0018](../docs/decisions/0018-windows-macos-software-home.md)).
 
 If CAD binaries are restored from backup/LFS archive, put them under that same
-tree’s `cad/` — do not create a second writeable `C:\code\marengo` clone.
+tree's `cad/`. macOS uses a host checkout of the same remote repository; ignored SolidWorks files require their own backup and transfer policy.
 
-SolidWorks MCP allowed root is `${workspaceFolder}` (the UNC workspace) — your
+SolidWorks MCP allowed root is `${workspaceFolder}` (the host workspace) — your
 local `cad/` tree must exist there for automation.
 
 ## Naming
@@ -55,7 +55,7 @@ Required on every Marengo-authored part and every vendor `.SLDPRT` in an assembl
 Batch-apply vendor properties (SolidWorks must be running):
 
 ```powershell
-cd C:\code\solidworks-mcp
+cd J:\code\solidworks-mcp
 npm run build
 npm run set:vendor-props
 npm run promote:corner-bracket   # incoming → vendor_2028_corner_bracket_vendor + rewire torso asm
@@ -90,4 +90,4 @@ Place fasteners, inserts, and purchased hardware under a top-level feature folde
 3. Export URDF manually (Brawner) → `assets/urdf/marengo.urdf`.
 4. Run `scripts/validate-urdf.sh` and update [hardware/docs/kinematics.md](../hardware/docs/kinematics.md) if joints changed.
 
-Open [marengo.code-workspace](../marengo.code-workspace) from the UNC WSL path (marengo + solidworks-mcp). Build MCP after worker changes: `npm run build` in `C:\code\solidworks-mcp`. Allowed CAD root is `${workspaceFolder}` (UNC software home).
+Open [marengo.code-workspace](../marengo.code-workspace) from `J:\code\marengo` (marengo + solidworks-mcp). Build MCP after worker changes: `npm run build` in `J:\code\solidworks-mcp`. Allowed CAD root is `${workspaceFolder}`.

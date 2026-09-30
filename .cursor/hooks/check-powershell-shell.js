@@ -93,6 +93,6 @@ Rewrite for PowerShell (see .cursor/rules/windows-shell.mdc), or wrap Unix synta
   bash -lc '...'
   @' ... '@ | sh
 
-For Marengo software (cargo / just check / deploy), prefer the WSL clone at ~/code/marengo.`,
+Keep Marengo software and local CAD in the host checkout at J:\\code\\marengo. Use Docker for Linux runtime checks.`,
 });
 export {};

@@ -14,7 +14,7 @@ SolidWorks CAD is **not in this repo** — restore your local `cad/` tree separa
 
 - [Docker](https://docs.docker.com/get-docker/) and Docker Compose v2
 - Optional: [Cursor](https://cursor.com/) or VS Code with Dev Containers
-- Windows: prefer [WSL2 setup](wsl-setup.md). Clone under `~/code`, not `C:\`.
+- Windows: use `J:\code\marengo` and install Git for Windows. macOS: use a normal host checkout. See [Windows and macOS development](windows-macos-development.md).
 
 ## 3. Verify the workspace
 
@@ -63,14 +63,13 @@ just check
 
 ## 8. CAD and SolidWorks MCP (Windows)
 
-Daily software lives in WSL ([ADR 0016](decisions/0016-wsl-software-home.md)). For mechanical design with Cursor + SolidWorks:
+Software and local CAD live together at `J:\code\marengo` ([ADR 0018](decisions/0018-windows-macos-software-home.md)). For mechanical design with Cursor + SolidWorks:
 
-1. Open a **Windows** Cursor window on the WSL tree via UNC:
-   `\\wsl$\Ubuntu\home\<you>\code\marengo` (or that path’s `marengo.code-workspace` with sibling `solidworks-mcp`).
-2. Build the MCP server: `cd C:\code\solidworks-mcp && npm install && npm run build`.
+1. Open a **Windows** Cursor window on `J:\code\marengo`, or open its `marengo.code-workspace` with sibling `solidworks-mcp`.
+2. Build the MCP server in `J:\code\solidworks-mcp` with `npm ci` and `npm run build`.
 3. Cursor loads workspace MCP from [`.cursor/mcp.json`](../.cursor/mcp.json)
-   (`SOLIDWORKS_MCP_ALLOWED_ROOTS=${workspaceFolder}` → the UNC root).
+   (`SOLIDWORKS_MCP_ALLOWED_ROOTS=${workspaceFolder}` → the host checkout).
 4. Model under [`cad/`](../cad/); run `marengo_design_review` before saving assemblies.
 5. URDF: manual Brawner export → `assets/urdf/marengo.urdf`, then MCP `marengo_urdf_export_postcheck` and [`scripts/export-urdf.sh`](../scripts/export-urdf.sh).
 
-CAD standards: [cad/README.md](../cad/README.md). WSL setup: [wsl-setup.md](wsl-setup.md).
+CAD standards: [cad/README.md](../cad/README.md). Host workflow: [Windows and macOS development](windows-macos-development.md).

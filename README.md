@@ -4,6 +4,8 @@
 
 # Marengo
 
+Returning to the project: read the [September 2026 repository review](docs/reviews/2026-09-29-repository-review.md) for the current architecture, bench checkpoint, outstanding defects, and ordered repair plan.
+
 One repo for a personal humanoid: CAD, wiring, URDF, and the Rust runtime. SolidWorks and the harness docs define joints, frames, and limits. Control, safety, planning, and the operator UI read that same definition. When the robot changes in CAD, software should change with it.
 
 ## Naming
@@ -88,7 +90,7 @@ Vendor CAD (Robstride, Moteus, extrusions) lives under `cad/vendor/`.
 
 ## Build
 
-Use the container workflow unless you have a reason not to: [docs/onboarding.md](docs/onboarding.md).
+Windows development and local CAD live at `J:\code\marengo`; macOS uses a host checkout of the same repository. Docker runs the full Linux workspace checks. Start with [Windows and macOS development](docs/windows-macos-development.md) and [onboarding](docs/onboarding.md).
 
 ```bash
 docker compose build dev
