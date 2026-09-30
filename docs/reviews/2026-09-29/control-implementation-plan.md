@@ -199,7 +199,10 @@ memory. Two original-public assertion failures precede the staged-record repair;
 both identical probes pass afterward, including real retry/reload and preserved
 peer history/state/flags. Independent reviews and required primary703Rust/1
 existing ignored,355 frontend,72 Pi MCP/fatalcrossbuild and strict affected420/0
-pass; exact-head delivery remains pending. This does not supply crash-safe disk
+pass. [PR222](https://github.com/jaylamping/marengo/pull/222) passes all five
+implementation-head jobs at d541bd5/run36736794717, including 73 actual driver
+feature tests/0 ignored and 5 simulation tests; final/equal-tree main delivery
+remains pending. This does not supply crash-safe disk
 commit or Davout reference permission; CS05 remains partial.
 
 ### CS06: Set Zero verifies a post-command response (C2, P1, partial)
@@ -276,7 +279,7 @@ admission, Quit and the shared owner flag changing during an admitted stop.
 Actual storage failures/timeouts preserve the initiating failed-stop report;
 no-disable policy reports Skipped. Required primary and strict affected gates
 pass. All five implementation-head jobs pass at `3939b3d` in run36728845164,
-including73 actual virtual-CAN driver tests with none ignored;
+including 73 actual virtual-CAN driver tests with none ignored;
 [PR221](https://github.com/jaylamping/marengo/pull/221)'s final87e6df1/run36730073787
 and equal-tree merged1518176/main36731139955 also pass all five jobs, with fatal
 main aarch64 release. Actual OS signal registration/delivery and physical

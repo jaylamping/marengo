@@ -5,7 +5,9 @@ Active Windows checkout and CAD: `J:\code\marengo`.
 Evidence: `J:/code/marengo-migration-backup-20260929/batch08`.
 Status: two existing-public failures reproduced and repaired; both unchanged
 replays pass; independent final reviews and strict affected checks pass; required
-primary passes; exact-head delivery pending.
+primary and all five implementation-head CI jobs pass in
+[PR222](https://github.com/jaylamping/marengo/pull/222); final-head/equal-tree
+main delivery remains pending.
 
 ## Contract and scope
 
@@ -27,15 +29,15 @@ No hardware, master limits, CAD/model or Wave sign-off changes are included.
 ## Actual unchanged-production baseline
 
 The independently reviewed existing-public probe compiles against an exact
-archive of `1518176`, with all1,432 original Git blobs verified and unchanged.
+archive of `1518176`, with all 1,432 original Git blobs verified and unchanged.
 Its sole added integration test has SHA256
 `3cc9aac2840cfefc75585637496c3ae08494ad0600b42a934e906ba7667c50d1`.
 No production extraction or new API is used. Package cleaning and a compiled
 manifest guard bind the actual archived crate; child-only temporary paths and
 the native protoc tool stay under J:\code.
 
-`original-red-v2.log` shows one intended assertion failure, Cargo101, zero ignored
-and0.02 s test execution (1.985 s full run). A regular-file parent blocker causes
+`original-red-v2.log` shows one intended assertion failure, Cargo 101, zero ignored
+and 0.02 s test execution (1.985 s full run). A regular-file parent blocker causes
 the actual typed Io error; the saved history is absent and blocker bytes survive,
 but public calibration contains a new row. Actual writable neighbor, same-request
 retry, independently decoded YAML, reconstruction with fresh Unhomed state and
@@ -50,8 +52,8 @@ directory and installs a regular-file parent blocker. Typed Io preserves prior
 parked/restored bytes and local state/flags, but memory wrongly replaces the
 target row. Literal unrelated history, same-request successful retry, actual
 YAML/reload and complete cleanup controls pass before the named assertion.
-`replacement-red.log` has one failure, zero ignored,0.02 s body and2.597 s full;
-all1,432 original files plus the sole added probe are verified unchanged.
+`replacement-red.log` has one failure, zero ignored, 0.02 s body and 2.597 s full;
+all 1,432 original files plus the sole added probe are verified unchanged.
 
 Only the existing registry writer changes: clone the record, stage its update,
 write through the shared private writer, then publish memory and existing local
@@ -60,17 +62,17 @@ and typed errors. Production registry SHA256:
 `e59ed129418635f2b287a9dfb6c19837a2c11810124c8696fad1c6a62a9859b0`.
 
 Both entire original probes pass byte-identically after this repair in separately
-compiled frozen snapshots. Insertion:1/0,0.01 s body,2.553 s full
-(`candidate-green.log`). Replacement:1/0,0.02 s body,1.352 s full
+compiled frozen snapshots. Insertion: 1/0, 0.01 s body, 2.553 s full
+(`candidate-green.log`). Replacement: 1/0, 0.02 s body, 1.352 s full
 (`replacement-green.log`). All1,433 files in each snapshot remain unchanged
 after execution, with only registry.rs differing from the original production.
-The287-input final compile/gate manifest binds actual source and both tests.
+The 287-input final compile/gate manifest binds actual source and both tests.
 
 ## Standards
 
 No hard documented violation or blocker. One low possible duplication judgment
 for manifest/YAML fixture setup is accepted to preserve frozen probe provenance.
-The reviewer independently verifies all287 source/gate identities and the exact
+The reviewer independently verifies all 287 source/gate identities and the exact
 original archive. Receipt: `standards-review.md` under this batch's evidence root.
 
 ## Spec
@@ -85,16 +87,21 @@ journal, current-reference grant or hardware acceptance is supplied.
 
 The identical insertion/replacement replays and independent reviews are complete.
 Strict all-target Linux lint and affected homing/Davout/Berthier/Pi tests with
-socketcan/linux-i2c pass420/0, zero ignored (17.307 s full). The initial feature
-selection omitted its provider package and executed zero tests; qualifiedv2
+socketcan/linux-i2c pass 420/0, zero ignored (17.307 s full). The initial feature
+selection omitted its provider package and executed zero tests; qualified v2
 includes Pi and the preserved setup failure is excluded from behavioral proof.
-Required primary passes703 Rust/1 existing ignored,355 frontend,72 Pi MCP,
+Required primary passes 703 Rust/1 existing ignored, 355 frontend, 72 Pi MCP,
 current deny/audit and the fatal aarch64 release build (101.223 s). Its immutable
-per-run binding matches all287 reviewed source/gate inputs. Evidence:
+per-run binding matches all 287 reviewed source/gate inputs. Evidence:
 `primary-final` and `affected-linux-final-v2` logs/run JSON/source bindings,
-reconciled by `local-gate-summary.json`. Exact-head/equal-tree delivery remains
-pending. No new hardware-dependent ignored test or sleep-based absence oracle is
-introduced. The known allowlisted paste maintenance warning remains M01.
+reconciled by `local-gate-summary.json`. All five GitHub jobs pass at exact
+implementation head `d541bd57a90f97417eda3d83981bcb7f74f54c0b` in
+[run36736794717](https://github.com/jaylamping/marengo/actions/runs/36736794717):
+703 Rust/1 existing ignored, 355 frontend, 72 Pi MCP, 5 simulation and 73 actual
+virtual-CAN driver tests with none ignored. The committed 287-input manifest
+matches local gates and both independently reviewed probes. Final documentation
+head and equal-tree postmerge main checks remain pending. No new hardware-dependent
+ignored test or sleep-based absence oracle is introduced. The known allowlisted paste maintenance warning remains M01.
 
 ## Reference continuation
 

@@ -362,7 +362,10 @@ The writer stages the record, writes it, then publishes memory/local state.
 Both insertion and existing-row replacement probes pass byte-identically after
 failing original production. Independent reviews accept the scoped repair;
 primary703Rust/1 existing ignored,355 frontend,72 Pi MCP and fatalcrossbuild,
-plus strict affected420/0 pass. Exact-head checked delivery remains pending.
+plus strict affected420/0 pass. [PR222](https://github.com/jaylamping/marengo/pull/222)
+passes all five jobs at implementation head `d541bd5` in run36736794717,
+including 73 actual virtual-CAN driver tests with none ignored and 5 simulation
+tests. Final-head/equal-tree main delivery remains pending.
 This does not provide crash-safe storage, a reference journal or current Davout
 permission; CS05 stays partial and the102 finding dispositions remain unchanged.
 

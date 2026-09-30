@@ -10,7 +10,7 @@
     "batch_id": "batch08",
     "branch": "codex/history-write-consistency",
     "baseline_main": "1518176efd0561e60d3e23eee31c7bbe8ca84a2e",
-    "status": "verified historical consistency slice locally; two unchanged regression replays, Standards/Spec and required primary/affected gates pass; exact-head delivery pending",
+    "status": "verified scoped history consistency: unchanged insertion/replacement replays, independent Standards/Spec, local primary/strict affected and all five exact implementation-head jobs pass; final/equal-tree main delivery pending",
     "report": "batch08-history-write-consistency.md",
     "findings": [
       "CS05"
@@ -147,7 +147,70 @@
       "main_aarch64_release": "passed; fatal on failure"
     },
     "required_github_gate": {
-      "result": "pending; exact implementation/final head and equal-tree main"
+      "result": "implementation pass; final/equal-tree main pending",
+      "implementation": {
+        "verified_utc": "2026-09-30T15:32:40.257310+00:00",
+        "label": "implementation",
+        "head": "d541bd57a90f97417eda3d83981bcb7f74f54c0b",
+        "run": 36736794717,
+        "url": "https://github.com/jaylamping/marengo/actions/runs/36736794717",
+        "counts": {
+          "check": {
+            "passed": 703,
+            "failed": 0,
+            "ignored": 1
+          },
+          "sim": {
+            "passed": 5,
+            "failed": 0,
+            "ignored": 0
+          },
+          "vcan": {
+            "passed": 73,
+            "failed": 0,
+            "ignored": 0
+          }
+        },
+        "frontend_passed": 355,
+        "pi_mcp_passed": 72,
+        "all_five_jobs": "success",
+        "main_fatal_aarch64_release": false,
+        "summary_sha256": "b35f92ff352d0eaef20defbf18ed1c62886d72cbfe94ae009821d3e9ea05a430",
+        "log_sha256": "9951be96afb35ea8d1503044ca5d56aefaa1f289ec99f27adec13de4b5424187",
+        "jobs": [
+          {
+            "id": 109960499816,
+            "name": "changes",
+            "conclusion": "success",
+            "url": "https://github.com/jaylamping/marengo/actions/runs/36736794717/job/109960499816"
+          },
+          {
+            "id": 109960500086,
+            "name": "build-image",
+            "conclusion": "success",
+            "url": "https://github.com/jaylamping/marengo/actions/runs/36736794717/job/109960500086"
+          },
+          {
+            "id": 109960741891,
+            "name": "sim",
+            "conclusion": "success",
+            "url": "https://github.com/jaylamping/marengo/actions/runs/36736794717/job/109960741891"
+          },
+          {
+            "id": 109960742141,
+            "name": "check",
+            "conclusion": "success",
+            "url": "https://github.com/jaylamping/marengo/actions/runs/36736794717/job/109960742141"
+          },
+          {
+            "id": 109960742170,
+            "name": "vcan",
+            "conclusion": "success",
+            "url": "https://github.com/jaylamping/marengo/actions/runs/36736794717/job/109960742170"
+          }
+        ],
+        "physical_acceptance": false
+      }
     },
     "hardware_acceptance": "Not established; no robot operations, limit/Wave changes",
     "known_limits": [
@@ -305,7 +368,16 @@
         "reason": "Requested features without selected provider package; zero executed tests. Qualifiedv2 includes marengo-pi."
       }
     ],
-    "test_quality": "Two actual original-public insertion/replacement failures pass byte-identically after repair; real filesystem failure, writable prior/neighbor/retry/reload, unrelated rows and local flags are independent controls. No new ignored tests, mocks of success or sleep-based absence; bodies .01-.02s, no claimed build-time speedup."
+    "test_quality": "Two actual original-public insertion/replacement failures pass byte-identically after repair; real filesystem failure, writable prior/neighbor/retry/reload, unrelated rows and local flags are independent controls. No new ignored tests, mocks of success or sleep-based absence; bodies .01-.02s, no claimed build-time speedup.",
+    "delivery": {
+      "pr": "https://github.com/jaylamping/marengo/pull/222",
+      "implementation_head": "d541bd57a90f97417eda3d83981bcb7f74f54c0b",
+      "implementation_ci": 36736794717,
+      "implementation_source_binding": "J:/code/marengo-migration-backup-20260929/batch08/implementation-source-binding.json",
+      "final_head": "pending documentation evidence commit",
+      "merged_commit": "pending",
+      "main_ci": "pending"
+    }
   },
   "findings": [
     {
@@ -397,12 +469,13 @@
         "Local primary 639Rust/1ignored,355frontend,72Pi-MCP,8vcan setup/4dependency contracts and fatal main aarch64 release pass; affected Linux 338 including final Davout 136, sim 5 and independent review pass. All five implementation-head GitHub jobs pass at 8c3f62e/run 36691835812, including 73 real driver feature tests and zero ignored; final evidence-head delivery checks remain required.",
         "R1b removes naked/current-cache grants and gates every Ready/Enable/Active/output path with private owner-local permission. Only closed initial virtual fixtures can grant; ordinary and physical reference acquisition/recovery explicitly refuse. Qualified transaction/device/reset/persistence/sign acceptance remains open.",
         "Batch06 final primary 689Rust/1ignored,355frontend,72Pi-MCP; Linux 388/0ignored strict lint; sim 5; unchanged scalar/public/restore red-green, native 2+14 and Linux 2+4 isolation, two receive mutants and independent Standards/Spec reviews pass. All five implementation-head GitHub jobs pass at 7951f10/run36706934339, including 73 actual driver feature tests/0 ignored; final evidence-head/postmerge delivery pending.",
-        "Batch08 reproduces failed historical insertion/replacement on exact1518176 original production, preserving1432Gitblobs and actual prior/neighbor/retry/reconstruction/cleanup controls. Both complete byte-identical probes pass after staged write-before-memory publication; prior target/peer rows and local flags survive failure. Required integrated checks and independent final review pending. CS05 remains partial; no crash-durability or current-reference permission claim. Independent Standards/Spec accepted and primary703Rust/1 existing ignored,355frontend,72PiMCP/fatalcrossbuild and strict affected420/0 pass. Exact-head delivery pending; CS05 stays partial."
+        "Batch08 reproduces failed insertion/replacement on exact1518176 original production with all1432 Git blobs verified. Both complete byte-identical probes pass after write-before-memory publication, including actual prior/neighbor/retry/reload/cleanup controls. Independent Standards/Spec, primary703Rust/1 existing ignored,355frontend,72PiMCP/fatalcrossbuild and strict affected420/0 pass. PR222 implementation d541bd5/run36736794717 passes all five jobs, including73 driver feature tests/0ignored and5simulation tests; final/equal-tree main delivery remains pending. CS05 stays partial; crash durability, current-reference permission and installed-owner clients are separate work."
       ],
       "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/218",
       "hardware_acceptance": "required before physical release",
       "implementation_batch": "batch06",
-      "implementation_pr": "https://github.com/jaylamping/marengo/pull/219"
+      "implementation_pr": "https://github.com/jaylamping/marengo/pull/219",
+      "related_history_consistency_delivery": "https://github.com/jaylamping/marengo/pull/222"
     },
     {
       "id": "CS06",
