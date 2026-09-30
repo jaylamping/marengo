@@ -157,6 +157,8 @@ invariants instead of imposing full-workspace mutation testing on every edit.
 
 ## First batch and evidence
 
+Review and delivery: [PR213](https://github.com/jaylamping/marengo/pull/213).
+
 The first batch implements CS02/CS11, G02/G03 and the newly discovered CS23.
 CS21 is **partial**: its eight ignored stale golden/private-cache checks are
 replaced by four active analytic public-interface tests; current-master

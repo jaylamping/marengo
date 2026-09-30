@@ -34,7 +34,9 @@
     "independent_review": "passed: independent physics/concurrency review and test-quality review found no blocking regression; future sleep/watchdog coupling was corrected; unmaintained dependencies explicitly remain M01.",
     "mutation_verification": "Four isolated gravity mutants all rejected by assertion failures; fixed baseline passes. Local evidence dynamics-mutation/results.json.",
     "test_replacements": "Eight ignored stale/private dynamics checks and two incorrect archived-angle sign checks replaced with four immutable analytic tests and one geometry-specific historical fixture test. Two shallow log checks replaced with actual tracing/Bus behavior. Removed duplicate execution of 84 fixture tests from primary gate without deleting their workspace tests.",
-    "merge_policy": "Required GitHub PR checks must pass before merge; the software evidence above does not certify physical release."
+    "merge_policy": "Required GitHub PR checks must pass before merge; the software evidence above does not certify physical release.",
+    "pull_request": "https://github.com/jaylamping/marengo/pull/213",
+    "code_commit": "2f50de4"
   },
   "findings": [
     {
@@ -63,7 +65,7 @@
         "Supervisor/MemoryBus CAN output regressions red before repair; final cap includes joint, type and danger-zone limits after slew.",
         "Strict primary gate: 507 workspace Rust, 355 frontend and 72 Pi-MCP tests pass; two independent reviews pass. See current_batch verification record."
       ],
-      "verified_commit_or_pr": null,
+      "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/213",
       "hardware_acceptance": "required before physical release"
     },
     {
@@ -183,7 +185,7 @@
         "Supervisor/MemoryBus first activation, re-enable and delayed-tick regressions red before repair; lifecycle reset and bounded dt.",
         "Strict primary gate: 507 workspace Rust, 355 frontend and 72 Pi-MCP tests pass; two independent reviews pass. See current_batch verification record."
       ],
-      "verified_commit_or_pr": null,
+      "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/213",
       "hardware_acceptance": "required before physical release"
     },
     {
@@ -344,7 +346,7 @@
         "Independent analytic 2-link torque regression red (17.1675 vs 46.5975 Nm) then green; COM transformed as Point3.",
         "Strict primary gate: 507 workspace Rust, 355 frontend and 72 Pi-MCP tests pass; two independent reviews pass. See current_batch verification record."
       ],
-      "verified_commit_or_pr": null,
+      "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/213",
       "hardware_acceptance": "required before physical release"
     },
     {
@@ -373,7 +375,7 @@
         "Actual tracing-to-Bus refill regression red before repair; deterministic monotonic clock and atomic quota.",
         "Strict primary gate: 507 workspace Rust, 355 frontend and 72 Pi-MCP tests pass; two independent reviews pass. See current_batch verification record."
       ],
-      "verified_commit_or_pr": null,
+      "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/213",
       "hardware_acceptance": "not established by this software repair"
     },
     {
@@ -389,7 +391,7 @@
         "Public Store child-process retention regression times out before repair and passes afterward; no recursive connection lock.",
         "Strict primary gate: 507 workspace Rust, 355 frontend and 72 Pi-MCP tests pass; two independent reviews pass. See current_batch verification record."
       ],
-      "verified_commit_or_pr": null,
+      "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/213",
       "hardware_acceptance": "not established by this software repair"
     },
     {

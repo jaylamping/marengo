@@ -13,4 +13,8 @@ URDF-based gravity model implementation.
 `gravity_torques(q)`: for each actuated joint, numerical ∂P/∂qᵢ where P = -Σ(m·g·COM)
 
 ## Integration
-- Golden tests in `tests/golden_tau_g.rs` (excluded from codemap tracking)
+- Active public-model tests in `../tests/analytic_gravity.rs` use immutable URDFs
+  and independent torque values; `../tests/archived_arm_geometry.rs` validates
+  geometry-specific historical mass moments. Stale ignored golden/private-cache
+  checks have been retired. Current-master independent physics acceptance remains
+  open (CS21/T28).
