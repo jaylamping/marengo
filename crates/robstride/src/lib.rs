@@ -1,7 +1,7 @@
 //! # robstride — Robstride CAN driver (MIT Mode 0)
 //!
 //! Hardware transport for RS00–RS04 actuators: encode/decode MIT frames, send/recv on CAN.
-//! **No control policy** — checked numeric encoding, bytes on the bus and a feedback cache.
+//! **No control policy** — checked numeric encoding, bytes on the bus and ordered receive evidence.
 //!
 //! ## Responsibilities
 //!
@@ -11,7 +11,9 @@
 //! - [`params`](params): firmware `run_mode` and parameter read/write frames.
 //! - [`command`](command): typed rejection of nonfinite input, negative gains and wrong register types.
 //! - [`lifecycle`](lifecycle): enable, disable, and set-zero frames.
-//! - [`state::MotorState`]: last `q`, `dq`, `tau`, fault per `device_id`.
+//! - [`feedback`]: addressed observations retain status flags, drive mode and complete raw
+//!   detailed-fault/warning payloads, including a prefix received before a transport error.
+//! - [`state::MotorState`]: replaceable latest-state compatibility projection, not fault authority.
 //! - Optional SocketCAN backend (`socketcan` feature, Linux).
 //!
 //! ## Does not
@@ -33,6 +35,7 @@
 pub mod bus;
 pub mod comm;
 pub mod command;
+pub mod feedback;
 pub mod lifecycle;
 pub mod mit;
 pub mod motor_type;
@@ -41,12 +44,15 @@ pub mod state;
 
 pub use bus::{
     send_mit, send_motion, AddressedMitCommand, BusError, CanBus, CanFrame, JointMotion, MemoryBus,
-    MotorAddress, MotorBus, ReceivedCanFrame, RuntimeBus,
+    MotorAddress, MotorBus, ReceivedCanFrame, RuntimeBus, TimedCanFrame,
 };
 #[cfg(all(feature = "socketcan", target_os = "linux"))]
 pub use bus::{SocketCanBus, SocketCanRouter};
 pub use comm::{pack_ext_id, unpack_ext_id, CommunicationType, ExtendedId, DEFAULT_HOST_ID};
 pub use command::{CommandError, CommandField};
+pub use feedback::{
+    DetailedFaultFeedback, DriveMode, FeedbackEvent, FeedbackObservation, FeedbackReport,
+};
 pub use lifecycle::{
     encode_active_reporting, encode_default_active_reporting, encode_default_disable,
     encode_default_enable, encode_default_set_zero_position, encode_disable, encode_enable,
@@ -264,28 +270,6 @@ mod tests {
         assert_eq!(count, 2);
         assert_eq!(states.len(), 2);
         assert!((states[&1].temperature_c - 20.0).abs() < 0.001);
-    }
-
-    #[test]
-    fn recv_all_updates_fault_report() {
-        let mut bus = MemoryBus::default();
-        bus.rx_queue.push(CanFrame {
-            id: pack_typed_ext_id(CommunicationType::FaultReport, 1, DEFAULT_HOST_ID),
-            data: [0x34, 0x12, 0, 0, 0, 0, 0, 0],
-            extended: true,
-        });
-        let mut states = HashMap::new();
-        let types = HashMap::from([(1u8, MotorType::Rs03)]);
-        let count = bus
-            .recv_all(
-                &types,
-                &mut states,
-                Duration::from_millis(1),
-                Duration::from_micros(300),
-            )
-            .expect("fault report");
-        assert_eq!(count, 1);
-        assert_eq!(states[&1].fault, 0x1234);
     }
 
     #[test]

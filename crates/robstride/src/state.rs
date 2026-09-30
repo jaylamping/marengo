@@ -9,6 +9,9 @@ pub struct MotorState {
     pub velocity_rad_s: f32,
     pub torque_nm: f32,
     pub temperature_c: f32,
+    /// Compatibility indication only: status flags or 0/1 for detailed faults.
+    /// It cannot identify fault domains or retain every observation. Safety must
+    /// consume `FeedbackReport`, not infer authority from this replaceable cache.
     pub fault: u16,
     /// Original receive time of the most recent decoded pose/status sample.
     /// A fault-only report neither creates nor refreshes pose evidence.
