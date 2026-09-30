@@ -2,7 +2,7 @@
 
 use std::time::Instant;
 
-use robstride::MotorAddress;
+use robstride::{MalformedReason, MotorAddress, ReceiveCompletion, RxFrameKind};
 
 /// Runtime hazards, separate from rejected operator commands.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -25,6 +25,11 @@ pub struct DeviceFaultEvidence {
     pub status_flags: u8,
     pub detailed_fault_bytes: [u8; 4],
     pub warning_bytes: [u8; 4],
+    /// Received prefixes are retained separately; missing bytes are not a complete word.
+    pub partial_fault_bytes: [u8; 4],
+    pub partial_fault_available: u8,
+    pub partial_warning_bytes: [u8; 4],
+    pub partial_warning_available: u8,
     /// Vendor status mode: Reset=0, Calibration=1, Run=2, Reserved=3.
     pub drive_mode: Option<u8>,
     pub received_at: Option<Instant>,
@@ -43,12 +48,99 @@ impl DeviceFaultEvidence {
         for (stored, observed) in self.warning_bytes.iter_mut().zip(other.warning_bytes) {
             *stored |= observed;
         }
+        for (stored, observed) in self
+            .partial_fault_bytes
+            .iter_mut()
+            .zip(other.partial_fault_bytes)
+        {
+            *stored |= observed;
+        }
+        for (stored, observed) in self
+            .partial_warning_bytes
+            .iter_mut()
+            .zip(other.partial_warning_bytes)
+        {
+            *stored |= observed;
+        }
+        self.partial_fault_available |= other.partial_fault_available;
+        self.partial_warning_available |= other.partial_warning_available;
         if other.drive_mode.is_some() {
             self.drive_mode = other.drive_mode;
         }
         if other.received_at > self.received_at {
             self.received_at = other.received_at;
         }
+    }
+}
+
+/// Original receive envelope. Only raw[..payload_len.min(8)] contains received data;
+/// Remote requests carry no payload and their requested length remains in `kind`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReceiveFrameEvidence {
+    pub interface: Option<String>,
+    pub can_id: u32,
+    pub extended: bool,
+    pub received_at: Instant,
+    pub raw: [u8; 8],
+    pub payload_len: u8,
+    pub kind: RxFrameKind,
+    pub reason: Option<MalformedReason>,
+}
+
+/// An incomplete view retains its declared work and honest completion state.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReceiveDrainEvidence {
+    pub completion: ReceiveCompletion,
+    pub raw_frames: usize,
+    pub read_attempts: usize,
+}
+
+/// Bounded diagnostics: first and latest envelopes/views plus accumulated event counts.
+/// This is not an unbounded packet log or a physical acquisition receipt.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ReceiveFaultEvidence {
+    pub first_frame: Option<ReceiveFrameEvidence>,
+    pub latest_frame: Option<ReceiveFrameEvidence>,
+    pub frame_count: u64,
+    pub first_incomplete: Option<ReceiveDrainEvidence>,
+    pub latest_incomplete: Option<ReceiveDrainEvidence>,
+    pub incomplete_count: u64,
+}
+
+impl ReceiveFaultEvidence {
+    pub(crate) fn frame(frame: ReceiveFrameEvidence) -> Self {
+        Self {
+            first_frame: Some(frame.clone()),
+            latest_frame: Some(frame),
+            frame_count: 1,
+            ..Self::default()
+        }
+    }
+
+    pub(crate) fn incomplete(drain: ReceiveDrainEvidence) -> Self {
+        Self {
+            first_incomplete: Some(drain.clone()),
+            latest_incomplete: Some(drain),
+            incomplete_count: 1,
+            ..Self::default()
+        }
+    }
+
+    fn merge(&mut self, other: Self) {
+        if self.first_frame.is_none() {
+            self.first_frame = other.first_frame;
+        }
+        if other.latest_frame.is_some() {
+            self.latest_frame = other.latest_frame;
+        }
+        self.frame_count = self.frame_count.saturating_add(other.frame_count);
+        if self.first_incomplete.is_none() {
+            self.first_incomplete = other.first_incomplete;
+        }
+        if other.latest_incomplete.is_some() {
+            self.latest_incomplete = other.latest_incomplete;
+        }
+        self.incomplete_count = self.incomplete_count.saturating_add(other.incomplete_count);
     }
 }
 
@@ -63,6 +155,7 @@ pub struct FaultRecord {
     pub last_seen: Instant,
     pub message: String,
     pub device: DeviceFaultEvidence,
+    pub receive: ReceiveFaultEvidence,
 }
 
 /// Warning observations retained for diagnostics; they do not grant or revoke motion.
@@ -209,7 +302,28 @@ impl FaultAuthority {
             last_seen: now,
             message: bounded_message(message),
             device,
+            receive: ReceiveFaultEvidence::default(),
         });
+        first
+    }
+
+    pub(crate) fn record_receive(
+        &mut self,
+        class: FaultClass,
+        joint: Option<String>,
+        address: Option<MotorAddress>,
+        message: &str,
+        device: DeviceFaultEvidence,
+        receive: ReceiveFaultEvidence,
+    ) -> bool {
+        let first = self.record(class, joint, address.clone(), message, device);
+        if let Some(record) = self
+            .faults
+            .iter_mut()
+            .find(|record| record.class == class && record.address == address)
+        {
+            record.receive.merge(receive);
+        }
         first
     }
 

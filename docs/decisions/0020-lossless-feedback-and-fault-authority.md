@@ -55,10 +55,11 @@ reference transactions remain under ADR 0019 and the finding ledger. It does
 not raise caps, change Wave sign-off, or qualify hardware. The physical robot
 is not part of the software test environment.
 
-The existing SocketCAN adapter still pads short payloads and has no inner bound
-on a continuously busy receive drain. These are unqualified protocol/runtime
-contracts under CS04 and M06. No test here proves firmware byte order, physical
-acquisition time, stop acknowledgement or delivery to a motor.
+This initial slice left short payload padding and busy-socket inner receive work
+unqualified. [ADR0021](0021-bounded-can-ingress.md) defines their subsequent frame
+integrity and finite/fair transport repair under CS04/M06. No test here proves
+firmware byte order, physical acquisition time, stop acknowledgement or delivery
+to a motor.
 
 ## Verification
 

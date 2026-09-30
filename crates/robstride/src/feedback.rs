@@ -2,7 +2,9 @@
 
 use std::time::Instant;
 
-use crate::{BusError, MitFeedback, MotorAddress, MotorState};
+use crate::{
+    BusError, MitFeedback, MotorAddress, MotorState, ReceiveCompletion, RxFrameKind, TimedCanFrame,
+};
 
 /// Drive state encoded in status CAN-ID bits 22..23.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -55,12 +57,38 @@ impl DetailedFaultFeedback {
 pub enum FeedbackEvent {
     Status(MitFeedback),
     DetailedFault(DetailedFaultFeedback),
+    Malformed(MalformedFeedback),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+pub enum MalformedReason {
+    #[error("expected eight data bytes, received {received}")]
+    PayloadLength { received: u8 },
+    #[error("feedback is not a data frame")]
+    NonDataFrame,
+    #[error("invalid received frame envelope")]
+    InvalidEnvelope,
+}
+
+/// Incomplete raw evidence is not a complete pose or detailed-fault word.
+/// Header flags/mode are supplied only for Data status frames.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MalformedFeedback {
+    pub raw: [u8; 8],
+    pub payload_len: u8,
+    pub kind: RxFrameKind,
+    pub reason: MalformedReason,
+    pub status_flags: Option<u8>,
+    pub drive_mode: Option<DriveMode>,
 }
 
 /// One configured actuator's observation in transport delivery order.
-/// Cross-interface order is acquisition order, not a synchronized physical clock.
+/// Cross-interface order is host delivery order, not a synchronized physical clock.
 #[derive(Debug, Clone, PartialEq)]
 pub struct FeedbackObservation {
+    /// Per-poll raw-frame order, independent of timestamp resolution. Ignored
+    /// traffic may create gaps in the configured observation sequence.
+    pub order: usize,
     pub address: MotorAddress,
     /// Host receive time, independent of the most recent pose timestamp. Distinct
     /// ordered observations may have equal times at the host clock's resolution.
@@ -68,6 +96,12 @@ pub struct FeedbackObservation {
     /// Complete original identifier, including any otherwise uninterpreted bits.
     pub can_id: u32,
     pub event: FeedbackEvent,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TransportObservation {
+    pub order: usize,
+    pub frame: TimedCanFrame,
 }
 
 impl FeedbackObservation {
@@ -89,15 +123,27 @@ impl FeedbackObservation {
                 // This is an indication, not a decoded detailed-fault identity.
                 state.fault = u16::from(feedback.has_fault());
             }
+            FeedbackEvent::Malformed(_) => {
+                // No pose or qualified complete fault projection.
+            }
         }
     }
 }
 
 /// A delivered prefix remains available even if the drain ends in a transport
-/// error. An empty nonblocking drain has no terminal error; a blocking drain with
-/// no recognized observations may report `RecvTimeout`.
+/// error. Incomplete work is explicit and independent of errors. An empty
+/// nonblocking drain has no terminal error; a completed positive-budget drain
+/// with no recognized observations may report benign `RecvTimeout`. Merge vendor
+/// and transport events by `order`; a terminal read error precedes a later frame
+/// at the same `terminal_error_order`. Host order does not prove physical cause.
 #[derive(Debug, Default)]
 pub struct FeedbackReport {
     pub observations: Vec<FeedbackObservation>,
+    /// Kernel Error frames are transport evidence, never vendor-addressed status.
+    pub transport_frames: Vec<TransportObservation>,
+    pub completion: ReceiveCompletion,
+    pub raw_frames: usize,
+    pub read_attempts: usize,
     pub terminal_error: Option<BusError>,
+    pub terminal_error_order: Option<usize>,
 }

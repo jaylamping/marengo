@@ -321,4 +321,4 @@ jobs:
             -w /workspace \
             -e MARENGO_USER=root \
             marengo-dev:local \
-            bash -c 'for iface in vcan0 vcan1; do ip -details link show "${iface}"; done && cargo test -p robstride --features socketcan -- --ignored'
+            bash -c 'for iface in vcan0 vcan1; do ip -details link show "${iface}"; done && cargo test --locked -p robstride --features socketcan -- --include-ignored --test-threads=1'

@@ -9,7 +9,7 @@ use marengo_config::{MotorEntry, MotorType};
 use robstride::{
     BusError, CanBus, CanFrame, DetailedFaultFeedback, DriveMode, FeedbackEvent,
     FeedbackObservation, FeedbackReport, MemoryBus, MitFeedback, MotorAddress, MotorBus,
-    MotorState,
+    MotorState, ReceiveAttempt,
 };
 
 #[derive(Default)]
@@ -23,6 +23,11 @@ impl CanBus for ScriptBus {
         self.tx.push(frame.clone());
         Ok(())
     }
+
+    fn recv_one_nonblocking(&mut self) -> Result<ReceiveAttempt, BusError> {
+        // This test adapter provides explicit addressed reports below.
+        Ok(ReceiveAttempt::Idle)
+    }
 }
 
 impl MotorBus for ScriptBus {
@@ -35,7 +40,8 @@ impl MotorBus for ScriptBus {
         let observations = self
             .pending
             .drain()
-            .map(|(address, state)| {
+            .enumerate()
+            .map(|(order, (address, state))| {
                 let event = if state.updated.is_some() {
                     FeedbackEvent::Status(MitFeedback {
                         device_id: address.device_id,
@@ -53,6 +59,7 @@ impl MotorBus for ScriptBus {
                     })
                 };
                 FeedbackObservation {
+                    order,
                     address,
                     received_at: state.updated.unwrap_or_else(Instant::now),
                     can_id: 0,
@@ -63,6 +70,7 @@ impl MotorBus for ScriptBus {
         FeedbackReport {
             observations,
             terminal_error: None,
+            ..FeedbackReport::default()
         }
     }
 }
@@ -90,11 +98,11 @@ impl CanBus for EnableQueueBus {
         Ok(())
     }
 
-    fn recv_frames(&mut self, out: &mut Vec<CanFrame>) -> Result<(), BusError> {
+    fn recv_one_nonblocking(&mut self) -> Result<ReceiveAttempt, BusError> {
         if self.enable_seen && self.fail_after_enable {
             return Err(BusError::Driver("injected final-drain failure".into()));
         }
-        self.inner.recv_frames(out)
+        self.inner.recv_one_nonblocking()
     }
 }
 

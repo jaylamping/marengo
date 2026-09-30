@@ -123,6 +123,12 @@ supervisor.send_mit_batch(joint_space_cmds)?;
 - A stop attempt records every write failure. Software Disabled and accepted CAN writes do not certify a physical stop; ordinary stop payloads do not clear firmware faults.
 - Berthier propagates both post-send receive failures, checks the persistent latch before new planner/torque intent, and discards previous intent when Davout's stop generation changes. Explicit recovery and Pi/protobuf publication remain separate migration work.
 
+**Bounded receive work** ([ADR0021](decisions/0021-bounded-can-ingress.md)):
+
+- Preserve actual receive class and length; a remote request or padded short frame is never a measured pose or complete type-21 report.
+- Implement the required nonblocking receive primitive explicitly. Share one total frame/read-attempt budget across sources and rounds; truncating the result of an unbounded callback does not bound work.
+- Treat observed idle/quiet separately from work/deadline exhaustion. Incomplete drains retain evidence and cannot satisfy either enable flush. Latest-state projections must expose incomplete work rather than silently accept a prefix.
+
 **Scoped commissioning Enable** (Hardware commissioning):
 
 - Resolve targets with `Supervisor::resolve_enable_targets` → `marengo_homing::select_enable_targets` (no scope file → full-master Robot Ready; persisted scope → Verified in-scope only). Never call `set_homing_complete` on Enable or motion re-arm — Verified is Set Zero only.

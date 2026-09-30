@@ -57,8 +57,9 @@ mod limit_envelope;
 pub use active_reporting::{ActiveReportingLeaseError, ActiveReportingState, DEFAULT_LEASE_TTL};
 use faults::{bounded_message, FaultAuthority};
 pub use faults::{
-    DeviceFaultEvidence, DeviceWarning, FaultClass, FaultRecord, SafetySnapshot, StopAction,
-    StopAttempt, StopReport,
+    DeviceFaultEvidence, DeviceWarning, FaultClass, FaultRecord, ReceiveDrainEvidence,
+    ReceiveFaultEvidence, ReceiveFrameEvidence, SafetySnapshot, StopAction, StopAttempt,
+    StopReport,
 };
 
 use std::collections::{HashMap, HashSet};
@@ -89,7 +90,8 @@ use marengo_homing::{
 };
 use robstride::AddressedMitCommand;
 use robstride::{
-    DriveMode, FeedbackEvent, MitCommand, MotorState, ParameterId, ParameterValue, RunMode,
+    DriveMode, FeedbackEvent, FeedbackObservation, MalformedFeedback, MitCommand, MotorState,
+    ParameterId, ParameterValue, RunMode, RxFrameKind, TimedCanFrame,
 };
 use thiserror::Error;
 use tracing::{debug, info, trace, warn};
@@ -704,8 +706,17 @@ impl<B: MotorBus> Supervisor<B> {
                 (FaultClass::WrongSign, Some(joint.as_str()))
             }
             DavoutError::DangerZone { joint, .. } => (FaultClass::DangerZone, Some(joint.as_str())),
-            DavoutError::Bus(BusError::Send { .. } | BusError::Driver(_)) => {
-                (FaultClass::Transport, None)
+            DavoutError::Bus(
+                BusError::Send { .. } | BusError::Driver(_) | BusError::ReceiveIncomplete { .. },
+            ) => (FaultClass::Transport, None),
+            DavoutError::Bus(BusError::MalformedFeedback { address, .. }) => {
+                let joint = self
+                    .motors
+                    .motors
+                    .iter()
+                    .find(|motor| MotorAddress::from(*motor) == *address)
+                    .map(|motor| motor.joint.as_str());
+                (FaultClass::Feedback, joint)
             }
             _ => return false,
         };
@@ -1067,9 +1078,79 @@ impl<B: MotorBus> Supervisor<B> {
         let mut first_transition = false;
         let mut pose_candidates: HashMap<MotorAddress, (usize, MotorEntry, MotorState)> =
             HashMap::new();
+        enum OrderedReceive {
+            Motor(FeedbackObservation),
+            Transport(TimedCanFrame),
+            Terminal(BusError),
+        }
+        let mut ordered: Vec<_> = report
+            .observations
+            .into_iter()
+            .map(|observation| (observation.order, 1_u8, OrderedReceive::Motor(observation)))
+            .collect();
+        ordered.extend(report.transport_frames.into_iter().map(|observation| {
+            (
+                observation.order,
+                1,
+                OrderedReceive::Transport(observation.frame),
+            )
+        }));
+        if let Some(error) = report.terminal_error {
+            // Actual backends supply the first error's raw position. Scripted reports
+            // without an ordinal put the terminal failure after their delivered prefix.
+            let order = report.terminal_error_order.unwrap_or_else(|| {
+                ordered
+                    .iter()
+                    .map(|(order, _, _)| order.saturating_add(1))
+                    .max()
+                    .unwrap_or(0)
+                    .max(report.raw_frames)
+            });
+            // A backend error preceded any later frame with this raw position.
+            ordered.push((order, 0, OrderedReceive::Terminal(error)));
+        }
+        ordered.sort_by_key(|(order, rank, _)| (*order, *rank));
         // Do not return early: every available peer fault must reach authority,
         // even if another pose is invalid or the drain ends in a transport error.
-        for (order, observation) in report.observations.into_iter().enumerate() {
+        for (order, _, event) in ordered {
+            let observation = match event {
+                OrderedReceive::Motor(observation) => observation,
+                OrderedReceive::Terminal(error) => {
+                    if !matches!(error, BusError::RecvTimeout) {
+                        let error = DavoutError::Bus(error);
+                        first_transition |= self.record_runtime_error(&error);
+                        if first_error.is_none() {
+                            first_error = Some(error);
+                        }
+                    }
+                    continue;
+                }
+                OrderedReceive::Transport(frame) => {
+                    // Error envelopes belong to transport, never a vendor device-ID decoder.
+                    let evidence = ReceiveFrameEvidence {
+                        interface: frame.received.interface,
+                        can_id: frame.received.frame.id,
+                        extended: frame.received.frame.extended,
+                        received_at: frame.received_at,
+                        raw: frame.received.frame.data,
+                        payload_len: frame.received.payload_len,
+                        kind: frame.received.kind,
+                        reason: None,
+                    };
+                    first_transition |= self.fault_authority.record_receive(
+                        FaultClass::Transport,
+                        None,
+                        None,
+                        "received CAN error frame; physical bus state and error subscriptions unqualified",
+                        DeviceFaultEvidence::default(),
+                        ReceiveFaultEvidence::frame(evidence),
+                    );
+                    if first_error.is_none() {
+                        first_error = self.require_fault_clear().err();
+                    }
+                    continue;
+                }
+            };
             let address = observation.address;
             let Some(motor) = self
                 .motors
@@ -1085,6 +1166,19 @@ impl<B: MotorBus> Supervisor<B> {
                 ..DeviceFaultEvidence::default()
             };
             let status = match observation.event {
+                FeedbackEvent::Malformed(malformed) => {
+                    first_transition |= self.record_malformed_feedback(
+                        &motor,
+                        &address,
+                        observation.received_at,
+                        observation.can_id,
+                        malformed,
+                    );
+                    if first_error.is_none() {
+                        first_error = self.require_fault_clear().err();
+                    }
+                    continue;
+                }
                 FeedbackEvent::DetailedFault(report) => {
                     device.detailed_fault_bytes = report.fault_bytes();
                     device.warning_bytes = report.warning_bytes();
@@ -1231,13 +1325,28 @@ impl<B: MotorBus> Supervisor<B> {
             self.motor_states.insert(address, state);
             self.last_feedback_rx.insert(motor.joint, received_at);
         }
-        if let Some(error) = report.terminal_error {
-            if !matches!(error, BusError::RecvTimeout) {
-                let error = DavoutError::Bus(error);
-                first_transition |= self.record_runtime_error(&error);
-                if first_error.is_none() {
-                    first_error = Some(error);
-                }
+        if !report.completion.is_complete() {
+            let error = DavoutError::Bus(BusError::ReceiveIncomplete {
+                completion: report.completion,
+            });
+            let message = format!(
+                "{error}; raw frames={}, read attempts={}",
+                report.raw_frames, report.read_attempts
+            );
+            first_transition |= self.fault_authority.record_receive(
+                FaultClass::Transport,
+                None,
+                None,
+                &message,
+                DeviceFaultEvidence::default(),
+                ReceiveFaultEvidence::incomplete(ReceiveDrainEvidence {
+                    completion: report.completion,
+                    raw_frames: report.raw_frames,
+                    read_attempts: report.read_attempts,
+                }),
+            );
+            if first_error.is_none() {
+                first_error = Some(error);
             }
         }
         if first_transition {
@@ -1247,6 +1356,93 @@ impl<B: MotorBus> Supervisor<B> {
             Some(error) => Err(error),
             None => Ok(count),
         }
+    }
+
+    fn record_malformed_feedback(
+        &mut self,
+        motor: &MotorEntry,
+        address: &MotorAddress,
+        received_at: Instant,
+        can_id: u32,
+        malformed: MalformedFeedback,
+    ) -> bool {
+        let mut device = DeviceFaultEvidence {
+            received_at: Some(received_at),
+            ..DeviceFaultEvidence::default()
+        };
+        // RTR identifiers do not constitute vendor status/fault proof. Only a Data
+        // envelope can provide qualified header bits or actually received prefixes.
+        if malformed.kind == RxFrameKind::Data {
+            device.status_flags = malformed.status_flags.unwrap_or(0);
+            device.drive_mode = malformed.drive_mode.map(|mode| match mode {
+                DriveMode::Reset => 0,
+                DriveMode::Calibration => 1,
+                DriveMode::Run => 2,
+                DriveMode::Reserved => 3,
+            });
+            if can_id >> 24 == 21 {
+                let length = usize::from(malformed.payload_len).min(8);
+                for (index, byte) in malformed.raw.iter().copied().take(length).enumerate() {
+                    if index < 4 {
+                        device.partial_fault_bytes[index] = byte;
+                        device.partial_fault_available |= 1 << index;
+                    } else {
+                        device.partial_warning_bytes[index - 4] = byte;
+                        device.partial_warning_available |= 1 << (index - 4);
+                    }
+                }
+            }
+        }
+        let mut first = false;
+        if device.status_flags != 0 || device.partial_fault_bytes != [0; 4] {
+            first |= self.fault_authority.record(
+                FaultClass::Device,
+                Some(motor.joint.clone()),
+                Some(address.clone()),
+                "vendor fault evidence from malformed data; partial words remain unqualified",
+                device.clone(),
+            );
+        }
+        let current_enable = self.mode == OperationalMode::Active
+            && self.active_joints.contains(&motor.joint)
+            && self
+                .active_since
+                .is_some_and(|enabled| received_at > enabled);
+        if device.drive_mode == Some(3)
+            || (current_enable && device.drive_mode.is_some_and(|mode| mode != 2))
+        {
+            first |= self.fault_authority.record(
+                FaultClass::DriveState,
+                Some(motor.joint.clone()),
+                Some(address.clone()),
+                "unexpected drive mode in malformed Data status",
+                device.clone(),
+            );
+        }
+        self.invalid_feedback.insert(address.clone());
+        let error = DavoutError::Bus(BusError::MalformedFeedback {
+            address: address.clone(),
+            reason: malformed.reason,
+        });
+        first |= self.fault_authority.record_receive(
+            FaultClass::Feedback,
+            Some(motor.joint.clone()),
+            Some(address.clone()),
+            &error.to_string(),
+            device,
+            ReceiveFaultEvidence::frame(ReceiveFrameEvidence {
+                interface: Some(address.interface.clone()),
+                can_id,
+                // Configured vendor observations are recognized extended frames.
+                extended: true,
+                received_at,
+                raw: malformed.raw,
+                payload_len: malformed.payload_len,
+                kind: malformed.kind,
+                reason: Some(malformed.reason),
+            }),
+        );
+        first
     }
 
     fn check_feedback_velocity(
@@ -2378,14 +2574,17 @@ mod tests {
     #![allow(clippy::expect_used)]
 
     use marengo_config::LimitPatch;
-    use robstride::{CanBus, CanFrame, CommunicationType, MemoryBus, ReceivedCanFrame};
+    use robstride::{
+        CanBus, CanFrame, CommunicationType, MemoryBus, ReceiveAttempt, ReceivedCanFrame,
+        TimedCanFrame,
+    };
 
     use super::*;
 
     #[derive(Default)]
     struct RoutedMemoryBus {
         tx: Vec<(MotorAddress, CanFrame)>,
-        rx: Vec<ReceivedCanFrame>,
+        rx: std::collections::VecDeque<ReceivedCanFrame>,
     }
 
     impl CanBus for RoutedMemoryBus {
@@ -2403,9 +2602,16 @@ mod tests {
             Ok(())
         }
 
-        fn recv_frames_from(&mut self, out: &mut Vec<ReceivedCanFrame>) -> Result<(), BusError> {
-            out.append(&mut self.rx);
-            Ok(())
+        fn recv_one_nonblocking(&mut self) -> Result<ReceiveAttempt, BusError> {
+            Ok(self
+                .rx
+                .pop_front()
+                .map_or(ReceiveAttempt::Idle, |received| {
+                    ReceiveAttempt::Frame(TimedCanFrame {
+                        received_at: Instant::now(),
+                        received,
+                    })
+                }))
         }
     }
 
@@ -2773,8 +2979,8 @@ mod tests {
             self.inner.send_frame_to(address, frame)
         }
 
-        fn recv_frames_from(&mut self, out: &mut Vec<ReceivedCanFrame>) -> Result<(), BusError> {
-            self.inner.recv_frames_from(out)
+        fn recv_one_nonblocking(&mut self) -> Result<ReceiveAttempt, BusError> {
+            self.inner.recv_one_nonblocking()
         }
     }
 
@@ -3121,8 +3327,8 @@ mod tests {
             self.inner.send_frame_to(address, frame)
         }
 
-        fn recv_frames_from(&mut self, out: &mut Vec<ReceivedCanFrame>) -> Result<(), BusError> {
-            self.inner.recv_frames_from(out)
+        fn recv_one_nonblocking(&mut self) -> Result<ReceiveAttempt, BusError> {
+            self.inner.recv_one_nonblocking()
         }
     }
 
@@ -3438,9 +3644,9 @@ mod tests {
         let motor_pos = -1.0_f32;
         let motor_vel = -0.5_f32;
         let motor_tau = -2.0_f32;
-        sup.bus.rx.push(ReceivedCanFrame {
-            interface: Some("can0".to_string()),
-            frame: status_frame_motor_space(
+        sup.bus.rx.push_back(ReceivedCanFrame::full_data(
+            Some("can0".to_string()),
+            status_frame_motor_space(
                 motor.device_id,
                 motor.motor_type,
                 motor_pos,
@@ -3448,7 +3654,7 @@ mod tests {
                 motor_tau,
                 25.0,
             ),
-        });
+        ));
 
         assert_eq!(sup.refresh_feedback().expect("refresh"), 1);
         let fb = sup.joint_feedback(&joint).expect("feedback");
@@ -3493,22 +3699,22 @@ mod tests {
             .map(|m| (MotorAddress::from(m), m.motor_type))
             .collect();
         let status = [0x7F, 0xFF, 0x7F, 0xFF, 0x7F, 0xFF, 0x00, 0xC8];
-        sup.bus.rx.push(ReceivedCanFrame {
-            interface: Some("can0".to_string()),
-            frame: CanFrame {
+        sup.bus.rx.push_back(ReceivedCanFrame::full_data(
+            Some("can0".to_string()),
+            CanFrame {
                 id: robstride::pack_ext_id(2, 1, robstride::DEFAULT_HOST_ID) | (2 << 22),
                 data: status,
                 extended: true,
             },
-        });
-        sup.bus.rx.push(ReceivedCanFrame {
-            interface: Some("can1".to_string()),
-            frame: CanFrame {
+        ));
+        sup.bus.rx.push_back(ReceivedCanFrame::full_data(
+            Some("can1".to_string()),
+            CanFrame {
                 id: robstride::pack_ext_id(2, 1, robstride::DEFAULT_HOST_ID),
                 data: status,
                 extended: true,
             },
-        });
+        ));
 
         let count = sup.refresh_feedback().expect("feedback");
 
@@ -3576,18 +3782,18 @@ mod tests {
             .map(|m| (MotorAddress::from(m), m.motor_type))
             .collect();
         bench_ready_active(&mut sup);
-        let stationary_overspeed = ReceivedCanFrame {
-            interface: Some("can0".to_string()),
-            frame: CanFrame {
+        let stationary_overspeed = ReceivedCanFrame::full_data(
+            Some("can0".to_string()),
+            CanFrame {
                 id: robstride::pack_ext_id(2, 1, robstride::DEFAULT_HOST_ID) | (2 << 22),
                 data: [0x7f, 0xff, 0xff, 0xff, 0x7f, 0xff, 0x00, 0xc8],
                 extended: true,
             },
-        };
+        );
 
-        sup.bus.rx.push(stationary_overspeed.clone());
+        sup.bus.rx.push_back(stationary_overspeed.clone());
         sup.refresh_feedback().expect("first spike ignored");
-        sup.bus.rx.push(stationary_overspeed);
+        sup.bus.rx.push_back(stationary_overspeed);
         sup.refresh_feedback()
             .expect("stationary repeated spike remains ignored");
 

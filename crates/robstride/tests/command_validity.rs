@@ -103,6 +103,10 @@ struct RecordingBus {
 }
 
 impl CanBus for RecordingBus {
+    fn recv_one_nonblocking(&mut self) -> Result<robstride::ReceiveAttempt, BusError> {
+        Ok(robstride::ReceiveAttempt::Idle)
+    }
+
     fn validate_address(&self, address: &MotorAddress) -> Result<(), BusError> {
         if !self.configured.contains(address) {
             return Err(BusError::UnknownMotorAddress {

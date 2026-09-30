@@ -126,7 +126,7 @@ pub fn encode_mit(cmd: &MitCommand) -> Result<(u32, [u8; 8]), CommandError> {
 /// Accepts OperationStatus (MIT replies) and ActiveReporting (type-24 free-drive
 /// sensing while limp).
 pub fn decode_mit_feedback(motor_type: MotorType, can_id: u32, data: &[u8]) -> Option<MitFeedback> {
-    if data.len() < 8 {
+    if data.len() != 8 {
         return None;
     }
     let unpacked = unpack_ext_id(can_id)?;

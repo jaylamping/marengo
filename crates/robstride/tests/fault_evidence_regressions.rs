@@ -56,16 +56,28 @@ fn upper_detailed_fault_bytes_cannot_appear_healthy() {
     }
 }
 
-struct PrefixThenFailure;
+#[derive(Default)]
+struct PrefixThenFailure {
+    delivered: bool,
+}
 
 impl CanBus for PrefixThenFailure {
     fn send_frame(&mut self, _frame: &CanFrame) -> Result<(), BusError> {
         Ok(())
     }
 
-    fn recv_frames(&mut self, out: &mut Vec<CanFrame>) -> Result<(), BusError> {
-        out.push(frame(0x1500_01fd, [1, 0, 0, 0, 0, 0, 0, 0]));
-        Err(BusError::Driver("RX failed after delivered frame".into()))
+    fn recv_one_nonblocking(&mut self) -> Result<robstride::ReceiveAttempt, BusError> {
+        if self.delivered {
+            return Err(BusError::Driver("RX failed after delivered frame".into()));
+        }
+        self.delivered = true;
+        Ok(robstride::ReceiveAttempt::Frame(robstride::TimedCanFrame {
+            received_at: std::time::Instant::now(),
+            received: robstride::ReceivedCanFrame::full_data(
+                None,
+                frame(0x1500_01fd, [1, 0, 0, 0, 0, 0, 0, 0]),
+            ),
+        }))
     }
 }
 
@@ -73,7 +85,7 @@ impl MotorBus for PrefixThenFailure {}
 
 #[test]
 fn delivered_fault_prefix_survives_receive_error_in_compatibility_state() {
-    let mut bus = PrefixThenFailure;
+    let mut bus = PrefixThenFailure::default();
     let mut states: HashMap<MotorAddress, MotorState> = HashMap::new();
     let error = bus
         .recv_all_addressed(&types(), &mut states, Duration::ZERO, Duration::ZERO)
