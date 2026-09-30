@@ -221,12 +221,14 @@ upstream Windows socket dependency.
 
 The [third batch report](batch03-fault-authority.md) records ordered driver
 evidence, Davout's private fault authority, all-address stop outcomes and
-Berthier error/intent handling. CS08/CS12 await actual Linux virtual CAN CI;
+Berthier error/intent handling in [PR215](https://github.com/jaylamping/marengo/pull/215). CS08/CS12 are verified software repairs;
 CS04/CS13 remain partial. Primary and independent reviews pass: 598 Rust tests
 (one ignored), 355 frontend, 72 Pi MCP, strict lint/build and aarch64 release.
 Simulation's five tests and minimal engine smoke pass; they do not qualify the
 production plant. Docker Desktop's current kernel lacks virtual CAN, so that
-gate must run on GitHub Linux before merge.
+gate ran on GitHub Linux: both virtual CAN tests pass, including the new lossless
+report test in zero/positive budget modes. All five GitHub code checks pass at
+`3feeab4`; the final evidence revision receives applicable checks before merge.
 
 Three driver and fifteen Supervisor regressions fail on the unchanged baseline;
 ten controller regressions catch hidden errors, early intent installation and

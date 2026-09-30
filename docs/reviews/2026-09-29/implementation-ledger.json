@@ -48,8 +48,10 @@
       "local_vcan": "unavailable",
       "local_reason": "Docker Desktop kernel 6.6.87.2-microsoft-standard-WSL2+ rejects a short-name vcan interface with Unknown device type",
       "local_evidence": "J:/code/marengo-migration-backup-20260929/batch03/vcan-kernel-probe.log",
-      "required_linux_ci": "pending",
-      "no_physical_interfaces": true
+      "required_linux_ci": "passed",
+      "no_physical_interfaces": true,
+      "linux_tests_passed": 2,
+      "evidence": "J:/code/marengo-migration-backup-20260929/batch03/github-vcan-summary.json"
     },
     "scanners": {
       "deny": "0.20.2",
@@ -95,9 +97,22 @@
     ],
     "merge_policy": "Required primary and independent review passed; all applicable GitHub checks, including actual Linux virtual CAN, must pass on the final head before merge. No physical acceptance inferred.",
     "github_checks": {
-      "result": "pending",
-      "final_head_policy": "Evidence-only updates also receive applicable checks; exact final run/merge receipt is preserved under batch03."
-    }
+      "result": "passed",
+      "run_id": 36674876363,
+      "checked_commit": "3feeab4b75824e72639792b3fd83f393e4121a5d",
+      "jobs": [
+        "changes",
+        "build-image",
+        "check",
+        "sim",
+        "vcan"
+      ],
+      "evidence": "J:/code/marengo-migration-backup-20260929/batch03/github-first-run.json",
+      "summary": "J:/code/marengo-migration-backup-20260929/batch03/github-first-summary.json",
+      "final_merge_policy": "This evidence-only revision also receives all applicable checks before merge; exact final head, run and merge outcome are preserved in batch03/merge-receipt.json."
+    },
+    "pull_request": "https://github.com/jaylamping/marengo/pull/215",
+    "code_commit": "3feeab4b75824e72639792b3fd83f393e4121a5d"
   },
   "findings": [
     {
@@ -170,7 +185,8 @@
       ],
       "verified_commit_or_pr": null,
       "hardware_acceptance": "required before physical release",
-      "implementation_batch": "batch03"
+      "implementation_batch": "batch03",
+      "implementation_pr": "https://github.com/jaylamping/marengo/pull/215"
     },
     {
       "id": "CS05",
@@ -219,15 +235,16 @@
       "source": "control.md#cs08--disable-reports-success-even-when-every-can-write-fails",
       "work_package": "WP03",
       "implementation_and_acceptance_plan": "control-implementation-plan.md",
-      "status": "implemented",
+      "status": "verified",
       "evidence": [
         "All configured addresses receive ZeroSpeed, NeutralMit and ordinary Disable attempts despite earlier failures. StopReport retains every outcome, first failed stop and initiating fault; failed writes return StopDelivery instead of Ok. Literal stop payload tests prohibit firmware fault-clear.",
-        "Baseline all-TX failure falsely returned Ok; public failing-bus regression now reports failure and every address/action. Primary 598 Rust, independent review and aarch64 pass. Actual Linux virtual CAN check remains required before verified disposition/merge.",
+        "Baseline all-TX failure falsely returned Ok; public failing-bus regression now reports failure and every address/action. Primary 598 Rust, independent review and aarch64 pass. All five GitHub code checks pass at 3feeab4, including two actual Linux virtual CAN tests. Final evidence revision is rechecked before merge.",
         "Successful writes mean transport acceptance only; physical stop acknowledgement/support/drive-local timeout remain hardware acceptance."
       ],
-      "verified_commit_or_pr": null,
+      "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/215",
       "hardware_acceptance": "required before physical release",
-      "implementation_batch": "batch03"
+      "implementation_batch": "batch03",
+      "implementation_pr": "https://github.com/jaylamping/marengo/pull/215"
     },
     {
       "id": "CS09",
@@ -279,15 +296,16 @@
       "source": "control.md#cs12--post-send-safety-errors-are-discarded",
       "work_package": "WP01",
       "implementation_and_acceptance_plan": "control-implementation-plan.md",
-      "status": "implemented",
+      "status": "verified",
       "evidence": [
         "Both post-send drains and planner-entry refresh propagate errors; every ControlMode is exercised through public ControlLoop with actual MIT-triggered RX failure/unsafe-pose injection. Failed refresh and quiet diagnostic refresh after a latched fault cannot install planner or torque intent.",
-        "Ten baseline-compatible controller regressions fail unchanged e830 baseline and pass final primary. Davout retains ingestion hazards independently of ignored Result and later healthy feedback. Actual Linux virtual CAN check remains required before verified disposition/merge.",
+        "Ten baseline-compatible controller regressions fail unchanged e830 baseline and pass final primary. Davout retains ingestion hazards independently of ignored Result and later healthy feedback. All five GitHub code checks pass at 3feeab4, including two actual Linux virtual CAN tests. Final evidence revision is rechecked before merge.",
         "Pi/protobuf persistent publication and qualified recovery are CS13; no telemetry or physical acceptance inferred."
       ],
-      "verified_commit_or_pr": null,
+      "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/215",
       "hardware_acceptance": "required before physical release",
-      "implementation_batch": "batch03"
+      "implementation_batch": "batch03",
+      "implementation_pr": "https://github.com/jaylamping/marengo/pull/215"
     },
     {
       "id": "CS13",
@@ -305,7 +323,8 @@
       ],
       "verified_commit_or_pr": null,
       "hardware_acceptance": "required before physical release",
-      "implementation_batch": "batch03"
+      "implementation_batch": "batch03",
+      "implementation_pr": "https://github.com/jaylamping/marengo/pull/215"
     },
     {
       "id": "CS14",
@@ -1399,7 +1418,8 @@
       ],
       "verified_commit_or_pr": null,
       "hardware_acceptance": "not established by this software repair",
-      "implementation_batch": "batch03"
+      "implementation_batch": "batch03",
+      "implementation_pr": "https://github.com/jaylamping/marengo/pull/215"
     },
     {
       "id": "T27",
@@ -1699,10 +1719,9 @@
     }
   ],
   "finding_status_counts": {
-    "implemented": 2,
     "open": 82,
     "partial": 7,
-    "verified": 10
+    "verified": 12
   },
   "next_dependency_ready_batch": {
     "findings": [

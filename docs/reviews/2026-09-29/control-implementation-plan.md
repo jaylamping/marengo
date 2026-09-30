@@ -144,7 +144,7 @@ must not replace explicit boundary cases.
 Batch02 repairs fault-only pose timestamps. [Batch03](batch03-fault-authority.md)
 adds ordered raw fault/status domains and persistent authority. Malformed DLC,
 installed firmware qualification and explicit recovery remain open; the local
-primary and independent review pass, with actual Linux virtual CAN required in CI.
+primary, independent review and actual Linux virtual CAN CI pass.
 
 Retain all four detailed-fault bytes and four warning bytes; a typed word/identity
 requires qualified firmware byte order. Decode documented status ID bits and
@@ -201,7 +201,7 @@ verification and persistence failure. Every armed path attempts stop; validation
 failures send no enable frames. Exit codes and user outcomes match the observed
 bus/result sequence. Source-string checks do not establish this contract.
 
-### CS08: stop failures remain visible (C2, P1, implemented; Linux CI pending)
+### CS08: stop failures remain visible (C2, P1, verified software repair)
 
 Batch03 adds typed failure return, all-address/action stop attempts and a
 read-only StopReport retaining first failed delivery alongside the initiating
@@ -259,7 +259,7 @@ tests. When C1 adds an injectable control clock, replace the single 30 ms sleep
 with deterministic virtual time without losing its outgoing-frame assertion.
 Reference/fault recovery authorization is C2/C3, not implied by this limiter fix.
 
-### CS12: every feedback-ingestion violation takes effect (C1, P2, implemented; Linux CI pending)
+### CS12: every feedback-ingestion violation takes effect (C1, P2, verified software repair)
 
 Batch03 propagates both post-send drains and planner-entry errors, checks the
 persistent latch before new intent, and cancels retained intent after stop.

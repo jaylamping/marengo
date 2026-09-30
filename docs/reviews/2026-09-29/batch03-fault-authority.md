@@ -3,6 +3,7 @@
 Baseline: main `e830bc5952ddc587186eec36bba08f5ffc01147a` (merged PR214).
 Windows source, local CAD and recovery evidence remain under `J:\code`.
 This batch is a software repair; no physical robot was contacted or operated.
+Review and delivery: [PR215](https://github.com/jaylamping/marengo/pull/215).
 
 ## Observable contracts
 
@@ -99,11 +100,19 @@ unrelated QUIC dependency-edge changes from the initial Cargo update are reverte
 and locked metadata resolution succeeds. Simulation has five passing tests and
 a minimal engine smoke. Docker Desktop kernel
 `6.6.87.2-microsoft-standard-WSL2+` rejects even a valid short-name virtual CAN
-probe; actual Linux virtual CAN CI remains a required merge gate. The first
+probe; both actual Linux virtual CAN tests pass on GitHub, including the new
+lossless report test in zero/positive budget modes. All five code checks pass
+at `3feeab4` in run `36674876363`; the final evidence revision receives all
+applicable checks before merge. The first
 primary attempt was deliberately interrupted before its test-tree freeze, and
 its separate log is not counted as a completed check.
 
 ## Remaining work
+
+CS08 and CS12 are verified software repairs. Across the 101 finding IDs, the
+ledger now records 12 verified, 7 partial and 82 open; overlapping IDs do not
+count independent defects. The software implementation and legacy test-quality
+work remain incomplete, so the repair heartbeat continues.
 
 CS04 remains partial: malformed DLC handling, installed firmware identity/field
 qualification and explicit fresh recovery are pending. CS13 remains partial:
