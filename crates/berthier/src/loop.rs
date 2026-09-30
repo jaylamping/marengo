@@ -56,14 +56,14 @@ pub enum LoopError {
     InvalidWavePeriod,
     #[error("missing motor feedback for joint {joint}")]
     MissingFeedback { joint: String },
-    #[error(
-        "position hold: ascent stall on {joint}: no progress during bounded recovery for {ms} ms"
-    )]
+    #[error("position hold: ascent stall on {joint}: no measured progress for {ms} ms")]
     AscentStall { joint: String, ms: u64 },
     #[error("torque cmd: non-finite τ_cmd for joint {joint}")]
     NonFiniteTorqueCmd { joint: String },
     #[error("invalid gain override for {joint}: {field} must be finite and nonnegative")]
     InvalidGainOverride { joint: String, field: &'static str },
+    #[error("invalid nominal controller period {seconds} seconds")]
+    InvalidLoopPeriod { seconds: f64 },
 }
 
 impl From<HoldError> for LoopError {
@@ -74,6 +74,7 @@ impl From<HoldError> for LoopError {
             HoldError::LenMismatch => Self::MissingSetpoint {
                 joint: "len_mismatch".to_string(),
             },
+            HoldError::InvalidPeriod { seconds } => Self::InvalidLoopPeriod { seconds },
         }
     }
 }
@@ -223,21 +224,30 @@ impl<B: MotorBus> ControlLoop<B> {
         chappe_hz: u32,
         build_supervisor: impl FnOnce(&Path, B) -> Result<Supervisor<B>, DavoutError>,
     ) -> Result<Self, LoopError> {
+        let loop_hz = loop_hz.max(1);
+        let seconds = 1.0 / f64::from(loop_hz);
+        let loop_period = Duration::try_from_secs_f64(seconds)
+            .map_err(|_| LoopError::InvalidLoopPeriod { seconds })?;
+        if loop_period.is_zero() {
+            return Err(LoopError::InvalidLoopPeriod { seconds });
+        }
         let robot = load_robot_config(root)?;
         let joint_names = robot.robot.joints.clone();
         let urdf = resolve_urdf_path(root, &robot)?;
         let dynamics = UrdfGravityModel::from_urdf(&urdf, &joint_names)?;
-        let loop_hz = loop_hz.max(1);
         let supervisor = build_supervisor(root, bus)?;
-        let n_joints = joint_names.len();
+        let progress_thresholds = joint_names
+            .iter()
+            .map(|joint| supervisor.joint_position_progress_threshold(joint))
+            .collect::<Result<Vec<_>, _>>()?;
         Ok(Self {
             supervisor,
             dynamics,
             repo_root: root.to_path_buf(),
             joint_names,
             control_mode: ControlMode::Disabled,
-            position_hold: PositionHold::new(n_joints),
-            loop_period: Duration::from_secs_f64(1.0 / f64::from(loop_hz)),
+            position_hold: PositionHold::with_progress_thresholds(progress_thresholds),
+            loop_period,
             chappe_publish_period: Duration::from_secs_f64(1.0 / f64::from(chappe_hz.max(1))),
             last_chappe: None,
             last_position_diag: None,
@@ -950,6 +960,10 @@ impl<B: MotorBus> ControlLoop<B> {
                         })
                         .collect();
                     let hold_out = {
+                        for (i, joint) in self.joint_names.iter().enumerate() {
+                            self.position_hold
+                                .set_commanded_joint(i, self.supervisor.joint_drive_active(joint));
+                        }
                         let world = HoldWorld {
                             q: &q,
                             dq_meas: &dq_meas,

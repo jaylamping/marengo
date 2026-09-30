@@ -53,6 +53,12 @@ impl MitRanges {
         -self.position_scale
     }
 
+    /// Nominal adjacent position-feedback code spacing, before joint conversion.
+    /// This describes the software wire mapping, not physical encoder accuracy.
+    pub fn feedback_position_step(self) -> f64 {
+        f64::from(self.position_scale) / f64::from(crate::mit::SIGNED_FIELD_CENTER)
+    }
+
     pub fn p_max(self) -> f32 {
         self.position_scale
     }

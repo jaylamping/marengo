@@ -6,6 +6,9 @@ use crate::comm::{pack_typed_ext_id, unpack_ext_id, CommunicationType};
 use crate::command::{finite, nonnegative_gain, CommandError, CommandField};
 use crate::motor_type::MitRanges;
 
+/// Vendor signed-field zero code, shared by the actual decoder and its grid descriptor.
+pub(crate) const SIGNED_FIELD_CENTER: f32 = 0x7FFF as f32;
+
 /// MIT-mode command for one actuator (OpenArm / Robstride semantics).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MitCommand {
@@ -69,13 +72,13 @@ fn signed_to_vendor_u16(value: f32, scale: f32) -> u16 {
         return 0;
     }
     let clamped = value.clamp(-scale, scale);
-    ((clamped / scale + 1.0) * 0x7FFF as f32)
+    ((clamped / scale + 1.0) * SIGNED_FIELD_CENTER)
         .round()
         .clamp(0.0, u16::MAX as f32) as u16
 }
 
 fn vendor_u16_to_signed(raw: u16, scale: f32) -> f32 {
-    ((f32::from(raw) / 0x7FFF as f32) - 1.0) * scale
+    ((f32::from(raw) / SIGNED_FIELD_CENTER) - 1.0) * scale
 }
 
 fn unsigned_to_vendor_u16(value: f32, scale: f32) -> u16 {

@@ -447,6 +447,44 @@ impl<B: MotorBus> Supervisor<B> {
         self.limits.get(joint).map(|lim| lim.velocity)
     }
 
+    /// Encoder progress threshold in joint space, from the frozen installed receive mapping.
+    ///
+    /// Half a nominal feedback step plus a conservative decode/transform rounding allowance
+    /// admits every new adjacent normal f32 level. It does not establish physical noise or
+    /// reference validity. See ADR0025 for the numeric domain and rounding bound.
+    pub fn joint_position_progress_threshold(&self, joint: &str) -> Result<f64, DavoutError> {
+        let motor = self
+            .stop_motors
+            .iter()
+            .find(|motor| motor.joint == joint)
+            .ok_or_else(|| DavoutError::UnknownJoint {
+                joint: joint.to_string(),
+            })?;
+        let gear = motor_position_scale(motor)?.abs();
+        let ranges = robstride::motor_type::MitRanges::for_motor_type(motor.motor_type);
+        let span = f64::from(ranges.position_scale) / gear;
+        let step = ranges.feedback_position_step() / gear;
+        let roundoff = 16.0 * f64::from(f32::EPSILON) * span;
+        let minimum_adjacent = step - 2.0 * roundoff;
+        let threshold = step / 2.0 + roundoff;
+        // The decoder's highest code is slightly above +span. Keep all nonzero levels
+        // normal and the whole decoded range finite after the actual joint-space f32 cast.
+        if !span.is_finite()
+            || !threshold.is_finite()
+            || threshold <= 0.0
+            || minimum_adjacent < f64::from(f32::MIN_POSITIVE)
+            || threshold >= minimum_adjacent
+            || span + 2.0 * step > f64::from(f32::MAX)
+        {
+            return Err(DavoutError::InvalidMotorConfig {
+                joint: joint.to_string(),
+                message: "position feedback grid is outside the qualified finite normal f32 range"
+                    .to_string(),
+            });
+        }
+        Ok(threshold)
+    }
+
     /// Rebuild runtime limit policies from the supervisor's in-memory configuration.
     ///
     /// The existing policies remain installed if validation or rebuilding fails.

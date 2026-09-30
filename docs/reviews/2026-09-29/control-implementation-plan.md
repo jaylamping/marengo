@@ -201,8 +201,9 @@ peer history/state/flags. Independent reviews and required primary703Rust/1
 existing ignored,355 frontend,72 Pi MCP/fatalcrossbuild and strict affected420/0
 pass. [PR222](https://github.com/jaylamping/marengo/pull/222) passes all five
 implementation-head jobs at d541bd5/run36736794717, including 73 actual driver
-feature tests/0 ignored and 5 simulation tests; final/equal-tree main delivery
-remains pending. This does not supply crash-safe disk
+feature tests/0 ignored and 5 simulation tests. Final7ddc243/run36738071460
+and equal-tree merged04e4ea2/main36738856051 each pass all five jobs, including
+fatal main release cross-build; backup/cleanup are complete. This does not supply crash-safe disk
 commit or Davout reference permission; CS05 remains partial.
 
 ### CS06: Set Zero verifies a post-command response (C2, P1, partial)
@@ -489,18 +490,24 @@ rotated fixed attachments and unequal joint angles. This defect changes computed
 production gravity; software correction alone does not authorize recommissioning
 the robot or copying stale tuning into the corrected dynamics model.
 
-### CS24: measured progress after motion stops (C5, P1, open)
+### CS24: measured progress after motion stops (C5, P1, verified software repair)
 
-The exact-c306 probe proves a positive velocity EMA tail continually resets the
-ascent stall fuse after encoder motion stops. Preserve the existing bound and
-torque/velocity ceilings. Define progress using bounded actual encoder
-displacement and a justified noise/quantization tolerance; do not simply copy a
-filtered epsilon from the failing output. Independent cases must cover motion
-then stiction, stationary quantization/noise, valid slow crawl, reversed motion,
-sample dropouts and target settle. Run the identical archived failing law probe
-after repair and prove actual ControlLoop fault, neutral/Disable frames and
-persistent latch. This remains separate from batch06 admission and from physical
-plant/commissioning acceptance; evidence is linked in the CS24 ledger row.
+[Batch09](batch09-measured-stall-progress.md) and ADR0025 implement a separate
+measured-position high-water watchdog on actually commanded unresolved ascent.
+The existing2-second budget and ceilings remain. Frozen installed decoded-grid
+metadata bounds software conversion; nominal Duration preserves submillisecond
+time and rejects invalid periods before mutation. Six actual original law/public
+controller failures have byte-identical repaired replays. Crawl preservation,
+five numeric conformance cases and two killed production mutants independently
+cover scope, jitter/reversal/held data, slow movement, settle, cleanup and time.
+Actual controller stall preserves all15 stop attempts and persistent refusal.
+Primary715/0/1, frontend355, PiMCP72, fatalARMrelease and strict affected432/0
+pass; independent Standards/Spec accept the exact source with one docs-only
+post-gate guidance correction. [PR223](https://github.com/jaylamping/marengo/pull/223)
+implementationeb1359c/run36755369469 passes all five jobs, including5simulation
+and73actual driver tests. Final-head/main delivery checks and cleanup remain pending.
+This is separate from physical noise/plant/drive/timing commissioning, existing
+dropout freshness and unfinished reference/config/model ownership.
 
 ## Cross-cutting completion gates
 
