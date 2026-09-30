@@ -5,7 +5,8 @@
 //! components of Impedance or Position modes.
 //!
 //! Scope:
-//! - Impedance mode non-gravity FF = `tau_f` from `friction_torque(dq, fc, fv, fo, k)`.
+//! - Impedance friction mode selection is tested through actual controller output
+//!   in `tests/friction_mode_output.rs`; this module tests Position composition.
 //! - Position mode non-gravity FF = `tau_f + tau_d` from
 //!   `compose_position_hold_feedforward`.
 //! - GravityComp mode is pure feedforward (`tau_ff = tau_g`).
@@ -18,38 +19,11 @@
 
 use proptest::prelude::*;
 
-use crate::friction::friction_torque;
 use crate::position_feedforward::{compose_position_hold_feedforward, PositionHoldFeedforward};
 use crate::position_trajectory::TrapezoidPhase;
 use marengo_config::FrictionGains;
 
 proptest! {
-    #[test]
-    fn impedance_tau_f_independent_of_tau_g(
-        tau_g in -5.0..5.0f64,
-        tau_g_perturbed in -5.0..5.0f64,
-    ) {
-        // Impedance mode: tau_ff = tau_g + tau_f.
-        // The non-gravity component is tau_f = friction_torque(dq, fc, fv, fo, k),
-        // which depends only on dq and friction gains — NOT on tau_g.
-        let dq = 0.1;
-        let fc = 0.15;
-        let fv = 0.0;
-        let fo = 0.0;
-        let k = 10.0;
-        let tau_f = friction_torque(dq, fc, fv, fo, k);
-        // tau_f must be the same regardless of tau_g.
-        let tau_ff_1 = tau_g + tau_f;
-        let tau_ff_2 = tau_g_perturbed + tau_f;
-        // The difference in tau_ff should be exactly the difference in tau_g.
-        prop_assert!(
-            ((tau_ff_1 - tau_ff_2) - (tau_g - tau_g_perturbed)).abs() < 1e-12,
-            "tau_ff delta {} should equal tau_g delta {}",
-            tau_ff_1 - tau_ff_2,
-            tau_g - tau_g_perturbed
-        );
-    }
-
     #[test]
     fn position_non_gravity_ff_independent_of_tau_g(
         tau_g in -5.0..5.0f64,

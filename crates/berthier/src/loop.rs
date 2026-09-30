@@ -184,6 +184,26 @@ fn phase_elapsed_us(since: Instant) -> (u64, Instant) {
     (us, now)
 }
 
+impl ControlLoop<davout::simulation::SimulationBus> {
+    /// Construct the real controller over Davout's closed in-memory transport.
+    ///
+    /// The declared virtual reference is an initial simulation condition. It
+    /// does not establish SetZero causality or qualify a physical reference.
+    /// Dynamics, session initialization, admission and tick behavior use the
+    /// same implementation as ordinary construction.
+    pub fn from_simulation(
+        repo_root: impl AsRef<Path>,
+        bus: davout::simulation::SimulationBus,
+        initial_reference: davout::simulation::InitialVirtualReference,
+        loop_hz: u32,
+        chappe_hz: u32,
+    ) -> Result<Self, LoopError> {
+        Self::from_repo_inner(repo_root.as_ref(), bus, loop_hz, chappe_hz, |root, bus| {
+            Supervisor::from_simulation(root, bus, initial_reference)
+        })
+    }
+}
+
 impl<B: MotorBus> ControlLoop<B> {
     pub fn from_repo(
         repo_root: impl AsRef<Path>,
@@ -191,13 +211,24 @@ impl<B: MotorBus> ControlLoop<B> {
         loop_hz: u32,
         chappe_hz: u32,
     ) -> Result<Self, LoopError> {
-        let root = repo_root.as_ref();
+        Self::from_repo_inner(repo_root.as_ref(), bus, loop_hz, chappe_hz, |root, bus| {
+            Supervisor::from_repo(root, bus)
+        })
+    }
+
+    fn from_repo_inner(
+        root: &Path,
+        bus: B,
+        loop_hz: u32,
+        chappe_hz: u32,
+        build_supervisor: impl FnOnce(&Path, B) -> Result<Supervisor<B>, DavoutError>,
+    ) -> Result<Self, LoopError> {
         let robot = load_robot_config(root)?;
         let joint_names = robot.robot.joints.clone();
         let urdf = resolve_urdf_path(root, &robot)?;
         let dynamics = UrdfGravityModel::from_urdf(&urdf, &joint_names)?;
         let loop_hz = loop_hz.max(1);
-        let supervisor = Supervisor::from_repo(root, bus)?;
+        let supervisor = build_supervisor(root, bus)?;
         let n_joints = joint_names.len();
         Ok(Self {
             supervisor,
@@ -1316,24 +1347,34 @@ mod tests {
         position_hold_mit_velocity, reopen_planner_from_premature_hold,
     };
     use crate::position_trajectory::{JointPositionPlanner, TrapezoidPhase};
+    use crate::test_support::queue_all_status;
     use armee_kinematics::JointLimitPolicy;
+    use davout::simulation::{InitialVirtualReference, SimulationBus};
     use davout::{MemoryBus, OperationalMode};
 
     fn repo_root() -> std::path::PathBuf {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
     }
 
-    fn test_loop() -> ControlLoop<MemoryBus> {
-        ControlLoop::from_repo(repo_root(), MemoryBus::default(), 200, 50).expect("loop")
+    fn test_loop() -> ControlLoop<SimulationBus> {
+        ControlLoop::from_simulation(
+            repo_root(),
+            SimulationBus::default(),
+            InitialVirtualReference::AllConfigured,
+            200,
+            50,
+        )
+        .expect("declared virtual initial reference")
     }
 
-    fn bench_ready_active(loop_ctrl: &mut ControlLoop<MemoryBus>) {
-        let motors = loop_ctrl.supervisor_mut().motors.motors.clone();
-        loop_ctrl
-            .supervisor_mut()
-            .homing_registry_mut()
-            .bench_mark_all_verified(&motors)
-            .expect("verify");
+    fn virtual_ready_active(loop_ctrl: &mut ControlLoop<SimulationBus>) {
+        virtual_ready_active_at(loop_ctrl, None);
+    }
+
+    fn virtual_ready_active_at(
+        loop_ctrl: &mut ControlLoop<SimulationBus>,
+        initial: Option<(&str, f64, f64)>,
+    ) {
         loop_ctrl
             .supervisor_mut()
             .set_homing_complete()
@@ -1342,28 +1383,35 @@ mod tests {
             .supervisor_mut()
             .request_enable(true)
             .expect("enable");
-        loop_ctrl.supervisor_mut().seed_synthetic_feedback();
+        queue_all_status(loop_ctrl.supervisor_mut(), initial);
+        loop_ctrl
+            .supervisor_mut()
+            .drain_feedback()
+            .expect("raw initial observations");
     }
 
     fn replay_feedback(
-        loop_ctrl: &mut ControlLoop<MemoryBus>,
+        loop_ctrl: &mut ControlLoop<SimulationBus>,
         joint: &str,
         position: f32,
         velocity: f32,
     ) {
-        // These controller scenarios keep every other enabled joint stationary
-        // at zero. Each simulated tick supplies their status as well as the
-        // moving joint; a static pose is still a new observation.
-        loop_ctrl.supervisor_mut().seed_synthetic_feedback();
+        // Every enabled joint receives a fresh raw observation through the real
+        // receive/validation path. This never grants or writes a pose cache.
+        queue_all_status(
+            loop_ctrl.supervisor_mut(),
+            Some((joint, f64::from(position), f64::from(velocity))),
+        );
         loop_ctrl
             .supervisor_mut()
-            .set_synthetic_joint_feedback(joint, position, velocity)
-            .expect("finite replay feedback");
+            .drain_feedback()
+            .expect("finite raw observations");
     }
 
     #[test]
     fn enable_requires_verified_homing() {
-        let mut loop_ctrl = test_loop();
+        let mut loop_ctrl = ControlLoop::from_repo(repo_root(), MemoryBus::default(), 200, 50)
+            .expect("ordinary unreferenced loop");
         let err = loop_ctrl
             .supervisor_mut()
             .request_enable(true)
@@ -1374,31 +1422,32 @@ mod tests {
     #[test]
     fn tick_sends_no_mit_when_supervisor_not_active() {
         let mut loop_ctrl = test_loop();
-        let motors = loop_ctrl.supervisor_mut().motors.motors.clone();
-        loop_ctrl
-            .supervisor_mut()
-            .homing_registry_mut()
-            .bench_mark_all_verified(&motors)
-            .expect("verify");
         loop_ctrl
             .supervisor_mut()
             .set_homing_complete()
             .expect("ready");
         assert_eq!(loop_ctrl.supervisor_mut().mode(), OperationalMode::Ready);
         // Stay Ready (do not call enter_position_hold*, which re-arms Active).
+        loop_ctrl.supervisor_mut().bus_mut().clear_trace();
         loop_ctrl.tick(None).expect("tick");
+        assert!(loop_ctrl
+            .supervisor()
+            .bus()
+            .frames()
+            .iter()
+            .all(|frame| (frame.id >> 24) & 0x1f != 1));
     }
 
     #[test]
     fn tick_sends_comm_watchdog_keepalive_when_active_control_disabled() {
         let mut loop_ctrl = test_loop();
-        bench_ready_active(&mut loop_ctrl);
+        virtual_ready_active(&mut loop_ctrl);
         assert_eq!(loop_ctrl.control_mode(), ControlMode::Disabled);
-        loop_ctrl.supervisor_mut().bus_mut().tx.clear();
+        loop_ctrl.supervisor_mut().bus_mut().clear_trace();
         loop_ctrl.tick(None).expect("tick");
         let n = loop_ctrl.joint_names.len();
         assert_eq!(
-            loop_ctrl.supervisor_mut().bus_mut().tx.len(),
+            loop_ctrl.supervisor().bus().frames().len(),
             n,
             "Active + Disabled control mode must send zero-gain MIT keepalive per joint"
         );
@@ -1407,31 +1456,29 @@ mod tests {
     #[test]
     fn tick_partial_enable_sends_mit_only_for_active_joints() {
         let mut loop_ctrl = test_loop();
-        let motors = loop_ctrl.supervisor_mut().motors.motors.clone();
-        loop_ctrl
-            .supervisor_mut()
-            .homing_registry_mut()
-            .bench_mark_all_verified(&motors)
-            .expect("verify");
-        let one = motors[0].joint.clone();
+        let one = loop_ctrl.supervisor().motors.motors[0].joint.clone();
         loop_ctrl
             .supervisor_mut()
             .enable_targets(&[one.clone()])
             .expect("scoped enable");
-        loop_ctrl.supervisor_mut().seed_synthetic_feedback();
+        queue_all_status(loop_ctrl.supervisor_mut(), None);
+        loop_ctrl
+            .supervisor_mut()
+            .drain_feedback()
+            .expect("raw observations");
         assert_eq!(loop_ctrl.supervisor_mut().mode(), OperationalMode::Active);
-        loop_ctrl.supervisor_mut().bus_mut().tx.clear();
+        loop_ctrl.supervisor_mut().bus_mut().clear_trace();
         loop_ctrl.tick(None).expect("keepalive tick");
         assert_eq!(
-            loop_ctrl.supervisor_mut().bus_mut().tx.len(),
+            loop_ctrl.supervisor().bus().frames().len(),
             1,
             "keepalive MIT must cover only active_joints"
         );
         loop_ctrl.set_control_mode(ControlMode::GravityComp);
-        loop_ctrl.supervisor_mut().bus_mut().tx.clear();
+        loop_ctrl.supervisor_mut().bus_mut().clear_trace();
         loop_ctrl.tick(None).expect("gravity tick");
         assert_eq!(
-            loop_ctrl.supervisor_mut().bus_mut().tx.len(),
+            loop_ctrl.supervisor().bus().frames().len(),
             1,
             "GravityComp MIT must cover only active_joints"
         );
@@ -1441,7 +1488,7 @@ mod tests {
     #[test]
     fn hold_at_reenables_after_safety_disable() {
         let mut loop_ctrl = test_loop();
-        bench_ready_active(&mut loop_ctrl);
+        virtual_ready_active(&mut loop_ctrl);
         loop_ctrl
             .enter_position_hold_at(Some("right_shoulder_pitch"), 0.25)
             .expect("hold-at");
@@ -1458,26 +1505,40 @@ mod tests {
     #[test]
     fn position_mode_without_feedback_errors_when_active() {
         let mut loop_ctrl = test_loop();
-        bench_ready_active(&mut loop_ctrl);
-        loop_ctrl.tick(None).expect("seed tick with feedback");
-        loop_ctrl.supervisor_mut().clear_motor_states();
-        loop_ctrl.set_control_mode(ControlMode::Position);
+        loop_ctrl
+            .supervisor_mut()
+            .set_homing_complete()
+            .expect("ready");
+        loop_ctrl
+            .supervisor_mut()
+            .request_enable(true)
+            .expect("active without pose");
         loop_ctrl
             .enter_position_hold_at(Some("right_shoulder_pitch"), 0.25)
             .expect("hold-at");
-        let err = loop_ctrl.tick(None).expect_err("missing feedback");
+        assert_eq!(loop_ctrl.supervisor().mode(), OperationalMode::Active);
+        assert_eq!(loop_ctrl.control_mode(), ControlMode::Position);
+        loop_ctrl.supervisor_mut().bus_mut().clear_trace();
+        for _ in 0..2 {
+            loop_ctrl.tick(None).expect("bounded neutral solicit");
+        }
+        let frames = loop_ctrl.supervisor().bus().frames();
+        assert_eq!(frames.len(), 2 * loop_ctrl.supervisor().motors.motors.len());
+        for frame in frames {
+            assert_eq!((frame.id >> 24) & 0x1f, 1);
+            assert_eq!((frame.id >> 8) & 0xffff, 0x7fff);
+            assert_eq!(&frame.data[2..4], &[0x7f, 0xff]);
+            assert_eq!(&frame.data[4..8], &[0; 4]);
+        }
+        let err = loop_ctrl
+            .tick(None)
+            .expect_err("missing current-enable feedback");
         assert!(matches!(err, LoopError::MissingFeedback { .. }));
     }
 
     #[test]
     fn active_feedback_grace_after_disabled_ticks() {
         let mut loop_ctrl = test_loop();
-        let motors = loop_ctrl.supervisor_mut().motors.motors.clone();
-        loop_ctrl
-            .supervisor_mut()
-            .homing_registry_mut()
-            .bench_mark_all_verified(&motors)
-            .expect("verify");
         loop_ctrl
             .supervisor_mut()
             .set_homing_complete()
@@ -1502,7 +1563,7 @@ mod tests {
     #[test]
     fn position_mode_without_latched_setpoint_errors() {
         let mut loop_ctrl = test_loop();
-        bench_ready_active(&mut loop_ctrl);
+        virtual_ready_active(&mut loop_ctrl);
         loop_ctrl.set_control_mode(ControlMode::Position);
         let err = loop_ctrl.tick(None).expect_err("missing setpoint");
         assert!(matches!(err, LoopError::MissingSetpoint { .. }));
@@ -1511,7 +1572,7 @@ mod tests {
     #[test]
     fn enter_position_hold_latches_setpoints() {
         let mut loop_ctrl = test_loop();
-        bench_ready_active(&mut loop_ctrl);
+        virtual_ready_active(&mut loop_ctrl);
         loop_ctrl.enter_position_hold().expect("hold");
         assert_eq!(loop_ctrl.control_mode(), ControlMode::Position);
         let sp = loop_ctrl.position_setpoints().expect("latched setpoints");
@@ -1521,7 +1582,7 @@ mod tests {
     #[test]
     fn hold_at_sets_joint_target() {
         let mut loop_ctrl = test_loop();
-        bench_ready_active(&mut loop_ctrl);
+        virtual_ready_active(&mut loop_ctrl);
         loop_ctrl
             .enter_position_hold_at(Some("right_shoulder_pitch"), 0.42)
             .expect("hold-at");
@@ -1538,7 +1599,7 @@ mod tests {
     #[test]
     fn same_target_hold_at_preserves_active_wave() {
         let mut loop_ctrl = test_loop();
-        bench_ready_active(&mut loop_ctrl);
+        virtual_ready_active(&mut loop_ctrl);
         let joint = "right_shoulder_pitch";
         loop_ctrl
             .enter_position_hold_at(Some(joint), 0.1)
@@ -1566,7 +1627,7 @@ mod tests {
     #[test]
     fn leaving_position_mode_clears_setpoints() {
         let mut loop_ctrl = test_loop();
-        bench_ready_active(&mut loop_ctrl);
+        virtual_ready_active(&mut loop_ctrl);
         loop_ctrl.enter_position_hold().expect("hold");
         assert!(loop_ctrl.position_setpoints().is_some());
         loop_ctrl.set_control_mode(ControlMode::GravityComp);
@@ -1637,62 +1698,37 @@ mod tests {
 
     #[test]
     fn torque_only_tick_packs_latched_tau_cmd_on_wire() {
-        use robstride::{encode_mit, MitCommand};
-
         let mut loop_ctrl = test_loop();
-        bench_ready_active(&mut loop_ctrl);
+        virtual_ready_active(&mut loop_ctrl);
         let joint = "right_shoulder_pitch";
-        let tau_cmd = 0.35;
-        loop_ctrl.set_torque_cmd(joint, tau_cmd).expect("set");
-        // Ensure rate-limiter dt allows the full step from seeded measured torque.
+        loop_ctrl.set_torque_cmd(joint, 0.35).expect("set");
+        // Allow the configured torque slew to reach the requested step.
         std::thread::sleep(Duration::from_millis(20));
-        loop_ctrl.supervisor_mut().bus_mut().tx.clear();
+        loop_ctrl.supervisor_mut().bus_mut().clear_trace();
         loop_ctrl.tick(None).expect("tick");
-
-        let motor = loop_ctrl
-            .supervisor()
-            .motors
-            .motors
-            .iter()
-            .find(|m| m.joint == joint)
-            .expect("pitch motor")
-            .clone();
-        let scale = f64::from(motor.direction) * motor.gear_ratio;
-        let expected = MitCommand {
-            device_id: motor.device_id,
-            motor_type: motor.motor_type,
-            position_rad: 0.0,
-            velocity_rad_s: 0.0,
-            kp: 0.0,
-            kd: 0.0,
-            torque_ff_nm: (tau_cmd / scale) as f32,
-        };
-        let (expected_id, expected_data) = encode_mit(&expected).expect("valid expected command");
         let frame = loop_ctrl
-            .supervisor_mut()
-            .bus_mut()
-            .tx
+            .supervisor()
+            .bus()
+            .frames()
             .iter()
-            .find(|f| {
-                robstride::unpack_ext_id(f.id)
-                    .map(|u| u.device_id == motor.device_id)
-                    .unwrap_or(false)
-            })
-            .expect("MIT frame for pitch");
-        assert_eq!(
-            frame.id, expected_id,
-            "torque_ff + device id must match τ_cmd"
+            .find(|frame| frame.id & 0xff == 1)
+            .expect("pitch MIT output");
+        assert_eq!((frame.id >> 24) & 0x1f, 1);
+        // Literal master pitch: device 1, direction -1, ratio 1, RS03
+        // torque full scale 60 Nm. Do not invoke the encoder as its own oracle.
+        let torque_word = f64::from((frame.id >> 8) & 0xffff);
+        let joint_torque = -(torque_word / 32767.0 - 1.0) * 60.0;
+        assert!(
+            (joint_torque - 0.35).abs() < 0.002,
+            "wire joint torque {joint_torque}"
         );
-        assert_eq!(
-            frame.data, expected_data,
-            "kp/kd hard-zero and q_des=q on wire"
-        );
+        assert_eq!(frame.data, [0x7f, 0xff, 0x7f, 0xff, 0, 0, 0, 0]);
     }
 
     #[test]
     fn gravity_comp_enter_clears_sticky_gain_overrides() {
         let mut loop_ctrl = test_loop();
-        bench_ready_active(&mut loop_ctrl);
+        virtual_ready_active(&mut loop_ctrl);
         loop_ctrl.set_control_mode(ControlMode::Impedance);
         loop_ctrl
             .apply_gain_override(
@@ -1758,7 +1794,7 @@ mod tests {
     #[test]
     fn position_hold_tick_runs_when_active() {
         let mut loop_ctrl = test_loop();
-        bench_ready_active(&mut loop_ctrl);
+        virtual_ready_active(&mut loop_ctrl);
         loop_ctrl
             .enter_position_hold_at(Some("right_shoulder_pitch"), 0.25)
             .expect("hold-at");
@@ -1769,7 +1805,7 @@ mod tests {
     #[test]
     fn position_hold_advances_trapezoid_on_first_tick() {
         let mut loop_ctrl = test_loop();
-        bench_ready_active(&mut loop_ctrl);
+        virtual_ready_active(&mut loop_ctrl);
         loop_ctrl
             .enter_position_hold_at(Some("right_shoulder_pitch"), 0.25)
             .expect("hold-at");
@@ -2281,15 +2317,23 @@ mod tests {
     #[test]
     fn ascent_stall_faults_tick_after_bounded_recovery() {
         let mut loop_ctrl = test_loop();
-        bench_ready_active(&mut loop_ctrl);
         let joint = "right_shoulder_pitch";
-        replay_feedback(&mut loop_ctrl, joint, 0.02, 0.0);
+        virtual_ready_active_at(&mut loop_ctrl, Some((joint, 0.02, 0.0)));
         loop_ctrl
             .enter_position_hold_at(Some(joint), 0.15)
             .expect("hold-at");
         let mut faulted = false;
+        assert_eq!(loop_ctrl.control_mode(), ControlMode::Position);
         for _ in 0..600 {
             replay_feedback(&mut loop_ctrl, joint, 0.02, 0.0);
+            assert_eq!(
+                loop_ctrl
+                    .supervisor()
+                    .joint_feedback(joint)
+                    .expect("actual stationary pose")
+                    .velocity_rad_s,
+                0.0
+            );
             match loop_ctrl.tick(None) {
                 Ok(()) => {}
                 Err(err) => {
@@ -2310,38 +2354,17 @@ mod tests {
             faulted,
             "stuck outbound ascent must AscentStall within ~3s of recovery"
         );
-    }
-
-    #[test]
-    fn ascent_stall_counter_resets_on_progress_toward_target() {
-        let mut loop_ctrl = test_loop();
-        bench_ready_active(&mut loop_ctrl);
-        let joint = "right_shoulder_pitch";
-        replay_feedback(&mut loop_ctrl, joint, 0.02, 0.0);
-        loop_ctrl
-            .enter_position_hold_at(Some(joint), 0.15)
-            .expect("hold-at");
-        for _ in 0..100 {
-            replay_feedback(&mut loop_ctrl, joint, 0.02, 0.0);
-            loop_ctrl.tick(None).expect("pre-progress tick");
-        }
-        // Crawl toward target below exit_v — must reset fuse, not disable.
-        for _ in 0..500 {
-            replay_feedback(&mut loop_ctrl, joint, 0.02, 0.01);
-            loop_ctrl
-                .tick(None)
-                .expect("progress toward target must not AscentStall");
-        }
+        assert!(loop_ctrl.supervisor().safety_snapshot().is_latched());
+        assert_eq!(loop_ctrl.supervisor().mode(), OperationalMode::Disabled);
     }
 
     #[test]
     fn lead_follow_residual_within_resync_band_does_not_ascent_stall() {
         let mut loop_ctrl = test_loop();
-        bench_ready_active(&mut loop_ctrl);
         let joint = "right_shoulder_pitch";
         let q = 0.125;
         let target = 0.15;
-        replay_feedback(&mut loop_ctrl, joint, q, 0.0);
+        virtual_ready_active_at(&mut loop_ctrl, Some((joint, f64::from(q), 0.0)));
         loop_ctrl
             .enter_position_hold_at(Some(joint), target)
             .expect("hold-at");
@@ -2359,11 +2382,10 @@ mod tests {
     #[test]
     fn lead_follow_stuck_residual_faults_closed() {
         let mut loop_ctrl = test_loop();
-        bench_ready_active(&mut loop_ctrl);
         let joint = "right_shoulder_pitch";
         let q = 1.333;
         let target = 1.40;
-        replay_feedback(&mut loop_ctrl, joint, q, 0.0);
+        virtual_ready_active_at(&mut loop_ctrl, Some((joint, f64::from(q), 0.0)));
         loop_ctrl
             .enter_position_hold_at(Some(joint), target)
             .expect("hold-at");
@@ -2372,8 +2394,17 @@ mod tests {
             .expect("force Hold@target");
 
         let mut fault = None;
+        assert_eq!(loop_ctrl.control_mode(), ControlMode::Position);
         for _ in 0..500 {
             replay_feedback(&mut loop_ctrl, joint, q, 0.0);
+            assert_eq!(
+                loop_ctrl
+                    .supervisor()
+                    .joint_feedback(joint)
+                    .expect("actual stationary pose")
+                    .velocity_rad_s,
+                0.0
+            );
             match loop_ctrl.tick(None) {
                 Ok(()) => {}
                 Err(err) => {
@@ -2391,6 +2422,8 @@ mod tests {
             ),
             "lead-follow stuck residual must AscentStall within 2.5s; got {fault:?}"
         );
+        assert!(loop_ctrl.supervisor().safety_snapshot().is_latched());
+        assert_eq!(loop_ctrl.supervisor().mode(), OperationalMode::Disabled);
     }
 
     #[test]
@@ -2640,7 +2673,7 @@ mod tests {
     #[test]
     fn slew_max_lead_clamps_command_ahead_of_measured_q() {
         let mut loop_ctrl = test_loop();
-        bench_ready_active(&mut loop_ctrl);
+        virtual_ready_active(&mut loop_ctrl);
         loop_ctrl
             .enter_position_hold_at(Some("right_shoulder_pitch"), 1.2)
             .expect("hold-at");
@@ -2657,7 +2690,7 @@ mod tests {
     #[test]
     fn hold_at_ramps_command_not_instant_setpoint() {
         let mut loop_ctrl = test_loop();
-        bench_ready_active(&mut loop_ctrl);
+        virtual_ready_active(&mut loop_ctrl);
         loop_ctrl
             .enter_position_hold_at(Some("right_shoulder_pitch"), 1.2)
             .expect("hold-at");
@@ -2749,7 +2782,7 @@ mod tests {
     #[test]
     fn limit_clamped_sub_home_target_does_not_seed_downward_return() {
         let mut loop_ctrl = test_loop();
-        bench_ready_active(&mut loop_ctrl);
+        virtual_ready_active(&mut loop_ctrl);
         // Past soft/hard lower (~-0.87/-0.9) so clamp_hold_target must raise the goal.
         loop_ctrl
             .enter_position_hold_at(Some("right_shoulder_pitch"), -0.95)
@@ -2783,90 +2816,76 @@ mod tests {
         );
     }
 
-    #[test]
-    fn layer2_hold_at_uses_slew_profile_not_trajectory() {
+    fn assert_small_move_slew_output(initial: f32, target: f64) {
         let mut loop_ctrl = test_loop();
-        bench_ready_active(&mut loop_ctrl);
         let joint = "right_shoulder_pitch";
-        let cfg = loop_ctrl
-            .supervisor
-            .control
-            .control
-            .joints
-            .get(joint)
-            .expect("joint cfg");
-        let slew = cfg.position_slew_rad_s;
-        let trajectory_v = cfg.position_trajectory_velocity_rad_s;
-        let threshold = cfg.position_trajectory_threshold_rad;
-        let v_small =
-            crate::position_profile::position_profile_v_max(0.1, slew, trajectory_v, threshold);
+        virtual_ready_active_at(&mut loop_ctrl, Some((joint, f64::from(initial), 0.0)));
         loop_ctrl
-            .enter_position_hold_at(Some(joint), 0.1)
+            .enter_position_hold_at(Some(joint), target)
             .expect("hold-at");
-        let mut max_dq: f64 = 0.0;
+        let index = loop_ctrl
+            .joint_names()
+            .iter()
+            .position(|name| name == joint)
+            .expect("pitch index");
+        let mut previous = loop_ctrl
+            .position_hold_commands()
+            .expect("initial planner output")[index];
+        let mut max_speed: f64 = 0.0;
+        let mut final_reference = previous;
         for _ in 0..120 {
-            let (q_traj, dq_traj) = loop_ctrl.test_planner_state(joint).unwrap_or((0.0, 0.0));
-            max_dq = max_dq.max(dq_traj.abs());
-            replay_feedback(&mut loop_ctrl, joint, q_traj as f32, dq_traj as f32);
-            loop_ctrl.tick(None).expect("tick");
+            // Stationary raw encoder observations are independent of the planner.
+            // This verifies controller output, not simulated plant tracking.
+            replay_feedback(&mut loop_ctrl, joint, initial, 0.0);
+            loop_ctrl.supervisor_mut().bus_mut().clear_trace();
+            loop_ctrl.tick(None).expect("stationary output tick");
+            let reference = loop_ctrl.position_hold_commands().expect("planner output")[index];
+            // Literal master small-move contract: 0.15 rad/s at 200 Hz.
+            assert!(
+                (reference - previous).abs() <= 0.15 * 0.005 + 1e-9,
+                "planner jumped from {previous} to {reference}"
+            );
+            previous = reference;
+            final_reference = reference;
+            let frame = loop_ctrl
+                .supervisor()
+                .bus()
+                .frames()
+                .iter()
+                .find(|frame| (frame.id >> 24) & 0x1f == 1 && frame.id & 0xff == 1)
+                .expect("actual pitch MIT output");
+            let speed = -(f64::from(u16::from_be_bytes([frame.data[2], frame.data[3]])) / 32767.0
+                - 1.0)
+                * 50.0;
+            max_speed = max_speed.max(speed.abs());
+            assert!(
+                speed.abs() <= 0.152,
+                "wire speed exceeded small-move contract: {speed}"
+            );
+            let command =
+                -(f64::from(u16::from_be_bytes([frame.data[0], frame.data[1]])) / 32767.0 - 1.0)
+                    * 4.0
+                    * std::f64::consts::PI;
+            assert!(
+                (command - f64::from(initial)).abs() <= 0.121,
+                "wire setpoint exceeded configured lead: {command}"
+            );
         }
+        assert!(max_speed > 0.01, "test must reach moving setpoints");
         assert!(
-            max_dq <= v_small * 1.2 + 0.02,
-            "0.1 rad hold-at must use small-move profile (v_max≈{v_small}), got peak dq_traj={max_dq}"
+            (final_reference - target).abs() < (f64::from(initial) - target).abs() - 0.01,
+            "planner must progress toward target, got {final_reference}"
         );
     }
 
     #[test]
-    fn layer2_replay_return_home_stays_on_slew_profile() {
-        let mut loop_ctrl = test_loop();
-        bench_ready_active(&mut loop_ctrl);
-        let joint = "right_shoulder_pitch";
-        let cfg = loop_ctrl
-            .supervisor
-            .control
-            .control
-            .joints
-            .get(joint)
-            .expect("joint cfg");
-        let slew = cfg.position_slew_rad_s;
-        let trajectory_v = cfg.position_trajectory_velocity_rad_s;
-        let threshold = cfg.position_trajectory_threshold_rad;
-        let v_small =
-            crate::position_profile::position_profile_v_max(0.1, slew, trajectory_v, threshold);
-        loop_ctrl
-            .enter_position_hold_at(Some(joint), 0.1)
-            .expect("hold-at");
-        for _ in 0..400 {
-            let (q_traj, dq_traj) = loop_ctrl.test_planner_state(joint).unwrap_or((0.0, 0.0));
-            replay_feedback(&mut loop_ctrl, joint, q_traj as f32, dq_traj as f32);
-            loop_ctrl.tick(None).expect("tick");
-        }
-        loop_ctrl
-            .set_joint_position_setpoint(joint, 0.0)
-            .expect("return home");
-        let mut max_dq: f64 = 0.0;
-        let mut max_q_des_step: f64 = 0.0;
-        let mut prev_q_des = loop_ctrl
-            .test_planner_state(joint)
-            .map(|(q, _)| q)
-            .unwrap_or(0.0);
-        for _ in 0..400 {
-            let (q_traj, dq_traj) = loop_ctrl.test_planner_state(joint).unwrap_or((0.0, 0.0));
-            max_dq = max_dq.max(dq_traj.abs());
-            let step = (q_traj - prev_q_des).abs();
-            max_q_des_step = max_q_des_step.max(step);
-            prev_q_des = q_traj;
-            replay_feedback(&mut loop_ctrl, joint, q_traj as f32, dq_traj as f32);
-            loop_ctrl.tick(None).expect("tick");
-        }
-        assert!(
-            max_dq <= v_small * 1.2 + 0.02,
-            "return home must use small-move profile (v_max≈{v_small}), peak dq_traj={max_dq}"
-        );
-        assert!(
-            max_q_des_step < 0.05,
-            "planner reference must not jump per tick on return, max step={max_q_des_step}"
-        );
+    fn layer2_hold_at_uses_slew_profile_not_trajectory() {
+        assert_small_move_slew_output(0.0, 0.1);
+    }
+
+    #[test]
+    fn layer2_return_home_stays_on_slew_profile() {
+        assert_small_move_slew_output(0.1, 0.0);
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -2874,7 +2893,7 @@ mod tests {
     // ════════════════════════════════════════════════════════════════
 
     fn apply_override_in_impedance(
-        loop_ctrl: &mut ControlLoop<MemoryBus>,
+        loop_ctrl: &mut ControlLoop<SimulationBus>,
         joint: &str,
         ov: GainOverride,
     ) {

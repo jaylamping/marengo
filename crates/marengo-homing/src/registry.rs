@@ -21,7 +21,10 @@ pub enum RegistryError {
     Joint { joint: String, message: String },
 }
 
-/// Runtime homing registry — joint states + calibration persistence.
+/// Historical calibration and legacy local policy state.
+///
+/// Davout owns current output permission independently. This registry cannot
+/// mint it, including after a successful scalar history record.
 pub struct HomingRegistry {
     record_path: PathBuf,
     calibration: CalibrationRecord,
@@ -106,7 +109,7 @@ impl HomingRegistry {
             .any(|s| *s == JointHomingState::Faulted)
     }
 
-    pub fn set_state(&mut self, joint: &str, state: JointHomingState) {
+    pub(crate) fn set_state(&mut self, joint: &str, state: JointHomingState) {
         if self.configured_joints.iter().any(|j| j == joint) {
             self.joint_states.insert(joint.to_string(), state);
         }
@@ -153,7 +156,8 @@ impl HomingRegistry {
         Ok(health)
     }
 
-    /// Record successful manual or Hall homing calibration.
+    /// Record supplied legacy history and local policy state.
+    /// This does not prove device reference or grant Davout output permission.
     #[allow(clippy::too_many_arguments)]
     pub fn record_verification(
         &mut self,
@@ -218,30 +222,6 @@ impl HomingRegistry {
                     ),
                 });
             }
-        }
-        Ok(())
-    }
-
-    /// Mark configured joints verified without a live encoder check (unit tests; no disk write).
-    pub fn bench_mark_all_verified(&mut self, motors: &[MotorEntry]) -> Result<(), RegistryError> {
-        for motor in motors {
-            if !self.configured_joints.iter().any(|j| j == &motor.joint) {
-                continue;
-            }
-            let entry = JointCalibration {
-                joint: motor.joint.clone(),
-                device_id: motor.device_id,
-                can_interface: motor.can_interface.clone(),
-                method: "bench_test".to_string(),
-                home_offset_rad: 0.0,
-                verified_position_rad: 0.0,
-                sign_test_passed: true,
-                timestamp_utc: chrono::Utc::now().to_rfc3339(),
-                config_revision: None,
-                operator: "bench_test".to_string(),
-            };
-            self.calibration.upsert(entry);
-            self.set_state(&motor.joint, JointHomingState::Verified);
         }
         Ok(())
     }

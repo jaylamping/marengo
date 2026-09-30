@@ -14,6 +14,10 @@
 //! - [`danger_zones`](marengo_config::DangerZoneRule) from `config/control.yaml` (clamp or fault on rule hit).
 //! - Comm watchdog: stale feedback → [`DavoutError::CommWatchdog`].
 //! - Persistent [`SafetySnapshot`]: device/runtime faults survive pose replacement, disable and replay.
+//! - Private current-reference authority: history, cached pose and public scalar verification
+//!   cannot authorize Ready, scoped Enable or motion. Physical acquisition is unsupported.
+//! - Closed [`simulation::SimulationBus`] INITIAL virtual fixtures share admission/output logic;
+//!   they do not qualify reference acquisition, SetZero correlation or persistence ordering.
 //! - [`Supervisor::disable_all`]: all-address best-effort stop with honest delivery evidence.
 //! - [`refresh_feedback`]: blocking poll up to `feedback_poll_budget_us` (REPL / set-zero).
 //! - [`drain_feedback`]: non-blocking RX queue drain (Berthier control loop).
@@ -47,12 +51,15 @@
 //! See [safety.md](../../docs/safety.md), [ADR 0004](../../docs/decisions/0004-control-modes-and-mit.md),
 //! and [ADR 0009](../../docs/decisions/0009-dynamic-position-limit-envelope.md).
 //! Fault evidence/authority and unqualified recovery are defined by ADR 0020.
+//! Reference admission and the isolated virtual realm are defined by ADR 0023.
 
 pub use armee_kinematics::JointLimitPolicy;
 
 mod active_reporting;
 mod faults;
 mod limit_envelope;
+mod reference;
+pub mod simulation;
 
 pub use active_reporting::{ActiveReportingLeaseError, ActiveReportingState, DEFAULT_LEASE_TTL};
 use faults::{bounded_message, FaultAuthority};
@@ -64,6 +71,7 @@ pub use faults::{
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 /// Free-drive / Hardware-page sensing TTL for `RobotState` presence.
@@ -85,9 +93,8 @@ use marengo_config::{
     validate_robot_control_joint_coverage, validate_safety_config, ControlConfigFile,
     HomingConfigFile, MotorEntry, MotorType, MotorsConfigFile, RobotConfigFile,
 };
-use marengo_homing::{
-    select_enable_targets, verify_manual_reference, HomingRegistry, JointFacetInput, VerifyError,
-};
+use marengo_homing::{select_enable_targets, HomingRegistry, JointFacetInput};
+use reference::ReferenceAuthority;
 use robstride::AddressedMitCommand;
 use robstride::{
     DriveMode, FeedbackEvent, FeedbackObservation, MalformedFeedback, MitCommand, MotorState,
@@ -124,7 +131,7 @@ pub struct JointCommand {
 
 /// Joint-space feedback sample for one actuated joint.
 ///
-/// Cache values are already joint-space after [`Supervisor`] poll / synthetic insert.
+/// Cache values are already joint-space after the installed-policy [`Supervisor`] poll.
 /// Callers read this facade; they do not address the bus or re-apply direction/gear.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct JointFeedback {
@@ -204,6 +211,8 @@ pub enum DavoutError {
     Homing { message: String },
     #[error("homing verify on {joint}: {message}")]
     HomingVerify { joint: String, message: String },
+    #[error("{operation}: qualified current-reference capability is unavailable")]
+    ReferenceUnsupported { operation: &'static str },
     #[error("wrong-sign watchdog: gravity-comp torque opposes motion for {ticks} ticks on joint {joint}")]
     WrongSignWatchdog { joint: String, ticks: u32 },
     #[error("runtime limit changes are refused while supervisor is ACTIVE")]
@@ -225,12 +234,6 @@ fn map_lease_error(err: ActiveReportingLeaseError) -> DavoutError {
             message: format!("active reporting lease: {err:?}"),
         },
     }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum EnablePolicy {
-    Normal,
-    ZeroCalibration,
 }
 
 const FEEDBACK_VELOCITY_LIMIT_TRIPS: u8 = 3;
@@ -263,6 +266,10 @@ pub struct Supervisor<B: MotorBus> {
     pub control: ControlConfigFile,
     pub homing_config: HomingConfigFile,
     homing: HomingRegistry,
+    reference_authority: ReferenceAuthority,
+    reference_realm_matches: Option<fn(&B, &Arc<()>) -> bool>,
+    /// Installed routes remain stop targets even if a caller corrupts public policy.
+    stop_motors: Vec<MotorEntry>,
     motor_types: HashMap<MotorAddress, MotorType>,
     bus: B,
     motor_states: HashMap<MotorAddress, MotorState>,
@@ -355,10 +362,13 @@ impl<B: MotorBus> Supervisor<B> {
             limits,
             robot,
             urdf_robot,
+            stop_motors: motors.motors.clone(),
             motors,
             control,
             homing_config,
             homing,
+            reference_authority: ReferenceAuthority::default(),
+            reference_realm_matches: None,
             motor_types,
             bus,
             motor_states: HashMap::new(),
@@ -389,17 +399,23 @@ impl<B: MotorBus> Supervisor<B> {
         &self.homing
     }
 
-    pub fn homing_registry_mut(&mut self) -> &mut HomingRegistry {
-        &mut self.homing
-    }
-
     pub fn joint_homing_state(&self, joint: &str) -> JointHomingState {
-        self.homing.joint_state(joint)
+        if self.has_latched_fault() {
+            self.reference_authority.revoke();
+            return JointHomingState::Faulted;
+        }
+        if self.reference_binding_valid() && self.reference_authority.contains(joint) {
+            JointHomingState::Verified
+        } else {
+            JointHomingState::Unhomed
+        }
     }
 
     /// Whether Davout currently has this joint's drive enabled (ACTIVE + in set).
     pub fn joint_drive_active(&self, joint: &str) -> bool {
-        self.mode == OperationalMode::Active && self.active_joints.contains(joint)
+        self.mode == OperationalMode::Active
+            && self.active_joints.contains(joint)
+            && self.joint_homing_state(joint) == JointHomingState::Verified
     }
 
     /// Joints currently in the Active enable set (empty when not Active).
@@ -438,6 +454,7 @@ impl<B: MotorBus> Supervisor<B> {
         if self.mode == OperationalMode::Active {
             return Err(DavoutError::LimitPatchActive);
         }
+        self.reference_authority.revoke();
         validate_control_against_limits(&self.robot, &self.motors, &self.control)?;
         let limits = build_limits(&self.robot, &self.motors, &self.control, &self.urdf_robot)?;
         self.limits = limits;
@@ -498,41 +515,6 @@ impl<B: MotorBus> Supervisor<B> {
         self.joint_feedback(joint).map(|s| s.torque_nm)
     }
 
-    /// Override synthetic feedback for one joint (unit tests / replay without CAN RX).
-    pub fn set_synthetic_joint_feedback(
-        &mut self,
-        joint: &str,
-        position_rad: f32,
-        velocity_rad_s: f32,
-    ) -> Result<(), DavoutError> {
-        let motor = motor_for_joint(&self.motors, joint)
-            .ok_or_else(|| DavoutError::UnknownJoint {
-                joint: joint.to_string(),
-            })?
-            .clone();
-        let address = MotorAddress::from(&motor);
-        let now = Instant::now();
-        if !position_rad.is_finite() || !velocity_rad_s.is_finite() {
-            return Err(DavoutError::InvalidFeedback {
-                joint: joint.to_string(),
-                message: "synthetic position/velocity must be finite".into(),
-            });
-        }
-        self.invalid_feedback.remove(&address);
-        self.motor_states.insert(
-            address,
-            MotorState {
-                position_rad,
-                velocity_rad_s,
-                torque_nm: 0.0,
-                temperature_c: 0.0,
-                fault: 0,
-                updated: Some(now),
-            },
-        );
-        Ok(())
-    }
-
     /// Mark supervisor Ready when every configured joint is Verified.
     pub fn set_homing_complete(&mut self) -> Result<(), DavoutError> {
         self.require_fault_clear()?;
@@ -542,122 +524,148 @@ impl<B: MotorBus> Supervisor<B> {
             });
         }
         if self.hardware_estop {
-            return Ok(());
+            return Err(DavoutError::Estop);
         }
-        self.homing
-            .require_ready()
-            .map_err(|e| DavoutError::Homing {
-                message: e.to_string(),
-            })?;
+        let joints = self.robot.robot.joints.clone();
+        self.ensure_reference_for(&joints)?;
         self.mode = OperationalMode::Ready;
         self.sync_active_reporting();
-        debug!("supervisor READY (all joints verified)");
         Ok(())
     }
 
-    /// Verify encoder reading after `set_zero_position` for manual-reference homing.
+    /// Cached pose cannot qualify SetZero; legacy verification refuses before persistence.
     pub fn verify_zero_after_set(
         &mut self,
         joint: &str,
-        operator: &str,
+        _operator: &str,
         sign_test_passed: bool,
     ) -> Result<f64, DavoutError> {
-        let motor = motor_for_joint(&self.motors, joint)
-            .ok_or_else(|| DavoutError::UnknownJoint {
-                joint: joint.to_string(),
-            })?
-            .clone();
-        let effective = self
-            .homing_config
-            .homing
-            .effective_joint(joint)
-            .ok_or_else(|| DavoutError::Homing {
-                message: format!("joint {joint} missing from homing.yaml"),
-            })?;
-        let position = self
-            .joint_position_rad(joint)
-            .ok_or_else(|| DavoutError::HomingVerify {
-                joint: joint.to_string(),
-                message: "no feedback after set-zero".to_string(),
-            })?;
-        let lim = self
-            .limits
-            .get(joint)
-            .ok_or_else(|| DavoutError::UnknownJoint {
-                joint: joint.to_string(),
-            })?;
-        verify_manual_reference(
-            &mut self.homing,
-            &motor,
-            &effective,
-            position,
-            lim.hard_lower(),
-            lim.hard_upper(),
-            sign_test_passed,
-            operator,
-            None,
-        )
-        .map_err(|e| match e {
-            VerifyError::Registry(r) => DavoutError::Homing {
-                message: r.to_string(),
-            },
-            other => DavoutError::HomingVerify {
-                joint: joint.to_string(),
-                message: other.to_string(),
-            },
-        })?;
-        Ok(position)
+        self.reference_request_preflight(joint, Some(sign_test_passed))?;
+        Err(DavoutError::ReferenceUnsupported {
+            operation: "cached set-zero verification",
+        })
     }
 
-    /// Free-drive calibration path for Consul/MCP: validate joint, enable if needed,
-    /// firmware SetZero, verify, then always disable.
+    /// Legacy calibration validates target/method/sign, then refuses unqualified
+    /// acquisition before any arming, SetZero or persistence.
     ///
     /// Refuses when already [`OperationalMode::Active`] so success cannot
     /// `disable_all` out from under GravityComp / hold.
     pub fn calibrate_joint_zero(
         &mut self,
         joint: &str,
-        operator: &str,
+        _operator: &str,
         sign_test_passed: bool,
     ) -> Result<f64, DavoutError> {
         self.require_fault_clear()?;
         let joint = joint.trim();
-        if joint.is_empty() {
-            return Err(DavoutError::UnknownJoint {
-                joint: joint.to_string(),
-            });
-        }
-        // Resolve before enabling so UnknownJoint cannot leave the bus ACTIVE.
-        let _motor =
-            motor_for_joint(&self.motors, joint).ok_or_else(|| DavoutError::UnknownJoint {
-                joint: joint.to_string(),
-            })?;
+        self.reference_request_preflight(joint, Some(sign_test_passed))?;
         if self.mode == OperationalMode::Active {
             return Err(DavoutError::Homing {
                 message: "set-zero refused while ACTIVE; disable motors first".into(),
             });
         }
+        Err(DavoutError::ReferenceUnsupported {
+            operation: "reference calibration",
+        })
+    }
 
-        // Enable is inside the closure so a mid-bus enable failure still runs
-        // disable_all (drives may be hardware-enabled while mode is still Disabled).
-        let result = (|| {
-            self.request_enable_for_calibration()?;
-            self.set_zero_position(joint)?;
-            self.refresh_feedback()?;
-            self.verify_zero_after_set(joint, operator, sign_test_passed)
-        })();
+    /// Current reference generation, distinct from ordinary motion-stop generation.
+    pub fn reference_generation(&self) -> u64 {
+        self.reference_binding_valid();
+        self.reference_authority.generation()
+    }
 
-        if let Err(disable_err) = self.disable_all() {
-            tracing::warn!(
-                error = %disable_err,
-                joint = %joint,
-                "disable_all after set-zero failed"
-            );
-            if result.is_ok() {
-                return Err(disable_err);
+    fn reference_binding_valid(&self) -> bool {
+        if self.has_latched_fault() || self.hardware_estop {
+            self.reference_authority.revoke();
+            return false;
+        }
+        if validate_safety_config(
+            &self.robot,
+            &self.motors,
+            &self.control,
+            &self.homing_config,
+        )
+        .is_err()
+        {
+            self.reference_authority.revoke();
+            return false;
+        }
+        let realm_matches = match (
+            self.reference_authority.realm(),
+            self.reference_realm_matches,
+        ) {
+            (Some(realm), Some(matches)) => matches(&self.bus, realm),
+            _ => false,
+        };
+        if !realm_matches {
+            if self.reference_authority.realm().is_some() {
+                self.reference_authority.revoke();
+            }
+            return false;
+        }
+        self.reference_authority
+            .validate_binding(&self.motors, &self.homing_config, &self.control)
+    }
+
+    fn ensure_reference_for(&mut self, joints: &[String]) -> Result<(), DavoutError> {
+        self.require_fault_clear()?;
+        if !self.reference_binding_valid() {
+            if self.mode == OperationalMode::Active {
+                let _ = self.disable_all();
+            }
+            return Err(DavoutError::Homing { message: "current reference is unavailable or permanently revoked; qualified acquisition is unsupported".into() });
+        }
+        for joint in joints {
+            if !self.reference_authority.contains(joint) {
+                return Err(DavoutError::Homing {
+                    message: format!("joint {joint}: no private current-reference permission"),
+                });
             }
         }
-        result
+        Ok(())
+    }
+
+    fn reference_request_preflight(
+        &self,
+        joint: &str,
+        sign_test: Option<bool>,
+    ) -> Result<(), DavoutError> {
+        let _ = self.reference_binding_valid();
+        self.require_fault_clear()?;
+        if self.hardware_estop {
+            return Err(DavoutError::Estop);
+        }
+        let _motor =
+            motor_for_joint(&self.motors, joint).ok_or_else(|| DavoutError::UnknownJoint {
+                joint: joint.into(),
+            })?;
+        validate_safety_config(
+            &self.robot,
+            &self.motors,
+            &self.control,
+            &self.homing_config,
+        )?;
+        let policy = self
+            .homing_config
+            .homing
+            .effective_joint(joint)
+            .ok_or_else(|| DavoutError::Homing {
+                message: format!("joint {joint} missing homing policy"),
+            })?;
+        if policy.method != marengo_config::HomingMethod::ManualReference {
+            return Err(DavoutError::ReferenceUnsupported {
+                operation: "configured reference method",
+            });
+        }
+        if policy.sign_test_required && sign_test == Some(false) {
+            return Err(DavoutError::HomingVerify {
+                joint: joint.into(),
+                message: "sign test required before reference request".into(),
+            });
+        }
+        Ok(())
     }
 
     pub fn mode(&self) -> OperationalMode {
@@ -810,31 +818,13 @@ impl<B: MotorBus> Supervisor<B> {
         }
     }
 
-    /// Seed zero feedback for all configured motors (unit tests without CAN RX).
-    pub fn seed_synthetic_feedback(&mut self) {
-        let now = Instant::now();
-        for motor in &self.motors.motors {
-            self.invalid_feedback.remove(&MotorAddress::from(motor));
-            self.motor_states.insert(
-                MotorAddress::from(motor),
-                MotorState {
-                    position_rad: 0.0,
-                    velocity_rad_s: 0.0,
-                    torque_nm: 0.0,
-                    temperature_c: 0.0,
-                    fault: 0,
-                    updated: Some(now),
-                },
-            );
-        }
-    }
-
     pub fn clear_motor_states(&mut self) {
         self.motor_states.clear();
     }
 
-    pub fn bus_mut(&mut self) -> &mut B {
-        &mut self.bus
+    /// Read-only transport diagnostics; physical transmit/replacement is private.
+    pub fn bus(&self) -> &B {
+        &self.bus
     }
 
     pub fn set_hardware_estop(&mut self, asserted: bool) {
@@ -857,30 +847,8 @@ impl<B: MotorBus> Supervisor<B> {
         }
     }
 
-    pub fn set_homing_complete_unchecked(&mut self) {
-        if self.hardware_estop || self.has_latched_fault() || self.mode == OperationalMode::Active {
-            return;
-        }
-        self.mode = OperationalMode::Ready;
-        self.sync_active_reporting();
-        debug!("supervisor READY (unchecked — deprecated)");
-    }
-
     #[tracing::instrument(skip(self))]
     pub fn request_enable(&mut self, enable: bool) -> Result<(), DavoutError> {
-        self.request_enable_with_policy(enable, EnablePolicy::Normal)
-    }
-
-    /// Enable drives for firmware `SetZero` before any joint is Verified.
-    pub fn request_enable_for_calibration(&mut self) -> Result<(), DavoutError> {
-        self.request_enable_with_policy(true, EnablePolicy::ZeroCalibration)
-    }
-
-    fn request_enable_with_policy(
-        &mut self,
-        enable: bool,
-        policy: EnablePolicy,
-    ) -> Result<(), DavoutError> {
         if !enable {
             return self.disable_all();
         }
@@ -888,48 +856,50 @@ impl<B: MotorBus> Supervisor<B> {
         if self.hardware_estop {
             return Err(DavoutError::Estop);
         }
-        if enable {
-            if self.mode == OperationalMode::Active {
-                if policy == EnablePolicy::ZeroCalibration {
-                    return Err(DavoutError::Homing {
-                        message: "calibration enable refused while ACTIVE; disable first".into(),
-                    });
-                }
-                return Ok(());
-            }
-            match (self.mode, policy) {
-                (OperationalMode::Ready, _) => {}
-                (OperationalMode::Disabled, EnablePolicy::ZeroCalibration) => {}
-                (OperationalMode::Disabled, EnablePolicy::Normal) => {
-                    self.homing
-                        .require_ready()
-                        .map_err(|e| DavoutError::Homing {
-                            message: format!("cannot enable: {e}"),
-                        })?;
-                    return Err(DavoutError::NotActive { mode: self.mode });
-                }
-                (mode, _) => {
-                    return Err(DavoutError::NotActive { mode });
-                }
-            }
-            let targets: Vec<String> = self.motors.motors.iter().map(|m| m.joint.clone()).collect();
-            self.enable_targets_inner(&targets)?;
+        let targets = if self.mode == OperationalMode::Active {
+            self.active_joints.iter().cloned().collect::<Vec<_>>()
         } else {
-            self.disable_all()?;
+            self.robot.robot.joints.clone()
+        };
+        self.ensure_reference_for(&targets)?;
+        if self.mode == OperationalMode::Active {
+            return Ok(());
         }
-        Ok(())
+        if self.mode != OperationalMode::Ready {
+            return Err(DavoutError::NotActive { mode: self.mode });
+        }
+        self.enable_targets_inner(&targets)
+    }
+
+    /// Legacy calibration arming is unqualified and refuses before transmitting.
+    pub fn request_enable_for_calibration(&mut self) -> Result<(), DavoutError> {
+        self.require_fault_clear()?;
+        if self.hardware_estop {
+            return Err(DavoutError::Estop);
+        }
+        if self.mode == OperationalMode::Active {
+            return Err(DavoutError::Homing {
+                message: "calibration enable refused while ACTIVE; disable first".into(),
+            });
+        }
+        Err(DavoutError::ReferenceUnsupported {
+            operation: "legacy calibration enable",
+        })
     }
 
     /// Enable only the listed joints. On any enable/run-mode failure, [`disable_all`].
     ///
-    /// Does not require supervisor Ready / all-joint Verified — callers
-    /// MUST pre-filter eligibility ([`Self::resolve_enable_targets`]). Empty targets are
-    /// rejected. While Active, a different joint set is refused
+    /// Every requested joint needs private current-reference authority. Empty targets
+    /// are rejected. While Active, a different joint set is refused
     /// ([`DavoutError::ActiveSetChangeRefused`]); operators must Disable then Enable.
     pub fn enable_targets(&mut self, joints: &[String]) -> Result<(), DavoutError> {
         self.require_fault_clear()?;
         if self.hardware_estop {
             return Err(DavoutError::Estop);
+        }
+        if self.mode == OperationalMode::Active {
+            let active: Vec<_> = self.active_joints.iter().cloned().collect();
+            self.ensure_reference_for(&active)?;
         }
         if joints.is_empty() {
             return Err(DavoutError::Homing {
@@ -943,6 +913,7 @@ impl<B: MotorBus> Supervisor<B> {
                 });
             }
         }
+        self.ensure_reference_for(joints)?;
         if self.mode == OperationalMode::Active {
             let want: HashSet<&str> = joints.iter().map(String::as_str).collect();
             let have: HashSet<&str> = self.active_joints.iter().map(String::as_str).collect();
@@ -1018,6 +989,7 @@ impl<B: MotorBus> Supervisor<B> {
 
     fn enable_targets_inner(&mut self, joints: &[String]) -> Result<(), DavoutError> {
         self.require_fault_clear()?;
+        self.ensure_reference_for(joints)?;
         // Status has no command-generation field. Drain already queued traffic
         // before activation; only later received poses may authorize this session.
         self.poll_feedback(Duration::ZERO)?;
@@ -1043,6 +1015,7 @@ impl<B: MotorBus> Supervisor<B> {
             // so its later decode time cannot fabricate post-enable pose.
             // A receive failure here uses the same rollback as a write failure.
             self.poll_feedback(Duration::ZERO)?;
+            self.ensure_reference_for(joints)?;
             self.active_joints = joints.iter().cloned().collect();
             self.mode = OperationalMode::Active;
             self.active_since = Some(Instant::now());
@@ -1096,6 +1069,13 @@ impl<B: MotorBus> Supervisor<B> {
     }
 
     fn poll_feedback(&mut self, budget: Duration) -> Result<usize, DavoutError> {
+        // Observe policy changes before projecting raw pose data. Restoring a
+        // public field after this drain must not restore a revoked reference.
+        let lost_active_reference =
+            self.mode == OperationalMode::Active && !self.reference_binding_valid();
+        if self.mode != OperationalMode::Active {
+            let _ = self.reference_binding_valid();
+        }
         let quiet = self.feedback_drain_quiet();
         let report = self
             .bus
@@ -1181,8 +1161,7 @@ impl<B: MotorBus> Supervisor<B> {
             };
             let address = observation.address;
             let Some(motor) = self
-                .motors
-                .motors
+                .stop_motors
                 .iter()
                 .find(|m| MotorAddress::from(*m) == address)
                 .cloned()
@@ -1379,6 +1358,16 @@ impl<B: MotorBus> Supervisor<B> {
         }
         if first_transition {
             let _ = self.disable_all();
+        }
+        if lost_active_reference {
+            if self.mode == OperationalMode::Active {
+                let _ = self.disable_all();
+            }
+            if first_error.is_none() {
+                first_error = Some(DavoutError::Homing {
+                    message: "current reference was revoked before feedback projection".into(),
+                });
+            }
         }
         match first_error {
             Some(error) => Err(error),
@@ -1729,6 +1718,11 @@ impl<B: MotorBus> Supervisor<B> {
         if self.hardware_estop {
             return Err(DavoutError::Estop);
         }
+        for (cmd, _) in &cmds {
+            validate_mit_command(cmd)?;
+        }
+        let active: Vec<_> = self.active_joints.iter().cloned().collect();
+        self.ensure_reference_for(&active)?;
         let mut unique = HashSet::new();
         for (cmd, motor) in &cmds {
             validate_mit_command(cmd)?;
@@ -1818,6 +1812,8 @@ impl<B: MotorBus> Supervisor<B> {
         if self.hardware_estop {
             return Err(DavoutError::Estop);
         }
+        let active: Vec<_> = self.active_joints.iter().cloned().collect();
+        self.ensure_reference_for(&active)?;
         self.require_active_joint(&cmd.joint)?;
         if !self.control.control.bench.allow_firmware_speed_mode {
             return Err(DavoutError::FirmwareSpeedModeDisabled);
@@ -1872,36 +1868,26 @@ impl<B: MotorBus> Supervisor<B> {
         Ok(())
     }
 
-    /// Set firmware zero for a joint after mechanical homing.
+    /// Raw firmware SetZero is unavailable without a qualified owner transaction.
     pub fn set_zero_position(&mut self, joint: &str) -> Result<(), DavoutError> {
-        self.require_fault_clear()?;
-        if self.hardware_estop {
-            return Err(DavoutError::Estop);
-        }
-        self.require_active_joint(joint)?;
-        let motor = motor_for_joint(&self.motors, joint)
-            .ok_or_else(|| DavoutError::UnknownJoint {
-                joint: joint.to_string(),
-            })?
-            .clone();
-        let address = MotorAddress::from(&motor);
-        if let Err(error) = self.bus.set_zero_position_at(&address) {
-            let error = DavoutError::Bus(error);
-            self.stop_after_runtime_error(&error);
-            return Err(error);
-        }
-        Ok(())
+        self.reference_request_preflight(joint, None)?;
+        Err(DavoutError::ReferenceUnsupported {
+            operation: "raw firmware SetZero",
+        })
     }
 
     /// Disable all drives (best-effort zero speed, zero-torque MIT, then DISABLE).
     #[tracing::instrument(skip(self))]
     pub fn disable_all(&mut self) -> Result<(), DavoutError> {
+        if self.has_latched_fault() {
+            self.reference_authority.revoke();
+        }
         let generation = self.fault_authority.begin_stop();
         let mut report = StopReport {
             generation,
-            attempts: Vec::with_capacity(self.motors.motors.len() * 3),
+            attempts: Vec::with_capacity(self.stop_motors.len() * 3),
         };
-        for motor in &self.motors.motors {
+        for motor in &self.stop_motors {
             let address = MotorAddress::from(motor);
             let result = self.bus.speed_control_at(&address, 0.0);
             report.attempts.push(StopAttempt {
@@ -1954,6 +1940,7 @@ impl<B: MotorBus> Supervisor<B> {
         debug!("supervisor DISABLED");
         let failed_writes = report.failed_writes();
         if failed_writes > 0 {
+            self.reference_authority.revoke();
             self.fault_authority.record(
                 FaultClass::StopDelivery,
                 None,
@@ -2190,6 +2177,7 @@ impl<B: MotorBus> Supervisor<B> {
         }
         let torque_cap = lim
             .tau_ff_max
+            .min(motor.bench.torque_limit_nm)
             .min(defaults.tau_ff_max_nm)
             .min(danger_zone_torque_cap);
         out.torque_ff_nm = rate_limit_tau_ff(
@@ -2598,75 +2586,135 @@ fn limit_margin_from_config(
 }
 
 #[cfg(test)]
+#[path = "../../marengo-homing/tests/support/mod.rs"]
+mod test_directory;
+
+#[cfg(test)]
 mod tests {
     #![allow(clippy::expect_used)]
 
-    use marengo_config::LimitPatch;
-    use robstride::{
-        CanBus, CanFrame, CommunicationType, MemoryBus, ReceiveAttempt, ReceivedCanFrame,
-        TimedCanFrame,
+    use crate::simulation::{
+        InitialVirtualReference, SimulationBus, TxMatcher, TxOccurrence, TxRule,
     };
+    use marengo_config::LimitPatch;
+    use robstride::{CanFrame, CommunicationType, ReceivedCanFrame};
 
     use super::*;
-
-    #[derive(Default)]
-    struct RoutedMemoryBus {
-        tx: Vec<(MotorAddress, CanFrame)>,
-        rx: std::collections::VecDeque<ReceivedCanFrame>,
-    }
-
-    impl CanBus for RoutedMemoryBus {
-        fn send_frame(&mut self, frame: &CanFrame) -> Result<(), BusError> {
-            self.tx.push((MotorAddress::new("can0", 0), frame.clone()));
-            Ok(())
-        }
-
-        fn send_frame_to(
-            &mut self,
-            address: &MotorAddress,
-            frame: &CanFrame,
-        ) -> Result<(), BusError> {
-            self.tx.push((address.clone(), frame.clone()));
-            Ok(())
-        }
-
-        fn recv_one_nonblocking(&mut self) -> Result<ReceiveAttempt, BusError> {
-            Ok(self
-                .rx
-                .pop_front()
-                .map_or(ReceiveAttempt::Idle, |received| {
-                    ReceiveAttempt::Frame(TimedCanFrame {
-                        received_at: Instant::now(),
-                        received,
-                    })
-                }))
-        }
-    }
-
-    impl MotorBus for RoutedMemoryBus {}
 
     fn repo_root() -> std::path::PathBuf {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
     }
 
-    fn bench_verify_all_joints<B: MotorBus>(sup: &mut Supervisor<B>) {
-        let motors = sup.motors.motors.clone();
-        sup.homing_registry_mut()
-            .bench_mark_all_verified(&motors)
-            .expect("bench homing");
+    use crate::test_directory as directory;
+
+    fn bench_verify_all_joints(sup: &mut Supervisor<SimulationBus>) {
+        for motor in &sup.motors.motors {
+            assert_eq!(
+                sup.joint_homing_state(&motor.joint),
+                JointHomingState::Verified,
+                "declared INITIAL virtual fixture"
+            );
+        }
     }
 
-    fn bench_ready_active<B: MotorBus>(sup: &mut Supervisor<B>) {
+    fn bench_active(sup: &mut Supervisor<SimulationBus>) {
         bench_verify_all_joints(sup);
         sup.set_homing_complete().expect("ready");
         sup.request_enable(true).expect("enable");
-        sup.seed_synthetic_feedback();
+    }
+
+    fn receive_pose(sup: &mut Supervisor<SimulationBus>, joint: &str, q: f32, dq: f32) {
+        let motor = motor_for_joint(&sup.motors, joint).expect("motor").clone();
+        let scale = f32::from(motor.direction) * motor.gear_ratio as f32;
+        let frame = status_frame_motor_space(
+            motor.device_id,
+            motor.motor_type,
+            q * scale,
+            dq * scale,
+            0.0,
+            25.0,
+        );
+        sup.bus
+            .queue_received(ReceivedCanFrame::full_data(
+                Some(motor.can_interface),
+                frame,
+            ))
+            .expect("finite raw fixture");
+        sup.drain_feedback().expect("real pose receive");
+    }
+
+    fn initial_poses(sup: &mut Supervisor<SimulationBus>, target: &str, q: f32, dq: f32) {
+        for motor in sup.motors.motors.clone() {
+            let (q, dq) = if motor.joint == target {
+                (q, dq)
+            } else {
+                (0.0, 0.0)
+            };
+            let scale = f32::from(motor.direction) * motor.gear_ratio as f32;
+            sup.bus
+                .queue_received(ReceivedCanFrame::full_data(
+                    Some(motor.can_interface),
+                    status_frame_motor_space(
+                        motor.device_id,
+                        motor.motor_type,
+                        q * scale,
+                        dq * scale,
+                        0.0,
+                        25.0,
+                    ),
+                ))
+                .expect("finite raw fixture");
+        }
+        sup.drain_feedback().expect("real initial poses");
+    }
+
+    fn bench_ready_active(sup: &mut Supervisor<SimulationBus>) {
+        bench_active(sup);
+        initial_poses(sup, "", 0.0, 0.0);
+    }
+
+    fn installed_policy(
+        motors: &MotorsConfigFile,
+        control: &ControlConfigFile,
+    ) -> Supervisor<SimulationBus> {
+        let fixture = directory::TestDirectory::new("davout-unit-policy");
+        std::fs::create_dir_all(fixture.path().join("config")).expect("config");
+        for name in ["robot.yaml", "homing.yaml"] {
+            std::fs::copy(
+                repo_root().join("config").join(name),
+                fixture.path().join("config").join(name),
+            )
+            .expect("policy");
+        }
+        std::fs::write(
+            fixture.path().join("config/motors.yaml"),
+            serde_yaml::to_string(motors).expect("motors YAML"),
+        )
+        .expect("motors");
+        std::fs::write(
+            fixture.path().join("config/control.yaml"),
+            serde_yaml::to_string(control).expect("control YAML"),
+        )
+        .expect("control");
+        std::fs::create_dir_all(fixture.path().join("assets/urdf")).expect("assets");
+        std::fs::copy(
+            repo_root().join("assets/urdf/marengo.urdf"),
+            fixture.path().join("assets/urdf/marengo.urdf"),
+        )
+        .expect("URDF");
+        Supervisor::from_simulation_with_calibration_record_path(
+            fixture.path(),
+            SimulationBus::default(),
+            fixture.path().join("history.yaml"),
+            InitialVirtualReference::AllConfigured,
+        )
+        .expect("installed initial policy")
     }
 
     #[test]
     fn commissioning_wire_publishes_drive_active_and_homing() {
-        let bus = MemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let bus = SimulationBus::default();
+        let sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
         let joint = "right_elbow_pitch".to_string();
         let (homing, drive, ool) = sup.joint_commissioning_wire(&joint);
         assert_eq!(
@@ -2676,6 +2724,12 @@ mod tests {
         assert!(!drive);
         assert!(!ool);
 
+        let mut sup = Supervisor::from_simulation(
+            repo_root(),
+            SimulationBus::default(),
+            InitialVirtualReference::AllConfigured,
+        )
+        .expect("virtual initial fixture");
         bench_ready_active(&mut sup);
         let (homing, drive, ool) = sup.joint_commissioning_wire(&joint);
         assert_eq!(
@@ -2693,8 +2747,10 @@ mod tests {
 
     #[test]
     fn enable_targets_sets_active_joints_and_drive_active() {
-        let bus = MemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
         let a = "right_shoulder_roll".to_string();
         let b = "right_shoulder_pitch".to_string();
         sup.enable_targets(&[a.clone()]).expect("enable one");
@@ -2709,8 +2765,10 @@ mod tests {
 
     #[test]
     fn enable_targets_refuses_different_set_while_active() {
-        let bus = MemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
         let a = "right_shoulder_roll".to_string();
         let b = "right_shoulder_pitch".to_string();
         sup.enable_targets(&[a.clone()]).expect("enable one");
@@ -2728,40 +2786,63 @@ mod tests {
 
     #[test]
     fn enable_targets_partial_failure_disables_all() {
-        let motor_count = Supervisor::from_repo(repo_root(), MemoryBus::default())
-            .expect("supervisor")
-            .motors
-            .motors
-            .len();
-        assert!(motor_count >= 2);
-        let bus = FailAfterNEnableBus {
-            inner: MemoryBus::default(),
-            succeed: 1,
-            enable_calls: 0,
-            disable_calls: 0,
-        };
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
-        let joints: Vec<String> = sup
+        let mut sup = Supervisor::from_simulation(
+            repo_root(),
+            SimulationBus::default(),
+            InitialVirtualReference::AllConfigured,
+        )
+        .expect("fixture");
+        sup.bus.clear_trace();
+        let rule = sup
+            .bus
+            .add_tx_rule(TxRule {
+                matcher: TxMatcher {
+                    communication_type: Some(3),
+                    ..Default::default()
+                },
+                occurrence: TxOccurrence::Nth(2),
+                receive: vec![],
+                send_error: Some("second Enable delivery uncertain".into()),
+            })
+            .expect("rule");
+        let joints: Vec<_> = sup
             .motors
             .motors
             .iter()
             .take(2)
             .map(|m| m.joint.clone())
             .collect();
-        let err = sup.enable_targets(&joints).expect_err("partial");
-        assert!(matches!(err, DavoutError::Bus(_)), "got {err}");
+        assert!(matches!(
+            sup.enable_targets(&joints),
+            Err(DavoutError::Bus(_))
+        ));
+        assert_eq!(sup.bus.rule_trigger_count(rule), 1, "reached second Enable");
         assert_eq!(sup.mode(), OperationalMode::Disabled);
         assert!(sup.active_joints().is_empty());
-        assert!(
-            sup.bus.disable_calls >= motor_count,
-            "disable_all after partial enable"
+        let stopped: Vec<_> = sup
+            .bus
+            .frames()
+            .iter()
+            .filter(|f| f.id >> 24 == 4)
+            .map(|f| f.id as u8)
+            .collect();
+        assert_eq!(
+            stopped,
+            sup.motors
+                .motors
+                .iter()
+                .map(|m| m.device_id)
+                .collect::<Vec<_>>(),
+            "every installed motor stop attempted"
         );
     }
 
     #[test]
     fn mit_command_rejected_outside_active_joints() {
-        let bus = MemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
         let a = "right_shoulder_roll".to_string();
         let b = "right_shoulder_pitch".to_string();
         sup.enable_targets(&[a.clone()]).expect("enable");
@@ -2789,16 +2870,20 @@ mod tests {
 
     #[test]
     fn enable_targets_rejects_empty() {
-        let bus = MemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
         let err = sup.enable_targets(&[]).expect_err("empty");
         assert!(matches!(err, DavoutError::Homing { .. }));
     }
 
     #[test]
     fn measured_position_fault_marks_out_of_limits() {
-        let bus = MemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
         bench_ready_active(&mut sup);
         let joint = "right_elbow_pitch".to_string();
         let lim = *sup.joint_limit_policy(&joint).expect("policy");
@@ -2825,8 +2910,10 @@ mod tests {
 
     #[test]
     fn calibrate_joint_zero_refuses_while_active() {
-        let bus = MemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
         bench_ready_active(&mut sup);
         let joint = sup.motors.motors[0].joint.clone();
         let err = sup
@@ -2841,8 +2928,10 @@ mod tests {
 
     #[test]
     fn calibrate_joint_zero_unknown_joint_before_enable() {
-        let bus = MemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
         assert_eq!(sup.mode(), OperationalMode::Disabled);
         let err = sup
             .calibrate_joint_zero("not_a_real_joint", "test", true)
@@ -2869,7 +2958,12 @@ mod tests {
 
     #[test]
     fn limit_patch_refuses_while_active() {
-        let mut sup = Supervisor::from_repo(repo_root(), MemoryBus::default()).expect("supervisor");
+        let mut sup = Supervisor::from_simulation(
+            repo_root(),
+            SimulationBus::default(),
+            InitialVirtualReference::AllConfigured,
+        )
+        .expect("supervisor");
         bench_ready_active(&mut sup);
         let before = *sup.joint_limit_policy("right_elbow_pitch").expect("policy");
 
@@ -2886,7 +2980,12 @@ mod tests {
 
     #[test]
     fn limit_patch_rebuilds_runtime_policy() {
-        let mut sup = Supervisor::from_repo(repo_root(), MemoryBus::default()).expect("supervisor");
+        let mut sup = Supervisor::from_simulation(
+            repo_root(),
+            SimulationBus::default(),
+            InitialVirtualReference::AllConfigured,
+        )
+        .expect("supervisor");
 
         sup.apply_limit_patch(&elbow_limit_patch(0.1, 1.5))
             .expect("apply patch");
@@ -2898,7 +2997,12 @@ mod tests {
 
     #[test]
     fn rebuild_limits_uses_in_memory_config() {
-        let mut sup = Supervisor::from_repo(repo_root(), MemoryBus::default()).expect("supervisor");
+        let mut sup = Supervisor::from_simulation(
+            repo_root(),
+            SimulationBus::default(),
+            InitialVirtualReference::AllConfigured,
+        )
+        .expect("supervisor");
         let motor = sup
             .motors
             .motors
@@ -2923,7 +3027,12 @@ mod tests {
 
     #[test]
     fn limit_patch_expands_urdf_when_past_current_hard() {
-        let mut sup = Supervisor::from_repo(repo_root(), MemoryBus::default()).expect("supervisor");
+        let mut sup = Supervisor::from_simulation(
+            repo_root(),
+            SimulationBus::default(),
+            InitialVirtualReference::AllConfigured,
+        )
+        .expect("supervisor");
         let urdf_before = joint_limits(sup.urdf_robot(), "right_elbow_pitch").expect("urdf");
 
         sup.apply_limit_patch(&elbow_limit_patch(-0.5, 3.0))
@@ -2941,7 +3050,12 @@ mod tests {
 
     #[test]
     fn limit_patch_rejects_inverted_bounds_without_mutation() {
-        let mut sup = Supervisor::from_repo(repo_root(), MemoryBus::default()).expect("supervisor");
+        let mut sup = Supervisor::from_simulation(
+            repo_root(),
+            SimulationBus::default(),
+            InitialVirtualReference::AllConfigured,
+        )
+        .expect("supervisor");
         let before = *sup.joint_limit_policy("right_elbow_pitch").expect("policy");
 
         let err = sup
@@ -2957,7 +3071,12 @@ mod tests {
 
     #[test]
     fn limit_patch_rejects_measured_position_outside_new_bounds() {
-        let mut sup = Supervisor::from_repo(repo_root(), MemoryBus::default()).expect("supervisor");
+        let mut sup = Supervisor::from_simulation(
+            repo_root(),
+            SimulationBus::default(),
+            InitialVirtualReference::AllConfigured,
+        )
+        .expect("supervisor");
         sup.last_feedback_samples.insert(
             "right_elbow_pitch".to_string(),
             FeedbackSample {
@@ -2971,82 +3090,6 @@ mod tests {
             .expect_err("measured q must remain inside hard bounds");
 
         assert!(matches!(err, DavoutError::Limit { .. }));
-    }
-
-    /// Fails `enable_drive_at` after N successful enables (simulates mid-bus CAN fault).
-    struct FailAfterNEnableBus {
-        inner: MemoryBus,
-        succeed: usize,
-        enable_calls: usize,
-        disable_calls: usize,
-    }
-
-    impl CanBus for FailAfterNEnableBus {
-        fn send_frame(&mut self, frame: &CanFrame) -> Result<(), BusError> {
-            self.inner.send_frame(frame)
-        }
-
-        fn send_frame_to(
-            &mut self,
-            address: &MotorAddress,
-            frame: &CanFrame,
-        ) -> Result<(), BusError> {
-            self.inner.send_frame_to(address, frame)
-        }
-
-        fn recv_one_nonblocking(&mut self) -> Result<ReceiveAttempt, BusError> {
-            self.inner.recv_one_nonblocking()
-        }
-    }
-
-    impl MotorBus for FailAfterNEnableBus {
-        fn enable_drive_at(&mut self, address: &MotorAddress) -> Result<(), BusError> {
-            if self.enable_calls >= self.succeed {
-                return Err(BusError::Driver("injected enable failure".into()));
-            }
-            self.enable_calls += 1;
-            self.inner.enable_drive_at(address)
-        }
-
-        fn disable_drive_at(&mut self, address: &MotorAddress) -> Result<(), BusError> {
-            self.disable_calls += 1;
-            self.inner.disable_drive_at(address)
-        }
-    }
-
-    #[test]
-    fn calibrate_joint_zero_disables_after_partial_enable_failure() {
-        let motor_count = Supervisor::from_repo(repo_root(), MemoryBus::default())
-            .expect("supervisor")
-            .motors
-            .motors
-            .len();
-        assert!(
-            motor_count >= 2,
-            "bench profile needs >=2 motors to inject mid-enable failure"
-        );
-        let bus = FailAfterNEnableBus {
-            inner: MemoryBus::default(),
-            succeed: 1,
-            enable_calls: 0,
-            disable_calls: 0,
-        };
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
-        let joint = sup.motors.motors[0].joint.clone();
-        let err = sup
-            .calibrate_joint_zero(&joint, "test", true)
-            .expect_err("partial enable must fail");
-        assert!(matches!(err, DavoutError::Bus(_)), "got {err}");
-        assert_eq!(
-            sup.mode(),
-            OperationalMode::Disabled,
-            "mode must not stick ACTIVE after failed calibration enable"
-        );
-        assert!(
-            sup.bus.disable_calls >= motor_count,
-            "disable_all must run after enable failure; disable_calls={}",
-            sup.bus.disable_calls
-        );
     }
 
     #[test]
@@ -3072,13 +3115,12 @@ mod tests {
 
     #[test]
     fn rate_limiter_seeds_on_mode_transition() {
-        let bus = MemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
-        bench_ready_active(&mut sup);
-
-        // Set feedback with known position/velocity (torque_nm will be 0.0).
-        sup.set_synthetic_joint_feedback("right_shoulder_pitch", 1.0, 0.5)
-            .expect("feedback");
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
+        bench_active(&mut sup);
+        initial_poses(&mut sup, "right_shoulder_pitch", 1.0, 0.5);
 
         // Set last_tau_ff to a known value different from measured torque (0.0).
         sup.last_tau_ff
@@ -3101,11 +3143,11 @@ mod tests {
 
     #[test]
     fn clamp_velocity_danger_zone_limits_downward_speed() {
-        let bus = MemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
-        sup.seed_synthetic_feedback();
-        sup.set_synthetic_joint_feedback("right_shoulder_pitch", 1.0, -0.5)
-            .expect("feedback");
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
+        receive_pose(&mut sup, "right_shoulder_pitch", 1.0, -0.5);
         let motor = motor_for_joint(&sup.motors, "right_shoulder_pitch")
             .expect("motor")
             .clone();
@@ -3131,11 +3173,11 @@ mod tests {
 
     #[test]
     fn danger_zone_skips_when_measured_q_below_threshold() {
-        let bus = MemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
-        sup.seed_synthetic_feedback();
-        sup.set_synthetic_joint_feedback("right_shoulder_pitch", 0.2, -0.5)
-            .expect("feedback");
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
+        receive_pose(&mut sup, "right_shoulder_pitch", 0.2, -0.5);
         let motor = motor_for_joint(&sup.motors, "right_shoulder_pitch")
             .expect("motor")
             .clone();
@@ -3161,8 +3203,10 @@ mod tests {
 
     #[test]
     fn rejects_velocity_outside_limits() {
-        let bus = MemoryBus::default();
-        let sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let bus = SimulationBus::default();
+        let sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
         let err = sup
             .filter_command(JointCommand {
                 joint: "right_shoulder_roll".to_string(),
@@ -3176,8 +3220,10 @@ mod tests {
 
     #[test]
     fn active_mode_required_to_send() {
-        let bus = MemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
         bench_verify_all_joints(&mut sup);
         sup.set_homing_complete().expect("ready");
         let err = sup
@@ -3193,8 +3239,10 @@ mod tests {
 
     #[test]
     fn send_mit_records_extended_frame_when_active() {
-        let bus = MemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
         bench_ready_active(&mut sup);
         let motor = motor_for_joint(&sup.motors, "right_elbow_pitch")
             .expect("motor")
@@ -3211,25 +3259,27 @@ mod tests {
             &motor,
         )
         .expect("send");
-        assert!(!sup.bus.tx.is_empty());
-        assert!(sup.bus.tx[0].extended);
+        assert!(!sup.bus.frames().is_empty());
+        assert!(sup.bus.frames()[0].extended);
     }
 
     #[test]
     fn solicit_status_feedback_sends_one_disable_per_motor_when_not_active() {
         use robstride::comm::{unpack_ext_id, CommunicationType};
 
-        let bus = MemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
         // Ignore init/sync side effects; status poll itself must not start type-24.
         sup.control.control.bench.active_reporting_diagnostics = false;
-        sup.bus.tx.clear();
+        sup.bus.clear_trace();
         let n = sup.motors.motors.len();
         assert!(n >= 1);
         sup.solicit_status_feedback().expect("solicit");
         let disable_tx: Vec<_> = sup
             .bus
-            .tx
+            .frames()
             .iter()
             .filter(|frame| {
                 unpack_ext_id(frame.id)
@@ -3239,7 +3289,7 @@ mod tests {
             .collect();
         assert_eq!(disable_tx.len(), n);
         assert!(
-            !sup.bus.tx.iter().any(|frame| {
+            !sup.bus.frames().iter().any(|frame| {
                 unpack_ext_id(frame.id)
                     .map(|u| u.comm_type == CommunicationType::ActiveReporting.as_u8())
                     .unwrap_or(false)
@@ -3252,13 +3302,15 @@ mod tests {
     fn solicit_status_feedback_is_noop_when_active() {
         use robstride::comm::{unpack_ext_id, CommunicationType};
 
-        let bus = MemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
         bench_ready_active(&mut sup);
-        sup.bus.tx.clear();
+        sup.bus.clear_trace();
         sup.solicit_status_feedback().expect("solicit");
         assert!(
-            !sup.bus.tx.iter().any(|frame| {
+            !sup.bus.frames().iter().any(|frame| {
                 unpack_ext_id(frame.id)
                     .map(|u| u.comm_type == CommunicationType::Disable.as_u8())
                     .unwrap_or(false)
@@ -3271,14 +3323,16 @@ mod tests {
     fn solicit_status_feedback_skips_motors_when_global_ar_desired() {
         use robstride::comm::{unpack_ext_id, CommunicationType};
 
-        let bus = MemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
         // Master bench config: diagnostics already desires type-24 for every joint.
         assert!(sup.control.control.bench.active_reporting_diagnostics);
-        sup.bus.tx.clear();
+        sup.bus.clear_trace();
         sup.solicit_status_feedback().expect("solicit");
         assert!(
-            !sup.bus.tx.iter().any(|frame| {
+            !sup.bus.frames().iter().any(|frame| {
                 unpack_ext_id(frame.id)
                     .map(|u| u.comm_type == CommunicationType::Disable.as_u8())
                     .unwrap_or(false)
@@ -3291,18 +3345,20 @@ mod tests {
     fn solicit_status_feedback_skips_leased_joint_only() {
         use robstride::comm::{unpack_ext_id, CommunicationType};
 
-        let bus = MemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
         assert!(sup.motors.motors.len() >= 2);
         sup.control.control.bench.active_reporting_diagnostics = false;
         let leased = sup.motors.motors[0].joint.clone();
         sup.acquire_active_reporting_lease(&leased, "consul", "lease-1", DEFAULT_LEASE_TTL)
             .expect("lease");
-        sup.bus.tx.clear();
+        sup.bus.clear_trace();
         sup.solicit_status_feedback().expect("solicit");
         let disable_device_ids: Vec<u8> = sup
             .bus
-            .tx
+            .frames()
             .iter()
             .filter_map(|frame| {
                 unpack_ext_id(frame.id).and_then(|u| {
@@ -3322,84 +3378,46 @@ mod tests {
         );
     }
 
-    /// Fails the first N `disable_drive_at` calls, then succeeds (partial solicit).
-    struct FailFirstNDisableBus {
-        inner: MemoryBus,
-        fail_first: usize,
-        disable_calls: usize,
-    }
-
-    impl CanBus for FailFirstNDisableBus {
-        fn send_frame(&mut self, frame: &CanFrame) -> Result<(), BusError> {
-            self.inner.send_frame(frame)
-        }
-
-        fn send_frame_to(
-            &mut self,
-            address: &MotorAddress,
-            frame: &CanFrame,
-        ) -> Result<(), BusError> {
-            self.inner.send_frame_to(address, frame)
-        }
-
-        fn recv_one_nonblocking(&mut self) -> Result<ReceiveAttempt, BusError> {
-            self.inner.recv_one_nonblocking()
-        }
-    }
-
-    impl MotorBus for FailFirstNDisableBus {
-        fn disable_drive_at(&mut self, address: &MotorAddress) -> Result<(), BusError> {
-            if self.disable_calls < self.fail_first {
-                self.disable_calls += 1;
-                return Err(BusError::Driver("injected disable failure".into()));
-            }
-            self.disable_calls += 1;
-            self.inner.disable_drive_at(address)
-        }
-    }
-
     #[test]
     fn solicit_status_feedback_continues_after_partial_tx_failure() {
-        use robstride::comm::{unpack_ext_id, CommunicationType};
-
-        let motor_count = Supervisor::from_repo(repo_root(), MemoryBus::default())
-            .expect("supervisor")
-            .motors
-            .motors
-            .len();
-        assert!(motor_count >= 2);
-        let bus = FailFirstNDisableBus {
-            inner: MemoryBus::default(),
-            fail_first: 1,
-            disable_calls: 0,
-        };
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let mut sup = Supervisor::from_repo(repo_root(), SimulationBus::default())
+            .expect("ordinary diagnostics");
         sup.control.control.bench.active_reporting_diagnostics = false;
-        sup.bus.inner.tx.clear();
-        sup.solicit_status_feedback()
-            .expect("solicit must not fail closed");
-        let disable_tx: Vec<_> = sup
+        sup.bus.clear_trace();
+        let rule = sup
             .bus
-            .inner
-            .tx
-            .iter()
-            .filter(|frame| {
-                unpack_ext_id(frame.id)
-                    .map(|u| u.comm_type == CommunicationType::Disable.as_u8())
-                    .unwrap_or(false)
+            .add_tx_rule(TxRule {
+                matcher: TxMatcher {
+                    communication_type: Some(4),
+                    ..Default::default()
+                },
+                occurrence: TxOccurrence::Nth(1),
+                receive: vec![],
+                send_error: Some("first diagnostic solicit write failed".into()),
             })
+            .expect("rule");
+        sup.solicit_status_feedback()
+            .expect("diagnostic best effort");
+        assert_eq!(sup.bus.rule_trigger_count(rule), 1);
+        let attempts: Vec<_> = sup
+            .bus
+            .transmissions()
+            .iter()
+            .filter(|tx| tx.frame.id >> 24 == 4)
             .collect();
-        assert_eq!(
-            disable_tx.len(),
-            motor_count - 1,
-            "remaining motors still solicited after first TX failure"
-        );
-        assert_eq!(sup.bus.disable_calls, motor_count);
+        assert_eq!(attempts.len(), sup.motors.motors.len());
+        assert!(!attempts[0].delivered);
+        assert!(attempts[1..].iter().all(|tx| tx.delivered));
     }
 
     #[test]
     fn joint_feedback_omits_stale_samples_when_not_active() {
-        let mut sup = Supervisor::from_repo(repo_root(), MemoryBus::default()).expect("supervisor");
+        let mut sup = Supervisor::from_simulation(
+            repo_root(),
+            SimulationBus::default(),
+            InitialVirtualReference::AllConfigured,
+        )
+        .expect("supervisor");
         assert_ne!(sup.mode(), OperationalMode::Active);
         let motor = motor_for_joint(&sup.motors, "right_shoulder_pitch")
             .expect("motor")
@@ -3441,7 +3459,12 @@ mod tests {
 
     #[test]
     fn joint_feedback_omits_stale_samples_while_active() {
-        let mut sup = Supervisor::from_repo(repo_root(), MemoryBus::default()).expect("supervisor");
+        let mut sup = Supervisor::from_simulation(
+            repo_root(),
+            SimulationBus::default(),
+            InitialVirtualReference::AllConfigured,
+        )
+        .expect("supervisor");
         bench_ready_active(&mut sup);
         let motor = motor_for_joint(&sup.motors, "right_shoulder_pitch")
             .expect("motor")
@@ -3469,22 +3492,24 @@ mod tests {
 
     #[test]
     fn enable_sends_lifecycle_and_mit_run_mode() {
-        let bus = MemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
         // Free-drive type-24 frames are covered elsewhere; this test asserts enable + MIT run mode.
         sup.control.control.bench.active_reporting_diagnostics = false;
         bench_verify_all_joints(&mut sup);
         sup.set_homing_complete().expect("ready");
-        sup.bus.tx.clear();
+        sup.bus.clear_trace();
         sup.request_enable(true).expect("enable");
         assert_eq!(sup.mode(), OperationalMode::Active);
-        assert_eq!(sup.bus.tx.len(), sup.motors.motors.len() * 2);
-        let first = robstride::unpack_ext_id(sup.bus.tx[0].id).expect("enable id");
+        assert_eq!(sup.bus.frames().len(), sup.motors.motors.len() * 2);
+        let first = robstride::unpack_ext_id(sup.bus.frames()[0].id).expect("enable id");
         assert_eq!(
             first.comm_type,
             robstride::CommunicationType::Enable.as_u8()
         );
-        let second = robstride::unpack_ext_id(sup.bus.tx[1].id).expect("run_mode id");
+        let second = robstride::unpack_ext_id(sup.bus.frames()[1].id).expect("run_mode id");
         assert_eq!(
             second.comm_type,
             robstride::CommunicationType::WriteParameter.as_u8()
@@ -3493,8 +3518,10 @@ mod tests {
 
     #[test]
     fn firmware_speed_mode_requires_config_flag() {
-        let bus = MemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
         bench_ready_active(&mut sup);
         let err = sup
             .send_speed_command(SpeedCommand {
@@ -3508,9 +3535,13 @@ mod tests {
     #[test]
     fn motor_transform_converts_feedback_to_joint_space() {
         let mut motor = motor_for_joint(
-            &Supervisor::from_repo(repo_root(), MemoryBus::default())
-                .expect("supervisor")
-                .motors,
+            &Supervisor::from_simulation(
+                repo_root(),
+                SimulationBus::default(),
+                InitialVirtualReference::AllConfigured,
+            )
+            .expect("supervisor")
+            .motors,
             "right_elbow_pitch",
         )
         .expect("motor")
@@ -3536,42 +3567,14 @@ mod tests {
         assert_eq!(joint.fault, 7);
     }
 
-    /// Synthetic insert writes joint space; inverted direction must not re-transform on read.
-    #[test]
-    fn joint_feedback_preserves_synthetic_joint_space_with_inverted_direction() {
-        let mut sup = Supervisor::from_repo(repo_root(), MemoryBus::default()).expect("supervisor");
-        let pitch = motor_for_joint(&sup.motors, "right_shoulder_pitch")
-            .expect("right_shoulder_pitch")
-            .joint
-            .clone();
-        for m in &mut sup.motors.motors {
-            if m.joint == pitch {
-                m.direction = -1;
-            }
-        }
-        assert_eq!(
-            motor_for_joint(&sup.motors, &pitch)
-                .expect("pitch")
-                .direction,
-            -1
-        );
-        sup.set_synthetic_joint_feedback(&pitch, 1.0, 0.0)
-            .expect("synthetic");
-        let fb = sup.joint_feedback(&pitch).expect("feedback");
-        assert!(
-            (fb.position_rad - 1.0).abs() < 1e-9,
-            "expected joint-space 1.0 without re-transform, got {}",
-            fb.position_rad
-        );
-        assert!(
-            (sup.joint_position_rad(&pitch).expect("position") - 1.0).abs() < 1e-9,
-            "scalar accessor must match joint_feedback"
-        );
-    }
-
     #[test]
     fn joint_feedback_exposes_temperature_and_fault() {
-        let mut sup = Supervisor::from_repo(repo_root(), MemoryBus::default()).expect("supervisor");
+        let mut sup = Supervisor::from_simulation(
+            repo_root(),
+            SimulationBus::default(),
+            InitialVirtualReference::AllConfigured,
+        )
+        .expect("supervisor");
         let motor = motor_for_joint(&sup.motors, "right_shoulder_pitch")
             .expect("motor")
             .clone();
@@ -3625,7 +3628,7 @@ mod tests {
                 CommunicationType::OperationStatus.as_u8(),
                 u16::from(device_id),
                 robstride::DEFAULT_HOST_ID,
-            ),
+            ) | (2 << 22),
             data,
             extended: true,
         }
@@ -3633,8 +3636,10 @@ mod tests {
 
     #[test]
     fn joint_feedback_transforms_once_on_refresh_with_inverted_scale() {
-        let bus = RoutedMemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
         let joint = "right_elbow_pitch".to_string();
         for m in &mut sup.motors.motors {
             if m.joint == joint {
@@ -3643,6 +3648,7 @@ mod tests {
                 m.can_interface = "can0".to_string();
             }
         }
+        sup = installed_policy(&sup.motors, &sup.control);
         let motor = motor_for_joint(&sup.motors, &joint)
             .expect("right_elbow_pitch")
             .clone();
@@ -3659,17 +3665,19 @@ mod tests {
         let motor_pos = -1.0_f32;
         let motor_vel = -0.5_f32;
         let motor_tau = -2.0_f32;
-        sup.bus.rx.push_back(ReceivedCanFrame::full_data(
-            Some("can0".to_string()),
-            status_frame_motor_space(
-                motor.device_id,
-                motor.motor_type,
-                motor_pos,
-                motor_vel,
-                motor_tau,
-                25.0,
-            ),
-        ));
+        sup.bus
+            .queue_received(ReceivedCanFrame::full_data(
+                Some("can0".to_string()),
+                status_frame_motor_space(
+                    motor.device_id,
+                    motor.motor_type,
+                    motor_pos,
+                    motor_vel,
+                    motor_tau,
+                    25.0,
+                ),
+            ))
+            .expect("finite raw fixture");
 
         assert_eq!(sup.refresh_feedback().expect("refresh"), 1);
         let fb = sup.joint_feedback(&joint).expect("feedback");
@@ -3701,12 +3709,15 @@ mod tests {
 
     #[test]
     fn feedback_state_is_keyed_by_bus_address() {
-        let bus = RoutedMemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
         sup.motors.motors[0].can_interface = "can0".to_string();
         sup.motors.motors[0].device_id = 1;
         sup.motors.motors[1].can_interface = "can1".to_string();
         sup.motors.motors[1].device_id = 1;
+        sup = installed_policy(&sup.motors, &sup.control);
         sup.motor_types = sup
             .motors
             .motors
@@ -3714,22 +3725,26 @@ mod tests {
             .map(|m| (MotorAddress::from(m), m.motor_type))
             .collect();
         let status = [0x7F, 0xFF, 0x7F, 0xFF, 0x7F, 0xFF, 0x00, 0xC8];
-        sup.bus.rx.push_back(ReceivedCanFrame::full_data(
-            Some("can0".to_string()),
-            CanFrame {
-                id: robstride::pack_ext_id(2, 1, robstride::DEFAULT_HOST_ID) | (2 << 22),
-                data: status,
-                extended: true,
-            },
-        ));
-        sup.bus.rx.push_back(ReceivedCanFrame::full_data(
-            Some("can1".to_string()),
-            CanFrame {
-                id: robstride::pack_ext_id(2, 1, robstride::DEFAULT_HOST_ID),
-                data: status,
-                extended: true,
-            },
-        ));
+        sup.bus
+            .queue_received(ReceivedCanFrame::full_data(
+                Some("can0".to_string()),
+                CanFrame {
+                    id: robstride::pack_ext_id(2, 1, robstride::DEFAULT_HOST_ID) | (2 << 22),
+                    data: status,
+                    extended: true,
+                },
+            ))
+            .expect("finite raw fixture");
+        sup.bus
+            .queue_received(ReceivedCanFrame::full_data(
+                Some("can1".to_string()),
+                CanFrame {
+                    id: robstride::pack_ext_id(2, 1, robstride::DEFAULT_HOST_ID),
+                    data: status,
+                    extended: true,
+                },
+            ))
+            .expect("finite raw fixture");
 
         let count = sup.refresh_feedback().expect("feedback");
 
@@ -3742,9 +3757,11 @@ mod tests {
 
     #[test]
     fn active_feedback_velocity_above_limit_faults() {
-        let bus = RoutedMemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
-        bench_ready_active(&mut sup);
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
+        bench_active(&mut sup);
         let motor = sup.motors.motors[0].clone();
         let limit = sup.limits.get(&motor.joint).expect("limits").velocity;
         let overspeed = limit + FEEDBACK_VELOCITY_FAULT_MARGIN_RAD_S + 0.15;
@@ -3786,10 +3803,13 @@ mod tests {
 
     #[test]
     fn stationary_feedback_velocity_spike_is_ignored() {
-        let bus = RoutedMemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
         sup.motors.motors[0].can_interface = "can0".to_string();
         sup.motors.motors[0].device_id = 1;
+        sup = installed_policy(&sup.motors, &sup.control);
         sup.motor_types = sup
             .motors
             .motors
@@ -3806,9 +3826,13 @@ mod tests {
             },
         );
 
-        sup.bus.rx.push_back(stationary_overspeed.clone());
+        sup.bus
+            .queue_received(stationary_overspeed.clone())
+            .expect("finite raw fixture");
         sup.refresh_feedback().expect("first spike ignored");
-        sup.bus.rx.push_back(stationary_overspeed);
+        sup.bus
+            .queue_received(stationary_overspeed)
+            .expect("finite raw fixture");
         sup.refresh_feedback()
             .expect("stationary repeated spike remains ignored");
 
@@ -3820,9 +3844,11 @@ mod tests {
 
     #[test]
     fn cruise_near_limit_measured_velocity_does_not_fault() {
-        let bus = RoutedMemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
-        bench_ready_active(&mut sup);
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
+        bench_active(&mut sup);
         let motor = sup.motors.motors[0].clone();
         let limit = sup.limits.get(&motor.joint).expect("limits").velocity;
         let t0 = Instant::now();
@@ -3859,9 +3885,11 @@ mod tests {
 
     #[test]
     fn active_feedback_velocity_cache_uses_position_delta() {
-        let bus = RoutedMemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
-        bench_ready_active(&mut sup);
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
+        bench_active(&mut sup);
         let motor = sup.motors.motors[0].clone();
         let t0 = Instant::now();
         let mut first = MotorState {
@@ -3895,10 +3923,10 @@ mod tests {
 
     #[test]
     fn send_mit_converts_joint_command_to_motor_space() {
-        let bus = MemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
-        bench_ready_active(&mut sup);
-        sup.bus.tx.clear();
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
         let mut motor = motor_for_joint(&sup.motors, "right_elbow_pitch")
             .expect("motor")
             .clone();
@@ -3912,6 +3940,9 @@ mod tests {
             .expect("configured elbow");
         configured.direction = motor.direction;
         configured.gear_ratio = motor.gear_ratio;
+        sup = installed_policy(&sup.motors, &sup.control);
+        bench_ready_active(&mut sup);
+        sup.bus.clear_trace();
         sup.send_mit_joint(
             MitJointCommand {
                 joint: "right_elbow_pitch".to_string(),
@@ -3926,26 +3957,23 @@ mod tests {
             &motor,
         )
         .expect("send");
-        let expected = MitCommand {
-            device_id: motor.device_id,
-            motor_type: motor.motor_type,
-            position_rad: -1.0,
-            velocity_rad_s: -0.5,
-            kp: 2.0,
-            kd: 1.0,
-            torque_ff_nm: -0.2,
-        };
-        let (expected_id, expected_data) =
-            robstride::encode_mit(&expected).expect("valid wire command");
-        assert_eq!(sup.bus.tx.len(), 1);
-        assert_eq!(sup.bus.tx[0].id, expected_id);
-        assert_eq!(sup.bus.tx[0].data, expected_data);
+        // Independent RS02 vendor wire oracle: direction -1, gearing 2 gives
+        // q=-1, dq=-.5, kp=2, kd=1, tau=-.2. Signed ranges are ±4π/44/17;
+        // unsigned gain ranges are 500/5. No production encoder as oracle.
+        assert_eq!(sup.bus.frames().len(), 1);
+        assert_eq!(sup.bus.frames()[0].id, 0x017e_7e04);
+        assert_eq!(
+            sup.bus.frames()[0].data,
+            [0x75, 0xcf, 0x7e, 0x8b, 0x01, 0x06, 0x33, 0x33]
+        );
     }
 
     #[test]
     fn watchdog_fires_when_active_without_first_feedback() {
-        let bus = MemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
         sup.control.control.comm_watchdog_ms = 1;
         bench_verify_all_joints(&mut sup);
         sup.set_homing_complete().expect("ready");
@@ -3982,15 +4010,17 @@ mod tests {
 
     #[test]
     fn active_reporting_default_false_sends_no_type24() {
-        let bus = MemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
         // Repo bench yaml may enable the flag; force on then off to emit disables.
         sup.control.control.bench.active_reporting_diagnostics = true;
         sup.sync_active_reporting();
-        sup.bus.tx.clear();
+        sup.bus.clear_trace();
         sup.control.control.bench.active_reporting_diagnostics = false;
         sup.sync_active_reporting();
-        let off = type24_tx_frames(&sup.bus.tx);
+        let off = type24_tx_frames(sup.bus.frames());
         assert_eq!(off.len(), sup.motors.motors.len());
         for frame in off {
             assert_eq!(frame.data[6], 0x00, "disable F_CMD when flag false");
@@ -4004,30 +4034,32 @@ mod tests {
 
     #[test]
     fn active_reporting_sends_type24_when_non_active_and_flag_true() {
-        let bus = MemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
         // Normalize to off, then enable.
         sup.control.control.bench.active_reporting_diagnostics = false;
         sup.sync_active_reporting();
         for m in &sup.motors.motors {
             assert!(!sup.active_reporting_applied(&m.joint));
         }
-        sup.bus.tx.clear();
+        sup.bus.clear_trace();
         sup.control.control.bench.active_reporting_diagnostics = true;
         sup.sync_active_reporting();
-        let type24 = type24_tx_frames(&sup.bus.tx);
+        let type24 = type24_tx_frames(sup.bus.frames());
         assert_eq!(type24.len(), sup.motors.motors.len());
         for frame in type24 {
             assert_eq!(frame.data[6], 0x01, "enable F_CMD");
         }
-        let tx_before = sup.bus.tx.len();
+        let tx_before = sup.bus.frames().len();
         bench_ready_active(&mut sup);
         assert!(sup
             .motors
             .motors
             .iter()
             .all(|m| !sup.active_reporting_applied(&m.joint)));
-        let new_frames = &sup.bus.tx[tx_before..];
+        let new_frames = &sup.bus.frames()[tx_before..];
         for frame in type24_tx_frames(new_frames) {
             assert_eq!(
                 frame.data[6], 0x00,
@@ -4038,15 +4070,17 @@ mod tests {
 
     #[test]
     fn active_reporting_zero_tx_during_active_mit_batch() {
-        let bus = MemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
         sup.control.control.bench.active_reporting_diagnostics = true;
         sup.sync_active_reporting();
         bench_ready_active(&mut sup);
         let motor = motor_for_joint(&sup.motors, "right_elbow_pitch")
             .expect("motor")
             .clone();
-        let tx_before = sup.bus.tx.len();
+        let tx_before = sup.bus.frames().len();
         sup.send_mit_joint(
             MitJointCommand {
                 joint: "right_elbow_pitch".to_string(),
@@ -4059,8 +4093,8 @@ mod tests {
             &motor,
         )
         .expect("send");
-        assert!(!sup.bus.tx.is_empty());
-        let new_frames = &sup.bus.tx[tx_before..];
+        assert!(!sup.bus.frames().is_empty());
+        let new_frames = &sup.bus.frames()[tx_before..];
         assert!(
             type24_tx_frames(new_frames).is_empty(),
             "MIT batch must not include type-24 frames"
@@ -4069,15 +4103,17 @@ mod tests {
 
     #[test]
     fn active_reporting_stays_armed_through_ready_for_free_drive() {
-        let bus = MemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
         // Normalize off then on so enable TX is observed.
         sup.control.control.bench.active_reporting_diagnostics = false;
         sup.sync_active_reporting();
         for m in &sup.motors.motors {
             assert!(!sup.active_reporting_applied(&m.joint));
         }
-        sup.bus.tx.clear();
+        sup.bus.clear_trace();
         sup.control.control.bench.active_reporting_diagnostics = true;
         sup.sync_active_reporting();
         assert!(sup
@@ -4085,9 +4121,12 @@ mod tests {
             .motors
             .iter()
             .all(|m| sup.active_reporting_applied(&m.joint)));
-        assert_eq!(type24_tx_frames(&sup.bus.tx).len(), sup.motors.motors.len());
+        assert_eq!(
+            type24_tx_frames(sup.bus.frames()).len(),
+            sup.motors.motors.len()
+        );
         bench_verify_all_joints(&mut sup);
-        let tx_before = sup.bus.tx.len();
+        let tx_before = sup.bus.frames().len();
         sup.set_homing_complete().expect("ready");
         assert_eq!(sup.mode(), OperationalMode::Ready);
         assert!(sup
@@ -4095,7 +4134,7 @@ mod tests {
             .motors
             .iter()
             .all(|m| sup.active_reporting_applied(&m.joint)));
-        let off_frames = type24_tx_frames(&sup.bus.tx[tx_before..]);
+        let off_frames = type24_tx_frames(&sup.bus.frames()[tx_before..]);
         assert!(
             off_frames.is_empty(),
             "Ready must keep type-24 for Set Limits free-drive sensing"
@@ -4109,8 +4148,10 @@ mod tests {
 
     #[test]
     fn feedback_poll_timeout_honors_budget_not_watchdog_cap() {
-        let bus = MemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
         sup.control.control.comm_watchdog_ms = 50;
         sup.control.control.feedback_poll_budget_us = 3000;
         sup.control.control.feedback_drain_quiet_us = 300;
@@ -4123,8 +4164,10 @@ mod tests {
 
     #[test]
     fn comm_watchdog_unchanged_despite_larger_poll_budget() {
-        let bus = MemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
         sup.control.control.comm_watchdog_ms = 50;
         sup.control.control.feedback_poll_budget_us = 3000;
         sup.control.control.feedback_drain_quiet_us = 300;
@@ -4164,8 +4207,10 @@ mod tests {
 
     #[test]
     fn filter_command_clamps_position_into_envelope() {
-        let bus = MemoryBus::default();
-        let sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+        let bus = SimulationBus::default();
+        let sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
         let out = sup
             .filter_command(JointCommand {
                 joint: "right_elbow_pitch".to_string(),
@@ -4179,16 +4224,17 @@ mod tests {
         assert!(out.position_rad < 99.0);
     }
 
-    fn wrong_sign_sup() -> Supervisor<MemoryBus> {
-        let bus = MemoryBus::default();
-        let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
+    fn wrong_sign_sup_at(velocity: f32) -> Supervisor<SimulationBus> {
+        let bus = SimulationBus::default();
+        let mut sup =
+            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
+                .expect("supervisor");
         // Master control.yaml disables the watchdog during elbow commissioning;
         // force-enable for unit coverage of the trip path.
         sup.control.control.wrong_sign_watchdog.enabled = true;
-        bench_ready_active(&mut sup);
+        bench_active(&mut sup);
+        initial_poses(&mut sup, "right_shoulder_pitch", 1.0, velocity);
         sup.set_control_mode(ControlMode::GravityComp);
-        sup.set_synthetic_joint_feedback("right_shoulder_pitch", 1.0, 0.5)
-            .expect("feedback");
         sup
     }
 
@@ -4206,7 +4252,7 @@ mod tests {
 
     #[test]
     fn wrong_sign_watchdog_trips_on_sustained_opposition() {
-        let mut sup = wrong_sign_sup();
+        let mut sup = wrong_sign_sup_at(0.5);
         let motor = motor_for_joint(&sup.motors, "right_shoulder_pitch")
             .expect("motor")
             .clone();
@@ -4230,7 +4276,7 @@ mod tests {
 
     #[test]
     fn wrong_sign_watchdog_no_trip_in_impedance() {
-        let mut sup = wrong_sign_sup();
+        let mut sup = wrong_sign_sup_at(0.5);
         sup.set_control_mode(ControlMode::Impedance);
         let motor = motor_for_joint(&sup.motors, "right_shoulder_pitch")
             .expect("motor")
@@ -4246,7 +4292,7 @@ mod tests {
 
     #[test]
     fn wrong_sign_watchdog_grace_period() {
-        let mut sup = wrong_sign_sup();
+        let mut sup = wrong_sign_sup_at(0.5);
         let motor = motor_for_joint(&sup.motors, "right_shoulder_pitch")
             .expect("motor")
             .clone();
@@ -4267,7 +4313,7 @@ mod tests {
 
     #[test]
     fn wrong_sign_watchdog_resets_on_enable() {
-        let mut sup = wrong_sign_sup();
+        let mut sup = wrong_sign_sup_at(0.5);
         let motor = motor_for_joint(&sup.motors, "right_shoulder_pitch")
             .expect("motor")
             .clone();
@@ -4288,9 +4334,7 @@ mod tests {
 
     #[test]
     fn wrong_sign_watchdog_no_trip_when_velocity_below_threshold() {
-        let mut sup = wrong_sign_sup();
-        sup.set_synthetic_joint_feedback("right_shoulder_pitch", 1.0, 0.01)
-            .expect("feedback");
+        let mut sup = wrong_sign_sup_at(0.01);
         let motor = motor_for_joint(&sup.motors, "right_shoulder_pitch")
             .expect("motor")
             .clone();
@@ -4305,7 +4349,7 @@ mod tests {
 
     #[test]
     fn wrong_sign_watchdog_no_trip_when_sign_matches() {
-        let mut sup = wrong_sign_sup();
+        let mut sup = wrong_sign_sup_at(0.5);
         let motor = motor_for_joint(&sup.motors, "right_shoulder_pitch")
             .expect("motor")
             .clone();
@@ -4328,7 +4372,7 @@ mod tests {
 
     #[test]
     fn disable_all_clears_last_tick() {
-        let mut sup = wrong_sign_sup();
+        let mut sup = wrong_sign_sup_at(0.5);
         let motor = motor_for_joint(&sup.motors, "right_shoulder_pitch")
             .expect("motor")
             .clone();
@@ -4351,7 +4395,7 @@ mod tests {
 
     #[test]
     fn tau_ff_step_rate_limited_after_disable_gap() {
-        let mut sup = wrong_sign_sup();
+        let mut sup = wrong_sign_sup_at(0.5);
         let motor = motor_for_joint(&sup.motors, "right_shoulder_pitch")
             .expect("motor")
             .clone();

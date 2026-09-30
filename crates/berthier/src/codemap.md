@@ -6,7 +6,7 @@ Implementation modules for the Berthier realtime control loop and legacy single-
 ## Design
 | Module | Role |
 |--------|------|
-| `loop.rs` | `ControlLoop<B>` — checked gain setters, enable-session neutral bootstrap, main tick, mode dispatch, Chappe publish |
+| `loop.rs` | `ControlLoop<B>` — shared private initialization for ordinary and concrete closed simulation constructors, checked gain setters, enable-session neutral bootstrap, main tick, mode dispatch, Chappe publish |
 | `friction.rs` | Velocity-based friction feedforward |
 | `position_feedforward.rs` | PD torque for position hold |
 | `position_profile.rs` | Trapezoidal/s-curve position profiles |
@@ -31,3 +31,4 @@ Implementation modules for the Berthier realtime control loop and legacy single-
 - Imports `davout::{Supervisor, ControlMode, MitJointCommand}`
 - Imports `armee_dynamics::DynamicsModel`
 - Re-exported by crate root `lib.rs`
+- Only `ControlLoop<davout::simulation::SimulationBus>::from_simulation` accepts a virtual initial reference fixture. It shares the ordinary loop implementation; arbitrary buses and ordinary constructors cannot receive that fixture. Test raw observations and finite scripts go through the production receive/admission/output paths.

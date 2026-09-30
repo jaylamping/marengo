@@ -1,41 +1,21 @@
 //! Public persistent fault/evidence contracts; all transports are local recordings.
 #![allow(clippy::expect_used)]
+use davout::simulation::{SimulationBus, SimulationReceive, TxMatcher, TxOccurrence, TxRule};
 
 use std::time::Instant;
 
 use davout::{FaultClass, MitJointCommand, StopAction, Supervisor};
 use marengo_config::MotorEntry;
-use robstride::{BusError, CanBus, CanFrame, MemoryBus, MotorBus, ReceiveAttempt};
+use robstride::{CanFrame, MotorBus};
 
-#[derive(Default)]
-struct EqualTimeBus {
-    inner: MemoryBus,
-    received_at: Option<Instant>,
-}
-
-impl CanBus for EqualTimeBus {
-    fn send_frame(&mut self, frame: &CanFrame) -> Result<(), BusError> {
-        self.inner.send_frame(frame)
-    }
-
-    fn begin_receive(&mut self) {
-        self.received_at = Some(Instant::now());
-    }
-
-    fn recv_one_nonblocking(&mut self) -> Result<ReceiveAttempt, BusError> {
-        let mut attempt = self.inner.recv_one_nonblocking()?;
-        if let ReceiveAttempt::Frame(frame) = &mut attempt {
-            frame.received_at = self.received_at.unwrap_or_else(Instant::now);
-        }
-        Ok(attempt)
-    }
-}
-
-impl MotorBus for EqualTimeBus {}
-
-fn supervisor<B: MotorBus + Default>() -> Supervisor<B> {
+fn supervisor() -> Supervisor<SimulationBus> {
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let mut supervisor = Supervisor::from_repo(root, B::default()).expect("repo fixture");
+    let mut supervisor = Supervisor::from_simulation(
+        root,
+        SimulationBus::default(),
+        davout::simulation::InitialVirtualReference::AllConfigured,
+    )
+    .expect("repo fixture");
     supervisor.control.control.comm_watchdog_ms = 1000;
     supervisor
 }
@@ -59,10 +39,6 @@ fn status(motor: &MotorEntry) -> CanFrame {
 }
 
 fn activate<B: MotorBus>(supervisor: &mut Supervisor<B>, motors: &[MotorEntry]) {
-    supervisor
-        .homing_registry_mut()
-        .bench_mark_all_verified(motors)
-        .expect("reference");
     let names: Vec<_> = motors.iter().map(|motor| motor.joint.clone()).collect();
     supervisor.enable_targets(&names).expect("enable");
 }
@@ -80,19 +56,27 @@ fn command(motor: &MotorEntry) -> MitJointCommand {
 
 #[test]
 fn equal_timestamp_unsafe_pose_cannot_disappear_between_healthy_statuses() {
-    let mut supervisor = supervisor::<EqualTimeBus>();
+    let mut supervisor = supervisor();
     let pitch = motor(&supervisor, "right_shoulder_pitch");
     activate(&mut supervisor, std::slice::from_ref(&pitch));
-    supervisor.bus_mut().inner.rx_queue.push(status(&pitch));
+    supervisor
+        .bus_mut()
+        .queue_frame(status(&pitch))
+        .expect("finite closed script");
     supervisor.drain_feedback().expect("initial Run status");
 
     let mut unsafe_pose = status(&pitch);
     unsafe_pose.data[0..2].copy_from_slice(&[0xff, 0xff]); // Vendor +12.5 rad, outside hard bounds.
+    let same_time = Instant::now();
     supervisor
         .bus_mut()
-        .inner
-        .rx_queue
-        .extend([status(&pitch), unsafe_pose, status(&pitch)]);
+        .queue_attempts([status(&pitch), unsafe_pose, status(&pitch)].map(|frame| {
+            SimulationReceive::Timed(robstride::TimedCanFrame {
+                received_at: same_time,
+                received: robstride::ReceivedCanFrame::full_data(None, frame),
+            })
+        }))
+        .expect("equal-time ordered raw script");
     assert!(
         supervisor.drain_feedback().is_err(),
         "equal-time unsafe pose was skipped"
@@ -106,15 +90,20 @@ fn equal_timestamp_unsafe_pose_cannot_disappear_between_healthy_statuses() {
             .class,
         FaultClass::Feedback
     );
-    supervisor.bus_mut().inner.tx.clear();
+    supervisor.bus_mut().clear_trace();
     assert!(supervisor.send_mit_batch(vec![command(&pitch)]).is_err());
-    assert!(supervisor.bus_mut().inner.tx.is_empty());
+    assert!(supervisor.bus().frames().is_empty());
 }
 
 #[test]
 fn safe_queued_pose_burst_does_not_treat_host_dequeue_spacing_as_motion() {
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let mut supervisor = Supervisor::from_repo(root, MemoryBus::default()).expect("repo fixture");
+    let mut supervisor = Supervisor::from_simulation(
+        root,
+        SimulationBus::default(),
+        davout::simulation::InitialVirtualReference::AllConfigured,
+    )
+    .expect("repo fixture");
     let pitch = motor(&supervisor, "right_shoulder_pitch");
     activate(&mut supervisor, std::slice::from_ref(&pitch));
     let frame = |position: u16| {
@@ -123,7 +112,10 @@ fn safe_queued_pose_burst_does_not_treat_host_dequeue_spacing_as_motion() {
         frame.data[2..4].copy_from_slice(&[0x83, 0x11]); // Vendor RS03 velocity ~= 1.2 rad/s.
         frame
     };
-    supervisor.bus_mut().rx_queue.push(frame(0x7fff));
+    supervisor
+        .bus_mut()
+        .queue_frame(frame(0x7fff))
+        .expect("finite closed script");
     supervisor.drain_feedback().expect("initial Run pose");
 
     // Twelve 16-count position steps represent ~0.074 rad over 60 ms, within the 2.5 rad/s
@@ -132,8 +124,8 @@ fn safe_queued_pose_burst_does_not_treat_host_dequeue_spacing_as_motion() {
     std::thread::sleep(std::time::Duration::from_millis(60));
     supervisor
         .bus_mut()
-        .rx_queue
-        .extend((1..=12).map(|step| frame(0x7fff + step * 16)));
+        .queue_frames((1..=12).map(|step| frame(0x7fff + step * 16)))
+        .expect("finite closed script");
     assert_eq!(supervisor.drain_feedback().expect("safe backlog"), 12);
     assert!(!supervisor.safety_snapshot().is_latched());
     let feedback = supervisor
@@ -141,11 +133,11 @@ fn safe_queued_pose_burst_does_not_treat_host_dequeue_spacing_as_motion() {
         .expect("latest pose");
     assert!(feedback.velocity_rad_s.is_finite());
     assert!(feedback.velocity_rad_s.abs() <= 2.5);
-    supervisor.bus_mut().tx.clear();
+    supervisor.bus_mut().clear_trace();
     supervisor
         .send_mit_batch(vec![command(&pitch)])
         .expect("safe backlog preserves motion admission");
-    assert_eq!(supervisor.bus_mut().tx.len(), 1);
+    assert_eq!(supervisor.bus().frames().len(), 1);
 }
 
 fn detailed(motor: &MotorEntry, raw: [u8; 8]) -> CanFrame {
@@ -156,59 +148,30 @@ fn detailed(motor: &MotorEntry, raw: [u8; 8]) -> CanFrame {
     }
 }
 
-#[derive(Default)]
-struct EvidenceBus {
-    inner: MemoryBus,
-    fail_receive: bool,
-    fail_disables: bool,
-}
-
-impl CanBus for EvidenceBus {
-    fn send_frame(&mut self, frame: &CanFrame) -> Result<(), BusError> {
-        self.inner.send_frame(frame)?;
-        if self.fail_disables && frame.id >> 24 == 4 {
-            return Err(BusError::Send {
-                message: "virtual disable delivery unknown".into(),
-            });
-        }
-        Ok(())
-    }
-
-    fn recv_one_nonblocking(&mut self) -> Result<ReceiveAttempt, BusError> {
-        let attempt = self.inner.recv_one_nonblocking()?;
-        if matches!(attempt, ReceiveAttempt::Idle) && self.fail_receive {
-            self.fail_receive = false;
-            return Err(BusError::Driver(
-                "terminal error after observed prefix".into(),
-            ));
-        }
-        Ok(attempt)
-    }
-}
-
-impl MotorBus for EvidenceBus {}
-
 #[test]
 fn invalid_pose_peer_fault_and_terminal_error_all_survive_one_drain() {
-    let mut supervisor = supervisor::<EvidenceBus>();
+    let mut supervisor = supervisor();
     let pitch = motor(&supervisor, "right_shoulder_pitch");
     let roll = motor(&supervisor, "right_shoulder_roll");
     activate(&mut supervisor, &[pitch.clone(), roll.clone()]);
     supervisor
         .bus_mut()
-        .inner
-        .rx_queue
-        .extend([status(&pitch), status(&roll)]);
+        .queue_frames([status(&pitch), status(&roll)])
+        .expect("finite closed script");
     supervisor.drain_feedback().expect("initial poses");
     let mut invalid_pose = status(&pitch);
     invalid_pose.data[0..2].copy_from_slice(&[0xff, 0xff]);
     let peer_raw = [0x00, 0x00, 0x01, 0x80, 0x02, 0x00, 0x00, 0x40];
-    supervisor.bus_mut().inner.rx_queue.extend([
-        invalid_pose,
-        detailed(&roll, peer_raw),
-        status(&roll),
-    ]);
-    supervisor.bus_mut().fail_receive = true;
+    supervisor
+        .bus_mut()
+        .queue_frames([invalid_pose, detailed(&roll, peer_raw), status(&roll)])
+        .expect("finite closed script");
+    supervisor
+        .bus_mut()
+        .queue_attempts([SimulationReceive::Error(
+            "terminal error after observed prefix".into(),
+        )])
+        .expect("terminal error script");
     assert!(supervisor.drain_feedback().is_err());
 
     let snapshot = supervisor.safety_snapshot();
@@ -235,19 +198,25 @@ fn invalid_pose_peer_fault_and_terminal_error_all_survive_one_drain() {
 
 #[test]
 fn full_raw_domains_and_fault_identity_survive_healthy_pose_cache_and_replay() {
-    let mut supervisor = supervisor::<MemoryBus>();
+    let mut supervisor = supervisor();
     let pitch = motor(&supervisor, "right_shoulder_pitch");
     activate(&mut supervisor, std::slice::from_ref(&pitch));
-    supervisor.bus_mut().rx_queue.push(status(&pitch));
+    supervisor
+        .bus_mut()
+        .queue_frame(status(&pitch))
+        .expect("finite closed script");
     supervisor.drain_feedback().expect("initial pose");
     let mut flagged = status(&pitch);
     flagged.id |= 1 << 16;
-    supervisor.bus_mut().rx_queue.extend([
-        detailed(&pitch, [1, 2, 0x80, 0x40, 2, 0x80, 4, 0x20]),
-        detailed(&pitch, [0x80, 1, 0, 4, 1, 0x40, 0x80, 0]),
-        flagged,
-        status(&pitch),
-    ]);
+    supervisor
+        .bus_mut()
+        .queue_frames([
+            detailed(&pitch, [1, 2, 0x80, 0x40, 2, 0x80, 4, 0x20]),
+            detailed(&pitch, [0x80, 1, 0, 4, 1, 0x40, 0x80, 0]),
+            flagged,
+            status(&pitch),
+        ])
+        .expect("finite closed script");
     assert!(supervisor.drain_feedback().is_err());
     let first = supervisor.safety_snapshot();
     let fault = first.first_fault().expect("first fault");
@@ -258,7 +227,10 @@ fn full_raw_domains_and_fault_identity_survive_healthy_pose_cache_and_replay() {
     assert_eq!(fault.device.warning_bytes, [3, 0xc0, 0x84, 0x20]);
     assert_eq!(fault.device.drive_mode, Some(2));
 
-    supervisor.bus_mut().rx_queue.push(status(&pitch));
+    supervisor
+        .bus_mut()
+        .queue_frame(status(&pitch))
+        .expect("finite closed script");
     supervisor
         .drain_feedback()
         .expect("healthy diagnostics are still available");
@@ -266,10 +238,13 @@ fn full_raw_domains_and_fault_identity_survive_healthy_pose_cache_and_replay() {
     assert_eq!(later.first_fault(), first.first_fault());
     assert_eq!(later.stop_generation, first.stop_generation);
     supervisor.clear_motor_states();
-    supervisor.seed_synthetic_feedback();
     supervisor
-        .set_synthetic_joint_feedback(&pitch.joint, 0.0, 0.0)
-        .expect("replay pose");
+        .bus_mut()
+        .queue_frame(status(&pitch))
+        .expect("diagnostic replay");
+    supervisor
+        .drain_feedback()
+        .expect("diagnostic replay is not recovery");
     assert_eq!(supervisor.safety_snapshot(), later);
     assert_ne!(
         supervisor
@@ -283,18 +258,31 @@ fn full_raw_domains_and_fault_identity_survive_healthy_pose_cache_and_replay() {
 
 #[test]
 fn first_cause_and_failed_stop_evidence_survive_later_successful_stop() {
-    let mut supervisor = supervisor::<EvidenceBus>();
+    let mut supervisor = supervisor();
     let pitch = motor(&supervisor, "right_shoulder_pitch");
     let motor_count = supervisor.motors.motors.len();
     activate(&mut supervisor, std::slice::from_ref(&pitch));
-    supervisor.bus_mut().inner.rx_queue.push(status(&pitch));
-    supervisor.drain_feedback().expect("pose");
-    supervisor.bus_mut().fail_disables = true;
     supervisor
         .bus_mut()
-        .inner
-        .rx_queue
-        .push(detailed(&pitch, [0, 0, 0, 0x80, 0, 0, 0, 0]));
+        .queue_frame(status(&pitch))
+        .expect("finite closed script");
+    supervisor.drain_feedback().expect("pose");
+    let rule = supervisor
+        .bus_mut()
+        .add_tx_rule(TxRule {
+            matcher: TxMatcher {
+                communication_type: Some(4),
+                ..TxMatcher::default()
+            },
+            occurrence: TxOccurrence::Every,
+            receive: vec![],
+            send_error: Some("virtual disable delivery unknown".into()),
+        })
+        .expect("all-disable rule");
+    supervisor
+        .bus_mut()
+        .queue_frame(detailed(&pitch, [0, 0, 0, 0x80, 0, 0, 0, 0]))
+        .expect("finite closed script");
     assert!(supervisor.drain_feedback().is_err());
     let failed = supervisor.safety_snapshot();
     assert_eq!(
@@ -317,7 +305,8 @@ fn first_cause_and_failed_stop_evidence_survive_later_successful_stop() {
         motor_count
     );
 
-    supervisor.bus_mut().fail_disables = false;
+    assert_eq!(supervisor.bus().rule_trigger_count(rule), motor_count);
+    supervisor.bus_mut().remove_tx_rule(rule);
     supervisor.disable_all().expect("later writes accepted");
     let later = supervisor.safety_snapshot();
     assert_eq!(later.first_fault(), failed.first_fault());
@@ -329,12 +318,12 @@ fn first_cause_and_failed_stop_evidence_survive_later_successful_stop() {
 
 #[test]
 fn fault_only_without_pose_is_visible_in_commissioning_facets() {
-    let mut supervisor = supervisor::<MemoryBus>();
+    let mut supervisor = supervisor();
     let pitch = motor(&supervisor, "right_shoulder_pitch");
     supervisor
         .bus_mut()
-        .rx_queue
-        .push(detailed(&pitch, [0, 0, 0, 0x80, 0, 0, 0, 0]));
+        .queue_frame(detailed(&pitch, [0, 0, 0, 0x80, 0, 0, 0, 0]))
+        .expect("finite closed script");
     assert!(supervisor.drain_feedback().is_err());
     let (master, _) = supervisor.commissioning_facets(std::slice::from_ref(&pitch.joint));
     assert!(master[0].fault);
@@ -345,31 +334,39 @@ fn fault_only_without_pose_is_visible_in_commissioning_facets() {
 
 #[test]
 fn warning_only_evidence_is_retained_without_latching_motion() {
-    let mut supervisor = supervisor::<MemoryBus>();
+    let mut supervisor = supervisor();
     let pitch = motor(&supervisor, "right_shoulder_pitch");
     activate(&mut supervisor, std::slice::from_ref(&pitch));
-    supervisor.bus_mut().rx_queue.push(status(&pitch));
+    supervisor
+        .bus_mut()
+        .queue_frame(status(&pitch))
+        .expect("finite closed script");
     supervisor.drain_feedback().expect("pose");
     supervisor
         .bus_mut()
-        .rx_queue
-        .push(detailed(&pitch, [0, 0, 0, 0, 1, 0x80, 0, 0]));
+        .queue_frame(detailed(&pitch, [0, 0, 0, 0, 1, 0x80, 0, 0]))
+        .expect("finite closed script");
     supervisor.drain_feedback().expect("warning diagnostics");
     let snapshot = supervisor.safety_snapshot();
     assert!(!snapshot.is_latched());
     assert_eq!(snapshot.observed_warnings.len(), 1);
     assert_eq!(snapshot.observed_warnings[0].warning_bytes, [1, 0x80, 0, 0]);
-    supervisor.bus_mut().tx.clear();
+    supervisor.bus_mut().clear_trace();
     supervisor
         .send_mit_batch(vec![command(&pitch)])
         .expect("warning does not grant or revoke permission");
-    assert_eq!(supervisor.bus_mut().tx.len(), 1);
+    assert_eq!(supervisor.bus().frames().len(), 1);
 }
 
 #[test]
 fn prefix_free_receive_failure_is_a_persistent_transport_fault() {
-    let mut supervisor = supervisor::<EvidenceBus>();
-    supervisor.bus_mut().fail_receive = true;
+    let mut supervisor = supervisor();
+    supervisor
+        .bus_mut()
+        .queue_attempts([SimulationReceive::Error(
+            "terminal error after observed prefix".into(),
+        )])
+        .expect("terminal error script");
     assert!(supervisor.drain_feedback().is_err());
     let snapshot = supervisor.safety_snapshot();
     assert_eq!(
@@ -385,11 +382,14 @@ fn prefix_free_receive_failure_is_a_persistent_transport_fault() {
 
 #[test]
 fn expired_watchdog_remains_a_communication_fault_after_healthy_diagnostics() {
-    let mut supervisor = supervisor::<MemoryBus>();
+    let mut supervisor = supervisor();
     let pitch = motor(&supervisor, "right_shoulder_pitch");
     supervisor.control.control.comm_watchdog_ms = 1;
     activate(&mut supervisor, std::slice::from_ref(&pitch));
-    supervisor.bus_mut().rx_queue.push(status(&pitch));
+    supervisor
+        .bus_mut()
+        .queue_frame(status(&pitch))
+        .expect("finite closed script");
     supervisor.drain_feedback().expect("pose");
     std::thread::sleep(std::time::Duration::from_millis(3));
     assert!(supervisor.send_mit_batch(vec![command(&pitch)]).is_err());
@@ -398,7 +398,10 @@ fn expired_watchdog_remains_a_communication_fault_after_healthy_diagnostics() {
         snapshot.first_fault().expect("watchdog").class,
         FaultClass::Communication
     );
-    supervisor.bus_mut().rx_queue.push(status(&pitch));
+    supervisor
+        .bus_mut()
+        .queue_frame(status(&pitch))
+        .expect("finite closed script");
     supervisor
         .drain_feedback()
         .expect("healthy free-drive diagnostics");
@@ -411,15 +414,15 @@ fn expired_watchdog_remains_a_communication_fault_after_healthy_diagnostics() {
 
 #[test]
 fn newly_asserted_hardware_input_attempts_stop_even_after_an_existing_fault() {
-    let mut supervisor = supervisor::<MemoryBus>();
+    let mut supervisor = supervisor();
     let pitch = motor(&supervisor, "right_shoulder_pitch");
     supervisor
         .bus_mut()
-        .rx_queue
-        .push(detailed(&pitch, [1, 0, 0, 0, 0, 0, 0, 0]));
+        .queue_frame(detailed(&pitch, [1, 0, 0, 0, 0, 0, 0, 0]))
+        .expect("finite closed script");
     assert!(supervisor.drain_feedback().is_err());
     let first = supervisor.safety_snapshot();
-    supervisor.bus_mut().tx.clear();
+    supervisor.bus_mut().clear_trace();
     supervisor.set_hardware_estop(true);
     let asserted = supervisor.safety_snapshot();
     assert_eq!(asserted.first_fault(), first.first_fault());

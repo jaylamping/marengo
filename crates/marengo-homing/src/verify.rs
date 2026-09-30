@@ -5,6 +5,10 @@ use crate::registry::HomingRegistry;
 
 #[derive(Debug, Error, PartialEq)]
 pub enum VerifyError {
+    #[error("joint {joint}: invalid manual-reference input {field}")]
+    InvalidInput { joint: String, field: &'static str },
+    #[error("joint {joint}: method {method:?} has no scalar manual-reference workflow")]
+    UnsupportedMethod { joint: String, method: HomingMethod },
     #[error("joint {joint}: position {position_rad} outside limits [{lower}, {upper}]")]
     OutOfLimits {
         joint: String,
@@ -31,7 +35,11 @@ pub struct VerifyOutcome {
     pub within_tolerance: bool,
 }
 
-/// Verify manual-reference zero: position within limits and near zero after SetZero.
+/// Validate supplied manual-reference scalars and record legacy history.
+///
+/// This does not establish sample freshness, device identity or SetZero causality,
+/// and cannot mint Davout's private current-reference permission. Invalid inputs
+/// and unsupported methods return before history or registry-state mutation.
 #[allow(clippy::too_many_arguments)]
 pub fn verify_manual_reference(
     registry: &mut HomingRegistry,
@@ -44,6 +52,40 @@ pub fn verify_manual_reference(
     operator: &str,
     config_revision: Option<String>,
 ) -> Result<VerifyOutcome, VerifyError> {
+    let invalid = |field| VerifyError::InvalidInput {
+        joint: motor.joint.clone(),
+        field,
+    };
+    if homing.joint != motor.joint {
+        return Err(invalid("homing_joint"));
+    }
+    if !registry.configured_joints().contains(&motor.joint) {
+        return Err(invalid("registry_joint"));
+    }
+    let tolerance = registry.zero_tolerance_rad();
+    for (field, value) in [
+        ("position_rad", position_rad),
+        ("lower", lower),
+        ("upper", upper),
+        ("zero_tolerance_rad", tolerance),
+        ("home_offset_rad", homing.home_offset_rad),
+    ] {
+        if !value.is_finite() {
+            return Err(invalid(field));
+        }
+    }
+    if lower >= upper {
+        return Err(invalid("bounds"));
+    }
+    if tolerance < 0.0 {
+        return Err(invalid("zero_tolerance_rad"));
+    }
+    if homing.method != HomingMethod::ManualReference {
+        return Err(VerifyError::UnsupportedMethod {
+            joint: motor.joint.clone(),
+            method: homing.method,
+        });
+    }
     if position_rad < lower || position_rad > upper {
         registry.set_state(&motor.joint, crate::JointHomingState::Faulted);
         registry.mark_out_of_limits(&motor.joint);
@@ -54,7 +96,6 @@ pub fn verify_manual_reference(
             upper,
         });
     }
-    let tolerance = registry.zero_tolerance_rad();
     if position_rad.abs() > tolerance {
         registry.set_state(&motor.joint, crate::JointHomingState::Faulted);
         return Err(VerifyError::ZeroTolerance {
@@ -69,15 +110,10 @@ pub fn verify_manual_reference(
             joint: motor.joint.clone(),
         });
     }
-    let method = match homing.method {
-        HomingMethod::ManualReference => "manual_reference",
-        HomingMethod::HallThreeSensor => "hall_three_sensor",
-        HomingMethod::None => "none",
-    };
     registry
         .record_verification(
             motor,
-            method,
+            "manual_reference",
             homing.home_offset_rad,
             position_rad,
             sign_test_passed,
@@ -208,5 +244,69 @@ mod tests {
             reg.joint_state("shoulder_pitch"),
             crate::JointHomingState::Faulted
         );
+    }
+
+    #[test]
+    fn nonfinite_input_is_a_typed_request_error_without_recording() {
+        let (directory, mut reg) = registry();
+        let error = verify_manual_reference(
+            &mut reg,
+            &motor(),
+            &homing_cfg(),
+            f64::NAN,
+            -0.9,
+            3.17,
+            true,
+            "test",
+            None,
+        )
+        .expect_err("nonfinite input");
+        assert_eq!(
+            error,
+            VerifyError::InvalidInput {
+                joint: "shoulder_pitch".into(),
+                field: "position_rad",
+            }
+        );
+        assert_eq!(
+            reg.joint_state("shoulder_pitch"),
+            crate::JointHomingState::Unhomed
+        );
+        assert!(reg.calibration().joints.is_empty());
+        assert!(!directory.path().join("zero_registry.yaml").exists());
+    }
+
+    #[test]
+    fn nonmanual_methods_have_typed_unsupported_results() {
+        for method in [HomingMethod::HallThreeSensor, HomingMethod::None] {
+            let (directory, mut reg) = registry();
+            let mut homing = homing_cfg();
+            homing.method = method;
+            let error = verify_manual_reference(
+                &mut reg,
+                &motor(),
+                &homing,
+                0.01,
+                -0.9,
+                3.17,
+                true,
+                "test",
+                None,
+            )
+            .expect_err("not a manual workflow");
+            assert_eq!(
+                error,
+                VerifyError::UnsupportedMethod {
+                    joint: "shoulder_pitch".into(),
+                    method,
+                }
+            );
+            assert_eq!(
+                reg.joint_state("shoulder_pitch"),
+                crate::JointHomingState::Unhomed
+            );
+            assert!(reg.calibration().joints.is_empty());
+            assert!(!directory.path().join("zero_registry.yaml").exists());
+        }
     }
 }

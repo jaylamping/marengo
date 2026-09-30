@@ -3,19 +3,21 @@
 #![allow(clippy::expect_used)]
 
 use berthier::{ControlLoop, ControlMode, LoopError};
-use davout::MemoryBus;
+use davout::simulation::{InitialVirtualReference, SimulationBus};
+mod support;
 use marengo_config::LimitPatch;
+use support::{queue_joint_status, FixtureTree};
 
-fn enabled_controller() -> ControlLoop<MemoryBus> {
+fn enabled_controller() -> ControlLoop<SimulationBus> {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let mut controller =
-        ControlLoop::from_repo(root, MemoryBus::default(), 200, 50).expect("repository fixture");
-    let motors = controller.supervisor().motors.motors.clone();
-    controller
-        .supervisor_mut()
-        .homing_registry_mut()
-        .bench_mark_all_verified(&motors)
-        .expect("recording reference");
+    let mut controller = ControlLoop::from_simulation(
+        root,
+        SimulationBus::default(),
+        InitialVirtualReference::AllConfigured,
+        200,
+        50,
+    )
+    .expect("virtual initial reference fixture");
     controller
         .supervisor_mut()
         .set_homing_complete()
@@ -28,13 +30,13 @@ fn enabled_controller() -> ControlLoop<MemoryBus> {
         .request_enable(true)
         .expect("recording enable");
     controller.set_control_mode(ControlMode::Impedance);
-    controller.supervisor_mut().bus_mut().tx.clear();
+    controller.supervisor_mut().bus_mut().clear_trace();
     controller
 }
 
-fn assert_neutral_frames(controller: &mut ControlLoop<MemoryBus>) {
+fn assert_neutral_frames(controller: &mut ControlLoop<SimulationBus>) {
     let motor_count = controller.supervisor().motors.motors.len();
-    let frames = &controller.supervisor_mut().bus_mut().tx;
+    let frames = controller.supervisor().bus().frames();
     assert_eq!(frames.len(), 2 * motor_count);
     for frame in frames {
         // Vendor zero torque, zero desired speed, zero kp/kd. This oracle does
@@ -46,7 +48,7 @@ fn assert_neutral_frames(controller: &mut ControlLoop<MemoryBus>) {
     }
 }
 
-fn assert_stopped(controller: &mut ControlLoop<MemoryBus>) {
+fn assert_stopped(controller: &mut ControlLoop<SimulationBus>) {
     let snapshot = controller.supervisor().safety_snapshot();
     assert!(snapshot.is_latched());
     assert_eq!(controller.control_mode(), ControlMode::Disabled);
@@ -56,7 +58,7 @@ fn assert_stopped(controller: &mut ControlLoop<MemoryBus>) {
         report.attempts.len(),
         controller.supervisor().motors.motors.len() * 3
     );
-    for frame in &controller.supervisor_mut().bus_mut().tx {
+    for frame in controller.supervisor().bus().frames() {
         match (frame.id >> 24) & 0x1f {
             1 => {
                 assert_eq!((frame.id >> 8) & 0xffff, 0x7fff);
@@ -91,7 +93,7 @@ fn active_feedback_bootstrap_emits_only_neutral_frames_then_expires() {
         controller.tick(None).expect("bounded bootstrap tick");
     }
     assert_neutral_frames(&mut controller);
-    controller.supervisor_mut().bus_mut().tx.clear();
+    controller.supervisor_mut().bus_mut().clear_trace();
     assert!(matches!(
         controller.tick(None),
         Err(LoopError::MissingFeedback { .. })
@@ -123,12 +125,12 @@ fn reenable_between_ticks_starts_a_new_bounded_neutral_bootstrap() {
         .enable_targets(&targets)
         .expect("recording re-enable");
     controller.set_control_mode(ControlMode::Impedance);
-    controller.supervisor_mut().bus_mut().tx.clear();
+    controller.supervisor_mut().bus_mut().clear_trace();
     for _ in 0..2 {
         controller.tick(None).expect("new session bootstrap tick");
     }
     assert_neutral_frames(&mut controller);
-    controller.supervisor_mut().bus_mut().tx.clear();
+    controller.supervisor_mut().bus_mut().clear_trace();
     assert!(matches!(
         controller.tick(None),
         Err(LoopError::MissingFeedback { .. })
@@ -139,15 +141,15 @@ fn reenable_between_ticks_starts_a_new_bounded_neutral_bootstrap() {
 #[test]
 fn neutral_bootstrap_supports_taught_ranges_that_exclude_zero() {
     for (lower, upper) in [(0.2, 0.8), (-0.8, -0.2)] {
-        let mut controller = enabled_controller();
-        controller
-            .supervisor_mut()
-            .disable_all()
-            .expect("disabled setup");
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let fixture = FixtureTree::new("nonzero-range", &root);
         let joint = "right_elbow_pitch";
-        controller
-            .supervisor_mut()
-            .apply_limit_patch(&LimitPatch {
+        // Reference-relevant policy is installed before declaring the virtual
+        // initial condition. A live limit edit must revoke that condition.
+        marengo_config::upsert_joint_limits(
+            fixture.path(),
+            fixture.path().join("config"),
+            &LimitPatch {
                 joint: joint.into(),
                 position_lower_rad: lower,
                 position_upper_rad: upper,
@@ -155,25 +157,41 @@ fn neutral_bootstrap_supports_taught_ranges_that_exclude_zero() {
                 position_soft_upper_rad: Some(upper - 0.025),
                 velocity_max_rad_s: None,
                 torque_limit_nm: None,
-            })
-            .expect("valid taught range");
+            },
+            None,
+        )
+        .expect("fixture taught range");
+        let mut controller = ControlLoop::from_simulation(
+            fixture.path(),
+            SimulationBus::default(),
+            InitialVirtualReference::AllConfigured,
+            200,
+            50,
+        )
+        .expect("virtual initial condition under installed policy");
+        queue_joint_status(
+            controller.supervisor_mut(),
+            joint,
+            if lower > 0.0 { 0.3 } else { -0.3 },
+            0.0,
+        );
         controller
             .supervisor_mut()
-            .set_synthetic_joint_feedback(joint, ((lower + upper) / 2.0) as f32, 0.0)
-            .expect("in-range Disabled pose");
+            .drain_feedback()
+            .expect("in-range raw Disabled observation");
         controller
             .supervisor_mut()
             .enable_targets(&[joint.into()])
             .expect("scoped enable");
         controller.set_control_mode(ControlMode::Impedance);
         assert!(controller.supervisor().joint_feedback(joint).is_none());
-        controller.supervisor_mut().bus_mut().tx.clear();
+        controller.supervisor_mut().bus_mut().clear_trace();
         for _ in 0..2 {
             controller
                 .tick(None)
                 .expect("inert solicit for range excluding zero");
         }
-        let frames = &controller.supervisor_mut().bus_mut().tx;
+        let frames = controller.supervisor().bus().frames();
         assert_eq!(frames.len(), 2);
         for frame in frames {
             assert_eq!((frame.id >> 24) & 0x1f, 1);
@@ -187,7 +205,7 @@ fn neutral_bootstrap_supports_taught_ranges_that_exclude_zero() {
             let joint_target = -(word / 32767.0 - 1.0) * 4.0 * std::f64::consts::PI;
             assert!(joint_target >= lower - 0.001 && joint_target <= upper + 0.001);
         }
-        controller.supervisor_mut().bus_mut().tx.clear();
+        controller.supervisor_mut().bus_mut().clear_trace();
         assert!(matches!(
             controller.tick(None),
             Err(LoopError::MissingFeedback { .. })

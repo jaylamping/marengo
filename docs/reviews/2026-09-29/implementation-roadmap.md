@@ -6,7 +6,8 @@ records remain under `J:\code`; no development checkout is moved into Ubuntu.
 
 This is an implementation plan and progress ledger, not a claim that every
 finding is repaired. The original review contained 100 IDs. Independent analytic
-tests discovered **CS23**, bringing this plan to **101 IDs**. CS22/G11 and G10/F05
+tests discovered **CS23**, and motion/stall tests discovered **CS24**, bringing
+this plan to **102 IDs**. CS22/G11 and G10/F05
 are explicit cross-layer overlaps. Tooling findings also intersect runtime work;
 ID counts do not count independent defects.
 
@@ -93,7 +94,7 @@ continuing quality rule rather than a blocker requiring a giant test rewrite.
 | WP13 Dependencies and lifetimes | G12, F21, T31-T32 | Renew TLS keys/fingerprint coherently; retain stable route tests; patch remaining tool advisories with compatible versions; handle Router major migration deliberately and prove affected behavior. Render lifecycle F15 is owned by WP07. | None; consult SDK instructions for Compound upgrades |
 | WP14 Auto Learn | T23-T25 | Require complete finite live joint limits/context, predecessor stage evidence and continuous trajectory velocity bounds. No incomplete model or empty prior can bypass admission. Motion requests use the same runtime owner and fail closed. | WP01, WP05/06/07, WP10 |
 | WP15 Research tooling | T17-T20 | Await all asynchronous cache-miss handlers, use the installed arXiv client contract, preserve explicit zero scrape count and real week/month recency. Mock only external network boundaries and check returned content. | None |
-| WP16 Model and plant validation | CS21, CS23, T27-T30 | Immutable analytic gravity fixtures, correct COM point transforms, production URDF/MJCF provenance and independent cross-check; deterministic production-controller plant tests cover delay, dropout, saturation, stiction and cancellation. Reject incomplete pose input and unsupported model/export capabilities; scaffold commands cannot report success. | Analytic checks immediate; integrated plant after WP01/02/05 |
+| WP16 Model and plant validation | CS21, CS23, CS24, T27-T30 | Immutable analytic gravity fixtures, correct COM point transforms, production URDF/MJCF provenance and independent cross-check; deterministic production-controller plant tests cover delay, dropout, saturation, stiction and cancellation. Reject incomplete pose input and unsupported model/export capabilities; scaffold commands cannot report success. | Analytic checks immediate; integrated plant after WP01/02/05 |
 
 ## Rewrite decisions
 
@@ -283,12 +284,44 @@ tests (one ignored), 355 frontend, 72 Pi-MCP and the script/dependency contracts
 affected Linux strict lint and 338 tests pass, along with simulation smoke.
 All five implementation-head jobs pass at 8c3f62e in run 36691835812, including 73
 actual driver feature tests with none ignored. Delivery is
-[PR218](https://github.com/jaylamping/marengo/pull/218); final evidence-head checks
-remain required before safe merge. CS05 is partial until private grants and
+[PR218](https://github.com/jaylamping/marengo/pull/218), merged as `c3068c0` with
+the exact checked tree. All five final-head jobs pass at `0c17484` in run
+36692769875; all five postmerge main jobs pass in run36693487593. The batch05
+ledger history records that delivery receipt. CS05 is partial until private grants and
 qualified reference/recovery transactions replace the remaining bypasses.
 The fresh motor-repl stop path's dependency on constructor success is explicit
 CS07/CS09 caller work; this is not a qualified emergency-stop CLI or a live
 commissioning release. No robot action or physical acceptance occurs here.
+
+## Sixth batch: private reference admission
+
+The next slice starts from checked merge `c3068c0` under
+[ADR0023](../../decisions/0023-private-current-reference-authority.md).
+Actual unchanged-public baseline tests expose Unhomed scoped Enable and
+NaN/Hall/None history verification. A further scalar matrix executes 22 real
+assertion failures plus one finite-history control against 1,414 unchanged
+original files; the identical matrix passes after scalar validation.
+
+Private output permission, truthful unqualified reference refusal and closed
+virtual fixtures pass final local qualification. Actual old-public grant and
+cached/peer-arming reds are preserved; unchanged public/scalar replay and meaningful
+transport/private-factory isolation pass. Review discovers and fixes atomic model
+restore, with two exact-c306 old-public and two candidate assertion reds repaired.
+Final primary passes 689 Rust/1 existing ignored,355 frontend and 72 Pi-tool tests
+with fatal main cross-build; affected Linux 388/0 ignored and minimal simulation 5
+pass. Standards has zero findings; Spec's one issue is resolved.
+[PR219](https://github.com/jaylamping/marengo/pull/219)'s implementation head
+`7951f10` passes all five GitHub jobs in run36706934339, including 73 actual
+virtual-CAN driver tests, zero ignored. Final evidence-head and postmerge main
+delivery checks remain required; the external batch06 merge receipt will bind
+those checked hashes and equal trees. CS05/CS06/CS07 remain partial; qualified
+target-only transactions and installed-owner clients are next.
+
+The independent law probe adds CS24 open: a positive EMA residue resets the stall
+fuse after real motion stops. Two receive-invariant mutants are killed, but this
+separate control algorithm is unchanged. There are 102 traceable IDs:12 verified,
+10 partial,80 open. Hardware and whole-controller model/plant acceptance are
+explicit remaining work; no robot operation or Wave/limit change occurs.
 
 ## Completion and continuation
 
@@ -299,7 +332,7 @@ Follow-ups never operate or deploy to the physical robot. Pause/finish the loop
 when software work is complete or a specific external decision blocks progress,
 and report the remaining acceptance gates.
 
-Software completion requires a disposition for all 101 IDs, all required callers
+Software completion requires a disposition for all 102 IDs, all required callers
 migrated, meaningful regression coverage and passing required checks. Do not
 declare completion merely because P1s are fixed or an existing suite is green.
 Retire dormant code only after checking its consumers and preserving required

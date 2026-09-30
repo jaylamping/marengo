@@ -592,6 +592,7 @@ dependencies = [
  "marengo-config",
  "marengo-homing",
  "robstride",
+ "serde_yaml",
  "thiserror 1.0.69",
  "tracing",
  "urdf-rs",

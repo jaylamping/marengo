@@ -3,8 +3,8 @@
 use armee_kinematics::expand_urdf_joint_hard;
 use marengo_config::{
     apply_limit_patch_to_control, apply_limit_patch_to_motor, ensure_soft_inset,
-    validate_control_against_limits, validate_limit_patch, ControlConfigFile, LimitPatch,
-    MotorsConfigFile,
+    validate_control_against_limits, validate_limit_patch, validate_safety_config,
+    ControlConfigFile, LimitPatch, MotorsConfigFile,
 };
 
 use crate::{build_limits, DavoutError, MotorBus, OperationalMode, Supervisor};
@@ -84,6 +84,8 @@ impl<B: MotorBus> Supervisor<B> {
             }
         }
 
+        // Installed model/limit generation changes cannot preserve reference.
+        self.reference_authority.revoke();
         self.urdf_robot = urdf_robot;
         self.motors = motors;
         self.control = control;
@@ -96,16 +98,25 @@ impl<B: MotorBus> Supervisor<B> {
         &self.urdf_robot
     }
 
-    /// Restore motors/control/URDF and rebuild limits (persist enqueue rollback).
+    /// Atomically restore validated motors/control/URDF and derived limits.
+    /// Refuses Active before any mutation; rejected candidates preserve installed
+    /// policy/model/reference. Successful replacement revokes current reference.
     pub fn restore_limit_snapshot(
         &mut self,
         motors: MotorsConfigFile,
         control: ControlConfigFile,
         urdf_robot: urdf_rs::Robot,
     ) -> Result<(), DavoutError> {
+        if self.mode == OperationalMode::Active {
+            return Err(DavoutError::LimitPatchActive);
+        }
+        validate_safety_config(&self.robot, &motors, &control, &self.homing_config)?;
+        let limits = build_limits(&self.robot, &motors, &control, &urdf_robot)?;
+        self.reference_authority.revoke();
         self.motors = motors;
         self.control = control;
         self.urdf_robot = urdf_robot;
-        self.rebuild_limits()
+        self.limits = limits;
+        Ok(())
     }
 }
