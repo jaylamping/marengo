@@ -32,6 +32,7 @@ mod completeness;
 mod config_revision;
 mod limit_patch;
 mod profile_txn;
+mod safety_validation;
 mod urdf_expand;
 mod urdf_merge;
 
@@ -55,6 +56,9 @@ pub use profile_txn::{
     add_joint_from_source, joint_in_motors, joint_in_profile_urdf, limit_patch_from_motor,
     membership_slugs_for_joint, upsert_joint_limits, write_motors_and_control, AddJointResult,
     UpsertLimitResult,
+};
+pub use safety_validation::{
+    validate_homing_config, validate_motors_config, validate_robot_config, validate_safety_config,
 };
 pub use urdf_expand::{
     apply_local_limit_patch, expand_urdf_file_to_cover_motors, write_motors_control_and_urdf,
@@ -83,6 +87,8 @@ pub enum ConfigError {
     UnknownMotorJoint { joint: String },
     #[error("duplicate motor CAN address {interface}:{device_id} in motors.yaml")]
     DuplicateMotorAddress { interface: String, device_id: u8 },
+    #[error("invalid safety configuration {field}: {message}")]
+    InvalidSafetyConfig { field: String, message: String },
     #[error("invalid limit margin on joint {joint}: {message}")]
     InvalidLimitMargin { joint: String, message: String },
     #[error("invalid actuator group {group}: {message}")]
@@ -222,14 +228,18 @@ pub fn resolve_config_dir(repo_root: impl AsRef<Path>) -> PathBuf {
 pub fn load_robot_config_from(
     config_dir: impl AsRef<Path>,
 ) -> Result<RobotConfigFile, ConfigError> {
-    read_yaml(&config_dir.as_ref().join("robot.yaml"))
+    let cfg = read_yaml(&config_dir.as_ref().join("robot.yaml"))?;
+    validate_robot_config(&cfg)?;
+    Ok(cfg)
 }
 
 /// Load `motors.yaml` from `config_dir`.
 pub fn load_motors_config_from(
     config_dir: impl AsRef<Path>,
 ) -> Result<MotorsConfigFile, ConfigError> {
-    read_yaml(&config_dir.as_ref().join("motors.yaml"))
+    let cfg = read_yaml(&config_dir.as_ref().join("motors.yaml"))?;
+    validate_motors_config(&cfg)?;
+    Ok(cfg)
 }
 
 /// Load `control.yaml` from `config_dir`.
@@ -245,7 +255,9 @@ pub fn load_control_config_from(
 pub fn load_homing_config_from(
     config_dir: impl AsRef<Path>,
 ) -> Result<HomingConfigFile, ConfigError> {
-    read_yaml(&config_dir.as_ref().join("homing.yaml"))
+    let cfg = read_yaml(&config_dir.as_ref().join("homing.yaml"))?;
+    validate_homing_config(&cfg)?;
+    Ok(cfg)
 }
 
 /// Load `config/robot.yaml` relative to `repo_root` (honours `MARENGO_CONFIG_DIR`).
@@ -413,28 +425,42 @@ pub struct JointControlEntry {
 
 impl JointControlEntry {
     pub fn limit_margin_fields_valid(&self, joint: &str) -> Result<(), ConfigError> {
-        if self.position_limit_margin_min_rad < 0.0 {
+        if !self.position_limit_margin_min_rad.is_finite()
+            || self.position_limit_margin_min_rad < 0.0
+        {
             return Err(ConfigError::InvalidLimitMargin {
                 joint: joint.to_string(),
-                message: "position_limit_margin_min_rad must be >= 0".to_string(),
+                message: "position_limit_margin_min_rad must be finite and >= 0".to_string(),
             });
         }
-        if self.position_limit_margin_k_v_s < 0.0 {
+        if !self.position_limit_margin_k_v_s.is_finite() || self.position_limit_margin_k_v_s < 0.0 {
             return Err(ConfigError::InvalidLimitMargin {
                 joint: joint.to_string(),
-                message: "position_limit_margin_k_v_s must be >= 0".to_string(),
+                message: "position_limit_margin_k_v_s must be finite and >= 0".to_string(),
             });
         }
-        if self.position_limit_margin_k_stop < 0.0 {
+        if !self.position_limit_margin_k_stop.is_finite() || self.position_limit_margin_k_stop < 0.0
+        {
             return Err(ConfigError::InvalidLimitMargin {
                 joint: joint.to_string(),
-                message: "position_limit_margin_k_stop must be >= 0".to_string(),
+                message: "position_limit_margin_k_stop must be finite and >= 0".to_string(),
             });
         }
-        if self.position_limit_measured_fault_slack_rad < 0.0 {
+        if !self.position_limit_measured_fault_slack_rad.is_finite()
+            || self.position_limit_measured_fault_slack_rad < 0.0
+        {
             return Err(ConfigError::InvalidLimitMargin {
                 joint: joint.to_string(),
-                message: "position_limit_measured_fault_slack_rad must be >= 0".to_string(),
+                message: "position_limit_measured_fault_slack_rad must be finite and >= 0"
+                    .to_string(),
+            });
+        }
+        if self.position_soft_lower_rad.is_some_and(|v| !v.is_finite())
+            || self.position_soft_upper_rad.is_some_and(|v| !v.is_finite())
+        {
+            return Err(ConfigError::InvalidLimitMargin {
+                joint: joint.to_string(),
+                message: "soft bounds must be finite".to_string(),
             });
         }
         if let (Some(lo), Some(hi)) = (self.position_soft_lower_rad, self.position_soft_upper_rad) {
@@ -524,19 +550,19 @@ pub fn resolve_desired_joint_velocity_cap(
         .get(joint)
         .and_then(|entry| entry.velocity_max_rad_s)
     {
-        if v <= 0.0 {
+        if !v.is_finite() || v <= 0.0 {
             return Err(ConfigError::InvalidVelocity {
                 joint: joint.to_string(),
-                message: "velocity_max_rad_s must be > 0".to_string(),
+                message: "velocity_max_rad_s must be finite and > 0".to_string(),
             });
         }
         return Ok(v);
     }
     if let Some((_group, entry)) = actuator_group_for_joint(joint, control) {
-        if entry.velocity_max_rad_s <= 0.0 {
+        if !entry.velocity_max_rad_s.is_finite() || entry.velocity_max_rad_s <= 0.0 {
             return Err(ConfigError::InvalidVelocity {
                 joint: joint.to_string(),
-                message: "actuator group velocity_max_rad_s must be > 0".to_string(),
+                message: "actuator group velocity_max_rad_s must be finite and > 0".to_string(),
             });
         }
         return Ok(entry.velocity_max_rad_s);
@@ -550,10 +576,12 @@ pub fn resolve_desired_joint_velocity_cap(
                 joint: joint.to_string(),
                 message: format!("missing motor_type_defaults.{type_key}"),
             })?;
-    if defaults.velocity_max_rad_s <= 0.0 {
+    if !defaults.velocity_max_rad_s.is_finite() || defaults.velocity_max_rad_s <= 0.0 {
         return Err(ConfigError::InvalidVelocity {
             joint: joint.to_string(),
-            message: format!("motor_type_defaults.{type_key}.velocity_max_rad_s must be > 0"),
+            message: format!(
+                "motor_type_defaults.{type_key}.velocity_max_rad_s must be finite and > 0"
+            ),
         });
     }
     Ok(defaults.velocity_max_rad_s)
@@ -571,10 +599,10 @@ pub fn resolve_joint_velocity_cap(
 fn validate_actuator_groups(control: &ControlSection) -> Result<(), ConfigError> {
     let mut joint_owner: HashMap<String, String> = HashMap::new();
     for (group, entry) in &control.actuator_groups {
-        if entry.velocity_max_rad_s <= 0.0 {
+        if !entry.velocity_max_rad_s.is_finite() || entry.velocity_max_rad_s <= 0.0 {
             return Err(ConfigError::InvalidActuatorGroup {
                 group: group.clone(),
-                message: "velocity_max_rad_s must be > 0".to_string(),
+                message: "velocity_max_rad_s must be finite and > 0".to_string(),
             });
         }
         if entry.joints.is_empty() {
@@ -601,16 +629,16 @@ fn validate_actuator_groups(control: &ControlSection) -> Result<(), ConfigError>
     Ok(())
 }
 
-/// Validate margin fields and actuator groups in `control.yaml`.
+/// Validate numeric control policy, gain caps, margins, groups, and danger rules.
 pub fn validate_control_config(control: &ControlConfigFile) -> Result<(), ConfigError> {
     validate_actuator_groups(&control.control)?;
     for (joint, entry) in &control.control.joints {
         entry.limit_margin_fields_valid(joint)?;
         if let Some(v) = entry.velocity_max_rad_s {
-            if v <= 0.0 {
+            if !v.is_finite() || v <= 0.0 {
                 return Err(ConfigError::InvalidVelocity {
                     joint: joint.clone(),
-                    message: "velocity_max_rad_s must be > 0".to_string(),
+                    message: "velocity_max_rad_s must be finite and > 0".to_string(),
                 });
             }
         }
@@ -630,7 +658,7 @@ pub fn validate_control_config(control: &ControlConfigFile) -> Result<(), Config
             });
         }
     }
-    Ok(())
+    safety_validation::validate_control_numbers(control)
 }
 
 /// Every `robot.joints` entry must have a matching `control.joints` entry.
@@ -648,13 +676,24 @@ pub fn validate_robot_control_joint_coverage(
     Ok(())
 }
 
-/// Cross-check planner speeds against effective caps (call after URDF is loaded).
+/// Validate robot/motor/control identities, numeric policy, soft bounds, and planner caps.
 pub fn validate_control_against_limits(
     robot: &RobotConfigFile,
     motors: &MotorsConfigFile,
     control: &ControlConfigFile,
 ) -> Result<(), ConfigError> {
+    validate_motors_against_robot(robot, motors)?;
+    validate_control_config(control)?;
+    validate_robot_control_joint_coverage(robot, control)?;
     let robot_joints: HashSet<&str> = robot.robot.joints.iter().map(String::as_str).collect();
+    for joint in control.control.joints.keys() {
+        if !robot_joints.contains(joint.as_str()) {
+            return Err(ConfigError::InvalidSafetyConfig {
+                field: "control.joints".to_string(),
+                message: format!("joint {joint} not in robot.joints"),
+            });
+        }
+    }
     for (group, entry) in &control.control.actuator_groups {
         for joint in &entry.joints {
             if !robot_joints.contains(joint.as_str()) {
@@ -666,13 +705,38 @@ pub fn validate_control_against_limits(
         }
     }
     for joint in &robot.robot.joints {
-        let Some(joint_cfg) = control.control.joints.get(joint) else {
-            continue;
-        };
+        let joint_cfg =
+            control
+                .control
+                .joints
+                .get(joint)
+                .ok_or_else(|| ConfigError::MissingControlJoint {
+                    joint: joint.clone(),
+                })?;
         let motor =
             motor_for_joint(motors, joint).ok_or_else(|| ConfigError::UnknownMotorJoint {
                 joint: joint.clone(),
             })?;
+        if joint_cfg.motor_type != motor.motor_type {
+            return Err(ConfigError::InvalidSafetyConfig {
+                field: format!("control.joints.{joint}.motor_type"),
+                message: "must match motors.yaml".to_string(),
+            });
+        }
+        for bound in [
+            joint_cfg.position_soft_lower_rad,
+            joint_cfg.position_soft_upper_rad,
+        ]
+        .into_iter()
+        .flatten()
+        {
+            if bound < motor.bench.position_lower_rad || bound > motor.bench.position_upper_rad {
+                return Err(ConfigError::InvalidLimitMargin {
+                    joint: joint.clone(),
+                    message: "soft bounds must lie within motor hard bounds".to_string(),
+                });
+            }
+        }
         let cap = resolve_joint_velocity_cap(joint, motor.motor_type, &control.control)?;
         if joint_cfg.position_trajectory_velocity_rad_s > cap + 1e-9 {
             return Err(ConfigError::InvalidVelocity {
@@ -946,6 +1010,22 @@ pub fn apply_joint_config_param(
             message: format!("non-finite value for {param}"),
         });
     }
+    if value < 0.0
+        && matches!(
+            param,
+            "impedance.kp"
+                | "impedance.kd"
+                | "impedance.ki"
+                | "friction.fc"
+                | "friction.fv"
+                | "friction.k"
+        )
+    {
+        return Err(ConfigError::Parse {
+            path: PathBuf::from("control.yaml"),
+            message: format!("{param} must be >= 0"),
+        });
+    }
     match param {
         "impedance.kp" => {
             let before = entry.impedance.kp;
@@ -1016,14 +1096,25 @@ pub fn validate_joint_gains_against_motor_type(
             path: PathBuf::from("control.yaml"),
             message: format!("missing motor_type_defaults.{type_key}"),
         })?;
-    if entry.impedance.kp < 0.0
-        || entry.impedance.kd < 0.0
-        || entry.impedance.ki < 0.0
-        || entry.friction.fc < 0.0
+    let nonnegative_gains = [
+        entry.impedance.kp,
+        entry.impedance.kd,
+        entry.impedance.ki,
+        entry.friction.fc,
+        entry.friction.fv,
+        entry.friction.k,
+        defaults.kp_max,
+        defaults.kd_max,
+        defaults.tau_ff_max_nm,
+    ];
+    if nonnegative_gains
+        .into_iter()
+        .any(|value| !value.is_finite() || value < 0.0)
+        || !entry.friction.fo.is_finite()
     {
         return Err(ConfigError::Parse {
             path: PathBuf::from("control.yaml"),
-            message: format!("joint {joint} gains must be >= 0"),
+            message: format!("joint {joint} gains and type maxima must be finite and >= 0; friction.fo must be finite"),
         });
     }
     if entry.impedance.kp > defaults.kp_max {
@@ -1041,6 +1132,16 @@ pub fn validate_joint_gains_against_motor_type(
             message: format!(
                 "impedance.kd {} exceeds kd_max {} for {type_key}",
                 entry.impedance.kd, defaults.kd_max
+            ),
+        });
+    }
+    // Match Berthier's conservative integral ceiling: the schema has no ki_max.
+    if entry.impedance.ki > defaults.kp_max {
+        return Err(ConfigError::Parse {
+            path: PathBuf::from("control.yaml"),
+            message: format!(
+                "impedance.ki {} exceeds kp_max {} for {type_key}",
+                entry.impedance.ki, defaults.kp_max
             ),
         });
     }
@@ -1067,17 +1168,12 @@ pub fn validate_motors_against_robot(
     robot: &RobotConfigFile,
     motors: &MotorsConfigFile,
 ) -> Result<(), ConfigError> {
-    let mut addresses = HashSet::new();
+    validate_robot_config(robot)?;
+    validate_motors_config(motors)?;
     for m in &motors.motors {
         if !robot.robot.joints.iter().any(|j| j == &m.joint) {
             return Err(ConfigError::UnknownMotorJoint {
                 joint: m.joint.clone(),
-            });
-        }
-        if !addresses.insert((m.can_interface.clone(), m.device_id)) {
-            return Err(ConfigError::DuplicateMotorAddress {
-                interface: m.can_interface.clone(),
-                device_id: m.device_id,
             });
         }
     }

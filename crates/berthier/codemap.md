@@ -15,7 +15,7 @@ Owns `ControlLoop::tick` — the heartbeat of the robot. Also provides a legacy 
 - `MitFeedforward` — Active MIT packing for GravityComp / Impedance / TorqueOnly from pre-resolved wire gains + τ_ff; TorqueOnly uses latched `τ_cmd` (hard-zero kp/kd).
 - `Controller<B: MotorBus>` — lighter facade wrapping `Supervisor<B>` for single-joint commands (REPL / bench).
 - `ControlMode` — re-exported from `davout`: `Disabled`, `GravityComp`, `TorqueOnly`, `Impedance`, `Position`.
-- `GainOverride` — runtime per-joint gain override from Testing page; clamped to motor-type safety limits; cleared on GravityComp/TorqueOnly/Disabled enter.
+- `GainOverride` — runtime per-joint gain override from Testing page; public setters reject unknown joints, nonfinite fields and negative gains before mutation, preflight batches, then clamp to motor-type limits; cleared on GravityComp/TorqueOnly/Disabled enter.
 
 ### Modules (position-hold subsystem, `ControlMode::Position`)
 - `gain_runtime` — `GainRuntime`, ModeGainPolicy (`mode_allows_gain_override`, `target_gains_from_yaml`, `effective_wire_gains`), override clamp, ramp arm/advance, `resolve_all`.
@@ -34,6 +34,11 @@ Owns `ControlLoop::tick` — the heartbeat of the robot. Also provides a legacy 
 ## Flow (`ControlLoop::tick`)
 1. **Feedback drain**: `Supervisor::drain_feedback()` — non-blocking poll of CAN RX queue (frames buffered from prior tick's transmit).
 2. **Read positions**: joint-space q, dq from Davout's `MotorState` map via joint↔motor transform.
+   A new Davout enable-session marker starts at most two missing-pose ticks of
+   neutral MIT status solicitation (zero kp/kd/velocity/feedforward). No gravity
+   or PD calculation runs until all active joints have current-session feedback;
+   missing feedback afterward returns `MissingFeedback`. Re-enable between ticks
+   still starts a new window. Davout independently enforces its receive deadline.
 3. **Gravity comp**: `dynamics.gravity_torques(&q)` — armee-dynamics virtual-work gradient produces tau_g.
 4. **Resolve gains**: `GainRuntime::resolve_all` — law_* (override or impedance YAML) + wire_* (override > ramp > YAML target).
 5. **Position hold** (Position mode only): `PositionHold::tick(HoldWorld)` with law_* params; patch MIT `kp` from `wire_kp` only.

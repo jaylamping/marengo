@@ -86,7 +86,13 @@ up pure safety fixes or require another WSL source tree.
 
 ## Finding-by-finding implementation contracts
 
-### CS01: per-active-motor freshness (C1, P1, open)
+### CS01: per-active-motor freshness (C1, P1, verified software repair)
+
+The [second batch](batch02-feedback-command-validity.md) implements the receive-time
+contract below, including status queued during enable writes, bounded neutral
+controller startup, same-tick re-enable and taught ranges excluding zero.
+Required software checks pass. CAN carries no physical acquisition generation;
+installed reporting/timeout behavior remains a separate acceptance requirement.
 
 Remove the global watchdog proof-of-health. Only a valid decoded sample updates
 its original receive timestamp, indexed by interface + device ID. Keep cached
@@ -111,7 +117,12 @@ while moving the limiter into a small private output-policy module if useful.
 Review future transforms for numerical overflow/finite guarantees in CS03/C0.
 Do not reinterpret this repair as bounding PD or physical measured torque.
 
-### CS03: invalid numeric input cannot become a valid extreme frame (C0, P1, open)
+### CS03: invalid numeric input cannot become a valid extreme frame (C0, P1, verified software repair)
+
+The [second batch](batch02-feedback-command-validity.md) checks all numeric
+command/feedback fields, transforms and driver firmware write kinds, rejects
+unsupported modes, and preflights complete batches before output or gain state
+mutation. Required checks pass. Persistent fault authority remains CS12/CS13.
 
 Validate position, velocity, all gains and FF for finiteness before policy math;
 gains must also be nonnegative. Validate feedback before freshness/state updates.
@@ -128,7 +139,10 @@ motion frame for a rejected command. A small direct driver test proves NaN never
 becomes raw torque 0. Fuzz/property sampling supplements the finite table; it
 must not replace explicit boundary cases.
 
-### CS04: complete fault decoding and explicit recovery (C1, P1, open)
+### CS04: complete fault decoding and explicit recovery (C1, P1, partial)
+
+Batch02 repairs fault-only pose timestamps. Complete fault decoding and latching
+below remain the next dependency-ready safety repair.
 
 Represent detailed vendor faults with at least `u32`, decode documented status ID
 bits and drive mode separately, and retain the complete type-21 field. A fault
@@ -261,7 +275,10 @@ successful disabled tick, repeated late Testing commands, old lease expiry and
 explicit eligible reset. Assertions inspect runtime outcomes and the bus:
 failure remains visible and old-generation work cannot energize the drives.
 
-### CS14: meaningful typed danger-zone actions (C4, P2, open)
+### CS14: meaningful typed danger-zone actions (C4, P2, partial)
+
+Batch02 rejects unsupported actions and absent torque caps. It does not establish
+the fall/braking behavior below.
 
 Replace action strings with a validated enum, reject unknown actions and
 implement declared Fault semantics. Keep velocity/FF bounds distinct from a
@@ -275,7 +292,11 @@ MIT gains, actuator saturation, payload error and stale feedback. Physical
 fall-response acceptance requires the commissioning protocol; a helper output
 clamp by itself is not proof of descent arrest.
 
-### CS15: one validated config across every writer (C0, P2, open)
+### CS15: one validated config across every writer (C0, P2, partial)
+
+Batch02 implements shared numeric/identity/profile validation at loaders,
+startup, profile writers and overlays. Raw mutable config and bus/synthetic
+access, schema-key strictness and generation installation remain open below.
 
 Consolidate startup/reload/override/persistence validation into one immutable
 validated policy object. Check every safety numeric for finite/range invariants,

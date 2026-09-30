@@ -8,10 +8,23 @@ use robstride::{CanFrame, CommunicationType};
 
 fn supervisor() -> Supervisor<MemoryBus> {
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-    Supervisor::from_repo(root, MemoryBus::default()).expect("valid repository fixture")
+    let mut supervisor =
+        Supervisor::from_repo(root, MemoryBus::default()).expect("valid repository fixture");
+    supervisor.control.control.comm_watchdog_ms = 1000;
+    supervisor
 }
 
 fn activate(supervisor: &mut Supervisor<MemoryBus>, motor: &MotorEntry) {
+    activate_at_pose(supervisor, motor, 0.0, 0.0, 0.0);
+}
+
+fn activate_at_pose(
+    supervisor: &mut Supervisor<MemoryBus>,
+    motor: &MotorEntry,
+    position: f64,
+    velocity: f64,
+    torque: f64,
+) {
     supervisor
         .homing_registry_mut()
         .bench_mark_all_verified(std::slice::from_ref(motor))
@@ -19,6 +32,8 @@ fn activate(supervisor: &mut Supervisor<MemoryBus>, motor: &MotorEntry) {
     supervisor
         .enable_targets(std::slice::from_ref(&motor.joint))
         .expect("enable recording bus");
+    // Obtain status in this enable session without seeding the torque limiter.
+    inject_status(supervisor, motor, position, velocity, torque);
     supervisor.bus_mut().tx.clear();
 }
 
@@ -82,8 +97,7 @@ fn torque_output_contract_danger_zone_cap_overrides_previous_torque() {
     for previous in [-4.0, 4.0] {
         let mut supervisor = supervisor();
         let motor = pitch_motor(&supervisor);
-        activate(&mut supervisor, &motor);
-        inject_status(&mut supervisor, &motor, 1.0, -0.2, previous);
+        activate_at_pose(&mut supervisor, &motor, 1.0, -0.2, previous);
         supervisor.seed_tau_ff_rate_limiter();
         supervisor.control.control.danger_zones = vec![marengo_config::DangerZoneRule {
             name: "test-measured-descent".into(),

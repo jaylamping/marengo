@@ -10,6 +10,8 @@ pub struct MotorState {
     pub torque_nm: f32,
     pub temperature_c: f32,
     pub fault: u16,
+    /// Original receive time of the most recent decoded pose/status sample.
+    /// A fault-only report neither creates nor refreshes pose evidence.
     pub updated: Option<Instant>,
 }
 

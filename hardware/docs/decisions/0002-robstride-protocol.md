@@ -11,7 +11,7 @@
 |-------|--------|
 | RS00 | [RS00 User Manual](https://github.com/RobStride/Product_Information/blob/main/Product%20Literature/RS00/RS00User%20Manual260428.pdf) |
 | RS02 | [RS02 User Manual](https://github.com/RobStride/Product_Information/blob/main/Product%20Literature/RS02/RS02User%20Manual260428.pdf) |
-| RS03 | [RS03 User Manual](https://github.com/RobStride/Product_Information/blob/main/Product%20Literature/RS03/RS03User%20Manual260428.pdf) |
+| RS03 | [RS03 User Manual 260713](https://github.com/RobStride/Product_Information/blob/main/Product%20Literature/RS03/RS03User%20Manual260713.pdf) |
 | RS04 | [RS04 User Manual](https://github.com/RobStride/Product_Information/blob/main/Product%20Literature/RS04/RS04User%20Manual260428.pdf) |
 
 **Secondary:** [Seeed RobStride control](https://wiki.seeedstudio.com/robstride_control/), [crates.io `robstride`](https://docs.rs/robstride/latest/robstride/) (`robstride00`–`04`).
@@ -44,6 +44,27 @@ The Seeed wiki's simplified `0x200`/`0x300`/`0x400 + device_id` table is documen
 - `crates/davout`: safety gateway and joint↔motor coordinate boundary. It reads each motor row's `direction` and `gear_ratio`, filters commands in joint space, converts approved commands to motor space before calling robstride, and converts feedback back to joint space before Berthier reads it.
 - **MIT production path:** Berthier joint-space commands → Davout safety + direction/gear transform → Robstride `OPERATION_CONTROL` (`comm_type=1`) every tick.
 - **Bench diagnostics:** firmware Speed/Position/Current modes require explicit Davout methods and config gates; do not map Berthier control modes to firmware `run_mode`.
+
+### Software validation update (2026-09-30)
+
+MIT encoders now return typed errors for nonfinite fields or negative gains;
+addressed batches validate every command and route before any transmit. Firmware
+writes validate the register kind and reject nonfinite floats, negative gains
+and negative speed/torque caps. The RS03 260713 manual's parameter table (PDF
+pages 49–50, printed pages 48–49) specifies `run_mode` 0x7005 as u8,
+`EPScan_time` 0x7026 as u16, `CAN_TIMEOUT` 0x7028 as u32, and the supported
+target/gain/limit registers as float. All use little-endian parameter payloads.
+
+The [current RS02 260713 manual](https://github.com/RobStride/Product_Information/blob/main/Product%20Literature/RS02/RS02User%20Manual260713.pdf)
+also agrees on the timing register kinds.
+Older vendor documentation uses conflicting register IDs/kinds, so this static
+schema requires model/firmware identification before commissioning use.
+
+This verification repairs software admission and the stale RS03 source link.
+The historical wire scales above and installed-drive policy are unchanged;
+per-model firmware limit/timeout readback and physical acceptance remain M02 in
+the implementation ledger. This does not certify other models or installed
+firmware against the newer RS03 manual.
 
 ### Coordinate ownership
 

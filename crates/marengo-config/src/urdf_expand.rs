@@ -7,8 +7,9 @@ use armee_kinematics::{expand_urdf_joint_hard, load_urdf};
 
 use crate::{
     apply_limit_patch_to_control, apply_limit_patch_to_motor, ensure_soft_inset,
-    load_control_config_from, load_motors_config_from, load_robot_config_from, resolve_config_dir,
-    resolve_urdf_path, validate_limit_patch, write_motors_and_control, ConfigError,
+    load_control_config_from, load_homing_config_from, load_motors_config_from,
+    load_robot_config_from, resolve_config_dir, resolve_urdf_path, validate_limit_patch,
+    validate_motors_config, validate_safety_config, write_motors_and_control, ConfigError,
     MotorsConfigFile,
 };
 
@@ -20,6 +21,7 @@ pub fn expand_urdf_file_to_cover_motors(
     urdf_path: impl AsRef<Path>,
     motors: &MotorsConfigFile,
 ) -> Result<bool, ConfigError> {
+    validate_motors_config(motors)?;
     let urdf_path = urdf_path.as_ref();
     let mut robot = load_urdf(urdf_path).map_err(|error| ConfigError::Parse {
         path: urdf_path.to_path_buf(),
@@ -106,6 +108,8 @@ pub fn write_motors_control_and_urdf(
     let repo_root = repo_root.as_ref();
     let config_dir = config_dir.as_ref();
     let robot = load_robot_config_from(config_dir)?;
+    let homing = load_homing_config_from(config_dir)?;
+    validate_safety_config(&robot, motors, control, &homing)?;
     let urdf_path = resolve_urdf_path(repo_root, &robot)?;
     let urdf_backup = fs::read(&urdf_path).map_err(|error| ConfigError::Io {
         path: urdf_path.clone(),

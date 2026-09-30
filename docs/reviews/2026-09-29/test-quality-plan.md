@@ -107,4 +107,33 @@ Before changing timing defaults, collect three warm runs and one explicitly cold
 
 Split Consul tests into Node and DOM projects, with a minimal test-only transform configuration instead of production Tailwind/React-compiler work where not needed. Benchmark that separation before keeping it; production build remains a separate gate so tests cannot silently rely on a different application semantics. Consolidate shared shell/style cases to reduce imported UI graphs, preserve real route behavior, and retain a small browser interaction smoke for CSS/canvas hit testing that jsdom cannot establish.
 
-`validate-urdf.sh` should become a real model validator or the duplicate workspace reruns should be removed after the equivalent production contract is required elsewhere. Do not optimize away schema compatibility, clippy, vCAN, or critical failure-path tests to make a headline runtime lower. No tests or dependencies were modified by this read-only audit; these decisions form the implementation backlog.
+`validate-urdf.sh` should become a real model validator or the duplicate workspace reruns should be removed after the equivalent production contract is required elsewhere. Do not optimize away schema compatibility, clippy, vCAN, or critical failure-path tests to make a headline runtime lower. The initial audit was read-only; implementation progress follows.
+
+## Second batch implementation evidence
+
+The [feedback/command batch](batch02-feedback-command-validity.md) retires the
+unused standard-ID compatibility protocol and its two self-roundtrip tests,
+plus two private helper/range checks. A public four-model byte fixture and
+preflight failure matrices preserve meaningful encoding coverage. Tests prove
+valid prefixes cannot transmit when a later field, identity or route is invalid.
+Config matrices invoke real loaders/writers; overlay rejection checks live and
+disk state; gain batches check existing state remains intact. Startup tests read
+raw output and expire after two ticks, including re-enable between ticks and
+taught hard ranges excluding zero.
+
+Existing long controller replays were assuming that one motor's status refreshed
+stationary peers. They now provide new stationary-peer observations each tick
+while retaining all planner/stall acceptance assertions. Independent review
+found an enable-write queue race and the taught-range startup gap that existing
+tests missed; new public regressions fail before each repair and pass afterward.
+The unchanged external queue probe independently confirms the enable repair.
+CS04 fault-latch, CS12 discarded-error and CS13 recovery tests still need their
+corresponding implementation; a green admission suite does not close them.
+
+Archived baseline and candidate sources must use separate Cargo target paths.
+Reusing identical container paths/mtime-based outputs produced one stale compile
+artifact in this batch; affected package artifacts were cleaned and the final
+candidate is rebuilt for the strict gate. Compile/setup failures never count as
+red regression proof. Exact assertion logs, suite timing and integrated counts
+are preserved in the ledger and batch report; no full-workspace mutation job or
+hardware tests are added to the edit loop.

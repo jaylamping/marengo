@@ -274,6 +274,50 @@ fn config_overlay_rejects_over_max_kp_before_persist() {
 }
 
 #[test]
+fn config_overlay_rejects_negative_friction_before_live_or_disk_mutation() {
+    for param in ["friction.fv", "friction.k"] {
+        for persist in [false, true] {
+            let (tmp, config_dir, _) = copy_profile_to_temp();
+            let (mut overlay, shutdown) = test_overlay_at(tmp.path().to_path_buf());
+            let mut loop_ctrl = test_loop();
+            let before_live = format!("{:?}", loop_ctrl.supervisor().control);
+            let before_disk =
+                std::fs::read(config_dir.join("control.yaml")).expect("read disk config");
+            let mut op = tuning_operator(
+                "right_elbow_pitch",
+                param,
+                -1.0,
+                TuningTier::ConfigOverlay as i32,
+            );
+            if let Some(ActuatorCommand {
+                payload: Some(Payload::Tuning(ref mut tuning)),
+                ..
+            }) = op.command
+            {
+                tuning.persist = persist;
+            }
+            let outcome = overlay.apply_operator_command(&mut loop_ctrl, &config_dir, &op);
+            shutdown.store(true, Ordering::SeqCst);
+            assert!(
+                outcome.is_err(),
+                "{param} persist={persist} admitted negative friction"
+            );
+            assert_eq!(
+                format!("{:?}", loop_ctrl.supervisor().control),
+                before_live,
+                "rejected tuning must leave the installed policy intact"
+            );
+            assert!(overlay.persist.wait_idle_for_test(Duration::from_secs(2)));
+            assert_eq!(
+                std::fs::read(config_dir.join("control.yaml")).expect("read after"),
+                before_disk,
+                "rejected tuning must not enqueue a durable write"
+            );
+        }
+    }
+}
+
+#[test]
 fn config_overlay_queues_persist_and_applies_live() {
     let root = repo_root();
     let src = root.join("config");

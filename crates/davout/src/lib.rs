@@ -73,8 +73,8 @@ use marengo_config::{
     load_commissioning_scope, load_control_config, load_homing_config, load_motors_config,
     load_robot_config, motor_for_joint, motor_type_key, resolve_joint_velocity_cap,
     resolve_urdf_path, validate_control_against_limits, validate_motors_against_robot,
-    validate_robot_control_joint_coverage, ControlConfigFile, HomingConfigFile, MotorEntry,
-    MotorType, MotorsConfigFile, RobotConfigFile,
+    validate_robot_control_joint_coverage, validate_safety_config, ControlConfigFile,
+    HomingConfigFile, MotorEntry, MotorType, MotorsConfigFile, RobotConfigFile,
 };
 use marengo_homing::{
     select_enable_targets, verify_manual_reference, HomingRegistry, JointFacetInput, VerifyError,
@@ -159,8 +159,18 @@ pub enum DavoutError {
     UnknownJoint { joint: String },
     #[error("joint {joint} is not in the active enable set")]
     InactiveJoint { joint: String },
-    #[error("comm watchdog: no feedback for {ms} ms")]
-    CommWatchdog { ms: u64 },
+    #[error("comm watchdog on {joint} ({interface}:{device_id}): no current-enable pose within {ms} ms (sample age {age_ms:?} ms)")]
+    CommWatchdog {
+        ms: u64,
+        joint: String,
+        interface: String,
+        device_id: u8,
+        age_ms: Option<u64>,
+    },
+    #[error("invalid command for {joint}: {message}")]
+    InvalidCommand { joint: String, message: String },
+    #[error("invalid feedback for {joint}: {message}")]
+    InvalidFeedback { joint: String, message: String },
     #[error("danger zone {name} triggered on {joint}")]
     DangerZone { name: String, joint: String },
     #[error("firmware speed mode is disabled in control.bench.allow_firmware_speed_mode")]
@@ -234,8 +244,8 @@ pub struct Supervisor<B: MotorBus> {
     motor_types: HashMap<MotorAddress, MotorType>,
     bus: B,
     motor_states: HashMap<MotorAddress, MotorState>,
-    last_recv: Option<Instant>,
     active_since: Option<Instant>,
+    invalid_feedback: HashSet<MotorAddress>,
     last_tau_ff: HashMap<String, f64>,
     feedback_velocity_trips: HashMap<String, u8>,
     last_feedback_samples: HashMap<String, FeedbackSample>,
@@ -265,6 +275,7 @@ impl<B: MotorBus> Supervisor<B> {
             );
         }
         let homing_config = load_homing_config(root)?;
+        validate_safety_config(&robot, &motors, &control, &homing_config)?;
         validate_motors_against_robot(&robot, &motors)?;
         validate_robot_control_joint_coverage(&robot, &control)?;
         let homing_joints: Vec<String> = robot.robot.joints.clone();
@@ -300,8 +311,8 @@ impl<B: MotorBus> Supervisor<B> {
             motor_types,
             bus,
             motor_states: HashMap::new(),
-            last_recv: None,
             active_since: None,
+            invalid_feedback: HashSet::new(),
             last_tau_ff: HashMap::new(),
             feedback_velocity_trips: HashMap::new(),
             last_feedback_samples: HashMap::new(),
@@ -382,15 +393,31 @@ impl<B: MotorBus> Supervisor<B> {
         Ok(())
     }
 
+    /// Validate a proposed control policy against the installed robot, motor,
+    /// and homing configuration before an overlay is installed or persisted.
+    /// This reads policy only; callers still own installation and limit rebuilds.
+    pub fn validate_control_candidate(
+        &self,
+        candidate: &ControlConfigFile,
+    ) -> Result<(), marengo_config::ConfigError> {
+        validate_safety_config(&self.robot, &self.motors, candidate, &self.homing_config)
+    }
+
     /// Joint-space feedback sample if available (cache is already joint-space).
     ///
     /// While not [`OperationalMode::Active`], returns `None` when the sample is older than
     /// [`FREE_DRIVE_FEEDBACK_TTL`] so Berthier omits the joint from `RobotState` (Consul Offline).
-    /// ACTIVE keeps the last MIT sample without TTL — the comm watchdog owns that path.
+    /// ACTIVE returns only a fresh, valid pose received in the current enable session.
     pub fn joint_feedback(&self, joint: &str) -> Option<JointFeedback> {
         let motor = motor_for_joint(&self.motors, joint)?;
         let address = MotorAddress::from(motor);
         let state = self.motor_states.get(&address)?;
+        if state.updated.is_none() || self.invalid_feedback.contains(&address) {
+            return None;
+        }
+        if self.mode == OperationalMode::Active && !self.pose_is_current(state, Instant::now()) {
+            return None;
+        }
         if self.mode != OperationalMode::Active && state.is_stale(FREE_DRIVE_FEEDBACK_TTL) {
             return None;
         }
@@ -432,6 +459,13 @@ impl<B: MotorBus> Supervisor<B> {
             .clone();
         let address = MotorAddress::from(&motor);
         let now = Instant::now();
+        if !position_rad.is_finite() || !velocity_rad_s.is_finite() {
+            return Err(DavoutError::InvalidFeedback {
+                joint: joint.to_string(),
+                message: "synthetic position/velocity must be finite".into(),
+            });
+        }
+        self.invalid_feedback.remove(&address);
         self.motor_states.insert(
             address,
             MotorState {
@@ -443,7 +477,6 @@ impl<B: MotorBus> Supervisor<B> {
                 updated: Some(now),
             },
         );
-        self.last_recv = Some(now);
         Ok(())
     }
 
@@ -571,6 +604,14 @@ impl<B: MotorBus> Supervisor<B> {
         self.mode
     }
 
+    /// Read-only marker for the current successful drive-enable session.
+    /// Controllers can compare it across ticks to detect disable/re-enable
+    /// cycles that happen between observations of the operational mode.
+    /// Pose freshness remains enforced inside the supervisor.
+    pub fn enable_session_started_at(&self) -> Option<Instant> {
+        self.active_since
+    }
+
     pub fn control_mode(&self) -> ControlMode {
         self.control_mode
     }
@@ -611,6 +652,7 @@ impl<B: MotorBus> Supervisor<B> {
     pub fn seed_synthetic_feedback(&mut self) {
         let now = Instant::now();
         for motor in &self.motors.motors {
+            self.invalid_feedback.remove(&MotorAddress::from(motor));
             self.motor_states.insert(
                 MotorAddress::from(motor),
                 MotorState {
@@ -800,6 +842,9 @@ impl<B: MotorBus> Supervisor<B> {
     }
 
     fn enable_targets_inner(&mut self, joints: &[String]) -> Result<(), DavoutError> {
+        // Status has no command-generation field. Drain already queued traffic
+        // before activation; only later received poses may authorize this session.
+        self.poll_feedback(Duration::ZERO)?;
         let result = (|| {
             for joint in joints {
                 let motor = motor_for_joint(&self.motors, joint)
@@ -817,6 +862,11 @@ impl<B: MotorBus> Supervisor<B> {
                 self.bus.enable_drive_at(&address)?;
                 self.bus.set_run_mode_at(&address, RunMode::Mit)?;
             }
+            // Drives can queue status while enable/run-mode writes are still
+            // in progress. Decode that traffic before establishing this session
+            // so its later decode time cannot fabricate post-enable pose.
+            // A receive failure here uses the same rollback as a write failure.
+            self.poll_feedback(Duration::ZERO)?;
             self.active_joints = joints.iter().cloned().collect();
             self.mode = OperationalMode::Active;
             self.active_since = Some(Instant::now());
@@ -873,7 +923,7 @@ impl<B: MotorBus> Supervisor<B> {
         {
             Ok(n) => {
                 self.last_refresh_frames = self.last_refresh_frames.saturating_add(n);
-                let received_at = Instant::now();
+                let now = Instant::now();
                 if n > 0 {
                     trace!(count = n, "received motor feedback batch");
                 }
@@ -887,16 +937,70 @@ impl<B: MotorBus> Supervisor<B> {
                         continue;
                     };
                     let motor = motor.clone();
-                    let mut state = motor_to_joint_state(&motor, raw)?;
-                    self.check_feedback_velocity(&motor, &mut state, received_at)?;
-                    self.check_feedback_position(&motor, &state)?;
+                    if raw.updated.is_none() {
+                        // A fault-only report has no position/velocity evidence;
+                        // ignore its default pose fields and retain fault evidence.
+                        self.motor_states
+                            .entry(address)
+                            .and_modify(|cached| cached.fault |= raw.fault)
+                            .or_insert(MotorState {
+                                fault: raw.fault,
+                                ..MotorState::default()
+                            });
+                        continue;
+                    }
+                    let prepared = (|| {
+                        validate_motor_feedback(&motor.joint, &raw)?;
+                        let state = motor_to_joint_state(&motor, raw)?;
+                        validate_motor_feedback(&motor.joint, &state)?;
+                        if let Some(received_at) = state.updated {
+                            if received_at > now {
+                                return Err(DavoutError::InvalidFeedback {
+                                    joint: motor.joint.clone(),
+                                    message: "receive timestamp is in the future".into(),
+                                });
+                            }
+                        }
+                        Ok(state)
+                    })();
+                    let mut state = match prepared {
+                        Ok(state) => state,
+                        Err(error) => {
+                            self.invalid_feedback.insert(address);
+                            return Err(error);
+                        }
+                    };
+                    let Some(received_at) = state.updated else {
+                        continue;
+                    };
+                    if self
+                        .motor_states
+                        .get(&address)
+                        .and_then(|cached| cached.updated)
+                        .is_some_and(|previous| previous >= received_at)
+                    {
+                        // A replayed/older sample must not replace newer pose or
+                        // clear the invalid-feedback gate. Retain fault evidence.
+                        if let Some(cached) = self.motor_states.get_mut(&address) {
+                            cached.fault |= state.fault;
+                        }
+                        continue;
+                    }
+                    if let Err(error) = self
+                        .check_feedback_velocity(&motor, &mut state, received_at)
+                        .and_then(|()| validate_motor_feedback(&motor.joint, &state))
+                        .and_then(|()| self.check_feedback_position(&motor, &state))
+                    {
+                        self.invalid_feedback.insert(address);
+                        return Err(error);
+                    }
+                    self.invalid_feedback.remove(&address);
                     self.motor_states.insert(address, state);
                     // Track RX even in free-drive (Disabled/Ready): Set Limits needs
                     // silence detection so type-24 can be re-asserted when a motor drops.
                     self.last_feedback_rx
                         .insert(motor.joint.clone(), received_at);
                 }
-                self.last_recv = Some(received_at);
                 Ok(n)
             }
             Err(BusError::RecvTimeout) => Ok(0),
@@ -1033,28 +1137,29 @@ impl<B: MotorBus> Supervisor<B> {
         Ok(())
     }
 
-    fn check_comm_watchdog(&self) -> Result<(), DavoutError> {
+    fn pose_is_current(&self, state: &MotorState, now: Instant) -> bool {
+        let Some(received_at) = state.updated else {
+            return false;
+        };
+        let Some(active_since) = self.active_since else {
+            return false;
+        };
+        received_at > active_since
+            && received_at <= now
+            && now.duration_since(received_at)
+                <= Duration::from_millis(self.control.control.comm_watchdog_ms)
+    }
+
+    fn check_comm_watchdog(&self, neutral_bootstrap: bool) -> Result<(), DavoutError> {
         let max_ms = self.control.control.comm_watchdog_ms;
         if self.mode != OperationalMode::Active {
             return Ok(());
         }
-        if max_ms != 0 {
-            let last_feedback_or_enable = self.last_recv.or(self.active_since);
-            let Some(last) = last_feedback_or_enable else {
-                warn!(
-                    max_ms,
-                    "comm watchdog expired before first feedback timestamp"
-                );
-                return Err(DavoutError::CommWatchdog { ms: max_ms });
-            };
-            if last.elapsed() > Duration::from_millis(max_ms) {
-                warn!(
-                    max_ms,
-                    elapsed_ms = last.elapsed().as_millis(),
-                    "comm watchdog expired"
-                );
-                return Err(DavoutError::CommWatchdog { ms: max_ms });
-            }
+        if max_ms == 0 {
+            return Err(DavoutError::InvalidCommand {
+                joint: "*".into(),
+                message: "communication watchdog must be positive".into(),
+            });
         }
         for motor in &self.motors.motors {
             let address = MotorAddress::from(motor);
@@ -1074,6 +1179,40 @@ impl<B: MotorBus> Supervisor<B> {
                     fault: state.fault,
                 });
             }
+        }
+        let now = Instant::now();
+        for motor in &self.motors.motors {
+            if !self.active_joints.contains(&motor.joint) {
+                continue;
+            }
+            let address = MotorAddress::from(motor);
+            let state = self.motor_states.get(&address);
+            if !self.invalid_feedback.contains(&address)
+                && state.is_some_and(|state| self.pose_is_current(state, now))
+            {
+                continue;
+            }
+            // Bootstrap is only an inert MIT status solicit during the enable
+            // deadline; never permit servo/FF motion on absent or stale pose.
+            if neutral_bootstrap
+                && !self.invalid_feedback.contains(&address)
+                && self.active_since.is_some_and(|enabled| {
+                    now.duration_since(enabled) <= Duration::from_millis(max_ms)
+                })
+            {
+                continue;
+            }
+            let age_ms = state
+                .and_then(|state| state.updated)
+                .and_then(|received| now.checked_duration_since(received))
+                .map(|age| age.as_millis().min(u128::from(u64::MAX)) as u64);
+            return Err(DavoutError::CommWatchdog {
+                ms: max_ms,
+                joint: motor.joint.clone(),
+                interface: address.interface,
+                device_id: address.device_id,
+                age_ms,
+            });
         }
         Ok(())
     }
@@ -1103,58 +1242,88 @@ impl<B: MotorBus> Supervisor<B> {
         cmd: MitJointCommand,
         motor: &MotorEntry,
     ) -> Result<(), DavoutError> {
-        self.check_comm_watchdog()?;
-        if self.hardware_estop {
-            return Err(DavoutError::Estop);
-        }
-        self.require_active_joint(&cmd.joint)?;
-        let filtered = self.filter_mit_command(cmd, motor)?;
-        let scale = motor_position_scale(motor)?;
-        let wire = MitCommand {
-            device_id: motor.device_id,
-            motor_type: motor.motor_type,
-            position_rad: (filtered.position_rad * scale) as f32,
-            velocity_rad_s: (filtered.velocity_rad_s * scale) as f32,
-            kp: (filtered.kp / scale.powi(2)) as f32,
-            kd: (filtered.kd / scale.powi(2)) as f32,
-            torque_ff_nm: (filtered.torque_ff_nm / scale) as f32,
-        };
-        self.bus.mit_control_all_at(&[AddressedMitCommand {
-            address: MotorAddress::from(motor),
-            command: wire,
-        }])?;
-        Ok(())
+        self.admit_and_send_mit(vec![(cmd, motor.clone())])
     }
 
     /// Filter and send a batch of MIT commands (one per joint).
     pub fn send_mit_batch(&mut self, cmds: Vec<MitJointCommand>) -> Result<(), DavoutError> {
-        let batch_tick = Instant::now();
+        let mut addressed = Vec::with_capacity(cmds.len());
         for cmd in cmds {
             let joint = cmd.joint.clone();
-            self.require_active_joint(&joint)?;
             let motor = motor_for_joint(&self.motors, &joint)
                 .ok_or(DavoutError::UnknownJoint { joint })?
                 .clone();
-            self.check_comm_watchdog()?;
-            if self.hardware_estop {
-                return Err(DavoutError::Estop);
-            }
-            let filtered = self.filter_mit_command_at_tick(cmd, &motor, self.last_tick)?;
-            let scale = motor_position_scale(&motor)?;
-            let wire = MitCommand {
-                device_id: motor.device_id,
-                motor_type: motor.motor_type,
-                position_rad: (filtered.position_rad * scale) as f32,
-                velocity_rad_s: (filtered.velocity_rad_s * scale) as f32,
-                kp: (filtered.kp / scale.powi(2)) as f32,
-                kd: (filtered.kd / scale.powi(2)) as f32,
-                torque_ff_nm: (filtered.torque_ff_nm / scale) as f32,
-            };
-            self.bus.mit_control_all_at(&[AddressedMitCommand {
-                address: MotorAddress::from(&motor),
-                command: wire,
-            }])?;
+            addressed.push((cmd, motor));
         }
+        self.admit_and_send_mit(addressed)
+    }
+
+    fn admit_and_send_mit(
+        &mut self,
+        cmds: Vec<(MitJointCommand, MotorEntry)>,
+    ) -> Result<(), DavoutError> {
+        if self.hardware_estop {
+            return Err(DavoutError::Estop);
+        }
+        let mut unique = HashSet::new();
+        for (cmd, motor) in &cmds {
+            validate_mit_command(cmd)?;
+            self.require_active_joint(&cmd.joint)?;
+            let configured = motor_for_joint(&self.motors, &cmd.joint).ok_or_else(|| {
+                DavoutError::UnknownJoint {
+                    joint: cmd.joint.clone(),
+                }
+            })?;
+            if motor.can_interface != configured.can_interface
+                || motor.device_id != configured.device_id
+                || motor.motor_type != configured.motor_type
+                || motor.direction != configured.direction
+                || motor.gear_ratio != configured.gear_ratio
+            {
+                return Err(DavoutError::InvalidMotorConfig {
+                    joint: cmd.joint.clone(),
+                    message: "command motor differs from configured joint mapping".into(),
+                });
+            }
+            if cmd.joint != motor.joint || !unique.insert(cmd.joint.clone()) {
+                return Err(DavoutError::InvalidCommand {
+                    joint: cmd.joint.clone(),
+                    message: "joint/address mismatch or repeated joint in batch".into(),
+                });
+            }
+        }
+        let batch_tick = Instant::now();
+        let previous_tau = self.last_tau_ff.clone();
+        let previous_sign = self.wrong_sign_state.clone();
+        let prepared = (|| {
+            let mut wires = Vec::with_capacity(cmds.len());
+            let mut neutral = true;
+            for (cmd, motor) in cmds {
+                let filtered = self.filter_mit_command_at_tick(cmd, &motor, self.last_tick)?;
+                validate_mit_command(&filtered)?;
+                neutral &= filtered.kp == 0.0
+                    && filtered.kd == 0.0
+                    && filtered.torque_ff_nm == 0.0
+                    && filtered.velocity_rad_s == 0.0;
+                wires.push(AddressedMitCommand {
+                    address: MotorAddress::from(&motor),
+                    command: joint_to_motor_command(&motor, &filtered)?,
+                });
+            }
+            self.check_comm_watchdog(neutral)?;
+            Ok(wires)
+        })();
+        let wires = match prepared {
+            Ok(wires) => wires,
+            Err(error) => {
+                self.last_tau_ff = previous_tau;
+                self.wrong_sign_state = previous_sign;
+                return Err(error);
+            }
+        };
+        // Admission is atomic; delivery can still fail partway through a physical
+        // bus write and is reported as an error for the owner's stop path.
+        self.bus.mit_control_all_at(&wires)?;
         self.last_tick = Some(batch_tick);
         Ok(())
     }
@@ -1165,7 +1334,8 @@ impl<B: MotorBus> Supervisor<B> {
     /// `run_mode=2`, caps the target velocity, writes `limit_spd`, then writes
     /// `spd_ref`.
     pub fn send_speed_command(&mut self, cmd: SpeedCommand) -> Result<f64, DavoutError> {
-        self.check_comm_watchdog()?;
+        validate_finite(&cmd.joint, "velocity", cmd.velocity_rad_s)?;
+        self.check_comm_watchdog(false)?;
         if self.hardware_estop {
             return Err(DavoutError::Estop);
         }
@@ -1181,15 +1351,17 @@ impl<B: MotorBus> Supervisor<B> {
         let capped = self.filter_speed_command(cmd, &motor)?;
         let cap = self.speed_cap_for_joint(&capped.joint)?;
         let scale = motor_position_scale(&motor)?;
+        let wire_cap = checked_wire_float(&motor.joint, "speed cap", cap * scale.abs())?;
+        let wire_velocity =
+            checked_wire_float(&motor.joint, "speed", capped.velocity_rad_s * scale)?;
         let address = MotorAddress::from(&motor);
         self.bus.set_run_mode_at(&address, RunMode::Speed)?;
         self.bus.write_parameter_at(
             &address,
             ParameterId::LimitSpeed,
-            ParameterValue::F32((cap * scale.abs()) as f32),
+            ParameterValue::F32(wire_cap),
         )?;
-        self.bus
-            .speed_control_at(&address, (capped.velocity_rad_s * scale) as f32)?;
+        self.bus.speed_control_at(&address, wire_velocity)?;
         Ok(capped.velocity_rad_s)
     }
 
@@ -1395,6 +1567,7 @@ impl<B: MotorBus> Supervisor<B> {
         motor: &MotorEntry,
         previous_tick: Option<Instant>,
     ) -> Result<MitJointCommand, DavoutError> {
+        validate_mit_command(&cmd)?;
         let lim = self
             .limits
             .get(&cmd.joint)
@@ -1561,6 +1734,7 @@ impl<B: MotorBus> Supervisor<B> {
         cmd: SpeedCommand,
         _motor: &MotorEntry,
     ) -> Result<SpeedCommand, DavoutError> {
+        validate_finite(&cmd.joint, "velocity", cmd.velocity_rad_s)?;
         let cap = self.speed_cap_for_joint(&cmd.joint)?;
         let mut out = cmd;
         out.velocity_rad_s = out.velocity_rad_s.clamp(-cap, cap);
@@ -1605,6 +1779,9 @@ impl<B: MotorBus> Supervisor<B> {
 
     /// Apply URDF + bench limits without sending (for tests and planners).
     pub fn filter_command(&self, cmd: JointCommand) -> Result<JointCommand, DavoutError> {
+        validate_finite(&cmd.joint, "position", cmd.position_rad)?;
+        validate_finite(&cmd.joint, "velocity", cmd.velocity_rad_s)?;
+        validate_finite(&cmd.joint, "torque", cmd.torque_nm)?;
         let lim = self
             .limits
             .get(&cmd.joint)
@@ -1641,6 +1818,87 @@ impl<B: MotorBus> Supervisor<B> {
     }
 }
 
+fn validate_finite(joint: &str, field: &str, value: f64) -> Result<(), DavoutError> {
+    if !value.is_finite() {
+        return Err(DavoutError::InvalidCommand {
+            joint: joint.to_string(),
+            message: format!("{field} must be finite"),
+        });
+    }
+    Ok(())
+}
+
+fn validate_mit_command(cmd: &MitJointCommand) -> Result<(), DavoutError> {
+    for (field, value) in [
+        ("position", cmd.position_rad),
+        ("velocity", cmd.velocity_rad_s),
+        ("kp", cmd.kp),
+        ("kd", cmd.kd),
+        ("torque_ff", cmd.torque_ff_nm),
+    ] {
+        validate_finite(&cmd.joint, field, value)?;
+    }
+    if cmd.kp < 0.0 || cmd.kd < 0.0 {
+        return Err(DavoutError::InvalidCommand {
+            joint: cmd.joint.clone(),
+            message: "kp/kd must be nonnegative".into(),
+        });
+    }
+    Ok(())
+}
+
+fn checked_wire_float(joint: &str, field: &str, value: f64) -> Result<f32, DavoutError> {
+    validate_finite(joint, field, value)?;
+    let wire = value as f32;
+    if !wire.is_finite() {
+        return Err(DavoutError::InvalidCommand {
+            joint: joint.to_string(),
+            message: format!("{field} overflows motor-space f32"),
+        });
+    }
+    Ok(wire)
+}
+
+fn joint_to_motor_command(
+    motor: &MotorEntry,
+    cmd: &MitJointCommand,
+) -> Result<MitCommand, DavoutError> {
+    let scale = motor_position_scale(motor)?;
+    let gain_scale = scale.powi(2);
+    if !gain_scale.is_finite() || gain_scale <= 0.0 {
+        return Err(DavoutError::InvalidMotorConfig {
+            joint: motor.joint.clone(),
+            message: "gear ratio squared must be finite and nonzero".into(),
+        });
+    }
+    Ok(MitCommand {
+        device_id: motor.device_id,
+        motor_type: motor.motor_type,
+        position_rad: checked_wire_float(&cmd.joint, "position", cmd.position_rad * scale)?,
+        velocity_rad_s: checked_wire_float(&cmd.joint, "velocity", cmd.velocity_rad_s * scale)?,
+        kp: checked_wire_float(&cmd.joint, "kp", cmd.kp / gain_scale)?,
+        kd: checked_wire_float(&cmd.joint, "kd", cmd.kd / gain_scale)?,
+        torque_ff_nm: checked_wire_float(&cmd.joint, "torque_ff", cmd.torque_ff_nm / scale)?,
+    })
+}
+
+fn validate_motor_feedback(joint: &str, state: &MotorState) -> Result<(), DavoutError> {
+    for (field, value) in [
+        ("position", state.position_rad),
+        ("velocity", state.velocity_rad_s),
+        ("torque", state.torque_nm),
+        ("temperature", state.temperature_c),
+    ] {
+        if !value.is_finite() {
+            return Err(DavoutError::InvalidFeedback {
+                joint: joint.to_string(),
+                message: format!("{field} must be finite"),
+            });
+        }
+    }
+    Ok(())
+}
+
 fn rate_limit_tau_ff(
     last: &mut HashMap<String, f64>,
     joint: &str,
@@ -1670,16 +1928,16 @@ fn rate_limit_tau_ff(
 }
 
 fn motor_position_scale(motor: &MotorEntry) -> Result<f64, DavoutError> {
-    if motor.direction == 0 {
+    if !matches!(motor.direction, -1 | 1) {
         return Err(DavoutError::InvalidMotorConfig {
             joint: motor.joint.clone(),
             message: "direction must be -1 or 1".to_string(),
         });
     }
-    if motor.gear_ratio <= 0.0 {
+    if !motor.gear_ratio.is_finite() || motor.gear_ratio <= 0.0 {
         return Err(DavoutError::InvalidMotorConfig {
             joint: motor.joint.clone(),
-            message: "gear_ratio must be positive".to_string(),
+            message: "gear_ratio must be finite and positive".to_string(),
         });
     }
     let direction = if motor.direction < 0 { -1.0 } else { 1.0 };
@@ -1851,6 +2109,7 @@ mod tests {
         bench_verify_all_joints(sup);
         sup.set_homing_complete().expect("ready");
         sup.request_enable(true).expect("enable");
+        sup.seed_synthetic_feedback();
     }
 
     #[test]
@@ -2111,6 +2370,12 @@ mod tests {
         // Master URDF elbow hard upper is 1.2 — set bench below that so rebuild
         // uses the in-memory bench cap (URDF ∩ bench).
         motor.bench.position_upper_rad = 1.0;
+        sup.control
+            .control
+            .joints
+            .get_mut("right_elbow_pitch")
+            .expect("control")
+            .position_soft_upper_rad = Some(1.0);
 
         sup.rebuild_limits().expect("rebuild");
 
@@ -2637,7 +2902,7 @@ mod tests {
     }
 
     #[test]
-    fn joint_feedback_keeps_stale_samples_while_active() {
+    fn joint_feedback_omits_stale_samples_while_active() {
         let mut sup = Supervisor::from_repo(repo_root(), MemoryBus::default()).expect("supervisor");
         bench_ready_active(&mut sup);
         let motor = motor_for_joint(&sup.motors, "right_shoulder_pitch")
@@ -2659,8 +2924,8 @@ mod tests {
             },
         );
         assert!(
-            sup.joint_feedback("right_shoulder_pitch").is_some(),
-            "ACTIVE path keeps last MIT sample; comm watchdog owns silence"
+            sup.joint_feedback("right_shoulder_pitch").is_none(),
+            "control must not use an expired pose while ACTIVE"
         );
     }
 
@@ -3101,6 +3366,14 @@ mod tests {
             .clone();
         motor.direction = -1;
         motor.gear_ratio = 2.0;
+        let configured = sup
+            .motors
+            .motors
+            .iter_mut()
+            .find(|configured| configured.joint == motor.joint)
+            .expect("configured elbow");
+        configured.direction = motor.direction;
+        configured.gear_ratio = motor.gear_ratio;
         sup.send_mit_joint(
             MitJointCommand {
                 joint: "right_elbow_pitch".to_string(),
@@ -3124,7 +3397,8 @@ mod tests {
             kd: 1.0,
             torque_ff_nm: -0.2,
         };
-        let (expected_id, expected_data) = robstride::encode_mit(&expected);
+        let (expected_id, expected_data) =
+            robstride::encode_mit(&expected).expect("valid wire command");
         assert_eq!(sup.bus.tx.len(), 1);
         assert_eq!(sup.bus.tx[0].id, expected_id);
         assert_eq!(sup.bus.tx[0].data, expected_data);
@@ -3135,7 +3409,9 @@ mod tests {
         let bus = MemoryBus::default();
         let mut sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
         sup.control.control.comm_watchdog_ms = 1;
-        bench_ready_active(&mut sup);
+        bench_verify_all_joints(&mut sup);
+        sup.set_homing_complete().expect("ready");
+        sup.request_enable(true).expect("enable");
         std::thread::sleep(Duration::from_millis(2));
         let motor = motor_for_joint(&sup.motors, "right_elbow_pitch")
             .expect("motor")
@@ -3153,7 +3429,7 @@ mod tests {
                 &motor,
             )
             .expect_err("watchdog");
-        assert!(matches!(err, DavoutError::CommWatchdog { ms: 1 }));
+        assert!(matches!(err, DavoutError::CommWatchdog { ms: 1, .. }));
     }
 
     fn type24_tx_frames(tx: &[CanFrame]) -> Vec<&CanFrame> {
@@ -3345,7 +3621,7 @@ mod tests {
                 &motor,
             )
             .expect_err("watchdog");
-        assert!(matches!(err, DavoutError::CommWatchdog { ms: 50 }));
+        assert!(matches!(err, DavoutError::CommWatchdog { ms: 50, .. }));
     }
 
     #[test]

@@ -17,6 +17,12 @@ after this review's original 100-ID inventory. The ledger distinguishes verified
 repairs, partial work and outstanding findings; historical counts and validation
 below describe the completed review baseline.
 
+The [feedback/command repair](2026-09-29/batch02-feedback-command-validity.md)
+adds public failure-path coverage and tracks CS01/CS03 admission fixes plus
+partial CS04/CS14/CS15 validation work. Its current gate/review disposition is in
+the ledger. Docker startup recovery was repeated after an unexplained Desktop
+exit; the preserving workaround passed, while the initiating cause remains M08.
+
 **Test-count clarification:** The baseline strict check's 582 passing Rust
 executions included 84 fixture tests repeated before `cargo test --workspace`.
 There were 498 workspace tests and nine ignored workspace cases; one ignored

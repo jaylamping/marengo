@@ -1,6 +1,7 @@
 //! Robstride parameter IDs and read/write frame encoding.
 
 use crate::comm::{pack_typed_ext_id, CommunicationType, DEFAULT_HOST_ID};
+use crate::command::{finite, nonnegative, nonnegative_gain, CommandError, CommandField};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
@@ -37,12 +38,44 @@ impl ParameterId {
     pub fn as_u16(self) -> u16 {
         self as u16
     }
+
+    /// Static register schema supported by this driver, including unsigned timing values.
+    /// Installed model and firmware acceptance still require commissioning verification.
+    pub fn value_kind(self) -> ParameterKind {
+        match self {
+            Self::RunMode => ParameterKind::U8,
+            Self::EPScanTime => ParameterKind::U16,
+            Self::CanTimeout => ParameterKind::U32,
+            _ => ParameterKind::F32,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ParameterKind {
+    U8,
+    U16,
+    U32,
+    F32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ParameterValue {
     U8(u8),
+    U16(u16),
+    U32(u32),
     F32(f32),
+}
+
+impl ParameterValue {
+    pub fn kind(self) -> ParameterKind {
+        match self {
+            Self::U8(_) => ParameterKind::U8,
+            Self::U16(_) => ParameterKind::U16,
+            Self::U32(_) => ParameterKind::U32,
+            Self::F32(_) => ParameterKind::F32,
+        }
+    }
 }
 
 pub fn encode_read_parameter(host_id: u8, device_id: u8, parameter: ParameterId) -> (u32, [u8; 8]) {
@@ -63,12 +96,62 @@ pub fn encode_write_parameter(
     device_id: u8,
     parameter: ParameterId,
     value: ParameterValue,
+) -> Result<(u32, [u8; 8]), CommandError> {
+    if value.kind() != parameter.value_kind() {
+        return Err(CommandError::ParameterType {
+            device_id,
+            parameter,
+            expected: parameter.value_kind(),
+            actual: value.kind(),
+        });
+    }
+    if let (ParameterId::RunMode, ParameterValue::U8(value)) = (parameter, value) {
+        let supported = [
+            RunMode::Mit,
+            RunMode::Position,
+            RunMode::Speed,
+            RunMode::Current,
+        ];
+        if !supported.into_iter().any(|mode| mode.as_u8() == value) {
+            return Err(CommandError::UnsupportedRunMode { device_id, value });
+        }
+    }
+    if let ParameterValue::F32(value) = value {
+        let field = CommandField::FirmwareParameter(parameter);
+        if matches!(
+            parameter,
+            ParameterId::PositionKp | ParameterId::SpeedKp | ParameterId::SpeedKi
+        ) {
+            nonnegative_gain(device_id, field, value)?;
+        } else if matches!(
+            parameter,
+            ParameterId::LimitSpeed | ParameterId::LimitTorque
+        ) {
+            nonnegative(device_id, field, value)?;
+        } else {
+            finite(device_id, field, value)?;
+        }
+    }
+    Ok(encode_parameter_bytes(host_id, device_id, parameter, value))
+}
+
+fn encode_parameter_bytes(
+    host_id: u8,
+    device_id: u8,
+    parameter: ParameterId,
+    value: ParameterValue,
 ) -> (u32, [u8; 8]) {
     let mut data = [0u8; 8];
     data[..2].copy_from_slice(&parameter.as_u16().to_le_bytes());
     match value {
         ParameterValue::U8(v) => {
             data[4] = v;
+        }
+        ParameterValue::U16(v) => {
+            data[4..6].copy_from_slice(&v.to_le_bytes());
+        }
+        ParameterValue::U32(v) => {
+            data[4..8].copy_from_slice(&v.to_le_bytes());
         }
         ParameterValue::F32(v) => {
             data[4..8].copy_from_slice(&v.to_le_bytes());
@@ -85,7 +168,7 @@ pub fn encode_write_parameter(
 }
 
 pub fn encode_set_run_mode(device_id: u8, mode: RunMode) -> (u32, [u8; 8]) {
-    encode_write_parameter(
+    encode_parameter_bytes(
         DEFAULT_HOST_ID,
         device_id,
         ParameterId::RunMode,
@@ -93,7 +176,10 @@ pub fn encode_set_run_mode(device_id: u8, mode: RunMode) -> (u32, [u8; 8]) {
     )
 }
 
-pub fn encode_speed_ref(device_id: u8, velocity_rad_s: f32) -> (u32, [u8; 8]) {
+pub fn encode_speed_ref(
+    device_id: u8,
+    velocity_rad_s: f32,
+) -> Result<(u32, [u8; 8]), CommandError> {
     encode_write_parameter(
         DEFAULT_HOST_ID,
         device_id,
@@ -102,7 +188,10 @@ pub fn encode_speed_ref(device_id: u8, velocity_rad_s: f32) -> (u32, [u8; 8]) {
     )
 }
 
-pub fn encode_position_ref(device_id: u8, position_rad: f32) -> (u32, [u8; 8]) {
+pub fn encode_position_ref(
+    device_id: u8,
+    position_rad: f32,
+) -> Result<(u32, [u8; 8]), CommandError> {
     encode_write_parameter(
         DEFAULT_HOST_ID,
         device_id,
@@ -111,7 +200,7 @@ pub fn encode_position_ref(device_id: u8, position_rad: f32) -> (u32, [u8; 8]) {
     )
 }
 
-pub fn encode_current_ref(device_id: u8, current_a: f32) -> (u32, [u8; 8]) {
+pub fn encode_current_ref(device_id: u8, current_a: f32) -> Result<(u32, [u8; 8]), CommandError> {
     encode_write_parameter(
         DEFAULT_HOST_ID,
         device_id,
@@ -143,7 +232,7 @@ mod tests {
 
     #[test]
     fn speed_ref_write_uses_little_endian_float_value() {
-        let (_id, data) = encode_speed_ref(4, 1.25);
+        let (_id, data) = encode_speed_ref(4, 1.25).expect("finite speed");
         assert_eq!(&data[..2], &ParameterId::SpeedTarget.as_u16().to_le_bytes());
         assert_eq!(&data[4..8], &1.25f32.to_le_bytes());
     }

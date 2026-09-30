@@ -3,6 +3,7 @@
 use marengo_config::MotorType;
 
 use crate::comm::{pack_typed_ext_id, unpack_ext_id, CommunicationType};
+use crate::command::{finite, nonnegative_gain, CommandError, CommandField};
 use crate::motor_type::MitRanges;
 
 /// MIT-mode command for one actuator (OpenArm / Robstride semantics).
@@ -15,6 +16,23 @@ pub struct MitCommand {
     pub kp: f32,
     pub kd: f32,
     pub torque_ff_nm: f32,
+}
+
+impl MitCommand {
+    /// Check the motor-space command before encoding or admitting a whole batch.
+    /// Finite values outside vendor ranges retain the existing saturating encoding;
+    /// joint-space ceilings and enable policy remain Davout's responsibility.
+    pub fn validate(&self) -> Result<(), CommandError> {
+        finite(self.device_id, CommandField::Position, self.position_rad)?;
+        finite(self.device_id, CommandField::Velocity, self.velocity_rad_s)?;
+        nonnegative_gain(self.device_id, CommandField::ProportionalGain, self.kp)?;
+        nonnegative_gain(self.device_id, CommandField::DampingGain, self.kd)?;
+        finite(
+            self.device_id,
+            CommandField::TorqueFeedforward,
+            self.torque_ff_nm,
+        )
+    }
 }
 
 /// Parsed MIT feedback.
@@ -64,11 +82,6 @@ fn unsigned_to_vendor_u16(value: f32, scale: f32) -> u16 {
         .clamp(0.0, u16::MAX as f32) as u16
 }
 
-#[cfg(test)]
-fn vendor_u16_to_unsigned(raw: u16, scale: f32) -> f32 {
-    f32::from(raw) / u16::MAX as f32 * scale
-}
-
 fn read_be_u16(data: &[u8], offset: usize) -> u16 {
     u16::from_be_bytes([data[offset], data[offset + 1]])
 }
@@ -81,7 +94,9 @@ fn write_be_u16(data: &mut [u8; 8], offset: usize, value: u16) {
 ///
 /// Position/velocity/kp/kd are big-endian u16 fields in the payload. Torque
 /// feedforward is the 16-bit `extra_data` field in the extended arbitration ID.
-pub fn encode_mit(cmd: &MitCommand) -> (u32, [u8; 8]) {
+/// Nonfinite fields and negative gains return a typed error before quantization.
+pub fn encode_mit(cmd: &MitCommand) -> Result<(u32, [u8; 8]), CommandError> {
+    cmd.validate()?;
     let ranges = MitRanges::for_motor_type(cmd.motor_type);
     let p_int = signed_to_vendor_u16(cmd.position_rad, ranges.position_scale);
     let v_int = signed_to_vendor_u16(cmd.velocity_rad_s, ranges.velocity_scale);
@@ -95,10 +110,10 @@ pub fn encode_mit(cmd: &MitCommand) -> (u32, [u8; 8]) {
     write_be_u16(&mut data, 4, kp_int);
     write_be_u16(&mut data, 6, kd_int);
 
-    (
+    Ok((
         pack_typed_ext_id(CommunicationType::OperationControl, t_int, cmd.device_id),
         data,
-    )
+    ))
 }
 
 /// Decode MIT feedback; returns `None` if frame length or ID is invalid.
@@ -162,21 +177,10 @@ mod tests {
             kd: 0.0,
             torque_ff_nm: 0.0,
         };
-        let (id, data) = encode_mit(&cmd);
+        let (id, data) = encode_mit(&cmd).expect("valid command");
         assert_eq!(id, mit_tx_id(1));
         assert_eq!(data.len(), 8);
         assert_eq!(data, [0x7F, 0xFF, 0x7F, 0xFF, 0, 0, 0, 0]);
-    }
-
-    #[test]
-    fn rs02_rs03_different_torque_ranges() {
-        let t = 50.0f32;
-        let rs02 = MitRanges::for_motor_type(MotorType::Rs02);
-        let rs03 = MitRanges::for_motor_type(MotorType::Rs03);
-        assert!(rs03.t_max() > rs02.t_max());
-        let _ = signed_to_vendor_u16(t, rs02.torque_scale);
-        let hi = signed_to_vendor_u16(t, rs03.torque_scale);
-        assert!(hi > 0);
     }
 
     #[test]
@@ -207,12 +211,5 @@ mod tests {
         let fb24 = decode_mit_feedback(MotorType::Rs02, id24, &data).expect("type-24 feedback");
         assert_eq!(fb24.device_id, 3);
         assert!((fb24.position_rad - 1.0).abs() < 0.001);
-    }
-
-    #[test]
-    fn unsigned_gain_roundtrip_helper() {
-        let raw = unsigned_to_vendor_u16(250.0, 500.0);
-        let value = vendor_u16_to_unsigned(raw, 500.0);
-        assert!((value - 250.0).abs() < 0.01);
     }
 }
