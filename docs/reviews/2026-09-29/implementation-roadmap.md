@@ -257,11 +257,38 @@ precede candidate qualification. Local primary passes with 630 Rust tests (one
 ignored), 355 frontend, 72 Pi-MCP and eight virtual-setup contracts. The affected
 Linux feature check passes 373 tests, including five actual converter contracts;
 GitHub then passes all 73 driver feature tests with none ignored, including all
-six virtual tests. All five jobs pass at 6d5cedf, run36684361659. Simulation smoke
-and two independent reviews pass. Delivery is [PR217](https://github.com/jaylamping/marengo/pull/217);
-the final evidence revision receives exact-head checks before merge.
+six virtual tests. All five jobs pass at implementation head 6d5cedf,
+run36684361659, and final evidence head c9d748e, run36685234071. Simulation smoke
+and two independent reviews pass. [PR217](https://github.com/jaylamping/marengo/pull/217)
+merged as 6ff2ed8 with exactly the checked tree; all five postmerge main jobs pass
+in run36685765511. The ledger's batch04 history records the delivery receipt.
 CS04, M06 and T26 remain partial; no hardware acceptance is inferred.
 Reference/recovery follows the checked merge of this bounded transport slice.
+
+## Fifth batch: historical calibration and current reference
+
+The [fifth batch report](batch05-reference-history-admission.md) starts from the
+checked PR217 merge `6ff2ed8`. [ADR0022](../../decisions/0022-calibration-history-and-current-reference.md)
+separates inspectable historical rows from current-process readiness and moves
+environment selection to Supervisor composition. Four existing-public regression
+groups fail before production edits on that exact baseline; the missing-file
+control passes and 56 relevant production files remain unchanged.
+
+The original failing tests pass unchanged against a separate frozen candidate
+snapshot. Every fresh registry now starts Unhomed, preserves rows/bytes,
+distinguishes missing from corrupt/unreadable history, and refuses checked
+home/normal Enable from historical data. Unique explicit-path fixtures replace
+shared PID paths and parent environment mutation. Local primary passes 639 Rust
+tests (one ignored), 355 frontend, 72 Pi-MCP and the script/dependency contracts;
+affected Linux strict lint and 338 tests pass, along with simulation smoke.
+All five implementation-head jobs pass at 8c3f62e in run 36691835812, including 73
+actual driver feature tests with none ignored. Delivery is
+[PR218](https://github.com/jaylamping/marengo/pull/218); final evidence-head checks
+remain required before safe merge. CS05 is partial until private grants and
+qualified reference/recovery transactions replace the remaining bypasses.
+The fresh motor-repl stop path's dependency on constructor success is explicit
+CS07/CS09 caller work; this is not a qualified emergency-stop CLI or a live
+commissioning release. No robot action or physical acceptance occurs here.
 
 ## Completion and continuation
 

@@ -10,7 +10,7 @@ Marengo separates **home reference**, **semantic zero**, and **verified startup 
 | **Semantic zero** | The joint angle used by URDF, gravity, and control (`q = 0`). |
 | **Home offset** | `home_offset_rad`: maps detected home reference to semantic zero. `semantic_zero = home_reference + home_offset_rad`. |
 | **Firmware zero** | Robstride `SetZero` — encoder count stored in the motor drive. |
-| **Verified** | Software has confirmed zero validity for a joint and allows normal enable. |
+| **Verified** | Current-process reference state required for normal enable; a historical row cannot establish it. |
 | **Stale zero** | Calibration record or firmware zero is no longer trusted (motor swap, ID change, disassembly, failed verification). |
 
 ## Startup states
@@ -40,6 +40,13 @@ Disabled → Ready → Active
 
 `Ready` requires **all configured joints Verified** and no latched homing/sensor faults.
 
+Every new registry starts all configured joints `Unhomed`, including joints with
+apparently matching calibration history. Reading a saved row does not verify the
+current motor, reference or process. History stays available for inspection;
+missing history starts empty, while malformed or unreadable history returns an
+error without overwriting it. See
+[ADR 0022](decisions/0022-calibration-history-and-current-reference.md).
+
 ## Sensor truth table (3-Hall layout)
 
 One magnet on the rotating member; three fixed Hall sensors on the housing.
@@ -64,40 +71,48 @@ Configured per joint in `config/homing.yaml` (see [ADR 0006](decisions/0006-homi
 
 | Method | When to use |
 |--------|-------------|
-| `manual_reference` | **Interim bench** — operator places arm at mechanical reference, runs `set-zero`, software verifies `\|q\| < tolerance`. |
-| `hall_three_sensor` | **Target** — slow search, edge detect, backoff/re-approach, apply `home_offset_rad`, optional firmware `SetZero`. |
-| `none` | Simulation or joints without homing (not for live bench). |
+| `manual_reference` | **Target contract** — supported mechanical placement, explicit sign attestation and qualified evidence after Set Zero. Current cached-pose verification does not satisfy this contract. |
+| `hall_three_sensor` | **Unimplemented live workflow** — slow search, edge detect, backoff/re-approach, apply `home_offset_rad`, optional firmware `SetZero`. |
+| `none` | No physical reference workflow; it cannot establish live bench reference. |
 
-## Interim manual procedure (until Hall hardware)
+## Current commissioning limitation
 
-Use until Hall mounts are installed:
+The former sequence of separate `motor-repl set-zero`, `home`, then Pi `enable`
+processes depended on saved history granting readiness. It now refuses at the
+fresh-process reference gate. `home` checks current readiness; it does not acquire
+a physical reference. The saved rows remain available and do not convey a grant
+between processes.
 
-1. E-stop reachable; arm supported.
-2. `motor-repl status` — CAN OK, no faults.
-3. Sign test per joint if not yet recorded.
-4. Place joint at mechanical reference (arm down for shoulder pitch).
-5. `motor-repl set-zero <joint>` — verifies `\|q\| < zero_verify_tolerance_rad`, writes calibration record.
-6. `motor-repl home` — marks supervisor Ready when all joints Verified.
-7. `marengo-pi` → `enable` → `gravity-on` / hold tests.
+The reference repair is still in progress: current Set Zero checks cached pose,
+and the CLI calibration path can enable peers or exit without reliable cleanup.
+Do not use unchecked readiness setters or synthetic bench grants to restore that
+sequence. A live commissioning procedure requires the remaining target-only
+preflight, stop-before-storage, qualified postcommand evidence and single-owner
+request/receipt work tracked as CS05/CS06/CS07 in the
+[repair roadmap](reviews/2026-09-29/implementation-roadmap.md).
 
-Do **not** re-zero during hold scripts unless intentionally recalibrating.
+Keep the arm supported and the physical E-stop reachable for any later supervised
+commissioning. The fresh `motor-repl disable` path also requires full startup
+configuration and history loading; a corrupt resource can prevent it from
+reaching its stop writes. It is not a qualified emergency-stop mechanism. An
+accepted socket write or software Disabled state does not prove physical stop.
 
-## Out-of-range recovery
+## Out-of-range recovery requirements
 
 If feedback is outside effective limits or zero is stale:
 
-1. `disable` — drives off.
+1. Request stop from the installed owner and retain its delivery outcome; use the independent physical E-stop when needed.
 2. Manually move to a known safe pose **or** run constrained homing when Hall sensors exist.
 3. Re-run sign test if direction may have changed.
-4. Re-zero or re-home before enable.
+4. Establish a qualified current reference before enable once the owner workflow is implemented.
 
 Blind position hunting without sensors or operator reference is **not** allowed.
 
 ## Calibration record
 
-Host-side registry: `var/calibration/zero_registry.yaml` by default, or an absolute bench path such as `/opt/marengo/var/calibration/zero_registry.yaml` for live Pi profiles. The path is configurable via `homing.yaml`; override at runtime with `MARENGO_CALIBRATION_RECORD`.
+Host-side history: `var/calibration/zero_registry.yaml` by default, or an absolute bench path such as `/opt/marengo/var/calibration/zero_registry.yaml` for live Pi profiles. The path is configurable via `homing.yaml`; Supervisor composition accepts a runtime override with `MARENGO_CALIBRATION_RECORD`. A relative override retains its process-working-directory interpretation. The pure homing library uses its supplied path and does not read environment variables.
 
-Records per joint: device ID, method, offset, timestamp, config revision, verification result, sign-test status. Firmware `SetZero` alone is not an audit trail.
+Records per joint: device ID, interface, method, offset, timestamp, config revision, verification result, sign-test status and operator. Construction preserves loaded rows and existing bytes. The current writer replaces the previous row for a joint; it is not yet an immutable transaction audit log. Firmware `SetZero` or a saved row alone does not establish current reference.
 
 ## Stale-zero triggers
 
@@ -108,7 +123,7 @@ Re-calibrate when:
 - Hall magnet or sensor replaced
 - `direction` or URDF limit changed
 - Verification fails after `set-zero`
-- Calibration record missing on boot (manual method)
+- New owner/process startup: current reference is unknown even when history exists
 
 ## Related docs
 

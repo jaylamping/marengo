@@ -79,7 +79,9 @@ fn usage() {
            motor-repl gravity-off\n  \
            motor-repl torque-cmd <joint> <nm>\n  \
            motor-repl gravity-preview [q...]  (robot.yaml joint order)\n\
-         Homing: set-zero each joint at mechanical reference, then home, then enable.\n\
+         Homing: saved calibration is history; every fresh process starts Unhomed.\n\
+         Qualified reference workflow is incomplete; see docs/homing.md.\n\
+         Disable requires successful startup loading; use the independent physical E-stop when needed.\n\
          Uses SocketCAN; prefer test harness or simulation before live CAN.\n\
          Env: MARENGO_ROOT, MARENGO_CONFIG_DIR (e.g. config/bringup/shoulder_pitch_dual)"
     );
@@ -253,7 +255,9 @@ fn main() {
             if loop_ctrl.supervisor_mut().mode() != davout::OperationalMode::Ready {
                 if let Err(e) = loop_ctrl.supervisor_mut().set_homing_complete() {
                     eprintln!("enable blocked: {e}");
-                    eprintln!("run set-zero for each joint, then home");
+                    eprintln!(
+                        "saved history cannot grant current reference; qualified owner workflow remains incomplete (docs/homing.md)"
+                    );
                     std::process::exit(1);
                 }
             }

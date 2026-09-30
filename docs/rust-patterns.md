@@ -131,10 +131,29 @@ supervisor.send_mit_batch(joint_space_cmds)?;
 
 **Scoped commissioning Enable** (Hardware commissioning):
 
+The following describes the existing scoped caller path, whose private grant and
+owner cutover remain unfinished. New registries start `Unhomed` and history
+loading cannot supply `Verified`; current cached Set Zero is not qualified
+reference evidence.
+
 - Resolve targets with `Supervisor::resolve_enable_targets` → `marengo_homing::select_enable_targets` (no scope file → full-master Robot Ready; persisted scope → Verified in-scope only). Never call `set_homing_complete` on Enable or motion re-arm — Verified is Set Zero only.
 - Energize with `Supervisor::enable_targets`. While Active, a different joint set returns `ActiveSetChangeRefused` (Disable first). Partial enable failure still `disable_all`.
 - Berthier MIT keepalive / GravityComp / Position and MissingFeedback checks must cover only `supervisor.active_joints()` — never all loaded `joint_names` after a scoped Enable.
 - `RobotState` omits joints without CAN feedback so Consul Online ≠ mere protobuf membership.
+
+**History and resource binding** ([ADR 0022](decisions/0022-calibration-history-and-current-reference.md)):
+
+```rust
+// BAD — turn a prior same-name calibration into this process's permission
+joint_states.insert(saved.joint.clone(), JointHomingState::Verified);
+
+// GOOD — retain history for inspection; current reference starts unknown
+joint_states.insert(joint.clone(), JointHomingState::Unhomed);
+```
+
+- Bind resources explicitly in libraries; read environment overrides once at the composition boundary. Homing constructors take a deterministic path, and Supervisor provides explicit-path construction for callers/tests.
+- Read the resource directly. Only `ErrorKind::NotFound` means absent history; propagate other I/O and parse errors. Do not use `is_file` plus `unwrap_or_default` to hide a damaged record.
+- Use independent exclusively created test directories. Exercise environment precedence with child-only variables, avoiding shared process environment mutation and PID-shared filenames.
 
 Position hold (`hold-at`) is Berthier's **joint-space motion primitive executor** — one law for every retarget, whether from operator `hold-at`, future Talleyrand joint streams, or Cartesian primitives resolved upstream. Talleyrand owns IK and multi-joint timing; Berthier does not. The law lives in `berthier::position_hold::PositionHold` (lifecycle + `tick`); `ControlLoop` builds `HoldWorld` and sends the MIT batch through Davout.
 

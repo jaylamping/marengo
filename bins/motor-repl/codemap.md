@@ -13,7 +13,13 @@
 1. Parse bus args (`--can`, `--config-dir`)
 2. Open SocketCAN → Supervisor → ControlLoop
 3. Execute subcommand (single-shot or interactive REPL)
-4. `disable` on exit
+4. Return/exit after the subcommand; reliable all-exit stop cleanup remains CS07.
+
+Every fresh Supervisor starts joints Unhomed; calibration history cannot transfer
+readiness between CLI processes. Full constructor errors (including corrupt
+history) occur before subcommand dispatch, so this fresh CLI is not a qualified
+emergency stop. Qualified reference and installed-owner client migration remain
+in the [repair roadmap](../../docs/reviews/2026-09-29/implementation-roadmap.md).
 
 ## Integration
 - **Primary bench tool** for MCP `pi_hold_on`, `pi_motor_recover`, `pi_set_zero`

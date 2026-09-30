@@ -96,21 +96,21 @@ pub fn verify_manual_reference(
 mod tests {
     #![allow(clippy::expect_used)]
 
-    use std::env;
-
     use marengo_config::{HomingMethod, MotorType, SearchDirection};
 
     use super::*;
     use crate::registry::HomingRegistry;
+    use crate::test_support::TestDirectory;
 
-    fn registry() -> HomingRegistry {
-        let root = env::temp_dir();
-        let rel = format!(
-            "marengo-verify-test-{}/zero_registry.yaml",
-            std::process::id()
-        );
-        HomingRegistry::new(&root, &rel, vec!["shoulder_pitch".to_string()], 0.05)
-            .expect("registry")
+    fn registry() -> (TestDirectory, HomingRegistry) {
+        let directory = TestDirectory::new("manual-verifier");
+        let registry = HomingRegistry::with_record_path(
+            directory.path().join("zero_registry.yaml"),
+            vec!["shoulder_pitch".to_string()],
+            0.05,
+        )
+        .expect("registry");
+        (directory, registry)
     }
 
     fn motor() -> MotorEntry {
@@ -151,7 +151,7 @@ mod tests {
 
     #[test]
     fn verify_accepts_near_zero() {
-        let mut reg = registry();
+        let (_directory, mut reg) = registry();
         let out = verify_manual_reference(
             &mut reg,
             &motor(),
@@ -169,7 +169,7 @@ mod tests {
 
     #[test]
     fn verify_rejects_far_from_zero() {
-        let mut reg = registry();
+        let (_directory, mut reg) = registry();
         let err = verify_manual_reference(
             &mut reg,
             &motor(),
@@ -188,7 +188,7 @@ mod tests {
 
     #[test]
     fn verify_limit_breach_marks_out_of_limits() {
-        let mut reg = registry();
+        let (_directory, mut reg) = registry();
         let err = verify_manual_reference(
             &mut reg,
             &motor(),

@@ -22,8 +22,12 @@ Read this before enabling motors on the bench or robot.
 - **Sensor health first.** When Hall/limit inputs are configured, startup checks sensor wiring and stuck-state before homing search.
 - **No blind hunting.** Out-of-range or stale-zero joints may only use constrained recovery (manual reference or sensor homing), not normal gravity/hold/impedance.
 - **Calibration audit.** Host registry at `var/calibration/zero_registry.yaml` records who/when/how zero was established; firmware `SetZero` alone is insufficient.
+- **Current reference.** Every fresh registry starts `Unhomed`; saved calibration is history and cannot authorize checked home or normal Enable. Corrupt/unreadable history returns an error without replacing its bytes. See [ADR 0022](decisions/0022-calibration-history-and-current-reference.md).
 
-Interim bench (no Hall hardware yet): manual reference + `set-zero` + verification. Target: three Hall sensors per joint (home, min, max).
+Manual reference and the three-Hall workflow remain commissioning targets. The
+qualified reference transaction and single-owner client cutover are incomplete;
+the former separate CLI Set Zero → home → Pi enable sequence now refuses at
+startup. See [homing.md](homing.md) for the current limitation and stop-path caveat.
 
 ## Enable / disable sequence (target behavior)
 
@@ -52,10 +56,14 @@ During early arm bring-up with the arm elevated (shoulder/elbow up), motion stop
 
 See [ADR 0004](decisions/0004-control-modes-and-mit.md) and [hardware/docs/decisions/0002-robstride-protocol.md](../hardware/docs/decisions/0002-robstride-protocol.md).
 
-## Bench procedure (gravity compensation)
+## Bench procedure (gravity compensation target)
+
+This requires a qualified current reference in the installed owner. The current
+software does not yet provide the complete commissioning path; a fresh CLI
+`home` cannot create that reference from history.
 
 1. Verify E-stop and clear workspace.
-2. `motor-repl home` → `enable` only with arm supported.
+2. Installed owner confirms current-reference Ready; request Enable only with arm supported.
 3. `gravity-on` — verify backdrivability and no runaway.
 4. **Upright pose test:** slowly release support; elbow/upper arm must not free-fall.
 5. `disable` before leaving the bench (`gravity-off` enters TorqueOnly with `τ_cmd≡0` — diagnostic no-FF, not a full disable).
@@ -92,6 +100,7 @@ While free-drive sensing is desired (sheet/modal lease or global diagnostics fla
 - **Limit envelope:** Davout uses `max(|dq_cmd|, |dq_meas|)` for velocity-scaled margins so gravity-driven motion cannot shrink the envelope unexpectedly.
 - **Fault authority:** Observed runtime hazards persist across later healthy feedback, Disable and cache clearing. Davout attempts every configured stop address and retains failures; send acceptance is not physical stop acknowledgement. Qualified recovery/reset is not implemented. See [ADR 0020](decisions/0020-lossless-feedback-and-fault-authority.md).
 - **Receive integrity and work:** Status/detail feedback requires exactly eight Data bytes. Malformed configured feedback, kernel errors and incomplete receive work latch through fault authority. Every poll is limited to 64 raw frames and 256 nonblocking read attempts across all interfaces, including noise and interruptions; both enable flushes require observed quiescence. Host read order/deadlines do not qualify physical acquisition, drive behavior or Pi jitter. See [ADR 0021](decisions/0021-bounded-can-ingress.md).
+- **Reference and stop callers:** History admission is repaired separately from the remaining cached Set Zero and direct grant/Enable bypasses. A fresh `motor-repl disable` constructs the full Supervisor first, so bad startup configuration/history can block its stop dispatch. Reference-independent stop through the installed owner and CLI/MCP migration remain required; use the physical E-stop as the independent stop path.
 
 ## When in doubt
 

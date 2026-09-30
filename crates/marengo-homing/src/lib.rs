@@ -1,6 +1,9 @@
 //! Homing state, sensor health, calibration registry, and verification logic.
 //!
 //! Pure logic — GPIO/hardware I/O lives in bins via [`SensorProvider`].
+//! Construction preserves calibration history but starts every configured joint
+//! Unhomed; saved rows never grant current readiness. Resource selection is
+//! explicit and all non-missing history errors are returned.
 
 mod calibration;
 mod commissioning;
@@ -14,7 +17,7 @@ pub use commissioning::{
     to_proto_homing_state, verify_error_is_out_of_limits, wire_homing_is_unspecified,
     JointFacetInput,
 };
-pub use registry::HomingRegistry;
+pub use registry::{HomingRegistry, RegistryError};
 pub use sensor::{
     classify_sensor_pattern, MemorySensorProvider, SensorHealth, SensorPattern, SensorProvider,
     SensorSnapshot, ThreeHallInputs,
@@ -22,6 +25,10 @@ pub use sensor::{
 pub use verify::{verify_manual_reference, VerifyError, VerifyOutcome};
 
 use marengo_config::{EffectiveHomingJoint, HomingConfigFile, HomingMethod};
+
+#[cfg(test)]
+#[path = "../tests/support/mod.rs"]
+mod test_support;
 
 /// Per-joint homing lifecycle state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

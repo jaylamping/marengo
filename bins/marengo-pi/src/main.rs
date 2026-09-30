@@ -973,7 +973,7 @@ fn main() {
         motor_count = motors.motors.len(),
         interfaces = ?can_interfaces,
         config = %config_dir.display(),
-        "marengo-pi starting (Disabled — run home/enable/gravity-on when ready)"
+        "marengo-pi starting Disabled; calibration history cannot grant current reference (docs/homing.md)"
     );
 
     let mut runtime = ControlLoopRuntime {
