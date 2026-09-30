@@ -249,6 +249,27 @@ EvidenceStaged with CommitUnavailable cannot authorize Ready or output; durable
 journal/grant and installed clients remain separate work. New APIs use independent
 candidate conformance and selected mutants, not missing-method baseline reds.
 
+Retain actual accepted pose/private correlation through cleanup; reconstructing
+it from cached pose or a terminal loses the evidence boundary. A bounded private
+immutable model snapshot plus checked installation identity binds every success,
+including an equal model restore. A live stage diagnostic validates the exact
+retained handle against current continuity; restoring an observed policy edit
+does not revive it. Keep that projection separate from immutable acquisition
+terminals and permission. Serialization size checking before a retained clone
+bounds model memory; it is not a durable encoding or physics oracle (ADR0027).
+
+```rust
+// BAD — an already-revoked reference generation misses another model install
+self.urdf_robot = candidate;
+self.reference_authority.revoke();
+
+// GOOD — stage checked model identity before installing any state
+let installed_model = self.installed_model.replacement(&self.robot, &candidate)?;
+self.reference_authority.revoke();
+self.installed_model = installed_model;
+self.urdf_robot = candidate;
+```
+
 Keep public red-to-green probes byte-identical in separately bound archived
 snapshots. API-removal compile denials are isolation conformance, not behavioral
 baseline failures. Provide stationary or coherent measured inputs independent

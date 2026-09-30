@@ -399,9 +399,23 @@ bounded receive/deadlines, immutable cleanup, controller ownership and mandatory
 Pi stop before storage. Seven candidate regressions pass unchanged; the frozen
 positive and five selected production mutants qualify the new tests. Strict
 affected453/0 and independent Standards/Spec pass. Primary: **736 Rust tests passed, one existing ignored; 355 frontend and 72 Pi MCP passed**, with fatal ARM release, format/lint/proto/build/deny/audit checks.
-PR224 implementation18f281c/run36773511504 passes all five jobs, including73 actual virtual-CAN tests with zero ignored. Final documentation/equal-tree main delivery remains pending. CS05/CS06/CS07 remain partial;
+PR224 implementation18f281c/run36773511504 passes all five jobs, including73 actual virtual-CAN tests with zero ignored. Final8cd720c/run36774797894 and equal-tree merged1682104/main36775757864 also pass all five jobs, including fatal main ARM release. Verified backup and exact branch cleanup are complete. CS05/CS06/CS07 remain partial;
 R2b journal/grant and R3 installed clients follow. Counts stay14verified,
 10partial,78open; no physical acceptance, limits or Wave change.
+
+## Eleventh batch: retained evidence and model continuity
+
+[Batch11](batch11-reference-evidence-continuity.md) implements ADR0027 R2b0
+from fully checked PR224 merge16821043. It retains actual accepted virtual proof,
+checked bounded installed-model identity and exact-handle live continuity after
+cleanup. Immutable terminals remain unusable. Original-public model-stamp red
+passes unchanged; a six-fixture management candidate regression passes unchanged;
+three production mutants are caught after real compiled positives. Independent
+Standards/Spec, strict affected460/0, primary743Rust/1 existing ignored,
+355frontend/72PiMCP/fatalARM and simulation5 pass. Exact-head GitHub delivery
+remains pending. Counts stay14verified,10partial,78open across102IDs.
+R2b1 recoverable journal/owner-consumed durable receipt, R2b2 current selected
+grant and R3 installed clients follow; no physical acceptance or Wave/limit change.
 
 ## Completion and continuation
 

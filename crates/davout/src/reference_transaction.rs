@@ -10,6 +10,7 @@ use robstride::{BusError, MotorAddress, MotorBus};
 use crate::feedback_consumer::{
     AdvanceReceiveBudget, ReceiveContext, ReferenceReceiveContext, ReferenceReceivePhase,
 };
+use crate::reference_model::InstalledModelStamp;
 use crate::{ControlMode, OperationalMode, Supervisor};
 
 use crate::{DavoutError, StopReport};
@@ -25,6 +26,7 @@ pub struct ReferenceStamp {
     sequence: u64,
     stop_generation: u64,
     reference_generation: u64,
+    installed_model: InstalledModelStamp,
     policy: serde_json::Value,
 }
 
@@ -122,6 +124,26 @@ pub struct ReferenceTerminal {
     pub usable_reference: bool,
 }
 
+/// Inspection of retained virtual evidence, never readiness or output permission.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReferenceStageStatus {
+    NoEvidence,
+    CurrentVirtualEvidence,
+    Invalidated(ReferenceStageInvalidation),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReferenceStageInvalidation {
+    BindingChanged,
+    StopChanged,
+    DeadlineExpired,
+    SafetyHazard,
+    StopUncertain,
+    Superseded,
+    Shutdown,
+    CounterExhausted,
+}
+
 #[derive(Debug, Clone)]
 pub struct ReferenceSnapshot {
     pub phase: ReferencePhase,
@@ -133,6 +155,7 @@ pub struct ReferenceSnapshot {
     pub usable_reference: bool,
     pub terminal: Option<ReferenceTerminal>,
     pub receive: Option<ReferenceReceiveSummary>,
+    pub staged_evidence: ReferenceStageStatus,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -181,6 +204,7 @@ pub(crate) struct ReferenceBackend<B: MotorBus> {
     pub(crate) prepare_report: fn(&mut B),
     pub(crate) take_proofs: fn(&mut B) -> Vec<ReferenceCorrelation>,
     pub(crate) device_epoch: fn(&B) -> Option<u64>,
+    pub(crate) current_device_epoch: fn(&B, &MotorAddress) -> Option<u64>,
 }
 
 impl<B: MotorBus> Clone for ReferenceBackend<B> {
@@ -194,6 +218,7 @@ impl<B: MotorBus> Clone for ReferenceBackend<B> {
             prepare_report: self.prepare_report,
             take_proofs: self.take_proofs,
             device_epoch: self.device_epoch,
+            current_device_epoch: self.current_device_epoch,
         }
     }
 }
@@ -204,6 +229,7 @@ struct Reservation {
     handle: ReferenceHandle,
     address: MotorAddress,
     policy: serde_json::Value,
+    installed_model: InstalledModelStamp,
     reference_generation: u64,
     stop_generation: u64,
     binding_invalidated: Cell<bool>,
@@ -216,9 +242,28 @@ struct Reservation {
     receive: Option<ReferenceReceiveSummary>,
 }
 
+/// Created only from an admitted pose and its exact sealed raw-pop proof.
+struct AcceptedReferenceEvidence {
+    proof: ReferenceCorrelation,
+    address: MotorAddress,
+    order: usize,
+    can_id: u32,
+    received_at: Instant,
+    position_rad: f32,
+}
+
+struct RetainedStage {
+    evidence: AcceptedReferenceEvidence,
+    installed_model: InstalledModelStamp,
+    overall_deadline: Duration,
+    reference_generation: u64,
+    invalidated: Cell<Option<ReferenceStageInvalidation>>,
+}
+
 struct RetainedOutcome {
     request: ReferenceRequest,
     terminal: ReferenceTerminal,
+    stage: Option<RetainedStage>,
 }
 
 pub(crate) struct ReferenceOwner<B: MotorBus> {
@@ -263,6 +308,135 @@ impl<B: MotorBus> Supervisor<B> {
         }
     }
 
+    /// Observe the latest retained stage without transmitting or granting permission.
+    /// This deliberately avoids the public reference-generation/binding accessors.
+    pub(super) fn observe_staged_reference(&self) -> ReferenceStageStatus {
+        self.reference_owner
+            .outcomes
+            .back()
+            .map_or(ReferenceStageStatus::NoEvidence, |outcome| {
+                self.reference_stage_status_for(&outcome.terminal.handle)
+            })
+    }
+
+    fn reference_stage_status_for(&self, handle: &ReferenceHandle) -> ReferenceStageStatus {
+        let Some(outcome) = self
+            .reference_owner
+            .outcomes
+            .iter()
+            .find(|outcome| outcome.terminal.handle == *handle)
+        else {
+            return ReferenceStageStatus::NoEvidence;
+        };
+        let Some(stage) = &outcome.stage else {
+            return ReferenceStageStatus::NoEvidence;
+        };
+        if let Some(reason) = stage.invalidated.get() {
+            return ReferenceStageStatus::Invalidated(reason);
+        }
+        if let Some(reason) = self.staged_reference_invalidation(outcome, stage) {
+            stage.invalidated.set(Some(reason));
+            ReferenceStageStatus::Invalidated(reason)
+        } else {
+            ReferenceStageStatus::CurrentVirtualEvidence
+        }
+    }
+
+    fn staged_reference_invalidation(
+        &self,
+        outcome: &RetainedOutcome,
+        stage: &RetainedStage,
+    ) -> Option<ReferenceStageInvalidation> {
+        use ReferenceStageInvalidation as Reason;
+
+        if outcome.terminal.stop.failed_writes() > 0 {
+            return Some(Reason::StopUncertain);
+        }
+        if self.stop_generation() == u64::MAX || outcome.terminal.stop.generation == u64::MAX {
+            return Some(Reason::CounterExhausted);
+        }
+        if self.reference_owner.reservation.is_some()
+            || self
+                .reference_owner
+                .outcomes
+                .back()
+                .is_none_or(|latest| latest.terminal.handle != outcome.terminal.handle)
+            || outcome.terminal.handle.sequence.checked_add(1)
+                != Some(self.reference_owner.next_sequence)
+        {
+            return Some(Reason::Superseded);
+        }
+        let Some(backend) = &self.reference_owner.backend else {
+            return Some(Reason::BindingChanged);
+        };
+        if (backend.now)(&self.bus) >= stage.overall_deadline {
+            return Some(Reason::DeadlineExpired);
+        }
+        if self.has_latched_fault() || self.hardware_estop {
+            return Some(Reason::SafetyHazard);
+        }
+        if self.stop_generation() != outcome.terminal.stop.generation {
+            return Some(Reason::StopChanged);
+        }
+        let evidence = &stage.evidence;
+        let proof = &evidence.proof;
+        let identity_matches = Arc::ptr_eq(&proof.owner, &self.reference_owner.identity)
+            && Arc::ptr_eq(&proof.owner, &outcome.terminal.handle.owner)
+            && Arc::ptr_eq(&proof.realm, &backend.realm)
+            && proof.transaction == outcome.terminal.handle.sequence;
+        let pop_matches = proof.address == evidence.address
+            && proof.order == evidence.order
+            && proof.can_id == evidence.can_id
+            && proof.received_at == evidence.received_at;
+        let target_matches = self.stop_motors.iter().any(|motor| {
+            motor.joint == outcome.request.joint && MotorAddress::from(motor) == evidence.address
+        });
+        let receive_matches = outcome.terminal.receive.is_some_and(|receive| {
+            receive.completion.is_complete()
+                && receive.raw_frames <= robstride::MAX_RX_FRAMES_PER_POLL
+                && receive.read_attempts <= robstride::MAX_RX_ATTEMPTS_PER_POLL
+                && evidence.order < receive.raw_frames
+        });
+        if outcome.terminal.cause != ReferenceCause::EvidenceStaged
+            || !identity_matches
+            || !pop_matches
+            || !target_matches
+            || !receive_matches
+            || !evidence.position_rad.is_finite()
+            || !(backend.matches)(&self.bus, &backend.realm)
+            || (backend.current_device_epoch)(&self.bus, &evidence.address)
+                != Some(proof.device_epoch)
+            || self.reference_authority.generation() != stage.reference_generation
+            || !self.installed_model.matches(&stage.installed_model)
+            || self
+                .reference_policy()
+                .map_or(true, |policy| policy != outcome.request.stamp.policy)
+            || self.mode != OperationalMode::Disabled
+            || self.control_mode != ControlMode::Disabled
+            || !outcome.request.confirmed
+            || self
+                .homing_config
+                .homing
+                .effective_joint(&outcome.request.joint)
+                .is_none_or(|policy| policy.sign_test_required && !outcome.request.sign_verified)
+            || f64::from(evidence.position_rad).abs()
+                > self.homing_config.homing.zero_verify_tolerance_rad
+        {
+            return Some(Reason::BindingChanged);
+        }
+        None
+    }
+
+    fn invalidate_retained_stages(&self, reason: ReferenceStageInvalidation) {
+        for outcome in &self.reference_owner.outcomes {
+            if let Some(stage) = &outcome.stage {
+                if stage.invalidated.get().is_none() {
+                    stage.invalidated.set(Some(reason));
+                }
+            }
+        }
+    }
+
     /// Inspection only: neither a stamp nor a terminal can authorize output.
     pub fn reference_snapshot(&self) -> ReferenceSnapshot {
         // Observing a mismatched installed binding permanently revokes INITIAL
@@ -271,7 +445,9 @@ impl<B: MotorBus> Supervisor<B> {
         let owner = &self.reference_owner;
         let policy = self.reference_policy().ok();
         if let Some(reservation) = &owner.reservation {
-            if policy.as_ref() != Some(&reservation.policy) {
+            if policy.as_ref() != Some(&reservation.policy)
+                || !self.installed_model.matches(&reservation.installed_model)
+            {
                 // Inspection cannot deliver cleanup, but restoring public fields
                 // must not erase an already observed live policy mismatch.
                 reservation.binding_invalidated.set(true);
@@ -282,7 +458,8 @@ impl<B: MotorBus> Supervisor<B> {
                 owner: Arc::clone(&owner.identity),
                 sequence: owner.next_sequence,
                 stop_generation: self.stop_generation(),
-                reference_generation: self.reference_generation(),
+                reference_generation: self.reference_authority.generation(),
+                installed_model: self.installed_model.stamp(),
                 policy,
             })
         } else {
@@ -308,6 +485,7 @@ impl<B: MotorBus> Supervisor<B> {
                 usable_reference: false,
                 terminal: None,
                 receive: reservation.receive,
+                staged_evidence: ReferenceStageStatus::NoEvidence,
             }
         } else {
             let terminal = owner
@@ -331,6 +509,7 @@ impl<B: MotorBus> Supervisor<B> {
                     .outcomes
                     .back()
                     .and_then(|outcome| outcome.terminal.receive),
+                staged_evidence: self.observe_staged_reference(),
             }
         }
     }
@@ -383,7 +562,8 @@ impl<B: MotorBus> Supervisor<B> {
         let policy = self.reference_policy()?;
         if request.stamp.sequence != self.reference_owner.next_sequence
             || request.stamp.stop_generation != self.stop_generation()
-            || request.stamp.reference_generation != self.reference_generation()
+            || request.stamp.reference_generation != self.reference_authority.generation()
+            || !self.installed_model.matches(&request.stamp.installed_model)
             || request.stamp.policy != policy
         {
             return Err(ReferenceError::StaleStamp);
@@ -452,6 +632,8 @@ impl<B: MotorBus> Supervisor<B> {
             owner: Arc::clone(&self.reference_owner.identity),
             sequence: request.stamp.sequence,
         };
+        let installed_model = request.stamp.installed_model.clone();
+        self.invalidate_retained_stages(ReferenceStageInvalidation::Superseded);
         self.reference_owner.next_sequence = next;
         self.mode = OperationalMode::Disabled;
         self.control_mode = ControlMode::Disabled;
@@ -460,6 +642,7 @@ impl<B: MotorBus> Supervisor<B> {
             handle: handle.clone(),
             address,
             policy,
+            installed_model,
             reference_generation,
             stop_generation: self.stop_generation(),
             binding_invalidated: Cell::new(false),
@@ -491,7 +674,7 @@ impl<B: MotorBus> Supervisor<B> {
             .ok_or(ReferenceError::Unsupported)?;
         let now = (backend.now)(&self.bus);
         if now >= reservation.overall_deadline || now >= reservation.phase_deadline {
-            let terminal = self.finish_reference(ReferenceCause::TimedOut, None)?;
+            let terminal = self.finish_reference(ReferenceCause::TimedOut, None, None)?;
             return Ok(self.snapshot_for_terminal(terminal));
         }
         if self.has_latched_fault() || self.hardware_estop {
@@ -499,6 +682,7 @@ impl<B: MotorBus> Supervisor<B> {
         }
         if reservation.binding_invalidated.get()
             || !(backend.matches)(&self.bus, &backend.realm)
+            || !self.installed_model.matches(&reservation.installed_model)
             || self.reference_authority.generation() != reservation.reference_generation
             || self.stop_generation() != reservation.stop_generation
             || self
@@ -522,6 +706,7 @@ impl<B: MotorBus> Supervisor<B> {
                             "baseline stop was uncertain",
                         ),
                         Some(stop),
+                        None,
                     )?;
                     return Ok(self.snapshot_for_terminal(terminal));
                 }
@@ -634,7 +819,7 @@ impl<B: MotorBus> Supervisor<B> {
                         read_attempts: consumed.read_attempts,
                     });
                 }
-                let proofs = (backend.take_proofs)(&mut self.bus);
+                let mut proofs = (backend.take_proofs)(&mut self.bus);
                 if let Some(error) = consumed.first_error {
                     let kind =
                         if matches!(error, DavoutError::Bus(BusError::ReceiveIncomplete { .. })) {
@@ -656,23 +841,38 @@ impl<B: MotorBus> Supervisor<B> {
                 }
                 if reservation.phase == ReferencePhase::AwaitEvidence {
                     let tolerance = self.homing_config.homing.zero_verify_tolerance_rad;
-                    let matched = consumed.reference_poses.iter().any(|pose| {
-                        pose.address == reservation.address
-                            && f64::from(pose.state.position_rad).abs() <= tolerance
-                            && proofs.iter().any(|proof| {
-                                Arc::ptr_eq(&proof.owner, &self.reference_owner.identity)
-                                    && Arc::ptr_eq(&proof.realm, &backend.realm)
-                                    && proof.transaction == reservation.handle.sequence
-                                    && Some(proof.device_epoch) == reservation.device_epoch
-                                    && proof.address == pose.address
-                                    && proof.order == pose.order
-                                    && proof.can_id == pose.can_id
-                                    && proof.received_at == pose.received_at
-                            })
+                    let accepted = consumed.reference_poses.into_iter().find_map(|pose| {
+                        if pose.address != reservation.address
+                            || !pose.state.position_rad.is_finite()
+                            || f64::from(pose.state.position_rad).abs() > tolerance
+                        {
+                            return None;
+                        }
+                        let index = proofs.iter().position(|proof| {
+                            Arc::ptr_eq(&proof.owner, &self.reference_owner.identity)
+                                && Arc::ptr_eq(&proof.realm, &backend.realm)
+                                && proof.transaction == reservation.handle.sequence
+                                && Some(proof.device_epoch) == reservation.device_epoch
+                                && proof.address == pose.address
+                                && proof.order == pose.order
+                                && proof.can_id == pose.can_id
+                                && proof.received_at == pose.received_at
+                        })?;
+                        Some(AcceptedReferenceEvidence {
+                            proof: proofs.swap_remove(index),
+                            address: pose.address,
+                            order: pose.order,
+                            can_id: pose.can_id,
+                            received_at: pose.received_at,
+                            position_rad: pose.state.position_rad,
+                        })
                     });
-                    if matched {
-                        let terminal =
-                            self.finish_reference(ReferenceCause::EvidenceStaged, None)?;
+                    if let Some(evidence) = accepted {
+                        let terminal = self.finish_reference(
+                            ReferenceCause::EvidenceStaged,
+                            None,
+                            Some(evidence),
+                        )?;
                         return Ok(self.snapshot_for_terminal(terminal));
                     }
                     ReferencePhase::AwaitEvidence
@@ -708,16 +908,18 @@ impl<B: MotorBus> Supervisor<B> {
             return Ok(terminal);
         }
         self.live_reference(handle)?;
-        self.finish_reference(ReferenceCause::Cancelled(reason), None)
+        self.finish_reference(ReferenceCause::Cancelled(reason), None, None)
     }
 
     /// Mandatory cleanup is separate from optional ordinary exit Disable.
     pub fn cancel_reference_for_shutdown(&mut self) -> Option<ReferenceTerminal> {
+        self.invalidate_retained_stages(ReferenceStageInvalidation::Shutdown);
         if !self.reference_busy() {
             return None;
         }
         self.finish_reference(
             ReferenceCause::Cancelled(ReferenceCancelReason::Shutdown),
+            None,
             None,
         )
         .ok()
@@ -729,12 +931,14 @@ impl<B: MotorBus> Supervisor<B> {
         self.finish_reference(
             ReferenceCause::Cancelled(ReferenceCancelReason::Disable),
             None,
+            None,
         )
     }
 
     pub(super) fn abort_reference_for_hazard(&mut self, message: &str) {
         if self.reference_busy() {
-            let _ = self.finish_reference(failure(ReferenceFailureKind::Hazard, message), None);
+            let _ =
+                self.finish_reference(failure(ReferenceFailureKind::Hazard, message), None, None);
         }
     }
 
@@ -811,6 +1015,7 @@ impl<B: MotorBus> Supervisor<B> {
         &mut self,
         cause: ReferenceCause,
         existing_stop: Option<StopReport>,
+        accepted: Option<AcceptedReferenceEvidence>,
     ) -> Result<ReferenceTerminal, ReferenceError> {
         let reservation = self
             .reference_owner
@@ -821,6 +1026,13 @@ impl<B: MotorBus> Supervisor<B> {
         if let Some(backend) = &self.reference_owner.backend {
             (backend.end)(&mut self.bus);
         }
+        let stage = accepted.map(|evidence| RetainedStage {
+            evidence,
+            installed_model: reservation.installed_model,
+            overall_deadline: reservation.overall_deadline,
+            reference_generation: self.reference_authority.generation(),
+            invalidated: Cell::new(None),
+        });
         let terminal = ReferenceTerminal {
             handle: reservation.handle,
             joint: reservation.request.joint.clone(),
@@ -837,7 +1049,11 @@ impl<B: MotorBus> Supervisor<B> {
         self.reference_owner.outcomes.push_back(RetainedOutcome {
             request: reservation.request,
             terminal: terminal.clone(),
+            stage,
         });
+        // The real cleanup and backend end precede the first stage observation.
+        // Failure here changes only its inspection status, never the terminal.
+        let _ = self.observe_staged_reference();
         Ok(terminal)
     }
 
@@ -858,7 +1074,7 @@ impl<B: MotorBus> Supervisor<B> {
                 crate::DeviceFaultEvidence::default(),
             );
         }
-        let terminal = self.finish_reference(failure(kind, message), None)?;
+        let terminal = self.finish_reference(failure(kind, message), None, None)?;
         Ok(self.snapshot_for_terminal(terminal))
     }
 
@@ -870,6 +1086,7 @@ impl<B: MotorBus> Supervisor<B> {
         snapshot.remaining = None;
         snapshot.reference_armed = false;
         snapshot.receive = terminal.receive;
+        snapshot.staged_evidence = self.reference_stage_status_for(&terminal.handle);
         snapshot.terminal = Some(terminal);
         snapshot
     }
@@ -883,6 +1100,7 @@ fn same_request(old: &ReferenceRequest, new: &ReferenceRequest) -> bool {
         && old.stamp.sequence == new.stamp.sequence
         && old.stamp.stop_generation == new.stamp.stop_generation
         && old.stamp.reference_generation == new.stamp.reference_generation
+        && old.stamp.installed_model == new.stamp.installed_model
         && old.stamp.policy == new.stamp.policy
 }
 

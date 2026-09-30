@@ -248,6 +248,10 @@ impl ReferenceState {
             .and_then(|context| self.epochs.get(&context.address))
             .copied()
     }
+
+    fn current_device_epoch(&self, address: &MotorAddress) -> Option<u64> {
+        self.epochs.get(address).copied()
+    }
 }
 
 impl SimulationBus {
@@ -265,6 +269,7 @@ impl SimulationBus {
             prepare_report: |bus| bus.reference.prepare_report(),
             take_proofs: |bus| bus.reference.take_proofs(),
             device_epoch: |bus| bus.reference.device_epoch(),
+            current_device_epoch: |bus, address| bus.reference.current_device_epoch(address),
         }
     }
 }

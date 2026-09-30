@@ -19,11 +19,11 @@ impl<B: MotorBus> Supervisor<B> {
         if self.mode == OperationalMode::Active {
             return Err(DavoutError::LimitPatchActive);
         }
+        self.reference_binding_valid();
         validate_limit_patch(patch)?;
         let mut patch = patch.clone();
         ensure_soft_inset(&mut patch);
 
-        let urdf_before = self.urdf_robot.clone();
         let mut urdf_robot = self.urdf_robot.clone();
         expand_urdf_joint_hard(
             &mut urdf_robot,
@@ -56,13 +56,7 @@ impl<B: MotorBus> Supervisor<B> {
         apply_limit_patch_to_control(control_entry, &patch)?;
 
         validate_control_against_limits(&self.robot, &motors, &control)?;
-        let limits = match build_limits(&self.robot, &motors, &control, &urdf_robot) {
-            Ok(limits) => limits,
-            Err(error) => {
-                self.urdf_robot = urdf_before;
-                return Err(error);
-            }
-        };
+        let limits = build_limits(&self.robot, &motors, &control, &urdf_robot)?;
         let policy = limits
             .get(&patch.joint)
             .ok_or_else(|| DavoutError::UnknownJoint {
@@ -72,7 +66,6 @@ impl<B: MotorBus> Supervisor<B> {
             if sample.position_rad < policy.hard_lower()
                 || sample.position_rad > policy.hard_upper()
             {
-                self.urdf_robot = urdf_before;
                 return Err(DavoutError::Limit {
                     joint: patch.joint.clone(),
                     message: format!(
@@ -85,8 +78,10 @@ impl<B: MotorBus> Supervisor<B> {
             }
         }
 
+        let installed_model = self.installed_model.replacement(&self.robot, &urdf_robot)?;
         // Installed model/limit generation changes cannot preserve reference.
         self.reference_authority.revoke();
+        self.installed_model = installed_model;
         self.urdf_robot = urdf_robot;
         self.motors = motors;
         self.control = control;
@@ -112,9 +107,12 @@ impl<B: MotorBus> Supervisor<B> {
         if self.mode == OperationalMode::Active {
             return Err(DavoutError::LimitPatchActive);
         }
+        self.reference_binding_valid();
         validate_safety_config(&self.robot, &motors, &control, &self.homing_config)?;
         let limits = build_limits(&self.robot, &motors, &control, &urdf_robot)?;
+        let installed_model = self.installed_model.replacement(&self.robot, &urdf_robot)?;
         self.reference_authority.revoke();
+        self.installed_model = installed_model;
         self.motors = motors;
         self.control = control;
         self.urdf_robot = urdf_robot;

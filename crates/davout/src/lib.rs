@@ -21,6 +21,9 @@
 //! - [`Supervisor::begin_reference`] / [`Supervisor::advance_reference`]: a separately
 //!   qualified closed virtual transaction stages correlated evidence and owns bounded
 //!   cleanup. It cannot grant motion; durable commit and physical acquisition remain unavailable.
+//! - Retained matched evidence and [`ReferenceStageStatus`]: live inspection of
+//!   owner/device/model/policy/stop continuity after cleanup, distinct from an
+//!   immutable unusable acquisition terminal. No stage diagnostic grants output.
 //! - [`Supervisor::disable_all`]: all-address best-effort stop with honest delivery evidence.
 //! - [`refresh_feedback`]: blocking poll up to `feedback_poll_budget_us` (REPL / set-zero).
 //! - [`drain_feedback`]: non-blocking RX queue drain (Berthier control loop).
@@ -63,13 +66,15 @@ mod faults;
 mod feedback_consumer;
 mod limit_envelope;
 mod reference;
+mod reference_model;
 mod reference_transaction;
 pub mod simulation;
 
 pub use reference_transaction::{
     ReferenceCancelReason, ReferenceCause, ReferenceCommit, ReferenceError, ReferenceFailureKind,
     ReferenceHandle, ReferencePhase, ReferenceReceiveSummary, ReferenceReportingAttempt,
-    ReferenceRequest, ReferenceSnapshot, ReferenceStamp, ReferenceTerminal,
+    ReferenceRequest, ReferenceSnapshot, ReferenceStageInvalidation, ReferenceStageStatus,
+    ReferenceStamp, ReferenceTerminal,
 };
 
 pub use active_reporting::{ActiveReportingLeaseError, ActiveReportingState, DEFAULT_LEASE_TTL};
@@ -222,6 +227,10 @@ pub enum DavoutError {
     ReferenceUnsupported { operation: &'static str },
     #[error("reference transaction is busy; {operation} is refused")]
     ReferenceBusy { operation: &'static str },
+    #[error("installed model/policy generation is exhausted")]
+    InstalledGenerationExhausted,
+    #[error("installed reference model: {message}")]
+    ReferenceModel { message: String },
     #[error("wrong-sign watchdog: gravity-comp torque opposes motion for {ticks} ticks on joint {joint}")]
     WrongSignWatchdog { joint: String, ticks: u32 },
     #[error("runtime limit changes are refused while supervisor is ACTIVE")]
@@ -271,6 +280,7 @@ pub struct Supervisor<B: MotorBus> {
     limits: HashMap<String, JointLimitPolicy>,
     robot: RobotConfigFile,
     urdf_robot: urdf_rs::Robot,
+    installed_model: reference_model::InstalledReferenceModel,
     pub motors: MotorsConfigFile,
     pub control: ControlConfigFile,
     pub homing_config: HomingConfigFile,
@@ -359,6 +369,7 @@ impl<B: MotorBus> Supervisor<B> {
         let urdf_robot = load_urdf(&urdf_path)?;
         validate_control_against_limits(&robot, &motors, &control)?;
         let limits = build_limits(&robot, &motors, &control, &urdf_robot)?;
+        let installed_model = reference_model::InstalledReferenceModel::new(&robot, &urdf_robot)?;
         let motor_types = motors
             .motors
             .iter()
@@ -372,6 +383,7 @@ impl<B: MotorBus> Supervisor<B> {
             limits,
             robot,
             urdf_robot,
+            installed_model,
             stop_motors: motors.motors.clone(),
             motors,
             control,
@@ -504,9 +516,15 @@ impl<B: MotorBus> Supervisor<B> {
         if self.mode == OperationalMode::Active {
             return Err(DavoutError::LimitPatchActive);
         }
-        self.reference_authority.revoke();
+        // A refused install must not erase an observed change to live fields.
+        self.reference_binding_valid();
         validate_control_against_limits(&self.robot, &self.motors, &self.control)?;
         let limits = build_limits(&self.robot, &self.motors, &self.control, &self.urdf_robot)?;
+        let installed_model = self
+            .installed_model
+            .replacement(&self.robot, &self.urdf_robot)?;
+        self.reference_authority.revoke();
+        self.installed_model = installed_model;
         self.limits = limits;
         Ok(())
     }
@@ -628,6 +646,7 @@ impl<B: MotorBus> Supervisor<B> {
     }
 
     fn reference_binding_valid(&self) -> bool {
+        self.observe_staged_reference();
         if self.has_latched_fault() || self.hardware_estop {
             self.reference_authority.revoke();
             return false;
