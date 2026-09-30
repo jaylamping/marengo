@@ -4,9 +4,10 @@ Checked baseline: PR222 merge `04e4ea2474f67cb3947b74a72fd4dafb09625060`.
 Branch: `codex/measured-stall-progress`. Windows source, local CAD and all
 evidence remain under `J:\code`. Evidence root:
 `J:/code/marengo-migration-backup-20260929/batch09`.
-Status: implemented, independently reviewed and locally checked; exact-head
-GitHub CI and merged delivery are pending. CS24 is implemented, not yet marked
-verified in the102-ID ledger (13 verified,10 partial,78 open,1 implemented).
+Status: verified software at the implementation head of [PR223](https://github.com/jaylamping/marengo/pull/223); final documentation-head and merged-main delivery remain pending.
+All five jobs pass at `eb1359cc82697966cc4e6d32db3fef72111e5999` in
+[run36755369469](https://github.com/jaylamping/marengo/actions/runs/36755369469).
+The102-ID ledger now records14 verified,10 partial and78 open findings.
 
 ## Software change
 
@@ -126,7 +127,8 @@ The non-test hold body SHA is
 Primary:715Rust/0failed/1existingignored,355frontend,72PiMCP, strict lint/build,
 deny/audit and fatal aarch64 release;107.799s. Affected Linux feature gate:
 strict Clippy and432/0/0 tests;24.541s. Local kernel lacks virtual CAN;
-actual73driver/5simulation qualification remains part of GitHub delivery.
+implementation-head GitHub CI executes73driver/0ignored and5simulation tests,
+including actual virtual CAN. All five jobs pass.
 Allowed unmaintained dependencies remain recorded broader work.
 
 Executed1042-input manifest SHA:
@@ -151,10 +153,11 @@ honestly in the ledger rather than counted as behavioral reds.
 
 ## Delivery and remaining work
 
-Implementation/final/equal-tree merged-main exact-head checks remain pending.
-Record actual commits/runs, all five jobs, fatal main release, verified all-refs
-backup and exact branch cleanup in external merge receipt before delivery is
-complete. PR222's checked merge/backup/cleanup is reconciled in tracked history.
+Implementation `eb1359c`/run36755369469 passes all five jobs, with715Rust/1existingignored,355frontend,72PiMCP,5simulation and73actual driver tests.
+Final documentation-head and equal-tree merged-main exact-head checks remain
+pending. Record their actual commits/runs, all five jobs, fatal main release,
+verified all-refs backup and exact branch cleanup in the external merge receipt
+before delivery is complete. PR222's checked merge/backup/cleanup is reconciled in tracked history.
 
 No reference permission, robot operation, raised torque/velocity limits or Wave
 sign-off change. Decoded software grids do not qualify physical noise, timing,

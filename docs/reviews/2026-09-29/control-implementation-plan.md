@@ -490,7 +490,7 @@ rotated fixed attachments and unequal joint angles. This defect changes computed
 production gravity; software correction alone does not authorize recommissioning
 the robot or copying stale tuning into the corrected dynamics model.
 
-### CS24: measured progress after motion stops (C5, P1, implemented)
+### CS24: measured progress after motion stops (C5, P1, verified software repair)
 
 [Batch09](batch09-measured-stall-progress.md) and ADR0025 implement a separate
 measured-position high-water watchdog on actually commanded unresolved ascent.
@@ -503,7 +503,9 @@ cover scope, jitter/reversal/held data, slow movement, settle, cleanup and time.
 Actual controller stall preserves all15 stop attempts and persistent refusal.
 Primary715/0/1, frontend355, PiMCP72, fatalARMrelease and strict affected432/0
 pass; independent Standards/Spec accept the exact source with one docs-only
-post-gate guidance correction. Exact-head CI and merged delivery are pending.
+post-gate guidance correction. [PR223](https://github.com/jaylamping/marengo/pull/223)
+implementationeb1359c/run36755369469 passes all five jobs, including5simulation
+and73actual driver tests. Final-head/main delivery checks and cleanup remain pending.
 This is separate from physical noise/plant/drive/timing commissioning, existing
 dropout freshness and unfinished reference/config/model ownership.
 

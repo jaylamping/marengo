@@ -10,7 +10,7 @@
     "batch_id": "batch09",
     "branch": "codex/measured-stall-progress",
     "baseline_main": "04e4ea2474f67cb3947b74a72fd4dafb09625060",
-    "status": "implemented and independently reviewed; primary and affected gates passed; exact-head GitHub delivery pending",
+    "status": "verified software at implementation head; final documentation-head/equal-tree main CI, backup and branch cleanup pending",
     "report": "batch09-measured-stall-progress.md",
     "findings": [
       "CS24"
@@ -304,7 +304,72 @@
       "fatal_aarch64_release": true
     },
     "required_github_gate": {
-      "result": "pending"
+      "result": "all five implementation-head jobs pass; final/main pending",
+      "implementation": {
+        "verified_utc": "2026-09-30T18:04:53.468991+00:00",
+        "label": "implementation",
+        "head": "eb1359cc82697966cc4e6d32db3fef72111e5999",
+        "run": 36755369469,
+        "url": "https://github.com/jaylamping/marengo/actions/runs/36755369469",
+        "counts": {
+          "check": {
+            "passed": 715,
+            "failed": 0,
+            "ignored": 1
+          },
+          "sim": {
+            "passed": 5,
+            "failed": 0,
+            "ignored": 0
+          },
+          "vcan": {
+            "passed": 73,
+            "failed": 0,
+            "ignored": 0
+          }
+        },
+        "frontend_passed": 355,
+        "pi_mcp_passed": 72,
+        "all_five_jobs": "success",
+        "main_fatal_aarch64_release": false,
+        "summary_sha256": "c839555ddf3a8dce2bc17a9d8b771d55c171700ffabe1d34c85dced2a46c9419",
+        "log_sha256": "8d941de5c511f8f05ef84f9d02351aa8686bf210cf4a076bd21e907bf9d86bfd",
+        "jobs": [
+          {
+            "id": 110024157280,
+            "name": "build-image",
+            "conclusion": "success",
+            "url": "https://github.com/jaylamping/marengo/actions/runs/36755369469/job/110024157280"
+          },
+          {
+            "id": 110024157624,
+            "name": "changes",
+            "conclusion": "success",
+            "url": "https://github.com/jaylamping/marengo/actions/runs/36755369469/job/110024157624"
+          },
+          {
+            "id": 110024279307,
+            "name": "check",
+            "conclusion": "success",
+            "url": "https://github.com/jaylamping/marengo/actions/runs/36755369469/job/110024279307"
+          },
+          {
+            "id": 110024279322,
+            "name": "sim",
+            "conclusion": "success",
+            "url": "https://github.com/jaylamping/marengo/actions/runs/36755369469/job/110024279322"
+          },
+          {
+            "id": 110024279397,
+            "name": "vcan",
+            "conclusion": "success",
+            "url": "https://github.com/jaylamping/marengo/actions/runs/36755369469/job/110024279397"
+          }
+        ],
+        "physical_acceptance": false
+      },
+      "final": "pending",
+      "main": "pending"
     },
     "independent_reviews": {
       "standards": {
@@ -885,7 +950,80 @@
       "Actual virtual stop attempts are not physical stop/drive acknowledgement/support proof.",
       "CS05/06/07 reference acquisition/journal/installed-owner clients and CS15/21 whole-model/config ownership remain incomplete.",
       "No robot operations, limits increase or Wave sign-off change."
-    ]
+    ],
+    "implementation_pr": "https://github.com/jaylamping/marengo/pull/223",
+    "delivery": {
+      "pr": "https://github.com/jaylamping/marengo/pull/223",
+      "implementation_head": "eb1359cc82697966cc4e6d32db3fef72111e5999",
+      "implementation_ci": {
+        "verified_utc": "2026-09-30T18:04:53.468991+00:00",
+        "label": "implementation",
+        "head": "eb1359cc82697966cc4e6d32db3fef72111e5999",
+        "run": 36755369469,
+        "url": "https://github.com/jaylamping/marengo/actions/runs/36755369469",
+        "counts": {
+          "check": {
+            "passed": 715,
+            "failed": 0,
+            "ignored": 1
+          },
+          "sim": {
+            "passed": 5,
+            "failed": 0,
+            "ignored": 0
+          },
+          "vcan": {
+            "passed": 73,
+            "failed": 0,
+            "ignored": 0
+          }
+        },
+        "frontend_passed": 355,
+        "pi_mcp_passed": 72,
+        "all_five_jobs": "success",
+        "main_fatal_aarch64_release": false,
+        "summary_sha256": "c839555ddf3a8dce2bc17a9d8b771d55c171700ffabe1d34c85dced2a46c9419",
+        "log_sha256": "8d941de5c511f8f05ef84f9d02351aa8686bf210cf4a076bd21e907bf9d86bfd",
+        "jobs": [
+          {
+            "id": 110024157280,
+            "name": "build-image",
+            "conclusion": "success",
+            "url": "https://github.com/jaylamping/marengo/actions/runs/36755369469/job/110024157280"
+          },
+          {
+            "id": 110024157624,
+            "name": "changes",
+            "conclusion": "success",
+            "url": "https://github.com/jaylamping/marengo/actions/runs/36755369469/job/110024157624"
+          },
+          {
+            "id": 110024279307,
+            "name": "check",
+            "conclusion": "success",
+            "url": "https://github.com/jaylamping/marengo/actions/runs/36755369469/job/110024279307"
+          },
+          {
+            "id": 110024279322,
+            "name": "sim",
+            "conclusion": "success",
+            "url": "https://github.com/jaylamping/marengo/actions/runs/36755369469/job/110024279322"
+          },
+          {
+            "id": 110024279397,
+            "name": "vcan",
+            "conclusion": "success",
+            "url": "https://github.com/jaylamping/marengo/actions/runs/36755369469/job/110024279397"
+          }
+        ],
+        "physical_acceptance": false
+      },
+      "final_documentation_head": "pending",
+      "merged_main": "pending",
+      "exact_head_ci_policy": "All five jobs required for implementation/final/main, including fatal main release; no robot deploy workflow triggered.",
+      "final_delivery_receipt": "J:/code/marengo-migration-backup-20260929/batch09/merge-receipt.json",
+      "receipt_status": "pending until actual final/main checks and exact recoverable branch cleanup"
+    }
   },
   "findings": [
     {
@@ -1282,7 +1420,7 @@
       "source": "control.md#cs24--a-positive-velocity-filter-tail-prevents-stall-detection-after-motion-stops",
       "work_package": "WP16",
       "implementation_and_acceptance_plan": "control-implementation-plan.md",
-      "status": "implemented",
+      "status": "verified",
       "evidence": [
         "Independent exact-c306 probe runs the unchanged production PositionHold law: 100 coherent advancing q/dq samples, then 500 unchanged encoder samples at5ms. No AscentStall occurs; a positive EMA tail3.207202185380473e-15 after 100 stationary samples continually resets the fuse.",
         "One actual behavioral assertion fails, zero ignored;51 included-module cases are filtered rather than counted as executed. All 1,414 archived original files and the added probe hash remain unchanged after Linux execution. Source-level law seam only, not physical or full-controller plant acceptance.",
@@ -1294,9 +1432,9 @@
         "Required primary715Rust/0failed/1existingignored,355frontend,72PiMCP and fatalARMrelease pass; strict affected432/0/0 passes. Two independent source reviews accept exact1042 reviewed inputs, with one explicitly reviewed docs-only delta after local gates.",
         "J:/code/marengo-migration-backup-20260929/batch09/local-gate-summary.json",
         "batch09-measured-stall-progress.md",
-        "Exact implementation/final/main CI and safe merged delivery remain pending; physical noise/plant/stop/timing acceptance is not inferred."
+        "All five implementation-head jobs pass at eb1359cc82697966cc4e6d32db3fef72111e5999/run36755369469; check715/0/1, simulation5/0, actual virtual driver73/0. Final documentation-head and equal-tree main delivery remain pending; physical acceptance remains separate."
       ],
-      "verified_commit_or_pr": null,
+      "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/223",
       "hardware_acceptance": "required before physical release",
       "discovered_in_implementation_batch": "batch06"
     },
@@ -4641,10 +4779,9 @@
     }
   ],
   "finding_status_counts": {
-    "verified": 13,
+    "verified": 14,
     "partial": 10,
-    "open": 78,
-    "implemented": 1
+    "open": 78
   },
   "next_dependency_ready_batch": {
     "findings": [
@@ -4658,7 +4795,7 @@
       "CS15"
     ],
     "purpose": "R2a-core bounded target-only reference acquisition/cancel/cleanup on the closed virtual adapter, ending evidence staged with usable_reference=false until qualified durable commit. Physical/unqualified adapters remain explicitly Unsupported; installed-owner clients and durable grant commit follow in separate slices.",
-    "prerequisites": "PR222 checked merge04e4ea2; implementationd541bd5/run36736794717, final7ddc243/run36738071460 and equal-tree main/run36738856051 all five jobs pass, including fatal main aarch64 release. Historical write consistency delivery is complete. Current independent CS24 measured-progress batch09 is selected before the R2a core cutover.",
+    "prerequisites": "PR222 checked merge04e4ea2 and completed backup/cleanup; CS24 PR223 verified implementationeb1359c/run36755369469 all five jobs pass. Final/main delivery must complete before next source edits. R2a-core preparation is read-only external while delivery is finalized.",
     "design_evidence": [
       "J:/code/marengo-migration-backup-20260929/batch03/next-reference-contract-plan.md",
       "J:\\code\\marengo-migration-backup-20260929\\batch04\\next-reference-plan.md",

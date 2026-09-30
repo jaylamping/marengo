@@ -384,8 +384,10 @@ numeric/period cases pass; two isolated production mutants are caught. Primary
 715Rust/1existingignored,355frontend,72PiMCP and fatalARMrelease plus strict
 affected432/0 pass. Independent reviews reverify all1042 source inputs; one
 docs-only guidance correction follows the executed gates, with1041 other inputs
-unchanged and all original bindings preserved. Exact-head GitHub checks and
-merged delivery are pending. Counts:13verified,10partial,78open,1implemented.
+unchanged and all original bindings preserved. [PR223](https://github.com/jaylamping/marengo/pull/223)
+implementationeb1359c/run36755369469 passes all five jobs, including5simulation
+and73actual driver tests. Final/main delivery and cleanup remain pending.
+Counts:14verified,10partial,78open.
 Bounded target-only reference R2a remains next; physical acceptance stays separate.
 
 ## Completion and continuation
