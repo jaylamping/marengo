@@ -256,8 +256,10 @@ flush completion. Public baseline failures and real Linux SocketCAN regressions
 precede candidate qualification. Local primary passes with 630 Rust tests (one
 ignored), 355 frontend, 72 Pi-MCP and eight virtual-setup contracts. The affected
 Linux feature check passes 373 tests, including five actual converter contracts;
-six virtual tests still require GitHub's kernel. Simulation smoke and two
-independent reviews pass. The serial vCAN job now includes all feature tests.
+GitHub then passes all 73 driver feature tests with none ignored, including all
+six virtual tests. All five jobs pass at 6d5cedf, run36684361659. Simulation smoke
+and two independent reviews pass. Delivery is [PR217](https://github.com/jaylamping/marengo/pull/217);
+the final evidence revision receives exact-head checks before merge.
 CS04, M06 and T26 remain partial; no hardware acceptance is inferred.
 Reference/recovery follows the checked merge of this bounded transport slice.
 

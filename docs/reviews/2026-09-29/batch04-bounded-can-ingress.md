@@ -8,8 +8,8 @@ This dependency-ready slice addresses CS04 malformed receive evidence and the
 CAN portion of M06 bounded runtime work. T26 receives meaningful failure-path
 coverage; its wider test/tool audit remains incomplete. The local primary,
 affected Linux feature and simulator gates pass. Two independent source reviews
-find no introduced blocker. Candidate GitHub checks and actual Linux virtual CAN
-remain required before merge. CS04 and T26 remain partial; M06 is partial because
+find no introduced blocker. All five GitHub jobs and actual Linux virtual CAN
+pass at implementation head 6d5cedf; final delivery requires exact-head checks. CS04 and T26 remain partial; M06 is partial because
 Pi command work, disk separation and measured jitter remain open.
 
 The public boundaries under test are raw/decoded CAN receive, Supervisor
@@ -26,7 +26,8 @@ regressions compile against the unchanged Linux baseline. Temporary draft
 behavioral failures on a Linux virtual-CAN kernel at `ba8f116`, run `36678785246`.
 Short DLC0 and remote requested DLC0 each produced an extra Status observation;
 the first port's statuses preceded the peer fault. Other CI jobs passed. The
-table's remaining length/type cases still require candidate coverage. PR216 was
+candidate now passes all remaining length/type cases; those suffixes are not
+claimed as additional original baseline reds. PR216 was
 closed without merging after preserving source, logs and a branch bundle. Local
 Docker Desktop virtual CAN is unavailable, so compilation and synthetic
 envelopes alone do not qualify the concrete SocketCAN conversion.
@@ -116,7 +117,7 @@ benign-idle contract; this is not a cross-environment performance comparison.
 | Dependency scope | 400 locked crates scanned with mandatory live database/index fetch and strict coverage. Allowed unmaintained paste remains tracked M01; Cargo.lock unchanged. |
 | Simulation | Five sim-harness tests and Python engine smoke pass in 2.65 seconds. minimal.xml, nq=2/nv=2; production model and independent plant are not qualified. |
 | Independent source review | Two frozen-snapshot reviews find no introduced blocker, including dependency IO, all active adapters, completion/order, authority and final virtual-test wiring. |
-| Candidate GitHub/Linux vCAN | Pending. CI/Compose use locked dependencies and --include-ignored --test-threads=1, so the converter tests and six actual virtual tests run in one serial feature gate. |
+| Candidate GitHub/Linux vCAN | All five jobs pass at 6d5cedf, run36684361659. All 73 driver feature tests pass with none ignored, including five converters and six actual virtual tests. CI/Compose use locked dependencies and --include-ignored --test-threads=1. |
 
 Evidence filenames include robstride-existing-api-red.log,
 davout-receive-bounds-baseline-red.log, github-baseline-summary.json,
@@ -134,3 +135,5 @@ checkout is `J:/code/marengo`; software and local CAD remain under `J:/code`.
 No physical robot operation, limit increase, deployment, or Wave sign-off change
 is part of this batch. Firmware byte order/recovery, reference/readback, physical
 stop acknowledgement, GPIO, Pi publication and jitter remain explicit work.
+
+Delivery: [PR217](https://github.com/jaylamping/marengo/pull/217), [implementation-head CI](https://github.com/jaylamping/marengo/actions/runs/36684361659). The evidence-only final revision must pass all five exact-head checks before merge. Final merged/head/run identity is retained in batch04/merge-receipt.json under the evidence root and reconciled into the next batch history.
