@@ -10,7 +10,7 @@
     "batch_id": "batch10",
     "branch": "codex/reference-acquisition-core",
     "baseline_main": "7a25bbbca0fad1ef579e979309acba666d4409da",
-    "status": "implemented, independently reviewed and locally verified; exact-head GitHub delivery pending",
+    "status": "verified scoped software at implementation head; final documentation-head/equal-tree main CI, backup and branch cleanup pending",
     "report": "batch10-reference-acquisition-core.md",
     "findings": [
       "CS05",
@@ -72,7 +72,71 @@
       "primary_completed": true
     },
     "required_github_gate": {
-      "result": "pending implementation commit and PR"
+      "implementation": {
+        "verified_utc": "2026-09-30T20:42:59.159943+00:00",
+        "label": "implementation",
+        "head": "18f281c66856d4c58fe670031771dd44a0fd9b8a",
+        "run": 36773511504,
+        "url": "https://github.com/jaylamping/marengo/actions/runs/36773511504",
+        "counts": {
+          "check": {
+            "passed": 736,
+            "failed": 0,
+            "ignored": 1
+          },
+          "sim": {
+            "passed": 5,
+            "failed": 0,
+            "ignored": 0
+          },
+          "vcan": {
+            "passed": 73,
+            "failed": 0,
+            "ignored": 0
+          }
+        },
+        "frontend_passed": 355,
+        "pi_mcp_passed": 72,
+        "all_five_jobs": "success",
+        "main_fatal_aarch64_release": false,
+        "summary_sha256": "b1fcf3fa2bd3673e5819f487766a7d0723d9ce61f349957d54d701eb9ed15b8a",
+        "log_sha256": "f9e7710a8e136dddb2a012b4a6f583782463e0e4e6ffc614fd2dcb835ecd1eb3",
+        "jobs": [
+          {
+            "id": 110085555077,
+            "name": "build-image",
+            "conclusion": "success",
+            "url": "https://github.com/jaylamping/marengo/actions/runs/36773511504/job/110085555077"
+          },
+          {
+            "id": 110085556310,
+            "name": "changes",
+            "conclusion": "success",
+            "url": "https://github.com/jaylamping/marengo/actions/runs/36773511504/job/110085556310"
+          },
+          {
+            "id": 110085649159,
+            "name": "vcan",
+            "conclusion": "success",
+            "url": "https://github.com/jaylamping/marengo/actions/runs/36773511504/job/110085649159"
+          },
+          {
+            "id": 110085649179,
+            "name": "sim",
+            "conclusion": "success",
+            "url": "https://github.com/jaylamping/marengo/actions/runs/36773511504/job/110085649179"
+          },
+          {
+            "id": 110085649206,
+            "name": "check",
+            "conclusion": "success",
+            "url": "https://github.com/jaylamping/marengo/actions/runs/36773511504/job/110085649206"
+          }
+        ],
+        "physical_acceptance": false
+      },
+      "final": "pending documentation commit",
+      "main": "pending safe equal-tree merge"
     },
     "independent_reviews": {
       "standards": {
@@ -1523,7 +1587,9 @@
     "local_gate_summary": {
       "path": "J:/code/marengo-migration-backup-20260929/batch10/local-gate-summary.json",
       "sha256": "db3b0d1cd157c2f6bdda43a40d34becb0fbc3f9dad637a8a9d8f7ea9ee3deba8"
-    }
+    },
+    "implementation_head": "18f281c66856d4c58fe670031771dd44a0fd9b8a",
+    "pull_request": "https://github.com/jaylamping/marengo/pull/224"
   },
   "findings": [
     {
@@ -1616,7 +1682,7 @@
         "R1b removes naked/current-cache grants and gates every Ready/Enable/Active/output path with private owner-local permission. Only closed initial virtual fixtures can grant; ordinary and physical reference acquisition/recovery explicitly refuse. Qualified transaction/device/reset/persistence/sign acceptance remains open.",
         "Batch06 final primary 689Rust/1ignored,355frontend,72Pi-MCP; Linux 388/0ignored strict lint; sim 5; unchanged scalar/public/restore red-green, native 2+14 and Linux 2+4 isolation, two receive mutants and independent Standards/Spec reviews pass. All five implementation-head GitHub jobs pass at 7951f10/run36706934339, including 73 actual driver feature tests/0 ignored; final evidence-head/postmerge delivery pending.",
         "Batch08 reproduces failed insertion/replacement on exact1518176 original production with all1432 Git blobs verified. Both complete byte-identical probes pass after write-before-memory publication, including actual prior/neighbor/retry/reload/cleanup controls. Independent Standards/Spec, primary703Rust/1 existing ignored,355frontend,72PiMCP/fatalcrossbuild and strict affected420/0 pass. PR222 implementation d541bd5/run36736794717 passes all five jobs, including73 driver feature tests/0ignored and5simulation tests; final7ddc243/run36738071460 and equal-tree merged04e4ea2/main36738856051 each pass all five jobs, including fatal main aarch64 release; verified backup and exact branch cleanup complete. CS05 stays partial; crash durability, current-reference permission and installed-owner clients are separate work.",
-        "Batch10 R2a locally qualifies bounded closed virtual target acquisition, exact private SetZero/raw-pop correlation and truthful same-call cleanup, plus mandatory Pi stop before storage under both exit policies. Seven actual candidate assertion regressions pass unchanged; five production mutants are caught. Primary736Rust/1 existing ignored,355frontend,72PiMCP/fatalARM release, strict affected453/0, simulation5 and independent Standards/Spec pass. Exact-head delivery pending. EvidenceStaged remains CommitUnavailable/usable_reference=false; R2b durable journal/grant, R3 clients and physical protocol remain required."
+        "Batch10 R2a locally qualifies bounded closed virtual target acquisition, exact private SetZero/raw-pop correlation and truthful same-call cleanup, plus mandatory Pi stop before storage under both exit policies. Seven actual candidate assertion regressions pass unchanged; five production mutants are caught. Primary736Rust/1 existing ignored,355frontend,72PiMCP/fatalARM release, strict affected453/0, simulation5 and independent Standards/Spec pass. PR224 implementation18f281c/run36773511504 passes all five jobs, including73 actual virtual-CAN driver tests with zero ignored. Final documentation/equal-tree main delivery pending. EvidenceStaged remains CommitUnavailable/usable_reference=false; R2b durable journal/grant, R3 clients and physical protocol remain required."
       ],
       "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/218",
       "hardware_acceptance": "required before physical release",
@@ -1637,7 +1703,7 @@
       "evidence": [
         "Cached pose, raw SetZero and ordinary calibration cannot certify/write success or arm. Actual cached-precommand baseline and byte-identical public refusal replay plus raw cache conformance prove the boundary. Scalar invalid/Hall/None inputs reject before mutation.",
         "Qualified bounded correlated target-only acquisition, timeout/cancel/stop outcome, firmware/device/reset continuity and stop-before-persistence remain open. Initial virtual reference is not transaction qualification.",
-        "Batch10 R2a locally qualifies bounded closed virtual target acquisition, exact private SetZero/raw-pop correlation and truthful same-call cleanup, plus mandatory Pi stop before storage under both exit policies. Seven actual candidate assertion regressions pass unchanged; five production mutants are caught. Primary736Rust/1 existing ignored,355frontend,72PiMCP/fatalARM release, strict affected453/0, simulation5 and independent Standards/Spec pass. Exact-head delivery pending. EvidenceStaged remains CommitUnavailable/usable_reference=false; R2b durable journal/grant, R3 clients and physical protocol remain required."
+        "Batch10 R2a locally qualifies bounded closed virtual target acquisition, exact private SetZero/raw-pop correlation and truthful same-call cleanup, plus mandatory Pi stop before storage under both exit policies. Seven actual candidate assertion regressions pass unchanged; five production mutants are caught. Primary736Rust/1 existing ignored,355frontend,72PiMCP/fatalARM release, strict affected453/0, simulation5 and independent Standards/Spec pass. PR224 implementation18f281c/run36773511504 passes all five jobs, including73 actual virtual-CAN driver tests with zero ignored. Final documentation/equal-tree main delivery pending. EvidenceStaged remains CommitUnavailable/usable_reference=false; R2b durable journal/grant, R3 clients and physical protocol remain required."
       ],
       "verified_commit_or_pr": null,
       "hardware_acceptance": "required before physical release",
@@ -1658,7 +1724,7 @@
         "R1a source review exposes a concrete additional stop-dispatch trigger: corrupt history refuses fresh motor-repl construction before Disable. Existing Pi-owner Disable does not reload history; reference-independent authoritative stop/caller cutover remains required. No raw fallback or physical stop is claimed.",
         "motor-repl now delegates one target to central preflight/capability admission before arming. Old missing-sign and peer-arming public assertions fail exact-c306 and pass byte-identically after truthful unqualified refusal. Primary compiles operator callers.",
         "All-exit client cleanup, target-only owner transactions, installed-owner priority stop independent of startup/history, stop-before-storage and correlated receipts remain open. No physical CLI stop/command qualification.",
-        "Batch10 R2a locally qualifies bounded closed virtual target acquisition, exact private SetZero/raw-pop correlation and truthful same-call cleanup, plus mandatory Pi stop before storage under both exit policies. Seven actual candidate assertion regressions pass unchanged; five production mutants are caught. Primary736Rust/1 existing ignored,355frontend,72PiMCP/fatalARM release, strict affected453/0, simulation5 and independent Standards/Spec pass. Exact-head delivery pending. EvidenceStaged remains CommitUnavailable/usable_reference=false; R2b durable journal/grant, R3 clients and physical protocol remain required."
+        "Batch10 R2a locally qualifies bounded closed virtual target acquisition, exact private SetZero/raw-pop correlation and truthful same-call cleanup, plus mandatory Pi stop before storage under both exit policies. Seven actual candidate assertion regressions pass unchanged; five production mutants are caught. Primary736Rust/1 existing ignored,355frontend,72PiMCP/fatalARM release, strict affected453/0, simulation5 and independent Standards/Spec pass. PR224 implementation18f281c/run36773511504 passes all five jobs, including73 actual virtual-CAN driver tests with zero ignored. Final documentation/equal-tree main delivery pending. EvidenceStaged remains CommitUnavailable/usable_reference=false; R2b durable journal/grant, R3 clients and physical protocol remain required."
       ],
       "verified_commit_or_pr": null,
       "hardware_acceptance": "required before physical release",

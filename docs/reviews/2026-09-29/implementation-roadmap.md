@@ -399,7 +399,7 @@ bounded receive/deadlines, immutable cleanup, controller ownership and mandatory
 Pi stop before storage. Seven candidate regressions pass unchanged; the frozen
 positive and five selected production mutants qualify the new tests. Strict
 affected453/0 and independent Standards/Spec pass. Primary: **736 Rust tests passed, one existing ignored; 355 frontend and 72 Pi MCP passed**, with fatal ARM release, format/lint/proto/build/deny/audit checks.
-Exact-head GitHub delivery remains pending. CS05/CS06/CS07 remain partial;
+PR224 implementation18f281c/run36773511504 passes all five jobs, including73 actual virtual-CAN tests with zero ignored. Final documentation/equal-tree main delivery remains pending. CS05/CS06/CS07 remain partial;
 R2b journal/grant and R3 installed clients follow. Counts stay14verified,
 10partial,78open; no physical acceptance, limits or Wave change.
 

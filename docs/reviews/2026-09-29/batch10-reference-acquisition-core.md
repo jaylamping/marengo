@@ -99,7 +99,7 @@ normative inputs match manifest `7d40dcaac8ee0d1508bab4582c44b56e46f1cf7af8a1912
 Minimal simulation smoke and all five sim-harness tests pass; this does not qualify the production plant. Mutable review records are excluded from that source binding. Raw logs, candidate
 archives, hashes, exact timings and failure classifications live under
 `J:/code/marengo-migration-backup-20260929/batch10`; the implementation ledger
-records each receipt. Required exact-head GitHub delivery remains pending.
+records each receipt. [PR224](https://github.com/jaylamping/marengo/pull/224) implementation `18f281c66856d4c58fe670031771dd44a0fd9b8a` passes all five jobs in [run36773511504](https://github.com/jaylamping/marengo/actions/runs/36773511504), including 73 actual driver feature tests with zero ignored. Final documentation-head and equal-tree main delivery remain pending.
 
 The 102 finding dispositions stay **14 verified, 10 partial, 78 open**. R2b must
 retain accepted evidence, supply a bounded noncoalescing recoverable journal and
