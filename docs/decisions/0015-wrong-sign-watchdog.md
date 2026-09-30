@@ -3,6 +3,17 @@
 **Status:** Accepted
 **Date:** 2026-06-19
 
+## September 29, 2026 implementation limitation
+
+The current master deliberately disables this watchdog. Its implementation checks
+joint-space feedforward before Davout's motor transform, while the historical
+schema below describes a motor-space expectation. Lateral COM offsets and coupled
+poses also invalidate a universal `sign(q)` gravity rule; CS23's correction makes
+those lever arms effective. The [implementation roadmap](../reviews/2026-09-29/implementation-roadmap.md)
+tracks a precise per-joint/frame/pose contract as M04. Preserve the disabled
+setting until that policy and physical acceptance are complete; this historical
+decision is not current proof of a functioning wrong-sign safety guarantee.
+
 ## Context
 
 Gravity compensation with a wrong sign causes runaway — the motor accelerates the

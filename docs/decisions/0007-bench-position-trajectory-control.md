@@ -9,11 +9,16 @@ Berthier stays in **joint space** only. Motor-space sign / `direction` / CAN dec
 
 | Layer | Owns sign verification |
 |-------|------------------------|
-| `armee-dynamics` → Berthier | Joint-space `tau_g` polarity at positive `q` (`crates/berthier/tests/sign_cross_crate.rs`) |
+| `armee-dynamics` → Berthier | Geometry-derived joint-space holding torque (`crates/armee-dynamics/tests/analytic_gravity.rs` and `archived_arm_geometry.rs`); torque sign is not universally the sign of `q` |
 | Davout | Joint↔motor `direction` / `gear_ratio` transform on MIT `torque_ff` and feedback |
 | robstride | Raw MIT encode/decode in motor coordinates only |
 
 Commit `b26793e` removed robstride CAN-frame sign checks from Berthier (and the robstride test dep). Gate before gravity-comp still requires a per-joint sign test on the wire — that evidence lives in Davout/robstride tests and bench procedure ([safety.md](../safety.md)), not Berthier.
+
+September 29, 2026: CS23 corrects translated COM lever arms. The two archived-model
+angle-sign tests did not exercise Berthier and relied on the defective calculation;
+independent geometry fixtures replace them in the dynamics crate. Old bench
+acceptance does not certify the corrected model's output.
 
 ## Update 2026-06-15: weighted hold-at friction and onset helpers (implemented)
 

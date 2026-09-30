@@ -26,8 +26,10 @@
 //! required to hold the arm against gravity at pose q.
 //!
 //! - **Positive τ_g** means the motor must produce **positive joint torque** to counteract
-//!   gravity. For a shoulder pitch joint at q=0.3 rad (arm partially raised), τ_g is positive
-//!   because gravity pulls the arm down and the motor must push up.
+//!   gravity. A Y-axis pendulum with its COM directly below the pivot at q=0 needs
+//!   positive holding torque at positive q. For a general chain, lateral offsets and
+//!   origin rotations change that relation: torque sign follows the complete model,
+//!   not joint-angle sign alone.
 //! - **Gravity vector**: `[0, 0, -9.81]` (Z-down, standard URDF convention).
 //! - **Computation**: τ_g = ∂P/∂q where P = -Σ(mᵢ · g · COMᵢ(q)) is the potential energy.
 //!   This is the virtual-work gradient (numerical central difference, DQ_EPS = 1e-6).

@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<!-- Immutable analytic fixture: upper 2 kg at 0.5 m; distal 3 kg at 0.25 m. -->
+<robot name="analytic-two-link">
+  <link name="base"/>
+  <link name="upper">
+    <inertial>
+      <origin xyz="0 0 -0.5"/>
+      <mass value="2"/>
+      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/>
+    </inertial>
+  </link>
+  <link name="distal">
+    <inertial>
+      <origin xyz="0 0 -0.25"/>
+      <mass value="3"/>
+      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/>
+    </inertial>
+  </link>
+  <joint name="shoulder" type="continuous">
+    <parent link="base"/><child link="upper"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+  <joint name="elbow" type="continuous">
+    <parent link="upper"/><child link="distal"/>
+    <origin xyz="0 0 -1"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+</robot>

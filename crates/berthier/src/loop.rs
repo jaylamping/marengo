@@ -544,9 +544,8 @@ impl<B: MotorBus> ControlLoop<B> {
         let arm_ramp = mode != ControlMode::Disabled && previous != ControlMode::Disabled;
         self.gains.on_mode_enter(previous, mode, &from, &to);
         if arm_ramp {
-            // Seed the tau_ff rate limiter with current measured torque so the rate
-            // limiter slews from the correct starting point (NOT cleared — clearing
-            // causes unclamped torque step via unwrap_or(target)).
+            // Mode changes slew from measured torque within the current hard cap.
+            // Enable/disable resets the limiter; an unseeded output starts at zero.
             self.supervisor.seed_tau_ff_rate_limiter();
         }
     }

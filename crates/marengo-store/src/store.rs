@@ -294,23 +294,34 @@ impl Store {
             params![cutoff as i64],
         )? as u64;
 
-        let old_sessions: Vec<String> = {
-            let mut stmt = conn.prepare("SELECT id FROM log_sessions WHERE started_ms < ?1")?;
-            let rows = stmt.query_map(params![cutoff as i64], |row| row.get(0))?;
+        // Read artifact references on the connection already held here. Calling
+        // get_session would try to acquire the same non-reentrant mutex again.
+        let old_sessions: Vec<LogSessionRow> = {
+            let mut stmt = conn.prepare(
+                "SELECT id, label, started_ms, ended_ms, bench_blob, candump_blob, trace_blob,
+                        candump_frame_count, candump_bytes
+                 FROM log_sessions WHERE started_ms < ?1",
+            )?;
+            let rows = stmt.query_map(params![cutoff as i64], map_session_row)?;
             rows.collect::<std::result::Result<Vec<_>, _>>()
                 .map_err(StoreError::from)?
         };
 
-        for id in &old_sessions {
-            if let Some(session) = self.get_session(id)? {
-                for path in [session.bench_blob, session.candump_blob, session.trace_blob]
-                    .into_iter()
-                    .flatten()
-                {
-                    let _ = fs::remove_file(&path);
-                }
+        for session in &old_sessions {
+            for path in [
+                &session.bench_blob,
+                &session.candump_blob,
+                &session.trace_blob,
+            ]
+            .into_iter()
+            .flatten()
+            {
+                let _ = fs::remove_file(path);
             }
-            conn.execute("DELETE FROM log_sessions WHERE id = ?1", params![id])?;
+            conn.execute(
+                "DELETE FROM log_sessions WHERE id = ?1",
+                params![session.id],
+            )?;
         }
 
         let _ = conn.execute_batch("PRAGMA wal_checkpoint(PASSIVE);");

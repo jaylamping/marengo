@@ -216,6 +216,41 @@ P1 means a concrete safety or correctness issue to repair before relying on the 
 
 **Fix:** Put Unix transport implementation and tests behind `cfg(unix)`/a transport feature, provide a cross-platform desktop transport or explicit unsupported adapter, and keep pure Berthier/Davout tests platform-independent. Add Windows/macOS CI for the portable workspace slice. Keep SocketCAN/Linux-I2C platform-specific on the robot; moving developer source to Windows does not require rewriting those physical drivers.
 
+### CS23 — Gravity COM transforms discard joint-origin translations
+
+**Priority: P1. Discovered during implementation on September 29, after the original review.**
+
+`UrdfGravityModel::link_com_world` computes `transform * com_local` with a
+`nalgebra::Vector3`. An isometry acting on a vector applies rotation, whereas a
+center of mass is a point and also needs translation. Consequently upstream joint
+origins do not contribute to each link's world COM or holding torque. The defect
+is present in the original reviewed
+[gravity implementation](https://github.com/jaylamping/marengo/blob/4bc77ba605834fdec04b436daa4bec67bca84fbb/crates/armee-dynamics/src/urdf_gravity.rs).
+
+**Reproduction:** An immutable two-link fixture has a 2 kg upper-link COM 0.5 m
+below the shoulder, an elbow 1 m below the shoulder, and a 3 kg distal-link COM
+0.25 m below the elbow. At shoulder pi/2 and elbow zero, the independent holding
+torque is `(2*0.5 + 3*1.25)*9.81 = 46.5975 Nm`. Original code returns
+`17.16749999477574 Nm`, losing the distal mass's 1 m shoulder lever arm. Reversed
+configured joint order reproduces the same physical error. The prior loose and
+ignored tests do not establish this transform invariant.
+
+**Repair:** Transform a `Point3` and use its coordinates for potential energy.
+Four active public-interface analytic tests cover pendulum sign/magnitude,
+coupled distal loading, rotated joint origin and configured joint order. The two
+coupling/order tests fail before repair and pass afterward. Independent mutation
+checks additionally require the suite to reject omitted translation, reversed
+gravity, ignored mass and omitted joint rotation.
+
+**Physical consequence and remaining gate:** The corrected calculation changes
+production gravity torques. No installed drive or physical arm was exercised;
+the example establishes a software error, not the amount of error on the current
+robot. Revalidate current-master inertials/kinematics against an independent
+physics implementation and repeat applicable supported-arm commissioning before
+motion. Do not copy old bench acceptance or expected values from the defective
+algorithm into new tests. This repair does not finish CS21's production-model
+validation or T28's URDF/MJCF consistency work.
+
 ## Architectural gaps requiring explicit decisions
 
 1. **Drive-local timeout is not configured/read back.** `ParameterId::CanTimeout` exists ([crates/robstride/src/params.rs:33](https://github.com/jaylamping/marengo/blob/4bc77ba605834fdec04b436daa4bec67bca84fbb/crates/robstride/src/params.rs#L33)) but runtime never writes it. The host watchdog cannot act during a hang, crash, SIGKILL, or after a one-shot CLI exits. Vendor default can be zero/disabled; actual installed firmware settings were not read. Make a verified per-model timeout and torque-limit handshake part of enable and a hardware commissioning test. Model hold-up/arm support consequences of torque removal separately from preventing runaway.
