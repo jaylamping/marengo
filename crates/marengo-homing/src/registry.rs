@@ -158,6 +158,7 @@ impl HomingRegistry {
 
     /// Record supplied legacy history and local policy state.
     /// This does not prove device reference or grant Davout output permission.
+    /// Failed writing leaves the previous in-memory history and local state intact.
     #[allow(clippy::too_many_arguments)]
     pub fn record_verification(
         &mut self,
@@ -181,21 +182,27 @@ impl HomingRegistry {
             config_revision,
             operator: operator.to_string(),
         };
-        self.calibration.upsert(entry);
-        self.persist()?;
+        let mut staged = self.calibration.clone();
+        staged.upsert(entry);
+        self.persist_record(&staged)?;
+        self.calibration = staged;
         self.set_state(&motor.joint, JointHomingState::Verified);
         self.clear_out_of_limits(&motor.joint);
         Ok(())
     }
 
     pub fn persist(&self) -> Result<(), RegistryError> {
+        self.persist_record(&self.calibration)
+    }
+
+    fn persist_record(&self, calibration: &CalibrationRecord) -> Result<(), RegistryError> {
         if let Some(parent) = self.record_path.parent() {
             fs::create_dir_all(parent).map_err(|e| RegistryError::Io {
                 path: parent.to_path_buf(),
                 message: e.to_string(),
             })?;
         }
-        let text = serde_yaml::to_string(&self.calibration).map_err(|e| RegistryError::Parse {
+        let text = serde_yaml::to_string(calibration).map_err(|e| RegistryError::Parse {
             path: self.record_path.clone(),
             message: e.to_string(),
         })?;

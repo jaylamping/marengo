@@ -340,14 +340,31 @@ primary passes701 Rust/1 existing ignored,355 frontend,72 Pi MCP and fatal aarch
 release; strict affected205/0 and minimal simulation5/0 also pass. CS09's software
 slice is verified in [PR221](https://github.com/jaylamping/marengo/pull/221):
 all five implementation-head jobs pass at `3939b3d` in run36728845164, including
-73 actual virtual-CAN driver tests with none ignored. Final evidence-head and
-equal-tree main delivery checks remain pending. There are13 verified,10 partial
+73 actual virtual-CAN driver tests with none ignored. Final87e6df1/run36730073787
+and equal-tree merged1518176/main36731139955 each pass all five jobs, including
+the fatal main release cross-build. The branch has verified backup/cleanup.
+There are13 verified,10 partial
 and79 open findings across102 IDs. The
 [batch report](batch07-stop-before-persistence.md) tracks independent parity
 extraction, one-at-a-time actual behavioral proof, worker outcomes and required
 delivery checks. Bounded target-only reference acquisition/cancel/cleanup follows
 checked delivery; it must remain explicitly unusable until qualified durable
 commit, with unsupported physical capability refused before any energizing work.
+
+## Eighth batch: historical write consistency
+
+The [eighth batch](batch08-history-write-consistency.md) starts from checked
+PR221 merge1518176. An additional CS05 history-consistency failure is reproduced
+through the actual public registry: real write failure leaves an uncommitted
+row in memory. All1,432 original Git blobs are verified; real successful-write,
+retry and reconstruction controls run before the named failing assertion.
+The writer stages the record, writes it, then publishes memory/local state.
+Both insertion and existing-row replacement probes pass byte-identically after
+failing original production. Independent reviews accept the scoped repair;
+primary703Rust/1 existing ignored,355 frontend,72 Pi MCP and fatalcrossbuild,
+plus strict affected420/0 pass. Exact-head checked delivery remains pending.
+This does not provide crash-safe storage, a reference journal or current Davout
+permission; CS05 stays partial and the102 finding dispositions remain unchanged.
 
 ## Completion and continuation
 

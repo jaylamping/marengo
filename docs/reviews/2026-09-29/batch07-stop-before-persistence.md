@@ -4,7 +4,9 @@ Checked baseline: PR219 merge `eae4fc358102c1e75bf02684c73b4c4e1aa9e9b1`.
 Decision: [ADR0024](../../decisions/0024-stop-before-persistence-shutdown.md).
 Active checkout: `J:\code\marengo`. Status: verified software slice in
 [PR221](https://github.com/jaylamping/marengo/pull/221); required local and all five
-implementation-head checks pass; final delivery checks remain pending.
+implementation-head checks pass. Final evidence-head87e6df1/run36730073787 and
+equal-tree merged1518176/main36731139955 also pass all five jobs, including the
+fatal main aarch64 release build. The branch is backed up and cleaned up.
 Evidence root: `J:/code/marengo-migration-backup-20260929/batch07`.
 
 ## Scope and observable contract
@@ -218,8 +220,10 @@ a named test-only alias fixed it. All285 final compile/gate inputs remain frozen
 All five implementation-head jobs pass at `3939b3d` in
 [run36728845164](https://github.com/jaylamping/marengo/actions/runs/36728845164):
 701 Rust/1 existing ignored,355 frontend,72 Pi MCP,5 minimal simulation and73
-actual virtual-CAN driver feature tests with none ignored. Exact-head final
-evidence checks and equal-tree postmerge main checks remain pending. The102-ID
+actual virtual-CAN driver feature tests with none ignored. All five final-head
+and equal-tree postmerge main jobs pass with the same counts; fatal main release
+cross-build passes. Receipt: `merge-receipt.json` under this batch's external
+evidence root. The102-ID
 ledger has13 verified,10 partial and79 open. No other finding is closed.
 Hardware acceptance remains unestablished; the repair loop performs no robot
 connection, enable, motion, flash or deployment.

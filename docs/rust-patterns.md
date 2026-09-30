@@ -180,6 +180,7 @@ joint_states.insert(joint.clone(), JointHomingState::Unhomed);
 
 - Bind resources explicitly in libraries; read environment overrides once at the composition boundary. Homing constructors take a deterministic path, and Supervisor provides explicit-path construction for callers/tests.
 - Read the resource directly. Only `ErrorKind::NotFound` means absent history; propagate other I/O and parse errors. Do not use `is_file` plus `unwrap_or_default` to hide a damaged record.
+- Stage historical row changes and write that candidate before publishing memory/local state. A write error must preserve prior rows and flags. Keep one private writer for staged updates and explicit persist; this ordering alone does not provide crash-safe replacement or fsync durability.
 - Use independent exclusively created test directories. Exercise environment precedence with child-only variables, avoiding shared process environment mutation and PID-shared filenames.
 
 Position hold (`hold-at`) is Berthier's **joint-space motion primitive executor** — one law for every retarget, whether from operator `hold-at`, future Talleyrand joint streams, or Cartesian primitives resolved upstream. Talleyrand owns IK and multi-joint timing; Berthier does not. The law lives in `berthier::position_hold::PositionHold` (lifecycle + `tick`); `ControlLoop` builds `HoldWorld` and sends the MIT batch through Davout.
