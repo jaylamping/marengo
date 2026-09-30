@@ -10,6 +10,12 @@ P1 means repair before relying on the affected control, recovery or operating wo
 
 ## Control safety configuration dynamics and IMU
 
+The [implementation roadmap](implementation-roadmap.md) and
+[per-finding ledger](implementation-ledger.json) track current repair status.
+Implementation testing found the additional CS23 below: the complete inventory
+now contains **101 IDs**, with the same two explicit overlaps. Original evidence
+and historical counts above remain the September 29 review baseline.
+
 | ID | Priority | Bug | Recommended fix | Evidence | Status |
 |----|----------|-----|-----------------|----------|--------|
 | [CS01](control.md#cs01--empty-can-drains-keep-the-communication-watchdog-alive-forever) | P1 | Empty CAN drains renew the global watchdog; one replying motor masks silent peers. | Track receive age per active motor; require fresh decoded feedback. | MemoryBus reproduction | Unresolved |
@@ -34,6 +40,7 @@ P1 means repair before relying on the affected control, recovery or operating wo
 | [CS20](control.md#cs20--several-motor-repl-commands-signal-effects-that-never-reach-the-running-controller) | P2 | Several one-shot CLI commands alter only an exiting local process or no-op gains. | Make CLI a client of the single live controller with typed outcomes. | Source process/control behavior | Unresolved |
 | [CS21](control.md#cs21--pure-dynamics-accuracyreference-tests-are-disabled-and-currently-fail) | P2 | Ignored independent dynamics tests are stale and fail when executed. | Immutable analytic fixtures and independent master-model validation; unignore tests. | Ignored tests executed: seven failures across two suites | Unresolved |
 | [CS22](control.md#cs22--core-control-crates-do-not-compile-natively-on-windows) | P2 | Unconditional Unix IPC prevents native Windows core/workspace compilation. | Portable transport seam and Unix gating; Windows/macOS portable CI. | Native compiler: seven E0433 errors; same defect as G11 | Unresolved |
+| [CS23](control.md#cs23--gravity-com-transforms-discard-joint-origin-translations) | P1 | Gravity COM transformation drops upstream joint-origin translations. | Transform COM as a point; validate independent analytic and current-model physics. | Analytic two-link regression: 17.1675 Nm instead of 46.5975 Nm | Implemented; required gate pending |
 
 ## Gateway messaging persistence and diagnostics
 

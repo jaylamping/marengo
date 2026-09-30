@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use armee_kinematics::load_urdf;
-use nalgebra::{Isometry3, Rotation3, Translation3, Unit, Vector3};
+use nalgebra::{Isometry3, Point3, Rotation3, Translation3, Unit, Vector3};
 use urdf_rs::{JointType, Robot};
 
 use crate::{DynamicsError, PureGravityTorque};
@@ -70,8 +70,10 @@ impl UrdfGravityModel {
             let transform = self.link_transform(&link.name, q_map);
             let o = &link.inertial.origin;
             let com_local = Vector3::new(o.xyz.0[0], o.xyz.0[1], o.xyz.0[2]);
-            let com_world = transform * com_local;
-            out.push((mass, com_world));
+            // A COM is a point: joint origins translate it as well as rotate it.
+            // Multiplying an Isometry by Vector3 would drop every translation.
+            let com_world = transform.transform_point(&Point3::from(com_local));
+            out.push((mass, com_world.coords));
         }
         out
     }
@@ -149,50 +151,5 @@ impl super::DynamicsModel for UrdfGravityModel {
             tau[i] = dpe_dq;
         }
         Ok(PureGravityTorque(tau))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #![allow(clippy::expect_used)]
-
-    use std::path::Path;
-
-    use super::*;
-
-    fn arm_3dof_right_urdf() -> std::path::PathBuf {
-        Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../assets/urdf/archive/seed-arm_3dof_right/contributor.urdf")
-    }
-
-    #[test]
-    #[ignore]
-    fn link_chains_built_correctly() {
-        let model = UrdfGravityModel::from_urdf(
-            arm_3dof_right_urdf(),
-            &["right_shoulder_pitch".to_string()],
-        )
-        .expect("build model from arm_3dof_right.urdf");
-
-        // base_link is the root: no parent joint → empty chain.
-        let base_chain = model
-            .link_chains
-            .get("base_link")
-            .expect("base_link has a cached chain");
-        assert!(
-            base_chain.is_empty(),
-            "root link should have an empty joint chain, got {base_chain:?}",
-        );
-
-        // right_upper_arm_stub is the child of right_shoulder_pitch (joint index 0).
-        let arm_chain = model
-            .link_chains
-            .get("right_upper_arm_stub")
-            .expect("right_upper_arm_stub has a cached chain");
-        assert_eq!(
-            arm_chain,
-            &vec![0usize],
-            "right_upper_arm_stub chain should be [0] (right_shoulder_pitch), got {arm_chain:?}",
-        );
     }
 }

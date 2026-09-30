@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<!-- Same pendulum, with its pivot origin rotated +pi/2 around Y. -->
+<robot name="analytic-rotated-pendulum">
+  <link name="base"/>
+  <link name="weight">
+    <inertial>
+      <origin xyz="0 0 -0.5"/>
+      <mass value="2"/>
+      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/>
+    </inertial>
+  </link>
+  <joint name="pivot" type="continuous">
+    <parent link="base"/><child link="weight"/>
+    <origin rpy="0 1.5707963267948966 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+</robot>

@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<!-- Immutable analytic fixture: 2 kg with COM 0.5 m below a Y-axis pivot. -->
+<robot name="analytic-pendulum">
+  <link name="base"/>
+  <link name="weight">
+    <inertial>
+      <origin xyz="0 0 -0.5"/>
+      <mass value="2"/>
+      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/>
+    </inertial>
+  </link>
+  <joint name="pivot" type="continuous">
+    <parent link="base"/><child link="weight"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+</robot>

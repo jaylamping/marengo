@@ -115,8 +115,9 @@ echo "==> node tooling (marengo-pi-mcp, hooks, limit-sync, research launch)"
   fi
 )
 
-echo "==> validate fixtures (URDF + MJCF)"
-"${ROOT}/scripts/validate-urdf.sh"
+# Kinematics, sim-harness and config fixture tests run in cargo test --workspace
+# below. The standalone validate-urdf.sh intentionally offers a focused check;
+# invoking it here would repeat 84 tests and three Cargo subprocesses.
 
 echo "==> log inventory (informational)"
 "${ROOT}/scripts/log-inventory.sh" || echo "warn: log inventory failed"

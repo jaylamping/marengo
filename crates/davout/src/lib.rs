@@ -582,14 +582,28 @@ impl<B: MotorBus> Supervisor<B> {
 
     /// Seed the tau_ff rate limiter with current measured torque for each joint.
     ///
-    /// Called on mode transitions to ensure the rate limiter slews from the correct
-    /// starting point. Do NOT clear `last_tau_ff` — that would cause `rate_limit_tau_ff`
-    /// to use `unwrap_or(target)`, passing torque through unclamped (safety regression).
+    /// Called on mode transitions to slew from measured torque, bounded by the
+    /// current feedforward policy. Without a seed, the limiter starts from zero.
     pub fn seed_tau_ff_rate_limiter(&mut self) {
         for motor in &self.motors.motors {
             let joint = &motor.joint;
             let measured = self.joint_torque_rad(joint).unwrap_or(0.0);
-            self.last_tau_ff.insert(joint.clone(), measured);
+            let cap = self
+                .limits
+                .get(joint)
+                .map(|limit| limit.tau_ff_max)
+                .unwrap_or(0.0);
+            let type_cap = self
+                .control
+                .control
+                .motor_type_defaults
+                .get(motor_type_key(motor.motor_type))
+                .map(|defaults| defaults.tau_ff_max_nm)
+                .unwrap_or(0.0);
+            self.last_tau_ff.insert(
+                joint.clone(),
+                measured.clamp(-cap.min(type_cap), cap.min(type_cap)),
+            );
         }
     }
 
@@ -632,6 +646,8 @@ impl<B: MotorBus> Supervisor<B> {
             self.last_feedback_samples.clear();
             self.last_feedback_rx.clear();
             self.wrong_sign_state.clear();
+            self.last_tau_ff.clear();
+            self.last_tick = None;
             warn!("hardware E-stop asserted — disabled");
         }
     }
@@ -805,6 +821,7 @@ impl<B: MotorBus> Supervisor<B> {
             self.mode = OperationalMode::Active;
             self.active_since = Some(Instant::now());
             self.wrong_sign_state.clear();
+            self.last_tau_ff.clear();
             self.last_tick = None;
             self.sync_active_reporting();
             info!(motor_count = joints.len(), "supervisor ACTIVE (targeted)");
@@ -1233,6 +1250,7 @@ impl<B: MotorBus> Supervisor<B> {
         self.last_feedback_samples.clear();
         self.last_feedback_rx.clear();
         self.wrong_sign_state.clear();
+        self.last_tau_ff.clear();
         self.last_tick = None;
         self.sync_active_reporting();
         debug!("supervisor DISABLED");
@@ -1449,24 +1467,24 @@ impl<B: MotorBus> Supervisor<B> {
             });
         }
         let vel_cap = lim.velocity;
-        self.apply_danger_zone_clamps(&mut out, q_meas, dq_meas);
+        let danger_zone_torque_cap = self.apply_danger_zone_clamps(&mut out, q_meas, dq_meas);
         if out.velocity_rad_s.abs() > vel_cap {
             return Err(DavoutError::Limit {
                 joint: out.joint.clone(),
                 message: format!("|velocity| {} > {}", out.velocity_rad_s, vel_cap),
             });
         }
-        out.torque_ff_nm = out
-            .torque_ff_nm
-            .clamp(-lim.tau_ff_max, lim.tau_ff_max)
-            .clamp(-defaults.tau_ff_max_nm, defaults.tau_ff_max_nm);
-
+        let torque_cap = lim
+            .tau_ff_max
+            .min(defaults.tau_ff_max_nm)
+            .min(danger_zone_torque_cap);
         out.torque_ff_nm = rate_limit_tau_ff(
             &mut self.last_tau_ff,
             &out.joint,
             out.torque_ff_nm,
             self.control.control.tau_ff_rate_limit_nm_per_s,
             previous_tick,
+            torque_cap,
         );
 
         self.check_wrong_sign_watchdog(&out, q_meas, dq_meas)?;
@@ -1549,7 +1567,13 @@ impl<B: MotorBus> Supervisor<B> {
         Ok(out)
     }
 
-    fn apply_danger_zone_clamps(&self, cmd: &mut MitJointCommand, q_meas: f64, dq_meas: f64) {
+    fn apply_danger_zone_clamps(
+        &self,
+        cmd: &mut MitJointCommand,
+        q_meas: f64,
+        dq_meas: f64,
+    ) -> f64 {
+        let mut torque_cap = f64::INFINITY;
         for rule in &self.control.control.danger_zones {
             if rule.joint != cmd.joint {
                 continue;
@@ -1571,10 +1595,12 @@ impl<B: MotorBus> Supervisor<B> {
                         .unwrap_or(rule.max_velocity_rad_s)
                         .max(0.0);
                     cmd.torque_ff_nm = cmd.torque_ff_nm.clamp(-cap, cap);
+                    torque_cap = torque_cap.min(cap);
                 }
                 _ => {}
             }
         }
+        torque_cap
     }
 
     /// Apply URDF + bench limits without sending (for tests and planners).
@@ -1621,15 +1647,24 @@ fn rate_limit_tau_ff(
     target: f64,
     rate_nm_s: f64,
     last_tick: Option<Instant>,
+    torque_cap_nm: f64,
 ) -> f64 {
-    let prev = last.get(joint).copied().unwrap_or(target);
+    // A hard cap takes priority over slew continuity if measured torque or a
+    // policy change leaves the previous output outside the current envelope.
+    let prev = last
+        .get(joint)
+        .copied()
+        .unwrap_or(0.0)
+        .clamp(-torque_cap_nm, torque_cap_nm);
+    let target = target.clamp(-torque_cap_nm, torque_cap_nm);
     let dt = last_tick
         .map(|t| t.elapsed().as_secs_f64())
         .unwrap_or(0.01)
-        .max(1e-4);
+        // Late ticks must not bank torque-step credit while control was paused.
+        .clamp(1e-4, 0.01);
     let max_step = rate_nm_s * dt;
     let delta = (target - prev).clamp(-max_step, max_step);
-    let out = prev + delta;
+    let out = (prev + delta).clamp(-torque_cap_nm, torque_cap_nm);
     last.insert(joint.to_string(), out);
     out
 }
@@ -2220,8 +2255,8 @@ mod tests {
         last.insert("j1".to_string(), 0.0);
         last.insert("j2".to_string(), 0.0);
         let prev = Instant::now() - Duration::from_millis(10);
-        let out1 = rate_limit_tau_ff(&mut last, "j1", 10.0, 100.0, Some(prev));
-        let out2 = rate_limit_tau_ff(&mut last, "j2", 10.0, 100.0, Some(prev));
+        let out1 = rate_limit_tau_ff(&mut last, "j1", 10.0, 100.0, Some(prev), 20.0);
+        let out2 = rate_limit_tau_ff(&mut last, "j2", 10.0, 100.0, Some(prev), 20.0);
         assert!(
             (out1 - 1.0).abs() < 0.05,
             "j1 slew expected ~1.0, got {out1}"
@@ -3073,7 +3108,9 @@ mod tests {
                 kd: 4.0,
                 position_rad: 0.5,
                 velocity_rad_s: 0.25,
-                torque_ff_nm: 2.0,
+                // Keep this coordinate-conversion request below the initial
+                // slew bound; torque lifecycle has separate boundary tests.
+                torque_ff_nm: 0.4,
             },
             &motor,
         )
@@ -3085,7 +3122,7 @@ mod tests {
             velocity_rad_s: -0.5,
             kp: 2.0,
             kd: 1.0,
-            torque_ff_nm: -1.0,
+            torque_ff_nm: -0.2,
         };
         let (expected_id, expected_data) = robstride::encode_mit(&expected);
         assert_eq!(sup.bus.tx.len(), 1);

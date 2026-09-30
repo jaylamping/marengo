@@ -8,6 +8,21 @@ This is a review and recovery record. The control, stop, freshness, calibration,
 
 ## Read this report in this order
 
+**Implementation follow-up:** The
+[complete implementation roadmap](2026-09-29/implementation-roadmap.md),
+[101-ID ledger](2026-09-29/implementation-ledger.json), and
+[test-quality audit](2026-09-29/test-quality-plan.md) now track repairs and
+acceptance. Independent tests discovered CS23, a gravity COM translation defect,
+after this review's original 100-ID inventory. The ledger distinguishes verified
+repairs, partial work and outstanding findings; historical counts and validation
+below describe the completed review baseline.
+
+**Test-count clarification:** The baseline strict check's 582 passing Rust
+executions included 84 fixture tests repeated before `cargo test --workspace`.
+There were 498 workspace tests and nine ignored workspace cases; one ignored
+fixture also ran twice. The implementation/test-quality plan removes that
+redundant invocation while retaining full workspace fixture coverage.
+
 1. The architecture and last bench checkpoint below rebuild the project context.
 2. [The complete finding index](2026-09-29/finding-index.md) lists all 100 numbered findings across control, gateway, frontend, and tooling, including documented overlaps with its recommended fix.
 3. [Control and safety](2026-09-29/control.md), [gateway and persistence](2026-09-29/gateway.md), [Consul](2026-09-29/consul.md), and [tooling/deployment](2026-09-29/tooling.md) provide source locations, triggers, reproductions, confidence, complete fixes, and regression-test recommendations. Their additional design concerns are part of the review too.

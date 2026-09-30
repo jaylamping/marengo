@@ -6,25 +6,25 @@ Rigid-body gravity compensation torques tau_g(q) for the Marengo arm. Pure Rust,
 ## Design
 
 ### Core types
-- `DynamicsModel` trait — single method `gravity_torques(&self, q: &[f64]) -> Result<PureGravityTorque, DynamicsError>`. Accepts joint positions in rad (joint order from `robot.yaml`), returns joint-space holding torque in Nm.
-- `PureGravityTorque(Vec<f64>)` — newtype enforcing that `gravity_torques()` returns **only** gravity component. Prevents accidental mixing of friction, payload estimation, or velocity coupling into the gravity path. Implements `Deref<Target=Vec<f64>>` and `Index<usize>`.
+- `DynamicsModel` trait — `joint_names()` and `gravity_torques(&self, q: &[f64]) -> Result<PureGravityTorque, DynamicsError>`. Accepts joint positions in rad in configured order, returns joint-space holding torque in Nm.
+- `PureGravityTorque(Vec<f64>)` — semantic marker for gravity-only output, with public storage. Implements `Deref<Target=[f64]>` and `Index<usize>`; it does not mathematically validate arbitrary constructed values.
 - `UrdfGravityModel` — concrete implementation built from a URDF file and ordered joint names.
-- `DynamicsError` — error enum: `Urdf(err)`, `Config(err)`, `BadGravityResult`.
+- `DynamicsError` — `Urdf`, `JointCount`, and `UnknownJoint`.
 
 ### Algorithm (virtual-work gradient)
 ```
-tau_g[i] = -dP/dq_i  where P = -sum(m_j * g · COM_j(q))
+tau_g[i] = dP/dq_i  where P = -sum(m_j * g · COM_j(q))
 ```
 Numerical central difference at q ± DQ_EPS (1e-6) per joint:
 1. For each actuated joint i, perturb q_i by ±DQ_EPS.
 2. For each perturbed pose, compute every link's center of mass in world frame via URDF kinematic chain forward transform.
-3. Compute potential energy: P = sum(mass_j * GRAVITY · com_world_j).
-4. tau_g[i] = -(P(q + eps) - P(q - eps)) / (2 * eps).
+3. Compute potential energy: P = -sum(mass_j * GRAVITY · com_world_j).
+4. tau_g[i] = (P(q + eps) - P(q - eps)) / (2 * eps).
 
 ### Implementation details
 - `UrdfGravityModel::from_urdf(path, joint_names)` — loads URDF, precomputes link chain indices (root→leaf per link) to avoid O(n) joint scan per transform.
-- `link_com_world(q_map)` — iterates links, computes world-frame COM using `link_transform`.
-- `link_transform(link_name, q_map)` — traverses kinematic chain from root, applies joint transforms along the way using URDF poses and joint types (revolute/continuous/prismatic/fixed).
+- `link_com_world(q_map)` — transforms each COM as a point, including upstream joint-origin translations; multiplying an isometry by a vector would lose those lever arms (CS23).
+- `link_transform(link_name, q_map)` — traverses the root-to-link chain, applies origins and revolute/continuous rotation. Prismatic motion, mimic and floating-base orientation are unsupported; omitted joint angles currently default to zero.
 - Gravity vector: `[0, 0, -9.81]` (Z-down, standard URDF convention).
 - Uses `nalgebra` for 3D transforms (Isometry3, Rotation3, Translation3).
 
@@ -52,4 +52,4 @@ Berthier ControlLoop::tick
 - **Depends on**: `armee-kinematics` (load_urdf), `urdf_rs` (URDF parser), `nalgebra` (3D transforms).
 - **Called by**: `berthier` (ControlLoop), `motor-repl` (gravity-preview command), tests.
 - **Does not**: send commands, read encoders, open files (URDF loaded externally), run a control loop, or know about CAN/protocols.
-- **Test dependencies**: serial_test (for file-scoped URDF fixtures), approx (float comparison).
+- **Tests**: `tests/analytic_gravity.rs` exercises the public model with immutable one/two-link URDFs and independent literal torques. The retired eight ignored archived-model/private-chain checks were stale. Production-model parity and plant acceptance remain open (CS21/T27/T28).

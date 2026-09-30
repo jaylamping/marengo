@@ -2,7 +2,7 @@
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use crate::Bus;
 use armee_proto::LogEvent;
@@ -16,37 +16,62 @@ pub const TOPIC_LOGS: &str = "logs/structured";
 
 const MAX_LOGS_PER_SEC: u64 = 40;
 const MAX_FIELDS_JSON_BYTES: usize = 2048;
+const QUOTA_COUNT_BITS: u32 = 8;
+const QUOTA_COUNT_MASK: u64 = (1 << QUOTA_COUNT_BITS) - 1;
 
 /// Rate-limited layer forwarding tracing events to Chappe.
 pub struct ChappeLogLayer {
     bus: Arc<Bus>,
     source_node: String,
-    window_start: AtomicU64,
-    window_count: AtomicU64,
+    // Store the elapsed-second bucket and its count together so concurrent events
+    // cannot reset one another's quota or mix counts from different windows.
+    quota: AtomicU64,
+    elapsed: Arc<dyn Fn() -> Duration + Send + Sync>,
 }
 
 impl ChappeLogLayer {
     pub fn new(bus: Arc<Bus>, source_node: impl Into<String>) -> Self {
+        let origin = Instant::now();
+        Self::with_clock(bus, source_node, move || origin.elapsed())
+    }
+
+    fn with_clock(
+        bus: Arc<Bus>,
+        source_node: impl Into<String>,
+        elapsed: impl Fn() -> Duration + Send + Sync + 'static,
+    ) -> Self {
         Self {
             bus,
             source_node: source_node.into(),
-            window_start: AtomicU64::new(0),
-            window_count: AtomicU64::new(0),
+            quota: AtomicU64::new(0),
+            elapsed: Arc::new(elapsed),
         }
     }
 
     fn allow_event(&self, level: Level) -> bool {
-        let now = Instant::now().elapsed().as_millis() as u64;
-        let start = self.window_start.load(Ordering::Relaxed);
-        if now.saturating_sub(start) >= 1000 {
-            self.window_start.store(now, Ordering::Relaxed);
-            self.window_count.store(0, Ordering::Relaxed);
+        if matches!(level, Level::ERROR | Level::WARN) {
+            return true;
         }
-        let count = self.window_count.fetch_add(1, Ordering::Relaxed) + 1;
-        if count > MAX_LOGS_PER_SEC {
-            return matches!(level, Level::ERROR | Level::WARN);
+        let bucket = (self.elapsed)().as_secs().min(u64::MAX >> QUOTA_COUNT_BITS);
+        let mut current = self.quota.load(Ordering::Relaxed);
+        loop {
+            let next = if current >> QUOTA_COUNT_BITS < bucket {
+                (bucket << QUOTA_COUNT_BITS) | 1
+            } else if current & QUOTA_COUNT_MASK >= MAX_LOGS_PER_SEC {
+                return false;
+            } else {
+                current + 1
+            };
+            match self.quota.compare_exchange_weak(
+                current,
+                next,
+                Ordering::Relaxed,
+                Ordering::Relaxed,
+            ) {
+                Ok(_) => return true,
+                Err(updated) => current = updated,
+            }
         }
-        true
     }
 }
 
@@ -203,11 +228,110 @@ mod tests {
     #![allow(clippy::expect_used)]
 
     use super::*;
+    use armee_proto::{prost::Message, Envelope};
+    use tracing_subscriber::prelude::*;
+
+    fn published_logs(rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>) -> Vec<LogEvent> {
+        let mut logs = Vec::new();
+        while let Ok(bytes) = rx.try_recv() {
+            let envelope = Envelope::decode(bytes.as_slice()).expect("envelope");
+            logs.push(LogEvent::decode(envelope.payload.as_slice()).expect("log event"));
+        }
+        logs
+    }
 
     #[test]
-    fn level_names_match_proto_contract() {
-        assert_eq!(level_name(Level::INFO), "info");
-        assert_eq!(level_name(Level::ERROR), "error");
+    fn tracing_log_quota_refills_and_preserves_urgent_events() {
+        let bus = Arc::new(Bus::new(256));
+        let mut rx = bus.subscribe(TOPIC_LOGS);
+        let millis = Arc::new(AtomicU64::new(0));
+        let clock = Arc::clone(&millis);
+        let layer = ChappeLogLayer::with_clock(bus, "test", move || {
+            Duration::from_millis(clock.load(Ordering::Relaxed))
+        });
+        let subscriber = tracing_subscriber::registry().with(layer);
+        tracing::subscriber::with_default(subscriber, || {
+            for sequence in 0..41 {
+                tracing::info!(
+                    sequence,
+                    joint = "shoulder_pitch",
+                    device_id = 7,
+                    "before refill"
+                );
+            }
+            tracing::warn!("urgent warning");
+            tracing::error!("urgent error");
+            let first_window = published_logs(&mut rx);
+            assert_eq!(first_window.len(), 42);
+            assert_eq!(first_window[39].level, "info");
+            assert_eq!(first_window[39].message, "before refill");
+            let fields: Value =
+                serde_json::from_str(&first_window[39].fields_json).expect("structured fields");
+            assert_eq!(fields["joint"], "shoulder_pitch");
+            assert_eq!(fields["device_id"], 7);
+            assert_eq!(first_window[40].level, "warn");
+            assert_eq!(first_window[41].level, "error");
+
+            millis.store(999, Ordering::Relaxed);
+            tracing::info!("still throttled");
+            assert!(published_logs(&mut rx).is_empty());
+
+            millis.store(1000, Ordering::Relaxed);
+            for sequence in 0..41 {
+                tracing::info!(sequence, "after refill");
+            }
+            let second_window = published_logs(&mut rx);
+            assert_eq!(
+                second_window.len(),
+                40,
+                "normal logging must recover each second"
+            );
+            assert!(second_window
+                .iter()
+                .all(|event| event.message == "after refill"));
+            assert_eq!(
+                serde_json::from_str::<Value>(&second_window[39].fields_json)
+                    .expect("structured fields")["sequence"],
+                39
+            );
+        });
+    }
+
+    #[test]
+    fn concurrent_tracing_events_share_one_quota() {
+        let bus = Arc::new(Bus::new(256));
+        let mut rx = bus.subscribe(TOPIC_LOGS);
+        let layer = ChappeLogLayer::with_clock(bus, "test", || Duration::ZERO);
+        let dispatch = tracing::Dispatch::new(tracing_subscriber::registry().with(layer));
+        let ready = std::sync::Barrier::new(4);
+        std::thread::scope(|scope| {
+            for producer in 0..4 {
+                let dispatch = &dispatch;
+                let ready = &ready;
+                scope.spawn(move || {
+                    tracing::dispatcher::with_default(dispatch, || {
+                        ready.wait();
+                        for sequence in 0..32 {
+                            tracing::info!(producer, sequence, "concurrent event");
+                        }
+                    });
+                });
+            }
+        });
+        let logs = published_logs(&mut rx);
+        assert_eq!(logs.len(), 40);
+        let identities: std::collections::HashSet<_> = logs
+            .iter()
+            .map(|log| {
+                let fields: Value = serde_json::from_str(&log.fields_json).expect("fields");
+                (fields["producer"].as_i64(), fields["sequence"].as_i64())
+            })
+            .collect();
+        assert_eq!(
+            identities.len(),
+            40,
+            "each admitted event must publish once"
+        );
     }
 
     #[test]
@@ -219,15 +343,5 @@ mod tests {
         let json = serialize_fields_json(&mut fields);
         assert!(json.len() <= MAX_FIELDS_JSON_BYTES);
         assert!(fields.contains_key("_truncated"));
-    }
-
-    #[test]
-    fn build_fields_json_from_map() {
-        let mut fields = Map::new();
-        fields.insert("joint".into(), Value::String("shoulder_pitch".into()));
-        fields.insert("device_id".into(), Value::Number(7.into()));
-        let json = serialize_fields_json(&mut fields);
-        assert!(json.contains("shoulder_pitch"));
-        assert!(json.contains("device_id"));
     }
 }
