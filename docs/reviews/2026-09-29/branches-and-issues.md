@@ -6,13 +6,13 @@ The detailed PR and issue tables describe their **open state at the audit baseli
 
 ## Confirmed consolidation actions
 
-These actions were completed during the repository review. CI-pending work is still pending; retained branches are preserved recovery/design references.
+These actions were completed during the repository review. Retained branches are preserved recovery/design references; the linked GitHub records provide final CI and merge state.
 
 | Item | Confirmed action | Remaining work |
 |------|------------------|----------------|
 | [PR #109](https://github.com/jaylamping/marengo/pull/109) | Closed as superseded; branch retained. | Useful rendering patterns remain available as design reference; F15 is unresolved. |
 | [PR #117](https://github.com/jaylamping/marengo/pull/117) | Closed as superseded; branch retained. | Its glossary had already landed through PR #119. Readiness contract discrepancies remain review follow-up. |
-| [PR #107](https://github.com/jaylamping/marengo/pull/107) | Reconciled against current main, corrected glossary pushed, marked ready. | CI pending; not yet merged when this ledger was updated. |
+| [PR #107](https://github.com/jaylamping/marengo/pull/107) | Reconciled against current main, independently reviewed and updated onto the verified maintenance baseline, with the final preservation ledger. | Final checks and merge state are on the linked PR record. |
 | [Issue #118](https://github.com/jaylamping/marengo/issues/118) | Closed as implemented by PR #119. | Current findings and incomplete physical commissioning remain outstanding. |
 | [Issue #115](https://github.com/jaylamping/marengo/issues/115) | Body updated with later #170 Reference/sign/quiet arm-down evidence and remaining elevated/ladder/Wave work; closed as superseded. | This closure does not establish full gravity-compensation or current-reference sign-off. |
 | Historical PR #41 CAD payload | Retrieved from archived commit `1b31138`; size **1,707,374 bytes** and SHA256 **3e401d6748429e0015c359e072436f66e2a5dbc54d0180639b6e8d26a269fb65** verified. Preserved as a versioned historical CAD recovery record. | Current local bracket remains unchanged; no mechanical equivalence was inferred. |
@@ -146,3 +146,108 @@ These records are helpful for reconstructing where the user left off, but histor
 5. Extract genuine post-merge design/deploy intent from the two mismatched tips; do not merge old branches wholesale. Reclassify those tips accurately in the cleanup ledger.
 6. Retire already-subsumed branch refs only after recorded preservation; mark substantial AutoLearn feature as archived/deferred and do not carry its old Wave unlock or model into main.
 7. Keep all safety fixes and physical commissioning as separate concrete follow-up work. Documentation cleanup does not satisfy the incomplete hardware gates.
+
+## Legacy Windows branches worktrees and stashes
+
+A final read-only check covered both `marengo.DEAD` recovery sources: the older C-drive checkout and its J-drive copy. Both are on legacy main `51a248af244eb382e144db9ef6bfa59a9b37ce8e`. They contain identical sets of **90 refs: 29 local branches, 40 remote refs, 20 checkpoint refs and the latest stash ref**, plus **23 stash entries** in reflog history. This local inventory is separate from the 104-reference GitHub inventory above.
+
+Every ref was compared with current J-drive refs/main and both earlier migration bundles. **Four local branches contain eight commits absent from those prior preserved histories**. The table below records all 29 local tips. A branch having no new commit does not by itself prove its changes landed on main; the main-ancestor column and semantic verdict distinguish those cases. Full source-specific refs and commit comparisons are retained in the local recovery records.
+
+The two sources now have separate verified bundles containing all refs and reflog history, source-specific staged/working patches and metadata, and readable recovery copies. **Three physical A/B/C worktrees per source contributed 2,456 files / 128,078,906 bytes**, excluding only encountered `consul/node_modules` caches. All 4,912 copies passed SHA256 comparison; matching source-specific manifests confirm the C/J worktree copies are identical. Their modified tracked and untracked UI files are preserved. **440 LFS-cache files / 1,045,184,082 bytes** are preserved once under J with verified source-specific manifests; both caches match. The deleted `.slim/codemap.json` state and its original blob are also preserved.
+
+No legacy source was deleted, moved, repaired, checked out to another branch, or used to issue a robot command. Recovery artifacts live in the migration backup's `legacy-windows-state` folder, with a recovery README and verification manifests.
+
+### All local branch tips
+
+| Branch | Legacy tip | Ancestor of reviewed current main | New commits absent from current refs and prior bundles | Verdict |
+|--------|------------|-----------------------------------|------------------------------------------------------|---------|
+| `bench-700g-com-calibration` | `aec003558a` | No | 3 | Historical single-joint 700 g COM calibration; archive fixture evidence, do not replace current master. |
+| `clear-glider` | `3a87be28a1` | Yes | 0 | Already included in main ancestry; preserve as historical reference. |
+| `consul-glinui-dashboard` | `094e65860b` | No | 1 | Historical weighted-arm remediation notes and old context-split skill; selectively archive docs, leave old agent policy retired. |
+| `consul-glinui-linear` | `995a6fff1b` | Yes | 0 | Already included in main ancestry; preserve as historical reference. |
+| `consul-glinui-pr1-base` | `ec847a5f00` | Yes | 0 | Already included in main ancestry; preserve as historical reference. |
+| `consul-glinui-pr8-cleanup` | `a40cc6e4ac` | No | 3 | Radix-only UI cleanup/lint gate already present in main; glass/contrast styling superseded by current panel design. Archive. |
+| `cursor/robstride-can-readiness-c935` | `d24e0b0081` | Yes | 0 | Already included in main ancestry; preserve as historical reference. |
+| `feat/can-loop-diagnostics` | `c3b2c9859b` | Yes | 0 | Already included in main ancestry; preserve as historical reference. |
+| `feat/consul-actuator-harness-pr1` | `a03be99eba` | Yes | 0 | Already included in main ancestry; preserve as historical reference. |
+| `feat/consul-actuator-harness-pr2` | `a5e8882131` | No | 0 | Old actuator command/allowlist foundation superseded by later main implementation; archive. |
+| `feat/consul-actuator-harness-pr3` | `12d84da003` | No | 0 | Old Pi overlay/gain foundation superseded by evolved main overlay; archive. |
+| `feat/consul-actuator-harness-pr4` | `924d7c13c7` | No | 1 | Unique checkpoint changes bracket LFS pointer to the verified PR41 payload. Preserve CAD history; actuator work evolved on main. |
+| `feat/rs03-p1a-recv-poll` | `27427f4485` | No | 0 | Receive-poll/watchdog separation exists in current implementation; retain archived fork, repair CS01 in current code. |
+| `feat/rs03-p1b-type24` | `3b20f8c703` | No | 0 | Type24 active-reporting intent is implemented and evolved into sensing leases; retain archived fork. |
+| `feat/rs03-p1c-params` | `778eb227aa` | No | 0 | Parameter-ID audit variants exist in current driver; actual safety timeout/limit handshake remains current review work. |
+| `feat/subsystems-set-limits` | `bc60e268e1` | Yes | 0 | Already included in main ancestry; preserve as historical reference. |
+| `feat/yaw-suite-wave-teach` | `92e0e51cb3` | No | 0 | Existing post-merge deploy-current-HEAD intent remains useful; use earlier branch verdict, preserve and port selectively. |
+| `fix/consul-chappe-deploy-pr1` | `6a32208abc` | Yes | 0 | Already included in main ancestry; preserve as historical reference. |
+| `fix/consul-chappe-deploy-pr2` | `fd2923bba7` | Yes | 0 | Already included in main ancestry; preserve as historical reference. |
+| `fix/consul-chappe-deploy-pr3` | `bad7754924` | No | 0 | Always-rebuild deploy intent landed through later merge; archive the older local commit. |
+| `fix/consul-chappe-deploy-pr4` | `2ca4e4b317` | Yes | 0 | Already included in main ancestry; preserve as historical reference. |
+| `fix/consul-chappe-deploy-pr5` | `351ca4faad` | No | 0 | Existing PR41 verdict applies; current deploy evolved and historical CAD payload has been recovered. |
+| `gravity-comp-enhancement` | `00fa690f56` | Yes | 0 | Already included in main ancestry; preserve as historical reference. |
+| `main` | `51a248af24` | Yes | 0 | Already included in main ancestry; preserve as historical reference. |
+| `majestic-helicona` | `ad66706140` | Yes | 0 | Already included in main ancestry; preserve as historical reference. |
+| `pi-bench-urdf-sync-tool` | `2714d776d1` | Yes | 0 | Already included in main ancestry; preserve as historical reference. |
+| `redesign/consul-a` | `e01a540534` | Yes | 0 | Already included in main ancestry; preserve as historical reference. |
+| `redesign/consul-b` | `e01a540534` | Yes | 0 | Already included in main ancestry; preserve as historical reference. |
+| `redesign/consul-c` | `e01a540534` | Yes | 0 | Already included in main ancestry; preserve as historical reference. |
+
+### Unique local branch content
+
+- `bench-700g-com-calibration` adds three June 19 commits (`3b53318`, `a5d6604`, `aec0035`) tuning COM in the old single-joint weighted URDF fixtures and limiting the change to assets. It is evidence for that historical fixture, not calibration of today's five-DOF master. Preserve the measured-history context and assets; do not merge its old geometry into current master.
+- `consul-glinui-dashboard` adds checkpoint `094e658`: a weighted 700 g remediation document and old context-split agent skill. The document discusses COM/friction/feedforward and obsolete direct deploy/WSL paths. Archive it as historical reasoning, with a current-status banner if later published. Do not revive its old operational procedure or agent policy.
+- `consul-glinui-pr8-cleanup` adds three commits (`169fe3a`, `575a16d`, `a40cc6e`) for sidebar contrast, Base UI removal/Radix lint gating, and glass-card pointer styling. Main already contains the Radix lint gate and no Base UI dependency; current cards use the evolved panel design. The unique commit IDs do not establish a missing production capability. Archive this fork; any visual idea needs a small current-code patch.
+- `feat/consul-actuator-harness-pr4` adds checkpoint `924d7c1`, changing the shoulder-roll bracket pointer to SHA256 `3e401d6748429e0015c359e072436f66e2a5dbc54d0180639b6e8d26a269fb65`, size 1,707,374 bytes. This is the same historical PR41 body already recovered and verified. Preserve the version; do not replace the current bracket or merge old actuator/overlay state over current code.
+
+### Uncommitted UI worktrees
+
+All three physical worktrees start from `e01a54053497cad36830010775aea4c53763bd23`. Their original `.git` pointers/registrations still refer to pre-rename paths; the review read them through their preserved administrative gitdirs without repairing the sources.
+
+| Worktree | Preserved differences | Recommended disposition |
+|----------|-----------------------|-------------------------|
+| `consul-a` | Modified usage-bar plus untracked rail navigation/user-menu and console panel/metric components. | Archive as an A variant; no live hardware capability or current commissioning fix established. |
+| `consul-b` | Dependency locks/package, usage-bar, button/card/slider and global CSS changes; untracked flight figure header. | Archive as a B variant; dependency/style changes need independent current-code review before reuse. |
+| `consul-c` | Global CSS changes plus untracked machine-state chrome and UI store. | Archive as a C variant; mock/local machine-state presentation must not replace authoritative telemetry. |
+
+`clear-glider` and `majestic-helicona` still have administrative registrations but their `.kilo` working directories are absent from both sources. Their branch commits and administrative metadata, including empty staged diffs, are preserved; no missing uncommitted or untracked working files can be reconstructed from a directory that is absent. Their commits are already in current main ancestry.
+
+### Checkpoint snapshots
+
+The **20 parentless checkpoint commits** represent **two unique file trees**: five snapshots use `17d627273f9b81515dd0666cfa849c97c6721ca3`, and fifteen use `4342f34a6b93c50ad81222ff98d943214ab49dba`. Within each tree group, the snapshot contents are identical. The later tree adds/evolves the old mem0 agent integration, policies and vendored dependency state. Both are whole historical workspace snapshots containing older UI/control/config and generated dependency data, rather than focused feature commits with a normal branch ancestry.
+
+They are preserved in the bundles with exact ref/OID inventories and patches against legacy main. Archive them; do not merge a parentless workspace snapshot into today's master. Selective recovery of a needed historical file remains possible without restoring obsolete profiles, memory policy, old source paths or dependency caches.
+
+### Historical stash records
+
+All **23 stashes**, including tracked/index and available untracked parents, have patches, parent identities and readable file recovery with SHA256 manifests. These are dated May through July 2026. Historical CAD blobs/pointers are preserved alongside the LFS caches; current geometry stays unchanged. The dispositions below are semantic archival decisions, not claims that every old experimental patch was runtime-tested or mechanically validated.
+
+| Stash commit | Content and recommended disposition |
+|--------------|-------------------------------------|
+| `16cf538` | Subsystems dependency lock backup; preserve for provenance, avoid replaying obsolete dependency resolution. |
+| `b087df6` | Old WSL-to-Windows MCP/ignore changes; archive, use the accepted J-drive development policy. |
+| `32a1f58` | UI glass/space-backdrop experiment, textures and component tests; archive as visual design reference. |
+| `d772948` | Two-DOF setpoint/trace/harness WIP; compare any useful intent against current lead/stall control, never import old gains/config wholesale. |
+| `8418b6d` | Gateway config/store/proto/admin WIP; current master/limits APIs evolved, preserve and use current transaction fixes. |
+| `c1dcc96` | Old agent-persona policy; archive rather than restore retired instruction layout. |
+| `f1e6a8f` | Old dual-shoulder motor map; archive hardware history, do not apply old motor IDs/signs. |
+| `01d9983` | Historical shoulder bracket CAD; preserve version independently of current model. |
+| `d3006c7` | Old actuator tuning/rate-limit WIP plus bracket CAD; implementation superseded, preserve historical CAD. |
+| `5e0e685` | Mixed actuator/overlay/proto WIP plus CAD; archive, avoid replacing evolved control/commissioning contracts. |
+| `d889b66` | Historical bracket CAD backup; preserve independently of current model. |
+| `6a5bb7e` | Mixed glass Overview WIP and CAD; archive design/CAD evidence, do not replay test deletions. |
+| `f35ace9` | Old logs/memory UI WIP; archive, use current log reliability fixes and retired-memory policy. |
+| `2d1fb6c` | Mixed logs/memory/sidebar WIP plus CAD; archive, salvage only a deliberately reviewed isolated idea. |
+| `c21429f` | Old Overview card/skeleton tests and styles; current UI evolved, preserve design/test provenance. |
+| `907a6f2` | Historical right-arm and torso CAD assemblies; preserve versions separately. |
+| `1a010fd` | CAD assembly/naming WIP and debug artifact; preserve historical CAD, do not replace current model. |
+| `22db1f1` | Left-only overshoot/control/motor-map backup; archive old bench setup, do not apply current-arm gains or mapping from it. |
+| `e29a273` | Pi MCP lockfile backup; preserve provenance, avoid old dependency downgrade. |
+| `fb6fb59` | Early Chappe/telemetry/host-metrics/deploy WIP; current stack evolved, archive and repair present findings directly. |
+| `1e3a96d` | Historical Pi commissioning notes; preserve as a dated record, not the current locked procedure. |
+| `b85ba73` | Early CAN/bin dependency WIP; current driver/runtime supersede it, preserve history. |
+| `1d44d1a` | Historical torso-frame CAD assembly; preserve version independently. |
+
+### Preservation limits
+
+Git bundles preserve commits and LFS pointers; the verified cache copy preserves all LFS files physically present in these two sources. This does not establish that every historical pointer ever recorded in remote history has a locally available body. The known PR41 gap was explicitly fetched and verified. No CAD geometry, mass, center of mass, firmware setting or present robot reference was validated by these recovery operations.
+
+The missing `.kilo` working directories remain an explicit recovery limit. Cache exclusions were restricted to encountered regenerable node_modules directories in the physical worktrees; all encountered noncache local files, including URDF fixtures and visual artifacts, were copied. The original DEAD directories remain recovery sources. No additional feature branch was merged or deleted as part of this preservation pass.
