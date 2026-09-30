@@ -337,12 +337,17 @@ dispatch/ticks. New-interface
 drain conformance proves truthful timeout and actual worker-unwind outcomes.
 Failed/skipped stop and Active intent cleanup qualify independently. Required
 primary passes701 Rust/1 existing ignored,355 frontend,72 Pi MCP and fatal aarch64
-release; strict affected205/0 and minimal simulation5/0 also pass. CS09 is
-implemented awaiting exact-head delivery:12 verified,10 partial,79 open and
-1 implemented across102 IDs. The
+release; strict affected205/0 and minimal simulation5/0 also pass. CS09's software
+slice is verified in [PR221](https://github.com/jaylamping/marengo/pull/221):
+all five implementation-head jobs pass at `3939b3d` in run36728845164, including
+73 actual virtual-CAN driver tests with none ignored. Final evidence-head and
+equal-tree main delivery checks remain pending. There are13 verified,10 partial
+and79 open findings across102 IDs. The
 [batch report](batch07-stop-before-persistence.md) tracks independent parity
 extraction, one-at-a-time actual behavioral proof, worker outcomes and required
-delivery checks. All 102 findings retain their existing dispositions at start.
+delivery checks. Bounded target-only reference acquisition/cancel/cleanup follows
+checked delivery; it must remain explicitly unusable until qualified durable
+commit, with unsupported physical capability refused before any energizing work.
 
 ## Completion and continuation
 

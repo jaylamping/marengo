@@ -2,13 +2,14 @@
 
 Checked baseline: PR219 merge `eae4fc358102c1e75bf02684c73b4c4e1aa9e9b1`.
 Decision: [ADR0024](../../decisions/0024-stop-before-persistence-shutdown.md).
-Active checkout: `J:\code\marengo`. Status: implementation, six unchanged-probe
-greens, independent reviews and required local gates pass; delivery pending.
+Active checkout: `J:\code\marengo`. Status: verified software slice in
+[PR221](https://github.com/jaylamping/marengo/pull/221); required local and all five
+implementation-head checks pass; final delivery checks remain pending.
 Evidence root: `J:/code/marengo-migration-backup-20260929/batch07`.
 
 ## Scope and observable contract
 
-The current Pi exit waits for write-behind before attempting motor stop. Its
+The baseline Pi exit waits for write-behind before attempting motor stop. Its
 owner shutdown flag can terminate the writer with a retained request, and stdin
 Quit can continue through remote command dispatch and the current control tick.
 These source observations require direct behavior evidence before correction.
@@ -214,8 +215,11 @@ per-run source bindings; `local-gate-summary.json` reconciles them. Initial stri
 lint failed only the test observer's type complexity, with zero executed tests;
 a named test-only alias fixed it. All285 final compile/gate inputs remain frozen.
 
-Exact-head implementation/final checks and equal-tree postmerge main checks are
-pending. CS09 is implemented awaiting checked delivery; the102-ID ledger has
-12 verified,10 partial,79 open and1 implemented. No other finding is closed.
+All five implementation-head jobs pass at `3939b3d` in
+[run36728845164](https://github.com/jaylamping/marengo/actions/runs/36728845164):
+701 Rust/1 existing ignored,355 frontend,72 Pi MCP,5 minimal simulation and73
+actual virtual-CAN driver feature tests with none ignored. Exact-head final
+evidence checks and equal-tree postmerge main checks remain pending. The102-ID
+ledger has13 verified,10 partial and79 open. No other finding is closed.
 Hardware acceptance remains unestablished; the repair loop performs no robot
 connection, enable, motion, flash or deployment.

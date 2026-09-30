@@ -10,7 +10,7 @@
     "batch_id": "batch07",
     "branch": "codex/stop-before-persistence",
     "baseline_main": "eae4fc358102c1e75bf02684c73b4c4e1aa9e9b1",
-    "status": "implemented; six actual unchanged regression replays, independent reviews and required local gates pass; exact-head delivery pending",
+    "status": "verified software slice; all five exact implementation-head jobs pass; final evidence-head and equal-tree postmerge checks pending",
     "report": "batch07-stop-before-persistence.md",
     "findings": [
       "CS09"
@@ -45,7 +45,61 @@
       "main_aarch64_release": "passed; fatal on failure"
     },
     "required_github_gate": {
-      "result": "pending; exact implementation/final-head and equal-tree main checks"
+      "result": "all five implementation-head jobs pass; final evidence-head and postmerge main checks pending",
+      "implementation_head": "3939b3d96ae5f5bc096222fa8330310ec22696a5",
+      "implementation_run": 36728845164,
+      "implementation_url": "https://github.com/jaylamping/marengo/actions/runs/36728845164",
+      "implementation_jobs": [
+        {
+          "id": 109932723006,
+          "name": "changes",
+          "conclusion": "success",
+          "url": "https://github.com/jaylamping/marengo/actions/runs/36728845164/job/109932723006"
+        },
+        {
+          "id": 109932723478,
+          "name": "build-image",
+          "conclusion": "success",
+          "url": "https://github.com/jaylamping/marengo/actions/runs/36728845164/job/109932723478"
+        },
+        {
+          "id": 109932847641,
+          "name": "sim",
+          "conclusion": "success",
+          "url": "https://github.com/jaylamping/marengo/actions/runs/36728845164/job/109932847641"
+        },
+        {
+          "id": 109932847701,
+          "name": "check",
+          "conclusion": "success",
+          "url": "https://github.com/jaylamping/marengo/actions/runs/36728845164/job/109932847701"
+        },
+        {
+          "id": 109932847841,
+          "name": "vcan",
+          "conclusion": "success",
+          "url": "https://github.com/jaylamping/marengo/actions/runs/36728845164/job/109932847841"
+        }
+      ],
+      "implementation_rust_test_counts": {
+        "check": {
+          "passed": 701,
+          "failed": 0,
+          "ignored": 1
+        },
+        "sim": {
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0
+        },
+        "vcan": {
+          "passed": 73,
+          "failed": 0,
+          "ignored": 0
+        }
+      },
+      "final_head_gate": "pending; require all five exact-head jobs before safe merge",
+      "postmerge_main_gate": "pending; require all five jobs and fatal aarch64 release on the equal checked tree"
     },
     "hardware_acceptance": "Not established; no robot operations, limit/Wave changes",
     "proof_contract": "A behavior-preserving extraction baseline is labeled separately from unchanged original binary. Compile/setup failures and source tracing are not behavioral reds.",
@@ -186,7 +240,14 @@
         "report_sha256": "c6ceb960f00b35e758840b7992c256871151b3be9e01f276c4f256ea3c903370"
       },
       "source_manifest": "J:/code/marengo-migration-backup-20260929/batch07/final-source-sha256.json",
-      "scope": "Standards author excludes own qualification file; separate independent reviewer accepts that file and full Spec. Remaining duplication judgment accepted to preserve probe provenance."
+      "scope": "Standards author excludes own qualification file; separate independent reviewer accepts that file and full Spec. Remaining duplication judgment accepted to preserve probe provenance.",
+      "reviewed_source_commit": "3939b3d96ae5f5bc096222fa8330310ec22696a5",
+      "final_followup_scope": "Review/evidence documentation only; compiled source/tests/protocol/gate identities remain frozen",
+      "final_delivery_binding": {
+        "report": "J:/code/marengo-migration-backup-20260929/batch07/final-review-delivery-binding.md",
+        "report_sha256": "e5a334ad8ed068bb0d3fcc448293983483f6030cb752b734b3aabc959cbfecd5",
+        "result": "Independent285 committed-source identities and actual local logs checked; added safety documentation accepted; exact-head CI pending at review time, later independently recorded by root"
+      }
     },
     "test_quality": "Replace structural pending-count, chmod/sleep-based failed write and delayed synchronous snapshot polling. Actual writes/terminal events, valid-admission file-parent failure and immediate publication replace them. Six identical immediate behavioral replays; final five original function bodies remain byte-identical; no new ignored tests.",
     "known_limits": [
@@ -194,7 +255,8 @@
       "No preemption of an already admitted synchronous handler/tick, priority/flood scheduling or hard realtime bound.",
       "No gateway/client delivery receipts, ConfigAuthority CAS or complete-generation/superseded-draft outcomes.",
       "No installed-owner CLI/client cutover or new reference transactions."
-    ]
+    ],
+    "implementation_pr": "https://github.com/jaylamping/marengo/pull/221"
   },
   "findings": [
     {
@@ -356,16 +418,17 @@
       "source": "control.md#cs09--pi-shutdown-waits-up-to-five-seconds-before-commanding-motors-to-stop",
       "work_package": "WP03",
       "implementation_and_acceptance_plan": "control-implementation-plan.md",
-      "status": "implemented",
+      "status": "verified",
       "evidence": [
         "Actual owner inhibits intent and retains configured Davout stop Result/StopReport before bounded persistence drain; explicit Skipped remains distinct.",
         "Six bound actual assertion-red/unchanged-green pairs exercise stop order, accepted retained writes, publication lifetime, closed owner admission, Quit and external software-flag dispatch. Extraction/candidate proof is separate from original-binary execution; new API conformance is separate from reds.",
         "All fifteen stop routes attempted before real gated storage; exact failed delivery retained across Durable, Failed and TimedOut. Actual closed virtual Active gain/torque/Wave reachability and no old intent replay; no physical acceptance inferred.",
-        "Required primary passes701 Rust/1 existing ignored,355 frontend,72 Pi MCP and fatal aarch64 release. Strict affected Linux passes205/0; minimal simulation5/0. Independent Standards/Spec accept scoped software; exact-head delivery pending."
+        "Required primary passes701 Rust/1 existing ignored,355 frontend,72 Pi MCP and fatal aarch64 release. Strict affected Linux passes205/0; minimal simulation5/0. Independent Standards/Spec accept scoped software. All five exact implementation-head jobs pass at3939b3d/run36728845164, including73 actual driver feature tests/0 ignored. Final evidence-head and equal-tree main delivery checks remain pending."
       ],
-      "verified_commit_or_pr": null,
+      "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/221",
       "hardware_acceptance": "required before physical release",
-      "implementation_batch": "batch07"
+      "implementation_batch": "batch07",
+      "implementation_pr": "https://github.com/jaylamping/marengo/pull/221"
     },
     {
       "id": "CS10",
@@ -2819,25 +2882,23 @@
     }
   ],
   "finding_status_counts": {
-    "verified": 12,
+    "verified": 13,
     "partial": 10,
-    "implemented": 1,
     "open": 79
   },
   "next_dependency_ready_batch": {
     "findings": [
       "CS05",
       "CS06",
-      "CS07",
-      "CS09"
+      "CS07"
     ],
     "related_partial_findings": [
       "CS04",
       "CS13",
       "CS15"
     ],
-    "purpose": "R2a bounded owner reference/recovery engine with explicit unsupported physical capability, target-only begin/advance/cancel, immediate stop before durable work and correlated installed-owner clients. Replace initial virtual declarations with correlated virtual transaction fixtures in small slices.",
-    "prerequisites": "Checked PR219 merge eae4fc3; final792fb894/run36708482153 and postmerge main/run36709130567 each pass all five jobs and merged tree equals checked tree.",
+    "purpose": "R2a-core bounded target-only reference acquisition/cancel/cleanup on the closed virtual adapter, ending evidence staged with usable_reference=false until qualified durable commit. Physical/unqualified adapters remain explicitly Unsupported; installed-owner clients and durable grant commit follow in separate slices.",
+    "prerequisites": "PR219 checked merge eae4fc3 plus CS09 software repair in PR221; PR221 final-head/equal-tree main delivery must complete before starting production reference cutover.",
     "design_evidence": [
       "J:/code/marengo-migration-backup-20260929/batch03/next-reference-contract-plan.md",
       "J:\\code\\marengo-migration-backup-20260929\\batch04\\next-reference-plan.md",
@@ -2847,6 +2908,10 @@
       "J:/code/marengo-migration-backup-20260929/batch06/next-r2a-test-design.md",
       "J:/code/marengo-migration-backup-20260929/batch06/next-repair-selection.md"
     ],
-    "hardware_constraint": "Public recording and virtual transports only; unsupported reference/drive capabilities must be explicit; no physical recovery/reference/commissioning is inferred"
+    "hardware_constraint": "Public recording and virtual transports only; unsupported reference/drive capabilities must be explicit; no physical recovery/reference/commissioning is inferred",
+    "related_verified_prerequisite": {
+      "finding": "CS09",
+      "pr": "https://github.com/jaylamping/marengo/pull/221"
+    }
   }
 }
