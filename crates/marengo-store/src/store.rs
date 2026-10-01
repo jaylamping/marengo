@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
@@ -12,7 +13,10 @@ use time::OffsetDateTime;
 
 use crate::error::{Result, StoreError};
 use crate::migrations::{MIGRATION_001, MIGRATION_002, MIGRATION_003, SCHEMA_VERSION};
-use crate::model::{LogEventInsert, LogEventRow, LogSessionRow, StructuredLogQuery};
+use crate::model::{
+    LegacyImportSummary, LogEventInsert, LogEventRow, LogSessionRow, SessionArtifact,
+    StructuredLogQuery,
+};
 use crate::paths::{blob_dir, log_dir};
 
 pub struct Store {
@@ -328,6 +332,9 @@ impl Store {
         Ok((deleted_logs, old_sessions.len() as u64))
     }
 
+    /// Register supplied references. Omitted label/artifacts preserve existing
+    /// values; the original capture start/end are unchanged on updates. A changed
+    /// candump reference invalidates statistics belonging to the old file.
     pub fn register_session(
         &self,
         id: &str,
@@ -341,11 +348,16 @@ impl Store {
             "INSERT INTO log_sessions (id, label, started_ms, ended_ms, bench_blob, candump_blob, trace_blob)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
              ON CONFLICT(id) DO UPDATE SET
-               label = excluded.label,
-               ended_ms = excluded.ended_ms,
-               bench_blob = excluded.bench_blob,
-               candump_blob = excluded.candump_blob,
-               trace_blob = excluded.trace_blob",
+               label = COALESCE(excluded.label, log_sessions.label),
+               candump_frame_count = CASE
+                 WHEN excluded.candump_blob IS NOT NULL AND excluded.candump_blob IS NOT log_sessions.candump_blob
+                 THEN NULL ELSE log_sessions.candump_frame_count END,
+               candump_bytes = CASE
+                 WHEN excluded.candump_blob IS NOT NULL AND excluded.candump_blob IS NOT log_sessions.candump_blob
+                 THEN NULL ELSE log_sessions.candump_bytes END,
+               bench_blob = COALESCE(excluded.bench_blob, log_sessions.bench_blob),
+               candump_blob = COALESCE(excluded.candump_blob, log_sessions.candump_blob),
+               trace_blob = COALESCE(excluded.trace_blob, log_sessions.trace_blob)",
             params![
                 id,
                 label,
@@ -357,6 +369,23 @@ impl Store {
             ],
         )?;
         Ok(())
+    }
+
+    /// Clear one reference, preserving the file, siblings and capture metadata.
+    /// Returns false for an absent session or an already empty reference.
+    pub fn clear_session_artifact(&self, id: &str, artifact: SessionArtifact) -> Result<bool> {
+        let (column, extra) = match artifact {
+            SessionArtifact::Bench => ("bench_blob", ""),
+            SessionArtifact::Candump => (
+                "candump_blob",
+                ", candump_frame_count = NULL, candump_bytes = NULL",
+            ),
+            SessionArtifact::Trace => ("trace_blob", ""),
+        };
+        let sql = format!(
+            "UPDATE log_sessions SET {column} = NULL{extra} WHERE id = ?1 AND {column} IS NOT NULL"
+        );
+        Ok(self.connection().execute(&sql, params![id])? != 0)
     }
 
     pub fn finalize_session(&self, id: &str, ended_ms: u64) -> Result<()> {
@@ -503,17 +532,12 @@ impl Store {
         let sql = format!(
             "INSERT INTO log_sessions (id, label, started_ms, {col})
              VALUES (?1, NULL, ?2, ?3)
-             ON CONFLICT(id) DO UPDATE SET {col} = excluded.{col}, ended_ms = ?4"
+             ON CONFLICT(id) DO UPDATE SET {col} = excluded.{col}"
         );
         let started = session_id_to_ms(session_id).unwrap_or_else(now_ms);
         self.connection().execute(
             &sql,
-            params![
-                session_id,
-                started as i64,
-                gz_path.display().to_string(),
-                now_ms() as i64
-            ],
+            params![session_id, started as i64, gz_path.display().to_string()],
         )?;
         Ok(())
     }
@@ -642,12 +666,20 @@ impl Store {
         Ok(total)
     }
 
+    /// Compatibility entry point returning unique session IDs processed.
     pub fn import_legacy_hot(&self, keep: usize) -> Result<u32> {
+        Ok(self.import_legacy_hot_report(keep)?.sessions)
+    }
+
+    /// Import hot references and archive beyond `keep`. Counts describe files
+    /// processed this call, not newly inserted rows or the total archive.
+    pub fn import_legacy_hot_report(&self, keep: usize) -> Result<LegacyImportSummary> {
         let hot = log_dir(&self.marengo_root);
         if !hot.is_dir() {
-            return Ok(0);
+            return Ok(LegacyImportSummary::default());
         }
-        let mut registered = 0u32;
+        let mut registered = HashSet::new();
+        let mut artifacts = 0u32;
         for entry in fs::read_dir(&hot)? {
             let entry = entry?;
             let path = entry.path();
@@ -682,12 +714,19 @@ impl Store {
                         candump.as_deref(),
                         trace.as_deref(),
                     )?;
-                    registered += 1;
+                    registered.insert(session_id);
+                    artifacts = artifacts
+                        .checked_add(1)
+                        .ok_or_else(|| StoreError::msg("too many legacy artifacts"))?;
                 }
             }
         }
         self.archive_hot_sessions(keep)?;
-        Ok(registered)
+        Ok(LegacyImportSummary {
+            sessions: u32::try_from(registered.len())
+                .map_err(|_| StoreError::msg("too many legacy sessions"))?,
+            artifacts,
+        })
     }
 }
 

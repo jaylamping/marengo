@@ -1554,6 +1554,7 @@ dependencies = [
  "marengo-store",
  "marengo-support",
  "serde_json",
+ "tempfile",
  "tracing",
 ]
 

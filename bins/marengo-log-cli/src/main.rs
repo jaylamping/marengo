@@ -9,8 +9,8 @@ use marengo_candump::{
     format_inspection_text, Candump, FramePage, InspectRequest, Inspection, TimestampMode,
 };
 use marengo_store::{
-    import_journal, resolve_db_path, resolve_marengo_root, Store, DEFAULT_ARCHIVE_DAYS,
-    DEFAULT_HOT_KEEP, JOURNAL_UNITS,
+    import_journal, resolve_db_path, resolve_marengo_root, SessionArtifact, Store,
+    DEFAULT_ARCHIVE_DAYS, DEFAULT_HOT_KEEP, JOURNAL_UNITS,
 };
 use marengo_support::init_tracing;
 
@@ -78,6 +78,30 @@ enum SessionAction {
         #[arg(long)]
         id: String,
     },
+    /// Remove one registered reference; preserve its file and sibling artifacts.
+    ClearArtifact {
+        #[arg(long)]
+        id: String,
+        #[arg(long, value_enum)]
+        artifact: CliSessionArtifact,
+    },
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+enum CliSessionArtifact {
+    Bench,
+    Candump,
+    Trace,
+}
+
+impl From<CliSessionArtifact> for SessionArtifact {
+    fn from(value: CliSessionArtifact) -> Self {
+        match value {
+            CliSessionArtifact::Bench => Self::Bench,
+            CliSessionArtifact::Candump => Self::Candump,
+            CliSessionArtifact::Trace => Self::Trace,
+        }
+    }
 }
 
 #[derive(Subcommand)]
@@ -245,6 +269,13 @@ fn run_store_command(
                 store.finalize_session(&id, marengo_store::now_ms())?;
                 println!("finalized session {id}");
             }
+            SessionAction::ClearArtifact { id, artifact } => {
+                if store.clear_session_artifact(&id, artifact.into())? {
+                    println!("cleared {artifact:?} reference for session {id}; file preserved");
+                } else {
+                    println!("no {artifact:?} reference to clear for session {id}");
+                }
+            }
         },
         Commands::Archive { keep } => {
             let n = store.archive_hot_sessions(keep)?;
@@ -255,8 +286,11 @@ fn run_store_command(
             println!("purged {logs} log rows, {sessions} sessions (>{days} days)");
         }
         Commands::ImportLegacy { keep } => {
-            let n = store.import_legacy_hot(keep)?;
-            println!("imported {n} legacy sessions");
+            let report = store.import_legacy_hot_report(keep)?;
+            println!(
+                "imported {} legacy sessions, {} artifacts",
+                report.sessions, report.artifacts
+            );
         }
         Commands::DiskUsage => {
             let bytes = store.log_disk_usage_bytes()?;

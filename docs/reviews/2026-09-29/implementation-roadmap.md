@@ -414,9 +414,22 @@ three production mutants are caught after real compiled positives. Independent
 Standards/Spec, strict affected460/0, primary743Rust/1 existing ignored,
 355frontend/72PiMCP/fatalARM and simulation5 pass. PR225 implementation6c10339/
 run36784341442 passes all five jobs, including73 actual virtual-CAN tests/0ignored.
-Final documentation/equal-tree main delivery remains pending. Counts stay14verified,10partial,78open across102IDs.
+PR225 final2b8d19a/run36785717622 and equal-tree mergedbebc678/main36786310183 pass all five jobs, including fatal main ARM release. Verified all-refs backup and exact branch cleanup are complete. Counts stay14verified,10partial,78open across102IDs.
 R2b1 recoverable journal/owner-consumed durable receipt, R2b2 current selected
 grant and R3 installed clients follow; no physical acceptance or Wave/limit change.
+
+## Twelfth batch: historical artifact preservation
+
+[Batch12](batch12-session-artifact-preservation.md) repairs G13 from checked PR225
+merge `bebc678`: sparse sibling/capture preservation, stale candump-statistics
+invalidation, unique-session/artifact reporting and explicit clearing. Three
+combined original assertion reds replay unchanged green; actual read-only failure,
+writable retry, real CLI and one production mapping mutant qualify behavior.
+Independent whole Standards/Spec accept all code/tests. Final affected16/0/0,
+primary751Rust/1 existing ignored,355frontend/72PiMCP/fatalARM and simulation5 pass
+on the unchanged1449-input source. Exact GitHub delivery remains pending; counts
+stay14verified,10partial,78open. G14 chronology is separate. R2b1 resource derivation
+is design only and does not close reference findings.
 
 ## Completion and continuation
 

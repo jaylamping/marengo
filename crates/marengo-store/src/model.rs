@@ -1,5 +1,20 @@
 use serde::{Deserialize, Serialize};
 
+/// A registered session reference; clearing it does not delete the file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SessionArtifact {
+    Bench,
+    Candump,
+    Trace,
+}
+
+/// Files processed by one import, including references already registered.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct LegacyImportSummary {
+    pub sessions: u32,
+    pub artifacts: u32,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LogEventRow {
     pub id: i64,

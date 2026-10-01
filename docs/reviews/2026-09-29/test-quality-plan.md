@@ -246,3 +246,25 @@ Bodies take0.01–0.02 s in native replay; compilation is recorded separately.
 No ignored tests or hardware dependencies are introduced. These tests qualify
 memory publication after write success; partial writes, crash durability,
 reference journaling and current drive permission remain separate acceptance.
+
+## Twelfth batch: session preservation and real refusal
+
+[Batch12](batch12-session-artifact-preservation.md) adds eight public behavior
+groups: three whole original-public regressions, three new API conformance groups
+and two actual CLI groups. Three combined original assertion reds replay green
+without editing their complete tests. Missing siblings arrive later on disk,
+literal files are independently decoded, capture times are seeded explicitly,
+neighbors/shared files survive, and reopen plus actual cleanup precede the final
+oracle. No isolated count/end/statistics-only red is claimed.
+
+Read-only refusal uses actual SQLite query-only state/readback and typed errors,
+followed by writable retry. Import refusal is its first write; CLI failure is
+database open or argument rejection. The clear probe passes compiled candidate
+and rejects the sole Bench-to-Trace production mapping mutant after cleanup.
+A missing new API is never classified as an original regression.
+
+Useful retention/query/FTS/candump coverage remains. Final affected16/0/0 and
+primary751 Rust/0 failed/1 existing ignored,355 frontend/72 Pi MCP plus fatal ARM
+release pass. Full independent Spec and Standards accept every source/test file.
+No hardware dependencies, new ignores, negative sleeps or cold-build speedup
+claims are introduced. Delivery and simulation receipts follow in the ledger.
