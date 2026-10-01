@@ -1,0 +1,105 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.12.14, pytest-9.1.0, pluggy-1.6.0
+rootdir: /Users/joseph/.codex/worktrees/explicit-scrape-zero/marengo/tools/marengo-research-mcp
+configfile: pyproject.toml
+plugins: asyncio-1.4.0, anyio-4.13.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 7 items
+
+tests/test_research_scrape_count.py FFF...F                              [100%]
+
+=================================== FAILURES ===================================
+_____________________ test_public_scrape_count[omitted-3] ______________________
+
+tmp_path = PosixPath('/private/var/folders/nx/mtqx21xs4fn9qy52kqfpz2_w0000gn/T/pytest-of-joseph/pytest-3/test_public_scrape_count_omitt0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10cdacb00>
+requested = 'omitted', expected = 3
+
+    @pytest.mark.parametrize("requested, expected", [("omitted", 3), (None, 3), (0, 0), (2, 2), (99, 4), (-1, 0)])
+    async def test_public_scrape_count(tmp_path, monkeypatch, requested, expected):
+        cfg = replace(load_config(), cache_dir=tmp_path, max_scrape=4)
+        cache = ResearchCache(cfg)
+        hits = [ResearchHit(type="web", title=f"robot {i}", url=f"https://example.test/{i}") for i in range(6)]
+        provider = AsyncMock(return_value=(hits, None))
+        scraper = AsyncMock(return_value={"content": "article"})
+        monkeypatch.setattr(research, "FOCUS_SOURCES", {"all": ["offline"]})
+        monkeypatch.setattr(research, "_run_source", provider)
+        monkeypatch.setattr(research, "scrape_url", scraper)
+        kwargs = {} if requested == "omitted" else {"scrape_top_n": requested}
+        response = ResearchHumanoidResponse.model_validate_json(
+            await research.research_humanoid(cfg, cache, "robot", **kwargs)
+        )
+        assert len(response.hits) == 6
+>       assert scraper.await_count == expected
+E       AssertionError: assert 4 == 3
+E        +  where 4 = <AsyncMock id='4510788992'>.await_count
+
+tests/test_research_scrape_count.py:31: AssertionError
+_______________________ test_public_scrape_count[None-3] _______________________
+
+tmp_path = PosixPath('/private/var/folders/nx/mtqx21xs4fn9qy52kqfpz2_w0000gn/T/pytest-of-joseph/pytest-3/test_public_scrape_count_None_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10cc03830>
+requested = None, expected = 3
+
+    @pytest.mark.parametrize("requested, expected", [("omitted", 3), (None, 3), (0, 0), (2, 2), (99, 4), (-1, 0)])
+    async def test_public_scrape_count(tmp_path, monkeypatch, requested, expected):
+        cfg = replace(load_config(), cache_dir=tmp_path, max_scrape=4)
+        cache = ResearchCache(cfg)
+        hits = [ResearchHit(type="web", title=f"robot {i}", url=f"https://example.test/{i}") for i in range(6)]
+        provider = AsyncMock(return_value=(hits, None))
+        scraper = AsyncMock(return_value={"content": "article"})
+        monkeypatch.setattr(research, "FOCUS_SOURCES", {"all": ["offline"]})
+        monkeypatch.setattr(research, "_run_source", provider)
+        monkeypatch.setattr(research, "scrape_url", scraper)
+        kwargs = {} if requested == "omitted" else {"scrape_top_n": requested}
+        response = ResearchHumanoidResponse.model_validate_json(
+            await research.research_humanoid(cfg, cache, "robot", **kwargs)
+        )
+        assert len(response.hits) == 6
+>       assert scraper.await_count == expected
+E       AssertionError: assert 4 == 3
+E        +  where 4 = <AsyncMock id='4522641696'>.await_count
+
+tests/test_research_scrape_count.py:31: AssertionError
+________________________ test_public_scrape_count[0-0] _________________________
+
+tmp_path = PosixPath('/private/var/folders/nx/mtqx21xs4fn9qy52kqfpz2_w0000gn/T/pytest-of-joseph/pytest-3/test_public_scrape_count_0_0_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10d923ef0>
+requested = 0, expected = 0
+
+    @pytest.mark.parametrize("requested, expected", [("omitted", 3), (None, 3), (0, 0), (2, 2), (99, 4), (-1, 0)])
+    async def test_public_scrape_count(tmp_path, monkeypatch, requested, expected):
+        cfg = replace(load_config(), cache_dir=tmp_path, max_scrape=4)
+        cache = ResearchCache(cfg)
+        hits = [ResearchHit(type="web", title=f"robot {i}", url=f"https://example.test/{i}") for i in range(6)]
+        provider = AsyncMock(return_value=(hits, None))
+        scraper = AsyncMock(return_value={"content": "article"})
+        monkeypatch.setattr(research, "FOCUS_SOURCES", {"all": ["offline"]})
+        monkeypatch.setattr(research, "_run_source", provider)
+        monkeypatch.setattr(research, "scrape_url", scraper)
+        kwargs = {} if requested == "omitted" else {"scrape_top_n": requested}
+        response = ResearchHumanoidResponse.model_validate_json(
+            await research.research_humanoid(cfg, cache, "robot", **kwargs)
+        )
+        assert len(response.hits) == 6
+>       assert scraper.await_count == expected
+E       AssertionError: assert 4 == 0
+E        +  where 4 = <AsyncMock id='4522695600'>.await_count
+
+tests/test_research_scrape_count.py:31: AssertionError
+____________________ test_schema_and_function_default_match ____________________
+
+    async def test_schema_and_function_default_match():
+        tool = next(tool for tool in await list_tools() if tool.name == "research_humanoid")
+        schema_default = tool.inputSchema["properties"]["scrape_top_n"]["default"]
+>       assert schema_default == inspect.signature(research.research_humanoid).parameters["scrape_top_n"].default == 3
+E       assert 3 == 0
+E        +  where 0 = <Parameter "scrape_top_n: 'int' = 0">.default
+
+tests/test_research_scrape_count.py:40: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_research_scrape_count.py::test_public_scrape_count[omitted-3]
+FAILED tests/test_research_scrape_count.py::test_public_scrape_count[None-3]
+FAILED tests/test_research_scrape_count.py::test_public_scrape_count[0-0] - A...
+FAILED tests/test_research_scrape_count.py::test_schema_and_function_default_match
+========================= 4 failed, 3 passed in 2.51s ==========================
