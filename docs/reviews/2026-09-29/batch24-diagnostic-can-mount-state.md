@@ -43,3 +43,7 @@ Spec review at34059b3 is clear. Standards reported no hard breaches and one mino
 command/UTF-8 duplication; CAN now reuses SystemSources::command, and15host-metrics
 tests pass after correction. Final review recheck and Linux CI/delivery remain pending.
 CPU batch23 merged-main validation is complete; G18 is verified in the ledger.
+
+Final Standards recheck at8446666 reports zero actionable findings. Spec remains
+clear. [PR238](https://github.com/jaylamping/marengo/pull/238) is opened as draft
+for exact-head Linux qualification; G19 remains open until delivery acceptance.

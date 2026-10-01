@@ -14,10 +14,10 @@ passed all five jobs; G01 is verified.
 Batch23 [PR237](https://github.com/jaylamping/marengo/pull/237) merged asad09ee4;
 exact-head PR CI36899946079 and main CI36900877954 passed all five jobs. G18 is verified.
 
-Batch24 repairs G19 CAN/mount diagnostics with injected collectors and explicit
+Batch24 [PR238](https://github.com/jaylamping/marengo/pull/238) repairs G19 CAN/mount diagnostics with injected collectors and explicit
 unknown observations. Native84 and Consul361 tests/build pass; frozen original CAN
-and disk reds replay unchanged green. Spec is clear; the Standards command-adapter
-duplication is addressed with recheck pending. Linux CI/PR/delivery remain pending,
+and disk reds replay unchanged green. Both reviews are clear after the command-adapter
+correction. Exact-head Linux CI/delivery remain pending,
 so G19 stays open. Active worktree:
 `/Users/joseph/.codex/worktrees/diagnostic-can-mount-state/marengo`.
 

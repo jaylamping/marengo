@@ -15353,8 +15353,8 @@
     "branch": "codex/diagnostic-can-mount-state",
     "baseline_main": "0166970a6a31aea19e0ba0c47cf7d5ab2fe4da11",
     "integration_main": "ad09ee4c56f82ad5f592f43ecb94f223e4724748",
-    "status": "CAN/mount original wire reds replay unchanged green; native84 and Consul361/build pass; Spec clear, Standards minor command duplication addressed and recheck pending; Linux CI/delivery pending",
-    "PR": null,
+    "status": "Standards/Spec clear after command-adapter correction; native84 and Consul361/build pass; PR238 exact-head Linux CI/delivery pending; G19 remains open",
+    "PR": "https://github.com/jaylamping/marengo/pull/238",
     "findings": [
       "G19"
     ],
