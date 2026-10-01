@@ -2802,11 +2802,12 @@
       "source": "gateway.md#g17--p2-candump-accepts-finite-timestamp-values-that-panic-instead-of-returning-an-error",
       "work_package": "WP09",
       "implementation_and_acceptance_plan": "gateway-implementation-plan.md",
-      "status": "open",
+      "status": "verified",
       "evidence": [
-        "Batch18 original-library four assertion reds/one positive and actualCLI panic101 assertion red replay unchanged green after checked numeric conversion, validatedASCII DLC and preallocation/decompressed-byte limits. Native affected59plus additionalchecksum1pass; Standards/Specaccepted. Initial085d701CI36885833002all5passed; finalmainintegration/trackingCI and PR233delivery pending. Finding remains open until final acceptance."
+        "Batch18 original-library four assertion reds/one positive and actualCLI panic101 assertion red replay unchanged green after checked numeric conversion, validatedASCII DLC and preallocation/decompressed-byte limits. Native affected59plus additionalchecksum1pass; Standards/Specaccepted. Initial085d701CI36885833002all5passed; finalmainintegration/trackingCI and PR233delivery pending. Finding remains open until final acceptance.",
+        "batch18: independent Standards/Spec accepted; PR head a38524ec09b8e70829db0654ded3e7ef284c34af, CI 36887510847 successful; merged main d03830df9ba6bf6091d47d2ad0eecd71015ef322, CI 36888584718 all five jobs successful. Software acceptance only. Report batch18-candump-input-validation.md."
       ],
-      "verified_commit_or_pr": null,
+      "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/233",
       "hardware_acceptance": "not established by this software repair"
     },
     {
@@ -3419,9 +3420,11 @@
       "source": "tooling.md#t18--locked-arxiv-version-removed-searchresults",
       "work_package": "WP15",
       "implementation_and_acceptance_plan": "frontend-tooling-implementation-plan.md",
-      "status": "open",
-      "evidence": [],
-      "verified_commit_or_pr": null,
+      "status": "verified",
+      "evidence": [
+        "batch20: independent Standards/Spec accepted; PR head 1321468adf2eaa82a9c07f0d388d3e8f8077ae6d, CI 36888917271 successful; merged main a65ae3f08e2601575b8038116bac03c998776bf8, CI 36889672275 all five jobs successful. Software acceptance only. Report batch20-arxiv-client-api.md."
+      ],
+      "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/234",
       "hardware_acceptance": "not established by this software repair"
     },
     {
@@ -3432,9 +3435,11 @@
       "source": "tooling.md#t19--an-explicit-scrape_top_n0-is-treated-as-the-configured-nonzero-default",
       "work_package": "WP15",
       "implementation_and_acceptance_plan": "frontend-tooling-implementation-plan.md",
-      "status": "open",
-      "evidence": [],
-      "verified_commit_or_pr": null,
+      "status": "verified",
+      "evidence": [
+        "batch21: independent Standards/Spec accepted; PR head 5e6e1ce59d068fd50111d5aecd3a2a934493526d, CI 36889348709 successful; merged main 37a4dd1675a22f064a73ab40426e02937ccea194, CI 36890121385 all five jobs successful. Software acceptance only. Report batch21-explicit-scrape-zero.md."
+      ],
+      "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/235",
       "hardware_acceptance": "not established by this software repair"
     },
     {
@@ -4652,7 +4657,7 @@
         },
         "limits": "No runtime physical operation. Never-existing from_supervisor name probe excluded from required counts; source/private-factory review establishes the actual seam."
       },
-      "test_quality": "Davout 136â†’159:3 obsolete API cases retired,26 meaningful additions; Berthier173â†’175 with arithmetic property replaced by wire output, independent stationary input and fixed-dt progress; no new ignored tests. Two receive-invariant mutants killed by actual assertions; CS24 retained open as independently demonstrated old-law failure.",
+      "test_quality": "Davout 136\u00e2\u2020\u2019159:3 obsolete API cases retired,26 meaningful additions; Berthier173\u00e2\u2020\u2019175 with arithmetic property replaced by wire output, independent stationary input and fixed-dt progress; no new ignored tests. Two receive-invariant mutants killed by actual assertions; CS24 retained open as independently demonstrated old-law failure.",
       "independent_reviews": {
         "standards": {
           "findings": 0,
@@ -15229,7 +15234,7 @@
     },
     {
       "batch_id": "batch17",
-      "status": "merged PR232; main check/sim passed, vcan pending at freeze",
+      "status": "merged; exact PR/main all five CI jobs passed",
       "baseline_main": "b23c82ba73b6372889f950379db97273053fe147",
       "scope": "Public Store migration rereads marker after actual competing WAL writer; test coverage, no production change",
       "findings": [
@@ -15242,15 +15247,54 @@
       "pr_ci_run": 36885168537,
       "pr_all_five_jobs_passed": true,
       "main_ci_run": 36886085584,
-      "main_ci_full_qualification_pending": true,
+      "main_ci_full_qualification_pending": false,
       "report": "batch17-store-competing-writer.md",
       "portable_merge_receipt": "evidence/batch17/merge-receipt.json"
+    },
+    {
+      "batch_id": "batch18",
+      "findings": [
+        "G17"
+      ],
+      "PR": "https://github.com/jaylamping/marengo/pull/233",
+      "head": "a38524ec09b8e70829db0654ded3e7ef284c34af",
+      "merged_main": "d03830df9ba6bf6091d47d2ad0eecd71015ef322",
+      "pr_ci_run": 36887510847,
+      "main_ci_run": 36888584718,
+      "status": "merged; exact-head PR and all-five-job main CI passed",
+      "report": "batch18-candump-input-validation.md"
+    },
+    {
+      "batch_id": "batch20",
+      "findings": [
+        "T18"
+      ],
+      "PR": "https://github.com/jaylamping/marengo/pull/234",
+      "head": "1321468adf2eaa82a9c07f0d388d3e8f8077ae6d",
+      "merged_main": "a65ae3f08e2601575b8038116bac03c998776bf8",
+      "pr_ci_run": 36888917271,
+      "main_ci_run": 36889672275,
+      "status": "merged; exact-head PR and all-five-job main CI passed",
+      "report": "batch20-arxiv-client-api.md"
+    },
+    {
+      "batch_id": "batch21",
+      "findings": [
+        "T19"
+      ],
+      "PR": "https://github.com/jaylamping/marengo/pull/235",
+      "head": "5e6e1ce59d068fd50111d5aecd3a2a934493526d",
+      "merged_main": "37a4dd1675a22f064a73ab40426e02937ccea194",
+      "pr_ci_run": 36889348709,
+      "main_ci_run": 36890121385,
+      "status": "merged; exact-head PR and all-five-job main CI passed",
+      "report": "batch21-explicit-scrape-zero.md"
     }
   ],
   "finding_status_counts": {
-    "verified": 16,
+    "verified": 19,
     "partial": 11,
-    "open": 75
+    "open": 72
   },
   "next_dependency_ready_batch": {
     "current": "Complete final batch18 PR233 integrated exact-head CI/delivery; reconcile batch17mainvcan. Next independent T17cold-cache repair is in codex/research-cache-await; do not close finding until reviews/checks/delivery.",
@@ -15273,18 +15317,18 @@
     "human_input_blocker": null
   },
   "active_mac_continuation": {
-    "batch_id": "batch18",
-    "baseline_main": "b23c82ba73b6372889f950379db97273053fe147",
-    "integration_main": "7897c33abd6c9c516cb05d9f57aac98783783291",
-    "branch": "codex/candump-input-validation",
-    "status": "Independent reviews accepted, initial085d701all-five-job CI passed; final integrated/tracking CI and delivery pending",
-    "PR": "https://github.com/jaylamping/marengo/pull/233",
-    "scope": "Checked candump Duration/domain handling, ASCII DLC consistency and bounded physical/decompressed bytes",
-    "report": "batch18-candump-input-validation.md",
+    "batch_id": "batch22",
+    "branch": "codex/bounded-ipc-outage",
+    "baseline_main": "a65ae3f08e2601575b8038116bac03c998776bf8",
+    "integration_main": "37a4dd1675a22f064a73ab40426e02937ccea194",
+    "status": "Standards/Spec accepted; native71 and Consul356 pass; PR236 exact-head Linux CI pending; G01 remains open",
+    "PR": "https://github.com/jaylamping/marengo/pull/236",
     "findings": [
-      "G17"
+      "G01"
     ],
+    "report": "batch22-bounded-ipc-outage.md",
     "hardware_acceptance": false,
-    "automation_status": "PAUSED"
+    "automation_status": "PAUSED",
+    "other_pending": "T17 local source/tests accepted, workflow-file push refused because token lacks workflow scope; authorization question remains unanswered"
   }
 }
