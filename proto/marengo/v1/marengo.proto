@@ -347,6 +347,10 @@ message DiskMetrics {
   double write_bytes_per_sec = 6;
   bool read_only = 7;
   bool nearly_full = 8;
+  // Legacy scalar defaults are meaningful only when their observation is known.
+  bool capacity_known = 9;
+  bool mount_status_known = 10;
+  string source_device = 11;
 }
 
 message NetworkInterfaceMetrics {

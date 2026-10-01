@@ -2,6 +2,8 @@
 
 #[cfg(any(target_os = "linux", test))]
 mod cpu;
+#[cfg(any(target_os = "linux", test))]
+mod diagnostics;
 mod sample_state;
 
 pub use sample_state::{ChappeHealthInput, IpcQueueHealthInput, SampleState};
@@ -114,7 +116,22 @@ mod linux {
     use crate::cpu::sample_cpu_from_stat;
     use crate::{ChappeHealthInput, SampleState};
 
-    const NEARLY_FULL_PERCENT: f64 = 90.0;
+    struct SystemSources;
+    impl crate::diagnostics::Sources for SystemSources {
+        fn command(&self, program: &str, args: &[&str]) -> Option<String> {
+            let output = std::process::Command::new(program)
+                .args(args)
+                .output()
+                .ok()?;
+            if !output.status.success() {
+                return None;
+            }
+            String::from_utf8(output.stdout).ok()
+        }
+        fn read_file(&self, path: &str) -> Option<String> {
+            fs::read_to_string(path).ok()
+        }
+    }
 
     pub fn sample(
         role: HostNodeRole,
@@ -303,40 +320,7 @@ mod linux {
     }
 
     fn sample_disks(_elapsed: f64) -> Vec<DiskMetrics> {
-        ["/", "/boot/firmware"]
-            .iter()
-            .filter_map(|mount| {
-                let output = std::process::Command::new("df")
-                    .args(["-B1", mount])
-                    .output()
-                    .ok()?;
-                if !output.status.success() {
-                    return None;
-                }
-                let line = std::str::from_utf8(&output.stdout).ok()?.lines().nth(1)?;
-                let cols: Vec<&str> = line.split_whitespace().collect();
-                if cols.len() < 6 {
-                    return None;
-                }
-                let total: u64 = cols[1].parse().ok()?;
-                let used: u64 = cols[2].parse().ok()?;
-                let used_pct = if total > 0 {
-                    used as f64 / total as f64 * 100.0
-                } else {
-                    0.0
-                };
-                let read_only = cols.contains(&"ro");
-                Some(DiskMetrics {
-                    mount_point: (*mount).to_string(),
-                    filesystem: cols[0].to_string(),
-                    total_bytes: total,
-                    used_bytes: used,
-                    read_only,
-                    nearly_full: used_pct >= NEARLY_FULL_PERCENT,
-                    ..Default::default()
-                })
-            })
-            .collect()
+        crate::diagnostics::collect_disks(&SystemSources, &["/", "/boot/firmware"])
     }
 
     fn sample_network(prev: &mut SampleState, elapsed: f64) -> Vec<NetworkInterfaceMetrics> {
@@ -396,33 +380,13 @@ mod linux {
     }
 
     fn read_can_state(name: &str) -> String {
-        let output = std::process::Command::new("ip")
-            .args(["-details", "link", "show", name])
-            .output();
-        if let Ok(out) = output {
-            if out.status.success() {
-                let text = String::from_utf8_lossy(&out.stdout);
-                for line in text.lines() {
-                    if line.contains("can state") {
-                        return line
-                            .split_whitespace()
-                            .last()
-                            .unwrap_or("unknown")
-                            .to_string();
-                    }
-                }
-                if text.contains("BUS-OFF") {
-                    return "BUS-OFF".to_string();
-                }
-                if text.contains("ERROR-PASSIVE") {
-                    return "ERROR-PASSIVE".to_string();
-                }
-                if text.contains("ERROR-WARNING") {
-                    return "ERROR-WARNING".to_string();
-                }
-            }
-        }
-        String::new()
+        crate::diagnostics::collect_can_state(name, |name| {
+            crate::diagnostics::Sources::command(
+                &SystemSources,
+                "ip",
+                &["-details", "link", "show", name],
+            )
+        })
     }
 
     fn read_stat_u64(path: &str) -> u64 {

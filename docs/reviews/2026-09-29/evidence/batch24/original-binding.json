@@ -1,0 +1,7 @@
+{
+  "baseline": "0166970a6a31aea19e0ba0c47cf7d5ab2fe4da11",
+  "probe_sha256": "ff711d58752b271cd9977bf2edff88951018c84ca53996dae806664c8c61b966",
+  "preparation": "Extract existing successful-output CAN parser unchanged; production reader delegates to the same logic. No parser repairs.",
+  "result": "2 assertion failures: restart-ms100 published as state; flagged ERROR-ACTIVE published empty",
+  "fixture_reference": "https://docs.kernel.org/networking/can.html"
+}

@@ -1,0 +1,30 @@
+
+> consul@0.0.0 test
+> vitest --run
+
+
+ RUN  v4.1.11 /Users/joseph/.codex/worktrees/diagnostic-can-mount-state/marengo/consul
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 1 unhandled error during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯⎯ Uncaught Exception ⎯⎯⎯⎯⎯
+TypeError: Failed to execute 'dispatchEvent' on 'EventTarget': parameter 1 is not of type 'Event'.
+ ❯ Object.exports.convert node_modules/jsdom/lib/generated/idl/Event.js:22:9
+ ❯ HTMLDivElement.dispatchEvent node_modules/jsdom/lib/generated/idl/EventTarget.js:236:24
+ ❯ Timeout._onTimeout node_modules/@radix-ui/react-focus-scope/dist/index.mjs:92:21
+ ❯ listOnTimeout node:internal/timers:685:17
+ ❯ processTimers node:internal/timers:618:7
+
+This error originated in "src/components/dashboard/inventory/__tests__/inventory-panel-shell.test.tsx" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+
+ Test Files  72 passed (72)
+      Tests  361 passed (361)
+     Errors  1 error
+   Start at  12:41:15
+   Duration  5.33s (transform 17.83s, setup 0ms, import 41.14s, tests 5.07s, environment 26.84s)
+

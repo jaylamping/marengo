@@ -31,8 +31,10 @@ vi.mock('@/components/dashboard/hardware/hardware-settings-sheet', () => ({
   ),
 }));
 
-afterEach(() => {
+afterEach(async () => {
   cleanup();
+  // Finish Radix unmount autofocus before the jsdom environment is retired.
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
 });
 
 const interactiveActuator: InventoryItem = {

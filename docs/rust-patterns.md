@@ -356,3 +356,22 @@ admission, socket delivery and physical motor stop are distinct evidence.
 - [Clippy](https://rust-lang.github.io/rust-clippy/master/)
 - [decisions/](decisions/)
 - [onboarding.md](onboarding.md)
+
+## Diagnostic observation validity
+
+Protobuf scalar defaults do not prove that collection succeeded. Keep validity
+explicit, preserve unknown results on missing/malformed data, and have consumers
+check validity before showing percentages, capacities or writable/healthy states.
+CPU and disk host metrics follow this pattern.
+
+```rust
+// BAD — missing input is reported as a known zero measurement
+metric.capacity_known = true;
+metric.total_bytes = observed_total.unwrap_or(0);
+
+// GOOD — unavailable input leaves the observation unknown
+if let Some(total) = observed_total {
+    metric.total_bytes = total;
+    metric.capacity_known = true;
+}
+```

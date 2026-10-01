@@ -1,0 +1,121 @@
+   Compiling proc-macro2 v1.0.106
+   Compiling quote v1.0.45
+   Compiling unicode-ident v1.0.24
+   Compiling anyhow v1.0.103
+   Compiling libc v0.2.186
+   Compiling either v1.15.0
+   Compiling getrandom v0.4.2
+   Compiling rustix v1.1.4
+   Compiling bytes v1.11.1
+   Compiling hashbrown v0.17.1
+   Compiling regex-syntax v0.8.10
+   Compiling bitflags v2.11.1
+   Compiling prettyplease v0.2.37
+   Compiling cfg-if v1.0.4
+   Compiling equivalent v1.0.2
+   Compiling fastrand v2.4.1
+   Compiling once_cell v1.21.4
+   Compiling fixedbitset v0.5.7
+   Compiling log v0.4.29
+   Compiling multimap v0.10.1
+   Compiling heck v0.5.0
+   Compiling itertools v0.14.0
+   Compiling thiserror v1.0.69
+   Compiling marengo-host-metrics v0.1.0 (/Users/joseph/.codex/worktrees/diagnostic-can-mount-state/marengo/crates/marengo-host-metrics)
+   Compiling indexmap v2.14.0
+   Compiling petgraph v0.7.1
+   Compiling regex-automata v0.4.14
+   Compiling errno v0.3.14
+   Compiling syn v2.0.117
+   Compiling regex v1.12.3
+   Compiling tempfile v3.27.0
+   Compiling prost-derive v0.13.5
+   Compiling thiserror-impl v1.0.69
+   Compiling prost v0.13.5
+   Compiling prost-types v0.13.5
+   Compiling prost-build v0.13.5
+   Compiling armee-proto v0.1.0 (/Users/joseph/.codex/worktrees/diagnostic-can-mount-state/marengo/crates/armee-proto)
+warning: fields `total`, `idle`, and `iowait` are never read
+ --> crates/marengo-host-metrics/src/sample_state.rs:6:9
+  |
+5 | pub(crate) struct CpuLineValues {
+  |                   ------------- fields in this struct
+6 |     pub total: u64,
+  |         ^^^^^
+7 |     pub idle: u64,
+  |         ^^^^
+8 |     pub iowait: u64,
+  |         ^^^^^^
+  |
+  = note: `CpuLineValues` has derived impls for the traits `Default` and `Clone`, but these are intentionally ignored during dead code analysis
+  = note: `#[warn(dead_code)]` on by default
+
+warning: methods `delta_usage` and `delta_iowait` are never used
+  --> crates/marengo-host-metrics/src/sample_state.rs:12:19
+   |
+11 | impl CpuLineValues {
+   | ------------------ methods in this implementation
+12 |     pub(crate) fn delta_usage(&self, prev: &Self) -> f64 {
+   |                   ^^^^^^^^^^^
+...
+21 |     pub(crate) fn delta_iowait(&self, prev: &Self) -> f64 {
+   |                   ^^^^^^^^^^^^
+
+warning: fields `rx_bytes` and `tx_bytes` are never read
+  --> crates/marengo-host-metrics/src/sample_state.rs:33:9
+   |
+32 | pub(crate) struct NetCounters {
+   |                   ----------- fields in this struct
+33 |     pub rx_bytes: u64,
+   |         ^^^^^^^^
+34 |     pub tx_bytes: u64,
+   |         ^^^^^^^^
+   |
+   = note: `NetCounters` has derived impls for the traits `Default` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: fields `cpu_aggregate`, `cpu_per_core`, and `network` are never read
+  --> crates/marengo-host-metrics/src/sample_state.rs:41:16
+   |
+39 | pub struct SampleState {
+   |            ----------- fields in this struct
+40 |     pub sample_at: Option<Instant>,
+41 |     pub(crate) cpu_aggregate: Option<CpuLineValues>,
+   |                ^^^^^^^^^^^^^
+42 |     pub(crate) cpu_per_core: Vec<CpuLineValues>,
+   |                ^^^^^^^^^^^^
+43 |     pub(crate) network: HashMap<String, NetCounters>,
+   |                ^^^^^^^
+
+warning: `marengo-host-metrics` (lib test) generated 4 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.57s
+     Running unittests src/lib.rs (target/debug/deps/marengo_host_metrics-ab9ddef381368af5)
+
+running 2 tests
+test diagnostics::regression::kernel_flagged_can_example_preserves_its_state ... FAILED
+test diagnostics::regression::restart_delay_is_not_the_published_can_state ... FAILED
+
+failures:
+
+---- diagnostics::regression::kernel_flagged_can_example_preserves_its_state stdout ----
+
+thread 'diagnostics::regression::kernel_flagged_can_example_preserves_its_state' panicked at crates/marengo-host-metrics/src/diagnostics.rs:57:9:
+assertion `left == right` failed
+  left: ""
+ right: "ERROR-ACTIVE"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- diagnostics::regression::restart_delay_is_not_the_published_can_state stdout ----
+
+thread 'diagnostics::regression::restart_delay_is_not_the_published_can_state' panicked at crates/marengo-host-metrics/src/diagnostics.rs:49:9:
+assertion `left == right` failed
+  left: "100"
+ right: "ERROR-ACTIVE"
+
+
+failures:
+    diagnostics::regression::kernel_flagged_can_example_preserves_its_state
+    diagnostics::regression::restart_delay_is_not_the_published_can_state
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p marengo-host-metrics --lib`

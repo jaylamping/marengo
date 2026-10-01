@@ -1,0 +1,6 @@
+{
+  "baseline": "165f3a553a02cc93659b365ebc209200ae9e41fb",
+  "preparation": "Original df parsing extracted unchanged behind Sources; fixture offers df and read-only mountinfo. Original collector does not read mountinfo.",
+  "probe_sha256": "defbf3343748e3bf6a77f454ca6fcfa6848060b3275c660f0e96282691a21f39",
+  "result": "Executed wire assertion red: read_only=false for fixture read-only root"
+}

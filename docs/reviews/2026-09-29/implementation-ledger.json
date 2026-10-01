@@ -2820,9 +2820,11 @@
       "source": "gateway.md#g18--p2-cpuiowait-metrics-use-incorrect-columns",
       "work_package": "WP08",
       "implementation_and_acceptance_plan": "gateway-implementation-plan.md",
-      "status": "open",
-      "evidence": [],
-      "verified_commit_or_pr": null,
+      "status": "verified",
+      "evidence": [
+        "Batch23 original CPU HostMetrics assertion red replays unchanged green after correct column parsing, keyed CPU-ID baselines and explicit unknown/reset/hotplug validity. Encoded UI unknown\u2192valid\u2192unknown qualified; Standards/Spec and integration reviews accepted. Final PR5c603be CI36899946079 all5 passed; merged mainad09ee4 CI36900877954 all5 passed. No hardware acceptance."
+      ],
+      "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/237",
       "hardware_acceptance": "not established by this software repair"
     },
     {
@@ -15306,12 +15308,25 @@
       "status": "merged; exact-head PR/main all five CI jobs passed",
       "report": "batch22-bounded-ipc-outage.md",
       "main_all_five_jobs_passed": true
+    },
+    {
+      "batch_id": "batch23",
+      "findings": [
+        "G18"
+      ],
+      "PR": "https://github.com/jaylamping/marengo/pull/237",
+      "head": "5c603be130ce465d9031f43b3365c868d5a87c1a",
+      "merged_main": "ad09ee4c56f82ad5f592f43ecb94f223e4724748",
+      "pr_ci_run": 36899946079,
+      "main_ci_run": 36900877954,
+      "status": "merged; exact-head PR/main all five CI jobs passed",
+      "report": "batch23-cpu-counter-columns.md"
     }
   ],
   "finding_status_counts": {
-    "verified": 20,
+    "verified": 21,
     "partial": 11,
-    "open": 71
+    "open": 70
   },
   "next_dependency_ready_batch": {
     "current": "Complete final batch18 PR233 integrated exact-head CI/delivery; reconcile batch17mainvcan. Next independent T17cold-cache repair is in codex/research-cache-await; do not close finding until reviews/checks/delivery.",
@@ -15334,16 +15349,16 @@
     "human_input_blocker": null
   },
   "active_mac_continuation": {
-    "batch_id": "batch23",
-    "branch": "codex/cpu-counter-columns",
-    "baseline_main": "37a4dd1675a22f064a73ab40426e02937ccea194",
-    "integration_main": "0166970a6a31aea19e0ba0c47cf7d5ab2fe4da11",
-    "status": "Standards/Spec and integration reviews clear; combined native76 and Consul358/build pass; exact-head Linux CI/delivery pending; G18 remains open",
-    "PR": "https://github.com/jaylamping/marengo/pull/237",
+    "batch_id": "batch24",
+    "branch": "codex/diagnostic-can-mount-state",
+    "baseline_main": "0166970a6a31aea19e0ba0c47cf7d5ab2fe4da11",
+    "integration_main": "ad09ee4c56f82ad5f592f43ecb94f223e4724748",
+    "status": "Standards/Spec clear after command-adapter correction; native84 and Consul361/build pass; PR238 exact-head Linux CI/delivery pending; G19 remains open",
+    "PR": "https://github.com/jaylamping/marengo/pull/238",
     "findings": [
-      "G18"
+      "G19"
     ],
-    "report": "batch23-cpu-counter-columns.md",
+    "report": "batch24-diagnostic-can-mount-state.md",
     "hardware_acceptance": false,
     "automation_status": "PAUSED",
     "other_pending": "T17 local source/tests accepted, workflow-file push refused because token lacks workflow scope; authorization question remains unanswered"

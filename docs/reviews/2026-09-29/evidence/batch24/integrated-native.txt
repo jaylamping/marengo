@@ -1,0 +1,441 @@
+   Compiling libc v0.2.186
+   Compiling cfg-if v1.0.4
+   Compiling once_cell v1.21.4
+   Compiling itoa v1.0.18
+   Compiling pin-project-lite v0.2.17
+   Compiling memchr v2.8.0
+   Compiling bytes v1.11.1
+   Compiling log v0.4.29
+   Compiling smallvec v1.15.1
+   Compiling hashbrown v0.17.1
+   Compiling equivalent v1.0.2
+   Compiling bitflags v2.11.1
+   Compiling find-msvc-tools v0.1.9
+   Compiling shlex v1.3.0
+   Compiling parking_lot_core v0.9.12
+   Compiling scopeguard v1.2.0
+   Compiling syn v2.0.117
+   Compiling serde_core v1.0.228
+   Compiling pkg-config v0.3.33
+   Compiling serde v1.0.228
+   Compiling lock_api v0.4.14
+   Compiling rustix v1.1.4
+   Compiling tracing-core v0.1.36
+   Compiling getrandom v0.4.2
+   Compiling regex-syntax v0.8.10
+   Compiling fastrand v2.4.1
+   Compiling stable_deref_trait v1.2.1
+   Compiling futures-core v0.3.32
+   Compiling zmij v1.0.21
+   Compiling zerocopy v0.8.48
+   Compiling dunce v1.0.5
+   Compiling aho-corasick v1.1.4
+   Compiling version_check v0.9.5
+   Compiling fs_extra v1.3.0
+   Compiling indexmap v2.14.0
+   Compiling serde_json v1.0.149
+   Compiling slab v0.4.12
+   Compiling autocfg v1.5.0
+   Compiling futures-sink v0.3.32
+   Compiling zeroize v1.8.2
+   Compiling http v1.4.1
+   Compiling aws-lc-rs v1.18.1
+   Compiling futures-channel v0.3.32
+   Compiling time-core v0.1.8
+   Compiling rustls-pki-types v1.14.1
+   Compiling untrusted v0.9.0
+   Compiling lazy_static v1.5.0
+   Compiling powerfmt v0.2.0
+   Compiling num-conv v0.2.2
+   Compiling litemap v0.8.2
+   Compiling getrandom v0.3.4
+   Compiling syn v1.0.109
+   Compiling writeable v0.6.3
+   Compiling num-traits v0.2.19
+   Compiling petgraph v0.7.1
+   Compiling deranged v0.5.8
+   Compiling sharded-slab v0.1.7
+   Compiling time-macros v0.2.27
+   Compiling tracing-log v0.2.0
+   Compiling thread_local v1.1.9
+   Compiling xml-rs v0.8.28
+   Compiling rustls v0.23.45
+   Compiling nu-ansi-term v0.50.3
+   Compiling icu_normalizer_data v2.2.0
+   Compiling utf8_iter v1.0.4
+   Compiling icu_properties_data v2.2.0
+   Compiling errno v0.3.14
+   Compiling jobserver v0.1.34
+   Compiling mio v1.2.0
+   Compiling socket2 v0.6.3
+   Compiling signal-hook-registry v1.4.8
+   Compiling getrandom v0.2.17
+   Compiling cc v1.2.62
+   Compiling parking_lot v0.12.5
+   Compiling core-foundation-sys v0.8.7
+   Compiling regex-automata v0.4.14
+   Compiling http-body v1.0.1
+   Compiling generic-array v0.14.7
+   Compiling futures-task v0.3.32
+   Compiling time v0.3.47
+   Compiling futures-io v0.3.32
+   Compiling percent-encoding v2.3.2
+   Compiling ryu v1.0.23
+   Compiling heck v0.4.1
+   Compiling subtle v2.6.1
+   Compiling cfg_aliases v0.2.1
+   Compiling rand_core v0.9.5
+   Compiling security-framework-sys v2.17.0
+   Compiling core-foundation v0.10.1
+   Compiling yaserde v0.8.0
+   Compiling cmake v0.1.58
+   Compiling ahash v0.8.12
+   Compiling httparse v1.10.1
+   Compiling minimal-lexical v0.2.1
+   Compiling thiserror v2.0.18
+   Compiling tempfile v3.27.0
+   Compiling libm v0.2.16
+   Compiling typenum v1.20.0
+   Compiling tower-service v0.3.3
+   Compiling nom v7.1.3
+   Compiling security-framework v3.7.0
+   Compiling form_urlencoded v1.2.2
+   Compiling vcpkg v0.2.15
+   Compiling base64 v0.22.1
+   Compiling atomic-waker v1.1.2
+   Compiling httpdate v1.0.3
+   Compiling fnv v1.0.7
+   Compiling aws-lc-sys v0.45.0
+   Compiling ring v0.17.14
+   Compiling crc32fast v1.5.0
+   Compiling ref-cast v1.0.25
+   Compiling unsafe-libyaml v0.2.11
+   Compiling synstructure v0.13.2
+   Compiling prettyplease v0.2.37
+   Compiling libsqlite3-sys v0.30.1
+   Compiling quinn-udp v0.5.14
+   Compiling unicase v2.9.0
+   Compiling mime v0.3.17
+   Compiling tinyvec_macros v0.1.1
+   Compiling tower-layer v0.3.3
+   Compiling rustversion v1.0.22
+   Compiling siphasher v1.0.3
+   Compiling adler2 v2.0.1
+   Compiling simd-adler32 v0.3.9
+   Compiling mime_guess v2.0.5
+   Compiling tinyvec v1.11.0
+   Compiling miniz_oxide v0.8.9
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling num-integer v0.1.46
+   Compiling quinn v0.11.9
+   Compiling http-body-util v0.1.3
+   Compiling socket2 v0.5.10
+   Compiling fs-err v3.3.0
+   Compiling lru-slab v0.1.2
+   Compiling rusticata-macros v4.1.0
+   Compiling sync_wrapper v1.0.2
+   Compiling rustc-hash v2.1.2
+   Compiling oid-registry v0.7.1
+   Compiling matchers v0.2.0
+   Compiling regex v1.12.3
+   Compiling yaserde_derive v0.8.0
+   Compiling flate2 v1.1.9
+   Compiling marengo-host-metrics v0.1.0 (/Users/joseph/.codex/worktrees/diagnostic-can-mount-state/marengo/crates/marengo-host-metrics)
+   Compiling num-bigint v0.4.6
+   Compiling ppv-lite86 v0.2.21
+   Compiling digest v0.10.7
+   Compiling cpufeatures v0.2.17
+   Compiling fallible-iterator v0.3.0
+   Compiling tracing-attributes v0.1.31
+   Compiling tokio-macros v2.7.0
+   Compiling thiserror-impl v1.0.69
+   Compiling serde_derive v1.0.228
+   Compiling displaydoc v0.2.5
+   Compiling prost-derive v0.13.5
+   Compiling zerofrom-derive v0.1.7
+   Compiling yoke-derive v0.8.2
+   Compiling zerovec-derive v0.11.3
+   Compiling futures-macro v0.3.32
+   Compiling rand_chacha v0.9.0
+   Compiling thiserror-impl v2.0.18
+   Compiling tokio v1.52.3
+   Compiling rand v0.9.4
+   Compiling ref-cast-impl v1.0.25
+   Compiling futures-util v0.3.32
+   Compiling asn1-rs-impl v0.2.0
+   Compiling asn1-rs-derive v0.5.1
+   Compiling thiserror v1.0.69
+   Compiling tracing v0.1.44
+   Compiling hashbrown v0.14.5
+   Compiling fastbloom v0.14.1
+   Compiling zerofrom v0.1.8
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling arc-swap v1.9.1
+   Compiling urdf-rs v0.8.0
+   Compiling sfv v0.14.0
+   Compiling prost v0.13.5
+   Compiling yoke v0.8.3
+   Compiling hashlink v0.9.1
+   Compiling asn1-rs v0.6.2
+   Compiling axum-core v0.5.6
+   Compiling sha2 v0.10.9
+   Compiling rustls-native-certs v0.8.3
+   Compiling zerovec v0.11.6
+   Compiling zerotrie v0.2.4
+   Compiling yasna v0.5.2
+   Compiling prost-types v0.13.5
+   Compiling pem v3.0.6
+   Compiling serde_path_to_error v0.1.20
+   Compiling web-transport-trait v0.3.5
+   Compiling matchit v0.8.4
+   Compiling http-range-header v0.4.2
+   Compiling same-file v1.0.6
+   Compiling data-encoding v2.11.0
+   Compiling either v1.15.0
+   Compiling tinystr v0.8.3
+   Compiling potential_utf v0.1.5
+   Compiling armee-kinematics v0.1.0 (/Users/joseph/.codex/worktrees/diagnostic-can-mount-state/marengo/crates/armee-kinematics)
+   Compiling icu_locale_core v2.2.0
+   Compiling icu_collections v2.2.0
+   Compiling prost-build v0.13.5
+   Compiling futures-executor v0.3.32
+   Compiling der-parser v9.0.0
+   Compiling rusqlite v0.32.1
+   Compiling futures v0.3.32
+   Compiling tracing-serde v0.2.0
+   Compiling serde_yaml v0.9.34+deprecated
+   Compiling serde_urlencoded v0.7.1
+   Compiling tracing-subscriber v0.3.23
+   Compiling icu_provider v2.2.0
+   Compiling armee-proto v0.1.0 (/Users/joseph/.codex/worktrees/diagnostic-can-mount-state/marengo/crates/armee-proto)
+   Compiling icu_normalizer v2.2.0
+   Compiling icu_properties v2.2.0
+   Compiling x509-parser v0.16.0
+   Compiling marengo-config v0.1.0 (/Users/joseph/.codex/worktrees/diagnostic-can-mount-state/marengo/crates/marengo-config)
+   Compiling idna_adapter v1.2.2
+   Compiling tokio-util v0.7.18
+   Compiling idna v1.1.0
+   Compiling tower v0.5.3
+   Compiling rcgen v0.13.2
+   Compiling marengo-support v0.1.0 (/Users/joseph/.codex/worktrees/diagnostic-can-mount-state/marengo/crates/marengo-support)
+   Compiling marengo-deploy v0.1.0 (/Users/joseph/.codex/worktrees/diagnostic-can-mount-state/marengo/crates/marengo-deploy)
+   Compiling url v2.5.8
+   Compiling h2 v0.4.16
+   Compiling tower-http v0.6.11
+   Compiling web-transport-proto v0.6.0
+   Compiling chappe v0.1.0 (/Users/joseph/.codex/worktrees/diagnostic-can-mount-state/marengo/crates/chappe)
+warning: field `counters` is never read
+ --> crates/marengo-host-metrics/src/sample_state.rs:6:9
+  |
+5 | pub(crate) struct CpuLineValues {
+  |                   ------------- field in this struct
+6 |     pub counters: [u64; 8],
+  |         ^^^^^^^^
+  |
+  = note: `CpuLineValues` has derived impls for the traits `Default` and `Clone`, but these are intentionally ignored during dead code analysis
+  = note: `#[warn(dead_code)]` on by default
+
+warning: method `rates` is never used
+  --> crates/marengo-host-metrics/src/sample_state.rs:10:19
+   |
+9  | impl CpuLineValues {
+   | ------------------ method in this implementation
+10 |     pub(crate) fn rates(&self, prev: &Self) -> Option<(f64, f64)> {
+   |                   ^^^^^
+
+warning: fields `rx_bytes` and `tx_bytes` are never read
+  --> crates/marengo-host-metrics/src/sample_state.rs:31:9
+   |
+30 | pub(crate) struct NetCounters {
+   |                   ----------- fields in this struct
+31 |     pub rx_bytes: u64,
+   |         ^^^^^^^^
+32 |     pub tx_bytes: u64,
+   |         ^^^^^^^^
+   |
+   = note: `NetCounters` has derived impls for the traits `Default` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: fields `cpu_aggregate`, `cpu_per_core`, and `network` are never read
+  --> crates/marengo-host-metrics/src/sample_state.rs:39:16
+   |
+37 | pub struct SampleState {
+   |            ----------- fields in this struct
+38 |     pub sample_at: Option<Instant>,
+39 |     pub(crate) cpu_aggregate: Option<CpuLineValues>,
+   |                ^^^^^^^^^^^^^
+40 |     pub(crate) cpu_per_core: HashMap<u32, CpuLineValues>,
+   |                ^^^^^^^^^^^^
+41 |     pub(crate) network: HashMap<String, NetCounters>,
+   |                ^^^^^^^
+
+   Compiling robstride v0.1.0 (/Users/joseph/.codex/worktrees/diagnostic-can-mount-state/marengo/crates/robstride)
+warning: `marengo-host-metrics` (lib) generated 4 warnings
+warning: fields `rx_bytes` and `tx_bytes` are never read
+  --> crates/marengo-host-metrics/src/sample_state.rs:31:9
+   |
+30 | pub(crate) struct NetCounters {
+   |                   ----------- fields in this struct
+31 |     pub rx_bytes: u64,
+   |         ^^^^^^^^
+32 |     pub tx_bytes: u64,
+   |         ^^^^^^^^
+   |
+   = note: `NetCounters` has derived impls for the traits `Default` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `network` is never read
+  --> crates/marengo-host-metrics/src/sample_state.rs:41:16
+   |
+37 | pub struct SampleState {
+   |            ----------- field in this struct
+...
+41 |     pub(crate) network: HashMap<String, NetCounters>,
+   |                ^^^^^^^
+
+   Compiling marengo-candump v0.1.0 (/Users/joseph/.codex/worktrees/diagnostic-can-mount-state/marengo/crates/marengo-candump)
+warning: `marengo-host-metrics` (lib test) generated 2 warnings
+   Compiling marengo-store v0.1.0 (/Users/joseph/.codex/worktrees/diagnostic-can-mount-state/marengo/crates/marengo-store)
+   Compiling hyper v1.9.0
+   Compiling hyper-util v0.1.20
+   Compiling axum v0.8.9
+   Compiling rustls-webpki v0.103.15
+   Compiling rustls-platform-verifier v0.6.2
+   Compiling tokio-rustls v0.26.4
+   Compiling quinn-proto v0.11.15
+   Compiling axum-server v0.8.0
+   Compiling web-transport-quinn v0.11.9
+   Compiling marengo-gateway v0.1.0 (/Users/joseph/.codex/worktrees/diagnostic-can-mount-state/marengo/bins/marengo-gateway)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 16.81s
+     Running unittests src/lib.rs (target/debug/deps/chappe-ab2da71069f144d4)
+
+running 11 tests
+test ipc::tests::frame_roundtrip ... ok
+test tests::publish_without_subscribers_succeeds ... ok
+test ipc_outbox::contention_admission_tests::publisher_finishes_while_writer_still_owns_queue_guard ... ok
+test ipc_outbox::shutdown_admission_tests::shutdown_winning_before_queue_lock_refuses_publication ... ok
+test tests::robot_state_over_chappe_matches_wire_contract ... ok
+test tests::publish_subscribe_envelope ... ok
+test ipc::listener_shutdown_race_tests::shutdown_winning_before_peer_install_joins_with_idle_peer ... ok
+test tracing_layer::tests::concurrent_tracing_events_share_one_quota ... ok
+test tracing_layer::tests::tracing_log_quota_refills_and_preserves_urgent_events ... ok
+test tracing_layer::tests::serialize_fields_truncates_large_payload ... ok
+test ipc::telemetry_expiry_tests::reconnect_sends_only_eligible_state_under_injected_monotonic_time ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s
+
+     Running tests/ipc_backpressure.rs (target/debug/deps/ipc_backpressure-e713cc2c1a4aa5e1)
+
+running 4 tests
+test absent_peer_has_bounded_classes_and_honest_counters ... ok
+test reconnect_preserves_bounded_audit_order_and_latest_reserved_state ... ok
+test accepting_nonreading_peer_expires_write_and_bounds_admission ... ok
+test stalled_connection_reconnects_with_latest_state_and_pending_audit_suffix ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.78s
+
+     Running tests/ipc_outage.rs (target/debug/deps/ipc_outage-686c02d3e239c2ed)
+
+running 2 tests
+test outage_worker ... ok
+test outage_does_not_replay_superseded_state ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+
+     Running tests/ipc_peer_lifetime.rs (target/debug/deps/ipc_peer_lifetime-e0e42277f655e3c1)
+
+running 2 tests
+test replacement_retires_partial_old_frame_and_disconnect_closes_command_peer ... ok
+test stale_future_and_unknown_commands_never_reach_runtime_bus ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+
+     Running unittests src/main.rs (target/debug/deps/marengo_gateway-f7ad2c6a0886ac39)
+
+running 50 tests
+test action_ack::tests::live_ack_matcher_ignores_write_behind_persist_action ... ok
+test framing::tests::lag_discards_old_transition_and_backlog_before_fresh_state ... ok
+test action_ack::tests::recv_live_ack_surfaces_live_reject ... ok
+test action_ack::tests::recv_live_ack_skips_persist_failed_until_pending ... ok
+test actuator::tests::snapshot_actuator_limits_503_when_cache_empty ... ok
+test actuator::tests::command_actuator_rejects_without_limits_snapshot ... ok
+test actuator::tests::command_actuator_rejects_unwired_joint_with_403 ... ok
+test config::tests::master_snapshot_resolves_actuator_group_velocity ... ok
+test http::tests::command_motor_status_poll_rate_limits_globally ... ok
+test http::tests::command_set_zero_rejects_unwired_joint_with_403 ... ok
+test http::tests::command_set_zero_requires_confirm_and_attestation ... ok
+test http::tests::command_set_zero_returns_429_when_rate_limited ... ok
+test http::tests::stream_chappe_emits_length_prefixed_envelopes ... ok
+test hardware::tests::activate_saves_manifest_before_failed_live_promote ... ok
+test logs::tests::recent_limit_default ... ok
+test ratelimit::tests::buckets_are_isolated_by_client_and_joint ... ok
+test ratelimit::tests::motion_bucket_ignores_client_id_rotation ... ok
+test ratelimit::tests::motion_bucket_is_stricter_than_tuning ... ok
+test ratelimit::tests::refund_restores_token_after_failed_publish ... ok
+test ratelimit::tests::rejects_empty_client_id ... ok
+test ratelimit::tests::status_poll_bucket_allows_burst_then_rejects_until_refill ... ok
+test ratelimit::tests::tuning_bucket_allows_burst_then_rejects ... ok
+test hardware::tests::activate_archives_replaced_active_and_promotes_merge ... ok
+test restart::tests::refuse_active_only_when_heartbeat_fresh ... ok
+test actuator::tests::command_actuator_publishes_canonical_joint_for_left_alias ... ok
+test hardware::tests::activate_refuses_active_with_fresh_heartbeat ... ok
+test hardware::tests::archive_reads_require_auth ... ok
+test actuator::tests::command_actuator_clamps_to_live_kp_max ... ok
+test state::ipc_snapshot_tests::connection_change_retires_observations_until_a_new_frame_arrives ... ok
+test actuator::tests::command_actuator_returns_429_when_rate_limited ... ok
+test state::runtime_transition_stream_tests::existing_topic_subscriber_receives_typed_runtime_invalidation ... ok
+test actuator::tests::command_actuator_rejects_non_tuning_with_400 ... ok
+test hardware::tests::activate_and_resolve_reject_unsafe_upload_ids ... ok
+test actuator::tests::command_actuator_requires_configured_log_token ... ok
+test hardware::tests::authorize_config_mutation_matches_log_token ... ok
+test webtransport::tests::tls_material_rejects_malformed_certificate_chain ... ok
+test webtransport::tests::tls_material_retains_certificate_chain_and_matching_key ... ok
+test hardware::tests::command_home_is_gone ... ok
+test webtransport::tests::tls_material_rejects_empty_or_malformed_private_key ... ok
+test hardware::tests::commissioning_scope_read_open_mutations_gated_widen_and_unknown ... ok
+test hardware::tests::completeness_is_advisory_and_upload_not_blocked ... ok
+test hardware::tests::urdf_read_rejects_missing_auth ... ok
+test hardware::tests::urdf_read_returns_bytes_with_auth ... ok
+test logs::tests::log_token_from_env_filters_empty ... ok
+test action_ack::tests::recv_live_ack_times_out_without_matching_session ... ok
+test ratelimit::tests::tuning_bucket_refills_over_time ... ok
+test restart::tests::restart_allows_active_with_stale_heartbeat_via_stub ... ok
+test restart::tests::restart_fails_closed_without_token ... ok
+test restart::tests::restart_refuses_active_with_fresh_heartbeat ... ok
+test restart::tests::restart_requires_confirm ... ok
+
+test result: ok. 50 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+     Running unittests src/lib.rs (target/debug/deps/marengo_host_metrics-67631e8f431ee6e5)
+
+running 15 tests
+test cpu::cpu_lifecycle_tests::irq_is_busy_guest_is_not_double_counted_and_iowait_decrease_is_unknown ... ok
+test diagnostics::collector_tests::command_adapter_publishes_states_and_unknown_failures ... ok
+test diagnostics::disk_regression::published_read_only_comes_from_mount_flags_not_df_columns ... ok
+test cpu::cpu_lifecycle_tests::reset_even_with_increasing_total_invalidates_then_rebaselines ... ok
+test cpu::cpu_lifecycle_tests::sparse_ids_reordering_and_hotplug_keep_independent_baselines ... ok
+test cpu::cpu_regression::published_cpu_fields_follow_kernel_counter_columns ... ok
+test diagnostics::mount_collector_tests::flags_filesystem_source_and_capacity_survive_publication ... ok
+test diagnostics::regression::kernel_flagged_can_example_preserves_its_state ... ok
+test diagnostics::regression::restart_delay_is_not_the_published_can_state ... ok
+test sample_state::ipc_health_wire_tests::disconnected_queue_observations_survive_host_health_wire_conversion ... ok
+test diagnostics::mount_collector_tests::unavailable_or_ambiguous_mount_flags_are_explicitly_unknown ... ok
+test tests::sample_returns_hostname ... ok
+test diagnostics::mount_collector_tests::escaped_paths_and_sources_choose_the_specific_mount ... ok
+test cpu::cpu_lifecycle_tests::malformed_truncated_duplicate_and_overflow_are_unknown ... ok
+test diagnostics::mount_collector_tests::command_failures_and_invalid_capacity_do_not_fabricate_writable_or_zero_capacity ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests chappe
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests marengo_host_metrics
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
