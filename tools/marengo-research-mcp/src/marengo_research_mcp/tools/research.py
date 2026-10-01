@@ -46,7 +46,7 @@ async def _run_source(
         if name == "github":
             return await search_github(cfg, query, per_source, window=window), None
         if name == "reddit":
-            return await search_reddit(cfg, query, per_source), None
+            return await search_reddit(cfg, query, per_source, window=window), None
         if name == "forums":
             return await search_forums(cfg, query, per_source), None
         if name == "vendor_docs":

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta
+
 import httpx
 
 from marengo_research_mcp.config import Config
@@ -13,10 +15,15 @@ SUBREDDITS = ["robotics", "humanoidrobots", "ROS", "embedded", "humanoidrobotics
 REDDIT_SEARCH = "https://www.reddit.com/search.json"
 
 
-async def search_reddit(cfg: Config, query: str, limit: int = 10) -> list[ResearchHit]:
+async def search_reddit(cfg: Config, query: str, limit: int = 10, *, window: tuple[datetime, datetime] | None = None) -> list[ResearchHit]:
     hits: list[ResearchHit] = []
     sub_filter = " OR ".join(f"subreddit:{s}" for s in SUBREDDITS)
     params = {"q": f"{query} ({sub_filter})", "limit": min(limit, 25), "sort": "relevance"}
+    if window is not None:
+        start, end = window
+        # Widen provider-relative buckets; exact captured-clock boundaries stay local.
+        span = end - start
+        params["t"] = "month" if span <= timedelta(days=7) else "year" if span <= timedelta(days=30) else "all"
     headers = {"User-Agent": cfg.user_agent}
     try:
         async with httpx.AsyncClient(timeout=30.0, headers=headers, follow_redirects=True) as client:

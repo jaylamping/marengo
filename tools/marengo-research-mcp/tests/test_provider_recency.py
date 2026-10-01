@@ -49,6 +49,8 @@ async def test_real_provider_dates_reach_public_window(tmp_path, monkeypatch, so
     if source == "huggingface":
         assert requests[0][1]["params"]["expand"] == ["createdAt", "lastModified", "likes", "pipeline_tag"]
         assert requests[1][1]["params"]["expand"] == ["createdAt", "lastModified", "likes"]
+    if source == "reddit":
+        assert requests[0][1]["params"]["t"] == "month"
     if source == "github":
         assert requests[0][1]["params"]["q"] == "robot in:name,description,readme pushed:2025-12-26..2026-01-02"
     if source == "semantic_scholar":
