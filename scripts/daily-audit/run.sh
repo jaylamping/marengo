@@ -57,6 +57,17 @@ if shutil.which("cargo-audit") and shutil.which("cargo"):
             result["vulnerability_count"] = count
             result["maintenance_warning_count"] = sum(len(v) for v in warnings.values())
             database = payload["database"]
+            if database.get("last-updated") is None or database.get("last-commit") is None:
+                # cargo-audit --no-fetch may omit provenance; require a clean owned Git snapshot.
+                status = subprocess.run(["git", "-C", str(db), "status", "--porcelain"], capture_output=True, text=True, timeout=10)
+                metadata = subprocess.run(["git", "-C", str(db), "log", "-1", "--format=%H%n%cI"], capture_output=True, text=True, timeout=10)
+                if status.returncode != 0 or status.stdout.strip() or metadata.returncode != 0:
+                    raise ValueError("database provenance unavailable or snapshot modified")
+                commit, updated = metadata.stdout.strip().splitlines()
+                database = {"last-commit": commit, "last-updated": updated}
+                result["provenance_source"] = "clean prepared Git snapshot"
+            else:
+                result["provenance_source"] = "cargo-audit report"
             stamp = datetime.fromisoformat(database["last-updated"].replace("Z", "+00:00"))
             if stamp.tzinfo is None or not database["last-commit"]:
                 raise ValueError("database provenance missing")
