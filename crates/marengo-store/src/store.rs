@@ -8,7 +8,6 @@ use flate2::write::GzEncoder;
 use flate2::Compression;
 use rusqlite::{params, Connection, OptionalExtension};
 use std::sync::Mutex;
-use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 
 use crate::error::{Result, StoreError};
@@ -23,6 +22,12 @@ pub struct Store {
     conn: Mutex<Connection>,
     marengo_root: PathBuf,
     candump: marengo_candump::Candump,
+}
+
+struct CaptureFile {
+    path: PathBuf,
+    session_id: String,
+    modified_seconds: i64,
 }
 
 impl Store {
@@ -292,11 +297,17 @@ impl Store {
 
     pub fn purge_older_than_days(&self, days: u32) -> Result<(u64, u64)> {
         let cutoff = now_ms().saturating_sub(u64::from(days) * 86_400_000);
+        self.purge_before(cutoff)
+    }
+
+    /// Remove events and sessions strictly before the supplied UTC epoch cutoff.
+    /// Reject cutoffs outside SQLite's signed millisecond range before deletion.
+    pub fn purge_before(&self, cutoff_ms: u64) -> Result<(u64, u64)> {
+        let cutoff = i64::try_from(cutoff_ms)
+            .map_err(|_| StoreError::msg("retention cutoff exceeds SQLite milliseconds range"))?;
         let conn = self.connection();
-        let deleted_logs = conn.execute(
-            "DELETE FROM log_events WHERE ts_ms < ?1",
-            params![cutoff as i64],
-        )? as u64;
+        let deleted_logs =
+            conn.execute("DELETE FROM log_events WHERE ts_ms < ?1", params![cutoff])? as u64;
 
         // Read artifact references on the connection already held here. Calling
         // get_session would try to acquire the same non-reentrant mutex again.
@@ -306,7 +317,7 @@ impl Store {
                         candump_frame_count, candump_bytes
                  FROM log_sessions WHERE started_ms < ?1",
             )?;
-            let rows = stmt.query_map(params![cutoff as i64], map_session_row)?;
+            let rows = stmt.query_map(params![cutoff], map_session_row)?;
             rows.collect::<std::result::Result<Vec<_>, _>>()
                 .map_err(StoreError::from)?
         };
@@ -335,6 +346,7 @@ impl Store {
     /// Register supplied references. Omitted label/artifacts preserve existing
     /// values; the original capture start/end are unchanged on updates. A changed
     /// candump reference invalidates statistics belonging to the old file.
+    /// A new capture has no known end until explicit finalization.
     pub fn register_session(
         &self,
         id: &str,
@@ -346,7 +358,7 @@ impl Store {
     ) -> Result<()> {
         self.connection().execute(
             "INSERT INTO log_sessions (id, label, started_ms, ended_ms, bench_blob, candump_blob, trace_blob)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+             VALUES (?1, ?2, ?3, NULL, ?4, ?5, ?6)
              ON CONFLICT(id) DO UPDATE SET
                label = COALESCE(excluded.label, log_sessions.label),
                candump_frame_count = CASE
@@ -362,7 +374,6 @@ impl Store {
                 id,
                 label,
                 started_ms as i64,
-                now_ms() as i64,
                 bench.map(|p| p.display().to_string()),
                 candump.map(|p| p.display().to_string()),
                 trace.map(|p| p.display().to_string()),
@@ -457,26 +468,39 @@ impl Store {
 
     pub fn archive_hot_sessions(&self, keep: usize) -> Result<u32> {
         let hot = log_dir(&self.marengo_root);
+        let mut groups = Vec::new();
+        for artifact in [
+            SessionArtifact::Bench,
+            SessionArtifact::Candump,
+            SessionArtifact::Trace,
+        ] {
+            let mut files = list_timestamped_files(&hot, artifact)?;
+            files.sort_by(|a, b| b.modified_seconds.cmp(&a.modified_seconds));
+            let files: Vec<_> = files.into_iter().skip(keep).collect();
+            for file in &files {
+                self.capture_started_ms(&file.session_id)?;
+            }
+            groups.push((artifact, files));
+        }
+        // Resolve every selected capture before publishing even an earlier kind.
+        // This does not roll back later filesystem or SQLite failures.
         fs::create_dir_all(blob_dir(&self.marengo_root))?;
         let mut archived = 0u32;
-        for pattern in ["bench-*.log", "candump-*.log", "position-trace-*.csv"] {
-            archived += self.archive_pattern(&hot, pattern, keep)?;
+        for (artifact, files) in groups {
+            archived += self.archive_files(files, artifact)?;
         }
         Ok(archived)
     }
 
-    fn archive_pattern(&self, hot_dir: &Path, pattern: &str, keep: usize) -> Result<u32> {
-        let mut files = list_timestamped_files(hot_dir, pattern)?;
-        files.sort_by(|a, b| b.1.cmp(&a.1));
+    fn archive_files(&self, files: Vec<CaptureFile>, artifact: SessionArtifact) -> Result<u32> {
         let mut archived = 0u32;
-        for (path, _mtime) in files.into_iter().skip(keep) {
-            if path.is_symlink() {
-                continue;
-            }
-            let session_id = extract_session_id(&path);
+        for CaptureFile {
+            path, session_id, ..
+        } in files
+        {
             let gz_path = self.gzip_to_blob(&path, &session_id)?;
-            self.update_session_blob(&session_id, &path, &gz_path)?;
-            if pattern.contains("candump") {
+            self.update_session_blob(&session_id, artifact, &gz_path)?;
+            if artifact == SessionArtifact::Candump {
                 let inspection = self.candump.inspect_path(
                     &gz_path,
                     marengo_candump::InspectRequest::summary(marengo_candump::TimestampMode::Delta),
@@ -518,23 +542,23 @@ impl Store {
         Ok(dest)
     }
 
-    fn update_session_blob(&self, session_id: &str, source: &Path, gz_path: &Path) -> Result<()> {
-        let fname = source.file_name().and_then(|n| n.to_str()).unwrap_or("");
-        let col = if fname.starts_with("bench-") {
-            "bench_blob"
-        } else if fname.starts_with("candump-") {
-            "candump_blob"
-        } else if fname.starts_with("position-trace-") {
-            "trace_blob"
-        } else {
-            return Ok(());
+    fn update_session_blob(
+        &self,
+        session_id: &str,
+        artifact: SessionArtifact,
+        gz_path: &Path,
+    ) -> Result<()> {
+        let col = match artifact {
+            SessionArtifact::Bench => "bench_blob",
+            SessionArtifact::Candump => "candump_blob",
+            SessionArtifact::Trace => "trace_blob",
         };
         let sql = format!(
             "INSERT INTO log_sessions (id, label, started_ms, {col})
              VALUES (?1, NULL, ?2, ?3)
              ON CONFLICT(id) DO UPDATE SET {col} = excluded.{col}"
         );
-        let started = session_id_to_ms(session_id).unwrap_or_else(now_ms);
+        let started = self.capture_started_ms(session_id)?;
         self.connection().execute(
             &sql,
             params![session_id, started as i64, gz_path.display().to_string()],
@@ -678,54 +702,50 @@ impl Store {
         if !hot.is_dir() {
             return Ok(LegacyImportSummary::default());
         }
-        let mut registered = HashSet::new();
-        let mut artifacts = 0u32;
+        let mut candidates = Vec::new();
         for entry in fs::read_dir(&hot)? {
             let entry = entry?;
             let path = entry.path();
-            if path.is_symlink() {
+            if !entry.file_type()?.is_file() {
                 continue;
             }
             let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-            if let Some(session_id) = extract_session_id_from_name(name) {
-                let started = session_id_to_ms(&session_id).unwrap_or_else(now_ms);
-                let label = None;
-                let bench = if name.starts_with("bench-") {
-                    Some(path.clone())
-                } else {
-                    None
-                };
-                let candump = if name.starts_with("candump-") {
-                    Some(path.clone())
-                } else {
-                    None
-                };
-                let trace = if name.starts_with("position-trace-") {
-                    Some(path.clone())
-                } else {
-                    None
-                };
-                if bench.is_some() || candump.is_some() || trace.is_some() {
-                    self.register_session(
-                        &session_id,
-                        label,
-                        started,
-                        bench.as_deref(),
-                        candump.as_deref(),
-                        trace.as_deref(),
-                    )?;
-                    registered.insert(session_id);
-                    artifacts = artifacts
-                        .checked_add(1)
-                        .ok_or_else(|| StoreError::msg("too many legacy artifacts"))?;
-                }
+            if let Some((artifact, session_id)) = capture_name(name) {
+                let started = self.capture_started_ms(session_id)?;
+                let session_id = session_id.to_string();
+                candidates.push((path, artifact, session_id, started));
             }
+        }
+        let mut registered = HashSet::new();
+        let mut artifacts = 0u32;
+        for (path, artifact, session_id, started) in candidates {
+            self.register_session(
+                &session_id,
+                None,
+                started,
+                (artifact == SessionArtifact::Bench).then_some(path.as_path()),
+                (artifact == SessionArtifact::Candump).then_some(path.as_path()),
+                (artifact == SessionArtifact::Trace).then_some(path.as_path()),
+            )?;
+            registered.insert(session_id);
+            artifacts = artifacts
+                .checked_add(1)
+                .ok_or_else(|| StoreError::msg("too many legacy artifacts"))?;
         }
         self.archive_hot_sessions(keep)?;
         Ok(LegacyImportSummary {
             sessions: u32::try_from(registered.len())
                 .map_err(|_| StoreError::msg("too many legacy sessions"))?,
             artifacts,
+        })
+    }
+
+    fn capture_started_ms(&self, session_id: &str) -> Result<u64> {
+        if let Some(existing) = self.get_session(session_id)? {
+            return Ok(existing.started_ms);
+        }
+        session_id_to_ms(session_id).ok_or_else(|| StoreError::UnknownCaptureDate {
+            session_id: session_id.to_string(),
         })
     }
 }
@@ -763,7 +783,7 @@ pub fn now_ms() -> u64 {
         .unwrap_or(0)
 }
 
-fn list_timestamped_files(dir: &Path, pattern: &str) -> Result<Vec<(PathBuf, i64)>> {
+fn list_timestamped_files(dir: &Path, artifact: SessionArtifact) -> Result<Vec<CaptureFile>> {
     let mut out = Vec::new();
     if !dir.is_dir() {
         return Ok(out);
@@ -771,13 +791,17 @@ fn list_timestamped_files(dir: &Path, pattern: &str) -> Result<Vec<(PathBuf, i64
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
-        if !path.is_file() {
+        if !entry.file_type()?.is_file() {
             continue;
         }
         let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-        if !matches_hot_pattern(name, pattern) {
+        let Some((kind, session_id)) = capture_name(name) else {
+            continue;
+        };
+        if kind != artifact {
             continue;
         }
+        let session_id = session_id.to_string();
         let mtime = entry
             .metadata()
             .and_then(|m| m.modified())
@@ -785,66 +809,63 @@ fn list_timestamped_files(dir: &Path, pattern: &str) -> Result<Vec<(PathBuf, i64
             .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
             .map(|d| d.as_secs() as i64)
             .unwrap_or(0);
-        out.push((path, mtime));
+        out.push(CaptureFile {
+            path,
+            session_id,
+            modified_seconds: mtime,
+        });
     }
     Ok(out)
 }
 
-fn matches_hot_pattern(name: &str, pattern: &str) -> bool {
-    if name.contains("latest") {
-        return false;
-    }
-    match pattern {
-        "bench-*.log" => name.starts_with("bench-") && name.ends_with(".log"),
-        "candump-*.log" => name.starts_with("candump-") && name.ends_with(".log"),
-        "position-trace-*.csv" => name.starts_with("position-trace-") && name.ends_with(".csv"),
-        _ => false,
-    }
-}
-
-fn extract_session_id(path: &Path) -> String {
-    path.file_name()
-        .and_then(|n| n.to_str())
-        .and_then(extract_session_id_from_name)
-        .unwrap_or_else(|| "unknown".to_string())
-}
-
-fn extract_session_id_from_name(name: &str) -> Option<String> {
-    for prefix in ["bench-", "candump-", "position-trace-"] {
-        if let Some(rest) = name.strip_prefix(prefix) {
-            let id = rest
-                .strip_suffix(".log")
-                .or_else(|| rest.strip_suffix(".csv"))
-                .unwrap_or(rest);
-            return Some(id.to_string());
+fn capture_name(name: &str) -> Option<(SessionArtifact, &str)> {
+    for (artifact, prefix, extension) in [
+        (SessionArtifact::Bench, "bench-", ".log"),
+        (SessionArtifact::Candump, "candump-", ".log"),
+        (SessionArtifact::Trace, "position-trace-", ".csv"),
+    ] {
+        if let Some(id) = name
+            .strip_prefix(prefix)
+            .and_then(|rest| rest.strip_suffix(extension))
+        {
+            if !id.is_empty() && id != "latest" {
+                return Some((artifact, id));
+            }
         }
     }
     None
 }
 
 fn session_id_to_date(session_id: &str) -> String {
-    if session_id.len() >= 8 {
-        format!(
-            "{}-{}-{}",
-            &session_id[0..4],
-            &session_id[4..6],
-            &session_id[6..8]
-        )
-    } else {
-        OffsetDateTime::now_utc()
-            .format(&Rfc3339)
-            .unwrap_or_default()
-            .chars()
-            .take(10)
-            .collect()
-    }
+    capture_datetime(session_id)
+        .map(|dt| dt.date().to_string())
+        .unwrap_or_else(|| "unknown".to_string())
 }
 
 fn session_id_to_ms(session_id: &str) -> Option<u64> {
+    u64::try_from(capture_datetime(session_id)?.unix_timestamp_nanos() / 1_000_000).ok()
+}
+
+fn capture_datetime(session_id: &str) -> Option<OffsetDateTime> {
+    let canonical = session_id.strip_prefix("profile-").unwrap_or(session_id);
+    if canonical.len() != 16
+        || !canonical
+            .bytes()
+            .enumerate()
+            .all(|(index, byte)| match index {
+                8 => byte == b'T',
+                15 => byte == b'Z',
+                _ => byte.is_ascii_digit(),
+            })
+    {
+        return None;
+    }
     let parsed =
         time::format_description::parse("[year][month][day]T[hour][minute][second]Z").ok()?;
-    let dt = time::OffsetDateTime::parse(session_id, &parsed).ok()?;
-    Some((dt.unix_timestamp_nanos() / 1_000_000) as u64)
+    let dt = time::PrimitiveDateTime::parse(canonical, &parsed)
+        .ok()?
+        .assume_utc();
+    (dt.unix_timestamp() >= 0).then_some(dt)
 }
 
 fn read_text_page(path: &str, offset: u32, limit: u32) -> Result<(Vec<String>, u32)> {

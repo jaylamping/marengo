@@ -7,600 +7,89 @@
   "roadmap": "implementation-roadmap.md",
   "count_note": "102 IDs including explicit overlaps and cross-cutting tooling findings, not102 independent defects. Implementation oracles added CS23 and CS24 to the original100-ID review.",
   "current_batch": {
-    "batch_id": "batch12",
-    "branch": "codex/session-artifact-preservation",
-    "baseline_main": "bebc678e7e7319f5847f78e61720d941a9544db5",
-    "status": "verified scoped software at implementation head; final/equal-tree main delivery pending",
-    "report": "batch12-session-artifact-preservation.md",
+    "batch_id": "batch13",
+    "branch": "codex/session-capture-chronology",
+    "baseline_main": "94d3cb48474fbf067e8c5e4bc0317cd6a56a2227",
+    "status": "G14 software verified: all local gates, complete independent reviews, final-file execution audit and all five implementation CI jobs pass; final/main delivery pending",
+    "report": "batch13-session-capture-chronology.md",
     "findings": [
-      "G13"
+      "G14"
     ],
-    "evidence_root": "J:\\code\\marengo-migration-backup-20260929\\batch12",
-    "scope": "Sparse registration/import/archive preserves omitted siblings and capture metadata; different candump references invalidate old statistics; explicit clearing preserves files, and CLI reports unique sessions and processed artifacts.",
+    "evidence_root": "J:\\code\\marengo-migration-backup-20260929\\batch13",
+    "scope": "Literal UTC capture import/archive metadata, deliberate invalid-date refusal, actual profile/artifact conventions, unknown capture ends and deterministic retention. No silent historical metadata repair.",
     "required_primary_gate": {
-      "receipt": "primary-final-run.json",
-      "receipt_sha256": "1ef98fdd0fb0cae2a96944019f0ecf0bd9072e2882af7f3dddb3fe9a8bee1bb8",
-      "label": "primary-final",
-      "gate": "primary",
-      "command": [
-        "docker",
-        "compose",
-        "--file",
-        "J:\\code\\marengo\\compose.yaml",
-        "--project-directory",
-        "J:\\code\\marengo",
-        "run",
-        "--rm",
-        "-T",
-        "--name",
-        "marengo-batch12-primary-final",
-        "--volume",
-        "J:\\code\\marengo-migration-backup-20260929\\batch12\\primary-final-temp:/tmp/marengo-batch12-primary-final",
-        "-e",
-        "TMP=/tmp/marengo-batch12-primary-final",
-        "-e",
-        "TEMP=/tmp/marengo-batch12-primary-final",
-        "-e",
-        "TMPDIR=/tmp/marengo-batch12-primary-final",
-        "-e",
-        "CARGO_TERM_COLOR=never",
-        "-e",
-        "CI=true",
-        "-e",
-        "GITHUB_REF=refs/heads/main",
-        "check"
-      ],
-      "started_utc": "2026-09-30T23:45:10.192162+00:00",
-      "finished_utc": "2026-09-30T23:47:18.374419+00:00",
-      "elapsed_seconds": 127.85409189999336,
-      "exit_code": 0,
-      "counts": {
-        "passed": 751,
+      "result": "pass",
+      "receipt": {
+        "name": "primary-final-run.json",
+        "sha256": "a38611d321da009a697c01c4fbf46e9a76c7aaae5c85e0c5ae7e36d750fbee9a"
+      },
+      "actual_rust": {
+        "passed": 756,
         "failed": 0,
         "ignored": 1
       },
-      "summed_test_body_seconds": 12.83,
       "frontend_passed": 355,
-      "pi_mcp_counts": {
-        "tests": [
-          72
-        ],
-        "pass": [
-          72
-        ],
-        "fail": [
-          0
-        ]
-      },
-      "fatal_aarch64_release": true,
-      "primary_completed": true,
-      "source_manifest": "phase04-source-sha256.json",
-      "source_manifest_sha256": "c617cc43af81e90a933a006d24d99f3049979c1a624551bbd7d9a4695c25543d",
-      "runner_sha256": "5fb45498ecd1aa875755cae728ae2a8e330dcfbbf60257b7f949dcdb63d5c806",
-      "log_sha256": "418e8a0cdc1deea17f27c36c6c2c060b29489a688ada973ee0c90ba210042e37",
-      "bound_files": 1449,
-      "source_unchanged_before_after": true,
-      "qualified": true,
-      "all_processes_waited": true,
-      "running_sessions": [],
-      "physical_acceptance": false
+      "pi_mcp_passed": 72,
+      "fatal_aarch64_release": true
     },
     "required_github_gate": {
       "implementation": {
         "schema": 1,
-        "recorded_utc": "2026-10-01T02:49:57.674387+00:00",
+        "recorded_utc": "2026-10-01T05:18:15.703731+00:00",
         "label": "implementation",
         "stage": "implementation",
-        "baseline": "bebc678e7e7319f5847f78e61720d941a9544db5",
-        "head": "e885fee6df3071b20265d6361c2ac6e3f3323ad4",
-        "run": 36807158080,
-        "url": "https://github.com/jaylamping/marengo/actions/runs/36807158080",
+        "baseline": "94d3cb48474fbf067e8c5e4bc0317cd6a56a2227",
+        "head": "cabfe945e34a70fc1c145383bcc7eeb750fd9256",
+        "run": 36818692724,
+        "url": "https://github.com/jaylamping/marengo/actions/runs/36818692724",
         "status": "completed",
         "conclusion": "success",
-        "summary_sha256": "5539e13e6e09a191b0c7da44e769e76a75da8a513c215c422b204fc7bc469f2f",
+        "summary_sha256": "6313c694519caa196f5d284cac4d4a388987ad40167bbb7b68808fa0ff298190",
         "jobs": [
           {
-            "completedAt": "2026-10-01T02:43:41Z",
-            "conclusion": "success",
-            "databaseId": 110193958942,
-            "name": "build-image",
-            "startedAt": "2026-10-01T02:43:24Z",
-            "status": "completed",
-            "steps": [
-              {
-                "completedAt": "2026-10-01T02:43:28Z",
-                "conclusion": "success",
-                "name": "Set up job",
-                "number": 1,
-                "startedAt": "2026-10-01T02:43:25Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:43:29Z",
-                "conclusion": "success",
-                "name": "Run actions/checkout@v4",
-                "number": 2,
-                "startedAt": "2026-10-01T02:43:28Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:43:29Z",
-                "conclusion": "success",
-                "name": "Image metadata",
-                "number": 3,
-                "startedAt": "2026-10-01T02:43:29Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:43:29Z",
-                "conclusion": "success",
-                "name": "Same-repo push allowed",
-                "number": 4,
-                "startedAt": "2026-10-01T02:43:29Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:43:37Z",
-                "conclusion": "success",
-                "name": "Run docker/setup-buildx-action@v3",
-                "number": 5,
-                "startedAt": "2026-10-01T02:43:29Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:43:38Z",
-                "conclusion": "success",
-                "name": "Run docker/login-action@v3",
-                "number": 6,
-                "startedAt": "2026-10-01T02:43:37Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:43:38Z",
-                "conclusion": "success",
-                "name": "Check if image already exists",
-                "number": 7,
-                "startedAt": "2026-10-01T02:43:38Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:43:38Z",
-                "conclusion": "skipped",
-                "name": "Capture runner uid/gid",
-                "number": 8,
-                "startedAt": "2026-10-01T02:43:38Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:43:38Z",
-                "conclusion": "skipped",
-                "name": "Build and push dev image",
-                "number": 9,
-                "startedAt": "2026-10-01T02:43:38Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:43:38Z",
-                "conclusion": "skipped",
-                "name": "Point latest at new tag",
-                "number": 10,
-                "startedAt": "2026-10-01T02:43:38Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:43:38Z",
-                "conclusion": "skipped",
-                "name": "Build and load dev image (fork)",
-                "number": 11,
-                "startedAt": "2026-10-01T02:43:38Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:43:38Z",
-                "conclusion": "skipped",
-                "name": "Export dev image artifact (fork)",
-                "number": 12,
-                "startedAt": "2026-10-01T02:43:38Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:43:38Z",
-                "conclusion": "skipped",
-                "name": "Upload dev image artifact (fork)",
-                "number": 13,
-                "startedAt": "2026-10-01T02:43:38Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:43:38Z",
-                "conclusion": "success",
-                "name": "Set handoff mode",
-                "number": 14,
-                "startedAt": "2026-10-01T02:43:38Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:43:39Z",
-                "conclusion": "success",
-                "name": "Post Run docker/login-action@v3",
-                "number": 26,
-                "startedAt": "2026-10-01T02:43:38Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:43:39Z",
-                "conclusion": "success",
-                "name": "Post Run docker/setup-buildx-action@v3",
-                "number": 27,
-                "startedAt": "2026-10-01T02:43:39Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:43:40Z",
-                "conclusion": "success",
-                "name": "Post Run actions/checkout@v4",
-                "number": 28,
-                "startedAt": "2026-10-01T02:43:39Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:43:40Z",
-                "conclusion": "success",
-                "name": "Complete job",
-                "number": 29,
-                "startedAt": "2026-10-01T02:43:40Z",
-                "status": "completed"
-              }
-            ],
-            "url": "https://github.com/jaylamping/marengo/actions/runs/36807158080/job/110193958942"
-          },
-          {
-            "completedAt": "2026-10-01T02:43:30Z",
-            "conclusion": "success",
-            "databaseId": 110193959098,
             "name": "changes",
-            "startedAt": "2026-10-01T02:43:24Z",
             "status": "completed",
-            "steps": [
-              {
-                "completedAt": "2026-10-01T02:43:26Z",
-                "conclusion": "success",
-                "name": "Set up job",
-                "number": 1,
-                "startedAt": "2026-10-01T02:43:25Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:43:27Z",
-                "conclusion": "success",
-                "name": "Run actions/checkout@v4",
-                "number": 2,
-                "startedAt": "2026-10-01T02:43:26Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:43:27Z",
-                "conclusion": "success",
-                "name": "Run dorny/paths-filter@v3",
-                "number": 3,
-                "startedAt": "2026-10-01T02:43:27Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:43:28Z",
-                "conclusion": "success",
-                "name": "Post Run actions/checkout@v4",
-                "number": 6,
-                "startedAt": "2026-10-01T02:43:27Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:43:28Z",
-                "conclusion": "success",
-                "name": "Complete job",
-                "number": 7,
-                "startedAt": "2026-10-01T02:43:28Z",
-                "status": "completed"
-              }
-            ],
-            "url": "https://github.com/jaylamping/marengo/actions/runs/36807158080/job/110193959098"
+            "conclusion": "success",
+            "url": "https://github.com/jaylamping/marengo/actions/runs/36818692724/job/110229329438",
+            "databaseId": 110229329438,
+            "startedAt": "2026-10-01T05:12:51Z",
+            "completedAt": "2026-10-01T05:12:55Z"
           },
           {
-            "completedAt": "2026-10-01T02:48:32Z",
+            "name": "build-image",
+            "status": "completed",
             "conclusion": "success",
-            "databaseId": 110194037585,
+            "url": "https://github.com/jaylamping/marengo/actions/runs/36818692724/job/110229329716",
+            "databaseId": 110229329716,
+            "startedAt": "2026-10-01T05:12:51Z",
+            "completedAt": "2026-10-01T05:13:04Z"
+          },
+          {
             "name": "check",
-            "startedAt": "2026-10-01T02:43:44Z",
             "status": "completed",
-            "steps": [
-              {
-                "completedAt": "2026-10-01T02:43:46Z",
-                "conclusion": "success",
-                "name": "Set up job",
-                "number": 1,
-                "startedAt": "2026-10-01T02:43:45Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:43:49Z",
-                "conclusion": "success",
-                "name": "Run actions/checkout@v4",
-                "number": 2,
-                "startedAt": "2026-10-01T02:43:46Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:44:31Z",
-                "conclusion": "success",
-                "name": "Run ./.github/actions/pull-dev-image",
-                "number": 3,
-                "startedAt": "2026-10-01T02:43:49Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:44:31Z",
-                "conclusion": "skipped",
-                "name": "Run ./.github/actions/load-dev-image",
-                "number": 4,
-                "startedAt": "2026-10-01T02:44:31Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:45:11Z",
-                "conclusion": "success",
-                "name": "Restore Cargo cache",
-                "number": 5,
-                "startedAt": "2026-10-01T02:44:31Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:45:15Z",
-                "conclusion": "success",
-                "name": "Restore npm download cache",
-                "number": 6,
-                "startedAt": "2026-10-01T02:45:11Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:45:15Z",
-                "conclusion": "success",
-                "name": "Prepare proto breaking baseline",
-                "number": 7,
-                "startedAt": "2026-10-01T02:45:15Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:47:49Z",
-                "conclusion": "success",
-                "name": "Run check.sh in container",
-                "number": 8,
-                "startedAt": "2026-10-01T02:45:15Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:47:50Z",
-                "conclusion": "success",
-                "name": "Post Restore npm download cache",
-                "number": 13,
-                "startedAt": "2026-10-01T02:47:49Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:48:29Z",
-                "conclusion": "success",
-                "name": "Post Restore Cargo cache",
-                "number": 14,
-                "startedAt": "2026-10-01T02:47:50Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:48:29Z",
-                "conclusion": "success",
-                "name": "Post Run ./.github/actions/pull-dev-image",
-                "number": 15,
-                "startedAt": "2026-10-01T02:48:29Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:48:29Z",
-                "conclusion": "success",
-                "name": "Post Run actions/checkout@v4",
-                "number": 16,
-                "startedAt": "2026-10-01T02:48:29Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:48:29Z",
-                "conclusion": "success",
-                "name": "Complete job",
-                "number": 17,
-                "startedAt": "2026-10-01T02:48:29Z",
-                "status": "completed"
-              }
-            ],
-            "url": "https://github.com/jaylamping/marengo/actions/runs/36807158080/job/110194037585"
+            "conclusion": "success",
+            "url": "https://github.com/jaylamping/marengo/actions/runs/36818692724/job/110229391742",
+            "databaseId": 110229391742,
+            "startedAt": "2026-10-01T05:13:07Z",
+            "completedAt": "2026-10-01T05:17:18Z"
           },
           {
-            "completedAt": "2026-10-01T02:46:07Z",
-            "conclusion": "success",
-            "databaseId": 110194037587,
             "name": "vcan",
-            "startedAt": "2026-10-01T02:43:44Z",
             "status": "completed",
-            "steps": [
-              {
-                "completedAt": "2026-10-01T02:43:45Z",
-                "conclusion": "success",
-                "name": "Set up job",
-                "number": 1,
-                "startedAt": "2026-10-01T02:43:44Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:43:46Z",
-                "conclusion": "success",
-                "name": "Run actions/checkout@v4",
-                "number": 2,
-                "startedAt": "2026-10-01T02:43:45Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:44:27Z",
-                "conclusion": "success",
-                "name": "Run ./.github/actions/pull-dev-image",
-                "number": 3,
-                "startedAt": "2026-10-01T02:43:46Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:44:27Z",
-                "conclusion": "skipped",
-                "name": "Run ./.github/actions/load-dev-image",
-                "number": 4,
-                "startedAt": "2026-10-01T02:44:27Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:45:25Z",
-                "conclusion": "success",
-                "name": "Restore Cargo cache",
-                "number": 5,
-                "startedAt": "2026-10-01T02:44:27Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:45:49Z",
-                "conclusion": "success",
-                "name": "Load vcan kernel module",
-                "number": 6,
-                "startedAt": "2026-10-01T02:45:25Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:46:05Z",
-                "conclusion": "success",
-                "name": "vcan integration tests",
-                "number": 7,
-                "startedAt": "2026-10-01T02:45:49Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:46:05Z",
-                "conclusion": "success",
-                "name": "Post Run ./.github/actions/pull-dev-image",
-                "number": 13,
-                "startedAt": "2026-10-01T02:46:05Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:46:05Z",
-                "conclusion": "success",
-                "name": "Post Run actions/checkout@v4",
-                "number": 14,
-                "startedAt": "2026-10-01T02:46:05Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:46:05Z",
-                "conclusion": "success",
-                "name": "Complete job",
-                "number": 15,
-                "startedAt": "2026-10-01T02:46:05Z",
-                "status": "completed"
-              }
-            ],
-            "url": "https://github.com/jaylamping/marengo/actions/runs/36807158080/job/110194037587"
+            "conclusion": "success",
+            "url": "https://github.com/jaylamping/marengo/actions/runs/36818692724/job/110229391760",
+            "databaseId": 110229391760,
+            "startedAt": "2026-10-01T05:13:06Z",
+            "completedAt": "2026-10-01T05:15:52Z"
           },
           {
-            "completedAt": "2026-10-01T02:45:18Z",
-            "conclusion": "success",
-            "databaseId": 110194037644,
             "name": "sim",
-            "startedAt": "2026-10-01T02:43:44Z",
             "status": "completed",
-            "steps": [
-              {
-                "completedAt": "2026-10-01T02:43:45Z",
-                "conclusion": "success",
-                "name": "Set up job",
-                "number": 1,
-                "startedAt": "2026-10-01T02:43:45Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:43:46Z",
-                "conclusion": "success",
-                "name": "Run actions/checkout@v4",
-                "number": 2,
-                "startedAt": "2026-10-01T02:43:45Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:44:23Z",
-                "conclusion": "success",
-                "name": "Run ./.github/actions/pull-dev-image",
-                "number": 3,
-                "startedAt": "2026-10-01T02:43:46Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:44:23Z",
-                "conclusion": "skipped",
-                "name": "Run ./.github/actions/load-dev-image",
-                "number": 4,
-                "startedAt": "2026-10-01T02:44:23Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:45:00Z",
-                "conclusion": "success",
-                "name": "Restore Cargo cache",
-                "number": 5,
-                "startedAt": "2026-10-01T02:44:23Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:45:14Z",
-                "conclusion": "success",
-                "name": "Build sim image",
-                "number": 6,
-                "startedAt": "2026-10-01T02:45:00Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:45:16Z",
-                "conclusion": "success",
-                "name": "Run check-sim.sh",
-                "number": 7,
-                "startedAt": "2026-10-01T02:45:14Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:45:17Z",
-                "conclusion": "success",
-                "name": "Post Run ./.github/actions/pull-dev-image",
-                "number": 13,
-                "startedAt": "2026-10-01T02:45:16Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:45:17Z",
-                "conclusion": "success",
-                "name": "Post Run actions/checkout@v4",
-                "number": 14,
-                "startedAt": "2026-10-01T02:45:17Z",
-                "status": "completed"
-              },
-              {
-                "completedAt": "2026-10-01T02:45:17Z",
-                "conclusion": "success",
-                "name": "Complete job",
-                "number": 15,
-                "startedAt": "2026-10-01T02:45:17Z",
-                "status": "completed"
-              }
-            ],
-            "url": "https://github.com/jaylamping/marengo/actions/runs/36807158080/job/110194037644"
+            "conclusion": "success",
+            "url": "https://github.com/jaylamping/marengo/actions/runs/36818692724/job/110229391874",
+            "databaseId": 110229391874,
+            "startedAt": "2026-10-01T05:13:06Z",
+            "completedAt": "2026-10-01T05:15:10Z"
           }
         ],
         "qualified_all_five_jobs": true,
@@ -608,10 +97,10 @@
         "running_sessions": [],
         "counts": {
           "check": {
-            "passed": 751,
+            "passed": 756,
             "failed": 0,
             "ignored": 1,
-            "test_binaries": 100
+            "test_binaries": 105
           },
           "sim": {
             "passed": 5,
@@ -639,7 +128,7 @@
           ]
         },
         "fatal_aarch64_release": false,
-        "log_sha256": "941b11a34453f5e37ea3639572924aca2aac2389961e8fe97ab24b52d35a87ee",
+        "log_sha256": "ec04b82d8e4646c6677f9271e6b92fffa5f14ac5b41ac14cce635b6174354094",
         "checks": {
           "exact_all_five_jobs": true,
           "all_job_success": true,
@@ -650,202 +139,519 @@
           "actual_check_completed": true,
           "fatal_main_release": true
         },
-        "receipt": "github-implementation-receipt.json",
-        "receipt_sha256": "09d5e221beb0887fe374aefde0fc8a12d202095c16f555857ef4e4d8f035c65e"
+        "full_receipt": {
+          "path": "J:\\code\\marengo-migration-backup-20260929\\batch13\\github-implementation-receipt.json",
+          "sha256": "7999fce0f70278379ebaf25b4767dec5aba9108e7dcafd9ce99cd56bf7ec0500",
+          "note": "Complete raw job/step and log binding retained externally; no actual evidence discarded."
+        }
       },
       "final": "pending",
       "main": "pending"
     },
-    "hardware_acceptance": "No robot operations or acceptance. This historical archive repair does not qualify reference permission, physical media durability or HTTP execution bounds.",
+    "hardware_acceptance": "not established; no robot operations, limit or Wave changes",
     "test_seams": [
-      "Store registration, import/archive, public session/page lookups and reopen",
-      "marengo-log-cli import reporting and explicit clear"
+      "Store import/archive/get/list/page/reopen and actual file bytes",
+      "Existing explicit registration/finalization metadata",
+      "Store::purge_before absolute cutoff and checked overflow: candidate-only conformance"
     ],
-    "parallel_design": "R2b1 resource proof remains design only; separate safety implementation follows engineering review.",
-    "local_gates": {
-      "summary": "final-local-gate-summary.json",
-      "summary_sha256": "c94a695fc352a6f31d48b3dc168a5100877d8a1b42b60e4421c5ccdf44a80729",
-      "affected": {
-        "receipt": "affected-final-run.json",
-        "receipt_sha256": "3d058db59491d8db868427e80705c12592a770c95e8e746f988123ddd8e892ea",
-        "label": "affected-final",
-        "gate": "affected",
-        "command": [
-          "docker",
-          "compose",
-          "--file",
-          "J:\\code\\marengo\\compose.yaml",
-          "--project-directory",
-          "J:\\code\\marengo",
-          "run",
-          "--rm",
-          "-T",
-          "--name",
-          "marengo-batch12-affected-final",
-          "--volume",
-          "J:\\code\\marengo-migration-backup-20260929\\batch12\\affected-final-temp:/tmp/marengo-batch12-affected-final",
-          "-e",
-          "TMP=/tmp/marengo-batch12-affected-final",
-          "-e",
-          "TEMP=/tmp/marengo-batch12-affected-final",
-          "-e",
-          "TMPDIR=/tmp/marengo-batch12-affected-final",
-          "-e",
-          "CARGO_TERM_COLOR=never",
-          "dev",
-          "bash",
-          "-c",
-          "cargo fmt --all -- --check && cargo clippy --locked --manifest-path /workspace/Cargo.toml -p marengo-store -p marengo-log-cli --all-targets -- -D warnings && cargo test --locked --manifest-path /workspace/Cargo.toml -p marengo-store -p marengo-log-cli --all-targets --no-fail-fast -- --test-threads=1"
-        ],
-        "started_utc": "2026-09-30T23:44:21.248871+00:00",
-        "finished_utc": "2026-09-30T23:44:38.044411+00:00",
-        "elapsed_seconds": 16.495850800012704,
-        "exit_code": 0,
-        "counts": {
-          "passed": 16,
-          "failed": 0,
-          "ignored": 0
+    "test_preparation": {
+      "whole_first_probe_sha256": "10095c210f659723af03617a5363dab8c664928fde4a28436e7a28e996e8d6d5",
+      "independent_calendar_receipt_sha256": "69c17d7afa59ec1cf534caf3298b91bb9d29cd6b24a984ee8683d4406126c006",
+      "classification": "whole first probe frozen before actual execution; same bytes replay unchanged green"
+    },
+    "known_limits": [
+      "G15 migrations/G16 archive bounds and recovery remain separate",
+      "Historic stored metadata has no authoritative provenance: optional repair deferred",
+      "Reference journal/grant and physical acceptance remain separate"
+    ],
+    "original_public_regressions": {
+      "first-original-red-v1": {
+        "receipt": "J:\\code\\marengo-migration-backup-20260929\\batch13\\first-original-red-v1-run.json",
+        "receipt_sha256": "58630d114cc12d80b66666e71f857b58c2fd445abe9888fa5b70597babb0df99",
+        "whole_probe_sha256": "10095c210f659723af03617a5363dab8c664928fde4a28436e7a28e996e8d6d5",
+        "binding_sha256": "b0e14a0308344cbfb9f43cc8843dab794180309d36f8e5a76f81fe0ca8e3c127",
+        "log_sha256": "e53624285e9178fde95cfdefa37fda21b68dc50f102501fe2f9e15758a1a0967",
+        "test_result": {
+          "failed": 1,
+          "filtered": 0,
+          "ignored": 0,
+          "measured": 0,
+          "passed": 0,
+          "status": "FAILED",
+          "test_body_seconds": 0.26
         },
-        "summed_test_body_seconds": 2.96,
-        "frontend_passed": null,
-        "pi_mcp_counts": {
-          "tests": [],
-          "pass": [],
-          "fail": []
-        },
-        "fatal_aarch64_release": null,
-        "primary_completed": null,
-        "source_manifest": "phase04-source-sha256.json",
-        "source_manifest_sha256": "c617cc43af81e90a933a006d24d99f3049979c1a624551bbd7d9a4695c25543d",
-        "runner_sha256": "5fb45498ecd1aa875755cae728ae2a8e330dcfbbf60257b7f949dcdb63d5c806",
-        "log_sha256": "b0e472ef891f0fb3855de78213f55437162d610d3a4ac3b9118b501b0474a7d4",
-        "bound_files": 1449,
-        "source_unchanged_before_after": true,
-        "qualified": true,
-        "all_processes_waited": true,
-        "running_sessions": [],
-        "physical_acceptance": false
+        "all_sources_runners_bindings_unchanged_after": true,
+        "fixture_leftovers": []
       },
-      "simulation": {
-        "receipt": "sim-final-recovery-run.json",
-        "receipt_sha256": "bd1bc2d12e0502502e32f3ea8c1a5182a1b27c5218d4dcb6fff6bc8bfc344960",
-        "label": "sim-final-recovery",
-        "gate": "sim",
-        "command": [
-          "docker",
-          "compose",
-          "--file",
-          "J:\\code\\marengo\\compose.yaml",
-          "--project-directory",
-          "J:\\code\\marengo",
-          "run",
-          "--rm",
-          "-T",
-          "--name",
-          "marengo-batch12-sim-final-recovery",
-          "--volume",
-          "J:\\code\\marengo-migration-backup-20260929\\batch12\\sim-final-recovery-temp:/tmp/marengo-batch12-sim-final-recovery",
-          "-e",
-          "TMP=/tmp/marengo-batch12-sim-final-recovery",
-          "-e",
-          "TEMP=/tmp/marengo-batch12-sim-final-recovery",
-          "-e",
-          "TMPDIR=/tmp/marengo-batch12-sim-final-recovery",
-          "-e",
-          "CARGO_TERM_COLOR=never",
-          "check-sim"
-        ],
-        "started_utc": "2026-10-01T02:37:31.110913+00:00",
-        "finished_utc": "2026-10-01T02:37:38.646356+00:00",
-        "elapsed_seconds": 7.213585600009537,
-        "exit_code": 0,
-        "counts": {
-          "passed": 5,
+      "first-candidate-green-v1": {
+        "receipt": "J:\\code\\marengo-migration-backup-20260929\\batch13\\first-candidate-green-v1-run.json",
+        "receipt_sha256": "70069820b31bac20b65410aad87352cc8fadc99643e038655e5d4975128e8ab1",
+        "whole_probe_sha256": "10095c210f659723af03617a5363dab8c664928fde4a28436e7a28e996e8d6d5",
+        "binding_sha256": "1f6325200599efeb991ecbf9d84b22db128823875db6d33cb53d5f1e3866b137",
+        "log_sha256": "ecb6b6112ef60ab0e5e6ea90f7f495330db4890750bd2c072cfbc6ab1f978d03",
+        "test_result": {
           "failed": 0,
-          "ignored": 0
+          "filtered": 0,
+          "ignored": 0,
+          "measured": 0,
+          "passed": 1,
+          "status": "ok",
+          "test_body_seconds": 0.2
         },
-        "summed_test_body_seconds": 0.01,
-        "frontend_passed": null,
-        "pi_mcp_counts": {
-          "tests": [],
-          "pass": [],
-          "fail": []
+        "all_sources_runners_bindings_unchanged_after": true,
+        "fixture_leftovers": []
+      },
+      "refusal-original-red-v1": {
+        "receipt": "J:\\code\\marengo-migration-backup-20260929\\batch13\\refusal-original-red-v1-run.json",
+        "receipt_sha256": "2c5794ffd9d8300a70dc30a25ff0d52c67cb1b68b4bd49f1700c754d8a9c7733",
+        "whole_probe_sha256": "dec33e8dcdb633948db3e5bd6ac54159d2275f4f785a40abab10fab637424b39",
+        "binding_sha256": "cac17e1bc46e83f7b11d15b00d1735526b4f5ce827e1706b7018d0424ca1445a",
+        "log_sha256": "382dc7ec88e71e6e9a889b52a1c63ebc39b4bd65ff65ef7af0619916f168d8a7",
+        "test_result": {
+          "failed": 1,
+          "filtered": 0,
+          "ignored": 0,
+          "measured": 0,
+          "passed": 0,
+          "status": "FAILED",
+          "test_body_seconds": 2.95
         },
-        "fatal_aarch64_release": null,
-        "primary_completed": null,
-        "source_manifest": "phase04-source-sha256.json",
-        "source_manifest_sha256": "c617cc43af81e90a933a006d24d99f3049979c1a624551bbd7d9a4695c25543d",
-        "runner_sha256": "5fb45498ecd1aa875755cae728ae2a8e330dcfbbf60257b7f949dcdb63d5c806",
-        "log_sha256": "4b7ab0a457027edc5b47da968928488b153dbff39837c0cc49f099b7e2d95a6e",
-        "bound_files": 1449,
-        "source_unchanged_before_after": true,
-        "qualified": true,
-        "all_processes_waited": true,
-        "running_sessions": [],
-        "physical_acceptance": false
+        "all_sources_runners_bindings_unchanged_after": true,
+        "fixture_leftovers": []
+      },
+      "refusal-candidate-green-v1": {
+        "receipt": "J:\\code\\marengo-migration-backup-20260929\\batch13\\refusal-candidate-green-v1-run.json",
+        "receipt_sha256": "6f73bac572fe95e50f2c10568562a422fb671d104a313a3156c4114537274b1f",
+        "whole_probe_sha256": "dec33e8dcdb633948db3e5bd6ac54159d2275f4f785a40abab10fab637424b39",
+        "binding_sha256": "b41d4e5b2edab5a2a937fec65978edf3232a18a5105872dcf6f9e0b7f97164b4",
+        "log_sha256": "7f382bcee2d6b92797452067e41c1ae985192a37322ba2f968d2fdb9ba9c7558",
+        "test_result": {
+          "failed": 0,
+          "filtered": 0,
+          "ignored": 0,
+          "measured": 0,
+          "passed": 1,
+          "status": "ok",
+          "test_body_seconds": 2.6
+        },
+        "all_sources_runners_bindings_unchanged_after": true,
+        "fixture_leftovers": []
+      },
+      "compatibility-original-red-v2": {
+        "receipt": "J:\\code\\marengo-migration-backup-20260929\\batch13\\compatibility-original-red-v2-run.json",
+        "receipt_sha256": "01520991452beeed8ffb4be15a5cbd4099afa816152833ac6069f41be391275f",
+        "whole_probe_sha256": "306955cd160369b127c13a51527a268c5ef95eb99f074dd53ca87fb9309865cf",
+        "binding_sha256": "7fc9538d97c027ae90f47993ec89b30dc7294fa94e33a0cf0a801339a3dacb93",
+        "log_sha256": "eaacd23416e64b771b557f7bad03556bf5bbfcc15fc32bfc11cd2169e3a4d860",
+        "test_result": {
+          "failed": 1,
+          "filtered": 0,
+          "ignored": 0,
+          "measured": 0,
+          "passed": 0,
+          "status": "FAILED",
+          "test_body_seconds": 0.52
+        },
+        "all_sources_runners_bindings_unchanged_after": true,
+        "fixture_leftovers": []
+      },
+      "compatibility-candidate-green-v1": {
+        "receipt": "J:\\code\\marengo-migration-backup-20260929\\batch13\\compatibility-candidate-green-v1-run.json",
+        "receipt_sha256": "ff8cc7e035f151dc0b2e2f91c88dead40dc86b9056a14b11e32debbfd931f457",
+        "whole_probe_sha256": "306955cd160369b127c13a51527a268c5ef95eb99f074dd53ca87fb9309865cf",
+        "binding_sha256": "6a008a5ac9a7333f4c1f64c4e910c55f0793d3e0fc9ca9c0deb1e1bc684fb6f6",
+        "log_sha256": "36946430ab08cc6b10defe83ee9965432f34596f6e1a994593976ca8d800381e",
+        "test_result": {
+          "failed": 0,
+          "filtered": 0,
+          "ignored": 0,
+          "measured": 0,
+          "passed": 1,
+          "status": "ok",
+          "test_body_seconds": 0.43
+        },
+        "all_sources_runners_bindings_unchanged_after": true,
+        "fixture_leftovers": []
+      },
+      "unknown-end-original-red-v1": {
+        "receipt": "J:\\code\\marengo-migration-backup-20260929\\batch13\\unknown-end-original-red-v1-run.json",
+        "receipt_sha256": "d6135757f5f6bb3bdfd1dd1dd9061a1e1333e1bf753be88c930fcd3f46953374",
+        "whole_probe_sha256": "d92e25bc76516ac385f9b6a72a51cd7642b2b1d9305754b87f212cb963ab7adb",
+        "binding_sha256": "2ef81d9fcd790c283f800794594c2869952831b06793b290844683880b26d57b",
+        "log_sha256": "dc22816d72b32d82455d1e25cecf9c6f0c923a31a8d9b71d3dfe7b4a1652de2e",
+        "test_result": {
+          "failed": 1,
+          "filtered": 0,
+          "ignored": 0,
+          "measured": 0,
+          "passed": 0,
+          "status": "FAILED",
+          "test_body_seconds": 0.21
+        },
+        "all_sources_runners_bindings_unchanged_after": true,
+        "fixture_leftovers": []
+      },
+      "unknown-end-candidate-green-v1": {
+        "receipt": "J:\\code\\marengo-migration-backup-20260929\\batch13\\unknown-end-candidate-green-v1-run.json",
+        "receipt_sha256": "e0420caf39aab7ed4db3ee99d96ca5b94e90831da4202f2422432ad94c7a8572",
+        "whole_probe_sha256": "d92e25bc76516ac385f9b6a72a51cd7642b2b1d9305754b87f212cb963ab7adb",
+        "binding_sha256": "640178684175a60cd1c8e9980e81afc1025ea958dd85de7c0cb2bc49061a303c",
+        "log_sha256": "dd737e349746b5c8213c18cc836c007def7400267bb5ebf18fb5d67b01bd98a8",
+        "test_result": {
+          "failed": 0,
+          "filtered": 0,
+          "ignored": 0,
+          "measured": 0,
+          "passed": 1,
+          "status": "ok",
+          "test_body_seconds": 0.4
+        },
+        "all_sources_runners_bindings_unchanged_after": true,
+        "fixture_leftovers": []
+      },
+      "refusal-final-original-red-v2": {
+        "receipt": "J:\\code\\marengo-migration-backup-20260929\\batch13\\refusal-final-original-red-v2-run.json",
+        "receipt_sha256": "8a65c2cfaf5c0f97efefb6ecf53920fc24006080faa834567748b9edf4d264bc",
+        "whole_probe_sha256": "3fbeba1092647c20a1ca8021f7b20d4c2e9b21d36292f7bda84cd9ed20feb728",
+        "binding_sha256": "5eb827e4630805f644f602d3153e0406bdfc715e449cfac26a36c83d8e86e38e",
+        "log_sha256": "190f1f9db7d64d43def74258a23479a49600ba8ef0e0d9801be1940d4a896168",
+        "test_result": {
+          "failed": 1,
+          "filtered": 0,
+          "ignored": 0,
+          "measured": 0,
+          "passed": 0,
+          "status": "FAILED",
+          "test_body_seconds": 3.2
+        },
+        "all_sources_runners_bindings_unchanged_after": true,
+        "fixture_leftovers": [],
+        "classification": "final whole source original assertion red or byte-identical repaired replay"
+      },
+      "refusal-final-candidate-green-v2": {
+        "receipt": "J:\\code\\marengo-migration-backup-20260929\\batch13\\refusal-final-candidate-green-v2-run.json",
+        "receipt_sha256": "066f667a0857f6c8cf3aa21833362a393ebd4ffbdf697123c2c328adfeebb3ba",
+        "whole_probe_sha256": "3fbeba1092647c20a1ca8021f7b20d4c2e9b21d36292f7bda84cd9ed20feb728",
+        "binding_sha256": "067f364657eae00f4ebaaed3de112ee5f545a8641503f2de69b174181b740a11",
+        "log_sha256": "935fc5fa773f0be5666d20c8e9a190637dbb88c71818bee15b9c64b4206cafa8",
+        "test_result": {
+          "failed": 0,
+          "filtered": 0,
+          "ignored": 0,
+          "measured": 0,
+          "passed": 1,
+          "status": "ok",
+          "test_body_seconds": 2.16
+        },
+        "all_sources_runners_bindings_unchanged_after": true,
+        "fixture_leftovers": [],
+        "classification": "final whole source original assertion red or byte-identical repaired replay"
+      },
+      "compatibility-final-original-red-v2": {
+        "receipt": "J:\\code\\marengo-migration-backup-20260929\\batch13\\compatibility-final-original-red-v2-run.json",
+        "receipt_sha256": "c28374e3eac54dbc87099c999cf45947ffcd37872aad1ad98a32938bcef7f1e3",
+        "whole_probe_sha256": "62e2260b45901b441fc2744732222f41afa97fa74ddc3020d3f378edd8486025",
+        "binding_sha256": "879c85ad3c296cfb6165e227b274283dd4885f1728687f02038d9d3df6e121f1",
+        "log_sha256": "a858e8095e1a34e7691fee01c41a9df4011e6106648aa63fc5107e03ceb34485",
+        "test_result": {
+          "failed": 1,
+          "filtered": 0,
+          "ignored": 0,
+          "measured": 0,
+          "passed": 0,
+          "status": "FAILED",
+          "test_body_seconds": 0.58
+        },
+        "all_sources_runners_bindings_unchanged_after": true,
+        "fixture_leftovers": [],
+        "classification": "final whole source original assertion red or byte-identical repaired replay"
+      },
+      "compatibility-final-candidate-green-v2": {
+        "receipt": "J:\\code\\marengo-migration-backup-20260929\\batch13\\compatibility-final-candidate-green-v2-run.json",
+        "receipt_sha256": "13d726f284b927f3abdd1180aa4886fdfbfc5f92397c6dca53c9722f9d1c0806",
+        "whole_probe_sha256": "62e2260b45901b441fc2744732222f41afa97fa74ddc3020d3f378edd8486025",
+        "binding_sha256": "5c6017b056ae255a0659ea4489e7baab77769e430f4d564133c4776978c0f4f9",
+        "log_sha256": "90bcfcfbed644718dcf9d3f0dd41e50b7af7158dcd7a66d7b1be6a5641f1d6e1",
+        "test_result": {
+          "failed": 0,
+          "filtered": 0,
+          "ignored": 0,
+          "measured": 0,
+          "passed": 1,
+          "status": "ok",
+          "test_body_seconds": 0.54
+        },
+        "all_sources_runners_bindings_unchanged_after": true,
+        "fixture_leftovers": [],
+        "classification": "final whole source original assertion red or byte-identical repaired replay"
       }
+    },
+    "independent_first_proof_review": {
+      "path": "J:\\code\\marengo-migration-backup-20260929\\batch13\\independent-first-proof-review.md",
+      "sha256": "2bfacddb11250c91d1079eaff571c71c13b1fea916a0419d2ef308b05ff218bf",
+      "disposition": "accepted before first execution; Git modes recorded, filesystem permissions not claimed"
+    },
+    "docker_recurrence": {
+      "report": "J:\\code\\marengo-migration-backup-20260929\\batch13\\docker-recurrence\\docker-recurrence.md",
+      "report_sha256": "e32de6c69fccb6068386506e0bdc62187ad6255c63494edfebfadd890c4725ed",
+      "evidence_inventory_sha256": "327740e5be37cd1959ca5a7de4f6775bc13bf9e1daaf96124949ef526cb1b262",
+      "recovered_health": "actual unchanged start/no-start/direct-pipe pass",
+      "scope": "First reversible runtime-parent preservation and inert broker lifetime probe. Later disappearance and actual brokered recovery recorded separately; initiating cause remains unproved.",
+      "checkpoint": "first recurrence: superseded healthy launcher later naturally absent; older evidence retained unchanged"
+    },
+    "excluded_attempts": [
+      {
+        "label": "compatibility-original-red-v1",
+        "kind": "zero-test Docker engine missing-pipe infrastructure failure; not a behavioral regression",
+        "receipt": "J:\\code\\marengo-migration-backup-20260929\\batch13\\compatibility-original-red-v1-run.json",
+        "log_sha256": "e9133cf10b02b0b91c8b119848513db0ac541e7c3c19681266939e4b9952f7cc",
+        "all1473snapshot_and_runner_inputs_unchanged": true,
+        "fixture_leftovers": [],
+        "next": "unchanged frozen original replay with fresh v2 label after independent health recovery"
+      },
+      {
+        "label": "cutoff-combined-mutation-red-v1",
+        "kind": "intended assertion reached but separate captured output streams place marker after panic; unqualified, never retroactively accepted",
+        "receipt": "J:\\code\\marengo-migration-backup-20260929\\batch13\\cutoff-combined-mutation-red-v1-run.json",
+        "receipt_sha256": "2a8ec081482a30945be7bf78da0c348607d840c39bee527fa00897dd964ae8c6",
+        "log_sha256": "ee9fbdad8ba2972789d1c4fdf7a5e2f13385b40d9019e2a89301fdb717f336f8",
+        "all_processes_waited": true
+      },
+      {
+        "label": "affected-v1",
+        "kind": "zero-test strict lint failure in three test fixtures; not a behavioral regression or passing gate",
+        "receipt": "J:\\code\\marengo-migration-backup-20260929\\batch13\\affected-v1-run.json",
+        "receipt_sha256": "61fe383025fbb108ab52846862c077383c797d55cc0dad9fd1bad4f909f285e9",
+        "log_sha256": "1d2bd2f772c658c630dbfdc19321cddd4e47cd41a44b4fd24132225902525790",
+        "all_processes_waited": true
+      }
+    ],
+    "independent_refusal_proof_review": {
+      "path": "J:\\code\\marengo-migration-backup-20260929\\batch13\\independent-refusal-proof-review-v2.md",
+      "sha256": "a8f8da4c57349e8386a298a1a693770791470d09dddd019758c39b389fc3f7e3",
+      "disposition": "both actual snapshots/receipts/source/probe/hash/metadata/recompiles/20-controls/empty fixtures independently verified; no blocker; valid positive remains required"
+    },
+    "docker_brokered_recovery": {
+      "report": "J:\\code\\marengo-migration-backup-20260929\\batch13\\docker-recurrence\\disappearance-20261001-035600\\brokered-docker-recovery.md",
+      "report_sha256": "f2d9d7f895635a00603aedb401d5dbb780fab00e3f990104800e11aa7d2b0f13",
+      "evidence_inventory_sha256": "e5d03a2150e9a8b6ce48f51f90302da3bf663aeedd1b85b98814af15032ae1a8",
+      "exact_job_identity_sha256": "127fd79cbc77a1ee1bdf62a0c58d5338520a4ce322697bfc23db5a7577ee9c31",
+      "result": "actual unchanged brokered startup and independent no-start/direct-pipe health pass after wrapper/origin/tool exits; Desktop belongs to no job and owns a separate Docker child lifetime job excluding Codex",
+      "scope": "No runtime rename/reset/settings/persistence mutation on this recurrence. Historical initiating disappearance and permanent AF_UNIX cause remain unproved; M08 Partial."
+    },
+    "independent_compatibility_proof_review": {
+      "path": "J:\\code\\marengo-migration-backup-20260929\\batch13\\independent-compatibility-proof-review.md",
+      "sha256": "e5402c3c7871121298e75ffe7e5d78e10607b0f9ac7c81ada642b5d3283218b4",
+      "disposition": "both1473-file original/candidate snapshots, actual bound metadata/recompiles/30 original differences/unchanged whole green/empty fixtures independently verified; no blocker; end/retention/final gates remain pending"
+    },
+    "independent_unknown_end_proof_review": {
+      "path": "J:\\code\\marengo-migration-backup-20260929\\batch13\\independent-unknown-end-proof-review.md",
+      "sha256": "74667f840aa81189f98ffbceb0f2c916669433d60fd026920686236c0357b36e",
+      "disposition": "both1473-file snapshots, wholeprobe/oracle/fouroriginalenddifferences/unchangedgreen, frozeninputs, actualmetadata/recompiles/waits/emptyfixtures independently verified; no blocker; cutoff/finalgates remain pending"
+    },
+    "final_test_reconciliation": {
+      "path": "J:\\code\\marengo-migration-backup-20260929\\batch13\\final-test-lint-reconciliation.json",
+      "sha256": "fa2468254e628d7eafa870fa46f3eec6806b33ea9616e0c1bfb1104664632a12",
+      "scope": "Only same-line test-only clippy::panic allowances. All historical bytes and attempts retained. Fresh final-file refusal/compatibility red-green pairs and cutoff positive/combined mutant/replay qualify under separately accepted freezes; no classifier guard relaxed."
     },
     "source_identity": {
-      "manifest": "phase04-source-sha256.json",
-      "sha256": "c617cc43af81e90a933a006d24d99f3049979c1a624551bbd7d9a4695c25543d",
-      "bound_files": 1449
+      "manifest": "phase05-source-sha256.json",
+      "sha256": "882e91ae327d3069afb6fafbe95c6e4af4c1f9291cfa8ed9e6725af2c4c8637c",
+      "bound_files": 1455
     },
-    "original_public_regressions": [
-      {
-        "red": "original-red-v1-run.json",
-        "red_sha256": "5acabdf79f7177de3a9659b4e3bfb72c215ffec4c28dbae0e0222d8d2fc19540",
-        "unchanged_green": "phase01-green-v1-run.json",
-        "green_sha256": "67720ae058eff2f81795e3194716503999753c4babbda27355ec03e49b30f96b",
-        "classification": "combined original assertion regression; entire test unchanged"
+    "local_gates": {
+      "summary": {
+        "name": "final-local-gate-summary.json",
+        "sha256": "3d1736b7a8cb418e902168c79b40a1c7342728e61a1e30aa6832bc9b7558e5eb"
       },
-      {
-        "red": "phase02-original-red-v1-run.json",
-        "red_sha256": "d064df78dda6ec3ebcb61ccc63674f550d9041f833ba2d2b4bb136568075382f",
-        "unchanged_green": "phase02-green-v1-run.json",
-        "green_sha256": "65d4c18be4d6039f6de47115d7505d2673f6c76e88e616263047732be5648701",
-        "classification": "combined original assertion regression; entire test unchanged"
+      "gates": {
+        "affected": {
+          "receipt": "affected-v2-run.json",
+          "receipt_sha256": "48636e567b113be97cc058e6ed749a31162d9e004a79f561db5cd162caecda22",
+          "log_sha256": "b367b170633bc50a39a2fe4453f647268b15f0a9336a49325b4c385a4b867913",
+          "counts": {
+            "passed": 21,
+            "failed": 0,
+            "ignored": 0
+          },
+          "elapsed_seconds": 18.45144019999134,
+          "summed_test_body_seconds": 7.01
+        },
+        "primary": {
+          "receipt": "primary-final-run.json",
+          "receipt_sha256": "a38611d321da009a697c01c4fbf46e9a76c7aaae5c85e0c5ae7e36d750fbee9a",
+          "log_sha256": "6d462b136c2d8b5303c41bda1b1b8125c9e5316c0fd760f7f8f02e25abf5b162",
+          "counts": {
+            "passed": 756,
+            "failed": 0,
+            "ignored": 1
+          },
+          "elapsed_seconds": 125.48456470000383,
+          "summed_test_body_seconds": 16.09
+        },
+        "sim": {
+          "receipt": "sim-final-run.json",
+          "receipt_sha256": "33ce2e75362a20067a8e549d397237dd4645c7cd6c890415fd817ef363e28bce",
+          "log_sha256": "c7e5e3d2f9e61aa4b5c595126c495ee88127ce8c1a065e1bd164a99f4b78c4dd",
+          "counts": {
+            "passed": 5,
+            "failed": 0,
+            "ignored": 0
+          },
+          "elapsed_seconds": 2.2519721999997273,
+          "summed_test_body_seconds": 0.01
+        }
       },
-      {
-        "red": "phase03-original-red-v1-run.json",
-        "red_sha256": "accb01decf5501e523562d7e12cb01eccf5bd8a863491a9bff5ff3df7170e4fd",
-        "unchanged_green": "phase03-green-v1-run.json",
-        "green_sha256": "5a6d780d10a360910a82d8b181d640444ffcbe89427d0f27ea354b2616c3ea4d",
-        "classification": "combined original assertion regression; entire test unchanged"
+      "timezone": {
+        "name": "timezone-final-run.json",
+        "sha256": "07faaeac603cf5d35c56832e8b7e5c7ed9491ea1ce2e50985ea42bdd70fe40d3"
       }
-    ],
-    "candidate_mutation": {
-      "summary": "clear-mapping-run-v2-summary.json",
-      "summary_sha256": "8a6d1c396c745e54ac8b8a26361cfbdea5c746177d3a8e814fac1d34764c06b8",
-      "classification": "one production Bench-to-Trace mapping mutant; candidate positive compiled first"
+    },
+    "root_final_execution_review": {
+      "path": "J:\\code\\marengo-migration-backup-20260929\\batch13\\root-final-execution-review.json",
+      "sha256": "fc1e512c0d9aaee02ff17b49b152b150a406122420159156a5a056f336a0c7a5",
+      "scope": "Seven actual final-file runs independently rehashed by root from raw evidence; separate independent preparation review retained."
     },
     "independent_reviews": {
       "standards-review.md": {
-        "sha256": "46a2baf6a52448e52e7b8afe460163f75772edcdc3fe19eff573239da00ebec4"
+        "name": "standards-review.md",
+        "sha256": "285e4c2015b7fdc48580ef6899c88b45f5617559a7638fc1e35c744b9b79e105"
       },
-      "standards-final-review.md": {
-        "sha256": "d78ef82ba859dc8c62a4b15bafc659bde82ec75b762121dcde42e883e343a076"
+      "standards-doc-reconciliation.md": {
+        "name": "standards-doc-reconciliation.md",
+        "sha256": "b180fc818a6d5fcc6ae949e68a382b043c115ea70fef682a02827a46a7e142b4"
       },
-      "spec-final-review.md": {
-        "sha256": "9f286ab33ca3b36a24bc6c8ed46395214c950c059ad2b480c1912a7dfe8114af"
+      "standards-final-test-reconciliation.md": {
+        "name": "standards-final-test-reconciliation.md",
+        "sha256": "e8962a5d53db3962fbec70c6c84d2c4dca3c0a0287c1ed67ff8beb3c23020945"
+      },
+      "spec-review.md": {
+        "name": "spec-review.md",
+        "sha256": "fd7edbec93e395fb3eebd04bea0404a527a0631f2483fd98e7b7063a609747bc"
+      },
+      "spec-final-test-reconciliation.md": {
+        "name": "spec-final-test-reconciliation.md",
+        "sha256": "b9045c45d1f3f45dbc4605e24c662aa359da9b55e015b691921642cb20458fb9"
+      },
+      "spec-delivery-binding-review.md": {
+        "name": "spec-delivery-binding-review.md",
+        "sha256": "0858f24c49407764520c841984d1b2afc0a93d11b55b7b5ca26af5f58315ca80"
       },
       "spec-final-review-bindings.json": {
-        "sha256": "280b7b7494ae43978b40c629248d4887e3b8d0bda8c5fb1dd7ee50b46b4f2fb2"
+        "name": "spec-final-review-bindings.json",
+        "sha256": "b77433b122539adde537331eba63e4c7fbaa83e3bda1c12797025a0196f56678"
+      },
+      "independent-final-preparation-review.md": {
+        "name": "independent-final-preparation-review.md",
+        "sha256": "e59c1f140b3732f707b0119c890a453fe17d97030f2bd62d378db6420235e2ab"
+      },
+      "independent-final-execution-review.md": {
+        "name": "independent-final-execution-review.md",
+        "sha256": "c8898bc30682e3874a1239aee5690c5a368bb09b3d04eccd6414526ba33b77ac"
+      },
+      "spec-tracking-reconciliation.md": {
+        "name": "spec-tracking-reconciliation.md",
+        "sha256": "bccffc7e8ff3beb6742213a8db0149413638e546647a4d42b86b24f8d4efd317"
       }
     },
-    "excluded_attempts": [
-      "Unexecuted clear v1 diagnostic classifier corrected before execution.",
-      "Historical primary-v1 wrapper rejected Node24 summary prefix; original receipt preserved; fresh final primary qualifies final source.",
-      "sim-final failed before tests: Docker Linux engine pipe absent; replay independently qualified."
-    ],
-    "implementation_head": "e885fee6df3071b20265d6361c2ac6e3f3323ad4",
-    "pull_request": "https://github.com/jaylamping/marengo/pull/226",
+    "historical_test_versions": {
+      "refusal-original-red-v1/refusal-candidate-green-v1": "Qualified previous whole bytes; superseded by final-file v2 pair, never presented as final-file identity.",
+      "compatibility-original-red-v2/compatibility-candidate-green-v1": "Qualified previous whole bytes; superseded by final-file v2 pair.",
+      "cutoff-positive-v1": "Qualified earlier candidate-only test; final-byte positive/mutation/replay sequence supersedes it."
+    },
+    "candidate_cutoff_conformance": {
+      "classification": "Candidate-only public cutoff conformance with one combined two-comparator strict-boundary mutation. Missing new API never executed on original ancestry; no original-regression claim.",
+      "runs": {
+        "cutoff-positive-v2": {
+          "receipt": {
+            "name": "cutoff-positive-v2-run.json",
+            "sha256": "27e905576a198b2b4e408fbb3b35c99458749adf6eb8fb8628cd2f743ac52cba"
+          },
+          "log_sha256": "686256919d4592244f6eee62ed3649408a2836376322e210c35de9aa7cfaeb60",
+          "binding_sha256": "3bb4f59bcde40e414f01c42f30fbd62414fc8a5c6c8aee4793efbd933434215b",
+          "whole_probe_sha256": "f8fe0b0173e641cf9678d2d79201f968945992bf609cdde848b2d2ff36f934f0",
+          "test_result": {
+            "failed": 0,
+            "filtered": 0,
+            "ignored": 0,
+            "measured": 0,
+            "passed": 1,
+            "status": "ok",
+            "test_body_seconds": 0.24
+          },
+          "predecessor_receipt_sha256": {},
+          "all_child_processes_waited": true,
+          "fixture_leftovers": []
+        },
+        "cutoff-combined-mutation-red-v2": {
+          "receipt": {
+            "name": "cutoff-combined-mutation-red-v2-run.json",
+            "sha256": "9dc7f2f74ce06dbf04241a0a14cb88a66231ae958516340a97630230a447ee29"
+          },
+          "log_sha256": "d58307ccc7213b894884d88f952290841cc117f5d9f69ec9c58ef81ff151c8a7",
+          "binding_sha256": "63e64e0f0a9ef35370f0070339e33ea44013471306236cde0f5d6a7df38d100c",
+          "whole_probe_sha256": "f8fe0b0173e641cf9678d2d79201f968945992bf609cdde848b2d2ff36f934f0",
+          "test_result": {
+            "failed": 1,
+            "filtered": 0,
+            "ignored": 0,
+            "measured": 0,
+            "passed": 0,
+            "status": "FAILED",
+            "test_body_seconds": 0.26
+          },
+          "predecessor_receipt_sha256": {
+            "positive": "27e905576a198b2b4e408fbb3b35c99458749adf6eb8fb8628cd2f743ac52cba"
+          },
+          "all_child_processes_waited": true,
+          "fixture_leftovers": []
+        },
+        "cutoff-positive-replay-v2": {
+          "receipt": {
+            "name": "cutoff-positive-replay-v2-run.json",
+            "sha256": "bdc707cbcd43cdf6b6ecd2b15b94c6906762680f35fa8ced5fb0567d52282261"
+          },
+          "log_sha256": "335351aa0676404cc417d3ab44eeb7179a88d23d1c20ce8a6e17f8f075b62621",
+          "binding_sha256": "3bb4f59bcde40e414f01c42f30fbd62414fc8a5c6c8aee4793efbd933434215b",
+          "whole_probe_sha256": "f8fe0b0173e641cf9678d2d79201f968945992bf609cdde848b2d2ff36f934f0",
+          "test_result": {
+            "failed": 0,
+            "filtered": 0,
+            "ignored": 0,
+            "measured": 0,
+            "passed": 1,
+            "status": "ok",
+            "test_body_seconds": 0.2
+          },
+          "predecessor_receipt_sha256": {
+            "mutation": "9dc7f2f74ce06dbf04241a0a14cb88a66231ae958516340a97630230a447ee29",
+            "positive": "27e905576a198b2b4e408fbb3b35c99458749adf6eb8fb8628cd2f743ac52cba"
+          },
+          "all_child_processes_waited": true,
+          "fixture_leftovers": []
+        }
+      }
+    },
+    "implementation_head": "cabfe945e34a70fc1c145383bcc7eeb750fd9256",
+    "pull_request": "https://github.com/jaylamping/marengo/pull/227",
+    "implementation_binding": {
+      "name": "implementation-source-binding.json",
+      "sha256": "c8b84873bcbc5fbada8a83553f4c6d3f857f80708b75b5547cf5481b268d9632"
+    },
+    "independent_final_execution_review": {
+      "path": "J:\\code\\marengo-migration-backup-20260929\\batch13\\independent-final-execution-review.md",
+      "sha256": "c8898bc30682e3874a1239aee5690c5a368bb09b3d04eccd6414526ba33b77ac",
+      "disposition": "No blocker; independently rehashed every final snapshot/probe/blob map, actual results and exact combined mutation/predecessor sequence. No primary/CI or physical acceptance inferred by reviewer."
+    },
     "following_design": {
-      "finding": "G14",
-      "status": "proposed only; not frozen, compiled or executed",
-      "root": "J:\\code\\marengo-migration-backup-20260929\\batch12\\next-g14-preparation",
-      "design_sha256": "add94b7ab8300b74aa71aae0710f75b0660d55e1b095c4543fd208a5da9e4deb",
-      "probe_sha256": "d908a2c06d911b745a16dfedad29d42ddd3fd457f76bbe988471d7ad666f9189",
-      "next_action": "Complete checked batch12 merge, review/freeze whole existing-public probe at that exact base, execute actual assertion red before production repair."
+      "finding": "G15",
+      "status": "proposed only; not frozen, compiled, executed or accepted",
+      "root": "J:\\code\\marengo-migration-backup-20260929\\batch13\\next-g15-preparation",
+      "design_sha256": "b0dfe5bf7071fddca337fcc6aa968294564480b77fbbf598c3eefc74369cd81e",
+      "canonical_probe": "migration_contracts_safe_paths_v2.rs",
+      "probe_sha256": "e16518147ab057c49ea3517157c47e581e1d9c388616a73a956c8ee8d6f8cee9",
+      "readme_sha256": "c29a364ed02e6228eaab617756d9d1e0cc6dec1185105ba23f147199b51e89d1",
+      "next_action": "Complete checked G14 merge; read canonical design/source/oracle addendum, choose one vertical slice and freeze at actual merged base before original assertion execution. Earlier unsafe/uninitialized drafts remain excluded UNEXECUTED proposals."
     }
   },
   "findings": [
@@ -1268,7 +1074,7 @@
         "Required primary715Rust/0failed/1existingignored,355frontend,72PiMCP and fatalARMrelease pass; strict affected432/0/0 passes. Two independent source reviews accept exact1042 reviewed inputs, with one explicitly reviewed docs-only delta after local gates.",
         "J:/code/marengo-migration-backup-20260929/batch09/local-gate-summary.json",
         "batch09-measured-stall-progress.md",
-        "All five implementation-head jobs pass at eb1359cc82697966cc4e6d32db3fef72111e5999/run36755369469; check715/0/1, simulation5/0, actual virtual driver73/0. Final documentation-head and equal-tree main delivery remain pending; physical acceptance remains separate."
+        "All five implementation-head jobs pass at eb1359cc82697966cc4e6d32db3fef72111e5999/run36755369469; check715/0/1, simulation5/0, actual virtual driver73/0. Final 97881d8aa16a6a4815d6377c90c342d45e352edb/run36756367932 and equal-tree main 7a25bbbca0fad1ef579e979309acba666d4409da/run36757300231 also pass all five jobs; fatal main ARM release and verified backup/branch cleanup complete; physical acceptance remains separate."
       ],
       "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/223",
       "hardware_acceptance": "required before physical release",
@@ -1449,7 +1255,7 @@
         "Sparse artifact registration preserves omitted siblings/labels and authoritative capture times; archive does not overwrite finalized ends. Different supplied candump reference invalidates both old statistics; same/omitted references retain them.",
         "Import counts unique IDs and processed files separately; typed explicit reference clearing preserves files and sibling/capture metadata. Three whole original assertion reds replay unchanged green; five new API/actual-CLI groups and one production mapping mutant qualify behavior.",
         "Final local source1449 bound; affected16/0/0; primary751Rust/0failed/1existingignored,355frontend/72PiMCP/fatalARM; simulation5/0/0; independent whole Standards/Spec accepted.",
-        "All five implementation jobs pass at e885fee6df3071b20265d6361c2ac6e3f3323ad4/run36807158080; check751/0/1, simulation5/0, actual virtual driver73/0. Final/equal-tree main delivery pending.",
+        "All five implementation jobs pass at e885fee6df3071b20265d6361c2ac6e3f3323ad4/run36807158080; check751/0/1, simulation5/0, actual virtual driver73/0. Final6f5ae4849c9db67b94928253ab372e8ad602a579/run36808420033 and equal-tree main94d3cb48474fbf067e8c5e4bc0317cd6a56a2227/run36808943360 pass all five jobs; fatal main ARM release, verified all-refs backup and exact branch cleanup complete.",
         "batch12-session-artifact-preservation.md",
         "J:/code/marengo-migration-backup-20260929/batch12/final-local-gate-summary.json",
         "G14 chronology, whole-import rollback/interrupted archive recovery, HTTP behavior, physical media durability, reference permission and hardware acceptance remain separate."
@@ -1466,12 +1272,15 @@
       "source": "gateway.md#g14--p2-importedarchived-session-dates-are-replaced-with-the-import-time",
       "work_package": "WP09",
       "implementation_and_acceptance_plan": "gateway-implementation-plan.md",
-      "status": "open",
+      "status": "verified",
       "evidence": [
-        "Unexecuted next-batch preparation at final Store2b93eb3d: next-g14-preparation/design.md SHA256add94b7ab8300b74aa71aae0710f75b0660d55e1b095c4543fd208a5da9e4deb; whole proposed public probe SHA256d908a2c06d911b745a16dfedad29d42ddd3fd457f76bbe988471d7ad666f9189. No frozen/compiled/executed regression or acceptance claim.",
-        "Complete G14 needs literal UTC/leap/epoch-zero import/archive/reopen and date/retention acceptance; explicit unknown-ID and new-import end policy, actual profile/sidecar/latest conventions and safe date buckets. Existing historical rows lack provenance for silently rewriting metadata; optional repair requires backup/preview. Proposed refusal and public cutoff seam are design choices, not existing-API proof."
+        "Historical batch12 design checkpoint, superseded by batch13 actual public regressions: Unexecuted next-batch preparation at final Store2b93eb3d: next-g14-preparation/design.md SHA256add94b7ab8300b74aa71aae0710f75b0660d55e1b095c4543fd208a5da9e4deb; whole proposed public probe SHA256d908a2c06d911b745a16dfedad29d42ddd3fd457f76bbe988471d7ad666f9189. No frozen/compiled/executed regression or acceptance claim.",
+        "Complete G14 needs literal UTC/leap/epoch-zero import/archive/reopen and date/retention acceptance; explicit unknown-ID and new-import end policy, actual profile/sidecar/latest conventions and safe date buckets. Existing historical rows lack provenance for silently rewriting metadata; optional repair requires backup/preview. Proposed refusal and public cutoff seam are design choices, not existing-API proof.",
+        "Batch13 in progress on94d3: four frozen whole existing-public chronology/refusal/compatibility/unknown-end probes qualify actual original assertion reds and unchanged green replays with independent proof reviews; current_batch records exact receipt/binding/log/test hashes. Candidate-only deterministic retention conformance/mutation and required primary/delivery gates remain pending; G14 remains open.",
+        "Batch13 final-file proofs and all local gates qualify: four original-public groups, candidate-only strict cutoff and combined mutation; 756 Rust/1 existing ignored,355 frontend,72 Pi MCP,fatal ARM; affected21/0/0,timezone2/0/0,sim5/0/0. Exact receipts in current_batch; G14 stays open until safe GitHub delivery.",
+        "G14 software verified at implementation cabfe945e34a70fc1c145383bcc7eeb750fd9256: GitHub run36818692724 completes all five jobs with756 Rust/1 existing ignored,355 frontend,72 Pi MCP,simulation5/0/0 and virtual CAN73/0/0. Full independent code and final execution reviews have no blocker. Final/main delivery remains pending; no legacy metadata rewrite, G15/G16 or physical acceptance inferred."
       ],
-      "verified_commit_or_pr": null,
+      "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/227 (implementation cabfe945e34a70fc1c145383bcc7eeb750fd9256)",
       "hardware_acceptance": "not established by this software repair"
     },
     {
@@ -2394,7 +2203,9 @@
       "evidence": [
         "J:/code/marengo-migration-backup-20260929/batch02/docker-recurrence.md",
         "J:/code/marengo-migration-backup-20260929/batch12/docker-recurrence/docker-recurrence.md; SHA256123571a4557d47d5a8b8e0930c03272ba4b7b1c5bf36ac5f0d40498f94a85057",
-        "Oct1 recurrence: stopped-engine red and exact Inference startup socket crash reproduced; reversible runtime-parent preservation restores unchanged startup and independent no-start/direct-pipe health. Initiating Desktop exit remains unproved; no causal directory-move evidence. Keep retained launcher session23805/PID9140 and old18161 running. Project software/CAD remain J:/code."
+        "Oct1 recurrence: stopped-engine red and exact Inference startup socket crash reproduced; reversible runtime-parent preservation restores unchanged startup and independent no-start/direct-pipe health. Initiating Desktop exit remains unproved; no causal directory-move evidence. Keep retained launcher session23805/PID9140 and old18161 running. Project software/CAD remain J:/code.",
+        "Batch13 Oct1 recurrence: exact Inference listener reproduced after another unexplained Desktop disappearance; independently verified reversible parent preservation restores Linux engine. A bounded inert WmiPrvSE-brokered helper survives its originating exec outside Windows jobs; prepared brokered Docker startup remains unexecuted. Initiating disappearance/permanent AF_UNIX cause unproved; healthy launcher64810/PID46704 retained. J:\\code\\marengo-migration-backup-20260929\\batch13\\docker-recurrence\\docker-recurrence.md SHA256e32de6c69fccb6068386506e0bdc62187ad6255c63494edfebfadd890c4725ed.",
+        "Actual brokered recovery J:\\code\\marengo-migration-backup-20260929\\batch13\\docker-recurrence\\disappearance-20261001-035600\\brokered-docker-recovery.md SHA256 f2d9d7f895635a00603aedb401d5dbb780fab00e3f990104800e11aa7d2b0f13; exact measured Docker child lifetime job excludes Codex, Desktop outside any job and alive after wrapper/origin/tool exit; unchanged health passed. No socket mutation on this recurrence; historical cause unproved. M08 remains Partial."
       ]
     }
   ],
@@ -9205,16 +9016,599 @@
         "path": "J:\\code\\marengo-migration-backup-20260929\\batch11\\merge-receipt.json",
         "sha256": "780145235423a3bc535e68f360e4f8581bffda46d2a58663bbd5738087c99cbb"
       }
+    },
+    {
+      "batch_id": "batch12",
+      "branch": "codex/session-artifact-preservation",
+      "baseline_main": "bebc678e7e7319f5847f78e61720d941a9544db5",
+      "status": "complete: reviewed implementation/final/main all-five-job delivery; exact branch cleanup and all-refs backup verified",
+      "report": "batch12-session-artifact-preservation.md",
+      "findings": [
+        "G13"
+      ],
+      "evidence_root": "J:\\code\\marengo-migration-backup-20260929\\batch12",
+      "scope": "Sparse registration/import/archive preserves omitted siblings and capture metadata; different candump references invalidate old statistics; explicit clearing preserves files, and CLI reports unique sessions and processed artifacts.",
+      "required_primary_gate": {
+        "receipt": "primary-final-run.json",
+        "receipt_sha256": "1ef98fdd0fb0cae2a96944019f0ecf0bd9072e2882af7f3dddb3fe9a8bee1bb8",
+        "label": "primary-final",
+        "gate": "primary",
+        "command": [
+          "docker",
+          "compose",
+          "--file",
+          "J:\\code\\marengo\\compose.yaml",
+          "--project-directory",
+          "J:\\code\\marengo",
+          "run",
+          "--rm",
+          "-T",
+          "--name",
+          "marengo-batch12-primary-final",
+          "--volume",
+          "J:\\code\\marengo-migration-backup-20260929\\batch12\\primary-final-temp:/tmp/marengo-batch12-primary-final",
+          "-e",
+          "TMP=/tmp/marengo-batch12-primary-final",
+          "-e",
+          "TEMP=/tmp/marengo-batch12-primary-final",
+          "-e",
+          "TMPDIR=/tmp/marengo-batch12-primary-final",
+          "-e",
+          "CARGO_TERM_COLOR=never",
+          "-e",
+          "CI=true",
+          "-e",
+          "GITHUB_REF=refs/heads/main",
+          "check"
+        ],
+        "started_utc": "2026-09-30T23:45:10.192162+00:00",
+        "finished_utc": "2026-09-30T23:47:18.374419+00:00",
+        "elapsed_seconds": 127.85409189999336,
+        "exit_code": 0,
+        "counts": {
+          "passed": 751,
+          "failed": 0,
+          "ignored": 1
+        },
+        "summed_test_body_seconds": 12.83,
+        "frontend_passed": 355,
+        "pi_mcp_counts": {
+          "tests": [
+            72
+          ],
+          "pass": [
+            72
+          ],
+          "fail": [
+            0
+          ]
+        },
+        "fatal_aarch64_release": true,
+        "primary_completed": true,
+        "source_manifest": "phase04-source-sha256.json",
+        "source_manifest_sha256": "c617cc43af81e90a933a006d24d99f3049979c1a624551bbd7d9a4695c25543d",
+        "runner_sha256": "5fb45498ecd1aa875755cae728ae2a8e330dcfbbf60257b7f949dcdb63d5c806",
+        "log_sha256": "418e8a0cdc1deea17f27c36c6c2c060b29489a688ada973ee0c90ba210042e37",
+        "bound_files": 1449,
+        "source_unchanged_before_after": true,
+        "qualified": true,
+        "all_processes_waited": true,
+        "running_sessions": [],
+        "physical_acceptance": false
+      },
+      "required_github_gate": {
+        "implementation": {
+          "schema": 1,
+          "recorded_utc": "2026-10-01T02:49:57.674387+00:00",
+          "label": "implementation",
+          "stage": "implementation",
+          "baseline": "bebc678e7e7319f5847f78e61720d941a9544db5",
+          "head": "e885fee6df3071b20265d6361c2ac6e3f3323ad4",
+          "run": 36807158080,
+          "url": "https://github.com/jaylamping/marengo/actions/runs/36807158080",
+          "status": "completed",
+          "conclusion": "success",
+          "summary_sha256": "5539e13e6e09a191b0c7da44e769e76a75da8a513c215c422b204fc7bc469f2f",
+          "jobs": [
+            {
+              "name": "build-image",
+              "conclusion": "success",
+              "url": "https://github.com/jaylamping/marengo/actions/runs/36807158080/job/110193958942",
+              "databaseId": 110193958942
+            },
+            {
+              "name": "changes",
+              "conclusion": "success",
+              "url": "https://github.com/jaylamping/marengo/actions/runs/36807158080/job/110193959098",
+              "databaseId": 110193959098
+            },
+            {
+              "name": "check",
+              "conclusion": "success",
+              "url": "https://github.com/jaylamping/marengo/actions/runs/36807158080/job/110194037585",
+              "databaseId": 110194037585
+            },
+            {
+              "name": "vcan",
+              "conclusion": "success",
+              "url": "https://github.com/jaylamping/marengo/actions/runs/36807158080/job/110194037587",
+              "databaseId": 110194037587
+            },
+            {
+              "name": "sim",
+              "conclusion": "success",
+              "url": "https://github.com/jaylamping/marengo/actions/runs/36807158080/job/110194037644",
+              "databaseId": 110194037644
+            }
+          ],
+          "qualified_all_five_jobs": true,
+          "physical_acceptance": false,
+          "running_sessions": [],
+          "counts": {
+            "check": {
+              "passed": 751,
+              "failed": 0,
+              "ignored": 1,
+              "test_binaries": 100
+            },
+            "sim": {
+              "passed": 5,
+              "failed": 0,
+              "ignored": 0,
+              "test_binaries": 2
+            },
+            "vcan": {
+              "passed": 73,
+              "failed": 0,
+              "ignored": 0,
+              "test_binaries": 9
+            }
+          },
+          "frontend_passed": 355,
+          "pi_mcp_counts": {
+            "tests": [
+              72
+            ],
+            "pass": [
+              72
+            ],
+            "fail": [
+              0
+            ]
+          },
+          "fatal_aarch64_release": false,
+          "log_sha256": "941b11a34453f5e37ea3639572924aca2aac2389961e8fe97ab24b52d35a87ee",
+          "checks": {
+            "exact_all_five_jobs": true,
+            "all_job_success": true,
+            "actual_rust_tests": true,
+            "sim_vcan_zero_ignored": true,
+            "frontend_observed": true,
+            "pi_mcp_observed": true,
+            "actual_check_completed": true,
+            "fatal_main_release": true
+          },
+          "full_receipt": {
+            "path": "J:/code/marengo-migration-backup-20260929/batch12/github-implementation-receipt.json",
+            "note": "Full actual log/step binding preserved externally and in merge-receipt.json"
+          }
+        },
+        "final": {
+          "schema": 1,
+          "recorded_utc": "2026-10-01T03:04:51.946011+00:00",
+          "label": "final",
+          "stage": "final",
+          "baseline": "bebc678e7e7319f5847f78e61720d941a9544db5",
+          "head": "6f5ae4849c9db67b94928253ab372e8ad602a579",
+          "run": 36808420033,
+          "url": "https://github.com/jaylamping/marengo/actions/runs/36808420033",
+          "status": "completed",
+          "conclusion": "success",
+          "summary_sha256": "c5af0e4a056cf0956f87001328dc2af86254b20f5bb9d32b809d1b9addcd11d1",
+          "jobs": [
+            {
+              "name": "changes",
+              "conclusion": "success",
+              "url": "https://github.com/jaylamping/marengo/actions/runs/36808420033/job/110197839976",
+              "databaseId": 110197839976
+            },
+            {
+              "name": "build-image",
+              "conclusion": "success",
+              "url": "https://github.com/jaylamping/marengo/actions/runs/36808420033/job/110197840060",
+              "databaseId": 110197840060
+            },
+            {
+              "name": "vcan",
+              "conclusion": "success",
+              "url": "https://github.com/jaylamping/marengo/actions/runs/36808420033/job/110197930801",
+              "databaseId": 110197930801
+            },
+            {
+              "name": "sim",
+              "conclusion": "success",
+              "url": "https://github.com/jaylamping/marengo/actions/runs/36808420033/job/110197930812",
+              "databaseId": 110197930812
+            },
+            {
+              "name": "check",
+              "conclusion": "success",
+              "url": "https://github.com/jaylamping/marengo/actions/runs/36808420033/job/110197930830",
+              "databaseId": 110197930830
+            }
+          ],
+          "qualified_all_five_jobs": true,
+          "physical_acceptance": false,
+          "running_sessions": [],
+          "counts": {
+            "check": {
+              "passed": 751,
+              "failed": 0,
+              "ignored": 1,
+              "test_binaries": 100
+            },
+            "sim": {
+              "passed": 5,
+              "failed": 0,
+              "ignored": 0,
+              "test_binaries": 2
+            },
+            "vcan": {
+              "passed": 73,
+              "failed": 0,
+              "ignored": 0,
+              "test_binaries": 9
+            }
+          },
+          "frontend_passed": 355,
+          "pi_mcp_counts": {
+            "tests": [
+              72
+            ],
+            "pass": [
+              72
+            ],
+            "fail": [
+              0
+            ]
+          },
+          "fatal_aarch64_release": false,
+          "log_sha256": "a832a6dac84f6cbf0755bc62f5682997a335bcb3c18cd69ac45c6b52e22810cc",
+          "checks": {
+            "exact_all_five_jobs": true,
+            "all_job_success": true,
+            "actual_rust_tests": true,
+            "sim_vcan_zero_ignored": true,
+            "frontend_observed": true,
+            "pi_mcp_observed": true,
+            "actual_check_completed": true,
+            "fatal_main_release": true
+          },
+          "full_receipt": {
+            "path": "J:/code/marengo-migration-backup-20260929/batch12/github-final-receipt.json",
+            "note": "Full actual log/step binding preserved externally and in merge-receipt.json"
+          }
+        },
+        "main": {
+          "schema": 1,
+          "recorded_utc": "2026-10-01T03:12:31.158007+00:00",
+          "label": "main",
+          "stage": "main",
+          "baseline": "bebc678e7e7319f5847f78e61720d941a9544db5",
+          "head": "94d3cb48474fbf067e8c5e4bc0317cd6a56a2227",
+          "run": 36808943360,
+          "url": "https://github.com/jaylamping/marengo/actions/runs/36808943360",
+          "status": "completed",
+          "conclusion": "success",
+          "summary_sha256": "d0ad7b0ee40b657c927140be2510d98842527690f214ff2ffc0af48f63555533",
+          "jobs": [
+            {
+              "name": "build-image",
+              "conclusion": "success",
+              "url": "https://github.com/jaylamping/marengo/actions/runs/36808943360/job/110199444442",
+              "databaseId": 110199444442
+            },
+            {
+              "name": "changes",
+              "conclusion": "success",
+              "url": "https://github.com/jaylamping/marengo/actions/runs/36808943360/job/110199444469",
+              "databaseId": 110199444469
+            },
+            {
+              "name": "sim",
+              "conclusion": "success",
+              "url": "https://github.com/jaylamping/marengo/actions/runs/36808943360/job/110199526297",
+              "databaseId": 110199526297
+            },
+            {
+              "name": "vcan",
+              "conclusion": "success",
+              "url": "https://github.com/jaylamping/marengo/actions/runs/36808943360/job/110199526321",
+              "databaseId": 110199526321
+            },
+            {
+              "name": "check",
+              "conclusion": "success",
+              "url": "https://github.com/jaylamping/marengo/actions/runs/36808943360/job/110199526441",
+              "databaseId": 110199526441
+            }
+          ],
+          "qualified_all_five_jobs": true,
+          "physical_acceptance": false,
+          "running_sessions": [],
+          "counts": {
+            "check": {
+              "passed": 751,
+              "failed": 0,
+              "ignored": 1,
+              "test_binaries": 100
+            },
+            "sim": {
+              "passed": 5,
+              "failed": 0,
+              "ignored": 0,
+              "test_binaries": 2
+            },
+            "vcan": {
+              "passed": 73,
+              "failed": 0,
+              "ignored": 0,
+              "test_binaries": 9
+            }
+          },
+          "frontend_passed": 355,
+          "pi_mcp_counts": {
+            "tests": [
+              72
+            ],
+            "pass": [
+              72
+            ],
+            "fail": [
+              0
+            ]
+          },
+          "fatal_aarch64_release": true,
+          "log_sha256": "5c8918134daab52cbf985a3d0729bc65fe63e130416589eb04d8e71919255bdb",
+          "checks": {
+            "exact_all_five_jobs": true,
+            "all_job_success": true,
+            "actual_rust_tests": true,
+            "sim_vcan_zero_ignored": true,
+            "frontend_observed": true,
+            "pi_mcp_observed": true,
+            "actual_check_completed": true,
+            "fatal_main_release": true
+          },
+          "full_receipt": {
+            "path": "J:/code/marengo-migration-backup-20260929/batch12/github-main-receipt.json",
+            "note": "Full actual log/step binding preserved externally and in merge-receipt.json"
+          }
+        }
+      },
+      "hardware_acceptance": "No robot operations or acceptance. This historical archive repair does not qualify reference permission, physical media durability or HTTP execution bounds.",
+      "test_seams": [
+        "Store registration, import/archive, public session/page lookups and reopen",
+        "marengo-log-cli import reporting and explicit clear"
+      ],
+      "parallel_design": "R2b1 resource proof remains design only; separate safety implementation follows engineering review.",
+      "local_gates": {
+        "summary": "final-local-gate-summary.json",
+        "summary_sha256": "c94a695fc352a6f31d48b3dc168a5100877d8a1b42b60e4421c5ccdf44a80729",
+        "affected": {
+          "receipt": "affected-final-run.json",
+          "receipt_sha256": "3d058db59491d8db868427e80705c12592a770c95e8e746f988123ddd8e892ea",
+          "label": "affected-final",
+          "gate": "affected",
+          "command": [
+            "docker",
+            "compose",
+            "--file",
+            "J:\\code\\marengo\\compose.yaml",
+            "--project-directory",
+            "J:\\code\\marengo",
+            "run",
+            "--rm",
+            "-T",
+            "--name",
+            "marengo-batch12-affected-final",
+            "--volume",
+            "J:\\code\\marengo-migration-backup-20260929\\batch12\\affected-final-temp:/tmp/marengo-batch12-affected-final",
+            "-e",
+            "TMP=/tmp/marengo-batch12-affected-final",
+            "-e",
+            "TEMP=/tmp/marengo-batch12-affected-final",
+            "-e",
+            "TMPDIR=/tmp/marengo-batch12-affected-final",
+            "-e",
+            "CARGO_TERM_COLOR=never",
+            "dev",
+            "bash",
+            "-c",
+            "cargo fmt --all -- --check && cargo clippy --locked --manifest-path /workspace/Cargo.toml -p marengo-store -p marengo-log-cli --all-targets -- -D warnings && cargo test --locked --manifest-path /workspace/Cargo.toml -p marengo-store -p marengo-log-cli --all-targets --no-fail-fast -- --test-threads=1"
+          ],
+          "started_utc": "2026-09-30T23:44:21.248871+00:00",
+          "finished_utc": "2026-09-30T23:44:38.044411+00:00",
+          "elapsed_seconds": 16.495850800012704,
+          "exit_code": 0,
+          "counts": {
+            "passed": 16,
+            "failed": 0,
+            "ignored": 0
+          },
+          "summed_test_body_seconds": 2.96,
+          "frontend_passed": null,
+          "pi_mcp_counts": {
+            "tests": [],
+            "pass": [],
+            "fail": []
+          },
+          "fatal_aarch64_release": null,
+          "primary_completed": null,
+          "source_manifest": "phase04-source-sha256.json",
+          "source_manifest_sha256": "c617cc43af81e90a933a006d24d99f3049979c1a624551bbd7d9a4695c25543d",
+          "runner_sha256": "5fb45498ecd1aa875755cae728ae2a8e330dcfbbf60257b7f949dcdb63d5c806",
+          "log_sha256": "b0e472ef891f0fb3855de78213f55437162d610d3a4ac3b9118b501b0474a7d4",
+          "bound_files": 1449,
+          "source_unchanged_before_after": true,
+          "qualified": true,
+          "all_processes_waited": true,
+          "running_sessions": [],
+          "physical_acceptance": false
+        },
+        "simulation": {
+          "receipt": "sim-final-recovery-run.json",
+          "receipt_sha256": "bd1bc2d12e0502502e32f3ea8c1a5182a1b27c5218d4dcb6fff6bc8bfc344960",
+          "label": "sim-final-recovery",
+          "gate": "sim",
+          "command": [
+            "docker",
+            "compose",
+            "--file",
+            "J:\\code\\marengo\\compose.yaml",
+            "--project-directory",
+            "J:\\code\\marengo",
+            "run",
+            "--rm",
+            "-T",
+            "--name",
+            "marengo-batch12-sim-final-recovery",
+            "--volume",
+            "J:\\code\\marengo-migration-backup-20260929\\batch12\\sim-final-recovery-temp:/tmp/marengo-batch12-sim-final-recovery",
+            "-e",
+            "TMP=/tmp/marengo-batch12-sim-final-recovery",
+            "-e",
+            "TEMP=/tmp/marengo-batch12-sim-final-recovery",
+            "-e",
+            "TMPDIR=/tmp/marengo-batch12-sim-final-recovery",
+            "-e",
+            "CARGO_TERM_COLOR=never",
+            "check-sim"
+          ],
+          "started_utc": "2026-10-01T02:37:31.110913+00:00",
+          "finished_utc": "2026-10-01T02:37:38.646356+00:00",
+          "elapsed_seconds": 7.213585600009537,
+          "exit_code": 0,
+          "counts": {
+            "passed": 5,
+            "failed": 0,
+            "ignored": 0
+          },
+          "summed_test_body_seconds": 0.01,
+          "frontend_passed": null,
+          "pi_mcp_counts": {
+            "tests": [],
+            "pass": [],
+            "fail": []
+          },
+          "fatal_aarch64_release": null,
+          "primary_completed": null,
+          "source_manifest": "phase04-source-sha256.json",
+          "source_manifest_sha256": "c617cc43af81e90a933a006d24d99f3049979c1a624551bbd7d9a4695c25543d",
+          "runner_sha256": "5fb45498ecd1aa875755cae728ae2a8e330dcfbbf60257b7f949dcdb63d5c806",
+          "log_sha256": "4b7ab0a457027edc5b47da968928488b153dbff39837c0cc49f099b7e2d95a6e",
+          "bound_files": 1449,
+          "source_unchanged_before_after": true,
+          "qualified": true,
+          "all_processes_waited": true,
+          "running_sessions": [],
+          "physical_acceptance": false
+        }
+      },
+      "source_identity": {
+        "manifest": "phase04-source-sha256.json",
+        "sha256": "c617cc43af81e90a933a006d24d99f3049979c1a624551bbd7d9a4695c25543d",
+        "bound_files": 1449
+      },
+      "original_public_regressions": [
+        {
+          "red": "original-red-v1-run.json",
+          "red_sha256": "5acabdf79f7177de3a9659b4e3bfb72c215ffec4c28dbae0e0222d8d2fc19540",
+          "unchanged_green": "phase01-green-v1-run.json",
+          "green_sha256": "67720ae058eff2f81795e3194716503999753c4babbda27355ec03e49b30f96b",
+          "classification": "combined original assertion regression; entire test unchanged"
+        },
+        {
+          "red": "phase02-original-red-v1-run.json",
+          "red_sha256": "d064df78dda6ec3ebcb61ccc63674f550d9041f833ba2d2b4bb136568075382f",
+          "unchanged_green": "phase02-green-v1-run.json",
+          "green_sha256": "65d4c18be4d6039f6de47115d7505d2673f6c76e88e616263047732be5648701",
+          "classification": "combined original assertion regression; entire test unchanged"
+        },
+        {
+          "red": "phase03-original-red-v1-run.json",
+          "red_sha256": "accb01decf5501e523562d7e12cb01eccf5bd8a863491a9bff5ff3df7170e4fd",
+          "unchanged_green": "phase03-green-v1-run.json",
+          "green_sha256": "5a6d780d10a360910a82d8b181d640444ffcbe89427d0f27ea354b2616c3ea4d",
+          "classification": "combined original assertion regression; entire test unchanged"
+        }
+      ],
+      "candidate_mutation": {
+        "summary": "clear-mapping-run-v2-summary.json",
+        "summary_sha256": "8a6d1c396c745e54ac8b8a26361cfbdea5c746177d3a8e814fac1d34764c06b8",
+        "classification": "one production Bench-to-Trace mapping mutant; candidate positive compiled first"
+      },
+      "independent_reviews": {
+        "standards-review.md": {
+          "sha256": "46a2baf6a52448e52e7b8afe460163f75772edcdc3fe19eff573239da00ebec4"
+        },
+        "standards-final-review.md": {
+          "sha256": "d78ef82ba859dc8c62a4b15bafc659bde82ec75b762121dcde42e883e343a076"
+        },
+        "spec-final-review.md": {
+          "sha256": "9f286ab33ca3b36a24bc6c8ed46395214c950c059ad2b480c1912a7dfe8114af"
+        },
+        "spec-final-review-bindings.json": {
+          "sha256": "280b7b7494ae43978b40c629248d4887e3b8d0bda8c5fb1dd7ee50b46b4f2fb2"
+        }
+      },
+      "excluded_attempts": [
+        "Unexecuted clear v1 diagnostic classifier corrected before execution.",
+        "Historical primary-v1 wrapper rejected Node24 summary prefix; original receipt preserved; fresh final primary qualifies final source.",
+        "sim-final failed before tests: Docker Linux engine pipe absent; replay independently qualified."
+      ],
+      "implementation_head": "e885fee6df3071b20265d6361c2ac6e3f3323ad4",
+      "pull_request": "https://github.com/jaylamping/marengo/pull/226",
+      "following_design": {
+        "finding": "G14",
+        "status": "proposed only; not frozen, compiled or executed",
+        "root": "J:\\code\\marengo-migration-backup-20260929\\batch12\\next-g14-preparation",
+        "design_sha256": "add94b7ab8300b74aa71aae0710f75b0660d55e1b095c4543fd208a5da9e4deb",
+        "probe_sha256": "d908a2c06d911b745a16dfedad29d42ddd3fd457f76bbe988471d7ad666f9189",
+        "next_action": "Complete checked batch12 merge, review/freeze whole existing-public probe at that exact base, execute actual assertion red before production repair."
+      },
+      "final_head": "6f5ae4849c9db67b94928253ab372e8ad602a579",
+      "merged_commit": "94d3cb48474fbf067e8c5e4bc0317cd6a56a2227",
+      "branch_cleanup": {
+        "deleted_branch": "codex/session-artifact-preservation",
+        "deleted_head": "6f5ae4849c9db67b94928253ab372e8ad602a579",
+        "remote_branch_deleted": true,
+        "local_branch_deleted": true,
+        "leased_cleanup_receipt": {
+          "name": "branch-cleanup.json",
+          "sha256": "e6f96385fbda416689193e3beabf1838ad1d39b083b9c6995a23b43fb9802b60"
+        },
+        "backup_bundle": "J:\\code\\marengo-migration-backup-20260929\\batch12\\all-refs-before-merge.bundle",
+        "backup_sha256": "a297663c78155b6007bd4b55a4b2c0beee815811b3fe46885b5d0a8e7d3f3a3d",
+        "bundle_verification": "pass",
+        "historical_references_preserved": true,
+        "main_synced": true,
+        "worktree_clean": true
+      },
+      "merge_receipt": {
+        "path": "J:\\code\\marengo-migration-backup-20260929\\batch12\\merge-receipt.json",
+        "sha256": "a23ed72f1ec2390840f8d8ac99b725132b1601523b712ed4f0f7aa7d63cc9b90"
+      }
     }
   ],
   "finding_status_counts": {
-    "verified": 15,
+    "verified": 16,
     "partial": 10,
-    "open": 77
+    "open": 76
   },
   "next_dependency_ready_batch": {
-    "current": "G13 checked delivery, independent WP09 slice",
-    "following": "G14 deterministic historical chronology or G15 independent WP09 repair; R2b1 journal needs separate engineering qualification",
+    "current": "G15 atomic serialized migrations: complete checked G14 delivery before source repair",
+    "following": "G16 bounded archive/page work or separate R2b1 journal engineering qualification",
     "human_input_blocker": null
   }
 }

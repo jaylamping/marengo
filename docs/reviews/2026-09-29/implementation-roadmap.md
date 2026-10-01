@@ -428,13 +428,33 @@ writable retry, real CLI and one production mapping mutant qualify behavior.
 Independent whole Standards/Spec accept all code/tests. Final affected16/0/0,
 primary751Rust/1 existing ignored,355frontend/72PiMCP/fatalARM and simulation5 pass
 on the unchanged1449-input source. PR226 implementatione885fee/run36807158080
-passes all five jobs, including73 actual virtual-CAN cases/0ignored. Final and
-equal-tree main delivery remain pending; counts15verified,10partial,77open.
+passes all five jobs, including73 actual virtual-CAN cases/0ignored. Final6f5ae48/
+run36808420033 and equal-tree main94d3cb4/run36808943360 also pass all five jobs,
+including fatal main ARM release. Verified all-refs backup and exact branch cleanup
+complete; counts15verified,10partial,77open.
 The next G14 chronology proposal is external design only: establish its actual
 unchanged-public red on the completed batch12 base before repair. Unknown-ID and
 capture-end policy, actual profile/sidecar conventions and deterministic retention
 need explicit qualification. R2b1 remains separate engineering design and does not
 close reference findings.
+
+## Thirteenth batch: capture chronology
+
+[Batch13](batch13-session-capture-chronology.md) repairs G14 from fully checked
+main94d3cb4 under ADR0028. Four whole original-public groups reproduce assertion
+failures and replay unchanged: UTC/leap/epoch dates, invalid-date refusal, actual
+profile/legacy artifact compatibility and unknown capture ends. Final test-only
+lint corrections have fresh whole-file refusal/compatibility proof. Candidate-only
+strict cutoff conformance passes, rejects one combined SQL boundary mutant, and
+replays unchanged green. Failed infrastructure/lint/output-order attempts remain
+excluded. Independent Standards and Spec accept the complete implementation.
+
+All 1,455 final source inputs stay unchanged. Strict affected21/0/0, required
+primary756 Rust/1 existing ignored,355 frontend/72 Pi MCP/fatal ARM, observed
+UTC-8/UTC+14 chronology2/0/0 and simulation5/0/0 pass. PR227 implementation `cabfe945` passes all five jobs in run36818692724, including
+73 actual virtual CAN tests with zero ignored. G14 software is verified; final/main
+delivery remains pending. Counts:16 verified,10 partial,76 open. G15 serialized
+migrations is the next independent WP09 slice. R2b1 reference journaling/grants remain separate engineering work.
 
 ## Completion and continuation
 

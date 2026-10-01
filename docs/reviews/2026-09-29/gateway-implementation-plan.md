@@ -308,8 +308,11 @@ statement strings.
 
 ### G14 — preserve capture chronology
 
-**Status:** open; `OffsetDateTime` parsing of a literal trailing `Z` has no offset,
-so normal session IDs fall back to import time.
+**Status:** software verified in batch13/PR227 implementation cabfe945,
+run36818692724 all five jobs. Final/main delivery pending. ADR0028 defines UTC,
+invalid-date refusal, authoritative metadata and unknown-end policies. Four actual
+original-public groups, candidate cutoff conformance/mutation, timezone and required
+local gates qualify the repair. Automatic legacy metadata rewriting remains deferred.
 
 **Scope:** Store timestamp parser, import/archive metadata and an optional backed-up
 repair command. Parse the capture ID as UTC explicitly. Record unknown/invalid dates
