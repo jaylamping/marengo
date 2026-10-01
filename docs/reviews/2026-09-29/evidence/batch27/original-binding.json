@@ -1,6 +1,8 @@
 {
-  "baseline": "5c25a8f54b6043b878ac05cc5b2c21a42be0e4bd",
-  "probe_sha256": "db58f76e3a3a2818425e616706629de027d69aa713da1b95149c4c246445d82c",
-  "source_sha256": "664e987c44ce582beceed9276badf598129a28c62d912b8d49675ce866f7dbf5",
-  "original_assertion_failures": 1
+  "implementation_baseline": "5c25a8f54b6043b878ac05cc5b2c21a42be0e4bd",
+  "fixture_source_baseline": "4bc77ba605834fdec04b436daa4bec67bca84fbb",
+  "probe_sha256": "f6155c4fd237cee1d641782e4f4b31add45a7445e950ea21434106625b3339e5",
+  "source_sha256": "fe1268b795ca47c9ec31721c8db14d9dc816ec7c948b3b4722e10cd3fa1b1ead",
+  "original_behavioral_assertion_failures": 1,
+  "precondition_failure": "Earlier fixture asserted currentsourcehadrobstride; it doesnot. Separate retainedlog not countedbehavioral."
 }
