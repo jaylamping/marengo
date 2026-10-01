@@ -46,6 +46,8 @@ async def test_real_provider_dates_reach_public_window(tmp_path, monkeypatch, so
     response = ResearchHumanoidResponse.model_validate_json(await research.research_humanoid(
         cfg, ResearchCache(cfg), "robot", max_results_per_source=1, scrape_top_n=0, recency="week"))
     assert requests
+    if source == "huggingface":
+        assert requests[0][1]["params"]["expand"] == ["createdAt", "lastModified", "likes"]
     if source == "github":
         assert "pushed:2025-12-26..2026-01-02" in requests[0][1]["params"]["q"]
     if source == "semantic_scholar":

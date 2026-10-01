@@ -14,7 +14,7 @@ HF_DATASETS = "https://huggingface.co/api/datasets"
 
 async def search_huggingface(cfg: Config, query: str, limit: int = 10) -> list[ResearchHit]:
     headers = {"User-Agent": cfg.user_agent}
-    params = {"search": f"{query} robotics humanoid", "limit": limit}
+    params = {"search": f"{query} robotics humanoid", "limit": limit, "expand": ["createdAt", "lastModified", "likes"]}
     hits: list[ResearchHit] = []
     try:
         async with httpx.AsyncClient(timeout=30.0, headers=headers) as client:
