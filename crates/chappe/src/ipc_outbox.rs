@@ -2,7 +2,7 @@
 
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Condvar, Mutex, TryLockError};
+use std::sync::{Arc, Condvar, Mutex, TryLockError};
 use std::time::{Duration, Instant};
 
 pub const MAX_PAYLOAD_BYTES: usize = 64 * 1024;
@@ -40,6 +40,7 @@ pub struct IpcQueueStats {
     pub coalesced: u64,
     pub dropped: u64,
     pub admitted_disconnected: u64,
+    pub write_failures: u64,
 }
 
 pub(crate) struct Publication {
@@ -56,6 +57,7 @@ struct Queue {
 }
 
 pub(crate) struct Outbox {
+    clock: Arc<dyn Fn() -> Instant + Send + Sync>,
     queue: Mutex<Queue>,
     ready: Condvar,
     connected: AtomicBool,
@@ -64,12 +66,18 @@ pub(crate) struct Outbox {
     coalesced: AtomicU64,
     dropped: AtomicU64,
     disconnected: AtomicU64,
+    write_failures: AtomicU64,
     connection_changes: tokio::sync::broadcast::Sender<bool>,
 }
 
 impl Outbox {
     pub fn new() -> Self {
+        Self::new_with_clock(Arc::new(Instant::now))
+    }
+
+    pub fn new_with_clock(clock: Arc<dyn Fn() -> Instant + Send + Sync>) -> Self {
         Self {
+            clock,
             queue: Mutex::new(Queue {
                 latest: std::array::from_fn(|_| None),
                 events: VecDeque::new(),
@@ -83,6 +91,7 @@ impl Outbox {
             coalesced: AtomicU64::new(0),
             dropped: AtomicU64::new(0),
             disconnected: AtomicU64::new(0),
+            write_failures: AtomicU64::new(0),
             connection_changes: tokio::sync::broadcast::channel(16).0,
         }
     }
@@ -98,8 +107,12 @@ impl Outbox {
     }
 
     pub fn close(&self) {
+        let _queue = self.queue.lock().unwrap_or_else(|error| error.into_inner());
         self.closed.store(true, Ordering::Relaxed);
-        self.set_connected(false);
+        if self.connected.swap(false, Ordering::Relaxed) {
+            let _ = self.connection_changes.send(false);
+        }
+        self.ready.notify_all();
     }
 
     pub fn closed(&self) -> bool {
@@ -110,7 +123,20 @@ impl Outbox {
         self.connection_changes.subscribe()
     }
 
+    pub fn record_write_failure(&self) {
+        self.write_failures.fetch_add(1, Ordering::Relaxed);
+    }
+
     pub fn admit(&self, topic: &str, payload: &[u8]) -> ForwardOutcome {
+        self.admit_before_lock(topic, payload, || {})
+    }
+
+    fn admit_before_lock(
+        &self,
+        topic: &str,
+        payload: &[u8],
+        before_lock: impl FnOnce(),
+    ) -> ForwardOutcome {
         let latest_index = LATEST_TOPICS
             .iter()
             .position(|candidate| *candidate == topic);
@@ -126,17 +152,21 @@ impl Outbox {
         {
             return self.drop_publication();
         }
+        before_lock();
         let mut queue = match self.queue.try_lock() {
             Ok(queue) => queue,
             Err(TryLockError::Poisoned(error)) => error.into_inner(),
             Err(TryLockError::WouldBlock) => return self.drop_publication(),
         };
+        if self.closed() {
+            return self.drop_publication();
+        }
         let outcome = if let Some(index) = latest_index {
             let replaced = queue.latest[index].is_some();
             queue.latest[index] = Some(Publication {
                 topic: LATEST_TOPICS[index],
                 payload: payload.to_vec(),
-                admitted: Instant::now(),
+                admitted: (self.clock)(),
             });
             if replaced {
                 ForwardOutcome::Coalesced
@@ -152,7 +182,7 @@ impl Outbox {
             queue.events.push_back(Publication {
                 topic,
                 payload: payload.to_vec(),
-                admitted: Instant::now(),
+                admitted: (self.clock)(),
             });
             queue.event_bytes += payload.len();
             ForwardOutcome::Accepted
@@ -193,7 +223,7 @@ impl Outbox {
                         return Some(event);
                     }
                 } else if let Some(state) = queue.latest[class].take() {
-                    if state.admitted.elapsed() <= STATE_MAX_AGE {
+                    if (self.clock)().saturating_duration_since(state.admitted) <= STATE_MAX_AGE {
                         return Some(state);
                     }
                     self.dropped.fetch_add(1, Ordering::Relaxed);
@@ -213,7 +243,11 @@ impl Outbox {
             (
                 items + 1,
                 bytes + p.payload.len(),
-                age.max(p.admitted.elapsed().as_millis() as u64),
+                age.max(
+                    (self.clock)()
+                        .saturating_duration_since(p.admitted)
+                        .as_millis() as u64,
+                ),
             )
         });
         IpcQueueStats {
@@ -225,6 +259,66 @@ impl Outbox {
             coalesced: self.coalesced.load(Ordering::Relaxed),
             dropped: self.dropped.load(Ordering::Relaxed),
             admitted_disconnected: self.disconnected.load(Ordering::Relaxed),
+            write_failures: self.write_failures.load(Ordering::Relaxed),
         }
+    }
+}
+
+#[cfg(test)]
+mod shutdown_admission_tests {
+    #![allow(clippy::expect_used)]
+    use super::*;
+    use std::sync::{mpsc, Arc};
+
+    #[test]
+    fn shutdown_winning_before_queue_lock_refuses_publication() {
+        let outbox = Arc::new(Outbox::new());
+        let publisher = Arc::clone(&outbox);
+        let (paused_tx, paused_rx) = mpsc::channel();
+        let (resume_tx, resume_rx) = mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            publisher.admit_before_lock("robot/state", &[1], || {
+                paused_tx.send(()).expect("pause");
+                resume_rx.recv().expect("resume");
+            })
+        });
+        paused_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("publisher barrier");
+        outbox.close();
+        resume_tx.send(()).expect("release publisher");
+        assert_eq!(
+            worker.join().expect("join publisher"),
+            ForwardOutcome::Dropped
+        );
+        assert_eq!(outbox.stats().queued_items, 0);
+        assert_eq!(outbox.stats().accepted, 0);
+    }
+}
+
+#[cfg(test)]
+mod contention_admission_tests {
+    #![allow(clippy::expect_used)]
+    use super::*;
+    use std::sync::mpsc;
+
+    #[test]
+    fn publisher_finishes_while_writer_still_owns_queue_guard() {
+        let outbox = Arc::new(Outbox::new());
+        let held_by_writer = outbox.queue.lock().expect("writer guard");
+        let publisher = Arc::clone(&outbox);
+        let (complete_tx, complete_rx) = mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            let _ = complete_tx.send(publisher.admit("robot/state", &[1]));
+        });
+        let while_guard_held = complete_rx.recv_timeout(Duration::from_secs(5));
+        drop(held_by_writer);
+        worker.join().expect("join publisher after cleanup release");
+        assert_eq!(
+            while_guard_held.expect("admission must finish without writer release"),
+            ForwardOutcome::Dropped
+        );
+        assert_eq!(outbox.stats().queued_items, 0);
+        assert_eq!(outbox.stats().dropped, 1);
     }
 }

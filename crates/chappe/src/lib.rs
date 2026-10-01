@@ -173,6 +173,17 @@ impl Bus {
             false
         }
     }
+
+    /// Actual IPC connection and bounded admission evidence, when configured.
+    #[cfg(unix)]
+    pub fn ipc_queue_stats(&self) -> Option<ipc::IpcQueueStats> {
+        self.inner
+            .ipc
+            .read()
+            .ok()?
+            .as_ref()
+            .map(|ipc| ipc.queue_stats())
+    }
 }
 
 #[cfg(test)]

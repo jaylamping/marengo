@@ -2,10 +2,10 @@
   "finding": "G01",
   "status": "in progress, not verified",
   "original_frozen_probe_sha256": "133c292955bc9d5c5af724e3509a0708e56cc5f67367f42e9f6ad7db1b4442ef",
-  "unchanged_entire_probe_replay": "green before shipping-test rustfmt; exact original source preserved frozen-outage-probe.rs",
+  "unchanged_entire_probe_replay": "final source replays entire original SHA-bound probe green; formatted shipping test restored afterward",
   "native_transport": "11passed,0failed,0ignored; includes inert child entrypoint in parent run",
-  "clippy": "chappe alltargets -Dwarnings passed",
-  "format": "cargo fmt applied; final workspace check pending",
+  "clippy": "chappe/gateway alltargets no-default-features -Dwarnings passed; hostmetrics existing macOS non-Linux deadcode warnings remain, Linux gate required",
+  "format": "workspace fmt check passed",
   "queue_policy": {
     "latest_topics": 7,
     "event_items": 128,
@@ -19,13 +19,24 @@
   },
   "actual_peer_tests": "absent queue/counters/reserved safety+heartbeat; accepting nonreader disconnects on write deadline with declared queue ceiling",
   "remaining": [
-    "gateway snapshot invalidation and generation-scoped peer handling",
-    "fresh command admission/no stale replay proof",
-    "proto-first wire health metrics actual connection/counters/age",
-    "complete audit ordering/reconnect/expiry/lifecycle acceptance",
-    "independent Standards+Spec review",
+    "final Standards and Spec acceptance",
     "exact-head Linux primary/runtime CI",
     "delivery and ledger reconciliation"
   ],
-  "no_hardware": true
+  "no_hardware": true,
+  "native_affected_passed": 70,
+  "native_affected_failed": 0,
+  "consul_tests": 356,
+  "consul_build": "passed Node24.21 npm11.19; generated TS through npm run gen:proto",
+  "proto_lint": "buf lint passed",
+  "qualification_added": [
+    "controlled admission/shutdown race barriers",
+    "listener-owned shutdown and retired reader join",
+    "decoded stalled-peer reconnect with exact pending accepted FIFO suffix",
+    "injected monotonic 1000ms accepted/1001ms expired wire state",
+    "typed runtime lifecycle event through actual envelope stream pump",
+    "Consul encoded transition clears old facts and pending trailing updates",
+    "stale/future/unknown command wire admission",
+    "proto host-health conversion and absent queue presence"
+  ]
 }

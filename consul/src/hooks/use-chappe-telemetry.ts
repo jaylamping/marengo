@@ -88,18 +88,33 @@ export function useChappeTelemetry(): void {
       setJetsonMetrics(metrics);
     }, TELEMETRY_UI_MS);
 
+    const retireRuntimeFacts = () => {
+      publishRobotState.cancel();
+      publishPiMetrics.cancel();
+      publishJetsonMetrics.cancel();
+      setRobotState(null);
+      setSafetyState(null);
+      setImuSample(null);
+      setOperationalMode(null);
+      setPiMetrics(null);
+      setJetsonMetrics(null);
+      setConnected(false);
+    };
+
     void connectChappeStream({
       onConnected: () => {
-        setConnected(true);
+        retireRuntimeFacts();
         setGatewayError(null);
       },
-      onDisconnected: () => setConnected(false),
+      onDisconnected: retireRuntimeFacts,
+      onRuntimeConnectionState: retireRuntimeFacts,
       onTransportMode: (mode) => setTransportMode(mode),
       onError: (message) => {
         setGatewayError(message);
         setConnected(false);
       },
       onRobotState: (state) => {
+        setConnected(true);
         // Teach-record listens before UI throttle (~10 Hz store).
         publishTeachSampleFromRobotState(state);
         publishRobotState(state);
@@ -154,6 +169,7 @@ export function useChappeTelemetry(): void {
 
     return () => {
       disposedRef.current = true;
+      retireRuntimeFacts();
       dispose?.();
       setConnected(false);
       setTransportMode('offline');

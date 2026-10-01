@@ -1,0 +1,176 @@
+   Compiling armee-proto v0.1.0 (/Users/joseph/.codex/worktrees/bounded-ipc-outage/marengo/crates/armee-proto)
+   Compiling chappe v0.1.0 (/Users/joseph/.codex/worktrees/bounded-ipc-outage/marengo/crates/chappe)
+   Compiling marengo-host-metrics v0.1.0 (/Users/joseph/.codex/worktrees/bounded-ipc-outage/marengo/crates/marengo-host-metrics)
+warning: fields `total`, `idle`, and `iowait` are never read
+ --> crates/marengo-host-metrics/src/sample_state.rs:6:9
+  |
+5 | pub(crate) struct CpuLineValues {
+  |                   ------------- fields in this struct
+6 |     pub total: u64,
+  |         ^^^^^
+7 |     pub idle: u64,
+  |         ^^^^
+8 |     pub iowait: u64,
+  |         ^^^^^^
+  |
+  = note: `CpuLineValues` has derived impls for the traits `Default` and `Clone`, but these are intentionally ignored during dead code analysis
+  = note: `#[warn(dead_code)]` on by default
+
+warning: methods `delta_usage` and `delta_iowait` are never used
+  --> crates/marengo-host-metrics/src/sample_state.rs:12:19
+   |
+11 | impl CpuLineValues {
+   | ------------------ methods in this implementation
+12 |     pub(crate) fn delta_usage(&self, prev: &Self) -> f64 {
+   |                   ^^^^^^^^^^^
+...
+21 |     pub(crate) fn delta_iowait(&self, prev: &Self) -> f64 {
+   |                   ^^^^^^^^^^^^
+
+warning: fields `rx_bytes` and `tx_bytes` are never read
+  --> crates/marengo-host-metrics/src/sample_state.rs:33:9
+   |
+32 | pub(crate) struct NetCounters {
+   |                   ----------- fields in this struct
+33 |     pub rx_bytes: u64,
+   |         ^^^^^^^^
+34 |     pub tx_bytes: u64,
+   |         ^^^^^^^^
+   |
+   = note: `NetCounters` has derived impls for the traits `Default` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: fields `cpu_aggregate`, `cpu_per_core`, and `network` are never read
+  --> crates/marengo-host-metrics/src/sample_state.rs:41:16
+   |
+39 | pub struct SampleState {
+   |            ----------- fields in this struct
+40 |     pub sample_at: Option<Instant>,
+41 |     pub(crate) cpu_aggregate: Option<CpuLineValues>,
+   |                ^^^^^^^^^^^^^
+42 |     pub(crate) cpu_per_core: Vec<CpuLineValues>,
+   |                ^^^^^^^^^^^^
+43 |     pub(crate) network: HashMap<String, NetCounters>,
+   |                ^^^^^^^
+
+warning: `marengo-host-metrics` (lib) generated 4 warnings
+warning: `marengo-host-metrics` (lib test) generated 4 warnings (4 duplicates)
+   Compiling marengo-gateway v0.1.0 (/Users/joseph/.codex/worktrees/bounded-ipc-outage/marengo/bins/marengo-gateway)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.77s
+     Running unittests src/lib.rs (target/debug/deps/chappe-ab2da71069f144d4)
+
+running 11 tests
+test ipc::tests::frame_roundtrip ... ok
+test tests::publish_without_subscribers_succeeds ... ok
+test ipc_outbox::contention_admission_tests::publisher_finishes_while_writer_still_owns_queue_guard ... ok
+test ipc_outbox::shutdown_admission_tests::shutdown_winning_before_queue_lock_refuses_publication ... ok
+test tests::publish_subscribe_envelope ... ok
+test tests::robot_state_over_chappe_matches_wire_contract ... ok
+test tracing_layer::tests::concurrent_tracing_events_share_one_quota ... ok
+test tracing_layer::tests::tracing_log_quota_refills_and_preserves_urgent_events ... ok
+test ipc::listener_shutdown_race_tests::shutdown_winning_before_peer_install_joins_with_idle_peer ... ok
+test tracing_layer::tests::serialize_fields_truncates_large_payload ... ok
+test ipc::telemetry_expiry_tests::reconnect_sends_only_eligible_state_under_injected_monotonic_time ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.51s
+
+     Running tests/ipc_backpressure.rs (target/debug/deps/ipc_backpressure-e713cc2c1a4aa5e1)
+
+running 4 tests
+test absent_peer_has_bounded_classes_and_honest_counters ... ok
+test reconnect_preserves_bounded_audit_order_and_latest_reserved_state ... ok
+test accepting_nonreading_peer_expires_write_and_bounds_admission ... ok
+test stalled_connection_reconnects_with_latest_state_and_pending_audit_suffix ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.76s
+
+     Running tests/ipc_outage.rs (target/debug/deps/ipc_outage-686c02d3e239c2ed)
+
+running 2 tests
+test outage_worker ... ok
+test outage_does_not_replay_superseded_state ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+
+     Running tests/ipc_peer_lifetime.rs (target/debug/deps/ipc_peer_lifetime-e0e42277f655e3c1)
+
+running 2 tests
+test replacement_retires_partial_old_frame_and_disconnect_closes_command_peer ... ok
+test stale_future_and_unknown_commands_never_reach_runtime_bus ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+
+     Running unittests src/main.rs (target/debug/deps/marengo_gateway-f7ad2c6a0886ac39)
+
+running 49 tests
+test action_ack::tests::live_ack_matcher_ignores_write_behind_persist_action ... ok
+test action_ack::tests::recv_live_ack_surfaces_live_reject ... ok
+test action_ack::tests::recv_live_ack_skips_persist_failed_until_pending ... ok
+test actuator::tests::snapshot_actuator_limits_503_when_cache_empty ... ok
+test actuator::tests::command_actuator_rejects_without_limits_snapshot ... ok
+test actuator::tests::command_actuator_publishes_canonical_joint_for_left_alias ... ok
+test actuator::tests::command_actuator_rejects_non_tuning_with_400 ... ok
+test config::tests::master_snapshot_resolves_actuator_group_velocity ... ok
+test actuator::tests::command_actuator_rejects_unwired_joint_with_403 ... ok
+test actuator::tests::command_actuator_returns_429_when_rate_limited ... ok
+test http::tests::command_set_zero_rejects_unwired_joint_with_403 ... ok
+test http::tests::command_set_zero_requires_confirm_and_attestation ... ok
+test hardware::tests::activate_refuses_active_with_fresh_heartbeat ... ok
+test logs::tests::recent_limit_default ... ok
+test ratelimit::tests::buckets_are_isolated_by_client_and_joint ... ok
+test http::tests::stream_chappe_emits_length_prefixed_envelopes ... ok
+test ratelimit::tests::motion_bucket_ignores_client_id_rotation ... ok
+test http::tests::command_motor_status_poll_rate_limits_globally ... ok
+test ratelimit::tests::refund_restores_token_after_failed_publish ... ok
+test ratelimit::tests::motion_bucket_is_stricter_than_tuning ... ok
+test ratelimit::tests::rejects_empty_client_id ... ok
+test ratelimit::tests::tuning_bucket_allows_burst_then_rejects ... ok
+test ratelimit::tests::status_poll_bucket_allows_burst_then_rejects_until_refill ... ok
+test restart::tests::refuse_active_only_when_heartbeat_fresh ... ok
+test hardware::tests::archive_reads_require_auth ... ok
+test http::tests::command_set_zero_returns_429_when_rate_limited ... ok
+test hardware::tests::activate_archives_replaced_active_and_promotes_merge ... ok
+test state::ipc_snapshot_tests::connection_change_retires_observations_until_a_new_frame_arrives ... ok
+test state::runtime_transition_stream_tests::existing_topic_subscriber_receives_typed_runtime_invalidation ... ok
+test webtransport::tests::tls_material_rejects_empty_or_malformed_private_key ... ok
+test webtransport::tests::tls_material_rejects_malformed_certificate_chain ... ok
+test hardware::tests::activate_saves_manifest_before_failed_live_promote ... ok
+test actuator::tests::command_actuator_clamps_to_live_kp_max ... ok
+test webtransport::tests::tls_material_retains_certificate_chain_and_matching_key ... ok
+test hardware::tests::activate_and_resolve_reject_unsafe_upload_ids ... ok
+test hardware::tests::authorize_config_mutation_matches_log_token ... ok
+test actuator::tests::command_actuator_requires_configured_log_token ... ok
+test hardware::tests::command_home_is_gone ... ok
+test hardware::tests::commissioning_scope_read_open_mutations_gated_widen_and_unknown ... ok
+test action_ack::tests::recv_live_ack_times_out_without_matching_session ... ok
+test hardware::tests::completeness_is_advisory_and_upload_not_blocked ... ok
+test hardware::tests::urdf_read_rejects_missing_auth ... ok
+test logs::tests::log_token_from_env_filters_empty ... ok
+test hardware::tests::urdf_read_returns_bytes_with_auth ... ok
+test ratelimit::tests::tuning_bucket_refills_over_time ... ok
+test restart::tests::restart_allows_active_with_stale_heartbeat_via_stub ... ok
+test restart::tests::restart_fails_closed_without_token ... ok
+test restart::tests::restart_requires_confirm ... ok
+test restart::tests::restart_refuses_active_with_fresh_heartbeat ... ok
+
+test result: ok. 49 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+     Running unittests src/lib.rs (target/debug/deps/marengo_host_metrics-67631e8f431ee6e5)
+
+running 2 tests
+test sample_state::ipc_health_wire_tests::disconnected_queue_observations_survive_host_health_wire_conversion ... ok
+test tests::sample_returns_hostname ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests chappe
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests marengo_host_metrics
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

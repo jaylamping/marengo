@@ -1,0 +1,4 @@
+   Compiling armee-proto v0.1.0 (/Users/joseph/.codex/worktrees/bounded-ipc-outage/marengo/crates/armee-proto)
+    Checking chappe v0.1.0 (/Users/joseph/.codex/worktrees/bounded-ipc-outage/marengo/crates/chappe)
+    Checking marengo-gateway v0.1.0 (/Users/joseph/.codex/worktrees/bounded-ipc-outage/marengo/bins/marengo-gateway)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.58s

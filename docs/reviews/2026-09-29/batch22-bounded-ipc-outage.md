@@ -56,3 +56,35 @@ strict all-target clippy passes. Actual absent-peer and accepting/nonreading-pee
 checks assert queued item/byte bounds, overflow counters, reserved safety/heartbeat
 admission and deadline disconnect. G01 remains OPEN: all remaining scope above is
 still required. No PR yet; no independent/full Linux acceptance claimed.
+
+## Qualification update
+
+Current source includes owned listener/fanout shutdown, serialized peer generations,
+gateway snapshot retirement and a proto RuntimeConnectionState transition for all
+allowed subscriptions. Consul decodes that transition, clears previous producer
+facts and cancels queued telemetry callbacks. A new IPC socket alone does not
+repopulate facts. This is gateway-local connection identity, not Pi boot identity;
+F05/G10 producer-age/boot/run-admission requirements remain separate and open.
+
+Known commands must carry an Envelope timestamp within the preceding1second;
+unknown, stale and future-dated commands never reach the runtime bus. Commands are
+never admitted into the outbound outage queue. Failed in-flight writes have uncertain
+delivery, increment a separate counter and are never replayed. Accepted queued audit
+records retain their drop-new FIFO suffix on reconnect; this is bounded transport,
+not durable audit delivery (G11 remains open).
+
+Independent WIP review identified shutdown vs peer-install and shutdown vs queue
+admission races; both cutovers now share their admission mutex. Controlled barriers
+qualify both races. Injected monotonic time qualifies actual reconnect frames at
+1000ms eligible and1001ms expired, without sleeps. A stalled actual peer is retired,
+its socket name temporarily unavailable, then its replacement decodes exactly the
+pending accepted audit suffix and latest reserved telemetry. Queue age/counters,
+nonblocking contended admission, protobuf health conversion, actual gateway stream
+transition and Consul late-throttle cancellation are qualified.
+
+The complete original SHA-bound probe replays green on final source; the formatted
+shipping test is restored after that replay. Native affected tests,356Consul tests,
+build, strict Chappe/gateway clippy, workspace fmt and proto lint pass. Existing
+non-Linux host-metrics deadcode warnings prevent treating native Mac as Linux parity.
+Final independent reviews and exact-head Linux primary/runtime CI remain pending.
+G01 is still open and no hardware or performance acceptance is claimed.
