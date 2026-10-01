@@ -36,7 +36,9 @@ and qualification.json bind whole probes to captured original/green output.
 Candidate-only boundary tests qualify exact4096-byte plain/gzip lines,
 256MiB expansion acceptance and one extra byte refusal, truncated gzip I/O error,
 and an absolute-microsecond float upper bound that must not saturate to u64::MAX.
-Native affected Candump/Store/plain CLI59tests pass, none ignored; strict affected
+Native affected Candump/Store/plain CLI59tests pass, none ignored. Independent
+Spec review requested complete-gzip checksum corruption beyond truncation; the
+additional public checksum-corruption test passes (one test, zero failures). Strict affected
 clippy and workspace formatting pass. Default-feature CLI/enrichment and full
 Linux/runtime checks remain for exact-head CI. No hardware or performance/durability
 acceptance is inferred.

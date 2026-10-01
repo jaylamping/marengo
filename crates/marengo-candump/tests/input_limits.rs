@@ -80,3 +80,16 @@ fn absolute_microsecond_upper_bound_does_not_saturate() {
         1
     );
 }
+
+#[test]
+fn complete_gzip_with_corrupt_checksum_is_an_io_error() {
+    let mut gzip = GzEncoder::new(Vec::new(), Compression::fast());
+    gzip.write_all(b"(0) can0 701#AA\n").expect("gzip");
+    let mut gzip = gzip.finish().expect("complete gzip footer");
+    let checksum = gzip.len() - 8;
+    gzip[checksum] ^= 1;
+    assert!(matches!(
+        Candump::plain().inspect_bytes(&gzip, InspectRequest::summary(TimestampMode::Delta)),
+        Err(Error::Io { .. })
+    ));
+}
