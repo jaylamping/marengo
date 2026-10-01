@@ -48,8 +48,8 @@ function livePiMetrics(
     cpuPercent: cpu,
     ramUsedGb,
     ramTotalGb,
-    diskUsedGb: rootDisk ? bytesToGb(rootDisk.usedBytes) : null,
-    diskTotalGb: rootDisk ? bytesToGb(rootDisk.totalBytes) : null,
+    diskUsedGb: rootDisk?.capacityKnown ? bytesToGb(rootDisk.usedBytes) : null,
+    diskTotalGb: rootDisk?.capacityKnown ? bytesToGb(rootDisk.totalBytes) : null,
     logDiskUsedGb:
       metrics.logDiskBytes !== undefined ? bytesToGb(metrics.logDiskBytes) : null,
     logDiskBudgetGb:
@@ -146,18 +146,14 @@ export function PiHostCard({ metrics: metricsProp }: PiHostCardProps) {
                 : 0
             }
           />
-          {metrics?.diskUsedGb != null && metrics.diskTotalGb != null ? (
-            <MetricItem
-              label="Disk"
-              value={formatRamUsage(metrics.diskUsedGb, metrics.diskTotalGb)}
-              valueClassName="text-xs"
-              usagePercent={
-                live
-                  ? computeUsagePercent(metrics.diskUsedGb, metrics.diskTotalGb)
-                  : 0
-              }
-            />
-          ) : null}
+          <MetricItem
+            label="Disk"
+            value={metrics?.diskUsedGb != null && metrics.diskTotalGb != null
+              ? formatRamUsage(metrics.diskUsedGb, metrics.diskTotalGb) : placeholder}
+            valueClassName="text-xs"
+            usagePercent={live && metrics?.diskUsedGb != null && metrics.diskTotalGb != null
+              ? computeUsagePercent(metrics.diskUsedGb, metrics.diskTotalGb) : undefined}
+          />
           {metrics?.logDiskUsedGb != null && metrics.logDiskBudgetGb != null ? (
             <MetricItem
               label="Logs"

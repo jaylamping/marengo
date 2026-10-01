@@ -1,0 +1,77 @@
+   Compiling marengo-host-metrics v0.1.0 (/Users/joseph/.codex/worktrees/diagnostic-can-mount-state/marengo/crates/marengo-host-metrics)
+warning: fields `total`, `idle`, and `iowait` are never read
+ --> crates/marengo-host-metrics/src/sample_state.rs:6:9
+  |
+5 | pub(crate) struct CpuLineValues {
+  |                   ------------- fields in this struct
+6 |     pub total: u64,
+  |         ^^^^^
+7 |     pub idle: u64,
+  |         ^^^^
+8 |     pub iowait: u64,
+  |         ^^^^^^
+  |
+  = note: `CpuLineValues` has derived impls for the traits `Default` and `Clone`, but these are intentionally ignored during dead code analysis
+  = note: `#[warn(dead_code)]` on by default
+
+warning: methods `delta_usage` and `delta_iowait` are never used
+  --> crates/marengo-host-metrics/src/sample_state.rs:12:19
+   |
+11 | impl CpuLineValues {
+   | ------------------ methods in this implementation
+12 |     pub(crate) fn delta_usage(&self, prev: &Self) -> f64 {
+   |                   ^^^^^^^^^^^
+...
+21 |     pub(crate) fn delta_iowait(&self, prev: &Self) -> f64 {
+   |                   ^^^^^^^^^^^^
+
+warning: fields `rx_bytes` and `tx_bytes` are never read
+  --> crates/marengo-host-metrics/src/sample_state.rs:33:9
+   |
+32 | pub(crate) struct NetCounters {
+   |                   ----------- fields in this struct
+33 |     pub rx_bytes: u64,
+   |         ^^^^^^^^
+34 |     pub tx_bytes: u64,
+   |         ^^^^^^^^
+   |
+   = note: `NetCounters` has derived impls for the traits `Default` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: fields `cpu_aggregate`, `cpu_per_core`, and `network` are never read
+  --> crates/marengo-host-metrics/src/sample_state.rs:41:16
+   |
+39 | pub struct SampleState {
+   |            ----------- fields in this struct
+40 |     pub sample_at: Option<Instant>,
+41 |     pub(crate) cpu_aggregate: Option<CpuLineValues>,
+   |                ^^^^^^^^^^^^^
+42 |     pub(crate) cpu_per_core: Vec<CpuLineValues>,
+   |                ^^^^^^^^^^^^
+43 |     pub(crate) network: HashMap<String, NetCounters>,
+   |                ^^^^^^^
+
+warning: `marengo-host-metrics` (lib) generated 4 warnings
+warning: `marengo-host-metrics` (lib test) generated 4 warnings (4 duplicates)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.52s
+     Running unittests src/lib.rs (target/debug/deps/marengo_host_metrics-ab9ddef381368af5)
+
+running 10 tests
+test sample_state::ipc_health_wire_tests::disconnected_queue_observations_survive_host_health_wire_conversion ... ok
+test diagnostics::regression::kernel_flagged_can_example_preserves_its_state ... ok
+test diagnostics::regression::restart_delay_is_not_the_published_can_state ... ok
+test tests::sample_returns_hostname ... ok
+test diagnostics::disk_regression::published_read_only_comes_from_mount_flags_not_df_columns ... ok
+test diagnostics::mount_collector_tests::flags_filesystem_source_and_capacity_survive_publication ... ok
+test diagnostics::mount_collector_tests::escaped_paths_and_sources_choose_the_specific_mount ... ok
+test diagnostics::collector_tests::command_adapter_publishes_states_and_unknown_failures ... ok
+test diagnostics::mount_collector_tests::command_failures_and_invalid_capacity_do_not_fabricate_writable_or_zero_capacity ... ok
+test diagnostics::mount_collector_tests::unavailable_or_ambiguous_mount_flags_are_explicitly_unknown ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests marengo_host_metrics
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
