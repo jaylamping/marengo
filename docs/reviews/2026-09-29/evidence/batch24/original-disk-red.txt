@@ -1,0 +1,84 @@
+   Compiling marengo-host-metrics v0.1.0 (/Users/joseph/.codex/worktrees/diagnostic-can-mount-state/marengo/crates/marengo-host-metrics)
+warning: method `read_file` is never used
+   --> crates/marengo-host-metrics/src/diagnostics.rs:130:8
+    |
+128 | pub(crate) trait Sources {
+    |                  ------- method in this trait
+129 |     fn command(&self, program: &str, args: &[&str]) -> Option<String>;
+130 |     fn read_file(&self, path: &str) -> Option<String>;
+    |        ^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: fields `total`, `idle`, and `iowait` are never read
+ --> crates/marengo-host-metrics/src/sample_state.rs:6:9
+  |
+5 | pub(crate) struct CpuLineValues {
+  |                   ------------- fields in this struct
+6 |     pub total: u64,
+  |         ^^^^^
+7 |     pub idle: u64,
+  |         ^^^^
+8 |     pub iowait: u64,
+  |         ^^^^^^
+  |
+  = note: `CpuLineValues` has derived impls for the traits `Default` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: methods `delta_usage` and `delta_iowait` are never used
+  --> crates/marengo-host-metrics/src/sample_state.rs:12:19
+   |
+11 | impl CpuLineValues {
+   | ------------------ methods in this implementation
+12 |     pub(crate) fn delta_usage(&self, prev: &Self) -> f64 {
+   |                   ^^^^^^^^^^^
+...
+21 |     pub(crate) fn delta_iowait(&self, prev: &Self) -> f64 {
+   |                   ^^^^^^^^^^^^
+
+warning: fields `rx_bytes` and `tx_bytes` are never read
+  --> crates/marengo-host-metrics/src/sample_state.rs:33:9
+   |
+32 | pub(crate) struct NetCounters {
+   |                   ----------- fields in this struct
+33 |     pub rx_bytes: u64,
+   |         ^^^^^^^^
+34 |     pub tx_bytes: u64,
+   |         ^^^^^^^^
+   |
+   = note: `NetCounters` has derived impls for the traits `Default` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: fields `cpu_aggregate`, `cpu_per_core`, and `network` are never read
+  --> crates/marengo-host-metrics/src/sample_state.rs:41:16
+   |
+39 | pub struct SampleState {
+   |            ----------- fields in this struct
+40 |     pub sample_at: Option<Instant>,
+41 |     pub(crate) cpu_aggregate: Option<CpuLineValues>,
+   |                ^^^^^^^^^^^^^
+42 |     pub(crate) cpu_per_core: Vec<CpuLineValues>,
+   |                ^^^^^^^^^^^^
+43 |     pub(crate) network: HashMap<String, NetCounters>,
+   |                ^^^^^^^
+
+warning: `marengo-host-metrics` (lib test) generated 5 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.52s
+     Running unittests src/lib.rs (target/debug/deps/marengo_host_metrics-ab9ddef381368af5)
+
+running 1 test
+test diagnostics::disk_regression::published_read_only_comes_from_mount_flags_not_df_columns ... FAILED
+
+failures:
+
+---- diagnostics::disk_regression::published_read_only_comes_from_mount_flags_not_df_columns stdout ----
+
+thread 'diagnostics::disk_regression::published_read_only_comes_from_mount_flags_not_df_columns' panicked at crates/marengo-host-metrics/src/diagnostics.rs:194:9:
+read-only root must not be reported writable
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    diagnostics::disk_regression::published_read_only_comes_from_mount_flags_not_df_columns
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p marengo-host-metrics --lib`

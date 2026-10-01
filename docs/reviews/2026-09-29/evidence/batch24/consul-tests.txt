@@ -1,0 +1,13 @@
+
+> consul@0.0.0 test
+> vitest --run
+
+
+ RUN  v4.1.11 /Users/joseph/.codex/worktrees/diagnostic-can-mount-state/marengo/consul
+
+
+ Test Files  72 passed (72)
+      Tests  361 passed (361)
+   Start at  12:43:39
+   Duration  5.03s (transform 15.87s, setup 0ms, import 39.87s, tests 4.64s, environment 25.48s)
+

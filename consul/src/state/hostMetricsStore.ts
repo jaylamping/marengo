@@ -46,14 +46,14 @@ export function canWarning(metrics: HostMetrics | null): boolean {
   return metrics.network.some(
     (iface) =>
       iface.name.startsWith('can') &&
-      iface.canState.length > 0 &&
       iface.canState !== 'ERROR-ACTIVE',
   );
 }
 
 export function diskWarning(metrics: HostMetrics | null): boolean {
   return (
-    metrics?.disks?.some((disk) => disk.readOnly || disk.nearlyFull) ?? false
+    metrics !== null && (metrics.disks.length === 0 ||
+      metrics.disks.some((disk) => !disk.mountStatusKnown || !disk.capacityKnown || disk.readOnly || disk.nearlyFull))
   );
 }
 
