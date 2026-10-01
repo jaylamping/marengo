@@ -95,7 +95,8 @@ fn now_ms() -> u64 {
         .unwrap_or(0)
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", test))]
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 mod linux {
     use std::collections::HashMap;
     use std::fs;
@@ -225,6 +226,16 @@ mod linux {
 
     fn sample_cpu(prev: &mut SampleState) -> CpuMetrics {
         let content = fs::read_to_string("/proc/stat").unwrap_or_default();
+        let mut aggregate = sample_cpu_from_stat(&content, prev);
+        aggregate.freq_mhz =
+            read_file_trim("/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq")
+                .and_then(|s| s.parse::<u64>().ok())
+                .map(|khz| (khz / 1000) as u32)
+                .unwrap_or(0);
+        aggregate
+    }
+
+    fn sample_cpu_from_stat(content: &str, prev: &mut SampleState) -> CpuMetrics {
         let mut aggregate = CpuMetrics {
             core_count: 0,
             ..Default::default()
@@ -259,11 +270,6 @@ mod linux {
             }
         }
         aggregate.per_core_usage_percent = per_core;
-        aggregate.freq_mhz =
-            read_file_trim("/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq")
-                .and_then(|s| s.parse::<u64>().ok())
-                .map(|khz| (khz / 1000) as u32)
-                .unwrap_or(0);
         aggregate
     }
 
@@ -283,6 +289,43 @@ mod linux {
             idle,
             iowait,
         })
+    }
+
+    #[cfg(test)]
+    #[allow(clippy::expect_used)]
+    mod cpu_regression {
+        use super::*;
+        use armee_proto::prost::Message;
+
+        #[test]
+        fn published_cpu_fields_follow_kernel_counter_columns() {
+            let mut prev = SampleState::default();
+            sample_cpu_from_stat(
+                "cpu 0 0 0 0 0 0 0 0 0 0\ncpu0 0 0 0 0 0 0 0 0 0 0\ncpu1 0 0 0 0 0 0 0 0 0 0\n",
+                &mut prev,
+            );
+            let cpu = sample_cpu_from_stat("cpu 10 0 10 70 10 0 0 0 7 0\ncpu0 10 0 10 80 0 0 0 0 7 0\ncpu1 10 0 10 70 10 0 0 0 7 0\n", &mut prev);
+            let wire = HostMetrics {
+                cpu: Some(cpu),
+                ..Default::default()
+            }
+            .encode_to_vec();
+            let decoded = HostMetrics::decode(wire.as_slice()).expect("wire metric");
+            let cpu = decoded.cpu.expect("cpu");
+            assert!((cpu.usage_percent - 20.0).abs() < 0.000001);
+            assert!(
+                (cpu.iowait_percent - 10.0).abs() < 0.000001,
+                "iowait reads its own field: {}",
+                cpu.iowait_percent
+            );
+            assert_eq!(cpu.core_count, 2);
+            for usage in cpu.per_core_usage_percent {
+                assert!(
+                    (usage - 20.0).abs() < 0.000001,
+                    "core label must not shift counters: {usage}"
+                );
+            }
+        }
     }
 
     fn sample_memory() -> MemoryMetrics {
