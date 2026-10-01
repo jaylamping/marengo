@@ -1,6 +1,7 @@
 # Batch23 — CPU counter columns and identity
 
-G18 remains open pending final reviews, Linux CI and delivery. Baseline37a4dd1,
+G18 remains open pending Linux CI and delivery. Independent Standards and Spec
+reviews at c349b3f report zero actionable findings. Baseline37a4dd1,
 branch codex/cpu-counter-columns. No robot, deploy, limits, Wave or automation action.
 
 The original collector was extracted into a fixture seam without changing parsing
@@ -20,8 +21,9 @@ Six native tests pass, including five CPU wire tests for literal deltas, sparse 
 reordering, hotplug, reset with increasing total, truncation, duplicate rows, malformed
 fields, overflow, IRQ distinction, guest exclusion and decreasing iowait. Two encoded
 UI tests cover unknown→valid→unknown. Native strict clippy remains unavailable due to
-existing non-Linux deadcode warnings; it is not treated as Linux parity. Full Consul
-build/tests and exact-head hosted primary/runtime gates are separately qualified.
+existing non-Linux deadcode warnings; it is not treated as Linux parity. Full Consul build and357tests pass. Gateway demonstration samples explicitly
+mark their supplied percentages valid; unknown real observations remain unknown.
+Exact-head hosted primary/runtime gates are pending.
 
 Counter order and decreasing-iowait treatment follow [kernel proc documentation](https://www.kernel.org/doc/html/latest/filesystems/proc.html)
 and the [kernel CPU load guide](https://www.kernel.org/doc/html/latest/admin-guide/cpu-load.html).
