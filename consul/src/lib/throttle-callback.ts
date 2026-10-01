@@ -2,7 +2,7 @@
 export function throttleTrailing<T extends (...args: never[]) => void>(
   fn: T,
   minIntervalMs: number,
-): (...args: Parameters<T>) => void {
+): ((...args: Parameters<T>) => void) & { cancel: () => void } {
   let lastRun = 0;
   let timer: number | undefined;
   let pending: Parameters<T> | undefined;
@@ -18,7 +18,7 @@ export function throttleTrailing<T extends (...args: never[]) => void>(
     fn(...args);
   };
 
-  return (...args: Parameters<T>) => {
+  const throttled = (...args: Parameters<T>) => {
     pending = args;
     const now = Date.now();
     const elapsed = now - lastRun;
@@ -34,6 +34,12 @@ export function throttleTrailing<T extends (...args: never[]) => void>(
       timer = window.setTimeout(flush, minIntervalMs - elapsed);
     }
   };
+  throttled.cancel = () => {
+    if (timer !== undefined) window.clearTimeout(timer);
+    timer = undefined;
+    pending = undefined;
+  };
+  return throttled;
 }
 
 /** Trailing debounce: emit once after `waitMs` quiet time; last args win. */

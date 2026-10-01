@@ -15,6 +15,7 @@ use crate::logs::{decode_log_payload, LogServices as LogSvc};
 use crate::ratelimit::RateLimiter;
 
 pub const TOPIC_STATE: &str = "robot/state";
+pub const TOPIC_RUNTIME_CONNECTION: &str = "gateway/runtime_connection";
 pub const TOPIC_SAFETY: &str = "robot/safety";
 pub const TOPIC_HEARTBEAT: &str = "robot/heartbeat";
 pub const TOPIC_IMU_TORSO: &str = "sensors/imu/torso";
@@ -31,6 +32,7 @@ pub const TOPIC_AUDIT_ACTION: &str = "robot/audit/action";
 pub const TOPIC_ACTUATOR_COMMAND: &str = "robot/actuator/command";
 
 pub const ALLOWED_TOPICS: &[&str] = &[
+    TOPIC_RUNTIME_CONNECTION,
     TOPIC_STATE,
     TOPIC_SAFETY,
     TOPIC_HEARTBEAT,
@@ -73,9 +75,35 @@ pub struct AppState {
     persist_degraded: AtomicBool,
     /// True while a config persist is pending (restart must wait / refuse).
     persist_pending: AtomicBool,
+    runtime_generation: std::sync::atomic::AtomicU64,
 }
 
 impl AppState {
+    /// IPC connection changes retire all prior producer observations. Connectivity
+    /// itself provides no replacement safety or motion-admission evidence.
+    pub fn runtime_connection_changed(&self, connected: bool) {
+        if let Ok(mut snapshots) = self.snapshots.write() {
+            *snapshots = Snapshots::default();
+        }
+        let generation = self.runtime_generation.fetch_add(1, Ordering::Relaxed) + 1;
+        let message = armee_proto::RuntimeConnectionState {
+            generation,
+            connected,
+        };
+        let envelope = armee_proto::Envelope {
+            timestamp_ms: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|now| now.as_millis() as u64)
+                .unwrap_or(0),
+            source_node: "marengo-gateway".into(),
+            message_type: "marengo.v1.RuntimeConnectionState".into(),
+            payload: message.encode_to_vec(),
+        };
+        let _ = self
+            .envelope_tx
+            .send((TOPIC_RUNTIME_CONNECTION.into(), envelope.encode_to_vec()));
+    }
+
     pub fn new(bus: Arc<Bus>) -> Self {
         let (envelope_tx, _) = broadcast::channel(ENVELOPE_BROADCAST_CAPACITY);
         Self {
@@ -89,6 +117,7 @@ impl AppState {
             command_joints: CommandJointAllowlist::empty(),
             persist_degraded: AtomicBool::new(false),
             persist_pending: AtomicBool::new(false),
+            runtime_generation: std::sync::atomic::AtomicU64::new(0),
         }
     }
 
@@ -267,11 +296,19 @@ pub fn topic_allowed(topic: &str) -> bool {
 }
 
 pub fn filter_topics(topics: &[String]) -> Vec<String> {
-    topics
+    let mut allowed: Vec<String> = topics
         .iter()
         .filter(|t| topic_allowed(t))
         .cloned()
-        .collect()
+        .collect();
+    if !allowed.is_empty()
+        && !allowed
+            .iter()
+            .any(|topic| topic == TOPIC_RUNTIME_CONNECTION)
+    {
+        allowed.push(TOPIC_RUNTIME_CONNECTION.into());
+    }
+    allowed
 }
 
 pub type SharedState = Arc<AppState>;
@@ -290,5 +327,87 @@ pub fn spawn_bus_fanout(state: SharedState) {
                 }
             }
         });
+    }
+}
+
+#[cfg(test)]
+mod ipc_snapshot_tests {
+    #![allow(clippy::expect_used)]
+    use super::*;
+    use armee_proto::Envelope;
+
+    #[test]
+    fn connection_change_retires_observations_until_a_new_frame_arrives() {
+        let state = AppState::new(Arc::new(Bus::default()));
+        let frame = Envelope {
+            timestamp_ms: 1,
+            source_node: "retired-pi".into(),
+            message_type: "marengo.v1.RobotState".into(),
+            payload: RobotState {
+                timestamp_ms: 42,
+                joints: vec![],
+            }
+            .encode_to_vec(),
+        }
+        .encode_to_vec();
+        state.ingest_runtime_frame(TOPIC_STATE.into(), frame.clone());
+        assert_eq!(
+            state
+                .snapshot_robot_state()
+                .expect("old observation")
+                .timestamp_ms,
+            42
+        );
+        state.runtime_connection_changed(false);
+        assert!(state.snapshot_robot_state().is_none());
+        assert!(state.snapshot_safety().is_none());
+        assert!(state.snapshot_heartbeat().is_none());
+        assert!(state.snapshot_host_metrics_pi().is_none());
+        state.ingest_runtime_frame(TOPIC_STATE.into(), frame);
+        assert!(state.snapshot_robot_state().is_some());
+        assert!(
+            state.snapshot_safety().is_none(),
+            "state does not synthesize safety evidence"
+        );
+        state.runtime_connection_changed(false);
+        assert!(state.snapshot_robot_state().is_none());
+    }
+}
+
+#[cfg(test)]
+mod runtime_transition_stream_tests {
+    #![allow(clippy::expect_used)]
+    use super::*;
+    use armee_proto::{Envelope, RuntimeConnectionState};
+    use tokio::io::AsyncReadExt;
+
+    #[tokio::test]
+    async fn existing_topic_subscriber_receives_typed_runtime_invalidation() {
+        let state = AppState::new(Arc::new(Bus::default()));
+        let topics = filter_topics(&[TOPIC_STATE.into()]);
+        assert!(topics.iter().any(|topic| topic == TOPIC_RUNTIME_CONNECTION));
+        let rx = state.subscribe_envelopes();
+        let (mut writer, mut reader) = tokio::io::duplex(4096);
+        let pump = tokio::spawn(async move {
+            crate::framing::pump_envelope_stream(rx, &topics, &mut writer).await
+        });
+        state.runtime_connection_changed(false);
+        let length = tokio::time::timeout(std::time::Duration::from_secs(5), reader.read_u32_le())
+            .await
+            .expect("stream deadline")
+            .expect("frame length") as usize;
+        assert!(length < 4096);
+        let mut bytes = vec![0; length];
+        reader.read_exact(&mut bytes).await.expect("stream payload");
+        let envelope = Envelope::decode(bytes.as_slice()).expect("wire envelope");
+        assert_eq!(envelope.message_type, "marengo.v1.RuntimeConnectionState");
+        let transition =
+            RuntimeConnectionState::decode(envelope.payload.as_slice()).expect("typed transition");
+        assert_eq!((transition.generation, transition.connected), (1, false));
+        pump.abort();
+        assert!(pump
+            .await
+            .expect_err("owned stream task cancelled")
+            .is_cancelled());
     }
 }

@@ -121,6 +121,7 @@ export function chappeConnectionErrDetail(
 }
 
 export const CHAPPE_TOPICS = {
+  runtimeConnection: 'gateway/runtime_connection',
   state: 'robot/state',
   safety: 'robot/safety',
   heartbeat: 'robot/heartbeat',
@@ -133,6 +134,7 @@ export const CHAPPE_TOPICS = {
 
 export function getChappeSubscribeTopics(): string[] {
   return [
+    CHAPPE_TOPICS.runtimeConnection,
     CHAPPE_TOPICS.state,
     CHAPPE_TOPICS.safety,
     CHAPPE_TOPICS.heartbeat,

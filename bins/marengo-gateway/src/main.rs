@@ -163,7 +163,21 @@ async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         })
     };
 
-    let ipc = IpcListener::spawn_server(args.socket_path.clone(), on_frame)?;
+    let on_connection_change = {
+        let holder = Arc::clone(&state_holder);
+        Arc::new(move |connected: bool| {
+            if let Ok(guard) = holder.lock() {
+                if let Some(st) = guard.as_ref() {
+                    st.runtime_connection_changed(connected);
+                }
+            }
+        })
+    };
+    let ipc = IpcListener::spawn_server_with_lifecycle(
+        args.socket_path.clone(),
+        on_frame,
+        on_connection_change,
+    )?;
     let command_joints = match marengo_config::load_command_joint_allowlist() {
         Ok(allowlist) => {
             let joints: Vec<_> = allowlist.iter().collect();

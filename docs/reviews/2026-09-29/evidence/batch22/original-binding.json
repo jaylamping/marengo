@@ -1,0 +1,10 @@
+{
+  "finding": "G01",
+  "baseline": "a65ae3f08e2601575b8038116bac03c998776bf8",
+  "probe_sha256": "133c292955bc9d5c5af724e3509a0708e56cc5f67367f42e9f6ad7db1b4442ef",
+  "execution": "Native macOS Rust1.88 protoc28.3; actual IpcFanout; no listener during all1000publications; listener then reads first decoded wire frame",
+  "original_outcome": "actual assertion failure: sequence0 received instead of latest999",
+  "preparation_failure": "missing protoc initialbuild excluded from regression evidence",
+  "cleanup": "owned subprocess reaped; stdout/stderr readers joined; temporary socket directory removed before final status assertion",
+  "qualification": "pending implementation; not repaired"
+}

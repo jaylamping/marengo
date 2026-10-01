@@ -1,0 +1,13 @@
+
+> consul@0.0.0 test
+> vitest --run
+
+
+ RUN  v4.1.11 /Users/joseph/.codex/worktrees/bounded-ipc-outage/marengo/consul
+
+
+ Test Files  70 passed (70)
+      Tests  356 passed (356)
+   Start at  12:07:28
+   Duration  4.98s (transform 15.41s, setup 0ms, import 37.66s, tests 4.88s, environment 26.40s)
+
