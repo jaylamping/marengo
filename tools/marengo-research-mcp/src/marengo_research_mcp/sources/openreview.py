@@ -48,7 +48,7 @@ async def search_openreview(cfg: Config, query: str, limit: int = 10) -> list[Re
                 url=url,
                 snippet=str(abstract)[:500],
                 source_name="openreview",
-                published_at=provider_datetime(note.get("pdate"), epoch_milliseconds=True),
+                published_at=provider_datetime(note.get("odate"), epoch_milliseconds=True),
                 updated_at=provider_datetime(note.get("mdate"), epoch_milliseconds=True),
             )
         )
