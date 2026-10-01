@@ -13,6 +13,9 @@ results and a failure after the first result. A separate installed-package smoke
 checks arxiv 4.0.0 and its actual Search/Client API without making a request.
 All nine offline tests pass with warnings fatal on Python 3.12.14.
 
-Review and exact-head Linux primary gate are pending. T18 is not marked verified
+Independent Standards and Spec reviews accept scoped T18 with no actionable findings.
+The original reds are unexpected runtime AttributeError failures, not assertion
+failures. qualification.json records the frozen probe SHA-256. Exact-head Linux
+primary gate is pending. T18 is not marked verified
 before delivery. T17 is a separate branch; its new CI job awaits the user's answer
 on GitHub workflow authorization. No network provider or hardware was accessed.
