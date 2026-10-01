@@ -1,5 +1,7 @@
 //! Host metrics sampling for Chappe `HostMetrics` protobuf.
 
+#[cfg(any(target_os = "linux", test))]
+mod diagnostics;
 mod sample_state;
 
 pub use sample_state::{ChappeHealthInput, IpcQueueHealthInput, SampleState};
@@ -451,24 +453,7 @@ mod linux {
         if let Ok(out) = output {
             if out.status.success() {
                 let text = String::from_utf8_lossy(&out.stdout);
-                for line in text.lines() {
-                    if line.contains("can state") {
-                        return line
-                            .split_whitespace()
-                            .last()
-                            .unwrap_or("unknown")
-                            .to_string();
-                    }
-                }
-                if text.contains("BUS-OFF") {
-                    return "BUS-OFF".to_string();
-                }
-                if text.contains("ERROR-PASSIVE") {
-                    return "ERROR-PASSIVE".to_string();
-                }
-                if text.contains("ERROR-WARNING") {
-                    return "ERROR-WARNING".to_string();
-                }
+                return crate::diagnostics::can_state(&text);
             }
         }
         String::new()
