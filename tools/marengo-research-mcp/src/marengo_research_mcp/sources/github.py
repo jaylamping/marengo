@@ -18,7 +18,7 @@ async def search_github(cfg: Config, query: str, limit: int = 10, *, window: tup
     if window is not None:
         start, end = window
         # Whole UTC dates include the exact interval for subsequent local filtering.
-        q = f"({q}) pushed:{start:%Y-%m-%d}..{end:%Y-%m-%d}"
+        q = f"{query} in:name,description,readme pushed:{start:%Y-%m-%d}..{end:%Y-%m-%d}"
     headers = {
         "Accept": "application/vnd.github+json",
         "User-Agent": cfg.user_agent,
