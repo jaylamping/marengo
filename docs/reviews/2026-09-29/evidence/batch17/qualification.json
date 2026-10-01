@@ -1,0 +1,47 @@
+{
+  "baseline": "b23c82ba73b6372889f950379db97273053fe147",
+  "host": "aarch64-apple-darwin",
+  "classification": "baseline positive; candidate stale-read mutation sensitivity; unchanged replay",
+  "command": [
+    "/Users/joseph/.cargo/bin/cargo",
+    "test",
+    "--locked",
+    "-p",
+    "marengo-store",
+    "--test",
+    "migration_competing_writer",
+    "--",
+    "--nocapture"
+  ],
+  "probe_sha256": "4534676c0de1f0d980e2108f97e7c0edd2d55bcbb3ac0c1faeb126ef99855725",
+  "original_production_sha256": "a1007111ede3eddbd04b4cd4daaf613f744d89362451898f0660f05379093e15",
+  "restored_production_sha256": "a1007111ede3eddbd04b4cd4daaf613f744d89362451898f0660f05379093e15",
+  "runs": [
+    {
+      "name": "baseline-positive",
+      "exit_code": 0,
+      "log_sha256": "7d85297fd48b17001b84274ff03578e61df3790b4e32ce1cfba1f97d79a5bbf6",
+      "probe_sha256": "4534676c0de1f0d980e2108f97e7c0edd2d55bcbb3ac0c1faeb126ef99855725",
+      "production_sha256": "a1007111ede3eddbd04b4cd4daaf613f744d89362451898f0660f05379093e15",
+      "output_file": "baseline-positive.txt"
+    },
+    {
+      "name": "stale-read-mutant",
+      "exit_code": 101,
+      "log_sha256": "eccf3d6b2be11bc4921efe20702edc09a55d5e3114c1fcdc488c983142a213c9",
+      "probe_sha256": "4534676c0de1f0d980e2108f97e7c0edd2d55bcbb3ac0c1faeb126ef99855725",
+      "production_sha256": "62fd6a0879c79d4f6be85336ed0e710a3b009fcee159d29214f48bcabdcaf3b2",
+      "output_file": "stale-read-mutant.txt"
+    },
+    {
+      "name": "unchanged-replay",
+      "exit_code": 0,
+      "log_sha256": "58250412b188bb714e948efb9405978c71af22ffa7af3c693af8683866e3c0c1",
+      "probe_sha256": "4534676c0de1f0d980e2108f97e7c0edd2d55bcbb3ac0c1faeb126ef99855725",
+      "production_sha256": "a1007111ede3eddbd04b4cd4daaf613f744d89362451898f0660f05379093e15",
+      "output_file": "unchanged-replay.txt"
+    }
+  ],
+  "mutation_patch": "stale-read-mutant.patch",
+  "mutation_patch_sha256": "66418d2669caab4a6a13d326abd673aba21b619e6ac89d988ba0b955b5a655c9"
+}

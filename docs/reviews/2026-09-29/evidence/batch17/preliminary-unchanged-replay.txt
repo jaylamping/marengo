@@ -1,0 +1,9 @@
+   Compiling marengo-store v0.1.0 (/Users/joseph/code/marengo/crates/marengo-store)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.35s
+     Running tests/migration_competing_writer.rs (target/debug/deps/migration_competing_writer-6ed47bb1abd9bda7)
+
+running 1 test
+test migration_rereads_marker_after_competing_writer_commits ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
