@@ -12,3 +12,10 @@ command failures, real mount flags with escaped paths, filesystem versus device
 identity, explicit unknown collection, and an injected command/file adapter through
 the collector. Independent reviews, exact-head Linux gates and delivery are pending.
 No physical CAN, root remount, robot, deploy, limits, Wave or automation action.
+
+The CAN correction now reads the state token after flags, validates known states,
+and publishes UNKNOWN on command failure, invalid UTF-8 or missing/malformed state.
+The production reader and injected command fixture use the same collector seam.
+Five native tests pass; both complete frozen original probes remain byte-identical
+in shipping source and now pass. Mount-state repair and full G19 qualification
+remain pending; this CAN-only result does not establish completion of G19.

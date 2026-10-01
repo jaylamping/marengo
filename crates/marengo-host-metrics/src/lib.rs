@@ -447,16 +447,16 @@ mod linux {
     }
 
     fn read_can_state(name: &str) -> String {
-        let output = std::process::Command::new("ip")
-            .args(["-details", "link", "show", name])
-            .output();
-        if let Ok(out) = output {
-            if out.status.success() {
-                let text = String::from_utf8_lossy(&out.stdout);
-                return crate::diagnostics::can_state(&text);
+        crate::diagnostics::collect_can_state(name, |name| {
+            let output = std::process::Command::new("ip")
+                .args(["-details", "link", "show", name])
+                .output()
+                .ok()?;
+            if !output.status.success() {
+                return None;
             }
-        }
-        String::new()
+            String::from_utf8(output.stdout).ok()
+        })
     }
 
     fn read_stat_u64(path: &str) -> u64 {
