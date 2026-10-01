@@ -8,6 +8,8 @@ pub enum StoreError {
     Io(#[from] std::io::Error),
     #[error("candump: {0}")]
     Candump(#[from] marengo_candump::Error),
+    #[error("capture date is unknown or invalid for new session {session_id}; register authoritative metadata explicitly before retrying")]
+    UnknownCaptureDate { session_id: String },
     #[error("{0}")]
     Message(String),
 }

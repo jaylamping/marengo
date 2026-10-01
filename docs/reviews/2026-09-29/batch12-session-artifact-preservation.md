@@ -146,3 +146,16 @@ M08 remains partial. Preserve retained launcher session23805/PID9140 and old1816
 
 No robot operation or physical acceptance occurred. Limits and Wave sign-off stay
 unchanged. The repair loop remains active; no human input blocker is identified.
+
+## Completed delivery reconciliation
+
+PR226 final6f5ae4849c9db67b94928253ab372e8ad602a579/run36808420033
+and equal-tree main94d3cb48474fbf067e8c5e4bc0317cd6a56a2227/run36808943360
+pass all five jobs:751Rust/0failed/1existingignored,355frontend/72PiMCP,
+simulation5/0/0 and virtual driver73/0/0; fatal main ARM release passes.
+Verified all-refs backup SHA256a297663c78155b6007bd4b55a4b2c0beee815811b3fe46885b5d0a8e7d3f3a3d
+and exact completed-branch cleanup preserve historical references. Actual create-once
+merge receipt at `J:/code/marengo-migration-backup-20260929/batch12/merge-receipt.json`
+SHA256a23ed72f1ec2390840f8d8ac99b725132b1601523b712ed4f0f7aa7d63cc9b90
+completes the pre-merge checkpoint above. No additional test execution or hardware
+acceptance is inferred from this reconciliation.

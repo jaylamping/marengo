@@ -268,5 +268,31 @@ primary751 Rust/0 failed/1 existing ignored,355 frontend/72 Pi MCP plus fatal AR
 release pass. Full independent Spec and Standards accept every source/test file.
 No hardware dependencies, new ignores, negative sleeps or cold-build speedup
 claims are introduced. Simulation5/0/0 and implementation PR226/run36807158080
-all-five-job receipts are recorded in the ledger. Final/equal-tree main delivery
-remains pending; the next G14 probe is an unexecuted proposal only.
+all-five-job receipts are recorded in the ledger. Final6f5ae48/run36808420033 and
+equal-tree main94d3cb4/run36808943360 complete all five jobs, including fatal ARM
+release, with verified backup and exact branch cleanup.
+
+## Thirteenth batch: independent capture chronology
+
+Four whole existing-public groups reproduce actual original assertion reds and
+replay unchanged green: literal UTC/leap/epoch starts, cross-kind invalid-date
+refusal, supported profile/legacy artifact eligibility and buckets, and unknown
+ends with authoritative finalization. Each uses real SQLite/files/gzip/pages,
+reopen, independent neighbors and cleanup before its sole final oracle. Actual
+complete source snapshots and local-package recompilation bind execution.
+
+The three final test-only lint allowances change no runtime behavior; fresh whole
+final-file refusal/compatibility proofs replace prior-version identity claims.
+Candidate cutoff conformance passes, kills one combined `<` to `<=` event/session
+SQL mutant at its boundary assertion and replays unchanged green. It uses literal
+UTC before/equal/after rows and real archived files, FTS, overflow refusal, repeat
+and reopen. Missing new APIs are never original regressions. Earlier missing-pipe,
+zero-test lint and out-of-order output attempts remain unqualified.
+
+Strict affected21/0/0, primary756 Rust/1 existing ignored plus355 frontend/72 Pi MCP
+and fatal ARM release, observed timezone2/0/0 and simulation5/0/0 pass on the exact
+1,455-input source. Independent Standards/Spec and final lint reconciliations
+accept the code. GitHub delivery remains pending. Useful retention liveness,
+structured-query/FTS and candump tests stay; no test removal or speedup is justified
+by the five new behavior groups alone. No new ignores, hardware dependencies,
+negative sleeps, maintenance-clock expectations or late-I/O rollback claims.
