@@ -53,3 +53,17 @@ Independent review and primary/delivery gates remain pending. T22 open.
 T20 PR239 final-head CI36908251161 passed check/vcan (sim path skipped) and merged
 at5c25a8f54b6043b878ac05cc5b2c21a42be0e4bd. Exact merged-main CI36909443242 is running;
 T20 verification awaits that result.
+
+## Final scoped review / draft PR240
+
+Standards and Spec final checks at0db21a0 have zero remaining actionable findings.
+Review corrections add explicit missing-snapshot scanner-failure coverage, retain
+partial scanner streams on timeout, require canonical advisory Git top-level
+identity (unrelated parent repository fixture rejects), and preserve completed
+scanner streams when subsequent Git provenance inspection times out.15 classified
+runner matrix cases plus frozen regression and existing audit tests pass. T20 now
+verified after allfive exact merged-main CI36909443242 passed.
+
+PR240 is draft; exact remote head/required Linux qualification/delivery pending.
+The optional daily audit suite remains separately qualified natively; primary
+Python/shell coverage omissions remain T26. T22 stays open until delivery proofs.

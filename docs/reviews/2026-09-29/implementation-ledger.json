@@ -15389,7 +15389,8 @@
       "T22"
     ],
     "report": "batch26-daily-cargo-audit-status.md",
-    "status": "T22 repair/realpinnedCLI/tests qualified; reviews rechecking provenance/timeout/missingDB fixes; primary/delivery pending. T20 verified. T17 workflow authorization pending independently.",
-    "physical_acceptance": false
+    "status": "T22 original unchanged regression/native15 tests + realpinnedCLI; Standards/Spec final clear0db21a0. DraftPR240 exacthead Linux CI/delivery pending. T20 verified; T17 workflow authorization pending independently.",
+    "physical_acceptance": false,
+    "pr": 240
   }
 }
