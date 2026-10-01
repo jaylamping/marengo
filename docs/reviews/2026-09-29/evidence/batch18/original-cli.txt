@@ -1,0 +1,139 @@
+ Downloading crates ...
+  Downloaded predicates-core v1.0.10
+  Downloaded difflib v0.4.0
+  Downloaded anstream v1.0.0
+  Downloaded anstyle-query v1.1.5
+  Downloaded anstyle v1.0.14
+  Downloaded lazy_static v1.5.0
+  Downloaded anstyle-parse v1.0.0
+  Downloaded predicates-tree v1.0.13
+  Downloaded matchers v0.2.0
+  Downloaded heck v0.5.0
+  Downloaded colorchoice v1.0.5
+  Downloaded nu-ansi-term v0.50.3
+  Downloaded strsim v0.11.1
+  Downloaded is_terminal_polyfill v1.70.2
+  Downloaded assert_cmd v2.2.2
+  Downloaded termtree v0.5.1
+  Downloaded thread_local v1.1.9
+  Downloaded tracing-serde v0.2.0
+  Downloaded clap_derive v4.6.1
+  Downloaded tracing-log v0.2.0
+  Downloaded sharded-slab v0.1.7
+  Downloaded aho-corasick v1.1.4
+  Downloaded wait-timeout v0.2.1
+  Downloaded utf8parse v0.2.2
+  Downloaded log v0.4.29
+  Downloaded predicates v3.1.4
+  Downloaded clap v4.6.1
+  Downloaded clap_lex v1.1.0
+  Downloaded bstr v1.13.0
+  Downloaded clap_builder v4.6.0
+  Downloaded tracing-subscriber v0.3.23
+  Downloaded regex-syntax v0.8.10
+  Downloaded regex-automata v0.4.14
+   Compiling version_check v0.9.5
+   Compiling once_cell v1.21.4
+   Compiling libc v0.2.186
+   Compiling zerocopy v0.8.48
+   Compiling find-msvc-tools v0.1.9
+   Compiling shlex v1.3.0
+   Compiling typenum v1.20.0
+   Compiling regex-syntax v0.8.10
+   Compiling pkg-config v0.3.33
+   Compiling anstyle v1.0.14
+   Compiling vcpkg v0.2.15
+   Compiling syn v2.0.117
+   Compiling bitflags v2.11.1
+   Compiling getrandom v0.4.2
+   Compiling pin-project-lite v0.2.17
+   Compiling rustix v1.1.4
+   Compiling utf8parse v0.2.2
+   Compiling smallvec v1.15.1
+   Compiling anstyle-parse v1.0.0
+   Compiling lazy_static v1.5.0
+   Compiling tracing-core v0.1.36
+   Compiling cc v1.2.62
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling colorchoice v1.0.5
+   Compiling log v0.4.29
+   Compiling powerfmt v0.2.0
+   Compiling anstyle-query v1.1.5
+   Compiling sharded-slab v0.1.7
+   Compiling generic-array v0.14.7
+   Compiling ahash v0.8.12
+   Compiling thread_local v1.1.9
+   Compiling anstream v1.0.0
+   Compiling deranged v0.5.8
+   Compiling strsim v0.11.1
+   Compiling nu-ansi-term v0.50.3
+   Compiling fastrand v2.4.1
+   Compiling clap_lex v1.1.0
+   Compiling tracing-log v0.2.0
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling num-conv v0.2.2
+   Compiling predicates-core v1.0.10
+   Compiling time-core v0.1.8
+   Compiling heck v0.5.0
+   Compiling fallible-iterator v0.3.0
+   Compiling clap_builder v4.6.0
+   Compiling assert_cmd v2.2.2
+   Compiling difflib v0.4.0
+   Compiling termtree v0.5.1
+   Compiling same-file v1.0.6
+   Compiling predicates-tree v1.0.13
+   Compiling regex-automata v0.4.14
+   Compiling predicates v3.1.4
+   Compiling libsqlite3-sys v0.30.1
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling digest v0.10.7
+   Compiling time v0.3.47
+   Compiling errno v0.3.14
+   Compiling cpufeatures v0.2.17
+   Compiling wait-timeout v0.2.1
+   Compiling sha2 v0.10.9
+   Compiling tempfile v3.27.0
+   Compiling matchers v0.2.0
+   Compiling bstr v1.13.0
+   Compiling serde_derive v1.0.228
+   Compiling tracing-attributes v0.1.31
+   Compiling thiserror-impl v1.0.69
+   Compiling clap_derive v4.6.1
+   Compiling thiserror v1.0.69
+   Compiling tracing v0.1.44
+   Compiling hashbrown v0.14.5
+   Compiling clap v4.6.1
+   Compiling hashlink v0.9.1
+   Compiling serde v1.0.228
+   Compiling rusqlite v0.32.1
+   Compiling tracing-serde v0.2.0
+   Compiling marengo-candump v0.1.0 (/Users/joseph/.codex/worktrees/candump-input-validation/marengo/crates/marengo-candump)
+   Compiling tracing-subscriber v0.3.23
+   Compiling marengo-store v0.1.0 (/Users/joseph/.codex/worktrees/candump-input-validation/marengo/crates/marengo-store)
+   Compiling marengo-support v0.1.0 (/Users/joseph/.codex/worktrees/candump-input-validation/marengo/crates/marengo-support)
+   Compiling marengo-log-cli v0.1.0 (/Users/joseph/.codex/worktrees/candump-input-validation/marengo/bins/marengo-log-cli)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.23s
+     Running tests/candump_input_errors.rs (target/debug/deps/candump_input_errors-6e277f3bb6ee1829)
+
+running 1 test
+
+thread 'huge_candump_timestamp_returns_input_error' panicked at bins/marengo-log-cli/tests/candump_input_errors.rs:17:5:
+assertion `left == right` failed: input error exit, stderr=
+thread 'main' panicked at /rustc/6b00bc3880198600130e1cf62b8f8a93494488cc/library/core/src/time.rs:930:23:
+cannot convert float seconds to Duration: value is either too big or NaN
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+  left: Some(101)
+ right: Some(1)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test huge_candump_timestamp_returns_input_error ... FAILED
+
+failures:
+
+failures:
+    huge_candump_timestamp_returns_input_error
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+error: test failed, to rerun pass `-p marengo-log-cli --test candump_input_errors`

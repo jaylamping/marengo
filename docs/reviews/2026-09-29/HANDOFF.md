@@ -1,5 +1,19 @@
 # Marengo stopping point and Mac handoff — October 1, 2026
 
+## Active software repair loop — October 1, 2026
+
+The owner requested `/loop fix the remaining findings`. Batch17 is merged as
+[PR232](https://github.com/jaylamping/marengo/pull/232), equal-tree main7897c33.
+Exact PR CI passed all five jobs; merged-main check/sim passed and vcan is pending
+at this tracking freeze. G15 remains partial. Batch18 [PR233](https://github.com/jaylamping/marengo/pull/233)
+repairs candump numeric/input boundaries, with accepted independent reviews and
+initial all-five-job CI; final integrated tracking-head qualification and delivery
+are pending. The next T17 cold-cache work is isolated on codex/research-cache-await.
+See ledger active_mac_continuation and the batch17/18 reports/evidence. Local
+Docker is installed at ~/Applications/Docker.app but awaits owner onboarding;
+Linux primary qualification is being executed through exact-head hosted CI.
+The Windows automation remains PAUSED. No robot, deploy, limits or Wave action.
+
 ## Mac continuation — October 1, 2026
 
 The owner explicitly resumed software work on Mac at main `b23c82b`. Batch17

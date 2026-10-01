@@ -236,6 +236,12 @@ errors. File sync is not proof of physical power-loss durability. Test new
 recovery as candidate conformance with real failure paths and a meaningful
 production mutation; a missing new API is never an original behavioral red.
 
+**Untrusted capture conversion and reading:** use `Duration::try_from_secs_f64`
+for parsed/decoded offsets and propagate domain errors rather than unwinding.
+Bound a buffered reader before `read_until` allocates an entire physical line;
+count decompressed bytes independently of compressed source size. Check floating
+integer boundaries exclusively when the maximum integer rounds up in f64.
+
 - Default `cargo test` must not require hardware.
 - Use features: `socketcan`, `sim`; `vcan` names belong only to virtual-CAN test harnesses. Mark hardware tests `#[ignore]` with a clear message.
 - Sim: deterministic seeds for golden states.

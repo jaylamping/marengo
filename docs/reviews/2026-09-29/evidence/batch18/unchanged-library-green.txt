@@ -1,0 +1,13 @@
+   Compiling marengo-candump v0.1.0 (/Users/joseph/.codex/worktrees/candump-input-validation/marengo/crates/marengo-candump)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.36s
+     Running tests/input_validation.rs (target/debug/deps/input_validation-799896eac10765c2)
+
+running 5 tests
+test huge_json_offsets_are_serde_errors ... ok
+test excessive_source_lines_refuse ... ok
+test huge_finite_capture_timestamps_are_input_errors ... ok
+test ascii_dlc_must_match_classic_payload ... ok
+test numeric_rounding_and_malformed_frames_keep_their_contract ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

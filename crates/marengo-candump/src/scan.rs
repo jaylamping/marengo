@@ -18,6 +18,8 @@ use crate::MotorCatalog;
 
 const GZIP_MAGIC: [u8; 2] = [0x1f, 0x8b];
 const MAX_CLASSIC_DLC: usize = 8;
+const MAX_LINE_BYTES: u64 = 4096;
+const MAX_CAPTURE_BYTES: u64 = 256 * 1024 * 1024;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -33,6 +35,12 @@ pub enum Error {
         previous: f64,
         current: f64,
     },
+    #[error("timestamp outside the representable domain at source line {line}: {value}")]
+    TimestampOutOfRange { line: NonZeroU64, value: f64 },
+    #[error("candump source line exceeds {max} bytes")]
+    LineTooLong { max: u64 },
+    #[error("candump decompressed capture exceeds {max} bytes")]
+    CaptureTooLarge { max: u64 },
     #[error("page limit must be 1..={max}, got {actual}")]
     InvalidPageLimit { actual: u32, max: u32 },
     #[error("top-ID limit exceeds {max}")]
@@ -111,9 +119,14 @@ fn scan_reader(
 ) -> Result<Inspection, Error> {
     let mut acc = Accumulator::new(request);
     let mut buf = Vec::new();
+    let mut consumed = 0u64;
     loop {
         buf.clear();
+        // Take bounds allocation before read_until can grow the line buffer.
+        let remaining = MAX_CAPTURE_BYTES - consumed;
         let read = reader
+            .by_ref()
+            .take((MAX_LINE_BYTES + 1).min(remaining + 1))
             .read_until(b'\n', &mut buf)
             .map_err(|source| Error::Io {
                 path: PathBuf::from("<stream>"),
@@ -121,6 +134,17 @@ fn scan_reader(
             })?;
         if read == 0 {
             break;
+        }
+        consumed += read as u64;
+        if consumed > MAX_CAPTURE_BYTES {
+            return Err(Error::CaptureTooLarge {
+                max: MAX_CAPTURE_BYTES,
+            });
+        }
+        if read as u64 > MAX_LINE_BYTES {
+            return Err(Error::LineTooLong {
+                max: MAX_LINE_BYTES,
+            });
         }
         if buf.last() == Some(&b'\n') {
             buf.pop();
@@ -188,12 +212,24 @@ impl Accumulator {
         let unix_time = match self.timestamp_mode {
             TimestampMode::Absolute => {
                 let micros = (parsed.raw_ts * 1_000_000.0).round();
-                if !(micros.is_finite() && micros >= 0.0 && micros <= u64::MAX as f64) {
-                    return Ok(());
+                // u64::MAX rounds to 2^64 in f64; equality would saturate the cast.
+                if !(micros.is_finite() && (0.0..18_446_744_073_709_551_616.0).contains(&micros)) {
+                    return Err(Error::TimestampOutOfRange {
+                        line: line_no,
+                        value: parsed.raw_ts,
+                    });
                 }
                 Some(UnixMicros::new(micros as u64))
             }
-            TimestampMode::Delta => None,
+            TimestampMode::Delta => {
+                Duration::try_from_secs_f64(parsed.raw_ts).map_err(|_| {
+                    Error::TimestampOutOfRange {
+                        line: line_no,
+                        value: parsed.raw_ts,
+                    }
+                })?;
+                None
+            }
         };
 
         let first = match self.first_raw_ts {
@@ -204,7 +240,11 @@ impl Accumulator {
             }
         };
         let offset_secs = parsed.raw_ts - first;
-        let offset = Duration::from_secs_f64(offset_secs);
+        let offset =
+            Duration::try_from_secs_f64(offset_secs).map_err(|_| Error::TimestampOutOfRange {
+                line: line_no,
+                value: offset_secs,
+            })?;
         self.last_offset = offset;
         self.previous_raw_ts = Some(parsed.raw_ts);
 
@@ -319,6 +359,7 @@ fn parse_frame_fields(buf: &[u8]) -> Option<ParsedFields> {
     // - log (`-L`): `(ts) iface ID#HEX…`
     // - ASCII (default `candump -t z`): `(ts) iface ID [dlc] XX YY…`
     let id_part = parts[2];
+    let mut declared_dlc = None;
     let (id_hex, data_hex_owned) = if let Some((id, hex)) = id_part.split_once('#') {
         let mut data = hex.to_string();
         if parts.len() > 3 {
@@ -331,6 +372,11 @@ fn parse_frame_fields(buf: &[u8]) -> Option<ParsedFields> {
     } else if parts.len() == 3 {
         (id_part, String::new())
     } else if is_ascii_dlc_token(parts[3]) {
+        let count = parts[3][1..parts[3].len() - 1].parse::<usize>().ok()?;
+        if count > MAX_CLASSIC_DLC {
+            return None;
+        }
+        declared_dlc = Some(count);
         (id_part, parts[4..].join(" "))
     } else {
         return None;
@@ -347,7 +393,7 @@ fn parse_frame_fields(buf: &[u8]) -> Option<ParsedFields> {
         return None;
     }
     let byte_len = data_hex.len() / 2;
-    if byte_len > MAX_CLASSIC_DLC {
+    if byte_len > MAX_CLASSIC_DLC || declared_dlc.is_some_and(|count| count != byte_len) {
         return None;
     }
     let mut data = Vec::with_capacity(byte_len);

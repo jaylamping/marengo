@@ -11,6 +11,13 @@
 //! - Validated [`CanId`], [`Summary`], [`Inspection`]
 //! - Optional `robstride-enrichment` catalog lookup
 //!
+//! Untrusted input limits: at most 4096 bytes per physical line (including newline)
+//! and 256 MiB of decompressed capture bytes. Malformed frames are skipped; finite
+//! timestamps outside the representable domain fail inspection with a typed error.
+//! Delta timestamps and JSON offsets must fit Duration; absolute timestamps must
+//! round to fewer than 2^64 Unix microseconds. Accepted offsets retain nanosecond
+//! rounding, including positive subnanosecond values rounding to zero.
+//!
 //! ## Does not
 //!
 //! - Own session/blob path lookup (marengo-store)
@@ -134,7 +141,7 @@ where
             "offset must be finite and non-negative",
         ));
     }
-    Ok(Duration::from_secs_f64(secs))
+    Duration::try_from_secs_f64(secs).map_err(serde::de::Error::custom)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
