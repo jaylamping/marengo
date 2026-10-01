@@ -1,0 +1,42 @@
+{
+  "baseline": "b23c82ba73b6372889f950379db97273053fe147",
+  "host": "aarch64-apple-darwin",
+  "classification": "baseline positive; candidate stale-read mutation sensitivity; unchanged replay",
+  "command": [
+    "/Users/joseph/.cargo/bin/cargo",
+    "test",
+    "--locked",
+    "-p",
+    "marengo-store",
+    "--test",
+    "migration_competing_writer",
+    "--",
+    "--nocapture"
+  ],
+  "probe_sha256": "46dce59aa438b5fda483a79917cd8de6eb40ee77d3d4b0b21d641320dcc48807",
+  "original_production_sha256": "a1007111ede3eddbd04b4cd4daaf613f744d89362451898f0660f05379093e15",
+  "restored_production_sha256": "a1007111ede3eddbd04b4cd4daaf613f744d89362451898f0660f05379093e15",
+  "runs": [
+    {
+      "name": "baseline-positive",
+      "exit_code": 0,
+      "log_sha256": "e89cfbb8f687484367ba9de5d476274fc2d1b9b33043b5708aacdce3ce314622",
+      "probe_sha256": "46dce59aa438b5fda483a79917cd8de6eb40ee77d3d4b0b21d641320dcc48807",
+      "production_sha256": "a1007111ede3eddbd04b4cd4daaf613f744d89362451898f0660f05379093e15"
+    },
+    {
+      "name": "stale-read-mutant",
+      "exit_code": 101,
+      "log_sha256": "7bd284b3cc305833942a30b291a149ee5896ab936ac7433c0430c900534b8a1a",
+      "probe_sha256": "46dce59aa438b5fda483a79917cd8de6eb40ee77d3d4b0b21d641320dcc48807",
+      "production_sha256": "62fd6a0879c79d4f6be85336ed0e710a3b009fcee159d29214f48bcabdcaf3b2"
+    },
+    {
+      "name": "unchanged-replay",
+      "exit_code": 0,
+      "log_sha256": "8833ebba3fb61c098574f3b62f2029119aeac38a600d08d50c40b25fb7ddf1d8",
+      "probe_sha256": "46dce59aa438b5fda483a79917cd8de6eb40ee77d3d4b0b21d641320dcc48807",
+      "production_sha256": "a1007111ede3eddbd04b4cd4daaf613f744d89362451898f0660f05379093e15"
+    }
+  ]
+}

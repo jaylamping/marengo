@@ -1,5 +1,16 @@
 # Marengo stopping point and Mac handoff — October 1, 2026
 
+## Mac continuation — October 1, 2026
+
+The owner explicitly resumed software work on Mac at main `b23c82b`. Batch17
+now adds a locally qualified competing-writer migration test; production is
+unchanged. See [batch17 report](batch17-store-competing-writer.md) and ledger
+`active_mac_continuation`. Native Store30/0/0, mutation sensitivity/unchanged
+replay, strict clippy and formatting pass. The required Linux gate cannot start
+because Docker is absent; review/CI/delivery remain pending. The Windows schedule
+stays PAUSED and no robot access occurred. The remainder records the prior
+stopping checkpoint; its statements that batch17 has not started are historical.
+
 The owner requested a pause to resume on a Mac. The Windows automation
 `marengo-repair-loop` is **PAUSED**. Do not automatically restart that schedule,
 start another repair batch, or connect to the robot. Resume software work when

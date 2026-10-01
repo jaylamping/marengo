@@ -1,0 +1,12 @@
+--- a/crates/marengo-store/src/migrations.rs
++++ b/crates/marengo-store/src/migrations.rs
+@@ -113,8 +113,8 @@
+     loop {
+         // Read only after acquiring the writer reservation. Other Store instances
+         // have their own mutexes and may have completed a step while we waited.
++        let version = schema_version(conn)?;
+         let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+-        let version = schema_version(&tx)?;
+         match version {
+             0 => tx.execute_batch(MIGRATION_001)?,
+             1 => {
