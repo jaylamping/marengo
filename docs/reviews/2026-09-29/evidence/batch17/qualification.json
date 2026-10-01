@@ -41,5 +41,7 @@
       "production_sha256": "a1007111ede3eddbd04b4cd4daaf613f744d89362451898f0660f05379093e15",
       "output_file": "unchanged-replay.txt"
     }
-  ]
+  ],
+  "mutation_patch": "stale-read-mutant.patch",
+  "mutation_patch_sha256": "66418d2669caab4a6a13d326abd673aba21b619e6ac89d988ba0b955b5a655c9"
 }
