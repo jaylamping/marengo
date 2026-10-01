@@ -383,3 +383,13 @@ Final reviews/exact-head GitHub delivery remain later receipts at this checkpoin
 G15 interruption/concurrency/other profiles remain open, and no physical acceptance
 is inferred. Prior batch15 pending checkpoint is superseded by completed PR229
 bb22fc7/main d660112 exact all-five-job delivery and independent review/backup.
+
+Batch16 final local correction: independent Spec found stdout failure after
+completed recovery omitted artifact paths. Actual line415 CLI regression
+fails on implemented2b0 and passes byte-identically after serializer/write/
+newline/flush error reporting. Phase05 library proof scope remains unchanged;
+only two CLI core files differ. Final phase06 native34/affected37/primary772
+Rust/1existingignored,355frontend/72PiMCP/fatalARM qualify1464 unchanged inputs.
+V3 startup failure is preserved/excluded; final-local-qualification.json binds
+actual red/green/gates and exact delta. Final independent review and GitHub
+delivery remain pending; G15 partial and102ID/eight-task dispositions unchanged.

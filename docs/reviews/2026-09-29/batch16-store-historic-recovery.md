@@ -108,3 +108,41 @@ final acceptance. Batch15 completed PR229/main delivery is reconciled in the led
 and prior report. This batch must not merge from the local checkpoint alone.
 Next: finish delivery, then deterministic G15 interruption/refusal/concurrency.
 Hardware issues170/176 and Wave sign-off remain unchanged.
+
+## Late CLI review correction and final local qualification
+
+Initial Standards accepted checkpoint2b0 with one optional fixture-duplication
+suggestion. Initial Spec found P2: after library success, receipt serialization or
+stdout write failure omitted both completed artifact paths; the final newline could
+panic. The CLI now catches serialization, writes, newline and flush errors, reports
+both retained canonical paths and includes escaped path representations. Pinned
+serde's non-UTF8 path rejection is source-established; execution is not claimed.
+
+The actual Linux /dev/full probe first establishes ENOSPC28, source/history/FTS/
+neighbor preservation, two standalone artifacts at markers1/3 and real cleanup.
+On implemented checkpoint2b0 its sole assertion415 fails with preserved=true and
+reported=false; the identical417-line whole probe passes after only CLI main.rs
+changes. Probe SHA256 `e08e69b8dd2f9e23e21e2d1132cab84e99b96fe4c0348bf1f0998d94a62612de`;
+red receipt `4c6b53e0d452d42b116d84987ca8251dd9af51c917c6f43115eeb3a8e4ddafda`;
+green receipt `ac5e887cd883444b14f6569fc77783cc0cf19045b5663d3b5f697aca9b4a8cd4`.
+Fresh local compiler artifacts and direct exact workers, bounded waits, source/
+executable hashes and empty fixture inventories qualify both runs. Green rebinds
+all actual red predecessor evidence before and after. This is an introduced-command
+behavior regression on2b0, not a missing API red on the initiald660 baseline.
+
+V3's image startup attempted mkdir in the read-only source mount and failed before
+compilation. Its unqualified receipt is preserved; it is never behavioral evidence
+or a predecessor. Preparation v1/v2 and one quoting failure are excluded. Immutable
+v4 changes the launch to invoke python directly. Phase05 library production/probe/
+dependencies remain byte-identical; the only two changed core inputs are CLI main.rs
+and the appended CLI probe. Earlier phase05 whole-candidate gates are historical,
+not a claim about the final CLI. All1464 final phase06 inputs remain unchanged.
+
+Final actual gates: affected37/0/0; native Windows34/0/0 (three Linux-only cases
+excluded); required primary772Rust/0failed/1existingignored,355frontend/72PiMCP
+and fatal ARM release. Seven new behavior tests retain all useful existing tests;
+no new ignore or performance claim. Final receipt/bridge:
+`J:/code/marengo-migration-backup-20260929/batch16/final-local-qualification.json`
+SHA256 `03822ac5967dfda284fd6f77da4b6e57ff2ce211a5591b50e9d140bf61cf4298`. Independent final review
+and exact-head GitHub delivery remain later receipts before merge. G15 remains
+partial; all102IDs/eight maintenance tasks and hardware restrictions remain.

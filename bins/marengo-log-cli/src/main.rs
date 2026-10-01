@@ -2,6 +2,7 @@
 //! Candump inspection uses `marengo-candump` directly (no DB required).
 //! Explicit historical recovery dispatches before opening the normal Store.
 
+use std::io::Write;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -233,9 +234,20 @@ fn run_recovery(
     output: PathBuf,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let receipt = recover_known_v2(source, backup, output)?;
-    serde_json::to_writer_pretty(std::io::stdout(), &receipt)?;
-    println!();
-    Ok(())
+    let mut stdout = std::io::stdout().lock();
+    let presented = (|| -> Result<(), Box<dyn std::error::Error>> {
+        serde_json::to_writer_pretty(&mut stdout, &receipt)?;
+        writeln!(stdout)?;
+        stdout.flush()?;
+        Ok(())
+    })();
+    presented.map_err(|error| {
+        format!(
+            "recovery artifacts completed but receipt output failed: {error}; retained published backup={}; retained published output={}; canonical paths: backup={:?}; output={:?}",
+            receipt.backup_path.display(), receipt.output_path.display(),
+            receipt.backup_path, receipt.output_path,
+        ).into()
+    })
 }
 
 fn main() -> ExitCode {

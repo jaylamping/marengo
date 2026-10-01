@@ -550,3 +550,13 @@ current CAD/URDF/MJCF consistency, and resumed limb-playbook execution. Issue
 Do not change `WAVE_POSE_GCOMP_SIGNED` or close physical acceptance issues from
 offline tests. Software corrections, especially CS23, require a fresh model and
 commissioning assessment.
+
+Batch16 final local correction: independent Spec found stdout failure after
+completed recovery omitted artifact paths. Actual line415 CLI regression
+fails on implemented2b0 and passes byte-identically after serializer/write/
+newline/flush error reporting. Phase05 library proof scope remains unchanged;
+only two CLI core files differ. Final phase06 native34/affected37/primary772
+Rust/1existingignored,355frontend/72PiMCP/fatalARM qualify1464 unchanged inputs.
+V3 startup failure is preserved/excluded; final-local-qualification.json binds
+actual red/green/gates and exact delta. Final independent review and GitHub
+delivery remain pending; G15 partial and102ID/eight-task dispositions unchanged.
