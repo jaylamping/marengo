@@ -21,6 +21,9 @@ class ClassificationTests(unittest.TestCase):
                  (0, 0, 0, 0, "error", "malformed"),
                  (0, 0, 0, 0, "error", "unknown-provenance"),
                  (0, 0, 0, 0, "missing-database", "missing-db"),
+                 (2, 0, 0, 0, "missing-database", "missing-db"),
+                 (0, 0, 0, 0, "error", "ancestor-db"),
+                 (0, 0, 0, 0, "error", "timeout"),
                  (0, 0, 0, 0, "unavailable", "unavailable")]
         for code, count, warnings, age, expected, scenario in cases:
             with self.subTest(expected=expected, code=code), tempfile.TemporaryDirectory() as directory:
@@ -38,11 +41,22 @@ class ClassificationTests(unittest.TestCase):
                 payload = {"database": {"last-updated": stamp, "last-commit": "a" * 40},
                            "vulnerabilities": {"count": count, "found": bool(count), "list": [{}] * count},
                            "warnings": {"unmaintained": [{}] * warnings}}
-                if scenario == "unknown-provenance":
+                if scenario in {"unknown-provenance", "ancestor-db"}:
                     payload["database"]["last-updated"] = None
+                if scenario == "ancestor-db":
+                    subprocess.run(["git", "init", "-q", str(root)], check=True)
+                    (root / "tracked").write_text("unrelated parent fixture")
+                    subprocess.run(["git", "-C", str(root), "add", "tracked"], check=True)
+                    subprocess.run(["git", "-C", str(root), "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "fixture"], check=True)
+                    # Ignore fixture artifacts so only repository identity distinguishes this case.
+                    (root / ".git/info/exclude").write_text("*\n")
+                if scenario == "timeout":
+                    (root / "sitecustomize.py").write_text('import subprocess\noriginal=subprocess.run\ndef run(cmd,*args,**kwargs):\n if cmd[:2]==["cargo","audit"]: kwargs["timeout"]=0.5\n return original(cmd,*args,**kwargs)\nsubprocess.run=run\n')
                 encoded = "not json" if scenario == "malformed" else json.dumps(payload)
                 cargo = bin_dir / "cargo"
                 cargo.write_text('#!/usr/bin/python3\nimport json,sys,pathlib\npathlib.Path("args.json").write_text(json.dumps(sys.argv[1:]))\nprint(' + repr(encoded) + ')\nprint("fixture stderr",file=sys.stderr)\nsys.exit(' + str(code) + ')\n')
+                if scenario == "timeout":
+                    cargo.write_text(cargo.read_text().replace('sys.exit(', 'import time\nsys.stdout.flush();sys.stderr.flush();time.sleep(2)\nsys.exit('))
                 cargo.chmod(0o755)
                 scanner = bin_dir / "cargo-audit"
                 scanner.write_text('#!/bin/sh\nexit 0\n')
@@ -50,14 +64,17 @@ class ClassificationTests(unittest.TestCase):
                 if scenario == "unavailable":
                     scanner.unlink()
                 proc = subprocess.run(["sh", str(scripts / "run.sh")], cwd=root,
-                    env=dict(os.environ, PATH=f"{bin_dir}:/usr/bin:/bin", MARENGO_ADVISORY_DB=str(db)),
+                    env=dict(os.environ, PATH=f"{bin_dir}:/usr/bin:/bin", MARENGO_ADVISORY_DB=str(db), PYTHONPATH=str(root)),
                     capture_output=True, text=True)
                 self.assertEqual(proc.returncode, 0, proc.stderr)
                 out = next((root / "var/log/daily-audit").iterdir())
                 result = json.loads((out / "cargo-audit-result.json").read_text())
                 report = json.loads((out / "report.json").read_text())
                 self.assertEqual(result["status"], expected)
-                self.assertEqual(result["exit_code"], None if scenario == "unavailable" else code)
+                self.assertEqual(result["exit_code"], None if scenario in {"unavailable", "timeout"} else code)
+                if scenario == "timeout":
+                    self.assertEqual(result["termination"], "timeout")
+                    self.assertIn("vulnerabilities", (out / "cargo-audit.stdout.json").read_text())
                 self.assertEqual(report["clean"], expected == "clean")
                 self.assertIn(expected, (out / "report.md").read_text())
                 self.assertEqual((out / "cargo-audit.stderr.log").read_text(), "" if scenario == "unavailable" else "fixture stderr\n")

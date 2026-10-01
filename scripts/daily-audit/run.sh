@@ -60,8 +60,10 @@ if shutil.which("cargo-audit") and shutil.which("cargo"):
             if database.get("last-updated") is None or database.get("last-commit") is None:
                 # cargo-audit --no-fetch may omit provenance; require a clean owned Git snapshot.
                 status = subprocess.run(["git", "-C", str(db), "status", "--porcelain"], capture_output=True, text=True, timeout=10)
+                top = subprocess.run(["git", "-C", str(db), "rev-parse", "--show-toplevel"], capture_output=True, text=True, timeout=10)
                 metadata = subprocess.run(["git", "-C", str(db), "log", "-1", "--format=%H%n%cI"], capture_output=True, text=True, timeout=10)
-                if status.returncode != 0 or status.stdout.strip() or metadata.returncode != 0:
+                if (status.returncode != 0 or status.stdout.strip() or metadata.returncode != 0
+                        or top.returncode != 0 or Path(top.stdout.strip()).resolve() != db.resolve()):
                     raise ValueError("database provenance unavailable or snapshot modified")
                 commit, updated = metadata.stdout.strip().splitlines()
                 database = {"last-commit": commit, "last-updated": updated}
@@ -83,12 +85,16 @@ if shutil.which("cargo-audit") and shutil.which("cargo"):
                 result["status"] = "maintenance-warnings"
             elif proc.returncode == 0:
                 result["status"] = "clean"
-    except (OSError, ValueError, KeyError, TypeError, AttributeError, subprocess.TimeoutExpired) as exc:
+    except subprocess.TimeoutExpired as exc:
+        stdout = exc.stdout.decode("utf-8", errors="replace") if isinstance(exc.stdout, bytes) else (exc.stdout or "")
+        stderr = exc.stderr.decode("utf-8", errors="replace") if isinstance(exc.stderr, bytes) else (exc.stderr or "")
+        result.update(status="error", termination="timeout", error=str(exc))
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
         result["status"] = "error"
         result["error"] = str(exc)
     if not db.is_dir():
         result["snapshot_status"] = "missing"
-        if result["status"] != "error":
+        if result["status"] != "error" or "MARENGO_ADVISORY_DB" in os.environ:
             result["status"] = "missing-database"
 else:
     result["error"] = "cargo or cargo-audit unavailable"
