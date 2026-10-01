@@ -1,0 +1,44 @@
+   Compiling marengo-candump v0.1.0 (/Users/joseph/.codex/worktrees/candump-input-validation/marengo/crates/marengo-candump)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.13s
+     Running tests/input_validation.rs (target/debug/deps/input_validation-799896eac10765c2)
+
+running 5 tests
+
+thread 'huge_json_offsets_are_serde_errors' panicked at /rustc/6b00bc3880198600130e1cf62b8f8a93494488cc/library/core/src/time.rs:930:23:
+cannot convert float seconds to Duration: value is either too big or NaN
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'huge_finite_capture_timestamps_are_input_errors' panicked at /rustc/6b00bc3880198600130e1cf62b8f8a93494488cc/library/core/src/time.rs:930:23:
+cannot convert float seconds to Duration: value is either too big or NaN
+
+thread 'ascii_dlc_must_match_classic_payload' panicked at crates/marengo-candump/tests/input_validation.rs:56:5:
+assertion `left == right` failed
+  left: 5
+ right: 2
+test numeric_rounding_and_malformed_frames_keep_their_contract ... ok
+
+thread 'huge_json_offsets_are_serde_errors' panicked at crates/marengo-candump/tests/input_validation.rs:40:9:
+JSON offset must not unwind: 1e30
+
+thread 'huge_finite_capture_timestamps_are_input_errors' panicked at crates/marengo-candump/tests/input_validation.rs:17:13:
+untrusted timestamp must not unwind: Delta
+test huge_json_offsets_are_serde_errors ... FAILED
+test ascii_dlc_must_match_classic_payload ... FAILED
+test huge_finite_capture_timestamps_are_input_errors ... FAILED
+
+thread 'excessive_source_lines_refuse' panicked at crates/marengo-candump/tests/input_validation.rs:72:5:
+assertion failed: Candump::plain().inspect_bytes(input.as_bytes(),
+        InspectRequest::summary(TimestampMode::Delta)).is_err()
+test excessive_source_lines_refuse ... FAILED
+
+failures:
+
+failures:
+    ascii_dlc_must_match_classic_payload
+    excessive_source_lines_refuse
+    huge_finite_capture_timestamps_are_input_errors
+    huge_json_offsets_are_serde_errors
+
+test result: FAILED. 1 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p marengo-candump --test input_validation`

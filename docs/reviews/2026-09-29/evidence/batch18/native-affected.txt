@@ -1,0 +1,225 @@
+   Compiling marengo-candump v0.1.0 (/Users/joseph/.codex/worktrees/candump-input-validation/marengo/crates/marengo-candump)
+   Compiling marengo-store v0.1.0 (/Users/joseph/.codex/worktrees/candump-input-validation/marengo/crates/marengo-store)
+   Compiling marengo-log-cli v0.1.0 (/Users/joseph/.codex/worktrees/candump-input-validation/marengo/bins/marengo-log-cli)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.33s
+     Running unittests src/lib.rs (target/debug/deps/marengo_candump-7241358fa4eadfc4)
+
+running 3 tests
+test can_id_tests::rejects_over_29_bits ... ok
+test can_id_tests::standard_pads_three_digits ... ok
+test can_id_tests::accepts_max_extended ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/contract.rs (target/debug/deps/contract-50a89ab6170cb1e0)
+
+running 12 tests
+test frame_page_rejects_zero_and_oversize_limit ... ok
+test page_skips_malformed_without_holes ... ok
+test can_id_json_roundtrip_canonical_hex ... ok
+test inspect_path_io_error_includes_path ... ok
+test timestamp_regression_fails_inspection ... ok
+test absolute_retains_unix_and_normalizes_offset ... ok
+test malformed_lines_count_but_do_not_parse ... ok
+test mixed_interfaces_sort_lexically_with_per_iface_counts ... ok
+test delta_summary_counts_and_rate ... ok
+test top_ids_sort_count_desc_then_id_asc ... ok
+test ascii_candump_matches_log_format_delta ... ok
+test gzip_matches_plain_delta ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/input_limits.rs (target/debug/deps/input_limits-4aed116a8fa3a3e5)
+
+running 4 tests
+test absolute_microsecond_upper_bound_does_not_saturate ... ok
+test truncated_gzip_is_an_io_error ... ok
+test physical_line_boundary_includes_newline_for_plain_and_gzip ... ok
+test gzip_expansion_refuses_after_exact_capture_byte_budget ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.92s
+
+     Running tests/input_validation.rs (target/debug/deps/input_validation-dc837f9e73a8c280)
+
+running 5 tests
+test huge_json_offsets_are_serde_errors ... ok
+test excessive_source_lines_refuse ... ok
+test ascii_dlc_must_match_classic_payload ... ok
+test numeric_rounding_and_malformed_frames_keep_their_contract ... ok
+test huge_finite_capture_timestamps_are_input_errors ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/marengo_log_cli-bd311587fe7f0cbe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/candump_cli.rs (target/debug/deps/candump_cli-78f4db5721bc277b)
+
+running 2 tests
+test candump_summary_text_emits_key_values ... ok
+test candump_summary_json_matches_golden ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+
+     Running tests/candump_input_errors.rs (target/debug/deps/candump_input_errors-6e277f3bb6ee1829)
+
+running 1 test
+test huge_candump_timestamp_returns_input_error ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/recovery_cli.rs (target/debug/deps/recovery_cli-e008468619777d5b)
+
+running 1 test
+test explicit_recovery_cli_requires_paths_preserves_collisions_and_reports_completed_artifacts ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/session_cli.rs (target/debug/deps/session_cli-ed99fae8b8d74c01)
+
+running 2 tests
+test cli_argument_and_database_failures_preserve_capture_files_and_rows ... ok
+test cli_reports_unique_imports_and_clears_only_the_selected_reference ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running unittests src/lib.rs (target/debug/deps/marengo_store-403642afdd3d4f7c)
+
+running 4 tests
+test ring::tests::ring_drops_oldest_at_capacity ... ok
+test store::tests::migrate_and_insert_logs ... ok
+test store::tests::candump_page_delegates_to_deep_module ... ok
+test store::tests::fts_query_applies_level_filter_and_count ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/migration_admission.rs (target/debug/deps/migration_admission-9bbae6f4a56340d0)
+
+running 2 tests
+test unversioned_sqlitex_neighbor_is_refused_without_creating_store_schema ... ok
+test public_migrate_refuses_disabled_rollback_journal_before_any_logical_write ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/migration_atomicity.rs (target/debug/deps/migration_atomicity-942264909b358b0a)
+
+running 3 tests
+test v2_marker_failure_rolls_back_completed_ddl_and_allows_real_retry ... ok
+test v3_marker_failure_preserves_prior_schema_and_obsolete_cache_until_retry ... ok
+test independently_seeded_v1_and_v2_upgrade_preserve_data_and_working_fts ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/migration_marker_progress.rs (target/debug/deps/migration_marker_progress-e3d8b3c79d76abb3)
+
+running 1 test
+test rewritten_final_marker_refuses_before_committing_and_retries_after_trigger_removal ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/migration_recovery.rs (target/debug/deps/migration_recovery-9f675324355496e0)
+
+running 4 tests
+test recovery_inserts_missing_defaults_once_with_the_output_marker_timestamp ... ok
+test known_v2_recovery_completes_backup_and_separate_output_without_changing_source ... ok
+test recovery_refuses_unsupported_profiles_and_unverified_fts_without_artifacts ... ok
+test recovery_refuses_path_collisions_without_changing_source_or_sentinels ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+
+     Running tests/migration_step_conformance.rs (target/debug/deps/migration_step_conformance-68294cc289311798)
+
+running 3 tests
+test marker3_refusal_keeps_committed_v2_and_public_retry_preserves_history ... ok
+test future_v4_open_refuses_without_changing_logical_schema_data_or_marker ... ok
+test current_v3_open_and_migrate_preserve_explicit_setting_timestamps ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/retention.rs (target/debug/deps/retention-84f69aca421c6b48)
+
+running 1 test
+test retention_removes_expired_sessions_and_artifacts_without_blocking ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/session_artifact_operations.rs (target/debug/deps/session_artifact_operations-e74677808b95432e)
+
+running 3 tests
+test import_report_counts_sessions_separately_and_refuses_readonly_storage_without_losing_files ... ok
+test readonly_clear_preserves_populated_rows_and_files_and_writable_retry_succeeds ... ok
+test explicit_clear_preserves_sibling_references_metadata_and_shared_files_across_reopen ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/session_artifact_preservation.rs (target/debug/deps/session_artifact_preservation-1e90ce86307448c8)
+
+running 1 test
+test sparse_registration_preserves_session_metadata_and_all_sibling_artifacts ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/session_candump_replacement.rs (target/debug/deps/session_candump_replacement-f3bc5189d24f7ea3)
+
+running 1 test
+test replacing_candump_invalidates_old_statistics_without_losing_siblings_or_capture_metadata ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/session_capture_chronology.rs (target/debug/deps/session_capture_chronology-852294b7e098104b)
+
+running 1 test
+test import_and_unregistered_archive_preserve_utc_capture_dates_through_reopen ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/session_capture_compatibility.rs (target/debug/deps/session_capture_compatibility-06e7f9076f902f9e)
+
+running 1 test
+test supported_profile_and_legacy_captures_ignore_sidecars_aliases_and_nonfiles ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/session_capture_refusal.rs (target/debug/deps/session_capture_refusal-e2bc28bb5316f140)
+
+running 1 test
+test invalid_new_capture_dates_are_refused_before_any_registration_or_archive ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/session_capture_retention.rs (target/debug/deps/session_capture_retention-7dcf035adcc1f2fa)
+
+running 1 test
+test absolute_capture_cutoff_preserves_exact_boundary_and_refuses_overflow_without_mutation ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/session_capture_unknown_end.rs (target/debug/deps/session_capture_unknown_end-72215f6b5f99ab59)
+
+running 1 test
+test imported_capture_end_stays_unknown_until_explicit_finalize_and_survives_reimport ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/session_import_preservation.rs (target/debug/deps/session_import_preservation-2bca4f015dbdadb1)
+
+running 1 test
+test legacy_import_counts_unique_sessions_and_archive_preserves_authoritative_metadata ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+   Doc-tests marengo_candump
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests marengo_store
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

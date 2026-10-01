@@ -1,0 +1,22 @@
+{
+  "baseline": "b23c82ba73b6372889f950379db97273053fe147",
+  "classification": "actual original library four assertion reds/one positive, actual CLI panic-code assertion red; unchanged public probes pass after repair",
+  "unchanged_probe_sha256": {
+    "crates/marengo-candump/tests/input_validation.rs": "d9783bfc9cffc3ed590a2520ddaa79f75ffc5351959a78e9cbc312851624172a",
+    "bins/marengo-log-cli/tests/candump_input_errors.rs": "a88b85cf07b7193367568bf56bb08bd61bcd685728413fb81d274d9bff8178bd"
+  },
+  "affected_counts": {
+    "passed": 59,
+    "failed": 0,
+    "ignored": 0
+  },
+  "host": "aarch64-apple-darwin",
+  "primary_gate": "pending exact-head CI; local Docker onboarding incomplete",
+  "logs": {
+    "unchanged-library-green.txt": "913a1866aebabdeede4287723c95a4b0f194962bc71dd85e5c7d03b92d654a80",
+    "unchanged-cli-green.txt": "8d393138deddb3ea2c08f18803eae9f2e45aeed29070e5770c62672ac8a6172c",
+    "original-library.txt": "14ab9b6b0da921dfcb1ecf53f88a6597fa65424eb3c136eb06b6af268d4b368c",
+    "original-cli.txt": "2c2e2a50e414030d6e6c2cd5a930b406ea7456c62a77c0b4e0973ffa256b5d5e",
+    "native-affected.txt": "47b892291d8415beb52cb855c2930283bf3fb38b6133737b25b8e9b876904cd0"
+  }
+}

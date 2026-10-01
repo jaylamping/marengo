@@ -1,0 +1,11 @@
+   Compiling marengo-candump v0.1.0 (/Users/joseph/.codex/worktrees/candump-input-validation/marengo/crates/marengo-candump)
+   Compiling marengo-store v0.1.0 (/Users/joseph/.codex/worktrees/candump-input-validation/marengo/crates/marengo-store)
+   Compiling marengo-log-cli v0.1.0 (/Users/joseph/.codex/worktrees/candump-input-validation/marengo/bins/marengo-log-cli)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.84s
+     Running tests/candump_input_errors.rs (target/debug/deps/candump_input_errors-6e277f3bb6ee1829)
+
+running 1 test
+test huge_candump_timestamp_returns_input_error ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
