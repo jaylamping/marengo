@@ -4,12 +4,12 @@
 
 Batches17,18,20,21 are merged (PR232–235); their exact merged-main CI runs
 passed all five jobs. G17, T18 and T19 are verified; G15 remains partial.
-The ledger preserves all102 findings and eight maintenance tasks:19verified,
-11partial,72open. Historical checkpoint sections below retain their original counts.
+The ledger preserves all102 findings and eight maintenance tasks:20verified,
+11partial,71open. Historical checkpoint sections below retain their original counts.
 
 Batch22 [PR236](https://github.com/jaylamping/marengo/pull/236) merged as0166970
 with exact-head all-five-job PR CI36898020258 passing. Merged-main CI36898895683
-has sim/vcan passed and primary check still running at this freeze; G01 stays open.
+passed all five jobs; G01 is verified.
 
 Batch23 [PR237](https://github.com/jaylamping/marengo/pull/237) corrects CPU
 columns and preserves per-CPU identity/unknown baselines. Both reviews and integration

@@ -2564,9 +2564,11 @@
       "source": "gateway.md#g01--p1-the-pi-telemetry-queue-grows-without-bound-while-the-gateway-is-offline",
       "work_package": "WP07",
       "implementation_and_acceptance_plan": "gateway-implementation-plan.md",
-      "status": "open",
-      "evidence": [],
-      "verified_commit_or_pr": null,
+      "status": "verified",
+      "evidence": [
+        "Batch22 original disconnected FIFO assertion red replays unchanged green after bounded queue/topic/age/write policies; actual non-reading/reconnect, peer lifetime, shutdown races, wire queue health, gateway lifecycle/loss and encoded UI retirement qualified. Standards/Spec accepted. Final PR4dbf333 CI36898020258 all5 passed; merged main0166970 CI36898895683 all5 passed. Bounded audit transport is not durable G11 delivery; boot/freshness identity G10/F05 remains open. No hardware acceptance."
+      ],
+      "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/236",
       "hardware_acceptance": "not established by this software repair"
     },
     {
@@ -15301,14 +15303,15 @@
       "pr_ci_run": 36898020258,
       "pr_all_five_jobs_passed": true,
       "main_ci_run": 36898895683,
-      "status": "merged; exact PR all five CI jobs passed; main primary gate in progress",
-      "report": "batch22-bounded-ipc-outage.md"
+      "status": "merged; exact-head PR/main all five CI jobs passed",
+      "report": "batch22-bounded-ipc-outage.md",
+      "main_all_five_jobs_passed": true
     }
   ],
   "finding_status_counts": {
-    "verified": 19,
+    "verified": 20,
     "partial": 11,
-    "open": 72
+    "open": 71
   },
   "next_dependency_ready_batch": {
     "current": "Complete final batch18 PR233 integrated exact-head CI/delivery; reconcile batch17mainvcan. Next independent T17cold-cache repair is in codex/research-cache-await; do not close finding until reviews/checks/delivery.",
