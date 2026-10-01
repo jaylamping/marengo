@@ -123,3 +123,77 @@ mod collector_tests {
         }
     }
 }
+
+/// Collector inputs are supplied by the host or deterministic fixtures.
+pub(crate) trait Sources {
+    fn command(&self, program: &str, args: &[&str]) -> Option<String>;
+    fn read_file(&self, path: &str) -> Option<String>;
+}
+
+pub(crate) fn collect_disks(
+    source: &impl Sources,
+    mounts: &[&str],
+) -> Vec<armee_proto::DiskMetrics> {
+    mounts
+        .iter()
+        .filter_map(|mount| {
+            let output = source.command("df", &["-B1", mount])?;
+            let line = output.lines().nth(1)?;
+            let cols: Vec<&str> = line.split_whitespace().collect();
+            if cols.len() < 6 {
+                return None;
+            }
+            let total: u64 = cols[1].parse().ok()?;
+            let used: u64 = cols[2].parse().ok()?;
+            let used_pct = if total > 0 {
+                used as f64 / total as f64 * 100.0
+            } else {
+                0.0
+            };
+            Some(armee_proto::DiskMetrics {
+                mount_point: (*mount).into(),
+                filesystem: cols[0].into(),
+                total_bytes: total,
+                used_bytes: used,
+                read_only: cols.contains(&"ro"),
+                nearly_full: used_pct >= 90.0,
+                ..Default::default()
+            })
+        })
+        .collect()
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod disk_regression {
+    use super::*;
+    use armee_proto::{prost::Message, HostMetrics};
+    struct Fixture;
+    impl Sources for Fixture {
+        fn command(&self, program: &str, args: &[&str]) -> Option<String> {
+            assert_eq!(program, "df");
+            assert!(args.contains(&"/"));
+            Some(
+                "Filesystem 1B-blocks Used Available Use% Mounted on\n/dev/root 100 90 10 90% /\n"
+                    .into(),
+            )
+        }
+        fn read_file(&self, path: &str) -> Option<String> {
+            assert_eq!(path, "/proc/self/mountinfo");
+            Some("36 35 98:0 / / ro,noatime shared:1 - ext4 /dev/root rw,errors=continue\n".into())
+        }
+    }
+    #[test]
+    fn published_read_only_comes_from_mount_flags_not_df_columns() {
+        let wire = HostMetrics {
+            disks: collect_disks(&Fixture, &["/"]),
+            ..Default::default()
+        }
+        .encode_to_vec();
+        let metric = HostMetrics::decode(wire.as_slice()).expect("wire");
+        assert!(
+            metric.disks[0].read_only,
+            "read-only root must not be reported writable"
+        );
+    }
+}

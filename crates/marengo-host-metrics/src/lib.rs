@@ -114,7 +114,22 @@ mod linux {
     use crate::sample_state::CpuLineValues;
     use crate::{ChappeHealthInput, SampleState};
 
-    const NEARLY_FULL_PERCENT: f64 = 90.0;
+    struct SystemSources;
+    impl crate::diagnostics::Sources for SystemSources {
+        fn command(&self, program: &str, args: &[&str]) -> Option<String> {
+            let output = std::process::Command::new(program)
+                .args(args)
+                .output()
+                .ok()?;
+            if !output.status.success() {
+                return None;
+            }
+            String::from_utf8(output.stdout).ok()
+        }
+        fn read_file(&self, path: &str) -> Option<String> {
+            fs::read_to_string(path).ok()
+        }
+    }
 
     pub fn sample(
         role: HostNodeRole,
@@ -354,40 +369,7 @@ mod linux {
     }
 
     fn sample_disks(_elapsed: f64) -> Vec<DiskMetrics> {
-        ["/", "/boot/firmware"]
-            .iter()
-            .filter_map(|mount| {
-                let output = std::process::Command::new("df")
-                    .args(["-B1", mount])
-                    .output()
-                    .ok()?;
-                if !output.status.success() {
-                    return None;
-                }
-                let line = std::str::from_utf8(&output.stdout).ok()?.lines().nth(1)?;
-                let cols: Vec<&str> = line.split_whitespace().collect();
-                if cols.len() < 6 {
-                    return None;
-                }
-                let total: u64 = cols[1].parse().ok()?;
-                let used: u64 = cols[2].parse().ok()?;
-                let used_pct = if total > 0 {
-                    used as f64 / total as f64 * 100.0
-                } else {
-                    0.0
-                };
-                let read_only = cols.contains(&"ro");
-                Some(DiskMetrics {
-                    mount_point: (*mount).to_string(),
-                    filesystem: cols[0].to_string(),
-                    total_bytes: total,
-                    used_bytes: used,
-                    read_only,
-                    nearly_full: used_pct >= NEARLY_FULL_PERCENT,
-                    ..Default::default()
-                })
-            })
-            .collect()
+        crate::diagnostics::collect_disks(&SystemSources, &["/", "/boot/firmware"])
     }
 
     fn sample_network(prev: &mut SampleState, elapsed: f64) -> Vec<NetworkInterfaceMetrics> {
