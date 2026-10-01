@@ -19,7 +19,10 @@ async def search_huggingface(cfg: Config, query: str, limit: int = 10) -> list[R
     try:
         async with httpx.AsyncClient(timeout=30.0, headers=headers) as client:
             for url, kind in ((HF_MODELS, "model"), (HF_DATASETS, "dataset")):
-                resp = await client.get(url, params=params)
+                request_params = dict(params)
+                if kind == "model":
+                    request_params["expand"] = [*params["expand"], "pipeline_tag"]
+                resp = await client.get(url, params=request_params)
                 if resp.status_code != 200:
                     continue
                 for item in resp.json()[: max(1, limit // 2)]:
