@@ -4,7 +4,8 @@
 //! writer before inspecting a version and commits each schema step with its marker.
 //! Archive/file operations and candump inspection remain separate from migration
 //! transactions. This crate does not authorize robot motion or repair arbitrary
-//! damaged databases; callers own request scheduling and historic recovery policy.
+//! damaged databases. Explicit known-v2 recovery preserves a verified backup and
+//! publishes a separate output; callers own request scheduling and recovery consent.
 //! Allowed dependencies are SQLite, compression/time/serialization and ordinary
 //! storage utilities, plus marengo-candump inspection. No control-stack dependency.
 
@@ -13,6 +14,7 @@ mod journal;
 mod migrations;
 mod model;
 mod paths;
+mod recovery;
 mod ring;
 mod store;
 
@@ -27,5 +29,6 @@ pub use paths::{
     blob_dir, default_db_path, log_dir, resolve_db_path, resolve_marengo_root,
     DEFAULT_ARCHIVE_DAYS, DEFAULT_HOT_KEEP, DEFAULT_LOG_DISK_BUDGET_BYTES,
 };
+pub use recovery::{recover_known_v2, RecoveryReceipt};
 pub use ring::{LogRingBuffer, DEFAULT_RING_CAPACITY};
 pub use store::{now_ms, Store};

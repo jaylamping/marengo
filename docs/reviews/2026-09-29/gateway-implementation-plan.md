@@ -344,9 +344,20 @@ first-open/parallel-opener, busy and malformed-marker acceptance remain open.
 commit. The exact original public failure leaves cache removal committed under
 marker2/counter1; unchanged repaired proof preserves the entire prior version
 and permits real retry after trigger removal. Affected30 and primary765Rust
-(1existingignored),355frontend/72PiMCP/fatalARM pass. Final review/GitHub delivery
-are pending at this checkpoint. This bounded trigger proof does not qualify
-unbounded competing writers, historic recovery or first-open concurrency.
+(1existingignored),355frontend/72PiMCP/fatalARM pass. PR229 bb22fc7/main d660112
+equal-tree all-five-job delivery, independent reviews and scoped backup/cleanup
+complete. This bounded trigger proof does not qualify competing writers or
+first-open concurrency.
+
+[Batch16](batch16-store-historic-recovery.md), ADR0030, adds explicit recovery of
+one complete known v2 schema with stale marker1: read-only pinned WAL snapshot,
+verified standalone backup before separate output repair, FTS consistency and
+source/history/settings preservation. Actual refusal/namespace/failure/retry/CLI/
+default tests and WAL/FTS production mutants with unchanged replay qualify this
+profile. Native34/affected36/primary771Rust/1existingignored and fatalARM pass.
+Final review/exact-head GitHub delivery remain required later receipts at this
+checkpoint. Other historic prefixes and interruption/concurrency remain open;
+G15 stays partial.
 
 **Scope:** Store open/migrate and migration recovery. Acquire a SQLite write transaction
 for each migration plus its version marker and required data/index transformations.

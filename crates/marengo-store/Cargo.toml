@@ -13,12 +13,13 @@ workspace = true
 [dependencies]
 flate2 = "1"
 marengo-candump.workspace = true
-rusqlite = { version = "0.32", features = ["bundled"] }
+rusqlite = { version = "0.32", features = ["bundled", "backup", "hooks"] }
+same-file = "1"
 serde = { workspace = true, features = ["derive"] }
 serde_json = "1"
+sha2 = "0.10"
+tempfile = "3"
 thiserror.workspace = true
 time = { version = "0.3", features = ["formatting", "parsing"] }
 tracing.workspace = true
 
-[dev-dependencies]
-tempfile = "3"

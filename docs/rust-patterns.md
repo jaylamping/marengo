@@ -224,6 +224,18 @@ Store helpers that acquire the same mutex. Preserve current marker and supplied
 setting timestamps. Refuse unknown/historically partial state instead of hiding
 a failed non-idempotent DDL operation.
 
+**Deliberate historical recovery** ([ADR0030](decisions/0030-deliberate-known-store-recovery.md)):
+keep normal open's historical refusal. A separate explicit library operation
+recognizes one complete schema and pins a read-only SQLite snapshot. Complete,
+verify and publish a WAL-aware standalone backup before repairing a separate
+output through the normal migration owner. Require observed backup completion,
+finite work, exact typed-row preservation, FTS external-content integrity and
+close/reopen verification. Use owned staging identities and fresh no-overwrite
+destinations; report cleanup failures and retain completed artifacts on later
+errors. File sync is not proof of physical power-loss durability. Test new
+recovery as candidate conformance with real failure paths and a meaningful
+production mutation; a missing new API is never an original behavioral red.
+
 - Default `cargo test` must not require hardware.
 - Use features: `socketcan`, `sim`; `vcan` names belong only to virtual-CAN test harnesses. Mark hardware tests `#[ignore]` with a clear message.
 - Sim: deterministic seeds for golden states.
