@@ -5,6 +5,7 @@ from __future__ import annotations
 import httpx
 
 from marengo_research_mcp.config import Config
+from marengo_research_mcp.dates import provider_datetime
 from marengo_research_mcp.models import ResearchHit
 
 GITHUB_SEARCH = "https://api.github.com/search/repositories"
@@ -38,6 +39,8 @@ async def search_github(cfg: Config, query: str, limit: int = 10) -> list[Resear
                 snippet=(repo.get("description") or "")[:500],
                 source_name="github",
                 stars=repo.get("stargazers_count"),
+                published_at=provider_datetime(repo.get("created_at")),
+                updated_at=provider_datetime(repo.get("pushed_at")),
             )
         )
     return hits

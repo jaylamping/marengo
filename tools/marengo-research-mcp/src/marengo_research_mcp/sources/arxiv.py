@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import arxiv
 
+from marengo_research_mcp.dates import provider_datetime
 from marengo_research_mcp.models import ResearchHit
 
 
@@ -24,6 +25,8 @@ def search_arxiv(query: str, limit: int = 10) -> list[ResearchHit]:
                 snippet=(paper.summary or "")[:500],
                 source_name="arxiv",
                 year=year,
+                published_at=provider_datetime(paper.published),
+                updated_at=provider_datetime(getattr(paper, "updated", None)),
                 authors=[a.name for a in paper.authors[:5]],
                 pdf_url=paper.pdf_url,
             )

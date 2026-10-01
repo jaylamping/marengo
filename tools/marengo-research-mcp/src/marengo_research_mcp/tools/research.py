@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 from marengo_research_mcp.cache import ResearchCache
@@ -59,15 +60,27 @@ async def _run_source(
         return [], f"{name}: {exc}"
 
 
-def _filter_recency(hits: list[ResearchHit], recency: Recency) -> list[ResearchHit]:
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _filter_recency(
+    hits: list[ResearchHit], recency: Recency, *, now: datetime | None = None
+) -> list[ResearchHit]:
     if recency == "any":
         return hits
-    from datetime import datetime
-
-    now = datetime.utcnow().year
-    thresholds = {"year": now - 1, "month": now, "week": now}
-    min_year = thresholds.get(recency, now - 2)
-    return [h for h in hits if h.year is None or h.year >= min_year]
+    current = now if now is not None else _utc_now()
+    if current.tzinfo is None or current.utcoffset() is None:
+        raise ValueError("recency clock must include a timezone")
+    current = current.astimezone(timezone.utc)
+    cutoff = current - timedelta(days={"week": 7, "month": 30, "year": 365}[recency])
+    kept = []
+    for hit in hits:
+        # Code and Hub artifacts use activity; papers/posts use publication.
+        stamp = (hit.updated_at or hit.published_at) if hit.type in {"code", "hf"} else hit.published_at
+        if stamp is not None and cutoff <= stamp.astimezone(timezone.utc) <= current:
+            kept.append(hit)
+    return kept
 
 
 async def research_humanoid(
@@ -117,6 +130,12 @@ async def research_humanoid(
     if expanded:
         summary_parts.append(f"Expanded: {', '.join(expanded[1:3])}")
     summary_parts.append(f"Found {len(top)} ranked hits from {len(sources)} source types.")
+    if recency != "any":
+        summary_parts.append(
+            f"Recency: rolling { {'week': 7, 'month': 30, 'year': 365}[recency]} days in UTC; "
+            "unknown and future dates excluded; code/Hub use activity, others publication; "
+            "date-only values mean midnight UTC."
+        )
     if errors:
         summary_parts.append(f"Partial errors: {len(errors)}")
 

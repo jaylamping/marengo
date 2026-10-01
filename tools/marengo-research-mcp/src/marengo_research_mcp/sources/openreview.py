@@ -5,6 +5,7 @@ from __future__ import annotations
 import httpx
 
 from marengo_research_mcp.config import Config
+from marengo_research_mcp.dates import provider_datetime
 from marengo_research_mcp.models import ResearchHit
 
 OPENREVIEW_SEARCH = "https://api.openreview.net/notes/search"
@@ -47,6 +48,8 @@ async def search_openreview(cfg: Config, query: str, limit: int = 10) -> list[Re
                 url=url,
                 snippet=str(abstract)[:500],
                 source_name="openreview",
+                published_at=provider_datetime(note.get("pdate"), epoch_milliseconds=True),
+                updated_at=provider_datetime(note.get("mdate"), epoch_milliseconds=True),
             )
         )
     return hits

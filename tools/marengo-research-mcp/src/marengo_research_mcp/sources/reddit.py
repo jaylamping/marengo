@@ -5,6 +5,7 @@ from __future__ import annotations
 import httpx
 
 from marengo_research_mcp.config import Config
+from marengo_research_mcp.dates import provider_datetime
 from marengo_research_mcp.models import ResearchHit
 from marengo_research_mcp.sources.web import search_duckduckgo
 
@@ -32,6 +33,7 @@ async def search_reddit(cfg: Config, query: str, limit: int = 10) -> list[Resear
                         ResearchHit(
                             type="community",
                             title=post.get("title", ""),
+                            published_at=provider_datetime(post.get("created_utc")),
                             url=url,
                             snippet=(post.get("selftext") or "")[:500],
                             source_name=f"reddit/r/{post.get('subreddit', '')}",
