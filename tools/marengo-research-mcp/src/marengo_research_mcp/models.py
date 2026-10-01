@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field
 
 SourceType = Literal[
     "paper",
@@ -25,6 +25,8 @@ class ResearchHit(BaseModel):
     snippet: str = ""
     source_name: str = ""
     year: int | None = None
+    published_at: AwareDatetime | None = None
+    updated_at: AwareDatetime | None = None
     authors: list[str] = Field(default_factory=list)
     stars: int | None = None
     citation_count: int | None = None

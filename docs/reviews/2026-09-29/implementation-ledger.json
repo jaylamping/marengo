@@ -2835,10 +2835,13 @@
       "source": "gateway.md#g19--p2-canread-only-disk-status-fields-can-report-false-diagnostic-states",
       "work_package": "WP08",
       "implementation_and_acceptance_plan": "gateway-implementation-plan.md",
-      "status": "open",
-      "evidence": [],
-      "verified_commit_or_pr": null,
-      "hardware_acceptance": "not established by this software repair"
+      "status": "verified",
+      "evidence": [
+        "Frozen original CAN and mount collector regressions replay unchanged green; native84/Consul361; Standards/Spec clear; exact PR head e3055ad all5 CI36902443212; merged main f831e587 all5 CI36903696586. Evidence/batch24/main-ci.json. No physical acceptance claim."
+      ],
+      "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/238",
+      "hardware_acceptance": "not established by this software repair",
+      "implementation_batch": "batch24"
     },
     {
       "id": "G20",
@@ -15321,12 +15324,26 @@
       "main_ci_run": 36900877954,
       "status": "merged; exact-head PR/main all five CI jobs passed",
       "report": "batch23-cpu-counter-columns.md"
+    },
+    {
+      "batch_id": "batch24",
+      "findings": [
+        "G19"
+      ],
+      "status": "verified",
+      "pr": 238,
+      "head": "e3055ad402f7dd0ff91e57758299b383474d9870",
+      "pr_ci_run": 36902443212,
+      "main_commit": "f831e587b330b6c353456ee5cec7c55d50139603",
+      "main_ci_run": 36903696586,
+      "all_five_jobs": "passed",
+      "report": "batch24-diagnostic-can-mount-state.md"
     }
   ],
   "finding_status_counts": {
-    "verified": 21,
+    "verified": 22,
     "partial": 11,
-    "open": 70
+    "open": 69
   },
   "next_dependency_ready_batch": {
     "current": "Complete final batch18 PR233 integrated exact-head CI/delivery; reconcile batch17mainvcan. Next independent T17cold-cache repair is in codex/research-cache-await; do not close finding until reviews/checks/delivery.",
@@ -15349,18 +15366,14 @@
     "human_input_blocker": null
   },
   "active_mac_continuation": {
-    "batch_id": "batch24",
-    "branch": "codex/diagnostic-can-mount-state",
-    "baseline_main": "0166970a6a31aea19e0ba0c47cf7d5ab2fe4da11",
-    "integration_main": "ad09ee4c56f82ad5f592f43ecb94f223e4724748",
-    "status": "Standards/Spec clear after command-adapter correction; native84 and Consul361/build pass; PR238 exact-head Linux CI/delivery pending; G19 remains open",
-    "PR": "https://github.com/jaylamping/marengo/pull/238",
+    "batch_id": "batch25",
+    "branch": "codex/research-rolling-windows",
+    "status": "T20 complete implementation,46 locked offline tests pass; Spec clear a83c903; Standards final recheck and exact-head Linux CI/delivery pending. G19 verified. T17 workflow authorization pending independently.",
     "findings": [
-      "G19"
+      "T20"
     ],
-    "report": "batch24-diagnostic-can-mount-state.md",
-    "hardware_acceptance": false,
-    "automation_status": "PAUSED",
-    "other_pending": "T17 local source/tests accepted, workflow-file push refused because token lacks workflow scope; authorization question remains unanswered"
+    "report": "batch25-research-rolling-windows.md",
+    "physical_acceptance": false,
+    "pr": 239
   }
 }

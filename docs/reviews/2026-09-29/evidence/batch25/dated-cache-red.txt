@@ -1,0 +1,71 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____________________ test_dated_result_disk_cache_roundtrip ____________________
+
+tmp_path = PosixPath('/private/var/folders/nx/mtqx21xs4fn9qy52kqfpz2_w0000gn/T/pytest-of-joseph/pytest-12/test_dated_result_disk_cache_r0')
+
+    async def test_dated_result_disk_cache_roundtrip(tmp_path):
+        cfg = replace(load_config(), cache_dir=tmp_path)
+        stamp = datetime.fromisoformat("2025-12-31T07:00:00-05:00")
+        provider = AsyncMock(return_value=[ResearchHit(type="code", title="robot", url="https://fixture.invalid", published_at=stamp, updated_at=stamp)])
+>       cold = await _cached_search(ResearchCache(cfg), "fixture", "robot", 1, provider)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools/marengo-research-mcp/tests/test_dated_search_cache.py:16: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/marengo-research-mcp/src/marengo_research_mcp/tools/search.py:45: in _cached_search
+    cache.set("search", f"{name}:{key}", resp.model_dump())
+tools/marengo-research-mcp/src/marengo_research_mcp/cache.py:46: in set
+    json.dumps({"ts": time.time(), "value": value}, ensure_ascii=False, indent=2),
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../../../.local/share/uv/python/cpython-3.12.14-macos-aarch64-none/lib/python3.12/json/__init__.py:238: in dumps
+    **kw).encode(obj)
+          ^^^^^^^^^^^
+../../../../.local/share/uv/python/cpython-3.12.14-macos-aarch64-none/lib/python3.12/json/encoder.py:202: in encode
+    chunks = list(chunks)
+             ^^^^^^^^^^^^
+../../../../.local/share/uv/python/cpython-3.12.14-macos-aarch64-none/lib/python3.12/json/encoder.py:432: in _iterencode
+    yield from _iterencode_dict(o, _current_indent_level)
+../../../../.local/share/uv/python/cpython-3.12.14-macos-aarch64-none/lib/python3.12/json/encoder.py:406: in _iterencode_dict
+    yield from chunks
+../../../../.local/share/uv/python/cpython-3.12.14-macos-aarch64-none/lib/python3.12/json/encoder.py:406: in _iterencode_dict
+    yield from chunks
+../../../../.local/share/uv/python/cpython-3.12.14-macos-aarch64-none/lib/python3.12/json/encoder.py:326: in _iterencode_list
+    yield from chunks
+../../../../.local/share/uv/python/cpython-3.12.14-macos-aarch64-none/lib/python3.12/json/encoder.py:406: in _iterencode_dict
+    yield from chunks
+../../../../.local/share/uv/python/cpython-3.12.14-macos-aarch64-none/lib/python3.12/json/encoder.py:439: in _iterencode
+    o = _default(o)
+        ^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <json.encoder.JSONEncoder object at 0x10b2af680>
+o = datetime.datetime(2025, 12, 31, 7, 0, tzinfo=datetime.timezone(datetime.timedelta(days=-1, seconds=68400)))
+
+    def default(self, o):
+        """Implement this method in a subclass such that it returns
+        a serializable object for ``o``, or calls the base implementation
+        (to raise a ``TypeError``).
+    
+        For example, to support arbitrary iterators, you could
+        implement default like this::
+    
+            def default(self, o):
+                try:
+                    iterable = iter(o)
+                except TypeError:
+                    pass
+                else:
+                    return list(iterable)
+                # Let the base class default method raise the TypeError
+                return super().default(o)
+    
+        """
+>       raise TypeError(f'Object of type {o.__class__.__name__} '
+                        f'is not JSON serializable')
+E       TypeError: Object of type datetime is not JSON serializable
+
+../../../../.local/share/uv/python/cpython-3.12.14-macos-aarch64-none/lib/python3.12/json/encoder.py:180: TypeError
+=========================== short test summary info ============================
+FAILED tools/marengo-research-mcp/tests/test_dated_search_cache.py::test_dated_result_disk_cache_roundtrip
+1 failed in 0.10s

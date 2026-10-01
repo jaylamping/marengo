@@ -1,3 +1,7 @@
+## Latest Mac continuation — batch25
+
+G19 verified: PR238/main f831e587 all-five CI36903696586 passed. Counts22 verified,11 partial,69 open across102 IDs;8 maintenance tasks retained. T20 rolling UTC recency implementation has46 passing offline tests; independent review and primary delivery pending. Windows automation remains paused; no hardware acceptance.
+
 # Marengo stopping point and Mac handoff — October 1, 2026
 
 ## Active software repair loop — October 1, 2026

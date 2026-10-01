@@ -1,0 +1,10 @@
+{
+  "baseline": "ad09ee4c56f82ad5f592f43ecb94f223e4724748",
+  "probe_sha256": "871a485dc1244b4ce47076fa44e3d7a41f620395b1b4f1d9b690626875207165",
+  "result": "Executed public orchestrator: week/month/year unknown-date inclusion assertions fail; any-recency positive passes. All providers replaced, no network calls.",
+  "counts": {
+    "failed": 3,
+    "passed": 1
+  },
+  "warnings": "Original datetime.utcnow deprecation warnings are recorded separately from assertion failures."
+}

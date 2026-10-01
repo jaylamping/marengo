@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 from marengo_research_mcp.cache import ResearchCache
@@ -26,24 +27,26 @@ from marengo_research_mcp.sources.web import search_duckduckgo
 Focus = Literal["papers", "code", "community", "vendor", "standards", "all"]
 Recency = Literal["year", "month", "week", "any"]
 DEFAULT_SCRAPE_TOP_N = 3
+RECENCY_DAYS = {"week": 7, "month": 30, "year": 365}
 
 
 async def _run_source(
-    cfg: Config, name: str, query: str, per_source: int
+    cfg: Config, name: str, query: str, per_source: int,
+    window: tuple[datetime, datetime] | None = None,
 ) -> tuple[list[ResearchHit], str | None]:
     try:
         if name == "arxiv":
-            return await asyncio.to_thread(search_arxiv, query, per_source), None
+            return await asyncio.to_thread(search_arxiv, query, per_source, window=window), None
         if name == "semantic_scholar":
-            return await search_semantic_scholar(cfg, query, per_source), None
+            return await search_semantic_scholar(cfg, query, per_source, window=window), None
         if name == "openreview":
             return await search_openreview(cfg, query, per_source), None
         if name == "papers_with_code":
             return await search_papers_with_code(cfg, query, per_source), None
         if name == "github":
-            return await search_github(cfg, query, per_source), None
+            return await search_github(cfg, query, per_source, window=window), None
         if name == "reddit":
-            return await search_reddit(cfg, query, per_source), None
+            return await search_reddit(cfg, query, per_source, window=window), None
         if name == "forums":
             return await search_forums(cfg, query, per_source), None
         if name == "vendor_docs":
@@ -59,15 +62,27 @@ async def _run_source(
         return [], f"{name}: {exc}"
 
 
-def _filter_recency(hits: list[ResearchHit], recency: Recency) -> list[ResearchHit]:
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _filter_recency(
+    hits: list[ResearchHit], recency: Recency, *, now: datetime | None = None
+) -> list[ResearchHit]:
     if recency == "any":
         return hits
-    from datetime import datetime
-
-    now = datetime.utcnow().year
-    thresholds = {"year": now - 1, "month": now, "week": now}
-    min_year = thresholds.get(recency, now - 2)
-    return [h for h in hits if h.year is None or h.year >= min_year]
+    current = now if now is not None else _utc_now()
+    if current.tzinfo is None or current.utcoffset() is None:
+        raise ValueError("recency clock must include a timezone")
+    current = current.astimezone(timezone.utc)
+    cutoff = current - timedelta(days=RECENCY_DAYS[recency])
+    kept = []
+    for hit in hits:
+        # Code and Hub artifacts use activity; papers/posts use publication.
+        stamp = (hit.updated_at or hit.published_at) if hit.type in {"code", "hf"} else hit.published_at
+        if stamp is not None and cutoff <= stamp.astimezone(timezone.utc) <= current:
+            kept.append(hit)
+    return kept
 
 
 async def research_humanoid(
@@ -86,7 +101,12 @@ async def research_humanoid(
     requested_scrape = DEFAULT_SCRAPE_TOP_N if scrape_top_n is None else scrape_top_n
     scrape_n = max(0, min(requested_scrape, cfg.max_scrape))
 
-    tasks = [_run_source(cfg, src, search_query, per_source) for src in sources]
+    now = _utc_now()
+    if now.tzinfo is None or now.utcoffset() is None:
+        raise ValueError("recency clock must include a timezone")
+    now = now.astimezone(timezone.utc)
+    window = None if recency == "any" else (now - timedelta(days=RECENCY_DAYS[recency]), now)
+    tasks = [_run_source(cfg, src, search_query, per_source, window) for src in sources]
     results = await asyncio.gather(*tasks)
 
     all_hits: list[ResearchHit] = []
@@ -96,7 +116,7 @@ async def research_humanoid(
         if err:
             errors.append(err)
 
-    ranked = rank_hits(_filter_recency(all_hits, recency), search_query)
+    ranked = rank_hits(_filter_recency(all_hits, recency, now=now), search_query)
     top = ranked[: max(per_source * len(sources), 20)]
 
     if scrape_n > 0:
@@ -117,6 +137,12 @@ async def research_humanoid(
     if expanded:
         summary_parts.append(f"Expanded: {', '.join(expanded[1:3])}")
     summary_parts.append(f"Found {len(top)} ranked hits from {len(sources)} source types.")
+    if recency != "any":
+        summary_parts.append(
+            f"Recency: rolling {RECENCY_DAYS[recency]} days in UTC; "
+            "unknown and future dates excluded; code/Hub use activity, others publication; "
+            "date-only values mean midnight UTC."
+        )
     if errors:
         summary_parts.append(f"Partial errors: {len(errors)}")
 
