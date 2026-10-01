@@ -1,5 +1,7 @@
 //! Host metrics sampling for Chappe `HostMetrics` protobuf.
 
+#[cfg(any(target_os = "linux", test))]
+mod cpu;
 mod sample_state;
 
 pub use sample_state::{ChappeHealthInput, SampleState};
@@ -95,8 +97,7 @@ fn now_ms() -> u64 {
         .unwrap_or(0)
 }
 
-#[cfg(any(target_os = "linux", test))]
-#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+#[cfg(target_os = "linux")]
 mod linux {
     use std::collections::HashMap;
     use std::fs;
@@ -110,7 +111,7 @@ mod linux {
     };
 
     use super::build_info;
-    use crate::sample_state::CpuLineValues;
+    use crate::cpu::sample_cpu_from_stat;
     use crate::{ChappeHealthInput, SampleState};
 
     const NEARLY_FULL_PERCENT: f64 = 90.0;
@@ -233,99 +234,6 @@ mod linux {
                 .map(|khz| (khz / 1000) as u32)
                 .unwrap_or(0);
         aggregate
-    }
-
-    fn sample_cpu_from_stat(content: &str, prev: &mut SampleState) -> CpuMetrics {
-        let mut aggregate = CpuMetrics {
-            core_count: 0,
-            ..Default::default()
-        };
-        let mut per_core = Vec::new();
-        for line in content.lines() {
-            if let Some(rest) = line.strip_prefix("cpu ") {
-                if let Some(vals) = parse_cpu_line(rest) {
-                    if let Some(prev_agg) = prev.cpu_aggregate {
-                        aggregate.usage_percent =
-                            (vals.delta_usage(&prev_agg) * 100.0).clamp(0.0, 100.0);
-                        aggregate.iowait_percent =
-                            (vals.delta_iowait(&prev_agg) * 100.0).clamp(0.0, 100.0);
-                    }
-                    prev.cpu_aggregate = Some(vals);
-                }
-            } else if let Some(rest) = line.strip_prefix("cpu") {
-                if let Some(vals) = parse_cpu_line(rest) {
-                    let idx = per_core.len();
-                    if let Some(prev_vals) = prev.cpu_per_core.get(idx) {
-                        per_core.push((vals.delta_usage(prev_vals) * 100.0).clamp(0.0, 100.0));
-                    } else {
-                        per_core.push(0.0);
-                    }
-                    if prev.cpu_per_core.len() <= idx {
-                        prev.cpu_per_core.push(vals);
-                    } else {
-                        prev.cpu_per_core[idx] = vals;
-                    }
-                    aggregate.core_count += 1;
-                }
-            }
-        }
-        aggregate.per_core_usage_percent = per_core;
-        aggregate
-    }
-
-    fn parse_cpu_line(rest: &str) -> Option<CpuLineValues> {
-        let nums: Vec<u64> = rest
-            .split_whitespace()
-            .filter_map(|s| s.parse().ok())
-            .collect();
-        if nums.len() < 5 {
-            return None;
-        }
-        let idle = nums[3] + nums.get(4).copied().unwrap_or(0);
-        let iowait = nums.get(5).copied().unwrap_or(0);
-        let total: u64 = nums.iter().take(8).sum();
-        Some(CpuLineValues {
-            total,
-            idle,
-            iowait,
-        })
-    }
-
-    #[cfg(test)]
-    #[allow(clippy::expect_used)]
-    mod cpu_regression {
-        use super::*;
-        use armee_proto::prost::Message;
-
-        #[test]
-        fn published_cpu_fields_follow_kernel_counter_columns() {
-            let mut prev = SampleState::default();
-            sample_cpu_from_stat(
-                "cpu 0 0 0 0 0 0 0 0 0 0\ncpu0 0 0 0 0 0 0 0 0 0 0\ncpu1 0 0 0 0 0 0 0 0 0 0\n",
-                &mut prev,
-            );
-            let cpu = sample_cpu_from_stat("cpu 10 0 10 70 10 0 0 0 7 0\ncpu0 10 0 10 80 0 0 0 0 7 0\ncpu1 10 0 10 70 10 0 0 0 7 0\n", &mut prev);
-            let wire = HostMetrics {
-                cpu: Some(cpu),
-                ..Default::default()
-            }
-            .encode_to_vec();
-            let decoded = HostMetrics::decode(wire.as_slice()).expect("wire metric");
-            let cpu = decoded.cpu.expect("cpu");
-            assert!((cpu.usage_percent - 20.0).abs() < 0.000001);
-            assert!(
-                (cpu.iowait_percent - 10.0).abs() < 0.000001,
-                "iowait reads its own field: {}",
-                cpu.iowait_percent
-            );
-            assert_eq!(cpu.core_count, 2);
-            for usage in cpu.per_core_usage_percent {
-                assert!(
-                    (usage - 20.0).abs() < 0.000001,
-                    "core label must not shift counters: {usage}"
-                );
-            }
-        }
     }
 
     fn sample_memory() -> MemoryMetrics {
