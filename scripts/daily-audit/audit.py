@@ -12,6 +12,8 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from rust_scan import ScanUnknown, production_view
+
 ROOT = Path(__file__).resolve().parents[2]
 
 RISKY_PREFIXES = (
@@ -128,39 +130,12 @@ def git_changed_files() -> tuple[list[str], list[str], dict[str, str]]:
 
 
 def strip_rust_tests(source: str) -> str:
-    """Drop #[cfg(test)] modules so test unwrap/expect do not false-positive."""
-    lines = source.splitlines()
-    out: list[str] = []
-    i = 0
-    while i < len(lines):
-        if lines[i].strip() == "#[cfg(test)]":
-            i += 1
-            while i < len(lines) and not lines[i].strip().startswith("mod "):
-                i += 1
-            if i >= len(lines):
-                break
-            brace_depth = 0
-            started = False
-            while i < len(lines):
-                line = lines[i]
-                for ch in line:
-                    if ch == "{":
-                        brace_depth += 1
-                        started = True
-                    elif ch == "}":
-                        brace_depth -= 1
-                i += 1
-                if started and brace_depth <= 0:
-                    break
-            continue
-        out.append(lines[i])
-        i += 1
-    return "\n".join(out)
+    """Return a lexical production view; unsupported cfg is explicitly unknown."""
+    return production_view(source)
 
 
 def production_rust_lines(source: str) -> str:
-    body = strip_rust_tests(source)
-    return "\n".join(line for line in body.splitlines() if not COMMENT_LINE_RE.match(line))
+    return production_view(source)
 
 
 def check_unwrap(changed: list[str], report: Report) -> None:
@@ -219,21 +194,17 @@ def check_davout_bypass(changed: list[str], report: Report) -> None:
         full = ROOT / path
         if not full.is_file():
             continue
-        for line in full.read_text(encoding="utf-8", errors="replace").splitlines():
-            if COMMENT_LINE_RE.match(line):
-                continue
-            lower = line.lower()
-            if "robstride" in lower or "use robstride" in lower:
-                report.add(
-                    Finding(
-                        severity="critical",
-                        category="safety",
-                        file=path,
-                        rule="docs/architecture.md R6 — Berthier must not touch CAN/robstride",
-                        message="Non-comment Berthier reference to robstride/CAN layer",
-                    )
-                )
-                break
+        try:
+            body = production_view(full.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, ScanUnknown) as exc:
+            report.add(Finding(severity="warn", category="scan", file=path,
+                rule="production Rust classification", message=f"Unknown: {exc}"))
+            continue
+        for match in re.finditer(r"\b(?:robstride|socketcan)\s*::", body):
+            line = body.count("\n", 0, match.start()) + 1
+            report.add(Finding(severity="critical", category="safety", file=path,
+                rule="docs/architecture.md R6 — Berthier must not touch CAN/robstride",
+                message=f"Production driver path at line {line}: {match.group().strip()}"))
 
 
 def diff_line_count(path: str, since: str) -> tuple[int, int]:
