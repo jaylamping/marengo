@@ -10,7 +10,7 @@
     "batch_id": "batch16",
     "branch": "codex/store-historic-recovery",
     "baseline_main": "d660112afadd01468c813bf767d7bdc958d0643e",
-    "status": "Review-discovered CLI P2 corrected with actual original-checkpoint red/identical green; final native34/affected37/primary772 gates pass. Final independent acceptance and exact-head GitHub delivery pending",
+    "status": "Final independent Standards/Spec and separate execution audits accepted reviewed3a7ee096; final native34/affected37/primary772 gates pass. Exact-head GitHub CI/merge/main CI/backup/cleanup remain later delivery receipts",
     "report": "batch16-store-historic-recovery.md",
     "findings": [
       "G15"
@@ -2097,6 +2097,21 @@
       "non_utf8_scope": "Serializer rejection established from pinned serde source; non-UTF8 execution not claimed. Actual /dev/full ENOSPC28 red/green qualifies artifact reporting.",
       "physical_acceptance": false,
       "running_sessions": []
+    },
+    "independent_final_reviews": {
+      "reviewed_head": "3a7ee096a4bdf73eade7520045a43b5a50ef9911",
+      "review_binding_sha256": "381f154dc9af5001fd5b589b9e996ac20e03282a8cf7e8c058e4a6f0ebc50ca7",
+      "Standards": "accepted; no hard violation or blocker. Optional fixture duplication deferred to preserve qualified oracles",
+      "Spec": "accepted; late CLI P2 resolved with actual original-checkpoint assertion red and identical green",
+      "execution": "phase05 library proof and final CLI proof separately independently accepted",
+      "reports": {
+        "standards-final.md": "d9859b6dc1ca9b8b523eb6664be6421b8353272bf51fbf1f86ae1ed1be7810e7",
+        "spec-final.md": "c5c0fad53f929150f315491b041d3dd3e27966d74df97e8c3f74bf4d00388b26",
+        "execution-audit-phase05.md": "752310d3958afb7f6ef8a988ad9ea8cda893ec71b8d9a9d17dede502c2a6c4ca",
+        "execution-audit-cli-final.md": "2e3a32a2278ed2d4db47a605566a8ac27e466a10645dd277b5acb5806d88f08f"
+      },
+      "remote_CI": "pending, not inferred from local acceptance",
+      "hardware_acceptance": false
     }
   },
   "findings": [
@@ -4616,7 +4631,7 @@
         },
         "limits": "No runtime physical operation. Never-existing from_supervisor name probe excluded from required counts; source/private-factory review establishes the actual seam."
       },
-      "test_quality": "Davout 136\u00e2\u2020\u2019159:3 obsolete API cases retired,26 meaningful additions; Berthier173\u00e2\u2020\u2019175 with arithmetic property replaced by wire output, independent stationary input and fixed-dt progress; no new ignored tests. Two receive-invariant mutants killed by actual assertions; CS24 retained open as independently demonstrated old-law failure.",
+      "test_quality": "Davout 136â†’159:3 obsolete API cases retired,26 meaningful additions; Berthier173â†’175 with arithmetic property replaced by wire output, independent stationary input and fixed-dt progress; no new ignored tests. Two receive-invariant mutants killed by actual assertions; CS24 retained open as independently demonstrated old-law failure.",
       "independent_reviews": {
         "standards": {
           "findings": 0,
@@ -15149,7 +15164,7 @@
     "open": 75
   },
   "next_dependency_ready_batch": {
-    "current": "Complete batch16 final independent reviews and safe exact-head GitHub delivery; then G15 remaining deterministic refusal/interruption/concurrency qualification",
+    "current": "Complete batch16 exact-head safe GitHub delivery; then qualify deterministic G15 interruption/refusal/concurrency on the checked merged base",
     "following": "G16 bounded archive/page work or separate R2b1 journal engineering qualification",
     "human_input_blocker": null
   }
