@@ -1,0 +1,13 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.12.14, pytest-9.1.0, pluggy-1.6.0
+rootdir: /Users/joseph/.codex/worktrees/explicit-scrape-zero/marengo/tools/marengo-research-mcp
+configfile: pyproject.toml
+plugins: asyncio-1.4.0, anyio-4.13.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 13 items
+
+tests/test_rank_and_standards.py ....                                    [ 30%]
+tests/test_research_scrape_count.py .......                              [ 84%]
+tests/test_scrape_and_github.py ..                                       [100%]
+
+============================== 13 passed in 0.32s ==============================
