@@ -3457,10 +3457,13 @@
       "source": "tooling.md#t20--research-weekmonth-recency-is-only-a-year-filter",
       "work_package": "WP15",
       "implementation_and_acceptance_plan": "frontend-tooling-implementation-plan.md",
-      "status": "open",
-      "evidence": [],
-      "verified_commit_or_pr": null,
-      "hardware_acceptance": "not established by this software repair"
+      "status": "verified",
+      "evidence": [
+        "Frozen public probe unchanged green;46 locked offline Python tests warnings-error; Standards/Spec final clear at a83c903. Exact PRhead1c4e06c CI36908251161 check/vcan passed sim pathskipped; mergedmain5c25a8f allfive CI36909443242 passed. Provider aware timestamps, rolling7/30/365UTC inclusive windows, singleclock, publicboundaries/nativefilters/diskcachequalified. PrimaryLinuxgate Pythoncoverage remains T26 open."
+      ],
+      "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/239",
+      "hardware_acceptance": "not established by this software repair",
+      "implementation_batch": "batch25"
     },
     {
       "id": "T21",
@@ -15338,12 +15341,26 @@
       "main_ci_run": 36903696586,
       "all_five_jobs": "passed",
       "report": "batch24-diagnostic-can-mount-state.md"
+    },
+    {
+      "batch_id": "batch25",
+      "findings": [
+        "T20"
+      ],
+      "status": "verified",
+      "pr": 239,
+      "head": "1c4e06c9298b8c3d70be6763c06dca7d19cf3fd4",
+      "pr_ci_run": 36908251161,
+      "main_commit": "5c25a8f54b6043b878ac05cc5b2c21a42be0e4bd",
+      "main_ci_run": 36909443242,
+      "all_five_main_jobs": "passed",
+      "report": "batch25-research-rolling-windows.md"
     }
   ],
   "finding_status_counts": {
-    "verified": 22,
+    "verified": 23,
     "partial": 11,
-    "open": 69
+    "open": 68
   },
   "next_dependency_ready_batch": {
     "current": "Complete final batch18 PR233 integrated exact-head CI/delivery; reconcile batch17mainvcan. Next independent T17cold-cache repair is in codex/research-cache-await; do not close finding until reviews/checks/delivery.",
@@ -15366,14 +15383,13 @@
     "human_input_blocker": null
   },
   "active_mac_continuation": {
-    "batch_id": "batch25",
-    "branch": "codex/research-rolling-windows",
-    "status": "T20 complete implementation,46 locked offline tests pass; Spec clear a83c903; Standards final recheck and exact-head Linux CI/delivery pending. G19 verified. T17 workflow authorization pending independently.",
+    "batch_id": "batch26",
+    "branch": "codex/daily-cargo-audit-status",
     "findings": [
-      "T20"
+      "T22"
     ],
-    "report": "batch25-research-rolling-windows.md",
-    "physical_acceptance": false,
-    "pr": 239
+    "report": "batch26-daily-cargo-audit-status.md",
+    "status": "T22 repair/realpinnedCLI/tests qualified; reviews rechecking provenance/timeout/missingDB fixes; primary/delivery pending. T20 verified. T17 workflow authorization pending independently.",
+    "physical_acceptance": false
   }
 }
