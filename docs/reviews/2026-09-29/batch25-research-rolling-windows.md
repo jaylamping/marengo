@@ -61,3 +61,11 @@ serialization. Window policy is centralized. Complete offline suite now45 passes
 with warnings treated as errors. Public async handler await repair remains T17
 work; this cache test proves the dated value path without claiming T17 closure.
 Supported provider filters and final review/gates/delivery remain pending.
+
+At40984f1, native GitHub pushed, Semantic Scholar publicationDateOrYear and arXiv
+submittedDate ranges use one captured UTC clock; their provider precision is a
+superset, with exact local filtering retained. Actual request fixtures qualify the
+ranges; arXiv timestamp/public response coverage now included. At2bd149f Hub date
+fields are explicitly projected through `expand`. Full locked offline46 passes.
+Second review active. G19 exact merged-main five-job CI passed36903696586 and is
+recorded verified in the ledger (22 verified,11 partial,69 open). T20 remains open.
