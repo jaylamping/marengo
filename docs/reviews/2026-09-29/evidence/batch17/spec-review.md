@@ -5,7 +5,10 @@ mutation hash lacked a frozen patch/source, preventing independent inspection
 that the pre-reservation read releases its statement/autocommit transaction.
 The exact stale-read-mutant.patch has now been preserved and its reconstructed
 production bytes verified against the original mutation receipt SHA256.
-Follow-up review of this correction is pending.
+Independent follow-up reviewer /root/batch17_spec verified628cc73 closes the
+scoped blocker: the patch and reconstructed source hashes match the receipt and
+schema_version releases its statement/autocommit read before reservation.
+No remaining scoped Spec implementation finding.
 
 The implemented test otherwise meets the reviewed bounded contract: public Store
 APIs, literal fixture, WAL/idle controls, actual contention, whole-child callback
