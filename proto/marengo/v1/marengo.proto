@@ -279,6 +279,12 @@ message RuntimeConnectionState {
   bool connected = 2;
 }
 
+// Broadcast loss retires observations; retained backlog is discarded too.
+message RuntimeObservationGap {
+  // Ring-reported loss, excluding additionally discarded backlog.
+  uint64 lagged_envelopes = 1;
+}
+
 message ClockMetrics {
   string sync_source = 1;
   double offset_ms = 2;

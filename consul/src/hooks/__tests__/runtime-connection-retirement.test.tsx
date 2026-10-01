@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { create, toBinary } from '@bufbuild/protobuf';
 import { afterEach, expect, it, vi } from 'vitest';
-import { EnvelopeSchema, RobotStateSchema, SafetyStateSchema, RuntimeConnectionStateSchema, OperationalMode } from '@/gen/marengo/v1/marengo_pb';
+import { EnvelopeSchema, RobotStateSchema, SafetyStateSchema, RuntimeConnectionStateSchema, RuntimeObservationGapSchema, OperationalMode } from '@/gen/marengo/v1/marengo_pb';
 import type { ChappeTelemetryHandlers } from '@/lib/chappe-transport';
 import { dispatchEnvelope } from '@/lib/chappe-transport';
 import { useChappeTelemetry } from '@/hooks/use-chappe-telemetry';
@@ -43,5 +43,19 @@ it('typed IPC transitions retire live facts and cancel queued old telemetry whil
   expect(useRobotStore.getState().connected).toBe(false); // socket is not producer evidence
   act(() => handlers.onRobotState(state(30n)));
   expect(useRobotStore.getState().robotState?.timestampMs).toBe(30n);
+  act(() => {
+    handlers.onSafetyState(create(SafetyStateSchema, { mode: OperationalMode.ACTIVE }));
+    handlers.onRobotState(state(40n));
+    dispatchEnvelope(toBinary(EnvelopeSchema, create(EnvelopeSchema, {
+      messageType: 'marengo.v1.RuntimeObservationGap',
+      payload: toBinary(RuntimeObservationGapSchema, create(RuntimeObservationGapSchema, { laggedEnvelopes: 5n })),
+    })), handlers);
+    vi.advanceTimersByTime(1000);
+  });
+  expect(useRobotStore.getState().robotState).toBeNull();
+  expect(useRobotStore.getState().safetyState).toBeNull();
+  act(() => handlers.onRobotState(state(50n)));
+  expect(useRobotStore.getState().robotState?.timestampMs).toBe(50n);
+  expect(useRobotStore.getState().safetyState).toBeNull();
   mounted.unmount();
 });

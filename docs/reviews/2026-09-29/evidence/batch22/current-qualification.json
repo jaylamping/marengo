@@ -38,5 +38,13 @@
     "Consul encoded transition clears old facts and pending trailing updates",
     "stale/future/unknown command wire admission",
     "proto host-health conversion and absent queue presence"
-  ]
+  ],
+  "lag_correction": {
+    "native_tests_passed": 71,
+    "consul_tests_passed": 356,
+    "standards_findings": 0,
+    "spec_findings": 0,
+    "linux_ci": "pending",
+    "delivery": "pending"
+  }
 }

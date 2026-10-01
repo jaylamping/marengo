@@ -108,6 +108,7 @@ export function useChappeTelemetry(): void {
       },
       onDisconnected: retireRuntimeFacts,
       onRuntimeConnectionState: retireRuntimeFacts,
+      onRuntimeObservationGap: retireRuntimeFacts,
       onTransportMode: (mode) => setTransportMode(mode),
       onError: (message) => {
         setGatewayError(message);

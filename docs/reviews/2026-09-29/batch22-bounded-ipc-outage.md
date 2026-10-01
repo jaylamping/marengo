@@ -86,5 +86,5 @@ The complete original SHA-bound probe replays green on final source; the formatt
 shipping test is restored after that replay. Native affected tests,356Consul tests,
 build, strict Chappe/gateway clippy, workspace fmt and proto lint pass. Existing
 non-Linux host-metrics deadcode warnings prevent treating native Mac as Linux parity.
-Final independent reviews and exact-head Linux primary/runtime CI remain pending.
+Final Standards and Spec reviews report zero actionable findings. Broadcast-ring loss now emits a typed observation gap for both transports, discards retained backlog, and retires UI facts before fresh telemetry. A deterministic overflow test and encoded UI gap regression pass. The affected native suite passes71 tests (including the inert subprocess entry); exact-head Linux primary/runtime CI and delivery remain pending.
 G01 is still open and no hardware or performance acceptance is claimed.
