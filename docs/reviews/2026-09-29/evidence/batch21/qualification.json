@@ -1,0 +1,23 @@
+{
+  "finding": "T19",
+  "baseline": "d03830df9ba6bf6091d47d2ad0eecd71015ef322",
+  "probe_sha256": "273ef67eea01cad47935a3a345cbb4a15623d82843406b6968352f341f9d7717",
+  "original": {
+    "passed": 3,
+    "failed": 4,
+    "failure_type": "assertions"
+  },
+  "unchanged_probe_green": {
+    "passed": 7,
+    "failed": 0
+  },
+  "all_offline": {
+    "passed": 13,
+    "failed": 0,
+    "warnings": "fatal"
+  },
+  "python": "3.12.14",
+  "uv": "0.12.21",
+  "lock": "unchanged frozen",
+  "required_linux_gate": "pending"
+}

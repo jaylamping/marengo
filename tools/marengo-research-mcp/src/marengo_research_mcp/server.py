@@ -12,7 +12,7 @@ from mcp.types import TextContent, Tool
 
 from marengo_research_mcp.cache import ResearchCache
 from marengo_research_mcp.config import load_config
-from marengo_research_mcp.tools.research import research_humanoid
+from marengo_research_mcp.tools.research import DEFAULT_SCRAPE_TOP_N, research_humanoid
 from marengo_research_mcp.tools.scrape import scrape_url_tool, scrape_urls_tool
 from marengo_research_mcp.tools.search import (
     search_forums_tool,
@@ -44,7 +44,11 @@ async def list_tools() -> list[Tool]:
                         "default": "all",
                     },
                     "max_results_per_source": {"type": "integer", "default": 5},
-                    "scrape_top_n": {"type": "integer", "default": 3},
+                    "scrape_top_n": {
+                        "type": "integer",
+                        "default": DEFAULT_SCRAPE_TOP_N,
+                        "description": "Defaults to 3. Zero disables scraping; counts clamp to [0, configured max_scrape].",
+                    },
                     "recency": {
                         "type": "string",
                         "enum": ["year", "month", "week", "any"],
@@ -191,7 +195,7 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
             query=args["query"],
             focus=args.get("focus", "all"),
             max_results_per_source=args.get("max_results_per_source", 5),
-            scrape_top_n=args.get("scrape_top_n", 3),
+            scrape_top_n=args.get("scrape_top_n", DEFAULT_SCRAPE_TOP_N),
             recency=args.get("recency", "any"),
         )
     elif name == "search_papers":

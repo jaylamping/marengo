@@ -25,6 +25,7 @@ from marengo_research_mcp.sources.web import search_duckduckgo
 
 Focus = Literal["papers", "code", "community", "vendor", "standards", "all"]
 Recency = Literal["year", "month", "week", "any"]
+DEFAULT_SCRAPE_TOP_N = 3
 
 
 async def _run_source(
@@ -75,14 +76,15 @@ async def research_humanoid(
     query: str,
     focus: Focus = "all",
     max_results_per_source: int = 5,
-    scrape_top_n: int = 0,
+    scrape_top_n: int | None = DEFAULT_SCRAPE_TOP_N,
     recency: Recency = "any",
 ) -> str:
     expanded = expand_query(query)
     search_query = expanded[0] if expanded else query
     sources = FOCUS_SOURCES.get(focus, FOCUS_SOURCES["all"])
     per_source = max(1, min(max_results_per_source, 10))
-    scrape_n = min(scrape_top_n or cfg.max_scrape, cfg.max_scrape)
+    requested_scrape = DEFAULT_SCRAPE_TOP_N if scrape_top_n is None else scrape_top_n
+    scrape_n = max(0, min(requested_scrape, cfg.max_scrape))
 
     tasks = [_run_source(cfg, src, search_query, per_source) for src in sources]
     results = await asyncio.gather(*tasks)
