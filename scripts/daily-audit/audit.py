@@ -13,6 +13,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from rust_scan import ScanUnknown, production_view
+from generated_scan import verify_generated
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -174,17 +175,18 @@ def check_proto_checksum(changed: list[str], report: Report) -> None:
 
 
 def check_gen_handedit(changed: list[str], report: Report) -> None:
-    for path in changed:
-        if path.startswith("consul/src/gen/") and not path.endswith(".checksum"):
-            report.add(
-                Finding(
-                    severity="critical",
-                    category="proto",
-                    file=path,
-                    rule="AGENTS.md R3 — never hand-edit consul/src/gen/",
-                    message="Generated consul proto file modified",
-                )
-            )
+    if not any(path.startswith(("proto/", "consul/src/gen/")) for path in changed):
+        return
+    try:
+        proof = verify_generated(ROOT, changed)
+    except (OSError, ValueError, KeyError, TypeError, subprocess.TimeoutExpired) as exc:
+        proof = {"status": "unknown", "detail": str(exc)}
+    if proof["status"] == "verified":
+        return
+    mismatch = proof["status"] == "mismatch"
+    report.add(Finding(severity="critical" if mismatch else "warn", category="proto" if mismatch else "scan",
+        file="consul/src/gen/", rule="AGENTS.md R3 — generated code must match locked regeneration",
+        message=f"{proof['status']}: {proof['detail']}; mismatches={proof.get('mismatches', [])}"))
 
 
 def check_davout_bypass(changed: list[str], report: Report) -> None:
