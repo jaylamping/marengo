@@ -36,7 +36,7 @@ function livePiMetrics(
   if (!metrics) {
     return null;
   }
-  const cpu = metrics.cpu?.usagePercent ?? 0;
+  const cpu = metrics.cpu?.sampleValid ? metrics.cpu.usagePercent : undefined;
   const mem = metrics.memory;
   const ramTotalGb = mem ? bytesToGb(mem.totalBytes) : 0;
   const ramUsedGb = mem ? bytesToGb(mem.usedBytes) : 0;
@@ -130,7 +130,7 @@ export function PiHostCard({ metrics: metricsProp }: PiHostCardProps) {
             value={placeholder}
             smoothValue={metrics?.cpuPercent}
             formatSmoothValue={formatPercent}
-            usagePercent={live ? (metrics?.cpuPercent ?? 0) : 0}
+            usagePercent={live ? metrics?.cpuPercent : undefined}
           />
           <MetricItem
             label="RAM"

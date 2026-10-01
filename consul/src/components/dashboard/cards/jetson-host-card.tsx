@@ -33,7 +33,7 @@ function liveJetsonMetrics(
   const mem = metrics.memory;
   return {
     hostname: metrics.hostname || 'marengo-jetson',
-    cpuPercent: metrics.cpu?.usagePercent ?? 0,
+    cpuPercent: metrics.cpu?.sampleValid ? metrics.cpu.usagePercent : undefined,
     ramUsedGb: mem ? Number(mem.usedBytes) / 1024 ** 3 : 0,
     ramTotalGb: mem ? Number(mem.totalBytes) / 1024 ** 3 : 0,
     gpuPercent:
@@ -126,7 +126,7 @@ export function JetsonHostCard({
             value={placeholder}
             smoothValue={metrics?.cpuPercent}
             formatSmoothValue={formatPercent}
-            usagePercent={live ? (metrics?.cpuPercent ?? 0) : 0}
+            usagePercent={live ? metrics?.cpuPercent : undefined}
           />
           <MetricItem
             label="RAM"

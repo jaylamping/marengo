@@ -1,0 +1,32 @@
+   Compiling marengo-host-metrics v0.1.0 (/Users/joseph/.codex/worktrees/cpu-counter-columns/marengo/crates/marengo-host-metrics)
+warning: fields `rx_bytes` and `tx_bytes` are never read
+  --> crates/marengo-host-metrics/src/sample_state.rs:31:9
+   |
+30 | pub(crate) struct NetCounters {
+   |                   ----------- fields in this struct
+31 |     pub rx_bytes: u64,
+   |         ^^^^^^^^
+32 |     pub tx_bytes: u64,
+   |         ^^^^^^^^
+   |
+   = note: `NetCounters` has derived impls for the traits `Default` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `network` is never read
+  --> crates/marengo-host-metrics/src/sample_state.rs:41:16
+   |
+37 | pub struct SampleState {
+   |            ----------- field in this struct
+...
+41 |     pub(crate) network: HashMap<String, NetCounters>,
+   |                ^^^^^^^
+
+warning: `marengo-host-metrics` (lib test) generated 2 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.41s
+     Running unittests src/lib.rs (target/debug/deps/marengo_host_metrics-ab9ddef381368af5)
+
+running 1 test
+test cpu::cpu_regression::published_cpu_fields_follow_kernel_counter_columns ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+

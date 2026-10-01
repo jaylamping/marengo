@@ -1,0 +1,6 @@
+{
+  "baseline": "37a4dd1675a22f064a73ab40426e02937ccea194",
+  "probe_sha256": "c9185252c1cd642422569454f798ebe00c1f07f65fd6d94e458702f53e82162a",
+  "preparation": "Extract sample_cpu_from_stat unchanged from original collector; compile Linux module during tests on Mac. No parser/delta repairs.",
+  "result": "assertion failure: expected 10% iowait, observed 0%; valid HostMetrics wire roundtrip"
+}

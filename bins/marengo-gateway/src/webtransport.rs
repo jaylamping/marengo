@@ -296,6 +296,7 @@ pub fn spawn_demo_publisher(state: SharedState) {
                     semver: env!("CARGO_PKG_VERSION").to_string(),
                 }),
                 cpu: Some(CpuMetrics {
+                    sample_valid: true,
                     usage_percent: 12.0 + (angle.sin() * 10.0),
                     core_count: 4,
                     ..Default::default()
@@ -341,6 +342,7 @@ pub fn spawn_demo_publisher(state: SharedState) {
                     semver: env!("CARGO_PKG_VERSION").to_string(),
                 }),
                 cpu: Some(CpuMetrics {
+                    sample_valid: true,
                     usage_percent: 18.0,
                     core_count: 8,
                     ..Default::default()

@@ -294,9 +294,20 @@ message ClockMetrics {
 message CpuMetrics {
   double usage_percent = 1;
   uint32 core_count = 2;
+  // Legacy ascending-CPU-ID values; invalid samples are zero. Use cores for validity/identity.
   repeated double per_core_usage_percent = 3;
   uint32 freq_mhz = 4;
   double iowait_percent = 5;
+  // False for a new baseline, reset, zero delta or unavailable counters.
+  bool sample_valid = 6;
+  // CPU IDs remain stable across sparse numbering and hotplug.
+  repeated CpuCoreMetrics cores = 7;
+}
+
+message CpuCoreMetrics {
+  uint32 cpu_id = 1;
+  // Absent until this CPU has two valid monotonic observations.
+  optional double usage_percent = 2;
 }
 
 message MemoryMetrics {

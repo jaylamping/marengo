@@ -19,3 +19,23 @@ The production reader and injected command fixture use the same collector seam.
 Five native tests pass; both complete frozen original probes remain byte-identical
 in shipping source and now pass. Mount-state repair and full G19 qualification
 remain pending; this CAN-only result does not establish completion of G19.
+
+Mount repair reads process-local mountinfo, separates filesystem type/source,
+decodes kernel path escapes, uses the most specific unambiguous mount, and combines
+per-mount/superblock ro flags. Invalid/ambiguous/failed mount observations remain
+explicitly unknown. Capacity is independently validated from df; failed output,
+zero totals and inconsistent sizes remain unknown. Additive wire validity fields
+are consumed by the Pi card and diagnostic warning logic. An injected file/command
+adapter drives the same collector as the real Linux backend.
+
+Integrated CPU mainad09ee4 is preserved. Native84 tests and Consul361 tests/build
+pass; fmt, proto lint/checksum and source whitespace checks pass. Both frozen CAN
+and disk probe byte hashes are preserved and all original assertions pass unchanged.
+The first full UI run exposed a pre-existing delayed Radix unmount event after jsdom
+teardown; its error log is retained. The inventory fixture now awaits that queued
+callback before returning from cleanup (and uses repository LF line endings).
+A full suite rerun is clean. This is fixture lifetime qualification, not a production
+UI behavior change. Independent reviews and exact-head Linux CI/delivery remain pending.
+
+Mount field definitions follow [kernel proc documentation](https://www.kernel.org/doc/html/latest/filesystems/proc.html).
+Unknown observations establish no hardware or filesystem health guarantee.
