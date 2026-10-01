@@ -27,6 +27,7 @@ from marengo_research_mcp.sources.web import search_duckduckgo
 Focus = Literal["papers", "code", "community", "vendor", "standards", "all"]
 Recency = Literal["year", "month", "week", "any"]
 DEFAULT_SCRAPE_TOP_N = 3
+RECENCY_DAYS = {"week": 7, "month": 30, "year": 365}
 
 
 async def _run_source(
@@ -73,7 +74,7 @@ def _filter_recency(
     if current.tzinfo is None or current.utcoffset() is None:
         raise ValueError("recency clock must include a timezone")
     current = current.astimezone(timezone.utc)
-    cutoff = current - timedelta(days={"week": 7, "month": 30, "year": 365}[recency])
+    cutoff = current - timedelta(days=RECENCY_DAYS[recency])
     kept = []
     for hit in hits:
         # Code and Hub artifacts use activity; papers/posts use publication.
@@ -132,7 +133,7 @@ async def research_humanoid(
     summary_parts.append(f"Found {len(top)} ranked hits from {len(sources)} source types.")
     if recency != "any":
         summary_parts.append(
-            f"Recency: rolling { {'week': 7, 'month': 30, 'year': 365}[recency]} days in UTC; "
+            f"Recency: rolling {RECENCY_DAYS[recency]} days in UTC; "
             "unknown and future dates excluded; code/Hub use activity, others publication; "
             "date-only values mean midnight UTC."
         )

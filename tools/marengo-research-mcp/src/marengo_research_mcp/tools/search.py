@@ -42,7 +42,7 @@ async def _cached_search(
     except Exception as exc:
         errors.append(f"{name}: {exc}")
     resp = SearchResponse(query=query, hits=hits, errors=errors)
-    cache.set("search", f"{name}:{key}", resp.model_dump())
+    cache.set("search", f"{name}:{key}", resp.model_dump(mode="json"))
     return resp
 
 
