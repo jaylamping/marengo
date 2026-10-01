@@ -493,10 +493,32 @@ original assertion; no unbounded hang is executed or inferred.
 Strict affected30/0/0 and primary765 Rust/1existingignored,355frontend/72PiMCP
 with fatal ARM release pass on1460 unchanged gate inputs. Existing useful tests
 remain; one new independent behavior test is added, with no new ignore or speedup
-claim. Final Standards/Spec and GitHub delivery remain pending at this frozen
-tracked checkpoint and require external delivery receipts before merge.
-G15 stays partial: historic backup/recovery and remaining interruption/refusal/
-concurrency acceptance are open. Counts remain16verified/11partial/75open.
+claim. Completed PR229 bb22fc7/main d660112 equal-tree delivery passes all five
+jobs in PR36839399777/main36841037882, including fatal main ARM release, with
+independent Standards/Spec/execution audit, all-refs backup and exact branch cleanup.
+G15 stays partial; historic recovery follows in batch16.
+
+## Sixteenth batch: deliberate known-profile recovery
+
+[Batch16](batch16-store-historic-recovery.md) implements accepted ADR0030 from
+checked d660112. Explicit library/CLI recovery recognizes one complete v2 schema
+with marker1, preserves a verified WAL-aware standalone backup first and repairs
+a separately verified output through the normal migration owner. Source remains
+logically unchanged; normal startup continues to refuse historical recovery.
+
+Five independent final conformance groups qualify preserved rows/FTS/settings,
+schema/marker/FTS refusal, namespace/identity/sentinel refusal, actual retained
+backup on later output failure/fresh retry and missing-default timestamps. Real
+WAL-copy and rank0-FTS production mutants fail at collected assertions and replay
+unchanged green. Original-public refusal/WAL control stays positive; no missing API
+red. Actual CLI and native Windows34/0/0 pass. Affected36/0/0 and required primary
+771Rust/1existingignored,355frontend/72PiMCP/fatalARM pass on1464unchanged
+core inputs. Wrong-line preliminary phase04v1 is preserved/excluded.
+
+Final independent review and exact-head GitHub delivery are later required receipts
+at this frozen checkpoint. G15 remains partial for interruption/concurrency/other
+historic profiles. Counts stay16verified/11partial/75open across the same102IDs;
+all eight maintenance tasks remain. No robot, deployment, limits or Wave changes.
 
 ## Completion and continuation
 
@@ -528,3 +550,13 @@ current CAD/URDF/MJCF consistency, and resumed limb-playbook execution. Issue
 Do not change `WAVE_POSE_GCOMP_SIGNED` or close physical acceptance issues from
 offline tests. Software corrections, especially CS23, require a fresh model and
 commissioning assessment.
+
+Batch16 final local correction: independent Spec found stdout failure after
+completed recovery omitted artifact paths. Actual line415 CLI regression
+fails on implemented2b0 and passes byte-identically after serializer/write/
+newline/flush error reporting. Phase05 library proof scope remains unchanged;
+only two CLI core files differ. Final phase06 native34/affected37/primary772
+Rust/1existingignored,355frontend/72PiMCP/fatalARM qualify1464 unchanged inputs.
+V3 startup failure is preserved/excluded; final-local-qualification.json binds
+actual red/green/gates and exact delta. Final independent review and GitHub
+delivery remain pending; G15 partial and102ID/eight-task dispositions unchanged.

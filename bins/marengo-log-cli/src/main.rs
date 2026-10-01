@@ -1,6 +1,8 @@
 //! Archive bench sessions, maintain SQLite log store on Pi.
 //! Candump inspection uses `marengo-candump` directly (no DB required).
+//! Explicit historical recovery dispatches before opening the normal Store.
 
+use std::io::Write;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -9,8 +11,8 @@ use marengo_candump::{
     format_inspection_text, Candump, FramePage, InspectRequest, Inspection, TimestampMode,
 };
 use marengo_store::{
-    import_journal, resolve_db_path, resolve_marengo_root, SessionArtifact, Store,
-    DEFAULT_ARCHIVE_DAYS, DEFAULT_HOT_KEEP, JOURNAL_UNITS,
+    import_journal, recover_known_v2, resolve_db_path, resolve_marengo_root, SessionArtifact,
+    Store, DEFAULT_ARCHIVE_DAYS, DEFAULT_HOT_KEEP, JOURNAL_UNITS,
 };
 use marengo_support::init_tracing;
 
@@ -51,6 +53,15 @@ enum Commands {
     DiskUsage,
     /// Import systemd journal into log_events (marengo-* units).
     JournalImport,
+    /// Preserve a verified backup and recover recognized complete v2 with stale marker1.
+    RecoverKnownV2 {
+        #[arg(long)]
+        source: PathBuf,
+        #[arg(long)]
+        backup: PathBuf,
+        #[arg(long)]
+        output: PathBuf,
+    },
     /// Inspect a candump capture (plain or gzip).
     Candump {
         #[command(subcommand)]
@@ -217,6 +228,28 @@ fn run_candump(action: CandumpAction) -> Result<(), Box<dyn std::error::Error>> 
     Ok(())
 }
 
+fn run_recovery(
+    source: PathBuf,
+    backup: PathBuf,
+    output: PathBuf,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let receipt = recover_known_v2(source, backup, output)?;
+    let mut stdout = std::io::stdout().lock();
+    let presented = (|| -> Result<(), Box<dyn std::error::Error>> {
+        serde_json::to_writer_pretty(&mut stdout, &receipt)?;
+        writeln!(stdout)?;
+        stdout.flush()?;
+        Ok(())
+    })();
+    presented.map_err(|error| {
+        format!(
+            "recovery artifacts completed but receipt output failed: {error}; retained published backup={}; retained published output={}; canonical paths: backup={:?}; output={:?}",
+            receipt.backup_path.display(), receipt.output_path.display(),
+            receipt.backup_path, receipt.output_path,
+        ).into()
+    })
+}
+
 fn main() -> ExitCode {
     init_tracing();
     let cli = Cli::parse();
@@ -224,6 +257,11 @@ fn main() -> ExitCode {
 
     let result = match command {
         Commands::Candump { action } => run_candump(action),
+        Commands::RecoverKnownV2 {
+            source,
+            backup,
+            output,
+        } => run_recovery(source, backup, output),
         command => run_store_command(root, db, command),
     };
 
@@ -301,6 +339,7 @@ fn run_store_command(
             println!("imported {n} journal lines");
         }
         Commands::Candump { .. } => unreachable!("candump handled before store open"),
+        Commands::RecoverKnownV2 { .. } => unreachable!("recovery handled before store open"),
     }
     Ok(())
 }

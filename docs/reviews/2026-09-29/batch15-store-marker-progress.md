@@ -88,3 +88,16 @@ unproved; this batch performs no restart or runtime recovery. Hardware acceptanc
 is separate, including fresh reference/sign checks, installed-drive limits/
 timeouts/E-stop/support/model provenance and issues170/176. No robot connection,
 enable, move, flash, deploy, limit increase or Wave sign-off change occurs.
+
+
+## Completed delivery reconciliation (batch16)
+
+PR229 merged bb22fc7 as equal-tree main d660112. Independent Standards, Spec
+and execution reviews accepted the scoped repair. Exact PR CI36839399777 and
+main CI36841037882 pass all five jobs:765Rust/1existingignored,355frontend,72PiMCP,
+5simulation and73virtualCAN/0ignored. Main includes fatal ARM release. Verified
+all-refs backup and exact branch cleanup complete; the Windows checkout is clean
+and synced. The earlier pending text above is the preserved local-check checkpoint.
+Actual immutable delivery receipt: J:/code/marengo-migration-backup-20260929/batch15/merge-receipt.json,
+SHA256 9c013874b6e42845eb92ce531b280d7ad20ef4b916df198ceebf941da21650bd.
+G15 remains partial; counts stay16verified/11partial/75open across102IDs.

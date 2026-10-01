@@ -356,3 +356,40 @@ pass on1460 unchanged inputs. Useful retention/query/FTS/candump/migration
 contracts remain; no existing test is deleted or newly ignored. This is behavior
 qualification, with no cold-cache or build-speedup claim. Final Standards/Spec
 and GitHub delivery are pending at this tracked checkpoint; G15 remains partial.
+
+## Sixteenth batch: independent known-profile recovery
+
+The literal library fixture proves real WAL-only rows with a main-only negative
+copy control and unchanged normal-public historical refusal first. Five complete
+final tests use independent row/schema/FTS/integrity/file-hash/identity/timestamp
+observations, actual close/reopen/retry and cleanup before their sole assertion.
+Eight unsupported-profile/FTS cases and13namespace/sentinel cases collect failures;
+Linux proc output creation fails after an actual completed backup, which remains
+verified through fresh-path retry. Missing defaults have literal values and the
+actual output marker timestamp; no production constant or clock expectation.
+
+Two real production mutants compile, fail at471(WALcopy)/753(rank0FTS) after
+controls/cleanup, then unchanged source/test replay passes. Missing new APIs are
+never original reds. Actual CLI composition uses public bootstrap as a stated
+dependency, keeping independent schema recognition in library tests. All final
+workers bind one1354-line whole probe, complete1491-file candidate, actual local
+recompilation/direct executable, bounded waits and empty fixture inventories.
+Wrong-line phase04v1 is preserved and root-excluded; corrected v2/final1190 qualify.
+
+Native Windows34/0/0, strict affected36/0/0 and required primary771/0/
+1existingignored,355frontend/72PiMCP/fatalARM pass on1464unchanged core inputs.
+Useful existing tests remain; no deletion, new ignore or build-speedup claim.
+Final reviews/exact-head GitHub delivery remain later receipts at this checkpoint.
+G15 interruption/concurrency/other profiles remain open, and no physical acceptance
+is inferred. Prior batch15 pending checkpoint is superseded by completed PR229
+bb22fc7/main d660112 exact all-five-job delivery and independent review/backup.
+
+Batch16 final local correction: independent Spec found stdout failure after
+completed recovery omitted artifact paths. Actual line415 CLI regression
+fails on implemented2b0 and passes byte-identically after serializer/write/
+newline/flush error reporting. Phase05 library proof scope remains unchanged;
+only two CLI core files differ. Final phase06 native34/affected37/primary772
+Rust/1existingignored,355frontend/72PiMCP/fatalARM qualify1464 unchanged inputs.
+V3 startup failure is preserved/excluded; final-local-qualification.json binds
+actual red/green/gates and exact delta. Final independent review and GitHub
+delivery remain pending; G15 partial and102ID/eight-task dispositions unchanged.

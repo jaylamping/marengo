@@ -1,11 +1,15 @@
 # bins/marengo-log-cli/
 
 ## Responsibility
-CLI to **query archived bench sessions** from marengo-store (gateway SQL or hot log files).
+CLI for bench-session registration, archival, retention, imports and SQLite maintenance.
+Candump inspection calls `marengo-candump` directly. Explicit `recover-known-v2`
+delegates to `marengo-store` before normal Store open and prints its completed receipt.
 
 ## Design
-- List sessions, tail logs, grep patterns — used by MCP `pi_logs_*` tools
-- Reads from gateway store or `var/log/bench-*.log` on Pi
+- Session and maintenance commands open the configured Store.
+- Recovery requires explicit source, fresh backup and fresh output paths; it never
+  selects the configured database implicitly or replaces the source.
+- Candump summary/page commands require no database.
 
 ## Integration
 - **Depends on**: marengo-store
