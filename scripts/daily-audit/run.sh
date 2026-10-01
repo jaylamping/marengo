@@ -72,7 +72,7 @@ if shutil.which("cargo-audit") and shutil.which("cargo"):
                 result["status"] = "maintenance-warnings"
             elif proc.returncode == 0:
                 result["status"] = "clean"
-    except (OSError, ValueError, KeyError, TypeError, subprocess.TimeoutExpired) as exc:
+    except (OSError, ValueError, KeyError, TypeError, AttributeError, subprocess.TimeoutExpired) as exc:
         result["status"] = "error"
         result["error"] = str(exc)
     if not db.is_dir():
