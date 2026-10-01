@@ -1,0 +1,42 @@
+   Compiling armee-proto v0.1.0 (/Users/joseph/.codex/worktrees/bounded-ipc-outage/marengo/crates/armee-proto)
+   Compiling chappe v0.1.0 (/Users/joseph/.codex/worktrees/bounded-ipc-outage/marengo/crates/chappe)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.93s
+     Running tests/ipc_outage.rs (target/debug/deps/ipc_outage-89a0950f7ff2d5ee)
+
+running 1 test
+test outage_does_not_replay_superseded_state ... FAILED
+
+failures:
+
+---- outage_does_not_replay_superseded_state stdout ----
+
+thread 'outage_does_not_replay_superseded_state' panicked at crates/chappe/tests/ipc_outage.rs:44:5:
+isolated oracle failed:
+
+running 1 test
+test outage_worker ... FAILED
+
+failures:
+
+failures:
+    outage_worker
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.26s
+
+
+
+thread 'outage_worker' panicked at crates/chappe/tests/ipc_outage.rs:75:5:
+assertion `left == right` failed: reconnect must carry latest eligible state
+  left: 0
+ right: 999
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    outage_does_not_replay_superseded_state
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.26s
+
+error: test failed, to rerun pass `-p chappe --test ipc_outage`
