@@ -1,0 +1,13 @@
+F
+======================================================================
+FAIL: test_cli_usage_error_is_not_reported_as_vulnerability (test_cargo_audit_runner.RunnerErrorTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/joseph/.codex/worktrees/daily-cargo-audit-status/marengo/scripts/daily-audit/test_cargo_audit_runner.py", line 35, in test_cli_usage_error_is_not_reported_as_vulnerability
+    self.assertFalse(any("advisories" in f["message"] for f in report["findings"]), "scanner argument failure is not a vulnerability finding")
+AssertionError: True is not false : scanner argument failure is not a vulnerability finding
+
+----------------------------------------------------------------------
+Ran 1 test in 0.542s
+
+FAILED (failures=1)

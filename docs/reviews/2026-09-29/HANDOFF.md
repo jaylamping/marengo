@@ -1,3 +1,7 @@
+## Latest Mac continuation — batch26
+
+T20 verified: PR239/main5c25a8f allfive CI36909443242 passed. Counts23 verified,11 partial,68 open across102 IDs;8 maintenance tasks retained. T22 realpinnedCLI/15dailytests qualified; final reviews and Linux delivery pending. Windows automation remains paused; no physical acceptance.
+
 ## Latest Mac continuation — batch25
 
 G19 verified: PR238/main f831e587 all-five CI36903696586 passed. Counts22 verified,11 partial,69 open across102 IDs;8 maintenance tasks retained. T20 rolling UTC recency implementation has46 passing offline tests; independent review and primary delivery pending. Windows automation remains paused; no hardware acceptance.
