@@ -144,3 +144,22 @@ G15's external design and canonical safe-path test proposal remain UNEXECUTED.
 The next iteration must use the actual merged G14 base, read the canonical README
 and oracle addendum, then choose one vertical slice before freezing/executing.
 Earlier unsafe or incomplete drafts are preserved and excluded.
+
+## Completed delivery, reconciled in batch14
+
+The preceding paragraphs describe the frozen implementation checkpoint. Actual
+final documentation commit `1d3d85b2a545518830e8f19910b4f7f5f9372b5f` passes all
+five jobs in run36820454955. PR227 merged as
+`4c1800d4ffb6be13a920a77b6f9b4b47395b0848`, whose tree equals the checked final
+tree `6f6ebd5b42eb8a30c2f887a0a03050fdb7053ed6`. Main run36821026729 passes all
+five jobs, including fatal ARM release. All-refs backup was verified, and the
+completed branch was removed only after checked main with its exact-head lease.
+
+External batch13 `merge-receipt.json` SHA256
+`d1ea2173ddea7db52922d21ab39343f5418df3c9619c03d34e048a23340171a0`
+binds the delivery; `branch-cleanup.json` SHA256
+`7d36317bf7b988dba07f37c733d72dc9b1e669c9e98d13ad71602bf34ec9e2f2`
+and verified all-refs bundle SHA256
+`7e278670da33eff86f2f56c4cf07906f0fa5efdfc6e9307633471b2e5727e0ee`
+record cleanup/recovery evidence. Batch14 uses this actual checked base and a
+separately frozen normal-migration slice; earlier design drafts remain excluded.
