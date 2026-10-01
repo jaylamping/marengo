@@ -2564,9 +2564,11 @@
       "source": "gateway.md#g01--p1-the-pi-telemetry-queue-grows-without-bound-while-the-gateway-is-offline",
       "work_package": "WP07",
       "implementation_and_acceptance_plan": "gateway-implementation-plan.md",
-      "status": "open",
-      "evidence": [],
-      "verified_commit_or_pr": null,
+      "status": "verified",
+      "evidence": [
+        "Batch22 original disconnected FIFO assertion red replays unchanged green after bounded queue/topic/age/write policies; actual non-reading/reconnect, peer lifetime, shutdown races, wire queue health, gateway lifecycle/loss and encoded UI retirement qualified. Standards/Spec accepted. Final PR4dbf333 CI36898020258 all5 passed; merged main0166970 CI36898895683 all5 passed. Bounded audit transport is not durable G11 delivery; boot/freshness identity G10/F05 remains open. No hardware acceptance."
+      ],
+      "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/236",
       "hardware_acceptance": "not established by this software repair"
     },
     {
@@ -15289,12 +15291,27 @@
       "main_ci_run": 36890121385,
       "status": "merged; exact-head PR and all-five-job main CI passed",
       "report": "batch21-explicit-scrape-zero.md"
+    },
+    {
+      "batch_id": "batch22",
+      "findings": [
+        "G01"
+      ],
+      "PR": "https://github.com/jaylamping/marengo/pull/236",
+      "head": "4dbf333456397764e06f0d0f7e64d4054281cc8a",
+      "merged_main": "0166970a6a31aea19e0ba0c47cf7d5ab2fe4da11",
+      "pr_ci_run": 36898020258,
+      "pr_all_five_jobs_passed": true,
+      "main_ci_run": 36898895683,
+      "status": "merged; exact-head PR/main all five CI jobs passed",
+      "report": "batch22-bounded-ipc-outage.md",
+      "main_all_five_jobs_passed": true
     }
   ],
   "finding_status_counts": {
-    "verified": 19,
+    "verified": 20,
     "partial": 11,
-    "open": 72
+    "open": 71
   },
   "next_dependency_ready_batch": {
     "current": "Complete final batch18 PR233 integrated exact-head CI/delivery; reconcile batch17mainvcan. Next independent T17cold-cache repair is in codex/research-cache-await; do not close finding until reviews/checks/delivery.",
@@ -15317,16 +15334,16 @@
     "human_input_blocker": null
   },
   "active_mac_continuation": {
-    "batch_id": "batch22",
-    "branch": "codex/bounded-ipc-outage",
-    "baseline_main": "a65ae3f08e2601575b8038116bac03c998776bf8",
-    "integration_main": "37a4dd1675a22f064a73ab40426e02937ccea194",
-    "status": "Standards/Spec accepted; native71 and Consul356 pass; PR236 exact-head Linux CI pending; G01 remains open",
-    "PR": "https://github.com/jaylamping/marengo/pull/236",
+    "batch_id": "batch23",
+    "branch": "codex/cpu-counter-columns",
+    "baseline_main": "37a4dd1675a22f064a73ab40426e02937ccea194",
+    "integration_main": "0166970a6a31aea19e0ba0c47cf7d5ab2fe4da11",
+    "status": "Standards/Spec and integration reviews clear; combined native76 and Consul358/build pass; exact-head Linux CI/delivery pending; G18 remains open",
+    "PR": "https://github.com/jaylamping/marengo/pull/237",
     "findings": [
-      "G01"
+      "G18"
     ],
-    "report": "batch22-bounded-ipc-outage.md",
+    "report": "batch23-cpu-counter-columns.md",
     "hardware_acceptance": false,
     "automation_status": "PAUSED",
     "other_pending": "T17 local source/tests accepted, workflow-file push refused because token lacks workflow scope; authorization question remains unanswered"

@@ -1,0 +1,89 @@
+   Compiling marengo-host-metrics v0.1.0 (/Users/joseph/.codex/worktrees/cpu-counter-columns/marengo/crates/marengo-host-metrics)
+   Compiling armee-proto v0.1.0 (/Users/joseph/.codex/worktrees/cpu-counter-columns/marengo/crates/armee-proto)
+warning: field `counters` is never read
+ --> crates/marengo-host-metrics/src/sample_state.rs:6:9
+  |
+5 | pub(crate) struct CpuLineValues {
+  |                   ------------- field in this struct
+6 |     pub counters: [u64; 8],
+  |         ^^^^^^^^
+  |
+  = note: `CpuLineValues` has derived impls for the traits `Default` and `Clone`, but these are intentionally ignored during dead code analysis
+  = note: `#[warn(dead_code)]` on by default
+
+warning: method `rates` is never used
+  --> crates/marengo-host-metrics/src/sample_state.rs:10:19
+   |
+9  | impl CpuLineValues {
+   | ------------------ method in this implementation
+10 |     pub(crate) fn rates(&self, prev: &Self) -> Option<(f64, f64)> {
+   |                   ^^^^^
+
+warning: fields `rx_bytes` and `tx_bytes` are never read
+  --> crates/marengo-host-metrics/src/sample_state.rs:31:9
+   |
+30 | pub(crate) struct NetCounters {
+   |                   ----------- fields in this struct
+31 |     pub rx_bytes: u64,
+   |         ^^^^^^^^
+32 |     pub tx_bytes: u64,
+   |         ^^^^^^^^
+   |
+   = note: `NetCounters` has derived impls for the traits `Default` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: fields `cpu_aggregate`, `cpu_per_core`, and `network` are never read
+  --> crates/marengo-host-metrics/src/sample_state.rs:39:16
+   |
+37 | pub struct SampleState {
+   |            ----------- fields in this struct
+38 |     pub sample_at: Option<Instant>,
+39 |     pub(crate) cpu_aggregate: Option<CpuLineValues>,
+   |                ^^^^^^^^^^^^^
+40 |     pub(crate) cpu_per_core: HashMap<u32, CpuLineValues>,
+   |                ^^^^^^^^^^^^
+41 |     pub(crate) network: HashMap<String, NetCounters>,
+   |                ^^^^^^^
+
+warning: `marengo-host-metrics` (lib) generated 4 warnings
+warning: fields `rx_bytes` and `tx_bytes` are never read
+  --> crates/marengo-host-metrics/src/sample_state.rs:31:9
+   |
+30 | pub(crate) struct NetCounters {
+   |                   ----------- fields in this struct
+31 |     pub rx_bytes: u64,
+   |         ^^^^^^^^
+32 |     pub tx_bytes: u64,
+   |         ^^^^^^^^
+   |
+   = note: `NetCounters` has derived impls for the traits `Default` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `network` is never read
+  --> crates/marengo-host-metrics/src/sample_state.rs:41:16
+   |
+37 | pub struct SampleState {
+   |            ----------- field in this struct
+...
+41 |     pub(crate) network: HashMap<String, NetCounters>,
+   |                ^^^^^^^
+
+warning: `marengo-host-metrics` (lib test) generated 2 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.04s
+     Running unittests src/lib.rs (target/debug/deps/marengo_host_metrics-ab9ddef381368af5)
+
+running 6 tests
+test tests::sample_returns_hostname ... ok
+test cpu::cpu_regression::published_cpu_fields_follow_kernel_counter_columns ... ok
+test cpu::cpu_lifecycle_tests::irq_is_busy_guest_is_not_double_counted_and_iowait_decrease_is_unknown ... ok
+test cpu::cpu_lifecycle_tests::reset_even_with_increasing_total_invalidates_then_rebaselines ... ok
+test cpu::cpu_lifecycle_tests::sparse_ids_reordering_and_hotplug_keep_independent_baselines ... ok
+test cpu::cpu_lifecycle_tests::malformed_truncated_duplicate_and_overflow_are_unknown ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests marengo_host_metrics
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

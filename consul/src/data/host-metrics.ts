@@ -2,7 +2,7 @@
 
 export type PiHostMetrics = {
   hostname: string;
-  cpuPercent: number;
+  cpuPercent: number | undefined;
   ramUsedGb: number;
   ramTotalGb: number;
   diskUsedGb: number | null;
@@ -17,7 +17,7 @@ export type PiHostMetrics = {
 
 export type JetsonHostMetrics = {
   hostname: string;
-  cpuPercent: number;
+  cpuPercent: number | undefined;
   ramUsedGb: number;
   ramTotalGb: number;
   gpuPercent: number;

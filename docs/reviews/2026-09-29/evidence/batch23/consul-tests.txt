@@ -1,0 +1,13 @@
+
+> consul@0.0.0 test
+> vitest --run
+
+
+ RUN  v4.1.11 /Users/joseph/.codex/worktrees/cpu-counter-columns/marengo/consul
+
+
+ Test Files  71 passed (71)
+      Tests  358 passed (358)
+   Start at  12:23:11
+   Duration  4.79s (transform 14.11s, setup 0ms, import 37.16s, tests 4.67s, environment 24.99s)
+

@@ -3,28 +3,26 @@ use std::time::Instant;
 
 #[derive(Clone, Copy, Default)]
 pub(crate) struct CpuLineValues {
-    pub total: u64,
-    pub idle: u64,
-    pub iowait: u64,
+    pub counters: [u64; 8],
 }
 
 impl CpuLineValues {
-    pub(crate) fn delta_usage(&self, prev: &Self) -> f64 {
-        let total_delta = self.total.saturating_sub(prev.total);
-        let idle_delta = self.idle.saturating_sub(prev.idle);
-        if total_delta == 0 {
-            return 0.0;
+    pub(crate) fn rates(&self, prev: &Self) -> Option<(f64, f64)> {
+        let mut deltas = [0; 8];
+        for (i, delta) in deltas.iter_mut().enumerate() {
+            *delta = self.counters[i].checked_sub(prev.counters[i])?;
         }
-        1.0 - (idle_delta as f64 / total_delta as f64)
-    }
-
-    pub(crate) fn delta_iowait(&self, prev: &Self) -> f64 {
-        let total_delta = self.total.saturating_sub(prev.total);
-        let iowait_delta = self.iowait.saturating_sub(prev.iowait);
-        if total_delta == 0 {
-            return 0.0;
+        let total = deltas
+            .iter()
+            .try_fold(0u64, |sum, value| sum.checked_add(*value))?;
+        if total == 0 {
+            return None;
         }
-        iowait_delta as f64 / total_delta as f64
+        let idle = deltas[3].checked_add(deltas[4])?;
+        Some((
+            (total - idle) as f64 * 100.0 / total as f64,
+            deltas[4] as f64 * 100.0 / total as f64,
+        ))
     }
 }
 
@@ -39,7 +37,7 @@ pub(crate) struct NetCounters {
 pub struct SampleState {
     pub sample_at: Option<Instant>,
     pub(crate) cpu_aggregate: Option<CpuLineValues>,
-    pub(crate) cpu_per_core: Vec<CpuLineValues>,
+    pub(crate) cpu_per_core: HashMap<u32, CpuLineValues>,
     pub(crate) network: HashMap<String, NetCounters>,
 }
 

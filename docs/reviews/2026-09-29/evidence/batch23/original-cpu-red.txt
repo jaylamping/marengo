@@ -1,0 +1,58 @@
+   Compiling proc-macro2 v1.0.106
+   Compiling quote v1.0.45
+   Compiling unicode-ident v1.0.24
+   Compiling libc v0.2.186
+   Compiling anyhow v1.0.103
+   Compiling either v1.15.0
+   Compiling bytes v1.11.1
+   Compiling rustix v1.1.4
+   Compiling getrandom v0.4.2
+   Compiling equivalent v1.0.2
+   Compiling regex-syntax v0.8.10
+   Compiling cfg-if v1.0.4
+   Compiling prettyplease v0.2.37
+   Compiling hashbrown v0.17.1
+   Compiling bitflags v2.11.1
+   Compiling fastrand v2.4.1
+   Compiling fixedbitset v0.5.7
+   Compiling once_cell v1.21.4
+   Compiling multimap v0.10.1
+   Compiling log v0.4.29
+   Compiling heck v0.5.0
+   Compiling itertools v0.14.0
+   Compiling thiserror v1.0.69
+   Compiling marengo-host-metrics v0.1.0 (/Users/joseph/.codex/worktrees/cpu-counter-columns/marengo/crates/marengo-host-metrics)
+   Compiling indexmap v2.14.0
+   Compiling petgraph v0.7.1
+   Compiling regex-automata v0.4.14
+   Compiling errno v0.3.14
+   Compiling syn v2.0.117
+   Compiling regex v1.12.3
+   Compiling tempfile v3.27.0
+   Compiling prost-derive v0.13.5
+   Compiling thiserror-impl v1.0.69
+   Compiling prost v0.13.5
+   Compiling prost-types v0.13.5
+   Compiling prost-build v0.13.5
+   Compiling armee-proto v0.1.0 (/Users/joseph/.codex/worktrees/cpu-counter-columns/marengo/crates/armee-proto)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.90s
+     Running unittests src/lib.rs (target/debug/deps/marengo_host_metrics-ab9ddef381368af5)
+
+running 1 test
+test linux::cpu_regression::published_cpu_fields_follow_kernel_counter_columns ... FAILED
+
+failures:
+
+---- linux::cpu_regression::published_cpu_fields_follow_kernel_counter_columns stdout ----
+
+thread 'linux::cpu_regression::published_cpu_fields_follow_kernel_counter_columns' panicked at crates/marengo-host-metrics/src/lib.rs:316:13:
+iowait reads its own field: 0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    linux::cpu_regression::published_cpu_fields_follow_kernel_counter_columns
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p marengo-host-metrics --lib`
