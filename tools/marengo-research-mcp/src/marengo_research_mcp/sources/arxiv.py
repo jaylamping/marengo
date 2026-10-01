@@ -14,7 +14,7 @@ def search_arxiv(query: str, limit: int = 10) -> list[ResearchHit]:
         max_results=limit,
         sort_by=arxiv.SortCriterion.SubmittedDate,
     )
-    for paper in search.results():
+    for paper in arxiv.Client().results(search):
         year = paper.published.year if paper.published else None
         hits.append(
             ResearchHit(

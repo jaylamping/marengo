@@ -1,0 +1,120 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.12.14, pytest-9.1.0, pluggy-1.6.0
+rootdir: /Users/joseph/.codex/worktrees/arxiv-client-api/marengo/tools/marengo-research-mcp
+configfile: pyproject.toml
+plugins: asyncio-1.4.0, anyio-4.13.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 3 items
+
+tests/test_arxiv_client.py .FF                                           [100%]
+
+=================================== FAILURES ===================================
+______________ test_client_iteration_and_provider_failure[False] _______________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10bdabad0>
+fail_after_first = False
+
+    @pytest.mark.parametrize("fail_after_first", [False, True])
+    def test_client_iteration_and_provider_failure(monkeypatch, fail_after_first):
+        searches = []
+    
+        class Search:
+            def __init__(self, **kwargs):
+                searches.append(kwargs)
+    
+        class Client:
+            def results(self, search):
+                assert isinstance(search, Search)
+                for index in range(2):
+                    if index and fail_after_first:
+                        raise RuntimeError("next page unavailable")
+                    yield SimpleNamespace(
+                        title=f" Robot\n{index} ", entry_id=f"https://arxiv.org/abs/{index}",
+                        summary="x" * 600, published=datetime(2026, 9, 1, tzinfo=timezone.utc),
+                        authors=[SimpleNamespace(name=str(i)) for i in range(7)],
+                        pdf_url=f"https://arxiv.org/pdf/{index}",
+                    )
+    
+        monkeypatch.setattr(source, "arxiv", SimpleNamespace(
+            Search=Search, Client=Client,
+            SortCriterion=SimpleNamespace(SubmittedDate="submitted"),
+        ))
+        if fail_after_first:
+            with pytest.raises(RuntimeError, match="next page unavailable"):
+                source.search_arxiv("humanoid", 2)
+        else:
+>           hits = source.search_arxiv("humanoid", 2)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_arxiv_client.py:48: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+query = 'humanoid', limit = 2
+
+    def search_arxiv(query: str, limit: int = 10) -> list[ResearchHit]:
+        hits: list[ResearchHit] = []
+        search = arxiv.Search(
+            query=f"cat:cs.RO AND ({query})",
+            max_results=limit,
+            sort_by=arxiv.SortCriterion.SubmittedDate,
+        )
+>       for paper in search.results():
+                     ^^^^^^^^^^^^^^
+E       AttributeError: 'Search' object has no attribute 'results'
+
+src/marengo_research_mcp/sources/arxiv.py:17: AttributeError
+_______________ test_client_iteration_and_provider_failure[True] _______________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10bdaa900>
+fail_after_first = True
+
+    @pytest.mark.parametrize("fail_after_first", [False, True])
+    def test_client_iteration_and_provider_failure(monkeypatch, fail_after_first):
+        searches = []
+    
+        class Search:
+            def __init__(self, **kwargs):
+                searches.append(kwargs)
+    
+        class Client:
+            def results(self, search):
+                assert isinstance(search, Search)
+                for index in range(2):
+                    if index and fail_after_first:
+                        raise RuntimeError("next page unavailable")
+                    yield SimpleNamespace(
+                        title=f" Robot\n{index} ", entry_id=f"https://arxiv.org/abs/{index}",
+                        summary="x" * 600, published=datetime(2026, 9, 1, tzinfo=timezone.utc),
+                        authors=[SimpleNamespace(name=str(i)) for i in range(7)],
+                        pdf_url=f"https://arxiv.org/pdf/{index}",
+                    )
+    
+        monkeypatch.setattr(source, "arxiv", SimpleNamespace(
+            Search=Search, Client=Client,
+            SortCriterion=SimpleNamespace(SubmittedDate="submitted"),
+        ))
+        if fail_after_first:
+            with pytest.raises(RuntimeError, match="next page unavailable"):
+>               source.search_arxiv("humanoid", 2)
+
+tests/test_arxiv_client.py:46: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+query = 'humanoid', limit = 2
+
+    def search_arxiv(query: str, limit: int = 10) -> list[ResearchHit]:
+        hits: list[ResearchHit] = []
+        search = arxiv.Search(
+            query=f"cat:cs.RO AND ({query})",
+            max_results=limit,
+            sort_by=arxiv.SortCriterion.SubmittedDate,
+        )
+>       for paper in search.results():
+                     ^^^^^^^^^^^^^^
+E       AttributeError: 'Search' object has no attribute 'results'
+
+src/marengo_research_mcp/sources/arxiv.py:17: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_arxiv_client.py::test_client_iteration_and_provider_failure[False]
+FAILED tests/test_arxiv_client.py::test_client_iteration_and_provider_failure[True]
+========================= 2 failed, 1 passed in 0.07s ==========================

@@ -1,0 +1,21 @@
+{
+  "baseline": "d03830df9ba6bf6091d47d2ad0eecd71015ef322",
+  "finding": "T18",
+  "probe_sha256": "9a3438c77a7b4fdc9e27bbdb8ec089abd92e96144e1a4306b3b6724bc62ccddb",
+  "original": {
+    "passed": 1,
+    "failed": 2,
+    "reason": "Search has no results method"
+  },
+  "unchanged_probe_after_fix": {
+    "passed": 3,
+    "failed": 0
+  },
+  "all_offline": {
+    "passed": 9,
+    "failed": 0,
+    "warnings": "fatal"
+  },
+  "platform": "macOS Python 3.12.14; uv 0.12.21; frozen lock arxiv 4.0.0",
+  "linux_gate": "pending exact-head CI"
+}
