@@ -2775,7 +2775,8 @@
         "Batch16 explicit recover_known_v2/CLI for complete v2 stale marker1: WAL-aware verified standalone backup first, separate verified output, source/history/settings/FTS preserved, fresh namespace/identity and conservative staging cleanup. Five final literal-fixture conformance positives and two actual WAL/FTS production mutation reds replay unchanged green; original public historical refusal/WAL control stays positive. Native Windows34/0/0, strict affected36/0/0 and required primary771Rust/1existingignored,355frontend/72PiMCP/fatalARM qualify 1464 unchanged core inputs. Exact receipts/hashes and excluded wrong-line attempt are in current_batch and batch16 report. Final review/GitHub delivery remain separate pending receipts; interruption/concurrency/other historic profiles stay open, G15 partial.",
         "Batch16 late Spec P2: stdout ENOSPC after both artifacts completed omitted retained paths; actual whole CLI probe red at415 on implemented2b0 has controls/cleanup/source/artifacts preserved but reported=false, identical e08e69 probe green after CLI serializer/write/newline/flush error wrapping. Final phase06 native34/affected37/primary772Rust/1existingignored,355frontend/72PiMCP/fatalARM on1464 unchanged final inputs. Phase05 library/probe/dependencies unchanged, only two CLI core files differ; exact bridge and excluded v3 startup attempt preserved in final-local-qualification.json. Final reviews/GitHub delivery remain pending; G15 stays partial.",
         "Batch16 completed PR230 f7769e0/main63cbe7e equal checked tree. PR36860217322/main36861055844 all five jobs pass:772Rust/1existingignored,355frontend,72PiMCP,5sim,73vcan; main fatalARM. Independent Standards/Spec and separate library/CLI execution audits accepted; verified150-ref Git bundle and exact branch cleanup preserve145 unrelated refs/two historical worktrees. Exact portable receipts in evidence/batch16. G15 remains partial for interruption/concurrency/other profiles. User requested pause and Mac continuation; no batch17 implementation began.",
-        "Batch17 Mac continuation: delivered b23c82b baseline competing-writer positive; candidate stale-read mutation assertion red with independent commit/history/cleanup controls; byte-identical restored replay positive. Native Store30/0/0, strict affected clippy and formatting pass. Required Docker Linux gate unavailable; review/CI/delivery pending. No production defect or G15 completion claimed. See batch17-store-competing-writer.md and evidence/batch17/qualification.json."
+        "Batch17 Mac continuation: delivered b23c82b baseline competing-writer positive; candidate stale-read mutation assertion red with independent commit/history/cleanup controls; byte-identical restored replay positive. Native Store30/0/0, strict affected clippy and formatting pass. Required Docker Linux gate unavailable; review/CI/delivery pending. No production defect or G15 completion claimed. See batch17-store-competing-writer.md and evidence/batch17/qualification.json.",
+        "Batch17 merged PR232 dd08190/main7897c33 equal tree. ExactPRCI36885168537all5jobs passed; mainCI36886085584 check/sim passed, virtualCAN pending at tracking freeze. Public competing-writer coverage only; G15 remains partial. Portable receipts in evidence/batch17."
       ],
       "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/230",
       "hardware_acceptance": "not established by this software repair"
@@ -2802,7 +2803,9 @@
       "work_package": "WP09",
       "implementation_and_acceptance_plan": "gateway-implementation-plan.md",
       "status": "open",
-      "evidence": [],
+      "evidence": [
+        "Batch18 original-library four assertion reds/one positive and actualCLI panic101 assertion red replay unchanged green after checked numeric conversion, validatedASCII DLC and preallocation/decompressed-byte limits. Native affected59plus additionalchecksum1pass; Standards/Specaccepted. Initial085d701CI36885833002all5passed; finalmainintegration/trackingCI and PR233delivery pending. Finding remains open until final acceptance."
+      ],
       "verified_commit_or_pr": null,
       "hardware_acceptance": "not established by this software repair"
     },
@@ -15223,6 +15226,25 @@
       "portable_evidence_manifest": "evidence/batch16/MANIFEST.json",
       "proof_scope": "Original-public refusal/WAL positive; five library candidate conformance groups, two production mutant reds with unchanged replay, actual implemented-checkpoint CLI red415/identical green. Excluded infrastructure/preparation attempts remain excluded.",
       "hardware_acceptance": false
+    },
+    {
+      "batch_id": "batch17",
+      "status": "merged PR232; main check/sim passed, vcan pending at freeze",
+      "baseline_main": "b23c82ba73b6372889f950379db97273053fe147",
+      "scope": "Public Store migration rereads marker after actual competing WAL writer; test coverage, no production change",
+      "findings": [
+        "G15"
+      ],
+      "G15_status": "partial",
+      "PR": "https://github.com/jaylamping/marengo/pull/232",
+      "head": "dd081909ddd94610d742a7c9da931598c6e69489",
+      "merged_main": "7897c33abd6c9c516cb05d9f57aac98783783291",
+      "pr_ci_run": 36885168537,
+      "pr_all_five_jobs_passed": true,
+      "main_ci_run": 36886085584,
+      "main_ci_full_qualification_pending": true,
+      "report": "batch17-store-competing-writer.md",
+      "portable_merge_receipt": "evidence/batch17/merge-receipt.json"
     }
   ],
   "finding_status_counts": {
@@ -15231,7 +15253,7 @@
     "open": 75
   },
   "next_dependency_ready_batch": {
-    "current": "Batch17 locally qualified on Mac. Complete Docker Linux primary gate, review and delivery; see batch17-store-competing-writer.md. G15 remains partial.",
+    "current": "Complete final batch18 PR233 integrated exact-head CI/delivery; reconcile batch17mainvcan. Next independent T17cold-cache repair is in codex/research-cache-await; do not close finding until reviews/checks/delivery.",
     "following": "G16 bounded archive/page work or separate R2b1 journal engineering qualification",
     "human_input_blocker": null
   },
@@ -15251,16 +15273,17 @@
     "human_input_blocker": null
   },
   "active_mac_continuation": {
-    "batch_id": "batch17",
+    "batch_id": "batch18",
     "baseline_main": "b23c82ba73b6372889f950379db97273053fe147",
-    "branch": "codex/store-competing-writer",
-    "status": "Native Mac qualification complete; required Linux gate unavailable (Docker absent); review/CI/delivery pending",
-    "scope": "Public Store::migrate rereads marker after actual competing WAL writer; test coverage only, no production defect demonstrated",
-    "report": "batch17-store-competing-writer.md",
+    "integration_main": "7897c33abd6c9c516cb05d9f57aac98783783291",
+    "branch": "codex/candump-input-validation",
+    "status": "Independent reviews accepted, initial085d701all-five-job CI passed; final integrated/tracking CI and delivery pending",
+    "PR": "https://github.com/jaylamping/marengo/pull/233",
+    "scope": "Checked candump Duration/domain handling, ASCII DLC consistency and bounded physical/decompressed bytes",
+    "report": "batch18-candump-input-validation.md",
     "findings": [
-      "G15"
+      "G17"
     ],
-    "qualification": "evidence/batch17/qualification.json",
     "hardware_acceptance": false,
     "automation_status": "PAUSED"
   }

@@ -63,3 +63,11 @@ concurrency, statement/process interruption, other historic prefixes or physical
 power-loss/media durability. The existing102 finding dispositions and all eight
 maintenance tasks remain unchanged. No robot, deploy, limits, Wave sign-off or
 paused-automation action occurred. Windows-local evidence/CAD remain untouched.
+
+## Delivery reconciliation
+
+PR232 dd08190 merged to equal-tree main7897c33. PRCI36885168537 passes all five
+jobs, including the Linux primary gate. Main36886085584 check/sim passed and
+virtualCAN remains pending at tracking freeze. Portable PR/merge receipts are
+now in evidence/batch17; the earlier missing-Docker statements are historical.
+Local Docker onboarding still awaits the owner. G15 remains partial.

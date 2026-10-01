@@ -1,0 +1,12 @@
+{
+  "headRefOid": "dd081909ddd94610d742a7c9da931598c6e69489",
+  "mergeCommit": {
+    "oid": "7897c33abd6c9c516cb05d9f57aac98783783291"
+  },
+  "mergedAt": "2026-10-01T15:40:14Z",
+  "state": "MERGED",
+  "url": "https://github.com/jaylamping/marengo/pull/232",
+  "main_ci_run": 36886085584,
+  "main_ci_status": "check and sim passed; virtualCAN completion pending at tracking freeze",
+  "equal_pr_main_tree": true
+}
