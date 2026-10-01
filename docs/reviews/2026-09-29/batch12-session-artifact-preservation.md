@@ -2,7 +2,8 @@
 
 Baseline: fully checked PR225 merge `bebc678e7e7319f5847f78e61720d941a9544db5`.
 Branch: `codex/session-artifact-preservation`. Finding: G13, independent WP09 slice.
-Delivery and finding disposition remain pending the checks recorded below.
+G13 is verified scoped software at the checked implementation head; final and
+equal-tree merged-main delivery remain pending the checks recorded below.
 
 Sparse registration previously replaced omitted labels/artifacts with NULL and
 overwrote capture end time. Importing three sibling files reported three sessions;
@@ -99,8 +100,12 @@ pipe was absent; that zero-test infrastructure failure is preserved separately.
 After independent engine recovery, unchanged-source replay passes **5 / 0 / 0**,
 7.214 s, log `4b7ab0a457027edc5b47da968928488b153dbff39837c0cc49f099b7e2d95a6e`.
 `final-local-gate-summary.json` collects all three completed, source-bound gates.
-Exact implementation/final/equal-tree main GitHub checks, verified all-refs backup
-and exact completed-branch cleanup remain pending.
+[PR226](https://github.com/jaylamping/marengo/pull/226) implementation
+`e885fee6df3071b20265d6361c2ac6e3f3323ad4` passes all five jobs in
+[run36807158080](https://github.com/jaylamping/marengo/actions/runs/36807158080):
+check751/0/1, frontend355, Pi MCP72, simulation5/0/0 and actual virtual driver73/0/0.
+Exact final/equal-tree main GitHub checks, verified all-refs backup and exact
+completed-branch cleanup remain pending. Counts are15verified,10partial,77open.
 
 All proof and recovery evidence is under
 `J:/code/marengo-migration-backup-20260929/batch12`. The ledger appends completed
@@ -121,6 +126,23 @@ not implementation or runtime acceptance. It explicitly accounts for rollback an
 implicit statement journals, startup recovery before PRAGMA admission, credit/body
 ownership and codec/node limits. Its engineering qualification remains separate.
 G14 and other independent packages can progress while that contract is finalized.
+
+The external next-G14 design/probe is **proposed only**, not frozen, compiled or
+executed. Its actual checked base must be completed batch12; prior G13 failures
+would mask chronology controls. Independent literal UTC/leap/epoch-zero values,
+public date filters, authoritative metadata and real archive/reopen are planned.
+Unknown-ID policy, profile/sidecar/latest conventions, fabricated new-import ends,
+safe date buckets and deterministic retention acceptance need explicit disposition.
+Existing rows lack provenance for automatic historical date repair; any repair
+command still needs backup/preview and must preserve authoritative metadata.
+
+Docker's Oct1 recurrence was investigated separately. Ordinary startup reproduced
+the exact Inference socket error; verified reversible runtime-parent preservation
+restored unchanged startup and independent no-start/direct-pipe health. The initiating
+Desktop exit remains unproved, with no causal evidence from moving this checkout.
+The report is `docker-recurrence/docker-recurrence.md` under the external
+evidence root, SHA256 `123571a4557d47d5a8b8e0930c03272ba4b7b1c5bf36ac5f0d40498f94a85057`.
+M08 remains partial. Preserve retained launcher session23805/PID9140 and old18161.
 
 No robot operation or physical acceptance occurred. Limits and Wave sign-off stay
 unchanged. The repair loop remains active; no human input blocker is identified.

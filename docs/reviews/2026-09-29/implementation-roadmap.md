@@ -427,9 +427,14 @@ combined original assertion reds replay unchanged green; actual read-only failur
 writable retry, real CLI and one production mapping mutant qualify behavior.
 Independent whole Standards/Spec accept all code/tests. Final affected16/0/0,
 primary751Rust/1 existing ignored,355frontend/72PiMCP/fatalARM and simulation5 pass
-on the unchanged1449-input source. Exact GitHub delivery remains pending; counts
-stay14verified,10partial,78open. G14 chronology is separate. R2b1 resource derivation
-is design only and does not close reference findings.
+on the unchanged1449-input source. PR226 implementatione885fee/run36807158080
+passes all five jobs, including73 actual virtual-CAN cases/0ignored. Final and
+equal-tree main delivery remain pending; counts15verified,10partial,77open.
+The next G14 chronology proposal is external design only: establish its actual
+unchanged-public red on the completed batch12 base before repair. Unknown-ID and
+capture-end policy, actual profile/sidecar conventions and deterministic retention
+need explicit qualification. R2b1 remains separate engineering design and does not
+close reference findings.
 
 ## Completion and continuation
 

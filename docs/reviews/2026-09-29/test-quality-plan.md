@@ -267,4 +267,6 @@ Useful retention/query/FTS/candump coverage remains. Final affected16/0/0 and
 primary751 Rust/0 failed/1 existing ignored,355 frontend/72 Pi MCP plus fatal ARM
 release pass. Full independent Spec and Standards accept every source/test file.
 No hardware dependencies, new ignores, negative sleeps or cold-build speedup
-claims are introduced. Delivery and simulation receipts follow in the ledger.
+claims are introduced. Simulation5/0/0 and implementation PR226/run36807158080
+all-five-job receipts are recorded in the ledger. Final/equal-tree main delivery
+remains pending; the next G14 probe is an unexecuted proposal only.
