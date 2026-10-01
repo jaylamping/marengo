@@ -24,6 +24,7 @@ class ClassificationTests(unittest.TestCase):
                  (2, 0, 0, 0, "missing-database", "missing-db"),
                  (0, 0, 0, 0, "error", "ancestor-db"),
                  (0, 0, 0, 0, "error", "timeout"),
+                 (0, 0, 0, 0, "error", "provenance-timeout"),
                  (0, 0, 0, 0, "unavailable", "unavailable")]
         for code, count, warnings, age, expected, scenario in cases:
             with self.subTest(expected=expected, code=code), tempfile.TemporaryDirectory() as directory:
@@ -41,7 +42,7 @@ class ClassificationTests(unittest.TestCase):
                 payload = {"database": {"last-updated": stamp, "last-commit": "a" * 40},
                            "vulnerabilities": {"count": count, "found": bool(count), "list": [{}] * count},
                            "warnings": {"unmaintained": [{}] * warnings}}
-                if scenario in {"unknown-provenance", "ancestor-db"}:
+                if scenario in {"unknown-provenance", "ancestor-db", "provenance-timeout"}:
                     payload["database"]["last-updated"] = None
                 if scenario == "ancestor-db":
                     subprocess.run(["git", "init", "-q", str(root)], check=True)
@@ -52,6 +53,8 @@ class ClassificationTests(unittest.TestCase):
                     (root / ".git/info/exclude").write_text("*\n")
                 if scenario == "timeout":
                     (root / "sitecustomize.py").write_text('import subprocess\noriginal=subprocess.run\ndef run(cmd,*args,**kwargs):\n if cmd[:2]==["cargo","audit"]: kwargs["timeout"]=0.5\n return original(cmd,*args,**kwargs)\nsubprocess.run=run\n')
+                if scenario == "provenance-timeout":
+                    (root / "sitecustomize.py").write_text('import subprocess\noriginal=subprocess.run\ndef run(cmd,*args,**kwargs):\n if cmd[0]=="git": raise subprocess.TimeoutExpired(cmd,10,output=b"git partial",stderr=b"git error")\n return original(cmd,*args,**kwargs)\nsubprocess.run=run\n')
                 encoded = "not json" if scenario == "malformed" else json.dumps(payload)
                 cargo = bin_dir / "cargo"
                 cargo.write_text('#!/usr/bin/python3\nimport json,sys,pathlib\npathlib.Path("args.json").write_text(json.dumps(sys.argv[1:]))\nprint(' + repr(encoded) + ')\nprint("fixture stderr",file=sys.stderr)\nsys.exit(' + str(code) + ')\n')
@@ -75,6 +78,10 @@ class ClassificationTests(unittest.TestCase):
                 if scenario == "timeout":
                     self.assertEqual(result["termination"], "timeout")
                     self.assertIn("vulnerabilities", (out / "cargo-audit.stdout.json").read_text())
+                if scenario == "provenance-timeout":
+                    self.assertEqual(result["timeout_operation"], "database-provenance")
+                    self.assertEqual(result["provenance_partial_stdout"], "git partial")
+                    self.assertEqual(json.loads((out / "cargo-audit.stdout.json").read_text()), payload)
                 self.assertEqual(report["clean"], expected == "clean")
                 self.assertIn(expected, (out / "report.md").read_text())
                 self.assertEqual((out / "cargo-audit.stderr.log").read_text(), "" if scenario == "unavailable" else "fixture stderr\n")

@@ -86,9 +86,16 @@ if shutil.which("cargo-audit") and shutil.which("cargo"):
             elif proc.returncode == 0:
                 result["status"] = "clean"
     except subprocess.TimeoutExpired as exc:
-        stdout = exc.stdout.decode("utf-8", errors="replace") if isinstance(exc.stdout, bytes) else (exc.stdout or "")
-        stderr = exc.stderr.decode("utf-8", errors="replace") if isinstance(exc.stderr, bytes) else (exc.stderr or "")
-        result.update(status="error", termination="timeout", error=str(exc))
+        partial_out = exc.stdout.decode("utf-8", errors="replace") if isinstance(exc.stdout, bytes) else (exc.stdout or "")
+        partial_err = exc.stderr.decode("utf-8", errors="replace") if isinstance(exc.stderr, bytes) else (exc.stderr or "")
+        if exc.cmd == command:
+            stdout, stderr = partial_out, partial_err
+            operation = "scanner"
+        else:
+            operation = "database-provenance"
+            result["provenance_partial_stdout"] = partial_out
+            result["provenance_partial_stderr"] = partial_err
+        result.update(status="error", termination="timeout", timeout_operation=operation, error=str(exc))
     except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
         result["status"] = "error"
         result["error"] = str(exc)
