@@ -10,7 +10,7 @@
     "batch_id": "batch13",
     "branch": "codex/session-capture-chronology",
     "baseline_main": "94d3cb48474fbf067e8c5e4bc0317cd6a56a2227",
-    "status": "local qualification complete: final-file public proofs, cutoff conformance/mutation, independent Standards/Spec and all local gates pass; GitHub delivery pending",
+    "status": "G14 software verified: all local gates, complete independent reviews, final-file execution audit and all five implementation CI jobs pass; final/main delivery pending",
     "report": "batch13-session-capture-chronology.md",
     "findings": [
       "G14"
@@ -33,7 +33,118 @@
       "fatal_aarch64_release": true
     },
     "required_github_gate": {
-      "implementation": "pending",
+      "implementation": {
+        "schema": 1,
+        "recorded_utc": "2026-10-01T05:18:15.703731+00:00",
+        "label": "implementation",
+        "stage": "implementation",
+        "baseline": "94d3cb48474fbf067e8c5e4bc0317cd6a56a2227",
+        "head": "cabfe945e34a70fc1c145383bcc7eeb750fd9256",
+        "run": 36818692724,
+        "url": "https://github.com/jaylamping/marengo/actions/runs/36818692724",
+        "status": "completed",
+        "conclusion": "success",
+        "summary_sha256": "6313c694519caa196f5d284cac4d4a388987ad40167bbb7b68808fa0ff298190",
+        "jobs": [
+          {
+            "name": "changes",
+            "status": "completed",
+            "conclusion": "success",
+            "url": "https://github.com/jaylamping/marengo/actions/runs/36818692724/job/110229329438",
+            "databaseId": 110229329438,
+            "startedAt": "2026-10-01T05:12:51Z",
+            "completedAt": "2026-10-01T05:12:55Z"
+          },
+          {
+            "name": "build-image",
+            "status": "completed",
+            "conclusion": "success",
+            "url": "https://github.com/jaylamping/marengo/actions/runs/36818692724/job/110229329716",
+            "databaseId": 110229329716,
+            "startedAt": "2026-10-01T05:12:51Z",
+            "completedAt": "2026-10-01T05:13:04Z"
+          },
+          {
+            "name": "check",
+            "status": "completed",
+            "conclusion": "success",
+            "url": "https://github.com/jaylamping/marengo/actions/runs/36818692724/job/110229391742",
+            "databaseId": 110229391742,
+            "startedAt": "2026-10-01T05:13:07Z",
+            "completedAt": "2026-10-01T05:17:18Z"
+          },
+          {
+            "name": "vcan",
+            "status": "completed",
+            "conclusion": "success",
+            "url": "https://github.com/jaylamping/marengo/actions/runs/36818692724/job/110229391760",
+            "databaseId": 110229391760,
+            "startedAt": "2026-10-01T05:13:06Z",
+            "completedAt": "2026-10-01T05:15:52Z"
+          },
+          {
+            "name": "sim",
+            "status": "completed",
+            "conclusion": "success",
+            "url": "https://github.com/jaylamping/marengo/actions/runs/36818692724/job/110229391874",
+            "databaseId": 110229391874,
+            "startedAt": "2026-10-01T05:13:06Z",
+            "completedAt": "2026-10-01T05:15:10Z"
+          }
+        ],
+        "qualified_all_five_jobs": true,
+        "physical_acceptance": false,
+        "running_sessions": [],
+        "counts": {
+          "check": {
+            "passed": 756,
+            "failed": 0,
+            "ignored": 1,
+            "test_binaries": 105
+          },
+          "sim": {
+            "passed": 5,
+            "failed": 0,
+            "ignored": 0,
+            "test_binaries": 2
+          },
+          "vcan": {
+            "passed": 73,
+            "failed": 0,
+            "ignored": 0,
+            "test_binaries": 9
+          }
+        },
+        "frontend_passed": 355,
+        "pi_mcp_counts": {
+          "tests": [
+            72
+          ],
+          "pass": [
+            72
+          ],
+          "fail": [
+            0
+          ]
+        },
+        "fatal_aarch64_release": false,
+        "log_sha256": "ec04b82d8e4646c6677f9271e6b92fffa5f14ac5b41ac14cce635b6174354094",
+        "checks": {
+          "exact_all_five_jobs": true,
+          "all_job_success": true,
+          "actual_rust_tests": true,
+          "sim_vcan_zero_ignored": true,
+          "frontend_observed": true,
+          "pi_mcp_observed": true,
+          "actual_check_completed": true,
+          "fatal_main_release": true
+        },
+        "full_receipt": {
+          "path": "J:\\code\\marengo-migration-backup-20260929\\batch13\\github-implementation-receipt.json",
+          "sha256": "7999fce0f70278379ebaf25b4767dec5aba9108e7dcafd9ce99cd56bf7ec0500",
+          "note": "Complete raw job/step and log binding retained externally; no actual evidence discarded."
+        }
+      },
       "final": "pending",
       "main": "pending"
     },
@@ -41,7 +152,7 @@
     "test_seams": [
       "Store import/archive/get/list/page/reopen and actual file bytes",
       "Existing explicit registration/finalization metadata",
-      "Proposed public retention cutoff: candidate-only conformance"
+      "Store::purge_before absolute cutoff and checked overflow: candidate-only conformance"
     ],
     "test_preparation": {
       "whole_first_probe_sha256": "10095c210f659723af03617a5363dab8c664928fde4a28436e7a28e996e8d6d5",
@@ -433,6 +544,14 @@
       "independent-final-preparation-review.md": {
         "name": "independent-final-preparation-review.md",
         "sha256": "e59c1f140b3732f707b0119c890a453fe17d97030f2bd62d378db6420235e2ab"
+      },
+      "independent-final-execution-review.md": {
+        "name": "independent-final-execution-review.md",
+        "sha256": "c8898bc30682e3874a1239aee5690c5a368bb09b3d04eccd6414526ba33b77ac"
+      },
+      "spec-tracking-reconciliation.md": {
+        "name": "spec-tracking-reconciliation.md",
+        "sha256": "bccffc7e8ff3beb6742213a8db0149413638e546647a4d42b86b24f8d4efd317"
       }
     },
     "historical_test_versions": {
@@ -512,6 +631,27 @@
           "fixture_leftovers": []
         }
       }
+    },
+    "implementation_head": "cabfe945e34a70fc1c145383bcc7eeb750fd9256",
+    "pull_request": "https://github.com/jaylamping/marengo/pull/227",
+    "implementation_binding": {
+      "name": "implementation-source-binding.json",
+      "sha256": "c8b84873bcbc5fbada8a83553f4c6d3f857f80708b75b5547cf5481b268d9632"
+    },
+    "independent_final_execution_review": {
+      "path": "J:\\code\\marengo-migration-backup-20260929\\batch13\\independent-final-execution-review.md",
+      "sha256": "c8898bc30682e3874a1239aee5690c5a368bb09b3d04eccd6414526ba33b77ac",
+      "disposition": "No blocker; independently rehashed every final snapshot/probe/blob map, actual results and exact combined mutation/predecessor sequence. No primary/CI or physical acceptance inferred by reviewer."
+    },
+    "following_design": {
+      "finding": "G15",
+      "status": "proposed only; not frozen, compiled, executed or accepted",
+      "root": "J:\\code\\marengo-migration-backup-20260929\\batch13\\next-g15-preparation",
+      "design_sha256": "b0dfe5bf7071fddca337fcc6aa968294564480b77fbbf598c3eefc74369cd81e",
+      "canonical_probe": "migration_contracts_safe_paths_v2.rs",
+      "probe_sha256": "e16518147ab057c49ea3517157c47e581e1d9c388616a73a956c8ee8d6f8cee9",
+      "readme_sha256": "c29a364ed02e6228eaab617756d9d1e0cc6dec1185105ba23f147199b51e89d1",
+      "next_action": "Complete checked G14 merge; read canonical design/source/oracle addendum, choose one vertical slice and freeze at actual merged base before original assertion execution. Earlier unsafe/uninitialized drafts remain excluded UNEXECUTED proposals."
     }
   },
   "findings": [
@@ -1132,14 +1272,15 @@
       "source": "gateway.md#g14--p2-importedarchived-session-dates-are-replaced-with-the-import-time",
       "work_package": "WP09",
       "implementation_and_acceptance_plan": "gateway-implementation-plan.md",
-      "status": "open",
+      "status": "verified",
       "evidence": [
         "Historical batch12 design checkpoint, superseded by batch13 actual public regressions: Unexecuted next-batch preparation at final Store2b93eb3d: next-g14-preparation/design.md SHA256add94b7ab8300b74aa71aae0710f75b0660d55e1b095c4543fd208a5da9e4deb; whole proposed public probe SHA256d908a2c06d911b745a16dfedad29d42ddd3fd457f76bbe988471d7ad666f9189. No frozen/compiled/executed regression or acceptance claim.",
         "Complete G14 needs literal UTC/leap/epoch-zero import/archive/reopen and date/retention acceptance; explicit unknown-ID and new-import end policy, actual profile/sidecar/latest conventions and safe date buckets. Existing historical rows lack provenance for silently rewriting metadata; optional repair requires backup/preview. Proposed refusal and public cutoff seam are design choices, not existing-API proof.",
         "Batch13 in progress on94d3: four frozen whole existing-public chronology/refusal/compatibility/unknown-end probes qualify actual original assertion reds and unchanged green replays with independent proof reviews; current_batch records exact receipt/binding/log/test hashes. Candidate-only deterministic retention conformance/mutation and required primary/delivery gates remain pending; G14 remains open.",
-        "Batch13 final-file proofs and all local gates qualify: four original-public groups, candidate-only strict cutoff and combined mutation; 756 Rust/1 existing ignored,355 frontend,72 Pi MCP,fatal ARM; affected21/0/0,timezone2/0/0,sim5/0/0. Exact receipts in current_batch; G14 stays open until safe GitHub delivery."
+        "Batch13 final-file proofs and all local gates qualify: four original-public groups, candidate-only strict cutoff and combined mutation; 756 Rust/1 existing ignored,355 frontend,72 Pi MCP,fatal ARM; affected21/0/0,timezone2/0/0,sim5/0/0. Exact receipts in current_batch; G14 stays open until safe GitHub delivery.",
+        "G14 software verified at implementation cabfe945e34a70fc1c145383bcc7eeb750fd9256: GitHub run36818692724 completes all five jobs with756 Rust/1 existing ignored,355 frontend,72 Pi MCP,simulation5/0/0 and virtual CAN73/0/0. Full independent code and final execution reviews have no blocker. Final/main delivery remains pending; no legacy metadata rewrite, G15/G16 or physical acceptance inferred."
       ],
-      "verified_commit_or_pr": null,
+      "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/227 (implementation cabfe945e34a70fc1c145383bcc7eeb750fd9256)",
       "hardware_acceptance": "not established by this software repair"
     },
     {
@@ -9461,13 +9602,13 @@
     }
   ],
   "finding_status_counts": {
-    "verified": 15,
+    "verified": 16,
     "partial": 10,
-    "open": 77
+    "open": 76
   },
   "next_dependency_ready_batch": {
-    "current": "G14 historical capture chronology, independent WP09 slice",
-    "following": "G15 serialized atomic migrations or separate R2b1 journal engineering qualification",
+    "current": "G15 atomic serialized migrations: complete checked G14 delivery before source repair",
+    "following": "G16 bounded archive/page work or separate R2b1 journal engineering qualification",
     "human_input_blocker": null
   }
 }

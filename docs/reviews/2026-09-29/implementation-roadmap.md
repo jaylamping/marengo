@@ -451,9 +451,10 @@ excluded. Independent Standards and Spec accept the complete implementation.
 
 All 1,455 final source inputs stay unchanged. Strict affected21/0/0, required
 primary756 Rust/1 existing ignored,355 frontend/72 Pi MCP/fatal ARM, observed
-UTC-8/UTC+14 chronology2/0/0 and simulation5/0/0 pass. GitHub delivery remains
-pending; G14 stays open. G15 serialized migrations is the next independent WP09
-slice. R2b1 reference journaling/grants remain separate engineering work.
+UTC-8/UTC+14 chronology2/0/0 and simulation5/0/0 pass. PR227 implementation `cabfe945` passes all five jobs in run36818692724, including
+73 actual virtual CAN tests with zero ignored. G14 software is verified; final/main
+delivery remains pending. Counts:16 verified,10 partial,76 open. G15 serialized
+migrations is the next independent WP09 slice. R2b1 reference journaling/grants remain separate engineering work.
 
 ## Completion and continuation
 

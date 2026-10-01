@@ -292,7 +292,10 @@ zero-test lint and out-of-order output attempts remain unqualified.
 Strict affected21/0/0, primary756 Rust/1 existing ignored plus355 frontend/72 Pi MCP
 and fatal ARM release, observed timezone2/0/0 and simulation5/0/0 pass on the exact
 1,455-input source. Independent Standards/Spec and final lint reconciliations
-accept the code. GitHub delivery remains pending. Useful retention liveness,
+accept the code. The final seven-run independent execution audit accepts actual
+proofs. PR227 implementation cabfe945/run36818692724 passes all five jobs, including
+73 virtual CAN tests with zero ignored; final/main delivery remains pending.
+Useful retention liveness,
 structured-query/FTS and candump tests stay; no test removal or speedup is justified
 by the five new behavior groups alone. No new ignores, hardware dependencies,
 negative sleeps, maintenance-clock expectations or late-I/O rollback claims.

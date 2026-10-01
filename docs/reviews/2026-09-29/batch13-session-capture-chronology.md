@@ -1,8 +1,8 @@
 # Batch13: preserve capture chronology
 
 Checked base: `94d3cb48474fbf067e8c5e4bc0317cd6a56a2227`; branch
-`codex/session-capture-chronology`. Local qualification is complete; G14 remains
-open while GitHub delivery is pending.
+`codex/session-capture-chronology`. G14 software qualification is verified at implementation
+`cabfe945`; final-head and merged-main delivery remain pending.
 
 ## Problem and repair
 
@@ -45,7 +45,8 @@ authoritative metadata, neighbors, reopen and fixture disposal precede each sole
 final oracle. All 1,473 snapshot files remain unchanged; fixture inventories are
 empty after execution. Git modes are recorded; Windows filesystem executable
 permission preservation is not claimed. Independent reviews accepted each initial
-public proof. Final-file execution is separately rechecked from raw evidence.
+public proof. Final-file execution is separately rechecked from raw evidence by root and an
+independent audit (SHA256 `c8898bc30682e3874a1239aee5690c5a368bb09b3d04eccd6414526ba33b77ac`).
 
 The new `purge_before` API uses candidate conformance, never a missing-method
 original failure. `cutoff-positive-v2` passes 1/0/0. One Store-only mutant changes
@@ -81,8 +82,8 @@ Mutable review records are inspected separately. All bound inputs remain unchang
 The full independent Standards review has no production blocker; its stale tracking
 text finding is corrected. The full independent Spec review has no implementation
 blocker or scope creep. Separate final lint reconciliations and actual source
-bindings preserve both complete reviews. Required GitHub implementation/final/main
-checks and guarded backup/merge/cleanup remain pending at this checkpoint.
+bindings preserve both complete reviews. All five implementation-head GitHub jobs pass in run36818692724. Final-head
+and merged-main checks plus guarded backup/merge/cleanup remain pending.
 
 Useful retention liveness, structured-query/FTS and candump tests remain. No test
 removal, ignore, negative sleep or cold-build speedup is justified by these five
@@ -117,3 +118,29 @@ SHA256 `f2d9d7f895635a00603aedb401d5dbb780fab00e3f990104800e11aa7d2b0f13`.
 The initiating disappearance and permanent AF_UNIX cause remain unproved;
 M08 stays partial. Docker's installed runtime is distinct from project/CAD storage
 under the accepted Windows/macOS development decision.
+
+## Implementation delivery checkpoint
+
+[PR227](https://github.com/jaylamping/marengo/pull/227), implementation
+`cabfe945e34a70fc1c145383bcc7eeb750fd9256`, passes all five jobs in
+[run36818692724](https://github.com/jaylamping/marengo/actions/runs/36818692724).
+Raw evidence confirms 756 Rust/0 failed/1 existing ignored, 355 frontend,
+72 Pi-tool, 5 simulation and 73 virtual CAN tests with none ignored in the latter
+two jobs. The local fatal ARM release is qualified; PR CI's non-main ARM policy
+is recorded separately, never presented as a fatal main release. All reviewed and
+gated source bytes match the actual committed implementation.
+
+The independent final execution audit accepts all seven fresh proofs, their
+complete source inventories and actual metadata, exact combined cutoff mutant
+and unchanged positive replay. The tracking reconciliation verifies every older
+history object, all 102 dispositions and exact local evidence. G14 now has a
+verified software disposition: 16 findings verified, 10 partial, 76 open.
+
+Final documentation CI, guarded all-refs backup, exact checked-tree merge,
+postmerge main CI and completed-branch cleanup are still pending. Actual completed
+receipts will reconcile this checkpoint; no future result is inferred.
+
+G15's external design and canonical safe-path test proposal remain UNEXECUTED.
+The next iteration must use the actual merged G14 base, read the canonical README
+and oracle addendum, then choose one vertical slice before freezing/executing.
+Earlier unsafe or incomplete drafts are preserved and excluded.
