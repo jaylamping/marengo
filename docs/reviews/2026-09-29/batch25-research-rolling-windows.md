@@ -69,3 +69,14 @@ ranges; arXiv timestamp/public response coverage now included. At2bd149f Hub dat
 fields are explicitly projected through `expand`. Full locked offline46 passes.
 Second review active. G19 exact merged-main five-job CI passed36903696586 and is
 recorded verified in the ledger (22 verified,11 partial,69 open). T20 remains open.
+
+## Draft delivery
+
+PR239 contains the complete T20 repair. GitHub flat repository query is qualified
+in full; Hub date projection retains model pipeline metadata and its public snippet.
+Reddit uses conservative month/year/all buckets containing the requested interval,
+with exact local filtering retained. Spec final recheck at a83c903 reports no
+remaining actionable finding. Standards final recheck is pending. Full offline46
+passes with warnings treated as errors; existing primary CI does not run Python
+research tests, so that coverage is recorded separately. Exact PR checks/delivery
+pending; T20 stays open.

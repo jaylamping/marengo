@@ -15368,11 +15368,12 @@
   "active_mac_continuation": {
     "batch_id": "batch25",
     "branch": "codex/research-rolling-windows",
-    "status": "T20 implementation and46 offline qualifications; second Standards/Spec review active, Linux gate/delivery pending. G19 verified after exact merged main all5 pass. T17 workflow authorization pending independently.",
+    "status": "T20 complete implementation,46 locked offline tests pass; Spec clear a83c903; Standards final recheck and exact-head Linux CI/delivery pending. G19 verified. T17 workflow authorization pending independently.",
     "findings": [
       "T20"
     ],
     "report": "batch25-research-rolling-windows.md",
-    "physical_acceptance": false
+    "physical_acceptance": false,
+    "pr": 239
   }
 }
