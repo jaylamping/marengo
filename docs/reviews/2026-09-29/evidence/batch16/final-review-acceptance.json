@@ -1,0 +1,15 @@
+{
+  "reviewed_head": "3a7ee096a4bdf73eade7520045a43b5a50ef9911",
+  "review_binding_sha256": "381f154dc9af5001fd5b589b9e996ac20e03282a8cf7e8c058e4a6f0ebc50ca7",
+  "Standards": "accepted; no hard violation or blocker. Optional fixture duplication deferred to preserve qualified oracles",
+  "Spec": "accepted; late CLI P2 resolved with actual original-checkpoint assertion red and identical green",
+  "execution": "phase05 library proof and final CLI proof separately independently accepted",
+  "reports": {
+    "standards-final.md": "d9859b6dc1ca9b8b523eb6664be6421b8353272bf51fbf1f86ae1ed1be7810e7",
+    "spec-final.md": "c5c0fad53f929150f315491b041d3dd3e27966d74df97e8c3f74bf4d00388b26",
+    "execution-audit-phase05.md": "752310d3958afb7f6ef8a988ad9ea8cda893ec71b8d9a9d17dede502c2a6c4ca",
+    "execution-audit-cli-final.md": "2e3a32a2278ed2d4db47a605566a8ac27e466a10645dd277b5acb5806d88f08f"
+  },
+  "remote_CI": "pending, not inferred from local acceptance",
+  "hardware_acceptance": false
+}

@@ -1,0 +1,223 @@
+{
+  "schema": 1,
+  "recorded_utc": "2026-10-01T11:55:33.794317+00:00",
+  "classification": "Review-discovered CLI assertion red on implemented checkpoint2b0, identical whole probe green after CLI-only repair; phase05 library qualification retained with exact two-core-file delta bridge",
+  "base": "d660112afadd01468c813bf767d7bdc958d0643e",
+  "implemented_pre_repair_checkpoint": "2b0aa57f75c4732284f6738c1f46ad912d82fa5a",
+  "phase05_library_qualification": {
+    "name": "local-qualification.json",
+    "sha256": "2f5cceb2362a29d83c08ddec31eb1742a49c6fcd6be1ffdf8b3e92aeed1d48c7"
+  },
+  "phase05_core_manifest": {
+    "name": "phase05-gate-inputs.json",
+    "sha256": "ea6f1a60144a6d570781f5266e96de6d127bc1a658fd5bd256fa48f8605375cb"
+  },
+  "final_core_manifest": {
+    "name": "phase06-gate-inputs.json",
+    "sha256": "af4f2b56da06512a112dfe8e0f5f339d1d5ad1a9a39d9ab66baa8fa9f43dc695"
+  },
+  "changed_core_inputs": {
+    "bins/marengo-log-cli/src/main.rs": {
+      "before": "e3fb05935efd49a4fb2717a4b974a353624ff8a2e17a037ad145fdd8598ddf55",
+      "after": "a8a7f26af8aea41e54301f1e9f6c842c5a2cb962c9d633605967161ca77599b0"
+    },
+    "bins/marengo-log-cli/tests/recovery_cli.rs": {
+      "before": "91a21330bdc0555e66dd27dd6d357a94251c254da079e7a06034fb6ee427125c",
+      "after": "e08e69b8dd2f9e23e21e2d1132cab84e99b96fe4c0348bf1f0998d94a62612de"
+    }
+  },
+  "library_probe_unchanged": "303160c9117baeae6def409130164a187f6bc6754160c6766ffb5dcd33f1d52b",
+  "library_production_unchanged": "bc182648242700108f5e3816df8f3bfd55a56bffe55e0bc630442d47254b8d05",
+  "late_cli_proofs": {
+    "late-cli-red-v4": {
+      "receipt": {
+        "name": "late-cli-red-v4-run.json",
+        "sha256": "4c6b53e0d452d42b116d84987ca8251dd9af51c917c6f43115eeb3a8e4ddafda"
+      },
+      "config": {
+        "expected": "red",
+        "exact_test": "recovery_cli_reports_completed_artifacts_when_stdout_is_full",
+        "oracle": "recovery CLI stdout failure must report both completed artifacts",
+        "oracle_line": 415,
+        "controls_marker": "CLI_OUTPUT_FAILURE_CONTROLS_OK",
+        "probe_path": "bins/marengo-log-cli/tests/recovery_cli.rs",
+        "probe_sha256": "e08e69b8dd2f9e23e21e2d1132cab84e99b96fe4c0348bf1f0998d94a62612de",
+        "binding_sha256": "5ef48384e70b951e7204c6d4c4c797a3ad7244c8543d2a033064fbd7b5717618",
+        "helper_sha256": "7292e1ee41d146e74f247f5f8090d8373ab6343547c90d9a0284f8f3f1204b42"
+      },
+      "worker": {
+        "command": [
+          "/late-cli-target/debug/deps/recovery_cli-b783ddfa5c9b9b4e",
+          "--exact",
+          "recovery_cli_reports_completed_artifacts_when_stdout_is_full",
+          "--nocapture",
+          "--test-threads=1"
+        ],
+        "pid": 2468,
+        "exit_code": 101,
+        "timeout": false,
+        "waited": true
+      },
+      "worker_log_sha256": "d442afd2ba289a94606a635a526ac51e3048b8bfc91d624a6c0ea7d324b5543a",
+      "actual_test_result": [
+        [
+          "FAILED",
+          "0",
+          "1",
+          "0",
+          "0",
+          "1"
+        ]
+      ],
+      "red_predecessor": null,
+      "source_files": 1491,
+      "source_unchanged": true,
+      "fixture_leftovers": [],
+      "all_processes_waited": true
+    },
+    "late-cli-green-v4": {
+      "receipt": {
+        "name": "late-cli-green-v4-run.json",
+        "sha256": "ac5e887cd883444b14f6569fc77783cc0cf19045b5663d3b5f697aca9b4a8cd4"
+      },
+      "config": {
+        "expected": "green",
+        "exact_test": "recovery_cli_reports_completed_artifacts_when_stdout_is_full",
+        "oracle": "recovery CLI stdout failure must report both completed artifacts",
+        "oracle_line": 415,
+        "controls_marker": "CLI_OUTPUT_FAILURE_CONTROLS_OK",
+        "probe_path": "bins/marengo-log-cli/tests/recovery_cli.rs",
+        "probe_sha256": "e08e69b8dd2f9e23e21e2d1132cab84e99b96fe4c0348bf1f0998d94a62612de",
+        "binding_sha256": "233be6e90742913b683bc999ad6641132d13899172b43898b6a1943ad3e56da1",
+        "helper_sha256": "7292e1ee41d146e74f247f5f8090d8373ab6343547c90d9a0284f8f3f1204b42"
+      },
+      "worker": {
+        "command": [
+          "/late-cli-target/debug/deps/recovery_cli-b783ddfa5c9b9b4e",
+          "--exact",
+          "recovery_cli_reports_completed_artifacts_when_stdout_is_full",
+          "--nocapture",
+          "--test-threads=1"
+        ],
+        "pid": 2468,
+        "exit_code": 0,
+        "timeout": false,
+        "waited": true
+      },
+      "worker_log_sha256": "95646b6081150f2e41f3eef4d6dd6f0502e0cc18b03f94bf504bd44fe7a04feb",
+      "actual_test_result": [
+        [
+          "ok",
+          "1",
+          "0",
+          "0",
+          "0",
+          "1"
+        ]
+      ],
+      "red_predecessor": {
+        "receipt_name": "late-cli-red-v4-run.json",
+        "receipt_sha256": "4c6b53e0d452d42b116d84987ca8251dd9af51c917c6f43115eeb3a8e4ddafda",
+        "config_sha256": "b8b35685f67a18803d0468ed05b3e4f2ae882ee13ec1f8bf1378faba9c534c57",
+        "binding_sha256": "5ef48384e70b951e7204c6d4c4c797a3ad7244c8543d2a033064fbd7b5717618",
+        "child_receipt_sha256": "f8e3770ee64e66575fca4ddaba601f97fe6cce1fbfc763d4cc146c48a56e06a6",
+        "before_main_sha256": "e3fb05935efd49a4fb2717a4b974a353624ff8a2e17a037ad145fdd8598ddf55",
+        "after_main_sha256": "a8a7f26af8aea41e54301f1e9f6c842c5a2cb962c9d633605967161ca77599b0"
+      },
+      "source_files": 1491,
+      "source_unchanged": true,
+      "fixture_leftovers": [],
+      "all_processes_waited": true
+    }
+  },
+  "final_gates": {
+    "phase06-affected": {
+      "receipt": {
+        "name": "phase06-affected-run.json",
+        "sha256": "5a0f2c0aa66ee39d2eb601c1eabb65120b8e2422a50b1a283f9c06d1c8ce568b"
+      },
+      "counts": {
+        "passed": 37,
+        "failed": 0,
+        "ignored": 0
+      },
+      "log_sha256": "a61e6b7222c30164a8d544df9178ba52c80cac01256b20c5d8c96ff35475b9de",
+      "source_manifest_sha256": "af4f2b56da06512a112dfe8e0f5f339d1d5ad1a9a39d9ab66baa8fa9f43dc695",
+      "elapsed_seconds": 23.98772169998847,
+      "qualified": true,
+      "bound_files": 1464,
+      "all_processes_waited": true,
+      "running_sessions": [],
+      "frontend_passed": null,
+      "pi_mcp_counts": {
+        "tests": [],
+        "pass": [],
+        "fail": []
+      },
+      "fatal_aarch64_release": null,
+      "verification_error": null
+    },
+    "phase06-native": {
+      "receipt": {
+        "name": "phase06-native-run.json",
+        "sha256": "124a2ada8e84bd9177ec9a277db3551d81b7aaa4adfe771d552b438f05203706"
+      },
+      "counts": {
+        "passed": 34,
+        "failed": 0,
+        "ignored": 0
+      },
+      "log_sha256": "4c33838da8bbc182a1c132d9a68ee1033581263d6d7c0673081ffd344a23d768",
+      "source_manifest_sha256": "af4f2b56da06512a112dfe8e0f5f339d1d5ad1a9a39d9ab66baa8fa9f43dc695",
+      "elapsed_seconds": 20.788297399994917,
+      "qualified": true,
+      "source_unchanged": true,
+      "bound_files": 1464,
+      "process_waited": true,
+      "temp_inventory": [],
+      "verification_error": null
+    },
+    "phase06-primary": {
+      "receipt": {
+        "name": "phase06-primary-run.json",
+        "sha256": "64a7fdd4ca3deed1534a179b5a157ef2eb90893ed35b4303b0f96265b04ea744"
+      },
+      "counts": {
+        "passed": 772,
+        "failed": 0,
+        "ignored": 1
+      },
+      "log_sha256": "bfb7707ed24449d673299b2a09c40f33c54d9c5249ee1362fe2ba23c846d2b1e",
+      "source_manifest_sha256": "af4f2b56da06512a112dfe8e0f5f339d1d5ad1a9a39d9ab66baa8fa9f43dc695",
+      "elapsed_seconds": 114.03615929998341,
+      "qualified": true,
+      "bound_files": 1464,
+      "all_processes_waited": true,
+      "running_sessions": [],
+      "frontend_passed": 355,
+      "pi_mcp_counts": {
+        "tests": [
+          72
+        ],
+        "pass": [
+          72
+        ],
+        "fail": [
+          0
+        ]
+      },
+      "fatal_aarch64_release": true,
+      "verification_error": null
+    }
+  },
+  "excluded_attempts": {
+    "v3_startup": {
+      "name": "late-cli-red-v3-run.json",
+      "sha256": "9c94244598c610e5e97cebdf08b6e411676dd5320f67840838a1408054f885d6"
+    },
+    "reason": "Image startup mkdir into read-only source mount failed before compilation; never a behavior red or predecessor. v1/v2 unexecuted preparation rejected; quoting preparation failure launched no proof."
+  },
+  "non_utf8_scope": "Serializer rejection established from pinned serde source; non-UTF8 execution not claimed. Actual /dev/full ENOSPC28 red/green qualifies artifact reporting.",
+  "physical_acceptance": false,
+  "running_sessions": []
+}

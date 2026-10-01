@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "exported_utc": "2026-10-01T12:37:59.366676+00:00",
+  "source_root": "J:\\code\\marengo-migration-backup-20260929\\batch16",
+  "files": {
+    "merge-receipt.json": {
+      "sha256": "e016f9d6dd55ee798f739cbd4b7b86423ac94b74bc46316c19060a53cd3f6c15",
+      "bytes": 41461
+    },
+    "branch-cleanup.json": {
+      "sha256": "8849bcd6b292ca00cd6aba41bd6e7faa725c982111a0fe7a38be02dd42695463",
+      "bytes": 29767
+    },
+    "local-qualification.json": {
+      "sha256": "2f5cceb2362a29d83c08ddec31eb1742a49c6fcd6be1ffdf8b3e92aeed1d48c7",
+      "bytes": 104317
+    },
+    "final-local-qualification.json": {
+      "sha256": "03822ac5967dfda284fd6f77da4b6e57ff2ce211a5591b50e9d140bf61cf4298",
+      "bytes": 8547
+    },
+    "final-review-acceptance.json": {
+      "sha256": "55664eaac959fb03168338dd1144108e667376e036583a55fc07cd1c533d083f",
+      "bytes": 993
+    },
+    "final-review-binding.json": {
+      "sha256": "381f154dc9af5001fd5b589b9e996ac20e03282a8cf7e8c058e4a6f0ebc50ca7",
+      "bytes": 2833
+    },
+    "delivery-head-binding.json": {
+      "sha256": "a412ae5489248cdaa25620e4764014d66f76e58ac5bc525ce895aa82f91a4b76",
+      "bytes": 961
+    },
+    "github-final-receipt.json": {
+      "sha256": "96a5cbbd6dcef9186b6c97e8d9914d4ab88fccac85af3a2d53f39847e95405d4",
+      "bytes": 17349
+    },
+    "github-main-receipt.json": {
+      "sha256": "461da7d23231433feef636103b61c1945267ffc0383053a6e60649d9df4e5234",
+      "bytes": 17346
+    },
+    "standards-final.md": {
+      "sha256": "d9859b6dc1ca9b8b523eb6664be6421b8353272bf51fbf1f86ae1ed1be7810e7",
+      "bytes": 2060
+    },
+    "spec-final.md": {
+      "sha256": "c5c0fad53f929150f315491b041d3dd3e27966d74df97e8c3f74bf4d00388b26",
+      "bytes": 2787
+    },
+    "execution-audit-phase05.md": {
+      "sha256": "752310d3958afb7f6ef8a988ad9ea8cda893ec71b8d9a9d17dede502c2a6c4ca",
+      "bytes": 2026
+    },
+    "execution-audit-cli-final.md": {
+      "sha256": "2e3a32a2278ed2d4db47a605566a8ac27e466a10645dd277b5acb5806d88f08f",
+      "bytes": 1801
+    },
+    "next-g15-design.md": {
+      "sha256": "555b738f34061143d7566b65aacc15f9b62401603915bdc39f8c7023781823ca",
+      "bytes": 3898
+    },
+    "next-g15-design-spec.md": {
+      "sha256": "7fc1cf5c247a5020aff39909c27f0943f19603a2ee4331c2b9d8d1cbea3bb3f1",
+      "bytes": 1446
+    }
+  },
+  "scope": "Exact selected portable receipts/reviews/proposal. Raw logs, frozen source snapshots, executors, binaries, Git bundles and ignored CAD remain Windows-local; no complete archive transfer claimed."
+}

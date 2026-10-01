@@ -10,7 +10,7 @@
     "batch_id": "batch16",
     "branch": "codex/store-historic-recovery",
     "baseline_main": "d660112afadd01468c813bf767d7bdc958d0643e",
-    "status": "Final independent Standards/Spec and separate execution audits accepted reviewed3a7ee096; final native34/affected37/primary772 gates pass. Exact-head GitHub CI/merge/main CI/backup/cleanup remain later delivery receipts",
+    "status": "Completed PR230 delivery: exact final/main all-five-job CI, equal tree, independent reviews, verified all-refs backup and scoped cleanup. User requested stopping point; Windows loop PAUSED. No batch17 implementation started.",
     "report": "batch16-store-historic-recovery.md",
     "findings": [
       "G15"
@@ -2112,6 +2112,22 @@
       },
       "remote_CI": "pending, not inferred from local acceptance",
       "hardware_acceptance": false
+    },
+    "delivery": {
+      "PR": "https://github.com/jaylamping/marengo/pull/230",
+      "head": "f7769e0c71730595dc8b6a8a162a5d8efbd3ca82",
+      "merged_main": "63cbe7eb0427888a9c4e242bca5daf80f44acdba",
+      "tree": "5f118919b4da8382a6e521f6e730e1d93b9f3370",
+      "same_checked_tree": true,
+      "portable_receipt": "evidence/batch16/merge-receipt.json",
+      "receipt_sha256": "e016f9d6dd55ee798f739cbd4b7b86423ac94b74bc46316c19060a53cd3f6c15",
+      "final_PR_CI": 36860217322,
+      "main_CI": 36861055844,
+      "all_five_jobs_passed_at_both_heads": true,
+      "fatal_main_ARM_release": true,
+      "Git_backup_sha256": "192c2c0f524dc6243f7ba082fb50090b794286cb1cee6c9773b48ffd14cfca4c",
+      "cleanup_receipt": "evidence/batch16/branch-cleanup.json",
+      "historical_worktrees_and_145_unrelated_refs_preserved": true
     }
   },
   "findings": [
@@ -2757,9 +2773,10 @@
         "Batch15 actual public Store::open marker rewrite regression on checked3345f129: SQL attempt2 tripwire stops old owner after committed cache removal under marker2/counter1. Exact line408 assertion red has rollback=false/retry=true after actual cleanup; identical dca815 whole probe passes after same-transaction readback. Root proof-summary in batch15 binds actual receipts. Affected30/0/0 and primary765/0/1existingignored,355frontend/72PiMCP/fatalARM pass on1460 unchanged inputs. Final review/GitHub delivery remain pending at this tracked checkpoint; G15 stays partial.",
         "Batch15 delivery reconciled: PR229 bb22fc7/main d660112 equal checked tree, exact all-five-job PR36839399777 and main36841037882 (765Rust/1existingignored,355frontend/72PiMCP,5sim,73vcan; main fatalARM), full Standards/Spec/execution audit, verified all-refs Git backup and exact branch cleanup. Batch15 external merge receipt and completed history bind delivery.",
         "Batch16 explicit recover_known_v2/CLI for complete v2 stale marker1: WAL-aware verified standalone backup first, separate verified output, source/history/settings/FTS preserved, fresh namespace/identity and conservative staging cleanup. Five final literal-fixture conformance positives and two actual WAL/FTS production mutation reds replay unchanged green; original public historical refusal/WAL control stays positive. Native Windows34/0/0, strict affected36/0/0 and required primary771Rust/1existingignored,355frontend/72PiMCP/fatalARM qualify 1464 unchanged core inputs. Exact receipts/hashes and excluded wrong-line attempt are in current_batch and batch16 report. Final review/GitHub delivery remain separate pending receipts; interruption/concurrency/other historic profiles stay open, G15 partial.",
-        "Batch16 late Spec P2: stdout ENOSPC after both artifacts completed omitted retained paths; actual whole CLI probe red at415 on implemented2b0 has controls/cleanup/source/artifacts preserved but reported=false, identical e08e69 probe green after CLI serializer/write/newline/flush error wrapping. Final phase06 native34/affected37/primary772Rust/1existingignored,355frontend/72PiMCP/fatalARM on1464 unchanged final inputs. Phase05 library/probe/dependencies unchanged, only two CLI core files differ; exact bridge and excluded v3 startup attempt preserved in final-local-qualification.json. Final reviews/GitHub delivery remain pending; G15 stays partial."
+        "Batch16 late Spec P2: stdout ENOSPC after both artifacts completed omitted retained paths; actual whole CLI probe red at415 on implemented2b0 has controls/cleanup/source/artifacts preserved but reported=false, identical e08e69 probe green after CLI serializer/write/newline/flush error wrapping. Final phase06 native34/affected37/primary772Rust/1existingignored,355frontend/72PiMCP/fatalARM on1464 unchanged final inputs. Phase05 library/probe/dependencies unchanged, only two CLI core files differ; exact bridge and excluded v3 startup attempt preserved in final-local-qualification.json. Final reviews/GitHub delivery remain pending; G15 stays partial.",
+        "Batch16 completed PR230 f7769e0/main63cbe7e equal checked tree. PR36860217322/main36861055844 all five jobs pass:772Rust/1existingignored,355frontend,72PiMCP,5sim,73vcan; main fatalARM. Independent Standards/Spec and separate library/CLI execution audits accepted; verified150-ref Git bundle and exact branch cleanup preserve145 unrelated refs/two historical worktrees. Exact portable receipts in evidence/batch16. G15 remains partial for interruption/concurrency/other profiles. User requested pause and Mac continuation; no batch17 implementation began."
       ],
-      "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/229",
+      "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/230",
       "hardware_acceptance": "not established by this software repair"
     },
     {
@@ -15156,6 +15173,55 @@
         "sha256": "9c013874b6e42845eb92ce531b280d7ad20ef4b916df198ceebf941da21650bd"
       },
       "continuation_handoff_sha256": "56536470fdfa7eab381e018b64ecdb3855d369320efa96fba6ae272b12773ae9"
+    },
+    {
+      "batch_id": "batch16",
+      "status": "completed",
+      "baseline_main": "d660112afadd01468c813bf767d7bdc958d0643e",
+      "scope": "Explicit verified-backup and separate-output recovery for complete known v2 schema with stale marker1; normal Store refusal retained",
+      "findings": [
+        "G15"
+      ],
+      "G15_status": "partial",
+      "delivery": {
+        "PR": "https://github.com/jaylamping/marengo/pull/230",
+        "head": "f7769e0c71730595dc8b6a8a162a5d8efbd3ca82",
+        "merged_main": "63cbe7eb0427888a9c4e242bca5daf80f44acdba",
+        "tree": "5f118919b4da8382a6e521f6e730e1d93b9f3370",
+        "same_checked_tree": true,
+        "portable_receipt": "evidence/batch16/merge-receipt.json",
+        "receipt_sha256": "e016f9d6dd55ee798f739cbd4b7b86423ac94b74bc46316c19060a53cd3f6c15",
+        "final_PR_CI": 36860217322,
+        "main_CI": 36861055844,
+        "all_five_jobs_passed_at_both_heads": true,
+        "fatal_main_ARM_release": true,
+        "Git_backup_sha256": "192c2c0f524dc6243f7ba082fb50090b794286cb1cee6c9773b48ffd14cfca4c",
+        "cleanup_receipt": "evidence/batch16/branch-cleanup.json",
+        "historical_worktrees_and_145_unrelated_refs_preserved": true
+      },
+      "local_gates": {
+        "native_windows": {
+          "passed": 34,
+          "failed": 0,
+          "ignored": 0
+        },
+        "affected": {
+          "passed": 37,
+          "failed": 0,
+          "ignored": 0
+        },
+        "primary": {
+          "passed": 772,
+          "failed": 0,
+          "ignored": 1
+        },
+        "frontend_passed": 355,
+        "Pi_MCP_passed": 72,
+        "fatal_ARM_release": true
+      },
+      "portable_evidence_manifest": "evidence/batch16/MANIFEST.json",
+      "proof_scope": "Original-public refusal/WAL positive; five library candidate conformance groups, two production mutant reds with unchanged replay, actual implemented-checkpoint CLI red415/identical green. Excluded infrastructure/preparation attempts remain excluded.",
+      "hardware_acceptance": false
     }
   ],
   "finding_status_counts": {
@@ -15164,8 +15230,23 @@
     "open": 75
   },
   "next_dependency_ready_batch": {
-    "current": "Complete batch16 exact-head safe GitHub delivery; then qualify deterministic G15 interruption/refusal/concurrency on the checked merged base",
+    "current": "On explicit resume: read HANDOFF.md; qualify public Store::migrate competing-writer behavior using reviewed busy-callback barrier proposal. Baseline positive until a real defect is demonstrated; no batch17 code or proof exists yet.",
     "following": "G16 bounded archive/page work or separate R2b1 journal engineering qualification",
+    "human_input_blocker": null
+  },
+  "automation_status": "PAUSED",
+  "stop_point": {
+    "date": "2026-10-01",
+    "reason": "Explicit owner request to stop and resume on Mac",
+    "handoff": "HANDOFF.md",
+    "software_checkpoint": "63cbe7eb0427888a9c4e242bca5daf80f44acdba",
+    "Windows_checkout": "J:/code/marengo",
+    "Mac_checkout": "Host checkout of the same GitHub repository; ~/code/marengo is an example, not an observed Mac path",
+    "software_complete": false,
+    "batch17_started": false,
+    "automation_id": "marengo-repair-loop",
+    "automation_status": "PAUSED",
+    "restart_requires_explicit_owner_request": true,
     "human_input_blocker": null
   }
 }

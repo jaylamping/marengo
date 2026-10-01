@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "kind": "documentation-only owner-requested Mac handoff",
+  "software_checkpoint": "63cbe7eb0427888a9c4e242bca5daf80f44acdba",
+  "automation_status": "PAUSED",
+  "software_complete": false,
+  "primary_run_receipt_sha256": "fee83d14b21be20a52ed582f658832fc627ddd143ea13c87489081a255aa6f51",
+  "primary_run_log_sha256": "e3b0f2662a6dc82b6a9ceb62b79ab6b5c94a4784ac3f7392c3672556bfc2a940",
+  "bound_unchanged_core_inputs": 1464,
+  "core_manifest_sha256": "af4f2b56da06512a112dfe8e0f5f339d1d5ad1a9a39d9ab66baa8fa9f43dc695",
+  "primary_counts": {
+    "passed": 772,
+    "failed": 0,
+    "ignored": 1
+  },
+  "frontend_passed": 355,
+  "Pi_MCP_counts": {
+    "tests": [
+      72
+    ],
+    "pass": [
+      72
+    ],
+    "fail": [
+      0
+    ]
+  },
+  "fatal_ARM_release": true,
+  "all_primary_processes_waited": true,
+  "Mac_execution": false,
+  "robot_operations": false,
+  "delivery_CI": "Must be evaluated at the actual documentation PR/main heads; not inferred by this local receipt"
+}
