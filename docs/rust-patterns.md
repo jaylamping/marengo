@@ -216,7 +216,9 @@ Do not fold `max_lead` into the planner accumulator — that freezes the referen
 
 **SQLite migration ownership** ([ADR0029](decisions/0029-store-migration-ownership.md)):
 read the version after acquiring the Immediate write transaction, then commit one
-schema transition and its matching marker together. Hold the Store connection
+schema transition and its matching marker together. Read back the stored marker
+and require the expected next version before commit; a successful SQL write can
+be rewritten by a database trigger. Hold the Store connection
 guard across the owner call; private transaction helpers must not call public
 Store helpers that acquire the same mutex. Preserve current marker and supplied
 setting timestamps. Refuse unknown/historically partial state instead of hiding

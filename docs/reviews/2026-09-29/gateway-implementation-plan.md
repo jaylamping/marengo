@@ -333,10 +333,20 @@ step plus its marker. Six original-public assertion reds replay unchanged green;
 eight positive behavior cases and a production marker mutant/replay qualify
 rollback, per-step commits, future/nonempty/OFF refusal and metadata preservation.
 Required local gates and PR228 implementation5b3f56f/run36831085548 all five
-CI jobs pass; final/main delivery remains pending. Known historic
+CI jobs pass. Finala7fb73d/run36832672947 and equal-tree main3345f129/run36834154060
+pass all five jobs, with fatal main ARM release and verified backup/branch cleanup.
+Known historic
 fields_json-present/version1 schemas receive an actionable refusal, with no
 automatic recovery. Full historic backup/recovery and remaining interruption,
 first-open/parallel-opener, busy and malformed-marker acceptance remain open.
+
+[Batch15](batch15-store-marker-progress.md) adds stored-marker readback before
+commit. The exact original public failure leaves cache removal committed under
+marker2/counter1; unchanged repaired proof preserves the entire prior version
+and permits real retry after trigger removal. Affected30 and primary765Rust
+(1existingignored),355frontend/72PiMCP/fatalARM pass. Final review/GitHub delivery
+are pending at this checkpoint. This bounded trigger proof does not qualify
+unbounded competing writers, historic recovery or first-open concurrency.
 
 **Scope:** Store open/migrate and migration recovery. Acquire a SQLite write transaction
 for each migration plus its version marker and required data/index transformations.

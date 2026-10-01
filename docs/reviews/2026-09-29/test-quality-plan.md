@@ -329,4 +329,30 @@ coverage and power-loss durability remain outside this normal-upgrade slice.
 
 PR228 implementation5b3f56f/run36831085548 passes all five CI jobs with actual
 764Rust/1 existing ignored,355frontend/72PiMCP,5simulation and73virtualCAN
-(zero ignored in simulation/vcan). Final/main delivery remains pending.
+(zero ignored in simulation/vcan). Finala7fb73d/run36832672947 and equal-tree
+main3345f129/run36834154060 also pass all five jobs, with fatal main ARM release,
+verified backup and exact branch cleanup.
+
+## Fifteenth batch: marker rewrite refusal and rollback
+
+One new existing-public Store::open test uses literal supported-v2 SQL, independent
+schema/data/settings/session/configuration/cache/counter observations, real FTS
+and integrity. It imports no migration SQL or private method. The raw trigger
+control demonstrates one rewrite and a typed second-attempt SQL abort, then
+rolls back and verifies the original snapshot before the public operation.
+Actual original assertion red occurs at408 after controls and real cleanup,
+with rollback=false/retry=true, ConstraintViolation1811, cache removed/counter1
+and marker2. The identical whole dca815 probe passes after the precommit readback.
+
+Existing independent v1/v2 upgrade control passes on exact main first. Full
+1484/1485-file original and1485-file candidate snapshots bind actual local
+metadata/recompilation/executables, direct exact workers, complete waits and
+empty actual fixture directories. The wrapper safety deadline is excluded as an
+oracle; no unbounded hang or missing API red is claimed. No redundant candidate
+mutant is needed for this exact original-public guard regression.
+
+Affected30/0/0 and primary765/0/1existingignored,355frontend/72PiMCP/fatalARM
+pass on1460 unchanged inputs. Useful retention/query/FTS/candump/migration
+contracts remain; no existing test is deleted or newly ignored. This is behavior
+qualification, with no cold-cache or build-speedup claim. Final Standards/Spec
+and GitHub delivery are pending at this tracked checkpoint; G15 remains partial.
