@@ -1,0 +1,23 @@
+{
+  "status": "maintenance-warnings",
+  "command": [
+    "cargo",
+    "audit",
+    "--no-fetch",
+    "--no-yanked",
+    "--json",
+    "--db",
+    "/Users/joseph/.local/share/marengo/batch26-advisory-db"
+  ],
+  "exit_code": 0,
+  "database_path": "/Users/joseph/.local/share/marengo/batch26-advisory-db",
+  "snapshot_status": "current",
+  "coverage": "RustSec advisories and maintenance warnings; yanked registry scan excluded",
+  "checked_at": "2026-10-01T18:47:44.039512+00:00",
+  "vulnerability_count": 0,
+  "maintenance_warning_count": 1,
+  "provenance_source": "clean prepared Git snapshot",
+  "database_commit": "3461c0d8f85d084552dd999c58d97c7123a9e0fd",
+  "database_updated_at": "2026-10-01T09:31:41+02:00",
+  "database_age_seconds": 40563.15326
+}
