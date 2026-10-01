@@ -157,3 +157,16 @@ the original Git tree and verifies the sole reversible production delta.
 `independent-phase02-execution-review.md` SHA256 `9e23275560a783588c19fd05e7046d8dabe5a1630e586c7530fef0458d3063e6`.
 
 `independent-phase02-execution-review-binding.json` SHA256 `7bec0bc49a7327103e1698af780d8a4c4307cbd3f651bbd5f789249b6788bfed`.
+
+## Completed delivery reconciled by batch15
+
+The preceding final/main-pending statements preserve their frozen checkpoint.
+PR228 final `a7fb73d`/run36832672947 and equal-tree main `3345f129`/run36834154060
+each passed all five CI jobs:764 Rust/0failed/1existingignored,355 frontend,72 Pi
+MCP,5 simulation and73 virtualCAN (zero ignored in simulation/vcan). Main
+completed the fatal ARM release build. Tree `d9d19dc7` matches the checked final
+head. Verified all-refs bundle and exact leased remote/local branch cleanup
+are complete. External batch14 merge-receipt SHA256
+`ba61b17932aed774c5dca381cb1b6ef68ca3b7f6f95e482827344de4c34218c7`
+and continuation handoff `a4cee98be3c6588219b4bfe599f472cd2dd988109cdb284d58ad3646073c9ec8`
+record the completed delivery. G15 remains partial; no hardware acceptance.

@@ -472,11 +472,31 @@ its earlier narrow positives remain historical evidence, not the shipped candida
 All 1,459 gate inputs remain unchanged. Strict affected29/0/0, required primary
 764 Rust/1 existing ignored,355 frontend/72 Pi MCP/fatal ARM and simulation5/0/0
 pass. PR228 implementation5b3f56f/run36831085548 also passes all five jobs,
-including73 actual virtual CAN tests with zero ignored. Final tracking review
-and final/main delivery remain pending. G15 is partial until
+including73 actual virtual CAN tests with zero ignored. Finala7fb73d/run36832672947
+and equal-tree main3345f129/run36834154060 also pass all five jobs, including fatal
+main ARM release. Verified all-refs backup and exact branch cleanup are complete.
+G15 is partial until
 backed-up historic recovery and remaining interruption/refusal/concurrency
 acceptance are independently qualified. Counts:16 verified,11 partial,75 open
 across the same102IDs. No robot operations, limits or Wave sign-off changes.
+
+## Fifteenth batch: stored marker progress
+
+[Batch15](batch15-store-marker-progress.md) starts from checked PR228 merge
+`3345f129`. A bounded SQL tripwire reproduces an existing-public failure: the
+owner commits cache removal under marker2 after an AFTER UPDATE trigger rewrites
+attempted marker3, then hits the tripwire on its second attempt. The same whole
+public rollback/retry test passes after a private same-transaction marker readback
+and refusal before commit. Actual cleanup and successful retry precede its sole
+original assertion; no unbounded hang is executed or inferred.
+
+Strict affected30/0/0 and primary765 Rust/1existingignored,355frontend/72PiMCP
+with fatal ARM release pass on1460 unchanged gate inputs. Existing useful tests
+remain; one new independent behavior test is added, with no new ignore or speedup
+claim. Final Standards/Spec and GitHub delivery remain pending at this frozen
+tracked checkpoint and require external delivery receipts before merge.
+G15 stays partial: historic backup/recovery and remaining interruption/refusal/
+concurrency acceptance are open. Counts remain16verified/11partial/75open.
 
 ## Completion and continuation
 

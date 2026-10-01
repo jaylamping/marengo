@@ -160,6 +160,11 @@ pub(crate) fn migrate(conn: &mut Connection, now_ms: u64) -> Result<()> {
              ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json, updated_ms=excluded.updated_ms",
             params![next_version.to_string(), now],
         )?;
+        if schema_version(&tx)? != next_version {
+            return Err(StoreError::msg(
+                "store schema version did not advance to the expected version; preserve this database for recovery",
+            ));
+        }
         tx.commit()?;
     }
 }
