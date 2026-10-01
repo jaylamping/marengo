@@ -51,3 +51,26 @@ async def test_real_provider_dates_reach_public_window(tmp_path, monkeypatch, so
     stamp = response.hits[0].updated_at if source in {"github", "huggingface"} else response.hits[0].published_at
     assert stamp.astimezone(timezone.utc) == datetime(2025, 12, 31, 12 if source in {"github", "huggingface", "openreview", "reddit"} else 0, tzinfo=timezone.utc)
     assert "unknown and future dates excluded" in response.summary
+
+
+@pytest.mark.parametrize("window,days", [("week", 7), ("month", 30), ("year", 365)])
+async def test_public_response_qualifies_boundaries(tmp_path, monkeypatch, window, days):
+    from datetime import timedelta
+    from marengo_research_mcp.models import ResearchHit
+
+    cutoff = NOW - timedelta(days=days)
+    dates = {"boundary": cutoff, "now": NOW,
+             "outside": cutoff - timedelta(microseconds=1),
+             "future": NOW + timedelta(microseconds=1), "unknown": None,
+             "year-old": NOW - timedelta(days=366)}
+    values = [ResearchHit(type="paper", title=name, url=f"https://fixture.invalid/{name}",
+                          published_at=stamp) for name, stamp in dates.items()]
+    provider = AsyncMock(return_value=(values, None))
+    monkeypatch.setattr(research, "_run_source", provider)
+    monkeypatch.setattr(research, "FOCUS_SOURCES", {"all": ["offline"]})
+    monkeypatch.setattr(research, "_utc_now", lambda: NOW)
+    cfg = replace(load_config(), cache_dir=tmp_path)
+    result = ResearchHumanoidResponse.model_validate_json(await research.research_humanoid(
+        cfg, ResearchCache(cfg), "robot", recency=window, scrape_top_n=0))
+    assert {hit.title for hit in result.hits} == {"boundary", "now"}
+    assert not result.errors
