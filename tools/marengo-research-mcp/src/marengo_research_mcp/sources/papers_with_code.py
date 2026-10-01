@@ -5,6 +5,7 @@ from __future__ import annotations
 import httpx
 
 from marengo_research_mcp.config import Config
+from marengo_research_mcp.dates import provider_datetime
 from marengo_research_mcp.models import ResearchHit
 
 PWC_API = "https://paperswithcode.com/api/v1/papers/"
@@ -34,6 +35,7 @@ async def search_papers_with_code(cfg: Config, query: str, limit: int = 10) -> l
                 url=url,
                 snippet=(paper.get("abstract") or "")[:500],
                 source_name="papers_with_code",
+                published_at=provider_datetime(paper.get("published")),
                 pdf_url=paper.get("url_pdf"),
             )
         )

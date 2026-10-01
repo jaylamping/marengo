@@ -52,6 +52,7 @@ async def list_tools() -> list[Tool]:
                     "recency": {
                         "type": "string",
                         "enum": ["year", "month", "week", "any"],
+                        "description": "Inclusive rolling UTC windows: year=365 days, month=30, week=7. Unknown/future dates excluded; any retains all. Code/Hub use activity, papers/posts publication; date-only means midnight UTC.",
                         "default": "any",
                     },
                 },

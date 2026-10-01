@@ -5,6 +5,7 @@ from __future__ import annotations
 import httpx
 
 from marengo_research_mcp.config import Config
+from marengo_research_mcp.dates import provider_datetime
 from marengo_research_mcp.models import ResearchHit
 
 HF_MODELS = "https://huggingface.co/api/models"
@@ -13,12 +14,15 @@ HF_DATASETS = "https://huggingface.co/api/datasets"
 
 async def search_huggingface(cfg: Config, query: str, limit: int = 10) -> list[ResearchHit]:
     headers = {"User-Agent": cfg.user_agent}
-    params = {"search": f"{query} robotics humanoid", "limit": limit}
+    params = {"search": f"{query} robotics humanoid", "limit": limit, "expand": ["createdAt", "lastModified", "likes"]}
     hits: list[ResearchHit] = []
     try:
         async with httpx.AsyncClient(timeout=30.0, headers=headers) as client:
             for url, kind in ((HF_MODELS, "model"), (HF_DATASETS, "dataset")):
-                resp = await client.get(url, params=params)
+                request_params = dict(params)
+                if kind == "model":
+                    request_params["expand"] = [*params["expand"], "pipeline_tag"]
+                resp = await client.get(url, params=request_params)
                 if resp.status_code != 200:
                     continue
                 for item in resp.json()[: max(1, limit // 2)]:
@@ -33,6 +37,8 @@ async def search_huggingface(cfg: Config, query: str, limit: int = 10) -> list[R
                             snippet=f"HF {kind}: {item.get('pipeline_tag', '')}",
                             source_name=f"huggingface/{kind}",
                             stars=item.get("likes"),
+                            published_at=provider_datetime(item.get("createdAt")),
+                            updated_at=provider_datetime(item.get("lastModified")),
                         )
                     )
     except httpx.HTTPError:
