@@ -1,0 +1,3 @@
+Running Marengo daily audit...
+{"out_dir": "/Users/joseph/.codex/worktrees/daily-cargo-audit-status/marengo/var/log/daily-audit/2026-10-01", "clean": false, "findings": 28}
+Report: /Users/joseph/.codex/worktrees/daily-cargo-audit-status/marengo/var/log/daily-audit/2026-10-01/report.json

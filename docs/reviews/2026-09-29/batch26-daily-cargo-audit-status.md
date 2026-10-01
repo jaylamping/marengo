@@ -31,3 +31,25 @@ Full daily-audit unittest discovery15 passes; shell syntax/diff checks pass. Pin
 cargo-audit0.22.2 installation is live under owned local tool directory for real
 CLI qualification. Additional unavailable/malformed/missing/future cases, pinned
 CLI evidence, independent reviews, required gate and delivery remain pending.
+
+## Real pinned CLI qualification
+
+Installed cargo-audit0.22.2 in an owned local tool root. Real run.sh execution uses
+that scanner and an explicitly prepared owned RustSec clone at3461c0d8f85d084552dd999c58d97c7123a9e0fd;
+GitHub inventory alone is replaced with an offline empty fixture, and research
+appendix is unavailable on that qualification PATH. Scanner accepts all repaired
+flags, scans400 locked dependencies against1278 advisories, returns0 with zero
+vulnerabilities and one unmaintained paste warning. Wrapper correctly reports
+maintenance-warnings, not a vulnerability or Clean. Both streams/result retained.
+No maintenance task is closed by this result. CLI --no-fetch JSON omitted database
+provenance; fallback requires a clean prepared Git snapshot and records its exact
+commit/date/age. Unknown/missing/modified provenance cannot support Clean.
+
+Additional public runner cases now qualify unavailable scanner, malformed output,
+unknown provenance, missing database and future timestamp. Full daily-audit15 tests
+pass (including11 table-driven scanner cases); original regression unchanged green.
+Independent review and primary/delivery gates remain pending. T22 open.
+
+T20 PR239 final-head CI36908251161 passed check/vcan (sim path skipped) and merged
+at5c25a8f54b6043b878ac05cc5b2c21a42be0e4bd. Exact merged-main CI36909443242 is running;
+T20 verification awaits that result.
