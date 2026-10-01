@@ -30,3 +30,29 @@ truthful counters. No sleeps/RSS sampling as behavioral synchronization; generou
 process deadlines only detect hangs. Native tests, strict clippy/fmt, independent
 Standards/Spec review and exact-head Linux primary/runtime checks precede delivery.
 No control logic, hardware motion, deployment, limits or Wave signoff changes.
+
+## Current implementation receipt
+
+The frozen complete probe replays green. Preserve its original bytes under
+`evidence/batch22/frozen-outage-probe.rs`; shipping test formatting occurred only
+following that exact replay. Seven explicit latest slots reserve safety/heartbeat
+independently from128events/512KiB FIFO. Each payload is at most64KiB, maximum
+queued payload983040bytes/135items. Overflow drops new ordered events, unknown or
+command topics and contention attempts; telemetry replaces the prior same-topic
+sample. Dequeue refuses telemetry older than1second. Round-robin classes avoid
+an always-busy topic starving the event FIFO. Admission exposes typed outcome and
+counters, including disconnected admission. No event-delivery guarantee is claimed.
+
+One in-flight publication and its encoded frame are additional bounded64KiB copies;
+queue payload counters intentionally exclude those and object/buffer overhead.
+Receive headers refuse >128byte topics or >64KiB payloads before unbounded growth.
+Each complete frame has an overall1second write deadline. Failure closes the
+connection, shuts down its cloned reader and joins that reader before reconnect.
+An explicit shutdown stops new admission/reconnection. Actual bounded connection
+notifications support supervision; configured-as-connected wire metrics remain to fix.
+
+Native Chappe11tests pass (one is the child entrypoint’s inert parent invocation),
+strict all-target clippy passes. Actual absent-peer and accepting/nonreading-peer
+checks assert queued item/byte bounds, overflow counters, reserved safety/heartbeat
+admission and deadline disconnect. G01 remains OPEN: all remaining scope above is
+still required. No PR yet; no independent/full Linux acceptance claimed.

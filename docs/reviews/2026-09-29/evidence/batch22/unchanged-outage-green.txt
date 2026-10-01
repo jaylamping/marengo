@@ -1,0 +1,9 @@
+   Compiling chappe v0.1.0 (/Users/joseph/.codex/worktrees/bounded-ipc-outage/marengo/crates/chappe)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.20s
+     Running tests/ipc_outage.rs (target/debug/deps/ipc_outage-89a0950f7ff2d5ee)
+
+running 1 test
+test outage_does_not_replay_superseded_state ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.27s
+

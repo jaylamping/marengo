@@ -1,0 +1,37 @@
+   Compiling chappe v0.1.0 (/Users/joseph/.codex/worktrees/bounded-ipc-outage/marengo/crates/chappe)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.47s
+     Running unittests src/lib.rs (target/debug/deps/chappe-ea4a61a106f59332)
+
+running 7 tests
+test ipc::tests::frame_roundtrip ... ok
+test tests::publish_without_subscribers_succeeds ... ok
+test tests::publish_subscribe_envelope ... ok
+test tests::robot_state_over_chappe_matches_wire_contract ... ok
+test tracing_layer::tests::concurrent_tracing_events_share_one_quota ... ok
+test tracing_layer::tests::tracing_log_quota_refills_and_preserves_urgent_events ... ok
+test tracing_layer::tests::serialize_fields_truncates_large_payload ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/ipc_backpressure.rs (target/debug/deps/ipc_backpressure-5cfa0bb89a706228)
+
+running 2 tests
+test absent_peer_has_bounded_classes_and_honest_counters ... ok
+test accepting_nonreading_peer_expires_write_and_bounds_admission ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.26s
+
+     Running tests/ipc_outage.rs (target/debug/deps/ipc_outage-89a0950f7ff2d5ee)
+
+running 2 tests
+test outage_worker ... ok
+test outage_does_not_replay_superseded_state ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+
+   Doc-tests chappe
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

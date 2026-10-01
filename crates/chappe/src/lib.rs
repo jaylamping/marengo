@@ -16,6 +16,7 @@
 //! Typical topics: `robot/state`, telemetry, future RPC. Producers must not put raw CAN on Chappe.
 
 pub mod ipc;
+mod ipc_outbox;
 pub mod tracing_layer;
 pub mod transport;
 
