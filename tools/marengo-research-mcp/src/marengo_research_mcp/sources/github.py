@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 import httpx
 
 from marengo_research_mcp.config import Config
@@ -11,8 +13,12 @@ from marengo_research_mcp.models import ResearchHit
 GITHUB_SEARCH = "https://api.github.com/search/repositories"
 
 
-async def search_github(cfg: Config, query: str, limit: int = 10) -> list[ResearchHit]:
+async def search_github(cfg: Config, query: str, limit: int = 10, *, window: tuple[datetime, datetime] | None = None) -> list[ResearchHit]:
     q = f"{query} humanoid OR biped OR robotics in:name,description,readme"
+    if window is not None:
+        start, end = window
+        # Whole UTC dates include the exact interval for subsequent local filtering.
+        q = f"({q}) pushed:{start:%Y-%m-%d}..{end:%Y-%m-%d}"
     headers = {
         "Accept": "application/vnd.github+json",
         "User-Agent": cfg.user_agent,

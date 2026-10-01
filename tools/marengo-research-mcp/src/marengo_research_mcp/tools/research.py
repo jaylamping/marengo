@@ -31,19 +31,20 @@ RECENCY_DAYS = {"week": 7, "month": 30, "year": 365}
 
 
 async def _run_source(
-    cfg: Config, name: str, query: str, per_source: int
+    cfg: Config, name: str, query: str, per_source: int,
+    window: tuple[datetime, datetime] | None = None,
 ) -> tuple[list[ResearchHit], str | None]:
     try:
         if name == "arxiv":
-            return await asyncio.to_thread(search_arxiv, query, per_source), None
+            return await asyncio.to_thread(search_arxiv, query, per_source, window=window), None
         if name == "semantic_scholar":
-            return await search_semantic_scholar(cfg, query, per_source), None
+            return await search_semantic_scholar(cfg, query, per_source, window=window), None
         if name == "openreview":
             return await search_openreview(cfg, query, per_source), None
         if name == "papers_with_code":
             return await search_papers_with_code(cfg, query, per_source), None
         if name == "github":
-            return await search_github(cfg, query, per_source), None
+            return await search_github(cfg, query, per_source, window=window), None
         if name == "reddit":
             return await search_reddit(cfg, query, per_source), None
         if name == "forums":
@@ -100,7 +101,12 @@ async def research_humanoid(
     requested_scrape = DEFAULT_SCRAPE_TOP_N if scrape_top_n is None else scrape_top_n
     scrape_n = max(0, min(requested_scrape, cfg.max_scrape))
 
-    tasks = [_run_source(cfg, src, search_query, per_source) for src in sources]
+    now = _utc_now()
+    if now.tzinfo is None or now.utcoffset() is None:
+        raise ValueError("recency clock must include a timezone")
+    now = now.astimezone(timezone.utc)
+    window = None if recency == "any" else (now - timedelta(days=RECENCY_DAYS[recency]), now)
+    tasks = [_run_source(cfg, src, search_query, per_source, window) for src in sources]
     results = await asyncio.gather(*tasks)
 
     all_hits: list[ResearchHit] = []
@@ -110,7 +116,7 @@ async def research_humanoid(
         if err:
             errors.append(err)
 
-    ranked = rank_hits(_filter_recency(all_hits, recency), search_query)
+    ranked = rank_hits(_filter_recency(all_hits, recency, now=now), search_query)
     top = ranked[: max(per_source * len(sources), 20)]
 
     if scrape_n > 0:

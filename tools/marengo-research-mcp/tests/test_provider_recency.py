@@ -46,6 +46,10 @@ async def test_real_provider_dates_reach_public_window(tmp_path, monkeypatch, so
     response = ResearchHumanoidResponse.model_validate_json(await research.research_humanoid(
         cfg, ResearchCache(cfg), "robot", max_results_per_source=1, scrape_top_n=0, recency="week"))
     assert requests
+    if source == "github":
+        assert "pushed:2025-12-26..2026-01-02" in requests[0][1]["params"]["q"]
+    if source == "semantic_scholar":
+        assert requests[0][1]["params"]["publicationDateOrYear"] == "2025-12-26:2026-01-02"
     assert not response.errors
     assert len(response.hits) == 1
     stamp = response.hits[0].updated_at if source in {"github", "huggingface"} else response.hits[0].published_at
@@ -74,3 +78,34 @@ async def test_public_response_qualifies_boundaries(tmp_path, monkeypatch, windo
         cfg, ResearchCache(cfg), "robot", recency=window, scrape_top_n=0))
     assert {hit.title for hit in result.hits} == {"boundary", "now"}
     assert not result.errors
+
+
+async def test_arxiv_dates_and_native_range_reach_public_response(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    from marengo_research_mcp.sources import arxiv as adapter
+    searches = []
+    stamp = datetime.fromisoformat(STAMP)
+    class Search:
+        def __init__(self, **kwargs):
+            searches.append(kwargs)
+    class Client:
+        def results(self, search):
+            return iter([SimpleNamespace(published=stamp, updated=NOW, title="robot paper",
+                        entry_id="https://fixture.invalid/arxiv", summary="robot",
+                        authors=[], pdf_url=None)])
+    monkeypatch.setattr(adapter.arxiv, "Search", Search)
+    monkeypatch.setattr(adapter.arxiv, "Client", Client)
+    monkeypatch.setattr(research, "FOCUS_SOURCES", {"all": ["arxiv"]})
+    calls = []
+    def clock():
+        calls.append(True)
+        return NOW
+    monkeypatch.setattr(research, "_utc_now", clock)
+    cfg = replace(load_config(), cache_dir=tmp_path)
+    response = ResearchHumanoidResponse.model_validate_json(await research.research_humanoid(
+        cfg, ResearchCache(cfg), "robot", recency="week", scrape_top_n=0))
+    assert len(response.hits) == 1
+    assert response.hits[0].published_at == stamp
+    assert response.hits[0].updated_at == NOW
+    assert "submittedDate:[202512261200 TO 202601021200]" in searches[0]["query"]
+    assert len(calls) == 1  # Provider query and local filtering share one captured clock.

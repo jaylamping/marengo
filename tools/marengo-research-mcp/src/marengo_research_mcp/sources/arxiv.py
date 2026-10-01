@@ -2,16 +2,23 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 import arxiv
 
 from marengo_research_mcp.dates import provider_datetime
 from marengo_research_mcp.models import ResearchHit
 
 
-def search_arxiv(query: str, limit: int = 10) -> list[ResearchHit]:
+def search_arxiv(query: str, limit: int = 10, *, window: tuple[datetime, datetime] | None = None) -> list[ResearchHit]:
     hits: list[ResearchHit] = []
+    dated_query = f"cat:cs.RO AND ({query})"
+    if window is not None:
+        start, end = window
+        # Provider minute precision is a superset; local filtering stays exact.
+        dated_query += f" AND submittedDate:[{start:%Y%m%d%H%M} TO {end:%Y%m%d%H%M}]"
     search = arxiv.Search(
-        query=f"cat:cs.RO AND ({query})",
+        query=dated_query,
         max_results=limit,
         sort_by=arxiv.SortCriterion.SubmittedDate,
     )

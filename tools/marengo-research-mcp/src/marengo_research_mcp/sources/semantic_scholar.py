@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 import httpx
 
 from marengo_research_mcp.config import Config
@@ -12,13 +14,17 @@ S2_URL = "https://api.semanticscholar.org/graph/v1/paper/search"
 
 
 async def search_semantic_scholar(
-    cfg: Config, query: str, limit: int = 10
+    cfg: Config, query: str, limit: int = 10,
+    *, window: tuple[datetime, datetime] | None = None,
 ) -> list[ResearchHit]:
     params = {
         "query": query,
         "limit": limit,
         "fields": "title,url,abstract,year,publicationDate,authors,citationCount,externalIds,openAccessPdf",
     }
+    if window is not None:
+        start, end = window
+        params["publicationDateOrYear"] = f"{start:%Y-%m-%d}:{end:%Y-%m-%d}"
     headers = {"User-Agent": cfg.user_agent}
     async with httpx.AsyncClient(timeout=30.0, headers=headers) as client:
         resp = await client.get(S2_URL, params=params)
