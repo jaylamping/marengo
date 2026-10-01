@@ -10,4 +10,4 @@ tests/test_rank_and_standards.py ....                                    [ 30%]
 tests/test_research_scrape_count.py .......                              [ 84%]
 tests/test_scrape_and_github.py ..                                       [100%]
 
-============================== 13 passed in 0.32s ==============================
+============================== 13 passed in 0.31s ==============================

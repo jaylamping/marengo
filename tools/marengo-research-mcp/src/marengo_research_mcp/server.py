@@ -44,7 +44,11 @@ async def list_tools() -> list[Tool]:
                         "default": "all",
                     },
                     "max_results_per_source": {"type": "integer", "default": 5},
-                    "scrape_top_n": {"type": "integer", "default": DEFAULT_SCRAPE_TOP_N},
+                    "scrape_top_n": {
+                        "type": "integer",
+                        "default": DEFAULT_SCRAPE_TOP_N,
+                        "description": "Defaults to 3. Zero disables scraping; counts clamp to [0, configured max_scrape].",
+                    },
                     "recency": {
                         "type": "string",
                         "enum": ["year", "month", "week", "any"],
