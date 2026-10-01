@@ -48,3 +48,16 @@ Provider facts checked against primary sources:
 Standards and Spec reviews are active against efc21b6; later9f3ce1b adds only public
 boundary assertions/evidence. Native provider date filters, arXiv timestamp fixture,
 full review, primary gate coverage and delivery remain pending. T20 remains open.
+
+## Independent review findings and repair
+
+Standards: no documented hard breaches; dated cache serialization integration
+failure and a possible duplicated window-day policy. Spec: same cache integration
+failure, missing supported provider temporal filters, and public boundary coverage
+missing at the reviewed efc21b6. The later9f3ce1b supplies public boundary coverage.
+At14cdcf2 the actual cold/hot owned disk cache regression reproduces a datetime
+serialization TypeError before repair; unchanged test then passes with JSON-mode
+serialization. Window policy is centralized. Complete offline suite now45 passes,
+with warnings treated as errors. Public async handler await repair remains T17
+work; this cache test proves the dated value path without claiming T17 closure.
+Supported provider filters and final review/gates/delivery remain pending.
