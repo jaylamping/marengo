@@ -471,7 +471,9 @@ its earlier narrow positives remain historical evidence, not the shipped candida
 
 All 1,459 gate inputs remain unchanged. Strict affected29/0/0, required primary
 764 Rust/1 existing ignored,355 frontend/72 Pi MCP/fatal ARM and simulation5/0/0
-pass. Final review and GitHub delivery remain pending. G15 is partial until
+pass. PR228 implementation5b3f56f/run36831085548 also passes all five jobs,
+including73 actual virtual CAN tests with zero ignored. Final tracking review
+and final/main delivery remain pending. G15 is partial until
 backed-up historic recovery and remaining interruption/refusal/concurrency
 acceptance are independently qualified. Counts:16 verified,11 partial,75 open
 across the same102IDs. No robot operations, limits or Wave sign-off changes.

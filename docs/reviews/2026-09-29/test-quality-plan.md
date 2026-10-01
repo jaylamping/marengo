@@ -326,3 +326,7 @@ and fatal ARM release, plus simulation5/0/0 pass on 1,459 unchanged gate inputs.
 Meaningful existing retention/query/FTS/candump tests remain. No test deletion or
 build speedup is inferred. Historic recovery, full interruption/refusal/race
 coverage and power-loss durability remain outside this normal-upgrade slice.
+
+PR228 implementation5b3f56f/run36831085548 passes all five CI jobs with actual
+764Rust/1 existing ignored,355frontend/72PiMCP,5simulation and73virtualCAN
+(zero ignored in simulation/vcan). Final/main delivery remains pending.

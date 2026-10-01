@@ -10,7 +10,7 @@
     "batch_id": "batch14",
     "branch": "codex/store-migration-atomicity",
     "baseline_main": "4c1800d4ffb6be13a920a77b6f9b4b47395b0848",
-    "status": "normal migration slice qualified locally; final independent review and GitHub delivery pending; G15 partial",
+    "status": "normal migration slice: local gates, independent phase02 source and final execution reviews, and all five implementation CI jobs pass; final tracking reconciliation and final/main delivery pending; G15 partial",
     "report": "batch14-store-migration-atomicity.md",
     "findings": [
       "G15"
@@ -1041,7 +1041,49 @@
       }
     },
     "required_github_gate": {
-      "implementation": "pending",
+      "implementation": {
+        "head": "5b3f56fcdd7f1b65b6ab5204938877dc0f44c5bf",
+        "run": 36831085548,
+        "url": "https://github.com/jaylamping/marengo/actions/runs/36831085548",
+        "all_five_jobs": "pass",
+        "counts": {
+          "check": {
+            "passed": 764,
+            "failed": 0,
+            "ignored": 1,
+            "test_binaries": 108
+          },
+          "sim": {
+            "passed": 5,
+            "failed": 0,
+            "ignored": 0,
+            "test_binaries": 2
+          },
+          "vcan": {
+            "passed": 73,
+            "failed": 0,
+            "ignored": 0,
+            "test_binaries": 9
+          }
+        },
+        "frontend_passed": 355,
+        "pi_mcp_counts": {
+          "tests": [
+            72
+          ],
+          "pass": [
+            72
+          ],
+          "fail": [
+            0
+          ]
+        },
+        "fatal_aarch64_release": false,
+        "full_receipt": {
+          "path": "J:\\code\\marengo-migration-backup-20260929\\batch14\\github-implementation-receipt.json",
+          "sha256": "649cd165c643d0a31bf2adf3615be54da48e202437434a9abc3027797618e445"
+        }
+      },
       "final": "pending",
       "main": "pending"
     },
@@ -2636,7 +2678,24 @@
       "path": "J:\\code\\marengo-migration-backup-20260929\\batch14\\root-phase02-execution-review.json",
       "sha256": "1faac47167f22ec2248555fec64ed392ecabefe6fdec0f832a8cd1d511e14fbd"
     },
-    "independent_reviews": "pending phase02 reconciliation",
+    "independent_reviews": {
+      "standards-review-phase02.md": {
+        "name": "standards-review-phase02.md",
+        "sha256": "41ffdaa5c952a2ccf743892bfbf9169071d37996243dbb8fb1ad9ffe57ad9eb5"
+      },
+      "standards-review-phase02-binding.json": {
+        "name": "standards-review-phase02-binding.json",
+        "sha256": "0b6203060d18dc81a1b19ae1439593aef8d3a3c10146cd839305152339a168f7"
+      },
+      "phase02-spec-review.md": {
+        "name": "phase02-spec-review.md",
+        "sha256": "9cbc8868bf5bf46f6bbecc5677bb15f867559baaa211127771bab4c8fee81c22"
+      },
+      "phase02-spec-review-bindings.json": {
+        "name": "phase02-spec-review-bindings.json",
+        "sha256": "9812e6bc9672bb7fd584631b84bd2e0ab6c600a5f9ec1c27eb15980da1c16dfc"
+      }
+    },
     "known_limits": [
       "No automated historic fields_json-present/version1 recovery; actionable refusal only, no completed backup yet",
       "Other malformed/supported schema prefixes and full statement-boundary/bootstrap failure matrix remain to qualify",
@@ -2645,14 +2704,35 @@
     ],
     "excluded_attempts": [
       "Phase01 six narrow positives are preserved but superseded for shipment: Spec found literal-prefix and OFF guard defects, Standards found missing dependency paragraph. All three corrected before frozen phase02 replay.",
-      "Executor-v4/static examples and earlier external proposed probes remain unexecuted preparation; no behavioral acceptance inferred."
+      "Executor-v4/static examples and earlier external proposed probes remain unexecuted preparation; no behavioral acceptance inferred.",
+      "Stage01 root tracking preservation assertion compared equally Windows-misdecoded JSON objects. Independent Standards caught batch06 historic text change; exact UTF-8 baseline history restored before final delivery. Stage01 claim is excluded, not retroactively qualified."
     ],
     "test_seams": [
       "Existing public Store::open and Store::migrate",
       "Existing public Store connection for literal SQLite setup, typed trigger refusal and independent schema/data/FTS/integrity observations",
       "Actual SQLite files, public queries, reopen and fixture cleanup under bounded child watchdog"
     ],
-    "hardware_acceptance": "not established; no robot operations, limits or Wave changes"
+    "hardware_acceptance": "not established; no robot operations, limits or Wave changes",
+    "implementation_head": "5b3f56fcdd7f1b65b6ab5204938877dc0f44c5bf",
+    "pull_request": "https://github.com/jaylamping/marengo/pull/228",
+    "implementation_binding": {
+      "name": "implementation-source-binding.json",
+      "sha256": "b261c55eca8c14092c364debe290309831478ffeb2425cc5b0bea703cb702988"
+    },
+    "tracking_encoding_reconciliation": {
+      "name": "tracking-encoding-reconciliation.json",
+      "sha256": "8e09417642cf7e8d744755aa610e152f7c5f0b8f1c6aac2bfccb8d36005075b3"
+    },
+    "independent_execution_review": {
+      "independent-phase02-execution-review.md": {
+        "name": "independent-phase02-execution-review.md",
+        "sha256": "9e23275560a783588c19fd05e7046d8dabe5a1630e586c7530fef0458d3063e6"
+      },
+      "independent-phase02-execution-review-binding.json": {
+        "name": "independent-phase02-execution-review-binding.json",
+        "sha256": "7bec0bc49a7327103e1698af780d8a4c4307cbd3f651bbd5f789249b6788bfed"
+      }
+    }
   },
   "findings": [
     {
@@ -3295,7 +3375,7 @@
       "evidence": [
         "Batch14 normal migration owner: six actual original-public assertion reds replay unchanged green in frozen phase02. Eight compiled positive behavior cases and a separately classified production marker mutant/unchanged replay qualify normal per-step rollback, preserved prior commits, strict future/nonempty/OFF refusal and metadata preservation. Required local affected29/0/0, primary764Rust/1existingignored/355frontend/72PiMCP/fatalARM and sim5/0/0 pass. Full evidence in batch14-store-migration-atomicity.md and current batch. Historic backed-up recovery, full interruption/concurrency/refusal matrix still pending; G15 remains partial."
       ],
-      "verified_commit_or_pr": null,
+      "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/228",
       "hardware_acceptance": "not established by this software repair"
     },
     {
@@ -5167,7 +5247,7 @@
         },
         "limits": "No runtime physical operation. Never-existing from_supervisor name probe excluded from required counts; source/private-factory review establishes the actual seam."
       },
-      "test_quality": "Davout 136\u00c3\u00a2\u00e2\u20ac\u00a0\u00e2\u20ac\u2122159:3 obsolete API cases retired,26 meaningful additions; Berthier173\u00c3\u00a2\u00e2\u20ac\u00a0\u00e2\u20ac\u2122175 with arithmetic property replaced by wire output, independent stationary input and fixed-dt progress; no new ignored tests. Two receive-invariant mutants killed by actual assertions; CS24 retained open as independently demonstrated old-law failure.",
+      "test_quality": "Davout 136\u00e2\u2020\u2019159:3 obsolete API cases retired,26 meaningful additions; Berthier173\u00e2\u2020\u2019175 with arithmetic property replaced by wire output, independent stationary input and fixed-dt progress; no new ignored tests. Two receive-invariant mutants killed by actual assertions; CS24 retained open as independently demonstrated old-law failure.",
       "independent_reviews": {
         "standards": {
           "findings": 0,

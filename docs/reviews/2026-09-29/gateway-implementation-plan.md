@@ -332,7 +332,8 @@ Normal upgrades use one guarded owner and an Immediate transaction per schema
 step plus its marker. Six original-public assertion reds replay unchanged green;
 eight positive behavior cases and a production marker mutant/replay qualify
 rollback, per-step commits, future/nonempty/OFF refusal and metadata preservation.
-Required local gates pass; GitHub delivery remains pending. Known historic
+Required local gates and PR228 implementation5b3f56f/run36831085548 all five
+CI jobs pass; final/main delivery remains pending. Known historic
 fields_json-present/version1 schemas receive an actionable refusal, with no
 automatic recovery. Full historic backup/recovery and remaining interruption,
 first-open/parallel-opener, busy and malformed-marker acceptance remain open.
