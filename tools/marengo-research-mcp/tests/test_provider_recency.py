@@ -22,7 +22,7 @@ BASE = {"title": "robot paper", "url": "https://fixture.invalid/paper"}
     ("openreview", {"notes": [{"id": "robot", "content": {"title": "robot paper"}, "odate": 1767182400000, "pdate": 1735689600000}]}),
     ("papers_with_code", {"results": [{"title": "robot paper", "url_abs": "https://fixture.invalid/paper", "published": "2025-12-31"}]}),
     ("reddit", {"data": {"children": [{"data": dict(BASE, created_utc=1767182400)}]}}),
-    ("huggingface", [{"id": "robot/model", "createdAt": "2020-01-01T00:00:00Z", "lastModified": STAMP}]),
+    ("huggingface", [{"id": "robot/model", "pipeline_tag": "robotics", "createdAt": "2020-01-01T00:00:00Z", "lastModified": STAMP}]),
 ])
 async def test_real_provider_dates_reach_public_window(tmp_path, monkeypatch, source, payload):
     cfg = replace(load_config(), cache_dir=tmp_path, github_token=None)
@@ -55,6 +55,8 @@ async def test_real_provider_dates_reach_public_window(tmp_path, monkeypatch, so
         assert requests[0][1]["params"]["publicationDateOrYear"] == "2025-12-26:2026-01-02"
     assert not response.errors
     assert len(response.hits) == 1
+    if source == "huggingface":
+        assert response.hits[0].snippet == "HF model: robotics"
     stamp = response.hits[0].updated_at if source in {"github", "huggingface"} else response.hits[0].published_at
     assert stamp.astimezone(timezone.utc) == datetime(2025, 12, 31, 12 if source in {"github", "huggingface", "openreview", "reddit"} else 0, tzinfo=timezone.utc)
     assert "unknown and future dates excluded" in response.summary
