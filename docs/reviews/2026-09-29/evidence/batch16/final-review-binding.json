@@ -1,0 +1,33 @@
+{
+  "base": "d660112afadd01468c813bf767d7bdc958d0643e",
+  "head": "3a7ee096a4bdf73eade7520045a43b5a50ef9911",
+  "tree": "c5d3377df5742e789bebdc5001ad6b4e2c61a021",
+  "diff_sha256": "1e09c18b1e77ced00ce3f95d72f26d38b40d78373c9887deeb1bcef318a1f871",
+  "log_sha256": "2b17a998954294f082cd465c2663ab152c44ecbc6ceeef5ebfae8931a4f4a01c",
+  "changed_files": {
+    "Cargo.lock": "c7d99c8020e38679d7096ba362a36c7ca12685dc1abc39cc8bdc26db31cce0f9",
+    "bins/marengo-log-cli/codemap.md": "797d06654d215640855a88590dcbf8fc8984beae07f1add677d149dd80cc3a17",
+    "bins/marengo-log-cli/src/codemap.md": "daa73eb1e4fd4bffd194d1779eb4231c45c6dd1b994cc265c32fcdeb75dc64e3",
+    "bins/marengo-log-cli/src/main.rs": "a8a7f26af8aea41e54301f1e9f6c842c5a2cb962c9d633605967161ca77599b0",
+    "bins/marengo-log-cli/tests/recovery_cli.rs": "e08e69b8dd2f9e23e21e2d1132cab84e99b96fe4c0348bf1f0998d94a62612de",
+    "crates/marengo-store/Cargo.toml": "d509a79c69a2da05051b1f40ef2071be74e73c1d0b93be7d29e01976f898cdc0",
+    "crates/marengo-store/codemap.md": "80b757424a9e298050b72f799c3aef075cb09f22d2d2e29ed93c9fba2597d45f",
+    "crates/marengo-store/src/codemap.md": "1bb0ffc1b43c0718378e8cdd7bfe2d66d077e6a61c2ad73097e3b9dbaf0f352f",
+    "crates/marengo-store/src/lib.rs": "9735b1f7a684477a988073d3fb40f887c869dccbac7892fe80e083c68be991ec",
+    "crates/marengo-store/src/recovery.rs": "bc182648242700108f5e3816df8f3bfd55a56bffe55e0bc630442d47254b8d05",
+    "crates/marengo-store/tests/migration_recovery.rs": "303160c9117baeae6def409130164a187f6bc6754160c6766ffb5dcd33f1d52b",
+    "docs/decisions/0030-deliberate-known-store-recovery.md": "fa0a425437da9ae833a71668f70bb55f150a573b9bb9e1694b167aeab969d074",
+    "docs/reviews/2026-09-29/batch15-store-marker-progress.md": "56adb842c86dbc6a2219a09a9926c09cb4ccddf279aa1b7c37fe31b20b8446cb",
+    "docs/reviews/2026-09-29/batch16-store-historic-recovery.md": "051100d88ea69ac87961d7f27c0ebe3ed76fd3214006ce33c8c5679d709c3d4b",
+    "docs/reviews/2026-09-29/gateway-implementation-plan.md": "a88748bd366a8d9f61b7e1ea08f4942b6622a45be4296bfd673d00383f31bceb",
+    "docs/reviews/2026-09-29/implementation-ledger.json": "52614a6099f79febcab96d6863266984aa3adfa87b2f7c28f5b4cbb5b6c648e5",
+    "docs/reviews/2026-09-29/implementation-roadmap.md": "6e1721ea5d1a13e4382d0492f20da3d36f62057650a8d4b6a019a5049c63f862",
+    "docs/reviews/2026-09-29/test-quality-plan.md": "ba9b5ca6f689865b9e4fd25f2630618b2f76521c94f32cf81ff9b7a383f069d1",
+    "docs/rust-patterns.md": "5d97c47de8c9202c33b292687dc7f41bc58b22a1a94d9bcbe1107d18f7bcfddd"
+  },
+  "core_manifest_sha256": "af4f2b56da06512a112dfe8e0f5f339d1d5ad1a9a39d9ab66baa8fa9f43dc695",
+  "bound_core_files": 1464,
+  "final_local_qualification_sha256": "03822ac5967dfda284fd6f77da4b6e57ff2ce211a5591b50e9d140bf61cf4298",
+  "clean_tree": true,
+  "physical_acceptance": false
+}

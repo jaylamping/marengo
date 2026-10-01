@@ -1,0 +1,1183 @@
+{
+  "schema": 1,
+  "recorded_utc": "2026-10-01T12:26:52.418128+00:00",
+  "batch_id": "batch16",
+  "PR": {
+    "baseRefOid": "d660112afadd01468c813bf767d7bdc958d0643e",
+    "headRefOid": "f7769e0c71730595dc8b6a8a162a5d8efbd3ca82",
+    "mergeCommit": {
+      "oid": "63cbe7eb0427888a9c4e242bca5daf80f44acdba"
+    },
+    "mergedAt": "2026-10-01T12:20:00Z",
+    "state": "MERGED",
+    "url": "https://github.com/jaylamping/marengo/pull/230"
+  },
+  "baseline": "d660112afadd01468c813bf767d7bdc958d0643e",
+  "implementation_and_final_head": "f7769e0c71730595dc8b6a8a162a5d8efbd3ca82",
+  "merged_main": "63cbe7eb0427888a9c4e242bca5daf80f44acdba",
+  "tree": "5f118919b4da8382a6e521f6e730e1d93b9f3370",
+  "parents": [
+    "d660112afadd01468c813bf767d7bdc958d0643e",
+    "f7769e0c71730595dc8b6a8a162a5d8efbd3ca82"
+  ],
+  "same_checked_tree": true,
+  "CI": {
+    "final": {
+      "schema": 1,
+      "recorded_utc": "2026-10-01T12:19:24.805810+00:00",
+      "label": "final",
+      "stage": "final",
+      "baseline": "d660112afadd01468c813bf767d7bdc958d0643e",
+      "head": "f7769e0c71730595dc8b6a8a162a5d8efbd3ca82",
+      "run": 36860217322,
+      "url": "https://github.com/jaylamping/marengo/actions/runs/36860217322",
+      "status": "completed",
+      "conclusion": "success",
+      "summary_sha256": "2f8872db6f43dc248dcad01c0cb592c282a627f006e7a23dd6988b9032faf4f2",
+      "jobs": [
+        {
+          "completedAt": "2026-10-01T12:12:37Z",
+          "conclusion": "success",
+          "databaseId": 110362308088,
+          "name": "build-image",
+          "startedAt": "2026-10-01T12:12:26Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-01T12:12:28Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-01T12:12:26Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:12:29Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-01T12:12:28Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:12:29Z",
+              "conclusion": "success",
+              "name": "Image metadata",
+              "number": 3,
+              "startedAt": "2026-10-01T12:12:29Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:12:29Z",
+              "conclusion": "success",
+              "name": "Same-repo push allowed",
+              "number": 4,
+              "startedAt": "2026-10-01T12:12:29Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:12:33Z",
+              "conclusion": "success",
+              "name": "Run docker/setup-buildx-action@v3",
+              "number": 5,
+              "startedAt": "2026-10-01T12:12:29Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:12:33Z",
+              "conclusion": "success",
+              "name": "Run docker/login-action@v3",
+              "number": 6,
+              "startedAt": "2026-10-01T12:12:33Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:12:34Z",
+              "conclusion": "success",
+              "name": "Check if image already exists",
+              "number": 7,
+              "startedAt": "2026-10-01T12:12:33Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:12:34Z",
+              "conclusion": "skipped",
+              "name": "Capture runner uid/gid",
+              "number": 8,
+              "startedAt": "2026-10-01T12:12:34Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:12:34Z",
+              "conclusion": "skipped",
+              "name": "Build and push dev image",
+              "number": 9,
+              "startedAt": "2026-10-01T12:12:34Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:12:34Z",
+              "conclusion": "skipped",
+              "name": "Point latest at new tag",
+              "number": 10,
+              "startedAt": "2026-10-01T12:12:34Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:12:34Z",
+              "conclusion": "skipped",
+              "name": "Build and load dev image (fork)",
+              "number": 11,
+              "startedAt": "2026-10-01T12:12:34Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:12:34Z",
+              "conclusion": "skipped",
+              "name": "Export dev image artifact (fork)",
+              "number": 12,
+              "startedAt": "2026-10-01T12:12:34Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:12:34Z",
+              "conclusion": "skipped",
+              "name": "Upload dev image artifact (fork)",
+              "number": 13,
+              "startedAt": "2026-10-01T12:12:34Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:12:34Z",
+              "conclusion": "success",
+              "name": "Set handoff mode",
+              "number": 14,
+              "startedAt": "2026-10-01T12:12:34Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:12:34Z",
+              "conclusion": "success",
+              "name": "Post Run docker/login-action@v3",
+              "number": 26,
+              "startedAt": "2026-10-01T12:12:34Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:12:35Z",
+              "conclusion": "success",
+              "name": "Post Run docker/setup-buildx-action@v3",
+              "number": 27,
+              "startedAt": "2026-10-01T12:12:34Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:12:35Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 28,
+              "startedAt": "2026-10-01T12:12:35Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:12:35Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 29,
+              "startedAt": "2026-10-01T12:12:35Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/jaylamping/marengo/actions/runs/36860217322/job/110362308088"
+        },
+        {
+          "completedAt": "2026-10-01T12:12:33Z",
+          "conclusion": "success",
+          "databaseId": 110362308504,
+          "name": "changes",
+          "startedAt": "2026-10-01T12:12:26Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-01T12:12:28Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-01T12:12:27Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:12:30Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-01T12:12:28Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:12:31Z",
+              "conclusion": "success",
+              "name": "Run dorny/paths-filter@v3",
+              "number": 3,
+              "startedAt": "2026-10-01T12:12:30Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:12:31Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 6,
+              "startedAt": "2026-10-01T12:12:31Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:12:31Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 7,
+              "startedAt": "2026-10-01T12:12:31Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/jaylamping/marengo/actions/runs/36860217322/job/110362308504"
+        },
+        {
+          "completedAt": "2026-10-01T12:17:14Z",
+          "conclusion": "success",
+          "databaseId": 110362389129,
+          "name": "check",
+          "startedAt": "2026-10-01T12:12:39Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-01T12:12:40Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-01T12:12:39Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:12:42Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-01T12:12:40Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:13:22Z",
+              "conclusion": "success",
+              "name": "Run ./.github/actions/pull-dev-image",
+              "number": 3,
+              "startedAt": "2026-10-01T12:12:42Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:13:22Z",
+              "conclusion": "skipped",
+              "name": "Run ./.github/actions/load-dev-image",
+              "number": 4,
+              "startedAt": "2026-10-01T12:13:22Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:14:17Z",
+              "conclusion": "success",
+              "name": "Restore Cargo cache",
+              "number": 5,
+              "startedAt": "2026-10-01T12:13:22Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:14:19Z",
+              "conclusion": "success",
+              "name": "Restore npm download cache",
+              "number": 6,
+              "startedAt": "2026-10-01T12:14:17Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:14:19Z",
+              "conclusion": "success",
+              "name": "Prepare proto breaking baseline",
+              "number": 7,
+              "startedAt": "2026-10-01T12:14:19Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:16:37Z",
+              "conclusion": "success",
+              "name": "Run check.sh in container",
+              "number": 8,
+              "startedAt": "2026-10-01T12:14:19Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:16:37Z",
+              "conclusion": "success",
+              "name": "Post Restore npm download cache",
+              "number": 13,
+              "startedAt": "2026-10-01T12:16:37Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:17:12Z",
+              "conclusion": "success",
+              "name": "Post Restore Cargo cache",
+              "number": 14,
+              "startedAt": "2026-10-01T12:16:37Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:17:12Z",
+              "conclusion": "success",
+              "name": "Post Run ./.github/actions/pull-dev-image",
+              "number": 15,
+              "startedAt": "2026-10-01T12:17:12Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:17:12Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 16,
+              "startedAt": "2026-10-01T12:17:12Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:17:12Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 17,
+              "startedAt": "2026-10-01T12:17:12Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/jaylamping/marengo/actions/runs/36860217322/job/110362389129"
+        },
+        {
+          "completedAt": "2026-10-01T12:14:39Z",
+          "conclusion": "success",
+          "databaseId": 110362389198,
+          "name": "vcan",
+          "startedAt": "2026-10-01T12:12:39Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-01T12:12:40Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-01T12:12:39Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:12:41Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-01T12:12:40Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:13:17Z",
+              "conclusion": "success",
+              "name": "Run ./.github/actions/pull-dev-image",
+              "number": 3,
+              "startedAt": "2026-10-01T12:12:41Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:13:17Z",
+              "conclusion": "skipped",
+              "name": "Run ./.github/actions/load-dev-image",
+              "number": 4,
+              "startedAt": "2026-10-01T12:13:17Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:13:50Z",
+              "conclusion": "success",
+              "name": "Restore Cargo cache",
+              "number": 5,
+              "startedAt": "2026-10-01T12:13:17Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:14:17Z",
+              "conclusion": "success",
+              "name": "Load vcan kernel module",
+              "number": 6,
+              "startedAt": "2026-10-01T12:13:50Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:14:37Z",
+              "conclusion": "success",
+              "name": "vcan integration tests",
+              "number": 7,
+              "startedAt": "2026-10-01T12:14:17Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:14:38Z",
+              "conclusion": "success",
+              "name": "Post Run ./.github/actions/pull-dev-image",
+              "number": 13,
+              "startedAt": "2026-10-01T12:14:37Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:14:38Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 14,
+              "startedAt": "2026-10-01T12:14:38Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:14:38Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 15,
+              "startedAt": "2026-10-01T12:14:38Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/jaylamping/marengo/actions/runs/36860217322/job/110362389198"
+        },
+        {
+          "completedAt": "2026-10-01T12:14:08Z",
+          "conclusion": "success",
+          "databaseId": 110362389245,
+          "name": "sim",
+          "startedAt": "2026-10-01T12:12:39Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-01T12:12:41Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-01T12:12:40Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:12:42Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-01T12:12:41Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:13:16Z",
+              "conclusion": "success",
+              "name": "Run ./.github/actions/pull-dev-image",
+              "number": 3,
+              "startedAt": "2026-10-01T12:12:42Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:13:16Z",
+              "conclusion": "skipped",
+              "name": "Run ./.github/actions/load-dev-image",
+              "number": 4,
+              "startedAt": "2026-10-01T12:13:16Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:13:49Z",
+              "conclusion": "success",
+              "name": "Restore Cargo cache",
+              "number": 5,
+              "startedAt": "2026-10-01T12:13:16Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:14:04Z",
+              "conclusion": "success",
+              "name": "Build sim image",
+              "number": 6,
+              "startedAt": "2026-10-01T12:13:49Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:14:07Z",
+              "conclusion": "success",
+              "name": "Run check-sim.sh",
+              "number": 7,
+              "startedAt": "2026-10-01T12:14:04Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:14:07Z",
+              "conclusion": "success",
+              "name": "Post Run ./.github/actions/pull-dev-image",
+              "number": 13,
+              "startedAt": "2026-10-01T12:14:07Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:14:07Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 14,
+              "startedAt": "2026-10-01T12:14:07Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:14:07Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 15,
+              "startedAt": "2026-10-01T12:14:07Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/jaylamping/marengo/actions/runs/36860217322/job/110362389245"
+        }
+      ],
+      "qualified_all_five_jobs": true,
+      "physical_acceptance": false,
+      "running_sessions": [],
+      "counts": {
+        "check": {
+          "passed": 772,
+          "failed": 0,
+          "ignored": 1,
+          "test_binaries": 111
+        },
+        "sim": {
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "test_binaries": 2
+        },
+        "vcan": {
+          "passed": 73,
+          "failed": 0,
+          "ignored": 0,
+          "test_binaries": 9
+        }
+      },
+      "frontend_passed": 355,
+      "pi_mcp_counts": {
+        "tests": [
+          72
+        ],
+        "pass": [
+          72
+        ],
+        "fail": [
+          0
+        ]
+      },
+      "fatal_aarch64_release": false,
+      "log_sha256": "12bb461f9049436b34eaa219baaeea63adc93b541f88d29e6338eec6a0d55b83",
+      "checks": {
+        "exact_all_five_jobs": true,
+        "all_job_success": true,
+        "actual_rust_tests": true,
+        "sim_vcan_zero_ignored": true,
+        "frontend_observed": true,
+        "pi_mcp_observed": true,
+        "actual_check_completed": true,
+        "fatal_main_release": true
+      }
+    },
+    "main": {
+      "schema": 1,
+      "recorded_utc": "2026-10-01T12:26:28.767592+00:00",
+      "label": "main",
+      "stage": "main",
+      "baseline": "d660112afadd01468c813bf767d7bdc958d0643e",
+      "head": "63cbe7eb0427888a9c4e242bca5daf80f44acdba",
+      "run": 36861055844,
+      "url": "https://github.com/jaylamping/marengo/actions/runs/36861055844",
+      "status": "completed",
+      "conclusion": "success",
+      "summary_sha256": "8757f9ba2b9c932ecdb31d4feb716533a17420d5df301e0b70cbdf29d949914d",
+      "jobs": [
+        {
+          "completedAt": "2026-10-01T12:20:26Z",
+          "conclusion": "success",
+          "databaseId": 110365081888,
+          "name": "build-image",
+          "startedAt": "2026-10-01T12:20:05Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-01T12:20:09Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-01T12:20:06Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:20:11Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-01T12:20:09Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:20:11Z",
+              "conclusion": "success",
+              "name": "Image metadata",
+              "number": 3,
+              "startedAt": "2026-10-01T12:20:11Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:20:11Z",
+              "conclusion": "success",
+              "name": "Same-repo push allowed",
+              "number": 4,
+              "startedAt": "2026-10-01T12:20:11Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:20:22Z",
+              "conclusion": "success",
+              "name": "Run docker/setup-buildx-action@v3",
+              "number": 5,
+              "startedAt": "2026-10-01T12:20:11Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:20:23Z",
+              "conclusion": "success",
+              "name": "Run docker/login-action@v3",
+              "number": 6,
+              "startedAt": "2026-10-01T12:20:22Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:20:23Z",
+              "conclusion": "success",
+              "name": "Check if image already exists",
+              "number": 7,
+              "startedAt": "2026-10-01T12:20:23Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:20:23Z",
+              "conclusion": "skipped",
+              "name": "Capture runner uid/gid",
+              "number": 8,
+              "startedAt": "2026-10-01T12:20:23Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:20:23Z",
+              "conclusion": "skipped",
+              "name": "Build and push dev image",
+              "number": 9,
+              "startedAt": "2026-10-01T12:20:23Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:20:23Z",
+              "conclusion": "skipped",
+              "name": "Point latest at new tag",
+              "number": 10,
+              "startedAt": "2026-10-01T12:20:23Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:20:23Z",
+              "conclusion": "skipped",
+              "name": "Build and load dev image (fork)",
+              "number": 11,
+              "startedAt": "2026-10-01T12:20:23Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:20:23Z",
+              "conclusion": "skipped",
+              "name": "Export dev image artifact (fork)",
+              "number": 12,
+              "startedAt": "2026-10-01T12:20:23Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:20:23Z",
+              "conclusion": "skipped",
+              "name": "Upload dev image artifact (fork)",
+              "number": 13,
+              "startedAt": "2026-10-01T12:20:23Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:20:23Z",
+              "conclusion": "success",
+              "name": "Set handoff mode",
+              "number": 14,
+              "startedAt": "2026-10-01T12:20:23Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:20:23Z",
+              "conclusion": "success",
+              "name": "Post Run docker/login-action@v3",
+              "number": 26,
+              "startedAt": "2026-10-01T12:20:23Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:20:24Z",
+              "conclusion": "success",
+              "name": "Post Run docker/setup-buildx-action@v3",
+              "number": 27,
+              "startedAt": "2026-10-01T12:20:23Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:20:24Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 28,
+              "startedAt": "2026-10-01T12:20:24Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:20:24Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 29,
+              "startedAt": "2026-10-01T12:20:24Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/jaylamping/marengo/actions/runs/36861055844/job/110365081888"
+        },
+        {
+          "completedAt": "2026-10-01T12:20:10Z",
+          "conclusion": "success",
+          "databaseId": 110365082295,
+          "name": "changes",
+          "startedAt": "2026-10-01T12:20:05Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-01T12:20:06Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-01T12:20:06Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:20:08Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-01T12:20:06Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:20:08Z",
+              "conclusion": "success",
+              "name": "Run dorny/paths-filter@v3",
+              "number": 3,
+              "startedAt": "2026-10-01T12:20:08Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:20:08Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 6,
+              "startedAt": "2026-10-01T12:20:08Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:20:08Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 7,
+              "startedAt": "2026-10-01T12:20:08Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/jaylamping/marengo/actions/runs/36861055844/job/110365082295"
+        },
+        {
+          "completedAt": "2026-10-01T12:22:15Z",
+          "conclusion": "success",
+          "databaseId": 110365226210,
+          "name": "sim",
+          "startedAt": "2026-10-01T12:20:29Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-01T12:20:31Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-01T12:20:30Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:20:32Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-01T12:20:31Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:21:11Z",
+              "conclusion": "success",
+              "name": "Run ./.github/actions/pull-dev-image",
+              "number": 3,
+              "startedAt": "2026-10-01T12:20:32Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:21:11Z",
+              "conclusion": "skipped",
+              "name": "Run ./.github/actions/load-dev-image",
+              "number": 4,
+              "startedAt": "2026-10-01T12:21:11Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:21:55Z",
+              "conclusion": "success",
+              "name": "Restore Cargo cache",
+              "number": 5,
+              "startedAt": "2026-10-01T12:21:11Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:22:09Z",
+              "conclusion": "success",
+              "name": "Build sim image",
+              "number": 6,
+              "startedAt": "2026-10-01T12:21:55Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:22:12Z",
+              "conclusion": "success",
+              "name": "Run check-sim.sh",
+              "number": 7,
+              "startedAt": "2026-10-01T12:22:09Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:22:12Z",
+              "conclusion": "success",
+              "name": "Post Run ./.github/actions/pull-dev-image",
+              "number": 13,
+              "startedAt": "2026-10-01T12:22:12Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:22:12Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 14,
+              "startedAt": "2026-10-01T12:22:12Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:22:12Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 15,
+              "startedAt": "2026-10-01T12:22:12Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/jaylamping/marengo/actions/runs/36861055844/job/110365226210"
+        },
+        {
+          "completedAt": "2026-10-01T12:26:01Z",
+          "conclusion": "success",
+          "databaseId": 110365226239,
+          "name": "check",
+          "startedAt": "2026-10-01T12:20:29Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-01T12:20:31Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-01T12:20:30Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:20:33Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-01T12:20:31Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:21:18Z",
+              "conclusion": "success",
+              "name": "Run ./.github/actions/pull-dev-image",
+              "number": 3,
+              "startedAt": "2026-10-01T12:20:33Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:21:18Z",
+              "conclusion": "skipped",
+              "name": "Run ./.github/actions/load-dev-image",
+              "number": 4,
+              "startedAt": "2026-10-01T12:21:18Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:22:21Z",
+              "conclusion": "success",
+              "name": "Restore Cargo cache",
+              "number": 5,
+              "startedAt": "2026-10-01T12:21:18Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:22:24Z",
+              "conclusion": "success",
+              "name": "Restore npm download cache",
+              "number": 6,
+              "startedAt": "2026-10-01T12:22:21Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:22:24Z",
+              "conclusion": "skipped",
+              "name": "Prepare proto breaking baseline",
+              "number": 7,
+              "startedAt": "2026-10-01T12:22:24Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:25:20Z",
+              "conclusion": "success",
+              "name": "Run check.sh in container",
+              "number": 8,
+              "startedAt": "2026-10-01T12:22:24Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:25:21Z",
+              "conclusion": "success",
+              "name": "Post Restore npm download cache",
+              "number": 13,
+              "startedAt": "2026-10-01T12:25:20Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:25:57Z",
+              "conclusion": "success",
+              "name": "Post Restore Cargo cache",
+              "number": 14,
+              "startedAt": "2026-10-01T12:25:21Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:25:58Z",
+              "conclusion": "success",
+              "name": "Post Run ./.github/actions/pull-dev-image",
+              "number": 15,
+              "startedAt": "2026-10-01T12:25:57Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:25:58Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 16,
+              "startedAt": "2026-10-01T12:25:58Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:25:58Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 17,
+              "startedAt": "2026-10-01T12:25:58Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/jaylamping/marengo/actions/runs/36861055844/job/110365226239"
+        },
+        {
+          "completedAt": "2026-10-01T12:23:22Z",
+          "conclusion": "success",
+          "databaseId": 110365226321,
+          "name": "vcan",
+          "startedAt": "2026-10-01T12:20:29Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-01T12:20:31Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-01T12:20:30Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:20:33Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-01T12:20:31Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:21:25Z",
+              "conclusion": "success",
+              "name": "Run ./.github/actions/pull-dev-image",
+              "number": 3,
+              "startedAt": "2026-10-01T12:20:33Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:21:25Z",
+              "conclusion": "skipped",
+              "name": "Run ./.github/actions/load-dev-image",
+              "number": 4,
+              "startedAt": "2026-10-01T12:21:25Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:22:29Z",
+              "conclusion": "success",
+              "name": "Restore Cargo cache",
+              "number": 5,
+              "startedAt": "2026-10-01T12:21:25Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:23:02Z",
+              "conclusion": "success",
+              "name": "Load vcan kernel module",
+              "number": 6,
+              "startedAt": "2026-10-01T12:22:29Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:23:19Z",
+              "conclusion": "success",
+              "name": "vcan integration tests",
+              "number": 7,
+              "startedAt": "2026-10-01T12:23:02Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:23:20Z",
+              "conclusion": "success",
+              "name": "Post Run ./.github/actions/pull-dev-image",
+              "number": 13,
+              "startedAt": "2026-10-01T12:23:19Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:23:20Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 14,
+              "startedAt": "2026-10-01T12:23:20Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-01T12:23:20Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 15,
+              "startedAt": "2026-10-01T12:23:20Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/jaylamping/marengo/actions/runs/36861055844/job/110365226321"
+        }
+      ],
+      "qualified_all_five_jobs": true,
+      "physical_acceptance": false,
+      "running_sessions": [],
+      "counts": {
+        "check": {
+          "passed": 772,
+          "failed": 0,
+          "ignored": 1,
+          "test_binaries": 111
+        },
+        "sim": {
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "test_binaries": 2
+        },
+        "vcan": {
+          "passed": 73,
+          "failed": 0,
+          "ignored": 0,
+          "test_binaries": 9
+        }
+      },
+      "frontend_passed": 355,
+      "pi_mcp_counts": {
+        "tests": [
+          72
+        ],
+        "pass": [
+          72
+        ],
+        "fail": [
+          0
+        ]
+      },
+      "fatal_aarch64_release": true,
+      "log_sha256": "8d5f8be371560088b5e472a41342d6c941df0f10036835d5bd096e09f497ff6c",
+      "checks": {
+        "exact_all_five_jobs": true,
+        "all_job_success": true,
+        "actual_rust_tests": true,
+        "sim_vcan_zero_ignored": true,
+        "frontend_observed": true,
+        "pi_mcp_observed": true,
+        "actual_check_completed": true,
+        "fatal_main_release": true
+      }
+    }
+  },
+  "local_qualification_sha256": "03822ac5967dfda284fd6f77da4b6e57ff2ce211a5591b50e9d140bf61cf4298",
+  "reviewed_head": "3a7ee096a4bdf73eade7520045a43b5a50ef9911",
+  "delivery_head_binding_sha256": "a412ae5489248cdaa25620e4764014d66f76e58ac5bc525ce895aa82f91a4b76",
+  "reviews": {
+    "standards-final.md": "d9859b6dc1ca9b8b523eb6664be6421b8353272bf51fbf1f86ae1ed1be7810e7",
+    "spec-final.md": "c5c0fad53f929150f315491b041d3dd3e27966d74df97e8c3f74bf4d00388b26",
+    "execution-audit-phase05.md": "752310d3958afb7f6ef8a988ad9ea8cda893ec71b8d9a9d17dede502c2a6c4ca",
+    "execution-audit-cli-final.md": "2e3a32a2278ed2d4db47a605566a8ac27e466a10645dd277b5acb5806d88f08f"
+  },
+  "verified_all_refs_backup": {
+    "sha256": "192c2c0f524dc6243f7ba082fb50090b794286cb1cee6c9773b48ffd14cfca4c",
+    "bytes": 56982744,
+    "ref_count": 150,
+    "scope": "Git recovery snapshot only; local CAD stays under J and is not claimed backed up by this bundle"
+  },
+  "branch_cleanup_sha256": "8849bcd6b292ca00cd6aba41bd6e7faa725c982111a0fe7a38be02dd42695463",
+  "software_status_counts": {
+    "verified": 16,
+    "partial": 11,
+    "open": 75
+  },
+  "finding_ids": 102,
+  "G15": "partial; statement interruption/concurrency/other historic profiles remain separate",
+  "hardware_acceptance": false,
+  "robot_operations": false,
+  "limits_and_wave_unchanged": true,
+  "running_sessions": []
+}

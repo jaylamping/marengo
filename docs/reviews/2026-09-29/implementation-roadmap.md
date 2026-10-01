@@ -522,12 +522,12 @@ all eight maintenance tasks remain. No robot, deployment, limits or Wave changes
 
 ## Completion and continuation
 
-The active thread heartbeat **Marengo repair loop** continues every 30 minutes
-from this ledger. Each run reconciles current Git state, completes the next
-dependency-ready reviewed slice, records test evidence and updates status.
-Follow-ups never operate or deploy to the physical robot. Pause/finish the loop
-when software work is complete or a specific external decision blocks progress,
-and report the remaining acceptance gates.
+The owner requested a stopping point on October1 to resume on Mac. The
+**Marengo repair loop** is **PAUSED**, not complete; do not resume its Windows
+schedule automatically. [HANDOFF.md](HANDOFF.md) is the canonical restart entry
+point. On an explicit resume request, reconcile the active host checkout and
+ledger, select the next dependency-ready slice, and qualify its behavior before
+repair. No follow-up may operate or deploy to the physical robot.
 
 Software completion requires a disposition for all 102 IDs, all required callers
 migrated, meaningful regression coverage and passing required checks. Do not
@@ -560,3 +560,12 @@ Rust/1existingignored,355frontend/72PiMCP/fatalARM qualify1464 unchanged inputs.
 V3 startup failure is preserved/excluded; final-local-qualification.json binds
 actual red/green/gates and exact delta. Final independent review and GitHub
 delivery remain pending; G15 partial and102ID/eight-task dispositions unchanged.
+
+## Completed batch16 delivery and Mac handoff
+
+PR230 f7769e0/main63cbe7e equal-tree final/main CI36860217322/36861055844
+pass all five jobs, including fatal main ARM release. Backup and scoped cleanup
+are complete. Portable receipts are in evidence/batch16 and HANDOFF.md records
+remaining work, reviewed next design and Windows-only assets. This supersedes
+earlier pending delivery paragraphs. Counts stay16verified/11partial/75open;
+the user-requested pause is not software completion.

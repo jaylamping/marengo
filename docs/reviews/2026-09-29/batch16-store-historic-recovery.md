@@ -164,3 +164,20 @@ checked core inputs remain unchanged. Exact final-head all-five-job GitHub CI,
 equal-tree merged-main/fatal-ARM CI, verified all-refs Git backup and scoped branch
 cleanup remain required delivery receipts. The immutable external merge receipt
 will reconcile this frozen tracked checkpoint on the next iteration.
+
+## Completed delivery and owner-requested stopping point (October 1)
+
+PR230 finalf7769e0/run36860217322 and equal-tree main63cbe7e/run36861055844
+pass all five jobs:772Rust/1existingignored,355frontend/72PiMCP,5sim/73vcan
+(zero ignored in sim/vcan), including fatal main ARM release. Independent
+Standards/Spec and separate library/CLI execution audits accepted. Verified150-ref
+Git backup and exact repair-branch cleanup preserve145 unrelated refs and both
+historical worktrees. Earlier pending checkpoint text is superseded by these
+completed receipts; it remains historical evidence. Portable exact receipts and
+reviews are in [evidence/batch16](evidence/batch16/MANIFEST.json).
+
+The owner requested a pause and will resume on Mac. The Windows loop is PAUSED;
+no batch17 code or proof has started. [HANDOFF.md](HANDOFF.md) is the restart entry
+point and distinguishes Git-tracked records from Windows-local CAD/raw archives.
+G15 remains partial; the same102IDs/statuses and eight maintenance tasks remain.
+No robot operation, physical acceptance, limits or Wave sign-off change occurred.

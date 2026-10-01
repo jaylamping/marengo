@@ -1,0 +1,19 @@
+{
+  "base": "d660112afadd01468c813bf767d7bdc958d0643e",
+  "reviewed_head": "3a7ee096a4bdf73eade7520045a43b5a50ef9911",
+  "head": "f7769e0c71730595dc8b6a8a162a5d8efbd3ca82",
+  "tree": "5f118919b4da8382a6e521f6e730e1d93b9f3370",
+  "docs_only_since_acceptance": [
+    "docs/reviews/2026-09-29/batch16-store-historic-recovery.md",
+    "docs/reviews/2026-09-29/implementation-ledger.json"
+  ],
+  "unchanged_core_inputs": 1464,
+  "final_core_manifest_sha256": "af4f2b56da06512a112dfe8e0f5f339d1d5ad1a9a39d9ab66baa8fa9f43dc695",
+  "accepted_review_binding_sha256": "381f154dc9af5001fd5b589b9e996ac20e03282a8cf7e8c058e4a6f0ebc50ca7",
+  "review_acceptance_sha256": "55664eaac959fb03168338dd1144108e667376e036583a55fc07cd1c533d083f",
+  "whole_head_archive_sha256": "94b8a31e7d6781c7386a99619324221ae10e496e4875b34831beb8e93a8a54be",
+  "unchanged_other_accepted_changed_files": 17,
+  "live_and_git_core_match": true,
+  "clean_tree": true,
+  "physical_acceptance": false
+}

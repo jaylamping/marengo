@@ -502,3 +502,20 @@ Rust/1existingignored,355frontend/72PiMCP/fatalARM qualify1464 unchanged inputs.
 V3 startup failure is preserved/excluded; final-local-qualification.json binds
 actual red/green/gates and exact delta. Final independent review and GitHub
 delivery remain pending; G15 partial and102ID/eight-task dispositions unchanged.
+
+## Completed delivery and owner-requested stopping point (October 1)
+
+PR230 finalf7769e0/run36860217322 and equal-tree main63cbe7e/run36861055844
+pass all five jobs:772Rust/1existingignored,355frontend/72PiMCP,5sim/73vcan
+(zero ignored in sim/vcan), including fatal main ARM release. Independent
+Standards/Spec and separate library/CLI execution audits accepted. Verified150-ref
+Git backup and exact repair-branch cleanup preserve145 unrelated refs and both
+historical worktrees. Earlier pending checkpoint text is superseded by these
+completed receipts; it remains historical evidence. Portable exact receipts and
+reviews are in [evidence/batch16](evidence/batch16/MANIFEST.json).
+
+The owner requested a pause and will resume on Mac. The Windows loop is PAUSED;
+no batch17 code or proof has started. [HANDOFF.md](HANDOFF.md) is the restart entry
+point and distinguishes Git-tracked records from Windows-local CAD/raw archives.
+G15 remains partial; the same102IDs/statuses and eight maintenance tasks remain.
+No robot operation, physical acceptance, limits or Wave sign-off change occurred.

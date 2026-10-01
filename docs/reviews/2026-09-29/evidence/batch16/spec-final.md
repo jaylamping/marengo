@@ -1,0 +1,13 @@
+# Batch16 final Spec review
+
+No remaining implementation blocker for the accepted slice at HEAD `3a7ee096a4bdf73eade7520045a43b5a50ef9911`, base `d660112afadd01468c813bf767d7bdc958d0643e`. Both commits and all19 changed files were reviewed. Exact diff SHA256: `1e09c18b1e77ced00ce3f95d72f26d38b40d78373c9887deeb1bcef318a1f871`; root final-review binding SHA256: `381f154dc9af5001fd5b589b9e996ac20e03282a8cf7e8c058e4a6f0ebc50ca7`. Detailed verified bindings accompany this report.
+
+(a) Missing/partial requirements: G15 requires “interrupt at each v2/v3 boundary” and “Cover parallel openers” ([plan](J:/code/marengo/docs/reviews/2026-09-29/gateway-implementation-plan.md:368)). Full interruption/concurrency, other historical profiles and publication/crash qualification remain open. ADR0030:86–91 explicitly limits this slice and keeps G15 partial. These are remaining acceptance work, not hidden closure. Exact-head remote CI, merge/main, backup and cleanup remain pending delivery receipts.
+
+(b) Scope creep: none identified. The explicit library operation and CLI match ADR0030:16–21. Caller inspection confirms gateway startup never invokes recovery. Normal historical refusal, robot operations, limits and Wave restrictions remain unchanged.
+
+(c) Wrong implementation: the earlier P2 is resolved. ADR0030:68–70 requires “Later failure retains the completed backup and reports its path.” [CLI:238–249](J:/code/marengo/bins/marengo-log-cli/src/main.rs:238) now catches serialization, write, newline and flush failures and reports both canonical artifacts with escaped path representations. Actual /dev/full red reaches sole assertion415 after controls, preservation and cleanup; the identical whole417-line probe passes after only main.rs changes. Non-UTF8 handling is source-assessed; execution is not claimed.
+
+Production independently satisfies the pinned read-only WAL snapshot, finite backup completion, rank1 FTS verification, standalone backup before separate marker repair, normal-owner migration, supplied metadata/default preservation and owned cleanup contract (ADR0030:32–73).
+
+I authored the five library tests and appended CLI regression; root formatted, froze and executed them. Literal fixtures, original-public positive control, WAL/FTS mutation assertion reds and unchanged replay provide meaningful observables. Missing-API/compiler failures and excluded phase04/v3 attempts are not accepted reds. Rehashed evidence and actual final logs confirm native34, affected37, primary772/1existingignored,355frontend,72PiMCP and fatal ARM release. All1464 core inputs and19 committed files match; all102 statuses, eight maintenance tasks and14 prior decoded history objects are preserved. No new execution or future CI/hardware acceptance is implied.
