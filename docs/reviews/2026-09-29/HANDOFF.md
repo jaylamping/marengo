@@ -4,18 +4,22 @@
 
 Batches17,18,20,21 are merged (PR232–235); their exact merged-main CI runs
 passed all five jobs. G17, T18 and T19 are verified; G15 remains partial.
-The ledger preserves all102 findings and eight maintenance tasks:20verified,
-11partial,71open. Historical checkpoint sections below retain their original counts.
+The ledger preserves all102 findings and eight maintenance tasks:21verified,
+11partial,70open. Historical checkpoint sections below retain their original counts.
 
 Batch22 [PR236](https://github.com/jaylamping/marengo/pull/236) merged as0166970
 with exact-head all-five-job PR CI36898020258 passing. Merged-main CI36898895683
 passed all five jobs; G01 is verified.
 
-Batch23 [PR237](https://github.com/jaylamping/marengo/pull/237) corrects CPU
-columns and preserves per-CPU identity/unknown baselines. Both reviews and integration
-reviews are clear; combined native76 and Consul358 tests/build pass. Exact-head
-Linux CI and delivery remain pending; G18 stays open. Active worktree:
-`/Users/joseph/.codex/worktrees/cpu-counter-columns/marengo`.
+Batch23 [PR237](https://github.com/jaylamping/marengo/pull/237) merged asad09ee4;
+exact-head PR CI36899946079 and main CI36900877954 passed all five jobs. G18 is verified.
+
+Batch24 repairs G19 CAN/mount diagnostics with injected collectors and explicit
+unknown observations. Native84 and Consul361 tests/build pass; frozen original CAN
+and disk reds replay unchanged green. Spec is clear; the Standards command-adapter
+duplication is addressed with recheck pending. Linux CI/PR/delivery remain pending,
+so G19 stays open. Active worktree:
+`/Users/joseph/.codex/worktrees/diagnostic-can-mount-state/marengo`.
 
 Batch19 T17 is local on `codex/research-cache-await`; source and34 offline tests
 pass, but its new workflow cannot be pushed with the token's current scopes.
