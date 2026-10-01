@@ -16,6 +16,7 @@
 //! Typical topics: `robot/state`, telemetry, future RPC. Producers must not put raw CAN on Chappe.
 
 pub mod ipc;
+mod ipc_outbox;
 pub mod tracing_layer;
 pub mod transport;
 
@@ -171,6 +172,17 @@ impl Bus {
         {
             false
         }
+    }
+
+    /// Actual IPC connection and bounded admission evidence, when configured.
+    #[cfg(unix)]
+    pub fn ipc_queue_stats(&self) -> Option<ipc::IpcQueueStats> {
+        self.inner
+            .ipc
+            .read()
+            .ok()?
+            .as_ref()
+            .map(|ipc| ipc.queue_stats())
     }
 }
 

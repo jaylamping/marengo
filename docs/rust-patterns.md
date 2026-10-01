@@ -339,6 +339,18 @@ read_packet(total_len, &mut buf[..total_len]);
 
 `smbus2` / register reads → `EREMOTEIO` on Pi is normal. Use `scripts/pi-i2c-plain-read.py` or `scripts/pi-bno085-shtp-init.py` to verify.
 
+## Bounded IPC publication and frame writes
+
+Keep control-thread transport admission nonblocking: use finite topic classes and
+item/byte ceilings, try-lock admission, explicit overflow outcomes and counters.
+Latest telemetry replaces its own prior slot; ordered audit/log traffic has an
+independent finite FIFO. Commands never enter an outage publication backlog.
+Bound frame lengths before reader allocation. Bound the entire socket frame write
+with a monotonic deadline and update each syscall timeout from the remaining time;
+a fresh timeout per partial write does not bound the complete operation. On failure,
+shutdown the connection and join its cloned reader before reconnecting. Queue
+admission, socket delivery and physical motor stop are distinct evidence.
+
 ## 12. Further reading
 
 - [Clippy](https://rust-lang.github.io/rust-clippy/master/)

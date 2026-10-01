@@ -8,7 +8,9 @@ use std::time::{Duration, Instant};
 
 use armee_proto::HostNodeRole;
 use chappe::Bus;
-use marengo_host_metrics::{host_metrics_topic, sample, ChappeHealthInput, SampleState};
+use marengo_host_metrics::{
+    host_metrics_topic, sample, ChappeHealthInput, IpcQueueHealthInput, SampleState,
+};
 use tracing::warn;
 
 const SEMVER: &str = env!("CARGO_PKG_VERSION");
@@ -42,11 +44,26 @@ fn chappe_health_input(chappe: &Bus) -> ChappeHealthInput {
         .map(|d| d.as_millis() as u64)
         .unwrap_or(0);
     let last = chappe.last_publish_ms();
+    let ipc = chappe.ipc_queue_stats();
     ChappeHealthInput {
-        ipc_connected: chappe.ipc_configured(),
+        ipc_connected: ipc.as_ref().is_some_and(|stats| stats.connected),
         gateway_reachable: probe_gateway_health(),
         last_publish_age_ms: now_ms.saturating_sub(last),
         gateway_rtt_ms: 0.0,
+        ipc_queue: ipc.map(|stats| IpcQueueHealthInput {
+            queued_items: stats.queued_items as u64,
+            queued_payload_bytes: stats.queued_bytes as u64,
+            item_capacity: chappe::ipc::QUEUE_ITEM_CAPACITY as u64,
+            payload_byte_capacity: chappe::ipc::QUEUE_BYTE_CAPACITY as u64,
+            oldest_age_ms: stats.oldest_age_ms,
+            accepted_total: stats.accepted,
+            coalesced_total: stats.coalesced,
+            dropped_total: stats.dropped,
+            admitted_disconnected_total: stats.admitted_disconnected,
+            max_payload_bytes: chappe::ipc::MAX_PAYLOAD_BYTES as u64,
+            max_in_flight_payload_bytes: chappe::ipc::MAX_PAYLOAD_BYTES as u64,
+            write_failures_total: stats.write_failures,
+        }),
     }
 }
 

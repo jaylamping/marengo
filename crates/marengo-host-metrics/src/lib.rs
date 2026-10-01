@@ -4,7 +4,7 @@
 mod cpu;
 mod sample_state;
 
-pub use sample_state::{ChappeHealthInput, SampleState};
+pub use sample_state::{ChappeHealthInput, IpcQueueHealthInput, SampleState};
 
 use armee_proto::{BuildInfo, HostMetrics, HostNodeRole};
 

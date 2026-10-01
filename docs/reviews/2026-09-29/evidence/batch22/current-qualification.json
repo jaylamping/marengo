@@ -1,0 +1,50 @@
+{
+  "finding": "G01",
+  "status": "in progress, not verified",
+  "original_frozen_probe_sha256": "133c292955bc9d5c5af724e3509a0708e56cc5f67367f42e9f6ad7db1b4442ef",
+  "unchanged_entire_probe_replay": "final source replays entire original SHA-bound probe green; formatted shipping test restored afterward",
+  "native_transport": "11passed,0failed,0ignored; includes inert child entrypoint in parent run",
+  "clippy": "chappe/gateway alltargets no-default-features -Dwarnings passed; hostmetrics existing macOS non-Linux deadcode warnings remain, Linux gate required",
+  "format": "workspace fmt check passed",
+  "queue_policy": {
+    "latest_topics": 7,
+    "event_items": 128,
+    "event_bytes": 524288,
+    "max_payload_bytes": 65536,
+    "max_queued_items": 135,
+    "max_queued_payload_bytes": 983040,
+    "overflow": "drop new events; replace older same-topic state; reject unknown/command topics; drop on mutex contention",
+    "state_max_age_ms": 1000,
+    "frame_write_deadline_ms": 1000
+  },
+  "actual_peer_tests": "absent queue/counters/reserved safety+heartbeat; accepting nonreader disconnects on write deadline with declared queue ceiling",
+  "remaining": [
+    "final Standards and Spec acceptance",
+    "exact-head Linux primary/runtime CI",
+    "delivery and ledger reconciliation"
+  ],
+  "no_hardware": true,
+  "native_affected_passed": 70,
+  "native_affected_failed": 0,
+  "consul_tests": 356,
+  "consul_build": "passed Node24.21 npm11.19; generated TS through npm run gen:proto",
+  "proto_lint": "buf lint passed",
+  "qualification_added": [
+    "controlled admission/shutdown race barriers",
+    "listener-owned shutdown and retired reader join",
+    "decoded stalled-peer reconnect with exact pending accepted FIFO suffix",
+    "injected monotonic 1000ms accepted/1001ms expired wire state",
+    "typed runtime lifecycle event through actual envelope stream pump",
+    "Consul encoded transition clears old facts and pending trailing updates",
+    "stale/future/unknown command wire admission",
+    "proto host-health conversion and absent queue presence"
+  ],
+  "lag_correction": {
+    "native_tests_passed": 71,
+    "consul_tests_passed": 356,
+    "standards_findings": 0,
+    "spec_findings": 0,
+    "linux_ci": "pending",
+    "delivery": "pending"
+  }
+}

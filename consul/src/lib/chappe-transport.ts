@@ -15,6 +15,10 @@ import {
   type SafetyState,
   RobotStateSchema,
   SafetyStateSchema,
+  RuntimeObservationGapSchema,
+  type RuntimeObservationGap,
+  RuntimeConnectionStateSchema,
+  type RuntimeConnectionState,
 } from '@/gen/marengo/v1/marengo_pb';
 import {
   getChappeEndpoints,
@@ -37,6 +41,8 @@ export type ChappeTelemetryHandlers = {
   onHostMetrics?: (metrics: HostMetrics, topic: string) => void;
   onConnected?: () => void;
   onDisconnected?: () => void;
+  onRuntimeObservationGap?: (gap: RuntimeObservationGap) => void;
+  onRuntimeConnectionState?: (state: RuntimeConnectionState) => void;
   onTransportMode?: (mode: ChappeTransportMode) => void;
   onError?: (message: string) => void;
 };
@@ -149,6 +155,12 @@ export function dispatchEnvelope(
     return;
   }
   switch (envelope.messageType) {
+    case 'marengo.v1.RuntimeObservationGap':
+      handlers.onRuntimeObservationGap?.(fromBinary(RuntimeObservationGapSchema, envelope.payload));
+      break;
+    case 'marengo.v1.RuntimeConnectionState':
+      handlers.onRuntimeConnectionState?.(fromBinary(RuntimeConnectionStateSchema, envelope.payload));
+      break;
     case 'marengo.v1.RobotState':
       handlers.onRobotState(fromBinary(RobotStateSchema, envelope.payload));
       break;

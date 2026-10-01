@@ -67,17 +67,8 @@ async fn handle_session(
     let mut rx = state.subscribe_envelopes();
     loop {
         tokio::select! {
-            msg = rx.recv() => {
-                let Ok((topic, payload)) = msg else {
-                    continue;
-                };
-                if !topics.iter().any(|t| t == &topic) {
-                    continue;
-                }
-                let Some(envelope) = armee_proto::Envelope::decode(payload.as_slice()).ok() else {
-                    continue;
-                };
-                let out = envelope.encode_to_vec();
+            msg = framing::next_stream_envelope(&mut rx, &topics) => {
+                let Some(out) = msg else { break; };
                 framing::write_length_prefixed_quinn(&mut send, &out).await?;
             }
             chunk = recv.read_chunk(MAX_FRAME, true) => {

@@ -251,6 +251,38 @@ message ChappeHealth {
   bool ipc_connected = 1;
   bool gateway_reachable = 2;
   uint64 last_publish_age_ms = 3;
+  IpcQueueHealth ipc_queue = 4;
+}
+
+// Runtime transport admission counters. Queued bytes exclude framing/object
+// overhead and the one bounded publication currently owned by the writer.
+message IpcQueueHealth {
+  uint64 queued_items = 1;
+  uint64 queued_payload_bytes = 2;
+  uint64 item_capacity = 3;
+  uint64 payload_byte_capacity = 4;
+  uint64 oldest_age_ms = 5;
+  uint64 accepted_total = 6;
+  uint64 coalesced_total = 7;
+  uint64 dropped_total = 8;
+  uint64 admitted_disconnected_total = 9;
+  uint64 max_payload_bytes = 10;
+  uint64 max_in_flight_payload_bytes = 11;
+  // Failed frame attempts have uncertain delivery and are never replayed.
+  uint64 write_failures_total = 12;
+}
+
+// Gateway-local IPC transition; receiving this retires prior producer facts.
+// The generation is scoped to this gateway process, not a robot boot identity.
+message RuntimeConnectionState {
+  uint64 generation = 1;
+  bool connected = 2;
+}
+
+// Broadcast loss retires observations; retained backlog is discarded too.
+message RuntimeObservationGap {
+  // Ring-reported loss, excluding additionally discarded backlog.
+  uint64 lagged_envelopes = 1;
 }
 
 message ClockMetrics {

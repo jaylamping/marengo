@@ -6,15 +6,23 @@
 
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
+use crate::ipc_outbox::Outbox;
+pub use crate::ipc_outbox::{
+    ForwardOutcome, IpcQueueStats, EVENT_BYTE_CAPACITY, EVENT_CAPACITY, MAX_PAYLOAD_BYTES,
+    QUEUE_BYTE_CAPACITY, QUEUE_ITEM_CAPACITY,
+};
+use armee_proto::prost::Message;
 use thiserror::Error;
 use tracing::{debug, error, warn};
 
 pub const DIRECTION_RUNTIME_TO_GATEWAY: u8 = 0;
 pub const DIRECTION_GATEWAY_TO_RUNTIME: u8 = 1;
+const MAX_TOPIC_BYTES: usize = 128;
+const MAX_FRAME_BYTES: usize = 9 + MAX_TOPIC_BYTES + MAX_PAYLOAD_BYTES;
 
 /// Default socket path when `MARENGO_CHAPPE_SOCKET` is unset.
 pub fn default_socket_path() -> PathBuf {
@@ -35,10 +43,10 @@ pub enum IpcError {
 
 pub fn encode_frame(direction: u8, topic: &str, payload: &[u8]) -> Result<Vec<u8>, IpcError> {
     let topic_bytes = topic.as_bytes();
-    if topic_bytes.len() > u32::MAX as usize {
+    if topic_bytes.len() > MAX_TOPIC_BYTES {
         return Err(IpcError::Framing("topic too long".into()));
     }
-    if payload.len() > u32::MAX as usize {
+    if payload.len() > MAX_PAYLOAD_BYTES {
         return Err(IpcError::Framing("payload too long".into()));
     }
     let mut out = Vec::with_capacity(1 + 8 + topic_bytes.len() + payload.len());
@@ -57,6 +65,9 @@ pub fn decode_frame(mut data: &[u8]) -> Result<(u8, String, Vec<u8>), IpcError> 
     let direction = data[0];
     data = &data[1..];
     let topic_len = read_u32(&mut data)? as usize;
+    if topic_len > MAX_TOPIC_BYTES {
+        return Err(IpcError::Framing("topic too long".into()));
+    }
     if data.len() < topic_len {
         return Err(IpcError::Framing("truncated topic".into()));
     }
@@ -65,6 +76,9 @@ pub fn decode_frame(mut data: &[u8]) -> Result<(u8, String, Vec<u8>), IpcError> 
         .to_string();
     data = &data[topic_len..];
     let payload_len = read_u32(&mut data)? as usize;
+    if payload_len > MAX_PAYLOAD_BYTES {
+        return Err(IpcError::Framing("payload too long".into()));
+    }
     if data.len() < payload_len {
         return Err(IpcError::Framing("truncated payload".into()));
     }
@@ -86,27 +100,74 @@ fn read_u32(data: &mut &[u8]) -> Result<u32, IpcError> {
 
 /// Non-blocking forwarder used by `marengo-pi` on publish; also ingests gateway commands.
 pub struct IpcFanout {
-    tx: Sender<(String, Vec<u8>)>,
+    outbox: Arc<Outbox>,
+    worker: Mutex<Option<thread::JoinHandle<()>>>,
 }
 
 impl IpcFanout {
     pub fn spawn_client(socket_path: PathBuf, bus: crate::Bus) -> Result<Arc<Self>, IpcError> {
-        let (tx, rx) = mpsc::channel();
-        thread::Builder::new()
-            .name("chappe-ipc-client".into())
-            .spawn(move || ipc_client_loop(socket_path, rx, bus))
-            .map_err(IpcError::Io)?;
-        Ok(Arc::new(Self { tx }))
+        let outbox = Arc::new(Outbox::new());
+        Self::spawn_client_with_outbox(socket_path, bus, outbox)
     }
 
-    pub fn forward_runtime_to_gateway(&self, topic: &str, payload: &[u8]) {
-        let _ = self.tx.send((topic.to_string(), payload.to_vec()));
+    fn spawn_client_with_outbox(
+        socket_path: PathBuf,
+        bus: crate::Bus,
+        outbox: Arc<Outbox>,
+    ) -> Result<Arc<Self>, IpcError> {
+        let worker_outbox = Arc::clone(&outbox);
+        let worker = thread::Builder::new()
+            .name("chappe-ipc-client".into())
+            .spawn(move || ipc_client_loop(socket_path, worker_outbox, bus))
+            .map_err(IpcError::Io)?;
+        Ok(Arc::new(Self {
+            outbox,
+            worker: Mutex::new(Some(worker)),
+        }))
+    }
+
+    pub fn forward_runtime_to_gateway(&self, topic: &str, payload: &[u8]) -> ForwardOutcome {
+        self.outbox.admit(topic, payload)
+    }
+
+    pub fn queue_stats(&self) -> IpcQueueStats {
+        self.outbox.stats()
+    }
+
+    /// Bounded notifications of actual connection transitions, independent of configuration.
+    pub fn subscribe_connection(&self) -> tokio::sync::broadcast::Receiver<bool> {
+        self.outbox.subscribe_connection()
+    }
+
+    /// Stop reconnecting and wake the current writer. No new publication is admitted.
+    pub fn shutdown(&self) -> Result<(), IpcError> {
+        self.outbox.close();
+        if let Some(worker) = self
+            .worker
+            .lock()
+            .map_err(|error| IpcError::Framing(error.to_string()))?
+            .take()
+        {
+            worker
+                .join()
+                .map_err(|_| IpcError::Framing("ipc client worker panicked".into()))?;
+        }
+        Ok(())
     }
 }
 
-fn ipc_client_loop(socket_path: PathBuf, outbound: Receiver<(String, Vec<u8>)>, bus: crate::Bus) {
-    loop {
-        let Some(mut stream) = connect_with_retry(&socket_path) else {
+impl Drop for IpcFanout {
+    fn drop(&mut self) {
+        self.outbox.close();
+    }
+}
+
+fn ipc_client_loop(socket_path: PathBuf, outbound: Arc<Outbox>, bus: crate::Bus) {
+    while !outbound.closed() {
+        let Some(mut stream) = connect_with_retry(&socket_path, &outbound) else {
+            if outbound.closed() {
+                break;
+            }
             std::thread::sleep(std::time::Duration::from_secs(1));
             continue;
         };
@@ -115,21 +176,64 @@ fn ipc_client_loop(socket_path: PathBuf, outbound: Receiver<(String, Vec<u8>)>, 
             Err(_) => continue,
         };
         let read_bus = bus.clone();
-        thread::spawn(move || read_inbound_commands(&mut reader, read_bus));
-
-        while let Ok((topic, payload)) = outbound.recv() {
-            let frame = match encode_frame(DIRECTION_RUNTIME_TO_GATEWAY, &topic, &payload) {
+        outbound.set_connected(true);
+        let reader_outbound = Arc::clone(&outbound);
+        let reader_task = thread::spawn(move || {
+            read_inbound_commands(&mut reader, read_bus);
+            reader_outbound.set_connected(false);
+        });
+        while let Some(publication) = outbound.next() {
+            let frame = match encode_frame(
+                DIRECTION_RUNTIME_TO_GATEWAY,
+                publication.topic,
+                &publication.payload,
+            ) {
                 Ok(f) => f,
                 Err(e) => {
                     warn!(error = %e, "ipc encode");
                     continue;
                 }
             };
-            if stream.write_all(&frame).is_err() {
+            if write_with_deadline(&mut stream, &frame).is_err() {
+                outbound.record_write_failure();
                 break;
             }
         }
+        outbound.set_connected(false);
+        let _ = stream.shutdown(std::net::Shutdown::Both);
+        if reader_task.join().is_err() {
+            warn!("ipc reader panicked");
+        }
     }
+}
+
+fn write_with_deadline(
+    stream: &mut std::os::unix::net::UnixStream,
+    mut frame: &[u8],
+) -> std::io::Result<()> {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
+    while !frame.is_empty() {
+        let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+        if remaining.is_zero() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "ipc frame write deadline",
+            ));
+        }
+        stream.set_write_timeout(Some(remaining))?;
+        match stream.write(frame) {
+            Ok(0) => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::WriteZero,
+                    "ipc frame write",
+                ))
+            }
+            Ok(written) => frame = &frame[written..],
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(error) => return Err(error),
+        }
+    }
+    Ok(())
 }
 
 fn read_inbound_commands(stream: &mut std::os::unix::net::UnixStream, bus: crate::Bus) {
@@ -138,24 +242,71 @@ fn read_inbound_commands(stream: &mut std::os::unix::net::UnixStream, bus: crate
     loop {
         match stream.read(&mut scratch) {
             Ok(0) => break,
-            Ok(n) => buf.extend_from_slice(&scratch[..n]),
+            Ok(n) => {
+                if buf.len() + n > MAX_FRAME_BYTES + scratch.len() {
+                    break;
+                }
+                buf.extend_from_slice(&scratch[..n]);
+            }
             Err(e) => {
                 warn!(error = %e, "ipc command read");
                 break;
             }
         }
-        while let Some(frame) = take_frame(&mut buf) {
+        loop {
+            let frame = match take_frame(&mut buf) {
+                Ok(Some(frame)) => frame,
+                Ok(None) => break,
+                Err(error) => {
+                    warn!(error = %error, "ipc command frame refused");
+                    return;
+                }
+            };
             if let Ok((DIRECTION_GATEWAY_TO_RUNTIME, topic, payload)) = decode_frame(&frame) {
-                let _ = bus.publish_bytes(&topic, payload);
+                if command_is_current(&topic, &payload) {
+                    let _ = bus.publish_bytes(&topic, payload);
+                } else {
+                    warn!(topic, "ipc command topic or timestamp refused");
+                }
             }
         }
     }
 }
 
-fn connect_with_retry(path: &Path) -> Option<std::os::unix::net::UnixStream> {
+fn command_is_current(topic: &str, payload: &[u8]) -> bool {
+    const COMMAND_TOPICS: [&str; 7] = [
+        "robot/enable",
+        "robot/homing",
+        "robot/set_zero",
+        "robot/active_reporting_lease",
+        "robot/motor_status_poll",
+        "robot/testing/mit_command_batch",
+        "robot/actuator/command",
+    ];
+    if !COMMAND_TOPICS.contains(&topic) {
+        return false;
+    }
+    let Ok(envelope) = armee_proto::Envelope::decode(payload) else {
+        return false;
+    };
+    let Ok(now) = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) else {
+        return false;
+    };
+    let Ok(now_ms) = u64::try_from(now.as_millis()) else {
+        return false;
+    };
+    now_ms
+        .checked_sub(envelope.timestamp_ms)
+        .is_some_and(|age| age <= 1000)
+}
+
+fn connect_with_retry(path: &Path, outbound: &Outbox) -> Option<std::os::unix::net::UnixStream> {
     const MAX_ATTEMPTS: u32 = 20;
     const RETRY_MS: u64 = 250;
     for attempt in 0..MAX_ATTEMPTS {
+        if outbound.closed() {
+            return None;
+        }
         match std::os::unix::net::UnixStream::connect(path) {
             Ok(s) => {
                 debug!(path = %path.display(), "chappe ipc connected");
@@ -182,12 +333,38 @@ fn connect_with_retry(path: &Path) -> Option<std::os::unix::net::UnixStream> {
 /// Gateway-side listener: ingests runtime frames; writes commands on the active peer connection.
 pub struct IpcListener {
     peer: Arc<Mutex<Option<std::os::unix::net::UnixStream>>>,
+    closed: Arc<AtomicBool>,
+    worker: Mutex<Option<thread::JoinHandle<()>>>,
 }
 
 impl IpcListener {
     pub fn spawn_server(
         socket_path: PathBuf,
         on_runtime_frame: Arc<dyn Fn(String, Vec<u8>) + Send + Sync>,
+    ) -> Result<Arc<Self>, IpcError> {
+        Self::spawn_server_with_lifecycle(socket_path, on_runtime_frame, Arc::new(|_| {}))
+    }
+
+    /// Serialize peer transitions with frame delivery; retired peers cannot publish
+    /// into the replacement connection's state. Callbacks must not block.
+    pub fn spawn_server_with_lifecycle(
+        socket_path: PathBuf,
+        on_runtime_frame: Arc<dyn Fn(String, Vec<u8>) + Send + Sync>,
+        on_connection_change: Arc<dyn Fn(bool) + Send + Sync>,
+    ) -> Result<Arc<Self>, IpcError> {
+        Self::spawn_server_before_install(
+            socket_path,
+            on_runtime_frame,
+            on_connection_change,
+            || {},
+        )
+    }
+
+    fn spawn_server_before_install(
+        socket_path: PathBuf,
+        on_runtime_frame: Arc<dyn Fn(String, Vec<u8>) + Send + Sync>,
+        on_connection_change: Arc<dyn Fn(bool) + Send + Sync>,
+        before_install: impl Fn() + Send + Sync + 'static,
     ) -> Result<Arc<Self>, IpcError> {
         if socket_path.exists() {
             let _ = std::fs::remove_file(&socket_path);
@@ -196,39 +373,172 @@ impl IpcListener {
             std::fs::create_dir_all(parent).map_err(IpcError::Io)?;
         }
         let listener = std::os::unix::net::UnixListener::bind(&socket_path)?;
+        listener.set_nonblocking(true)?;
         let _ = std::fs::set_permissions(
             &socket_path,
             std::os::unix::fs::PermissionsExt::from_mode(0o660),
         );
-        let peer = Arc::new(Mutex::new(None));
+        let peer = Arc::new(Mutex::new(None::<std::os::unix::net::UnixStream>));
         let peer_accept = Arc::clone(&peer);
-        thread::Builder::new()
+        let delivery = Arc::new(Mutex::new(()));
+        let active_generation = Arc::new(AtomicU64::new(0));
+        let closed = Arc::new(AtomicBool::new(false));
+        let accept_closed = Arc::clone(&closed);
+        let worker = thread::Builder::new()
             .name("chappe-ipc-server".into())
             .spawn(move || {
-                for stream in listener.incoming().flatten() {
-                    if let Ok(mut guard) = peer_accept.lock() {
-                        *guard = stream.try_clone().ok();
+                let mut generation = 0_u64;
+                let mut previous_reader: Option<thread::JoinHandle<()>> = None;
+                while !accept_closed.load(Ordering::Relaxed) {
+                    let stream = match listener.accept() {
+                        Ok((stream, _)) => stream,
+                        Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                            thread::sleep(std::time::Duration::from_millis(50));
+                            continue;
+                        }
+                        Err(error) => {
+                            warn!(error = %error, "ipc accept failed");
+                            break;
+                        }
+                    };
+                    if let Err(error) = stream.set_nonblocking(false) {
+                        warn!(error = %error, "ipc peer blocking mode failed");
+                        continue;
                     }
-                    let on_frame = Arc::clone(&on_runtime_frame);
-                    thread::spawn(move || read_connection(stream, on_frame));
+                    let writer = match stream.try_clone() {
+                        Ok(writer) => writer,
+                        Err(error) => {
+                            warn!(error = %error, "ipc peer clone failed");
+                            continue;
+                        }
+                    };
+                    generation = generation.saturating_add(1);
+                    let connection_generation = generation;
+                    before_install();
+                    {
+                        let _delivery = delivery.lock().unwrap_or_else(|error| error.into_inner());
+                        let mut guard = peer_accept
+                            .lock()
+                            .unwrap_or_else(|error| error.into_inner());
+                        if accept_closed.load(Ordering::Relaxed) {
+                            let _ = writer.shutdown(std::net::Shutdown::Both);
+                            break;
+                        }
+                        if let Some(old) = guard.take() {
+                            let _ = old.shutdown(std::net::Shutdown::Both);
+                        }
+                        *guard = Some(writer);
+                        active_generation.store(connection_generation, Ordering::Relaxed);
+                        drop(guard);
+                        on_connection_change(true);
+                    }
+                    if let Some(reader) = previous_reader.take() {
+                        if reader.join().is_err() {
+                            warn!("retired ipc peer reader panicked");
+                        }
+                    }
+                    let handler = Arc::clone(&on_runtime_frame);
+                    let frame_delivery = Arc::clone(&delivery);
+                    let frame_generation = Arc::clone(&active_generation);
+                    let on_frame = Arc::new(move |topic, payload| {
+                        let _delivery = frame_delivery
+                            .lock()
+                            .unwrap_or_else(|error| error.into_inner());
+                        if frame_generation.load(Ordering::Relaxed) == connection_generation {
+                            handler(topic, payload);
+                        }
+                    });
+                    let reader_delivery = Arc::clone(&delivery);
+                    let reader_generation = Arc::clone(&active_generation);
+                    let reader_peer = Arc::clone(&peer_accept);
+                    let reader_changed = Arc::clone(&on_connection_change);
+                    previous_reader = Some(thread::spawn(move || {
+                        read_connection(stream, on_frame);
+                        let _delivery = reader_delivery
+                            .lock()
+                            .unwrap_or_else(|error| error.into_inner());
+                        if reader_generation.load(Ordering::Relaxed) == connection_generation {
+                            reader_generation.store(0, Ordering::Relaxed);
+                            let old = reader_peer
+                                .lock()
+                                .unwrap_or_else(|error| error.into_inner())
+                                .take();
+                            if let Some(old) = old {
+                                let _ = old.shutdown(std::net::Shutdown::Both);
+                            }
+                            reader_changed(false);
+                        }
+                    }));
+                }
+                if let Some(reader) = previous_reader {
+                    if reader.join().is_err() {
+                        warn!("ipc peer reader panicked during shutdown");
+                    }
                 }
             })
             .map_err(IpcError::Io)?;
-        Ok(Arc::new(Self { peer }))
+        Ok(Arc::new(Self {
+            peer,
+            closed,
+            worker: Mutex::new(Some(worker)),
+        }))
+    }
+
+    fn close(&self) {
+        let guard = self.peer.lock().unwrap_or_else(|error| error.into_inner());
+        self.closed.store(true, Ordering::Relaxed);
+        if let Some(peer) = guard.as_ref() {
+            let _ = peer.shutdown(std::net::Shutdown::Both);
+        }
+    }
+
+    /// Close the active peer, wake accept and join all owned listener/reader tasks.
+    /// Call outside callbacks and realtime loops.
+    pub fn shutdown(&self) -> Result<(), IpcError> {
+        self.close();
+        if let Some(worker) = self
+            .worker
+            .lock()
+            .map_err(|error| IpcError::Framing(error.to_string()))?
+            .take()
+        {
+            worker
+                .join()
+                .map_err(|_| IpcError::Framing("ipc listener worker panicked".into()))?;
+        }
+        Ok(())
     }
 
     pub fn send_command(&self, topic: &str, payload: &[u8]) -> Result<(), IpcError> {
+        if self.closed.load(Ordering::Relaxed) {
+            return Err(IpcError::Framing("ipc listener closed".into()));
+        }
         let frame = encode_frame(DIRECTION_GATEWAY_TO_RUNTIME, topic, payload)?;
         let mut guard = self
             .peer
             .lock()
             .map_err(|e| IpcError::Framing(e.to_string()))?;
+        if self.closed.load(Ordering::Relaxed) {
+            return Err(IpcError::Framing("ipc listener closed".into()));
+        }
         if let Some(s) = guard.as_mut() {
-            s.write_all(&frame)?;
-            Ok(())
+            match write_with_deadline(s, &frame) {
+                Ok(()) => Ok(()),
+                Err(error) => {
+                    let _ = s.shutdown(std::net::Shutdown::Both);
+                    *guard = None;
+                    Err(IpcError::Io(error))
+                }
+            }
         } else {
             Err(IpcError::Framing("no ipc peer connected".into()))
         }
+    }
+}
+
+impl Drop for IpcListener {
+    fn drop(&mut self) {
+        self.close();
     }
 }
 
@@ -241,13 +551,26 @@ fn read_connection(
     loop {
         match stream.read(&mut scratch) {
             Ok(0) => break,
-            Ok(n) => buf.extend_from_slice(&scratch[..n]),
+            Ok(n) => {
+                if buf.len() + n > MAX_FRAME_BYTES + scratch.len() {
+                    break;
+                }
+                buf.extend_from_slice(&scratch[..n]);
+            }
             Err(e) => {
                 warn!(error = %e, "ipc read");
                 break;
             }
         }
-        while let Some(frame) = take_frame(&mut buf) {
+        loop {
+            let frame = match take_frame(&mut buf) {
+                Ok(Some(frame)) => frame,
+                Ok(None) => break,
+                Err(error) => {
+                    warn!(error = %error, "ipc runtime frame refused");
+                    return;
+                }
+            };
             match decode_frame(&frame) {
                 Ok((DIRECTION_RUNTIME_TO_GATEWAY, topic, payload)) => {
                     on_runtime_frame(topic, payload);
@@ -260,24 +583,37 @@ fn read_connection(
     }
 }
 
-fn take_frame(buf: &mut Vec<u8>) -> Option<Vec<u8>> {
+fn take_frame(buf: &mut Vec<u8>) -> Result<Option<Vec<u8>>, IpcError> {
     if buf.len() < 1 + 4 {
-        return None;
+        return Ok(None);
     }
     let direction = buf[0];
     let _ = direction;
-    let topic_len = u32::from_le_bytes(buf[1..5].try_into().ok()?) as usize;
-    if buf.len() < 5 + topic_len + 4 {
-        return None;
+    let topic_len = u32::from_le_bytes(
+        buf[1..5]
+            .try_into()
+            .map_err(|_| IpcError::Framing("topic length".into()))?,
+    ) as usize;
+    if topic_len > MAX_TOPIC_BYTES {
+        return Err(IpcError::Framing("topic too long".into()));
     }
-    let payload_len =
-        u32::from_le_bytes(buf[5 + topic_len..9 + topic_len].try_into().ok()?) as usize;
+    if buf.len() < 5 + topic_len + 4 {
+        return Ok(None);
+    }
+    let payload_len = u32::from_le_bytes(
+        buf[5 + topic_len..9 + topic_len]
+            .try_into()
+            .map_err(|_| IpcError::Framing("payload length".into()))?,
+    ) as usize;
+    if payload_len > MAX_PAYLOAD_BYTES {
+        return Err(IpcError::Framing("payload too long".into()));
+    }
     let total = 1 + 4 + topic_len + 4 + payload_len;
     if buf.len() < total {
-        return None;
+        return Ok(None);
     }
     let frame = buf.drain(..total).collect();
-    Some(frame)
+    Ok(Some(frame))
 }
 
 #[cfg(test)]
@@ -294,5 +630,131 @@ mod tests {
         assert_eq!(dir, DIRECTION_RUNTIME_TO_GATEWAY);
         assert_eq!(topic, "robot/state");
         assert_eq!(payload, vec![1, 2, 3]);
+    }
+}
+
+#[cfg(test)]
+mod listener_shutdown_race_tests {
+    #![allow(clippy::expect_used)]
+    use super::*;
+    use std::sync::mpsc;
+    use std::time::Duration;
+
+    #[test]
+    fn shutdown_winning_before_peer_install_joins_with_idle_peer() {
+        let fixture = tempfile::tempdir().expect("fixture");
+        let path = fixture.path().join("shutdown.sock");
+        let (paused_tx, paused_rx) = mpsc::channel();
+        let (resume_tx, resume_rx) = mpsc::channel();
+        let resume_rx = Mutex::new(resume_rx);
+        let listener = IpcListener::spawn_server_before_install(
+            path.clone(),
+            Arc::new(|_, _| {}),
+            Arc::new(|_| {}),
+            move || {
+                paused_tx.send(()).expect("accepted peer barrier");
+                resume_rx
+                    .lock()
+                    .expect("resume lock")
+                    .recv()
+                    .expect("resume install");
+            },
+        )
+        .expect("listener");
+        let peer = std::os::unix::net::UnixStream::connect(path).expect("idle peer");
+        paused_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("accept barrier");
+        listener.close();
+        resume_tx.send(()).expect("resume admission after shutdown");
+        let owned = Arc::clone(&listener);
+        let (complete_tx, complete_rx) = mpsc::channel();
+        let worker = thread::spawn(move || {
+            let _ = complete_tx.send(owned.shutdown());
+        });
+        let completed_while_idle = complete_rx.recv_timeout(Duration::from_secs(5));
+        // Even a regressed join is cleaned up by closing the deliberately idle peer.
+        drop(peer);
+        if completed_while_idle.is_err() {
+            complete_rx
+                .recv_timeout(Duration::from_secs(5))
+                .expect("cleanup join deadline")
+                .expect("cleanup shutdown");
+        }
+        worker.join().expect("join shutdown observer");
+        drop(listener);
+        fixture.close().expect("remove joined socket fixture");
+        completed_while_idle
+            .expect("shutdown must not need peer cooperation")
+            .expect("shutdown result");
+    }
+}
+
+#[cfg(test)]
+mod telemetry_expiry_tests {
+    #![allow(clippy::expect_used)]
+    use super::*;
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn reconnect_sends_only_eligible_state_under_injected_monotonic_time() {
+        for age_ms in [1000, 1001] {
+            let fixture = tempfile::tempdir().expect("fixture");
+            let path = fixture.path().join("expiry.sock");
+            let elapsed = Arc::new(AtomicU64::new(0));
+            let clock_elapsed = Arc::clone(&elapsed);
+            let origin = Instant::now();
+            let outbox = Arc::new(Outbox::new_with_clock(Arc::new(move || {
+                origin + Duration::from_millis(clock_elapsed.load(Ordering::Relaxed))
+            })));
+            let fanout =
+                IpcFanout::spawn_client_with_outbox(path.clone(), crate::Bus::default(), outbox)
+                    .expect("fanout");
+            fanout.forward_runtime_to_gateway("robot/state", &7_u64.to_le_bytes());
+            elapsed.store(age_ms, Ordering::Relaxed);
+            assert_eq!(fanout.queue_stats().oldest_age_ms, age_ms);
+            fanout.forward_runtime_to_gateway("robot/safety", &8_u64.to_le_bytes());
+            fanout.forward_runtime_to_gateway("robot/heartbeat", &9_u64.to_le_bytes());
+            fanout.forward_runtime_to_gateway("robot/audit/action", &10_u64.to_le_bytes());
+            let listener = std::os::unix::net::UnixListener::bind(path).expect("listener");
+            let (mut peer, _) = listener.accept().expect("accept");
+            peer.set_read_timeout(Some(Duration::from_secs(5)))
+                .expect("read deadline");
+            let mut frames = Vec::new();
+            loop {
+                let mut header = [0; 5];
+                peer.read_exact(&mut header).expect("header");
+                let size =
+                    u32::from_le_bytes(header[1..].try_into().expect("topic length")) as usize;
+                assert!(size < MAX_TOPIC_BYTES);
+                let mut topic = vec![0; size];
+                peer.read_exact(&mut topic).expect("topic");
+                let mut length = [0; 4];
+                peer.read_exact(&mut length).expect("length");
+                assert_eq!(u32::from_le_bytes(length), 8);
+                let mut payload = [0; 8];
+                peer.read_exact(&mut payload).expect("payload");
+                let topic = String::from_utf8(topic).expect("topic utf8");
+                let barrier = topic == "robot/audit/action";
+                frames.push((topic, u64::from_le_bytes(payload)));
+                if barrier {
+                    break;
+                }
+            }
+            assert_eq!(
+                frames
+                    .iter()
+                    .any(|(topic, value)| topic == "robot/state" && *value == 7),
+                age_ms == 1000
+            );
+            assert!(
+                frames.contains(&("robot/safety".into(), 8))
+                    && frames.contains(&("robot/heartbeat".into(), 9))
+            );
+            assert_eq!(fanout.queue_stats().dropped, u64::from(age_ms > 1000));
+            fanout.shutdown().expect("join transport");
+            drop(peer);
+            fixture.close().expect("remove joined fixture");
+        }
     }
 }

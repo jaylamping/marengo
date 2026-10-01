@@ -2,16 +2,22 @@
 
 ## Active software repair loop — October 1, 2026
 
-The owner requested `/loop fix the remaining findings`. Batch17 is merged as
-[PR232](https://github.com/jaylamping/marengo/pull/232), equal-tree main7897c33.
-Exact PR CI passed all five jobs; merged-main check/sim passed and vcan is pending
-at this tracking freeze. G15 remains partial. Batch18 [PR233](https://github.com/jaylamping/marengo/pull/233)
-repairs candump numeric/input boundaries, with accepted independent reviews and
-initial all-five-job CI; final integrated tracking-head qualification and delivery
-are pending. The next T17 cold-cache work is isolated on codex/research-cache-await.
-See ledger active_mac_continuation and the batch17/18 reports/evidence. Local
-Docker is installed at ~/Applications/Docker.app but awaits owner onboarding;
-Linux primary qualification is being executed through exact-head hosted CI.
+Batches17,18,20,21 are merged (PR232–235); their exact merged-main CI runs
+passed all five jobs. G17, T18 and T19 are verified; G15 remains partial.
+The ledger preserves all102 findings and eight maintenance tasks:19verified,
+11partial,72open. Historical checkpoint sections below retain their original counts.
+
+Batch22 [PR236](https://github.com/jaylamping/marengo/pull/236) bounds IPC outage
+queues/writes, retires peers and client observations, and handles subscriber ring
+loss explicitly. Standards/Spec reviews are clear;71 affected native Rust tests,
+356Consul tests, build, strict transport clippy, fmt and proto lint pass. Exact-head
+Linux CI and delivery remain pending, so G01 stays open. Worktree:
+`/Users/joseph/.codex/worktrees/bounded-ipc-outage/marengo`.
+
+Batch19 T17 is local on `codex/research-cache-await`; source and34 offline tests
+pass, but its new workflow cannot be pushed with the token's current scopes.
+The authorization question is pending. Do not infer approval from elapsed time.
+Local Docker awaits owner onboarding; primary Linux qualification uses hosted CI.
 The Windows automation remains PAUSED. No robot, deploy, limits or Wave action.
 
 ## Mac continuation — October 1, 2026
