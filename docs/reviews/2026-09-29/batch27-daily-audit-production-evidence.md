@@ -15,3 +15,19 @@ true/false-positive fixtures; scanner confidence/completeness and durable unreso
 finding evidence (aging out is not closure). Keep102 IDs/8 maintenance tasks and
 physical acceptance boundaries. Reviews, required gates and delivery pending.
 No robot/deploy/limits/Wave/automation action.
+
+## Production lexical slice — not T21 closure
+
+At074d83d, a shared lexical production view masks nested comments, ordinary/raw
+strings and character literals while preserving positions and lines. Exact cfg(test)
+items are removed with lexical brace balance; compound test cfg or unterminated
+input is explicitly Unknown rather than Clean. CAN policy reports actual production
+robstride/socketcan paths with precise line evidence. Frozen historical source/probe
+remain byte-identical and green. True production driver calls, strings/comments,
+brace-containing test items, character/lifetime distinction and unknown syntax have
+independent controls. Full current daily-audit20 tests pass. Codegen regeneration,
+diff/dependency evidence, overall scanner confidence/failure handling and durable
+unresolved-finding ledger remain pending. No PR/delivery or T21 verification yet.
+
+T22 merged-main ca13eb810406539cc2394d6130881176fb76665c allfive CI36938244248 passed;
+verification receipt/ledger will be integrated with that main state next.
