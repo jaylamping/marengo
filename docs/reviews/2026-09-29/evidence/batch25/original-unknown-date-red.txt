@@ -1,0 +1,87 @@
+FFF.                                                                     [100%]
+=================================== FAILURES ===================================
+______ test_requested_window_never_claims_unknown_date_is_recent[week-0] _______
+
+tmp_path = PosixPath('/private/var/folders/nx/mtqx21xs4fn9qy52kqfpz2_w0000gn/T/pytest-of-joseph/pytest-7/test_requested_window_never_cl0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10c5ad7f0>
+recency = 'week', expected = 0
+
+    @pytest.mark.parametrize("recency, expected", [("week", 0), ("month", 0), ("year", 0), ("any", 1)])
+    async def test_requested_window_never_claims_unknown_date_is_recent(tmp_path, monkeypatch, recency, expected):
+        cfg = replace(load_config(), cache_dir=tmp_path)
+        cache = ResearchCache(cfg)
+        provider = AsyncMock(return_value=([ResearchHit(type="paper", title="robot unknown date", url="https://example.test/unknown")], None))
+        monkeypatch.setattr(research, "FOCUS_SOURCES", {"all": ["offline"]})
+        monkeypatch.setattr(research, "_run_source", provider)
+        response = ResearchHumanoidResponse.model_validate_json(await research.research_humanoid(
+            cfg, cache, "robot", recency=recency, scrape_top_n=0,
+        ))
+        provider.assert_awaited_once()
+>       assert len(response.hits) == expected, "unknown date must not be represented as satisfying a requested window"
+E       AssertionError: unknown date must not be represented as satisfying a requested window
+E       assert 1 == 0
+E        +  where 1 = len([ResearchHit(type='paper', title='robot unknown date', url='https://example.test/unknown', snippet='', source_name='', year=None, authors=[], stars=None, citation_count=None, pdf_url=None, scraped_markdown=None, score=1.05)])
+E        +    where [ResearchHit(type='paper', title='robot unknown date', url='https://example.test/unknown', snippet='', source_name='', year=None, authors=[], stars=None, citation_count=None, pdf_url=None, scraped_markdown=None, score=1.05)] = ResearchHumanoidResponse(query='robot', expanded_queries=['robot'], summary='Query: robot Expanded:  Found 1 ranked hi..., year=None, authors=[], stars=None, citation_count=None, pdf_url=None, scraped_markdown=None, score=1.05)], errors=[]).hits
+
+tools/marengo-research-mcp/tests/test_research_recency.py:22: AssertionError
+______ test_requested_window_never_claims_unknown_date_is_recent[month-0] ______
+
+tmp_path = PosixPath('/private/var/folders/nx/mtqx21xs4fn9qy52kqfpz2_w0000gn/T/pytest-of-joseph/pytest-7/test_requested_window_never_cl1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10c3b6b10>
+recency = 'month', expected = 0
+
+    @pytest.mark.parametrize("recency, expected", [("week", 0), ("month", 0), ("year", 0), ("any", 1)])
+    async def test_requested_window_never_claims_unknown_date_is_recent(tmp_path, monkeypatch, recency, expected):
+        cfg = replace(load_config(), cache_dir=tmp_path)
+        cache = ResearchCache(cfg)
+        provider = AsyncMock(return_value=([ResearchHit(type="paper", title="robot unknown date", url="https://example.test/unknown")], None))
+        monkeypatch.setattr(research, "FOCUS_SOURCES", {"all": ["offline"]})
+        monkeypatch.setattr(research, "_run_source", provider)
+        response = ResearchHumanoidResponse.model_validate_json(await research.research_humanoid(
+            cfg, cache, "robot", recency=recency, scrape_top_n=0,
+        ))
+        provider.assert_awaited_once()
+>       assert len(response.hits) == expected, "unknown date must not be represented as satisfying a requested window"
+E       AssertionError: unknown date must not be represented as satisfying a requested window
+E       assert 1 == 0
+E        +  where 1 = len([ResearchHit(type='paper', title='robot unknown date', url='https://example.test/unknown', snippet='', source_name='', year=None, authors=[], stars=None, citation_count=None, pdf_url=None, scraped_markdown=None, score=1.05)])
+E        +    where [ResearchHit(type='paper', title='robot unknown date', url='https://example.test/unknown', snippet='', source_name='', year=None, authors=[], stars=None, citation_count=None, pdf_url=None, scraped_markdown=None, score=1.05)] = ResearchHumanoidResponse(query='robot', expanded_queries=['robot'], summary='Query: robot Expanded:  Found 1 ranked hi..., year=None, authors=[], stars=None, citation_count=None, pdf_url=None, scraped_markdown=None, score=1.05)], errors=[]).hits
+
+tools/marengo-research-mcp/tests/test_research_recency.py:22: AssertionError
+______ test_requested_window_never_claims_unknown_date_is_recent[year-0] _______
+
+tmp_path = PosixPath('/private/var/folders/nx/mtqx21xs4fn9qy52kqfpz2_w0000gn/T/pytest-of-joseph/pytest-7/test_requested_window_never_cl2')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10d120e00>
+recency = 'year', expected = 0
+
+    @pytest.mark.parametrize("recency, expected", [("week", 0), ("month", 0), ("year", 0), ("any", 1)])
+    async def test_requested_window_never_claims_unknown_date_is_recent(tmp_path, monkeypatch, recency, expected):
+        cfg = replace(load_config(), cache_dir=tmp_path)
+        cache = ResearchCache(cfg)
+        provider = AsyncMock(return_value=([ResearchHit(type="paper", title="robot unknown date", url="https://example.test/unknown")], None))
+        monkeypatch.setattr(research, "FOCUS_SOURCES", {"all": ["offline"]})
+        monkeypatch.setattr(research, "_run_source", provider)
+        response = ResearchHumanoidResponse.model_validate_json(await research.research_humanoid(
+            cfg, cache, "robot", recency=recency, scrape_top_n=0,
+        ))
+        provider.assert_awaited_once()
+>       assert len(response.hits) == expected, "unknown date must not be represented as satisfying a requested window"
+E       AssertionError: unknown date must not be represented as satisfying a requested window
+E       assert 1 == 0
+E        +  where 1 = len([ResearchHit(type='paper', title='robot unknown date', url='https://example.test/unknown', snippet='', source_name='', year=None, authors=[], stars=None, citation_count=None, pdf_url=None, scraped_markdown=None, score=1.05)])
+E        +    where [ResearchHit(type='paper', title='robot unknown date', url='https://example.test/unknown', snippet='', source_name='', year=None, authors=[], stars=None, citation_count=None, pdf_url=None, scraped_markdown=None, score=1.05)] = ResearchHumanoidResponse(query='robot', expanded_queries=['robot'], summary='Query: robot Expanded:  Found 1 ranked hi..., year=None, authors=[], stars=None, citation_count=None, pdf_url=None, scraped_markdown=None, score=1.05)], errors=[]).hits
+
+tools/marengo-research-mcp/tests/test_research_recency.py:22: AssertionError
+=============================== warnings summary ===============================
+tests/test_research_recency.py::test_requested_window_never_claims_unknown_date_is_recent[week-0]
+tests/test_research_recency.py::test_requested_window_never_claims_unknown_date_is_recent[month-0]
+tests/test_research_recency.py::test_requested_window_never_claims_unknown_date_is_recent[year-0]
+  /Users/joseph/.codex/worktrees/research-rolling-windows/marengo/tools/marengo-research-mcp/src/marengo_research_mcp/tools/research.py:67: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow().year
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tools/marengo-research-mcp/tests/test_research_recency.py::test_requested_window_never_claims_unknown_date_is_recent[week-0]
+FAILED tools/marengo-research-mcp/tests/test_research_recency.py::test_requested_window_never_claims_unknown_date_is_recent[month-0]
+FAILED tools/marengo-research-mcp/tests/test_research_recency.py::test_requested_window_never_claims_unknown_date_is_recent[year-0]
+3 failed, 1 passed, 3 warnings in 2.03s
