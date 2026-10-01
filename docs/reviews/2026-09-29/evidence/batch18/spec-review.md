@@ -4,7 +4,9 @@ Independent reviewer /root/batch17_spec found one acceptance coverage gap: origi
 G17 requests truncated/corrupt gzip, but only truncation was exercised. Added a
 complete gzip fixture with a flipped CRC checksum; actual public scan returns
 Error::Io. One passing collected test and its output/hash are preserved.
-Follow-up verification of this correction remains pending.
+Independent follow-up reviewer /root/batch17_spec verified085d701 closes the
+scoped gap, with matching recorded output hash and unchanged production/probes.
+No remaining scoped Spec implementation finding.
 
 Otherwise the implementation matches G17: checked numeric conversions, documented
 domains, preserved malformed timestamp skip/regression refusal, ASCII DLC match,

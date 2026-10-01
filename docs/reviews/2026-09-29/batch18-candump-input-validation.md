@@ -1,7 +1,8 @@
 # Batch18: refuse unrepresentable candump input without unwinding
 
-Status: native Mac qualification complete; independent review and exact-head Linux
-CI/delivery pending. Baselineb23c82ba73b6372889f950379db97273053fe147.
+Status: independent Standards/Spec accepted; initial exact-head085d701 Linux CI
+36885833002 passed all five jobs. Integration with batch17 main7897c33 and final
+tracking qualification/delivery remain pending. Baselineb23c82ba73b6372889f950379db97273053fe147.
 Branchcodex/candump-input-validation, isolated from batch17. G17 remains open
 until review and required checks complete; G16 remains open for archive worker,
 page/count/download/cancellation acceptance.
