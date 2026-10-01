@@ -15289,6 +15289,20 @@
       "main_ci_run": 36890121385,
       "status": "merged; exact-head PR and all-five-job main CI passed",
       "report": "batch21-explicit-scrape-zero.md"
+    },
+    {
+      "batch_id": "batch22",
+      "findings": [
+        "G01"
+      ],
+      "PR": "https://github.com/jaylamping/marengo/pull/236",
+      "head": "4dbf333456397764e06f0d0f7e64d4054281cc8a",
+      "merged_main": "0166970a6a31aea19e0ba0c47cf7d5ab2fe4da11",
+      "pr_ci_run": 36898020258,
+      "pr_all_five_jobs_passed": true,
+      "main_ci_run": 36898895683,
+      "status": "merged; exact PR all five CI jobs passed; main primary gate in progress",
+      "report": "batch22-bounded-ipc-outage.md"
     }
   ],
   "finding_status_counts": {
@@ -15317,16 +15331,16 @@
     "human_input_blocker": null
   },
   "active_mac_continuation": {
-    "batch_id": "batch22",
-    "branch": "codex/bounded-ipc-outage",
-    "baseline_main": "a65ae3f08e2601575b8038116bac03c998776bf8",
-    "integration_main": "37a4dd1675a22f064a73ab40426e02937ccea194",
-    "status": "Standards/Spec accepted; native71 and Consul356 pass; PR236 exact-head Linux CI pending; G01 remains open",
-    "PR": "https://github.com/jaylamping/marengo/pull/236",
+    "batch_id": "batch23",
+    "branch": "codex/cpu-counter-columns",
+    "baseline_main": "37a4dd1675a22f064a73ab40426e02937ccea194",
+    "integration_main": "0166970a6a31aea19e0ba0c47cf7d5ab2fe4da11",
+    "status": "Standards/Spec and integration reviews clear; combined native76 and Consul358/build pass; exact-head Linux CI/delivery pending; G18 remains open",
+    "PR": "https://github.com/jaylamping/marengo/pull/237",
     "findings": [
-      "G01"
+      "G18"
     ],
-    "report": "batch22-bounded-ipc-outage.md",
+    "report": "batch23-cpu-counter-columns.md",
     "hardware_acceptance": false,
     "automation_status": "PAUSED",
     "other_pending": "T17 local source/tests accepted, workflow-file push refused because token lacks workflow scope; authorization question remains unanswered"

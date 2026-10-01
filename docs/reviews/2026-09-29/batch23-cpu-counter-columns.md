@@ -28,3 +28,8 @@ Exact-head hosted primary/runtime gates are pending.
 Counter order and decreasing-iowait treatment follow [kernel proc documentation](https://www.kernel.org/doc/html/latest/filesystems/proc.html)
 and the [kernel CPU load guide](https://www.kernel.org/doc/html/latest/admin-guide/cpu-load.html).
 These are kernel accounting observations, not an exact SD-stall measurement.
+
+Integrated main0166970 preserves accepted IPC changes; the only merge conflict
+was the generated checksum, resolved by regenerating the combined schema.
+Both integration reviews at31298a2 are clear. Combined native76 tests and
+Consul358 tests/build pass. PR237 exact-head Linux CI and delivery remain pending.
