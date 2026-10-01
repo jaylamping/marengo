@@ -308,8 +308,9 @@ statement strings.
 
 ### G14 — preserve capture chronology
 
-**Status:** software verified in batch13/PR227 implementation cabfe945,
-run36818692724 all five jobs. Final/main delivery pending. ADR0028 defines UTC,
+**Status:** software verified in completed batch13/PR227: implementation cabfe945,
+final1d3d85b and equal-tree main4c1800d pass all five jobs in runs36818692724,
+36820454955 and36821026729. Verified backup and branch cleanup complete. ADR0028 defines UTC,
 invalid-date refusal, authoritative metadata and unknown-end policies. Four actual
 original-public groups, candidate cutoff conformance/mutation, timezone and required
 local gates qualify the repair. Automatic legacy metadata rewriting remains deferred.
@@ -326,8 +327,16 @@ the historic session at its capture time, regardless of host timezone/import dat
 
 ### G15 — atomic, serialized schema migrations
 
-**Status:** open; DDL and version setting remain separate autocommit operations and
-v2's added column is non-idempotent.
+**Status:** partial in [batch14](batch14-store-migration-atomicity.md), ADR0029.
+Normal upgrades use one guarded owner and an Immediate transaction per schema
+step plus its marker. Six original-public assertion reds replay unchanged green;
+eight positive behavior cases and a production marker mutant/replay qualify
+rollback, per-step commits, future/nonempty/OFF refusal and metadata preservation.
+Required local gates and PR228 implementation5b3f56f/run36831085548 all five
+CI jobs pass; final/main delivery remains pending. Known historic
+fields_json-present/version1 schemas receive an actionable refusal, with no
+automatic recovery. Full historic backup/recovery and remaining interruption,
+first-open/parallel-opener, busy and malformed-marker acceptance remain open.
 
 **Scope:** Store open/migrate and migration recovery. Acquire a SQLite write transaction
 for each migration plus its version marker and required data/index transformations.

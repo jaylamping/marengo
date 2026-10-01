@@ -1,3 +1,13 @@
+//! Historical logs, capture/session metadata and operator settings in SQLite.
+//!
+//! Store owns its connection mutex; the private migration owner reserves SQLite's
+//! writer before inspecting a version and commits each schema step with its marker.
+//! Archive/file operations and candump inspection remain separate from migration
+//! transactions. This crate does not authorize robot motion or repair arbitrary
+//! damaged databases; callers own request scheduling and historic recovery policy.
+//! Allowed dependencies are SQLite, compression/time/serialization and ordinary
+//! storage utilities, plus marengo-candump inspection. No control-stack dependency.
+
 mod error;
 mod journal;
 mod migrations;

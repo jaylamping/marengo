@@ -452,9 +452,31 @@ excluded. Independent Standards and Spec accept the complete implementation.
 All 1,455 final source inputs stay unchanged. Strict affected21/0/0, required
 primary756 Rust/1 existing ignored,355 frontend/72 Pi MCP/fatal ARM, observed
 UTC-8/UTC+14 chronology2/0/0 and simulation5/0/0 pass. PR227 implementation `cabfe945` passes all five jobs in run36818692724, including
-73 actual virtual CAN tests with zero ignored. G14 software is verified; final/main
-delivery remains pending. Counts:16 verified,10 partial,76 open. G15 serialized
+73 actual virtual CAN tests with zero ignored. Final1d3d85b/run36820454955 and
+equal-tree main4c1800d/run36821026729 also pass all five jobs, with fatal main ARM
+release. Verified all-refs backup and exact branch cleanup complete.
+Counts at that checkpoint:16 verified,10 partial,76 open. G15 serialized
 migrations is the next independent WP09 slice. R2b1 reference journaling/grants remain separate engineering work.
+
+## Fourteenth batch: normal migration atomicity
+
+[Batch14](batch14-store-migration-atomicity.md) implements ADR0029 from checked
+main4c1800d. One guarded owner reads the marker under SQLite's Immediate writer
+reservation and commits each DDL/data/FTS transition with its matching marker.
+Six whole original-public assertion reds replay unchanged green; eight positive
+behavior cases and one candidate production marker mutant/unchanged replay qualify
+rollback, retained prior commits, supported upgrades, future/nonempty/OFF refusal
+and current marker/settings preservation. Phase01 review defects are corrected;
+its earlier narrow positives remain historical evidence, not the shipped candidate.
+
+All 1,459 gate inputs remain unchanged. Strict affected29/0/0, required primary
+764 Rust/1 existing ignored,355 frontend/72 Pi MCP/fatal ARM and simulation5/0/0
+pass. PR228 implementation5b3f56f/run36831085548 also passes all five jobs,
+including73 actual virtual CAN tests with zero ignored. Final tracking review
+and final/main delivery remain pending. G15 is partial until
+backed-up historic recovery and remaining interruption/refusal/concurrency
+acceptance are independently qualified. Counts:16 verified,11 partial,75 open
+across the same102IDs. No robot operations, limits or Wave sign-off changes.
 
 ## Completion and continuation
 

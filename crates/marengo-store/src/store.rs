@@ -11,7 +11,7 @@ use std::sync::Mutex;
 use time::OffsetDateTime;
 
 use crate::error::{Result, StoreError};
-use crate::migrations::{MIGRATION_001, MIGRATION_002, MIGRATION_003, SCHEMA_VERSION};
+use crate::migrations;
 use crate::model::{
     LegacyImportSummary, LogEventInsert, LogEventRow, LogSessionRow, SessionArtifact,
     StructuredLogQuery,
@@ -70,37 +70,8 @@ impl Store {
     }
 
     pub fn migrate(&self) -> Result<()> {
-        self.connection().execute_batch(MIGRATION_001)?;
-        let now = now_ms();
-        let version = self.schema_version()?.unwrap_or(0);
-        if version < 2 {
-            self.connection().execute_batch(MIGRATION_002)?;
-        }
-        if version < 3 {
-            self.connection().execute_batch(MIGRATION_003)?;
-        }
-        self.set_setting("schema_version", &SCHEMA_VERSION.to_string(), now)?;
-        if self.get_setting("log_archive_days")?.is_none() {
-            self.set_setting(
-                "log_archive_days",
-                &crate::paths::DEFAULT_ARCHIVE_DAYS.to_string(),
-                now,
-            )?;
-        }
-        if self.get_setting("log_disk_budget_bytes")?.is_none() {
-            self.set_setting(
-                "log_disk_budget_bytes",
-                &crate::paths::DEFAULT_LOG_DISK_BUDGET_BYTES.to_string(),
-                now,
-            )?;
-        }
-        Ok(())
-    }
-
-    fn schema_version(&self) -> Result<Option<i64>> {
-        Ok(self
-            .get_setting("schema_version")?
-            .and_then(|v| v.parse::<i64>().ok()))
+        let mut conn = self.connection();
+        migrations::migrate(&mut conn, now_ms())
     }
 
     pub fn set_setting(&self, key: &str, value_json: &str, updated_ms: u64) -> Result<()> {

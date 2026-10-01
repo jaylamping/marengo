@@ -294,8 +294,39 @@ and fatal ARM release, observed timezone2/0/0 and simulation5/0/0 pass on the ex
 1,455-input source. Independent Standards/Spec and final lint reconciliations
 accept the code. The final seven-run independent execution audit accepts actual
 proofs. PR227 implementation cabfe945/run36818692724 passes all five jobs, including
-73 virtual CAN tests with zero ignored; final/main delivery remains pending.
+73 virtual CAN tests with zero ignored. Final1d3d85b/run36820454955 and equal-tree
+main4c1800d/run36821026729 complete all five jobs and verified backup/branch cleanup.
 Useful retention liveness,
 structured-query/FTS and candump tests stay; no test removal or speedup is justified
 by the five new behavior groups alone. No new ignores, hardware dependencies,
 negative sleeps, maintenance-clock expectations or late-I/O rollback claims.
+
+## Fourteenth batch: independent SQLite migration behavior
+
+Three whole integration probes cover eight real database behavior cases. Literal
+v1/v2/current/future fixtures do not import production migration SQL. Six actual
+original-public assertion reds replay unchanged green: marker2 and marker3
+refusal after DDL, current metadata preservation, future schema refusal,
+unversioned nonempty admission and public migrate with journal mode OFF.
+Typed SQLite trigger refusal, independent schema/data/FTS/integrity observations,
+real retry/reopen, neighbor preservation and actual cleanup precede each oracle.
+The OFF fixture uses supported Store bootstrap as a stated fixture dependency;
+it proves refusal before logical writes, not successful rollback with journals off.
+
+Candidate-only per-step conformance establishes a committed, usable v2 after a
+later marker3 refusal. It catches one exact production mutation that skips marker2
+and replays unchanged green. No missing API, setup failure or compiler error is
+counted as a regression. Complete 1,480-file originals and the 1,483-file final
+candidate bind metadata, actual local recompilation, executable hashes, direct
+workers, completed waits and empty fixture directories. Bounded child watchdogs
+keep public migration deadlocks finite; no hardware dependency or new ignore.
+
+Strict affected29/0/0, primary764 Rust/1 existing ignored,355 frontend/72 Pi MCP
+and fatal ARM release, plus simulation5/0/0 pass on 1,459 unchanged gate inputs.
+Meaningful existing retention/query/FTS/candump tests remain. No test deletion or
+build speedup is inferred. Historic recovery, full interruption/refusal/race
+coverage and power-loss durability remain outside this normal-upgrade slice.
+
+PR228 implementation5b3f56f/run36831085548 passes all five CI jobs with actual
+764Rust/1 existing ignored,355frontend/72PiMCP,5simulation and73virtualCAN
+(zero ignored in simulation/vcan). Final/main delivery remains pending.
