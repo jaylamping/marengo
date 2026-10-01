@@ -1,0 +1,6 @@
+{
+  "baseline": "f831e587b330b6c353456ee5cec7c55d50139603",
+  "probe_sha256": "3174f541246fed4b00b0e15cb94a905e9c002a299ddb9107bb59a65326ef1257",
+  "original_assertion_failures": 1,
+  "scope": "Actual run.sh invoked with owned fake dependency scanner; scanner usage error must not become advisory finding"
+}
