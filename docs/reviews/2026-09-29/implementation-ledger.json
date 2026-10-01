@@ -3489,10 +3489,13 @@
       "source": "tooling.md#t22--optional-daily-cargo-audit-fails-before-scanning",
       "work_package": "WP00",
       "implementation_and_acceptance_plan": "frontend-tooling-implementation-plan.md",
-      "status": "open",
-      "evidence": [],
-      "verified_commit_or_pr": null,
-      "hardware_acceptance": "not established by this software repair"
+      "status": "verified",
+      "evidence": [
+        "Frozen public scanner-error assertion unchanged green;15dailytests incl15matrixcases, realcargo-audit0.22.2 CLI scans preparedownedDB. Standards/Spec clear0db21a0. ExactPRhead1ede466 CI36937530222 check/vcan passed(simpathskip); mergedmainca13eb8 allfive CI36938244248 pass. Provenanceidentity/timeoutstreams qualified, maintenancewarning remains M01."
+      ],
+      "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/240",
+      "hardware_acceptance": "not established by this software repair",
+      "implementation_batch": "batch26"
     },
     {
       "id": "T23",
@@ -15355,12 +15358,26 @@
       "main_ci_run": 36909443242,
       "all_five_main_jobs": "passed",
       "report": "batch25-research-rolling-windows.md"
+    },
+    {
+      "batch_id": "batch26",
+      "findings": [
+        "T22"
+      ],
+      "status": "verified",
+      "pr": 240,
+      "head": "1ede466888a319966e1151ea3e182c59afb6b3ed",
+      "pr_ci_run": 36937530222,
+      "main_commit": "ca13eb810406539cc2394d6130881176fb76665c",
+      "main_ci_run": 36938244248,
+      "all_five_main_jobs": "passed",
+      "report": "batch26-daily-cargo-audit-status.md"
     }
   ],
   "finding_status_counts": {
-    "verified": 23,
+    "verified": 24,
     "partial": 11,
-    "open": 68
+    "open": 67
   },
   "next_dependency_ready_batch": {
     "current": "Complete final batch18 PR233 integrated exact-head CI/delivery; reconcile batch17mainvcan. Next independent T17cold-cache repair is in codex/research-cache-await; do not close finding until reviews/checks/delivery.",
@@ -15383,14 +15400,13 @@
     "human_input_blocker": null
   },
   "active_mac_continuation": {
-    "batch_id": "batch26",
-    "branch": "codex/daily-cargo-audit-status",
+    "batch_id": "batch27",
+    "branch": "codex/daily-audit-production-evidence",
     "findings": [
-      "T22"
+      "T21"
     ],
-    "report": "batch26-daily-cargo-audit-status.md",
-    "status": "T22 original unchanged regression/native15 tests + realpinnedCLI; Standards/Spec final clear0db21a0. DraftPR240 exacthead Linux CI/delivery pending. T20 verified; T17 workflow authorization pending independently.",
-    "physical_acceptance": false,
-    "pr": 240
+    "report": "batch27-daily-audit-production-evidence.md",
+    "status": "Historicalfalsepositiveprobe+lexicalproductioncontrols green; codegen verification/confidence/durableledger pending. T22verified. T17workflowauthorizationpending.",
+    "physical_acceptance": false
   }
 }
