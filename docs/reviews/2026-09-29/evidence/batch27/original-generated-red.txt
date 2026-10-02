@@ -1,0 +1,13 @@
+F
+======================================================================
+FAIL: test_legitimate_regeneration_is_not_a_critical_hand_edit (test_generated_audit_probe.GeneratedAuditProbe)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/joseph/.codex/worktrees/daily-audit-production-evidence/marengo/scripts/daily-audit/test_generated_audit_probe.py", line 50, in test_legitimate_regeneration_is_not_a_critical_hand_edit
+    self.assertFalse(any(f.severity == "critical" for f in report.findings), "matching locked regeneration must not be called a hand edit")
+AssertionError: True is not false : matching locked regeneration must not be called a hand edit
+
+----------------------------------------------------------------------
+Ran 1 test in 0.016s
+
+FAILED (failures=1)
