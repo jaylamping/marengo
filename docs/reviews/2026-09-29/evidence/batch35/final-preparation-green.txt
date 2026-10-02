@@ -1,0 +1,22 @@
+ Container marengo-check-run-08b85abb074d Creating 
+ Container marengo-check-run-08b85abb074d Created 
+   Compiling marengo-pi v0.1.0 (/workspace/bins/marengo-pi)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.41s
+     Running unittests src/main.rs (target/debug/deps/marengo_pi-d1290116ffd1a88d)
+
+running 5 tests
+disabled
+disabled
+disabled
+disabled
+disabled
+test safety_publication_tests::periodic_wire_state_reports_observed_hardware_estop_authority ... ok
+test safety_publication_tests::periodic_wire_state_retains_single_device_fault_with_following_healthy_status ... ok
+test safety_publication_tests::periodic_wire_state_keeps_faults_on_both_loaded_peer_addresses ... ok
+test safety_publication_tests::healthy_periodic_wire_state_and_ordinary_disable_remain_clear ... ok
+test safety_publication_tests::periodic_wire_state_retains_single_transport_fault_across_healthy_ticks_and_disable ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 33 filtered out; finished in 0.19s
+
+    Checking marengo-pi v0.1.0 (/workspace/bins/marengo-pi)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4.29s

@@ -349,7 +349,15 @@ state survives the next healthy/Disabled tick and a missed telemetry publication
 ### CS13: persistent fault state and stop generation (C1/C3, P2, partial)
 
 Batch03 implements private Davout authority and Berthier stop-generation
-invalidation. No reset API is supplied. Pi/protobuf publication, other owner
+invalidation. Batch35 wires periodic Pi/protobuf publication to that retained
+authority: every fault's stable ID/class/message/joint and the observed hardware
+E-stop input remain visible across healthy ticks and ordinary Disable. Five
+actual-loop/Chappe cases include a single fault between publication intervals,
+two affected peers, observed E-stop input and healthy startup. Final byte-identical
+probes fail original production in four named cases and pass after repair.
+Full qualification and actual installed replay are recorded separately in
+[batch35](batch35-persistent-fault-publication.md).
+No reset API is supplied. Other owner
 failure classes, boot/device-qualified recovery, process-reconstruction bypass
 closure and queued-command session/generation admission remain open.
 

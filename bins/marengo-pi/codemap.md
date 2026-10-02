@@ -8,6 +8,8 @@
 - `PiCommand` enum: enable, disable, status, set-zero, hold-on, hold-at, gravity-on, quit.
 - Chappe subscribers for `EnableRequest`, homing commands, testing panel commands from Consul.
 - Preflight `preflight_gravity_saturation` before enable (refuses if τ_g exceeds motor limits).
+- Periodic `SafetyState` reads Davout's retained fault authority, publishing every fault's stable ID/class/message/joint and the observed hardware E-stop input. Healthy ticks and ordinary Disable cannot publish a retained fault as clear. Actual Pi GPIO wiring and physical recovery remain unqualified.
+- `src/safety_publication_tests.rs` exercises the installed control loop and Chappe wire across one-shot transport/device faults, two peers, observed E-stop input and healthy startup, including subsequent ordinary Disable.
 
 ## Flow
 1. `main` → parse args → load config → `RuntimeBus::open(can_interface)`
