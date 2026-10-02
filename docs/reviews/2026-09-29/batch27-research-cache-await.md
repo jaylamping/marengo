@@ -87,4 +87,8 @@ rerun reproduced the failure. Inspection found the shared config resolver chose
 installed /opt/marengo/config rather than the copied diagnostics-off fixture.
 This is a separate test-resource isolation finding, pending repair/qualification;
 full Pi Rust acceptance is not claimed. No physical CAN transport was opened.
-T17 remains open until required delivery passes.
+T17 is verified after PR241 merged asadef857. Exact PR CI36956898047
+passed applicable changes/build/check/vcan jobs (sim skipped by path policy),
+and exact merged-main CI36958210262 passed allfive. Both reviews are clear
+at4778422. Final count25 verified,11partial,66open; T26 remains partial.
+Batch28/PR242 separately repairs the now-qualified Pi fixture isolation defect.

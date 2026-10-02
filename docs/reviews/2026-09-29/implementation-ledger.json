@@ -3414,10 +3414,15 @@
       "source": "tooling.md#t17--six-cached-search-handlers-pass-unawaited-coroutines-into-response-validation",
       "work_package": "WP15",
       "implementation_and_acceptance_plan": "frontend-tooling-implementation-plan.md",
-      "status": "open",
-      "evidence": [],
-      "verified_commit_or_pr": null,
-      "hardware_acceptance": "not established by this software repair"
+      "status": "verified",
+      "evidence": [
+        "Batch27 awaits all six public cached providers, handles malformed provider/response/disk bytes, and versions timestamp/TTL envelopes. Canonical original12 red/unchanged12 green; validation21 red/3 positive; corrupt UTF-8 public1 red/green. Windows/Pi research83 and strict Linux primary813 Rust/1ignored, Consul361, Pi MCP72, daily15, fatalARM pass. Both independent reviews clear at4778422.",
+        "PR241 exact-head CI36956898047 passed all applicable check/vcan jobs (sim skipped by path policy); mergedmainadef857 exact CI36958210262 passed allfive jobs. No movement/deployment acceptance."
+      ],
+      "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/241",
+      "hardware_acceptance": "not established by this software repair",
+      "implementation_batch": "batch27",
+      "implementation_pr": "https://github.com/jaylamping/marengo/pull/241"
     },
     {
       "id": "T18",
@@ -3549,7 +3554,8 @@
         "Frontend tests were added in PR212. Batch03 replaces the obsolete scanner/database pin with cargo-deny 0.20.2, cargo-audit 0.22.2, mandatory live fetch and -D index-failure. Final primary has zero index-failure diagnostics and all deny checks pass; 400 dependencies audited against recorded current database.",
         "Real old scanner returned success with 344 missing-index warnings. Real modern default policy also passed incomplete metadata; strict policy rejected it. Missing index, unreachable database and failed warm-cache refresh now fail the actual helper before downstream work.",
         "Python, other executed shell suites, Compound and remaining tool dependency audits are still open. No whole-suite quality or permanent security claim.",
-        "Batch04 gates eight real vcan-up entrypoint/failure contracts in the primary script. The required serial Linux vCAN job now includes the five actual dependency converter contracts instead of filtering them out with --ignored; candidate run36684361659 passes all 73 feature tests, including the six virtual tests. Remaining unrelated behavior suites and tool audits stay open."
+        "Batch04 gates eight real vcan-up entrypoint/failure contracts in the primary script. The required serial Linux vCAN job now includes the five actual dependency converter contracts instead of filtering them out with --ignored; candidate run36684361659 passes all 73 feature tests, including the six virtual tests. Remaining unrelated behavior suites and tool audits stay open.",
+        "Batch27 adds locked offline research83 and daily-audit15 suites to required primary, with pinned uv/disposable environments; hosted PR/main gates passed. Compound, other Python/shell contracts and complete tool dependency audits remain open. Batch28 simulation resource isolation separately qualified Pi Rust814/1ignored; PR242 delivery pending."
       ],
       "verified_commit_or_pr": null,
       "hardware_acceptance": "not established by this software repair",
@@ -15372,16 +15378,32 @@
       "main_ci_run": 36938244248,
       "all_five_main_jobs": "passed",
       "report": "batch26-daily-cargo-audit-status.md"
+    },
+    {
+      "batch_id": "batch27",
+      "findings": [
+        "T17",
+        "T26"
+      ],
+      "status": "T17 verified; T26 partial",
+      "pr": 241,
+      "head": "4778422c55eb4dbb158d6aef2d3eb3cbd5af7e11",
+      "pr_ci_run": 36956898047,
+      "main_commit": "adef857c0e47d8a69a7164f74659b3305253ddca",
+      "main_ci_run": 36958210262,
+      "all_five_main_jobs": "passed",
+      "report": "batch27-research-cache-await.md",
+      "physical_acceptance": false
     }
   ],
   "finding_status_counts": {
-    "verified": 24,
+    "verified": 25,
     "partial": 11,
-    "open": 67
+    "open": 66
   },
   "next_dependency_ready_batch": {
-    "current": "Complete batch27 T17 reviews, primary/Pi offline validation and passing delivery; preserve unpublished Mac branch.",
-    "following": "Prioritize WP10 mutation security (G07/T04) and WP04 R2b1 current-reference journal/grant prerequisites before physical movement qualification. Independent non-motion fixes continue while owner movement answers are pending.",
+    "current": "Complete independently reviewed batch28 PR242 delivery; repair WP10 T01 privileged-helper/release-directory ownership with actual installer contract.",
+    "following": "WP10 G07/T04 mutation security and WP04 R2b1 current-reference journal/grant before physical movement qualification.",
     "human_input_blocker": null
   },
   "automation_status": "PAUSED",
@@ -15411,19 +15433,15 @@
     "pr": 240
   },
   "active_windows_continuation": {
-    "batch_id": "batch27",
-    "branch": "codex/research-cache-await-windows",
-    "baseline": "ca13eb810406539cc2394d6130881176fb76665c",
+    "batch_id": "batch29",
+    "branch": "codex/install-immutable-helpers",
+    "baseline": "adef857c0e47d8a69a7164f74659b3305253ddca",
     "findings": [
-      "T17",
-      "T26"
+      "T01"
     ],
-    "report": "batch27-research-cache-await.md",
-    "status": "Canonical original public12 failures replay unchanged green; validation21 red/3 positive and non-UTF8 public cache1 red repaired. Final native/Pi research83 passed; required final Linux primary passed. Independent final reviews and hosted delivery pending. Isolated Pi Rust workspace exposed reproduced installed-config contamination of simulation fixture; separate repair pending.",
+    "status": "Beginning actual installer resource/permission reproduction in disposable Linux container. Batch27 delivered/verified; parallel batch28 PR242 qualified Linux/Pi814Rust and independently reviewed, hosted delivery pending. No physical deployment or movement.",
     "physical_acceptance": false,
-    "owner_scope": "Continue all software repairs autonomously; validate on powered Pi. Prompt before every physical movement test with proposed movement/bounds/stop. Explicit confirmation and commissioning safeguards required. After10minutes without reply leave movement pending and continue independent work; silence is never approval. Preserve limits, Wave sign-off and paused automation.",
-    "pi_installed_revision": "4bc77ba605834fdec04b436daa4bec67bca84fbb",
-    "pi_observations": "SSH/services/health/CAN/decoded Disabled snapshot verified read-only; reported gravity home; repaired current-reference and E-stop readiness remain unqualified.",
-    "pr": 241
+    "owner_scope": "Autonomous software repair and powered Pi validation. Prompt before every physical movement with movement/bounds/stop; explicit confirmation and commissioning safeguards required. After10minutes no reply leave movement pending and continue independent items; silence never authorizes motion.",
+    "pi_installed_revision": "4bc77ba605834fdec04b436daa4bec67bca84fbb"
   }
 }
