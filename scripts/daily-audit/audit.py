@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import re
 import subprocess
@@ -74,6 +75,7 @@ class Report:
     scan_windows: dict[str, str] = field(default_factory=dict)
     checks: dict[str, dict] = field(default_factory=dict)
     unresolved_findings: list[dict] = field(default_factory=list)
+    evidence: list[dict] = field(default_factory=list)
 
     def add(self, finding: Finding) -> None:
         if finding.severity in ("warn", "critical"):
@@ -186,6 +188,7 @@ def check_gen_handedit(changed: list[str], report: Report) -> None:
         proof = verify_generated(ROOT, changed)
     except (OSError, ValueError, KeyError, TypeError, subprocess.TimeoutExpired) as exc:
         proof = {"status": "unknown", "detail": str(exc)}
+    report.evidence.append({"check": "generated_code", **proof})
     if proof["status"] == "verified":
         return
     mismatch = proof["status"] == "mismatch"
@@ -195,6 +198,22 @@ def check_gen_handedit(changed: list[str], report: Report) -> None:
 
 
 def check_davout_bypass(changed: list[str], report: Report) -> None:
+    if "crates/berthier/Cargo.toml" in changed:
+        proc = subprocess.run(["cargo", "metadata", "--offline", "--locked", "--no-deps", "--format-version", "1"],
+            cwd=ROOT, capture_output=True, text=True, timeout=30)
+        if proc.returncode != 0:
+            raise RuntimeError("Cargo dependency evidence unavailable")
+        metadata = json.loads(proc.stdout)
+        packages = metadata["packages"]
+        package = next((p for p in packages if p["name"] == "berthier"), None)
+        if package is None:
+            raise ValueError("Berthier missing from dependency inventory")
+        report.evidence.append({"check": "berthier_dependencies", "metadata_sha256": hashlib.sha256(proc.stdout.encode()).hexdigest()})
+        for dependency in package["dependencies"]:
+            if dependency["name"] in {"robstride", "socketcan"} and dependency["kind"] != "dev":
+                report.add(Finding("critical", "safety", "crates/berthier/Cargo.toml",
+                    "docs/architecture.md R6 — production driver dependency",
+                    f"Production dependency {dependency['name']} (alias={dependency.get('rename')})"))
     for path in changed:
         if not path.startswith("crates/berthier/") or not path.endswith(".rs"):
             continue
@@ -202,7 +221,10 @@ def check_davout_bypass(changed: list[str], report: Report) -> None:
         if not full.is_file():
             continue
         try:
-            body = production_view(full.read_text(encoding="utf-8"))
+            source = full.read_text(encoding="utf-8")
+            body = production_view(source)
+            report.evidence.append({"check": "production_rust", "file": path,
+                "source_sha256": hashlib.sha256(source.encode()).hexdigest(), "line_numbers_preserved": True})
         except (OSError, UnicodeError, ScanUnknown) as exc:
             report.add(Finding(severity="warn", category="scan", file=path,
                 rule="production Rust classification", message=f"Unknown: {exc}"))
@@ -319,9 +341,11 @@ def check_ci_status(report: Report) -> None:
         ]
     )
     if not isinstance(runs, list) or not runs:
-        return
+        raise ValueError("CI evidence unavailable")
     latest = runs[0]
     conclusion = latest.get("conclusion")
+    if not conclusion:
+        raise ValueError("CI run has no completed conclusion")
     if conclusion and conclusion != "success":
         report.add(
             Finding(
@@ -352,7 +376,7 @@ def check_stale_safety_prs(report: Report) -> None:
         ]
     )
     if not isinstance(prs, list):
-        return
+        raise ValueError("PR inventory evidence unavailable")
     cutoff = datetime.now(timezone.utc) - timedelta(days=7)
     for pr in prs:
         created_raw = pr.get("createdAt")
@@ -395,6 +419,7 @@ def write_report(report: Report, out_dir: Path) -> None:
         "changed_files": report.changed_files,
         "findings": [asdict(f) for f in report.findings],
         "unresolved_findings": report.unresolved_findings,
+        "evidence": report.evidence,
         "topics": report.topics,
         "clean": report.clean,
         "scan_windows": report.scan_windows,
