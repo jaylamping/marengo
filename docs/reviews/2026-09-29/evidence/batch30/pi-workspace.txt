@@ -1,0 +1,1563 @@
+Qualified all 341 native workspace inputs at a0ec58e8530903eb44b3eddb02b882a7390b42c5
+   Compiling armee-kinematics v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/crates/armee-kinematics)
+   Compiling armee-proto v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/crates/armee-proto)
+   Compiling marengo-support v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/crates/marengo-support)
+   Compiling marengo-host-metrics v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/crates/marengo-host-metrics)
+   Compiling marengo-config v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/crates/marengo-config)
+   Compiling armee-dynamics v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/crates/armee-dynamics)
+   Compiling marengo-deploy v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/crates/marengo-deploy)
+   Compiling robstride v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/crates/robstride)
+   Compiling marengo-candump v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/crates/marengo-candump)
+   Compiling talleyrand v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/crates/talleyrand)
+   Compiling fouche v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/crates/fouche)
+   Compiling marengo-imu v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/crates/marengo-imu)
+   Compiling sim-harness v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/crates/sim-harness)
+   Compiling imu-probe v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/bins/imu-probe)
+   Compiling marengo-store v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/crates/marengo-store)
+   Compiling marengo-homing v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/crates/marengo-homing)
+   Compiling chappe v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/crates/chappe)
+   Compiling davout v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/crates/davout)
+   Compiling berthier v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/crates/berthier)
+   Compiling wave-demo v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/bins/wave-demo)
+   Compiling motor-repl v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/bins/motor-repl)
+   Compiling marengo-pi v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/bins/marengo-pi)
+   Compiling marengo-jetson v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/bins/marengo-jetson)
+   Compiling marengo-gateway v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/bins/marengo-gateway)
+   Compiling marengo-log-cli v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/bins/marengo-log-cli)
+   Compiling marengo-limit-sync v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/bins/marengo-limit-sync)
+   Compiling probe v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/bins/probe)
+   Compiling teleop v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/bins/teleop)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2m 59s
+     Running unittests src/lib.rs (target/debug/deps/armee_dynamics-9d812ac93036fa08)
+
+running 9 tests
+test tests::gravity_torques_length_matches_joints ... ok
+test tests::bent_pose_nonzero_gravity ... ok
+test tests::arm_4dof_right_elbow_torque_changes_with_pose ... ok
+test tests::elevated_elbow_changes_elbow_torque ... ok
+test tests::saturation_check_rejects_out_of_range_joint ... ok
+test tests::saturation_check_with_zero_range ... ok
+test tests::weighted_bench_right_heavier_at_pitch ... ok
+test tests::saturation_check_with_min_steps ... ok
+test tests::saturation_check_returns_max_over_range ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/analytic_gravity.rs (target/debug/deps/analytic_gravity-091742794dd387bc)
+     Running tests/archived_arm_geometry.rs (target/debug/deps/archived_arm_geometry-b1995cea06735fad)
+     Running unittests src/lib.rs (target/debug/deps/armee_kinematics-813068e90a90a39a)
+     Running unittests src/lib.rs (target/debug/deps/armee_proto-465162e4fd91e984)
+
+running 4 tests
+test rotated_joint_origin_changes_the_gravity_reference ... ok
+test pendulum_holding_torque_has_analytic_sign_and_magnitude ... ok
+test configured_joint_order_defines_input_and_output_order ... ok
+test two_link_chain_accounts_for_distal_load_and_joint_coupling ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test archived_arm_holding_torque_includes_lateral_joint_offsets ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 17 tests
+test limits::tests::approach_cap_scales_near_lower_wall ... ok
+test limits::tests::asymmetric_envelope_moving_up ... ok
+test limits::tests::fast_descent_margin_exceeds_hard_soft_gap ... ok
+test limits::tests::hold_at_home_not_clamped_by_kinetic_margin ... ok
+test limits::tests::hold_at_home_not_clamped_when_hard_lower_slightly_negative ... ok
+test limits::tests::measured_fault_respects_slack ... ok
+     Running unittests src/lib.rs (target/debug/deps/berthier-1e77e1d430588442)
+test limits::tests::slow_move_uses_min_margin ... ok
+test tests::humanoid_urdf_actuated_joints_match_robot_config ... ignored, marengo.urdf is placeholder until Brawner export; run when commissioning full humanoid
+test expand::tests::never_shrinks ... ok
+test expand::tests::expands_past_current_hard ... ok
+test expand::tests::expands_lower_and_upper_only_outward ... ok
+test tests::loads_arm_4dof_right_urdf ... ok
+test tests::loads_arm_4dof_urdf ... ok
+test tests::joint_limit_bounds_reads_soft_from_arm_4dof ... ok
+test tests::loads_minimal_fixture ... ok
+test tests::joint_limits_match_fixture ... ok
+test tests::loads_production_urdf ... ok
+
+test result: ok. 16 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 7 tests
+test tests::enable_request_roundtrip ... ok
+test tests::heartbeat_roundtrip ... ok
+test tests::envelope_roundtrip ... ok
+test tests::imu_sample_roundtrip ... ok
+test tests::joint_homing_state_unspecified_is_zero ... ok
+test tests::safety_state_roundtrip ... ok
+test tests::robot_state_roundtrip ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 162 tests
+test friction::tests::breakaway_pulse_applies_full_fc_during_onset_while_stuck ... ok
+test friction::tests::cross_target_tapers_coulomb_while_planner_cruises ... ok
+test friction::tests::cross_target_uses_settle_fade_at_hold ... ok
+test friction::tests::gravity_return_onset_friction_ramps_not_full_breakaway ... ok
+test friction::tests::settle_fade_when_planner_done ... ok
+test friction::tests::settle_uses_short_fade_when_far_from_target ... ok
+test friction::tests::friction_continuous_at_accelerate_to_cruise ... ok
+test friction::tests::stuck_onset_ramps_coulomb_with_dq_traj_not_settle_error ... ok
+test friction::tests::settle_friction_scales_with_settle_error ... ok
+test friction::tests::stuck_onset_reaches_full_fc_at_velocity_deadband ... ok
+test friction::tests::sustained_low_angle_breakaway_keeps_full_fc_after_onset ... ok
+test friction::tests::trajectory_friction_fades_overspeed_across_deadband_span ... ok
+test friction::tests::trajectory_friction_fades_when_crossed_target ... ok
+test friction::tests::trajectory_friction_overspeed_fade_is_monotonic ... ok
+test friction::tests::trajectory_friction_ramps_below_velocity_deadband ... ok
+test friction::tests::trajectory_friction_zeros_when_measured_outruns_planner ... ok
+test friction::tests::trajectory_velocity_full_fc_when_moving ... ok
+test friction::tests::zero_velocity_only_offset ... ok
+test gain_runtime::tests::effective_wire_gains_precedence_contract ... ok
+test gain_runtime::tests::apply_batch_skips_joints_without_limits ... ok
+test gain_runtime::tests::on_mode_enter_clears_overrides_before_arming_ramp ... ok
+test gain_runtime::tests::disabled_enter_clears_stale_ramp ... ok
+test gain_runtime::tests::wire_gains_now_falls_back_to_yaml_without_override ... ok
+test gain_runtime::tests::resolve_all_law_ignores_ramp_while_wire_uses_it ... ok
+test gain_runtime::tests::wire_gains_now_uses_override_before_mode_enter_clears ... ok
+test gain_runtime::tests::resolve_all_gravity_comp_ignores_override_but_accepts_ramp ... ok
+test mit_feedforward::tests::gravity_comp_packs_tau_g_and_yaml_zeros ... ok
+test mit_feedforward::tests::gravity_comp_uses_pre_resolved_wire_gains ... ok
+test mit_feedforward::tests::impedance_uses_wire_and_fc ... ok
+test mit_feedforward::tests::torque_only_defaults_tau_cmd_to_zero ... ok
+test mit_feedforward::tests::torque_only_uses_tau_cmd_not_tau_g ... ok
+test position_feedforward::tests::compose_feedforward_sums_components ... ok
+test position_feedforward::tests::hold_phase_damps_velocity_when_settle_error_large ... ok
+test position_hold::numeric_contract_tests::invalid_periods_preserve_state_and_zero_composition_preserves_budget ... ok
+test mode_isolation::position_non_gravity_ff_independent_of_tau_g ... ok
+test position_hold::stall_progress_tests::coherent_motion_then_stationary_encoder_trips_stall_fuse ... ok
+test position_hold::tests::apply_retarget_unarmed_arms_without_desync ... ok
+test position_hold::tests::ascent_recovery_releases_and_resumes_when_arm_moves ... ok
+test position_hold::tests::ascent_stall_counter_resets_on_independent_measured_progress ... ok
+test position_hold::tests::compose_uses_max_lead_not_advance_max_lead_for_effective_lead ... ok
+test position_hold::tests::finished_wave_cleared_inside_advance_before_ascent_stall ... ok
+test position_hold::tests::lead_follow_stuck_residual_arms_recovery_and_pulls_past_target ... ok
+test position_hold::tests::outbound_ascent_stall_retries_to_lead_cap_before_fault ... ok
+test position_hold::tests::same_target_retarget_is_full_noop_on_planner_and_fuse ... ok
+test position_profile::tests::hold_v_max_bleeds_fast_planner_on_small_retarget ... ok
+test position_profile::tests::profile_v_max_selects_slew_for_layer2_move ... ok
+test position_profile::tests::profile_v_max_zero_threshold_always_trajectory ... ok
+test position_trace::tests::csv_row_includes_command_and_measured_torque ... ok
+test position_trajectory::tests::damping_no_catchup_torque_inside_measurement_deadband ... ok
+test position_trajectory::tests::damping_no_spike_cap_when_crossed_target ... ok
+test position_trajectory::tests::damping_spike_cap_limits_mid_travel_brake ... ok
+test position_trajectory::tests::deceleration_starts_before_target ... ok
+test position_trajectory::tests::descent_return_includes_hold_at_home ... ok
+test position_trajectory::tests::dq_ema_softens_breakaway_spike ... ok
+test position_trajectory::tests::gravity_assisted_return_requires_same_side_closer_to_home ... ok
+test position_trajectory::tests::planner_always_uses_trapezoid_for_nontrivial_move ... ok
+test position_trajectory::tests::seed_downward_return_from_high_angle_to_home ... ok
+test position_trajectory::tests::seed_downward_return_skips_limit_directed_negative_move ... ok
+test position_trajectory::tests::seed_downward_return_skips_small_delta ... ok
+test position_trajectory::tests::seed_downward_return_skips_sub_home_target ... ok
+test position_trajectory::tests::seed_downward_return_when_well_above_target ... ok
+test position_trajectory::tests::small_move_uses_low_v_max_in_tick ... ok
+test position_trajectory::tests::trajectory_damping_tracks_velocity_error ... ok
+test position_trajectory::tests::trajectory_velocity_cap_steps_down_by_acceleration_limit ... ok
+test position_trajectory::tests::trapezoid_negative_move ... ok
+test position_trajectory::tests::trapezoid_reaches_target_without_exceeding_v_max ... ok
+test position_wave::tests::analytical_velocity_zero_at_endpoints ... ok
+test position_wave::tests::cosine_is_smooth_near_endpoints ... ok
+test position_wave::tests::cosine_wave_endpoints_and_duration ... ok
+test position_hold::period_contract_tests::submillisecond_period_accumulates_stall_time_without_faulting_real_motion ... ok
+test position_hold::progress_matrix_tests::ascent_watchdog_distinguishes_progress_dither_reversal_cache_and_settle ... ok
+test position_hold::numeric_contract_tests::tiny_installed_grid_progress_survives_clear_and_rearm ... ok
+test r#loop::tests::apply_gain_override_clamps_ki_to_kp_max ... ok
+test r#loop::tests::apply_gain_override_clamps_fc_to_tau_ff_max_nm ... ok
+test r#loop::tests::apply_gain_override_clamps_kd_to_kd_max ... ok
+test r#loop::tests::active_feedback_grace_after_disabled_ticks ... ok
+test r#loop::tests::apply_gain_override_clamps_kp_to_kp_max ... ok
+test r#loop::tests::apply_gain_override_ignored_under_disabled ... ok
+test r#loop::tests::approach_stuck_mit_pull_disabled_on_ascent ... ok
+test r#loop::tests::ascent_stall_enters_bounded_recovery ... ok
+test r#loop::tests::clamp_always_bounds_lead_when_lag_exceeds_max_lead ... ok
+test r#loop::tests::clamp_brakes_when_arm_runs_far_ahead_of_planner ... ok
+test r#loop::tests::clamp_caps_ahead_setpoint_at_target_on_approach ... ok
+test r#loop::tests::clamp_does_not_jump_on_descent_retarget_start ... ok
+test r#loop::tests::clamp_does_not_jump_to_negative_target_before_planner_arrives ... ok
+test r#loop::tests::clamp_does_not_pull_back_when_slightly_ahead_approaching ... ok
+test r#loop::tests::clamp_does_not_pull_forward_near_home_return ... ok
+test r#loop::tests::clamp_latches_setpoint_at_target_on_large_hold_overshoot ... ok
+test r#loop::tests::clamp_trajectory_setpoint_brakes_when_q_outruns_traj ... ok
+test r#loop::tests::apply_gain_override_ignored_under_gravity_comp ... ok
+test r#loop::tests::apply_gain_override_stores_within_limits_as_is ... ok
+test r#loop::tests::descent_mit_pull_clears_after_breakaway_latch ... ok
+test r#loop::tests::clear_gain_override_removes_entry ... ok
+test r#loop::tests::clear_all_overrides_removes_all ... ok
+test r#loop::tests::enable_requires_verified_homing ... ok
+test r#loop::tests::envelope_hold_clamp_allows_home_target_from_high_q ... ok
+test r#loop::tests::enter_position_hold_latches_setpoints ... ok
+test r#loop::tests::enter_torque_only_zero_clears_nonzero_latch ... ok
+test r#loop::tests::gravity_comp_enter_clears_sticky_gain_overrides ... ok
+test r#loop::tests::hold_at_sets_joint_target ... ok
+test r#loop::tests::hold_short_of_target_lead_follows_from_measured_q ... ok
+test r#loop::tests::home_final_approach_stuck_enables_mit_pull_and_unfreezes_planner ... ok
+test r#loop::tests::home_premature_hold_when_arm_above_target_within_old_resync_band ... ok
+test r#loop::tests::home_return_lead_follows_from_above_not_past_home ... ok
+test r#loop::tests::hold_at_reenables_after_safety_disable ... ok
+test r#loop::tests::hold_at_ramps_command_not_instant_setpoint ... ok
+test r#loop::tests::layer2_hold_at_uses_slew_profile_not_trajectory ... ok
+test r#loop::tests::layer2_return_home_stays_on_slew_profile ... ok
+test r#loop::tests::lead_follow_stuck_residual_requires_outbound_gap_and_zero_velocity ... ok
+test r#loop::tests::leaving_position_mode_clears_setpoints ... ok
+test r#loop::tests::leaving_torque_only_clears_torque_cmds ... ok
+test r#loop::tests::limit_clamped_sub_home_target_does_not_seed_downward_return ... ok
+test r#loop::tests::mit_kd_engages_on_velocity_during_motion ... ok
+test r#loop::tests::no_override_config_gains_unchanged ... ok
+test r#loop::tests::onset_lead_boost_expires_at_300ms_boundary ... ok
+test r#loop::tests::onset_max_lead_boosts_outbound_only ... ok
+test r#loop::tests::onset_mit_velocity_follows_planner_while_arm_stuck ... ok
+test r#loop::tests::onset_mit_velocity_zeros_after_onset_window ... ok
+test r#loop::tests::outbound_hold_at_015_no_sustained_lead_boost_after_onset ... ok
+test r#loop::tests::overshoot_past_soft_bottom_stays_above_hard_envelope ... ok
+test r#loop::tests::planner_drift_reverts_to_raw_max_lead_after_onset ... ok
+test r#loop::tests::planner_drift_uses_effective_max_lead_during_onset ... ok
+test r#loop::tests::planner_drifted_detects_stale_init_before_large_hold_at ... ok
+test r#loop::tests::planner_drifted_when_hold_latched_but_arm_not_settled ... ok
+test r#loop::tests::planner_freeze_skipped_in_home_final_approach_band ... ok
+test r#loop::tests::planner_freeze_skips_far_from_home_overshoot_return ... ok
+test r#loop::tests::planner_freeze_skips_high_angle_return_overshoot ... ok
+test r#loop::tests::planner_freeze_skips_intermediate_overshoot_and_synced_return ... ok
+test r#loop::tests::planner_latches_on_overshoot_hold_when_at_rest ... ok
+test r#loop::tests::planner_no_resync_when_lagging_on_home_return ... ok
+test r#loop::tests::planner_not_drifted_on_small_hold_overshoot ... ok
+test r#loop::tests::planner_not_drifted_when_arm_lags_on_home_return ... ok
+test r#loop::tests::planner_not_drifted_when_arm_runs_ahead_on_approach ... ok
+test r#loop::tests::planner_premature_hold_when_virtual_target_reached_before_arm ... ok
+test r#loop::tests::planner_reopens_when_overshot_past_hold_while_moving ... ok
+test r#loop::tests::planner_resync_uses_effective_max_lead_during_onset ... ok
+test r#loop::tests::planner_resyncs_when_stuck_at_lead_cap ... ok
+test r#loop::tests::position_hold_advances_trapezoid_on_first_tick ... ok
+test r#loop::tests::position_hold_tick_runs_when_active ... ok
+test r#loop::tests::position_hold_trajectory_damping_tracks_dq_error ... ok
+test r#loop::tests::position_mode_without_feedback_errors_when_active ... ok
+test r#loop::tests::position_mode_without_latched_setpoint_errors ... ok
+test r#loop::tests::return_onset_pulls_q_des_below_q_when_stuck ... ok
+test r#loop::tests::same_target_hold_at_preserves_active_wave ... ok
+test r#loop::tests::set_torque_cmd_enters_torque_only_and_latches ... ok
+test r#loop::tests::set_torque_cmd_rejects_non_finite ... ok
+test r#loop::tests::set_torque_cmd_rejects_unknown_joint ... ok
+test r#loop::tests::slew_max_lead_clamps_command_ahead_of_measured_q ... ok
+test r#loop::tests::stuck_premature_hold_does_not_thrash_to_cruise_at_target ... ok
+test r#loop::tests::stuck_premature_hold_skips_reopen ... ok
+test r#loop::tests::sub_home_negative_move_does_not_enable_descent_mit_pull ... ok
+test r#loop::tests::tick_partial_enable_sends_mit_only_for_active_joints ... ok
+test r#loop::tests::tick_sends_comm_watchdog_keepalive_when_active_control_disabled ... ok
+test r#loop::tests::tick_sends_no_mit_when_supervisor_not_active ... ok
+test r#loop::tests::torque_only_tick_packs_latched_tau_cmd_on_wire ... ok
+test r#loop::tests::trapezoid_trajectory_accumulates_independently_of_max_lead ... ok
+test tests::controller_commands_through_supervisor ... ok
+test torque_cmd::tests::defaults_zero_and_latches ... ok
+test torque_cmd::tests::on_leave_clears_all ... ok
+test r#loop::tests::ascent_stall_faults_tick_after_bounded_recovery ... ok
+test r#loop::tests::lead_follow_stuck_residual_faults_closed ... ok
+test r#loop::tests::lead_follow_residual_within_resync_band_does_not_ascent_stall ... ok
+     Running tests/cs24_constructor_period.rs (target/debug/deps/cs24_constructor_period-a3d5b11a7452dc25)
+
+test result: ok. 162 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.24s
+
+
+running 1 test
+test zero_rounded_loop_period_is_rejected_by_public_simulation_factory ... ok
+     Running tests/cs24_controller_stiction.rs (target/debug/deps/cs24_controller_stiction-bb9d8342e32772bf)
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 1 test
+test raw_velocity_then_stiction_faults_controller_and_preserves_stop_latch ... ok
+     Running tests/cs24_inactive_peer.rs (target/debug/deps/cs24_inactive_peer-e8bc1df8883fae37)
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.26s
+
+
+running 1 test
+test unresolved_inactive_peer_cannot_trip_selected_position_owner ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.89s
+
+     Running tests/cs24_one_code_crawl.rs (target/debug/deps/cs24_one_code_crawl-d06b32bc9f5923f2)
+
+running 1 test
+test one_encoder_code_each_300_ticks_keeps_selected_position_owner_active ... ok
+     Running tests/cs24_period_precedence.rs (target/debug/deps/cs24_period_precedence-47d9de5c413a7b3a)
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.69s
+
+     Running tests/feedback_bootstrap.rs (target/debug/deps/feedback_bootstrap-c5630029eb7bdaed)
+
+running 1 test
+test zero_rounded_period_is_refused_before_configuration_or_virtual_reference ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 3 tests
+test active_feedback_bootstrap_emits_only_neutral_frames_then_expires ... ok
+test reenable_between_ticks_starts_a_new_bounded_neutral_bootstrap ... ok
+test neutral_bootstrap_supports_taught_ranges_that_exclude_zero ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+
+running 10 tests
+     Running tests/feedback_failure_propagation.rs (target/debug/deps/feedback_failure_propagation-09463e834d2d6afb)
+test already_observed_device_fault_rejects_hold_entry_without_installing_intent ... ok
+test already_observed_device_fault_rejects_new_torque_intent ... ok
+test bootstrap_tick_returns_post_send_receive_failure ... ok
+test hold_entry_rejects_receive_failure_before_installing_motion_intent ... ok
+test disable_and_enable_between_ticks_cancels_previous_torque_intent ... ok
+test exhausted_feedback_bootstrap_cannot_be_rearmed_by_disable_and_enable ... ok
+test wave_entry_rejects_receive_failure_before_installing_motion_intent ... ok
+test target_entry_rejects_receive_failure_before_installing_motion_intent ... ok
+test post_send_unsafe_pose_cannot_be_reported_as_a_successful_tick ... ok
+test active_tick_returns_post_send_receive_failure_in_each_control_mode ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+
+running 1 test
+     Running tests/friction_mode_output.rs (target/debug/deps/friction_mode_output-7ddf3476b8566480)
+test friction_override_changes_impedance_output_and_is_ignored_in_gravity_comp ... ok
+
+     Running tests/gain_validity.rs (target/debug/deps/gain_validity-fb9525795ab33577)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+
+running 2 tests
+test invalid_gain_fields_cannot_replace_an_installed_override ... ok
+test invalid_or_unknown_joint_in_gain_batch_leaves_all_existing_gains_intact ... ok
+     Running tests/reference_intent_admission.rs (target/debug/deps/reference_intent_admission-43a74c848d0e8645)
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+
+running 1 test
+test reserved_owner_refuses_new_torque_mode_and_gain_intent ... ok
+     Running tests/reference_transaction_owner.rs (target/debug/deps/reference_transaction_owner-5a9a9225434fe230)
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 2 tests
+test busy_tick_returns_ok_after_peer_fault_and_same_call_cleanup ... ok
+test busy_ticks_own_each_reference_phase_and_inhibit_retained_torque ... ok
+     Running tests/simulation_admission.rs (target/debug/deps/simulation_admission-46809dd49406e707)
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+
+running 2 tests
+test ordinary_constructor_with_closed_bus_still_has_no_reference_authority ... ok
+     Running tests/simulation_resources.rs (target/debug/deps/simulation_resources-3e8e6d60775c4435)
+test simulation_constructor_admits_only_declared_virtual_joints ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 1 test
+test public_simulation_constructors_ignore_competing_config ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running unittests src/lib.rs (target/debug/deps/chappe-24b81c78c82ec9cf)
+
+running 11 tests
+test ipc::tests::frame_roundtrip ... ok
+test ipc_outbox::shutdown_admission_tests::shutdown_winning_before_queue_lock_refuses_publication ... ok
+test ipc_outbox::contention_admission_tests::publisher_finishes_while_writer_still_owns_queue_guard ... ok
+test ipc::listener_shutdown_race_tests::shutdown_winning_before_peer_install_joins_with_idle_peer ... ok
+test tests::publish_without_subscribers_succeeds ... ok
+test tests::publish_subscribe_envelope ... ok
+test tests::robot_state_over_chappe_matches_wire_contract ... ok
+test tracing_layer::tests::concurrent_tracing_events_share_one_quota ... ok
+test tracing_layer::tests::tracing_log_quota_refills_and_preserves_urgent_events ... ok
+test ipc::telemetry_expiry_tests::reconnect_sends_only_eligible_state_under_injected_monotonic_time ... ok
+test tracing_layer::tests::serialize_fields_truncates_large_payload ... ok
+
+     Running tests/ipc_backpressure.rs (target/debug/deps/ipc_backpressure-b70356a4aa7290bd)
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+
+
+running 4 tests
+test absent_peer_has_bounded_classes_and_honest_counters ... ok
+test reconnect_preserves_bounded_audit_order_and_latest_reserved_state ... ok
+test accepting_nonreading_peer_expires_write_and_bounds_admission ... ok
+     Running tests/ipc_outage.rs (target/debug/deps/ipc_outage-41222dd7e1484321)
+test stalled_connection_reconnects_with_latest_state_and_pending_audit_suffix ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.28s
+
+
+running 2 tests
+test outage_worker ... ok
+test outage_does_not_replay_superseded_state ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+
+     Running tests/ipc_peer_lifetime.rs (target/debug/deps/ipc_peer_lifetime-9c68c2bad5ac4b35)
+
+running 2 tests
+test stale_future_and_unknown_commands_never_reach_runtime_bus ... ok
+test replacement_retires_partial_old_frame_and_disconnect_closes_command_peer ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running unittests src/lib.rs (target/debug/deps/davout-de686f0e79a3928b)
+
+running 66 tests
+test active_reporting::tests::active_mode_forces_off_despite_lease ... ok
+test active_reporting::tests::expire_drops_desired_without_mode_change ... ok
+test active_reporting::tests::fresh_feedback_suppresses_stale_retry_before_heartbeat ... ok
+test active_reporting::tests::heartbeat_reasserts_enable_while_desired ... ok
+test active_reporting::tests::lease_only_enables_that_joint ... ok
+test active_reporting::tests::stale_feedback_reasserts_enable ... ok
+test active_reporting::tests::stale_release_does_not_kill_newer_lease ... ok
+test tests::active_feedback_velocity_above_limit_faults ... ok
+test tests::active_feedback_velocity_cache_uses_position_delta ... ok
+test tests::active_reporting_default_false_sends_no_type24 ... ok
+test tests::active_mode_required_to_send ... ok
+test reference_transaction::tests::exhausted_identity_and_virtual_time_refuse_before_revocation_or_tx ... ok
+test tests::active_reporting_stays_armed_through_ready_for_free_drive ... ok
+test tests::active_reporting_sends_type24_when_non_active_and_flag_true ... ok
+test tests::calibrate_joint_zero_refuses_while_active ... ok
+test tests::active_reporting_zero_tx_during_active_mit_batch ... ok
+test tests::calibrate_joint_zero_unknown_joint_before_enable ... ok
+test tests::clamp_velocity_danger_zone_limits_downward_speed ... ok
+test tests::cruise_near_limit_measured_velocity_does_not_fault ... ok
+test reference_model::model_install_boundary_tests::actual_model_restore_preserves_owner_on_stream_capacity_and_generation_refusal ... ok
+test tests::commissioning_wire_publishes_drive_active_and_homing ... ok
+test tests::danger_zone_skips_when_measured_q_below_threshold ... ok
+test tests::enable_sends_lifecycle_and_mit_run_mode ... ok
+test tests::disable_all_clears_last_tick ... ok
+test tests::enable_targets_partial_failure_disables_all ... ok
+test tests::enable_targets_rejects_empty ... ok
+test tests::enable_targets_refuses_different_set_while_active ... ok
+test tests::enable_targets_sets_active_joints_and_drive_active ... ok
+test tests::feedback_poll_timeout_honors_budget_not_watchdog_cap ... ok
+test tests::filter_command_clamps_position_into_envelope ... ok
+test tests::firmware_speed_mode_requires_config_flag ... ok
+test tests::feedback_state_is_keyed_by_bus_address ... ok
+test tests::comm_watchdog_unchanged_despite_larger_poll_budget ... ok
+test tests::joint_feedback_exposes_temperature_and_fault ... ok
+test tests::joint_feedback_omits_stale_samples_when_not_active ... ok
+test tests::joint_feedback_omits_stale_samples_while_active ... ok
+test tests::limit_patch_expands_urdf_when_past_current_hard ... ok
+test tests::limit_patch_rebuilds_runtime_policy ... ok
+test tests::limit_patch_refuses_while_active ... ok
+test tests::joint_feedback_transforms_once_on_refresh_with_inverted_scale ... ok
+test tests::limit_patch_rejects_inverted_bounds_without_mutation ... ok
+test tests::limit_patch_rejects_measured_position_outside_new_bounds ... ok
+test tests::no_comm_type_22_in_robstride_surface ... ok
+test tests::rate_limit_uses_shared_previous_tick ... ok
+test tests::mit_command_rejected_outside_active_joints ... ok
+test tests::motor_transform_converts_feedback_to_joint_space ... ok
+test tests::measured_position_fault_marks_out_of_limits ... ok
+test tests::rebuild_limits_uses_in_memory_config ... ok
+test tests::rejects_velocity_outside_limits ... ok
+test tests::rate_limiter_seeds_on_mode_transition ... ok
+test tests::solicit_status_feedback_continues_after_partial_tx_failure ... ok
+test tests::send_mit_records_extended_frame_when_active ... ok
+test tests::solicit_status_feedback_is_noop_when_active ... ok
+test tests::send_mit_converts_joint_command_to_motor_space ... ok
+test tests::solicit_status_feedback_skips_leased_joint_only ... ok
+test tests::solicit_status_feedback_sends_one_disable_per_motor_when_not_active ... ok
+test tests::solicit_status_feedback_skips_motors_when_global_ar_desired ... ok
+test tests::watchdog_fires_when_active_without_first_feedback ... ok
+test tests::wrong_sign_watchdog_grace_period ... ok
+test tests::stationary_feedback_velocity_spike_is_ignored ... ok
+test tests::wrong_sign_watchdog_no_trip_in_impedance ... ok
+test tests::wrong_sign_watchdog_no_trip_when_sign_matches ... ok
+test tests::wrong_sign_watchdog_no_trip_when_velocity_below_threshold ... ok
+test tests::wrong_sign_watchdog_resets_on_enable ... ok
+test tests::wrong_sign_watchdog_trips_on_sustained_opposition ... ok
+test tests::tau_ff_step_rate_limited_after_disable_gap ... ok
+
+     Running tests/command_admission.rs (target/debug/deps/command_admission-40839f20ff21c9bb)
+test result: ok. 66 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+
+
+running 16 tests
+test enable_final_drain_failure_rolls_back_to_disabled ... ok
+test fault_only_wire_traffic_never_creates_pose ... ok
+test empty_drains_and_unknown_traffic_do_not_refresh_expired_pose ... ok
+test invalid_motor_transform_is_rejected_before_any_batch_frame ... ok
+test new_valid_diagnostics_cannot_clear_an_invalid_feedback_fault ... ok
+test invalid_speed_admission_emits_no_run_mode_or_parameter_writes ... ok
+test nonneutral_motion_requires_post_enable_feedback_even_during_bootstrap ... ok
+test nonfinite_legacy_and_speed_requests_are_rejected ... ok
+test original_timestamp_and_enable_generation_are_required ... ok
+test one_live_peer_cannot_mask_a_silent_active_motor ... ok
+test preenable_queued_status_cannot_authorize_new_motion ... ok
+test rejected_batch_emits_nothing_and_does_not_advance_output_history ... ok
+test replayed_sample_cannot_poison_current_pose_or_velocity_policy ... ok
+test status_queued_during_enable_cannot_authorize_new_motion ... ok
+test all_nonfinite_mit_fields_and_negative_gains_are_rejected_before_clamping ... ok
+test nonfinite_feedback_is_rejected_before_cache_or_freshness_update ... ok
+
+     Running tests/current_reference.rs (target/debug/deps/current_reference-468fe75e6d61ff0f)
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+
+running 16 tests
+test direct_scoped_enable_on_fresh_unhomed_refuses_before_arming ... ok
+test cached_valid_run_pose_cannot_qualify_legacy_set_zero_or_write_history ... ok
+test initial_reference_covers_only_declared_joints ... ok
+test legacy_sign_and_target_preflight_remain_specific_without_arming_peers ... ok
+test fault_and_stop_uncertainty_revoke_initial_reference_without_automatic_recovery ... ok
+test legacy_reference_routes_refuse_before_tx_or_history_write ... ok
+test ordinary_constructor_does_not_grant_reference_even_for_concrete_simulation_bus ... ok
+test lowered_motor_output_cap_preserves_reference_and_bounds_literal_wire_torque ... ok
+test initial_virtual_reference_is_owner_local_and_independent_of_history_state ... ok
+test rebuilding_limits_revokes_initial_reference ... ok
+test successful_disable_preserves_reference_but_starts_a_new_motion_session ... ok
+test stale_reference_cannot_pass_active_shortcuts_or_output ... ok
+test temporary_policy_during_receive_revokes_and_preserves_installed_peer_faults ... ok
+test unsupported_reference_methods_refuse_before_target_or_peer_arming ... ok
+test valid_output_only_cap_and_watchdog_changes_preserve_reference ... ok
+test reference_policy_mutation_permanently_revokes_even_if_old_fields_are_restored ... ok
+     Running tests/fault_authority.rs (target/debug/deps/fault_authority-38d17ff03562f3f2)
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+
+running 17 tests
+test calibration_enable_cannot_be_requested_over_active_motion ... ok
+test current_enable_reset_status_cannot_authorize_motion ... ok
+test current_enable_calibration_status_cannot_authorize_motion ... ok
+test fault_only_without_pose_blocks_targeted_enable ... ok
+test failed_disable_attempts_all_addresses_and_reports_failure ... ok
+test hardware_estop_release_cannot_rearm_without_qualified_recovery ... ok
+test hardware_input_assertion_attempts_disable_for_every_configured_motor ... ok
+test homing_ready_transition_cannot_hide_physically_active_drives ... ok
+test invalid_finite_gain_request_does_not_latch_or_emit_a_stop ... ok
+test invalid_neutral_position_request_does_not_latch_or_emit_a_stop ... ok
+test received_fault_prefix_survives_terminal_rx_error_and_healthy_retry ... ok
+test later_healthy_pose_cannot_resume_motion_after_a_device_fault ... ok
+test reserved_status_mode_cannot_authorize_motion ... ok
+test same_drain_fault_cannot_disappear_before_healthy_status ... ok
+test scoped_disabled_peer_reset_status_does_not_stop_active_joint ... ok
+test unqualified_set_zero_refuses_before_delivery_without_latching ... ok
+     Running tests/fault_snapshot.rs (target/debug/deps/fault_snapshot-b76c1d11f475171b)
+test every_motion_enable_and_calibration_route_remains_blocked_after_fault ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+
+running 10 tests
+test fault_only_without_pose_is_visible_in_commissioning_facets ... ok
+test equal_timestamp_unsafe_pose_cannot_disappear_between_healthy_statuses ... ok
+test first_cause_and_failed_stop_evidence_survive_later_successful_stop ... ok
+test expired_watchdog_remains_a_communication_fault_after_healthy_diagnostics ... ok
+test newly_asserted_hardware_input_attempts_stop_even_after_an_existing_fault ... ok
+test invalid_pose_peer_fault_and_terminal_error_all_survive_one_drain ... ok
+test prefix_free_receive_failure_is_a_persistent_transport_fault ... ok
+test full_raw_domains_and_fault_identity_survive_healthy_pose_cache_and_replay ... ok
+test warning_only_evidence_is_retained_without_latching_motion ... ok
+test safe_queued_pose_burst_does_not_treat_host_dequeue_spacing_as_motion ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/feedback_progress_grid.rs (target/debug/deps/feedback_progress_grid-c12b8f3f8f73cf60)
+
+running 2 tests
+test getter_refuses_subnormal_or_overflowing_joint_feedback_profiles ... ok
+test installed_grid_admits_adjacent_raw_counts_and_ignores_later_public_remap ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/limit_restore_atomicity.rs (target/debug/deps/limit_restore_atomicity-d7afd3bd915044f4)
+
+running 2 tests
+test rejected_numeric_restore_preserves_all_installed_state ... ok
+test rejected_model_restore_preserves_all_installed_state ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/limit_restore_reference.rs (target/debug/deps/limit_restore_reference-b1c0a4199434977a)
+
+running 1 test
+test rejected_active_restore_cannot_replace_private_installed_model ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/limit_restore_reference_atomicity.rs (target/debug/deps/limit_restore_reference_atomicity-39afb8700f6d09c8)
+
+running 2 tests
+test invalid_disabled_restore_preserves_installed_model_policy_and_reference ... ok
+test successful_disabled_restore_remains_available_and_revokes_reference_control ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 17 tests
+test backend_error_before_peer_fault_preserves_first_transport_cause_and_peer_evidence ... ok
+test finite_unknown_flood_cannot_be_fully_consumed_by_one_supervisor_poll ... ok
+test exact_eight_byte_status_data_remains_valid_for_both_status_types ... ok
+test ignored_incomplete_drain_cannot_authorize_motion_or_reenable ... ok
+test every_incomplete_completion_blocks_even_without_a_terminal_error ... ok
+test incomplete_post_enable_flush_rolls_back_before_session_marker ... ok
+test kernel_error_envelope_is_transport_evidence_without_vendor_fault_decoding ... ok
+test incomplete_pre_enable_flush_refuses_activation ... ok
+test malformed_data_headers_partial_peer_fault_and_terminal_error_all_survive ... ok
+test ordinary_empty_refresh_and_timeout_remain_benign ... ok
+test new_typed_receive_errors_cannot_fall_through_runtime_authority ... ok
+test partial_warning_is_a_protocol_fault_without_becoming_a_complete_device_fault ... ok
+test raw_error_before_vendor_fault_preserves_transport_as_first_cause_on_timestamp_tie ... ok
+test remote_fault_like_identifier_cannot_supply_pose_or_device_header_proof ... ok
+test unknown_flood_retains_work_limit_stats_and_attempts_every_stop ... ok
+test vendor_fault_before_raw_error_preserves_device_as_first_cause_on_timestamp_tie ... ok
+     Running tests/receive_bounds.rs (target/debug/deps/receive_bounds-3d9bafdd39202066)
+test every_short_status_shape_latches_without_installing_pose ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+     Running tests/reference_boundary_public.rs (target/debug/deps/reference_boundary_public-a621aa350f40f639)
+
+running 5 tests
+     Running tests/reference_clock_boundary.rs (target/debug/deps/reference_clock_boundary-2388a099a21cd39e)
+test unhomed_direct_enable_cannot_arm_without_current_reference ... ok
+test false_sign_calibration_refuses_before_any_arming_or_zero ... ok
+test arbitrary_bus_one_target_calibration_cannot_arm_peers_or_persist_reference ... ok
+test unhomed_normal_enable_refuses_and_disable_remains_available_control ... ok
+test unknown_target_preflight_refuses_without_output_control ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+
+running 1 test
+test finite_phase_deadline_is_capped_before_overflow_after_target_arming ... ok
+     Running tests/reference_history.rs (target/debug/deps/reference_history-cbad158d1d3f73c5)
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+
+running 4 tests
+test corrupt_or_directory_history_fails_before_any_startup_transmission ... ok
+     Running tests/reference_model_restore.rs (target/debug/deps/reference_model_restore-a0620942b5f7364d)
+test missing_history_is_empty_and_does_not_create_a_resource ... ok
+test historical_rows_cannot_authorize_checked_home_or_normal_enable ... ok
+test environment_path_precedence_runs_in_isolated_processes ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+
+running 1 test
+test model_restore_refuses_while_reserved_and_succeeds_after_cleanup ... ok
+     Running tests/reference_model_stamp.rs (target/debug/deps/reference_model_stamp-8ca57b9f8aac8dbd)
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+
+running 1 test
+test a_stamp_issued_after_acquisition_must_not_attest_a_later_model_install ... ok
+     Running tests/reference_observed_busy_mismatch.rs (target/debug/deps/reference_observed_busy_mismatch-b05b5a8531b72839)
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+
+
+running 1 test
+test observed_reserved_or_armed_mapping_mismatch_cannot_resume_after_restoration ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/reference_observed_mismatch.rs (target/debug/deps/reference_observed_mismatch-1336a393a8e4e46a)
+
+running 1 test
+test observed_mapping_refusal_cannot_restore_initial_permission_after_public_reversion ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/reference_stage_continuity.rs (target/debug/deps/reference_stage_continuity-e9415a7df2ec5563)
+
+running 5 tests
+test matched_evidence_is_current_only_after_real_cleanup_and_stays_unusable ... ok
+test original_deadline_disable_and_shutdown_invalidate_without_rewriting_terminal ... ok
+test observed_terminal_policy_mismatch_is_sticky_and_old_handle_never_uses_newest_stage ... ok
+test rejected_rebuild_observes_live_policy_and_cannot_revive_stage_or_initial_permission ... ok
+     Running tests/reference_transaction.rs (target/debug/deps/reference_transaction-c6e04825a393d5ad)
+test successful_model_installs_invalidate_even_after_restore_and_failed_restore_preserves ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+
+
+running 11 tests
+test an_actually_active_owner_refuses_reference_before_revoking_its_intact_permission ... ok
+test incomplete_old_receive_terminates_without_a_new_budget_or_target_enable ... ok
+test actual_reporting_off_precedes_flush_and_cannot_interfere_with_reference ... ok
+test cancellation_at_reserved_armed_and_sent_phases_is_final ... ok
+test exact_deadline_wins_a_tied_reply_but_one_nanosecond_before_can_stage ... ok
+test matching_proof_cannot_hide_a_later_peer_fault_in_the_same_report ... ok
+test ordinary_capability_and_rejected_preflight_cannot_arm_or_consume_a_stamp ... ok
+test owner_identity_retry_conflict_staleness_and_eight_outcomes_are_bounded ... ok
+test virtual_core_stages_only_after_exact_raw_pop_and_never_grants_motion ... ok
+test uncertain_setzero_and_failed_terminal_stop_keep_the_original_outcome ... ok
+test untagged_or_wrong_correlation_is_diagnostic_only_until_deadline ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+
+     Running tests/torque_output_contract.rs (target/debug/deps/torque_output_contract-6849f9ee69224ca2)
+
+running 5 tests
+test torque_output_contract_first_activation_slews_from_zero ... ok
+test torque_output_contract_danger_zone_cap_overrides_previous_torque ... ok
+test torque_output_contract_disable_reenable_discards_old_torque ... ok
+test torque_output_contract_delayed_tick_does_not_accumulate_slew_credit ... ok
+test torque_output_contract_measured_seed_and_reduced_cap_never_exceed_bound ... ok
+     Running unittests src/lib.rs (target/debug/deps/fouche-de184027fe645787)
+     Running unittests src/main.rs (target/debug/deps/imu_probe-a3c53b567f86258b)
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 3 tests
+test can_id_tests::accepts_max_extended ... ok
+test can_id_tests::rejects_over_29_bits ... ok
+test can_id_tests::standard_pads_three_digits ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/marengo_candump-8489c9fec67ddf44)
+     Running tests/contract.rs (target/debug/deps/contract-c7f0bd38894d1cba)
+
+running 12 tests
+test can_id_json_roundtrip_canonical_hex ... ok
+test frame_page_rejects_zero_and_oversize_limit ... ok
+test absolute_retains_unix_and_normalizes_offset ... ok
+test inspect_path_io_error_includes_path ... ok
+test delta_summary_counts_and_rate ... ok
+test ascii_candump_matches_log_format_delta ... ok
+test page_skips_malformed_without_holes ... ok
+test malformed_lines_count_but_do_not_parse ... ok
+test top_ids_sort_count_desc_then_id_asc ... ok
+test gzip_matches_plain_delta ... ok
+test mixed_interfaces_sort_lexically_with_per_iface_counts ... ok
+test timestamp_regression_fails_inspection ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 5 tests
+test absolute_microsecond_upper_bound_does_not_saturate ... ok
+test complete_gzip_with_corrupt_checksum_is_an_io_error ... ok
+test truncated_gzip_is_an_io_error ... ok
+test physical_line_boundary_includes_newline_for_plain_and_gzip ... ok
+     Running tests/input_limits.rs (target/debug/deps/input_limits-886601019f8ab25c)
+test gzip_expansion_refuses_after_exact_capture_byte_budget ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 58.38s
+
+     Running tests/input_validation.rs (target/debug/deps/input_validation-24343406ae89399e)
+
+running 5 tests
+test excessive_source_lines_refuse ... ok
+test ascii_dlc_must_match_classic_payload ... ok
+test huge_finite_capture_timestamps_are_input_errors ... ok
+test huge_json_offsets_are_serde_errors ... ok
+test numeric_rounding_and_malformed_frames_keep_their_contract ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/marengo_config-422e0c46954b9b3c)
+
+running 63 tests
+test bench_joints::tests::elbow_alias_resolves_right_bench_joint ... ok
+test bench_joints::tests::joint_subset_filter_narrows_allowlist ... ok
+test bench_joints::tests::master_boot_resolution_uses_repo_config_when_pi_path_missing ... ok
+test bench_joints::tests::rejects_unwired_inventory ... ok
+test bench_joints::tests::master_config_accepts_right_five_dof_joints ... ok
+test bench_joints::tests::validate_joint_subset_rejects_unknown_names ... ok
+test commissioning_scope::tests::effective_intersects_ceiling ... ok
+test commissioning_scope::tests::load_missing_returns_none ... ok
+test commissioning_scope::tests::clear_removes_file ... ok
+test commissioning_scope::tests::effective_without_ceiling_keeps_persisted ... ok
+test commissioning_scope::tests::normalize_sorts_and_dedups ... ok
+test commissioning_scope::tests::validate_rejects_unknown_joint ... ok
+test commissioning_scope::tests::reject_unsupported_version ... ok
+test commissioning_scope::tests::widen_detects_growth_not_narrow ... ok
+test commissioning_scope::tests::save_load_round_trip_atomic ... ok
+test bench_joints::tests::apply_joint_subset_filters_motors_and_preserves_order ... ok
+test completeness::tests::completeness_warns_missing_mass_on_zero_mass_link ... ok
+test config_revision::tests::revision_stable_for_master_config ... ok
+test limit_patch::tests::applies_motor_hard_limits_and_optional_torque ... ok
+test limit_patch::tests::clamps_soft_limits_into_new_hard_bounds ... ok
+test limit_patch::tests::ensure_soft_inset_fills_missing_soft ... ok
+test limit_patch::tests::rejects_non_positive_optional_caps ... ok
+test limit_patch::tests::rejects_patch_for_a_different_joint ... ok
+test limit_patch::tests::rejects_reversed_hard_limits ... ok
+test limit_patch::tests::soft_inset_is_inside_hard ... ok
+test completeness::tests::completeness_has_no_blocking_flag ... ok
+test completeness::tests::completeness_warns_limit_gap_when_bench_exceeds_urdf ... ok
+test profile_txn::tests::reports_master_membership_and_current_limits ... ok
+test completeness::tests::completeness_warns_unmapped_motor_joint ... ok
+test profile_txn::tests::adds_joint_when_target_urdf_declares_it ... ok
+test tests::control_yaml_parses ... ok
+test tests::duplicate_actuator_group_membership_rejected ... ok
+test tests::duplicate_motor_addresses_are_rejected ... ok
+test tests::group_velocity_used_when_joint_override_absent ... ok
+test tests::homing_yaml_parses ... ok
+test profile_txn::tests::refuses_elbow_when_target_urdf_is_three_dof ... ok
+test tests::joint_velocity_override_beats_group_and_type_default ... ok
+test tests::humanoid_config_templates_parse_and_align ... ok
+test profile_txn::tests::upsert_rejects_stale_revision_without_writing ... ok
+test tests::motors_yaml_parses_and_matches_robot ... ok
+test tests::nan_gravity_comp_gains_rejected ... ok
+test tests::missing_control_joint_rejected ... ok
+test tests::network_yaml_parses ... ok
+test tests::non_zero_gravity_comp_gains_rejected ... ok
+test tests::resolve_joint_velocity_cap_ignores_bench_yaml ... ok
+test tests::production_urdf_resolves ... ok
+test tests::master_config_validates_five_dof_right_bench ... ok
+test tests::robot_yaml_parses ... ok
+test tests::validate_joint_gains_rejects_negative_kp ... ok
+test tests::trajectory_velocity_above_effective_cap_rejected ... ok
+test tests::validate_joint_gains_rejects_over_max_kp ... ok
+test urdf_expand::tests::rewrite_updates_elbow_hard_only ... ok
+test urdf_expand::tests::rewrite_updates_soft_from_mutated_model ... ok
+test tests::write_control_config_roundtrip_in_temp_dir ... ok
+test urdf_expand::tests::expand_file_covers_motors_and_round_trips ... ok
+test profile_txn::tests::upsert_writes_validated_limits_and_advances_revision ... ok
+test urdf_merge::tests::merge_preview_detects_axis_conflict ... ok
+test urdf_merge::tests::merge_preview_lists_new_joints_from_contributor ... ok
+test urdf_expand::tests::write_motors_control_and_urdf_expands_temp_tree ... ok
+test urdf_merge::tests::validate_merged_urdf_rejects_duplicate_link ... ok
+test urdf_merge::tests::simulate_merge_requires_critical_resolution ... ok
+test urdf_merge::tests::rewrite_joint_type_preserves_joint_body ... ok
+test urdf_merge::tests::simulate_merge_applies_contributor_axis_pick ... ok
+
+test result: ok. 63 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+     Running tests/safety_validation.rs (target/debug/deps/safety_validation-13c843452de0d673)
+
+running 11 tests
+test aggregate_policy_requires_motor_control_and_homing_for_each_active_joint ... ok
+test config_parameter_rejection_is_atomic_and_signed_bias_remains_supported ... ok
+test cross_config_validator_rejects_motor_type_disagreement_and_excluding_soft_bounds ... ok
+test config_writers_reject_invalid_candidate_without_touching_any_artifact ... ok
+test hall_search_requires_sensor_identity_and_respects_effective_motion_caps ... ok
+test master_and_narrowed_policy_accept_signed_offsets_and_zero_nonnegative_caps ... ok
+test homing_loader_rejects_invalid_defaults_and_overrides ... ok
+test robot_loader_rejects_invalid_caps_and_duplicate_identity ... ok
+test urdf_expansion_rejects_invalid_motor_transform_before_rewrite ... ok
+test motor_loader_rejects_invalid_transform_and_limits ... ok
+test control_loader_rejects_nonfinite_negative_and_inconsistent_policy ... ok
+     Running unittests src/lib.rs (target/debug/deps/marengo_deploy-fcfa9332455f288c)
+     Running tests/job_script_contract.rs (target/debug/deps/job_script_contract-fe8693a0be3d6043)
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+
+running 11 tests
+test job::tests::reconcile_promotes_when_rev_matches ... ok
+test job::tests::reconcile_fails_stale_running ... ok
+test job::tests::corrupt_job_file_fails_closed_not_idle ... ok
+test job::tests::unknown_phase_is_forward_compatible ... ok
+test job::tests::job_roundtrip ... ok
+test rev::tests::parse_deploy_rev_sha_and_timestamp ... ok
+test rev::tests::shas_match_prefix_and_full ... ok
+test rev::tests::read_deploy_rev_file ... ok
+test status::tests::assemble_status_serializes_typed_phase_and_ui_state ... ok
+test status::tests::ui_state_distinguishes_current_stale_and_unknown ... ok
+test status::tests::ui_state_prioritizes_running_and_surfaces_failed_without_www ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 4 tests
+test enqueue_script_job_shape ... ok
+test self_update_done_phase_shape ... ok
+test self_update_build_phase_shape ... ok
+test known_script_phases_roundtrip ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 50 tests
+test action_ack::tests::live_ack_matcher_ignores_write_behind_persist_action ... ok
+     Running unittests src/main.rs (target/debug/deps/marengo_gateway-1ae3a51e988cee55)
+test action_ack::tests::recv_live_ack_surfaces_live_reject ... ok
+test action_ack::tests::recv_live_ack_skips_persist_failed_until_pending ... ok
+test actuator::tests::command_actuator_clamps_to_live_kp_max ... ok
+test actuator::tests::command_actuator_publishes_canonical_joint_for_left_alias ... ok
+test actuator::tests::command_actuator_rejects_non_tuning_with_400 ... ok
+test actuator::tests::command_actuator_rejects_unwired_joint_with_403 ... ok
+test actuator::tests::command_actuator_rejects_without_limits_snapshot ... ok
+test actuator::tests::snapshot_actuator_limits_503_when_cache_empty ... ok
+test actuator::tests::command_actuator_requires_configured_log_token ... ok
+test framing::tests::lag_discards_old_transition_and_backlog_before_fresh_state ... ok
+test actuator::tests::command_actuator_returns_429_when_rate_limited ... ok
+test config::tests::master_snapshot_resolves_actuator_group_velocity ... ok
+test hardware::tests::activate_and_resolve_reject_unsafe_upload_ids ... ok
+test hardware::tests::activate_archives_replaced_active_and_promotes_merge ... ok
+test hardware::tests::activate_refuses_active_with_fresh_heartbeat ... ok
+test action_ack::tests::recv_live_ack_times_out_without_matching_session ... ok
+test hardware::tests::activate_saves_manifest_before_failed_live_promote ... ok
+test hardware::tests::authorize_config_mutation_matches_log_token ... ok
+test hardware::tests::archive_reads_require_auth ... ok
+test hardware::tests::command_home_is_gone ... ok
+test hardware::tests::commissioning_scope_read_open_mutations_gated_widen_and_unknown ... ok
+test hardware::tests::urdf_read_rejects_missing_auth ... ok
+test http::tests::command_set_zero_rejects_unwired_joint_with_403 ... ok
+test http::tests::command_motor_status_poll_rate_limits_globally ... ok
+test http::tests::command_set_zero_requires_confirm_and_attestation ... ok
+test http::tests::stream_chappe_emits_length_prefixed_envelopes ... ok
+test http::tests::command_set_zero_returns_429_when_rate_limited ... ok
+test logs::tests::recent_limit_default ... ok
+test ratelimit::tests::buckets_are_isolated_by_client_and_joint ... ok
+test ratelimit::tests::motion_bucket_ignores_client_id_rotation ... ok
+test ratelimit::tests::motion_bucket_is_stricter_than_tuning ... ok
+test ratelimit::tests::refund_restores_token_after_failed_publish ... ok
+test ratelimit::tests::rejects_empty_client_id ... ok
+test ratelimit::tests::status_poll_bucket_allows_burst_then_rejects_until_refill ... ok
+test ratelimit::tests::tuning_bucket_allows_burst_then_rejects ... ok
+test hardware::tests::completeness_is_advisory_and_upload_not_blocked ... ok
+test restart::tests::refuse_active_only_when_heartbeat_fresh ... ok
+test logs::tests::log_token_from_env_filters_empty ... ok
+test hardware::tests::urdf_read_returns_bytes_with_auth ... ok
+test restart::tests::restart_allows_active_with_stale_heartbeat_via_stub ... ok
+test restart::tests::restart_fails_closed_without_token ... ok
+test state::ipc_snapshot_tests::connection_change_retires_observations_until_a_new_frame_arrives ... ok
+test restart::tests::restart_refuses_active_with_fresh_heartbeat ... ok
+test state::runtime_transition_stream_tests::existing_topic_subscriber_receives_typed_runtime_invalidation ... ok
+test restart::tests::restart_requires_confirm ... ok
+test webtransport::tests::tls_material_rejects_malformed_certificate_chain ... ok
+test webtransport::tests::tls_material_rejects_empty_or_malformed_private_key ... ok
+test webtransport::tests::tls_material_retains_certificate_chain_and_matching_key ... ok
+test ratelimit::tests::tuning_bucket_refills_over_time ... ok
+     Running unittests src/lib.rs (target/debug/deps/marengo_homing-34b4b308d10d8b55)
+
+test result: ok. 50 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+
+running 23 tests
+test commissioning::tests::no_scope_enable_requires_robot_ready ... ok
+test commissioning::tests::joint_state_commissioning_fields_round_trip ... ok
+test commissioning::tests::limb_ready_ignores_unbuilt_and_requires_built_verified ... ok
+test commissioning::tests::omitted_homing_state_decodes_as_unspecified ... ok
+test commissioning::tests::out_of_limits_blocks_robot_ready_even_when_verified ... ok
+test commissioning::tests::scope_does_not_fabricate_robot_ready ... ok
+test commissioning::tests::proto_mapping_covers_all_runtime_states ... ok
+test commissioning::tests::scoped_enable_rejects_empty_eligible_set ... ok
+test commissioning::tests::scoped_enable_does_not_require_robot_ready ... ok
+test commissioning::tests::scoped_enable_skips_unhomed_and_out_of_limits ... ok
+test sensor::tests::boot_health_ok_when_mid_travel ... ok
+test commissioning::tests::unbuilt_offline_does_not_block_robot_ready ... ok
+test commissioning::tests::unspecified_wire_gates_old_publishers ... ok
+     Running tests/history_commit_atomicity.rs (target/debug/deps/history_commit_atomicity-fbf4a607066146fe)
+     Running tests/history_replacement_atomicity.rs (target/debug/deps/history_replacement_atomicity-78895396c6ecbb15)
+test commissioning::tests::verify_out_of_limits_classifies_only_limit_breach ... ok
+test tests::sensor_pattern_classifies_home_only ... ok
+test tests::memory_provider_reads_gpio_state ... ok
+test tests::sensor_pattern_rejects_overlap_by_default ... ok
+test verify::tests::nonfinite_input_is_a_typed_request_error_without_recording ... ok
+test verify::tests::nonmanual_methods_have_typed_unsupported_results ... ok
+test tests::effective_homing_lists_robot_joints ... ok
+test verify::tests::verify_accepts_near_zero ... ok
+test verify::tests::verify_limit_breach_marks_out_of_limits ... ok
+test verify::tests::verify_rejects_far_from_zero ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test failed_history_commit_preserves_public_state_and_can_be_retried ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test failed_history_replacement_preserves_prior_rows_state_and_flags_then_retries ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/manual_reference_validation.rs (target/debug/deps/manual_reference_validation-738fb953dc733d37)
+     Running tests/reference_history.rs (target/debug/deps/reference_history-c08ba14e22d1d79c)
+     Running unittests src/lib.rs (target/debug/deps/marengo_host_metrics-ebbfc5f940fde03b)
+     Running unittests src/lib.rs (target/debug/deps/marengo_imu-82b5260eea203f9e)
+
+running 23 tests
+test empty_bounds ... ok
+test hall_method_has_no_scalar_manual_workflow ... ok
+test mismatched_policy_joint ... ok
+test finite_manual_history_recording_is_reachable ... ok
+test nan_lower_bound ... ok
+test nan_offset ... ok
+test nan_tolerance ... ok
+test nan_position ... ok
+test nan_upper_bound ... ok
+test negative_infinite_offset ... ok
+test negative_infinite_lower_bound ... ok
+test negative_infinite_tolerance ... ok
+test negative_infinite_position ... ok
+test negative_infinite_upper_bound ... ok
+test negative_tolerance ... ok
+test none_method_has_no_scalar_manual_workflow ... ok
+test positive_infinite_lower_bound ... ok
+test positive_infinite_offset ... ok
+test positive_infinite_position ... ok
+test positive_infinite_tolerance ... ok
+test positive_infinite_upper_bound ... ok
+test reversed_bounds ... ok
+test unconfigured_joint ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 8 tests
+test existing_directory_and_non_utf8_history_return_typed_io_without_mutation ... ok
+test malformed_existing_history_is_rejected_without_changing_its_bytes ... ok
+test explicit_binding_selects_history_and_leaves_every_configured_joint_unhomed ... ok
+test missing_history_is_empty_unhomed_and_is_not_created_by_loading ... ok
+test exact_history_cannot_grant_a_current_startup_reference ... ok
+test mismatched_history_cannot_grant_a_current_startup_reference ... ok
+test library_binding_ignores_legacy_environment_in_an_isolated_child ... ok
+test real_persistence_survives_reconstruction_but_same_process_grant_does_not ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 15 tests
+test cpu::cpu_lifecycle_tests::irq_is_busy_guest_is_not_double_counted_and_iowait_decrease_is_unknown ... ok
+test cpu::cpu_lifecycle_tests::reset_even_with_increasing_total_invalidates_then_rebaselines ... ok
+test cpu::cpu_regression::published_cpu_fields_follow_kernel_counter_columns ... ok
+test diagnostics::collector_tests::command_adapter_publishes_states_and_unknown_failures ... ok
+test cpu::cpu_lifecycle_tests::sparse_ids_reordering_and_hotplug_keep_independent_baselines ... ok
+test cpu::cpu_lifecycle_tests::malformed_truncated_duplicate_and_overflow_are_unknown ... ok
+test diagnostics::disk_regression::published_read_only_comes_from_mount_flags_not_df_columns ... ok
+test diagnostics::mount_collector_tests::escaped_paths_and_sources_choose_the_specific_mount ... ok
+test diagnostics::mount_collector_tests::command_failures_and_invalid_capacity_do_not_fabricate_writable_or_zero_capacity ... ok
+test diagnostics::regression::restart_delay_is_not_the_published_can_state ... ok
+test diagnostics::regression::kernel_flagged_can_example_preserves_its_state ... ok
+test diagnostics::mount_collector_tests::flags_filesystem_source_and_capacity_survive_publication ... ok
+test diagnostics::mount_collector_tests::unavailable_or_ambiguous_mount_flags_are_explicitly_unknown ... ok
+test sample_state::ipc_health_wire_tests::disconnected_queue_observations_survive_host_health_wire_conversion ... ok
+test tests::sample_returns_hostname ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+
+running 12 tests
+test bus::tests::mock_write_and_read ... ok
+test driver::tests::marks_feature_enabled_from_control_response ... ok
+test driver::tests::parses_rotation_report_from_input_channel ... ok
+test driver::tests::parses_rotation_after_base_timestamp_prefix ... ok
+test driver::tests::send_packet_increments_sequence ... ok
+test shtp::tests::base_timestamp_is_meta_report ... ok
+test shtp::tests::build_outgoing_roundtrip ... ok
+test shtp::tests::header_parse_empty ... ok
+test shtp::tests::header_parse_valid ... ok
+test shtp::tests::split_batch_two_reports ... ok
+test shtp::tests::parse_rotation_vector_sample ... ok
+test shtp::tests::split_batch_with_base_timestamp_prefix ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/marengo_jetson-9ddc0bdbcbeb9fb9)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/marengo_limit_sync-f522b9c20b7906be)
+     Running unittests src/main.rs (target/debug/deps/marengo_log_cli-3c72fe67e8fc8024)
+     Running tests/candump_cli.rs (target/debug/deps/candump_cli-e6966a5887e17467)
+
+running 2 tests
+test candump_summary_text_emits_key_values ... ok
+     Running tests/candump_input_errors.rs (target/debug/deps/candump_input_errors-5d5bddff174ba476)
+     Running tests/recovery_cli.rs (target/debug/deps/recovery_cli-5bd4892d1388629c)
+test candump_summary_json_matches_golden ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 1 test
+test huge_candump_timestamp_returns_input_error ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 2 tests
+test explicit_recovery_cli_requires_paths_preserves_collisions_and_reports_completed_artifacts ... ok
+test recovery_cli_reports_completed_artifacts_when_stdout_is_full ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests/session_cli.rs (target/debug/deps/session_cli-648b487397de7479)
+
+running 2 tests
+test cli_argument_and_database_failures_preserve_capture_files_and_rows ... ok
+test cli_reports_unique_imports_and_clears_only_the_selected_reference ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running unittests src/main.rs (target/debug/deps/marengo_pi-c7830f9980422a0c)
+
+running 32 tests
+test limit_persist::tests::queue_stays_busy_until_the_real_terminal_action_is_published ... ok
+test limit_persist::qualification_tests::zero_budget_close_reports_live_work_and_rejects_later_valid_admission ... ok
+test limit_persist::qualification_tests::publication_unwind_retains_written_disk_and_reports_unfinished_local_completion ... ok
+test limit_persist::tests::owner_shutdown_preserves_the_second_accepted_real_write ... ok
+test overlay::tests::config_overlay_rejects_over_max_kp_before_persist ... ok
+test overlay::tests::config_overlay_queues_persist_and_applies_live ... ok
+test overlay::tests::limit_patch_persist_failure_emits_distinct_failed_action ... ok
+test overlay::tests::config_overlay_rejects_negative_friction_before_live_or_disk_mutation ... ok
+test overlay::tests::limit_patch_applies_live_and_queues_persist ... ok
+test overlay::tests::limit_snapshot_marks_wired_joints ... ok
+test overlay::tests::rejects_unwired_joint_with_not_wired_error ... ok
+test overlay::tests::limit_patch_publishes_actuator_limits_before_chappe_tick ... ok
+test overlay::tests::persist_queue_coalesces_to_latest_draft ... ok
+test overlay::tests::runtime_overlay_rejects_negative_kp ... ok
+test overlay::tests::runtime_overlay_clamps_kp_to_motor_type_max ... ok
+test overlay::tests::runtime_overlay_applies_kp_via_gain_override ... ok
+test overlay::tests::limit_patch_after_owner_exit_rejects_closed_admission_without_live_mutation ... ok
+test overlay::tests::runtime_overlay_rejects_pos_vel_torque_ff ... ok
+test overlay::tests::runtime_overlay_rejects_under_disabled ... ok
+test overlay::tests::runtime_overlay_rejects_under_gravity_comp ... ok
+test shutdown_tests::all_original_stop_writes_precede_waiting_for_the_real_gated_writer ... ok
+test shutdown_tests::explicit_no_disable_exit_policy_inhibits_intent_and_drains_without_stop_writes ... ok
+test reference_busy_overlay_tests::reserved_reference_refuses_actual_persist_and_runtime_overlay_before_mutation ... ok
+test shutdown_tests::active_shutdown_clears_gain_torque_and_wave_intent_before_storage_and_reenable ... ok
+test shutdown_tests::failed_stop_report_survives_a_successful_real_write ... ok
+test shutdown_tests::failed_stop_report_survives_a_failed_real_write ... ok
+test shutdown_tests::failed_stop_report_survives_an_unfinished_real_write ... ok
+test status_poll_tests::decode_motor_status_poll_envelope_rejects_garbage ... ok
+test status_poll_tests::latest_motor_status_poll_keeps_last_valid_envelope ... ok
+test shutdown_tests::stdin_quit_prevents_a_later_actuator_command_and_motion_tick ... ok
+test shutdown_tests::observed_owner_shutdown_preserves_later_stdin_and_chappe_commands ... ok
+test reference_shutdown_tests::armed_reference_shutdown_stops_before_real_storage_under_both_exit_policies ... ok
+     Running unittests src/lib.rs (target/debug/deps/marengo_store-dd9024069839d751)
+
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+
+
+running 5 tests
+test journal::tests::journal_priority_maps ... ok
+test ring::tests::ring_drops_oldest_at_capacity ... ok
+test store::tests::migrate_and_insert_logs ... ok
+     Running tests/migration_admission.rs (target/debug/deps/migration_admission-fdd4faa9d99cad89)
+test store::tests::fts_query_applies_level_filter_and_count ... ok
+test store::tests::candump_page_delegates_to_deep_module ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+
+running 2 tests
+test unversioned_sqlitex_neighbor_is_refused_without_creating_store_schema ... ok
+test public_migrate_refuses_disabled_rollback_journal_before_any_logical_write ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/migration_atomicity.rs (target/debug/deps/migration_atomicity-293b1308a1082089)
+
+running 3 tests
+test v3_marker_failure_preserves_prior_schema_and_obsolete_cache_until_retry ... ok
+test v2_marker_failure_rolls_back_completed_ddl_and_allows_real_retry ... ok
+test independently_seeded_v1_and_v2_upgrade_preserve_data_and_working_fts ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/migration_competing_writer.rs (target/debug/deps/migration_competing_writer-d321e0aa681622f7)
+
+running 1 test
+test migration_rereads_marker_after_competing_writer_commits ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/migration_marker_progress.rs (target/debug/deps/migration_marker_progress-cfedeb01ea122d83)
+
+running 1 test
+test rewritten_final_marker_refuses_before_committing_and_retries_after_trigger_removal ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/migration_recovery.rs (target/debug/deps/migration_recovery-2d888e0734292f5d)
+
+running 5 tests
+test recovery_inserts_missing_defaults_once_with_the_output_marker_timestamp ... ok
+test known_v2_recovery_completes_backup_and_separate_output_without_changing_source ... ok
+test output_creation_failure_retains_completed_backup_and_allows_fresh_retry ... ok
+test recovery_refuses_unsupported_profiles_and_unverified_fts_without_artifacts ... ok
+test recovery_refuses_path_collisions_without_changing_source_or_sentinels ... ok
+     Running tests/migration_step_conformance.rs (target/debug/deps/migration_step_conformance-c362da689a730d3b)
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+
+
+running 3 tests
+test future_v4_open_refuses_without_changing_logical_schema_data_or_marker ... ok
+     Running tests/retention.rs (target/debug/deps/retention-a0a90ba6a76c614f)
+test current_v3_open_and_migrate_preserve_explicit_setting_timestamps ... ok
+test marker3_refusal_keeps_committed_v2_and_public_retry_preserves_history ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+
+running 1 test
+test retention_removes_expired_sessions_and_artifacts_without_blocking ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/session_artifact_operations.rs (target/debug/deps/session_artifact_operations-665eac10e75a3c22)
+
+running 3 tests
+test import_report_counts_sessions_separately_and_refuses_readonly_storage_without_losing_files ... ok
+     Running tests/session_artifact_preservation.rs (target/debug/deps/session_artifact_preservation-d0260d31b8a803fc)
+test readonly_clear_preserves_populated_rows_and_files_and_writable_retry_succeeds ... ok
+test explicit_clear_preserves_sibling_references_metadata_and_shared_files_across_reopen ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+
+running 1 test
+test sparse_registration_preserves_session_metadata_and_all_sibling_artifacts ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/session_candump_replacement.rs (target/debug/deps/session_candump_replacement-941f5e5d0f706980)
+
+running 1 test
+     Running tests/session_capture_chronology.rs (target/debug/deps/session_capture_chronology-010563650ea732c5)
+test replacing_candump_invalidates_old_statistics_without_losing_siblings_or_capture_metadata ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 1 test
+test import_and_unregistered_archive_preserve_utc_capture_dates_through_reopen ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/session_capture_compatibility.rs (target/debug/deps/session_capture_compatibility-63e7b28e278a0731)
+
+running 1 test
+test supported_profile_and_legacy_captures_ignore_sidecars_aliases_and_nonfiles ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/session_capture_refusal.rs (target/debug/deps/session_capture_refusal-f8746ceafee54fcc)
+
+running 1 test
+test invalid_new_capture_dates_are_refused_before_any_registration_or_archive ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/session_capture_retention.rs (target/debug/deps/session_capture_retention-1938fab3b59ed6f7)
+
+running 1 test
+test absolute_capture_cutoff_preserves_exact_boundary_and_refuses_overflow_without_mutation ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/session_capture_unknown_end.rs (target/debug/deps/session_capture_unknown_end-39ce0861d704ed90)
+
+running 1 test
+test imported_capture_end_stays_unknown_until_explicit_finalize_and_survives_reimport ... ok
+
+     Running tests/session_import_preservation.rs (target/debug/deps/session_import_preservation-e9e071f28a858f5b)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+
+running 1 test
+test legacy_import_counts_unique_sessions_and_archive_preserves_authoritative_metadata ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running unittests src/lib.rs (target/debug/deps/marengo_support-360da9d61db12b33)
+     Running unittests src/main.rs (target/debug/deps/motor_repl-9e1253f494957dd7)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+     Running unittests src/main.rs (target/debug/deps/probe-bb827a9c30d53329)
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/robstride-dc7373496c000bb4)
+
+running 24 tests
+test comm::tests::pack_unpack_vendor_ext_id ... ok
+test comm::tests::inbound_motor_device_id_status_uses_bits_8_15 ... ok
+test lifecycle::tests::active_reporting_disable_uses_f_cmd_zero ... ok
+test lifecycle::tests::active_reporting_enable_matches_manual_section_4_1_11 ... ok
+test lifecycle::tests::enable_uses_comm_type_three ... ok
+test lifecycle::tests::set_zero_matches_motor_studio_capture_for_device_12 ... ok
+test mit::tests::mit_tx_id_uses_vendor_comm_type ... ok
+test params::tests::read_can_timeout_encodes_parameter_index ... ok
+test mit::tests::encode_produces_vendor_operation_frame ... ok
+test params::tests::read_ep_scan_time_encodes_parameter_index ... ok
+test params::tests::read_run_mode_uses_parameter_protocol ... ok
+test params::tests::run_mode_write_uses_parameter_protocol ... ok
+test params::tests::read_limit_torque_encodes_parameter_index ... ok
+test params::tests::speed_ref_write_uses_little_endian_float_value ... ok
+test tests::addressed_mit_routes_to_configured_interface ... ok
+test tests::encode_mit_extended_id ... ok
+test tests::memory_bus_mit_control_records_extended ... ok
+test tests::recv_all_addressed_zero_budget_single_pass ... ok
+test mit::tests::decode_status_frame_reads_big_endian_fields ... ok
+test tests::recv_all_preserves_a_valid_prefix_when_work_is_incomplete ... ok
+test tests::recv_all_addressed_keeps_repeated_device_ids_separate ... ok
+test tests::recv_all_addressed_drains_four_motor_burst_across_gaps ... ok
+test tests::recv_all_drains_multiple_status_frames ... ok
+test tests::recv_all_times_out_without_rx ... ok
+
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/command_validity.rs (target/debug/deps/command_validity-036d89390bb0a1c1)
+
+running 11 tests
+test addressed_mit_batch_rejects_mismatched_and_duplicate_identity ... ok
+test every_nonfinite_mit_field_and_negative_gain_is_rejected ... ok
+test addressed_batch_preflights_all_routes_and_preserves_distinct_interfaces ... ok
+test finite_rs03_command_matches_independent_wire_fixture ... ok
+test fault_only_rx_neither_refreshes_nor_creates_pose_evidence ... ok
+test firmware_register_writes_validate_kind_sign_and_exact_payload ... ok
+test nonfinite_firmware_float_writes_and_speed_emit_nothing ... ok
+test nan_torque_batch_is_rejected_before_any_motor_frame ... ok
+test public_encoders_report_invalid_field_and_register_kind ... ok
+test supported_raw_and_typed_run_modes_preserve_wire_values ... ok
+test unsupported_raw_run_modes_never_reach_the_bus ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 3 tests
+test delivered_fault_prefix_survives_receive_error_in_compatibility_state ... ok
+test upper_detailed_fault_bytes_cannot_appear_healthy ... ok
+test status_can_id_fault_flags_reach_compatibility_state ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/fault_evidence_regressions.rs (target/debug/deps/fault_evidence_regressions-ec9eae87ec5c7b63)
+
+running 9 tests
+test detailed_faults_and_warnings_preserve_full_asymmetric_raw_domains ... ok
+test literal_status_flags_and_all_drive_modes_remain_separate ... ok
+test every_raw_fault_and_status_survives_all_same_batch_orders ... ok
+test ordinary_disable_never_clears_firmware_faults ... ok
+test separate_fault_rx_time_never_refreshes_the_last_pose ... ok
+test same_device_id_on_two_interfaces_has_independent_ordered_evidence ... ok
+test report_retains_prefix_and_terminal_error_for_both_budget_modes ... ok
+test warning_only_report_is_visible_without_becoming_pose_or_detailed_fault ... ok
+test empty_nonblocking_report_differs_from_a_blocking_timeout ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 12 tests
+test explicit_expired_deadline_and_overflow_fail_before_io ... ok
+test first_read_error_order_is_retained_before_later_peer_evidence ... ok
+test invalid_public_envelope_metadata_is_rejected_without_slicing_or_pose ... ok
+test interruptions_spend_tokens_without_proving_idle_or_consuming_the_next_frame ... ok
+test every_short_status_and_fault_payload_remains_partial_evidence ... ok
+test legacy_projections_preserve_valid_prefixes_and_report_unrepresentable_rx ... ok
+test quota_exhaustion_retains_both_prefix_and_read_failure_without_visiting_more_sources ... ok
+test narrower_limits_and_partial_source_rounds_never_claim_quiescence ... ok
+test memory_backlog_suffix_retains_fifo_payloads_between_bounded_polls ... ok
+test raw_order_connects_transport_vendor_and_ignored_frames_with_equal_timestamps ... ok
+test remote_requests_never_supply_vendor_status_or_fault_header_proof ... ok
+     Running tests/feedback_report.rs (target/debug/deps/feedback_report-3a8d2a6e17e2aaf5)
+     Running tests/receive_contract.rs (target/debug/deps/receive_contract-e6459ffef1c52cc2)
+test healthy_long_empty_poll_is_a_benign_timeout_with_bounded_attempts ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/socketcan_conversion.rs (target/debug/deps/socketcan_conversion-434f0a3af073219c)
+     Running tests/transport_boundary_vcan.rs (target/debug/deps/transport_boundary_vcan-ee63f3b56188a96f)
+     Running tests/transport_regressions.rs (target/debug/deps/transport_regressions-6fc3e0170e750cc7)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 3 tests
+test status_decoder_requires_exactly_eight_received_bytes ... ok
+test unknown_identifiers_also_consume_the_raw_receive_quota ... ok
+test one_receive_poll_cannot_consume_an_entire_large_backlog ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 5 tests
+test tests::default_fixture_exists ... ok
+     Running unittests src/lib.rs (target/debug/deps/sim_harness-85914e279047803c)
+test tests::urdf_and_mjcf_fixture_dof_match ... ok
+test tests::production_urdf_and_mjcf_dof_match ... ok
+     Running unittests src/lib.rs (target/debug/deps/talleyrand-7dd29c240e3c0860)
+     Running unittests src/main.rs (target/debug/deps/teleop-7f7bb32d9a1478d9)
+     Running unittests src/main.rs (target/debug/deps/wave_demo-f245de26ba680124)
+test tests::arm_4dof_right_urdf_and_mjcf_dof_and_elbow_axis_match ... ok
+test tests::arm_4dof_urdf_and_mjcf_dof_match ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+   Doc-tests armee_dynamics
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests armee_kinematics
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests armee_proto
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests berthier
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests chappe
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests davout
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests fouche
+
+running 0 tests
+
+   Doc-tests marengo_candump
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests marengo_config
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests marengo_deploy
+
+running 0 tests
+   Doc-tests marengo_homing
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+   Doc-tests marengo_host_metrics
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+   Doc-tests marengo_imu
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests marengo_store
+
+running 0 tests
+   Doc-tests marengo_support
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests robstride
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests sim_harness
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests talleyrand
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+4bc77ba605834fdec04b436daa4bec67bca84fbb 2026-08-12T03:59:26Z
+active
+active
+active

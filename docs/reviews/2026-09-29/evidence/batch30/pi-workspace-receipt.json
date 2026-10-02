@@ -1,0 +1,16 @@
+{
+  "source": "a0ec58e8530903eb44b3eddb02b882a7390b42c5",
+  "manifest_inputs": 341,
+  "manifest": "pi-rust-manifest.json",
+  "manifest_sha256": "29e7c4e67bd78b832870ed924027b1601a77c9954e4aa9e626931e4c357d4a59",
+  "workspace_rust_passed": 814,
+  "ignored": 1,
+  "failed": 0,
+  "log": "pi-workspace.txt",
+  "log_sha256": "a2640ef68958262ee70ec8fca9ba9ee9ec56546906c5a908170936317240196a",
+  "validation_root": "/home/joey/marengo-validation/batch27-20261001/stack-3cde431",
+  "runtime_resources": "MARENGO_ROOT and MARENGO_CONFIG_DIR point only to staged checkout; explicit local writer copies ignore competing runtime override",
+  "installed_revision_after": "4bc77ba605834fdec04b436daa4bec67bca84fbb",
+  "services_after": "marengo-pi/gateway/can active",
+  "physical_acceptance": false
+}

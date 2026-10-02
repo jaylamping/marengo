@@ -11,7 +11,8 @@ Windows and staged native Pi. Primary814 Rust/1ignored,364 Consul,72 PiMCP,
 local token supplied during build is absent from all99 assets. Both reviews clear
 of scoped code defects; Spec retains exact-generation acceptance under T03.
 T04 partial; counts25 verified,13 partial,64 open, all102 IDs/8 tasks retained.
-Native Pi workspace and final hosted CI/delivery pending; see batch30 report.
+Native Pi workspace814/1ignored qualified with341 bound inputs. PR244 final
+hosted CI/delivery pending; see batch30 report.
 
 Pi installed revision4bc77ba/services unchanged. Node24.16.0 release-verified in
 user validation folder. No install, sudo, restart, physical CAN or movement.

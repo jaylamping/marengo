@@ -35,7 +35,9 @@ Pi tests run from the user-owned validation checkout, with official Node24.16.0
 verified by its release SHA256 and extracted locally. Six touched input hashes
 match the candidate, including generated server JS. The installed revision is
 still4bc77ba; marengo-pi/gateway/can remain active. Native full-workspace
-qualification and exact-final hosted CI/delivery are recorded separately.
+qualification passes814 tests/1 ignored with all341 tracked Rust/build/config/
+URDF/proto input hashes bound to the candidate. Exact-final hosted CI/delivery
+remain pending on PR244.
 No installation, privileged operation, service restart, physical CAN command or
 motor movement occurred. Gravity home does not qualify support, current
 reference or E-stop readiness. Movement requires a new explicit confirmation

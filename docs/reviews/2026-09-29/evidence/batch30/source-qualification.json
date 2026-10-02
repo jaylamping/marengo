@@ -61,7 +61,8 @@
     "node_archive_source": "https://nodejs.org/dist/v24.16.0/",
     "node_installed_globally": false,
     "source_log": "pi-source-check.txt",
-    "tests": "actual staged HTTP and real Rust writer; stand-in worker only for stalled/output/failure cases; all writes disposable config copies"
+    "tests": "actual staged HTTP and real Rust writer; stand-in worker only for stalled/output/failure cases; all writes disposable config copies",
+    "native_workspace_receipt": "pi-workspace-receipt.json"
   },
   "build_token_absence": {
     "files_scanned": 99,

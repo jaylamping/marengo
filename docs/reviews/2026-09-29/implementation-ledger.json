@@ -15495,10 +15495,11 @@
       "T04"
     ],
     "report": "batch30-local-writer-session-auth.md",
-    "status": "Qualified local mirror auth/bounds/real CLI:27 tests Linux/Windows/Pi and full primary pass; both reviews0 scoped implementation defects. T04 partial: exact-generation acceptance remains T03. Native Pi workspace and hosted CI/delivery pending.",
+    "status": "PR244 open. Qualified auth/bounds/real CLI:27 Linux/Windows/Pi,814 native Pi Rust/1 ignored, full primary and two independent reviews. T04 partial: exact-generation acceptance depends on T03. Final hosted CI/delivery pending.",
     "physical_acceptance": false,
     "owner_scope": "Personally owned robot/repository/Pi; isolated software fixtures. Prompt and explicit confirmation before each movement with commissioning checks. Ten-minute silence means independent work, never movement approval.",
     "pi_installed_revision": "4bc77ba605834fdec04b436daa4bec67bca84fbb",
-    "source_candidate": "a0ec58e8530903eb44b3eddb02b882a7390b42c5"
+    "source_candidate": "a0ec58e8530903eb44b3eddb02b882a7390b42c5",
+    "pr": 244
   }
 }
