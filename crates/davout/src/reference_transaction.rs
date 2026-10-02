@@ -955,7 +955,9 @@ impl<B: MotorBus> Supervisor<B> {
 
     /// Mandatory cleanup is separate from optional ordinary exit Disable.
     pub fn cancel_reference_for_shutdown(&mut self) -> Option<ReferenceTerminal> {
-        self.reference_authority.revoke();
+        if self.reference_authority.consumed_binding().is_some() {
+            self.reference_authority.revoke();
+        }
         self.invalidate_retained_stages(ReferenceStageInvalidation::Shutdown);
         self.cancel_reference_commits(ReferenceCancelReason::Shutdown);
         if !self.acquisition_busy() {

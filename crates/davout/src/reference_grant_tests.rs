@@ -826,3 +826,20 @@ fn current_grant_fault_estop_and_uncertain_stop_preserve_revocation() {
         assert_ne!(owner.joint_homing_state(TARGET), JointHomingState::Verified);
     }
 }
+
+#[test]
+fn current_grant_owner_shutdown_revokes_selected_permission_without_optional_stop() {
+    let tree = tree();
+    let mut owner = owner(&tree, None);
+    let handle = select(&mut owner);
+    let before = owner.bus().transmissions().len();
+    assert!(owner.cancel_reference_for_shutdown().is_none());
+    assert!(
+        !owner
+            .reference_commit_snapshot(&handle)
+            .expect("actual selected job after owner shutdown")
+            .usable_reference
+    );
+    assert_eq!(owner.joint_homing_state(TARGET), JointHomingState::Unhomed);
+    assert_eq!(owner.bus().transmissions().len(), before);
+}
