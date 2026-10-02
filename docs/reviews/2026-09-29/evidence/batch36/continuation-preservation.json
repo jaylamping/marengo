@@ -1,0 +1,9 @@
+{
+  "prior_head": "0b6b915acadb0f9d528448640b0c2b9ed1be2070",
+  "prior_HANDOFF_SHA256": "6a0be555108deeb36363ba2e64bbd8b910fa98b8b8b07f43c8e0513d0b45151a",
+  "prior_HANDOFF_preserved_as_exact_suffix": true,
+  "historical_current_batch_unchanged": true,
+  "prior_batch_history_unchanged": true,
+  "status_counts_unchanged": true,
+  "physical_motion_acceptance": false
+}

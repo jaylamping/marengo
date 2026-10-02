@@ -1,0 +1,161 @@
+{
+  "runtime_startup_UTC": "2026-10-02T14:26:27.810904Z",
+  "error_UTC": "2026-10-02T14:26:49.838195+00:00",
+  "seconds_runtime_startup_to_error": 22.027291,
+  "error_fields": {
+    "timestamp_UTC": "2026-10-02T14:26:49.838195+00:00",
+    "interface": "can0",
+    "CAN_ID_hex": "20000004",
+    "CAN_error_class_mask_hex": "00000004",
+    "payload_length": 8,
+    "payload_hex": "0001000000000000",
+    "raw_line": "(1790951209.838195) can0 20000004#0001000000000000"
+  },
+  "feedback_frame_count": 29981,
+  "near_error_host_delivery_lines": [
+    "(1790951209.836206) can0 1800FD01#0102030405060100",
+    "(1790951209.838108) can0 020001FD#80747F8F7FFF00F0",
+    "(1790951209.838149) can0 180004FD#7FA77FFE7FFF00F0",
+    "(1790951209.838195) can0 20000004#0001000000000000",
+    "(1790951209.838198) can0 1800FD02#0102030405060100",
+    "(1790951209.838258) can0 020002FD#805C7FE77FFF00F0",
+    "(1790951209.838507) can0 180001FD#807480507FFF00F0",
+    "(1790951209.838626) can0 1800FD03#0102030405060100",
+    "(1790951209.838798) can0 020003FD#802F7F777FFF00E6",
+    "(1790951209.838923) can0 1800FD04#0102030405060100",
+    "(1790951209.839113) can0 020004FD#7FA780557FFF00F0",
+    "(1790951209.839238) can0 1800FD05#0102030405060100",
+    "(1790951209.839398) can0 020005FD#AA167FDE7FFF00F0",
+    "(1790951209.839718) can0 180005FD#AA1680047FFF00F0",
+    "(1790951209.841440) can0 1200FD01#0A70000000000000",
+    "(1790951209.841611) can0 020001FD#80747F9A7FFF00F0",
+    "(1790951209.841720) can0 017FFF01#7FFF7FFF00000000",
+    "(1790951209.841873) can0 180003FD#802F806D7FFF00E6",
+    "(1790951209.842013) can0 0400FD01#0000000000000000",
+    "(1790951209.842161) can0 020001FD#807480267FFF00F0",
+    "(1790951209.842299) can0 1200FD02#0A70000000000000",
+    "(1790951209.842447) can0 020001FD#80747F9B7FFF00F0",
+    "(1790951209.842588) can0 017FFF02#7FFF7FFF00000000",
+    "(1790951209.842736) can0 020002FD#805C7FAD7FFF00F0",
+    "(1790951209.842884) can0 0400FD02#0000000000000000",
+    "(1790951209.843078) can0 020002FD#805C7FA97FFF00F0",
+    "(1790951209.843162) can0 020002FD#805C80997FFF00F0"
+  ],
+  "near_error_snapshots": [
+    {
+      "captured_UTC": "2026-10-02T14:26:48.274796+00:00",
+      "active_fault_count": 0,
+      "software_latch": false,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951208238,
+      "faulted_joint_count": 0,
+      "can0_rx_over_errors": 396,
+      "loadavg": "0.61 0.55 0.67 1/198 568884",
+      "cpu0_stat": "cpu0 60110 108654 87470 3897876 72392 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22432072          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:49.296964+00:00",
+      "active_fault_count": 0,
+      "software_latch": false,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951209289,
+      "faulted_joint_count": 0,
+      "can0_rx_over_errors": 396,
+      "loadavg": "0.64 0.56 0.67 1/198 568895",
+      "cpu0_stat": "cpu0 60111 108654 87472 3897971 72392 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22432592          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:50.317643+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951210300,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.64 0.56 0.67 1/199 568907",
+      "cpu0_stat": "cpu0 60111 108654 87474 3898065 72392 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22433168          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:51.338449+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951211312,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.64 0.56 0.67 1/199 568918",
+      "cpu0_stat": "cpu0 60112 108654 87478 3898159 72392 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22433688          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    }
+  ],
+  "CPU0_sample_busy_range": {
+    "min": 0.0,
+    "max": 6.06
+  },
+  "CPU0_samples_near_error": [
+    {
+      "captured_UTC": "2026-10-02T14:26:48.274796+00:00",
+      "CPU0_busy_percent": 3.09,
+      "IRQ_and_softIRQ_percent": 0.0
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:49.296964+00:00",
+      "CPU0_busy_percent": 3.06,
+      "IRQ_and_softIRQ_percent": 0.0
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:50.317643+00:00",
+      "CPU0_busy_percent": 2.08,
+      "IRQ_and_softIRQ_percent": 0.0
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:51.338449+00:00",
+      "CPU0_busy_percent": 5.05,
+      "IRQ_and_softIRQ_percent": 0.0
+    }
+  ],
+  "IRQ_affinity": {
+    "108": {
+      "smp_affinity_list": "0-3",
+      "effective_affinity_list": "0-3"
+    },
+    "119": {
+      "smp_affinity_list": "0-3",
+      "effective_affinity_list": "0-3"
+    },
+    "171": {
+      "smp_affinity_list": "0-3",
+      "effective_affinity_list": "0-3"
+    },
+    "172": {
+      "smp_affinity_list": "0-3",
+      "effective_affinity_list": "0-3"
+    }
+  },
+  "SPI_devices": {
+    "spi0.0": {
+      "driver": "/sys/bus/spi/drivers/mcp251x",
+      "configured_spi_max_frequency_hz": 10000000
+    },
+    "spi0.1": {
+      "driver": "/sys/bus/spi/drivers/mcp251x",
+      "configured_spi_max_frequency_hz": 10000000
+    }
+  },
+  "limits": "1Hz CPU samples cannot resolve a submillisecond IRQ delay. Kernel software delivery timestamps are not physical acquisition timestamps. Only one controller-overflow error is observed in the60s window; raw owner retention is not independently exposed by installed API."
+}

@@ -2198,7 +2198,8 @@
         "Lossless addressed observations preserve six status flags, drive mode and all four fault/four warning bytes plus terminal-error prefix. Persistent authority cannot be cleared by later healthy status, Disable, replay/cache clearing or synthetic seeding. Baseline driver and Supervisor behavioral failures are now green.",
         "Every raw device/mode/position hazard is inspected before coalesced pose admission; positive queued-pose regression catches introduced false overspeed. Fault-only traffic has no pose side effect; warnings are separate.",
         "Still required: installed firmware/detailed-word qualification and explicit fresh recovery; no invented endian decoding or physical proof. Frame class/DLC integrity and receive/flush bounds are implemented in batch04.",
-        "Batch04 preserves Data/Remote/Error class and actual length, exact-eight vendor feedback, partial malformed evidence, raw hazard order and typed kernel errors. One engine bounds all traffic/interruptions to 64 raw frames and 256 reads, rotates peer visits and refuses incomplete activation flushes. Three portable and four Supervisor unchanged-public baseline regressions are green; integrated Linux feature gate passes. GitHub run36684361659 at 6d5cedf passes all 73 driver feature tests, including six actual virtual tests and all matrix suffix cases; five jobs pass. Physical firmware/recovery acceptance remains open."
+        "Batch04 preserves Data/Remote/Error class and actual length, exact-eight vendor feedback, partial malformed evidence, raw hazard order and typed kernel errors. One engine bounds all traffic/interruptions to 64 raw frames and 256 reads, rotates peer visits and refuses incomplete activation flushes. Three portable and four Supervisor unchanged-public baseline regressions are green; integrated Linux feature gate passes. GitHub run36684361659 at 6d5cedf passes all 73 driver feature tests, including six actual virtual tests and all matrix suffix cases; five jobs pass. Physical firmware/recovery acceptance remains open.",
+        "Batch36 actual physical diagnostic captures can0 controllerRXoverflow frame20000004#0001000000000000 at14:26:49.838195Z,22.027291s after runtime startup; corresponding counter396->397 and installed fault/latch transition preserved. Exact frame bytes and ABI classification are now observed, while servicing-delay cause, installed firmware/device protocol and qualified recovery/reference remain open. Read-only passive observer ready before one authorized software restart; no motor Enable/SetZero/target/movement test. See batch36-physical-can-overflow.md and evidence/batch36/diagnostic-summary.json."
       ],
       "verified_commit_or_pr": null,
       "hardware_acceptance": "required before physical release",
@@ -15596,27 +15597,28 @@
     "pr": 240
   },
   "active_windows_continuation": {
-    "batch_id": "batch35",
+    "batch_id": "batch36",
     "branch": "codex/pi-can-ingress-diagnostics",
     "worktree": "J:/code/marengo-worktrees/current-virtual-reference",
     "baseline": "d1fad15d579a7ee611fd930c0e14680f5063ed1b",
     "findings": [
-      "CS13"
+      "CS04"
     ],
-    "report": "batch35-persistent-fault-publication.md",
-    "status": "Batch35 delivered: PR249 source/final/main all-five-job CI, equal final/main tree and independent reviews CLEAR. Actual Pi source/runtime01a5c40;214 installed hashes, taught envelopes/identities, calibration/env, Store3 and HTTPS UI verified. Installed retained-fault replay passes across healthy feedback. CS13 remains partial; physical motion unqualified.",
+    "report": "batch36-physical-can-overflow.md",
+    "status": "Batch35 repair/delivery committed and pushed; independent delivery reviews CLEAR at0b6b915. Batch36 diagnostic-only checkpoint: one read-only passive listener ready before authorized runtime restart captures exact controllerRXoverflow frame,30682 total frames and counter396->397. No production change, cause fix or physical recovery/reference/movement acceptance.",
     "physical_acceptance": false,
     "prior_delivery": "evidence/batch34/delivery-receipt.json",
     "pi_installed_revision": "01a5c403bd8e790cd7403565c777cca8729e48c6",
     "owner_scope": "Personally owned robot/repository/Pi; isolated fixtures. Explicit confirmation and commissioning checks before every movement. Ten-minute silence leaves movement pending and allows independent work only.",
     "owner_requested_next": "Finish and push current chunk, sync Pi software, then explicitly confirmed bounded right-arm tests after qualified reference. Motor power on and powered testing authorized.",
-    "next": "Capture retained physical CAN error envelope and qualify ingress/recovery, installed-owner reference/priority stop and commissioning before an explicitly confirmed bounded right-arm movement. No movement reply is pending.",
+    "next": "Compare one reporting traffic or kernel servicing variable at a time using captured overflow as the oracle. Preserve latch/caps and qualify physical device/reference/owner stop before explicitly confirmed bounded right-arm movement. No user reply is pending.",
     "source": "8e1871f64ebcb7445bd83a241e6b2d67705202f1",
     "qualification": "evidence/batch35/final-source-qualification.json",
     "Pi_source_checkout": "01a5c403bd8e790cd7403565c777cca8729e48c6",
     "continuation_branch": "codex/pi-can-ingress-diagnostics",
     "Pi_activation": "evidence/batch35/delivery-receipt.json",
     "PR": "https://github.com/jaylamping/marengo/pull/249",
-    "delivery": "evidence/batch35/delivery-receipt.json"
+    "delivery": "evidence/batch35/delivery-receipt.json",
+    "diagnostic": "evidence/batch36/diagnostic-summary.json"
   }
 }
