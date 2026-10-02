@@ -60,3 +60,18 @@ and rollback defects are still open. Software evidence does not establish live
 installation or physical acceptance. No deployment, service restart, physical
 CAN test or motor movement occurs. Owner confirmation before each movement and
 the ten-minute-away policy remain in force.
+
+Independent review of 289813b found nested writable-state symlinks still
+redirected root mkdir/chmod/chown. Standards also identified staged rsync modes
+reopening code entries before the final seal. Canonical v7 reproduces four
+assertion failures against that candidate: var/log, var/calibration and both
+scripts/www copy windows. The observer runs real rsync and immediately attempts
+runtime rename of a never-executed marker. Against the original baseline v7
+records 21 failures; against the corrected source all seven tests pass unchanged.
+Existing state directories are now sealed in parent-first order before any
+privileged writes, redirects are checked again once entries are sealed, and
+rsync forces root ownership/nonwritable modes. Declared runtime write access is
+restored after privileged installation writes. Historical v5 qualification is
+retained separately from the final v7 receipt. Re-review and exact-source gate
+are pending. Pi native deployment/gateway tests passed 65; both Rust input
+hashes match the canonical source. No live device installation occurred.

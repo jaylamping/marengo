@@ -31,20 +31,20 @@ done
 
 # A previous runtime-owned layout may contain redirected code entries. Refuse
 # those before sealing the old tree or writing through any installed path.
-reject_code_symlinks() {
-  for directory in bin scripts www; do
+reject_installed_symlinks() {
+  for directory in bin scripts www config assets var; do
     if [[ -d "${INSTALL_ROOT}/${directory}" ]] && \
       [[ -n "$(find "${INSTALL_ROOT}/${directory}" -type l -print -quit)" ]]; then
-      echo "error: installed code contains a symlink: ${INSTALL_ROOT}/${directory}" >&2
+      echo "error: installed tree contains a symlink: ${INSTALL_ROOT}/${directory}" >&2
       exit 1
     fi
   done
+  if [[ -L "${INSTALL_ROOT}/.deploy-rev" ]]; then
+    echo "error: installed revision is a symlink" >&2
+    exit 1
+  fi
 }
-reject_code_symlinks
-if [[ -L "${INSTALL_ROOT}/.deploy-rev" ]]; then
-  echo "error: installed revision is a symlink" >&2
-  exit 1
-fi
+reject_installed_symlinks
 
 ancestor="${PRIVILEGED_HELPERS}"
 while :; do
@@ -74,24 +74,25 @@ done
 systemctl stop marengo-pi.service 2>/dev/null || true
 pkill -f "${INSTALL_ROOT}/bin/marengo-pi" 2>/dev/null || true
 
-seal_installed_code() {
+seal_installed_tree() {
   chown root:root "${INSTALL_ROOT}"
   chmod 0755 "${INSTALL_ROOT}"
-  for directory in bin scripts www; do
+  for directory in bin scripts www config assets var; do
     if [[ -d "${INSTALL_ROOT}/${directory}" ]]; then
       chown -hR root:root "${INSTALL_ROOT}/${directory}"
       # Seal directories in preorder before visiting their children. A legacy
-      # runtime-owned directory must not stay writable during code replacement.
+      # runtime-owned directory must not stay writable during privileged writes.
       find "${INSTALL_ROOT}/${directory}" -type d \
         -exec chown root:root {} \; -exec chmod 0755 {} \;
-      find "${INSTALL_ROOT}/${directory}" -type f -exec chmod u+rw,go+r,go-w {} +
+      chown -hR root:root "${INSTALL_ROOT}/${directory}"
+      find "${INSTALL_ROOT}/${directory}" -type f -exec chmod go-w {} +
     fi
   done
 }
-# Seal legacy runtime-owned code before copying or granting helper permissions.
+# Seal legacy runtime-owned entries before any privileged installation writes.
 mkdir -p "${INSTALL_ROOT}"
-seal_installed_code
-reject_code_symlinks
+seal_installed_tree
+reject_installed_symlinks
 
 if ! id "$RUN_USER" &>/dev/null; then
   useradd --system --home "$INSTALL_ROOT" --shell /usr/sbin/nologin "$RUN_USER"
@@ -112,8 +113,6 @@ mkdir -p \
   "${INSTALL_ROOT}/var/log/blobs" \
   "${INSTALL_ROOT}/var/calibration" \
   "${INSTALL_ROOT}/var/gateway/tls"
-chmod 775 "${INSTALL_ROOT}/var" "${INSTALL_ROOT}/var/log" "${INSTALL_ROOT}/var/calibration" 2>/dev/null || true
-chown root:"${RUN_USER}" "${INSTALL_ROOT}/var" "${INSTALL_ROOT}/var/log" "${INSTALL_ROOT}/var/calibration" 2>/dev/null || true
 
 PI_BIN="${ROOT}/target/release/marengo-pi"
 GATEWAY_BIN="${ROOT}/target/release/marengo-gateway"
@@ -162,9 +161,9 @@ if [[ "${MARENGO_REPLACE_LIMITS:-0}" != "1" ]] && [[ -f "${INSTALL_ROOT}/config/
   echo "install-pi: backed up taught limits for preserve merge"
 fi
 
-rsync -a --delete "${ROOT}/config/" "${INSTALL_ROOT}/config/"
-rsync -a "${ROOT}/assets/" "${INSTALL_ROOT}/assets/"
-rsync -a "${ROOT}/scripts/" "${INSTALL_ROOT}/scripts/"
+rsync -a --chown=root:root --chmod=Dgo-w,Fgo-w --delete "${ROOT}/config/" "${INSTALL_ROOT}/config/"
+rsync -a --chown=root:root --chmod=Dgo-w,Fgo-w "${ROOT}/assets/" "${INSTALL_ROOT}/assets/"
+rsync -a --chown=root:root --chmod=Dgo-w,Fgo-w "${ROOT}/scripts/" "${INSTALL_ROOT}/scripts/"
 
 install -d -o root -g root -m 0755 "${PRIVILEGED_HELPERS}"
 for helper in pi-restart-marengo-pi.sh pi-enqueue-self-update.sh; do
@@ -190,19 +189,12 @@ elif [[ -d "${ROOT}/www" ]] && [[ -f "${ROOT}/www/index.html" ]]; then
   WWW_SRC="${ROOT}/www"
 fi
 if [[ -n "$WWW_SRC" ]]; then
-  rsync -a --delete "${WWW_SRC}/" "${INSTALL_ROOT}/www/"
+  rsync -a --chown=root:root --chmod=Dgo-w,Fgo-w --delete "${WWW_SRC}/" "${INSTALL_ROOT}/www/"
 else
   echo "warning: no Consul UI (consul/dist or www/index.html missing — run pi-native-build or cross deploy)" >&2
 fi
 chmod 755 "${INSTALL_ROOT}/scripts/can-up.sh"
 chmod 755 "${INSTALL_ROOT}/scripts/homing-preflight.sh" 2>/dev/null || true
-chown -hR root:"${RUN_USER}" "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets"
-chmod -R g+rwX "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets"
-mkdir -p "${INSTALL_ROOT}/var"
-if getent group "${RUN_USER}" >/dev/null 2>&1; then
-  chgrp "${RUN_USER}" "${INSTALL_ROOT}/var" 2>/dev/null || true
-  chmod 775 "${INSTALL_ROOT}/var" 2>/dev/null || true
-fi
 
 if id "$DEPLOY_USER" &>/dev/null; then
   SUDOERS_PATH="/etc/sudoers.d/marengo-${DEPLOY_USER}"
@@ -309,7 +301,8 @@ sed -i "s|User=.*|User=${RUN_USER}|" /etc/systemd/system/marengo-gateway.service
 sed -i "s|ExecStart=.*|ExecStart=${INSTALL_ROOT}/bin/marengo-gateway --http-listen [::]:8080 --https-listen [::]:8444 --web-root ${INSTALL_ROOT}/www --wt-listen [::]:8443 --chappe-socket /run/marengo/chappe.sock|" /etc/systemd/system/marengo-gateway.service
 
 chown -hR root:root "${INSTALL_ROOT}"
-seal_installed_code
+seal_installed_tree
+reject_installed_symlinks
 chown -hR root:"${RUN_USER}" "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets" "${INSTALL_ROOT}/var"
 chmod -R g+rwX "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets" "${INSTALL_ROOT}/var"
 

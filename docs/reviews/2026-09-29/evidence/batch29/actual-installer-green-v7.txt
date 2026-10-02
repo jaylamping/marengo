@@ -1,0 +1,14 @@
+ Container marengo-dev-run-d1df0c108f5a Creating 
+ Container marengo-dev-run-d1df0c108f5a Created 
+test_actual_sudo_helper_ancestors_are_immutable (__main__.InstallPermissions.test_actual_sudo_helper_ancestors_are_immutable) ... ok
+test_enqueue_state_paths_cannot_redirect_root_writes (__main__.InstallPermissions.test_enqueue_state_paths_cannot_redirect_root_writes) ... ok
+test_installer_refuses_redirected_code_before_writing (__main__.InstallPermissions.test_installer_refuses_redirected_code_before_writing) ... ok
+test_runtime_can_write_only_declared_config_and_state (__main__.InstallPermissions.test_runtime_can_write_only_declared_config_and_state) ... ok
+test_runtime_cannot_replace_actual_sudo_targets (__main__.InstallPermissions.test_runtime_cannot_replace_actual_sudo_targets) ... ok
+test_runtime_cannot_replace_release_code_or_redirect_ancestors (__main__.InstallPermissions.test_runtime_cannot_replace_release_code_or_redirect_ancestors) ... ok
+test_staged_code_stays_immutable_before_final_seal (__main__.InstallPermissions.test_staged_code_stays_immutable_before_final_seal) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 1.759s
+
+OK
