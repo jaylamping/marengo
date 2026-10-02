@@ -13,6 +13,8 @@ mod reference_journal_shutdown_tests;
 #[cfg(test)]
 mod reference_shutdown_tests;
 #[cfg(test)]
+mod safety_publication_tests;
+#[cfg(test)]
 mod shutdown_tests;
 
 use std::collections::BTreeSet;
@@ -600,25 +602,47 @@ fn parse_testing_wave_command(name: &str) -> Option<TestingWaveCommand<'_>> {
     })
 }
 
-fn publish_safety(
+fn publish_safety<B: MotorBus>(
     chappe: &Bus,
-    mode: OperationalMode,
+    supervisor: &davout::Supervisor<B>,
     active_fault: Option<&str>,
 ) -> Result<(), chappe::BusError> {
-    let mut faults = Vec::new();
-    if let Some(message) = active_fault {
-        faults.push(Fault {
+    let snapshot = supervisor.safety_snapshot();
+    let mut faults: Vec<_> = snapshot
+        .faults
+        .iter()
+        .map(|fault| Fault {
             code: "runtime".to_string(),
-            message: message.to_string(),
-            severity: FaultSeverity::Fault as i32,
-            joint: String::new(),
-        });
+            message: DavoutError::FaultLatched {
+                id: fault.id,
+                class: fault.class,
+                joint: fault.joint.clone(),
+                message: fault.message.clone(),
+            }
+            .to_string(),
+            severity: if fault.class == davout::FaultClass::HardwareEstop {
+                FaultSeverity::Estop
+            } else {
+                FaultSeverity::Fault
+            } as i32,
+            joint: fault.joint.clone().unwrap_or_default(),
+        })
+        .collect();
+    if faults.is_empty() {
+        if let Some(message) = active_fault {
+            faults.push(Fault {
+                code: "runtime".to_string(),
+                message: message.to_string(),
+                severity: FaultSeverity::Fault as i32,
+                joint: String::new(),
+            });
+        }
     }
     let state = SafetyState {
         timestamp_ms: timestamp_ms(),
-        mode: proto_operational_mode(mode),
-        hardware_estop_asserted: false,
-        software_estop_latched: active_fault.is_some(),
+        mode: proto_operational_mode(supervisor.mode()),
+        hardware_estop_asserted: snapshot.hardware_estop_asserted,
+        software_estop_latched: !faults.is_empty(),
         active_faults: faults,
     };
     chappe.publish(
@@ -1296,8 +1320,12 @@ fn run_control_loop<B: MotorBus>(
 
         let now = Instant::now();
         if now.duration_since(last_chappe) >= chappe_period {
-            let mode = loop_ctrl.supervisor_mut().mode();
-            if let Err(e) = publish_safety(runtime.chappe.as_ref(), mode, active_fault.as_deref()) {
+            // A healthy Disabled tick cannot clear the authority retained by Davout.
+            if let Err(e) = publish_safety(
+                runtime.chappe.as_ref(),
+                loop_ctrl.supervisor(),
+                active_fault.as_deref(),
+            ) {
                 warn!(error = %e, "failed to publish SafetyState");
             }
             if let Err(e) = runtime.actuator_overlay.maybe_publish_limits(

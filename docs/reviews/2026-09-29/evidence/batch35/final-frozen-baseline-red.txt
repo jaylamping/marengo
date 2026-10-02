@@ -1,0 +1,52 @@
+ Container marengo-check-run-5765eac20ec3 Creating 
+ Container marengo-check-run-5765eac20ec3 Created 
+   Compiling marengo-pi v0.1.0 (/workspace/bins/marengo-pi)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.98s
+     Running unittests src/main.rs (target/debug/deps/marengo_pi-d1290116ffd1a88d)
+
+running 5 tests
+disabled
+disabled
+disabled
+disabled
+disabled
+
+thread 'safety_publication_tests::periodic_wire_state_keeps_faults_on_both_loaded_peer_addresses' panicked at bins/marengo-pi/src/safety_publication_tests.rs:262:9:
+assertion `left == right` failed: latched fault must remain in periodic wire state after healthy/Disabled ticks
+  left: 0
+ right: 2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'safety_publication_tests::periodic_wire_state_retains_single_transport_fault_across_healthy_ticks_and_disable' panicked at bins/marengo-pi/src/safety_publication_tests.rs:262:9:
+assertion `left == right` failed: latched fault must remain in periodic wire state after healthy/Disabled ticks
+  left: 0
+ right: 1
+
+thread 'safety_publication_tests::periodic_wire_state_reports_observed_hardware_estop_authority' panicked at bins/marengo-pi/src/safety_publication_tests.rs:262:9:
+assertion `left == right` failed: latched fault must remain in periodic wire state after healthy/Disabled ticks
+  left: 0
+ right: 1
+test safety_publication_tests::healthy_periodic_wire_state_and_ordinary_disable_remain_clear ... ok
+test safety_publication_tests::periodic_wire_state_reports_observed_hardware_estop_authority ... FAILED
+test safety_publication_tests::periodic_wire_state_retains_single_transport_fault_across_healthy_ticks_and_disable ... FAILED
+test safety_publication_tests::periodic_wire_state_keeps_faults_on_both_loaded_peer_addresses ... FAILED
+
+thread 'safety_publication_tests::periodic_wire_state_retains_single_device_fault_with_following_healthy_status' panicked at bins/marengo-pi/src/safety_publication_tests.rs:262:9:
+assertion `left == right` failed: latched fault must remain in periodic wire state after healthy/Disabled ticks
+  left: 0
+ right: 1
+test safety_publication_tests::periodic_wire_state_retains_single_device_fault_with_following_healthy_status ... FAILED
+
+failures:
+
+failures:
+    safety_publication_tests::periodic_wire_state_keeps_faults_on_both_loaded_peer_addresses
+    safety_publication_tests::periodic_wire_state_reports_observed_hardware_estop_authority
+    safety_publication_tests::periodic_wire_state_retains_single_device_fault_with_following_healthy_status
+    safety_publication_tests::periodic_wire_state_retains_single_transport_fault_across_healthy_ticks_and_disable
+
+test result: FAILED. 1 passed; 4 failed; 0 ignored; 0 measured; 33 filtered out; finished in 0.24s
+
+error: test failed, to rerun pass `-p marengo-pi --bin marengo-pi`
+bf1060ad279b9503dab3337293f222e582e38cdc668b41ee670308ec442fc852  target/debug/deps/marengo_pi-d1290116ffd1a88d
+

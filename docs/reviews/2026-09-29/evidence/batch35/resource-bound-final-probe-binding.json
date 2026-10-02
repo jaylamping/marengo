@@ -1,0 +1,27 @@
+{
+  "recorded_UTC": "2026-10-02T13:20:57.996657+00:00",
+  "original_production_main": "d1fad15d579a7ee611fd930c0e14680f5063ed1b",
+  "baseline_registration_only": true,
+  "final_complete_probe_frozen_before_baseline_replay": true,
+  "runs": {
+    "resource-bound-final-frozen-baseline-red": {
+      "exit": 101,
+      "probe_SHA256": "cfbdbf9ccd500729a5013f46aed039c1b8abaa8a63e306a87ded7237dc7fda65",
+      "main_SHA256": "14c0c7c75b18f92602080896dda3ed0c3bc94695957447f5291feb425a7e2a10",
+      "log_SHA256": "84f2b492b076d387f9a1789e2dc4654617fb5ccd83e288a98eedee41495c030f",
+      "actual_test_executable_SHA256": "c779e8aa5a12d09924cb079cd3fffe6b07ff7bdf9bd2ae794bd4628d0492aab7"
+    },
+    "resource-bound-final-frozen-restored-green": {
+      "exit": 0,
+      "probe_SHA256": "cfbdbf9ccd500729a5013f46aed039c1b8abaa8a63e306a87ded7237dc7fda65",
+      "main_SHA256": "7ff47996a72c139971683927f4e2ee75800f4c20834962561acd9a26474c4e95",
+      "log_SHA256": "c4dcafdf390ca91dcef2063b5afa7c88dc04ba7a516c3530339d3aa08c327a13",
+      "actual_test_executable_SHA256": "42622064af3f467e6cd6b7c1a14bec31d490134f04169e602a3116dcd9dadfca"
+    }
+  },
+  "original_production_behavioral_failures": 4,
+  "healthy_baseline_control": 1,
+  "restored_unchanged_green": 5,
+  "source_restored": true,
+  "classification": "Final complete five-case probe fails original production with only cfg(test) registration added, then passes byte-identically after repair. Earlier fixture/API/lint preparations and earlier probe hashes are not final frozen evidence."
+}

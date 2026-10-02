@@ -1,0 +1,13 @@
+{
+  "started_UTC": "2026-10-02T12:33:00.161513+00:00",
+  "ended_UTC": "2026-10-02T12:33:40.336854+00:00",
+  "error_capture_exit": 124,
+  "feedback_capture_exit": 0,
+  "artifact_sha256": {
+    "passive-errors-40s.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "passive-feedback-50.log": "a10f5f36880a6ea83ef9e93822bf287f4641b2951964d6febd2de823fb2907f8",
+    "can0-after.txt": "c29b8f5470f0cbf4b8b9806abc9b99838754dff690ef8e4b8b1254a218b63c69",
+    "kernel-error-definitions.txt": "6b9441f5bf441e75e59cdb4caf165d93a15cba03e15934b802d32c1ba05c20eb"
+  },
+  "scope": "Passive bounded reads only; no frames transmitted or interface reconfigured"
+}

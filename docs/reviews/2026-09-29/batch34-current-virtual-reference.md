@@ -51,7 +51,9 @@ than original-release behavioral reds.
 
 Independent Standards and scoped Spec are CLEAR on9f1e523. Source PR248 CI
 run37003038698 passes all five jobs, including simulation and virtual CAN.
-Final evidence-head/main CI and release activation remain pending delivery.
+Final evidence head7b4fcff and merged maind1fad15 pass all five CI jobs.
+The Pi source and installed release are updated to exact maind1fad15. See
+[delivery and native activation](evidence/batch34/delivery-receipt.json).
 See [qualification](evidence/batch34/final-source-qualification.json).
 
 ## Remaining acceptance
@@ -62,12 +64,20 @@ installed-owner reference/priority-stop clients, drive limits/fail-safe behavior
 plant/timing and commissioning remain required. Generic physical acquisition
 still refuses. This implementation is not a physical reference or motion grant.
 
-The personal Pi remains installedb827176, Disabled/all five Unhomed in the last
-recorded live capture. Lower-arm yaw -4.13228655 is outside preserved taught hard
+The Pi now runs maind1fad15. All214 file hashes, all five taught envelopes/
+actual motor identity, calibration/environment, Store integrity/schema3 and
+verified HTTPS UI pass. Services are active with zero automatic restarts in the
+captured sample. The live controller is Disabled/all five Faulted: a retained
+CAN transport fault first appeared11:08 UTC and recurred18s after runtime startup.
+Both interfaces remain ERROR-ACTIVE with zero bus-off; matching receive/overflow
+counters suggest controller receive-buffer overflow. Exact initiating error
+envelope and servicing-delay cause remain unqualified. An empty40s passive
+window is not proof of recovery. SafetyState drops the retained fault after a
+successful disabled tick; CS13 publication migration is the next repair. Lower-arm yaw -4.13228655 is outside preserved taught hard
 [-0.3942450583,3.2440848351]; resolve actual reference commissioning without
 widening limits. Motor power is on and powered testing is authorized. The owner
 explicitly confirmed stable support, clear workspace and E-stop readiness for
-the prior successful update. Before each eventual movement propose actual joint,
+the successful software updates. Activation is not qualified fault recovery. Before each eventual movement propose actual joint,
 bounds/duration/caps/stop and require explicit confirmation plus commissioning.
 Ten-minute silence allows other work only. Preserve CAD, limits, all old work,
 recovery evidence, Wave sign-off and the paused automation.

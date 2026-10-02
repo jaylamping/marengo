@@ -1,0 +1,17 @@
+MainPID=480125
+NRestarts=0
+Id=marengo-pi.service
+ActiveState=active
+SubState=running
+
+MainPID=479935
+NRestarts=0
+Id=marengo-gateway.service
+ActiveState=active
+SubState=running
+
+MainPID=0
+NRestarts=0
+Id=marengo-can.service
+ActiveState=active
+SubState=exited

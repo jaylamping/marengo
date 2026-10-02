@@ -1,0 +1,12 @@
+{
+  "source": "8e1871f64ebcb7445bd83a241e6b2d67705202f1",
+  "prior_HANDOFF_SHA256": "8e6da52b631356f8f2927d7fc341b8a83ccb8db5655d45df5bf31b6f114b2500",
+  "prior_HANDOFF_preserved_as_exact_suffix": true,
+  "historical_current_batch_unchanged": true,
+  "finding_status_counts": {
+    "verified": 26,
+    "partial": 13,
+    "open": 63
+  },
+  "physical_motion_acceptance": false
+}

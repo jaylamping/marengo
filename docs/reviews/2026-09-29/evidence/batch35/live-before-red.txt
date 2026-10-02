@@ -1,0 +1,6 @@
+{"captured_UTC": "2026-10-02T12:48:31.134850+00:00", "joint_faults": 5, "faulted_references": 5, "SafetyState_active_faults": 0, "SafetyState_software_latch_reported": false}
+Traceback (most recent call last):
+  File "/home/joey/marengo-validation/batch35-probe-live-publication.py", line 14, in <module>
+    assert 'active_faults {' in values['safety'],'Latched authority disappeared from actual SafetyState after healthy ticks'
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Latched authority disappeared from actual SafetyState after healthy ticks
