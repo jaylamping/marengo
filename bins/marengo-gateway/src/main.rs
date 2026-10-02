@@ -14,6 +14,9 @@ mod restart;
 mod state;
 mod webtransport;
 
+#[cfg(test)]
+mod gateway_access_public_test;
+
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
