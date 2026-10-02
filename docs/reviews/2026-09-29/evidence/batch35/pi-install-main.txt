@@ -1,0 +1,25 @@
+Installing Marengo to /opt/marengo (user marengo)
+install-pi: backed up taught limits for preserve merge
+preserve-taught-limits: restored motors hard for right_shoulder_pitch, right_shoulder_roll, right_upper_arm_yaw, right_elbow_pitch, right_lower_arm_yaw
+preserve-taught-limits: restored control soft for right_shoulder_roll, right_shoulder_pitch, right_upper_arm_yaw, right_elbow_pitch, right_lower_arm_yaw
+preserve-taught-limits: expand-merged URDF hard for right_shoulder_pitch, right_shoulder_roll, right_elbow_pitch, right_lower_arm_yaw
+Done. CAN (can0/can1) should be UP — verify: ip -br link show type can
+
+=== homing preflight ===
+config: /opt/marengo/config
+calibration record: /opt/marengo/var/calibration/zero_registry.yaml [present]
+right_shoulder_pitch: homing=Unhomed pos=n/a
+right_shoulder_roll: homing=Unhomed pos=n/a
+right_upper_arm_yaw: homing=Unhomed pos=n/a
+right_elbow_pitch: homing=Unhomed pos=n/a
+right_lower_arm_yaw: homing=Unhomed pos=n/a
+
+warning: one or more joints not Verified — place arm at mechanical reference,
+  then: motor-repl set-zero <joint>  (or pi_set_zero via MCP)
+  docs: docs/homing.md
+Next:
+  1. Edit /etc/marengo/env (MARENGO_ROOT, MARENGO_CONFIG_DIR)
+  2. Consul UI: https://marengo.local:8444 (gateway enabled on boot; accept self-signed cert once)
+  3. Bench motion: run marengo-pi / motor-repl manually (do not enable marengo-pi.service unless you want always-on control)
+  4. Example: MARENGO_CONFIG_DIR=config /opt/marengo/bin/motor-repl status
+  5. Local dev Consul: VITE_CHAPPE_* in consul/.env.local (see consul/.env.example)

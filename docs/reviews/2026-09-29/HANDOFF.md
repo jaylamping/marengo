@@ -1,3 +1,79 @@
+# Windows continuation - 2026-10-02, batch36 physical CAN error captured
+
+Batch35 repair PR249 is merged, fully source/primary/native/final/main qualified,
+installed and replayed. Its delivery metadata is independently CLEAR and pushed
+at0b6b915. Pi source/runtime remain01a5c40; no production change in this checkpoint.
+Current continuation branch codex/pi-can-ingress-diagnostics uses
+J:/code/marengo-worktrees/current-virtual-reference. All prior work is preserved.
+
+One authorized diagnostic runtime restart with a passive listener already ready
+captures can0 controllerRXoverflow frame20000004#0001000000000000 at
+14:26:49.838195Z,22.027291s after startup. Counter396->397, sole error among30682
+frames/60s;29981 periodic motor feedback frames. Kernel ABI class4/data[1]=1
+identifies receive-buffer overflow. Pose state transitions from Disabled/Unhomed
+to Disabled/all five Faulted and retainedTransport1/software latch stays visible.
+Pi PID568641 and gateway560138 active; no automatic restarts in captured sample.
+
+The exact passive envelope is now captured. Servicing-delay cause and owner raw
+envelope identity remain unqualified. Error occurs during a reporting-request
+burst;1Hz CPU0 samples show low average load and cannot resolve short IRQ delay.
+IRQ affinities permit0-3, hard counters concentrate onCPU0; SPI max10MHz observed.
+Next compare one reporting/servicing variable at a time using this frozen trace.
+Raw252-file owned observation archive downloaded and every file hash verified.
+See batch36-physical-can-overflow.md and evidence/batch36/diagnostic-summary.json.
+
+No motor Enable, SetZero, target or movement test commanded. Restart is not
+qualified physical recovery; no new reference grant. Taught limits, calibration
+and runtime environment unchanged. Lower yaw still outside its preserved envelope.
+Powered supported/clear/reachable-E-stop setup authorization is established.
+No user reply is pending; actual E-stop wiring remains unknown. Before movement,
+qualify device identity/reset/ack/readback, installed-owner reference/priority stop
+and commissioning, then propose concrete bounds and await an explicit reply.
+Ten-minute silence means independent work only. Counts102/eight/26/13/63,
+historical batch16 checkpoint, CAD and paused automation preserved.
+Earlier checkpoints below remain historical and preserved as an exact suffix.
+
+---
+
+# Windows continuation - 2026-10-02, batch35 delivered and Pi synced
+
+PR249 is merged. Qualified source8e1871f/final heade0bec83/main01a5c40;
+final PR/main CI37015241566/37016360032 both all-five success, equal tree.
+Primary/native886Rust/1existingignored/374UI each, frozen1positive/4named
+baseline failures/restored5green,28 prior probes and independent CLEAR reviews
+remain qualified. Current worktree J:/code/marengo-worktrees/current-virtual-reference
+uses codex/pi-can-ingress-diagnostics; all previous branches/worktrees preserved.
+
+Actual Pi source and installed release are01a5c40.214 installed hashes, all five
+taught envelopes/actual motor identities, calibration/env, Store integrity/schema3
+and trusted HTTPS UI verified. Activation starts14:13:18 UTC; installer exits0; runtime starts
+14:13:22, natural Transport fault recurs15.026s later. Its SafetyState now retains
+the stable fault and software latch across healthy feedback and later snapshots.
+Post-fault passive30s observer receives15290 frames, zero error frames, counters
+unchanged396; this cannot identify the initiating error or qualify recovery.
+
+First sudo wrapper failed before installing. Direct authorized installer succeeds;
+helper's first post snapshot503 and incompatible activation observer flags are
+preserved as failed verification. Fresh read-only checks succeed without another
+restart. Verified233-file release backup downloaded; separate native Git/Store/
+config/calibration/env/units and214-file source payload backups retained.
+Owner powered/stable/supported/clear/reachable-E-stop authorization is established;
+there is no software deployment setup reply or movement reply pending.
+
+Next capture retained physical CAN error evidence and qualify ingress/recovery,
+installed-owner reference/priority stop and commissioning. All five remain Faulted;
+lower yaw -4.13228655 is outside preserved taught hard[-.3942450583,3.2440848351].
+No Enable, SetZero, target or movement test commanded. Actual E-stop wiring unknown.
+Ask before every concrete bounded right-arm movement; explicit reply and qualified
+commissioning are required. Ten-minute silence means other work only.
+
+CS13 stays partial; counts102/eight maintenance/26verified/13partial/63open,
+historical batch16 checkpoint, CAD, limits, calibration/data and paused automation
+preserved. See batch35 report and evidence/batch35/delivery-receipt.json.
+Earlier checkpoints below are historical and preserved as an exact suffix.
+
+---
+
 # Windows continuation — 2026-10-02, batch35 source qualified
 
 Worktree J:/code/marengo-worktrees/current-virtual-reference, branch

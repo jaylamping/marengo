@@ -1,0 +1,14 @@
+=== before ===
+active
+560332 /opt/marengo/bin/marengo-pi
+
+=== stop ===
+
+=== start ===
+active
+
+=== after ===
+active
+568641 /opt/marengo/bin/marengo-pi
+
+Hard limits / motors.yaml reload on marengo-pi process start.

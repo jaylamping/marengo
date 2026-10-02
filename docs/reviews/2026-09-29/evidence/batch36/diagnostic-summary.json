@@ -1,0 +1,289 @@
+{
+  "recorded_UTC": "2026-10-02T14:38:36.564218+00:00",
+  "status": "Physical fault evidence captured; causal fix and physical recovery/reference remain open",
+  "installed_source": "01a5c403bd8e790cd7403565c777cca8729e48c6",
+  "prior_delivery": "../batch35/delivery-receipt.json",
+  "startup_UTC": "2026-10-02T14:26:27.810904Z",
+  "error_UTC": "2026-10-02T14:26:49.838195+00:00",
+  "startup_to_error_seconds": 22.027291,
+  "observed_error": {
+    "timestamp_UTC": "2026-10-02T14:26:49.838195+00:00",
+    "interface": "can0",
+    "CAN_ID_hex": "20000004",
+    "CAN_error_class_mask_hex": "00000004",
+    "payload_length": 8,
+    "payload_hex": "0001000000000000",
+    "raw_line": "(1790951209.838195) can0 20000004#0001000000000000"
+  },
+  "error_classification": "CAN_ERR_CRTL with data[1]=CAN_ERR_CRTL_RX_OVERFLOW. Same constants verified in actual installed kernel ABI header and upstream Raspberry Pi Linux rpi-6.18.y.",
+  "ABI_source": "https://raw.githubusercontent.com/raspberrypi/linux/rpi-6.18.y/include/uapi/linux/can/error.h",
+  "driver_context": "https://raw.githubusercontent.com/raspberrypi/linux/rpi-6.18.y/drivers/net/can/spi/mcp251x.c",
+  "installed_module_exact_source_match_qualified": false,
+  "capture_frames": 30682,
+  "motor_periodic_feedback_frames": 29981,
+  "capture_window_seconds": 60,
+  "observer_ready_before_restart_bytes": 510,
+  "restart_exit": 0,
+  "capture_exit": 124,
+  "can0_rx_errors_and_over_errors": [
+    396,
+    397
+  ],
+  "pose_reference_transition": "Disabled/Unhomed after startup; Disabled/all five Faulted after the sole captured controller error; stable Transport1 and software latch persist.",
+  "policy_calibration_runtime_environment_preserved": true,
+  "physical_motion_acceptance": false,
+  "physical_recovery_reference_acceptance": false,
+  "ranked_hypotheses": [
+    "Brief kernel IRQ/SPI service delay; hard interrupt counters concentrate onCPU0, but affinities permit all cores and1Hz CPU samples cannot resolve short delay.",
+    "Periodic100Hz motor traffic overlaps a burst of reporting reassertions; exact event occurs during such a burst, while physical acquisition times are unavailable.",
+    "Startup/reporting state transition or motor-side burst; repeated startup recurrences require a controlled variable comparison."
+  ],
+  "measurements": {
+    "CPU0_1Hz_busy_percent_range": {
+      "min": 0.0,
+      "max": 6.06
+    },
+    "SPI_configured_max_frequency_hz": 10000000,
+    "IRQ_affinities": {
+      "108": {
+        "smp_affinity_list": "0-3",
+        "effective_affinity_list": "0-3"
+      },
+      "119": {
+        "smp_affinity_list": "0-3",
+        "effective_affinity_list": "0-3"
+      },
+      "171": {
+        "smp_affinity_list": "0-3",
+        "effective_affinity_list": "0-3"
+      },
+      "172": {
+        "smp_affinity_list": "0-3",
+        "effective_affinity_list": "0-3"
+      }
+    },
+    "limits": "1Hz CPU samples cannot resolve a submillisecond IRQ delay. Kernel software delivery timestamps are not physical acquisition timestamps. Only one controller-overflow error is observed in the60s window; raw owner retention is not independently exposed by installed API."
+  },
+  "raw_evidence": {
+    "downloaded_owned_archive": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\diagnostic-observation.tar.gz",
+    "archive_SHA256": "9f700045d493541b18243b4a6ed75c07781e33a135e2ad2330dc56082f54af11",
+    "archive_files_verified": 252,
+    "CAN_capture_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\native-observation\\passive-can.log",
+    "CAN_capture_SHA256": "0e99d69fecbc248e429605c14997ec11fb089173f609984c4609e60f61101487",
+    "CAN_capture_bytes": 1564782,
+    "installed_kernel_ABI_header_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\native-observation\\kernel-can-error-header.h",
+    "installed_kernel_ABI_header_SHA256": "6b9441f5bf441e75e59cdb4caf165d93a15cba03e15934b802d32c1ba05c20eb"
+  },
+  "remaining": "Measure or compare one traffic/service variable at a time; retain conservative transport latch and taught limits. Qualify installed device identity/reset/ack/readback, current reference, owner priority stop and commissioning before an explicitly confirmed bounded movement.",
+  "finding_status_counts": {
+    "verified": 26,
+    "partial": 13,
+    "open": 63
+  },
+  "artifact_bindings": {
+    "pi-diagnostic-receipt.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\native-observation\\diagnostic-receipt.json",
+      "raw_SHA256": "01b07791638c2e6adf48ee1b3ff6ab64244cefe3465f542812aa79d1e206413d",
+      "artifact_SHA256": "01b07791638c2e6adf48ee1b3ff6ab64244cefe3465f542812aa79d1e206413d",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-observation-manifest.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\native-observation\\observation-manifest.json",
+      "raw_SHA256": "52376e15d8427d767366e1795b36260b498d2d2ff14626ef65b527402235214d",
+      "artifact_SHA256": "52376e15d8427d767366e1795b36260b498d2d2ff14626ef65b527402235214d",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-passive-error-frames.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\native-observation\\passive-error-frames.txt",
+      "raw_SHA256": "fc5613696fca8e6f2ba9b0720d73ebee075ebce0b0d3edd6ffbf76973f75b6a3",
+      "artifact_SHA256": "fc5613696fca8e6f2ba9b0720d73ebee075ebce0b0d3edd6ffbf76973f75b6a3",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-passive-sample.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\native-observation\\passive-sample.txt",
+      "raw_SHA256": "156759f4a21524578633a25ed7b3c5f37c1f36697aac50972b6e11052a2dafb7",
+      "artifact_SHA256": "156759f4a21524578633a25ed7b3c5f37c1f36697aac50972b6e11052a2dafb7",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-passive-can.stderr": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\native-observation\\passive-can.stderr",
+      "raw_SHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "artifact_SHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-runtime-journal.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\native-observation\\runtime-journal.txt",
+      "raw_SHA256": "788642eebe6fb9124734a1c5463e281bd2df7f11ebf51f5e292728a3cbe8fb9a",
+      "artifact_SHA256": "788642eebe6fb9124734a1c5463e281bd2df7f11ebf51f5e292728a3cbe8fb9a",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-restart.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\native-observation\\restart.txt",
+      "raw_SHA256": "bccf79c37e574911a46377e50637e65a308be7a5cee1c2660643906d80d0faeb",
+      "artifact_SHA256": "bccf79c37e574911a46377e50637e65a308be7a5cee1c2660643906d80d0faeb",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-restart.exit-code": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\native-observation\\restart.exit-code",
+      "raw_SHA256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "artifact_SHA256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-before-services.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\native-observation\\before-services.txt",
+      "raw_SHA256": "c48dd0e2a0ecfae10ded9b2a91e38c9d61d241dc142004a85ca645a3c8b626a9",
+      "artifact_SHA256": "c48dd0e2a0ecfae10ded9b2a91e38c9d61d241dc142004a85ca645a3c8b626a9",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-after-services.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\native-observation\\after-services.txt",
+      "raw_SHA256": "f0aadf6b294ed30f15b68547ca167057ce7df7cac9bc5f61776b3216990e5449",
+      "artifact_SHA256": "f0aadf6b294ed30f15b68547ca167057ce7df7cac9bc5f61776b3216990e5449",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-before-can0.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\native-observation\\before-can0.txt",
+      "raw_SHA256": "ccae1be5b049f78d38b212eb3b750c5189d65b39047cb963682e0787d867e893",
+      "artifact_SHA256": "d88af1650f3aa0eab898c42c3d41652e37660be693bdd8e1ee711c744871bfb9",
+      "normalization": "UTF-8 LF; trailing spaces/tabs stripped per line; raw preserved"
+    },
+    "pi-before-can1.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\native-observation\\before-can1.txt",
+      "raw_SHA256": "da4757069d9273e505542b92cb3ac7e0ded209475e5f748d4a269d2d26d3353f",
+      "artifact_SHA256": "b256e845ee962b23d5cb4174d8330a4820989d23f48d575ef79f735f8d8874e1",
+      "normalization": "UTF-8 LF; trailing spaces/tabs stripped per line; raw preserved"
+    },
+    "pi-after-can0.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\native-observation\\after-can0.txt",
+      "raw_SHA256": "7ab2ec998ec28c14f07d3aadeb11c6a44f6b260c70e3d25fa9f7b51c8e1efee3",
+      "artifact_SHA256": "da2691284b79a7c1cd577a2fe836d99594468700b90cb290a54b2b34ca041e14",
+      "normalization": "UTF-8 LF; trailing spaces/tabs stripped per line; raw preserved"
+    },
+    "pi-after-can1.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\native-observation\\after-can1.txt",
+      "raw_SHA256": "da4757069d9273e505542b92cb3ac7e0ded209475e5f748d4a269d2d26d3353f",
+      "artifact_SHA256": "b256e845ee962b23d5cb4174d8330a4820989d23f48d575ef79f735f8d8874e1",
+      "normalization": "UTF-8 LF; trailing spaces/tabs stripped per line; raw preserved"
+    },
+    "pi-capture-startup-can.py": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\native-observation\\capture-startup-can.py",
+      "raw_SHA256": "ec51e8e288fd7f71b6b7404b6df6122fd9cfacdb7717c0871919747bd62b782b",
+      "artifact_SHA256": "ec51e8e288fd7f71b6b7404b6df6122fd9cfacdb7717c0871919747bd62b782b",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-startup-safety.pb": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\native-observation\\sample-00-safety.pb",
+      "raw_SHA256": "3279332153cda8e473523fffc5c0764284cf8aff6ea195b920198ae2f10fd516",
+      "artifact_SHA256": "3279332153cda8e473523fffc5c0764284cf8aff6ea195b920198ae2f10fd516",
+      "normalization": "none"
+    },
+    "pi-startup-safety.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\native-observation\\sample-00-safety.txt",
+      "raw_SHA256": "7d42e4ec4745597b16a6c1ffc573de07164db0cdf7b47450f3059a3e7a0244ea",
+      "artifact_SHA256": "7d42e4ec4745597b16a6c1ffc573de07164db0cdf7b47450f3059a3e7a0244ea",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-startup-state.pb": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\native-observation\\sample-00-state.pb",
+      "raw_SHA256": "2af1e431a82cbad588131775f7c657151bb37bb24f98ad89772406349a82481d",
+      "artifact_SHA256": "2af1e431a82cbad588131775f7c657151bb37bb24f98ad89772406349a82481d",
+      "normalization": "none"
+    },
+    "pi-startup-state.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\native-observation\\sample-00-state.txt",
+      "raw_SHA256": "be7b2dda434c8f0edfcf878d7c3aaec35d18c81aff4434d46df28bd59b134963",
+      "artifact_SHA256": "be7b2dda434c8f0edfcf878d7c3aaec35d18c81aff4434d46df28bd59b134963",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-pre-fault-safety.pb": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\native-observation\\sample-20-safety.pb",
+      "raw_SHA256": "f75289e4ce39aac78a505cee2bb7eb95c783ac26b66bcb84bea42317037a5133",
+      "artifact_SHA256": "f75289e4ce39aac78a505cee2bb7eb95c783ac26b66bcb84bea42317037a5133",
+      "normalization": "none"
+    },
+    "pi-pre-fault-safety.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\native-observation\\sample-20-safety.txt",
+      "raw_SHA256": "d38fd863095d7379cc1e8da652eab57780f9a9b68cece77ac047236ac5f00888",
+      "artifact_SHA256": "d38fd863095d7379cc1e8da652eab57780f9a9b68cece77ac047236ac5f00888",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-pre-fault-state.pb": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\native-observation\\sample-20-state.pb",
+      "raw_SHA256": "a1de2b7fca200280d84aa488186a326a7b439119245a0ec5d35fcb528675f112",
+      "artifact_SHA256": "a1de2b7fca200280d84aa488186a326a7b439119245a0ec5d35fcb528675f112",
+      "normalization": "none"
+    },
+    "pi-pre-fault-state.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\native-observation\\sample-20-state.txt",
+      "raw_SHA256": "a600a7902829d7128cd8395c2c0a09b9b0f9e834c80710c4479c42033bf59efe",
+      "artifact_SHA256": "a600a7902829d7128cd8395c2c0a09b9b0f9e834c80710c4479c42033bf59efe",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-first-fault-safety.pb": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\native-observation\\sample-21-safety.pb",
+      "raw_SHA256": "5dc2d206106293cab31bf9dde883a60137ca37a5bdcd5e69f973bbd9632e3340",
+      "artifact_SHA256": "5dc2d206106293cab31bf9dde883a60137ca37a5bdcd5e69f973bbd9632e3340",
+      "normalization": "none"
+    },
+    "pi-first-fault-safety.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\native-observation\\sample-21-safety.txt",
+      "raw_SHA256": "b7187bb163b57111109eefab9b8fa3345a80a73bba374ae72b448723784bd68b",
+      "artifact_SHA256": "b7187bb163b57111109eefab9b8fa3345a80a73bba374ae72b448723784bd68b",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-first-fault-state.pb": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\native-observation\\sample-21-state.pb",
+      "raw_SHA256": "42d2310833336f5b390d275a426f89049fadd7a8a66d883f658f79a508370226",
+      "artifact_SHA256": "42d2310833336f5b390d275a426f89049fadd7a8a66d883f658f79a508370226",
+      "normalization": "none"
+    },
+    "pi-first-fault-state.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\native-observation\\sample-21-state.txt",
+      "raw_SHA256": "28c12463c055231b6914b1f286453b2d5563d844f7bbf4ec3b08176a1ae3b9b2",
+      "artifact_SHA256": "28c12463c055231b6914b1f286453b2d5563d844f7bbf4ec3b08176a1ae3b9b2",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-final-safety.pb": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\native-observation\\sample-57-safety.pb",
+      "raw_SHA256": "34f319a6b36491b6fcf482f67f7d64b91c6185534855dbaed4556d42612e9e25",
+      "artifact_SHA256": "34f319a6b36491b6fcf482f67f7d64b91c6185534855dbaed4556d42612e9e25",
+      "normalization": "none"
+    },
+    "pi-final-safety.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\native-observation\\sample-57-safety.txt",
+      "raw_SHA256": "9aa5526770c2d8790a6f99e71e5a745f437674883973cbc8c4a9cd9b719d3ac8",
+      "artifact_SHA256": "9aa5526770c2d8790a6f99e71e5a745f437674883973cbc8c4a9cd9b719d3ac8",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-final-state.pb": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\native-observation\\sample-57-state.pb",
+      "raw_SHA256": "b67a6d17f6eed214a205b3b9ebda2b64d07538de391bf5ed6bbd1789f211a7a2",
+      "artifact_SHA256": "b67a6d17f6eed214a205b3b9ebda2b64d07538de391bf5ed6bbd1789f211a7a2",
+      "normalization": "none"
+    },
+    "pi-final-state.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\native-observation\\sample-57-state.txt",
+      "raw_SHA256": "8e221ab4d2c0ee38f6eb9e805f584938e69f6317c3b4c6fdfd5e0966dddd7f08",
+      "artifact_SHA256": "8e221ab4d2c0ee38f6eb9e805f584938e69f6317c3b4c6fdfd5e0966dddd7f08",
+      "normalization": "UTF-8 LF only"
+    },
+    "traffic-timing-analysis.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\traffic-timing-analysis.json",
+      "raw_SHA256": "a6acc39b0ef633b98f592d9a7dfc85789d7db8d1d0835add5a627dfb0410afe2",
+      "artifact_SHA256": "a6acc39b0ef633b98f592d9a7dfc85789d7db8d1d0835add5a627dfb0410afe2",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-diagnostic.exit-code": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\pi-diagnostic.exit-code",
+      "raw_SHA256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "artifact_SHA256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "normalization": "UTF-8 LF only"
+    },
+    "observation-archive-receipt.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\observation-archive-receipt.txt",
+      "raw_SHA256": "8501be573faaad3738614952319dbca2bfcd7bbbf7577902a39b510c41c417bb",
+      "artifact_SHA256": "9d7260db366c698a81c9d5777ef580c5ce502c1e7a6e00549571edba0acf2591",
+      "normalization": "UTF-8 LF only"
+    }
+  }
+}

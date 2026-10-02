@@ -1,0 +1,1076 @@
+{
+  "started_UTC": "2026-10-02T14:26:27.642351+00:00",
+  "observer_confirmed_ready_bytes_before_restart": 510,
+  "restart_started_UTC": "2026-10-02T14:26:27.662837+00:00",
+  "restart_exit": 0,
+  "capture_elapsed_seconds": 60.63875615299912,
+  "passive_capture_exit": 124,
+  "capture_bytes": 1564782,
+  "capture_SHA256": "0e99d69fecbc248e429605c14997ec11fb089173f609984c4609e60f61101487",
+  "capture_stderr": "",
+  "frame_count": 30682,
+  "frame_counts": {
+    "can0/180004FD": 5997,
+    "can0/180003FD": 5996,
+    "can0/180002FD": 5996,
+    "can0/180005FD": 5997,
+    "can0/180001FD": 5995,
+    "can0/1200FD01": 3,
+    "can0/020001FD": 70,
+    "can0/017FFF01": 3,
+    "can0/0400FD01": 3,
+    "can0/1200FD02": 3,
+    "can0/020002FD": 70,
+    "can0/017FFF02": 3,
+    "can0/0400FD02": 3,
+    "can0/1200FD03": 3,
+    "can0/017FFF03": 3,
+    "can0/020003FD": 70,
+    "can0/0400FD03": 3,
+    "can0/1200FD04": 3,
+    "can0/017FFF04": 3,
+    "can0/020004FD": 70,
+    "can0/0400FD04": 3,
+    "can0/1200FD05": 3,
+    "can0/020005FD": 70,
+    "can0/017FFF05": 3,
+    "can0/0400FD05": 3,
+    "can0/1800FD01": 61,
+    "can0/1800FD02": 61,
+    "can0/1800FD03": 61,
+    "can0/1800FD04": 61,
+    "can0/1800FD05": 61,
+    "can0/20000004": 1
+  },
+  "error_frames": [
+    {
+      "timestamp_UTC": "2026-10-02T14:26:49.838195+00:00",
+      "interface": "can0",
+      "CAN_ID_hex": "20000004",
+      "CAN_error_class_mask_hex": "00000004",
+      "payload_length": 8,
+      "payload_hex": "0001000000000000",
+      "raw_line": "(1790951209.838195) can0 20000004#0001000000000000"
+    }
+  ],
+  "before_statistics": {
+    "can0": {
+      "tx_errors": 0,
+      "rx_length_errors": 0,
+      "rx_packets": 22263361,
+      "tx_carrier_errors": 0,
+      "tx_dropped": 0,
+      "rx_missed_errors": 0,
+      "rx_over_errors": 396,
+      "tx_aborted_errors": 0,
+      "rx_crc_errors": 0,
+      "rx_frame_errors": 0,
+      "rx_nohandler": 0,
+      "tx_fifo_errors": 0,
+      "multicast": 0,
+      "tx_packets": 223091,
+      "tx_window_errors": 0,
+      "rx_bytes": 178106896,
+      "collisions": 0,
+      "rx_dropped": 0,
+      "tx_bytes": 1784728,
+      "tx_heartbeat_errors": 0,
+      "rx_fifo_errors": 0,
+      "rx_errors": 396,
+      "tx_compressed": 0,
+      "rx_compressed": 0
+    },
+    "can1": {
+      "tx_errors": 0,
+      "rx_length_errors": 0,
+      "rx_packets": 0,
+      "tx_carrier_errors": 0,
+      "tx_dropped": 0,
+      "rx_missed_errors": 0,
+      "rx_over_errors": 0,
+      "tx_aborted_errors": 0,
+      "rx_crc_errors": 0,
+      "rx_frame_errors": 0,
+      "rx_nohandler": 0,
+      "tx_fifo_errors": 0,
+      "multicast": 0,
+      "tx_packets": 0,
+      "tx_window_errors": 0,
+      "rx_bytes": 0,
+      "collisions": 0,
+      "rx_dropped": 0,
+      "tx_bytes": 0,
+      "tx_heartbeat_errors": 0,
+      "rx_fifo_errors": 0,
+      "rx_errors": 0,
+      "tx_compressed": 0,
+      "rx_compressed": 0
+    }
+  },
+  "after_statistics": {
+    "can0": {
+      "tx_errors": 0,
+      "rx_length_errors": 0,
+      "rx_packets": 22294026,
+      "tx_carrier_errors": 0,
+      "tx_dropped": 0,
+      "rx_missed_errors": 0,
+      "rx_over_errors": 397,
+      "tx_aborted_errors": 0,
+      "rx_crc_errors": 0,
+      "rx_frame_errors": 0,
+      "rx_nohandler": 0,
+      "tx_fifo_errors": 0,
+      "multicast": 0,
+      "tx_packets": 223446,
+      "tx_window_errors": 0,
+      "rx_bytes": 178352208,
+      "collisions": 0,
+      "rx_dropped": 0,
+      "tx_bytes": 1787568,
+      "tx_heartbeat_errors": 0,
+      "rx_fifo_errors": 0,
+      "rx_errors": 397,
+      "tx_compressed": 0,
+      "rx_compressed": 0
+    },
+    "can1": {
+      "tx_errors": 0,
+      "rx_length_errors": 0,
+      "rx_packets": 0,
+      "tx_carrier_errors": 0,
+      "tx_dropped": 0,
+      "rx_missed_errors": 0,
+      "rx_over_errors": 0,
+      "tx_aborted_errors": 0,
+      "rx_crc_errors": 0,
+      "rx_frame_errors": 0,
+      "rx_nohandler": 0,
+      "tx_fifo_errors": 0,
+      "multicast": 0,
+      "tx_packets": 0,
+      "tx_window_errors": 0,
+      "rx_bytes": 0,
+      "collisions": 0,
+      "rx_dropped": 0,
+      "tx_bytes": 0,
+      "tx_heartbeat_errors": 0,
+      "rx_fifo_errors": 0,
+      "rx_errors": 0,
+      "tx_compressed": 0,
+      "rx_compressed": 0
+    }
+  },
+  "before_snapshot": {
+    "captured_UTC": "2026-10-02T14:26:27.592830+00:00",
+    "active_fault_count": 1,
+    "software_latch": true,
+    "disabled": true,
+    "safety_timestamp_ms": 1790951187586,
+    "faulted_joint_count": 5
+  },
+  "snapshot_samples": [
+    {
+      "captured_UTC": "2026-10-02T14:26:28.878618+00:00",
+      "active_fault_count": 0,
+      "software_latch": false,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951188863,
+      "faulted_joint_count": 0,
+      "can0_rx_over_errors": 396,
+      "loadavg": "0.61 0.55 0.67 1/199 568675",
+      "cpu0_stat": "cpu0 60073 108654 87450 3896078 72391 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22422193          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:29.893569+00:00",
+      "active_fault_count": 0,
+      "software_latch": false,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951189874,
+      "faulted_joint_count": 0,
+      "can0_rx_over_errors": 396,
+      "loadavg": "0.61 0.55 0.67 1/199 568686",
+      "cpu0_stat": "cpu0 60074 108654 87451 3896175 72391 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22422711          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:30.908657+00:00",
+      "active_fault_count": 0,
+      "software_latch": false,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951190884,
+      "faulted_joint_count": 0,
+      "can0_rx_over_errors": 396,
+      "loadavg": "0.61 0.55 0.67 1/199 568697",
+      "cpu0_stat": "cpu0 60075 108654 87453 3896270 72391 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22423227          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:31.923729+00:00",
+      "active_fault_count": 0,
+      "software_latch": false,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951191774,
+      "faulted_joint_count": 0,
+      "can0_rx_over_errors": 396,
+      "loadavg": "0.61 0.55 0.67 1/199 568708",
+      "cpu0_stat": "cpu0 60076 108654 87454 3896366 72391 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22423747          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:32.940312+00:00",
+      "active_fault_count": 0,
+      "software_latch": false,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951192907,
+      "faulted_joint_count": 0,
+      "can0_rx_over_errors": 396,
+      "loadavg": "0.61 0.55 0.67 1/199 568719",
+      "cpu0_stat": "cpu0 60077 108654 87456 3896460 72391 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22424267          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:33.961366+00:00",
+      "active_fault_count": 0,
+      "software_latch": false,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951193958,
+      "faulted_joint_count": 0,
+      "can0_rx_over_errors": 396,
+      "loadavg": "0.72 0.57 0.67 1/199 568730",
+      "cpu0_stat": "cpu0 60078 108654 87456 3896555 72391 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22424787          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:34.982494+00:00",
+      "active_fault_count": 0,
+      "software_latch": false,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951194969,
+      "faulted_joint_count": 0,
+      "can0_rx_over_errors": 396,
+      "loadavg": "0.72 0.57 0.67 1/199 568741",
+      "cpu0_stat": "cpu0 60080 108654 87458 3896650 72391 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22425307          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:36.003703+00:00",
+      "active_fault_count": 0,
+      "software_latch": false,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951195981,
+      "faulted_joint_count": 0,
+      "can0_rx_over_errors": 396,
+      "loadavg": "0.72 0.57 0.67 1/199 568752",
+      "cpu0_stat": "cpu0 60080 108654 87458 3896745 72391 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22425827          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:37.024857+00:00",
+      "active_fault_count": 0,
+      "software_latch": false,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951196992,
+      "faulted_joint_count": 0,
+      "can0_rx_over_errors": 396,
+      "loadavg": "0.72 0.57 0.67 2/199 568763",
+      "cpu0_stat": "cpu0 60084 108654 87458 3896839 72392 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22426347          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:38.051564+00:00",
+      "active_fault_count": 0,
+      "software_latch": false,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951198044,
+      "faulted_joint_count": 0,
+      "can0_rx_over_errors": 396,
+      "loadavg": "0.72 0.57 0.67 1/198 568774",
+      "cpu0_stat": "cpu0 60087 108654 87460 3896932 72392 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22426870          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:39.074219+00:00",
+      "active_fault_count": 0,
+      "software_latch": false,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951199055,
+      "faulted_joint_count": 0,
+      "can0_rx_over_errors": 396,
+      "loadavg": "0.66 0.56 0.67 2/198 568785",
+      "cpu0_stat": "cpu0 60089 108654 87462 3897027 72392 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22427386          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:40.096435+00:00",
+      "active_fault_count": 0,
+      "software_latch": false,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951200066,
+      "faulted_joint_count": 0,
+      "can0_rx_over_errors": 396,
+      "loadavg": "0.66 0.56 0.67 1/198 568796",
+      "cpu0_stat": "cpu0 60092 108654 87463 3897121 72392 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22427906          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:41.117977+00:00",
+      "active_fault_count": 0,
+      "software_latch": false,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951201078,
+      "faulted_joint_count": 0,
+      "can0_rx_over_errors": 396,
+      "loadavg": "0.66 0.56 0.67 1/198 568807",
+      "cpu0_stat": "cpu0 60094 108654 87464 3897216 72392 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22428426          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:42.140569+00:00",
+      "active_fault_count": 0,
+      "software_latch": false,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951202130,
+      "faulted_joint_count": 0,
+      "can0_rx_over_errors": 396,
+      "loadavg": "0.66 0.56 0.67 2/198 568818",
+      "cpu0_stat": "cpu0 60096 108654 87465 3897311 72392 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22428947          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:43.162700+00:00",
+      "active_fault_count": 0,
+      "software_latch": false,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951203141,
+      "faulted_joint_count": 0,
+      "can0_rx_over_errors": 396,
+      "loadavg": "0.66 0.56 0.67 1/198 568829",
+      "cpu0_stat": "cpu0 60098 108654 87466 3897405 72392 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22429468          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:44.186030+00:00",
+      "active_fault_count": 0,
+      "software_latch": false,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951204152,
+      "faulted_joint_count": 0,
+      "can0_rx_over_errors": 396,
+      "loadavg": "0.61 0.55 0.67 1/198 568840",
+      "cpu0_stat": "cpu0 60100 108654 87468 3897500 72392 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22429991          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:45.208945+00:00",
+      "active_fault_count": 0,
+      "software_latch": false,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951205204,
+      "faulted_joint_count": 0,
+      "can0_rx_over_errors": 396,
+      "loadavg": "0.61 0.55 0.67 1/198 568851",
+      "cpu0_stat": "cpu0 60101 108654 87469 3897595 72392 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22430511          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:46.230933+00:00",
+      "active_fault_count": 0,
+      "software_latch": false,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951206215,
+      "faulted_joint_count": 0,
+      "can0_rx_over_errors": 396,
+      "loadavg": "0.61 0.55 0.67 1/198 568862",
+      "cpu0_stat": "cpu0 60104 108654 87470 3897688 72392 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22431031          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:47.253923+00:00",
+      "active_fault_count": 0,
+      "software_latch": false,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951207226,
+      "faulted_joint_count": 0,
+      "can0_rx_over_errors": 396,
+      "loadavg": "0.61 0.55 0.67 1/198 568873",
+      "cpu0_stat": "cpu0 60107 108654 87470 3897782 72392 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22431551          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:48.274796+00:00",
+      "active_fault_count": 0,
+      "software_latch": false,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951208238,
+      "faulted_joint_count": 0,
+      "can0_rx_over_errors": 396,
+      "loadavg": "0.61 0.55 0.67 1/198 568884",
+      "cpu0_stat": "cpu0 60110 108654 87470 3897876 72392 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22432072          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:49.296964+00:00",
+      "active_fault_count": 0,
+      "software_latch": false,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951209289,
+      "faulted_joint_count": 0,
+      "can0_rx_over_errors": 396,
+      "loadavg": "0.64 0.56 0.67 1/198 568895",
+      "cpu0_stat": "cpu0 60111 108654 87472 3897971 72392 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22432592          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:50.317643+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951210300,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.64 0.56 0.67 1/199 568907",
+      "cpu0_stat": "cpu0 60111 108654 87474 3898065 72392 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22433168          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:51.338449+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951211312,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.64 0.56 0.67 1/199 568918",
+      "cpu0_stat": "cpu0 60112 108654 87478 3898159 72392 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22433688          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:52.359287+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951212323,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.64 0.56 0.67 1/199 568929",
+      "cpu0_stat": "cpu0 60113 108654 87482 3898253 72392 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22434208          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:53.380052+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951213374,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.67 0.57 0.67 1/199 568940",
+      "cpu0_stat": "cpu0 60114 108654 87486 3898347 72392 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22434728          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:54.400648+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951214385,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.67 0.57 0.67 1/199 568951",
+      "cpu0_stat": "cpu0 60114 108654 87488 3898441 72392 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22435248          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:55.421458+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951215397,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.67 0.57 0.67 1/199 568962",
+      "cpu0_stat": "cpu0 60115 108654 87492 3898534 72392 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22435765          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:56.442335+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951216408,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.67 0.57 0.67 1/199 568973",
+      "cpu0_stat": "cpu0 60116 108654 87494 3898629 72392 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22436286          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:57.464173+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951217459,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.67 0.57 0.67 1/199 568984",
+      "cpu0_stat": "cpu0 60118 108654 87496 3898723 72393 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22436806          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:58.486608+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951218471,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.62 0.56 0.67 1/199 568995",
+      "cpu0_stat": "cpu0 60120 108654 87497 3898819 72393 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22437327          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:26:59.508552+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951219482,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.62 0.56 0.67 1/199 569006",
+      "cpu0_stat": "cpu0 60121 108654 87498 3898914 72393 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22437846          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:27:00.531142+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951220493,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.62 0.56 0.67 1/198 569017",
+      "cpu0_stat": "cpu0 60125 108654 87499 3899007 72393 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22438367          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:27:01.554551+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951221545,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.62 0.56 0.67 1/198 569028",
+      "cpu0_stat": "cpu0 60127 108654 87500 3899102 72393 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22438889          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:27:02.577691+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951222556,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.62 0.56 0.67 1/198 569039",
+      "cpu0_stat": "cpu0 60128 108654 87502 3899196 72395 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22439409          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:27:03.600362+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951223567,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.57 0.55 0.66 1/198 569050",
+      "cpu0_stat": "cpu0 60130 108654 87503 3899290 72395 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22439931          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:27:04.623573+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951224619,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.57 0.55 0.66 1/198 569061",
+      "cpu0_stat": "cpu0 60133 108654 87504 3899384 72395 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22440452          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:27:05.646655+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951225630,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.57 0.55 0.66 3/198 569072",
+      "cpu0_stat": "cpu0 60134 108654 87505 3899480 72395 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22440973          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:27:06.668877+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951226641,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.57 0.55 0.66 1/198 569083",
+      "cpu0_stat": "cpu0 60134 108654 87506 3899576 72395 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22441493          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:27:07.691351+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951227652,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.57 0.55 0.66 1/198 569094",
+      "cpu0_stat": "cpu0 60137 108654 87507 3899669 72396 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22442014          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:27:08.714400+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951228704,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.60 0.56 0.66 2/198 569105",
+      "cpu0_stat": "cpu0 60138 108654 87507 3899765 72396 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22442536          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:27:09.737161+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951229715,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.60 0.56 0.66 1/198 569116",
+      "cpu0_stat": "cpu0 60141 108654 87508 3899859 72396 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22443057          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:27:10.760256+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951230686,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.60 0.56 0.66 1/198 569127",
+      "cpu0_stat": "cpu0 60142 108654 87510 3899954 72396 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22443578          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:27:11.783990+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951231778,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.60 0.56 0.66 2/198 569138",
+      "cpu0_stat": "cpu0 60143 108654 87510 3900050 72396 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22444099          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:27:12.806232+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951232789,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.60 0.56 0.66 2/199 569154",
+      "cpu0_stat": "cpu0 60145 108654 87511 3900144 72397 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22444621          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:27:13.830180+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951233801,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.55 0.55 0.66 3/199 569168",
+      "cpu0_stat": "cpu0 60147 108654 87512 3900239 72397 0 1546 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22445143          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:27:14.854573+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951234853,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.55 0.55 0.66 1/198 569180",
+      "cpu0_stat": "cpu0 60148 108654 87514 3900334 72397 0 1547 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22445673          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:27:15.875791+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951235864,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.55 0.55 0.66 1/199 569192",
+      "cpu0_stat": "cpu0 60151 108654 87514 3900427 72397 0 1547 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22446192          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:27:16.896620+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951236875,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.55 0.55 0.66 1/199 569203",
+      "cpu0_stat": "cpu0 60152 108654 87516 3900521 72397 0 1547 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22446712          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:27:17.917461+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951237886,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.55 0.55 0.66 1/199 569214",
+      "cpu0_stat": "cpu0 60155 108654 87517 3900615 72397 0 1547 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22447232          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:27:18.939273+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951238938,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.59 0.56 0.66 1/199 569225",
+      "cpu0_stat": "cpu0 60156 108654 87517 3900710 72397 0 1547 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22447752          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:27:19.958955+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951239949,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.59 0.56 0.66 1/199 569236",
+      "cpu0_stat": "cpu0 60157 108654 87522 3900803 72397 0 1547 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22448272          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:27:20.980021+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951240960,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.59 0.56 0.66 1/199 569247",
+      "cpu0_stat": "cpu0 60160 108654 87522 3900896 72397 0 1547 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22448792          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:27:22.001706+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951241971,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.59 0.56 0.66 1/199 569258",
+      "cpu0_stat": "cpu0 60161 108654 87524 3900991 72397 0 1547 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22449312          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:27:23.022930+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951243023,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.59 0.56 0.66 1/199 569269",
+      "cpu0_stat": "cpu0 60164 108654 87524 3901085 72397 0 1547 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22449832          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:27:24.044309+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951244034,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.54 0.55 0.66 2/199 569280",
+      "cpu0_stat": "cpu0 60166 108654 87525 3901179 72397 0 1547 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22450353          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:27:25.067144+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951245045,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.54 0.55 0.66 1/199 569291",
+      "cpu0_stat": "cpu0 60168 108654 87526 3901274 72397 0 1547 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22450870          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:27:26.090397+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951246056,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.54 0.55 0.66 1/199 569302",
+      "cpu0_stat": "cpu0 60170 108654 87526 3901370 72397 0 1547 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22451385          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    },
+    {
+      "captured_UTC": "2026-10-02T14:27:27.112676+00:00",
+      "active_fault_count": 1,
+      "software_latch": true,
+      "disabled": true,
+      "safety_timestamp_ms": 1790951247108,
+      "faulted_joint_count": 5,
+      "can0_rx_over_errors": 397,
+      "loadavg": "0.54 0.55 0.66 1/199 569313",
+      "cpu0_stat": "cpu0 60172 108654 87527 3901464 72397 0 1547 0 0 0",
+      "CAN_IRQ_counts": [
+        "171:   22451905          0          0          0 pinctrl-rp1  23 Level     spi0.0",
+        "172:          0          0          0          0 pinctrl-rp1  25 Level     spi0.1"
+      ]
+    }
+  ],
+  "policy_calibration_and_runtime_environment_unchanged": true,
+  "IRQ_affinity_observed": {
+    "108": {
+      "smp_affinity_list": "0-3",
+      "effective_affinity_list": "0-3"
+    },
+    "119": {
+      "smp_affinity_list": "0-3",
+      "effective_affinity_list": "0-3"
+    },
+    "171": {
+      "smp_affinity_list": "0-3",
+      "effective_affinity_list": "0-3"
+    },
+    "172": {
+      "smp_affinity_list": "0-3",
+      "effective_affinity_list": "0-3"
+    }
+  },
+  "SPI_devices": {
+    "spi0.0": {
+      "driver": "/sys/bus/spi/drivers/mcp251x",
+      "configured_spi_max_frequency_hz": 10000000
+    },
+    "spi0.1": {
+      "driver": "/sys/bus/spi/drivers/mcp251x",
+      "configured_spi_max_frequency_hz": 10000000
+    }
+  },
+  "kernel": "6.18.29+rpt-rpi-2712",
+  "installed_revision": "01a5c403bd8e790cd7403565c777cca8729e48c6 2026-10-02T14:00:00Z",
+  "scope": "One authorized software-only diagnostic restart, passive listener ready before stop/start. Startup remains Disabled/Unhomed; no Enable, SetZero, target, motion test or fault injection commanded. Restart is not qualified physical fault recovery; physical stop remains unconfirmed. Captured error evidence establishes observed frame bytes/time, not the cause of servicing delay."
+}

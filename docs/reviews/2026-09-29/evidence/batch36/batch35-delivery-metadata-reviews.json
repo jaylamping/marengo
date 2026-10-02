@@ -1,0 +1,14 @@
+{
+  "reviewed_delivery_head": "0b6b915acadb0f9d528448640b0c2b9ed1be2070",
+  "fixed_baseline": "01a5c403bd8e790cd7403565c777cca8729e48c6",
+  "Standards": {
+    "result": "CLEAR",
+    "findings": 0
+  },
+  "scoped_Spec": {
+    "result": "CLEAR",
+    "findings": 0
+  },
+  "prior_finding_resolved": "HANDOFF now distinguishes activation start from installer exit result. All61 delivery bindings and historical preservation verified.",
+  "scope": "B35 delivery metadata only. This is not a review of later B36 diagnostic metadata or physical acceptance."
+}

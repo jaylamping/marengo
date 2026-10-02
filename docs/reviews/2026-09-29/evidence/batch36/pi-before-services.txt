@@ -1,0 +1,9 @@
+MainPID=560332
+NRestarts=0
+Id=marengo-pi.service
+ActiveState=active
+
+MainPID=560138
+NRestarts=0
+Id=marengo-gateway.service
+ActiveState=active

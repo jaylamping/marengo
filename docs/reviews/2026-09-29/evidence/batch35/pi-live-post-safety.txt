@@ -1,0 +1,8 @@
+timestamp_ms: 1790950489636
+mode: OPERATIONAL_MODE_DISABLED
+software_estop_latched: true
+active_faults {
+  code: "runtime"
+  message: "persistent safety fault 1 (Transport) on None: received CAN error frame; physical bus state and error subscriptions unqualified; qualified recovery unavailable"
+  severity: FAULT_SEVERITY_FAULT
+}
