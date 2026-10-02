@@ -3204,14 +3204,17 @@
       "source": "tooling.md#t01--root-owned-helper-files-are-replaceable-through-runtime-writable-directories",
       "work_package": "WP10",
       "implementation_and_acceptance_plan": "frontend-tooling-implementation-plan.md",
-      "status": "open",
+      "status": "partial",
       "evidence": [
         "batch29-immutable-installed-helpers.md",
-        "evidence/batch29/source-qualification.json"
+        "evidence/batch29/source-qualification.json",
+        "evidence/batch29/independent-review.json",
+        "evidence/batch29/delivery-receipt.json"
       ],
       "verified_commit_or_pr": null,
       "hardware_acceptance": "not established by this software repair",
-      "remaining_acceptance": "Final review and delivery, plus immutable versioned release tree/atomic installation acceptance shared with T02. No physical installation qualification."
+      "remaining_acceptance": "Immutable versioned release tree/atomic activation shared with T02; physical installation acceptance not established.",
+      "partial_commit_or_pr": "1e2141f13d8c9bfa01188068df714b605ab0077e / PR243"
     },
     {
       "id": "T02",
@@ -15417,16 +15420,37 @@
       "spec_findings": 0,
       "T26": "partial",
       "physical_acceptance": false
+    },
+    {
+      "batch_id": "batch29",
+      "findings": [
+        "T01"
+      ],
+      "status": "delivered; T01 partial",
+      "report": "batch29-immutable-installed-helpers.md",
+      "pr": 243,
+      "head": "c0db5c3a1fbe41e64ffebf32a5bb759c8029fcdd",
+      "pr_ci_run": 36965377334,
+      "main_commit": "1e2141f13d8c9bfa01188068df714b605ab0077e",
+      "main_ci_run": 36966471834,
+      "all_five_pr_and_main_jobs": "passed",
+      "identical_pr_and_main_tree": "3b14adf0c3748d6b613e01898b4d588e08e73b0a",
+      "independent_review_source": "0867a9304d9ceff5e579601bf85bb39469b752ea",
+      "standards_violations": 0,
+      "spec_scoped_findings": 0,
+      "T01": "partial",
+      "remaining": "Immutable versioned release tree/atomic activation shared with T02; physical installation acceptance not established.",
+      "physical_acceptance": false
     }
   ],
   "finding_status_counts": {
     "verified": 25,
-    "partial": 11,
-    "open": 66
+    "partial": 12,
+    "open": 65
   },
   "next_dependency_ready_batch": {
-    "current": "Qualify and deliver batch29 WP10 T01 immutable helpers/unprivileged state writes; retain versioned-release acceptance for T01/T02.",
-    "following": "WP10 G07/T04 mutation security and WP04 R2b1 current-reference journal/grant before physical movement qualification.",
+    "current": "Complete WP10 T04 local mirror authentication, bounded requests/worker and runtime credential flow with actual public regression and required gates.",
+    "following": "WP10 G07 mutation/stream authorization and WP04 R2b1 current-reference journal/grant; T01 versioned release acceptance remains shared with T02.",
     "human_input_blocker": null
   },
   "automation_status": "PAUSED",
@@ -15456,17 +15480,17 @@
     "pr": 240
   },
   "active_windows_continuation": {
-    "batch_id": "batch29",
-    "branch": "codex/install-immutable-helpers",
-    "baseline": "4b0d287004260c5286c1a240e300c796a6a9ccfa",
+    "batch_id": "batch30",
+    "branch": "codex/local-writer-session-auth",
+    "worktree": "J:/code/marengo-worktrees/local-writer-session-auth",
+    "baseline": "1e2141f13d8c9bfa01188068df714b605ab0077e",
     "findings": [
-      "T01"
+      "T04"
     ],
-    "status": "PR243: final independent Standards/Spec reviews clear at0867a93 after corrections. Canonical actual-installer7 tests green,21 original failures,4 initial review-candidate failures. Broad primary814Rust/1ignored/all gates incl7installer/fatalARM; final traversal-order edit focused7/syntax green. Pi native clients65 pass. Exact-final-head hosted CI and delivery pending; T01 versioned-release acceptance remains incomplete. No live installation or movement.",
+    "report": "batch30-local-writer-session-auth.md",
+    "status": "Initial actual HTTP regression3 original negative failures/1positive, unchanged4green. Runtime Consul credential flow15 targeted tests/build pass. Broader bounded-execution tests/gating/reviews/CI pending. Batch29 PR243 delivered with all-five PR/main CI; T01 partial.",
     "physical_acceptance": false,
-    "owner_scope": "Personally owned humanoid robot and authorized repository/Pi only. Isolated access-control and permissions fixtures; nonenergizing testing first. Prompt before each movement with bounds/stop; explicit confirmation and commissioning safeguards required. After ten minutes without reply continue independent work; silence never authorizes movement.",
-    "pi_installed_revision": "4bc77ba605834fdec04b436daa4bec67bca84fbb",
-    "report": "batch29-immutable-installed-helpers.md",
-    "pr": 243
+    "owner_scope": "Personally owned robot/repository/Pi; isolated software fixtures. Prompt and explicit confirmation before each movement with commissioning checks. Ten-minute silence means independent work, never movement approval.",
+    "pi_installed_revision": "4bc77ba605834fdec04b436daa4bec67bca84fbb"
   }
 }

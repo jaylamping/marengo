@@ -1,3 +1,27 @@
+## Latest Windows continuation — batch30, October2
+
+Batch29 PR243 merged at1e2141f. Exact PR CI36965377334 and main CI36966471834
+passed all five jobs; tree equals final qualified PR headc0db5c3. Both reviews
+are clear. T01 is partial until immutable versioned release/atomic activation
+acceptance shared with T02 is completed. Counts25 verified,12 partial,65 open
+across102 IDs and8 retained maintenance tasks.
+
+Batch30 T04 worktree: `J:/code/marengo-worktrees/local-writer-session-auth`,
+branch `codex/local-writer-session-auth`, based on main1e2141f. Actual public
+HTTP auth fixture3 original negative failures/1positive replays unchanged4green.
+Runtime Consul credential entry/tab memory and authenticated mirror requests
+have15 targeted tests and production build qualification. Broader body/output,
+deadline/concurrency/rate/argument tests, required gating, build-token absence,
+independent reviews and delivery remain pending. No T04 closure claimed.
+
+Pi source/client tests remain isolated; installed revision4bc77ba. No deployment,
+service restart, physical CAN action or motor movement occurred. Owner-confirmed
+gravity home does not establish current reference, support or E-stop readiness.
+Prompt before every movement with bounds/stop and require explicit confirmation
+plus commissioning checks. After ten minutes without reply leave movement
+pending and continue independent work. Automation remains PAUSED; limits and
+Wave sign-off stay intact. Earlier checkpoints below are historical.
+
 ## Latest Windows continuation — batch29 qualification
 
 Batch28 PR242 merged at `4b0d287`; exact PR CI36958751468 and main

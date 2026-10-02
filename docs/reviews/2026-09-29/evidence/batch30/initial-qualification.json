@@ -1,0 +1,31 @@
+{
+  "baseline": "1e2141f13d8c9bfa01188068df714b605ab0077e",
+  "hash_format": "SHA256 canonical LF text",
+  "frozen_v1_sha256": "b0740b2e8f3789c8008053ec73b4eb250dae786f0120d5db8f98690b969a2743",
+  "original": {
+    "negative_cases_failed": 3,
+    "positive_control_passed": 1
+  },
+  "unchanged_candidate": {
+    "passed": 4,
+    "failed": 0
+  },
+  "inputs": {
+    "tools/limit-sync-local/server.ts": "85b6acbe98ad57064ce355ac288b37503a1b5056db3f2f8c0d67ab9baa7d0711",
+    "consul/src/lib/local-limit-sync-session.ts": "b267b6d1edba5b868e0f9e959a4449b9319416104024b99a028050699ac7a719",
+    "consul/src/lib/persist-joint-limits.ts": "1a8af48dd659fe1351aedc983731e3aacef4c870c99fc0300603bdcefba29f11",
+    "consul/src/lib/persist-joint-limits.test.ts": "278bc71e29ee6c4492f00e1827c4ba0f0631c75cb39943f3b583eebf227e72b8",
+    "consul/src/components/dashboard/hardware/local-limit-sync-session.tsx": "2aa2e6c2f2a55ef675e9faab7bc28deddd4461c28e474b477cf3731755fa0b05",
+    "consul/src/components/dashboard/hardware/hardware-settings-sheet.tsx": "17c1809c2f00620f7238a54e4186676226f058af850f56e71ade451713ebd5a5",
+    "consul/src/components/dashboard/hardware/__tests__/local-limit-sync-session.test.tsx": "df02a0e74010efc5aac9cd8d5e9637f9bc706e8891dee7dbd3e0aa1eab689739"
+  },
+  "boundary": "Actual loopback HTTP server, noop writer records invocations, container only; no real configuration writes or physical device actions.",
+  "ui_qualification": "15 targeted tests and production build passed. Only later test cleanup changed; broad final suite pending.",
+  "excluded": "First fresh-worktree hardware suite could not collect because ignored generated protobuf was absent; gen:proto run and actual tests/build then passed.",
+  "pending": [
+    "body/output limits, malformed requests, stalled bodies/workers, concurrency and rate tests",
+    "wire server tests into required gate",
+    "runtime token absent from built assets proof",
+    "independent reviews, primary gate, delivery"
+  ]
+}

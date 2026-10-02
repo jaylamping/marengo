@@ -88,3 +88,8 @@ Standards has zero documented violations/actionable smells; Spec has zero
 remaining actionable scoped findings. The separate review receipt retains the
 earlier findings and remaining T01/T02 acceptance. Exact-head hosted primary
 and delivery remain pending.
+
+PR243 delivered at main1e2141f. Exact PR CI36965377334 and main
+CI36966471834 passed all five jobs; merge tree equals qualified PR tree. T01
+is partial: immutable versioned releases/atomic activation and live installation
+acceptance remain incomplete. See delivery receipt.

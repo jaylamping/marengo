@@ -1,0 +1,16 @@
+ Container marengo-dev-run-49574a4a1ecc Creating 
+ Container marengo-dev-run-49574a4a1ecc Created 
+
+> build
+> tsc
+
+npm notice
+npm notice New major version of npm available! 11.13.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice
+{"name":"foreign-origin simple request","status":403,"writer_invoked":false,"passed":true}
+{"name":"allowed origin missing session credential","status":401,"writer_invoked":false,"passed":true}
+{"name":"allowed origin incorrect credential","status":401,"writer_invoked":false,"passed":true}
+{"name":"allowed origin correct credential","status":200,"writer_invoked":true,"passed":true}
+{"methods":4,"failures":0,"source_sha256":"85b6acbe98ad57064ce355ac288b37503a1b5056db3f2f8c0d67ab9baa7d0711","physical_device":false,"real_config_writes":false}
