@@ -82,3 +82,26 @@ wait for an explicit reply; ten-minute silence allows independent work only.
 There is no human setup/deployment reply pending. CS04/CS13 remain partial;
 counts102/eight maintenance/26verified/13partial/63open, historical batch16,
 all prior work/CAD, limits, history and paused automation are preserved.
+
+## Delivery checkpoint
+
+PR251 merges independently reviewed5db4394 as mainbab38c6 with the same tree.
+Exact finalCI37034964098 and mainCI37036180858 both pass all five actual jobs.
+All1463 non-document source inputs remain equal to qualified0a3fc6b; all48
+committed raw/normalized artifact bindings, including protobuf bytes, verify.
+See [delivery](evidence/batch37/delivery-receipt.json).
+
+Pi source fast-forwards cleanly tobab38c6 after a verified all-refs backup.
+Its installed release remains0a3fc6b with identical production code: the53
+source changes are review records. Installed binaries, taught policy/model,
+calibration/environment and both service PIDs remain unchanged; no installer,
+service restart or CAN write is issued for this sync. Store integrity/schema3
+pass. The qualified candidate's214-file and trusted HTTPS receipts remain bound.
+
+Primary main fast-forwards after preserving five existing local edits byte for
+byte in a verified separate archive and patch. Those URDF/config/kinematics edits
+are outside the qualified release and remain uncommitted. Prior branches,
+worktrees, CAD, history and runtime backups remain intact. Continuation branch
+codex/pi-fault-receive-evidence will expose retained owner transport diagnostics;
+CAN cause/reliability, reference/priority-stop and motion acceptance remain open.
+No setup or movement reply is pending; per-test explicit consent is still required.

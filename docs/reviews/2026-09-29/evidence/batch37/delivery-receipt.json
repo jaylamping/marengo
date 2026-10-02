@@ -1,0 +1,113 @@
+{
+  "recorded_UTC": "2026-10-02T16:58:45.119755+00:00",
+  "PR": "https://github.com/jaylamping/marengo/pull/251",
+  "PR_state": "MERGED",
+  "merged_UTC": "2026-10-02T16:46:15Z",
+  "qualified_source": "0a3fc6bb0dd7ab652d97fd2efb7bb46ceee517c4",
+  "final_reviewed_head": "5db43942cce16727c7eb94f0fc8d8f02eb93c45c",
+  "merged_main": "bab38c6a6e16396b2af7d7d6518eecb4addca96f",
+  "equal_final_head_and_main_tree": "fcd206120c09e6f52c9f20617be4b3463e851673",
+  "non_document_production_inputs_unchanged_since_qualification": true,
+  "CI": {
+    "final": {
+      "id": 37034964098,
+      "head": "5db43942cce16727c7eb94f0fc8d8f02eb93c45c",
+      "conclusion": "success",
+      "all_five_actual_jobs": "success"
+    },
+    "main": {
+      "id": 37036180858,
+      "head": "bab38c6a6e16396b2af7d7d6518eecb4addca96f",
+      "conclusion": "success",
+      "all_five_actual_jobs": "success"
+    }
+  },
+  "independent_reviews": {
+    "head": "5db43942cce16727c7eb94f0fc8d8f02eb93c45c",
+    "Standards_findings": 0,
+    "scoped_Spec_findings": 0,
+    "Standards": "CLEAR; all48 bindings and2037 source inputs,1463 non-doc inputs, frozen tests/executables, source gates and all owned archives verified.",
+    "Spec": "CLEAR; physical cause remains unproven with inter-window candidate failure retained and matched quiet windows. All finding/status/history/maintenance records preserved."
+  },
+  "Pi_source_checkout": "bab38c6a6e16396b2af7d7d6518eecb4addca96f",
+  "Pi_installed_revision": "0a3fc6bb0dd7ab652d97fd2efb7bb46ceee517c4 2026-10-02T15:37:47Z",
+  "Pi_source_sync_only_review_documents": 53,
+  "Pi_installed_bin_policy_model_calibration_environment_unchanged": true,
+  "Pi_services_and_PIDs_unchanged": true,
+  "Pi_Store_integrity": "ok",
+  "Pi_Store_schema": 3,
+  "actual_candidate_install_and_214_file_verification": "post-install-file-verification.json",
+  "trusted_HTTPS_verification": "fresh-live-verification.json",
+  "physical_CAN_result": "physical-comparison.json; clean matched300s windows do not establish an overflow fix, and inter-window candidate fault remains retained",
+  "physical_acceptance": false,
+  "next_dependency": "Expose retained owner raw receive envelope and isolate servicing/workload; then physical identity/reference/priority-stop commissioning before explicit bounded right-arm test. No human reply pending.",
+  "continuation_branch": "codex/pi-fault-receive-evidence",
+  "preservation": {
+    "primary_all_refs_verified_bundle_SHA256": "13185db75498b4f07c6c289dbe5a680b1f71d12875f17c8b996e032c28364a65",
+    "primary_five_existing_local_edits_preserved": "primary-sync-preservation.json",
+    "primary_local_edits_excluded_from_qualified_release": true,
+    "source_all_refs_before_sync_verified_bundle_SHA256": "fb554511ef6a3f41b4a39e4385890caf1900d76b84ce349f2c46b7e2f6110c48",
+    "all_previous_work_CAD_limits_history_and_paused_automation_preserved": true
+  },
+  "finding_status_counts": {
+    "verified": 26,
+    "partial": 13,
+    "open": 63
+  },
+  "artifact_bindings": {
+    "final-ci.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\final-ci.json",
+      "raw_SHA256": "dcb66161ec77f3071724a3ff36278dee583366fb8dfa9b81b0d1dea8a02850a4",
+      "artifact_SHA256": "dcb66161ec77f3071724a3ff36278dee583366fb8dfa9b81b0d1dea8a02850a4",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "main-ci.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\main-ci.json",
+      "raw_SHA256": "e31896116f84de7b4c11685e963528989eea3445d657f4edbc476bb0df18e6c1",
+      "artifact_SHA256": "e31896116f84de7b4c11685e963528989eea3445d657f4edbc476bb0df18e6c1",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "final-reviews.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\final-reviews.json",
+      "raw_SHA256": "57562f703ecb4a7ec40a8d6e38da5c08f825cd7bc5d39107abf6d08a5546ce35",
+      "artifact_SHA256": "57562f703ecb4a7ec40a8d6e38da5c08f825cd7bc5d39107abf6d08a5546ce35",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "post-commit-input-verification.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\post-commit-input-verification.json",
+      "raw_SHA256": "801d859c868e973334d75653ee74948a058210ccac8fd95b3ea62898b0dacf9c",
+      "artifact_SHA256": "801d859c868e973334d75653ee74948a058210ccac8fd95b3ea62898b0dacf9c",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "primary-sync-preservation.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\primary-sync-preservation.json",
+      "raw_SHA256": "7ff3705b389621dcf0d214237c9f710e2635efa3b2f2ae027e1ca4770b50edc3",
+      "artifact_SHA256": "7ff3705b389621dcf0d214237c9f710e2635efa3b2f2ae027e1ca4770b50edc3",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "source-record-sync-receipt.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\source-record-sync-receipt.json",
+      "raw_SHA256": "c2a973d537eb5fa70cfdec2be47c4f37e4efd83293e57820e93f53623f2cc602",
+      "artifact_SHA256": "c2a973d537eb5fa70cfdec2be47c4f37e4efd83293e57820e93f53623f2cc602",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "source-record-sync-safety.pb": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\source-record-sync-safety.pb",
+      "raw_SHA256": "b57eb8f31391d797fb95b4ed8d6adbb21110c709e51064ec7312debc320bb788",
+      "artifact_SHA256": "b57eb8f31391d797fb95b4ed8d6adbb21110c709e51064ec7312debc320bb788",
+      "normalization": "unchanged protobuf bytes"
+    },
+    "source-record-sync-safety.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\source-record-sync-safety.txt",
+      "raw_SHA256": "90ea405c2e7203cd1348345619ef9967ec55a65d18f15f8d25a11f96eb52cb44",
+      "artifact_SHA256": "90ea405c2e7203cd1348345619ef9967ec55a65d18f15f8d25a11f96eb52cb44",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "sync-pi-records.py": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\sync-pi-records.py",
+      "raw_SHA256": "fb73d642c4e1db49afedc3fc7baf10ab509a44bc29b6fc15a5c2048e01f4c3b5",
+      "artifact_SHA256": "fb73d642c4e1db49afedc3fc7baf10ab509a44bc29b6fc15a5c2048e01f4c3b5",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    }
+  }
+}
