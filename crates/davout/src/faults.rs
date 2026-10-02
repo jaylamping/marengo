@@ -87,6 +87,27 @@ pub struct ReceiveFrameEvidence {
     pub reason: Option<MalformedReason>,
 }
 
+impl std::fmt::Display for ReceiveFrameEvidence {
+    /// Bounded original-envelope diagnostics, without inventing acquisition time.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let interface = self.interface.as_deref().map(bounded_message);
+        write!(
+            f,
+            "interface={interface:?}, kind={:?}, can_id=0x{:08x}, extended={}, payload_len={}, data=",
+            self.kind, self.can_id, self.extended, self.payload_len
+        )?;
+        if !matches!(self.kind, RxFrameKind::Remote { .. }) {
+            for byte in &self.raw[..usize::from(self.payload_len.min(8))] {
+                write!(f, "{byte:02x}")?;
+            }
+        }
+        if let Some(reason) = self.reason {
+            write!(f, ", reason={reason}")?;
+        }
+        Ok(())
+    }
+}
+
 /// An incomplete view retains its declared work and honest completion state.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReceiveDrainEvidence {

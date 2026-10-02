@@ -15,6 +15,8 @@ mod reference_shutdown_tests;
 #[cfg(test)]
 mod safety_publication_tests;
 #[cfg(test)]
+mod safety_receive_diagnostic_tests;
+#[cfg(test)]
 mod shutdown_tests;
 
 use std::collections::BTreeSet;
@@ -611,21 +613,27 @@ fn publish_safety<B: MotorBus>(
     let mut faults: Vec<_> = snapshot
         .faults
         .iter()
-        .map(|fault| Fault {
-            code: "runtime".to_string(),
-            message: DavoutError::FaultLatched {
+        .map(|fault| {
+            let mut message = DavoutError::FaultLatched {
                 id: fault.id,
                 class: fault.class,
                 joint: fault.joint.clone(),
                 message: fault.message.clone(),
             }
-            .to_string(),
-            severity: if fault.class == davout::FaultClass::HardwareEstop {
-                FaultSeverity::Estop
-            } else {
-                FaultSeverity::Fault
-            } as i32,
-            joint: fault.joint.clone().unwrap_or_default(),
+            .to_string();
+            if let Some(first_frame) = &fault.receive.first_frame {
+                message.push_str(&format!("; first receive: {first_frame}"));
+            }
+            Fault {
+                code: "runtime".to_string(),
+                message,
+                severity: if fault.class == davout::FaultClass::HardwareEstop {
+                    FaultSeverity::Estop
+                } else {
+                    FaultSeverity::Fault
+                } as i32,
+                joint: fault.joint.clone().unwrap_or_default(),
+            }
         })
         .collect();
     if faults.is_empty() {
