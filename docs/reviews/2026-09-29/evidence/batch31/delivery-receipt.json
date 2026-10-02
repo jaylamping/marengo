@@ -1,0 +1,43 @@
+{
+  "pr": "https://github.com/jaylamping/marengo/pull/245",
+  "head": "8cf7b542cd7c37ee5d4d97cba2a216cdd13d611c",
+  "reviewed_production_source": "dc88d28323a859f7d74d5c50dc8f5689646142d4",
+  "pr_ci_run": 36976829021,
+  "main": "df468496eae0b3c30104874c3bc2b6ad218ec827",
+  "main_ci_run": 36977383698,
+  "all_five_pr_and_main_jobs": "passed",
+  "identical_pr_and_main_tree": "68048382d8f2d8d660595a2598b5187057da10dd",
+  "pr_jobs": [
+    "build-image",
+    "changes",
+    "check",
+    "sim",
+    "vcan"
+  ],
+  "main_jobs": [
+    "build-image",
+    "changes",
+    "check",
+    "sim",
+    "vcan"
+  ],
+  "independent_final_metadata_reviews": "final-metadata-reviews.md",
+  "independent_final_metadata_reviews_sha256": "79431ab2917fc90cffb8301de9905c9a76086d6a383c86ad297567a1e9a205d1",
+  "qualification": "final-source-qualification.json",
+  "branches_and_worktrees_preserved": true,
+  "G07": "software verified",
+  "finding_counts": {
+    "verified": 26,
+    "partial": 13,
+    "open": 63
+  },
+  "installed_Pi_revision": "4bc77ba605834fdec04b436daa4bec67bca84fbb",
+  "native_Pi": {
+    "Rust_passed": 826,
+    "existing_ignored": 1,
+    "Consul_passed": 374,
+    "bound_source_files": 1736
+  },
+  "deployment_performed": false,
+  "physical_acceptance": false
+}

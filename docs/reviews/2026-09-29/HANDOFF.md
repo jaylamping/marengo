@@ -1,3 +1,25 @@
+## Latest Windows continuation: batch32 preparation, October 2
+
+Batch31 PR245 is merged at df468496. Final PR CI36976829021 and equal-tree
+main CI36977383698 pass all five jobs. Source dc88d283, final PR 8cf7b542;
+independent production and final metadata reviews are clear. Primary 826 Rust
+passes/1 existing ignored plus 374 Consul and fatal ARM pass; native Pi 826/1
+ignored plus 374 Consul/build/assets pass with 1736 source files bound. See
+evidence/batch31/delivery-receipt.json. Earlier delivery-pending text is historical.
+
+Batch32 worktree J:/code/marengo-worktrees/reference-history-journal, branch
+codex/reference-history-journal, baseline df468496. Preparation plan records
+actual seams and complete R2b1 history contract; no journal code/new test result
+or finding closure yet. Write the ADR before implementation. Durable history
+remains unusable for motion; selected current virtual grant follows in R2b2.
+All 102 IDs/eight maintenance tasks retained: 26 verified, 13 partial, 63 open.
+
+Installed Pi4bc77ba/services unchanged; no deploy or motor operation. Gravity
+home does not qualify support, repaired reference, E-stop or recovery. Prompt
+before each movement with bounds/stop and require explicit reply plus commissioning.
+Ten-minute silence leaves movement pending and allows independent work only.
+Automation PAUSED; limits/Wave sign-off and existing work/CAD preserved.
+
 ## Latest Windows continuation: batch31 software qualified, October2
 
 G07 qualifies at dc88d283 against main a5c4cdb; PR245 is the delivery candidate.

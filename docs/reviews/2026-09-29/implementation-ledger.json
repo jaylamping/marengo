@@ -2654,11 +2654,13 @@
       "evidence": [
         "batch31-gateway-runtime-access.md",
         "evidence/batch31/final-source-qualification.json",
-        "evidence/batch31/independent-reviews.md"
+        "evidence/batch31/independent-reviews.md",
+        "evidence/batch31/delivery-receipt.json"
       ],
       "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/245",
       "hardware_acceptance": "not established by this software repair",
-      "implementation_checkpoint": "dc88d28323a859f7d74d5c50dc8f5689646142d4"
+      "implementation_checkpoint": "dc88d28323a859f7d74d5c50dc8f5689646142d4",
+      "delivered_main": "df468496eae0b3c30104874c3bc2b6ad218ec827"
     },
     {
       "id": "G08",
@@ -2827,7 +2829,7 @@
       "implementation_and_acceptance_plan": "gateway-implementation-plan.md",
       "status": "verified",
       "evidence": [
-        "Batch23 original CPU HostMetrics assertion red replays unchanged green after correct column parsing, keyed CPU-ID baselines and explicit unknown/reset/hotplug validity. Encoded UI unknownâ†’validâ†’unknown qualified; Standards/Spec and integration reviews accepted. Final PR5c603be CI36899946079 all5 passed; merged mainad09ee4 CI36900877954 all5 passed. No hardware acceptance."
+        "Batch23 original CPU HostMetrics assertion red replays unchanged green after correct column parsing, keyed CPU-ID baselines and explicit unknown/reset/hotplug validity. Encoded UI unknown\u00e2\u2020\u2019valid\u00e2\u2020\u2019unknown qualified; Standards/Spec and integration reviews accepted. Final PR5c603be CI36899946079 all5 passed; merged mainad09ee4 CI36900877954 all5 passed. No hardware acceptance."
       ],
       "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/237",
       "hardware_acceptance": "not established by this software repair"
@@ -4696,7 +4698,7 @@
         },
         "limits": "No runtime physical operation. Never-existing from_supervisor name probe excluded from required counts; source/private-factory review establishes the actual seam."
       },
-      "test_quality": "Davout 136Ã¢â€ â€™159:3 obsolete API cases retired,26 meaningful additions; Berthier173Ã¢â€ â€™175 with arithmetic property replaced by wire output, independent stationary input and fixed-dt progress; no new ignored tests. Two receive-invariant mutants killed by actual assertions; CS24 retained open as independently demonstrated old-law failure.",
+      "test_quality": "Davout 136\u00c3\u00a2\u00e2\u20ac\u00a0\u00e2\u20ac\u2122159:3 obsolete API cases retired,26 meaningful additions; Berthier173\u00c3\u00a2\u00e2\u20ac\u00a0\u00e2\u20ac\u2122175 with arithmetic property replaced by wire output, independent stationary input and fixed-dt progress; no new ignored tests. Two receive-invariant mutants killed by actual assertions; CS24 retained open as independently demonstrated old-law failure.",
       "independent_reviews": {
         "standards": {
           "findings": 0,
@@ -15482,10 +15484,15 @@
       "source": "dc88d28323a859f7d74d5c50dc8f5689646142d4",
       "baseline": "a5c4cdb6448c5a0164ebbeffb1c82eb09ab0c266",
       "PR": "https://github.com/jaylamping/marengo/pull/245",
-      "status": "software verified; final documentation and merged-main CI delivery pending",
+      "status": "software verified and delivered; final PR/main all five checks passed",
       "qualification": "evidence/batch31/final-source-qualification.json",
       "source_CI": 36975018460,
-      "physical_acceptance": false
+      "physical_acceptance": false,
+      "head": "8cf7b542cd7c37ee5d4d97cba2a216cdd13d611c",
+      "main": "df468496eae0b3c30104874c3bc2b6ad218ec827",
+      "pr_CI": 36976829021,
+      "main_CI": 36977383698,
+      "delivery": "evidence/batch31/delivery-receipt.json"
     }
   ],
   "finding_status_counts": {
@@ -15525,19 +15532,20 @@
     "pr": 240
   },
   "active_windows_continuation": {
-    "batch_id": "batch31",
-    "branch": "codex/gateway-runtime-access",
-    "worktree": "J:/code/marengo-worktrees/gateway-runtime-access",
-    "baseline": "a5c4cdb6448c5a0164ebbeffb1c82eb09ab0c266",
+    "batch_id": "batch32",
+    "branch": "codex/reference-history-journal",
+    "worktree": "J:/code/marengo-worktrees/reference-history-journal",
+    "baseline": "df468496eae0b3c30104874c3bc2b6ad218ec827",
     "findings": [
-      "G07"
+      "CS05",
+      "CS06",
+      "CS07"
     ],
-    "report": "batch31-gateway-runtime-access.md",
-    "status": "G07 software verified at dc88d28: primary826Rust/1existingignore/374Consul/fatalARM, nativePi826/1ignore/374Consul/1736inputs, reviews clear and sourceCI36975018460 allfive. PR245 final documentation/main delivery pending.",
+    "report": "batch32-reference-history-journal.md",
+    "status": "Preparation only: current source seams and prior R2b1 design inspected. No journal implementation or new qualification claimed. Batch31 delivery complete.",
     "physical_acceptance": false,
-    "owner_scope": "Personally owned robot/repository/Pi; isolated software fixtures. Prompt and explicit confirmation before each movement with commissioning checks. Ten-minute silence means independent work, never movement approval.",
+    "owner_scope": "Personally owned robot/repository/Pi; isolated fixtures. Explicit confirmation and commissioning checks before every movement. Ten-minute silence leaves movement pending and allows independent work only.",
     "pi_installed_revision": "4bc77ba605834fdec04b436daa4bec67bca84fbb",
-    "qualified_source": "dc88d28323a859f7d74d5c50dc8f5689646142d4",
-    "PR": "https://github.com/jaylamping/marengo/pull/245"
+    "prior_delivery": "evidence/batch31/delivery-receipt.json"
   }
 }
