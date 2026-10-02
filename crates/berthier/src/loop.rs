@@ -673,10 +673,11 @@ impl<B: MotorBus> ControlLoop<B> {
     /// full-master Robot Ready).
     pub fn ensure_active_for_motion(&mut self) -> Result<(), LoopError> {
         self.synchronize_stop_generation();
-        if self.supervisor.mode() == OperationalMode::Active {
-            return Ok(());
-        }
-        let targets = self.supervisor.resolve_enable_targets(&self.repo_root)?;
+        let targets = if self.supervisor.mode() == OperationalMode::Active {
+            self.supervisor.active_joints().iter().cloned().collect()
+        } else {
+            self.supervisor.resolve_enable_targets(&self.repo_root)?
+        };
         self.supervisor.enable_targets(&targets)?;
         Ok(())
     }

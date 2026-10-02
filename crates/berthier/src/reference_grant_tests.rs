@@ -310,5 +310,22 @@ fn current_grant_controller_active_motion_entry_rechecks_revoked_permission() {
         JointHomingState::Unhomed
     );
     assert!(ctrl.ensure_active_for_motion().is_err());
-    assert_eq!(ctrl.supervisor().bus().transmissions().len(), before);
+    assert_eq!(ctrl.supervisor().mode(), OperationalMode::Disabled);
+    assert!(ctrl.supervisor().stop_generation() > stop);
+    let report = ctrl
+        .supervisor()
+        .safety_snapshot()
+        .last_stop
+        .expect("shared admission's complete stop report");
+    assert_eq!(report.attempts.len(), 15);
+    assert_eq!(report.failed_writes(), 0);
+    let writes = &ctrl.supervisor().bus().transmissions()[before..];
+    assert_eq!(writes.len(), 15);
+    for (slot, device) in (1u8..=5).enumerate() {
+        let stop = &writes[slot * 3..slot * 3 + 3];
+        assert!(stop
+            .iter()
+            .all(|write| write.address.as_ref() == Some(&MotorAddress::new("can0", device))));
+        assert_eq!(stop[2].frame.id, 0x0400_fd00 | u32::from(device));
+    }
 }
