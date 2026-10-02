@@ -144,6 +144,7 @@ pub enum ReferenceStageInvalidation {
     Shutdown,
     CounterExhausted,
     CommitRetired,
+    Consumed,
 }
 
 #[derive(Debug, Clone)]
@@ -293,6 +294,16 @@ impl<B: MotorBus> Default for ReferenceOwner<B> {
 impl<B: MotorBus> ReferenceOwner<B> {
     pub(crate) fn install_backend(&mut self, backend: ReferenceBackend<B>) {
         self.backend = Some(backend);
+    }
+
+    pub(super) fn current_device_epoch(&self, bus: &B, address: &MotorAddress) -> Option<u64> {
+        let backend = self.backend.as_ref()?;
+        (backend.current_device_epoch)(bus, address)
+    }
+
+    #[cfg(test)]
+    pub(super) fn evict_outcomes_for_test(&mut self) {
+        self.outcomes.clear();
     }
 }
 
@@ -944,6 +955,7 @@ impl<B: MotorBus> Supervisor<B> {
 
     /// Mandatory cleanup is separate from optional ordinary exit Disable.
     pub fn cancel_reference_for_shutdown(&mut self) -> Option<ReferenceTerminal> {
+        self.reference_authority.revoke();
         self.invalidate_retained_stages(ReferenceStageInvalidation::Shutdown);
         self.cancel_reference_commits(ReferenceCancelReason::Shutdown);
         if !self.acquisition_busy() {
@@ -1158,6 +1170,25 @@ impl RetainedOutcome {
                 stage.invalidated.set(Some(reason));
             }
         }
+    }
+    pub(super) fn select_current_virtual(
+        &self,
+        authority: &mut crate::reference::ReferenceAuthority,
+        job: Arc<()>,
+    ) -> Option<()> {
+        let stage = self.stage.as_ref()?;
+        let proof = &stage.evidence.proof;
+        authority.select_consumed_virtual(
+            self.joint(),
+            Arc::clone(&proof.realm),
+            crate::reference::ConsumedReferenceBinding {
+                job,
+                model: stage.installed_model.clone(),
+                address: stage.evidence.address.clone(),
+                device_epoch: proof.device_epoch,
+            },
+            &stage.typed_policy,
+        )
     }
     pub(super) fn journal_input(
         &self,

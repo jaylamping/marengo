@@ -1,4 +1,4 @@
-//! Owner-bound virtual history lifecycle. Disk history never grants output.
+//! Owner-bound virtual commit lifecycle. Only actual current consumption may select output.
 
 use std::cell::Cell;
 use std::collections::VecDeque;
@@ -113,6 +113,13 @@ pub(super) struct CommitOwner {
     journal: Option<Journal>,
     pending: VecDeque<Entry>,
     outcomes: VecDeque<Entry>,
+    selection: CommitSelection,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum CommitSelection {
+    HistoryOnly,
+    CurrentVirtual,
 }
 impl Default for CommitOwner {
     fn default() -> Self {
@@ -122,12 +129,14 @@ impl Default for CommitOwner {
             journal: None,
             pending: VecDeque::new(),
             outcomes: VecDeque::new(),
+            selection: CommitSelection::HistoryOnly,
         }
     }
 }
 impl CommitOwner {
-    pub(super) fn install(&mut self, journal: Journal) {
+    pub(super) fn install(&mut self, journal: Journal, selection: CommitSelection) {
         self.journal = Some(journal);
+        self.selection = selection;
     }
     pub(super) fn busy(&self) -> bool {
         self.pending
@@ -145,24 +154,16 @@ impl CommitOwner {
             .find(|entry| entry.handle == *handle)
             .ok_or(ReferenceCommitError::OutcomeExpired)
     }
-    fn collect(&mut self, handle: &ReferenceCommitHandle) {
-        let Some(index) = self
+    fn collect(&mut self, handle: &ReferenceCommitHandle) -> Option<Entry> {
+        let index = self
             .pending
             .iter()
-            .position(|entry| entry.handle == *handle)
-        else {
-            return;
-        };
-        let Some(completion) = self
+            .position(|entry| entry.handle == *handle)?;
+        let completion = self
             .journal
             .as_ref()
-            .and_then(|journal| journal.take_matching(&self.pending[index].job))
-        else {
-            return;
-        };
-        let Some(mut entry) = self.pending.remove(index) else {
-            return;
-        };
+            .and_then(|journal| journal.take_matching(&self.pending[index].job))?;
+        let mut entry = self.pending.remove(index)?;
         entry.result = completion.result;
         if entry.phase.get() == ReferenceCommitPhase::Pending {
             entry.phase.set(ReferenceCommitPhase::Complete);
@@ -172,6 +173,10 @@ impl CommitOwner {
                 .stage
                 .retire(ReferenceStageInvalidation::CommitRetired);
         }
+        Some(entry)
+    }
+
+    fn retain(&mut self, entry: Entry) {
         if self.outcomes.len() == OUTCOME_CAPACITY {
             self.outcomes.pop_front();
         }
@@ -200,6 +205,9 @@ impl<B: MotorBus> Supervisor<B> {
         }
     }
     pub(super) fn cancel_reference_commits(&self, reason: ReferenceCancelReason) {
+        if reason == ReferenceCancelReason::Shutdown && self.reference_commits.journal.is_some() {
+            self.reference_authority.revoke();
+        }
         for entry in self.reference_commits.entries() {
             entry
                 .stage
@@ -249,6 +257,15 @@ impl<B: MotorBus> Supervisor<B> {
         if status != ReferenceStageStatus::CurrentVirtualEvidence {
             return Err(ReferenceCommitError::Ineligible(status));
         }
+        if self.reference_commits.selection == CommitSelection::CurrentVirtual
+            && self
+                .reference_authority
+                .generation()
+                .checked_add(1)
+                .is_none()
+        {
+            return Err(ReferenceCommitError::CounterExhausted);
+        }
         if !journal.has_credit()? {
             return Err(ReferenceCommitError::QueueFull);
         }
@@ -294,7 +311,9 @@ impl<B: MotorBus> Supervisor<B> {
             eligibility: self.retained_stage_status(&entry.stage),
             journal: entry.result.clone(),
             receive: entry.receive,
-            usable_reference: false,
+            usable_reference: self.reference_binding_valid()
+                && self.reference_authority.selected_by(&entry.job.nonce)
+                && self.reference_authority.contains(entry.stage.joint()),
         })
     }
 
@@ -354,7 +373,33 @@ impl<B: MotorBus> Supervisor<B> {
         }
         // Deadline equality and every captured continuity check run before collect.
         self.observe_reference_commits();
-        self.reference_commits.collect(handle);
+        if let Some(entry) = self.reference_commits.collect(handle) {
+            if self.reference_commits.selection == CommitSelection::CurrentVirtual
+                && entry.phase.get() == ReferenceCommitPhase::Complete
+                && matches!(entry.result, ReferenceJournalResult::DurableHistory { .. })
+                && self.retained_stage_status(&entry.stage)
+                    == ReferenceStageStatus::CurrentVirtualEvidence
+            {
+                if entry
+                    .stage
+                    .select_current_virtual(
+                        &mut self.reference_authority,
+                        Arc::clone(&entry.job.nonce),
+                    )
+                    .is_some()
+                {
+                    entry.stage.retire(ReferenceStageInvalidation::Consumed);
+                } else {
+                    entry
+                        .stage
+                        .retire(ReferenceStageInvalidation::CounterExhausted);
+                    entry.phase.set(ReferenceCommitPhase::Invalidated(
+                        ReferenceStageInvalidation::CounterExhausted,
+                    ));
+                }
+            }
+            self.reference_commits.retain(entry);
+        }
         self.reference_commit_snapshot(handle)
     }
 
@@ -364,6 +409,11 @@ impl<B: MotorBus> Supervisor<B> {
         reason: ReferenceCancelReason,
     ) -> Result<ReferenceCommitSnapshot, ReferenceCommitError> {
         let entry = self.reference_commits.get(handle)?;
+        if reason != ReferenceCancelReason::Disable
+            && self.reference_authority.selected_by(&entry.job.nonce)
+        {
+            self.reference_authority.revoke();
+        }
         entry
             .stage
             .retire(if reason == ReferenceCancelReason::Shutdown {
@@ -417,7 +467,9 @@ impl<B: MotorBus> Supervisor<B> {
             .map(|entry| entry.handle.clone())
             .collect();
         for handle in handles {
-            self.reference_commits.collect(&handle);
+            if let Some(entry) = self.reference_commits.collect(&handle) {
+                self.reference_commits.retain(entry);
+            }
         }
         self.reference_commits
             .journal
@@ -431,3 +483,7 @@ impl<B: MotorBus> Supervisor<B> {
 #[cfg(test)]
 #[path = "reference_commit_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "reference_grant_tests.rs"]
+mod grant_tests;

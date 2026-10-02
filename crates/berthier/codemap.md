@@ -63,6 +63,13 @@ runtime fallback stop. Normal flow below resumes only without a reservation.
 8. **Publish Chappe telemetry** at reduced rate (e.g. 20 Hz vs 200 Hz loop).
 
 ## Integration
+
+The separately named current-consuming virtual journal factories start Unreferenced.
+Their normal busy tick consumes one actual bounded report, may select the acquired
+joint after durable completion, and returns without old intent or ordinary output.
+`reference_grant_tests.rs` exercises the published-completion tick and later explicit
+selected output, including a whole-report fault with an unread bounded suffix.
+
 - **Depends on**: `davout` (supervisor + bus), `armee-dynamics` (gravity), `armee-kinematics` (limit envelope), `chappe` (telemetry), `marengo-config` (config loading), `armee-proto` (RobotState protobuf types).
 - **Called by**: `marengo-pi` binary — drives `ControlLoop` on the Pi's realtime thread.
 - **Does not**: open CAN sockets, enforce E-stop, manage joint↔motor transform, load firmware parameters.

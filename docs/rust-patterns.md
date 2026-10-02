@@ -277,8 +277,9 @@ decoded reply pop to owner/realm/transaction/device epoch. Cache, timestamps and
 typed queue injection cannot qualify it. Inspect the whole ordered hazard stream
 before staging evidence, and retain same-call all-address cleanup and reporting
 Off results. Deadline equality, cancellation and uncertain delivery remain final.
-EvidenceStaged with CommitUnavailable cannot authorize Ready or output; the current
-selected grant and installed clients remain separate work. New APIs use independent
+EvidenceStaged with CommitUnavailable cannot authorize Ready or output; selecting
+current permission requires the separate durable consumer below. Installed clients
+remain separate work. New APIs use independent
 candidate conformance and selected mutants, not missing-method baseline reds.
 
 Retain actual accepted pose/private correlation through cleanup; reconstructing
@@ -302,6 +303,16 @@ current eligibility and actual disk result distinct. Durable SQL readback remain
 history, including after cancellation, shutdown or process recovery. Generic/default
 constructors perform no journal I/O. Close every writer before sharing one absolute
 shutdown deadline; a timed-out or unwound worker must retain all accepted outcomes.
+
+The separately named current-consuming virtual factories preserve every history-only
+constructor contract ([ADR0035](decisions/0035-consume-current-virtual-reference.md)).
+Only the real owner consumer can select the acquired joint after actual durable
+completion and fresh full continuity checks. Keep the grant's private model/device/
+job binding independent of stage deadlines and diagnostic cache retention. Successful
+ordinary Disable preserves intact reference; new acquisition, observed relevant policy
+or model change, reset, fault, uncertain stop and shutdown revoke it. Snapshot booleans
+and recovered rows only describe history/current observations; they never install
+permission. Generic/physical constructors retain no qualified acquisition capability.
 
 ```rust
 // BAD — an already-revoked reference generation misses another model install
