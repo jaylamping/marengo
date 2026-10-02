@@ -1,0 +1,13 @@
+{
+  "baseline": "ca13eb810406539cc2394d6130881176fb76665c",
+  "original_snapshot": "J:/code/marengo-migration-backup-20260929/batch27-v2-original",
+  "inputs": {
+    "tools/marengo-research-mcp/tests/test_cached_search_handlers.py": "07010983b751e0c3ea60e6f2bcb05668d64a415374d6bc6d852a0b2b6ca2dcaf",
+    "tools/marengo-research-mcp/tests/test_cached_search_validation.py": "307e5aa6ace1f377ed25504ea05a5b742d5ae2df93dfbf72dd9a01eddfc3da89",
+    "tools/marengo-research-mcp/tests/test_cache_envelope.py": "58d9a58e052c94319373e7ec589c89870928e8a6ac4f6da82f8eb39bec385f25",
+    "tools/marengo-research-mcp/src/marengo_research_mcp/tools/search.py": "e8621ab703c482335cf476cd2a65ba0d90f390aa16732767849520ce2192edce",
+    "tools/marengo-research-mcp/src/marengo_research_mcp/cache.py": "e6e7bd19b3713c8681ca297ab53129404012900b272364aaf097159704506e0c"
+  },
+  "classification": "Canonicalv2 original-public12 failures and unchanged12 greens; implemented validation/cache red21/positive3 and final82 greens. V1 metadata claim excluded; preliminary import-error not behavioral acceptance.",
+  "original_probe_sha256": "07010983b751e0c3ea60e6f2bcb05668d64a415374d6bc6d852a0b2b6ca2dcaf"
+}

@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import time
 from pathlib import Path
 from typing import Any
 
 from marengo_research_mcp.config import Config
+
+CACHE_SCHEMA_VERSION = 1
 
 
 def _key(namespace: str, payload: str) -> str:
@@ -35,15 +38,31 @@ class ResearchCache:
             data = json.loads(path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
             return None
-        age_h = (time.time() - data.get("ts", 0)) / 3600.0
-        if age_h > self.cfg.cache_ttl_hours:
+        if not isinstance(data, dict):
+            return None
+        version = data.get("schema_version")
+        if type(version) is not int or version != CACHE_SCHEMA_VERSION:
+            return None
+        stamp = data.get("ts")
+        if type(stamp) not in (int, float):
+            return None
+        try:
+            if not math.isfinite(stamp):
+                return None
+            age_h = (time.time() - stamp) / 3600.0
+        except OverflowError:
+            return None
+        if age_h < 0 or age_h > self.cfg.cache_ttl_hours:
             return None
         return data.get("value")
 
     def set(self, namespace: str, payload: str, value: Any) -> None:
         path = self._path(namespace, payload)
         path.write_text(
-            json.dumps({"ts": time.time(), "value": value}, ensure_ascii=False, indent=2),
+            json.dumps(
+                {"schema_version": CACHE_SCHEMA_VERSION, "ts": time.time(), "value": value},
+                ensure_ascii=False, indent=2,
+            ),
             encoding="utf-8",
         )
 

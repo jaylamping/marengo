@@ -8,16 +8,26 @@ The prior coroutine-function check therefore calls those lambdas without awaitin
 the returned coroutine, then passes the coroutine to response validation. Cold
 requests raise a Pydantic list error before a response or cache entry exists.
 The shared helper now explicitly accepts an async provider and awaits its result.
-Provider errors remain structured response errors under the existing cache policy.
+Provider and response-validation errors remain structured response errors under
+the existing cache policy. Invalid persisted responses refresh from their source.
+Versioned cache envelopes independently qualify finite timestamps, future dates
+and the configured TTL; legacy/unrecognized envelopes are misses.
 
 The frozen public-handler probe exercises every affected handler with literal
 results and real provider failures, real temporary disk cache miss/hit, preserved
 timestamps/metadata, exact provider arguments and a separate cache key for a
 changed limit. External source calls are the only substituted boundary.
-At the actual baseline all12 cases fail with the unawaited-coroutine validation
-error; unchanged complete test bytes pass all12 after repair. Whole-probe SHA256:
-`f2a174407b0afd5c72e0b140ceda9e000d067a2457b709b74df968783421fd84`.
-The full offline research suite passes58 on native Windows. This repairs the
+The original v1 probe's12 failures replayed unchanged green, but Spec review found
+its undeclared metadata field was discarded by Pydantic. V1 is preserved as
+preliminary await/error/cache evidence; its metadata claim is excluded. Canonical
+v2 uses declared authors/year/stars and literal timestamp/field expectations.
+All12 v2 cases fail at the actual archived baseline and replay unchanged green.
+The qualification receipt binds its complete bytes and source identities.
+Twelve additional public malformed-provider/disk-response cases and12 independent
+cache-envelope/TTL cases qualify the review corrections. Before repair,21 of those
+24 fail and3 boundary/expiry positives pass; final offline research82 passes.
+The initial import-error preparation is preserved/excluded from behavior evidence.
+This repairs the
 missing T17 source change independently of the Mac-only unpublished branch;
 its local commits/workflow are preserved and no workflow-token scope is changed.
 
@@ -54,9 +64,16 @@ contract. No enable, motion, CAN transmit request, restart, install or deploymen
 was issued. Device observations do not certify direction, stop, support or model
 acceptance.
 
-Current research source and the unchanged probe are separately staged under
+Initial research source and probe were separately staged under
 `/home/joey/marengo-validation/batch27-20261001`, with isolated uv/environment/cache.
+Initial Pi replay12 reds/unchanged12 greens/full58 passed. Final review-corrected
+replay is isolated beneath its `review-corrected` directory, restoring both
+exact original cache/search files for the baseline control.
 The portable replay script performs original-red then repaired-green and the
 full offline suite without writing installed runtime/configuration or opening
-CAN. Pi replay, primary check, independent review and delivery evidence will be
-recorded after completion. T17 remains open until required delivery passes.
+CAN. The initial required Linux check passed813Rust/1existingignored, Consul/PiMCP,
+research58/daily-audit15 and a fatal ARM release build. Final corrected primary/Pi
+replay and independent review/delivery evidence will be recorded after completion.
+Current main Rust tests are also running on the Pi in isolated `stack-3cde431`,
+with low scheduling priority and two compile jobs; default tests require no motors.
+T17 remains open until required delivery passes.

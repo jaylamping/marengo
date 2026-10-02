@@ -32,14 +32,17 @@ async def _cached_search(
     key = json.dumps({"q": query, "limit": limit})
     cached = cache.get("search", f"{name}:{key}")
     if cached is not None:
-        return SearchResponse.model_validate({**cached, "cached": True})
-    errors: list[str] = []
-    hits = []
+        try:
+            response = SearchResponse.model_validate({**cached, "cached": True})
+            if response.query == query:
+                return response
+        except (TypeError, ValueError):
+            # An invalid persisted response is a miss, never an invalid public result.
+            pass
     try:
-        hits = await fn(query, limit)
+        resp = SearchResponse(query=query, hits=await fn(query, limit))
     except Exception as exc:
-        errors.append(f"{name}: {exc}")
-    resp = SearchResponse(query=query, hits=hits, errors=errors)
+        resp = SearchResponse(query=query, errors=[f"{name}: {exc}"])
     cache.set("search", f"{name}:{key}", resp.model_dump(mode="json"))
     return resp
 

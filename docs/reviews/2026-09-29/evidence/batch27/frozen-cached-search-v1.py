@@ -42,7 +42,7 @@ async def test_public_handler_cold_and_disk_cache(
     hit = ResearchHit(
         type="code", title="Independent result", url="https://fixture.invalid/robot",
         source_name=namespace, published_at=stamp, updated_at=stamp,
-        stars=42, authors=["A. Researcher"], year=2026,
+        metadata={"language": "Rust"},
     )
 
     async def provider(received_cfg, query, limit):
@@ -56,13 +56,6 @@ async def test_public_handler_cold_and_disk_cache(
     assert awaited_calls == [(cfg, "humanoid", 2)]
     assert cold["query"] == "humanoid" and cold["cached"] is False
     assert cold["hits"] == ([] if source_fails else [hit.model_dump(mode="json")])
-    if not source_fails:
-        returned = cold["hits"][0]
-        assert returned["source_name"] == namespace
-        assert returned["stars"] == 42 and returned["authors"] == ["A. Researcher"]
-        assert returned["year"] == 2026
-        assert returned["published_at"] == "2026-01-02T03:04:00Z"
-        assert returned["updated_at"] == "2026-01-02T03:04:00Z"
     assert cold["errors"] == (
         [f"{namespace}: provider unavailable"] if source_fails else []
     )
