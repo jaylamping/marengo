@@ -1,3 +1,33 @@
+## Latest Windows continuation: batch32 implementation under qualification, October 2
+
+R2b1 now has a private owner-bound producer, exact typed policy/URDF codec,
+concrete bounded SQLite worker, inspection/recovery reader and real completion
+consumer. ADR0034 governs the implementation. Durable history never grants
+output; acquisition terminals remain immutable CommitUnavailable. Explicit
+unreferenced virtual factories opt in; generic/default/INITIAL paths have no
+journal I/O. The controller advances one fresh bounded disabled report, and Pi
+shutdown closes both admissions before sharing one absolute storage budget.
+
+Focused compilation, warnings-denied clippy and all Davout/Berthier/Pi tests
+pass, including actual SQL, credit retention, late hazards/cancellation/deadline,
+exact floats/URDF, worker unwind, child termination and both-worker shutdown.
+These candidate conformance results still require frozen mutants, independent
+review, the primary gate, exact PR/main CI and native Pi qualification. No
+finding closure or hardware acceptance is claimed. SSH connects to the owned
+Pi successfully and uname reports aarch64; installed software is unchanged.
+
+Source worktree J:/code/marengo-worktrees/reference-history-journal, branch
+codex/reference-history-journal; baseline main df468496 and preparation 8863933.
+See batch32-reference-history-journal.md. All 102 findings/eight maintenance
+tasks retain 26 verified, 13 partial, 63 open. CS05/CS06/CS07 remain partial;
+R2b2's current selected virtual grant and installed physical clients follow.
+
+No deploy, sudo, restart, physical CAN operation or movement. Gravity home
+does not qualify support, current repaired reference, E-stop or recovery.
+Prompt before every movement with bounds/stop procedure; require an explicit
+reply and commissioning checks. Ten-minute silence permits independent work
+only. Preserve paused automation, safety limits, Wave sign-off, CAD and worktrees.
+
 ## Latest Windows continuation: batch32 preparation, October 2
 
 Batch31 PR245 is merged at df468496. Final PR CI36976829021 and equal-tree

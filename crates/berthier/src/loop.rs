@@ -187,6 +187,63 @@ fn phase_elapsed_us(since: Instant) -> (u64, Instant) {
 }
 
 impl ControlLoop<davout::simulation::SimulationBus> {
+    #[cfg(any(test, feature = "reference-journal-test-support"))]
+    pub fn from_simulation_with_paused_reference_journal(
+        repo_root: impl AsRef<Path>,
+        bus: davout::simulation::SimulationBus,
+        record_path: impl AsRef<Path>,
+        journal_path: impl AsRef<Path>,
+        pause: &davout::simulation::JournalTestPause,
+        loop_hz: u32,
+        chappe_hz: u32,
+    ) -> Result<Self, LoopError> {
+        let root = repo_root.as_ref();
+        Self::from_repo_inner(
+            root,
+            &root.join("config"),
+            bus,
+            loop_hz,
+            chappe_hz,
+            |root, bus| {
+                Supervisor::from_simulation_with_paused_reference_journal(
+                    root,
+                    bus,
+                    record_path,
+                    journal_path,
+                    pause,
+                )
+            },
+        )
+    }
+
+    /// Explicit closed virtual owner with a dedicated durable history worker.
+    /// This factory always begins unreferenced and uses the supplied root config.
+    pub fn from_simulation_with_reference_journal(
+        repo_root: impl AsRef<Path>,
+        bus: davout::simulation::SimulationBus,
+        record_path: impl AsRef<Path>,
+        journal_path: impl AsRef<Path>,
+        loop_hz: u32,
+        chappe_hz: u32,
+    ) -> Result<Self, LoopError> {
+        let root = repo_root.as_ref();
+        Self::from_repo_inner(
+            root,
+            &root.join("config"),
+            bus,
+            loop_hz,
+            chappe_hz,
+            |root, bus| {
+                Supervisor::from_simulation_with_reference_journal(
+                    root,
+                    bus,
+                    record_path,
+                    journal_path,
+                )
+            },
+        )
+    }
+
     /// Construct the real controller over Davout's closed in-memory transport.
     ///
     /// The declared virtual reference is an initial simulation condition. It
@@ -905,16 +962,13 @@ impl<B: MotorBus> ControlLoop<B> {
         let mut phase = TickPhaseSample::default();
         let mut t = Instant::now();
 
-        if self.supervisor.reference_busy() {
+        if self.supervisor.reference_work_pending() {
             self.discard_motion_intent();
-            let snapshot = self.supervisor.reference_snapshot();
-            if let Some(handle) = snapshot.handle {
-                self.supervisor
-                    .advance_reference(&handle)
-                    .map_err(|error| DavoutError::Homing {
-                        message: error.to_string(),
-                    })?;
-            }
+            self.supervisor
+                .advance_reference_work()
+                .map_err(|error| DavoutError::Homing {
+                    message: error.to_string(),
+                })?;
             self.last_stop_generation = self.supervisor.stop_generation();
             self.last_enable_session = None;
             (phase.feedback_us, t) = phase_elapsed_us(t);

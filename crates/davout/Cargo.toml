@@ -10,12 +10,18 @@ license.workspace = true
 [lints]
 workspace = true
 
+[features]
+reference-journal-test-support = []
+
 [dependencies]
 armee-kinematics.workspace = true
 marengo-config.workspace = true
 marengo-homing.workspace = true
 robstride.workspace = true
 serde_json.workspace = true
+serde.workspace = true
+rusqlite = { workspace = true, features = ["limits"] }
+sha2.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 urdf-rs.workspace = true

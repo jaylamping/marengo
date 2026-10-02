@@ -34,6 +34,16 @@ impl PartialEq for InstalledModelStamp {
 }
 impl Eq for InstalledModelStamp {}
 
+impl InstalledModelStamp {
+    pub(super) fn descriptor(&self) -> (&RobotConfigFile, &urdf_rs::Robot) {
+        (&self.descriptor.0, &self.descriptor.1)
+    }
+
+    pub(super) fn generation(&self) -> u64 {
+        self.generation
+    }
+}
+
 pub(super) struct InstalledReferenceModel {
     stamp: InstalledModelStamp,
 }

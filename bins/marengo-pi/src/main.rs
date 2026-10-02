@@ -9,6 +9,8 @@ mod overlay;
 #[cfg(test)]
 mod reference_busy_overlay_tests;
 #[cfg(test)]
+mod reference_journal_shutdown_tests;
+#[cfg(test)]
 mod reference_shutdown_tests;
 #[cfg(test)]
 mod shutdown_tests;
@@ -1071,6 +1073,7 @@ fn main() {
         worker_terminated = outcome.persist.worker_terminated,
         worker_error = ?outcome.persist.worker_error,
         coalesced_requests = outcome.persist.coalesced_requests,
+        reference_journal = ?outcome.reference_journal,
         ?outcome,
         "owner shutdown outcome"
     );
@@ -1092,6 +1095,7 @@ struct ShutdownOutcome {
     stop: ExitStopOutcome,
     mandatory_reference: Option<ReferenceTerminal>,
     persist: PersistDrainReport,
+    reference_journal: davout::ReferenceJournalDrain,
 }
 
 #[cfg(test)]
@@ -1130,11 +1134,26 @@ fn finish_owner_shutdown<B: MotorBus>(
         ExitStopOutcome::Skipped
     };
 
+    let deadline = Instant::now()
+        .checked_add(persist_timeout)
+        .unwrap_or_else(Instant::now);
+    actuator_overlay.close_persist_admission();
+    loop_ctrl.supervisor().close_reference_journal_admission();
     #[cfg(test)]
     if let Some(observer) = before_persist_wait {
         observer(loop_ctrl);
     }
-    let persist = actuator_overlay.close_persist_and_drain(persist_timeout);
+    let persist = actuator_overlay
+        .close_persist_and_drain(deadline.saturating_duration_since(Instant::now()));
+    let reference_journal = loop_ctrl
+        .supervisor_mut()
+        .drain_reference_journal_until(deadline);
+    if !reference_journal.is_complete()
+        || reference_journal.failed_writes > 0
+        || reference_journal.uncertain_writes > 0
+    {
+        warn!(?reference_journal, "reference history shutdown outcome");
+    }
     let persist_idle = persist.is_idle();
     match persist.status {
         PersistDrainStatus::Complete => {}
@@ -1162,6 +1181,7 @@ fn finish_owner_shutdown<B: MotorBus>(
         stop,
         mandatory_reference,
         persist,
+        reference_journal,
     }
 }
 

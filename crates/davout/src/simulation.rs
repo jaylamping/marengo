@@ -23,6 +23,9 @@ mod reference_transport;
 use reference_transport::{QueuedProof, ReferenceState};
 pub use reference_transport::{ReferenceProofMode, ReferenceReplyRule};
 
+#[cfg(any(test, feature = "reference-journal-test-support"))]
+pub use crate::reference_journal::test_support::{JournalPausePoint, JournalTestPause};
+
 const MAX_SCRIPT_ITEMS: usize = 16_384;
 const MAX_TX_RULES: usize = 128;
 const MAX_TRACE_ITEMS: usize = 65_536;
@@ -670,6 +673,81 @@ impl MotorBus for SimulationBus {
 }
 
 impl Supervisor<SimulationBus> {
+    /// Explicit closed virtual history owner. Always starts unreferenced.
+    /// Opening/encoding/writing occurs only after an accepted commit, on its worker.
+    pub fn from_simulation_with_reference_journal(
+        repo_root: impl AsRef<std::path::Path>,
+        bus: SimulationBus,
+        record_path: impl AsRef<std::path::Path>,
+        journal_path: impl AsRef<std::path::Path>,
+    ) -> Result<Self, DavoutError> {
+        Self::from_simulation_journal_inner(
+            repo_root.as_ref(),
+            bus,
+            record_path.as_ref(),
+            journal_path.as_ref(),
+            #[cfg(any(test, feature = "reference-journal-test-support"))]
+            None,
+        )
+    }
+
+    #[cfg(any(test, feature = "reference-journal-test-support"))]
+    pub fn from_simulation_with_paused_reference_journal(
+        repo_root: impl AsRef<std::path::Path>,
+        bus: SimulationBus,
+        record_path: impl AsRef<std::path::Path>,
+        journal_path: impl AsRef<std::path::Path>,
+        pause: &JournalTestPause,
+    ) -> Result<Self, DavoutError> {
+        Self::from_simulation_journal_inner(
+            repo_root.as_ref(),
+            bus,
+            record_path.as_ref(),
+            journal_path.as_ref(),
+            Some(pause.worker()),
+        )
+    }
+
+    fn from_simulation_journal_inner(
+        root: &std::path::Path,
+        bus: SimulationBus,
+        record: &std::path::Path,
+        journal: &std::path::Path,
+        #[cfg(any(test, feature = "reference-journal-test-support"))] pause: Option<
+            crate::reference_journal::test_support::WorkerPause,
+        >,
+    ) -> Result<Self, DavoutError> {
+        if record == journal {
+            return Err(DavoutError::Homing {
+                message: "history and journal paths must be distinct".into(),
+            });
+        }
+        let mut owner = Self::from_simulation_with_calibration_record_path(
+            root,
+            bus,
+            record,
+            InitialVirtualReference::Unreferenced,
+        )?;
+        let journal = crate::reference_journal::Journal::spawn(
+            journal.to_owned(),
+            #[cfg(any(test, feature = "reference-journal-test-support"))]
+            pause,
+        )
+        .map_err(|error| DavoutError::Homing {
+            message: error.to_string(),
+        })?;
+        owner.reference_commits.install(journal);
+        Ok(owner)
+    }
+
+    /// Bounded standalone history inspection; no import into a current owner.
+    pub fn inspect_reference_journal(
+        path: impl AsRef<std::path::Path>,
+        limit: usize,
+    ) -> Result<Vec<crate::ReferenceHistoryRecord>, crate::ReferenceJournalError> {
+        crate::reference_journal::inspect(path.as_ref(), limit)
+    }
+
     /// Software admission/output coverage from a declared INITIAL virtual
     /// reference. Does not test acquisition, SetZero correlation or persistence.
     /// Configuration comes from the supplied root's `config/`, independently
