@@ -7,8 +7,9 @@ tasks retained. Earlier pending/draft/count statements below are historical.
 
 Batch27 repairs T17's six cold-cache async handlers and adds locked offline
 research/daily-audit execution to the required check script. Canonical12 failures
-replay unchanged green; corrected Windows/Pi research83 pass. Required final
-primary, independent review and delivery remain in progress. A separate Pi Rust
+replay unchanged green; corrected Windows/Pi research83 and required final
+Linux primary pass. Independent final review and hosted delivery remain pending.
+A separate Pi Rust
 simulation-fixture failure reproduces because installed config takes precedence;
 full Pi workspace acceptance remains pending. See the batch27 report and
 ledger `active_windows_continuation`. Preserve the Mac-only unpublished branch.

@@ -15419,10 +15419,11 @@
       "T26"
     ],
     "report": "batch27-research-cache-await.md",
-    "status": "Canonical original public12 failures replay unchanged green; validation21 red/3 positive and non-UTF8 public cache1 red repaired. Final native/Pi research83 passed; required final primary, independent final reviews and hosted delivery pending. Isolated Pi Rust workspace exposed reproduced installed-config contamination of simulation fixture; separate repair pending.",
+    "status": "Canonical original public12 failures replay unchanged green; validation21 red/3 positive and non-UTF8 public cache1 red repaired. Final native/Pi research83 passed; required final Linux primary passed. Independent final reviews and hosted delivery pending. Isolated Pi Rust workspace exposed reproduced installed-config contamination of simulation fixture; separate repair pending.",
     "physical_acceptance": false,
     "owner_scope": "Continue all software repairs autonomously; validate on powered Pi. Prompt before every physical movement test with proposed movement/bounds/stop. Explicit confirmation and commissioning safeguards required. After10minutes without reply leave movement pending and continue independent work; silence is never approval. Preserve limits, Wave sign-off and paused automation.",
     "pi_installed_revision": "4bc77ba605834fdec04b436daa4bec67bca84fbb",
-    "pi_observations": "SSH/services/health/CAN/decoded Disabled snapshot verified read-only; reported gravity home; repaired current-reference and E-stop readiness remain unqualified."
+    "pi_observations": "SSH/services/health/CAN/decoded Disabled snapshot verified read-only; reported gravity home; repaired current-reference and E-stop readiness remain unqualified.",
+    "pr": 241
   }
 }
