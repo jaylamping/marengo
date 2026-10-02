@@ -2822,7 +2822,7 @@
       "implementation_and_acceptance_plan": "gateway-implementation-plan.md",
       "status": "verified",
       "evidence": [
-        "Batch23 original CPU HostMetrics assertion red replays unchanged green after correct column parsing, keyed CPU-ID baselines and explicit unknown/reset/hotplug validity. Encoded UI unknown→valid→unknown qualified; Standards/Spec and integration reviews accepted. Final PR5c603be CI36899946079 all5 passed; merged mainad09ee4 CI36900877954 all5 passed. No hardware acceptance."
+        "Batch23 original CPU HostMetrics assertion red replays unchanged green after correct column parsing, keyed CPU-ID baselines and explicit unknown/reset/hotplug validity. Encoded UI unknown\u00e2\u2020\u2019valid\u00e2\u2020\u2019unknown qualified; Standards/Spec and integration reviews accepted. Final PR5c603be CI36899946079 all5 passed; merged mainad09ee4 CI36900877954 all5 passed. No hardware acceptance."
       ],
       "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/237",
       "hardware_acceptance": "not established by this software repair"
@@ -4690,7 +4690,7 @@
         },
         "limits": "No runtime physical operation. Never-existing from_supervisor name probe excluded from required counts; source/private-factory review establishes the actual seam."
       },
-      "test_quality": "Davout 136â†’159:3 obsolete API cases retired,26 meaningful additions; Berthier173â†’175 with arithmetic property replaced by wire output, independent stationary input and fixed-dt progress; no new ignored tests. Two receive-invariant mutants killed by actual assertions; CS24 retained open as independently demonstrated old-law failure.",
+      "test_quality": "Davout 136\u00c3\u00a2\u00e2\u20ac\u00a0\u00e2\u20ac\u2122159:3 obsolete API cases retired,26 meaningful additions; Berthier173\u00c3\u00a2\u00e2\u20ac\u00a0\u00e2\u20ac\u2122175 with arithmetic property replaced by wire output, independent stationary input and fixed-dt progress; no new ignored tests. Two receive-invariant mutants killed by actual assertions; CS24 retained open as independently demonstrated old-law failure.",
       "independent_reviews": {
         "standards": {
           "findings": 0,
@@ -15448,6 +15448,27 @@
       "T01": "partial",
       "remaining": "Immutable versioned release tree/atomic activation shared with T02; physical installation acceptance not established.",
       "physical_acceptance": false
+    },
+    {
+      "batch_id": "batch30",
+      "findings": [
+        "T04"
+      ],
+      "status": "delivered; T04 partial",
+      "report": "batch30-local-writer-session-auth.md",
+      "pr": 244,
+      "head": "c1f1f293ea195fc001f50558e4c58901b592223b",
+      "pr_ci_run": 36969559466,
+      "main_commit": "a5c4cdb6448c5a0164ebbeffb1c82eb09ab0c266",
+      "main_ci_run": 36970067453,
+      "all_five_pr_and_main_jobs": "passed",
+      "identical_pr_and_main_tree": "9c6954d3933e7f64561175d1f721edc9766324db",
+      "independent_review_source": "a0ec58e8530903eb44b3eddb02b882a7390b42c5",
+      "standards_violations": 0,
+      "spec_scoped_findings": 0,
+      "remaining": "T03 exact-generation identity; deployed installation and physical acceptance unqualified.",
+      "physical_acceptance": false,
+      "receipt": "evidence/batch30/delivery-receipt.json"
     }
   ],
   "finding_status_counts": {
@@ -15456,8 +15477,8 @@
     "open": 64
   },
   "next_dependency_ready_batch": {
-    "current": "Deliver WP10 T04 authenticated bounded value mirror; retain T03 exact-generation prerequisite for full acceptance.",
-    "following": "WP10 G07 mutation/stream authorization and WP04 R2b1 current-reference journal/grant; T01 versioned release acceptance remains shared with T02.",
+    "current": "WP10 G07 shared mutation/stream policy and runtime credentials, following delivered partial T04.",
+    "following": "WP04 R2b1 current-reference journal/grant; T01 versioned release activation shared with T02; T03 exact-generation identity.",
     "human_input_blocker": null
   },
   "automation_status": "PAUSED",
@@ -15487,19 +15508,17 @@
     "pr": 240
   },
   "active_windows_continuation": {
-    "batch_id": "batch30",
-    "branch": "codex/local-writer-session-auth",
-    "worktree": "J:/code/marengo-worktrees/local-writer-session-auth",
-    "baseline": "1e2141f13d8c9bfa01188068df714b605ab0077e",
+    "batch_id": "batch31",
+    "branch": "codex/gateway-runtime-access",
+    "worktree": "J:/code/marengo-worktrees/gateway-runtime-access",
+    "baseline": "a5c4cdb6448c5a0164ebbeffb1c82eb09ab0c266",
     "findings": [
-      "T04"
+      "G07"
     ],
-    "report": "batch30-local-writer-session-auth.md",
-    "status": "PR244 open. Qualified auth/bounds/real CLI:27 Linux/Windows/Pi,814 native Pi Rust/1 ignored, full primary and two independent reviews. T04 partial: exact-generation acceptance depends on T03. Final hosted CI/delivery pending.",
+    "report": "batch31-gateway-runtime-access.md",
+    "status": "Private implementation in progress. Original public HTTP v2 has11 negative failures and2 positive controls; unchanged policy replay13 green. Shared HTTP policy54 tests/clippy pass. WebTransport, runtime UI, broad route conformance, primary gate, Pi, independent review and CI pending. G07 remains open.",
     "physical_acceptance": false,
     "owner_scope": "Personally owned robot/repository/Pi; isolated software fixtures. Prompt and explicit confirmation before each movement with commissioning checks. Ten-minute silence means independent work, never movement approval.",
-    "pi_installed_revision": "4bc77ba605834fdec04b436daa4bec67bca84fbb",
-    "source_candidate": "a0ec58e8530903eb44b3eddb02b882a7390b42c5",
-    "pr": 244
+    "pi_installed_revision": "4bc77ba605834fdec04b436daa4bec67bca84fbb"
   }
 }

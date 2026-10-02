@@ -36,8 +36,10 @@ verified by its release SHA256 and extracted locally. Six touched input hashes
 match the candidate, including generated server JS. The installed revision is
 still4bc77ba; marengo-pi/gateway/can remain active. Native full-workspace
 qualification passes814 tests/1 ignored with all341 tracked Rust/build/config/
-URDF/proto input hashes bound to the candidate. Exact-final hosted CI/delivery
-remain pending on PR244.
+URDF/proto input hashes bound to the candidate. PR244 merged as
+`a5c4cdb6448c5a0164ebbeffb1c82eb09ab0c266`. Final PR CI36969559466 and main
+CI36970067453 each pass all five jobs; their trees match
+`9c6954d3933e7f64561175d1f721edc9766324db`. See the delivery receipt.
 No installation, privileged operation, service restart, physical CAN command or
 motor movement occurred. Gravity home does not qualify support, current
 reference or E-stop readiness. Movement requires a new explicit confirmation

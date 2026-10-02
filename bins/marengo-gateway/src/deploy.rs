@@ -4,7 +4,7 @@ use std::sync::OnceLock;
 
 use axum::{
     extract::{Query, State},
-    http::{HeaderMap, StatusCode},
+    http::StatusCode,
     Json,
 };
 use marengo_deploy::{
@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 use tracing::{info, warn};
 
-use crate::restart::{authorize_restart, now_ms, refuse_active_fresh, HEARTBEAT_FRESH_MS};
+use crate::restart::{now_ms, refuse_active_fresh, HEARTBEAT_FRESH_MS};
 use crate::state::SharedState;
 
 static DEPLOY_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -59,11 +59,8 @@ pub async fn get_version_status(
 
 pub async fn post_control_deploy(
     State(state): State<SharedState>,
-    headers: HeaderMap,
     Json(body): Json<DeployRequestJson>,
 ) -> Result<(StatusCode, Json<DeployResponseJson>), StatusCode> {
-    authorize_restart(&headers)?;
-
     if !body.confirm {
         return Ok((
             StatusCode::BAD_REQUEST,

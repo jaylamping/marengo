@@ -1,3 +1,23 @@
+## Latest Windows continuation: batch31 in progress, October2
+
+Main a5c4cdb includes merged PR244; both final and main CI pass allfive jobs.
+T04 remains partial for the T03 exact-generation prerequisite. Counts25 verified,
+13 partial,64 open;102 IDs and8 maintenance tasks retained.
+Worktree J:/code/marengo-worktrees/gateway-runtime-access on
+codex/gateway-runtime-access implements G07 under ADR0033. Original HTTP v2
+records11 negative failures and2 positive controls; unchanged replay13 green.
+Shared HTTP admission precedes extraction/publication and handlers now share
+captured credentials/capabilities.54 gateway tests and clippy pass. Remaining:
+WebTransport admission, runtime browser credentials/build scripts, broad route
+conformance, primary/Pi gates, independent reviews and exact-head hosted CI.
+G07 stays open; no final acceptance or delivery is claimed.
+
+Pi installed4bc77ba and services unchanged. No install/sudo/restart/physical CAN
+or movement. Gravity home leaves support/current reference/E-stop unqualified.
+Prompt before each movement with bounds/stop; explicit reply and commissioning
+checks required. Ten-minute silence allows independent work only. Automation
+PAUSED; safety limits/Wave sign-off intact. Earlier sections are historical.
+
 ## Latest Windows continuation: batch30, October2
 
 Qualified source a0ec58e on codex/local-writer-session-auth, worktree
@@ -12,7 +32,8 @@ local token supplied during build is absent from all99 assets. Both reviews clea
 of scoped code defects; Spec retains exact-generation acceptance under T03.
 T04 partial; counts25 verified,13 partial,64 open, all102 IDs/8 tasks retained.
 Native Pi workspace814/1ignored qualified with341 bound inputs. PR244 final
-hosted CI/delivery pending; see batch30 report.
+CI36969559466 and main CI36970067453 pass allfive; PR244 merged at main
+a5c4cdb. Equal tree9c6954d; see batch30 report and delivery receipt.
 
 Pi installed revision4bc77ba/services unchanged. Node24.16.0 release-verified in
 user validation folder. No install, sudo, restart, physical CAN or movement.

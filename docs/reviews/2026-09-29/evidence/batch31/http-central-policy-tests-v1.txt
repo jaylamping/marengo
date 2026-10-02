@@ -1,0 +1,80 @@
+ Container marengo-dev-run-9551ed04bb63 Creating 
+ Container marengo-dev-run-9551ed04bb63 Created 
+   Compiling marengo-gateway v0.1.0 (/workspace/bins/marengo-gateway)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.39s
+     Running unittests src/main.rs (target/debug/deps/marengo_gateway-321072a611ae2cf1)
+
+running 54 tests
+test action_ack::tests::live_ack_matcher_ignores_write_behind_persist_action ... ok
+test access::tests::unset_missing_wrong_and_ambiguous_credentials_fail_closed ... ok
+test access::tests::role_credentials_cannot_gain_another_capability ... ok
+test access::tests::browser_origins_are_exact_and_non_browser_clients_remain_authenticated ... ok
+test action_ack::tests::recv_live_ack_skips_persist_failed_until_pending ... ok
+test action_ack::tests::recv_live_ack_surfaces_live_reject ... ok
+test framing::tests::lag_discards_old_transition_and_backlog_before_fresh_state ... ok
+test actuator::tests::command_actuator_clamps_to_live_kp_max ... ok
+test actuator::tests::command_actuator_rejects_non_tuning_with_400 ... ok
+test actuator::tests::command_actuator_rejects_without_limits_snapshot ... ok
+test actuator::tests::command_actuator_publishes_canonical_joint_for_left_alias ... ok
+test actuator::tests::command_actuator_rejects_unwired_joint_with_403 ... ok
+test logs::tests::recent_limit_default ... ok
+test ratelimit::tests::motion_bucket_ignores_client_id_rotation ... ok
+test ratelimit::tests::rejects_empty_client_id ... ok
+test ratelimit::tests::refund_restores_token_after_failed_publish ... ok
+test ratelimit::tests::status_poll_bucket_allows_burst_then_rejects_until_refill ... ok
+test actuator::tests::snapshot_actuator_limits_503_when_cache_empty ... ok
+test actuator::tests::command_actuator_requires_access_credential ... ok
+test restart::tests::refuse_active_only_when_heartbeat_fresh ... ok
+test ratelimit::tests::buckets_are_isolated_by_client_and_joint ... ok
+test ratelimit::tests::motion_bucket_is_stricter_than_tuning ... ok
+test ratelimit::tests::tuning_bucket_allows_burst_then_rejects ... ok
+test actuator::tests::command_actuator_returns_429_when_rate_limited ... ok
+test state::ipc_snapshot_tests::connection_change_retires_observations_until_a_new_frame_arrives ... ok
+test logs::tests::logs_read_without_credentials_fails_before_store ... ok
+test webtransport::tests::tls_material_rejects_malformed_certificate_chain ... ok
+test webtransport::tests::tls_material_rejects_empty_or_malformed_private_key ... ok
+test webtransport::tests::tls_material_retains_certificate_chain_and_matching_key ... ok
+test http::tests::stream_chappe_emits_length_prefixed_envelopes ... ok
+test hardware::tests::activate_saves_manifest_before_failed_live_promote ... ok
+test hardware::tests::activate_and_resolve_reject_unsafe_upload_ids ... ok
+test gateway_access_public_test::configured_routes_require_credentials_before_publication ... ok
+test config::tests::master_snapshot_resolves_actuator_group_velocity ... ok
+test hardware::tests::archive_reads_require_auth ... ok
+test hardware::tests::activate_refuses_active_with_fresh_heartbeat ... ok
+test hardware::tests::command_home_is_gone ... ok
+test hardware::tests::urdf_read_rejects_missing_auth ... ok
+test hardware::tests::configuration_accepts_legacy_header_with_the_shared_policy ... ok
+test action_ack::tests::recv_live_ack_times_out_without_matching_session ... ok
+test hardware::tests::activate_archives_replaced_active_and_promotes_merge ... ok
+test restart::tests::restart_allows_active_with_stale_heartbeat_via_stub ... ok
+test state::runtime_transition_stream_tests::existing_topic_subscriber_receives_typed_runtime_invalidation ... ok
+test restart::tests::restart_fails_closed_without_token ... ok
+test http::tests::command_set_zero_rejects_unwired_joint_with_403 ... ok
+test http::tests::command_set_zero_requires_confirm_and_attestation ... ok
+test http::tests::command_set_zero_returns_429_when_rate_limited ... ok
+test http::tests::command_motor_status_poll_rate_limits_globally ... ok
+test hardware::tests::commissioning_scope_read_open_mutations_gated_widen_and_unknown ... ok
+test restart::tests::restart_refuses_active_with_fresh_heartbeat ... ok
+test restart::tests::restart_requires_confirm ... ok
+test hardware::tests::urdf_read_returns_bytes_with_auth ... ok
+test hardware::tests::completeness_is_advisory_and_upload_not_blocked ... ok
+test ratelimit::tests::tuning_bucket_refills_over_time ... ok
+
+test result: ok. 54 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+    Checking marengo-gateway v0.1.0 (/workspace/bins/marengo-gateway)
+error: method `with_access` is never used
+   --> bins/marengo-gateway/src/state.rs:149:12
+    |
+82  | impl AppState {
+    | ------------- method in this implementation
+...
+149 |     pub fn with_access(mut self, access: crate::access::AccessPolicy) -> Self {
+    |            ^^^^^^^^^^^
+    |
+    = note: `-D dead-code` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(dead_code)]`
+
+error: could not compile `marengo-gateway` (bin "marengo-gateway") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+

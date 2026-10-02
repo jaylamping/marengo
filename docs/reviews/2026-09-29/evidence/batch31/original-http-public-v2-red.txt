@@ -1,0 +1,61 @@
+ Container marengo-dev-run-b458b2c7f6a5 Creating 
+ Container marengo-dev-run-b458b2c7f6a5 Created 
+   Compiling marengo-gateway v0.1.0 (/workspace/bins/marengo-gateway)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.57s
+     Running unittests src/main.rs (target/debug/deps/marengo_gateway-7c5f56c88662890b)
+
+running 1 test
+
+thread 'gateway_access_public_test::configured_routes_require_credentials_before_publication' panicked at bins/marengo-gateway/src/gateway_access_public_test.rs:33:9:
+isolated configured fixture failed:
+
+running 1 test
+test gateway_access_public_test::configured_routes_require_credentials_before_publication ... FAILED
+
+failures:
+
+failures:
+    gateway_access_public_test::configured_routes_require_credentials_before_publication
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 50 filtered out; finished in 0.01s
+
+
+/command/enable missing: status=200 OK published=true
+/command/enable wrong: status=200 OK published=true
+/command/enable foreign origin: status=200 OK published=true
+/command/testing_mit missing: status=200 OK published=true
+/command/testing_mit wrong: status=200 OK published=true
+/command/testing_mit foreign origin: status=200 OK published=true
+/command/set_zero missing: status=200 OK published=true
+/command/set_zero wrong: status=200 OK published=true
+/command/set_zero foreign origin: status=200 OK published=true
+sensitive stream credential=false: status=200 OK
+sensitive stream credential=true: status=200 OK
+public fixture: cases=13 failed_refusals=11 positive_controls=2 physical_actions=0
+
+thread 'gateway_access_public_test::configured_routes_require_credentials_before_publication' panicked at bins/marengo-gateway/src/gateway_access_public_test.rs:209:5:
+/command/enable missing: expected 401 Unauthorized with no publication
+/command/enable wrong: expected 401 Unauthorized with no publication
+/command/enable foreign origin: expected 403 Forbidden with no publication
+/command/testing_mit missing: expected 401 Unauthorized with no publication
+/command/testing_mit wrong: expected 401 Unauthorized with no publication
+/command/testing_mit foreign origin: expected 403 Forbidden with no publication
+/command/set_zero missing: expected 401 Unauthorized with no publication
+/command/set_zero wrong: expected 401 Unauthorized with no publication
+/command/set_zero foreign origin: expected 403 Forbidden with no publication
+unauthorized sensitive stream admitted
+unauthorized sensitive stream admitted
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test gateway_access_public_test::configured_routes_require_credentials_before_publication ... FAILED
+
+failures:
+
+failures:
+    gateway_access_public_test::configured_routes_require_credentials_before_publication
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 50 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p marengo-gateway --bin marengo-gateway`
+

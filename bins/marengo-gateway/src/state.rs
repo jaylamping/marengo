@@ -61,6 +61,7 @@ pub struct Snapshots {
 }
 
 pub struct AppState {
+    pub access: Arc<crate::access::AccessPolicy>,
     pub bus: Arc<Bus>,
     pub snapshots: Arc<RwLock<Snapshots>>,
     pub ipc: Option<Arc<IpcListener>>,
@@ -106,7 +107,18 @@ impl AppState {
 
     pub fn new(bus: Arc<Bus>) -> Self {
         let (envelope_tx, _) = broadcast::channel(ENVELOPE_BROADCAST_CAPACITY);
+        // Binary composition boundary: capture trusted access configuration once.
+        let access = crate::access::AccessPolicy::from_environment().unwrap_or_else(|error| {
+            tracing::warn!(%error, "gateway access configuration invalid; protected access disabled");
+            crate::access::AccessPolicy::default()
+        });
+        if !access.has_credentials() {
+            tracing::warn!(
+                "gateway mutations and sensitive streams disabled: no access credential configured"
+            );
+        }
         Self {
+            access: Arc::new(access),
             bus,
             snapshots: Arc::new(RwLock::new(Snapshots::default())),
             ipc: None,
@@ -131,6 +143,12 @@ impl AppState {
 
     pub fn with_command_joints(mut self, command_joints: CommandJointAllowlist) -> Self {
         self.command_joints = command_joints;
+        self
+    }
+
+    #[cfg(test)]
+    pub fn with_access(mut self, access: crate::access::AccessPolicy) -> Self {
+        self.access = Arc::new(access);
         self
     }
 

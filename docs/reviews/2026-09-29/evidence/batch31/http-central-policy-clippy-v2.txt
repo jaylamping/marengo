@@ -1,0 +1,2 @@
+    Checking marengo-gateway v0.1.0 (/workspace/bins/marengo-gateway)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.01s

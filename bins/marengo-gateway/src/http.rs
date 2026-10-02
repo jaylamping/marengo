@@ -18,10 +18,11 @@ use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use tokio_util::io::ReaderStream;
 use tower::ServiceBuilder;
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
 use tower_http::set_header::SetResponseHeaderLayer;
 
+use crate::access::Capability;
 use crate::actuator;
 use crate::config;
 use crate::deploy;
@@ -64,14 +65,26 @@ struct StreamQuery {
 
 /// API routes plus optional Consul SPA static files (`web_root` for robot-hosted HTTPS).
 ///
-/// CORS is intentionally permissive for Phase-1 LAN bench (ADR 0008): auth/mTLS is
-/// deferred. Motion commands still require confirm/attestation + a global-per-joint
-/// Motion rate limit that cannot be bypassed by rotating `client_id`.
+/// HTTP and HTTPS share access admission before extraction/handler work.
+/// Runtime confirmation, attestation, freshness and Davout gates remain additional.
 pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
+    let access = std::sync::Arc::clone(&state.access);
     let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any)
+        .allow_origin(AllowOrigin::predicate(move |origin, parts| {
+            access.allows_origin(origin, &parts.headers)
+        }))
+        .allow_methods([
+            axum::http::Method::GET,
+            axum::http::Method::POST,
+            axum::http::Method::PUT,
+            axum::http::Method::DELETE,
+            axum::http::Method::OPTIONS,
+        ])
+        .allow_headers([
+            header::CONTENT_TYPE,
+            header::AUTHORIZATION,
+            header::HeaderName::from_static("x-marengo-log-token"),
+        ])
         .allow_private_network(tower_http::cors::AllowPrivateNetwork::yes());
 
     let api = Router::new()
@@ -154,6 +167,10 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
         )
         .route("/command/actuator", post(actuator::command_actuator))
         .layer(cors)
+        .layer(axum::middleware::from_fn_with_state(
+            std::sync::Arc::clone(&state),
+            authorize_api,
+        ))
         .with_state(state);
 
     match web_root {
@@ -180,6 +197,75 @@ pub fn router(state: SharedState, web_root: Option<&Path>) -> Router {
         }
         None => api,
     }
+}
+
+async fn authorize_api(
+    State(state): State<SharedState>,
+    request: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> Response {
+    if let Err(status) = state.access.validate_origin(request.headers()) {
+        return (status, "browser Origin refused").into_response();
+    }
+    if request.method() == axum::http::Method::OPTIONS {
+        return next.run(request).await;
+    }
+    let path = request.uri().path();
+    let capability = if path == "/stream/chappe" {
+        let Ok(Query(query)) = Query::<StreamQuery>::try_from_uri(request.uri()) else {
+            return (StatusCode::BAD_REQUEST, "invalid topics").into_response();
+        };
+        query
+            .topics
+            .split(',')
+            .map(str::trim)
+            .any(sensitive_topic)
+            .then_some(Capability::SensitiveRead)
+    } else if path.starts_with("/logs/") || path == "/snapshot/logs/recent" || path == "/settings" {
+        Some(Capability::SensitiveRead)
+    } else if path.starts_with("/hardware/urdf") {
+        Some(Capability::Configuration)
+    } else if matches!(
+        *request.method(),
+        axum::http::Method::POST | axum::http::Method::PUT | axum::http::Method::DELETE
+    ) {
+        if path == "/command/set_zero" {
+            Some(Capability::Calibration)
+        } else if path.starts_with("/command/") && path != "/command/home" {
+            Some(Capability::Control)
+        } else if path.starts_with("/config/") || path.starts_with("/hardware/") {
+            Some(Capability::Configuration)
+        } else if path.starts_with("/control/") {
+            Some(Capability::Management)
+        } else if path == "/command/home" {
+            None
+        } else {
+            // Future mutations must opt into a narrower role, never anonymous access.
+            Some(Capability::Management)
+        }
+    } else {
+        None
+    };
+    if let Some(capability) = capability {
+        if let Err(status) = state.access.authorize(request.headers(), capability) {
+            return (
+                status,
+                "gateway access credential required for this operation",
+            )
+                .into_response();
+        }
+    }
+    next.run(request).await
+}
+
+pub(crate) fn sensitive_topic(topic: &str) -> bool {
+    matches!(
+        topic,
+        "logs/structured"
+            | "robot/audit/action"
+            | "robot/audit/tuning"
+            | "robot/testing/mit_command_batch"
+    )
 }
 
 async fn health(State(state): State<SharedState>) -> Json<HealthResponse> {
@@ -556,6 +642,22 @@ mod tests {
     use chappe::Bus;
     use tower::ServiceExt;
 
+    const ACCESS_TOKEN: &str = "isolated-http-admission-fixture";
+
+    fn command_state(bus: std::sync::Arc<Bus>) -> SharedState {
+        let mut state = crate::state::AppState::new(bus).with_command_joints(
+            marengo_config::CommandJointAllowlist::from_joints(["right_shoulder_pitch"]),
+        );
+        state.access = std::sync::Arc::new(
+            crate::access::AccessPolicy::operator_fixture(ACCESS_TOKEN).expect("fixture policy"),
+        );
+        std::sync::Arc::new(state)
+    }
+
+    fn command_request() -> axum::http::request::Builder {
+        axum::http::Request::builder().header("authorization", format!("Bearer {ACCESS_TOKEN}"))
+    }
+
     #[tokio::test]
     async fn stream_chappe_emits_length_prefixed_envelopes() {
         let bus = std::sync::Arc::new(Bus::default());
@@ -591,17 +693,12 @@ mod tests {
 
     #[tokio::test]
     async fn command_set_zero_requires_confirm_and_attestation() {
-        use marengo_config::CommandJointAllowlist;
-
         let bus = std::sync::Arc::new(Bus::default());
-        let state = std::sync::Arc::new(
-            crate::state::AppState::new(std::sync::Arc::clone(&bus))
-                .with_command_joints(CommandJointAllowlist::from_joints(["right_shoulder_pitch"])),
-        );
+        let state = command_state(bus);
         let app = router(state, None);
         let response = app
             .oneshot(
-                axum::http::Request::builder()
+                command_request()
                     .method("POST")
                     .uri("/command/set_zero")
                     .header("content-type", "application/json")
@@ -617,17 +714,12 @@ mod tests {
 
     #[tokio::test]
     async fn command_set_zero_rejects_unwired_joint_with_403() {
-        use marengo_config::CommandJointAllowlist;
-
         let bus = std::sync::Arc::new(Bus::default());
-        let state = std::sync::Arc::new(
-            crate::state::AppState::new(std::sync::Arc::clone(&bus))
-                .with_command_joints(CommandJointAllowlist::from_joints(["right_shoulder_pitch"])),
-        );
+        let state = command_state(bus);
         let app = router(state, None);
         let response = app
             .oneshot(
-                axum::http::Request::builder()
+                command_request()
                     .method("POST")
                     .uri("/command/set_zero")
                     .header("content-type", "application/json")
@@ -643,13 +735,8 @@ mod tests {
 
     #[tokio::test]
     async fn command_set_zero_returns_429_when_rate_limited() {
-        use marengo_config::CommandJointAllowlist;
-
         let bus = std::sync::Arc::new(Bus::default());
-        let state = std::sync::Arc::new(
-            crate::state::AppState::new(std::sync::Arc::clone(&bus))
-                .with_command_joints(CommandJointAllowlist::from_joints(["right_shoulder_pitch"])),
-        );
+        let state = command_state(bus);
         // Burst with distinct client_ids must still share the Motion bucket.
         let body_a = r#"{"joint":"right_shoulder_pitch","confirm":true,"sign_test_passed":true,"client_id":"flood-a"}"#;
         let body_b = r#"{"joint":"right_shoulder_pitch","confirm":true,"sign_test_passed":true,"client_id":"flood-b"}"#;
@@ -658,7 +745,7 @@ mod tests {
             let app = router(std::sync::Arc::clone(&state), None);
             let response = app
                 .oneshot(
-                    axum::http::Request::builder()
+                    command_request()
                         .method("POST")
                         .uri("/command/set_zero")
                         .header("content-type", "application/json")
@@ -672,7 +759,7 @@ mod tests {
         let app = router(state, None);
         let response = app
             .oneshot(
-                axum::http::Request::builder()
+                command_request()
                     .method("POST")
                     .uri("/command/set_zero")
                     .header("content-type", "application/json")
@@ -687,11 +774,11 @@ mod tests {
     #[tokio::test]
     async fn command_motor_status_poll_rate_limits_globally() {
         let bus = std::sync::Arc::new(Bus::default());
-        let state = std::sync::Arc::new(crate::state::AppState::new(std::sync::Arc::clone(&bus)));
+        let state = command_state(bus);
         let app = router(std::sync::Arc::clone(&state), None);
         let ok_a = app
             .oneshot(
-                axum::http::Request::builder()
+                command_request()
                     .method("POST")
                     .uri("/command/motor_status_poll")
                     .header("content-type", "application/json")
@@ -705,7 +792,7 @@ mod tests {
         let app = router(std::sync::Arc::clone(&state), None);
         let ok_b = app
             .oneshot(
-                axum::http::Request::builder()
+                command_request()
                     .method("POST")
                     .uri("/command/motor_status_poll")
                     .header("content-type", "application/json")
@@ -719,7 +806,7 @@ mod tests {
         let app = router(state, None);
         let limited = app
             .oneshot(
-                axum::http::Request::builder()
+                command_request()
                     .method("POST")
                     .uri("/command/motor_status_poll")
                     .header("content-type", "application/json")

@@ -1,0 +1,43 @@
+ Container marengo-dev-run-d8305e384b23 Creating 
+ Container marengo-dev-run-d8305e384b23 Created 
+    Checking marengo-gateway v0.1.0 (/workspace/bins/marengo-gateway)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4.20s
+   Compiling subtle v2.6.1
+   Compiling rustls v0.23.45
+   Compiling rustls-platform-verifier v0.6.2
+   Compiling tokio-rustls v0.26.4
+   Compiling quinn-proto v0.11.15
+   Compiling axum-server v0.8.0
+   Compiling quinn v0.11.9
+   Compiling web-transport-quinn v0.11.9
+   Compiling marengo-gateway v0.1.0 (/workspace/bins/marengo-gateway)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 11.60s
+     Running unittests src/main.rs (target/debug/deps/marengo_gateway-321072a611ae2cf1)
+
+running 1 test
+/command/enable missing: status=401 Unauthorized published=false
+/command/enable wrong: status=401 Unauthorized published=false
+/command/enable foreign origin: status=403 Forbidden published=false
+/command/testing_mit missing: status=401 Unauthorized published=false
+/command/testing_mit wrong: status=401 Unauthorized published=false
+/command/testing_mit foreign origin: status=403 Forbidden published=false
+/command/set_zero missing: status=401 Unauthorized published=false
+/command/set_zero wrong: status=401 Unauthorized published=false
+/command/set_zero foreign origin: status=403 Forbidden published=false
+sensitive stream credential=false: status=401 Unauthorized
+sensitive stream credential=true: status=401 Unauthorized
+public fixture: cases=13 failed_refusals=0 positive_controls=2 physical_actions=0
+test gateway_access_public_test::configured_routes_require_credentials_before_publication ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 53 filtered out; finished in 0.01s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.33s
+     Running unittests src/main.rs (target/debug/deps/marengo_gateway-321072a611ae2cf1)
+
+running 3 tests
+test access::tests::role_credentials_cannot_gain_another_capability ... ok
+test access::tests::unset_missing_wrong_and_ambiguous_credentials_fail_closed ... ok
+test access::tests::browser_origins_are_exact_and_non_browser_clients_remain_authenticated ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 51 filtered out; finished in 0.00s
+
