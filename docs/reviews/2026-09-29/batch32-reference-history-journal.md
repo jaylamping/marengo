@@ -49,6 +49,15 @@ The preceding seven frozen probe files remain unchanged. The provisional 0bebfae
 primary run was deliberately stopped before editing its source; it is not a gate
 pass and its complete archive is retained. It was not uploaded or run on the Pi.
 
+The subsequent 0dd5a2b review identified existing hard-link overlap. Real pinned
+SQLite testing confirmed factory admission through the shared inode; the worker
+completed a real second-session write while preserving the legacy YAML bytes.
+This is an independence/admission failure, not demonstrated history corruption.
+Construction now also compares existing file identity with already locked
+same-file 1.0.6 and propagates identity I/O errors except genuine absence. The
+eight preceding probe files remain unchanged. The obsolete 0dd5a2b primary was
+stopped before edits; its archive was uploaded but never run or installed on Pi.
+
 The dc91d08 primary gate and native Pi software run passed (848 Rust tests, one
 existing ignored, 374 Consul tests, build/asset checks and all 1764 committed input
 hashes unchanged). Those results remain bound to the preceding candidate.

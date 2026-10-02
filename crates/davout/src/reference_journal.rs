@@ -444,11 +444,21 @@ pub(super) fn distinct_history_path(
     for suffix in ["", "-journal", "-wal", "-shm"] {
         let mut resource = journal.as_os_str().to_os_string();
         resource.push(suffix);
-        let journal_slot = canonical_slot(&PathBuf::from(resource))?;
+        let resource = PathBuf::from(resource);
+        let journal_slot = canonical_slot(&resource)?;
         if history_slot == journal_slot
             || history_folded == journal_slot.as_os_str().to_string_lossy().to_lowercase()
         {
             return Err(error("history and journal paths must be distinct"));
+        }
+        // Canonical filenames do not identify existing hard links. Use the
+        // portable file identity already pinned by the workspace, and preserve
+        // all errors except genuine absence. This opens no SQLite connection.
+        match same_file::is_same_file(&history, &resource) {
+            Ok(true) => return Err(error("history and journal paths must be distinct")),
+            Ok(false) => {}
+            Err(cause) if cause.kind() == std::io::ErrorKind::NotFound => {}
+            Err(cause) => return Err(error(cause)),
         }
     }
     Ok(history)
@@ -1055,3 +1065,7 @@ mod resource_tests;
 #[cfg(test)]
 #[path = "reference_journal_namespace_tests.rs"]
 mod namespace_tests;
+
+#[cfg(test)]
+#[path = "reference_journal_hardlink_tests.rs"]
+mod hardlink_tests;

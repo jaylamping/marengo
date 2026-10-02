@@ -23,7 +23,9 @@ factory install a journal using explicit independent history/journal paths.
 Resolve existing path ancestors before construction, refuse shared slots and
 case-only aliases across the database and its `-journal`, `-wal` and `-shm`
 namespace, and pin relative history paths to their original absolute
-spelling. This preflight creates neither resource; the journal's existing
+spelling. Compare existing files through the pinned portable file-identity
+library too, so hard links cannot defeat independence. This read-only preflight
+creates neither resource and opens no SQLite connection; the journal's existing
 symlink/resource checks still run on its supplied spelling at lazy open.
 Generic, physical and existing INITIAL constructors keep no journal I/O. The
 worker opens lazily after accepted work; default owner shutdown remains a no-op

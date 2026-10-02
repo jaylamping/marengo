@@ -594,6 +594,7 @@ dependencies = [
  "marengo-homing",
  "robstride",
  "rusqlite",
+ "same-file",
  "serde",
  "serde_json",
  "serde_yaml",
