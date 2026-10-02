@@ -117,6 +117,13 @@ trap - EXIT
 echo "==> daily audit: offline Python and runner contracts"
 python3 -m unittest discover -s "${ROOT}/scripts/daily-audit" -p 'test_*.py'
 
+if [[ -f /.dockerenv ]]; then
+  echo "==> disposable actual-installer permissions"
+  sudo -n /usr/bin/python3 "${ROOT}/scripts/test_install_permissions.py"
+else
+  echo "==> installer permission contract requires the primary Docker gate"
+fi
+
 (
   cd "${ROOT}/.cursor/hooks"
   npm ci

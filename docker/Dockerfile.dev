@@ -68,6 +68,12 @@ RUN rustup component add rustfmt clippy \
 USER root
 # Locked research-tool tests use the same uv release as the native edit loop.
 COPY --from=ghcr.io/astral-sh/uv:0.9.27 /uv /usr/local/bin/uv
+# The actual installer contract runs as root only in a disposable container.
+RUN apt-get update && apt-get install -y --no-install-recommends sudo \
+    && rm -rf /var/lib/apt/lists/* \
+    && printf '%s\n' 'marengo ALL=(root) NOPASSWD: /usr/bin/python3 /workspace/scripts/test_install_permissions.py' > /etc/sudoers.d/marengo-install-test \
+    && chmod 0440 /etc/sudoers.d/marengo-install-test \
+    && visudo -cf /etc/sudoers.d/marengo-install-test
 COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 

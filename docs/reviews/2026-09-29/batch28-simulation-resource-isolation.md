@@ -41,7 +41,10 @@ physical CAN transport or motor movement is performed. Final combined Linux
 primary passes814 Rust/1existing ignored, Consul361, Pi MCP72, research83,
 daily-audit15 and the fatal aarch64 release build. Pi workspace passes814
 Rust/1ignored; its six final source/test hashes match the canonical inputs.
-Both independent reviews are clear at8bcd9a. Hosted delivery remains pending.
+Both independent reviews are clear at8bcd9a. PR242 merged at
+`4b0d287004260c5286c1a240e300c796a6a9ccfa`; exact PR-head CI36958751468 and
+merged-main CI36959437295 passed all five jobs. Delivery is complete. T26 remains
+partial and no original finding ID is closed by this platform observation.
 
 A Windows worktree needs a Linux .git pointer overlay in Docker. An initial
 GIT_DIR/GIT_WORK_TREE environment workaround leaked into daily-audit temporary

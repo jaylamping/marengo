@@ -1,3 +1,53 @@
+## Latest Windows continuation — batch29 qualification
+
+Batch28 PR242 merged at `4b0d287`; exact PR CI36958751468 and main
+CI36959437295 passed all five jobs. Batch27 T17 remains verified and T26
+partial. Counts remain 25 verified, 11 partial, 66 open across 102 IDs;
+eight maintenance tasks remain intact.
+
+Batch29 on `codex/install-immutable-helpers` repairs the actual installer
+permissions and moves helpers to immutable libexec paths. The final seven-test actual
+installer fixture records 21 baseline assertion failures and replays unchanged
+green after four initial-review failures were repaired. It also checks root state writes against isolated symlink sentinels.
+Linux primary814 Rust/1ignored, Consul361/Pi MCP72/research83/daily15,
+installer7 and fatal ARM build passed. Final restoration-order edit has unchanged
+seven-test/syntax qualification; isolated Pi native clients65 pass. Final
+Standards/Spec re-review is clear at0867a93; exact-head hosted CI for draft
+PR243 is pending. T01 remains open, with versioned releases/atomic activation still
+required alongside T02. See the batch29 report and source receipt.
+
+The updated owner goal explicitly covers this personally owned humanoid robot,
+authorized repository/Pi, isolated permissions tests and nonenergizing work.
+Installed Pi revision remains 4bc77ba. No live installation, service restart,
+physical CAN test or motor movement occurs. Prompt before every movement with
+bounds and stop procedure; explicit owner confirmation and current reference,
+support, E-stop and recovery qualification are required. After ten minutes
+without reply, leave movement pending and continue independent work. Gravity
+home alone is not current-reference/E-stop qualification. Automation remains
+PAUSED; safety limits and Wave sign-off stay intact. Earlier statuses below are
+historical. Actual checkout is `J:/code/marengo`.
+
+## Latest Windows continuation — batch29 preparation
+
+Batch27 [PR241](https://github.com/jaylamping/marengo/pull/241) merged as
+`adef857`; exact PR CI36956898047 passed applicable jobs and merged-main
+CI36958210262 passed allfive. T17 is verified; T26 remains partial. Counts25
+verified,11partial,66open across102 IDs and8 retained maintenance tasks.
+Batch28 [PR242](https://github.com/jaylamping/marengo/pull/242) fixes installed
+config contamination of closed simulation fixtures. Linux/Pi Rust814/1ignored,
+combined required gates and both reviews pass; hosted delivery pending.
+Its separate worktree is `J:/code/marengo-worktrees/simulation-config-isolation`.
+Main checkout `J:/code/marengo` is on `codex/install-immutable-helpers` preparing
+WP10 T01's actual installer permission regression in a disposable container.
+Next: G07/T04 security and R2b1 reference/journal prerequisites.
+
+Pi validation is isolated software testing; installed revision remains4bc77ba.
+No deployment, service restart, physical CAN test or motor movement occurred.
+Owner movement prompt/explicit confirmation/ten-minute-away policy below remains
+in force. Gravity-home report does not establish E-stop/current-reference
+qualification. Windows automation stays PAUSED; limits/Wave sign-off unchanged.
+Earlier completed-batch pending statuses below are historical.
+
 ## Latest Windows continuation — batch27, October 1, 2026
 
 Fetched Mac work through main `ca13eb810406539cc2394d6130881176fb76665c`.

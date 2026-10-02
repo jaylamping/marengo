@@ -86,8 +86,7 @@ pub fn resolve_restart_script() -> PathBuf {
             return PathBuf::from(trimmed);
         }
     }
-    let root = std::env::var("MARENGO_ROOT").unwrap_or_else(|_| "/opt/marengo".to_string());
-    PathBuf::from(root).join("scripts/pi-restart-marengo-pi.sh")
+    PathBuf::from(marengo_deploy::paths::PRIVILEGED_HELPERS_DIR).join("pi-restart-marengo-pi.sh")
 }
 
 pub async fn post_restart_marengo_pi(

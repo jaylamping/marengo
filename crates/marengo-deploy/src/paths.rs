@@ -1,5 +1,7 @@
 use std::path::PathBuf;
 
+pub const PRIVILEGED_HELPERS_DIR: &str = "/usr/local/libexec/marengo";
+
 fn env_path(name: &str) -> Option<PathBuf> {
     let value = std::env::var(name).ok()?;
     let trimmed = value.trim();
@@ -27,7 +29,7 @@ pub fn resolve_job_file_path() -> PathBuf {
 /// Resolve the canonical self-update enqueue script.
 pub fn resolve_enqueue_script() -> PathBuf {
     env_path("MARENGO_SELF_UPDATE_ENQUEUE_CMD")
-        .unwrap_or_else(|| marengo_root().join("scripts/pi-enqueue-self-update.sh"))
+        .unwrap_or_else(|| PathBuf::from(PRIVILEGED_HELPERS_DIR).join("pi-enqueue-self-update.sh"))
 }
 
 /// Resolve the on-disk GitHub tip cache.

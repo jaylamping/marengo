@@ -8,6 +8,7 @@ source "${ROOT}/scripts/deploy-lib.sh"
 INSTALL_ROOT="${MARENGO_INSTALL_ROOT:-/opt/marengo}"
 RUN_USER="${MARENGO_USER:-marengo}"
 DEPLOY_USER="${MARENGO_DEPLOY_USER:-${SUDO_USER:-joey}}"
+PRIVILEGED_HELPERS="/usr/local/libexec/marengo"
 
 if [[ "$(id -u)" -ne 0 ]]; then
   echo "run as root: sudo $0" >&2
@@ -16,9 +17,82 @@ fi
 
 echo "Installing Marengo to ${INSTALL_ROOT} (user ${RUN_USER})"
 
+# Runtime data is writable; privileged code and every parent are not. Reject
+# redirected release locations before any recursive copy or ownership change.
+for directory in "${INSTALL_ROOT}" "${INSTALL_ROOT}/bin" "${INSTALL_ROOT}/scripts" \
+  "${INSTALL_ROOT}/www" \
+  "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets" "${INSTALL_ROOT}/var" \
+  "${PRIVILEGED_HELPERS}"; do
+  if [[ -L "${directory}" ]]; then
+    echo "error: install directory is a symlink: ${directory}" >&2
+    exit 1
+  fi
+done
+
+# A previous runtime-owned layout may contain redirected code entries. Refuse
+# those before sealing the old tree or writing through any installed path.
+reject_installed_symlinks() {
+  for directory in bin scripts www config assets var; do
+    if [[ -d "${INSTALL_ROOT}/${directory}" ]] && \
+      [[ -n "$(find "${INSTALL_ROOT}/${directory}" -type l -print -quit)" ]]; then
+      echo "error: installed tree contains a symlink: ${INSTALL_ROOT}/${directory}" >&2
+      exit 1
+    fi
+  done
+  if [[ -L "${INSTALL_ROOT}/.deploy-rev" ]]; then
+    echo "error: installed revision is a symlink" >&2
+    exit 1
+  fi
+}
+reject_installed_symlinks
+
+ancestor="${PRIVILEGED_HELPERS}"
+while :; do
+  if [[ -L "${ancestor}" ]]; then
+    echo "error: privileged helper ancestor is a symlink: ${ancestor}" >&2
+    exit 1
+  fi
+  if [[ -e "${ancestor}" ]]; then
+    owner="$(stat -c '%u' -- "${ancestor}")"
+    permissions="$(stat -c '%a' -- "${ancestor}")"
+    if [[ ! -d "${ancestor}" ]] || (( owner != 0 || (8#${permissions} & 8#022) != 0 )); then
+      echo "error: privileged helper ancestor must be root-owned and immutable: ${ancestor}" >&2
+      exit 1
+    fi
+  fi
+  [[ "${ancestor}" == / ]] && break
+  ancestor="$(dirname -- "${ancestor}")"
+done
+for helper in pi-restart-marengo-pi.sh pi-enqueue-self-update.sh; do
+  if [[ -L "${PRIVILEGED_HELPERS}/${helper}" ]]; then
+    echo "error: privileged helper is a symlink: ${helper}" >&2
+    exit 1
+  fi
+done
+
 # Bench default: stop always-on control so manual/MCP sessions own marengo-pi.
 systemctl stop marengo-pi.service 2>/dev/null || true
 pkill -f "${INSTALL_ROOT}/bin/marengo-pi" 2>/dev/null || true
+
+seal_installed_tree() {
+  chown root:root "${INSTALL_ROOT}"
+  chmod 0755 "${INSTALL_ROOT}"
+  for directory in bin scripts www config assets var; do
+    if [[ -d "${INSTALL_ROOT}/${directory}" ]]; then
+      chown -hR root:root "${INSTALL_ROOT}/${directory}"
+      # Seal directories in preorder before visiting their children. A legacy
+      # runtime-owned directory must not stay writable during privileged writes.
+      find "${INSTALL_ROOT}/${directory}" -type d \
+        -exec chown root:root {} \; -exec chmod 0755 {} \;
+      chown -hR root:root "${INSTALL_ROOT}/${directory}"
+      find "${INSTALL_ROOT}/${directory}" -type f -exec chmod go-w {} +
+    fi
+  done
+}
+# Seal legacy runtime-owned entries before any privileged installation writes.
+mkdir -p "${INSTALL_ROOT}"
+seal_installed_tree
+reject_installed_symlinks
 
 if ! id "$RUN_USER" &>/dev/null; then
   useradd --system --home "$INSTALL_ROOT" --shell /usr/sbin/nologin "$RUN_USER"
@@ -39,8 +113,6 @@ mkdir -p \
   "${INSTALL_ROOT}/var/log/blobs" \
   "${INSTALL_ROOT}/var/calibration" \
   "${INSTALL_ROOT}/var/gateway/tls"
-chmod 775 "${INSTALL_ROOT}/var" "${INSTALL_ROOT}/var/log" "${INSTALL_ROOT}/var/calibration" 2>/dev/null || true
-chown root:"${RUN_USER}" "${INSTALL_ROOT}/var" "${INSTALL_ROOT}/var/log" "${INSTALL_ROOT}/var/calibration" 2>/dev/null || true
 
 PI_BIN="${ROOT}/target/release/marengo-pi"
 GATEWAY_BIN="${ROOT}/target/release/marengo-gateway"
@@ -89,9 +161,14 @@ if [[ "${MARENGO_REPLACE_LIMITS:-0}" != "1" ]] && [[ -f "${INSTALL_ROOT}/config/
   echo "install-pi: backed up taught limits for preserve merge"
 fi
 
-rsync -a --delete "${ROOT}/config/" "${INSTALL_ROOT}/config/"
-rsync -a "${ROOT}/assets/" "${INSTALL_ROOT}/assets/"
-rsync -a "${ROOT}/scripts/" "${INSTALL_ROOT}/scripts/"
+rsync -a --chown=root:root --chmod=Dgo-w,Fgo-w --delete "${ROOT}/config/" "${INSTALL_ROOT}/config/"
+rsync -a --chown=root:root --chmod=Dgo-w,Fgo-w "${ROOT}/assets/" "${INSTALL_ROOT}/assets/"
+rsync -a --chown=root:root --chmod=Dgo-w,Fgo-w "${ROOT}/scripts/" "${INSTALL_ROOT}/scripts/"
+
+install -d -o root -g root -m 0755 "${PRIVILEGED_HELPERS}"
+for helper in pi-restart-marengo-pi.sh pi-enqueue-self-update.sh; do
+  install -o root -g root -m 0755 "${ROOT}/scripts/${helper}" "${PRIVILEGED_HELPERS}/${helper}"
+done
 
 if [[ -n "${TAUGHT_BACKUP}" ]]; then
   if [[ -f "${ROOT}/scripts/preserve-taught-limits.py" ]]; then
@@ -112,28 +189,12 @@ elif [[ -d "${ROOT}/www" ]] && [[ -f "${ROOT}/www/index.html" ]]; then
   WWW_SRC="${ROOT}/www"
 fi
 if [[ -n "$WWW_SRC" ]]; then
-  rsync -a --delete "${WWW_SRC}/" "${INSTALL_ROOT}/www/"
+  rsync -a --chown=root:root --chmod=Dgo-w,Fgo-w --delete "${WWW_SRC}/" "${INSTALL_ROOT}/www/"
 else
   echo "warning: no Consul UI (consul/dist or www/index.html missing — run pi-native-build or cross deploy)" >&2
 fi
 chmod 755 "${INSTALL_ROOT}/scripts/can-up.sh"
 chmod 755 "${INSTALL_ROOT}/scripts/homing-preflight.sh" 2>/dev/null || true
-chown -R root:"${RUN_USER}" "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets" "${INSTALL_ROOT}/scripts"
-chmod -R g+rwX "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets" "${INSTALL_ROOT}/scripts"
-# Sudo targets for gateway must not be group-writable by ${RUN_USER}.
-if [[ -f "${INSTALL_ROOT}/scripts/pi-restart-marengo-pi.sh" ]]; then
-  chown root:root "${INSTALL_ROOT}/scripts/pi-restart-marengo-pi.sh"
-  chmod 0755 "${INSTALL_ROOT}/scripts/pi-restart-marengo-pi.sh"
-fi
-if [[ -f "${INSTALL_ROOT}/scripts/pi-enqueue-self-update.sh" ]]; then
-  chown root:root "${INSTALL_ROOT}/scripts/pi-enqueue-self-update.sh"
-  chmod 0755 "${INSTALL_ROOT}/scripts/pi-enqueue-self-update.sh"
-fi
-mkdir -p "${INSTALL_ROOT}/var"
-if getent group "${RUN_USER}" >/dev/null 2>&1; then
-  chgrp "${RUN_USER}" "${INSTALL_ROOT}/var" 2>/dev/null || true
-  chmod 775 "${INSTALL_ROOT}/var" 2>/dev/null || true
-fi
 
 if id "$DEPLOY_USER" &>/dev/null; then
   SUDOERS_PATH="/etc/sudoers.d/marengo-${DEPLOY_USER}"
@@ -141,8 +202,8 @@ if id "$DEPLOY_USER" &>/dev/null; then
   cat >"$SUDOERS_TMP" <<EOF
 # Marengo bench automation (${DEPLOY_USER}) - generated by scripts/install-pi.sh
 ${DEPLOY_USER} ALL=(root) NOPASSWD: ${INSTALL_ROOT}/scripts/can-up.sh *
-${DEPLOY_USER} ALL=(root) NOPASSWD: ${INSTALL_ROOT}/scripts/pi-restart-marengo-pi.sh
-${DEPLOY_USER} ALL=(root) NOPASSWD: ${INSTALL_ROOT}/scripts/pi-restart-marengo-pi.sh *
+${DEPLOY_USER} ALL=(root) NOPASSWD: ${PRIVILEGED_HELPERS}/pi-restart-marengo-pi.sh
+${DEPLOY_USER} ALL=(root) NOPASSWD: ${PRIVILEGED_HELPERS}/pi-restart-marengo-pi.sh *
 ${DEPLOY_USER} ALL=(root) NOPASSWD: ${INSTALL_ROOT}/scripts/install-pi.sh
 ${DEPLOY_USER} ALL=(root) NOPASSWD: /home/${DEPLOY_USER}/marengo/scripts/install-pi.sh
 EOF
@@ -161,9 +222,8 @@ if id "$RUN_USER" &>/dev/null; then
   RUN_SUDOERS_TMP="$(mktemp)"
   cat >"$RUN_SUDOERS_TMP" <<EOF
 # Marengo gateway control-loop restart + self-update enqueue (${RUN_USER}) - generated by scripts/install-pi.sh
-${RUN_USER} ALL=(root) NOPASSWD: ${INSTALL_ROOT}/scripts/pi-restart-marengo-pi.sh restart
-${RUN_USER} ALL=(root) NOPASSWD: ${INSTALL_ROOT}/scripts/pi-enqueue-self-update.sh
-${RUN_USER} ALL=(root) NOPASSWD: ${INSTALL_ROOT}/scripts/pi-enqueue-self-update.sh *
+${RUN_USER} ALL=(root) NOPASSWD: ${PRIVILEGED_HELPERS}/pi-restart-marengo-pi.sh restart
+${RUN_USER} ALL=(root) NOPASSWD: ${PRIVILEGED_HELPERS}/pi-enqueue-self-update.sh *
 EOF
   chmod 440 "$RUN_SUDOERS_TMP"
   if visudo -cf "$RUN_SUDOERS_TMP" >/dev/null; then
@@ -240,19 +300,17 @@ sed -i "s|WorkingDirectory=.*|WorkingDirectory=${INSTALL_ROOT}|" /etc/systemd/sy
 sed -i "s|User=.*|User=${RUN_USER}|" /etc/systemd/system/marengo-gateway.service
 sed -i "s|ExecStart=.*|ExecStart=${INSTALL_ROOT}/bin/marengo-gateway --http-listen [::]:8080 --https-listen [::]:8444 --web-root ${INSTALL_ROOT}/www --wt-listen [::]:8443 --chappe-socket /run/marengo/chappe.sock|" /etc/systemd/system/marengo-gateway.service
 
-chown -R "${RUN_USER}:${RUN_USER}" "${INSTALL_ROOT}"
-chown -R root:"${RUN_USER}" "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets" "${INSTALL_ROOT}/scripts" "${INSTALL_ROOT}/var" 2>/dev/null || true
-chmod -R g+rwX "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets" "${INSTALL_ROOT}/scripts" "${INSTALL_ROOT}/var" 2>/dev/null || true
+chown -hR root:root "${INSTALL_ROOT}"
+seal_installed_tree
+reject_installed_symlinks
+chown -hR root:"${RUN_USER}" "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets" "${INSTALL_ROOT}/var"
+for directory in config assets var; do
+  # Restore file permissions while every parent is sealed. Open directories
+  # from children to parents so root never revisits runtime-writable entries.
+  find "${INSTALL_ROOT}/${directory}" -type f -exec chmod g+rwX {} +
+  find "${INSTALL_ROOT}/${directory}" -depth -type d -exec chmod g+rwX {} \;
+done
 
-# Re-harden sudo targets AFTER recursive scripts ownership (must stay root:root 0755).
-if [[ -f "${INSTALL_ROOT}/scripts/pi-restart-marengo-pi.sh" ]]; then
-  chown root:root "${INSTALL_ROOT}/scripts/pi-restart-marengo-pi.sh"
-  chmod 0755 "${INSTALL_ROOT}/scripts/pi-restart-marengo-pi.sh"
-fi
-if [[ -f "${INSTALL_ROOT}/scripts/pi-enqueue-self-update.sh" ]]; then
-  chown root:root "${INSTALL_ROOT}/scripts/pi-enqueue-self-update.sh"
-  chmod 0755 "${INSTALL_ROOT}/scripts/pi-enqueue-self-update.sh"
-fi
 
 install_deploy_rev "${ROOT}" "${INSTALL_ROOT}"
 chown root:root "${INSTALL_ROOT}/.deploy-rev"

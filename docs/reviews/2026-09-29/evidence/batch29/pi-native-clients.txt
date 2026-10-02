@@ -1,0 +1,139 @@
+d55869925fa4472e6802eb00d1162481de4b1e92d743f4a63c86a94fea4a67d5  crates/marengo-deploy/src/paths.rs
+a7b90378d9a8afb0213eba43a19914b5ea3925f3f13480c2c3fdb2447d128988  bins/marengo-gateway/src/restart.rs
+   Compiling jobserver v0.1.34
+   Compiling parking_lot_core v0.9.12
+   Compiling getrandom v0.2.17
+   Compiling prost-derive v0.13.5
+   Compiling rand_chacha v0.9.0
+   Compiling cc v1.2.62
+   Compiling parking_lot v0.12.5
+   Compiling tokio v1.52.3
+   Compiling rand v0.9.4
+   Compiling cmake v0.1.58
+   Compiling fastbloom v0.14.1
+   Compiling prost v0.13.5
+   Compiling aws-lc-sys v0.45.0
+   Compiling ring v0.17.14
+   Compiling prost-types v0.13.5
+   Compiling prost-build v0.13.5
+   Compiling libsqlite3-sys v0.30.1
+   Compiling tokio-util v0.7.18
+   Compiling h2 v0.4.16
+   Compiling armee-proto v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/crates/armee-proto)
+   Compiling socket2 v0.5.10
+   Compiling quinn-udp v0.5.14
+   Compiling marengo-deploy v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/crates/marengo-deploy)
+   Compiling hyper v1.9.0
+   Compiling cpufeatures v0.2.17
+   Compiling rusqlite v0.32.1
+   Compiling hyper-util v0.1.20
+   Compiling sha2 v0.10.9
+   Compiling web-transport-proto v0.6.0
+   Compiling marengo-candump v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/crates/marengo-candump)
+   Compiling fs-err v3.3.0
+   Compiling tower v0.5.3
+   Compiling marengo-store v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/crates/marengo-store)
+   Compiling tower-http v0.6.11
+   Compiling axum v0.8.9
+   Compiling rcgen v0.13.2
+   Compiling chappe v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/crates/chappe)
+   Compiling aws-lc-rs v1.18.1
+   Compiling rustls v0.23.45
+   Compiling rustls-webpki v0.103.15
+   Compiling rustls-platform-verifier v0.6.2
+   Compiling tokio-rustls v0.26.4
+   Compiling quinn-proto v0.11.15
+   Compiling axum-server v0.8.0
+   Compiling quinn v0.11.9
+   Compiling web-transport-quinn v0.11.9
+   Compiling marengo-gateway v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/bins/marengo-gateway)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 36s
+
+running 11 tests
+test job::tests::reconcile_fails_stale_running ... ok
+test job::tests::reconcile_promotes_when_rev_matches ... ok
+test job::tests::job_roundtrip ... ok
+test job::tests::unknown_phase_is_forward_compatible ... ok
+test job::tests::corrupt_job_file_fails_closed_not_idle ... ok
+test rev::tests::parse_deploy_rev_sha_and_timestamp ... ok
+     Running unittests src/lib.rs (target/debug/deps/marengo_deploy-0b1ab4a9d133758a)
+test rev::tests::shas_match_prefix_and_full ... ok
+test rev::tests::read_deploy_rev_file ... ok
+test status::tests::assemble_status_serializes_typed_phase_and_ui_state ... ok
+test status::tests::ui_state_distinguishes_current_stale_and_unknown ... ok
+test status::tests::ui_state_prioritizes_running_and_surfaces_failed_without_www ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/job_script_contract.rs (target/debug/deps/job_script_contract-984602658b7555b1)
+
+running 4 tests
+test enqueue_script_job_shape ... ok
+test self_update_build_phase_shape ... ok
+test self_update_done_phase_shape ... ok
+test known_script_phases_roundtrip ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 50 tests
+test action_ack::tests::live_ack_matcher_ignores_write_behind_persist_action ... ok
+test action_ack::tests::recv_live_ack_surfaces_live_reject ... ok
+test action_ack::tests::recv_live_ack_skips_persist_failed_until_pending ... ok
+test actuator::tests::command_actuator_clamps_to_live_kp_max ... ok
+test actuator::tests::command_actuator_publishes_canonical_joint_for_left_alias ... ok
+test actuator::tests::command_actuator_rejects_non_tuning_with_400 ... ok
+test actuator::tests::command_actuator_rejects_unwired_joint_with_403 ... ok
+test actuator::tests::command_actuator_rejects_without_limits_snapshot ... ok
+test actuator::tests::snapshot_actuator_limits_503_when_cache_empty ... ok
+test actuator::tests::command_actuator_requires_configured_log_token ... ok
+test framing::tests::lag_discards_old_transition_and_backlog_before_fresh_state ... ok
+test actuator::tests::command_actuator_returns_429_when_rate_limited ... ok
+test config::tests::master_snapshot_resolves_actuator_group_velocity ... ok
+test hardware::tests::activate_and_resolve_reject_unsafe_upload_ids ... ok
+     Running unittests src/main.rs (target/debug/deps/marengo_gateway-a9c26ef095200aae)
+test hardware::tests::activate_archives_replaced_active_and_promotes_merge ... ok
+test hardware::tests::activate_refuses_active_with_fresh_heartbeat ... ok
+test action_ack::tests::recv_live_ack_times_out_without_matching_session ... ok
+test hardware::tests::activate_saves_manifest_before_failed_live_promote ... ok
+test hardware::tests::authorize_config_mutation_matches_log_token ... ok
+test hardware::tests::archive_reads_require_auth ... ok
+test hardware::tests::command_home_is_gone ... ok
+test hardware::tests::commissioning_scope_read_open_mutations_gated_widen_and_unknown ... ok
+test http::tests::command_motor_status_poll_rate_limits_globally ... ok
+test http::tests::command_set_zero_rejects_unwired_joint_with_403 ... ok
+test http::tests::command_set_zero_requires_confirm_and_attestation ... ok
+test http::tests::command_set_zero_returns_429_when_rate_limited ... ok
+test http::tests::stream_chappe_emits_length_prefixed_envelopes ... ok
+test hardware::tests::completeness_is_advisory_and_upload_not_blocked ... ok
+test logs::tests::recent_limit_default ... ok
+test ratelimit::tests::buckets_are_isolated_by_client_and_joint ... ok
+test ratelimit::tests::motion_bucket_ignores_client_id_rotation ... ok
+test ratelimit::tests::motion_bucket_is_stricter_than_tuning ... ok
+test ratelimit::tests::refund_restores_token_after_failed_publish ... ok
+test ratelimit::tests::rejects_empty_client_id ... ok
+test ratelimit::tests::status_poll_bucket_allows_burst_then_rejects_until_refill ... ok
+test ratelimit::tests::tuning_bucket_allows_burst_then_rejects ... ok
+test hardware::tests::urdf_read_rejects_missing_auth ... ok
+test restart::tests::refuse_active_only_when_heartbeat_fresh ... ok
+test logs::tests::log_token_from_env_filters_empty ... ok
+test hardware::tests::urdf_read_returns_bytes_with_auth ... ok
+test restart::tests::restart_allows_active_with_stale_heartbeat_via_stub ... ok
+test restart::tests::restart_fails_closed_without_token ... ok
+test state::ipc_snapshot_tests::connection_change_retires_observations_until_a_new_frame_arrives ... ok
+test restart::tests::restart_refuses_active_with_fresh_heartbeat ... ok
+test state::runtime_transition_stream_tests::existing_topic_subscriber_receives_typed_runtime_invalidation ... ok
+test restart::tests::restart_requires_confirm ... ok
+test webtransport::tests::tls_material_rejects_malformed_certificate_chain ... ok
+test webtransport::tests::tls_material_rejects_empty_or_malformed_private_key ... ok
+test webtransport::tests::tls_material_retains_certificate_chain_and_matching_key ... ok
+test ratelimit::tests::tuning_bucket_refills_over_time ... ok
+
+test result: ok. 50 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+   Doc-tests marengo_deploy
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

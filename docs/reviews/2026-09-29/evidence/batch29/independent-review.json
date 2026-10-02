@@ -1,0 +1,15 @@
+{
+  "baseline": "4b0d287004260c5286c1a240e300c796a6a9ccfa",
+  "reviewed_source": "0867a9304d9ceff5e579601bf85bb39469b752ea",
+  "standards_documented_violations": 0,
+  "standards_actionable_smells": 0,
+  "spec_actionable_scoped_findings": 0,
+  "earlier_findings": [
+    "Nested writable-state symlinks redirected privileged mkdir/chmod/chown: reproduced and repaired.",
+    "Staged rsync ownership/modes reopened scripts/www before final seal: reproduced and repaired.",
+    "Recursive chmod restored state parents before descendants: upstream source evidence, repaired with files-first and postorder directory restoration. No race reproduction claimed."
+  ],
+  "versioned_release_and_atomic_activation": "still incomplete under T01/T02",
+  "physical_acceptance": false,
+  "exact_final_head_hosted_gate": "pending"
+}

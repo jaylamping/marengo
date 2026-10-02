@@ -1,0 +1,203 @@
+ Container marengo-dev-run-e965a3f04851 Creating 
+ Container marengo-dev-run-e965a3f04851 Created 
+test_actual_sudo_helper_ancestors_are_immutable (__main__.InstallPermissions.test_actual_sudo_helper_ancestors_are_immutable) ... 
+  test_actual_sudo_helper_ancestors_are_immutable (__main__.InstallPermissions.test_actual_sudo_helper_ancestors_are_immutable) (helper=PosixPath('/tmp/marengo-install-permissions-5ezggktn/installed/scripts/pi-restart-marengo-pi.sh'), ancestor=PosixPath('/tmp/marengo-install-permissions-5ezggktn/installed/scripts')) ... FAIL
+  test_actual_sudo_helper_ancestors_are_immutable (__main__.InstallPermissions.test_actual_sudo_helper_ancestors_are_immutable) (helper=PosixPath('/tmp/marengo-install-permissions-5ezggktn/installed/scripts/pi-restart-marengo-pi.sh'), ancestor=PosixPath('/tmp/marengo-install-permissions-5ezggktn/installed')) ... FAIL
+  test_actual_sudo_helper_ancestors_are_immutable (__main__.InstallPermissions.test_actual_sudo_helper_ancestors_are_immutable) (helper=PosixPath('/tmp/marengo-install-permissions-5ezggktn/installed/scripts/pi-restart-marengo-pi.sh'), ancestor=PosixPath('/tmp')) ... FAIL
+  test_actual_sudo_helper_ancestors_are_immutable (__main__.InstallPermissions.test_actual_sudo_helper_ancestors_are_immutable) (helper=PosixPath('/tmp/marengo-install-permissions-5ezggktn/installed/scripts/pi-enqueue-self-update.sh'), ancestor=PosixPath('/tmp/marengo-install-permissions-5ezggktn/installed/scripts')) ... FAIL
+  test_actual_sudo_helper_ancestors_are_immutable (__main__.InstallPermissions.test_actual_sudo_helper_ancestors_are_immutable) (helper=PosixPath('/tmp/marengo-install-permissions-5ezggktn/installed/scripts/pi-enqueue-self-update.sh'), ancestor=PosixPath('/tmp/marengo-install-permissions-5ezggktn/installed')) ... FAIL
+  test_actual_sudo_helper_ancestors_are_immutable (__main__.InstallPermissions.test_actual_sudo_helper_ancestors_are_immutable) (helper=PosixPath('/tmp/marengo-install-permissions-5ezggktn/installed/scripts/pi-enqueue-self-update.sh'), ancestor=PosixPath('/tmp')) ... FAIL
+test_enqueue_state_paths_cannot_redirect_root_writes (__main__.InstallPermissions.test_enqueue_state_paths_cannot_redirect_root_writes) ... 
+  test_enqueue_state_paths_cannot_redirect_root_writes (__main__.InstallPermissions.test_enqueue_state_paths_cannot_redirect_root_writes) (victim='root-lock-sentinel') ... FAIL
+  test_enqueue_state_paths_cannot_redirect_root_writes (__main__.InstallPermissions.test_enqueue_state_paths_cannot_redirect_root_writes) (victim='root-temporary-sentinel') ... FAIL
+test_enqueue_state_paths_cannot_redirect_root_writes (__main__.InstallPermissions.test_enqueue_state_paths_cannot_redirect_root_writes) ... FAIL
+test_installer_refuses_redirected_code_before_writing (__main__.InstallPermissions.test_installer_refuses_redirected_code_before_writing) ... 
+  test_installer_refuses_redirected_code_before_writing (__main__.InstallPermissions.test_installer_refuses_redirected_code_before_writing) (redirected='www') ... FAIL
+  test_installer_refuses_redirected_code_before_writing (__main__.InstallPermissions.test_installer_refuses_redirected_code_before_writing) (redirected='scripts/nested-helper') ... FAIL
+  test_installer_refuses_redirected_code_before_writing (__main__.InstallPermissions.test_installer_refuses_redirected_code_before_writing) (redirected='var/log') ... FAIL
+  test_installer_refuses_redirected_code_before_writing (__main__.InstallPermissions.test_installer_refuses_redirected_code_before_writing) (redirected='var/calibration') ... FAIL
+test_runtime_can_write_only_declared_config_and_state (__main__.InstallPermissions.test_runtime_can_write_only_declared_config_and_state) ... FAIL
+test_runtime_cannot_replace_actual_sudo_targets (__main__.InstallPermissions.test_runtime_cannot_replace_actual_sudo_targets) ... 
+  test_runtime_cannot_replace_actual_sudo_targets (__main__.InstallPermissions.test_runtime_cannot_replace_actual_sudo_targets) (helper=PosixPath('/tmp/marengo-install-permissions-5ezggktn/installed/scripts/pi-restart-marengo-pi.sh')) ... FAIL
+  test_runtime_cannot_replace_actual_sudo_targets (__main__.InstallPermissions.test_runtime_cannot_replace_actual_sudo_targets) (helper=PosixPath('/tmp/marengo-install-permissions-5ezggktn/installed/scripts/pi-enqueue-self-update.sh')) ... FAIL
+test_runtime_cannot_replace_release_code_or_redirect_ancestors (__main__.InstallPermissions.test_runtime_cannot_replace_release_code_or_redirect_ancestors) ... 
+  test_runtime_cannot_replace_release_code_or_redirect_ancestors (__main__.InstallPermissions.test_runtime_cannot_replace_release_code_or_redirect_ancestors) (path=PosixPath('/tmp/marengo-install-permissions-5ezggktn/installed/bin/marengo-pi')) ... FAIL
+  test_runtime_cannot_replace_release_code_or_redirect_ancestors (__main__.InstallPermissions.test_runtime_cannot_replace_release_code_or_redirect_ancestors) (path=PosixPath('/tmp/marengo-install-permissions-5ezggktn/installed/scripts')) ... FAIL
+test_runtime_cannot_replace_release_code_or_redirect_ancestors (__main__.InstallPermissions.test_runtime_cannot_replace_release_code_or_redirect_ancestors) ... FAIL
+test_staged_code_stays_immutable_before_final_seal (__main__.InstallPermissions.test_staged_code_stays_immutable_before_final_seal) ... 
+  test_staged_code_stays_immutable_before_final_seal (__main__.InstallPermissions.test_staged_code_stays_immutable_before_final_seal) (path='/tmp/marengo-install-permissions-5ezggktn/staged-mode-install/scripts/staged-code-marker') ... FAIL
+  test_staged_code_stays_immutable_before_final_seal (__main__.InstallPermissions.test_staged_code_stays_immutable_before_final_seal) (path='/tmp/marengo-install-permissions-5ezggktn/staged-mode-install/www/staged-code-marker') ... FAIL
+
+======================================================================
+FAIL: test_actual_sudo_helper_ancestors_are_immutable (__main__.InstallPermissions.test_actual_sudo_helper_ancestors_are_immutable) (helper=PosixPath('/tmp/marengo-install-permissions-5ezggktn/installed/scripts/pi-restart-marengo-pi.sh'), ancestor=PosixPath('/tmp/marengo-install-permissions-5ezggktn/installed/scripts'))
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scripts/test_install_permissions.py", line 109, in test_actual_sudo_helper_ancestors_are_immutable
+    self.assertEqual(metadata.st_mode & 0o022, 0,
+AssertionError: 18 != 0 : privileged ancestor is group/world writable
+
+======================================================================
+FAIL: test_actual_sudo_helper_ancestors_are_immutable (__main__.InstallPermissions.test_actual_sudo_helper_ancestors_are_immutable) (helper=PosixPath('/tmp/marengo-install-permissions-5ezggktn/installed/scripts/pi-restart-marengo-pi.sh'), ancestor=PosixPath('/tmp/marengo-install-permissions-5ezggktn/installed'))
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scripts/test_install_permissions.py", line 108, in test_actual_sudo_helper_ancestors_are_immutable
+    self.assertEqual(metadata.st_uid, 0, 'privileged ancestor is not root-owned')
+AssertionError: 1000 != 0 : privileged ancestor is not root-owned
+
+======================================================================
+FAIL: test_actual_sudo_helper_ancestors_are_immutable (__main__.InstallPermissions.test_actual_sudo_helper_ancestors_are_immutable) (helper=PosixPath('/tmp/marengo-install-permissions-5ezggktn/installed/scripts/pi-restart-marengo-pi.sh'), ancestor=PosixPath('/tmp'))
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scripts/test_install_permissions.py", line 109, in test_actual_sudo_helper_ancestors_are_immutable
+    self.assertEqual(metadata.st_mode & 0o022, 0,
+AssertionError: 18 != 0 : privileged ancestor is group/world writable
+
+======================================================================
+FAIL: test_actual_sudo_helper_ancestors_are_immutable (__main__.InstallPermissions.test_actual_sudo_helper_ancestors_are_immutable) (helper=PosixPath('/tmp/marengo-install-permissions-5ezggktn/installed/scripts/pi-enqueue-self-update.sh'), ancestor=PosixPath('/tmp/marengo-install-permissions-5ezggktn/installed/scripts'))
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scripts/test_install_permissions.py", line 109, in test_actual_sudo_helper_ancestors_are_immutable
+    self.assertEqual(metadata.st_mode & 0o022, 0,
+AssertionError: 18 != 0 : privileged ancestor is group/world writable
+
+======================================================================
+FAIL: test_actual_sudo_helper_ancestors_are_immutable (__main__.InstallPermissions.test_actual_sudo_helper_ancestors_are_immutable) (helper=PosixPath('/tmp/marengo-install-permissions-5ezggktn/installed/scripts/pi-enqueue-self-update.sh'), ancestor=PosixPath('/tmp/marengo-install-permissions-5ezggktn/installed'))
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scripts/test_install_permissions.py", line 108, in test_actual_sudo_helper_ancestors_are_immutable
+    self.assertEqual(metadata.st_uid, 0, 'privileged ancestor is not root-owned')
+AssertionError: 1000 != 0 : privileged ancestor is not root-owned
+
+======================================================================
+FAIL: test_actual_sudo_helper_ancestors_are_immutable (__main__.InstallPermissions.test_actual_sudo_helper_ancestors_are_immutable) (helper=PosixPath('/tmp/marengo-install-permissions-5ezggktn/installed/scripts/pi-enqueue-self-update.sh'), ancestor=PosixPath('/tmp'))
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scripts/test_install_permissions.py", line 109, in test_actual_sudo_helper_ancestors_are_immutable
+    self.assertEqual(metadata.st_mode & 0o022, 0,
+AssertionError: 18 != 0 : privileged ancestor is group/world writable
+
+======================================================================
+FAIL: test_enqueue_state_paths_cannot_redirect_root_writes (__main__.InstallPermissions.test_enqueue_state_paths_cannot_redirect_root_writes) (victim='root-lock-sentinel')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scripts/test_install_permissions.py", line 160, in test_enqueue_state_paths_cannot_redirect_root_writes
+    self.assertEqual(victim.read_bytes(), b'privileged bytes must remain intact\n')
+AssertionError: b'' != b'privileged bytes must remain intact\n'
+
+======================================================================
+FAIL: test_enqueue_state_paths_cannot_redirect_root_writes (__main__.InstallPermissions.test_enqueue_state_paths_cannot_redirect_root_writes) (victim='root-temporary-sentinel')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scripts/test_install_permissions.py", line 160, in test_enqueue_state_paths_cannot_redirect_root_writes
+    self.assertEqual(victim.read_bytes(), b'privileged bytes must remain intact\n')
+AssertionError: b'{\n  "state": "running",\n  "job_id": "co[264 chars]n}\n' != b'privileged bytes must remain intact\n'
+
+======================================================================
+FAIL: test_enqueue_state_paths_cannot_redirect_root_writes (__main__.InstallPermissions.test_enqueue_state_paths_cannot_redirect_root_writes)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scripts/test_install_permissions.py", line 162, in test_enqueue_state_paths_cannot_redirect_root_writes
+    self.assertNotEqual(job_file.stat().st_uid, 0, 'runtime state written with root ownership')
+AssertionError: 0 == 0 : runtime state written with root ownership
+
+======================================================================
+FAIL: test_installer_refuses_redirected_code_before_writing (__main__.InstallPermissions.test_installer_refuses_redirected_code_before_writing) (redirected='www')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scripts/test_install_permissions.py", line 198, in test_installer_refuses_redirected_code_before_writing
+    self.assertNotEqual(result.returncode, 0, 'installer accepted redirected code')
+AssertionError: 0 == 0 : installer accepted redirected code
+
+======================================================================
+FAIL: test_installer_refuses_redirected_code_before_writing (__main__.InstallPermissions.test_installer_refuses_redirected_code_before_writing) (redirected='scripts/nested-helper')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scripts/test_install_permissions.py", line 198, in test_installer_refuses_redirected_code_before_writing
+    self.assertNotEqual(result.returncode, 0, 'installer accepted redirected code')
+AssertionError: 0 == 0 : installer accepted redirected code
+
+======================================================================
+FAIL: test_installer_refuses_redirected_code_before_writing (__main__.InstallPermissions.test_installer_refuses_redirected_code_before_writing) (redirected='var/log')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scripts/test_install_permissions.py", line 198, in test_installer_refuses_redirected_code_before_writing
+    self.assertNotEqual(result.returncode, 0, 'installer accepted redirected code')
+AssertionError: 0 == 0 : installer accepted redirected code
+
+======================================================================
+FAIL: test_installer_refuses_redirected_code_before_writing (__main__.InstallPermissions.test_installer_refuses_redirected_code_before_writing) (redirected='var/calibration')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scripts/test_install_permissions.py", line 198, in test_installer_refuses_redirected_code_before_writing
+    self.assertNotEqual(result.returncode, 0, 'installer accepted redirected code')
+AssertionError: 0 == 0 : installer accepted redirected code
+
+======================================================================
+FAIL: test_runtime_can_write_only_declared_config_and_state (__main__.InstallPermissions.test_runtime_can_write_only_declared_config_and_state)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scripts/test_install_permissions.py", line 180, in test_runtime_can_write_only_declared_config_and_state
+    self.assertNotEqual(denied.returncode, 0, 'runtime wrote new installed executable')
+AssertionError: 0 == 0 : runtime wrote new installed executable
+
+======================================================================
+FAIL: test_runtime_cannot_replace_actual_sudo_targets (__main__.InstallPermissions.test_runtime_cannot_replace_actual_sudo_targets) (helper=PosixPath('/tmp/marengo-install-permissions-5ezggktn/installed/scripts/pi-restart-marengo-pi.sh'))
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scripts/test_install_permissions.py", line 89, in test_runtime_cannot_replace_actual_sudo_targets
+    self.assertNotEqual(result.returncode, 0,
+AssertionError: 0 == 0 : runtime replaced actual sudo target /tmp/marengo-install-permissions-5ezggktn/installed/scripts/pi-restart-marengo-pi.sh
+
+======================================================================
+FAIL: test_runtime_cannot_replace_actual_sudo_targets (__main__.InstallPermissions.test_runtime_cannot_replace_actual_sudo_targets) (helper=PosixPath('/tmp/marengo-install-permissions-5ezggktn/installed/scripts/pi-enqueue-self-update.sh'))
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scripts/test_install_permissions.py", line 89, in test_runtime_cannot_replace_actual_sudo_targets
+    self.assertNotEqual(result.returncode, 0,
+AssertionError: 0 == 0 : runtime replaced actual sudo target /tmp/marengo-install-permissions-5ezggktn/installed/scripts/pi-enqueue-self-update.sh
+
+======================================================================
+FAIL: test_runtime_cannot_replace_release_code_or_redirect_ancestors (__main__.InstallPermissions.test_runtime_cannot_replace_release_code_or_redirect_ancestors) (path=PosixPath('/tmp/marengo-install-permissions-5ezggktn/installed/bin/marengo-pi'))
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scripts/test_install_permissions.py", line 98, in test_runtime_cannot_replace_release_code_or_redirect_ancestors
+    self.assertNotEqual(result.returncode, 0,
+AssertionError: 0 == 0 : runtime replaced installed code/ancestor /tmp/marengo-install-permissions-5ezggktn/installed/bin/marengo-pi
+
+======================================================================
+FAIL: test_runtime_cannot_replace_release_code_or_redirect_ancestors (__main__.InstallPermissions.test_runtime_cannot_replace_release_code_or_redirect_ancestors) (path=PosixPath('/tmp/marengo-install-permissions-5ezggktn/installed/scripts'))
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scripts/test_install_permissions.py", line 98, in test_runtime_cannot_replace_release_code_or_redirect_ancestors
+    self.assertNotEqual(result.returncode, 0,
+AssertionError: 0 == 0 : runtime replaced installed code/ancestor /tmp/marengo-install-permissions-5ezggktn/installed/scripts
+
+======================================================================
+FAIL: test_runtime_cannot_replace_release_code_or_redirect_ancestors (__main__.InstallPermissions.test_runtime_cannot_replace_release_code_or_redirect_ancestors)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scripts/test_install_permissions.py", line 101, in test_runtime_cannot_replace_release_code_or_redirect_ancestors
+    self.assertNotEqual(changed.returncode, 0, 'runtime can reopen release ancestor permissions')
+AssertionError: 0 == 0 : runtime can reopen release ancestor permissions
+
+======================================================================
+FAIL: test_staged_code_stays_immutable_before_final_seal (__main__.InstallPermissions.test_staged_code_stays_immutable_before_final_seal) (path='/tmp/marengo-install-permissions-5ezggktn/staged-mode-install/scripts/staged-code-marker')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scripts/test_install_permissions.py", line 241, in test_staged_code_stays_immutable_before_final_seal
+    self.assertNotEqual(attempt['status'], 0, 'runtime replaced code after rsync')
+AssertionError: 0 == 0 : runtime replaced code after rsync
+
+======================================================================
+FAIL: test_staged_code_stays_immutable_before_final_seal (__main__.InstallPermissions.test_staged_code_stays_immutable_before_final_seal) (path='/tmp/marengo-install-permissions-5ezggktn/staged-mode-install/www/staged-code-marker')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scripts/test_install_permissions.py", line 241, in test_staged_code_stays_immutable_before_final_seal
+    self.assertNotEqual(attempt['status'], 0, 'runtime replaced code after rsync')
+AssertionError: 0 == 0 : runtime replaced code after rsync
+
+----------------------------------------------------------------------
+Ran 7 tests in 2.696s
+
+FAILED (failures=21)
+

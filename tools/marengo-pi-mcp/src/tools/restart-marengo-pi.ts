@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
-import { type MarengoPiConfig, piScriptPath } from "../config.js";
+import { type MarengoPiConfig } from "../config.js";
 import { shellQuote, wrapRemote } from "../env.js";
 
 export const restartMarengoPiSchema = z.object({
@@ -32,13 +32,13 @@ export function loadRestartMarengoPiScript(localRoot: string): string {
 }
 
 /**
- * Remote shell body: prefer passwordless `sudo -n /opt/.../pi-restart-marengo-pi.sh`
+ * Remote shell body: prefer the immutable libexec helper via passwordless sudo.
  * (deploy-user sudoers). Fall back to embedding the local checkout copy.
  */
 export function restartMarengoPiShell(
   mode: "restart" | "stop",
   scriptSource: string,
-  installedScriptPath = "/opt/marengo/scripts/pi-restart-marengo-pi.sh",
+  installedScriptPath = "/usr/local/libexec/marengo/pi-restart-marengo-pi.sh",
 ): string {
   const body = scriptSource.replace(/\r\n/g, "\n").replace(/^#![^\n]*\n/, "");
   return [
@@ -58,9 +58,8 @@ export async function runRestartMarengoPi(
   args: RestartMarengoPiArgs,
 ): Promise<string> {
   const script = loadRestartMarengoPiScript(cfg.localRoot);
-  const installed = piScriptPath(cfg, "pi-restart-marengo-pi.sh");
   return runRemote(
-    wrapRemote(cfg, restartMarengoPiShell(args.mode, script, installed)),
+    wrapRemote(cfg, restartMarengoPiShell(args.mode, script)),
     60_000,
   );
 }
