@@ -27,7 +27,8 @@ Inspection returns the actual request/reply bytes, address and reply host. The
 CLI may serialize that diagnostic receipt as JSON; Chappe remains protobuf.
 
 Inspection uses the canonical all-address stop (zero speed, neutral MIT and
-Disable) and diagnostic read requests. It cannot send Enable, Set
+Disable), explicit reporting Off and diagnostic read requests. A dedicated
+constructor suppresses startup reporting On; cleanup never synchronizes it. It cannot send Enable, Set
 Zero, nonneutral output or configuration writes, and it cannot create Ready or a
 current-reference grant. MCU identity is not boot continuity; `zero_sta` is a
 power-on wrapping setting, not a zero-valid flag. Missing, erroneous or

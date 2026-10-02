@@ -381,6 +381,33 @@ impl<B: MotorBus> Supervisor<B> {
         bus: B,
         record_path: Option<PathBuf>,
     ) -> Result<Self, DavoutError> {
+        Self::from_config_dir_with_reporting(root, config_dir, bus, record_path, true)
+    }
+
+    /// Standalone diagnostic owner: validate normal installed policy/history,
+    /// but transmit no automatic reporting traffic during construction.
+    pub fn from_repo_for_protocol_inspection(
+        root: impl AsRef<Path>,
+        bus: B,
+    ) -> Result<Self, DavoutError> {
+        let root = root.as_ref();
+        let record_path = std::env::var_os("MARENGO_CALIBRATION_RECORD").map(PathBuf::from);
+        Self::from_config_dir_with_reporting(
+            root,
+            &resolve_config_dir(root),
+            bus,
+            record_path,
+            false,
+        )
+    }
+
+    fn from_config_dir_with_reporting(
+        root: &Path,
+        config_dir: &Path,
+        bus: B,
+        record_path: Option<PathBuf>,
+        reporting: bool,
+    ) -> Result<Self, DavoutError> {
         let mut robot = load_robot_config_from(config_dir)?;
         let mut motors = load_motors_config_from(config_dir)?;
         let mut control = load_control_config_from(config_dir)?;
@@ -451,7 +478,9 @@ impl<B: MotorBus> Supervisor<B> {
         };
         // Arm type-24 when configured so free-drive Set Limits can see motion while
         // limp (Disabled/Ready). MIT Active still turns reporting off in sync below.
-        supervisor.sync_active_reporting();
+        if reporting {
+            supervisor.sync_active_reporting();
+        }
         Ok(supervisor)
     }
 

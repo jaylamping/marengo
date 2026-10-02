@@ -182,6 +182,24 @@ fn main() {
         interfaces = ?can_interfaces,
         "motor-repl opened SocketCAN"
     );
+    if args[1] == "protocol-inspect" {
+        let result = davout::Supervisor::from_repo_for_protocol_inspection(&root, bus)
+            .and_then(|mut owner| owner.inspect_drive_protocol());
+        match result {
+            Ok(receipts) => match serde_json::to_string_pretty(&receipts) {
+                Ok(json) => println!("{json}"),
+                Err(error) => {
+                    eprintln!("encode inspection: {error}");
+                    std::process::exit(1);
+                }
+            },
+            Err(error) => {
+                eprintln!("protocol inspection: {error}");
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
     let mut loop_ctrl = match ControlLoop::from_repo(
         &root,
         bus,
@@ -196,19 +214,6 @@ fn main() {
     };
 
     match args[1].as_str() {
-        "protocol-inspect" => match loop_ctrl.supervisor_mut().inspect_drive_protocol() {
-            Ok(receipts) => match serde_json::to_string_pretty(&receipts) {
-                Ok(json) => println!("{json}"),
-                Err(error) => {
-                    eprintln!("encode inspection: {error}");
-                    std::process::exit(1);
-                }
-            },
-            Err(error) => {
-                eprintln!("protocol inspection: {error}");
-                std::process::exit(1);
-            }
-        },
         "status" => {
             info!(
                 mode = ?loop_ctrl.supervisor_mut().mode(),

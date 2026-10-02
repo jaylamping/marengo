@@ -98,9 +98,29 @@ impl<B: MotorBus> Supervisor<B> {
                 message: "inspection supports one to sixteen motors".into(),
             });
         }
-        self.disable_all()?;
-        let result = self.inspect_drive_protocol_inner();
-        let cleanup = self.disable_all();
+        let result = (|| {
+            self.inspection_stop()?;
+            // Explicitly turn streams off; never restore/reassert On in this lifecycle.
+            let mut reporting_error = None;
+            for motor in self.stop_motors.clone() {
+                if let Err(error) = self
+                    .bus
+                    .disable_active_reporting_at(&MotorAddress::from(&motor))
+                {
+                    let error = DavoutError::Bus(error);
+                    self.record_runtime_error(&error);
+                    reporting_error.get_or_insert(error);
+                }
+            }
+            if let Some(error) = reporting_error {
+                return Err(error);
+            }
+            self.inspect_drive_protocol_inner()
+        })();
+        if let Err(error) = &result {
+            self.record_runtime_error(error);
+        }
+        let cleanup = self.inspection_stop();
         match (result, cleanup) {
             (Ok(receipts), Ok(())) => Ok(receipts),
             (Err(error), Ok(())) => Err(error),
@@ -114,6 +134,54 @@ impl<B: MotorBus> Supervisor<B> {
         }
     }
 
+    fn inspection_stop(&mut self) -> Result<(), DavoutError> {
+        let failed_writes = self.perform_stop(false).failed_writes();
+        if failed_writes > 0 {
+            Err(DavoutError::StopDelivery { failed_writes })
+        } else {
+            Ok(())
+        }
+    }
+
+    fn inspection_receive(
+        &mut self,
+        accepted: &[ProtocolObservation],
+    ) -> Result<Vec<ProtocolObservation>, DavoutError> {
+        let report =
+            self.bus
+                .recv_feedback_report(&self.motor_types, Duration::ZERO, Duration::ZERO);
+        let replies = report.protocol_observations.clone();
+        let consumption = self.consume_feedback_report(report);
+        if let Some(error) = consumption.first_error {
+            return Err(error);
+        }
+        self.require_fault_clear()?;
+        for reply in &replies {
+            for prior in accepted {
+                let same_query = reply.address == prior.address
+                    && reply.host_id == prior.host_id
+                    && match (reply.reply, prior.reply) {
+                        (ProtocolReply::DeviceIdentity(_), ProtocolReply::DeviceIdentity(_))
+                        | (ProtocolReply::FirmwareVersion(_), ProtocolReply::FirmwareVersion(_)) => {
+                            true
+                        }
+                        (
+                            ProtocolReply::Parameter { index: a, .. },
+                            ProtocolReply::Parameter { index: b, .. },
+                        ) => a == b,
+                        _ => false,
+                    };
+                if same_query && (reply.can_id != prior.can_id || reply.raw != prior.raw) {
+                    return Err(DavoutError::ProtocolInspection {
+                        joint: String::new(),
+                        message: "conflicting reply to a completed query".into(),
+                    });
+                }
+            }
+        }
+        Ok(replies)
+    }
+
     fn inspect_drive_protocol_inner(
         &mut self,
     ) -> Result<Vec<MotorProtocolInspection>, DavoutError> {
@@ -121,7 +189,8 @@ impl<B: MotorBus> Supervisor<B> {
         let mut receipts = Vec::with_capacity(motors.len());
         // Never reuse a query host within this finite inspection. UID replies have
         // a vendor-fixed FE destination and do not echo this discriminator.
-        let mut host = 0x80_u8;
+        let mut host = 0x80_u16;
+        let mut accepted = Vec::with_capacity(motors.len() * 8);
         for motor in motors {
             let address = MotorAddress::from(&motor);
             let mut inspection = MotorProtocolInspection {
@@ -143,14 +212,14 @@ impl<B: MotorBus> Supervisor<B> {
                 Query::Parameter(ParameterId::AddOffset),
             ];
             for query in queries {
-                let (reply, receipt) =
-                    self.inspect_protocol_query(&motor.joint, &address, query, host)?;
-                host = host
-                    .checked_add(1)
-                    .ok_or_else(|| DavoutError::ProtocolInspection {
-                        joint: motor.joint.clone(),
-                        message: "host discriminator exhausted".into(),
-                    })?;
+                let (reply, receipt) = self.inspect_protocol_query(
+                    &motor.joint,
+                    &address,
+                    query,
+                    host as u8,
+                    &accepted,
+                )?;
+                host += 1;
                 match reply.reply {
                     ProtocolReply::FirmwareVersion(version) => {
                         inspection.firmware_version = version
@@ -161,9 +230,11 @@ impl<B: MotorBus> Supervisor<B> {
                     ProtocolReply::Parameter { .. } => {}
                 }
                 inspection.reads.push(receipt);
+                accepted.push(reply);
             }
             receipts.push(inspection);
         }
+        self.inspection_receive(&accepted)?;
         Ok(receipts)
     }
 
@@ -173,19 +244,17 @@ impl<B: MotorBus> Supervisor<B> {
         address: &MotorAddress,
         query: Query,
         host: u8,
+        accepted: &[ProtocolObservation],
     ) -> Result<(ProtocolObservation, ProtocolReadReceipt), DavoutError> {
         // Consume stale queued hazards before issuing the diagnostic request.
-        self.drain_feedback()?;
+        self.inspection_receive(accepted)?;
         let request = query.frame(host, address.device_id);
         let issued = Instant::now();
         self.bus.send_frame_to(address, &request)?;
         let deadline = issued + QUERY_TIMEOUT;
         loop {
-            let report =
-                self.bus
-                    .recv_feedback_report(&self.motor_types, Duration::ZERO, Duration::ZERO);
-            let candidates: Vec<_> = report
-                .protocol_observations
+            let replies = self.inspection_receive(accepted)?;
+            let candidates: Vec<_> = replies
                 .iter()
                 .filter(|observation| {
                     observation.address == *address
@@ -195,14 +264,6 @@ impl<B: MotorBus> Supervisor<B> {
                 })
                 .cloned()
                 .collect();
-            let consumption = self.consume_feedback_report(report);
-            if consumption.first_transition {
-                let _ = self.disable_all();
-            }
-            if let Some(error) = consumption.first_error {
-                return Err(error);
-            }
-            self.require_fault_clear()?;
             if Instant::now() >= deadline {
                 return Err(DavoutError::ProtocolInspection {
                     joint: joint.into(),
@@ -210,7 +271,10 @@ impl<B: MotorBus> Supervisor<B> {
                 });
             }
             if let Some(reply) = candidates.first() {
-                if candidates.iter().any(|other| other.reply != reply.reply) {
+                if candidates
+                    .iter()
+                    .any(|other| other.can_id != reply.can_id || other.raw != reply.raw)
+                {
                     return Err(DavoutError::ProtocolInspection {
                         joint: joint.into(),
                         message: format!("conflicting {} replies", query.label()),
@@ -260,11 +324,28 @@ mod tests {
         rx: VecDeque<TimedCanFrame>,
         inject_peer_fault: bool,
         wrong_host: bool,
+        fail_initial_stop: bool,
+        fail_query: bool,
+        conflicting_mode: bool,
+        late_conflict: bool,
+        deferred: Option<TimedCanFrame>,
+        deferred_armed: bool,
     }
 
     impl CanBus for ProbeBus {
         fn send_frame(&mut self, frame: &CanFrame) -> Result<(), robstride::BusError> {
             self.tx.push(frame.clone());
+            if self.fail_initial_stop && (frame.id >> 24) & 0x1F == 18 {
+                self.fail_initial_stop = false;
+                return Err(robstride::BusError::Send {
+                    message: "initial stop fixture".into(),
+                });
+            }
+            if self.fail_query && frame.data[1] == 0xC4 {
+                return Err(robstride::BusError::Send {
+                    message: "query fixture".into(),
+                });
+            }
             let id = robstride::unpack_ext_id(frame.id).expect("query ID");
             let host = if self.wrong_host {
                 0xFF
@@ -290,10 +371,29 @@ mod tests {
                 _ => None,
             };
             if let Some(response) = response {
+                let is_version = frame.data[1] == 0xC4;
+                let mut conflict = response.clone();
+                conflict.id |= 2 << 22;
                 self.rx.push_back(TimedCanFrame {
                     received_at: Instant::now(),
                     received: ReceivedCanFrame::full_data(Some("can0".into()), response),
                 });
+                if is_version && self.conflicting_mode {
+                    self.rx.push_back(TimedCanFrame {
+                        received_at: Instant::now(),
+                        received: ReceivedCanFrame::full_data(
+                            Some("can0".into()),
+                            conflict.clone(),
+                        ),
+                    });
+                }
+                if is_version && self.late_conflict {
+                    self.late_conflict = false;
+                    self.deferred = Some(TimedCanFrame {
+                        received_at: Instant::now(),
+                        received: ReceivedCanFrame::full_data(Some("can0".into()), conflict),
+                    });
+                }
                 if self.inject_peer_fault {
                     self.inject_peer_fault = false;
                     self.rx.push_back(TimedCanFrame {
@@ -312,6 +412,17 @@ mod tests {
             Ok(())
         }
         fn recv_one_nonblocking(&mut self) -> Result<ReceiveAttempt, robstride::BusError> {
+            if self.rx.is_empty() && self.deferred.is_some() {
+                if self.deferred_armed {
+                    return Ok(self
+                        .deferred
+                        .take()
+                        .map(ReceiveAttempt::Frame)
+                        .unwrap_or(ReceiveAttempt::Idle));
+                }
+                self.deferred_armed = true;
+                return Ok(ReceiveAttempt::Idle);
+            }
             Ok(self
                 .rx
                 .pop_front()
@@ -384,5 +495,64 @@ mod tests {
         assert!(error.to_string().contains("timed out"));
         assert_eq!(owner.mode(), OperationalMode::Disabled);
         assert!(owner.motor_states.is_empty());
+    }
+
+    #[test]
+    fn standalone_factory_and_cleanup_never_reassert_reporting_on() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let mut owner = Supervisor::from_repo_for_protocol_inspection(root, ProbeBus::default())
+            .expect("owner");
+        assert!(owner.bus.tx.is_empty(), "constructor must not transmit");
+        owner.inspect_drive_protocol().expect("inspection");
+        for frame in &owner.bus.tx {
+            if (frame.id >> 24) & 0x1F == 24 {
+                assert_eq!(frame.data[6], 0);
+            }
+        }
+    }
+
+    #[test]
+    fn failed_initial_stop_still_attempts_final_all_address_stop() {
+        let mut owner = supervisor(ProbeBus {
+            fail_initial_stop: true,
+            ..ProbeBus::default()
+        });
+        assert!(owner.inspect_drive_protocol().is_err());
+        assert!(owner.has_latched_fault());
+        assert_eq!(
+            owner
+                .bus
+                .tx
+                .iter()
+                .filter(|frame| (frame.id >> 24) & 0x1F == 4)
+                .count(),
+            10
+        );
+    }
+
+    #[test]
+    fn diagnostic_send_failure_latches_transport_before_cleanup() {
+        let mut owner = supervisor(ProbeBus {
+            fail_query: true,
+            ..ProbeBus::default()
+        });
+        assert!(owner.inspect_drive_protocol().is_err());
+        assert!(owner.has_latched_fault());
+        assert_eq!(owner.mode(), OperationalMode::Disabled);
+        assert!(owner.set_homing_complete().is_err());
+    }
+
+    #[test]
+    fn conflicting_same_batch_and_later_version_modes_refuse_receipt() {
+        for late in [false, true] {
+            let mut owner = supervisor(ProbeBus {
+                conflicting_mode: !late,
+                late_conflict: late,
+                ..ProbeBus::default()
+            });
+            let error = owner.inspect_drive_protocol().expect_err("contradiction");
+            assert!(error.to_string().contains("conflicting"));
+            assert_eq!(owner.mode(), OperationalMode::Disabled);
+        }
     }
 }

@@ -14,7 +14,7 @@ MARENGO_ROOT=/opt/marengo MARENGO_CONFIG_DIR=/opt/marengo/config RUST_LOG=error 
   /path/to/qualified/motor-repl protocol-inspect > protocol-inspection.json
 ```
 
-The operation uses the canonical all-address stop sequence, then reads firmware,
+The operation uses the canonical all-address stop sequence, turns reporting Off, then reads firmware,
 MCU identity, run mode, mechanical position/velocity, CAN timeout, zero wrapping
 and additive offset. It stops all addresses again on success or failure. It sends
 no Enable, Set Zero, configuration changes or nonneutral output. A successful
