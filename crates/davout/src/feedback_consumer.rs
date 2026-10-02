@@ -25,6 +25,7 @@ use super::{
 #[derive(Debug)]
 pub(super) enum ReceiveContext {
     Operational,
+    DisabledInspection,
     Reference(ReferenceReceiveContext),
 }
 
@@ -61,7 +62,7 @@ impl ReferenceReceiveContext {
 impl ReceiveContext {
     fn reference_target(&self) -> Option<&MotorAddress> {
         match self {
-            Self::Operational => None,
+            Self::Operational | Self::DisabledInspection => None,
             Self::Reference(context) => Some(&context.target),
         }
     }
@@ -144,6 +145,7 @@ impl<B: MotorBus> Supervisor<B> {
             ReceiveContext::Reference(reference) => {
                 reference.is_enabled() && MotorAddress::from(motor) == reference.target
             }
+            ReceiveContext::DisabledInspection => false,
         }
     }
 
@@ -153,6 +155,7 @@ impl<B: MotorBus> Supervisor<B> {
             // Like existing Active policy, inspect all installed peers' measured
             // position/velocity hazards once any reference target is armed.
             ReceiveContext::Reference(reference) => reference.is_enabled(),
+            ReceiveContext::DisabledInspection => false,
         }
     }
 
@@ -341,7 +344,10 @@ impl<B: MotorBus> Supervisor<B> {
             }
             let current_enable =
                 self.feedback_run_expected(&motor, observation.received_at, context);
-            if drive_mode == DriveMode::Reserved || (current_enable && drive_mode != DriveMode::Run)
+            if drive_mode == DriveMode::Reserved
+                || (current_enable && drive_mode != DriveMode::Run)
+                || (matches!(context, ReceiveContext::DisabledInspection)
+                    && drive_mode != DriveMode::Reset)
             {
                 let error = DavoutError::InvalidFeedback {
                     joint: motor.joint.clone(),
@@ -385,7 +391,9 @@ impl<B: MotorBus> Supervisor<B> {
                 // even when two reads share a clock tick. Chronology only gates
                 // pose renewal and derivative scratch, not hazard retention.
                 match context {
-                    ReceiveContext::Operational => self.check_feedback_position(&motor, &state)?,
+                    ReceiveContext::Operational | ReceiveContext::DisabledInspection => {
+                        self.check_feedback_position(&motor, &state)?
+                    }
                     ReceiveContext::Reference(_) => {
                         self.check_feedback_position_in_context(&motor, &state, context)?;
                     }
@@ -439,7 +447,7 @@ impl<B: MotorBus> Supervisor<B> {
                 continue;
             };
             let velocity_result = match context {
-                ReceiveContext::Operational => {
+                ReceiveContext::Operational | ReceiveContext::DisabledInspection => {
                     self.check_feedback_velocity(&motor, &mut state, received_at)
                 }
                 ReceiveContext::Reference(_) => self.check_feedback_velocity_in_context(

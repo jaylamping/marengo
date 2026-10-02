@@ -162,7 +162,10 @@ impl<B: MotorBus> Supervisor<B> {
             self.bus
                 .recv_feedback_report(&self.motor_types, Duration::ZERO, Duration::ZERO);
         let replies = report.protocol_observations.clone();
-        let consumption = self.consume_feedback_report(report);
+        let consumption = self.consume_report_in_context(
+            report,
+            &super::feedback_consumer::ReceiveContext::DisabledInspection,
+        );
         if let Some(error) = consumption.first_error {
             return Err(error);
         }
@@ -350,6 +353,7 @@ mod tests {
         timeout_by_device: HashMap<u8, u32>,
         ignore_timeout_write: bool,
         bad_zero: bool,
+        inject_run_before_zero: bool,
     }
 
     impl CanBus for ProbeBus {
@@ -459,6 +463,20 @@ mod tests {
                     self.deferred = Some(TimedCanFrame {
                         received_at: Instant::now(),
                         received: ReceivedCanFrame::full_data(Some("can0".into()), conflict),
+                    });
+                }
+                if self.inject_run_before_zero && id.comm_type == 17 && host == 0xB4 {
+                    self.inject_run_before_zero = false;
+                    self.deferred = Some(TimedCanFrame {
+                        received_at: Instant::now(),
+                        received: ReceivedCanFrame::full_data(
+                            Some("can0".into()),
+                            CanFrame {
+                                id: 0x0280_01FD,
+                                data: [0x7F, 0xFF, 0x7F, 0xFF, 0x7F, 0xFF, 0, 0xC8],
+                                extended: true,
+                            },
+                        ),
                     });
                 }
                 if self.inject_peer_fault {
@@ -625,7 +643,10 @@ mod tests {
                 ..ProbeBus::default()
             });
             let error = owner.inspect_drive_protocol().expect_err("contradiction");
-            assert!(error.to_string().contains("conflicting"));
+            assert!(
+                error.to_string().contains("conflicting")
+                    || error.to_string().contains("unexpected drive mode")
+            );
             assert_eq!(owner.mode(), OperationalMode::Disabled);
         }
     }
@@ -688,5 +709,24 @@ mod tests {
                 .all(|frame| (frame.id >> 24) & 0x1F != 3));
             assert_eq!(owner.mode(), OperationalMode::Disabled);
         }
+    }
+
+    #[test]
+    fn observed_run_before_zero_latches_and_sends_no_set_zero() {
+        let mut owner = supervisor(ProbeBus {
+            inject_run_before_zero: true,
+            ..ProbeBus::default()
+        });
+        let error = owner
+            .qualify_bench_home_disabled(true, true, "bench")
+            .expect_err("drive running");
+        assert!(error.to_string().contains("unexpected drive mode"));
+        assert!(owner.has_latched_fault());
+        assert!(owner
+            .bus
+            .tx
+            .iter()
+            .all(|frame| (frame.id >> 24) & 0x1F != 6));
+        assert_eq!(owner.mode(), OperationalMode::Disabled);
     }
 }
