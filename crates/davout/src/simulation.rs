@@ -672,12 +672,18 @@ impl MotorBus for SimulationBus {
 impl Supervisor<SimulationBus> {
     /// Software admission/output coverage from a declared INITIAL virtual
     /// reference. Does not test acquisition, SetZero correlation or persistence.
+    /// Configuration comes from the supplied root's `config/`, independently
+    /// of installed Pi configuration and `MARENGO_CONFIG_DIR`.
     pub fn from_simulation(
         repo_root: impl AsRef<std::path::Path>,
         bus: SimulationBus,
         initial_reference: InitialVirtualReference,
     ) -> Result<Self, DavoutError> {
-        let mut supervisor = Self::from_repo(repo_root, bus)?;
+        let root = repo_root.as_ref();
+        let record_path =
+            std::env::var_os("MARENGO_CALIBRATION_RECORD").map(std::path::PathBuf::from);
+        let mut supervisor =
+            Self::from_config_dir_inner(root, &root.join("config"), bus, record_path)?;
         supervisor.install_initial_virtual_reference(initial_reference)?;
         Ok(supervisor)
     }
@@ -688,8 +694,13 @@ impl Supervisor<SimulationBus> {
         record_path: impl AsRef<std::path::Path>,
         initial_reference: InitialVirtualReference,
     ) -> Result<Self, DavoutError> {
-        let mut supervisor =
-            Self::from_repo_with_calibration_record_path(repo_root, bus, record_path)?;
+        let root = repo_root.as_ref();
+        let mut supervisor = Self::from_config_dir_inner(
+            root,
+            &root.join("config"),
+            bus,
+            Some(record_path.as_ref().to_owned()),
+        )?;
         supervisor.install_initial_virtual_reference(initial_reference)?;
         Ok(supervisor)
     }

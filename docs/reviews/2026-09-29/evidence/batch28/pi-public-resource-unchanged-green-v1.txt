@@ -1,0 +1,16 @@
+   Compiling berthier v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/crates/berthier)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.61s
+     Running tests/cs24_constructor_period.rs (target/debug/deps/cs24_constructor_period-9e7666fb3f6e485f)
+
+running 1 test
+test zero_rounded_loop_period_is_rejected_by_public_simulation_factory ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/simulation_resources.rs (target/debug/deps/simulation_resources-b2a7f5e8e39edb35)
+
+running 1 test
+test public_simulation_constructors_ignore_competing_config ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+

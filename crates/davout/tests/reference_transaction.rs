@@ -1654,6 +1654,14 @@ fn ordinary_capability_and_rejected_preflight_cannot_arm_or_consume_a_stamp() {
         &ordinary_fixture.history_path,
     )
     .expect("ordinary constructor even with concrete virtual transport");
+    // Ordinary construction honors ambient/runtime configuration. Qualify its
+    // startup diagnostics separately, then record every preflight write.
+    assert!(ordinary
+        .bus()
+        .transmissions()
+        .iter()
+        .all(|tx| tx.frame.id >> 24 == 24));
+    ordinary.bus_mut().clear_trace();
     let unsupported = ordinary.begin_reference(request(&ordinary));
     let ordinary_observed = finish(ordinary, ordinary_fixture);
 

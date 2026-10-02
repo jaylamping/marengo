@@ -1,0 +1,14 @@
+{
+  "baseline": "ca13eb810406539cc2394d6130881176fb76665c",
+  "frozen_v1_sha256": "403f54d801bff0fc3ff4fde3d4da25202d3c3061aff884686e785423ff053b9c",
+  "current_inputs": {
+    "crates/berthier/src/loop.rs": "c0386796cfb5c66957a9eb58386564ccaae107038f75c0809a0418009bc359f4",
+    "crates/davout/src/lib.rs": "e1308e27122707413281f153632509f65aee37347c9e2d846eddd2d9367f3e54",
+    "crates/davout/src/simulation.rs": "e295a2c9537bdb55cadcefae9be0c01111bf875f74ee1fa8035efb75147090b9",
+    "crates/berthier/tests/simulation_resources.rs": "4ca39d8badd6a16996447bff6a004ece3f6854e4c1b75e1d2e57828370114bfe",
+    "crates/davout/tests/feedback_progress_grid.rs": "4cd2459caa787035650e49ae951f865afd621d14e42a5b056bf6423ade3a8c60",
+    "crates/davout/tests/reference_transaction.rs": "bb9d9921a81ff71b20023d441b86b7c21c2a025cb2f96eddced6ef652c0a5ea7"
+  },
+  "classification": "Existing cs24 constructor failed twice on Pi; frozen public v1 eight constructor cases red, ordinary runtime positive passed; unchanged v1 and original cs24 replay green. Final test adds only scoped clippy allowance for harness selector panic. Grid tests use unreferenced closed constructor; ordinary capability test preserves all preflight writes and qualifies only pre-existing startup diagnostics separately. Final primary and Pi workspace pending.",
+  "physical_movement": false
+}
