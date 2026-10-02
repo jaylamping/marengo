@@ -472,6 +472,7 @@ fn enrich_robstride(
 #[cfg(feature = "robstride-enrichment")]
 fn comm_type_label(kind: robstride::comm::CommunicationType) -> String {
     match kind {
+        robstride::comm::CommunicationType::DeviceIdentity => "device_identity",
         robstride::comm::CommunicationType::OperationControl => "operation_control",
         robstride::comm::CommunicationType::OperationStatus => "operation_status",
         robstride::comm::CommunicationType::Enable => "enable",

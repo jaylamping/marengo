@@ -26,12 +26,16 @@ pub enum ParameterId {
     SpeedTarget = 0x700A,
     PositionTarget = 0x7016,
     LimitSpeed = 0x7017,
+    MechanicalPosition = 0x7019,
+    MechanicalVelocity = 0x701B,
     LimitTorque = 0x700B,
     PositionKp = 0x701E,
     SpeedKp = 0x701F,
     SpeedKi = 0x7020,
     EPScanTime = 0x7026,
     CanTimeout = 0x7028,
+    ZeroWrapping = 0x7029,
+    AddOffset = 0x702B,
 }
 
 impl ParameterId {
@@ -43,7 +47,7 @@ impl ParameterId {
     /// Installed model and firmware acceptance still require commissioning verification.
     pub fn value_kind(self) -> ParameterKind {
         match self {
-            Self::RunMode => ParameterKind::U8,
+            Self::RunMode | Self::ZeroWrapping => ParameterKind::U8,
             Self::EPScanTime => ParameterKind::U16,
             Self::CanTimeout => ParameterKind::U32,
             _ => ParameterKind::F32,
@@ -97,6 +101,15 @@ pub fn encode_write_parameter(
     parameter: ParameterId,
     value: ParameterValue,
 ) -> Result<(u32, [u8; 8]), CommandError> {
+    if matches!(
+        parameter,
+        ParameterId::MechanicalPosition | ParameterId::MechanicalVelocity
+    ) {
+        return Err(CommandError::ReadOnlyParameter {
+            device_id,
+            parameter,
+        });
+    }
     if value.kind() != parameter.value_kind() {
         return Err(CommandError::ParameterType {
             device_id,

@@ -25,6 +25,7 @@ use super::{
 #[derive(Debug)]
 pub(super) enum ReceiveContext {
     Operational,
+    DisabledInspection,
     Reference(ReferenceReceiveContext),
 }
 
@@ -61,7 +62,7 @@ impl ReferenceReceiveContext {
 impl ReceiveContext {
     fn reference_target(&self) -> Option<&MotorAddress> {
         match self {
-            Self::Operational => None,
+            Self::Operational | Self::DisabledInspection => None,
             Self::Reference(context) => Some(&context.target),
         }
     }
@@ -144,6 +145,7 @@ impl<B: MotorBus> Supervisor<B> {
             ReceiveContext::Reference(reference) => {
                 reference.is_enabled() && MotorAddress::from(motor) == reference.target
             }
+            ReceiveContext::DisabledInspection => false,
         }
     }
 
@@ -153,6 +155,7 @@ impl<B: MotorBus> Supervisor<B> {
             // Like existing Active policy, inspect all installed peers' measured
             // position/velocity hazards once any reference target is armed.
             ReceiveContext::Reference(reference) => reference.is_enabled(),
+            ReceiveContext::DisabledInspection => false,
         }
     }
 
@@ -276,7 +279,7 @@ impl<B: MotorBus> Supervisor<B> {
                 received_at: Some(observation.received_at),
                 ..DeviceFaultEvidence::default()
             };
-            let status = match observation.event {
+            let (status, status_flags, drive_mode) = match observation.event {
                 FeedbackEvent::Malformed(malformed) => {
                     first_transition |= self.record_malformed_feedback(
                         &motor,
@@ -314,16 +317,19 @@ impl<B: MotorBus> Supervisor<B> {
                     continue;
                 }
                 FeedbackEvent::Status(status) => {
-                    device.status_flags = status.status_flags;
-                    device.drive_mode = Some(match status.drive_mode {
-                        DriveMode::Reset => 0,
-                        DriveMode::Calibration => 1,
-                        DriveMode::Run => 2,
-                        DriveMode::Reserved => 3,
-                    });
-                    status
+                    (Some(status), status.status_flags, status.drive_mode)
+                }
+                FeedbackEvent::FirmwareVersion(version) => {
+                    (None, version.status_flags, version.drive_mode)
                 }
             };
+            device.status_flags = status_flags;
+            device.drive_mode = Some(match drive_mode {
+                DriveMode::Reset => 0,
+                DriveMode::Calibration => 1,
+                DriveMode::Run => 2,
+                DriveMode::Reserved => 3,
+            });
             if device.status_flags != 0 {
                 first_transition |= self.fault_authority.record(
                     FaultClass::Device,
@@ -338,12 +344,14 @@ impl<B: MotorBus> Supervisor<B> {
             }
             let current_enable =
                 self.feedback_run_expected(&motor, observation.received_at, context);
-            if status.drive_mode == DriveMode::Reserved
-                || (current_enable && status.drive_mode != DriveMode::Run)
+            if drive_mode == DriveMode::Reserved
+                || (current_enable && drive_mode != DriveMode::Run)
+                || (matches!(context, ReceiveContext::DisabledInspection)
+                    && drive_mode != DriveMode::Reset)
             {
                 let error = DavoutError::InvalidFeedback {
                     joint: motor.joint.clone(),
-                    message: format!("unexpected drive mode {:?} for {:?}; no qualified factory-calibration context", status.drive_mode, self.mode),
+                    message: format!("unexpected drive mode {:?} for {:?}; no qualified factory-calibration context", drive_mode, self.mode),
                 };
                 self.invalid_feedback.insert(address.clone());
                 first_transition |= self.fault_authority.record(
@@ -358,6 +366,9 @@ impl<B: MotorBus> Supervisor<B> {
                 }
                 continue;
             }
+            let Some(status) = status else {
+                continue;
+            };
             let raw = MotorState {
                 position_rad: status.position_rad,
                 velocity_rad_s: status.velocity_rad_s,
@@ -380,7 +391,9 @@ impl<B: MotorBus> Supervisor<B> {
                 // even when two reads share a clock tick. Chronology only gates
                 // pose renewal and derivative scratch, not hazard retention.
                 match context {
-                    ReceiveContext::Operational => self.check_feedback_position(&motor, &state)?,
+                    ReceiveContext::Operational | ReceiveContext::DisabledInspection => {
+                        self.check_feedback_position(&motor, &state)?
+                    }
                     ReceiveContext::Reference(_) => {
                         self.check_feedback_position_in_context(&motor, &state, context)?;
                     }
@@ -434,7 +447,7 @@ impl<B: MotorBus> Supervisor<B> {
                 continue;
             };
             let velocity_result = match context {
-                ReceiveContext::Operational => {
+                ReceiveContext::Operational | ReceiveContext::DisabledInspection => {
                     self.check_feedback_velocity(&motor, &mut state, received_at)
                 }
                 ReceiveContext::Reference(_) => self.check_feedback_velocity_in_context(
@@ -618,6 +631,21 @@ impl<B: MotorBus> Supervisor<B> {
         });
         let measured_velocity = position_velocity.unwrap_or(raw_velocity);
         state.velocity_rad_s = measured_velocity as f32;
+        // The finite profile uses the same once-per-drain velocity estimate as
+        // ordinary admission. Inspecting raw vendor velocity in the position
+        // guard falsely rejected captured sub-limit encoder motion.
+        if self
+            .reference_authority
+            .physical_bench_binding()
+            .is_some_and(|binding| binding.output.is_lower_yaw())
+            && motor.joint == super::physical_bench::LOWER_YAW
+            && measured_velocity.abs() > 0.25
+        {
+            return Err(DavoutError::Limit {
+                joint: motor.joint.clone(),
+                message: "finite home bench measured velocity exceeds 0.25 rad/s".into(),
+            });
+        }
         let fault_threshold = lim.velocity + FEEDBACK_VELOCITY_FAULT_MARGIN_RAD_S;
 
         if raw_velocity.abs() > lim.velocity && measured_velocity.abs() <= fault_threshold {
@@ -702,6 +730,36 @@ impl<B: MotorBus> Supervisor<B> {
         state: &MotorState,
         context: &ReceiveContext,
     ) -> Result<(), DavoutError> {
+        let position = f64::from(state.position_rad);
+        // Physical Enable replies can arrive while the host FSM is still Ready.
+        // Inspect each pose before the ordinary Active-only motion guards.
+        if self.reference_authority.physical_bench_binding().is_some()
+            && matches!(
+                context,
+                ReceiveContext::Operational | ReceiveContext::DisabledInspection
+            )
+            && position.abs() > super::physical_bench::MAX_HOME_DRIFT
+        {
+            return Err(DavoutError::Limit {
+                joint: motor.joint.clone(),
+                message: "neutral bench home drift exceeds 0.05 rad".into(),
+            });
+        }
+        // Ready Enable replies precede ordinary derivative admission. Retain
+        // the raw fallback guard on every such pose, including coalesced peers.
+        if self.mode != OperationalMode::Active
+            && self
+                .reference_authority
+                .physical_bench_binding()
+                .is_some_and(|binding| binding.output.is_lower_yaw())
+            && motor.joint == super::physical_bench::LOWER_YAW
+            && f64::from(state.velocity_rad_s).abs() > 0.25
+        {
+            return Err(DavoutError::Limit {
+                joint: motor.joint.clone(),
+                message: "finite home bench measured velocity exceeds 0.25 rad/s".into(),
+            });
+        }
         if !self.feedback_motion_guards_enabled(context) {
             return Ok(());
         }
@@ -711,7 +769,6 @@ impl<B: MotorBus> Supervisor<B> {
             .ok_or_else(|| DavoutError::UnknownJoint {
                 joint: motor.joint.clone(),
             })?;
-        let position = f64::from(state.position_rad);
         if measured_position_fault(position, lim) {
             self.homing.mark_out_of_limits(&motor.joint);
             return Err(DavoutError::Limit {

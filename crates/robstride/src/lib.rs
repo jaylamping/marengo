@@ -9,6 +9,8 @@
 //! - [`mit`](mit): pack/unpack MIT `{kp, kd, q, dq, tau_ff}` per [`MotorType`](marengo_config::MotorType).
 //! - [`bus::MotorBus`]: `mit_control_all`, lifecycle, parameter writes, status receive.
 //! - [`params`](params): firmware `run_mode` and parameter read/write frames.
+//! - [`protocol`]: diagnostic identity/version queries and exact reply observations;
+//!   version payloads preserve status headers without renewing position feedback.
 //! - [`command`](command): typed rejection of nonfinite input, negative gains and wrong register types.
 //! - [`lifecycle`](lifecycle): enable, disable, and set-zero frames.
 //! - [`feedback`]: addressed observations retain status flags, drive mode and complete raw
@@ -44,6 +46,7 @@ pub mod lifecycle;
 pub mod mit;
 pub mod motor_type;
 pub mod params;
+pub mod protocol;
 pub mod receive;
 pub mod state;
 

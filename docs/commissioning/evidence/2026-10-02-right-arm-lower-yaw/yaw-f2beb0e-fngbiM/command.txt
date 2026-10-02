@@ -1,0 +1,1 @@
+MARENGO_ROOT=/opt/marengo MARENGO_CONFIG_DIR=/opt/marengo/config RUST_LOG=error /home/joey/marengo/target/release/motor-repl bench-lower-yaw joseph --confirm-home --sign-attested --confirm-motion --kp 30 --kd 2

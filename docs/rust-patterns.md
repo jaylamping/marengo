@@ -46,6 +46,12 @@ robstride::send(cmd)?;
 
 ## 4. Errors
 
+Diagnostic replies that share a status communication type must retain header
+fault/mode evidence without renewing pose. Robstride firmware replies beginning
+`00 C4 56` are version bytes; Davout consumes their headers through the same
+ordered hazard path. Never interpret diagnostic bytes as MIT position or use
+them as a boot epoch ([ADR 0036](decisions/0036-disabled-drive-protocol-inspection.md)).
+
 ```rust
 // BAD (library)
 let angle = state.angle.unwrap();
@@ -165,6 +171,17 @@ A timed-out drain does not cancel filesystem I/O or confirm client delivery.
 Dispatch checks the owner flag before later commands and ticks; synchronous
 handlers already admitted are not interrupted by that check.
 
+**Finite physical bench profiles** (Hardware commissioning):
+
+Finite physical bench profiles use closed real-bus owners rather than supplied
+transports or imported reference rows ([ADR0038](decisions/0038-finite-neutral-physical-bench-owner.md),
+[ADR0039](decisions/0039-finite-first-lower-yaw-motion.md)). Validate bounded tuning
+values into immutable private-field types before acquisition; record the selected
+value in audit and report. Davout checks the complete profile both before and
+after ordinary filtering, so an envelope clamp cannot widen a finite test.
+Keep neighboring-joint feedback on the canonical velocity policy; additional
+profile guards apply to the exercised joint and retain every raw position hazard.
+
 **Scoped commissioning Enable** (Hardware commissioning):
 
 The following describes the existing scoped caller path, whose private grant and
@@ -190,6 +207,11 @@ joint_states.insert(joint.clone(), JointHomingState::Unhomed);
 - Bind resources explicitly in libraries; read environment overrides once at the composition boundary. Homing constructors take a deterministic path, and Supervisor provides explicit-path construction for callers/tests.
 - Read the resource directly. Only `ErrorKind::NotFound` means absent history; propagate other I/O and parse errors. Do not use `is_file` plus `unwrap_or_default` to hide a damaged record.
 - Stage historical row changes and write that candidate before publishing memory/local state. A write error must preserve prior rows and flags. Keep one private writer for staged updates and explicit persist; this ordering alone does not provide crash-safe replacement or fsync durability.
+- A closed physical neutral bench owner opens real CAN itself, acquires fresh
+  guarded home, durably syncs an exclusively created audit, and rechecks live
+  home before selecting finite permission. Never import a receipt or invent a
+  device epoch. Every stop revokes this one-enable permission, and its public
+  output interface refuses nonneutral batches ([ADR0038](decisions/0038-finite-neutral-physical-bench-owner.md)).
 - Use independent exclusively created test directories. Exercise environment precedence with child-only variables, avoiding shared process environment mutation and PID-shared filenames.
 
 Position hold (`hold-at`) is Berthier's **joint-space motion primitive executor** — one law for every retarget, whether from operator `hold-at`, future Talleyrand joint streams, or Cartesian primitives resolved upstream. Talleyrand owns IK and multi-joint timing; Berthier does not. The law lives in `berthier::position_hold::PositionHold` (lifecycle + `tick`); `ControlLoop` builds `HoldWorld` and sends the MIT batch through Davout.

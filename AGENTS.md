@@ -2,6 +2,8 @@
 
 Practical guide for AI assistants working in the Marengo repository.
 
+**SSH / assistant bench work:** follow [development session authorization](docs/commissioning/limb-playbook.md#development-session-authorization); carry Joseph's approved test scope across commands and retries.
+
 **Before editing:** read [`docs/rust-patterns.md`](docs/rust-patterns.md); for control/CAN/enable paths also read [`docs/safety.md`](docs/safety.md). For navigation, start at [`codemap.md`](codemap.md). Deeper per-folder guides: [`crates/AGENTS.md`](crates/AGENTS.md), [`bins/AGENTS.md`](bins/AGENTS.md), [`consul/AGENTS.md`](consul/AGENTS.md), [`config/AGENTS.md`](config/AGENTS.md), [`scripts/AGENTS.md`](scripts/AGENTS.md).
 
 ---

@@ -67,6 +67,10 @@ fn usage() {
         "motor-repl — bench motor exercise (Davout → robstride)\n\
          Usage:\n  \
          motor-repl [--config-dir PATH] [--can-interface can0] status\n  \
+           motor-repl protocol-inspect  (standalone, disabled-only; stop marengo-pi first)\n  \
+           motor-repl bench-home-qualify <operator> --confirm-home --sign-attested\n  \
+           motor-repl bench-neutral <operator> --confirm-home --sign-attested --confirm-neutral-enable\n  \
+           motor-repl bench-lower-yaw <operator> --confirm-home --sign-attested --confirm-motion [--kp 10..30] [--kd 0.4..2]\n  \
            motor-repl homing-status\n  \
            motor-repl home\n  \
            motor-repl enable <operator_id> [--force]\n  \
@@ -137,6 +141,79 @@ fn main() {
     }
 
     let root = repo_root();
+    if matches!(args[1].as_str(), "bench-neutral" | "bench-lower-yaw") {
+        if can_interface.is_some() {
+            eprintln!("bench-neutral owns installed CAN routes; remove the interface override");
+            std::process::exit(1);
+        }
+        let operator = args
+            .get(2)
+            .filter(|value| !value.starts_with("--"))
+            .map(String::as_str)
+            .unwrap_or("");
+        let home = args.iter().any(|value| value == "--confirm-home");
+        let sign = args.iter().any(|value| value == "--sign-attested");
+        if args[1] == "bench-lower-yaw" {
+            let gain = |flag: &str, default: f64| -> Result<f64, String> {
+                let Some(index) = args.iter().position(|value| value == flag) else {
+                    return Ok(default);
+                };
+                args.get(index + 1)
+                    .and_then(|value| value.parse().ok())
+                    .ok_or_else(|| format!("expected a number after {flag}"))
+            };
+            let (kp, kd) = match (gain("--kp", 10.0), gain("--kd", 0.4)) {
+                (Ok(kp), Ok(kd)) => (kp, kd),
+                _ => {
+                    eprintln!("lower-yaw gains: invalid --kp or --kd value");
+                    std::process::exit(1);
+                }
+            };
+            match berthier::run_bench_lower_yaw(
+                &root,
+                operator,
+                home,
+                sign,
+                args.iter().any(|value| value == "--confirm-motion"),
+                kp,
+                kd,
+            ) {
+                Ok(report) => match serde_json::to_string_pretty(&report) {
+                    Ok(json) => println!("{json}"),
+                    Err(error) => {
+                        eprintln!("encode lower-yaw report: {error}");
+                        std::process::exit(1);
+                    }
+                },
+                Err(error) => {
+                    eprintln!("lower-yaw bench: {error}");
+                    std::process::exit(1);
+                }
+            }
+            return;
+        }
+        let result = berthier::run_bench_neutral(
+            &root,
+            operator,
+            home,
+            sign,
+            args.iter().any(|value| value == "--confirm-neutral-enable"),
+        );
+        match result {
+            Ok(receipt) => match serde_json::to_string_pretty(&receipt) {
+                Ok(json) => println!("{json}"),
+                Err(error) => {
+                    eprintln!("encode neutral bench report: {error}");
+                    std::process::exit(1);
+                }
+            },
+            Err(error) => {
+                eprintln!("neutral bench: {error}");
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
     let control = match load_control_config(&root) {
         Ok(c) => c,
         Err(e) => {
@@ -181,6 +258,42 @@ fn main() {
         interfaces = ?can_interfaces,
         "motor-repl opened SocketCAN"
     );
+    if matches!(args[1].as_str(), "protocol-inspect" | "bench-home-qualify") {
+        let result = davout::Supervisor::from_repo_for_protocol_inspection(&root, bus).and_then(
+            |mut owner| {
+                if args[1] == "protocol-inspect" {
+                    owner
+                        .inspect_drive_protocol()
+                        .map(|receipt| serde_json::to_string_pretty(&receipt))
+                } else {
+                    let operator = args
+                        .get(2)
+                        .filter(|value| !value.starts_with("--"))
+                        .map(String::as_str)
+                        .unwrap_or("");
+                    let confirmed = args.iter().any(|value| value == "--confirm-home");
+                    let sign_attested = args.iter().any(|value| value == "--sign-attested");
+                    owner
+                        .qualify_bench_home_disabled(confirmed, sign_attested, operator)
+                        .map(|receipt| serde_json::to_string_pretty(&receipt))
+                }
+            },
+        );
+        match result {
+            Ok(encoded) => match encoded {
+                Ok(json) => println!("{json}"),
+                Err(error) => {
+                    eprintln!("encode inspection: {error}");
+                    std::process::exit(1);
+                }
+            },
+            Err(error) => {
+                eprintln!("protocol inspection: {error}");
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
     let mut loop_ctrl = match ControlLoop::from_repo(
         &root,
         bus,

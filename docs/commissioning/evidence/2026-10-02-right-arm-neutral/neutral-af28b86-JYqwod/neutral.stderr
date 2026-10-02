@@ -1,0 +1,1 @@
+neutral bench: bus: driver error: SocketCAN support requires building robstride with the socketcan feature on Linux

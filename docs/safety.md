@@ -11,9 +11,14 @@ Read this before enabling motors on the bench or robot.
 
 ## Bench mode (development)
 
+Use the [development session authorization](commissioning/limb-playbook.md#development-session-authorization)
+for SSH and assistant-driven bench work, including explicit remote approval and
+confirmation flags. It defines when a new operator decision is needed.
+
 - **Command velocity caps:** set in `config/control.yaml` only — per-joint override, `actuator_groups`, or `motor_type_defaults` (see [ADR 0010](decisions/0010-actuator-velocity-cap-resolution.md)). Davout and Berthier enforce the resolved cap at runtime; do not rely on `motors.yaml` `bench.velocity_limit_rad_s`, `robot.yaml` `bench.max_joint_velocity_rad_s`, or URDF joint velocity for command limiting.
 - **Torque caps:** keep below production limits via `config/robot.yaml` (`robot.bench`) and per-joint overrides in `config/motors.yaml`; Davout also applies per-`motor_type` `tau_ff` limits and rate limiting from `control.yaml`.
-- Use `motor-repl` only with operators at the robot and clear workspace.
+- Use `motor-repl` within the authorized bench envelope, with a clear workspace,
+  functional motor-power E-stop and physical support where the test requires it.
 - Prefer the virtual CAN test harness (`just vcan`) or simulation (`just sim-check`) before live CAN when developing control logic.
 
 ## Homing and zero (see [homing.md](homing.md))

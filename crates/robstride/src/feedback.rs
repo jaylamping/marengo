@@ -56,6 +56,7 @@ impl DetailedFaultFeedback {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum FeedbackEvent {
     Status(MitFeedback),
+    FirmwareVersion(crate::protocol::FirmwareVersionFeedback),
     DetailedFault(DetailedFaultFeedback),
     Malformed(MalformedFeedback),
 }
@@ -123,7 +124,7 @@ impl FeedbackObservation {
                 // This is an indication, not a decoded detailed-fault identity.
                 state.fault = u16::from(feedback.has_fault());
             }
-            FeedbackEvent::Malformed(_) => {
+            FeedbackEvent::Malformed(_) | FeedbackEvent::FirmwareVersion(_) => {
                 // No pose or qualified complete fault projection.
             }
         }
@@ -139,6 +140,7 @@ impl FeedbackObservation {
 #[derive(Debug, Default)]
 pub struct FeedbackReport {
     pub observations: Vec<FeedbackObservation>,
+    pub protocol_observations: Vec<crate::protocol::ProtocolObservation>,
     /// Kernel Error frames are transport evidence, never vendor-addressed status.
     pub transport_frames: Vec<TransportObservation>,
     pub completion: ReceiveCompletion,

@@ -1,0 +1,7 @@
+Joseph confirmed unchanged five-joint assembly, mechanical home, clear workspace,
+functional physical E-stop and stopped runtime. He explicitly authorized the arm motion test suite and tuning, including remote
+execution and routine retries within the stated development envelope. The next
+communicated profile is a one-second lower-arm-yaw +20-mrad ramp and return with
+kp10, kd0.4, other joints neutral, and automatic all-address stop. The SSH session
+proceeds under that authorization without repeated approval requests. Motor power was left on. Timeout
+volatility and output-stop duration have not been measured.

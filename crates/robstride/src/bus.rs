@@ -685,6 +685,23 @@ fn ingest_feedback_frames(
             );
             continue;
         };
+        if let Some((source, host_id, reply)) = crate::protocol::decode_protocol_reply(received) {
+            if let Some(address) =
+                address_for_frame(motor_types, received.interface.as_deref(), source)
+            {
+                report
+                    .protocol_observations
+                    .push(crate::protocol::ProtocolObservation {
+                        order,
+                        address,
+                        received_at: timed.received_at,
+                        host_id,
+                        can_id: frame.id,
+                        raw: frame.data,
+                        reply,
+                    });
+            }
+        }
         let Some(comm_type) = CommunicationType::from_u8(ext.comm_type) else {
             continue;
         };
@@ -744,6 +761,16 @@ fn ingest_feedback_frames(
         } else {
             match comm_type {
                 CommunicationType::OperationStatus | CommunicationType::ActiveReporting => {
+                    if let Some(version) = crate::protocol::decode_firmware_version(received) {
+                        report.observations.push(FeedbackObservation {
+                            order,
+                            address,
+                            received_at: timed.received_at,
+                            can_id: frame.id,
+                            event: FeedbackEvent::FirmwareVersion(version),
+                        });
+                        continue;
+                    }
                     let Some(motor_type) = motor_types.get(&address).copied() else {
                         continue;
                     };

@@ -7,6 +7,9 @@ resolved in conversation or an ADR.
 
 | Term | Meaning |
 |------|---------|
+| **Development session authorization** | Joseph's direct instruction covers the agreed limb-test envelope, its steps, necessary fixes and routine retries across SSH/assistant interactions. Tool confirmations use that authorization. See the [playbook policy](docs/commissioning/limb-playbook.md#development-session-authorization) for scope changes and physical dependencies. |
+| **Drive protocol inspection** | A Davout-owned disabled-only bench query of actual MCU identity, firmware and parameter replies. It preserves request/reply evidence and cannot grant reference or enable permission. See [ADR 0036](docs/decisions/0036-disabled-drive-protocol-inspection.md). |
+| **Bench-home qualification** | An explicitly confirmed Davout operation that checks disabled Set Zero and CAN-timeout readback at supported mechanical home. Its receipt is audit evidence and grants no Ready or motion permission. See [ADR 0037](docs/decisions/0037-disabled-bench-home-qualification.md). |
 | **Software home** | The host checkout used for software and tracked CAD sources: `J:\code\marengo` on this Windows machine, and a host checkout of the same remote on macOS. Local CAD also lives under `J:\code`. See [ADR 0018](docs/decisions/0018-windows-macos-software-home.md). |
 | **CAD session** | A Windows editor opened on `J:\code\marengo`, with SolidWorks MCP (COM) using that same local CAD tree. |
 | **Software session** | A Windows or macOS editor opened on the host checkout. Rust, Consul, and MCP tools run on the host where supported; Docker runs the Linux workspace checks. |

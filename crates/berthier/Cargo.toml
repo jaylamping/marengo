@@ -20,6 +20,7 @@ armee-proto.workspace = true
 chappe.workspace = true
 davout.workspace = true
 marengo-config.workspace = true
+serde.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 
@@ -28,4 +29,3 @@ proptest = { workspace = true }
 davout = { workspace = true, features = ["reference-journal-test-support"] }
 armee-dynamics = { workspace = true }
 robstride = { workspace = true }
-

@@ -12,6 +12,7 @@ pub struct ExtendedId {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum CommunicationType {
+    DeviceIdentity = 0,
     OperationControl = 1,
     OperationStatus = 2,
     Enable = 3,
@@ -26,6 +27,7 @@ pub enum CommunicationType {
 impl CommunicationType {
     pub fn from_u8(value: u8) -> Option<Self> {
         match value {
+            0 => Some(Self::DeviceIdentity),
             1 => Some(Self::OperationControl),
             2 => Some(Self::OperationStatus),
             3 => Some(Self::Enable),

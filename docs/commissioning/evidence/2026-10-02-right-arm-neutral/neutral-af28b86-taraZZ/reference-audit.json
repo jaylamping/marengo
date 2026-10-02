@@ -1,0 +1,2211 @@
+{
+  "acquired_unix_ns": 1790976939713570382,
+  "evidence_class": "physical_manual_home_neutral",
+  "history_only": true,
+  "installed_control": {
+    "control": {
+      "actuator_groups": {
+        "elbow": {
+          "joints": [
+            "right_elbow_pitch"
+          ],
+          "velocity_max_rad_s": 1.5
+        },
+        "lower_arm_yaw": {
+          "joints": [
+            "right_lower_arm_yaw"
+          ],
+          "velocity_max_rad_s": 1.5
+        },
+        "shoulder_pitch": {
+          "joints": [
+            "right_shoulder_pitch"
+          ],
+          "velocity_max_rad_s": 2.5
+        },
+        "shoulder_roll": {
+          "joints": [
+            "right_shoulder_roll"
+          ],
+          "velocity_max_rad_s": 2.5
+        },
+        "upper_arm_yaw": {
+          "joints": [
+            "right_upper_arm_yaw"
+          ],
+          "velocity_max_rad_s": 2.0
+        }
+      },
+      "bench": {
+        "active_reporting_diagnostics": true,
+        "allow_firmware_speed_mode": false
+      },
+      "chappe_state_hz": 25,
+      "comm_watchdog_ms": 100,
+      "danger_zones": [
+        {
+          "action": "clamp_velocity",
+          "joint": "right_shoulder_pitch",
+          "max_torque_nm": null,
+          "max_velocity_rad_s": 0.45,
+          "name": "elevated_shoulder_pitch_fall",
+          "position_above_rad": 0.5,
+          "velocity_below_rad_s": -0.1
+        }
+      ],
+      "disable_on_exit": true,
+      "feedback_drain_quiet_us": 300,
+      "feedback_poll_budget_us": 3000,
+      "joints": {
+        "right_elbow_pitch": {
+          "friction": {
+            "fc": 0.05,
+            "fo": 0.0,
+            "fv": 0.0,
+            "k": 10.0
+          },
+          "gravity_comp": {
+            "kd": 0.0,
+            "ki": 0.0,
+            "kp": 0.0
+          },
+          "impedance": {
+            "kd": 1.5,
+            "ki": 0.0,
+            "kp": 12.0
+          },
+          "motor_type": "rs02",
+          "position_hold_trim_rad": 0.0,
+          "position_limit_margin_k_stop": 0.5,
+          "position_limit_margin_k_v_s": 0.02,
+          "position_limit_margin_min_rad": 0.01,
+          "position_limit_measured_fault_slack_rad": 0.03,
+          "position_slew_max_lead_rad": 0.1,
+          "position_slew_rad_s": 0.12,
+          "position_soft_lower_rad": -0.12716957437992096,
+          "position_soft_upper_rad": 1.5802771549224854,
+          "position_trajectory_accel_rad_s2": 2.5,
+          "position_trajectory_threshold_rad": 0.15,
+          "position_trajectory_velocity_deadband_rad": 0.02,
+          "position_trajectory_velocity_rad_s": 1.43,
+          "velocity_max_rad_s": null
+        },
+        "right_lower_arm_yaw": {
+          "friction": {
+            "fc": 0.04,
+            "fo": 0.0,
+            "fv": 0.0,
+            "k": 10.0
+          },
+          "gravity_comp": {
+            "kd": 0.0,
+            "ki": 0.0,
+            "kp": 0.0
+          },
+          "impedance": {
+            "kd": 1.2,
+            "ki": 0.0,
+            "kp": 10.0
+          },
+          "motor_type": "rs00",
+          "position_hold_trim_rad": 0.0,
+          "position_limit_margin_k_stop": 0.5,
+          "position_limit_margin_k_v_s": 0.02,
+          "position_limit_margin_min_rad": 0.01,
+          "position_limit_measured_fault_slack_rad": 0.03,
+          "position_slew_max_lead_rad": 0.1,
+          "position_slew_rad_s": 0.12,
+          "position_soft_lower_rad": -0.36724505829811094,
+          "position_soft_upper_rad": 3.21708483505249,
+          "position_trajectory_accel_rad_s2": 2.5,
+          "position_trajectory_threshold_rad": 0.15,
+          "position_trajectory_velocity_deadband_rad": 0.02,
+          "position_trajectory_velocity_rad_s": 1.1,
+          "velocity_max_rad_s": null
+        },
+        "right_shoulder_pitch": {
+          "friction": {
+            "fc": 0.08,
+            "fo": 0.0,
+            "fv": 0.0,
+            "k": 10.0
+          },
+          "gravity_comp": {
+            "kd": 0.0,
+            "ki": 0.0,
+            "kp": 0.0
+          },
+          "impedance": {
+            "kd": 3.0,
+            "ki": 5.0,
+            "kp": 18.0
+          },
+          "motor_type": "rs03",
+          "position_hold_trim_rad": 0.0,
+          "position_limit_margin_k_stop": 0.5,
+          "position_limit_margin_k_v_s": 0.02,
+          "position_limit_margin_min_rad": 0.01,
+          "position_limit_measured_fault_slack_rad": 0.03,
+          "position_slew_max_lead_rad": 0.12,
+          "position_slew_rad_s": 0.15,
+          "position_soft_lower_rad": -1.0882385473251344,
+          "position_soft_upper_rad": 2.980078170776367,
+          "position_trajectory_accel_rad_s2": 4.5,
+          "position_trajectory_threshold_rad": 0.15,
+          "position_trajectory_velocity_deadband_rad": 0.02,
+          "position_trajectory_velocity_rad_s": 1.25,
+          "velocity_max_rad_s": null
+        },
+        "right_shoulder_roll": {
+          "friction": {
+            "fc": 0.08,
+            "fo": 0.0,
+            "fv": 0.0,
+            "k": 10.0
+          },
+          "gravity_comp": {
+            "kd": 0.0,
+            "ki": 0.0,
+            "kp": 0.0
+          },
+          "impedance": {
+            "kd": 3.0,
+            "ki": 5.0,
+            "kp": 18.0
+          },
+          "motor_type": "rs03",
+          "position_hold_trim_rad": 0.0,
+          "position_limit_margin_k_stop": 0.5,
+          "position_limit_margin_k_v_s": 0.02,
+          "position_limit_margin_min_rad": 0.01,
+          "position_limit_measured_fault_slack_rad": 0.03,
+          "position_slew_max_lead_rad": 0.12,
+          "position_slew_rad_s": 0.35,
+          "position_soft_lower_rad": -0.04088089871406555,
+          "position_soft_upper_rad": 3.088609407424926,
+          "position_trajectory_accel_rad_s2": 4.0,
+          "position_trajectory_threshold_rad": 0.12,
+          "position_trajectory_velocity_deadband_rad": 0.02,
+          "position_trajectory_velocity_rad_s": 0.7,
+          "velocity_max_rad_s": null
+        },
+        "right_upper_arm_yaw": {
+          "friction": {
+            "fc": 0.05,
+            "fo": 0.0,
+            "fv": 0.0,
+            "k": 10.0
+          },
+          "gravity_comp": {
+            "kd": 0.0,
+            "ki": 0.0,
+            "kp": 0.0
+          },
+          "impedance": {
+            "kd": 1.5,
+            "ki": 0.0,
+            "kp": 12.0
+          },
+          "motor_type": "rs02",
+          "position_hold_trim_rad": 0.0,
+          "position_limit_margin_k_stop": 0.5,
+          "position_limit_margin_k_v_s": 0.02,
+          "position_limit_margin_min_rad": 0.01,
+          "position_limit_measured_fault_slack_rad": 0.03,
+          "position_slew_max_lead_rad": 0.12,
+          "position_slew_rad_s": 0.15,
+          "position_soft_lower_rad": -0.7476843099594116,
+          "position_soft_upper_rad": 1.263117621421814,
+          "position_trajectory_accel_rad_s2": 3.0,
+          "position_trajectory_threshold_rad": 0.15,
+          "position_trajectory_velocity_deadband_rad": 0.02,
+          "position_trajectory_velocity_rad_s": 1.43,
+          "velocity_max_rad_s": null
+        }
+      },
+      "loop_hz": 200,
+      "motor_type_defaults": {
+        "rs00": {
+          "kd_max": 5.0,
+          "kp_max": 500.0,
+          "tau_ff_max_nm": 3.0,
+          "velocity_max_rad_s": 2.0
+        },
+        "rs02": {
+          "kd_max": 5.0,
+          "kp_max": 500.0,
+          "tau_ff_max_nm": 3.0,
+          "velocity_max_rad_s": 2.0
+        },
+        "rs03": {
+          "kd_max": 100.0,
+          "kp_max": 5000.0,
+          "tau_ff_max_nm": 5.0,
+          "velocity_max_rad_s": 2.0
+        }
+      },
+      "tau_ff_rate_limit_nm_per_s": 60.0,
+      "wrong_sign_watchdog": {
+        "enabled": false,
+        "expected_sign_at_positive_q": -1,
+        "grace_period_ticks": 20,
+        "min_opposition_ticks": 10,
+        "min_velocity_rad_s": 0.05
+      }
+    }
+  },
+  "installed_homing": {
+    "homing": {
+      "calibration_record_path": "/opt/marengo/var/calibration/zero_registry.yaml",
+      "defaults": {
+        "allow_sensor_overlap": false,
+        "backoff_rad": 0.05,
+        "home_offset_rad": 0.0,
+        "method": "manual_reference",
+        "search_direction": "positive",
+        "search_timeout_s": 30.0,
+        "search_torque_nm": 0.5,
+        "search_velocity_rad_s": 0.15,
+        "sign_test_required": true
+      },
+      "joints": {
+        "right_elbow_pitch": {
+          "allow_sensor_overlap": null,
+          "backoff_rad": null,
+          "home_offset_rad": null,
+          "method": "manual_reference",
+          "search_direction": null,
+          "search_timeout_s": null,
+          "search_torque_nm": null,
+          "search_velocity_rad_s": null,
+          "sensors": null,
+          "sign_test_required": null
+        },
+        "right_lower_arm_yaw": {
+          "allow_sensor_overlap": null,
+          "backoff_rad": null,
+          "home_offset_rad": null,
+          "method": "manual_reference",
+          "search_direction": null,
+          "search_timeout_s": null,
+          "search_torque_nm": null,
+          "search_velocity_rad_s": null,
+          "sensors": null,
+          "sign_test_required": null
+        },
+        "right_shoulder_pitch": {
+          "allow_sensor_overlap": null,
+          "backoff_rad": null,
+          "home_offset_rad": null,
+          "method": "manual_reference",
+          "search_direction": null,
+          "search_timeout_s": null,
+          "search_torque_nm": null,
+          "search_velocity_rad_s": null,
+          "sensors": null,
+          "sign_test_required": null
+        },
+        "right_shoulder_roll": {
+          "allow_sensor_overlap": null,
+          "backoff_rad": null,
+          "home_offset_rad": null,
+          "method": "manual_reference",
+          "search_direction": null,
+          "search_timeout_s": null,
+          "search_torque_nm": null,
+          "search_velocity_rad_s": null,
+          "sensors": null,
+          "sign_test_required": null
+        },
+        "right_upper_arm_yaw": {
+          "allow_sensor_overlap": null,
+          "backoff_rad": null,
+          "home_offset_rad": null,
+          "method": "manual_reference",
+          "search_direction": null,
+          "search_timeout_s": null,
+          "search_torque_nm": null,
+          "search_velocity_rad_s": null,
+          "sensors": null,
+          "sign_test_required": null
+        }
+      },
+      "zero_verify_tolerance_rad": 0.05
+    }
+  },
+  "installed_motors": {
+    "motors": [
+      {
+        "bench": {
+          "position_lower_rad": -1.1152385473251345,
+          "position_upper_rad": 3.007078170776367,
+          "torque_limit_nm": 5.0,
+          "velocity_limit_rad_s": 2.0
+        },
+        "can_interface": "can0",
+        "device_id": 1,
+        "direction": -1,
+        "driver": "robstride",
+        "firmware_version": "0.3.1.42",
+        "gear_ratio": 1.0,
+        "joint": "right_shoulder_pitch",
+        "motor_type": "rs03",
+        "recv_can_id": 577
+      },
+      {
+        "bench": {
+          "position_lower_rad": -0.06788089871406555,
+          "position_upper_rad": 3.1156094074249268,
+          "torque_limit_nm": 5.0,
+          "velocity_limit_rad_s": 2.0
+        },
+        "can_interface": "can0",
+        "device_id": 2,
+        "direction": 1,
+        "driver": "robstride",
+        "firmware_version": "0.3.1.42",
+        "gear_ratio": 1.0,
+        "joint": "right_shoulder_roll",
+        "motor_type": "rs03",
+        "recv_can_id": 578
+      },
+      {
+        "bench": {
+          "position_lower_rad": -0.7746843099594116,
+          "position_upper_rad": 1.290117621421814,
+          "torque_limit_nm": 3.0,
+          "velocity_limit_rad_s": 2.0
+        },
+        "can_interface": "can0",
+        "device_id": 3,
+        "direction": -1,
+        "driver": "robstride",
+        "firmware_version": "0.3.1.42",
+        "gear_ratio": 1.0,
+        "joint": "right_upper_arm_yaw",
+        "motor_type": "rs02",
+        "recv_can_id": 579
+      },
+      {
+        "bench": {
+          "position_lower_rad": -0.15416957437992096,
+          "position_upper_rad": 1.6072771549224854,
+          "torque_limit_nm": 3.0,
+          "velocity_limit_rad_s": 1.0
+        },
+        "can_interface": "can0",
+        "device_id": 4,
+        "direction": -1,
+        "driver": "robstride",
+        "firmware_version": "0.3.1.42",
+        "gear_ratio": 1.0,
+        "joint": "right_elbow_pitch",
+        "motor_type": "rs02",
+        "recv_can_id": 580
+      },
+      {
+        "bench": {
+          "position_lower_rad": -0.39424505829811096,
+          "position_upper_rad": 3.2440848350524902,
+          "torque_limit_nm": 3.0,
+          "velocity_limit_rad_s": 1.0
+        },
+        "can_interface": "can0",
+        "device_id": 5,
+        "direction": -1,
+        "driver": "robstride",
+        "firmware_version": "0.0.0-pending",
+        "gear_ratio": 1.0,
+        "joint": "right_lower_arm_yaw",
+        "motor_type": "rs00",
+        "recv_can_id": 581
+      }
+    ]
+  },
+  "installed_robot": {
+    "robot": {
+      "bench": {
+        "max_joint_torque_nm": 5.0,
+        "max_joint_velocity_rad_s": 2.0
+      },
+      "joints": [
+        "right_shoulder_pitch",
+        "right_shoulder_roll",
+        "right_upper_arm_yaw",
+        "right_elbow_pitch",
+        "right_lower_arm_yaw"
+      ],
+      "limbs": {
+        "left_arm": [
+          "left_shoulder_roll",
+          "left_shoulder_pitch",
+          "left_upper_arm_yaw",
+          "left_elbow",
+          "left_wrist"
+        ],
+        "right_arm": [
+          "right_shoulder_pitch",
+          "right_shoulder_roll",
+          "right_upper_arm_yaw",
+          "right_elbow_pitch",
+          "right_lower_arm_yaw"
+        ]
+      },
+      "name": "marengo_arm_5dof_right",
+      "urdf": "assets/urdf/marengo.urdf"
+    }
+  },
+  "installed_urdf": "<robot xmlns=\"http://www.ros.org\" name=\"marengo_arm_5dof_right\">\n  <link name=\"base_link\">\n    <inertial>\n      <origin xyz=\"0 0 0\" rpy=\"0 0 0\" />\n      <mass value=\"0.001\" />\n      <inertia ixx=\"0.000001\" ixy=\"0\" ixz=\"0\" iyy=\"0.000001\" iyz=\"0\" izz=\"0.000001\" />\n    </inertial>\n    <visual>\n      <origin xyz=\"0 0 0\" rpy=\"0 0 0\" />\n      <geometry>\n        <cylinder radius=\"0.04\" length=\"0.1\" />\n      </geometry>\n      <material name=\"mount_gray\">\n        <color rgba=\"0.5 0.5 0.5 1\" />\n      </material>\n    </visual>\n  </link>\n  <link name=\"right_shoulder_pitch_link\">\n    <inertial>\n      <origin xyz=\"0 0 0\" rpy=\"0 0 0\" />\n      <mass value=\"0.3\" />\n      <inertia ixx=\"0.002\" ixy=\"0\" ixz=\"0\" iyy=\"0.002\" iyz=\"0\" izz=\"0.002\" />\n    </inertial>\n  </link>\n  <link name=\"right_shoulder_roll_link\">\n    <inertial>\n      <origin xyz=\"0.05 0 0\" rpy=\"0 0 0\" />\n      <mass value=\"0.3\" />\n      <inertia ixx=\"0.002\" ixy=\"0\" ixz=\"0\" iyy=\"0.002\" iyz=\"0\" izz=\"0.002\" />\n    </inertial>\n  </link>\n  <link name=\"right_upper_arm_link\">\n    <inertial>\n      <origin xyz=\"0 0 -0.18\" rpy=\"0 0 0\" />\n      <mass value=\"0.55\" />\n      <inertia ixx=\"0.001\" ixy=\"0\" ixz=\"0\" iyy=\"0.001\" iyz=\"0\" izz=\"0.0001\" />\n    </inertial>\n    <visual>\n      <origin xyz=\"0 0 -0.12\" rpy=\"0 0 0\" />\n      <geometry>\n        <cylinder radius=\"0.03\" length=\"0.24\" />\n      </geometry>\n      <material name=\"arm_blue\">\n        <color rgba=\"0.23 0.51 0.96 1\" />\n      </material>\n    </visual>\n  </link>\n  <link name=\"right_forearm_link\">\n    <inertial>\n      <origin xyz=\"0 0 -0.14\" rpy=\"0 0 0\" />\n      <mass value=\"0.35\" />\n      <inertia ixx=\"0.0005\" ixy=\"0\" ixz=\"0\" iyy=\"0.0005\" iyz=\"0\" izz=\"0.00008\" />\n    </inertial>\n    <visual>\n      <origin xyz=\"0 0 -0.1\" rpy=\"0 0 0\" />\n      <geometry>\n        <cylinder radius=\"0.025\" length=\"0.2\" />\n      </geometry>\n      <material name=\"forearm_blue\">\n        <color rgba=\"0.35 0.6 0.95 1\" />\n      </material>\n    </visual>\n  </link>\n  <link name=\"right_hand_link\">\n    <inertial>\n      <origin xyz=\"0 0 -0.04\" rpy=\"0 0 0\" />\n      <mass value=\"0.12\" />\n      <inertia ixx=\"0.00008\" ixy=\"0\" ixz=\"0\" iyy=\"0.00008\" iyz=\"0\" izz=\"0.00004\" />\n    </inertial>\n    <visual>\n      <origin xyz=\"0 0 -0.03\" rpy=\"0 0 0\" />\n      <geometry>\n        <cylinder radius=\"0.02\" length=\"0.06\" />\n      </geometry>\n      <material name=\"hand_blue\">\n        <color rgba=\"0.45 0.7 0.98 1\" />\n      </material>\n    </visual>\n  </link>\n  <joint name=\"right_shoulder_pitch\" type=\"revolute\">\n    <origin xyz=\"0 0 0\" rpy=\"0 0 0\" />\n    <parent link=\"base_link\" />\n    <child link=\"right_shoulder_pitch_link\" />\n    <axis xyz=\"0 1 0\" />\n    <limit lower=\"-1.43134\" upper=\"3.25\" effort=\"60\" velocity=\"2\" />\n    <safety_controller soft_lower_limit=\"-0.872665\" soft_upper_limit=\"3.2\" k_position=\"10\" k_velocity=\"1\" />\n  </joint>\n  <joint name=\"right_shoulder_roll\" type=\"revolute\">\n    <origin xyz=\"0.05 0 0\" rpy=\"0 0 0\" />\n    <parent link=\"right_shoulder_pitch_link\" />\n    <child link=\"right_shoulder_roll_link\" />\n    <axis xyz=\"1 0 0\" />\n    <limit lower=\"-0.099415\" upper=\"3.22308\" effort=\"60\" velocity=\"2\" />\n    <safety_controller soft_lower_limit=\"-0.05\" soft_upper_limit=\"3.14159\" k_position=\"10\" k_velocity=\"1\" />\n  </joint>\n  <joint name=\"right_upper_arm_yaw\" type=\"revolute\">\n    <origin xyz=\"0.08 0 0\" rpy=\"0 0 0\" />\n    <parent link=\"right_shoulder_roll_link\" />\n    <child link=\"right_upper_arm_link\" />\n    <axis xyz=\"0 0 1\" />\n    <limit lower=\"-1.57\" upper=\"1.57\" effort=\"17\" velocity=\"2\" />\n    <safety_controller soft_lower_limit=\"-1.57\" soft_upper_limit=\"1.57\" k_position=\"10\" k_velocity=\"1\" />\n  </joint>\n  <joint name=\"right_elbow_pitch\" type=\"revolute\">\n    <origin xyz=\"0 0 -0.24\" rpy=\"0 0 0\" />\n    <parent link=\"right_upper_arm_link\" />\n    <child link=\"right_forearm_link\" />\n    <axis xyz=\"0 1 0\" />\n    <limit lower=\"-1.63191\" upper=\"1.60728\" effort=\"17\" velocity=\"2\" />\n    <safety_controller soft_lower_limit=\"-0.5\" soft_upper_limit=\"1.15\" k_position=\"10\" k_velocity=\"1\" />\n  </joint>\n  <joint name=\"right_lower_arm_yaw\" type=\"revolute\">\n    <origin xyz=\"0 0 -0.2\" rpy=\"0 0 0\" />\n    <parent link=\"right_forearm_link\" />\n    <child link=\"right_hand_link\" />\n    <axis xyz=\"0 1 0\" />\n    <limit lower=\"-3.24409\" upper=\"3.24409\" effort=\"17\" velocity=\"2\" />\n    <safety_controller soft_lower_limit=\"-1.55\" soft_upper_limit=\"1.55\" k_position=\"10\" k_velocity=\"1\" />\n  </joint>\n</robot>",
+  "neutral_enable_confirmed": true,
+  "neutral_only": true,
+  "owner_lifetime_ms": 5000,
+  "qualification": {
+    "before": [
+      {
+        "device_id": 1,
+        "firmware_version": [
+          0,
+          3,
+          1,
+          42
+        ],
+        "identity_wire_bytes": [
+          69,
+          123,
+          48,
+          2,
+          12,
+          50,
+          56,
+          23
+        ],
+        "interface": "can0",
+        "joint": "right_shoulder_pitch",
+        "reads": [
+          {
+            "elapsed_us": 6438,
+            "query": "firmware_version",
+            "request_data": [
+              0,
+              196,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 67141633,
+            "response_data": [
+              0,
+              196,
+              86,
+              0,
+              3,
+              1,
+              42,
+              7
+            ],
+            "response_host": 128,
+            "response_id": 33554816
+          },
+          {
+            "elapsed_us": 1062,
+            "query": "identity",
+            "request_data": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 33025,
+            "response_data": [
+              69,
+              123,
+              48,
+              2,
+              12,
+              50,
+              56,
+              23
+            ],
+            "response_host": 254,
+            "response_id": 510
+          },
+          {
+            "elapsed_us": 1060,
+            "query": "RunMode",
+            "request_data": [
+              5,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 285245953,
+            "response_data": [
+              5,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "response_host": 130,
+            "response_id": 285213058
+          },
+          {
+            "elapsed_us": 1060,
+            "query": "MechanicalPosition",
+            "request_data": [
+              25,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 285246209,
+            "response_data": [
+              25,
+              112,
+              0,
+              0,
+              171,
+              10,
+              6,
+              57
+            ],
+            "response_host": 131,
+            "response_id": 285213059
+          },
+          {
+            "elapsed_us": 1079,
+            "query": "MechanicalVelocity",
+            "request_data": [
+              27,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 285246465,
+            "response_data": [
+              27,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "response_host": 132,
+            "response_id": 285213060
+          },
+          {
+            "elapsed_us": 1059,
+            "query": "CanTimeout",
+            "request_data": [
+              40,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 285246721,
+            "response_data": [
+              40,
+              112,
+              0,
+              0,
+              88,
+              2,
+              0,
+              0
+            ],
+            "response_host": 133,
+            "response_id": 285213061
+          },
+          {
+            "elapsed_us": 1059,
+            "query": "ZeroWrapping",
+            "request_data": [
+              41,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 285246977,
+            "response_data": [
+              41,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "response_host": 134,
+            "response_id": 285213062
+          },
+          {
+            "elapsed_us": 1059,
+            "query": "AddOffset",
+            "request_data": [
+              43,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 285247233,
+            "response_data": [
+              43,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "response_host": 135,
+            "response_id": 285213063
+          }
+        ]
+      },
+      {
+        "device_id": 2,
+        "firmware_version": [
+          0,
+          3,
+          1,
+          42
+        ],
+        "identity_wire_bytes": [
+          120,
+          86,
+          48,
+          2,
+          12,
+          52,
+          55,
+          1
+        ],
+        "interface": "can0",
+        "joint": "right_shoulder_roll",
+        "reads": [
+          {
+            "elapsed_us": 1059,
+            "query": "firmware_version",
+            "request_data": [
+              0,
+              196,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 67143682,
+            "response_data": [
+              0,
+              196,
+              86,
+              0,
+              3,
+              1,
+              42,
+              7
+            ],
+            "response_host": 136,
+            "response_id": 33555080
+          },
+          {
+            "elapsed_us": 1059,
+            "query": "identity",
+            "request_data": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 35074,
+            "response_data": [
+              120,
+              86,
+              48,
+              2,
+              12,
+              52,
+              55,
+              1
+            ],
+            "response_host": 254,
+            "response_id": 766
+          },
+          {
+            "elapsed_us": 1061,
+            "query": "RunMode",
+            "request_data": [
+              5,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 285248002,
+            "response_data": [
+              5,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "response_host": 138,
+            "response_id": 285213322
+          },
+          {
+            "elapsed_us": 1059,
+            "query": "MechanicalPosition",
+            "request_data": [
+              25,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 285248258,
+            "response_data": [
+              25,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "response_host": 139,
+            "response_id": 285213323
+          },
+          {
+            "elapsed_us": 1059,
+            "query": "MechanicalVelocity",
+            "request_data": [
+              27,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 285248514,
+            "response_data": [
+              27,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "response_host": 140,
+            "response_id": 285213324
+          },
+          {
+            "elapsed_us": 1059,
+            "query": "CanTimeout",
+            "request_data": [
+              40,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 285248770,
+            "response_data": [
+              40,
+              112,
+              0,
+              0,
+              88,
+              2,
+              0,
+              0
+            ],
+            "response_host": 141,
+            "response_id": 285213325
+          },
+          {
+            "elapsed_us": 1060,
+            "query": "ZeroWrapping",
+            "request_data": [
+              41,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 285249026,
+            "response_data": [
+              41,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "response_host": 142,
+            "response_id": 285213326
+          },
+          {
+            "elapsed_us": 1059,
+            "query": "AddOffset",
+            "request_data": [
+              43,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 285249282,
+            "response_data": [
+              43,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "response_host": 143,
+            "response_id": 285213327
+          }
+        ]
+      },
+      {
+        "device_id": 3,
+        "firmware_version": [
+          0,
+          2,
+          3,
+          34
+        ],
+        "identity_wire_bytes": [
+          157,
+          106,
+          59,
+          133,
+          156,
+          2,
+          48,
+          25
+        ],
+        "interface": "can0",
+        "joint": "right_upper_arm_yaw",
+        "reads": [
+          {
+            "elapsed_us": 1059,
+            "query": "firmware_version",
+            "request_data": [
+              0,
+              196,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 67145731,
+            "response_data": [
+              0,
+              196,
+              86,
+              0,
+              2,
+              3,
+              34,
+              7
+            ],
+            "response_host": 144,
+            "response_id": 33555344
+          },
+          {
+            "elapsed_us": 1059,
+            "query": "identity",
+            "request_data": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 37123,
+            "response_data": [
+              157,
+              106,
+              59,
+              133,
+              156,
+              2,
+              48,
+              25
+            ],
+            "response_host": 254,
+            "response_id": 1022
+          },
+          {
+            "elapsed_us": 1060,
+            "query": "RunMode",
+            "request_data": [
+              5,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 285250051,
+            "response_data": [
+              5,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "response_host": 146,
+            "response_id": 285213586
+          },
+          {
+            "elapsed_us": 1059,
+            "query": "MechanicalPosition",
+            "request_data": [
+              25,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 285250307,
+            "response_data": [
+              25,
+              112,
+              0,
+              0,
+              231,
+              156,
+              207,
+              56
+            ],
+            "response_host": 147,
+            "response_id": 285213587
+          },
+          {
+            "elapsed_us": 1059,
+            "query": "MechanicalVelocity",
+            "request_data": [
+              27,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 285250563,
+            "response_data": [
+              27,
+              112,
+              0,
+              0,
+              225,
+              53,
+              113,
+              61
+            ],
+            "response_host": 148,
+            "response_id": 285213588
+          },
+          {
+            "elapsed_us": 1060,
+            "query": "CanTimeout",
+            "request_data": [
+              40,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 285250819,
+            "response_data": [
+              40,
+              112,
+              0,
+              0,
+              88,
+              2,
+              0,
+              0
+            ],
+            "response_host": 149,
+            "response_id": 285213589
+          },
+          {
+            "elapsed_us": 1059,
+            "query": "ZeroWrapping",
+            "request_data": [
+              41,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 285251075,
+            "response_data": [
+              41,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "response_host": 150,
+            "response_id": 285213590
+          },
+          {
+            "elapsed_us": 1063,
+            "query": "AddOffset",
+            "request_data": [
+              43,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 285251331,
+            "response_data": [
+              43,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "response_host": 151,
+            "response_id": 285213591
+          }
+        ]
+      },
+      {
+        "device_id": 4,
+        "firmware_version": [
+          0,
+          2,
+          3,
+          34
+        ],
+        "identity_wire_bytes": [
+          138,
+          6,
+          59,
+          143,
+          36,
+          80,
+          176,
+          13
+        ],
+        "interface": "can0",
+        "joint": "right_elbow_pitch",
+        "reads": [
+          {
+            "elapsed_us": 1062,
+            "query": "firmware_version",
+            "request_data": [
+              0,
+              196,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 67147780,
+            "response_data": [
+              0,
+              196,
+              86,
+              0,
+              2,
+              3,
+              34,
+              7
+            ],
+            "response_host": 152,
+            "response_id": 33555608
+          },
+          {
+            "elapsed_us": 1061,
+            "query": "identity",
+            "request_data": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 39172,
+            "response_data": [
+              138,
+              6,
+              59,
+              143,
+              36,
+              80,
+              176,
+              13
+            ],
+            "response_host": 254,
+            "response_id": 1278
+          },
+          {
+            "elapsed_us": 1059,
+            "query": "RunMode",
+            "request_data": [
+              5,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 285252100,
+            "response_data": [
+              5,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "response_host": 154,
+            "response_id": 285213850
+          },
+          {
+            "elapsed_us": 1059,
+            "query": "MechanicalPosition",
+            "request_data": [
+              25,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 285252356,
+            "response_data": [
+              25,
+              112,
+              0,
+              0,
+              223,
+              123,
+              79,
+              56
+            ],
+            "response_host": 155,
+            "response_id": 285213851
+          },
+          {
+            "elapsed_us": 1059,
+            "query": "MechanicalVelocity",
+            "request_data": [
+              27,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 285252612,
+            "response_data": [
+              27,
+              112,
+              0,
+              0,
+              237,
+              133,
+              163,
+              188
+            ],
+            "response_host": 156,
+            "response_id": 285213852
+          },
+          {
+            "elapsed_us": 1060,
+            "query": "CanTimeout",
+            "request_data": [
+              40,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 285252868,
+            "response_data": [
+              40,
+              112,
+              0,
+              0,
+              88,
+              2,
+              0,
+              0
+            ],
+            "response_host": 157,
+            "response_id": 285213853
+          },
+          {
+            "elapsed_us": 1060,
+            "query": "ZeroWrapping",
+            "request_data": [
+              41,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 285253124,
+            "response_data": [
+              41,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "response_host": 158,
+            "response_id": 285213854
+          },
+          {
+            "elapsed_us": 1059,
+            "query": "AddOffset",
+            "request_data": [
+              43,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 285253380,
+            "response_data": [
+              43,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "response_host": 159,
+            "response_id": 285213855
+          }
+        ]
+      },
+      {
+        "device_id": 5,
+        "firmware_version": [
+          0,
+          0,
+          3,
+          32
+        ],
+        "identity_wire_bytes": [
+          98,
+          44,
+          48,
+          2,
+          12,
+          52,
+          55,
+          1
+        ],
+        "interface": "can0",
+        "joint": "right_lower_arm_yaw",
+        "reads": [
+          {
+            "elapsed_us": 1059,
+            "query": "firmware_version",
+            "request_data": [
+              0,
+              196,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 67149829,
+            "response_data": [
+              0,
+              196,
+              86,
+              0,
+              0,
+              3,
+              32,
+              7
+            ],
+            "response_host": 160,
+            "response_id": 33555872
+          },
+          {
+            "elapsed_us": 1060,
+            "query": "identity",
+            "request_data": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 41221,
+            "response_data": [
+              98,
+              44,
+              48,
+              2,
+              12,
+              52,
+              55,
+              1
+            ],
+            "response_host": 254,
+            "response_id": 1534
+          },
+          {
+            "elapsed_us": 1059,
+            "query": "RunMode",
+            "request_data": [
+              5,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 285254149,
+            "response_data": [
+              5,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "response_host": 162,
+            "response_id": 285214114
+          },
+          {
+            "elapsed_us": 1059,
+            "query": "MechanicalPosition",
+            "request_data": [
+              25,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 285254405,
+            "response_data": [
+              25,
+              112,
+              0,
+              0,
+              205,
+              204,
+              32,
+              56
+            ],
+            "response_host": 163,
+            "response_id": 285214115
+          },
+          {
+            "elapsed_us": 1060,
+            "query": "MechanicalVelocity",
+            "request_data": [
+              27,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 285254661,
+            "response_data": [
+              27,
+              112,
+              0,
+              0,
+              77,
+              5,
+              132,
+              189
+            ],
+            "response_host": 164,
+            "response_id": 285214116
+          },
+          {
+            "elapsed_us": 1059,
+            "query": "CanTimeout",
+            "request_data": [
+              40,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 285254917,
+            "response_data": [
+              40,
+              112,
+              0,
+              0,
+              88,
+              2,
+              0,
+              0
+            ],
+            "response_host": 165,
+            "response_id": 285214117
+          },
+          {
+            "elapsed_us": 1059,
+            "query": "ZeroWrapping",
+            "request_data": [
+              41,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 285255173,
+            "response_data": [
+              41,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "response_host": 166,
+            "response_id": 285214118
+          },
+          {
+            "elapsed_us": 1059,
+            "query": "AddOffset",
+            "request_data": [
+              43,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "request_id": 285255429,
+            "response_data": [
+              43,
+              112,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "response_host": 167,
+            "response_id": 285214119
+          }
+        ]
+      }
+    ],
+    "grants_reference": false,
+    "mechanical_home_confirmed": true,
+    "operator": "joseph",
+    "reads": [
+      {
+        "elapsed_us": 5379,
+        "query": "CanTimeout",
+        "request_data": [
+          40,
+          112,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "request_id": 285257729,
+        "response_data": [
+          40,
+          112,
+          0,
+          0,
+          88,
+          2,
+          0,
+          0
+        ],
+        "response_host": 176,
+        "response_id": 285213104
+      },
+      {
+        "elapsed_us": 1059,
+        "query": "CanTimeout",
+        "request_data": [
+          40,
+          112,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "request_id": 285257986,
+        "response_data": [
+          40,
+          112,
+          0,
+          0,
+          88,
+          2,
+          0,
+          0
+        ],
+        "response_host": 177,
+        "response_id": 285213361
+      },
+      {
+        "elapsed_us": 1059,
+        "query": "CanTimeout",
+        "request_data": [
+          40,
+          112,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "request_id": 285258243,
+        "response_data": [
+          40,
+          112,
+          0,
+          0,
+          88,
+          2,
+          0,
+          0
+        ],
+        "response_host": 178,
+        "response_id": 285213618
+      },
+      {
+        "elapsed_us": 1059,
+        "query": "CanTimeout",
+        "request_data": [
+          40,
+          112,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "request_id": 285258500,
+        "response_data": [
+          40,
+          112,
+          0,
+          0,
+          88,
+          2,
+          0,
+          0
+        ],
+        "response_host": 179,
+        "response_id": 285213875
+      },
+      {
+        "elapsed_us": 1058,
+        "query": "CanTimeout",
+        "request_data": [
+          40,
+          112,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "request_id": 285258757,
+        "response_data": [
+          40,
+          112,
+          0,
+          0,
+          88,
+          2,
+          0,
+          0
+        ],
+        "response_host": 180,
+        "response_id": 285214132
+      },
+      {
+        "elapsed_us": 1059,
+        "query": "set_zero",
+        "request_data": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "request_id": 100716545,
+        "response_data": [
+          127,
+          255,
+          128,
+          129,
+          127,
+          255,
+          0,
+          230
+        ],
+        "response_host": 208,
+        "response_id": 33554896
+      },
+      {
+        "elapsed_us": 1059,
+        "query": "MechanicalPosition",
+        "request_data": [
+          25,
+          112,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "request_id": 285270017,
+        "response_data": [
+          25,
+          112,
+          0,
+          0,
+          228,
+          184,
+          178,
+          56
+        ],
+        "response_host": 224,
+        "response_id": 285213152
+      },
+      {
+        "elapsed_us": 1060,
+        "query": "set_zero",
+        "request_data": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "request_id": 100716802,
+        "response_data": [
+          127,
+          255,
+          127,
+          120,
+          127,
+          255,
+          0,
+          230
+        ],
+        "response_host": 209,
+        "response_id": 33555153
+      },
+      {
+        "elapsed_us": 1059,
+        "query": "MechanicalPosition",
+        "request_data": [
+          25,
+          112,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "request_id": 285270274,
+        "response_data": [
+          25,
+          112,
+          0,
+          0,
+          171,
+          170,
+          50,
+          56
+        ],
+        "response_host": 225,
+        "response_id": 285213409
+      },
+      {
+        "elapsed_us": 1059,
+        "query": "set_zero",
+        "request_data": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "request_id": 100717059,
+        "response_data": [
+          127,
+          255,
+          128,
+          68,
+          127,
+          255,
+          0,
+          220
+        ],
+        "response_host": 210,
+        "response_id": 33555410
+      },
+      {
+        "elapsed_us": 1059,
+        "query": "MechanicalPosition",
+        "request_data": [
+          25,
+          112,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "request_id": 285270531,
+        "response_data": [
+          25,
+          112,
+          0,
+          0,
+          99,
+          140,
+          79,
+          57
+        ],
+        "response_host": 226,
+        "response_id": 285213666
+      },
+      {
+        "elapsed_us": 1060,
+        "query": "set_zero",
+        "request_data": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "request_id": 100717316,
+        "response_data": [
+          127,
+          255,
+          128,
+          50,
+          127,
+          255,
+          0,
+          230
+        ],
+        "response_host": 211,
+        "response_id": 33555667
+      },
+      {
+        "elapsed_us": 1059,
+        "query": "MechanicalPosition",
+        "request_data": [
+          25,
+          112,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "request_id": 285270788,
+        "response_data": [
+          25,
+          112,
+          0,
+          0,
+          223,
+          123,
+          79,
+          184
+        ],
+        "response_host": 227,
+        "response_id": 285213923
+      },
+      {
+        "elapsed_us": 1059,
+        "query": "set_zero",
+        "request_data": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "request_id": 100717573,
+        "response_data": [
+          127,
+          255,
+          128,
+          31,
+          127,
+          255,
+          0,
+          230
+        ],
+        "response_host": 212,
+        "response_id": 33555924
+      },
+      {
+        "elapsed_us": 1059,
+        "query": "MechanicalPosition",
+        "request_data": [
+          25,
+          112,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "request_id": 285271045,
+        "response_data": [
+          25,
+          112,
+          0,
+          0,
+          103,
+          230,
+          32,
+          184
+        ],
+        "response_host": 228,
+        "response_id": 285214180
+      },
+      {
+        "elapsed_us": 1060,
+        "query": "CanTimeout",
+        "request_data": [
+          40,
+          112,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "request_id": 285261825,
+        "response_data": [
+          40,
+          112,
+          0,
+          0,
+          88,
+          2,
+          0,
+          0
+        ],
+        "response_host": 192,
+        "response_id": 285213120
+      },
+      {
+        "elapsed_us": 1059,
+        "query": "CanTimeout",
+        "request_data": [
+          40,
+          112,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "request_id": 285262082,
+        "response_data": [
+          40,
+          112,
+          0,
+          0,
+          88,
+          2,
+          0,
+          0
+        ],
+        "response_host": 193,
+        "response_id": 285213377
+      },
+      {
+        "elapsed_us": 1059,
+        "query": "CanTimeout",
+        "request_data": [
+          40,
+          112,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "request_id": 285262339,
+        "response_data": [
+          40,
+          112,
+          0,
+          0,
+          88,
+          2,
+          0,
+          0
+        ],
+        "response_host": 194,
+        "response_id": 285213634
+      },
+      {
+        "elapsed_us": 1059,
+        "query": "CanTimeout",
+        "request_data": [
+          40,
+          112,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "request_id": 285262596,
+        "response_data": [
+          40,
+          112,
+          0,
+          0,
+          88,
+          2,
+          0,
+          0
+        ],
+        "response_host": 195,
+        "response_id": 285213891
+      },
+      {
+        "elapsed_us": 1060,
+        "query": "CanTimeout",
+        "request_data": [
+          40,
+          112,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "request_id": 285262853,
+        "response_data": [
+          40,
+          112,
+          0,
+          0,
+          88,
+          2,
+          0,
+          0
+        ],
+        "response_host": 196,
+        "response_id": 285214148
+      }
+    ],
+    "schema": 1,
+    "sign_attested": true,
+    "timeout_counts": 600
+  },
+  "schema": 1,
+  "timeout_volatility_qualified": false
+}
