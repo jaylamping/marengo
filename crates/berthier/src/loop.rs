@@ -13,7 +13,8 @@ use davout::{
     ControlMode, DavoutError, MitJointCommand as DavoutMit, MotorBus, OperationalMode, Supervisor,
 };
 use marengo_config::{
-    load_robot_config, motor_type_key, resolve_urdf_path, ModeGains, MotorTypeDefaults,
+    load_robot_config_from, motor_type_key, resolve_config_dir, resolve_urdf_path, ModeGains,
+    MotorTypeDefaults,
 };
 use thiserror::Error;
 use tracing::{debug, info};
@@ -192,6 +193,8 @@ impl ControlLoop<davout::simulation::SimulationBus> {
     /// does not establish SetZero causality or qualify a physical reference.
     /// Dynamics, session initialization, admission and tick behavior use the
     /// same implementation as ordinary construction.
+    /// Configuration comes from the supplied root's `config/`, independent of
+    /// the installed Pi configuration and environment configuration override.
     pub fn from_simulation(
         repo_root: impl AsRef<Path>,
         bus: davout::simulation::SimulationBus,
@@ -199,9 +202,15 @@ impl ControlLoop<davout::simulation::SimulationBus> {
         loop_hz: u32,
         chappe_hz: u32,
     ) -> Result<Self, LoopError> {
-        Self::from_repo_inner(repo_root.as_ref(), bus, loop_hz, chappe_hz, |root, bus| {
-            Supervisor::from_simulation(root, bus, initial_reference)
-        })
+        let root = repo_root.as_ref();
+        Self::from_repo_inner(
+            root,
+            &root.join("config"),
+            bus,
+            loop_hz,
+            chappe_hz,
+            |root, bus| Supervisor::from_simulation(root, bus, initial_reference),
+        )
     }
 
     /// Closed virtual owner with an isolated historical inspection file.
@@ -214,14 +223,22 @@ impl ControlLoop<davout::simulation::SimulationBus> {
         loop_hz: u32,
         chappe_hz: u32,
     ) -> Result<Self, LoopError> {
-        Self::from_repo_inner(repo_root.as_ref(), bus, loop_hz, chappe_hz, |root, bus| {
-            Supervisor::from_simulation_with_calibration_record_path(
-                root,
-                bus,
-                record_path,
-                initial_reference,
-            )
-        })
+        let root = repo_root.as_ref();
+        Self::from_repo_inner(
+            root,
+            &root.join("config"),
+            bus,
+            loop_hz,
+            chappe_hz,
+            |root, bus| {
+                Supervisor::from_simulation_with_calibration_record_path(
+                    root,
+                    bus,
+                    record_path,
+                    initial_reference,
+                )
+            },
+        )
     }
 }
 
@@ -232,13 +249,20 @@ impl<B: MotorBus> ControlLoop<B> {
         loop_hz: u32,
         chappe_hz: u32,
     ) -> Result<Self, LoopError> {
-        Self::from_repo_inner(repo_root.as_ref(), bus, loop_hz, chappe_hz, |root, bus| {
-            Supervisor::from_repo(root, bus)
-        })
+        let root = repo_root.as_ref();
+        Self::from_repo_inner(
+            root,
+            &resolve_config_dir(root),
+            bus,
+            loop_hz,
+            chappe_hz,
+            |root, bus| Supervisor::from_repo(root, bus),
+        )
     }
 
     fn from_repo_inner(
         root: &Path,
+        config_dir: &Path,
         bus: B,
         loop_hz: u32,
         chappe_hz: u32,
@@ -251,7 +275,7 @@ impl<B: MotorBus> ControlLoop<B> {
         if loop_period.is_zero() {
             return Err(LoopError::InvalidLoopPeriod { seconds });
         }
-        let robot = load_robot_config(root)?;
+        let robot = load_robot_config_from(config_dir)?;
         let joint_names = robot.robot.joints.clone();
         let urdf = resolve_urdf_path(root, &robot)?;
         let dynamics = UrdfGravityModel::from_urdf(&urdf, &joint_names)?;

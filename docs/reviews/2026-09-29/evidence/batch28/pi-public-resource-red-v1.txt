@@ -1,0 +1,154 @@
+   Compiling berthier v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/crates/berthier)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.94s
+     Running tests/simulation_resources.rs (target/debug/deps/simulation_resources-b2a7f5e8e39edb35)
+
+running 1 test
+test public_simulation_constructors_ignore_competing_config ... FAILED
+
+failures:
+
+failures:
+    public_simulation_constructors_ignore_competing_config
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+
+thread 'public_simulation_constructors_ignore_competing_config' panicked at crates/berthier/tests/simulation_resources.rs:175:5:
+supervisor: 
+running 1 test
+test public_simulation_constructors_ignore_competing_config ... FAILED
+
+failures:
+
+failures:
+    public_simulation_constructors_ignore_competing_config
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+thread 'public_simulation_constructors_ignore_competing_config' panicked at crates/berthier/tests/simulation_resources.rs:20:5:
+assertion failed: !owner.control.control.bench.active_reporting_diagnostics
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+supervisor-invalid: 
+running 1 test
+test public_simulation_constructors_ignore_competing_config ... FAILED
+
+failures:
+
+failures:
+    public_simulation_constructors_ignore_competing_config
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+thread 'public_simulation_constructors_ignore_competing_config' panicked at crates/berthier/tests/simulation_resources.rs:107:5:
+assertion `left == right` failed: invalid copied resources must be rejected
+  left: false
+ right: true
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+supervisor-explicit: 
+running 1 test
+test public_simulation_constructors_ignore_competing_config ... FAILED
+
+failures:
+
+failures:
+    public_simulation_constructors_ignore_competing_config
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+thread 'public_simulation_constructors_ignore_competing_config' panicked at crates/berthier/tests/simulation_resources.rs:20:5:
+assertion failed: !owner.control.control.bench.active_reporting_diagnostics
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+supervisor-explicit-invalid: 
+running 1 test
+test public_simulation_constructors_ignore_competing_config ... FAILED
+
+failures:
+
+failures:
+    public_simulation_constructors_ignore_competing_config
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+thread 'public_simulation_constructors_ignore_competing_config' panicked at crates/berthier/tests/simulation_resources.rs:107:5:
+assertion `left == right` failed: invalid copied resources must be rejected
+  left: false
+ right: true
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+controller: 
+running 1 test
+test public_simulation_constructors_ignore_competing_config ... FAILED
+
+failures:
+
+failures:
+    public_simulation_constructors_ignore_competing_config
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+thread 'public_simulation_constructors_ignore_competing_config' panicked at crates/berthier/tests/simulation_resources.rs:20:5:
+assertion failed: !owner.control.control.bench.active_reporting_diagnostics
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+controller-invalid: 
+running 1 test
+test public_simulation_constructors_ignore_competing_config ... FAILED
+
+failures:
+
+failures:
+    public_simulation_constructors_ignore_competing_config
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+thread 'public_simulation_constructors_ignore_competing_config' panicked at crates/berthier/tests/simulation_resources.rs:107:5:
+assertion `left == right` failed: invalid copied resources must be rejected
+  left: false
+ right: true
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+controller-explicit: 
+running 1 test
+test public_simulation_constructors_ignore_competing_config ... FAILED
+
+failures:
+
+failures:
+    public_simulation_constructors_ignore_competing_config
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+thread 'public_simulation_constructors_ignore_competing_config' panicked at crates/berthier/tests/simulation_resources.rs:20:5:
+assertion failed: !owner.control.control.bench.active_reporting_diagnostics
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+controller-explicit-invalid: 
+running 1 test
+test public_simulation_constructors_ignore_competing_config ... FAILED
+
+failures:
+
+failures:
+    public_simulation_constructors_ignore_competing_config
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+thread 'public_simulation_constructors_ignore_competing_config' panicked at crates/berthier/tests/simulation_resources.rs:107:5:
+assertion `left == right` failed: invalid copied resources must be rejected
+  left: false
+ right: true
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+error: test failed, to rerun pass `-p berthier --test simulation_resources`

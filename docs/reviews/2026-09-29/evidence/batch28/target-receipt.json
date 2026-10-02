@@ -1,0 +1,41 @@
+{
+  "linux_primary": {
+    "log": "J:\\code\\marengo-migration-backup-20260929\\batch28-final-primary-check.log",
+    "sha256": "ed1d83bc34a1a805385389426accfef698dc02cda7f8ec1e1b35ce14e9194972",
+    "exit_code": 0,
+    "rust_passed": 814,
+    "rust_failed": 0,
+    "rust_ignored": 1,
+    "fatal_arm_release_build_passed": true
+  },
+  "pi_workspace": {
+    "log": "docs\\reviews\\2026-09-29\\evidence\\batch28\\pi-workspace-green.txt",
+    "sha256": "7e694f3655beae75f2456c8cfc7f6de8dbaf0fed4dc792ac1563ef6aaaccfd9b",
+    "exit_code": 0,
+    "rust_passed": 814,
+    "rust_failed": 0,
+    "rust_ignored": 1,
+    "environment": "MARENGO_CONFIG_DIR and MARENGO_ROOT pinned to isolated staged source; nice10, jobs2; cargo test --locked --workspace"
+  },
+  "final_preflight_clippy": {
+    "log": "J:\\code\\marengo-migration-backup-20260929\\batch28-final-preflight-clippy.log",
+    "sha256": "7517da6c562361ea185904af18cd2fc9be66004d5a3d3f4615580abf9fd7d81f",
+    "exit_code": 0,
+    "rust_passed": 0,
+    "rust_failed": 0,
+    "rust_ignored": 0
+  },
+  "scope": "Final combined Linux primary and isolated Pi workspace passed. No installed configuration/runtime write or physical CAN/movement.",
+  "combined_primary": {
+    "log": "J:\\code\\marengo-migration-backup-20260929\\batch28-combined-primary-check.log",
+    "sha256": "e60c47f702209bff80bfb1465441a01d452d9c4ee201478324d17b20d2367175",
+    "exit_code": 0,
+    "rust_passed": 814,
+    "rust_failed": 0,
+    "rust_ignored": 1,
+    "research_passed": 83,
+    "daily_audit_passed": 15,
+    "fatal_arm_release_build_passed": true,
+    "container_git_mapping": "Read-only Linux .git pointer overlay and read-only common Git metadata; no inherited GIT_DIR/GIT_WORK_TREE environment. Separate target/batch28 cache."
+  }
+}

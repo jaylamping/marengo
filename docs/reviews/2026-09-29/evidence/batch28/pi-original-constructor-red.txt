@@ -1,0 +1,81 @@
+   Compiling libc v0.2.186
+   Compiling syn v2.0.117
+   Compiling memchr v2.8.0
+   Compiling num-traits v0.2.19
+   Compiling anyhow v1.0.103
+   Compiling serde_core v1.0.228
+   Compiling aho-corasick v1.1.4
+   Compiling regex-automata v0.4.14
+   Compiling getrandom v0.4.2
+   Compiling tempfile v3.27.0
+   Compiling regex v1.12.3
+   Compiling prettyplease v0.2.37
+   Compiling serde_json v1.0.149
+   Compiling smallvec v1.15.1
+   Compiling getrandom v0.3.4
+   Compiling rand_core v0.9.5
+   Compiling prost-derive v0.13.5
+   Compiling thiserror-impl v1.0.69
+   Compiling serde_derive v1.0.228
+   Compiling thiserror v1.0.69
+   Compiling urdf-rs v0.8.0
+   Compiling prost v0.13.5
+   Compiling prost-types v0.13.5
+   Compiling armee-kinematics v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/crates/armee-kinematics)
+   Compiling prost-build v0.13.5
+   Compiling tracing-attributes v0.1.31
+   Compiling parking_lot_core v0.9.12
+   Compiling serde v1.0.228
+   Compiling armee-proto v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/crates/armee-proto)
+   Compiling approx v0.5.1
+   Compiling num-complex v0.4.6
+   Compiling tracing v0.1.44
+   Compiling serde_yaml v0.9.34+deprecated
+   Compiling num-integer v0.1.46
+   Compiling errno v0.3.14
+   Compiling chrono v0.4.44
+   Compiling signal-hook-registry v1.4.8
+   Compiling num-rational v0.4.2
+   Compiling marengo-config v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/crates/marengo-config)
+   Compiling simba v0.9.1
+   Compiling tracing-serde v0.2.0
+   Compiling parking_lot v0.12.5
+   Compiling nalgebra-macros v0.2.2
+   Compiling tokio-macros v2.7.0
+   Compiling matchers v0.2.0
+   Compiling socket2 v0.6.3
+   Compiling mio v1.2.0
+   Compiling tracing-subscriber v0.3.23
+   Compiling tokio v1.52.3
+   Compiling marengo-homing v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/crates/marengo-homing)
+   Compiling robstride v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/crates/robstride)
+   Compiling ppv-lite86 v0.2.21
+   Compiling nalgebra v0.33.3
+   Compiling wait-timeout v0.2.1
+   Compiling rusty-fork v0.3.1
+   Compiling davout v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/crates/davout)
+   Compiling rand_chacha v0.9.0
+   Compiling chappe v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/crates/chappe)
+   Compiling rand v0.9.4
+   Compiling armee-dynamics v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/crates/armee-dynamics)
+   Compiling rand_xorshift v0.4.0
+   Compiling berthier v0.1.0 (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/crates/berthier)
+   Compiling proptest v1.11.0
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 54.25s
+     Running tests/cs24_constructor_period.rs (target/debug/deps/cs24_constructor_period-9e7666fb3f6e485f)
+
+running 1 test
+
+thread 'zero_rounded_loop_period_is_rejected_by_public_simulation_factory' panicked at crates/berthier/tests/cs24_constructor_period.rs:93:5:
+valid construction does not emit actuator commands
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test zero_rounded_loop_period_is_rejected_by_public_simulation_factory ... FAILED
+
+failures:
+
+failures:
+    zero_rounded_loop_period_is_rejected_by_public_simulation_factory
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p berthier --test cs24_constructor_period`

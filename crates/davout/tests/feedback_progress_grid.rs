@@ -8,7 +8,7 @@ mod support;
 
 use std::path::{Path, PathBuf};
 
-use davout::simulation::SimulationBus;
+use davout::simulation::{InitialVirtualReference, SimulationBus};
 use davout::{DavoutError, JointHomingState, OperationalMode, Supervisor};
 use robstride::{CanFrame, ReceivedCanFrame};
 
@@ -74,12 +74,13 @@ fn installed_grid_admits_adjacent_raw_counts_and_ignores_later_public_remap() {
         for direction in [-1_i8, 1] {
             let fixture = numeric_fixture(&source, gear, direction);
             let fixture_path = fixture.path().to_path_buf();
-            let mut supervisor = Supervisor::from_repo_with_calibration_record_path(
+            let mut supervisor = Supervisor::from_simulation_with_calibration_record_path(
                 fixture.path(),
                 SimulationBus::default(),
                 fixture.path().join("history.yaml"),
+                InitialVirtualReference::Unreferenced,
             )
-            .expect("ordinary unqualified numeric Supervisor");
+            .expect("closed unreferenced numeric Supervisor with copied resources");
             let threshold = supervisor
                 .joint_position_progress_threshold(JOINT)
                 .expect("representable installed grid reaches public getter");
@@ -175,10 +176,11 @@ fn getter_refuses_subnormal_or_overflowing_joint_feedback_profiles() {
     for gear in [1e37, 1e-40] {
         let fixture = numeric_fixture(&source, gear, -1);
         let fixture_path = fixture.path().to_path_buf();
-        let constructed = Supervisor::from_repo_with_calibration_record_path(
+        let constructed = Supervisor::from_simulation_with_calibration_record_path(
             fixture.path(),
             SimulationBus::default(),
             fixture.path().join("history.yaml"),
+            InitialVirtualReference::Unreferenced,
         );
         let (constructor_error, getter_result, no_motion, mode, homing) = match constructed {
             Ok(supervisor) => {

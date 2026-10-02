@@ -102,9 +102,10 @@ use armee_kinematics::{
 };
 use marengo_config::{
     default_commissioning_scope_path, effective_commissioning_scope, joint_subset_from_env,
-    load_commissioning_scope, load_control_config, load_homing_config, load_motors_config,
-    load_robot_config, motor_for_joint, motor_type_key, resolve_joint_velocity_cap,
-    resolve_urdf_path, validate_control_against_limits, validate_motors_against_robot,
+    load_commissioning_scope, load_control_config_from, load_homing_config_from,
+    load_motors_config_from, load_robot_config, load_robot_config_from, motor_for_joint,
+    motor_type_key, resolve_config_dir, resolve_joint_velocity_cap, resolve_urdf_path,
+    validate_control_against_limits, validate_motors_against_robot,
     validate_robot_control_joint_coverage, validate_safety_config, ControlConfigFile,
     HomingConfigFile, MotorEntry, MotorType, MotorsConfigFile, RobotConfigFile,
 };
@@ -340,9 +341,18 @@ impl<B: MotorBus> Supervisor<B> {
         bus: B,
         record_path: Option<PathBuf>,
     ) -> Result<Self, DavoutError> {
-        let mut robot = load_robot_config(root)?;
-        let mut motors = load_motors_config(root)?;
-        let mut control = load_control_config(root)?;
+        Self::from_config_dir_inner(root, &resolve_config_dir(root), bus, record_path)
+    }
+
+    fn from_config_dir_inner(
+        root: &Path,
+        config_dir: &Path,
+        bus: B,
+        record_path: Option<PathBuf>,
+    ) -> Result<Self, DavoutError> {
+        let mut robot = load_robot_config_from(config_dir)?;
+        let mut motors = load_motors_config_from(config_dir)?;
+        let mut control = load_control_config_from(config_dir)?;
         if let Some(subset) = marengo_config::joint_subset_from_env() {
             marengo_config::apply_joint_subset(&mut robot, &mut motors, &mut control, &subset)?;
             info!(
@@ -350,7 +360,7 @@ impl<B: MotorBus> Supervisor<B> {
                 "applied MARENGO_JOINT_SUBSET to Davout robot/motors/control"
             );
         }
-        let homing_config = load_homing_config(root)?;
+        let homing_config = load_homing_config_from(config_dir)?;
         validate_safety_config(&robot, &motors, &control, &homing_config)?;
         validate_motors_against_robot(&robot, &motors)?;
         validate_robot_control_joint_coverage(&robot, &control)?;
