@@ -276,3 +276,39 @@ fn current_grant_controller_completed_result_still_loses_to_whole_bounded_fault_
     assert_eq!(ctrl.control_mode(), ControlMode::Disabled);
     pause.release();
 }
+
+#[test]
+fn current_grant_controller_active_motion_entry_rechecks_revoked_permission() {
+    let tree = tree();
+    let pause = JournalTestPause::new(JournalPausePoint::AfterPublication, 1)
+        .expect("actual completion gate");
+    let (mut ctrl, handle) = setup(&tree, &pause);
+    assert!(pause.wait_paused(WAIT));
+    ctrl.tick(None).expect("actual durable grant consumption");
+    assert!(
+        ctrl.supervisor()
+            .reference_commit_snapshot(&handle)
+            .expect("current selected job")
+            .usable_reference
+    );
+    pause.release();
+    ctrl.supervisor_mut()
+        .enable_targets(&[TARGET.into()])
+        .expect("real selected Enable");
+    let before = ctrl.supervisor().bus().transmissions().len();
+    ctrl.ensure_active_for_motion()
+        .expect("intact selected Active shortcut");
+    assert_eq!(ctrl.supervisor().bus().transmissions().len(), before);
+    let stop = ctrl.supervisor().stop_generation();
+    ctrl.supervisor_mut()
+        .cancel_reference_commit(&handle, davout::ReferenceCancelReason::Operator)
+        .expect("revoke the actual owning job");
+    assert_eq!(ctrl.supervisor().mode(), OperationalMode::Active);
+    assert_eq!(ctrl.supervisor().stop_generation(), stop);
+    assert_eq!(
+        ctrl.supervisor().joint_homing_state(TARGET),
+        JointHomingState::Unhomed
+    );
+    assert!(ctrl.ensure_active_for_motion().is_err());
+    assert_eq!(ctrl.supervisor().bus().transmissions().len(), before);
+}
