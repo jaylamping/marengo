@@ -15561,7 +15561,7 @@
       "T01"
     ],
     "report": "batch33-installer-runtime-log-links.md",
-    "status": "Installer compatibility source 0b2eb75 qualified: ten installer tests, full primary/fatal ARM, frozen production mutant rejection/unchanged replay and both independent production reviews clear. Final metadata review and exact PR/main CI/delivery pending. Pi release/database backups and isolated new ARM CLI compatibility checked; no installation or movement. T01 partial; T02/T03 open.",
+    "status": "Installer compatibility source 0b2eb75 qualified: ten installer tests, full primary/fatal ARM, meaningful frozen production mutant rejection/unchanged replay and independent production/final metadata reviews clear. Exact final PR/main CI/delivery pending. Pi backups, isolated ARM CLI compatibility and all-five-joint taught-limit preservation preview checked; no installation or movement. T01 partial; T02/T03 open.",
     "physical_acceptance": false,
     "prior_delivery": "evidence/batch32/delivery-receipt.json",
     "pi_installed_revision": "4bc77ba605834fdec04b436daa4bec67bca84fbb",

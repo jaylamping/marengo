@@ -1,3 +1,13 @@
+## Latest Windows delivery preparation: batch33, October 2
+
+Both final qualification metadata reviews clear334a8a0; production0b2eb75
+qualification stands. All nine raw/committed artifact hashes and frozen bindings
+verify. Separate Pi preview preserves all five taught hard/soft envelopes,
+motor identity and old URDF bounds. Exact final PR/main CI/delivery pending.
+No installation or movement. Powered testing authorized; concrete setup and
+qualified physical reference remain prerequisites. See batch33 evidence.
+All earlier handoff bytes below are historical and preserved unchanged.
+
 ## Latest Windows qualification: batch33 installer, October 2
 
 Source0b2eb75 is software qualified: 861 Rust/one existing ignored, 374 Consul,

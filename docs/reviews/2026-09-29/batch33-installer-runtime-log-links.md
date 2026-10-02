@@ -34,8 +34,8 @@ actionable findings. Its full primary passes: 861 Rust, one existing ignored,
 ARM release. The final production mutation omitting the resolved-target guard
 fails three actual installer subcase assertions; the ten unchanged tests replay
 successfully. See evidence/batch33/final-source-qualification.json for exact
-source/probe/artifact bindings. Final metadata review and exact PR/main CI and
-delivery remain pending.
+source/probe/artifact bindings. Both final qualification metadata reviews clear 334a8a0 with zero findings.
+Exact final PR/main CI and delivery remain pending.
 
 The preceding c6aa099 primary pass skipped ARM by branch selection and remains
 provisional historical evidence only. The baseline failure used its nine-method
@@ -50,7 +50,9 @@ services. A verified release archive and online SQLite backup are preserved;
 the backup integrity check passes, its application schema marker is version3,
 and the new ARM log CLI opens an isolated copy successfully. Unchanged runtime
 native qualification remains bound to batch32/b18faf4. This is preparation,
-not installation or physical acceptance.
+not installation or physical acceptance. A separate staged limit-preservation
+preview retains all five taught hard/soft envelopes, motor identity and previous
+URDF bounds; see evidence/batch33/pi-limit-preview-receipt.json.
 
 T01 remains partial and T02/T03 remain open; this small compatibility repair
 does not implement atomic versioned activation or fail-closed taught-limit

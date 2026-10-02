@@ -107,6 +107,12 @@
     "T01 remains partial; T02/T03 remain open. Known optional harness dangling JSON alias still refused.",
     "Physical current reference is unsupported. No movement or installation acceptance."
   ],
-  "final_metadata_review": "pending",
+  "final_metadata_review": {
+    "fixed_commit": "334a8a0a743a2da6ad01b9b561c04f3bccd6fa6c",
+    "Standards": 0,
+    "scoped_Spec": 0,
+    "receipt": "final-metadata-reviews.md",
+    "reviewed_qualification_git_blob_sha256": "a7cef96cdd0476efbeb587aaef54e470b8c03195640ed863836374f9f13f4210"
+  },
   "PR_main_CI_delivery": "pending"
 }
