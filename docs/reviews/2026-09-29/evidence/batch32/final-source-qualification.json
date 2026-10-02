@@ -1,0 +1,227 @@
+{
+  "source": "b18faf486073b7311a029761792be171dac457ef",
+  "baseline": "df468496eae0b3c30104874c3bc2b6ad218ec827",
+  "recorded_utc": "2026-10-02T09:24:48.022979+00:00",
+  "scope": "WP04 R2b1 durable closed virtual reference history; no selected current grant or physical capability",
+  "primary": {
+    "tool_exit_code": 0,
+    "Rust_passed": 861,
+    "Rust_existing_ignored": 1,
+    "Consul_passed": 374,
+    "Pi_MCP_passed": 72,
+    "local_writer_passed": 27,
+    "research_passed": 83,
+    "daily_audit_passed": 15,
+    "installer_passed": 7,
+    "fmt_clippy_buf_deny_audit": "passed",
+    "fatal_ARM_release": "passed"
+  },
+  "native_Pi": {
+    "tool_exit_code": 0,
+    "Rust_passed": 861,
+    "Rust_existing_ignored": 1,
+    "Consul_passed": 374,
+    "committed_inputs_verified_before_and_after": 1769,
+    "node": "24.16.0",
+    "rust": "1.88.0",
+    "scope": "Owned user validation directory; isolated Bus/files and loopback services; no physical CAN, installation or service changes"
+  },
+  "frozen_probes": {
+    "new_files": 10,
+    "previous_qualified_files_unchanged": 16,
+    "default_workspace_pass_delta": 35,
+    "inert_child_helpers_included": 2,
+    "note": "New-interface cases are conformance; eight later candidate regression failures are separate from original-release reds."
+  },
+  "mutations": {
+    "meaningful_production_mutants_rejected": 12,
+    "actual_selected_test_failure_exit": 101,
+    "compiled_unmodified_baseline_and_replay": {
+      "Davout": 34,
+      "Berthier": 2,
+      "Pi_shutdown": 1
+    },
+    "all_source_files_restored": 1769,
+    "test_executable_sha256": "not captured; no executable-hash binding claim",
+    "oracle_format_repair": "Initial missing-COMMIT mutant produced the expected 0-versus-1 row assertion. Child output interrupted the inline FAILED string. It was excluded by the initial parser, preserved separately, and rerun with the same frozen test using exact named failure, panic and final one-failure outcome checks."
+  },
+  "candidate_regressions": [
+    {
+      "candidate": "dc91d08fe93c202750860c60bbc30f9ef01259f5",
+      "actual_failures": 3,
+      "positive_control_passed": 1,
+      "scope": "Aliased history admission and worker/inspection WAL-header mutation"
+    },
+    {
+      "candidate": "0bebfaedc09df6da02b5b40e14199ba7adf64cdd",
+      "actual_failures": 2,
+      "scope": "Canonical sidecar alias admission and actual deletion of valid YAML in rollback slot"
+    },
+    {
+      "candidate": "0dd5a2bec18c93944c13da1d69b0e9be585d9e7c",
+      "actual_failures": 2,
+      "scope": "Existing hard-link independence/admission; actual session-two SQL write preserved legacy YAML bytes"
+    },
+    {
+      "candidate": "a949ce4a894c66b7f4eea481e6a114940b043b07",
+      "actual_failures": 1,
+      "positive_inert_helper": 1,
+      "scope": "Identity open stalled on owned FIFO; bounded child terminated and reaped"
+    }
+  ],
+  "independent_reviews": {
+    "source": "b18faf486073b7311a029761792be171dac457ef",
+    "Standards": 0,
+    "scoped_Spec": 0
+  },
+  "source_CI": {
+    "conclusion": "success",
+    "headSha": "b18faf486073b7311a029761792be171dac457ef",
+    "jobs": [
+      {
+        "conclusion": "success",
+        "name": "build-image",
+        "status": "completed",
+        "url": "https://github.com/jaylamping/marengo/actions/runs/36987033671/job/110774297714"
+      },
+      {
+        "conclusion": "success",
+        "name": "changes",
+        "status": "completed",
+        "url": "https://github.com/jaylamping/marengo/actions/runs/36987033671/job/110774297950"
+      },
+      {
+        "conclusion": "success",
+        "name": "sim",
+        "status": "completed",
+        "url": "https://github.com/jaylamping/marengo/actions/runs/36987033671/job/110774361878"
+      },
+      {
+        "conclusion": "success",
+        "name": "check",
+        "status": "completed",
+        "url": "https://github.com/jaylamping/marengo/actions/runs/36987033671/job/110774361882"
+      },
+      {
+        "conclusion": "success",
+        "name": "vcan",
+        "status": "completed",
+        "url": "https://github.com/jaylamping/marengo/actions/runs/36987033671/job/110774361964"
+      }
+    ],
+    "status": "completed",
+    "url": "https://github.com/jaylamping/marengo/actions/runs/36987033671",
+    "run_id": 36987033671
+  },
+  "limits": {
+    "event_cap": 4096,
+    "database_page_cap": 16384,
+    "page_bytes": 4096,
+    "history_row_cap_separately_reached": false,
+    "media_power_loss_qualification": false
+  },
+  "preparation_exclusions": [
+    "Initial ref-generation-zero validation rejected a legitimate virtual stage and was corrected during development; no original-release red claim.",
+    "Compile/setup omissions are not counted as behavioral regression evidence.",
+    "dc91d08 full primary/native pass remains provisional at 848 Rust/1 ignored, 374 Consul and 1764 inputs.",
+    "0bebfae primary deliberately stopped before source edits; its archive was never uploaded or run on Pi.",
+    "0dd5a2b primary deliberately stopped before source edits; its archive was uploaded but never run or installed on Pi.",
+    "a949ce4 archive was prepared but no final primary or native Pi run started."
+  ],
+  "right_arm_acceptance": {
+    "owner_present": true,
+    "owner_report": "Arm resting at gravity home only",
+    "installed_safety_snapshot": "Disabled",
+    "installed_joint_flags": "Legacy Verified; not qualified current reference",
+    "support_established": false,
+    "repaired_physical_reference_established": false,
+    "next": "Prioritize required current-reference and installed-owner work, then propose a supported single-joint direction test with explicit bounds and stop procedure",
+    "movement_confirmation": "Required before each test; ten-minute silence permits independent work only"
+  },
+  "finding_counts": {
+    "verified": 26,
+    "partial": 13,
+    "open": 63
+  },
+  "delivery": "Final documentation head and merged main each still require all five exact-head jobs; no delivery completion yet.",
+  "installed_Pi": "4bc77ba605834fdec04b436daa4bec67bca84fbb",
+  "deployment_performed": false,
+  "physical_acceptance": false,
+  "files": {
+    "primary-green.txt": "b356b5d699279b6b69fb41422a301080c2a01e8a3f172896bf5fa01eacb764bf",
+    "pi-native-green.txt": "191cc630b69bdef8ca4e0b7fa37e16d2feeb4197172240c5766d65805c0d3654",
+    "pi-source-manifest.json": "5a77dd8fcd5b75f863afa250844030312247a558069b30f0e742a4ced7973fa1",
+    "frozen-probes.json": "5fd0507aa4d3cb54503d876b09877ba98ae89a54686c3fc84c1e80928a0ecc22",
+    "mutation-receipt.json": "4366de2f4de251155f1da63eb8bb2ac9219945254664675533ea0e103fad0b6b",
+    "mutation-initial-oracle.json": "ee319836b5e964c1f184d295057907b38edb564452f367d9eb2f3b4eac7612b3",
+    "mutation-runner.py": "a07d11ec17fb3595d5ebea245123bfe1a7d5b45e0a68cde443c478f001666bca",
+    "mutation-initial-runner.py": "ed31e70d7b363978a3bdfa66269be5a6e0a30e170382edd237570c497ea50390",
+    "resource-candidate-red.txt": "85a37972499f63778ae42782a4810b283461ac3d0f66a73890e392a413e1f993",
+    "namespace-candidate-red.txt": "f0529e79db4ab0a589369a1efca2ed7650e9595a3b938ab0ffe834fc1b5ed307",
+    "hardlink-candidate-red.txt": "d5f2d377f25325f66d1dfd57c47650c9c3e5b4a111f67c13797ed04f4ffaaaa0",
+    "filetype-candidate-red.txt": "247c2660659884d544ff5b35ba5a9ab450f7128e1046b622548dc494f0d7ccef",
+    "source-ci-green.txt": "479e7f116312154128914e4868a5d6dab38a53ceb9b82f442d89e5c9e2ab3609",
+    "pi-native-runner.sh": "800a4fd58a97477ea81bd1bb9403f447d8887903b1a466d9206f64455c869947",
+    "right-arm-readonly-state.txt": "7f4ee52c6dea6a157b2840816721fbd5bc8df2432a532b19bc3c77eec6878571",
+    "right-arm-readonly-safety.txt": "a39fda9ac09ff4495cb96924f486496b3fe1827e034d320b99fa622ec5803623",
+    "batch32-mutation-baseline-davout-b18faf4.txt": "3ac6c23fa66661edf376eb7ff21510a9c3b79c4492c44594c96ea7e3cc735d3d",
+    "batch32-mutation-baseline-berthier-b18faf4.txt": "59c6e8a5dad47d1f0230c31c4263f9964d71ff80e956602a18c9de50f5c419ed",
+    "batch32-mutation-baseline-pi-b18faf4.txt": "f7ad026594a3f768fb0bbb779228741466e5224ede673acaacdbba80996833fa",
+    "batch32-mutation-cancel-lifecycle-b18faf4.txt": "c77cf24ebcf69429ce5ee7937a1474cc239e1971ff7b5c83ca533d750c2a9073",
+    "batch32-mutation-deadline-equality-b18faf4.txt": "7550d7ded5115e8dd27c4cfc1b1e394e94bbf535706abe88dcbb969561b4fbe8",
+    "batch32-mutation-float-zero-b18faf4.txt": "79d0fb32d9f7f2439644f21725b5dd519f492e9548665af589803b54fef98f28",
+    "batch32-mutation-missing-sql-commit-recheck-b18faf4.txt": "5dfd73c8edc857245439d4941d66b4131f8d0176c3d3859c61f796b58a36134b",
+    "batch32-mutation-credit-capacity-b18faf4.txt": "bafd9d23b95996f483ff1cda1477bb99090f55bdcc03f7062a17a2ec31af5831",
+    "batch32-mutation-completion-before-fresh-report-b18faf4.txt": "28e4a821f69aa26b64b8805fa5a945516bc987f7900dbdc0f85ff54944eea76d",
+    "batch32-mutation-cancelled-work-scheduling-b18faf4.txt": "42ae2c5e34494b22632d5104d21f97fe0e7e895edf30ff2b089de85532d102f2",
+    "batch32-mutation-wal-format-preflight-b18faf4.txt": "6b2c721177c2bce34f98f96fc299d0c5373e9d47ba7ba9ceb2ac395a3c59cb25",
+    "batch32-mutation-sidecar-independence-b18faf4.txt": "525b9a09b23c2e2e830bda68b75ee6c360b1052cd1b69d99d4dbbaead43bb645",
+    "batch32-mutation-counter-wrap-b18faf4.txt": "529e2534eb0779ba20362c6ba0a53eaa59c84b376180e155338ee2be442b5996",
+    "batch32-mutation-hardlink-independence-b18faf4.txt": "fba3fa083f336371848d1b6e44e1512f6a475203817c7f18ca0fb8b26a33c0e3",
+    "batch32-mutation-regular-resource-guard-b18faf4.txt": "7364b2d2e232eebcec00a9930ec585f8ccc932a3d5ef7ebf27f416f166eda4ca",
+    "batch32-mutation-unchanged-replay-davout-b18faf4.txt": "d0df9e675d32be133d6d69f2e00bbd467da5bb6d52034b62d68b15a48c31c56c",
+    "batch32-mutation-unchanged-replay-berthier-b18faf4.txt": "7c05752556871c2251811e0732c993b6aae6e042acf3a75451142dd4b7aaf69d",
+    "batch32-mutation-unchanged-replay-pi-b18faf4.txt": "b532c6591b927c482f3e2d811ce9425985a4aedce5d2621ad23eae4bab5e8e62",
+    "batch32-mutation-missing-sql-commit-b18faf4.txt": "a7c0b31a7f8c4500bb869c13f4f34ef956cd21da1507b84e46f278dba5f5bb1c",
+    "source-ci-receipt.json": "52618494dc35d13a3553657afbbef8c286138cfbe3087a0152e3a3dd952f9e3a",
+    "independent-production-reviews.md": "54d51bb7d5e431a3926a471614368ba08df5fecca7758bcdb0f8c2a79639bdfd"
+  },
+  "file_hash_format": "SHA256 of committed artifact bytes; text LF, presentation logs trim trailing horizontal whitespace and empty EOF lines; original raw capture hashes retained separately",
+  "raw_windows_log_sha256": {
+    "primary-green.txt": "98b9623aa406111e8e6b008322d014df450b7648fc4ccb3edf5c9113ccfa6908",
+    "pi-native-green.txt": "7775469aaf6dbcbd398d188d52a39c99f36fe5d5324c399f3ed3dbb728bcc0c2",
+    "pi-source-manifest.json": "d7448a7bb071c0ed876e93499bdeca653cec290730557b2ce416766fd9389f6e",
+    "frozen-probes.json": "fe654a55b685b21651bf07146a0241e011a75676ac72c13e61a03d7bcceb49fd",
+    "mutation-receipt.json": "841652eafb0a8d3528c9b88e721c31f8aaedfc96b88099a07be914bc4d9d2bc6",
+    "mutation-initial-oracle.json": "e496d09fa3e3a3259a0dc14ca06eb37fc91682af70fbf503d85e189a7455df06",
+    "mutation-runner.py": "a07d11ec17fb3595d5ebea245123bfe1a7d5b45e0a68cde443c478f001666bca",
+    "mutation-initial-runner.py": "ed31e70d7b363978a3bdfa66269be5a6e0a30e170382edd237570c497ea50390",
+    "resource-candidate-red.txt": "b20997366e4c58fe32e05f375d5cc19b4af62ce4caf9900b06a9418b0136ec54",
+    "namespace-candidate-red.txt": "c6c507c47a59034b4006cc3b0d37f0a0a980f1c932446d455b4caf5aa049bc66",
+    "hardlink-candidate-red.txt": "9f87a13f95dd19feaa3b5542756284d1b423b14ae62353e8947f1a4d4624a4ee",
+    "filetype-candidate-red.txt": "a9317c7d10435cae533aa71714997281d6d209910f8a882d651a2715f0a77eb4",
+    "source-ci-green.txt": "96f73f5c61fc49f54a0b8c1ff926d5d79304a2f9c71060da84d07d781a6bddc8",
+    "pi-native-runner.sh": "800a4fd58a97477ea81bd1bb9403f447d8887903b1a466d9206f64455c869947",
+    "right-arm-readonly-state.txt": "373918b806a2dcf6dc70e491ef6e1e2a7ed0eaf6c710a04a5d80bde03b5facc1",
+    "right-arm-readonly-safety.txt": "fba243f024619470072466c2c11bd0e88cd6614902b9f3e80bc31b58e703451f",
+    "batch32-mutation-baseline-davout-b18faf4.txt": "eef6cadd2feca3fa4e9734b646f06484469414203bd03cde71c825fc0c8e195f",
+    "batch32-mutation-baseline-berthier-b18faf4.txt": "dd7cfe714b0754afbb13986709aeefc7c1b3e07ddb4a6680af9be0f1db8c3e86",
+    "batch32-mutation-baseline-pi-b18faf4.txt": "69d813b8cc8d6da252b2ad43bfbffa3add46a2eeb1dd4825ac1ed3f55f894b94",
+    "batch32-mutation-cancel-lifecycle-b18faf4.txt": "f2d594457a4855744d9761e5c9f707d2223b5b486168947a3ef43b37de33a612",
+    "batch32-mutation-deadline-equality-b18faf4.txt": "73c437605600cbc1810503b440d90fbec988f6969111a2071cd4104dd5b520be",
+    "batch32-mutation-float-zero-b18faf4.txt": "bd625d4e3b8f51bd276aee098af1a92b3e3d086367b03971a72ce7c7775f9622",
+    "batch32-mutation-missing-sql-commit-recheck-b18faf4.txt": "d59e56373f996eb36de067cc5ec8eb8f9b52a9a49d5860714bb3cc86858a80c5",
+    "batch32-mutation-credit-capacity-b18faf4.txt": "b338bd8623a57060f1b6f0772fd78deb97b33f52ece7f3663b3ee2668ca3be37",
+    "batch32-mutation-completion-before-fresh-report-b18faf4.txt": "732400a66548ac517d57868c9bfab15bed44b995ab79ac7aab350079a9461f11",
+    "batch32-mutation-cancelled-work-scheduling-b18faf4.txt": "ab8c84cb1426d1c9c8dfa957c0b55db7b9cc2b68fe71018885fc0b27d131c4cd",
+    "batch32-mutation-wal-format-preflight-b18faf4.txt": "d1be4aa1b01c0072895b3476c32108cc89272b707dc8bd6f96798ed903162453",
+    "batch32-mutation-sidecar-independence-b18faf4.txt": "ed4e29e5628e047d1e4708d432e32f0a223ce2c6a753d12df5aa25d13b0e6135",
+    "batch32-mutation-counter-wrap-b18faf4.txt": "d35766e9e057344540123bfe2f0cf7c3644b9c565a7432f68d9dcbf3d16aaa3b",
+    "batch32-mutation-hardlink-independence-b18faf4.txt": "581a3ae21f685f280fdab17d2d1c3f3b38cbafe84f59c6e5756b58ab9cb992b2",
+    "batch32-mutation-regular-resource-guard-b18faf4.txt": "ddfa7e0af6d5bfd096551e4de0ed409787e9345ea9798102434d00a20b13ed97",
+    "batch32-mutation-unchanged-replay-davout-b18faf4.txt": "4ce11888403f8580a1b082c19b0466b41b3d4e5b1863099d1ac2eb0e700517a7",
+    "batch32-mutation-unchanged-replay-berthier-b18faf4.txt": "6abe49c6da61a3170e61d4632eb052f90886441498c08c717c083414ff1bb928",
+    "batch32-mutation-unchanged-replay-pi-b18faf4.txt": "fbe7db9d33623a26da9c6d9c43e968112847b7c5333e763645cf25b9777ec02c",
+    "batch32-mutation-missing-sql-commit-b18faf4.txt": "dae80afcabfb4cd0735826fd2d08596a48746167e9f2b7f4f2d752ff2bc0357f"
+  }
+}

@@ -1,0 +1,46 @@
+ Container marengo-dev-run-ea4f6edddafa Creating
+ Container marengo-dev-run-ea4f6edddafa Created
+   Compiling libc v0.2.186
+   Compiling davout v0.1.0 (/workspace/crates/davout)
+   Compiling getrandom v0.3.4
+   Compiling errno v0.3.14
+   Compiling parking_lot_core v0.9.12
+   Compiling getrandom v0.4.2
+   Compiling mio v1.2.0
+   Compiling socket2 v0.6.3
+   Compiling wait-timeout v0.2.1
+   Compiling signal-hook-registry v1.4.8
+   Compiling tempfile v3.27.0
+   Compiling rand_core v0.9.5
+   Compiling parking_lot v0.12.5
+   Compiling rand_xorshift v0.4.0
+   Compiling rand_chacha v0.9.0
+   Compiling rand v0.9.4
+   Compiling tokio v1.52.3
+   Compiling rusty-fork v0.3.1
+   Compiling proptest v1.11.0
+   Compiling chappe v0.1.0 (/workspace/crates/chappe)
+   Compiling berthier v0.1.0 (/workspace/crates/berthier)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 05s
+     Running unittests src/lib.rs (/mutant-target/debug/deps/berthier-3ad586166548302d)
+
+running 1 test
+test reference_journal_tests::cancelled_accepted_disk_work_still_advances_and_discards_new_unpermitted_intent ... FAILED
+
+failures:
+
+---- reference_journal_tests::cancelled_accepted_disk_work_still_advances_and_discards_new_unpermitted_intent stdout ----
+
+thread 'reference_journal_tests::cancelled_accepted_disk_work_still_advances_and_discards_new_unpermitted_intent' panicked at crates/berthier/src/reference_journal_tests.rs:226:5:
+assertion `left == right` failed
+  left: 0.5
+ right: 0.0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    reference_journal_tests::cancelled_accepted_disk_work_still_advances_and_discards_new_unpermitted_intent
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 163 filtered out; finished in 0.58s
+
+error: test failed, to rerun pass `-p berthier --lib`

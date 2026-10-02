@@ -1,6 +1,6 @@
 # ADR 0034: durable virtual reference history without motion permission
 
-Status: accepted, October 2, 2026. Implementation is under software qualification;
+Status: accepted, October 2, 2026. Software implementation qualified at b18faf4;
 this decision creates no physical capability.
 
 ## Context

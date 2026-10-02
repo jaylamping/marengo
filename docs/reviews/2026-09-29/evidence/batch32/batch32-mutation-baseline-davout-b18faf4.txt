@@ -1,0 +1,135 @@
+ Container marengo-dev-run-77cded471b7f Creating
+ Container marengo-dev-run-77cded471b7f Created
+   Compiling proc-macro2 v1.0.106
+   Compiling unicode-ident v1.0.24
+   Compiling quote v1.0.45
+   Compiling once_cell v1.21.4
+   Compiling version_check v0.9.5
+   Compiling cfg-if v1.0.4
+   Compiling log v0.4.29
+   Compiling anyhow v1.0.103
+   Compiling either v1.15.0
+   Compiling hashbrown v0.17.1
+   Compiling equivalent v1.0.2
+   Compiling memchr v2.8.0
+   Compiling libc v0.2.186
+   Compiling getrandom v0.4.2
+   Compiling serde_core v1.0.228
+   Compiling rustix v1.1.4
+   Compiling bytes v1.11.1
+   Compiling syn v1.0.109
+   Compiling regex-syntax v0.8.10
+   Compiling linux-raw-sys v0.12.1
+   Compiling bitflags v2.11.1
+   Compiling thiserror v1.0.69
+   Compiling xml-rs v0.8.28
+   Compiling prettyplease v0.2.37
+   Compiling heck v0.4.1
+   Compiling fixedbitset v0.5.7
+   Compiling zerocopy v0.8.48
+   Compiling serde v1.0.228
+   Compiling fastrand v2.4.1
+   Compiling heck v0.5.0
+   Compiling multimap v0.10.1
+   Compiling itertools v0.14.0
+   Compiling itoa v1.0.18
+   Compiling shlex v1.3.0
+   Compiling typenum v1.20.0
+   Compiling find-msvc-tools v0.1.9
+   Compiling aho-corasick v1.1.4
+   Compiling autocfg v1.5.0
+   Compiling pkg-config v0.3.33
+   Compiling ryu v1.0.23
+   Compiling vcpkg v0.2.15
+   Compiling indexmap v2.14.0
+   Compiling yaserde v0.8.0
+   Compiling unsafe-libyaml v0.2.11
+   Compiling generic-array v0.14.7
+   Compiling ahash v0.8.12
+   Compiling cc v1.2.62
+   Compiling zmij v1.0.21
+   Compiling regex-automata v0.4.14
+   Compiling tracing-core v0.1.36
+   Compiling serde_json v1.0.149
+   Compiling pin-project-lite v0.2.17
+   Compiling petgraph v0.7.1
+   Compiling num-traits v0.2.19
+   Compiling iana-time-zone v0.1.65
+   Compiling cpufeatures v0.2.17
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling fallible-iterator v0.3.0
+   Compiling regex v1.12.3
+   Compiling smallvec v1.15.1
+   Compiling same-file v1.0.6
+   Compiling libsqlite3-sys v0.30.1
+   Compiling syn v2.0.117
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling digest v0.10.7
+   Compiling sha2 v0.10.9
+   Compiling tempfile v3.27.0
+   Compiling chrono v0.4.44
+   Compiling yaserde_derive v0.8.0
+   Compiling hashbrown v0.14.5
+   Compiling hashlink v0.9.1
+   Compiling prost-derive v0.13.5
+   Compiling thiserror-impl v1.0.69
+   Compiling serde_derive v1.0.228
+   Compiling tracing-attributes v0.1.31
+   Compiling rusqlite v0.32.1
+   Compiling urdf-rs v0.8.0
+   Compiling armee-kinematics v0.1.0 (/workspace/crates/armee-kinematics)
+   Compiling tracing v0.1.44
+   Compiling prost v0.13.5
+   Compiling prost-types v0.13.5
+   Compiling serde_yaml v0.9.34+deprecated
+   Compiling prost-build v0.13.5
+   Compiling marengo-config v0.1.0 (/workspace/crates/marengo-config)
+   Compiling armee-proto v0.1.0 (/workspace/crates/armee-proto)
+   Compiling robstride v0.1.0 (/workspace/crates/robstride)
+   Compiling marengo-homing v0.1.0 (/workspace/crates/marengo-homing)
+   Compiling davout v0.1.0 (/workspace/crates/davout)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2m 02s
+     Running unittests src/lib.rs (/mutant-target/debug/deps/davout-101ef875fb5af0d3)
+
+running 34 tests
+test reference_codec::tests::canonical_map_order_and_full_input_validation_are_enforced ... ok
+test reference_codec::tests::scalar_tags_keep_exact_signed_zero_subnormal_and_integer_widths ... ok
+test reference_codec::tests::unsupported_nonfinite_and_bounded_data_fail_before_truncation ... ok
+test reference_commit::tests::completed_unconsumed_write_still_loses_to_one_fresh_bounded_fault_report ... ok
+test reference_commit::tests::exhausted_commit_identity_refuses_actual_stage_before_disk_admission ... ok
+test reference_commit::tests::foreign_commit_handle_cannot_consume_feedback_or_admit_neighbor_work ... ok
+test reference_journal::filetype_tests::named_pipe_child_helper ... ok
+test reference_journal::filetype_tests::named_pipe_resources_never_block_identity_preflight_or_legacy_loading ... ok
+test reference_journal::hardlink_tests::existing_database_refuses_history_linked_to_its_rollback_resource ... ok
+test reference_journal::hardlink_tests::other_sidecar_hardlinks_are_refused_before_worker_installation ... ok
+test reference_journal::namespace_tests::canonical_parent_alias_cannot_hide_a_missing_history_sidecar_slot ... ok
+test reference_journal::namespace_tests::preexisting_calibration_history_cannot_be_admitted_as_a_sqlite_sidecar ... ok
+test reference_journal::resource_tests::aliased_history_spellings_refuse_before_lazy_journal_installation ... ok
+test reference_journal::resource_tests::distinct_explicit_resources_keep_database_opening_lazy ... ok
+test reference_journal::resource_tests::wal_format_with_corrupt_history_is_preserved_by_actual_worker ... ok
+test reference_journal::resource_tests::wal_format_with_corrupt_history_is_preserved_by_inspection ... ok
+test reference_journal::tests::actual_sql_full_error_keeps_preexisting_history_and_refuses_success ... ok
+test reference_journal::tests::actual_sql_unsigned_key_equal_retry_and_conflicting_body_are_exact ... ok
+test reference_journal_tests::actual_sql_lock_is_failure_and_does_not_replace_or_overwrite_history ... ok
+test reference_journal_tests::all_eight_accepted_credits_survive_cancellation_and_cache_eviction ... ok
+test reference_journal_tests::controlled_child_death_before_and_after_real_commit_recovers_history_only ...
+running 1 test
+
+running 1 test
+ok
+test reference_journal_tests::controlled_crash_child ... ok
+test reference_journal_tests::corrupt_checksum_incompatible_schema_and_session_exhaustion_are_preserved ... ok
+test reference_journal_tests::corruption_and_blocked_parent_fail_without_replacing_existing_resources ... ok
+test reference_journal_tests::durable_history_is_real_readback_and_never_a_current_reference ... ok
+test reference_journal_tests::exact_urdf_optional_fields_and_policy_scalars_survive_real_sql_reopen ... ok
+test reference_journal_tests::fresh_report_fault_and_saturation_precede_consuming_a_real_completion ... ok
+test reference_journal_tests::late_real_write_does_not_rewrite_operator_cancellation_or_send_extra_stops ... ok
+test reference_journal_tests::ordinary_constructors_and_foreign_handles_never_gain_journal_capability ... ok
+test reference_journal_tests::queued_real_completion_loses_eligibility_at_deadline_equality ... ok
+test reference_journal_tests::restored_policy_bits_cannot_restore_observed_pending_eligibility ... ok
+test reference_journal_tests::worker_unwind_retains_uncertain_committed_job_and_failed_queued_neighbors ... ok
+test reference_model::model_install_boundary_tests::actual_model_restore_preserves_owner_on_stream_capacity_and_generation_refusal ... ok
+test reference_transaction::tests::exhausted_identity_and_virtual_time_refuse_before_revocation_or_tx ... ok
+
+test result: ok. 34 passed; 0 failed; 0 ignored; 0 measured; 64 filtered out; finished in 4.84s

@@ -15501,8 +15501,8 @@
     "open": 63
   },
   "next_dependency_ready_batch": {
-    "current": "WP04 R2b1 recoverable noncoalescing durable current-reference history, still no usable permission; then R2b2 current selected virtual grant.",
-    "following": "T01/T02 versioned release activation; T03 exact-generation identity.",
+    "current": "WP04 R2b2 current selected virtual grant after R2b1 delivery; then qualified physical reference and installed-owner clients for requested right-arm acceptance.",
+    "following": "T01/T02 versioned release activation; T03 exact-generation identity; supervised physical acceptance when all required prerequisites are qualified.",
     "human_input_blocker": null
   },
   "automation_status": "PAUSED",
@@ -15542,10 +15542,16 @@
       "CS07"
     ],
     "report": "batch32-reference-history-journal.md",
-    "status": "R2b1 implementation under qualification. Focused compile/clippy and all changed-crate tests pass. Frozen mutants, independent reviews, primary/CI and native Pi qualification pending; no finding closure or physical acceptance. Batch31 delivery complete.",
+    "status": "R2b1 software qualified: full primary and native Pi 861 Rust/1 existing ignored,374 Consul; all1769 staged inputs unchanged;12 frozen mutants and independent Standards/Spec clear; source CI all five passed. Final documentation-head/main delivery pending. CS05/CS06/CS07 remain partial; no physical acceptance.",
     "physical_acceptance": false,
     "owner_scope": "Personally owned robot/repository/Pi; isolated fixtures. Explicit confirmation and commissioning checks before every movement. Ten-minute silence leaves movement pending and allows independent work only.",
     "pi_installed_revision": "4bc77ba605834fdec04b436daa4bec67bca84fbb",
-    "prior_delivery": "evidence/batch31/delivery-receipt.json"
+    "prior_delivery": "evidence/batch31/delivery-receipt.json",
+    "source": "b18faf486073b7311a029761792be171dac457ef",
+    "pr": "https://github.com/jaylamping/marengo/pull/246",
+    "qualification": "evidence/batch32/final-source-qualification.json",
+    "source_CI": 36987033671,
+    "next": "WP04 R2b2 current selected virtual grant, then required installed-owner/physical-reference prerequisites for right-arm acceptance",
+    "right_arm_acceptance": "Owner present, arm resting at gravity home only. Read-only installed snapshot Disabled; legacy Verified flags do not establish repaired reference. Support and live reference remain unestablished. Propose a bounded single-joint test only after prerequisites; explicit confirmation per movement."
   }
 }

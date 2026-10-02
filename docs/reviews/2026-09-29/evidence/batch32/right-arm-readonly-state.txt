@@ -1,0 +1,11 @@
+timestamp_ms: 1790932483607
+  name: "right_shoulder_pitch"
+  homing_state: JOINT_HOMING_STATE_VERIFIED
+  name: "right_shoulder_roll"
+  homing_state: JOINT_HOMING_STATE_VERIFIED
+  name: "right_upper_arm_yaw"
+  homing_state: JOINT_HOMING_STATE_VERIFIED
+  name: "right_elbow_pitch"
+  homing_state: JOINT_HOMING_STATE_VERIFIED
+  name: "right_lower_arm_yaw"
+  homing_state: JOINT_HOMING_STATE_VERIFIED

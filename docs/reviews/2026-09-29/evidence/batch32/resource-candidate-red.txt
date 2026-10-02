@@ -1,0 +1,39 @@
+ Container marengo-dev-run-950be4112ffc Creating
+ Container marengo-dev-run-950be4112ffc Created
+   Compiling davout v0.1.0 (/workspace/crates/davout)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.43s
+     Running unittests src/lib.rs (target/debug/deps/davout-f35cbf1acd69e7e5)
+
+running 4 tests
+test reference_journal::resource_tests::aliased_history_spellings_refuse_before_lazy_journal_installation ... FAILED
+test reference_journal::resource_tests::distinct_explicit_resources_keep_database_opening_lazy ... ok
+test reference_journal::resource_tests::wal_format_with_corrupt_history_is_preserved_by_actual_worker ... FAILED
+test reference_journal::resource_tests::wal_format_with_corrupt_history_is_preserved_by_inspection ... FAILED
+
+failures:
+
+---- reference_journal::resource_tests::aliased_history_spellings_refuse_before_lazy_journal_installation stdout ----
+
+thread 'reference_journal::resource_tests::aliased_history_spellings_refuse_before_lazy_journal_installation' panicked at crates/davout/src/reference_journal_resource_tests.rs:62:5:
+relative and absolute paths share one slot
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- reference_journal::resource_tests::wal_format_with_corrupt_history_is_preserved_by_actual_worker stdout ----
+
+thread 'reference_journal::resource_tests::wal_format_with_corrupt_history_is_preserved_by_actual_worker' panicked at crates/davout/src/reference_journal_resource_tests.rs:134:9:
+incompatible database bytes changed
+
+---- reference_journal::resource_tests::wal_format_with_corrupt_history_is_preserved_by_inspection stdout ----
+
+thread 'reference_journal::resource_tests::wal_format_with_corrupt_history_is_preserved_by_inspection' panicked at crates/davout/src/reference_journal_resource_tests.rs:134:9:
+incompatible database bytes changed
+
+
+failures:
+    reference_journal::resource_tests::aliased_history_spellings_refuse_before_lazy_journal_installation
+    reference_journal::resource_tests::wal_format_with_corrupt_history_is_preserved_by_actual_worker
+    reference_journal::resource_tests::wal_format_with_corrupt_history_is_preserved_by_inspection
+
+test result: FAILED. 1 passed; 3 failed; 0 ignored; 0 measured; 85 filtered out; finished in 0.96s
+
+error: test failed, to rerun pass `-p davout --lib`

@@ -1,3 +1,30 @@
+## Latest Windows continuation: batch32 software qualified, October 2
+
+Qualified source b18faf486073b7311a029761792be171dac457ef, baseline df468496eae0b3c30104874c3bc2b6ad218ec827; PR246 is
+the delivery candidate. Primary and native Pi pass 861 Rust tests, one existing
+ignored and 374 Consul tests. Primary fatal ARM passes; all1769 staged native
+inputs are unchanged. Source CI36987033671 passes all five jobs. Twelve frozen
+production mutants fail their compiled exact oracles and unmodified replay is
+green. Ten new/sixteen prior probe files are unchanged. Independent source
+Standards/Spec clear. Final documentation-head/equal-tree main CI pending.
+See batch32-reference-history-journal.md and evidence/batch32/final-source-qualification.json.
+
+R2b1 provides durable closed virtual history only. Acquisition terminals remain
+immutable CommitUnavailable; durable rows never grant output. Next R2b2 current
+selected virtual grant, then qualified physical reference/installed-owner work
+needed for requested right-arm acceptance. All102 IDs/eight maintenance tasks
+retain26 verified,13 partial,63 open; CS05/CS06/CS07 remain partial.
+
+Owner requested right-arm movement validation and is present, reporting gravity
+home only. Read-only Pi safety reports Disabled; legacy Verified flags are not a
+repaired current reference. Support/live reference/E-stop/recovery acceptance
+remain unestablished. Installed Pi4bc77ba/services unchanged. No install, sudo,
+restart, physical CAN operation or motor movement. Prompt before every movement
+with specific bounds/stop procedure; explicit reply plus commissioning required.
+Ten-minute silence leaves movement pending and allows independent work only.
+Preserve limits, Wave sign-off, paused automation, CAD, branches and worktrees.
+All earlier handoff bytes below are historical and preserved unchanged.
+
 ## Latest Windows continuation: batch32 implementation under qualification, October 2
 
 R2b1 now has a private owner-bound producer, exact typed policy/URDF codec,

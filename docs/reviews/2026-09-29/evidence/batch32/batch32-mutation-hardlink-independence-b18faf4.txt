@@ -1,0 +1,24 @@
+ Container marengo-dev-run-13df3d74504d Creating
+ Container marengo-dev-run-13df3d74504d Created
+   Compiling davout v0.1.0 (/workspace/crates/davout)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 00s
+     Running unittests src/lib.rs (/mutant-target/debug/deps/davout-101ef875fb5af0d3)
+
+running 1 test
+test reference_journal::hardlink_tests::existing_database_refuses_history_linked_to_its_rollback_resource ... FAILED
+
+failures:
+
+---- reference_journal::hardlink_tests::existing_database_refuses_history_linked_to_its_rollback_resource stdout ----
+
+thread 'reference_journal::hardlink_tests::existing_database_refuses_history_linked_to_its_rollback_resource' panicked at crates/davout/src/reference_journal_hardlink_tests.rs:77:5:
+shared inode admitted; real legacy bytes preserved=true; actual write=Some(DurableHistory { diagnostic_session: 2, job_sequence: 2, checksum: [76, 124, 73, 203, 92, 84, 167, 46, 121, 154, 180, 178, 131, 1, 48, 93, 220, 84, 197, 242, 145, 193, 139, 66, 9, 83, 85, 189, 129, 125, 3, 185] })
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    reference_journal::hardlink_tests::existing_database_refuses_history_linked_to_its_rollback_resource
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 97 filtered out; finished in 0.32s
+
+error: test failed, to rerun pass `-p davout --lib`

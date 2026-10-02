@@ -1,0 +1,25 @@
+ Container marengo-dev-run-1c477d76d1af Creating
+ Container marengo-dev-run-1c477d76d1af Created
+   Compiling davout v0.1.0 (/workspace/crates/davout)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.55s
+     Running unittests src/lib.rs (target/debug/deps/davout-101ef875fb5af0d3)
+
+running 2 tests
+test reference_journal::filetype_tests::named_pipe_child_helper ... ok
+test reference_journal::filetype_tests::named_pipe_resources_never_block_identity_preflight_or_legacy_loading ... FAILED
+
+failures:
+
+---- reference_journal::filetype_tests::named_pipe_resources_never_block_identity_preflight_or_legacy_loading stdout ----
+
+thread 'reference_journal::filetype_tests::named_pipe_resources_never_block_identity_preflight_or_legacy_loading' panicked at crates/davout/src/reference_journal_filetype_tests.rs:54:9:
+construction blocked at owned named-pipe slot ""; child reaped
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    reference_journal::filetype_tests::named_pipe_resources_never_block_identity_preflight_or_legacy_loading
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 96 filtered out; finished in 3.03s
+
+error: test failed, to rerun pass `-p davout --lib`

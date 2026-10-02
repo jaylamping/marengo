@@ -1,0 +1,43 @@
+ Container marengo-dev-run-3007436762d2 Creating
+ Container marengo-dev-run-3007436762d2 Created
+   Compiling rustix v1.1.4
+   Compiling getrandom v0.4.2
+   Compiling num-traits v0.2.19
+   Compiling yaserde_derive v0.8.0
+   Compiling prost v0.13.5
+   Compiling tracing v0.1.44
+   Compiling rusqlite v0.32.1
+   Compiling prost-types v0.13.5
+   Compiling chrono v0.4.44
+   Compiling tempfile v3.27.0
+   Compiling prost-build v0.13.5
+   Compiling armee-proto v0.1.0 (/workspace/crates/armee-proto)
+   Compiling urdf-rs v0.8.0
+   Compiling armee-kinematics v0.1.0 (/workspace/crates/armee-kinematics)
+   Compiling marengo-config v0.1.0 (/workspace/crates/marengo-config)
+   Compiling robstride v0.1.0 (/workspace/crates/robstride)
+   Compiling marengo-homing v0.1.0 (/workspace/crates/marengo-homing)
+   Compiling davout v0.1.0 (/workspace/crates/davout)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2m 14s
+     Running unittests src/lib.rs (/mutant-target/debug/deps/davout-101ef875fb5af0d3)
+
+running 1 test
+test reference_journal_tests::late_real_write_does_not_rewrite_operator_cancellation_or_send_extra_stops ... FAILED
+
+failures:
+
+---- reference_journal_tests::late_real_write_does_not_rewrite_operator_cancellation_or_send_extra_stops stdout ----
+
+thread 'reference_journal_tests::late_real_write_does_not_rewrite_operator_cancellation_or_send_extra_stops' panicked at crates/davout/src/reference_journal_tests.rs:315:5:
+assertion `left == right` failed
+  left: Complete
+ right: Cancelled(Operator)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    reference_journal_tests::late_real_write_does_not_rewrite_operator_cancellation_or_send_extra_stops
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 97 filtered out; finished in 0.33s
+
+error: test failed, to rerun pass `-p davout --lib`

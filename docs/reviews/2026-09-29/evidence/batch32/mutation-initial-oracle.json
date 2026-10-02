@@ -1,0 +1,318 @@
+{
+  "source": "b18faf486073b7311a029761792be171dac457ef",
+  "runs": [
+    {
+      "name": "baseline-davout",
+      "source": "b18faf486073b7311a029761792be171dac457ef",
+      "command": [
+        "docker",
+        "compose",
+        "-p",
+        "marengo",
+        "run",
+        "--rm",
+        "-v",
+        "J:/code/marengo-migration-backup-20260929/batch32-mutant-target-b18faf4:/mutant-target",
+        "-e",
+        "CARGO_TARGET_DIR=/mutant-target",
+        "dev",
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "davout",
+        "--lib",
+        "reference_",
+        "--",
+        "--test-threads=1"
+      ],
+      "exit": 0,
+      "expected_behavioral_failure": false,
+      "valid": true,
+      "outcomes": [
+        [
+          "ok",
+          "34",
+          "0",
+          "0"
+        ]
+      ],
+      "log": "batch32-mutation-baseline-davout-b18faf4.txt",
+      "log_sha256": "eef6cadd2feca3fa4e9734b646f06484469414203bd03cde71c825fc0c8e195f",
+      "mutation": null,
+      "frozen_probe_files": 10
+    },
+    {
+      "name": "baseline-berthier",
+      "source": "b18faf486073b7311a029761792be171dac457ef",
+      "command": [
+        "docker",
+        "compose",
+        "-p",
+        "marengo",
+        "run",
+        "--rm",
+        "-v",
+        "J:/code/marengo-migration-backup-20260929/batch32-mutant-target-b18faf4:/mutant-target",
+        "-e",
+        "CARGO_TARGET_DIR=/mutant-target",
+        "dev",
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "berthier",
+        "--lib",
+        "reference_journal_tests",
+        "--",
+        "--test-threads=1"
+      ],
+      "exit": 0,
+      "expected_behavioral_failure": false,
+      "valid": true,
+      "outcomes": [
+        [
+          "ok",
+          "2",
+          "0",
+          "0"
+        ]
+      ],
+      "log": "batch32-mutation-baseline-berthier-b18faf4.txt",
+      "log_sha256": "dd7cfe714b0754afbb13986709aeefc7c1b3e07ddb4a6680af9be0f1db8c3e86",
+      "mutation": null,
+      "frozen_probe_files": 10
+    },
+    {
+      "name": "baseline-pi",
+      "source": "b18faf486073b7311a029761792be171dac457ef",
+      "command": [
+        "docker",
+        "compose",
+        "-p",
+        "marengo",
+        "run",
+        "--rm",
+        "-v",
+        "J:/code/marengo-migration-backup-20260929/batch32-mutant-target-b18faf4:/mutant-target",
+        "-e",
+        "CARGO_TARGET_DIR=/mutant-target",
+        "dev",
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "marengo-pi",
+        "--bin",
+        "marengo-pi",
+        "reference_journal_shutdown_tests",
+        "--",
+        "--test-threads=1"
+      ],
+      "exit": 0,
+      "expected_behavioral_failure": false,
+      "valid": true,
+      "outcomes": [
+        [
+          "ok",
+          "1",
+          "0",
+          "0"
+        ]
+      ],
+      "log": "batch32-mutation-baseline-pi-b18faf4.txt",
+      "log_sha256": "69d813b8cc8d6da252b2ad43bfbffa3add46a2eeb1dd4825ac1ed3f55f894b94",
+      "mutation": null,
+      "frozen_probe_files": 10
+    },
+    {
+      "name": "cancel-lifecycle",
+      "source": "b18faf486073b7311a029761792be171dac457ef",
+      "command": [
+        "docker",
+        "compose",
+        "-p",
+        "marengo",
+        "run",
+        "--rm",
+        "-v",
+        "J:/code/marengo-migration-backup-20260929/batch32-mutant-target-b18faf4:/mutant-target",
+        "-e",
+        "CARGO_TARGET_DIR=/mutant-target",
+        "dev",
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "davout",
+        "--lib",
+        "reference_journal_tests::late_real_write_does_not_rewrite_operator_cancellation_or_send_extra_stops",
+        "--",
+        "--test-threads=1",
+        "--exact"
+      ],
+      "exit": 101,
+      "expected_behavioral_failure": true,
+      "valid": true,
+      "outcomes": [
+        [
+          "FAILED",
+          "0",
+          "1",
+          "0"
+        ]
+      ],
+      "log": "batch32-mutation-cancel-lifecycle-b18faf4.txt",
+      "log_sha256": "f2d594457a4855744d9761e5c9f707d2223b5b486168947a3ef43b37de33a612",
+      "mutation": {
+        "path": "crates/davout/src/reference_commit.rs",
+        "before_sha256": "5162dc7ec788fc94bde5b52b3bf68d857de64d188a377328dcef7606c85d4ae8",
+        "after_sha256": "dec981cebe4784f44c66b839bca7f6731113a679549f07701faef1c73571a337",
+        "replacement_count": 1
+      },
+      "frozen_probe_files": 10
+    },
+    {
+      "name": "deadline-equality",
+      "source": "b18faf486073b7311a029761792be171dac457ef",
+      "command": [
+        "docker",
+        "compose",
+        "-p",
+        "marengo",
+        "run",
+        "--rm",
+        "-v",
+        "J:/code/marengo-migration-backup-20260929/batch32-mutant-target-b18faf4:/mutant-target",
+        "-e",
+        "CARGO_TARGET_DIR=/mutant-target",
+        "dev",
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "davout",
+        "--lib",
+        "reference_journal_tests::queued_real_completion_loses_eligibility_at_deadline_equality",
+        "--",
+        "--test-threads=1",
+        "--exact"
+      ],
+      "exit": 101,
+      "expected_behavioral_failure": true,
+      "valid": true,
+      "outcomes": [
+        [
+          "FAILED",
+          "0",
+          "1",
+          "0"
+        ]
+      ],
+      "log": "batch32-mutation-deadline-equality-b18faf4.txt",
+      "log_sha256": "73c437605600cbc1810503b440d90fbec988f6969111a2071cd4104dd5b520be",
+      "mutation": {
+        "path": "crates/davout/src/reference_transaction.rs",
+        "before_sha256": "6fd861d3b5a0ccc8e4a9b69f0cadf0333dc1b5417cb03a26261bcbc7af495f0b",
+        "after_sha256": "adbd61b979a9c26d3d65ec907e287468296d1938865d3a0d3264c3fb4e9db921",
+        "replacement_count": 1
+      },
+      "frozen_probe_files": 10
+    },
+    {
+      "name": "float-zero",
+      "source": "b18faf486073b7311a029761792be171dac457ef",
+      "command": [
+        "docker",
+        "compose",
+        "-p",
+        "marengo",
+        "run",
+        "--rm",
+        "-v",
+        "J:/code/marengo-migration-backup-20260929/batch32-mutant-target-b18faf4:/mutant-target",
+        "-e",
+        "CARGO_TARGET_DIR=/mutant-target",
+        "dev",
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "davout",
+        "--lib",
+        "reference_codec::tests::scalar_tags_keep_exact_signed_zero_subnormal_and_integer_widths",
+        "--",
+        "--test-threads=1",
+        "--exact"
+      ],
+      "exit": 101,
+      "expected_behavioral_failure": true,
+      "valid": true,
+      "outcomes": [
+        [
+          "FAILED",
+          "0",
+          "1",
+          "0"
+        ]
+      ],
+      "log": "batch32-mutation-float-zero-b18faf4.txt",
+      "log_sha256": "bd625d4e3b8f51bd276aee098af1a92b3e3d086367b03971a72ce7c7775f9622",
+      "mutation": {
+        "path": "crates/davout/src/reference_codec.rs",
+        "before_sha256": "9ede3c2674d7811ce06ff618c0fa1bea3ae15bbd2d6ee0ef712387225889404f",
+        "after_sha256": "1e955d16739b1eed84b5afae8a2fcac61bfcf0f8db36ca1e315e94455c3d8b95",
+        "replacement_count": 1
+      },
+      "frozen_probe_files": 10
+    },
+    {
+      "name": "missing-sql-commit",
+      "source": "b18faf486073b7311a029761792be171dac457ef",
+      "command": [
+        "docker",
+        "compose",
+        "-p",
+        "marengo",
+        "run",
+        "--rm",
+        "-v",
+        "J:/code/marengo-migration-backup-20260929/batch32-mutant-target-b18faf4:/mutant-target",
+        "-e",
+        "CARGO_TARGET_DIR=/mutant-target",
+        "dev",
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "davout",
+        "--lib",
+        "reference_journal_tests::controlled_child_death_before_and_after_real_commit_recovers_history_only",
+        "--",
+        "--test-threads=1",
+        "--exact"
+      ],
+      "exit": 101,
+      "expected_behavioral_failure": true,
+      "valid": false,
+      "outcomes": [
+        [
+          "FAILED",
+          "0",
+          "1",
+          "0"
+        ]
+      ],
+      "log": "batch32-mutation-missing-sql-commit-b18faf4.txt",
+      "log_sha256": "dae80afcabfb4cd0735826fd2d08596a48746167e9f2b7f4f2d752ff2bc0357f",
+      "mutation": {
+        "path": "crates/davout/src/reference_journal.rs",
+        "before_sha256": "712036128fe538716f5670d4763c73c27e04ce15fb2ec81185083189195e356b",
+        "after_sha256": "2f6c57792eb7c893b318f092f72d1080291ba8ef393d1b2f566b75db11633736",
+        "replacement_count": 1
+      },
+      "frozen_probe_files": 10
+    }
+  ],
+  "log_sha256_format": "SHA256 of raw capture bytes; committed presentation logs use LF and trim trailing horizontal whitespace and empty EOF lines. Their hashes are in final-source-qualification.json files; original hashes are in raw_windows_log_sha256."
+}

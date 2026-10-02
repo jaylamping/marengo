@@ -1,0 +1,30 @@
+ Container marengo-dev-run-992bf90f416c Creating
+ Container marengo-dev-run-992bf90f416c Created
+   Compiling davout v0.1.0 (/workspace/crates/davout)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.45s
+     Running unittests src/lib.rs (target/debug/deps/davout-f35cbf1acd69e7e5)
+
+running 2 tests
+test reference_journal::hardlink_tests::existing_database_refuses_history_linked_to_its_rollback_resource ... FAILED
+error: test failed, to rerun pass `-p davout --lib`
+test reference_journal::hardlink_tests::other_sidecar_hardlinks_are_refused_before_worker_installation ... FAILED
+
+failures:
+
+---- reference_journal::hardlink_tests::existing_database_refuses_history_linked_to_its_rollback_resource stdout ----
+
+thread 'reference_journal::hardlink_tests::existing_database_refuses_history_linked_to_its_rollback_resource' panicked at crates/davout/src/reference_journal_hardlink_tests.rs:53:5:
+shared inode admitted; real legacy bytes preserved=true; actual write=Some(DurableHistory { diagnostic_session: 2, job_sequence: 2, checksum: [76, 124, 73, 203, 92, 84, 167, 46, 121, 154, 180, 178, 131, 1, 48, 93, 220, 84, 197, 242, 145, 193, 139, 66, 9, 83, 85, 189, 129, 125, 3, 185] })
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- reference_journal::hardlink_tests::other_sidecar_hardlinks_are_refused_before_worker_installation stdout ----
+
+thread 'reference_journal::hardlink_tests::other_sidecar_hardlinks_are_refused_before_worker_installation' panicked at crates/davout/src/reference_journal_hardlink_tests.rs:79:9:
+hard-linked -wal must refuse before worker installation
+
+
+failures:
+    reference_journal::hardlink_tests::existing_database_refuses_history_linked_to_its_rollback_resource
+    reference_journal::hardlink_tests::other_sidecar_hardlinks_are_refused_before_worker_installation
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 94 filtered out; finished in 0.18s

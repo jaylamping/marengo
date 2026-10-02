@@ -1,0 +1,26 @@
+ Container marengo-dev-run-e1e8b92e0920 Creating
+ Container marengo-dev-run-e1e8b92e0920 Created
+   Compiling davout v0.1.0 (/workspace/crates/davout)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 18s
+     Running unittests src/lib.rs (/mutant-target/debug/deps/davout-101ef875fb5af0d3)
+
+running 1 test
+test reference_commit::tests::completed_unconsumed_write_still_loses_to_one_fresh_bounded_fault_report ... FAILED
+
+failures:
+
+---- reference_commit::tests::completed_unconsumed_write_still_loses_to_one_fresh_bounded_fault_report stdout ----
+
+thread 'reference_commit::tests::completed_unconsumed_write_still_loses_to_one_fresh_bounded_fault_report' panicked at crates/davout/src/reference_commit_tests.rs:179:5:
+assertion `left == right` failed
+  left: Complete
+ right: Invalidated(SafetyHazard)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    reference_commit::tests::completed_unconsumed_write_still_loses_to_one_fresh_bounded_fault_report
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 97 filtered out; finished in 0.09s
+
+error: test failed, to rerun pass `-p davout --lib`

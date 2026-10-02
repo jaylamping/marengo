@@ -1,0 +1,26 @@
+ Container marengo-dev-run-5f023c762cfb Creating
+ Container marengo-dev-run-5f023c762cfb Created
+   Compiling libc v0.2.186
+   Compiling nix v0.31.3
+   Compiling marengo-host-metrics v0.1.0 (/workspace/crates/marengo-host-metrics)
+   Compiling signal-hook v0.3.18
+   Compiling errno v0.3.14
+   Compiling parking_lot_core v0.9.12
+   Compiling socket2 v0.6.3
+   Compiling mio v1.2.0
+   Compiling getrandom v0.4.2
+   Compiling signal-hook-registry v1.4.8
+   Compiling tempfile v3.27.0
+   Compiling parking_lot v0.12.5
+   Compiling ctrlc v3.5.2
+   Compiling tokio v1.52.3
+   Compiling chappe v0.1.0 (/workspace/crates/chappe)
+   Compiling berthier v0.1.0 (/workspace/crates/berthier)
+   Compiling marengo-pi v0.1.0 (/workspace/bins/marengo-pi)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 27s
+     Running unittests src/main.rs (/mutant-target/debug/deps/marengo_pi-d1290116ffd1a88d)
+
+running 1 test
+test reference_journal_shutdown_tests::both_writers_share_one_shutdown_budget_after_the_required_stop ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 32 filtered out; finished in 1.26s

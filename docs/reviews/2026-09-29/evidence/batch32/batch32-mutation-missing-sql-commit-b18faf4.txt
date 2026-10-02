@@ -1,0 +1,30 @@
+ Container marengo-dev-run-2f39fb07540a Creating
+ Container marengo-dev-run-2f39fb07540a Created
+   Compiling davout v0.1.0 (/workspace/crates/davout)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 04s
+     Running unittests src/lib.rs (/mutant-target/debug/deps/davout-101ef875fb5af0d3)
+
+running 1 test
+test reference_journal_tests::controlled_child_death_before_and_after_real_commit_recovers_history_only ...
+running 1 test
+
+running 1 test
+FAILED
+
+failures:
+
+---- reference_journal_tests::controlled_child_death_before_and_after_real_commit_recovers_history_only stdout ----
+
+thread 'reference_journal_tests::controlled_child_death_before_and_after_real_commit_recovers_history_only' panicked at crates/davout/src/reference_journal_tests.rs:934:9:
+assertion `left == right` failed
+  left: 0
+ right: 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    reference_journal_tests::controlled_child_death_before_and_after_real_commit_recovers_history_only
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 97 filtered out; finished in 0.44s
+
+error: test failed, to rerun pass `-p davout --lib`
