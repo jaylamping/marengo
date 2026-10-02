@@ -20,6 +20,10 @@ history object, public snapshot or startup never authorizes motion.
 
 Only a specialized Unreferenced SimulationBus factory and matching ControlLoop
 factory install a journal using explicit independent history/journal paths.
+Resolve existing path ancestors before construction, refuse shared slots and
+case-only aliases, and pin relative history paths to their original absolute
+spelling. This preflight creates neither resource; the journal's existing
+symlink/resource checks still run on its supplied spelling at lazy open.
 Generic, physical and existing INITIAL constructors keep no journal I/O. The
 worker opens lazily after accepted work; default owner shutdown remains a no-op
 for absent journals. No public writer callback, evidence/completion constructor,
@@ -68,6 +72,9 @@ Complete independent numeric/field coverage precedes software qualification.
 Use pinned rusqlite on a separate explicitly owned database. Refuse symlinked,
 oversized, corrupt or incompatible resources without recreating them. Preserve
 legitimate hot journals for SQLite recovery. Verify exact schema and pragmas;
+reject incompatible persistent journal-format header versions through a bounded
+read before SQLite can change a mode or create WAL sidecars. Supported rollback
+files still let SQLite perform legitimate hot-journal recovery.
 use DELETE journal, synchronous EXTRA, EXCLUSIVE locking after actual exclusive
 access, zero busy timeout, 4096-byte pages and at most 16384 pages/4096 events.
 Bound cache, SQL/blob lengths and rollback work separately. Disable cache spills
@@ -86,6 +93,8 @@ SQLite's EXTRA adds DELETE-journal directory synchronization; its durability
 still depends on VFS/filesystem/media behavior.
 [SQLite pragmas](https://www.sqlite.org/pragma.html#pragma_synchronous),
 [atomic commit assumptions](https://www.sqlite.org/atomiccommit.html).
+The read/write format versions are defined by the
+[SQLite file format](https://www.sqlite.org/fileformat.html#file_format_version_numbers).
 
 Each explicit commit advance first performs the shared ordered disabled receive
 drain, limited to 64 raw frames and 256 attempts. Whole-report hazards and the

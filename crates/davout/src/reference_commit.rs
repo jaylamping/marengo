@@ -427,3 +427,7 @@ impl<B: MotorBus> Supervisor<B> {
             })
     }
 }
+
+#[cfg(test)]
+#[path = "reference_commit_tests.rs"]
+mod tests;

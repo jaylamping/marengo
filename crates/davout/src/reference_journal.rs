@@ -2,6 +2,7 @@
 
 use std::collections::VecDeque;
 use std::fs::{self, OpenOptions};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 use std::thread::{self, JoinHandle};
@@ -183,14 +184,7 @@ impl Journal {
             test_support::WorkerPause,
         >,
     ) -> Result<Self, ReferenceJournalError> {
-        if !path.is_absolute()
-            || path.as_os_str().as_encoded_bytes().len() > 4096
-            || path
-                .components()
-                .any(|part| matches!(part, std::path::Component::ParentDir))
-        {
-            return Err(error("explicit absolute journal path required"));
-        }
+        checked_absolute_path(&path)?;
         let shared = Arc::new(Shared {
             state: Mutex::new(State::default()),
             changed: Condvar::new(),
@@ -414,10 +408,7 @@ fn worker_loop(
     }
 }
 
-fn checked_resource(
-    path: &Path,
-    allow_create: bool,
-) -> Result<(PathBuf, bool), ReferenceJournalError> {
+fn checked_absolute_path(path: &Path) -> Result<(), ReferenceJournalError> {
     if !path.is_absolute()
         || path.as_os_str().as_encoded_bytes().len() > 4096
         || path
@@ -426,6 +417,69 @@ fn checked_resource(
     {
         return Err(error("explicit absolute journal path required"));
     }
+    Ok(())
+}
+
+/// Resolve existing ancestors without creating either explicitly supplied resource.
+/// Retain the history's absolute spelling so later work cannot reinterpret its cwd.
+pub(super) fn distinct_history_path(
+    history: &Path,
+    journal: &Path,
+) -> Result<PathBuf, ReferenceJournalError> {
+    checked_absolute_path(journal)?;
+    let history = if history.is_absolute() {
+        history.to_owned()
+    } else {
+        std::env::current_dir().map_err(error)?.join(history)
+    };
+    if history.as_os_str().as_encoded_bytes().len() > 4096 {
+        return Err(error("bounded explicit history path required"));
+    }
+    let history_slot = canonical_slot(&history)?;
+    let journal_slot = canonical_slot(journal)?;
+    // Conservatively refuse case-only spellings too, including on platforms
+    // where distinct missing names would resolve to one case-insensitive slot.
+    if history_slot == journal_slot
+        || history_slot.as_os_str().to_string_lossy().to_lowercase()
+            == journal_slot.as_os_str().to_string_lossy().to_lowercase()
+    {
+        return Err(error("history and journal paths must be distinct"));
+    }
+    Ok(history)
+}
+
+fn canonical_slot(path: &Path) -> Result<PathBuf, ReferenceJournalError> {
+    let mut ancestor = path;
+    let mut missing = Vec::new();
+    loop {
+        match ancestor.canonicalize() {
+            Ok(mut resolved) => {
+                for filename in missing.into_iter().rev() {
+                    resolved.push(filename);
+                }
+                return Ok(resolved);
+            }
+            Err(cause) if cause.kind() == std::io::ErrorKind::NotFound => {
+                missing.push(
+                    ancestor
+                        .file_name()
+                        .ok_or_else(|| error("resource ancestor cannot be resolved"))?
+                        .to_os_string(),
+                );
+                ancestor = ancestor
+                    .parent()
+                    .ok_or_else(|| error("resource parent absent"))?;
+            }
+            Err(cause) => return Err(error(cause)),
+        }
+    }
+}
+
+fn checked_resource(
+    path: &Path,
+    allow_create: bool,
+) -> Result<(PathBuf, bool), ReferenceJournalError> {
+    checked_absolute_path(path)?;
     let parent = path
         .parent()
         .ok_or_else(|| error("journal parent absent"))?;
@@ -493,6 +547,19 @@ impl Database {
         allocate_session: bool,
     ) -> Result<Self, ReferenceJournalError> {
         let (path, created) = checked_resource(path, allow_create)?;
+        if !created {
+            // SQLite can create WAL sidecars or change persistent mode while
+            // opening/querying an incompatible database. Refuse its format
+            // using only a bounded file read before giving SQLite the path.
+            let mut header = [0_u8; 20];
+            fs::File::open(&path)
+                .map_err(error)?
+                .read_exact(&mut header)
+                .map_err(error)?;
+            if &header[..16] != b"SQLite format 3\0" || header[18..20] != [1, 1] {
+                return Err(error("unsupported existing journal format"));
+            }
+        }
         let mut connection = Connection::open_with_flags(
             path,
             OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX,
@@ -974,3 +1041,7 @@ pub(super) mod test_support {
 #[cfg(test)]
 #[path = "reference_journal_storage_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "reference_journal_resource_tests.rs"]
+mod resource_tests;

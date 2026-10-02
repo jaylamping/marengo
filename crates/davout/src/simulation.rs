@@ -717,15 +717,16 @@ impl Supervisor<SimulationBus> {
             crate::reference_journal::test_support::WorkerPause,
         >,
     ) -> Result<Self, DavoutError> {
-        if record == journal {
-            return Err(DavoutError::Homing {
-                message: "history and journal paths must be distinct".into(),
-            });
-        }
+        let record =
+            crate::reference_journal::distinct_history_path(record, journal).map_err(|error| {
+                DavoutError::Homing {
+                    message: error.to_string(),
+                }
+            })?;
         let mut owner = Self::from_simulation_with_calibration_record_path(
             root,
             bus,
-            record,
+            &record,
             InitialVirtualReference::Unreferenced,
         )?;
         let journal = crate::reference_journal::Journal::spawn(

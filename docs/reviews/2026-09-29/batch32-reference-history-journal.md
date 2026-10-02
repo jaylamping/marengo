@@ -17,7 +17,7 @@ The next WP04 dependency is a real bounded noncoalescing reference journal and
 its owner-consumed durable history completion. R2b1 remains unusable for motion;
 R2b2's selected current virtual grant follows. Read the
 [preparation plan](evidence/batch32/preparation-plan.md), whose pending-main
-sentence is historical and superseded by the delivered receipt. Write the
+sentence is historical and superseded by the delivered receipt. The
 architecture ADR governs the journal, codec and lifecycle implementation.
 Use complete committed Git archives for Pi staging, including simulation fixtures.
 
@@ -29,8 +29,21 @@ lock/full/corrupt/schema/session exhaustion, cancellation/deadline/peer hazards,
 worker unwind and controlled child death before/after commit. One helper test
 does no work outside its explicitly launched child process. These are candidate
 conformance results, not original-binary behavioral reds or hardware acceptance.
-Frozen probes, meaningful mutants, independent review, the primary gate, exact
-PR/main CI and native Pi qualification remain pending. SSH connectivity was
+Independent review of dc91d08 found two resource bugs: lexical-only history/journal
+separation admitted aliases, and SQLite changed an incompatible WAL header before
+refusing corrupt history. Separate real resource tests reproduced three behavioral
+failures on that candidate (alias admission, worker mutation and inspection mutation).
+The repairs resolve resource aliases before construction and reject unsupported
+persistent header versions before SQLite opens the file. All four resource cases
+now pass, including the distinct-path lazy-opening control. Three additional actual
+owner tests cover a completed-unconsumed real write losing to fresh ordered fault
+feedback, checked commit-counter exhaustion before admission and foreign-handle
+refusal with healthy neighboring work. The original five new probe files and prior
+qualified probes are unchanged. Changed-crate clippy remains clean.
+
+The dc91d08 primary gate passed; its native Pi run remains provisional for that
+revision. Frozen mutants, independent review of the repairs, the final primary
+gate, exact PR/main CI and final native Pi qualification remain pending. SSH connectivity was
 rechecked successfully; the Pi reports aarch64.
 
 All 102 findings and eight maintenance tasks remain: 26 verified, 13 partial,
