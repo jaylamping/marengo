@@ -1,0 +1,253 @@
+FFFFFFFFFFFF..FFFFFFFFF.                                                 [100%]
+================================== FAILURES ===================================
+_ test_invalid_provider_response_is_reported[search_github_tool-search_github-github] _
+tools\marengo-research-mcp\tests\test_cached_search_validation.py:24: in test_invalid_provider_response_is_reported
+    cold = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:77: in search_github_tool
+    resp = await _cached_search(
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:42: in _cached_search
+    resp = SearchResponse(query=query, hits=hits, errors=errors)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E   hits
+E     Input should be a valid list [type=list_type, input_value={'unexpected': 'a mapping rather than a hit list'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/list_type
+_ test_invalid_provider_response_is_reported[search_reddit_tool-search_reddit-reddit] _
+tools\marengo-research-mcp\tests\test_cached_search_validation.py:24: in test_invalid_provider_response_is_reported
+    cold = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:88: in search_reddit_tool
+    resp = await _cached_search(
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:42: in _cached_search
+    resp = SearchResponse(query=query, hits=hits, errors=errors)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E   hits
+E     Input should be a valid list [type=list_type, input_value={'unexpected': 'a mapping rather than a hit list'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/list_type
+_ test_invalid_provider_response_is_reported[search_web_tool-search_duckduckgo-web] _
+tools\marengo-research-mcp\tests\test_cached_search_validation.py:24: in test_invalid_provider_response_is_reported
+    cold = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:99: in search_web_tool
+    resp = await _cached_search(
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:42: in _cached_search
+    resp = SearchResponse(query=query, hits=hits, errors=errors)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E   hits
+E     Input should be a valid list [type=list_type, input_value={'unexpected': 'a mapping rather than a hit list'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/list_type
+_ test_invalid_provider_response_is_reported[search_forums_tool-search_forums-forums] _
+tools\marengo-research-mcp\tests\test_cached_search_validation.py:24: in test_invalid_provider_response_is_reported
+    cold = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:110: in search_forums_tool
+    resp = await _cached_search(
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:42: in _cached_search
+    resp = SearchResponse(query=query, hits=hits, errors=errors)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E   hits
+E     Input should be a valid list [type=list_type, input_value={'unexpected': 'a mapping rather than a hit list'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/list_type
+_ test_invalid_provider_response_is_reported[search_vendor_docs_tool-search_vendor_docs-vendor] _
+tools\marengo-research-mcp\tests\test_cached_search_validation.py:24: in test_invalid_provider_response_is_reported
+    cold = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:123: in search_vendor_docs_tool
+    resp = await _cached_search(
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:42: in _cached_search
+    resp = SearchResponse(query=query, hits=hits, errors=errors)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E   hits
+E     Input should be a valid list [type=list_type, input_value={'unexpected': 'a mapping rather than a hit list'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/list_type
+_ test_invalid_provider_response_is_reported[search_hf_tool-search_huggingface-hf] _
+tools\marengo-research-mcp\tests\test_cached_search_validation.py:24: in test_invalid_provider_response_is_reported
+    cold = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:134: in search_hf_tool
+    resp = await _cached_search(
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:42: in _cached_search
+    resp = SearchResponse(query=query, hits=hits, errors=errors)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E   hits
+E     Input should be a valid list [type=list_type, input_value={'unexpected': 'a mapping rather than a hit list'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/list_type
+_ test_invalid_disk_response_is_refreshed[search_github_tool-search_github-github] _
+tools\marengo-research-mcp\tests\test_cached_search_validation.py:50: in test_invalid_disk_response_is_refreshed
+    refreshed = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:77: in search_github_tool
+    resp = await _cached_search(
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:35: in _cached_search
+    return SearchResponse.model_validate({**cached, "cached": True})
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E   hits
+E     Input should be a valid list [type=list_type, input_value={'unexpected': 'a mapping rather than a hit list'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/list_type
+_ test_invalid_disk_response_is_refreshed[search_reddit_tool-search_reddit-reddit] _
+tools\marengo-research-mcp\tests\test_cached_search_validation.py:50: in test_invalid_disk_response_is_refreshed
+    refreshed = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:88: in search_reddit_tool
+    resp = await _cached_search(
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:35: in _cached_search
+    return SearchResponse.model_validate({**cached, "cached": True})
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E   hits
+E     Input should be a valid list [type=list_type, input_value={'unexpected': 'a mapping rather than a hit list'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/list_type
+_ test_invalid_disk_response_is_refreshed[search_web_tool-search_duckduckgo-web] _
+tools\marengo-research-mcp\tests\test_cached_search_validation.py:50: in test_invalid_disk_response_is_refreshed
+    refreshed = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:99: in search_web_tool
+    resp = await _cached_search(
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:35: in _cached_search
+    return SearchResponse.model_validate({**cached, "cached": True})
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E   hits
+E     Input should be a valid list [type=list_type, input_value={'unexpected': 'a mapping rather than a hit list'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/list_type
+_ test_invalid_disk_response_is_refreshed[search_forums_tool-search_forums-forums] _
+tools\marengo-research-mcp\tests\test_cached_search_validation.py:50: in test_invalid_disk_response_is_refreshed
+    refreshed = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:110: in search_forums_tool
+    resp = await _cached_search(
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:35: in _cached_search
+    return SearchResponse.model_validate({**cached, "cached": True})
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E   hits
+E     Input should be a valid list [type=list_type, input_value={'unexpected': 'a mapping rather than a hit list'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/list_type
+_ test_invalid_disk_response_is_refreshed[search_vendor_docs_tool-search_vendor_docs-vendor] _
+tools\marengo-research-mcp\tests\test_cached_search_validation.py:50: in test_invalid_disk_response_is_refreshed
+    refreshed = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:123: in search_vendor_docs_tool
+    resp = await _cached_search(
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:35: in _cached_search
+    return SearchResponse.model_validate({**cached, "cached": True})
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E   hits
+E     Input should be a valid list [type=list_type, input_value={'unexpected': 'a mapping rather than a hit list'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/list_type
+_ test_invalid_disk_response_is_refreshed[search_hf_tool-search_huggingface-hf] _
+tools\marengo-research-mcp\tests\test_cached_search_validation.py:50: in test_invalid_disk_response_is_refreshed
+    refreshed = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:134: in search_hf_tool
+    resp = await _cached_search(
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:35: in _cached_search
+    return SearchResponse.model_validate({**cached, "cached": True})
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E   hits
+E     Input should be a valid list [type=list_type, input_value={'unexpected': 'a mapping rather than a hit list'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.13/v/list_type
+______________ test_unqualified_record_is_a_miss[record2-False] _______________
+tools\marengo-research-mcp\tests\test_cache_envelope.py:34: in test_unqualified_record_is_a_miss
+    assert module.ResearchCache(cfg).get("search", "fixture") == (
+E   AssertionError: assert {'item': 'kept'} == None
+E    +  where {'item': 'kept'} = get('search', 'fixture')
+E    +    where get = <marengo_research_mcp.cache.ResearchCache object at 0x0000014CCF52FFE0>.get
+E    +      where <marengo_research_mcp.cache.ResearchCache object at 0x0000014CCF52FFE0> = <class 'marengo_research_mcp.cache.ResearchCache'>(Config(cache_dir=WindowsPath('C:/Users/joeyl/AppData/Local/Temp/pytest-of-joeyl/pytest-6/test_unqualified_record_is_a_...urrent_scrape=4, user_agent='Mozilla/5.0 (compatible; MarengoResearchMCP/0.1; +https://github.com/jaylamping/marengo)'))
+E    +        where <class 'marengo_research_mcp.cache.ResearchCache'> = module.ResearchCache
+______________ test_unqualified_record_is_a_miss[record3-False] _______________
+tools\marengo-research-mcp\tests\test_cache_envelope.py:34: in test_unqualified_record_is_a_miss
+    assert module.ResearchCache(cfg).get("search", "fixture") == (
+E   AssertionError: assert {'item': 'kept'} == None
+E    +  where {'item': 'kept'} = get('search', 'fixture')
+E    +    where get = <marengo_research_mcp.cache.ResearchCache object at 0x0000014CCF52E780>.get
+E    +      where <marengo_research_mcp.cache.ResearchCache object at 0x0000014CCF52E780> = <class 'marengo_research_mcp.cache.ResearchCache'>(Config(cache_dir=WindowsPath('C:/Users/joeyl/AppData/Local/Temp/pytest-of-joeyl/pytest-6/test_unqualified_record_is_a_...urrent_scrape=4, user_agent='Mozilla/5.0 (compatible; MarengoResearchMCP/0.1; +https://github.com/jaylamping/marengo)'))
+E    +        where <class 'marengo_research_mcp.cache.ResearchCache'> = module.ResearchCache
+______________ test_unqualified_record_is_a_miss[record4-False] _______________
+tools\marengo-research-mcp\tests\test_cache_envelope.py:34: in test_unqualified_record_is_a_miss
+    assert module.ResearchCache(cfg).get("search", "fixture") == (
+E   AssertionError: assert {'item': 'kept'} == None
+E    +  where {'item': 'kept'} = get('search', 'fixture')
+E    +    where get = <marengo_research_mcp.cache.ResearchCache object at 0x0000014CCF510DA0>.get
+E    +      where <marengo_research_mcp.cache.ResearchCache object at 0x0000014CCF510DA0> = <class 'marengo_research_mcp.cache.ResearchCache'>(Config(cache_dir=WindowsPath('C:/Users/joeyl/AppData/Local/Temp/pytest-of-joeyl/pytest-6/test_unqualified_record_is_a_...urrent_scrape=4, user_agent='Mozilla/5.0 (compatible; MarengoResearchMCP/0.1; +https://github.com/jaylamping/marengo)'))
+E    +        where <class 'marengo_research_mcp.cache.ResearchCache'> = module.ResearchCache
+______________ test_unqualified_record_is_a_miss[record5-False] _______________
+tools\marengo-research-mcp\tests\test_cache_envelope.py:34: in test_unqualified_record_is_a_miss
+    assert module.ResearchCache(cfg).get("search", "fixture") == (
+E   AssertionError: assert {'item': 'kept'} == None
+E    +  where {'item': 'kept'} = get('search', 'fixture')
+E    +    where get = <marengo_research_mcp.cache.ResearchCache object at 0x0000014CCF512B40>.get
+E    +      where <marengo_research_mcp.cache.ResearchCache object at 0x0000014CCF512B40> = <class 'marengo_research_mcp.cache.ResearchCache'>(Config(cache_dir=WindowsPath('C:/Users/joeyl/AppData/Local/Temp/pytest-of-joeyl/pytest-6/test_unqualified_record_is_a_...urrent_scrape=4, user_agent='Mozilla/5.0 (compatible; MarengoResearchMCP/0.1; +https://github.com/jaylamping/marengo)'))
+E    +        where <class 'marengo_research_mcp.cache.ResearchCache'> = module.ResearchCache
+______________ test_unqualified_record_is_a_miss[record6-False] _______________
+tools\marengo-research-mcp\tests\test_cache_envelope.py:34: in test_unqualified_record_is_a_miss
+    assert module.ResearchCache(cfg).get("search", "fixture") == (
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\marengo-research-mcp\src\marengo_research_mcp\cache.py:38: in get
+    age_h = (time.time() - data.get("ts", 0)) / 3600.0
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: unsupported operand type(s) for -: 'int' and 'str'
+______________ test_unqualified_record_is_a_miss[record7-False] _______________
+tools\marengo-research-mcp\tests\test_cache_envelope.py:34: in test_unqualified_record_is_a_miss
+    assert module.ResearchCache(cfg).get("search", "fixture") == (
+E   AssertionError: assert {'item': 'kept'} == None
+E    +  where {'item': 'kept'} = get('search', 'fixture')
+E    +    where get = <marengo_research_mcp.cache.ResearchCache object at 0x0000014CCF52CBF0>.get
+E    +      where <marengo_research_mcp.cache.ResearchCache object at 0x0000014CCF52CBF0> = <class 'marengo_research_mcp.cache.ResearchCache'>(Config(cache_dir=WindowsPath('C:/Users/joeyl/AppData/Local/Temp/pytest-of-joeyl/pytest-6/test_unqualified_record_is_a_...urrent_scrape=4, user_agent='Mozilla/5.0 (compatible; MarengoResearchMCP/0.1; +https://github.com/jaylamping/marengo)'))
+E    +        where <class 'marengo_research_mcp.cache.ResearchCache'> = module.ResearchCache
+______________ test_unqualified_record_is_a_miss[record8-False] _______________
+tools\marengo-research-mcp\tests\test_cache_envelope.py:34: in test_unqualified_record_is_a_miss
+    assert module.ResearchCache(cfg).get("search", "fixture") == (
+E   AssertionError: assert {'item': 'kept'} == None
+E    +  where {'item': 'kept'} = get('search', 'fixture')
+E    +    where get = <marengo_research_mcp.cache.ResearchCache object at 0x0000014CCF52CBC0>.get
+E    +      where <marengo_research_mcp.cache.ResearchCache object at 0x0000014CCF52CBC0> = <class 'marengo_research_mcp.cache.ResearchCache'>(Config(cache_dir=WindowsPath('C:/Users/joeyl/AppData/Local/Temp/pytest-of-joeyl/pytest-6/test_unqualified_record_is_a_...urrent_scrape=4, user_agent='Mozilla/5.0 (compatible; MarengoResearchMCP/0.1; +https://github.com/jaylamping/marengo)'))
+E    +        where <class 'marengo_research_mcp.cache.ResearchCache'> = module.ResearchCache
+______________ test_unqualified_record_is_a_miss[record9-False] _______________
+tools\marengo-research-mcp\tests\test_cache_envelope.py:34: in test_unqualified_record_is_a_miss
+    assert module.ResearchCache(cfg).get("search", "fixture") == (
+E   AssertionError: assert {'item': 'kept'} == None
+E    +  where {'item': 'kept'} = get('search', 'fixture')
+E    +    where get = <marengo_research_mcp.cache.ResearchCache object at 0x0000014CCF49D3A0>.get
+E    +      where <marengo_research_mcp.cache.ResearchCache object at 0x0000014CCF49D3A0> = <class 'marengo_research_mcp.cache.ResearchCache'>(Config(cache_dir=WindowsPath('C:/Users/joeyl/AppData/Local/Temp/pytest-of-joeyl/pytest-6/test_unqualified_record_is_a_...urrent_scrape=4, user_agent='Mozilla/5.0 (compatible; MarengoResearchMCP/0.1; +https://github.com/jaylamping/marengo)'))
+E    +        where <class 'marengo_research_mcp.cache.ResearchCache'> = module.ResearchCache
+______________ test_unqualified_record_is_a_miss[record10-False] ______________
+tools\marengo-research-mcp\tests\test_cache_envelope.py:34: in test_unqualified_record_is_a_miss
+    assert module.ResearchCache(cfg).get("search", "fixture") == (
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\marengo-research-mcp\src\marengo_research_mcp\cache.py:38: in get
+    age_h = (time.time() - data.get("ts", 0)) / 3600.0
+                           ^^^^^^^^
+E   AttributeError: 'list' object has no attribute 'get'
+=========================== short test summary info ===========================
+FAILED tools\marengo-research-mcp\tests\test_cached_search_validation.py::test_invalid_provider_response_is_reported[search_github_tool-search_github-github]
+FAILED tools\marengo-research-mcp\tests\test_cached_search_validation.py::test_invalid_provider_response_is_reported[search_reddit_tool-search_reddit-reddit]
+FAILED tools\marengo-research-mcp\tests\test_cached_search_validation.py::test_invalid_provider_response_is_reported[search_web_tool-search_duckduckgo-web]
+FAILED tools\marengo-research-mcp\tests\test_cached_search_validation.py::test_invalid_provider_response_is_reported[search_forums_tool-search_forums-forums]
+FAILED tools\marengo-research-mcp\tests\test_cached_search_validation.py::test_invalid_provider_response_is_reported[search_vendor_docs_tool-search_vendor_docs-vendor]
+FAILED tools\marengo-research-mcp\tests\test_cached_search_validation.py::test_invalid_provider_response_is_reported[search_hf_tool-search_huggingface-hf]
+FAILED tools\marengo-research-mcp\tests\test_cached_search_validation.py::test_invalid_disk_response_is_refreshed[search_github_tool-search_github-github]
+FAILED tools\marengo-research-mcp\tests\test_cached_search_validation.py::test_invalid_disk_response_is_refreshed[search_reddit_tool-search_reddit-reddit]
+FAILED tools\marengo-research-mcp\tests\test_cached_search_validation.py::test_invalid_disk_response_is_refreshed[search_web_tool-search_duckduckgo-web]
+FAILED tools\marengo-research-mcp\tests\test_cached_search_validation.py::test_invalid_disk_response_is_refreshed[search_forums_tool-search_forums-forums]
+FAILED tools\marengo-research-mcp\tests\test_cached_search_validation.py::test_invalid_disk_response_is_refreshed[search_vendor_docs_tool-search_vendor_docs-vendor]
+FAILED tools\marengo-research-mcp\tests\test_cached_search_validation.py::test_invalid_disk_response_is_refreshed[search_hf_tool-search_huggingface-hf]
+FAILED tools\marengo-research-mcp\tests\test_cache_envelope.py::test_unqualified_record_is_a_miss[record2-False]
+FAILED tools\marengo-research-mcp\tests\test_cache_envelope.py::test_unqualified_record_is_a_miss[record3-False]
+FAILED tools\marengo-research-mcp\tests\test_cache_envelope.py::test_unqualified_record_is_a_miss[record4-False]
+FAILED tools\marengo-research-mcp\tests\test_cache_envelope.py::test_unqualified_record_is_a_miss[record5-False]
+FAILED tools\marengo-research-mcp\tests\test_cache_envelope.py::test_unqualified_record_is_a_miss[record6-False]
+FAILED tools\marengo-research-mcp\tests\test_cache_envelope.py::test_unqualified_record_is_a_miss[record7-False]
+FAILED tools\marengo-research-mcp\tests\test_cache_envelope.py::test_unqualified_record_is_a_miss[record8-False]
+FAILED tools\marengo-research-mcp\tests\test_cache_envelope.py::test_unqualified_record_is_a_miss[record9-False]
+FAILED tools\marengo-research-mcp\tests\test_cache_envelope.py::test_unqualified_record_is_a_miss[record10-False]
+21 failed, 3 passed in 0.64s

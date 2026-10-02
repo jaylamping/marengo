@@ -1,0 +1,184 @@
+Using CPython 3.12.11
+Creating virtual environment at: J:\code\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\.venv
+   Building marengo-research-mcp @ file:///J:/code/marengo-migration-backup-20260929/batch27-v2-original/tools/marengo-research-mcp
+      Built marengo-research-mcp @ file:///J:/code/marengo-migration-backup-20260929/batch27-v2-original/tools/marengo-research-mcp
+warning: Failed to hardlink files; falling back to full copy. This may lead to degraded performance.
+         If the cache and target directories are on different filesystems, hardlinking may not be supported.
+         If this is intentional, set `export UV_LINK_MODE=copy` or use `--link-mode=copy` to suppress this warning.
+Installed 63 packages in 774ms
+FFFFFFFFFFFF                                                             [100%]
+================================== FAILURES ===================================
+_ test_public_handler_cold_and_disk_cache[hits-search_github_tool-search_github-github] _
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\tests\test_cached_search_handlers.py:55: in test_public_handler_cold_and_disk_cache
+    cold = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:79: in search_github_tool
+    resp = await _cached_search(
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:44: in _cached_search
+    resp = SearchResponse(query=query, hits=hits, errors=errors)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E   hits
+E     Input should be a valid list [type=list_type, input_value=<coroutine object test_pu...r at 0x000002772EF63A40>, input_type=coroutine]
+E       For further information visit https://errors.pydantic.dev/2.13/v/list_type
+_ test_public_handler_cold_and_disk_cache[hits-search_reddit_tool-search_reddit-reddit] _
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\tests\test_cached_search_handlers.py:55: in test_public_handler_cold_and_disk_cache
+    cold = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:90: in search_reddit_tool
+    resp = await _cached_search(
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:44: in _cached_search
+    resp = SearchResponse(query=query, hits=hits, errors=errors)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E   hits
+E     Input should be a valid list [type=list_type, input_value=<coroutine object test_pu...r at 0x000002772F0E0840>, input_type=coroutine]
+E       For further information visit https://errors.pydantic.dev/2.13/v/list_type
+_ test_public_handler_cold_and_disk_cache[hits-search_web_tool-search_duckduckgo-web] _
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\tests\test_cached_search_handlers.py:55: in test_public_handler_cold_and_disk_cache
+    cold = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:101: in search_web_tool
+    resp = await _cached_search(
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:44: in _cached_search
+    resp = SearchResponse(query=query, hits=hits, errors=errors)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E   hits
+E     Input should be a valid list [type=list_type, input_value=<coroutine object test_pu...r at 0x000002772F0E1640>, input_type=coroutine]
+E       For further information visit https://errors.pydantic.dev/2.13/v/list_type
+_ test_public_handler_cold_and_disk_cache[hits-search_forums_tool-search_forums-forums] _
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\tests\test_cached_search_handlers.py:55: in test_public_handler_cold_and_disk_cache
+    cold = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:112: in search_forums_tool
+    resp = await _cached_search(
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:44: in _cached_search
+    resp = SearchResponse(query=query, hits=hits, errors=errors)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E   hits
+E     Input should be a valid list [type=list_type, input_value=<coroutine object test_pu...r at 0x000002772EAB6B40>, input_type=coroutine]
+E       For further information visit https://errors.pydantic.dev/2.13/v/list_type
+_ test_public_handler_cold_and_disk_cache[hits-search_vendor_docs_tool-search_vendor_docs-vendor] _
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\tests\test_cached_search_handlers.py:55: in test_public_handler_cold_and_disk_cache
+    cold = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:125: in search_vendor_docs_tool
+    resp = await _cached_search(
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:44: in _cached_search
+    resp = SearchResponse(query=query, hits=hits, errors=errors)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E   hits
+E     Input should be a valid list [type=list_type, input_value=<coroutine object test_pu...r at 0x000002772F0E0340>, input_type=coroutine]
+E       For further information visit https://errors.pydantic.dev/2.13/v/list_type
+_ test_public_handler_cold_and_disk_cache[hits-search_hf_tool-search_huggingface-hf] _
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\tests\test_cached_search_handlers.py:55: in test_public_handler_cold_and_disk_cache
+    cold = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:136: in search_hf_tool
+    resp = await _cached_search(
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:44: in _cached_search
+    resp = SearchResponse(query=query, hits=hits, errors=errors)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E   hits
+E     Input should be a valid list [type=list_type, input_value=<coroutine object test_pu...r at 0x000002772F0E0540>, input_type=coroutine]
+E       For further information visit https://errors.pydantic.dev/2.13/v/list_type
+_ test_public_handler_cold_and_disk_cache[source-error-search_github_tool-search_github-github] _
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\tests\test_cached_search_handlers.py:55: in test_public_handler_cold_and_disk_cache
+    cold = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:79: in search_github_tool
+    resp = await _cached_search(
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:44: in _cached_search
+    resp = SearchResponse(query=query, hits=hits, errors=errors)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E   hits
+E     Input should be a valid list [type=list_type, input_value=<coroutine object test_pu...r at 0x000002772F0E1F40>, input_type=coroutine]
+E       For further information visit https://errors.pydantic.dev/2.13/v/list_type
+_ test_public_handler_cold_and_disk_cache[source-error-search_reddit_tool-search_reddit-reddit] _
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\tests\test_cached_search_handlers.py:55: in test_public_handler_cold_and_disk_cache
+    cold = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:90: in search_reddit_tool
+    resp = await _cached_search(
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:44: in _cached_search
+    resp = SearchResponse(query=query, hits=hits, errors=errors)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E   hits
+E     Input should be a valid list [type=list_type, input_value=<coroutine object test_pu...r at 0x000002772F0E2540>, input_type=coroutine]
+E       For further information visit https://errors.pydantic.dev/2.13/v/list_type
+_ test_public_handler_cold_and_disk_cache[source-error-search_web_tool-search_duckduckgo-web] _
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\tests\test_cached_search_handlers.py:55: in test_public_handler_cold_and_disk_cache
+    cold = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:101: in search_web_tool
+    resp = await _cached_search(
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:44: in _cached_search
+    resp = SearchResponse(query=query, hits=hits, errors=errors)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E   hits
+E     Input should be a valid list [type=list_type, input_value=<coroutine object test_pu...r at 0x000002772F0E2A40>, input_type=coroutine]
+E       For further information visit https://errors.pydantic.dev/2.13/v/list_type
+_ test_public_handler_cold_and_disk_cache[source-error-search_forums_tool-search_forums-forums] _
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\tests\test_cached_search_handlers.py:55: in test_public_handler_cold_and_disk_cache
+    cold = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:112: in search_forums_tool
+    resp = await _cached_search(
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:44: in _cached_search
+    resp = SearchResponse(query=query, hits=hits, errors=errors)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E   hits
+E     Input should be a valid list [type=list_type, input_value=<coroutine object test_pu...r at 0x000002772F0E2740>, input_type=coroutine]
+E       For further information visit https://errors.pydantic.dev/2.13/v/list_type
+_ test_public_handler_cold_and_disk_cache[source-error-search_vendor_docs_tool-search_vendor_docs-vendor] _
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\tests\test_cached_search_handlers.py:55: in test_public_handler_cold_and_disk_cache
+    cold = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:125: in search_vendor_docs_tool
+    resp = await _cached_search(
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:44: in _cached_search
+    resp = SearchResponse(query=query, hits=hits, errors=errors)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E   hits
+E     Input should be a valid list [type=list_type, input_value=<coroutine object test_pu...r at 0x000002772F0E2340>, input_type=coroutine]
+E       For further information visit https://errors.pydantic.dev/2.13/v/list_type
+_ test_public_handler_cold_and_disk_cache[source-error-search_hf_tool-search_huggingface-hf] _
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\tests\test_cached_search_handlers.py:55: in test_public_handler_cold_and_disk_cache
+    cold = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:136: in search_hf_tool
+    resp = await _cached_search(
+..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:44: in _cached_search
+    resp = SearchResponse(query=query, hits=hits, errors=errors)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E   hits
+E     Input should be a valid list [type=list_type, input_value=<coroutine object test_pu...r at 0x000002772F0E1C40>, input_type=coroutine]
+E       For further information visit https://errors.pydantic.dev/2.13/v/list_type
+=========================== short test summary info ===========================
+FAILED ..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\tests\test_cached_search_handlers.py::test_public_handler_cold_and_disk_cache[hits-search_github_tool-search_github-github]
+FAILED ..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\tests\test_cached_search_handlers.py::test_public_handler_cold_and_disk_cache[hits-search_reddit_tool-search_reddit-reddit]
+FAILED ..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\tests\test_cached_search_handlers.py::test_public_handler_cold_and_disk_cache[hits-search_web_tool-search_duckduckgo-web]
+FAILED ..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\tests\test_cached_search_handlers.py::test_public_handler_cold_and_disk_cache[hits-search_forums_tool-search_forums-forums]
+FAILED ..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\tests\test_cached_search_handlers.py::test_public_handler_cold_and_disk_cache[hits-search_vendor_docs_tool-search_vendor_docs-vendor]
+FAILED ..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\tests\test_cached_search_handlers.py::test_public_handler_cold_and_disk_cache[hits-search_hf_tool-search_huggingface-hf]
+FAILED ..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\tests\test_cached_search_handlers.py::test_public_handler_cold_and_disk_cache[source-error-search_github_tool-search_github-github]
+J:\code\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\.venv\Lib\site-packages\_pytest\unraisableexception.py:33: RuntimeWarning: coroutine 'test_public_handler_cold_and_disk_cache.<locals>.provider' was never awaited
+  gc.collect()
+RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+FAILED ..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\tests\test_cached_search_handlers.py::test_public_handler_cold_and_disk_cache[source-error-search_reddit_tool-search_reddit-reddit]
+FAILED ..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\tests\test_cached_search_handlers.py::test_public_handler_cold_and_disk_cache[source-error-search_web_tool-search_duckduckgo-web]
+FAILED ..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\tests\test_cached_search_handlers.py::test_public_handler_cold_and_disk_cache[source-error-search_forums_tool-search_forums-forums]
+FAILED ..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\tests\test_cached_search_handlers.py::test_public_handler_cold_and_disk_cache[source-error-search_vendor_docs_tool-search_vendor_docs-vendor]
+FAILED ..\marengo-migration-backup-20260929\batch27-v2-original\tools\marengo-research-mcp\tests\test_cached_search_handlers.py::test_public_handler_cold_and_disk_cache[source-error-search_hf_tool-search_huggingface-hf]
+12 failed in 2.17s
+sys:1: RuntimeWarning: coroutine 'test_public_handler_cold_and_disk_cache.<locals>.provider' was never awaited

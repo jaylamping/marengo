@@ -1,0 +1,5 @@
+........................................................................ [ 86%]
+...........                                                              [100%]
+83 passed in 1.87s
+730d2fcd285dba30704b1e46031275f9353fad5267e131e9fa84c3d03bff1f4e  tools/marengo-research-mcp/src/marengo_research_mcp/cache.py
+6ff370c1a74d4c271c815150f80347cf815c6e83078ad80d79614e7c577a46fe  tools/marengo-research-mcp/tests/test_corrupt_cache_bytes.py

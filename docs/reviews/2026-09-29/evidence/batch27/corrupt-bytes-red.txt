@@ -1,0 +1,23 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_______________ test_corrupt_cache_bytes_refresh_public_search ________________
+tools\marengo-research-mcp\tests\test_corrupt_cache_bytes.py:23: in test_corrupt_cache_bytes_refresh_public_search
+    refreshed = json.loads(await search.search_github_tool(cfg, ResearchCache(cfg), "robot", 1))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:80: in search_github_tool
+    resp = await _cached_search(
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:33: in _cached_search
+    cached = cache.get("search", f"{name}:{key}")
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools\marengo-research-mcp\src\marengo_research_mcp\cache.py:38: in get
+    data = json.loads(path.read_text(encoding="utf-8"))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\joeyl\AppData\Roaming\uv\python\cpython-3.12-windows-x86_64-none\Lib\pathlib.py:1028: in read_text
+    return f.read()
+           ^^^^^^^^
+<frozen codecs>:322: in decode
+    ???
+E   UnicodeDecodeError: 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte
+=========================== short test summary info ===========================
+FAILED tools\marengo-research-mcp\tests\test_corrupt_cache_bytes.py::test_corrupt_cache_bytes_refresh_public_search
+1 failed in 0.46s

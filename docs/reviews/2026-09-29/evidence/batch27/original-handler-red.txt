@@ -1,0 +1,968 @@
+FFFFFFFFFFFF                                                             [100%]
+================================== FAILURES ===================================
+_ test_public_handler_cold_and_disk_cache[hits-search_github_tool-search_github-github] _
+
+tmp_path = WindowsPath('C:/Users/joeyl/AppData/Local/Temp/pytest-of-joeyl/pytest-3/test_public_handler_cold_and_d0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001FF6A9324E0>
+handler = <function search_github_tool at 0x000001FF6A927560>
+source = 'search_github', namespace = 'github', source_fails = False
+
+    @pytest.mark.parametrize("handler,source,namespace", HANDLERS)
+    @pytest.mark.parametrize("source_fails", [False, True], ids=["hits", "source-error"])
+    async def test_public_handler_cold_and_disk_cache(
+        tmp_path, monkeypatch, handler, source, namespace, source_fails
+    ):
+        cfg = Config(
+            cache_dir=tmp_path,
+            github_token=None,
+            reddit_client_id=None,
+            reddit_client_secret=None,
+            max_scrape=5,
+            scrape_timeout_s=1,
+            cache_ttl_hours=24,
+            max_concurrent_scrape=1,
+            user_agent="offline-test",
+        )
+        awaited_calls = []
+        stamp = datetime(2026, 1, 2, 3, 4, tzinfo=timezone.utc)
+        hit = ResearchHit(
+            type="code", title="Independent result", url="https://fixture.invalid/robot",
+            source_name=namespace, published_at=stamp, updated_at=stamp,
+            metadata={"language": "Rust"},
+        )
+    
+        async def provider(received_cfg, query, limit):
+            awaited_calls.append((received_cfg, query, limit))
+            if source_fails:
+                raise RuntimeError("provider unavailable")
+            return [hit]
+    
+        monkeypatch.setattr(search, source, provider)
+>       cold = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\marengo-research-mcp\tests\test_cached_search_handlers.py:55: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:79: in search_github_tool
+    resp = await _cached_search(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cache = <marengo_research_mcp.cache.ResearchCache object at 0x000001FF6A510EF0>
+name = 'github', query = 'humanoid', limit = 2
+fn = <function search_github_tool.<locals>.<lambda> at 0x000001FF6A941BC0>
+
+    async def _cached_search(
+        cache: ResearchCache,
+        name: str,
+        query: str,
+        limit: int,
+        fn,
+    ) -> SearchResponse:
+        key = json.dumps({"q": query, "limit": limit})
+        cached = cache.get("search", f"{name}:{key}")
+        if cached is not None:
+            return SearchResponse.model_validate({**cached, "cached": True})
+        errors: list[str] = []
+        hits = []
+        try:
+            if asyncio.iscoroutinefunction(fn):
+                hits = await fn(query, limit)
+            else:
+                hits = fn(query, limit)
+        except Exception as exc:
+            errors.append(f"{name}: {exc}")
+>       resp = SearchResponse(query=query, hits=hits, errors=errors)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E       hits
+E         Input should be a valid list [type=list_type, input_value=<coroutine object test_pu...r at 0x000001FF6A803C40>, input_type=coroutine]
+E           For further information visit https://errors.pydantic.dev/2.13/v/list_type
+
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:44: ValidationError
+_ test_public_handler_cold_and_disk_cache[hits-search_reddit_tool-search_reddit-reddit] _
+
+tmp_path = WindowsPath('C:/Users/joeyl/AppData/Local/Temp/pytest-of-joeyl/pytest-3/test_public_handler_cold_and_d1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001FF6A9325D0>
+handler = <function search_reddit_tool at 0x000001FF6A9277E0>
+source = 'search_reddit', namespace = 'reddit', source_fails = False
+
+    @pytest.mark.parametrize("handler,source,namespace", HANDLERS)
+    @pytest.mark.parametrize("source_fails", [False, True], ids=["hits", "source-error"])
+    async def test_public_handler_cold_and_disk_cache(
+        tmp_path, monkeypatch, handler, source, namespace, source_fails
+    ):
+        cfg = Config(
+            cache_dir=tmp_path,
+            github_token=None,
+            reddit_client_id=None,
+            reddit_client_secret=None,
+            max_scrape=5,
+            scrape_timeout_s=1,
+            cache_ttl_hours=24,
+            max_concurrent_scrape=1,
+            user_agent="offline-test",
+        )
+        awaited_calls = []
+        stamp = datetime(2026, 1, 2, 3, 4, tzinfo=timezone.utc)
+        hit = ResearchHit(
+            type="code", title="Independent result", url="https://fixture.invalid/robot",
+            source_name=namespace, published_at=stamp, updated_at=stamp,
+            metadata={"language": "Rust"},
+        )
+    
+        async def provider(received_cfg, query, limit):
+            awaited_calls.append((received_cfg, query, limit))
+            if source_fails:
+                raise RuntimeError("provider unavailable")
+            return [hit]
+    
+        monkeypatch.setattr(search, source, provider)
+>       cold = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\marengo-research-mcp\tests\test_cached_search_handlers.py:55: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:90: in search_reddit_tool
+    resp = await _cached_search(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cache = <marengo_research_mcp.cache.ResearchCache object at 0x000001FF6A9334D0>
+name = 'reddit', query = 'humanoid', limit = 2
+fn = <function search_reddit_tool.<locals>.<lambda> at 0x000001FF6A9727A0>
+
+    async def _cached_search(
+        cache: ResearchCache,
+        name: str,
+        query: str,
+        limit: int,
+        fn,
+    ) -> SearchResponse:
+        key = json.dumps({"q": query, "limit": limit})
+        cached = cache.get("search", f"{name}:{key}")
+        if cached is not None:
+            return SearchResponse.model_validate({**cached, "cached": True})
+        errors: list[str] = []
+        hits = []
+        try:
+            if asyncio.iscoroutinefunction(fn):
+                hits = await fn(query, limit)
+            else:
+                hits = fn(query, limit)
+        except Exception as exc:
+            errors.append(f"{name}: {exc}")
+>       resp = SearchResponse(query=query, hits=hits, errors=errors)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E       hits
+E         Input should be a valid list [type=list_type, input_value=<coroutine object test_pu...r at 0x000001FF6A94D140>, input_type=coroutine]
+E           For further information visit https://errors.pydantic.dev/2.13/v/list_type
+
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:44: ValidationError
+_ test_public_handler_cold_and_disk_cache[hits-search_web_tool-search_duckduckgo-web] _
+
+tmp_path = WindowsPath('C:/Users/joeyl/AppData/Local/Temp/pytest-of-joeyl/pytest-3/test_public_handler_cold_and_d2')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001FF6A932F90>
+handler = <function search_web_tool at 0x000001FF6A927880>
+source = 'search_duckduckgo', namespace = 'web', source_fails = False
+
+    @pytest.mark.parametrize("handler,source,namespace", HANDLERS)
+    @pytest.mark.parametrize("source_fails", [False, True], ids=["hits", "source-error"])
+    async def test_public_handler_cold_and_disk_cache(
+        tmp_path, monkeypatch, handler, source, namespace, source_fails
+    ):
+        cfg = Config(
+            cache_dir=tmp_path,
+            github_token=None,
+            reddit_client_id=None,
+            reddit_client_secret=None,
+            max_scrape=5,
+            scrape_timeout_s=1,
+            cache_ttl_hours=24,
+            max_concurrent_scrape=1,
+            user_agent="offline-test",
+        )
+        awaited_calls = []
+        stamp = datetime(2026, 1, 2, 3, 4, tzinfo=timezone.utc)
+        hit = ResearchHit(
+            type="code", title="Independent result", url="https://fixture.invalid/robot",
+            source_name=namespace, published_at=stamp, updated_at=stamp,
+            metadata={"language": "Rust"},
+        )
+    
+        async def provider(received_cfg, query, limit):
+            awaited_calls.append((received_cfg, query, limit))
+            if source_fails:
+                raise RuntimeError("provider unavailable")
+            return [hit]
+    
+        monkeypatch.setattr(search, source, provider)
+>       cold = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\marengo-research-mcp\tests\test_cached_search_handlers.py:55: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:101: in search_web_tool
+    resp = await _cached_search(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cache = <marengo_research_mcp.cache.ResearchCache object at 0x000001FF6A9AE930>
+name = 'web', query = 'humanoid', limit = 2
+fn = <function search_web_tool.<locals>.<lambda> at 0x000001FF6A972AC0>
+
+    async def _cached_search(
+        cache: ResearchCache,
+        name: str,
+        query: str,
+        limit: int,
+        fn,
+    ) -> SearchResponse:
+        key = json.dumps({"q": query, "limit": limit})
+        cached = cache.get("search", f"{name}:{key}")
+        if cached is not None:
+            return SearchResponse.model_validate({**cached, "cached": True})
+        errors: list[str] = []
+        hits = []
+        try:
+            if asyncio.iscoroutinefunction(fn):
+                hits = await fn(query, limit)
+            else:
+                hits = fn(query, limit)
+        except Exception as exc:
+            errors.append(f"{name}: {exc}")
+>       resp = SearchResponse(query=query, hits=hits, errors=errors)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E       hits
+E         Input should be a valid list [type=list_type, input_value=<coroutine object test_pu...r at 0x000001FF6A94E140>, input_type=coroutine]
+E           For further information visit https://errors.pydantic.dev/2.13/v/list_type
+
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:44: ValidationError
+_ test_public_handler_cold_and_disk_cache[hits-search_forums_tool-search_forums-forums] _
+
+tmp_path = WindowsPath('C:/Users/joeyl/AppData/Local/Temp/pytest-of-joeyl/pytest-3/test_public_handler_cold_and_d3')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001FF6A9AD3A0>
+handler = <function search_forums_tool at 0x000001FF6A927920>
+source = 'search_forums', namespace = 'forums', source_fails = False
+
+    @pytest.mark.parametrize("handler,source,namespace", HANDLERS)
+    @pytest.mark.parametrize("source_fails", [False, True], ids=["hits", "source-error"])
+    async def test_public_handler_cold_and_disk_cache(
+        tmp_path, monkeypatch, handler, source, namespace, source_fails
+    ):
+        cfg = Config(
+            cache_dir=tmp_path,
+            github_token=None,
+            reddit_client_id=None,
+            reddit_client_secret=None,
+            max_scrape=5,
+            scrape_timeout_s=1,
+            cache_ttl_hours=24,
+            max_concurrent_scrape=1,
+            user_agent="offline-test",
+        )
+        awaited_calls = []
+        stamp = datetime(2026, 1, 2, 3, 4, tzinfo=timezone.utc)
+        hit = ResearchHit(
+            type="code", title="Independent result", url="https://fixture.invalid/robot",
+            source_name=namespace, published_at=stamp, updated_at=stamp,
+            metadata={"language": "Rust"},
+        )
+    
+        async def provider(received_cfg, query, limit):
+            awaited_calls.append((received_cfg, query, limit))
+            if source_fails:
+                raise RuntimeError("provider unavailable")
+            return [hit]
+    
+        monkeypatch.setattr(search, source, provider)
+>       cold = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\marengo-research-mcp\tests\test_cached_search_handlers.py:55: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:112: in search_forums_tool
+    resp = await _cached_search(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cache = <marengo_research_mcp.cache.ResearchCache object at 0x000001FF6A9ACD10>
+name = 'forums', query = 'humanoid', limit = 2
+fn = <function search_forums_tool.<locals>.<lambda> at 0x000001FF6A973060>
+
+    async def _cached_search(
+        cache: ResearchCache,
+        name: str,
+        query: str,
+        limit: int,
+        fn,
+    ) -> SearchResponse:
+        key = json.dumps({"q": query, "limit": limit})
+        cached = cache.get("search", f"{name}:{key}")
+        if cached is not None:
+            return SearchResponse.model_validate({**cached, "cached": True})
+        errors: list[str] = []
+        hits = []
+        try:
+            if asyncio.iscoroutinefunction(fn):
+                hits = await fn(query, limit)
+            else:
+                hits = fn(query, limit)
+        except Exception as exc:
+            errors.append(f"{name}: {exc}")
+>       resp = SearchResponse(query=query, hits=hits, errors=errors)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E       hits
+E         Input should be a valid list [type=list_type, input_value=<coroutine object test_pu...r at 0x000001FF6A94E840>, input_type=coroutine]
+E           For further information visit https://errors.pydantic.dev/2.13/v/list_type
+
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:44: ValidationError
+_ test_public_handler_cold_and_disk_cache[hits-search_vendor_docs_tool-search_vendor_docs-vendor] _
+
+tmp_path = WindowsPath('C:/Users/joeyl/AppData/Local/Temp/pytest-of-joeyl/pytest-3/test_public_handler_cold_and_d4')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001FF6A9ADAC0>
+handler = <function search_vendor_docs_tool at 0x000001FF6A9279C0>
+source = 'search_vendor_docs', namespace = 'vendor', source_fails = False
+
+    @pytest.mark.parametrize("handler,source,namespace", HANDLERS)
+    @pytest.mark.parametrize("source_fails", [False, True], ids=["hits", "source-error"])
+    async def test_public_handler_cold_and_disk_cache(
+        tmp_path, monkeypatch, handler, source, namespace, source_fails
+    ):
+        cfg = Config(
+            cache_dir=tmp_path,
+            github_token=None,
+            reddit_client_id=None,
+            reddit_client_secret=None,
+            max_scrape=5,
+            scrape_timeout_s=1,
+            cache_ttl_hours=24,
+            max_concurrent_scrape=1,
+            user_agent="offline-test",
+        )
+        awaited_calls = []
+        stamp = datetime(2026, 1, 2, 3, 4, tzinfo=timezone.utc)
+        hit = ResearchHit(
+            type="code", title="Independent result", url="https://fixture.invalid/robot",
+            source_name=namespace, published_at=stamp, updated_at=stamp,
+            metadata={"language": "Rust"},
+        )
+    
+        async def provider(received_cfg, query, limit):
+            awaited_calls.append((received_cfg, query, limit))
+            if source_fails:
+                raise RuntimeError("provider unavailable")
+            return [hit]
+    
+        monkeypatch.setattr(search, source, provider)
+>       cold = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\marengo-research-mcp\tests\test_cached_search_handlers.py:55: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:125: in search_vendor_docs_tool
+    resp = await _cached_search(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cache = <marengo_research_mcp.cache.ResearchCache object at 0x000001FF6A9AD790>
+name = 'vendor', query = 'humanoid', limit = 2
+fn = <function search_vendor_docs_tool.<locals>.<lambda> at 0x000001FF6A973600>
+
+    async def _cached_search(
+        cache: ResearchCache,
+        name: str,
+        query: str,
+        limit: int,
+        fn,
+    ) -> SearchResponse:
+        key = json.dumps({"q": query, "limit": limit})
+        cached = cache.get("search", f"{name}:{key}")
+        if cached is not None:
+            return SearchResponse.model_validate({**cached, "cached": True})
+        errors: list[str] = []
+        hits = []
+        try:
+            if asyncio.iscoroutinefunction(fn):
+                hits = await fn(query, limit)
+            else:
+                hits = fn(query, limit)
+        except Exception as exc:
+            errors.append(f"{name}: {exc}")
+>       resp = SearchResponse(query=query, hits=hits, errors=errors)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E       hits
+E         Input should be a valid list [type=list_type, input_value=<coroutine object test_pu...r at 0x000001FF6A94EE40>, input_type=coroutine]
+E           For further information visit https://errors.pydantic.dev/2.13/v/list_type
+
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:44: ValidationError
+_ test_public_handler_cold_and_disk_cache[hits-search_hf_tool-search_huggingface-hf] _
+
+tmp_path = WindowsPath('C:/Users/joeyl/AppData/Local/Temp/pytest-of-joeyl/pytest-3/test_public_handler_cold_and_d5')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001FF6A933FB0>
+handler = <function search_hf_tool at 0x000001FF6A927A60>
+source = 'search_huggingface', namespace = 'hf', source_fails = False
+
+    @pytest.mark.parametrize("handler,source,namespace", HANDLERS)
+    @pytest.mark.parametrize("source_fails", [False, True], ids=["hits", "source-error"])
+    async def test_public_handler_cold_and_disk_cache(
+        tmp_path, monkeypatch, handler, source, namespace, source_fails
+    ):
+        cfg = Config(
+            cache_dir=tmp_path,
+            github_token=None,
+            reddit_client_id=None,
+            reddit_client_secret=None,
+            max_scrape=5,
+            scrape_timeout_s=1,
+            cache_ttl_hours=24,
+            max_concurrent_scrape=1,
+            user_agent="offline-test",
+        )
+        awaited_calls = []
+        stamp = datetime(2026, 1, 2, 3, 4, tzinfo=timezone.utc)
+        hit = ResearchHit(
+            type="code", title="Independent result", url="https://fixture.invalid/robot",
+            source_name=namespace, published_at=stamp, updated_at=stamp,
+            metadata={"language": "Rust"},
+        )
+    
+        async def provider(received_cfg, query, limit):
+            awaited_calls.append((received_cfg, query, limit))
+            if source_fails:
+                raise RuntimeError("provider unavailable")
+            return [hit]
+    
+        monkeypatch.setattr(search, source, provider)
+>       cold = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\marengo-research-mcp\tests\test_cached_search_handlers.py:55: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:136: in search_hf_tool
+    resp = await _cached_search(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cache = <marengo_research_mcp.cache.ResearchCache object at 0x000001FF6A9334A0>
+name = 'hf', query = 'humanoid', limit = 2
+fn = <function search_hf_tool.<locals>.<lambda> at 0x000001FF6A972480>
+
+    async def _cached_search(
+        cache: ResearchCache,
+        name: str,
+        query: str,
+        limit: int,
+        fn,
+    ) -> SearchResponse:
+        key = json.dumps({"q": query, "limit": limit})
+        cached = cache.get("search", f"{name}:{key}")
+        if cached is not None:
+            return SearchResponse.model_validate({**cached, "cached": True})
+        errors: list[str] = []
+        hits = []
+        try:
+            if asyncio.iscoroutinefunction(fn):
+                hits = await fn(query, limit)
+            else:
+                hits = fn(query, limit)
+        except Exception as exc:
+            errors.append(f"{name}: {exc}")
+>       resp = SearchResponse(query=query, hits=hits, errors=errors)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E       hits
+E         Input should be a valid list [type=list_type, input_value=<coroutine object test_pu...r at 0x000001FF6A04D140>, input_type=coroutine]
+E           For further information visit https://errors.pydantic.dev/2.13/v/list_type
+
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:44: ValidationError
+_ test_public_handler_cold_and_disk_cache[source-error-search_github_tool-search_github-github] _
+
+tmp_path = WindowsPath('C:/Users/joeyl/AppData/Local/Temp/pytest-of-joeyl/pytest-3/test_public_handler_cold_and_d6')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001FF6A933710>
+handler = <function search_github_tool at 0x000001FF6A927560>
+source = 'search_github', namespace = 'github', source_fails = True
+
+    @pytest.mark.parametrize("handler,source,namespace", HANDLERS)
+    @pytest.mark.parametrize("source_fails", [False, True], ids=["hits", "source-error"])
+    async def test_public_handler_cold_and_disk_cache(
+        tmp_path, monkeypatch, handler, source, namespace, source_fails
+    ):
+        cfg = Config(
+            cache_dir=tmp_path,
+            github_token=None,
+            reddit_client_id=None,
+            reddit_client_secret=None,
+            max_scrape=5,
+            scrape_timeout_s=1,
+            cache_ttl_hours=24,
+            max_concurrent_scrape=1,
+            user_agent="offline-test",
+        )
+        awaited_calls = []
+        stamp = datetime(2026, 1, 2, 3, 4, tzinfo=timezone.utc)
+        hit = ResearchHit(
+            type="code", title="Independent result", url="https://fixture.invalid/robot",
+            source_name=namespace, published_at=stamp, updated_at=stamp,
+            metadata={"language": "Rust"},
+        )
+    
+        async def provider(received_cfg, query, limit):
+            awaited_calls.append((received_cfg, query, limit))
+            if source_fails:
+                raise RuntimeError("provider unavailable")
+            return [hit]
+    
+        monkeypatch.setattr(search, source, provider)
+>       cold = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\marengo-research-mcp\tests\test_cached_search_handlers.py:55: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:79: in search_github_tool
+    resp = await _cached_search(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cache = <marengo_research_mcp.cache.ResearchCache object at 0x000001FF6A9AD760>
+name = 'github', query = 'humanoid', limit = 2
+fn = <function search_github_tool.<locals>.<lambda> at 0x000001FF6A972FC0>
+
+    async def _cached_search(
+        cache: ResearchCache,
+        name: str,
+        query: str,
+        limit: int,
+        fn,
+    ) -> SearchResponse:
+        key = json.dumps({"q": query, "limit": limit})
+        cached = cache.get("search", f"{name}:{key}")
+        if cached is not None:
+            return SearchResponse.model_validate({**cached, "cached": True})
+        errors: list[str] = []
+        hits = []
+        try:
+            if asyncio.iscoroutinefunction(fn):
+                hits = await fn(query, limit)
+            else:
+                hits = fn(query, limit)
+        except Exception as exc:
+            errors.append(f"{name}: {exc}")
+>       resp = SearchResponse(query=query, hits=hits, errors=errors)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E       hits
+E         Input should be a valid list [type=list_type, input_value=<coroutine object test_pu...r at 0x000001FF6A94ED40>, input_type=coroutine]
+E           For further information visit https://errors.pydantic.dev/2.13/v/list_type
+
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:44: ValidationError
+_ test_public_handler_cold_and_disk_cache[source-error-search_reddit_tool-search_reddit-reddit] _
+
+tmp_path = WindowsPath('C:/Users/joeyl/AppData/Local/Temp/pytest-of-joeyl/pytest-3/test_public_handler_cold_and_d7')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001FF6A9AFC80>
+handler = <function search_reddit_tool at 0x000001FF6A9277E0>
+source = 'search_reddit', namespace = 'reddit', source_fails = True
+
+    @pytest.mark.parametrize("handler,source,namespace", HANDLERS)
+    @pytest.mark.parametrize("source_fails", [False, True], ids=["hits", "source-error"])
+    async def test_public_handler_cold_and_disk_cache(
+        tmp_path, monkeypatch, handler, source, namespace, source_fails
+    ):
+        cfg = Config(
+            cache_dir=tmp_path,
+            github_token=None,
+            reddit_client_id=None,
+            reddit_client_secret=None,
+            max_scrape=5,
+            scrape_timeout_s=1,
+            cache_ttl_hours=24,
+            max_concurrent_scrape=1,
+            user_agent="offline-test",
+        )
+        awaited_calls = []
+        stamp = datetime(2026, 1, 2, 3, 4, tzinfo=timezone.utc)
+        hit = ResearchHit(
+            type="code", title="Independent result", url="https://fixture.invalid/robot",
+            source_name=namespace, published_at=stamp, updated_at=stamp,
+            metadata={"language": "Rust"},
+        )
+    
+        async def provider(received_cfg, query, limit):
+            awaited_calls.append((received_cfg, query, limit))
+            if source_fails:
+                raise RuntimeError("provider unavailable")
+            return [hit]
+    
+        monkeypatch.setattr(search, source, provider)
+>       cold = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\marengo-research-mcp\tests\test_cached_search_handlers.py:55: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:90: in search_reddit_tool
+    resp = await _cached_search(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cache = <marengo_research_mcp.cache.ResearchCache object at 0x000001FF6A9AEE70>
+name = 'reddit', query = 'humanoid', limit = 2
+fn = <function search_reddit_tool.<locals>.<lambda> at 0x000001FF6A973920>
+
+    async def _cached_search(
+        cache: ResearchCache,
+        name: str,
+        query: str,
+        limit: int,
+        fn,
+    ) -> SearchResponse:
+        key = json.dumps({"q": query, "limit": limit})
+        cached = cache.get("search", f"{name}:{key}")
+        if cached is not None:
+            return SearchResponse.model_validate({**cached, "cached": True})
+        errors: list[str] = []
+        hits = []
+        try:
+            if asyncio.iscoroutinefunction(fn):
+                hits = await fn(query, limit)
+            else:
+                hits = fn(query, limit)
+        except Exception as exc:
+            errors.append(f"{name}: {exc}")
+>       resp = SearchResponse(query=query, hits=hits, errors=errors)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E       hits
+E         Input should be a valid list [type=list_type, input_value=<coroutine object test_pu...r at 0x000001FF6A94E540>, input_type=coroutine]
+E           For further information visit https://errors.pydantic.dev/2.13/v/list_type
+
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:44: ValidationError
+_ test_public_handler_cold_and_disk_cache[source-error-search_web_tool-search_duckduckgo-web] _
+
+tmp_path = WindowsPath('C:/Users/joeyl/AppData/Local/Temp/pytest-of-joeyl/pytest-3/test_public_handler_cold_and_d8')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001FF6A9AE840>
+handler = <function search_web_tool at 0x000001FF6A927880>
+source = 'search_duckduckgo', namespace = 'web', source_fails = True
+
+    @pytest.mark.parametrize("handler,source,namespace", HANDLERS)
+    @pytest.mark.parametrize("source_fails", [False, True], ids=["hits", "source-error"])
+    async def test_public_handler_cold_and_disk_cache(
+        tmp_path, monkeypatch, handler, source, namespace, source_fails
+    ):
+        cfg = Config(
+            cache_dir=tmp_path,
+            github_token=None,
+            reddit_client_id=None,
+            reddit_client_secret=None,
+            max_scrape=5,
+            scrape_timeout_s=1,
+            cache_ttl_hours=24,
+            max_concurrent_scrape=1,
+            user_agent="offline-test",
+        )
+        awaited_calls = []
+        stamp = datetime(2026, 1, 2, 3, 4, tzinfo=timezone.utc)
+        hit = ResearchHit(
+            type="code", title="Independent result", url="https://fixture.invalid/robot",
+            source_name=namespace, published_at=stamp, updated_at=stamp,
+            metadata={"language": "Rust"},
+        )
+    
+        async def provider(received_cfg, query, limit):
+            awaited_calls.append((received_cfg, query, limit))
+            if source_fails:
+                raise RuntimeError("provider unavailable")
+            return [hit]
+    
+        monkeypatch.setattr(search, source, provider)
+>       cold = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\marengo-research-mcp\tests\test_cached_search_handlers.py:55: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:101: in search_web_tool
+    resp = await _cached_search(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cache = <marengo_research_mcp.cache.ResearchCache object at 0x000001FF6A9AC500>
+name = 'web', query = 'humanoid', limit = 2
+fn = <function search_web_tool.<locals>.<lambda> at 0x000001FF6A973D80>
+
+    async def _cached_search(
+        cache: ResearchCache,
+        name: str,
+        query: str,
+        limit: int,
+        fn,
+    ) -> SearchResponse:
+        key = json.dumps({"q": query, "limit": limit})
+        cached = cache.get("search", f"{name}:{key}")
+        if cached is not None:
+            return SearchResponse.model_validate({**cached, "cached": True})
+        errors: list[str] = []
+        hits = []
+        try:
+            if asyncio.iscoroutinefunction(fn):
+                hits = await fn(query, limit)
+            else:
+                hits = fn(query, limit)
+        except Exception as exc:
+            errors.append(f"{name}: {exc}")
+>       resp = SearchResponse(query=query, hits=hits, errors=errors)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E       hits
+E         Input should be a valid list [type=list_type, input_value=<coroutine object test_pu...r at 0x000001FF6A94E640>, input_type=coroutine]
+E           For further information visit https://errors.pydantic.dev/2.13/v/list_type
+
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:44: ValidationError
+_ test_public_handler_cold_and_disk_cache[source-error-search_forums_tool-search_forums-forums] _
+
+tmp_path = WindowsPath('C:/Users/joeyl/AppData/Local/Temp/pytest-of-joeyl/pytest-3/test_public_handler_cold_and_d9')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001FF6A9AFE30>
+handler = <function search_forums_tool at 0x000001FF6A927920>
+source = 'search_forums', namespace = 'forums', source_fails = True
+
+    @pytest.mark.parametrize("handler,source,namespace", HANDLERS)
+    @pytest.mark.parametrize("source_fails", [False, True], ids=["hits", "source-error"])
+    async def test_public_handler_cold_and_disk_cache(
+        tmp_path, monkeypatch, handler, source, namespace, source_fails
+    ):
+        cfg = Config(
+            cache_dir=tmp_path,
+            github_token=None,
+            reddit_client_id=None,
+            reddit_client_secret=None,
+            max_scrape=5,
+            scrape_timeout_s=1,
+            cache_ttl_hours=24,
+            max_concurrent_scrape=1,
+            user_agent="offline-test",
+        )
+        awaited_calls = []
+        stamp = datetime(2026, 1, 2, 3, 4, tzinfo=timezone.utc)
+        hit = ResearchHit(
+            type="code", title="Independent result", url="https://fixture.invalid/robot",
+            source_name=namespace, published_at=stamp, updated_at=stamp,
+            metadata={"language": "Rust"},
+        )
+    
+        async def provider(received_cfg, query, limit):
+            awaited_calls.append((received_cfg, query, limit))
+            if source_fails:
+                raise RuntimeError("provider unavailable")
+            return [hit]
+    
+        monkeypatch.setattr(search, source, provider)
+>       cold = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\marengo-research-mcp\tests\test_cached_search_handlers.py:55: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:112: in search_forums_tool
+    resp = await _cached_search(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cache = <marengo_research_mcp.cache.ResearchCache object at 0x000001FF6A9D83B0>
+name = 'forums', query = 'humanoid', limit = 2
+fn = <function search_forums_tool.<locals>.<lambda> at 0x000001FF6AA08220>
+
+    async def _cached_search(
+        cache: ResearchCache,
+        name: str,
+        query: str,
+        limit: int,
+        fn,
+    ) -> SearchResponse:
+        key = json.dumps({"q": query, "limit": limit})
+        cached = cache.get("search", f"{name}:{key}")
+        if cached is not None:
+            return SearchResponse.model_validate({**cached, "cached": True})
+        errors: list[str] = []
+        hits = []
+        try:
+            if asyncio.iscoroutinefunction(fn):
+                hits = await fn(query, limit)
+            else:
+                hits = fn(query, limit)
+        except Exception as exc:
+            errors.append(f"{name}: {exc}")
+>       resp = SearchResponse(query=query, hits=hits, errors=errors)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E       hits
+E         Input should be a valid list [type=list_type, input_value=<coroutine object test_pu...r at 0x000001FF6A94D540>, input_type=coroutine]
+E           For further information visit https://errors.pydantic.dev/2.13/v/list_type
+
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:44: ValidationError
+_ test_public_handler_cold_and_disk_cache[source-error-search_vendor_docs_tool-search_vendor_docs-vendor] _
+
+tmp_path = WindowsPath('C:/Users/joeyl/AppData/Local/Temp/pytest-of-joeyl/pytest-3/test_public_handler_cold_and_d10')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001FF6A9DACC0>
+handler = <function search_vendor_docs_tool at 0x000001FF6A9279C0>
+source = 'search_vendor_docs', namespace = 'vendor', source_fails = True
+
+    @pytest.mark.parametrize("handler,source,namespace", HANDLERS)
+    @pytest.mark.parametrize("source_fails", [False, True], ids=["hits", "source-error"])
+    async def test_public_handler_cold_and_disk_cache(
+        tmp_path, monkeypatch, handler, source, namespace, source_fails
+    ):
+        cfg = Config(
+            cache_dir=tmp_path,
+            github_token=None,
+            reddit_client_id=None,
+            reddit_client_secret=None,
+            max_scrape=5,
+            scrape_timeout_s=1,
+            cache_ttl_hours=24,
+            max_concurrent_scrape=1,
+            user_agent="offline-test",
+        )
+        awaited_calls = []
+        stamp = datetime(2026, 1, 2, 3, 4, tzinfo=timezone.utc)
+        hit = ResearchHit(
+            type="code", title="Independent result", url="https://fixture.invalid/robot",
+            source_name=namespace, published_at=stamp, updated_at=stamp,
+            metadata={"language": "Rust"},
+        )
+    
+        async def provider(received_cfg, query, limit):
+            awaited_calls.append((received_cfg, query, limit))
+            if source_fails:
+                raise RuntimeError("provider unavailable")
+            return [hit]
+    
+        monkeypatch.setattr(search, source, provider)
+>       cold = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\marengo-research-mcp\tests\test_cached_search_handlers.py:55: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:125: in search_vendor_docs_tool
+    resp = await _cached_search(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cache = <marengo_research_mcp.cache.ResearchCache object at 0x000001FF6A9D9E50>
+name = 'vendor', query = 'humanoid', limit = 2
+fn = <function search_vendor_docs_tool.<locals>.<lambda> at 0x000001FF6AA08680>
+
+    async def _cached_search(
+        cache: ResearchCache,
+        name: str,
+        query: str,
+        limit: int,
+        fn,
+    ) -> SearchResponse:
+        key = json.dumps({"q": query, "limit": limit})
+        cached = cache.get("search", f"{name}:{key}")
+        if cached is not None:
+            return SearchResponse.model_validate({**cached, "cached": True})
+        errors: list[str] = []
+        hits = []
+        try:
+            if asyncio.iscoroutinefunction(fn):
+                hits = await fn(query, limit)
+            else:
+                hits = fn(query, limit)
+        except Exception as exc:
+            errors.append(f"{name}: {exc}")
+>       resp = SearchResponse(query=query, hits=hits, errors=errors)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E       hits
+E         Input should be a valid list [type=list_type, input_value=<coroutine object test_pu...r at 0x000001FF6A94D640>, input_type=coroutine]
+E           For further information visit https://errors.pydantic.dev/2.13/v/list_type
+
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:44: ValidationError
+_ test_public_handler_cold_and_disk_cache[source-error-search_hf_tool-search_huggingface-hf] _
+
+tmp_path = WindowsPath('C:/Users/joeyl/AppData/Local/Temp/pytest-of-joeyl/pytest-3/test_public_handler_cold_and_d11')
+J:\code\marengo\tools\marengo-research-mcp\.venv\Lib\site-packages\_pytest\unraisableexception.py:33: RuntimeWarning: coroutine 'test_public_handler_cold_and_disk_cache.<locals>.provider' was never awaited
+  gc.collect()
+RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001FF6A9AC500>
+handler = <function search_hf_tool at 0x000001FF6A927A60>
+source = 'search_huggingface', namespace = 'hf', source_fails = True
+
+    @pytest.mark.parametrize("handler,source,namespace", HANDLERS)
+    @pytest.mark.parametrize("source_fails", [False, True], ids=["hits", "source-error"])
+    async def test_public_handler_cold_and_disk_cache(
+        tmp_path, monkeypatch, handler, source, namespace, source_fails
+    ):
+        cfg = Config(
+            cache_dir=tmp_path,
+            github_token=None,
+            reddit_client_id=None,
+            reddit_client_secret=None,
+            max_scrape=5,
+            scrape_timeout_s=1,
+            cache_ttl_hours=24,
+            max_concurrent_scrape=1,
+            user_agent="offline-test",
+        )
+        awaited_calls = []
+        stamp = datetime(2026, 1, 2, 3, 4, tzinfo=timezone.utc)
+        hit = ResearchHit(
+            type="code", title="Independent result", url="https://fixture.invalid/robot",
+            source_name=namespace, published_at=stamp, updated_at=stamp,
+            metadata={"language": "Rust"},
+        )
+    
+        async def provider(received_cfg, query, limit):
+            awaited_calls.append((received_cfg, query, limit))
+            if source_fails:
+                raise RuntimeError("provider unavailable")
+            return [hit]
+    
+        monkeypatch.setattr(search, source, provider)
+>       cold = json.loads(await handler(cfg, ResearchCache(cfg), "humanoid", 2))
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools\marengo-research-mcp\tests\test_cached_search_handlers.py:55: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:136: in search_hf_tool
+    resp = await _cached_search(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cache = <marengo_research_mcp.cache.ResearchCache object at 0x000001FF6A9AC1D0>
+name = 'hf', query = 'humanoid', limit = 2
+fn = <function search_hf_tool.<locals>.<lambda> at 0x000001FF6A973920>
+
+    async def _cached_search(
+        cache: ResearchCache,
+        name: str,
+        query: str,
+        limit: int,
+        fn,
+    ) -> SearchResponse:
+        key = json.dumps({"q": query, "limit": limit})
+        cached = cache.get("search", f"{name}:{key}")
+        if cached is not None:
+            return SearchResponse.model_validate({**cached, "cached": True})
+        errors: list[str] = []
+        hits = []
+        try:
+            if asyncio.iscoroutinefunction(fn):
+                hits = await fn(query, limit)
+            else:
+                hits = fn(query, limit)
+        except Exception as exc:
+            errors.append(f"{name}: {exc}")
+>       resp = SearchResponse(query=query, hits=hits, errors=errors)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for SearchResponse
+E       hits
+E         Input should be a valid list [type=list_type, input_value=<coroutine object test_pu...r at 0x000001FF6A94D940>, input_type=coroutine]
+E           For further information visit https://errors.pydantic.dev/2.13/v/list_type
+
+tools\marengo-research-mcp\src\marengo_research_mcp\tools\search.py:44: ValidationError
+=========================== short test summary info ===========================
+FAILED tools\marengo-research-mcp\tests\test_cached_search_handlers.py::test_public_handler_cold_and_disk_cache[hits-search_github_tool-search_github-github]
+FAILED tools\marengo-research-mcp\tests\test_cached_search_handlers.py::test_public_handler_cold_and_disk_cache[hits-search_reddit_tool-search_reddit-reddit]
+FAILED tools\marengo-research-mcp\tests\test_cached_search_handlers.py::test_public_handler_cold_and_disk_cache[hits-search_web_tool-search_duckduckgo-web]
+FAILED tools\marengo-research-mcp\tests\test_cached_search_handlers.py::test_public_handler_cold_and_disk_cache[hits-search_forums_tool-search_forums-forums]
+FAILED tools\marengo-research-mcp\tests\test_cached_search_handlers.py::test_public_handler_cold_and_disk_cache[hits-search_vendor_docs_tool-search_vendor_docs-vendor]
+FAILED tools\marengo-research-mcp\tests\test_cached_search_handlers.py::test_public_handler_cold_and_disk_cache[hits-search_hf_tool-search_huggingface-hf]
+FAILED tools\marengo-research-mcp\tests\test_cached_search_handlers.py::test_public_handler_cold_and_disk_cache[source-error-search_github_tool-search_github-github]
+FAILED tools\marengo-research-mcp\tests\test_cached_search_handlers.py::test_public_handler_cold_and_disk_cache[source-error-search_reddit_tool-search_reddit-reddit]
+FAILED tools\marengo-research-mcp\tests\test_cached_search_handlers.py::test_public_handler_cold_and_disk_cache[source-error-search_web_tool-search_duckduckgo-web]
+FAILED tools\marengo-research-mcp\tests\test_cached_search_handlers.py::test_public_handler_cold_and_disk_cache[source-error-search_forums_tool-search_forums-forums]
+FAILED tools\marengo-research-mcp\tests\test_cached_search_handlers.py::test_public_handler_cold_and_disk_cache[source-error-search_vendor_docs_tool-search_vendor_docs-vendor]
+FAILED tools\marengo-research-mcp\tests\test_cached_search_handlers.py::test_public_handler_cold_and_disk_cache[source-error-search_hf_tool-search_huggingface-hf]
+12 failed in 0.50s
+sys:1: RuntimeWarning: coroutine 'test_public_handler_cold_and_disk_cache.<locals>.provider' was never awaited

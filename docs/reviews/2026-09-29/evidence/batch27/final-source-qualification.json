@@ -1,0 +1,16 @@
+{
+  "baseline": "ca13eb810406539cc2394d6130881176fb76665c",
+  "corrupt_bytes_red_parent": "17d33851a378c9742b9cbe0302f9dd95f74db6fc",
+  "inputs": {
+    "tools/marengo-research-mcp/tests/test_cached_search_handlers.py": "07010983b751e0c3ea60e6f2bcb05668d64a415374d6bc6d852a0b2b6ca2dcaf",
+    "tools/marengo-research-mcp/tests/test_cached_search_validation.py": "307e5aa6ace1f377ed25504ea05a5b742d5ae2df93dfbf72dd9a01eddfc3da89",
+    "tools/marengo-research-mcp/tests/test_cache_envelope.py": "58d9a58e052c94319373e7ec589c89870928e8a6ac4f6da82f8eb39bec385f25",
+    "tools/marengo-research-mcp/src/marengo_research_mcp/tools/search.py": "e8621ab703c482335cf476cd2a65ba0d90f390aa16732767849520ce2192edce",
+    "tools/marengo-research-mcp/src/marengo_research_mcp/cache.py": "730d2fcd285dba30704b1e46031275f9353fad5267e131e9fa84c3d03bff1f4e",
+    "tools/marengo-research-mcp/tests/test_corrupt_cache_bytes.py": "6ff370c1a74d4c271c815150f80347cf815c6e83078ad80d79614e7c577a46fe"
+  },
+  "classification": "Original canonical 12 red/unchanged 12 green; validation 21 red/3 positive; non-UTF8 public cache 1 red then unchanged green; final Windows/Pi offline 83 passed. Historical qualification.json binds preceding 82-test stage.",
+  "pi_final_log": "pi-final83-offline-green.txt",
+  "native_final_log": "final-native-green.txt",
+  "physical_movement": false
+}

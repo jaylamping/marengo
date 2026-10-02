@@ -1,0 +1,19 @@
+{
+  "baseline": "ca13eb810406539cc2394d6130881176fb76665c",
+  "command": "docker compose run --rm -e CI=true -e GITHUB_REF=refs/heads/main check",
+  "exit_code": 0,
+  "source_receipt": "final-source-qualification.json",
+  "rust_passed": 813,
+  "rust_failed": 0,
+  "rust_ignored": 1,
+  "suite_summaries": [
+    "83 passed in 1.93s\r",
+    "Ran 15 tests in 1.378s\r"
+  ],
+  "fatal_arm_release_build_passed": true,
+  "primary_log": "J:\\code\\marengo-migration-backup-20260929\\batch27-final83-primary-check.log",
+  "primary_log_sha256": "dfa07c06ffeebe3b980bb2677ebb35127c4a633c154ea3a3451277f9c1c0172e",
+  "pi_research_passed": 83,
+  "physical_movement": false,
+  "pi_rust_workspace": "Failed reproduced cs24 simulation fixture due installed-config precedence; separate pending repair"
+}

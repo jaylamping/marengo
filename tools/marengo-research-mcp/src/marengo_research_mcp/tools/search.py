@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Awaitable, Callable
 
 from marengo_research_mcp.cache import ResearchCache
 from marengo_research_mcp.config import Config
-from marengo_research_mcp.models import SearchResponse
+from marengo_research_mcp.models import ResearchHit, SearchResponse
 from marengo_research_mcp.sources.arxiv import search_arxiv
 from marengo_research_mcp.sources.forums import search_forums
 from marengo_research_mcp.sources.github import search_github
@@ -26,22 +27,22 @@ async def _cached_search(
     name: str,
     query: str,
     limit: int,
-    fn,
+    fn: Callable[[str, int], Awaitable[list[ResearchHit]]],
 ) -> SearchResponse:
     key = json.dumps({"q": query, "limit": limit})
     cached = cache.get("search", f"{name}:{key}")
     if cached is not None:
-        return SearchResponse.model_validate({**cached, "cached": True})
-    errors: list[str] = []
-    hits = []
+        try:
+            response = SearchResponse.model_validate({**cached, "cached": True})
+            if response.query == query:
+                return response
+        except (TypeError, ValueError):
+            # An invalid persisted response is a miss, never an invalid public result.
+            pass
     try:
-        if asyncio.iscoroutinefunction(fn):
-            hits = await fn(query, limit)
-        else:
-            hits = fn(query, limit)
+        resp = SearchResponse(query=query, hits=await fn(query, limit))
     except Exception as exc:
-        errors.append(f"{name}: {exc}")
-    resp = SearchResponse(query=query, hits=hits, errors=errors)
+        resp = SearchResponse(query=query, errors=[f"{name}: {exc}"])
     cache.set("search", f"{name}:{key}", resp.model_dump(mode="json"))
     return resp
 

@@ -102,6 +102,21 @@ echo "==> node tooling (marengo-pi-mcp, hooks, limit-sync, research launch)"
   npm ci
   npm run typecheck
 )
+
+echo "==> research MCP: locked offline Python tests"
+command -v uv >/dev/null 2>&1 || fail "uv not found (run setup-cloud.sh or rebuild dev container)"
+# Keep Linux dependencies away from a host-native .venv on bind-mounted source.
+RESEARCH_TEST_ENV="$(mktemp -d)"
+trap 'rm -rf -- "${RESEARCH_TEST_ENV}"' EXIT
+UV_PROJECT_ENVIRONMENT="${RESEARCH_TEST_ENV}/venv" uv run \
+  --project "${ROOT}/tools/marengo-research-mcp" --locked --extra dev \
+  pytest "${ROOT}/tools/marengo-research-mcp/tests" -q -m 'not integration'
+rm -rf -- "${RESEARCH_TEST_ENV}"
+trap - EXIT
+
+echo "==> daily audit: offline Python and runner contracts"
+python3 -m unittest discover -s "${ROOT}/scripts/daily-audit" -p 'test_*.py'
+
 (
   cd "${ROOT}/.cursor/hooks"
   npm ci

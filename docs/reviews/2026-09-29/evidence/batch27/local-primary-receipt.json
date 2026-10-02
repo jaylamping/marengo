@@ -1,0 +1,21 @@
+{
+  "baseline": "ca13eb810406539cc2394d6130881176fb76665c",
+  "implementation": "3cde43173f20738ec54a1a8d690425b4236d663b",
+  "command": "docker compose run --rm -e CI=true -e GITHUB_REF=refs/heads/main check",
+  "exit_code": 0,
+  "rust_passed": 813,
+  "rust_failed": 0,
+  "rust_ignored": 1,
+  "research_suite": [
+    "58 passed in 1.99s"
+  ],
+  "daily_audit": [
+    "Ran 15 tests in 1.354s"
+  ],
+  "node_test_summaries": [],
+  "fatal_arm_release_build_passed": true,
+  "primary_log": "J:\\code\\marengo-migration-backup-20260929\\batch27-primary-check.log",
+  "primary_log_sha256": "dc37c6af56e9f2cd013fa34268964bd516833a4498d8e6c66175190224a33ca3",
+  "probe_sha256": "f2a174407b0afd5c72e0b140ceda9e000d067a2457b709b74df968783421fd84",
+  "finding_status": "T17 awaits independent review and exact-head hosted delivery; T26 partial"
+}
