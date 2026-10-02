@@ -12,7 +12,8 @@ green after four initial-review failures were repaired. It also checks root stat
 Linux primary814 Rust/1ignored, Consul361/Pi MCP72/research83/daily15,
 installer7 and fatal ARM build passed. Final restoration-order edit has unchanged
 seven-test/syntax qualification; isolated Pi native clients65 pass. Final
-re-review and exact-head hosted CI for draft PR243 are pending. T01 remains open, with versioned releases/atomic activation still
+Standards/Spec re-review is clear at0867a93; exact-head hosted CI for draft
+PR243 is pending. T01 remains open, with versioned releases/atomic activation still
 required alongside T02. See the batch29 report and source receipt.
 
 The updated owner goal explicitly covers this personally owned humanoid robot,

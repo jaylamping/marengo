@@ -85,7 +85,7 @@
       "input_hashes_match": true,
       "physical_acceptance": false
     },
-    "final_primary_and_review": "Independent final re-review and exact-head hosted Docker gate pending.",
+    "final_primary_and_review": "Both final independent reviews clear at0867a93; exact-head hosted Docker gate and delivery pending.",
     "state_restoration": "Regular files first while parents are sealed; directory writes restored in postorder. Canonical seven tests unchanged green. Recursive chmod window identified from upstream source; no race reproduction claimed.",
     "primary": {
       "source_commit": "9b2dd50fb72f06bf3d9e8d261e9892a554128ff2",

@@ -83,4 +83,8 @@ Canonical v7 replays unchanged green after this ordering change. The recursive
 chmod window was identified from [Coreutils9.1 source](https://github.com/coreutils/coreutils/blob/v9.1/src/chmod.c)
 and [gnulib chmodat](https://github.com/coreutils/gnulib/blob/master/lib/openat.h);
 it is source-level evidence, not an additional reproduced failure.
-Final independent re-review and exact-head hosted primary remain pending.
+Final independent re-review is clear at `0867a9304d9ceff5e579601bf85bb39469b752ea`:
+Standards has zero documented violations/actionable smells; Spec has zero
+remaining actionable scoped findings. The separate review receipt retains the
+earlier findings and remaining T01/T02 acceptance. Exact-head hosted primary
+and delivery remain pending.
