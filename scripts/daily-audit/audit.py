@@ -71,6 +71,7 @@ class Report:
     topics: list[dict[str, str]] = field(default_factory=list)
     clean: bool = True
     scan_windows: dict[str, str] = field(default_factory=dict)
+    checks: dict[str, dict] = field(default_factory=dict)
 
     def add(self, finding: Finding) -> None:
         if finding.severity in ("warn", "critical"):
@@ -88,13 +89,15 @@ def out_dir_for(date_str: str | None = None) -> Path:
 
 def run(cmd: list[str], cwd: Path = ROOT) -> str:
     result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        raise RuntimeError(f"command failed ({result.returncode}): {cmd[0]}")
     return result.stdout.strip()
 
 
 def run_json(cmd: list[str], cwd: Path = ROOT) -> list | dict | None:
     proc = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, check=False)
     if proc.returncode != 0 or not proc.stdout.strip():
-        return None
+        raise RuntimeError(f"JSON command failed/incomplete ({proc.returncode}): {cmd[0]}")
     return json.loads(proc.stdout)
 
 
@@ -392,6 +395,8 @@ def write_report(report: Report, out_dir: Path) -> None:
         "topics": report.topics,
         "clean": report.clean,
         "scan_windows": report.scan_windows,
+        "checks": report.checks,
+        "completeness": "complete" if report.checks and all(c["status"] == "complete" for c in report.checks.values()) else "unknown",
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
     (out_dir / "report.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
@@ -402,6 +407,7 @@ def write_report(report: Report, out_dir: Path) -> None:
         f"**Commits:** {len(report.commits_reviewed)}",
         f"**Changed files:** {len(report.changed_files)}",
         f"**Scan windows:** {report.scan_windows}",
+        f"**Check completeness:** {payload['completeness']}",
         "",
         "## Findings",
         "",
@@ -428,29 +434,35 @@ def write_report(report: Report, out_dir: Path) -> None:
     )
 
 
+def capture_check(report: Report, name: str, operation) -> None:
+    before = len(report.findings)
+    try:
+        operation()
+        uncertain = any(f.category == "scan" for f in report.findings[before:])
+        report.checks[name] = {"status": "unknown" if uncertain else "complete"}
+    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as exc:
+        report.checks[name] = {"status": "failed", "error": str(exc)}
+        report.add(Finding(severity="warn", category="scan", file=name,
+            rule="daily audit completeness", message=f"Failed: {exc}"))
+
+
 def main() -> int:
-    date_str = utc_today()
-    out_dir = out_dir_for(date_str)
-    commits, changed, windows = git_changed_files()
-    report = Report(
-        date=date_str,
-        commits_reviewed=commits,
-        changed_files=changed,
-        scan_windows=windows,
-    )
-    if changed:
-        check_unwrap(changed, report)
-        check_gen_handedit(changed, report)
-        check_proto_checksum(changed, report)
-        check_davout_bypass(changed, report)
-        check_large_risky_diff(changed, report)
-        check_adr_staleness(changed, report)
-        check_hardware_config_coupling(changed, report)
-        report.topics = infer_topics(changed)
-    check_ci_status(report)
-    check_stale_safety_prs(report)
-    write_report(report, out_dir)
-    return 0 if report.clean else 1
+    report = Report(date=utc_today())
+    def inventory():
+        commits, changed, windows = git_changed_files()
+        report.commits_reviewed, report.changed_files, report.scan_windows = commits, changed, windows
+    capture_check(report, "git_inventory", inventory)
+    for checker in (check_unwrap, check_gen_handedit, check_proto_checksum, check_davout_bypass,
+                    check_large_risky_diff, check_adr_staleness, check_hardware_config_coupling):
+        if report.checks["git_inventory"]["status"] == "complete":
+            capture_check(report, checker.__name__, lambda checker=checker: checker(report.changed_files, report))
+        else:
+            report.checks[checker.__name__] = {"status": "unknown", "reason": "inventory failed"}
+    report.topics = infer_topics(report.changed_files)
+    capture_check(report, "ci_status", lambda: check_ci_status(report))
+    capture_check(report, "stale_safety_prs", lambda: check_stale_safety_prs(report))
+    write_report(report, out_dir_for(report.date))
+    return 0 if report.clean and all(c["status"] == "complete" for c in report.checks.values()) else 1
 
 
 if __name__ == "__main__":
