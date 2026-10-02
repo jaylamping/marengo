@@ -36,7 +36,7 @@ class ResearchCache:
             return None
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
+        except (json.JSONDecodeError, UnicodeDecodeError, OSError):
             return None
         if not isinstance(data, dict):
             return None

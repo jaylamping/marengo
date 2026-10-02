@@ -25,7 +25,10 @@ All12 v2 cases fail at the actual archived baseline and replay unchanged green.
 The qualification receipt binds its complete bytes and source identities.
 Twelve additional public malformed-provider/disk-response cases and12 independent
 cache-envelope/TTL cases qualify the review corrections. Before repair,21 of those
-24 fail and3 boundary/expiry positives pass; final offline research82 passes.
+24 fail and3 boundary/expiry positives pass. A final Spec review found invalid
+UTF-8 bytes also escaped cache reads. One public-handler regression fails at
+17d3385 with UnicodeDecodeError, then passes unchanged after treating corrupt
+bytes as a cache miss. Final Windows and Pi offline suites each pass83 tests.
 The initial import-error preparation is preserved/excluded from behavior evidence.
 This repairs the
 missing T17 source change independently of the Mac-only unpublished branch;
@@ -73,7 +76,15 @@ The portable replay script performs original-red then repaired-green and the
 full offline suite without writing installed runtime/configuration or opening
 CAN. The initial required Linux check passed813Rust/1existingignored, Consul/PiMCP,
 research58/daily-audit15 and a fatal ARM release build. Final corrected primary/Pi
-replay and independent review/delivery evidence will be recorded after completion.
-Current main Rust tests are also running on the Pi in isolated `stack-3cde431`,
-with low scheduling priority and two compile jobs; default tests require no motors.
+replay passed (canonical12 red/unchanged12 green/full82), followed by the
+final83-test Pi run after the UTF-8 correction. Final required Linux check passed813 Rust/1 existing ignored, Consul361,
+Pi MCP72, research83, daily-audit15 and the fatal ARM release build.
+Final source/primary receipts bind the qualification; independent final review
+and hosted delivery remain pending.
+The isolated Pi Rust workspace run failed in cs24_constructor_period: its
+positive simulation control unexpectedly transmitted diagnostics. A targeted
+rerun reproduced the failure. Inspection found the shared config resolver chose
+installed /opt/marengo/config rather than the copied diagnostics-off fixture.
+This is a separate test-resource isolation finding, pending repair/qualification;
+full Pi Rust acceptance is not claimed. No physical CAN transport was opened.
 T17 remains open until required delivery passes.

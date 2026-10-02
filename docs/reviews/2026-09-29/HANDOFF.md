@@ -6,9 +6,11 @@ is verified. Counts24 verified,11 partial,67 open across102 IDs;8 maintenance
 tasks retained. Earlier pending/draft/count statements below are historical.
 
 Batch27 repairs T17's six cold-cache async handlers and adds locked offline
-research/daily-audit execution to the required check script. Original12 failures
-replay unchanged green; native research58 passes. Primary/Pi offline replay,
-independent reviews and delivery remain in progress. See the batch27 report and
+research/daily-audit execution to the required check script. Canonical12 failures
+replay unchanged green; corrected Windows/Pi research83 pass. Required final
+primary, independent review and delivery remain in progress. A separate Pi Rust
+simulation-fixture failure reproduces because installed config takes precedence;
+full Pi workspace acceptance remains pending. See the batch27 report and
 ledger `active_windows_continuation`. Preserve the Mac-only unpublished branch.
 
 Owner now authorizes connecting to the powered Pi and validation on the device.

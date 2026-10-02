@@ -35,6 +35,11 @@ just research-mcp-setup
 
 Results land in `.marengo-research/` (gitignored).
 
+Records carry a schema version and timestamp. Unsupported versions, invalid or
+future timestamps, and expired records are cache misses. Search handlers validate
+cached responses before reuse; dated results retain their fields through disk
+serialization. Provider and response-validation failures return structured errors.
+
 ## Headless CLI (daily audit)
 
 ```bash
