@@ -1,3 +1,93 @@
+## Latest Windows delivery preparation: batch33, October 2
+
+Both final qualification metadata reviews clear334a8a0; production0b2eb75
+qualification stands. All nine raw/committed artifact hashes and frozen bindings
+verify. Separate Pi preview preserves all five taught hard/soft envelopes,
+motor identity and old URDF bounds. Exact final PR/main CI/delivery pending.
+No installation or movement. Powered testing authorized; concrete setup and
+qualified physical reference remain prerequisites. See batch33 evidence.
+All earlier handoff bytes below are historical and preserved unchanged.
+
+## Latest Windows qualification: batch33 installer, October 2
+
+Source0b2eb75 is software qualified: 861 Rust/one existing ignored, 374 Consul,
+ten installer tests, full primary and fatal ARM release. Both independent
+production reviews clear. Frozen resolved-target-guard mutation produces three
+actual installer assertion failures; ten unchanged tests replay green. Exact
+source/probe/raw and committed artifact bindings are in evidence/batch33.
+Final metadata review and exact PR/main CI/delivery remain pending.
+
+Pi release/database backups are preserved; the new ARM log CLI opens an isolated
+copy of the healthy schema3 runtime database. Installed4bc77ba and live services
+remain unchanged. No installation, CAN/motor command or physical acceptance.
+Owner powered-testing approval stands; stable supported/stopped state and E-stop
+readiness are required before activation. Qualified physical reference remains
+unsupported. Each movement needs concrete bounds/stop and explicit confirmation;
+ten-minute silence permits independent work only. T01 partial; T02/T03 open;
+counts26/13/63,102 findings/eight maintenance tasks and all preserved work remain.
+All earlier handoff bytes below are historical and preserved unchanged.
+
+## Latest installer amendment: exact filename resolution, October 2
+
+Review reproduced newline-directory admission at c6aa099. NUL-delimited
+resolution now preserves the path exactly. All ten installer tests pass; nine
+preceding methods are unchanged. The c6aa099 primary pass is provisional and
+explicitly skipped ARM; final source still needs full primary/fatal ARM, frozen
+mutation replay, independent review and exact PR/main delivery. No install or
+movement. An optional harness dangling bench-latest.json alias is separate
+remaining compatibility work; current Pi has three valid file aliases only.
+Owner approval for powered tests is retained; supported/stopped state, E-stop,
+qualified reference and each bounded test confirmation remain required.
+All earlier handoff bytes below are historical and preserved unchanged.
+
+## Latest Windows continuation: batch33 installer compatibility, October 2
+
+Batch32 is delivered and its records committed/pushed at d224cbd4.
+The owner requests Pi software sync followed by basic right-arm tests.
+Preflight found three legitimate latest-log file aliases; the current installer
+refuses them. An actual baseline probe reproduces that refusal. The candidate
+allows only regular-file aliases confined to var/log, preserving all code and
+data-directory guards. All nine installer tests pass; the seven existing methods
+are unchanged. Full gates, production review, mutation and delivery are pending.
+See batch33-installer-runtime-log-links.md. No reference-grant implementation
+has started. T01 remains partial; T02/T03 open; counts remain26/13/63.
+
+Owner confirms motor power on and approves powered movement testing. Prepare
+the exact update and rollback; establish supported/stopped state and E-stop
+readiness before activation. Qualified live reference is still missing. Propose
+each movement with joint/bounds/duration/caps/stop and require explicit reply
+and commissioning. Ten-minute silence permits independent work only. Installed
+Pi4bc77ba unchanged; no deployment or movement. Preserve CAD, limits, Wave
+sign-off, paused automation, branches/worktrees and all earlier handoff bytes.
+
+## Latest Windows continuation: batch32 delivered, October 2
+
+PR246 is delivered at main 1d855dfc45cdfe76da5f67d69beecf567bb4d301.
+Final head a955c04 and main have identical tree a5f749f5e9a056bfe2c84d6b0f7d6af6689f2aaf;
+All five final PR/main jobs pass in CI36990370708/36991329746.
+Qualified production remains b18faf4, with independent source/final metadata
+reviews clear, primary/native Pi 861 Rust/1 existing ignored, 374 Consul,
+1769 staged inputs unchanged and twelve frozen compiled mutant failures.
+See evidence/batch32/delivery-receipt.json and batch32-reference-history-journal.md.
+
+The owner now requests finishing/committing/pushing this chunk, updating/syncing
+Pi software, then basic right-arm motion tests. Delivery records are the current
+documentation follow-up; no Batch33 grant implementation has started. R2b2
+selected virtual grant and the qualified physical reference/installed-owner
+path remain required. This delivered source provides closed simulation/history,
+and cannot acquire physical motion permission. All 102 findings/eight maintenance
+tasks retain 26 verified, 13 partial, 63 open; CS05/CS06/CS07 remain partial.
+
+Pi software update is authorized by the new owner request, but no install has
+occurred yet. Prepare exact built artifacts and a rollback before activation;
+establish stopped/supported state and physical E-stop readiness. Before every
+physical movement, propose the actual joint, bounds, duration/caps and stop
+procedure; require explicit confirmation and qualified current reference.
+Ten-minute silence leaves movement pending and allows independent work only.
+Installed Pi 4bc77ba remains the last observed revision. Preserve safety limits,
+Wave sign-off, paused automation, CAD, branches and worktrees.
+All earlier handoff bytes below are historical and preserved unchanged.
+
 ## Latest Windows continuation: batch32 software qualified, October 2
 
 Qualified source b18faf486073b7311a029761792be171dac457ef, baseline df468496eae0b3c30104874c3bc2b6ad218ec827; PR246 is

@@ -1,0 +1,35 @@
+ Container marengo-dev-run-accba2d4381e Creating
+ Container marengo-dev-run-accba2d4381e Created
+test_installer_refuses_runtime_log_links_outside_local_regular_files (__main__.InstallPermissions.test_installer_refuses_runtime_log_links_outside_local_regular_files) ...
+  test_installer_refuses_runtime_log_links_outside_local_regular_files (__main__.InstallPermissions.test_installer_refuses_runtime_log_links_outside_local_regular_files) (kind='external') ... FAIL
+  test_installer_refuses_runtime_log_links_outside_local_regular_files (__main__.InstallPermissions.test_installer_refuses_runtime_log_links_outside_local_regular_files) (kind='directory') ... FAIL
+  test_installer_refuses_runtime_log_links_outside_local_regular_files (__main__.InstallPermissions.test_installer_refuses_runtime_log_links_outside_local_regular_files) (kind='calibration') ... FAIL
+
+======================================================================
+FAIL: test_installer_refuses_runtime_log_links_outside_local_regular_files (__main__.InstallPermissions.test_installer_refuses_runtime_log_links_outside_local_regular_files) (kind='external')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scripts/test_install_permissions.py", line 320, in test_installer_refuses_runtime_log_links_outside_local_regular_files
+    self.assertNotEqual(result.returncode, 0, 'installer accepted an invalid log link')
+AssertionError: 0 == 0 : installer accepted an invalid log link
+
+======================================================================
+FAIL: test_installer_refuses_runtime_log_links_outside_local_regular_files (__main__.InstallPermissions.test_installer_refuses_runtime_log_links_outside_local_regular_files) (kind='directory')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scripts/test_install_permissions.py", line 320, in test_installer_refuses_runtime_log_links_outside_local_regular_files
+    self.assertNotEqual(result.returncode, 0, 'installer accepted an invalid log link')
+AssertionError: 0 == 0 : installer accepted an invalid log link
+
+======================================================================
+FAIL: test_installer_refuses_runtime_log_links_outside_local_regular_files (__main__.InstallPermissions.test_installer_refuses_runtime_log_links_outside_local_regular_files) (kind='calibration')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scripts/test_install_permissions.py", line 320, in test_installer_refuses_runtime_log_links_outside_local_regular_files
+    self.assertNotEqual(result.returncode, 0, 'installer accepted an invalid log link')
+AssertionError: 0 == 0 : installer accepted an invalid log link
+
+----------------------------------------------------------------------
+Ran 1 test in 2.011s
+
+FAILED (failures=3)

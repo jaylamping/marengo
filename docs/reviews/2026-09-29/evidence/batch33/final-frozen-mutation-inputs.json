@@ -1,0 +1,12 @@
+{
+  "source": "0b2eb75e3922284da4ecdc4ad16561a67c777235",
+  "baseline_source": "d224cbd4b55faa5016f7c51ffb0447440950d550",
+  "source_installer_sha256": "a353cdd7cc17bba5a6d2cb577b55dc4aaab5efd7d074b89b0e93c5af22833988",
+  "frozen_probe_sha256": "dfd6ba91741b84354a13257e093aa2fa9da957f462b3edc03c5be2adb9ae0925",
+  "baseline_installer_sha256": "ab5b15d3c91f4907a9e363792c3dbb92fd62038fd8d1e4779142ad47d5d5f0a7",
+  "mutation": "Omit same-directory/regular-target guard after actual readlink resolution",
+  "mutant_installer_sha256": "fbd9c426b0b7967c00e830a4ed585f16d9ee54fe2188d9ec0bed3d108d0c7dd6",
+  "positive_oracle": "InstallPermissions.test_installer_preserves_local_runtime_log_links",
+  "negative_oracle": "InstallPermissions.test_installer_refuses_runtime_log_links_outside_local_regular_files",
+  "source_and_probe_edited_for_mutation": false
+}

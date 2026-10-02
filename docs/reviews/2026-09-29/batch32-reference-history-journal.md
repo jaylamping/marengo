@@ -6,8 +6,11 @@ J:/code/marengo-worktrees/reference-history-journal. The candidate implements
 the private R2b1 producer, exact-value codec, concrete SQLite worker, recovery
 reader and owner completion consumer described in [ADR0034](../../decisions/0034-durable-virtual-reference-history.md).
 Software qualification is complete at b18faf486073b7311a029761792be171dac457ef.
-Final PR/main delivery remains pending; no finding closure or physical acceptance
-is claimed. See [source qualification](evidence/batch32/final-source-qualification.json).
+PR246 is delivered as main 1d855dfc45cdfe76da5f67d69beecf567bb4d301.
+Final PR CI36990370708 and equal-tree main CI36991329746 pass all five jobs.
+See the [delivery receipt](evidence/batch32/delivery-receipt.json) and
+[source qualification](evidence/batch32/final-source-qualification.json).
+CS05/CS06/CS07 remain partial; no physical acceptance is claimed.
 
 Batch31 PR245 is delivered: final PR and equal-tree main each pass all five
 CI jobs. Independent production and final metadata reviews are clear. Primary
@@ -92,7 +95,7 @@ The 35-test workspace increase includes two inert child helpers; these are not
 35 independent hardware behaviors. The 4096 event bound is enforced but not
 separately exhausted by a test; the real page-cap test qualifies SQLITE_FULL.
 SQLite/process recovery tests establish no SD-card power-loss behavior. Final
-documentation-head and equal-tree merged-main CI remain pending.
+documentation-head and equal-tree merged-main CI each pass all five jobs.
 
 The owner requested right-arm movement validation and confirmed presence with
 the arm resting at gravity home only. Read-only Pi observations show both CAN

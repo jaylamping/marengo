@@ -243,5 +243,89 @@ class InstallPermissions(unittest.TestCase):
             wrapper.unlink()
 
 
+    def test_installer_preserves_local_runtime_log_links(self):
+        destination = self.root / 'runtime-log-install'
+        log_dir = destination / 'var/log'
+        log_dir.mkdir(parents=True)
+        links = {
+            'bench-latest.log': 'bench-20260812T040257Z.log',
+            'candump-latest.log': 'candump-20260812T040257Z.log',
+            'position-trace-latest.csv': 'position-trace-20260812T040257Z.csv',
+        }
+        expected = {}
+        for index, (alias, name) in enumerate(links.items()):
+            target = log_dir / name
+            content = f'original runtime data {index}\n'.encode()
+            target.write_bytes(content)
+            link = log_dir / alias
+            link.symlink_to(target if index != 1 else name)
+            expected[alias] = (os.readlink(link), content)
+        environment = dict(self.environment, MARENGO_INSTALL_ROOT=str(destination))
+        result = subprocess.run(['bash', str(self.bundle / 'scripts/install-pi.sh')],
+                                env=environment, text=True, capture_output=True, timeout=60)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertTrue((destination / 'bin/marengo-pi').is_file())
+        for alias, (target, content) in expected.items():
+            with self.subTest(alias=alias):
+                link = log_dir / alias
+                self.assertTrue(link.is_symlink())
+                self.assertEqual(os.readlink(link), target)
+                self.assertEqual(link.read_bytes(), content)
+
+    def test_installer_refuses_directory_alias_with_trailing_newline(self):
+        destination = self.root / 'runtime-log-newline-refusal'
+        log_dir = destination / 'var/log'
+        log_dir.mkdir(parents=True)
+        regular = log_dir / 'session'
+        regular.write_bytes(b'keep regular sibling\n')
+        directory = log_dir / 'session\n'
+        directory.mkdir()
+        link = log_dir / 'bench-latest.log'
+        link.symlink_to(directory)
+        environment = dict(self.environment, MARENGO_INSTALL_ROOT=str(destination))
+        result = subprocess.run(['bash', str(self.bundle / 'scripts/install-pi.sh')],
+                                env=environment, text=True, capture_output=True, timeout=60)
+        self.assertNotEqual(result.returncode, 0, 'installer accepted a directory log alias')
+        self.assertIn('symlink', result.stderr)
+        self.assertFalse((destination / 'bin/marengo-pi').exists())
+        self.assertTrue(link.is_symlink())
+        self.assertEqual(os.readlink(link), str(directory))
+        self.assertEqual(regular.read_bytes(), b'keep regular sibling\n')
+
+    def test_installer_refuses_runtime_log_links_outside_local_regular_files(self):
+        for kind in ['external', 'directory', 'dangling', 'calibration']:
+            with self.subTest(kind=kind):
+                destination = self.root / ('runtime-log-refusal-' + kind)
+                log_dir = destination / 'var/log'
+                log_dir.mkdir(parents=True)
+                victim = self.root / ('runtime-log-sentinel-' + kind)
+                victim.write_bytes(b'original sentinel\n')
+                victim.chmod(0o600)
+                before = victim.stat()
+                target = victim
+                if kind == 'directory':
+                    target = log_dir / 'session-directory'
+                    target.mkdir()
+                elif kind == 'dangling':
+                    target = log_dir / 'missing.log'
+                elif kind == 'calibration':
+                    target = destination / 'var/calibration/record.yaml'
+                    target.parent.mkdir()
+                    target.write_bytes(b'preserve calibration\n')
+                link = log_dir / 'bench-latest.log'
+                link.symlink_to(target)
+                environment = dict(self.environment, MARENGO_INSTALL_ROOT=str(destination))
+                result = subprocess.run(['bash', str(self.bundle / 'scripts/install-pi.sh')],
+                                        env=environment, text=True, capture_output=True, timeout=60)
+                self.assertNotEqual(result.returncode, 0, 'installer accepted an invalid log link')
+                self.assertIn('symlink', result.stderr)
+                self.assertFalse((destination / 'bin/marengo-pi').exists())
+                self.assertEqual(victim.read_bytes(), b'original sentinel\n')
+                after = victim.stat()
+                self.assertEqual((after.st_uid, after.st_gid, after.st_mode),
+                                 (before.st_uid, before.st_gid, before.st_mode))
+                self.assertTrue(link.is_symlink())
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

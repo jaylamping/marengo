@@ -1,0 +1,142 @@
+{
+  "source": "0b2eb75e3922284da4ecdc4ad16561a67c777235",
+  "scope": "Owned staging copy only; no installed files or services changed",
+  "preservation_stdout": "preserve-taught-limits: restored motors hard for right_shoulder_pitch, right_shoulder_roll, right_upper_arm_yaw, right_elbow_pitch, right_lower_arm_yaw\npreserve-taught-limits: restored control soft for right_shoulder_roll, right_shoulder_pitch, right_upper_arm_yaw, right_elbow_pitch, right_lower_arm_yaw\npreserve-taught-limits: expand-merged URDF hard for right_shoulder_pitch, right_shoulder_roll, right_elbow_pitch, right_lower_arm_yaw\n",
+  "preservation_stderr": "",
+  "all_five_taught_hard_and_soft_values_preserved": true,
+  "joint_envelopes": [
+    {
+      "joint": "right_shoulder_pitch",
+      "motor_hard": [
+        -1.1152385473251345,
+        3.007078170776367
+      ],
+      "control_soft": [
+        -1.0882385473251344,
+        2.980078170776367
+      ],
+      "motor_identity_changes": {},
+      "URDF_hard": [
+        -1.43134,
+        3.25
+      ],
+      "previous_URDF_hard": [
+        -1.43134,
+        3.25
+      ],
+      "effective_hard": [
+        -1.1152385473251345,
+        3.007078170776367
+      ]
+    },
+    {
+      "joint": "right_shoulder_roll",
+      "motor_hard": [
+        -0.06788089871406555,
+        3.1156094074249268
+      ],
+      "control_soft": [
+        -0.04088089871406555,
+        3.088609407424926
+      ],
+      "motor_identity_changes": {},
+      "URDF_hard": [
+        -0.099415,
+        3.22308
+      ],
+      "previous_URDF_hard": [
+        -0.099415,
+        3.22308
+      ],
+      "effective_hard": [
+        -0.06788089871406555,
+        3.1156094074249268
+      ]
+    },
+    {
+      "joint": "right_upper_arm_yaw",
+      "motor_hard": [
+        -0.7746843099594116,
+        1.290117621421814
+      ],
+      "control_soft": [
+        -0.7476843099594116,
+        1.263117621421814
+      ],
+      "motor_identity_changes": {},
+      "URDF_hard": [
+        -1.57,
+        1.57
+      ],
+      "previous_URDF_hard": [
+        -1.57,
+        1.57
+      ],
+      "effective_hard": [
+        -0.7746843099594116,
+        1.290117621421814
+      ]
+    },
+    {
+      "joint": "right_elbow_pitch",
+      "motor_hard": [
+        -0.15416957437992096,
+        1.6072771549224854
+      ],
+      "control_soft": [
+        -0.12716957437992096,
+        1.5802771549224854
+      ],
+      "motor_identity_changes": {},
+      "URDF_hard": [
+        -1.63191,
+        1.60728
+      ],
+      "previous_URDF_hard": [
+        -1.63191,
+        1.60728
+      ],
+      "effective_hard": [
+        -0.15416957437992096,
+        1.6072771549224854
+      ]
+    },
+    {
+      "joint": "right_lower_arm_yaw",
+      "motor_hard": [
+        -0.39424505829811096,
+        3.2440848350524902
+      ],
+      "control_soft": [
+        -0.36724505829811094,
+        3.21708483505249
+      ],
+      "motor_identity_changes": {},
+      "URDF_hard": [
+        -3.24409,
+        3.24409
+      ],
+      "previous_URDF_hard": [
+        -3.24409,
+        3.24409
+      ],
+      "effective_hard": [
+        -0.39424505829811096,
+        3.2440848350524902
+      ]
+    }
+  ],
+  "preview_file_sha256": {
+    "scripts/preserve-taught-limits.py": "a24a7c2b809fbb0bcc9ad17775b55a1b9fcaeec998a8970b69e9480b840d0eef",
+    "config/network.yaml": "26bda87afa964a6c692cbb4069c57b37dfe395044782406e2f187f97d7739d2e",
+    "config/robot_humanoid.yaml": "2b857fa1013b3354548d30dea66bf85477a532aa12ad71b65d3261ab59025959",
+    "config/control.yaml": "9df1c80840f428e7d076ce0d11b6e3acc567d04e46e517f3547d91fd6368ec21",
+    "config/robot.yaml": "2cf34da3a7f2b6acf8d3bde8f93177010297527169a12f42eca31e6b3f83a268",
+    "config/AGENTS.md": "71ce24dd08090bd69d7aa4878db03b85612042f31464b29de78320d60f708cb3",
+    "config/motors.yaml": "3382f2206231f88edd5dc5c2cfdea391ab4168d3d945210e32e4dc19ba7a6a1d",
+    "config/homing.yaml": "92dc86d8fef1293ed679d0ec1c632e7688199bc2685366f6119631ed6d963952",
+    "config/codemap.md": "85e78d7325da807ec959837fd6d28413003096786f97b7c95ba8970d9876b9d4",
+    "config/motors_humanoid.yaml": "f5b26d8ad2b1f3d30cba6c5e2417ac9982fb8125162d4371b71d214281982182",
+    "assets/urdf/marengo.urdf": "5ae926c28ec93f8a47c1acd64385a480e88d2e2dcb9044bf6db7e3140f99e0ff"
+  }
+}

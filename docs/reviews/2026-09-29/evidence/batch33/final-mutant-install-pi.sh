@@ -39,7 +39,7 @@ local_runtime_log_link() {
   # dangling and external links still refuse before service or file changes.
   [[ "${link%/*}" == "${INSTALL_ROOT}/var/log" ]] || return 1
   IFS= read -r -d '' target < <(readlink -e -z -- "$link") || return 1
-  [[ "${target%/*}" == "${INSTALL_ROOT}/var/log" && -f "$target" ]]
+  return 0
 }
 
 reject_installed_symlinks() {

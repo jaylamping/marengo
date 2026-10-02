@@ -1,0 +1,33 @@
+{
+  "recorded_utc": "2026-10-02T09:55:37.929527+00:00",
+  "pr": "https://github.com/jaylamping/marengo/pull/246",
+  "head": "a955c042d9164cb30d47c436561bfb212e6d867e",
+  "reviewed_production_source": "b18faf486073b7311a029761792be171dac457ef",
+  "pr_ci_run": 36990370708,
+  "main": "1d855dfc45cdfe76da5f67d69beecf567bb4d301",
+  "main_ci_run": 36991329746,
+  "merged_at": "2026-10-02T09:42:28Z",
+  "all_five_pr_and_main_jobs": "passed",
+  "identical_pr_and_main_tree": "a5f749f5e9a056bfe2c84d6b0f7d6af6689f2aaf",
+  "pr_ci_receipt": "pr-ci-receipt.json",
+  "main_ci_receipt": "main-ci-receipt.json",
+  "independent_final_metadata_reviews": "final-metadata-reviews.md",
+  "independent_final_metadata_reviews_sha256": "def55837303dee371805375de26ca7cd949da7780c1c336e7f80bc91863ed60f",
+  "qualification": "final-source-qualification.json",
+  "branches_and_worktrees_preserved": true,
+  "finding_counts": {
+    "verified": 26,
+    "partial": 13,
+    "open": 63
+  },
+  "CS05_CS06_CS07": "partial",
+  "installed_Pi_revision": "4bc77ba605834fdec04b436daa4bec67bca84fbb",
+  "native_Pi": {
+    "Rust_passed": 861,
+    "existing_ignored": 1,
+    "Consul_passed": 374,
+    "bound_source_files": 1769
+  },
+  "deployment_performed": false,
+  "physical_acceptance": false
+}
