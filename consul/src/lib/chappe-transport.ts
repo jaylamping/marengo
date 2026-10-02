@@ -222,6 +222,30 @@ function subscriptionTopics(credential: string): string[] {
   return getChappeSubscribeTopics().filter((topic) => credential || topic !== 'logs/structured');
 }
 
+async function consumeTelemetryFrames(
+  readFrame: () => Promise<Uint8Array | null>,
+  handlers: ChappeTelemetryHandlers,
+  isClosed: () => boolean,
+  stop: () => void,
+): Promise<void> {
+  try {
+    let framesSinceYield = 0;
+    while (!isClosed()) {
+      const frame = await readFrame();
+      if (!frame || isClosed()) break;
+      dispatchEnvelope(frame, handlers);
+      if (++framesSinceYield >= 32) {
+        framesSinceYield = 0;
+        await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+      }
+    }
+  } catch (err) {
+    if (!isClosed()) handlers.onError?.(err instanceof Error ? err.message : String(err));
+  } finally {
+    if (!isClosed()) { handlers.onDisconnected?.(); stop(); }
+  }
+}
+
 export async function connectWebTransport(
   handlers: ChappeTelemetryHandlers,
   closed: () => boolean,
@@ -265,24 +289,10 @@ export async function connectWebTransport(
     if (isClosed()) { stop(); return null; }
     handlers.onTransportMode?.('webtransport');
     handlers.onConnected?.();
-    void (async () => {
-      try {
-        let framesSinceYield = 0;
-        while (!isClosed()) {
-          const frame = await readLengthPrefixedFromStream(reader, frameBuffer, frameBufferedLen);
-          if (!frame || isClosed()) break;
-          dispatchEnvelope(frame, handlers);
-          if (++framesSinceYield >= 32) {
-            framesSinceYield = 0;
-            await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
-          }
-        }
-      } catch (err) {
-        if (!isClosed()) handlers.onError?.(err instanceof Error ? err.message : String(err));
-      } finally {
-        if (!isClosed()) { handlers.onDisconnected?.(); stop(); }
-      }
-    })();
+    void consumeTelemetryFrames(
+      () => readLengthPrefixedFromStream(reader, frameBuffer, frameBufferedLen),
+      handlers, isClosed, stop,
+    );
     return stop;
   } catch (err) {
     stop();
@@ -320,23 +330,9 @@ export async function connectHttpStream(
     abort.abort();
     void reader.cancel().catch(() => {});
   };
-  void (async () => {
-    try {
-      let framesSinceYield = 0;
-      while (!isClosed()) {
-        const frame = await readLengthPrefixedFromStream(reader, buffer, bufferedLen);
-        if (!frame || isClosed()) break;
-        dispatchEnvelope(frame, handlers);
-        if (++framesSinceYield >= 32) {
-          framesSinceYield = 0;
-          await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
-        }
-      }
-    } catch (err) {
-      if (!isClosed()) handlers.onError?.(err instanceof Error ? err.message : String(err));
-    } finally {
-      if (!isClosed()) { handlers.onDisconnected?.(); stop(); }
-    }
-  })();
+  void consumeTelemetryFrames(
+    () => readLengthPrefixedFromStream(reader, buffer, bufferedLen),
+    handlers, isClosed, stop,
+  );
   return stop;
 }
