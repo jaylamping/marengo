@@ -1,3 +1,31 @@
+## Latest Windows continuation: batch32 delivered, October 2
+
+PR246 is delivered at main 1d855dfc45cdfe76da5f67d69beecf567bb4d301.
+Final head a955c04 and main have identical tree a5f749f5e9a056bfe2c84d6b0f7d6af6689f2aaf;
+All five final PR/main jobs pass in CI36990370708/36991329746.
+Qualified production remains b18faf4, with independent source/final metadata
+reviews clear, primary/native Pi 861 Rust/1 existing ignored, 374 Consul,
+1769 staged inputs unchanged and twelve frozen compiled mutant failures.
+See evidence/batch32/delivery-receipt.json and batch32-reference-history-journal.md.
+
+The owner now requests finishing/committing/pushing this chunk, updating/syncing
+Pi software, then basic right-arm motion tests. Delivery records are the current
+documentation follow-up; no Batch33 grant implementation has started. R2b2
+selected virtual grant and the qualified physical reference/installed-owner
+path remain required. This delivered source provides closed simulation/history,
+and cannot acquire physical motion permission. All 102 findings/eight maintenance
+tasks retain 26 verified, 13 partial, 63 open; CS05/CS06/CS07 remain partial.
+
+Pi software update is authorized by the new owner request, but no install has
+occurred yet. Prepare exact built artifacts and a rollback before activation;
+establish stopped/supported state and physical E-stop readiness. Before every
+physical movement, propose the actual joint, bounds, duration/caps and stop
+procedure; require explicit confirmation and qualified current reference.
+Ten-minute silence leaves movement pending and allows independent work only.
+Installed Pi 4bc77ba remains the last observed revision. Preserve safety limits,
+Wave sign-off, paused automation, CAD, branches and worktrees.
+All earlier handoff bytes below are historical and preserved unchanged.
+
 ## Latest Windows continuation: batch32 software qualified, October 2
 
 Qualified source b18faf486073b7311a029761792be171dac457ef, baseline df468496eae0b3c30104874c3bc2b6ad218ec827; PR246 is

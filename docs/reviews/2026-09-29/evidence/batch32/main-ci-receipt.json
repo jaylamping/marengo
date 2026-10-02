@@ -1,0 +1,49 @@
+{
+  "run_id": 36991329746,
+  "url": "https://github.com/jaylamping/marengo/actions/runs/36991329746",
+  "headSha": "1d855dfc45cdfe76da5f67d69beecf567bb4d301",
+  "status": "completed",
+  "conclusion": "success",
+  "jobs": [
+    {
+      "name": "build-image",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/jaylamping/marengo/actions/runs/36991329746/job/110787984133",
+      "startedAt": "2026-10-02T09:42:33Z",
+      "completedAt": "2026-10-02T09:42:53Z"
+    },
+    {
+      "name": "changes",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/jaylamping/marengo/actions/runs/36991329746/job/110787984344",
+      "startedAt": "2026-10-02T09:42:33Z",
+      "completedAt": "2026-10-02T09:42:38Z"
+    },
+    {
+      "name": "check",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/jaylamping/marengo/actions/runs/36991329746/job/110788097390",
+      "startedAt": "2026-10-02T09:42:57Z",
+      "completedAt": "2026-10-02T09:51:41Z"
+    },
+    {
+      "name": "sim",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/jaylamping/marengo/actions/runs/36991329746/job/110788097450",
+      "startedAt": "2026-10-02T09:42:56Z",
+      "completedAt": "2026-10-02T09:45:26Z"
+    },
+    {
+      "name": "vcan",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/jaylamping/marengo/actions/runs/36991329746/job/110788097470",
+      "startedAt": "2026-10-02T09:42:56Z",
+      "completedAt": "2026-10-02T09:45:16Z"
+    }
+  ]
+}

@@ -2829,7 +2829,7 @@
       "implementation_and_acceptance_plan": "gateway-implementation-plan.md",
       "status": "verified",
       "evidence": [
-        "Batch23 original CPU HostMetrics assertion red replays unchanged green after correct column parsing, keyed CPU-ID baselines and explicit unknown/reset/hotplug validity. Encoded UI unknownâ†’validâ†’unknown qualified; Standards/Spec and integration reviews accepted. Final PR5c603be CI36899946079 all5 passed; merged mainad09ee4 CI36900877954 all5 passed. No hardware acceptance."
+        "Batch23 original CPU HostMetrics assertion red replays unchanged green after correct column parsing, keyed CPU-ID baselines and explicit unknown/reset/hotplug validity. Encoded UI unknown\u00e2\u2020\u2019valid\u00e2\u2020\u2019unknown qualified; Standards/Spec and integration reviews accepted. Final PR5c603be CI36899946079 all5 passed; merged mainad09ee4 CI36900877954 all5 passed. No hardware acceptance."
       ],
       "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/237",
       "hardware_acceptance": "not established by this software repair"
@@ -4698,7 +4698,7 @@
         },
         "limits": "No runtime physical operation. Never-existing from_supervisor name probe excluded from required counts; source/private-factory review establishes the actual seam."
       },
-      "test_quality": "Davout 136Ã¢â€ â€™159:3 obsolete API cases retired,26 meaningful additions; Berthier173Ã¢â€ â€™175 with arithmetic property replaced by wire output, independent stationary input and fixed-dt progress; no new ignored tests. Two receive-invariant mutants killed by actual assertions; CS24 retained open as independently demonstrated old-law failure.",
+      "test_quality": "Davout 136\u00c3\u00a2\u00e2\u20ac\u00a0\u00e2\u20ac\u2122159:3 obsolete API cases retired,26 meaningful additions; Berthier173\u00c3\u00a2\u00e2\u20ac\u00a0\u00e2\u20ac\u2122175 with arithmetic property replaced by wire output, independent stationary input and fixed-dt progress; no new ignored tests. Two receive-invariant mutants killed by actual assertions; CS24 retained open as independently demonstrated old-law failure.",
       "independent_reviews": {
         "standards": {
           "findings": 0,
@@ -15493,6 +15493,26 @@
       "pr_CI": 36976829021,
       "main_CI": 36977383698,
       "delivery": "evidence/batch31/delivery-receipt.json"
+    },
+    {
+      "batch_id": "batch32",
+      "findings": [
+        "CS05",
+        "CS06",
+        "CS07"
+      ],
+      "source": "b18faf486073b7311a029761792be171dac457ef",
+      "baseline": "df468496eae0b3c30104874c3bc2b6ad218ec827",
+      "PR": "https://github.com/jaylamping/marengo/pull/246",
+      "status": "R2b1 software qualified and delivered; findings remain partial",
+      "qualification": "evidence/batch32/final-source-qualification.json",
+      "source_CI": 36987033671,
+      "head": "a955c042d9164cb30d47c436561bfb212e6d867e",
+      "main": "1d855dfc45cdfe76da5f67d69beecf567bb4d301",
+      "pr_CI": 36990370708,
+      "main_CI": 36991329746,
+      "delivery": "evidence/batch32/delivery-receipt.json",
+      "physical_acceptance": false
     }
   ],
   "finding_status_counts": {
@@ -15542,7 +15562,7 @@
       "CS07"
     ],
     "report": "batch32-reference-history-journal.md",
-    "status": "R2b1 software qualified: full primary and native Pi 861 Rust/1 existing ignored,374 Consul; all1769 staged inputs unchanged;12 frozen mutants and independent Standards/Spec clear; source CI all five passed. Final documentation-head/main delivery pending. CS05/CS06/CS07 remain partial; no physical acceptance.",
+    "status": "R2b1 software qualified and delivered: PR246 merged as 1d855df; final PR and equal-tree main all five checks pass. Source primary/native Pi 861 Rust/1 existing ignored, 374 Consul and 1769 unchanged staged inputs; 12 frozen mutants and independent Standards/Spec clear. CS05/CS06/CS07 remain partial; no physical acceptance.",
     "physical_acceptance": false,
     "owner_scope": "Personally owned robot/repository/Pi; isolated fixtures. Explicit confirmation and commissioning checks before every movement. Ten-minute silence leaves movement pending and allows independent work only.",
     "pi_installed_revision": "4bc77ba605834fdec04b436daa4bec67bca84fbb",
@@ -15552,6 +15572,12 @@
     "qualification": "evidence/batch32/final-source-qualification.json",
     "source_CI": 36987033671,
     "next": "WP04 R2b2 current selected virtual grant, then required installed-owner/physical-reference prerequisites for right-arm acceptance",
-    "right_arm_acceptance": "Owner present, arm resting at gravity home only. Read-only installed snapshot Disabled; legacy Verified flags do not establish repaired reference. Support and live reference remain unestablished. Propose a bounded single-joint test only after prerequisites; explicit confirmation per movement."
+    "right_arm_acceptance": "Owner present, arm resting at gravity home only. Read-only installed snapshot Disabled; legacy Verified flags do not establish repaired reference. Support and live reference remain unestablished. Propose a bounded single-joint test only after prerequisites; explicit confirmation per movement.",
+    "head": "a955c042d9164cb30d47c436561bfb212e6d867e",
+    "main": "1d855dfc45cdfe76da5f67d69beecf567bb4d301",
+    "pr_CI": 36990370708,
+    "main_CI": 36991329746,
+    "delivery": "evidence/batch32/delivery-receipt.json",
+    "owner_requested_next": "Finalize delivery records, update/sync Pi software, then basic right-arm motion tests after qualified current reference and explicit bounded movement confirmation. No Batch33 grant implementation has started."
   }
 }
