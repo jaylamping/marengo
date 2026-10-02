@@ -15516,7 +15516,7 @@
       "G07"
     ],
     "report": "batch31-gateway-runtime-access.md",
-    "status": "Private implementation in progress. Original public HTTP v2 has11 negative failures and2 positive controls; unchanged policy replay13 green. Shared HTTP policy54 tests/clippy pass. WebTransport, runtime UI, broad route conformance, primary gate, Pi, independent review and CI pending. G07 remains open.",
+    "status": "Private software checkpoint:62 gateway/374 Consul pass, real HTTP/HTTPS/pinned QUIC and route/capability controls. Original public13 unchanged cases green; original gateway/Auto static markers red. Candidate99 assets exclude11 fixtures; build check wired into CI/deploy. Primary/Pi/reviews/hosted delivery pending; G07 remains open.",
     "physical_acceptance": false,
     "owner_scope": "Personally owned robot/repository/Pi; isolated software fixtures. Prompt and explicit confirmation before each movement with commissioning checks. Ten-minute silence means independent work, never movement approval.",
     "pi_installed_revision": "4bc77ba605834fdec04b436daa4bec67bca84fbb"

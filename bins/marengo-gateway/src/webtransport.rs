@@ -1,14 +1,25 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::Duration;
 
 use armee_proto::prost::Message;
-use armee_proto::GatewaySubscribe;
+use armee_proto::{GatewaySubscribe, GatewaySubscriptionAdmission};
+use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use rustls::pki_types::{pem::PemObject, CertificateDer, PrivateKeyDer};
 use tracing::{debug, info, warn};
-use web_transport_quinn::{ServerBuilder, Session};
+use web_transport_quinn::{Server, ServerBuilder, Session};
 
 use crate::framing::{self, MAX_FRAME};
 use crate::state::{filter_topics, SharedState};
+
+#[cfg(test)]
+#[path = "webtransport_access_tests.rs"]
+mod access_tests;
+
+const SUBSCRIPTION_MAX_BYTES: usize = 16 * 1024;
+const SUBSCRIPTION_TIMEOUT: Duration = Duration::from_secs(5);
+const ADMISSION_WRITE_TIMEOUT: Duration = Duration::from_secs(1);
+const SESSION_CAPACITY: usize = 64;
 
 /// TLS material for WebTransport (QUIC) and `/tls/fingerprint` for browsers.
 pub struct TlsMaterial {
@@ -24,23 +35,74 @@ pub async fn run_webtransport(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     state.set_tls_cert_sha256_base64(tls.cert_sha256_base64.clone());
     let (cert, key) = (tls.certs, tls.key);
-    let mut server = ServerBuilder::new()
+    let server = ServerBuilder::new()
         .with_addr(bind_addr)
         .with_certificate(cert, key)?;
     info!(%bind_addr, "WebTransport listening");
+    serve_webtransport(server, state).await
+}
+
+async fn serve_webtransport(
+    mut server: Server,
+    state: SharedState,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let capacity = Arc::new(tokio::sync::Semaphore::new(SESSION_CAPACITY));
+    let mut sessions = tokio::task::JoinSet::new();
     loop {
-        let Some(request) = server.accept().await else {
+        let request = tokio::select! {
+            request = server.accept() => match request {
+                Some(request) => request,
+                None => return Ok(()),
+            },
+            _ = sessions.join_next(), if !sessions.is_empty() => continue,
+        };
+        let Ok(permit) = Arc::clone(&capacity).try_acquire_owned() else {
+            // Refusal work is bounded too; do not spawn unlimited rejected sessions.
+            let _ = tokio::time::timeout(
+                ADMISSION_WRITE_TIMEOUT,
+                request.reject(StatusCode::SERVICE_UNAVAILABLE),
+            )
+            .await;
             continue;
         };
         let st = Arc::clone(&state);
-        tokio::spawn(async move {
-            match request.ok().await {
-                Ok(session) => {
-                    if let Err(e) = handle_session(session, st).await {
+        sessions.spawn(async move {
+            let _permit = permit;
+            let mut headers = request.headers.clone();
+            // HTTP/3 carries authority separately from raw headers. The same policy
+            // uses that parsed CONNECT authority, never an Origin-supplied host.
+            let authority = request
+                .url
+                .as_str()
+                .strip_prefix("https://")
+                .and_then(|url| url.split('/').next())
+                .and_then(|authority| HeaderValue::from_str(authority).ok());
+            if let Some(authority) = authority {
+                headers.insert(header::HOST, authority);
+            }
+            let refusal = if request.url.path() != "/chappe"
+                || request.url.query().is_some()
+                || !request.url.username().is_empty()
+                || request.url.password().is_some()
+            {
+                Some(StatusCode::BAD_REQUEST)
+            } else {
+                st.access.validate_origin(&headers).err()
+            };
+            if let Some(status) = refusal {
+                let _ = tokio::time::timeout(ADMISSION_WRITE_TIMEOUT, request.reject(status)).await;
+                return;
+            }
+            match tokio::time::timeout(SUBSCRIPTION_TIMEOUT, request.ok()).await {
+                Ok(Ok(session)) => {
+                    let closing = session.clone();
+                    if let Err(e) = handle_session(session, st, headers).await {
+                        closing.close(1, b"subscription refused");
                         warn!(error = %e, "webtransport session failed");
                     }
                 }
-                Err(e) => warn!(error = %e, "webtransport handshake failed"),
+                Ok(Err(e)) => warn!(error = %e, "webtransport handshake failed"),
+                Err(_) => warn!("webtransport handshake timed out"),
             }
         });
     }
@@ -49,19 +111,64 @@ pub async fn run_webtransport(
 async fn handle_session(
     session: Session,
     state: SharedState,
+    mut headers: HeaderMap,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let (mut send, mut recv) = session
-        .accept_bi()
-        .await
-        .map_err(|e| format!("accept_bi: {e}"))?;
+    let (mut send, mut recv, subscribe_bytes) = tokio::time::timeout(SUBSCRIPTION_TIMEOUT, async {
+        let (send, mut recv) = session.accept_bi().await?;
+        let bytes = framing::read_length_prefixed_quinn(&mut recv, SUBSCRIPTION_MAX_BYTES).await?;
+        Ok::<_, Box<dyn std::error::Error + Send + Sync>>((send, recv, bytes))
+    })
+    .await
+    .map_err(|_| "subscription timed out")??;
 
-    let subscribe_bytes = framing::read_length_prefixed_quinn(&mut recv).await?;
-    let subscribe = GatewaySubscribe::decode(subscribe_bytes.as_slice())
-        .map_err(|e| format!("subscribe decode: {e}"))?;
-    let topics = filter_topics(&subscribe.topics);
-    if topics.is_empty() {
-        return Err("no allowed topics in subscribe".into());
-    }
+    let admitted = GatewaySubscribe::decode(subscribe_bytes.as_slice())
+        .map_err(|_| StatusCode::BAD_REQUEST)
+        .and_then(|subscribe| {
+            let topics = filter_topics(&subscribe.topics);
+            if topics.is_empty() {
+                return Err(StatusCode::BAD_REQUEST);
+            }
+            if topics
+                .iter()
+                .any(|topic| crate::http::sensitive_topic(topic))
+            {
+                if headers.contains_key(header::AUTHORIZATION)
+                    || headers.contains_key("x-marengo-log-token")
+                {
+                    return Err(StatusCode::UNAUTHORIZED);
+                }
+                let value =
+                    HeaderValue::from_str(&format!("Bearer {}", subscribe.runtime_credential))
+                        .map_err(|_| StatusCode::UNAUTHORIZED)?;
+                headers.insert(header::AUTHORIZATION, value);
+                state
+                    .access
+                    .authorize(&headers, crate::access::Capability::SensitiveRead)?;
+            }
+            Ok(topics)
+        });
+    let admission = GatewaySubscriptionAdmission {
+        status: admitted
+            .as_ref()
+            .map_or_else(|status| status.as_u16() as u32, |_| 200),
+        topics: admitted.as_ref().cloned().unwrap_or_default(),
+    };
+    tokio::time::timeout(
+        ADMISSION_WRITE_TIMEOUT,
+        framing::write_length_prefixed_quinn(&mut send, &admission.encode_to_vec()),
+    )
+    .await
+    .map_err(|_| "admission response timed out")??;
+    let topics = match admitted {
+        Ok(topics) => topics,
+        Err(_) => {
+            send.finish()?;
+            // Give the refusal frame a bounded opportunity to reach the client.
+            let _ = tokio::time::timeout(ADMISSION_WRITE_TIMEOUT, send.stopped()).await;
+            session.close(1, b"subscription refused");
+            return Ok(());
+        }
+    };
     debug!(?topics, "WebTransport subscribed");
 
     let mut rx = state.subscribe_envelopes();

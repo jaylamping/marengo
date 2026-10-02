@@ -186,6 +186,14 @@ message MitCommandBatch {
 // First message on a WebTransport bidi stream: which Chappe topics to receive.
 message GatewaySubscribe {
   repeated string topics = 1;
+  // Runtime credential for sensitive topics; never a role claim or URL parameter.
+  string runtime_credential = 2;
+}
+
+// First server frame, before topic envelopes. HTTP-style admission status.
+message GatewaySubscriptionAdmission {
+  uint32 status = 1;
+  repeated string topics = 2;
 }
 
 // Structured log line for Consul log surfaces (topic: logs/structured).

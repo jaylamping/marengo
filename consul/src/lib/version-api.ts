@@ -1,3 +1,4 @@
+import { gatewayAuthHeaders } from '@/lib/runtime-credentials';
 import { getChappeEndpoints } from '@/lib/chappe-config';
 import { parseDeployRev } from '@/lib/host-debug-info';
 
@@ -77,14 +78,7 @@ function baseUrl(): string | null {
 }
 
 function authHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  const token = import.meta.env.VITE_MARENGO_LOG_TOKEN as string | undefined;
-  if (token?.trim()) {
-    headers['x-marengo-log-token'] = token.trim();
-  }
-  return headers;
+  return gatewayAuthHeaders('management', 'application/json');
 }
 
 export function shasMatch(installed: string, upstream: string): boolean {

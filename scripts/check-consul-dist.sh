@@ -20,6 +20,8 @@ fi
 FORBIDDEN=(
   '127.0.0.1:8080'
   'VITE_CHAPPE_'
+  'VITE_MARENGO_LOG_TOKEN'
+  'VITE_AUTO_LEARN_TOKEN'
 )
 
 for pattern in "${FORBIDDEN[@]}"; do

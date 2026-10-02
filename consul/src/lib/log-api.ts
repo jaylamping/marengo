@@ -1,3 +1,4 @@
+import { gatewayAuthHeaders } from '@/lib/runtime-credentials';
 import { getChappeEndpoints } from '@/lib/chappe-config';
 
 export type StructuredLogEntryDto = {
@@ -105,11 +106,7 @@ async function logFetch<T>(path: string): Promise<LogApiResult<T>> {
   if (!root) {
     return { ok: false, error: { kind: 'no_endpoint' } };
   }
-  const token = import.meta.env.VITE_MARENGO_LOG_TOKEN as string | undefined;
-  const headers: Record<string, string> = {};
-  if (token?.trim()) {
-    headers['x-marengo-log-token'] = token.trim();
-  }
+  const headers = gatewayAuthHeaders('sensitiveRead');
   try {
     const res = await fetch(`${root}${path}`, { headers });
     if (!res.ok) {

@@ -1488,10 +1488,12 @@ dependencies = [
  "thiserror 1.0.69",
  "time",
  "tokio",
+ "tokio-rustls",
  "tokio-util",
  "tower",
  "tower-http",
  "tracing",
+ "url",
  "web-transport-quinn",
  "x509-parser",
 ]

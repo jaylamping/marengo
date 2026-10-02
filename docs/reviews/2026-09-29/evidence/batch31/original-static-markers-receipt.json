@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "baseline": "a5c4cdb6448c5a0164ebbeffb1c82eb09ab0c266",
+  "classification": "Original successful production build with configured disposable gateway and Auto Learn inputs; actual static-marker oracle refuses output.",
+  "original_asset_count": 99,
+  "marker_occurrence_paths": {
+    "gateway": [
+      "assets/config-api-jWcBQy_2.js",
+      "assets/hardware-overview-DAomNAxr.js",
+      "assets/index-Cj85xPt_.js",
+      "assets/log-api-DJoCHlXb.js"
+    ],
+    "auto_learn": [
+      "assets/compound-test-panel-COFpPioA.js"
+    ]
+  },
+  "inputs": {
+    "consul/src/lib/config-api.ts": "eac177b6435e422afdf41fb2f6e2167442cdb91a34f5c8418403a1b8489bc85d",
+    "consul/src/lib/gateway-api.ts": "b9d6515ecb2fdcc1bdf198447ba938f37d7e30a543dd4fdb4cc5fc2e94c289d0",
+    "consul/src/lib/hardware-api.ts": "18f00a630a43534bdd267c9bddbaf5ac817a871c409bfbeede58bdeb7975bd0d",
+    "consul/src/lib/log-api.ts": "642d650984f9ae3abe2071922f776cbaa3be081b6dcb47a73e74a5728cc963a0",
+    "consul/src/lib/version-api.ts": "1262679780ac36e076fc34eda2cb7e5ab4b01d21e3adccb7da58e87fede74e07",
+    "consul/src/lib/auto-learn-api.ts": "1e466cc8f9259e4ee20c3b4077d5ee4c56741faa13067c72b97d29f24be4e383",
+    "consul/package.json": "8461bc1a087dd564866ddb002f70774b9c5d7945538b11715761fc042029c311",
+    "consul/package-lock.json": "1e01243fde1f613aa94af32b3a638e7193ac0d8274a4992da1cf423e0dbeba63",
+    "proto/marengo/v1/marengo.proto": "fce29c9a2aed74bf7b11671859bc787bc3444e6b639b8b3089ed0722385f5551"
+  },
+  "physical_acceptance": false
+}

@@ -33,7 +33,7 @@ consul/
 | Design system | `DESIGN.md` (Launch Day identity), `src/index.css` (tokens), `components.json` (glinui config) |
 | URDF viewer | `src/urdf/` |
 | API / Chappe connection | `src/lib/`, `src/hooks/` |
-| Compound Auto Learn | `src/components/dashboard/testing/auto-learn-panel.tsx`, BFF `tools/compound-auto-learn/` — set `VITE_AUTO_LEARN_URL` + `VITE_AUTO_LEARN_TOKEN` in `.env.local` |
+| Compound Auto Learn | `src/components/dashboard/testing/auto-learn-panel.tsx`, BFF `tools/compound-auto-learn/` — set `VITE_AUTO_LEARN_URL`; enter its credential in the panel at runtime |
 
 ## CONVENTIONS
 

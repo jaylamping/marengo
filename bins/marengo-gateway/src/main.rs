@@ -18,6 +18,9 @@ mod webtransport;
 #[cfg(test)]
 mod gateway_access_public_test;
 
+#[cfg(test)]
+mod gateway_access_conformance_test;
+
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -193,9 +196,12 @@ async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             marengo_config::CommandJointAllowlist::empty()
         }
     };
-    let mut app_state = state::AppState::new(Arc::clone(&bus))
-        .with_command_joints(command_joints)
-        .with_ipc(ipc);
+    let mut app_state = state::AppState::new_with_https_port(
+        Arc::clone(&bus),
+        args.https_addr.map(|address| address.port()),
+    )
+    .with_command_joints(command_joints)
+    .with_ipc(ipc);
     if let Some(log_services) = logs {
         app_state = app_state.with_logs(log_services);
     }

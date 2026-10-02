@@ -1,0 +1,84 @@
+ Container marengo-dev-run-c3923a9727fb Creating 
+ Container marengo-dev-run-c3923a9727fb Created 
+   Compiling marengo-gateway v0.1.0 (/workspace/bins/marengo-gateway)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.51s
+     Running unittests src/main.rs (target/debug/deps/marengo_gateway-6e75729c3c991563)
+
+running 62 tests
+test action_ack::tests::live_ack_matcher_ignores_write_behind_persist_action ... ok
+test access::tests::role_credentials_cannot_gain_another_capability ... ok
+test access::tests::browser_origins_are_exact_and_non_browser_clients_remain_authenticated ... ok
+test access::tests::unset_missing_wrong_and_ambiguous_credentials_fail_closed ... ok
+test action_ack::tests::recv_live_ack_surfaces_live_reject ... ok
+test action_ack::tests::recv_live_ack_skips_persist_failed_until_pending ... ok
+test actuator::tests::command_actuator_publishes_canonical_joint_for_left_alias ... ok
+test framing::tests::lag_discards_old_transition_and_backlog_before_fresh_state ... ok
+test actuator::tests::command_actuator_rejects_without_limits_snapshot ... ok
+test actuator::tests::command_actuator_clamps_to_live_kp_max ... ok
+test actuator::tests::control_credential_cannot_persist_or_request_firmware_tuning ... ok
+test actuator::tests::snapshot_actuator_limits_503_when_cache_empty ... ok
+test actuator::tests::command_actuator_rejects_non_tuning_with_400 ... ok
+test actuator::tests::command_actuator_rejects_unwired_joint_with_403 ... ok
+test actuator::tests::command_actuator_requires_access_credential ... ok
+test actuator::tests::command_actuator_returns_429_when_rate_limited ... ok
+test logs::tests::recent_limit_default ... ok
+test ratelimit::tests::motion_bucket_ignores_client_id_rotation ... ok
+test ratelimit::tests::buckets_are_isolated_by_client_and_joint ... ok
+test ratelimit::tests::refund_restores_token_after_failed_publish ... ok
+test ratelimit::tests::rejects_empty_client_id ... ok
+test ratelimit::tests::motion_bucket_is_stricter_than_tuning ... ok
+test ratelimit::tests::status_poll_bucket_allows_burst_then_rejects_until_refill ... ok
+test restart::tests::refuse_active_only_when_heartbeat_fresh ... ok
+test ratelimit::tests::tuning_bucket_allows_burst_then_rejects ... ok
+test http::tests::command_set_zero_requires_confirm_and_attestation ... ok
+test state::ipc_snapshot_tests::connection_change_retires_observations_until_a_new_frame_arrives ... ok
+test hardware::tests::activate_refuses_active_with_fresh_heartbeat ... ok
+test http::tests::command_motor_status_poll_rate_limits_globally ... ok
+test hardware::tests::command_home_is_gone ... ok
+test hardware::tests::configuration_accepts_legacy_header_with_the_shared_policy ... ok
+test webtransport::tests::tls_material_rejects_malformed_certificate_chain ... ok
+test webtransport::tests::tls_material_retains_certificate_chain_and_matching_key ... ok
+test webtransport::tests::tls_material_rejects_empty_or_malformed_private_key ... ok
+test hardware::tests::commissioning_scope_read_open_mutations_gated_widen_and_unknown ... ok
+test gateway_access_conformance_test::role_matrix_and_body_limits_preserve_independent_admission ... ok
+test gateway_access_public_test::configured_routes_require_credentials_before_publication ... ok
+test config::tests::master_snapshot_resolves_actuator_group_velocity ... ok
+test hardware::tests::completeness_is_advisory_and_upload_not_blocked ... ok
+test hardware::tests::urdf_read_rejects_missing_auth ... ok
+test hardware::tests::urdf_read_returns_bytes_with_auth ... ok
+test action_ack::tests::recv_live_ack_times_out_without_matching_session ... ok
+test state::runtime_transition_stream_tests::existing_topic_subscriber_receives_typed_runtime_invalidation ... ok
+test hardware::tests::activate_and_resolve_reject_unsafe_upload_ids ... ok
+test http::tests::command_set_zero_rejects_unwired_joint_with_403 ... ok
+test logs::tests::logs_read_without_credentials_fails_before_store ... ok
+test restart::tests::restart_requires_confirm ... ok
+test http::tests::command_set_zero_returns_429_when_rate_limited ... ok
+test http::tests::stream_chappe_emits_length_prefixed_envelopes ... ok
+test restart::tests::restart_refuses_active_with_fresh_heartbeat ... ok
+test restart::tests::restart_fails_closed_without_token ... ok
+test restart::tests::restart_allows_active_with_stale_heartbeat_via_stub ... ok
+test gateway_access_conformance_test::all_protected_routes_refuse_before_body_files_publication_or_subscription ... ok
+test gateway_access_conformance_test::actual_http_and_https_listeners_share_access_and_public_controls ... ok
+test hardware::tests::activate_saves_manifest_before_failed_live_promote ... ok
+test webtransport::access_tests::actual_quic_public_and_authenticated_sensitive_streams_deliver_owned_envelopes ... ok
+test webtransport::access_tests::actual_quic_enforces_browser_origin_and_allows_robot_https_listener_origin ... ok
+test webtransport::access_tests::actual_quic_rejects_missing_wrong_and_wrong_role_before_subscribing ... ok
+test hardware::tests::activate_archives_replaced_active_and_promotes_merge ... ok
+test ratelimit::tests::tuning_bucket_refills_over_time ... ok
+test hardware::tests::archive_reads_require_auth ... ok
+test webtransport::access_tests::actual_quic_rejects_oversized_and_stalled_subscriptions_with_no_subscriber ... ok
+
+test result: ok. 62 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.09s
+
+    Checking marengo-gateway v0.1.0 (/workspace/bins/marengo-gateway)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.62s
+ok: clean dist passes (exit 0)
+ok: missing dist fails (exit 1)
+ok: localhost poison rejected (stderr mentions '127.0.0.1:8080')
+ok: VITE_CHAPPE_ poison rejected (stderr mentions 'VITE_CHAPPE_')
+
+check-consul-dist.test: 4 passed, 0 failed
+ok: no consul_assets_fresh helper
+ok: no skip-consul-build log
+
+deploy-consul-rebuild.test: 2 passed, 0 failed

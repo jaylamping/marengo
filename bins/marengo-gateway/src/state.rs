@@ -80,6 +80,11 @@ pub struct AppState {
 }
 
 impl AppState {
+    #[cfg(test)]
+    pub(crate) fn envelope_receiver_count(&self) -> usize {
+        self.envelope_tx.receiver_count()
+    }
+
     /// IPC connection changes retire all prior producer observations. Connectivity
     /// itself provides no replacement safety or motion-admission evidence.
     pub fn runtime_connection_changed(&self, connected: bool) {
@@ -105,7 +110,12 @@ impl AppState {
             .send((TOPIC_RUNTIME_CONNECTION.into(), envelope.encode_to_vec()));
     }
 
+    #[cfg(test)]
     pub fn new(bus: Arc<Bus>) -> Self {
+        Self::new_with_https_port(bus, None)
+    }
+
+    pub fn new_with_https_port(bus: Arc<Bus>, https_port: Option<u16>) -> Self {
         let (envelope_tx, _) = broadcast::channel(ENVELOPE_BROADCAST_CAPACITY);
         // Binary composition boundary: capture trusted access configuration once.
         let access = crate::access::AccessPolicy::from_environment().unwrap_or_else(|error| {
@@ -118,7 +128,7 @@ impl AppState {
             );
         }
         Self {
-            access: Arc::new(access),
+            access: Arc::new(access.with_robot_https_port(https_port)),
             bus,
             snapshots: Arc::new(RwLock::new(Snapshots::default())),
             ipc: None,

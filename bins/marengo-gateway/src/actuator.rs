@@ -289,6 +289,71 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn control_credential_cannot_persist_or_request_firmware_tuning() {
+        let bus = std::sync::Arc::new(Bus::default());
+        let state = std::sync::Arc::new(
+            AppState::new(std::sync::Arc::clone(&bus))
+                .with_access(
+                    crate::access::AccessPolicy::role_fixture(
+                        TEST_LOG_TOKEN,
+                        crate::access::Capability::Control,
+                    )
+                    .expect("control grant"),
+                )
+                .with_command_joints(CommandJointAllowlist::from_joints(["right_shoulder_pitch"])),
+        );
+        seed_limits(&state, "right_shoulder_pitch", 20.0, 5.0);
+        let mut published = bus.subscribe(TOPIC_ACTUATOR_COMMAND);
+        let app = test_router(state);
+        for (tier, persist, status) in [
+            (TuningTier::ConfigOverlay, false, StatusCode::FORBIDDEN),
+            (TuningTier::RuntimeMit, true, StatusCode::FORBIDDEN),
+            (TuningTier::Firmware, false, StatusCode::FORBIDDEN),
+            (TuningTier::RuntimeMit, false, StatusCode::OK),
+        ] {
+            let payload = armee_proto::actuator_command::Payload::Tuning(TuningChange {
+                tier: tier as i32,
+                param: "kp".into(),
+                value: 10.0,
+                persist,
+            });
+            let response = app
+                .clone()
+                .oneshot(
+                    authenticated_request()
+                        .method("POST")
+                        .uri("/command/actuator")
+                        .body(Body::from(operator_envelope(
+                            "right_shoulder_pitch",
+                            payload,
+                        )))
+                        .expect("fixture request"),
+                )
+                .await
+                .expect("fixture response");
+            assert_eq!(response.status(), status);
+            if status == StatusCode::OK {
+                let envelope =
+                    Envelope::decode(published.try_recv().expect("runtime tuning").as_slice())
+                        .expect("envelope");
+                let command =
+                    OperatorCommand::decode(envelope.payload.as_slice()).expect("command");
+                assert!(matches!(
+                    command.command.expect("actuator").payload,
+                    Some(armee_proto::actuator_command::Payload::Tuning(
+                        TuningChange { persist: false, .. }
+                    ))
+                ));
+            } else {
+                assert!(
+                    published.try_recv().is_err(),
+                    "no unauthorized tuning publication"
+                );
+            }
+        }
+    }
+
+    #[tokio::test]
     async fn command_actuator_requires_access_credential() {
         let state = test_state();
         seed_limits(&state, "right_shoulder_pitch", 50.0, 5.0);

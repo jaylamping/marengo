@@ -13,3 +13,6 @@ Chappe/gateway client library and shared utilities.
 
 ## Integration
 - Called by dashboard components and Zustand store init effects
+
+- `runtime-credentials.ts`: tab-memory credential state; shared capability-specific headers.
+- `chappe-transport.ts`: bounded typed admission before connected, public-first subscription without read credentials.

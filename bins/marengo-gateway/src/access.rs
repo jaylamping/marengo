@@ -26,6 +26,7 @@ struct Grant {
 pub struct AccessPolicy {
     grants: Vec<Grant>,
     origins: HashSet<String>,
+    robot_https_port: Option<u16>,
 }
 
 impl Default for AccessPolicy {
@@ -36,11 +37,26 @@ impl Default for AccessPolicy {
                 .into_iter()
                 .map(str::to_owned)
                 .collect(),
+            robot_https_port: None,
         }
     }
 }
 
 impl AccessPolicy {
+    #[cfg(test)]
+    pub(crate) fn role_fixture(credential: &str, capability: Capability) -> Result<Self, String> {
+        let mut policy = Self::default();
+        policy
+            .add_credential(credential, capability as u8)
+            .map_err(|()| "invalid fixture credential".to_owned())?;
+        Ok(policy)
+    }
+
+    pub fn with_robot_https_port(mut self, port: Option<u16>) -> Self {
+        self.robot_https_port = port;
+        self
+    }
+
     #[cfg(test)]
     pub(crate) fn operator_fixture(credential: &str) -> Result<Self, String> {
         let mut policy = Self::default();
@@ -136,10 +152,16 @@ impl AccessPolicy {
         let Ok(host) = host.parse::<Authority>() else {
             return false;
         };
-        // Same-origin robot-hosted Consul. A browser supplies this authority when
-        // targeting the gateway; it cannot substitute another Host in fetch.
-        uri.authority()
-            .is_some_and(|authority| authority.as_str().eq_ignore_ascii_case(host.as_str()))
+        // Robot-hosted HTTPS Consul uses the trusted listener's scheme/port and
+        // this request's authority host (WT uses a distinct UDP port). Browsers
+        // cannot substitute another Host in fetch. Other origins are explicit.
+        uri.authority().is_some_and(|authority| {
+            uri.scheme_str() == Some("https")
+                && self
+                    .robot_https_port
+                    .is_some_and(|port| authority.port_u16().unwrap_or(443) == port)
+                && authority.host().eq_ignore_ascii_case(host.host())
+        })
     }
 
     pub fn validate_origin(&self, headers: &HeaderMap) -> Result<(), StatusCode> {
@@ -318,6 +340,7 @@ mod tests {
             );
         }
         headers.insert(header::HOST, HeaderValue::from_static("marengo.local:8444"));
+        policy.robot_https_port = Some(8444);
         headers.insert(
             header::ORIGIN,
             HeaderValue::from_static("https://marengo.local:8444"),

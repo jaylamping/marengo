@@ -1,0 +1,259 @@
+ Container marengo-dev-run-bdd449db9b4f Creating 
+ Container marengo-dev-run-bdd449db9b4f Created 
+
+> consul@0.0.0 test
+> vitest --run
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90m/workspace/consul[39m
+
+ [32m✓[39m src/lib/chappe-config.test.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 1773[2mms[22m[39m
+     [33m[2m✓[22m[39m derives endpoints from HTTPS page origin when env vars are empty [33m 1769[2mms[22m[39m
+stderr | src/pages/__tests__/subsystems-redirect.test.tsx > SubsystemsPage redirect > redirects /subsystems to /telemetry
+⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+ [32m✓[39m src/pages/__tests__/subsystems-redirect.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/render-slot.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 75[2mms[22m[39m
+ [32m✓[39m src/urdf/__tests__/parse-urdf.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 29[2mms[22m[39m
+ [32m✓[39m src/hooks/__tests__/use-active-reporting-lease.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m src/components/dashboard/inventory/__tests__/preset-cell.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m src/components/ui/__tests__/button.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 76[2mms[22m[39m
+ [32m✓[39m src/components/dashboard/cards/__tests__/dashboard-card-shell.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 35[2mms[22m[39m
+ [32m✓[39m src/components/dashboard/overview/__tests__/dashboard-overview.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 325[2mms[22m[39m
+     [33m[2m✓[22m[39m puts host cards above a full-width CAN section and omits posture [33m 324[2mms[22m[39m
+ [32m✓[39m src/components/dashboard/hardware/__tests__/local-limit-sync-session.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 52[2mms[22m[39m
+ [32m✓[39m src/components/dashboard/hardware/__tests__/commissioning-scope-editor.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 106[2mms[22m[39m
+ [32m✓[39m src/hooks/__tests__/use-motor-status-poll.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 29[2mms[22m[39m
+ [32m✓[39m src/components/dashboard/overview/__tests__/chart-section-skeleton.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 33[2mms[22m[39m
+ [32m✓[39m src/components/dashboard/urdf-preview/__tests__/urdf-preview-panel.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 30[2mms[22m[39m
+ [32m✓[39m src/lib/chappe-transport-admission.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 173[2mms[22m[39m
+ [32m✓[39m src/components/dashboard/layout/__tests__/scene-background.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 29[2mms[22m[39m
+stderr | src/components/dashboard/overview/__tests__/overview-posture-panel.test.tsx > OverviewPosturePanel > labels wireframe feed as demo pose
+ [32m✓[39m src/components/providers/__tests__/app-providers-toast.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 40[2mms[22m[39m
+The tag <color> is unrecognized in this browser. If you meant to render a React component, start its name with an uppercase letter.
+<ambientLight /> is using incorrect casing. Use PascalCase for React components, or lowercase for HTML elements.
+The tag <ambientLight> is unrecognized in this browser. If you meant to render a React component, start its name with an uppercase letter.
+<directionalLight /> is using incorrect casing. Use PascalCase for React components, or lowercase for HTML elements.
+The tag <directionalLight> is unrecognized in this browser. If you meant to render a React component, start its name with an uppercase letter.
+
+ [32m✓[39m src/components/dashboard/overview/__tests__/overview-posture-panel.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 46[2mms[22m[39m
+ [32m✓[39m src/components/dashboard/__tests__/section-cards.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+stderr | src/components/dashboard/hardware/__tests__/hardware-settings-sheet.test.tsx > HardwareSettingsSheet > holds an active-reporting lease while open for a CAN joint
+⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+stderr | src/components/dashboard/hardware/__tests__/hardware-settings-sheet-tooltip.test.tsx > HardwareSettingsSheet Set Limits help tooltip > does not open on sheet auto-focus; opens when the help control is focused
+⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+ [32m✓[39m src/components/dashboard/hardware/__tests__/hardware-settings-sheet.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 182[2mms[22m[39m
+ [32m✓[39m src/components/dashboard/hardware/__tests__/hardware-settings-sheet-tooltip.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 256[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/can-traffic-spectrum.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/lib/runtime-credentials.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 56[2mms[22m[39m
+ [32m✓[39m src/components/dashboard/needs-restart/__tests__/restart-confirm-dialog.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 371[2mms[22m[39m
+stderr | src/components/dashboard/overview/__tests__/can-bus-spectrum-panel.test.tsx > CanBusSpectrumPanel > renders the overview CAN panel with empty-capture copy and link activity graph
+⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+ [32m✓[39m src/components/dashboard/inventory/__tests__/set-limits-panel.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[33m 542[2mms[22m[39m
+ [32m✓[39m src/components/dashboard/sidebar/__tests__/sidebar-update-status.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[32m 297[2mms[22m[39m
+ [32m✓[39m src/lib/log-api.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/can-address-order.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m src/lib/persist-joint-limits.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m src/components/dashboard/layout/__tests__/dashboard-layout.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 61[2mms[22m[39m
+ [32m✓[39m src/components/dashboard/overview/__tests__/can-bus-spectrum-panel.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 438[2mms[22m[39m
+stderr | src/components/dashboard/inventory/__tests__/inventory-limits-readonly.test.tsx > InventoryLimitsReadOnly > shows read-only range and deep-link to Hardware
+⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+ [32m✓[39m src/components/dashboard/inventory/__tests__/inventory-limits-readonly.test.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 187[2mms[22m[39m
+ [32m✓[39m src/components/dashboard/hardware/__tests__/build-hardware-rows.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m src/data/__tests__/testing-master-defaults.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/state/__tests__/needsRestartStore.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/lib/teach-transit.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/lib/teach-record.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/enrich-inventory.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/hooks/__tests__/runtime-connection-retirement.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+stderr | src/pages/__tests__/telemetry-page.test.tsx > TelemetryPage > renders telemetry overview (not the Phase 1 stub)
+⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+ [32m✓[39m src/lib/limit-listen.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/state/teachStore.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/commissioning.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/config-snapshot-refresh-race.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/apply-config-snapshot-limits.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/lib/hardware-api.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/lib/compound-runner.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/lib/version-api.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/telemetry-source.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/components/dashboard/sidebar/__tests__/sidebar-panel-shell.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[32m 169[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/auto-learn-snapshot.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/log-buffer-hydrate.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/telemetry-facets.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/components/dashboard/cards/__tests__/disk-observation-validity.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 89[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/actuator-card-badges.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/state/inventoryOverridesStore.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/components/dashboard/sidebar/__tests__/derive-sidebar-update-mode.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/auto-learn-logs.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/enable-feedback.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/state/__tests__/actuatorZeroStore.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/lib/teach-calibration.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/commissioning-scope.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/components/ui/__tests__/sheet.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/components/dashboard/cards/__tests__/cpu-observation-validity.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 78[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/actuator-home.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/query-keys.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+ [32m✓[39m src/data/sidebar-nav.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+stderr | src/components/dashboard/hardware/__tests__/hardware-overview.test.tsx > HardwareOverview > opts into pointer events under Strategy C main shell
+⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+ [32m✓[39m src/components/dashboard/logs/__tests__/logs-panel-shell.test.tsx [2m([22m[2m14 tests[22m[2m)[22m[32m 214[2mms[22m[39m
+ [32m✓[39m src/components/dashboard/simulation/__tests__/sim-panel-shells.test.tsx [2m([22m[2m12 tests[22m[2m)[22m[32m 174[2mms[22m[39m
+ [32m✓[39m src/components/dashboard/inventory/__tests__/inventory-panel-shell.test.tsx [2m([22m[2m11 tests[22m[2m)[22m[33m 408[2mms[22m[39m
+stderr | src/components/dashboard/telemetry/__tests__/telemetry-overview.test.tsx > TelemetryOverview > renders the live master inventory table shell
+⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+ [32m✓[39m src/components/dashboard/hardware/__tests__/hardware-overview.test.tsx [2m([22m[2m14 tests[22m[2m)[22m[33m 551[2mms[22m[39m
+ [32m✓[39m src/components/ui/__tests__/base-ui-lint-gate.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/pages/__tests__/telemetry-page.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 2749[2mms[22m[39m
+     [33m[2m✓[22m[39m renders telemetry overview (not the Phase 1 stub) [33m 2587[2mms[22m[39m
+ [32m✓[39m src/components/dashboard/testing/__tests__/testing-overview.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 289[2mms[22m[39m
+ [32m✓[39m src/components/dashboard/telemetry/__tests__/telemetry-overview.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 651[2mms[22m[39m
+ [32m✓[39m src/data/__tests__/hardware-commissioning-ia.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m75 passed[39m[22m[90m (75)[39m
+[2m      Tests [22m [1m[32m374 passed[39m[22m[90m (374)[39m
+[2m   Start at [22m 06:21:01
+[2m   Duration [22m 17.80s[2m (transform 255.88s, setup 0ms, import 320.63s, tests 10.98s, environment 48.64s)[22m
+
+npm notice
+npm notice New major version of npm available! 11.13.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice
+
+> consul@0.0.0 prebuild
+> npm run gen:proto
+
+
+> consul@0.0.0 gen:proto
+> buf generate --template buf.gen.yaml ../proto
+
+
+> consul@0.0.0 build
+> tsc -b && vite build
+
+vite v8.0.16 building client environment for production...
+[2K
+transforming...✓ 1431 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                                     1.34 kB │ gzip:   0.50 kB
+dist/assets/ibm-plex-mono-vietnamese-500-normal-C8zxqsMH.woff       5.61 kB
+dist/assets/ibm-plex-mono-vietnamese-400-normal-DDuiU_S-.woff       5.62 kB
+dist/assets/ibm-plex-mono-vietnamese-600-normal-iLQfcSjf.woff       5.71 kB
+dist/assets/ibm-plex-mono-cyrillic-ext-500-normal-BIfNGwUT.woff     5.77 kB
+dist/assets/ibm-plex-mono-cyrillic-ext-600-normal-9HEixskS.woff     5.79 kB
+dist/assets/ibm-plex-mono-cyrillic-ext-400-normal-DMdlQ8Kv.woff     5.82 kB
+dist/assets/ibm-plex-mono-vietnamese-400-normal-BulugwFq.woff2      5.86 kB
+dist/assets/ibm-plex-mono-vietnamese-500-normal-DZ4AoWbu.woff2      6.04 kB
+dist/assets/ibm-plex-sans-vietnamese-400-normal-fK1oJ5dG.woff       6.39 kB
+dist/assets/ibm-plex-sans-vietnamese-600-normal-DgdngZtN.woff       6.58 kB
+dist/assets/ibm-plex-sans-vietnamese-500-normal-BEb3_waV.woff       6.58 kB
+dist/assets/ibm-plex-mono-cyrillic-ext-400-normal-xuaO2J-f.woff2    6.91 kB
+dist/assets/ibm-plex-mono-vietnamese-600-normal-D2EvbN8M.woff2      6.93 kB
+dist/assets/ibm-plex-mono-cyrillic-ext-500-normal-BqneJy0T.woff2    6.97 kB
+dist/assets/ibm-plex-mono-cyrillic-400-normal-CEL4l2ZJ.woff         7.20 kB
+dist/assets/ibm-plex-mono-cyrillic-500-normal-Ael50iVv.woff         7.20 kB
+dist/assets/ibm-plex-mono-cyrillic-600-normal-fLZuRloM.woff         7.26 kB
+dist/assets/ibm-plex-mono-cyrillic-ext-600-normal-V-xxqcpd.woff2    7.69 kB
+dist/assets/ibm-plex-sans-vietnamese-400-normal-DG4YqDda.woff2      8.20 kB
+dist/assets/ibm-plex-mono-cyrillic-400-normal-BSMlKf0J.woff2        8.35 kB
+dist/assets/ibm-plex-sans-vietnamese-500-normal-e4dixQRQ.woff2      8.41 kB
+dist/assets/ibm-plex-mono-cyrillic-500-normal-Bq9vWWag.woff2        8.46 kB
+dist/assets/ibm-plex-sans-vietnamese-600-normal-DpPYBSTl.woff2      8.46 kB
+dist/assets/ibm-plex-sans-greek-400-normal-D9ESIMu3.woff            8.76 kB
+dist/assets/ibm-plex-sans-greek-500-normal-CuWXN6rf.woff            9.14 kB
+dist/assets/ibm-plex-sans-greek-600-normal-D-CqTdkO.woff            9.22 kB
+dist/assets/ibm-plex-mono-cyrillic-600-normal-CTOM6hUh.woff2        9.35 kB
+dist/assets/ibm-plex-sans-greek-400-normal-_efipK4i.woff2           9.94 kB
+dist/assets/ibm-plex-sans-cyrillic-ext-400-normal-Dsrv2Tcn.woff    10.28 kB
+dist/assets/ibm-plex-sans-greek-600-normal-DzTrcv_p.woff2          10.36 kB
+dist/assets/ibm-plex-sans-greek-500-normal-JMMifIXV.woff2          10.37 kB
+dist/assets/ibm-plex-sans-cyrillic-ext-500-normal-DB5PtV2g.woff    10.59 kB
+dist/assets/ibm-plex-sans-cyrillic-ext-600-normal-Bz0x94Yp.woff    10.61 kB
+dist/assets/ibm-plex-mono-latin-ext-400-normal-D3D2R8hC.woff       11.76 kB
+dist/assets/ibm-plex-mono-latin-ext-500-normal-CZ70TYgx.woff       11.76 kB
+dist/assets/ibm-plex-mono-latin-ext-600-normal-DmB0ttJJ.woff       11.83 kB
+dist/assets/ibm-plex-sans-cyrillic-ext-400-normal-g30qAdWV.woff2   12.14 kB
+dist/assets/ibm-plex-sans-cyrillic-ext-600-normal-DUMzJB7m.woff2   12.30 kB
+dist/assets/ibm-plex-sans-cyrillic-ext-500-normal-Cs5J6C77.woff2   12.30 kB
+dist/assets/ibm-plex-mono-latin-400-normal-CvHOgSBP.woff           13.14 kB
+dist/assets/ibm-plex-mono-latin-500-normal-CB9ihrfo.woff           13.15 kB
+dist/assets/ibm-plex-mono-latin-600-normal-DWFSQ4vo.woff           13.20 kB
+dist/assets/ibm-plex-mono-latin-ext-400-normal-BmRBH3aV.woff2      13.34 kB
+dist/assets/ibm-plex-mono-latin-ext-500-normal-CAhNIIs5.woff2      13.43 kB
+dist/assets/ibm-plex-sans-cyrillic-400-normal-BTotfTJu.woff        13.51 kB
+dist/assets/ibm-plex-sans-cyrillic-500-normal-ByOcLdNv.woff        13.85 kB
+dist/assets/ibm-plex-sans-cyrillic-600-normal-BGq0mW3O.woff        13.88 kB
+dist/assets/ibm-plex-mono-latin-ext-600-normal-D38SheWl.woff2      14.32 kB
+dist/assets/ibm-plex-sans-latin-ext-400-normal-RBey6euL.woff       14.36 kB
+dist/assets/ibm-plex-mono-latin-400-normal-DMJ8VG8y.woff2          14.70 kB
+dist/assets/ibm-plex-sans-latin-ext-500-normal-D0aIdm-b.woff       14.73 kB
+dist/assets/ibm-plex-sans-latin-ext-600-normal-DIrixKbi.woff       14.77 kB
+dist/assets/ibm-plex-sans-cyrillic-400-normal-DZqxrq2p.woff2       14.80 kB
+dist/assets/ibm-plex-mono-latin-500-normal-DSY6xOcd.woff2          14.88 kB
+dist/assets/ibm-plex-sans-cyrillic-500-normal-CocWQlwt.woff2       15.00 kB
+dist/assets/ibm-plex-sans-cyrillic-600-normal-71GNu3SW.woff2       15.04 kB
+dist/assets/ibm-plex-mono-latin-600-normal-BgSNZQsw.woff2          15.62 kB
+dist/assets/ibm-plex-sans-latin-ext-400-normal-C5H60-Va.woff2      15.98 kB
+dist/assets/ibm-plex-sans-latin-ext-600-normal-DOrvGEcy.woff2      16.44 kB
+dist/assets/ibm-plex-sans-latin-ext-500-normal-DakdToA3.woff2      16.45 kB
+dist/assets/ibm-plex-sans-latin-400-normal-CYLoc0-x.woff           22.10 kB
+dist/assets/ibm-plex-sans-latin-400-normal-CDDApCn2.woff2          22.58 kB
+dist/assets/ibm-plex-sans-latin-600-normal-Cu4Hd6ag.woff           23.87 kB
+dist/assets/ibm-plex-sans-latin-500-normal-BgVn5rGT.woff           23.91 kB
+dist/assets/ibm-plex-sans-latin-500-normal-6ng42L7E.woff2          24.18 kB
+dist/assets/ibm-plex-sans-latin-600-normal-CuJfVYMP.woff2          24.25 kB
+dist/assets/index-jJ0A0NjY.css                                    126.74 kB │ gzip:  20.00 kB
+dist/assets/bringup-presets-DAaEpShm.js                             0.11 kB │ gzip:   0.12 kB
+dist/assets/can-address-order-EmjNU8VC.js                           0.35 kB │ gzip:   0.23 kB
+dist/assets/dist-jhMYOp0A.js                                        0.43 kB │ gzip:   0.30 kB
+dist/assets/rolldown-runtime-Cyuzqnbw.js                            0.82 kB │ gzip:   0.47 kB
+dist/assets/dist-D9C-uW7q.js                                        1.31 kB │ gzip:   0.72 kB
+dist/assets/log-api-BNEynMQ8.js                                     1.94 kB │ gzip:   0.78 kB
+dist/assets/table-CXm-buIi.js                                       2.36 kB │ gzip:   0.67 kB
+dist/assets/react-COnSgdLf.js                                       2.51 kB │ gzip:   1.28 kB
+dist/assets/telemetry-reference-facet-CmtXjj6M.js                   2.58 kB │ gzip:   1.28 kB
+dist/assets/tabs-DnUlewog.js                                        5.64 kB │ gzip:   1.94 kB
+dist/assets/chart-DPV7xeu8.js                                       6.93 kB │ gzip:   3.08 kB
+dist/assets/checkbox-Ch6GkJ5l.js                                    8.03 kB │ gzip:   3.09 kB
+dist/assets/use-config-snapshot-CxG_4zlW.js                         8.96 kB │ gzip:   3.31 kB
+dist/assets/simulation-overview-BeMJlhUe.js                        10.32 kB │ gzip:   3.61 kB
+dist/assets/testingStore-CwPs6xjC.js                               14.90 kB │ gzip:   5.61 kB
+dist/assets/config-api-BSTOyuFA.js                                 17.07 kB │ gzip:   5.99 kB
+dist/assets/inventory-row-modal-BdWXtb5s.js                        17.46 kB │ gzip:   6.53 kB
+dist/assets/testing-overview-fBj--mMz.js                           19.04 kB │ gzip:   6.52 kB
+dist/assets/can-bus-spectrum-panel-By-4VL4P.js                     20.77 kB │ gzip:   7.33 kB
+dist/assets/hardware-settings-sheet-D5mVnBce.js                    22.23 kB │ gzip:   7.26 kB
+dist/assets/utils-CZ8qgK3G.js                                      27.22 kB │ gzip:   8.77 kB
+dist/assets/logs-overview-B-oUT0qt.js                              36.43 kB │ gzip:  11.92 kB
+dist/assets/button-pkwqLXRv.js                                     36.53 kB │ gzip:   9.88 kB
+dist/assets/hardware-overview-CwWoOfPN.js                          41.41 kB │ gzip:  13.58 kB
+dist/assets/telemetry-overview-DquBt9vu.js                         45.86 kB │ gzip:  15.56 kB
+dist/assets/compound-test-panel-B-_Wsgc6.js                        57.64 kB │ gzip:  19.01 kB
+dist/assets/inventory-table-AkxiDYbF.js                            79.48 kB │ gzip:  21.98 kB
+dist/assets/robotStore-ByuEbv8i.js                                 88.60 kB │ gzip:  27.38 kB
+dist/assets/recharts-DzXmGfni.js                                  354.11 kB │ gzip: 103.26 kB
+dist/assets/index-CWZFX0t7.js                                     635.75 kB │ gzip: 201.71 kB
+dist/assets/three-CLpyqGuV.js                                     860.35 kB │ gzip: 227.32 kB
+
+[INEFFECTIVE_DYNAMIC_IMPORT] src/pages/telemetry.tsx is dynamically imported by src/lib/prefetch-routes.ts but also statically imported by src/routes/config.tsx, dynamic import will not move module into another chunk.
+
+[PLUGIN_TIMINGS] Your build spent significant time in plugin `@rolldown/plugin-babel`. See https://rolldown.rs/options/checks#plugintimings for more details.
+
+✓ built in 5.72s

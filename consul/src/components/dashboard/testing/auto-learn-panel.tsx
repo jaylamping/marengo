@@ -1,6 +1,7 @@
 import * as React from 'react';
 import type { AutoLearnStage } from '@marengo/compound-auto-learn';
 import { dashboardPanelCardClassName } from '@/components/dashboard/layout/constants';
+import { RuntimeCredentialField } from '@/components/dashboard/site-header/runtime-credential-field';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -220,9 +221,11 @@ export function AutoLearnPanel({
 
         {!configured ? (
           <p className="font-mono text-xs text-destructive">
-            Set VITE_AUTO_LEARN_URL and VITE_AUTO_LEARN_TOKEN
+            Configure the Auto Learn service URL and enter its credential.
           </p>
         ) : null}
+        <RuntimeCredentialField purpose="autoLearn" label="Auto Learn credential" />
+        <p className="text-xs text-muted-foreground">This credential stays in this tab until reload.</p>
 
         {logsConfirm ? (
           <div className="space-y-2 rounded-md border border-border/60 bg-muted/20 p-3">

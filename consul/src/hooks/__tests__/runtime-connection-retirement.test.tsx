@@ -7,12 +7,37 @@ import { dispatchEnvelope } from '@/lib/chappe-transport';
 import { useChappeTelemetry } from '@/hooks/use-chappe-telemetry';
 import { useRobotStore } from '@/state/robotStore';
 import { useHostMetricsStore } from '@/state/hostMetricsStore';
+import { setRuntimeCredential } from '@/lib/runtime-credentials';
 
 let handlers: ChappeTelemetryHandlers;
 vi.mock('@/lib/chappe-client', () => ({ connectChappeStream: vi.fn(async (next: ChappeTelemetryHandlers) => { handlers = next; return () => {}; }) }));
 vi.mock('@/lib/chappe-config', () => ({ isChappeLive: () => true, getChappeEndpoints: () => null, getChappeSubscribeTopics: () => [] }));
 vi.mock('@/lib/log-buffer', () => ({ enableChappeLiveLogs: () => {}, appendLiveLog: () => {}, shouldDecodeLogEvents: () => false }));
 afterEach(() => { vi.useRealTimers(); });
+
+it('read credential changes retire the old connection and ignore delayed callbacks from it', async () => {
+  setRuntimeCredential('operator','');
+  setRuntimeCredential('sensitiveRead','');
+  const mounted=renderHook(()=>useChappeTelemetry());
+  await act(async()=>{});
+  const retired=handlers;
+  act(()=>retired.onRobotState(create(RobotStateSchema,{timestampMs:10n})));
+  expect(useRobotStore.getState().connected).toBe(true);
+  await act(async()=>setRuntimeCredential('sensitiveRead','isolated-reconnect-read-fixture'));
+  expect(handlers).not.toBe(retired);
+  expect(useRobotStore.getState().robotState).toBeNull();
+  expect(useRobotStore.getState().connected).toBe(false);
+  act(()=>{
+    retired.onRobotState(create(RobotStateSchema,{timestampMs:20n}));
+    retired.onSafetyState(create(SafetyStateSchema,{mode:OperationalMode.ACTIVE}));
+  });
+  expect(useRobotStore.getState().robotState).toBeNull();
+  expect(useRobotStore.getState().operationalMode).toBeNull();
+  act(()=>handlers.onRobotState(create(RobotStateSchema,{timestampMs:30n})));
+  expect(useRobotStore.getState().robotState?.timestampMs).toBe(30n);
+  mounted.unmount();
+  setRuntimeCredential('sensitiveRead','');
+});
 
 it('typed IPC transitions retire live facts and cancel queued old telemetry while the gateway stays open', async () => {
   vi.useFakeTimers();

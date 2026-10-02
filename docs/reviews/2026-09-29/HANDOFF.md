@@ -6,11 +6,13 @@ T04 remains partial for the T03 exact-generation prerequisite. Counts25 verified
 Worktree J:/code/marengo-worktrees/gateway-runtime-access on
 codex/gateway-runtime-access implements G07 under ADR0033. Original HTTP v2
 records11 negative failures and2 positive controls; unchanged replay13 green.
-Shared HTTP admission precedes extraction/publication and handlers now share
-captured credentials/capabilities.54 gateway tests and clippy pass. Remaining:
-WebTransport admission, runtime browser credentials/build scripts, broad route
-conformance, primary/Pi gates, independent reviews and exact-head hosted CI.
-G07 stays open; no final acceptance or delivery is claimed.
+Shared policy now covers HTTP/HTTPS and bounded WebTransport.62 gateway tests,
+374 Consul tests/build and real loopback HTTP/HTTPS/pinned QUIC pass. Runtime UI
+credentials stay in tab memory; changing read credentials retires old facts.
+Original built assets expose both configured fixture credentials; candidate99
+assets exclude11 markers. Marker check is wired into CI/deploy build paths.
+Remaining: primary/Pi gates, independent reviews and exact-head hosted CI/delivery.
+G07 stays open. See frozen probes and local-software receipt.
 
 Pi installed4bc77ba and services unchanged. No install/sudo/restart/physical CAN
 or movement. Gravity home leaves support/current reference/E-stop unqualified.

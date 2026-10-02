@@ -42,11 +42,12 @@ pub async fn write_length_prefixed<W: AsyncWrite + Unpin>(
 
 pub async fn read_length_prefixed_quinn(
     recv: &mut web_transport_quinn::RecvStream,
+    maximum: usize,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
     let mut len_buf = [0u8; 4];
     recv.read_exact(&mut len_buf).await?;
     let len = u32::from_le_bytes(len_buf) as usize;
-    if len > MAX_FRAME {
+    if len == 0 || len > maximum {
         return Err("frame too large".into());
     }
     let mut buf = vec![0u8; len];

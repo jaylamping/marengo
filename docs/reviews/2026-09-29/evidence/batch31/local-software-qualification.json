@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "baseline": "a5c4cdb6448c5a0164ebbeffb1c82eb09ab0c266",
+  "classification": "Original public HTTP13 unchanged cases plus original materialized gateway/Auto Learn marker red; candidate route/role/TLS/QUIC/runtime client conformance.",
+  "targeted": "62 gateway tests pass; fmt/clippy and shell syntax pass; dist/deploy scripts6 assertions pass.",
+  "frontend": "374 tests pass and production build passes.",
+  "protected_route_matrix": "29 actual routes x missing/wrong/foreign-Origin/valid credentials,8 mixed-sensitive refusal subscriptions,25 capability cases and2 body-limit cases; isolated child environment, zero unauthorized files/publication/receivers.",
+  "real_listeners": "Owned HTTP/HTTPS parity and certificate-verified fixture; actual certificate-pinned QUIC credential/capability/Origin/public/sensitive controls,16KiB oversized refusal,5sec absent/partial subscription bounds and recovery.",
+  "build": "99 final assets exclude11 disposable credential fixtures; manifest1211eee0ce7f4791c913b35ceaff66e3eb90f9eb4907ad5e9dab62c98302c592.",
+  "preparation_exclusions": [
+    "Missing existing UI primitive import replaced with repository Sheet",
+    "Fixture blocking std TCP socket set nonblocking",
+    "Empty protobuf correctly recognized as valid default; malformed tag used for extraction-order check",
+    "Missing archive restore correctly returns404",
+    "Mandatory runtime-connection topic retained in admission and client expectations",
+    "Missing assertion matcher replaced with native attribute check"
+  ],
+  "pending": [
+    "Required primary gate",
+    "Native Pi software qualification",
+    "Two independent reviews",
+    "Exact-head PR/main CI and delivery"
+  ],
+  "physical_acceptance": false,
+  "frozen_hashes": {
+    "frozen-build-marker-qualifier-v1.mjs": "0d41b54d8ea17108b9d473a4db91a9d0c9beb36f1dcc5e347683ff9e2674c42d",
+    "frozen-client-admission-v3.test.ts": "9bdfc6294d567075ddd66869beef9a75c56c5ae5e0916c9267ca335408bc58e2",
+    "frozen-gateway-access-public-v1.rs": "a3a453e75eca548beea97d10c4f209fc3de8947fefdcb26e8c85468e354f1560",
+    "frozen-gateway-access-public-v2.rs": "d031635bfe94ef657edb5d63566dc9ef23ac6222f2f8ed6fe0d5b0665f6191af",
+    "frozen-quic-conformance-v3.rs": "a67bc84e8fc744f4c0fc67d002a0fd6ae24c716bc7fdf280a4a459c8be429348",
+    "frozen-route-conformance-v3.rs": "6cdc42ba107930ff5b8910b306c887e95a18cadf40e86740f889cf37e47b705c",
+    "frozen-runtime-credentials-v3.test.tsx": "205f0e32e5efcda4c1120f457224df46ac52cb7fc538d8e1b7ae6a6c64419a2d"
+  },
+  "logs": {
+    "consul-runtime-migration-green-v3.txt": "0f59943a1e56519f02c4470e57f6bd3ef25f7466a3c14598163bae00af463a39",
+    "http-central-policy-clippy-v2.txt": "b4ef19d0c9cf48688071010acf4b541436ce96877b6020e7119d5108bf0f27c2",
+    "http-central-policy-tests-v1.txt": "3c39d139fb7570086c4d0bce1be8aac479ecf9539c4bc3bfdb75df11cecbe5d2",
+    "http-policy-candidate-v2-green.txt": "6415d2008bf810e58d467dae1a2448bfc4fbbff10d5fa115d017216f9acf4e64",
+    "original-http-public-v1-red.txt": "c8be96a4a9466b4b796db0c2cafec815c9bedd2856abfab5f84c0e46cb12d4a0",
+    "original-http-public-v2-red.txt": "988575a6ec077170b7816a69106b3ccc1dede5ca73842b5d66f664ad18836f91",
+    "original-static-markers-red-v1.txt": "f1763c496e44b8180330bed19ffd4c5f4ef68621fb32b69ab3a6fd6123eda8a2",
+    "route-quic-targeted-green-v4.txt": "6f757e4a9301d58400cc875a77e02b01f28b2acf6604d150913afe87a139793b",
+    "runtime-build-markers-green-v1.txt": "b9d8f35c803ef02ea7ae33e43f6447b29798d82f4e0499a2aa4a3a2f2a734337"
+  }
+}

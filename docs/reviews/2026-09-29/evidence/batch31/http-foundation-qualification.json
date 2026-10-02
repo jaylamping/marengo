@@ -2,7 +2,7 @@
   "schema": 1,
   "baseline": "a5c4cdb6448c5a0164ebbeffb1c82eb09ab0c266",
   "stage": "Private HTTP foundation; full G07 remains pending.",
-  "frozen_public_v2_sha256": null,
+  "frozen_public_v2_sha256": "d031635bfe94ef657edb5d63566dc9ef23ac6222f2f8ed6fe0d5b0665f6191af",
   "files": {
     "frozen-gateway-access-public-v1.rs": "a3a453e75eca548beea97d10c4f209fc3de8947fefdcb26e8c85468e354f1560",
     "frozen-gateway-access-public-v2.rs": "d031635bfe94ef657edb5d63566dc9ef23ac6222f2f8ed6fe0d5b0665f6191af",

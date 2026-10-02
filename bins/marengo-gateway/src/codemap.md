@@ -7,6 +7,7 @@ HTTP, WebTransport, framing, and gateway state modules.
 | Module | Role |
 |--------|------|
 | `main.rs` | Server startup, IpcListener spawn, TLS config |
+| `access.rs` | Immutable startup credentials/capabilities and Origin policy |
 | `http.rs` | Axum routes: health, snapshots, config, commands, static files |
 | `config.rs` | `GET /config/snapshot`, `POST /config/patch` (Consul PID/limits UI) |
 | `restart.rs` | `POST /control/restart-marengo-pi` (canonical `pi-restart-marengo-pi.sh`) |
