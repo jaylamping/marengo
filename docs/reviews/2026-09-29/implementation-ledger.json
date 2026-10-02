@@ -2822,7 +2822,7 @@
       "implementation_and_acceptance_plan": "gateway-implementation-plan.md",
       "status": "verified",
       "evidence": [
-        "Batch23 original CPU HostMetrics assertion red replays unchanged green after correct column parsing, keyed CPU-ID baselines and explicit unknown/reset/hotplug validity. Encoded UI unknown\u2192valid\u2192unknown qualified; Standards/Spec and integration reviews accepted. Final PR5c603be CI36899946079 all5 passed; merged mainad09ee4 CI36900877954 all5 passed. No hardware acceptance."
+        "Batch23 original CPU HostMetrics assertion red replays unchanged green after correct column parsing, keyed CPU-ID baselines and explicit unknown/reset/hotplug validity. Encoded UI unknown→valid→unknown qualified; Standards/Spec and integration reviews accepted. Final PR5c603be CI36899946079 all5 passed; merged mainad09ee4 CI36900877954 all5 passed. No hardware acceptance."
       ],
       "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/237",
       "hardware_acceptance": "not established by this software repair"
@@ -3489,9 +3489,12 @@
       "source": "tooling.md#t22--optional-daily-cargo-audit-fails-before-scanning",
       "work_package": "WP00",
       "implementation_and_acceptance_plan": "frontend-tooling-implementation-plan.md",
-      "status": "open",
-      "evidence": [],
-      "verified_commit_or_pr": null,
+      "status": "verified",
+      "evidence": [
+        "batch26-daily-cargo-audit-status.md",
+        "PR240 exact-head CI36937530222; merged-main CI36938244248 passed all five jobs"
+      ],
+      "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/240",
       "hardware_acceptance": "not established by this software repair"
     },
     {
@@ -4667,7 +4670,7 @@
         },
         "limits": "No runtime physical operation. Never-existing from_supervisor name probe excluded from required counts; source/private-factory review establishes the actual seam."
       },
-      "test_quality": "Davout 136\u00e2\u2020\u2019159:3 obsolete API cases retired,26 meaningful additions; Berthier173\u00e2\u2020\u2019175 with arithmetic property replaced by wire output, independent stationary input and fixed-dt progress; no new ignored tests. Two receive-invariant mutants killed by actual assertions; CS24 retained open as independently demonstrated old-law failure.",
+      "test_quality": "Davout 136â†’159:3 obsolete API cases retired,26 meaningful additions; Berthier173â†’175 with arithmetic property replaced by wire output, independent stationary input and fixed-dt progress; no new ignored tests. Two receive-invariant mutants killed by actual assertions; CS24 retained open as independently demonstrated old-law failure.",
       "independent_reviews": {
         "standards": {
           "findings": 0,
@@ -15355,16 +15358,30 @@
       "main_ci_run": 36909443242,
       "all_five_main_jobs": "passed",
       "report": "batch25-research-rolling-windows.md"
+    },
+    {
+      "batch_id": "batch26",
+      "findings": [
+        "T22"
+      ],
+      "status": "verified",
+      "pr": 240,
+      "head": "1ede466888a319966e1151ea3e182c59afb6b3ed",
+      "pr_ci_run": 36937530222,
+      "main_commit": "ca13eb810406539cc2394d6130881176fb76665c",
+      "main_ci_run": 36938244248,
+      "all_five_main_jobs": "passed",
+      "report": "batch26-daily-cargo-audit-status.md"
     }
   ],
   "finding_status_counts": {
-    "verified": 23,
+    "verified": 24,
     "partial": 11,
-    "open": 68
+    "open": 67
   },
   "next_dependency_ready_batch": {
-    "current": "Complete final batch18 PR233 integrated exact-head CI/delivery; reconcile batch17mainvcan. Next independent T17cold-cache repair is in codex/research-cache-await; do not close finding until reviews/checks/delivery.",
-    "following": "G16 bounded archive/page work or separate R2b1 journal engineering qualification",
+    "current": "Complete batch27 T17 reviews, primary/Pi offline validation and passing delivery; preserve unpublished Mac branch.",
+    "following": "Prioritize WP10 mutation security (G07/T04) and WP04 R2b1 current-reference journal/grant prerequisites before physical movement qualification. Independent non-motion fixes continue while owner movement answers are pending.",
     "human_input_blocker": null
   },
   "automation_status": "PAUSED",
@@ -15389,8 +15406,23 @@
       "T22"
     ],
     "report": "batch26-daily-cargo-audit-status.md",
-    "status": "T22 original unchanged regression/native15 tests + realpinnedCLI; Standards/Spec final clear0db21a0. DraftPR240 exacthead Linux CI/delivery pending. T20 verified; T17 workflow authorization pending independently.",
+    "status": "Completed: PR240 merged as ca13eb810406539cc2394d6130881176fb76665c; exact-head applicable PR CI and all-five merged-main CI passed. T22 verified. Mac-only T17 branch remains preserved; Windows batch27 repairs the missing source and gates without modifying workflow scopes.",
     "physical_acceptance": false,
     "pr": 240
+  },
+  "active_windows_continuation": {
+    "batch_id": "batch27",
+    "branch": "codex/research-cache-await-windows",
+    "baseline": "ca13eb810406539cc2394d6130881176fb76665c",
+    "findings": [
+      "T17",
+      "T26"
+    ],
+    "report": "batch27-research-cache-await.md",
+    "status": "Original public12 assertion failures replay unchanged green; native research58 passed. Required primary check, Pi offline replay, independent reviews and delivery in progress.",
+    "physical_acceptance": false,
+    "owner_scope": "Continue all software repairs autonomously; validate on powered Pi. Prompt before every physical movement test with proposed movement/bounds/stop. Explicit confirmation and commissioning safeguards required. After10minutes without reply leave movement pending and continue independent work; silence is never approval. Preserve limits, Wave sign-off and paused automation.",
+    "pi_installed_revision": "4bc77ba605834fdec04b436daa4bec67bca84fbb",
+    "pi_observations": "SSH/services/health/CAN/decoded Disabled snapshot verified read-only; reported gravity home; repaired current-reference and E-stop readiness remain unqualified."
   }
 }

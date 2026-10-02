@@ -1,3 +1,28 @@
+## Latest Windows continuation — batch27, October 1, 2026
+
+Fetched Mac work through main `ca13eb810406539cc2394d6130881176fb76665c`.
+PR240 is merged and exact merged-main CI36938244248 passed allfive jobs; T22
+is verified. Counts24 verified,11 partial,67 open across102 IDs;8 maintenance
+tasks retained. Earlier pending/draft/count statements below are historical.
+
+Batch27 repairs T17's six cold-cache async handlers and adds locked offline
+research/daily-audit execution to the required check script. Original12 failures
+replay unchanged green; native research58 passes. Primary/Pi offline replay,
+independent reviews and delivery remain in progress. See the batch27 report and
+ledger `active_windows_continuation`. Preserve the Mac-only unpublished branch.
+
+Owner now authorizes connecting to the powered Pi and validation on the device.
+SSH/services/health/CAN and decoded Disabled safety snapshot pass; installed
+revision4bc77ba predates repairs. Arm rests at gravity home; repaired current
+reference and E-stop readiness require qualification. Every physical movement
+test needs an explicit owner prompt/confirmation with movement/bounds/stop and
+commissioning safeguards. After ten minutes without a response leave the test
+pending and continue independent work. Silence never authorizes movement.
+Earlier blanket no-connect/no-deploy instructions are superseded by this scope;
+deployment still requires safe stopped/support/reference/E-stop/recovery checks.
+No deployment or movement has occurred. Windows automation remains PAUSED;
+limits and Wave sign-off remain unchanged. Actual checkout: `J:\code\marengo`.
+
 ## Latest Mac continuation — batch26
 
 T20 verified: PR239/main5c25a8f allfive CI36909443242 passed. Counts23 verified,11 partial,68 open across102 IDs;8 maintenance tasks retained. T22 realpinnedCLI/15dailytests qualified; final reviews and Linux delivery pending. Windows automation remains paused; no physical acceptance.

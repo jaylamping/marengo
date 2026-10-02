@@ -1,0 +1,9 @@
+uv-aarch64-unknown-linux-gnu.tar.gz: OK
+12 failed in 1.04s
+............                                                             [100%]
+12 passed in 0.29s
+..........................................................               [100%]
+58 passed in 2.20s
+f2a174407b0afd5c72e0b140ceda9e000d067a2457b709b74df968783421fd84  /home/joey/marengo-validation/batch27-20261001/tools/marengo-research-mcp/tests/test_cached_search_handlers.py
+2f68fc12fd771c37e7c95326740b7263144aab36b379a2c58ce19b78abbd43f2  /home/joey/marengo-validation/batch27-20261001/tools/marengo-research-mcp/src/marengo_research_mcp/tools/search.py
+Fri  2 Oct 02:19:40 UTC 2026

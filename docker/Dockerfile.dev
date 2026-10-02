@@ -66,6 +66,8 @@ RUN rustup component add rustfmt clippy \
     && rustup target add aarch64-unknown-linux-gnu
 
 USER root
+# Locked research-tool tests use the same uv release as the native edit loop.
+COPY --from=ghcr.io/astral-sh/uv:0.9.27 /uv /usr/local/bin/uv
 COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 

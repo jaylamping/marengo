@@ -16,6 +16,7 @@ cd "${ROOT}"
 PROTOC_VERSION="${PROTOC_VERSION:-28.3}"
 CARGO_DENY_VERSION="${CARGO_DENY_VERSION:-0.20.2}"
 CARGO_AUDIT_VERSION="${CARGO_AUDIT_VERSION:-0.22.2}"
+UV_VERSION="${UV_VERSION:-0.9.27}"
 # Match mise.toml / .nvmrc / consul engines (^24.16.0) and docker/Dockerfile.dev.
 NODE_MAJOR="${NODE_MAJOR:-24}"
 NODE_MIN_VERSION="${NODE_MIN_VERSION:-24.16.0}"
@@ -213,6 +214,13 @@ cargo-audit --version
 
 echo "==> current advisory DB and registry data (per-user Cargo cache)"
 cargo deny --locked fetch db index
+
+echo "==> uv ${UV_VERSION} (locked research-tool tests)"
+export PATH="${HOME}/.local/bin:${PATH}"
+if ! cmd_reports_version uv "${UV_VERSION}"; then
+  curl -fsSL "https://astral.sh/uv/${UV_VERSION}/install.sh" | UV_NO_MODIFY_PATH=1 sh
+fi
+uv --version
 
 echo "==> workspace bootstrap"
 "${ROOT}/scripts/bootstrap.sh"

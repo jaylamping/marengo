@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Awaitable, Callable
 
 from marengo_research_mcp.cache import ResearchCache
 from marengo_research_mcp.config import Config
-from marengo_research_mcp.models import SearchResponse
+from marengo_research_mcp.models import ResearchHit, SearchResponse
 from marengo_research_mcp.sources.arxiv import search_arxiv
 from marengo_research_mcp.sources.forums import search_forums
 from marengo_research_mcp.sources.github import search_github
@@ -26,7 +27,7 @@ async def _cached_search(
     name: str,
     query: str,
     limit: int,
-    fn,
+    fn: Callable[[str, int], Awaitable[list[ResearchHit]]],
 ) -> SearchResponse:
     key = json.dumps({"q": query, "limit": limit})
     cached = cache.get("search", f"{name}:{key}")
@@ -35,10 +36,7 @@ async def _cached_search(
     errors: list[str] = []
     hits = []
     try:
-        if asyncio.iscoroutinefunction(fn):
-            hits = await fn(query, limit)
-        else:
-            hits = fn(query, limit)
+        hits = await fn(query, limit)
     except Exception as exc:
         errors.append(f"{name}: {exc}")
     resp = SearchResponse(query=query, hits=hits, errors=errors)
