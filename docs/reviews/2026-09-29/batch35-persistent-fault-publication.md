@@ -26,7 +26,7 @@ all-address stop attempts, absence of Enable/SetZero and unchanged policy bytes.
 The reference owner stays on its owning thread. The independent observer has a
 bounded cleanup guard; the actual persistence worker drains and terminates.
 
-## Qualification checkpoint
+## Qualification
 
 The final complete five-case probe is frozen before baseline replay. Original
 production d1fad15 with only cfg(test) registration fails four named assertions;
@@ -41,9 +41,18 @@ production again, with the same four behavioral failures and five restored passe
 Earlier fixture/API/thread/lint preparation attempts and earlier probe hashes
 are retained externally and are not claimed as final frozen evidence.
 
-Full primary/native gates, independent reviews, exact-head CI and installed live
-replay remain pending at this checkpoint. Their receipts will pin the committed
-source and distinguish software execution on the Pi from physical acceptance.
+Qualified source8e1871f64ebcb7445bd83a241e6b2d67705202f1 passes the full primary
+and native Pi gates:886 Rust tests with one existing ignored full-humanoid model
+test, and374 UI tests each. Primary also passes72 Pi MCP,27 local writer,
+83 research,15 audit and10 installer checks, strict gates and fatal main-policy
+ARM release. All1920 committed inputs verify unchanged, native before/after.
+All28 prior qualified probe files are unchanged. Independent Standards and scoped
+Spec are CLEAR on that source; the prior resource isolation finding is resolved.
+PR249 source CI37012722613 passes all five jobs, including simulation/virtual CAN.
+See [qualification](evidence/batch35/final-source-qualification.json).
+Evidence-head/main CI and installed live replay remain pending. Native execution
+uses isolated transport/resources and leaves installedd1fad15/services unchanged;
+these are software results on the Pi, with physical acceptance separate.
 
 ## Remaining acceptance
 

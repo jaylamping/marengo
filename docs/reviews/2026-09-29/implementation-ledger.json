@@ -2382,7 +2382,8 @@
       "evidence": [
         "Private Davout fault authority retains stable first cause and independent device/transport/controller/stop evidence; all motion/enable/calibration routes refuse while latched. Healthy feedback, Disable and hardware-input release cannot rearm. Berthier discards retained intent on stop generation changes, including disable/re-enable between ticks.",
         "Missing-feedback bootstrap exhaustion and ascent stalls latch trusted controller faults. Fifteen unchanged-baseline Supervisor behavioral failures and ten controller failures now pass; positive controls preserve valid scoped peer/warning/backlog behavior.",
-        "Still required: Pi/protobuf persistent publication, all runtime-owner error classes, durable/boot/device-qualified recovery, process-reconstruction/recovery-script bypass closure, and command session/generation admission. Batch03 provides no reset API."
+        "Still required: other runtime-owner error classes, durable/boot/device-qualified recovery, process-reconstruction/recovery-script bypass closure, and command session/generation admission. No reset API is supplied.",
+        "Batch35 source8e1871f, PR249: periodic Pi SafetyState mirrors every retained fault ID/class/message/joint, observed hardware input and severity across healthy ticks and ordinary Disable. Five actual-loop/Chappe cases: exact original production fails four named assertions and keeps one healthy positive; byte-identical corrected isolated module passes five. Full primary/native886Rust/1existingignored/374UI each and exact source CI all-five success; independent reviews CLEAR. Installed replay and physical acceptance still pending. See batch35-persistent-fault-publication.md and evidence/batch35/final-source-qualification.json."
       ],
       "verified_commit_or_pr": null,
       "hardware_acceptance": "required before physical release",
@@ -15594,29 +15595,26 @@
     "pr": 240
   },
   "active_windows_continuation": {
-    "batch_id": "batch34",
+    "batch_id": "batch35",
     "branch": "codex/pi-fault-publication",
     "worktree": "J:/code/marengo-worktrees/current-virtual-reference",
-    "baseline": "b8271764fcdaa8d9d5e8838e69de4721ec035d97",
+    "baseline": "d1fad15d579a7ee611fd930c0e14680f5063ed1b",
     "findings": [
-      "CS05",
-      "CS06",
-      "CS07"
+      "CS13"
     ],
-    "report": "batch34-current-virtual-reference.md",
-    "status": "Batch34 PR248 delivered: source9f1e523/final7b4fcff/main d1fad15, exact PR/main all-five CI and independent reviews clear. Pi source/runtime d1fad15 verified; live Disabled/all-five Faulted from recurring CAN transport envelope. Current physical recovery/reference/motion acceptance remains open.",
+    "report": "batch35-persistent-fault-publication.md",
+    "status": "Batch35 source qualified at8e1871f: full primary/native886Rust/374UI each, final frozen original1positive/4named failures/restored5green, sourceCI37012722613 all-five and independent reviews CLEAR. Evidence-head/main CI and installed replay pending. CS13 stayspartial; powered setup update authorization retained.",
     "physical_acceptance": false,
-    "prior_delivery": "evidence/batch32/delivery-receipt.json",
+    "prior_delivery": "evidence/batch34/delivery-receipt.json",
     "pi_installed_revision": "d1fad15d579a7ee611fd930c0e14680f5063ed1b",
     "owner_scope": "Personally owned robot/repository/Pi; isolated fixtures. Explicit confirmation and commissioning checks before every movement. Ten-minute silence leaves movement pending and allows independent work only.",
     "owner_requested_next": "Finish and push current chunk, sync Pi software, then explicitly confirmed bounded right-arm tests after qualified reference. Motor power on and powered testing authorized.",
-    "next": "CS13: retain actual fault authority in installed Pi SafetyState after successful disabled ticks; continue passive CAN overflow diagnosis, then physical protocol/installed-owner reference and stop qualification before confirmed bounded movements.",
-    "source": "9f1e52306f616d844c313b0a2dec3d7a6c0733e6",
-    "qualification": "evidence/batch34/final-source-qualification.json",
-    "delivery": "evidence/batch34/delivery-receipt.json",
+    "next": "Complete exact evidence-head/main CI, merge and Pi delivery/replay. Then qualify physical CAN ingress/recovery and installed-owner reference/priority stop before explicitly confirmed bounded right-arm movement.",
+    "source": "8e1871f64ebcb7445bd83a241e6b2d67705202f1",
+    "qualification": "evidence/batch35/final-source-qualification.json",
     "Pi_source_checkout": "d1fad15d579a7ee611fd930c0e14680f5063ed1b",
     "continuation_branch": "codex/pi-fault-publication",
     "Pi_activation": "evidence/batch34/delivery-receipt.json",
-    "PR": "https://github.com/jaylamping/marengo/pull/248"
+    "PR": "https://github.com/jaylamping/marengo/pull/249"
   }
 }

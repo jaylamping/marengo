@@ -1,3 +1,34 @@
+# Windows continuation — 2026-10-02, batch35 source qualified
+
+Worktree J:/code/marengo-worktrees/current-virtual-reference, branch
+codex/pi-fault-publication. PR249 repairs CS13 periodic Pi publication: retained
+fault identity/class/message/joint and observed E-stop input survive healthy ticks
+and ordinary Disable. Source8e1871f64ebcb7445bd83a241e6b2d67705202f1 has full
+primary/native886Rust/1existingignored/374UI each,28 prior probes unchanged,
+final corrected frozen module original1healthy/4named failures/restored5green,
+independent Standards/Spec CLEAR and sourceCI37012722613 all-five success.
+Earlier ambient-resource fixture finding is repaired through child-only bindings;
+its earlier whole-module freeze is explicitly superseded and preserved.
+
+Evidence-head/main CI, merge and actual Pi replay are next. Rootmain and actual Pi
+source/runtime remain d1fad15 from deliveredPR248. Live controller Disabled/all
+five Faulted from the retained transport error; no physical motion commanded.
+Pi owned release233-file backup verified natively and after Windows download;
+online Store integrity/schema3 and native all-refs/config/calibration/environment/
+units saved separately. Stage /home/joey/marengo-validation/pi-sync-20261002-batch35.
+Motor power on plus stable/supported pose, clear workspace and physical E-stop
+within reach are explicitly authorized for the software update. No setup reply
+is pending for software delivery. Actual physical E-stop wiring is still unknown.
+
+CS13 stayspartial; counts102/eight maintenance,26verified/13partial/63open.
+Physical CAN/recovery/reference/priority-stop/commissioning are required before
+any concrete bounded right-arm test. Ask explicitly before actual movement;
+ten-minute silence means independent work only. Preserve taught envelopes,
+calibration/runtime data, CAD, branches and source snapshots. Automation stays
+PAUSED; historical batch16 checkpoint is preserved. See batch35 report/evidence.
+
+---
+
 ## Latest Windows checkpoint: batch34 delivered and Pi synced, October 2
 
 PR248 delivers qualified source9f1e523/final head7b4fcff/main d1fad15 with equal
