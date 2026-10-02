@@ -77,7 +77,7 @@ function writerArguments(raw: string): string[] {
   const { joint, lower, upper, soft_lower: softLower, soft_upper: softUpper } = body as Record<string, unknown>;
   if (typeof joint !== "string" || !/^[a-z][a-z0-9_]{0,63}$/.test(joint) ||
       typeof lower !== "number" || !Number.isFinite(lower) ||
-      typeof upper !== "number" || !Number.isFinite(upper) || lower > upper) {
+      typeof upper !== "number" || !Number.isFinite(upper) || lower >= upper) {
     throw new RequestFailure(400, "invalid joint or hard bounds");
   }
   const args = ["--repo-root", ROOT, "--joint", joint, "--lower", String(lower), "--upper", String(upper)];
@@ -163,6 +163,8 @@ server.requestTimeout = REQUEST_TIMEOUT_MS;
 server.headersTimeout = REQUEST_TIMEOUT_MS;
 server.maxHeadersCount = 32;
 server.listen(PORT, "127.0.0.1", () => {
-  console.log(`limit-sync-local on http://127.0.0.1:${PORT} (repo ${ROOT})`);
+  const address = server.address();
+  const port = address && typeof address !== "string" ? address.port : PORT;
+  console.log(`limit-sync-local on http://127.0.0.1:${port} (repo ${ROOT})`);
   console.log(`Local mirror session credential: ${TOKEN}`);
 });

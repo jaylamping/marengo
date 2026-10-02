@@ -22,19 +22,19 @@ struct Args {
     #[arg(long)]
     joint: String,
     /// Hard lower (rad).
-    #[arg(long)]
+    #[arg(long, allow_negative_numbers = true)]
     lower: f64,
     /// Hard upper (rad).
-    #[arg(long)]
+    #[arg(long, allow_negative_numbers = true)]
     upper: f64,
     /// Soft inset from hard (rad). Used when soft bounds are omitted.
     #[arg(long, default_value_t = DEFAULT_SOFT_INSET_RAD)]
     soft_inset: f64,
     /// Soft lower (rad). When set with `--soft-upper`, overrides inset defaults.
-    #[arg(long)]
+    #[arg(long, allow_negative_numbers = true)]
     soft_lower: Option<f64>,
     /// Soft upper (rad). When set with `--soft-lower`, overrides inset defaults.
-    #[arg(long)]
+    #[arg(long, allow_negative_numbers = true)]
     soft_upper: Option<f64>,
 }
 

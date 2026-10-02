@@ -8,9 +8,8 @@ use armee_kinematics::{expand_urdf_joint_hard, load_urdf};
 use crate::{
     apply_limit_patch_to_control, apply_limit_patch_to_motor, ensure_soft_inset,
     load_control_config_from, load_homing_config_from, load_motors_config_from,
-    load_robot_config_from, resolve_config_dir, resolve_urdf_path, validate_limit_patch,
-    validate_motors_config, validate_safety_config, write_motors_and_control, ConfigError,
-    MotorsConfigFile,
+    load_robot_config_from, resolve_urdf_path, validate_limit_patch, validate_motors_config,
+    validate_safety_config, write_motors_and_control, ConfigError, MotorsConfigFile,
 };
 
 /// Expand on-disk URDF hard limits so every motor bench envelope is covered.
@@ -133,12 +132,13 @@ pub fn write_motors_control_and_urdf(
 }
 
 /// Apply local checkout limit sync: motors hard, control soft inset, expand-only URDF.
+/// The supplied checkout owns its config; runtime overrides cannot redirect this write.
 pub fn apply_local_limit_patch(
     repo_root: impl AsRef<Path>,
     patch: &crate::LimitPatch,
 ) -> Result<(), ConfigError> {
     let repo_root = repo_root.as_ref();
-    let config_dir = resolve_config_dir(repo_root);
+    let config_dir = repo_root.join("config");
     if !config_dir.is_dir() {
         return Err(ConfigError::Io {
             path: config_dir,
