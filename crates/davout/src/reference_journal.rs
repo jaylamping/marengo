@@ -436,14 +436,20 @@ pub(super) fn distinct_history_path(
         return Err(error("bounded explicit history path required"));
     }
     let history_slot = canonical_slot(&history)?;
-    let journal_slot = canonical_slot(journal)?;
+    let history_folded = history_slot.as_os_str().to_string_lossy().to_lowercase();
     // Conservatively refuse case-only spellings too, including on platforms
     // where distinct missing names would resolve to one case-insensitive slot.
-    if history_slot == journal_slot
-        || history_slot.as_os_str().to_string_lossy().to_lowercase()
-            == journal_slot.as_os_str().to_string_lossy().to_lowercase()
-    {
-        return Err(error("history and journal paths must be distinct"));
+    // SQLite owns its sidecars as well as the main file, including deletion of
+    // remnant rollback files. None may occupy the supplied calibration slot.
+    for suffix in ["", "-journal", "-wal", "-shm"] {
+        let mut resource = journal.as_os_str().to_os_string();
+        resource.push(suffix);
+        let journal_slot = canonical_slot(&PathBuf::from(resource))?;
+        if history_slot == journal_slot
+            || history_folded == journal_slot.as_os_str().to_string_lossy().to_lowercase()
+        {
+            return Err(error("history and journal paths must be distinct"));
+        }
     }
     Ok(history)
 }
@@ -1045,3 +1051,7 @@ mod tests;
 #[cfg(test)]
 #[path = "reference_journal_resource_tests.rs"]
 mod resource_tests;
+
+#[cfg(test)]
+#[path = "reference_journal_namespace_tests.rs"]
+mod namespace_tests;

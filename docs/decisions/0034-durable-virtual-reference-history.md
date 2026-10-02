@@ -21,7 +21,8 @@ history object, public snapshot or startup never authorizes motion.
 Only a specialized Unreferenced SimulationBus factory and matching ControlLoop
 factory install a journal using explicit independent history/journal paths.
 Resolve existing path ancestors before construction, refuse shared slots and
-case-only aliases, and pin relative history paths to their original absolute
+case-only aliases across the database and its `-journal`, `-wal` and `-shm`
+namespace, and pin relative history paths to their original absolute
 spelling. This preflight creates neither resource; the journal's existing
 symlink/resource checks still run on its supplied spelling at lazy open.
 Generic, physical and existing INITIAL constructors keep no journal I/O. The

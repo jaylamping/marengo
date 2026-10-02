@@ -41,8 +41,18 @@ feedback, checked commit-counter exhaustion before admission and foreign-handle
 refusal with healthy neighboring work. The original five new probe files and prior
 qualified probes are unchanged. Changed-crate clippy remains clean.
 
-The dc91d08 primary gate passed; its native Pi run remains provisional for that
-revision. Frozen mutants, independent review of the repairs, the final primary
+Review of 0bebfae found a remaining SQLite sidecar collision. Two separate probes
+reproduced admission through a canonical parent alias and actual deletion of an
+existing valid calibration YAML when it occupied the rollback slot. Construction
+now reserves the database and all three sidecars before any worker installation.
+The preceding seven frozen probe files remain unchanged. The provisional 0bebfae
+primary run was deliberately stopped before editing its source; it is not a gate
+pass and its complete archive is retained. It was not uploaded or run on the Pi.
+
+The dc91d08 primary gate and native Pi software run passed (848 Rust tests, one
+existing ignored, 374 Consul tests, build/asset checks and all 1764 committed input
+hashes unchanged). Those results remain bound to the preceding candidate.
+Frozen mutants, independent review of the repairs, the final primary
 gate, exact PR/main CI and final native Pi qualification remain pending. SSH connectivity was
 rechecked successfully; the Pi reports aarch64.
 
