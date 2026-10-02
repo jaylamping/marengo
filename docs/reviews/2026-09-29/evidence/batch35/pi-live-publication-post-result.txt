@@ -1,0 +1,1 @@
+{"captured_UTC": "2026-10-02T14:14:49.669593+00:00", "joint_faults": 5, "faulted_references": 5, "SafetyState_active_faults": 1, "SafetyState_software_latch_reported": true}

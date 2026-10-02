@@ -1,0 +1,13 @@
+{
+  "prior_head": "01a5c403bd8e790cd7403565c777cca8729e48c6",
+  "prior_HANDOFF_SHA256": "7278583edc77a11785ac892e4604d07a815306b9b803ada6ae233cc849cc5e5a",
+  "prior_HANDOFF_preserved_as_exact_suffix": true,
+  "historical_current_batch_unchanged": true,
+  "prior_batch_history_unchanged": true,
+  "finding_status_counts": {
+    "verified": 26,
+    "partial": 13,
+    "open": 63
+  },
+  "physical_motion_acceptance": false
+}

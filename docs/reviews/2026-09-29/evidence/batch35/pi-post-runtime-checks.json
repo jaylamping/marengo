@@ -1,0 +1,83 @@
+{
+  "checked_UTC": "2026-10-02T14:14:50.123654+00:00",
+  "source_revision": "01a5c403bd8e790cd7403565c777cca8729e48c6",
+  "source_clean": true,
+  "installed_revision": "01a5c403bd8e790cd7403565c777cca8729e48c6 2026-10-02T14:00:00Z",
+  "HTTPS_status": 200,
+  "HTTPS_index_matches_installed_www": true,
+  "HTTPS_index_SHA256": "dcb7f0256f841bf152c4077d1c52133f12aaef11126b78e50bd7cd5a17d40215",
+  "services": {
+    "marengo-pi.service": {
+      "MainPID": "560332",
+      "NRestarts": "0",
+      "ActiveState": "active",
+      "SubState": "running"
+    },
+    "marengo-gateway.service": {
+      "MainPID": "560138",
+      "NRestarts": "0",
+      "ActiveState": "active",
+      "SubState": "running"
+    },
+    "marengo-can.service": {
+      "MainPID": "0",
+      "NRestarts": "0",
+      "ActiveState": "active",
+      "SubState": "exited"
+    }
+  },
+  "can_interface_statistics": {
+    "can0": {
+      "tx_errors": 0,
+      "rx_length_errors": 0,
+      "rx_packets": 21911357,
+      "tx_carrier_errors": 0,
+      "tx_dropped": 0,
+      "rx_missed_errors": 0,
+      "rx_over_errors": 396,
+      "tx_aborted_errors": 0,
+      "rx_crc_errors": 0,
+      "rx_frame_errors": 0,
+      "rx_nohandler": 0,
+      "tx_fifo_errors": 0,
+      "multicast": 0,
+      "tx_packets": 219606,
+      "tx_window_errors": 0,
+      "rx_bytes": 175290864,
+      "collisions": 0,
+      "rx_dropped": 0,
+      "tx_bytes": 1756848,
+      "tx_heartbeat_errors": 0,
+      "rx_fifo_errors": 0,
+      "rx_errors": 396,
+      "tx_compressed": 0,
+      "rx_compressed": 0
+    },
+    "can1": {
+      "tx_errors": 0,
+      "rx_length_errors": 0,
+      "rx_packets": 0,
+      "tx_carrier_errors": 0,
+      "tx_dropped": 0,
+      "rx_missed_errors": 0,
+      "rx_over_errors": 0,
+      "tx_aborted_errors": 0,
+      "rx_crc_errors": 0,
+      "rx_frame_errors": 0,
+      "rx_nohandler": 0,
+      "tx_fifo_errors": 0,
+      "multicast": 0,
+      "tx_packets": 0,
+      "tx_window_errors": 0,
+      "rx_bytes": 0,
+      "collisions": 0,
+      "rx_dropped": 0,
+      "tx_bytes": 0,
+      "tx_heartbeat_errors": 0,
+      "rx_fifo_errors": 0,
+      "rx_errors": 0,
+      "tx_compressed": 0,
+      "rx_compressed": 0
+    }
+  }
+}

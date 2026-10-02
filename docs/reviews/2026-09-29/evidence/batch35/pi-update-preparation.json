@@ -1,0 +1,33 @@
+{
+  "captured_UTC": "2026-10-02T13:20:08.255242+00:00",
+  "installed_revision": "d1fad15d579a7ee611fd930c0e14680f5063ed1b 2026-10-02T12:36:58Z",
+  "source_head": "d1fad15d579a7ee611fd930c0e14680f5063ed1b",
+  "source_clean": true,
+  "live_before": "Disabled/all five Faulted; safety publication red preserved",
+  "Store_online_backup_integrity": "ok",
+  "Store_schema": 3,
+  "release_scope": "Only owned bin/config/assets/scripts/www/.deploy-rev; runtime var, editor/legacy/cache trees excluded",
+  "installed_release_files_verified": 233,
+  "backup_sha256": {
+    "runtime-store.sqlite3": "cd09844784b4031a6e7ade1ca6f6712ebc05181f063bfdccb5c76b8beb4c0b34",
+    "marengo-can.service": "c326fe9952d6c048d02ac5e8e7c39a308fa82dd993250275d489cab4f791c686",
+    "source-all-refs-verification.txt": "a48376d51fcb98b31c80ae52ebcd1eb929769981d1b3cd9f18abc52f5c928c97",
+    "source-all-refs.bundle": "d1daca08522bb0089bc639a0673c928837d5e8d4bc9ebd84ccbbf51d0937687c",
+    "runtime.env": "18ab03274b8b083bec9648bbeb520fdc70718f34522a6fbd700c6c50c358b3ee",
+    "marengo-gateway.service": "d732031a2985edee44e00a00ac69ffba59910bac558ac6d2519702055f02879a",
+    "marengo-pi.service": "bda7b8fe789e73b5dfbf47e1032fede59258d8367ea9fb40751275e34350fd46",
+    "installed-release-before-update.tar.gz": "361c85fba2e20badfa4ccceb23f83bb903cdecb1446d0e8a3972081d431511b2",
+    "config/network.yaml": "26bda87afa964a6c692cbb4069c57b37dfe395044782406e2f187f97d7739d2e",
+    "config/robot_humanoid.yaml": "2b857fa1013b3354548d30dea66bf85477a532aa12ad71b65d3261ab59025959",
+    "config/control.yaml": "9df1c80840f428e7d076ce0d11b6e3acc567d04e46e517f3547d91fd6368ec21",
+    "config/robot.yaml": "2cf34da3a7f2b6acf8d3bde8f93177010297527169a12f42eca31e6b3f83a268",
+    "config/AGENTS.md": "71ce24dd08090bd69d7aa4878db03b85612042f31464b29de78320d60f708cb3",
+    "config/motors.yaml": "3382f2206231f88edd5dc5c2cfdea391ab4168d3d945210e32e4dc19ba7a6a1d",
+    "config/homing.yaml": "92dc86d8fef1293ed679d0ec1c632e7688199bc2685366f6119631ed6d963952",
+    "config/codemap.md": "85e78d7325da807ec959837fd6d28413003096786f97b7c95ba8970d9876b9d4",
+    "config/motors_humanoid.yaml": "f5b26d8ad2b1f3d30cba6c5e2417ac9982fb8125162d4371b71d214281982182",
+    "var/calibration/zero_registry.yaml": "2e52edfd153634efb6773bf329cb0b3926f85f73bb4423ee255d6c2ef2224233",
+    "assets/urdf/marengo.urdf": "5ae926c28ec93f8a47c1acd64385a480e88d2e2dcb9044bf6db7e3140f99e0ff"
+  },
+  "scope": "Read-only live capture and owned backup; no installed file, service or motor command changed"
+}

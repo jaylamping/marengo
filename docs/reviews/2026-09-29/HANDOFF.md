@@ -1,3 +1,42 @@
+# Windows continuation - 2026-10-02, batch35 delivered and Pi synced
+
+PR249 is merged. Qualified source8e1871f/final heade0bec83/main01a5c40;
+final PR/main CI37015241566/37016360032 both all-five success, equal tree.
+Primary/native886Rust/1existingignored/374UI each, frozen1positive/4named
+baseline failures/restored5green,28 prior probes and independent CLEAR reviews
+remain qualified. Current worktree J:/code/marengo-worktrees/current-virtual-reference
+uses codex/pi-can-ingress-diagnostics; all previous branches/worktrees preserved.
+
+Actual Pi source and installed release are01a5c40.214 installed hashes, all five
+taught envelopes/actual motor identities, calibration/env, Store integrity/schema3
+and trusted HTTPS UI verified. Installer exit0 at14:13:18 UTC; runtime starts
+14:13:22, natural Transport fault recurs15.026s later. Its SafetyState now retains
+the stable fault and software latch across healthy feedback and later snapshots.
+Post-fault passive30s observer receives15290 frames, zero error frames, counters
+unchanged396; this cannot identify the initiating error or qualify recovery.
+
+First sudo wrapper failed before installing. Direct authorized installer succeeds;
+helper's first post snapshot503 and incompatible activation observer flags are
+preserved as failed verification. Fresh read-only checks succeed without another
+restart. Verified233-file release backup downloaded; separate native Git/Store/
+config/calibration/env/units and214-file source payload backups retained.
+Owner powered/stable/supported/clear/reachable-E-stop authorization is established;
+there is no software deployment setup reply or movement reply pending.
+
+Next capture retained physical CAN error evidence and qualify ingress/recovery,
+installed-owner reference/priority stop and commissioning. All five remain Faulted;
+lower yaw -4.13228655 is outside preserved taught hard[-.3942450583,3.2440848351].
+No Enable, SetZero, target or movement test commanded. Actual E-stop wiring unknown.
+Ask before every concrete bounded right-arm movement; explicit reply and qualified
+commissioning are required. Ten-minute silence means other work only.
+
+CS13 stays partial; counts102/eight maintenance/26verified/13partial/63open,
+historical batch16 checkpoint, CAD, limits, calibration/data and paused automation
+preserved. See batch35 report and evidence/batch35/delivery-receipt.json.
+Earlier checkpoints below are historical and preserved as an exact suffix.
+
+---
+
 # Windows continuation — 2026-10-02, batch35 source qualified
 
 Worktree J:/code/marengo-worktrees/current-virtual-reference, branch

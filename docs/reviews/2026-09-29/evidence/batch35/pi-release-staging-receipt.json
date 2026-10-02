@@ -1,0 +1,9 @@
+{
+  "source": "01a5c403bd8e790cd7403565c777cca8729e48c6",
+  "source_clean": true,
+  "manifest_entries_verified": 214,
+  "source_owned_backup_files": 214,
+  "source_owned_backup_SHA256": "b3d8848efa528adc5d94efe459748de4c643b6f26e3ad485402246fb5db2caa8",
+  "all_legacy_editor_cache_runtime_trees_preserved": true,
+  "scope": "Only source checkout and owned release staging updated; installedd1fad15/services unchanged; no motor command"
+}

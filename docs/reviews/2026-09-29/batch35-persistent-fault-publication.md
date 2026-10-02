@@ -50,9 +50,11 @@ All28 prior qualified probe files are unchanged. Independent Standards and scope
 Spec are CLEAR on that source; the prior resource isolation finding is resolved.
 PR249 source CI37012722613 passes all five jobs, including simulation/virtual CAN.
 See [qualification](evidence/batch35/final-source-qualification.json).
-Evidence-head/main CI and installed live replay remain pending. Native execution
-uses isolated transport/resources and leaves installedd1fad15/services unchanged;
-these are software results on the Pi, with physical acceptance separate.
+Final PR heade0bec83 and merged main01a5c40 pass all five CI jobs in runs
+37015241566 and37016360032. Their Git trees are identical; runtime inputs match
+qualified source8e1871f. The earlier native gate used isolated transport/resources
+and left installedd1fad15 unchanged during qualification. Actual delivery is now
+verified below; physical acceptance remains separate.
 
 ## Remaining acceptance
 
@@ -64,7 +66,7 @@ Physical E-stop wiring, initiating raw installed error evidence and a qualified
 physical recovery/reference procedure remain open. A healthy publication with
 no observed GPIO input is not proof of physical E-stop readiness.
 
-The actual Pi remains Disabled/Faulted after the authorized batch34 update.
+The actual Pi remains Disabled/Faulted after the authorized batch35 update.
 CAN receive overflow counters and the upstream MCP251x error path are consistent
 with RX overflow, but the exact initiating envelope and cause of servicing delay
 are unqualified. No reset/restart is accepted as physical recovery. No Enable,
@@ -75,3 +77,39 @@ ten-minute silence leaves movement pending and allows independent work only.
 
 Ledger counts remain102 findings/eight maintenance tasks:26 verified/13 partial/
 63 open. The historical batch16 pause checkpoint and paused automation remain.
+
+## Delivered and replayed on the actual Pi
+
+PR249 merged at13:56:09 UTC. Pi source and installed release are exact main01a5c40.
+The authorized direct installer exits0. All214 installed payload hashes verify,
+using independently previewed taught merges for the three preserved policy/model
+files. All five taught envelopes and eight motor identity fields, calibration,
+runtime environment, Store integrity/schema3 and trusted HTTPS index pass. Pi and
+gateway services are active with zero automatic restarts at the captured sample.
+The owned233-file pre-update release verifies natively and after download;
+separate native Git/Store/config/calibration/env/unit backups are retained.
+
+Actual startup14:13:22.553717Z naturally faults15.026017s later. Unlike the preserved
+pre-update snapshots, SafetyState now reports retained Transport fault1 and a
+true software latch while all five references remain Faulted. Three later live
+snapshots retain that state during healthy feedback. A compatible30s passive
+observer records15290 frames, including about2997-2999 feedback frames per motor,
+with zero error frames and unchanged receive/overflow counters396. This is
+positive installed publication evidence; the post-fault window cannot reveal the
+initiating envelope or qualify fault recovery or motion.
+
+The first activation wrapper used sudo bash and was rejected before installation.
+The direct authorized executable succeeds. Its helper then failed on the gateway's
+first startup503; the activation observer also rejected incompatible-L/-e flags
+and captured zero bytes. Both failures are preserved, not claimed as successful
+observation. Fresh read-only verification and the corrected post-fault observer
+pass without another restart. See [delivery](evidence/batch35/delivery-receipt.json)
+for raw/normalized artifact hashes and exact timestamps.
+
+No Enable, SetZero, target or movement test was commanded. Deployment shutdown
+issued zero-speed/neutral-MIT/Disable writes with physical stop unconfirmed.
+The owner's powered setup authorization is established. All five remain Faulted,
+physical reference is unqualified, and lower yaw remains outside its preserved
+taught hard envelope. Next work qualifies CAN evidence/recovery, installed-owner
+reference/priority stop and commissioning before an explicitly confirmed bounded
+right-arm test. CS13 and the unchanged finding counts remain partial/open as above.

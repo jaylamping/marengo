@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/home/joey/marengo-validation/pi-sync-20261002-batch35/activate-main.py", line 50, in <module>
+    assert result.returncode == 0, 'Actual installer failed; preserve diagnostics/backup'
+           ^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Actual installer failed; preserve diagnostics/backup

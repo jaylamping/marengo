@@ -1,0 +1,12 @@
+{
+  "main": "01a5c403bd8e790cd7403565c777cca8729e48c6",
+  "activation_started_UTC": "2026-10-02T14:13:18.266502+00:00",
+  "installer_exit": 0,
+  "post_verification_collected_UTC": "2026-10-02T14:14:48.784828+00:00",
+  "activation_helper_exit": 1,
+  "activation_helper_failure": "First post-restart snapshot returned HTTP 503 during gateway startup; installer completed exit 0. Fresh read-only post checks collected without another restart.",
+  "passive_activation_capture_bytes": 0,
+  "passive_activation_capture_failure": "Log file format selected: Please disable ASCII/BINARY/SWAP/RAWDLC options!",
+  "passive_activation_capture_qualified": false,
+  "scope": "Authorized powered/stable/supported deployment. No Enable, SetZero, target or movement test commanded. Shutdown issued zero-speed/neutral-MIT/Disable frames; physical stop unconfirmed. Startup/restart is not qualified physical fault recovery."
+}
