@@ -1706,6 +1706,7 @@ dependencies = [
  "marengo-config",
  "marengo-support",
  "robstride",
+ "serde_json",
  "tracing",
 ]
 

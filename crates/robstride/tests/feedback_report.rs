@@ -105,6 +105,7 @@ fn every_raw_fault_and_status_survives_all_same_batch_orders() {
         for (observed, raw) in report.observations.iter().zip(&sequence) {
             assert_eq!(observed.can_id, raw.id);
             match observed.event {
+                FeedbackEvent::FirmwareVersion(_) => panic!("unexpected version reply"),
                 FeedbackEvent::DetailedFault(fault) => assert_eq!(fault.raw, raw.data),
                 FeedbackEvent::Malformed(_) => panic!("full data is not malformed"),
                 FeedbackEvent::Status(status) => {

@@ -7,6 +7,7 @@ resolved in conversation or an ADR.
 
 | Term | Meaning |
 |------|---------|
+| **Drive protocol inspection** | A Davout-owned disabled-only bench query of actual MCU identity, firmware and parameter replies. It preserves request/reply evidence and cannot grant reference or enable permission. See [ADR 0036](docs/decisions/0036-disabled-drive-protocol-inspection.md). |
 | **Software home** | The host checkout used for software and tracked CAD sources: `J:\code\marengo` on this Windows machine, and a host checkout of the same remote on macOS. Local CAD also lives under `J:\code`. See [ADR 0018](docs/decisions/0018-windows-macos-software-home.md). |
 | **CAD session** | A Windows editor opened on `J:\code\marengo`, with SolidWorks MCP (COM) using that same local CAD tree. |
 | **Software session** | A Windows or macOS editor opened on the host checkout. Rust, Consul, and MCP tools run on the host where supported; Docker runs the Linux workspace checks. |

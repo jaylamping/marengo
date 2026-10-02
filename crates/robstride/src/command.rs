@@ -18,6 +18,11 @@ pub enum CommandField {
 /// Invalid numeric data must be rejected before quantization or transmission.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
 pub enum CommandError {
+    #[error("parameter {parameter:?} for motor {device_id} is read-only")]
+    ReadOnlyParameter {
+        device_id: u8,
+        parameter: ParameterId,
+    },
     #[error("nonfinite {field:?} for motor {device_id}")]
     NonFinite { device_id: u8, field: CommandField },
     #[error("negative {field:?} for motor {device_id}")]

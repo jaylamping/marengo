@@ -27,3 +27,4 @@ marengo-config.workspace = true
 marengo-support.workspace = true
 robstride.workspace = true
 tracing.workspace = true
+serde_json.workspace = true

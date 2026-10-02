@@ -276,7 +276,7 @@ impl<B: MotorBus> Supervisor<B> {
                 received_at: Some(observation.received_at),
                 ..DeviceFaultEvidence::default()
             };
-            let status = match observation.event {
+            let (status, status_flags, drive_mode) = match observation.event {
                 FeedbackEvent::Malformed(malformed) => {
                     first_transition |= self.record_malformed_feedback(
                         &motor,
@@ -314,16 +314,19 @@ impl<B: MotorBus> Supervisor<B> {
                     continue;
                 }
                 FeedbackEvent::Status(status) => {
-                    device.status_flags = status.status_flags;
-                    device.drive_mode = Some(match status.drive_mode {
-                        DriveMode::Reset => 0,
-                        DriveMode::Calibration => 1,
-                        DriveMode::Run => 2,
-                        DriveMode::Reserved => 3,
-                    });
-                    status
+                    (Some(status), status.status_flags, status.drive_mode)
+                }
+                FeedbackEvent::FirmwareVersion(version) => {
+                    (None, version.status_flags, version.drive_mode)
                 }
             };
+            device.status_flags = status_flags;
+            device.drive_mode = Some(match drive_mode {
+                DriveMode::Reset => 0,
+                DriveMode::Calibration => 1,
+                DriveMode::Run => 2,
+                DriveMode::Reserved => 3,
+            });
             if device.status_flags != 0 {
                 first_transition |= self.fault_authority.record(
                     FaultClass::Device,
@@ -338,12 +341,11 @@ impl<B: MotorBus> Supervisor<B> {
             }
             let current_enable =
                 self.feedback_run_expected(&motor, observation.received_at, context);
-            if status.drive_mode == DriveMode::Reserved
-                || (current_enable && status.drive_mode != DriveMode::Run)
+            if drive_mode == DriveMode::Reserved || (current_enable && drive_mode != DriveMode::Run)
             {
                 let error = DavoutError::InvalidFeedback {
                     joint: motor.joint.clone(),
-                    message: format!("unexpected drive mode {:?} for {:?}; no qualified factory-calibration context", status.drive_mode, self.mode),
+                    message: format!("unexpected drive mode {:?} for {:?}; no qualified factory-calibration context", drive_mode, self.mode),
                 };
                 self.invalid_feedback.insert(address.clone());
                 first_transition |= self.fault_authority.record(
@@ -358,6 +360,9 @@ impl<B: MotorBus> Supervisor<B> {
                 }
                 continue;
             }
+            let Some(status) = status else {
+                continue;
+            };
             let raw = MotorState {
                 position_rad: status.position_rad,
                 velocity_rad_s: status.velocity_rad_s,

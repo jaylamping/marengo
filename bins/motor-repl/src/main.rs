@@ -67,6 +67,7 @@ fn usage() {
         "motor-repl — bench motor exercise (Davout → robstride)\n\
          Usage:\n  \
          motor-repl [--config-dir PATH] [--can-interface can0] status\n  \
+           motor-repl protocol-inspect  (standalone, disabled-only; stop marengo-pi first)\n  \
            motor-repl homing-status\n  \
            motor-repl home\n  \
            motor-repl enable <operator_id> [--force]\n  \
@@ -195,6 +196,19 @@ fn main() {
     };
 
     match args[1].as_str() {
+        "protocol-inspect" => match loop_ctrl.supervisor_mut().inspect_drive_protocol() {
+            Ok(receipts) => match serde_json::to_string_pretty(&receipts) {
+                Ok(json) => println!("{json}"),
+                Err(error) => {
+                    eprintln!("encode inspection: {error}");
+                    std::process::exit(1);
+                }
+            },
+            Err(error) => {
+                eprintln!("protocol inspection: {error}");
+                std::process::exit(1);
+            }
+        },
         "status" => {
             info!(
                 mode = ?loop_ctrl.supervisor_mut().mode(),

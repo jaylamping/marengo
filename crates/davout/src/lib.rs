@@ -31,6 +31,8 @@
 //!   durable completion and fresh continuity checks. Its private lifetime binds actual
 //!   model/device continuity independently of transaction deadlines and diagnostic caches.
 //! - [`Supervisor::disable_all`]: all-address best-effort stop with honest delivery evidence.
+//! - [`Supervisor::inspect_drive_protocol`]: blocking standalone disabled-drive queries;
+//!   shared hazard consumption and final stop, without reference or enable permission.
 //! - [`refresh_feedback`]: blocking poll up to `feedback_poll_budget_us` (REPL / set-zero).
 //! - [`drain_feedback`]: non-blocking RX queue drain (Berthier control loop).
 //!
@@ -75,6 +77,8 @@ mod active_reporting_pacing_tests;
 mod faults;
 mod feedback_consumer;
 mod limit_envelope;
+mod protocol_inspection;
+pub use protocol_inspection::{MotorProtocolInspection, ProtocolReadReceipt};
 mod reference;
 mod reference_codec;
 mod reference_commit;
@@ -199,6 +203,8 @@ pub struct SpeedCommand {
 
 #[derive(Debug, Error)]
 pub enum DavoutError {
+    #[error("drive protocol inspection on {joint}: {message}")]
+    ProtocolInspection { joint: String, message: String },
     #[error("config: {0}")]
     Config(#[from] marengo_config::ConfigError),
     #[error("urdf: {0}")]

@@ -46,6 +46,12 @@ robstride::send(cmd)?;
 
 ## 4. Errors
 
+Diagnostic replies that share a status communication type must retain header
+fault/mode evidence without renewing pose. Robstride firmware replies beginning
+`00 C4 56` are version bytes; Davout consumes their headers through the same
+ordered hazard path. Never interpret diagnostic bytes as MIT position or use
+them as a boot epoch ([ADR 0036](decisions/0036-disabled-drive-protocol-inspection.md)).
+
 ```rust
 // BAD (library)
 let angle = state.angle.unwrap();
