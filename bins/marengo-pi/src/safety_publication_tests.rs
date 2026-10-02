@@ -4,6 +4,7 @@
 
 use std::collections::VecDeque;
 use std::path::PathBuf;
+use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
@@ -92,6 +93,51 @@ fn exercise(
     expected_faults: &[(FaultClass, &str)],
     hardware_estop: bool,
 ) {
+    // Bind each actual-loop child independently of ambient runtime configuration,
+    // calibration history and trace paths. Never mutate the shared test process.
+    let Some(root) = std::env::var_os("MARENGO_SAFETY_PUBLICATION_FIXTURE") else {
+        let fixture = publication_fixture();
+        let test_thread = thread::current();
+        let test = test_thread.name().expect("actual test name");
+        let output = Command::new(std::env::current_exe().expect("actual test executable"))
+            .args(["--exact", test, "--nocapture"])
+            .current_dir(fixture.path())
+            .env("MARENGO_SAFETY_PUBLICATION_FIXTURE", fixture.path())
+            .env("MARENGO_ROOT", fixture.path())
+            .env("MARENGO_CONFIG_DIR", fixture.path().join("config"))
+            .env(
+                "MARENGO_CALIBRATION_RECORD",
+                fixture.path().join("missing-calibration.yaml"),
+            )
+            .env_remove("MARENGO_POSITION_TRACE")
+            .env_remove("MARENGO_POSITION_TRACE_HZ")
+            .env_remove("MARENGO_JOINT_SUBSET")
+            .output()
+            .expect("isolated actual-loop child");
+        assert!(
+            output.status.success(),
+            "isolated publication assertion failed:\n{}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        return;
+    };
+    let root = PathBuf::from(root);
+    let config = root.join("config");
+    assert_eq!(
+        marengo_config::resolve_config_dir(&root),
+        config,
+        "actual config resolution stays inside the exclusive fixture"
+    );
+    assert_eq!(
+        std::env::var_os("MARENGO_CALIBRATION_RECORD"),
+        Some(root.join("missing-calibration.yaml").into_os_string())
+    );
+    assert!(std::env::var_os("MARENGO_POSITION_TRACE").is_none());
+    exercise_bound(&root, input, expected_faults, hardware_estop);
+}
+
+fn publication_fixture() -> tempfile::TempDir {
     let source = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let fixture = tempfile::tempdir().expect("exclusive publication fixture");
     let config = fixture.path().join("config");
@@ -107,6 +153,16 @@ fn exercise(
         urdf.join("marengo.urdf"),
     )
     .expect("copy immutable master model");
+    fixture
+}
+
+fn exercise_bound(
+    root: &std::path::Path,
+    input: Vec<ReceivedCanFrame>,
+    expected_faults: &[(FaultClass, &str)],
+    hardware_estop: bool,
+) {
+    let config = root.join("config");
     let original = std::fs::read(config.join("control.yaml")).expect("copied source policy");
     let delivered = input.len() + 1;
     let fault_input = input.clone();
@@ -115,7 +171,7 @@ fn exercise(
     frames.push_back(status(0x0200_04fd));
     let witness = Arc::new(Mutex::new(Witness::default()));
     let mut controller = ControlLoop::from_repo(
-        fixture.path(),
+        root,
         ScriptedBus {
             frames,
             witness: Arc::clone(&witness),
@@ -131,7 +187,7 @@ fn exercise(
     let bus = Arc::new(Bus::new(32));
     let mut publications = bus.subscribe("robot/safety");
     let shutdown = Arc::new(AtomicBool::new(false));
-    let queue = ConfigPersistQueue::spawn(Arc::clone(&bus), fixture.path().to_path_buf());
+    let queue = ConfigPersistQueue::spawn(Arc::clone(&bus), root.to_path_buf());
     let mut overlay =
         ActuatorOverlay::from_config_dir(&config, queue).expect("real installed overlay");
     let (cmd_tx, cmd_rx) = mpsc::channel();

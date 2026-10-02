@@ -15,7 +15,10 @@ new wire schema or physical GPIO implementation.
 
 Five regression cases run the actual installed control loop and Chappe envelope
 publication using an isolated receive transport and exclusive copied master
-config/model. They cover one-shot transport/device faults followed by healthy
+config/model. Each actual-loop child binds config and absent calibration history
+to its independently created fixture and clears ambient trace/subset overrides;
+the shared parent process environment stays untouched. They cover one-shot
+transport/device faults followed by healthy
 data, two peer faults, an observed model E-stop input and a healthy control.
 Three periodic publications straddle an ordinary Disable. Assertions inspect
 wire fault identity/class/joint/severity/latch, retained first transport evidence,
@@ -29,7 +32,12 @@ The final complete five-case probe is frozen before baseline replay. Original
 production d1fad15 with only cfg(test) registration fails four named assertions;
 the healthy control passes. Restoring the candidate passes the byte-identical
 five cases. Actual test executable hashes distinguish both runs. Strict targeted
-clippy also passes. See [binding](evidence/batch35/final-probe-binding.json).
+clippy also passes. See the final resource-bound
+[binding](evidence/batch35/resource-bound-final-probe-binding.json).
+The earlier whole-module freeze is superseded because the independent Standards
+review found ambient resource resolution in its fixture. The source repair is
+unchanged; the complete corrected module was frozen and replayed against original
+production again, with the same four behavioral failures and five restored passes.
 Earlier fixture/API/thread/lint preparation attempts and earlier probe hashes
 are retained externally and are not claimed as final frozen evidence.
 
