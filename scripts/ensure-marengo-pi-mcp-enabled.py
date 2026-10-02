@@ -83,7 +83,7 @@ def resolve_mcp_server(mcp_json: Path, workspace_folder: str) -> dict[str, Any]:
     return resolve(server)
 
 
-def windows_cursor_root() -> Path | None:
+def cursor_user_root() -> Path | None:
     appdata = os.environ.get("APPDATA")
     if appdata:
         p = Path(appdata) / "Cursor" / "User"
@@ -98,9 +98,12 @@ def windows_cursor_root() -> Path | None:
     for c in candidates:
         if (c / "globalStorage" / "state.vscdb").is_file():
             return c
-    home = Path.home() / ".config" / "Cursor" / "User"
-    if home.is_dir():
-        return home
+    for home in (
+        Path.home() / "Library" / "Application Support" / "Cursor" / "User",  # macOS
+        Path.home() / ".config" / "Cursor" / "User",  # Linux
+    ):
+        if home.is_dir():
+            return home
     return None
 
 
@@ -275,9 +278,13 @@ def main() -> int:
         print(f"error: missing {mcp_json}", file=sys.stderr)
         return 1
 
-    cursor_user = windows_cursor_root()
+    cursor_user = cursor_user_root()
     if cursor_user is None:
-        print("error: could not find Cursor User data dir", file=sys.stderr)
+        msg = "could not find Cursor User data dir"
+        if args.best_effort:
+            print(f"warning: {msg}; skipping", file=sys.stderr)
+            return 0
+        print(f"error: {msg}", file=sys.stderr)
         return 1
 
     identifier = project_identifier("marengo")
