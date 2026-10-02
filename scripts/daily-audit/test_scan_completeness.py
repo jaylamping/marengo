@@ -42,7 +42,7 @@ class CompletenessTests(unittest.TestCase):
             source = root / "crates/berthier/src/fixture.rs"
             source.parent.mkdir(parents=True)
             source.write_text("fn live() { robstride::send(); }\n")
-            with patch.object(audit, "ROOT", root), patch.object(audit, "check_ci_status"), patch.object(audit, "check_stale_safety_prs"), patch.object(audit, "check_large_risky_diff"), patch.object(audit, "check_adr_staleness"):
+            with patch.object(audit, "ROOT", root), patch.object(audit, "check_ci_status"), patch.object(audit, "check_stale_safety_prs"), patch.object(audit, "check_large_risky_diff", autospec=True), patch.object(audit, "check_adr_staleness", autospec=True):
                 with patch.object(audit, "git_changed_files", return_value=(["fixture"], ["crates/berthier/src/fixture.rs"], {"general": "24.hours"})):
                     self.assertEqual(audit.main(), 1)
                 first = json.loads(next(root.rglob("report.json")).read_text())

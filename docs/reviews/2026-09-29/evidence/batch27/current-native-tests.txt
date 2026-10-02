@@ -1,6 +1,8 @@
-...............................
+......................................
 ----------------------------------------------------------------------
-Ran 31 tests in 3.234s
+Ran 38 tests in 3.338s
 
 OK
-{"out_dir": "/var/folders/nx/mtqx21xs4fn9qy52kqfpz2_w0000gn/T/tmpld9z4wdz/var/log/daily-audit/2026-10-02", "clean": false, "findings": 1}
+{"out_dir": "/var/folders/nx/mtqx21xs4fn9qy52kqfpz2_w0000gn/T/tmpvs8s129r/var/log/daily-audit/2026-10-02", "clean": false, "findings": 1}
+{"out_dir": "/var/folders/nx/mtqx21xs4fn9qy52kqfpz2_w0000gn/T/tmpznbwicmr/var/log/daily-audit/2026-10-02", "clean": false, "findings": 1}
+{"out_dir": "/var/folders/nx/mtqx21xs4fn9qy52kqfpz2_w0000gn/T/tmpznbwicmr/var/log/daily-audit/2026-10-02", "clean": false, "findings": 0}
