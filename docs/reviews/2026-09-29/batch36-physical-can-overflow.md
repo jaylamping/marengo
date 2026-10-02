@@ -74,3 +74,19 @@ explicitly confirmed right-arm movement. Powered supported setup is already
 authorized, no user reply is pending, and ten-minute silence only allows other
 work. CS04/CS13 stay partial; counts102 findings/eight maintenance tasks,
 26verified/13partial/63open, historical batch16, CAD and paused automation remain.
+
+## Delivery checkpoint
+
+PR250 merges reviewed427497f as main19b983a with the same tree. Independent
+Standards and scoped Spec reviews are CLEAR. Required PR CI37021466462 passes;
+simulation is an expected documentation-diff skip. Actual mainCI37022423690
+passes all five jobs, including virtual CAN and simulation.
+
+Pi source fast-forwards cleanly to19b983a. Its installed release remains01a5c40:
+the source change contains104 review-document files and identical runtime code.
+Installed binaries, policy/model, calibration/environment and service PIDs are
+unchanged by this synchronization. Before-source and primary all-refs backups
+are verified and retained. See [delivery](evidence/batch36/delivery-receipt.json).
+The current continuation branch is codex/can-reporting-diagnostics; the captured
+overflow remains the input for the next causal comparison, with physical
+recovery/reference/movement acceptance still open and no human reply pending.

@@ -1,0 +1,21 @@
+{
+  "source": "0a3fc6bb0dd7ab652d97fd2efb7bb46ceee517c4",
+  "qualified_source": "0a3fc6bb0dd7ab652d97fd2efb7bb46ceee517c4",
+  "runtime_inputs_identical_to_qualified_source": true,
+  "built_UTC": "2026-10-02T15:39:35.419519+00:00",
+  "source_files_unchanged_after_build": 2037,
+  "manifest_entries_verified": 214,
+  "manifest_SHA256": "f2907a4f8623617d5d5b1e18889cb909727d859fcfa7cea3cfbba8d03b95cde0",
+  "archive_SHA256": "14e5c1c020c1276df9eb7c6fb2768669a641e7d7c9760074ed3625313e3b809c",
+  "archive_bytes": 15431183,
+  "binary_SHA256": {
+    "marengo-pi": "2c313feaca47d085263fb02fd53a62ff4dd60dceabe7c7cb441ed80ea22ecda2",
+    "marengo-gateway": "f57931e7720c19c96afb67f734ccb67d26e8ed087dc67d3ecc0221277b7679be",
+    "marengo-log-cli": "1f8896edbe95cd1266817b8a2e49e7ac3e90224450a010f07814e5995d060f6a",
+    "motor-repl": "17ebdd425e4670ddce8f31dc640c342f99ba29b563fca8e16f5fb59f57060b11",
+    "imu-probe": "f4582d99aeee59a1ff5f3cc100e282f578bb31ae922ffa35f7cc797a65144bb1"
+  },
+  "ELF_architecture": "All five ELF64 little-endian AArch64 (machine183)",
+  "deployment_revision": "0a3fc6bb0dd7ab652d97fd2efb7bb46ceee517c4 2026-10-02T15:37:47Z",
+  "scope": "Five ARM release binaries, master config/assets/scripts and qualified Consul; installation preserves taught envelopes"
+}

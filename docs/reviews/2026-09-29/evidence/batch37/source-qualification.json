@@ -1,0 +1,84 @@
+{
+  "source": "0a3fc6bb0dd7ab652d97fd2efb7bb46ceee517c4",
+  "baseline": "8a5eb858b73649172f4537ca28edce0bb0535c4d",
+  "scope": "One healthy active-reporting refresh attempt per shared 5ms spacing gate, rotating after successful or failed attempts. Initial enables, stale retries and Off/Active remain immediate. Physical CAN-overflow cause is unproven.",
+  "recorded_UTC": "2026-10-02T16:13:34.980548+00:00",
+  "primary": {
+    "Rust_passed": 889,
+    "existing_ignored": 1,
+    "UI_passed": 374,
+    "raw_log_SHA256": "1430d5aff1678f29e606b85ebe491f236ed7a4a5cb340d16d73a61c5279f4c4a",
+    "unchanged_tracked_input_files": 2037
+  },
+  "native_Pi": {
+    "Rust_passed": 889,
+    "existing_ignored": 1,
+    "UI_passed": 374,
+    "raw_log_SHA256": "756b0aa5019744a86df5110fa7f5af7b9e3c4d203a35beb9b175854067adfd3f",
+    "unchanged_tracked_input_files": 2037
+  },
+  "strict_gates": {
+    "Pi_MCP": 72,
+    "local_writer": 27,
+    "research": 83,
+    "daily_audit": 15,
+    "installer": 10,
+    "fmt_clippy_proto_deny_audit": "passed",
+    "fatal_ARM_release": "passed"
+  },
+  "source_archive_SHA256": "a3c59e184c7d483f9b91fc0d5973f4fd425bfbc4ca147cde3edd50147dc883e7",
+  "frozen_probe": {
+    "complete_module_SHA256": "e0c1f1d28d2d5a30f9aa72c93760ade9e34ad7df6934b3a586a942e7e0ae14fe",
+    "baseline_named_behavioral_failures": 3,
+    "baseline_exit": 101,
+    "candidate_reporting_cases_passed": 14,
+    "candidate_exit": 0,
+    "red_executable_SHA256": "3fc39c8ff58fbe0dc5c31794b2b401f7e17042c4f5affa8580bfb66c2554f8c4",
+    "green_executable_SHA256": "83280391d8a7fdd307e075c5f815ae27638c5fa52702fd82bdc293cdefe6dfa2",
+    "prior_qualified_probe_files_unchanged": 28,
+    "batch35_complete_module_unchanged": true
+  },
+  "source_CI": {
+    "id": 37026990187,
+    "head": "0a3fc6bb0dd7ab652d97fd2efb7bb46ceee517c4",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "name": "changes",
+        "conclusion": "success",
+        "url": "https://github.com/jaylamping/marengo/actions/runs/37026990187/job/110904025761"
+      },
+      {
+        "name": "build-image",
+        "conclusion": "success",
+        "url": "https://github.com/jaylamping/marengo/actions/runs/37026990187/job/110904026002"
+      },
+      {
+        "name": "vcan",
+        "conclusion": "success",
+        "url": "https://github.com/jaylamping/marengo/actions/runs/37026990187/job/110904205276"
+      },
+      {
+        "name": "sim",
+        "conclusion": "success",
+        "url": "https://github.com/jaylamping/marengo/actions/runs/37026990187/job/110904205360"
+      },
+      {
+        "name": "check",
+        "conclusion": "success",
+        "url": "https://github.com/jaylamping/marengo/actions/runs/37026990187/job/110904205534"
+      }
+    ]
+  },
+  "independent_source_reviews": {
+    "head": "0a3fc6bb0dd7ab652d97fd2efb7bb46ceee517c4",
+    "Standards_findings": 0,
+    "scoped_Spec_findings": 0
+  },
+  "physical_motion_acceptance": false,
+  "preparation_failures": [
+    "Private ReceiveAttempt import failed compilation before the frozen behavioral red; corrected import then all three named behavioral assertions fail on original production.",
+    "Primary mode preparation and root-owned npm volume preparation failed before full checks; retained separately. Final checks run through normal container entrypoint as marengo.",
+    "Initial metrics parser omitted ANSI stripping; corrected without source changes or rerunning passing tests."
+  ]
+}

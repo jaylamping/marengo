@@ -1,0 +1,558 @@
+{
+  "recorded_UTC": "2026-10-02T16:30:22.013157+00:00",
+  "source": "0a3fc6bb0dd7ab652d97fd2efb7bb46ceee517c4",
+  "status": "Pacing behavior verified; physical CAN-overflow cause and reliability fix unproven",
+  "earlier_baseline_A1": {
+    "installed_revision": "01a5c403bd8e790cd7403565c777cca8729e48c6 2026-10-02T14:00:00Z",
+    "restart_started_UTC": "2026-10-02T15:10:24.888181+00:00",
+    "oracle": {
+      "verdict": "CAN_ERROR_REPRODUCED",
+      "capture_SHA256": "60f1c22cfe243fca3b11a7d7a8a76a55645a9c32c194a44b53b0db10ec43fcb3",
+      "captured_seconds": 59.99429392814636,
+      "frames": 30709,
+      "error_frames": [
+        "(1790953826.059163) can0 20000004#0001000000000000",
+        "(1790953852.051162) can0 20000004#0001000000000000"
+      ],
+      "rx_over_errors_before_after": [
+        399,
+        401
+      ],
+      "periodic_feedback_frames_by_motor": {
+        "3": 5995,
+        "1": 5995,
+        "2": 5995,
+        "5": 5996,
+        "4": 5996
+      },
+      "reporting_requests": 305,
+      "request_gap_ms_min_median_max": [
+        0.2651214599609375,
+        0.30612945556640625,
+        1000.2188682556152
+      ],
+      "limits": "Software delivery timestamps; bounded observation only. No physical recovery, reference, stop or motion acceptance."
+    },
+    "raw_receipt_SHA256": "1de97807bd6e19ea3834b822ff105ac09090b2d426b6dad801e0a1831a5462bf",
+    "verified_archive_SHA256": "7b298006fab41780789911fa0e53f512cbb8219396b2d8979999b48731962e45",
+    "archived_files": 251
+  },
+  "controlled_windows": {
+    "B1": {
+      "installed_revision": "0a3fc6bb0dd7ab652d97fd2efb7bb46ceee517c4 2026-10-02T15:37:47Z",
+      "restart_started_UTC": "2026-10-02T16:03:24.619827+00:00",
+      "samples": 293,
+      "all_samples_Disabled": true,
+      "policy_sha256": {
+        "config/motors.yaml": "3382f2206231f88edd5dc5c2cfdea391ab4168d3d945210e32e4dc19ba7a6a1d",
+        "config/control.yaml": "9df1c80840f428e7d076ce0d11b6e3acc567d04e46e517f3547d91fd6368ec21",
+        "assets/urdf/marengo.urdf": "5ae926c28ec93f8a47c1acd64385a480e88d2e2dcb9044bf6db7e3140f99e0ff",
+        "var/calibration/zero_registry.yaml": "2e52edfd153634efb6773bf329cb0b3926f85f73bb4423ee255d6c2ef2224233"
+      },
+      "installed_binary_sha256": {
+        "marengo-gateway": "f57931e7720c19c96afb67f734ccb67d26e8ed087dc67d3ecc0221277b7679be",
+        "imu-probe": "f4582d99aeee59a1ff5f3cc100e282f578bb31ae922ffa35f7cc797a65144bb1",
+        "motor-repl": "17ebdd425e4670ddce8f31dc640c342f99ba29b563fca8e16f5fb59f57060b11",
+        "marengo-gateway.bak-20260615-055731": "bb751fa970b0c161e3ba684700c61ed397f08fd5be86e0ec98ec0b5ec7894c3e",
+        "marengo-log-cli": "1f8896edbe95cd1266817b8a2e49e7ac3e90224450a010f07814e5995d060f6a",
+        "marengo-pi": "2c313feaca47d085263fb02fd53a62ff4dd60dceabe7c7cb441ed80ea22ecda2"
+      },
+      "raw_receipt_SHA256": "b25dc298eb633acd779342351240568b0a01e7fd43da6ebde338457a5cc2dc58",
+      "raw_CAN_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\B1-native\\passive-can.log",
+      "oracle": {
+        "verdict": "NO_CAN_ERROR_IN_BOUNDED_WINDOW",
+        "capture_SHA256": "418290fc4f32037f87b7d70a966f10bbd9c47a0c2d16a78d14689318804dbd7b",
+        "captured_seconds": 299.9987931251526,
+        "frames": 152938,
+        "error_frames": [],
+        "rx_over_errors_before_after": [
+          487,
+          487
+        ],
+        "periodic_feedback_frames_by_motor": {
+          "3": 29979,
+          "5": 29984,
+          "1": 29977,
+          "4": 29981,
+          "2": 29976
+        },
+        "reporting_requests": 1505,
+        "request_gap_ms_min_median_max": [
+          0.27680397033691406,
+          5.057811737060547,
+          1000.3271102905273
+        ],
+        "limits": "Software delivery timestamps; bounded observation only. No physical recovery, reference, stop or motion acceptance."
+      },
+      "archive": {
+        "phase": "B1",
+        "archive_SHA256": "9f0ff9a299a653f231ebdffab3dfb45dc9f0380703f64dc040c8dcbd3de2f355",
+        "all_archived_files_verified": 1191,
+        "manifest_SHA256": "a5acb591d0a09bfad357643d8f9d62a015849f923392e007d304c4b0a2033126"
+      }
+    },
+    "A2": {
+      "installed_revision": "01a5c403bd8e790cd7403565c777cca8729e48c6 2026-10-02T14:00:00Z",
+      "restart_started_UTC": "2026-10-02T16:10:10.383580+00:00",
+      "samples": 293,
+      "all_samples_Disabled": true,
+      "policy_sha256": {
+        "config/motors.yaml": "3382f2206231f88edd5dc5c2cfdea391ab4168d3d945210e32e4dc19ba7a6a1d",
+        "config/control.yaml": "9df1c80840f428e7d076ce0d11b6e3acc567d04e46e517f3547d91fd6368ec21",
+        "assets/urdf/marengo.urdf": "5ae926c28ec93f8a47c1acd64385a480e88d2e2dcb9044bf6db7e3140f99e0ff",
+        "var/calibration/zero_registry.yaml": "2e52edfd153634efb6773bf329cb0b3926f85f73bb4423ee255d6c2ef2224233"
+      },
+      "installed_binary_sha256": {
+        "marengo-gateway": "f57931e7720c19c96afb67f734ccb67d26e8ed087dc67d3ecc0221277b7679be",
+        "imu-probe": "f4582d99aeee59a1ff5f3cc100e282f578bb31ae922ffa35f7cc797a65144bb1",
+        "motor-repl": "51f7dc96c9c36ffde1eca10a03474b141ac158a3f1ce6c47d8914041189f3e68",
+        "marengo-gateway.bak-20260615-055731": "bb751fa970b0c161e3ba684700c61ed397f08fd5be86e0ec98ec0b5ec7894c3e",
+        "marengo-log-cli": "1f8896edbe95cd1266817b8a2e49e7ac3e90224450a010f07814e5995d060f6a",
+        "marengo-pi": "11372d3fae792cd4e93a55e62f150cd15dc43d1114a661716e8c0a328e766866"
+      },
+      "raw_receipt_SHA256": "3d4cb5aa7ff13520f769ec9e532c0c1319f76f5710c4751129f75b41dcfc9652",
+      "raw_CAN_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\A2-native\\passive-can.log",
+      "oracle": {
+        "verdict": "NO_CAN_ERROR_IN_BOUNDED_WINDOW",
+        "capture_SHA256": "a2931ea64dc32d35c7811fc2c712c442eb846a92765a4fee67746a2bb05da8b9",
+        "captured_seconds": 299.99865102767944,
+        "frames": 152939,
+        "error_frames": [],
+        "rx_over_errors_before_after": [
+          487,
+          487
+        ],
+        "periodic_feedback_frames_by_motor": {
+          "3": 29979,
+          "5": 29984,
+          "2": 29977,
+          "1": 29976,
+          "4": 29983
+        },
+        "reporting_requests": 1505,
+        "request_gap_ms_min_median_max": [
+          0.27298927307128906,
+          0.30612945556640625,
+          1001.1000633239746
+        ],
+        "limits": "Software delivery timestamps; bounded observation only. No physical recovery, reference, stop or motion acceptance."
+      },
+      "archive": {
+        "phase": "A2",
+        "archive_SHA256": "5862b250aaec9f5a932463012b40d8afcb9246a94b2a45afed80f1c726bba825",
+        "all_archived_files_verified": 1191,
+        "manifest_SHA256": "01287f4b270d0b9092cb96f8b99d60aae9653784e1fb141de9feb4e086986567"
+      }
+    },
+    "B2": {
+      "installed_revision": "0a3fc6bb0dd7ab652d97fd2efb7bb46ceee517c4 2026-10-02T15:37:47Z",
+      "restart_started_UTC": "2026-10-02T16:17:43.316901+00:00",
+      "samples": 293,
+      "all_samples_Disabled": true,
+      "policy_sha256": {
+        "config/motors.yaml": "3382f2206231f88edd5dc5c2cfdea391ab4168d3d945210e32e4dc19ba7a6a1d",
+        "config/control.yaml": "9df1c80840f428e7d076ce0d11b6e3acc567d04e46e517f3547d91fd6368ec21",
+        "assets/urdf/marengo.urdf": "5ae926c28ec93f8a47c1acd64385a480e88d2e2dcb9044bf6db7e3140f99e0ff",
+        "var/calibration/zero_registry.yaml": "2e52edfd153634efb6773bf329cb0b3926f85f73bb4423ee255d6c2ef2224233"
+      },
+      "installed_binary_sha256": {
+        "marengo-gateway": "f57931e7720c19c96afb67f734ccb67d26e8ed087dc67d3ecc0221277b7679be",
+        "imu-probe": "f4582d99aeee59a1ff5f3cc100e282f578bb31ae922ffa35f7cc797a65144bb1",
+        "motor-repl": "17ebdd425e4670ddce8f31dc640c342f99ba29b563fca8e16f5fb59f57060b11",
+        "marengo-gateway.bak-20260615-055731": "bb751fa970b0c161e3ba684700c61ed397f08fd5be86e0ec98ec0b5ec7894c3e",
+        "marengo-log-cli": "1f8896edbe95cd1266817b8a2e49e7ac3e90224450a010f07814e5995d060f6a",
+        "marengo-pi": "2c313feaca47d085263fb02fd53a62ff4dd60dceabe7c7cb441ed80ea22ecda2"
+      },
+      "raw_receipt_SHA256": "6f16dcd07db042d4dbf828264a28770db9eef2284e045171fbc17cbc880b8157",
+      "raw_CAN_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\B2-native\\passive-can.log",
+      "oracle": {
+        "verdict": "NO_CAN_ERROR_IN_BOUNDED_WINDOW",
+        "capture_SHA256": "f616c701e4d39f929dce15ebb36f1de84b41d77f55a9c8143e7beaa832f91f1a",
+        "captured_seconds": 299.99826097488403,
+        "frames": 152940,
+        "error_frames": [],
+        "rx_over_errors_before_after": [
+          487,
+          487
+        ],
+        "periodic_feedback_frames_by_motor": {
+          "5": 29984,
+          "3": 29979,
+          "2": 29977,
+          "1": 29977,
+          "4": 29983
+        },
+        "reporting_requests": 1505,
+        "request_gap_ms_min_median_max": [
+          0.29206275939941406,
+          5.058050155639648,
+          1001.3158321380615
+        ],
+        "limits": "Software delivery timestamps; bounded observation only. No physical recovery, reference, stop or motion acceptance."
+      },
+      "archive": {
+        "phase": "B2",
+        "archive_SHA256": "db73e82de63d56d3a4add01f79d34a4cf91b09dad3b878cbaf454503ea473a98",
+        "all_archived_files_verified": 1191,
+        "manifest_SHA256": "09eff7285bfc9bb998ca450f12edbd1065fddf2cae2f50af74f1e0963808a3ab"
+      }
+    }
+  },
+  "candidate_initial_activation": {
+    "main": "0a3fc6bb0dd7ab652d97fd2efb7bb46ceee517c4",
+    "activation_started_UTC": "2026-10-02T15:57:58.674587+00:00",
+    "installer_exit": 0,
+    "passive_capture_seconds": 60.089637901997776,
+    "passive_capture_exit": 124,
+    "passive_capture_bytes": 1560396,
+    "passive_capture_SHA256": "d1e8e815dd81b70a93e146aef2f58ee5f92d945b4c35de0426c07046bee9b0c5",
+    "scope": "Authorized powered/stable/supported deployment; passive CAN reader only. No Enable, SetZero, target or movement test commanded. Startup/restart is not qualified physical fault recovery."
+  },
+  "inter_window_candidate_failure": {
+    "runtime_startup_UTC": "2026-10-02T15:58:02.548721Z",
+    "fault_UTC": "2026-10-02T16:02:18.618858Z",
+    "startup_to_fault_seconds": 256.070137,
+    "CAN0_rx_over_errors": [
+      486,
+      487
+    ],
+    "exact_initiating_frame_captured": false,
+    "evidence": "inter-window-journal.txt; B1 before state and counter. The initial 60s window ended before this fault."
+  },
+  "unobserved_prior_counter_growth": {
+    "before_candidate_was_installed": [
+      401,
+      486
+    ],
+    "exact_frames_or_cause_qualified": false
+  },
+  "package_identity": {
+    "known_release_marker": "01a5c403bd8e790cd7403565c777cca8729e48c6 2026-10-02T14:00:00Z",
+    "known_package_manifest_SHA256": "8a8e4fd0ae99cb25c05f114dcf8b6f02e961e25f0263b83e99f93583a9df2248",
+    "manifest_entries_verified": 214,
+    "candidate_differing_payload_files": [
+      "target/release/marengo-pi",
+      "target/release/motor-repl",
+      ".deploy-rev"
+    ],
+    "limits_model_scripts_UI_gateway_unchanged_between_packages": true
+  },
+  "latest_live": {
+    "recorded_UTC": "2026-10-02T16:27:18.688198+00:00",
+    "installed_revision": "0a3fc6bb0dd7ab652d97fd2efb7bb46ceee517c4 2026-10-02T15:37:47Z",
+    "source": "0a3fc6bb0dd7ab652d97fd2efb7bb46ceee517c4",
+    "source_clean": true,
+    "HTTPS_status": 200,
+    "explicitly_trusted_local_certificate": true,
+    "index_matches_installed_www": true,
+    "index_SHA256": "dcb7f0256f841bf152c4077d1c52133f12aaef11126b78e50bd7cd5a17d40215",
+    "mode": "Disabled",
+    "faulted_joints": 0,
+    "unhomed_joints": 5,
+    "software_latch": false,
+    "CAN0_rx_over_errors": 487,
+    "services": "MainPID=649684\nNRestarts=0\nId=marengo-pi.service\nActiveState=active\nSubState=running\n\nMainPID=648749\nNRestarts=0\nId=marengo-gateway.service\nActiveState=active\nSubState=running\n\nMainPID=0\nNRestarts=0\nId=marengo-can.service\nActiveState=active\nSubState=exited\n",
+    "physical_motion_acceptance": false
+  },
+  "interpretation": "Three matched quiet 300s windows all have zero error frames with steady counters; both versions can pass this bounded oracle. Earlier A1 captured two controller RX-overflow frames, and the candidate later faults outside its initial 60s capture. No causal fix or physical reliability acceptance follows. The median host-observed request gap changes from about0.306ms in A2 to about5.058ms in B1/B2, with initial and stale enables intentionally immediate.",
+  "hardware_oracle_SHA256": "db9382cea861cfe76f39adebc0607b0444b6220e1f3633a79e3c4dc71e76626c",
+  "preservation": "233-file owned installed release backup fully verified; separate all-refs Git, online Store/config/model/calibration/environment/unit and214-file source-owned backups retained. Only two binaries and release marker differ between the qualified packages.",
+  "physical_motion_acceptance": false,
+  "physical_recovery_reference_stop_acceptance": false,
+  "remaining": "Instrument the retained owner raw envelope and isolate controller servicing/workload before qualifying recovery, current device/reference and owner priority stop. Then propose a concrete bounded right-arm test and await explicit confirmation.",
+  "finding_status_counts": {
+    "verified": 26,
+    "partial": 13,
+    "open": 63
+  },
+  "artifact_bindings": {
+    "source-qualification.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\source-qualification.json",
+      "raw_SHA256": "a5d9ca10e29c512cbb8de951c1df044117f83046e14278ad7ea89c66ee891005",
+      "artifact_SHA256": "a5d9ca10e29c512cbb8de951c1df044117f83046e14278ad7ea89c66ee891005",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "source-ci.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\source-ci.json",
+      "raw_SHA256": "744751526f902df924c0cc76c6f4f999193d1c6137cf0b734beb7ba4b5406d5a",
+      "artifact_SHA256": "744751526f902df924c0cc76c6f4f999193d1c6137cf0b734beb7ba4b5406d5a",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "release-bundle-receipt.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\release-bundle-receipt.json",
+      "raw_SHA256": "694534283cb7a8337df15350e3bfc5edcfd76a70b997a97ed77f9d6a5a41c5a5",
+      "artifact_SHA256": "90e0f208c653ce8bff64e03b886bd3ff46e8b3655815191e226c580d3ab09d99",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "frozen-pacing-tests.rs": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\frozen-pacing-tests.rs",
+      "raw_SHA256": "e0c1f1d28d2d5a30f9aa72c93760ade9e34ad7df6934b3a586a942e7e0ae14fe",
+      "artifact_SHA256": "e0c1f1d28d2d5a30f9aa72c93760ade9e34ad7df6934b3a586a942e7e0ae14fe",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "red-test.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\red-test.txt",
+      "raw_SHA256": "d1be9989370d0e665b326317947ab5e8f16d1cb420e4394d86ce3d13a5328ff1",
+      "artifact_SHA256": "ba11b500f3c9d506b5be63e7dc0d98cda4f94e2b55f8510191bed91e2c5c63fe",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "green-test.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\green-test.txt",
+      "raw_SHA256": "3e225d6e0e523405d6817bdd2eae85088a0225a22c9f5489bcfe9d28d6a50034",
+      "artifact_SHA256": "1db56513c38c5f275e0d42c2a5ba71be7059ed5cd490225a01895f78563fd17f",
+      "normalization": "UTF-8 without BOM; CRLF to LF; blank EOF line removed"
+    },
+    "baseline-oracle.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\baseline-oracle.json",
+      "raw_SHA256": "993b094377df13e44dea6e768ed9a653ce5af42fe32186b778d8fc5aae157304",
+      "artifact_SHA256": "1b925330063f2a063314ead3e684c17f664adff59363dbfe0624602dc4cde235",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "B1-oracle.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\B1-oracle.json",
+      "raw_SHA256": "dfb2029928f7eb2138e7e29eb4411b702a3922fbf253ea96ba78d20db6e77e8b",
+      "artifact_SHA256": "45ffc8c49a420bc3815c9d05bab251e07c160252a52dc79551deb0c104396642",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "A2-oracle.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\A2-oracle.json",
+      "raw_SHA256": "dfa5c2fcc231a9aa80e08e4872273c67ab36541fa7f327f180d0ee4e6fcd6aee",
+      "artifact_SHA256": "3c8b1f4084d151f1cef41d4fea648500652e636398790f16792df62001067570",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "B2-oracle.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\B2-oracle.json",
+      "raw_SHA256": "9aba8e9a860da4388fc4018f3454782e7d3f4e28933e862b20ab903acd96c43d",
+      "artifact_SHA256": "a251224e1a75d552fd213a306bfb6af3272b0277b69481bd31b1e7c3760307a4",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "capture-baseline.py": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\capture-baseline.py",
+      "raw_SHA256": "e4901ebfc0061083373e5b4e2f23c20fa93c7121b5a64b83ac7615b2c685f849",
+      "artifact_SHA256": "e4901ebfc0061083373e5b4e2f23c20fa93c7121b5a64b83ac7615b2c685f849",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "capture-comparison.py": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\capture-comparison.py",
+      "raw_SHA256": "e06c044347e25cde69171dd50a6b66f2fcbcb10bb5a4f34892dcd8fd5e1b8567",
+      "artifact_SHA256": "e06c044347e25cde69171dd50a6b66f2fcbcb10bb5a4f34892dcd8fd5e1b8567",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "overflow-oracle.py": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\overflow-oracle.py",
+      "raw_SHA256": "db9382cea861cfe76f39adebc0607b0444b6220e1f3633a79e3c4dc71e76626c",
+      "artifact_SHA256": "db9382cea861cfe76f39adebc0607b0444b6220e1f3633a79e3c4dc71e76626c",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "switch-comparison-release.py": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\switch-comparison-release.py",
+      "raw_SHA256": "ce1a90852d9c0d07cde7eda73f0629572bbcdec3726266a0b58269dfa0ec16a5",
+      "artifact_SHA256": "ce1a90852d9c0d07cde7eda73f0629572bbcdec3726266a0b58269dfa0ec16a5",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "archive-comparison.py": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\archive-comparison.py",
+      "raw_SHA256": "462bfe5ac13b76d17b52d52b4b4f133aa946b784965eb3a2818003835e933e0f",
+      "artifact_SHA256": "462bfe5ac13b76d17b52d52b4b4f133aa946b784965eb3a2818003835e933e0f",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "verify-comparison-archive.py": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\verify-comparison-archive.py",
+      "raw_SHA256": "330ca5a4f9aff980438d1fd7902a559dabc47b4ef9e2ba44130a2dce1db5e1f9",
+      "artifact_SHA256": "330ca5a4f9aff980438d1fd7902a559dabc47b4ef9e2ba44130a2dce1db5e1f9",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "activate-candidate.py": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\activate-candidate.py",
+      "raw_SHA256": "71adadfa8d8a9d1bdfa38363ed6e29d953ea20c199aae6c099226ca916ecb6db",
+      "artifact_SHA256": "71adadfa8d8a9d1bdfa38363ed6e29d953ea20c199aae6c099226ca916ecb6db",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "verify-installed-candidate.py": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\verify-installed-candidate.py",
+      "raw_SHA256": "85ed930611a6f979189f674bfc3b026a56078d5a5837f5f0553f6bfc0dc6c6ea",
+      "artifact_SHA256": "85ed930611a6f979189f674bfc3b026a56078d5a5837f5f0553f6bfc0dc6c6ea",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "activation-receipt.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\candidate-activation\\activation-receipt.json",
+      "raw_SHA256": "8f0d6c47ffe95363efc70333417c7d02f9f42e22ec8a062037afa9e1e8d38bf8",
+      "artifact_SHA256": "8f0d6c47ffe95363efc70333417c7d02f9f42e22ec8a062037afa9e1e8d38bf8",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "activation-traffic-analysis.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\candidate-activation\\activation-traffic-analysis.json",
+      "raw_SHA256": "e46be50d5a96a6a07a9320e1f35f3c29c9c0205a82b1e6c3d14a46269c5c2cab",
+      "artifact_SHA256": "e46be50d5a96a6a07a9320e1f35f3c29c9c0205a82b1e6c3d14a46269c5c2cab",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "post-install-file-verification.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\candidate-activation\\post-install-file-verification.json",
+      "raw_SHA256": "5649123198637ad7e6f895dd5bb7eacf4b06540326e42a2cbf31b0446d2d9588",
+      "artifact_SHA256": "5649123198637ad7e6f895dd5bb7eacf4b06540326e42a2cbf31b0446d2d9588",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "comparison-package-identity.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\candidate-activation\\comparison-package-identity.json",
+      "raw_SHA256": "15fbd26206bc8f9c02acbbc7f49be15648ba29e9395227f0ec6858ef600f49fe",
+      "artifact_SHA256": "15fbd26206bc8f9c02acbbc7f49be15648ba29e9395227f0ec6858ef600f49fe",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "switch-A2-receipt.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\candidate-activation\\switch-A2-receipt.json",
+      "raw_SHA256": "e52f405481ce4b0a4636d3079f28e8a0e67bf9fdc885ded672781e02ed19aade",
+      "artifact_SHA256": "e52f405481ce4b0a4636d3079f28e8a0e67bf9fdc885ded672781e02ed19aade",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "switch-B2-receipt.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\candidate-activation\\switch-B2-receipt.json",
+      "raw_SHA256": "0cec7160cf842a239e061a6efea126fd88f08c787406e82777ae8b851c88bea2",
+      "artifact_SHA256": "0cec7160cf842a239e061a6efea126fd88f08c787406e82777ae8b851c88bea2",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "inter-window-journal.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\candidate-activation\\inter-window-journal.txt",
+      "raw_SHA256": "2f8c56b3802fbde99e2e3f59f5b18496753e0393ab1b6d0fe45c7621041ff7ec",
+      "artifact_SHA256": "2f8c56b3802fbde99e2e3f59f5b18496753e0393ab1b6d0fe45c7621041ff7ec",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "fresh-live-verification.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\candidate-activation\\fresh-live-verification.json",
+      "raw_SHA256": "d87a230b063ff0c8183abc6ff9757c1dc30c536896eb8473da02be35ddafeb73",
+      "artifact_SHA256": "d87a230b063ff0c8183abc6ff9757c1dc30c536896eb8473da02be35ddafeb73",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "fresh-safety.pb": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\candidate-activation\\fresh-safety.pb",
+      "raw_SHA256": "2585e9b9b2ecfab86c509d437aa3e5d47de8f1092899aa3d7e2d7456a9a90e70",
+      "artifact_SHA256": "2585e9b9b2ecfab86c509d437aa3e5d47de8f1092899aa3d7e2d7456a9a90e70",
+      "normalization": "unchanged protobuf bytes"
+    },
+    "fresh-state.pb": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\candidate-activation\\fresh-state.pb",
+      "raw_SHA256": "23b3183faddfc9187beddb63824ebf56508bffd4a774045814a827f40a79ec78",
+      "artifact_SHA256": "23b3183faddfc9187beddb63824ebf56508bffd4a774045814a827f40a79ec78",
+      "normalization": "unchanged protobuf bytes"
+    },
+    "fresh-safety.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\candidate-activation\\fresh-safety.txt",
+      "raw_SHA256": "e85042a77773fdffa907d326817ed1605e7e5722e9184014b7b8bfd2c253f8d6",
+      "artifact_SHA256": "e85042a77773fdffa907d326817ed1605e7e5722e9184014b7b8bfd2c253f8d6",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "fresh-state.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\candidate-activation\\fresh-state.txt",
+      "raw_SHA256": "ec864ad7b4b64ec290685ca7d2ef12b0d7fc417dbaa36fb9e920a4f340aa1ef4",
+      "artifact_SHA256": "ec864ad7b4b64ec290685ca7d2ef12b0d7fc417dbaa36fb9e920a4f340aa1ef4",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "B1-runtime-journal.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\B1-native\\runtime-journal.txt",
+      "raw_SHA256": "d7c619a91cb38071e73c520baa7bf005da28e6ab0341c2209f1402ce316c6fca",
+      "artifact_SHA256": "d7c619a91cb38071e73c520baa7bf005da28e6ab0341c2209f1402ce316c6fca",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "B1-before-safety.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\B1-native\\before-safety.txt",
+      "raw_SHA256": "58dcecff8fcb38830f0e1f969b6747e51695f6e1fd7276a32aec913e07bc8c60",
+      "artifact_SHA256": "58dcecff8fcb38830f0e1f969b6747e51695f6e1fd7276a32aec913e07bc8c60",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "B1-final-safety.pb": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\B1-native\\sample-292-safety.pb",
+      "raw_SHA256": "c9c4d5fc36d1ba67038aeae3c0ebaf48402d2a71326c1a78e8dfe4156b077262",
+      "artifact_SHA256": "c9c4d5fc36d1ba67038aeae3c0ebaf48402d2a71326c1a78e8dfe4156b077262",
+      "normalization": "unchanged protobuf bytes"
+    },
+    "B1-final-safety.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\B1-native\\sample-292-safety.txt",
+      "raw_SHA256": "ef4a9944f94d8d0da145c36a3822e9eea32821af8ecb58f4e79e74d994da087a",
+      "artifact_SHA256": "ef4a9944f94d8d0da145c36a3822e9eea32821af8ecb58f4e79e74d994da087a",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "B1-final-state.pb": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\B1-native\\sample-292-state.pb",
+      "raw_SHA256": "ffadecbc379736cac23b8142ef629ffa41d87d47a3029e861af735bc3f0d8119",
+      "artifact_SHA256": "ffadecbc379736cac23b8142ef629ffa41d87d47a3029e861af735bc3f0d8119",
+      "normalization": "unchanged protobuf bytes"
+    },
+    "B1-final-state.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\B1-native\\sample-292-state.txt",
+      "raw_SHA256": "212a9bf890e35c9a6f22aa3b8316b9c6145466b7a607fb251e1545a02cc0ef5c",
+      "artifact_SHA256": "212a9bf890e35c9a6f22aa3b8316b9c6145466b7a607fb251e1545a02cc0ef5c",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "A2-runtime-journal.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\A2-native\\runtime-journal.txt",
+      "raw_SHA256": "6cd096a907b9df79d34e19f17772f8b9e251f2c4e1f002759e4b82514ef0102d",
+      "artifact_SHA256": "6cd096a907b9df79d34e19f17772f8b9e251f2c4e1f002759e4b82514ef0102d",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "A2-before-safety.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\A2-native\\before-safety.txt",
+      "raw_SHA256": "3d11b73473b1b2346687bc053e63c6852c14559db7ebd05443e990d5dabfc7d5",
+      "artifact_SHA256": "3d11b73473b1b2346687bc053e63c6852c14559db7ebd05443e990d5dabfc7d5",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "A2-final-safety.pb": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\A2-native\\sample-292-safety.pb",
+      "raw_SHA256": "b433845a2b6321da04a235d9780bca5ceb8cb5e5ae3259d72cf7c06d4be67d6a",
+      "artifact_SHA256": "b433845a2b6321da04a235d9780bca5ceb8cb5e5ae3259d72cf7c06d4be67d6a",
+      "normalization": "unchanged protobuf bytes"
+    },
+    "A2-final-safety.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\A2-native\\sample-292-safety.txt",
+      "raw_SHA256": "75c966bbb3abd7fb0553ba29cb06a486275de214e5ffca8e804065eb4c4271cc",
+      "artifact_SHA256": "75c966bbb3abd7fb0553ba29cb06a486275de214e5ffca8e804065eb4c4271cc",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "A2-final-state.pb": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\A2-native\\sample-292-state.pb",
+      "raw_SHA256": "c6399a2c4e3d5d695ca498bce35e8eaae4e8949edc53c58dcf856599a188d29d",
+      "artifact_SHA256": "c6399a2c4e3d5d695ca498bce35e8eaae4e8949edc53c58dcf856599a188d29d",
+      "normalization": "unchanged protobuf bytes"
+    },
+    "A2-final-state.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\A2-native\\sample-292-state.txt",
+      "raw_SHA256": "bc13857e9924cb721a99d1eb90e618c176b91cc9df1f81427588b8fc24830de5",
+      "artifact_SHA256": "bc13857e9924cb721a99d1eb90e618c176b91cc9df1f81427588b8fc24830de5",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "B2-runtime-journal.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\B2-native\\runtime-journal.txt",
+      "raw_SHA256": "6c2229d9f94b0b7ef49473c9f3eabd156907f6a8f24be88ba8f99d6207da5e74",
+      "artifact_SHA256": "6c2229d9f94b0b7ef49473c9f3eabd156907f6a8f24be88ba8f99d6207da5e74",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "B2-before-safety.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\B2-native\\before-safety.txt",
+      "raw_SHA256": "8d02d789f127b19c0b73e58277181cb08590359ee95b93ebb0287072221a8f4c",
+      "artifact_SHA256": "8d02d789f127b19c0b73e58277181cb08590359ee95b93ebb0287072221a8f4c",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "B2-final-safety.pb": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\B2-native\\sample-292-safety.pb",
+      "raw_SHA256": "b207aa763bd9a0c201f0fce014bd734628258a85ee07c650b1b20dd01746d150",
+      "artifact_SHA256": "b207aa763bd9a0c201f0fce014bd734628258a85ee07c650b1b20dd01746d150",
+      "normalization": "unchanged protobuf bytes"
+    },
+    "B2-final-safety.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\B2-native\\sample-292-safety.txt",
+      "raw_SHA256": "26bd99ed3bef392376ea7308d3c610afb01f1efdcb3e3b5b32c34defc2432bc8",
+      "artifact_SHA256": "26bd99ed3bef392376ea7308d3c610afb01f1efdcb3e3b5b32c34defc2432bc8",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    },
+    "B2-final-state.pb": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\B2-native\\sample-292-state.pb",
+      "raw_SHA256": "47fcd915dc5083d6f3f7669c40697156a347ce7accf28191a8d525898c2dd742",
+      "artifact_SHA256": "47fcd915dc5083d6f3f7669c40697156a347ce7accf28191a8d525898c2dd742",
+      "normalization": "unchanged protobuf bytes"
+    },
+    "B2-final-state.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch37-can-reporting-diagnostics\\B2-native\\sample-292-state.txt",
+      "raw_SHA256": "fec8ff9fd04b2f505644a6e28b0f2efb99657c5633c95ea72b6db39d4dab0994",
+      "artifact_SHA256": "fec8ff9fd04b2f505644a6e28b0f2efb99657c5633c95ea72b6db39d4dab0994",
+      "normalization": "UTF-8 without BOM; CRLF to LF"
+    }
+  }
+}

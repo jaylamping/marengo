@@ -1,0 +1,11 @@
+{
+  "known_release_marker": "01a5c403bd8e790cd7403565c777cca8729e48c6 2026-10-02T14:00:00Z",
+  "known_package_manifest_SHA256": "8a8e4fd0ae99cb25c05f114dcf8b6f02e961e25f0263b83e99f93583a9df2248",
+  "manifest_entries_verified": 214,
+  "candidate_differing_payload_files": [
+    "target/release/marengo-pi",
+    "target/release/motor-repl",
+    ".deploy-rev"
+  ],
+  "limits_model_scripts_UI_gateway_unchanged_between_packages": true
+}

@@ -1,0 +1,14 @@
+{
+  "frames": 30596,
+  "seconds": 59.98896598815918,
+  "errors": [],
+  "requests": 295,
+  "request_gaps_ms": [
+    0.28204917907714844,
+    5.059957504272461,
+    3808.8409900665283
+  ],
+  "service_status": "MainPID=635382\nNRestarts=0\nId=marengo-pi.service\nActiveState=active\nSubState=running\n\nMainPID=635193\nNRestarts=0\nId=marengo-gateway.service\nActiveState=active\nSubState=running\n\nMainPID=0\nNRestarts=0\nId=marengo-can.service\nActiveState=active\nSubState=exited\n",
+  "post_safety": "timestamp_ms: 1790956738658\nmode: OPERATIONAL_MODE_DISABLED\n",
+  "post_state": "timestamp_ms: 1790956738698\njoints {\n  name: \"right_shoulder_pitch\"\n  position: -0.03489956259727478\n  velocity: -0.14496445655822754\n  temperature_c: 25\n  homing_state: JOINT_HOMING_STATE_UNHOMED\n}\njoints {\n  name: \"right_shoulder_roll\"\n  position: 0.018791265785694122\n  velocity: -0.10986626148223877\n  temperature_c: 25\n  homing_state: JOINT_HOMING_STATE_UNHOMED\n}\njoints {\n  name: \"right_upper_arm_yaw\"\n  position: -0.018791265785694122\n  velocity: -0.0228271484375\n  temperature_c: 23\n  homing_state: JOINT_HOMING_STATE_UNHOMED\n}\njoints {\n  name: \"right_elbow_pitch\"\n  position: 0.034515317529439926\n  temperature_c: 24\n  homing_state: JOINT_HOMING_STATE_UNHOMED\n}\njoints {\n  name: \"right_lower_arm_yaw\"\n  position: -4.132286548614502\n  velocity: -0.00762939453125\n  temperature_c: 24\n  homing_state: JOINT_HOMING_STATE_UNHOMED\n}\n"
+}

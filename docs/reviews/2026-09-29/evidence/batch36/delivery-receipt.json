@@ -1,0 +1,123 @@
+{
+  "recorded_UTC": "2026-10-02T14:57:08.370845+00:00",
+  "PR": "https://github.com/jaylamping/marengo/pull/250",
+  "reviewed_head": "427497f63a259d312176cef3efe33790b0e45462",
+  "merged_main": "19b983aa4a7d858f88bd26cd7171731186a3af7b",
+  "merged_UTC": "2026-10-02T14:48:07Z",
+  "equal_reviewed_and_main_tree": "ae3601bb152be59ae8f69dd59d88890de9d5b0a0",
+  "CI": {
+    "pr": {
+      "databaseId": 37021466462,
+      "headSha": "427497f63a259d312176cef3efe33790b0e45462",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/jaylamping/marengo/actions/runs/37021466462",
+      "jobs": [
+        {
+          "name": "changes",
+          "conclusion": "success"
+        },
+        {
+          "name": "build-image",
+          "conclusion": "success"
+        },
+        {
+          "name": "check",
+          "conclusion": "success"
+        },
+        {
+          "name": "vcan",
+          "conclusion": "success"
+        },
+        {
+          "name": "sim",
+          "conclusion": "skipped"
+        }
+      ]
+    },
+    "main": {
+      "databaseId": 37022423690,
+      "headSha": "19b983aa4a7d858f88bd26cd7171731186a3af7b",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/jaylamping/marengo/actions/runs/37022423690",
+      "jobs": [
+        {
+          "name": "build-image",
+          "conclusion": "success"
+        },
+        {
+          "name": "changes",
+          "conclusion": "success"
+        },
+        {
+          "name": "vcan",
+          "conclusion": "success"
+        },
+        {
+          "name": "sim",
+          "conclusion": "success"
+        },
+        {
+          "name": "check",
+          "conclusion": "success"
+        }
+      ]
+    }
+  },
+  "independent_reviews": {
+    "reviewed_head": "427497f63a259d312176cef3efe33790b0e45462",
+    "fixed_baseline": "0b6b915acadb0f9d528448640b0c2b9ed1be2070",
+    "Standards": {
+      "result": "CLEAR",
+      "findings": 0
+    },
+    "scoped_Spec": {
+      "result": "CLEAR",
+      "findings": 0
+    },
+    "scope": "B36 diagnostic metadata only;34 selected bindings and252 archive entries verified. Cause fix, physical recovery/reference/motion remain unqualified. Production/tests/qualification and historical checkpoints preserved."
+  },
+  "Pi_source_checkout": "19b983aa4a7d858f88bd26cd7171731186a3af7b",
+  "Pi_installed_runtime_release": "01a5c403bd8e790cd7403565c777cca8729e48c6 2026-10-02T14:00:00Z",
+  "Pi_source_sync_UTC": "2026-10-02T14:49:06.527136+00:00",
+  "runtime_inputs_equal_to_qualified_B35_source": true,
+  "source_sync_scope": "Review documentation only; installed binaries/policy/calibration/environment and service PIDs unchanged. No deploy/restart/motion command for this sync.",
+  "before_source_Git_bundle_SHA256": "ff80b4377465e33c3e0edba8fa84426aef48f376d16df002184f091622ba36d4",
+  "primary_before_merge_Git_bundle_SHA256": "73ec5e5ffa2907eca28dffc964c06b8d8f988488aa33753fa0a8663c6bc8f572",
+  "continuation_branch": "codex/can-reporting-diagnostics",
+  "physical_motion_or_recovery_reference_acceptance": false,
+  "next": "Use captured controllerRXoverflow and counter/latch transition as the oracle; compare one reporting traffic or servicing variable at a time. Preserve conservative latch, taught caps and reference gate; require explicit human reply for each later bounded movement.",
+  "artifact_bindings": {
+    "delivery-pr-ci-receipt.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\pr-ci-receipt.json",
+      "raw_SHA256": "b906799ad3fa69252c2dc35de88e411f2ae51a0b49885031f30259653a8073b9",
+      "artifact_SHA256": "597e02dcf8993476e09ef7eda0dcf35ba11945bb86b334fdb211061091e60582",
+      "normalization": "UTF-8 LF only"
+    },
+    "delivery-main-ci-receipt.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\main-ci-receipt.json",
+      "raw_SHA256": "b23074fb629c01e44442434f4443af68ebb17263ab96fa51933af7de270c0e22",
+      "artifact_SHA256": "cc790507c2a0d8207b252642d30b109fbe8c9cf6d84385227e8eb8fd03063e27",
+      "normalization": "UTF-8 LF only"
+    },
+    "delivery-merge-receipt.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\merge-receipt.json",
+      "raw_SHA256": "e8f19898dd635bf7839a0216f33b412e2715be76cd1ee2f0eae7cc03bad650ef",
+      "artifact_SHA256": "40b96d804ea456b7756054edd738fcc914f81835faedbb9c0ee10aef103fba2e",
+      "normalization": "UTF-8 LF only"
+    },
+    "delivery-pi-source-sync-receipt.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\pi-source-sync-receipt.json",
+      "raw_SHA256": "54b7aa6df4b6918f45ca8c07c6f464ae594cce3d00961d7006ffed0f1957a8bd",
+      "artifact_SHA256": "54b7aa6df4b6918f45ca8c07c6f464ae594cce3d00961d7006ffed0f1957a8bd",
+      "normalization": "UTF-8 LF only"
+    },
+    "delivery-independent-reviews.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch36-can-startup-diagnostics\\independent-reviews.json",
+      "raw_SHA256": "9e561ef797fcb4feb266c8aaf8d3b4b8eda9eec4581b12e0f2d14c66898e2687",
+      "artifact_SHA256": "9e561ef797fcb4feb266c8aaf8d3b4b8eda9eec4581b12e0f2d14c66898e2687",
+      "normalization": "UTF-8 LF only"
+    }
+  }
+}

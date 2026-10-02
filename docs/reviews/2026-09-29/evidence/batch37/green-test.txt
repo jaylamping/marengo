@@ -1,0 +1,140 @@
+   Compiling armee-kinematics v0.1.0 (/workspace/crates/armee-kinematics)
+   Compiling armee-proto v0.1.0 (/workspace/crates/armee-proto)
+   Compiling marengo-config v0.1.0 (/workspace/crates/marengo-config)
+   Compiling robstride v0.1.0 (/workspace/crates/robstride)
+   Compiling marengo-homing v0.1.0 (/workspace/crates/marengo-homing)
+   Compiling davout v0.1.0 (/workspace/crates/davout)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.39s
+     Running unittests src/lib.rs (target/debug/deps/davout-101ef875fb5af0d3)
+
+running 14 tests
+test active_reporting::tests::fresh_feedback_suppresses_stale_retry_before_heartbeat ... ok
+test active_reporting::tests::active_mode_forces_off_despite_lease ... ok
+test active_reporting::tests::expire_drops_desired_without_mode_change ... ok
+test active_reporting::tests::heartbeat_reasserts_enable_while_desired ... ok
+test active_reporting::tests::lease_only_enables_that_joint ... ok
+test active_reporting::tests::stale_feedback_reasserts_enable ... ok
+test active_reporting::tests::stale_release_does_not_kill_newer_lease ... ok
+test active_reporting_pacing_tests::failed_healthy_refresh_does_not_starve_peers_or_spin ... ok
+test active_reporting_pacing_tests::healthy_refresh_pacing_does_not_defer_stale_retry_or_disable ... ok
+test active_reporting_pacing_tests::healthy_refreshes_are_spaced_across_joints_and_repeated_syncs ... ok
+test tests::active_reporting_default_false_sends_no_type24 ... ok
+test tests::active_reporting_stays_armed_through_ready_for_free_drive ... ok
+test tests::active_reporting_sends_type24_when_non_active_and_flag_true ... ok
+test tests::active_reporting_zero_tx_during_active_mit_batch ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 104 filtered out; finished in 0.01s
+
+     Running tests/command_admission.rs (target/debug/deps/command_admission-4d4ae5690b083f15)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s
+
+     Running tests/current_reference.rs (target/debug/deps/current_reference-b40691aa05eee32e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s
+
+     Running tests/fault_authority.rs (target/debug/deps/fault_authority-9c3b9d42f82ab0fa)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.00s
+
+     Running tests/fault_snapshot.rs (target/debug/deps/fault_snapshot-d8752ba3300ee55f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s
+
+     Running tests/feedback_progress_grid.rs (target/debug/deps/feedback_progress_grid-26dfb43788723d54)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/limit_restore_atomicity.rs (target/debug/deps/limit_restore_atomicity-42935a9ded41ae50)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/limit_restore_reference.rs (target/debug/deps/limit_restore_reference-48d34c39bbc64f64)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/limit_restore_reference_atomicity.rs (target/debug/deps/limit_restore_reference_atomicity-ee493435b74d49c9)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/receive_bounds.rs (target/debug/deps/receive_bounds-ac3cdd61b07dba5c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.00s
+
+     Running tests/reference_boundary_public.rs (target/debug/deps/reference_boundary_public-e9ebe9a432c8cd6f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+     Running tests/reference_clock_boundary.rs (target/debug/deps/reference_clock_boundary-7a6fe4fc3eb70659)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/reference_history.rs (target/debug/deps/reference_history-e4a355206aaf0b81)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/reference_model_restore.rs (target/debug/deps/reference_model_restore-77de3b0a919313f2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/reference_model_stamp.rs (target/debug/deps/reference_model_stamp-203d369fd67eadeb)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/reference_observed_busy_mismatch.rs (target/debug/deps/reference_observed_busy_mismatch-42eba5af43eaf2d2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/reference_observed_mismatch.rs (target/debug/deps/reference_observed_mismatch-33a7e195e50d04d1)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/reference_stage_continuity.rs (target/debug/deps/reference_stage_continuity-019121de49c8244c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+     Running tests/reference_transaction.rs (target/debug/deps/reference_transaction-2bb6fdaf1b1380cb)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.00s
+
+     Running tests/torque_output_contract.rs (target/debug/deps/torque_output_contract-b510a6fced42cd5a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s

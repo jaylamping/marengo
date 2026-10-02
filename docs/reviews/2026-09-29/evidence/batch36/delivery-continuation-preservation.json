@@ -1,0 +1,7 @@
+{
+  "prior_head": "19b983aa4a7d858f88bd26cd7171731186a3af7b",
+  "prior_HANDOFF_SHA256": "ba534a8c74d5f79e73b5fe856bd2eb76f937063fba9bb8dbb30b7be166b28612",
+  "prior_HANDOFF_preserved_as_exact_suffix": true,
+  "all_ledger_fields_except_active_windows_continuation_unchanged": true,
+  "physical_motion_acceptance": false
+}

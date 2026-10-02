@@ -1,0 +1,36 @@
+timestamp_ms: 1790957303969
+joints {
+  name: "right_shoulder_pitch"
+  position: -0.03489956259727478
+  velocity: 0.00152587890625
+  temperature_c: 25
+  homing_state: JOINT_HOMING_STATE_UNHOMED
+}
+joints {
+  name: "right_shoulder_roll"
+  position: 0.018791265785694122
+  velocity: -0.11749565601348877
+  temperature_c: 25
+  homing_state: JOINT_HOMING_STATE_UNHOMED
+}
+joints {
+  name: "right_upper_arm_yaw"
+  position: -0.018407769501209259
+  velocity: 0.048342466354370117
+  temperature_c: 23
+  homing_state: JOINT_HOMING_STATE_UNHOMED
+}
+joints {
+  name: "right_elbow_pitch"
+  position: 0.034515317529439926
+  velocity: 0.0322265625
+  temperature_c: 24
+  homing_state: JOINT_HOMING_STATE_UNHOMED
+}
+joints {
+  name: "right_lower_arm_yaw"
+  position: -4.132286548614502
+  velocity: 0.10376274585723877
+  temperature_c: 24
+  homing_state: JOINT_HOMING_STATE_UNHOMED
+}

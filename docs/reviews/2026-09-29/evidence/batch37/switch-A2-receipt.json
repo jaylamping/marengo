@@ -1,0 +1,11 @@
+{
+  "label": "A2",
+  "installed_revision": "01a5c403bd8e790cd7403565c777cca8729e48c6 2026-10-02T14:00:00Z",
+  "installer_exit": 0,
+  "activation_started_UTC": "2026-10-02T16:09:28.876172+00:00",
+  "source_clean": true,
+  "manifest_entries_verified": 214,
+  "taught_limits_calibration_environment_preserved": true,
+  "source_owned_backup_SHA256": "cf2cfe2f3b390f06e07fa84a52c86ffc0946e944d8fd1cf7f3b6115136aeb37a",
+  "physical_motion": "No motor Enable, SetZero or movement test commanded; reference and physical stop remain unqualified."
+}

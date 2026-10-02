@@ -1,0 +1,35 @@
+   Compiling davout v0.1.0 (/workspace/crates/davout)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.36s
+     Running unittests src/lib.rs (target/debug/deps/davout-101ef875fb5af0d3)
+
+running 3 tests
+
+thread 'active_reporting_pacing_tests::failed_healthy_refresh_does_not_starve_peers_or_spin' panicked at crates/davout/src/active_reporting_pacing_tests.rs:131:9:
+assertion `left == right` failed: peers precede retry
+  left: [(1, 1), (2, 1), (3, 1), (4, 1), (5, 1)]
+ right: [(1, 1)]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'active_reporting_pacing_tests::healthy_refresh_pacing_does_not_defer_stale_retry_or_disable' panicked at crates/davout/src/active_reporting_pacing_tests.rs:152:5:
+assertion `left == right` failed
+  left: [(1, 1), (2, 1), (3, 1), (4, 1), (5, 1)]
+ right: [(1, 1)]
+
+thread 'active_reporting_pacing_tests::healthy_refreshes_are_spaced_across_joints_and_repeated_syncs' panicked at crates/davout/src/active_reporting_pacing_tests.rs:73:13:
+assertion `left == right` failed: one healthy refresh
+  left: [(1, 1), (2, 1), (3, 1), (4, 1), (5, 1)]
+ right: [(1, 1)]
+test active_reporting_pacing_tests::failed_healthy_refresh_does_not_starve_peers_or_spin ... FAILED
+test active_reporting_pacing_tests::healthy_refresh_pacing_does_not_defer_stale_retry_or_disable ... FAILED
+test active_reporting_pacing_tests::healthy_refreshes_are_spaced_across_joints_and_repeated_syncs ... FAILED
+
+failures:
+
+failures:
+    active_reporting_pacing_tests::failed_healthy_refresh_does_not_starve_peers_or_spin
+    active_reporting_pacing_tests::healthy_refresh_pacing_does_not_defer_stale_retry_or_disable
+    active_reporting_pacing_tests::healthy_refreshes_are_spaced_across_joints_and_repeated_syncs
+
+test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 115 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p davout --lib`

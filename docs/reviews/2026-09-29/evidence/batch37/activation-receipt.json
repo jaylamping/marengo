@@ -1,0 +1,10 @@
+{
+  "main": "0a3fc6bb0dd7ab652d97fd2efb7bb46ceee517c4",
+  "activation_started_UTC": "2026-10-02T15:57:58.674587+00:00",
+  "installer_exit": 0,
+  "passive_capture_seconds": 60.089637901997776,
+  "passive_capture_exit": 124,
+  "passive_capture_bytes": 1560396,
+  "passive_capture_SHA256": "d1e8e815dd81b70a93e146aef2f58ee5f92d945b4c35de0426c07046bee9b0c5",
+  "scope": "Authorized powered/stable/supported deployment; passive CAN reader only. No Enable, SetZero, target or movement test commanded. Startup/restart is not qualified physical fault recovery."
+}
