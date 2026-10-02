@@ -53,3 +53,20 @@ of returning an empty successful scan. Failed inventory produces a nonclean repo
 with dependent checks Unknown and nonzero exit. Current daily-audit31 tests pass.
 Durable unresolved-findings ledger, diff/dependency evidence, complete confidence
 qualification, independent review and required gates/delivery still pending. T21open.
+
+At2fdc27e daily reports retain unresolved observations in a separate local durable
+ledger var/log/daily-audit/defects.json. Empty/later windows never resolve entries;
+reports remain nonclean while unresolved entries exist. Explicit acceptance requires
+an artifact hash plus a receipt bound to finding/evidence ID, successful validation
+and declared repair commit/command. Acceptance is never called by the scan; this is
+recorded caller acceptance, not automatic proof that a command ran. Recurrence
+reopens the finding. Resolved entries without embedded bound evidence are refused.
+Atomic fsynced replacement and exclusive ownership prevent competing writers from
+silently replacing data; unavailable/corrupt ledger is failed confidence.
+
+Owned fixtures cover aging, missing/foreign/failed validation, artifact tampering,
+manual state edit, recurrence and competing writer preservation. Current full daily
+audit35 tests pass. Public reporting end-to-end durable state, production dependency
+and diff evidence, malformed-data confidence coverage, independent review and full
+required delivery gates remain pending. T21 is open and no existing review finding
+or maintenance task is resolved by these new local observation receipts.
