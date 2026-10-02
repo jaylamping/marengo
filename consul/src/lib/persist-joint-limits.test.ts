@@ -5,6 +5,7 @@ import {
   softLimitsWithInset,
   DEFAULT_SOFT_INSET_RAD,
 } from '@/lib/persist-joint-limits';
+import { setLocalLimitSyncCredential } from '@/lib/local-limit-sync-session';
 
 describe('softLimitsWithInset', () => {
   it('keeps ADR 0009 inset inside hard', () => {
@@ -18,12 +19,14 @@ describe('softLimitsWithInset', () => {
 describe('persistJointLimits', () => {
   beforeEach(() => {
     vi.stubEnv('VITE_LIMIT_SYNC_URL', '');
+    setLocalLimitSyncCredential('isolated-ui-session-fixture');
   });
 
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
+    setLocalLimitSyncCredential('');
   });
 
   it('skips local sync when VITE_LIMIT_SYNC_URL is unset after Durable Apply', async () => {
@@ -75,7 +78,13 @@ describe('persistJointLimits', () => {
     }
     expect(fetchSpy).toHaveBeenCalledWith(
       'http://127.0.0.1:8790/local/limit-patch',
-      expect.objectContaining({ method: 'POST' }),
+      expect.objectContaining({
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer isolated-ui-session-fixture',
+        },
+      }),
     );
   });
 
@@ -100,6 +109,24 @@ describe('persistJointLimits', () => {
       expect(result.localSync).toBe('failed');
       expect(result.message).toMatch(/Local checkout sync failed/i);
     }
+  });
+
+  it('does not contact the local writer without a runtime credential', async () => {
+    vi.stubEnv('VITE_LIMIT_SYNC_URL', 'http://127.0.0.1:8790');
+    setLocalLimitSyncCredential('');
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    const patchConfig = vi.fn().mockResolvedValue({
+      ok: true,
+      message: 'Applied live limits',
+      restart_required: false,
+      persist_status: 'durable',
+    });
+    const result = await persistJointLimits(
+      'right_shoulder_pitch', { lower: -0.5, upper: 1.2 }, { patchConfig },
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.localSync).toBe('failed');
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('patches taught hard + soft inset (no silent ±30 mrad widen) after durable', async () => {

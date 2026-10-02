@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 
 import { CommissioningBadgeChip } from '@/components/dashboard/hardware/commissioning-badge';
+import { LocalLimitSyncSession } from '@/components/dashboard/hardware/local-limit-sync-session';
 import { SetLimitsPanel } from '@/components/dashboard/inventory/set-limits-panel';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -103,6 +104,7 @@ export function HardwareSettingsSheet({
                   currentLimit={row.liveRange}
                   onApplyRange={onApplyRange}
                 />
+                <LocalLimitSyncSession />
               </section>
 
               <section className="flex flex-col gap-2">

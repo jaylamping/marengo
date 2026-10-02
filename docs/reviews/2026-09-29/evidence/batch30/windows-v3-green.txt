@@ -1,0 +1,43 @@
+
+> test
+> npm run build && node --test test/*.test.mjs
+
+
+> build
+> tsc
+
+▶ actual routes refuse origin, credential, content type and invalid payloads before invoking writer
+  ✔ foreign simple POST (24.1576ms)
+  ✔ missing origin (4.3885ms)
+  ✔ missing credential (3.93ms)
+  ✔ wrong credential (5.3721ms)
+  ✔ text/plain with correct credential (4.0017ms)
+  ✔ missing content type (3.8826ms)
+  ✔ malformed JSON (3.239ms)
+  ✔ array body (2.7634ms)
+  ✔ null body (3.6045ms)
+  ✔ string bound (3.0824ms)
+  ✔ missing bound (2.3705ms)
+  ✔ reversed hard bounds (2.8595ms)
+  ✔ only one soft bound (2.0516ms)
+  ✔ soft outside hard (2.2667ms)
+  ✔ path joint (2.2539ms)
+  ✔ oversized JSON (2.3993ms)
+  ✔ invalid UTF-8 JSON (2.0187ms)
+  ✔ preflight permits only the approved origin and credential header (2.4361ms)
+✔ actual routes refuse origin, credential, content type and invalid payloads before invoking writer (11266.9387ms)
+✔ a stalled actual worker leaves HTTP responsive, refuses overlap and is reaped before retry (5151.7407ms)
+✔ a stalled request body expires without invoking writer and then releases admission (5178.8533ms)
+✔ writer output and failure responses are bounded and release admission (285.1272ms)
+✔ actual Rust mirror writes the accepted negative bounds into only the supplied checkout (439.8207ms)
+✔ actual Rust mirror ignores competing runtime config for positive bounds too (153.2454ms)
+✔ session work is limited even if callers rotate body metadata (896.3045ms)
+✔ generated credentials rotate with the server session (289.4843ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 25734.5229

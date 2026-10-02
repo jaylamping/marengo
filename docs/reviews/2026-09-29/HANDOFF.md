@@ -1,3 +1,26 @@
+## Latest Windows continuation: batch30, October2
+
+Qualified source a0ec58e on codex/local-writer-session-auth, worktree
+J:/code/marengo-worktrees/local-writer-session-auth, baseline main1e2141f.
+Local listener authenticates runtime session, restricts Origin/JSON and bounds
+body/output/time/rate/concurrency. Real CLI negative-number parsing and supplied
+checkout config binding are repaired. Frozen original auth3red/1positive and
+real-CLI2red replay green; v4 zero-width red replays with27 green tests on Linux,
+Windows and staged native Pi. Primary814 Rust/1ignored,364 Consul,72 PiMCP,
+27 writer,83 research,15 audit,7 installer and fatal ARM build passed. Runtime
+local token supplied during build is absent from all99 assets. Both reviews clear
+of scoped code defects; Spec retains exact-generation acceptance under T03.
+T04 partial; counts25 verified,13 partial,64 open, all102 IDs/8 tasks retained.
+Native Pi workspace814/1ignored qualified with341 bound inputs. PR244 final
+hosted CI/delivery pending; see batch30 report.
+
+Pi installed revision4bc77ba/services unchanged. Node24.16.0 release-verified in
+user validation folder. No install, sudo, restart, physical CAN or movement.
+Gravity home does not qualify reference/support/E-stop. Prompt before EACH
+movement with bounds/stop; explicit reply and commissioning checks required.
+Ten-minute silence means continue independent work, never movement approval.
+Automation PAUSED; limits/Wave sign-off intact. Earlier sections are historical.
+
 ## Latest Windows continuation — batch29 qualification
 
 Batch28 PR242 merged at `4b0d287`; exact PR CI36958751468 and main

@@ -1,0 +1,62 @@
+ Container marengo-dev-run-5dc279892cb3 Creating 
+ Container marengo-dev-run-5dc279892cb3 Created 
+
+> build
+> tsc
+
+npm notice
+npm notice New major version of npm available! 11.13.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice
+✖ actual Rust mirror writes the accepted negative bounds into only the supplied checkout (4200.308312ms)
+✖ actual Rust mirror ignores competing runtime config for positive bounds too (75.486965ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6334.809188
+
+✖ failing tests:
+
+test at test/server.test.mjs:255:1
+✖ actual Rust mirror writes the accepted negative bounds into only the supplied checkout (4200.308312ms)
+  AssertionError [ERR_ASSERTION]: {"ok":false,"message":"local writer failed"}
+  
+  502 !== 200
+  
+      at TestContext.<anonymous> (file:///workspace/tools/limit-sync-local/test/server.test.mjs:264:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 502,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/server.test.mjs:271:1
+✖ actual Rust mirror ignores competing runtime config for positive bounds too (75.486965ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + -0.4103526175022125
+  - 0.2
+  
+      at assertMirrored (file:///workspace/tools/limit-sync-local/test/server.test.mjs:245:10)
+      at async TestContext.<anonymous> (file:///workspace/tools/limit-sync-local/test/server.test.mjs:281:7)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: -0.4103526175022125,
+    expected: 0.2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+

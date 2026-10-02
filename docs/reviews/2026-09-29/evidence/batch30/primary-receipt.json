@@ -1,0 +1,26 @@
+{
+  "source": "a0ec58e8530903eb44b3eddb02b882a7390b42c5",
+  "hash_format": "SHA256 canonical LF text",
+  "primary_exit": 0,
+  "primary_log": "J:/code/marengo-migration-backup-20260929/batch30-primary-v4.txt",
+  "primary_log_sha256": "18cdda672b2761a98d3034179115822cbfe5f22e8f40937656dbd24689261089",
+  "rust": {
+    "passed": 814,
+    "failed": 0,
+    "ignored": 1
+  },
+  "local_writer": {
+    "passed": 27,
+    "failed": 0
+  },
+  "aarch64_cross_build": "fatal gate passed",
+  "git_metadata": "read-only /repo-git plus task-specific .git pointer, no GIT_DIR/GIT_WORK_TREE exported",
+  "primary_ends": "check: ok",
+  "exact_final_hosted_ci": "pending",
+  "physical_acceptance": false,
+  "consul": 364,
+  "pi_mcp": 72,
+  "research": 83,
+  "daily_audit": 15,
+  "installer_disposable_fixture": 7
+}

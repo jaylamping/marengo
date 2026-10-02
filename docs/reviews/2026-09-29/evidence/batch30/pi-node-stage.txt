@@ -1,0 +1,2 @@
+node-v24.16.0-linux-arm64.tar.xz: OK
+v24.16.0

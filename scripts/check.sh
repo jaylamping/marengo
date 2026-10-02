@@ -96,6 +96,7 @@ echo "==> node tooling (marengo-pi-mcp, hooks, limit-sync, research launch)"
   cd "${ROOT}/tools/limit-sync-local"
   npm ci
   npm run typecheck
+  npm test
 )
 (
   cd "${ROOT}/tools/marengo-research-mcp"

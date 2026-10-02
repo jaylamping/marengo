@@ -1,0 +1,15 @@
+{
+  "pr": 243,
+  "head": "c0db5c3a1fbe41e64ffebf32a5bb759c8029fcdd",
+  "pr_ci_run": 36965377334,
+  "main_commit": "1e2141f13d8c9bfa01188068df714b605ab0077e",
+  "main_ci_run": 36966471834,
+  "all_five_pr_and_main_jobs": "passed",
+  "identical_pr_and_main_tree": "3b14adf0c3748d6b613e01898b4d588e08e73b0a",
+  "independent_review_source": "0867a9304d9ceff5e579601bf85bb39469b752ea",
+  "standards_violations": 0,
+  "spec_scoped_findings": 0,
+  "T01": "partial",
+  "remaining": "Immutable versioned release tree/atomic activation shared with T02; physical installation acceptance not established.",
+  "physical_acceptance": false
+}

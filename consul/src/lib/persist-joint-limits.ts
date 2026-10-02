@@ -4,6 +4,7 @@ import {
   type ConfigPatchResultDto,
 } from '@/lib/config-api';
 import type { JointRangeBounds } from '@/lib/limit-listen';
+import { localLimitSyncCredential } from '@/lib/local-limit-sync-session';
 
 /** ADR 0009 hard/soft gap (~27 mrad). */
 export const DEFAULT_SOFT_INSET_RAD = 0.027;
@@ -168,10 +169,18 @@ async function defaultLocalLimitSync(args: {
   if (!base) {
     return 'skipped';
   }
+  const credential = localLimitSyncCredential();
+  if (!credential) {
+    return 'failed';
+  }
   try {
     const res = await fetch(`${base.replace(/\/$/, '')}/local/limit-patch`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${credential}`,
+      },
+      signal: AbortSignal.timeout(12_000),
       body: JSON.stringify({
         profile: args.profile,
         joint: args.joint,

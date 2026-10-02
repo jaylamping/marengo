@@ -70,7 +70,7 @@ deploy-pi-wsl host="joey@marengo.local":
 # Local Set Limits → git checkout sync (Consul VITE_LIMIT_SYNC_URL=http://127.0.0.1:8790)
 limit-sync-serve:
     cargo build -p marengo-limit-sync
-    cd tools/limit-sync-local && npm install && npm run build && npm start
+    cd tools/limit-sync-local && npm ci && npm run build && npm start
 
 # Rebuild Marengo Node tooling (pi-mcp, hooks, limit-sync launch, research launch).
 # Cursor: restart MCP after this; hooks load committed .js (regen via this recipe).
