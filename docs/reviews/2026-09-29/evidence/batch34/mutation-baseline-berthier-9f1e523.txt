@@ -1,0 +1,107 @@
+ Container marengo-dev-run-d2941b1e79f8 Creating 
+ Container marengo-dev-run-d2941b1e79f8 Created 
+   Compiling proc-macro2 v1.0.106
+   Compiling quote v1.0.45
+   Compiling libc v0.2.186
+   Compiling syn v2.0.117
+   Compiling getrandom v0.4.2
+   Compiling num-traits v0.2.19
+   Compiling bitflags v2.11.1
+   Compiling log v0.4.29
+   Compiling rustix v1.1.4
+   Compiling anyhow v1.0.103
+   Compiling linux-raw-sys v0.12.1
+   Compiling regex-automata v0.4.14
+   Compiling fastrand v2.4.1
+   Compiling prost-derive v0.13.5
+   Compiling zerocopy v0.8.48
+   Compiling serde_derive v1.0.228
+   Compiling thiserror-impl v1.0.69
+   Compiling bytes v1.11.1
+   Compiling prost v0.13.5
+   Compiling serde v1.0.228
+   Compiling syn v1.0.109
+   Compiling yaserde_derive v0.8.0
+   Compiling thiserror v1.0.69
+   Compiling tempfile v3.27.0
+   Compiling prost-types v0.13.5
+   Compiling prettyplease v0.2.37
+   Compiling yaserde v0.8.0
+   Compiling regex v1.12.3
+   Compiling tracing-core v0.1.36
+   Compiling getrandom v0.3.4
+   Compiling prost-build v0.13.5
+   Compiling urdf-rs v0.8.0
+   Compiling zmij v1.0.21
+   Compiling armee-kinematics v0.1.0 (/workspace/crates/armee-kinematics)
+   Compiling armee-proto v0.1.0 (/workspace/crates/armee-proto)
+   Compiling tracing-attributes v0.1.31
+   Compiling bytemuck v1.25.0
+   Compiling parking_lot_core v0.9.12
+   Compiling paste v1.0.15
+   Compiling serde_json v1.0.149
+   Compiling serde_yaml v0.9.34+deprecated
+   Compiling safe_arch v0.7.4
+   Compiling tracing v0.1.44
+   Compiling rand_core v0.9.5
+   Compiling ahash v0.8.12
+   Compiling matrixmultiply v0.3.10
+   Compiling scopeguard v1.2.0
+   Compiling lock_api v0.4.14
+   Compiling hashbrown v0.14.5
+   Compiling wide v0.7.33
+   Compiling marengo-config v0.1.0 (/workspace/crates/marengo-config)
+   Compiling num-complex v0.4.6
+   Compiling approx v0.5.1
+   Compiling num-integer v0.1.46
+   Compiling errno v0.3.14
+   Compiling lazy_static v1.5.0
+   Compiling rawpointer v0.2.1
+   Compiling sharded-slab v0.1.7
+   Compiling chrono v0.4.44
+   Compiling signal-hook-registry v1.4.8
+   Compiling num-rational v0.4.2
+   Compiling simba v0.9.1
+   Compiling parking_lot v0.12.5
+   Compiling hashlink v0.9.1
+   Compiling tracing-log v0.2.0
+   Compiling tracing-serde v0.2.0
+   Compiling ppv-lite86 v0.2.21
+   Compiling matchers v0.2.0
+   Compiling tokio-macros v2.7.0
+   Compiling nalgebra-macros v0.2.2
+   Compiling wait-timeout v0.2.1
+   Compiling mio v1.2.0
+   Compiling socket2 v0.6.3
+   Compiling thread_local v1.1.9
+   Compiling nu-ansi-term v0.50.3
+   Compiling quick-error v1.2.3
+   Compiling fnv v1.0.7
+   Compiling bit-vec v0.8.0
+   Compiling tokio v1.52.3
+   Compiling bit-set v0.8.0
+   Compiling rusty-fork v0.3.1
+   Compiling rusqlite v0.32.1
+   Compiling tracing-subscriber v0.3.23
+   Compiling nalgebra v0.33.3
+   Compiling rand_chacha v0.9.0
+   Compiling marengo-homing v0.1.0 (/workspace/crates/marengo-homing)
+   Compiling robstride v0.1.0 (/workspace/crates/robstride)
+   Compiling rand_xorshift v0.4.0
+   Compiling rand v0.9.4
+   Compiling unarray v0.1.4
+   Compiling proptest v1.11.0
+   Compiling davout v0.1.0 (/workspace/crates/davout)
+   Compiling armee-dynamics v0.1.0 (/workspace/crates/armee-dynamics)
+   Compiling chappe v0.1.0 (/workspace/crates/chappe)
+   Compiling berthier v0.1.0 (/workspace/crates/berthier)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3m 41s
+     Running unittests src/lib.rs (/mutant-target/debug/deps/berthier-3ad586166548302d)
+
+running 3 tests
+test reference_grant_tests::current_grant_controller_active_motion_entry_rechecks_revoked_permission ... ok
+test reference_grant_tests::current_grant_controller_completed_result_still_loses_to_whole_bounded_fault_report ... ok
+test reference_grant_tests::current_grant_controller_consuming_tick_has_one_report_and_no_old_intent_or_output ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 164 filtered out; finished in 0.38s
+

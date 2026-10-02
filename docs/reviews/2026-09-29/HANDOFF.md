@@ -1,3 +1,28 @@
+## Latest Windows checkpoint: selected virtual reference qualified, October 2
+
+Batch34 source9f1e523/PR248 adds current-consuming closed virtual factories.
+Actual acquisition/proof/cleanup, durable write/readback and fresh owner report
+select only the acquired joint. Private lifetime survives ordinary Disable/cache
+eviction; actual modeled reset/model/relevant policy/fault/uncertain stop/shutdown
+revoke. Active motion entry rechecks the same shared authority. Old history-only
+and INITIAL probe contracts remain unchanged.
+
+Primary and full native Pi881Rust/1existing ignored+374UI, fatal ARM, twenty new
+cases/nine frozen mutants, independent Standards/Spec and sourceall-five CI pass.
+See batch34-current-virtual-reference.md/evidence/batch34. Final evidence-head/main
+delivery pending. Original18 new probes retained; final complete regression
+red/green bindings distinguish earlier altered exploratory assertions.
+
+Pi installedb827176 remains unchanged by isolated native qualification. Last live
+capture Disabled/all five Unhomed; lower yaw remains outside taught limits. No
+physical reference or motion grant. Next qualify physical protocol continuity
+and installed-owner reference/priority stop, then explicitly confirmed bounded
+right-arm tests. Motor power stays on, setup/activation explicitly authorized;
+ten-minute silence never consents to movement. Counts102/eight/26/13/63 and paused
+automation, CAD, all branches/worktrees, limits and Wave sign-off preserved.
+
+---
+
 ## Latest Windows checkpoint: Pi updated and verified, October 2
 
 Owner returned and explicitly confirmed stable support, clear workspace and

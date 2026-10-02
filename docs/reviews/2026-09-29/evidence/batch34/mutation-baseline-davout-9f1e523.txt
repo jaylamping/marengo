@@ -1,0 +1,115 @@
+ Container marengo-dev-run-9d8290c66bb3 Creating 
+ Container marengo-dev-run-9d8290c66bb3 Created 
+   Compiling proc-macro2 v1.0.106
+   Compiling unicode-ident v1.0.24
+   Compiling quote v1.0.45
+   Compiling once_cell v1.21.4
+   Compiling version_check v0.9.5
+   Compiling cfg-if v1.0.4
+   Compiling log v0.4.29
+   Compiling syn v2.0.117
+   Compiling anyhow v1.0.103
+   Compiling hashbrown v0.17.1
+   Compiling either v1.15.0
+   Compiling equivalent v1.0.2
+   Compiling indexmap v2.14.0
+   Compiling itertools v0.14.0
+   Compiling memchr v2.8.0
+   Compiling libc v0.2.186
+   Compiling prost-derive v0.13.5
+   Compiling syn v1.0.109
+   Compiling getrandom v0.4.2
+   Compiling rustix v1.1.4
+   Compiling serde_core v1.0.228
+   Compiling bytes v1.11.1
+   Compiling aho-corasick v1.1.4
+   Compiling prettyplease v0.2.37
+   Compiling thiserror v1.0.69
+   Compiling regex-syntax v0.8.10
+   Compiling xml-rs v0.8.28
+   Compiling linux-raw-sys v0.12.1
+   Compiling bitflags v2.11.1
+   Compiling regex-automata v0.4.14
+   Compiling prost v0.13.5
+   Compiling thiserror-impl v1.0.69
+   Compiling generic-array v0.14.7
+   Compiling heck v0.4.1
+   Compiling fixedbitset v0.5.7
+   Compiling serde v1.0.228
+   Compiling fastrand v2.4.1
+   Compiling zerocopy v0.8.48
+   Compiling tempfile v3.27.0
+   Compiling petgraph v0.7.1
+   Compiling yaserde_derive v0.8.0
+   Compiling prost-types v0.13.5
+   Compiling regex v1.12.3
+   Compiling yaserde v0.8.0
+   Compiling serde_derive v1.0.228
+   Compiling ahash v0.8.12
+   Compiling heck v0.5.0
+   Compiling shlex v1.3.0
+   Compiling multimap v0.10.1
+   Compiling find-msvc-tools v0.1.9
+   Compiling itoa v1.0.18
+   Compiling autocfg v1.5.0
+   Compiling typenum v1.20.0
+   Compiling num-traits v0.2.19
+   Compiling cc v1.2.62
+   Compiling prost-build v0.13.5
+   Compiling urdf-rs v0.8.0
+   Compiling vcpkg v0.2.15
+   Compiling unsafe-libyaml v0.2.11
+   Compiling pkg-config v0.3.33
+   Compiling ryu v1.0.23
+   Compiling libsqlite3-sys v0.30.1
+   Compiling serde_yaml v0.9.34+deprecated
+   Compiling armee-kinematics v0.1.0 (/workspace/crates/armee-kinematics)
+   Compiling armee-proto v0.1.0 (/workspace/crates/armee-proto)
+   Compiling zmij v1.0.21
+   Compiling marengo-config v0.1.0 (/workspace/crates/marengo-config)
+   Compiling hashbrown v0.14.5
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling tracing-attributes v0.1.31
+   Compiling tracing-core v0.1.36
+   Compiling iana-time-zone v0.1.65
+   Compiling serde_json v1.0.149
+   Compiling pin-project-lite v0.2.17
+   Compiling chrono v0.4.44
+   Compiling digest v0.10.7
+   Compiling hashlink v0.9.1
+   Compiling fallible-iterator v0.3.0
+   Compiling cpufeatures v0.2.17
+   Compiling smallvec v1.15.1
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling rusqlite v0.32.1
+   Compiling tracing v0.1.44
+   Compiling robstride v0.1.0 (/workspace/crates/robstride)
+   Compiling sha2 v0.10.9
+   Compiling marengo-homing v0.1.0 (/workspace/crates/marengo-homing)
+   Compiling same-file v1.0.6
+   Compiling davout v0.1.0 (/workspace/crates/davout)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2m 28s
+     Running unittests src/lib.rs (/mutant-target/debug/deps/davout-101ef875fb5af0d3)
+
+running 17 tests
+test reference_commit::grant_tests::current_grant_cancel_and_shutdown_win_before_late_durable_publication ... ok
+test reference_commit::grant_tests::current_grant_completed_unconsumed_history_loses_at_original_deadline_equality ... ok
+test reference_commit::grant_tests::current_grant_completed_unconsumed_history_loses_to_fresh_fault_or_work_limit ... ok
+test reference_commit::grant_tests::current_grant_counter_exhaustion_refuses_commit_before_acceptance_or_permission_change ... ok
+test reference_commit::grant_tests::current_grant_device_reset_and_owning_commit_cancel_revoke_exact_selection ... ok
+test reference_commit::grant_tests::current_grant_failed_and_uncertain_real_workers_cannot_select_permission ... ok
+test reference_commit::grant_tests::current_grant_fault_estop_and_uncertain_stop_preserve_revocation ... ok
+test reference_commit::grant_tests::current_grant_final_generation_blocks_new_acquisition_without_revoking_current_permission ... ok
+test reference_commit::grant_tests::current_grant_fresh_read_attempt_limit_refuses_completed_unconsumed_permission ... ok
+test reference_commit::grant_tests::current_grant_is_independent_of_diagnostic_caches_and_copied_history ... ok
+test reference_commit::grant_tests::current_grant_lifetime_survives_old_deadline_and_successful_ordinary_disable ... ok
+test reference_commit::grant_tests::current_grant_new_acquisition_revokes_then_real_neighbor_can_select_again ... ok
+test reference_commit::grant_tests::current_grant_observed_policy_mutation_and_model_replacement_stay_revoked ... ok
+test reference_commit::grant_tests::current_grant_output_only_cap_change_retains_reference_and_clamps_real_output ... ok
+test reference_commit::grant_tests::current_grant_owner_shutdown_revokes_selected_permission_without_optional_stop ... ok
+test reference_commit::grant_tests::current_grant_pending_policy_observation_and_device_reset_prevent_restored_selection ... ok
+test reference_commit::grant_tests::current_grant_requires_real_durable_fresh_consumption_and_covers_only_its_joint ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 98 filtered out; finished in 1.97s
+
