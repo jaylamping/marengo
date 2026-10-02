@@ -16,7 +16,7 @@
     ],
     "preToolUse": [
       {
-        "command": "node \".cursor/skills/impeccable/scripts/hook-before-edit.mjs\"",
+        "command": "node \".cursor/hooks/impeccable-before-edit.js\"",
         "timeout": 5
       }
     ]

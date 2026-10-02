@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2022",
+    "lib": ["ES2024"],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "rootDir": ".",
@@ -12,6 +13,6 @@
     "types": ["node"],
     "esModuleInterop": true
   },
-  "include": ["session-start-marengo.ts", "check-powershell-shell.ts"],
+  "include": ["session-start-marengo.ts", "check-powershell-shell.ts", "impeccable-before-edit.ts"],
   "exclude": ["node_modules"]
 }

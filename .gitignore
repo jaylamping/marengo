@@ -78,6 +78,8 @@ CLAUDE.md
 opencode.json
 .junie/mcp/
 .junie/skills
+# impeccable engine binaries: the skill launcher downloads a checksum-verified one per platform
+.github/skills/impeccable/scripts/bin/
 
 # Local alternate cargo target (root target/ may be root-owned)
 .cargo-target/
