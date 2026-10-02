@@ -1,0 +1,86 @@
+{
+  "baseline": "1e2141f13d8c9bfa01188068df714b605ab0077e",
+  "candidate": "a0ec58e8530903eb44b3eddb02b882a7390b42c5",
+  "hash_format": "SHA256 canonical LF text",
+  "inputs": {
+    "bins/marengo-limit-sync/src/main.rs": "ba3a1b8d7ee78f032ef4e09bd65d367fcf9cb66cc7e853ea170194b0af3d6955",
+    "crates/marengo-config/src/urdf_expand.rs": "f0c2b69c1baf9f40ac07252fb5a763274b51adecf0a2d6f9a48913e1e6302fba",
+    "tools/limit-sync-local/server.ts": "cbd426d26ca2cc76bcae635d8f8efe42b9dd2406b34689cab4a5b7017fbe9c0a",
+    "tools/limit-sync-local/package.json": "1eedfa8a3bc3dd355a0516000519cf3214cee5a29f422b6be39125db749dba63",
+    "tools/limit-sync-local/test/server.test.mjs": "c91c1e5d3add48bbb28baa4da1e56aad3810aa7feaefdc1eb8fda6599f603cfa",
+    "tools/limit-sync-local/test/writer-fixture.rs": "215eaef79d5e12bdd54db72cd4dcfe413ebe1e5f75518bd62582e42bb3a946e3",
+    "scripts/check.sh": "001e493fa2d2c28824fbe4e783d1ea54d1406ca5b3a9aad603dc24c90e7f0abe",
+    "consul/src/lib/local-limit-sync-session.ts": "b267b6d1edba5b868e0f9e959a4449b9319416104024b99a028050699ac7a719",
+    "consul/src/lib/persist-joint-limits.ts": "1a8af48dd659fe1351aedc983731e3aacef4c870c99fc0300603bdcefba29f11",
+    "consul/src/components/dashboard/hardware/local-limit-sync-session.tsx": "2aa2e6c2f2a55ef675e9faab7bc28deddd4461c28e474b477cf3731755fa0b05"
+  },
+  "frozen_v3_sha256": "8b2e548ffb1c90152d1361ab0aa9d6a7e49bf20892cc2e76b1a08ed086f8c794",
+  "frozen_v4_sha256": "c91c1e5d3add48bbb28baa4da1e56aad3810aa7feaefdc1eb8fda6599f603cfa",
+  "v3_original_real_cli": {
+    "negative_argument_and_root_redirection_failures": 2,
+    "log": "real-mirror-v3-red.txt",
+    "source_note": "Rust CLI and local patch library matched baseline1e2141f; recorded HTTP candidate before their repairs. Original CLI hashes are retained below.",
+    "baseline_Rust_inputs": {
+      "bins/marengo-limit-sync/src/main.rs": "e3bbaca07439fd022813cc38d182fdd4ef4b3e978f748e5250c5059a866b6076",
+      "crates/marengo-config/src/urdf_expand.rs": "76c460407a4a4a0874d7acbb549d7bc16736e20ad0083b20f26da97c3f7cb0d8"
+    }
+  },
+  "v3_unchanged_candidate": {
+    "linux": 26,
+    "windows": 26,
+    "failed": 0
+  },
+  "v4_prevalidation_red": {
+    "zero_width_failure": 1,
+    "observed": 200,
+    "required": 400
+  },
+  "v4_unchanged_candidate": {
+    "windows": 27,
+    "Pi_aarch64": 27,
+    "failed": 0,
+    "linux_primary": 27
+  },
+  "logs": {
+    "real-mirror-v3-red.txt": "c0c014045dbcd1e00a9711016cee14a86fb5d1f8a930200ba54f0b06987dcc8a",
+    "real-mirror-v3-green.txt": "36f656ca43197a6e213649db92e23f22dc0582f6257984be57094e4906124b80",
+    "zero-width-v4-red.txt": "1cf7e8645e4edc5049ffd98bc03217dbcc06c4b97fd69a96bb1dc701b64ca217",
+    "windows-v3-green.txt": "a78fce377d6dd6fe58f242dde6d77bb17d7560dbd02891014f1673e1a2b57fec",
+    "windows-v4-green.txt": "7185a6eb78d9fb7a18b87212919ff3d9b89b740aa73f577b2d1df41cd6b546a3",
+    "pi-server-v4.txt": "94484040e84ba74074aa87937190ce43d6479b8b7b65a194fe96252f808f942a",
+    "pi-source-check.txt": "40e8c67bfbbac7399746229695da7b61530311bbc4a017990d81059773f4e49b",
+    "pi-node-stage.txt": "6c47decce3c4a88bbff32e260e588279ad7fcdda107c64cacb91d4cf8dd9e2ab",
+    "build-token-absence.txt": "3c992d21e823cb05990d1b66e2e27c3451c71f9e63536491d8dec479b2814c52"
+  },
+  "Pi": {
+    "validation_root": "/home/joey/marengo-validation/batch27-20261001/stack-3cde431",
+    "installed_revision_before_and_after": "4bc77ba605834fdec04b436daa4bec67bca84fbb",
+    "services_before_and_after": "marengo-pi, marengo-gateway, marengo-can active",
+    "node_version": "24.16.0",
+    "node_archive_sha256": "524659219d6a207a7400f2bde15d19ba060ffbe0d32a8643319ad67e3bb64c78",
+    "node_archive_source": "https://nodejs.org/dist/v24.16.0/",
+    "node_installed_globally": false,
+    "source_log": "pi-source-check.txt",
+    "tests": "actual staged HTTP and real Rust writer; stand-in worker only for stalled/output/failure cases; all writes disposable config copies"
+  },
+  "build_token_absence": {
+    "files_scanned": 99,
+    "runtime_environment_marker_present_during_build": true,
+    "log": "build-token-absence.txt"
+  },
+  "physical_acceptance": false,
+  "pending": [
+    "exact-head hosted CI and delivery",
+    "T03 exact-generation transaction acceptance for full T04 closure"
+  ],
+  "independent_reviews": {
+    "source": "a0ec58e8530903eb44b3eddb02b882a7390b42c5",
+    "standards_violations": 0,
+    "standards_actionable_smells": 0,
+    "spec_scoped_implementation_defects": 0,
+    "spec_full_acceptance_partial": [
+      "T04 exact accepted generation depends on T03"
+    ],
+    "report": "independent-review.json"
+  }
+}

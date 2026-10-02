@@ -1,26 +1,24 @@
-## Latest Windows continuation — batch30, October2
+## Latest Windows continuation: batch30, October2
 
-Batch29 PR243 merged at1e2141f. Exact PR CI36965377334 and main CI36966471834
-passed all five jobs; tree equals final qualified PR headc0db5c3. Both reviews
-are clear. T01 is partial until immutable versioned release/atomic activation
-acceptance shared with T02 is completed. Counts25 verified,12 partial,65 open
-across102 IDs and8 retained maintenance tasks.
+Qualified source a0ec58e on codex/local-writer-session-auth, worktree
+J:/code/marengo-worktrees/local-writer-session-auth, baseline main1e2141f.
+Local listener authenticates runtime session, restricts Origin/JSON and bounds
+body/output/time/rate/concurrency. Real CLI negative-number parsing and supplied
+checkout config binding are repaired. Frozen original auth3red/1positive and
+real-CLI2red replay green; v4 zero-width red replays with27 green tests on Linux,
+Windows and staged native Pi. Primary814 Rust/1ignored,364 Consul,72 PiMCP,
+27 writer,83 research,15 audit,7 installer and fatal ARM build passed. Runtime
+local token supplied during build is absent from all99 assets. Both reviews clear
+of scoped code defects; Spec retains exact-generation acceptance under T03.
+T04 partial; counts25 verified,13 partial,64 open, all102 IDs/8 tasks retained.
+Native Pi workspace and final hosted CI/delivery pending; see batch30 report.
 
-Batch30 T04 worktree: `J:/code/marengo-worktrees/local-writer-session-auth`,
-branch `codex/local-writer-session-auth`, based on main1e2141f. Actual public
-HTTP auth fixture3 original negative failures/1positive replays unchanged4green.
-Runtime Consul credential entry/tab memory and authenticated mirror requests
-have15 targeted tests and production build qualification. Broader body/output,
-deadline/concurrency/rate/argument tests, required gating, build-token absence,
-independent reviews and delivery remain pending. No T04 closure claimed.
-
-Pi source/client tests remain isolated; installed revision4bc77ba. No deployment,
-service restart, physical CAN action or motor movement occurred. Owner-confirmed
-gravity home does not establish current reference, support or E-stop readiness.
-Prompt before every movement with bounds/stop and require explicit confirmation
-plus commissioning checks. After ten minutes without reply leave movement
-pending and continue independent work. Automation remains PAUSED; limits and
-Wave sign-off stay intact. Earlier checkpoints below are historical.
+Pi installed revision4bc77ba/services unchanged. Node24.16.0 release-verified in
+user validation folder. No install, sudo, restart, physical CAN or movement.
+Gravity home does not qualify reference/support/E-stop. Prompt before EACH
+movement with bounds/stop; explicit reply and commissioning checks required.
+Ten-minute silence means continue independent work, never movement approval.
+Automation PAUSED; limits/Wave sign-off intact. Earlier sections are historical.
 
 ## Latest Windows continuation — batch29 qualification
 

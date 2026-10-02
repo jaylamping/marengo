@@ -1,0 +1,38 @@
+v24.16.0
+rustc 1.88.0 (6b00bc388 2025-06-23)
+▶ actual routes refuse origin, credential, content type and invalid payloads before invoking writer
+  ✔ foreign simple POST (35.492503ms)
+  ✔ missing origin (7.483609ms)
+  ✔ missing credential (7.913545ms)
+  ✔ wrong credential (12.606554ms)
+  ✔ text/plain with correct credential (8.396046ms)
+  ✔ missing content type (6.573617ms)
+  ✔ malformed JSON (8.63626ms)
+  ✔ array body (9.483018ms)
+  ✔ null body (8.204768ms)
+  ✔ string bound (8.524479ms)
+  ✔ missing bound (6.358112ms)
+  ✔ reversed hard bounds (4.691935ms)
+  ✔ only one soft bound (5.509779ms)
+  ✔ soft outside hard (8.020584ms)
+  ✔ path joint (5.486163ms)
+  ✔ oversized JSON (4.597675ms)
+  ✔ invalid UTF-8 JSON (3.581625ms)
+  ✔ preflight permits only the approved origin and credential header (3.387273ms)
+✔ actual routes refuse origin, credential, content type and invalid payloads before invoking writer (19707.947783ms)
+✔ a stalled actual worker leaves HTTP responsive, refuses overlap and is reaped before retry (5111.710615ms)
+✔ a stalled request body expires without invoking writer and then releases admission (5132.930532ms)
+✔ writer output and failure responses are bounded and release admission (131.584357ms)
+✔ zero-width hard bounds are refused before invoking a writer (94.530087ms)
+✔ actual Rust mirror writes the accepted negative bounds into only the supplied checkout (121.571236ms)
+✔ actual Rust mirror ignores competing runtime config for positive bounds too (117.116489ms)
+✔ session work is limited even if callers rotate body metadata (250.87083ms)
+✔ generated credentials rotate with the server session (185.481638ms)
+ℹ tests 27
+ℹ suites 0
+ℹ pass 27
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 32950.382697

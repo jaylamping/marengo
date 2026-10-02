@@ -3250,10 +3250,17 @@
       "source": "tooling.md#t04--the-loopback-limit-writer-processes-foreign-origin-requests-without-authentication",
       "work_package": "WP10",
       "implementation_and_acceptance_plan": "frontend-tooling-implementation-plan.md",
-      "status": "open",
-      "evidence": [],
+      "status": "partial",
+      "evidence": [
+        "batch30-local-writer-session-auth.md",
+        "evidence/batch30/source-qualification.json",
+        "evidence/batch30/primary-receipt.json",
+        "evidence/batch30/independent-review.json"
+      ],
       "verified_commit_or_pr": null,
-      "hardware_acceptance": "not established by this software repair"
+      "hardware_acceptance": "not established by this software repair",
+      "remaining": "Exact accepted generation/transaction mirroring depends on T03. Authenticated bounded value mirror qualifies in software; hosted delivery pending.",
+      "implementation_checkpoint": "a0ec58e8530903eb44b3eddb02b882a7390b42c5"
     },
     {
       "id": "T05",
@@ -15445,11 +15452,11 @@
   ],
   "finding_status_counts": {
     "verified": 25,
-    "partial": 12,
-    "open": 65
+    "partial": 13,
+    "open": 64
   },
   "next_dependency_ready_batch": {
-    "current": "Complete WP10 T04 local mirror authentication, bounded requests/worker and runtime credential flow with actual public regression and required gates.",
+    "current": "Deliver WP10 T04 authenticated bounded value mirror; retain T03 exact-generation prerequisite for full acceptance.",
     "following": "WP10 G07 mutation/stream authorization and WP04 R2b1 current-reference journal/grant; T01 versioned release acceptance remains shared with T02.",
     "human_input_blocker": null
   },
@@ -15488,9 +15495,10 @@
       "T04"
     ],
     "report": "batch30-local-writer-session-auth.md",
-    "status": "Initial actual HTTP regression3 original negative failures/1positive, unchanged4green. Runtime Consul credential flow15 targeted tests/build pass. Broader bounded-execution tests/gating/reviews/CI pending. Batch29 PR243 delivered with all-five PR/main CI; T01 partial.",
+    "status": "Qualified local mirror auth/bounds/real CLI:27 tests Linux/Windows/Pi and full primary pass; both reviews0 scoped implementation defects. T04 partial: exact-generation acceptance remains T03. Native Pi workspace and hosted CI/delivery pending.",
     "physical_acceptance": false,
     "owner_scope": "Personally owned robot/repository/Pi; isolated software fixtures. Prompt and explicit confirmation before each movement with commissioning checks. Ten-minute silence means independent work, never movement approval.",
-    "pi_installed_revision": "4bc77ba605834fdec04b436daa4bec67bca84fbb"
+    "pi_installed_revision": "4bc77ba605834fdec04b436daa4bec67bca84fbb",
+    "source_candidate": "a0ec58e8530903eb44b3eddb02b882a7390b42c5"
   }
 }

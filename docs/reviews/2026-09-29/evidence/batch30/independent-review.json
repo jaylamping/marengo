@@ -1,0 +1,15 @@
+{
+  "source": "a0ec58e8530903eb44b3eddb02b882a7390b42c5",
+  "baseline": "1e2141f13d8c9bfa01188068df714b605ab0077e",
+  "Standards": {
+    "documented_violations": 0,
+    "actionable_smells": 0,
+    "text": "Resource binding follows ADR0032 and explicit-resource patterns; runtime tab credentials, checks before admission, bounded asynchronous work, child-only overrides, disposable checkouts, and byte-identical frozen v4 proof. No edits or operational actions by reviewer."
+  },
+  "Spec": {
+    "scoped_implementation_defects": 0,
+    "acceptance_partial": 1,
+    "text": "Authentication/origin/JSON/body/request/worker checks and real CLI resource binding are implemented. Full T04 acceptance still requires valid mirror updates exact accepted generation, deferred to T03. Prior stale Remaining paragraph is refreshed in this delivery checkpoint. No physical acceptance or installed upgrade."
+  },
+  "remaining": "T03 exact-generation protocol; T04 remains partial after this batch."
+}

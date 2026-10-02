@@ -1,0 +1,50 @@
+ Container marengo-dev-run-5e10d42c678e Creating 
+ Container marengo-dev-run-5e10d42c678e Created 
+
+> test
+> npm run build && node --test test/*.test.mjs
+
+
+> build
+> tsc
+
+▶ actual routes refuse origin, credential, content type and invalid payloads before invoking writer
+  ✔ foreign simple POST (14.046668ms)
+  ✔ missing origin (2.178301ms)
+  ✔ missing credential (2.928752ms)
+  ✔ wrong credential (1.625928ms)
+  ✔ text/plain with correct credential (1.581027ms)
+  ✔ missing content type (1.850795ms)
+  ✔ malformed JSON (1.843581ms)
+  ✔ array body (2.343425ms)
+  ✔ null body (1.847652ms)
+  ✔ string bound (1.663029ms)
+  ✔ missing bound (1.514481ms)
+  ✔ reversed hard bounds (1.065902ms)
+  ✔ only one soft bound (1.117796ms)
+  ✔ soft outside hard (1.315061ms)
+  ✔ path joint (1.145467ms)
+  ✔ oversized JSON (1.299237ms)
+  ✔ invalid UTF-8 JSON (1.256154ms)
+  ✔ preflight permits only the approved origin and credential header (1.288115ms)
+✔ actual routes refuse origin, credential, content type and invalid payloads before invoking writer (3423.618014ms)
+✔ a stalled actual worker leaves HTTP responsive, refuses overlap and is reaped before retry (5077.643596ms)
+✔ a stalled request body expires without invoking writer and then releases admission (5096.866806ms)
+✔ writer output and failure responses are bounded and release admission (114.039063ms)
+✔ actual Rust mirror writes the accepted negative bounds into only the supplied checkout (281.440194ms)
+✔ actual Rust mirror ignores competing runtime config for positive bounds too (155.159014ms)
+✔ session work is limited even if callers rotate body metadata (187.418313ms)
+✔ generated credentials rotate with the server session (252.665444ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16639.645381
+npm notice
+npm notice New major version of npm available! 11.13.0 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice
