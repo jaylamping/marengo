@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Root-owned helper: enqueue Pi self-update as the deploy user outside the gateway cgroup.
-# Invoked by marengo-gateway via: sudo -n /opt/marengo/scripts/pi-enqueue-self-update.sh <target_sha> <job_id>
+# Invoked via sudo -n /usr/local/libexec/marengo/pi-enqueue-self-update.sh <target_sha> <job_id>
 set -euo pipefail
 
 TARGET_SHA="${1:-}"
@@ -10,7 +10,9 @@ STAGING="${MARENGO_STAGING_ROOT:-/home/${DEPLOY_USER}/marengo}"
 OPT_ROOT="${MARENGO_ROOT:-/opt/marengo}"
 JOB_DIR="${MARENGO_DEPLOY_JOB_DIR:-${OPT_ROOT}/var}"
 JOB_FILE="${MARENGO_DEPLOY_JOB_FILE:-${JOB_DIR}/deploy-job.json}"
-LOCK_FILE="${MARENGO_DEPLOY_JOB_LOCK:-${JOB_DIR}/deploy-job.lock}"
+# Enqueue's root-owned lock must never live in runtime-writable state.
+LOCK_DIR="/run/marengo-self-update-enqueue"
+LOCK_FILE="${LOCK_DIR}/lock"
 SCRIPT="${STAGING}/scripts/pi-self-update.sh"
 UNIT="marengo-self-update"
 REPO_URL="${MARENGO_GIT_URL:-https://github.com/jaylamping/marengo.git}"
@@ -19,7 +21,7 @@ if [[ "$(id -u)" -ne 0 ]]; then
   echo "error: must run as root (via sudo -n)" >&2
   exit 1
 fi
-if [[ -z "${TARGET_SHA}" || -z "${JOB_ID}" ]]; then
+if [[ "$#" -ne 2 || -z "${TARGET_SHA}" || -z "${JOB_ID}" ]]; then
   echo "usage: $0 <target_sha> <job_id>" >&2
   exit 2
 fi
@@ -56,12 +58,7 @@ if [[ ! -x "${SCRIPT}" ]]; then
   exit 1
 fi
 
-mkdir -p "${JOB_DIR}"
-# Gateway (marengo) and deploy user both need to read/write job status.
-if getent group marengo >/dev/null 2>&1; then
-  chgrp marengo "${JOB_DIR}" 2>/dev/null || true
-  chmod 775 "${JOB_DIR}" 2>/dev/null || true
-fi
+runuser -u "${DEPLOY_USER}" -- mkdir -p "${JOB_DIR}"
 
 # Refuse overlapping workers — do not stop an in-flight unit.
 if systemctl is-active --quiet "${UNIT}.service" 2>/dev/null; then
@@ -69,7 +66,20 @@ if systemctl is-active --quiet "${UNIT}.service" 2>/dev/null; then
   exit 1
 fi
 
-exec 9>"${LOCK_FILE}"
+if [[ -e "${LOCK_DIR}" ]] || [[ -L "${LOCK_DIR}" ]]; then
+  owner="$(stat -c '%u' -- "${LOCK_DIR}")"
+  permissions="$(stat -c '%a' -- "${LOCK_DIR}")"
+  if [[ -L "${LOCK_DIR}" || ! -d "${LOCK_DIR}" ]] || (( owner != 0 || (8#${permissions} & 8#022) != 0 )); then
+    echo "error: unsafe enqueue lock directory" >&2
+    exit 1
+  fi
+fi
+install -d -o root -g root -m 0700 "${LOCK_DIR}"
+if [[ -L "${LOCK_FILE}" ]]; then
+  echo "error: unsafe enqueue lock file" >&2
+  exit 1
+fi
+exec 9>>"${LOCK_FILE}"
 if ! flock -n 9; then
   echo "error: another enqueue holds ${LOCK_FILE}" >&2
   exit 1
@@ -79,25 +89,36 @@ write_job_atomic() {
   local state="$1"
   local message="$2"
   local phase="$3"
-  local now tmp
-  now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  tmp="${JOB_FILE}.tmp.$$"
-  cat >"${tmp}" <<EOF
-{
-  "state": "${state}",
-  "job_id": "${JOB_ID}",
-  "target_sha": "${TARGET_SHA}",
-  "result_sha": "",
-  "unit_name": "${UNIT}",
-  "started_at": "${now}",
-  "updated_at": "${now}",
-  "message": "${message}",
-  "phase": "${phase}"
-}
-EOF
-  mv -f "${tmp}" "${JOB_FILE}"
-  chgrp marengo "${JOB_FILE}" 2>/dev/null || true
-  chmod 664 "${JOB_FILE}" 2>/dev/null || true
+  # All writes under runtime-writable paths run without root authority. The
+  # descriptor stays open through serialization; chmod cannot follow a replaced
+  # name or symlink. The deploy user is the trusted installation principal.
+  runuser -u "${DEPLOY_USER}" -- python3 - \
+    "${JOB_FILE}" "${state}" "${JOB_ID}" "${TARGET_SHA}" "${UNIT}" "${message}" "${phase}" <<'PY'
+import datetime
+import json
+import os
+from pathlib import Path
+import sys
+import tempfile
+
+path = Path(sys.argv[1])
+state, job_id, target_sha, unit, message, phase = sys.argv[2:]
+now = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+payload = dict(state=state, job_id=job_id, target_sha=target_sha,
+               result_sha='', unit_name=unit, started_at=now, updated_at=now,
+               message=message, phase=phase)
+descriptor, temporary = tempfile.mkstemp(prefix=path.name + '.tmp.', dir=path.parent)
+try:
+    with os.fdopen(descriptor, 'w') as output:
+        os.fchown(output.fileno(), -1, path.parent.stat().st_gid)
+        os.fchmod(output.fileno(), 0o664)
+        json.dump(payload, output)
+        output.write('\n')
+    os.replace(temporary, path)
+finally:
+    if os.path.lexists(temporary):
+        os.unlink(temporary)
+PY
 }
 
 systemctl reset-failed "${UNIT}.service" 2>/dev/null || true

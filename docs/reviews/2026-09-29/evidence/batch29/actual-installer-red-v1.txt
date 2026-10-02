@@ -1,0 +1,56 @@
+ Container marengo-dev-run-e7417e915936 Creating 
+ Container marengo-dev-run-e7417e915936 Created 
+debconf: delaying package configuration, since apt-utils is not installed
+test_runtime_can_write_only_declared_config_and_state (__main__.InstallPermissions.test_runtime_can_write_only_declared_config_and_state) ... FAIL
+test_runtime_cannot_replace_actual_sudo_targets (__main__.InstallPermissions.test_runtime_cannot_replace_actual_sudo_targets) ... 
+  test_runtime_cannot_replace_actual_sudo_targets (__main__.InstallPermissions.test_runtime_cannot_replace_actual_sudo_targets) (helper=PosixPath('/tmp/marengo-install-permissions-9z0r15_m/installed/scripts/pi-restart-marengo-pi.sh')) ... FAIL
+  test_runtime_cannot_replace_actual_sudo_targets (__main__.InstallPermissions.test_runtime_cannot_replace_actual_sudo_targets) (helper=PosixPath('/tmp/marengo-install-permissions-9z0r15_m/installed/scripts/pi-enqueue-self-update.sh')) ... FAIL
+test_runtime_cannot_replace_release_code_or_redirect_ancestors (__main__.InstallPermissions.test_runtime_cannot_replace_release_code_or_redirect_ancestors) ... 
+  test_runtime_cannot_replace_release_code_or_redirect_ancestors (__main__.InstallPermissions.test_runtime_cannot_replace_release_code_or_redirect_ancestors) (path=PosixPath('/tmp/marengo-install-permissions-9z0r15_m/installed/bin/marengo-pi')) ... FAIL
+  test_runtime_cannot_replace_release_code_or_redirect_ancestors (__main__.InstallPermissions.test_runtime_cannot_replace_release_code_or_redirect_ancestors) (path=PosixPath('/tmp/marengo-install-permissions-9z0r15_m/installed/scripts')) ... FAIL
+
+======================================================================
+FAIL: test_runtime_can_write_only_declared_config_and_state (__main__.InstallPermissions.test_runtime_can_write_only_declared_config_and_state)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scripts/test_install_permissions.py", line 100, in test_runtime_can_write_only_declared_config_and_state
+    self.assertNotEqual(denied.returncode, 0, 'runtime wrote new installed executable')
+AssertionError: 0 == 0 : runtime wrote new installed executable
+
+======================================================================
+FAIL: test_runtime_cannot_replace_actual_sudo_targets (__main__.InstallPermissions.test_runtime_cannot_replace_actual_sudo_targets) (helper=PosixPath('/tmp/marengo-install-permissions-9z0r15_m/installed/scripts/pi-restart-marengo-pi.sh'))
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scripts/test_install_permissions.py", line 77, in test_runtime_cannot_replace_actual_sudo_targets
+    self.assertNotEqual(result.returncode, 0,
+AssertionError: 0 == 0 : runtime replaced actual sudo target /tmp/marengo-install-permissions-9z0r15_m/installed/scripts/pi-restart-marengo-pi.sh
+
+======================================================================
+FAIL: test_runtime_cannot_replace_actual_sudo_targets (__main__.InstallPermissions.test_runtime_cannot_replace_actual_sudo_targets) (helper=PosixPath('/tmp/marengo-install-permissions-9z0r15_m/installed/scripts/pi-enqueue-self-update.sh'))
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scripts/test_install_permissions.py", line 77, in test_runtime_cannot_replace_actual_sudo_targets
+    self.assertNotEqual(result.returncode, 0,
+AssertionError: 0 == 0 : runtime replaced actual sudo target /tmp/marengo-install-permissions-9z0r15_m/installed/scripts/pi-enqueue-self-update.sh
+
+======================================================================
+FAIL: test_runtime_cannot_replace_release_code_or_redirect_ancestors (__main__.InstallPermissions.test_runtime_cannot_replace_release_code_or_redirect_ancestors) (path=PosixPath('/tmp/marengo-install-permissions-9z0r15_m/installed/bin/marengo-pi'))
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scripts/test_install_permissions.py", line 86, in test_runtime_cannot_replace_release_code_or_redirect_ancestors
+    self.assertNotEqual(result.returncode, 0,
+AssertionError: 0 == 0 : runtime replaced installed code/ancestor /tmp/marengo-install-permissions-9z0r15_m/installed/bin/marengo-pi
+
+======================================================================
+FAIL: test_runtime_cannot_replace_release_code_or_redirect_ancestors (__main__.InstallPermissions.test_runtime_cannot_replace_release_code_or_redirect_ancestors) (path=PosixPath('/tmp/marengo-install-permissions-9z0r15_m/installed/scripts'))
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scripts/test_install_permissions.py", line 86, in test_runtime_cannot_replace_release_code_or_redirect_ancestors
+    self.assertNotEqual(result.returncode, 0,
+AssertionError: 0 == 0 : runtime replaced installed code/ancestor /tmp/marengo-install-permissions-9z0r15_m/installed/scripts
+
+----------------------------------------------------------------------
+Ran 3 tests in 1.050s
+
+FAILED (failures=5)
+

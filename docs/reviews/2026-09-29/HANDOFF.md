@@ -1,4 +1,30 @@
-## Latest Windows continuation � batch29 preparation
+## Latest Windows continuation — batch29 qualification
+
+Batch28 PR242 merged at `4b0d287`; exact PR CI36958751468 and main
+CI36959437295 passed all five jobs. Batch27 T17 remains verified and T26
+partial. Counts remain 25 verified, 11 partial, 66 open across 102 IDs;
+eight maintenance tasks remain intact.
+
+Batch29 on `codex/install-immutable-helpers` repairs the actual installer
+permissions and moves helpers to immutable libexec paths. The six-test actual
+installer fixture records 17 baseline assertion failures and replays unchanged
+green. It also checks root state writes against isolated symlink sentinels.
+Initial Linux primary passed; final reviews/CI and isolated Pi native clients
+are pending. T01 remains open, with versioned releases/atomic activation still
+required alongside T02. See the batch29 report and source receipt.
+
+The updated owner goal explicitly covers this personally owned humanoid robot,
+authorized repository/Pi, isolated permissions tests and nonenergizing work.
+Installed Pi revision remains 4bc77ba. No live installation, service restart,
+physical CAN test or motor movement occurs. Prompt before every movement with
+bounds and stop procedure; explicit owner confirmation and current reference,
+support, E-stop and recovery qualification are required. After ten minutes
+without reply, leave movement pending and continue independent work. Gravity
+home alone is not current-reference/E-stop qualification. Automation remains
+PAUSED; safety limits and Wave sign-off stay intact. Earlier statuses below are
+historical. Actual checkout is `J:/code/marengo`.
+
+## Latest Windows continuation — batch29 preparation
 
 Batch27 [PR241](https://github.com/jaylamping/marengo/pull/241) merged as
 `adef857`; exact PR CI36956898047 passed applicable jobs and merged-main

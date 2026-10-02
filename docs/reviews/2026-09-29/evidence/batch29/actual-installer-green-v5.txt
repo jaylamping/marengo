@@ -1,0 +1,13 @@
+ Container marengo-dev-run-9ff06f6c83ba Creating 
+ Container marengo-dev-run-9ff06f6c83ba Created 
+test_actual_sudo_helper_ancestors_are_immutable (__main__.InstallPermissions.test_actual_sudo_helper_ancestors_are_immutable) ... ok
+test_enqueue_state_paths_cannot_redirect_root_writes (__main__.InstallPermissions.test_enqueue_state_paths_cannot_redirect_root_writes) ... ok
+test_installer_refuses_redirected_code_before_writing (__main__.InstallPermissions.test_installer_refuses_redirected_code_before_writing) ... ok
+test_runtime_can_write_only_declared_config_and_state (__main__.InstallPermissions.test_runtime_can_write_only_declared_config_and_state) ... ok
+test_runtime_cannot_replace_actual_sudo_targets (__main__.InstallPermissions.test_runtime_cannot_replace_actual_sudo_targets) ... ok
+test_runtime_cannot_replace_release_code_or_redirect_ancestors (__main__.InstallPermissions.test_runtime_cannot_replace_release_code_or_redirect_ancestors) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.839s
+
+OK

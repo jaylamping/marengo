@@ -1,0 +1,42 @@
+{
+  "baseline": "4b0d287004260c5286c1a240e300c796a6a9ccfa",
+  "hash_format": "SHA256 of canonical LF text, matching Git checkout",
+  "canonical_v5_sha256": "d387fb7bd37eb1b97f0086ec3c9df1df025a5d1727fff350030053f280a30515",
+  "unchanged_test_sha256": "d387fb7bd37eb1b97f0086ec3c9df1df025a5d1727fff350030053f280a30515",
+  "baseline_installer_sha256": "9da3b765db6d01c516ed7af580420d3eeccdf239be3b1571847826dadda88f28",
+  "baseline_enqueue_sha256": "21cb83b0efb468f0e4c956a67bfa049f5a534781d580da98a870ae5074c5210f",
+  "inputs": {
+    "scripts/install-pi.sh": "2ca5496939622def664d69eec3dd2196d4c25c1a2a4b847fc215eea9b4bdd7f9",
+    "scripts/pi-enqueue-self-update.sh": "aa2ebae8f95ba9d3396ff33b00c3c25173c1a97e78bd55118b68d15b27b576c9",
+    "scripts/test_install_permissions.py": "d387fb7bd37eb1b97f0086ec3c9df1df025a5d1727fff350030053f280a30515",
+    "scripts/check.sh": "97a805988122a1f81cda1105d7f1665d145b1eba98ea4f91f541c3d0ad405dbb",
+    "docker/Dockerfile.dev": "5d83ec5f7218f740d170a0d9c2d5eda10ced2eada193a896da9f19ad7590d790",
+    "bins/marengo-gateway/src/restart.rs": "a7b90378d9a8afb0213eba43a19914b5ea3925f3f13480c2c3fdb2447d128988",
+    "crates/marengo-deploy/src/paths.rs": "d55869925fa4472e6802eb00d1162481de4b1e92d743f4a63c86a94fea4a67d5",
+    "tools/marengo-pi-mcp/src/tools/restart-marengo-pi.ts": "7d6e98a3cf435879669eace4b1293a5b5987ddedc1320ef6f3b53a9ae1b027af"
+  },
+  "baseline_result": {
+    "test_methods": 6,
+    "assertion_failures": 17,
+    "exit_code": 1
+  },
+  "candidate_result": {
+    "test_methods": 6,
+    "assertion_failures": 0,
+    "exit_code": 0
+  },
+  "logs": {
+    "actual-installer-red-v5.txt": "d765559bc92613e66784b6c68379f24b666a6ee0abb63d13426fef7edeb90506",
+    "actual-installer-green-v5.txt": "dbb033e014f101f9e480780851dac68193c3683efda754ac1e80e74a4986a1fc"
+  },
+  "boundary": "Actual installer/helper, Linux accounts, permissions, rsync and visudo; substituted systemctl/pkill/systemd-run. Container only. No replacement executed, no worker or physical device action.",
+  "excluded": [
+    "v3 custom-runtime-group fixture failure",
+    "PowerShell CRLF baseline preparation failure"
+  ],
+  "remaining": [
+    "final independent reviews and CI",
+    "T01 immutable versioned release tree with T02 atomic activation",
+    "live installation and physical acceptance"
+  ]
+}

@@ -3205,9 +3205,13 @@
       "work_package": "WP10",
       "implementation_and_acceptance_plan": "frontend-tooling-implementation-plan.md",
       "status": "open",
-      "evidence": [],
+      "evidence": [
+        "batch29-immutable-installed-helpers.md",
+        "evidence/batch29/source-qualification.json"
+      ],
       "verified_commit_or_pr": null,
-      "hardware_acceptance": "not established by this software repair"
+      "hardware_acceptance": "not established by this software repair",
+      "remaining_acceptance": "Final review and delivery, plus immutable versioned release tree/atomic installation acceptance shared with T02. No physical installation qualification."
     },
     {
       "id": "T02",
@@ -15394,6 +15398,25 @@
       "all_five_main_jobs": "passed",
       "report": "batch27-research-cache-await.md",
       "physical_acceptance": false
+    },
+    {
+      "batch_id": "batch28",
+      "findings": [
+        "T26"
+      ],
+      "status": "platform observation delivered; T26 partial",
+      "report": "batch28-simulation-resource-isolation.md",
+      "pr": 242,
+      "head": "f385c3bd2c6bf8a4c2f5dfef7d793072dd7f8f25",
+      "pr_ci_run": 36958751468,
+      "main_commit": "4b0d287004260c5286c1a240e300c796a6a9ccfa",
+      "main_ci_run": 36959437295,
+      "all_five_pr_and_main_jobs": "passed",
+      "independent_review_source": "8bcd9a05286f82fd90661c8669fbebe2f0d45f2a",
+      "standards_violations": 0,
+      "spec_findings": 0,
+      "T26": "partial",
+      "physical_acceptance": false
     }
   ],
   "finding_status_counts": {
@@ -15402,7 +15425,7 @@
     "open": 66
   },
   "next_dependency_ready_batch": {
-    "current": "Complete independently reviewed batch28 PR242 delivery; repair WP10 T01 privileged-helper/release-directory ownership with actual installer contract.",
+    "current": "Qualify and deliver batch29 WP10 T01 immutable helpers/unprivileged state writes; retain versioned-release acceptance for T01/T02.",
     "following": "WP10 G07/T04 mutation security and WP04 R2b1 current-reference journal/grant before physical movement qualification.",
     "human_input_blocker": null
   },
@@ -15435,13 +15458,14 @@
   "active_windows_continuation": {
     "batch_id": "batch29",
     "branch": "codex/install-immutable-helpers",
-    "baseline": "adef857c0e47d8a69a7164f74659b3305253ddca",
+    "baseline": "4b0d287004260c5286c1a240e300c796a6a9ccfa",
     "findings": [
       "T01"
     ],
-    "status": "Beginning actual installer resource/permission reproduction in disposable Linux container. Batch27 delivered/verified; parallel batch28 PR242 qualified Linux/Pi814Rust and independently reviewed, hosted delivery pending. No physical deployment or movement.",
+    "status": "Canonical actual-installer six-test regression: 17 baseline assertion failures, unchanged six green. Initial primary passed; final review/CI and Pi native clients pending. Batch28 PR242 delivered with all-five PR/main CI. No live install or movement.",
     "physical_acceptance": false,
-    "owner_scope": "Autonomous software repair and powered Pi validation. Prompt before every physical movement with movement/bounds/stop; explicit confirmation and commissioning safeguards required. After10minutes no reply leave movement pending and continue independent items; silence never authorizes motion.",
-    "pi_installed_revision": "4bc77ba605834fdec04b436daa4bec67bca84fbb"
+    "owner_scope": "Personally owned humanoid robot and authorized repository/Pi only. Isolated access-control and permissions fixtures; nonenergizing testing first. Prompt before each movement with bounds/stop; explicit confirmation and commissioning safeguards required. After ten minutes without reply continue independent work; silence never authorizes movement.",
+    "pi_installed_revision": "4bc77ba605834fdec04b436daa4bec67bca84fbb",
+    "report": "batch29-immutable-installed-helpers.md"
   }
 }

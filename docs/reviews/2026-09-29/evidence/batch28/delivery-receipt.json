@@ -1,0 +1,13 @@
+{
+  "pr": 242,
+  "head": "f385c3bd2c6bf8a4c2f5dfef7d793072dd7f8f25",
+  "pr_ci_run": 36958751468,
+  "main_commit": "4b0d287004260c5286c1a240e300c796a6a9ccfa",
+  "main_ci_run": 36959437295,
+  "all_five_pr_and_main_jobs": "passed",
+  "independent_review_source": "8bcd9a05286f82fd90661c8669fbebe2f0d45f2a",
+  "standards_violations": 0,
+  "spec_findings": 0,
+  "T26": "partial",
+  "physical_acceptance": false
+}
