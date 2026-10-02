@@ -44,6 +44,8 @@ def verify_generated(root: Path, changed: list[str]) -> dict:
                 return {"status": "unknown", "detail": "invalid generated path"}
             current = root / path
             expected = output / relative
+            if not current.exists() and not expected.exists():
+                continue
             if not current.is_file() or not expected.is_file() or current.read_bytes() != expected.read_bytes():
                 mismatches.append(path)
         return {"status": "mismatch" if mismatches else "verified", "detail": "locked regeneration compared",

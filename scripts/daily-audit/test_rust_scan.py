@@ -11,10 +11,9 @@ from rust_scan import production_view
 
 
 class RustScanTests(unittest.TestCase):
-    def check(self, source):
+    def check(self, source, path="crates/berthier/src/fixture.rs"):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            path = "crates/berthier/src/fixture.rs"
             file = root / path
             file.parent.mkdir(parents=True)
             file.write_text(source)
@@ -41,6 +40,12 @@ fn live() { socketcan::CanSocket::open("can0"); }
     def test_test_function_and_integration_harness_are_excluded(self):
         report = self.check('#[cfg(test)]\nfn harness() { robstride::send(); }\nfn live() {}')
         self.assertTrue(report.clean)
+
+    def test_cargo_integration_target_is_test_only(self):
+        self.assertTrue(self.check("use robstride::MitCommand;", "crates/berthier/tests/bench.rs").clean)
+
+    def test_file_level_test_cfg_is_test_only(self):
+        self.assertTrue(self.check("#![cfg(test)]\nuse robstride::MitCommand;").clean)
 
     def test_real_driver_call_is_critical(self):
         report = self.check('fn live() { robstride::send(); }')

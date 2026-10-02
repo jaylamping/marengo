@@ -63,6 +63,8 @@ def lexical_view(source: str) -> str:
 
 def production_view(source: str) -> str:
     view = lexical_view(source)
+    if re.match(r"^\s*#\s*!\s*\[\s*cfg\s*\(\s*test\s*\)\s*\]", view):
+        return "".join("\n" if char == "\n" else " " for char in view)
     chars = list(view)
     for attribute in re.finditer(r'#\s*\[\s*cfg\s*\((.*?)\)\s*\]', view, re.S):
         condition = attribute.group(1).strip()

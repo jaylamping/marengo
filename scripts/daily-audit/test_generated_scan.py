@@ -13,7 +13,7 @@ from generated_scan import verify_generated
 
 
 class GeneratedScanTests(unittest.TestCase):
-    def run_case(self, current=b"generated", checksum=None, failure=False, missing=False):
+    def run_case(self, current=b"generated", checksum=None, failure=False, missing=False, deleted=False):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             consul = root / "consul"
@@ -39,10 +39,13 @@ class GeneratedScanTests(unittest.TestCase):
                 generated.write_bytes(expected)
                 return subprocess.CompletedProcess(command, 1 if failure else 0, "", "failed fixture" if failure else "")
             with patch("generated_scan.subprocess.run", side_effect=generate):
-                result = verify_generated(root, ["consul/src/gen/marengo/v1/marengo_pb.ts"])
+                result = verify_generated(root, ["consul/src/gen/marengo/v1/marengo_pb.ts"] + (["consul/src/gen/deleted_pb.ts"] if deleted else []))
             self.assertEqual(target.read_bytes(), current)
             self.assertEqual((consul / "src/gen/.checksum").read_text(), digest)
             return result
+
+    def test_matching_deleted_output_is_not_manual_edit(self):
+        self.assertEqual(self.run_case(deleted=True)["status"], "verified")
 
     def test_manual_artifact_edit_is_mismatch(self):
         result = self.run_case(current=b"manual edit")

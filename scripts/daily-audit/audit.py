@@ -215,7 +215,7 @@ def check_davout_bypass(changed: list[str], report: Report) -> None:
                     "docs/architecture.md R6 — production driver dependency",
                     f"Production dependency {dependency['name']} (alias={dependency.get('rename')})"))
     for path in changed:
-        if not path.startswith("crates/berthier/") or not path.endswith(".rs"):
+        if not path.startswith("crates/berthier/") or not path.endswith(".rs") or "/tests/" in path:
             continue
         full = ROOT / path
         if not full.is_file():
