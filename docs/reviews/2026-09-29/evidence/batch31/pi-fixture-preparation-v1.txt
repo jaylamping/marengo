@@ -1,0 +1,383 @@
+Pi source verified: 842 files at b5ae052f6111ab9e5e99d3b3f05bebbebfe2385b
+   Compiling proc-macro2 v1.0.106
+   Compiling unicode-ident v1.0.24
+   Compiling quote v1.0.45
+   Compiling syn v2.0.117
+   Compiling once_cell v1.21.4
+   Compiling cfg-if v1.0.4
+   Compiling log v0.4.29
+   Compiling memchr v2.8.0
+   Compiling itoa v1.0.18
+   Compiling thiserror v1.0.69
+   Compiling thiserror-impl v1.0.69
+   Compiling pin-project-lite v0.2.17
+   Compiling regex-syntax v0.8.10
+   Compiling aho-corasick v1.1.4
+   Compiling regex-automata v0.4.14
+   Compiling tracing-core v0.1.36
+   Compiling equivalent v1.0.2
+   Compiling hashbrown v0.17.1
+   Compiling serde_core v1.0.228
+   Compiling indexmap v2.14.0
+   Compiling tracing-attributes v0.1.31
+   Compiling tracing v0.1.44
+   Compiling serde v1.0.228
+   Compiling serde_derive v1.0.228
+   Compiling libc v0.2.186
+   Compiling syn v1.0.109
+   Compiling xml-rs v0.8.28
+   Compiling heck v0.4.1
+   Compiling yaserde_derive v0.8.0
+   Compiling yaserde v0.8.0
+   Compiling regex v1.12.3
+   Compiling urdf-rs v0.8.0
+   Compiling armee-kinematics v0.1.0 (/home/joey/marengo-validation/batch31-20261002/stack-b5ae052/crates/armee-kinematics)
+   Compiling bitflags v2.11.1
+   Compiling getrandom v0.4.2
+   Compiling rustix v1.1.4
+   Compiling linux-raw-sys v0.12.1
+   Compiling fastrand v2.4.1
+   Compiling ryu v1.0.23
+   Compiling unsafe-libyaml v0.2.11
+   Compiling serde_yaml v0.9.34+deprecated
+   Compiling marengo-config v0.1.0 (/home/joey/marengo-validation/batch31-20261002/stack-b5ae052/crates/marengo-config)
+   Compiling zmij v1.0.21
+   Compiling serde_json v1.0.149
+   Compiling bytes v1.11.1
+   Compiling smallvec v1.15.1
+   Compiling robstride v0.1.0 (/home/joey/marengo-validation/batch31-20261002/stack-b5ae052/crates/robstride)
+   Compiling autocfg v1.5.0
+   Compiling heck v0.5.0
+   Compiling anyhow v1.0.103
+   Compiling either v1.15.0
+   Compiling itertools v0.14.0
+   Compiling num-traits v0.2.19
+   Compiling prost-derive v0.13.5
+   Compiling prettyplease v0.2.37
+   Compiling prost v0.13.5
+   Compiling fixedbitset v0.5.7
+   Compiling petgraph v0.7.1
+   Compiling tempfile v3.27.0
+   Compiling prost-types v0.13.5
+   Compiling multimap v0.10.1
+   Compiling prost-build v0.13.5
+   Compiling armee-proto v0.1.0 (/home/joey/marengo-validation/batch31-20261002/stack-b5ae052/crates/armee-proto)
+   Compiling typenum v1.20.0
+   Compiling zerocopy v0.8.48
+   Compiling jobserver v0.1.34
+   Compiling find-msvc-tools v0.1.9
+   Compiling shlex v1.3.0
+   Compiling cc v1.2.62
+   Compiling iana-time-zone v0.1.65
+   Compiling chrono v0.4.44
+   Compiling parking_lot_core v0.9.12
+   Compiling errno v0.3.14
+   Compiling scopeguard v1.2.0
+   Compiling lock_api v0.4.14
+   Compiling signal-hook-registry v1.4.8
+   Compiling marengo-homing v0.1.0 (/home/joey/marengo-validation/batch31-20261002/stack-b5ae052/crates/marengo-homing)
+   Compiling parking_lot v0.12.5
+   Compiling mio v1.2.0
+   Compiling socket2 v0.6.3
+   Compiling tokio-macros v2.7.0
+   Compiling tokio v1.52.3
+   Compiling pkg-config v0.3.33
+   Compiling lazy_static v1.5.0
+   Compiling sharded-slab v0.1.7
+   Compiling tracing-serde v0.2.0
+   Compiling tracing-log v0.2.0
+   Compiling matchers v0.2.0
+   Compiling thread_local v1.1.9
+   Compiling nu-ansi-term v0.50.3
+   Compiling tracing-subscriber v0.3.23
+   Compiling davout v0.1.0 (/home/joey/marengo-validation/batch31-20261002/stack-b5ae052/crates/davout)
+   Compiling version_check v0.9.5
+   Compiling num-conv v0.2.2
+   Compiling powerfmt v0.2.0
+   Compiling time-core v0.1.8
+   Compiling time-macros v0.2.27
+   Compiling deranged v0.5.8
+   Compiling time v0.3.47
+   Compiling crc32fast v1.5.0
+   Compiling adler2 v2.0.1
+   Compiling simd-adler32 v0.3.9
+   Compiling miniz_oxide v0.8.9
+   Compiling flate2 v1.1.9
+   Compiling generic-array v0.14.7
+   Compiling ahash v0.8.12
+   Compiling marengo-candump v0.1.0 (/home/joey/marengo-validation/batch31-20261002/stack-b5ae052/crates/marengo-candump)
+   Compiling num-integer v0.1.46
+   Compiling vcpkg v0.2.15
+   Compiling libsqlite3-sys v0.30.1
+   Compiling hashbrown v0.14.5
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling bytemuck v1.25.0
+   Compiling paste v1.0.15
+   Compiling safe_arch v0.7.4
+   Compiling digest v0.10.7
+   Compiling hashlink v0.9.1
+   Compiling matrixmultiply v0.3.10
+   Compiling cpufeatures v0.2.17
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling getrandom v0.3.4
+   Compiling fallible-iterator v0.3.0
+   Compiling rusqlite v0.32.1
+   Compiling sha2 v0.10.9
+   Compiling wide v0.7.33
+   Compiling num-complex v0.4.6
+   Compiling approx v0.5.1
+   Compiling rawpointer v0.2.1
+   Compiling same-file v1.0.6
+   Compiling simba v0.9.1
+   Compiling num-rational v0.4.2
+   Compiling chappe v0.1.0 (/home/joey/marengo-validation/batch31-20261002/stack-b5ae052/crates/chappe)
+   Compiling nalgebra-macros v0.2.2
+   Compiling nalgebra v0.33.3
+   Compiling rand_core v0.9.5
+   Compiling marengo-store v0.1.0 (/home/joey/marengo-validation/batch31-20261002/stack-b5ae052/crates/marengo-store)
+   Compiling synstructure v0.13.2
+   Compiling ppv-lite86 v0.2.21
+   Compiling wait-timeout v0.2.1
+   Compiling fnv v1.0.7
+   Compiling rand_chacha v0.9.0
+   Compiling armee-dynamics v0.1.0 (/home/joey/marengo-validation/batch31-20261002/stack-b5ae052/crates/armee-dynamics)
+   Compiling rand v0.9.4
+   Compiling berthier v0.1.0 (/home/joey/marengo-validation/batch31-20261002/stack-b5ae052/crates/berthier)
+   Compiling zerofrom-derive v0.1.7
+   Compiling displaydoc v0.2.5
+   Compiling bit-vec v0.8.0
+   Compiling quick-error v1.2.3
+   Compiling rusty-fork v0.3.1
+   Compiling bit-set v0.8.0
+   Compiling zerofrom v0.1.8
+   Compiling yoke-derive v0.8.2
+   Compiling rand_xorshift v0.4.0
+   Compiling stable_deref_trait v1.2.1
+   Compiling futures-core v0.3.32
+   Compiling unarray v0.1.4
+   Compiling proptest v1.11.0
+   Compiling yoke v0.8.3
+   Compiling marengo-support v0.1.0 (/home/joey/marengo-validation/batch31-20261002/stack-b5ae052/crates/marengo-support)
+   Compiling cmake v0.1.58
+   Compiling fs_extra v1.3.0
+   Compiling dunce v1.0.5
+   Compiling aws-lc-sys v0.45.0
+   Compiling zerovec-derive v0.11.3
+   Compiling slab v0.4.12
+   Compiling futures-sink v0.3.32
+   Compiling zerovec v0.11.6
+   Compiling ring v0.17.14
+   Compiling cfg_aliases v0.2.1
+   Compiling zeroize v1.8.2
+   Compiling http v1.4.1
+   Compiling aws-lc-rs v1.18.1
+   Compiling anstyle v1.0.14
+   Compiling rustls-pki-types v1.14.1
+   Compiling futures-channel v0.3.32
+   Compiling getrandom v0.2.17
+   Compiling utf8parse v0.2.2
+   Compiling untrusted v0.9.0
+   Compiling anstyle-parse v1.0.0
+   Compiling tinystr v0.8.3
+   Compiling anstyle-query v1.1.5
+   Compiling colorchoice v1.0.5
+   Compiling writeable v0.6.3
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling litemap v0.8.2
+   Compiling icu_locale_core v2.2.0
+   Compiling anstream v1.0.0
+   Compiling potential_utf v0.1.5
+   Compiling zerotrie v0.2.4
+   Compiling icu_properties_data v2.2.0
+   Compiling rustls v0.23.45
+   Compiling clap_lex v1.1.0
+   Compiling utf8_iter v1.0.4
+   Compiling strsim v0.11.1
+   Compiling icu_normalizer_data v2.2.0
+   Compiling clap_builder v4.6.0
+   Compiling icu_collections v2.2.0
+   Compiling icu_provider v2.2.0
+   Compiling rustls-webpki v0.103.15
+   Compiling http-body v1.0.1
+   Compiling clap_derive v4.6.1
+   Compiling futures-macro v0.3.32
+   Compiling futures-io v0.3.32
+   Compiling futures-task v0.3.32
+   Compiling percent-encoding v2.3.2
+   Compiling subtle v2.6.1
+   Compiling predicates-core v1.0.10
+   Compiling futures-util v0.3.32
+   Compiling clap v4.6.1
+   Compiling tokio-util v0.7.18
+   Compiling termtree v0.5.1
+   Compiling minimal-lexical v0.2.1
+   Compiling tower-service v0.3.3
+   Compiling difflib v0.4.0
+   Compiling libm v0.2.16
+   Compiling assert_cmd v2.2.2
+   Compiling thiserror v2.0.18
+   Compiling httparse v1.10.1
+   Compiling predicates v3.1.4
+   Compiling nom v7.1.3
+   Compiling predicates-tree v1.0.13
+   Compiling icu_normalizer v2.2.0
+   Compiling icu_properties v2.2.0
+   Compiling form_urlencoded v1.2.2
+   Compiling bstr v1.13.0
+   Compiling thiserror-impl v2.0.18
+   Compiling httpdate v1.0.3
+   Compiling ref-cast v1.0.25
+   Compiling base64 v0.22.1
+   Compiling openssl-probe v0.2.1
+   Compiling atomic-waker v1.1.2
+   Compiling h2 v0.4.16
+   Compiling rustls-native-certs v0.8.3
+   Compiling idna_adapter v1.2.2
+   Compiling rusticata-macros v4.1.0
+   Compiling quinn-udp v0.5.14
+   Compiling asn1-rs-derive v0.5.1
+   Compiling ref-cast-impl v1.0.25
+   Compiling asn1-rs-impl v0.2.0
+   Compiling marengo-host-metrics v0.1.0 (/home/joey/marengo-validation/batch31-20261002/stack-b5ae052/crates/marengo-host-metrics)
+   Compiling tower-layer v0.3.3
+   Compiling rustversion v1.0.22
+   Compiling unicase v2.9.0
+   Compiling mime v0.3.17
+   Compiling tinyvec_macros v0.1.1
+   Compiling siphasher v1.0.3
+   Compiling fastbloom v0.14.1
+   Compiling tinyvec v1.11.0
+   Compiling mime_guess v2.0.5
+   Compiling asn1-rs v0.6.2
+   Compiling hyper v1.9.0
+   Compiling idna v1.1.0
+   Compiling rustls-platform-verifier v0.6.2
+   Compiling http-body-util v0.1.3
+   Compiling quinn v0.11.9
+   Compiling nix v0.31.3
+   Compiling fs-err v3.3.0
+   Compiling socket2 v0.5.10
+   Compiling oid-registry v0.7.1
+   Compiling lru-slab v0.1.2
+   Compiling rustc-hash v2.1.2
+   Compiling sync_wrapper v1.0.2
+   Compiling quinn-proto v0.11.15
+   Compiling url v2.5.8
+   Compiling hyper-util v0.1.20
+   Compiling sfv v0.14.0
+   Compiling futures-executor v0.3.32
+   Compiling num-bigint v0.4.6
+   Compiling marengo-deploy v0.1.0 (/home/joey/marengo-validation/batch31-20261002/stack-b5ae052/crates/marengo-deploy)
+   Compiling signal-hook v0.3.18
+   Compiling der-parser v9.0.0
+   Compiling futures v0.3.32
+   Compiling arc-swap v1.9.1
+   Compiling web-transport-proto v0.6.0
+   Compiling axum-core v0.5.6
+   Compiling tower v0.5.3
+   Compiling pem v3.0.6
+   Compiling serde_urlencoded v0.7.1
+   Compiling tokio-rustls v0.26.4
+   Compiling yasna v0.5.2
+   Compiling web-transport-trait v0.3.5
+   Compiling talleyrand v0.1.0 (/home/joey/marengo-validation/batch31-20261002/stack-b5ae052/crates/talleyrand)
+   Compiling fouche v0.1.0 (/home/joey/marengo-validation/batch31-20261002/stack-b5ae052/crates/fouche)
+   Compiling marengo-imu v0.1.0 (/home/joey/marengo-validation/batch31-20261002/stack-b5ae052/crates/marengo-imu)
+   Compiling serde_path_to_error v0.1.20
+   Compiling matchit v0.8.4
+   Compiling http-range-header v0.4.2
+   Compiling data-encoding v2.11.0
+   Compiling x509-parser v0.16.0
+   Compiling axum-server v0.8.0
+   Compiling tower-http v0.6.11
+   Compiling axum v0.8.9
+   Compiling web-transport-quinn v0.11.9
+   Compiling rcgen v0.13.2
+   Compiling ctrlc v3.5.2
+   Compiling sim-harness v0.1.0 (/home/joey/marengo-validation/batch31-20261002/stack-b5ae052/crates/sim-harness)
+   Compiling marengo-pi v0.1.0 (/home/joey/marengo-validation/batch31-20261002/stack-b5ae052/bins/marengo-pi)
+   Compiling marengo-gateway v0.1.0 (/home/joey/marengo-validation/batch31-20261002/stack-b5ae052/bins/marengo-gateway)
+   Compiling imu-probe v0.1.0 (/home/joey/marengo-validation/batch31-20261002/stack-b5ae052/bins/imu-probe)
+   Compiling marengo-jetson v0.1.0 (/home/joey/marengo-validation/batch31-20261002/stack-b5ae052/bins/marengo-jetson)
+   Compiling marengo-log-cli v0.1.0 (/home/joey/marengo-validation/batch31-20261002/stack-b5ae052/bins/marengo-log-cli)
+   Compiling marengo-limit-sync v0.1.0 (/home/joey/marengo-validation/batch31-20261002/stack-b5ae052/bins/marengo-limit-sync)
+   Compiling teleop v0.1.0 (/home/joey/marengo-validation/batch31-20261002/stack-b5ae052/bins/teleop)
+   Compiling probe v0.1.0 (/home/joey/marengo-validation/batch31-20261002/stack-b5ae052/bins/probe)
+   Compiling motor-repl v0.1.0 (/home/joey/marengo-validation/batch31-20261002/stack-b5ae052/bins/motor-repl)
+   Compiling wave-demo v0.1.0 (/home/joey/marengo-validation/batch31-20261002/stack-b5ae052/bins/wave-demo)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 13m 47s
+     Running unittests src/lib.rs (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/target/debug/deps/armee_dynamics-9d812ac93036fa08)
+
+running 9 tests
+test tests::arm_4dof_right_elbow_torque_changes_with_pose ... ok
+test tests::bent_pose_nonzero_gravity ... ok
+test tests::gravity_torques_length_matches_joints ... ok
+test tests::elevated_elbow_changes_elbow_torque ... ok
+test tests::saturation_check_rejects_out_of_range_joint ... ok
+     Running tests/analytic_gravity.rs (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/target/debug/deps/analytic_gravity-091742794dd387bc)
+     Running tests/archived_arm_geometry.rs (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/target/debug/deps/archived_arm_geometry-b1995cea06735fad)
+     Running unittests src/lib.rs (/home/joey/marengo-validation/batch27-20261001/stack-3cde431/target/debug/deps/armee_kinematics-813068e90a90a39a)
+test tests::weighted_bench_right_heavier_at_pitch ... ok
+test tests::saturation_check_with_min_steps ... ok
+test tests::saturation_check_returns_max_over_range ... ok
+test tests::saturation_check_with_zero_range ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 4 tests
+test rotated_joint_origin_changes_the_gravity_reference ... ok
+test pendulum_holding_torque_has_analytic_sign_and_magnitude ... ok
+test configured_joint_order_defines_input_and_output_order ... ok
+test two_link_chain_accounts_for_distal_load_and_joint_coupling ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test archived_arm_holding_torque_includes_lateral_joint_offsets ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 17 tests
+test limits::tests::approach_cap_scales_near_lower_wall ... ok
+test limits::tests::asymmetric_envelope_moving_up ... ok
+test limits::tests::fast_descent_margin_exceeds_hard_soft_gap ... ok
+test limits::tests::hold_at_home_not_clamped_by_kinetic_margin ... ok
+test limits::tests::hold_at_home_not_clamped_when_hard_lower_slightly_negative ... ok
+test limits::tests::measured_fault_respects_slack ... ok
+test limits::tests::slow_move_uses_min_margin ... ok
+test tests::humanoid_urdf_actuated_joints_match_robot_config ... ignored, marengo.urdf is placeholder until Brawner export; run when commissioning full humanoid
+test expand::tests::expands_past_current_hard ... ok
+test expand::tests::never_shrinks ... ok
+test tests::joint_limits_match_fixture ... FAILED
+test expand::tests::expands_lower_and_upper_only_outward ... ok
+test tests::loads_minimal_fixture ... FAILED
+test tests::joint_limit_bounds_reads_soft_from_arm_4dof ... ok
+test tests::loads_arm_4dof_right_urdf ... ok
+test tests::loads_arm_4dof_urdf ... ok
+test tests::loads_production_urdf ... ok
+
+failures:
+
+---- tests::joint_limits_match_fixture stdout ----
+
+thread 'tests::joint_limits_match_fixture' panicked at crates/armee-kinematics/src/lib.rs:247:57:
+parse: Read { path: "/home/joey/marengo-validation/batch31-20261002/stack-b5ae052/crates/armee-kinematics/../../sim/fixtures/minimal.urdf", message: "No such file or directory (os error 2)" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- tests::loads_minimal_fixture stdout ----
+
+thread 'tests::loads_minimal_fixture' panicked at crates/armee-kinematics/src/lib.rs:203:57:
+parse: Read { path: "/home/joey/marengo-validation/batch31-20261002/stack-b5ae052/crates/armee-kinematics/../../sim/fixtures/minimal.urdf", message: "No such file or directory (os error 2)" }
+
+
+failures:
+    tests::joint_limits_match_fixture
+    tests::loads_minimal_fixture
+
+test result: FAILED. 14 passed; 2 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p armee-kinematics --lib`

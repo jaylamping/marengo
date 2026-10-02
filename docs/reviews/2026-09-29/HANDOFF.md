@@ -1,24 +1,24 @@
-## Latest Windows continuation: batch31 in progress, October2
+## Latest Windows continuation: batch31 software qualified, October2
 
-Main a5c4cdb includes merged PR244; both final and main CI pass allfive jobs.
-T04 remains partial for the T03 exact-generation prerequisite. Counts25 verified,
-13 partial,64 open;102 IDs and8 maintenance tasks retained.
-Worktree J:/code/marengo-worktrees/gateway-runtime-access on
-codex/gateway-runtime-access implements G07 under ADR0033. Original HTTP v2
-records11 negative failures and2 positive controls; unchanged replay13 green.
-Shared policy now covers HTTP/HTTPS and bounded WebTransport.62 gateway tests,
-374 Consul tests/build and real loopback HTTP/HTTPS/pinned QUIC pass. Runtime UI
-credentials stay in tab memory; changing read credentials retires old facts.
-Original built assets expose both configured fixture credentials; candidate99
-assets exclude11 markers. Marker check is wired into CI/deploy build paths.
-Remaining: primary/Pi gates, independent reviews and exact-head hosted CI/delivery.
-G07 stays open. See frozen probes and local-software receipt.
+G07 qualifies at dc88d283 against main a5c4cdb; PR245 is the delivery candidate.
+Final documentation head and merged main still require allfive exact-head checks.
+Primary826 Rust/1 existing ignored,374 Consul,72 Pi MCP,27 writer,83 research,
+15 audit,7 installer and fatal ARM pass. Native Pi826/1 ignored plus374 Consul,
+build/checksum/assets pass;1736 staged inputs bind final source,364 Rust inputs
+unchanged from initial stage. Standards/Spec clear; sourceCI36975018460 allfive.
+See batch31 report and evidence/batch31/final-source-qualification.json.
 
-Pi installed4bc77ba and services unchanged. No install/sudo/restart/physical CAN
-or movement. Gravity home leaves support/current reference/E-stop unqualified.
-Prompt before each movement with bounds/stop; explicit reply and commissioning
-checks required. Ten-minute silence allows independent work only. Automation
-PAUSED; safety limits/Wave sign-off intact. Earlier sections are historical.
+All102 IDs/8 maintenance tasks retained:26 verified,13 partial,63 open. G07 shared
+policy/runtime credential/build marker repair is software verified. T04 partial
+for T03. Next WP04 R2b1 current-reference durable journal/history, still unusable;
+then selected virtual grant. T01/T02 activation and T03 identity stay separate.
+
+Installed Pi4bc77ba and services unchanged; observed gateway Disabled. No install,
+sudo, restart, physical CAN or movement. Gravity home does not qualify support,
+current repaired reference, E-stop or recovery. Prompt before every movement
+with bounds/stop; explicit owner reply and commissioning required. Ten-minute
+silence allows independent work only. Automation PAUSED; limits/Wave intact.
+Existing work/CAD/historical handoffs preserved. Earlier sections are historical.
 
 ## Latest Windows continuation: batch30, October2
 

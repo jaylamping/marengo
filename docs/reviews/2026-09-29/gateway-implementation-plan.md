@@ -186,8 +186,12 @@ stub solely to observe that no process launch occurred.
 
 ### G07 — one authorization policy for mutations and sensitive streams
 
-**Status:** open; legacy Enable/Testing MIT/SetZero lack credential checks and CORS
-allows every origin. Existing log-token checks do not cover these paths.
+**Status:** software verified at `dc88d283` in
+[batch31](batch31-gateway-runtime-access.md): shared capability/Origin admission,
+runtime browser credentials and marker-free builds. Required primary and native
+Pi software gates, independent reviews and all five source CI jobs pass. PR245's
+final documentation/main delivery checks remain pending; physical acceptance and
+G06 management lifecycle remain separate.
 
 **Scope:** gateway router/middleware, legacy adapters, fallback stream, HTTPS/QUIC
 admission and Consul runtime credentials. Apply fail-closed credentials/capabilities

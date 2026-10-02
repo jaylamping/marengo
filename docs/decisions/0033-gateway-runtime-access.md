@@ -1,6 +1,6 @@
 # ADR 0033: shared gateway access policy and runtime credentials
 
-Status: implemented software contract; delivery qualification in progress, October 2, 2026.
+Status: software qualified at dc88d28; final PR/main delivery checks pending, October 2, 2026.
 
 G07 identifies legacy command and sensitive-stream paths outside the configured
 gateway credential gate. Credentials embedded by Vite builds are also delivered
