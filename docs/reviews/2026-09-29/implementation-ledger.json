@@ -15521,7 +15521,7 @@
     "open": 63
   },
   "next_dependency_ready_batch": {
-    "current": "WP04 R2b2 current selected virtual grant after R2b1 delivery; then qualified physical reference and installed-owner clients for requested right-arm acceptance.",
+    "current": "Finish installer compatibility qualification and Pi sync per owner, then R2b2/physical reference prerequisites before bounded right-arm tests.",
     "following": "T01/T02 versioned release activation; T03 exact-generation identity; supervised physical acceptance when all required prerequisites are qualified.",
     "human_input_blocker": null
   },
@@ -15552,32 +15552,20 @@
     "pr": 240
   },
   "active_windows_continuation": {
-    "batch_id": "batch32",
-    "branch": "codex/reference-history-journal",
-    "worktree": "J:/code/marengo-worktrees/reference-history-journal",
-    "baseline": "df468496eae0b3c30104874c3bc2b6ad218ec827",
+    "batch_id": "batch33",
+    "branch": "codex/pi-install-runtime-log-links",
+    "worktree": "J:/code/marengo-worktrees/current-virtual-reference",
+    "baseline": "1d855dfc45cdfe76da5f67d69beecf567bb4d301",
     "findings": [
-      "CS05",
-      "CS06",
-      "CS07"
+      "T01"
     ],
-    "report": "batch32-reference-history-journal.md",
-    "status": "R2b1 software qualified and delivered: PR246 merged as 1d855df; final PR and equal-tree main all five checks pass. Source primary/native Pi 861 Rust/1 existing ignored, 374 Consul and 1769 unchanged staged inputs; 12 frozen mutants and independent Standards/Spec clear. CS05/CS06/CS07 remain partial; no physical acceptance.",
+    "report": "batch33-installer-runtime-log-links.md",
+    "status": "Installer compatibility candidate: actual baseline rejects three normal latest-log aliases; all nine candidate installer tests pass. Full primary, mutation, independent production review and exact PR/main delivery pending. No install or motion. T01 remains partial; T02/T03 open.",
     "physical_acceptance": false,
-    "owner_scope": "Personally owned robot/repository/Pi; isolated fixtures. Explicit confirmation and commissioning checks before every movement. Ten-minute silence leaves movement pending and allows independent work only.",
+    "prior_delivery": "evidence/batch32/delivery-receipt.json",
     "pi_installed_revision": "4bc77ba605834fdec04b436daa4bec67bca84fbb",
-    "prior_delivery": "evidence/batch31/delivery-receipt.json",
-    "source": "b18faf486073b7311a029761792be171dac457ef",
-    "pr": "https://github.com/jaylamping/marengo/pull/246",
-    "qualification": "evidence/batch32/final-source-qualification.json",
-    "source_CI": 36987033671,
-    "next": "WP04 R2b2 current selected virtual grant, then required installed-owner/physical-reference prerequisites for right-arm acceptance",
-    "right_arm_acceptance": "Owner present, arm resting at gravity home only. Read-only installed snapshot Disabled; legacy Verified flags do not establish repaired reference. Support and live reference remain unestablished. Propose a bounded single-joint test only after prerequisites; explicit confirmation per movement.",
-    "head": "a955c042d9164cb30d47c436561bfb212e6d867e",
-    "main": "1d855dfc45cdfe76da5f67d69beecf567bb4d301",
-    "pr_CI": 36990370708,
-    "main_CI": 36991329746,
-    "delivery": "evidence/batch32/delivery-receipt.json",
-    "owner_requested_next": "Finalize delivery records, update/sync Pi software, then basic right-arm motion tests after qualified current reference and explicit bounded movement confirmation. No Batch33 grant implementation has started."
+    "owner_scope": "Personally owned robot/repository/Pi; isolated fixtures. Explicit confirmation and commissioning checks before every movement. Ten-minute silence leaves movement pending and allows independent work only.",
+    "owner_requested_next": "Finish and push current chunk, sync Pi software, then explicitly confirmed bounded right-arm tests after qualified reference. Motor power on and powered testing authorized.",
+    "next": "Qualify installer compatibility and prepare exact Pi update/rollback; R2b2 and physical reference/installed-owner prerequisites still required for movement"
   }
 }

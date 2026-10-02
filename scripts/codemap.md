@@ -10,7 +10,7 @@
 | `deploy-lib.sh` | Shared deploy helpers, host resolution, progress env |
 | `pi-remote.sh` | SSH wrapper for remote Pi commands |
 | `check.sh` | CI: fmt, clippy, test, deny |
-| `install-pi.sh` | Install staging tree to `/opt/marengo` on Pi |
+| `install-pi.sh` | Install staging tree to `/opt/marengo`; preserve local regular-file log aliases while refusing redirected code/data directories |
 | `vcan-setup.sh` | Virtual CAN for dev without hardware |
 | `daily-audit/` | Automated audit scripts |
 

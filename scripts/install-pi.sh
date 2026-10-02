@@ -31,12 +31,28 @@ done
 
 # A previous runtime-owned layout may contain redirected code entries. Refuse
 # those before sealing the old tree or writing through any installed path.
+local_runtime_log_link() {
+  local link="$1"
+  local target
+  # Capture maintains file aliases in var/log. No privileged code is copied
+  # there. Only allow a regular-file target in that same directory; directory,
+  # dangling and external links still refuse before service or file changes.
+  [[ "${link%/*}" == "${INSTALL_ROOT}/var/log" ]] || return 1
+  target="$(readlink -e -- "$link")" || return 1
+  [[ "${target%/*}" == "${INSTALL_ROOT}/var/log" && -f "$target" ]]
+}
+
 reject_installed_symlinks() {
+  local link
   for directory in bin scripts www config assets var; do
-    if [[ -d "${INSTALL_ROOT}/${directory}" ]] && \
-      [[ -n "$(find "${INSTALL_ROOT}/${directory}" -type l -print -quit)" ]]; then
-      echo "error: installed tree contains a symlink: ${INSTALL_ROOT}/${directory}" >&2
-      exit 1
+    if [[ -d "${INSTALL_ROOT}/${directory}" ]]; then
+      while IFS= read -r -d '' link; do
+        if [[ "$directory" == var ]] && local_runtime_log_link "$link"; then
+          continue
+        fi
+        echo "error: installed tree contains a symlink: ${INSTALL_ROOT}/${directory}" >&2
+        return 1
+      done < <(find "${INSTALL_ROOT}/${directory}" -type l -print0)
     fi
   done
   if [[ -L "${INSTALL_ROOT}/.deploy-rev" ]]; then

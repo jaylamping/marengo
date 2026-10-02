@@ -1,3 +1,23 @@
+## Latest Windows continuation: batch33 installer compatibility, October 2
+
+Batch32 is delivered and its records committed/pushed at d224cbd4.
+The owner requests Pi software sync followed by basic right-arm tests.
+Preflight found three legitimate latest-log file aliases; the current installer
+refuses them. An actual baseline probe reproduces that refusal. The candidate
+allows only regular-file aliases confined to var/log, preserving all code and
+data-directory guards. All nine installer tests pass; the seven existing methods
+are unchanged. Full gates, production review, mutation and delivery are pending.
+See batch33-installer-runtime-log-links.md. No reference-grant implementation
+has started. T01 remains partial; T02/T03 open; counts remain26/13/63.
+
+Owner confirms motor power on and approves powered movement testing. Prepare
+the exact update and rollback; establish supported/stopped state and E-stop
+readiness before activation. Qualified live reference is still missing. Propose
+each movement with joint/bounds/duration/caps/stop and require explicit reply
+and commissioning. Ten-minute silence permits independent work only. Installed
+Pi4bc77ba unchanged; no deployment or movement. Preserve CAD, limits, Wave
+sign-off, paused automation, branches/worktrees and all earlier handoff bytes.
+
 ## Latest Windows continuation: batch32 delivered, October 2
 
 PR246 is delivered at main 1d855dfc45cdfe76da5f67d69beecf567bb4d301.
