@@ -1,0 +1,23 @@
+{
+  "PR": "https://github.com/jaylamping/marengo/pull/247",
+  "source": "0b2eb75e3922284da4ecdc4ad16561a67c777235",
+  "metadata_reviewed_commit": "334a8a0a743a2da6ad01b9b561c04f3bccd6fa6c",
+  "final_head": "a52eb02c5b33ac8cf086b8a33b03cf29ba1241a1",
+  "main": "b8271764fcdaa8d9d5e8838e69de4721ec035d97",
+  "equal_tree": "5de823480d82ea0ae46627bec6e1cc1dd7e64df9",
+  "pr_CI": 36996092516,
+  "pr_selected_jobs": "four passed; path-filtered sim skipped",
+  "main_CI": 36996773970,
+  "main_jobs": "all five passed including sim and fatal ARM",
+  "final_record_reviewed_head": "a52eb02c5b33ac8cf086b8a33b03cf29ba1241a1",
+  "final_record_Standards_findings": 0,
+  "final_record_Spec_findings": 0,
+  "final_metadata_review_record_git_blob_sha256": "af94cfd1f14339e1183f02ff3b08e5830cbce2631dc1c540fa6def9db3eb8fe5",
+  "source_qualification": "final-source-qualification.json",
+  "final_record_review_note": "Both independent reviewers clear final six-file metadata delta against334a8a0: fixed review hash, exact external Pi limit preview, unchanged production/probes/counts and historical HANDOFF suffix.",
+  "physical_acceptance": false,
+  "installed_runtime_revision_unchanged": "4bc77ba605834fdec04b436daa4bec67bca84fbb",
+  "Pi_source_checkout": "b8271764fcdaa8d9d5e8838e69de4721ec035d97",
+  "Pi_runtime_release": "Built from exact merged main,staged and all214 file hashes checked; not activated",
+  "recorded_utc": "2026-10-02T10:54:02.655762+00:00"
+}

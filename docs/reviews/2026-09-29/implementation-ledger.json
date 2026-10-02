@@ -15514,6 +15514,25 @@
       "main_CI": 36991329746,
       "delivery": "evidence/batch32/delivery-receipt.json",
       "physical_acceptance": false
+    },
+    {
+      "batch_id": "batch33",
+      "findings": [
+        "T01"
+      ],
+      "source": "0b2eb75e3922284da4ecdc4ad16561a67c777235",
+      "baseline": "1d855dfc45cdfe76da5f67d69beecf567bb4d301",
+      "PR": "https://github.com/jaylamping/marengo/pull/247",
+      "status": "Installer compatibility software qualified and delivered; T01 remains partial; T02/T03 open. No activation or physical acceptance.",
+      "head": "a52eb02c5b33ac8cf086b8a33b03cf29ba1241a1",
+      "main": "b8271764fcdaa8d9d5e8838e69de4721ec035d97",
+      "pr_CI": 36996092516,
+      "pr_CI_scope": "four selected jobs success; sim path-filtered skipped",
+      "main_CI": 36996773970,
+      "main_CI_scope": "all five success",
+      "qualification": "evidence/batch33/final-source-qualification.json",
+      "delivery": "evidence/batch33/delivery-receipt.json",
+      "physical_acceptance": false
     }
   ],
   "finding_status_counts": {
@@ -15561,14 +15580,17 @@
       "T01"
     ],
     "report": "batch33-installer-runtime-log-links.md",
-    "status": "Installer compatibility source 0b2eb75 qualified: ten installer tests, full primary/fatal ARM, meaningful frozen production mutant rejection/unchanged replay and independent production/final metadata reviews clear. Exact final PR/main CI/delivery pending. Pi backups, isolated ARM CLI compatibility and all-five-joint taught-limit preservation preview checked; no installation or movement. T01 partial; T02/T03 open.",
+    "status": "Delivered PR247: qualified source0b2eb75, final head a52eb02 and equal-tree mainb827176; four selected PR jobs pass with sim filtered, all five main jobs pass. Pi source synced and exact-main release all214 hashes verified in owned staging. Runtime still4bc77ba; setup reply absent after ten minutes, operator treated as away and activation/movement pending. T01partial; T02/T03open; no physical acceptance.",
     "physical_acceptance": false,
     "prior_delivery": "evidence/batch32/delivery-receipt.json",
     "pi_installed_revision": "4bc77ba605834fdec04b436daa4bec67bca84fbb",
     "owner_scope": "Personally owned robot/repository/Pi; isolated fixtures. Explicit confirmation and commissioning checks before every movement. Ten-minute silence leaves movement pending and allows independent work only.",
     "owner_requested_next": "Finish and push current chunk, sync Pi software, then explicitly confirmed bounded right-arm tests after qualified reference. Motor power on and powered testing authorized.",
-    "next": "Commit/push/deliver qualified installer, finish exact Pi bundle and limit-preservation/rollback preview; establish stable supported/stopped setup and E-stop readiness for activation. R2b2/physical reference and installed-owner capability remain prerequisites for movement.",
+    "next": "R2b2 explicit current selected virtual grant preparation on codex/virtual-reference-consumer; existing history-only contracts preserved. Physical reference/installed clients and setup remain prerequisites for later bounded right-arm tests.",
     "source": "0b2eb75e3922284da4ecdc4ad16561a67c777235",
-    "qualification": "evidence/batch33/final-source-qualification.json"
+    "qualification": "evidence/batch33/final-source-qualification.json",
+    "delivery": "evidence/batch33/delivery-receipt.json",
+    "Pi_source_checkout": "b8271764fcdaa8d9d5e8838e69de4721ec035d97",
+    "continuation_branch": "codex/virtual-reference-consumer"
   }
 }

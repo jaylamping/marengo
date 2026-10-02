@@ -1,3 +1,24 @@
+## Latest Windows checkpoint: batch33 delivered, Pi staged, October 2
+
+PR247 delivered source0b2eb75/finalheada52eb02/mainb827176, equal tree
+5de823480d82ea0ae46627bec6e1cc1dd7e64df9. Four selected final PR jobs pass
+(sim path-filtered); all five main jobs pass including sim/fatal ARM. Source,
+qualification metadata and final recording reviews clear. See batch33 delivery.
+Pi source checkout is clean at mainb827176; exact-main release is built/staged,
+all214 native file hashes pass. Installed runtime4bc77ba is unchanged.
+Release/Git/Store/calibration/env/unit backups and148-file rollback tree retained.
+
+Owner powered-testing approval stands. The setup query has no reply after ten
+minutes; treat operator as away, leave activation/movement pending and continue
+software. Passive capture contains all five motors; lower-arm yaw old coordinate
+-4.13228655 is outside taught hard [-0.39424506,3.24408484]. Resolve its current
+reference before motion. Physical acquisition remains unsupported; no motor
+command/deployment/physical acceptance. R2b2 current selected virtual grant is
+next software preparation, retaining every history-only/INITIAL probe and no
+physical capability escape. Counts26/13/63,102 findings/eight tasks unchanged;
+T01partial/T02T03open. Preserve limits,CAD,Wave,paused automation and worktrees.
+All earlier handoff bytes below are historical and preserved unchanged.
+
 ## Latest Windows delivery preparation: batch33, October 2
 
 Both final qualification metadata reviews clear334a8a0; production0b2eb75

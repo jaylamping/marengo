@@ -35,7 +35,11 @@ ARM release. The final production mutation omitting the resolved-target guard
 fails three actual installer subcase assertions; the ten unchanged tests replay
 successfully. See evidence/batch33/final-source-qualification.json for exact
 source/probe/artifact bindings. Both final qualification metadata reviews clear 334a8a0 with zero findings.
-Exact final PR/main CI and delivery remain pending.
+Delivered as PR247/main b827176 with the same tree as final head a52eb02.
+The four selected final PR jobs pass; sim is path-filtered and skipped for this
+installer-only production delta. All five merged-main jobs pass, including sim
+and fatal ARM. Both independent reviewers also clear the final recording delta
+at a52eb02. See evidence/batch33/delivery-receipt.json.
 
 The preceding c6aa099 primary pass skipped ARM by branch selection and remains
 provisional historical evidence only. The baseline failure used its nine-method
@@ -63,6 +67,17 @@ Keep all 102 findings/eight maintenance tasks and 26 verified,
 13 partial,63 open. Preserve calibration, taught limits, model assets, logs,
 CAD, existing branches/worktrees, Wave sign-off and the paused automation.
 
+Pi source is now synced cleanly to b827176. The exact main release is built
+and staged in an owned validation directory; all214 manifest entries verify on
+the Pi. The installed runtime remains4bc77ba. Old release/source/runtime-store/
+calibration/environment/unit backups and a concrete owned rollback tree remain
+preserved. A passive50-frame capture contains ten reports per configured motor;
+no motor command was sent. The old runtime lower-arm yaw coordinate is outside
+the taught envelope and must be resolved during reference commissioning.
+
+The support/E-stop setup query received no reply within ten minutes. Treat the
+operator as away, leave activation and movement pending, and continue independent
+software work. A later explicit setup reply may reopen activation preparation.
 Pi update is authorized. The owner has confirmed motor power is on and approved
 powered movement testing. Motor power is required for controlled movement;
 the earlier power-off request concerned the software restart only. Before
