@@ -41,3 +41,15 @@ This is preliminary integration evidence; frozen original legitimate-codegen
 regression, mutation/negative fixtures, confidence/durableledger/fullreview remain
 pending. Integrated T22 tests bring current daily audit discovery to22 passing.
 T22 verification recorded:24verified,11partial,67open; all102IDs/8tasks retained.
+
+Generated audit public probe reproduces original ca13eb8 path-only false Critical,
+then replays unchanged green using owned deterministic generator adapter. Full
+probe/baseline bound separately. Manual artifact/checksum edits mismatch; unavailable
+or failed generator and malformed checksum never verify; audited files unchanged.
+Actual pinned Consul regeneration remains separate integration proof.
+
+Atacf1ba6 command failures raise into per-check failed/unknown completeness instead
+of returning an empty successful scan. Failed inventory produces a nonclean report
+with dependent checks Unknown and nonzero exit. Current daily-audit31 tests pass.
+Durable unresolved-findings ledger, diff/dependency evidence, complete confidence
+qualification, independent review and required gates/delivery still pending. T21open.

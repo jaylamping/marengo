@@ -1,0 +1,6 @@
+{
+  "original_audit_baseline": "ca13eb810406539cc2394d6130881176fb76665c",
+  "probe_sha256": "be068fd9f7accc07f81fdbd62d2d191c5b625875959137d44e47167567a99c48",
+  "original_assertion_failures": 1,
+  "qualification": "Owneddeterministicgeneratoradapter+actualConsullockedregenerationseparateintegration"
+}

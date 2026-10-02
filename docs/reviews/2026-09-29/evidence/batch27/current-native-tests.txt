@@ -1,5 +1,6 @@
-....................
+...............................
 ----------------------------------------------------------------------
-Ran 20 tests in 0.216s
+Ran 31 tests in 3.234s
 
 OK
+{"out_dir": "/var/folders/nx/mtqx21xs4fn9qy52kqfpz2_w0000gn/T/tmpld9z4wdz/var/log/daily-audit/2026-10-02", "clean": false, "findings": 1}
