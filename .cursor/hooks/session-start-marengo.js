@@ -24,6 +24,59 @@ function isWindowsNative() {
         return false;
     return process.platform === "win32";
 }
+/**
+ * On non-Windows hosts, remove Windows-only MCP servers (SolidWorks needs the
+ * Windows SolidWorks API) from .cursor/mcp.json. The committed file keeps the
+ * entry so Windows checkouts retain it; this re-applies the local strip after
+ * any git operation (checkout/restore/pull) re-adds it.
+ */
+function stripWindowsOnlyMcpServers() {
+    if (isWindowsNative())
+        return "skipped (windows)";
+    const file = path.join(repo, ".cursor", "mcp.json");
+    if (!fs.existsSync(file))
+        return "no mcp.json";
+    try {
+        const before = fs.readFileSync(file, "utf8");
+        const key = before.search(/[ \t]*"solidworks"[ \t]*:/);
+        if (key === -1)
+            return "up to date";
+        const open = before.indexOf("{", before.indexOf(":", key));
+        if (open === -1)
+            return "failed: no object after solidworks key";
+        // Brace-counting scan: a lazy regex stops at the first nested closer.
+        let depth = 0;
+        let close = -1;
+        for (let i = open; i < before.length; i++) {
+            const c = before[i];
+            if (c === "{")
+                depth++;
+            else if (c === "}") {
+                depth--;
+                if (depth === 0) {
+                    close = i;
+                    break;
+                }
+            }
+        }
+        if (close === -1)
+            return "failed: unbalanced solidworks object";
+        let end = close + 1;
+        if (before[end] === ",")
+            end++;
+        if (before[end] === "\r")
+            end++;
+        if (before[end] === "\n")
+            end++;
+        const after = before.slice(0, key) + before.slice(end);
+        JSON.parse(after); // never write an invalid config
+        fs.writeFileSync(file, after);
+        return "stripped solidworks";
+    }
+    catch (e) {
+        return `failed: ${e instanceof Error ? e.message : String(e)}`;
+    }
+}
 function findPython() {
     const candidates = process.platform === "win32"
         ? [
@@ -61,6 +114,8 @@ const repo = (Array.isArray(payload.workspace_roots) &&
 const composerMode = payload.composer_mode || "unknown";
 const win = isWindowsNative();
 const shellName = win ? "Windows PowerShell" : "Unix/bash (macOS/Linux)";
+// Normalize .cursor/mcp.json per host before the ensure script hashes configs.
+const mcpConfigNote = stripWindowsOnlyMcpServers();
 let mcpStatus = "skipped";
 let mcpDetail = "ensure script missing";
 const ensureScript = path.join(repo, "scripts", "ensure-marengo-pi-mcp-enabled.py");
@@ -107,6 +162,7 @@ const ctx = `## Marengo session environment
 - Shell host: ${shellName}
 - Workspace: ${repo}
 - Composer mode: ${composerMode}
+- mcp.json (host): ${mcpConfigNote}
 - marengo-pi MCP ensure: ${mcpStatus} (${mcpDetail})
 - ${softwareHint}
 
