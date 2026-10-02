@@ -15,12 +15,15 @@
 //! - Comm watchdog: stale feedback → [`DavoutError::CommWatchdog`].
 //! - Persistent [`SafetySnapshot`]: device/runtime faults survive pose replacement, disable and replay.
 //! - Private current-reference authority: history, cached pose and public scalar verification
-//!   cannot authorize Ready, scoped Enable or motion. Physical acquisition is unsupported.
+//!   cannot authorize Ready, scoped Enable or motion. Ordinary physical acquisition is unsupported.
+//! - Closed [`PhysicalNeutralBench`] acquires real manual home into a durable,
+//!   five-second private reference for one neutral-only enable session. It exposes
+//!   neither mutable bus/Supervisor access nor nonneutral output.
 //! - Closed [`simulation::SimulationBus`] INITIAL virtual fixtures share admission/output logic;
 //!   they do not qualify reference acquisition, SetZero correlation or persistence ordering.
 //! - [`Supervisor::begin_reference`] / [`Supervisor::advance_reference`]: a separately
 //!   qualified closed virtual transaction stages correlated evidence and owns bounded
-//!   cleanup. It cannot grant motion; physical acquisition remains unavailable.
+//!   cleanup. It cannot grant motion; the ordinary physical transaction remains unavailable.
 //! - Retained matched evidence and [`ReferenceStageStatus`]: live inspection of
 //!   owner/device/model/policy/stop continuity after cleanup, distinct from an
 //!   immutable unusable acquisition terminal. No stage diagnostic grants output.
@@ -74,12 +77,16 @@ extern crate self as davout;
 mod active_reporting;
 mod bench_home_qualification;
 pub use bench_home_qualification::{BenchHomeQualification, BENCH_TIMEOUT_COUNTS};
+mod physical_bench;
+pub use physical_bench::{BenchNeutralFeedback, PhysicalNeutralBench};
 #[cfg(test)]
 mod active_reporting_pacing_tests;
 mod faults;
 mod feedback_consumer;
 mod limit_envelope;
 mod protocol_inspection;
+#[cfg(test)]
+mod protocol_test_support;
 pub use protocol_inspection::{MotorProtocolInspection, ProtocolReadReceipt};
 mod reference;
 mod reference_codec;
@@ -335,6 +342,7 @@ pub struct Supervisor<B: MotorBus> {
     wrong_sign_state: HashMap<String, WrongSignState>,
     last_tick: Option<Instant>,
     active_reporting: ActiveReportingState,
+    reporting_suppressed: bool,
     /// Last time each joint produced a feedback frame (for type-24 silence retry).
     last_feedback_rx: HashMap<String, Instant>,
     /// Status frames decoded in the most recent [`Self::refresh_feedback`] poll.
@@ -474,6 +482,7 @@ impl<B: MotorBus> Supervisor<B> {
             wrong_sign_state: HashMap::new(),
             last_tick: None,
             active_reporting: ActiveReportingState::default(),
+            reporting_suppressed: !reporting,
             last_feedback_rx: HashMap::new(),
             last_refresh_frames: 0,
             active_joints: HashSet::new(),
@@ -735,6 +744,20 @@ impl<B: MotorBus> Supervisor<B> {
         {
             self.reference_authority.revoke();
             return false;
+        }
+        if let Some(binding) = self.reference_authority.physical_bench_binding() {
+            if Instant::now() >= binding.expires_at
+                || self.stop_generation() != binding.stop_generation
+                || !self.installed_model.matches(&binding.model)
+            {
+                self.reference_authority.revoke();
+                return false;
+            }
+            return self.reference_authority.validate_binding(
+                &self.motors,
+                &self.homing_config,
+                &self.control,
+            );
         }
         let realm_matches = match (
             self.reference_authority.realm(),
@@ -1598,7 +1621,7 @@ impl<B: MotorBus> Supervisor<B> {
     /// One all-address best-effort burst. Reference cleanup suppresses reporting
     /// synchronization so a sensing lease cannot re-enable a stopped target.
     fn perform_stop(&mut self, synchronize_reporting: bool) -> StopReport {
-        if self.has_latched_fault() {
+        if self.has_latched_fault() || self.reference_authority.physical_bench_binding().is_some() {
             self.reference_authority.revoke();
         }
         let generation = self.fault_authority.begin_stop();
@@ -1722,6 +1745,9 @@ impl<B: MotorBus> Supervisor<B> {
     /// Re-asserts enable on a 1 s heartbeat and when a joint's feedback goes stale
     /// while sensing is still desired (motors can drop Active Reporting mid-sweep).
     pub fn sync_active_reporting(&mut self) {
+        if self.reporting_suppressed {
+            return;
+        }
         if self.reference_busy() {
             return;
         }

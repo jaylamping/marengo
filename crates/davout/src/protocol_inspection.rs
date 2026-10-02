@@ -158,14 +158,22 @@ impl<B: MotorBus> Supervisor<B> {
         &mut self,
         accepted: &[ProtocolObservation],
     ) -> Result<Vec<ProtocolObservation>, DavoutError> {
+        self.protocol_receive(
+            accepted,
+            &super::feedback_consumer::ReceiveContext::DisabledInspection,
+        )
+    }
+
+    pub(super) fn protocol_receive(
+        &mut self,
+        accepted: &[ProtocolObservation],
+        context: &super::feedback_consumer::ReceiveContext,
+    ) -> Result<Vec<ProtocolObservation>, DavoutError> {
         let report =
             self.bus
                 .recv_feedback_report(&self.motor_types, Duration::ZERO, Duration::ZERO);
         let replies = report.protocol_observations.clone();
-        let consumption = self.consume_report_in_context(
-            report,
-            &super::feedback_consumer::ReceiveContext::DisabledInspection,
-        );
+        let consumption = self.consume_report_in_context(report, context);
         if let Some(error) = consumption.first_error {
             return Err(error);
         }
@@ -264,14 +272,33 @@ impl<B: MotorBus> Supervisor<B> {
         host: u8,
         accepted: &[ProtocolObservation],
     ) -> Result<(ProtocolObservation, ProtocolReadReceipt), DavoutError> {
+        self.query_protocol_in_context(
+            joint,
+            address,
+            query,
+            host,
+            accepted,
+            &super::feedback_consumer::ReceiveContext::DisabledInspection,
+        )
+    }
+
+    pub(super) fn query_protocol_in_context(
+        &mut self,
+        joint: &str,
+        address: &MotorAddress,
+        query: Query,
+        host: u8,
+        accepted: &[ProtocolObservation],
+        context: &super::feedback_consumer::ReceiveContext,
+    ) -> Result<(ProtocolObservation, ProtocolReadReceipt), DavoutError> {
         // Consume stale queued hazards before issuing the diagnostic request.
-        self.inspection_receive(accepted)?;
+        self.protocol_receive(accepted, context)?;
         let request = query.frame(host, address.device_id);
         let issued = Instant::now();
         self.bus.send_frame_to(address, &request)?;
         let deadline = issued + QUERY_TIMEOUT;
         loop {
-            let replies = self.inspection_receive(accepted)?;
+            let replies = self.protocol_receive(accepted, context)?;
             let candidates: Vec<_> = replies
                 .iter()
                 .filter(|observation| {
@@ -334,188 +361,8 @@ impl<B: MotorBus> Supervisor<B> {
 mod tests {
     #![allow(clippy::expect_used)]
     use super::*;
-    use robstride::{CanBus, ReceiveAttempt, ReceivedCanFrame, TimedCanFrame};
-    use std::collections::{HashMap, VecDeque};
+    use crate::protocol_test_support::{qualified_identity, ProbeBus};
     use std::path::PathBuf;
-
-    #[derive(Default)]
-    struct ProbeBus {
-        tx: Vec<CanFrame>,
-        rx: VecDeque<TimedCanFrame>,
-        inject_peer_fault: bool,
-        wrong_host: bool,
-        fail_initial_stop: bool,
-        fail_query: bool,
-        conflicting_mode: bool,
-        late_conflict: bool,
-        deferred: Option<TimedCanFrame>,
-        deferred_armed: bool,
-        timeout_by_device: HashMap<u8, u32>,
-        ignore_timeout_write: bool,
-        bad_zero: bool,
-        inject_run_before_zero: bool,
-    }
-
-    impl CanBus for ProbeBus {
-        fn send_frame(&mut self, frame: &CanFrame) -> Result<(), robstride::BusError> {
-            self.tx.push(frame.clone());
-            if self.fail_initial_stop && (frame.id >> 24) & 0x1F == 18 {
-                self.fail_initial_stop = false;
-                return Err(robstride::BusError::Send {
-                    message: "initial stop fixture".into(),
-                });
-            }
-            if self.fail_query && frame.data[1] == 0xC4 {
-                return Err(robstride::BusError::Send {
-                    message: "query fixture".into(),
-                });
-            }
-            let id = robstride::unpack_ext_id(frame.id).expect("query ID");
-            if id.comm_type == 18
-                && frame.data[..2] == ParameterId::CanTimeout.as_u16().to_le_bytes()
-                && !self.ignore_timeout_write
-            {
-                self.timeout_by_device.insert(
-                    id.device_id,
-                    u32::from_le_bytes([
-                        frame.data[4],
-                        frame.data[5],
-                        frame.data[6],
-                        frame.data[7],
-                    ]),
-                );
-            }
-            let host = if self.wrong_host {
-                0xFF
-            } else {
-                id.extra_data as u8
-            };
-            let response = match id.comm_type {
-                0 => Some(CanFrame {
-                    id: robstride::pack_ext_id(0, u16::from(id.device_id), 0xFE),
-                    data: [id.device_id; 8],
-                    extended: true,
-                }),
-                4 if frame.data[1] == 0xC4 => Some(CanFrame {
-                    id: robstride::pack_ext_id(2, u16::from(id.device_id), host),
-                    data: match id.device_id {
-                        1 | 2 => [0, 0xC4, 0x56, 0, 3, 1, 42, 0],
-                        3 | 4 => [0, 0xC4, 0x56, 0, 2, 3, 34, 0],
-                        _ => [0, 0xC4, 0x56, 0, 0, 3, 32, 0],
-                    },
-                    extended: true,
-                }),
-                6 => Some(CanFrame {
-                    id: robstride::pack_ext_id(2, u16::from(id.device_id), host),
-                    data: [0x7F, 0xFF, 0x7F, 0xFF, 0x7F, 0xFF, 0, 0xC8],
-                    extended: true,
-                }),
-                17 => Some(CanFrame {
-                    id: robstride::pack_ext_id(17, u16::from(id.device_id), host),
-                    data: {
-                        let index = u16::from_le_bytes([frame.data[0], frame.data[1]]);
-                        let value = if index == ParameterId::CanTimeout.as_u16() {
-                            self.timeout_by_device
-                                .get(&id.device_id)
-                                .copied()
-                                .unwrap_or(0)
-                                .to_le_bytes()
-                        } else if index == ParameterId::MechanicalPosition.as_u16() && self.bad_zero
-                        {
-                            1.0_f32.to_le_bytes()
-                        } else {
-                            [0; 4]
-                        };
-                        [
-                            frame.data[0],
-                            frame.data[1],
-                            0,
-                            0,
-                            value[0],
-                            value[1],
-                            value[2],
-                            value[3],
-                        ]
-                    },
-                    extended: true,
-                }),
-                _ => None,
-            };
-            if let Some(response) = response {
-                let is_version = frame.data[1] == 0xC4;
-                let mut conflict = response.clone();
-                conflict.id |= 2 << 22;
-                self.rx.push_back(TimedCanFrame {
-                    received_at: Instant::now(),
-                    received: ReceivedCanFrame::full_data(Some("can0".into()), response),
-                });
-                if is_version && self.conflicting_mode {
-                    self.rx.push_back(TimedCanFrame {
-                        received_at: Instant::now(),
-                        received: ReceivedCanFrame::full_data(
-                            Some("can0".into()),
-                            conflict.clone(),
-                        ),
-                    });
-                }
-                if is_version && self.late_conflict {
-                    self.late_conflict = false;
-                    self.deferred = Some(TimedCanFrame {
-                        received_at: Instant::now(),
-                        received: ReceivedCanFrame::full_data(Some("can0".into()), conflict),
-                    });
-                }
-                if self.inject_run_before_zero && id.comm_type == 17 && host == 0xB4 {
-                    self.inject_run_before_zero = false;
-                    self.deferred = Some(TimedCanFrame {
-                        received_at: Instant::now(),
-                        received: ReceivedCanFrame::full_data(
-                            Some("can0".into()),
-                            CanFrame {
-                                id: 0x0280_01FD,
-                                data: [0x7F, 0xFF, 0x7F, 0xFF, 0x7F, 0xFF, 0, 0xC8],
-                                extended: true,
-                            },
-                        ),
-                    });
-                }
-                if self.inject_peer_fault {
-                    self.inject_peer_fault = false;
-                    self.rx.push_back(TimedCanFrame {
-                        received_at: Instant::now(),
-                        received: ReceivedCanFrame::full_data(
-                            Some("can0".into()),
-                            CanFrame {
-                                id: 0x0201_02FD,
-                                data: [0x7F, 0xFF, 0x7F, 0xFF, 0x7F, 0xFF, 0, 0xC8],
-                                extended: true,
-                            },
-                        ),
-                    });
-                }
-            }
-            Ok(())
-        }
-        fn recv_one_nonblocking(&mut self) -> Result<ReceiveAttempt, robstride::BusError> {
-            if self.rx.is_empty() && self.deferred.is_some() {
-                if self.deferred_armed {
-                    return Ok(self
-                        .deferred
-                        .take()
-                        .map(ReceiveAttempt::Frame)
-                        .unwrap_or(ReceiveAttempt::Idle));
-                }
-                self.deferred_armed = true;
-                return Ok(ReceiveAttempt::Idle);
-            }
-            Ok(self
-                .rx
-                .pop_front()
-                .map(ReceiveAttempt::Frame)
-                .unwrap_or(ReceiveAttempt::Idle))
-        }
-    }
-    impl MotorBus for ProbeBus {}
 
     fn supervisor(bus: ProbeBus) -> Supervisor<ProbeBus> {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
@@ -537,7 +384,10 @@ mod tests {
                     _ => [0, 0, 3, 32],
                 }
             );
-            assert_eq!(receipt.identity_wire_bytes, [receipt.device_id; 8]);
+            assert_eq!(
+                receipt.identity_wire_bytes,
+                qualified_identity(receipt.device_id)
+            );
         }
         assert_eq!(owner.mode(), OperationalMode::Disabled);
         assert!(owner.set_homing_complete().is_err());

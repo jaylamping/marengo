@@ -3,6 +3,7 @@
 use std::cell::Cell;
 use std::collections::HashSet;
 use std::sync::Arc;
+use std::time::Instant;
 
 use robstride::MotorAddress;
 
@@ -15,6 +16,13 @@ pub(super) struct ConsumedReferenceBinding {
     pub(super) model: InstalledModelStamp,
     pub(super) address: MotorAddress,
     pub(super) device_epoch: u64,
+}
+
+/// Finite physical bench permission has an owner lifetime, never a simulated epoch.
+pub(super) struct PhysicalBenchBinding {
+    pub(super) model: InstalledModelStamp,
+    pub(super) stop_generation: u64,
+    pub(super) expires_at: Instant,
 }
 
 use marengo_config::{
@@ -30,6 +38,7 @@ pub(crate) struct ReferenceAuthority {
     control: Option<ControlConfigFile>,
     realm: Option<Arc<()>>,
     consumed: Option<ConsumedReferenceBinding>,
+    physical_bench: Option<PhysicalBenchBinding>,
     revoked: Cell<bool>,
     generation: Cell<u64>,
 }
@@ -43,6 +52,7 @@ impl Default for ReferenceAuthority {
             control: None,
             realm: None,
             consumed: None,
+            physical_bench: None,
             revoked: Cell::new(false),
             generation: Cell::new(0),
         }
@@ -64,6 +74,7 @@ impl ReferenceAuthority {
             control: Some(control.clone()),
             realm: Some(realm),
             consumed: None,
+            physical_bench: None,
             revoked: Cell::new(false),
             generation: Cell::new(1),
         }
@@ -111,6 +122,7 @@ impl ReferenceAuthority {
             control: Some(policy.control.clone()),
             realm: Some(realm),
             consumed: Some(binding),
+            physical_bench: None,
             revoked: Cell::new(false),
             generation: Cell::new(next),
         };
@@ -130,6 +142,34 @@ impl ReferenceAuthority {
         self.consumed.as_ref()
     }
 
+    pub(super) fn physical_bench_binding(&self) -> Option<&PhysicalBenchBinding> {
+        self.physical_bench.as_ref()
+    }
+
+    /// Only the closed real bench owner's successful acquisition/audit path calls this.
+    pub(super) fn select_physical_bench(
+        &mut self,
+        joints: HashSet<String>,
+        motors: &MotorsConfigFile,
+        homing: &HomingConfigFile,
+        control: &ControlConfigFile,
+        binding: PhysicalBenchBinding,
+    ) -> Option<()> {
+        let next = self.generation.get().checked_add(1)?;
+        *self = Self {
+            joints,
+            motors: motors.motors.clone(),
+            homing: Some(homing.clone()),
+            control: Some(control.clone()),
+            realm: None,
+            consumed: None,
+            physical_bench: Some(binding),
+            revoked: Cell::new(false),
+            generation: Cell::new(next),
+        };
+        Some(())
+    }
+
     pub(super) fn validate_consumed_model(&self, model: &InstalledReferenceModel) -> bool {
         self.consumed
             .as_ref()
@@ -141,13 +181,20 @@ impl ReferenceAuthority {
         self.generation.set(generation);
     }
 
+    #[cfg(test)]
+    pub(super) fn expire_physical_bench_for_test(&mut self) {
+        if let Some(binding) = &mut self.physical_bench {
+            binding.expires_at = Instant::now();
+        }
+    }
+
     pub(crate) fn validate_binding(
         &self,
         motors: &MotorsConfigFile,
         homing: &HomingConfigFile,
         control: &ControlConfigFile,
     ) -> bool {
-        if self.revoked.get() || self.realm.is_none() {
+        if self.revoked.get() || (self.realm.is_none() && self.physical_bench.is_none()) {
             return false;
         }
         let Some(bound_homing) = &self.homing else {

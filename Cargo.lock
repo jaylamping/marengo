@@ -321,6 +321,7 @@ dependencies = [
  "marengo-config",
  "proptest",
  "robstride",
+ "serde",
  "thiserror 1.0.69",
  "tracing",
 ]

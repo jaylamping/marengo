@@ -24,6 +24,8 @@
 //!   acquisition or physical commissioning proof.
 //! - Explicit current-consuming virtual journal construction exercises actual reference
 //!   acquisition and durable selected permission through the same owner/tick path.
+//! - [`run_bench_neutral`] owns a standalone 200 Hz, 500 ms physical neutral sequence
+//!   through Davout's closed finite bench owner; acquisition/audit stay outside ticks.
 //!
 //! ## Does not
 //!
@@ -48,7 +50,9 @@
 //!
 //! See [ADR 0004](../../docs/decisions/0004-control-modes-and-mit.md).
 
+mod bench_neutral;
 mod friction;
+pub use bench_neutral::{run_bench_neutral, NeutralBenchReport};
 mod gain_runtime;
 mod r#loop;
 mod mit_feedforward;

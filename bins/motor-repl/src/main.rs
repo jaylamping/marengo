@@ -69,6 +69,7 @@ fn usage() {
          motor-repl [--config-dir PATH] [--can-interface can0] status\n  \
            motor-repl protocol-inspect  (standalone, disabled-only; stop marengo-pi first)\n  \
            motor-repl bench-home-qualify <operator> --confirm-home --sign-attested\n  \
+           motor-repl bench-neutral <operator> --confirm-home --sign-attested --confirm-neutral-enable\n  \
            motor-repl homing-status\n  \
            motor-repl home\n  \
            motor-repl enable <operator_id> [--force]\n  \
@@ -139,6 +140,38 @@ fn main() {
     }
 
     let root = repo_root();
+    if args[1] == "bench-neutral" {
+        if can_interface.is_some() {
+            eprintln!("bench-neutral owns installed CAN routes; remove the interface override");
+            std::process::exit(1);
+        }
+        let operator = args
+            .get(2)
+            .filter(|value| !value.starts_with("--"))
+            .map(String::as_str)
+            .unwrap_or("");
+        let result = berthier::run_bench_neutral(
+            &root,
+            operator,
+            args.iter().any(|value| value == "--confirm-home"),
+            args.iter().any(|value| value == "--sign-attested"),
+            args.iter().any(|value| value == "--confirm-neutral-enable"),
+        );
+        match result {
+            Ok(receipt) => match serde_json::to_string_pretty(&receipt) {
+                Ok(json) => println!("{json}"),
+                Err(error) => {
+                    eprintln!("encode neutral bench report: {error}");
+                    std::process::exit(1);
+                }
+            },
+            Err(error) => {
+                eprintln!("neutral bench: {error}");
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
     let control = match load_control_config(&root) {
         Ok(c) => c,
         Err(e) => {
