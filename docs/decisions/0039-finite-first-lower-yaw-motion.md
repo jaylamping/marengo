@@ -28,6 +28,9 @@ it supplies no elevated position-hold capability.
 
 Davout independently refuses any other joint's gains, nonzero velocity/torque,
 changed gains, incomplete batches or target outside [0, 0.02]. The physical
+profile is checked again after ordinary filtering, before any CAN transmission;
+an installed envelope clamp cannot widen it. The receipt's target is requested
+joint position; the passive capture records actual wire commands. The physical
 home-band guards inspect each raw pose, including the Ready enable flush, with
 absolute position <=0.05 rad and measured velocity <=0.25 rad/s. Ordinary limits,
 faults and feedback watchdog remain effective. Finish/error/drop stops all five

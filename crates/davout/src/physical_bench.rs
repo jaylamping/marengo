@@ -26,7 +26,7 @@ const YAW_STEP_DURATION: Duration = Duration::from_secs(1);
 const LOWER_YAW: &str = "right_lower_arm_yaw";
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum BenchOutput {
+pub(super) enum BenchOutput {
     Neutral,
     LowerYawStep,
 }
@@ -367,6 +367,7 @@ impl<B: MotorBus> Supervisor<B> {
                     model: self.installed_model.stamp(),
                     stop_generation: self.stop_generation(),
                     expires_at: Instant::now() + OWNER_LIFETIME,
+                    output,
                 },
             )
             .ok_or_else(|| bench_error("reference generation exhausted"))?;
@@ -461,7 +462,7 @@ fn validate_neutral_batch(joints: &[String], batch: &[MitJointCommand]) -> Resul
     validate_bench_batch(BenchOutput::Neutral, joints, batch)
 }
 
-fn validate_bench_batch(
+pub(super) fn validate_bench_batch(
     output: BenchOutput,
     joints: &[String],
     batch: &[MitJointCommand],
@@ -602,7 +603,14 @@ mod tests {
         root: &AuditRoot,
         output: BenchOutput,
     ) -> FiniteBenchOwner<ProbeBus> {
-        let mut supervisor = supervisor(bus);
+        owner_from_supervisor(supervisor(bus), root, output)
+    }
+
+    fn owner_from_supervisor(
+        mut supervisor: Supervisor<ProbeBus>,
+        root: &AuditRoot,
+        output: BenchOutput,
+    ) -> FiniteBenchOwner<ProbeBus> {
         let (audit_path, accepted_protocol) = supervisor
             .acquire_physical_bench_reference(&root.0, "test", true, true, output)
             .expect("actual fixture acquisition and durable audit");
@@ -967,5 +975,30 @@ mod tests {
             .tx
             .iter()
             .all(|f| !matches!(f.id >> 24, 3 | 6)));
+    }
+
+    #[test]
+    fn taught_soft_limit_cannot_widen_the_filtered_motion_profile() {
+        let root = AuditRoot::new();
+        let mut supervisor = supervisor(ProbeBus::default());
+        supervisor
+            .control
+            .control
+            .joints
+            .get_mut(LOWER_YAW)
+            .expect("joint")
+            .position_soft_lower_rad = Some(0.03);
+        supervisor.rebuild_limits().expect("valid taught bounds");
+        let mut owner = owner_from_supervisor(supervisor, &root, BenchOutput::LowerYawStep);
+        owner
+            .begin(neutral(&owner.joints))
+            .expect("neutral bootstrap");
+        let first = owner.supervisor.bus.tx.len();
+        assert!(owner.tick(yaw_commands(&owner.joints)).is_err());
+        assert!(owner.closed);
+        assert!(owner.supervisor.bus.tx[first..]
+            .iter()
+            .filter(|f| f.id >> 24 == 1)
+            .all(|f| f.data == [0x7F, 0xFF, 0x7F, 0xFF, 0, 0, 0, 0]));
     }
 }

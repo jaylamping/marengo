@@ -23,6 +23,7 @@ pub(super) struct PhysicalBenchBinding {
     pub(super) model: InstalledModelStamp,
     pub(super) stop_generation: u64,
     pub(super) expires_at: Instant,
+    pub(super) output: super::physical_bench::BenchOutput,
 }
 
 use marengo_config::{

@@ -1472,6 +1472,11 @@ impl<B: MotorBus> Supervisor<B> {
         let previous_sign = self.wrong_sign_state.clone();
         let prepared = (|| {
             let mut wires = Vec::with_capacity(cmds.len());
+            let profile = self
+                .reference_authority
+                .physical_bench_binding()
+                .map(|binding| binding.output);
+            let mut filtered_batch = profile.map(|_| Vec::with_capacity(cmds.len()));
             let mut neutral = true;
             for (cmd, motor) in cmds {
                 let filtered = self.filter_mit_command_at_tick(cmd, &motor, self.last_tick)?;
@@ -1480,10 +1485,16 @@ impl<B: MotorBus> Supervisor<B> {
                     && filtered.kd == 0.0
                     && filtered.torque_ff_nm == 0.0
                     && filtered.velocity_rad_s == 0.0;
+                if let Some(batch) = &mut filtered_batch {
+                    batch.push(filtered.clone());
+                }
                 wires.push(AddressedMitCommand {
                     address: MotorAddress::from(&motor),
                     command: joint_to_motor_command(&motor, &filtered)?,
                 });
+            }
+            if let (Some(profile), Some(batch)) = (profile, filtered_batch) {
+                physical_bench::validate_bench_batch(profile, &self.robot.robot.joints, &batch)?;
             }
             self.check_comm_watchdog(neutral)?;
             Ok(wires)
