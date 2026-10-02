@@ -725,6 +725,15 @@ impl<B: MotorBus> Supervisor<B> {
                 joint: motor.joint.clone(),
             })?;
         let position = f64::from(state.position_rad);
+        if self.reference_authority.physical_bench_binding().is_some()
+            && matches!(context, ReceiveContext::Operational)
+            && position.abs() > super::physical_bench::MAX_HOME_DRIFT
+        {
+            return Err(DavoutError::Limit {
+                joint: motor.joint.clone(),
+                message: "neutral bench home drift exceeds 0.05 rad".into(),
+            });
+        }
         if measured_position_fault(position, lim) {
             self.homing.mark_out_of_limits(&motor.joint);
             return Err(DavoutError::Limit {

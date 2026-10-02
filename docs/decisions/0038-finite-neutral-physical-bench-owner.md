@@ -33,13 +33,17 @@ Davout Ready/Active FSM once. Before admission all drives must remain Reset. Onl
 one Enable session is allowed; every stop, fault, expiry or shutdown revokes its
 permission. There is no automatic re-arm. After enable, immediate neutral MIT
 and fresh addressed position/timeout reads pass through the shared operational
-hazard consumer before the finite tick sequence.
+hazard consumer. Each pose observation is checked for home drift, including an
+unsafe sample followed by a healthy sample in the same receive batch.
 
 Berthier owns a 200 Hz, 500 ms neutral sequence. Davout independently refuses any
 nonzero MIT field or incomplete/repeated joint batch at this interface, checks
 home drift and all ordinary feedback/limits/fault/watchdog gates, and performs
-all-address stop on every outcome. Blocking acquisition, audit sync and parameter
-queries happen outside this tick sequence. Reporting remains Off throughout.
+all-address stop on every outcome. The 500 ms budget starts before Enable and
+includes active parameter queries, which keep sending neutral batches through
+normal admission every 5 ms and therefore enforce the ordinary receive watchdog.
+Blocking acquisition and audit sync happen before Enable. MCU identity is
+validated before timeout or coordinate writes. Reporting remains Off throughout.
 
 ## Consequences
 

@@ -34,6 +34,16 @@ impl<B: MotorBus> Supervisor<B> {
         sign_attested: bool,
         operator: &str,
     ) -> Result<BenchHomeQualification, DavoutError> {
+        self.qualify_bench_home_for_profile(confirmed, sign_attested, operator, None)
+    }
+
+    pub(super) fn qualify_bench_home_for_profile(
+        &mut self,
+        confirmed: bool,
+        sign_attested: bool,
+        operator: &str,
+        identities: Option<&[[u8; 8]; 5]>,
+    ) -> Result<BenchHomeQualification, DavoutError> {
         self.refuse_reference_interference("disabled bench home qualification")?;
         self.require_fault_clear()?;
         if !confirmed || !sign_attested || operator.trim().is_empty() || operator.len() > 128 {
@@ -65,6 +75,17 @@ impl<B: MotorBus> Supervisor<B> {
             }
         }
         let before = self.inspect_drive_protocol()?;
+        if identities.is_some_and(|expected| {
+            before
+                .iter()
+                .zip(expected)
+                .any(|(observed, expected)| observed.identity_wire_bytes != *expected)
+        }) {
+            return Err(DavoutError::ProtocolInspection {
+                joint: String::new(),
+                message: "MCU identity does not match qualified physical arm".into(),
+            });
+        }
         // Select only observed installed model/firmware pairs. Configuration metadata
         // alone cannot establish these external facts.
         for (motor, observed) in self.motors.motors.iter().zip(&before) {

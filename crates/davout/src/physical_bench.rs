@@ -12,7 +12,7 @@ use robstride::{MotorAddress, MotorBus, ParameterId, RuntimeBus};
 use serde::Serialize;
 
 use super::feedback_consumer::ReceiveContext;
-use super::protocol_inspection::Query;
+use super::protocol_inspection::{ProtocolQueryContext, Query};
 use super::reference::PhysicalBenchBinding;
 use super::{
     BenchHomeQualification, DavoutError, MitJointCommand, ProtocolReadReceipt, StopReport,
@@ -20,7 +20,8 @@ use super::{
 };
 
 const OWNER_LIFETIME: Duration = Duration::from_secs(5);
-const MAX_HOME_DRIFT: f64 = 0.05;
+pub(super) const MAX_HOME_DRIFT: f64 = 0.05;
+const ENABLE_DURATION: Duration = Duration::from_millis(500);
 const PROFILE: [(&str, MotorType, i8, [u8; 8]); 5] = [
     (
         "right_shoulder_pitch",
@@ -75,6 +76,7 @@ struct NeutralBenchOwner<B: MotorBus> {
     closed: bool,
     stop_report: Option<StopReport>,
     accepted_protocol: Vec<ProtocolObservation>,
+    active_deadline: Option<Instant>,
 }
 
 impl PhysicalNeutralBench {
@@ -103,6 +105,7 @@ impl PhysicalNeutralBench {
             closed: false,
             stop_report: None,
             accepted_protocol: Vec::new(),
+            active_deadline: None,
         };
         let acquisition = owner.supervisor.acquire_neutral_bench_reference(
             root,
@@ -135,6 +138,9 @@ impl PhysicalNeutralBench {
     pub fn finish(&mut self) -> Result<StopReport, DavoutError> {
         self.owner.finish()
     }
+    pub fn active_deadline(&self) -> Option<Instant> {
+        self.owner.active_deadline
+    }
 }
 
 impl<B: MotorBus> NeutralBenchOwner<B> {
@@ -148,19 +154,24 @@ impl<B: MotorBus> NeutralBenchOwner<B> {
 
     /// Exactly one ordinary Davout enable session; no recovery/re-arm.
     pub fn begin(&mut self, neutral: Vec<MitJointCommand>) -> Result<(), DavoutError> {
-        if self.closed || self.enable_attempted {
-            return Err(bench_error("neutral bench enable already consumed"));
-        }
-        validate_neutral_batch(&self.joints, &neutral)?;
-        self.enable_attempted = true;
         let result = (|| {
+            if self.closed || self.enable_attempted {
+                return Err(bench_error("neutral bench enable already consumed"));
+            }
+            validate_neutral_batch(&self.joints, &neutral)?;
+            self.enable_attempted = true;
             // The last disabled report must still be Reset before normal enable.
             self.supervisor
                 .inspection_receive(&self.accepted_protocol)?;
+            let deadline = Instant::now() + ENABLE_DURATION;
+            self.active_deadline = Some(deadline);
             self.supervisor.enable_targets(&self.joints)?;
-            self.supervisor.send_mit_batch(neutral)?;
-            self.supervisor
-                .verify_neutral_bench_home(0x60, true, &mut self.accepted_protocol)?;
+            self.supervisor.send_mit_batch(neutral.clone())?;
+            self.supervisor.verify_neutral_bench_home(
+                0x60,
+                Some((&neutral, deadline)),
+                &mut self.accepted_protocol,
+            )?;
             self.supervisor.check_fault_authority()?;
             Ok(())
         })();
@@ -173,7 +184,10 @@ impl<B: MotorBus> NeutralBenchOwner<B> {
         neutral: Vec<MitJointCommand>,
     ) -> Result<Vec<BenchNeutralFeedback>, DavoutError> {
         let result = (|| {
-            if self.closed || !self.enable_attempted {
+            if self.closed
+                || !self.enable_attempted
+                || self.active_deadline.is_none_or(|end| Instant::now() >= end)
+            {
                 return Err(bench_error("neutral bench is not running"));
             }
             validate_neutral_batch(&self.joints, &neutral)?;
@@ -186,13 +200,6 @@ impl<B: MotorBus> NeutralBenchOwner<B> {
             let mut feedback = Vec::with_capacity(self.joints.len());
             for joint in &self.joints {
                 if let Some(sample) = self.supervisor.joint_feedback(joint) {
-                    if sample.position_rad.abs() > MAX_HOME_DRIFT {
-                        self.supervisor.latch_control_fault(
-                            "neutral bench moved outside supported home tolerance",
-                            Some(joint),
-                        );
-                        return Err(bench_error("neutral bench home drift exceeds 0.05 rad"));
-                    }
                     feedback.push(BenchNeutralFeedback {
                         joint: joint.clone(),
                         position_rad: sample.position_rad,
@@ -250,19 +257,17 @@ impl<B: MotorBus> Supervisor<B> {
         sign_attested: bool,
     ) -> Result<(PathBuf, Vec<ProtocolObservation>), DavoutError> {
         validate_profile(self)?;
-        let qualification =
-            self.qualify_bench_home_disabled(confirmed_home, sign_attested, operator)?;
-        for (observed, (_, _, _, identity)) in qualification.before.iter().zip(PROFILE) {
-            if observed.identity_wire_bytes != identity {
-                return Err(bench_error(
-                    "MCU identity does not match qualified physical arm",
-                ));
-            }
-        }
+        let identities = PROFILE.map(|(_, _, _, identity)| identity);
+        let qualification = self.qualify_bench_home_for_profile(
+            confirmed_home,
+            sign_attested,
+            operator,
+            Some(&identities),
+        )?;
         let audit = write_audit(root, self, &qualification)?;
         // Filesystem completion cannot substitute for live drive/home continuity.
         let mut accepted = Vec::with_capacity(20);
-        self.verify_neutral_bench_home(0x40, false, &mut accepted)?;
+        self.verify_neutral_bench_home(0x40, None, &mut accepted)?;
         self.reference_authority
             .select_physical_bench(
                 self.robot.robot.joints.iter().cloned().collect(),
@@ -283,17 +288,17 @@ impl<B: MotorBus> Supervisor<B> {
     fn verify_neutral_bench_home(
         &mut self,
         first_host: u8,
-        active: bool,
+        active: Option<(&[MitJointCommand], Instant)>,
         accepted: &mut Vec<ProtocolObservation>,
     ) -> Result<Vec<ProtocolReadReceipt>, DavoutError> {
-        let context = if active {
+        let context = if active.is_some() {
             ReceiveContext::Operational
         } else {
             ReceiveContext::DisabledInspection
         };
         let mut receipts = Vec::with_capacity(10);
         for (i, motor) in self.motors.motors.clone().iter().enumerate() {
-            if active && !self.reference_binding_valid() {
+            if active.is_some() && !self.reference_binding_valid() {
                 return Err(bench_error("physical bench reference expired or revoked"));
             }
             for (offset, parameter) in [ParameterId::MechanicalPosition, ParameterId::CanTimeout]
@@ -306,7 +311,11 @@ impl<B: MotorBus> Supervisor<B> {
                     Query::Parameter(parameter),
                     first_host + (i * 2 + offset) as u8,
                     accepted,
-                    &context,
+                    &ProtocolQueryContext {
+                        receive: &context,
+                        neutral_keepalive: active.map(|(batch, _)| batch),
+                        owner_deadline: active.map(|(_, deadline)| deadline),
+                    },
                 )?;
                 let ProtocolReply::Parameter { value, .. } = reply.reply else {
                     return Err(bench_error("missing physical bench parameter reply"));
@@ -488,6 +497,7 @@ mod tests {
             closed: false,
             stop_report: None,
             accepted_protocol,
+            active_deadline: None,
         }
     }
 
@@ -580,6 +590,13 @@ mod tests {
                 .physical_bench_binding()
                 .is_none());
             assert!(supervisor.bus.tx.iter().all(|f| f.id >> 24 != 3));
+            if wrong_identity {
+                assert!(supervisor.bus.tx.iter().all(|f| f.id >> 24 != 6));
+                assert!(supervisor.bus.tx.iter().all(|f| {
+                    f.id >> 24 != 18
+                        || f.data[..2] != ParameterId::CanTimeout.as_u16().to_le_bytes()
+                }));
+            }
             assert!(supervisor.set_homing_complete().is_err());
         }
     }
@@ -645,11 +662,8 @@ mod tests {
             &root,
         );
         let batch = neutral(&owner.joints);
-        // The initial active status already reveals drift before further ticks.
-        owner
-            .begin(batch.clone())
-            .expect("parameter readback remains at home");
-        assert!(owner.tick(batch).is_err());
+        // Status drift refuses immediately, even when parameter reads say home.
+        assert!(owner.begin(batch).is_err());
         assert!(owner.supervisor.has_latched_fault());
         assert_eq!(owner.supervisor.mode(), OperationalMode::Disabled);
         assert!(owner
@@ -659,5 +673,73 @@ mod tests {
             .iter()
             .filter(|f| f.id >> 24 == 24)
             .all(|f| f.data[6] == 0));
+    }
+
+    #[test]
+    fn active_readback_wait_keeps_watchdog_and_neutral_output_running() {
+        for suppress_pose in [false, true] {
+            let root = AuditRoot::new();
+            let mut owner = owner(ProbeBus::default(), &root);
+            owner.supervisor.bus.suppress_active_params = true;
+            owner.supervisor.bus.suppress_active_pose = suppress_pose;
+            let started = Instant::now();
+            let error = owner
+                .begin(neutral(&owner.joints))
+                .expect_err("missing readback");
+            if suppress_pose {
+                assert!(error.to_string().contains("watchdog"), "{error}");
+                assert!(started.elapsed() < Duration::from_millis(250));
+            } else {
+                assert!(error.to_string().contains("timed out"), "{error}");
+            }
+            assert!(
+                owner
+                    .supervisor
+                    .bus
+                    .tx
+                    .iter()
+                    .filter(|f| f.id >> 24 == 1)
+                    .count()
+                    > 25
+            );
+            assert!(owner.closed);
+            assert_eq!(owner.supervisor.mode(), OperationalMode::Disabled);
+        }
+    }
+
+    #[test]
+    fn enabled_budget_includes_slow_parameter_checks() {
+        let root = AuditRoot::new();
+        let mut owner = owner(ProbeBus::default(), &root);
+        owner.supervisor.bus.active_param_delay = Duration::from_millis(60);
+        let started = Instant::now();
+        assert!(owner.begin(neutral(&owner.joints)).is_err());
+        let elapsed = started.elapsed();
+        assert!(elapsed >= ENABLE_DURATION);
+        assert!(elapsed < Duration::from_millis(650));
+        assert!(owner.closed);
+        assert_eq!(owner.supervisor.mode(), OperationalMode::Disabled);
+    }
+
+    #[test]
+    fn transient_drift_followed_by_healthy_status_still_closes_owner() {
+        let root = AuditRoot::new();
+        let mut owner = owner(ProbeBus::default(), &root);
+        owner.supervisor.bus.transient_drift = true;
+        assert!(owner.begin(neutral(&owner.joints)).is_err());
+        assert!(owner.supervisor.has_latched_fault());
+        assert!(owner.closed);
+    }
+
+    #[test]
+    fn second_begin_stops_the_active_owner() {
+        let root = AuditRoot::new();
+        let mut owner = owner(ProbeBus::default(), &root);
+        let batch = neutral(&owner.joints);
+        owner.begin(batch.clone()).expect("first enable");
+        assert!(owner.begin(batch).is_err());
+        assert!(owner.closed);
+        assert!(!owner.supervisor.reference_binding_valid());
+        assert_eq!(owner.supervisor.mode(), OperationalMode::Disabled);
     }
 }

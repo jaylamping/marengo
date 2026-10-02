@@ -13,8 +13,9 @@ MARENGO_ROOT=/opt/marengo MARENGO_CONFIG_DIR=/opt/marengo/config RUST_LOG=error 
 
 Stop the main runtime and competing CAN writers first. The supported unchanged
 five-joint assembly must be at mechanical home, workspace clear, and an actual
-motor-power E-stop functional. Explicit operator approval applies to this exact
-neutral sequence. The operator approved remote execution while the arm was at
+motor-power E-stop functional. Use the [session authorization policy](limb-playbook.md#development-session-authorization)
+for the confirmation flags and routine retries. The operator approved this
+neutral sequence remotely while the arm was at
 home and clear of obstacles during the October 2 session. Leaving power on does
 not establish timeout volatility or reset qualification.
 
@@ -25,8 +26,10 @@ checks the observed firmware/MCU profile, durably syncs actual audit in
 before selecting owner-local reference. Audit files are history, with no grant
 import or recovery API. Existing calibration history and taught limits remain.
 
-The five-second permission allows one enable session. Immediate neutral commands
-and addressed active home/timeout checks precede ticks. No nonneutral MIT field,
+The five-second reference lifetime allows one enable session. Its 500 ms enabled
+budget starts before Enable and includes the addressed active home/timeout
+checks. Neutral commands continue through normal admission at 200 Hz while
+waiting for those replies. No nonneutral MIT field,
 incomplete batch, re-arm or unlimited run is admitted. Ordinary faults, limits,
 feedback watchdog and an additional 0.05-rad home-drift guard remain effective.
 Every finish/error attempts all-address stop, and reporting stays Off.

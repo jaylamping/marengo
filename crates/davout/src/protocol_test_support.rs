@@ -4,7 +4,7 @@ use robstride::{
     CanBus, CanFrame, MotorBus, ParameterId, ReceiveAttempt, ReceivedCanFrame, TimedCanFrame,
 };
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 pub(crate) fn qualified_identity(device: u8) -> [u8; 8] {
     match device {
@@ -23,6 +23,11 @@ pub(crate) struct ProbeBus {
     pub(crate) enabled: HashSet<u8>,
     pub(crate) reset_timeout_after_enable: bool,
     pub(crate) drift_after_enable: bool,
+    pub(crate) transient_drift: bool,
+    pub(crate) suppress_active_params: bool,
+    pub(crate) suppress_active_pose: bool,
+    pub(crate) active_param_delay: Duration,
+    pub(crate) delayed: VecDeque<(Instant, TimedCanFrame)>,
     pub(crate) wrong_identity: bool,
     pub(crate) rx: VecDeque<TimedCanFrame>,
     pub(crate) inject_peer_fault: bool,
@@ -78,33 +83,35 @@ impl CanBus for ProbeBus {
             id.extra_data as u8
         };
         let response = match id.comm_type {
-            1 if self.enabled.contains(&id.device_id) => Some(CanFrame {
-                id: robstride::pack_ext_id(
-                    2,
-                    u16::from(id.device_id)
-                        | if self.enabled.contains(&id.device_id) {
-                            2 << 14
+            1 if self.enabled.contains(&id.device_id) && !self.suppress_active_pose => {
+                Some(CanFrame {
+                    id: robstride::pack_ext_id(
+                        2,
+                        u16::from(id.device_id)
+                            | if self.enabled.contains(&id.device_id) {
+                                2 << 14
+                            } else {
+                                0
+                            },
+                        0xFD,
+                    ),
+                    data: [
+                        if self.drift_after_enable || self.transient_drift {
+                            0x81
                         } else {
-                            0
+                            0x7F
                         },
-                    0xFD,
-                ),
-                data: [
-                    if self.drift_after_enable && self.enabled.contains(&id.device_id) {
-                        0x81
-                    } else {
-                        0x7F
-                    },
-                    0xFF,
-                    0x7F,
-                    0xFF,
-                    0x7F,
-                    0xFF,
-                    0,
-                    0xC8,
-                ],
-                extended: true,
-            }),
+                        0xFF,
+                        0x7F,
+                        0xFF,
+                        0x7F,
+                        0xFF,
+                        0,
+                        0xC8,
+                    ],
+                    extended: true,
+                })
+            }
             0 => Some(CanFrame {
                 id: robstride::pack_ext_id(0, u16::from(id.device_id), 0xFE),
                 data: if self.wrong_identity {
@@ -128,7 +135,7 @@ impl CanBus for ProbeBus {
                 data: [0x7F, 0xFF, 0x7F, 0xFF, 0x7F, 0xFF, 0, 0xC8],
                 extended: true,
             }),
-            17 => Some(CanFrame {
+            17 if !self.suppress_active_params || self.enabled.is_empty() => Some(CanFrame {
                 id: robstride::pack_ext_id(17, u16::from(id.device_id), host),
                 data: {
                     let index = u16::from_le_bytes([frame.data[0], frame.data[1]]);
@@ -162,10 +169,26 @@ impl CanBus for ProbeBus {
             let is_version = frame.data[1] == 0xC4;
             let mut conflict = response.clone();
             conflict.id |= 2 << 22;
-            self.rx.push_back(TimedCanFrame {
+            let received = TimedCanFrame {
                 received_at: Instant::now(),
-                received: ReceivedCanFrame::full_data(Some("can0".into()), response),
-            });
+                received: ReceivedCanFrame::full_data(Some("can0".into()), response.clone()),
+            };
+            if id.comm_type == 17 && !self.enabled.is_empty() && !self.active_param_delay.is_zero()
+            {
+                self.delayed
+                    .push_back((Instant::now() + self.active_param_delay, received));
+            } else {
+                self.rx.push_back(received);
+            }
+            if id.comm_type == 1 && self.transient_drift {
+                self.transient_drift = false;
+                let mut healthy = response;
+                healthy.data[0] = 0x7F;
+                self.rx.push_back(TimedCanFrame {
+                    received_at: Instant::now(),
+                    received: ReceivedCanFrame::full_data(Some("can0".into()), healthy),
+                });
+            }
             if is_version && self.conflicting_mode {
                 self.rx.push_back(TimedCanFrame {
                     received_at: Instant::now(),
@@ -211,6 +234,16 @@ impl CanBus for ProbeBus {
         Ok(())
     }
     fn recv_one_nonblocking(&mut self) -> Result<ReceiveAttempt, robstride::BusError> {
+        if self
+            .delayed
+            .front()
+            .is_some_and(|(due, _)| Instant::now() >= *due)
+        {
+            if let Some((_, mut received)) = self.delayed.pop_front() {
+                received.received_at = Instant::now();
+                self.rx.push_back(received);
+            }
+        }
         if self.rx.is_empty() && self.deferred.is_some() {
             if self.deferred_armed {
                 return Ok(self

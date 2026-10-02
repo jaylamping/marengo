@@ -48,13 +48,19 @@ pub fn run_bench_neutral(
     let joints = owner.joints().to_vec();
     let audit_path = owner.audit_path().to_owned();
     let result = (|| {
-        owner.begin(neutral_commands(&joints))?;
         let started = Instant::now();
-        let mut deadline = started;
+        owner.begin(neutral_commands(&joints))?;
+        let end = owner.active_deadline().ok_or_else(|| DavoutError::Homing {
+            message: "missing neutral enable deadline".into(),
+        })?;
+        let mut deadline = Instant::now();
         let mut max_delay = Duration::ZERO;
         let mut samples = Vec::with_capacity(TICKS as usize);
         for _ in 0..TICKS {
             let now = Instant::now();
+            if now >= end {
+                break;
+            }
             let delay = now.saturating_duration_since(deadline);
             if delay > MAX_TICK_DELAY {
                 return Err(DavoutError::Homing {
@@ -68,7 +74,7 @@ pub fn run_bench_neutral(
                 feedback,
             });
             deadline += PERIOD;
-            if let Some(remaining) = deadline.checked_duration_since(Instant::now()) {
+            if let Some(remaining) = deadline.min(end).checked_duration_since(Instant::now()) {
                 std::thread::sleep(remaining);
             }
         }
@@ -89,7 +95,7 @@ pub fn run_bench_neutral(
             schema: 1,
             audit_path,
             neutral_only: true,
-            ticks: TICKS,
+            ticks: samples.len() as u32,
             elapsed_us: elapsed.as_micros(),
             max_tick_delay_us: delay.as_micros(),
             samples,

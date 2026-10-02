@@ -8,7 +8,13 @@ use robstride::protocol::{
 use robstride::{CanFrame, MotorAddress, MotorBus, ParameterId};
 use serde::Serialize;
 
-use super::{DavoutError, OperationalMode, Supervisor};
+use super::{DavoutError, MitJointCommand, OperationalMode, Supervisor};
+
+pub(super) struct ProtocolQueryContext<'a> {
+    pub(super) receive: &'a super::feedback_consumer::ReceiveContext,
+    pub(super) neutral_keepalive: Option<&'a [MitJointCommand]>,
+    pub(super) owner_deadline: Option<Instant>,
+}
 
 const QUERY_TIMEOUT: Duration = Duration::from_millis(300);
 const MAX_INSPECTION_MOTORS: usize = 16;
@@ -278,7 +284,11 @@ impl<B: MotorBus> Supervisor<B> {
             query,
             host,
             accepted,
-            &super::feedback_consumer::ReceiveContext::DisabledInspection,
+            &ProtocolQueryContext {
+                receive: &super::feedback_consumer::ReceiveContext::DisabledInspection,
+                neutral_keepalive: None,
+                owner_deadline: None,
+            },
         )
     }
 
@@ -289,16 +299,40 @@ impl<B: MotorBus> Supervisor<B> {
         query: Query,
         host: u8,
         accepted: &[ProtocolObservation],
-        context: &super::feedback_consumer::ReceiveContext,
+        context: &ProtocolQueryContext<'_>,
     ) -> Result<(ProtocolObservation, ProtocolReadReceipt), DavoutError> {
         // Consume stale queued hazards before issuing the diagnostic request.
-        self.protocol_receive(accepted, context)?;
+        self.protocol_receive(accepted, context.receive)?;
         let request = query.frame(host, address.device_id);
         let issued = Instant::now();
+        if context.owner_deadline.is_some_and(|end| issued >= end) {
+            return Err(DavoutError::Homing {
+                message: "neutral enable deadline reached".into(),
+            });
+        }
         self.bus.send_frame_to(address, &request)?;
-        let deadline = issued + QUERY_TIMEOUT;
+        let deadline = context
+            .owner_deadline
+            .map_or(issued + QUERY_TIMEOUT, |end| {
+                end.min(issued + QUERY_TIMEOUT)
+            });
+        let mut next_keepalive = issued;
         loop {
-            let replies = self.protocol_receive(accepted, context)?;
+            if Instant::now() >= deadline {
+                return Err(DavoutError::ProtocolInspection {
+                    joint: joint.into(),
+                    message: format!("{} timed out", query.label()),
+                });
+            }
+            if let Some(neutral) = context.neutral_keepalive {
+                if Instant::now() >= next_keepalive {
+                    // Through normal admission: includes current reference, limits,
+                    // fault authority and the ordinary per-drive receive watchdog.
+                    self.send_mit_batch(neutral.to_vec())?;
+                    next_keepalive = Instant::now() + Duration::from_millis(5);
+                }
+            }
+            let replies = self.protocol_receive(accepted, context.receive)?;
             let candidates: Vec<_> = replies
                 .iter()
                 .filter(|observation| {
