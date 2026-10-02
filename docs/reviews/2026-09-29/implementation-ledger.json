@@ -15561,12 +15561,14 @@
       "T01"
     ],
     "report": "batch33-installer-runtime-log-links.md",
-    "status": "Installer compatibility candidate: baseline rejects normal latest-log aliases; review found and reproduced newline-directory admission at c6aa099, now repaired with NUL resolution. All ten installer tests pass; preceding nine methods unchanged. c6aa099 primary is provisional with ARM skipped; final primary/fatal ARM, mutation replay, independent review and exact PR/main delivery pending. No install or motion; T01 partial, T02/T03 open.",
+    "status": "Installer compatibility source 0b2eb75 qualified: ten installer tests, full primary/fatal ARM, frozen production mutant rejection/unchanged replay and both independent production reviews clear. Final metadata review and exact PR/main CI/delivery pending. Pi release/database backups and isolated new ARM CLI compatibility checked; no installation or movement. T01 partial; T02/T03 open.",
     "physical_acceptance": false,
     "prior_delivery": "evidence/batch32/delivery-receipt.json",
     "pi_installed_revision": "4bc77ba605834fdec04b436daa4bec67bca84fbb",
     "owner_scope": "Personally owned robot/repository/Pi; isolated fixtures. Explicit confirmation and commissioning checks before every movement. Ten-minute silence leaves movement pending and allows independent work only.",
     "owner_requested_next": "Finish and push current chunk, sync Pi software, then explicitly confirmed bounded right-arm tests after qualified reference. Motor power on and powered testing authorized.",
-    "next": "Qualify installer compatibility and prepare exact Pi update/rollback; R2b2 and physical reference/installed-owner prerequisites still required for movement"
+    "next": "Commit/push/deliver qualified installer, finish exact Pi bundle and limit-preservation/rollback preview; establish stable supported/stopped setup and E-stop readiness for activation. R2b2/physical reference and installed-owner capability remain prerequisites for movement.",
+    "source": "0b2eb75e3922284da4ecdc4ad16561a67c777235",
+    "qualification": "evidence/batch33/final-source-qualification.json"
   }
 }

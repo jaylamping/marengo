@@ -1,0 +1,112 @@
+{
+  "source": "0b2eb75e3922284da4ecdc4ad16561a67c777235",
+  "baseline": "1d855dfc45cdfe76da5f67d69beecf567bb4d301",
+  "recorded_utc": "2026-10-02T10:29:00.192808+00:00",
+  "scope": "T01 installer compatibility: preserve only direct var/log aliases resolving to regular files in the same directory",
+  "primary": {
+    "tool_exit_code": 0,
+    "Rust_passed": 861,
+    "Rust_existing_ignored": 1,
+    "Consul_passed": 374,
+    "Pi_MCP_passed": 72,
+    "local_writer_passed": 27,
+    "research_passed": 83,
+    "daily_audit_passed": 15,
+    "installer_passed": 10,
+    "fmt_clippy_buf_deny_audit": "passed",
+    "fatal_ARM_workspace_release": "passed",
+    "container_image": "sha256:336c2a256eb003ff31b79057bd3d6baccec0c7d4f0f73000138cf1ac69d28c87",
+    "CI": "true",
+    "GITHUB_REF": "refs/heads/main"
+  },
+  "behavioral_evidence": {
+    "delivered_baseline": "d224cbd4b55faa5016f7c51ffb0447440950d550",
+    "baseline_alias_positive_exit": 1,
+    "newline_candidate": "c6aa099d14683b573b0045ef8b6c54e41e490a07",
+    "newline_candidate_regression_exit": 1,
+    "candidate_ten_installer_tests_exit": 0,
+    "final_production_mutant_exit": 1,
+    "final_production_mutant_assertion_failures": 3,
+    "unchanged_ten_test_replay_exit": 0,
+    "mutant_scope": "Omit same-directory/regular-target guard after actual readlink resolution",
+    "nine_preceding_methods_unchanged": true,
+    "source_and_probes_edited_for_mutation": false
+  },
+  "frozen_inputs": {
+    "source": "0b2eb75e3922284da4ecdc4ad16561a67c777235",
+    "baseline_source": "d224cbd4b55faa5016f7c51ffb0447440950d550",
+    "source_installer_sha256": "a353cdd7cc17bba5a6d2cb577b55dc4aaab5efd7d074b89b0e93c5af22833988",
+    "frozen_probe_sha256": "dfd6ba91741b84354a13257e093aa2fa9da957f462b3edc03c5be2adb9ae0925",
+    "baseline_installer_sha256": "ab5b15d3c91f4907a9e363792c3dbb92fd62038fd8d1e4779142ad47d5d5f0a7",
+    "mutation": "Omit same-directory/regular-target guard after actual readlink resolution",
+    "mutant_installer_sha256": "fbd9c426b0b7967c00e830a4ed585f16d9ee54fe2188d9ec0bed3d108d0c7dd6",
+    "positive_oracle": "InstallPermissions.test_installer_preserves_local_runtime_log_links",
+    "negative_oracle": "InstallPermissions.test_installer_refuses_runtime_log_links_outside_local_regular_files",
+    "source_and_probe_edited_for_mutation": false
+  },
+  "independent_production_reviews": {
+    "source": "0b2eb75e3922284da4ecdc4ad16561a67c777235",
+    "Standards": 0,
+    "scoped_Spec": 0
+  },
+  "Pi_preparation": {
+    "installed_revision_unchanged": "4bc77ba605834fdec04b436daa4bec67bca84fbb",
+    "new_ARM_log_cli_opens_isolated_database_backup": true,
+    "isolated_disk_usage_bytes": 6516736,
+    "source_runtime_database_touched": false,
+    "backup_integrity_check": "ok",
+    "backup_schema_marker": "settings.schema_version = 3; PRAGMA user_version is not the application marker",
+    "release_backup_sha256": "b3f0821ed4487f76dc4be25419e42e5ab14e8f5da5928deeb86be89c75121623",
+    "release_backup_download_hash_verified": true,
+    "native_runtime_qualification_reused": "Unchanged Rust/Consul source qualification at b18faf486073b7311a029761792be171dac457ef; batch32 receipt. No new full native-runtime run claimed.",
+    "physical_commands_or_activation": false
+  },
+  "artifacts": {
+    "baseline-red.txt": {
+      "raw_capture_sha256": "cb77f57afbf735aee8f92ebd4e36005302c97a8ef5b4b3b00b4c2d07d8f954ea",
+      "committed_git_blob_sha256": "124e8d6b3cf6c6dfd45187321f20782de2a0df480ae4343bf0babf92b8fff85e"
+    },
+    "newline-candidate-red.txt": {
+      "raw_capture_sha256": "5dd92269eeb7e6aec13bea86df5f284673f76235672f900ee4e602b44e7c7a1c",
+      "committed_git_blob_sha256": "c997fb1bc8c08e1af19b9063c4b1d4c5f2f30ec078695b99def4341156645f55"
+    },
+    "installer-final-green.txt": {
+      "raw_capture_sha256": "85ee72b70e11f2ece1b62f99a69176964004fdbb452552985c50cff1acda3c92",
+      "committed_git_blob_sha256": "e19834cdfc136d8112b5b3220d7980a51daf26b5e9b4a54c6f77d80bee40ea0c"
+    },
+    "final-mutation-red.txt": {
+      "raw_capture_sha256": "111f236f27f50179ad8b6df4ff30b73b1ce173794cc074ce229aeecd1e4f9ea2",
+      "committed_git_blob_sha256": "825cf1581de81a332ef2afff74ef146b9ee57288dd6f14157ac901780dc94d51"
+    },
+    "final-unchanged-replay.txt": {
+      "raw_capture_sha256": "2c09b85d3242075f6262330ba0cde1f0ee2a79f071ef6f4df8ab11844344639d",
+      "committed_git_blob_sha256": "92c531c2ecf9dc448c3ffa8af9421a7da99336764beca93d3c4f3b7711b6d039"
+    },
+    "primary-final-green.txt": {
+      "raw_capture_sha256": "e9d3ef20c0e7a16749578de586e2e29d90f13369063772afa56348ff278bc1db",
+      "committed_git_blob_sha256": "9ea4e2a5d5488e53b93531705455f03644ee50737da374dd28dbd8dfcec5a2a2"
+    },
+    "final-frozen-mutation-inputs.json": {
+      "raw_capture_sha256": "5019f34fe1d0ec23f9726f9bd7524cb97721d4c1dbe81612f4c0f9c3fa9f4fbb",
+      "committed_git_blob_sha256": "5019f34fe1d0ec23f9726f9bd7524cb97721d4c1dbe81612f4c0f9c3fa9f4fbb"
+    },
+    "qualify-final-mutation.py": {
+      "raw_capture_sha256": "b828807db9fd3ff44981f63ae9b5eb6913dbef6187af8c2151533af08063a16c",
+      "committed_git_blob_sha256": "b828807db9fd3ff44981f63ae9b5eb6913dbef6187af8c2151533af08063a16c"
+    },
+    "final-mutant-install-pi.sh": {
+      "raw_capture_sha256": "fbd9c426b0b7967c00e830a4ed585f16d9ee54fe2188d9ec0bed3d108d0c7dd6",
+      "committed_git_blob_sha256": "fbd9c426b0b7967c00e830a4ed585f16d9ee54fe2188d9ec0bed3d108d0c7dd6"
+    }
+  },
+  "qualification_limits": [
+    "Service/process commands substituted in installer tests; actual filesystem/account/rsync/visudo behavior in disposable Docker.",
+    "The delivered-baseline run used the nine-method candidate probe; its positive method is unchanged in the ten-method final probe.",
+    "The c6aa099 provisional full primary skipped ARM and is superseded by final source qualification.",
+    "No test executable hash captured or claimed.",
+    "T01 remains partial; T02/T03 remain open. Known optional harness dangling JSON alias still refused.",
+    "Physical current reference is unsupported. No movement or installation acceptance."
+  ],
+  "final_metadata_review": "pending",
+  "PR_main_CI_delivery": "pending"
+}

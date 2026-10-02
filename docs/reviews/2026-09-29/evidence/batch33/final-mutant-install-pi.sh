@@ -1,0 +1,373 @@
+#!/usr/bin/env bash
+# Install Marengo runtime layout on Raspberry Pi (run on the Pi as root).
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=deploy-lib.sh
+source "${ROOT}/scripts/deploy-lib.sh"
+INSTALL_ROOT="${MARENGO_INSTALL_ROOT:-/opt/marengo}"
+RUN_USER="${MARENGO_USER:-marengo}"
+DEPLOY_USER="${MARENGO_DEPLOY_USER:-${SUDO_USER:-joey}}"
+PRIVILEGED_HELPERS="/usr/local/libexec/marengo"
+
+if [[ "$(id -u)" -ne 0 ]]; then
+  echo "run as root: sudo $0" >&2
+  exit 1
+fi
+
+echo "Installing Marengo to ${INSTALL_ROOT} (user ${RUN_USER})"
+
+# Runtime data is writable; privileged code and every parent are not. Reject
+# redirected release locations before any recursive copy or ownership change.
+for directory in "${INSTALL_ROOT}" "${INSTALL_ROOT}/bin" "${INSTALL_ROOT}/scripts" \
+  "${INSTALL_ROOT}/www" \
+  "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets" "${INSTALL_ROOT}/var" \
+  "${PRIVILEGED_HELPERS}"; do
+  if [[ -L "${directory}" ]]; then
+    echo "error: install directory is a symlink: ${directory}" >&2
+    exit 1
+  fi
+done
+
+# A previous runtime-owned layout may contain redirected code entries. Refuse
+# those before sealing the old tree or writing through any installed path.
+local_runtime_log_link() {
+  local link="$1"
+  local target
+  # Capture maintains file aliases in var/log. No privileged code is copied
+  # there. Only allow a regular-file target in that same directory; directory,
+  # dangling and external links still refuse before service or file changes.
+  [[ "${link%/*}" == "${INSTALL_ROOT}/var/log" ]] || return 1
+  IFS= read -r -d '' target < <(readlink -e -z -- "$link") || return 1
+  return 0
+}
+
+reject_installed_symlinks() {
+  local link
+  for directory in bin scripts www config assets var; do
+    if [[ -d "${INSTALL_ROOT}/${directory}" ]]; then
+      while IFS= read -r -d '' link; do
+        if [[ "$directory" == var ]] && local_runtime_log_link "$link"; then
+          continue
+        fi
+        echo "error: installed tree contains a symlink: ${INSTALL_ROOT}/${directory}" >&2
+        return 1
+      done < <(find "${INSTALL_ROOT}/${directory}" -type l -print0)
+    fi
+  done
+  if [[ -L "${INSTALL_ROOT}/.deploy-rev" ]]; then
+    echo "error: installed revision is a symlink" >&2
+    exit 1
+  fi
+}
+reject_installed_symlinks
+
+ancestor="${PRIVILEGED_HELPERS}"
+while :; do
+  if [[ -L "${ancestor}" ]]; then
+    echo "error: privileged helper ancestor is a symlink: ${ancestor}" >&2
+    exit 1
+  fi
+  if [[ -e "${ancestor}" ]]; then
+    owner="$(stat -c '%u' -- "${ancestor}")"
+    permissions="$(stat -c '%a' -- "${ancestor}")"
+    if [[ ! -d "${ancestor}" ]] || (( owner != 0 || (8#${permissions} & 8#022) != 0 )); then
+      echo "error: privileged helper ancestor must be root-owned and immutable: ${ancestor}" >&2
+      exit 1
+    fi
+  fi
+  [[ "${ancestor}" == / ]] && break
+  ancestor="$(dirname -- "${ancestor}")"
+done
+for helper in pi-restart-marengo-pi.sh pi-enqueue-self-update.sh; do
+  if [[ -L "${PRIVILEGED_HELPERS}/${helper}" ]]; then
+    echo "error: privileged helper is a symlink: ${helper}" >&2
+    exit 1
+  fi
+done
+
+# Bench default: stop always-on control so manual/MCP sessions own marengo-pi.
+systemctl stop marengo-pi.service 2>/dev/null || true
+pkill -f "${INSTALL_ROOT}/bin/marengo-pi" 2>/dev/null || true
+
+seal_installed_tree() {
+  chown root:root "${INSTALL_ROOT}"
+  chmod 0755 "${INSTALL_ROOT}"
+  for directory in bin scripts www config assets var; do
+    if [[ -d "${INSTALL_ROOT}/${directory}" ]]; then
+      chown -hR root:root "${INSTALL_ROOT}/${directory}"
+      # Seal directories in preorder before visiting their children. A legacy
+      # runtime-owned directory must not stay writable during privileged writes.
+      find "${INSTALL_ROOT}/${directory}" -type d \
+        -exec chown root:root {} \; -exec chmod 0755 {} \;
+      chown -hR root:root "${INSTALL_ROOT}/${directory}"
+      find "${INSTALL_ROOT}/${directory}" -type f -exec chmod go-w {} +
+    fi
+  done
+}
+# Seal legacy runtime-owned entries before any privileged installation writes.
+mkdir -p "${INSTALL_ROOT}"
+seal_installed_tree
+reject_installed_symlinks
+
+if ! id "$RUN_USER" &>/dev/null; then
+  useradd --system --home "$INSTALL_ROOT" --shell /usr/sbin/nologin "$RUN_USER"
+fi
+usermod -aG dialout "$RUN_USER" || true
+usermod -aG i2c "$RUN_USER" || true
+if id "$DEPLOY_USER" &>/dev/null; then
+  usermod -aG "$RUN_USER" "$DEPLOY_USER" || true
+  usermod -aG i2c "$DEPLOY_USER" || true
+fi
+
+mkdir -p \
+  "${INSTALL_ROOT}/bin" \
+  "${INSTALL_ROOT}/config" \
+  "${INSTALL_ROOT}/assets" \
+  "${INSTALL_ROOT}/www" \
+  "${INSTALL_ROOT}/var/log" \
+  "${INSTALL_ROOT}/var/log/blobs" \
+  "${INSTALL_ROOT}/var/calibration" \
+  "${INSTALL_ROOT}/var/gateway/tls"
+
+PI_BIN="${ROOT}/target/release/marengo-pi"
+GATEWAY_BIN="${ROOT}/target/release/marengo-gateway"
+LOG_CLI_BIN="${ROOT}/target/release/marengo-log-cli"
+REPL_BIN="${ROOT}/target/release/motor-repl"
+IMU_PROBE_BIN="${ROOT}/target/release/imu-probe"
+# Flat deploy layout (legacy rsync): binaries at repo root
+if [[ ! -f "$PI_BIN" && -f "${ROOT}/marengo-pi" ]]; then
+  PI_BIN="${ROOT}/marengo-pi"
+fi
+if [[ ! -f "$REPL_BIN" && -f "${ROOT}/motor-repl" ]]; then
+  REPL_BIN="${ROOT}/motor-repl"
+fi
+if [[ ! -f "$PI_BIN" ]]; then
+  echo "error: marengo-pi not found under ${ROOT}/target/release/ or ${ROOT}/" >&2
+  exit 1
+fi
+install -m 755 "$PI_BIN" "${INSTALL_ROOT}/bin/marengo-pi"
+if [[ -f "$GATEWAY_BIN" ]]; then
+  install -m 755 "$GATEWAY_BIN" "${INSTALL_ROOT}/bin/marengo-gateway"
+fi
+if [[ -f "$LOG_CLI_BIN" ]]; then
+  install -m 755 "$LOG_CLI_BIN" "${INSTALL_ROOT}/bin/marengo-log-cli"
+fi
+if [[ -f "$REPL_BIN" ]]; then
+  install -m 755 "$REPL_BIN" "${INSTALL_ROOT}/bin/motor-repl"
+fi
+if [[ -f "$IMU_PROBE_BIN" ]]; then
+  install -m 755 "$IMU_PROBE_BIN" "${INSTALL_ROOT}/bin/imu-probe"
+fi
+
+# Set Limits Apply writes durable hard/soft (+ expand-only URDF) on the Pi.
+# Backup those envelopes before rsync so deploy cannot clobber them (ADR 0012/0017).
+# Opt out: MARENGO_REPLACE_LIMITS=1
+TAUGHT_BACKUP=""
+if [[ "${MARENGO_REPLACE_LIMITS:-0}" != "1" ]] && [[ -f "${INSTALL_ROOT}/config/motors.yaml" ]]; then
+  TAUGHT_BACKUP="$(mktemp -d)"
+  mkdir -p "${TAUGHT_BACKUP}/config" "${TAUGHT_BACKUP}/assets/urdf"
+  cp -a "${INSTALL_ROOT}/config/motors.yaml" "${TAUGHT_BACKUP}/config/" || true
+  if [[ -f "${INSTALL_ROOT}/config/control.yaml" ]]; then
+    cp -a "${INSTALL_ROOT}/config/control.yaml" "${TAUGHT_BACKUP}/config/" || true
+  fi
+  if [[ -f "${INSTALL_ROOT}/assets/urdf/marengo.urdf" ]]; then
+    cp -a "${INSTALL_ROOT}/assets/urdf/marengo.urdf" "${TAUGHT_BACKUP}/assets/urdf/" || true
+  fi
+  echo "install-pi: backed up taught limits for preserve merge"
+fi
+
+rsync -a --chown=root:root --chmod=Dgo-w,Fgo-w --delete "${ROOT}/config/" "${INSTALL_ROOT}/config/"
+rsync -a --chown=root:root --chmod=Dgo-w,Fgo-w "${ROOT}/assets/" "${INSTALL_ROOT}/assets/"
+rsync -a --chown=root:root --chmod=Dgo-w,Fgo-w "${ROOT}/scripts/" "${INSTALL_ROOT}/scripts/"
+
+install -d -o root -g root -m 0755 "${PRIVILEGED_HELPERS}"
+for helper in pi-restart-marengo-pi.sh pi-enqueue-self-update.sh; do
+  install -o root -g root -m 0755 "${ROOT}/scripts/${helper}" "${PRIVILEGED_HELPERS}/${helper}"
+done
+
+if [[ -n "${TAUGHT_BACKUP}" ]]; then
+  if [[ -f "${ROOT}/scripts/preserve-taught-limits.py" ]]; then
+    python3 "${ROOT}/scripts/preserve-taught-limits.py" \
+      --previous "${TAUGHT_BACKUP}" \
+      --install-root "${INSTALL_ROOT}" \
+      || echo "warning: preserve-taught-limits failed; Pi may have lost taught Set Limits" >&2
+  else
+    echo "warning: preserve-taught-limits.py missing from deploy bundle" >&2
+  fi
+  rm -rf "${TAUGHT_BACKUP}"
+fi
+
+WWW_SRC=""
+if [[ -d "${ROOT}/consul/dist" ]] && [[ -f "${ROOT}/consul/dist/index.html" ]]; then
+  WWW_SRC="${ROOT}/consul/dist"
+elif [[ -d "${ROOT}/www" ]] && [[ -f "${ROOT}/www/index.html" ]]; then
+  WWW_SRC="${ROOT}/www"
+fi
+if [[ -n "$WWW_SRC" ]]; then
+  rsync -a --chown=root:root --chmod=Dgo-w,Fgo-w --delete "${WWW_SRC}/" "${INSTALL_ROOT}/www/"
+else
+  echo "warning: no Consul UI (consul/dist or www/index.html missing — run pi-native-build or cross deploy)" >&2
+fi
+chmod 755 "${INSTALL_ROOT}/scripts/can-up.sh"
+chmod 755 "${INSTALL_ROOT}/scripts/homing-preflight.sh" 2>/dev/null || true
+
+if id "$DEPLOY_USER" &>/dev/null; then
+  SUDOERS_PATH="/etc/sudoers.d/marengo-${DEPLOY_USER}"
+  SUDOERS_TMP="$(mktemp)"
+  cat >"$SUDOERS_TMP" <<EOF
+# Marengo bench automation (${DEPLOY_USER}) - generated by scripts/install-pi.sh
+${DEPLOY_USER} ALL=(root) NOPASSWD: ${INSTALL_ROOT}/scripts/can-up.sh *
+${DEPLOY_USER} ALL=(root) NOPASSWD: ${PRIVILEGED_HELPERS}/pi-restart-marengo-pi.sh
+${DEPLOY_USER} ALL=(root) NOPASSWD: ${PRIVILEGED_HELPERS}/pi-restart-marengo-pi.sh *
+${DEPLOY_USER} ALL=(root) NOPASSWD: ${INSTALL_ROOT}/scripts/install-pi.sh
+${DEPLOY_USER} ALL=(root) NOPASSWD: /home/${DEPLOY_USER}/marengo/scripts/install-pi.sh
+EOF
+  chmod 440 "$SUDOERS_TMP"
+  if visudo -cf "$SUDOERS_TMP" >/dev/null; then
+    install -m 440 "$SUDOERS_TMP" "$SUDOERS_PATH"
+  else
+    echo "warning: generated sudoers failed validation; not installing ${SUDOERS_PATH}" >&2
+  fi
+  rm -f "$SUDOERS_TMP"
+fi
+
+# Gateway (User=${RUN_USER}) may restart marengo-pi and enqueue self-update only.
+if id "$RUN_USER" &>/dev/null; then
+  RUN_SUDOERS_PATH="/etc/sudoers.d/marengo-${RUN_USER}-restart"
+  RUN_SUDOERS_TMP="$(mktemp)"
+  cat >"$RUN_SUDOERS_TMP" <<EOF
+# Marengo gateway control-loop restart + self-update enqueue (${RUN_USER}) - generated by scripts/install-pi.sh
+${RUN_USER} ALL=(root) NOPASSWD: ${PRIVILEGED_HELPERS}/pi-restart-marengo-pi.sh restart
+${RUN_USER} ALL=(root) NOPASSWD: ${PRIVILEGED_HELPERS}/pi-enqueue-self-update.sh *
+EOF
+  chmod 440 "$RUN_SUDOERS_TMP"
+  if visudo -cf "$RUN_SUDOERS_TMP" >/dev/null; then
+    install -m 440 "$RUN_SUDOERS_TMP" "$RUN_SUDOERS_PATH"
+  else
+    echo "warning: generated restart sudoers failed validation; not installing ${RUN_SUDOERS_PATH}" >&2
+  fi
+  rm -f "$RUN_SUDOERS_TMP"
+fi
+
+mkdir -p /etc/marengo
+if [[ ! -f /etc/marengo/env ]]; then
+  install -m 640 "${ROOT}/scripts/env.example" /etc/marengo/env
+  chown root:"${RUN_USER}" /etc/marengo/env
+fi
+# Migrate legacy bringup profile paths carefully.
+# Only auto-migrate profiles that are equivalent to master right 4-DOF.
+# Non-equivalent benches (3-DOF, left, weighted, …) require an explicit ack.
+MARENGO_ALLOW_NONEQUIV_BRINGUP_MIGRATE="${MARENGO_ALLOW_NONEQUIV_BRINGUP_MIGRATE:-0}"
+if [[ -f /etc/marengo/env ]] && grep -q 'config/bringup/' /etc/marengo/env 2>/dev/null; then
+  bringup_slugs="$(
+    grep -oE 'config/bringup/[^[:space:]"'\'']+' /etc/marengo/env 2>/dev/null \
+      | sed 's|.*/||' | sort -u || true
+  )"
+  if [[ -n "${bringup_slugs}" ]]; then
+    install -m 640 /etc/marengo/env "/etc/marengo/env.bak.$(date -u +%Y%m%dT%H%M%SZ)"
+  fi
+  for slug in ${bringup_slugs}; do
+    case "${slug}" in
+      arm_4dof_right|arm_2dof_right)
+        echo "install-pi: migrating bringup/${slug} → master config/"
+        sed -i "s|/opt/marengo/config/bringup/${slug}|/opt/marengo/config|g" /etc/marengo/env
+        sed -i "s|config/bringup/${slug}|config|g" /etc/marengo/env
+        ;;
+      arm_3dof_right)
+        if [[ "${MARENGO_ALLOW_NONEQUIV_BRINGUP_MIGRATE}" == "1" ]]; then
+          echo "install-pi: migrating bringup/${slug} → master config/ with JOINT_SUBSET (explicit ack)"
+          sed -i "s|/opt/marengo/config/bringup/${slug}|/opt/marengo/config|g" /etc/marengo/env
+          sed -i "s|config/bringup/${slug}|config|g" /etc/marengo/env
+          if ! grep -q '^MARENGO_JOINT_SUBSET=' /etc/marengo/env 2>/dev/null; then
+            printf '\n# Auto-set on 3-DOF → master migration (install-pi.sh)\nMARENGO_JOINT_SUBSET=right_shoulder_roll,right_shoulder_pitch,right_upper_arm_yaw\n' \
+              >> /etc/marengo/env
+          fi
+        else
+          echo "error: /etc/marengo/env points at bringup/${slug}, which is not equivalent to master right 4-DOF." >&2
+          echo "error: re-run with MARENGO_ALLOW_NONEQUIV_BRINGUP_MIGRATE=1 to migrate and set MARENGO_JOINT_SUBSET, or edit env manually." >&2
+          exit 1
+        fi
+        ;;
+      *)
+        if [[ "${MARENGO_ALLOW_NONEQUIV_BRINGUP_MIGRATE}" == "1" ]]; then
+          echo "warning: migrating non-equivalent bringup/${slug} → master config/ (explicit ack; verify CAN map / JOINT_SUBSET)" >&2
+          sed -i "s|/opt/marengo/config/bringup/${slug}|/opt/marengo/config|g" /etc/marengo/env
+          sed -i "s|config/bringup/${slug}|config|g" /etc/marengo/env
+        else
+          echo "error: /etc/marengo/env points at bringup/${slug}; refusing blind cutover to master right 4-DOF." >&2
+          echo "error: set MARENGO_ALLOW_NONEQUIV_BRINGUP_MIGRATE=1 after confirming the joint/CAN map, or point MARENGO_CONFIG_DIR at /opt/marengo/config yourself." >&2
+          exit 1
+        fi
+        ;;
+    esac
+  done
+fi
+
+install -m 644 "${ROOT}/scripts/systemd/marengo-can.service" /etc/systemd/system/marengo-can.service
+install -m 644 "${ROOT}/scripts/systemd/marengo-pi.service" /etc/systemd/system/marengo-pi.service
+install -m 644 "${ROOT}/scripts/systemd/marengo-gateway.service" /etc/systemd/system/marengo-gateway.service
+install -m 644 "${ROOT}/scripts/systemd/marengo-log-maintenance.service" /etc/systemd/system/marengo-log-maintenance.service
+install -m 644 "${ROOT}/scripts/systemd/marengo-log-maintenance.timer" /etc/systemd/system/marengo-log-maintenance.timer
+sed -i "s|WorkingDirectory=.*|WorkingDirectory=${INSTALL_ROOT}|" /etc/systemd/system/marengo-pi.service
+sed -i "s|User=.*|User=${RUN_USER}|" /etc/systemd/system/marengo-pi.service
+sed -i "s|ExecStart=.*|ExecStart=${INSTALL_ROOT}/bin/marengo-pi|" /etc/systemd/system/marengo-pi.service
+sed -i "s|WorkingDirectory=.*|WorkingDirectory=${INSTALL_ROOT}|" /etc/systemd/system/marengo-gateway.service
+sed -i "s|User=.*|User=${RUN_USER}|" /etc/systemd/system/marengo-gateway.service
+sed -i "s|ExecStart=.*|ExecStart=${INSTALL_ROOT}/bin/marengo-gateway --http-listen [::]:8080 --https-listen [::]:8444 --web-root ${INSTALL_ROOT}/www --wt-listen [::]:8443 --chappe-socket /run/marengo/chappe.sock|" /etc/systemd/system/marengo-gateway.service
+
+chown -hR root:root "${INSTALL_ROOT}"
+seal_installed_tree
+reject_installed_symlinks
+chown -hR root:"${RUN_USER}" "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets" "${INSTALL_ROOT}/var"
+for directory in config assets var; do
+  # Restore file permissions while every parent is sealed. Open directories
+  # from children to parents so root never revisits runtime-writable entries.
+  find "${INSTALL_ROOT}/${directory}" -type f -exec chmod g+rwX {} +
+  find "${INSTALL_ROOT}/${directory}" -depth -type d -exec chmod g+rwX {} \;
+done
+
+
+install_deploy_rev "${ROOT}" "${INSTALL_ROOT}"
+chown root:root "${INSTALL_ROOT}/.deploy-rev"
+chmod 644 "${INSTALL_ROOT}/.deploy-rev"
+
+systemctl daemon-reload
+systemctl enable --now marengo-can.service
+if [[ -f "${INSTALL_ROOT}/bin/marengo-gateway" ]]; then
+  systemctl enable marengo-gateway.service
+  systemctl restart marengo-gateway.service
+fi
+if [[ -f "${INSTALL_ROOT}/bin/marengo-log-cli" ]]; then
+  systemctl enable --now marengo-log-maintenance.timer
+fi
+if [[ -f "${INSTALL_ROOT}/bin/marengo-pi" ]]; then
+  systemctl enable marengo-pi.service
+  systemctl restart marengo-pi.service
+fi
+
+echo "Done. CAN (can0/can1) should be UP — verify: ip -br link show type can"
+if [[ -x "${INSTALL_ROOT}/bin/motor-repl" ]] && [[ -x "${INSTALL_ROOT}/scripts/homing-preflight.sh" ]]; then
+  BENCH_CFG="${INSTALL_ROOT}/config"
+  if [[ -f /etc/marengo/env ]] && grep -q '^MARENGO_CONFIG_DIR=' /etc/marengo/env 2>/dev/null; then
+    BENCH_CFG="$(grep '^MARENGO_CONFIG_DIR=' /etc/marengo/env | tail -1 | cut -d= -f2- | tr -d "\"'")"
+    if [[ "$BENCH_CFG" != /* ]]; then
+      BENCH_CFG="${INSTALL_ROOT}/${BENCH_CFG}"
+    fi
+  fi
+  echo ""
+  MARENGO_ROOT="${INSTALL_ROOT}" MARENGO_CONFIG_DIR="${BENCH_CFG}" \
+    "${INSTALL_ROOT}/scripts/homing-preflight.sh" || true
+fi
+echo "Next:"
+echo "  1. Edit /etc/marengo/env (MARENGO_ROOT, MARENGO_CONFIG_DIR)"
+echo "  2. Consul UI: https://marengo.local:8444 (gateway enabled on boot; accept self-signed cert once)"
+echo "  3. Bench motion: run marengo-pi / motor-repl manually (do not enable marengo-pi.service unless you want always-on control)"
+echo "  4. Example: MARENGO_CONFIG_DIR=config ${INSTALL_ROOT}/bin/motor-repl status"
+echo "  5. Local dev Consul: VITE_CHAPPE_* in consul/.env.local (see consul/.env.example)"
+PI_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+if [[ -n "${PI_IP}" ]] && [[ -f /etc/marengo/env ]]; then
+  if ! grep -q '^MARENGO_GATEWAY_TLS_EXTRA_SAN=' /etc/marengo/env 2>/dev/null; then
+    echo "MARENGO_GATEWAY_TLS_EXTRA_SAN=${PI_IP}" >> /etc/marengo/env
+  fi
+fi

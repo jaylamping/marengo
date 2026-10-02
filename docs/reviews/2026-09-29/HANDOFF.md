@@ -1,3 +1,22 @@
+## Latest Windows qualification: batch33 installer, October 2
+
+Source0b2eb75 is software qualified: 861 Rust/one existing ignored, 374 Consul,
+ten installer tests, full primary and fatal ARM release. Both independent
+production reviews clear. Frozen resolved-target-guard mutation produces three
+actual installer assertion failures; ten unchanged tests replay green. Exact
+source/probe/raw and committed artifact bindings are in evidence/batch33.
+Final metadata review and exact PR/main CI/delivery remain pending.
+
+Pi release/database backups are preserved; the new ARM log CLI opens an isolated
+copy of the healthy schema3 runtime database. Installed4bc77ba and live services
+remain unchanged. No installation, CAN/motor command or physical acceptance.
+Owner powered-testing approval stands; stable supported/stopped state and E-stop
+readiness are required before activation. Qualified physical reference remains
+unsupported. Each movement needs concrete bounds/stop and explicit confirmation;
+ten-minute silence permits independent work only. T01 partial; T02/T03 open;
+counts26/13/63,102 findings/eight maintenance tasks and all preserved work remain.
+All earlier handoff bytes below are historical and preserved unchanged.
+
 ## Latest installer amendment: exact filename resolution, October 2
 
 Review reproduced newline-directory admission at c6aa099. NUL-delimited

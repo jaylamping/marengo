@@ -1,0 +1,18 @@
+ Container marengo-dev-run-276b57e3ea8e Creating
+ Container marengo-dev-run-276b57e3ea8e Created
+test_installer_preserves_local_runtime_log_links (__main__.InstallPermissions.test_installer_preserves_local_runtime_log_links) ... FAIL
+
+======================================================================
+FAIL: test_installer_preserves_local_runtime_log_links (__main__.InstallPermissions.test_installer_preserves_local_runtime_log_links)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scripts/test_install_permissions.py", line 266, in test_installer_preserves_local_runtime_log_links
+    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+AssertionError: 1 != 0 : Installing Marengo to /tmp/marengo-install-permissions-3dmmv7ie/runtime-log-install (user marengo)
+error: installed tree contains a symlink: /tmp/marengo-install-permissions-3dmmv7ie/runtime-log-install/var
+
+
+----------------------------------------------------------------------
+Ran 1 test in 1.664s
+
+FAILED (failures=1)

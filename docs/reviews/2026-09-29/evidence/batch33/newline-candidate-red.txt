@@ -1,0 +1,16 @@
+ Container marengo-dev-run-3900c0ae955d Creating
+ Container marengo-dev-run-3900c0ae955d Created
+test_installer_refuses_directory_alias_with_trailing_newline (__main__.InstallPermissions.test_installer_refuses_directory_alias_with_trailing_newline) ... FAIL
+
+======================================================================
+FAIL: test_installer_refuses_directory_alias_with_trailing_newline (__main__.InstallPermissions.test_installer_refuses_directory_alias_with_trailing_newline)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scripts/test_install_permissions.py", line 288, in test_installer_refuses_directory_alias_with_trailing_newline
+    self.assertNotEqual(result.returncode, 0, 'installer accepted a directory log alias')
+AssertionError: 0 == 0 : installer accepted a directory log alias
+
+----------------------------------------------------------------------
+Ran 1 test in 1.456s
+
+FAILED (failures=1)

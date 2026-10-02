@@ -26,15 +26,31 @@ accepted when a regular sibling had the stripped name. NUL-delimited resolution
 now preserves the exact pathname. All ten actual-installer tests pass: the
 seven existing contracts plus preserved aliases, four refused target cases and
 the newline-directory regression. The preceding nine method bodies are unchanged.
-Service/process controls are substituted; filesystem,
-ownership, accounts, rsync and sudoers validation are real. The preceding seven
-methods remain unchanged. Full primary gate, independent review, mutation and
-exact PR/main delivery are pending; no qualification from those gates is claimed.
-The preceding c6aa099 full primary passes with its ARM smoke explicitly skipped
-by CI branch selection; it is provisional qualification only. Final source
-requires its own full primary and fatal ARM bundle build. The baseline failure,
-newline candidate failure and candidate logs are retained under
-J:/code/marengo-migration-backup-20260929/batch33-pi-install-log-links.
+Service/process controls are substituted; filesystem, ownership, accounts,
+rsync and sudoers validation are real. The original seven methods remain
+unchanged. Both independent production reviews clear source 0b2eb75 with zero
+actionable findings. Its full primary passes: 861 Rust, one existing ignored,
+374 Consul, ten installer tests, fmt/clippy/buf/deny/audit and fatal all-workspace
+ARM release. The final production mutation omitting the resolved-target guard
+fails three actual installer subcase assertions; the ten unchanged tests replay
+successfully. See evidence/batch33/final-source-qualification.json for exact
+source/probe/artifact bindings. Final metadata review and exact PR/main CI and
+delivery remain pending.
+
+The preceding c6aa099 primary pass skipped ARM by branch selection and remains
+provisional historical evidence only. The baseline failure used its nine-method
+probe; the positive alias method is unchanged in the final ten-method file.
+Newline regression and final mutation are separately identified. Raw captures
+remain under J:/code/marengo-migration-backup-20260929/batch33-pi-install-log-links;
+committed captures normalize line endings, terminal escapes and trailing space,
+with both raw and committed hashes recorded.
+
+Read-only/user-directory Pi preparation retains the old revision and running
+services. A verified release archive and online SQLite backup are preserved;
+the backup integrity check passes, its application schema marker is version3,
+and the new ARM log CLI opens an isolated copy successfully. Unchanged runtime
+native qualification remains bound to batch32/b18faf4. This is preparation,
+not installation or physical acceptance.
 
 T01 remains partial and T02/T03 remain open; this small compatibility repair
 does not implement atomic versioned activation or fail-closed taught-limit
