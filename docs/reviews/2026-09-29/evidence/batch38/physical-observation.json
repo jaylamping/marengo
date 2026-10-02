@@ -1,0 +1,42 @@
+{
+  "source": "2d0fd4088b0ca0301b2e27b07560b54b40ec61ca",
+  "installer_exit": 0,
+  "captured_seconds": 59.99671006202698,
+  "frames": 30579,
+  "capture_SHA256": "5e3fc00fbcc0081758131899ab6572f2f18b66fc393ebf4671377b1ab49308fa",
+  "error_frames": [],
+  "transport_frame_kinds": {
+    "1": 5,
+    "2": 300,
+    "4": 5,
+    "18": 5,
+    "24": 30264
+  },
+  "neutral_MIT_frames": 5,
+  "Enable_and_SetZero_frames": 0,
+  "CAN0_rx_over_errors": {
+    "at_backup": 494,
+    "before_install": 502,
+    "after_capture": 502,
+    "fresh": 502
+  },
+  "before_update_latch": {
+    "mode": "Disabled",
+    "Unhomed": 0,
+    "Faulted": 5,
+    "software_latch": true
+  },
+  "fresh_state": {
+    "mode": "Disabled",
+    "Faulted": 0,
+    "Unhomed": 5,
+    "software_latch": false
+  },
+  "release_verified": 214,
+  "taught_limits_identity_calibration_environment_preserved": true,
+  "Store_integrity_schema": "ok/3",
+  "HTTPS": "200, local certificate explicitly trusted, exact installed index",
+  "owner_raw_frame_hardware_comparison": "No new error captured in this bounded window; physical owner/error correlation remains unqualified",
+  "physical_acceptance": false,
+  "limits": "Software restart is not physical fault recovery. Earlier CAN recurrence remains, physical current reference/priority stop and movement tests remain unqualified. No reply pending."
+}

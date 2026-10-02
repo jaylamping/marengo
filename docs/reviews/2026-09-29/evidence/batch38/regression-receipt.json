@@ -1,0 +1,15 @@
+{
+  "baseline": "386651981664b6242b2beda4b333b85e617c1378",
+  "probe": "bins/marengo-pi/src/safety_receive_diagnostic_tests.rs",
+  "probe_sha256": "139022845c7803f55051f93cac44ad2fd34ec3e169da41cb768bb917db6cd839",
+  "prior_batch35_probe_unchanged": true,
+  "red_production_change": "cfg(test) module registration only; original publisher/fault implementation unchanged",
+  "red_named_failures": 5,
+  "red_healthy_control_passed": 1,
+  "red_executable_sha256": "62b9981aecaa189f49ab56807dc0f0750fe1834152c8797a8c8d946e699f0b19",
+  "red_log_sha256": "7d45c7514644a7fe26e315efc38044eea2182ac00e6747afcaa747dcf1becaff",
+  "green_passed": 6,
+  "prior_periodic_passed": 5,
+  "green_executable_sha256": "4b842174600fcec33fef3924270c3dc54c75d329b12f5e34695eccd946c56c59",
+  "green_log_sha256": "fa18fdf6fd8dc3303e50019f83d7ad37b9e2f9f5ee932c7d02497a6a23700e43"
+}

@@ -1,0 +1,34 @@
+{
+  "recorded_UTC": "2026-10-02T18:04:12.162844+00:00",
+  "baseline": "ba0fff7206877943fbca0f79b18d59089d5d4a24",
+  "prior_HANDOFF_SHA256": "7c076987e5c82c19f1d25e7dfcd90cb6d4d09f22658ec15dac7a0a0461c4826b",
+  "prior_HANDOFF_bytes": 53475,
+  "HANDOFF_historical_suffix_preserved_exactly": true,
+  "all_102_finding_objects_unchanged": true,
+  "all_eight_maintenance_objects_unchanged": true,
+  "historical_current_batch16_unchanged": true,
+  "active_Mac_continuation_unchanged": true,
+  "prior_batch_history_preserved": true,
+  "finding_status_counts": {
+    "verified": 26,
+    "partial": 13,
+    "open": 63
+  },
+  "prior_stop_point": {
+    "date": "2026-10-01",
+    "reason": "Explicit owner request to stop and resume on Mac",
+    "handoff": "HANDOFF.md",
+    "software_checkpoint": "63cbe7eb0427888a9c4e242bca5daf80f44acdba",
+    "Windows_checkout": "J:/code/marengo",
+    "Mac_checkout": "Host checkout of the same GitHub repository; ~/code/marengo is an example, not an observed Mac path",
+    "software_complete": false,
+    "batch17_started": true,
+    "automation_id": "marengo-repair-loop",
+    "automation_status": "PAUSED",
+    "restart_requires_explicit_owner_request": true,
+    "human_input_blocker": null
+  },
+  "automation_status": "PAUSED",
+  "goal_pause_after_closing_delivery_requested_by_owner": true,
+  "physical_acceptance": false
+}

@@ -1,0 +1,15 @@
+{
+  "recorded_UTC": "2026-10-02T17:30:12.992876+00:00",
+  "head": "2d0fd4088b0ca0301b2e27b07560b54b40ec61ca",
+  "baseline": "386651981664b6242b2beda4b333b85e617c1378",
+  "Standards": {
+    "findings": 0,
+    "smells": 0,
+    "result": "CLEAR; formatting owned by ReceiveFrameEvidence; bounded metadata/prefix, no Remote data or invented physical time/recovery."
+  },
+  "Spec": {
+    "findings": 0,
+    "result": "CLEAR; first retained envelope appended without authority/mode/latch/severity/output changes; frozen regression receipts verified."
+  },
+  "full_gates_at_review": "Primary/native/CI were pending when source reviews completed; gate results recorded independently."
+}

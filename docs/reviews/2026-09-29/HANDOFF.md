@@ -1,3 +1,34 @@
+# Windows stopping point — 2026-10-02, PR252 delivered
+
+Start the new session with [RIGHT-ARM-VALIDATION-HANDOFF.md](RIGHT-ARM-VALIDATION-HANDOFF.md).
+It covers completed repairs, all remaining dispositions, exact software/physical
+evidence, preserved local work, recovery paths and the route to a first direction
+test. The owner requested this stopping point and will resume in a new session;
+pause the unfinished goal after closing documentation delivery. Automation stays
+PAUSED. No human reply is pending and no new batch/experiment is started.
+
+PR252 source2d0fd40/mainba0fff have identical trees; source/main CI each pass all
+five actual jobs. Primary/native895Rust/1existingignored/374UI and strict/ARM gates
+pass, independent source Standards/Spec CLEAR. Installed/source/preservation
+receipts are in evidence/batch38; see batch38-receive-diagnostics.md.
+
+Pi source cleanba0fff at17:59:45Z, installed2d0fd40; Disabled/five Unhomed/no latch,
+CAN0 RX errors502, services active with unchanged PIDs. Closing documentation
+source sync advances to its main revision without replacing runtime or restarting
+services. Primary preserves five pre-existing local edits, excluded from release.
+Passive300s has152889frames/zeroerrors/297freshDisabled samples; earlier intermittent
+overflows remain unresolved. No Enable, SetZero, target or movement commanded.
+
+Physical reference, owner priority stop/recovery and commissioning remain
+unqualified. Lower yaw is outside its preserved taught interval. Powered supported
+setup authorization remains recorded; ask for each concrete movement with bounds
+and stop procedure after required checks. Ten-minute silence permits independent
+work only. Counts102/eight/26verified/13partial/63open and historical batch16,
+Mac continuation/CAD/limits/history/branches/worktrees/backups remain preserved.
+Earlier checkpoints below are historical and retained as an exact suffix.
+
+---
+
 # Windows continuation - 2026-10-02, PR251 delivered and Pi synced
 
 PR251 delivers source0a3fc6b/reviewed5db4394/mainbab38c6, equal final/main tree.

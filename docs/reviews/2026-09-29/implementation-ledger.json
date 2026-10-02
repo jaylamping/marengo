@@ -2200,7 +2200,7 @@
         "Still required: installed firmware/detailed-word qualification and explicit fresh recovery; no invented endian decoding or physical proof. Frame class/DLC integrity and receive/flush bounds are implemented in batch04.",
         "Batch04 preserves Data/Remote/Error class and actual length, exact-eight vendor feedback, partial malformed evidence, raw hazard order and typed kernel errors. One engine bounds all traffic/interruptions to 64 raw frames and 256 reads, rotates peer visits and refuses incomplete activation flushes. Three portable and four Supervisor unchanged-public baseline regressions are green; integrated Linux feature gate passes. GitHub run36684361659 at 6d5cedf passes all 73 driver feature tests, including six actual virtual tests and all matrix suffix cases; five jobs pass. Physical firmware/recovery acceptance remains open.",
         "Batch36 actual physical diagnostic captures can0 controllerRXoverflow frame20000004#0001000000000000 at14:26:49.838195Z,22.027291s after runtime startup; corresponding counter396->397 and installed fault/latch transition preserved. Exact frame bytes and ABI classification are now observed, while servicing-delay cause, installed firmware/device protocol and qualified recovery/reference remain open. Read-only passive observer ready before one authorized software restart; no motor Enable/SetZero/target/movement test. See batch36-physical-can-overflow.md and evidence/batch36/diagnostic-summary.json.",
-        "Batch37 source0a3fc6b/PR251 qualifies healthy reporting refresh pacing: three unchanged original assertion failures/candidate passes, primary/native889Rust/1existingignored/374UI, source all-five CI and CLEAR reviews. Physical comparison is inconclusive: earlier A1 two captured RX-overflow errors, candidate later inter-window fault486\u2192487, but matched B1/A2/B2 all clean300s. Pacing timing observed; causal fix/recovery/reference/stop/motion remain unqualified. See batch37 report and evidence/batch37/physical-comparison.json; statuses/counts unchanged.",
+        "Batch37 source0a3fc6b/PR251 qualifies healthy reporting refresh pacing: three unchanged original assertion failures/candidate passes, primary/native889Rust/1existingignored/374UI, source all-five CI and CLEAR reviews. Physical comparison is inconclusive: earlier A1 two captured RX-overflow errors, candidate later inter-window fault486→487, but matched B1/A2/B2 all clean300s. Pacing timing observed; causal fix/recovery/reference/stop/motion remain unqualified. See batch37 report and evidence/batch37/physical-comparison.json; statuses/counts unchanged.",
         "Batch37 delivered PR251: reviewed5db4394/mainbab38c6 equal tree, final/main all-five CI and both CLEAR reviews; Pi source cleanbab38c6 with installed qualified0a3fc6b and all production inputs/binaries/taught policy/cal/env/service PIDs preserved. Root main preserves five pre-existing uncommitted kinematics/config edits outside qualification. Mixed physical CAN comparison remains unqualified as a cause fix; current reference/priority stop/motion still pending. See evidence/batch37/delivery-receipt.json."
       ],
       "verified_commit_or_pr": null,
@@ -2388,7 +2388,7 @@
         "Still required: other runtime-owner error classes, durable/boot/device-qualified recovery, process-reconstruction/recovery-script bypass closure, and command session/generation admission. No reset API is supplied.",
         "Batch35 source8e1871f, PR249: periodic Pi SafetyState mirrors every retained fault ID/class/message/joint, observed hardware input and severity across healthy ticks and ordinary Disable. Five actual-loop/Chappe cases: exact original production fails four named assertions and keeps one healthy positive; byte-identical corrected isolated module passes five. Full primary/native886Rust/1existingignored/374UI each and exact source CI all-five success; independent reviews CLEAR. Installed replay and physical acceptance still pending. See batch35-persistent-fault-publication.md and evidence/batch35/final-source-qualification.json.",
         "Batch35 delivered PR249/main01a5c40: final and main all-five CI, equal tree,214 installed hashes and preserved taught limits/motor identities/calibration/env/Store3/HTTPS verified. Actual natural Transport recurrence now remains visible in SafetyState across healthy feedback: one stable fault/software latch and all five Faulted. Three later snapshots and30s/15290 passive frames verify publication without movement; exact initiating CAN envelope and physical recovery/reference remain unqualified. Failed sudo wrapper and startup/observer helper failures preserved honestly. See evidence/batch35/delivery-receipt.json.",
-        "Batch37 source0a3fc6b/PR251 qualifies healthy reporting refresh pacing: three unchanged original assertion failures/candidate passes, primary/native889Rust/1existingignored/374UI, source all-five CI and CLEAR reviews. Physical comparison is inconclusive: earlier A1 two captured RX-overflow errors, candidate later inter-window fault486\u2192487, but matched B1/A2/B2 all clean300s. Pacing timing observed; causal fix/recovery/reference/stop/motion remain unqualified. See batch37 report and evidence/batch37/physical-comparison.json; statuses/counts unchanged.",
+        "Batch37 source0a3fc6b/PR251 qualifies healthy reporting refresh pacing: three unchanged original assertion failures/candidate passes, primary/native889Rust/1existingignored/374UI, source all-five CI and CLEAR reviews. Physical comparison is inconclusive: earlier A1 two captured RX-overflow errors, candidate later inter-window fault486→487, but matched B1/A2/B2 all clean300s. Pacing timing observed; causal fix/recovery/reference/stop/motion remain unqualified. See batch37 report and evidence/batch37/physical-comparison.json; statuses/counts unchanged.",
         "Batch37 delivered PR251: reviewed5db4394/mainbab38c6 equal tree, final/main all-five CI and both CLEAR reviews; Pi source cleanbab38c6 with installed qualified0a3fc6b and all production inputs/binaries/taught policy/cal/env/service PIDs preserved. Root main preserves five pre-existing uncommitted kinematics/config edits outside qualification. Mixed physical CAN comparison remains unqualified as a cause fix; current reference/priority stop/motion still pending. See evidence/batch37/delivery-receipt.json."
       ],
       "verified_commit_or_pr": null,
@@ -2842,7 +2842,7 @@
       "implementation_and_acceptance_plan": "gateway-implementation-plan.md",
       "status": "verified",
       "evidence": [
-        "Batch23 original CPU HostMetrics assertion red replays unchanged green after correct column parsing, keyed CPU-ID baselines and explicit unknown/reset/hotplug validity. Encoded UI unknown\u00e2\u2020\u2019valid\u00e2\u2020\u2019unknown qualified; Standards/Spec and integration reviews accepted. Final PR5c603be CI36899946079 all5 passed; merged mainad09ee4 CI36900877954 all5 passed. No hardware acceptance."
+        "Batch23 original CPU HostMetrics assertion red replays unchanged green after correct column parsing, keyed CPU-ID baselines and explicit unknown/reset/hotplug validity. Encoded UI unknownâ†’validâ†’unknown qualified; Standards/Spec and integration reviews accepted. Final PR5c603be CI36899946079 all5 passed; merged mainad09ee4 CI36900877954 all5 passed. No hardware acceptance."
       ],
       "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/237",
       "hardware_acceptance": "not established by this software repair"
@@ -4712,7 +4712,7 @@
         },
         "limits": "No runtime physical operation. Never-existing from_supervisor name probe excluded from required counts; source/private-factory review establishes the actual seam."
       },
-      "test_quality": "Davout 136\u00c3\u00a2\u00e2\u20ac\u00a0\u00e2\u20ac\u2122159:3 obsolete API cases retired,26 meaningful additions; Berthier173\u00c3\u00a2\u00e2\u20ac\u00a0\u00e2\u20ac\u2122175 with arithmetic property replaced by wire output, independent stationary input and fixed-dt progress; no new ignored tests. Two receive-invariant mutants killed by actual assertions; CS24 retained open as independently demonstrated old-law failure.",
+      "test_quality": "Davout 136Ã¢â€ â€™159:3 obsolete API cases retired,26 meaningful additions; Berthier173Ã¢â€ â€™175 with arithmetic property replaced by wire output, independent stationary input and fixed-dt progress; no new ignored tests. Two receive-invariant mutants killed by actual assertions; CS24 retained open as independently demonstrated old-law failure.",
       "independent_reviews": {
         "standards": {
           "findings": 0,
@@ -15562,6 +15562,23 @@
       "qualification": "evidence/batch34/final-source-qualification.json",
       "delivery": "evidence/batch34/delivery-receipt.json",
       "physical_acceptance": false
+    },
+    {
+      "batch_id": "batch38",
+      "findings": [
+        "CS04",
+        "CS13"
+      ],
+      "baseline": "386651981664b6242b2beda4b333b85e617c1378",
+      "source": "2d0fd4088b0ca0301b2e27b07560b54b40ec61ca",
+      "PR": "https://github.com/jaylamping/marengo/pull/252",
+      "main": "ba0fff7206877943fbca0f79b18d59089d5d4a24",
+      "source_CI": 37039819887,
+      "main_CI": 37043206357,
+      "status": "Software diagnostic slice delivered and installed; first retained owner receive evidence visible. Physical cause/reference/priority stop/recovery/movement unqualified. Existing finding dispositions preserved. Owner requested stopping point.",
+      "qualification": "evidence/batch38/source-qualification.json",
+      "delivery": "evidence/batch38/merge-receipt.json",
+      "physical_acceptance": false
     }
   ],
   "finding_status_counts": {
@@ -15570,16 +15587,16 @@
     "open": 63
   },
   "next_dependency_ready_batch": {
-    "current": "No human reply pending. Preserve the mixed pacing/overflow observations; retain/expose owner raw envelope and isolate controller servicing/workload, then qualify physical protocol/reference/priority stop and commissioning before explicitly confirmed bounded right-arm movement.",
+    "current": "Explicitly resume from RIGHT-ARM-VALIDATION-HANDOFF.md; refresh read-only Pi state, then CAN evidence/reliability, physical reference, owner priority stop/recovery and selected-joint commissioning. No human reply pending; no batch39 started.",
     "following": "T01/T02 versioned release activation; T03 exact-generation identity; supervised physical acceptance when all required prerequisites are qualified.",
     "human_input_blocker": null
   },
   "automation_status": "PAUSED",
   "stop_point": {
-    "date": "2026-10-01",
-    "reason": "Explicit owner request to stop and resume on Mac",
-    "handoff": "HANDOFF.md",
-    "software_checkpoint": "63cbe7eb0427888a9c4e242bca5daf80f44acdba",
+    "date": "2026-10-02",
+    "reason": "Explicit owner request to finish this pass, document all completed/remaining work, pause and resume in a new session",
+    "handoff": "RIGHT-ARM-VALIDATION-HANDOFF.md",
+    "software_checkpoint": "ba0fff7206877943fbca0f79b18d59089d5d4a24",
     "Windows_checkout": "J:/code/marengo",
     "Mac_checkout": "Host checkout of the same GitHub repository; ~/code/marengo is an example, not an observed Mac path",
     "software_complete": false,
@@ -15587,7 +15604,10 @@
     "automation_id": "marengo-repair-loop",
     "automation_status": "PAUSED",
     "restart_requires_explicit_owner_request": true,
-    "human_input_blocker": null
+    "human_input_blocker": null,
+    "prior_stop_point_preserved_in_record": "Previous stop_point object retained in evidence/batch38/record-preservation.json",
+    "goal_pause_requested_after_closing_delivery": true,
+    "next_batch_started": false
   },
   "active_mac_continuation": {
     "batch_id": "batch26",
@@ -15601,29 +15621,32 @@
     "pr": 240
   },
   "active_windows_continuation": {
-    "batch_id": "batch37",
-    "branch": "codex/pi-fault-receive-evidence",
-    "worktree": "J:/code/marengo-worktrees/current-virtual-reference",
-    "baseline": "19b983aa4a7d858f88bd26cd7171731186a3af7b",
-    "source": "0a3fc6bb0dd7ab652d97fd2efb7bb46ceee517c4",
+    "batch_id": "batch38",
+    "branch": "codex/right-arm-validation-handoff",
+    "worktree": "J:\\code\\marengo-worktrees\\current-virtual-reference",
+    "baseline": "386651981664b6242b2beda4b333b85e617c1378",
+    "source": "2d0fd4088b0ca0301b2e27b07560b54b40ec61ca",
     "findings": [
       "CS04",
       "CS13"
     ],
-    "report": "batch37-reporting-pacing-comparison.md",
-    "status": "Delivered PR251/mainbab38c6: source/final/main all-five CI and independent CLEAR reviews; Pi source syncedbab38c6 with identical qualified0a3fc6b runtime. Physical pacing observed; CAN reliability cause/recovery/reference/priority-stop/motion remain open.",
+    "report": "batch38-receive-diagnostics.md",
+    "status": "PR252 merged/mainba0fff; source/main all-five actual CI, primary/native895Rust+374UI and independent source reviews CLEAR;214-file installed release verified. Owner requested pause after closing documentation delivery and resume in a new session.",
     "physical_acceptance": false,
-    "qualification": "evidence/batch37/source-qualification.json",
-    "diagnostic": "evidence/batch37/physical-comparison.json",
-    "Pi_source_checkout": "bab38c6a6e16396b2af7d7d6518eecb4addca96f",
-    "pi_installed_revision": "0a3fc6bb0dd7ab652d97fd2efb7bb46ceee517c4",
-    "PR": "https://github.com/jaylamping/marengo/pull/251",
-    "prior_delivery": "evidence/batch36/delivery-receipt.json",
+    "qualification": "evidence/batch38/source-qualification.json",
+    "diagnostic": "evidence/batch38/passive-owner-analysis.json",
+    "Pi_source_checkout": "ba0fff7206877943fbca0f79b18d59089d5d4a24",
+    "pi_installed_revision": "2d0fd4088b0ca0301b2e27b07560b54b40ec61ca",
+    "PR": "https://github.com/jaylamping/marengo/pull/252",
+    "prior_delivery": "evidence/batch37/delivery-receipt.json",
     "owner_scope": "Personally owned robot/repository/Pi; isolated fixtures. Explicit confirmation and commissioning checks before every movement. Ten-minute silence leaves movement pending and allows independent work only.",
-    "owner_requested_next": "Finish and push current chunk, sync Pi software, then explicitly confirmed bounded right-arm tests after qualified reference. Motor power on and powered testing authorized.",
-    "next": "Expose exact retained owner receive-envelope diagnostics and isolate servicing/workload. No human reply pending. Qualify physical device/reset/ack/readback/reference/priority stop and commissioning before explicitly confirmed bounded right-arm test.",
-    "continuation_branch": "codex/pi-fault-receive-evidence",
-    "delivery": "evidence/batch37/delivery-receipt.json",
-    "primary_preserved_local_edits": "evidence/batch37/primary-sync-preservation.json"
+    "owner_requested_next": "Finish this pass, document completed and remaining work, pause at a good stopping point, then resume in a new session to qualify the prerequisites for basic right-arm direction tests. Powered supported deployment approval preserved; each movement requires a concrete explicit confirmation.",
+    "next": "Explicitly resume from RIGHT-ARM-VALIDATION-HANDOFF.md; refresh read-only Pi state, then CAN evidence/reliability, physical reference, owner priority stop/recovery and selected-joint commissioning. No human reply pending; no batch39 started.",
+    "continuation_branch": "codex/right-arm-validation-handoff",
+    "delivery": "evidence/batch38/merge-receipt.json",
+    "primary_preserved_local_edits": "evidence/batch38/primary-sync-preservation.json",
+    "handoff": "RIGHT-ARM-VALIDATION-HANDOFF.md",
+    "goal_pause_requested": true,
+    "closing_documentation_sync": "Source-only sync to closing docs main;214-file installed2d0fd40 remains unchanged. Final external receipts at batch38-pi-receive-diagnostics/stopping-delivery-receipt.json."
   }
 }

@@ -1,0 +1,14 @@
+{
+  "main": "ba0fff7206877943fbca0f79b18d59089d5d4a24",
+  "all_five_uncommitted_files_preserved_byte_identically": true,
+  "file_sha256": {
+    "assets/urdf/marengo.urdf": "b731020207572f3f03f94a7c9f307ba56395de5316367cf83e9a1eb940a0cfa3",
+    "config/control.yaml": "87f2476dc0b817ebce7224ce2e3cb2657511a2926e8a817980bc1bdcb696ec01",
+    "config/motors.yaml": "26887098db3d5651d221b0399326571bb2e457078b7c816d05bd8561226b83eb",
+    "config/robot.yaml": "7789904137a7b9473f1105544116fa0811bc07d8536636efa5437ce1cfd5684c",
+    "hardware/docs/kinematics.md": "2eba1c068647525ad26024050cf0cadc872a1cc46eacfc8695dbdab80108402b"
+  },
+  "prior_verified_owned_backup_SHA256": "895ff9b03e117a73940f13597f9cafa7259fd454ffd72647e5fa1bf833dbb6bf",
+  "all_refs_before_FF_SHA256": "001d31637d527ec1356c6d06790d70e7d14d98bb51620f7d015f1bef7a4404a3",
+  "scope": "Fast-forward main; all five pre-existing URDF/config/kinematics edits preserved and excluded from immutable qualified release; no autostash/reset/deploy from dirty primary"
+}

@@ -1,0 +1,61 @@
+{
+  "recorded_UTC": "2026-10-02T17:33:32.087606+00:00",
+  "source": "2d0fd4088b0ca0301b2e27b07560b54b40ec61ca",
+  "baseline": "386651981664b6242b2beda4b333b85e617c1378",
+  "scope": "Stable first receive diagnostic in existing SafetyState Fault.message; no safety or motor admission changes",
+  "metrics": {
+    "primary": {
+      "Rust_passed": 895,
+      "existing_ignored": 1,
+      "UI_passed": 374,
+      "raw_log_SHA256": "40b17a288e23b627efe21d8b6d89900a123387c97b4be58f53ed62e1d48cfef0",
+      "unchanged_tracked_input_files": 2099
+    },
+    "native": {
+      "Rust_passed": 895,
+      "existing_ignored": 1,
+      "UI_passed": 374,
+      "raw_log_SHA256": "bef4af11049f212331b9393b82bec703b0d7e39cb6cb0f031612468d01709ca9",
+      "unchanged_tracked_input_files": 2099
+    }
+  },
+  "strict_gates": {
+    "Pi_MCP": 72,
+    "local_writer": 27,
+    "research": 83,
+    "daily_audit": 15,
+    "installer": 10,
+    "fmt_clippy_proto_deny_audit": "passed",
+    "fatal_ARM_release": "passed"
+  },
+  "source_CI": {
+    "id": 37039819887,
+    "head": "2d0fd4088b0ca0301b2e27b07560b54b40ec61ca",
+    "conclusion": "success",
+    "all_five_actual_jobs": "success"
+  },
+  "source_reviews": {
+    "Standards_findings": 0,
+    "Spec_findings": 0,
+    "head": "2d0fd4088b0ca0301b2e27b07560b54b40ec61ca"
+  },
+  "regression": {
+    "baseline": "386651981664b6242b2beda4b333b85e617c1378",
+    "probe": "bins/marengo-pi/src/safety_receive_diagnostic_tests.rs",
+    "probe_sha256": "139022845c7803f55051f93cac44ad2fd34ec3e169da41cb768bb917db6cd839",
+    "prior_batch35_probe_unchanged": true,
+    "red_production_change": "cfg(test) module registration only; original publisher/fault implementation unchanged",
+    "red_named_failures": 5,
+    "red_healthy_control_passed": 1,
+    "red_executable_sha256": "62b9981aecaa189f49ab56807dc0f0750fe1834152c8797a8c8d946e699f0b19",
+    "red_log_sha256": "7d45c7514644a7fe26e315efc38044eea2182ac00e6747afcaa747dcf1becaff",
+    "green_passed": 6,
+    "prior_periodic_passed": 5,
+    "green_executable_sha256": "4b842174600fcec33fef3924270c3dc54c75d329b12f5e34695eccd946c56c59",
+    "green_log_sha256": "fa18fdf6fd8dc3303e50019f83d7ad37b9e2f9f5ee932c7d02497a6a23700e43"
+  },
+  "prior_probes_unchanged": 28,
+  "B35_and_B37_complete_modules_unchanged": true,
+  "physical_acceptance": false,
+  "package_preparation": "First bundle count check caught four untracked Python cache files before any install. Original attempt retained; corrected fresh self-contained release clone matches all2099 source hashes, verified214 payload entries."
+}

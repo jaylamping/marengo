@@ -1,0 +1,47 @@
+{
+  "archive": "/home/joey/marengo-validation/batch38-passive-owner-20261002.tar.gz",
+  "bytes": 1123829,
+  "SHA256": "ea511083eb8b98734fa3659108b871190ebac9e5ed0536583f5cddecd7803e94",
+  "members": [
+    {
+      "name": "after-can0.txt",
+      "bytes": 967,
+      "SHA256": "ab0dbb730c889b2ed082fedaf6b0d3ca7d06b58ecbb9c5d55bfe7871ecd1d6c9"
+    },
+    {
+      "name": "before-can0.txt",
+      "bytes": 967,
+      "SHA256": "67db3c9dd277df5835b986392981f702a8c86667eeb409873ce8aea57021bbec"
+    },
+    {
+      "name": "change-00-safety.pb",
+      "bytes": 9,
+      "SHA256": "d8d8320a744bf1e617c2021c6f48b1fac86570456372aa75d78a81f3ba3cb8e6"
+    },
+    {
+      "name": "change-00-safety.txt",
+      "bytes": 60,
+      "SHA256": "0da00ca3922911802e6f8f0d83a9f954695b379d89222d3467b8ffc39739476c"
+    },
+    {
+      "name": "journal.txt",
+      "bytes": 17,
+      "SHA256": "19c4e28b2f54ea8f217db4e622b0a5c758efa7b77ce2dc0394b6d159568c0b2e"
+    },
+    {
+      "name": "passive-can.log",
+      "bytes": 7797339,
+      "SHA256": "d6bcdce021c882bc37f8d8c6462a5be9d61fdcdd2c4e913525b576ef78a4251e"
+    },
+    {
+      "name": "passive-can.stderr",
+      "bytes": 0,
+      "SHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "passive-owner-receipt.json",
+      "bytes": 48417,
+      "SHA256": "416b9ba1dc5526ea67481481931cf59550b0b74bb7aae3abe85f33d5e60a1e4a"
+    }
+  ]
+}
