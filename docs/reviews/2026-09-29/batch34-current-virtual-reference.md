@@ -68,7 +68,7 @@ The Pi now runs maind1fad15. All214 file hashes, all five taught envelopes/
 actual motor identity, calibration/environment, Store integrity/schema3 and
 verified HTTPS UI pass. Services are active with zero automatic restarts in the
 captured sample. The live controller is Disabled/all five Faulted: a retained
-CAN transport fault first appeared11:08 UTC and recurred18s after activation.
+CAN transport fault first appeared11:08 UTC and recurred18s after runtime startup.
 Both interfaces remain ERROR-ACTIVE with zero bus-off; matching receive/overflow
 counters suggest controller receive-buffer overflow. Exact initiating error
 envelope and servicing-delay cause remain unqualified. An empty40s passive

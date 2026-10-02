@@ -15,7 +15,7 @@ untouched. Owner confirmed stable support, clear workspace and reachable E-stop;
 motor power stays on. No Enable, SetZero, target or motion test commanded.
 
 Live state is Disabled/all five Faulted from retained Transport fault1. First
-fault11:08 UTC; new startup fault recurs18s after activation. Both CAN interfaces
+fault11:08 UTC; new startup fault recurs18s after runtime startup. Both CAN interfaces
 remain ERROR-ACTIVE; receive/overflow counters match, no bus-off. This suggests
 controller receive-buffer overflow; exact first envelope and delay cause remain
 unqualified. Empty40s error capture is only a bounded observation. Actual Pi
