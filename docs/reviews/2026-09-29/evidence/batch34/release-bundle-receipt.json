@@ -1,0 +1,20 @@
+{
+  "recorded_UTC": "2026-10-02T12:39:40.339365+00:00",
+  "qualified_source": "9f1e52306f616d844c313b0a2dec3d7a6c0733e6",
+  "main": "d1fad15d579a7ee611fd930c0e14680f5063ed1b",
+  "main_equal_PR_tree": "8a5166ad00b8e3e73a0812bc2cfbfb6b9dab044e",
+  "production_inputs_equal_to_qualified_source": true,
+  "main_clone_clean_and_all_tracked_inputs_unchanged": 1867,
+  "manifest_entries_verified": 214,
+  "archive_SHA256": "ccec896fc01dab2f0c6a0c859c59e8b8f53ed32e5b7a4d0b2cae143bdd8ad743",
+  "archive_bytes": 15425093,
+  "manifest_SHA256": "93697784887b62702d0674d82b9ec0a18ea1fc75c64273d7117d3b4f49ca650d",
+  "build_log_SHA256": "ca9951277ec2a4c2ad30cc1609b16ec8ee01d820d326707ff46d12856cf45084",
+  "binary_SHA256": {
+    "imu-probe": "f4582d99aeee59a1ff5f3cc100e282f578bb31ae922ffa35f7cc797a65144bb1",
+    "marengo-gateway": "f57931e7720c19c96afb67f734ccb67d26e8ed087dc67d3ecc0221277b7679be",
+    "marengo-log-cli": "1f8896edbe95cd1266817b8a2e49e7ac3e90224450a010f07814e5995d060f6a",
+    "marengo-pi": "c6b222256172bfd8b2313ad00ccfa67cc7f1836375804b2101f639ec3ff694be",
+    "motor-repl": "51f7dc96c9c36ffde1eca10a03474b141ac158a3f1ce6c47d8914041189f3e68"
+  }
+}

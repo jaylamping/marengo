@@ -1,0 +1,59 @@
+{
+  "captured_UTC": "2026-10-02T12:32:06.137721+00:00",
+  "path": "/home/joey/marengo-validation/pi-sync-20261002-batch34/transport-fault-observation-20261002T123206Z",
+  "artifacts": {
+    "can0.txt": {
+      "exit": 0,
+      "bytes": 967,
+      "sha256": "8dbb1c6cc4fdf63d40cadd6192d8bde6c10502c9f17af148e1851109bc80e03f"
+    },
+    "can1.txt": {
+      "exit": 0,
+      "bytes": 963,
+      "sha256": "da4757069d9273e505542b92cb3ac7e0ded209475e5f748d4a269d2d26d3353f"
+    },
+    "service-state.txt": {
+      "exit": 0,
+      "bytes": 257,
+      "sha256": "88b8f7b6330d6c49d328d71be55584b53b9f0022f327f022291ffaa59004c6cc"
+    },
+    "runtime-journal.txt": {
+      "exit": 0,
+      "bytes": 21594,
+      "sha256": "c605c7418da9f6004276509b8f1c19776e5b872583aac43e3264e83e4cc0136a"
+    },
+    "kernel-journal.txt": {
+      "exit": 0,
+      "bytes": 17,
+      "sha256": "19c4e28b2f54ea8f217db4e622b0a5c758efa7b77ce2dc0394b6d159568c0b2e"
+    },
+    "candump-help.txt": {
+      "exit": 1,
+      "bytes": 2674,
+      "sha256": "65c43143bd80d7d2128791d4a2b8c77dcbfad7335b4058b3e97f7e3cbb176ad4"
+    }
+  },
+  "received_CAN_error_frame_lines": 60,
+  "first_error_context": [
+    "2026-10-02T06:02:14.372478-05:00 marengo marengo-pi[394178]:   home",
+    "2026-10-02T06:02:14.372478-05:00 marengo marengo-pi[394178]:   enable [operator_id] [force]",
+    "2026-10-02T06:02:14.372478-05:00 marengo marengo-pi[394178]:   disable",
+    "2026-10-02T06:02:14.372478-05:00 marengo marengo-pi[394178]:   gravity-on | gravity-off",
+    "2026-10-02T06:02:14.372478-05:00 marengo marengo-pi[394178]:   torque-cmd <joint> <nm>",
+    "2026-10-02T06:02:14.372478-05:00 marengo marengo-pi[394178]:   impedance-on | impedance-off",
+    "2026-10-02T06:02:14.372478-05:00 marengo marengo-pi[394178]:   hold-on | hold-at [joint] <rad> | hold-off",
+    "2026-10-02T06:02:14.372478-05:00 marengo marengo-pi[394178]:   wave <joint> <min_rad> <max_rad> <cycles> [half_period_sec]",
+    "2026-10-02T06:02:14.372478-05:00 marengo marengo-pi[394178]:   status",
+    "2026-10-02T06:02:14.372478-05:00 marengo marengo-pi[394178]:   quit",
+    "2026-10-02T06:02:14.372671-05:00 marengo marengo-pi[394178]: 2026-10-02T11:02:14.372471Z  INFO marengo_pi: marengo-pi starting Disabled; calibration history cannot grant current reference (docs/homing.md) hz=200 chappe_hz=25 motor_count=5 interfaces={\"can0\"} config=/opt/marengo/config",
+    "2026-10-02T06:02:14.374063-05:00 marengo marengo-pi[394178]: 2026-10-02T11:02:14.374005Z  INFO marengo_pi::imu: IMU session starting",
+    "2026-10-02T06:08:04.760824-05:00 marengo marengo-pi[394178]: 2026-10-02T11:08:04.760800Z ERROR run_control_loop: marengo_pi: control tick failed error=safety: persistent safety fault 1 (Transport) on None: received CAN error frame; physical bus state and error subscriptions unqualified; qualified recovery unavailable",
+    "2026-10-02T06:21:36.490027-05:00 marengo marengo-pi[394178]: 2026-10-02T11:21:36.489948Z ERROR run_control_loop: marengo_pi: control tick failed error=safety: persistent safety fault 1 (Transport) on None: received CAN error frame; physical bus state and error subscriptions unqualified; qualified recovery unavailable",
+    "2026-10-02T06:42:23.828221-05:00 marengo marengo-pi[394178]: 2026-10-02T11:42:23.828188Z ERROR run_control_loop: marengo_pi: control tick failed error=safety: persistent safety fault 1 (Transport) on None: received CAN error frame; physical bus state and error subscriptions unqualified; qualified recovery unavailable",
+    "2026-10-02T06:43:07.778466-05:00 marengo marengo-pi[394178]: 2026-10-02T11:43:07.778423Z ERROR run_control_loop: marengo_pi: control tick failed error=safety: persistent safety fault 1 (Transport) on None: received CAN error frame; physical bus state and error subscriptions unqualified; qualified recovery unavailable",
+    "2026-10-02T06:52:44.491417-05:00 marengo marengo-pi[394178]: 2026-10-02T11:52:44.491382Z ERROR run_control_loop: marengo_pi: control tick failed error=safety: persistent safety fault 1 (Transport) on None: received CAN error frame; physical bus state and error subscriptions unqualified; qualified recovery unavailable",
+    "2026-10-02T06:52:56.909911-05:00 marengo marengo-pi[394178]: 2026-10-02T11:52:56.909862Z ERROR run_control_loop: marengo_pi: control tick failed error=safety: persistent safety fault 1 (Transport) on None: received CAN error frame; physical bus state and error subscriptions unqualified; qualified recovery unavailable",
+    "2026-10-02T06:52:56.945312-05:00 marengo marengo-pi[394178]: 2026-10-02T11:52:56.945270Z ERROR run_control_loop: marengo_pi: control tick failed error=safety: persistent safety fault 1 (Transport) on None: received CAN error frame; physical bus state and error subscriptions unqualified; qualified recovery unavailable"
+  ],
+  "scope": "Read-only observation; no installed files, services, CAN configuration or motor commands changed"
+}

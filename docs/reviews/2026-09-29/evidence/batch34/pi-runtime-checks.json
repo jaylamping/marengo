@@ -1,0 +1,18 @@
+{
+  "captured_UTC": "2026-10-02T12:45:10.126942+00:00",
+  "HTTPS_UI": {
+    "status": 200,
+    "localhost_certificate_explicitly_trusted": true,
+    "index_SHA256": "dcb7f0256f841bf152c4077d1c52133f12aaef11126b78e50bd7cd5a17d40215",
+    "matches_verified_installed_index": true
+  },
+  "CAN_counter_observations": {
+    "rx_errors": 295,
+    "rx_over_errors": 295,
+    "rx_fifo_errors": 0,
+    "rx_crc_errors": 0,
+    "rx_frame_errors": 0,
+    "rx_missed_errors": 0
+  },
+  "scope": "Read-only verification; no qualified recovery, reference or movement acceptance"
+}

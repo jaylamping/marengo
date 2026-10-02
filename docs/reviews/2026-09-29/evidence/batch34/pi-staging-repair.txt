@@ -1,0 +1,4 @@
+Restored Git executable modes on 36 copied scripts; locally excluded release artifacts.
+0a11c33b730c0df12bddea30ac663a084681587e90078a7182f24583cd022e4a  /home/joey/marengo-validation/pi-sync-20261002-batch34/backup/consul-dist-before-install.tar.gz
+Installer-selected Consul UI matches all 99 verified UI files.
+STAGING REPAIR VERIFIED; INSTALLER NOT YET RUN.

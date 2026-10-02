@@ -1,3 +1,34 @@
+## Latest Windows checkpoint: batch34 delivered and Pi synced, October 2
+
+PR248 delivers qualified source9f1e523/final head7b4fcff/main d1fad15 with equal
+tree8a5166ad. Both final PR and main CI pass all five jobs; source and evidence
+reviews are clear. Primary/native881 Rust/1 existing ignored+374 UI and nine
+frozen mutants remain qualified. See batch34 delivery receipt and bound artifacts.
+
+Pi source/runtime now exact maind1fad15. All214 installed hashes, five taught
+envelopes/actual motor identities, calibration/env, Store integrity/schema3 and
+verified HTTPS UI pass. Pi/gateway active, zero automatic restarts in sample.
+Verified owned release/Git/Store/config/calibration/env/unit backups retained;
+the downloaded owned release verifies. Failed broad/editor and cache archive
+attempts are retained as failures, never recovery sources. CAD/legacy trees stay
+untouched. Owner confirmed stable support, clear workspace and reachable E-stop;
+motor power stays on. No Enable, SetZero, target or motion test commanded.
+
+Live state is Disabled/all five Faulted from retained Transport fault1. First
+fault11:08 UTC; new startup fault recurs18s after activation. Both CAN interfaces
+remain ERROR-ACTIVE; receive/overflow counters match, no bus-off. This suggests
+controller receive-buffer overflow; exact first envelope and delay cause remain
+unqualified. Empty40s error capture is only a bounded observation. Actual Pi
+SafetyState hides the latch on subsequent successful disabled ticks. Next repair
+is CS13 persistent publication, alongside passive diagnostics; no qualified
+recovery/reference/motion acceptance. Lower yaw -4.13228655 remains outside its
+preserved taught hard bounds. Per-movement concrete proposal/explicit reply and
+commissioning still required; ten-minute silence permits other work only.
+Counts102/eight/26/13/63, limits, CAD, prior work and paused automation preserved.
+All earlier checkpoints below are historical and unchanged.
+
+---
+
 ## Latest Windows checkpoint: selected virtual reference qualified, October 2
 
 Batch34 source9f1e523/PR248 adds current-consuming closed virtual factories.

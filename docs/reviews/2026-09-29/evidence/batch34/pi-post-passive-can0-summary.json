@@ -1,0 +1,40 @@
+{
+  "timestamp_mode": "absolute",
+  "summary": {
+    "total_lines": 50,
+    "parsed_frames": 50,
+    "source_bytes": 2550,
+    "duration_s": 0.094695091,
+    "approx_hz": 528.0104752209384,
+    "interfaces": [
+      {
+        "name": "can0",
+        "parsed_frames": 50,
+        "approx_hz": 528.0104752209384
+      }
+    ],
+    "top_ids": [
+      {
+        "can_id": "180001FD",
+        "count": 10
+      },
+      {
+        "can_id": "180002FD",
+        "count": 10
+      },
+      {
+        "can_id": "180003FD",
+        "count": 10
+      },
+      {
+        "can_id": "180004FD",
+        "count": 10
+      },
+      {
+        "can_id": "180005FD",
+        "count": 10
+      }
+    ]
+  },
+  "frames": []
+}

@@ -1,0 +1,341 @@
+{
+  "recorded_UTC": "2026-10-02T12:51:27.483053+00:00",
+  "PR": "https://github.com/jaylamping/marengo/pull/248",
+  "qualified_source": "9f1e52306f616d844c313b0a2dec3d7a6c0733e6",
+  "final_PR_head": "7b4fcff51450124dfc6c0e7b92d10681b3786e57",
+  "merged_main": "d1fad15d579a7ee611fd930c0e14680f5063ed1b",
+  "equal_PR_and_main_tree": "8a5166ad00b8e3e73a0812bc2cfbfb6b9dab044e",
+  "production_inputs_equal_to_qualified_source": true,
+  "CI": {
+    "pr": {
+      "databaseId": 37006438945,
+      "headSha": "7b4fcff51450124dfc6c0e7b92d10681b3786e57",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "main": {
+      "databaseId": 37007384634,
+      "headSha": "d1fad15d579a7ee611fd930c0e14680f5063ed1b",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  },
+  "independent_reviews": {
+    "source": "9f1e52306f616d844c313b0a2dec3d7a6c0733e6",
+    "metadata_head": "7b4fcff51450124dfc6c0e7b92d10681b3786e57",
+    "Standards": 0,
+    "scoped_Spec": 0
+  },
+  "primary_main_checkout": "Clean fast-forward to merged main; old branches/worktrees retained",
+  "Pi_source_checkout": "d1fad15d579a7ee611fd930c0e14680f5063ed1b",
+  "Pi_installed_revision": "d1fad15d579a7ee611fd930c0e14680f5063ed1b 2026-10-02T12:36:58Z",
+  "Pi_activation_exit": 0,
+  "Pi_activation_started_UTC": "2026-10-02T12:43:30.710139+00:00",
+  "Pi_installed_files_verified": 214,
+  "Pi_preserved_files": [
+    "assets/urdf/marengo.urdf",
+    "config/control.yaml",
+    "config/motors.yaml"
+  ],
+  "Pi_all_five_taught_envelopes_and_actual_motor_identity_preserved": true,
+  "Pi_calibration_unchanged_SHA256": "2e52edfd153634efb6773bf329cb0b3926f85f73bb4423ee255d6c2ef2224233",
+  "Pi_runtime_environment_unchanged": true,
+  "Pi_Store_integrity": "ok",
+  "Pi_Store_schema": 3,
+  "Pi_verified_HTTPS_UI": {
+    "status": 200,
+    "localhost_certificate_explicitly_trusted": true,
+    "index_SHA256": "dcb7f0256f841bf152c4077d1c52133f12aaef11126b78e50bd7cd5a17d40215",
+    "matches_verified_installed_index": true
+  },
+  "Pi_services": "Pi PID480125/gateway479935 active, zero automatic restarts; CAN active/exited oneshot at captured sample",
+  "operator_setup": "Human explicitly confirmed stable/supported resting pose, clear workspace and physical E-stop within reach; motor power remains on.",
+  "retained_backups": {
+    "installed_release_scope": [
+      "bin",
+      "config",
+      "assets",
+      "scripts",
+      "www",
+      ".deploy-rev"
+    ],
+    "installed_release_files": 233,
+    "installed_release_downloaded_and_hash_verified": "0fe25a679fe976d817e02e86a4e98b75dc632a4511664166a883f9c708a4b632",
+    "source_selected_payload_SHA256": "2b9f580ca85e866ce71ea3a4085d73dfffbf9d76a00071a087aebd78d0c0538b",
+    "Git_Store_calibration_environment_units": "Separate verified native backups retained on the Pi; not all raw backups downloaded",
+    "failed_attempts": "Broad archive refused unreadable legacy editor directory; full target cache archive exceeded45s. Incomplete artifacts retained but never recovery sources; owned release and selected source payload succeeded."
+  },
+  "physical_observation": {
+    "before_update": "Disabled/all five Faulted under persistent Transport fault1; exact initiating envelope unavailable in installed client",
+    "first_recorded_fault_UTC": "2026-10-02T11:08:04.760800Z",
+    "passive_error_window": "40s empty; no claim of absence outside the bounded window",
+    "after_update": "Disabled/all five Faulted; transport fault recurred18s after startup at12:43:52.188872Z",
+    "CAN_states": "Both ERROR-ACTIVE/1Mbps; zero bus-off and restart counters in captured samples",
+    "CAN_rx_errors_and_over_errors": {
+      "rx_errors": 295,
+      "rx_over_errors": 295,
+      "rx_fifo_errors": 0,
+      "rx_crc_errors": 0,
+      "rx_frame_errors": 0,
+      "rx_missed_errors": 0
+    },
+    "inference": "Matching rx_errors/rx_over_errors and mcp251x driver path suggest controller receive-buffer overflow; the exact first latched error envelope and cause of servicing delay remain unqualified.",
+    "driver_source": "https://github.com/raspberrypi/linux/blob/rpi-6.18.y/drivers/net/can/spi/mcp251x.c",
+    "publication_gap": "Actual SafetyState lacks active_faults/software latch after successful disabled ticks while every joint remains Faulted; CS13 publication migration is next.",
+    "lower_yaw": -4.132286548614502,
+    "preserved_taught_hard": [
+      -0.39424505829811096,
+      3.2440848350524902
+    ],
+    "reference_recovery_motion_acceptance": false,
+    "commands": "No Enable, SetZero, target or motion test commanded; passive capture and software activation only"
+  },
+  "finding_status_counts": {
+    "verified": 26,
+    "partial": 13,
+    "open": 63
+  },
+  "remaining": "CS05/06/07 partial; persistent Pi publication, physical protocol identity/reset/ack/readback, installed-owner priority stop/reference and plant/commissioning acceptance remain required",
+  "artifact_bindings": {
+    "pr-ci-receipt.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\pr-ci-receipt.json",
+      "raw_SHA256": "b0163c86967ecf521a78331a9e30ec8b34477b74c669d65b5713e53c6ed9e6ab",
+      "artifact_SHA256": "b0163c86967ecf521a78331a9e30ec8b34477b74c669d65b5713e53c6ed9e6ab",
+      "normalization": "UTF-8 LF only"
+    },
+    "main-ci-receipt.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\main-ci-receipt.json",
+      "raw_SHA256": "ae15daf83eb77415c80b199397e358ab5dc769251af743e6657416a9eda1d830",
+      "artifact_SHA256": "ae15daf83eb77415c80b199397e358ab5dc769251af743e6657416a9eda1d830",
+      "normalization": "UTF-8 LF only"
+    },
+    "release-bundle-receipt.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\release-bundle-receipt.json",
+      "raw_SHA256": "bb69110501291ea385dc80c9cb267624102813fa46a2db46533ff3e43c2f7b09",
+      "artifact_SHA256": "4526f3aec1a9c1273bfd510db6f6e284538822a198aa875db2d2902c4e347fb1",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-update-backup.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\update-preparation.json",
+      "raw_SHA256": "9f3f745ee9a03b41a0fc48860e230ceda14f416df7b88b66350bc444d5af4c71",
+      "artifact_SHA256": "9f3f745ee9a03b41a0fc48860e230ceda14f416df7b88b66350bc444d5af4c71",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-release-staging.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\release-staging-receipt.json",
+      "raw_SHA256": "a05288da9a04196c0551f3c1ea900910966d1976e7d565609dd880bdc7403c72",
+      "artifact_SHA256": "a05288da9a04196c0551f3c1ea900910966d1976e7d565609dd880bdc7403c72",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-installed-file-verification.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\post-install-file-verification.json",
+      "raw_SHA256": "cc1112d22bd1ab39f6ecf44ac700851f123729eae3f4ea4a191cb899dfa3092d",
+      "artifact_SHA256": "cc1112d22bd1ab39f6ecf44ac700851f123729eae3f4ea4a191cb899dfa3092d",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-runtime-checks.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\post-runtime-checks.json",
+      "raw_SHA256": "0122c5e6ef6545fc860fe4c6bff4a316fe15fe537b64d3dc25dd21ef82fa12f4",
+      "artifact_SHA256": "0122c5e6ef6545fc860fe4c6bff4a316fe15fe537b64d3dc25dd21ef82fa12f4",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-install-main.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\install-main.txt",
+      "raw_SHA256": "36d548c5969666cb0018908f2aeb7188020f064e6d2643cc92fcdad799eb864d",
+      "artifact_SHA256": "36d548c5969666cb0018908f2aeb7188020f064e6d2643cc92fcdad799eb864d",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-install-main.exit-code": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\install-main.exit-code",
+      "raw_SHA256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "artifact_SHA256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-activation-started.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\activation-started.txt",
+      "raw_SHA256": "0561c9041744af49bf3fe9b77159fbf8ef44d00bfbd0c502d0acb5f74a70b7b4",
+      "artifact_SHA256": "0561c9041744af49bf3fe9b77159fbf8ef44d00bfbd0c502d0acb5f74a70b7b4",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-activation-before-safety.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\activation-before-safety.txt",
+      "raw_SHA256": "215066f73f2c333f4be459f72ba360895ac5ab1cb3fc5cc0d9ac8ed57267fb16",
+      "artifact_SHA256": "215066f73f2c333f4be459f72ba360895ac5ab1cb3fc5cc0d9ac8ed57267fb16",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-activation-before-state.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\activation-before-state.txt",
+      "raw_SHA256": "0358d57c61d1281724c7db066c475125d2ca5d6b65fde2e3e3733966c9826643",
+      "artifact_SHA256": "0358d57c61d1281724c7db066c475125d2ca5d6b65fde2e3e3733966c9826643",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-activation-before-safety.pb": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\activation-before-safety.pb",
+      "raw_SHA256": "065b9cc4855ab31dfc018419f345a2f84213a661933078fc3eb445e9d82cdbe4",
+      "artifact_SHA256": "065b9cc4855ab31dfc018419f345a2f84213a661933078fc3eb445e9d82cdbe4",
+      "normalization": "none"
+    },
+    "pi-activation-before-state.pb": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\activation-before-state.pb",
+      "raw_SHA256": "b6f3468bdeb1cd85e6923b215d424bcf8fa29c4f2b56fcbe9a6bd7bece38394e",
+      "artifact_SHA256": "b6f3468bdeb1cd85e6923b215d424bcf8fa29c4f2b56fcbe9a6bd7bece38394e",
+      "normalization": "none"
+    },
+    "pi-post-safety.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\post-SafetyState.txt",
+      "raw_SHA256": "2766197e3f5cdce03d46f1948651b98be9eb9b93de2d4a90056ed68a6a2fe62c",
+      "artifact_SHA256": "2766197e3f5cdce03d46f1948651b98be9eb9b93de2d4a90056ed68a6a2fe62c",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-post-state.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\post-RobotState.txt",
+      "raw_SHA256": "7f61806ca2f7cd72fbe883f71762945f838660c6bfd16f9311f171dc136fb401",
+      "artifact_SHA256": "7f61806ca2f7cd72fbe883f71762945f838660c6bfd16f9311f171dc136fb401",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-post-safety.pb": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\post-safety.pb",
+      "raw_SHA256": "7582e937fa517281a73442481bcb2854252f7f7e5262e760ea0d92ddcd245297",
+      "artifact_SHA256": "7582e937fa517281a73442481bcb2854252f7f7e5262e760ea0d92ddcd245297",
+      "normalization": "none"
+    },
+    "pi-post-state.pb": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\post-state.pb",
+      "raw_SHA256": "c47fed055bde1e9039116930a014d6845ffeeb66680eec53fb562cc7ecc611a6",
+      "artifact_SHA256": "c47fed055bde1e9039116930a014d6845ffeeb66680eec53fb562cc7ecc611a6",
+      "normalization": "none"
+    },
+    "pi-post-services.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\post-services.txt",
+      "raw_SHA256": "cd2a7e0c3dcc6c96d60e7246a4da7e5fec77e32f4d5dd3b77b7229ba2001f14b",
+      "artifact_SHA256": "cd2a7e0c3dcc6c96d60e7246a4da7e5fec77e32f4d5dd3b77b7229ba2001f14b",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-post-can0.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\post-can0.txt",
+      "raw_SHA256": "8513cc7335bf00fe7fbf8347e3ac0495306033a6a5d9fd557dc6e1c9b49690f1",
+      "artifact_SHA256": "8513cc7335bf00fe7fbf8347e3ac0495306033a6a5d9fd557dc6e1c9b49690f1",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-post-can1.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\post-can1.txt",
+      "raw_SHA256": "da4757069d9273e505542b92cb3ac7e0ded209475e5f748d4a269d2d26d3353f",
+      "artifact_SHA256": "da4757069d9273e505542b92cb3ac7e0ded209475e5f748d4a269d2d26d3353f",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-post-journal.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\post-journal.txt",
+      "raw_SHA256": "533dbea436766af61e9446c30606990d1eae71325b1ad09f3e92d34608f3062e",
+      "artifact_SHA256": "533dbea436766af61e9446c30606990d1eae71325b1ad09f3e92d34608f3062e",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-post-passive-can0.log": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\post-passive-can0.log",
+      "raw_SHA256": "02c431ecf578469a34fd5692a3589b108e315d7a21c2bc98ca389a408002feec",
+      "artifact_SHA256": "02c431ecf578469a34fd5692a3589b108e315d7a21c2bc98ca389a408002feec",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-post-passive-can0-summary.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\post-passive-can0-summary.json",
+      "raw_SHA256": "1e4dc7ab9b595e6848f6ad45b045404ef6d3b01fd73a5cf00260319c8775ade5",
+      "artifact_SHA256": "1e4dc7ab9b595e6848f6ad45b045404ef6d3b01fd73a5cf00260319c8775ade5",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-limit-preview.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\limit-preview-receipt.json",
+      "raw_SHA256": "bd386a971c0f09858a8090d02b30c0fc2fec7caae35e3a8486cd8a2c51837239",
+      "artifact_SHA256": "bd386a971c0f09858a8090d02b30c0fc2fec7caae35e3a8486cd8a2c51837239",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-staging-repair.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\staging-repair.txt",
+      "raw_SHA256": "c147458df23fda9f668fb856a73da36358faa37d028609bd3b0685ba4ff1ac51",
+      "artifact_SHA256": "c147458df23fda9f668fb856a73da36358faa37d028609bd3b0685ba4ff1ac51",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-backup-tar-diagnostic.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\backup-tar-diagnostic.json",
+      "raw_SHA256": "f66d7fc2da57f642145942c9268162715438854a4cfd70ff048e37c1e438e58e",
+      "artifact_SHA256": "f66d7fc2da57f642145942c9268162715438854a4cfd70ff048e37c1e438e58e",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-backup-release-manifest.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\installed-release-manifest.json",
+      "raw_SHA256": "5dfa47cffa7f8861b24e48c8ea6c000e6f5428224e84f9e4d3ac3d8c15a2ccb2",
+      "artifact_SHA256": "5dfa47cffa7f8861b24e48c8ea6c000e6f5428224e84f9e4d3ac3d8c15a2ccb2",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-fault-before-can0-after.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\pi-transport-before-update\\transport-fault-observation-20261002T123206Z\\can0-after.txt",
+      "raw_SHA256": "c29b8f5470f0cbf4b8b9806abc9b99838754dff690ef8e4b8b1254a218b63c69",
+      "artifact_SHA256": "c29b8f5470f0cbf4b8b9806abc9b99838754dff690ef8e4b8b1254a218b63c69",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-fault-before-can0.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\pi-transport-before-update\\transport-fault-observation-20261002T123206Z\\can0.txt",
+      "raw_SHA256": "8dbb1c6cc4fdf63d40cadd6192d8bde6c10502c9f17af148e1851109bc80e03f",
+      "artifact_SHA256": "8dbb1c6cc4fdf63d40cadd6192d8bde6c10502c9f17af148e1851109bc80e03f",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-fault-before-can1.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\pi-transport-before-update\\transport-fault-observation-20261002T123206Z\\can1.txt",
+      "raw_SHA256": "da4757069d9273e505542b92cb3ac7e0ded209475e5f748d4a269d2d26d3353f",
+      "artifact_SHA256": "da4757069d9273e505542b92cb3ac7e0ded209475e5f748d4a269d2d26d3353f",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-fault-before-candump-help.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\pi-transport-before-update\\transport-fault-observation-20261002T123206Z\\candump-help.txt",
+      "raw_SHA256": "65c43143bd80d7d2128791d4a2b8c77dcbfad7335b4058b3e97f7e3cbb176ad4",
+      "artifact_SHA256": "65c43143bd80d7d2128791d4a2b8c77dcbfad7335b4058b3e97f7e3cbb176ad4",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-fault-before-kernel-error-definitions.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\pi-transport-before-update\\transport-fault-observation-20261002T123206Z\\kernel-error-definitions.txt",
+      "raw_SHA256": "6b9441f5bf441e75e59cdb4caf165d93a15cba03e15934b802d32c1ba05c20eb",
+      "artifact_SHA256": "6b9441f5bf441e75e59cdb4caf165d93a15cba03e15934b802d32c1ba05c20eb",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-fault-before-kernel-journal.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\pi-transport-before-update\\transport-fault-observation-20261002T123206Z\\kernel-journal.txt",
+      "raw_SHA256": "19c4e28b2f54ea8f217db4e622b0a5c758efa7b77ce2dc0394b6d159568c0b2e",
+      "artifact_SHA256": "19c4e28b2f54ea8f217db4e622b0a5c758efa7b77ce2dc0394b6d159568c0b2e",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-fault-before-passive-errors-40s.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\pi-transport-before-update\\transport-fault-observation-20261002T123206Z\\passive-errors-40s.txt",
+      "raw_SHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "artifact_SHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-fault-before-passive-feedback-50.log": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\pi-transport-before-update\\transport-fault-observation-20261002T123206Z\\passive-feedback-50.log",
+      "raw_SHA256": "a10f5f36880a6ea83ef9e93822bf287f4641b2951964d6febd2de823fb2907f8",
+      "artifact_SHA256": "a10f5f36880a6ea83ef9e93822bf287f4641b2951964d6febd2de823fb2907f8",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-fault-before-passive-receipt.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\pi-transport-before-update\\transport-fault-observation-20261002T123206Z\\passive-receipt.json",
+      "raw_SHA256": "68d3f5c7af05f4739ccd39654ce0bc7d218a65b94c5055f46d6a6f8076e16d6c",
+      "artifact_SHA256": "68d3f5c7af05f4739ccd39654ce0bc7d218a65b94c5055f46d6a6f8076e16d6c",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-fault-before-receipt.json": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\pi-transport-before-update\\transport-fault-observation-20261002T123206Z\\receipt.json",
+      "raw_SHA256": "c101233dc449ffe6c6c49a55ccb94e069ed480afca9b15c3001041ca7b7cff67",
+      "artifact_SHA256": "c101233dc449ffe6c6c49a55ccb94e069ed480afca9b15c3001041ca7b7cff67",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-fault-before-runtime-journal.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\pi-transport-before-update\\transport-fault-observation-20261002T123206Z\\runtime-journal.txt",
+      "raw_SHA256": "c605c7418da9f6004276509b8f1c19776e5b872583aac43e3264e83e4cc0136a",
+      "artifact_SHA256": "c605c7418da9f6004276509b8f1c19776e5b872583aac43e3264e83e4cc0136a",
+      "normalization": "UTF-8 LF only"
+    },
+    "pi-fault-before-service-state.txt": {
+      "raw_file": "J:\\code\\marengo-migration-backup-20260929\\batch34-current-virtual-grant\\pi-transport-before-update\\transport-fault-observation-20261002T123206Z\\service-state.txt",
+      "raw_SHA256": "88b8f7b6330d6c49d328d71be55584b53b9f0022f327f022291ffaa59004c6cc",
+      "artifact_SHA256": "88b8f7b6330d6c49d328d71be55584b53b9f0022f327f022291ffaa59004c6cc",
+      "normalization": "UTF-8 LF only"
+    }
+  }
+}

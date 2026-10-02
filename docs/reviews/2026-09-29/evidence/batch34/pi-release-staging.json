@@ -1,0 +1,24 @@
+{
+  "captured_UTC": "2026-10-02T12:42:56.251747+00:00",
+  "source_head": "d1fad15d579a7ee611fd930c0e14680f5063ed1b",
+  "source_clean": true,
+  "native_staged_manifest_entries": 214,
+  "all_five_taught_envelopes_and_actual_motor_identity_preserved_in_independent_preview": true,
+  "installed_revision_unchanged": "b8271764fcdaa8d9d5e8838e69de4721ec035d97 2026-10-02T10:41:06Z",
+  "source_selected_backup_SHA256": "2b9f580ca85e866ce71ea3a4085d73dfffbf9d76a00071a087aebd78d0c0538b",
+  "source_selected_backup_scope": [
+    "config",
+    "assets",
+    "scripts",
+    "www",
+    ".deploy-rev",
+    "target/release/marengo-pi",
+    "target/release/marengo-gateway",
+    "target/release/marengo-log-cli",
+    "target/release/motor-repl",
+    "target/release/imu-probe"
+  ],
+  "source_full_target_backup_attempt": "45s budget exhausted; incomplete archive retained, never a recovery source. Existing cache files remain untouched; selected copied payload fully backed up.",
+  "staging_repair_SHA256": "c147458df23fda9f668fb856a73da36358faa37d028609bd3b0685ba4ff1ac51",
+  "scope": "Final staging only; installed runtime/services unchanged; no motor command"
+}
