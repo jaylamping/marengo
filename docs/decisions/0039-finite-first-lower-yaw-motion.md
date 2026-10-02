@@ -22,12 +22,17 @@ receipt, imported grant or virtual epoch; the neutral wrapper stays neutral-only
 The first motion profile has one second of enabled budget, including the initial
 neutral active readbacks. Berthier ramps lower-arm yaw from 0 to +0.02 rad over
 400 ms, returns over 400 ms and commands zero for the remaining window. Position
-gains are fixed at kp=10, kd=0.4, with zero commanded velocity and torque feedforward.
+gains are selected once per owner within kp=10..30 and kd=0.4..2.0, with zero
+commanded velocity and torque feedforward. The initial kp=10/kd=0.4 test produced
+only 1.5 mrad of movement against a 20-mrad command; bounded selection allows
+routine tuning without rebuilding. The validated gain value is immutable, recorded
+in the audit/report, and matched before and after filtering.
 Every other joint remains neutral. This is a supported near-home diagnostic;
 it supplies no elevated position-hold capability.
 
 Davout independently refuses any other joint's gains, nonzero velocity/torque,
-changed gains, incomplete batches or target outside [0, 0.02]. The physical
+gains differing from the selected value, incomplete batches or target outside
+[0, 0.02]. The physical
 profile is checked again after ordinary filtering, before any CAN transmission;
 an installed envelope clamp cannot widen it. The receipt's target is requested
 joint position; the passive capture records actual wire commands. The physical

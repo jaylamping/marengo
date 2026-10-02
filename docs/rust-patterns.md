@@ -173,6 +173,15 @@ handlers already admitted are not interrupted by that check.
 
 **Scoped commissioning Enable** (Hardware commissioning):
 
+Finite physical bench profiles use closed real-bus owners rather than supplied
+transports or imported reference rows ([ADR0038](decisions/0038-finite-neutral-physical-bench-owner.md),
+[ADR0039](decisions/0039-finite-first-lower-yaw-motion.md)). Validate bounded tuning
+values into immutable private-field types before acquisition; record the selected
+value in audit and report. Davout checks the complete profile both before and
+after ordinary filtering, so an envelope clamp cannot widen a finite test.
+Keep neighboring-joint feedback on the canonical velocity policy; additional
+profile guards apply to the exercised joint and retain every raw position hazard.
+
 The following describes the existing scoped caller path, whose private grant and
 owner cutover remain unfinished. New registries start `Unhomed` and history
 loading cannot supply `Verified`; current cached Set Zero is not qualified

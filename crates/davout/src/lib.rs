@@ -80,7 +80,9 @@ mod active_reporting;
 mod bench_home_qualification;
 pub use bench_home_qualification::{BenchHomeQualification, BENCH_TIMEOUT_COUNTS};
 mod physical_bench;
-pub use physical_bench::{BenchNeutralFeedback, PhysicalLowerYawBench, PhysicalNeutralBench};
+pub use physical_bench::{
+    BenchNeutralFeedback, LowerYawBenchGains, PhysicalLowerYawBench, PhysicalNeutralBench,
+};
 #[cfg(test)]
 mod active_reporting_pacing_tests;
 mod faults;

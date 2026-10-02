@@ -3,7 +3,9 @@
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use davout::{BenchNeutralFeedback, DavoutError, MitJointCommand, PhysicalLowerYawBench};
+use davout::{
+    BenchNeutralFeedback, DavoutError, LowerYawBenchGains, MitJointCommand, PhysicalLowerYawBench,
+};
 use serde::Serialize;
 
 const JOINT: &str = "right_lower_arm_yaw";
@@ -15,6 +17,8 @@ pub struct LowerYawBenchReport {
     pub audit_path: PathBuf,
     pub joint: &'static str,
     pub requested_peak_rad: f64,
+    pub kp: f64,
+    pub kd: f64,
     pub elapsed_us: u128,
     pub max_tick_delay_us: u128,
     pub samples: Vec<LowerYawBenchSample>,
@@ -36,19 +40,23 @@ pub fn run_bench_lower_yaw(
     confirmed_home: bool,
     sign_attested: bool,
     confirmed_motion: bool,
+    kp: f64,
+    kd: f64,
 ) -> Result<LowerYawBenchReport, DavoutError> {
+    let gains = LowerYawBenchGains::new(kp, kd)?;
     let mut owner = PhysicalLowerYawBench::acquire(
         root,
         operator,
         confirmed_home,
         sign_attested,
         confirmed_motion,
+        gains,
     )?;
     let joints = owner.joints().to_vec();
     let audit_path = owner.audit_path().to_owned();
     let result = (|| {
         let started = Instant::now();
-        owner.begin(commands(&joints, None))?;
+        owner.begin(commands(&joints, None, gains))?;
         let end = owner
             .active_deadline()
             .ok_or_else(|| error("missing enabled deadline"))?;
@@ -63,7 +71,7 @@ pub fn run_bench_lower_yaw(
             }
             max_delay = max_delay.max(delay);
             let target = target_at(motion_started.elapsed());
-            let feedback = owner.tick(commands(&joints, Some(target)))?;
+            let feedback = owner.tick(commands(&joints, Some(target), gains))?;
             samples.push(LowerYawBenchSample {
                 elapsed_us: started.elapsed().as_micros(),
                 target_rad: target,
@@ -91,6 +99,8 @@ pub fn run_bench_lower_yaw(
             audit_path,
             joint: JOINT,
             requested_peak_rad: 0.02,
+            kp: gains.kp(),
+            kd: gains.kd(),
             elapsed_us: elapsed.as_micros(),
             max_tick_delay_us: delay.as_micros(),
             samples,
@@ -114,15 +124,19 @@ fn target_at(elapsed: Duration) -> f64 {
     }
 }
 
-fn commands(joints: &[String], target: Option<f64>) -> Vec<MitJointCommand> {
+fn commands(
+    joints: &[String],
+    target: Option<f64>,
+    gains: LowerYawBenchGains,
+) -> Vec<MitJointCommand> {
     joints
         .iter()
         .map(|joint| {
             let position = (joint == JOINT).then_some(target).flatten();
             MitJointCommand {
                 joint: joint.clone(),
-                kp: position.map_or(0.0, |_| 10.0),
-                kd: position.map_or(0.0, |_| 0.4),
+                kp: position.map_or(0.0, |_| gains.kp()),
+                kd: position.map_or(0.0, |_| gains.kd()),
                 position_rad: position.unwrap_or(0.0),
                 velocity_rad_s: 0.0,
                 torque_ff_nm: 0.0,

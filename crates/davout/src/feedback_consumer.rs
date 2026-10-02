@@ -733,9 +733,7 @@ impl<B: MotorBus> Supervisor<B> {
         if self
             .reference_authority
             .physical_bench_binding()
-            .is_some_and(|binding| {
-                binding.output == super::physical_bench::BenchOutput::LowerYawStep
-            })
+            .is_some_and(|binding| binding.output.is_lower_yaw())
             && motor.joint == super::physical_bench::LOWER_YAW
             && matches!(
                 context,

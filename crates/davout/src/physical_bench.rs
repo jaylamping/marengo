@@ -25,17 +25,49 @@ const ENABLE_DURATION: Duration = Duration::from_millis(500);
 const YAW_STEP_DURATION: Duration = Duration::from_secs(1);
 pub(super) const LOWER_YAW: &str = "right_lower_arm_yaw";
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+/// Validated immutable gains for the finite 20-mrad home-band response.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LowerYawBenchGains {
+    kp: f64,
+    kd: f64,
+}
+impl LowerYawBenchGains {
+    pub fn new(kp: f64, kd: f64) -> Result<Self, DavoutError> {
+        if !(10.0..=30.0).contains(&kp) || !(0.4..=2.0).contains(&kd) {
+            return Err(bench_error(
+                "lower-yaw gains require finite kp10..30 and kd0.4..2",
+            ));
+        }
+        Ok(Self { kp, kd })
+    }
+    pub fn kp(self) -> f64 {
+        self.kp
+    }
+    pub fn kd(self) -> f64 {
+        self.kd
+    }
+}
+
+#[derive(Clone, Copy, PartialEq)]
 pub(super) enum BenchOutput {
     Neutral,
-    LowerYawStep,
+    LowerYawStep(LowerYawBenchGains),
 }
 
 impl BenchOutput {
+    pub(super) fn is_lower_yaw(self) -> bool {
+        matches!(self, Self::LowerYawStep(_))
+    }
+    fn gains(self) -> Option<LowerYawBenchGains> {
+        match self {
+            Self::Neutral => None,
+            Self::LowerYawStep(gains) => Some(gains),
+        }
+    }
     fn duration(self) -> Duration {
         match self {
             Self::Neutral => ENABLE_DURATION,
-            Self::LowerYawStep => YAW_STEP_DURATION,
+            Self::LowerYawStep(_) => YAW_STEP_DURATION,
         }
     }
 }
@@ -152,6 +184,7 @@ impl PhysicalLowerYawBench {
         confirmed_home: bool,
         sign_attested: bool,
         confirmed_motion: bool,
+        gains: LowerYawBenchGains,
     ) -> Result<Self, DavoutError> {
         acquire_owner(
             root.as_ref(),
@@ -159,7 +192,7 @@ impl PhysicalLowerYawBench {
             confirmed_home,
             sign_attested,
             confirmed_motion,
-            BenchOutput::LowerYawStep,
+            BenchOutput::LowerYawStep(gains),
         )
         .map(|owner| Self { owner })
     }
@@ -249,7 +282,7 @@ impl<B: MotorBus> FiniteBenchOwner<B> {
             let deadline = Instant::now() + self.output.duration();
             self.active_deadline = Some(deadline);
             self.supervisor.enable_targets(&self.joints)?;
-            if self.output == BenchOutput::LowerYawStep {
+            if self.output.is_lower_yaw() {
                 self.supervisor
                     .set_control_mode(super::ControlMode::Position);
             }
@@ -351,7 +384,7 @@ impl<B: MotorBus> Supervisor<B> {
             sign_attested,
             operator,
             Some(&identities),
-            output == BenchOutput::LowerYawStep,
+            output.is_lower_yaw(),
         )?;
         let audit = write_audit(root, self, &qualification, output)?;
         // Filesystem completion cannot substitute for live drive/home continuity.
@@ -475,11 +508,12 @@ pub(super) fn validate_bench_batch(
                 || cmd.velocity_rad_s != 0.0
                 || cmd.torque_ff_nm != 0.0
                 || !(cmd.kp == 0.0 && cmd.kd == 0.0 && cmd.position_rad == 0.0
-                    || output == BenchOutput::LowerYawStep
-                        && cmd.joint == LOWER_YAW
-                        && cmd.kp == 10.0
-                        && cmd.kd == 0.4
-                        && (0.0..=0.02).contains(&cmd.position_rad))
+                    || output.gains().is_some_and(|gains| {
+                        cmd.joint == LOWER_YAW
+                            && cmd.kp == gains.kp()
+                            && cmd.kd == gains.kd()
+                            && (0.0..=0.02).contains(&cmd.position_rad)
+                    }))
         })
     {
         return Err(bench_error(
@@ -515,13 +549,12 @@ fn write_audit<B: MotorBus>(
             "neutral_only": output == BenchOutput::Neutral,
             "enable_confirmed": true,
             "neutral_enable_confirmed": output == BenchOutput::Neutral,
-            "bounded_motion_confirmed": output == BenchOutput::LowerYawStep,
+            "bounded_motion_confirmed": output.is_lower_yaw(),
             "enabled_budget_ms": output.duration().as_millis(),
-            "lower_yaw_profile": if output == BenchOutput::LowerYawStep {
-                Some(serde_json::json!({ "max_target_rad": 0.02, "kp": 10.0, "kd": 0.4,
-                    "other_joints_neutral": true, "measured_home_drift_max_rad": MAX_HOME_DRIFT,
-                    "measured_velocity_max_rad_s": 0.25 }))
-            } else { None },
+            "lower_yaw_profile": output.gains().map(|gains| serde_json::json!({
+                "max_target_rad": 0.02, "kp": gains.kp(), "kd": gains.kd(),
+                "other_joints_neutral": true, "measured_home_drift_max_rad": MAX_HOME_DRIFT,
+                "velocity_guard_joint": LOWER_YAW, "measured_velocity_max_rad_s": 0.25 })),
             "timeout_volatility_qualified": false,
             "owner_lifetime_ms": OWNER_LIFETIME.as_millis(),
             "acquired_unix_ns": acquired.as_nanos(),
@@ -883,6 +916,10 @@ mod tests {
         assert_eq!(owner.supervisor.mode(), OperationalMode::Disabled);
     }
 
+    fn yaw_output() -> BenchOutput {
+        BenchOutput::LowerYawStep(LowerYawBenchGains::new(10.0, 0.4).expect("bounded gains"))
+    }
+
     fn yaw_commands(joints: &[String]) -> Vec<MitJointCommand> {
         let mut batch = neutral(joints);
         batch[4].kp = 10.0;
@@ -894,7 +931,7 @@ mod tests {
     #[test]
     fn lower_yaw_profile_uses_joint_transform_and_keeps_other_axes_neutral() {
         let root = AuditRoot::new();
-        let mut owner = owner_with_output(ProbeBus::default(), &root, BenchOutput::LowerYawStep);
+        let mut owner = owner_with_output(ProbeBus::default(), &root, yaw_output());
         let audit: serde_json::Value =
             serde_json::from_slice(&fs::read(owner.audit_path()).expect("audit")).expect("JSON");
         assert_eq!(audit["neutral_only"], false);
@@ -930,8 +967,7 @@ mod tests {
     fn motion_profile_refuses_other_axes_and_unbounded_fields_then_stops() {
         for variant in 0..7 {
             let root = AuditRoot::new();
-            let mut owner =
-                owner_with_output(ProbeBus::default(), &root, BenchOutput::LowerYawStep);
+            let mut owner = owner_with_output(ProbeBus::default(), &root, yaw_output());
             owner.begin(neutral(&owner.joints)).expect("bootstrap");
             let mut batch = yaw_commands(&owner.joints);
             match variant {
@@ -962,13 +998,7 @@ mod tests {
             ..ProbeBus::default()
         });
         assert!(supervisor
-            .acquire_physical_bench_reference(
-                &root.0,
-                "test",
-                true,
-                true,
-                BenchOutput::LowerYawStep
-            )
+            .acquire_physical_bench_reference(&root.0, "test", true, true, yaw_output())
             .is_err());
         assert!(supervisor
             .bus
@@ -989,7 +1019,7 @@ mod tests {
             .expect("joint")
             .position_soft_lower_rad = Some(0.03);
         supervisor.rebuild_limits().expect("valid taught bounds");
-        let mut owner = owner_from_supervisor(supervisor, &root, BenchOutput::LowerYawStep);
+        let mut owner = owner_from_supervisor(supervisor, &root, yaw_output());
         owner
             .begin(neutral(&owner.joints))
             .expect("neutral bootstrap");
@@ -1005,7 +1035,7 @@ mod tests {
     #[test]
     fn captured_stationary_roll_velocity_estimate_does_not_block_yaw_bootstrap() {
         let root = AuditRoot::new();
-        let mut owner = owner_with_output(ProbeBus::default(), &root, BenchOutput::LowerYawStep);
+        let mut owner = owner_with_output(ProbeBus::default(), &root, yaw_output());
         owner.supervisor.bus.stationary_roll_velocity_spike = true;
         owner
             .begin(neutral(&owner.joints))
@@ -1025,10 +1055,45 @@ mod tests {
     #[test]
     fn lower_yaw_profile_velocity_guard_still_stops_its_commanded_joint() {
         let root = AuditRoot::new();
-        let mut owner = owner_with_output(ProbeBus::default(), &root, BenchOutput::LowerYawStep);
+        let mut owner = owner_with_output(ProbeBus::default(), &root, yaw_output());
         owner.supervisor.bus.lower_yaw_velocity_spike = true;
         assert!(owner.begin(neutral(&owner.joints)).is_err());
         assert!(owner.closed);
         assert_eq!(owner.supervisor.mode(), OperationalMode::Disabled);
+    }
+
+    #[test]
+    fn tuning_gains_are_bounded_and_immutable_for_an_acquired_owner() {
+        for (kp, kd) in [
+            (f64::NAN, 1.0),
+            (30.0, f64::INFINITY),
+            (9.99, 1.0),
+            (30.01, 1.0),
+            (10.0, 0.39),
+            (10.0, 2.01),
+        ] {
+            assert!(LowerYawBenchGains::new(kp, kd).is_err());
+        }
+        let root = AuditRoot::new();
+        let gains = LowerYawBenchGains::new(30.0, 1.0).expect("bounded tuning gains");
+        let mut owner =
+            owner_with_output(ProbeBus::default(), &root, BenchOutput::LowerYawStep(gains));
+        owner.begin(neutral(&owner.joints)).expect("bootstrap");
+        let mut batch = yaw_commands(&owner.joints);
+        batch[4].kp = gains.kp();
+        batch[4].kd = gains.kd();
+        let first = owner.supervisor.bus.tx.len();
+        owner.tick(batch).expect("selected gains");
+        let yaw = owner.supervisor.bus.tx[first..]
+            .iter()
+            .find(|f| f.id >> 24 == 1 && f.id & 255 == 5)
+            .expect("yaw frame");
+        assert_eq!(u16::from_be_bytes([yaw.data[4], yaw.data[5]]), 3932);
+        assert_eq!(u16::from_be_bytes([yaw.data[6], yaw.data[7]]), 13107);
+        assert!(
+            owner.tick(yaw_commands(&owner.joints)).is_err(),
+            "gain change requires a new finite owner"
+        );
+        assert!(owner.closed);
     }
 }

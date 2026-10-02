@@ -44,5 +44,7 @@ run torque pulses or trajectories; those require a separate finite motion profil
 
 The separately named `bench-lower-yaw` profile is defined in
 [ADR0039](../decisions/0039-finite-first-lower-yaw-motion.md). It ramps +20 mrad
-and returns with fixed gains, while other joints stay neutral. Use its
+and returns with gains fixed for each owner, while other joints stay neutral.
+CLI `--kp` (10..30) and `--kd` (0.4..2.0) select the bounded tuning gains; defaults
+are 10 and 0.4. Use its
 `--confirm-motion` flag under the same session authorization policy.

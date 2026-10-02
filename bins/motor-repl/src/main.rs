@@ -70,7 +70,7 @@ fn usage() {
            motor-repl protocol-inspect  (standalone, disabled-only; stop marengo-pi first)\n  \
            motor-repl bench-home-qualify <operator> --confirm-home --sign-attested\n  \
            motor-repl bench-neutral <operator> --confirm-home --sign-attested --confirm-neutral-enable\n  \
-           motor-repl bench-lower-yaw <operator> --confirm-home --sign-attested --confirm-motion\n  \
+           motor-repl bench-lower-yaw <operator> --confirm-home --sign-attested --confirm-motion [--kp 10..30] [--kd 0.4..2]\n  \
            motor-repl homing-status\n  \
            motor-repl home\n  \
            motor-repl enable <operator_id> [--force]\n  \
@@ -154,12 +154,29 @@ fn main() {
         let home = args.iter().any(|value| value == "--confirm-home");
         let sign = args.iter().any(|value| value == "--sign-attested");
         if args[1] == "bench-lower-yaw" {
+            let gain = |flag: &str, default: f64| -> Result<f64, String> {
+                let Some(index) = args.iter().position(|value| value == flag) else {
+                    return Ok(default);
+                };
+                args.get(index + 1)
+                    .and_then(|value| value.parse().ok())
+                    .ok_or_else(|| format!("expected a number after {flag}"))
+            };
+            let (kp, kd) = match (gain("--kp", 10.0), gain("--kd", 0.4)) {
+                (Ok(kp), Ok(kd)) => (kp, kd),
+                _ => {
+                    eprintln!("lower-yaw gains: invalid --kp or --kd value");
+                    std::process::exit(1);
+                }
+            };
             match berthier::run_bench_lower_yaw(
                 &root,
                 operator,
                 home,
                 sign,
                 args.iter().any(|value| value == "--confirm-motion"),
+                kp,
+                kd,
             ) {
                 Ok(report) => match serde_json::to_string_pretty(&report) {
                     Ok(json) => println!("{json}"),
