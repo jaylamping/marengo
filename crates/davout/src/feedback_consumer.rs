@@ -715,6 +715,21 @@ impl<B: MotorBus> Supervisor<B> {
         state: &MotorState,
         context: &ReceiveContext,
     ) -> Result<(), DavoutError> {
+        let position = f64::from(state.position_rad);
+        // Physical Enable replies can arrive while the host FSM is still Ready.
+        // Inspect each pose before the ordinary Active-only motion guards.
+        if self.reference_authority.physical_bench_binding().is_some()
+            && matches!(
+                context,
+                ReceiveContext::Operational | ReceiveContext::DisabledInspection
+            )
+            && position.abs() > super::physical_bench::MAX_HOME_DRIFT
+        {
+            return Err(DavoutError::Limit {
+                joint: motor.joint.clone(),
+                message: "neutral bench home drift exceeds 0.05 rad".into(),
+            });
+        }
         if !self.feedback_motion_guards_enabled(context) {
             return Ok(());
         }
@@ -724,16 +739,6 @@ impl<B: MotorBus> Supervisor<B> {
             .ok_or_else(|| DavoutError::UnknownJoint {
                 joint: motor.joint.clone(),
             })?;
-        let position = f64::from(state.position_rad);
-        if self.reference_authority.physical_bench_binding().is_some()
-            && matches!(context, ReceiveContext::Operational)
-            && position.abs() > super::physical_bench::MAX_HOME_DRIFT
-        {
-            return Err(DavoutError::Limit {
-                joint: motor.joint.clone(),
-                message: "neutral bench home drift exceeds 0.05 rad".into(),
-            });
-        }
         if measured_position_fault(position, lim) {
             self.homing.mark_out_of_limits(&motor.joint);
             return Err(DavoutError::Limit {

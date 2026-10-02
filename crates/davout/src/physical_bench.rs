@@ -732,6 +732,20 @@ mod tests {
     }
 
     #[test]
+    fn transient_enable_reply_drift_is_retained_while_host_is_still_ready() {
+        let root = AuditRoot::new();
+        let mut owner = owner(ProbeBus::default(), &root);
+        owner.supervisor.bus.transient_enable_drift = true;
+        assert!(owner.begin(neutral(&owner.joints)).is_err());
+        assert!(owner.supervisor.has_latched_fault());
+        assert!(owner.closed);
+        assert_eq!(owner.supervisor.mode(), OperationalMode::Disabled);
+        assert!(owner.supervisor.bus.tx.iter().all(|f| {
+            f.id >> 24 != 17 || robstride::unpack_ext_id(f.id).expect("query ID").extra_data != 0x60
+        }));
+    }
+
+    #[test]
     fn second_begin_stops_the_active_owner() {
         let root = AuditRoot::new();
         let mut owner = owner(ProbeBus::default(), &root);

@@ -24,6 +24,7 @@ pub(crate) struct ProbeBus {
     pub(crate) reset_timeout_after_enable: bool,
     pub(crate) drift_after_enable: bool,
     pub(crate) transient_drift: bool,
+    pub(crate) transient_enable_drift: bool,
     pub(crate) suppress_active_params: bool,
     pub(crate) suppress_active_pose: bool,
     pub(crate) active_param_delay: Duration,
@@ -83,7 +84,11 @@ impl CanBus for ProbeBus {
             id.extra_data as u8
         };
         let response = match id.comm_type {
-            1 if self.enabled.contains(&id.device_id) && !self.suppress_active_pose => {
+            1 | 3
+                if self.enabled.contains(&id.device_id)
+                    && !self.suppress_active_pose
+                    && (id.comm_type == 1 || self.transient_enable_drift) =>
+            {
                 Some(CanFrame {
                     id: robstride::pack_ext_id(
                         2,
@@ -96,7 +101,10 @@ impl CanBus for ProbeBus {
                         0xFD,
                     ),
                     data: [
-                        if self.drift_after_enable || self.transient_drift {
+                        if self.drift_after_enable
+                            || self.transient_drift
+                            || self.transient_enable_drift
+                        {
                             0x81
                         } else {
                             0x7F
@@ -180,8 +188,11 @@ impl CanBus for ProbeBus {
             } else {
                 self.rx.push_back(received);
             }
-            if id.comm_type == 1 && self.transient_drift {
+            if (id.comm_type == 1 && self.transient_drift)
+                || (id.comm_type == 3 && self.transient_enable_drift)
+            {
                 self.transient_drift = false;
+                self.transient_enable_drift = false;
                 let mut healthy = response;
                 healthy.data[0] = 0x7F;
                 self.rx.push_back(TimedCanFrame {
