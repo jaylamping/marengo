@@ -67,24 +67,32 @@ Keep all 102 findings/eight maintenance tasks and 26 verified,
 13 partial,63 open. Preserve calibration, taught limits, model assets, logs,
 CAD, existing branches/worktrees, Wave sign-off and the paused automation.
 
-Pi source is now synced cleanly to b827176. The exact main release is built
-and staged in an owned validation directory; all214 manifest entries verify on
-the Pi. The installed runtime remains4bc77ba. Old release/source/runtime-store/
-calibration/environment/unit backups and a concrete owned rollback tree remain
-preserved. A passive50-frame capture contains ten reports per configured motor;
-no motor command was sent. The old runtime lower-arm yaw coordinate is outside
-the taught envelope and must be resolved during reference commissioning.
+The owner subsequently returned and explicitly confirmed stable support, clear
+workspace and physical E-stop within reach: “Yes—all three setup conditions are
+ready; proceed.” This supersedes the earlier ten-minute setup timeout. Motor
+power stays on under the owner's standing authorization.
 
-The support/E-stop setup query received no reply within ten minutes. Treat the
-operator as away, leave activation and movement pending, and continue independent
-software work. A later explicit setup reply may reopen activation preparation.
-Pi update is authorized. The owner has confirmed motor power is on and approved
-powered movement testing. Motor power is required for controlled movement;
-the earlier power-off request concerned the software restart only. Before
-activation establish the arm's stable supported state, stopped drive state,
-physical E-stop readiness and a concrete rollback. The repaired build still
-lacks qualified physical reference acquisition, so it cannot yet authorize
-normal right-arm output. Before each actual movement propose the joint, bounds,
-duration/caps and stop procedure, require explicit confirmation and pass the
-commissioning checks. Ten-minute silence leaves movement pending and permits
-independent work only. No deployment or physical motor command has occurred.
+The exact-main b827176 release is now installed on the Pi. Initial staging
+stopped before installation because copied script modes and local release
+artifacts failed the source-clean check. Git executable modes were restored;
+a stale consul/dist was backed up and replaced with all99 verified UI files
+because the installer selects it before www. The qualified installer then
+completed with exit0, preserving the three valid log aliases. Pi/gateway are
+active with zero automatic restarts in the recorded sample. Both binary hashes
+and all214 installed manifest entries verify, using the independent taught-limit
+preview for the three preserved files. All five joint envelopes, motor identity,
+calibration registry and runtime environment are preserved. The installed Store
+integrity check passes with schema3. The HTTPS served UI matches the verified
+index. See evidence/batch33/pi-activation-receipt.json and its actual captures.
+
+Live snapshots report Disabled and all five joints Unhomed. A passive bounded
+50-frame capture contains ten reports from each motor; its installed CLI parser
+passes. No enable, SetZero, target or movement test was commanded. Lower-arm yaw
+still reports -4.13228655, outside the preserved taught envelope. Physical
+reference acquisition and installed-owner clients remain unqualified; R2b2 is
+the next software dependency before physical acquisition and bounded tests.
+Owner setup approval clears deployment preparation, while each actual movement
+still requires its own concrete joint/bounds/duration/caps/stop proposal, explicit
+confirmation and qualified commissioning. Ten-minute silence authorizes only
+independent work. T01 remains partial; T02/T03 and physical motion acceptance
+remain open. Source/runtime backups and concrete rollback remain retained.

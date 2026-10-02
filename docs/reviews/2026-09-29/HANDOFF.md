@@ -1,3 +1,22 @@
+## Latest Windows checkpoint: Pi updated and verified, October 2
+
+Owner returned and explicitly confirmed stable support, clear workspace and
+physical E-stop within reach; activation approval supersedes prior setup timeout.
+Motor power stays on. Exact mainb827176 installed successfully; Pi/gateway active
+with zero automatic restarts in the recorded sample. All214 installed file hashes,
+all five taught envelopes/motor identity, calibration and runtime environment
+verify; Store integrity/schema3 and verified HTTPS UI pass. Backups/rollback
+retained. See evidence/batch33/pi-activation-receipt.json and actual captures.
+
+Live safety Disabled; every joint Unhomed. Passive50-frame capture has ten reports
+per motor. Lower-arm yaw -4.13228655 remains outside taught hard bounds. No enable,
+SetZero, target or movement test commanded. Next: R2b2 selected current virtual
+grant, then qualified physical acquisition/installed-owner clients before actual
+bounded motion. Each physical test still needs a concrete proposal and explicit
+reply; ten-minute silence allows independent work only. Counts26/13/63,102
+findings/eight tasks, T01partial/T02T03open, limits/CAD/Wave/paused automation
+preserved. All earlier handoff bytes below are historical and unchanged.
+
 ## Latest Windows checkpoint: batch33 delivered, Pi staged, October 2
 
 PR247 delivered source0b2eb75/finalheada52eb02/mainb827176, equal tree

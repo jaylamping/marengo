@@ -1,0 +1,175 @@
+{
+  "installed_revision": "b8271764fcdaa8d9d5e8838e69de4721ec035d97 2026-10-02T10:41:06Z",
+  "manifest_entries_verified": 214,
+  "preserved_taught_files_verified_against_independent_preview": [
+    "assets/urdf/marengo.urdf",
+    "config/control.yaml",
+    "config/motors.yaml"
+  ],
+  "all_five_joint_limits_and_motor_identity_preserved": true,
+  "joint_envelopes": [
+    {
+      "joint": "right_shoulder_pitch",
+      "motor_hard": [
+        -1.1152385473251345,
+        3.007078170776367
+      ],
+      "control_soft": [
+        -1.0882385473251344,
+        2.980078170776367
+      ],
+      "motor_identity_changes": {},
+      "URDF_hard": [
+        -1.43134,
+        3.25
+      ],
+      "previous_URDF_hard": [
+        -1.43134,
+        3.25
+      ],
+      "effective_hard": [
+        -1.1152385473251345,
+        3.007078170776367
+      ]
+    },
+    {
+      "joint": "right_shoulder_roll",
+      "motor_hard": [
+        -0.06788089871406555,
+        3.1156094074249268
+      ],
+      "control_soft": [
+        -0.04088089871406555,
+        3.088609407424926
+      ],
+      "motor_identity_changes": {},
+      "URDF_hard": [
+        -0.099415,
+        3.22308
+      ],
+      "previous_URDF_hard": [
+        -0.099415,
+        3.22308
+      ],
+      "effective_hard": [
+        -0.06788089871406555,
+        3.1156094074249268
+      ]
+    },
+    {
+      "joint": "right_upper_arm_yaw",
+      "motor_hard": [
+        -0.7746843099594116,
+        1.290117621421814
+      ],
+      "control_soft": [
+        -0.7476843099594116,
+        1.263117621421814
+      ],
+      "motor_identity_changes": {},
+      "URDF_hard": [
+        -1.57,
+        1.57
+      ],
+      "previous_URDF_hard": [
+        -1.57,
+        1.57
+      ],
+      "effective_hard": [
+        -0.7746843099594116,
+        1.290117621421814
+      ]
+    },
+    {
+      "joint": "right_elbow_pitch",
+      "motor_hard": [
+        -0.15416957437992096,
+        1.6072771549224854
+      ],
+      "control_soft": [
+        -0.12716957437992096,
+        1.5802771549224854
+      ],
+      "motor_identity_changes": {},
+      "URDF_hard": [
+        -1.63191,
+        1.60728
+      ],
+      "previous_URDF_hard": [
+        -1.63191,
+        1.60728
+      ],
+      "effective_hard": [
+        -0.15416957437992096,
+        1.6072771549224854
+      ]
+    },
+    {
+      "joint": "right_lower_arm_yaw",
+      "motor_hard": [
+        -0.39424505829811096,
+        3.2440848350524902
+      ],
+      "control_soft": [
+        -0.36724505829811094,
+        3.21708483505249
+      ],
+      "motor_identity_changes": {},
+      "URDF_hard": [
+        -3.24409,
+        3.24409
+      ],
+      "previous_URDF_hard": [
+        -3.24409,
+        3.24409
+      ],
+      "effective_hard": [
+        -0.39424505829811096,
+        3.2440848350524902
+      ]
+    }
+  ],
+  "actual_installed_motor_identity_fields_verified": [
+    "driver",
+    "motor_type",
+    "can_interface",
+    "device_id",
+    "direction",
+    "gear_ratio",
+    "recv_can_id",
+    "firmware_version"
+  ],
+  "actual_installed_motor_identity_changes": {
+    "right_shoulder_pitch": {},
+    "right_shoulder_roll": {},
+    "right_upper_arm_yaw": {},
+    "right_elbow_pitch": {},
+    "right_lower_arm_yaw": {}
+  },
+  "binary_sha256": {
+    "marengo-gateway": "f57931e7720c19c96afb67f734ccb67d26e8ed087dc67d3ecc0221277b7679be",
+    "imu-probe": "f4582d99aeee59a1ff5f3cc100e282f578bb31ae922ffa35f7cc797a65144bb1",
+    "motor-repl": "74fa1334159a178c9bc4b5ffc2de69e8f6d98c26b27d9da3b2c4b732326bb1d8",
+    "marengo-log-cli": "1f8896edbe95cd1266817b8a2e49e7ac3e90224450a010f07814e5995d060f6a",
+    "marengo-pi": "352340fa127321971478fe84ac04bddac857232f8ec83393e56300cf3646ad94"
+  },
+  "calibration_registry_unchanged_sha256": "2e52edfd153634efb6773bf329cb0b3926f85f73bb4423ee255d6c2ef2224233",
+  "runtime_environment_unchanged": true,
+  "Store_integrity_check": "ok",
+  "Store_schema_version": 3,
+  "Store_tables": [
+    "config_overrides",
+    "log_events",
+    "log_events_fts",
+    "log_events_fts_config",
+    "log_events_fts_data",
+    "log_events_fts_docsize",
+    "log_events_fts_idx",
+    "log_sessions",
+    "settings"
+  ],
+  "operator_setup": "Human explicitly confirmed stable/supported resting pose, clear workspace and physical E-stop within reach; motor power remains on.",
+  "activation_exit_code": 0,
+  "activation_started_UTC": "2026-10-02T11:02:09Z",
+  "physical_motion": "No enable, SetZero, target or motion test commanded. Live reference still unqualified."
+}

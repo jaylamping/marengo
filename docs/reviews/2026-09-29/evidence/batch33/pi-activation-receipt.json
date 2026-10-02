@@ -1,0 +1,112 @@
+{
+  "source_and_installed_main": "b8271764fcdaa8d9d5e8838e69de4721ec035d97",
+  "qualified_production_source": "0b2eb75e3922284da4ecdc4ad16561a67c777235",
+  "runtime_native_qualification": "Reused unchanged runtime qualification at batch32/b18faf4, not a new full native suite run.",
+  "operator_setup_reply": "Yes—all three setup conditions are ready; proceed",
+  "setup_reply_supersedes_earlier_timeout": true,
+  "motor_power": "On; owner explicitly authorized powered testing and qualified service activation.",
+  "installer_exit_code": 0,
+  "activation_started_UTC": "2026-10-02T11:02:09Z",
+  "verification_finished_UTC": "2026-10-02T11:05:59Z",
+  "all_214_installed_entries_verified": true,
+  "taught_limits_motor_identity_calibration_and_runtime_environment_preserved": true,
+  "Store_integrity_check": "ok",
+  "Store_schema_version": 3,
+  "Pi_service": {
+    "MainPID": 394178,
+    "ActiveState": "active",
+    "NRestarts": 0
+  },
+  "gateway_service": {
+    "MainPID": 393988,
+    "ActiveState": "active",
+    "NRestarts": 0
+  },
+  "reported_safety_mode": "Disabled",
+  "reported_homing": {
+    "right_shoulder_pitch": "Unhomed",
+    "right_shoulder_roll": "Unhomed",
+    "right_upper_arm_yaw": "Unhomed",
+    "right_elbow_pitch": "Unhomed",
+    "right_lower_arm_yaw": "Unhomed"
+  },
+  "reported_hardware_and_software_estop_bits": false,
+  "reported_estop_limit": "Default false protobuf bits do not establish a wired/observed physical stop.",
+  "snapshot_timestamp_ms": 1790939135361,
+  "passive_CAN": {
+    "frames": 50,
+    "per_motor": 10,
+    "duration_seconds": 0.099816084,
+    "scope": "Passive bounded candump; installed log CLI parses the saved file offline."
+  },
+  "Consul_HTTPS_served_index_sha256": "dcb7f0256f841bf152c4077d1c52133f12aaef11126b78e50bd7cd5a17d40215",
+  "Consul_HTTPS": "Self-signed local certificate explicitly trusted via --cacert; served index matches the verified installed UI.",
+  "source_checkout": "Clean intended main; locally ignored .deploy-rev/www release artifacts.",
+  "staging_corrections": [
+    "Initial staging stopped before installer/service changes: copied Windows release scripts lacked Git executable modes and release artifacts were untracked. Restore exact Git modes; retain a source payload backup; use local artifact excludes.",
+    "Back up stale consul/dist, then replace it with all99 verified bundle UI files because installer prefers consul/dist over www.",
+    "Verification helper corrected its settings schema expectation to key/value_json/updated_ms and JSON integer3. HTTP8080 root404 is the API listener; UI verified via HTTPS8444. Saved candump summary used actual --file/--timestamp absolute/--format json CLI options."
+  ],
+  "rollback": "Old release/source bundle/Store/calibration/env/units and148-file owned rollback payload remain preserved; no rollback executed.",
+  "staging_backup_sha256": {
+    "source-payload-before-install.tar.gz": "58e173b2cab920e8c786dc3950b30a6aaeeb2e6ac2f9bc3212eb40633629e95a",
+    "consul-dist-before-install.tar.gz": "53545a2e87fa72208fc07eb6fa2386fcd7e96d119c4b277d39d958c592dd6117"
+  },
+  "activation_acceptance": "Qualified installer accepted three valid runtime log aliases and completed on the personal Pi. This does not qualify atomic activation, all T01 contracts, reference or motor output.",
+  "physical_motion_tests": "Pending; no enable, SetZero, target or movement test commanded.",
+  "remaining_motion_blockers": [
+    "R2b2 current selected virtual grant and qualified physical acquisition/installed-owner client path are not implemented.",
+    "Lower-arm yaw reports -4.132286548614502 outside preserved taught hard [-0.39424505829811096,3.2440848350524902]; resolve with actual reference commissioning, not widened limits."
+  ],
+  "artifacts": [
+    {
+      "raw_file": "J:/code/marengo-migration-backup-20260929/batch33-pi-install-log-links/pi-after-sync/install-main.txt",
+      "raw_sha256": "36d548c5969666cb0018908f2aeb7188020f064e6d2643cc92fcdad799eb864d",
+      "committed_file": "evidence/batch33/pi-install-main.txt",
+      "committed_sha256": "36d548c5969666cb0018908f2aeb7188020f064e6d2643cc92fcdad799eb864d"
+    },
+    {
+      "raw_file": "J:/code/marengo-migration-backup-20260929/batch33-pi-install-log-links/pi-after-sync/post-install-file-verification.json",
+      "raw_sha256": "d0860a483ddcec5445db36aced65ac336f2199b9366aac3dd99c293af37a5254",
+      "committed_file": "evidence/batch33/pi-post-install-file-verification.json",
+      "committed_sha256": "d0860a483ddcec5445db36aced65ac336f2199b9366aac3dd99c293af37a5254"
+    },
+    {
+      "raw_file": "J:/code/marengo-migration-backup-20260929/batch33-pi-install-log-links/pi-after-sync/post-SafetyState.txt",
+      "raw_sha256": "2ff07e9bbc68149d16470b94b26734b20ca0041161582166b5db5596864feb30",
+      "committed_file": "evidence/batch33/pi-post-safety.txt",
+      "committed_sha256": "2ff07e9bbc68149d16470b94b26734b20ca0041161582166b5db5596864feb30"
+    },
+    {
+      "raw_file": "J:/code/marengo-migration-backup-20260929/batch33-pi-install-log-links/pi-after-sync/post-RobotState.txt",
+      "raw_sha256": "c8b71c88489c84b6f37f903e0b23cb704de0daca6fa664f5bcb9e9a6c3950ecd",
+      "committed_file": "evidence/batch33/pi-post-state.txt",
+      "committed_sha256": "c8b71c88489c84b6f37f903e0b23cb704de0daca6fa664f5bcb9e9a6c3950ecd"
+    },
+    {
+      "raw_file": "J:/code/marengo-migration-backup-20260929/batch33-pi-install-log-links/pi-after-sync/post-service-state.txt",
+      "raw_sha256": "19a213692e6ce510e04d875f5480f6aab1a8079be04c61256f0a7105ffbfd61a",
+      "committed_file": "evidence/batch33/pi-post-services.txt",
+      "committed_sha256": "19a213692e6ce510e04d875f5480f6aab1a8079be04c61256f0a7105ffbfd61a"
+    },
+    {
+      "raw_file": "J:/code/marengo-migration-backup-20260929/batch33-pi-install-log-links/pi-after-sync/passive-can0-bounded-after.log",
+      "raw_sha256": "f4f671d4c538bb5cfb14f9321aa9ea4551212fae89bcd2e3b3ae95725bed1e05",
+      "committed_file": "evidence/batch33/pi-passive-can0-after.log",
+      "committed_sha256": "f4f671d4c538bb5cfb14f9321aa9ea4551212fae89bcd2e3b3ae95725bed1e05"
+    },
+    {
+      "raw_file": "J:/code/marengo-migration-backup-20260929/batch33-pi-install-log-links/pi-after-sync/passive-can0-after-summary.json",
+      "raw_sha256": "9b435bdb92a7a2858d73baf977e2fdee85f3881cc861da45142e18e4e3d648de",
+      "committed_file": "evidence/batch33/pi-passive-can0-after-summary.json",
+      "committed_sha256": "9b435bdb92a7a2858d73baf977e2fdee85f3881cc861da45142e18e4e3d648de"
+    }
+  ],
+  "finding_status_counts": {
+    "verified": 26,
+    "partial": 13,
+    "open": 63
+  },
+  "finding_count": 102,
+  "maintenance_tasks": 8
+}

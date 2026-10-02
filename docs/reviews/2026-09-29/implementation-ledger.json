@@ -2829,7 +2829,7 @@
       "implementation_and_acceptance_plan": "gateway-implementation-plan.md",
       "status": "verified",
       "evidence": [
-        "Batch23 original CPU HostMetrics assertion red replays unchanged green after correct column parsing, keyed CPU-ID baselines and explicit unknown/reset/hotplug validity. Encoded UI unknown\u00e2\u2020\u2019valid\u00e2\u2020\u2019unknown qualified; Standards/Spec and integration reviews accepted. Final PR5c603be CI36899946079 all5 passed; merged mainad09ee4 CI36900877954 all5 passed. No hardware acceptance."
+        "Batch23 original CPU HostMetrics assertion red replays unchanged green after correct column parsing, keyed CPU-ID baselines and explicit unknown/reset/hotplug validity. Encoded UI unknownâ†’validâ†’unknown qualified; Standards/Spec and integration reviews accepted. Final PR5c603be CI36899946079 all5 passed; merged mainad09ee4 CI36900877954 all5 passed. No hardware acceptance."
       ],
       "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/237",
       "hardware_acceptance": "not established by this software repair"
@@ -4699,7 +4699,7 @@
         },
         "limits": "No runtime physical operation. Never-existing from_supervisor name probe excluded from required counts; source/private-factory review establishes the actual seam."
       },
-      "test_quality": "Davout 136\u00c3\u00a2\u00e2\u20ac\u00a0\u00e2\u20ac\u2122159:3 obsolete API cases retired,26 meaningful additions; Berthier173\u00c3\u00a2\u00e2\u20ac\u00a0\u00e2\u20ac\u2122175 with arithmetic property replaced by wire output, independent stationary input and fixed-dt progress; no new ignored tests. Two receive-invariant mutants killed by actual assertions; CS24 retained open as independently demonstrated old-law failure.",
+      "test_quality": "Davout 136Ã¢â€ â€™159:3 obsolete API cases retired,26 meaningful additions; Berthier173Ã¢â€ â€™175 with arithmetic property replaced by wire output, independent stationary input and fixed-dt progress; no new ignored tests. Two receive-invariant mutants killed by actual assertions; CS24 retained open as independently demonstrated old-law failure.",
       "independent_reviews": {
         "standards": {
           "findings": 0,
@@ -15523,7 +15523,7 @@
       "source": "0b2eb75e3922284da4ecdc4ad16561a67c777235",
       "baseline": "1d855dfc45cdfe76da5f67d69beecf567bb4d301",
       "PR": "https://github.com/jaylamping/marengo/pull/247",
-      "status": "Installer compatibility software qualified and delivered; T01 remains partial; T02/T03 open. No activation or physical acceptance.",
+      "status": "Installer compatibility delivered and installed on personal Pi at exact mainb827176; all214 installed hashes/preserved envelopes pass. T01partial; T02/T03open; no reference or motor-output acceptance.",
       "head": "a52eb02c5b33ac8cf086b8a33b03cf29ba1241a1",
       "main": "b8271764fcdaa8d9d5e8838e69de4721ec035d97",
       "pr_CI": 36996092516,
@@ -15532,7 +15532,8 @@
       "main_CI_scope": "all five success",
       "qualification": "evidence/batch33/final-source-qualification.json",
       "delivery": "evidence/batch33/delivery-receipt.json",
-      "physical_acceptance": false
+      "physical_acceptance": false,
+      "Pi_activation": "evidence/batch33/pi-activation-receipt.json"
     }
   ],
   "finding_status_counts": {
@@ -15541,7 +15542,7 @@
     "open": 63
   },
   "next_dependency_ready_batch": {
-    "current": "Finish installer compatibility qualification and Pi sync per owner, then R2b2/physical reference prerequisites before bounded right-arm tests.",
+    "current": "R2b2 current selected virtual grant, then qualified physical reference/installed-owner client path and explicitly confirmed bounded right-arm tests; preserve all history-only/INITIAL contracts.",
     "following": "T01/T02 versioned release activation; T03 exact-generation identity; supervised physical acceptance when all required prerequisites are qualified.",
     "human_input_blocker": null
   },
@@ -15580,17 +15581,18 @@
       "T01"
     ],
     "report": "batch33-installer-runtime-log-links.md",
-    "status": "Delivered PR247: qualified source0b2eb75, final head a52eb02 and equal-tree mainb827176; four selected PR jobs pass with sim filtered, all five main jobs pass. Pi source synced and exact-main release all214 hashes verified in owned staging. Runtime still4bc77ba; setup reply absent after ten minutes, operator treated as away and activation/movement pending. T01partial; T02/T03open; no physical acceptance.",
+    "status": "Installer compatibility delivered and installed on personal Pi at exact mainb827176; all214 installed hashes/preserved envelopes pass. T01partial; T02/T03open; no reference or motor-output acceptance. Services active/Disabled, all five Unhomed; setup reply explicitly confirms stable support, clear workspace and E-stop. Lower-arm yaw remains outside taught bounds.",
     "physical_acceptance": false,
     "prior_delivery": "evidence/batch32/delivery-receipt.json",
-    "pi_installed_revision": "4bc77ba605834fdec04b436daa4bec67bca84fbb",
+    "pi_installed_revision": "b8271764fcdaa8d9d5e8838e69de4721ec035d97",
     "owner_scope": "Personally owned robot/repository/Pi; isolated fixtures. Explicit confirmation and commissioning checks before every movement. Ten-minute silence leaves movement pending and allows independent work only.",
     "owner_requested_next": "Finish and push current chunk, sync Pi software, then explicitly confirmed bounded right-arm tests after qualified reference. Motor power on and powered testing authorized.",
-    "next": "R2b2 explicit current selected virtual grant preparation on codex/virtual-reference-consumer; existing history-only contracts preserved. Physical reference/installed clients and setup remain prerequisites for later bounded right-arm tests.",
+    "next": "R2b2 current selected virtual grant, then qualified physical reference/installed-owner client path and explicitly confirmed bounded right-arm tests; preserve all history-only/INITIAL contracts.",
     "source": "0b2eb75e3922284da4ecdc4ad16561a67c777235",
     "qualification": "evidence/batch33/final-source-qualification.json",
     "delivery": "evidence/batch33/delivery-receipt.json",
     "Pi_source_checkout": "b8271764fcdaa8d9d5e8838e69de4721ec035d97",
-    "continuation_branch": "codex/virtual-reference-consumer"
+    "continuation_branch": "codex/virtual-reference-consumer",
+    "Pi_activation": "evidence/batch33/pi-activation-receipt.json"
   }
 }
