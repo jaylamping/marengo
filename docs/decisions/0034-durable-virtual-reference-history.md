@@ -27,6 +27,9 @@ spelling. Compare existing files through the pinned portable file-identity
 library too, so hard links cannot defeat independence. This read-only preflight
 creates neither resource and opens no SQLite connection; the journal's existing
 symlink/resource checks still run on its supplied spelling at lazy open.
+Inspect existing resource types before identity opens. Nonregular history refuses
+before YAML loading; only regular existing files enter the portable identity
+comparison. Unsupported journal resources retain their lazy worker refusal.
 Generic, physical and existing INITIAL constructors keep no journal I/O. The
 worker opens lazily after accepted work; default owner shutdown remains a no-op
 for absent journals. No public writer callback, evidence/completion constructor,

@@ -435,6 +435,11 @@ pub(super) fn distinct_history_path(
     if history.as_os_str().as_encoded_bytes().len() > 4096 {
         return Err(error("bounded explicit history path required"));
     }
+    let history_is_regular = match existing_metadata(&history)? {
+        Some(metadata) if metadata.is_file() => true,
+        Some(_) => return Err(error("existing history must be a regular file")),
+        None => false,
+    };
     let history_slot = canonical_slot(&history)?;
     let history_folded = history_slot.as_os_str().to_string_lossy().to_lowercase();
     // Conservatively refuse case-only spellings too, including on platforms
@@ -454,14 +459,28 @@ pub(super) fn distinct_history_path(
         // Canonical filenames do not identify existing hard links. Use the
         // portable file identity already pinned by the workspace, and preserve
         // all errors except genuine absence. This opens no SQLite connection.
-        match same_file::is_same_file(&history, &resource) {
-            Ok(true) => return Err(error("history and journal paths must be distinct")),
-            Ok(false) => {}
-            Err(cause) if cause.kind() == std::io::ErrorKind::NotFound => {}
-            Err(cause) => return Err(error(cause)),
+        // same-file opens paths. Never give it a symlink or special file that
+        // could block a read-only identity open. Unsupported journal resources
+        // keep their lazy worker refusal rather than becoming an early I/O job.
+        let journal_is_regular = existing_metadata(&resource)?.is_some_and(|meta| meta.is_file());
+        if history_is_regular && journal_is_regular {
+            match same_file::is_same_file(&history, &resource) {
+                Ok(true) => return Err(error("history and journal paths must be distinct")),
+                Ok(false) => {}
+                Err(cause) if cause.kind() == std::io::ErrorKind::NotFound => {}
+                Err(cause) => return Err(error(cause)),
+            }
         }
     }
     Ok(history)
+}
+
+fn existing_metadata(path: &Path) -> Result<Option<fs::Metadata>, ReferenceJournalError> {
+    match fs::symlink_metadata(path) {
+        Ok(metadata) => Ok(Some(metadata)),
+        Err(cause) if cause.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(cause) => Err(error(cause)),
+    }
 }
 
 fn canonical_slot(path: &Path) -> Result<PathBuf, ReferenceJournalError> {
@@ -1069,3 +1088,7 @@ mod namespace_tests;
 #[cfg(test)]
 #[path = "reference_journal_hardlink_tests.rs"]
 mod hardlink_tests;
+
+#[cfg(all(test, unix))]
+#[path = "reference_journal_filetype_tests.rs"]
+mod filetype_tests;
