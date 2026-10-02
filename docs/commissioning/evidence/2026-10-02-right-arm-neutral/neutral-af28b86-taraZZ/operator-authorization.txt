@@ -1,0 +1,6 @@
+Joseph confirmed unchanged five-joint assembly, mechanical home, clear workspace,
+functional physical E-stop and stopped runtime. He explicitly approved a 500 ms
+all-joint neutral enable with zero torque/gains and automatic stop, including
+remote execution, and subsequently instructed that the SSH development session
+proceed without repeated approval requests. Motor power was left on. Timeout
+volatility and output-stop duration have not been measured.

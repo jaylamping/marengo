@@ -19,6 +19,8 @@
 //! - Closed [`PhysicalNeutralBench`] acquires real manual home into a durable,
 //!   five-second private reference for one neutral-only enable session. It exposes
 //!   neither mutable bus/Supervisor access nor nonneutral output.
+//! - Separately closed [`PhysicalLowerYawBench`] admits a finite +20-mrad lower-yaw
+//!   response with fixed gains and the same home-band acquisition/stop discipline.
 //! - Closed [`simulation::SimulationBus`] INITIAL virtual fixtures share admission/output logic;
 //!   they do not qualify reference acquisition, SetZero correlation or persistence ordering.
 //! - [`Supervisor::begin_reference`] / [`Supervisor::advance_reference`]: a separately
@@ -78,7 +80,7 @@ mod active_reporting;
 mod bench_home_qualification;
 pub use bench_home_qualification::{BenchHomeQualification, BENCH_TIMEOUT_COUNTS};
 mod physical_bench;
-pub use physical_bench::{BenchNeutralFeedback, PhysicalNeutralBench};
+pub use physical_bench::{BenchNeutralFeedback, PhysicalLowerYawBench, PhysicalNeutralBench};
 #[cfg(test)]
 mod active_reporting_pacing_tests;
 mod faults;

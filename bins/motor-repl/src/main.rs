@@ -70,6 +70,7 @@ fn usage() {
            motor-repl protocol-inspect  (standalone, disabled-only; stop marengo-pi first)\n  \
            motor-repl bench-home-qualify <operator> --confirm-home --sign-attested\n  \
            motor-repl bench-neutral <operator> --confirm-home --sign-attested --confirm-neutral-enable\n  \
+           motor-repl bench-lower-yaw <operator> --confirm-home --sign-attested --confirm-motion\n  \
            motor-repl homing-status\n  \
            motor-repl home\n  \
            motor-repl enable <operator_id> [--force]\n  \
@@ -140,7 +141,7 @@ fn main() {
     }
 
     let root = repo_root();
-    if args[1] == "bench-neutral" {
+    if matches!(args[1].as_str(), "bench-neutral" | "bench-lower-yaw") {
         if can_interface.is_some() {
             eprintln!("bench-neutral owns installed CAN routes; remove the interface override");
             std::process::exit(1);
@@ -150,11 +151,35 @@ fn main() {
             .filter(|value| !value.starts_with("--"))
             .map(String::as_str)
             .unwrap_or("");
+        let home = args.iter().any(|value| value == "--confirm-home");
+        let sign = args.iter().any(|value| value == "--sign-attested");
+        if args[1] == "bench-lower-yaw" {
+            match berthier::run_bench_lower_yaw(
+                &root,
+                operator,
+                home,
+                sign,
+                args.iter().any(|value| value == "--confirm-motion"),
+            ) {
+                Ok(report) => match serde_json::to_string_pretty(&report) {
+                    Ok(json) => println!("{json}"),
+                    Err(error) => {
+                        eprintln!("encode lower-yaw report: {error}");
+                        std::process::exit(1);
+                    }
+                },
+                Err(error) => {
+                    eprintln!("lower-yaw bench: {error}");
+                    std::process::exit(1);
+                }
+            }
+            return;
+        }
         let result = berthier::run_bench_neutral(
             &root,
             operator,
-            args.iter().any(|value| value == "--confirm-home"),
-            args.iter().any(|value| value == "--sign-attested"),
+            home,
+            sign,
             args.iter().any(|value| value == "--confirm-neutral-enable"),
         );
         match result {

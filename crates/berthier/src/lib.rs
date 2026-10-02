@@ -50,8 +50,10 @@
 //!
 //! See [ADR 0004](../../docs/decisions/0004-control-modes-and-mit.md).
 
+mod bench_lower_yaw;
 mod bench_neutral;
 mod friction;
+pub use bench_lower_yaw::{run_bench_lower_yaw, LowerYawBenchReport};
 pub use bench_neutral::{run_bench_neutral, NeutralBenchReport};
 mod gain_runtime;
 mod r#loop;

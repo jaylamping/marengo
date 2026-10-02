@@ -1,0 +1,1 @@
+CARGO_TARGET_DIR=/home/joey/marengo/target /home/joey/.cargo/bin/cargo +1.88.0 build --release -p motor-repl --features socketcan

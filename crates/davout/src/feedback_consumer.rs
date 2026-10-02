@@ -730,6 +730,18 @@ impl<B: MotorBus> Supervisor<B> {
                 message: "neutral bench home drift exceeds 0.05 rad".into(),
             });
         }
+        if self.reference_authority.physical_bench_binding().is_some()
+            && matches!(
+                context,
+                ReceiveContext::Operational | ReceiveContext::DisabledInspection
+            )
+            && f64::from(state.velocity_rad_s).abs() > 0.25
+        {
+            return Err(DavoutError::Limit {
+                joint: motor.joint.clone(),
+                message: "finite home bench measured velocity exceeds 0.25 rad/s".into(),
+            });
+        }
         if !self.feedback_motion_guards_enabled(context) {
             return Ok(());
         }

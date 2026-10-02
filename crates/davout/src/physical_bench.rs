@@ -1,4 +1,4 @@
-//! Closed real five-drive owner for one finite neutral qualification.
+//! Closed real five-drive owners for finite bench checks at mechanical home.
 
 use std::collections::HashSet;
 use std::fs::{self, File, OpenOptions};
@@ -22,6 +22,23 @@ use super::{
 const OWNER_LIFETIME: Duration = Duration::from_secs(5);
 pub(super) const MAX_HOME_DRIFT: f64 = 0.05;
 const ENABLE_DURATION: Duration = Duration::from_millis(500);
+const YAW_STEP_DURATION: Duration = Duration::from_secs(1);
+const LOWER_YAW: &str = "right_lower_arm_yaw";
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum BenchOutput {
+    Neutral,
+    LowerYawStep,
+}
+
+impl BenchOutput {
+    fn duration(self) -> Duration {
+        match self {
+            Self::Neutral => ENABLE_DURATION,
+            Self::LowerYawStep => YAW_STEP_DURATION,
+        }
+    }
+}
 const PROFILE: [(&str, MotorType, i8, [u8; 8]); 5] = [
     (
         "right_shoulder_pitch",
@@ -65,10 +82,15 @@ pub struct BenchNeutralFeedback {
 
 /// No bus injection, receipt import, mutable Supervisor or nonneutral output API.
 pub struct PhysicalNeutralBench {
-    owner: NeutralBenchOwner<RuntimeBus>,
+    owner: FiniteBenchOwner<RuntimeBus>,
 }
 
-struct NeutralBenchOwner<B: MotorBus> {
+/// One small lower-arm-yaw position step; all other MIT fields stay neutral.
+pub struct PhysicalLowerYawBench {
+    owner: FiniteBenchOwner<RuntimeBus>,
+}
+
+struct FiniteBenchOwner<B: MotorBus> {
     supervisor: Supervisor<B>,
     joints: Vec<String>,
     audit_path: PathBuf,
@@ -77,6 +99,7 @@ struct NeutralBenchOwner<B: MotorBus> {
     stop_report: Option<StopReport>,
     accepted_protocol: Vec<ProtocolObservation>,
     active_deadline: Option<Instant>,
+    output: BenchOutput,
 }
 
 impl PhysicalNeutralBench {
@@ -88,36 +111,15 @@ impl PhysicalNeutralBench {
         sign_attested: bool,
         confirmed_neutral_enable: bool,
     ) -> Result<Self, DavoutError> {
-        if !confirmed_home || !sign_attested || !confirmed_neutral_enable {
-            return Err(bench_error(
-                "home, sign and neutral-enable approval are required",
-            ));
-        }
-        let root = root.as_ref();
-        let motors = load_motors_config(root)?;
-        let bus = RuntimeBus::socketcan_from_motors(&motors)?;
-        let supervisor = Supervisor::from_repo_for_protocol_inspection(root, bus)?;
-        let mut owner = NeutralBenchOwner {
-            joints: supervisor.robot.robot.joints.clone(),
-            supervisor,
-            audit_path: PathBuf::new(),
-            enable_attempted: false,
-            closed: false,
-            stop_report: None,
-            accepted_protocol: Vec::new(),
-            active_deadline: None,
-        };
-        let acquisition = owner.supervisor.acquire_neutral_bench_reference(
-            root,
+        acquire_owner(
+            root.as_ref(),
             operator,
             confirmed_home,
             sign_attested,
-        );
-        let (audit_path, accepted) =
-            acquisition.map_err(|error| owner.finish_after_error(error))?;
-        owner.audit_path = audit_path;
-        owner.accepted_protocol = accepted;
-        Ok(Self { owner })
+            confirmed_neutral_enable,
+            BenchOutput::Neutral,
+        )
+        .map(|owner| Self { owner })
     }
 
     pub fn joints(&self) -> &[String] {
@@ -143,7 +145,88 @@ impl PhysicalNeutralBench {
     }
 }
 
-impl<B: MotorBus> NeutralBenchOwner<B> {
+impl PhysicalLowerYawBench {
+    pub fn acquire(
+        root: impl AsRef<Path>,
+        operator: &str,
+        confirmed_home: bool,
+        sign_attested: bool,
+        confirmed_motion: bool,
+    ) -> Result<Self, DavoutError> {
+        acquire_owner(
+            root.as_ref(),
+            operator,
+            confirmed_home,
+            sign_attested,
+            confirmed_motion,
+            BenchOutput::LowerYawStep,
+        )
+        .map(|owner| Self { owner })
+    }
+    pub fn joints(&self) -> &[String] {
+        self.owner.joints()
+    }
+    pub fn audit_path(&self) -> &Path {
+        self.owner.audit_path()
+    }
+    pub fn begin(&mut self, neutral: Vec<MitJointCommand>) -> Result<(), DavoutError> {
+        self.owner.begin(neutral)
+    }
+    pub fn tick(
+        &mut self,
+        batch: Vec<MitJointCommand>,
+    ) -> Result<Vec<BenchNeutralFeedback>, DavoutError> {
+        self.owner.tick(batch)
+    }
+    pub fn finish(&mut self) -> Result<StopReport, DavoutError> {
+        self.owner.finish()
+    }
+    pub fn active_deadline(&self) -> Option<Instant> {
+        self.owner.active_deadline
+    }
+}
+
+fn acquire_owner(
+    root: &Path,
+    operator: &str,
+    confirmed_home: bool,
+    sign_attested: bool,
+    confirmed_enable: bool,
+    output: BenchOutput,
+) -> Result<FiniteBenchOwner<RuntimeBus>, DavoutError> {
+    if !confirmed_home || !sign_attested || !confirmed_enable {
+        return Err(bench_error(
+            "home, sign and bounded-enable approval are required",
+        ));
+    }
+    let motors = load_motors_config(root)?;
+    let bus = RuntimeBus::socketcan_from_motors(&motors)?;
+    let supervisor = Supervisor::from_repo_for_protocol_inspection(root, bus)?;
+    let mut owner = FiniteBenchOwner {
+        joints: supervisor.robot.robot.joints.clone(),
+        supervisor,
+        audit_path: PathBuf::new(),
+        enable_attempted: false,
+        closed: false,
+        stop_report: None,
+        accepted_protocol: Vec::new(),
+        active_deadline: None,
+        output,
+    };
+    let acquisition = owner.supervisor.acquire_physical_bench_reference(
+        root,
+        operator,
+        confirmed_home,
+        sign_attested,
+        output,
+    );
+    let (audit_path, accepted) = acquisition.map_err(|error| owner.finish_after_error(error))?;
+    owner.audit_path = audit_path;
+    owner.accepted_protocol = accepted;
+    Ok(owner)
+}
+
+impl<B: MotorBus> FiniteBenchOwner<B> {
     fn joints(&self) -> &[String] {
         &self.joints
     }
@@ -163,11 +246,15 @@ impl<B: MotorBus> NeutralBenchOwner<B> {
             // The last disabled report must still be Reset before normal enable.
             self.supervisor
                 .inspection_receive(&self.accepted_protocol)?;
-            let deadline = Instant::now() + ENABLE_DURATION;
+            let deadline = Instant::now() + self.output.duration();
             self.active_deadline = Some(deadline);
             self.supervisor.enable_targets(&self.joints)?;
+            if self.output == BenchOutput::LowerYawStep {
+                self.supervisor
+                    .set_control_mode(super::ControlMode::Position);
+            }
             self.supervisor.send_mit_batch(neutral.clone())?;
-            self.supervisor.verify_neutral_bench_home(
+            self.supervisor.verify_bench_home(
                 0x60,
                 Some((&neutral, deadline)),
                 &mut self.accepted_protocol,
@@ -190,7 +277,7 @@ impl<B: MotorBus> NeutralBenchOwner<B> {
             {
                 return Err(bench_error("neutral bench is not running"));
             }
-            validate_neutral_batch(&self.joints, &neutral)?;
+            validate_bench_batch(self.output, &self.joints, &neutral)?;
             self.supervisor.ensure_reference_for(&self.joints)?;
             self.supervisor
                 .protocol_receive(&self.accepted_protocol, &ReceiveContext::Operational)?;
@@ -236,7 +323,7 @@ impl<B: MotorBus> NeutralBenchOwner<B> {
     }
 }
 
-impl<B: MotorBus> Drop for NeutralBenchOwner<B> {
+impl<B: MotorBus> Drop for FiniteBenchOwner<B> {
     fn drop(&mut self) {
         if !self.closed {
             if let Err(error) = self.finish() {
@@ -249,12 +336,13 @@ impl<B: MotorBus> Drop for NeutralBenchOwner<B> {
 impl<B: MotorBus> Supervisor<B> {
     /// Private generic body is testable, but only the closed real constructor can call it
     /// in production. Audit/readback data cannot be supplied by a caller.
-    fn acquire_neutral_bench_reference(
+    fn acquire_physical_bench_reference(
         &mut self,
         root: &Path,
         operator: &str,
         confirmed_home: bool,
         sign_attested: bool,
+        output: BenchOutput,
     ) -> Result<(PathBuf, Vec<ProtocolObservation>), DavoutError> {
         validate_profile(self)?;
         let identities = PROFILE.map(|(_, _, _, identity)| identity);
@@ -263,11 +351,12 @@ impl<B: MotorBus> Supervisor<B> {
             sign_attested,
             operator,
             Some(&identities),
+            output == BenchOutput::LowerYawStep,
         )?;
-        let audit = write_audit(root, self, &qualification)?;
+        let audit = write_audit(root, self, &qualification, output)?;
         // Filesystem completion cannot substitute for live drive/home continuity.
         let mut accepted = Vec::with_capacity(20);
-        self.verify_neutral_bench_home(0x40, None, &mut accepted)?;
+        self.verify_bench_home(0x40, None, &mut accepted)?;
         self.reference_authority
             .select_physical_bench(
                 self.robot.robot.joints.iter().cloned().collect(),
@@ -285,7 +374,7 @@ impl<B: MotorBus> Supervisor<B> {
         Ok((audit.path, accepted))
     }
 
-    fn verify_neutral_bench_home(
+    fn verify_bench_home(
         &mut self,
         first_host: u8,
         active: Option<(&[MitJointCommand], Instant)>,
@@ -369,20 +458,31 @@ fn validate_profile<B: MotorBus>(owner: &Supervisor<B>) -> Result<(), DavoutErro
 }
 
 fn validate_neutral_batch(joints: &[String], batch: &[MitJointCommand]) -> Result<(), DavoutError> {
+    validate_bench_batch(BenchOutput::Neutral, joints, batch)
+}
+
+fn validate_bench_batch(
+    output: BenchOutput,
+    joints: &[String],
+    batch: &[MitJointCommand],
+) -> Result<(), DavoutError> {
     let mut seen = HashSet::new();
     if batch.len() != joints.len()
         || batch.iter().any(|cmd| {
             !joints.contains(&cmd.joint)
                 || !seen.insert(&cmd.joint)
-                || cmd.kp != 0.0
-                || cmd.kd != 0.0
-                || cmd.position_rad != 0.0
                 || cmd.velocity_rad_s != 0.0
                 || cmd.torque_ff_nm != 0.0
+                || !(cmd.kp == 0.0 && cmd.kd == 0.0 && cmd.position_rad == 0.0
+                    || output == BenchOutput::LowerYawStep
+                        && cmd.joint == LOWER_YAW
+                        && cmd.kp == 10.0
+                        && cmd.kd == 0.4
+                        && (0.0..=0.02).contains(&cmd.position_rad))
         })
     {
         return Err(bench_error(
-            "closed neutral bench refuses nonneutral or incomplete output",
+            "closed bench refuses output outside its finite profile",
         ));
     }
     Ok(())
@@ -396,6 +496,7 @@ fn write_audit<B: MotorBus>(
     root: &Path,
     owner: &Supervisor<B>,
     qualification: &BenchHomeQualification,
+    output: BenchOutput,
 ) -> Result<DurableBenchAudit, DavoutError> {
     let result = (|| -> Result<DurableBenchAudit, Box<dyn std::error::Error>> {
         let directory = root.join("var/calibration/neutral-bench");
@@ -408,10 +509,18 @@ fn write_audit<B: MotorBus>(
         ));
         let bytes = serde_json::to_vec_pretty(&serde_json::json!({
             "schema": 1,
-            "evidence_class": "physical_manual_home_neutral",
+            "evidence_class": if output == BenchOutput::Neutral { "physical_manual_home_neutral" } else { "physical_manual_home_lower_yaw_step" },
             "history_only": true,
-            "neutral_only": true,
-            "neutral_enable_confirmed": true,
+            "neutral_only": output == BenchOutput::Neutral,
+            "enable_confirmed": true,
+            "neutral_enable_confirmed": output == BenchOutput::Neutral,
+            "bounded_motion_confirmed": output == BenchOutput::LowerYawStep,
+            "enabled_budget_ms": output.duration().as_millis(),
+            "lower_yaw_profile": if output == BenchOutput::LowerYawStep {
+                Some(serde_json::json!({ "max_target_rad": 0.02, "kp": 10.0, "kd": 0.4,
+                    "other_joints_neutral": true, "measured_home_drift_max_rad": MAX_HOME_DRIFT,
+                    "measured_velocity_max_rad_s": 0.25 }))
+            } else { None },
             "timeout_volatility_qualified": false,
             "owner_lifetime_ms": OWNER_LIFETIME.as_millis(),
             "acquired_unix_ns": acquired.as_nanos(),
@@ -484,12 +593,20 @@ mod tests {
         Supervisor::from_repo_for_protocol_inspection(root, bus).expect("installed supervisor")
     }
 
-    fn owner(bus: ProbeBus, root: &AuditRoot) -> NeutralBenchOwner<ProbeBus> {
+    fn owner(bus: ProbeBus, root: &AuditRoot) -> FiniteBenchOwner<ProbeBus> {
+        owner_with_output(bus, root, BenchOutput::Neutral)
+    }
+
+    fn owner_with_output(
+        bus: ProbeBus,
+        root: &AuditRoot,
+        output: BenchOutput,
+    ) -> FiniteBenchOwner<ProbeBus> {
         let mut supervisor = supervisor(bus);
         let (audit_path, accepted_protocol) = supervisor
-            .acquire_neutral_bench_reference(&root.0, "test", true, true)
+            .acquire_physical_bench_reference(&root.0, "test", true, true, output)
             .expect("actual fixture acquisition and durable audit");
-        NeutralBenchOwner {
+        FiniteBenchOwner {
             joints: supervisor.robot.robot.joints.clone(),
             supervisor,
             audit_path,
@@ -498,6 +615,7 @@ mod tests {
             stop_report: None,
             accepted_protocol,
             active_deadline: None,
+            output,
         }
     }
 
@@ -583,7 +701,7 @@ mod tests {
                 ..ProbeBus::default()
             });
             assert!(supervisor
-                .acquire_neutral_bench_reference(&root.0, "test", true, true)
+                .acquire_physical_bench_reference(&root.0, "test", true, true, BenchOutput::Neutral)
                 .is_err());
             assert!(supervisor
                 .reference_authority
@@ -755,5 +873,99 @@ mod tests {
         assert!(owner.closed);
         assert!(!owner.supervisor.reference_binding_valid());
         assert_eq!(owner.supervisor.mode(), OperationalMode::Disabled);
+    }
+
+    fn yaw_commands(joints: &[String]) -> Vec<MitJointCommand> {
+        let mut batch = neutral(joints);
+        batch[4].kp = 10.0;
+        batch[4].kd = 0.4;
+        batch[4].position_rad = 0.02;
+        batch
+    }
+
+    #[test]
+    fn lower_yaw_profile_uses_joint_transform_and_keeps_other_axes_neutral() {
+        let root = AuditRoot::new();
+        let mut owner = owner_with_output(ProbeBus::default(), &root, BenchOutput::LowerYawStep);
+        let audit: serde_json::Value =
+            serde_json::from_slice(&fs::read(owner.audit_path()).expect("audit")).expect("JSON");
+        assert_eq!(audit["neutral_only"], false);
+        assert_eq!(audit["enabled_budget_ms"], 1000);
+        owner
+            .begin(neutral(&owner.joints))
+            .expect("neutral bootstrap");
+        let first = owner.supervisor.bus.tx.len();
+        owner
+            .tick(yaw_commands(&owner.joints))
+            .expect("bounded step");
+        let mit: Vec<_> = owner.supervisor.bus.tx[first..]
+            .iter()
+            .filter(|f| f.id >> 24 == 1)
+            .collect();
+        assert_eq!(mit.len(), 5);
+        for frame in &mit[..4] {
+            assert_eq!(frame.data, [0x7F, 0xFF, 0x7F, 0xFF, 0, 0, 0, 0]);
+        }
+        let yaw = mit[4];
+        assert_eq!(yaw.id & 255, 5);
+        assert_eq!((yaw.id >> 8) & 65535, 0x7FFF);
+        assert!(
+            u16::from_be_bytes([yaw.data[0], yaw.data[1]]) < 0x7FFF,
+            "negative motor direction for positive joint step"
+        );
+        assert_eq!(u16::from_be_bytes([yaw.data[4], yaw.data[5]]), 1311);
+        assert_eq!(u16::from_be_bytes([yaw.data[6], yaw.data[7]]), 5243);
+        owner.finish().expect("stop");
+    }
+
+    #[test]
+    fn motion_profile_refuses_other_axes_and_unbounded_fields_then_stops() {
+        for variant in 0..7 {
+            let root = AuditRoot::new();
+            let mut owner =
+                owner_with_output(ProbeBus::default(), &root, BenchOutput::LowerYawStep);
+            owner.begin(neutral(&owner.joints)).expect("bootstrap");
+            let mut batch = yaw_commands(&owner.joints);
+            match variant {
+                0 => batch[0].kp = 10.0,
+                1 => batch[4].position_rad = 0.0201,
+                2 => batch[4].position_rad = -0.001,
+                3 => batch[4].torque_ff_nm = 0.01,
+                4 => batch[4].velocity_rad_s = 0.01,
+                5 => batch[4].kp = f64::NAN,
+                _ => batch[4].kd = 0.5,
+            }
+            let first = owner.supervisor.bus.tx.len();
+            assert!(owner.tick(batch).is_err());
+            assert!(owner.closed);
+            assert!(owner.supervisor.bus.tx[first..]
+                .iter()
+                .filter(|f| f.id >> 24 == 1)
+                .all(|f| f.data == [0x7F, 0xFF, 0x7F, 0xFF, 0, 0, 0, 0]));
+            assert!(!owner.supervisor.reference_binding_valid());
+        }
+    }
+
+    #[test]
+    fn first_motion_cannot_mask_out_of_home_position_with_a_new_zero() {
+        let root = AuditRoot::new();
+        let mut supervisor = supervisor(ProbeBus {
+            bad_zero: true,
+            ..ProbeBus::default()
+        });
+        assert!(supervisor
+            .acquire_physical_bench_reference(
+                &root.0,
+                "test",
+                true,
+                true,
+                BenchOutput::LowerYawStep
+            )
+            .is_err());
+        assert!(supervisor
+            .bus
+            .tx
+            .iter()
+            .all(|f| !matches!(f.id >> 24, 3 | 6)));
     }
 }

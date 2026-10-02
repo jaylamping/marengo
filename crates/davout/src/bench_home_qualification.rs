@@ -34,7 +34,7 @@ impl<B: MotorBus> Supervisor<B> {
         sign_attested: bool,
         operator: &str,
     ) -> Result<BenchHomeQualification, DavoutError> {
-        self.qualify_bench_home_for_profile(confirmed, sign_attested, operator, None)
+        self.qualify_bench_home_for_profile(confirmed, sign_attested, operator, None, false)
     }
 
     pub(super) fn qualify_bench_home_for_profile(
@@ -43,6 +43,7 @@ impl<B: MotorBus> Supervisor<B> {
         sign_attested: bool,
         operator: &str,
         identities: Option<&[[u8; 8]; 5]>,
+        require_existing_home: bool,
     ) -> Result<BenchHomeQualification, DavoutError> {
         self.refuse_reference_interference("disabled bench home qualification")?;
         self.require_fault_clear()?;
@@ -84,6 +85,37 @@ impl<B: MotorBus> Supervisor<B> {
             return Err(DavoutError::ProtocolInspection {
                 joint: String::new(),
                 message: "MCU identity does not match qualified physical arm".into(),
+            });
+        }
+        if require_existing_home
+            && before.iter().any(|observed| {
+                observed
+                    .reads
+                    .iter()
+                    .find(|read| {
+                        read.request_data[..2]
+                            == ParameterId::MechanicalPosition.as_u16().to_le_bytes()
+                    })
+                    .is_none_or(|read| {
+                        let position = f32::from_le_bytes([
+                            read.response_data[4],
+                            read.response_data[5],
+                            read.response_data[6],
+                            read.response_data[7],
+                        ]);
+                        !position.is_finite()
+                            || f64::from(position).abs()
+                                > self
+                                    .homing_config
+                                    .homing
+                                    .zero_verify_tolerance_rad
+                                    .min(0.05)
+                    })
+            })
+        {
+            return Err(DavoutError::Homing {
+                message: "first motion requires existing position in the home band before Set Zero"
+                    .into(),
             });
         }
         // Select only observed installed model/firmware pairs. Configuration metadata

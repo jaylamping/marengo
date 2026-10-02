@@ -5,6 +5,9 @@ MIT commands at zero position, velocity, torque, stiffness and damping. It uses
 the installed arm configuration/URDF and Davout's ordinary Ready/Active gates.
 See [ADR0038](../decisions/0038-finite-neutral-physical-bench-owner.md).
 
+Build the Linux executable with SocketCAN enabled:
+`cargo build --release -p motor-repl --features socketcan`.
+
 ```bash
 MARENGO_ROOT=/opt/marengo MARENGO_CONFIG_DIR=/opt/marengo/config RUST_LOG=error \
   /path/to/reviewed/motor-repl bench-neutral joseph \
@@ -38,3 +41,8 @@ Save receipt, passive capture, source/executable/config/URDF hashes and approval
 The stop receipt describes accepted writes, not physical stop acknowledgement.
 Process kill and hardware behavior are external observations. This tool cannot
 run torque pulses or trajectories; those require a separate finite motion profile.
+
+The separately named `bench-lower-yaw` profile is defined in
+[ADR0039](../decisions/0039-finite-first-lower-yaw-motion.md). It ramps +20 mrad
+and returns with fixed gains, while other joints stay neutral. Use its
+`--confirm-motion` flag under the same session authorization policy.
