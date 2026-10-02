@@ -9,7 +9,7 @@ uses codex/pi-can-ingress-diagnostics; all previous branches/worktrees preserved
 
 Actual Pi source and installed release are01a5c40.214 installed hashes, all five
 taught envelopes/actual motor identities, calibration/env, Store integrity/schema3
-and trusted HTTPS UI verified. Installer exit0 at14:13:18 UTC; runtime starts
+and trusted HTTPS UI verified. Activation starts14:13:18 UTC; installer exits0; runtime starts
 14:13:22, natural Transport fault recurs15.026s later. Its SafetyState now retains
 the stable fault and software latch across healthy feedback and later snapshots.
 Post-fault passive30s observer receives15290 frames, zero error frames, counters
