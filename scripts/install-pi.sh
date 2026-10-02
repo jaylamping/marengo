@@ -304,7 +304,12 @@ chown -hR root:root "${INSTALL_ROOT}"
 seal_installed_tree
 reject_installed_symlinks
 chown -hR root:"${RUN_USER}" "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets" "${INSTALL_ROOT}/var"
-chmod -R g+rwX "${INSTALL_ROOT}/config" "${INSTALL_ROOT}/assets" "${INSTALL_ROOT}/var"
+for directory in config assets var; do
+  # Restore file permissions while every parent is sealed. Open directories
+  # from children to parents so root never revisits runtime-writable entries.
+  find "${INSTALL_ROOT}/${directory}" -type f -exec chmod g+rwX {} +
+  find "${INSTALL_ROOT}/${directory}" -depth -type d -exec chmod g+rwX {} \;
+done
 
 
 install_deploy_rev "${ROOT}" "${INSTALL_ROOT}"

@@ -75,3 +75,12 @@ restored after privileged installation writes. Historical v5 qualification is
 retained separately from the final v7 receipt. Re-review and exact-source gate
 are pending. Pi native deployment/gateway tests passed 65; both Rust input
 hashes match the canonical source. No live device installation occurred.
+
+The broad Linux primary at 9b2dd50 passed the full seven-test installer suite
+and all earlier gate totals. Final restoration now grants regular-file modes
+while all state parents remain sealed, then grants directory modes in postorder.
+Canonical v7 replays unchanged green after this ordering change. The recursive
+chmod window was identified from [Coreutils9.1 source](https://github.com/coreutils/coreutils/blob/v9.1/src/chmod.c)
+and [gnulib chmodat](https://github.com/coreutils/gnulib/blob/master/lib/openat.h);
+it is source-level evidence, not an additional reproduced failure.
+Final independent re-review and exact-head hosted primary remain pending.

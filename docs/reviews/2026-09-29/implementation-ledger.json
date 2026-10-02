@@ -15462,10 +15462,11 @@
     "findings": [
       "T01"
     ],
-    "status": "Canonical actual-installer six-test regression: 17 baseline assertion failures, unchanged six green. Initial primary passed; final review/CI and Pi native clients pending. Batch28 PR242 delivered with all-five PR/main CI. No live install or movement.",
+    "status": "PR243 draft: canonical actual-installer seven-test fixture21 original failures,4 initial review-candidate failures, unchanged7 green after corrections. Linux primary814Rust/1ignored and all gates pass; only final restoration ordering changed with focused7/syntax green. Pi native clients65 pass. Final re-review/hosted gate pending. T01 remains open for delivery/versioned-release acceptance. No live installation or movement.",
     "physical_acceptance": false,
     "owner_scope": "Personally owned humanoid robot and authorized repository/Pi only. Isolated access-control and permissions fixtures; nonenergizing testing first. Prompt before each movement with bounds/stop; explicit confirmation and commissioning safeguards required. After ten minutes without reply continue independent work; silence never authorizes movement.",
     "pi_installed_revision": "4bc77ba605834fdec04b436daa4bec67bca84fbb",
-    "report": "batch29-immutable-installed-helpers.md"
+    "report": "batch29-immutable-installed-helpers.md",
+    "pr": 243
   }
 }

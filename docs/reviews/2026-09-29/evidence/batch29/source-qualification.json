@@ -46,7 +46,7 @@
     "canonical_v7_sha256": "8f476f426d603c2546283117fd6305bc748ff8d4fca3ce174254738efa201df2",
     "unchanged_test_sha256": "8f476f426d603c2546283117fd6305bc748ff8d4fca3ce174254738efa201df2",
     "inputs": {
-      "scripts/install-pi.sh": "a5bf86bba44cb7d2f8c3ec9531885e49c2f21e3c96c4818fbbcd4bf9fcd10bac",
+      "scripts/install-pi.sh": "ab5b15d3c91f4907a9e363792c3dbb92fd62038fd8d1e4779142ad47d5d5f0a7",
       "scripts/pi-enqueue-self-update.sh": "aa2ebae8f95ba9d3396ff33b00c3c25173c1a97e78bd55118b68d15b27b576c9",
       "scripts/test_install_permissions.py": "8f476f426d603c2546283117fd6305bc748ff8d4fca3ce174254738efa201df2",
       "scripts/check.sh": "97a805988122a1f81cda1105d7f1665d145b1eba98ea4f91f541c3d0ad405dbb",
@@ -75,7 +75,8 @@
       "actual-installer-red-v7.txt": "b776a88bad40cf4f11a6f49d54ee8b59e26956f9e906005077743d1ed8b71f45",
       "review-findings-red-v7.txt": "90ee9e51e98a3f1b258813abf70044e445d9dd78822d0a9cec565758c60755fc",
       "actual-installer-green-v7.txt": "cf8236ce9d112e06a559f874316c149cd74185b2749226715961bd6a84568105",
-      "pi-native-clients.txt": "b6c2d710c1dc7d508ffd7b7c11bb26bd548eed72a3e89ea4bcdb039fa3b7bd7b"
+      "pi-native-clients.txt": "b6c2d710c1dc7d508ffd7b7c11bb26bd548eed72a3e89ea4bcdb039fa3b7bd7b",
+      "actual-installer-green-final-v7.txt": "46aac75f9f892ccc5ae44294c8404b7af89a02c8e73573c56b1c0e956cf6eb77"
     },
     "review_corrections": "Seal writable state entries before privileged operations; refuse nested redirects; real rsync forces root ownership/nonwritable modes throughout copy. Wrapper observes real rsync completion without replacing copying.",
     "pi_clients": {
@@ -84,6 +85,21 @@
       "input_hashes_match": true,
       "physical_acceptance": false
     },
-    "final_primary_and_review": "pending"
+    "final_primary_and_review": "Independent final re-review and exact-head hosted Docker gate pending.",
+    "state_restoration": "Regular files first while parents are sealed; directory writes restored in postorder. Canonical seven tests unchanged green. Recursive chmod window identified from upstream source; no race reproduction claimed.",
+    "primary": {
+      "source_commit": "9b2dd50fb72f06bf3d9e8d261e9892a554128ff2",
+      "passed": true,
+      "rust_passed": 814,
+      "rust_existing_ignored": 1,
+      "consul_passed": 361,
+      "pi_mcp_passed": 72,
+      "research_passed": 83,
+      "daily_audit_passed": 15,
+      "installer_methods": 7,
+      "fatal_aarch64_release": true,
+      "log_sha256": "f9d528294e40f804597a5320d287026cbf12ae056c409cf2c1525a2c3bc96d20",
+      "subsequent_change": "Only state restoration traversal order; unchanged canonical seven and shell syntax passed. Final hosted exact-head primary still required."
+    }
   }
 }

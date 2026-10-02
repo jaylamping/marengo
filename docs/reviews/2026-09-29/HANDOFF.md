@@ -6,11 +6,13 @@ partial. Counts remain 25 verified, 11 partial, 66 open across 102 IDs;
 eight maintenance tasks remain intact.
 
 Batch29 on `codex/install-immutable-helpers` repairs the actual installer
-permissions and moves helpers to immutable libexec paths. The six-test actual
-installer fixture records 17 baseline assertion failures and replays unchanged
-green. It also checks root state writes against isolated symlink sentinels.
-Initial Linux primary passed; final reviews/CI and isolated Pi native clients
-are pending. T01 remains open, with versioned releases/atomic activation still
+permissions and moves helpers to immutable libexec paths. The final seven-test actual
+installer fixture records 21 baseline assertion failures and replays unchanged
+green after four initial-review failures were repaired. It also checks root state writes against isolated symlink sentinels.
+Linux primary814 Rust/1ignored, Consul361/Pi MCP72/research83/daily15,
+installer7 and fatal ARM build passed. Final restoration-order edit has unchanged
+seven-test/syntax qualification; isolated Pi native clients65 pass. Final
+re-review and exact-head hosted CI for draft PR243 are pending. T01 remains open, with versioned releases/atomic activation still
 required alongside T02. See the batch29 report and source receipt.
 
 The updated owner goal explicitly covers this personally owned humanoid robot,
