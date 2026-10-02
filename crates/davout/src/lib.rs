@@ -27,6 +27,9 @@
 //! - Explicit unreferenced virtual journal owners commit immutable typed history on a
 //!   dedicated bounded SQLite worker. Owner-consumed completion remains distinct from
 //!   eligibility, cancellation and output permission; recovery is inspection only.
+//! - Explicit current-consuming virtual owners may select the acquired joint after real
+//!   durable completion and fresh continuity checks. Its private lifetime binds actual
+//!   model/device continuity independently of transaction deadlines and diagnostic caches.
 //! - [`Supervisor::disable_all`]: all-address best-effort stop with honest delivery evidence.
 //! - [`refresh_feedback`]: blocking poll up to `feedback_poll_budget_us` (REPL / set-zero).
 //! - [`drain_feedback`]: non-blocking RX queue drain (Berthier control loop).
@@ -705,6 +708,21 @@ impl<B: MotorBus> Supervisor<B> {
             if self.reference_authority.realm().is_some() {
                 self.reference_authority.revoke();
             }
+            return false;
+        }
+        if !self
+            .reference_authority
+            .validate_consumed_model(&self.installed_model)
+            || self
+                .reference_authority
+                .consumed_binding()
+                .is_some_and(|binding| {
+                    self.reference_owner
+                        .current_device_epoch(&self.bus, &binding.address)
+                        != Some(binding.device_epoch)
+                })
+        {
+            self.reference_authority.revoke();
             return false;
         }
         self.reference_authority

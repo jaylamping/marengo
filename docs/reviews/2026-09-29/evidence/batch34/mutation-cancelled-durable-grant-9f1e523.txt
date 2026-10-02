@@ -1,0 +1,25 @@
+ Container marengo-dev-run-39340b80e99a Creating 
+ Container marengo-dev-run-39340b80e99a Created 
+   Compiling davout v0.1.0 (/workspace/crates/davout)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 44s
+     Running unittests src/lib.rs (/mutant-target/debug/deps/davout-101ef875fb5af0d3)
+
+running 1 test
+test reference_commit::grant_tests::current_grant_cancel_and_shutdown_win_before_late_durable_publication ... FAILED
+
+failures:
+
+---- reference_commit::grant_tests::current_grant_cancel_and_shutdown_win_before_late_durable_publication stdout ----
+
+thread 'reference_commit::grant_tests::current_grant_cancel_and_shutdown_win_before_late_durable_publication' panicked at crates/davout/src/reference_grant_tests.rs:502:9:
+assertion failed: !result.usable_reference
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    reference_commit::grant_tests::current_grant_cancel_and_shutdown_win_before_late_durable_publication
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 114 filtered out; finished in 0.25s
+
+error: test failed, to rerun pass `-p davout --lib`
+

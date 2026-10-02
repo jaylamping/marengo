@@ -1,0 +1,27 @@
+ Container marengo-dev-run-692af79e8736 Creating 
+ Container marengo-dev-run-692af79e8736 Created 
+   Compiling armee-proto v0.1.0 (/workspace/crates/armee-proto)
+   Compiling marengo-homing v0.1.0 (/workspace/crates/marengo-homing)
+   Compiling davout v0.1.0 (/workspace/crates/davout)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 39s
+     Running unittests src/lib.rs (/mutant-target/debug/deps/davout-101ef875fb5af0d3)
+
+running 1 test
+test reference_commit::grant_tests::current_grant_device_reset_and_owning_commit_cancel_revoke_exact_selection ... FAILED
+
+failures:
+
+---- reference_commit::grant_tests::current_grant_device_reset_and_owning_commit_cancel_revoke_exact_selection stdout ----
+
+thread 'reference_commit::grant_tests::current_grant_device_reset_and_owning_commit_cancel_revoke_exact_selection' panicked at crates/davout/src/reference_grant_tests.rs:739:9:
+assertion failed: !owner.reference_commit_snapshot(&handle).expect("actual current projection").usable_reference
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    reference_commit::grant_tests::current_grant_device_reset_and_owning_commit_cancel_revoke_exact_selection
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 114 filtered out; finished in 0.29s
+
+error: test failed, to rerun pass `-p davout --lib`
+

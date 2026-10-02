@@ -22,6 +22,8 @@
 //!   uses the same controller implementation with an explicit virtual initial
 //!   reference condition. It provides software output coverage, not reference
 //!   acquisition or physical commissioning proof.
+//! - Explicit current-consuming virtual journal construction exercises actual reference
+//!   acquisition and durable selected permission through the same owner/tick path.
 //!
 //! ## Does not
 //!
@@ -61,6 +63,8 @@ mod torque_cmd;
 
 #[cfg(test)]
 mod mode_isolation;
+#[cfg(test)]
+mod reference_grant_tests;
 #[cfg(test)]
 mod reference_journal_tests;
 

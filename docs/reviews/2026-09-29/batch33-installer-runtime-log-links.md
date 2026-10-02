@@ -35,7 +35,11 @@ ARM release. The final production mutation omitting the resolved-target guard
 fails three actual installer subcase assertions; the ten unchanged tests replay
 successfully. See evidence/batch33/final-source-qualification.json for exact
 source/probe/artifact bindings. Both final qualification metadata reviews clear 334a8a0 with zero findings.
-Exact final PR/main CI and delivery remain pending.
+Delivered as PR247/main b827176 with the same tree as final head a52eb02.
+The four selected final PR jobs pass; sim is path-filtered and skipped for this
+installer-only production delta. All five merged-main jobs pass, including sim
+and fatal ARM. Both independent reviewers also clear the final recording delta
+at a52eb02. See evidence/batch33/delivery-receipt.json.
 
 The preceding c6aa099 primary pass skipped ARM by branch selection and remains
 provisional historical evidence only. The baseline failure used its nine-method
@@ -63,13 +67,32 @@ Keep all 102 findings/eight maintenance tasks and 26 verified,
 13 partial,63 open. Preserve calibration, taught limits, model assets, logs,
 CAD, existing branches/worktrees, Wave sign-off and the paused automation.
 
-Pi update is authorized. The owner has confirmed motor power is on and approved
-powered movement testing. Motor power is required for controlled movement;
-the earlier power-off request concerned the software restart only. Before
-activation establish the arm's stable supported state, stopped drive state,
-physical E-stop readiness and a concrete rollback. The repaired build still
-lacks qualified physical reference acquisition, so it cannot yet authorize
-normal right-arm output. Before each actual movement propose the joint, bounds,
-duration/caps and stop procedure, require explicit confirmation and pass the
-commissioning checks. Ten-minute silence leaves movement pending and permits
-independent work only. No deployment or physical motor command has occurred.
+The owner subsequently returned and explicitly confirmed stable support, clear
+workspace and physical E-stop within reach: “Yes—all three setup conditions are
+ready; proceed.” This supersedes the earlier ten-minute setup timeout. Motor
+power stays on under the owner's standing authorization.
+
+The exact-main b827176 release is now installed on the Pi. Initial staging
+stopped before installation because copied script modes and local release
+artifacts failed the source-clean check. Git executable modes were restored;
+a stale consul/dist was backed up and replaced with all99 verified UI files
+because the installer selects it before www. The qualified installer then
+completed with exit0, preserving the three valid log aliases. Pi/gateway are
+active with zero automatic restarts in the recorded sample. Both binary hashes
+and all214 installed manifest entries verify, using the independent taught-limit
+preview for the three preserved files. All five joint envelopes, motor identity,
+calibration registry and runtime environment are preserved. The installed Store
+integrity check passes with schema3. The HTTPS served UI matches the verified
+index. See evidence/batch33/pi-activation-receipt.json and its actual captures.
+
+Live snapshots report Disabled and all five joints Unhomed. A passive bounded
+50-frame capture contains ten reports from each motor; its installed CLI parser
+passes. No enable, SetZero, target or movement test was commanded. Lower-arm yaw
+still reports -4.13228655, outside the preserved taught envelope. Physical
+reference acquisition and installed-owner clients remain unqualified; R2b2 is
+the next software dependency before physical acquisition and bounded tests.
+Owner setup approval clears deployment preparation, while each actual movement
+still requires its own concrete joint/bounds/duration/caps/stop proposal, explicit
+confirmation and qualified commissioning. Ten-minute silence authorizes only
+independent work. T01 remains partial; T02/T03 and physical motion acceptance
+remain open. Source/runtime backups and concrete rollback remain retained.

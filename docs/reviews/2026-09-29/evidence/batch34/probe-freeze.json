@@ -1,0 +1,43 @@
+{
+  "source": "9f1e52306f616d844c313b0a2dec3d7a6c0733e6",
+  "base": "9857a1e4b89f87373625f0ce968b2a3b29bdf164",
+  "recorded_utc": "2026-10-02T11:46:06.312082+00:00",
+  "git_blob_sha256": {
+    "crates/davout/src/reference_journal_tests.rs": "05cb176a46c73e55c8ff033c79036329c03466d09d24a7ba5e0d1ca385eb414c",
+    "crates/davout/src/reference_journal_storage_tests.rs": "c94dc41a16bd7993e825ddba5fae66687ee71ac76bdbafd853c79eb0c418382f",
+    "crates/davout/src/reference_codec_tests.rs": "ee3e116e81d22fceba11e5281d9a6c7e4c9dde718297155c866341645862c865",
+    "crates/berthier/src/reference_journal_tests.rs": "8e56da5168b67e76ba9478594d61329477940258b5c66a3101a5e3b61344c824",
+    "bins/marengo-pi/src/reference_journal_shutdown_tests.rs": "c562163cda8aeb3c6b0a8dea2d75e4b4189dee34efc66e2f0b9da02d417d3d7d",
+    "crates/davout/src/reference_journal_resource_tests.rs": "e675ffc04db7ccd068c2680af859114b6ba1dc29672784591d9c6a5247cc8aa4",
+    "crates/davout/src/reference_commit_tests.rs": "3733e66afdc8ea15495bd2de1f621f68994e06236bb3339984dc320098e9bfba",
+    "crates/davout/src/reference_journal_namespace_tests.rs": "8d723d665e8f5e233211329f34323decdcb055b82fecf945a206194eb141592b",
+    "crates/davout/src/reference_journal_hardlink_tests.rs": "30772e275828e527ab41160bcf10e59c4106ea6a615cfdd49f53fa7cb9e2b0bc",
+    "crates/davout/src/reference_journal_filetype_tests.rs": "4edcca3b3bc47254e496254eb6f590e55f7bfe44240df700be08135cadf92904",
+    "bins/marengo-pi/src/limit_persist_qualification_tests.rs": "88095da77fc8ee6f9abc3443a3df2a5240edaa8bcc456dca73fccba057a638bc",
+    "bins/marengo-pi/src/reference_busy_overlay_tests.rs": "8bcc72eb252587d272fed3a6e3f1c28e84770d8de8f2c4fcdda3301428a0ce20",
+    "bins/marengo-pi/src/reference_shutdown_tests.rs": "4c7c30df398ed31b0cd2688eb398efa90c813666bb8c5e9575264c8d5eaf4431",
+    "bins/marengo-pi/src/shutdown_tests.rs": "8659b0cba8e25d841f3577b1461e786e9d78dd345df929e2ff05d39933d51237",
+    "crates/berthier/tests/reference_intent_admission.rs": "76dd1615f43a0bbe1502ee5ea69aec37465e39b9a3367875568c6ab50f13da78",
+    "crates/berthier/tests/reference_transaction_owner.rs": "f1397d3ea2e0646823ca63d1b5b50454ae5da07e666a014a83accce0b5e15f5d",
+    "crates/davout/tests/current_reference.rs": "fe1782dad21f5466c716c6da005d3cb58f8eeb82612b2341059740533ed0dc93",
+    "crates/davout/tests/reference_boundary_public.rs": "adced9ed87dbd209cd6dc8be876e7814abfc4bd739244278f14305ac558be5c1",
+    "crates/davout/tests/reference_clock_boundary.rs": "0f0b84c62e83f111939beebb16a0d6b95ff356dead364a9f303b44b2cf69d3f7",
+    "crates/davout/tests/reference_history.rs": "b3bbe8bda4cb1e32f29e00ef502b2000843cee8fe05fb2184392a7054da42cee",
+    "crates/davout/tests/reference_model_restore.rs": "6f8bd65056bf144fffaba47c49941ba9f37193080021762a53913a07f1509c0d",
+    "crates/davout/tests/reference_model_stamp.rs": "4706e96f76c0129be8de45d0283b3b642bc121eb89b40659c68321557e0c95f2",
+    "crates/davout/tests/reference_observed_busy_mismatch.rs": "b4b444658ef566e9299dae63763ee3f41e282c6aae495a03be87d555ea2270ce",
+    "crates/davout/tests/reference_observed_mismatch.rs": "3f329b2c4e962d4fb37dac991d5be1a4f5c7a59d43dde016af5f391f3f0b1ea4",
+    "crates/davout/tests/reference_stage_continuity.rs": "504f0dc8035b16ffc5ca4866b88bb45965050b77b77af12b22e268ddcc065b97",
+    "crates/davout/tests/reference_transaction.rs": "bb9d9921a81ff71b20023d441b86b7c21c2a025cb2f96eddced6ef652c0a5ea7",
+    "crates/davout/src/reference_grant_tests.rs": "8c6422bd73cabce459cad213a927888c9f8fd3a06ffe1b59aef95a83d9146496",
+    "crates/berthier/src/reference_grant_tests.rs": "4117567c5bdab7639031678b6563557bf57e911ddd6531bc763a02679e45260a"
+  },
+  "new_probe_files": [
+    "crates/davout/src/reference_grant_tests.rs",
+    "crates/berthier/src/reference_grant_tests.rs"
+  ],
+  "new_tests": 20,
+  "prior_qualified_probe_files_unchanged": 26,
+  "preceding_freeze": "probe-freeze-d1f39d0.json",
+  "notes": "All prior qualified files unchanged. Original18 grant tests preserved as exact prefixes; Active-shortcut and selected-owner Shutdown regressions appended. Final complete probes frozen before mutations, including unchanged INITIAL shutdown regression. Preliminary sources are not final qualification; preparation failures are not behavioral reds."
+}

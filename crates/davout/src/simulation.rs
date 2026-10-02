@@ -189,6 +189,14 @@ impl SimulationBus {
         &self.realm
     }
 
+    #[cfg(test)]
+    pub(crate) fn reset_reference_device_for_test(
+        &mut self,
+        address: &MotorAddress,
+    ) -> Result<(), SimulationError> {
+        self.reference.reset_device_for_test(address)
+    }
+
     pub(crate) fn access(&mut self) -> SimulationAccess<'_> {
         SimulationAccess { bus: self }
     }
@@ -686,6 +694,7 @@ impl Supervisor<SimulationBus> {
             bus,
             record_path.as_ref(),
             journal_path.as_ref(),
+            crate::reference_commit::CommitSelection::HistoryOnly,
             #[cfg(any(test, feature = "reference-journal-test-support"))]
             None,
         )
@@ -704,6 +713,45 @@ impl Supervisor<SimulationBus> {
             bus,
             record_path.as_ref(),
             journal_path.as_ref(),
+            crate::reference_commit::CommitSelection::HistoryOnly,
+            Some(pause.worker()),
+        )
+    }
+
+    /// Closed virtual owner that may select one current reference only through
+    /// actual acquisition, durable write/readback and fresh owner consumption.
+    /// Every startup begins unreferenced; disk history never grants permission.
+    pub fn from_simulation_with_current_reference_journal(
+        repo_root: impl AsRef<std::path::Path>,
+        bus: SimulationBus,
+        record_path: impl AsRef<std::path::Path>,
+        journal_path: impl AsRef<std::path::Path>,
+    ) -> Result<Self, DavoutError> {
+        Self::from_simulation_journal_inner(
+            repo_root.as_ref(),
+            bus,
+            record_path.as_ref(),
+            journal_path.as_ref(),
+            crate::reference_commit::CommitSelection::CurrentVirtual,
+            #[cfg(any(test, feature = "reference-journal-test-support"))]
+            None,
+        )
+    }
+
+    #[cfg(any(test, feature = "reference-journal-test-support"))]
+    pub fn from_simulation_with_paused_current_reference_journal(
+        repo_root: impl AsRef<std::path::Path>,
+        bus: SimulationBus,
+        record_path: impl AsRef<std::path::Path>,
+        journal_path: impl AsRef<std::path::Path>,
+        pause: &JournalTestPause,
+    ) -> Result<Self, DavoutError> {
+        Self::from_simulation_journal_inner(
+            repo_root.as_ref(),
+            bus,
+            record_path.as_ref(),
+            journal_path.as_ref(),
+            crate::reference_commit::CommitSelection::CurrentVirtual,
             Some(pause.worker()),
         )
     }
@@ -713,6 +761,7 @@ impl Supervisor<SimulationBus> {
         bus: SimulationBus,
         record: &std::path::Path,
         journal: &std::path::Path,
+        selection: crate::reference_commit::CommitSelection,
         #[cfg(any(test, feature = "reference-journal-test-support"))] pause: Option<
             crate::reference_journal::test_support::WorkerPause,
         >,
@@ -737,7 +786,9 @@ impl Supervisor<SimulationBus> {
         .map_err(|error| DavoutError::Homing {
             message: error.to_string(),
         })?;
-        owner.reference_commits.install(journal);
+        owner.reference_commits.install(journal, selection);
+        // Fixed closed specialization, independent of optional INITIAL fixtures.
+        owner.reference_realm_matches = Some(|bus, realm| Arc::ptr_eq(bus.realm(), realm));
         Ok(owner)
     }
 

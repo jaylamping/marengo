@@ -1,3 +1,68 @@
+## Latest Windows checkpoint: selected virtual reference qualified, October 2
+
+Batch34 source9f1e523/PR248 adds current-consuming closed virtual factories.
+Actual acquisition/proof/cleanup, durable write/readback and fresh owner report
+select only the acquired joint. Private lifetime survives ordinary Disable/cache
+eviction; actual modeled reset/model/relevant policy/fault/uncertain stop/shutdown
+revoke. Active motion entry rechecks the same shared authority. Old history-only
+and INITIAL probe contracts remain unchanged.
+
+Primary and full native Pi881Rust/1existing ignored+374UI, fatal ARM, twenty new
+cases/nine frozen mutants, independent Standards/Spec and sourceall-five CI pass.
+See batch34-current-virtual-reference.md/evidence/batch34. Final evidence-head/main
+delivery pending. Original18 new probes retained; final complete regression
+red/green bindings distinguish earlier altered exploratory assertions.
+
+Pi installedb827176 remains unchanged by isolated native qualification. Last live
+capture Disabled/all five Unhomed; lower yaw remains outside taught limits. No
+physical reference or motion grant. Next qualify physical protocol continuity
+and installed-owner reference/priority stop, then explicitly confirmed bounded
+right-arm tests. Motor power stays on, setup/activation explicitly authorized;
+ten-minute silence never consents to movement. Counts102/eight/26/13/63 and paused
+automation, CAD, all branches/worktrees, limits and Wave sign-off preserved.
+
+---
+
+## Latest Windows checkpoint: Pi updated and verified, October 2
+
+Owner returned and explicitly confirmed stable support, clear workspace and
+physical E-stop within reach; activation approval supersedes prior setup timeout.
+Motor power stays on. Exact mainb827176 installed successfully; Pi/gateway active
+with zero automatic restarts in the recorded sample. All214 installed file hashes,
+all five taught envelopes/motor identity, calibration and runtime environment
+verify; Store integrity/schema3 and verified HTTPS UI pass. Backups/rollback
+retained. See evidence/batch33/pi-activation-receipt.json and actual captures.
+
+Live safety Disabled; every joint Unhomed. Passive50-frame capture has ten reports
+per motor. Lower-arm yaw -4.13228655 remains outside taught hard bounds. No enable,
+SetZero, target or movement test commanded. Next: R2b2 selected current virtual
+grant, then qualified physical acquisition/installed-owner clients before actual
+bounded motion. Each physical test still needs a concrete proposal and explicit
+reply; ten-minute silence allows independent work only. Counts26/13/63,102
+findings/eight tasks, T01partial/T02T03open, limits/CAD/Wave/paused automation
+preserved. All earlier handoff bytes below are historical and unchanged.
+
+## Latest Windows checkpoint: batch33 delivered, Pi staged, October 2
+
+PR247 delivered source0b2eb75/finalheada52eb02/mainb827176, equal tree
+5de823480d82ea0ae46627bec6e1cc1dd7e64df9. Four selected final PR jobs pass
+(sim path-filtered); all five main jobs pass including sim/fatal ARM. Source,
+qualification metadata and final recording reviews clear. See batch33 delivery.
+Pi source checkout is clean at mainb827176; exact-main release is built/staged,
+all214 native file hashes pass. Installed runtime4bc77ba is unchanged.
+Release/Git/Store/calibration/env/unit backups and148-file rollback tree retained.
+
+Owner powered-testing approval stands. The setup query has no reply after ten
+minutes; treat operator as away, leave activation/movement pending and continue
+software. Passive capture contains all five motors; lower-arm yaw old coordinate
+-4.13228655 is outside taught hard [-0.39424506,3.24408484]. Resolve its current
+reference before motion. Physical acquisition remains unsupported; no motor
+command/deployment/physical acceptance. R2b2 current selected virtual grant is
+next software preparation, retaining every history-only/INITIAL probe and no
+physical capability escape. Counts26/13/63,102 findings/eight tasks unchanged;
+T01partial/T02T03open. Preserve limits,CAD,Wave,paused automation and worktrees.
+All earlier handoff bytes below are historical and preserved unchanged.
+
 ## Latest Windows delivery preparation: batch33, October 2
 
 Both final qualification metadata reviews clear334a8a0; production0b2eb75

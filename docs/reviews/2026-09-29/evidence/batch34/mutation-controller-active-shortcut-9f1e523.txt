@@ -1,0 +1,44 @@
+ Container marengo-dev-run-550a53a6f9da Creating 
+ Container marengo-dev-run-550a53a6f9da Created 
+   Compiling libc v0.2.186
+   Compiling getrandom v0.3.4
+   Compiling rand_core v0.9.5
+   Compiling parking_lot_core v0.9.12
+   Compiling errno v0.3.14
+   Compiling getrandom v0.4.2
+   Compiling signal-hook-registry v1.4.8
+   Compiling tempfile v3.27.0
+   Compiling parking_lot v0.12.5
+   Compiling mio v1.2.0
+   Compiling wait-timeout v0.2.1
+   Compiling socket2 v0.6.3
+   Compiling rusty-fork v0.3.1
+   Compiling tokio v1.52.3
+   Compiling rand_xorshift v0.4.0
+   Compiling rand v0.9.4
+   Compiling rand_chacha v0.9.0
+   Compiling proptest v1.11.0
+   Compiling chappe v0.1.0 (/workspace/crates/chappe)
+   Compiling berthier v0.1.0 (/workspace/crates/berthier)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2m 10s
+     Running unittests src/lib.rs (/mutant-target/debug/deps/berthier-3ad586166548302d)
+
+running 1 test
+test reference_grant_tests::current_grant_controller_active_motion_entry_rechecks_revoked_permission ... FAILED
+
+failures:
+
+---- reference_grant_tests::current_grant_controller_active_motion_entry_rechecks_revoked_permission stdout ----
+
+thread 'reference_grant_tests::current_grant_controller_active_motion_entry_rechecks_revoked_permission' panicked at crates/berthier/src/reference_grant_tests.rs:312:5:
+assertion failed: ctrl.ensure_active_for_motion().is_err()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    reference_grant_tests::current_grant_controller_active_motion_entry_rechecks_revoked_permission
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 166 filtered out; finished in 0.34s
+
+error: test failed, to rerun pass `-p berthier --lib`
+

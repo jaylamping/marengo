@@ -1,0 +1,27 @@
+ Container marengo-dev-run-95798d3d23a8 Creating 
+ Container marengo-dev-run-95798d3d23a8 Created 
+   Compiling davout v0.1.0 (/workspace/crates/davout)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 32s
+     Running unittests src/lib.rs (/mutant-target/debug/deps/davout-101ef875fb5af0d3)
+
+running 17 tests
+test reference_commit::grant_tests::current_grant_cancel_and_shutdown_win_before_late_durable_publication ... ok
+test reference_commit::grant_tests::current_grant_completed_unconsumed_history_loses_at_original_deadline_equality ... ok
+test reference_commit::grant_tests::current_grant_completed_unconsumed_history_loses_to_fresh_fault_or_work_limit ... ok
+test reference_commit::grant_tests::current_grant_counter_exhaustion_refuses_commit_before_acceptance_or_permission_change ... ok
+test reference_commit::grant_tests::current_grant_device_reset_and_owning_commit_cancel_revoke_exact_selection ... ok
+test reference_commit::grant_tests::current_grant_failed_and_uncertain_real_workers_cannot_select_permission ... ok
+test reference_commit::grant_tests::current_grant_fault_estop_and_uncertain_stop_preserve_revocation ... ok
+test reference_commit::grant_tests::current_grant_final_generation_blocks_new_acquisition_without_revoking_current_permission ... ok
+test reference_commit::grant_tests::current_grant_fresh_read_attempt_limit_refuses_completed_unconsumed_permission ... ok
+test reference_commit::grant_tests::current_grant_is_independent_of_diagnostic_caches_and_copied_history ... ok
+test reference_commit::grant_tests::current_grant_lifetime_survives_old_deadline_and_successful_ordinary_disable ... ok
+test reference_commit::grant_tests::current_grant_new_acquisition_revokes_then_real_neighbor_can_select_again ... ok
+test reference_commit::grant_tests::current_grant_observed_policy_mutation_and_model_replacement_stay_revoked ... ok
+test reference_commit::grant_tests::current_grant_output_only_cap_change_retains_reference_and_clamps_real_output ... ok
+test reference_commit::grant_tests::current_grant_owner_shutdown_revokes_selected_permission_without_optional_stop ... ok
+test reference_commit::grant_tests::current_grant_pending_policy_observation_and_device_reset_prevent_restored_selection ... ok
+test reference_commit::grant_tests::current_grant_requires_real_durable_fresh_consumption_and_covers_only_its_joint ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 98 filtered out; finished in 2.87s
+

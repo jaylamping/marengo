@@ -1,0 +1,40 @@
+{
+  "conclusion": "success",
+  "databaseId": 36996092516,
+  "headSha": "a52eb02c5b33ac8cf086b8a33b03cf29ba1241a1",
+  "jobs": [
+    {
+      "name": "build-image",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/jaylamping/marengo/actions/runs/36996092516/job/110803018767"
+    },
+    {
+      "name": "changes",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/jaylamping/marengo/actions/runs/36996092516/job/110803018974"
+    },
+    {
+      "name": "vcan",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/jaylamping/marengo/actions/runs/36996092516/job/110803121146"
+    },
+    {
+      "name": "check",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/jaylamping/marengo/actions/runs/36996092516/job/110803121148"
+    },
+    {
+      "name": "sim",
+      "status": "completed",
+      "conclusion": "skipped",
+      "url": "https://github.com/jaylamping/marengo/actions/runs/36996092516/job/110803122521"
+    }
+  ],
+  "status": "completed",
+  "url": "https://github.com/jaylamping/marengo/actions/runs/36996092516",
+  "scope_note": "All four selected jobs passed; simulation correctly excluded by the unchanged workflow path filter for installer-only production changes. Previous unchanged runtime simulation qualification is retained."
+}

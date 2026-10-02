@@ -405,6 +405,8 @@ fn worker_loop(
         #[cfg(any(test, feature = "reference-journal-test-support"))]
         test_support::at(pause, test_support::JournalPausePoint::BeforePublication);
         shared.complete(job.identity, result);
+        #[cfg(any(test, feature = "reference-journal-test-support"))]
+        test_support::at(pause, test_support::JournalPausePoint::AfterPublication);
     }
 }
 
@@ -946,6 +948,7 @@ pub(super) mod test_support {
         BeforeCommit,
         AfterCommit,
         BeforePublication,
+        AfterPublication,
     }
     struct PauseState {
         hits: usize,

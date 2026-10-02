@@ -1,0 +1,800 @@
+{
+  "source": "9f1e52306f616d844c313b0a2dec3d7a6c0733e6",
+  "frozen_probes": 28,
+  "runs": [
+    {
+      "name": "baseline-davout",
+      "source": "9f1e52306f616d844c313b0a2dec3d7a6c0733e6",
+      "command": [
+        "docker",
+        "compose",
+        "-p",
+        "marengo",
+        "run",
+        "--rm",
+        "-T",
+        "--no-deps",
+        "-v",
+        "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/mutant-target-9f1e523:/mutant-target",
+        "-e",
+        "CARGO_TARGET_DIR=/mutant-target",
+        "-e",
+        "CARGO_BUILD_JOBS=2",
+        "dev",
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "davout",
+        "--lib",
+        "current_grant_",
+        "--",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "expected_behavioral_failure": false,
+      "valid": true,
+      "outcomes": [
+        [
+          "ok",
+          "17",
+          "0",
+          "0"
+        ]
+      ],
+      "log": "mutation-baseline-davout-9f1e523.txt",
+      "log_sha256": "bc000c07c7d1906c041a840f04f9ce01d4d95f380abc460aab20167f40756675",
+      "mutation": null,
+      "test_executable": {
+        "path": "debug/deps/davout-101ef875fb5af0d3",
+        "sha256": "2eeb657dbb947a561394601d53695c74b28682ed41b23666a2a2e47f3a758f25"
+      },
+      "frozen_probe_files": 28
+    },
+    {
+      "name": "baseline-berthier",
+      "source": "9f1e52306f616d844c313b0a2dec3d7a6c0733e6",
+      "command": [
+        "docker",
+        "compose",
+        "-p",
+        "marengo",
+        "run",
+        "--rm",
+        "-T",
+        "--no-deps",
+        "-v",
+        "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/mutant-target-9f1e523:/mutant-target",
+        "-e",
+        "CARGO_TARGET_DIR=/mutant-target",
+        "-e",
+        "CARGO_BUILD_JOBS=2",
+        "dev",
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "berthier",
+        "--lib",
+        "current_grant_",
+        "--",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "expected_behavioral_failure": false,
+      "valid": true,
+      "outcomes": [
+        [
+          "ok",
+          "3",
+          "0",
+          "0"
+        ]
+      ],
+      "log": "mutation-baseline-berthier-9f1e523.txt",
+      "log_sha256": "d08481a1068b9c079fc626c3b00b82e38c4ab3ec0799232eab593f4cb0db00b2",
+      "mutation": null,
+      "test_executable": {
+        "path": "debug/deps/berthier-3ad586166548302d",
+        "sha256": "3d4905885f543b5edeba6f49aa60d3c5c6df71d7e45e66b1c19fa982d0d0500d"
+      },
+      "frozen_probe_files": 28
+    },
+    {
+      "name": "baseline-initial-shutdown",
+      "source": "9f1e52306f616d844c313b0a2dec3d7a6c0733e6",
+      "command": [
+        "docker",
+        "compose",
+        "-p",
+        "marengo",
+        "run",
+        "--rm",
+        "-T",
+        "--no-deps",
+        "-v",
+        "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/mutant-target-9f1e523:/mutant-target",
+        "-e",
+        "CARGO_TARGET_DIR=/mutant-target",
+        "-e",
+        "CARGO_BUILD_JOBS=2",
+        "dev",
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "marengo-pi",
+        "--bin",
+        "marengo-pi",
+        "shutdown_tests::active_shutdown_clears_gain_torque_and_wave_intent_before_storage_and_reenable",
+        "--",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "expected_behavioral_failure": false,
+      "valid": true,
+      "outcomes": [
+        [
+          "ok",
+          "1",
+          "0",
+          "0"
+        ]
+      ],
+      "log": "mutation-baseline-initial-shutdown-9f1e523.txt",
+      "log_sha256": "689537b57e644ac606869a79701e5e91a4a04fa9b6aa25fd02d3d4a9ef35d3ec",
+      "mutation": null,
+      "test_executable": {
+        "path": "debug/deps/marengo_pi-d1290116ffd1a88d",
+        "sha256": "3bd0b33114205e894488b04b5f6106cf16968f71059adda922298f6113daec5f"
+      },
+      "frozen_probe_files": 28
+    },
+    {
+      "name": "controller-active-shortcut",
+      "source": "9f1e52306f616d844c313b0a2dec3d7a6c0733e6",
+      "command": [
+        "docker",
+        "compose",
+        "-p",
+        "marengo",
+        "run",
+        "--rm",
+        "-T",
+        "--no-deps",
+        "-v",
+        "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/mutant-target-9f1e523:/mutant-target",
+        "-e",
+        "CARGO_TARGET_DIR=/mutant-target",
+        "-e",
+        "CARGO_BUILD_JOBS=2",
+        "dev",
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "berthier",
+        "--lib",
+        "reference_grant_tests::current_grant_controller_active_motion_entry_rechecks_revoked_permission",
+        "--",
+        "--test-threads=1",
+        "--exact"
+      ],
+      "exit_code": 101,
+      "expected_behavioral_failure": true,
+      "valid": true,
+      "outcomes": [
+        [
+          "FAILED",
+          "0",
+          "1",
+          "0"
+        ]
+      ],
+      "log": "mutation-controller-active-shortcut-9f1e523.txt",
+      "log_sha256": "0a8c1b8601cb692b7f9dd2b4dd6a8dd3b220f47fdee824d89d5f1dc39930da77",
+      "mutation": {
+        "path": "crates/berthier/src/loop.rs",
+        "before_sha256": "a5c5057d1ad7f3bbe02a08a11dbeb4e88e5b59523bd5a58d51d0d79ec77419c4",
+        "after_sha256": "a5537ca3ece06c833a5c9dc55b6f6ad8346046f02f7c1656dea4e9d86bbefaf7",
+        "replacement_count": 1,
+        "exact_earlier_file_commit": "d658527f0d5bca89c3d9d5b5848946a297058e73"
+      },
+      "test_executable": {
+        "path": "debug/deps/berthier-3ad586166548302d",
+        "sha256": "a6360d21cf6deaea8285c192a872022379680315928f526a35a46b0e6e774364"
+      },
+      "frozen_probe_files": 28
+    },
+    {
+      "name": "unconditional-initial-shutdown",
+      "source": "9f1e52306f616d844c313b0a2dec3d7a6c0733e6",
+      "command": [
+        "docker",
+        "compose",
+        "-p",
+        "marengo",
+        "run",
+        "--rm",
+        "-T",
+        "--no-deps",
+        "-v",
+        "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/mutant-target-9f1e523:/mutant-target",
+        "-e",
+        "CARGO_TARGET_DIR=/mutant-target",
+        "-e",
+        "CARGO_BUILD_JOBS=2",
+        "dev",
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "marengo-pi",
+        "--bin",
+        "marengo-pi",
+        "shutdown_tests::active_shutdown_clears_gain_torque_and_wave_intent_before_storage_and_reenable",
+        "--",
+        "--test-threads=1",
+        "--exact"
+      ],
+      "exit_code": 101,
+      "expected_behavioral_failure": true,
+      "valid": true,
+      "outcomes": [
+        [
+          "FAILED",
+          "0",
+          "1",
+          "0"
+        ]
+      ],
+      "log": "mutation-unconditional-initial-shutdown-9f1e523.txt",
+      "log_sha256": "6110addbbe64ea8d381855b173e21e84884bd467a9decfd568e454c5ae6285d5",
+      "mutation": {
+        "path": "crates/davout/src/reference_transaction.rs",
+        "before_sha256": "2d2d96fdab16b1553c588ebd554036f058246d05d06ad8f302eb03672a240875",
+        "after_sha256": "1ff3ef6fff4f9f7267dd26ecd43c0b9d52c05e802660eb8aac8a82b3afa8823d",
+        "replacement_count": 1
+      },
+      "test_executable": {
+        "path": "debug/deps/marengo_pi-d1290116ffd1a88d",
+        "sha256": "828c99b4301a0081e699d70d597bb7dfc1311c95149a31ea759d0c3ec2e442cc"
+      },
+      "frozen_probe_files": 28
+    },
+    {
+      "name": "selected-peer-permission",
+      "source": "9f1e52306f616d844c313b0a2dec3d7a6c0733e6",
+      "command": [
+        "docker",
+        "compose",
+        "-p",
+        "marengo",
+        "run",
+        "--rm",
+        "-T",
+        "--no-deps",
+        "-v",
+        "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/mutant-target-9f1e523:/mutant-target",
+        "-e",
+        "CARGO_TARGET_DIR=/mutant-target",
+        "-e",
+        "CARGO_BUILD_JOBS=2",
+        "dev",
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "davout",
+        "--lib",
+        "reference_commit::grant_tests::current_grant_requires_real_durable_fresh_consumption_and_covers_only_its_joint",
+        "--",
+        "--test-threads=1",
+        "--exact"
+      ],
+      "exit_code": 101,
+      "expected_behavioral_failure": true,
+      "valid": true,
+      "outcomes": [
+        [
+          "FAILED",
+          "0",
+          "1",
+          "0"
+        ]
+      ],
+      "log": "mutation-selected-peer-permission-9f1e523.txt",
+      "log_sha256": "af871902ece3a98954c9f17a82b818f6a198f2033dc85e1c28bf0e9adf4016ba",
+      "mutation": {
+        "path": "crates/davout/src/reference.rs",
+        "before_sha256": "5f6f3afd3012015ba79434a5d126a6d9fdee86a95c182df4b63107e4936baacd",
+        "after_sha256": "8c7301ed4b122053f174cce2658b911068032bc6051b05afec488279ec5215a6",
+        "replacement_count": 1
+      },
+      "test_executable": {
+        "path": "debug/deps/davout-101ef875fb5af0d3",
+        "sha256": "e2731085571e877555f5f8f2d7b85ce0d83242220c795108646e5c4d29c67936"
+      },
+      "frozen_probe_files": 28
+    },
+    {
+      "name": "ignore-selected-device-reset",
+      "source": "9f1e52306f616d844c313b0a2dec3d7a6c0733e6",
+      "command": [
+        "docker",
+        "compose",
+        "-p",
+        "marengo",
+        "run",
+        "--rm",
+        "-T",
+        "--no-deps",
+        "-v",
+        "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/mutant-target-9f1e523:/mutant-target",
+        "-e",
+        "CARGO_TARGET_DIR=/mutant-target",
+        "-e",
+        "CARGO_BUILD_JOBS=2",
+        "dev",
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "davout",
+        "--lib",
+        "reference_commit::grant_tests::current_grant_device_reset_and_owning_commit_cancel_revoke_exact_selection",
+        "--",
+        "--test-threads=1",
+        "--exact"
+      ],
+      "exit_code": 101,
+      "expected_behavioral_failure": true,
+      "valid": true,
+      "outcomes": [
+        [
+          "FAILED",
+          "0",
+          "1",
+          "0"
+        ]
+      ],
+      "log": "mutation-ignore-selected-device-reset-9f1e523.txt",
+      "log_sha256": "ae4c904b8cb3cf1605a678ace61b3294b3e454ac0b32164d9090a79b992d8684",
+      "mutation": {
+        "path": "crates/davout/src/lib.rs",
+        "before_sha256": "d84e3a567ff4bb187d63c30238e0a26d7afcc065a593a515b0bcf7784f7cfc4e",
+        "after_sha256": "123e59a371869e8b928f3f81c0098e1b53a9df91ba90e825471ea6ee47b5eb49",
+        "replacement_count": 1
+      },
+      "test_executable": {
+        "path": "debug/deps/davout-101ef875fb5af0d3",
+        "sha256": "7cb2e2a8a01ab4f69d08501bd14645ef00028c19897c84b9801bf95ea9185091"
+      },
+      "frozen_probe_files": 28
+    },
+    {
+      "name": "deadline-equality",
+      "source": "9f1e52306f616d844c313b0a2dec3d7a6c0733e6",
+      "command": [
+        "docker",
+        "compose",
+        "-p",
+        "marengo",
+        "run",
+        "--rm",
+        "-T",
+        "--no-deps",
+        "-v",
+        "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/mutant-target-9f1e523:/mutant-target",
+        "-e",
+        "CARGO_TARGET_DIR=/mutant-target",
+        "-e",
+        "CARGO_BUILD_JOBS=2",
+        "dev",
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "davout",
+        "--lib",
+        "reference_commit::grant_tests::current_grant_completed_unconsumed_history_loses_at_original_deadline_equality",
+        "--",
+        "--test-threads=1",
+        "--exact"
+      ],
+      "exit_code": 101,
+      "expected_behavioral_failure": true,
+      "valid": true,
+      "outcomes": [
+        [
+          "FAILED",
+          "0",
+          "1",
+          "0"
+        ]
+      ],
+      "log": "mutation-deadline-equality-9f1e523.txt",
+      "log_sha256": "b676e9b00b33e0c6fe58c0ec73dfc75a977606aff6405958212f12b40e85e156",
+      "mutation": {
+        "path": "crates/davout/src/reference_transaction.rs",
+        "before_sha256": "2d2d96fdab16b1553c588ebd554036f058246d05d06ad8f302eb03672a240875",
+        "after_sha256": "c4bb1fa975cc88f008e4fde5f50a0fbb5fa7cb46b5ce99f8a7c4977530aa71dd",
+        "replacement_count": 1
+      },
+      "test_executable": {
+        "path": "debug/deps/davout-101ef875fb5af0d3",
+        "sha256": "ab28bf57edcec2f77fdda844e34dd30378e2c8b2209a3a2bee29543b5d4b8804"
+      },
+      "frozen_probe_files": 28
+    },
+    {
+      "name": "missing-current-counter-preflight",
+      "source": "9f1e52306f616d844c313b0a2dec3d7a6c0733e6",
+      "command": [
+        "docker",
+        "compose",
+        "-p",
+        "marengo",
+        "run",
+        "--rm",
+        "-T",
+        "--no-deps",
+        "-v",
+        "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/mutant-target-9f1e523:/mutant-target",
+        "-e",
+        "CARGO_TARGET_DIR=/mutant-target",
+        "-e",
+        "CARGO_BUILD_JOBS=2",
+        "dev",
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "davout",
+        "--lib",
+        "reference_commit::grant_tests::current_grant_counter_exhaustion_refuses_commit_before_acceptance_or_permission_change",
+        "--",
+        "--test-threads=1",
+        "--exact"
+      ],
+      "exit_code": 101,
+      "expected_behavioral_failure": true,
+      "valid": true,
+      "outcomes": [
+        [
+          "FAILED",
+          "0",
+          "1",
+          "0"
+        ]
+      ],
+      "log": "mutation-missing-current-counter-preflight-9f1e523.txt",
+      "log_sha256": "f4394c63358ede63fc08e11f80bb412ff49b4f16e777d3ae60e3dd2c01408266",
+      "mutation": {
+        "path": "crates/davout/src/reference_commit.rs",
+        "before_sha256": "0547bf43e1e58c087aebe1edf7cdfc6d8ed346de38f99e2eda3553c45a2eb6bb",
+        "after_sha256": "1b7df9b8e2181d6011126ab823d98565e8fec58a892e18cb0f6d54651b09eecd",
+        "replacement_count": 1
+      },
+      "test_executable": {
+        "path": "debug/deps/davout-101ef875fb5af0d3",
+        "sha256": "c82e94caae8a4075cfbc630abcc21d1820bb1aa6f38088d60b8e057590b9b501"
+      },
+      "frozen_probe_files": 28
+    },
+    {
+      "name": "disable-revokes-selected",
+      "source": "9f1e52306f616d844c313b0a2dec3d7a6c0733e6",
+      "command": [
+        "docker",
+        "compose",
+        "-p",
+        "marengo",
+        "run",
+        "--rm",
+        "-T",
+        "--no-deps",
+        "-v",
+        "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/mutant-target-9f1e523:/mutant-target",
+        "-e",
+        "CARGO_TARGET_DIR=/mutant-target",
+        "-e",
+        "CARGO_BUILD_JOBS=2",
+        "dev",
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "davout",
+        "--lib",
+        "reference_commit::grant_tests::current_grant_lifetime_survives_old_deadline_and_successful_ordinary_disable",
+        "--",
+        "--test-threads=1",
+        "--exact"
+      ],
+      "exit_code": 101,
+      "expected_behavioral_failure": true,
+      "valid": true,
+      "outcomes": [
+        [
+          "FAILED",
+          "0",
+          "1",
+          "0"
+        ]
+      ],
+      "log": "mutation-disable-revokes-selected-9f1e523.txt",
+      "log_sha256": "3171915379821585d901fffac2b234f445d98b23102b8fdfdf5b30d7bdbc739d",
+      "mutation": {
+        "path": "crates/davout/src/reference_commit.rs",
+        "before_sha256": "0547bf43e1e58c087aebe1edf7cdfc6d8ed346de38f99e2eda3553c45a2eb6bb",
+        "after_sha256": "14b0c2f4eb609b796a7f254ce4af8c512d3408bcc781e975d3cc7dbc3b3fd138",
+        "replacement_count": 1
+      },
+      "test_executable": {
+        "path": "debug/deps/davout-101ef875fb5af0d3",
+        "sha256": "46b91df435cae4b9dd540ca7e2212094dd39bc320e324620086324a312108478"
+      },
+      "frozen_probe_files": 28
+    },
+    {
+      "name": "cancelled-durable-grant",
+      "source": "9f1e52306f616d844c313b0a2dec3d7a6c0733e6",
+      "command": [
+        "docker",
+        "compose",
+        "-p",
+        "marengo",
+        "run",
+        "--rm",
+        "-T",
+        "--no-deps",
+        "-v",
+        "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/mutant-target-9f1e523:/mutant-target",
+        "-e",
+        "CARGO_TARGET_DIR=/mutant-target",
+        "-e",
+        "CARGO_BUILD_JOBS=2",
+        "dev",
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "davout",
+        "--lib",
+        "reference_commit::grant_tests::current_grant_cancel_and_shutdown_win_before_late_durable_publication",
+        "--",
+        "--test-threads=1",
+        "--exact"
+      ],
+      "exit_code": 101,
+      "expected_behavioral_failure": true,
+      "valid": true,
+      "outcomes": [
+        [
+          "FAILED",
+          "0",
+          "1",
+          "0"
+        ]
+      ],
+      "log": "mutation-cancelled-durable-grant-9f1e523.txt",
+      "log_sha256": "09bdca3fad49d98d342bb183b2a0e0a40532d43ff37096e1ce98b45434737174",
+      "mutation": {
+        "path": "crates/davout/src/reference_commit.rs",
+        "before_sha256": "0547bf43e1e58c087aebe1edf7cdfc6d8ed346de38f99e2eda3553c45a2eb6bb",
+        "after_sha256": "a5e94ca5d0f7dd5f5966152e5e375e622c8668632dcd7a6e24fa89b836db14a1",
+        "replacement_count": 2
+      },
+      "test_executable": {
+        "path": "debug/deps/davout-101ef875fb5af0d3",
+        "sha256": "a907449ac09f9036ed69058a5e1226981904d5de12b4594fbf6e6a1fde9dd48a"
+      },
+      "frozen_probe_files": 28
+    },
+    {
+      "name": "completion-before-fresh-report",
+      "source": "9f1e52306f616d844c313b0a2dec3d7a6c0733e6",
+      "command": [
+        "docker",
+        "compose",
+        "-p",
+        "marengo",
+        "run",
+        "--rm",
+        "-T",
+        "--no-deps",
+        "-v",
+        "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/mutant-target-9f1e523:/mutant-target",
+        "-e",
+        "CARGO_TARGET_DIR=/mutant-target",
+        "-e",
+        "CARGO_BUILD_JOBS=2",
+        "dev",
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "davout",
+        "--lib",
+        "reference_commit::grant_tests::current_grant_completed_unconsumed_history_loses_to_fresh_fault_or_work_limit",
+        "--",
+        "--test-threads=1",
+        "--exact"
+      ],
+      "exit_code": 101,
+      "expected_behavioral_failure": true,
+      "valid": true,
+      "outcomes": [
+        [
+          "FAILED",
+          "0",
+          "1",
+          "0"
+        ]
+      ],
+      "log": "mutation-completion-before-fresh-report-9f1e523.txt",
+      "log_sha256": "7f6f1b87ec733df32f75be4209e3db077b810902e01cf94fdae3ce7ffefe2734",
+      "mutation": {
+        "path": "crates/davout/src/reference_commit.rs",
+        "before_sha256": "0547bf43e1e58c087aebe1edf7cdfc6d8ed346de38f99e2eda3553c45a2eb6bb",
+        "after_sha256": "b8f02128ec3df235371bbd81410e7c6730903eda5b0d219affdb1e6b1caf519e",
+        "replacement_count": 1
+      },
+      "test_executable": {
+        "path": "debug/deps/davout-101ef875fb5af0d3",
+        "sha256": "696b0a05a4e0c8a98bde622302769843293ef9b460058e2de3e3cf442290b4e4"
+      },
+      "frozen_probe_files": 28
+    },
+    {
+      "name": "unchanged-replay-davout",
+      "source": "9f1e52306f616d844c313b0a2dec3d7a6c0733e6",
+      "command": [
+        "docker",
+        "compose",
+        "-p",
+        "marengo",
+        "run",
+        "--rm",
+        "-T",
+        "--no-deps",
+        "-v",
+        "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/mutant-target-9f1e523:/mutant-target",
+        "-e",
+        "CARGO_TARGET_DIR=/mutant-target",
+        "-e",
+        "CARGO_BUILD_JOBS=2",
+        "dev",
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "davout",
+        "--lib",
+        "current_grant_",
+        "--",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "expected_behavioral_failure": false,
+      "valid": true,
+      "outcomes": [
+        [
+          "ok",
+          "17",
+          "0",
+          "0"
+        ]
+      ],
+      "log": "mutation-unchanged-replay-davout-9f1e523.txt",
+      "log_sha256": "a8ca088ea16b4550438a0e2d5df46b68137e12d8005aec8f1a28796549eba151",
+      "mutation": null,
+      "test_executable": {
+        "path": "debug/deps/davout-101ef875fb5af0d3",
+        "sha256": "29739ba1c83c969e27010279e16df0fd1bceedad7e44de26e3acc93988b5e62a"
+      },
+      "frozen_probe_files": 28
+    },
+    {
+      "name": "unchanged-replay-berthier",
+      "source": "9f1e52306f616d844c313b0a2dec3d7a6c0733e6",
+      "command": [
+        "docker",
+        "compose",
+        "-p",
+        "marengo",
+        "run",
+        "--rm",
+        "-T",
+        "--no-deps",
+        "-v",
+        "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/mutant-target-9f1e523:/mutant-target",
+        "-e",
+        "CARGO_TARGET_DIR=/mutant-target",
+        "-e",
+        "CARGO_BUILD_JOBS=2",
+        "dev",
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "berthier",
+        "--lib",
+        "current_grant_",
+        "--",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "expected_behavioral_failure": false,
+      "valid": true,
+      "outcomes": [
+        [
+          "ok",
+          "3",
+          "0",
+          "0"
+        ]
+      ],
+      "log": "mutation-unchanged-replay-berthier-9f1e523.txt",
+      "log_sha256": "3d651d680756e1a78c0f06b2298aae20b209f6ff843f1d080cadaf6585cc7bf9",
+      "mutation": null,
+      "test_executable": {
+        "path": "debug/deps/berthier-3ad586166548302d",
+        "sha256": "c708401ce2ebcb20c9bb5c7f0f839147fa23f3c78c72c40e184f31f94e95ecc2"
+      },
+      "frozen_probe_files": 28
+    },
+    {
+      "name": "unchanged-replay-initial-shutdown",
+      "source": "9f1e52306f616d844c313b0a2dec3d7a6c0733e6",
+      "command": [
+        "docker",
+        "compose",
+        "-p",
+        "marengo",
+        "run",
+        "--rm",
+        "-T",
+        "--no-deps",
+        "-v",
+        "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/mutant-target-9f1e523:/mutant-target",
+        "-e",
+        "CARGO_TARGET_DIR=/mutant-target",
+        "-e",
+        "CARGO_BUILD_JOBS=2",
+        "dev",
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "marengo-pi",
+        "--bin",
+        "marengo-pi",
+        "shutdown_tests::active_shutdown_clears_gain_torque_and_wave_intent_before_storage_and_reenable",
+        "--",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "expected_behavioral_failure": false,
+      "valid": true,
+      "outcomes": [
+        [
+          "ok",
+          "1",
+          "0",
+          "0"
+        ]
+      ],
+      "log": "mutation-unchanged-replay-initial-shutdown-9f1e523.txt",
+      "log_sha256": "573d306f9d8b22b3d0a3446248542c854a5ea0dfd22491e14cea0ab8ad952e99",
+      "mutation": null,
+      "test_executable": {
+        "path": "debug/deps/marengo_pi-d1290116ffd1a88d",
+        "sha256": "351ad93808c226c641aea3e4e1917ab677e807d98d711fcd44fb6d4f17218e27"
+      },
+      "frozen_probe_files": 28
+    }
+  ],
+  "all_source_and_probe_files_restored": 1841
+}

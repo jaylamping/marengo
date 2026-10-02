@@ -1,0 +1,50 @@
+ Container marengo-dev-run-43fee16259b4 Creating 
+ Container marengo-dev-run-43fee16259b4 Created 
+   Compiling getrandom v0.4.2
+   Compiling prost v0.13.5
+   Compiling yaserde_derive v0.8.0
+   Compiling tempfile v3.27.0
+   Compiling prost-types v0.13.5
+   Compiling prost-build v0.13.5
+   Compiling armee-proto v0.1.0 (/workspace/crates/armee-proto)
+   Compiling urdf-rs v0.8.0
+   Compiling armee-kinematics v0.1.0 (/workspace/crates/armee-kinematics)
+   Compiling marengo-config v0.1.0 (/workspace/crates/marengo-config)
+   Compiling tracing v0.1.44
+   Compiling rusqlite v0.32.1
+   Compiling robstride v0.1.0 (/workspace/crates/robstride)
+   Compiling marengo-homing v0.1.0 (/workspace/crates/marengo-homing)
+   Compiling davout v0.1.0 (/workspace/crates/davout)
+warning: unused variable: `joint`
+   --> crates/davout/src/reference.rs:101:9
+    |
+101 |         joint: &str,
+    |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_joint`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: `davout` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2m 02s
+     Running unittests src/lib.rs (/mutant-target/debug/deps/davout-101ef875fb5af0d3)
+
+running 1 test
+test reference_commit::grant_tests::current_grant_requires_real_durable_fresh_consumption_and_covers_only_its_joint ... FAILED
+
+failures:
+
+---- reference_commit::grant_tests::current_grant_requires_real_durable_fresh_consumption_and_covers_only_its_joint stdout ----
+
+thread 'reference_commit::grant_tests::current_grant_requires_real_durable_fresh_consumption_and_covers_only_its_joint' panicked at crates/davout/src/reference_grant_tests.rs:295:5:
+assertion `left == right` failed
+  left: Verified
+ right: Unhomed
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    reference_commit::grant_tests::current_grant_requires_real_durable_fresh_consumption_and_covers_only_its_joint
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 114 filtered out; finished in 0.52s
+
+error: test failed, to rerun pass `-p davout --lib`
+

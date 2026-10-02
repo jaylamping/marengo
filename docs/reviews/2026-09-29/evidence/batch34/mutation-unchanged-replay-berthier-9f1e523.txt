@@ -1,0 +1,14 @@
+ Container marengo-dev-run-84288b8d04e1 Creating 
+ Container marengo-dev-run-84288b8d04e1 Created 
+   Compiling davout v0.1.0 (/workspace/crates/davout)
+   Compiling berthier v0.1.0 (/workspace/crates/berthier)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 59s
+     Running unittests src/lib.rs (/mutant-target/debug/deps/berthier-3ad586166548302d)
+
+running 3 tests
+test reference_grant_tests::current_grant_controller_active_motion_entry_rechecks_revoked_permission ... ok
+test reference_grant_tests::current_grant_controller_completed_result_still_loses_to_whole_bounded_fault_report ... ok
+test reference_grant_tests::current_grant_controller_consuming_tick_has_one_report_and_no_old_intent_or_output ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 164 filtered out; finished in 0.48s
+

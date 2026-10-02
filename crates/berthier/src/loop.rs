@@ -244,6 +244,63 @@ impl ControlLoop<davout::simulation::SimulationBus> {
         )
     }
 
+    /// Closed Unreferenced controller whose real reference workflow can select
+    /// one virtual joint after durable history and fresh owner consumption.
+    pub fn from_simulation_with_current_reference_journal(
+        repo_root: impl AsRef<Path>,
+        bus: davout::simulation::SimulationBus,
+        record_path: impl AsRef<Path>,
+        journal_path: impl AsRef<Path>,
+        loop_hz: u32,
+        chappe_hz: u32,
+    ) -> Result<Self, LoopError> {
+        let root = repo_root.as_ref();
+        Self::from_repo_inner(
+            root,
+            &root.join("config"),
+            bus,
+            loop_hz,
+            chappe_hz,
+            |root, bus| {
+                Supervisor::from_simulation_with_current_reference_journal(
+                    root,
+                    bus,
+                    record_path,
+                    journal_path,
+                )
+            },
+        )
+    }
+
+    #[cfg(any(test, feature = "reference-journal-test-support"))]
+    pub fn from_simulation_with_paused_current_reference_journal(
+        repo_root: impl AsRef<Path>,
+        bus: davout::simulation::SimulationBus,
+        record_path: impl AsRef<Path>,
+        journal_path: impl AsRef<Path>,
+        pause: &davout::simulation::JournalTestPause,
+        loop_hz: u32,
+        chappe_hz: u32,
+    ) -> Result<Self, LoopError> {
+        let root = repo_root.as_ref();
+        Self::from_repo_inner(
+            root,
+            &root.join("config"),
+            bus,
+            loop_hz,
+            chappe_hz,
+            |root, bus| {
+                Supervisor::from_simulation_with_paused_current_reference_journal(
+                    root,
+                    bus,
+                    record_path,
+                    journal_path,
+                    pause,
+                )
+            },
+        )
+    }
+
     /// Construct the real controller over Davout's closed in-memory transport.
     ///
     /// The declared virtual reference is an initial simulation condition. It
@@ -616,10 +673,11 @@ impl<B: MotorBus> ControlLoop<B> {
     /// full-master Robot Ready).
     pub fn ensure_active_for_motion(&mut self) -> Result<(), LoopError> {
         self.synchronize_stop_generation();
-        if self.supervisor.mode() == OperationalMode::Active {
-            return Ok(());
-        }
-        let targets = self.supervisor.resolve_enable_targets(&self.repo_root)?;
+        let targets = if self.supervisor.mode() == OperationalMode::Active {
+            self.supervisor.active_joints().iter().cloned().collect()
+        } else {
+            self.supervisor.resolve_enable_targets(&self.repo_root)?
+        };
         self.supervisor.enable_targets(&targets)?;
         Ok(())
     }

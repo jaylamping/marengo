@@ -1,0 +1,12 @@
+ Container marengo-dev-run-52f1294d95af Creating 
+ Container marengo-dev-run-52f1294d95af Created 
+   Compiling berthier v0.1.0 (/workspace/crates/berthier)
+   Compiling marengo-pi v0.1.0 (/workspace/bins/marengo-pi)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2m 10s
+     Running unittests src/main.rs (/mutant-target/debug/deps/marengo_pi-d1290116ffd1a88d)
+
+running 1 test
+test shutdown_tests::active_shutdown_clears_gain_torque_and_wave_intent_before_storage_and_reenable ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 32 filtered out; finished in 0.14s
+

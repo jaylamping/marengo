@@ -138,6 +138,21 @@ impl ReferenceState {
         self.previous.is_some()
     }
 
+    #[cfg(test)]
+    pub(super) fn reset_device_for_test(
+        &mut self,
+        address: &MotorAddress,
+    ) -> Result<(), SimulationError> {
+        let epoch = self
+            .epochs
+            .get_mut(address)
+            .ok_or(SimulationError::ReferenceContext)?;
+        *epoch = epoch
+            .checked_add(1)
+            .ok_or(SimulationError::ReferenceCounterExhausted)?;
+        Ok(())
+    }
+
     pub(super) fn elapse(&mut self, elapsed: Duration) -> Result<(), SimulationError> {
         self.clock = self
             .clock

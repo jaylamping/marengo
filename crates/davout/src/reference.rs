@@ -4,6 +4,19 @@ use std::cell::Cell;
 use std::collections::HashSet;
 use std::sync::Arc;
 
+use robstride::MotorAddress;
+
+use crate::reference_model::{InstalledModelStamp, InstalledReferenceModel};
+
+/// Lifetime binding captured only from the actual consumed owner evidence.
+/// Neither a cache entry, deadline nor ordinary stop generation is a permit.
+pub(super) struct ConsumedReferenceBinding {
+    pub(super) job: Arc<()>,
+    pub(super) model: InstalledModelStamp,
+    pub(super) address: MotorAddress,
+    pub(super) device_epoch: u64,
+}
+
 use marengo_config::{
     resolve_joint_velocity_cap, ControlConfigFile, EffectiveHomingJoint, HomingConfigFile,
     MotorEntry, MotorsConfigFile,
@@ -16,6 +29,7 @@ pub(crate) struct ReferenceAuthority {
     homing: Option<HomingConfigFile>,
     control: Option<ControlConfigFile>,
     realm: Option<Arc<()>>,
+    consumed: Option<ConsumedReferenceBinding>,
     revoked: Cell<bool>,
     generation: Cell<u64>,
 }
@@ -28,6 +42,7 @@ impl Default for ReferenceAuthority {
             homing: None,
             control: None,
             realm: None,
+            consumed: None,
             revoked: Cell::new(false),
             generation: Cell::new(0),
         }
@@ -48,6 +63,7 @@ impl ReferenceAuthority {
             homing: Some(homing.clone()),
             control: Some(control.clone()),
             realm: Some(realm),
+            consumed: None,
             revoked: Cell::new(false),
             generation: Cell::new(1),
         }
@@ -78,6 +94,51 @@ impl ReferenceAuthority {
 
     pub(crate) fn contains(&self, joint: &str) -> bool {
         !self.revoked.get() && self.joints.contains(joint)
+    }
+
+    pub(super) fn select_consumed_virtual(
+        &mut self,
+        joint: &str,
+        realm: Arc<()>,
+        binding: ConsumedReferenceBinding,
+        policy: &crate::reference_journal_event::TypedPolicy,
+    ) -> Option<()> {
+        let next = self.generation.get().checked_add(1)?;
+        let selected = Self {
+            joints: HashSet::from([joint.to_owned()]),
+            motors: policy.motors.motors.clone(),
+            homing: Some(policy.homing.clone()),
+            control: Some(policy.control.clone()),
+            realm: Some(realm),
+            consumed: Some(binding),
+            revoked: Cell::new(false),
+            generation: Cell::new(next),
+        };
+        *self = selected;
+        Some(())
+    }
+
+    pub(super) fn selected_by(&self, job: &Arc<()>) -> bool {
+        !self.revoked.get()
+            && self
+                .consumed
+                .as_ref()
+                .is_some_and(|binding| Arc::ptr_eq(&binding.job, job))
+    }
+
+    pub(super) fn consumed_binding(&self) -> Option<&ConsumedReferenceBinding> {
+        self.consumed.as_ref()
+    }
+
+    pub(super) fn validate_consumed_model(&self, model: &InstalledReferenceModel) -> bool {
+        self.consumed
+            .as_ref()
+            .is_none_or(|binding| model.matches(&binding.model))
+    }
+
+    #[cfg(test)]
+    pub(super) fn set_generation_for_test(&self, generation: u64) {
+        self.generation.set(generation);
     }
 
     pub(crate) fn validate_binding(

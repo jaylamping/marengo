@@ -1,0 +1,28 @@
+{
+  "source": "b8271764fcdaa8d9d5e8838e69de4721ec035d97",
+  "PR_head": "a52eb02c5b33ac8cf086b8a33b03cf29ba1241a1",
+  "equal_tree": "5de823480d82ea0ae46627bec6e1cc1dd7e64df9",
+  "build_tool_exit_code": 0,
+  "release_archive_sha256": "a4131da3ed322e188cbd77ec4619e2b0bca91bbaf3cee0f524ba0b37f6e2d99a",
+  "bundle_manifest_sha256": "483a08e59863b8397eeb87103444bd5c8b0f9a53c53f9a7ea736e8e6bf26cc7b",
+  "manifest_entries": 214,
+  "binary_sha256": {
+    "imu-probe": "f4582d99aeee59a1ff5f3cc100e282f578bb31ae922ffa35f7cc797a65144bb1",
+    "marengo-gateway": "f57931e7720c19c96afb67f734ccb67d26e8ed087dc67d3ecc0221277b7679be",
+    "marengo-log-cli": "1f8896edbe95cd1266817b8a2e49e7ac3e90224450a010f07814e5995d060f6a",
+    "marengo-pi": "352340fa127321971478fe84ac04bddac857232f8ec83393e56300cf3646ad94",
+    "motor-repl": "74fa1334159a178c9bc4b5ffc2de69e8f6d98c26b27d9da3b2c4b732326bb1d8"
+  },
+  "Consul": "qualified runtime credential exclusion build/check passed",
+  "installed_runtime_unchanged": "4bc77ba605834fdec04b436daa4bec67bca84fbb",
+  "activation": "Pending operator support/E-stop setup reply; ten-minute silence treated as away, independent software work continues.",
+  "source_checkout_sync": "Pi owned checkout clean and fast-forwarded to intended main; verified all-refs Git bundle retained",
+  "native_bundle_verification": "All 214 manifest entries passed on Pi; installer Bash syntax passed.",
+  "rollback_preparation": "Verified old release archive/Git bundle, online SQLite backup, calibration registry/environment/unit copies; five old binaries/config/URDF/UI prepared in owned rollback directory,148 file hashes. Restore through qualified installer only after physical stop/support.",
+  "physical_CAN_capture": "Passive only,50 frames,10 per each configured motor; no commanded motor operation.",
+  "motion_blockers": [
+    "Physical current reference acquisition unsupported",
+    "Lower-arm yaw old runtime coordinate -4.132286548614502 outside preserved taught bounds; must resolve during reference commissioning",
+    "Arm support and physical E-stop readiness unconfirmed"
+  ]
+}

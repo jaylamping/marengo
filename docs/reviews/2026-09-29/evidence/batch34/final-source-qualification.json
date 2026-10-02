@@ -1,0 +1,287 @@
+{
+  "source": "9f1e52306f616d844c313b0a2dec3d7a6c0733e6",
+  "baseline": "9857a1e4b89f87373625f0ce968b2a3b29bdf164",
+  "recorded_utc": "2026-10-02T12:23:06.625331+00:00",
+  "scope": "WP04 R2b2 selected current permission through real closed virtual acquisition and durable consumption",
+  "primary": {
+    "tool_exit_code": 0,
+    "Rust_passed": 881,
+    "Rust_existing_ignored": 1,
+    "Consul_passed": 374,
+    "Pi_MCP_passed": 72,
+    "local_writer_passed": 27,
+    "research_passed": 83,
+    "daily_audit_passed": 15,
+    "installer_passed": 10,
+    "fmt_clippy_buf_deny_audit": "passed",
+    "fatal_ARM_release": "passed",
+    "committed_inputs_unchanged": 1841
+  },
+  "native_Pi": {
+    "tool_exit_code": 0,
+    "Rust_passed": 881,
+    "Rust_existing_ignored": 1,
+    "Consul_passed": 374,
+    "committed_inputs_verified_before_and_after": 1841,
+    "node": "24.16.0",
+    "rust": "1.88.0",
+    "scope": "Owned user validation directory; isolated simulation/files/loopback; no physical CAN, installation or service changes",
+    "installed_revision_unchanged": "b8271764fcdaa8d9d5e8838e69de4721ec035d97"
+  },
+  "frozen_probes": {
+    "new_files": 2,
+    "new_default_tests": 20,
+    "all_probe_files": 28,
+    "prior_qualified_files_unchanged": 26,
+    "original18_new_cases_preserved_as_exact_prefixes": true
+  },
+  "mutations": {
+    "meaningful_production_mutants_rejected": 9,
+    "selected_behavioral_failure_exit": 101,
+    "unmodified_baseline_and_replay": {
+      "Davout": 17,
+      "Berthier": 3,
+      "INITIAL_shutdown": 1
+    },
+    "test_executable_hashes": "Captured per actual run in mutation-receipt.json",
+    "all_source_files_restored": 1841,
+    "final_active_shortcut_red": "Exact d658527 loop.rs overlay, final unchanged complete probe; corresponding baseline and restored green",
+    "final_INITIAL_shutdown_red": "Unconditional shutdown revocation, unchanged prior qualified INITIAL probe; corresponding baseline and restored green"
+  },
+  "preliminary_results": [
+    {
+      "source": "d658527f0d5bca89c3d9d5b5848946a297058e73",
+      "classification": "Actual candidate Active shortcut assertion failure; initial final-TX expectation later corrected to existing all-address stop contract. Whole early probe is not frozen red/green evidence."
+    },
+    {
+      "source": "d658527f0d5bca89c3d9d5b5848946a297058e73",
+      "classification": "Primary and native Pi both failed untouched INITIAL shutdown re-enable contract; scoped consumed-only shutdown repair qualified above."
+    },
+    {
+      "classification": "Early exploratory lint/test expectations and baseline compilation are preparation; missing APIs/setup failures are not original-release behavioral reds."
+    }
+  ],
+  "independent_reviews": {
+    "source": "9f1e52306f616d844c313b0a2dec3d7a6c0733e6",
+    "Standards": 0,
+    "scoped_Spec": 0
+  },
+  "source_CI": {
+    "conclusion": "success",
+    "databaseId": 37003038698,
+    "event": "pull_request",
+    "headSha": "9f1e52306f616d844c313b0a2dec3d7a6c0733e6",
+    "jobs": [
+      {
+        "conclusion": "success",
+        "name": "build-image",
+        "status": "completed",
+        "url": "https://github.com/jaylamping/marengo/actions/runs/37003038698/job/110824868388"
+      },
+      {
+        "conclusion": "success",
+        "name": "changes",
+        "status": "completed",
+        "url": "https://github.com/jaylamping/marengo/actions/runs/37003038698/job/110824868654"
+      },
+      {
+        "conclusion": "success",
+        "name": "vcan",
+        "status": "completed",
+        "url": "https://github.com/jaylamping/marengo/actions/runs/37003038698/job/110824973179"
+      },
+      {
+        "conclusion": "success",
+        "name": "sim",
+        "status": "completed",
+        "url": "https://github.com/jaylamping/marengo/actions/runs/37003038698/job/110824973188"
+      },
+      {
+        "conclusion": "success",
+        "name": "check",
+        "status": "completed",
+        "url": "https://github.com/jaylamping/marengo/actions/runs/37003038698/job/110824973212"
+      }
+    ],
+    "status": "completed"
+  },
+  "PR": "https://github.com/jaylamping/marengo/pull/248",
+  "delivery_status": "Final evidence-head and merged-main CI remain pending",
+  "finding_status_counts": {
+    "verified": 26,
+    "partial": 13,
+    "open": 63
+  },
+  "remaining": "CS05/CS06/CS07 partial; physical identity/reset/ack/readback, installed-owner reference/priority stop, commissioning and movement acceptance separate",
+  "physical_motion_acceptance": false,
+  "artifacts": [
+    {
+      "raw_file": "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/primary-9f1e523.txt",
+      "raw_sha256": "850b819f3c6dceb67bf28934878a723796353008172a5f6797570bea3a3824b9",
+      "committed_file": "evidence/batch34/primary-green.txt",
+      "committed_sha256": "ef538c665021c365454ce1ebdf26613c3b28d998cacdaf73ac3b05e0bed9ae92",
+      "normalization": "UTF-8 BOM removed if present; CRLF normalized to LF; raw file preserved"
+    },
+    {
+      "raw_file": "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/pi-native-9f1e523.txt",
+      "raw_sha256": "9dc2d51a9bb0e4b2ebb56bd1adceee52eb12e11178c324dbf1f402e83f7b13f6",
+      "committed_file": "evidence/batch34/pi-native-green.txt",
+      "committed_sha256": "e737ef8b2677a73b6a9d18b0670ff963d3edd0fb2f6b58e6d5a6a46fd9d86688",
+      "normalization": "UTF-8 BOM removed if present; CRLF normalized to LF; raw file preserved"
+    },
+    {
+      "raw_file": "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/pi-native-9f1e523.sh",
+      "raw_sha256": "b1a6185095b881504a4fde61b988963a09d8cc99226fe775ebb3f090b9f943d3",
+      "committed_file": "evidence/batch34/pi-native-runner.sh",
+      "committed_sha256": "b1a6185095b881504a4fde61b988963a09d8cc99226fe775ebb3f090b9f943d3",
+      "normalization": "UTF-8 BOM removed if present; CRLF normalized to LF; raw file preserved"
+    },
+    {
+      "raw_file": "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/probe-freeze-9f1e523.json",
+      "raw_sha256": "179a0a79694ee889ef6ba21c36501077a8e14195febcf0bd5f0123afa3fbf0a9",
+      "committed_file": "evidence/batch34/probe-freeze.json",
+      "committed_sha256": "a41acf0cab3c40ee9535236c7eb94440cc44c3ca5928e4a8cb64ff008e9ec015",
+      "normalization": "UTF-8 BOM removed if present; CRLF normalized to LF; raw file preserved"
+    },
+    {
+      "raw_file": "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/pi-source-9f1e523-manifest.json",
+      "raw_sha256": "e28ea301f58af8e832785e9007b77b3fc0af212e617b20f75c0b0303465f8ccd",
+      "committed_file": "evidence/batch34/committed-source-manifest.json",
+      "committed_sha256": "e3ac24ce1d96aaecf4b48cb8062e9e4c57090b0a7aeb55156ecbbf27cf141501",
+      "normalization": "UTF-8 BOM removed if present; CRLF normalized to LF; raw file preserved"
+    },
+    {
+      "raw_file": "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/mutation-receipt-9f1e523.json",
+      "raw_sha256": "6b0344474ba00fd7cc3e2345ef3302315a9107250f0e86030c174f06daf12874",
+      "committed_file": "evidence/batch34/mutation-receipt.json",
+      "committed_sha256": "2f06485215623a6b269e282e426f5e65d786b16a7e2cefbe9310e1f54d8b9ebd",
+      "normalization": "UTF-8 BOM removed if present; CRLF normalized to LF; raw file preserved"
+    },
+    {
+      "raw_file": "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/qualify-mutants.py",
+      "raw_sha256": "2803c716361f925ad521521ec473f238699bc7fae72694d7c09eb6ee1fb9cb0d",
+      "committed_file": "evidence/batch34/mutation-runner.py",
+      "committed_sha256": "2803c716361f925ad521521ec473f238699bc7fae72694d7c09eb6ee1fb9cb0d",
+      "normalization": "UTF-8 BOM removed if present; CRLF normalized to LF; raw file preserved"
+    },
+    {
+      "raw_file": "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/mutation-summary-9f1e523.txt",
+      "raw_sha256": "62dd6b5cf544590a3e08a72004a0f36a7331d51bece36ef612a7910b3ed46e02",
+      "committed_file": "evidence/batch34/mutation-summary.txt",
+      "committed_sha256": "7d82d434d66d96852eb0029874e613735fbba8cd08a8954b38abc209222ff781",
+      "normalization": "UTF-8 BOM removed if present; CRLF normalized to LF; raw file preserved"
+    },
+    {
+      "raw_file": "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/source-ci-receipt.json",
+      "raw_sha256": "d2cd77d184d11d0ae7b25dcfe8ae844ed8ce908aad6b625d8d7c7295ce5afa11",
+      "committed_file": "evidence/batch34/source-ci-receipt.json",
+      "committed_sha256": "d2cd77d184d11d0ae7b25dcfe8ae844ed8ce908aad6b625d8d7c7295ce5afa11",
+      "normalization": "UTF-8 BOM removed if present; CRLF normalized to LF; raw file preserved"
+    },
+    {
+      "raw_file": "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/mutation-baseline-davout-9f1e523.txt",
+      "raw_sha256": "bc000c07c7d1906c041a840f04f9ce01d4d95f380abc460aab20167f40756675",
+      "committed_file": "evidence/batch34/mutation-baseline-davout-9f1e523.txt",
+      "committed_sha256": "bc000c07c7d1906c041a840f04f9ce01d4d95f380abc460aab20167f40756675",
+      "normalization": "UTF-8 BOM removed if present; CRLF normalized to LF; raw file preserved"
+    },
+    {
+      "raw_file": "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/mutation-baseline-berthier-9f1e523.txt",
+      "raw_sha256": "d08481a1068b9c079fc626c3b00b82e38c4ab3ec0799232eab593f4cb0db00b2",
+      "committed_file": "evidence/batch34/mutation-baseline-berthier-9f1e523.txt",
+      "committed_sha256": "d08481a1068b9c079fc626c3b00b82e38c4ab3ec0799232eab593f4cb0db00b2",
+      "normalization": "UTF-8 BOM removed if present; CRLF normalized to LF; raw file preserved"
+    },
+    {
+      "raw_file": "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/mutation-baseline-initial-shutdown-9f1e523.txt",
+      "raw_sha256": "689537b57e644ac606869a79701e5e91a4a04fa9b6aa25fd02d3d4a9ef35d3ec",
+      "committed_file": "evidence/batch34/mutation-baseline-initial-shutdown-9f1e523.txt",
+      "committed_sha256": "689537b57e644ac606869a79701e5e91a4a04fa9b6aa25fd02d3d4a9ef35d3ec",
+      "normalization": "UTF-8 BOM removed if present; CRLF normalized to LF; raw file preserved"
+    },
+    {
+      "raw_file": "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/mutation-controller-active-shortcut-9f1e523.txt",
+      "raw_sha256": "0a8c1b8601cb692b7f9dd2b4dd6a8dd3b220f47fdee824d89d5f1dc39930da77",
+      "committed_file": "evidence/batch34/mutation-controller-active-shortcut-9f1e523.txt",
+      "committed_sha256": "0a8c1b8601cb692b7f9dd2b4dd6a8dd3b220f47fdee824d89d5f1dc39930da77",
+      "normalization": "UTF-8 BOM removed if present; CRLF normalized to LF; raw file preserved"
+    },
+    {
+      "raw_file": "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/mutation-unconditional-initial-shutdown-9f1e523.txt",
+      "raw_sha256": "6110addbbe64ea8d381855b173e21e84884bd467a9decfd568e454c5ae6285d5",
+      "committed_file": "evidence/batch34/mutation-unconditional-initial-shutdown-9f1e523.txt",
+      "committed_sha256": "6110addbbe64ea8d381855b173e21e84884bd467a9decfd568e454c5ae6285d5",
+      "normalization": "UTF-8 BOM removed if present; CRLF normalized to LF; raw file preserved"
+    },
+    {
+      "raw_file": "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/mutation-selected-peer-permission-9f1e523.txt",
+      "raw_sha256": "af871902ece3a98954c9f17a82b818f6a198f2033dc85e1c28bf0e9adf4016ba",
+      "committed_file": "evidence/batch34/mutation-selected-peer-permission-9f1e523.txt",
+      "committed_sha256": "af871902ece3a98954c9f17a82b818f6a198f2033dc85e1c28bf0e9adf4016ba",
+      "normalization": "UTF-8 BOM removed if present; CRLF normalized to LF; raw file preserved"
+    },
+    {
+      "raw_file": "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/mutation-ignore-selected-device-reset-9f1e523.txt",
+      "raw_sha256": "ae4c904b8cb3cf1605a678ace61b3294b3e454ac0b32164d9090a79b992d8684",
+      "committed_file": "evidence/batch34/mutation-ignore-selected-device-reset-9f1e523.txt",
+      "committed_sha256": "ae4c904b8cb3cf1605a678ace61b3294b3e454ac0b32164d9090a79b992d8684",
+      "normalization": "UTF-8 BOM removed if present; CRLF normalized to LF; raw file preserved"
+    },
+    {
+      "raw_file": "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/mutation-deadline-equality-9f1e523.txt",
+      "raw_sha256": "b676e9b00b33e0c6fe58c0ec73dfc75a977606aff6405958212f12b40e85e156",
+      "committed_file": "evidence/batch34/mutation-deadline-equality-9f1e523.txt",
+      "committed_sha256": "b676e9b00b33e0c6fe58c0ec73dfc75a977606aff6405958212f12b40e85e156",
+      "normalization": "UTF-8 BOM removed if present; CRLF normalized to LF; raw file preserved"
+    },
+    {
+      "raw_file": "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/mutation-missing-current-counter-preflight-9f1e523.txt",
+      "raw_sha256": "f4394c63358ede63fc08e11f80bb412ff49b4f16e777d3ae60e3dd2c01408266",
+      "committed_file": "evidence/batch34/mutation-missing-current-counter-preflight-9f1e523.txt",
+      "committed_sha256": "f4394c63358ede63fc08e11f80bb412ff49b4f16e777d3ae60e3dd2c01408266",
+      "normalization": "UTF-8 BOM removed if present; CRLF normalized to LF; raw file preserved"
+    },
+    {
+      "raw_file": "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/mutation-disable-revokes-selected-9f1e523.txt",
+      "raw_sha256": "3171915379821585d901fffac2b234f445d98b23102b8fdfdf5b30d7bdbc739d",
+      "committed_file": "evidence/batch34/mutation-disable-revokes-selected-9f1e523.txt",
+      "committed_sha256": "3171915379821585d901fffac2b234f445d98b23102b8fdfdf5b30d7bdbc739d",
+      "normalization": "UTF-8 BOM removed if present; CRLF normalized to LF; raw file preserved"
+    },
+    {
+      "raw_file": "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/mutation-cancelled-durable-grant-9f1e523.txt",
+      "raw_sha256": "09bdca3fad49d98d342bb183b2a0e0a40532d43ff37096e1ce98b45434737174",
+      "committed_file": "evidence/batch34/mutation-cancelled-durable-grant-9f1e523.txt",
+      "committed_sha256": "09bdca3fad49d98d342bb183b2a0e0a40532d43ff37096e1ce98b45434737174",
+      "normalization": "UTF-8 BOM removed if present; CRLF normalized to LF; raw file preserved"
+    },
+    {
+      "raw_file": "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/mutation-completion-before-fresh-report-9f1e523.txt",
+      "raw_sha256": "7f6f1b87ec733df32f75be4209e3db077b810902e01cf94fdae3ce7ffefe2734",
+      "committed_file": "evidence/batch34/mutation-completion-before-fresh-report-9f1e523.txt",
+      "committed_sha256": "7f6f1b87ec733df32f75be4209e3db077b810902e01cf94fdae3ce7ffefe2734",
+      "normalization": "UTF-8 BOM removed if present; CRLF normalized to LF; raw file preserved"
+    },
+    {
+      "raw_file": "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/mutation-unchanged-replay-davout-9f1e523.txt",
+      "raw_sha256": "a8ca088ea16b4550438a0e2d5df46b68137e12d8005aec8f1a28796549eba151",
+      "committed_file": "evidence/batch34/mutation-unchanged-replay-davout-9f1e523.txt",
+      "committed_sha256": "a8ca088ea16b4550438a0e2d5df46b68137e12d8005aec8f1a28796549eba151",
+      "normalization": "UTF-8 BOM removed if present; CRLF normalized to LF; raw file preserved"
+    },
+    {
+      "raw_file": "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/mutation-unchanged-replay-berthier-9f1e523.txt",
+      "raw_sha256": "3d651d680756e1a78c0f06b2298aae20b209f6ff843f1d080cadaf6585cc7bf9",
+      "committed_file": "evidence/batch34/mutation-unchanged-replay-berthier-9f1e523.txt",
+      "committed_sha256": "3d651d680756e1a78c0f06b2298aae20b209f6ff843f1d080cadaf6585cc7bf9",
+      "normalization": "UTF-8 BOM removed if present; CRLF normalized to LF; raw file preserved"
+    },
+    {
+      "raw_file": "J:/code/marengo-migration-backup-20260929/batch34-current-virtual-grant/mutation-unchanged-replay-initial-shutdown-9f1e523.txt",
+      "raw_sha256": "573d306f9d8b22b3d0a3446248542c854a5ea0dfd22491e14cea0ab8ad952e99",
+      "committed_file": "evidence/batch34/mutation-unchanged-replay-initial-shutdown-9f1e523.txt",
+      "committed_sha256": "573d306f9d8b22b3d0a3446248542c854a5ea0dfd22491e14cea0ab8ad952e99",
+      "normalization": "UTF-8 BOM removed if present; CRLF normalized to LF; raw file preserved"
+    }
+  ]
+}
