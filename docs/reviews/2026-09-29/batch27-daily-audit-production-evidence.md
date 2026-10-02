@@ -1,3 +1,7 @@
+## Paused for PC transfer
+
+The implementation stops at 788afbf, with 41 tests last observed passing. No batch27 PR or hosted primary gate has run. Added-diff/base binding and schema-error containment remain open; the final deletion/test-only fixes still need independent re-review. See [PC-RESUME.md](PC-RESUME.md) for authoritative counts, evidence limitations, portable T17 preservation and resume order. Do not close T21 or resume automatically.
+
 # Batch27 — production-aware daily audit evidence
 
 T21 remains open. Implementation baseline5c25a8f; branch

@@ -15406,7 +15406,14 @@
       "T21"
     ],
     "report": "batch27-daily-audit-production-evidence.md",
-    "status": "Historicalfalsepositiveprobe+lexicalproductioncontrols green; codegen verification/confidence/durableledger pending. T22verified. T17workflowauthorizationpending.",
-    "physical_acceptance": false
+    "status": "Paused at owner request for PC transfer; T21 added-diff binding and schema-error containment remain open. Latest implementation 788afbf; no PR/primary gate. T17 workflow authorization pending; portable bundle saved.",
+    "physical_acceptance": false,
+    "pause_checkpoint": {
+      "paused_at_utc": "2026-10-02T01:49:00.142281+00:00",
+      "handoff": "PC-RESUME.md",
+      "implementation_head": "788afbffc842625ee2649211027e7e7f0ad3bd28",
+      "t17_head": "4643d3baffbf61a951e882059bd3f6afba7e2f01",
+      "t17_bundle_sha256": "554d1e0f1e9fa40df11c6b1cab4c19eb8c9bbd2a8206d9af6e57f879be7f364f"
+    }
   }
 }

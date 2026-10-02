@@ -1,3 +1,9 @@
+# Current checkpoint: paused for PC transfer
+
+Read [PC-RESUME.md](PC-RESUME.md) first. It supersedes the historical sections below. Current counts: **24 verified, 11 partial, 67 open**. Batch27/T21 is unfinished on `codex/daily-audit-production-evidence`; batch19/T17 is preserved in a tracked Git bundle. The repair goal and Windows automation are paused.
+
+---
+
 ## Latest Mac continuation — batch26
 
 T20 verified: PR239/main5c25a8f allfive CI36909443242 passed. Counts23 verified,11 partial,68 open across102 IDs;8 maintenance tasks retained. T22 realpinnedCLI/15dailytests qualified; final reviews and Linux delivery pending. Windows automation remains paused; no physical acceptance.
