@@ -70,3 +70,18 @@ audit35 tests pass. Public reporting end-to-end durable state, production depend
 and diff evidence, malformed-data confidence coverage, independent review and full
 required delivery gates remain pending. T21 is open and no existing review finding
 or maintenance task is resolved by these new local observation receipts.
+
+Atbcdd407 public report qualification creates an actual production driver finding,
+then runs an empty later inventory: report remains nonclean with the same unresolved
+ID/state despite no current-window findings. CI absence or uncompleted conclusion is
+Unknown rather than implicitly successful. Cargo's offline locked metadata verifies
+dev-only versus renamed production driver dependencies and retains output digest;
+real current Berthier metadata/source read yields no policy finding, with bound
+source hash and preserved line positions.38daily tests pass. One earlier public
+aging fixture used unnamed mocks where scanner names are required; corrected to
+signature-preserving named mocks before green qualification.
+
+Independent Standards/Spec review active atbcdd407 against5c25a8f (integrated T22
+separately qualified). Full scope alignment, diff evidence completeness, parser and
+ledger malformed-data behavior, exact required gate and delivery remain pending.
+No PR yet and T21 remains open.
