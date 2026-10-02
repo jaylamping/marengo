@@ -14,6 +14,7 @@ from pathlib import Path
 
 from rust_scan import ScanUnknown, production_view
 from generated_scan import verify_generated
+from defect_ledger import record_findings
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -72,6 +73,7 @@ class Report:
     clean: bool = True
     scan_windows: dict[str, str] = field(default_factory=dict)
     checks: dict[str, dict] = field(default_factory=dict)
+    unresolved_findings: list[dict] = field(default_factory=list)
 
     def add(self, finding: Finding) -> None:
         if finding.severity in ("warn", "critical"):
@@ -392,6 +394,7 @@ def write_report(report: Report, out_dir: Path) -> None:
         "commits_reviewed": report.commits_reviewed,
         "changed_files": report.changed_files,
         "findings": [asdict(f) for f in report.findings],
+        "unresolved_findings": report.unresolved_findings,
         "topics": report.topics,
         "clean": report.clean,
         "scan_windows": report.scan_windows,
@@ -408,6 +411,7 @@ def write_report(report: Report, out_dir: Path) -> None:
         f"**Changed files:** {len(report.changed_files)}",
         f"**Scan windows:** {report.scan_windows}",
         f"**Check completeness:** {payload['completeness']}",
+        f"**Unresolved durable findings:** {len(report.unresolved_findings)}",
         "",
         "## Findings",
         "",
@@ -461,6 +465,12 @@ def main() -> int:
     report.topics = infer_topics(report.changed_files)
     capture_check(report, "ci_status", lambda: check_ci_status(report))
     capture_check(report, "stale_safety_prs", lambda: check_stale_safety_prs(report))
+    def persist_findings():
+        report.unresolved_findings = record_findings(ROOT / "var/log/daily-audit/defects.json",
+            [asdict(f) for f in report.findings], datetime.now(timezone.utc).isoformat())
+        if report.unresolved_findings:
+            report.clean = False
+    capture_check(report, "durable_findings", persist_findings)
     write_report(report, out_dir_for(report.date))
     return 0 if report.clean and all(c["status"] == "complete" for c in report.checks.values()) else 1
 
