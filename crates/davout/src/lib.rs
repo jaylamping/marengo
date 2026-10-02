@@ -70,6 +70,8 @@ pub use armee_kinematics::JointLimitPolicy;
 extern crate self as davout;
 
 mod active_reporting;
+#[cfg(test)]
+mod active_reporting_pacing_tests;
 mod faults;
 mod feedback_consumer;
 mod limit_envelope;

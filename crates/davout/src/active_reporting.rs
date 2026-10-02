@@ -18,6 +18,10 @@ pub const DEFAULT_LEASE_TTL: Duration = Duration::from_secs(30);
 /// never retry and Set Limits would freeze on a stale near-zero sample.
 pub const ACTIVE_REPORTING_HEARTBEAT: Duration = Duration::from_secs(1);
 
+/// Separate healthy-stream refresh attempts by one 200 Hz control period.
+/// Initial enables, stale-feedback recovery and reporting Off are not delayed.
+const ACTIVE_REPORTING_HEARTBEAT_SPACING: Duration = Duration::from_millis(5);
+
 /// If desired-on and no feedback arrives within this window after enable (or after
 /// the last RX), clear the applied bit so the next sync re-asserts type-24.
 pub const ACTIVE_REPORTING_FEEDBACK_STALE: Duration = Duration::from_millis(200);
@@ -39,6 +43,9 @@ pub struct ActiveReportingState {
     applied: HashMap<String, bool>,
     /// Last successful type-24 enable TX time (for heartbeat refresh).
     last_enable_tx: HashMap<String, Instant>,
+    /// Rotate refresh attempts even when the selected route's write fails.
+    heartbeat_cursor: usize,
+    last_heartbeat_attempt: Option<Instant>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -98,6 +105,8 @@ impl ActiveReportingState {
     pub fn clear_applied(&mut self) {
         self.applied.clear();
         self.last_enable_tx.clear();
+        self.heartbeat_cursor = 0;
+        self.last_heartbeat_attempt = None;
     }
 
     pub fn clear_applied_joint(&mut self, joint: &str) {
@@ -223,6 +232,8 @@ impl ActiveReportingState {
     ///
     /// While sensing is desired, also re-asserts enable on heartbeat and when
     /// `last_feedback_rx` shows the joint has gone silent (free-drive dropout).
+    /// Healthy heartbeat attempts rotate with spacing across repeated callers;
+    /// initial enables, stale retries and reporting Off retain immediate handling.
     pub fn sync<B: MotorBus>(
         &mut self,
         bus: &mut B,
@@ -233,15 +244,37 @@ impl ActiveReportingState {
         last_feedback_rx: &HashMap<String, Instant>,
     ) {
         self.expire_stale(now);
-        for motor in &motors.motors {
+        let spacing_elapsed = self
+            .last_heartbeat_attempt
+            .map(|last| now.saturating_duration_since(last) >= ACTIVE_REPORTING_HEARTBEAT_SPACING)
+            .unwrap_or(true);
+        let heartbeat_motor = if spacing_elapsed && !motors.motors.is_empty() {
+            let count = motors.motors.len();
+            let start = self.heartbeat_cursor % count;
+            (0..count)
+                .map(|offset| (start + offset) % count)
+                .find(|index| {
+                    let joint = &motors.motors[*index].joint;
+                    self.desired(joint, mode_active, global_diagnostics, now)
+                        && self.applied_on(joint)
+                        && last_feedback_rx.get(joint).is_some_and(|last| {
+                            now.saturating_duration_since(*last) < ACTIVE_REPORTING_FEEDBACK_STALE
+                        })
+                        && self
+                            .last_enable_tx
+                            .get(joint)
+                            .map(|last| {
+                                now.saturating_duration_since(*last) >= ACTIVE_REPORTING_HEARTBEAT
+                            })
+                            .unwrap_or(true)
+                })
+        } else {
+            None
+        };
+        for (index, motor) in motors.motors.iter().enumerate() {
             let joint = motor.joint.as_str();
             let want = self.desired(joint, mode_active, global_diagnostics, now);
             let have = self.applied_on(joint);
-            let heartbeat_due = self
-                .last_enable_tx
-                .get(joint)
-                .map(|t| now.saturating_duration_since(*t) >= ACTIVE_REPORTING_HEARTBEAT)
-                .unwrap_or(true);
             let feedback_stale = if !have {
                 false
             } else {
@@ -257,10 +290,14 @@ impl ActiveReportingState {
                         .unwrap_or(false),
                 }
             };
-            let need_enable = want && (!have || heartbeat_due || feedback_stale);
+            let need_enable = want && (!have || heartbeat_motor == Some(index) || feedback_stale);
             let need_disable = !want && have;
             if !need_enable && !need_disable {
                 continue;
+            }
+            if heartbeat_motor == Some(index) {
+                self.last_heartbeat_attempt = Some(now);
+                self.heartbeat_cursor = (index + 1) % motors.motors.len();
             }
             let address = MotorAddress::from(motor);
             let result = if want {
