@@ -11,6 +11,7 @@ import {
   WAVE_POSE_GCOMP_SIGNED,
 } from '@/data/compound-tests';
 import { useConfigSnapshot } from '@/hooks/use-config-snapshot';
+import { useRuntimeCredential } from '@/hooks/use-runtime-credential';
 import { autoLearnConfigured, postAutoLearn } from '@/lib/auto-learn-api';
 import { buildAutoLearnLogContext } from '@/lib/auto-learn-logs';
 import { buildAutoLearnRequest } from '@/lib/auto-learn-snapshot';
@@ -61,7 +62,8 @@ export function useAutoLearnController(presetId: string) {
   const draftForPreset = draft?.presetId === presetId ? draft : null;
 
   const abortRef = React.useRef<AbortController | null>(null);
-  const configured = autoLearnConfigured();
+  const credential = useRuntimeCredential('autoLearn');
+  const configured = Boolean(credential) && autoLearnConfigured();
   const recording = capture.kind === 'recording';
 
   const priorLandmarks = React.useMemo((): AutoLearnLandmark[] | null => {
@@ -119,7 +121,7 @@ export function useAutoLearnController(presetId: string) {
       return;
     }
     if (!configured) {
-      setAutoLearnError('Set VITE_AUTO_LEARN_URL and VITE_AUTO_LEARN_TOKEN');
+      setAutoLearnError('Configure the Auto Learn service URL and enter its credential.');
       return;
     }
 

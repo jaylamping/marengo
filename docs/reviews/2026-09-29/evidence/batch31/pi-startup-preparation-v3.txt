@@ -1,0 +1,1 @@
+bash: /home/joey/marengo-validation/batch31-20261002/batch31-pi-native-v3.sh: No such file or directory

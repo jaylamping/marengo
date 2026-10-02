@@ -75,7 +75,7 @@ echo "==> consul: gen:proto, build, audit"
   npm run gen:proto
   test -f src/gen/marengo/v1/marengo_pb.ts
   "${ROOT}/scripts/proto-checksum.sh"
-  npm run build --ignore-scripts
+  npm run build:qualified -- --ignore-scripts
   npm test -- --run
   "${ROOT}/scripts/check-consul-dist.sh"
   if [[ "${CI_MODE}" == true ]]; then

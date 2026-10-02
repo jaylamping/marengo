@@ -3,6 +3,7 @@ import { create, fromBinary, toBinary } from '@bufbuild/protobuf';
 import {
   EnvelopeSchema,
   GatewaySubscribeSchema,
+  GatewaySubscriptionAdmissionSchema,
   HeartbeatSchema,
   type Heartbeat,
   type HostMetrics,
@@ -25,6 +26,7 @@ import {
   getChappeSubscribeTopics,
 } from '@/lib/chappe-config';
 import { shouldDecodeLogEvents } from '@/lib/log-buffer';
+import { gatewayAuthHeaders, gatewayCredential } from '@/lib/runtime-credentials';
 import type { ChappeTransportMode } from '@/state/hostMetricsStore';
 
 type WebTransportCertificateHash = {
@@ -58,11 +60,15 @@ function decodeSha256Fingerprint(b64: string): Uint8Array {
 async function fetchServerCertificateHashes(
   httpUrl: string,
 ): Promise<WebTransportCertificateHash[]> {
-  const res = await fetch(`${httpUrl}/tls/fingerprint`);
+  const abort = new AbortController();
+  const res = await withAdmissionDeadline(
+    fetch(`${httpUrl}/tls/fingerprint`, { signal: abort.signal }),
+    () => abort.abort(),
+  );
   if (!res.ok) {
     throw new Error(`tls fingerprint failed: ${res.status}`);
   }
-  const body = (await res.json()) as {
+  const body = (await withAdmissionDeadline(res.json(), () => abort.abort())) as {
     algorithm?: string;
     value?: string;
     hashes?: { algorithm: string; value: string }[];
@@ -99,6 +105,7 @@ async function readLengthPrefixedFromStream(
   reader: ReadableStreamDefaultReader<Uint8Array>,
   buffer: Uint8Array[],
   bufferedLen: { value: number },
+  maximum = 4 * 1024 * 1024,
 ): Promise<Uint8Array | null> {
   while (true) {
     let combined = concatChunks(buffer);
@@ -108,7 +115,7 @@ async function readLengthPrefixedFromStream(
         combined.byteOffset,
         Math.min(4, combined.byteLength),
       ).getUint32(0, true);
-      if (frameLen === 0 || frameLen > 4 * 1024 * 1024) {
+      if (frameLen === 0 || frameLen > maximum) {
         return null;
       }
       if (combined.length >= 4 + frameLen) {
@@ -194,71 +201,103 @@ export function webTransportAvailable(): boolean {
   return typeof WebTransport !== 'undefined';
 }
 
+const ADMISSION_TIMEOUT_MS = 5000;
+
+async function withAdmissionDeadline<T>(promise: Promise<T>, cancel: () => void): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      cancel();
+      reject(new Error('Gateway subscription timed out'));
+    }, ADMISSION_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function subscriptionTopics(credential: string): string[] {
+  return getChappeSubscribeTopics().filter((topic) => credential || topic !== 'logs/structured');
+}
+
+async function consumeTelemetryFrames(
+  readFrame: () => Promise<Uint8Array | null>,
+  handlers: ChappeTelemetryHandlers,
+  isClosed: () => boolean,
+  stop: () => void,
+): Promise<void> {
+  try {
+    let framesSinceYield = 0;
+    while (!isClosed()) {
+      const frame = await readFrame();
+      if (!frame || isClosed()) break;
+      dispatchEnvelope(frame, handlers);
+      if (++framesSinceYield >= 32) {
+        framesSinceYield = 0;
+        await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+      }
+    }
+  } catch (err) {
+    if (!isClosed()) handlers.onError?.(err instanceof Error ? err.message : String(err));
+  } finally {
+    if (!isClosed()) { handlers.onDisconnected?.(); stop(); }
+  }
+}
+
 export async function connectWebTransport(
   handlers: ChappeTelemetryHandlers,
   closed: () => boolean,
 ): Promise<(() => void) | null> {
   const endpoints = getChappeEndpoints();
-  if (!endpoints || !webTransportAvailable()) {
-    return null;
-  }
+  if (!endpoints || !webTransportAvailable()) return null;
 
-  const serverCertificateHashes = await fetchServerCertificateHashes(
-    endpoints.httpUrl,
-  );
+  const serverCertificateHashes = await fetchServerCertificateHashes(endpoints.httpUrl);
   const transport = new WebTransport(endpoints.webTransportUrl, {
     allowPooling: false,
     serverCertificateHashes,
   } as WebTransportOptions);
-  await transport.ready;
-  if (closed()) {
-    transport.close();
-    return null;
-  }
-
-  handlers.onTransportMode?.('webtransport');
-  handlers.onConnected?.();
-
-  const stream = await transport.createBidirectionalStream();
-  const writer = stream.writable.getWriter();
-  const reader = stream.readable.getReader();
-
-  const subscribe = create(GatewaySubscribeSchema, {
-    topics: getChappeSubscribeTopics(),
-  });
-  await writeLengthPrefixed(writer, toBinary(GatewaySubscribeSchema, subscribe));
-
-  const frameBuffer: Uint8Array[] = [];
-  const frameBufferedLen = { value: 0 };
-
-  void (async () => {
-    let framesSinceYield = 0;
-    while (!closed()) {
-      const frame = await readLengthPrefixedFromStream(
-        reader,
-        frameBuffer,
-        frameBufferedLen,
-      );
-      if (!frame) {
-        break;
-      }
-      try {
-        dispatchEnvelope(frame, handlers);
-      } catch (err) {
-        handlers.onError?.(err instanceof Error ? err.message : String(err));
-      }
-      framesSinceYield += 1;
-      if (framesSinceYield >= 32) {
-        framesSinceYield = 0;
-        await new Promise<void>((resolve) => {
-          window.setTimeout(resolve, 0);
-        });
-      }
+  // ready and closed can both reject on a failed or cancelled handshake.
+  void transport.closed.catch(() => {});
+  let stopped = false;
+  const isClosed = () => stopped || closed();
+  const stop = () => { stopped = true; transport.close(); };
+  try {
+    await withAdmissionDeadline(transport.ready, stop);
+    if (isClosed()) { stop(); return null; }
+    const stream = await withAdmissionDeadline(transport.createBidirectionalStream(), stop);
+    const writer = stream.writable.getWriter();
+    const reader = stream.readable.getReader();
+    const credential = gatewayCredential('sensitiveRead');
+    const topics = subscriptionTopics(credential);
+    const subscribe = create(GatewaySubscribeSchema, { topics, runtimeCredential: credential });
+    const frameBuffer: Uint8Array[] = [];
+    const frameBufferedLen = { value: 0 };
+    const admissionBytes = await withAdmissionDeadline((async () => {
+      await writeLengthPrefixed(writer, toBinary(GatewaySubscribeSchema, subscribe));
+      return readLengthPrefixedFromStream(reader, frameBuffer, frameBufferedLen, 16 * 1024);
+    })(), stop);
+    if (!admissionBytes) throw new Error('Gateway subscription admission missing');
+    const admission = fromBinary(GatewaySubscriptionAdmissionSchema, admissionBytes);
+    if (admission.status !== 200) throw new Error(`Gateway subscription refused: ${admission.status}`);
+    // Every stream also carries the gateway's mandatory producer invalidation topic.
+    const expectedTopics = [...new Set([...topics, 'gateway/runtime_connection'])];
+    if (admission.topics.length !== expectedTopics.length || expectedTopics.some((topic) => !admission.topics.includes(topic))) {
+      throw new Error('Gateway subscription topics differ from the request');
     }
-    handlers.onDisconnected?.();
-  })();
-
-  return () => transport.close();
+    if (isClosed()) { stop(); return null; }
+    handlers.onTransportMode?.('webtransport');
+    handlers.onConnected?.();
+    void consumeTelemetryFrames(
+      () => readLengthPrefixedFromStream(reader, frameBuffer, frameBufferedLen),
+      handlers, isClosed, stop,
+    );
+    return stop;
+  } catch (err) {
+    stop();
+    throw err;
+  }
 }
 
 export async function connectHttpStream(
@@ -266,51 +305,34 @@ export async function connectHttpStream(
   closed: () => boolean,
 ): Promise<(() => void) | null> {
   const endpoints = getChappeEndpoints();
-  if (!endpoints) {
-    return null;
-  }
-
-  const topics = getChappeSubscribeTopics().join(',');
-  const res = await fetch(
+  if (!endpoints) return null;
+  const credential = gatewayCredential('sensitiveRead');
+  const topics = subscriptionTopics(credential).join(',');
+  const abort = new AbortController();
+  let stopped = false;
+  const isClosed = () => stopped || closed();
+  const res = await withAdmissionDeadline(fetch(
     `${endpoints.httpUrl}/stream/chappe?topics=${encodeURIComponent(topics)}`,
-  );
+    { headers: gatewayAuthHeaders('sensitiveRead'), signal: abort.signal },
+  ), () => abort.abort());
   if (!res.ok || !res.body) {
+    abort.abort();
     throw new Error(`http stream failed: ${res.status}`);
   }
-  if (closed()) {
-    return null;
-  }
-
+  if (isClosed()) { abort.abort(); await res.body.cancel(); return null; }
   handlers.onTransportMode?.('http-stream');
   handlers.onConnected?.();
-
   const reader = res.body.getReader();
   const buffer: Uint8Array[] = [];
   const bufferedLen = { value: 0 };
-  const abort = new AbortController();
-
-  void (async () => {
-    let framesSinceYield = 0;
-    while (!closed() && !abort.signal.aborted) {
-      const frame = await readLengthPrefixedFromStream(reader, buffer, bufferedLen);
-      if (!frame) {
-        break;
-      }
-      try {
-        dispatchEnvelope(frame, handlers);
-      } catch (err) {
-        handlers.onError?.(err instanceof Error ? err.message : String(err));
-      }
-      framesSinceYield += 1;
-      if (framesSinceYield >= 32) {
-        framesSinceYield = 0;
-        await new Promise<void>((resolve) => {
-          window.setTimeout(resolve, 0);
-        });
-      }
-    }
-    handlers.onDisconnected?.();
-  })();
-
-  return () => abort.abort();
+  const stop = () => {
+    stopped = true;
+    abort.abort();
+    void reader.cancel().catch(() => {});
+  };
+  void consumeTelemetryFrames(
+    () => readLengthPrefixedFromStream(reader, buffer, bufferedLen),
+    handlers, isClosed, stop,
+  );
+  return stop;
 }

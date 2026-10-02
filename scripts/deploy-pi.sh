@@ -155,22 +155,13 @@ build_consul_assets() {
   fi
   log_step "Building Consul static assets"
   ensure_consul_deps
-  local log_token=""
-  log_token="$(resolve_vite_marengo_log_token "$PI_HOST" || true)"
-  if [[ -n "$log_token" ]]; then
-    export VITE_MARENGO_LOG_TOKEN="$log_token"
-    log_note "Baking VITE_MARENGO_LOG_TOKEN into Consul (${#log_token} chars)"
-  else
-    unset VITE_MARENGO_LOG_TOKEN || true
-    log_note "Consul build without log token (Pi token unset or unreachable)"
-  fi
   (
     cd "${ROOT}/consul"
-    # Auto Learn BFF is operator-machine only — never bake local URL/token into Pi www.
+    # Auto Learn BFF is operator-machine only — leave its URL empty in Pi www; credentials are entered at runtime.
     # Set empty (don't unset): Vite prefers process env over .env.local.
     env -u VITE_CHAPPE_HTTP_URL -u VITE_CHAPPE_WEBTRANSPORT_URL \
-      VITE_AUTO_LEARN_URL= VITE_AUTO_LEARN_TOKEN= \
-      npm run build
+      VITE_AUTO_LEARN_URL= VITE_AUTO_LEARN_TOKEN= VITE_MARENGO_LOG_TOKEN= \
+      npm run build:qualified
   )
   if [[ ! -f "${ROOT}/consul/dist/index.html" ]]; then
     echo "error: consul build did not produce dist/index.html" >&2

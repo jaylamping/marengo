@@ -1,0 +1,125 @@
+{
+  "source": "dc88d28323a859f7d74d5c50dc8f5689646142d4",
+  "baseline": "a5c4cdb6448c5a0164ebbeffb1c82eb09ab0c266",
+  "recorded_utc": "2026-10-02T07:03:46.644263+00:00",
+  "primary": {
+    "tool_exit_code": 0,
+    "Rust_passed": 826,
+    "Rust_existing_ignored": 1,
+    "Consul_passed": 374,
+    "Pi_MCP_passed": 72,
+    "local_writer_passed": 27,
+    "research_passed": 83,
+    "daily_audit_passed": 15,
+    "installer_passed": 7,
+    "fmt_clippy_buf_deny_audit": "passed",
+    "fatal_ARM_release": "passed"
+  },
+  "native_Pi": {
+    "tool_exit_code": 0,
+    "Rust_passed": 826,
+    "Rust_existing_ignored": 1,
+    "Consul_passed": 374,
+    "source_files": 1736,
+    "Rust_build_config_proto_URDF_inputs_unchanged": 364,
+    "node": "24.16.0",
+    "rust": "1.88.0",
+    "scope": "owned user staging; isolated Bus/files and loopback HTTP/TLS/QUIC; no physical CAN or service changes"
+  },
+  "build_markers": {
+    "fixtures": 11,
+    "assets": 99,
+    "primary_manifest": "0b69912cd1733726620c14d0085117ce7c44a798a669ae75672c763679b12637",
+    "Pi_manifest": "0b69912cd1733726620c14d0085117ce7c44a798a669ae75672c763679b12637"
+  },
+  "independent_reviews": {
+    "source": "dc88d28323a859f7d74d5c50dc8f5689646142d4",
+    "Standards": 0,
+    "scoped_Spec": 0,
+    "initial_duplication_heuristic": "resolved with shared consumeTelemetryFrames"
+  },
+  "source_CI": {
+    "headSha": "dc88d28323a859f7d74d5c50dc8f5689646142d4",
+    "status": "completed",
+    "conclusion": "success",
+    "url": "https://github.com/jaylamping/marengo/actions/runs/36975018460",
+    "run_id": 36975018460,
+    "jobs": [
+      {
+        "name": "changes",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/jaylamping/marengo/actions/runs/36975018460/job/110736850059"
+      },
+      {
+        "name": "build-image",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/jaylamping/marengo/actions/runs/36975018460/job/110736850290"
+      },
+      {
+        "name": "vcan",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/jaylamping/marengo/actions/runs/36975018460/job/110736944924"
+      },
+      {
+        "name": "check",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/jaylamping/marengo/actions/runs/36975018460/job/110736944941"
+      },
+      {
+        "name": "sim",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/jaylamping/marengo/actions/runs/36975018460/job/110736945007"
+      }
+    ]
+  },
+  "frozen_oracles_unchanged": [
+    "frozen-gateway-access-public-v2.rs",
+    "frozen-route-conformance-v3.rs",
+    "frozen-quic-conformance-v3.rs",
+    "frozen-runtime-credentials-v3.test.tsx",
+    "frozen-client-admission-v3.test.ts",
+    "frozen-build-marker-qualifier-v1.mjs"
+  ],
+  "preparation_exclusions": [
+    "Primary v1 stopped at the stale generated TS checksum; regeneration refreshed only .checksum. This is not a behavioral red.",
+    "Primary v2 qualified prior Consul receive-loop shape; complete v3 qualifies final reviewed source.",
+    "Initial Pi snapshot b5ae052 has identical364 Rust/build/config/proto/URDF inputs; only checksum and receive-loop were replaced from exact dc88d28 archive, and all842 files were verified.",
+    "Native Pi v1 exited101 because two kinematics cases lacked sim/fixtures/minimal.urdf. v2 added committed sim files but exited101 at three missing assets/mjcf fixtures. Both are selective-staging omissions, not production behavioral reds.",
+    "Native v3 SSH startup exited127 because a local PowerShell parser error prevented script creation/upload; no test executed. v4 stages the full1736-file committed tree, preserving every existing source byte, and runs the unchanged full suite.",
+    "Earlier fixture/compile/collection exclusions remain in local-software-qualification.json."
+  ],
+  "delivery": "Final documentation head and merged main must each pass all five exact-head jobs; completion is recorded after merge.",
+  "physical_acceptance": false,
+  "installed_Pi": "4bc77ba605834fdec04b436daa4bec67bca84fbb",
+  "files": {
+    "primary-green-v3.txt": "6cd17558c96b3df3f346217e810a6037c28b640fc58418c0f4dc1ab6834b767e",
+    "pi-native-green-v4.txt": "736975257606cb2b90d09d96e11e8dd087dbcc3f1e9f6327e06da4dd1b1ea83e",
+    "pi-fixture-preparation-v1.txt": "f3e14362cc1459ab9cbb379f59551a443deebf78e17c22c32a29efa4992a8566",
+    "pi-fixture-preparation-v2.txt": "ee22672e3f2132e244aec945df9f3b81e655bb168db8df2827caca6a70c450ec",
+    "pi-startup-preparation-v3.txt": "e4bd826736fded8bed065a01b1b8e84791bd6f233a00ee953ed01229cb84edbd",
+    "pi-final-source-v1.txt": "1cde9f89e941adf34533e7da8ff7f1c7a382b4d196f69ac1599808df9e00f0e3",
+    "pi-installed-observation-v1.txt": "8c35306e49908c07112e5d21474707a257e0a5a1b9f00b157679340502c82f64",
+    "pi-final-source-manifest.json": "d2e81db86a2d90001bc2abcfda35f6826f801f87269a9c97ba776233ec56c057",
+    "primary-checksum-preparation-v1.txt": "9c2d4e5731d824d085e878d1a506e47385cdf39fbc08d82094d8b2f53b8cdc3a",
+    "pi-final-input-check.txt": "07180b7df486d00ba47509346fe9b357614712a14efadb4d253e062dde644104",
+    "source-ci-receipt.json": "1b074ae7791e2aee1de53871b341aa2e74473021a152b9747d21afc92a7e38a5",
+    "independent-reviews.md": "adc495cdda70b532ce369f32ea66d8f2ffe2b23a3d22b6e25a151cfe732a4ed5"
+  },
+  "file_hash_format": "SHA256 of committed artifact bytes; text line endings canonical LF",
+  "raw_windows_log_sha256": {
+    "primary-green-v3.txt": "ccc8cb1e4eca26e7d97ffd7b89de1af89c8223a89424cb1ff79f770d2d2a6764",
+    "pi-native-green-v4.txt": "351cf9ce6c4895944d6b74a8a2da94cd2e21dd3dcfbc9406f053ea53fc7398d5",
+    "pi-fixture-preparation-v1.txt": "a5186f6cfc27f2c25e5abd2a1d94e584769752280bfd3b67a67b61768a02f10c",
+    "pi-fixture-preparation-v2.txt": "f9b75d2a00ec12d49f5ad3d64ec0e4f09f339486198c72c92f55c2a15c9b527a",
+    "pi-startup-preparation-v3.txt": "99abe102d4f280d118676bcdd31e16bc44f3926ec405e223dca07c58c24a12cb",
+    "pi-final-source-v1.txt": "dbb479f579b7b2754a01a73ad021d36b0b32bcff22909c9482f5fd7f3b74753f",
+    "pi-installed-observation-v1.txt": "8bff06f96ab944da91e1dee190edd617b89aef61f307e6aa612c62ae94579a36",
+    "primary-checksum-preparation-v1.txt": "d04d6b9e3c6df48bb8eeb0506b030f08badd32d1536e35969427a1fe4d855475",
+    "pi-final-input-check.txt": "38918394f74e684ba911df78af6489edef0606211f748994755371e225b19aca"
+  }
+}

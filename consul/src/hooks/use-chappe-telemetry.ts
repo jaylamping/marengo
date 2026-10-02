@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 
 import { HostNodeRole, OperationalMode, type HostMetrics, type RobotState } from '@/gen/marengo/v1/marengo_pb';
 import { connectChappeStream } from '@/lib/chappe-client';
@@ -6,6 +6,7 @@ import { isChappeLive } from '@/lib/chappe-config';
 import { appendLiveLog, enableChappeLiveLogs } from '@/lib/log-buffer';
 import { publishTeachSampleFromRobotState } from '@/lib/teach-sample-bus';
 import { throttleTrailing } from '@/lib/throttle-callback';
+import { useGatewayCredential } from '@/hooks/use-runtime-credential';
 import type { LogLevel } from '@/data/logs';
 import { useHostMetricsStore } from '@/state/hostMetricsStore';
 import { useRobotStore } from '@/state/robotStore';
@@ -66,14 +67,14 @@ export function useChappeTelemetry(): void {
   const setPiMetrics = useHostMetricsStore((s) => s.setPiMetrics);
   const setJetsonMetrics = useHostMetricsStore((s) => s.setJetsonMetrics);
 
-  const disposedRef = useRef(false);
+  const readCredential = useGatewayCredential('sensitiveRead');
   useEffect(() => {
     if (!isChappeLive()) {
       return;
     }
 
     enableChappeLiveLogs();
-    disposedRef.current = false;
+    let disposed = false;
     let dispose: (() => void) | undefined;
 
     const publishRobotState = throttleTrailing((state: RobotState) => {
@@ -103,24 +104,28 @@ export function useChappeTelemetry(): void {
 
     void connectChappeStream({
       onConnected: () => {
+        if (disposed) return;
         retireRuntimeFacts();
         setGatewayError(null);
       },
-      onDisconnected: retireRuntimeFacts,
-      onRuntimeConnectionState: retireRuntimeFacts,
-      onRuntimeObservationGap: retireRuntimeFacts,
-      onTransportMode: (mode) => setTransportMode(mode),
+      onDisconnected: () => { if (!disposed) retireRuntimeFacts(); },
+      onRuntimeConnectionState: () => { if (!disposed) retireRuntimeFacts(); },
+      onRuntimeObservationGap: () => { if (!disposed) retireRuntimeFacts(); },
+      onTransportMode: (mode) => { if (!disposed) setTransportMode(mode); },
       onError: (message) => {
+        if (disposed) return;
         setGatewayError(message);
         setConnected(false);
       },
       onRobotState: (state) => {
+        if (disposed) return;
         setConnected(true);
         // Teach-record listens before UI throttle (~10 Hz store).
         publishTeachSampleFromRobotState(state);
         publishRobotState(state);
       },
       onSafetyState: (safety) => {
+        if (disposed) return;
         setSafetyState(safety);
         const mode = safety.mode;
         if (mode === OperationalMode.ACTIVE) {
@@ -134,8 +139,9 @@ export function useChappeTelemetry(): void {
         }
       },
       onHeartbeat: () => {},
-      onImuSample: (sample) => setImuSample(sample),
+      onImuSample: (sample) => { if (!disposed) setImuSample(sample); },
       onLogEvent: (event) => {
+        if (disposed) return;
         appendLiveLog({
           timestamp: Number(event.timestampMs),
           level: mapLogLevel(event.level),
@@ -146,6 +152,7 @@ export function useChappeTelemetry(): void {
         });
       },
       onHostMetrics: (metrics, topic) => {
+        if (disposed) return;
         const role =
           metrics.nodeRole === HostNodeRole.JETSON
             ? 'jetson'
@@ -161,7 +168,7 @@ export function useChappeTelemetry(): void {
         }
       },
     }).then((fn) => {
-      if (!disposedRef.current) {
+      if (!disposed) {
         dispose = fn;
       } else {
         fn?.();
@@ -169,13 +176,14 @@ export function useChappeTelemetry(): void {
     });
 
     return () => {
-      disposedRef.current = true;
+      disposed = true;
       retireRuntimeFacts();
       dispose?.();
       setConnected(false);
       setTransportMode('offline');
     };
   }, [
+    readCredential,
     appendTrackingPoint,
     setConnected,
     setGatewayError,

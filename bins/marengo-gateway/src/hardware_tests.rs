@@ -9,7 +9,6 @@ use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use chappe::Bus;
 use tower::ServiceExt;
 
-use crate::config::authorize_config_mutation;
 use crate::http;
 use crate::logs::lock_test_env;
 use crate::state::{AppState, SharedState, TOPIC_HEARTBEAT, TOPIC_SAFETY};
@@ -463,11 +462,14 @@ async fn activate_saves_manifest_before_failed_live_promote() {
 }
 
 #[test]
-fn authorize_config_mutation_matches_log_token() {
+fn configuration_accepts_legacy_header_with_the_shared_policy() {
     let _env = lock_test_env();
     std::env::set_var(TOKEN_ENV, TEST_TOKEN);
     let headers = auth_headers();
-    assert!(authorize_config_mutation(&headers).is_ok());
+    let policy = crate::access::AccessPolicy::operator_fixture(TEST_TOKEN).expect("fixture policy");
+    assert!(policy
+        .authorize(&headers, crate::access::Capability::Configuration)
+        .is_ok());
 }
 
 #[tokio::test]

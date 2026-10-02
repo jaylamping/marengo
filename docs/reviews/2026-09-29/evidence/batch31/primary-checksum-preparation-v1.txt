@@ -1,0 +1,28 @@
+ Container marengo-check-run-39dd96905117 Creating 
+ Container marengo-check-run-39dd96905117 Created 
+==> consul: npm ci
+npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+
+added 360 packages, and audited 361 packages in 10s
+
+56 packages are looking for funding
+  run `npm fund` for details
+
+2 moderate severity vulnerabilities
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+==> buf lint
+==> buf breaking (PR only)
+==> consul: gen:proto, build, audit
+
+> consul@0.0.0 gen:proto
+> buf generate --template buf.gen.yaml ../proto
+
+proto-checksum: mismatch
+  expected: 74ee013208b0702dfe3ac40f256171e697fb16a5c5400c94c295ae1ed1e531ad
+  actual:   2b96448e57329836ce5cea10aa7302489355f7d72bc7797bd0031b8e8f52a93c
+  run: cd consul && npm run gen:proto && shasum -a 256 src/gen/marengo/v1/marengo_pb.ts | awk '{print $1}' > src/gen/.checksum
+

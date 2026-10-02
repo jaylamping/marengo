@@ -14,6 +14,7 @@
     "dev": "vite",
     "dev:mock-chappe": "npx --yes tsx scripts/mock-chappe-server.mts",
     "build": "tsc -b && vite build",
+    "build:qualified": "node scripts/build-runtime-credentials.mjs",
     "preview": "vite preview",
     "typecheck": "tsc -b",
     "test": "vitest",

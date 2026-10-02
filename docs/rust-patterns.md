@@ -375,3 +375,13 @@ if let Some(total) = observed_total {
     metric.capacity_known = true;
 }
 ```
+
+## Shared gateway request access
+
+Resolve trusted credentials/capabilities and browser origins once at binary
+composition. Apply the same immutable policy to HTTP/HTTPS before extraction
+and to bounded WebTransport subscription admission before creating a receiver.
+Do not read an independent credential environment variable inside each handler.
+Use typed capabilities, constant-time credential comparisons and generic errors
+that do not include credentials. Correct access admission does not replace
+attestation, scope, rate, runtime authority or Davout gates (ADR0033).

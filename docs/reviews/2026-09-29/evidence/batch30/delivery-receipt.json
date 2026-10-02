@@ -1,0 +1,15 @@
+{
+  "pr": "https://github.com/jaylamping/marengo/pull/244",
+  "head": "c1f1f293ea195fc001f50558e4c58901b592223b",
+  "reviewed_production_source": "a0ec58e8530903eb44b3eddb02b882a7390b42c5",
+  "pr_ci_run": 36969559466,
+  "main": "a5c4cdb6448c5a0164ebbeffb1c82eb09ab0c266",
+  "main_ci_run": 36970067453,
+  "all_five_pr_and_main_jobs": "passed",
+  "identical_pr_and_main_tree": "9c6954d3933e7f64561175d1f721edc9766324db",
+  "branches_preserved": true,
+  "T04": "partial",
+  "remaining": "Exact accepted generation/transaction mirroring depends on T03.",
+  "installed_Pi_revision": "4bc77ba605834fdec04b436daa4bec67bca84fbb",
+  "physical_acceptance": false
+}

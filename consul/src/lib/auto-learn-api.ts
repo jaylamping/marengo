@@ -1,3 +1,4 @@
+import { runtimeCredential } from '@/lib/runtime-credentials';
 import type { AutoLearnRequest, AutoLearnResponse } from '@marengo/compound-auto-learn';
 
 export type AutoLearnApiError =
@@ -14,12 +15,8 @@ export function autoLearnConfig(): {
   url: string | null;
   token: string | null;
 } {
-  // Static import.meta.env.*. Dynamic import.meta.env[key] makes Vite inline
-  // the entire env object (including VITE_CHAPPE_* names) into production dist.
   const url = (import.meta.env.VITE_AUTO_LEARN_URL as string | undefined)?.trim();
-  const token = (
-    import.meta.env.VITE_AUTO_LEARN_TOKEN as string | undefined
-  )?.trim();
+  const token = runtimeCredential('autoLearn');
   return {
     url: url || null,
     token: token || null,
@@ -41,7 +38,7 @@ export async function postAutoLearn(
       ok: false,
       error: {
         kind: 'not_configured',
-        message: 'Set VITE_AUTO_LEARN_URL and VITE_AUTO_LEARN_TOKEN',
+        message: 'Configure the Auto Learn service URL and enter its credential.',
       },
     };
   }

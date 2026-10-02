@@ -6,7 +6,7 @@ use armee_proto::prost::Message;
 use armee_proto::LogEvent;
 use axum::{
     extract::{Path, Query, State},
-    http::{HeaderMap, StatusCode},
+    http::StatusCode,
     response::{IntoResponse, Response},
     Json,
 };
@@ -305,26 +305,6 @@ async fn flush_batch_async(store: &Arc<Store>, buf: &mut Vec<LogEventInsert>) {
     }
 }
 
-pub fn log_token_from_env() -> Option<String> {
-    std::env::var("MARENGO_GATEWAY_LOG_TOKEN")
-        .ok()
-        .filter(|s| !s.is_empty())
-}
-
-pub fn authorize_logs(headers: &HeaderMap) -> Result<(), StatusCode> {
-    let Some(expected) = log_token_from_env() else {
-        return Ok(());
-    };
-    let provided = headers
-        .get("x-marengo-log-token")
-        .and_then(|v| v.to_str().ok());
-    if provided == Some(expected.as_str()) {
-        Ok(())
-    } else {
-        Err(StatusCode::UNAUTHORIZED)
-    }
-}
-
 #[derive(Deserialize)]
 pub struct RecentQuery {
     #[serde(default = "default_recent_limit")]
@@ -338,9 +318,7 @@ fn default_recent_limit() -> u32 {
 pub async fn snapshot_logs_recent(
     State(state): State<SharedState>,
     Query(query): Query<RecentQuery>,
-    headers: HeaderMap,
 ) -> Result<Json<StructuredLogListJson>, StatusCode> {
-    authorize_logs(&headers)?;
     let limit = query.limit.clamp(1, 10_000);
     let logs = state.logs.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     let rows = logs
@@ -379,9 +357,7 @@ fn default_session_limit() -> u32 {
 pub async fn list_sessions(
     State(state): State<SharedState>,
     Query(query): Query<SessionsQuery>,
-    headers: HeaderMap,
 ) -> Result<Json<LogSessionListJson>, StatusCode> {
-    authorize_logs(&headers)?;
     let logs = state.logs.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     let rows = logs
         .store
@@ -425,9 +401,7 @@ pub async fn session_bench(
     State(state): State<SharedState>,
     Path(id): Path<String>,
     Query(query): Query<PageQuery>,
-    headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
-    authorize_logs(&headers)?;
     let logs = state.logs.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     let (lines, total) = logs
         .store
@@ -440,9 +414,7 @@ pub async fn session_trace(
     State(state): State<SharedState>,
     Path(id): Path<String>,
     Query(query): Query<PageQuery>,
-    headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
-    authorize_logs(&headers)?;
     let logs = state.logs.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     let (lines, total) = logs
         .store
@@ -455,9 +427,7 @@ pub async fn session_candump(
     State(state): State<SharedState>,
     Path(id): Path<String>,
     Query(query): Query<PageQuery>,
-    headers: HeaderMap,
 ) -> Result<Json<CandumpPageJson>, StatusCode> {
-    authorize_logs(&headers)?;
     let logs = state.logs.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     let inspection = logs
         .store
@@ -469,9 +439,7 @@ pub async fn session_candump(
 pub async fn latest_candump(
     State(state): State<SharedState>,
     Query(query): Query<PageQuery>,
-    headers: HeaderMap,
 ) -> Result<Json<CandumpPageJson>, StatusCode> {
-    authorize_logs(&headers)?;
     let logs = state.logs.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     let inspection = logs
         .store
@@ -483,9 +451,7 @@ pub async fn latest_candump(
 pub async fn session_candump_summary(
     State(state): State<SharedState>,
     Path(id): Path<String>,
-    headers: HeaderMap,
 ) -> Result<Json<CandumpSummaryJson>, StatusCode> {
-    authorize_logs(&headers)?;
     let logs = state.logs.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     let summary = logs
         .store
@@ -496,9 +462,7 @@ pub async fn session_candump_summary(
 
 pub async fn latest_candump_summary(
     State(state): State<SharedState>,
-    headers: HeaderMap,
 ) -> Result<Json<CandumpSummaryJson>, StatusCode> {
-    authorize_logs(&headers)?;
     let logs = state.logs.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     let summary = logs
         .store
@@ -524,9 +488,7 @@ pub struct StructuredQuery {
 pub async fn structured_logs(
     State(state): State<SharedState>,
     Query(query): Query<StructuredQuery>,
-    headers: HeaderMap,
 ) -> Result<Json<StructuredLogListJson>, StatusCode> {
-    authorize_logs(&headers)?;
     let logs = state.logs.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     let (rows, total) = logs
         .store
@@ -563,9 +525,7 @@ pub struct SettingsResponse {
 
 pub async fn get_settings(
     State(state): State<SharedState>,
-    headers: HeaderMap,
 ) -> Result<Json<SettingsResponse>, StatusCode> {
-    authorize_logs(&headers)?;
     let logs = state.logs.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     let mut settings = std::collections::HashMap::new();
     for key in [
@@ -584,9 +544,7 @@ pub async fn session_download(
     State(state): State<SharedState>,
     Path(id): Path<String>,
     Query(query): Query<DownloadQuery>,
-    headers: HeaderMap,
 ) -> Result<Response, StatusCode> {
-    authorize_logs(&headers)?;
     let logs = state.logs.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     let session = logs
         .store
@@ -622,6 +580,7 @@ pub fn decode_log_payload(payload: &[u8]) -> Option<LogEvent> {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::expect_used)]
     use super::*;
 
     #[test]
@@ -629,18 +588,23 @@ mod tests {
         assert_eq!(default_recent_limit(), 5000);
     }
 
-    #[test]
-    fn log_token_from_env_filters_empty() {
-        let _env = lock_test_env();
-        const KEY: &str = "MARENGO_GATEWAY_LOG_TOKEN";
-        let saved = std::env::var(KEY).ok();
-        std::env::set_var(KEY, "");
-        assert!(log_token_from_env().is_none());
-        std::env::set_var(KEY, "secret");
-        assert_eq!(log_token_from_env().as_deref(), Some("secret"));
-        match saved {
-            Some(v) => std::env::set_var(KEY, v),
-            None => std::env::remove_var(KEY),
-        }
+    #[tokio::test]
+    async fn logs_read_without_credentials_fails_before_store() {
+        use tower::ServiceExt;
+        let state = std::sync::Arc::new(
+            crate::state::AppState::new(std::sync::Arc::new(chappe::Bus::default()))
+                .with_access(crate::access::AccessPolicy::default()),
+        );
+        let app = crate::http::router(state, None);
+        let response = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/logs/structured")
+                    .body(axum::body::Body::empty())
+                    .expect("fixture request"),
+            )
+            .await
+            .expect("fixture response");
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
 }

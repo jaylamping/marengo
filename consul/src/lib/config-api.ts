@@ -1,3 +1,4 @@
+import { gatewayAuthHeaders } from '@/lib/runtime-credentials';
 import { getChappeEndpoints } from '@/lib/chappe-config';
 
 export type MotorBenchLimitsDto = {
@@ -62,14 +63,7 @@ function baseUrl(): string | null {
 }
 
 function authHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  const token = import.meta.env.VITE_MARENGO_LOG_TOKEN as string | undefined;
-  if (token?.trim()) {
-    headers['x-marengo-log-token'] = token.trim();
-  }
-  return headers;
+  return gatewayAuthHeaders('configuration', 'application/json');
 }
 
 export async function fetchConfigSnapshot(): Promise<ConfigSnapshotDto | null> {
@@ -104,7 +98,7 @@ export async function patchConfig(
         return {
           ok: false,
           message:
-            'Unauthorized — set VITE_MARENGO_LOG_TOKEN to match Pi MARENGO_GATEWAY_LOG_TOKEN, then restart Vite.',
+            'Enter a configuration or operator credential in Robot access.',
           restart_required: false,
         };
       }
@@ -149,7 +143,7 @@ export async function restartMarengoPi(init?: {
   try {
     const res = await fetch(`${root}/control/restart-marengo-pi`, {
       method: 'POST',
-      headers: authHeaders(),
+      headers: gatewayAuthHeaders('management', 'application/json'),
       body: JSON.stringify({ confirm: true }),
       signal: init?.signal,
     });

@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "baseline": "a5c4cdb6448c5a0164ebbeffb1c82eb09ab0c266",
+  "stage": "Private HTTP foundation; full G07 remains pending.",
+  "frozen_public_v2_sha256": "d031635bfe94ef657edb5d63566dc9ef23ac6222f2f8ed6fe0d5b0665f6191af",
+  "files": {
+    "frozen-gateway-access-public-v1.rs": "a3a453e75eca548beea97d10c4f209fc3de8947fefdcb26e8c85468e354f1560",
+    "frozen-gateway-access-public-v2.rs": "d031635bfe94ef657edb5d63566dc9ef23ac6222f2f8ed6fe0d5b0665f6191af",
+    "http-central-policy-clippy-v2.txt": "b4ef19d0c9cf48688071010acf4b541436ce96877b6020e7119d5108bf0f27c2",
+    "http-central-policy-tests-v1.txt": "3c39d139fb7570086c4d0bce1be8aac479ecf9539c4bc3bfdb75df11cecbe5d2",
+    "http-policy-candidate-v2-green.txt": "6415d2008bf810e58d467dae1a2448bfc4fbbff10d5fa115d017216f9acf4e64",
+    "original-http-public-v1-red.txt": "c8be96a4a9466b4b796db0c2cafec815c9bedd2856abfab5f84c0e46cb12d4a0",
+    "original-http-public-v2-red.txt": "988575a6ec077170b7816a69106b3ccc1dede5ca73842b5d66f664ad18836f91"
+  },
+  "original_public_cases": 13,
+  "original_negative_failures": 11,
+  "original_positive_controls": 2,
+  "unchanged_policy_replay": "13 pass; refused requests publish nothing",
+  "gateway_tests": "54 pass, zero failure, zero ignored",
+  "clippy": "Pass after test-only builder was correctly cfg(test)",
+  "excluded_preparations": [
+    "v1 blocking parent corrected to spawn_blocking in frozen v2 before production edits",
+    "Subtle Choice conversion compile failure",
+    "four old positive guard fixtures required actual credentials; guard assertions retained",
+    "test-only builder initially compiled unused in production; lint failure repaired"
+  ],
+  "pending": [
+    "All-route/capability conformance",
+    "WebTransport",
+    "runtime clients and static marker build",
+    "primary gate",
+    "Pi native fixtures",
+    "independent reviews",
+    "PR/main CI"
+  ],
+  "physical_acceptance": false
+}

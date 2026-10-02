@@ -1,5 +1,6 @@
 //! Operator gateway: HTTP CRUD snapshots/commands + WebTransport telemetry streams.
 
+mod access;
 mod action_ack;
 mod actuator;
 mod config;
@@ -13,6 +14,12 @@ mod ratelimit;
 mod restart;
 mod state;
 mod webtransport;
+
+#[cfg(test)]
+mod gateway_access_public_test;
+
+#[cfg(test)]
+mod gateway_access_conformance_test;
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -113,9 +120,6 @@ async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let args = parse_args().map_err(|e| e.to_string())?;
     let bus = Arc::new(Bus::default());
     chappe::tracing_layer::init_subscriber(Some(Arc::clone(&bus)), "marengo-gateway");
-    if logs::log_token_from_env().is_none() {
-        tracing::warn!("MARENGO_GATEWAY_LOG_TOKEN is unset; log HTTP routes are unauthenticated");
-    }
     let state_holder: Arc<std::sync::Mutex<Option<state::SharedState>>> =
         Arc::new(std::sync::Mutex::new(None));
 
@@ -192,9 +196,12 @@ async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             marengo_config::CommandJointAllowlist::empty()
         }
     };
-    let mut app_state = state::AppState::new(Arc::clone(&bus))
-        .with_command_joints(command_joints)
-        .with_ipc(ipc);
+    let mut app_state = state::AppState::new_with_https_port(
+        Arc::clone(&bus),
+        args.https_addr.map(|address| address.port()),
+    )
+    .with_command_joints(command_joints)
+    .with_ipc(ipc);
     if let Some(log_services) = logs {
         app_state = app_state.with_logs(log_services);
     }

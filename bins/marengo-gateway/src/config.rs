@@ -4,11 +4,7 @@
 
 use std::path::{Path, PathBuf};
 
-use axum::{
-    extract::State,
-    http::{HeaderMap, StatusCode},
-    Json,
-};
+use axum::{extract::State, http::StatusCode, Json};
 use marengo_config::{
     load_control_config_from, load_motors_config_from, load_robot_config_from,
     profile_content_revision, resolve_joint_velocity_cap, MotorType,
@@ -16,7 +12,6 @@ use marengo_config::{
 use serde::{Deserialize, Serialize};
 
 use crate::limit_patch::{apply_limit_patch_async, LimitPatchRequest, PersistStatus};
-use crate::logs::log_token_from_env;
 use crate::state::SharedState;
 
 #[derive(Serialize)]
@@ -179,9 +174,7 @@ pub fn snapshot_from_dir(config_dir: &Path) -> Result<ConfigSnapshotJson, Status
 pub async fn get_config_snapshot(
     State(state): State<SharedState>,
 ) -> Result<Json<ConfigSnapshotJson>, StatusCode> {
-    // Read-only snapshot is LAN bench telemetry for Consul inventory — do not gate on
-    // MARENGO_GATEWAY_LOG_TOKEN (deployed www cannot bake that secret). Mutations stay
-    // fail-closed via authorize_config_mutation.
+    // Read-only inventory; mutations are admitted by the shared router policy.
     let _logs = state.logs.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     let config_dir = resolve_config_dir();
     let mut snapshot = snapshot_from_dir(&config_dir)?;
@@ -189,27 +182,10 @@ pub async fn get_config_snapshot(
     Ok(Json(snapshot))
 }
 
-/// Config writes share the gateway token with logs, but fail closed when it is unset.
-pub fn authorize_config_mutation(headers: &HeaderMap) -> Result<(), StatusCode> {
-    let Some(expected) = log_token_from_env() else {
-        return Err(StatusCode::UNAUTHORIZED);
-    };
-    let provided = headers
-        .get("x-marengo-log-token")
-        .and_then(|value| value.to_str().ok());
-    if provided == Some(expected.as_str()) {
-        Ok(())
-    } else {
-        Err(StatusCode::UNAUTHORIZED)
-    }
-}
-
 pub async fn post_config_patch(
     State(state): State<SharedState>,
-    headers: HeaderMap,
     Json(patch): Json<ConfigPatchJson>,
 ) -> Result<Json<ConfigPatchResultJson>, StatusCode> {
-    authorize_config_mutation(&headers)?;
     let logs = state
         .logs
         .as_ref()

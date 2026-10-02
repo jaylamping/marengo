@@ -6,18 +6,13 @@ use std::sync::OnceLock;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use armee_proto::OperationalMode;
-use axum::{
-    extract::State,
-    http::{HeaderMap, StatusCode},
-    Json,
-};
+use axum::{extract::State, http::StatusCode, Json};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tokio::sync::Mutex;
 use tokio::time::timeout;
 use tracing::{info, warn};
 
-use crate::logs::log_token_from_env;
 use crate::state::SharedState;
 
 /// Refuse Active restart when heartbeat is newer than this.
@@ -39,21 +34,6 @@ pub struct RestartMarengoPiJson {
 pub struct RestartMarengoPiResultJson {
     pub ok: bool,
     pub message: String,
-}
-
-/// Fail closed when log token is unset (stricter than generic `authorize_logs`).
-pub fn authorize_restart(headers: &HeaderMap) -> Result<(), StatusCode> {
-    let Some(expected) = log_token_from_env() else {
-        return Err(StatusCode::UNAUTHORIZED);
-    };
-    let provided = headers
-        .get("x-marengo-log-token")
-        .and_then(|v| v.to_str().ok());
-    if provided == Some(expected.as_str()) {
-        Ok(())
-    } else {
-        Err(StatusCode::UNAUTHORIZED)
-    }
 }
 
 pub(crate) fn now_ms() -> u64 {
@@ -91,11 +71,8 @@ pub fn resolve_restart_script() -> PathBuf {
 
 pub async fn post_restart_marengo_pi(
     State(state): State<SharedState>,
-    headers: HeaderMap,
     Json(body): Json<RestartMarengoPiJson>,
 ) -> Result<(StatusCode, Json<RestartMarengoPiResultJson>), StatusCode> {
-    authorize_restart(&headers)?;
-
     if !body.confirm {
         return Ok((
             StatusCode::BAD_REQUEST,
@@ -253,7 +230,6 @@ mod tests {
     use armee_proto::{Envelope, Heartbeat, OperationalMode, SafetyState};
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
-    use axum::routing::post;
     use axum::Router;
     use chappe::Bus;
     use std::sync::Arc;
@@ -277,7 +253,9 @@ mod tests {
     }
 
     fn state_with_safety(mode: OperationalMode, hb_ts: Option<u64>) -> SharedState {
-        let state = Arc::new(AppState::new(Arc::new(Bus::new(64))));
+        let state = Arc::new(AppState::new(Arc::new(Bus::new(64))).with_access(
+            crate::access::AccessPolicy::operator_fixture(TOKEN).expect("fixture access"),
+        ));
         {
             let mut snap = state.snapshots.write().expect("snapshots");
             snap.safety_state = Some(envelope_bytes(
@@ -304,9 +282,7 @@ mod tests {
     }
 
     fn router(state: SharedState) -> Router {
-        Router::new()
-            .route("/control/restart-marengo-pi", post(post_restart_marengo_pi))
-            .with_state(state)
+        crate::http::router(state, None)
     }
 
     #[test]

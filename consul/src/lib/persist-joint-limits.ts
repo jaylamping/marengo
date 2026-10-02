@@ -109,7 +109,7 @@ export async function persistJointLimits(
     return {
       ok: false,
       message:
-        'Gateway rejected or timed out the limits patch (is Chappe up, and is VITE_MARENGO_LOG_TOKEN set for /config/patch?).',
+        'Gateway rejected or timed out the limits patch. Check connectivity and your Robot access credential.',
     };
   }
   if (!result.ok) {
@@ -117,7 +117,7 @@ export async function persistJointLimits(
       ok: false,
       message:
         result.message ||
-        'Limits patch failed (check VITE_MARENGO_LOG_TOKEN matches Pi MARENGO_GATEWAY_LOG_TOKEN).',
+        'Limits patch failed. Check your configuration credential in Robot access.',
     };
   }
 

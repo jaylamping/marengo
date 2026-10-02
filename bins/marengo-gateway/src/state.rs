@@ -61,6 +61,7 @@ pub struct Snapshots {
 }
 
 pub struct AppState {
+    pub access: Arc<crate::access::AccessPolicy>,
     pub bus: Arc<Bus>,
     pub snapshots: Arc<RwLock<Snapshots>>,
     pub ipc: Option<Arc<IpcListener>>,
@@ -79,6 +80,11 @@ pub struct AppState {
 }
 
 impl AppState {
+    #[cfg(test)]
+    pub(crate) fn envelope_receiver_count(&self) -> usize {
+        self.envelope_tx.receiver_count()
+    }
+
     /// IPC connection changes retire all prior producer observations. Connectivity
     /// itself provides no replacement safety or motion-admission evidence.
     pub fn runtime_connection_changed(&self, connected: bool) {
@@ -104,9 +110,25 @@ impl AppState {
             .send((TOPIC_RUNTIME_CONNECTION.into(), envelope.encode_to_vec()));
     }
 
+    #[cfg(test)]
     pub fn new(bus: Arc<Bus>) -> Self {
+        Self::new_with_https_port(bus, None)
+    }
+
+    pub fn new_with_https_port(bus: Arc<Bus>, https_port: Option<u16>) -> Self {
         let (envelope_tx, _) = broadcast::channel(ENVELOPE_BROADCAST_CAPACITY);
+        // Binary composition boundary: capture trusted access configuration once.
+        let access = crate::access::AccessPolicy::from_environment().unwrap_or_else(|error| {
+            tracing::warn!(%error, "gateway access configuration invalid; protected access disabled");
+            crate::access::AccessPolicy::default()
+        });
+        if !access.has_credentials() {
+            tracing::warn!(
+                "gateway mutations and sensitive streams disabled: no access credential configured"
+            );
+        }
         Self {
+            access: Arc::new(access.with_robot_https_port(https_port)),
             bus,
             snapshots: Arc::new(RwLock::new(Snapshots::default())),
             ipc: None,
@@ -131,6 +153,12 @@ impl AppState {
 
     pub fn with_command_joints(mut self, command_joints: CommandJointAllowlist) -> Self {
         self.command_joints = command_joints;
+        self
+    }
+
+    #[cfg(test)]
+    pub fn with_access(mut self, access: crate::access::AccessPolicy) -> Self {
+        self.access = Arc::new(access);
         self
     }
 

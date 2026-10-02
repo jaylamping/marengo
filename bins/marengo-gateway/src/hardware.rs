@@ -22,7 +22,6 @@ use marengo_config::{
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::config::authorize_config_mutation;
 use crate::restart::{now_ms, refuse_active_fresh, HEARTBEAT_FRESH_MS};
 use crate::state::SharedState;
 
@@ -172,10 +171,6 @@ fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), StatusCode> {
     Ok(())
 }
 
-fn authorize_urdf_read(headers: &HeaderMap) -> Result<(), StatusCode> {
-    authorize_config_mutation(headers)
-}
-
 pub async fn get_completeness() -> Result<Json<CompletenessJson>, StatusCode> {
     let root = repo_root();
     let dir = config_dir();
@@ -185,8 +180,7 @@ pub async fn get_completeness() -> Result<Json<CompletenessJson>, StatusCode> {
     }))
 }
 
-pub async fn get_urdf(headers: HeaderMap) -> Result<Response, StatusCode> {
-    authorize_urdf_read(&headers)?;
+pub async fn get_urdf() -> Result<Response, StatusCode> {
     let root = repo_root();
     let path = live_urdf_path(&root);
     let bytes = fs::read(&path).map_err(|_| StatusCode::NOT_FOUND)?;
@@ -201,11 +195,7 @@ pub async fn get_urdf(headers: HeaderMap) -> Result<Response, StatusCode> {
     Ok((StatusCode::OK, headers_out, bytes).into_response())
 }
 
-pub async fn post_urdf_upload(
-    headers: HeaderMap,
-    body: Bytes,
-) -> Result<Json<UrdfUploadResultJson>, StatusCode> {
-    authorize_config_mutation(&headers)?;
+pub async fn post_urdf_upload(body: Bytes) -> Result<Json<UrdfUploadResultJson>, StatusCode> {
     if body.is_empty() {
         return Err(StatusCode::BAD_REQUEST);
     }
@@ -228,10 +218,8 @@ pub async fn post_urdf_upload(
 }
 
 pub async fn post_resolve_preview(
-    headers: HeaderMap,
     Json(body): Json<ResolvePreviewJson>,
 ) -> Result<Json<ResolvePreviewResultJson>, StatusCode> {
-    authorize_config_mutation(&headers)?;
     let upload_id = validate_upload_id(&body.upload_id)?;
     let root = repo_root();
     let contributor_path = staging_dir(&root, upload_id).join(CONTRIBUTOR_NAME);
@@ -259,10 +247,8 @@ pub async fn post_resolve_preview(
 
 pub async fn post_activate(
     State(state): State<SharedState>,
-    headers: HeaderMap,
     Json(body): Json<ActivateUrdfJson>,
 ) -> Result<(StatusCode, Json<ActivateUrdfResultJson>), StatusCode> {
-    authorize_config_mutation(&headers)?;
     let upload_id = validate_upload_id(&body.upload_id)?;
     let mode = state.snapshot_safety().map(|s| s.mode);
     let heartbeat_ts_ms = state.snapshot_heartbeat().map(|h| h.timestamp_ms);
@@ -386,8 +372,7 @@ pub async fn post_activate(
     ))
 }
 
-pub async fn get_archive_list(headers: HeaderMap) -> Result<Json<ArchiveListJson>, StatusCode> {
-    authorize_urdf_read(&headers)?;
+pub async fn get_archive_list() -> Result<Json<ArchiveListJson>, StatusCode> {
     let root = repo_root();
     let archive_root = urdf_assets_root(&root).join("archive");
     let mut entries = Vec::new();
@@ -427,10 +412,8 @@ pub async fn get_archive_list(headers: HeaderMap) -> Result<Json<ArchiveListJson
 }
 
 pub async fn get_archive_fetch(
-    headers: HeaderMap,
     AxumPath(upload_id): AxumPath<String>,
 ) -> Result<Json<ArchiveFetchJson>, StatusCode> {
-    authorize_urdf_read(&headers)?;
     let upload_id = validate_upload_id(&upload_id)?;
     let root = repo_root();
     let archive = archive_dir(&root, upload_id);
@@ -463,10 +446,8 @@ pub async fn get_archive_fetch(
 }
 
 pub async fn post_archive_restore(
-    headers: HeaderMap,
     AxumPath(upload_id): AxumPath<String>,
 ) -> Result<Json<UrdfUploadResultJson>, StatusCode> {
-    authorize_config_mutation(&headers)?;
     let upload_id = validate_upload_id(&upload_id)?;
     let root = repo_root();
     let archive = archive_dir(&root, upload_id);
@@ -605,10 +586,7 @@ fn scope_response(persisted: Option<&CommissioningScopeFile>) -> CommissioningSc
 }
 
 pub async fn get_commissioning_scope() -> Result<Json<CommissioningScopeResponse>, StatusCode> {
-    // Read-only on the LAN bench: do not require x-marengo-log-token (same reason as
-    // `/config/snapshot` — deployed Consul www may omit the baked secret). Response also
-    // includes `ceiling` (MARENGO_JOINT_SUBSET) which snapshot does not. PUT/DELETE stay
-    // fail-closed via authorize_config_mutation.
+    // Read-only inventory; mutations use the shared router policy.
     let loaded = load_commissioning_scope(scope_path()).map_err(|e| {
         tracing::warn!(error = %e, "commissioning scope load failed");
         StatusCode::INTERNAL_SERVER_ERROR
@@ -617,10 +595,8 @@ pub async fn get_commissioning_scope() -> Result<Json<CommissioningScopeResponse
 }
 
 pub async fn put_commissioning_scope(
-    headers: HeaderMap,
     Json(body): Json<PutCommissioningScopeBody>,
 ) -> Result<Json<CommissioningScopeResponse>, (StatusCode, String)> {
-    authorize_config_mutation(&headers).map_err(|s| (s, "unauthorized".into()))?;
     let master = load_robot_config_from(config_dir())
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     let next = CommissioningScopeFile::normalized(body.joints);
@@ -648,10 +624,7 @@ pub async fn put_commissioning_scope(
     Ok(Json(scope_response(Some(&next))))
 }
 
-pub async fn delete_commissioning_scope(
-    headers: HeaderMap,
-) -> Result<Json<CommissioningScopeResponse>, StatusCode> {
-    authorize_config_mutation(&headers)?;
+pub async fn delete_commissioning_scope() -> Result<Json<CommissioningScopeResponse>, StatusCode> {
     clear_commissioning_scope(scope_path()).map_err(|e| {
         tracing::warn!(error = %e, "commissioning scope clear failed");
         StatusCode::INTERNAL_SERVER_ERROR

@@ -8,7 +8,7 @@ Local BFF for Consul Compound Tests **Auto Learn**. Holds `CURSOR_API_KEY`, vali
 cd tools/compound-auto-learn
 npm ci
 export CURSOR_API_KEY=...
-export AUTO_LEARN_TOKEN=...   # shared secret; same value in Consul VITE_AUTO_LEARN_TOKEN
+export AUTO_LEARN_TOKEN=...   # shared secret; enter this value in the Consul Auto Learn panel
 npm start                     # http://127.0.0.1:8787/v1/auto-learn
 ```
 
@@ -17,8 +17,10 @@ npm start                     # http://127.0.0.1:8787/v1/auto-learn
 ```bash
 # consul/.env.local
 VITE_AUTO_LEARN_URL=http://127.0.0.1:8787
-VITE_AUTO_LEARN_TOKEN=...     # must match AUTO_LEARN_TOKEN
 ```
+
+Enter `AUTO_LEARN_TOKEN` in the panel at runtime. It stays in the browser tab
+until reload. Gateway and Auto Learn credentials are separate.
 
 ## Security
 

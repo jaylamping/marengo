@@ -1,3 +1,25 @@
+## Latest Windows continuation: batch31 software qualified, October2
+
+G07 qualifies at dc88d283 against main a5c4cdb; PR245 is the delivery candidate.
+Final documentation head and merged main still require allfive exact-head checks.
+Primary826 Rust/1 existing ignored,374 Consul,72 Pi MCP,27 writer,83 research,
+15 audit,7 installer and fatal ARM pass. Native Pi826/1 ignored plus374 Consul,
+build/checksum/assets pass;1736 staged inputs bind final source,364 Rust inputs
+unchanged from initial stage. Standards/Spec clear; sourceCI36975018460 allfive.
+See batch31 report and evidence/batch31/final-source-qualification.json.
+
+All102 IDs/8 maintenance tasks retained:26 verified,13 partial,63 open. G07 shared
+policy/runtime credential/build marker repair is software verified. T04 partial
+for T03. Next WP04 R2b1 current-reference durable journal/history, still unusable;
+then selected virtual grant. T01/T02 activation and T03 identity stay separate.
+
+Installed Pi4bc77ba and services unchanged; observed gateway Disabled. No install,
+sudo, restart, physical CAN or movement. Gravity home does not qualify support,
+current repaired reference, E-stop or recovery. Prompt before every movement
+with bounds/stop; explicit owner reply and commissioning required. Ten-minute
+silence allows independent work only. Automation PAUSED; limits/Wave intact.
+Existing work/CAD/historical handoffs preserved. Earlier sections are historical.
+
 ## Latest Windows continuation: batch30, October2
 
 Qualified source a0ec58e on codex/local-writer-session-auth, worktree
@@ -12,7 +34,8 @@ local token supplied during build is absent from all99 assets. Both reviews clea
 of scoped code defects; Spec retains exact-generation acceptance under T03.
 T04 partial; counts25 verified,13 partial,64 open, all102 IDs/8 tasks retained.
 Native Pi workspace814/1ignored qualified with341 bound inputs. PR244 final
-hosted CI/delivery pending; see batch30 report.
+CI36969559466 and main CI36970067453 pass allfive; PR244 merged at main
+a5c4cdb. Equal tree9c6954d; see batch30 report and delivery receipt.
 
 Pi installed revision4bc77ba/services unchanged. Node24.16.0 release-verified in
 user validation folder. No install, sudo, restart, physical CAN or movement.

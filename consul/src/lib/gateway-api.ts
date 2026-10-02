@@ -1,3 +1,4 @@
+import { gatewayAuthHeaders } from '@/lib/runtime-credentials';
 import { create, fromBinary, toBinary } from '@bufbuild/protobuf';
 
 import type {
@@ -29,15 +30,7 @@ function requireEndpoints() {
 }
 
 function authHeaders(json = true): Record<string, string> {
-  const headers: Record<string, string> = {};
-  if (json) {
-    headers['Content-Type'] = 'application/json';
-  }
-  const token = import.meta.env.VITE_MARENGO_LOG_TOKEN as string | undefined;
-  if (token?.trim()) {
-    headers['x-marengo-log-token'] = token.trim();
-  }
-  return headers;
+  return gatewayAuthHeaders('configuration', json ? 'application/json' : undefined);
 }
 
 export async function fetchActuatorLimits(): Promise<ActuatorLimitSnapshot | null> {
@@ -62,13 +55,7 @@ export async function postActuatorCommand(command: OperatorCommand): Promise<voi
     messageType: 'marengo.v1.OperatorCommand',
     payload: toBinary(OperatorCommandSchema, command),
   });
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/x-protobuf',
-  };
-  const token = import.meta.env.VITE_MARENGO_LOG_TOKEN as string | undefined;
-  if (token?.trim()) {
-    headers['x-marengo-log-token'] = token.trim();
-  }
+  const headers = gatewayAuthHeaders('control', 'application/x-protobuf');
   const res = await fetch(`${httpUrl}/command/actuator`, {
     method: 'POST',
     headers,
@@ -109,7 +96,7 @@ export async function postEnableCommand(enable: boolean): Promise<void> {
   });
   const res = await fetch(`${endpoints.httpUrl}/command/enable`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-protobuf' },
+    headers: gatewayAuthHeaders('control', 'application/x-protobuf'),
     body: toBinary(EnableRequestSchema, request),
   });
   if (!res.ok) {
@@ -125,7 +112,7 @@ export async function postMitCommandBatch(batch: MitCommandBatch): Promise<void>
   }
   const res = await fetch(`${endpoints.httpUrl}/command/mit`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-protobuf' },
+    headers: gatewayAuthHeaders('control', 'application/x-protobuf'),
     body: toBinary(MitCommandBatchSchema, batch),
   });
   if (!res.ok) {
@@ -141,7 +128,7 @@ export async function postTestingMitCommandBatch(batch: MitCommandBatch): Promis
   }
   const res = await fetch(`${endpoints.httpUrl}/command/testing_mit`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-protobuf' },
+    headers: gatewayAuthHeaders('control', 'application/x-protobuf'),
     body: toBinary(MitCommandBatchSchema, batch),
   });
   if (!res.ok) {
@@ -209,7 +196,7 @@ export async function postSetZeroCommand(
   }
   const res = await fetch(`${endpoints.httpUrl}/command/set_zero`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: gatewayAuthHeaders('calibration', 'application/json'),
     body: JSON.stringify({
       joint,
       confirm: true,
@@ -231,7 +218,7 @@ export async function postMotorStatusPoll(): Promise<void> {
   }
   const res = await fetch(`${endpoints.httpUrl}/command/motor_status_poll`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: gatewayAuthHeaders('control', 'application/json'),
     body: JSON.stringify({
       client_id: 'consul',
     }),
@@ -259,7 +246,7 @@ export async function postActiveReportingLease(options: {
   }
   const res = await fetch(`${endpoints.httpUrl}/command/active_reporting_lease`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: gatewayAuthHeaders('control', 'application/json'),
     body: JSON.stringify({
       joint: options.joint,
       client_id: options.clientId,

@@ -1,3 +1,4 @@
+import { gatewayAuthHeaders } from '@/lib/runtime-credentials';
 import { getChappeEndpoints } from '@/lib/chappe-config';
 
 export type CompletenessWarningDto = {
@@ -80,15 +81,7 @@ function baseUrl(): string | null {
 }
 
 function authHeaders(contentType?: string): Record<string, string> {
-  const headers: Record<string, string> = {};
-  if (contentType) {
-    headers['Content-Type'] = contentType;
-  }
-  const token = import.meta.env.VITE_MARENGO_LOG_TOKEN as string | undefined;
-  if (token?.trim()) {
-    headers['x-marengo-log-token'] = token.trim();
-  }
-  return headers;
+  return gatewayAuthHeaders('configuration', contentType);
 }
 
 export async function fetchCompleteness(): Promise<CompletenessDto> {

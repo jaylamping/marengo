@@ -36,15 +36,8 @@ pub async fn command_actuator(
     headers: HeaderMap,
     body: axum::body::Bytes,
 ) -> Result<Json<OkResponse>, (StatusCode, String)> {
-    // Same shared-token gate as log/config mutations. Fails open when
-    // MARENGO_GATEWAY_LOG_TOKEN is unset (LAN bench default). Not operator identity.
-    crate::logs::authorize_logs(&headers).map_err(|status| {
-        (
-            status,
-            "unauthorized: set x-marengo-log-token when MARENGO_GATEWAY_LOG_TOKEN is configured"
-                .to_string(),
-        )
-    })?;
+    // The shared router admits Control before body extraction. A decoded tuning
+    // request may additionally require configuration or calibration capability.
     let envelope =
         Envelope::decode(body.as_ref()).map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
     if envelope.message_type != "marengo.v1.OperatorCommand" {
@@ -85,6 +78,21 @@ pub async fn command_actuator(
             StatusCode::BAD_REQUEST,
             format!("unsupported TuningChange.param: {param} (allowed: kp, kd)"),
         ));
+    }
+
+    let extra_capability = match armee_proto::TuningTier::try_from(tuning.tier) {
+        Ok(armee_proto::TuningTier::RuntimeMit) if !tuning.persist => None,
+        Ok(armee_proto::TuningTier::RuntimeMit | armee_proto::TuningTier::ConfigOverlay) => {
+            Some(crate::access::Capability::Configuration)
+        }
+        Ok(armee_proto::TuningTier::Firmware) => Some(crate::access::Capability::Calibration),
+        _ => return Err((StatusCode::BAD_REQUEST, "invalid tuning tier".into())),
+    };
+    if let Some(capability) = extra_capability {
+        state
+            .access
+            .authorize(&headers, capability)
+            .map_err(|status| (status, "tuning capability required".into()))?;
     }
 
     let client_id = operator.session_id.trim();
@@ -182,69 +190,30 @@ fn clamp_tuning_value(
 mod tests {
     #![allow(clippy::expect_used, clippy::panic)]
 
-    use std::ffi::OsString;
-    use std::sync::MutexGuard;
-
     use super::*;
     use armee_proto::{
         ActuatorCommand, JointActuatorLimit, OperatorCommand, TuningChange, TuningTier,
     };
     use axum::body::Body;
-    use axum::routing::{get, post};
     use axum::Router;
     use chappe::Bus;
     use marengo_config::CommandJointAllowlist;
     use tower::ServiceExt;
 
-    use crate::logs::lock_test_env;
     use crate::state::AppState;
 
     const TEST_LOG_TOKEN: &str = "actuator-test-token";
 
-    struct EnvVarGuard {
-        _lock: MutexGuard<'static, ()>,
-        key: &'static str,
-        previous: Option<OsString>,
-    }
-
-    impl EnvVarGuard {
-        fn set(key: &'static str, value: &str) -> Self {
-            Self::replace(key, Some(value.into()))
-        }
-
-        fn remove(key: &'static str) -> Self {
-            Self::replace(key, None)
-        }
-
-        fn replace(key: &'static str, value: Option<OsString>) -> Self {
-            let lock = lock_test_env();
-            let previous = std::env::var_os(key);
-            match value {
-                Some(value) => std::env::set_var(key, value),
-                None => std::env::remove_var(key),
-            }
-            Self {
-                _lock: lock,
-                key,
-                previous,
-            }
-        }
-    }
-
-    impl Drop for EnvVarGuard {
-        fn drop(&mut self) {
-            match self.previous.take() {
-                Some(value) => std::env::set_var(self.key, value),
-                None => std::env::remove_var(self.key),
-            }
-        }
-    }
-
     fn test_router(state: SharedState) -> Router {
-        Router::new()
-            .route("/snapshot/actuator/limits", get(snapshot_actuator_limits))
-            .route("/command/actuator", post(command_actuator))
-            .with_state(state)
+        crate::http::router(state, None)
+    }
+
+    fn fixture_access() -> crate::access::AccessPolicy {
+        crate::access::AccessPolicy::operator_fixture(TEST_LOG_TOKEN).expect("fixture policy")
+    }
+
+    fn authenticated_request() -> axum::http::request::Builder {
+        axum::http::Request::builder().header("authorization", format!("Bearer {TEST_LOG_TOKEN}"))
     }
 
     fn test_state() -> SharedState {
@@ -256,7 +225,9 @@ mod tests {
             "shoulder_roll",
         ]);
         std::sync::Arc::new(
-            AppState::new(std::sync::Arc::clone(&bus)).with_command_joints(allowlist),
+            AppState::new(std::sync::Arc::clone(&bus))
+                .with_access(fixture_access())
+                .with_command_joints(allowlist),
         )
     }
 
@@ -318,8 +289,72 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn command_actuator_requires_configured_log_token() {
-        let _token_guard = EnvVarGuard::set("MARENGO_GATEWAY_LOG_TOKEN", TEST_LOG_TOKEN);
+    async fn control_credential_cannot_persist_or_request_firmware_tuning() {
+        let bus = std::sync::Arc::new(Bus::default());
+        let state = std::sync::Arc::new(
+            AppState::new(std::sync::Arc::clone(&bus))
+                .with_access(
+                    crate::access::AccessPolicy::role_fixture(
+                        TEST_LOG_TOKEN,
+                        crate::access::Capability::Control,
+                    )
+                    .expect("control grant"),
+                )
+                .with_command_joints(CommandJointAllowlist::from_joints(["right_shoulder_pitch"])),
+        );
+        seed_limits(&state, "right_shoulder_pitch", 20.0, 5.0);
+        let mut published = bus.subscribe(TOPIC_ACTUATOR_COMMAND);
+        let app = test_router(state);
+        for (tier, persist, status) in [
+            (TuningTier::ConfigOverlay, false, StatusCode::FORBIDDEN),
+            (TuningTier::RuntimeMit, true, StatusCode::FORBIDDEN),
+            (TuningTier::Firmware, false, StatusCode::FORBIDDEN),
+            (TuningTier::RuntimeMit, false, StatusCode::OK),
+        ] {
+            let payload = armee_proto::actuator_command::Payload::Tuning(TuningChange {
+                tier: tier as i32,
+                param: "kp".into(),
+                value: 10.0,
+                persist,
+            });
+            let response = app
+                .clone()
+                .oneshot(
+                    authenticated_request()
+                        .method("POST")
+                        .uri("/command/actuator")
+                        .body(Body::from(operator_envelope(
+                            "right_shoulder_pitch",
+                            payload,
+                        )))
+                        .expect("fixture request"),
+                )
+                .await
+                .expect("fixture response");
+            assert_eq!(response.status(), status);
+            if status == StatusCode::OK {
+                let envelope =
+                    Envelope::decode(published.try_recv().expect("runtime tuning").as_slice())
+                        .expect("envelope");
+                let command =
+                    OperatorCommand::decode(envelope.payload.as_slice()).expect("command");
+                assert!(matches!(
+                    command.command.expect("actuator").payload,
+                    Some(armee_proto::actuator_command::Payload::Tuning(
+                        TuningChange { persist: false, .. }
+                    ))
+                ));
+            } else {
+                assert!(
+                    published.try_recv().is_err(),
+                    "no unauthorized tuning publication"
+                );
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn command_actuator_requires_access_credential() {
         let state = test_state();
         seed_limits(&state, "right_shoulder_pitch", 50.0, 5.0);
         let app = test_router(state);
@@ -356,13 +391,12 @@ mod tests {
 
     #[tokio::test]
     async fn command_actuator_rejects_unwired_joint_with_403() {
-        let _token_guard = EnvVarGuard::remove("MARENGO_GATEWAY_LOG_TOKEN");
         let state = test_state();
         seed_limits(&state, "right_shoulder_pitch", 50.0, 5.0);
         let app = test_router(state);
         let response = app
             .oneshot(
-                axum::http::Request::builder()
+                authenticated_request()
                     .method("POST")
                     .uri("/command/actuator")
                     .header("content-type", "application/x-protobuf")
@@ -379,7 +413,6 @@ mod tests {
 
     #[tokio::test]
     async fn command_actuator_rejects_non_tuning_with_400() {
-        let _token_guard = EnvVarGuard::remove("MARENGO_GATEWAY_LOG_TOKEN");
         let state = test_state();
         seed_limits(&state, "right_shoulder_pitch", 50.0, 5.0);
         let app = test_router(state);
@@ -387,7 +420,7 @@ mod tests {
             armee_proto::actuator_command::Payload::Jog(armee_proto::JogCommand { delta_rad: 0.1 });
         let response = app
             .oneshot(
-                axum::http::Request::builder()
+                authenticated_request()
                     .method("POST")
                     .uri("/command/actuator")
                     .header("content-type", "application/x-protobuf")
@@ -404,11 +437,10 @@ mod tests {
 
     #[tokio::test]
     async fn command_actuator_rejects_without_limits_snapshot() {
-        let _token_guard = EnvVarGuard::remove("MARENGO_GATEWAY_LOG_TOKEN");
         let app = test_router(test_state());
         let response = app
             .oneshot(
-                axum::http::Request::builder()
+                authenticated_request()
                     .method("POST")
                     .uri("/command/actuator")
                     .header("content-type", "application/x-protobuf")
@@ -425,10 +457,10 @@ mod tests {
 
     #[tokio::test]
     async fn command_actuator_clamps_to_live_kp_max() {
-        let _token_guard = EnvVarGuard::remove("MARENGO_GATEWAY_LOG_TOKEN");
         let bus = std::sync::Arc::new(Bus::default());
         let state = std::sync::Arc::new(
             AppState::new(std::sync::Arc::clone(&bus))
+                .with_access(fixture_access())
                 .with_command_joints(CommandJointAllowlist::from_joints(["right_shoulder_pitch"])),
         );
         seed_limits(&state, "right_shoulder_pitch", 20.0, 5.0);
@@ -437,7 +469,7 @@ mod tests {
 
         let response = app
             .oneshot(
-                axum::http::Request::builder()
+                authenticated_request()
                     .method("POST")
                     .uri("/command/actuator")
                     .header("content-type", "application/x-protobuf")
@@ -466,10 +498,10 @@ mod tests {
 
     #[tokio::test]
     async fn command_actuator_publishes_canonical_joint_for_left_alias() {
-        let _token_guard = EnvVarGuard::remove("MARENGO_GATEWAY_LOG_TOKEN");
         let bus = std::sync::Arc::new(Bus::default());
         let state = std::sync::Arc::new(
             AppState::new(std::sync::Arc::clone(&bus))
+                .with_access(fixture_access())
                 .with_command_joints(CommandJointAllowlist::from_joints(["shoulder_pitch"])),
         );
         seed_limits(&state, "shoulder_pitch", 50.0, 5.0);
@@ -478,7 +510,7 @@ mod tests {
 
         let response = app
             .oneshot(
-                axum::http::Request::builder()
+                authenticated_request()
                     .method("POST")
                     .uri("/command/actuator")
                     .header("content-type", "application/x-protobuf")
@@ -500,7 +532,6 @@ mod tests {
 
     #[tokio::test]
     async fn command_actuator_returns_429_when_rate_limited() {
-        let _token_guard = EnvVarGuard::remove("MARENGO_GATEWAY_LOG_TOKEN");
         let state = test_state();
         seed_limits(&state, "right_shoulder_pitch", 50.0, 5.0);
         let app = test_router(state);
@@ -509,7 +540,7 @@ mod tests {
             let response = app
                 .clone()
                 .oneshot(
-                    axum::http::Request::builder()
+                    authenticated_request()
                         .method("POST")
                         .uri("/command/actuator")
                         .header("content-type", "application/x-protobuf")
@@ -522,7 +553,7 @@ mod tests {
         }
         let response = app
             .oneshot(
-                axum::http::Request::builder()
+                authenticated_request()
                     .method("POST")
                     .uri("/command/actuator")
                     .header("content-type", "application/x-protobuf")
@@ -539,7 +570,7 @@ mod tests {
         let app = test_router(test_state());
         let response = app
             .oneshot(
-                axum::http::Request::builder()
+                authenticated_request()
                     .uri("/snapshot/actuator/limits")
                     .body(Body::empty())
                     .expect("request"),

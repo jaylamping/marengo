@@ -2650,10 +2650,15 @@
       "source": "gateway.md#g07--p1-the-configured-gateway-token-does-not-protect-legacy-motioncalibration-routes",
       "work_package": "WP10",
       "implementation_and_acceptance_plan": "gateway-implementation-plan.md",
-      "status": "open",
-      "evidence": [],
-      "verified_commit_or_pr": null,
-      "hardware_acceptance": "not established by this software repair"
+      "status": "verified",
+      "evidence": [
+        "batch31-gateway-runtime-access.md",
+        "evidence/batch31/final-source-qualification.json",
+        "evidence/batch31/independent-reviews.md"
+      ],
+      "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/245",
+      "hardware_acceptance": "not established by this software repair",
+      "implementation_checkpoint": "dc88d28323a859f7d74d5c50dc8f5689646142d4"
     },
     {
       "id": "G08",
@@ -2822,7 +2827,7 @@
       "implementation_and_acceptance_plan": "gateway-implementation-plan.md",
       "status": "verified",
       "evidence": [
-        "Batch23 original CPU HostMetrics assertion red replays unchanged green after correct column parsing, keyed CPU-ID baselines and explicit unknown/reset/hotplug validity. Encoded UI unknown→valid→unknown qualified; Standards/Spec and integration reviews accepted. Final PR5c603be CI36899946079 all5 passed; merged mainad09ee4 CI36900877954 all5 passed. No hardware acceptance."
+        "Batch23 original CPU HostMetrics assertion red replays unchanged green after correct column parsing, keyed CPU-ID baselines and explicit unknown/reset/hotplug validity. Encoded UI unknownâ†’validâ†’unknown qualified; Standards/Spec and integration reviews accepted. Final PR5c603be CI36899946079 all5 passed; merged mainad09ee4 CI36900877954 all5 passed. No hardware acceptance."
       ],
       "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/237",
       "hardware_acceptance": "not established by this software repair"
@@ -3255,11 +3260,12 @@
         "batch30-local-writer-session-auth.md",
         "evidence/batch30/source-qualification.json",
         "evidence/batch30/primary-receipt.json",
-        "evidence/batch30/independent-review.json"
+        "evidence/batch30/independent-review.json",
+        "evidence/batch30/delivery-receipt.json"
       ],
       "verified_commit_or_pr": null,
       "hardware_acceptance": "not established by this software repair",
-      "remaining": "Exact accepted generation/transaction mirroring depends on T03. Authenticated bounded value mirror qualifies in software; hosted delivery pending.",
+      "remaining": "Exact accepted generation/transaction mirroring depends on T03. Authenticated bounded value mirror delivered in PR244; physical acceptance is separate.",
       "implementation_checkpoint": "a0ec58e8530903eb44b3eddb02b882a7390b42c5"
     },
     {
@@ -4690,7 +4696,7 @@
         },
         "limits": "No runtime physical operation. Never-existing from_supervisor name probe excluded from required counts; source/private-factory review establishes the actual seam."
       },
-      "test_quality": "Davout 136â†’159:3 obsolete API cases retired,26 meaningful additions; Berthier173â†’175 with arithmetic property replaced by wire output, independent stationary input and fixed-dt progress; no new ignored tests. Two receive-invariant mutants killed by actual assertions; CS24 retained open as independently demonstrated old-law failure.",
+      "test_quality": "Davout 136Ã¢â€ â€™159:3 obsolete API cases retired,26 meaningful additions; Berthier173Ã¢â€ â€™175 with arithmetic property replaced by wire output, independent stationary input and fixed-dt progress; no new ignored tests. Two receive-invariant mutants killed by actual assertions; CS24 retained open as independently demonstrated old-law failure.",
       "independent_reviews": {
         "standards": {
           "findings": 0,
@@ -15448,16 +15454,48 @@
       "T01": "partial",
       "remaining": "Immutable versioned release tree/atomic activation shared with T02; physical installation acceptance not established.",
       "physical_acceptance": false
+    },
+    {
+      "batch_id": "batch30",
+      "findings": [
+        "T04"
+      ],
+      "status": "delivered; T04 partial",
+      "report": "batch30-local-writer-session-auth.md",
+      "pr": 244,
+      "head": "c1f1f293ea195fc001f50558e4c58901b592223b",
+      "pr_ci_run": 36969559466,
+      "main_commit": "a5c4cdb6448c5a0164ebbeffb1c82eb09ab0c266",
+      "main_ci_run": 36970067453,
+      "all_five_pr_and_main_jobs": "passed",
+      "identical_pr_and_main_tree": "9c6954d3933e7f64561175d1f721edc9766324db",
+      "independent_review_source": "a0ec58e8530903eb44b3eddb02b882a7390b42c5",
+      "standards_violations": 0,
+      "spec_scoped_findings": 0,
+      "remaining": "T03 exact-generation identity; deployed installation and physical acceptance unqualified.",
+      "physical_acceptance": false,
+      "receipt": "evidence/batch30/delivery-receipt.json"
+    },
+    {
+      "batch_id": "batch31",
+      "finding": "G07",
+      "source": "dc88d28323a859f7d74d5c50dc8f5689646142d4",
+      "baseline": "a5c4cdb6448c5a0164ebbeffb1c82eb09ab0c266",
+      "PR": "https://github.com/jaylamping/marengo/pull/245",
+      "status": "software verified; final documentation and merged-main CI delivery pending",
+      "qualification": "evidence/batch31/final-source-qualification.json",
+      "source_CI": 36975018460,
+      "physical_acceptance": false
     }
   ],
   "finding_status_counts": {
-    "verified": 25,
+    "verified": 26,
     "partial": 13,
-    "open": 64
+    "open": 63
   },
   "next_dependency_ready_batch": {
-    "current": "Deliver WP10 T04 authenticated bounded value mirror; retain T03 exact-generation prerequisite for full acceptance.",
-    "following": "WP10 G07 mutation/stream authorization and WP04 R2b1 current-reference journal/grant; T01 versioned release acceptance remains shared with T02.",
+    "current": "WP04 R2b1 recoverable noncoalescing durable current-reference history, still no usable permission; then R2b2 current selected virtual grant.",
+    "following": "T01/T02 versioned release activation; T03 exact-generation identity.",
     "human_input_blocker": null
   },
   "automation_status": "PAUSED",
@@ -15487,19 +15525,19 @@
     "pr": 240
   },
   "active_windows_continuation": {
-    "batch_id": "batch30",
-    "branch": "codex/local-writer-session-auth",
-    "worktree": "J:/code/marengo-worktrees/local-writer-session-auth",
-    "baseline": "1e2141f13d8c9bfa01188068df714b605ab0077e",
+    "batch_id": "batch31",
+    "branch": "codex/gateway-runtime-access",
+    "worktree": "J:/code/marengo-worktrees/gateway-runtime-access",
+    "baseline": "a5c4cdb6448c5a0164ebbeffb1c82eb09ab0c266",
     "findings": [
-      "T04"
+      "G07"
     ],
-    "report": "batch30-local-writer-session-auth.md",
-    "status": "PR244 open. Qualified auth/bounds/real CLI:27 Linux/Windows/Pi,814 native Pi Rust/1 ignored, full primary and two independent reviews. T04 partial: exact-generation acceptance depends on T03. Final hosted CI/delivery pending.",
+    "report": "batch31-gateway-runtime-access.md",
+    "status": "G07 software verified at dc88d28: primary826Rust/1existingignore/374Consul/fatalARM, nativePi826/1ignore/374Consul/1736inputs, reviews clear and sourceCI36975018460 allfive. PR245 final documentation/main delivery pending.",
     "physical_acceptance": false,
     "owner_scope": "Personally owned robot/repository/Pi; isolated software fixtures. Prompt and explicit confirmation before each movement with commissioning checks. Ten-minute silence means independent work, never movement approval.",
     "pi_installed_revision": "4bc77ba605834fdec04b436daa4bec67bca84fbb",
-    "source_candidate": "a0ec58e8530903eb44b3eddb02b882a7390b42c5",
-    "pr": 244
+    "qualified_source": "dc88d28323a859f7d74d5c50dc8f5689646142d4",
+    "PR": "https://github.com/jaylamping/marengo/pull/245"
   }
 }
