@@ -38,7 +38,7 @@ local_runtime_log_link() {
   # there. Only allow a regular-file target in that same directory; directory,
   # dangling and external links still refuse before service or file changes.
   [[ "${link%/*}" == "${INSTALL_ROOT}/var/log" ]] || return 1
-  target="$(readlink -e -- "$link")" || return 1
+  IFS= read -r -d '' target < <(readlink -e -z -- "$link") || return 1
   [[ "${target%/*}" == "${INSTALL_ROOT}/var/log" && -f "$target" ]]
 }
 

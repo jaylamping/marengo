@@ -20,18 +20,28 @@ copies privileged release content through these aliases. Directory, external,
 missing and calibration targets still refuse before service or file changes;
 the existing installed-code and directory guards remain in place.
 
-All nine actual-installer tests pass in a disposable root Docker fixture: the
-seven existing contracts plus two new methods covering preserved aliases and
-four refused target cases. Service/process controls are substituted; filesystem,
+Review found that command substitution stripped trailing newline bytes from a
+resolved filename. A real c6aa099 probe demonstrated a directory alias being
+accepted when a regular sibling had the stripped name. NUL-delimited resolution
+now preserves the exact pathname. All ten actual-installer tests pass: the
+seven existing contracts plus preserved aliases, four refused target cases and
+the newline-directory regression. The preceding nine method bodies are unchanged.
+Service/process controls are substituted; filesystem,
 ownership, accounts, rsync and sudoers validation are real. The preceding seven
 methods remain unchanged. Full primary gate, independent review, mutation and
 exact PR/main delivery are pending; no qualification from those gates is claimed.
-The baseline failure and candidate log are retained under
+The preceding c6aa099 full primary passes with its ARM smoke explicitly skipped
+by CI branch selection; it is provisional qualification only. Final source
+requires its own full primary and fatal ARM bundle build. The baseline failure,
+newline candidate failure and candidate logs are retained under
 J:/code/marengo-migration-backup-20260929/batch33-pi-install-log-links.
 
 T01 remains partial and T02/T03 remain open; this small compatibility repair
 does not implement atomic versioned activation or fail-closed taught-limit
-preservation. Keep all 102 findings/eight maintenance tasks and 26 verified,
+preservation. The optional harness can also leave bench-latest.json pointing to
+absent metadata; its dangling alias remains refused and is separate remaining
+compatibility work. The observed Pi has only the three existing-file aliases.
+Keep all 102 findings/eight maintenance tasks and 26 verified,
 13 partial,63 open. Preserve calibration, taught limits, model assets, logs,
 CAD, existing branches/worktrees, Wave sign-off and the paused automation.
 

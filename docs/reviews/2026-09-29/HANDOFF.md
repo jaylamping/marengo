@@ -1,3 +1,16 @@
+## Latest installer amendment: exact filename resolution, October 2
+
+Review reproduced newline-directory admission at c6aa099. NUL-delimited
+resolution now preserves the path exactly. All ten installer tests pass; nine
+preceding methods are unchanged. The c6aa099 primary pass is provisional and
+explicitly skipped ARM; final source still needs full primary/fatal ARM, frozen
+mutation replay, independent review and exact PR/main delivery. No install or
+movement. An optional harness dangling bench-latest.json alias is separate
+remaining compatibility work; current Pi has three valid file aliases only.
+Owner approval for powered tests is retained; supported/stopped state, E-stop,
+qualified reference and each bounded test confirmation remain required.
+All earlier handoff bytes below are historical and preserved unchanged.
+
 ## Latest Windows continuation: batch33 installer compatibility, October 2
 
 Batch32 is delivered and its records committed/pushed at d224cbd4.

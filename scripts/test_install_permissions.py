@@ -272,6 +272,26 @@ class InstallPermissions(unittest.TestCase):
                 self.assertEqual(os.readlink(link), target)
                 self.assertEqual(link.read_bytes(), content)
 
+    def test_installer_refuses_directory_alias_with_trailing_newline(self):
+        destination = self.root / 'runtime-log-newline-refusal'
+        log_dir = destination / 'var/log'
+        log_dir.mkdir(parents=True)
+        regular = log_dir / 'session'
+        regular.write_bytes(b'keep regular sibling\n')
+        directory = log_dir / 'session\n'
+        directory.mkdir()
+        link = log_dir / 'bench-latest.log'
+        link.symlink_to(directory)
+        environment = dict(self.environment, MARENGO_INSTALL_ROOT=str(destination))
+        result = subprocess.run(['bash', str(self.bundle / 'scripts/install-pi.sh')],
+                                env=environment, text=True, capture_output=True, timeout=60)
+        self.assertNotEqual(result.returncode, 0, 'installer accepted a directory log alias')
+        self.assertIn('symlink', result.stderr)
+        self.assertFalse((destination / 'bin/marengo-pi').exists())
+        self.assertTrue(link.is_symlink())
+        self.assertEqual(os.readlink(link), str(directory))
+        self.assertEqual(regular.read_bytes(), b'keep regular sibling\n')
+
     def test_installer_refuses_runtime_log_links_outside_local_regular_files(self):
         for kind in ['external', 'directory', 'dangling', 'calibration']:
             with self.subTest(kind=kind):

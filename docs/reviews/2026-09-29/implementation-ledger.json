@@ -3221,7 +3221,8 @@
       "verified_commit_or_pr": null,
       "hardware_acceptance": "not established by this software repair",
       "remaining_acceptance": "Immutable versioned release tree/atomic activation shared with T02; physical installation acceptance not established.",
-      "partial_commit_or_pr": "1e2141f13d8c9bfa01188068df714b605ab0077e / PR243"
+      "partial_commit_or_pr": "1e2141f13d8c9bfa01188068df714b605ab0077e / PR243",
+      "known_remaining_compatibility": "Optional harness bench-latest.json can point to absent metadata; dangling aliases remain refused. Correct the harness metadata/alias lifecycle before replaying that workflow."
     },
     {
       "id": "T02",
@@ -15560,7 +15561,7 @@
       "T01"
     ],
     "report": "batch33-installer-runtime-log-links.md",
-    "status": "Installer compatibility candidate: actual baseline rejects three normal latest-log aliases; all nine candidate installer tests pass. Full primary, mutation, independent production review and exact PR/main delivery pending. No install or motion. T01 remains partial; T02/T03 open.",
+    "status": "Installer compatibility candidate: baseline rejects normal latest-log aliases; review found and reproduced newline-directory admission at c6aa099, now repaired with NUL resolution. All ten installer tests pass; preceding nine methods unchanged. c6aa099 primary is provisional with ARM skipped; final primary/fatal ARM, mutation replay, independent review and exact PR/main delivery pending. No install or motion; T01 partial, T02/T03 open.",
     "physical_acceptance": false,
     "prior_delivery": "evidence/batch32/delivery-receipt.json",
     "pi_installed_revision": "4bc77ba605834fdec04b436daa4bec67bca84fbb",
