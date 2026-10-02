@@ -1,0 +1,19 @@
+{
+  "recorded_UTC": "2026-10-02T16:55:28.842086+00:00",
+  "source_before": "0a3fc6bb0dd7ab652d97fd2efb7bb46ceee517c4",
+  "source_after": "bab38c6a6e16396b2af7d7d6518eecb4addca96f",
+  "source_clean": true,
+  "changed_files": 53,
+  "all_changes_review_documents": true,
+  "all_non_document_production_inputs_equal_to_qualified_installed_source": true,
+  "installed_release": "0a3fc6bb0dd7ab652d97fd2efb7bb46ceee517c4 2026-10-02T15:37:47Z",
+  "installed_bin_policy_model_calibration_environment_hashes_unchanged": true,
+  "services_and_PIDs_unchanged": true,
+  "services": "MainPID=649684\nNRestarts=0\nId=marengo-pi.service\nActiveState=active\nSubState=running\n\nMainPID=648749\nNRestarts=0\nId=marengo-gateway.service\nActiveState=active\nSubState=running\n",
+  "source_all_refs_backup_verified_SHA256": "fb554511ef6a3f41b4a39e4385890caf1900d76b84ce349f2c46b7e2f6110c48",
+  "Store_integrity": "ok",
+  "Store_schema": 3,
+  "software_mode": "Disabled",
+  "physical_motion_acceptance": false,
+  "scope": "Docs-only Pi source fast-forward. No installer, service restart, CAN write, motor enable, SetZero, target or movement test. Qualified runtime remains0a3fc6b with identical production inputs."
+}

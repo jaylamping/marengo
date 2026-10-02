@@ -1,3 +1,34 @@
+# Windows continuation - 2026-10-02, PR251 delivered and Pi synced
+
+PR251 delivers source0a3fc6b/reviewed5db4394/mainbab38c6, equal final/main tree.
+Both finalCI37034964098 and mainCI37036180858 pass all five actual jobs; both
+independent reviews CLEAR. Primary/native889Rust/1existingignored/374UI and
+frozen3original failures/unchanged candidate passes remain qualified. All1463
+non-doc source inputs and48 committed artifact bindings/protobuf bytes verify.
+
+Pi source is cleanbab38c6; installed runtime remains qualified0a3fc6b with
+identical production inputs.53 source changes are review records; no installer,
+restart or CAN write for this sync. All binaries, taught policy/model/cal/env
+hashes and service PIDs remain unchanged; Store integrity/schema3 pass. Actual
+214 installed hashes/identities and trusted HTTPS verification remain bound.
+Primary mainbab38c6 preserves five existing uncommitted URDF/config/kinematics
+edits byte-identically, separately backed up and excluded from this release.
+See evidence/batch37/delivery-receipt.json and primary-sync-preservation.json.
+
+Continuation codex/pi-fault-receive-evidence uses
+J:/code/marengo-worktrees/current-virtual-reference. Next expose retained owner
+CAN raw envelope and isolate controller servicing/workload. Pacing is observed,
+but earlier A1 errors and inter-window candidate failure remain; all three quiet
+300s windows are clean on both versions, so no causal reliability fix is accepted.
+Physical reference, priority stop and commissioning remain required before each
+concrete explicitly confirmed right-arm movement. No reply pending. Powered
+supported setup is authorized; ten-minute silence permits independent work only.
+Counts102/eight/26verified/13partial/63open, historical batch16, CAD/limits/history/
+branches/worktrees/backups and paused automation preserved. Goal remains active.
+Earlier checkpoints below are historical and preserved as an exact suffix.
+
+---
+
 # Windows continuation - 2026-10-02, batch37 pacing comparison qualified
 
 Source0a3fc6b/PR251 spaces healthy reporting refresh attempts by5ms and rotates
