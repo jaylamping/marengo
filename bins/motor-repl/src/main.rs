@@ -68,6 +68,7 @@ fn usage() {
          Usage:\n  \
          motor-repl [--config-dir PATH] [--can-interface can0] status\n  \
            motor-repl protocol-inspect  (standalone, disabled-only; stop marengo-pi first)\n  \
+           motor-repl bench-home-qualify <operator> --confirm-home --sign-attested\n  \
            motor-repl homing-status\n  \
            motor-repl home\n  \
            motor-repl enable <operator_id> [--force]\n  \
@@ -182,11 +183,29 @@ fn main() {
         interfaces = ?can_interfaces,
         "motor-repl opened SocketCAN"
     );
-    if args[1] == "protocol-inspect" {
-        let result = davout::Supervisor::from_repo_for_protocol_inspection(&root, bus)
-            .and_then(|mut owner| owner.inspect_drive_protocol());
+    if matches!(args[1].as_str(), "protocol-inspect" | "bench-home-qualify") {
+        let result = davout::Supervisor::from_repo_for_protocol_inspection(&root, bus).and_then(
+            |mut owner| {
+                if args[1] == "protocol-inspect" {
+                    owner
+                        .inspect_drive_protocol()
+                        .map(|receipt| serde_json::to_string_pretty(&receipt))
+                } else {
+                    let operator = args
+                        .get(2)
+                        .filter(|value| !value.starts_with("--"))
+                        .map(String::as_str)
+                        .unwrap_or("");
+                    let confirmed = args.iter().any(|value| value == "--confirm-home");
+                    let sign_attested = args.iter().any(|value| value == "--sign-attested");
+                    owner
+                        .qualify_bench_home_disabled(confirmed, sign_attested, operator)
+                        .map(|receipt| serde_json::to_string_pretty(&receipt))
+                }
+            },
+        );
         match result {
-            Ok(receipts) => match serde_json::to_string_pretty(&receipts) {
+            Ok(encoded) => match encoded {
                 Ok(json) => println!("{json}"),
                 Err(error) => {
                     eprintln!("encode inspection: {error}");

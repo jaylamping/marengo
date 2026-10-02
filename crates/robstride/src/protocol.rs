@@ -10,6 +10,10 @@ pub enum ProtocolReply {
     /// Wire-order bytes of the immutable 64-bit MCU identifier, not a boot ID.
     DeviceIdentity([u8; 8]),
     FirmwareVersion([u8; 4]),
+    StatusHeader {
+        flags: u8,
+        mode: u8,
+    },
     Parameter {
         index: u16,
         error: u8,
@@ -94,9 +98,13 @@ pub fn decode_protocol_reply(received: &ReceivedCanFrame) -> Option<(u8, u8, Pro
             error: (id.extra_data >> 8) as u8,
             value: [raw[4], raw[5], raw[6], raw[7]],
         },
-        CommunicationType::OperationStatus => {
-            ProtocolReply::FirmwareVersion(decode_firmware_version(received)?.version)
-        }
+        CommunicationType::OperationStatus => match decode_firmware_version(received) {
+            Some(version) => ProtocolReply::FirmwareVersion(version.version),
+            None => ProtocolReply::StatusHeader {
+                flags: ((received.frame.id >> 16) & 0x3F) as u8,
+                mode: ((received.frame.id >> 22) & 3) as u8,
+            },
+        },
         _ => return None,
     };
     Some((source, id.device_id, reply))

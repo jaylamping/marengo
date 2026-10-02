@@ -72,6 +72,8 @@ pub use armee_kinematics::JointLimitPolicy;
 extern crate self as davout;
 
 mod active_reporting;
+mod bench_home_qualification;
+pub use bench_home_qualification::{BenchHomeQualification, BENCH_TIMEOUT_COUNTS};
 #[cfg(test)]
 mod active_reporting_pacing_tests;
 mod faults;

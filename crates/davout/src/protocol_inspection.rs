@@ -35,9 +35,10 @@ pub struct MotorProtocolInspection {
 }
 
 #[derive(Clone, Copy)]
-enum Query {
+pub(super) enum Query {
     Identity,
     Version,
+    SetZero,
     Parameter(ParameterId),
 }
 
@@ -46,6 +47,14 @@ impl Query {
         match self {
             Self::Identity => encode_device_identity_query(host, motor),
             Self::Version => encode_firmware_version_query(host, motor),
+            Self::SetZero => {
+                let (id, data) = robstride::encode_set_zero_position(host, motor);
+                CanFrame {
+                    id,
+                    data,
+                    extended: true,
+                }
+            }
             Self::Parameter(parameter) => {
                 let (id, data) = robstride::encode_read_parameter(host, motor, parameter);
                 CanFrame {
@@ -61,6 +70,7 @@ impl Query {
         match (self, observation.reply) {
             (Self::Identity, ProtocolReply::DeviceIdentity(_)) => observation.host_id == 0xFE,
             (Self::Version, ProtocolReply::FirmwareVersion(_)) => observation.host_id == host,
+            (Self::SetZero, ProtocolReply::StatusHeader { .. }) => observation.host_id == host,
             (Self::Parameter(parameter), ProtocolReply::Parameter { index, .. }) => {
                 observation.host_id == host && index == parameter.as_u16()
             }
@@ -72,6 +82,7 @@ impl Query {
         match self {
             Self::Identity => "identity".into(),
             Self::Version => "firmware_version".into(),
+            Self::SetZero => "set_zero".into(),
             Self::Parameter(parameter) => format!("{parameter:?}"),
         }
     }
@@ -134,7 +145,7 @@ impl<B: MotorBus> Supervisor<B> {
         }
     }
 
-    fn inspection_stop(&mut self) -> Result<(), DavoutError> {
+    pub(super) fn inspection_stop(&mut self) -> Result<(), DavoutError> {
         let failed_writes = self.perform_stop(false).failed_writes();
         if failed_writes > 0 {
             Err(DavoutError::StopDelivery { failed_writes })
@@ -143,7 +154,7 @@ impl<B: MotorBus> Supervisor<B> {
         }
     }
 
-    fn inspection_receive(
+    pub(super) fn inspection_receive(
         &mut self,
         accepted: &[ProtocolObservation],
     ) -> Result<Vec<ProtocolObservation>, DavoutError> {
@@ -165,6 +176,10 @@ impl<B: MotorBus> Supervisor<B> {
                         | (ProtocolReply::FirmwareVersion(_), ProtocolReply::FirmwareVersion(_)) => {
                             true
                         }
+                        (
+                            ProtocolReply::StatusHeader { .. },
+                            ProtocolReply::StatusHeader { .. },
+                        ) => true,
                         (
                             ProtocolReply::Parameter { index: a, .. },
                             ProtocolReply::Parameter { index: b, .. },
@@ -227,7 +242,7 @@ impl<B: MotorBus> Supervisor<B> {
                     ProtocolReply::DeviceIdentity(identity) => {
                         inspection.identity_wire_bytes = identity
                     }
-                    ProtocolReply::Parameter { .. } => {}
+                    ProtocolReply::Parameter { .. } | ProtocolReply::StatusHeader { .. } => {}
                 }
                 inspection.reads.push(receipt);
                 accepted.push(reply);
@@ -238,7 +253,7 @@ impl<B: MotorBus> Supervisor<B> {
         Ok(receipts)
     }
 
-    fn inspect_protocol_query(
+    pub(super) fn inspect_protocol_query(
         &mut self,
         joint: &str,
         address: &MotorAddress,
@@ -288,10 +303,12 @@ impl<B: MotorBus> Supervisor<B> {
                         });
                     }
                 }
-                if matches!(query, Query::Version) && ((reply.can_id >> 22) & 3) != 0 {
+                if matches!(query, Query::Version | Query::SetZero)
+                    && ((reply.can_id >> 22) & 3) != 0
+                {
                     return Err(DavoutError::ProtocolInspection {
                         joint: joint.into(),
-                        message: "version reply did not confirm Reset/Disabled".into(),
+                        message: "reply did not confirm Reset/Disabled".into(),
                     });
                 }
                 let receipt = ProtocolReadReceipt {
@@ -315,7 +332,7 @@ mod tests {
     #![allow(clippy::expect_used)]
     use super::*;
     use robstride::{CanBus, ReceiveAttempt, ReceivedCanFrame, TimedCanFrame};
-    use std::collections::VecDeque;
+    use std::collections::{HashMap, VecDeque};
     use std::path::PathBuf;
 
     #[derive(Default)]
@@ -330,6 +347,9 @@ mod tests {
         late_conflict: bool,
         deferred: Option<TimedCanFrame>,
         deferred_armed: bool,
+        timeout_by_device: HashMap<u8, u32>,
+        ignore_timeout_write: bool,
+        bad_zero: bool,
     }
 
     impl CanBus for ProbeBus {
@@ -347,6 +367,20 @@ mod tests {
                 });
             }
             let id = robstride::unpack_ext_id(frame.id).expect("query ID");
+            if id.comm_type == 18
+                && frame.data[..2] == ParameterId::CanTimeout.as_u16().to_le_bytes()
+                && !self.ignore_timeout_write
+            {
+                self.timeout_by_device.insert(
+                    id.device_id,
+                    u32::from_le_bytes([
+                        frame.data[4],
+                        frame.data[5],
+                        frame.data[6],
+                        frame.data[7],
+                    ]),
+                );
+            }
             let host = if self.wrong_host {
                 0xFF
             } else {
@@ -360,12 +394,45 @@ mod tests {
                 }),
                 4 if frame.data[1] == 0xC4 => Some(CanFrame {
                     id: robstride::pack_ext_id(2, u16::from(id.device_id), host),
-                    data: [0, 0xC4, 0x56, 0, 3, 1, 42, 0],
+                    data: match id.device_id {
+                        1 | 2 => [0, 0xC4, 0x56, 0, 3, 1, 42, 0],
+                        3 | 4 => [0, 0xC4, 0x56, 0, 2, 3, 34, 0],
+                        _ => [0, 0xC4, 0x56, 0, 0, 3, 32, 0],
+                    },
+                    extended: true,
+                }),
+                6 => Some(CanFrame {
+                    id: robstride::pack_ext_id(2, u16::from(id.device_id), host),
+                    data: [0x7F, 0xFF, 0x7F, 0xFF, 0x7F, 0xFF, 0, 0xC8],
                     extended: true,
                 }),
                 17 => Some(CanFrame {
                     id: robstride::pack_ext_id(17, u16::from(id.device_id), host),
-                    data: [frame.data[0], frame.data[1], 0, 0, 0, 0, 0, 0],
+                    data: {
+                        let index = u16::from_le_bytes([frame.data[0], frame.data[1]]);
+                        let value = if index == ParameterId::CanTimeout.as_u16() {
+                            self.timeout_by_device
+                                .get(&id.device_id)
+                                .copied()
+                                .unwrap_or(0)
+                                .to_le_bytes()
+                        } else if index == ParameterId::MechanicalPosition.as_u16() && self.bad_zero
+                        {
+                            1.0_f32.to_le_bytes()
+                        } else {
+                            [0; 4]
+                        };
+                        [
+                            frame.data[0],
+                            frame.data[1],
+                            0,
+                            0,
+                            value[0],
+                            value[1],
+                            value[2],
+                            value[3],
+                        ]
+                    },
                     extended: true,
                 }),
                 _ => None,
@@ -444,7 +511,14 @@ mod tests {
         assert_eq!(receipts.len(), 5);
         for receipt in receipts {
             assert_eq!(receipt.reads.len(), 8);
-            assert_eq!(receipt.firmware_version, [0, 3, 1, 42]);
+            assert_eq!(
+                receipt.firmware_version,
+                match receipt.device_id {
+                    1 | 2 => [0, 3, 1, 42],
+                    3 | 4 => [0, 2, 3, 34],
+                    _ => [0, 0, 3, 32],
+                }
+            );
             assert_eq!(receipt.identity_wire_bytes, [receipt.device_id; 8]);
         }
         assert_eq!(owner.mode(), OperationalMode::Disabled);
@@ -552,6 +626,66 @@ mod tests {
             });
             let error = owner.inspect_drive_protocol().expect_err("contradiction");
             assert!(error.to_string().contains("conflicting"));
+            assert_eq!(owner.mode(), OperationalMode::Disabled);
+        }
+    }
+
+    #[test]
+    fn bench_home_qualification_requires_explicit_confirmation_before_any_writes() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let mut owner = Supervisor::from_repo_for_protocol_inspection(root, ProbeBus::default())
+            .expect("owner");
+        assert!(owner
+            .qualify_bench_home_disabled(false, true, "bench")
+            .is_err());
+        assert!(owner
+            .qualify_bench_home_disabled(true, false, "bench")
+            .is_err());
+        assert!(owner.bus.tx.is_empty());
+    }
+
+    #[test]
+    fn bench_home_qualification_readbacks_never_grant_or_enable() {
+        let mut owner = supervisor(ProbeBus::default());
+        let receipt = owner
+            .qualify_bench_home_disabled(true, true, "bench")
+            .expect("qualification");
+        assert!(!receipt.grants_reference);
+        assert_eq!(receipt.reads.len(), 20);
+        assert_eq!(
+            owner
+                .bus
+                .tx
+                .iter()
+                .filter(|frame| (frame.id >> 24) & 0x1F == 6)
+                .count(),
+            5
+        );
+        assert!(owner
+            .bus
+            .tx
+            .iter()
+            .all(|frame| (frame.id >> 24) & 0x1F != 3));
+        assert!(owner.set_homing_complete().is_err());
+        assert_eq!(owner.mode(), OperationalMode::Disabled);
+    }
+
+    #[test]
+    fn missing_timeout_readback_and_bad_post_zero_pose_refuse_qualification() {
+        for bad_zero in [false, true] {
+            let mut owner = supervisor(ProbeBus {
+                bad_zero,
+                ignore_timeout_write: !bad_zero,
+                ..ProbeBus::default()
+            });
+            assert!(owner
+                .qualify_bench_home_disabled(true, true, "bench")
+                .is_err());
+            assert!(owner
+                .bus
+                .tx
+                .iter()
+                .all(|frame| (frame.id >> 24) & 0x1F != 3));
             assert_eq!(owner.mode(), OperationalMode::Disabled);
         }
     }
