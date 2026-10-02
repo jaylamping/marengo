@@ -1,0 +1,12 @@
+{
+  "baseline": "adef857c0e47d8a69a7164f74659b3305253ddca",
+  "candidate": "8bcd9a05286f82fd90661c8669fbebe2f0d45f2a",
+  "standards": {
+    "violations": 0,
+    "substantive_smells": 0
+  },
+  "spec": {
+    "actionable_findings": 0
+  },
+  "scope": "All six changed Rust source/test files identical across rebase; shared validation/safety/reference/stop/output retained; ordinary startup diagnostics qualified separately from complete preflight TX; no physical acceptance claimed."
+}

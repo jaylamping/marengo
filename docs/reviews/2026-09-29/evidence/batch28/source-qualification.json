@@ -10,5 +10,6 @@
     "crates/davout/tests/reference_transaction.rs": "bb9d9921a81ff71b20023d441b86b7c21c2a025cb2f96eddced6ef652c0a5ea7"
   },
   "classification": "Existing cs24 constructor failed twice on Pi; frozen public v1 eight constructor cases red, ordinary runtime positive passed; unchanged v1 and original cs24 replay green. Final test adds only scoped clippy allowance for harness selector panic. Grid tests use unreferenced closed constructor; ordinary capability test preserves all preflight writes and qualifies only pre-existing startup diagnostics separately. Final primary and Pi workspace pending.",
-  "physical_movement": false
+  "physical_movement": false,
+  "final_validation": "Combined Linux primary814Rust/1ignored, Consul361/PiMCP72/research83/daily15/fatalARM passed; Pi workspace814Rust/1ignored. Final Pi source identities match all six canonical Rust inputs. Both reviews clear at8bcd9a; hosted delivery pending."
 }

@@ -1,0 +1,7 @@
+c0386796cfb5c66957a9eb58386564ccaae107038f75c0809a0418009bc359f4  crates/berthier/src/loop.rs
+e1308e27122707413281f153632509f65aee37347c9e2d846eddd2d9367f3e54  crates/davout/src/lib.rs
+e295a2c9537bdb55cadcefae9be0c01111bf875f74ee1fa8035efb75147090b9  crates/davout/src/simulation.rs
+4ca39d8badd6a16996447bff6a004ece3f6854e4c1b75e1d2e57828370114bfe  crates/berthier/tests/simulation_resources.rs
+4cd2459caa787035650e49ae951f865afd621d14e42a5b056bf6423ade3a8c60  crates/davout/tests/feedback_progress_grid.rs
+bb9d9921a81ff71b20023d441b86b7c21c2a025cb2f96eddced6ef652c0a5ea7  crates/davout/tests/reference_transaction.rs
+{"ok":true,"node":"marengo-gateway","dropped_log_inserts":0}4bc77ba605834fdec04b436daa4bec67bca84fbb 2026-08-12T03:59:26Z

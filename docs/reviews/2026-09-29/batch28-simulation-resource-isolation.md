@@ -37,5 +37,14 @@ The Pi source is staged only under
 `/home/joey/marengo-validation/batch27-20261001/stack-3cde431`; its historical name
 identifies the original staging receipt, not the final candidate. Source hashes
 bind the overlaid repair. No runtime/configuration deployment, service restart,
-physical CAN transport or motor movement is performed. Final primary, broad
-Pi workspace, independent review and hosted delivery remain pending.
+physical CAN transport or motor movement is performed. Final combined Linux
+primary passes814 Rust/1existing ignored, Consul361, Pi MCP72, research83,
+daily-audit15 and the fatal aarch64 release build. Pi workspace passes814
+Rust/1ignored; its six final source/test hashes match the canonical inputs.
+Both independent reviews are clear at8bcd9a. Hosted delivery remains pending.
+
+A Windows worktree needs a Linux .git pointer overlay in Docker. An initial
+GIT_DIR/GIT_WORK_TREE environment workaround leaked into daily-audit temporary
+Git repositories and failed preparation. The corrected container mapping mounts
+only read-only metadata and does not export those variables. That setup failure
+is preserved/excluded from product behavior evidence.
