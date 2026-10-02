@@ -1,0 +1,7034 @@
+{
+  "schema": 1,
+  "audit_path": "/opt/marengo/var/calibration/neutral-bench/1790979362634515962-53143.json",
+  "joint": "right_lower_arm_yaw",
+  "requested_peak_rad": 0.02,
+  "kp": 30.0,
+  "kd": 2.0,
+  "elapsed_us": 1000056,
+  "max_tick_delay_us": 53,
+  "samples": [
+    {
+      "elapsed_us": 27331,
+      "target_rad": 8.145e-8,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0311279296875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.03662109375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.009857177734375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.03372395038604736
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0007669904152862728,
+          "velocity_rad_s": 0.1769721955060959,
+          "torque_nm": -0.021270751953125
+        }
+      ]
+    },
+    {
+      "elapsed_us": 32406,
+      "target_rad": 0.00025266645,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.02197265625
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0933837890625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.008819580078125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.011932373046875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0007669904152862728,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.011932373046875
+        }
+      ]
+    },
+    {
+      "elapsed_us": 37399,
+      "target_rad": 0.00050268385,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0274658203125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0238037109375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": 0.0003834952076431364,
+          "velocity_rad_s": 0.07672041654586792,
+          "torque_nm": -0.01763916015625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.02282816171646118
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0007669904152862728,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.02023416757583618
+        }
+      ]
+    },
+    {
+      "elapsed_us": 42400,
+      "target_rad": 0.0007526503000000001,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0128173828125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0439453125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": -0.07670393586158752,
+          "torque_nm": 0.00518798828125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.00830078125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0007669904152862728,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.025421142578125
+        }
+      ]
+    },
+    {
+      "elapsed_us": 47397,
+      "target_rad": 0.00100265475,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.029296875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0018310546875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.002593994140625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.014007568359375
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0007669904152862728,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.01141357421875
+        }
+      ]
+    },
+    {
+      "elapsed_us": 52398,
+      "target_rad": 0.0012526388,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.018310546875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.02197265625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.003631591796875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.02593994140625
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0007669904152862728,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.006744384765625
+        }
+      ]
+    },
+    {
+      "elapsed_us": 57399,
+      "target_rad": 0.0015026849,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0018310546875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0347900390625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.017120361328125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.00518798828125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0007669904152862728,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.000518798828125
+        }
+      ]
+    },
+    {
+      "elapsed_us": 62401,
+      "target_rad": 0.0017526847000000003,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00732421875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.010986328125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.005706787109375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.004150390625
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0007669904152862728,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.010894775390625
+        }
+      ]
+    },
+    {
+      "elapsed_us": 67401,
+      "target_rad": 0.00200267615,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0164794921875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.032958984375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0020751953125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0145263671875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0007669904152862728,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.01348876953125
+        }
+      ]
+    },
+    {
+      "elapsed_us": 72402,
+      "target_rad": 0.0022526945,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0274658203125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0494384765625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.000518798828125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.012451171875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0007669904152862728,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.03631693124771118
+        }
+      ]
+    },
+    {
+      "elapsed_us": 77400,
+      "target_rad": 0.0025026748500000004,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0054931640625
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0146484375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.014007568359375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.017120361328125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0007669904152862728,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.03164774179458618
+        }
+      ]
+    },
+    {
+      "elapsed_us": 82402,
+      "target_rad": 0.00275268945,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0018310546875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.018310546875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.00311279296875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.003631591796875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0007669904152862728,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.02490335702896118
+        }
+      ]
+    },
+    {
+      "elapsed_us": 87400,
+      "target_rad": 0.0030026689,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0274658203125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.040283203125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.004669189453125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.006744384765625
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0011504855938255787,
+          "velocity_rad_s": 0.07671046257019043,
+          "torque_nm": 0.03009134531021118
+        }
+      ]
+    },
+    {
+      "elapsed_us": 92400,
+      "target_rad": 0.0032526474,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0091552734375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0146484375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.001556396484375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.04617410898208618
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0011504855938255787,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.06225788593292236
+        }
+      ]
+    },
+    {
+      "elapsed_us": 97400,
+      "target_rad": 0.0035026443999999998,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0018310546875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.040283203125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": 0.0003834952076431364,
+          "velocity_rad_s": 0.07670307904481888,
+          "torque_nm": -0.000518798828125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.02179056406021118
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0011504855938255787,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.07470905780792236
+        }
+      ]
+    },
+    {
+      "elapsed_us": 102400,
+      "target_rad": 0.0037526386500000004,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.00732421875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0164794921875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": 0.0003834952076431364,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.01971435546875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.010894775390625
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0011504855938255787,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.04876810312271118
+        }
+      ]
+    },
+    {
+      "elapsed_us": 107401,
+      "target_rad": 0.00400267735,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0054931640625
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.029296875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": -0.07668746262788773,
+          "torque_nm": 0.004150390625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.014007568359375
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0011504855938255787,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.02127176523208618
+        }
+      ]
+    },
+    {
+      "elapsed_us": 112401,
+      "target_rad": 0.00425267715,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0201416015625
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.054931640625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.008819580078125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.00830078125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0015339808305725455,
+          "velocity_rad_s": 0.07670024037361145,
+          "torque_nm": 0.07419025897979736
+        }
+      ]
+    },
+    {
+      "elapsed_us": 117400,
+      "target_rad": 0.0045026501,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00732421875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.047607421875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.00103759765625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.017120361328125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0015339808305725455,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.06381428241729736
+        }
+      ]
+    },
+    {
+      "elapsed_us": 122401,
+      "target_rad": 0.00475268135,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00732421875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0128173828125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.005706787109375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.000518798828125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0015339808305725455,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.03787332773208618
+        }
+      ]
+    },
+    {
+      "elapsed_us": 127401,
+      "target_rad": 0.0050026793,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0003834952076431364,
+          "velocity_rad_s": -0.0766894519329071,
+          "torque_nm": 0.02197265625
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.07141470909118652
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.006744384765625
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0015339808305725455,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.07263386249542236
+        }
+      ]
+    },
+    {
+      "elapsed_us": 132401,
+      "target_rad": 0.00525268005,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.07670477777719498,
+          "torque_nm": 0.018310546875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0128173828125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": 0.0003834952076431364,
+          "velocity_rad_s": 0.07670421153306961,
+          "torque_nm": -0.00830078125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.01919656991958618
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0015339808305725455,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.08352965116500854
+        }
+      ]
+    },
+    {
+      "elapsed_us": 137400,
+      "target_rad": 0.005502679850000001,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0164794921875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0201416015625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": -0.07670366019010544,
+          "torque_nm": 0.00518798828125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0019174760673195124,
+          "velocity_rad_s": 0.07670394331216812,
+          "torque_nm": 0.10116881132125854
+        }
+      ]
+    },
+    {
+      "elapsed_us": 142401,
+      "target_rad": 0.00575264075,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0146484375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0054931640625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.006744384765625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.003631591796875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0019174760673195124,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.07107746601104736
+        }
+      ]
+    },
+    {
+      "elapsed_us": 147400,
+      "target_rad": 0.0060026535,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.025634765625
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0201416015625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.005706787109375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.012451171875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0019174760673195124,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.10946959257125854
+        }
+      ]
+    },
+    {
+      "elapsed_us": 152400,
+      "target_rad": 0.0062526533,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0018310546875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0457763671875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.007781982421875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00830078125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0019174760673195124,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.10324400663375854
+        }
+      ]
+    },
+    {
+      "elapsed_us": 157402,
+      "target_rad": 0.0065027012499999995,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0054931640625
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.040283203125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.002593994140625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.005706787109375
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0019174760673195124,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.10272520780563354
+        }
+      ]
+    },
+    {
+      "elapsed_us": 162401,
+      "target_rad": 0.006752681600000001,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0384521484375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0146484375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.015045166015625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": 0.0003834952076431364,
+          "velocity_rad_s": 0.07669967412948608,
+          "torque_nm": -0.01348876953125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0023009711876511574,
+          "velocity_rad_s": 0.07669992744922638,
+          "torque_nm": 0.09753721952438354
+        }
+      ]
+    },
+    {
+      "elapsed_us": 167401,
+      "target_rad": 0.00700267495,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0201416015625
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0018310546875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.002593994140625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": -0.07670705020427704,
+          "torque_nm": -0.00311279296875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0023009711876511574,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.09286803007125854
+        }
+      ]
+    },
+    {
+      "elapsed_us": 172401,
+      "target_rad": 0.007252684,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0128173828125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0311279296875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.002593994140625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.02334696054458618
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0023009711876511574,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.09079283475875854
+        }
+      ]
+    },
+    {
+      "elapsed_us": 177401,
+      "target_rad": 0.0075026866,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0146484375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.032958984375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00311279296875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.020751953125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.002684466540813446,
+          "velocity_rad_s": 0.0766943022608757,
+          "torque_nm": 0.12192177772521973
+        }
+      ]
+    },
+    {
+      "elapsed_us": 182401,
+      "target_rad": 0.0077526780500000005,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.003662109375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0238037109375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0062255859375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.016082763671875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.002684466540813446,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.08664244413375854
+        }
+      ]
+    },
+    {
+      "elapsed_us": 187401,
+      "target_rad": 0.008002686200000001,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0146484375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.05126953125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": 0.0003834952076431364,
+          "velocity_rad_s": 0.07669597119092941,
+          "torque_nm": 0.007781982421875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.012451171875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.003067961661145091,
+          "velocity_rad_s": 0.07669540494680405,
+          "torque_nm": 0.05551350116729736
+        }
+      ]
+    },
+    {
+      "elapsed_us": 192401,
+      "target_rad": 0.008252678550000002,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0274658203125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.025634765625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": -0.07669796794652939,
+          "torque_nm": -0.00830078125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.01141357421875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.003451456781476736,
+          "velocity_rad_s": 0.0766979530453682,
+          "torque_nm": 0.04513651132583618
+        }
+      ]
+    },
+    {
+      "elapsed_us": 197401,
+      "target_rad": 0.008502684850000001,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.010986328125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.054931640625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.004150390625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.00726318359375
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0038349521346390247,
+          "velocity_rad_s": 0.07669827342033386,
+          "torque_nm": 0.03061014413833618
+        }
+      ]
+    },
+    {
+      "elapsed_us": 202401,
+      "target_rad": 0.00875267815,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0311279296875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0018310546875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.009857177734375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": 0.0003834952076431364,
+          "velocity_rad_s": 0.076702781021595,
+          "torque_nm": -0.006744384765625
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0038349521346390247,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.06848347187042236
+        }
+      ]
+    },
+    {
+      "elapsed_us": 207402,
+      "target_rad": 0.0090026974,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0091552734375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.02197265625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0062255859375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": -0.07669428735971451,
+          "torque_nm": -0.0228271484375
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.004218447487801313,
+          "velocity_rad_s": 0.0766943022608757,
+          "torque_nm": 0.03787332773208618
+        }
+      ]
+    },
+    {
+      "elapsed_us": 212402,
+      "target_rad": 0.009252686100000001,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0146484375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.018310546875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.004150390625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.02334696054458618
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.004601942375302315,
+          "velocity_rad_s": 0.07669790089130402,
+          "torque_nm": 0.03527933359146118
+        }
+      ]
+    },
+    {
+      "elapsed_us": 217401,
+      "target_rad": 0.0095026933,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0128173828125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.003662109375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.00933837890625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.005706787109375
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.004985437728464603,
+          "velocity_rad_s": 0.07670396566390991,
+          "torque_nm": 0.02905374765396118
+        }
+      ]
+    },
+    {
+      "elapsed_us": 222401,
+      "target_rad": 0.009752682,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.02197265625
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.03662109375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.007781982421875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.02178955078125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.005368933081626892,
+          "velocity_rad_s": 0.07670709490776062,
+          "torque_nm": 0.05758869647979736
+        }
+      ]
+    },
+    {
+      "elapsed_us": 227402,
+      "target_rad": 0.010002679950000001,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.003662109375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0347900390625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.000518798828125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.01919656991958618
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.005368933081626892,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.07885944843292236
+        }
+      ]
+    },
+    {
+      "elapsed_us": 232406,
+      "target_rad": 0.0102526742,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0018310546875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0054931640625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.016082763671875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.007781982421875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.005368933081626892,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.04046732187271118
+        }
+      ]
+    },
+    {
+      "elapsed_us": 237405,
+      "target_rad": 0.0105026888,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0457763671875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.010986328125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.014007568359375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.005706787109375
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0057524279691278934,
+          "velocity_rad_s": 0.07670017331838608,
+          "torque_nm": 0.06070148944854736
+        }
+      ]
+    },
+    {
+      "elapsed_us": 242404,
+      "target_rad": 0.010752671,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0018310546875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0274658203125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": 0.0003834952076431364,
+          "velocity_rad_s": 0.07669853419065475,
+          "torque_nm": -0.01556396484375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.004669189453125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.006135923322290182,
+          "velocity_rad_s": 0.07669883966445923,
+          "torque_nm": 0.06848347187042236
+        }
+      ]
+    },
+    {
+      "elapsed_us": 247402,
+      "target_rad": 0.01100268375,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0018310546875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0054931640625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": -0.07673036307096481,
+          "torque_nm": 0.00830078125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.016082763671875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.006135923322290182,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.06381428241729736
+        }
+      ]
+    },
+    {
+      "elapsed_us": 252402,
+      "target_rad": 0.011252673400000001,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0201416015625
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0347900390625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00726318359375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.012451171875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.006519418675452471,
+          "velocity_rad_s": 0.07669828832149506,
+          "torque_nm": 0.04617410898208618
+        }
+      ]
+    },
+    {
+      "elapsed_us": 257405,
+      "target_rad": 0.0115026871,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0384521484375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0128173828125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.01141357421875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": 0.0003834952076431364,
+          "velocity_rad_s": 0.07666843384504318,
+          "torque_nm": 0.014007568359375
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.006902913562953472,
+          "velocity_rad_s": 0.07666837424039841,
+          "torque_nm": 0.04306131601333618
+        }
+      ]
+    },
+    {
+      "elapsed_us": 262405,
+      "target_rad": 0.011752685,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.018310546875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.018310546875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00311279296875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": 0.0003834952076431364,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00933837890625
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.006902913562953472,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.03009134531021118
+        }
+      ]
+    },
+    {
+      "elapsed_us": 267402,
+      "target_rad": 0.012002682050000001,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.032958984375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.018310546875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.005706787109375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": -0.07671985030174255,
+          "torque_nm": -0.007781982421875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.007286408916115761,
+          "velocity_rad_s": 0.07671988010406494,
+          "torque_nm": 0.06952106952667236
+        }
+      ]
+    },
+    {
+      "elapsed_us": 272402,
+      "target_rad": 0.01225268275,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.032958984375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.025634765625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.007781982421875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.001556396484375
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0076699042692780495,
+          "velocity_rad_s": 0.07668721675872803,
+          "torque_nm": 0.06485188007354736
+        }
+      ]
+    },
+    {
+      "elapsed_us": 277404,
+      "target_rad": 0.012502678850000002,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.018310546875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0238037109375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0145263671875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00311279296875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0076699042692780495,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.10531920194625854
+        }
+      ]
+    },
+    {
+      "elapsed_us": 282402,
+      "target_rad": 0.0127526805,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0128173828125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0238037109375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.005706787109375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0062255859375
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.008053399622440338,
+          "velocity_rad_s": 0.07672357559204102,
+          "torque_nm": 0.09442442655563354
+        }
+      ]
+    },
+    {
+      "elapsed_us": 287401,
+      "target_rad": 0.01300267385,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0274658203125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.02197265625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.000518798828125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00103759765625
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.008053399622440338,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.10687559843063354
+        }
+      ]
+    },
+    {
+      "elapsed_us": 292403,
+      "target_rad": 0.013252683800000001,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0091552734375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.025634765625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.003631591796875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.02023416757583618
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.008053399622440338,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.09546202421188354
+        }
+      ]
+    },
+    {
+      "elapsed_us": 297402,
+      "target_rad": 0.013502696600000001,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.05126953125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0238037109375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.000518798828125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.01556396484375
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.008053399622440338,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.07989704608917236
+        }
+      ]
+    },
+    {
+      "elapsed_us": 302403,
+      "target_rad": 0.013752685300000001,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0146484375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0347900390625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.006744384765625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00518798828125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.008436894975602627,
+          "velocity_rad_s": 0.07669543474912643,
+          "torque_nm": 0.11621499061584473
+        }
+      ]
+    },
+    {
+      "elapsed_us": 307401,
+      "target_rad": 0.01400268785,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0018310546875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0531005859375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.005706787109375
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.008436894975602627,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.13852334022521973
+        }
+      ]
+    },
+    {
+      "elapsed_us": 312404,
+      "target_rad": 0.014252685800000001,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0091552734375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0091552734375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.01556396484375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.02697855234146118
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.008436894975602627,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.1582387089729309
+        }
+      ]
+    },
+    {
+      "elapsed_us": 317402,
+      "target_rad": 0.0145026884,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0128173828125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0421142578125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0020751953125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.002593994140625
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.008436894975602627,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.1546071171760559
+        }
+      ]
+    },
+    {
+      "elapsed_us": 322402,
+      "target_rad": 0.01475267985,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.003662109375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0439453125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.02697855234146118
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.020751953125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.00882038939744234,
+          "velocity_rad_s": 0.07671286165714264,
+          "torque_nm": 0.1634266972541809
+        }
+      ]
+    },
+    {
+      "elapsed_us": 327401,
+      "target_rad": 0.015002681500000002,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0128173828125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0439453125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.008819580078125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00311279296875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.00882038939744234,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.14319252967834473
+        }
+      ]
+    },
+    {
+      "elapsed_us": 332401,
+      "target_rad": 0.015252682200000001,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0146484375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.029296875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.003631591796875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.017120361328125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.00882038939744234,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.1670582890510559
+        }
+      ]
+    },
+    {
+      "elapsed_us": 337401,
+      "target_rad": 0.01550268665,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0018310546875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.003662109375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.02490335702896118
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.00882038939744234,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.1675770878791809
+        }
+      ]
+    },
+    {
+      "elapsed_us": 342402,
+      "target_rad": 0.01575267165,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0091552734375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": -0.0003834952076431364,
+          "velocity_rad_s": -0.07670164853334427,
+          "torque_nm": 0.05126953125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0062255859375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.03372395038604736
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.00920388475060463,
+          "velocity_rad_s": 0.07670225948095322,
+          "torque_nm": 0.1691334843635559
+        }
+      ]
+    },
+    {
+      "elapsed_us": 347403,
+      "target_rad": 0.0160026844,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.07669853419065475,
+          "torque_nm": 0.0823974609375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.006744384765625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.015045166015625
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.00920388475060463,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.1904052495956421
+        }
+      ]
+    },
+    {
+      "elapsed_us": 352403,
+      "target_rad": 0.01625267495,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.003662109375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0457763671875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": 0.0003834952076431364,
+          "velocity_rad_s": 0.07668660581111908,
+          "torque_nm": -0.019195556640625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.008819580078125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.00920388475060463,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.1945556402206421
+        }
+      ]
+    },
+    {
+      "elapsed_us": 357401,
+      "target_rad": 0.01650268865,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0146484375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.025634765625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": -0.07671074569225311,
+          "torque_nm": -0.001556396484375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.007781982421875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.00920388475060463,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.21945899724960327
+        }
+      ]
+    },
+    {
+      "elapsed_us": 362402,
+      "target_rad": 0.0167526838,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.003662109375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.018310546875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.01556396484375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0020751953125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.00920388475060463,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.22205299139022827
+        }
+      ]
+    },
+    {
+      "elapsed_us": 367404,
+      "target_rad": 0.01700267805,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0054931640625
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.029296875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.015045166015625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.02127176523208618
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.009587380103766918,
+          "velocity_rad_s": 0.07667556405067444,
+          "torque_nm": 0.21634620428085327
+        }
+      ]
+    },
+    {
+      "elapsed_us": 372403,
+      "target_rad": 0.017252677850000002,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.018310546875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0128173828125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00726318359375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00103759765625
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.009587380103766918,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.2064880132675171
+        }
+      ]
+    },
+    {
+      "elapsed_us": 377404,
+      "target_rad": 0.01750268505,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.02197265625
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0146484375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.003631591796875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0020751953125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.009587380103766918,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.22309058904647827
+        }
+      ]
+    },
+    {
+      "elapsed_us": 382406,
+      "target_rad": 0.0177526839,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0018310546875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0604248046875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.005706787109375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.00518798828125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.009970875456929207,
+          "velocity_rad_s": 0.07669629156589508,
+          "torque_nm": 0.22568458318710327
+        }
+      ]
+    },
+    {
+      "elapsed_us": 387403,
+      "target_rad": 0.01800268555,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00732421875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0091552734375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00933837890625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.01556396484375
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.009970875456929207,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.24436134099960327
+        }
+      ]
+    },
+    {
+      "elapsed_us": 392402,
+      "target_rad": 0.01825267795,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0164794921875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0054931640625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.001556396484375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.005706787109375
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.009970875456929207,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.25421953201293945
+        }
+      ]
+    },
+    {
+      "elapsed_us": 397401,
+      "target_rad": 0.01850268145,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.010986328125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": -0.0003834952076431364,
+          "velocity_rad_s": -0.07670222967863083,
+          "torque_nm": 0.0054931640625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.02386474609375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.02490234375
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.010354370810091496,
+          "velocity_rad_s": 0.0767025351524353,
+          "torque_nm": 0.23139137029647827
+        }
+      ]
+    },
+    {
+      "elapsed_us": 402403,
+      "target_rad": 0.0187526785,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0311279296875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.07667752355337143,
+          "torque_nm": -0.0347900390625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.000518798828125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.010354370810091496,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.27600908279418945
+        }
+      ]
+    },
+    {
+      "elapsed_us": 407401,
+      "target_rad": 0.01900267275,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0128173828125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0091552734375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": 0.0003834952076431364,
+          "velocity_rad_s": 0.07672012597322464,
+          "torque_nm": -0.00518798828125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.010354370810091496,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.26044511795043945
+        }
+      ]
+    },
+    {
+      "elapsed_us": 412404,
+      "target_rad": 0.01925268455,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0128173828125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0384521484375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": -0.07668943703174591,
+          "torque_nm": -0.001556396484375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.012451171875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.010737866163253784,
+          "velocity_rad_s": 0.07668891549110413,
+          "torque_nm": 0.26926469802856445
+        }
+      ]
+    },
+    {
+      "elapsed_us": 417402,
+      "target_rad": 0.019502683450000002,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0054931640625
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0164794921875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00311279296875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.006744384765625
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.010737866163253784,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.25058794021606445
+        }
+      ]
+    },
+    {
+      "elapsed_us": 422402,
+      "target_rad": 0.019752678600000004,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00732421875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.010986328125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.01141357421875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.04306232929229736
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.010737866163253784,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.2070068120956421
+        }
+      ]
+    },
+    {
+      "elapsed_us": 427402,
+      "target_rad": 0.0199973253,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0091552734375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0439453125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00311279296875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0020751953125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.011121360585093498,
+          "velocity_rad_s": 0.07669071108102798,
+          "torque_nm": 0.24124854803085327
+        }
+      ]
+    },
+    {
+      "elapsed_us": 432401,
+      "target_rad": 0.01974732085,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0146484375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0146484375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0062255859375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.012969970703125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.011121360585093498,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.22257179021835327
+        }
+      ]
+    },
+    {
+      "elapsed_us": 437401,
+      "target_rad": 0.0194973146,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0054931640625
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0384521484375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.003631591796875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.008819580078125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.011504855938255787,
+          "velocity_rad_s": 0.07669656723737717,
+          "torque_nm": 0.22516578435897827
+        }
+      ]
+    },
+    {
+      "elapsed_us": 442401,
+      "target_rad": 0.0192473268,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00732421875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0146484375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00518798828125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.01141357421875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.011888351291418076,
+          "velocity_rad_s": 0.07669885456562042,
+          "torque_nm": 0.1821034550666809
+        }
+      ]
+    },
+    {
+      "elapsed_us": 447401,
+      "target_rad": 0.018997310349999998,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0091552734375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.018310546875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00311279296875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0103759765625
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.011888351291418076,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.22516578435897827
+        }
+      ]
+    },
+    {
+      "elapsed_us": 452402,
+      "target_rad": 0.01874732445,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.029296875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0054931640625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.006744384765625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": 0.0003834952076431364,
+          "velocity_rad_s": 0.07670137286186218,
+          "torque_nm": -0.0
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.012272595427930355,
+          "velocity_rad_s": 0.07685145735740662,
+          "torque_nm": 0.2106384038925171
+        }
+      ]
+    },
+    {
+      "elapsed_us": 457400,
+      "target_rad": 0.01849731815,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.02197265625
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.03662109375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.015045166015625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": -0.07670421153306961,
+          "torque_nm": 0.007781982421875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.012272595427930355,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.2054504156112671
+        }
+      ]
+    },
+    {
+      "elapsed_us": 462401,
+      "target_rad": 0.0182473202,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0128173828125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00732421875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": 0.0003834952076431364,
+          "velocity_rad_s": 0.07669967412948608,
+          "torque_nm": 0.01348876953125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.001556396484375
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.012272595427930355,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.2002624273300171
+        }
+      ]
+    },
+    {
+      "elapsed_us": 467401,
+      "target_rad": 0.0179973204,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0164794921875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.025634765625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": -0.0767010822892189,
+          "torque_nm": -0.0020751953125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.006744384765625
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.012656090781092644,
+          "velocity_rad_s": 0.0767008364200592,
+          "torque_nm": 0.1722462773323059
+        }
+      ]
+    },
+    {
+      "elapsed_us": 472400,
+      "target_rad": 0.017747320599999998,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.018310546875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.025634765625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0145263671875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.014007568359375
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.012272595427930355,
+          "velocity_rad_s": -0.07669656723737717,
+          "torque_nm": 0.1997436285018921
+        }
+      ]
+    },
+    {
+      "elapsed_us": 477401,
+      "target_rad": 0.01749731065,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0238037109375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.02197265625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.004669189453125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.01556396484375
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.012272595427930355,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.21894019842147827
+        }
+      ]
+    },
+    {
+      "elapsed_us": 482401,
+      "target_rad": 0.017247320099999998,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0018310546875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.06958365440368652
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.01971536874771118
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.02853494882583618
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.012656090781092644,
+          "velocity_rad_s": 0.07669627666473389,
+          "torque_nm": 0.22672218084335327
+        }
+      ]
+    },
+    {
+      "elapsed_us": 487401,
+      "target_rad": 0.01699732125,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.00732421875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0164794921875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.008819580078125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.00830078125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.012656090781092644,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.23657935857772827
+        }
+      ]
+    },
+    {
+      "elapsed_us": 492401,
+      "target_rad": 0.01674731865,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.010986328125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.010986328125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.004669189453125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.001556396484375
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.012272595427930355,
+          "velocity_rad_s": -0.07669288665056229,
+          "torque_nm": 0.1945556402206421
+        }
+      ]
+    },
+    {
+      "elapsed_us": 497400,
+      "target_rad": 0.0164973198,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0018310546875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": -0.0003834952076431364,
+          "velocity_rad_s": -0.07670336961746216,
+          "torque_nm": -0.010986328125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.022308349609375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.009857177734375
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.012272595427930355,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.2002624273300171
+        }
+      ]
+    },
+    {
+      "elapsed_us": 502400,
+      "target_rad": 0.01624732555,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0457763671875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.07670280337333679,
+          "torque_nm": 0.0439453125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00518798828125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0311279296875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.012656090781092644,
+          "velocity_rad_s": 0.07670396566390991,
+          "torque_nm": 0.1613515019416809
+        }
+      ]
+    },
+    {
+      "elapsed_us": 507401,
+      "target_rad": 0.01599731275,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.010986328125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0054931640625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0020751953125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.002593994140625
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.012272595427930355,
+          "velocity_rad_s": -0.07669656723737717,
+          "torque_nm": 0.2101196050643921
+        }
+      ]
+    },
+    {
+      "elapsed_us": 512402,
+      "target_rad": 0.0157473074,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.040283203125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.003662109375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.01556396484375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.02075296640396118
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.012272595427930355,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.1992248296737671
+        }
+      ]
+    },
+    {
+      "elapsed_us": 517401,
+      "target_rad": 0.01549731595,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.029296875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0274658203125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.005706787109375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.009857177734375
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.012272595427930355,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.1826232671737671
+        }
+      ]
+    },
+    {
+      "elapsed_us": 522401,
+      "target_rad": 0.01524731335,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.029296875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0238037109375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.002593994140625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.000518798828125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.012272595427930355,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.1914428472518921
+        }
+      ]
+    },
+    {
+      "elapsed_us": 527400,
+      "target_rad": 0.01499732375,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0054931640625
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0347900390625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.004669189453125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.004669189453125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.012272595427930355,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.14423012733459473
+        }
+      ]
+    },
+    {
+      "elapsed_us": 532401,
+      "target_rad": 0.0147473212,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0003834952076431364,
+          "velocity_rad_s": -0.0766945630311966,
+          "torque_nm": -0.010986328125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0274658203125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.010894775390625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.008819580078125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.012272595427930355,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.1561635136604309
+        }
+      ]
+    },
+    {
+      "elapsed_us": 537400,
+      "target_rad": 0.014497314899999999,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.07669880986213684,
+          "torque_nm": 0.00732421875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.047607421875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00933837890625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.02230936288833618
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.012272595427930355,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.09701842069625854
+        }
+      ]
+    },
+    {
+      "elapsed_us": 542401,
+      "target_rad": 0.0142473262,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.010986328125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0128173828125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": 0.0003834952076431364,
+          "velocity_rad_s": 0.07669937610626221,
+          "torque_nm": 0.00830078125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.006744384765625
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.012272595427930355,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.14630532264709473
+        }
+      ]
+    },
+    {
+      "elapsed_us": 547400,
+      "target_rad": 0.01399732365,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0018310546875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.003662109375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": -0.07670479267835617,
+          "torque_nm": 0.00726318359375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.02593994140625
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.012272595427930355,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.13022255897521973
+        }
+      ]
+    },
+    {
+      "elapsed_us": 552402,
+      "target_rad": 0.0137473007,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.02197265625
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.06958365440368652
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0020751953125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00311279296875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.012272595427930355,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.10168761014938354
+        }
+      ]
+    },
+    {
+      "elapsed_us": 557401,
+      "target_rad": 0.013497318499999997,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0146484375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0164794921875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.004669189453125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0228271484375
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.012272595427930355,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.06692707538604736
+        }
+      ]
+    },
+    {
+      "elapsed_us": 562400,
+      "target_rad": 0.0132473372,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0238037109375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0091552734375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.010894775390625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00726318359375
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.012272595427930355,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.07937824726104736
+        }
+      ]
+    },
+    {
+      "elapsed_us": 567399,
+      "target_rad": 0.01299735405,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0201416015625
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0164794921875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0062255859375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.001556396484375
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.011888351291418076,
+          "velocity_rad_s": -0.0768582820892334,
+          "torque_nm": 0.10739439725875854
+        }
+      ]
+    },
+    {
+      "elapsed_us": 572401,
+      "target_rad": 0.012747316299999999,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0311279296875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0347900390625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.006744384765625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.00830078125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.011888351291418076,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.05551350116729736
+        }
+      ]
+    },
+    {
+      "elapsed_us": 577400,
+      "target_rad": 0.012497318350000002,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0347900390625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.00933837890625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.006744384765625
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.011888351291418076,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.05551350116729736
+        }
+      ]
+    },
+    {
+      "elapsed_us": 582401,
+      "target_rad": 0.01224731485,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0311279296875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0201416015625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.01348876953125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.02490234375
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.011888351291418076,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.09649962186813354
+        }
+      ]
+    },
+    {
+      "elapsed_us": 587400,
+      "target_rad": 0.01199732245,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0054931640625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0020751953125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.01348876953125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.011888351291418076,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.06744587421417236
+        }
+      ]
+    },
+    {
+      "elapsed_us": 592402,
+      "target_rad": 0.011747315249999998,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0128173828125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0311279296875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.03112894296646118
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.01971435546875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.011888351291418076,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.04824930429458618
+        }
+      ]
+    },
+    {
+      "elapsed_us": 597401,
+      "target_rad": 0.011497350650000002,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.010986328125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0164794921875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.015045166015625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.007781982421875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.011504855938255787,
+          "velocity_rad_s": -0.07671590149402618,
+          "torque_nm": 0.08819884061813354
+        }
+      ]
+    },
+    {
+      "elapsed_us": 602400,
+      "target_rad": 0.011247352699999998,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.032958984375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.012451171875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00103759765625
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.011888351291418076,
+          "velocity_rad_s": 0.07670167833566666,
+          "torque_nm": 0.03320413827896118
+        }
+      ]
+    },
+    {
+      "elapsed_us": 607401,
+      "target_rad": 0.010997325100000004,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.003662109375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": -0.0003834952076431364,
+          "velocity_rad_s": -0.07668519020080566,
+          "torque_nm": 0.0054931640625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0062255859375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.024383544921875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.011504855938255787,
+          "velocity_rad_s": -0.07668522000312805,
+          "torque_nm": 0.03476053476333618
+        }
+      ]
+    },
+    {
+      "elapsed_us": 612401,
+      "target_rad": 0.0107473059,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.00732421875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.07669740170240402,
+          "torque_nm": 0.076904296875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.004669189453125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.032684326171875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.011504855938255787,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.05240070819854736
+        }
+      ]
+    },
+    {
+      "elapsed_us": 617401,
+      "target_rad": 0.010497317199999998,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0347900390625
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.032958984375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.008819580078125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.011504855938255787,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.04617410898208618
+        }
+      ]
+    },
+    {
+      "elapsed_us": 622400,
+      "target_rad": 0.010247320149999996,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": -0.0003834952076431364,
+          "velocity_rad_s": -0.07669853419065475,
+          "torque_nm": -0.00732421875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.010894775390625
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.011121360585093498,
+          "velocity_rad_s": -0.07669828832149506,
+          "torque_nm": 0.02697855234146118
+        }
+      ]
+    },
+    {
+      "elapsed_us": 627400,
+      "target_rad": 0.009997350000000002,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.003662109375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0767093375325203,
+          "torque_nm": -0.003662109375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.004150390625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.004669189453125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.011121360585093498,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.06692707538604736
+        }
+      ]
+    },
+    {
+      "elapsed_us": 632401,
+      "target_rad": 0.0097473428,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0238037109375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0384521484375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.011932373046875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.009857177734375
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.011121360585093498,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.03579813241958618
+        }
+      ]
+    },
+    {
+      "elapsed_us": 637401,
+      "target_rad": 0.009497306899999999,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.018310546875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0347900390625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.003631591796875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.010894775390625
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.011121360585093498,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.01867777109146118
+        }
+      ]
+    },
+    {
+      "elapsed_us": 642400,
+      "target_rad": 0.009247359850000001,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0128173828125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.003662109375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00830078125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.01141357421875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.010737866163253784,
+          "velocity_rad_s": -0.07671429216861725,
+          "torque_nm": 0.009857177734375
+        }
+      ]
+    },
+    {
+      "elapsed_us": 647400,
+      "target_rad": 0.008997344300000001,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0146484375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.02197265625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.006744384765625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0103759765625
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.010737866163253784,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.02905374765396118
+        }
+      ]
+    },
+    {
+      "elapsed_us": 652400,
+      "target_rad": 0.008747356550000002,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00732421875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0018310546875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00518798828125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0103759765625
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.010354370810091496,
+          "velocity_rad_s": -0.07669571042060852,
+          "torque_nm": 0.02749735116958618
+        }
+      ]
+    },
+    {
+      "elapsed_us": 657400,
+      "target_rad": 0.008497321549999999,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0091552734375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0018310546875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.001556396484375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.02127176523208618
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.010354370810091496,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.03579813241958618
+        }
+      ]
+    },
+    {
+      "elapsed_us": 662400,
+      "target_rad": 0.008247354200000001,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.00732421875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.032958984375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.00311279296875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.003631591796875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.009970875456929207,
+          "velocity_rad_s": -0.07671106606721878,
+          "torque_nm": 0.06122028827667236
+        }
+      ]
+    },
+    {
+      "elapsed_us": 667401,
+      "target_rad": 0.007997318249999996,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0018310546875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0238037109375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.02023416757583618
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.01141357421875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.009970875456929207,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.05395710468292236
+        }
+      ]
+    },
+    {
+      "elapsed_us": 672401,
+      "target_rad": 0.00774731385,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0018310546875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.00732421875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00311279296875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0145263671875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.009587380103766918,
+          "velocity_rad_s": -0.07670140266418457,
+          "torque_nm": 0.02905374765396118
+        }
+      ]
+    },
+    {
+      "elapsed_us": 677400,
+      "target_rad": 0.007497316800000001,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00732421875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00311279296875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.001556396484375
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.009587380103766918,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.04150491952896118
+        }
+      ]
+    },
+    {
+      "elapsed_us": 682402,
+      "target_rad": 0.007247318849999997,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0201416015625
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0457763671875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0103759765625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.001556396484375
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.009587380103766918,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.000518798828125
+        }
+      ]
+    },
+    {
+      "elapsed_us": 687402,
+      "target_rad": 0.006997320949999997,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0128173828125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0128173828125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.00830078125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00311279296875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.00920388475060463,
+          "velocity_rad_s": -0.07669515907764435,
+          "torque_nm": 0.012451171875
+        }
+      ]
+    },
+    {
+      "elapsed_us": 692400,
+      "target_rad": 0.0067473137,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.025634765625
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.010986328125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.01141357421875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.020751953125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.00920388475060463,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.014007568359375
+        }
+      ]
+    },
+    {
+      "elapsed_us": 697401,
+      "target_rad": 0.006497338900000003,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0091552734375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0787353515625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.01712137460708618
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.03528034687042236
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.00920388475060463,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.014007568359375
+        }
+      ]
+    },
+    {
+      "elapsed_us": 702401,
+      "target_rad": 0.006247354849999998,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0128173828125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0091552734375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.01712137460708618
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.01815897226333618
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.00882038939744234,
+          "velocity_rad_s": -0.0767025351524353,
+          "torque_nm": -0.001556396484375
+        }
+      ]
+    },
+    {
+      "elapsed_us": 707401,
+      "target_rad": 0.005997318049999999,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.003662109375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.03662109375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.003631591796875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.010894775390625
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.00882038939744234,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0166015625
+        }
+      ]
+    },
+    {
+      "elapsed_us": 712400,
+      "target_rad": 0.005747321949999995,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0146484375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0640869140625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.004669189453125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.005706787109375
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.00882038939744234,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.000518798828125
+        }
+      ]
+    },
+    {
+      "elapsed_us": 717400,
+      "target_rad": 0.005497326750000003,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0018310546875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0018310546875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.004150390625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.00311279296875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.00882038939744234,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.06848347187042236
+        }
+      ]
+    },
+    {
+      "elapsed_us": 722402,
+      "target_rad": 0.0052472992,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0201416015625
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0018310546875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.00311279296875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.008819580078125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.00882038939744234,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.06485188007354736
+        }
+      ]
+    },
+    {
+      "elapsed_us": 727401,
+      "target_rad": 0.004997325299999994,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.040283203125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0494384765625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.004150390625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.03164774179458618
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.008436894975602627,
+          "velocity_rad_s": -0.07671315222978592,
+          "torque_nm": -0.07885944843292236
+        }
+      ]
+    },
+    {
+      "elapsed_us": 732400,
+      "target_rad": 0.004747319050000004,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0091552734375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.018310546875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0020751953125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.02230936288833618
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.008436894975602627,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.09131062030792236
+        }
+      ]
+    },
+    {
+      "elapsed_us": 737400,
+      "target_rad": 0.0044973211,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0018310546875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": -0.0003834952076431364,
+          "velocity_rad_s": -0.07669143378734589,
+          "torque_nm": -0.0128173828125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0062255859375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.003631591796875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.008436894975602627,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.11517739295959473
+        }
+      ]
+    },
+    {
+      "elapsed_us": 742401,
+      "target_rad": 0.004247357399999999,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0146484375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.07670648396015167,
+          "torque_nm": 0.029296875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.002593994140625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.02179056406021118
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.008436894975602627,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.04721271991729736
+        }
+      ]
+    },
+    {
+      "elapsed_us": 747400,
+      "target_rad": 0.003997346499999999,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0018310546875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0640869140625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0020751953125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0166015625
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.008436894975602627,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.10947060585021973
+        }
+      ]
+    },
+    {
+      "elapsed_us": 752400,
+      "target_rad": 0.0037473522500000023,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.032958984375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0054931640625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.00311279296875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00726318359375
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.008436894975602627,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.14215493202209473
+        }
+      ]
+    },
+    {
+      "elapsed_us": 757402,
+      "target_rad": 0.0034973153999999992,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0128173828125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.003662109375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0020751953125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00518798828125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.008053399622440338,
+          "velocity_rad_s": -0.07668834924697876,
+          "torque_nm": -0.10895180702209473
+        }
+      ]
+    },
+    {
+      "elapsed_us": 762402,
+      "target_rad": 0.0032473147000000036,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0091552734375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0238037109375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.00518798828125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.011932373046875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.008053399622440338,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.10376381874084473
+        }
+      ]
+    },
+    {
+      "elapsed_us": 767400,
+      "target_rad": 0.002997327850000002,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.003662109375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0201416015625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.00311279296875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.01348876953125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.008053399622440338,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.12710976600646973
+        }
+      ]
+    },
+    {
+      "elapsed_us": 772400,
+      "target_rad": 0.002747320649999996,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0128173828125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": -0.0003834952076431364,
+          "velocity_rad_s": -0.07669967412948608,
+          "torque_nm": 0.040283203125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.001556396484375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0269775390625
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.008053399622440338,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.12244057655334473
+        }
+      ]
+    },
+    {
+      "elapsed_us": 777400,
+      "target_rad": 0.0024973272999999976,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0146484375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.07670450210571289,
+          "torque_nm": 0.0091552734375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.015045166015625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.02749735116958618
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0076699042692780495,
+          "velocity_rad_s": -0.07670509815216064,
+          "torque_nm": -0.13904213905334473
+        }
+      ]
+    },
+    {
+      "elapsed_us": 782401,
+      "target_rad": 0.0022473163999999976,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.018310546875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.003662109375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.00726318359375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.008053399622440338,
+          "velocity_rad_s": 0.0766877681016922,
+          "torque_nm": -0.11517739295959473
+        }
+      ]
+    },
+    {
+      "elapsed_us": 787400,
+      "target_rad": 0.0019973267999999975,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.018310546875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.040283203125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.000518798828125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.004150390625
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0076699042692780495,
+          "velocity_rad_s": -0.07670766115188599,
+          "torque_nm": -0.12762856483459473
+        }
+      ]
+    },
+    {
+      "elapsed_us": 792401,
+      "target_rad": 0.0017473057,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0146484375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.010986328125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.00311279296875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.001556396484375
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0076699042692780495,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.14526772499084473
+        }
+      ]
+    },
+    {
+      "elapsed_us": 797400,
+      "target_rad": 0.0014973521999999961,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0274658203125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0457763671875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00103759765625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0103759765625
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0076699042692780495,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.12814736366271973
+        }
+      ]
+    },
+    {
+      "elapsed_us": 802400,
+      "target_rad": 0.0012473588999999952,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0146484375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": -0.0003834952076431364,
+          "velocity_rad_s": -0.07669796794652939,
+          "torque_nm": 0.05859375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": 0.0003834952076431364,
+          "velocity_rad_s": 0.07669853419065475,
+          "torque_nm": 0.000518798828125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.007781982421875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0076699042692780495,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.16135048866271973
+        }
+      ]
+    },
+    {
+      "elapsed_us": 807401,
+      "target_rad": 0.0009973155499999956,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00732421875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0766829252243042,
+          "torque_nm": -0.0531005859375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": -0.07668235898017883,
+          "torque_nm": -0.005706787109375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.009857177734375
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.007286408916115761,
+          "velocity_rad_s": -0.07668180018663406,
+          "torque_nm": -0.1898864507675171
+        }
+      ]
+    },
+    {
+      "elapsed_us": 812401,
+      "target_rad": 0.0007473231499999997,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.010986328125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0384521484375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.014007568359375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.000518798828125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.007286408916115761,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.1727660894393921
+        }
+      ]
+    },
+    {
+      "elapsed_us": 817401,
+      "target_rad": 0.0004973159500000005,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0164794921875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.010986328125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.00518798828125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.016082763671875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.007286408916115761,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.1919616460800171
+        }
+      ]
+    },
+    {
+      "elapsed_us": 822401,
+      "target_rad": 0.0002473161500000029,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.010986328125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.040283203125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.015045166015625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.01141357421875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.007286408916115761,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.1878112554550171
+        }
+      ]
+    },
+    {
+      "elapsed_us": 827400,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0054931640625
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0091552734375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.004669189453125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.004150390625
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.006902913562953472,
+          "velocity_rad_s": -0.07670196890830994,
+          "torque_nm": -0.1727660894393921
+        }
+      ]
+    },
+    {
+      "elapsed_us": 832400,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0054931640625
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.06591796875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.000518798828125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.015045166015625
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.006902913562953472,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.1748412847518921
+        }
+      ]
+    },
+    {
+      "elapsed_us": 837401,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.00732421875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0164794921875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0062255859375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.012451171875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.006519418675452471,
+          "velocity_rad_s": -0.07669705897569656,
+          "torque_nm": -0.1748412847518921
+        }
+      ]
+    },
+    {
+      "elapsed_us": 842400,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.032958984375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.010986328125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.000518798828125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.006519418675452471,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.1753600835800171
+        }
+      ]
+    },
+    {
+      "elapsed_us": 847399,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.032958984375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.003662109375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.009857177734375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.010894775390625
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.006135923322290182,
+          "velocity_rad_s": -0.07670056074857712,
+          "torque_nm": -0.1857360601425171
+        }
+      ]
+    },
+    {
+      "elapsed_us": 852400,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.003662109375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.003662109375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.002593994140625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.021270751953125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.006135923322290182,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.2085632085800171
+        }
+      ]
+    },
+    {
+      "elapsed_us": 857401,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.018310546875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": -0.0003834952076431364,
+          "velocity_rad_s": -0.07667666673660278,
+          "torque_nm": 0.0091552734375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.03216654062271118
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.006135923322290182,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.1846984624862671
+        }
+      ]
+    },
+    {
+      "elapsed_us": 862401,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.010986328125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.07669937610626221,
+          "torque_nm": -0.003662109375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.011932373046875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.015045166015625
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.006135923322290182,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.16394448280334473
+        }
+      ]
+    },
+    {
+      "elapsed_us": 867400,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0091552734375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0018310546875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00103759765625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.01141357421875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.006135923322290182,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.13644814491271973
+        }
+      ]
+    },
+    {
+      "elapsed_us": 872400,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0091552734375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0164794921875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.001556396484375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.004669189453125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0057524279691278934,
+          "velocity_rad_s": -0.07669629156589508,
+          "torque_nm": -0.16135048866271973
+        }
+      ]
+    },
+    {
+      "elapsed_us": 877400,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0054931640625
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0238037109375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": 0.0003834952076431364,
+          "velocity_rad_s": 0.07669796794652939,
+          "torque_nm": 0.01660257577896118
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00311279296875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0057524279691278934,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.1955932378768921
+        }
+      ]
+    },
+    {
+      "elapsed_us": 882401,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0091552734375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0091552734375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": -0.07669512927532196,
+          "torque_nm": -0.009857177734375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0020751953125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0057524279691278934,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.13541054725646973
+        }
+      ]
+    },
+    {
+      "elapsed_us": 887401,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0274658203125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.06775259971618652
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.009857177734375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.05291950702667236
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0057524279691278934,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.14630532264709473
+        }
+      ]
+    },
+    {
+      "elapsed_us": 892401,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.010986328125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0238037109375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": 0.0003834952076431364,
+          "velocity_rad_s": 0.07670024037361145,
+          "torque_nm": 0.00518798828125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.009857177734375
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.0057524279691278934,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.1940368413925171
+        }
+      ]
+    },
+    {
+      "elapsed_us": 897400,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.003662109375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0201416015625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": -0.07671387493610382,
+          "torque_nm": 0.00311279296875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.008819580078125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.005368933081626892,
+          "velocity_rad_s": -0.07671353965997696,
+          "torque_nm": -0.1691344976425171
+        }
+      ]
+    },
+    {
+      "elapsed_us": 902400,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0054931640625
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0128173828125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.007781982421875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.010894775390625
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.005368933081626892,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.16135048866271973
+        }
+      ]
+    },
+    {
+      "elapsed_us": 907400,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0091552734375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0201416015625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00103759765625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.03579914569854736
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.005368933081626892,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.16498208045959473
+        }
+      ]
+    },
+    {
+      "elapsed_us": 912400,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0238037109375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0201416015625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": 0.0003834952076431364,
+          "velocity_rad_s": 0.07668859511613846,
+          "torque_nm": 0.001556396484375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0145263671875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.005368933081626892,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.1779540777206421
+        }
+      ]
+    },
+    {
+      "elapsed_us": 917400,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0091552734375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0091552734375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": -0.07669796794652939,
+          "torque_nm": 0.01660257577896118
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0145263671875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.005368933081626892,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.1763976812362671
+        }
+      ]
+    },
+    {
+      "elapsed_us": 922401,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0164794921875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0018310546875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": 0.0003834952076431364,
+          "velocity_rad_s": 0.07669626176357269,
+          "torque_nm": 0.00830078125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.015045166015625
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.005368933081626892,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.1961120367050171
+        }
+      ]
+    },
+    {
+      "elapsed_us": 927401,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0347900390625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": -0.07669967412948608,
+          "torque_nm": 0.004669189453125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.017120361328125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.005368933081626892,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.1966308355331421
+        }
+      ]
+    },
+    {
+      "elapsed_us": 932401,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0201416015625
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.00732421875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.003631591796875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.007781982421875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.005368933081626892,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.2013000249862671
+        }
+      ]
+    },
+    {
+      "elapsed_us": 937401,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00732421875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0274658203125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.016082763671875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.001556396484375
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.005368933081626892,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.15668129920959473
+        }
+      ]
+    },
+    {
+      "elapsed_us": 942400,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0311279296875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0164794921875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00103759765625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": 0.0003834952076431364,
+          "velocity_rad_s": 0.0767059326171875,
+          "torque_nm": 0.0020751953125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.005368933081626892,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.1929992437362671
+        }
+      ]
+    },
+    {
+      "elapsed_us": 947399,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00732421875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0018310546875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.001556396484375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": -0.07670506834983826,
+          "torque_nm": 0.00518798828125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.005368933081626892,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.1779540777206421
+        }
+      ]
+    },
+    {
+      "elapsed_us": 952401,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.018310546875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0311279296875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.015045166015625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0186767578125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.004985437728464603,
+          "velocity_rad_s": -0.0766943022608757,
+          "torque_nm": -0.1862548589706421
+        }
+      ]
+    },
+    {
+      "elapsed_us": 957402,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0146484375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": -0.0003834952076431364,
+          "velocity_rad_s": -0.07668120414018631,
+          "torque_nm": -0.003662109375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.01141357421875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.012451171875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.005368933081626892,
+          "velocity_rad_s": 0.07668039202690125,
+          "torque_nm": -0.1779540777206421
+        }
+      ]
+    },
+    {
+      "elapsed_us": 962401,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.025634765625
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.07670080661773682,
+          "torque_nm": -0.03662109375
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.001556396484375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.06018269062042236
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.005368933081626892,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.16135048866271973
+        }
+      ]
+    },
+    {
+      "elapsed_us": 967400,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0128173828125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.00732421875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.003631591796875
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.01971435546875
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.004985437728464603,
+          "velocity_rad_s": -0.0767059400677681,
+          "torque_nm": -0.1955932378768921
+        }
+      ]
+    },
+    {
+      "elapsed_us": 972401,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.003662109375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0201416015625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00726318359375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.02127176523208618
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.004985437728464603,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.16498208045959473
+        }
+      ]
+    },
+    {
+      "elapsed_us": 977400,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0128173828125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0567626953125
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.002593994140625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.01712137460708618
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.004985437728464603,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.1805480718612671
+        }
+      ]
+    },
+    {
+      "elapsed_us": 982400,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.040283203125
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0054931640625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.00518798828125
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0020751953125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.005368933081626892,
+          "velocity_rad_s": 0.07670224457979202,
+          "torque_nm": -0.15201210975646973
+        }
+      ]
+    },
+    {
+      "elapsed_us": 987400,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.003662109375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.02197265625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.001556396484375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.04721170663833618
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.004985437728464603,
+          "velocity_rad_s": -0.0767008513212204,
+          "torque_nm": -0.1727660894393921
+        }
+      ]
+    },
+    {
+      "elapsed_us": 992401,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.018310546875
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.00732421875
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.00103759765625
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.004669189453125
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.004985437728464603,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.15668129920959473
+        }
+      ]
+    },
+    {
+      "elapsed_us": 997400,
+      "target_rad": 0.0,
+      "feedback": [
+        {
+          "joint": "right_shoulder_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.0238037109375
+        },
+        {
+          "joint": "right_shoulder_roll",
+          "position_rad": 0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.0054931640625
+        },
+        {
+          "joint": "right_upper_arm_yaw",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.029052734375
+        },
+        {
+          "joint": "right_elbow_pitch",
+          "position_rad": -0.0,
+          "velocity_rad_s": 0.0,
+          "torque_nm": 0.02230936288833618
+        },
+        {
+          "joint": "right_lower_arm_yaw",
+          "position_rad": 0.004985437728464603,
+          "velocity_rad_s": 0.0,
+          "torque_nm": -0.2054504156112671
+        }
+      ]
+    }
+  ],
+  "stop_writes": 15,
+  "failed_stop_writes": 0
+}

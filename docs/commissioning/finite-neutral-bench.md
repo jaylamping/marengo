@@ -48,3 +48,7 @@ and returns with gains fixed for each owner, while other joints stay neutral.
 CLI `--kp` (10..30) and `--kd` (0.4..2.0) select the bounded tuning gains; defaults
 are 10 and 0.4. Use its
 `--confirm-motion` flag under the same session authorization policy.
+
+The [October 2 motion evidence](evidence/2026-10-02-right-arm-lower-yaw.md)
+records first deliberate lower-yaw response, the raw-velocity guard diagnosis
+and the bounded gain comparison. It also lists the remaining full-arm work.

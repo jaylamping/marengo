@@ -31,5 +31,8 @@ not current-reference permission or motion approval.
 
 The installed runtime binary, YAML, taught limits, URDF and calibration history
 were preserved. Their hashes and the source revision accompany the raw receipt
-and capture. Motor-power reset/timeout behavior and physical current-reference
-acquisition remain prerequisites for subsequent finite bench motion tests.
+and capture. This revision supplied no physical current-reference owner. The
+subsequent [neutral](2026-10-02-right-arm-neutral.md) and
+[lower-yaw](2026-10-02-right-arm-lower-yaw.md) evidence records the closed owner
+implementation and actual enabled tests. Motor-power reset/timeout behavior
+remains unmeasured.

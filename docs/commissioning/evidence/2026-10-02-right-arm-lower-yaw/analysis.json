@@ -1,0 +1,403 @@
+[
+  {
+    "folder": "yaw-2c5ef85-uSABqx",
+    "source": "2c5ef858de870253579b9a07c24c12c08801921e",
+    "started_utc": "2026-10-02T21:49:12Z",
+    "exit_status": 1,
+    "error": "lower-yaw bench: joint right_shoulder_roll: finite home bench measured velocity exceeds 0.25 rad/s",
+    "profile": {
+      "kd": 0.4,
+      "kp": 10.0,
+      "max_target_rad": 0.02,
+      "measured_home_drift_max_rad": 0.05,
+      "measured_velocity_max_rad_s": 0.25,
+      "other_joints_neutral": true
+    },
+    "hashes_unchanged": true,
+    "enable_counts_by_id": {
+      "1": 1,
+      "2": 1,
+      "3": 1,
+      "4": 1,
+      "5": 1
+    },
+    "gained_mit_counts_by_id": {},
+    "neighbors_neutral": true,
+    "all_feedforward_zero": true,
+    "status_fault_flags": {
+      "0": 135
+    },
+    "status_drive_modes": {
+      "0": 65,
+      "2": 70
+    },
+    "last_disable_after_first_enable_ms": 26.970863342285156,
+    "runtime_state": "MainPID=0\nActiveState=inactive"
+  },
+  {
+    "folder": "yaw-0f2bb72-J6R1sx",
+    "source": "0f2bb7200dfbca360ceb44b138dedc183c17c2cb",
+    "started_utc": "2026-10-02T21:54:20Z",
+    "exit_status": 0,
+    "error": "",
+    "profile": {
+      "kd": 0.4,
+      "kp": 10.0,
+      "max_target_rad": 0.02,
+      "measured_home_drift_max_rad": 0.05,
+      "measured_velocity_max_rad_s": 0.25,
+      "other_joints_neutral": true
+    },
+    "hashes_unchanged": true,
+    "enable_counts_by_id": {
+      "1": 1,
+      "2": 1,
+      "3": 1,
+      "4": 1,
+      "5": 1
+    },
+    "gained_mit_counts_by_id": {
+      "5": 195
+    },
+    "neighbors_neutral": true,
+    "all_feedforward_zero": true,
+    "status_fault_flags": {
+      "0": 1120
+    },
+    "status_drive_modes": {
+      "0": 65,
+      "2": 1055
+    },
+    "last_disable_after_first_enable_ms": 1004.9691200256348,
+    "runtime_state": "MainPID=0\nActiveState=inactive",
+    "tracking": {
+      "samples": 195,
+      "peak_position_rad": 0.0015339808305725455,
+      "final_position_rad": 0.0003834952076431364,
+      "rms_error_rad": 0.0096497217731322,
+      "max_canonical_velocity_rad_s": 0.07704968005418777,
+      "max_abs_reported_torque_nm": 0.24384254217147827,
+      "elapsed_us": 1000056,
+      "max_tick_delay_us": 55,
+      "stop_writes": 15,
+      "failed_stop_writes": 0
+    }
+  },
+  {
+    "folder": "yaw-0a99e61-CLyLXZ",
+    "source": "0a99e61ce197303115be79cdbf3eede9ade36bd2",
+    "started_utc": "2026-10-02T21:59:55Z",
+    "exit_status": 0,
+    "error": "",
+    "profile": {
+      "kd": 1.0,
+      "kp": 30.0,
+      "max_target_rad": 0.02,
+      "measured_home_drift_max_rad": 0.05,
+      "measured_velocity_max_rad_s": 0.25,
+      "other_joints_neutral": true,
+      "velocity_guard_joint": "right_lower_arm_yaw"
+    },
+    "hashes_unchanged": true,
+    "enable_counts_by_id": {
+      "1": 1,
+      "2": 1,
+      "3": 1,
+      "4": 1,
+      "5": 1
+    },
+    "gained_mit_counts_by_id": {
+      "5": 195
+    },
+    "neighbors_neutral": true,
+    "all_feedforward_zero": true,
+    "status_fault_flags": {
+      "0": 1120
+    },
+    "status_drive_modes": {
+      "0": 65,
+      "2": 1055
+    },
+    "last_disable_after_first_enable_ms": 1005.2070617675781,
+    "runtime_state": "MainPID=0\nActiveState=inactive",
+    "tracking": {
+      "samples": 195,
+      "peak_position_rad": 0.010737866163253784,
+      "final_position_rad": 0.0003834952076431364,
+      "rms_error_rad": 0.0054545872190430045,
+      "max_canonical_velocity_rad_s": 0.15352818369865417,
+      "max_abs_reported_torque_nm": 0.353313148021698,
+      "elapsed_us": 1000059,
+      "max_tick_delay_us": 60,
+      "stop_writes": 15,
+      "failed_stop_writes": 0
+    }
+  },
+  {
+    "folder": "yaw-0a99e61-9p6QxO",
+    "source": "0a99e61ce197303115be79cdbf3eede9ade36bd2",
+    "started_utc": "2026-10-02T22:02:39Z",
+    "exit_status": 1,
+    "error": "lower-yaw bench: joint right_lower_arm_yaw: finite home bench measured velocity exceeds 0.25 rad/s",
+    "profile": {
+      "kd": 0.4,
+      "kp": 30.0,
+      "max_target_rad": 0.02,
+      "measured_home_drift_max_rad": 0.05,
+      "measured_velocity_max_rad_s": 0.25,
+      "other_joints_neutral": true,
+      "velocity_guard_joint": "right_lower_arm_yaw"
+    },
+    "hashes_unchanged": true,
+    "enable_counts_by_id": {
+      "1": 1,
+      "2": 1,
+      "3": 1,
+      "4": 1,
+      "5": 1
+    },
+    "gained_mit_counts_by_id": {
+      "5": 60
+    },
+    "neighbors_neutral": true,
+    "all_feedforward_zero": true,
+    "status_fault_flags": {
+      "0": 445
+    },
+    "status_drive_modes": {
+      "0": 65,
+      "2": 380
+    },
+    "last_disable_after_first_enable_ms": 330.56092262268066,
+    "runtime_state": "MainPID=0\nActiveState=inactive"
+  },
+  {
+    "folder": "yaw-0a99e61-b3HXLY",
+    "source": "0a99e61ce197303115be79cdbf3eede9ade36bd2",
+    "started_utc": "2026-10-02T22:03:34Z",
+    "exit_status": 1,
+    "error": "lower-yaw bench: joint right_lower_arm_yaw: finite home bench measured velocity exceeds 0.25 rad/s",
+    "profile": {
+      "kd": 1.0,
+      "kp": 30.0,
+      "max_target_rad": 0.02,
+      "measured_home_drift_max_rad": 0.05,
+      "measured_velocity_max_rad_s": 0.25,
+      "other_joints_neutral": true,
+      "velocity_guard_joint": "right_lower_arm_yaw"
+    },
+    "hashes_unchanged": true,
+    "enable_counts_by_id": {
+      "1": 1,
+      "2": 1,
+      "3": 1,
+      "4": 1,
+      "5": 1
+    },
+    "gained_mit_counts_by_id": {
+      "5": 151
+    },
+    "neighbors_neutral": true,
+    "all_feedforward_zero": true,
+    "status_fault_flags": {
+      "0": 900
+    },
+    "status_drive_modes": {
+      "0": 65,
+      "2": 835
+    },
+    "last_disable_after_first_enable_ms": 785.6900691986084,
+    "runtime_state": "MainPID=0\nActiveState=inactive"
+  },
+  {
+    "folder": "yaw-0a99e61-xzfOIC",
+    "source": "0a99e61ce197303115be79cdbf3eede9ade36bd2",
+    "started_utc": "2026-10-02T22:04:45Z",
+    "exit_status": 1,
+    "error": "lower-yaw bench: joint right_lower_arm_yaw: finite home bench measured velocity exceeds 0.25 rad/s",
+    "profile": {
+      "kd": 2.0,
+      "kp": 30.0,
+      "max_target_rad": 0.02,
+      "measured_home_drift_max_rad": 0.05,
+      "measured_velocity_max_rad_s": 0.25,
+      "other_joints_neutral": true,
+      "velocity_guard_joint": "right_lower_arm_yaw"
+    },
+    "hashes_unchanged": true,
+    "enable_counts_by_id": {
+      "1": 1,
+      "2": 1,
+      "3": 1,
+      "4": 1,
+      "5": 1
+    },
+    "gained_mit_counts_by_id": {
+      "5": 81
+    },
+    "neighbors_neutral": true,
+    "all_feedforward_zero": true,
+    "status_fault_flags": {
+      "0": 550
+    },
+    "status_drive_modes": {
+      "0": 65,
+      "2": 485
+    },
+    "last_disable_after_first_enable_ms": 435.6210231781006,
+    "runtime_state": "MainPID=0\nActiveState=inactive"
+  },
+  {
+    "folder": "yaw-f2beb0e-isl5YO",
+    "source": "f2beb0e686619c0d3186089f8a2924443c098dd5",
+    "started_utc": "2026-10-02T22:13:44Z",
+    "exit_status": 0,
+    "error": "",
+    "profile": {
+      "kd": 0.4,
+      "kp": 30.0,
+      "max_target_rad": 0.02,
+      "measured_home_drift_max_rad": 0.05,
+      "measured_velocity_max_rad_s": 0.25,
+      "measured_velocity_source": "active_position_delta_per_drain_or_initial_raw;ready_raw",
+      "other_joints_neutral": true,
+      "velocity_guard_joint": "right_lower_arm_yaw"
+    },
+    "hashes_unchanged": true,
+    "enable_counts_by_id": {
+      "1": 1,
+      "2": 1,
+      "3": 1,
+      "4": 1,
+      "5": 1
+    },
+    "gained_mit_counts_by_id": {
+      "5": 195
+    },
+    "neighbors_neutral": true,
+    "all_feedforward_zero": true,
+    "status_fault_flags": {
+      "0": 1120
+    },
+    "status_drive_modes": {
+      "0": 65,
+      "2": 1055
+    },
+    "last_disable_after_first_enable_ms": 1004.863977432251,
+    "runtime_state": "MainPID=0\nActiveState=inactive",
+    "tracking": {
+      "samples": 195,
+      "peak_position_rad": 0.019942499697208405,
+      "final_position_rad": 0.006519418675452471,
+      "rms_error_rad": 0.005191005205466945,
+      "max_canonical_velocity_rad_s": 0.1534116417169571,
+      "max_abs_reported_torque_nm": 0.3891112804412842,
+      "elapsed_us": 1000056,
+      "max_tick_delay_us": 55,
+      "stop_writes": 15,
+      "failed_stop_writes": 0
+    }
+  },
+  {
+    "folder": "yaw-f2beb0e-R4DIL3",
+    "source": "f2beb0e686619c0d3186089f8a2924443c098dd5",
+    "started_utc": "2026-10-02T22:14:46Z",
+    "exit_status": 0,
+    "error": "",
+    "profile": {
+      "kd": 1.0,
+      "kp": 30.0,
+      "max_target_rad": 0.02,
+      "measured_home_drift_max_rad": 0.05,
+      "measured_velocity_max_rad_s": 0.25,
+      "measured_velocity_source": "active_position_delta_per_drain_or_initial_raw;ready_raw",
+      "other_joints_neutral": true,
+      "velocity_guard_joint": "right_lower_arm_yaw"
+    },
+    "hashes_unchanged": true,
+    "enable_counts_by_id": {
+      "1": 1,
+      "2": 1,
+      "3": 1,
+      "4": 1,
+      "5": 1
+    },
+    "gained_mit_counts_by_id": {
+      "5": 195
+    },
+    "neighbors_neutral": true,
+    "all_feedforward_zero": true,
+    "status_fault_flags": {
+      "0": 1120
+    },
+    "status_drive_modes": {
+      "0": 65,
+      "2": 1055
+    },
+    "last_disable_after_first_enable_ms": 1004.8680305480957,
+    "runtime_state": "MainPID=0\nActiveState=inactive",
+    "tracking": {
+      "samples": 195,
+      "peak_position_rad": 0.01534055732190609,
+      "final_position_rad": 0.006135923322290182,
+      "rms_error_rad": 0.004306255535102198,
+      "max_canonical_velocity_rad_s": 0.15346302092075348,
+      "max_abs_reported_torque_nm": 0.25577592849731445,
+      "elapsed_us": 1000056,
+      "max_tick_delay_us": 54,
+      "stop_writes": 15,
+      "failed_stop_writes": 0
+    }
+  },
+  {
+    "folder": "yaw-f2beb0e-fngbiM",
+    "source": "f2beb0e686619c0d3186089f8a2924443c098dd5",
+    "started_utc": "2026-10-02T22:16:02Z",
+    "exit_status": 0,
+    "error": "",
+    "profile": {
+      "kd": 2.0,
+      "kp": 30.0,
+      "max_target_rad": 0.02,
+      "measured_home_drift_max_rad": 0.05,
+      "measured_velocity_max_rad_s": 0.25,
+      "measured_velocity_source": "active_position_delta_per_drain_or_initial_raw;ready_raw",
+      "other_joints_neutral": true,
+      "velocity_guard_joint": "right_lower_arm_yaw"
+    },
+    "hashes_unchanged": true,
+    "enable_counts_by_id": {
+      "1": 1,
+      "2": 1,
+      "3": 1,
+      "4": 1,
+      "5": 1
+    },
+    "gained_mit_counts_by_id": {
+      "5": 195
+    },
+    "neighbors_neutral": true,
+    "all_feedforward_zero": true,
+    "status_fault_flags": {
+      "0": 1125
+    },
+    "status_drive_modes": {
+      "0": 65,
+      "2": 1060
+    },
+    "last_disable_after_first_enable_ms": 1004.8789978027344,
+    "runtime_state": "MainPID=0\nActiveState=inactive",
+    "tracking": {
+      "samples": 195,
+      "peak_position_rad": 0.012656090781092644,
+      "final_position_rad": 0.004985437728464603,
+      "rms_error_rad": 0.00489090016310531,
+      "max_canonical_velocity_rad_s": 0.1769721955060959,
+      "max_abs_reported_torque_nm": 0.27600908279418945,
+      "elapsed_us": 1000056,
+      "max_tick_delay_us": 53,
+      "stop_writes": 15,
+      "failed_stop_writes": 0
+    }
+  }
+]

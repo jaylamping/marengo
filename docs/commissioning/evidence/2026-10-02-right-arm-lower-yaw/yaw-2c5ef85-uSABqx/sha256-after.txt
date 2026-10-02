@@ -1,0 +1,7 @@
+15962f812047e80cbe05ffeb617be98877fe6b16a663ffd3aa6e815cd5a4d4de  /home/joey/marengo/target/release/motor-repl
+dd2ec386471224c43f3d0cde6c37cc9f95e1773eb3cf714cabd85ff57a2defa9  /opt/marengo/bin/marengo-pi
+2cf34da3a7f2b6acf8d3bde8f93177010297527169a12f42eca31e6b3f83a268  /opt/marengo/config/robot.yaml
+3382f2206231f88edd5dc5c2cfdea391ab4168d3d945210e32e4dc19ba7a6a1d  /opt/marengo/config/motors.yaml
+9df1c80840f428e7d076ce0d11b6e3acc567d04e46e517f3547d91fd6368ec21  /opt/marengo/config/control.yaml
+92dc86d8fef1293ed679d0ec1c632e7688199bc2685366f6119631ed6d963952  /opt/marengo/config/homing.yaml
+5ae926c28ec93f8a47c1acd64385a480e88d2e2dcb9044bf6db7e3140f99e0ff  /opt/marengo/assets/urdf/marengo.urdf
