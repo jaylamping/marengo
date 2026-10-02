@@ -32,7 +32,11 @@ profile is checked again after ordinary filtering, before any CAN transmission;
 an installed envelope clamp cannot widen it. The receipt's target is requested
 joint position; the passive capture records actual wire commands. The physical
 home-band guards inspect each raw pose, including the Ready enable flush, with
-absolute position <=0.05 rad and measured velocity <=0.25 rad/s. Ordinary limits,
+absolute position <=0.05 rad on every joint. The additional raw velocity ceiling
+of 0.25 rad/s applies to the commanded lower-yaw joint. Neutral neighbors use
+ordinary position-derived velocity guards; captured stationary shoulder feedback
+has noisy velocity estimates above 0.25 rad/s without corresponding displacement.
+Ordinary limits,
 faults and feedback watchdog remain effective. Finish/error/drop stops all five
 addresses and revokes the reference. There is one enable, no automatic re-arm.
 

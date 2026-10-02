@@ -730,7 +730,13 @@ impl<B: MotorBus> Supervisor<B> {
                 message: "neutral bench home drift exceeds 0.05 rad".into(),
             });
         }
-        if self.reference_authority.physical_bench_binding().is_some()
+        if self
+            .reference_authority
+            .physical_bench_binding()
+            .is_some_and(|binding| {
+                binding.output == super::physical_bench::BenchOutput::LowerYawStep
+            })
+            && motor.joint == super::physical_bench::LOWER_YAW
             && matches!(
                 context,
                 ReceiveContext::Operational | ReceiveContext::DisabledInspection

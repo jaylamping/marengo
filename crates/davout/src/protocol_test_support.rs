@@ -25,6 +25,8 @@ pub(crate) struct ProbeBus {
     pub(crate) drift_after_enable: bool,
     pub(crate) transient_drift: bool,
     pub(crate) transient_enable_drift: bool,
+    pub(crate) stationary_roll_velocity_spike: bool,
+    pub(crate) lower_yaw_velocity_spike: bool,
     pub(crate) suppress_active_params: bool,
     pub(crate) suppress_active_pose: bool,
     pub(crate) active_param_delay: Duration,
@@ -174,6 +176,14 @@ impl CanBus for ProbeBus {
             _ => None,
         };
         if let Some(response) = response {
+            let mut response = response;
+            if id.comm_type == 1
+                && ((self.stationary_roll_velocity_spike && id.device_id == 2)
+                    || (self.lower_yaw_velocity_spike && id.device_id == 5))
+            {
+                // Actual fault-free stationary Run frame from the first-motion capture.
+                response.data = [0x7F, 0xFF, 0x80, 0xF8, 0x80, 0x1D, 0, 0xF0];
+            }
             let is_version = frame.data[1] == 0xC4;
             let mut conflict = response.clone();
             conflict.id |= 2 << 22;

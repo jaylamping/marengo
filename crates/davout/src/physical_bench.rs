@@ -23,7 +23,7 @@ const OWNER_LIFETIME: Duration = Duration::from_secs(5);
 pub(super) const MAX_HOME_DRIFT: f64 = 0.05;
 const ENABLE_DURATION: Duration = Duration::from_millis(500);
 const YAW_STEP_DURATION: Duration = Duration::from_secs(1);
-const LOWER_YAW: &str = "right_lower_arm_yaw";
+pub(super) const LOWER_YAW: &str = "right_lower_arm_yaw";
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum BenchOutput {
@@ -1000,5 +1000,35 @@ mod tests {
             .iter()
             .filter(|f| f.id >> 24 == 1)
             .all(|f| f.data == [0x7F, 0xFF, 0x7F, 0xFF, 0, 0, 0, 0]));
+    }
+
+    #[test]
+    fn captured_stationary_roll_velocity_estimate_does_not_block_yaw_bootstrap() {
+        let root = AuditRoot::new();
+        let mut owner = owner_with_output(ProbeBus::default(), &root, BenchOutput::LowerYawStep);
+        owner.supervisor.bus.stationary_roll_velocity_spike = true;
+        owner
+            .begin(neutral(&owner.joints))
+            .expect("stationary pose spike is handled by ordinary feedback guards");
+        let feedback = owner
+            .tick(yaw_commands(&owner.joints))
+            .expect("bounded yaw tick");
+        let roll = feedback
+            .iter()
+            .find(|sample| sample.joint == "right_shoulder_roll")
+            .expect("roll feedback");
+        assert_eq!(roll.position_rad, 0.0);
+        assert_eq!(roll.velocity_rad_s, 0.0);
+        owner.finish().expect("stop");
+    }
+
+    #[test]
+    fn lower_yaw_profile_velocity_guard_still_stops_its_commanded_joint() {
+        let root = AuditRoot::new();
+        let mut owner = owner_with_output(ProbeBus::default(), &root, BenchOutput::LowerYawStep);
+        owner.supervisor.bus.lower_yaw_velocity_spike = true;
+        assert!(owner.begin(neutral(&owner.joints)).is_err());
+        assert!(owner.closed);
+        assert_eq!(owner.supervisor.mode(), OperationalMode::Disabled);
     }
 }
