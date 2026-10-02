@@ -1,0 +1,28 @@
+{
+  "verdict": "CAN_ERROR_REPRODUCED",
+  "capture_SHA256": "60f1c22cfe243fca3b11a7d7a8a76a55645a9c32c194a44b53b0db10ec43fcb3",
+  "captured_seconds": 59.99429392814636,
+  "frames": 30709,
+  "error_frames": [
+    "(1790953826.059163) can0 20000004#0001000000000000",
+    "(1790953852.051162) can0 20000004#0001000000000000"
+  ],
+  "rx_over_errors_before_after": [
+    399,
+    401
+  ],
+  "periodic_feedback_frames_by_motor": {
+    "3": 5995,
+    "1": 5995,
+    "2": 5995,
+    "5": 5996,
+    "4": 5996
+  },
+  "reporting_requests": 305,
+  "request_gap_ms_min_median_max": [
+    0.2651214599609375,
+    0.30612945556640625,
+    1000.2188682556152
+  ],
+  "limits": "Software delivery timestamps; bounded observation only. No physical recovery, reference, stop or motion acceptance."
+}

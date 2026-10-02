@@ -1,0 +1,17 @@
+{
+  "recorded_UTC": "2026-10-02T16:27:18.688198+00:00",
+  "installed_revision": "0a3fc6bb0dd7ab652d97fd2efb7bb46ceee517c4 2026-10-02T15:37:47Z",
+  "source": "0a3fc6bb0dd7ab652d97fd2efb7bb46ceee517c4",
+  "source_clean": true,
+  "HTTPS_status": 200,
+  "explicitly_trusted_local_certificate": true,
+  "index_matches_installed_www": true,
+  "index_SHA256": "dcb7f0256f841bf152c4077d1c52133f12aaef11126b78e50bd7cd5a17d40215",
+  "mode": "Disabled",
+  "faulted_joints": 0,
+  "unhomed_joints": 5,
+  "software_latch": false,
+  "CAN0_rx_over_errors": 487,
+  "services": "MainPID=649684\nNRestarts=0\nId=marengo-pi.service\nActiveState=active\nSubState=running\n\nMainPID=648749\nNRestarts=0\nId=marengo-gateway.service\nActiveState=active\nSubState=running\n\nMainPID=0\nNRestarts=0\nId=marengo-can.service\nActiveState=active\nSubState=exited\n",
+  "physical_motion_acceptance": false
+}

@@ -1,0 +1,25 @@
+{
+  "verdict": "NO_CAN_ERROR_IN_BOUNDED_WINDOW",
+  "capture_SHA256": "f616c701e4d39f929dce15ebb36f1de84b41d77f55a9c8143e7beaa832f91f1a",
+  "captured_seconds": 299.99826097488403,
+  "frames": 152940,
+  "error_frames": [],
+  "rx_over_errors_before_after": [
+    487,
+    487
+  ],
+  "periodic_feedback_frames_by_motor": {
+    "5": 29984,
+    "3": 29979,
+    "2": 29977,
+    "1": 29977,
+    "4": 29983
+  },
+  "reporting_requests": 1505,
+  "request_gap_ms_min_median_max": [
+    0.29206275939941406,
+    5.058050155639648,
+    1001.3158321380615
+  ],
+  "limits": "Software delivery timestamps; bounded observation only. No physical recovery, reference, stop or motion acceptance."
+}

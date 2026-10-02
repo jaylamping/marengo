@@ -1,3 +1,33 @@
+# Windows continuation - 2026-10-02, batch37 pacing comparison qualified
+
+Source0a3fc6b/PR251 spaces healthy reporting refresh attempts by5ms and rotates
+after failed writes; initial/stale/Off remain immediate. Three frozen original
+assertion failures become unchanged candidate passes; primary/native889Rust/
+1existingignored/374UI, strict/fatal ARM and all-five sourceCI37026990187 pass.
+Both source reviews CLEAR. Final evidence-head review/CI/delivery remain pending.
+
+Pi source/installed0a3fc6b clean,214 hashes and all taught limits/actual identities/
+calibration/env/Store3/HTTPS verify. At16:27:18Z services active, Disabled/all five
+Unhomed, overflow counter487; no physical reference grant or motion commanded.
+Lower yaw remains outside its preserved envelope. Prior releases/Git/Store/runtime
+backups, CAD/history/branches/worktrees and paused automation are retained.
+
+The CAN comparison does not establish a reliability fix. Earlier A1 has2 captured
+RX-overflow errors; candidate faults256.070s after initial startup outside its
+first60s capture,486→487. Matched quiet B1/A2/B2 each have0errors/300s, so both
+versions pass the bounded oracle. Median request gap changes0.306→5.058ms.
+All3573 comparison observation files plus36 activation files verify in retained
+archives. See batch37-reporting-pacing-comparison.md and evidence/batch37.
+
+Next expose retained owner raw envelope and isolate IRQ/SPI servicing/workload,
+then qualify physical device/reference/priority stop and commissioning before a
+concrete explicitly confirmed right-arm test. Powered supported setup is already
+authorized; no reply pending. Actual E-stop wiring remains unknown. Ten-minute
+silence allows independent work only. Counts102/eight/26/13/63 unchanged;
+historical batch16 stays preserved. Earlier checkpoints are an exact suffix.
+
+---
+
 # Windows continuation - 2026-10-02, PR250 delivered
 
 B35/B36 review records PR250 delivered: reviewed427497f, merged main19b983a,
