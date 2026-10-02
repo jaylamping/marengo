@@ -1,0 +1,344 @@
+{
+  "source": "2d0fd4088b0ca0301b2e27b07560b54b40ec61ca",
+  "main_code_delivery": "ba0fff7206877943fbca0f79b18d59089d5d4a24",
+  "files": [
+    {
+      "name": "source-qualification.json",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\source-qualification.json",
+      "original_SHA256": "9c5286e25b5c2d0819b7b38fc4e9f39a605c3c4efdafd3dcec4df186d6c5def4",
+      "committed_SHA256": "1b847f74263d232c23afc9b1c650abecbb41f77f58218da7709b1dd8834ab183",
+      "bytes": 2563,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "source-reviews.json",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\source-reviews.json",
+      "original_SHA256": "7597eb29c74e1885f21754d02433b1b68ccd6e718ac6c7dddfc2180dd373ee80",
+      "committed_SHA256": "80784fba64349f8766779f08304cbde5c39a3a4a8be2eece91cc2c028d01abff",
+      "bytes": 679,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "source-ci.json",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\source-ci.json",
+      "original_SHA256": "7d3827ea9d2f6f850db127e5904f4be3b1e2f5b43aca2b77ad7e2e5b24d425c3",
+      "committed_SHA256": "11caf11bb4e0ea33114c163381d3f85a509b0a802bbd39b47048853fb6c13e4a",
+      "bytes": 10693,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "main-ci.json",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\main-ci.json",
+      "original_SHA256": "4a02b0c2387f76ecd6b5dd23bcc83ed07e8f476be8b367267f7ac55093ee68b3",
+      "committed_SHA256": "4798e56d6ec021dafe4511bb2bcbb6ab9282483907b8dc270ac75bdf492ddb29",
+      "bytes": 10730,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "merge-receipt.json",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\merge-receipt.json",
+      "original_SHA256": "ee3fdc5a39e6afb4c2d24c7f93a359684f50db5ac6dbe9ccc9512bd32b354afb",
+      "committed_SHA256": "d62add77a95e2cccf5d6a7d0c490ca65232acda64898e851c912b9a1687b3815",
+      "bytes": 242,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "probe-freeze.json",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\probe-freeze.json",
+      "original_SHA256": "015f880f2d679713ba20a8bac7661cb1bb9669f546b031bb6409f32d19fd9b80",
+      "committed_SHA256": "d5281d2d38dc0a002aec5a6f1def932923638c39fbcd53388b8fafdfb88c8de3",
+      "bytes": 373,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "regression-receipt.json",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\regression-receipt.json",
+      "original_SHA256": "f223632ff37e4e031fa4ba4e8c5b85e613ec14db0fa3d4613815df490c971320",
+      "committed_SHA256": "b6d03921ad16a7dfac6ffd2ba35d3b2f27ddbfcaf986348bbe36673fa2c4a2e8",
+      "bytes": 856,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "baseline-regression.json",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\baseline-regression.json",
+      "original_SHA256": "f5f77c5b1021d99ec4579924ab6565494b877e4e14a79e23553daf6fef76d23f",
+      "committed_SHA256": "259805837558c407cc7b05d7b6419a51585f44b5f8101d0340873021ff854a23",
+      "bytes": 618,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "release-bundle-receipt.json",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\release-bundle-receipt.json",
+      "original_SHA256": "ee0415e9588d39568f4b0f3ab4166462ed6ba448cd07c4f664bc9699e2d389e4",
+      "committed_SHA256": "e66a074121ff67e78f50156f09c5c66d01c68d36501cc8654281dffb9d8cf843",
+      "bytes": 1281,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "update-preparation.json",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\update-preparation.json",
+      "original_SHA256": "669109a027e90ada6791ad3114b43494836d9584e6151c74cb4aba41ac8f4e6b",
+      "committed_SHA256": "669109a027e90ada6791ad3114b43494836d9584e6151c74cb4aba41ac8f4e6b",
+      "bytes": 2566,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "physical-observation.json",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\physical-observation.json",
+      "original_SHA256": "f3c189f34fa23997a6f1e10178096311d39e8ed8566548a58aa0a4177e632534",
+      "committed_SHA256": "8ce54f7db243f602cc31501014b8537bf5cfd7909230bce503659bb3b5ab788e",
+      "bytes": 1348,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "passive-owner-analysis.json",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\passive-owner-analysis.json",
+      "original_SHA256": "8bbfe3ec818fa44d8479e6210f5695e77dc8f597962e7544e063a5e2bf23ae18",
+      "committed_SHA256": "459cf57e1fd9c49b03aab16baad80315393b87b60c46b3e7bd7a9f7017e6ebb9",
+      "bytes": 1080,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "pi-code-main-sync-receipt.json",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\pi-code-main-sync-receipt.json",
+      "original_SHA256": "4536563b852f5153eca6e11a306d67c9df31e12313ef5ba37088626248443fde",
+      "committed_SHA256": "4536563b852f5153eca6e11a306d67c9df31e12313ef5ba37088626248443fde",
+      "bytes": 2753,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "primary-sync-preservation.json",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\primary-sync-preservation.json",
+      "original_SHA256": "3bb3fa28e3841ea2f70caf1013b370bcb4a839604804b20187bc6531ab84ec13",
+      "committed_SHA256": "37b3c77759dec0d0559ab503641977afa0c1ff2b05f2dc8b35ab65ec7e44cbd8",
+      "bytes": 1023,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "pi-observation-archive.json",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\pi-observation-archive.json",
+      "original_SHA256": "359e1a76eaa620ce898674b09fbbcd3af0fe21a54a6a8354af837596add9fbf4",
+      "committed_SHA256": "359e1a76eaa620ce898674b09fbbcd3af0fe21a54a6a8354af837596add9fbf4",
+      "bytes": 5788,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "batch38-passive-owner-20261002-archive.json",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\batch38-passive-owner-20261002-archive.json",
+      "original_SHA256": "1c5fb4637c9ae9cda7a3f477c611b07076b2ce054161fb4abe893f8b53579712",
+      "committed_SHA256": "1c5fb4637c9ae9cda7a3f477c611b07076b2ce054161fb4abe893f8b53579712",
+      "bytes": 1416,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "capture-passive-owner.py",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\capture-passive-owner.py",
+      "original_SHA256": "bfdf7fd1fddb4f7554d4f0e293f081fe73db23a4f56e46885efd66799a770565",
+      "committed_SHA256": "bfdf7fd1fddb4f7554d4f0e293f081fe73db23a4f56e46885efd66799a770565",
+      "bytes": 4149,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "verify-passive-archive.py",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\verify-passive-archive.py",
+      "original_SHA256": "06c5a97c8061dbb043752a59af3b941304056d307fa04f3800feee4ab4f59634",
+      "committed_SHA256": "06c5a97c8061dbb043752a59af3b941304056d307fa04f3800feee4ab4f59634",
+      "bytes": 3581,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "sync-pi-source-only.py",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\sync-pi-source-only.py",
+      "original_SHA256": "3542e0ae418a68871ca6fcb9659c85733825005bda72536a64f1a14f0d762f29",
+      "committed_SHA256": "3542e0ae418a68871ca6fcb9659c85733825005bda72536a64f1a14f0d762f29",
+      "bytes": 6378,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "primary-runner-2d0fd40.sh",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\primary-runner-2d0fd40.sh",
+      "original_SHA256": "e9bea68b968caf62927062823274ebf86629c64cc39e75bf10f1e4b59f069225",
+      "committed_SHA256": "e9bea68b968caf62927062823274ebf86629c64cc39e75bf10f1e4b59f069225",
+      "bytes": 897,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "pi-native-2d0fd40.sh",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\pi-native-2d0fd40.sh",
+      "original_SHA256": "4239cf7a51fab5ce88525d1fedb5e826420d72beb46e4ec7c7156fdffb4e5bf5",
+      "committed_SHA256": "4239cf7a51fab5ce88525d1fedb5e826420d72beb46e4ec7c7156fdffb4e5bf5",
+      "bytes": 2773,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "activate-candidate.py",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\activate-candidate.py",
+      "original_SHA256": "d6ba21e48bf492a6a5571e6b2d00a4b1753f7fc4763e191d9b227806a81cdf48",
+      "committed_SHA256": "d6ba21e48bf492a6a5571e6b2d00a4b1753f7fc4763e191d9b227806a81cdf48",
+      "bytes": 6640,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "verify-installed-candidate.py",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\verify-installed-candidate.py",
+      "original_SHA256": "3174d25027dd3c2f3cd83e13e99495b5787cb4d9dea2c588035d89510bc1730c",
+      "committed_SHA256": "3174d25027dd3c2f3cd83e13e99495b5787cb4d9dea2c588035d89510bc1730c",
+      "bytes": 5063,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "analyze-physical-observation.py",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\analyze-physical-observation.py",
+      "original_SHA256": "2d5ca2efd5671a37f7508f2c962fe627ec9456810753c6d4a17b303b6c4d847c",
+      "committed_SHA256": "2d5ca2efd5671a37f7508f2c962fe627ec9456810753c6d4a17b303b6c4d847c",
+      "bytes": 3363,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "frozen-receive-diagnostics-tests.rs",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\frozen-receive-diagnostics-tests.rs",
+      "original_SHA256": "139022845c7803f55051f93cac44ad2fd34ec3e169da41cb768bb917db6cd839",
+      "committed_SHA256": "139022845c7803f55051f93cac44ad2fd34ec3e169da41cb768bb917db6cd839",
+      "bytes": 9428,
+      "normalization": "none"
+    },
+    {
+      "name": "activation-receipt.json",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\pi-observation\\activation-receipt.json",
+      "original_SHA256": "74476d9ee73ecdee471e1d0f5d5ad73494625fc34423b204ec520a59f31fd126",
+      "committed_SHA256": "74476d9ee73ecdee471e1d0f5d5ad73494625fc34423b204ec520a59f31fd126",
+      "bytes": 562,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "post-install-file-verification.json",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\pi-observation\\post-install-file-verification.json",
+      "original_SHA256": "a161d6fb80ecbe6bdd067d277de12db736e6cc30a50ea595385653160cf9e62e",
+      "committed_SHA256": "a161d6fb80ecbe6bdd067d277de12db736e6cc30a50ea595385653160cf9e62e",
+      "bytes": 4491,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "fresh-live-verification.json",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\pi-observation\\fresh-live-verification.json",
+      "original_SHA256": "8eef62699be46e23dd5ea8e0fbbc13363a9c8371c14151c40780b8cec22ae67e",
+      "committed_SHA256": "8eef62699be46e23dd5ea8e0fbbc13363a9c8371c14151c40780b8cec22ae67e",
+      "bytes": 878,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "install-candidate.txt",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\pi-observation\\install-candidate.txt",
+      "original_SHA256": "36d548c5969666cb0018908f2aeb7188020f064e6d2643cc92fcdad799eb864d",
+      "committed_SHA256": "36d548c5969666cb0018908f2aeb7188020f064e6d2643cc92fcdad799eb864d",
+      "bytes": 1585,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "limit-preview-receipt.json",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\pi-observation\\limit-preview-receipt.json",
+      "original_SHA256": "891b4967841bce184fb308c31b69c182e0311fac9a0b79c62d8aac708c8cf5c5",
+      "committed_SHA256": "891b4967841bce184fb308c31b69c182e0311fac9a0b79c62d8aac708c8cf5c5",
+      "bytes": 15011,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "fresh-state.pb",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\pi-observation\\fresh-state.pb",
+      "original_SHA256": "5bba3c3c2c60728620fc44e963fbac7aad653ca5bbeb670e9997dc743e055d3a",
+      "committed_SHA256": "5bba3c3c2c60728620fc44e963fbac7aad653ca5bbeb670e9997dc743e055d3a",
+      "bytes": 246,
+      "normalization": "none"
+    },
+    {
+      "name": "fresh-state.txt",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\pi-observation\\fresh-state.txt",
+      "original_SHA256": "4293da4caae73ae89afb706281c18ec929a08fab4d54f6788c969c5286141fc1",
+      "committed_SHA256": "4293da4caae73ae89afb706281c18ec929a08fab4d54f6788c969c5286141fc1",
+      "bytes": 861,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "fresh-safety.pb",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\pi-observation\\fresh-safety.pb",
+      "original_SHA256": "127c83f612b259182a94732128a1ff45fd2bab06c56a1ecae61b9591d802bcd9",
+      "committed_SHA256": "127c83f612b259182a94732128a1ff45fd2bab06c56a1ecae61b9591d802bcd9",
+      "bytes": 9,
+      "normalization": "none"
+    },
+    {
+      "name": "fresh-safety.txt",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\pi-observation\\fresh-safety.txt",
+      "original_SHA256": "5978815e025afe65c078ebe6b7e06ddf7189c2fb5c9c04165df41bbc196129b1",
+      "committed_SHA256": "5978815e025afe65c078ebe6b7e06ddf7189c2fb5c9c04165df41bbc196129b1",
+      "bytes": 60,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "fresh-services.txt",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\pi-observation\\fresh-services.txt",
+      "original_SHA256": "e12a618d51c049af62a4051a2714a54a83b6ce4245284b827937862ebfc47369",
+      "committed_SHA256": "e12a618d51c049af62a4051a2714a54a83b6ce4245284b827937862ebfc47369",
+      "bytes": 257,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "fresh-can0.json",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\pi-observation\\fresh-can0.json",
+      "original_SHA256": "579543f28a62c2e48aa81e916a7d126cb1c6532247aa7ecddcffb0828dd5c63a",
+      "committed_SHA256": "579543f28a62c2e48aa81e916a7d126cb1c6532247aa7ecddcffb0828dd5c63a",
+      "bytes": 662,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "passive-passive-owner-receipt.json",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\passive-owner-observation\\passive-owner-receipt.json",
+      "original_SHA256": "416b9ba1dc5526ea67481481931cf59550b0b74bb7aae3abe85f33d5e60a1e4a",
+      "committed_SHA256": "416b9ba1dc5526ea67481481931cf59550b0b74bb7aae3abe85f33d5e60a1e4a",
+      "bytes": 48417,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "passive-before-can0.json",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\passive-owner-observation\\before-can0.txt",
+      "original_SHA256": "67db3c9dd277df5835b986392981f702a8c86667eeb409873ce8aea57021bbec",
+      "committed_SHA256": "b7b8bb3e9a4fc404d2755d4026ff769d1a225df7c78066b7440ccd7c8ab64a9e",
+      "bytes": 1103,
+      "normalization": "Lossless JSON raw_UTF8 wrapper; original bytes reconstructed with UTF-8 encoding"
+    },
+    {
+      "name": "passive-after-can0.json",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\passive-owner-observation\\after-can0.txt",
+      "original_SHA256": "ab0dbb730c889b2ed082fedaf6b0d3ca7d06b58ecbb9c5d55bfe7871ecd1d6c9",
+      "committed_SHA256": "e00dc8d8c5ffb70c622eaae051865b57dab02e41531dc74269b21efd136f2cee",
+      "bytes": 1103,
+      "normalization": "Lossless JSON raw_UTF8 wrapper; original bytes reconstructed with UTF-8 encoding"
+    },
+    {
+      "name": "passive-change-00-safety.pb",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\passive-owner-observation\\change-00-safety.pb",
+      "original_SHA256": "d8d8320a744bf1e617c2021c6f48b1fac86570456372aa75d78a81f3ba3cb8e6",
+      "committed_SHA256": "d8d8320a744bf1e617c2021c6f48b1fac86570456372aa75d78a81f3ba3cb8e6",
+      "bytes": 9,
+      "normalization": "none"
+    },
+    {
+      "name": "passive-change-00-safety.txt",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\passive-owner-observation\\change-00-safety.txt",
+      "original_SHA256": "0da00ca3922911802e6f8f0d83a9f954695b379d89222d3467b8ffc39739476c",
+      "committed_SHA256": "0da00ca3922911802e6f8f0d83a9f954695b379d89222d3467b8ffc39739476c",
+      "bytes": 60,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    },
+    {
+      "name": "passive-journal.txt",
+      "original": "J:\\code\\marengo-migration-backup-20260929\\batch38-pi-receive-diagnostics\\passive-owner-observation\\journal.txt",
+      "original_SHA256": "19c4e28b2f54ea8f217db4e622b0a5c758efa7b77ce2dc0394b6d159568c0b2e",
+      "committed_SHA256": "19c4e28b2f54ea8f217db4e622b0a5c758efa7b77ce2dc0394b6d159568c0b2e",
+      "bytes": 17,
+      "normalization": "UTF-8 without BOM; CRLF to LF only"
+    }
+  ],
+  "lossless_log_encoding": "red-green-logs.json raw_UTF8 reconstructs original bytes, including final blank lines; original hashes asserted before commit",
+  "large_archives_and_full_validation_logs": "Retained externally with committed receipts/raw-log-bindings; private backup content not published"
+}

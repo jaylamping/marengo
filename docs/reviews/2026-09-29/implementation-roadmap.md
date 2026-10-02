@@ -1,3 +1,5 @@
+<!-- Current stopping point: October 2, 2026. Start with RIGHT-ARM-VALIDATION-HANDOFF.md and implementation-ledger.json active_windows_continuation. Earlier checkpoints below are historical. Owner requested goal pause after closing delivery; automation stays PAUSED. -->
+
 # Marengo implementation roadmap
 
 Started September 29, 2026 from main `52f12678277a2cae786d8df648f035895789f026`.
