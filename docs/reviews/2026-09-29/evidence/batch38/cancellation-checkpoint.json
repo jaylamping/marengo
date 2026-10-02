@@ -1,0 +1,20 @@
+{
+  "recorded_UTC": "2026-10-02T18:17:30.599913+00:00",
+  "branch": "codex/session-checkpoint-20261002",
+  "documentation_base": "416ea202dce19324659bd68e71338488358114ea",
+  "qualified_code_main": "ba0fff7206877943fbca0f79b18d59089d5d4a24",
+  "five_existing_files_committed_without_byte_changes": {
+    "assets/urdf/marengo.urdf": "b731020207572f3f03f94a7c9f307ba56395de5316367cf83e9a1eb940a0cfa3",
+    "config/control.yaml": "87f2476dc0b817ebce7224ce2e3cb2657511a2926e8a817980bc1bdcb696ec01",
+    "config/motors.yaml": "26887098db3d5651d221b0399326571bb2e457078b7c816d05bd8561226b83eb",
+    "config/robot.yaml": "7789904137a7b9473f1105544116fa0811bc07d8536636efa5437ce1cfd5684c",
+    "hardware/docs/kinematics.md": "2eba1c068647525ad26024050cf0cadc872a1cc46eacfc8695dbdab80108402b"
+  },
+  "new_checkpoint_edits_qualified": false,
+  "new_checkpoint_edits_deployed": false,
+  "Pi_source": "ba0fff7206877943fbca0f79b18d59089d5d4a24",
+  "Pi_installed_source": "2d0fd4088b0ca0301b2e27b07560b54b40ec61ca",
+  "goal_action": "Pause at explicit owner cancellation after saving checkpoint",
+  "automation_status": "PAUSED",
+  "physical_movement_commanded": false
+}

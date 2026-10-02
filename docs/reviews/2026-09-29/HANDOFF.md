@@ -1,3 +1,20 @@
+# Owner cancellation checkpoint — 2026-10-02
+
+The owner cancelled the active task and requested an immediate commit/push of
+all work so far. Read [CANCELLED-SESSION-CHECKPOINT.md](CANCELLED-SESSION-CHECKPOINT.md)
+first. Branch codex/session-checkpoint-20261002 includes the pushed handoff and
+all five previously uncommitted cap/model/kinematics edits. These new edits are
+saved work in progress, not a qualified/deployed robot release.
+
+Further review/CI waiting/merge/source-sync work stopped. PR252 is merged;
+PR253 remains the pushed documentation PR at this cancellation checkpoint.
+Pi source/runtime remainba0fff/2d0fd40; no physical movement or deployment of
+the newly saved edits. Pause the unfinished goal after committing/pushing;
+automation remains PAUSED. No human reply is pending.
+Earlier checkpoints below are historical and preserved as an exact suffix.
+
+---
+
 # Windows stopping point — 2026-10-02, PR252 delivered
 
 Start the new session with [RIGHT-ARM-VALIDATION-HANDOFF.md](RIGHT-ARM-VALIDATION-HANDOFF.md).

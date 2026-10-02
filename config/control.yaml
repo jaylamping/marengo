@@ -24,7 +24,9 @@ control:
     rs03:
       kp_max: 5000
       kd_max: 100
-      tau_ff_max_nm: 5.0
+      # 1.5x worst static shoulder load (arm horizontal + 0.5 kg payload = 5.7 N*m);
+      # RS03 rated 20 N*m continuous, 60 N*m peak.
+      tau_ff_max_nm: 9.0
       velocity_max_rad_s: 2.0
 
   actuator_groups:

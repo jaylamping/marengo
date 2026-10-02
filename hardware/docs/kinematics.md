@@ -90,7 +90,7 @@ Peak torque ratings from [ADR 0002](decisions/0002-robstride-protocol.md) (confi
 | **RS04** | 120 Nm | **4** | `left_hip_pitch`, `right_hip_pitch`, `left_knee`, `right_knee` |
 | **RS03** | 60 Nm | **9** | `left/right_hip_roll`, `left/right_hip_yaw`, `waist_yaw`, `left/right_shoulder_roll`, `left/right_shoulder_pitch` |
 | **RS02** | 17 Nm | **8** | `left/right_ankle_pitch`, `left/right_ankle_roll`, `left/right_upper_arm_yaw`, `left_elbow`, `right_elbow_pitch` |
-| **RS00** | 17 Nm | **2** | `left_wrist`, `right_lower_arm_yaw` |
+| **RS00** | 14 Nm | **2** | `left_wrist`, `right_lower_arm_yaw` |
 
 **Leg rationale:** RS04 on **inner hip pitch** (primary stance/swing load) and **knee** (single-support peaks, G1-class ~90 Nm knee). RS03 on **outer hip** roll/yaw. RS02 on ankles.
 
@@ -140,7 +140,7 @@ Same limits as left; roll/pitch signs follow right-hand URDF convention.
 | `left_shoulder_roll` | RS03 | pitch → left_shoulder_roll_link | X | -1.57 | 1.57 | 60 | Torso-mounted pitch; roll on arm sub-asm |
 | `left_upper_arm_yaw` | RS02 | pitch → left_upper_arm | Z | -1.57 | 1.57 | 17 | |
 | `left_elbow` | RS02 | upper_arm → left_forearm | Y | 0.0 | 2.5 | 17 | **Upright hazard** — verify G-comp sign |
-| `left_wrist` | RS00 | forearm → left_hand | Y | -1.6 | 1.6 | 17 | G1 wrist pitch band ~±92.5° |
+| `left_wrist` | RS00 | forearm → left_hand | Y | -1.6 | 1.6 | 14 | G1 wrist pitch band ~±92.5° |
 
 ### Right arm (5 DOF)
 
@@ -150,7 +150,7 @@ Same limits as left; roll/pitch signs follow right-hand URDF convention.
 | `right_shoulder_roll` | RS03 | pitch → right_shoulder_roll_link | X | -0.05 | 3.14159 | 60 |
 | `right_upper_arm_yaw` | RS02 | pitch → right_upper_arm | Z | -1.57 | 1.57 | 17 |
 | `right_elbow_pitch` | RS02 | upper_arm → right_forearm | Y | -0.50 | 1.2 | 17 | **Upright hazard** — verify G-comp sign |
-| `right_lower_arm_yaw` | RS00 | forearm → right_hand | Y | -1.6 | 1.6 | 17 |
+| `right_lower_arm_yaw` | RS00 | forearm → right_hand | Y | -1.6 | 1.6 | 14 |
 
 The promoted right-arm hard limits above match `assets/urdf/marengo.urdf`; Davout intersects them with the measured bounds in `config/motors.yaml`. URDF soft limits are pitch `[-0.872665, 3.20]`, roll `[-0.05, 3.14159]`, yaw `[-1.57, 1.57]`, and elbow `[-0.50, 1.15]` rad per [ADR 0009](../../docs/decisions/0009-dynamic-position-limit-envelope.md).
 
@@ -170,7 +170,7 @@ This promoted subset of humanoid arm kinematics is the live master model in
 | `right_shoulder_roll` | RS03 | pitch → right_shoulder_roll_link | X | -0.05 | 3.14159 | 60 | Soft equals hard |
 | `right_upper_arm_yaw` | RS02 | roll → right_upper_arm_link | Z | -1.57 | 1.57 | 17 | Soft equals hard |
 | `right_elbow_pitch` | RS02 | upper_arm → right_forearm_link | Y | -0.50 | 1.2 | 17 | Soft `[-0.50, 1.15]`; **upright hazard** — verify G-comp sign |
-| `right_lower_arm_yaw` | RS00 | forearm → right_hand_link | Y | -1.6 | 1.6 | 17 | Soft `[-1.55, 1.55]`; CAN id **5** on `can0` |
+| `right_lower_arm_yaw` | RS00 | forearm → right_hand_link | Y | -1.6 | 1.6 | 14 | Soft `[-1.55, 1.55]`; CAN id **5** on `can0` |
 
 ---
 

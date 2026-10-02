@@ -1,3 +1,9 @@
+<!-- Subsequent owner cancellation: read CANCELLED-SESSION-CHECKPOINT.md first.
+The pushed session checkpoint now includes the five earlier dirty-primary edits.
+Those changes are unvalidated and undeployed; earlier qualified results apply
+to2d0fd40. Closing documentation merge/source sync was stopped. Resume only at
+explicit owner request. The recorded handoff below remains historical evidence. -->
+
 # Right-arm validation handoff — October 2, 2026
 
 The current code pass is merged, validated and installed on the personally owned
