@@ -1,3 +1,82 @@
+## Latest Windows continuation: batch32 software qualified, October 2
+
+Qualified source b18faf486073b7311a029761792be171dac457ef, baseline df468496eae0b3c30104874c3bc2b6ad218ec827; PR246 is
+the delivery candidate. Primary and native Pi pass 861 Rust tests, one existing
+ignored and 374 Consul tests. Primary fatal ARM passes; all1769 staged native
+inputs are unchanged. Source CI36987033671 passes all five jobs. Twelve frozen
+production mutants fail their compiled exact oracles and unmodified replay is
+green. Ten new/sixteen prior probe files are unchanged. Independent source
+Standards/Spec clear. Final documentation-head/equal-tree main CI pending.
+See batch32-reference-history-journal.md and evidence/batch32/final-source-qualification.json.
+
+R2b1 provides durable closed virtual history only. Acquisition terminals remain
+immutable CommitUnavailable; durable rows never grant output. Next R2b2 current
+selected virtual grant, then qualified physical reference/installed-owner work
+needed for requested right-arm acceptance. All102 IDs/eight maintenance tasks
+retain26 verified,13 partial,63 open; CS05/CS06/CS07 remain partial.
+
+Owner requested right-arm movement validation and is present, reporting gravity
+home only. Read-only Pi safety reports Disabled; legacy Verified flags are not a
+repaired current reference. Support/live reference/E-stop/recovery acceptance
+remain unestablished. Installed Pi4bc77ba/services unchanged. No install, sudo,
+restart, physical CAN operation or motor movement. Prompt before every movement
+with specific bounds/stop procedure; explicit reply plus commissioning required.
+Ten-minute silence leaves movement pending and allows independent work only.
+Preserve limits, Wave sign-off, paused automation, CAD, branches and worktrees.
+All earlier handoff bytes below are historical and preserved unchanged.
+
+## Latest Windows continuation: batch32 implementation under qualification, October 2
+
+R2b1 now has a private owner-bound producer, exact typed policy/URDF codec,
+concrete bounded SQLite worker, inspection/recovery reader and real completion
+consumer. ADR0034 governs the implementation. Durable history never grants
+output; acquisition terminals remain immutable CommitUnavailable. Explicit
+unreferenced virtual factories opt in; generic/default/INITIAL paths have no
+journal I/O. The controller advances one fresh bounded disabled report, and Pi
+shutdown closes both admissions before sharing one absolute storage budget.
+
+Focused compilation, warnings-denied clippy and all Davout/Berthier/Pi tests
+pass, including actual SQL, credit retention, late hazards/cancellation/deadline,
+exact floats/URDF, worker unwind, child termination and both-worker shutdown.
+These candidate conformance results still require frozen mutants, independent
+review, the primary gate, exact PR/main CI and native Pi qualification. No
+finding closure or hardware acceptance is claimed. SSH connects to the owned
+Pi successfully and uname reports aarch64; installed software is unchanged.
+
+Source worktree J:/code/marengo-worktrees/reference-history-journal, branch
+codex/reference-history-journal; baseline main df468496 and preparation 8863933.
+See batch32-reference-history-journal.md. All 102 findings/eight maintenance
+tasks retain 26 verified, 13 partial, 63 open. CS05/CS06/CS07 remain partial;
+R2b2's current selected virtual grant and installed physical clients follow.
+
+No deploy, sudo, restart, physical CAN operation or movement. Gravity home
+does not qualify support, current repaired reference, E-stop or recovery.
+Prompt before every movement with bounds/stop procedure; require an explicit
+reply and commissioning checks. Ten-minute silence permits independent work
+only. Preserve paused automation, safety limits, Wave sign-off, CAD and worktrees.
+
+## Latest Windows continuation: batch32 preparation, October 2
+
+Batch31 PR245 is merged at df468496. Final PR CI36976829021 and equal-tree
+main CI36977383698 pass all five jobs. Source dc88d283, final PR 8cf7b542;
+independent production and final metadata reviews are clear. Primary 826 Rust
+passes/1 existing ignored plus 374 Consul and fatal ARM pass; native Pi 826/1
+ignored plus 374 Consul/build/assets pass with 1736 source files bound. See
+evidence/batch31/delivery-receipt.json. Earlier delivery-pending text is historical.
+
+Batch32 worktree J:/code/marengo-worktrees/reference-history-journal, branch
+codex/reference-history-journal, baseline df468496. Preparation plan records
+actual seams and complete R2b1 history contract; no journal code/new test result
+or finding closure yet. Write the ADR before implementation. Durable history
+remains unusable for motion; selected current virtual grant follows in R2b2.
+All 102 IDs/eight maintenance tasks retained: 26 verified, 13 partial, 63 open.
+
+Installed Pi4bc77ba/services unchanged; no deploy or motor operation. Gravity
+home does not qualify support, repaired reference, E-stop or recovery. Prompt
+before each movement with bounds/stop and require explicit reply plus commissioning.
+Ten-minute silence leaves movement pending and allows independent work only.
+Automation PAUSED; limits/Wave sign-off and existing work/CAD preserved.
+
 ## Latest Windows continuation: batch31 software qualified, October2
 
 G07 qualifies at dc88d283 against main a5c4cdb; PR245 is the delivery candidate.

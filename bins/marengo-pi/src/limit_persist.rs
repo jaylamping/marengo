@@ -281,6 +281,7 @@ impl ConfigPersistQueue {
     /// Close admission, drain retained work and observe actual thread termination.
     /// Never joins a worker that has not finished; unfinished I/O remains explicit.
     pub(crate) fn close_and_drain(&self, timeout: Duration) -> PersistDrainReport {
+        self.close_admission();
         let start = Instant::now();
         let mut slot = self.pending.lock().unwrap_or_else(|error| {
             let mut slot = error.into_inner();
@@ -316,6 +317,19 @@ impl ConfigPersistQueue {
                 }
             };
         }
+    }
+
+    /// Close without waiting, so composition can close every writer first.
+    pub(crate) fn close_admission(&self) {
+        let mut slot = self.pending.lock().unwrap_or_else(|error| {
+            let mut slot = error.into_inner();
+            slot.worker_error
+                .get_or_insert_with(|| "persist state lock poisoned".into());
+            slot
+        });
+        slot.accepting = false;
+        let _ = self.wake_tx.try_send(());
+        self.changed.notify_all();
     }
 
     fn join_finished_worker(&self, slot: &mut PersistSlot) -> bool {

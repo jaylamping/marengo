@@ -1,0 +1,47 @@
+ Container marengo-dev-run-2699e57de5c0 Creating
+ Container marengo-dev-run-2699e57de5c0 Created
+   Compiling davout v0.1.0 (/workspace/crates/davout)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 55.24s
+     Running unittests src/lib.rs (/mutant-target/debug/deps/davout-101ef875fb5af0d3)
+
+running 34 tests
+test reference_codec::tests::canonical_map_order_and_full_input_validation_are_enforced ... ok
+test reference_codec::tests::scalar_tags_keep_exact_signed_zero_subnormal_and_integer_widths ... ok
+test reference_codec::tests::unsupported_nonfinite_and_bounded_data_fail_before_truncation ... ok
+test reference_commit::tests::completed_unconsumed_write_still_loses_to_one_fresh_bounded_fault_report ... ok
+test reference_commit::tests::exhausted_commit_identity_refuses_actual_stage_before_disk_admission ... ok
+test reference_commit::tests::foreign_commit_handle_cannot_consume_feedback_or_admit_neighbor_work ... ok
+test reference_journal::filetype_tests::named_pipe_child_helper ... ok
+test reference_journal::filetype_tests::named_pipe_resources_never_block_identity_preflight_or_legacy_loading ... ok
+test reference_journal::hardlink_tests::existing_database_refuses_history_linked_to_its_rollback_resource ... ok
+test reference_journal::hardlink_tests::other_sidecar_hardlinks_are_refused_before_worker_installation ... ok
+test reference_journal::namespace_tests::canonical_parent_alias_cannot_hide_a_missing_history_sidecar_slot ... ok
+test reference_journal::namespace_tests::preexisting_calibration_history_cannot_be_admitted_as_a_sqlite_sidecar ... ok
+test reference_journal::resource_tests::aliased_history_spellings_refuse_before_lazy_journal_installation ... ok
+test reference_journal::resource_tests::distinct_explicit_resources_keep_database_opening_lazy ... ok
+test reference_journal::resource_tests::wal_format_with_corrupt_history_is_preserved_by_actual_worker ... ok
+test reference_journal::resource_tests::wal_format_with_corrupt_history_is_preserved_by_inspection ... ok
+test reference_journal::tests::actual_sql_full_error_keeps_preexisting_history_and_refuses_success ... ok
+test reference_journal::tests::actual_sql_unsigned_key_equal_retry_and_conflicting_body_are_exact ... ok
+test reference_journal_tests::actual_sql_lock_is_failure_and_does_not_replace_or_overwrite_history ... ok
+test reference_journal_tests::all_eight_accepted_credits_survive_cancellation_and_cache_eviction ... ok
+test reference_journal_tests::controlled_child_death_before_and_after_real_commit_recovers_history_only ...
+running 1 test
+
+running 1 test
+ok
+test reference_journal_tests::controlled_crash_child ... ok
+test reference_journal_tests::corrupt_checksum_incompatible_schema_and_session_exhaustion_are_preserved ... ok
+test reference_journal_tests::corruption_and_blocked_parent_fail_without_replacing_existing_resources ... ok
+test reference_journal_tests::durable_history_is_real_readback_and_never_a_current_reference ... ok
+test reference_journal_tests::exact_urdf_optional_fields_and_policy_scalars_survive_real_sql_reopen ... ok
+test reference_journal_tests::fresh_report_fault_and_saturation_precede_consuming_a_real_completion ... ok
+test reference_journal_tests::late_real_write_does_not_rewrite_operator_cancellation_or_send_extra_stops ... ok
+test reference_journal_tests::ordinary_constructors_and_foreign_handles_never_gain_journal_capability ... ok
+test reference_journal_tests::queued_real_completion_loses_eligibility_at_deadline_equality ... ok
+test reference_journal_tests::restored_policy_bits_cannot_restore_observed_pending_eligibility ... ok
+test reference_journal_tests::worker_unwind_retains_uncertain_committed_job_and_failed_queued_neighbors ... ok
+test reference_model::model_install_boundary_tests::actual_model_restore_preserves_owner_on_stream_capacity_and_generation_refusal ... ok
+test reference_transaction::tests::exhausted_identity_and_virtual_time_refuse_before_revocation_or_tx ... ok
+
+test result: ok. 34 passed; 0 failed; 0 ignored; 0 measured; 64 filtered out; finished in 3.86s

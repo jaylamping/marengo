@@ -1,0 +1,12 @@
+ Container marengo-dev-run-2d3a4267f06b Creating
+ Container marengo-dev-run-2d3a4267f06b Created
+   Compiling davout v0.1.0 (/workspace/crates/davout)
+   Compiling berthier v0.1.0 (/workspace/crates/berthier)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 10s
+     Running unittests src/lib.rs (/mutant-target/debug/deps/berthier-3ad586166548302d)
+
+running 2 tests
+test reference_journal_tests::cancelled_accepted_disk_work_still_advances_and_discards_new_unpermitted_intent ... ok
+test reference_journal_tests::tick_uses_one_bounded_fresh_report_and_keeps_a_late_fault_above_real_completion ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 162 filtered out; finished in 0.38s

@@ -1,9 +1,12 @@
 # Batch31: shared gateway access and runtime credentials
 
 G07 is software verified at dc88d28323a859f7d74d5c50dc8f5689646142d4 against
-main a5c4cdb6448c5a0164ebbeffb1c82eb09ab0c266. PR245 is the delivery candidate;
-the final documentation head and merged main still require all five successful
-exact-head checks before delivery is complete. ADR0033 records the contract.
+main a5c4cdb6448c5a0164ebbeffb1c82eb09ab0c266. PR245 is merged at
+df468496eae0b3c30104874c3bc2b6ad218ec827. Final PR head 8cf7b542 and merged main
+each pass all five checks (runs 36976829021 and 36977383698), with identical tree
+68048382d8f2d8d660595a2598b5187057da10dd. Both final metadata reviews are clear.
+See [delivery receipt](evidence/batch31/delivery-receipt.json).
+ADR0033 records the contract.
 
 The configured gateway credential now covers legacy commands, mutations and
 sensitive subscriptions before body parsing, publication, file changes or

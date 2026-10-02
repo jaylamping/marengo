@@ -1,0 +1,33 @@
+ Container marengo-dev-run-3d85c1bfb011 Creating
+ Container marengo-dev-run-3d85c1bfb011 Created
+   Compiling davout v0.1.0 (/workspace/crates/davout)
+warning: unused variable: `journal_is_regular`
+   --> crates/davout/src/reference_journal.rs:465:13
+    |
+465 |         let journal_is_regular = existing_metadata(&resource)?.is_some_and(|meta| meta.is_file());
+    |             ^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_journal_is_regular`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: `davout` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 02s
+     Running unittests src/lib.rs (/mutant-target/debug/deps/davout-101ef875fb5af0d3)
+
+running 1 test
+test reference_journal::filetype_tests::named_pipe_resources_never_block_identity_preflight_or_legacy_loading ... FAILED
+
+failures:
+
+---- reference_journal::filetype_tests::named_pipe_resources_never_block_identity_preflight_or_legacy_loading stdout ----
+
+thread 'reference_journal::filetype_tests::named_pipe_resources_never_block_identity_preflight_or_legacy_loading' panicked at crates/davout/src/reference_journal_filetype_tests.rs:81:9:
+construction blocked at owned named-pipe slot ""; child reaped
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    reference_journal::filetype_tests::named_pipe_resources_never_block_identity_preflight_or_legacy_loading
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 97 filtered out; finished in 3.17s
+
+error: test failed, to rerun pass `-p davout --lib`

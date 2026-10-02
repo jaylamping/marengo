@@ -2,6 +2,7 @@
 
 use std::cell::Cell;
 use std::collections::VecDeque;
+use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -142,6 +143,7 @@ pub enum ReferenceStageInvalidation {
     Superseded,
     Shutdown,
     CounterExhausted,
+    CommitRetired,
 }
 
 #[derive(Debug, Clone)]
@@ -229,6 +231,7 @@ struct Reservation {
     handle: ReferenceHandle,
     address: MotorAddress,
     policy: serde_json::Value,
+    typed_policy: Arc<crate::reference_journal_event::TypedPolicy>,
     installed_model: InstalledModelStamp,
     reference_generation: u64,
     stop_generation: u64,
@@ -258,9 +261,10 @@ struct RetainedStage {
     overall_deadline: Duration,
     reference_generation: u64,
     invalidated: Cell<Option<ReferenceStageInvalidation>>,
+    typed_policy: Arc<crate::reference_journal_event::TypedPolicy>,
 }
 
-struct RetainedOutcome {
+pub(super) struct RetainedOutcome {
     request: ReferenceRequest,
     terminal: ReferenceTerminal,
     stage: Option<RetainedStage>,
@@ -271,7 +275,7 @@ pub(crate) struct ReferenceOwner<B: MotorBus> {
     next_sequence: u64,
     backend: Option<ReferenceBackend<B>>,
     reservation: Option<Reservation>,
-    outcomes: VecDeque<RetainedOutcome>,
+    outcomes: VecDeque<Rc<RetainedOutcome>>,
 }
 
 impl<B: MotorBus> Default for ReferenceOwner<B> {
@@ -294,6 +298,11 @@ impl<B: MotorBus> ReferenceOwner<B> {
 
 impl<B: MotorBus> Supervisor<B> {
     pub fn reference_busy(&self) -> bool {
+        self.observe_reference_commits();
+        self.acquisition_busy() || self.reference_commits.busy()
+    }
+
+    pub(super) fn acquisition_busy(&self) -> bool {
         self.reference_owner.reservation.is_some()
     }
 
@@ -328,6 +337,10 @@ impl<B: MotorBus> Supervisor<B> {
         else {
             return ReferenceStageStatus::NoEvidence;
         };
+        self.retained_stage_status(outcome)
+    }
+
+    pub(super) fn retained_stage_status(&self, outcome: &RetainedOutcome) -> ReferenceStageStatus {
         let Some(stage) = &outcome.stage else {
             return ReferenceStageStatus::NoEvidence;
         };
@@ -411,6 +424,9 @@ impl<B: MotorBus> Supervisor<B> {
             || self
                 .reference_policy()
                 .map_or(true, |policy| policy != outcome.request.stamp.policy)
+            || !stage
+                .typed_policy
+                .matches(&self.motors, &self.control, &self.homing_config)
             || self.mode != OperationalMode::Disabled
             || self.control_mode != ControlMode::Disabled
             || !outcome.request.confirmed
@@ -550,6 +566,10 @@ impl<B: MotorBus> Supervisor<B> {
             }
             return Err(ReferenceError::Busy);
         }
+        self.observe_reference_commits();
+        if self.reference_commits.busy() {
+            return Err(ReferenceError::Busy);
+        }
         if request.stamp.sequence < self.reference_owner.next_sequence {
             return Err(ReferenceError::OutcomeExpired);
         }
@@ -615,6 +635,16 @@ impl<B: MotorBus> Supervisor<B> {
             .ok_or_else(|| ReferenceError::InvalidRequest {
                 message: "target is outside installed routes".into(),
             })?;
+        let typed_policy = Arc::new(crate::reference_journal_event::TypedPolicy {
+            motors: self.motors.clone(),
+            control: self.control.clone(),
+            homing: self.homing_config.clone(),
+        });
+        crate::reference_codec::encode(typed_policy.as_ref()).map_err(|error| {
+            ReferenceError::InvalidRequest {
+                message: crate::bounded_message(&error.to_string()),
+            }
+        })?;
         // Preflight is complete. Conservative revocation includes all INITIAL
         // coverage. No history or replacement permission is created here.
         let reference_generation = self
@@ -642,6 +672,7 @@ impl<B: MotorBus> Supervisor<B> {
             handle: handle.clone(),
             address,
             policy,
+            typed_policy,
             installed_model,
             reference_generation,
             stop_generation: self.stop_generation(),
@@ -914,7 +945,8 @@ impl<B: MotorBus> Supervisor<B> {
     /// Mandatory cleanup is separate from optional ordinary exit Disable.
     pub fn cancel_reference_for_shutdown(&mut self) -> Option<ReferenceTerminal> {
         self.invalidate_retained_stages(ReferenceStageInvalidation::Shutdown);
-        if !self.reference_busy() {
+        self.cancel_reference_commits(ReferenceCancelReason::Shutdown);
+        if !self.acquisition_busy() {
             return None;
         }
         self.finish_reference(
@@ -936,9 +968,12 @@ impl<B: MotorBus> Supervisor<B> {
     }
 
     pub(super) fn abort_reference_for_hazard(&mut self, message: &str) {
-        if self.reference_busy() {
+        self.invalidate_reference_commits(ReferenceStageInvalidation::SafetyHazard);
+        if self.acquisition_busy() {
             let _ =
                 self.finish_reference(failure(ReferenceFailureKind::Hazard, message), None, None);
+        } else {
+            let _ = self.perform_stop(false);
         }
     }
 
@@ -1032,6 +1067,7 @@ impl<B: MotorBus> Supervisor<B> {
             overall_deadline: reservation.overall_deadline,
             reference_generation: self.reference_authority.generation(),
             invalidated: Cell::new(None),
+            typed_policy: reservation.typed_policy,
         });
         let terminal = ReferenceTerminal {
             handle: reservation.handle,
@@ -1046,11 +1082,13 @@ impl<B: MotorBus> Supervisor<B> {
         if self.reference_owner.outcomes.len() == TERMINAL_CAPACITY {
             self.reference_owner.outcomes.pop_front();
         }
-        self.reference_owner.outcomes.push_back(RetainedOutcome {
-            request: reservation.request,
-            terminal: terminal.clone(),
-            stage,
-        });
+        self.reference_owner
+            .outcomes
+            .push_back(Rc::new(RetainedOutcome {
+                request: reservation.request,
+                terminal: terminal.clone(),
+                stage,
+            }));
         // The real cleanup and backend end precede the first stage observation.
         // Failure here changes only its inspection status, never the terminal.
         let _ = self.observe_staged_reference();
@@ -1089,6 +1127,78 @@ impl<B: MotorBus> Supervisor<B> {
         snapshot.staged_evidence = self.reference_stage_status_for(&terminal.handle);
         snapshot.terminal = Some(terminal);
         snapshot
+    }
+
+    pub(super) fn stage_for_commit(
+        &self,
+        handle: &ReferenceHandle,
+    ) -> Result<Rc<RetainedOutcome>, ReferenceError> {
+        if !Arc::ptr_eq(&handle.owner, &self.reference_owner.identity) {
+            return Err(ReferenceError::ForeignIdentity);
+        }
+        self.reference_owner
+            .outcomes
+            .iter()
+            .find(|outcome| outcome.terminal.handle == *handle)
+            .cloned()
+            .ok_or(ReferenceError::OutcomeExpired)
+    }
+}
+
+impl RetainedOutcome {
+    pub(super) fn handle(&self) -> &ReferenceHandle {
+        &self.terminal.handle
+    }
+    pub(super) fn joint(&self) -> &str {
+        &self.terminal.joint
+    }
+    pub(super) fn retire(&self, reason: ReferenceStageInvalidation) {
+        if let Some(stage) = &self.stage {
+            if stage.invalidated.get().is_none() {
+                stage.invalidated.set(Some(reason));
+            }
+        }
+    }
+    pub(super) fn journal_input(
+        &self,
+        audit: crate::ReferenceAudit,
+    ) -> Result<crate::reference_journal_event::Input, ReferenceError> {
+        use crate::reference_journal_event::{Capture, Input};
+        let stage = self.stage.as_ref().ok_or(ReferenceError::OutcomeExpired)?;
+        let evidence = &stage.evidence;
+        let receive = self
+            .terminal
+            .receive
+            .ok_or(ReferenceError::OutcomeExpired)?;
+        Ok(Input {
+            model: stage.installed_model.clone(),
+            policy: Arc::clone(&stage.typed_policy),
+            capture: Capture {
+                acquisition_sequence: self.terminal.handle.sequence,
+                joint: self.request.joint.clone(),
+                address: (&evidence.address).into(),
+                confirmed: self.request.confirmed,
+                sign_verified: self.request.sign_verified,
+                position_rad: evidence.position_rad,
+                raw_pop_order: u32::try_from(evidence.order)
+                    .map_err(|_| ReferenceError::CounterExhausted)?,
+                can_id: evidence.can_id,
+                device_epoch: evidence.proof.device_epoch,
+                original_deadline_secs: stage.overall_deadline.as_secs(),
+                original_deadline_nanos: stage.overall_deadline.subsec_nanos(),
+                stamp_reference_generation: self.request.stamp.reference_generation,
+                stamp_stop_generation: self.request.stamp.stop_generation,
+                accepted_reference_generation: stage.reference_generation,
+                cleanup: (&self.terminal.stop).into(),
+                reporting: self.terminal.reporting.iter().map(Into::into).collect(),
+                receive: crate::reference_journal_event::Receive::try_from(receive).map_err(
+                    |message| ReferenceError::InvalidRequest {
+                        message: message.into(),
+                    },
+                )?,
+                audit,
+            },
+        })
     }
 }
 

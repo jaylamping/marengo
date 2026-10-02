@@ -1,0 +1,36 @@
+{
+  "source": "b18faf486073b7311a029761792be171dac457ef",
+  "base": "88639330838e6601e068d8c9046416b866888b07",
+  "git_blob_sha256": {
+    "crates/davout/src/reference_journal_tests.rs": "05cb176a46c73e55c8ff033c79036329c03466d09d24a7ba5e0d1ca385eb414c",
+    "crates/davout/src/reference_journal_storage_tests.rs": "c94dc41a16bd7993e825ddba5fae66687ee71ac76bdbafd853c79eb0c418382f",
+    "crates/davout/src/reference_codec_tests.rs": "ee3e116e81d22fceba11e5281d9a6c7e4c9dde718297155c866341645862c865",
+    "crates/berthier/src/reference_journal_tests.rs": "8e56da5168b67e76ba9478594d61329477940258b5c66a3101a5e3b61344c824",
+    "bins/marengo-pi/src/reference_journal_shutdown_tests.rs": "c562163cda8aeb3c6b0a8dea2d75e4b4189dee34efc66e2f0b9da02d417d3d7d",
+    "crates/davout/src/reference_journal_resource_tests.rs": "e675ffc04db7ccd068c2680af859114b6ba1dc29672784591d9c6a5247cc8aa4",
+    "crates/davout/src/reference_commit_tests.rs": "3733e66afdc8ea15495bd2de1f621f68994e06236bb3339984dc320098e9bfba",
+    "crates/davout/src/reference_journal_namespace_tests.rs": "8d723d665e8f5e233211329f34323decdcb055b82fecf945a206194eb141592b",
+    "crates/davout/src/reference_journal_hardlink_tests.rs": "30772e275828e527ab41160bcf10e59c4106ea6a615cfdd49f53fa7cb9e2b0bc",
+    "crates/davout/src/reference_journal_filetype_tests.rs": "4edcca3b3bc47254e496254eb6f590e55f7bfe44240df700be08135cadf92904"
+  },
+  "prior_qualified_probes_unchanged": [
+    "bins/marengo-pi/src/limit_persist_qualification_tests.rs",
+    "bins/marengo-pi/src/reference_busy_overlay_tests.rs",
+    "bins/marengo-pi/src/reference_shutdown_tests.rs",
+    "bins/marengo-pi/src/shutdown_tests.rs",
+    "crates/berthier/tests/reference_intent_admission.rs",
+    "crates/berthier/tests/reference_transaction_owner.rs",
+    "crates/davout/tests/current_reference.rs",
+    "crates/davout/tests/reference_boundary_public.rs",
+    "crates/davout/tests/reference_clock_boundary.rs",
+    "crates/davout/tests/reference_history.rs",
+    "crates/davout/tests/reference_model_restore.rs",
+    "crates/davout/tests/reference_model_stamp.rs",
+    "crates/davout/tests/reference_observed_busy_mismatch.rs",
+    "crates/davout/tests/reference_observed_mismatch.rs",
+    "crates/davout/tests/reference_stage_continuity.rs",
+    "crates/davout/tests/reference_transaction.rs"
+  ],
+  "preceding_freeze": "batch32-probe-freeze-a949ce4.json",
+  "notes": "Resource regressions on preceding candidates; hard-link bytes were preserved. Other new-interface cases are conformance, not original-binary behavioral reds."
+}

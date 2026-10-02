@@ -10,6 +10,9 @@ license.workspace = true
 [lints]
 workspace = true
 
+[features]
+reference-journal-test-support = ["davout/reference-journal-test-support"]
+
 [dependencies]
 armee-dynamics.workspace = true
 armee-kinematics.workspace = true
@@ -22,7 +25,7 @@ tracing.workspace = true
 
 [dev-dependencies]
 proptest = { workspace = true }
-davout = { workspace = true }
+davout = { workspace = true, features = ["reference-journal-test-support"] }
 armee-dynamics = { workspace = true }
 robstride = { workspace = true }
 

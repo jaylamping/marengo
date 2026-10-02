@@ -273,6 +273,10 @@ impl ActuatorOverlay {
     }
 
     /// Close write admission and report retained work before exit / restart.
+    pub(crate) fn close_persist_admission(&self) {
+        self.persist.close_admission();
+    }
+
     pub(crate) fn close_persist_and_drain(&self, timeout: Duration) -> PersistDrainReport {
         self.persist.close_and_drain(timeout)
     }

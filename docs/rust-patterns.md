@@ -142,8 +142,12 @@ let reference_cleanup = control.supervisor_mut().cancel_reference_for_shutdown()
 let ordinary_stop = if reference_cleanup.is_none() && disable_on_exit {
     Some(control.supervisor_mut().disable_all())
 } else { None };
-let persist = overlay.close_persist_and_drain(timeout);
-// Retain reference_cleanup and ordinary_stop separately from persistence.
+let deadline = Instant::now() + timeout;
+overlay.close_persist_admission();
+control.supervisor().close_reference_journal_admission();
+let persist = overlay.close_persist_and_drain(deadline.saturating_duration_since(Instant::now()));
+let journal = control.supervisor_mut().drain_reference_journal_until(deadline);
+// Retain reference_cleanup, ordinary_stop and both writer inventories separately.
 ```
 
 The runtime applies its existing `disable_on_exit` policy explicitly. A live
@@ -273,8 +277,8 @@ decoded reply pop to owner/realm/transaction/device epoch. Cache, timestamps and
 typed queue injection cannot qualify it. Inspect the whole ordered hazard stream
 before staging evidence, and retain same-call all-address cleanup and reporting
 Off results. Deadline equality, cancellation and uncertain delivery remain final.
-EvidenceStaged with CommitUnavailable cannot authorize Ready or output; durable
-journal/grant and installed clients remain separate work. New APIs use independent
+EvidenceStaged with CommitUnavailable cannot authorize Ready or output; the current
+selected grant and installed clients remain separate work. New APIs use independent
 candidate conformance and selected mutants, not missing-method baseline reds.
 
 Retain actual accepted pose/private correlation through cleanup; reconstructing
@@ -285,6 +289,19 @@ retained handle against current continuity; restoring an observed policy edit
 does not revive it. Keep that projection separate from immutable acquisition
 terminals and permission. Serialization size checking before a retained clone
 bounds model memory; it is not a durable encoding or physics oracle (ADR0027).
+
+Only explicit unreferenced virtual factories opt into the concrete journal
+([ADR0034](decisions/0034-durable-virtual-reference-history.md)). Capture typed policy
+at acquisition and retain its exact bits with the immutable model. Encode on the
+worker through bounded primitive tags and exhaustive URDF fields; JSON Value or
+reloaded files cannot preserve the captured descriptor. Reserve completion credit
+before accepting one job per acquisition, including cancelled and unconsumed jobs.
+Consume a private matching real completion after one fresh bounded disabled report,
+whole-report hazards, original deadline and sticky continuity checks. Keep lifecycle,
+current eligibility and actual disk result distinct. Durable SQL readback remains
+history, including after cancellation, shutdown or process recovery. Generic/default
+constructors perform no journal I/O. Close every writer before sharing one absolute
+shutdown deadline; a timed-out or unwound worker must retain all accepted outcomes.
 
 ```rust
 // BAD — an already-revoked reference generation misses another model install

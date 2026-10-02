@@ -61,6 +61,8 @@ mod torque_cmd;
 
 #[cfg(test)]
 mod mode_isolation;
+#[cfg(test)]
+mod reference_journal_tests;
 
 #[cfg(test)]
 #[path = "../tests/support/mod.rs"]

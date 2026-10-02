@@ -190,7 +190,7 @@ stub solely to observe that no process launch occurred.
 [batch31](batch31-gateway-runtime-access.md): shared capability/Origin admission,
 runtime browser credentials and marker-free builds. Required primary and native
 Pi software gates, independent reviews and all five source CI jobs pass. PR245's
-final documentation/main delivery checks remain pending; physical acceptance and
+final PR/main delivery checks pass (PR245, main df468496, runs 36976829021/36977383698); physical acceptance and
 G06 management lifecycle remain separate.
 
 **Scope:** gateway router/middleware, legacy adapters, fallback stream, HTTPS/QUIC

@@ -2654,11 +2654,13 @@
       "evidence": [
         "batch31-gateway-runtime-access.md",
         "evidence/batch31/final-source-qualification.json",
-        "evidence/batch31/independent-reviews.md"
+        "evidence/batch31/independent-reviews.md",
+        "evidence/batch31/delivery-receipt.json"
       ],
       "verified_commit_or_pr": "https://github.com/jaylamping/marengo/pull/245",
       "hardware_acceptance": "not established by this software repair",
-      "implementation_checkpoint": "dc88d28323a859f7d74d5c50dc8f5689646142d4"
+      "implementation_checkpoint": "dc88d28323a859f7d74d5c50dc8f5689646142d4",
+      "delivered_main": "df468496eae0b3c30104874c3bc2b6ad218ec827"
     },
     {
       "id": "G08",
@@ -15482,10 +15484,15 @@
       "source": "dc88d28323a859f7d74d5c50dc8f5689646142d4",
       "baseline": "a5c4cdb6448c5a0164ebbeffb1c82eb09ab0c266",
       "PR": "https://github.com/jaylamping/marengo/pull/245",
-      "status": "software verified; final documentation and merged-main CI delivery pending",
+      "status": "software verified and delivered; final PR/main all five checks passed",
       "qualification": "evidence/batch31/final-source-qualification.json",
       "source_CI": 36975018460,
-      "physical_acceptance": false
+      "physical_acceptance": false,
+      "head": "8cf7b542cd7c37ee5d4d97cba2a216cdd13d611c",
+      "main": "df468496eae0b3c30104874c3bc2b6ad218ec827",
+      "pr_CI": 36976829021,
+      "main_CI": 36977383698,
+      "delivery": "evidence/batch31/delivery-receipt.json"
     }
   ],
   "finding_status_counts": {
@@ -15494,8 +15501,8 @@
     "open": 63
   },
   "next_dependency_ready_batch": {
-    "current": "WP04 R2b1 recoverable noncoalescing durable current-reference history, still no usable permission; then R2b2 current selected virtual grant.",
-    "following": "T01/T02 versioned release activation; T03 exact-generation identity.",
+    "current": "WP04 R2b2 current selected virtual grant after R2b1 delivery; then qualified physical reference and installed-owner clients for requested right-arm acceptance.",
+    "following": "T01/T02 versioned release activation; T03 exact-generation identity; supervised physical acceptance when all required prerequisites are qualified.",
     "human_input_blocker": null
   },
   "automation_status": "PAUSED",
@@ -15525,19 +15532,26 @@
     "pr": 240
   },
   "active_windows_continuation": {
-    "batch_id": "batch31",
-    "branch": "codex/gateway-runtime-access",
-    "worktree": "J:/code/marengo-worktrees/gateway-runtime-access",
-    "baseline": "a5c4cdb6448c5a0164ebbeffb1c82eb09ab0c266",
+    "batch_id": "batch32",
+    "branch": "codex/reference-history-journal",
+    "worktree": "J:/code/marengo-worktrees/reference-history-journal",
+    "baseline": "df468496eae0b3c30104874c3bc2b6ad218ec827",
     "findings": [
-      "G07"
+      "CS05",
+      "CS06",
+      "CS07"
     ],
-    "report": "batch31-gateway-runtime-access.md",
-    "status": "G07 software verified at dc88d28: primary826Rust/1existingignore/374Consul/fatalARM, nativePi826/1ignore/374Consul/1736inputs, reviews clear and sourceCI36975018460 allfive. PR245 final documentation/main delivery pending.",
+    "report": "batch32-reference-history-journal.md",
+    "status": "R2b1 software qualified: full primary and native Pi 861 Rust/1 existing ignored,374 Consul; all1769 staged inputs unchanged;12 frozen mutants and independent Standards/Spec clear; source CI all five passed. Final documentation-head/main delivery pending. CS05/CS06/CS07 remain partial; no physical acceptance.",
     "physical_acceptance": false,
-    "owner_scope": "Personally owned robot/repository/Pi; isolated software fixtures. Prompt and explicit confirmation before each movement with commissioning checks. Ten-minute silence means independent work, never movement approval.",
+    "owner_scope": "Personally owned robot/repository/Pi; isolated fixtures. Explicit confirmation and commissioning checks before every movement. Ten-minute silence leaves movement pending and allows independent work only.",
     "pi_installed_revision": "4bc77ba605834fdec04b436daa4bec67bca84fbb",
-    "qualified_source": "dc88d28323a859f7d74d5c50dc8f5689646142d4",
-    "PR": "https://github.com/jaylamping/marengo/pull/245"
+    "prior_delivery": "evidence/batch31/delivery-receipt.json",
+    "source": "b18faf486073b7311a029761792be171dac457ef",
+    "pr": "https://github.com/jaylamping/marengo/pull/246",
+    "qualification": "evidence/batch32/final-source-qualification.json",
+    "source_CI": 36987033671,
+    "next": "WP04 R2b2 current selected virtual grant, then required installed-owner/physical-reference prerequisites for right-arm acceptance",
+    "right_arm_acceptance": "Owner present, arm resting at gravity home only. Read-only installed snapshot Disabled; legacy Verified flags do not establish repaired reference. Support and live reference remain unestablished. Propose a bounded single-joint test only after prerequisites; explicit confirmation per movement."
   }
 }

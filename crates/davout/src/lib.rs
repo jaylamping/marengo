@@ -20,10 +20,13 @@
 //!   they do not qualify reference acquisition, SetZero correlation or persistence ordering.
 //! - [`Supervisor::begin_reference`] / [`Supervisor::advance_reference`]: a separately
 //!   qualified closed virtual transaction stages correlated evidence and owns bounded
-//!   cleanup. It cannot grant motion; durable commit and physical acquisition remain unavailable.
+//!   cleanup. It cannot grant motion; physical acquisition remains unavailable.
 //! - Retained matched evidence and [`ReferenceStageStatus`]: live inspection of
 //!   owner/device/model/policy/stop continuity after cleanup, distinct from an
 //!   immutable unusable acquisition terminal. No stage diagnostic grants output.
+//! - Explicit unreferenced virtual journal owners commit immutable typed history on a
+//!   dedicated bounded SQLite worker. Owner-consumed completion remains distinct from
+//!   eligibility, cancellation and output permission; recovery is inspection only.
 //! - [`Supervisor::disable_all`]: all-address best-effort stop with honest delivery evidence.
 //! - [`refresh_feedback`]: blocking poll up to `feedback_poll_budget_us` (REPL / set-zero).
 //! - [`drain_feedback`]: non-blocking RX queue drain (Berthier control loop).
@@ -60,15 +63,31 @@
 //! Reference admission and the isolated virtual realm are defined by ADR 0023.
 
 pub use armee_kinematics::JointLimitPolicy;
+#[cfg(test)]
+extern crate self as davout;
 
 mod active_reporting;
 mod faults;
 mod feedback_consumer;
 mod limit_envelope;
 mod reference;
+mod reference_codec;
+mod reference_commit;
+mod reference_journal;
+mod reference_journal_event;
+#[cfg(test)]
+mod reference_journal_tests;
 mod reference_model;
 mod reference_transaction;
+mod reference_urdf_codec;
 pub mod simulation;
+
+pub use reference_commit::{
+    ReferenceAudit, ReferenceCommitError, ReferenceCommitHandle, ReferenceCommitPhase,
+    ReferenceCommitSnapshot,
+};
+pub use reference_journal::{ReferenceJournalDrain, ReferenceJournalError, ReferenceJournalResult};
+pub use reference_journal_event::ReferenceHistoryRecord;
 
 pub use reference_transaction::{
     ReferenceCancelReason, ReferenceCause, ReferenceCommit, ReferenceError, ReferenceFailureKind,
@@ -288,6 +307,7 @@ pub struct Supervisor<B: MotorBus> {
     homing: HomingRegistry,
     reference_authority: ReferenceAuthority,
     reference_owner: reference_transaction::ReferenceOwner<B>,
+    reference_commits: reference_commit::CommitOwner,
     reference_realm_matches: Option<fn(&B, &Arc<()>) -> bool>,
     /// Installed routes remain stop targets even if a caller corrupts public policy.
     stop_motors: Vec<MotorEntry>,
@@ -401,6 +421,7 @@ impl<B: MotorBus> Supervisor<B> {
             homing,
             reference_authority: ReferenceAuthority::default(),
             reference_owner: reference_transaction::ReferenceOwner::default(),
+            reference_commits: reference_commit::CommitOwner::default(),
             reference_realm_matches: None,
             motor_types,
             bus,
@@ -657,6 +678,7 @@ impl<B: MotorBus> Supervisor<B> {
 
     fn reference_binding_valid(&self) -> bool {
         self.observe_staged_reference();
+        self.observe_reference_commits();
         if self.has_latched_fault() || self.hardware_estop {
             self.reference_authority.revoke();
             return false;
@@ -1493,7 +1515,8 @@ impl<B: MotorBus> Supervisor<B> {
     /// Disable all drives (best-effort zero speed, zero-torque MIT, then DISABLE).
     #[tracing::instrument(skip(self))]
     pub fn disable_all(&mut self) -> Result<(), DavoutError> {
-        if self.reference_busy() {
+        self.cancel_reference_commits(ReferenceCancelReason::Disable);
+        if self.acquisition_busy() {
             let terminal =
                 self.cancel_live_reference_for_disable()
                     .map_err(|error| DavoutError::Homing {

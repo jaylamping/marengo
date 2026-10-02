@@ -1,0 +1,50 @@
+ Container marengo-dev-run-c5ea067e73e0 Creating
+ Container marengo-dev-run-c5ea067e73e0 Created
+   Compiling libc v0.2.186
+   Compiling serde_core v1.0.228
+   Compiling num-traits v0.2.19
+   Compiling cfg_aliases v0.2.1
+   Compiling paste v1.0.15
+   Compiling parking_lot_core v0.9.12
+   Compiling matrixmultiply v0.3.10
+   Compiling signal-hook v0.3.18
+   Compiling marengo-host-metrics v0.1.0 (/workspace/crates/marengo-host-metrics)
+   Compiling nix v0.31.3
+   Compiling armee-proto v0.1.0 (/workspace/crates/armee-proto)
+   Compiling approx v0.5.1
+   Compiling num-complex v0.4.6
+   Compiling num-integer v0.1.46
+   Compiling chrono v0.4.44
+   Compiling num-rational v0.4.2
+   Compiling serde v1.0.228
+   Compiling serde_json v1.0.149
+   Compiling serde_yaml v0.9.34+deprecated
+   Compiling tracing-serde v0.2.0
+   Compiling tracing-subscriber v0.3.23
+   Compiling marengo-config v0.1.0 (/workspace/crates/marengo-config)
+   Compiling marengo-support v0.1.0 (/workspace/crates/marengo-support)
+   Compiling errno v0.3.14
+   Compiling socket2 v0.6.3
+   Compiling mio v1.2.0
+   Compiling getrandom v0.4.2
+   Compiling simba v0.9.1
+   Compiling signal-hook-registry v1.4.8
+   Compiling tempfile v3.27.0
+   Compiling parking_lot v0.12.5
+   Compiling ctrlc v3.5.2
+   Compiling tokio v1.52.3
+   Compiling marengo-homing v0.1.0 (/workspace/crates/marengo-homing)
+   Compiling robstride v0.1.0 (/workspace/crates/robstride)
+   Compiling nalgebra v0.33.3
+   Compiling davout v0.1.0 (/workspace/crates/davout)
+   Compiling chappe v0.1.0 (/workspace/crates/chappe)
+   Compiling armee-dynamics v0.1.0 (/workspace/crates/armee-dynamics)
+   Compiling berthier v0.1.0 (/workspace/crates/berthier)
+   Compiling marengo-pi v0.1.0 (/workspace/bins/marengo-pi)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 58s
+     Running unittests src/main.rs (/mutant-target/debug/deps/marengo_pi-d1290116ffd1a88d)
+
+running 1 test
+test reference_journal_shutdown_tests::both_writers_share_one_shutdown_budget_after_the_required_stop ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 32 filtered out; finished in 1.91s
