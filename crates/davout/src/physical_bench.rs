@@ -554,7 +554,8 @@ fn write_audit<B: MotorBus>(
             "lower_yaw_profile": output.gains().map(|gains| serde_json::json!({
                 "max_target_rad": 0.02, "kp": gains.kp(), "kd": gains.kd(),
                 "other_joints_neutral": true, "measured_home_drift_max_rad": MAX_HOME_DRIFT,
-                "velocity_guard_joint": LOWER_YAW, "measured_velocity_max_rad_s": 0.25 })),
+                "velocity_guard_joint": LOWER_YAW, "measured_velocity_max_rad_s": 0.25,
+                "measured_velocity_source": "active_position_delta_per_drain_or_initial_raw;ready_raw" })),
             "timeout_volatility_qualified": false,
             "owner_lifetime_ms": OWNER_LIFETIME.as_millis(),
             "acquired_unix_ns": acquired.as_nanos(),
@@ -1060,6 +1061,99 @@ mod tests {
         assert!(owner.begin(neutral(&owner.joints)).is_err());
         assert!(owner.closed);
         assert_eq!(owner.supervisor.mode(), OperationalMode::Disabled);
+    }
+
+    #[test]
+    fn lower_yaw_ready_enable_reply_overspeed_stops_before_gained_output() {
+        let root = AuditRoot::new();
+        let mut owner = owner_with_output(ProbeBus::default(), &root, yaw_output());
+        owner.supervisor.bus.lower_yaw_enable_velocity_spike = true;
+        let first = owner.supervisor.bus.tx.len();
+        assert!(owner.begin(neutral(&owner.joints)).is_err());
+        assert!(owner.closed);
+        assert_eq!(owner.supervisor.mode(), OperationalMode::Disabled);
+        assert!(owner.supervisor.bus.tx[first..]
+            .iter()
+            .filter(|frame| frame.id >> 24 == 1)
+            .all(|frame| frame.data == [0x7F, 0xFF, 0x7F, 0xFF, 0, 0, 0, 0]));
+        assert_eq!(owner.finish().expect("cached stop").attempts.len(), 15);
+    }
+
+    fn replay_yaw_pose(
+        owner: &mut FiniteBenchOwner<ProbeBus>,
+        previous_data: [u8; 8],
+        data: [u8; 8],
+        spacing: Duration,
+    ) -> super::super::feedback_consumer::FeedbackConsumption {
+        let received_at = Instant::now();
+        let previous =
+            robstride::mit::decode_mit_feedback(MotorType::Rs00, 0x0280_05FD, &previous_data)
+                .expect("captured previous lower-yaw frame");
+        owner.supervisor.last_feedback_samples.insert(
+            LOWER_YAW.into(),
+            super::super::FeedbackSample {
+                position_rad: -f64::from(previous.position_rad),
+                received_at: received_at - spacing,
+            },
+        );
+        owner.supervisor.bus.rx.clear();
+        owner.supervisor.bus.rx.push_back(robstride::TimedCanFrame {
+            received_at,
+            received: robstride::ReceivedCanFrame::full_data(
+                Some("can0".into()),
+                robstride::CanFrame {
+                    id: 0x0280_05FD,
+                    data,
+                    extended: true,
+                },
+            ),
+        });
+        let report = owner.supervisor.bus.recv_feedback_report(
+            &owner.supervisor.motor_types,
+            Duration::ZERO,
+            Duration::ZERO,
+        );
+        owner.supervisor.consume_feedback_report(report)
+    }
+
+    #[test]
+    fn captured_lower_yaw_velocity_spike_uses_position_derived_speed() {
+        let root = AuditRoot::new();
+        let mut owner = owner_with_output(ProbeBus::default(), &root, yaw_output());
+        owner.begin(neutral(&owner.joints)).expect("bootstrap");
+        let consumed = replay_yaw_pose(
+            &mut owner,
+            [0x7F, 0xE0, 0x7F, 0x9A, 0x7F, 0x95, 0, 0xF0],
+            [0x7F, 0xDF, 0x7F, 0x59, 0x7F, 0x56, 0, 0xF0],
+            Duration::from_micros(4996),
+        );
+        assert!(
+            consumed.first_error.is_none(),
+            "captured 0.253-rad/s estimate with 0.077-rad/s position change: {:?}",
+            consumed.first_error
+        );
+        let yaw = owner.supervisor.joint_feedback(LOWER_YAW).expect("yaw");
+        assert!((yaw.velocity_rad_s - 0.07676).abs() < 0.002);
+        owner.finish().expect("stop");
+    }
+
+    #[test]
+    fn lower_yaw_position_derived_overspeed_stops_despite_zero_raw_velocity() {
+        let root = AuditRoot::new();
+        let mut owner = owner_with_output(ProbeBus::default(), &root, yaw_output());
+        owner.begin(neutral(&owner.joints)).expect("bootstrap");
+        let consumed = replay_yaw_pose(
+            &mut owner,
+            [0x7F, 0xFF, 0x7F, 0xFF, 0x7F, 0xFF, 0, 0xF0],
+            [0x7F, 0xFB, 0x7F, 0xFF, 0x7F, 0xFF, 0, 0xF0],
+            Duration::from_millis(5),
+        );
+        let error = consumed.first_error.expect("0.307-rad/s pose derivative");
+        assert!(matches!(error, DavoutError::Limit { .. }));
+        owner.finish_after_error(error);
+        assert!(owner.closed);
+        assert_eq!(owner.supervisor.mode(), OperationalMode::Disabled);
+        assert_eq!(owner.finish().expect("cached stop").attempts.len(), 15);
     }
 
     #[test]

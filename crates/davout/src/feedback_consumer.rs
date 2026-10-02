@@ -631,6 +631,21 @@ impl<B: MotorBus> Supervisor<B> {
         });
         let measured_velocity = position_velocity.unwrap_or(raw_velocity);
         state.velocity_rad_s = measured_velocity as f32;
+        // The finite profile uses the same once-per-drain velocity estimate as
+        // ordinary admission. Inspecting raw vendor velocity in the position
+        // guard falsely rejected captured sub-limit encoder motion.
+        if self
+            .reference_authority
+            .physical_bench_binding()
+            .is_some_and(|binding| binding.output.is_lower_yaw())
+            && motor.joint == super::physical_bench::LOWER_YAW
+            && measured_velocity.abs() > 0.25
+        {
+            return Err(DavoutError::Limit {
+                joint: motor.joint.clone(),
+                message: "finite home bench measured velocity exceeds 0.25 rad/s".into(),
+            });
+        }
         let fault_threshold = lim.velocity + FEEDBACK_VELOCITY_FAULT_MARGIN_RAD_S;
 
         if raw_velocity.abs() > lim.velocity && measured_velocity.abs() <= fault_threshold {
@@ -730,15 +745,14 @@ impl<B: MotorBus> Supervisor<B> {
                 message: "neutral bench home drift exceeds 0.05 rad".into(),
             });
         }
-        if self
-            .reference_authority
-            .physical_bench_binding()
-            .is_some_and(|binding| binding.output.is_lower_yaw())
+        // Ready Enable replies precede ordinary derivative admission. Retain
+        // the raw fallback guard on every such pose, including coalesced peers.
+        if self.mode != OperationalMode::Active
+            && self
+                .reference_authority
+                .physical_bench_binding()
+                .is_some_and(|binding| binding.output.is_lower_yaw())
             && motor.joint == super::physical_bench::LOWER_YAW
-            && matches!(
-                context,
-                ReceiveContext::Operational | ReceiveContext::DisabledInspection
-            )
             && f64::from(state.velocity_rad_s).abs() > 0.25
         {
             return Err(DavoutError::Limit {

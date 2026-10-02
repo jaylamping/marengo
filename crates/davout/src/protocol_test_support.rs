@@ -27,6 +27,7 @@ pub(crate) struct ProbeBus {
     pub(crate) transient_enable_drift: bool,
     pub(crate) stationary_roll_velocity_spike: bool,
     pub(crate) lower_yaw_velocity_spike: bool,
+    pub(crate) lower_yaw_enable_velocity_spike: bool,
     pub(crate) suppress_active_params: bool,
     pub(crate) suppress_active_pose: bool,
     pub(crate) active_param_delay: Duration,
@@ -89,7 +90,9 @@ impl CanBus for ProbeBus {
             1 | 3
                 if self.enabled.contains(&id.device_id)
                     && !self.suppress_active_pose
-                    && (id.comm_type == 1 || self.transient_enable_drift) =>
+                    && (id.comm_type == 1
+                        || self.transient_enable_drift
+                        || (self.lower_yaw_enable_velocity_spike && id.device_id == 5)) =>
             {
                 Some(CanFrame {
                     id: robstride::pack_ext_id(
@@ -177,9 +180,10 @@ impl CanBus for ProbeBus {
         };
         if let Some(response) = response {
             let mut response = response;
-            if id.comm_type == 1
+            if (id.comm_type == 1
                 && ((self.stationary_roll_velocity_spike && id.device_id == 2)
-                    || (self.lower_yaw_velocity_spike && id.device_id == 5))
+                    || (self.lower_yaw_velocity_spike && id.device_id == 5)))
+                || (id.comm_type == 3 && self.lower_yaw_enable_velocity_spike && id.device_id == 5)
             {
                 // Actual fault-free stationary Run frame from the first-motion capture.
                 response.data = [0x7F, 0xFF, 0x80, 0xF8, 0x80, 0x1D, 0, 0xF0];

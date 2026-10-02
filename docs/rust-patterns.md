@@ -171,7 +171,7 @@ A timed-out drain does not cancel filesystem I/O or confirm client delivery.
 Dispatch checks the owner flag before later commands and ticks; synchronous
 handlers already admitted are not interrupted by that check.
 
-**Scoped commissioning Enable** (Hardware commissioning):
+**Finite physical bench profiles** (Hardware commissioning):
 
 Finite physical bench profiles use closed real-bus owners rather than supplied
 transports or imported reference rows ([ADR0038](decisions/0038-finite-neutral-physical-bench-owner.md),
@@ -181,6 +181,8 @@ value in audit and report. Davout checks the complete profile both before and
 after ordinary filtering, so an envelope clamp cannot widen a finite test.
 Keep neighboring-joint feedback on the canonical velocity policy; additional
 profile guards apply to the exercised joint and retain every raw position hazard.
+
+**Scoped commissioning Enable** (Hardware commissioning):
 
 The following describes the existing scoped caller path, whose private grant and
 owner cutover remain unfinished. New registries start `Unhomed` and history
