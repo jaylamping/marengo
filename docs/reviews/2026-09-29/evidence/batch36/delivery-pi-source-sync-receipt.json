@@ -1,0 +1,14 @@
+{
+  "synced_UTC": "2026-10-02T14:49:06.527136+00:00",
+  "before_source": "01a5c403bd8e790cd7403565c777cca8729e48c6",
+  "source_head": "19b983aa4a7d858f88bd26cd7171731186a3af7b",
+  "source_clean": true,
+  "documentation_files_changed": 104,
+  "runtime_code_unchanged": true,
+  "installed_release_unchanged": "01a5c403bd8e790cd7403565c777cca8729e48c6 2026-10-02T14:00:00Z",
+  "installed_and_source_policy_calibration_environment_and_binary_hashes_unchanged": true,
+  "services_before_and_after_equal": true,
+  "services": "MainPID=568641\nNRestarts=0\nId=marengo-pi.service\nActiveState=active\n\nMainPID=560138\nNRestarts=0\nId=marengo-gateway.service\nActiveState=active",
+  "before_source_bundle_SHA256": "ff80b4377465e33c3e0edba8fa84426aef48f376d16df002184f091622ba36d4",
+  "scope": "Docs-only source fast-forward. Installed payload/services unchanged; no deployment or restart, no motion command; retained latch still visible."
+}

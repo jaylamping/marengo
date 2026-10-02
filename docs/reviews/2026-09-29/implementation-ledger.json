@@ -15598,27 +15598,29 @@
   },
   "active_windows_continuation": {
     "batch_id": "batch36",
-    "branch": "codex/pi-can-ingress-diagnostics",
+    "branch": "codex/can-reporting-diagnostics",
     "worktree": "J:/code/marengo-worktrees/current-virtual-reference",
-    "baseline": "d1fad15d579a7ee611fd930c0e14680f5063ed1b",
+    "baseline": "19b983aa4a7d858f88bd26cd7171731186a3af7b",
     "findings": [
       "CS04"
     ],
     "report": "batch36-physical-can-overflow.md",
-    "status": "Batch35 repair/delivery committed and pushed; independent delivery reviews CLEAR at0b6b915. Batch36 diagnostic-only checkpoint: one read-only passive listener ready before authorized runtime restart captures exact controllerRXoverflow frame,30682 total frames and counter396->397. No production change, cause fix or physical recovery/reference/movement acceptance.",
+    "status": "B35 repair and installed replay delivered. B35/B36 review records PR250 delivered at exact427497f/main19b983a with equal tree, independent CLEAR reviews, required PR CI and all-five main CI. Pi source synced19b983a; verified installed runtime remains01a5c40 with equivalent runtime source, taught policy/calibration/env and service PIDs unchanged. Physical CANoverflow evidence captured, cause fix/recovery/reference/motion still open.",
     "physical_acceptance": false,
     "prior_delivery": "evidence/batch34/delivery-receipt.json",
     "pi_installed_revision": "01a5c403bd8e790cd7403565c777cca8729e48c6",
     "owner_scope": "Personally owned robot/repository/Pi; isolated fixtures. Explicit confirmation and commissioning checks before every movement. Ten-minute silence leaves movement pending and allows independent work only.",
     "owner_requested_next": "Finish and push current chunk, sync Pi software, then explicitly confirmed bounded right-arm tests after qualified reference. Motor power on and powered testing authorized.",
-    "next": "Compare one reporting traffic or kernel servicing variable at a time using captured overflow as the oracle. Preserve latch/caps and qualify physical device/reference/owner stop before explicitly confirmed bounded right-arm movement. No user reply is pending.",
+    "next": "Compare one reporting traffic or servicing variable at a time using the captured overflow and counter/latch transition. No user reply is pending. Qualify physical protocol/reference/owner stop and commissioning before explicitly confirmed bounded right-arm movement.",
     "source": "8e1871f64ebcb7445bd83a241e6b2d67705202f1",
     "qualification": "evidence/batch35/final-source-qualification.json",
-    "Pi_source_checkout": "01a5c403bd8e790cd7403565c777cca8729e48c6",
-    "continuation_branch": "codex/pi-can-ingress-diagnostics",
+    "Pi_source_checkout": "19b983aa4a7d858f88bd26cd7171731186a3af7b",
+    "continuation_branch": "codex/can-reporting-diagnostics",
     "Pi_activation": "evidence/batch35/delivery-receipt.json",
     "PR": "https://github.com/jaylamping/marengo/pull/249",
     "delivery": "evidence/batch35/delivery-receipt.json",
-    "diagnostic": "evidence/batch36/diagnostic-summary.json"
+    "diagnostic": "evidence/batch36/diagnostic-summary.json",
+    "records_PR": "https://github.com/jaylamping/marengo/pull/250",
+    "records_delivery": "evidence/batch36/delivery-receipt.json"
   }
 }

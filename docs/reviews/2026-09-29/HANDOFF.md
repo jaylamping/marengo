@@ -1,3 +1,28 @@
+# Windows continuation - 2026-10-02, PR250 delivered
+
+B35/B36 review records PR250 delivered: reviewed427497f, merged main19b983a,
+equal tree, independent Standards/Spec CLEAR, required PR CI37021466462 passes
+(sim skipped for documentation diff), mainCI37022423690 all five actual jobs pass.
+Pi source is clean19b983a. Verified installed runtime remains01a5c40; source sync
+changed review docs only and preserved every binary/policy/calibration/env hash
+and both service PIDs. No control service restart or motion command for this sync.
+Source all-refs backup verified and retained. See batch36 delivery receipt.
+
+Current continuation codex/can-reporting-diagnostics uses
+J:/code/marengo-worktrees/current-virtual-reference. Prior branches/worktrees,
+CAD, native traces/archives, taught limits, history and paused automation preserved.
+Next use captured controllerRXoverflow20000004#0001000000000000 and counter/latch
+transition as the oracle; compare one reporting/servicing variable at a time.
+Cause fix, firmware/device continuity, recovery/reference, owner priority stop
+and commissioning remain open before an explicitly confirmed bounded right-arm
+test. All five remain Faulted; lower yaw outside its unchanged taught envelope.
+No reply is pending. Powered supported setup is already authorized; physical
+E-stop wiring remains unknown. Ten-minute silence never authorizes movement.
+Counts102/eight maintenance/26verified/13partial/63open remain unchanged.
+Earlier checkpoints below are historical and preserved as an exact suffix.
+
+---
+
 # Windows continuation - 2026-10-02, batch36 physical CAN error captured
 
 Batch35 repair PR249 is merged, fully source/primary/native/final/main qualified,
