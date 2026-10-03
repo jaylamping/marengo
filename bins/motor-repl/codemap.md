@@ -1,34 +1,31 @@
 # bins/motor-repl/
 
 ## Responsibility
-**Bench motor CLI** — interactive and one-shot commands for bring-up: status, enable, disable, jog, set-zero, gravity-preview, homing-status. All motion through Davout.
+**One-shot bench motor CLI** — status, homing-status, disable, set-zero, and gravity-preview. All drive commands use Davout; independent `disable` uses the minimal stop path.
 
 ## Design
-- Subcommand parser: `status`, `enable`, `disable`, `jog`, `set-zero`, `gravity-on`, `gravity-preview`, `homing-status`, `hold-on`, `hold-at`
-- Shares `ControlLoop<RuntimeBus>` construction with marengo-pi
-- `preflight_gravity_saturation` gate before enable
-- `--config-dir` and `MARENGO_CONFIG_DIR` for bringup profile selection
+- Subcommands: `status`, `homing-status`, `disable`, `set-zero`, `gravity-preview`
+- `status` and `gravity-preview` bypass Supervisor construction; gravity preview uses `armee-dynamics` directly
+- `set-zero` uses `ControlLoop<RuntimeBus>` with the physical-reference owner
+- `--config-dir` and `MARENGO_CONFIG_DIR` select the bring-up profile
 
 ## Flow
-1. Parse bus args (`--can`, `--config-dir`)
-2. Open SocketCAN → Supervisor → ControlLoop
-3. Execute subcommand (single-shot or interactive REPL)
-4. Return/exit after the subcommand. `disable` skips steps 2-3 entirely (motors.yaml addresses only); `enable`/`jog`/`speed`/`speed-stop`/`set-zero` arm a SIGTERM/SIGINT/SIGHUP stop and run it on error exit (CS07).
+1. Parse global bus args before the subcommand.
+2. `status` opens SocketCAN without a Supervisor; `gravity-preview` loads the robot model without CAN.
+3. `disable` reads only motors.yaml stop addresses; remaining commands construct the required owner.
+4. Return/exit after the command. `set-zero` arms an independent SIGTERM/SIGINT/SIGHUP stop and uses it on error exit.
 
 Every fresh Supervisor starts joints Unhomed; calibration history cannot transfer
-readiness between CLI processes. Full constructor errors (including corrupt
-history) occur before every subcommand except `disable`, which does not build a
-Supervisor. The CLI is still not a qualified emergency stop. `set-zero <joint> [--sign-tested]` builds the loop with
-`ControlLoop::from_repo_with_physical_reference` (journal from
+readiness between CLI processes. `home`, `enable`, `jog`, `speed`, `speed-stop`,
+`gravity-on`, `gravity-off`, and `torque-cmd` are not available in this one-shot
+CLI. Home and enable in one long-running `marengo-pi` process (stdin
+`home <joint>... sign-tested`). `set-zero <joint> [--sign-tested]` builds the
+loop with `ControlLoop::from_repo_with_physical_reference` (journal from
 `resolve_reference_journal_path`) and runs Davout's qualified physical workflow
-via `calibrate_joint_zero` (ADR 0036). The resulting grant ends with the process;
-home and enable in one `marengo-pi` (stdin `home <joint>... sign-tested`). Other
-subcommands keep plain `from_repo` and cannot acquire reference. Installed-owner
-client migration and general all-exit cleanup remain in the
-[repair roadmap](../../docs/reviews/2026-09-29/implementation-roadmap.md).
+via `calibrate_joint_zero` (ADR 0036). The resulting grant ends with the process.
+`disable` is not a qualified emergency stop; use the physical E-stop.
 
 ## Integration
-- **Primary bench tool** for MCP `pi_hold_on`, `pi_motor_recover`, `pi_set_zero`
-- **Crates**: berthier, davout, robstride, marengo-config, armee-dynamics
+- **MCP consumers**: `pi_set_zero`, `pi_motor_disable`, `pi_motor_recover`
 
 **Detailed map**: [src/codemap.md](src/codemap.md)

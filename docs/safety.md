@@ -348,12 +348,12 @@ disables. The fault does not clear on its own.
   outcome and exits 1 if any drive was not reached. A sent frame is queued on the
   bus, not drive-confirmed, and it is **not** a fault clear: no type-4
   Byte[0]=1 frame is ever sent (ADR 0020), so a latched drive fault persists.
-  The commands that can leave a drive enabled (`enable`, `jog`, `speed`,
-  `speed-stop`, `set-zero`) arm the same stop on SIGTERM/SIGINT/SIGHUP and on any
-  error exit, and refuse to start if it cannot be armed. The MCP aborts a
-  session whose pre-session disable did not reach every drive. Reference-
-  independent stop through the installed owner remains required; use the physical
-  E-stop as the independent stop path.
+  `set-zero` arms the independent stop on SIGTERM/SIGINT/SIGHUP and error exit,
+  and refuses to start if it cannot be armed. Its successful Davout transaction
+  performs its own stop before returning. The MCP aborts a session when its
+  pre-session disable did not reach every drive. Reference-independent stopping
+  through the installed owner remains required; use the physical E-stop as the
+  independent stop path.
 - **No drive-side or independent watchdog:** `ParameterId::CanTimeout` (0x7028)
   is never written or read back and nothing outside the 200 Hz thread watches it,
   so a killed or hung `marengo-pi` leaves each drive on its last MIT frame
