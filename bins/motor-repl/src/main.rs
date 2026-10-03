@@ -7,7 +7,10 @@ use std::path::PathBuf;
 use armee_dynamics::max_gravity_torque_over_range;
 use berthier::{ControlLoop, ControlMode};
 use davout::{JointCommand, SpeedCommand};
-use marengo_config::{load_control_config, load_motors_config, resolve_repo_root};
+use marengo_config::{
+    load_control_config, load_motors_config, resolve_config_dir, resolve_reference_journal_path,
+    resolve_repo_root,
+};
 use robstride::RuntimeBus;
 use tracing::info;
 fn repo_root() -> PathBuf {
@@ -80,7 +83,9 @@ fn usage() {
            motor-repl torque-cmd <joint> <nm>\n  \
            motor-repl gravity-preview [q...]  (robot.yaml joint order)\n\
          Homing: saved calibration is history; every fresh process starts Unhomed.\n\
-         Physical reference/SetZero is unqualified and refuses before arming; see docs/homing.md.\n\
+         set-zero runs the qualified physical reference workflow (ADR 0036); its current grant\n\
+         ends with this process, so enable after homing from one long-running marengo-pi\n\
+         (stdin `home <joint>... sign-tested`).\n\
          Disable requires successful startup loading; use the independent physical E-stop when needed.\n\
          Uses SocketCAN; prefer test harness or simulation before live CAN.\n\
          Env: MARENGO_ROOT, MARENGO_CONFIG_DIR (e.g. config/bringup/shoulder_pitch_dual)"
@@ -181,12 +186,32 @@ fn main() {
         interfaces = ?can_interfaces,
         "motor-repl opened SocketCAN"
     );
-    let mut loop_ctrl = match ControlLoop::from_repo(
-        &root,
-        bus,
-        control.control.loop_hz,
-        control.control.chappe_state_hz,
-    ) {
+    // Only set-zero needs the physical reference owner and its journal; Disable and
+    // every other command keep the ordinary owner so a journal resource fault can
+    // never block them.
+    let built = if args[1] == "set-zero" {
+        match resolve_reference_journal_path(&root, resolve_config_dir(&root)) {
+            Ok(journal) => ControlLoop::from_repo_with_physical_reference(
+                &root,
+                bus,
+                journal,
+                control.control.loop_hz,
+                control.control.chappe_state_hz,
+            ),
+            Err(e) => {
+                eprintln!("reference journal path: {e}");
+                std::process::exit(1);
+            }
+        }
+    } else {
+        ControlLoop::from_repo(
+            &root,
+            bus,
+            control.control.loop_hz,
+            control.control.chappe_state_hz,
+        )
+    };
+    let mut loop_ctrl = match built {
         Ok(l) => l,
         Err(e) => {
             eprintln!("control loop: {e}");
@@ -256,7 +281,7 @@ fn main() {
                 if let Err(e) = loop_ctrl.supervisor_mut().set_homing_complete() {
                     eprintln!("enable blocked: {e}");
                     eprintln!(
-                        "saved history cannot grant current reference; qualified owner workflow remains incomplete (docs/homing.md)"
+                        "saved history cannot grant current reference; home with marengo-pi `home <joint>... sign-tested` and enable in that process (docs/homing.md)"
                     );
                     std::process::exit(1);
                 }
@@ -361,8 +386,8 @@ fn main() {
                 std::process::exit(1);
             });
             let sign_tested = args.iter().any(|a| a == "--sign-tested");
-            // Davout owns preflight and capability admission. The current physical
-            // adapter refuses; this caller must not arm first or certify cached pose.
+            // Davout owns preflight, the qualified physical acquisition and the
+            // journal commit; the drives are stopped before this returns.
             match loop_ctrl
                 .supervisor_mut()
                 .calibrate_joint_zero(joint, "bench", sign_tested)

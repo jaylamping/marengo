@@ -227,6 +227,52 @@ pub fn resolve_config_dir(repo_root: impl AsRef<Path>) -> PathBuf {
     repo_root.as_ref().join("config")
 }
 
+/// File name of the physical reference journal beside the calibration history.
+pub const REFERENCE_JOURNAL_FILE: &str = "reference-journal.sqlite3";
+
+/// Physical reference journal: `MARENGO_REFERENCE_JOURNAL`, else
+/// [`REFERENCE_JOURNAL_FILE`] beside the calibration history
+/// (`MARENGO_CALIBRATION_RECORD`, else `homing.yaml` `calibration_record_path`
+/// under `repo_root`). Relative results are anchored at the working directory
+/// and `.`/`..` are collapsed lexically, because the journal requires an
+/// absolute normal path.
+pub fn resolve_reference_journal_path(
+    repo_root: impl AsRef<Path>,
+    config_dir: impl AsRef<Path>,
+) -> Result<PathBuf, ConfigError> {
+    let path = if let Some(path) = std::env::var_os("MARENGO_REFERENCE_JOURNAL") {
+        PathBuf::from(path)
+    } else {
+        let record = match std::env::var_os("MARENGO_CALIBRATION_RECORD") {
+            Some(record) => PathBuf::from(record),
+            None => repo_root.as_ref().join(
+                load_homing_config_from(config_dir)?
+                    .homing
+                    .calibration_record_path,
+            ),
+        };
+        record
+            .parent()
+            .unwrap_or_else(|| Path::new(""))
+            .join(REFERENCE_JOURNAL_FILE)
+    };
+    let absolute = std::path::absolute(&path).map_err(|e| ConfigError::Io {
+        path: path.clone(),
+        message: e.to_string(),
+    })?;
+    let mut normal = PathBuf::new();
+    for component in absolute.components() {
+        match component {
+            std::path::Component::CurDir => {}
+            std::path::Component::ParentDir => {
+                normal.pop();
+            }
+            other => normal.push(other),
+        }
+    }
+    Ok(normal)
+}
+
 /// Load `robot.yaml` from `config_dir`.
 pub fn load_robot_config_from(
     config_dir: impl AsRef<Path>,

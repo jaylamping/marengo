@@ -374,6 +374,28 @@ impl<B: MotorBus> ControlLoop<B> {
         )
     }
 
+    /// [`Self::from_repo`] with the qualified physical Robstride reference owner
+    /// (ADR 0036). `journal_path` must be absolute and distinct from the
+    /// calibration history; see `marengo_config::resolve_reference_journal_path`.
+    pub fn from_repo_with_physical_reference(
+        repo_root: impl AsRef<Path>,
+        bus: B,
+        journal_path: impl AsRef<Path>,
+        loop_hz: u32,
+        chappe_hz: u32,
+    ) -> Result<Self, LoopError> {
+        let root = repo_root.as_ref();
+        let journal = journal_path.as_ref();
+        Self::from_repo_inner(
+            root,
+            &resolve_config_dir(root),
+            bus,
+            loop_hz,
+            chappe_hz,
+            |root, bus| Supervisor::from_repo_with_physical_reference(root, bus, journal),
+        )
+    }
+
     fn from_repo_inner(
         root: &Path,
         config_dir: &Path,
