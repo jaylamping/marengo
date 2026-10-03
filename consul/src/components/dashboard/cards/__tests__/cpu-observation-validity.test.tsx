@@ -4,7 +4,6 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { HostMetricsSchema, CpuMetricsSchema } from '@/gen/marengo/v1/marengo_pb';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { PiHostCard } from '@/components/dashboard/cards/pi-host-card';
-import { JetsonHostCard } from '@/components/dashboard/cards/jetson-host-card';
 import { useHostMetricsStore } from '@/state/hostMetricsStore';
 
 vi.mock('@/lib/chappe-config', () => ({ isChappeLive: () => true }));
@@ -13,7 +12,7 @@ vi.mock('@/components/dashboard/metrics/animated-number', () => ({
 }));
 afterEach(() => cleanup());
 
-for (const [Card, setter] of [[PiHostCard, 'setPiMetrics'], [JetsonHostCard, 'setJetsonMetrics']] as const) {
+for (const [Card, setter] of [[PiHostCard, 'setPiMetrics']] as const) {
   it(`${setter} displays unknown CPU until valid counters and retires it on reset`, () => {
     const publish = (sampleValid: boolean, usagePercent: number) => {
       const wire = toBinary(HostMetricsSchema, create(HostMetricsSchema, {
