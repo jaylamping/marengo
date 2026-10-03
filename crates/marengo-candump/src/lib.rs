@@ -60,34 +60,55 @@ pub enum TimestampMode {
     Absolute,
 }
 
-/// Valid CAN 2.0 identifier: 0..=0x1FFF_FFFF.
+/// Valid CAN 2.0 identifier: 0..=0x1FFF_FFFF, plus the kernel error-frame
+/// range 0x20000000..=0x2000FFFF (`CAN_ERR_FLAG` + class).
+///
+/// The standard/extended distinction is wire metadata, not a value range:
+/// can-utils prints extended IDs zero-padded to 8 digits
+/// (`000001FE`), standard IDs unpadded (`1FE`). Inferring extended from
+/// `value > 0x7FF` mislabels extended IDs at or below 0x7FF (e.g. type-0
+/// replies for device <= 7), so the flag travels with the value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct CanId(u32);
+pub struct CanId {
+    value: u32,
+    extended: bool,
+}
 
 impl CanId {
     pub const MAX: u32 = 0x1FFF_FFFF;
     pub const STANDARD_MAX: u32 = 0x7FF;
+    /// `CAN_ERR_FLAG` (bit 29) as printed by can-utils for kernel error
+    /// frames (e.g. `20000004#` on RX overflow).
+    pub const ERROR_FLAG: u32 = 0x2000_0000;
+    pub const ERROR_MAX: u32 = 0x2000_FFFF;
 
-    pub fn new(value: u32) -> Result<Self, Error> {
-        if value > Self::MAX {
+    pub fn new(value: u32, extended: bool) -> Result<Self, Error> {
+        let valid = value <= Self::MAX || (Self::ERROR_FLAG..=Self::ERROR_MAX).contains(&value);
+        if !valid {
             return Err(Error::InvalidCanId { value });
         }
-        Ok(Self(value))
+        Ok(Self { value, extended })
     }
 
     pub fn get(self) -> u32 {
-        self.0
+        self.value
     }
 
     pub fn is_extended(self) -> bool {
-        self.0 > Self::STANDARD_MAX
+        self.extended
+    }
+
+    /// Kernel error frame (`CAN_ERR_FLAG` set): bus-state evidence, never
+    /// a Robstride frame. Excluded from enrichment.
+    pub fn is_error(self) -> bool {
+        self.value & Self::ERROR_FLAG != 0
     }
 
     pub fn to_canonical_hex(self) -> String {
-        if self.is_extended() {
-            format!("{:08X}", self.0)
+        if self.extended {
+            format!("{:08X}", self.value)
         } else {
-            format!("{:03X}", self.0)
+            format!("{:03X}", self.value)
         }
     }
 }
@@ -107,8 +128,12 @@ impl<'de> Deserialize<'de> for CanId {
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        let value = u32::from_str_radix(s.trim(), 16).map_err(serde::de::Error::custom)?;
-        CanId::new(value).map_err(serde::de::Error::custom)
+        let text = s.trim();
+        let value = u32::from_str_radix(text, 16).map_err(serde::de::Error::custom)?;
+        // can-utils zero-pads extended IDs to 8 digits; standard IDs are
+        // unpadded. The width is the wire flag.
+        let extended = text.len() > 3;
+        CanId::new(value, extended).map_err(serde::de::Error::custom)
     }
 }
 
@@ -158,8 +183,11 @@ pub struct Frame {
     pub unix_time: Option<UnixMicros>,
     pub interface: String,
     pub can_id: CanId,
-    /// Decoded bytes, never unchecked hexadecimal text.
+    /// Decoded bytes, never unchecked hexadecimal text. Empty for RTR.
     pub data: Vec<u8>,
+    /// Remote transmission request: no data by definition, never enriched.
+    #[serde(default)]
+    pub rtr: bool,
     /// One-based physical source line, including blank/malformed predecessors.
     pub source_line: NonZeroU64,
     pub enrichment: Option<FrameEnrichment>,
@@ -194,7 +222,7 @@ pub struct CanIdCount {
 pub struct Summary {
     /// Every logical input line, including blank/malformed and unterminated last.
     pub total_lines: u64,
-    /// Lines accepted as frames.
+    /// Lines accepted as frames, including kernel error frames and RTR.
     pub parsed_frames: u64,
     /// Physical source size: compressed path size for .gz, otherwise input bytes.
     pub source_bytes: u64,
@@ -206,6 +234,12 @@ pub struct Summary {
     pub interfaces: Vec<InterfaceSummary>,
     /// Count descending, then numeric CAN ID ascending; at most requested limit.
     pub top_ids: Vec<CanIdCount>,
+    /// Whether at least one parsed frame resolved a joint name against the
+    /// catalog. False covers enrichment off (motors.yaml unloadable) and a
+    /// catalog that matches nothing: consumers must not render a joint
+    /// column on a bare mode flag.
+    #[serde(default)]
+    pub enriched: bool,
 }
 
 /// Parsed-frame paging, not source-line paging.
@@ -312,6 +346,12 @@ impl Candump {
         }
     }
 
+    /// Whether Robstride enrichment is active: IDs resolve against
+    /// motors.yaml. A plain parser leaves every frame unenriched.
+    pub fn is_enriched(&self) -> bool {
+        !matches!(self.enrichment, scan::EnrichmentMode::None)
+    }
+
     /// Streams plain or gzip input (detected by magic bytes), retaining only
     /// summary accumulators and the requested page.
     pub fn inspect_path(
@@ -406,6 +446,7 @@ pub fn format_inspection_text(inspection: &Inspection) -> String {
     );
     push_kv(&mut out, "total_lines", s.total_lines);
     push_kv(&mut out, "parsed_frames", s.parsed_frames);
+    push_kv(&mut out, "enriched", s.enriched);
     push_kv(&mut out, "source_bytes", s.source_bytes);
     push_kv(&mut out, "duration_s", format!("{:.6}", s.duration_s));
     match s.approx_hz {
@@ -440,7 +481,7 @@ pub fn format_inspection_text(inspection: &Inspection) -> String {
             frame.offset.as_secs_f64(),
             frame.interface,
             frame.can_id.to_canonical_hex(),
-            data_hex,
+            if frame.rtr { "RTR" } else { &data_hex },
             frame.source_line
         );
         if let Some(unix) = frame.unix_time {
@@ -478,21 +519,51 @@ mod can_id_tests {
     use super::*;
 
     #[test]
-    fn rejects_over_29_bits() {
-        assert!(CanId::new(0x2000_0000).is_err());
+    fn rejects_ids_outside_data_and_error_ranges() {
+        assert!(CanId::new(0x2001_0000, true).is_err());
+        assert!(CanId::new(0x1FFF_FFFF, false).is_ok());
+    }
+
+    #[test]
+    fn kernel_error_frames_are_valid_but_never_enriched() {
+        let id = CanId::new(0x2000_0004, true).unwrap();
+        assert!(id.is_error());
+        assert_eq!(id.to_canonical_hex(), "20000004");
+    }
+
+    #[test]
+    fn extended_flag_comes_from_wire_width_not_value() {
+        // Extended 0x1FE (e.g. a type-0 reply for a low device id) is an
+        // 8-digit field on the wire: extended despite value <= 0x7FF.
+        let ext = CanId::new(0x1FE, true).unwrap();
+        assert!(ext.is_extended());
+        assert_eq!(ext.to_canonical_hex(), "000001FE");
+        let std = CanId::new(0x1FE, false).unwrap();
+        assert!(!std.is_extended());
+        assert_eq!(std.to_canonical_hex(), "1FE");
     }
 
     #[test]
     fn accepts_max_extended() {
-        let id = CanId::new(0x1FFF_FFFF).unwrap();
+        let id = CanId::new(0x1FFF_FFFF, true).unwrap();
         assert!(id.is_extended());
         assert_eq!(id.to_canonical_hex(), "1FFFFFFF");
     }
 
     #[test]
     fn standard_pads_three_digits() {
-        let id = CanId::new(0x701).unwrap();
+        let id = CanId::new(0x701, false).unwrap();
         assert!(!id.is_extended());
         assert_eq!(id.to_canonical_hex(), "701");
+    }
+
+    #[test]
+    fn canonical_hex_round_trips_through_json() {
+        for (value, extended) in [(0x701u32, false), (0x1FE, true), (0x0280_02FF, true)] {
+            let id = CanId::new(value, extended).unwrap();
+            let json = serde_json::to_string(&id).unwrap();
+            let back: CanId = serde_json::from_str(&json).unwrap();
+            assert_eq!(back, id);
+        }
     }
 }

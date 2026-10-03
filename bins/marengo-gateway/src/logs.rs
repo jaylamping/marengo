@@ -81,6 +81,8 @@ pub struct CandumpFrameJson {
     interface: String,
     can_id: String,
     data: String,
+    /// Remote transmission request: `data` is empty by definition.
+    rtr: bool,
     line_no: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
     timestamp_unix_us: Option<u64>,
@@ -115,6 +117,9 @@ pub struct CandumpSummaryJson {
     approx_hz: Option<f64>,
     interfaces: Vec<CandumpInterfaceSummaryJson>,
     top_ids: Vec<CandumpIdCountJson>,
+    /// At least one parsed frame resolved a joint name; false means the
+    /// joint column has no attributions, not that enrichment errored.
+    enriched: bool,
 }
 
 pub struct LogServices {
@@ -138,6 +143,7 @@ fn candump_frame_json(f: marengo_candump::Frame) -> CandumpFrameJson {
         interface: f.interface,
         can_id: f.can_id.to_canonical_hex(),
         data: f.data.iter().map(|b| format!("{b:02X}")).collect(),
+        rtr: f.rtr,
         line_no: u32::try_from(f.source_line.get()).unwrap_or(u32::MAX),
         timestamp_unix_us: f.unix_time.map(|t| t.get()),
         comm_type,
@@ -170,6 +176,7 @@ fn candump_summary_json(summary: marengo_candump::Summary) -> CandumpSummaryJson
                 count: c.count,
             })
             .collect(),
+        enriched: summary.enriched,
     }
 }
 

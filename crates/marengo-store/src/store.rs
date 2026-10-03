@@ -558,6 +558,8 @@ impl Store {
                     approx_hz: None,
                     interfaces: Vec::new(),
                     top_ids: Vec::new(),
+                    // Zero parsed frames resolve no joints.
+                    enriched: false,
                 },
                 frames: Vec::new(),
             });
@@ -596,6 +598,8 @@ impl Store {
                 approx_hz: None,
                 interfaces: Vec::new(),
                 top_ids: Vec::new(),
+                // Zero parsed frames resolve no joints.
+                enriched: false,
             });
         }
         Ok(self

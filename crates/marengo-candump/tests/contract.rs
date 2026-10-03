@@ -6,6 +6,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::Duration;
 
+use marengo_candump::format_inspection_text;
 use marengo_candump::{CanId, Candump, FramePage, InspectRequest, TimestampMode};
 
 fn fixture(name: &str) -> PathBuf {
@@ -116,7 +117,10 @@ fn malformed_lines_count_but_do_not_parse() {
         &fixture_bytes("malformed.log"),
         InspectRequest::summary(TimestampMode::Delta),
     );
-    assert_eq!(report.summary.parsed_frames, 3, "only classic valid frames");
+    assert_eq!(
+        report.summary.parsed_frames, 4,
+        "classic valid frames plus the kernel error frame"
+    );
     assert_eq!(
         report.summary.total_lines, 9,
         "blank and bad lines still counted"
@@ -222,7 +226,7 @@ bad
 
 #[test]
 fn can_id_json_roundtrip_canonical_hex() {
-    let id = CanId::new(0x028002FF).unwrap_or_else(|e| panic!("id: {e}"));
+    let id = CanId::new(0x028002FF, true).unwrap_or_else(|e| panic!("id: {e}"));
     let json = serde_json::to_string(&id).unwrap_or_else(|e| panic!("ser: {e}"));
     assert_eq!(json, "\"028002FF\"");
     let back: CanId = serde_json::from_str(&json).unwrap_or_else(|e| panic!("de: {e}"));
@@ -250,4 +254,71 @@ fn inspect_path_io_error_includes_path() {
         msg.contains("does-not-exist.log"),
         "I/O error retains path: {msg}"
     );
+}
+
+#[test]
+fn kernel_error_frame_parses_without_enrichment() {
+    let bytes = b"(0.000000) can0 20000004#00000000\n";
+    let page = FramePage::new(0, 10).unwrap_or_else(|e| panic!("page: {e}"));
+    let report = inspect_ok(bytes, InspectRequest::page(TimestampMode::Delta, page));
+    assert_eq!(report.summary.parsed_frames, 1);
+    assert_eq!(report.frames.len(), 1);
+    let frame = &report.frames[0];
+    assert!(frame.can_id.is_error(), "error flag retained");
+    assert!(frame.can_id.is_extended(), "8-digit wire width");
+    assert!(!frame.rtr);
+    assert!(
+        frame.enrichment.is_none(),
+        "kernel error frame is bus state, never a Robstride frame"
+    );
+    assert!(
+        !report.summary.enriched,
+        "no joint resolved without a catalog"
+    );
+}
+
+#[test]
+fn remote_request_shapes_parse_with_empty_data() {
+    let bytes = b"\
+(0.000000) can0 123#R
+(0.001000) can0 123 [8] remote request
+(0.002000) can0 124#R
+";
+    let page = FramePage::new(0, 10).unwrap_or_else(|e| panic!("page: {e}"));
+    let report = inspect_ok(bytes, InspectRequest::page(TimestampMode::Delta, page));
+    assert_eq!(report.summary.parsed_frames, 3);
+    for frame in &report.frames {
+        assert!(frame.rtr, "both wire shapes mark RTR");
+        assert!(frame.data.is_empty(), "RTR carries no payload");
+        assert!(frame.enrichment.is_none(), "requests are never enriched");
+    }
+    assert_eq!(report.frames[0].can_id.get(), 0x123);
+    assert!(!report.frames[0].can_id.is_extended());
+    let text = format_inspection_text(&report);
+    assert!(
+        text.contains("data=RTR"),
+        "text format names RTR instead of hex: {text}"
+    );
+}
+
+#[test]
+fn extended_flag_comes_from_wire_width() {
+    let bytes = b"\
+(0.000000) can0 000001FE#00
+(0.001000) can0 1FE#00
+";
+    let page = FramePage::new(0, 10).unwrap_or_else(|e| panic!("page: {e}"));
+    let report = inspect_ok(bytes, InspectRequest::page(TimestampMode::Delta, page));
+    assert_eq!(report.summary.parsed_frames, 2);
+    assert_eq!(report.frames[0].can_id.get(), 0x1FE);
+    assert!(
+        report.frames[0].can_id.is_extended(),
+        "8-digit field is extended despite value <= 0x7FF"
+    );
+    assert_eq!(report.frames[1].can_id.get(), 0x1FE);
+    assert!(
+        !report.frames[1].can_id.is_extended(),
+        "3-digit field is standard"
+    );
+    assert_ne!(report.frames[0].can_id, report.frames[1].can_id);
 }
