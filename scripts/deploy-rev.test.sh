@@ -8,6 +8,8 @@ source "${ROOT}/scripts/deploy-lib.sh"
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
+# ensure_git_safe_directory writes `git config --global`; keep it off the developer's ~/.gitconfig.
+export GIT_CONFIG_GLOBAL="${TMP}/gitconfig"
 
 pass=0
 fail=0
