@@ -160,7 +160,10 @@ export async function runSyncMain(
     "set -euo pipefail",
     `cd ${shellQuote(staging)}`,
     "if pgrep -af marengo-pi >/dev/null 2>&1; then echo 'warning: marengo-pi running' >&2; fi",
-    "test -x /opt/marengo/bin/marengo-pi && /opt/marengo/bin/marengo-pi 2>&1 | head -1 || true",
+    // Never execute marengo-pi here: without /etc/marengo/env it resolves the
+    // compile-time workspace root (deploy host path); with it, it starts control.
+    "test -x /opt/marengo/bin/marengo-pi",
+    "echo \"deploy rev: $(cat /opt/marengo/.deploy-rev 2>/dev/null || echo missing)\"",
     "echo 'install verified'",
   ].join("\n");
   const verify = await execRemote(cfg, verifyBody, { timeoutMs: 120_000 });
