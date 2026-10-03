@@ -1,8 +1,8 @@
 # bins/marengo-log-cli/src/
 
 ## Responsibility
-`main.rs` parses and dispatches session, archive, purge (enforces the stored retention settings), legacy/journal import and
-disk-usage commands to `marengo-store`. Candump inspection and explicit
+`main.rs` parses and dispatches session, archive, purge (enforces the stored retention settings), legacy/journal import
+commands to `marengo-store` (`StoreCommand`; the other subcommands never open the Store). Candump inspection and explicit
 `recover-known-v2` dispatch before normal Store open. Recovery prints the library's
 completed JSON receipt; schema recognition and backup/publication belong to the library.
 `gravity_fit.rs` (`gravity-fit`, no DB) reads `pi_gravity_calibrate` session directories,

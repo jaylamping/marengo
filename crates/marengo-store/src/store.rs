@@ -623,12 +623,7 @@ impl Store {
     }
 
     pub fn log_disk_usage_bytes(&self) -> Result<u64> {
-        let mut total = 0u64;
-        if let Ok(meta) = fs::metadata(&self.db_path) {
-            total += meta.len();
-        }
-        total += dir_size(&log_dir(&self.marengo_root))?;
-        Ok(total)
+        crate::disk::log_disk_usage_bytes(&self.marengo_root, &self.db_path)
     }
 
     /// Import hot references and archive beyond `keep`. Counts describe files
@@ -844,24 +839,6 @@ pub(crate) fn remove_session(conn: &Connection, session: &LogSessionRow) -> Resu
         params![session.id],
     )?;
     Ok(())
-}
-
-/// Bytes held by regular files under `path`; symlinks are not followed.
-pub(crate) fn dir_size(path: &Path) -> Result<u64> {
-    let Ok(meta) = fs::symlink_metadata(path) else {
-        return Ok(0);
-    };
-    if meta.is_file() {
-        return Ok(meta.len());
-    }
-    if !meta.is_dir() {
-        return Ok(0);
-    }
-    let mut total = 0u64;
-    for entry in fs::read_dir(path)? {
-        total += dir_size(&entry?.path())?;
-    }
-    Ok(total)
 }
 
 #[cfg(test)]

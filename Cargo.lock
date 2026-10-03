@@ -1522,6 +1522,8 @@ name = "marengo-host-metrics"
 version = "0.1.0"
 dependencies = [
  "armee-proto",
+ "marengo-deploy",
+ "marengo-store",
  "thiserror 1.0.69",
 ]
 

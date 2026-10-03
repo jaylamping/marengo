@@ -9,6 +9,7 @@
 //! Allowed dependencies are SQLite, compression/time/serialization and ordinary
 //! storage utilities, plus marengo-candump inspection. No control-stack dependency.
 
+mod disk;
 mod error;
 mod journal;
 mod migrations;
@@ -18,6 +19,7 @@ mod recovery;
 mod retention;
 mod store;
 
+pub use disk::log_disk_usage_bytes;
 pub use error::{Result, StoreError};
 pub use journal::{import_journal, JOURNAL_UNITS};
 pub use model::{

@@ -66,7 +66,7 @@ pub fn resolve_restart_script() -> PathBuf {
             return PathBuf::from(trimmed);
         }
     }
-    PathBuf::from(marengo_deploy::paths::PRIVILEGED_HELPERS_DIR).join("pi-restart-marengo-pi.sh")
+    PathBuf::from(marengo_deploy::PRIVILEGED_HELPERS_DIR).join("pi-restart-marengo-pi.sh")
 }
 
 pub async fn post_restart_marengo_pi(
