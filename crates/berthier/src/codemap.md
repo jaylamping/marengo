@@ -32,3 +32,4 @@ Implementation modules for the Berthier realtime control loop and legacy single-
 - Imports `armee_dynamics::DynamicsModel`
 - Re-exported by crate root `lib.rs`
 - Only `ControlLoop<davout::simulation::SimulationBus>::from_simulation` accepts a virtual initial reference fixture. It shares the ordinary loop implementation; arbitrary buses and ordinary constructors cannot receive that fixture. Test raw observations and finite scripts go through the production receive/admission/output paths.
+- `ControlLoop::from_repo_with_physical_reference(root, bus, journal, loop_hz, chappe_hz)` wraps `Supervisor::from_repo_with_physical_reference` (ADR 0036); the journal path comes from `marengo_config::resolve_reference_journal_path`. `tick` calls `supervisor.advance_reference_work()` while `reference_work_pending()`.

@@ -18,12 +18,14 @@
 Every fresh Supervisor starts joints Unhomed; calibration history cannot transfer
 readiness between CLI processes. Full constructor errors (including corrupt
 history) occur before subcommand dispatch, so this fresh CLI is not a qualified
-emergency stop. Qualified reference and installed-owner client migration remain
-in the [repair roadmap](../../docs/reviews/2026-09-29/implementation-roadmap.md).
-Set Zero now makes one guarded Davout request; it does not enable drives first,
-send raw zero or certify cached feedback. The current physical adapter refuses
-unqualified reference before arming. This does not complete installed-owner
-client migration or general all-exit cleanup.
+emergency stop. `set-zero <joint> [--sign-tested]` builds the loop with
+`ControlLoop::from_repo_with_physical_reference` (journal from
+`resolve_reference_journal_path`) and runs Davout's qualified physical workflow
+via `calibrate_joint_zero` (ADR 0036). The resulting grant ends with the process;
+home and enable in one `marengo-pi` (stdin `home <joint>... sign-tested`). Other
+subcommands keep plain `from_repo` and cannot acquire reference. Installed-owner
+client migration and general all-exit cleanup remain in the
+[repair roadmap](../../docs/reviews/2026-09-29/implementation-roadmap.md).
 
 ## Integration
 - **Primary bench tool** for MCP `pi_hold_on`, `pi_motor_recover`, `pi_set_zero`

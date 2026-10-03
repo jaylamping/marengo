@@ -1,6 +1,8 @@
 # ADR 0035: consume a current durable virtual reference for one joint
 
-Status: accepted for software implementation, October 2, 2026.
+Status: accepted for software implementation, October 2, 2026. Superseded in
+part by [ADR0036](0036-physical-robstride-reference.md): physical owners built
+with the explicit physical constructors now acquire and select per-joint grants.
 
 ## Context
 

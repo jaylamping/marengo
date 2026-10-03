@@ -11,8 +11,9 @@ Low-level Robstride protocol implementation and bus backends.
 | `feedback.rs` | Status/detail/malformed observations and transport frames with common raw ordinals; compatibility projection |
 | `comm.rs` | 29-bit extended ID pack/unpack, `CommunicationType` |
 | `mit.rs` | MIT Mode 0 encode/decode, `MitCommand`, `MitFeedback` |
-| `lifecycle.rs` | Enable, disable, set-zero frames |
-| `params.rs` | Firmware parameter read/write |
+| `lifecycle.rs` | Enable, disable, set-zero (type 6) frames |
+| `identity.rs` | Type-0 `encode_get_device_id` / `encode_default_get_device_id`, `decode_device_id_reply` (ext id `device<<8 \| 0xFE`), `DeviceUid` (8-byte MCU UID, `as_u64` LE, lowercase hex) |
+| `params.rs` | Firmware parameter read/write; `MechPos` (0x7019, read-only), `ZeroSta` (0x7029), `AddOffset` (0x702B); type-17 `decode_read_parameter_reply` → `ParameterReadReply` (status 0 = success) |
 | `state.rs` | Per-motor feedback cache |
 | `motor_type.rs` | RS00–RS04 type constants |
 | `command.rs` | Typed numeric command validation errors |

@@ -312,7 +312,18 @@ job binding independent of stage deadlines and diagnostic cache retention. Succe
 ordinary Disable preserves intact reference; new acquisition, observed relevant policy
 or model change, reset, fault, uncertain stop and shutdown revoke it. Snapshot booleans
 and recovered rows only describe history/current observations; they never install
-permission. Generic/physical constructors retain no qualified acquisition capability.
+permission. Generic constructors retain no qualified acquisition capability.
+
+The explicit physical constructors (`from_repo_with_physical_reference*`,
+[ADR0036](decisions/0036-physical-robstride-reference.md)) reuse the same owner,
+journal and consumer. Evidence is a type-2 ack popped after the addressed SetZero
+and a requested type-17 `mechPos` readback, each correlated by a receive
+watermark taken before its request. Never accept a reply queued before its
+request. Physical selection uses `SelectionScope::Accumulate`: one grant per
+joint, bound to the MCU UID and coordinate epoch, revoked per joint through
+`revoke_binding`/`revoke_joint`. Virtual selection keeps `Replace`. Build every
+identity/SetZero/read frame through `robstride::encode_*`, and never write
+`ZeroSta`/`AddOffset` or send a type-22 save.
 
 ```rust
 // BAD — an already-revoked reference generation misses another model install

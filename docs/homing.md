@@ -71,42 +71,93 @@ Configured per joint in `config/homing.yaml` (see [ADR 0006](decisions/0006-homi
 
 | Method | When to use |
 |--------|-------------|
-| `manual_reference` | **Target contract** — supported mechanical placement, explicit sign attestation and qualified evidence after Set Zero. The installed adapter currently refuses unqualified reference. |
+| `manual_reference` | Supported mechanical placement at home, explicit sign attestation and qualified physical evidence after Set Zero ([ADR 0036](decisions/0036-physical-robstride-reference.md)). |
 | `hall_three_sensor` | **Unimplemented live workflow** — slow search, edge detect, backoff/re-approach, apply `home_offset_rad`, optional firmware `SetZero`. |
 | `none` | No physical reference workflow; it cannot establish live bench reference. |
 
-## Current commissioning limitation
+## Qualified physical reference workflow
 
-The former sequence of separate `motor-repl set-zero`, `home`, then Pi `enable`
-processes depended on saved history granting readiness. It now refuses at the
-fresh-process reference gate. `home` checks current readiness; it does not acquire
-a physical reference. The saved rows remain available and do not convey a grant
-between processes.
+Davout keeps current-reference permission private and checks it at Ready, every
+Enable path and motor output. History, legacy flags and the journal never grant
+it. Only the explicit physical owners
+(`Supervisor::from_repo_with_physical_reference`,
+`ControlLoop::from_repo_with_physical_reference`) can acquire. Plain
+`from_repo` still refuses with `ReferenceUnsupported`. See
+[ADR 0036](decisions/0036-physical-robstride-reference.md).
 
-Davout now keeps current-reference permission private and checks it at Ready,
-every Enable path and motor output. Legacy registry flags and scalar history
-checks cannot supply that permission. The installed Robstride adapter lacks a
-qualified device identity/reset/zero-readback contract, so reference, raw SetZero
-and cached verification requests refuse before arming or history persistence.
-The CLI submits one guarded request instead of enabling first and certifying a
-cached pose. A live commissioning procedure requires the remaining target-only
-preflight, stop-before-storage, qualified postcommand evidence and single-owner
-request/receipt work tracked as CS05/CS06/CS07 in the
-[repair roadmap](reviews/2026-09-29/implementation-roadmap.md).
+Each joint runs on its own: all-address stop with reporting off, a drain, a
+type-0 identity read, Enable to the target only, a drain, then SetZero. Next it
+needs a type-2 ack from the target after SetZero, within
+`zero_verify_tolerance_rad`, and a type-17 `mechPos` (0x7019) readback requested
+after the ack, within the same tolerance. Then come the all-address stop, the
+durable journal row and the grant. Grants accumulate per joint and bind the MCU
+UID.
 
-Keep the arm supported and the physical E-stop reachable for any later supervised
-commissioning. The fresh `motor-repl disable` path also requires full startup
-configuration and history loading; a corrupt resource can prevent it from
-reaching its stop writes. It is not a qualified emergency-stop mechanism. An
-accepted socket write or software Disabled state does not prove physical stop.
+**Same process.** Grants never cross processes, so home and enable through
+one `marengo-pi`:
 
-Positive software tests construct a closed in-memory simulator with an explicit
-initial virtual reference fixture. It shares Davout/Berthier admission, receive,
-fault, stop and output logic, and records output locally. This fixture proves
-behavior from declared initial conditions; it does not prove reference
-acquisition, SetZero causality, durable transaction results or physical readiness.
-Ordinary constructors have no reference capability even with a recording bus.
-See [ADR0023](decisions/0023-private-current-reference-authority.md).
+```text
+home right_shoulder_pitch right_elbow_pitch sign-tested
+reference right_shoulder_pitch current pos=0.0012
+reference right_elbow_pitch current pos=-0.0008
+home            # readiness check (all configured joints granted) → Ready
+enable bench
+```
+
+Joints are acquired in order. A failure prints `reference <joint> failed:
+<message>`, and every later queued joint prints `reference <joint> skipped:
+earlier joint failed`. Refusals at parse time (no `sign-tested`, unknown joint,
+queue busy) print `home failed: <message>`. Other commands wait until the queue
+drains. `disable`, `quit` and E-stop cancel it (`failed: cancelled`). A plain
+`home` keeps its readiness check.
+
+`motor-repl set-zero <joint> --sign-tested` runs the same qualified workflow and
+journal. Its grant ends when the process exits, so it cannot prepare a later
+`marengo-pi enable`.
+
+**Journal path.** `MARENGO_REFERENCE_JOURNAL`, or else
+`reference-journal.sqlite3` next to the calibration record
+(`MARENGO_CALIBRATION_RECORD`, else `homing.yaml` `calibration_record_path`).
+On the Pi that is `/opt/marengo/var/calibration/reference-journal.sqlite3`. The
+path is made absolute and must differ from the calibration record.
+
+**What revokes a grant.** Revoked per joint: a UID change, a missing or
+mismatched UID in the 50 ms type-0 check at Enable, a coordinate discontinuity,
+Calibration drive mode, or no feedback for longer than `comm_watchdog_ms`
+outside reference work. Revoked for all joints: a fault, E-stop, uncertain stop,
+shutdown, or a change to the model or relevant policy. A successful ordinary
+Disable keeps grants.
+
+### Pi bench procedure
+
+Arm supported at mechanical home, hands off, physical E-stop reachable:
+
+1. `pi_sync_main` (deploy rev matches, gateway healthy).
+2. `pi_can_up`, then `pi_health`.
+3. `pi_marengo_pi_script` with lines:
+   `home right_shoulder_pitch right_shoulder_roll right_upper_arm_yaw right_elbow_pitch right_lower_arm_yaw sign-tested`,
+   `sleep 5`, `status`, `home`, `enable bench`, then the supported test
+   commands and `disable`. Expect one `reference <joint> current pos=` line per
+   joint, then `homing verified → Ready` and `enabled (operator=bench)`.
+4. `pi_candump_summary`. For each drive `n`, expect `0000FD0n` → `00000nFE`
+   (identity), `0600FD0n` followed by a type-2 `02…` from that drive, and
+   `1100FD0n#1970…` → `11000nFD#1970…` (readback).
+5. `pi_logs_tail` and `pi_logs_last_fault`.
+
+If a line reports `failed:`, stop, read the message and the last fault, and do
+not enable. The firmware assumptions in ADR 0036 (SetZero accepted while
+enabled, in-order readback, persistence unknown) stay unqualified until this
+procedure passes on the bench.
+
+The fresh `motor-repl disable` path also requires full startup configuration
+and history loading; a corrupt resource can prevent it from reaching its stop
+writes. It is not a qualified emergency-stop mechanism. An accepted socket write
+or software Disabled state does not prove physical stop.
+
+Positive software tests use scripted buses with literal Robstride frames, and a
+closed in-memory simulator with an explicit initial virtual reference fixture.
+Neither proves firmware behavior or physical readiness. See
+[ADR0023](decisions/0023-private-current-reference-authority.md).
 
 ## Out-of-range recovery requirements
 
@@ -115,7 +166,7 @@ If feedback is outside effective limits or zero is stale:
 1. Request stop from the installed owner and retain its delivery outcome; use the independent physical E-stop when needed.
 2. Manually move to a known safe pose **or** run constrained homing when Hall sensors exist.
 3. Re-run sign test if direction may have changed.
-4. Establish a qualified current reference before enable once the owner workflow is implemented.
+4. Establish a qualified current reference (`home <joints> sign-tested` in the owning `marengo-pi`) before enable.
 
 Blind position hunting without sensors or operator reference is **not** allowed.
 

@@ -25,14 +25,26 @@ Read this before enabling motors on the bench or robot.
 - **Current reference.** Every fresh registry starts `Unhomed`; saved calibration is history and cannot authorize checked home or normal Enable. Corrupt/unreadable history returns an error without replacing its bytes. See [ADR 0022](decisions/0022-calibration-history-and-current-reference.md).
 - **Permission at output.** Davout's private owner-bound reference gates Ready,
   scoped/normal Enable, Active shortcuts and output. Caller-set history flags
-  cannot grant it. Current physical reference/SetZero capability is unqualified
-  and refuses before arming; initial virtual test fixtures establish no hardware
+  cannot grant it, and initial virtual test fixtures establish no hardware
   readiness. See [ADR0023](decisions/0023-private-current-reference-authority.md).
+- **Physical reference grants.** Only the explicit physical owners acquire a grant
+  ([ADR 0036](decisions/0036-physical-robstride-reference.md)). Acquisition
+  needs a type-2 ack after the target's SetZero and a type-17 `mechPos` readback
+  after the ack, both within tolerance. It stops all drives before storage and
+  grants only after the journal commit is durable. Grants are per joint,
+  accumulate, bind the MCU UID and coordinate epoch, and are local to the owning
+  process. A grant is revoked per joint for a UID change, a missing or mismatched
+  UID in the type-0 check at Enable (done before any Enable frame), a coordinate
+  discontinuity, Calibration drive mode, or no feedback for longer than
+  `comm_watchdog_ms` outside reference work. Fault, E-stop, uncertain stop,
+  shutdown and model/policy changes revoke all grants. `zero_sta`/`add_offset`
+  writes and type-22 saves are never sent.
 
-Manual reference and the three-Hall workflow remain commissioning targets. The
-qualified reference transaction and single-owner client cutover are incomplete;
-the former separate CLI Set Zero → home → Pi enable sequence now refuses at
-startup. See [homing.md](homing.md) for the current limitation and stop-path caveat.
+Manual reference is the qualified commissioning workflow. Bench qualification is
+pending, and the three-Hall workflow is unimplemented. Home and enable in one
+`marengo-pi` process. The former separate CLI Set Zero → home → Pi enable
+sequence still refuses, because grants do not cross processes. See
+[homing.md](homing.md) for the procedure and the stop-path caveat.
 
 ## Enable / disable sequence (target behavior)
 
@@ -63,9 +75,9 @@ See [ADR 0004](decisions/0004-control-modes-and-mit.md) and [hardware/docs/decis
 
 ## Bench procedure (gravity compensation target)
 
-This requires a qualified current reference in the installed owner. The current
-software does not yet provide the complete commissioning path; a fresh CLI
-`home` cannot create that reference from history.
+This requires a qualified current reference in the installed owner: `home
+<joints...> sign-tested` in the same `marengo-pi` process that will enable. A
+fresh CLI `home` cannot create that reference from history.
 
 1. Verify E-stop and clear workspace.
 2. Installed owner confirms current-reference Ready; request Enable only with arm supported.
@@ -123,8 +135,9 @@ not establish client delivery or physical stop/support acceptance. See
 - **Fault authority:** Observed runtime hazards persist across later healthy feedback, Disable and cache clearing. Davout attempts every configured stop address and retains failures; send acceptance is not physical stop acknowledgement. Qualified recovery/reset is not implemented. See [ADR 0020](decisions/0020-lossless-feedback-and-fault-authority.md).
 - **Receive integrity and work:** Status/detail feedback requires exactly eight Data bytes. Malformed configured feedback, kernel errors and incomplete receive work latch through fault authority. Every poll is limited to 64 raw frames and 256 nonblocking read attempts across all interfaces, including noise and interruptions; both enable flushes require observed quiescence. Host read order/deadlines do not qualify physical acquisition, drive behavior or Pi jitter. See [ADR 0021](decisions/0021-bounded-can-ingress.md).
 - **Reference and stop callers:** Private admission closes legacy direct grants
-  and cached verification; qualified reference transactions and installed-owner
-  client migration remain incomplete. A fresh `motor-repl disable` constructs
+  and cached verification. Physical reference runs inside the owning
+  `marengo-pi`/`motor-repl` process (ADR 0036); installed-owner client migration
+  (gateway/MCP/proto) remains incomplete. A fresh `motor-repl disable` constructs
   the full Supervisor first, so bad startup configuration/history can block its
   stop dispatch. Reference-independent stop through the installed owner and
   CLI/MCP migration remain required; use the physical E-stop as the independent

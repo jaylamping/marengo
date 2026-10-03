@@ -569,3 +569,18 @@ are complete. Portable receipts are in evidence/batch16 and HANDOFF.md records
 remaining work, reviewed next design and Windows-only assets. This supersedes
 earlier pending delivery paragraphs. Counts stay16verified/11partial/75open;
 the user-requested pause is not software completion.
+
+## Physical Robstride reference (CS05/CS06/CS07)
+
+[ADR0036](../../decisions/0036-physical-robstride-reference.md) implements the
+qualified physical reference in software. Robstride 88f2b9e adds type-0 identity
+(`DeviceUid`), `MechPos`/`ZeroSta`/`AddOffset` and type-17 reply decoding.
+Davout e96798d adds the physical backend, phases, the evidence rules (type-2 ack
+after SetZero plus a requested 0x7019 readback), stop before storage, durable
+`physical_robstride` rows and per-joint UID-bound grants. Follow-up wiring adds
+`resolve_reference_journal_path`, the Berthier/motor-repl physical constructors
+and the marengo-pi `home <joints...> sign-tested` queue. **Disposition:**
+CS05/CS06/CS07 software implemented; bench qualification pending (Pi candump and
+same-process `home` → `enable bench` with the arm supported, per
+[homing.md](../../homing.md)). Gateway/MCP/proto priority-stop clients remain
+CS09/T05/T12.

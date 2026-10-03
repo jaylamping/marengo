@@ -160,7 +160,15 @@ identity, preserved high bits, unchanged pose freshness on fault-only RX, refusa
 of motion, and latch retention until an authorized reset. Protocol fixtures must
 come from the vendor format rather than an encode/decode self-roundtrip.
 
-### CS05: calibration history is distinct from current readiness (C2, P1, partial)
+### CS05: calibration history is distinct from current readiness (C2, P1, software implemented; bench qualification pending)
+
+**Disposition (October 2, 2026):** the qualified physical Robstride reference
+([ADR0036](../../decisions/0036-physical-robstride-reference.md)) is implemented
+in software: robstride 88f2b9e, davout e96798d, and the follow-up
+marengo-config/Berthier/motor-repl/marengo-pi wiring. Explicit physical owners
+select per-joint grants bound to the MCU UID, only after durable journal
+completion. History and the journal never grant. Bench qualification on the Pi
+is pending.
 
 R1a ([batch05](batch05-reference-history-admission.md),
 [ADR0022](../../decisions/0022-calibration-history-and-current-reference.md))
@@ -215,8 +223,17 @@ caught, strict affected453/0 and primary736Rust/1 existing ignored,355frontend,
 72PiMCP/fatal ARM release pass. Independent reviews accept the source. Exact-head
 GitHub delivery is pending. Staged evidence is unusable and writes no history;
 R2b recoverable journal/current grant, R3 clients and physical acceptance remain.
+ADR0036 supersedes the remaining physical refusal; see the disposition above.
 
-### CS06: Set Zero verifies a post-command response (C2, P1, partial)
+### CS06: Set Zero verifies a post-command response (C2, P1, software implemented; bench qualification pending)
+
+**Disposition (October 2, 2026):** physical acquisition requires a type-2 ack
+from the target, popped after the addressed SetZero, and a type-17 `mechPos`
+(0x7019) readback requested after the ack. Both must be within
+`zero_verify_tolerance_rad`, and the readback needs status 0 and an unchanged
+UID/epoch. Absent, late, refused or out-of-tolerance evidence fails
+(88f2b9e/e96798d plus wiring). The firmware assumptions in ADR0036 are not yet
+bench-qualified.
 
 Batch06 removes cached/unqualified success and invalid scalar history writes.
 Ordinary physical paths still refuse. Batch10's closed virtual acquisition now
@@ -235,7 +252,14 @@ readback, successful new zero, and RX errors. Only the successful fresh response
 records reference verification. The current cached-feedback success test must
 become a rejecting regression, not remain a characterization of the defect.
 
-### CS07: one-shot calibration cleanup (C2, P1, partial)
+### CS07: one-shot calibration cleanup (C2, P1, software implemented; bench qualification pending)
+
+**Disposition (October 2, 2026):** motor-repl `set-zero` and marengo-pi
+`home <joints...> sign-tested` both drive the same Davout owner workflow:
+target-only arming and all-address stop before storage. The blocking form calls
+`disable_all` on timeout, and `disable`/`quit`/E-stop cancel the marengo-pi
+queue. Gateway/MCP/proto priority-stop clients remain open under
+CS09/T05/T12. Bench qualification is pending.
 
 Batch06 routes motor-repl calibration through central preflight, refusing the
 unqualified path before arming. Installed-owner cleanup/stop/client work below
