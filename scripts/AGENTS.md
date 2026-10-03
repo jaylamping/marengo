@@ -70,4 +70,4 @@ scripts/
 
 - Asking user to paste Pi logs when `pi-remote.sh` can fetch them.
 - Suppressing advisory refresh or registry-index failures to make a dependency check pass.
-- Running `motor-repl homing-status` (or any CAN-opening check) to decide whether the arm is homed: grants are process-local (ADR 0036), so a fresh process always reads Unhomed while its Supervisor still opens SocketCAN. Reference and enable inside one `marengo-pi` (`home <joints> sign-tested`, see `docs/homing.md`).
+- Do not use a fresh `motor-repl` process as a reference/readiness check: ADR 0036 grants are process-local. Acquire reference and enable inside one `marengo-pi` (`home <joints> sign-tested`, see `docs/homing.md`); use `pi_homing_status` for live state while that owner runs.

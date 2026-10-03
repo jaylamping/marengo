@@ -67,7 +67,7 @@ Not an industry-canon magnitude — conservative Marengo starting point. Lower `
 ## Preconditions (every chapter)
 
 - [ ] `pi_health` / CAN up / deploy rev matches intended git
-- [ ] Reference acquired **in the marengo-pi session that will enable** (`home <joints> sign-tested`, then `home` → Ready) for all `joints[]` in scope → Limb Ready (or explicit commissioning scope). Grants are process-local ([ADR 0036](../decisions/0036-physical-robstride-reference.md)): no separate-process check (`motor-repl homing-status`, install-time preflight) can show readiness; `pi_homing_status` reports live homing only while that marengo-pi runs
+- [ ] Reference acquired **in the marengo-pi session that will enable** (`home <joints> sign-tested`, then `home` → Ready) for all `joints[]` in scope → Limb Ready (or explicit commissioning scope). Grants are process-local ([ADR 0036](../decisions/0036-physical-robstride-reference.md)): no separate-process status or check (including `motor-repl` or install-time preflight) can show readiness; `pi_homing_status` reports live homing only while that marengo-pi runs.
 - [ ] `fault=0`; operator support rules for elevated enable
 - [ ] Harness hook (gap): `preflight_limb` — _TODO_
 

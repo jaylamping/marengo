@@ -57,15 +57,20 @@ impl fmt::Display for ReferenceEvent {
                 joint,
                 position_rad,
             } => write!(f, "reference {joint} current pos={position_rad:.4}"),
-            Self::Failed { joint, message } => write!(f, "reference {joint} failed: {message}"),
-            Self::Skipped { joint } => write!(f, "reference {joint} skipped: earlier joint failed"),
-            Self::DeferredDiscarded { count } => write!(
-                f,
-                "discarded {count} deferred command(s): reference queue cancelled"
-            ),
-        }
+            Self::Failed { joint, message } => {
+                write!(f, "reference {joint} failed: {message}")
+            }
+            Self::Skipped { joint } => {
+                write!(f, "reference {joint} skipped: earlier joint failed")
+            }
+            Self::DeferredDiscarded { count } => {
+                write!(f, "discarded {count} deferred command(s)")
+            }
     }
 }
+}
+
+pub(crate) const MAX_DEFERRED_COMMANDS: usize = 64;
 
 pub(crate) const CANCELLED: &str = "cancelled";
 
@@ -128,8 +133,12 @@ impl<H, C> ReferenceQueue<H, C> {
         Ok(())
     }
 
-    pub(crate) fn defer(&mut self, command: C) {
+    pub(crate) fn defer(&mut self, command: C) -> bool {
+        if self.deferred.len() >= MAX_DEFERRED_COMMANDS {
+            return false;
+        }
         self.deferred.push_back(command);
+        true
     }
 
     /// Next deferred command once the queue has drained.
@@ -174,6 +183,7 @@ impl<H, C> ReferenceQueue<H, C> {
                         message,
                     });
                     self.skip_pending(&mut events);
+                    self.discard_deferred_after_failure(&mut events);
                     return events;
                 }
             }
@@ -194,6 +204,7 @@ impl<H, C> ReferenceQueue<H, C> {
                     message,
                 });
                 self.skip_pending(&mut events);
+                self.discard_deferred_after_failure(&mut events);
             }
         }
         events
@@ -220,6 +231,14 @@ impl<H, C> ReferenceQueue<H, C> {
             self.deferred.clear();
         }
         events
+    }
+
+    fn discard_deferred_after_failure(&mut self, events: &mut Vec<ReferenceEvent>) {
+        let count = self.deferred.len();
+        self.deferred.clear();
+        if count > 0 {
+            events.push(ReferenceEvent::DeferredDiscarded { count });
+        }
     }
 
     fn skip_pending(&mut self, events: &mut Vec<ReferenceEvent>) {

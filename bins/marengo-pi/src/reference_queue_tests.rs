@@ -129,7 +129,7 @@ fn joints_acquire_in_order_one_at_a_time() {
 }
 
 #[test]
-fn failure_skips_remaining_joints() {
+fn failure_skips_remaining_joints_and_discards_deferred_commands() {
     let mut queue = Queue::new("s".into());
     let mut driver = FakeDriver::default();
     driver.script(
@@ -141,6 +141,8 @@ fn failure_skips_remaining_joints() {
     queue
         .admit(&joints(&["a", "b", "c"]), true, "bench", known)
         .expect("admit");
+    assert!(queue.defer("enable"));
+    assert!(queue.defer("hold-on"));
     assert!(queue.pump(&mut driver).is_empty());
     let events = queue.pump(&mut driver);
     assert_eq!(
@@ -149,10 +151,24 @@ fn failure_skips_remaining_joints() {
             "reference a failed: readback timeout",
             "reference b skipped: earlier joint failed",
             "reference c skipped: earlier joint failed",
+            "discarded 2 deferred command(s)",
         ]
     );
     assert_eq!(driver.requested(), vec!["a"]);
     assert!(!queue.is_busy());
+    assert_eq!(queue.take_ready_deferred(), None);
+}
+
+#[test]
+fn deferred_commands_are_bounded() {
+    let mut queue = Queue::new("s".into());
+    queue
+        .admit(&joints(&["a"]), true, "bench", known)
+        .expect("admit");
+    for _ in 0..super::MAX_DEFERRED_COMMANDS {
+        assert!(queue.defer("hold-on"));
+    }
+    assert!(!queue.defer("enable"));
 }
 
 #[test]

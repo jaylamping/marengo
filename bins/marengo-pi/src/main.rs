@@ -133,6 +133,18 @@ enum PiCommand {
     Quit,
 }
 
+fn parse_number<T>(token: &str, command: &str, field: &str) -> Result<T, String>
+where
+    T: std::str::FromStr,
+{
+    token.parse().map_err(|_| {
+        let error = format!("{command}: invalid {field} value {token:?}");
+        eprintln!("{error}");
+        error
+    })
+}
+
+
 fn parse_command(line: &str) -> Option<PiCommand> {
     let mut parts = line.split_whitespace();
     match parts.next()? {
@@ -172,7 +184,8 @@ fn parse_command(line: &str) -> Option<PiCommand> {
         "gravity-off" | "gravity_off" => Some(PiCommand::GravityOff),
         "torque-cmd" | "torque_cmd" => {
             let joint = parts.next()?.to_string();
-            let tau_nm = parts.next()?.parse().ok()?;
+            let tau_nm =
+                parse_number::<f64>(parts.next()?, "torque-cmd", "torque_nm").ok()?;
             Some(PiCommand::TorqueCmd { joint, tau_nm })
         }
         "impedance-on" | "impedance_on" => Some(PiCommand::ImpedanceOn),
@@ -183,14 +196,16 @@ fn parse_command(line: &str) -> Option<PiCommand> {
             let tokens: Vec<_> = parts.collect();
             match tokens.as_slice() {
                 [rad] => {
-                    let position_rad = rad.parse().ok()?;
+                    let position_rad =
+                        parse_number::<f64>(rad, "hold-at", "position_rad").ok()?;
                     Some(PiCommand::HoldAt {
                         joint: None,
                         position_rad,
                     })
                 }
                 [joint, rad] => {
-                    let position_rad = rad.parse().ok()?;
+                    let position_rad =
+                        parse_number::<f64>(rad, "hold-at", "position_rad").ok()?;
                     Some(PiCommand::HoldAt {
                         joint: Some(joint.to_string()),
                         position_rad,
@@ -206,9 +221,9 @@ fn parse_command(line: &str) -> Option<PiCommand> {
             let tokens: Vec<_> = parts.collect();
             match tokens.as_slice() {
                 [joint, min, max, cycles] => {
-                    let min_rad = min.parse().ok()?;
-                    let max_rad = max.parse().ok()?;
-                    let cycles = cycles.parse().ok()?;
+                    let min_rad = parse_number::<f64>(min, "wave", "min_rad").ok()?;
+                    let max_rad = parse_number::<f64>(max, "wave", "max_rad").ok()?;
+                    let cycles = parse_number::<u32>(cycles, "wave", "cycles").ok()?;
                     Some(PiCommand::Wave {
                         joint: joint.to_string(),
                         min_rad,
@@ -218,10 +233,11 @@ fn parse_command(line: &str) -> Option<PiCommand> {
                     })
                 }
                 [joint, min, max, cycles, half_period] => {
-                    let min_rad = min.parse().ok()?;
-                    let max_rad = max.parse().ok()?;
-                    let cycles = cycles.parse().ok()?;
-                    let half_period_sec = half_period.parse().ok()?;
+                    let min_rad = parse_number::<f64>(min, "wave", "min_rad").ok()?;
+                    let max_rad = parse_number::<f64>(max, "wave", "max_rad").ok()?;
+                    let cycles = parse_number::<u32>(cycles, "wave", "cycles").ok()?;
+                    let half_period_sec =
+                        parse_number::<f64>(half_period, "wave", "half_period_sec").ok()?;
                     Some(PiCommand::Wave {
                         joint: joint.to_string(),
                         min_rad,
@@ -295,7 +311,7 @@ fn emit_reference_events(events: Vec<ReferenceEvent>) {
             ReferenceEvent::DeferredDiscarded { count } => {
                 warn!(
                     count,
-                    "deferred stdin commands discarded on reference cancel"
+                    "deferred stdin commands discarded when reference ended"
                 );
             }
         }
@@ -319,7 +335,9 @@ fn dispatch_stdin_command<B: MotorBus>(
     config_dir: &Path,
 ) -> bool {
     if queue.is_busy() && defers_while_referencing(&cmd) {
-        queue.defer(cmd);
+        if !queue.defer(cmd) {
+            eprintln!("reference in progress: deferred command limit reached; command refused");
+        }
         return true;
     }
     handle_command(loop_ctrl, queue, gate, cmd, config_dir)
@@ -346,25 +364,33 @@ fn admit_stdin_command(lease: MotionLease, chappe: &Bus, cmd: &PiCommand) -> boo
     }
 }
 
-fn spawn_stdin_commands(tx: Sender<PiCommand>) {
-    thread::spawn(move || {
-        let stdin = io::stdin();
-        for line in stdin.lock().lines() {
-            let Ok(line) = line else {
-                break;
-            };
-            let Some(cmd) = parse_command(line.trim()) else {
-                continue;
-            };
-            if matches!(cmd, PiCommand::Quit) {
-                let _ = tx.send(cmd);
+fn read_stdin_commands(reader: impl BufRead, tx: Sender<PiCommand>) {
+    for line in reader.lines() {
+        let line = match line {
+            Ok(line) => line,
+            Err(error) => {
+                eprintln!("stdin read failed: {error}");
                 break;
             }
-            if tx.send(cmd).is_err() {
-                break;
-            }
+        };
+        let Some(cmd) = parse_command(line.trim()) else {
+            continue;
+        };
+        if matches!(cmd, PiCommand::Quit) {
+            let _ = tx.send(cmd);
+            return;
         }
-    });
+        if tx.send(cmd).is_err() {
+            return;
+        }
+    }
+    // Use normal shutdown so EOF also performs reference cleanup and the
+    // configured drive stop.
+    let _ = tx.send(PiCommand::Quit);
+}
+
+fn spawn_stdin_commands(tx: Sender<PiCommand>) {
+    thread::spawn(move || read_stdin_commands(io::stdin().lock(), tx));
 }
 
 /// One non-blocking read of a Chappe command channel.
@@ -1961,5 +1987,38 @@ mod status_poll_tests {
     #[test]
     fn decode_motor_status_poll_envelope_rejects_garbage() {
         assert!(decode_motor_status_poll_envelope(b"nope").is_none());
+    }
+}
+
+#[cfg(test)]
+mod stdin_command_tests {
+    use std::io::Cursor;
+    use std::sync::mpsc;
+
+    use super::{parse_command, parse_number, read_stdin_commands, PiCommand};
+
+    #[test]
+    fn invalid_numeric_commands_report_a_parse_error_and_are_rejected() {
+        assert!(parse_number::<f64>("abc", "torque-cmd", "torque_nm").is_err());
+        assert!(parse_command("torque-cmd joint abc").is_none());
+        assert!(parse_command("wave joint 0 abc 2").is_none());
+    }
+
+    #[test]
+    fn stdin_eof_enqueues_quit_for_normal_shutdown() {
+        let (tx, rx) = mpsc::channel();
+        read_stdin_commands(Cursor::new("status\n"), tx);
+
+        assert!(matches!(rx.recv(), Ok(PiCommand::Status)));
+        assert!(matches!(rx.recv(), Ok(PiCommand::Quit)));
+    }
+
+    #[test]
+    fn explicit_quit_does_not_enqueue_a_second_shutdown_command() {
+        let (tx, rx) = mpsc::channel();
+        read_stdin_commands(Cursor::new("quit\n"), tx);
+
+        assert!(matches!(rx.recv(), Ok(PiCommand::Quit)));
+        assert!(rx.try_recv().is_err());
     }
 }
