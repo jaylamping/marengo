@@ -13,6 +13,9 @@ cad/**/*-OLD.*
 cad/**/*-OLD
 cad/**/*-BROKEN*
 /target/
+# Pi deploy staging artifacts written into ~/marengo by scripts/deploy-pi.sh
+/.deploy-rev
+/www/
 **/*.rs.bk
 .DS_Store
 *.swp
