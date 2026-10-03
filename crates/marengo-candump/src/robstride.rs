@@ -1,14 +1,9 @@
 use std::collections::HashMap;
 
+use ::robstride::MotorAddress;
 use marengo_config::MotorsConfigFile;
 
 use crate::Error;
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct MotorAddress {
-    interface: String,
-    device_id: u8,
-}
 
 /// Joint lookup keyed by (can_interface, device_id) for robstride motors.
 #[derive(Debug, Clone)]
@@ -19,10 +14,7 @@ pub struct MotorCatalog {
 impl MotorCatalog {
     pub(crate) fn lookup(&self, interface: &str, device_id: u8) -> Option<&str> {
         self.joints
-            .get(&MotorAddress {
-                interface: interface.to_string(),
-                device_id,
-            })
+            .get(&MotorAddress::new(interface, device_id))
             .map(String::as_str)
     }
 }
@@ -30,8 +22,10 @@ impl MotorCatalog {
 impl TryFrom<&MotorsConfigFile> for MotorCatalog {
     type Error = Error;
 
-    /// Includes only driver == "robstride"; rejects duplicate
-    /// (can_interface, device_id) addresses and empty joint/interface names.
+    /// Includes only driver == "robstride" and rejects empty joint/interface
+    /// names. Address uniqueness is the caller's contract: `load_motors_config_from`
+    /// validates it (`validate_motors_config`), so an unvalidated config with a
+    /// duplicate (can_interface, device_id) keeps the last joint.
     fn try_from(config: &MotorsConfigFile) -> Result<Self, Self::Error> {
         let mut joints = HashMap::new();
         for motor in &config.motors {
@@ -48,17 +42,7 @@ impl TryFrom<&MotorsConfigFile> for MotorCatalog {
                     "empty can_interface in motors.yaml".into(),
                 ));
             }
-            let address = MotorAddress {
-                interface: motor.can_interface.clone(),
-                device_id: motor.device_id,
-            };
-            if joints.contains_key(&address) {
-                return Err(Error::InvalidMotorCatalog(format!(
-                    "duplicate motor address {}:{}",
-                    address.interface, address.device_id
-                )));
-            }
-            joints.insert(address, motor.joint.clone());
+            joints.insert(MotorAddress::from(motor), motor.joint.clone());
         }
         Ok(Self { joints })
     }

@@ -17,7 +17,7 @@ type Props = {
 };
 
 function frameOffset(frame: CandumpFrameDto): number {
-  return frame.offset_s ?? frame.delta_s;
+  return frame.offset_s;
 }
 
 function dash(value: string | number | undefined | null): string {

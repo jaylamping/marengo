@@ -70,8 +70,6 @@ pub struct LogSessionMetaJson {
 #[derive(Serialize)]
 pub struct CandumpPageJson {
     frames: Vec<CandumpFrameJson>,
-    /// Compatibility alias of `parsed_frames` (clamped to u32).
-    total_frames: u32,
     offset: u32,
     parsed_frames: u64,
     total_lines: u64,
@@ -79,8 +77,6 @@ pub struct CandumpPageJson {
 
 #[derive(Serialize)]
 pub struct CandumpFrameJson {
-    /// Compatibility alias of `offset_s`.
-    delta_s: f64,
     offset_s: f64,
     interface: String,
     can_id: String,
@@ -109,8 +105,7 @@ pub struct CandumpInterfaceSummaryJson {
     approx_hz: Option<f64>,
 }
 
-/// Canonical summary JSON (matches `marengo-candump::Summary` / CLI), plus
-/// one-release legacy aliases `frame_count` and `bytes`.
+/// Canonical summary JSON (matches `marengo-candump::Summary` / CLI).
 #[derive(Serialize)]
 pub struct CandumpSummaryJson {
     parsed_frames: u64,
@@ -120,8 +115,6 @@ pub struct CandumpSummaryJson {
     approx_hz: Option<f64>,
     interfaces: Vec<CandumpInterfaceSummaryJson>,
     top_ids: Vec<CandumpIdCountJson>,
-    frame_count: u32,
-    bytes: u64,
 }
 
 pub struct LogServices {
@@ -141,7 +134,6 @@ fn candump_frame_json(f: marengo_candump::Frame) -> CandumpFrameJson {
         None => (None, None, None),
     };
     CandumpFrameJson {
-        delta_s: offset_s,
         offset_s,
         interface: f.interface,
         can_id: f.can_id.to_canonical_hex(),
@@ -156,8 +148,6 @@ fn candump_frame_json(f: marengo_candump::Frame) -> CandumpFrameJson {
 
 fn candump_summary_json(summary: marengo_candump::Summary) -> CandumpSummaryJson {
     CandumpSummaryJson {
-        frame_count: u32::try_from(summary.parsed_frames).unwrap_or(u32::MAX),
-        bytes: summary.source_bytes,
         parsed_frames: summary.parsed_frames,
         total_lines: summary.total_lines,
         source_bytes: summary.source_bytes,
@@ -185,7 +175,6 @@ fn candump_summary_json(summary: marengo_candump::Summary) -> CandumpSummaryJson
 
 fn candump_page_json(inspection: marengo_candump::Inspection, offset: u32) -> CandumpPageJson {
     CandumpPageJson {
-        total_frames: u32::try_from(inspection.summary.parsed_frames).unwrap_or(u32::MAX),
         offset,
         parsed_frames: inspection.summary.parsed_frames,
         total_lines: inspection.summary.total_lines,

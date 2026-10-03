@@ -117,7 +117,7 @@ impl<'de> Deserialize<'de> for CanId {
 pub struct UnixMicros(u64);
 
 impl UnixMicros {
-    pub fn new(micros: u64) -> Self {
+    pub(crate) fn new(micros: u64) -> Self {
         Self(micros)
     }
 

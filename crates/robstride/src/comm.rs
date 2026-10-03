@@ -44,6 +44,22 @@ impl CommunicationType {
     pub fn as_u8(self) -> u8 {
         self as u8
     }
+
+    /// Stable snake_case label used by capture tooling (candump JSON, gateway).
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::GetDeviceId => "get_device_id",
+            Self::OperationControl => "operation_control",
+            Self::OperationStatus => "operation_status",
+            Self::Enable => "enable",
+            Self::Disable => "disable",
+            Self::SetZeroPosition => "set_zero_position",
+            Self::ReadParameter => "read_parameter",
+            Self::WriteParameter => "write_parameter",
+            Self::FaultReport => "fault_report",
+            Self::ActiveReporting => "active_reporting",
+        }
+    }
 }
 
 /// Motor id for **inbound** status/fault/active-reporting frames (host id in low byte, motor id at bits 8–15).
@@ -86,6 +102,26 @@ mod tests {
     #![allow(clippy::expect_used)]
 
     use super::*;
+
+    #[test]
+    fn every_communication_type_has_a_distinct_snake_case_name() {
+        let names: Vec<_> = (0..=0x1F)
+            .filter_map(CommunicationType::from_u8)
+            .map(CommunicationType::name)
+            .collect();
+        assert_eq!(names.len(), 10);
+        for (index, name) in names.iter().enumerate() {
+            assert!(
+                name.chars().all(|c| c.is_ascii_lowercase() || c == '_'),
+                "{name}"
+            );
+            assert!(!names[..index].contains(name), "duplicate {name}");
+        }
+        assert_eq!(
+            CommunicationType::OperationStatus.name(),
+            "operation_status"
+        );
+    }
 
     #[test]
     fn inbound_motor_device_id_status_uses_bits_8_15() {
