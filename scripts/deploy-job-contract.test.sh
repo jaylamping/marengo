@@ -24,8 +24,17 @@ WORKER="${ROOT}/scripts/pi-self-update.sh"
 
 assert_ok "enqueue script writes phase enqueue" \
   grep -q 'write_job_atomic "running" "enqueued" "enqueue"' "${ENQUEUE}"
-assert_ok "enqueue job template includes state field" \
-  grep -q '"state":' "${ENQUEUE}"
+# write_job_atomic serializes via an embedded Python heredoc (dict kwargs, no
+# literal JSON in the shell source): run that writer and inspect its output.
+JOB_TMP="$(mktemp -d)"
+trap 'rm -rf "${JOB_TMP}"' EXIT
+awk '/<<'"'"'PY'"'"'$/ {body = 1; next} /^PY$/ {body = 0} body' "${ENQUEUE}" >"${JOB_TMP}/write_job.py"
+run_enqueue_job_writer() {
+  python3 - "${JOB_TMP}/deploy-job.json" running "job-1" \
+    "0123456789abcdef0123456789abcdef01234567" marengo-self-update enqueued enqueue \
+    <"${JOB_TMP}/write_job.py"
+}
+assert_ok "enqueue job writer emits deploy-job.json" run_enqueue_job_writer
 assert_ok "enqueue uses flock for single-flight" \
   grep -q 'flock -n' "${ENQUEUE}"
 assert_ok "enqueue refuses active unit instead of stop" \
@@ -40,9 +49,10 @@ assert_ok "enqueue sets WorkingDirectory via systemd-run" \
   grep -q -- '--working-directory=' "${ENQUEUE}"
 assert_ok "enqueue does not pass --same-dir= (flag takes no argument)" \
   bash -c '! grep -q -- "--same-dir=" "$0"' "${ENQUEUE}"
-for key in job_id target_sha result_sha unit_name started_at updated_at message; do
+for key in state job_id target_sha result_sha unit_name started_at updated_at message phase; do
   assert_ok "enqueue job JSON includes ${key}" \
-    grep -q "\"${key}\"" "${ENQUEUE}"
+    python3 -c 'import json, sys; sys.exit(sys.argv[2] not in json.load(open(sys.argv[1])))' \
+    "${JOB_TMP}/deploy-job.json" "${key}"
 done
 
 assert_ok "self-update write_job includes phase field" \
