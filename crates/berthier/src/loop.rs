@@ -1388,6 +1388,17 @@ impl<B: MotorBus> ControlLoop<B> {
                 }
             }
         }
+        if needs_joint_feedback && !feedback_bootstrap {
+            // The gravity model couples every URDF joint: a silent peer is not q = 0.
+            // Fail closed rather than biasing τ_g for the scoped Active joints.
+            for joint in &self.joint_names {
+                if !self.has_joint_feedback(joint) {
+                    return Err(LoopError::MissingFeedback {
+                        joint: joint.clone(),
+                    });
+                }
+            }
+        }
         if self.active_feedback_grace_ticks > 0 {
             if all_have_feedback {
                 self.active_feedback_grace_ticks = 0;
@@ -1884,7 +1895,7 @@ mod tests {
         POSITION_SETTLE_TOLERANCE_RAD,
     };
     use crate::position_trajectory::{JointPositionPlanner, TrapezoidPhase};
-    use crate::test_support::queue_all_status;
+    use crate::test_support::{queue_all_status, queue_joint_status};
     use armee_kinematics::JointLimitPolicy;
     use davout::simulation::{InitialVirtualReference, SimulationBus};
     use davout::{MemoryBus, OperationalMode};
@@ -2020,6 +2031,47 @@ mod tests {
             "GravityComp MIT must cover only active_joints"
         );
         assert!(loop_ctrl.supervisor().active_joints().contains(&one));
+    }
+
+    #[test]
+    fn active_gravity_refuses_when_a_coupled_joint_lacks_feedback() {
+        let mut loop_ctrl = test_loop();
+        loop_ctrl
+            .supervisor_mut()
+            .set_homing_complete()
+            .expect("virtual reference reaches Ready");
+        loop_ctrl
+            .supervisor_mut()
+            .enable_targets(&["right_elbow_pitch".to_string()])
+            .expect("scoped enable");
+        queue_joint_status(loop_ctrl.supervisor_mut(), "right_elbow_pitch", 0.4, 0.0);
+        loop_ctrl
+            .supervisor_mut()
+            .drain_feedback()
+            .expect("active elbow feedback");
+        loop_ctrl.supervisor_mut().bus_mut().clear_trace();
+        loop_ctrl.set_control_mode(ControlMode::GravityComp);
+        assert_eq!(loop_ctrl.control_mode(), ControlMode::GravityComp);
+
+        let error = loop_ctrl
+            .tick(None)
+            .expect_err("gravity torque needs every coupled joint position");
+        assert!(
+            matches!(
+                error,
+                LoopError::MissingFeedback { ref joint } if joint == "right_shoulder_pitch"
+            ),
+            "{error}"
+        );
+        assert!(
+            loop_ctrl
+                .supervisor()
+                .bus()
+                .frames()
+                .iter()
+                .all(|frame| (frame.id >> 24) & 0x1f != 1 || frame.data[4..8] == [0; 4]),
+            "fault cleanup may send neutral MIT, but missing coupled feedback must not send gravity torque"
+        );
     }
 
     #[test]

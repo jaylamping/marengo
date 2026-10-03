@@ -1554,6 +1554,7 @@ name = "marengo-pi"
 version = "0.1.0"
 dependencies = [
  "armee-dynamics",
+ "armee-kinematics",
  "armee-proto",
  "berthier",
  "chappe",

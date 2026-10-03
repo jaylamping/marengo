@@ -196,6 +196,12 @@ pub enum CalibrationError {
     NonFinite { label: String },
     #[error("no joint window for {joint}")]
     MissingWindow { joint: String },
+    #[error("joint {joint} has invalid calibration window [{lower}, {upper}]")]
+    InvalidWindow {
+        joint: String,
+        lower: f64,
+        upper: f64,
+    },
     #[error(
         "sample {label}: {joint} q={q:.4} rad outside allowed window [{lower:.4}, {upper:.4}]"
     )]
@@ -651,6 +657,13 @@ fn validate_samples(
             });
         }
         for (w, &q) in windows.iter().zip(&s.q) {
+            if !w.lower_rad.is_finite() || !w.upper_rad.is_finite() || w.lower_rad > w.upper_rad {
+                return Err(CalibrationError::InvalidWindow {
+                    joint: w.joint.clone(),
+                    lower: w.lower_rad,
+                    upper: w.upper_rad,
+                });
+            }
             if q < w.lower_rad - opts.pose_limit_slack_rad
                 || q > w.upper_rad + opts.pose_limit_slack_rad
             {
@@ -1005,10 +1018,20 @@ fn max_abs(v: &[f64]) -> f64 {
 /// Average holding torque of the two approaches to one pose: Coulomb/static friction acts
 /// with opposite sign when the pose is reached from below and from above, so the mean
 /// cancels it. Returns `(mean, half-difference)`; the half-difference estimates friction.
-pub fn cancel_friction(from_below: &[f64], from_above: &[f64]) -> (Vec<f64>, Vec<f64>) {
-    from_below
+pub fn cancel_friction(
+    from_below: &[f64],
+    from_above: &[f64],
+) -> Result<(Vec<f64>, Vec<f64>), CalibrationError> {
+    if from_below.len() != from_above.len() {
+        return Err(CalibrationError::SampleDims {
+            label: "friction pair".into(),
+            expected: from_below.len(),
+            got: from_above.len(),
+        });
+    }
+    Ok(from_below
         .iter()
         .zip(from_above)
         .map(|(b, a)| ((b + a) / 2.0, (b - a) / 2.0))
-        .unzip()
+        .unzip())
 }

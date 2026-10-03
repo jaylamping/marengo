@@ -8,7 +8,7 @@ mod support;
 use berthier::{ControlLoop, ControlMode, GainOverride};
 use davout::simulation::{InitialVirtualReference, SimulationBus};
 use robstride::CanFrame;
-use support::queue_joint_status;
+use support::queue_all_status;
 
 fn command(mode: ControlMode, fc: f64) -> CanFrame {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
@@ -44,7 +44,7 @@ fn command(mode: ControlMode, fc: f64) -> CanFrame {
     } else {
         applied.expect("valid output-only override");
     }
-    queue_joint_status(controller.supervisor_mut(), joint, 0.0, 0.2);
+    queue_all_status(controller.supervisor_mut(), Some((joint, 0.0, 0.2)));
     // Let the configured torque slew admit this small independent friction step.
     std::thread::sleep(std::time::Duration::from_millis(5));
     controller.supervisor_mut().bus_mut().clear_trace();

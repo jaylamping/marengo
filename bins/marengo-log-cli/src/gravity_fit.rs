@@ -19,7 +19,7 @@
 //!    lines of right-arm links. Nothing is applied: syncing the URDF to the Pi stays an
 //!    explicit `pi_sync_bench_urdf`.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
@@ -227,10 +227,11 @@ pub fn run(args: &GravityFitArgs) -> Result<Outcome, GravityFitError> {
                 })
         })
         .collect::<Result<Vec<_>, _>>()?;
+    let mut sessions = Vec::with_capacity(args.dirs.len());
 
     let urdf_path = first.join(PI_URDF_FILE);
     let pi_urdf = std::fs::read_to_string(&urdf_path).map_err(io(&urdf_path))?;
-    let mut sessions = Vec::new();
+    let local_urdf = std::fs::read_to_string(&args.repo_urdf).map_err(io(&args.repo_urdf))?;
     for dir in &args.dirs {
         if dir != first {
             let other = std::fs::read_to_string(dir.join(PI_URDF_FILE))
@@ -242,10 +243,37 @@ pub fn run(args: &GravityFitArgs) -> Result<Outcome, GravityFitError> {
                     first.display()
                 )));
             }
-            let other_robot = load_robot_config_from(dir.join("config"))?;
+            let other_config = dir.join("config");
+            let other_robot = load_robot_config_from(&other_config)?;
             if other_robot.robot.joints != joints {
                 return Err(GravityFitError::Plan(format!(
                     "{} has a different robot.yaml joint list",
+                    dir.display()
+                )));
+            }
+            let other_control = load_control_config_from(&other_config)?;
+            let other_motors = load_motors_config_from(&other_config)?;
+            let other_windows = joints
+                .iter()
+                .map(|joint| {
+                    commanded_position_window(&other_control, &other_motors, joint)
+                        .map(|(lower_rad, upper_rad)| JointWindow {
+                            joint: joint.clone(),
+                            lower_rad,
+                            upper_rad,
+                        })
+                        .ok_or_else(|| {
+                            GravityFitError::OutOfLimits(format!(
+                                "{}: no soft (control.yaml) ∩ hard (motors.yaml) window in {}",
+                                joint,
+                                dir.display()
+                            ))
+                        })
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            if other_windows != windows {
+                return Err(GravityFitError::Plan(format!(
+                    "{} has different effective calibration windows",
                     dir.display()
                 )));
             }
@@ -279,12 +307,11 @@ pub fn run(args: &GravityFitArgs) -> Result<Outcome, GravityFitError> {
 
     let fit = fit_gravity_params(&model, &params, &samples, &windows, &args.fit_joints, &opts)?;
 
-    let local_urdf = std::fs::read_to_string(&args.repo_urdf).ok();
     let stem = record_stem(&sessions)?;
     std::fs::create_dir_all(&args.out_dir).map_err(io(&args.out_dir))?;
     let patch_file = if fit.accepted() {
         let patched = patch_inertials(&pi_urdf, &fit.links)?;
-        let proposed = first.join(PROPOSED_URDF_FILE);
+        let proposed = args.out_dir.join(format!("{stem}.{PROPOSED_URDF_FILE}"));
         std::fs::write(&proposed, &patched).map_err(io(&proposed))?;
         verify_patched(&proposed, &joints, &fit)?;
         let diff = unified_diff(&pi_urdf, &patched, PATCH_PATH);
@@ -299,7 +326,7 @@ pub fn run(args: &GravityFitArgs) -> Result<Outcome, GravityFitError> {
         &sessions,
         &fit,
         &opts,
-        local_urdf.as_deref().map(|l| l == pi_urdf),
+        local_urdf == pi_urdf,
         patch_file.as_deref(),
     );
     let json_path = args.out_dir.join(format!("{stem}.json"));
@@ -314,7 +341,7 @@ pub fn run(args: &GravityFitArgs) -> Result<Outcome, GravityFitError> {
         &sessions,
         &fit,
         &opts,
-        local_urdf.as_deref().map(|l| l == pi_urdf),
+        local_urdf == pi_urdf,
         patch_file.as_deref(),
     );
     std::fs::write(&md_path, md).map_err(io(&md_path))?;
@@ -466,6 +493,8 @@ fn parse_trace(text: &str) -> Result<Vec<Tick>, GravityFitError> {
         col("tau_ff_cmd")?,
     ];
     let mut ticks: Vec<(u64, Tick)> = Vec::new();
+    let mut tick_indices: HashMap<u64, usize> = HashMap::new();
+    let mut last_t_ms = None;
     for (i, line) in lines {
         if line.trim().is_empty() {
             continue;
@@ -489,6 +518,15 @@ fn parse_trace(text: &str) -> Result<Vec<Tick>, GravityFitError> {
             s.parse::<u64>().map_err(|e| bad(format!("{s:?}: {e}")))
         };
         let tick = int(tick_c)?;
+        let t_ms = int(t_c)?;
+        if let Some(previous) = last_t_ms {
+            if t_ms < previous {
+                return Err(bad(format!(
+                    "non-monotonic trace time: {t_ms} ms follows {previous} ms"
+                )));
+            }
+        }
+        last_t_ms = Some(t_ms);
         let row = Row {
             q: num(q_c)?,
             dq: num(dq_c)?,
@@ -497,24 +535,16 @@ fn parse_trace(text: &str) -> Result<Vec<Tick>, GravityFitError> {
             tau_cmd: num(p_c)? + num(ff_c)?,
         };
         let joint = get(joint_c)?.to_string();
-        match ticks.last_mut() {
-            Some((t, tick_rows)) if *t == tick => {
-                tick_rows.rows.insert(joint, row);
-            }
-            _ => {
-                let mut rows = BTreeMap::new();
-                rows.insert(joint, row);
-                ticks.push((
-                    tick,
-                    Tick {
-                        t_ms: int(t_c)?,
-                        rows,
-                    },
-                ));
-            }
+        if let Some(&index) = tick_indices.get(&tick) {
+            ticks[index].1.rows.insert(joint, row);
+        } else {
+            tick_indices.insert(tick, ticks.len());
+            let mut rows = BTreeMap::new();
+            rows.insert(joint, row);
+            ticks.push((tick, Tick { t_ms, rows }));
         }
     }
-    Ok(ticks.into_iter().map(|(_, t)| t).collect())
+    Ok(ticks.into_iter().map(|(_, tick)| tick).collect())
 }
 
 fn targets(tick: &Tick) -> BTreeMap<&str, f64> {
@@ -611,7 +641,10 @@ fn measure_steps(
             .last()
             .ok_or_else(|| fail("never settled".into()))?;
         let last_ms = ticks[end - 1].t_ms;
-        let run_s = (last_ms - ticks[run_start].t_ms) as f64 / 1000.0;
+        let run_ms = last_ms
+            .checked_sub(ticks[run_start].t_ms)
+            .ok_or_else(|| fail("trace time regressed within settled window".into()))?;
+        let run_s = run_ms as f64 / 1000.0;
         if run_s < MIN_WINDOW_S {
             return Err(fail(format!(
                 "settled for only {run_s:.2} s (< {MIN_WINDOW_S} s): increase settle_sec"
@@ -635,6 +668,10 @@ fn measure_steps(
                 })
                 .collect()
         };
+        let window_start_ms = window.first().map_or(last_ms, |tick| tick.t_ms);
+        let window_ms = last_ms
+            .checked_sub(window_start_ms)
+            .ok_or_else(|| fail("trace time regressed within measurement window".into()))?;
         out.push(Measurement {
             pose_index,
             approach,
@@ -642,7 +679,7 @@ fn measure_steps(
             tau: mean(&|r| r.tau_meas),
             tau_cmd: mean(&|r| r.tau_cmd),
             samples: window.len(),
-            window_s: (last_ms - window.first().map_or(last_ms, |t| t.t_ms)) as f64 / 1000.0,
+            window_s: window_ms as f64 / 1000.0,
         });
     }
     Ok(out)
@@ -667,7 +704,7 @@ fn pair_approaches(
         };
         let below = find(Approach::Below)?;
         let above = find(Approach::Above)?;
-        let (tau, friction) = cancel_friction(&below.tau, &above.tau);
+        let (tau, friction) = cancel_friction(&below.tau, &above.tau)?;
         out.push(PoseData {
             sample: GravitySample {
                 label: format!("{} {} rad [{}]", plan.sweep_joint, pose, plan.session_ts),
@@ -916,7 +953,7 @@ fn record_json(
     sessions: &[Session],
     fit: &GravityFit,
     opts: &FitOptions,
-    local_matches_pi: Option<bool>,
+    local_matches_pi: bool,
     patch: Option<&Path>,
 ) -> Value {
     let pose_data: Vec<&PoseData> = sessions.iter().flat_map(|s| &s.poses).collect();
@@ -1037,7 +1074,7 @@ fn record_markdown(
     sessions: &[Session],
     fit: &GravityFit,
     opts: &FitOptions,
-    local_matches_pi: Option<bool>,
+    local_matches_pi: bool,
     patch: Option<&Path>,
 ) -> String {
     let mut md = String::new();
@@ -1078,10 +1115,10 @@ fn record_markdown(
         md,
         "\nURDF base: Pi live URDF captured before the session (ADR 0017). Local \
          `{PATCH_PATH}` matches it: {}.\n",
-        match local_matches_pi {
-            Some(true) => "yes",
-            Some(false) => "**no**: copy the Pi URDF into the repo before applying the patch",
-            None => "unknown (local file not read)",
+        if local_matches_pi {
+            "yes"
+        } else {
+            "**no**: copy the Pi URDF into the repo before applying the patch"
         }
     );
     let _ = writeln!(md, "## Parameters\n");
@@ -1268,6 +1305,28 @@ mod tests {
         assert!((poses[0].sample.tau_meas[0] - 1.0).abs() < 1e-9);
         assert!((poses[0].friction[0] - 0.08).abs() < 1e-9);
         assert!((poses[0].sample.q[0] - 0.5).abs() < 1e-9);
+    }
+
+    #[test]
+    fn trace_parser_groups_interleaved_ticks_and_rejects_time_regression() {
+        let mut csv = vec![HEADER.to_string()];
+        csv.push(row(1, "a", 0.5, 0.0, 0.5, 1.0));
+        csv.push(row(2, "a", 0.5, 0.0, 0.5, 1.0));
+        csv.push(row(1, "b", 0.0, 0.0, 0.0, 0.1).replacen("5,", "11,", 1));
+        let ticks = parse_trace(&csv.join("\n")).expect("interleaved rows");
+        assert_eq!(ticks.len(), 2);
+        assert_eq!(ticks[0].rows.len(), 2);
+
+        let csv = [
+            HEADER,
+            &row(2, "a", 0.5, 0.0, 0.5, 1.0),
+            &row(1, "a", 0.5, 0.0, 0.5, 1.0),
+        ]
+        .join("\n");
+        assert!(matches!(
+            parse_trace(&csv),
+            Err(GravityFitError::Trace { .. })
+        ));
     }
 
     #[test]

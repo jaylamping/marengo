@@ -38,6 +38,13 @@ fn selected_status(stage: usize) -> ReceivedCanFrame {
         },
     )
 }
+fn queue_peer_feedback(ctrl: &mut ControlLoop<SimulationBus>) {
+    for joint in ctrl.joint_names().to_vec() {
+        if joint != SELECTED {
+            support::queue_joint_status(ctrl.supervisor_mut(), &joint, 0.0, 0.0);
+        }
+    }
+}
 
 #[derive(Debug)]
 struct PoseObservation {
@@ -46,7 +53,7 @@ struct PoseObservation {
     position: Option<f64>,
     derived_velocity: Option<f64>,
     fault: Option<u16>,
-    peer_absent: bool,
+    peer_measured: bool,
     pending_receive: usize,
 }
 
@@ -104,6 +111,7 @@ fn run_case(source: &Path, label: &str, ticks: u32, crawl: bool) -> CaseObservat
         .bus_mut()
         .queue_received(selected_status(0))
         .expect("finite literal pose queued after Enable returns");
+    queue_peer_feedback(&mut ctrl);
     ctrl.supervisor_mut()
         .drain_feedback()
         .expect("actual current-session pose drain");
@@ -144,6 +152,7 @@ fn run_case(source: &Path, label: &str, ticks: u32, crawl: bool) -> CaseObservat
         // A literal one-code advance at ticks300,600,...,1800. No wall-clock
         // pacing or injected timestamps; the controller's fixed period is5ms.
         let stage = if crawl { (step / 300) as usize } else { 0 };
+        queue_peer_feedback(&mut ctrl);
         if let Err(error) = ctrl
             .supervisor_mut()
             .bus_mut()
@@ -162,7 +171,7 @@ fn run_case(source: &Path, label: &str, ticks: u32, crawl: bool) -> CaseObservat
             // Centered raw dq is not a claim of coherent physical crawl speed.
             derived_velocity: pose.as_ref().map(|pose| pose.velocity_rad_s),
             fault: pose.as_ref().map(|pose| pose.fault),
-            peer_absent: ctrl.supervisor().joint_feedback(PEER).is_none(),
+            peer_measured: ctrl.supervisor().joint_feedback(PEER).is_some(),
             pending_receive: ctrl.supervisor().bus().pending_receive_count(),
         });
         match result {
@@ -240,7 +249,7 @@ fn assert_input_prefix(case: &CaseObservation) {
             .derived_velocity
             .expect("actual position-derived velocity visibility");
         assert_eq!(observed.fault, Some(0));
-        assert!(observed.peer_absent);
+        assert!(observed.peer_measured);
         assert_eq!(observed.pending_receive, 0);
         assert!(position.is_finite() && velocity.is_finite());
         if observed.stage == previous_stage {

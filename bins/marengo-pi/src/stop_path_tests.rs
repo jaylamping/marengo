@@ -10,8 +10,10 @@ use berthier::{ControlLoop, ControlMode, LoopError};
 use davout::DavoutError;
 use robstride::{BusError, CanBus, CanFrame, MemoryBus, MotorBus, ReceiveAttempt};
 
+use crate::enable_gate::EnableGate;
 use crate::{
-    handle_chappe_enable, handle_chappe_set_zero, stop_after_tick_error, PiReferenceQueue,
+    handle_chappe_enable, handle_chappe_set_zero, handle_command, parse_command,
+    stop_after_tick_error, PiReferenceQueue,
 };
 
 const JOINT: &str = "right_elbow_pitch";
@@ -225,4 +227,39 @@ fn chappe_enable_is_refused_while_a_reference_is_queued() {
         .tx
         .iter()
         .all(|frame| (frame.id >> 24) & 0x1f != 3));
+}
+
+#[test]
+fn both_enable_owners_refuse_gravity_preflight_without_feedback() {
+    let mut loop_ctrl = loop_with(FlakyBus::default());
+    let mut queue = queue();
+    let request = EnableRequest {
+        timestamp_ms: 0,
+        operator_id: "test".into(),
+        enable: true,
+    };
+    let error = handle_chappe_enable(&mut loop_ctrl, &mut queue, &request)
+        .expect_err("Chappe enable must require measured gravity pose");
+    assert!(error.contains("gravity saturation"), "{error}");
+
+    let mut gate = EnableGate::default();
+    let command = parse_command("enable test force").expect("forced enable parses");
+    handle_command(
+        &mut loop_ctrl,
+        &mut queue,
+        &mut gate,
+        command,
+        &repo_root().join("config"),
+    );
+
+    assert!(
+        loop_ctrl
+            .supervisor()
+            .bus()
+            .inner
+            .tx
+            .iter()
+            .all(|frame| (frame.id >> 24) & 0x1f != 3),
+        "no Enable frame may be sent without the gravity preflight evidence"
+    );
 }

@@ -177,7 +177,7 @@ Per measured step, `marengo-log-cli gravity-fit` takes the trailing settled run 
 
 ### 3. Fit
 
-On the workstation (deterministic): `cargo run --release -p marengo-log-cli -- gravity-fit --dir var/gravity-calibration/<TS> [--dir …] [--fit mass:<link> | com:<link> …] [--fit-joint <joint> …]`. Repeat `--dir` to fuse a pitch and an elbow sweep taken on the same Pi URDF.
+On the workstation (deterministic): `cargo run --release -p marengo-log-cli -- gravity-fit --dir var/gravity-calibration/<TS> --out-dir docs/commissioning/calibrations --repo-urdf assets/urdf/marengo.urdf [--dir …] [--fit mass:<link> | com:<link> …] [--fit-joint <joint> …]`. Both output and comparison paths are required; use absolute paths when invoking from outside the repository. Repeat `--dir` to fuse sessions from the same Pi URDF and with identical effective calibration windows.
 
 - **Parameters:** per-link mass scale `s` (m = s·m_CAD, COM fixed) and COM offset `d` along the link's principal axis (CAD COM direction from the link origin). Default: mass scales of the links downstream of the swept joint, then their COM offsets, each kept only if the set stays identifiable (pitch sweep on the current URDF: upper arm + forearm masses).
 - **Regularisation:** MAP toward CAD (prior σ 0.5 mass scale, 50 mm COM; torque σ 0.02 Nm).
@@ -185,7 +185,7 @@ On the workstation (deterministic): `cargo run --release -p marengo-log-cli -- g
 
 ### 4. Output and apply (never automatic)
 
-`docs/commissioning/calibrations/<date>-gravity-<TS>.{json,md}` (always, commit them) and `.urdf.patch` (accepted fits only): per-pose residual before/after, parameter deltas with σ, identifiability, gate report. The patch is a diff of the **Pi's** live URDF (ADR 0017) touching only `<inertial>` `<mass>`/`<origin>` lines of right-arm links: never limits, joints or inertia tensors (the gravity model does not use them).
+`docs/commissioning/calibrations/<date>-gravity-<TS>.{json,md}` (always, commit them), `.urdf.patch` and `*.proposed-marengo.urdf` (accepted fits only): per-pose residual before/after, parameter deltas with σ, identifiability, gate report. Captured session directories are read-only inputs; all generated files go under the explicit `--out-dir`. The patch is a diff of the **Pi's** live URDF (ADR 0017) touching only `<inertial>` `<mass>`/`<origin>` lines of right-arm links: never limits, joints or inertia tensors (the gravity model does not use them).
 
 Applying is a separate, explicit step: make `assets/urdf/marengo.urdf` equal to the Pi URDF (the record says whether it already is), `git apply` the patch, commit, `pi_sync_bench_urdf`, `pi_restart_marengo_pi`, then confirm with `pi_hold_on` (gravity gate residual < 0.20 Nm) and §4b.
 

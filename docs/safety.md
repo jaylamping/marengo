@@ -206,6 +206,14 @@ disables. The fault does not clear on its own.
 - **Limit envelope:** Davout uses `max(|dq_cmd|, |dq_meas|)` for velocity-scaled margins so gravity-driven motion cannot shrink the envelope unexpectedly.
 - **Limit envelope fails closed (2026-10-03 audit, WP-E):** URDF joint limits that are non-finite or not `lower < upper`, and non-finite soft bounds, are a load error (`UrdfError::InvalidLimits`), never a panic or a clamped guess; a joint with no `control.joints` entry has no policy (no built-in margin defaults). When the kinetic margin swallows the whole soft range the envelope collapses to the soft-range point nearest the measured `q` (hold), not the midpoint. Non-finite targets hold `q`; `measured_position_fault(NaN)` is a fault. A hold-at target is exempt from the kinetic margin only at the soft bottom (+5 mrad) or zero-home, not for every target ≤ 0.005 rad. Expand-only Set Limits refuses inconsistent URDF soft bounds instead of resetting them to the full hard range.
 - **Gravity model fails closed (2026-10-03 audit, WP-E):** `UrdfGravityModel` refuses to load when an actuated URDF joint is not in `robot.yaml` (it used to be evaluated at q = 0), when a joint name is duplicated or fixed, for prismatic/mimic/floating joints, a zero axis, non-finite inertials or a cyclic chain. Bench slices that model only some joints must state the locked angles (`from_urdf_with_held`). `gravity_torques` and the pre-enable saturation preflight (`check_gravity_range`, shared by `marengo-pi` and `motor-repl`) refuse on a non-finite torque or a model error instead of reading it as 0 Nm. A gravity-calibration fit that does not converge, or whose posterior covariance is not finite and positive, is refused (`FitVerdict::NotConverged` / `IllConditioned`); an unknown σ is `NaN`, never 0.
+- **Gravity preflight and feedback (2026-10-03 audit, WP-G):** stdin Enable, Chappe
+  `robot/enable`, and Testing Position auto-enable share one fail-closed preflight.
+  It requires each modeled joint's motor, live limit policy and measured position,
+  sweeps the coupled gravity model over the joint's live command envelope, and
+  refuses missing data, model errors, invalid limits or torque saturation. `force`
+  does not bypass this gate. Berthier may send MIT only for active joints, but the
+  gravity model couples all modeled positions: after neutral enable bootstrap,
+  missing feedback for any modeled joint faults before τ_g is evaluated.
 - **Fault authority:** Observed runtime hazards persist across later healthy feedback, Disable and cache clearing. Davout attempts every configured stop address and retains failures; send acceptance is not physical stop acknowledgement. Qualified recovery/reset is not implemented. See [ADR 0020](decisions/0020-lossless-feedback-and-fault-authority.md).
 - **Receive integrity and work:** Status/detail feedback requires exactly eight Data bytes. Malformed configured feedback, kernel errors and incomplete receive work latch through fault authority. Every poll is limited to 64 raw frames and 256 nonblocking read attempts across all interfaces, including noise and interruptions; both enable flushes require observed quiescence. Host read order/deadlines do not qualify physical acquisition, drive behavior or Pi jitter. See [ADR 0021](decisions/0021-bounded-can-ingress.md).
 - **Enable wire order:** A SocketCAN write only queues a frame. On the bench
@@ -313,17 +321,19 @@ disables. The fault does not clear on its own.
   caused by a fault, E-stop, cancellation or shutdown is never paced.
   `tests/physical_firmware` models the controller's two receive buffers
   (`RxFifo`); the Transport latch is unchanged.
-- **Position arms wait for enable completion:** Berthier reads 0.0 for a joint
-  with no session pose, and `enable_targets` returns while Enables can still be
-  held (stagger, post-SetZero quiet). A `hold-on` arriving then would have
-  latched 0.0 as that joint's hold target. Every Position-mode arm (`hold-on`,
-  `hold-at`, `wave`, Testing-panel setpoints) now refuses with "waiting for
-  enable to complete" and latches nothing until the supervisor is Active, no
-  Enable is unwritten and every Active joint has fresh session pose.
-  `marengo-pi` prints `enabled (operator=…)` only at that point. Earlier stdin
-  arms are deferred and retried after each tick. An Enable that does not
-  complete within 2 s is refused (`enable failed:`) and every drive is stopped;
-  a deferred arm is refused (`<cmd> failed:`).
+- **Position arms wait for enable completion:** `enable_targets` may return while
+  Enables are held (stagger, post-SetZero quiet), so a joint can lack session pose.
+  During the bounded bootstrap Berthier sends neutral solicitations only; it does
+  not compute τ_g from the zero placeholder. Every Position-mode arm (`hold-on`,
+  `hold-at`, `wave`, Testing-panel setpoints) refuses with "waiting for enable to
+  complete" and latches nothing until the supervisor is Active, no Enable is
+  unwritten and every Active joint has fresh session pose. After bootstrap,
+  missing feedback for any modeled joint refuses the control tick before gravity
+  evaluation because τ_g is coupled across the model. `marengo-pi` prints
+  `enabled (operator=…)` only after active target feedback arrives. Earlier stdin
+  arms are deferred and retried after each tick. An Enable that does not complete
+  within 2 s is refused (`enable failed:`) and every drive is stopped; a deferred
+  arm is refused (`<cmd> failed:`).
 - **Controller receive overflow is persistent (operator recommendation
   open):** an mcp251x RX overflow reaches Davout as a kernel error frame
   (`CAN_ERR_CRTL_RX_OVERFLOW`) and latches Transport. Making an *isolated*

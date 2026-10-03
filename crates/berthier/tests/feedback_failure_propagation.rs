@@ -2,6 +2,19 @@
 
 #![allow(clippy::expect_used)]
 
+#[path = "support/mod.rs"]
+mod support;
+
+const ACTIVE_JOINT: &str = "right_upper_arm_yaw";
+
+fn queue_inactive_feedback(controller: &mut ControlLoop<SimulationBus>) {
+    for joint in controller.joint_names().to_vec() {
+        if joint != ACTIVE_JOINT {
+            support::queue_joint_status(controller.supervisor_mut(), &joint, 0.0, 0.0);
+        }
+    }
+}
+
 use berthier::{ControlLoop, ControlMode, LoopError};
 use davout::simulation::{
     InitialVirtualReference, RuleId, SimulationBus, SimulationReceive, TxMatcher, TxOccurrence,
@@ -113,11 +126,7 @@ fn active_tick_returns_post_send_receive_failure_in_each_control_mode() {
         ControlMode::Disabled,
     ] {
         let mut controller = enabled_controller();
-        controller
-            .supervisor_mut()
-            .bus_mut()
-            .queue_received(status())
-            .expect("raw status");
+        support::queue_all_status(controller.supervisor_mut(), None);
         if mode == ControlMode::Position {
             controller.enter_position_hold().expect("valid hold entry");
         } else {
@@ -158,6 +167,7 @@ fn post_send_unsafe_pose_cannot_be_reported_as_a_successful_tick() {
     for fresh_pose in [false, true] {
         let mut controller = enabled_controller();
         controller.set_control_mode(ControlMode::Impedance);
+        queue_inactive_feedback(&mut controller);
         if fresh_pose {
             controller
                 .supervisor_mut()

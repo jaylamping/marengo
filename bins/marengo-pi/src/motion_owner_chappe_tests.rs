@@ -2,6 +2,9 @@
 //! drain functions (no hardware: SimulationBus / MemoryBus only).
 #![allow(clippy::expect_used, clippy::panic)]
 
+#[path = "../../../crates/berthier/tests/support/mod.rs"]
+mod feedback_support;
+
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::time::Instant;
@@ -382,6 +385,40 @@ fn operator_disable_blocks_implicit_reenable_from_either_source() {
     assert_ne!(loop_ctrl.control_mode(), ControlMode::Position);
 }
 
+#[test]
+fn testing_position_auto_enable_requires_gravity_preflight_feedback() {
+    let bus = Bus::new(32);
+    let mut rx = channels(&bus);
+    let mut loop_ctrl = ControlLoop::from_simulation(
+        repo_root(),
+        SimulationBus::default(),
+        davout::simulation::InitialVirtualReference::AllConfigured,
+        200,
+        50,
+    )
+    .expect("simulation loop");
+    publish_batch(&bus, &gain_batch(ProtoControlMode::Position, 0.05, 0.0));
+    drain_testing(&mut loop_ctrl, &idle_queue(), CHAPPE_OWNS, &bus, &mut rx);
+
+    assert_eq!(
+        loop_ctrl.supervisor().mode(),
+        davout::OperationalMode::Disabled
+    );
+    assert_ne!(loop_ctrl.control_mode(), ControlMode::Position);
+    let audit_events = audit_events(&mut rx.audit);
+    let refused = refusals(&audit_events);
+    assert_eq!(refused.len(), 1);
+    assert!(
+        loop_ctrl
+            .supervisor()
+            .bus()
+            .frames()
+            .iter()
+            .all(|frame| (frame.id >> 24) & 0x1f != 3),
+        "preflight refusal must precede automatic Enable"
+    );
+}
+
 // ---- reference-queue gate ------------------------------------------------
 
 /// L-marengo-pi-02: Testing batches obey the same reference-queue busy gate
@@ -508,6 +545,7 @@ fn position_batch_gains_survive_entering_position_from_gravity_comp() {
     let bus = Bus::new(32);
     let mut rx = channels(&bus);
     let mut loop_ctrl = enabled_without_pose();
+    feedback_support::queue_all_status(loop_ctrl.supervisor_mut(), None);
     first_session_status(&mut loop_ctrl);
     loop_ctrl.set_control_mode(ControlMode::GravityComp);
     publish_batch(&bus, &gain_batch(ProtoControlMode::Position, 0.02, 20.0));

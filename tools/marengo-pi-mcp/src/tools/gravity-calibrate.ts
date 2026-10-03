@@ -741,7 +741,9 @@ export function registerGravityCalibrateTools(
         }
         const fitArgs = [
           "run", "--release", "-q", "-p", "marengo-log-cli", "--", "gravity-fit", "--dir", dir,
-          ...(args.fit_params ?? []).flatMap((p) => ["--fit", p]),
+          "--out-dir", path.join(cfg.localRoot, "docs/commissioning/calibrations"),
+          "--repo-urdf", path.join(cfg.localRoot, "assets/urdf/marengo.urdf"),
+          ...(args.fit_params ?? []).flatMap((param) => ["--fit", param]),
         ];
         const fitCommand = `cd ${shellQuote(cfg.localRoot)} && cargo ${fitArgs
           .map((a) => (/^[A-Za-z0-9_./:=-]+$/.test(a) ? a : shellQuote(a)))

@@ -204,7 +204,9 @@ fn current_grant_controller_consuming_tick_has_one_report_and_no_old_intent_or_o
         .expect("new selected Enable");
     ctrl.set_torque_cmd(TARGET, 0.1)
         .expect("new explicit torque intent");
-    support::queue_joint_status(ctrl.supervisor_mut(), TARGET, 0.0, 0.0);
+    for joint in ctrl.joint_names().to_vec() {
+        support::queue_joint_status(ctrl.supervisor_mut(), &joint, 0.0, 0.0);
+    }
     let before = ctrl.supervisor().bus().transmissions().len();
     ctrl.tick(None).expect("real selected output tick");
     let writes = &ctrl.supervisor().bus().transmissions()[before..];

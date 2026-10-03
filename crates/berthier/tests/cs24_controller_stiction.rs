@@ -93,6 +93,11 @@ fn raw_velocity_then_stiction_faults_controller_and_preserves_stop_latch() {
         .bus_mut()
         .queue_frame(status(true))
         .expect("finite post-enable literal Run status");
+    for joint in ctrl.joint_names().to_vec() {
+        if joint != JOINT {
+            support::queue_joint_status(ctrl.supervisor_mut(), &joint, 0.0, 0.0);
+        }
+    }
     ctrl.enter_position_hold_at(Some(JOINT), 0.30)
         .expect("actual public entry consumes raw pose and seeds its real filter");
     let entry = ctrl
@@ -183,6 +188,11 @@ fn raw_velocity_then_stiction_faults_controller_and_preserves_stop_latch() {
     // delivered same-q frame through Davout; no future stamps, sleep, empty-read
     // failure, encoder roundtrip or private planner measurement is involved.
     for step in 1_u32..=600 {
+        for joint in ctrl.joint_names().to_vec() {
+            if joint != JOINT {
+                support::queue_joint_status(ctrl.supervisor_mut(), &joint, 0.0, 0.0);
+            }
+        }
         ctrl.supervisor_mut()
             .bus_mut()
             .queue_frame(status(false))

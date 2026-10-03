@@ -10,9 +10,10 @@ delegates to `marengo-store` before normal Store open and prints its completed r
 - Recovery requires explicit source, fresh backup and fresh output paths; it never
   selects the configured database implicitly or replaces the source.
 - Candump summary/page commands require no database.
-- `gravity-fit` requires no database: it fits right-arm link inertials to
-  `pi_gravity_calibrate` sessions and writes `docs/commissioning/calibrations/` records
-  plus a proposed URDF patch (never applied).
+- `gravity-fit` requires no database: it fits right-arm link inertials from immutable
+  `pi_gravity_calibrate` evidence, requires explicit output and local-URDF paths, checks
+  fused sessions' effective calibration windows, and writes dated records plus accepted
+  proposed URDF/patch files only under the output directory (never applied).
 
 ## Integration
 - **Depends on**: marengo-store, marengo-candump, armee-dynamics, marengo-config

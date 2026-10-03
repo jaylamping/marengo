@@ -27,9 +27,16 @@ fn selected_status() -> ReceivedCanFrame {
         },
     )
 }
+fn queue_peer_feedback(ctrl: &mut ControlLoop<SimulationBus>) {
+    for joint in ctrl.joint_names().to_vec() {
+        if joint != SELECTED {
+            support::queue_joint_status(ctrl.supervisor_mut(), &joint, 0.0, 0.0);
+        }
+    }
+}
 
 #[test]
-fn unresolved_inactive_peer_cannot_trip_selected_position_owner() {
+fn measured_inactive_peer_does_not_trip_selected_position_owner() {
     let source = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let original_control =
         std::fs::read(source.join("config/control.yaml")).expect("immutable master control input");
@@ -67,6 +74,7 @@ fn unresolved_inactive_peer_cannot_trip_selected_position_owner() {
         .bus_mut()
         .queue_received(selected_status())
         .expect("finite addressed pose queued after Enable returns");
+    queue_peer_feedback(&mut ctrl);
     ctrl.supervisor_mut()
         .drain_feedback()
         .expect("actual current-session pose drain");
@@ -77,7 +85,7 @@ fn unresolved_inactive_peer_cannot_trip_selected_position_owner() {
     assert!((0.019..0.021).contains(&measured.position_rad));
     assert_eq!(measured.velocity_rad_s, 0.0);
     assert_eq!(measured.fault, 0);
-    assert!(ctrl.supervisor().joint_feedback(PEER).is_none());
+    assert!(ctrl.supervisor().joint_feedback(PEER).is_some());
     // Settled target is measured encoder q, never a planner output or echo.
     ctrl.enter_position_hold_at(Some(SELECTED), measured.position_rad)
         .expect("actual settled selected position entry");
@@ -105,11 +113,11 @@ fn unresolved_inactive_peer_cannot_trip_selected_position_owner() {
                 && tx.frame.id >> 24 == 1
                 && tx.frame.data[4..6] != [0, 0]
         }),
-        "actual selected gain-bearing MIT must precede the unresolved peer case"
+        "actual selected gain-bearing MIT must precede the inactive peer target"
     );
 
     // This is an actual existing public method and a finite envelope-valid target.
-    // It does not reference/enable the peer or install any feedback/cache state.
+    // The peer is measured but remains unreferenced and inactive in Davout.
     let admission = ctrl.set_joint_position_setpoint(PEER, 0.30);
     let admitted = admission.is_ok();
     let admission_error = admission.err().map(|error| error.to_string());
@@ -132,6 +140,7 @@ fn unresolved_inactive_peer_cannot_trip_selected_position_owner() {
     let mut unrelated_error = None;
     if admitted {
         for step in 1_u32..=600 {
+            queue_peer_feedback(&mut ctrl);
             ctrl.supervisor_mut()
                 .bus_mut()
                 .queue_received(selected_status())
@@ -145,7 +154,7 @@ fn unresolved_inactive_peer_cannot_trip_selected_position_owner() {
                         .expect("selected-only fresh raw input remains available");
                     assert_eq!(q.position_rad, measured.position_rad);
                     assert_eq!(q.velocity_rad_s, 0.0);
-                    assert!(ctrl.supervisor().joint_feedback(PEER).is_none());
+                    assert!(ctrl.supervisor().joint_feedback(PEER).is_some());
                 }
                 Err(LoopError::AscentStall { joint, ms, .. }) => {
                     observed_stall = Some((joint, ms, step));
@@ -183,7 +192,7 @@ fn unresolved_inactive_peer_cannot_trip_selected_position_owner() {
     assert!((targets_before[selected_index] - measured.position_rad).abs() < 1e-12);
     assert!(
         (targets_before[peer_index] - 0.30).abs() < 1e-12,
-        "actual public method must admit the unresolved peer target without clamp masking"
+        "actual public method must admit the inactive peer target without clamp masking"
     );
     assert_eq!(
         mode_before,
@@ -196,7 +205,7 @@ fn unresolved_inactive_peer_cannot_trip_selected_position_owner() {
         "other errors are not inactive-peer evidence: {unrelated_error:?}"
     );
     assert_eq!(completed, 600,
-        "CS24: an unresolved inactive peer must not trip a settled selected ControlLoop owner; completed={completed}, observed_stall={observed_stall:?}");
+        "CS24: a measured inactive peer must not trip a settled selected ControlLoop owner; completed={completed}, observed_stall={observed_stall:?}");
     assert!(observed_stall.is_none());
     assert!(!safety_before_cleanup.is_latched());
     assert_eq!(

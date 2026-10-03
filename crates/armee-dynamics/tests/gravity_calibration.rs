@@ -142,7 +142,8 @@ fn measure(
             };
             let (q_below, tau_below) = approach(1.0, noise);
             let (q_above, tau_above) = approach(-1.0, noise);
-            let (tau_meas, friction) = cancel_friction(&tau_below, &tau_above);
+            let (tau_meas, friction) =
+                cancel_friction(&tau_below, &tau_above).expect("matching torque vectors");
             for f in friction {
                 assert!(
                     (f.abs() - FRICTION_NM).abs() < 0.05,
@@ -386,6 +387,43 @@ fn refuses_poses_outside_the_soft_window() {
 }
 
 #[test]
+fn invalid_calibration_windows_are_refused() {
+    let (model, mut windows) = live();
+    windows[0].lower_rad = f64::NAN;
+    let samples = vec![
+        GravitySample {
+            label: "a".into(),
+            q: vec![0.0; model.joint_names().len()],
+            tau_meas: vec![0.0; model.joint_names().len()],
+        },
+        GravitySample {
+            label: "b".into(),
+            q: vec![0.0; model.joint_names().len()],
+            tau_meas: vec![0.0; model.joint_names().len()],
+        },
+    ];
+    let err = fit_gravity_params(
+        &model,
+        &[InertialParam::mass(FOREARM)],
+        &samples,
+        &windows,
+        &[],
+        &FitOptions::default(),
+    )
+    .expect_err("non-finite window");
+    assert!(
+        matches!(err, CalibrationError::InvalidWindow { .. }),
+        "{err}"
+    );
+}
+
+#[test]
+fn friction_cancellation_refuses_mismatched_vectors() {
+    let err = cancel_friction(&[1.0, 2.0], &[3.0]).expect_err("mismatched lengths");
+    assert!(matches!(err, CalibrationError::SampleDims { .. }), "{err}");
+}
+
+#[test]
 fn rejects_bad_parameter_specs() {
     assert!("mass:right_forearm_link".parse::<InertialParam>().is_ok());
     assert!("com:right_forearm_link".parse::<InertialParam>().is_ok());
@@ -410,6 +448,65 @@ fn rejects_bad_parameter_specs() {
         fit_gravity_params(&model, &[], &samples, &windows, &[], &opts),
         Err(CalibrationError::NoParams)
     ));
+}
+
+#[test]
+fn refuses_unknown_joints_non_finite_samples_and_implausible_mass() {
+    let (model, windows) = live();
+    let poses = sweep(&model, &[], PITCH, &PITCH_POSES);
+    let samples = measure(
+        &scaled(&model, FOREARM, 1.25, 0.0),
+        &poses,
+        index(&model, PITCH),
+        &[],
+        &mut Noise(0x1234),
+    );
+    let opts = FitOptions::default();
+
+    assert!(matches!(
+        fit_gravity_params(
+            &model,
+            &[InertialParam::mass(FOREARM)],
+            &samples,
+            &windows,
+            &["missing_joint".to_string()],
+            &opts,
+        ),
+        Err(CalibrationError::UnknownFitJoint { .. })
+    ));
+
+    let mut non_finite = samples.clone();
+    non_finite[0].tau_meas[0] = f64::NAN;
+    assert!(matches!(
+        fit_gravity_params(
+            &model,
+            &[InertialParam::mass(FOREARM)],
+            &non_finite,
+            &windows,
+            &[],
+            &opts,
+        ),
+        Err(CalibrationError::NonFinite { .. })
+    ));
+
+    let bounded = FitOptions {
+        mass_scale_range: (0.5, 1.0),
+        ..opts
+    };
+    let fit = fit_gravity_params(
+        &model,
+        &[InertialParam::mass(FOREARM)],
+        &samples,
+        &windows,
+        &[],
+        &bounded,
+    )
+    .expect("implausible fit is a refusal verdict");
+    assert!(
+        matches!(fit.verdict, FitVerdict::ImplausibleParameter { .. }),
+        "{:?}",
+        fit.verdict
+    );
 }
 
 #[test]

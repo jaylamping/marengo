@@ -392,6 +392,8 @@ describe("pi_gravity_calibrate session", () => {
         command: "cargo",
         args: [
           "run", "--release", "-q", "-p", "marengo-log-cli", "--", "gravity-fit", "--dir", CAL_DIR,
+          "--out-dir", "/tmp/marengo/docs/commissioning/calibrations",
+          "--repo-urdf", "/tmp/marengo/assets/urdf/marengo.urdf",
           "--fit", "mass:right_upper_arm", "--fit", "com:right_upper_arm",
         ],
         opts: { cwd: "/tmp/marengo", timeoutMs: 900_000 },
@@ -503,7 +505,9 @@ describe("pi_gravity_calibrate session", () => {
     assert.match(out, /gravity-fit did not run \(exit 1, cargo not found\)/);
     assert.match(
       out,
-      new RegExp(`Run it on the workstation: cd '/tmp/marengo' && cargo run --release -q -p marengo-log-cli -- gravity-fit --dir ${CAL_DIR}`),
+      new RegExp(
+        `Run it on the workstation: cd '/tmp/marengo' && cargo run --release -q -p marengo-log-cli -- gravity-fit --dir ${CAL_DIR} --out-dir /tmp/marengo/docs/commissioning/calibrations --repo-urdf /tmp/marengo/assets/urdf/marengo.urdf`,
+      ),
     );
   });
 });
