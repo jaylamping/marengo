@@ -20,11 +20,8 @@ flowchart LR
   Pi[marengo-pi] --> Chappe
   Gateway[marengo-gateway] --> Chappe
   Consul[Consul UI] -->|HTTP + WebTransport| Gateway
-  Jetson[marengo-jetson] --> Chappe
   Chappe -->|"binary protobuf"| Berthier[Berthier control]
   Berthier --> Davout[Davout safety]
-  Talleyrand[Talleyrand planner] --> Berthier
-  Fouché[Fouché vision/LLM] --> Chappe
   Davout --> Motors[robstride / moteus]
 ```
 
@@ -35,7 +32,6 @@ Motor path is fixed: Berthier → Davout → robstride. Each crate documents its
 | Crate | Owns | Must not |
 |-------|------|----------|
 | [`berthier`](../crates/berthier/) | Joint-space trajectory executor: `tau_g` + impedance → MIT batch | CAN, limits, Cartesian IK, behavior scripts |
-| [`talleyrand`](../crates/talleyrand/) | Cartesian primitives → joint trajectories (future) | CAN, MIT encode |
 | [`davout`](../crates/davout/) | Enable FSM, filter, watchdog, send | Trajectories, URDF dynamics |
 | [`robstride`](../crates/robstride/) | MIT encode/decode, CAN I/O | Policy, safety |
 | [`armee-dynamics`](../crates/armee-dynamics/) | `gravity_torques(q)` | CAN, commands |

@@ -780,14 +780,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "fouche"
-version = "0.1.0"
-dependencies = [
- "thiserror 1.0.69",
- "tracing",
-]
-
-[[package]]
 name = "fs-err"
 version = "3.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1481,9 +1473,6 @@ dependencies = [
  "marengo-config",
  "marengo-deploy",
  "marengo-store",
- "marengo-support",
- "prost",
- "quinn",
  "rcgen",
  "rustls",
  "serde",
@@ -1492,7 +1481,6 @@ dependencies = [
  "sha2",
  "subtle",
  "tempfile",
- "thiserror 1.0.69",
  "time",
  "tokio",
  "tokio-rustls",
@@ -1522,7 +1510,6 @@ name = "marengo-host-metrics"
 version = "0.1.0"
 dependencies = [
  "armee-proto",
- "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -1535,22 +1522,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "marengo-jetson"
-version = "0.1.0"
-dependencies = [
- "chappe",
- "fouche",
- "marengo-support",
- "talleyrand",
- "tokio",
- "tracing",
-]
-
-[[package]]
 name = "marengo-limit-sync"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "clap",
  "marengo-config",
 ]
@@ -1571,7 +1545,6 @@ dependencies = [
  "serde_json",
  "tempfile",
  "thiserror 1.0.69",
- "tracing",
 ]
 
 [[package]]
@@ -1611,7 +1584,6 @@ dependencies = [
  "tempfile",
  "thiserror 1.0.69",
  "time",
- "tracing",
 ]
 
 [[package]]
@@ -2058,14 +2030,6 @@ checksum = "479ca8adacdd7ce8f1fb39ce9ecccbfe93a3f1344b3d0d97f20bc0196208f62b"
 dependencies = [
  "proc-macro2",
  "syn 2.0.117",
-]
-
-[[package]]
-name = "probe"
-version = "0.1.0"
-dependencies = [
- "marengo-support",
- "tracing",
 ]
 
 [[package]]
@@ -2854,23 +2818,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "talleyrand"
-version = "0.1.0"
-dependencies = [
- "armee-kinematics",
- "thiserror 1.0.69",
- "tracing",
-]
-
-[[package]]
-name = "teleop"
-version = "0.1.0"
-dependencies = [
- "marengo-support",
- "tracing",
-]
-
-[[package]]
 name = "tempfile"
 version = "3.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3391,15 +3338,6 @@ dependencies = [
  "hashbrown 0.15.5",
  "indexmap",
  "semver",
-]
-
-[[package]]
-name = "wave-demo"
-version = "0.1.0"
-dependencies = [
- "berthier",
- "marengo-support",
- "tracing",
 ]
 
 [[package]]

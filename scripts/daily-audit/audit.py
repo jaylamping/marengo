@@ -400,7 +400,7 @@ def infer_topics(changed: list[str]) -> list[dict[str, str]]:
     topics: list[dict[str, str]] = []
     if any("robstride" in p or "davout" in p for p in changed):
         topics.append({"query": "Robstride MIT actuator control CAN", "focus": "vendor"})
-    if any("berthier" in p or "talleyrand" in p for p in changed):
+    if any("berthier" in p for p in changed):
         topics.append({"query": "humanoid whole-body control impedance", "focus": "papers"})
     if any(p.startswith("sim/") for p in changed):
         topics.append({"query": "humanoid sim-to-real MuJoCo", "focus": "code"})

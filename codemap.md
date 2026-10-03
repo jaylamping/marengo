@@ -30,14 +30,14 @@ Consul (React) ←HTTP/WT→ marengo-gateway ←IPC→ Chappe ← marengo-pi
                                               Robstride motors
 ```
 
-**Codenames**: Berthier=control, Davout=safety, Chappe=message bus, Talleyrand=planning, Fouché=vision, Consul=web UI.
+**Codenames**: Berthier=control, Davout=safety, Chappe=message bus, Consul=web UI.
 
 ## Directory Map (Aggregated)
 
 | Directory | Responsibility Summary | Detailed Map |
 |-----------|------------------------|--------------|
 | `crates/` | Armée libraries: kinematics, dynamics, control loop, safety gateway, CAN driver, config, Chappe bus | [View Map](crates/codemap.md) |
-| `bins/` | Thin runtimes: Pi control, gateway, motor REPL, Jetson, log CLI, probes | [View Map](bins/codemap.md) |
+| `bins/` | Thin runtimes: Pi control, gateway, motor REPL, log CLI, IMU probe | [View Map](bins/codemap.md) |
 | `config/` | Declarative YAML: robot, motors, control, homing (master SoT) | [View Map](config/codemap.md) |
 | `proto/` | Protobuf wire types for Chappe (Rust + TS codegen) | [View Map](proto/codemap.md) |
 | `consul/` | Operator web UI — telemetry, enable, testing panels, URDF preview | [View Map](consul/codemap.md) |

@@ -1,6 +1,6 @@
 # scripts/ — Build, deploy, CI, bench tooling
 
-Shell + Python scripts. No Rust logic here — these orchestrate the workspace, deploy to Pi/Jetson, and provide bench diagnostics.
+Shell + Python scripts. No Rust logic here — these orchestrate the workspace, deploy to the Pi, and provide bench diagnostics.
 
 ## STRUCTURE
 
@@ -20,7 +20,6 @@ scripts/
 ├── deploy-pi.sh              # Cross-build + deploy to Pi (macOS native)
 ├── deploy-pi-docker.sh       # Cross-build via Docker (Windows)
 ├── deploy-pi-docker.ps1      # PowerShell wrapper
-├── deploy-jetson.sh          # Jetson deploy
 ├── install-pi.sh             # Install staging tree → /opt/marengo on Pi
 ├── preserve-taught-limits.py # Keep Set Limits hard/soft/URDF across install rsync
 ├── pi-remote.sh              # Cloud fallback: SSH to Pi for health/logs/deploy

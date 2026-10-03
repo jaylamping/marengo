@@ -18,8 +18,5 @@ tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 
-[target.'cfg(unix)'.dependencies]
-# ipc uses std::os::unix only; no extra crates
-
 [dev-dependencies]
 tempfile = "3"

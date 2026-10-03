@@ -8,13 +8,12 @@ use std::time::{Duration, Instant};
 pub const MAX_PAYLOAD_BYTES: usize = 64 * 1024;
 pub const EVENT_CAPACITY: usize = 128;
 pub const EVENT_BYTE_CAPACITY: usize = 512 * 1024;
-const LATEST_TOPICS: [&str; 7] = [
+const LATEST_TOPICS: [&str; 6] = [
     "robot/safety",
     "robot/heartbeat",
     "robot/state",
     "sensors/imu/torso",
     "host/metrics/pi",
-    "host/metrics/jetson",
     "robot/actuator/limits",
 ];
 pub const QUEUE_ITEM_CAPACITY: usize = LATEST_TOPICS.len() + EVENT_CAPACITY;

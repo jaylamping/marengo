@@ -12,13 +12,11 @@
 | `chappe` | Chappe | IPC pub/sub (protobuf envelopes) |
 | `berthier` | Berthier | Outer control loop, modes, friction FF → Davout |
 | `davout` | Davout | Safety gateway; **sole path to robstride** |
-| `talleyrand` | Talleyrand | Motion planning (IK + multi-joint timing) |
-| `fouche` | Fouché | Vision / LLM (Jetson-side) |
 | `robstride` | — | MIT CAN encode/decode, no policy |
 | `marengo-config` | — | `config/*.yaml` loaders |
 | `marengo-homing` | — | Homing state machine, zero registry |
 | `marengo-imu` | — | BNO085 SHTP/I2C driver, rotation-vector samples |
-| `marengo-support` | — | `init_tracing()`, repo-root resolution, shared utils |
+| `marengo-support` | — | `init_tracing()` only |
 | `marengo-host-metrics` | — | Host-level metrics (CPU, temp, etc.) |
 | `marengo-store` | — | Bench session / log archive SQL store |
 | `marengo-deploy` | — | Self-update jobs, revisions, upstream status, and enqueueing |
@@ -42,7 +40,7 @@
 - **Berthier → Davout → robstride.** No shortcuts. Berthier never opens CAN.
 - **Joint vs motor space:** Berthier, armee-dynamics, Chappe, Davout limits = URDF joint space. robstride = raw motor/CAN space only.
 - **Davout owns** `direction` / `gear_ratio` transforms in both directions.
-- **Talleyrand** owns IK and multi-joint timing. Berthier does not.
+- **IK and multi-joint timing** have no owning crate (`talleyrand` was removed, [ADR 0014](../docs/decisions/0014-jetson-perception-semantic-motion.md)). Berthier does not own them.
 
 ## CONVENTIONS
 

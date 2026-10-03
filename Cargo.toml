@@ -11,8 +11,6 @@ members = [
     "crates/chappe",
     "crates/berthier",
     "crates/davout",
-    "crates/talleyrand",
-    "crates/fouche",
     "crates/robstride",
     "crates/marengo-imu",
     "crates/marengo-host-metrics",
@@ -23,12 +21,8 @@ members = [
     "bins/marengo-gateway",
     "bins/marengo-log-cli",
     "bins/marengo-limit-sync",
-    "bins/marengo-jetson",
-    "bins/probe",
     "bins/motor-repl",
     "bins/imu-probe",
-    "bins/wave-demo",
-    "bins/teleop",
 ]
 
 [workspace.package]
@@ -63,8 +57,6 @@ armee-dynamics = { path = "crates/armee-dynamics" }
 chappe = { path = "crates/chappe" }
 berthier = { path = "crates/berthier" }
 davout = { path = "crates/davout" }
-talleyrand = { path = "crates/talleyrand" }
-fouche = { path = "crates/fouche" }
 robstride = { path = "crates/robstride" }
 marengo-imu = { path = "crates/marengo-imu" }
 marengo-host-metrics = { path = "crates/marengo-host-metrics" }

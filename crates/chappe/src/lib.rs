@@ -1,6 +1,6 @@
 //! # Chappe — inter-process message bus
 //!
-//! Pub/sub between Pi (`marengo-pi`), Jetson (`marengo-jetson`), Consul UI, and tools.
+//! Pub/sub between Pi (`marengo-pi`), Consul UI, and tools.
 //! **Transport only** — no motor control, no safety filtering.
 //!
 //! ## Responsibilities
@@ -18,7 +18,6 @@
 pub mod ipc;
 mod ipc_outbox;
 pub mod tracing_layer;
-pub mod transport;
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -27,7 +26,6 @@ use armee_proto::prost::Message;
 use armee_proto::Envelope;
 use thiserror::Error;
 use tokio::sync::broadcast;
-pub use transport::{SharedBus, Transport};
 
 const DEFAULT_CAPACITY: usize = 256;
 

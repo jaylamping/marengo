@@ -1,6 +1,7 @@
 # ADR 0014: Jetson perception + semantic-to-motion pipeline
 
 **Status:** Accepted  
+**Scaffold note (2026-10-03):** `bins/marengo-jetson`, `bins/teleop`, `crates/fouche`, `crates/talleyrand`, `scripts/deploy-jetson.sh`, the `marengo-jetson` systemd unit, the host-metrics Jetson branch, the `host/metrics/jetson` Chappe outbox slot, the `network.yaml` loader and `chappe::transport` were removed from the workspace in the crate audit. This ADR remains the design record; the crates named below must be recreated when the work starts.  
 **Date:** 2026-06-19
 
 ## Context

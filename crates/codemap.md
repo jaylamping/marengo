@@ -17,13 +17,11 @@ Workspace library crates implementing the Marengo humanoid robot's control stack
 | `robstride` | Pure CAN transport driver: encode/decode Robstride MIT frames (29-bit extended protocol), no policy |
 | `marengo-config` | YAML/URDF config loading: robot.yaml, motors.yaml, control.yaml, homing.yaml |
 | `marengo-homing` | Joint homing registry: encoder zero verification, calibration record persistence |
-| `marengo-support` | Shared init helpers: `init_tracing()`, workspace lint overrides |
+| `marengo-support` | `init_tracing()` (RUST_LOG filter) only |
 | `marengo-store` | Time-series key-value store for telemetry replay |
 | `marengo-imu` | IMU driver and frame publishing |
 | `marengo-host-metrics` | Host-level CPU/Mem/Disk metrics for health dashboard |
 | `marengo-deploy` | Pi self-update jobs, `.deploy-rev`, upstream tip, typed version status |
-| `fouche` | Vision crate (in development) |
-| `talleyrand` | Planning crate (in development) |
 | `sim-harness` | Simulation test harness |
 
 ### Dependency direction (strict)
@@ -55,5 +53,4 @@ Berthier owns **what to command**. Davout owns **may it move** (safety filter + 
 - **Consul (web UI)**: receives `RobotState` via Chappe IPC (Unix socket) from `marengo-pi`
 - **marengo-pi**: runs ControlLoop + Chappe bridge on Pi, hosts supervisor state
 - **marengo-gateway**: Chappe IPC listener, serves Consul frontend
-- **marengo-jetson**: vision/planning (Fouche/Talleyrand) — future
 - **Tests**: `MemoryBus` in robstride allows full-stack unit tests without CAN hardware; `SyntheticBus` in Marengo for integration tests

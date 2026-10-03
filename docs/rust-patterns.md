@@ -24,8 +24,6 @@ Each library crate has a **detailed crate-root** `//!` doc in `src/lib.rs` (resp
 | `chappe` | IPC pub/sub (protobuf envelopes) |
 | `berthier` | Outer loop, modes, friction FF → Davout |
 | `davout` | Safety gateway, sole path to robstride |
-| `talleyrand` | Planning |
-| `fouche` | Vision / LLM (Jetson) |
 | `robstride` | MIT CAN encode/decode, no policy |
 | `marengo-imu` | BNO085 SHTP/I2C driver, rotation-vector samples |
 | `marengo-config` | `config/*.yaml` loaders |

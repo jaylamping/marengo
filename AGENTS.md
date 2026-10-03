@@ -13,12 +13,11 @@ Marengo is a **personal humanoid robot** in one repo: CAD, wiring, URDF, and the
 | Name | Role |
 |------|------|
 | **Marengo** | The robot (mechanical + electrical + software) |
-| **Armée** | Rust workspace (`Cargo.toml`) — 18 crates + 10 bins |
+| **Armée** | Rust workspace (`Cargo.toml`) — 16 crates + 6 bins |
 | **Chappe** | Inter-process message bus (binary protobuf) |
 | **Berthier** | Realtime control loop |
 | **Davout** | Safety supervisor — **sole path to motors** |
-| **Talleyrand** | Motion planning (scaffold) |
-| **Fouché** | Jetson vision/LLM (scaffold) |
+| **Talleyrand**, **Fouché** | Planner and Jetson vision/LLM — not in the workspace; crates, `marengo-jetson` and `teleop` were removed (2026-10-03 crate audit). [ADR 0014](docs/decisions/0014-jetson-perception-semantic-motion.md) holds the design |
 | **Consul** | Operator web UI (Vite + React + TS) |
 
 Current execution slice is a **5-DOF right bench arm** defined by the master

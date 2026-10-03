@@ -7,7 +7,6 @@ Bus implementation, IPC transport, and tracing integration.
 | Module | Role |
 |--------|------|
 | `lib.rs` | `Bus`, `BusError`, publish/subscribe API |
-| `transport.rs` | `SharedBus`, `Transport` trait for IPC bridging |
 | `ipc.rs` | Unix socket listener/client, length-prefixed framing |
 | `tracing_layer.rs` | Optional trace event publishing |
 
