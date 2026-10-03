@@ -11,6 +11,7 @@
 //! - [`params`](params): firmware `run_mode` and parameter read/write frames.
 //! - [`command`](command): typed rejection of nonfinite input, negative gains and wrong register types.
 //! - [`lifecycle`](lifecycle): enable, disable, and set-zero frames.
+//! - [`identity`](identity): type-0 device-ID request and 64-bit MCU UID reply decoding.
 //! - [`feedback`]: addressed observations retain status flags, drive mode and complete raw
 //!   detailed-fault/warning payloads, malformed prefixes and transport errors in raw delivery order.
 //! - [`receive`]: one shared nonblocking engine caps every poll at 64 raw frames and 256
@@ -40,6 +41,7 @@ pub mod bus;
 pub mod comm;
 pub mod command;
 pub mod feedback;
+pub mod identity;
 pub mod lifecycle;
 pub mod mit;
 pub mod motor_type;
@@ -58,7 +60,12 @@ pub use comm::{pack_ext_id, unpack_ext_id, CommunicationType, ExtendedId, DEFAUL
 pub use command::{CommandError, CommandField};
 pub use feedback::{
     DetailedFaultFeedback, DriveMode, FeedbackEvent, FeedbackObservation, FeedbackReport,
-    MalformedFeedback, MalformedReason, TransportObservation,
+    IdentityObservation, MalformedFeedback, MalformedReason, ParameterReadObservation,
+    TransportObservation,
+};
+pub use identity::{
+    decode_device_id_reply, encode_default_get_device_id, encode_get_device_id, DeviceIdReply,
+    DeviceUid, DEVICE_ID_REPLY_MARKER,
 };
 pub use lifecycle::{
     encode_active_reporting, encode_default_active_reporting, encode_default_disable,
@@ -67,8 +74,9 @@ pub use lifecycle::{
 };
 pub use mit::{encode_mit, mit_rx_id, mit_tx_id, MitCommand, MitFeedback};
 pub use params::{
-    encode_current_ref, encode_position_ref, encode_read_parameter, encode_set_run_mode,
-    encode_speed_ref, encode_write_parameter, ParameterId, ParameterKind, ParameterValue, RunMode,
+    decode_read_parameter_reply, encode_current_ref, encode_position_ref, encode_read_parameter,
+    encode_set_run_mode, encode_speed_ref, encode_write_parameter, ParameterId, ParameterKind,
+    ParameterReadReply, ParameterValue, RunMode,
 };
 pub use receive::{
     RawReceiveReport, ReceiveAttempt, ReceiveCompletion, ReceiveLimits, MAX_RX_ATTEMPTS_PER_POLL,
@@ -407,6 +415,64 @@ mod tests {
         assert_eq!(states[&1].position_rad, 0.0);
         assert_eq!(states[&1].temperature_c, 20.0);
         assert!(states[&1].updated.is_some());
+    }
+
+    #[test]
+    fn literal_identity_and_parameter_replies_are_addressed_but_never_poses() {
+        let frame = |id: u32, data: [u8; 8]| CanFrame {
+            id,
+            data,
+            extended: true,
+        };
+        let mut bus = MemoryBus::default();
+        for item in [
+            // Our own requests, as a loopback or another listener would see them.
+            frame(0x0000_FD01, [0; 8]),
+            frame(0x1100_FD01, [0x19, 0x70, 0, 0, 0, 0, 0, 0]),
+            // Bench probe replies (firmware 0.3.1.42).
+            frame(
+                0x0000_01FE,
+                [0x45, 0x7B, 0x30, 0x02, 0x0C, 0x32, 0x38, 0x17],
+            ),
+            frame(
+                0x1100_01FD,
+                [0x19, 0x70, 0x00, 0x00, 0x1D, 0xC7, 0x32, 0xB8],
+            ),
+            // Unconfigured device 9 and a reply addressed to another host.
+            frame(0x0000_09FE, [1; 8]),
+            frame(0x1100_01AA, [0x19, 0x70, 0, 0, 0, 0, 0, 0]),
+        ] {
+            bus.rx_queue.push(item);
+        }
+        let types = HashMap::from([(MotorAddress::new("can0", 1), MotorType::Rs03)]);
+        let report = bus.recv_feedback_report(&types, Duration::ZERO, Duration::ZERO);
+        assert!(report.completion.is_complete());
+        assert!(report.terminal_error.is_none());
+        assert!(
+            report.observations.is_empty(),
+            "replies are not status poses"
+        );
+        assert_eq!(report.identities.len(), 1);
+        assert_eq!(report.identities[0].order, 2);
+        assert_eq!(report.identities[0].address.device_id, 1);
+        assert_eq!(
+            report.identities[0].uid,
+            super::DeviceUid([0x45, 0x7B, 0x30, 0x02, 0x0C, 0x32, 0x38, 0x17])
+        );
+        assert_eq!(report.parameter_reads.len(), 1);
+        let read = &report.parameter_reads[0];
+        assert_eq!(read.order, 3);
+        assert_eq!(read.reply.parameter(), Some(super::ParameterId::MechPos));
+        assert!((read.reply.as_f32() + 4.26e-5).abs() < 1e-6);
+        // A positive-budget drain with only replies is not a benign timeout.
+        let mut bus = MemoryBus::default();
+        bus.rx_queue.push(frame(
+            0x0000_01FE,
+            [0x45, 0x7B, 0x30, 0x02, 0x0C, 0x32, 0x38, 0x17],
+        ));
+        let report = bus.recv_feedback_report(&types, Duration::from_millis(1), Duration::ZERO);
+        assert!(report.terminal_error.is_none());
+        assert_eq!(report.identities.len(), 1);
     }
 
     #[cfg(all(feature = "socketcan", target_os = "linux"))]

@@ -3,7 +3,8 @@
 use std::time::Instant;
 
 use crate::{
-    BusError, MitFeedback, MotorAddress, MotorState, ReceiveCompletion, RxFrameKind, TimedCanFrame,
+    BusError, DeviceUid, MitFeedback, MotorAddress, MotorState, ParameterReadReply,
+    ReceiveCompletion, RxFrameKind, TimedCanFrame,
 };
 
 /// Drive state encoded in status CAN-ID bits 22..23.
@@ -104,6 +105,27 @@ pub struct TransportObservation {
     pub frame: TimedCanFrame,
 }
 
+/// Type-0 reply from a configured address. Correlating it with a request (pop
+/// order after the request) and with a reference binding is the consumer's job.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IdentityObservation {
+    pub order: usize,
+    pub address: MotorAddress,
+    pub received_at: Instant,
+    pub can_id: u32,
+    pub uid: DeviceUid,
+}
+
+/// Type-17 reply addressed to this host from a configured address.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParameterReadObservation {
+    pub order: usize,
+    pub address: MotorAddress,
+    pub received_at: Instant,
+    pub can_id: u32,
+    pub reply: ParameterReadReply,
+}
+
 impl FeedbackObservation {
     /// Latest-state compatibility only. Safety consumers must inspect every event
     /// in the report; a healthy status can replace this diagnostic projection.
@@ -146,4 +168,8 @@ pub struct FeedbackReport {
     pub read_attempts: usize,
     pub terminal_error: Option<BusError>,
     pub terminal_error_order: Option<usize>,
+    /// Type-0 device identity replies, in raw delivery order. Never pose or fault evidence.
+    pub identities: Vec<IdentityObservation>,
+    /// Type-17 parameter replies to this host, in raw delivery order.
+    pub parameter_reads: Vec<ParameterReadObservation>,
 }

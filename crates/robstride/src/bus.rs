@@ -11,8 +11,10 @@ use crate::comm::{self, CommunicationType};
 use crate::command::CommandError;
 use crate::feedback::{
     DetailedFaultFeedback, DriveMode, FeedbackEvent, FeedbackObservation, FeedbackReport,
-    MalformedFeedback, MalformedReason, TransportObservation,
+    IdentityObservation, MalformedFeedback, MalformedReason, ParameterReadObservation,
+    TransportObservation,
 };
+use crate::identity;
 use crate::lifecycle;
 use crate::mit::{self, MitCommand};
 use crate::params::{self, ParameterId, ParameterValue, RunMode};
@@ -475,6 +477,12 @@ pub trait MotorBus: CanBus {
         send_encoded_frame_to(self, address, id, data)
     }
 
+    /// Communication type 0: request the 64-bit MCU unique identifier (manual §4.1.1).
+    fn get_device_id_at(&mut self, address: &MotorAddress) -> Result<(), BusError> {
+        let (id, data) = identity::encode_default_get_device_id(address.device_id);
+        send_encoded_frame_to(self, address, id, data)
+    }
+
     fn write_parameter(
         &mut self,
         device_id: u8,
@@ -644,6 +652,8 @@ fn feedback_from_raw(
         && report.completion.is_complete()
         && report.observations.is_empty()
         && report.transport_frames.is_empty()
+        && report.identities.is_empty()
+        && report.parameter_reads.is_empty()
         && report.terminal_error.is_none()
     {
         report.terminal_error = Some(BusError::RecvTimeout);
@@ -689,6 +699,13 @@ fn ingest_feedback_frames(
         let Some(comm_type) = CommunicationType::from_u8(ext.comm_type) else {
             continue;
         };
+        if matches!(
+            comm_type,
+            CommunicationType::GetDeviceId | CommunicationType::ReadParameter
+        ) {
+            ingest_reply_frame(motor_types, report, order, timed, comm_type);
+            continue;
+        }
         let device_id = comm::inbound_motor_device_id(frame.id, comm_type);
         let Some((address, motor_type)) =
             address_for_frame(motor_types, received.interface.as_deref(), device_id)
@@ -772,6 +789,74 @@ fn ingest_feedback_frames(
             can_id: frame.id,
             event,
         });
+    }
+}
+
+/// Complete eight-byte Data replies from configured addresses only. Requests,
+/// foreign-host replies and short/remote/error envelopes are not reply evidence.
+fn ingest_reply_frame(
+    motor_types: &HashMap<MotorAddress, MotorType>,
+    report: &mut FeedbackReport,
+    order: usize,
+    timed: &TimedCanFrame,
+    comm_type: CommunicationType,
+) {
+    let received = &timed.received;
+    let frame = &received.frame;
+    let payload = match received.payload() {
+        Some(payload) if received.kind == RxFrameKind::Data && payload.len() == 8 => payload,
+        _ => {
+            trace_skipped_frame(
+                received.interface.as_deref(),
+                frame.id,
+                "incomplete-reply",
+                None,
+                Some(comm_type.as_u8()),
+            );
+            return;
+        }
+    };
+    enum Decoded {
+        Identity(identity::DeviceUid),
+        Read(params::ParameterReadReply),
+    }
+    let decoded = match comm_type {
+        CommunicationType::GetDeviceId => identity::decode_device_id_reply(frame.id, payload)
+            .map(|reply| (reply.device_id, Decoded::Identity(reply.uid))),
+        _ => params::decode_read_parameter_reply(comm::DEFAULT_HOST_ID, frame.id, payload)
+            .map(|reply| (reply.device_id, Decoded::Read(reply))),
+    };
+    let Some((device_id, decoded)) = decoded else {
+        // Outbound requests and replies to another host share these types.
+        return;
+    };
+    let Some((address, _)) =
+        address_for_frame(motor_types, received.interface.as_deref(), device_id)
+    else {
+        trace_skipped_frame(
+            received.interface.as_deref(),
+            frame.id,
+            "unconfigured-motor",
+            Some(device_id),
+            Some(comm_type.as_u8()),
+        );
+        return;
+    };
+    match decoded {
+        Decoded::Identity(uid) => report.identities.push(IdentityObservation {
+            order,
+            address: address.clone(),
+            received_at: timed.received_at,
+            can_id: frame.id,
+            uid,
+        }),
+        Decoded::Read(reply) => report.parameter_reads.push(ParameterReadObservation {
+            order,
+            address: address.clone(),
+            received_at: timed.received_at,
+            can_id: frame.id,
+            reply,
+        }),
     }
 }
 

@@ -12,6 +12,7 @@ pub struct ExtendedId {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum CommunicationType {
+    GetDeviceId = 0,
     OperationControl = 1,
     OperationStatus = 2,
     Enable = 3,
@@ -26,6 +27,7 @@ pub enum CommunicationType {
 impl CommunicationType {
     pub fn from_u8(value: u8) -> Option<Self> {
         match value {
+            0 => Some(Self::GetDeviceId),
             1 => Some(Self::OperationControl),
             2 => Some(Self::OperationStatus),
             3 => Some(Self::Enable),
@@ -45,7 +47,8 @@ impl CommunicationType {
 }
 
 /// Motor id for **inbound** status/fault/active-reporting frames (host id in low byte, motor id at bits 8–15).
-/// Outbound command/lifecycle frames use the motor id in the low byte.
+/// Outbound command/lifecycle frames use the motor id in the low byte. Type-0 and type-17
+/// replies are direction-specific; decode them with the `identity` / `params` reply decoders.
 pub fn inbound_motor_device_id(can_id: u32, comm_type: CommunicationType) -> u8 {
     match comm_type {
         CommunicationType::OperationStatus

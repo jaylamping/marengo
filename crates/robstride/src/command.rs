@@ -33,6 +33,11 @@ pub enum CommandError {
     },
     #[error("unsupported run mode {value} for motor {device_id}")]
     UnsupportedRunMode { device_id: u8, value: u8 },
+    #[error("parameter {parameter:?} for motor {device_id} is read-only")]
+    ReadOnlyParameter {
+        device_id: u8,
+        parameter: ParameterId,
+    },
 }
 
 pub(crate) fn finite(device_id: u8, field: CommandField, value: f32) -> Result<(), CommandError> {
