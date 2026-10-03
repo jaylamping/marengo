@@ -349,6 +349,14 @@ struct FeedbackSample {
     received_at: Instant,
 }
 
+/// Whether a reference-validity check judges physical grant liveness now.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Liveness {
+    Judge,
+    /// Left to the next judged check: the receive queue has not been read yet.
+    Defer,
+}
+
 /// Limiter/watchdog advance for one admitted command, committed only with its batch.
 #[derive(Debug, Clone, Copy)]
 struct StagedMitState {
@@ -863,6 +871,16 @@ impl<B: MotorBus> Supervisor<B> {
     }
 
     fn reference_binding_valid(&self) -> bool {
+        self.reference_binding_valid_with(Liveness::Judge)
+    }
+
+    /// [`Self::reference_binding_valid`] with each physical grant's liveness
+    /// judged now or deferred to the next judged check. Only a feedback drain
+    /// defers, for the observation it makes before reading the receive queue:
+    /// last-seen times are host read times, so judging liveness there counts
+    /// the host's own read gap (e.g. marengo-pi's gravity preflight) as drive
+    /// silence. The drain judges liveness once it has read the queue.
+    fn reference_binding_valid_with(&self, liveness: Liveness) -> bool {
         self.observe_staged_reference();
         self.observe_reference_commits();
         if self.has_latched_fault() || self.hardware_estop {
@@ -913,18 +931,43 @@ impl<B: MotorBus> Supervisor<B> {
                 self.mode == OperationalMode::Active
                     && self.enable_echo_pending.contains(&binding.address)
             });
-            let current = self.reference_owner.live_device_epoch(
-                &self.bus,
-                &binding.address,
-                window,
-                owner_busy,
-                withheld_since,
-            );
+            let current = match liveness {
+                Liveness::Judge => self.reference_owner.live_device_epoch(
+                    &self.bus,
+                    &binding.address,
+                    window,
+                    owner_busy,
+                    withheld_since,
+                ),
+                Liveness::Defer => self
+                    .reference_owner
+                    .current_device_epoch(&self.bus, &binding.address),
+            };
             let identity_holds = !physical
                 || binding.uid.is_some()
                     && self.reference_owner.physical.uid(&binding.address) == binding.uid;
             if current != Some(binding.device_epoch) || !identity_holds {
                 if physical {
+                    let cause = if !identity_holds {
+                        "device identity changed"
+                    } else if current.is_none() {
+                        "no feedback within comm_watchdog_ms"
+                    } else {
+                        "coordinate epoch changed"
+                    };
+                    warn!(
+                        joint = %binding.joint,
+                        interface = %binding.address.interface,
+                        device_id = binding.address.device_id,
+                        cause,
+                        silence = ?self.reference_owner.physical.counted_silence(
+                            &binding.address,
+                            Instant::now(),
+                            withheld_since,
+                        ),
+                        comm_watchdog_ms = self.control.control.comm_watchdog_ms,
+                        "physical reference grant revoked"
+                    );
                     self.reference_authority.revoke_binding(binding);
                 } else {
                     self.reference_authority.revoke();
@@ -1294,8 +1337,13 @@ impl<B: MotorBus> Supervisor<B> {
     ///
     /// No scope file → full-master Robot Ready required. Persisted scope → Verified
     /// in-scope joints only. Never calls [`Self::set_homing_complete`].
+    ///
+    /// Drains pending feedback first ([`Self::drain_feedback`]), so the facets
+    /// judge what the drives sent, not how long the caller went without reading:
+    /// a caller's synchronous work (marengo-pi's gravity preflight runs ~65 ms)
+    /// would otherwise revoke the grant of a drive whose reports are queued.
     pub fn resolve_enable_targets(
-        &self,
+        &mut self,
         repo_root: impl AsRef<Path>,
     ) -> Result<Vec<String>, DavoutError> {
         self.require_fault_clear()?;
@@ -1306,6 +1354,7 @@ impl<B: MotorBus> Supervisor<B> {
             .as_ref()
             .map(|scope| effective_commissioning_scope(&scope.joints, ceiling.as_ref()));
         let master_names = load_robot_config(repo_root.as_ref())?.robot.joints;
+        self.drain_feedback()?;
         let (master, loaded) = self.commissioning_facets(&master_names);
         select_enable_targets(&master, &loaded, effective.as_deref())
             .map_err(|message| DavoutError::Homing { message })
@@ -1761,7 +1810,9 @@ impl<B: MotorBus> Supervisor<B> {
                     .iter()
                     .any(|joint| !self.reference_authority.contains(joint)));
         if self.mode != OperationalMode::Active {
-            let _ = self.reference_binding_valid();
+            // Grant liveness is judged after this drain has read the queue
+            // (below): judged here, the host's own read gap counts as silence.
+            let _ = self.reference_binding_valid_with(Liveness::Defer);
         }
         if !lost_active_reference {
             if let Err(error) = self.issue_due_enable_writes(Instant::now()) {
@@ -1781,6 +1832,9 @@ impl<B: MotorBus> Supervisor<B> {
         let count = report.observations.len();
         self.last_refresh_frames = self.last_refresh_frames.saturating_add(count);
         let consumption = self.consume_feedback_report(report);
+        if self.mode != OperationalMode::Active {
+            let _ = self.reference_binding_valid();
+        }
         let mut first_error = consumption.first_error;
         let mut first_transition = consumption.first_transition;
         if let Some((error, transition)) = self.enable_echo_overdue(Instant::now()) {

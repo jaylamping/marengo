@@ -310,6 +310,18 @@ impl PhysicalDevices {
         if owner_busy {
             return Some(device.epoch);
         }
+        (self.counted_silence(address, now, withheld_since)? <= window).then_some(device.epoch)
+    }
+
+    /// Silence the liveness rule counts for `address` at `now` (see
+    /// [`Self::live_epoch`]), or `None` when it was never observed.
+    pub(crate) fn counted_silence(
+        &self,
+        address: &MotorAddress,
+        now: Instant,
+        withheld_since: Option<Instant>,
+    ) -> Option<Duration> {
+        let device = self.devices.get(address)?;
         let reference = [
             device.last_seen,
             self.last_owner_work,
@@ -319,7 +331,7 @@ impl PhysicalDevices {
         .into_iter()
         .flatten()
         .max()?;
-        (now.saturating_duration_since(reference) <= window).then_some(device.epoch)
+        Some(now.saturating_duration_since(reference))
     }
 
     pub(crate) fn uid(&self, address: &MotorAddress) -> Option<DeviceUid> {

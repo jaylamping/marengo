@@ -38,11 +38,13 @@ Read this before enabling motors on the bench or robot.
   discontinuity, Calibration drive mode, or no feedback for longer than
   `comm_watchdog_ms` outside reference work. Silence the host itself caused is
   not counted: a type-24 On it held back from the drive's possible post-SetZero
-  blackout counts from the quiet's end, and a just-enabled drive counts from its
-  Enable echo (see *Host-caused silence* below). A revocation is checked on
-  demand but latched: the check that finds a lapse revokes that joint for the
-  rest of the process. Fault, E-stop, uncertain stop, shutdown and model/policy
-  changes revoke all grants. `zero_sta`/`add_offset` writes and type-22 saves
+  blackout counts from the quiet's end, a just-enabled drive counts from its
+  Enable echo, and Enable resolution and non-Active drains judge liveness only
+  after reading the receive queue (see *Host-caused silence* and *Host read
+  gap* below). A revocation is checked on demand but latched: the check that
+  finds a lapse revokes that joint for the rest of the process. Fault, E-stop,
+  uncertain stop, shutdown and model/policy changes revoke all grants.
+  `zero_sta`/`add_offset` writes and type-22 saves
   are never sent. Journal history is schema-tolerant for integrity checks:
   opening the journal verifies checksums, row-key identity, bounds and exact
   storage schema without decoding old rows under the current config schema,
@@ -322,6 +324,24 @@ disables. The fault does not clear on its own.
      pose the moment the echo cleared the pending flag (soak cycle 9: the tick
      failed with "current reference was revoked" at 17:07:22.358, 4 ms after
      roll's Enable was written). Silence now counts from the echo.
+- **Host read gap (2026-10-03 soak, rev 84e80653):** 6 of 20 cycles refused
+  `enable` with `Enable requires full-master Robot Ready` right after `homing
+  verified`, while the candump showed every drive reporting and no fault bits.
+  A frame's receive time is when the host reads it, and stdin/Chappe Enable
+  runs the gravity preflight (64-68 ms on the Pi) without reading CAN. Target
+  resolution then judged liveness on reads from before the preflight. A drive
+  whose post-SetZero blackout covered the last read before it passed
+  `comm_watchdog_ms` with its reports queued (cycle 2: right_upper_arm_yaw,
+  can0 ID 3, silent 233-282 ms after the fifth reference) and lost its grant
+  for the rest of the process. `resolve_enable_targets` now drains feedback
+  before it builds the facets, and a non-Active drain judges grant liveness
+  after it reads the queue, not before (Active drains still judge first).
+  Because receive times are read times, a drive that stops during a host
+  stall is credited with its queued reports and loses its grant up to one
+  stall later. Enable still needs each target's type-0 reply to a request
+  sent after that drain. A revocation logs `physical reference grant revoked`
+  with the joint, cause and counted silence; marengo-pi logs the preflight
+  duration (`gravity preflight sweep`, debug).
 - **Paced reference bursts:** the all-address stop (speed zero, neutral MIT,
   Disable per address) answers 15 frames; written back to back at the end of a
   reference it overran the mcp251x once in three runs (17:09:07, `rx_over_errors`

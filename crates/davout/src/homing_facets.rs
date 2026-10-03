@@ -147,10 +147,10 @@ pub fn select_enable_targets(
         }
         None => {
             if !robot_ready(master_joints) {
-                return Err(
-                    "Enable requires full-master Robot Ready when no commissioning scope is set"
-                        .into(),
-                );
+                return Err(format!(
+                    "Enable requires full-master Robot Ready when no commissioning scope is set (not ready: {})",
+                    not_ready(master_joints)
+                ));
             }
             let mut targets: Vec<String> = loaded_joints
                 .iter()
@@ -163,6 +163,32 @@ pub fn select_enable_targets(
             }
             Ok(targets)
         }
+    }
+}
+
+/// Built joints that keep Robot Ready false, each with its failing facets.
+fn not_ready(master_joints: &[JointFacetInput]) -> String {
+    let blockers: Vec<String> = master_joints
+        .iter()
+        .filter(|joint| joint.is_built() && !joint.is_ready_healthy())
+        .map(|joint| {
+            let mut facets = Vec::new();
+            if !joint.is_ready() {
+                facets.push(format!("{:?}", joint.homing_state));
+            }
+            if joint.fault {
+                facets.push("fault".to_owned());
+            }
+            if joint.out_of_limits {
+                facets.push("out of limits".to_owned());
+            }
+            format!("{} {}", joint.name, facets.join("+"))
+        })
+        .collect();
+    if blockers.is_empty() {
+        "no built joint".to_owned()
+    } else {
+        blockers.join(", ")
     }
 }
 
@@ -249,6 +275,18 @@ mod tests {
             master.iter().filter(|j| j.motor_mapped).cloned().collect();
         let targets = select_enable_targets(&master, &loaded, None).expect("targets");
         assert_eq!(targets, vec!["a".to_string()]);
+    }
+
+    #[test]
+    fn unscoped_refusal_names_each_blocking_joint() {
+        let master = vec![
+            facet("a", JointHomingState::Verified, true, true, false, false),
+            facet("b", JointHomingState::Unhomed, true, true, false, false),
+            facet("c", JointHomingState::Verified, true, true, true, false),
+        ];
+        let error = select_enable_targets(&master, &master, None).expect_err("not Robot Ready");
+        assert!(error.contains(" b ") && error.contains(" c "), "{error}");
+        assert!(!error.contains(" a "), "{error}");
     }
 
     #[test]

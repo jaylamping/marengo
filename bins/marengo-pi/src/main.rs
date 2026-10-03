@@ -506,7 +506,7 @@ fn handle_chappe_enable<B: MotorBus>(
             .map_err(|()| "gravity saturation preflight refused enable".to_string())?;
         // Never call set_homing_complete on enable — Verified is Set Zero only.
         let targets = loop_ctrl
-            .supervisor()
+            .supervisor_mut()
             .resolve_enable_targets(repo_root())
             .map_err(|e| e.to_string())?;
         loop_ctrl
@@ -1102,6 +1102,8 @@ fn print_status<B: MotorBus>(loop_ctrl: &mut ControlLoop<B>, config_dir: &Path) 
 fn preflight_gravity_saturation<B: MotorBus>(loop_ctrl: &mut ControlLoop<B>) -> Result<(), ()> {
     const GRID_POINTS: usize = 5;
     const MAX_GRID_SAMPLES: usize = 1_000_000;
+    // The sweep reads no CAN; its duration is the read gap before Enable resolution.
+    let started = Instant::now();
     let joint_names = loop_ctrl.joint_names().to_vec();
     let joint_specs: Vec<(String, f64, f64, f64)> = {
         let supervisor = loop_ctrl.supervisor();
@@ -1183,6 +1185,11 @@ fn preflight_gravity_saturation<B: MotorBus>(loop_ctrl: &mut ControlLoop<B>) -> 
             maxima[i] = maxima[i].max(value.abs());
         }
     }
+    debug!(
+        samples = sample_count,
+        elapsed_us = u64::try_from(started.elapsed().as_micros()).unwrap_or(u64::MAX),
+        "gravity preflight sweep"
+    );
     let mut saturated = false;
     for ((joint, _, _, limit), tau_max_nm) in joint_specs.iter().zip(maxima) {
         if !limit.is_finite() || *limit <= 0.0 || tau_max_nm > *limit {
@@ -1235,7 +1242,10 @@ fn handle_command<B: MotorBus>(
                 eprintln!("enable refused: gravity saturation preflight failed closed");
                 return true;
             }
-            match loop_ctrl.supervisor().resolve_enable_targets(repo_root()) {
+            match loop_ctrl
+                .supervisor_mut()
+                .resolve_enable_targets(repo_root())
+            {
                 Ok(targets) => match loop_ctrl.supervisor_mut().enable_targets(&targets) {
                     // `enabled` is printed once enable completes (EnableGate::poll).
                     Ok(()) => {

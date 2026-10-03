@@ -88,6 +88,8 @@ struct Bench {
     supervisor: Supervisor<FirmwareBus>,
     firmware: SharedFirmware,
     journal: PathBuf,
+    /// Fixture repository root (robot/motors/control/homing YAML and URDF).
+    root: PathBuf,
     _directory: TestDirectory,
 }
 
@@ -116,6 +118,7 @@ impl Bench {
             supervisor,
             firmware,
             journal,
+            root,
             _directory: directory,
         }
     }
@@ -1867,6 +1870,119 @@ fn a_drive_that_died_while_the_host_held_its_stream_off_loses_its_grant() {
     assert_eq!(bench.state(PITCH), JointHomingState::Unhomed);
     for joint in &FIVE[1..] {
         assert_eq!(bench.state(joint), JointHomingState::Verified, "{joint}");
+    }
+}
+
+// 2026-10-03 `pi_enable_soak` at 84e80653: 6 of 20 cycles refused `enable`
+// with "Enable requires full-master Robot Ready" right after `homing verified`.
+// marengo-pi's gravity preflight ran 64-68 ms without reading CAN, and the
+// target resolution judged grant liveness on what the host had read before
+// it. right_upper_arm_yaw (can0 ID 3) was in its post-SetZero blackout when
+// the host stopped reading, so its last read was older than comm_watchdog_ms
+// although its reports sat in the receive queue; the grant was revoked for the
+// rest of the process.
+
+const LOWER_YAW: &str = "right_lower_arm_yaw";
+/// Lead into the drive's blackout while the host still drains every 5 ms.
+const BLACKOUT_LEAD: Duration = Duration::from_millis(40);
+/// Report periods the host stalls for: the measured preflight is 64-68 ms.
+const HOST_STALL_REPORTS: u32 = 7;
+
+/// What the owner does first once its synchronous work ends.
+#[derive(Debug, Clone, Copy)]
+enum AfterStall {
+    /// stdin or Chappe `enable`: resolve the targets right after the preflight.
+    ResolveEnable,
+    /// The next control-loop tick's ordinary drain.
+    ControlTick,
+}
+
+impl Bench {
+    /// The soak's geometry: the host keeps its 5 ms drains into `joint`'s
+    /// post-SetZero blackout, then stops reading for the stall while every
+    /// responsive drive keeps reporting into the receive queue. `joint`'s last
+    /// read is then older than `comm_watchdog_ms`, yet (unless `silent`) it
+    /// reports again before the stall ends.
+    fn stall_while_leaving_blackout(&mut self, joint: &str, silent: bool) {
+        let window = millis(self.supervisor.control.control.comm_watchdog_ms);
+        let (blackout_start, blackout_length, report_period) = {
+            let firmware = self.firmware.borrow();
+            let drive = firmware.drive(joint);
+            let zeroed = drive.set_zero_at.expect("zeroed in this session");
+            let (start, length) = drive.set_zero_blackout;
+            (zeroed + start, length, drive.report_period)
+        };
+        let stall = report_period * HOST_STALL_REPORTS;
+        // A report read up to one drain after the blackout starts still leaves
+        // the read gap past the bound.
+        assert!(BLACKOUT_LEAD + stall > window + PUMP_PERIOD);
+        assert!(blackout_length + report_period < BLACKOUT_LEAD + stall);
+        assert!(
+            Instant::now() < blackout_start,
+            "{joint}: before its blackout"
+        );
+        let lead_end = blackout_start + BLACKOUT_LEAD;
+        while Instant::now() < lead_end {
+            self.runtime_tick();
+            std::thread::sleep(PUMP_PERIOD);
+        }
+        if silent {
+            self.firmware.borrow_mut().drive_mut(joint).silent_until =
+                Some(Instant::now() + window * 4);
+        }
+        for _ in 0..HOST_STALL_REPORTS {
+            self.firmware.borrow_mut().emit_reports();
+            std::thread::sleep(report_period);
+        }
+    }
+}
+
+#[test]
+fn a_host_stall_while_a_drive_leaves_its_blackout_keeps_every_grant() {
+    for after in [AfterStall::ResolveEnable, AfterStall::ControlTick] {
+        let mut bench = Bench::physical("physical-host-stall");
+        bench.home_in_sequence(&FIVE);
+        bench.stall_while_leaving_blackout(LOWER_YAW, false);
+        match after {
+            AfterStall::ResolveEnable => {
+                let targets = bench
+                    .supervisor
+                    .resolve_enable_targets(&bench.root)
+                    .unwrap_or_else(|error| panic!("{after:?}: {error}"));
+                assert_eq!(targets.len(), FIVE.len(), "{after:?}");
+            }
+            AfterStall::ControlTick => {
+                bench
+                    .supervisor
+                    .drain_feedback()
+                    .unwrap_or_else(|error| panic!("{after:?}: {error}"));
+            }
+        }
+        assert_eq!(bench.all_verified(), None, "{after:?}");
+        assert!(!bench.supervisor.has_latched_fault(), "{after:?}");
+    }
+}
+
+#[test]
+fn a_drive_silent_through_a_host_stall_still_loses_its_grant() {
+    for after in [AfterStall::ResolveEnable, AfterStall::ControlTick] {
+        let mut bench = Bench::physical("physical-host-stall-silent");
+        bench.home_in_sequence(&FIVE);
+        bench.stall_while_leaving_blackout(LOWER_YAW, true);
+        match after {
+            AfterStall::ResolveEnable => {
+                let error = bench
+                    .supervisor
+                    .resolve_enable_targets(&bench.root)
+                    .expect_err("a silent drive is not enabled");
+                assert!(matches!(error, DavoutError::Homing { .. }), "{error}");
+            }
+            AfterStall::ControlTick => {
+                let _ = bench.supervisor.drain_feedback();
+            }
+        }
+        assert_eq!(bench.all_verified(), Some(LOWER_YAW), "{after:?}");
+        assert!(!bench.supervisor.has_latched_fault(), "{after:?}");
     }
 }
 
