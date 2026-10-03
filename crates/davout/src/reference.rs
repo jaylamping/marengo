@@ -4,6 +4,8 @@ use std::cell::Cell;
 use std::collections::HashSet;
 use std::sync::Arc;
 
+use rustc_hash::FxHashSet;
+
 use robstride::MotorAddress;
 
 use crate::reference_model::{InstalledModelStamp, InstalledReferenceModel};
@@ -19,13 +21,42 @@ pub(super) struct ConsumedReferenceBinding {
 
 use marengo_config::{
     resolve_joint_velocity_cap, ControlConfigFile, EffectiveHomingJoint, HomingConfigFile,
-    MotorEntry, MotorsConfigFile,
+    JointControlEntry, MotorEntry, MotorsConfigFile,
 };
+
+/// Bound-side policy for one installed motor, resolved once from the immutable
+/// snapshot so each validation only resolves the live side.
+struct BoundMotor {
+    control: Option<JointControlEntry>,
+    velocity_cap: Option<f64>,
+    homing: Option<EffectiveHomingJoint>,
+}
+
+fn bind_motors(
+    motors: &[MotorEntry],
+    homing: &HomingConfigFile,
+    control: &ControlConfigFile,
+) -> Vec<BoundMotor> {
+    motors
+        .iter()
+        .map(|motor| BoundMotor {
+            control: control.control.joints.get(&motor.joint).cloned(),
+            velocity_cap: resolve_joint_velocity_cap(
+                &motor.joint,
+                motor.motor_type,
+                &control.control,
+            )
+            .ok(),
+            homing: homing.homing.effective_joint(&motor.joint),
+        })
+        .collect()
+}
 
 /// Nonexported, nonserializable and noncloneable owner-local permission.
 pub(crate) struct ReferenceAuthority {
-    joints: HashSet<String>,
+    joints: FxHashSet<String>,
     motors: Vec<MotorEntry>,
+    bound: Vec<BoundMotor>,
     homing: Option<HomingConfigFile>,
     control: Option<ControlConfigFile>,
     realm: Option<Arc<()>>,
@@ -37,8 +68,9 @@ pub(crate) struct ReferenceAuthority {
 impl Default for ReferenceAuthority {
     fn default() -> Self {
         Self {
-            joints: HashSet::new(),
+            joints: FxHashSet::default(),
             motors: Vec::new(),
+            bound: Vec::new(),
             homing: None,
             control: None,
             realm: None,
@@ -58,8 +90,9 @@ impl ReferenceAuthority {
         control: &ControlConfigFile,
     ) -> Self {
         Self {
-            joints,
+            joints: joints.into_iter().collect(),
             motors: motors.motors.clone(),
+            bound: bind_motors(&motors.motors, homing, control),
             homing: Some(homing.clone()),
             control: Some(control.clone()),
             realm: Some(realm),
@@ -105,8 +138,9 @@ impl ReferenceAuthority {
     ) -> Option<()> {
         let next = self.generation.get().checked_add(1)?;
         let selected = Self {
-            joints: HashSet::from([joint.to_owned()]),
+            joints: FxHashSet::from_iter([joint.to_owned()]),
             motors: policy.motors.motors.clone(),
+            bound: bind_motors(&policy.motors.motors, &policy.homing, &policy.control),
             homing: Some(policy.homing.clone()),
             control: Some(policy.control.clone()),
             realm: Some(realm),
@@ -157,17 +191,17 @@ impl ReferenceAuthority {
             return false;
         };
         let matches = self.motors.len() == motors.motors.len()
-            && self.motors.iter().zip(&motors.motors).all(|(old, new)| {
-                motor_reference_matches(old, new)
-                    && control_reference_matches(old, bound_control, control)
-                    && match (
-                        bound_homing.homing.effective_joint(&old.joint),
-                        homing.homing.effective_joint(&new.joint),
-                    ) {
-                        (Some(old), Some(new)) => homing_reference_matches(&old, &new),
-                        _ => false,
-                    }
-            })
+            && self.bound.len() == self.motors.len()
+            && self.motors.iter().zip(&self.bound).zip(&motors.motors).all(
+                |((old, bound), new)| {
+                    motor_reference_matches(old, new)
+                        && control_reference_matches(old, bound, bound_control, control)
+                        && match (&bound.homing, homing.homing.effective_joint_ref(&new.joint)) {
+                            (Some(old), Some(new)) => homing_reference_matches(old, &new),
+                            _ => false,
+                        }
+                },
+            )
             && bound_homing.homing.zero_verify_tolerance_rad
                 == homing.homing.zero_verify_tolerance_rad
             && bound_homing.homing.calibration_record_path == homing.homing.calibration_record_path;
@@ -198,13 +232,12 @@ fn motor_reference_matches(old: &MotorEntry, new: &MotorEntry) -> bool {
 // still validate all scalar policy and apply current torque caps independently.
 fn control_reference_matches(
     motor: &MotorEntry,
+    bound: &BoundMotor,
     old: &ControlConfigFile,
     new: &ControlConfigFile,
 ) -> bool {
-    let (Some(old_joint), Some(new_joint)) = (
-        old.control.joints.get(&motor.joint),
-        new.control.joints.get(&motor.joint),
-    ) else {
+    let (Some(old_joint), Some(new_joint)) = (&bound.control, new.control.joints.get(&motor.joint))
+    else {
         return false;
     };
     old_joint.motor_type == new_joint.motor_type
@@ -221,12 +254,12 @@ fn control_reference_matches(
         && old_joint.position_trajectory_accel_rad_s2 == new_joint.position_trajectory_accel_rad_s2
         && old.control.wrong_sign_watchdog.expected_sign_at_positive_q
             == new.control.wrong_sign_watchdog.expected_sign_at_positive_q
-        && resolve_joint_velocity_cap(&motor.joint, motor.motor_type, &old.control).ok()
+        && bound.velocity_cap
             == resolve_joint_velocity_cap(&motor.joint, motor.motor_type, &new.control).ok()
 }
 
-fn homing_reference_matches(old: &EffectiveHomingJoint, new: &EffectiveHomingJoint) -> bool {
-    let sensors = |effective: &EffectiveHomingJoint| {
+fn homing_reference_matches(old: &EffectiveHomingJoint, new: &EffectiveHomingJoint<&str>) -> bool {
+    fn sensors<J>(effective: &EffectiveHomingJoint<J>) -> Option<[(u8, bool); 3]> {
         effective.sensors.as_ref().map(|sensors| {
             [
                 (sensors.home.gpio, sensors.home.active_high),
@@ -234,7 +267,7 @@ fn homing_reference_matches(old: &EffectiveHomingJoint, new: &EffectiveHomingJoi
                 (sensors.max_limit.gpio, sensors.max_limit.active_high),
             ]
         })
-    };
+    }
     old.joint == new.joint
         && old.method == new.method
         && old.home_offset_rad == new.home_offset_rad

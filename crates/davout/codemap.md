@@ -107,7 +107,7 @@ Berthier MitJointCommand batch
   Supervisor::send_mit_batch
         │
         ├─ whole batch: numeric/identity/estop/mode admission
-        ├─ per joint: filter_mit_command_at_tick()
+        ├─ per joint: filter_mit_core() + wrong_sign_step() (pure; staged)
         │   ├─ kp/kd cap
         │   ├─ position envelope clamp (armee-kinematics)
         │   ├─ danger zones (marengo-config)
@@ -116,6 +116,7 @@ Berthier MitJointCommand batch
         │   └─ wrong-sign watchdog
         ├─ checked joint→motor transform (direction × gear_ratio)
         ├─ every active address: current-session pose watchdog
+        ├─ commit staged tau_ff/wrong-sign state (rejected batch commits nothing)
         ▼
   robstride::mit_control_all_at
 ```

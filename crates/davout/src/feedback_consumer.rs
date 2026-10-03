@@ -3,6 +3,7 @@
 //! Shared hazard/chronology policy; operational and transaction owners finish stop handling.
 
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::Instant;
 
 use armee_kinematics::measured_position_fault;
@@ -14,9 +15,9 @@ use robstride::{
 use tracing::{debug, warn};
 
 use super::{
-    motor_to_joint_state, validate_motor_feedback, DavoutError, DeviceFaultEvidence, FaultClass,
-    FeedbackSample, OperationalMode, ReceiveDrainEvidence, ReceiveFaultEvidence,
-    ReceiveFrameEvidence, Supervisor, FEEDBACK_VELOCITY_FAULT_MARGIN_RAD_S,
+    is_motor_address, motor_to_joint_state, store_by_joint, validate_motor_feedback, DavoutError,
+    DeviceFaultEvidence, FaultClass, FeedbackSample, OperationalMode, ReceiveDrainEvidence,
+    ReceiveFaultEvidence, ReceiveFrameEvidence, Supervisor, FEEDBACK_VELOCITY_FAULT_MARGIN_RAD_S,
     FEEDBACK_VELOCITY_LIMIT_TRIPS,
 };
 
@@ -126,6 +127,29 @@ pub(super) struct FeedbackConsumption {
     pub(super) read_attempts: usize,
 }
 
+/// Latest admitted pose for one installed address within a drain.
+#[derive(Debug)]
+struct PoseCandidate {
+    order: usize,
+    /// Index of the first `stop_motors` entry routed to `address`.
+    motor: usize,
+    address: MotorAddress,
+    state: MotorState,
+}
+
+enum OrderedReceive {
+    Motor(FeedbackObservation),
+    Transport(TimedCanFrame),
+    Terminal(BusError),
+}
+
+/// Reused consumption buffers; empty between reports.
+#[derive(Default)]
+pub(super) struct ConsumeScratch {
+    ordered: Vec<(usize, u8, OrderedReceive)>,
+    candidates: Vec<PoseCandidate>,
+}
+
 impl<B: MotorBus> Supervisor<B> {
     fn feedback_run_expected(
         &self,
@@ -188,18 +212,23 @@ impl<B: MotorBus> Supervisor<B> {
         let mut reference_poses = Vec::new();
         let mut first_error = None;
         let mut first_transition = false;
-        let mut pose_candidates: HashMap<MotorAddress, (usize, MotorEntry, MotorState)> =
-            HashMap::new();
-        enum OrderedReceive {
-            Motor(FeedbackObservation),
-            Transport(TimedCanFrame),
-            Terminal(BusError),
-        }
-        let mut ordered: Vec<_> = report
-            .observations
-            .into_iter()
-            .map(|observation| (observation.order, 1_u8, OrderedReceive::Motor(observation)))
-            .collect();
+        // Installed routes are immutable; a shared handle lets `&mut self` hazard
+        // handling borrow the matched entry without cloning it.
+        let stop_motors = Arc::clone(&self.stop_motors);
+        let mut scratch = std::mem::take(&mut self.feedback_scratch);
+        let ConsumeScratch {
+            ordered,
+            candidates: pose_candidates,
+        } = &mut scratch;
+        ordered.clear();
+        pose_candidates.clear();
+        let mut clock_floor = None;
+        ordered.extend(
+            report
+                .observations
+                .into_iter()
+                .map(|observation| (observation.order, 1_u8, OrderedReceive::Motor(observation))),
+        );
         ordered.extend(report.transport_frames.into_iter().map(|observation| {
             (
                 observation.order,
@@ -224,7 +253,7 @@ impl<B: MotorBus> Supervisor<B> {
         ordered.sort_by_key(|(order, rank, _)| (*order, *rank));
         // Do not return early: every available peer fault must reach authority,
         // even if another pose is invalid or the drain ends in a transport error.
-        for (order, _, event) in ordered {
+        for (order, _, event) in ordered.drain(..) {
             let observation = match event {
                 OrderedReceive::Motor(observation) => observation,
                 OrderedReceive::Terminal(error) => {
@@ -264,14 +293,13 @@ impl<B: MotorBus> Supervisor<B> {
                 }
             };
             let address = observation.address;
-            let Some(motor) = self
-                .stop_motors
+            let Some(motor_index) = stop_motors
                 .iter()
-                .find(|m| MotorAddress::from(*m) == address)
-                .cloned()
+                .position(|m| is_motor_address(&address, m))
             else {
                 continue;
             };
+            let motor = &stop_motors[motor_index];
             let mut device = DeviceFaultEvidence {
                 received_at: Some(observation.received_at),
                 ..DeviceFaultEvidence::default()
@@ -279,7 +307,7 @@ impl<B: MotorBus> Supervisor<B> {
             let status = match observation.event {
                 FeedbackEvent::Malformed(malformed) => {
                     first_transition |= self.record_malformed_feedback(
-                        &motor,
+                        motor,
                         &address,
                         observation.received_at,
                         observation.can_id,
@@ -337,7 +365,7 @@ impl<B: MotorBus> Supervisor<B> {
                 }
             }
             let current_enable =
-                self.feedback_run_expected(&motor, observation.received_at, context);
+                self.feedback_run_expected(motor, observation.received_at, context);
             if status.drive_mode == DriveMode::Reserved
                 || (current_enable && status.drive_mode != DriveMode::Run)
             {
@@ -368,9 +396,9 @@ impl<B: MotorBus> Supervisor<B> {
             };
             let prepared = (|| {
                 validate_motor_feedback(&motor.joint, &raw)?;
-                let state = motor_to_joint_state(&motor, raw)?;
+                let state = motor_to_joint_state(motor, raw)?;
                 validate_motor_feedback(&motor.joint, &state)?;
-                if observation.received_at > Instant::now() {
+                if is_future(observation.received_at, &mut clock_floor) {
                     return Err(DavoutError::InvalidFeedback {
                         joint: motor.joint.clone(),
                         message: "receive timestamp is in the future".into(),
@@ -380,9 +408,9 @@ impl<B: MotorBus> Supervisor<B> {
                 // even when two reads share a clock tick. Chronology only gates
                 // pose renewal and derivative scratch, not hazard retention.
                 match context {
-                    ReceiveContext::Operational => self.check_feedback_position(&motor, &state)?,
+                    ReceiveContext::Operational => self.check_feedback_position(motor, &state)?,
                     ReceiveContext::Reference(_) => {
-                        self.check_feedback_position_in_context(&motor, &state, context)?;
+                        self.check_feedback_position_in_context(motor, &state, context)?;
                     }
                 }
                 Ok(state)
@@ -406,9 +434,11 @@ impl<B: MotorBus> Supervisor<B> {
             {
                 continue;
             }
-            if pose_candidates
-                .get(&address)
-                .and_then(|(_, _, state)| state.updated)
+            let existing = pose_candidates
+                .iter()
+                .position(|candidate| candidate.address == address);
+            if existing
+                .and_then(|slot| pose_candidates[slot].state.updated)
                 .is_some_and(|previous| previous > observation.received_at)
             {
                 continue;
@@ -422,27 +452,39 @@ impl<B: MotorBus> Supervisor<B> {
                     state,
                 });
             }
-            pose_candidates.insert(address, (order, motor, state));
+            let candidate = PoseCandidate {
+                order,
+                motor: motor_index,
+                address,
+                state,
+            };
+            match existing {
+                Some(slot) => pose_candidates[slot] = candidate,
+                None => pose_candidates.push(candidate),
+            }
         }
         // Host read times cannot reconstruct the spacing of physical samples
         // queued before this drain. Inspect every raw hazard above, but update
         // position-derived velocity/trips only once per address per drain.
-        let mut pose_candidates: Vec<_> = pose_candidates.into_iter().collect();
-        pose_candidates.sort_unstable_by_key(|(_, (order, _, _))| *order);
-        for (address, (_, motor, mut state)) in pose_candidates {
+        pose_candidates.sort_unstable_by_key(|candidate| candidate.order);
+        for PoseCandidate {
+            motor,
+            address,
+            mut state,
+            ..
+        } in pose_candidates.drain(..)
+        {
+            let motor = &stop_motors[motor];
             let Some(received_at) = state.updated else {
                 continue;
             };
             let velocity_result = match context {
                 ReceiveContext::Operational => {
-                    self.check_feedback_velocity(&motor, &mut state, received_at)
+                    self.check_feedback_velocity(motor, &mut state, received_at)
                 }
-                ReceiveContext::Reference(_) => self.check_feedback_velocity_in_context(
-                    &motor,
-                    &mut state,
-                    received_at,
-                    context,
-                ),
+                ReceiveContext::Reference(_) => {
+                    self.check_feedback_velocity_in_context(motor, &mut state, received_at, context)
+                }
             };
             if let Err(error) =
                 velocity_result.and_then(|()| validate_motor_feedback(&motor.joint, &state))
@@ -457,8 +499,9 @@ impl<B: MotorBus> Supervisor<B> {
             }
             self.invalid_feedback.remove(&address);
             self.motor_states.insert(address, state);
-            self.last_feedback_rx.insert(motor.joint, received_at);
+            store_by_joint(&mut self.last_feedback_rx, &motor.joint, received_at);
         }
+        self.feedback_scratch = scratch;
         if !report.completion.is_complete() {
             let error = DavoutError::Bus(BusError::ReceiveIncomplete {
                 completion: report.completion,
@@ -632,8 +675,9 @@ impl<B: MotorBus> Supervisor<B> {
                 "ignored uncorroborated feedback velocity spike"
             );
             self.feedback_velocity_trips.remove(&motor.joint);
-            self.last_feedback_samples.insert(
-                motor.joint.clone(),
+            store_by_joint(
+                &mut self.last_feedback_samples,
+                &motor.joint,
                 FeedbackSample {
                     position_rad: position,
                     received_at,
@@ -659,8 +703,9 @@ impl<B: MotorBus> Supervisor<B> {
                 trips = *trips,
                 "feedback velocity limit exceeded"
             );
-            self.last_feedback_samples.insert(
-                motor.joint.clone(),
+            store_by_joint(
+                &mut self.last_feedback_samples,
+                &motor.joint,
                 FeedbackSample {
                     position_rad: position,
                     received_at,
@@ -678,8 +723,9 @@ impl<B: MotorBus> Supervisor<B> {
         } else {
             self.feedback_velocity_trips.remove(&motor.joint);
         }
-        self.last_feedback_samples.insert(
-            motor.joint.clone(),
+        store_by_joint(
+            &mut self.last_feedback_samples,
+            &motor.joint,
             FeedbackSample {
                 position_rad: position,
                 received_at,
@@ -726,4 +772,16 @@ impl<B: MotorBus> Supervisor<B> {
         }
         Ok(())
     }
+}
+
+/// `received_at > Instant::now()`, reading the clock only when `received_at` is
+/// past `floor` (the last read). `Instant` is monotonic, so a fresh read could
+/// never make an instant at or before `floor` lie in the future.
+fn is_future(received_at: Instant, floor: &mut Option<Instant>) -> bool {
+    if floor.is_some_and(|floor| received_at <= floor) {
+        return false;
+    }
+    let now = Instant::now();
+    *floor = Some(now);
+    received_at > now
 }

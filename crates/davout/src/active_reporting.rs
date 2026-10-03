@@ -234,14 +234,14 @@ impl ActiveReportingState {
     /// `last_feedback_rx` shows the joint has gone silent (free-drive dropout).
     /// Healthy heartbeat attempts rotate with spacing across repeated callers;
     /// initial enables, stale retries and reporting Off retain immediate handling.
-    pub fn sync<B: MotorBus>(
+    pub fn sync<B: MotorBus, S: std::hash::BuildHasher>(
         &mut self,
         bus: &mut B,
         motors: &MotorsConfigFile,
         mode_active: bool,
         global_diagnostics: bool,
         now: Instant,
-        last_feedback_rx: &HashMap<String, Instant>,
+        last_feedback_rx: &HashMap<String, Instant, S>,
     ) {
         self.expire_stale(now);
         let spacing_elapsed = self
