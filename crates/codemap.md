@@ -22,8 +22,6 @@ Workspace library crates implementing the Marengo humanoid robot's control stack
 | `marengo-imu` | IMU driver and frame publishing |
 | `marengo-host-metrics` | Host-level CPU/Mem/Disk metrics for health dashboard |
 | `marengo-deploy` | Pi self-update jobs, `.deploy-rev`, upstream tip, typed version status |
-| `fouche` | Vision crate (in development) |
-| `talleyrand` | Planning crate (in development) |
 | `sim-harness` | Simulation test harness |
 
 ### Dependency direction (strict)
@@ -55,5 +53,4 @@ Berthier owns **what to command**. Davout owns **may it move** (safety filter + 
 - **Consul (web UI)**: receives `RobotState` via Chappe IPC (Unix socket) from `marengo-pi`
 - **marengo-pi**: runs ControlLoop + Chappe bridge on Pi, hosts supervisor state
 - **marengo-gateway**: Chappe IPC listener, serves Consul frontend
-- **marengo-jetson**: vision/planning (Fouche/Talleyrand) — future
 - **Tests**: `MemoryBus` in robstride allows full-stack unit tests without CAN hardware; `SyntheticBus` in Marengo for integration tests

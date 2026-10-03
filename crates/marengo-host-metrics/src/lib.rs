@@ -11,14 +11,10 @@ pub use sample_state::{ChappeHealthInput, IpcQueueHealthInput, SampleState};
 use armee_proto::{BuildInfo, HostMetrics, HostNodeRole};
 
 const TOPIC_HOST_METRICS_PI: &str = "host/metrics/pi";
-const TOPIC_HOST_METRICS_JETSON: &str = "host/metrics/jetson";
 
-pub fn host_metrics_topic(role: HostNodeRole) -> &'static str {
-    match role {
-        HostNodeRole::Pi => TOPIC_HOST_METRICS_PI,
-        HostNodeRole::Jetson => TOPIC_HOST_METRICS_JETSON,
-        HostNodeRole::Unspecified => TOPIC_HOST_METRICS_PI,
-    }
+/// Only the Pi publishes host metrics; the Jetson role has no producer (ADR 0014).
+pub fn host_metrics_topic(_role: HostNodeRole) -> &'static str {
+    TOPIC_HOST_METRICS_PI
 }
 
 pub fn git_sha() -> &'static str {
@@ -107,9 +103,9 @@ mod linux {
     use std::time::Instant;
 
     use armee_proto::{
-        ClockMetrics, CpuMetrics, DiskMetrics, HostMetrics, HostNodeRole, JetsonPlatformMetrics,
-        LoadMetrics, MemoryMetrics, NetworkInterfaceMetrics, PiPlatformMetrics, ServiceState,
-        ServiceStatus, ThermalMetrics, ThermalZone,
+        ClockMetrics, CpuMetrics, DiskMetrics, HostMetrics, HostNodeRole, LoadMetrics,
+        MemoryMetrics, NetworkInterfaceMetrics, PiPlatformMetrics, ServiceState, ServiceStatus,
+        ThermalMetrics, ThermalZone,
     };
 
     use super::build_info;
@@ -160,16 +156,7 @@ mod linux {
             HostNodeRole::Pi => Some(armee_proto::host_metrics::Platform::Pi(sample_pi_platform(
                 &thermal,
             ))),
-            HostNodeRole::Jetson => Some(armee_proto::host_metrics::Platform::Jetson(
-                JetsonPlatformMetrics {
-                    jetson_model: read_file_trim("/proc/device-tree/model").unwrap_or_default(),
-                    power_mode: read_nvpmodel(),
-                    chappe_connected: chappe.ipc_connected,
-                    chappe_rtt_ms: chappe.gateway_rtt_ms,
-                    ..Default::default()
-                },
-            )),
-            HostNodeRole::Unspecified => None,
+            HostNodeRole::Jetson | HostNodeRole::Unspecified => None,
         };
 
         HostMetrics {
@@ -402,8 +389,7 @@ mod linux {
                 "marengo-gateway.service",
                 "marengo-can.service",
             ],
-            HostNodeRole::Jetson => &["marengo-jetson.service"],
-            HostNodeRole::Unspecified => &[],
+            HostNodeRole::Jetson | HostNodeRole::Unspecified => &[],
         };
         units
             .iter()
@@ -474,21 +460,6 @@ mod linux {
             .unwrap_or("");
         let events = u32::from_str_radix(hex, 16).ok()?;
         Some((events, events & 0x4 != 0))
-    }
-
-    fn read_nvpmodel() -> String {
-        std::process::Command::new("nvpmodel")
-            .arg("-q")
-            .output()
-            .ok()
-            .and_then(|o| {
-                if o.status.success() {
-                    Some(String::from_utf8_lossy(&o.stdout).trim().to_string())
-                } else {
-                    None
-                }
-            })
-            .unwrap_or_default()
     }
 
     fn read_file_trim(path: impl AsRef<Path>) -> Option<String> {

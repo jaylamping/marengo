@@ -25,7 +25,6 @@ export const LOG_SOURCES = [
   'chappe',
   'robstride',
   'consul',
-  'fouche',
 ] as const;
 
 const SAMPLE_MESSAGES: Record<LogLevel, string[]> = {

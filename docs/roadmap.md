@@ -159,12 +159,10 @@ Statuses: **done** · **active** · **next** · **later**
 | Piece | Gate |
 |-------|------|
 | Chappe WebTransport gateway ([ADR 0008](decisions/0008-chappe-webtransport-transport.md)) | **Done** — `marengo-gateway`, Unix IPC, Consul client |
-| NATS / multi-host transport | Later — same `Envelope` bytes |
+| NATS / multi-host transport | Later — same `Envelope` bytes; the unused `chappe::transport` seam was removed (2026-10-03 crate audit) |
 | Consul minimal UI (state, enable, faults, URDF viz) | **In progress** — live joints/safety via WebTransport; URDF viz later |
 | Live log-level control from Consul | Use `tracing_subscriber::reload`; validate requested filters, log operator/source, support TTL rollback for noisy CAN traces |
-| `marengo-jetson` beyond scaffold | After M6 or clear sim-only planner scope |
-| Talleyrand | After collision meshes + stable full URDF |
-| Fouché / `models/` | After Jetson role and ONNX scope defined |
+| `marengo-jetson`, Talleyrand, Fouché (`models/`) | Crates removed (2026-10-03 crate audit); recreate from [ADR 0014](decisions/0014-jetson-perception-semantic-motion.md) when the Jetson role and ONNX scope are defined |
 
 ### M8 — Locomotion and whole-body behaviors
 
@@ -172,7 +170,7 @@ Statuses: **done** · **active** · **next** · **later**
 
 - Standing / balance (ankle RS02 tuning, CoM from real masses)
 - Gait or stepping (Talleyrand + sim D2; Isaac out of band per [ADR 0003](decisions/0003-simulation-testing.md))
-- Teleop ([bins/teleop](../bins/teleop)) — explicitly **after** unilateral arm G-comp on hardware
+- Teleop (`bins/teleop` scaffold removed in the 2026-10-03 crate audit) — explicitly **after** unilateral arm G-comp on hardware
 
 ---
 

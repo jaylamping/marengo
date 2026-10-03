@@ -17,9 +17,8 @@ One repo for a personal humanoid: CAD, wiring, URDF, and the Rust runtime. Solid
 | Chappe | Message bus between processes |
 | Berthier | Realtime control |
 | Davout | Safety supervision |
-| Talleyrand | Motion planning |
 | Consul | Web frontend |
-| Fouché | Jetson-side vision and LLM |
+| Talleyrand, Fouché | Planner and Jetson vision/LLM: not built; the scaffolds were removed (2026-10-03 crate audit), [ADR 0014](docs/decisions/0014-jetson-perception-semantic-motion.md) holds the design |
 
 Supporting crates: `armee-proto` (protobuf codegen), `armee-kinematics`, `robstride` (CAN driver). Wire schemas live in [`proto/`](proto/). More context: [docs/architecture.md](docs/architecture.md), [docs/roadmap.md](docs/roadmap.md) (full humanoid milestones; the arm is the current bench slice), [ADR 0001](docs/decisions/0001-protobuf-wire-types.md).
 
@@ -40,10 +39,10 @@ marengo/
 │   ├── urdf/marengo.urdf   # SW → URDF export
 │   └── meshes/             # visual/ + collision/
 ├── crates/                 # Armée libraries (each has a README)
-├── bins/                   # Pi / Jetson runtimes and dev tools
+├── bins/                   # Pi runtimes and dev tools
 ├── consul/                 # Frontend (Vite + React + TS)
 ├── models/                 # ONNX policies (Git LFS)
-├── config/                 # robot.yaml, motors.yaml, network.yaml
+├── config/                 # robot.yaml, motors.yaml, control.yaml, homing.yaml
 ├── docs/                   # Software architecture + ADRs
 └── scripts/                # URDF export, deploy helpers
 ```
@@ -61,8 +60,6 @@ ONNX policies use Git LFS when present. See [.gitattributes](.gitattributes). CA
 | `chappe` | Chappe | [crates/chappe/README.md](crates/chappe/README.md) |
 | `berthier` | Berthier | [crates/berthier/README.md](crates/berthier/README.md) |
 | `davout` | Davout | [crates/davout/README.md](crates/davout/README.md) |
-| `talleyrand` | Talleyrand | [crates/talleyrand/README.md](crates/talleyrand/README.md) |
-| `fouche` | Fouché | [crates/fouche/README.md](crates/fouche/README.md) |
 | `robstride` | — | [crates/robstride/README.md](crates/robstride/README.md) |
 
 ### Binaries (`bins/`)
@@ -70,7 +67,6 @@ ONNX policies use Git LFS when present. See [.gitattributes](.gitattributes). CA
 | Binary | Host | Purpose |
 |--------|------|---------|
 | `marengo-pi` | Raspberry Pi | Control, CAN, Chappe |
-| `marengo-jetson` | Jetson | Planner, Fouché, Chappe |
 | `motor-repl` | Dev | Interactive motor exercise |
 
 ### Frontend
@@ -97,7 +93,7 @@ just check
 
 Native host setup is optional ([docs/dev-setup.md](docs/dev-setup.md)). Rust conventions for contributors and agents: [docs/rust-patterns.md](docs/rust-patterns.md), [AGENTS.md](AGENTS.md).
 
-Deploy helpers (stubs): `scripts/deploy-pi.sh`, `scripts/deploy-jetson.sh`. systemd units: `scripts/systemd/`.
+Deploy helper: `scripts/deploy-pi.sh`. systemd units: `scripts/systemd/`.
 
 ## CI
 

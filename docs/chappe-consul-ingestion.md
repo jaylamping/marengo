@@ -21,7 +21,7 @@ Consul client: [`consul/src/lib/chappe-client.ts`](../consul/src/lib/chappe-clie
 | `sensors/imu/torso` | `ImuSample` | IMU config |
 | `logs/structured` | `LogEvent` | tracing layer (rate-limited) |
 | `host/metrics/pi` | `HostMetrics` | 1 Hz |
-| `host/metrics/jetson` | `HostMetrics` | 1 Hz |
+| `host/metrics/jetson` | `HostMetrics` | Reserved; no producer (Jetson scaffold removed) |
 
 Wire format: [ADR 0001](decisions/0001-protobuf-wire-types.md), gateway contract [ADR 0008](decisions/0008-chappe-webtransport-transport.md).
 

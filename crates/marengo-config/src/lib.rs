@@ -11,7 +11,6 @@
 //! | `motors.yaml` | [`MotorsConfigFile`] | Davout, robstride (`device_id`, [`MotorType`]) |
 //! | `control.yaml` | [`ControlConfigFile`] | Berthier (gains, loop Hz), Davout (caps, danger zones) |
 //! | `homing.yaml` | [`HomingConfigFile`] | Homing methods, offsets, sensor inputs |
-//! | `network.yaml` | [`NetworkConfigFile`] | Chappe / bins |
 //!
 //! ## Responsibilities
 //!
@@ -182,16 +181,6 @@ pub struct MotorBenchLimits {
     pub position_upper_rad: f64,
     pub velocity_limit_rad_s: f64,
     pub torque_limit_nm: f64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NetworkConfigFile {
-    pub network: NetworkSection,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NetworkSection {
-    pub chappe_bind: String,
 }
 
 fn read_yaml<T: for<'de> Deserialize<'de>>(path: &Path) -> Result<T, ConfigError> {
@@ -1258,12 +1247,6 @@ pub(crate) fn validate_entry_gains_against_motor_type(
     Ok(())
 }
 
-/// Load `config/network.yaml` relative to `repo_root`.
-pub fn load_network_config(repo_root: impl AsRef<Path>) -> Result<NetworkConfigFile, ConfigError> {
-    let path = repo_root.as_ref().join("config/network.yaml");
-    read_yaml(&path)
-}
-
 /// Ensure every motor entry references a joint declared in `robot.yaml`.
 pub fn validate_motors_against_robot(
     robot: &RobotConfigFile,
@@ -1398,12 +1381,6 @@ mod tests {
         load_control_config_from(&config_dir).expect("control.yaml");
         let urdf = resolve_urdf_path(&root, &robot).expect("urdf");
         assert!(urdf.ends_with("marengo.urdf"));
-    }
-
-    #[test]
-    fn network_yaml_parses() {
-        let cfg = load_network_config(repo_root()).expect("network.yaml");
-        assert!(cfg.network.chappe_bind.contains(':'));
     }
 
     #[test]

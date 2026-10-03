@@ -10,7 +10,6 @@ config/
 ├── motors.yaml               # Motor map: CAN ID, joint name, direction, gear_ratio, motor_type
 ├── robot.yaml                # URDF path (`assets/urdf/marengo.urdf`), torque/velocity bench caps
 ├── homing.yaml               # Homing sequence params
-├── network.yaml              # Chappe / CAN network config
 ├── motors_humanoid.yaml      # Full humanoid motor map (future)
 └── robot_humanoid.yaml       # Full humanoid robot config (future)
 ```

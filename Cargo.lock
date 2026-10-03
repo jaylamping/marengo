@@ -780,10 +780,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "fouche"
-version = "0.1.0"
-
-[[package]]
 name = "fs-err"
 version = "3.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1522,14 +1518,6 @@ version = "0.1.0"
 dependencies = [
  "i2cdev",
  "thiserror 1.0.69",
- "tracing",
-]
-
-[[package]]
-name = "marengo-jetson"
-version = "0.1.0"
-dependencies = [
- "marengo-support",
  "tracing",
 ]
 
@@ -2827,18 +2815,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.117",
-]
-
-[[package]]
-name = "talleyrand"
-version = "0.1.0"
-
-[[package]]
-name = "teleop"
-version = "0.1.0"
-dependencies = [
- "marengo-support",
- "tracing",
 ]
 
 [[package]]
