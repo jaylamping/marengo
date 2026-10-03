@@ -9,10 +9,6 @@ vi.mock('@/components/dashboard/cards/pi-host-card', () => ({
   PiHostCard: () => <div data-testid="pi-host-card" />,
 }));
 
-vi.mock('@/components/dashboard/cards/jetson-host-card', () => ({
-  JetsonHostCard: () => <div data-testid="jetson-host-card" />,
-}));
-
 vi.mock('@/components/dashboard/cards/power-system-card', () => ({
   PowerSystemCard: () => <div data-testid="power-system-card" />,
 }));
@@ -29,13 +25,12 @@ describe('SectionCards (overview panel grid)', () => {
     expect(sectionCardsGridClassName).not.toContain('from-primary/5');
   });
 
-  it('renders the three live overview host cards', () => {
+  it('renders the two live overview host cards', () => {
     render(<SectionCards />);
 
     const grid = screen.getByTestId('section-cards-grid');
     expect(grid.className).toBe(sectionCardsGridClassName);
     expect(screen.getByTestId('pi-host-card')).toBeTruthy();
-    expect(screen.getByTestId('jetson-host-card')).toBeTruthy();
     expect(screen.getByTestId('power-system-card')).toBeTruthy();
     expect(screen.queryByTestId('placeholder-card')).toBeNull();
   });

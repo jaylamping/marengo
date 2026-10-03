@@ -412,6 +412,12 @@ Rejected. It conflates local hold retargets with full-range motion. The full swe
 4. Should bench profiles define separate limits for local holds and large sweeps?
 5. Should MCP gain a dedicated `pi_limit_sweep` tool that enforces the staged acceptance sequence?
 
+## Amendments
+
+**2026-10-03 (crate audit prune B15, user decision D-1).**
+
+- The `talleyrand` scaffold crate was removed; the "Talleyrand (future) owns Cartesian → joint timing" sentence above names a planning role with no implementation. Cartesian → joint timing remains future work with no owner crate. ADR 0014 stays the design record.
+
 ## References
 
 - [ADR 0004: Control modes and MIT command model](0004-control-modes-and-mit.md)

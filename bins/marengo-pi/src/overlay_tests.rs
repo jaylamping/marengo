@@ -11,7 +11,7 @@ use armee_proto::prost::Message;
 use armee_proto::{ActionEvent, ActuatorLimitSnapshot, Envelope};
 use berthier::{ControlLoop, ControlMode};
 use davout::MemoryBus;
-use marengo_config::{load_control_config_from, CommandJointAllowlist};
+use marengo_config::{load_control_config_from, load_motors_config_from, CommandJointAllowlist};
 use tokio::sync::broadcast;
 
 use super::*;
@@ -84,6 +84,9 @@ fn copy_profile_to_temp() -> (tempfile::TempDir, PathBuf, String) {
     (tmp, config_dir, revision)
 }
 
+/// B13 (P-armee-proto-04): `seq` is deprecated (always 1, never read). Fixtures
+/// keep writing it so envelope bytes match production during the window.
+#[allow(deprecated)]
 fn limit_patch_op(revision: String) -> OperatorCommand {
     OperatorCommand {
         timestamp_ms: 1,
@@ -105,6 +108,7 @@ fn limit_patch_op(revision: String) -> OperatorCommand {
     }
 }
 
+#[allow(deprecated)]
 fn tuning_operator(joint: &str, param: &str, value: f64, tier: i32) -> OperatorCommand {
     OperatorCommand {
         timestamp_ms: 1,
@@ -300,7 +304,7 @@ fn config_overlay_rejects_negative_friction_before_live_or_disk_mutation() {
                 before_live,
                 "rejected tuning must leave the installed policy intact"
             );
-            assert!(overlay.persist.wait_idle_for_test(Duration::from_secs(2)));
+            assert!(overlay.persist.wait_idle(Duration::from_secs(2)));
             assert_eq!(
                 std::fs::read(config_dir.join("control.yaml")).expect("read after"),
                 before_disk,
@@ -352,7 +356,7 @@ fn config_overlay_queues_persist_and_applies_live() {
         "live must apply before disk write completes"
     );
     assert!(
-        overlay.persist.wait_idle_for_test(Duration::from_secs(2)),
+        overlay.persist.wait_idle(Duration::from_secs(2)),
         "persist worker did not drain"
     );
     let reloaded = load_control_config_from(tmp.path()).expect("reload disk");
@@ -361,6 +365,10 @@ fn config_overlay_queues_persist_and_applies_live() {
 
 #[test]
 fn persist_queue_coalesces_to_latest_draft() {
+    // G04 regression: a pending limit_patch (motors: Some) coalesced with a
+    // later ConfigOverlay draft (motors: None) must preserve the queued hard
+    // bounds via carry_pending_limit_patch. The old replace-with-None dropped
+    // the motors.yaml + URDF write while the live config kept the bounds.
     let (tmp, config_dir, _) = copy_profile_to_temp();
     let bus = Arc::new(Bus::new(16));
     let mut audit = bus.subscribe(TOPIC_AUDIT_ACTION);
@@ -371,11 +379,8 @@ fn persist_queue_coalesces_to_latest_draft() {
     let gate = Mutex::new(release_rx);
     let timed_out = Arc::new(AtomicBool::new(false));
     let hook_timed_out = Arc::clone(&timed_out);
-    let written = Arc::new(Mutex::new(Vec::new()));
-    let written_by_hook = Arc::clone(&written);
     let queue = ConfigPersistQueue::spawn_with_test_hooks(
         Arc::clone(&bus),
-        Arc::new(AtomicBool::new(false)),
         tmp.path().to_path_buf(),
         PersistTestHooks {
             before_write: Some(Arc::new(move |request| {
@@ -391,51 +396,94 @@ fn persist_queue_coalesces_to_latest_draft() {
                     }
                 }
             })),
-            before_publish: Some(Arc::new(move |request| {
-                let observed = load_control_config_from(&request.config_dir)
-                    .map(|loaded| loaded.control.joints["right_elbow_pitch"].impedance.kp)
-                    .map_err(|error| error.to_string());
-                written_by_hook
-                    .lock()
-                    .expect("actual post-write observations")
-                    .push((request.session_id.clone(), observed));
-            })),
             on_worker_exit: Some(Arc::new(move || {
                 let _ = exited_tx.send(());
             })),
+            ..PersistTestHooks::default()
         },
     );
-    for (sequence, session, kp) in [
-        (1, "coalesce-first", 11.0),
-        (2, "coalesce-middle", 33.0),
-        (3, "coalesce-latest", 44.0),
-    ] {
-        let mut control = load_control_config_from(&config_dir).expect("actual source draft");
-        control
-            .control
-            .joints
-            .get_mut("right_elbow_pitch")
-            .expect("elbow")
-            .impedance
-            .kp = kp;
-        queue
-            .enqueue(PersistRequest {
-                config_dir: config_dir.clone(),
-                motors: None,
-                control,
-                timestamp_ms: sequence,
-                session_id: session.into(),
-                operator_id: "coalesce-regression".into(),
-                joint: "right_elbow_pitch".into(),
-                param: "impedance.kp".into(),
-            })
-            .expect("accept actual first/middle/latest draft");
-        if sequence == 1 {
-            entered_rx
-                .recv_timeout(PERSIST_BOUND)
-                .expect("first is really in flight before later drafts");
-        }
-    }
+    // First: an ordinary control-only draft, gated while in flight so the
+    // next two requests meet in the not-yet-started slot and must coalesce.
+    let mut first_control = load_control_config_from(&config_dir).expect("actual source draft");
+    first_control
+        .control
+        .joints
+        .get_mut("right_elbow_pitch")
+        .expect("elbow")
+        .impedance
+        .kp = 11.0;
+    queue
+        .enqueue(PersistRequest {
+            config_dir: config_dir.clone(),
+            motors: None,
+            control: first_control,
+            timestamp_ms: 1,
+            session_id: "coalesce-first".into(),
+            operator_id: "coalesce-regression".into(),
+            joint: "right_elbow_pitch".into(),
+            param: "impedance.kp".into(),
+        })
+        .expect("accept actual first draft");
+    entered_rx
+        .recv_timeout(PERSIST_BOUND)
+        .expect("first is really in flight before later drafts");
+    // Pending limit patch carrying hard bounds plus soft limits.
+    let mut patch_motors = load_motors_config_from(&config_dir).expect("motors fixture");
+    patch_motors
+        .motors
+        .iter_mut()
+        .find(|motor| motor.joint == "right_elbow_pitch")
+        .expect("fixture motor")
+        .bench
+        .position_lower_rad = -1.23;
+    patch_motors
+        .motors
+        .iter_mut()
+        .find(|motor| motor.joint == "right_elbow_pitch")
+        .expect("fixture motor")
+        .bench
+        .position_upper_rad = 2.34;
+    let mut patch_control = load_control_config_from(&config_dir).expect("control fixture");
+    let patch_entry = patch_control
+        .control
+        .joints
+        .get_mut("right_elbow_pitch")
+        .expect("fixture control");
+    patch_entry.position_soft_lower_rad = Some(-1.1);
+    patch_entry.position_soft_upper_rad = Some(2.2);
+    queue
+        .enqueue(PersistRequest {
+            config_dir: config_dir.clone(),
+            motors: Some(patch_motors),
+            control: patch_control,
+            timestamp_ms: 2,
+            session_id: "pending-limit".into(),
+            operator_id: "coalesce-regression".into(),
+            joint: "right_elbow_pitch".into(),
+            param: "limit_patch".into(),
+        })
+        .expect("accept pending limit patch");
+    // Later ConfigOverlay draft: control-only with a newer kp.
+    let mut latest_control = load_control_config_from(&config_dir).expect("actual source draft");
+    latest_control
+        .control
+        .joints
+        .get_mut("right_elbow_pitch")
+        .expect("elbow")
+        .impedance
+        .kp = 44.0;
+    queue
+        .enqueue(PersistRequest {
+            config_dir: config_dir.clone(),
+            motors: None,
+            control: latest_control,
+            timestamp_ms: 3,
+            session_id: "coalesce-latest".into(),
+            operator_id: "coalesce-regression".into(),
+            joint: "right_elbow_pitch".into(),
+            param: "impedance.kp".into(),
+        })
+        .expect("accept actual latest draft");
     let _ = release_tx.send(());
     let drain = queue.close_and_drain(PERSIST_BOUND);
     drop(queue);
@@ -450,8 +498,7 @@ fn persist_queue_coalesces_to_latest_draft() {
         );
     }
     println!(
-        "coalesced actual writes={:?}, actions={actions:?}, drain={drain:?}",
-        written.lock().expect("post-cleanup observations")
+        "coalesced pending limit_patch into latest draft: actions={actions:?}, drain={drain:?}"
     );
     assert!(
         !timed_out.load(Ordering::SeqCst),
@@ -465,39 +512,32 @@ fn persist_queue_coalesces_to_latest_draft() {
     assert_eq!(drain.coalesced_requests, 1);
     assert!(drain.is_idle());
     assert_eq!(
-        *written.lock().expect("actual first/latest disk history"),
-        [
-            ("coalesce-first".into(), Ok(11.0)),
-            ("coalesce-latest".into(), Ok(44.0)),
-        ]
-    );
-    assert_eq!(
-        load_control_config_from(&config_dir)
-            .expect("actual final disk")
-            .control
-            .joints["right_elbow_pitch"]
-            .impedance
-            .kp,
-        44.0
-    );
-    assert_eq!(
-        actions.len(),
-        2,
+        actions
+            .iter()
+            .map(|event| event.session_id.as_str())
+            .collect::<Vec<_>>(),
+        ["coalesce-first", "coalesce-latest"],
         "only actually retained writes publish completion"
     );
-    for (event, (timestamp, session)) in actions
-        .iter()
-        .zip([(1, "coalesce-first"), (3, "coalesce-latest")])
-    {
-        assert_eq!(event.timestamp_ms, timestamp);
-        assert_eq!(event.session_id, session);
-        assert_eq!(event.operator_id, "coalesce-regression");
-        assert_eq!(event.joint, "right_elbow_pitch");
-        assert_eq!(event.action, "config_persist");
-        assert!(event.accepted);
-        assert_eq!(event.persist_status, PersistStatus::Durable as i32);
-        assert!(!event.config_revision.is_empty());
-    }
+    // The discriminating G04 assertions: the queued hard bounds and soft
+    // limits survive coalescing into the control-only draft, which keeps its
+    // own newer kp.
+    let disk_motor = load_motors_config_from(&config_dir)
+        .expect("actual final disk motors")
+        .motors
+        .into_iter()
+        .find(|motor| motor.joint == "right_elbow_pitch")
+        .expect("actual final disk elbow");
+    assert_eq!(disk_motor.bench.position_lower_rad, -1.23);
+    assert_eq!(disk_motor.bench.position_upper_rad, 2.34);
+    let disk_control = load_control_config_from(&config_dir)
+        .expect("actual final disk control")
+        .control
+        .joints["right_elbow_pitch"]
+        .clone();
+    assert_eq!(disk_control.position_soft_lower_rad, Some(-1.1));
+    assert_eq!(disk_control.position_soft_upper_rad, Some(2.2));
+    assert_eq!(disk_control.impedance.kp, 44.0);
 }
 
 #[test]
@@ -545,6 +585,8 @@ fn limit_patch_refuses_stale_expected_revision() {
     assert!(error.to_string().contains("profile revision mismatch"));
 }
 #[test]
+/// B13 (P-armee-proto-04): reads deprecated `wired` until the reserve step.
+#[allow(deprecated)]
 fn limit_snapshot_marks_wired_joints() {
     let bus = MemoryBus::default();
     let sup = Supervisor::from_repo(repo_root(), bus).expect("supervisor");
@@ -591,7 +633,7 @@ fn limit_patch_applies_live_and_queues_persist() {
         .expect("policy");
     assert!((policy.hard_upper() - 1.4).abs() < 1e-9);
     assert!(
-        overlay.persist.wait_idle_for_test(Duration::from_secs(2)),
+        overlay.persist.wait_idle(Duration::from_secs(2)),
         "persist drain"
     );
     let motors = marengo_config::load_motors_config_from(&config_dir).expect("motors");
@@ -616,7 +658,6 @@ fn limit_patch_after_owner_exit_rejects_closed_admission_without_live_mutation()
         let (exited_tx, exited_rx) = std::sync::mpsc::channel();
         let persist = ConfigPersistQueue::spawn_with_test_hooks(
             Arc::clone(&bus),
-            Arc::clone(&shutdown),
             tmp.path().to_path_buf(),
             crate::limit_persist::PersistTestHooks {
                 on_worker_exit: Some(Arc::new(move || {
@@ -667,7 +708,7 @@ fn limit_patch_after_owner_exit_rejects_closed_admission_without_live_mutation()
             patch.position_upper_rad = 3.5;
         }
         let result = overlay.apply_operator_command(&mut loop_ctrl, &config_dir, &op);
-        let idle = overlay.wait_persist_idle(Duration::from_secs(2));
+        let idle = overlay.persist.wait_idle(Duration::from_secs(2));
         drop(overlay);
         exited_rx
             .recv_timeout(Duration::from_secs(2))
@@ -794,7 +835,6 @@ fn limit_patch_persist_failure_emits_distinct_failed_action() {
     let hook_timed_out = Arc::clone(&timed_out);
     let persist = ConfigPersistQueue::spawn_with_test_hooks(
         Arc::clone(&bus),
-        Arc::new(AtomicBool::new(false)),
         tmp.path().to_path_buf(),
         PersistTestHooks {
             before_write: Some(Arc::new(move |_| {
@@ -891,6 +931,8 @@ fn limit_patch_persist_failure_emits_distinct_failed_action() {
 }
 
 #[test]
+/// B13 (P-armee-proto-04): reads deprecated `wired` until the reserve step.
+#[allow(deprecated)]
 fn limit_patch_publishes_actuator_limits_before_chappe_tick() {
     // Regression: Consul refresh after Durable Set Limits must read the live
     // ActuatorLimitSnapshot, not wait up to 1/chappe_state_hz for maybe_publish_limits.
@@ -910,7 +952,13 @@ fn limit_patch_publishes_actuator_limits_before_chappe_tick() {
     )
     .expect("actual Chappe limit_patch envelope");
 
-    overlay.drain_commands(&mut loop_ctrl, &config_dir, &bus, &mut cmd_rx);
+    overlay.drain_commands_until_shutdown(
+        &mut loop_ctrl,
+        &config_dir,
+        &bus,
+        &mut cmd_rx,
+        &AtomicBool::new(false),
+    );
     // Capture immediately, before any control/telemetry tick or storage wait.
     // A delayed publish cannot satisfy this observation after the fact.
     let immediate = limits_rx.try_recv();
@@ -941,6 +989,7 @@ fn limit_patch_publishes_actuator_limits_before_chappe_tick() {
     assert_eq!(snapshot.timestamp_ms, 1);
 }
 
+#[allow(deprecated)]
 fn motion_operator(payload: Payload) -> OperatorCommand {
     OperatorCommand {
         timestamp_ms: 1,

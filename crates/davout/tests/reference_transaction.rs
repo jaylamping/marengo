@@ -295,20 +295,7 @@ fn fixture(diagnostics: bool, saved_history: bool) -> Fixture {
     .collect();
     let tree = support::FixtureTree::new("reference-transaction", &root);
     if !diagnostics {
-        let path = tree.path().join("config/control.yaml");
-        let text = std::fs::read_to_string(&path).expect("copied control");
-        assert_eq!(
-            text.matches("active_reporting_diagnostics: true").count(),
-            1
-        );
-        std::fs::write(
-            path,
-            text.replace(
-                "active_reporting_diagnostics: true",
-                "active_reporting_diagnostics: false",
-            ),
-        )
-        .expect("only copied diagnostics disabled before construction");
+        support::disable_copied_diagnostics(tree.path());
     }
     let history_path = tree.path().join("history.yaml");
     let history = saved_history.then(|| HISTORY.as_bytes().to_vec());

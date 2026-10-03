@@ -23,20 +23,10 @@ impl Drop for Owner {
 }
 
 fn actual_owner() -> (support::FixtureTree, Owner, ReferenceHandle) {
-    let tree = support::FixtureTree::new(
+    let tree = support::fixture_tree_without_diagnostics(
         "commit-ordering",
         &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."),
     );
-    let control = tree.path().join("config/control.yaml");
-    let text = std::fs::read_to_string(&control).expect("owned policy");
-    std::fs::write(
-        control,
-        text.replace(
-            "active_reporting_diagnostics: true",
-            "active_reporting_diagnostics: false",
-        ),
-    )
-    .expect("isolated diagnostics policy");
     let mut owner = Owner(
         Supervisor::from_simulation_with_reference_journal(
             tree.path(),

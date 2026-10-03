@@ -48,16 +48,15 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use armee_proto::prost::Message;
 use armee_proto::{
     ActiveReportingLeaseAction, ActiveReportingLeaseRequest, ControlMode as ProtoControlMode,
-    EnableRequest, Fault, FaultSeverity, Heartbeat, HomingComplete, MitCommandBatch,
-    MitJointCommand, MotorStatusPollRequest, OperationalMode as ProtoOpMode, SafetyState,
-    SetZeroRequest,
+    EnableRequest, Fault, FaultSeverity, Heartbeat, MitCommandBatch, MitJointCommand,
+    MotorStatusPollRequest, OperationalMode as ProtoOpMode, SafetyState, SetZeroRequest,
 };
 use berthier::{
     proto_control_mode, ControlLoop, ControlMode, GainOverride, LoopError, TickPhaseAverages,
 };
 use chappe::topics::{
-    TOPIC_ACTIVE_REPORTING_LEASE, TOPIC_ENABLE, TOPIC_HEARTBEAT, TOPIC_HOMING,
-    TOPIC_MOTOR_STATUS_POLL, TOPIC_SAFETY, TOPIC_SET_ZERO, TOPIC_TESTING_MIT_BATCH,
+    TOPIC_ACTIVE_REPORTING_LEASE, TOPIC_ENABLE, TOPIC_HEARTBEAT, TOPIC_MOTOR_STATUS_POLL,
+    TOPIC_SAFETY, TOPIC_SET_ZERO, TOPIC_TESTING_MIT_BATCH,
 };
 use chappe::Bus;
 use davout::{
@@ -553,7 +552,6 @@ fn drain_chappe_commands<B: MotorBus>(
     lease: MotionLease,
     chappe: &Bus,
     enable_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
-    homing_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     set_zero_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     lease_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     status_poll_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
@@ -707,19 +705,6 @@ fn drain_chappe_commands<B: MotorBus>(
                 }
             }
         }
-    }
-    while !shutdown.load(Ordering::SeqCst) {
-        let Ok(bytes) = homing_rx.try_recv() else {
-            break;
-        };
-        let Ok(envelope) = armee_proto::Envelope::decode(bytes.as_slice()) else {
-            continue;
-        };
-        let Ok(_homing) = HomingComplete::decode(envelope.payload.as_slice()) else {
-            continue;
-        };
-        // Operator HomingComplete / Testing Home retired — ignore wire (compat drain).
-        warn!("ignoring retired HomingComplete on robot/homing (use Hardware Set Zero)");
     }
 }
 
@@ -1453,7 +1438,6 @@ fn main() {
         ),
     }
     let mut enable_rx = chappe.subscribe(TOPIC_ENABLE);
-    let mut homing_rx = chappe.subscribe(TOPIC_HOMING);
     let mut set_zero_rx = chappe.subscribe(TOPIC_SET_ZERO);
     let mut lease_rx = chappe.subscribe(TOPIC_ACTIVE_REPORTING_LEASE);
     let mut status_poll_rx = chappe.subscribe(TOPIC_MOTOR_STATUS_POLL);
@@ -1527,7 +1511,6 @@ fn main() {
         chappe: &chappe,
         cmd_rx: &cmd_rx,
         enable_rx: &mut enable_rx,
-        homing_rx: &mut homing_rx,
         set_zero_rx: &mut set_zero_rx,
         lease_rx: &mut lease_rx,
         status_poll_rx: &mut status_poll_rx,
@@ -1691,7 +1674,6 @@ struct ControlLoopRuntime<'a> {
     chappe: &'a Arc<Bus>,
     cmd_rx: &'a Receiver<PiCommand>,
     enable_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
-    homing_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     set_zero_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     lease_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     status_poll_rx: &'a mut tokio::sync::broadcast::Receiver<Vec<u8>>,
@@ -1762,7 +1744,6 @@ fn run_control_loop<B: MotorBus>(
             runtime.motion,
             runtime.chappe.as_ref(),
             runtime.enable_rx,
-            runtime.homing_rx,
             runtime.set_zero_rx,
             runtime.lease_rx,
             runtime.status_poll_rx,
@@ -1907,6 +1888,7 @@ impl LoopTimingWindow {
     }
 
     /// Lifetime tick overruns (tick wall time exceeded the period).
+    #[cfg(test)]
     fn total_overruns(&self) -> u64 {
         self.total_overruns
     }

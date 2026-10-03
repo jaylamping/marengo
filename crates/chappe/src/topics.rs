@@ -35,7 +35,6 @@ pub const EVENT_TELEMETRY_TOPICS: [&str; 3] = [TOPIC_LOGS, TOPIC_AUDIT_ACTION, T
 
 /// Gateway → runtime commands (allowlisted, freshness-gated).
 pub const TOPIC_ENABLE: &str = "robot/enable";
-pub const TOPIC_HOMING: &str = "robot/homing";
 pub const TOPIC_SET_ZERO: &str = "robot/set_zero";
 pub const TOPIC_ACTIVE_REPORTING_LEASE: &str = "robot/active_reporting_lease";
 pub const TOPIC_MOTOR_STATUS_POLL: &str = "robot/motor_status_poll";
@@ -43,9 +42,8 @@ pub const TOPIC_TESTING_MIT_BATCH: &str = "robot/testing/mit_command_batch";
 pub const TOPIC_ACTUATOR_COMMAND: &str = "robot/actuator/command";
 
 /// Gateway → runtime command allowlist.
-pub const COMMAND_TOPICS: [&str; 7] = [
+pub const COMMAND_TOPICS: [&str; 6] = [
     TOPIC_ENABLE,
-    TOPIC_HOMING,
     TOPIC_SET_ZERO,
     TOPIC_ACTIVE_REPORTING_LEASE,
     TOPIC_MOTOR_STATUS_POLL,

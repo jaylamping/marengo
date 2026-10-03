@@ -109,7 +109,10 @@ message EnableRequest {
   bool enable = 3;
 }
 
+// Deprecated (B13): operator HomingComplete retired, use Hardware Set Zero.
+// Kept compiling for wire compat; Pi drains it with a warning, gateway returns 410 Gone.
 message HomingComplete {
+  option deprecated = true;
   uint64 timestamp_ms = 1;
   string node_id = 2;
 }
@@ -169,14 +172,17 @@ message MitJointCommand {
   double kp = 2;
   double kd = 3;
   double position = 4;
-  double velocity = 5;
-  double torque_ff = 6;
+  // Deprecated (B13 P-armee-proto-04): never read by Pi/gateway.
+  double velocity = 5 [deprecated = true];
+  // Deprecated (B13 P-armee-proto-04): never read by Pi/gateway.
+  double torque_ff = 6 [deprecated = true];
   double ki = 7;  // integral gain (Testing page)
   double fc = 8;  // Coulomb friction compensation (Testing page)
 }
 
 message MitCommandBatch {
-  uint64 timestamp_ms = 1;
+  // Deprecated (B13 P-armee-proto-04): written but never read.
+  uint64 timestamp_ms = 1 [deprecated = true];
   ControlMode mode = 2;
   repeated MitJointCommand joints = 3;
 }
@@ -211,7 +217,8 @@ message LogEvent {
 enum HostNodeRole {
   HOST_NODE_ROLE_UNSPECIFIED = 0;
   HOST_NODE_ROLE_PI = 1;
-  HOST_NODE_ROLE_JETSON = 2;
+  // Deprecated (B13 D-1): no Jetson producer; Jetson scaffolds removed. Kept for wire compat, never delete.
+  HOST_NODE_ROLE_JETSON = 2 [deprecated = true];
 }
 
 enum ServiceState {
@@ -242,7 +249,8 @@ message HostMetrics {
 
   oneof platform {
     PiPlatformMetrics pi = 20;
-    JetsonPlatformMetrics jetson = 21;
+    // Deprecated (B13 D-1): no Jetson producer. Kept for wire compat, never delete.
+    JetsonPlatformMetrics jetson = 21 [deprecated = true];
   }
 
   uint64 log_disk_bytes = 30;
@@ -395,7 +403,9 @@ message PiPlatformMetrics {
   double pmic_temp_celsius = 8;
 }
 
+// Deprecated (B13 D-1): no Jetson producer; Jetson scaffolds removed. Kept compiling for wire compat, never delete.
 message JetsonPlatformMetrics {
+  option deprecated = true;
   string jetson_model = 1;
   string power_mode = 2;
   double gpu_usage_percent = 3;
@@ -410,7 +420,9 @@ message JetsonPlatformMetrics {
 
 // --- Log store HTTP API (marengo-gateway + Consul) ---
 
+// Deprecated (B13 P-armee-proto-02): zero prost refs; live wire is the HTTP JSON mirror (LogSessionMetaJson). Kept for wire compat.
 message LogSessionMeta {
+  option deprecated = true;
   string id = 1;
   string label = 2;
   uint64 started_ms = 3;
@@ -422,11 +434,15 @@ message LogSessionMeta {
   uint64 candump_frame_count = 9;
 }
 
+// Deprecated (B13 P-armee-proto-02): zero prost refs; live wire is the HTTP JSON mirror. Kept for wire compat.
 message LogSessionList {
+  option deprecated = true;
   repeated LogSessionMeta sessions = 1;
 }
 
+// Deprecated (B13 P-armee-proto-02): zero prost refs; live wire is the HTTP JSON mirror. Kept for wire compat.
 message StructuredLogEntry {
+  option deprecated = true;
   uint64 id = 1;
   uint64 timestamp_ms = 2;
   string level = 3;
@@ -436,7 +452,9 @@ message StructuredLogEntry {
   string fields_json = 7;
 }
 
+// Deprecated (B13 P-armee-proto-02): zero prost refs; live wire is the HTTP JSON mirror. Kept for wire compat.
 message StructuredLogList {
+  option deprecated = true;
   repeated StructuredLogEntry entries = 1;
   uint32 total = 2;
 }
@@ -455,7 +473,9 @@ message CandumpFrame {
   double offset_s = 10;
 }
 
+// Deprecated (B13 P-armee-proto-02): only referenced by CandumpPage.timestamp_mode. Kept for wire compat.
 enum CandumpTimestampMode {
+  option deprecated = true;
   CANDUMP_TIMESTAMP_MODE_UNSPECIFIED = 0;
   CANDUMP_TIMESTAMP_MODE_DELTA = 1;
   CANDUMP_TIMESTAMP_MODE_ABSOLUTE = 2;
@@ -470,12 +490,16 @@ message CandumpPage {
   uint64 total_lines = 6;
 }
 
+// Deprecated (B13 P-armee-proto-02): zero prost refs; live wire is the HTTP JSON mirror. Kept for wire compat.
 message CandumpIdCount {
+  option deprecated = true;
   string can_id = 1;
   uint64 count = 2;
 }
 
+// Deprecated (B13 P-armee-proto-02): zero prost refs; live wire is the HTTP JSON mirror. Kept for wire compat.
 message CandumpInterfaceSummary {
+  option deprecated = true;
   string name = 1;
   uint64 parsed_frames = 2;
   optional double approx_hz = 3;
@@ -500,12 +524,16 @@ message CandumpSummary {
 
 // --- Actuator harness (Consul / gateway / Pi overlay) ---
 
+// Deprecated (B13 P-armee-proto-02): zero refs. Kept for wire compat, never delete.
 message SessionStartRequest {
+  option deprecated = true;
   uint64 timestamp_ms = 1;
   string operator_id = 2;
 }
 
+// Deprecated (B13 P-armee-proto-02): zero refs. Kept for wire compat, never delete.
 message SessionStartResponse {
+  option deprecated = true;
   string session_id = 1;
   uint64 started_ms = 2;
 }
@@ -514,7 +542,8 @@ message OperatorCommand {
   uint64 timestamp_ms = 1;
   string session_id = 2;
   string operator_id = 3;
-  uint64 seq = 4;
+  // Deprecated (B13 P-armee-proto-04): always written as 1, never read.
+  uint64 seq = 4 [deprecated = true];
   ActuatorCommand command = 5;
 }
 
@@ -552,6 +581,9 @@ enum PersistStatus {
   PERSIST_STATUS_NOT_APPLICABLE = 4;
 }
 
+// D-11 KEEP (B13 P-armee-proto-03): the planned gain-tuning path. Currently UNWIRED:
+// no production client posts /command/actuator and no subscriber consumes
+// robot/audit/tuning (Consul helper is test-only). Do not remove without a new D-11 decision.
 enum TuningTier {
   TUNING_TIER_UNSPECIFIED = 0;
   TUNING_TIER_RUNTIME_MIT = 1;
@@ -587,6 +619,7 @@ message EnableChange {
   bool enable = 1;
 }
 
+// D-11 KEEP (B13 P-armee-proto-03): planned tuning audit event, currently UNWIRED (no subscriber). See TuningTier.
 message TuningChangeEvent {
   uint64 timestamp_ms = 1;
   string session_id = 2;
@@ -622,7 +655,8 @@ message JointActuatorLimit {
   /// Davout effective hard envelope (URDF ∩ motors.yaml bench). Enable / fault SoT.
   double pos_lower_rad = 6;
   double pos_upper_rad = 7;
-  bool wired = 8;
+  // Deprecated (B13 P-armee-proto-04): written by the Pi overlay, never read.
+  bool wired = 8 [deprecated = true];
   /// Soft envelope from Davout policy (control soft, clamped into hard).
   double pos_soft_lower_rad = 9;
   double pos_soft_upper_rad = 10;

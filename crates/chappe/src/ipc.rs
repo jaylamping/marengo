@@ -298,7 +298,7 @@ fn read_inbound_commands(stream: &mut std::os::unix::net::UnixStream, bus: crate
 /// gateway+Pi deploy — so behavior is unchanged here and the window stays
 /// documented rather than silently widened.
 fn command_is_current(topic: &str, payload: &[u8]) -> bool {
-    const COMMAND_TOPICS: [&str; 7] = crate::topics::COMMAND_TOPICS;
+    const COMMAND_TOPICS: [&str; 6] = crate::topics::COMMAND_TOPICS;
     if !COMMAND_TOPICS.contains(&topic) {
         return false;
     }

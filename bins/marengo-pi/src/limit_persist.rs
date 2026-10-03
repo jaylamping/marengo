@@ -1,8 +1,6 @@
 //! Coalescing write-behind for control.yaml / motors+URDF (never on the 200 Hz tick).
 
 use std::path::PathBuf;
-#[cfg(test)]
-use std::sync::atomic::AtomicBool;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
 use std::sync::{Arc, Condvar, Mutex};
@@ -50,11 +48,14 @@ impl Drop for WorkerExitObserver {
     }
 }
 
-use crate::overlay::TOPIC_AUDIT_ACTION;
+pub(crate) use chappe::topics::TOPIC_AUDIT_ACTION;
 
 static AUDIT_REVISION: AtomicU64 = AtomicU64::new(1);
 
-fn publish_action_event(chappe: &Arc<Bus>, event: &ActionEvent) -> Result<(), chappe::BusError> {
+pub(crate) fn publish_action_event(
+    chappe: &Bus,
+    event: &ActionEvent,
+) -> Result<(), chappe::BusError> {
     chappe.publish(
         TOPIC_AUDIT_ACTION,
         "marengo-pi",
@@ -252,11 +253,10 @@ impl ConfigPersistQueue {
         )
     }
 
-    /// Keep the archived probe interface; its owner flag does not control the worker.
+    /// Test constructor with worker hooks (before_write gate, on_worker_exit).
     #[cfg(test)]
     pub(crate) fn spawn_with_test_hooks(
         chappe: Arc<Bus>,
-        _owner_shutdown: Arc<AtomicBool>,
         repo_root: PathBuf,
         hooks: PersistTestHooks,
     ) -> Self {
@@ -432,11 +432,6 @@ impl ConfigPersistQueue {
             thread::sleep(Duration::from_millis(5));
         }
         false
-    }
-
-    #[cfg(test)]
-    pub(crate) fn wait_idle_for_test(&self, timeout: Duration) -> bool {
-        self.wait_idle(timeout)
     }
 }
 

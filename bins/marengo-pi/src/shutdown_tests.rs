@@ -199,7 +199,6 @@ fn all_original_stop_writes_precede_waiting_for_the_real_gated_writer() {
     let timeout_in_hook = Arc::clone(&gate_timed_out);
     let queue = ConfigPersistQueue::spawn_with_test_hooks(
         Arc::clone(&chappe),
-        Arc::clone(&shutdown),
         temp.path().to_path_buf(),
         PersistTestHooks {
             before_write: Some(Arc::new(move |_| {
@@ -355,6 +354,8 @@ fn all_original_stop_writes_precede_waiting_for_the_real_gated_writer() {
 }
 
 #[test]
+/// B13 (P-armee-proto-04): writes deprecated `seq` until the reserve step.
+#[allow(deprecated)]
 fn stdin_quit_prevents_a_later_actuator_command_and_motion_tick() {
     use armee_proto::{
         actuator_command::Payload, ActuatorCommand, OperatorCommand, TuningChange,
@@ -452,7 +453,6 @@ fn stdin_quit_prevents_a_later_actuator_command_and_motion_tick() {
         let (exited_tx, exited_rx) = mpsc::channel();
         let queue = ConfigPersistQueue::spawn_with_test_hooks(
             Arc::clone(&chappe),
-            Arc::clone(&shutdown),
             temp.path().to_path_buf(),
             PersistTestHooks {
                 on_worker_exit: Some(Arc::new(move || {
@@ -466,7 +466,6 @@ fn stdin_quit_prevents_a_later_actuator_command_and_motion_tick() {
             queue,
         );
         let mut enable_rx = chappe.subscribe("robot/enable");
-        let mut homing_rx = chappe.subscribe("robot/homing");
         let mut set_zero_rx = chappe.subscribe("robot/set_zero");
         let mut lease_rx = chappe.subscribe("robot/active_reporting_lease");
         let mut status_poll_rx = chappe.subscribe("robot/motor_status_poll");
@@ -508,7 +507,6 @@ fn stdin_quit_prevents_a_later_actuator_command_and_motion_tick() {
                 chappe: &chappe,
                 cmd_rx: &cmd_rx,
                 enable_rx: &mut enable_rx,
-                homing_rx: &mut homing_rx,
                 set_zero_rx: &mut set_zero_rx,
                 lease_rx: &mut lease_rx,
                 status_poll_rx: &mut status_poll_rx,
@@ -522,7 +520,13 @@ fn stdin_quit_prevents_a_later_actuator_command_and_motion_tick() {
             };
             run_control_loop(&mut controller, &mut runtime);
         } else {
-            overlay.drain_commands(&mut controller, &config_dir, &chappe, &mut actuator_rx);
+            overlay.drain_commands_until_shutdown(
+                &mut controller,
+                &config_dir,
+                &chappe,
+                &mut actuator_rx,
+                &AtomicBool::new(false),
+            );
             controller
                 .tick(Some(chappe.as_ref()))
                 .expect("actual Active neighbor tick, not a mocked output");
@@ -692,7 +696,6 @@ fn qualify_failed_stop_with_actual_storage(storage: StorageQualification) {
     let hook_timed_out = Arc::clone(&timed_out);
     let queue = ConfigPersistQueue::spawn_with_test_hooks(
         Arc::clone(&bus),
-        Arc::new(AtomicBool::new(true)),
         temp.path().to_path_buf(),
         PersistTestHooks {
             before_write: Some(Arc::new(move |_| {
@@ -942,7 +945,6 @@ fn explicit_no_disable_exit_policy_inhibits_intent_and_drains_without_stop_write
     let hook_timed_out = Arc::clone(&timed_out);
     let queue = ConfigPersistQueue::spawn_with_test_hooks(
         Arc::clone(&bus),
-        Arc::new(AtomicBool::new(true)),
         temp.path().to_path_buf(),
         PersistTestHooks {
             before_write: Some(Arc::new(move |_| {
@@ -1153,7 +1155,6 @@ fn active_shutdown_clears_gain_torque_and_wave_intent_before_storage_and_reenabl
         let (exited_tx, exited_rx) = mpsc::channel();
         let queue = ConfigPersistQueue::spawn_with_test_hooks(
             Arc::clone(&bus),
-            Arc::new(AtomicBool::new(true)),
             temp.path().to_path_buf(),
             PersistTestHooks {
                 on_worker_exit: Some(Arc::new(move || {
@@ -1356,7 +1357,6 @@ fn run_actual_owner_flag_case(case: OwnerFlagCase) -> OwnerFlagObservation {
     let (exited_tx, exited_rx) = mpsc::channel();
     let queue = ConfigPersistQueue::spawn_with_test_hooks(
         Arc::clone(&chappe),
-        Arc::clone(&shutdown),
         temp.path().to_path_buf(),
         PersistTestHooks {
             on_worker_exit: Some(Arc::new(move || {
@@ -1370,7 +1370,6 @@ fn run_actual_owner_flag_case(case: OwnerFlagCase) -> OwnerFlagObservation {
         queue,
     );
     let mut enable_rx = chappe.subscribe("robot/enable");
-    let mut homing_rx = chappe.subscribe("robot/homing");
     let mut set_zero_rx = chappe.subscribe("robot/set_zero");
     let mut lease_rx = chappe.subscribe("robot/active_reporting_lease");
     let mut status_poll_rx = chappe.subscribe("robot/motor_status_poll");
@@ -1425,7 +1424,6 @@ fn run_actual_owner_flag_case(case: OwnerFlagCase) -> OwnerFlagObservation {
         chappe: &chappe,
         cmd_rx: &cmd_rx,
         enable_rx: &mut enable_rx,
-        homing_rx: &mut homing_rx,
         set_zero_rx: &mut set_zero_rx,
         lease_rx: &mut lease_rx,
         status_poll_rx: &mut status_poll_rx,

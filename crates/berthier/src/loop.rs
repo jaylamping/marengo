@@ -1,6 +1,5 @@
 //! Periodic control loop (OpenArm-style refresh → compute → MIT send).
 
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
@@ -290,62 +289,6 @@ impl ControlLoop<davout::simulation::SimulationBus> {
                     record_path,
                     journal_path,
                     pause,
-                )
-            },
-        )
-    }
-
-    /// Explicit closed virtual owner with a dedicated durable history worker.
-    /// This factory always begins unreferenced and uses the supplied root config.
-    pub fn from_simulation_with_reference_journal(
-        repo_root: impl AsRef<Path>,
-        bus: davout::simulation::SimulationBus,
-        record_path: impl AsRef<Path>,
-        journal_path: impl AsRef<Path>,
-        loop_hz: u32,
-        chappe_hz: u32,
-    ) -> Result<Self, LoopError> {
-        let root = repo_root.as_ref();
-        Self::from_repo_inner(
-            root,
-            &root.join("config"),
-            bus,
-            loop_hz,
-            chappe_hz,
-            |root, bus| {
-                Supervisor::from_simulation_with_reference_journal(
-                    root,
-                    bus,
-                    record_path,
-                    journal_path,
-                )
-            },
-        )
-    }
-
-    /// Closed Unreferenced controller whose real reference workflow can select
-    /// one virtual joint after durable history and fresh owner consumption.
-    pub fn from_simulation_with_current_reference_journal(
-        repo_root: impl AsRef<Path>,
-        bus: davout::simulation::SimulationBus,
-        record_path: impl AsRef<Path>,
-        journal_path: impl AsRef<Path>,
-        loop_hz: u32,
-        chappe_hz: u32,
-    ) -> Result<Self, LoopError> {
-        let root = repo_root.as_ref();
-        Self::from_repo_inner(
-            root,
-            &root.join("config"),
-            bus,
-            loop_hz,
-            chappe_hz,
-            |root, bus| {
-                Supervisor::from_simulation_with_current_reference_journal(
-                    root,
-                    bus,
-                    record_path,
-                    journal_path,
                 )
             },
         )
@@ -1109,16 +1052,6 @@ impl<B: MotorBus> ControlLoop<B> {
         Ok(())
     }
 
-    /// Remove one joint's latched torque command (reverts to 0).
-    pub fn clear_torque_cmd(&mut self, joint_name: &str) {
-        self.torque_cmds.clear(joint_name);
-    }
-
-    /// Clear all latched TorqueOnly torque commands.
-    pub fn clear_torque_cmds(&mut self) {
-        self.torque_cmds.clear_all();
-    }
-
     /// Latched `τ_cmd` for a joint, or `0.0` when unset.
     pub fn torque_cmd(&self, joint_name: &str) -> f64 {
         self.torque_cmds.get(joint_name)
@@ -1197,29 +1130,6 @@ impl<B: MotorBus> ControlLoop<B> {
         }
     }
 
-    /// Batch-apply gain overrides for multiple joints.
-    ///
-    /// Same policy as [`Self::apply_gain_override`]: a non-empty batch is
-    /// refused outside Impedance/Position.
-    pub fn apply_gain_overrides(
-        &mut self,
-        overrides: &HashMap<String, GainOverride>,
-    ) -> Result<(), LoopError> {
-        self.refuse_reference_intent("gain overrides")?;
-        for (joint, gains) in overrides {
-            self.validate_gain_override(joint, gains)?;
-            self.require_gain_mode(joint)?;
-        }
-        // Precompute limits: apply_batch's closure cannot borrow `self` while `gains` is mut.
-        let limits: HashMap<String, GainClampLimits> = overrides
-            .keys()
-            .map(|j| (j.clone(), self.clamp_limits_for(j)))
-            .collect();
-        self.gains
-            .apply_batch(self.control_mode, overrides, &limits);
-        Ok(())
-    }
-
     fn validate_gain_override(&self, joint: &str, gains: &GainOverride) -> Result<(), LoopError> {
         if !self.joint_names.iter().any(|name| name == joint) {
             return Err(LoopError::UnknownJoint {
@@ -1245,11 +1155,6 @@ impl<B: MotorBus> ControlLoop<B> {
     /// Remove the gain override for a single joint, reverting to config gains.
     pub fn clear_gain_override(&mut self, joint_name: &str) {
         self.gains.clear(joint_name);
-    }
-
-    /// Remove all gain overrides, reverting to config gains for every joint.
-    pub fn clear_all_overrides(&mut self) {
-        self.gains.clear_all();
     }
 
     /// Resolve [MotorTypeDefaults] for a joint from the control config.
@@ -1934,15 +1839,14 @@ mod tests {
     use super::*;
     use crate::position_hold::POSITION_ASCENT_STALL_FAULT_MS;
     use crate::position_setpoint::{
-        apply_lead_follow_hold_short, approach_stuck_mit_pull, clamp_trajectory_setpoint,
-        descent_breakaway_confirmed, descent_stuck_mit_pull, lead_follow_stuck_residual,
-        planner_drifted_from_measurement, planner_overshoot_hold_while_moving,
-        planner_premature_hold, planner_should_freeze_on_descent,
-        planner_should_latch_on_overshoot_hold, planner_should_lead_follow_hold_short,
-        planner_should_recover_ascent_stall, planner_should_reopen_premature_hold,
-        planner_should_resync_stuck_lead, position_hold_effective_max_lead, position_hold_mit_kd,
-        position_hold_mit_velocity, reopen_planner_from_premature_hold,
-        POSITION_SETTLE_TOLERANCE_RAD,
+        apply_lead_follow_hold_short, clamp_trajectory_setpoint, descent_breakaway_confirmed,
+        descent_stuck_mit_pull, lead_follow_stuck_residual, planner_drifted_from_measurement,
+        planner_overshoot_hold_while_moving, planner_premature_hold,
+        planner_should_freeze_on_descent, planner_should_latch_on_overshoot_hold,
+        planner_should_lead_follow_hold_short, planner_should_recover_ascent_stall,
+        planner_should_reopen_premature_hold, planner_should_resync_stuck_lead,
+        position_hold_effective_max_lead, position_hold_mit_kd, position_hold_mit_velocity,
+        reopen_planner_from_premature_hold, POSITION_SETTLE_TOLERANCE_RAD,
     };
     use crate::position_trajectory::{JointPositionPlanner, TrapezoidPhase};
     use crate::test_support::{queue_all_status, queue_joint_status};
@@ -2447,7 +2351,8 @@ mod tests {
         loop_ctrl.set_torque_cmd(joint, 0.25).expect("set");
         assert_eq!(loop_ctrl.control_mode(), ControlMode::TorqueOnly);
         assert!((loop_ctrl.torque_cmd(joint) - 0.25).abs() < 1e-12);
-        loop_ctrl.clear_torque_cmd(joint);
+        // Leaving TorqueOnly clears the latch (clear_torque_cmd removed as test-only API).
+        loop_ctrl.set_control_mode(ControlMode::GravityComp);
         assert!((loop_ctrl.torque_cmd(joint)).abs() < 1e-12);
     }
 
@@ -2788,11 +2693,11 @@ mod tests {
     #[test]
     fn mit_kd_engages_on_velocity_during_motion() {
         // Moving toward or past target with dq > deadband → kd engages
-        assert!((position_hold_mit_kd(2.0, 1.62, 1.57, 0.08, 0.02) - 2.0).abs() < 1e-12);
+        assert!((position_hold_mit_kd(2.0, 0.08, 0.02) - 2.0).abs() < 1e-12);
         // Below deadband → kd remains 0.0
-        assert!((position_hold_mit_kd(2.0, 1.62, 1.57, 0.01, 0.02)).abs() < 1e-12);
+        assert!((position_hold_mit_kd(2.0, 0.01, 0.02)).abs() < 1e-12);
         // Moving toward target (not yet past) → kd engages (new behavior)
-        assert!((position_hold_mit_kd(2.0, 1.55, 1.57, 0.08, 0.02) - 2.0).abs() < 1e-12);
+        assert!((position_hold_mit_kd(2.0, 0.08, 0.02) - 2.0).abs() < 1e-12);
     }
 
     #[test]
@@ -3039,44 +2944,6 @@ mod tests {
     }
 
     #[test]
-    fn approach_stuck_mit_pull_disabled_on_ascent() {
-        use crate::position_setpoint::{
-            approach_stuck_mit_pull_lead_rad, outbound_low_angle_stuck,
-            outbound_low_angle_stuck_pull_rad,
-        };
-        let q = 0.18;
-        let target = 0.262;
-        let to_target = target - q;
-        let lag = 0.15;
-        let max_lead = 0.15;
-        let deadband = 0.02;
-        assert!(outbound_low_angle_stuck(
-            q, target, to_target, 0.0, deadband, lag, max_lead
-        ));
-        assert!(!outbound_low_angle_stuck(
-            q, target, to_target, 0.0, deadband, 0.10, max_lead
-        ));
-        // Ascent pull-harder disabled — helpers remain but must not enable.
-        assert!(!approach_stuck_mit_pull(
-            to_target,
-            q,
-            target,
-            q + lag,
-            0.0,
-            0.10,
-            deadband,
-            max_lead,
-        ));
-        assert!(!approach_stuck_mit_pull(
-            to_target, 0.35, 0.45, 0.50, 0.0, 0.10, deadband, max_lead,
-        ));
-        assert!((outbound_low_angle_stuck_pull_rad(to_target, max_lead) - to_target).abs() < 1e-9);
-        assert!(
-            (approach_stuck_mit_pull_lead_rad(to_target, lag, max_lead) - to_target).abs() < 1e-9
-        );
-    }
-
-    #[test]
     fn ascent_stall_enters_bounded_recovery() {
         let q = 0.02;
         let target = 0.15;
@@ -3151,7 +3018,10 @@ mod tests {
                 .iter()
                 .position(|name| name == joint)
                 .expect("configured joint");
-            let raw = loop_ctrl.position_hold.targets_raw().expect("raw latch")[i];
+            let raw = loop_ctrl
+                .position_hold
+                .raw_targets_for_test()
+                .expect("raw latch")[i];
             let latched = loop_ctrl.position_setpoints().expect("latch")[i];
             (raw, latched)
         };
@@ -3519,12 +3389,6 @@ mod tests {
     }
 
     #[test]
-    fn position_hold_trajectory_damping_tracks_dq_error() {
-        let tau_d = crate::position_trajectory::trajectory_damping_torque(0.1, 0.2, 2.0);
-        assert!((tau_d - 0.2).abs() < 1e-12);
-    }
-
-    #[test]
     fn slew_max_lead_clamps_command_ahead_of_measured_q() {
         let mut loop_ctrl = test_loop();
         virtual_ready_active(&mut loop_ctrl);
@@ -3859,39 +3723,6 @@ mod tests {
         assert!(loop_ctrl.gain_override(joint).is_some());
         loop_ctrl.clear_gain_override(joint);
         assert!(loop_ctrl.gain_override(joint).is_none());
-    }
-
-    #[test]
-    fn clear_all_overrides_removes_all() {
-        let mut loop_ctrl = test_loop();
-        loop_ctrl.set_control_mode(ControlMode::Impedance);
-        loop_ctrl
-            .apply_gain_override(
-                "right_shoulder_pitch",
-                GainOverride {
-                    kp: 100.0,
-                    kd: 10.0,
-                    ki: 0.0,
-                    fc: 2.0,
-                },
-            )
-            .expect("valid gain override");
-        loop_ctrl
-            .apply_gain_override(
-                "right_shoulder_roll",
-                GainOverride {
-                    kp: 200.0,
-                    kd: 20.0,
-                    ki: 0.0,
-                    fc: 3.0,
-                },
-            )
-            .expect("valid gain override");
-        assert!(loop_ctrl.gain_override("right_shoulder_pitch").is_some());
-        assert!(loop_ctrl.gain_override("right_shoulder_roll").is_some());
-        loop_ctrl.clear_all_overrides();
-        assert!(loop_ctrl.gain_override("right_shoulder_pitch").is_none());
-        assert!(loop_ctrl.gain_override("right_shoulder_roll").is_none());
     }
 
     #[test]

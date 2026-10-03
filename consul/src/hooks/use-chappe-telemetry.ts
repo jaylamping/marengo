@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-import { HostNodeRole, OperationalMode, type HostMetrics, type RobotState } from '@/gen/marengo/v1/marengo_pb';
+import { OperationalMode, type HostMetrics, type RobotState } from '@/gen/marengo/v1/marengo_pb';
 import { connectChappeStream } from '@/lib/chappe-client';
 import { isChappeLive } from '@/lib/chappe-config';
 import { appendLiveLog, enableChappeLiveLogs } from '@/lib/log-buffer';
@@ -65,7 +65,6 @@ export function useChappeTelemetry(): void {
   const setGatewayError = useRobotStore((s) => s.setGatewayError);
   const setTransportMode = useHostMetricsStore((s) => s.setTransportMode);
   const setPiMetrics = useHostMetricsStore((s) => s.setPiMetrics);
-  const setJetsonMetrics = useHostMetricsStore((s) => s.setJetsonMetrics);
 
   const readCredential = useGatewayCredential('sensitiveRead');
   useEffect(() => {
@@ -85,20 +84,14 @@ export function useChappeTelemetry(): void {
       setPiMetrics(metrics);
     }, TELEMETRY_UI_MS);
 
-    const publishJetsonMetrics = throttleTrailing((metrics: HostMetrics) => {
-      setJetsonMetrics(metrics);
-    }, TELEMETRY_UI_MS);
-
     const retireRuntimeFacts = () => {
       publishRobotState.cancel();
       publishPiMetrics.cancel();
-      publishJetsonMetrics.cancel();
       setRobotState(null);
       setSafetyState(null);
       setImuSample(null);
       setOperationalMode(null);
       setPiMetrics(null);
-      setJetsonMetrics(null);
       setConnected(false);
     };
 
@@ -151,21 +144,9 @@ export function useChappeTelemetry(): void {
           sessionId: event.sessionId || undefined,
         });
       },
-      onHostMetrics: (metrics, topic) => {
+      onHostMetrics: (metrics) => {
         if (disposed) return;
-        const role =
-          metrics.nodeRole === HostNodeRole.JETSON
-            ? 'jetson'
-            : metrics.nodeRole === HostNodeRole.PI
-              ? 'pi'
-              : topic.includes('jetson')
-                ? 'jetson'
-                : 'pi';
-        if (role === 'jetson') {
-          publishJetsonMetrics(metrics);
-        } else {
-          publishPiMetrics(metrics);
-        }
+        publishPiMetrics(metrics);
       },
     }).then((fn) => {
       if (!disposed) {
@@ -187,7 +168,6 @@ export function useChappeTelemetry(): void {
     appendTrackingPoint,
     setConnected,
     setGatewayError,
-    setJetsonMetrics,
     setOperationalMode,
     setPiMetrics,
     setRobotState,

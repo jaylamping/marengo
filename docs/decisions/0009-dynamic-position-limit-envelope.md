@@ -69,6 +69,10 @@ margin = min_rad + k_v_s * |dq_cmd| + k_stop * dq_cmd² / (2 * decel_rad_s2)
 
 - Davout's velocity-scaled margin uses whichever of commanded and measured velocity has greater magnitude, preserving that velocity's sign. Measured gravity-driven motion can therefore tighten the bound even when the planner requests motion the other way; the `dq_cmd`-only wording in the original formula describes the design intent, not the installed conservative behavior.
 
+**2026-10-03 (crate audit prune B15, user decision D-1).**
+
+- The `talleyrand` scaffold crate was removed; the "Talleyrand / Cartesian IK still resolves upstream" sentence above names an upstream resolver with no implementation. No Cartesian IK exists; Berthier executes joint targets directly. ADR 0014 stays the design record.
+
 ## Alternatives considered
 
 - **Static script margins** (`hold-at -0.85`): rejected — breaks when tuning or speed changes.

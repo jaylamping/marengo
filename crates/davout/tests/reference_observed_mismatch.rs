@@ -60,25 +60,9 @@ fn exercise_observation(path: ObservationPath) -> Case {
         (path, bytes)
     })
     .collect();
-    let fixture = support::FixtureTree::new("reference-observed-policy", &root);
+    let fixture = support::fixture_tree_without_diagnostics("reference-observed-policy", &root);
     let fixture_path = fixture.path().to_path_buf();
     let config = fixture.path().join("config");
-    let control_path = config.join("control.yaml");
-    let control = std::fs::read_to_string(&control_path).expect("copied control");
-    assert_eq!(
-        control
-            .matches("active_reporting_diagnostics: true")
-            .count(),
-        1
-    );
-    std::fs::write(
-        control_path,
-        control.replace(
-            "active_reporting_diagnostics: true",
-            "active_reporting_diagnostics: false",
-        ),
-    )
-    .expect("only copied diagnostics disabled before construction");
     let history = fixture.path().join("history.yaml");
     std::fs::write(&history, HISTORY).expect("literal inspection history");
     let robot = load_robot_config_from(&config).expect("actual copied robot policy");

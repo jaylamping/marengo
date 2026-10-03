@@ -2,8 +2,6 @@
 
 #![allow(clippy::expect_used)]
 
-use std::collections::HashMap;
-
 use berthier::{ControlLoop, ControlMode, GainOverride};
 use davout::MemoryBus;
 
@@ -53,24 +51,22 @@ fn invalid_gain_fields_cannot_replace_an_installed_override() {
 }
 
 #[test]
-fn invalid_or_unknown_joint_in_gain_batch_leaves_all_existing_gains_intact() {
+fn invalid_or_unknown_joint_gain_leaves_existing_gains_intact() {
+    // Batch API removed as test-only; per-joint validation must still leave
+    // installed controller state untouched on refusal.
     for invalid_joint in ["right_shoulder_roll", "unmapped_joint"] {
         let mut controller = controller();
         let original = gains();
         controller
             .apply_gain_override("right_shoulder_pitch", original.clone())
             .expect("valid seed");
-        let mut changed = gains();
-        changed.kp = 5.0;
         let mut invalid = gains();
         if invalid_joint == "right_shoulder_roll" {
             invalid.kd = -1.0;
         }
-        let batch = HashMap::from([
-            ("right_shoulder_pitch".to_owned(), changed),
-            (invalid_joint.to_owned(), invalid),
-        ]);
-        assert!(controller.apply_gain_overrides(&batch).is_err());
+        assert!(controller
+            .apply_gain_override(invalid_joint, invalid)
+            .is_err());
         assert_eq!(
             controller.gain_override("right_shoulder_pitch"),
             Some(&original)
