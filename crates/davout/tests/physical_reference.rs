@@ -525,6 +525,48 @@ fn terminal_stop_failure_refuses_storage_and_grant() {
     );
 }
 
+/// ADR 0026:62-66 / audit gap 6: every exit of a reference after the target
+/// was armed ends with the all-address stop, including a bus read error that
+/// leaves `advance_reference` through a `?`.
+#[test]
+fn receive_error_after_arming_stops_every_drive_and_clears_the_reservation() {
+    let mut bench = Bench::physical("physical-recv-error-after-arm");
+    bench.firmware.borrow_mut().fail_rx_after_enable = true;
+    let error = bench
+        .calibrate(PITCH)
+        .expect_err("a receive error must refuse the calibration");
+    assert!(
+        matches!(error, DavoutError::HomingVerify { .. }),
+        "unexpected error {error}"
+    );
+    assert!(
+        bench.sent(CommunicationType::Enable, PITCH) >= 1,
+        "the target was armed before the read error"
+    );
+    assert!(
+        !bench.supervisor.reference_work_pending(),
+        "no armed reservation may survive the error exit"
+    );
+    bench.assert_all_drives_stopped();
+    // Every configured drive got a Disable after the target's Enable.
+    let firmware = bench.firmware.borrow();
+    let last_enable = firmware
+        .tx
+        .iter()
+        .rposition(|frame| (frame.id >> 24) & 0x1f == u32::from(CommunicationType::Enable.as_u8()))
+        .expect("an Enable was transmitted");
+    for drive in &firmware.drives {
+        assert!(
+            firmware.tx[last_enable..].iter().any(|frame| {
+                (frame.id >> 24) & 0x1f == u32::from(CommunicationType::Disable.as_u8())
+                    && (frame.id & 0xff) as u8 == drive.device_id
+            }),
+            "{} was not stopped after the armed Enable",
+            drive.joint
+        );
+    }
+}
+
 // ---------------------------------------------------------------- grant revocation
 
 #[test]
@@ -679,6 +721,55 @@ fn estop_revokes_every_grant() {
     assert_ne!(bench.state(ROLL), JointHomingState::Verified);
     assert_eq!(bench.sent_any(CommunicationType::Enable), 0);
     assert!(bench.sent_any(CommunicationType::Disable) >= INITIAL.len());
+}
+
+/// The marengo-pi reference queue cancels its own bookkeeping on E-stop, but
+/// Davout's in-flight transaction needs no help: `set_hardware_estop` aborts it
+/// with the all-address stop in the same call (audit lead L-marengo-pi-21).
+#[test]
+fn estop_during_an_armed_reference_stops_the_transaction_itself() {
+    let mut bench = Bench::physical("physical-estop-mid-reference");
+    let handle = bench
+        .supervisor
+        .request_reference(
+            PITCH,
+            true,
+            ReferenceAudit {
+                operator: OPERATOR.into(),
+                session: "estop-mid-reference".into(),
+            },
+        )
+        .expect("physical request admitted");
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while !bench.firmware.borrow().drive(PITCH).enabled {
+        assert!(Instant::now() < deadline, "target never armed");
+        bench
+            .supervisor
+            .advance_reference_work()
+            .expect("owner work advances");
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    assert!(bench.supervisor.reference_work_pending());
+    bench.firmware.borrow_mut().clear_trace();
+
+    bench.supervisor.set_hardware_estop(true);
+
+    assert!(
+        !bench.supervisor.reference_busy(),
+        "the in-flight transaction is over"
+    );
+    // The request's bookkeeping drains on the next owner work, not a transaction.
+    bench
+        .supervisor
+        .advance_reference_work()
+        .expect("owner work after the abort");
+    assert!(!bench.supervisor.reference_work_pending());
+    bench.assert_all_drives_stopped();
+    assert!(bench.sent_any(CommunicationType::Disable) >= INITIAL.len());
+    assert!(matches!(
+        bench.supervisor.reference_outcome(&handle),
+        Ok(ReferenceOutcome::Failed { .. })
+    ));
 }
 
 #[test]

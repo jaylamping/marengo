@@ -77,6 +77,9 @@ uncertainty and ordered hazards end with the initiating cause and same-call
 all-address cleanup. Later healthy input, Disable or late proof cannot rewrite
 the terminal result or restart it. Normal Enable/Ready/output remain denied.
 Unconditional Disable cancels the live reservation through this lifecycle.
+An unexpected error leaving `advance_reference` with its reservation still live
+(2026-10-03 audit, WP-I) ends the transaction through the same lifecycle: the
+all-address stop runs before the original error is returned.
 
 Berthier's actual busy tick inhibits motion intent and advances this same owner
 without a competing drain or MIT keepalive. Pi Quit/observed shutdown cancels

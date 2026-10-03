@@ -1688,6 +1688,8 @@ dependencies = [
  "marengo-config",
  "marengo-support",
  "robstride",
+ "signal-hook",
+ "tempfile",
  "tracing",
 ]
 

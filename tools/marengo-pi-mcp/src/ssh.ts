@@ -142,3 +142,9 @@ export function formatRemoteResult(r: RemoteExecResult): string {
   if (r.exitCode !== 0) parts.push(`[exit ${r.exitCode}]`);
   return parts.join("\n\n") || "(no output)";
 }
+
+/** Exit code carried by {@link formatRemoteResult}'s trailing `[exit N]` marker (0 when absent). */
+export function exitCodeOfRemoteOutput(output: string): number {
+  const match = /\[exit (-?\d+)\]\s*$/.exec(output);
+  return match ? Number(match[1]) : 0;
+}

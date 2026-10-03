@@ -246,6 +246,10 @@ pub struct Firmware {
     pub lost_echoes: Vec<u8>,
     /// Drive replies with a modeled latency, in scheduling order.
     scheduled: Vec<(Instant, CanFrame)>,
+    /// Every receive fails once the host has transmitted an Enable (a bus
+    /// read error mid-reference, after the target was armed).
+    pub fail_rx_after_enable: bool,
+    rx_failed: bool,
 }
 
 pub type SharedFirmware = Rc<RefCell<Firmware>>;
@@ -414,6 +418,9 @@ impl Firmware {
         }
         self.tx.push(frame.clone());
         self.tx_at.push(Instant::now());
+        if self.fail_rx_after_enable && comm_type == CommunicationType::Enable.as_u8() {
+            self.rx_failed = true;
+        }
         if self.hold_tx_from_enable && comm_type == CommunicationType::Enable.as_u8() {
             self.hold_tx_from_enable = false;
             self.held_tx = Some(VecDeque::new());
@@ -558,6 +565,9 @@ impl CanBus for FirmwareBus {
 
     fn recv_one_nonblocking(&mut self) -> Result<ReceiveAttempt, BusError> {
         let mut firmware = self.0.borrow_mut();
+        if firmware.rx_failed {
+            return Err(BusError::Driver("injected receive failure".into()));
+        }
         firmware.release_due();
         Ok(match firmware.rx.pop_front() {
             Some(frame) => ReceiveAttempt::Frame(TimedCanFrame {

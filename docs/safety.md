@@ -279,11 +279,26 @@ disables. The fault does not clear on its own.
 - **Reference and stop callers:** Private admission closes legacy direct grants
   and cached verification. Physical reference runs inside the owning
   `marengo-pi`/`motor-repl` process (ADR 0036); installed-owner client migration
-  (gateway/MCP/proto) remains incomplete. A fresh `motor-repl disable` constructs
-  the full Supervisor first, so bad startup configuration/history can block its
-  stop dispatch. Reference-independent stop through the installed owner and
-  CLI/MCP migration remain required; use the physical E-stop as the independent
-  stop path.
+  (gateway/MCP/proto) remains incomplete. `motor-repl disable` no longer builds
+  a Supervisor: it reads only each drive's `can_interface` and `device_id` from
+  `motors.yaml` and sends one type-4 Disable (Byte[0]=0) per drive, so a missing
+  `control.yaml`/URDF, corrupt calibration history or a down CAN interface
+  cannot stop it from reaching the drives it can reach. It prints a per-drive
+  outcome and exits 1 if any drive was not reached. A sent frame is queued on the
+  bus, not drive-confirmed, and it is **not** a fault clear: no type-4
+  Byte[0]=1 frame is ever sent (ADR 0020), so a latched drive fault persists.
+  The commands that can leave a drive enabled (`enable`, `jog`, `speed`,
+  `speed-stop`, `set-zero`) arm the same stop on SIGTERM/SIGINT/SIGHUP and on any
+  error exit, and refuse to start if it cannot be armed. The MCP aborts a
+  session whose pre-session disable did not reach every drive. Reference-
+  independent stop through the installed owner remains required; use the physical
+  E-stop as the independent stop path.
+- **No drive-side or independent watchdog:** `ParameterId::CanTimeout` (0x7028)
+  is never written or read back and nothing outside the 200 Hz thread watches it,
+  so a killed or hung `marengo-pi` leaves each drive on its last MIT frame
+  (including τ_g feed-forward). SIGTERM is handled (`finish_owner_shutdown`);
+  SIGKILL, panic and a hung loop are not. Undecided, see
+  `docs/reviews/2026-10-03-crate-audit/phase-b/WP-I.md`.
 
 ## When in doubt
 

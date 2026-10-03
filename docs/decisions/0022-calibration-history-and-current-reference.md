@@ -65,6 +65,11 @@ transaction exists. Existing history is preserved for inspection. Operator docs
 must not present the former multi-process procedure as a working commissioning
 path, or recommend unchecked grants as a workaround.
 
+*Update 2026-10-03: `motor-repl disable` no longer constructs a Supervisor; it
+reads only the drive addresses from `motors.yaml` and sends one Disable per
+drive (see docs/safety.md, Reference and stop callers). The paragraph below
+describes the earlier behavior.*
+
 The current motor-repl constructs a full Supervisor before dispatching `disable`.
 Consequently a corrupt history resource can prevent that fresh process from
 reaching stop, as other config/model construction failures already can. This is

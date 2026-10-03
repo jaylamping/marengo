@@ -26,6 +26,8 @@ mod safety_publication_tests;
 mod safety_receive_diagnostic_tests;
 #[cfg(test)]
 mod shutdown_tests;
+#[cfg(test)]
+mod stop_path_tests;
 
 use std::collections::BTreeSet;
 use std::env;
@@ -400,6 +402,29 @@ fn decode_chappe_payload<M: Message + Default>(bytes: &[u8], topic: &str) -> Opt
     }
 }
 
+/// A failed control tick stops every drive and discards motion intent, and the
+/// stop result is reported, never swallowed. Berthier already discards intent
+/// for every `LoopError::Safety` (loop.rs `tick`), so there is no hold to
+/// preserve across a `CommWatchdog`; the mode is set Disabled unconditionally
+/// as a second line. Returns the fault text published in `SafetyState`; when
+/// the stop itself was not delivered it says so (Davout also latches
+/// `StopDelivery`).
+fn stop_after_tick_error<B: MotorBus>(loop_ctrl: &mut ControlLoop<B>, error: &LoopError) -> String {
+    error!(error = %error, "control tick failed");
+    let stop = loop_ctrl.supervisor_mut().disable_all();
+    loop_ctrl.set_control_mode(ControlMode::Disabled);
+    match stop {
+        Ok(()) => error.to_string(),
+        Err(stop_error) => {
+            error!(
+                error = %stop_error,
+                "stop after control tick failure was NOT delivered to every drive"
+            );
+            format!("{error}; stop after tick failure not delivered: {stop_error}")
+        }
+    }
+}
+
 fn handle_chappe_enable<B: MotorBus>(
     loop_ctrl: &mut ControlLoop<B>,
     queue: &mut PiReferenceQueue,
@@ -431,9 +456,11 @@ fn handle_chappe_enable<B: MotorBus>(
         // An operator disable stands until an explicit enable (L-berthier-28).
         loop_ctrl.forbid_implicit_enable();
         let result = loop_ctrl.supervisor_mut().disable_all();
+        // Intent is discarded whether or not the stop was delivered: a failed
+        // stop must never leave GravityComp/Position armed (L-marengo-pi-16).
+        loop_ctrl.set_control_mode(ControlMode::Disabled);
         emit_reference_events(queue.cancel());
         result.map_err(|e| e.to_string())?;
-        loop_ctrl.set_control_mode(ControlMode::Disabled);
         info!(operator = %request.operator_id, "disable via Chappe");
     }
     Ok(())
@@ -1678,16 +1705,7 @@ fn run_control_loop<B: MotorBus>(
 
         active_fault = match loop_ctrl.tick(Some(runtime.chappe.as_ref())) {
             Ok(()) => None,
-            Err(e) => {
-                error!(error = %e, "control tick failed");
-                let _ = loop_ctrl.supervisor_mut().disable_all();
-                let preserve_position_hold =
-                    matches!(&e, LoopError::Safety(DavoutError::CommWatchdog { .. }));
-                if !preserve_position_hold {
-                    loop_ctrl.set_control_mode(ControlMode::Disabled);
-                }
-                Some(e.to_string())
-            }
+            Err(e) => Some(stop_after_tick_error(loop_ctrl, &e)),
         };
         emit_reference_events(reference_queue.pump(loop_ctrl.supervisor_mut()));
         // After the tick: report a completed (or refused) Enable, then retry

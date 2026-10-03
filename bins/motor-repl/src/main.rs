@@ -1,4 +1,9 @@
 //! Interactive motor exercise REPL — all motion goes through Davout.
+//!
+//! `disable` and the exit stop are deliberately independent of Davout: see
+//! [`stop`].
+
+mod stop;
 
 use std::collections::BTreeSet;
 use std::env;
@@ -8,8 +13,8 @@ use armee_dynamics::{check_gravity_range, GravityRangeVerdict};
 use berthier::{ControlLoop, ControlMode};
 use davout::{JointCommand, SpeedCommand};
 use marengo_config::{
-    load_control_config, load_motors_config, resolve_config_dir, resolve_reference_journal_path,
-    resolve_repo_root,
+    load_control_config, load_motor_stop_targets, load_motors_config, resolve_config_dir,
+    resolve_reference_journal_path, resolve_repo_root,
 };
 use robstride::RuntimeBus;
 use tracing::info;
@@ -93,7 +98,8 @@ fn usage() {
          set-zero runs the qualified physical reference workflow (ADR 0036); its current grant\n\
          ends with this process, so enable after homing from one long-running marengo-pi\n\
          (stdin `home <joint>... sign-tested`).\n\
-         Disable requires successful startup loading; use the independent physical E-stop when needed.\n\
+         disable reads only the drive addresses in motors.yaml and sends one Disable to each (exit 1 if any drive was not reached).\n\
+         enable/jog/speed/speed-stop/set-zero disable every drive on SIGTERM/SIGINT/SIGHUP and on any error exit.\n\
          Uses SocketCAN; prefer test harness or simulation before live CAN.\n\
          Env: MARENGO_ROOT, MARENGO_CONFIG_DIR (e.g. config/bringup/shoulder_pitch_dual)"
     );
@@ -131,6 +137,80 @@ fn parse_bus_args(args: Vec<String>) -> (Option<String>, Option<PathBuf>, Vec<St
     (can_interface, config_dir, command_args)
 }
 
+/// `disable`: the independent stop. It reads only the drive addresses from
+/// `motors.yaml` and sends one Disable to each, so a missing `control.yaml`,
+/// URDF, corrupt calibration history or a down CAN interface cannot prevent it
+/// from reaching the drives it can reach. Exit 0 only when every drive's
+/// Disable was accepted by its interface.
+fn run_disable(root: &std::path::Path, interface: Option<&str>) -> i32 {
+    let targets = match load_motor_stop_targets(root) {
+        Ok(targets) => targets,
+        Err(error) => {
+            eprintln!("disable: cannot read drive addresses from motors.yaml: {error}");
+            eprintln!("disable: NO stop frame was sent; use the physical E-stop");
+            return 1;
+        }
+    };
+    let addresses = stop::stop_addresses(&targets, interface);
+    if addresses.is_empty() {
+        eprintln!("disable: motors.yaml lists no drives; NO stop frame was sent");
+        return 1;
+    }
+    let report = stop::disable_drives_socketcan(&addresses);
+    print!("{report}");
+    if report.all_sent() {
+        println!(
+            "disabled: Disable frame sent to all {} drives (queued on the bus, not drive-confirmed)",
+            report.drives.len()
+        );
+        0
+    } else {
+        eprintln!(
+            "disable INCOMPLETE: {} of {} drives were not reached; use the physical E-stop",
+            report.failed(),
+            report.drives.len()
+        );
+        1
+    }
+}
+
+/// Everything the exit stop needs, resolved before any drive can be touched.
+struct ExitStop {
+    addresses: Vec<robstride::MotorAddress>,
+}
+
+impl ExitStop {
+    /// Resolve the drive addresses and install the signal-driven stop. A
+    /// command that can leave a drive enabled refuses to start without both.
+    fn arm(root: &std::path::Path, interface: Option<&str>) -> Result<Self, String> {
+        let targets = load_motor_stop_targets(root)
+            .map_err(|error| format!("cannot read drive addresses from motors.yaml: {error}"))?;
+        let addresses = stop::stop_addresses(&targets, interface);
+        if addresses.is_empty() {
+            return Err("motors.yaml lists no drives".into());
+        }
+        stop::install_signal_stop(addresses.clone())?;
+        eprintln!(
+            "motor-repl: exit stop armed for {} drives (SIGTERM/SIGINT/SIGHUP and error exit)",
+            addresses.len()
+        );
+        Ok(Self { addresses })
+    }
+
+    fn run(&self) {
+        eprintln!("motor-repl: exit stop, disabling every drive");
+        let report = stop::disable_drives_socketcan(&self.addresses);
+        eprint!("{report}");
+        if !report.all_sent() {
+            eprintln!(
+                "motor-repl: exit stop INCOMPLETE ({} of {} drives not reached); use the physical E-stop",
+                report.failed(),
+                report.drives.len()
+            );
+        }
+    }
+}
+
 fn main() {
     marengo_support::init_tracing();
     let args: Vec<String> = env::args().collect();
@@ -149,18 +229,47 @@ fn main() {
     }
 
     let root = repo_root();
-    let control = match load_control_config(&root) {
+    let command = args[1].clone();
+    if command == "disable" {
+        std::process::exit(run_disable(&root, can_interface.as_deref()));
+    }
+
+    let exit_stop = if stop::arms_exit_stop(&command) {
+        match ExitStop::arm(&root, can_interface.as_deref()) {
+            Ok(exit_stop) => Some(exit_stop),
+            Err(error) => {
+                eprintln!("{command}: refused, cannot arm the exit stop: {error}");
+                std::process::exit(1);
+            }
+        }
+    } else {
+        None
+    };
+
+    let code = run_command(&root, can_interface, &args);
+    if let Some(exit_stop) = &exit_stop {
+        if stop::exit_stop_required(&command, code) {
+            exit_stop.run();
+        }
+    }
+    std::process::exit(code);
+}
+
+/// Load configuration, open the bus and run one command. Returns the exit
+/// code; never exits the process, so `main` can run the exit stop afterwards.
+fn run_command(root: &std::path::Path, can_interface: Option<String>, args: &[String]) -> i32 {
+    let control = match load_control_config(root) {
         Ok(c) => c,
         Err(e) => {
             eprintln!("control.yaml: {e}");
-            std::process::exit(1);
+            return 1;
         }
     };
-    let motors = match load_motors_config(&root) {
+    let motors = match load_motors_config(root) {
         Ok(c) => c,
         Err(e) => {
             eprintln!("motors.yaml: {e}");
-            std::process::exit(1);
+            return 1;
         }
     };
     let bus = match can_interface.as_deref() {
@@ -168,14 +277,14 @@ fn main() {
             Ok(bus) => bus,
             Err(e) => {
                 eprintln!("open SocketCAN {interface}: {e}");
-                std::process::exit(1);
+                return 1;
             }
         },
         None => match RuntimeBus::socketcan_from_motors(&motors) {
             Ok(bus) => bus,
             Err(e) => {
                 eprintln!("open SocketCAN from motors.yaml: {e}");
-                std::process::exit(1);
+                return 1;
             }
         },
     };
@@ -193,13 +302,13 @@ fn main() {
         interfaces = ?can_interfaces,
         "motor-repl opened SocketCAN"
     );
-    // Only set-zero needs the physical reference owner and its journal; Disable and
-    // every other command keep the ordinary owner so a journal resource fault can
-    // never block them.
+    // Only set-zero needs the physical reference owner and its journal; every
+    // other command keeps the ordinary owner so a journal resource fault can
+    // never block it.
     let built = if args[1] == "set-zero" {
-        match resolve_reference_journal_path(&root, resolve_config_dir(&root)) {
+        match resolve_reference_journal_path(root, resolve_config_dir(root)) {
             Ok(journal) => ControlLoop::from_repo_with_physical_reference(
-                &root,
+                root,
                 bus,
                 journal,
                 control.control.loop_hz,
@@ -207,12 +316,12 @@ fn main() {
             ),
             Err(e) => {
                 eprintln!("reference journal path: {e}");
-                std::process::exit(1);
+                return 1;
             }
         }
     } else {
         ControlLoop::from_repo(
-            &root,
+            root,
             bus,
             control.control.loop_hz,
             control.control.chappe_state_hz,
@@ -222,7 +331,7 @@ fn main() {
         Ok(l) => l,
         Err(e) => {
             eprintln!("control loop: {e}");
-            std::process::exit(1);
+            return 1;
         }
     };
 
@@ -272,7 +381,7 @@ fn main() {
         "home" => {
             if let Err(e) = loop_ctrl.supervisor_mut().set_homing_complete() {
                 eprintln!("home failed: {e}");
-                std::process::exit(1);
+                return 1;
             }
             println!("homing verified → Ready");
         }
@@ -290,44 +399,36 @@ fn main() {
                     eprintln!(
                         "saved history cannot grant current reference; home with marengo-pi `home <joint>... sign-tested` and enable in that process (docs/homing.md)"
                     );
-                    std::process::exit(1);
+                    return 1;
                 }
             }
             if !force {
                 if let Err(code) = preflight_gravity_saturation(&mut loop_ctrl) {
-                    std::process::exit(code);
+                    return code;
                 }
             }
             if let Err(e) = loop_ctrl.supervisor_mut().request_enable(true) {
                 eprintln!("enable failed: {e}");
-                std::process::exit(1);
+                return 1;
             }
             println!("enabled (operator={op})");
         }
-        "disable" => {
-            if let Err(e) = loop_ctrl.supervisor_mut().disable_all() {
-                eprintln!("disable failed: {e}");
-                std::process::exit(1);
-            }
-            loop_ctrl.set_control_mode(ControlMode::Disabled);
-            println!("disabled");
-        }
         "jog" => {
-            let joint = args.get(2).map(String::as_str).unwrap_or_else(|| {
+            let Some(joint) = args.get(2).map(String::as_str) else {
                 eprintln!("missing joint name");
-                std::process::exit(1);
-            });
-            let pos: f64 = args.get(3).and_then(|s| s.parse().ok()).unwrap_or_else(|| {
+                return 1;
+            };
+            let Some(pos) = args.get(3).and_then(|s| s.parse::<f64>().ok()) else {
                 eprintln!("missing or invalid position_rad");
-                std::process::exit(1);
-            });
+                return 1;
+            };
             if let Err(e) = loop_ctrl.supervisor_mut().set_homing_complete() {
                 eprintln!("jog blocked: {e}");
-                std::process::exit(1);
+                return 1;
             }
             if let Err(e) = loop_ctrl.supervisor_mut().request_enable(true) {
                 eprintln!("enable failed: {e}");
-                std::process::exit(1);
+                return 1;
             }
             if let Err(e) = loop_ctrl.supervisor_mut().send_joint_command(JointCommand {
                 joint: joint.to_string(),
@@ -336,30 +437,30 @@ fn main() {
                 torque_nm: 0.0,
             }) {
                 eprintln!("jog failed: {e}");
-                std::process::exit(1);
+                return 1;
             }
             println!("jog {joint} → {pos} rad (SocketCAN {bus_label})");
         }
         "speed" => {
-            let joint = args.get(2).map(String::as_str).unwrap_or_else(|| {
+            let Some(joint) = args.get(2).map(String::as_str) else {
                 eprintln!("missing joint name");
-                std::process::exit(1);
-            });
-            let velocity: f64 = args.get(3).and_then(|s| s.parse().ok()).unwrap_or_else(|| {
+                return 1;
+            };
+            let Some(velocity) = args.get(3).and_then(|s| s.parse::<f64>().ok()) else {
                 eprintln!("missing or invalid rad_s");
-                std::process::exit(1);
-            });
+                return 1;
+            };
             if !control.control.bench.allow_firmware_speed_mode {
                 eprintln!("firmware speed mode disabled: set control.bench.allow_firmware_speed_mode=true for bench diagnostics");
-                std::process::exit(1);
+                return 1;
             }
             if let Err(e) = loop_ctrl.supervisor_mut().set_homing_complete() {
                 eprintln!("speed blocked: {e}");
-                std::process::exit(1);
+                return 1;
             }
             if let Err(e) = loop_ctrl.supervisor_mut().request_enable(true) {
                 eprintln!("enable failed: {e}");
-                std::process::exit(1);
+                return 1;
             }
             match loop_ctrl.supervisor_mut().send_speed_command(SpeedCommand {
                 joint: joint.to_string(),
@@ -372,29 +473,30 @@ fn main() {
                 }
                 Err(e) => {
                     eprintln!("speed failed: {e}");
-                    std::process::exit(1);
+                    return 1;
                 }
             }
         }
         "speed-stop" => {
-            let joint = args.get(2).map(String::as_str).unwrap_or_else(|| {
+            let Some(joint) = args.get(2).map(String::as_str) else {
                 eprintln!("missing joint name");
-                std::process::exit(1);
-            });
+                return 1;
+            };
             if let Err(e) = loop_ctrl.supervisor_mut().stop_speed_command(joint) {
                 eprintln!("speed-stop failed: {e}");
-                std::process::exit(1);
+                return 1;
             }
             println!("speed {joint} → 0 rad/s (SocketCAN {bus_label})");
         }
         "set-zero" => {
-            let joint = args.get(2).map(String::as_str).unwrap_or_else(|| {
+            let Some(joint) = args.get(2).map(String::as_str) else {
                 eprintln!("missing joint name");
-                std::process::exit(1);
-            });
+                return 1;
+            };
             let sign_tested = args.iter().any(|a| a == "--sign-tested");
             // Davout owns preflight, the qualified physical acquisition and the
-            // journal commit; the drives are stopped before this returns.
+            // journal commit; the drives are stopped before this returns, and
+            // `main` runs the exit stop if it returns an error.
             match loop_ctrl
                 .supervisor_mut()
                 .calibrate_joint_zero(joint, "bench", sign_tested)
@@ -404,7 +506,7 @@ fn main() {
                 }
                 Err(e) => {
                     eprintln!("set-zero refused: {e}");
-                    std::process::exit(1);
+                    return 1;
                 }
             }
         }
@@ -419,20 +521,20 @@ fn main() {
         "torque-cmd" => {
             if args.len() < 4 {
                 eprintln!("usage: motor-repl torque-cmd <joint> <nm>");
-                std::process::exit(1);
+                return 1;
             }
             let joint = &args[2];
-            let tau: f64 = args[3].parse().unwrap_or_else(|_| {
+            let Ok(tau) = args[3].parse::<f64>() else {
                 eprintln!("invalid torque Nm: {}", args[3]);
-                std::process::exit(1);
-            });
+                return 1;
+            };
             match loop_ctrl.set_torque_cmd(joint, tau) {
                 Ok(()) => {
                     println!("τ_cmd {joint} = {tau:.4} Nm (mode=TorqueOnly)");
                 }
                 Err(e) => {
                     eprintln!("torque-cmd failed: {e}");
-                    std::process::exit(1);
+                    return 1;
                 }
             }
         }
@@ -441,15 +543,17 @@ fn main() {
             let names = loop_ctrl.joint_names().to_vec();
             let joint_count = names.len();
             let q: Vec<f64> = if args.len() >= 2 + joint_count {
-                args[2..2 + joint_count]
-                    .iter()
-                    .map(|s| {
-                        s.parse::<f64>().unwrap_or_else(|_| {
+                let mut q = Vec::with_capacity(joint_count);
+                for s in &args[2..2 + joint_count] {
+                    match s.parse::<f64>() {
+                        Ok(value) => q.push(value),
+                        Err(_) => {
                             eprintln!("invalid joint angle: {s}");
-                            std::process::exit(1);
-                        })
-                    })
-                    .collect()
+                            return 1;
+                        }
+                    }
+                }
+                q
             } else {
                 vec![0.0; joint_count]
             };
@@ -457,7 +561,7 @@ fn main() {
                 Ok(t) => t,
                 Err(e) => {
                     eprintln!("tau_g: {e}");
-                    std::process::exit(1);
+                    return 1;
                 }
             };
             for (name, t) in names.iter().zip(tau.iter()) {
@@ -466,7 +570,8 @@ fn main() {
         }
         _ => {
             usage();
-            std::process::exit(1);
+            return 1;
         }
     }
+    0
 }

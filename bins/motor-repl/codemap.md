@@ -13,12 +13,12 @@
 1. Parse bus args (`--can`, `--config-dir`)
 2. Open SocketCAN → Supervisor → ControlLoop
 3. Execute subcommand (single-shot or interactive REPL)
-4. Return/exit after the subcommand; reliable all-exit stop cleanup remains CS07.
+4. Return/exit after the subcommand. `disable` skips steps 2-3 entirely (motors.yaml addresses only); `enable`/`jog`/`speed`/`speed-stop`/`set-zero` arm a SIGTERM/SIGINT/SIGHUP stop and run it on error exit (CS07).
 
 Every fresh Supervisor starts joints Unhomed; calibration history cannot transfer
 readiness between CLI processes. Full constructor errors (including corrupt
-history) occur before subcommand dispatch, so this fresh CLI is not a qualified
-emergency stop. `set-zero <joint> [--sign-tested]` builds the loop with
+history) occur before every subcommand except `disable`, which does not build a
+Supervisor. The CLI is still not a qualified emergency stop. `set-zero <joint> [--sign-tested]` builds the loop with
 `ControlLoop::from_repo_with_physical_reference` (journal from
 `resolve_reference_journal_path`) and runs Davout's qualified physical workflow
 via `calibrate_joint_zero` (ADR 0036). The resulting grant ends with the process;

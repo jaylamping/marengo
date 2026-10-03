@@ -2294,8 +2294,14 @@ impl<B: MotorBus> Supervisor<B> {
     }
 
     /// Best-effort speed reference zero for bench firmware speed mode.
+    ///
+    /// A stop is never refused for a reference (ADR 0023): while a reference
+    /// reservation is live the individual speed zero escalates to
+    /// [`Self::disable_all`], which cancels the reference and stops every drive.
     pub fn stop_speed_command(&mut self, joint: &str) -> Result<(), DavoutError> {
-        self.refuse_reference_interference("individual speed stop")?;
+        if self.reference_busy() {
+            return self.disable_all();
+        }
         let motor = motor_for_joint(&self.motors, joint)
             .ok_or_else(|| DavoutError::UnknownJoint {
                 joint: joint.to_string(),
