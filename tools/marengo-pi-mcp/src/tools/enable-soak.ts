@@ -102,7 +102,7 @@ export const NEUTRAL_MIT_NOTE =
   "tau_ff rate limit slews from 0 to 0, danger zones only cap) and its stop path sends neutral MIT. " +
   "Only stdin hold/gravity/impedance/torque/wave or a Chappe testing command leave ControlMode::Disabled; " +
   "the soak sends none and has no Chappe socket. The session candump's firmware-timing non_neutral_mit " +
-  "count must be 0 (wire-level proof); any non-neutral frame FAILs the soak.";
+  "count must be 0 (wire-level proof); any non-neutral frame, or no analyzer result, FAILs the soak.";
 
 export interface SoakPlan {
   profile: (typeof BENCH_PROFILES)[number];
@@ -476,7 +476,9 @@ export function evaluateSoak(cycles: SoakCycle[], requested: number, analyzer: A
   const rxErrorsDelta = first && last ? last.rxErrors - first.rxErrors : undefined;
   if (rxOverDelta === undefined) reasons.push("can0 rx_over_errors not read before and after");
   else if (rxOverDelta > 0) reasons.push(`can0 rx_over_errors +${rxOverDelta}`);
-  if (analyzer.status === "ok" && analyzer.timing.non_neutral_mit.count > 0) {
+  if (analyzer.status !== "ok") {
+    reasons.push(`wire-level neutral-MIT check unavailable (${analyzer.reason})`);
+  } else if (analyzer.timing.non_neutral_mit.count > 0) {
     reasons.push(`non_neutral_mit=${analyzer.timing.non_neutral_mit.count} on the wire`);
   }
   return { pass: reasons.length === 0 && cycles.length > 0, reasons, cleanCycles, faultKinds, rxOverDelta, rxErrorsDelta };
@@ -601,7 +603,8 @@ export function registerEnableSoakTools(
         "watchdog), enable→enabled ms, can0 rx_over_errors/rx_errors before and after, exit status. One candump " +
         "covers the session; candump and session log are copied to var/enable-soak/<TS>/ and fed to " +
         "`marengo-log-cli firmware-timing --json`. PASS only when every cycle is clean, can0 rx_over_errors did " +
-        "not increase and non_neutral_mit is 0. " +
+        "not increase and firmware-timing ran and reported non_neutral_mit 0; a missing, failing or " +
+        "unparseable analyzer result is FAIL. " +
         SOLE_CAN_OWNER_NOTE,
       inputSchema: enableSoakSchema,
       handler: async (args: EnableSoakArgs): Promise<string> => {
@@ -673,7 +676,7 @@ export function registerEnableSoakTools(
         const verdict = evaluateSoak(cycles, plan.cycles, analyzer);
         out.push(...formatSoakReport(cycles, verdict), "", "--- firmware-timing ---");
         if (analyzer.status === "ok") out.push(...formatFirmwareTiming(analyzer.timing));
-        else out.push(`not run: ${analyzer.reason} (wire-level neutral-MIT check missing)`);
+        else out.push(`not run: ${analyzer.reason} (wire-level neutral-MIT check unavailable: FAIL)`);
         out.push(...notes, `soak dir: ${dir}`, "", verdict.pass ? "VERDICT: PASS" : `VERDICT: FAIL — ${verdict.reasons.join("; ")}`);
         const text = out.join("\n");
         await deps.writeFile(path.join(dir, "soak-summary.txt"), `${text}\n`);

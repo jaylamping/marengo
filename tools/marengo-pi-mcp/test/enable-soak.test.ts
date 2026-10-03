@@ -283,7 +283,7 @@ describe("pi_enable_soak session body (fake marengo-pi)", () => {
     assert.deepEqual(cycles.map((c) => [c.can0Before?.rxOver, c.can0After?.rxOver]), [[0, 1], [1, 2]]);
     const verdict = evaluateSoak(cycles, 2, { status: "unavailable", reason: "test" });
     assert.equal(verdict.pass, false);
-    assert.deepEqual(verdict.reasons, ["can0 rx_over_errors +2"]);
+    assert.deepEqual(verdict.reasons, ["can0 rx_over_errors +2", "wire-level neutral-MIT check unavailable (test)"]);
   });
 });
 
@@ -340,7 +340,11 @@ describe("pi_enable_soak verdict", () => {
   it("passes only when every cycle is clean, overruns held and the wire stayed neutral", () => {
     assert.deepEqual(evaluateSoak(cycles(3), 3, ok()).reasons, []);
     assert.equal(evaluateSoak(cycles(3), 3, ok()).pass, true);
-    assert.equal(evaluateSoak(cycles(3), 3, { status: "unavailable", reason: "x" }).pass, true);
+    assert.deepEqual(evaluateSoak(cycles(3), 3, { status: "unavailable", reason: "no candump" }), {
+      ...evaluateSoak(cycles(3), 3, ok()),
+      pass: false,
+      reasons: ["wire-level neutral-MIT check unavailable (no candump)"],
+    });
     assert.deepEqual(evaluateSoak(cycles(2), 3, ok()).reasons, ["2/3 cycles ran"]);
     assert.equal(evaluateSoak([], 1, ok()).pass, false);
   });
@@ -436,14 +440,22 @@ describe("pi_enable_soak handler", () => {
     assert.deepEqual(h.audits, [1]);
   });
 
-  it("reports a missing analyzer without inventing a wire check", async () => {
-    const h = harness({
-      sessionOut: cleanSession(1),
-      cargo: { stdout: "", stderr: "error: unrecognized subcommand 'firmware-timing'", exitCode: 2 },
-    });
-    const out = await h.tools.pi_enable_soak.handler({ ...OPT_IN, cycles: 1 });
-    assert.match(out, /not run: firmware-timing exit 2: error: unrecognized subcommand/);
-    assert.match(out, /VERDICT: PASS$/);
+  it("FAILs when the analyzer is missing, fails or returns unparseable JSON", async () => {
+    const cases = [
+      { stdout: "", stderr: "error: unrecognized subcommand 'firmware-timing'", exitCode: 2, reason: /firmware-timing exit 2: error: unrecognized subcommand/ },
+      { stdout: "", stderr: "thread 'main' panicked", exitCode: 101, reason: /firmware-timing exit 101: thread 'main' panicked/ },
+      { stdout: "{not json", stderr: "", exitCode: 0, reason: /firmware-timing output is not JSON/ },
+      { stdout: '{"frames":1}', stderr: "", exitCode: 0, reason: /does not match the contract/ },
+    ];
+    for (const { reason, ...cargo } of cases) {
+      const h = harness({ sessionOut: cleanSession(1), cargo });
+      const out = await h.tools.pi_enable_soak.handler({ ...OPT_IN, cycles: 1 });
+      assert.match(out, /^not run: .*\(wire-level neutral-MIT check unavailable: FAIL\)$/m);
+      const verdict = out.split("\n").at(-1) ?? "";
+      assert.match(verdict, /^VERDICT: FAIL — wire-level neutral-MIT check unavailable \(/);
+      assert.match(verdict, reason);
+      assert.deepEqual(h.audits, [1]);
+    }
   });
 
   it("FAILs when no cycle ran and keeps the session output locally", async () => {
