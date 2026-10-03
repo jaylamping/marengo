@@ -85,3 +85,9 @@ fn socketcan_raw_classic_dlc_is_checked_before_accessing_storage() {
         ));
     }
 }
+#[test]
+fn missing_socketcan_interface_is_a_driver_error() {
+    let error = robstride::RuntimeBus::socketcan("marengo-interface-that-does-not-exist")
+        .expect_err("missing interface must fail to open");
+    assert!(matches!(error, BusError::Driver(_)));
+}

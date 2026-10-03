@@ -1,4 +1,4 @@
-#![allow(clippy::expect_used)]
+#![allow(clippy::expect_used, clippy::panic)]
 
 //! RS03 MIT velocity full scale (±20 rad/s) against a real bench capture.
 //!
@@ -8,9 +8,30 @@
 //! velocity field must integrate to the position change it reports over the
 //! same 40.45 ms. Under ±20 the ratio is 0.996; under the old ±50 it is 2.49.
 
+use std::collections::HashMap;
+use std::time::Duration;
+
 use marengo_config::MotorType;
-use robstride::mit::decode_mit_feedback;
-use robstride::{encode_mit, MitCommand};
+use robstride::{
+    encode_mit, CanFrame, FeedbackEvent, MemoryBus, MitCommand, MotorAddress, MotorBus,
+};
+
+fn decode_status(data: [u8; 8]) -> robstride::MitFeedback {
+    let mut bus = MemoryBus::default();
+    bus.rx_queue.push(CanFrame {
+        id: STATUS_ID,
+        data,
+        extended: true,
+    });
+    let types = HashMap::from([(MotorAddress::new("can0", 1), MotorType::Rs03)]);
+    let report = bus.recv_feedback_report(&types, Duration::ZERO, Duration::ZERO);
+    assert!(report.terminal_error.is_none());
+    assert_eq!(report.observations.len(), 1);
+    let FeedbackEvent::Status(feedback) = report.observations[0].event else {
+        panic!("captured frame must decode as status");
+    };
+    feedback
+}
 
 const STATUS_ID: u32 = 0x0280_01fd;
 
@@ -38,8 +59,7 @@ fn rs03_status_velocity_matches_captured_position_slope() {
     let decoded: Vec<(f64, f64, f64)> = RAMP
         .iter()
         .map(|(micros, data)| {
-            let feedback =
-                decode_mit_feedback(MotorType::Rs03, STATUS_ID, data).expect("captured status");
+            let feedback = decode_status(*data);
             assert_eq!(feedback.device_id, 1);
             (
                 f64::from(*micros) * 1e-6,

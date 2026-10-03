@@ -3,8 +3,8 @@
 use std::time::Instant;
 
 use crate::{
-    BusError, DeviceUid, MitFeedback, MotorAddress, MotorState, ParameterReadReply,
-    ReceiveCompletion, RxFrameKind, TimedCanFrame,
+    BusError, DeviceUid, MitFeedback, MotorAddress, ParameterReadReply, ReceiveCompletion,
+    RxFrameKind, TimedCanFrame,
 };
 
 /// Drive state encoded in status CAN-ID bits 22..23.
@@ -151,32 +151,6 @@ pub struct HostEchoObservation {
     pub command: EchoedCommand,
 }
 
-impl FeedbackObservation {
-    /// Latest-state compatibility only. Safety consumers must inspect every event
-    /// in the report; a healthy status can replace this diagnostic projection.
-    pub fn update_state(&self, state: &mut MotorState) {
-        match self.event {
-            FeedbackEvent::Status(feedback) => {
-                *state = MotorState {
-                    position_rad: feedback.position_rad,
-                    velocity_rad_s: feedback.velocity_rad_s,
-                    torque_nm: feedback.torque_nm,
-                    temperature_c: feedback.temperature_c,
-                    fault: feedback.fault,
-                    updated: Some(self.received_at),
-                };
-            }
-            FeedbackEvent::DetailedFault(feedback) => {
-                // This is an indication, not a decoded detailed-fault identity.
-                state.fault = u16::from(feedback.has_fault());
-            }
-            FeedbackEvent::Malformed(_) => {
-                // No pose or qualified complete fault projection.
-            }
-        }
-    }
-}
-
 /// A delivered prefix remains available even if the drain ends in a transport
 /// error. Incomplete work is explicit and independent of errors. An empty
 /// nonblocking drain has no terminal error; a completed positive-budget drain
@@ -189,6 +163,8 @@ pub struct FeedbackReport {
     /// Kernel Error frames are transport evidence, never vendor-addressed status.
     pub transport_frames: Vec<TransportObservation>,
     pub completion: ReceiveCompletion,
+    /// Unsupported foreign frames skipped by the SocketCAN backend, still charged to the poll quota.
+    pub ignored_frames: usize,
     pub raw_frames: usize,
     pub read_attempts: usize,
     pub terminal_error: Option<BusError>,

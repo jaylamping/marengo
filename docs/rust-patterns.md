@@ -37,9 +37,8 @@ Each library crate has a **detailed crate-root** `//!` doc in `src/lib.rs` (resp
 // BAD — Berthier opens CAN directly
 socketcan::CanSocket::open("can0")?;
 
-// GOOD — Berthier → Davout → robstride
-davout::filter(cmd)?;
-robstride::send(cmd)?;
+// GOOD — Davout filters joint-space batches before addressed CAN routing
+supervisor.send_mit_batch(joint_space_cmds)?;
 ```
 
 ## 4. Errors
@@ -103,7 +102,6 @@ Keep coordinate ownership explicit:
 ```rust
 // BAD — Berthier or robstride applies motor sign/gearing ad hoc
 let motor_tau = tau_g / (motor.direction as f64 * motor.gear_ratio);
-robstride::send_mit(&mut bus, &cmd)?;
 
 // GOOD — Davout is the joint↔motor boundary
 supervisor.send_mit_batch(joint_space_cmds)?;

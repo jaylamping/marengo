@@ -210,3 +210,38 @@ fn runtime_socketcan_preserves_malformed_evidence_and_remote_requested_length() 
         ));
     }
 }
+#[test]
+#[ignore = "requires virtual vcan0; no physical robot; run tests serially"]
+fn socketcan_own_message_echo_is_observable() {
+    let mut bus = RuntimeBus::socketcan("vcan0").expect("virtual receiver");
+    let (id, data) = robstride::encode_default_enable(1);
+    bus.send_frame(&robstride::CanFrame {
+        id,
+        data,
+        extended: true,
+    })
+    .expect("write on receiver socket");
+    let report = bus.recv_feedback_report(
+        &motor_types("vcan0"),
+        Duration::from_millis(50),
+        Duration::from_millis(1),
+    );
+    assert!(report.terminal_error.is_none());
+    assert_eq!(report.host_echoes.len(), 1);
+    assert_eq!(
+        report.host_echoes[0].command,
+        robstride::EchoedCommand::Enable
+    );
+}
+
+#[test]
+fn socketcan_router_refuses_duplicate_addresses_before_opening_interfaces() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let mut motors = marengo_config::load_motors_config(root).expect("fixture motor entries");
+    let duplicate = motors.motors[0].clone();
+    motors.motors.push(duplicate);
+    assert!(matches!(
+        RuntimeBus::socketcan_from_motors(&motors),
+        Err(robstride::BusError::DuplicateMotorAddress { .. })
+    ));
+}

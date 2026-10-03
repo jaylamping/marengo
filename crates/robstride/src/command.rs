@@ -38,6 +38,29 @@ pub enum CommandError {
         device_id: u8,
         parameter: ParameterId,
     },
+    #[error("{field:?} is outside the supported range for motor {device_id}")]
+    OutOfRange { device_id: u8, field: CommandField },
+    #[error("firmware parameter {parameter:?} for motor {device_id} is forbidden to write")]
+    ForbiddenParameterWrite {
+        device_id: u8,
+        parameter: ParameterId,
+    },
+    #[error("communication type {comm_type} is forbidden to send")]
+    ForbiddenCommunicationType { comm_type: u8 },
+}
+
+pub(crate) fn bounded(
+    device_id: u8,
+    field: CommandField,
+    value: f32,
+    minimum: f32,
+    maximum: f32,
+) -> Result<(), CommandError> {
+    finite(device_id, field, value)?;
+    if !(minimum..=maximum).contains(&value) {
+        return Err(CommandError::OutOfRange { device_id, field });
+    }
+    Ok(())
 }
 
 pub(crate) fn finite(device_id: u8, field: CommandField, value: f32) -> Result<(), CommandError> {

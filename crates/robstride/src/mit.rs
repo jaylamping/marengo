@@ -3,7 +3,7 @@
 use marengo_config::MotorType;
 
 use crate::comm::{pack_typed_ext_id, unpack_ext_id, CommunicationType};
-use crate::command::{finite, nonnegative_gain, CommandError, CommandField};
+use crate::command::{bounded, finite, nonnegative_gain, CommandError, CommandField};
 use crate::motor_type::MitRanges;
 
 /// Vendor signed-field zero code, shared by the actual decoder and its grid descriptor.
@@ -22,9 +22,9 @@ pub struct MitCommand {
 }
 
 impl MitCommand {
-    /// Check the motor-space command before encoding or admitting a whole batch.
-    /// Finite values outside vendor ranges retain the existing saturating encoding;
-    /// joint-space ceilings and enable policy remain Davout's responsibility.
+    /// Validate the motor-space command before encoding or admitting a whole batch.
+    /// Finite values outside vendor ranges are rejected; joint-space ceilings
+    /// and enable policy remain Davout's responsibility.
     pub fn validate(&self) -> Result<(), CommandError> {
         finite(self.device_id, CommandField::Position, self.position_rad)?;
         finite(self.device_id, CommandField::Velocity, self.velocity_rad_s)?;
@@ -46,25 +46,8 @@ pub struct MitFeedback {
     pub velocity_rad_s: f32,
     pub torque_nm: f32,
     pub temperature_c: f32,
-    /// Compatibility indication of the status flags; not a detailed-fault mask.
-    pub fault: u16,
-    /// CAN-ID bits 16..21: undervoltage, overcurrent, overtemperature, magnetic
-    /// encoder, stall/overload and uncalibrated, respectively.
     pub status_flags: u8,
     pub drive_mode: crate::feedback::DriveMode,
-}
-
-/// Extended CAN arbitration ID for a neutral-torque MIT command to `device_id`.
-///
-/// `encode_mit` includes the real torque field in the ID. This helper remains
-/// for callers/tests that only need to recognize the vendor communication type.
-pub fn mit_tx_id(device_id: u8) -> u32 {
-    pack_typed_ext_id(CommunicationType::OperationControl, 0x7FFF, device_id)
-}
-
-/// Extended CAN arbitration ID shape for MIT status from `device_id`.
-pub fn mit_rx_id(device_id: u8) -> u32 {
-    pack_typed_ext_id(CommunicationType::OperationStatus, 0, device_id)
 }
 
 fn signed_to_vendor_u16(value: f32, scale: f32) -> u16 {
@@ -106,6 +89,41 @@ fn write_be_u16(data: &mut [u8; 8], offset: usize, value: u16) {
 pub fn encode_mit(cmd: &MitCommand) -> Result<(u32, [u8; 8]), CommandError> {
     cmd.validate()?;
     let ranges = MitRanges::for_motor_type(cmd.motor_type);
+    bounded(
+        cmd.device_id,
+        CommandField::Position,
+        cmd.position_rad,
+        -ranges.position_scale,
+        ranges.position_scale,
+    )?;
+    bounded(
+        cmd.device_id,
+        CommandField::Velocity,
+        cmd.velocity_rad_s,
+        -ranges.velocity_scale,
+        ranges.velocity_scale,
+    )?;
+    bounded(
+        cmd.device_id,
+        CommandField::ProportionalGain,
+        cmd.kp,
+        0.0,
+        ranges.kp_scale,
+    )?;
+    bounded(
+        cmd.device_id,
+        CommandField::DampingGain,
+        cmd.kd,
+        0.0,
+        ranges.kd_scale,
+    )?;
+    bounded(
+        cmd.device_id,
+        CommandField::TorqueFeedforward,
+        cmd.torque_ff_nm,
+        -ranges.torque_scale,
+        ranges.torque_scale,
+    )?;
     let p_int = signed_to_vendor_u16(cmd.position_rad, ranges.position_scale);
     let v_int = signed_to_vendor_u16(cmd.velocity_rad_s, ranges.velocity_scale);
     let kp_int = unsigned_to_vendor_u16(cmd.kp, ranges.kp_scale);
@@ -122,26 +140,6 @@ pub fn encode_mit(cmd: &MitCommand) -> Result<(u32, [u8; 8]), CommandError> {
         pack_typed_ext_id(CommunicationType::OperationControl, t_int, cmd.device_id),
         data,
     ))
-}
-
-/// Decode MIT feedback; returns `None` if frame length or ID is invalid.
-///
-/// Accepts OperationStatus (MIT replies) and ActiveReporting (type-24 free-drive
-/// sensing while limp).
-pub fn decode_mit_feedback(motor_type: MotorType, can_id: u32, data: &[u8]) -> Option<MitFeedback> {
-    if data.len() != 8 {
-        return None;
-    }
-    let unpacked = unpack_ext_id(can_id)?;
-    let comm = CommunicationType::from_u8(unpacked.comm_type)?;
-    if !matches!(
-        comm,
-        CommunicationType::OperationStatus | CommunicationType::ActiveReporting
-    ) {
-        return None;
-    }
-    let data: &[u8; 8] = data.try_into().ok()?;
-    Some(decode_status_payload(motor_type, comm, can_id, data))
 }
 
 /// Raw fields of a type-1 MIT command (the inverse of [`encode_mit`]'s
@@ -165,8 +163,8 @@ pub fn decode_mit_command_fields(
     })
 }
 
-/// Payload decode for an id the caller already unpacked as OperationStatus or
-/// ActiveReporting; shared by [`decode_mit_feedback`] and the receive path.
+/// Payload decode for an id the receive path already classified as
+/// OperationStatus or ActiveReporting.
 pub(crate) fn decode_status_payload(
     motor_type: MotorType,
     comm: CommunicationType,
@@ -184,7 +182,6 @@ pub(crate) fn decode_status_payload(
         velocity_rad_s: v,
         torque_nm: t,
         temperature_c: temp,
-        fault: u16::from(((can_id >> 16) & 0x3f) as u8),
         status_flags: ((can_id >> 16) & 0x3f) as u8,
         drive_mode: crate::feedback::DriveMode::from_can_id(can_id),
     }
@@ -195,19 +192,8 @@ mod tests {
     #![allow(clippy::expect_used)]
 
     use super::*;
-    use crate::comm::{unpack_ext_id, DEFAULT_HOST_ID};
+    use crate::comm::DEFAULT_HOST_ID;
     use marengo_config::MotorType;
-
-    #[test]
-    fn mit_tx_id_uses_vendor_comm_type() {
-        let unpacked = unpack_ext_id(mit_tx_id(3)).expect("extended id");
-        assert_eq!(
-            unpacked.comm_type,
-            CommunicationType::OperationControl.as_u8()
-        );
-        assert_eq!(unpacked.extra_data, 0x7FFF);
-        assert_eq!(unpacked.device_id, 3);
-    }
 
     #[test]
     fn encode_produces_vendor_operation_frame() {
@@ -221,7 +207,7 @@ mod tests {
             torque_ff_nm: 0.0,
         };
         let (id, data) = encode_mit(&cmd).expect("valid command");
-        assert_eq!(id, mit_tx_id(1));
+        assert_eq!(id, 0x017f_ff01);
         assert_eq!(data.len(), 8);
         assert_eq!(data, [0x7F, 0xFF, 0x7F, 0xFF, 0, 0, 0, 0]);
     }
@@ -243,7 +229,12 @@ mod tests {
         write_be_u16(&mut data, 4, signed_to_vendor_u16(3.0, ranges.torque_scale));
         write_be_u16(&mut data, 6, 321);
         let id = pack_typed_ext_id(CommunicationType::OperationStatus, 4, DEFAULT_HOST_ID);
-        let fb = decode_mit_feedback(MotorType::Rs02, id, &data).expect("feedback");
+        let fb = decode_status_payload(
+            MotorType::Rs02,
+            CommunicationType::OperationStatus,
+            id,
+            &data,
+        );
         assert_eq!(fb.device_id, 4);
         assert!((fb.position_rad - 1.0).abs() < 0.001);
         assert!((fb.velocity_rad_s - 2.0).abs() < 0.01);
@@ -251,7 +242,12 @@ mod tests {
         assert!((fb.temperature_c - 32.1).abs() < 0.001);
 
         let id24 = pack_typed_ext_id(CommunicationType::ActiveReporting, 3, DEFAULT_HOST_ID);
-        let fb24 = decode_mit_feedback(MotorType::Rs02, id24, &data).expect("type-24 feedback");
+        let fb24 = decode_status_payload(
+            MotorType::Rs02,
+            CommunicationType::ActiveReporting,
+            id24,
+            &data,
+        );
         assert_eq!(fb24.device_id, 3);
         assert!((fb24.position_rad - 1.0).abs() < 0.001);
     }

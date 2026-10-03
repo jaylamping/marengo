@@ -1,13 +1,9 @@
 #![allow(clippy::expect_used)]
 
-use std::collections::HashMap;
-use std::time::{Duration, Instant};
-
 use marengo_config::MotorType;
 use robstride::{
-    AddressedMitCommand, BusError, CanBus, CanFrame, CommandError, CommandField, CommunicationType,
-    MemoryBus, MitCommand, MotorAddress, MotorBus, MotorState, ParameterId, ParameterKind,
-    ParameterValue, RunMode,
+    AddressedMitCommand, BusError, CanBus, CanFrame, CommandError, CommandField, MemoryBus,
+    MitCommand, MotorAddress, MotorBus, ParameterId, ParameterKind, ParameterValue, RunMode,
 };
 
 fn command(device_id: u8, motor_type: MotorType) -> MitCommand {
@@ -21,6 +17,12 @@ fn command(device_id: u8, motor_type: MotorType) -> MitCommand {
         torque_ff_nm: 0.0,
     }
 }
+fn addressed(command: MitCommand) -> AddressedMitCommand {
+    AddressedMitCommand {
+        address: MotorAddress::new("can0", command.device_id),
+        command,
+    }
+}
 
 #[test]
 fn nan_torque_batch_is_rejected_before_any_motor_frame() {
@@ -28,7 +30,7 @@ fn nan_torque_batch_is_rejected_before_any_motor_frame() {
     let good = command(1, MotorType::Rs03);
     let mut bad = command(2, MotorType::Rs03);
     bad.torque_ff_nm = f32::NAN;
-    let result = bus.mit_control_all(&[good, bad]);
+    let result = bus.mit_control_all_at(&[addressed(good), addressed(bad)]);
     let last = bus.tx.last().map(|frame| {
         let torque_word = (frame.id >> 8) & 0xffff;
         (torque_word, (f64::from(torque_word) / 32767.0 - 1.0) * 60.0)
@@ -64,7 +66,8 @@ fn every_nonfinite_mit_field_and_negative_gain_is_rejected() {
                 }
                 let mut bus = MemoryBus::default();
                 assert!(
-                    bus.mit_control_all(&[command(1, model), bad]).is_err(),
+                    bus.mit_control_all_at(&[addressed(command(1, model)), addressed(bad)])
+                        .is_err(),
                     "model={model:?}, field={field}, value={invalid}"
                 );
                 assert!(bus.tx.is_empty());
@@ -90,7 +93,9 @@ fn every_nonfinite_mit_field_and_negative_gain_is_rejected() {
                 bad.kd = -1.0;
             }
             let mut bus = MemoryBus::default();
-            assert!(bus.mit_control_all(&[command(1, model), bad]).is_err());
+            assert!(bus
+                .mit_control_all_at(&[addressed(command(1, model)), addressed(bad)])
+                .is_err());
             assert!(bus.tx.is_empty());
         }
     }
@@ -213,17 +218,9 @@ fn unsupported_raw_run_modes_never_reach_the_bus() {
     // PP mode 5 exists in a newer vendor manual, but this driver implements only 0..=3.
     for mode in 4..=u8::MAX {
         let mut bus = MemoryBus::default();
-        let unaddressed = bus.write_parameter(2, ParameterId::RunMode, ParameterValue::U8(mode));
         let addressed =
             bus.write_parameter_at(&address, ParameterId::RunMode, ParameterValue::U8(mode));
         assert!(bus.tx.is_empty(), "unsupported mode {mode} emitted a frame");
-        assert!(matches!(
-            unaddressed,
-            Err(BusError::InvalidCommand(CommandError::UnsupportedRunMode {
-                device_id: 2,
-                value
-            })) if value == mode
-        ));
         assert!(matches!(
             addressed,
             Err(BusError::InvalidCommand(CommandError::UnsupportedRunMode {
@@ -257,12 +254,11 @@ fn supported_raw_and_typed_run_modes_preserve_wire_values() {
     ] {
         let expected = [0x05, 0x70, 0, 0, byte, 0, 0, 0];
         let mut bus = MemoryBus::default();
-        bus.write_parameter(2, ParameterId::RunMode, ParameterValue::U8(byte))
-            .expect("supported raw mode");
         bus.write_parameter_at(&address, ParameterId::RunMode, ParameterValue::U8(byte))
-            .expect("supported addressed raw mode");
-        bus.set_run_mode(2, typed).expect("supported typed mode");
-        assert_eq!(bus.tx.len(), 3);
+            .expect("supported raw mode");
+        bus.set_run_mode_at(&address, typed)
+            .expect("supported typed mode");
+        assert_eq!(bus.tx.len(), 2);
         for frame in bus.tx {
             assert_eq!(frame.id, 0x1200fd02);
             assert_eq!(frame.data, expected);
@@ -284,9 +280,6 @@ fn firmware_register_writes_validate_kind_sign_and_exact_payload() {
     ] {
         let mut bus = MemoryBus::default();
         assert!(bus
-            .write_parameter(1, parameter, ParameterValue::F32(-1.0))
-            .is_err());
-        assert!(bus
             .write_parameter_at(&address, parameter, ParameterValue::F32(-1.0))
             .is_err());
         assert!(bus.tx.is_empty());
@@ -299,16 +292,23 @@ fn firmware_register_writes_validate_kind_sign_and_exact_payload() {
     ] {
         let mut bus = MemoryBus::default();
         assert!(matches!(
-            bus.write_parameter(1, parameter, value),
+            bus.write_parameter_at(&address, parameter, value),
             Err(BusError::InvalidCommand(CommandError::ParameterType { .. }))
         ));
-        assert!(bus.tx.is_empty());
     }
     let mut bus = MemoryBus::default();
-    bus.write_parameter(1, ParameterId::EPScanTime, ParameterValue::U16(0x1234))
-        .expect("report interval");
-    bus.write_parameter(1, ParameterId::CanTimeout, ParameterValue::U32(20000))
-        .expect("timeout threshold");
+    bus.write_parameter_at(
+        &MotorAddress::new("can0", 1),
+        ParameterId::EPScanTime,
+        ParameterValue::U16(0x1234),
+    )
+    .expect("report interval");
+    bus.write_parameter_at(
+        &MotorAddress::new("can0", 1),
+        ParameterId::CanTimeout,
+        ParameterValue::U32(20000),
+    )
+    .expect("timeout threshold");
     assert_eq!(bus.tx[0].id, 0x1200fd01);
     assert_eq!(bus.tx[0].data, [0x26, 0x70, 0, 0, 0x34, 0x12, 0, 0]);
     assert_eq!(bus.tx[1].data, [0x28, 0x70, 0, 0, 0x20, 0x4e, 0, 0]);
@@ -357,15 +357,11 @@ fn nonfinite_firmware_float_writes_and_speed_emit_nothing() {
         ] {
             let mut bus = MemoryBus::default();
             assert!(bus
-                .write_parameter(1, parameter, ParameterValue::F32(value))
-                .is_err());
-            assert!(bus
                 .write_parameter_at(&address, parameter, ParameterValue::F32(value))
                 .is_err());
             assert!(bus.tx.is_empty());
         }
         let mut bus = MemoryBus::default();
-        assert!(bus.speed_control(1, value).is_err());
         assert!(bus.speed_control_at(&address, value).is_err());
         assert!(bus.tx.is_empty());
     }
@@ -378,7 +374,8 @@ fn finite_rs03_command_matches_independent_wire_fixture() {
     request.kp = 2500.0;
     request.kd = 50.0;
     request.torque_ff_nm = 30.0;
-    bus.mit_control_all(&[request]).expect("finite command");
+    bus.mit_control_all_at(&[addressed(request)])
+        .expect("finite command");
     assert_eq!(bus.tx.len(), 1);
     assert_eq!(bus.tx[0].id, 0x01bfff01);
     assert_eq!(bus.tx[0].data, [0x7f, 0xff, 0x7f, 0xff, 0x80, 0, 0x80, 0]);
@@ -409,38 +406,36 @@ fn finite_rs03_command_matches_independent_wire_fixture() {
 }
 
 #[test]
-fn fault_only_rx_neither_refreshes_nor_creates_pose_evidence() {
-    let address = MotorAddress::new("can0", 1);
-    let motor_types = HashMap::from([(address.clone(), MotorType::Rs03)]);
-    let stamp = Instant::now() - Duration::from_millis(100);
-    let pose = MotorState {
-        position_rad: 0.5,
-        updated: Some(stamp),
-        ..MotorState::default()
-    };
-    let fault_frame = robstride::CanFrame {
-        id: robstride::pack_ext_id(CommunicationType::FaultReport.as_u8(), 1, 0xfd),
-        data: [1, 0, 0, 0, 0, 0, 0, 0],
-        extended: true,
-    };
+fn finite_mit_values_outside_wire_range_are_rejected() {
+    let mut cmd = command(1, MotorType::Rs03);
+    cmd.kp = 6000.0;
+    assert!(robstride::encode_mit(&cmd).is_err());
+
+    let mut cmd = command(1, MotorType::Rs03);
+    cmd.position_rad = 4.0 * std::f32::consts::PI + 0.01;
+    assert!(robstride::encode_mit(&cmd).is_err());
+
+    let mut cmd = command(1, MotorType::Rs03);
+    cmd.velocity_rad_s = 20.01;
+    assert!(robstride::encode_mit(&cmd).is_err());
+
+    let mut cmd = command(1, MotorType::Rs03);
+    cmd.torque_ff_nm = 60.01;
+    assert!(robstride::encode_mit(&cmd).is_err());
+}
+#[test]
+fn raw_type_22_parameter_save_is_refused_before_transmission() {
     let mut bus = MemoryBus::default();
-    let mut states = HashMap::from([(address.clone(), pose)]);
-    bus.rx_queue.push(fault_frame.clone());
-    assert_eq!(
-        bus.recv_all_addressed(&motor_types, &mut states, Duration::ZERO, Duration::ZERO)
-            .expect("fault receive"),
-        1
-    );
-    assert_eq!(states[&address].position_rad, 0.5);
-    assert_eq!(states[&address].fault, 1);
-    assert_eq!(
-        states[&address].updated,
-        Some(stamp),
-        "fault is not a new pose sample"
-    );
-    states.clear();
-    bus.rx_queue.push(fault_frame);
-    bus.recv_all_addressed(&motor_types, &mut states, Duration::ZERO, Duration::ZERO)
-        .expect("fault without pose");
-    assert_eq!(states[&address].updated, None);
+    let result = bus.send_frame(&CanFrame {
+        id: 0x1600_fd01,
+        data: [0; 8],
+        extended: true,
+    });
+    assert!(matches!(
+        result,
+        Err(BusError::InvalidCommand(
+            CommandError::ForbiddenCommunicationType { comm_type: 22 }
+        ))
+    ));
+    assert!(bus.tx.is_empty());
 }

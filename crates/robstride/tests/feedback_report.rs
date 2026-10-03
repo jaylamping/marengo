@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 use marengo_config::MotorType;
 use robstride::{
     BusError, CanBus, CanFrame, DriveMode, FeedbackEvent, MemoryBus, MotorAddress, MotorBus,
-    MotorState, ReceiveAttempt, ReceivedCanFrame, TimedCanFrame,
+    ReceiveAttempt, ReceivedCanFrame, TimedCanFrame,
 };
 
 const POSE: [u8; 8] = [0x7f, 0xff, 0x7f, 0xff, 0x7f, 0xff, 0x00, 0xc8];
@@ -76,13 +76,6 @@ fn detailed_faults_and_warnings_preserve_full_asymmetric_raw_domains() {
     assert_eq!(fault.warning_bytes(), [0x9a, 0xbc, 0xde, 0xf0]);
     assert!(fault.has_fault());
     assert!(fault.has_warning());
-    let mut projection = MotorState::default();
-    report.observations[0].update_state(&mut projection);
-    assert_eq!(
-        projection.fault, 1,
-        "indication does not invent a bit identity"
-    );
-    assert_eq!(projection.updated, None);
 }
 
 #[test]
@@ -167,13 +160,17 @@ fn separate_fault_rx_time_never_refreshes_the_last_pose() {
     assert_eq!(report.observations.len(), 2);
     assert_eq!(report.observations[0].received_at, pose_at);
     assert_eq!(report.observations[1].received_at, fault_at);
-    let mut projection = MotorState::default();
-    for observation in report.observations {
-        observation.update_state(&mut projection);
-    }
-    assert_eq!(projection.updated, Some(pose_at));
-    assert_eq!(projection.fault, 1);
-    assert!(projection.is_stale(Duration::from_millis(5)));
+    assert!(matches!(
+        report.observations[0].event,
+        FeedbackEvent::Status(_)
+    ));
+    assert!(matches!(
+        report.observations[1].event,
+        FeedbackEvent::DetailedFault(fault) if fault.has_fault()
+    ));
+    assert_eq!(report.observations[0].received_at, pose_at);
+    assert_eq!(report.observations[1].received_at, fault_at);
+    assert!(pose_at < fault_at);
 }
 
 #[test]
@@ -188,10 +185,7 @@ fn warning_only_report_is_visible_without_becoming_pose_or_detailed_fault() {
     };
     assert!(!warning.has_fault());
     assert!(warning.has_warning());
-    let mut projection = MotorState::default();
-    report.observations[0].update_state(&mut projection);
-    assert_eq!(projection.fault, 0);
-    assert_eq!(projection.updated, None);
+    // Warnings remain raw detailed-fault evidence, not pose/status evidence.
 }
 
 #[test]
@@ -261,6 +255,18 @@ fn same_device_id_on_two_interfaces_has_independent_ordered_evidence() {
         FeedbackEvent::Status(_)
     ));
 }
+#[test]
+fn interface_less_duplicate_device_id_is_dropped_without_aliasing() {
+    let mut bus = MemoryBus::default();
+    bus.rx_queue.push(frame(0x0280_01fd, POSE));
+    let types = HashMap::from([
+        (MotorAddress::new("can0", 1), MotorType::Rs03),
+        (MotorAddress::new("can1", 1), MotorType::Rs02),
+    ]);
+    let report = bus.recv_feedback_report(&types, Duration::ZERO, Duration::ZERO);
+    assert_eq!(report.raw_frames, 1);
+    assert!(report.observations.is_empty());
+}
 
 #[test]
 fn empty_nonblocking_report_differs_from_a_blocking_timeout() {
@@ -274,6 +280,21 @@ fn empty_nonblocking_report_differs_from_a_blocking_timeout() {
         timeout.terminal_error,
         Some(BusError::RecvTimeout)
     ));
+}
+#[test]
+fn echo_only_positive_budget_poll_is_not_a_receive_timeout() {
+    let mut bus = MemoryBus::default();
+    let (id, data) = robstride::encode_default_enable(1);
+    bus.rx_queue.push(CanFrame {
+        id,
+        data,
+        extended: true,
+    });
+
+    let report = bus.recv_feedback_report(&types(), Duration::from_millis(1), Duration::ZERO);
+
+    assert_eq!(report.host_echoes.len(), 1);
+    assert!(report.terminal_error.is_none());
 }
 
 #[test]
@@ -329,10 +350,5 @@ fn socketcan_runtime_report_preserves_order_raw_evidence_and_receive_times() {
             .windows(2)
             .all(|pair| pair[0].received_at <= pair[1].received_at));
         assert!(matches!(observations[1].event, FeedbackEvent::Status(_)));
-        let mut projection = MotorState::default();
-        for observation in &observations {
-            observation.update_state(&mut projection);
-        }
-        assert_eq!(projection.updated, Some(observations[1].received_at));
     }
 }

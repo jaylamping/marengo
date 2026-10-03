@@ -467,7 +467,7 @@ impl<B: MotorBus> Supervisor<B> {
                 velocity_rad_s: status.velocity_rad_s,
                 torque_nm: status.torque_nm,
                 temperature_c: status.temperature_c,
-                fault: status.fault,
+                fault: u16::from(status.status_flags),
                 updated: Some(observation.received_at),
             };
             let prepared = (|| {

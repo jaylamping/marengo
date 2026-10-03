@@ -46,6 +46,7 @@ impl ReceiveCompletion {
 #[derive(Debug)]
 pub enum ReceiveAttempt {
     Frame(TimedCanFrame),
+    Ignored,
     Idle,
     Interrupted,
 }
@@ -53,27 +54,13 @@ pub enum ReceiveAttempt {
 #[derive(Debug, Default)]
 pub struct RawReceiveReport {
     pub frames: Vec<TimedCanFrame>,
+    pub ignored_frames: usize,
     pub completion: ReceiveCompletion,
     pub read_attempts: usize,
     pub terminal_error: Option<BusError>,
     /// Number of frames delivered before the first backend error. That error
     /// precedes any later peer frame with the same frame index.
     pub terminal_error_order: Option<usize>,
-}
-
-impl RawReceiveReport {
-    pub(crate) fn into_result(self, out: &mut Vec<TimedCanFrame>) -> Result<(), BusError> {
-        out.extend(self.frames);
-        if let Some(error) = self.terminal_error {
-            return Err(error);
-        }
-        if !self.completion.is_complete() {
-            return Err(BusError::ReceiveIncomplete {
-                completion: self.completion,
-            });
-        }
-        Ok(())
-    }
 }
 
 /// Each backend attempt is bounded; source rounds establish observed idle.
@@ -118,7 +105,9 @@ pub(crate) fn drain<B: CanBus + ?Sized>(
     let mut last_round_idle = false;
     let mut last_frame_at = None;
     loop {
-        if report.frames.len() >= max_frames || report.read_attempts >= max_attempts {
+        if report.frames.len() + report.ignored_frames >= max_frames
+            || report.read_attempts >= max_attempts
+        {
             report.completion = ReceiveCompletion::WorkLimit;
             return report;
         }
@@ -144,12 +133,16 @@ pub(crate) fn drain<B: CanBus + ?Sized>(
                 report.frames.push(frame);
                 round_idle = false;
             }
+            Ok(ReceiveAttempt::Ignored) => {
+                report.ignored_frames += 1;
+                round_idle = false;
+            }
             Ok(ReceiveAttempt::Idle) => {}
             Ok(ReceiveAttempt::Interrupted) => round_idle = false,
             Err(error) => {
                 round_idle = false;
                 if report.terminal_error.is_none() {
-                    report.terminal_error_order = Some(report.frames.len());
+                    report.terminal_error_order = Some(report.frames.len() + report.ignored_frames);
                     report.terminal_error = Some(error);
                 }
             }
