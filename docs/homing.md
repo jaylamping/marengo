@@ -125,11 +125,16 @@ On the Pi that is `/opt/marengo/var/calibration/reference-journal.sqlite3`. The
 path is made absolute and must differ from the calibration record.
 
 **What revokes a grant.** Revoked per joint: a UID change, a missing or
-mismatched UID in the 50 ms type-0 check at Enable, a coordinate discontinuity,
+mismatched UID in the type-0 check at Enable, a coordinate discontinuity,
 Calibration drive mode, or no feedback for longer than `comm_watchdog_ms`
 outside reference work. Revoked for all joints: a fault, E-stop, uncertain stop,
 shutdown, or a change to the model or relevant policy. A successful ordinary
 Disable keeps grants.
+
+**Identity check at Enable.** Each target gets a type-0 request, repeated every
+10 ms while it stays silent, and must answer within 100 ms of the first. About
+535 ms after a SetZero every drive goes quiet for 48-57 ms and drops any type-0
+it receives meanwhile, so an `enable` right after `home` can land in that gap.
 
 ### Pi bench procedure
 

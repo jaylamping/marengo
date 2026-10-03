@@ -73,8 +73,10 @@ export function benchLogArchiveShell(
 export function benchLogPruneShell(logDirVar = "$LOGDIR", keep = BENCH_LOG_KEEP_COUNT): string {
   return [
     `# prune old bench logs/traces (keep ${keep} newest each)`,
+    // ls exits 2 for a pattern with no files (no bench-*.json today); under the session's
+    // `set -euo pipefail` that ended the wrapper before its session JSON line.
     `for _pat in bench-*.log position-trace-*.csv bench-*.json candump-*.log; do`,
-    `  ls -1t ${logDirVar}/$_pat 2>/dev/null | tail -n +${keep + 1} | while IFS= read -r _f; do rm -f "$_f"; done`,
+    `  { ls -1t ${logDirVar}/$_pat 2>/dev/null || true; } | tail -n +${keep + 1} | while IFS= read -r _f; do rm -f "$_f"; done`,
     `done`,
   ].join("\n");
 }
@@ -280,6 +282,9 @@ const GRAVITY_GATE_NOTE =
  */
 export const REFERENCE_ACQUIRE_SEC_PER_JOINT = 10;
 
+/** Wait for marengo-pi's answer to an awaited `home` readiness check or `enable` line. */
+export const ADMISSION_REPLY_SEC = 10;
+
 /**
  * Joints of a marengo-pi `home <joints> sign-tested` line (`sign-tested` / `--sign-tested`
  * anywhere, as marengo-pi accepts), or null when the line is not a reference acquisition.
@@ -356,32 +361,92 @@ function ensureScriptQuit(script: string[]): string[] {
 }
 
 /**
- * Feeder shell for `home <joints> sign-tested`: send it, then poll marengo-pi's
- * output in "$LOG" until every joint printed `reference <joint> current`, so later
- * lines (and their sleeps) start only once the references are held. On a failure,
- * skip, `home failed:` or timeout it sends `disable` + `quit` and exits 1.
- * Runs inside the stdin feeder: anything but marengo-pi commands goes to stderr.
+ * Feeder shell for an awaited stdin line: send it, then poll marengo-pi's output in "$LOG"
+ * until `ok` (a shell test on "$_ref_out", the output since the send) holds, so later lines
+ * (and their sleeps) start only once marengo-pi accepted this one. When a line matching
+ * `fail` (grep -E) appears or `waitSec` passes it sends `disable` + `quit` and exits 1:
+ * no later motion line reaches marengo-pi. Runs inside the stdin feeder: anything but
+ * marengo-pi commands goes to stderr.
  */
-function referenceAcquireShell(line: string, joints: string[]): string {
-  const allCurrent = joints
-    .map((j) => `grep -q '^reference ${j} current ' <<<"$_ref_out"`)
-    .join(" && ");
+function awaitReplyShell(opts: {
+  line: string;
+  label: string;
+  subject: string;
+  ok: string;
+  fail: string;
+  waitSec: number;
+}): string {
   return [
     '_ref_from=$(wc -l < "$LOG")',
-    `printf '%s\\n' ${JSON.stringify(line)}`,
+    `printf '%s\\n' ${JSON.stringify(opts.line)}`,
     "_ref_state=timeout",
-    `for _ in $(seq ${joints.length * REFERENCE_ACQUIRE_SEC_PER_JOINT * 5}); do`,
+    `for _ in $(seq ${opts.waitSec * 5}); do`,
     '  _ref_out=$(tail -n "+$((_ref_from + 1))" "$LOG")',
-    "  if grep -Eq '^(reference [^ ]+ (failed|skipped):|home failed:)' <<<\"$_ref_out\"; then _ref_state=failed; break; fi",
-    `  if ${allCurrent}; then _ref_state=ok; break; fi`,
+    `  if grep -Eq '${opts.fail}' <<<"$_ref_out"; then _ref_state=failed; break; fi`,
+    `  if ${opts.ok}; then _ref_state=ok; break; fi`,
     "  sleep 0.2",
     "done",
     'if [[ "$_ref_state" != ok ]]; then',
-    `  echo "reference acquisition $_ref_state (${joints.join(" ")}); sending disable/quit" >&2`,
+    `  echo "${opts.label} $_ref_state (${opts.subject}); sending disable/quit" >&2`,
     "  printf '%s\\n' disable quit",
     "  exit 1",
     "fi",
   ].join("\n");
+}
+
+/**
+ * `home <joints> sign-tested`: awaited until every joint printed `reference <joint> current`.
+ * A failed or skipped joint, `home failed:` or a timeout ends the session.
+ */
+function referenceAcquireShell(line: string, joints: string[]): string {
+  return awaitReplyShell({
+    line,
+    label: "reference acquisition",
+    subject: joints.join(" "),
+    ok: joints.map((j) => `grep -q '^reference ${j} current ' <<<"$_ref_out"`).join(" && "),
+    fail: "^(reference [^ ]+ (failed|skipped):|home failed:)",
+    waitSec: joints.length * REFERENCE_ACQUIRE_SEC_PER_JOINT,
+  });
+}
+
+/**
+ * Awaited `home` readiness check or `enable [...]` line, or null for any other line. marengo-pi
+ * answers `homing verified → Ready` / `home failed:` and `enabled (operator=…)` /
+ * `enable failed:` / `enable blocked:` / `enable refused:`.
+ */
+function admissionGateShell(line: string): string | null {
+  const trimmed = line.trim();
+  if (trimmed === "home") {
+    return awaitReplyShell({
+      line: trimmed,
+      label: "home",
+      subject: "readiness check",
+      ok: `grep -q '^homing verified ' <<<"$_ref_out"`,
+      fail: "^home failed:",
+      waitSec: ADMISSION_REPLY_SEC,
+    });
+  }
+  if (trimmed.split(/\s+/)[0] === "enable") {
+    return awaitReplyShell({
+      line: trimmed,
+      label: "enable",
+      subject: trimmed,
+      ok: `grep -q '^enabled (operator=' <<<"$_ref_out"`,
+      fail: "^enable (failed|blocked|refused):",
+      waitSec: ADMISSION_REPLY_SEC,
+    });
+  }
+  return null;
+}
+
+/**
+ * First line of a session's output saying marengo-pi refused the reference, readiness check or
+ * enable (or the awaited-feeder line reporting that it ended the session), or undefined.
+ */
+export function sessionRefusal(output: string): string | undefined {
+  return /^(?:reference \S+ (?:failed|skipped):|home failed:|enable (?:failed|blocked|refused):|.* (?:failed|timeout) \(.*\); sending disable\/quit$).*$/m.exec(
+    output,
+  )?.[0];
 }
 
 /** One feeder entry: shell sleep, awaited reference acquisition, or a printf'd stdin line. */
@@ -402,6 +467,17 @@ export function marengoPiPipe(script: string[], pipeTimeoutSec: number, binary =
   return `{\n${pipeLines};\n} | timeout ${pipeTimeoutSec} ${binary}`;
 }
 
+/**
+ * {@link marengoPiPipe} whose `home` readiness check and `enable` lines are awaited too: a
+ * refused or unanswered one ends the session (disable + quit) before any later motion line.
+ */
+export function marengoPiAdmittedPipe(script: string[], pipeTimeoutSec: number): string {
+  const pipeLines = script
+    .map((line) => admissionGateShell(line) ?? marengoPiPipeLine(line))
+    .join(";\n");
+  return `{\n${pipeLines};\n} | timeout ${pipeTimeoutSec} $PI_BIN`;
+}
+
 function marengoPiTimedPipe(
   script: string[],
   dwellSec: number,
@@ -419,7 +495,7 @@ function marengoPiTimedPipe(
     "disable",
     "quit",
   ];
-  return marengoPiPipe(lines, scriptSleepTotalSec(lines) + 10);
+  return marengoPiAdmittedPipe(lines, scriptSleepTotalSec(lines) + 10);
 }
 
 /**
@@ -721,8 +797,8 @@ export function registerMotionTools(
 
     pi_hold_on: {
       description:
-        "Compliant position hold in one marengo-pi session: `home <joints> sign-tested` (awaited), home, " +
-        "enable, hold-on or hold-at, return to 0, disable. References exist only inside that process, so " +
+        "Compliant position hold in one marengo-pi session: `home <joints> sign-tested`, home and enable " +
+        "(each awaited; a refusal ends the session with disable/quit), hold-on or hold-at, return to 0, disable. References exist only inside that process, so " +
         "every hold acquires them; acquisition runs SetZero at the current pose and needs set_zero: true " +
         "plus at_mechanical_reference: true (otherwise refused before touching the Pi). " +
         "Uses kp/kd/slew/trim from master /opt/marengo/config/control.yaml. Logs to var/log. " +
@@ -819,13 +895,19 @@ export function registerMotionTools(
           returnHomeSec,
         });
         const body = benchLogWrapper(cfg, pipeCmd, "hold-on", configDir);
-        const out = `${gravity.report}\n${await runRemote(
+        const session = `${gravity.report}\n${await runRemote(
           body,
           (timeoutSec + returnHomeSec + referenceJoints.length * REFERENCE_ACQUIRE_SEC_PER_JOINT) * 1000 +
             20_000 +
             CAN_SESSION_SLACK_MS,
         )}`;
-        auditMotion("pi_hold_on", args, out, 0);
+        const refusal = sessionRefusal(session);
+        const out =
+          refusal === undefined
+            ? session
+            : `${session}\n\n--- hold ---\nmarengo-pi refused the session before the hold: ${refusal}\n` +
+              "The feeder sent disable/quit instead of the hold: no pose was held.";
+        auditMotion("pi_hold_on", args, out, refusal === undefined ? 0 : 1);
         return out;
       },
     },

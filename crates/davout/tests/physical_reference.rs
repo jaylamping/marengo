@@ -566,9 +566,57 @@ fn missing_identity_at_enable_revokes_without_enable() {
         .enable_targets(&[PITCH.to_owned()])
         .expect_err("silent identity must not be enabled");
     assert!(matches!(error, DavoutError::HomingVerify { .. }), "{error}");
-    assert_eq!(bench.sent(CommunicationType::GetDeviceId, PITCH), 1);
+    // Asked again while silent, never past the admission window.
+    let requests = bench.sent(CommunicationType::GetDeviceId, PITCH);
+    assert!((2..=10).contains(&requests), "{requests} identity requests");
     assert_eq!(bench.sent_any(CommunicationType::Enable), 0);
     assert_eq!(bench.state(PITCH), JointHomingState::Unhomed);
+}
+
+#[test]
+fn identity_request_dropped_in_post_set_zero_blackout_is_asked_again() {
+    // 2026-10-03 15:34:09 bench (candump-20261003T153408Z): right_shoulder_pitch
+    // transmitted nothing from 1.1264 s to 1.1798 s, 534 ms after its SetZero,
+    // as each drive did once after its own (48-57 ms, also at 14:51:33). Enable
+    // admission's type-0 reached it at 1.1756 s and was never answered, so
+    // `enable` failed "device identity reply missing at admission".
+    const BLACKOUT: Duration = Duration::from_millis(57);
+    let mut bench = Bench::physical("physical-enable-uid-blackout");
+    bench.acquire(PITCH);
+    bench.pump(Duration::from_millis(20));
+    let answers_from = Instant::now() + BLACKOUT;
+    {
+        let mut firmware = bench.firmware.borrow_mut();
+        firmware.drive_mut(PITCH).silent_until = Some(answers_from);
+        firmware.clear_trace();
+    }
+    bench
+        .supervisor
+        .enable_targets(&[PITCH.to_owned()])
+        .expect("identity asked again after the blackout matches the grant");
+    assert_eq!(bench.supervisor.mode(), OperationalMode::Active);
+    {
+        let device = bench.device(PITCH);
+        let firmware = bench.firmware.borrow();
+        let requested: Vec<Instant> = firmware
+            .tx
+            .iter()
+            .zip(&firmware.tx_at)
+            .filter(|(frame, _)| {
+                (frame.id >> 24) & 0x1f == u32::from(CommunicationType::GetDeviceId.as_u8())
+                    && (frame.id & 0xff) as u8 == device
+            })
+            .map(|(_, at)| *at)
+            .collect();
+        // The first request fell inside the blackout; a later one was answered.
+        assert!(requested.len() >= 2, "{requested:?}");
+        assert!(requested[0] < answers_from);
+        assert!(requested[requested.len() - 1] >= answers_from);
+    }
+    bench.settle_enable().expect("Off settles, then Enable");
+    assert_eq!(bench.sent(CommunicationType::Enable, PITCH), 1);
+    assert_eq!(bench.state(PITCH), JointHomingState::Verified);
+    bench.supervisor.disable_all().expect("stop");
 }
 
 #[test]

@@ -22,12 +22,13 @@ import {
   SOLE_CAN_OWNER_NOTE,
   benchConfigDirForJoint,
   benchLogWrapper,
-  marengoPiPipe,
+  marengoPiAdmittedPipe,
   marengoPiSessionBody,
   motionConfirmSchema,
   referenceAcquireLine,
   referenceOptInShape,
   scriptSleepTotalSec,
+  sessionRefusal,
 } from "./motion.js";
 
 const PITCH = "right_shoulder_pitch";
@@ -579,7 +580,7 @@ export function registerGravityCalibrateTools(
     pi_gravity_calibrate: {
       description:
         "Right-arm gravity-model calibration sweep in ONE marengo-pi session: `home <profile joints> sign-tested` " +
-        "(awaited), home, enable, then hold-at each static pose of sweep_joint (right_shoulder_pitch, or " +
+        "(awaited), home and enable (each awaited; a refusal ends the session with disable/quit), then hold-at each static pose of sweep_joint (right_shoulder_pitch, or " +
         "right_elbow_pitch with the pitch at fixed_pitch_rad) approached from below (up pass after a min−δ " +
         "overshoot) and from above (down pass after a max+δ overshoot), dwelling settle_sec + measure_sec at each, " +
         "then return to 0 and disable. Needs confirm (+ confirm_weighted_motion on weighted profiles), " +
@@ -666,7 +667,7 @@ export function registerGravityCalibrateTools(
           return gravity.report;
         }
 
-        const pipeCmd = marengoPiSessionBody(cfg, marengoPiPipe(script, budgetSec + 10));
+        const pipeCmd = marengoPiSessionBody(cfg, marengoPiAdmittedPipe(script, budgetSec + 10));
         const sessionOut = await runRemote(
           benchLogWrapper(cfg, pipeCmd, "gravity-calibrate", configDir),
           budgetSec * 1000 + 30_000 + CAN_SESSION_SLACK_MS,
@@ -681,6 +682,14 @@ export function registerGravityCalibrateTools(
           return text;
         };
 
+        const refusal = sessionRefusal(sessionOut);
+        if (refusal !== undefined) {
+          out.push(
+            `marengo-pi refused the session before the sweep: ${refusal}`,
+            "The feeder sent disable/quit instead of any hold-at: no calibration files were written and no fit was run.",
+          );
+          return finish(sessionExit || 1);
+        }
         const session = parseSessionJson(sessionOut);
         if (session === undefined) {
           out.push("The session reported no bench log/trace line: no calibration files were written and no fit was run.");

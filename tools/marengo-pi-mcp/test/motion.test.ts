@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { MarengoPiConfig } from "../src/config.js";
@@ -183,7 +183,7 @@ describe("marengo-pi script tool", () => {
 
     assert.match(
       script,
-      /printf '%s\\n' "home right_shoulder_pitch sign-tested"\n[\s\S]*grep -q '\^reference right_shoulder_pitch current '[\s\S]*fi;\nprintf '%s\\n' "home";\nprintf '%s\\n' "enable bench";\nprintf '%s\\n' "hold-at right_shoulder_pitch 0";/,
+      /printf '%s\\n' "home right_shoulder_pitch sign-tested"\n[\s\S]*grep -q '\^reference right_shoulder_pitch current '[\s\S]*fi;\n_ref_from=[^\n]*\nprintf '%s\\n' "home"\n[\s\S]*grep -q '\^homing verified '[\s\S]*fi;\n_ref_from=[^\n]*\nprintf '%s\\n' "enable bench"\n[\s\S]*grep -q '\^enabled \(operator='[\s\S]*fi;\nprintf '%s\\n' "hold-at right_shoulder_pitch 0";/,
     );
     assert.doesNotMatch(script, /motor-repl set-zero/);
     assert.match(script, /sleep 10;/);
@@ -542,6 +542,22 @@ describe("marengo-pi script tool", () => {
     assert.match(benchCanKernelDeltaShell(), /_rx0=\$\{_rx0:-0\}/);
     assert.match(benchCanKernelDeltaShell(), /grep -m1 -E "\^\[\[:space:\]\]\*\\\("/);
   });
+
+  it("prunes under pipefail even when a pattern matches no file", () => {
+    // No bench-*.json exists on the Pi: ls exited 2 and pipefail ended the session wrapper.
+    const dir = mkdtempSync(path.join(tmpdir(), "prune-"));
+    for (const ts of ["20261001T000000Z", "20261002T000000Z", "20261003T000000Z"]) {
+      writeFileSync(path.join(dir, `bench-${ts}.log`), "");
+    }
+    const r = spawnSync(
+      "bash",
+      ["-c", `set -euo pipefail\nLOGDIR=${dir}\n${benchLogPruneShell("$LOGDIR", 2)}\necho pruned`],
+      { encoding: "utf8" },
+    );
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(r.stdout, "pruned\n");
+    assert.equal(readdirSync(dir).length, 2);
+  });
 });
 
 /**
@@ -549,8 +565,12 @@ describe("marengo-pi script tool", () => {
  * $TRACE, with instant `sleep`, pass-through `timeout`, silent `ip` and sysfs CAN counters
  * under MARENGO_CAN_SYSFS. `lingerPgrep` makes pgrep report marengo-pi for that many calls
  * after marengo-pi exits; `bumpOnSleep` raises rx_over_errors on every sleep (overrunning bus).
+ * The fake marengo-pi records its stdin and answers `home` / `enable …` like marengo-pi
+ * (`enableReply` replaces the accepted-enable line).
  */
-function runHoldBody(opts: { lingerPgrep?: number; bumpOnSleep?: boolean } = {}) {
+function runHoldBody(
+  opts: { lingerPgrep?: number; bumpOnSleep?: boolean; enableReply?: string } = {},
+) {
   const dir = mkdtempSync(path.join(tmpdir(), "hold-body-"));
   const fake = path.join(dir, "fakebin");
   const stats = path.join(dir, "sys", "can0", "statistics");
@@ -566,8 +586,11 @@ function runHoldBody(opts: { lingerPgrep?: number; bumpOnSleep?: boolean } = {})
     "bin/marengo-pi": [
       'echo "marengo-pi start" >> "$TRACE"',
       'while IFS= read -r l; do',
+      `  printf '%s\\n' "$l" >> ${path.join(dir, "stdin")}`,
       '  case "$l" in',
       '    *sign-tested) for j in ${l#home }; do [[ $j == sign-tested ]] || echo "reference $j current pos=0.0000" >> "$LOG"; done ;;',
+      '    home) echo "homing verified → Ready" >> "$LOG" ;;',
+      `    enable*) echo ${JSON.stringify(opts.enableReply ?? "enabled (operator=bench) targets=right_shoulder_pitch")} >> "$LOG" ;;`,
       "    quit) break ;;",
       "  esac",
       "done",
@@ -597,6 +620,7 @@ function runHoldBody(opts: { lingerPgrep?: number; bumpOnSleep?: boolean } = {})
   const log = path.join(dir, "log");
   writeFileSync(trace, "");
   writeFileSync(log, "");
+  writeFileSync(path.join(dir, "stdin"), "");
   const body = holdSessionRemoteBody(cfg, {
     joint: "right_shoulder_pitch",
     referenceJoints: [...MASTER_JOINTS],
@@ -620,6 +644,7 @@ function runHoldBody(opts: { lingerPgrep?: number; bumpOnSleep?: boolean } = {})
     stdout: r.stdout,
     stderr: r.stderr,
     trace: readFileSync(trace, "utf8").trim().split("\n").filter(Boolean),
+    stdin: readFileSync(path.join(dir, "stdin"), "utf8"),
   };
 }
 
@@ -688,6 +713,70 @@ describe("hold session CAN ownership (Transport race)", () => {
     assert.deepEqual(r.trace.slice(-2), ["marengo-pi exit", "motor-repl disable"]);
     assert.match(r.stdout, /^can settle: ok \(0\.5s quiet, no CAN owner\) can0 rx_errors=0 rx_over=0 tx_errors=0 /m);
     assert.match(r.stdout, /^can errors after marengo-pi: can0 rx_errors=0 rx_over=0 /m);
+  });
+
+  it("waits for the readiness check and enable before sending the hold", () => {
+    const r = runHoldBody();
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(
+      r.stdin,
+      [
+        `home ${MASTER_JOINTS.join(" ")} sign-tested`,
+        "home",
+        "enable bench",
+        "hold-on",
+        "hold-at right_shoulder_pitch 0",
+        "status",
+        "disable",
+        "quit",
+        "",
+      ].join("\n"),
+    );
+  });
+
+  it("ends the session on a refused enable: disable and quit, never the hold", () => {
+    // 2026-10-03 15:34 bench: after `enable failed:` the old feeder still sent hold-at.
+    for (const reply of [
+      "enable failed: homing verify on right_shoulder_pitch: device identity reply missing at admission",
+      "enable blocked: persistent safety fault 1 (DriveState)",
+    ]) {
+      const r = runHoldBody({ enableReply: reply });
+      assert.notEqual(r.status, 0);
+      assert.equal(r.stdin, `home ${MASTER_JOINTS.join(" ")} sign-tested\nhome\nenable bench\ndisable\nquit\n`);
+      assert.match(r.stderr, /enable failed \(enable bench\); sending disable\/quit/);
+      assert.deepEqual(r.trace.slice(-2), ["marengo-pi exit", "motor-repl disable"]);
+    }
+  });
+
+  it("ends the session on an unanswered enable", () => {
+    const r = runHoldBody({ enableReply: "still thinking" });
+    assert.notEqual(r.status, 0);
+    assert.equal(r.stdin, `home ${MASTER_JOINTS.join(" ")} sign-tested\nhome\nenable bench\ndisable\nquit\n`);
+    assert.match(r.stderr, /enable timeout \(enable bench\); sending disable\/quit/);
+  });
+
+  it("pi_hold_on names the refused enable and audits a failure", async () => {
+    const audits: number[] = [];
+    const tools = registerMotionTools(
+      cfg,
+      async (body) => {
+        if (isGravityPreviewBody(body)) return gravityPreviewReply();
+        if (!body.includes("LABEL='hold-on'")) return "";
+        return [
+          "homing verified → Ready",
+          "enable failed: homing verify on right_shoulder_pitch: device identity reply missing at admission",
+          "enable failed (enable bench); sending disable/quit",
+          "[exit 1]",
+        ].join("\n");
+      },
+      (_tool, _args, _out, exitCode) => audits.push(exitCode),
+    );
+    const out = await tools.pi_hold_on.handler({ confirm: true, set_zero: true, at_mechanical_reference: true });
+    assert.match(
+      out,
+      /marengo-pi refused the session before the hold: enable failed: homing verify on right_shoulder_pitch: device identity reply missing at admission\n/,
+    );
+    assert.deepEqual(audits, [1]);
   });
 
   it("refuses to start marengo-pi while CAN error counters keep moving", () => {

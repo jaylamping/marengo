@@ -1665,8 +1665,11 @@ impl<B: MotorBus> Supervisor<B> {
     }
 
     /// Type-0 round trip for each physical target, bounded by
-    /// [`reference_physical::IDENTITY_ADMISSION_TIMEOUT`]. No enable frame is sent
-    /// unless every target answers with the identifier its grant bound.
+    /// [`reference_physical::IDENTITY_ADMISSION_TIMEOUT`] from the first request.
+    /// No enable frame is sent unless every target answers with the identifier
+    /// its grant bound. A target still silent is asked again every
+    /// [`reference_physical::IDENTITY_ADMISSION_RETRY`]; only replies popped
+    /// after the first request count, and a missing reply still revokes.
     fn verify_physical_identities(&mut self, joints: &[String]) -> Result<(), DavoutError> {
         if !self.reference_owner.is_physical() {
             return Ok(());
@@ -1686,12 +1689,12 @@ impl<B: MotorBus> Supervisor<B> {
             targets.push((joint.clone(), binding.address.clone(), uid));
         }
         let watermark = self.reference_owner.physical.watermark();
-        for (_, address, _) in &targets {
-            self.bus.get_device_id_at(address)?;
-        }
-        let deadline = Instant::now() + reference_physical::IDENTITY_ADMISSION_TIMEOUT;
+        let start = Instant::now();
+        let deadline = start + reference_physical::IDENTITY_ADMISSION_TIMEOUT;
+        let mut request_due = start;
+        let mut missing = Vec::with_capacity(targets.len());
         loop {
-            let mut missing = Vec::new();
+            missing.clear();
             for (joint, address, bound) in &targets {
                 match self
                     .reference_owner
@@ -1708,27 +1711,36 @@ impl<B: MotorBus> Supervisor<B> {
                             ),
                         });
                     }
-                    None => missing.push(joint),
+                    None => missing.push((joint, address)),
                 }
             }
             if missing.is_empty() {
                 return Ok(());
             }
-            let remaining = deadline.saturating_duration_since(Instant::now());
-            if remaining.is_zero() {
-                for joint in &missing {
+            let now = Instant::now();
+            if now >= deadline {
+                for (joint, _) in &missing {
                     self.reference_authority.revoke_joint(joint);
                 }
                 return Err(DavoutError::HomingVerify {
                     joint: missing
                         .iter()
-                        .map(|joint| joint.as_str())
+                        .map(|(joint, _)| joint.as_str())
                         .collect::<Vec<_>>()
                         .join(","),
                     message: "device identity reply missing at admission".into(),
                 });
             }
-            self.poll_feedback(remaining.min(reference_physical::IDENTITY_ADMISSION_POLL))?;
+            if now >= request_due {
+                for (_, address) in &missing {
+                    self.bus.get_device_id_at(address)?;
+                }
+                request_due = now + reference_physical::IDENTITY_ADMISSION_RETRY;
+            }
+            let wait = deadline
+                .min(request_due)
+                .saturating_duration_since(Instant::now());
+            self.poll_feedback(wait.min(reference_physical::IDENTITY_ADMISSION_POLL))?;
         }
     }
 

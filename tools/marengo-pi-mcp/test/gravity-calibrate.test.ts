@@ -448,6 +448,41 @@ describe("pi_gravity_calibrate session", () => {
     assert.equal(h.bodies.length, 4);
   });
 
+  it("names a refused enable instead of a missing bench log line and fetches nothing", async () => {
+    // 2026-10-03 15:34 bench: Enable admission refused; the session must stop before any
+    // hold-at and say why.
+    const h = harness({
+      session: [
+        `=== bench session ${TS} (gravity-calibrate) ===`,
+        "homing verified → Ready",
+        "enable failed: homing verify on right_shoulder_pitch: device identity reply missing at admission",
+        "enable failed (enable bench); sending disable/quit",
+        SESSION_JSON,
+        "[exit 1]",
+      ].join("\n"),
+    });
+    const out = await h.run(OPT_INS);
+    assert.match(
+      out,
+      /marengo-pi refused the session before the sweep: enable failed: homing verify on right_shoulder_pitch: device identity reply missing at admission\n/,
+    );
+    assert.doesNotMatch(out, /no bench log\/trace line/);
+    assert.equal(h.writes.size, 0);
+    assert.deepEqual(h.fits, []);
+    assert.equal(h.bodies.length, 4);
+    assert.deepEqual(h.audits.at(-1), { tool: "pi_gravity_calibrate", exitCode: 1 });
+  });
+
+  it("awaits the readiness check and enable before the first hold-at", async () => {
+    const h = harness();
+    await h.run(OPT_INS);
+    const session = h.bodies.find((b) => b.includes("LABEL='gravity-calibrate'")) ?? "";
+    assert.match(
+      session,
+      /printf '%s\\n' "home"\n[\s\S]*grep -Eq '\^home failed:'[\s\S]*grep -q '\^homing verified '[\s\S]*printf '%s\\n' disable quit[\s\S]*printf '%s\\n' "enable bench"\n[\s\S]*grep -Eq '\^enable \(failed\|blocked\|refused\):'[\s\S]*grep -q '\^enabled \(operator='[\s\S]*printf '%s\\n' disable quit\n {2}exit 1\nfi;\nprintf '%s\\n' "hold-at /,
+    );
+  });
+
   it("keeps the capture but does not fit when the trace is missing", async () => {
     const h = harness({ trace: "[exit 1]" });
     const out = await h.run(OPT_INS);
