@@ -4,15 +4,11 @@
 use davout::simulation::{InitialVirtualReference, SimulationBus};
 use davout::{JointHomingState, Supervisor};
 
-#[path = "../../marengo-homing/tests/support/mod.rs"]
-mod support;
-
-fn owner(directory: &support::TestDirectory) -> Supervisor<SimulationBus> {
+fn owner() -> Supervisor<SimulationBus> {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    Supervisor::from_simulation_with_calibration_record_path(
+    Supervisor::from_simulation(
         root,
         SimulationBus::default(),
-        directory.path().join("history.yaml"),
         InitialVirtualReference::AllConfigured,
     )
     .expect("closed virtual initial reference")
@@ -20,8 +16,7 @@ fn owner(directory: &support::TestDirectory) -> Supervisor<SimulationBus> {
 
 #[test]
 fn invalid_disabled_restore_preserves_installed_model_policy_and_reference() {
-    let directory = support::TestDirectory::new("invalid-model-restore-review");
-    let mut supervisor = owner(&directory);
+    let mut supervisor = owner();
     let joint = supervisor.motors.motors[0].joint.clone();
     let generation = supervisor.reference_generation();
     let old_upper = supervisor
@@ -101,8 +96,7 @@ fn invalid_disabled_restore_preserves_installed_model_policy_and_reference() {
 
 #[test]
 fn successful_disabled_restore_remains_available_and_revokes_reference_control() {
-    let directory = support::TestDirectory::new("valid-model-restore-review");
-    let mut supervisor = owner(&directory);
+    let mut supervisor = owner();
     let joint = supervisor.motors.motors[0].joint.clone();
     let generation = supervisor.reference_generation();
     let before_tx = supervisor.bus().frames().to_vec();

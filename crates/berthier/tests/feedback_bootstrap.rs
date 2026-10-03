@@ -29,9 +29,16 @@ fn enabled_controller() -> ControlLoop<SimulationBus> {
     for _ in 0..5 {
         controller.tick(None).expect("disabled tick");
     }
+    let joints: Vec<String> = controller
+        .supervisor()
+        .motors
+        .motors
+        .iter()
+        .map(|motor| motor.joint.clone())
+        .collect();
     controller
         .supervisor_mut()
-        .request_enable(true)
+        .enable_targets(&joints)
         .expect("recording enable");
     controller.set_control_mode(ControlMode::Impedance);
     controller.supervisor_mut().bus_mut().clear_trace();

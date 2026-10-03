@@ -108,10 +108,9 @@ fn finite_phase_deadline_is_capped_before_overflow_after_target_arming() {
         serde_yaml::to_string(&homing).expect("only selected copied timeout changed"),
     )
     .expect("copied selected policy");
-    let mut owner = Supervisor::from_simulation_with_calibration_record_path(
+    let mut owner = Supervisor::from_simulation(
         fixture.path(),
         SimulationBus::default(),
-        &history,
         InitialVirtualReference::Unreferenced,
     )
     .expect("actual closed owner with isolated history");

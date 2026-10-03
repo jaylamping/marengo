@@ -93,8 +93,8 @@ fn exercise(
     expected_faults: &[(FaultClass, &str)],
     hardware_estop: bool,
 ) {
-    // Bind each actual-loop child independently of ambient runtime configuration,
-    // calibration history and trace paths. Never mutate the shared test process.
+    // Bind each actual-loop child independently of ambient runtime configuration
+    // and trace paths. Never mutate the shared test process.
     let Some(root) = std::env::var_os("MARENGO_SAFETY_PUBLICATION_FIXTURE") else {
         let fixture = publication_fixture();
         let test_thread = thread::current();
@@ -105,10 +105,6 @@ fn exercise(
             .env("MARENGO_SAFETY_PUBLICATION_FIXTURE", fixture.path())
             .env("MARENGO_ROOT", fixture.path())
             .env("MARENGO_CONFIG_DIR", fixture.path().join("config"))
-            .env(
-                "MARENGO_CALIBRATION_RECORD",
-                fixture.path().join("missing-calibration.yaml"),
-            )
             .env_remove("MARENGO_POSITION_TRACE")
             .env_remove("MARENGO_POSITION_TRACE_HZ")
             .env_remove("MARENGO_JOINT_SUBSET")
@@ -128,10 +124,6 @@ fn exercise(
         marengo_config::resolve_config_dir(&root),
         config,
         "actual config resolution stays inside the exclusive fixture"
-    );
-    assert_eq!(
-        std::env::var_os("MARENGO_CALIBRATION_RECORD"),
-        Some(root.join("missing-calibration.yaml").into_os_string())
     );
     assert!(std::env::var_os("MARENGO_POSITION_TRACE").is_none());
     exercise_bound(&root, input, expected_faults, hardware_estop);

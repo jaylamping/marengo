@@ -10,7 +10,7 @@ Marengo is a personal humanoid robot in one repo: CAD manifests, wiring docs, UR
 
 | Name | Role |
 |---|---|
-| **Armée** | Rust workspace (`Cargo.toml`): 16 crates + 6 bins |
+| **Armée** | Rust workspace (`Cargo.toml`): 15 crates + 6 bins |
 | **Chappe** | Topic bus (protobuf envelopes) + Unix-socket IPC between `marengo-pi` and `marengo-gateway` |
 | **Berthier** | 200 Hz control loop (`ControlLoop::tick`): trajectories, τ_g, hold law, fuses |
 | **Davout** | Safety supervisor (`Supervisor`): **sole path to motors**, reference authority |
@@ -154,7 +154,7 @@ just sim-check                      # MuJoCo smoke + cargo test -p sim-harness
 - **Ephemeral limb narrowing:** `MARENGO_JOINT_SUBSET=a,b` (unknown names fail closed). Never fork master config per profile.
 - **Config/URDF writes:** hold `ProfileWriteLock` and write through `write_atomic` / `write_profile_file_atomic` (unique temp + fsync + rename + dir fsync, `crates/marengo-config/src/atomic_file.rs`). Revisions are SHA-256 over the four master YAMLs (`config_revision.rs`). Clients send the revision they read, and an empty or stale revision is refused (CAS). The lock file `config/.marengo-profile.lock` is gitignored.
 - **Naming:** Napoleonic codenames for the core (Berthier, Davout, Chappe, Consul) and `marengo-*` for infrastructure. Read each crate's `src/lib.rs` `//!` before editing. Keep bins thin and logic in `crates/`.
-- **Tests:** large suites live in `#[cfg(test)] #[path = "x_tests/<topic>.rs"] mod …`. Shared fixtures are reused via `#[path]` (e.g. `marengo-homing/tests/support/mod.rs` `TestDirectory`). Never mutate the parent test process env; re-exec a child with env (see `bins/marengo-gateway/src/gateway_access_conformance_test.rs`).
+- **Tests:** large suites live in `#[cfg(test)] #[path = "x_tests/<topic>.rs"] mod …`. Shared fixtures are reused via `#[path]` (e.g. `davout/tests/support/mod.rs` `TestDirectory`). Never mutate the parent test process env; re-exec a child with env (see `bins/marengo-gateway/src/gateway_access_conformance_test.rs`).
 
 ### Safety hard rules (sources: `docs/safety.md`, ADRs)
 

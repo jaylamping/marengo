@@ -348,34 +348,6 @@ impl ControlLoop<davout::simulation::SimulationBus> {
             |root, bus| Supervisor::from_simulation(root, bus, initial_reference),
         )
     }
-
-    /// Closed virtual owner with an isolated historical inspection file.
-    /// The supplied path ignores the process calibration-history override.
-    pub fn from_simulation_with_calibration_record_path(
-        repo_root: impl AsRef<Path>,
-        bus: davout::simulation::SimulationBus,
-        record_path: impl AsRef<Path>,
-        initial_reference: davout::simulation::InitialVirtualReference,
-        loop_hz: u32,
-        chappe_hz: u32,
-    ) -> Result<Self, LoopError> {
-        let root = repo_root.as_ref();
-        Self::from_repo_inner(
-            root,
-            &root.join("config"),
-            bus,
-            loop_hz,
-            chappe_hz,
-            |root, bus| {
-                Supervisor::from_simulation_with_calibration_record_path(
-                    root,
-                    bus,
-                    record_path,
-                    initial_reference,
-                )
-            },
-        )
-    }
 }
 
 impl<B: MotorBus> ControlLoop<B> {
@@ -398,7 +370,7 @@ impl<B: MotorBus> ControlLoop<B> {
 
     /// [`Self::from_repo`] with the qualified physical Robstride reference owner
     /// (ADR 0036). `journal_path` must be absolute and distinct from the
-    /// calibration history; see `marengo_config::resolve_reference_journal_path`.
+    /// reserved history location; see `marengo_config::resolve_reference_journal_path`.
     pub fn from_repo_with_physical_reference(
         repo_root: impl AsRef<Path>,
         bus: B,
@@ -1882,9 +1854,16 @@ mod tests {
             .supervisor_mut()
             .set_homing_complete()
             .expect("ready");
+        let joints: Vec<String> = loop_ctrl
+            .supervisor()
+            .motors
+            .motors
+            .iter()
+            .map(|motor| motor.joint.clone())
+            .collect();
         loop_ctrl
             .supervisor_mut()
-            .request_enable(true)
+            .enable_targets(&joints)
             .expect("enable");
         queue_all_status(loop_ctrl.supervisor_mut(), initial);
         loop_ctrl
@@ -1915,9 +1894,16 @@ mod tests {
     fn enable_requires_verified_homing() {
         let mut loop_ctrl = ControlLoop::from_repo(repo_root(), MemoryBus::default(), 200, 50)
             .expect("ordinary unreferenced loop");
+        let joints: Vec<String> = loop_ctrl
+            .supervisor()
+            .motors
+            .motors
+            .iter()
+            .map(|motor| motor.joint.clone())
+            .collect();
         let err = loop_ctrl
             .supervisor_mut()
-            .request_enable(true)
+            .enable_targets(&joints)
             .expect_err("enable without homing");
         assert!(matches!(err, DavoutError::Homing { .. }));
     }
@@ -2154,9 +2140,16 @@ mod tests {
             .supervisor_mut()
             .set_homing_complete()
             .expect("ready");
+        let joints: Vec<String> = loop_ctrl
+            .supervisor()
+            .motors
+            .motors
+            .iter()
+            .map(|motor| motor.joint.clone())
+            .collect();
         loop_ctrl
             .supervisor_mut()
-            .request_enable(true)
+            .enable_targets(&joints)
             .expect("active without pose");
         let refusals = [
             loop_ctrl.enter_position_hold().map(|()| 0.0),
@@ -2219,9 +2212,16 @@ mod tests {
             .supervisor_mut()
             .set_homing_complete()
             .expect("ready");
+        let joints: Vec<String> = loop_ctrl
+            .supervisor()
+            .motors
+            .motors
+            .iter()
+            .map(|motor| motor.joint.clone())
+            .collect();
         loop_ctrl
             .supervisor_mut()
-            .request_enable(true)
+            .enable_targets(&joints)
             .expect("active without pose");
         loop_ctrl.set_control_mode(ControlMode::Position);
         assert_eq!(loop_ctrl.supervisor().mode(), OperationalMode::Active);
@@ -2254,9 +2254,16 @@ mod tests {
             loop_ctrl.tick(None).expect("disabled ticks");
         }
         assert!(loop_ctrl.tick_count() >= 5);
+        let joints: Vec<String> = loop_ctrl
+            .supervisor()
+            .motors
+            .motors
+            .iter()
+            .map(|motor| motor.joint.clone())
+            .collect();
         loop_ctrl
             .supervisor_mut()
-            .request_enable(true)
+            .enable_targets(&joints)
             .expect("enable");
         loop_ctrl.set_control_mode(ControlMode::Position);
         assert!(matches!(

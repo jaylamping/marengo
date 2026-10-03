@@ -169,10 +169,9 @@ struct Case {
 fn run_case(disable_on_exit: bool, failed_target_write: bool) -> Case {
     let (temp, config_dir) = copied_fixture();
     let original = std::fs::read(config_dir.join("control.yaml")).expect("pre-write bytes");
-    let mut controller = ControlLoop::from_simulation_with_calibration_record_path(
+    let mut controller = ControlLoop::from_simulation(
         temp.path(),
         SimulationBus::default(),
-        temp.path().join("history.yaml"),
         InitialVirtualReference::Unreferenced,
         200,
         25,

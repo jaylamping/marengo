@@ -6,6 +6,7 @@ use std::path::PathBuf;
 
 use crate::simulation::{InitialVirtualReference, SimulationBus};
 use crate::{build_limits, DavoutError, Supervisor};
+use marengo_config::motor_type_key;
 
 const JOINT: &str = "right_elbow_pitch";
 
@@ -40,6 +41,42 @@ fn inverted_or_nan_urdf_limits_are_an_error_not_a_panic() {
         assert!(
             matches!(err, DavoutError::Urdf(_)),
             "[{lower}, {upper}] -> {err}"
+        );
+    }
+}
+
+#[test]
+fn bench_torque_cap_never_binds_tau_ff_max() {
+    // P-davout-15: `build_limits` used to apply `.min(motor.bench.torque_limit_nm)`
+    // on top of `effort`, but `effort` already folds the bench cap in, so the extra
+    // `.min` could never change the result. Pin that redundancy: if a future config
+    // ever lets the bench cap bind beyond `effort`, this fails and the removal must
+    // be revisited.
+    let sup = supervisor();
+    let policies = build_limits(&sup.robot, &sup.motors, &sup.control, sup.urdf_robot())
+        .expect("master limits build");
+    assert!(!policies.is_empty(), "master config must cover joints");
+    for motor in &sup.motors.motors {
+        let policy = policies.get(&motor.joint).expect("joint policy");
+        let defaults = sup
+            .control
+            .control
+            .motor_type_defaults
+            .get(motor_type_key(motor.motor_type))
+            .expect("motor type defaults");
+        assert!(
+            policy.effort <= motor.bench.torque_limit_nm,
+            "{}: effort {} exceeds bench cap {}",
+            motor.joint,
+            policy.effort,
+            motor.bench.torque_limit_nm
+        );
+        let expected = policy.effort.min(defaults.tau_ff_max_nm);
+        assert!(
+            (policy.tau_ff_max - expected).abs() < 1e-12,
+            "{}: tau_ff_max {} != effort.min(defaults) {expected}",
+            motor.joint,
+            policy.tau_ff_max
         );
     }
 }

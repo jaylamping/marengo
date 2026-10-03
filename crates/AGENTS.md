@@ -1,6 +1,6 @@
 # crates/ — Armée libraries
 
-16 Rust crates, each with a `//!` crate-root doc declaring responsibilities, does-nots, and allowed deps. **Read `src/lib.rs` before editing any crate.**
+15 Rust crates, each with a `//!` crate-root doc declaring responsibilities, does-nots, and allowed deps. **Read `src/lib.rs` before editing any crate.**
 
 ## Codename map
 
@@ -14,7 +14,6 @@
 | `davout` | Davout | Safety gateway; **sole path to robstride** |
 | `robstride` | — | MIT CAN encode/decode, no policy |
 | `marengo-config` | — | `config/*.yaml` loaders |
-| `marengo-homing` | — | Homing state machine, zero registry |
 | `marengo-imu` | — | BNO085 SHTP/I2C driver, rotation-vector samples |
 | `marengo-support` | — | `init_tracing()` only |
 | `marengo-candump` | — | candump parse, summarize, page, optional Robstride enrichment |
@@ -29,12 +28,12 @@
 |------|----------|
 | Control loop tick | `berthier/src/loop.rs` (`ControlLoop`, `tick`) |
 | Safety supervisor | `davout/src/lib.rs:367` (`Supervisor` struct) |
-| `disable_all` / `request_enable` | `davout/src/lib.rs` |
+| `disable_all` / `enable_targets` | `davout/src/lib.rs` |
 | MIT CAN frame encode/decode | `robstride/src/` (`encode_*`, `decode_*` helpers) |
 | Gravity compensation | `armee-dynamics/src/` (`gravity_torques`) |
 | Velocity cap resolution | `marengo-config` (`resolve_joint_velocity_cap`) |
 | Chappe wire publish | `chappe/src/` + `chappe::tracing_layer` |
-| Homing state | `marengo-homing/src/` + `davout` `HomingRegistry` |
+| Homing state | `davout/src/homing_facets.rs` |
 
 ## Boundaries (CRITICAL)
 

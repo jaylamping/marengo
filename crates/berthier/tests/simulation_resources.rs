@@ -24,12 +24,8 @@ fn check_owner(owner: &Supervisor<SimulationBus>) {
 #[allow(clippy::panic)] // An unknown child selector is a test harness error.
 fn check_child(root: &Path, case: &str) {
     if case == "ordinary" {
-        let owner = Supervisor::from_repo_with_calibration_record_path(
-            root,
-            SimulationBus::default(),
-            root.join("ordinary-history.yaml"),
-        )
-        .expect("ordinary runtime constructor uses ambient configuration");
+        let owner = Supervisor::from_repo(root, SimulationBus::default())
+            .expect("ordinary runtime constructor uses ambient configuration");
         assert_eq!(owner.mode(), OperationalMode::Disabled);
         assert!(owner.control.control.bench.active_reporting_diagnostics);
         // Construction writes the first reporting On per interface; `sync`
@@ -56,7 +52,6 @@ fn check_child(root: &Path, case: &str) {
         )
         .expect("invalidate only copied fixture");
     }
-    let history = root.join("explicit-history.yaml");
     let build = case.trim_end_matches("-invalid");
     let result = match build {
         "supervisor" => Supervisor::from_simulation(
@@ -70,36 +65,9 @@ fn check_child(root: &Path, case: &str) {
             }
         })
         .map_err(|error| error.to_string()),
-        "supervisor-explicit" => Supervisor::from_simulation_with_calibration_record_path(
-            root,
-            SimulationBus::default(),
-            &history,
-            InitialVirtualReference::AllConfigured,
-        )
-        .map(|owner| {
-            if !invalid {
-                check_owner(&owner);
-            }
-        })
-        .map_err(|error| error.to_string()),
         "controller" => ControlLoop::from_simulation(
             root,
             SimulationBus::default(),
-            InitialVirtualReference::AllConfigured,
-            200,
-            50,
-        )
-        .map(|controller| {
-            if !invalid {
-                assert_eq!(controller.joint_names().len(), 5);
-                check_owner(controller.supervisor());
-            }
-        })
-        .map_err(|error| error.to_string()),
-        "controller-explicit" => ControlLoop::from_simulation_with_calibration_record_path(
-            root,
-            SimulationBus::default(),
-            &history,
             InitialVirtualReference::AllConfigured,
             200,
             50,
@@ -130,13 +98,7 @@ fn public_simulation_constructors_ignore_competing_config() {
     let source = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let ambient = support::FixtureTree::new("simulation-ambient", &source);
     let mut failures = Vec::new();
-    for constructor in [
-        "supervisor",
-        "supervisor-explicit",
-        "controller",
-        "controller-explicit",
-        "ordinary",
-    ] {
+    for constructor in ["supervisor", "controller", "ordinary"] {
         for suffix in ["", "-invalid"] {
             if constructor == "ordinary" && !suffix.is_empty() {
                 continue;
@@ -152,7 +114,6 @@ fn public_simulation_constructors_ignore_competing_config() {
                 .env(CHILD_CASE, &case)
                 .env(FIXTURE_ROOT, fixture.path())
                 .env("MARENGO_CONFIG_DIR", ambient.path().join("config"))
-                .env_remove("MARENGO_CALIBRATION_RECORD")
                 .env_remove("MARENGO_JOINT_SUBSET")
                 .output()
                 .expect("isolated constructor process");

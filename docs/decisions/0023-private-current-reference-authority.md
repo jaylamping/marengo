@@ -15,7 +15,9 @@ or correlated zero readback contract. A newer host timestamp is insufficient.
 ## Decision
 
 Davout owns one private current-reference authority at its output boundary.
-History and scalar policy checks in marengo-homing do not confer permission.
+Folded homing facets (`davout::{JointHomingState, JointFacetInput}`, formerly
+the `marengo-homing` crate retired in WP-T) project that authority but never
+confer permission.
 Checked Ready, every Enable entry point, Active shortcuts and motion output
 consult the same authority. Public facets project that authority. Arbitrary
 registry mutation, unchecked Ready, cache insertion and bench grants cease to

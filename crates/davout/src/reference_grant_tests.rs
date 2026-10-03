@@ -279,12 +279,13 @@ fn current_grant_requires_real_durable_fresh_consumption_and_covers_only_its_joi
     assert_eq!(owner.bus().transmissions().len(), before);
     assert_eq!(owner.joint_homing_state(PEER), JointHomingState::Unhomed);
     assert!(owner.set_homing_complete().is_err());
-    assert!(owner.request_enable(true).is_err());
+    let joints = owner.robot.robot.joints.clone();
+    assert!(owner.enable_targets(&joints).is_err());
     assert!(owner.enable_targets(&[PEER.into()]).is_err());
     assert_eq!(owner.bus().transmissions().len(), before);
     actual_output(&mut owner);
     owner
-        .request_enable(true)
+        .enable_targets(&[TARGET.into()])
         .expect("same selected Active shortcut");
     let before = owner.bus().transmissions().len();
     assert!(owner.send_mit_batch(vec![command(PEER)]).is_err());
@@ -645,9 +646,12 @@ fn current_grant_observed_policy_mutation_and_model_replacement_stay_revoked() {
                     .expect("bound policy")
                     .position_hold_trim_rad += 0.01
             }
-            _ => owner
-                .rebuild_limits()
-                .expect("real equal-value model installation"),
+            _ => {
+                let urdf_robot = owner.urdf_robot.clone();
+                owner
+                    .restore_limit_snapshot(motors.clone(), control.clone(), urdf_robot)
+                    .expect("real equal-value model installation")
+            }
         }
         assert_eq!(owner.joint_homing_state(TARGET), JointHomingState::Unhomed);
         owner.motors = motors;

@@ -4,17 +4,12 @@
 use davout::simulation::{InitialVirtualReference, SimulationBus};
 use davout::{DavoutError, JointHomingState, Supervisor};
 
-#[path = "../../marengo-homing/tests/support/mod.rs"]
-mod support;
-
 #[test]
 fn rejected_active_restore_cannot_replace_private_installed_model() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let directory = support::TestDirectory::new("model-restore-review-probe");
-    let mut supervisor = Supervisor::from_simulation_with_calibration_record_path(
+    let mut supervisor = Supervisor::from_simulation(
         root,
         SimulationBus::default(),
-        directory.path().join("history.yaml"),
         InitialVirtualReference::AllConfigured,
     )
     .expect("closed virtual initial reference");

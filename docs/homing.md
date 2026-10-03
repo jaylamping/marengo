@@ -38,16 +38,24 @@ Supervisor operational mode (unchanged):
 Disabled → Ready → Active
 ```
 
-`Ready` requires **all configured joints Verified** and no latched homing/sensor faults.
+`Ready` requires **all configured joints Verified** (Davout's private
+current-reference permission, via `set_homing_complete`) and no latched faults.
 
-Every new registry starts all configured joints `Unhomed`, including joints with
-apparently matching calibration history. Reading a saved row does not verify the
-current motor, reference or process. History stays available for inspection;
-missing history starts empty, while malformed or unreadable history returns an
-error without overwriting it. See
-[ADR 0022](decisions/0022-calibration-history-and-current-reference.md).
+Every startup begins `Unhomed`. Legacy calibration history is retired (WP-T):
+no history file is read, no history path is accepted, and malformed or missing
+legacy rows cannot fail construction or grant reference. The reserved history
+location (`homing.yaml calibration_record_path`, never read) only locates the
+reference journal beside it. See
+[ADR 0022](decisions/0022-calibration-history-and-current-reference.md) and its
+WP-T retirement note.
 
-## Sensor truth table (3-Hall layout)
+## Sensor truth table (3-Hall layout, deferred)
+
+Hall-sensor homing is deferred (D-4): the sensor module is removed and no live
+workflow reads Hall inputs. The mechanical layout in
+[hardware/docs/homing-sensors.md](../hardware/docs/homing-sensors.md) is
+retained for the future GPIO adapter. The truth table below documents the
+intended interpretation when that work lands.
 
 One magnet on the rotating member; three fixed Hall sensors on the housing.
 Truth table values are **logical active states after polarity normalization**.
@@ -72,7 +80,7 @@ Configured per joint in `config/homing.yaml` (see [ADR 0006](decisions/0006-homi
 | Method | When to use |
 |--------|-------------|
 | `manual_reference` | Supported mechanical placement at home, explicit sign attestation and qualified physical evidence after Set Zero ([ADR 0036](decisions/0036-physical-robstride-reference.md)). |
-| `hall_three_sensor` | **Unimplemented live workflow** — slow search, edge detect, backoff/re-approach, apply `home_offset_rad`, optional firmware `SetZero`. |
+| `hall_three_sensor` | **Retired** — the Hall sensor module is removed (D-4); this method has no live workflow and is rejected as unsupported. |
 | `none` | No physical reference workflow; it cannot establish live bench reference. |
 
 ## Qualified physical reference workflow
@@ -196,22 +204,22 @@ Neither proves firmware behavior or physical readiness. See
 If feedback is outside effective limits or zero is stale:
 
 1. Request stop from the installed owner and retain its delivery outcome; use the independent physical E-stop when needed.
-2. Manually move to a known safe pose **or** run constrained homing when Hall sensors exist.
+2. Manually move to a known safe pose. (Constrained Hall homing is deferred with the sensor module.)
 3. Re-run sign test if direction may have changed.
 4. Establish a qualified current reference (`home <joints> sign-tested` in the owning `marengo-pi`) before enable.
 
 Blind position hunting without sensors or operator reference is **not** allowed.
 
-## Calibration record
+## Retired calibration history
 
-Host-side history: `var/calibration/zero_registry.yaml` by default, or an absolute bench path such as `/opt/marengo/var/calibration/zero_registry.yaml` for live Pi profiles. The path is configurable via `homing.yaml`; Supervisor composition accepts a runtime override with `MARENGO_CALIBRATION_RECORD`. A relative override retains its process-working-directory interpretation. The pure homing library uses its supplied path and does not read environment variables.
-
-Records per joint: device ID, interface, method, offset, timestamp, config revision, verification result, sign-test status and operator. Construction preserves loaded rows and existing bytes. The current writer replaces the previous row for a joint; it is not yet an immutable transaction audit log. Firmware `SetZero` or a saved row alone does not establish current reference.
-
-The legacy scalar manual-history validator rejects nonfinite pose/bounds/
-tolerance/offset, negative tolerance, empty/reversed bounds, joint mismatches
-and unsupported Hall/None methods before state or history mutation. A valid
-scalar history record still conveys no output permission or device evidence.
+Host-side history (`var/calibration/zero_registry.yaml` by default) is retired
+(WP-T, D-3): nothing reads it, nothing writes it, and the `marengo-homing`
+crate (scalar verifier, YAML history, legacy registry, Hall sensors) is folded
+into `davout::homing_facets` or deleted. The `homing.yaml`
+`calibration_record_path` setting is retained because it locates the reference
+journal beside it (`MARENGO_REFERENCE_JOURNAL`, else the journal next to the
+reserved history path). A saved row or firmware `SetZero` alone never
+establishes current reference.
 
 ## Stale-zero triggers
 
@@ -222,7 +230,7 @@ Re-calibrate when:
 - Hall magnet or sensor replaced
 - `direction` or URDF limit changed
 - Verification fails after `set-zero`
-- New owner/process startup: current reference is unknown even when history exists
+- New owner/process startup: current reference is unknown; there is no history to consult
 
 ## Related docs
 

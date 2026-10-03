@@ -24,9 +24,9 @@ fn configured_socket_resolves_verbatim() {
 fn overruns_accumulate_as_lifetime_total() {
     let period = Duration::from_millis(5);
     let mut timing = LoopTimingWindow::new(0);
-    timing.record_tick(Duration::from_millis(1), period, 0, 0, 0);
+    timing.record_tick(Duration::from_millis(1), period, 0, 0);
     assert_eq!(timing.total_overruns(), 0);
-    timing.record_tick(Duration::from_millis(9), period, 0, 0, 0);
-    timing.record_tick(Duration::from_millis(6), period, 0, 0, 0);
+    timing.record_tick(Duration::from_millis(9), period, 0, 0);
+    timing.record_tick(Duration::from_millis(6), period, 0, 0);
     assert_eq!(timing.total_overruns(), 2);
 }

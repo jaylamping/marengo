@@ -67,17 +67,14 @@ struct Observed {
     final_unreferenced: bool,
     reenable_refused: bool,
     later_quiet: bool,
-    record_untouched: bool,
 }
 
 fn exercise_controller(peer_fault: bool) -> Observed {
     let source = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let fixture = fixture_tree_without_diagnostics("reference-owner-tick", &source);
-    let record_path = fixture.path().join("reference-history.yaml");
-    let mut ctrl = ControlLoop::from_simulation_with_calibration_record_path(
+    let mut ctrl = ControlLoop::from_simulation(
         fixture.path(),
         SimulationBus::default(),
-        &record_path,
         InitialVirtualReference::AllConfigured,
         200,
         50,
@@ -181,7 +178,6 @@ fn exercise_controller(peer_fault: bool) -> Observed {
         && ctrl.control_mode() == ControlMode::Disabled
         && ctrl.torque_cmd(TARGET) == 0.0
         && ctrl.gain_override(TARGET).is_none();
-    let record_untouched = !record_path.exists();
     // Bound cleanup even if a decisive assertion will reveal a failed phase.
     // Captured trace/outcome precede this fallback and cannot be masked by it.
     let _ = ctrl.supervisor_mut().cancel_reference_for_shutdown();
@@ -202,7 +198,6 @@ fn exercise_controller(peer_fault: bool) -> Observed {
         final_unreferenced,
         reenable_refused,
         later_quiet,
-        record_untouched,
     }
 }
 
@@ -284,10 +279,6 @@ fn assert_complete_controller_contract(observed: &Observed) {
     assert!(
         observed.later_quiet,
         "terminal tick resumed intent or repeated stop writes"
-    );
-    assert!(
-        observed.record_untouched,
-        "acquisition published historical permission"
     );
 }
 

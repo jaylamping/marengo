@@ -4,7 +4,9 @@
 use davout::simulation::{SimulationBus, SimulationReceive, TxMatcher, TxOccurrence, TxRule};
 use std::time::Instant;
 
-use davout::{FaultClass, MitJointCommand, OperationalMode, StopAction, Supervisor};
+use davout::{
+    FaultClass, JointHomingState, MitJointCommand, OperationalMode, StopAction, Supervisor,
+};
 use marengo_config::MotorEntry;
 use robstride::{
     BusError, CanFrame, FeedbackReport, MalformedReason, MotorAddress, MotorBus, ReceiveCompletion,
@@ -234,7 +236,7 @@ fn every_short_status_shape_latches_without_installing_pose() {
             assert_all_stop_attempts(&supervisor);
             assert_eq!(
                 supervisor.joint_homing_state(&motor.joint),
-                marengo_homing::JointHomingState::Faulted
+                JointHomingState::Faulted
             );
             supervisor.bus_mut().clear_trace();
             assert!(supervisor
@@ -565,14 +567,11 @@ fn unknown_flood_retains_work_limit_stats_and_attempts_every_stop() {
 }
 
 #[test]
-fn ordinary_empty_refresh_and_timeout_remain_benign() {
+fn ordinary_empty_drain_and_timeout_remain_benign() {
     let mut supervisor = supervisor();
     // Startup may configure diagnostic Active Reporting; it is not a stop attempt.
     supervisor.bus_mut().clear_trace();
-    assert_eq!(
-        supervisor.refresh_feedback().expect("empty quiet timeout"),
-        0
-    );
+    assert_eq!(supervisor.drain_feedback().expect("empty drain"), 0);
     supervisor
         .bus_mut()
         .queue_feedback_report(FeedbackReport {

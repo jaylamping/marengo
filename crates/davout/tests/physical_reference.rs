@@ -2,7 +2,7 @@
 //! `Supervisor` APIs against a test-only firmware emulator. No hardware transport.
 #![allow(clippy::expect_used, clippy::panic)]
 
-#[path = "../../marengo-homing/tests/support/mod.rs"]
+#[path = "support/mod.rs"]
 mod support;
 
 mod physical_firmware;
@@ -95,13 +95,11 @@ impl Bench {
     fn physical(label: &str) -> Self {
         let directory = TestDirectory::new(label);
         let root = fixture_root(directory.path());
-        let record = directory.path().join("history.yaml");
         let journal = directory.path().join("reference-journal.sqlite3");
         let firmware = firmware_for(&root);
-        let supervisor = Supervisor::from_repo_with_physical_reference_and_record_path(
+        let supervisor = Supervisor::from_repo_with_physical_reference(
             &root,
             FirmwareBus(firmware.clone()),
-            &record,
             &journal,
         )
         .expect("physical reference owner");
@@ -165,7 +163,7 @@ impl Bench {
     /// One report from every streaming drive, then one control-loop drain.
     fn pump_once(&mut self) {
         self.firmware.borrow_mut().emit_reports();
-        self.supervisor.tick_active_reporting_leases();
+        self.supervisor.sync_active_reporting();
         let _ = self.supervisor.drain_feedback();
     }
 
@@ -617,7 +615,14 @@ fn identity_mismatch_at_enable_revokes_without_enable() {
     bench.firmware.borrow_mut().drive_mut(PITCH).uid[0] ^= 0xff;
     bench.pump(Duration::from_millis(20));
     assert_eq!(bench.state(PITCH), JointHomingState::Unhomed);
-    assert!(bench.supervisor.request_enable(true).is_err());
+    let joints: Vec<String> = bench
+        .supervisor
+        .motors
+        .motors
+        .iter()
+        .map(|motor| motor.joint.clone())
+        .collect();
+    assert!(bench.supervisor.enable_targets(&joints).is_err());
     assert_eq!(bench.sent_any(CommunicationType::Enable), 0);
 }
 
@@ -1523,14 +1528,14 @@ fn own_frame_echoes_are_never_drive_feedback_or_liveness() {
             .supervisor
             .send_mit_batch(vec![neutral()])
             .and_then(|()| {
-                bench.supervisor.tick_active_reporting_leases();
+                bench.supervisor.sync_active_reporting();
                 bench.supervisor.drain_feedback()
             });
         if let Err(error) = tick {
             break error;
         }
         assert_eq!(
-            bench.supervisor.last_refresh_frame_count(),
+            tick.expect("successful echo-only drain"),
             0,
             "an echo is not a decoded drive frame"
         );
@@ -1655,7 +1660,7 @@ impl Bench {
     /// otherwise.
     fn runtime_tick(&mut self) {
         self.firmware.borrow_mut().emit_reports();
-        self.supervisor.tick_active_reporting_leases();
+        self.supervisor.sync_active_reporting();
         if self.supervisor.reference_work_pending() {
             self.supervisor
                 .advance_reference_work()

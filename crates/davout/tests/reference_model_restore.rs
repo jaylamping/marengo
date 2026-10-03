@@ -4,17 +4,12 @@
 use davout::simulation::{InitialVirtualReference, SimulationBus};
 use davout::{DavoutError, ReferenceCancelReason, ReferencePhase, ReferenceRequest, Supervisor};
 
-#[path = "../../marengo-homing/tests/support/mod.rs"]
-mod directory;
-
 #[test]
 fn model_restore_refuses_while_reserved_and_succeeds_after_cleanup() {
-    let directory = directory::TestDirectory::new("reserved-model-restore");
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let mut owner = Supervisor::from_simulation_with_calibration_record_path(
+    let mut owner = Supervisor::from_simulation(
         root,
         SimulationBus::default(),
-        directory.path().join("history.yaml"),
         InitialVirtualReference::Unreferenced,
     )
     .expect("actual isolated virtual owner");
@@ -68,9 +63,7 @@ fn model_restore_refuses_while_reserved_and_succeeds_after_cleanup() {
         .limit
         .upper;
     let usable = owner.reference_snapshot().usable_reference;
-    let history_exists = directory.path().join("history.yaml").exists();
     drop(owner);
-    drop(directory);
 
     assert!(
         matches!(attempted, Err(DavoutError::ReferenceBusy { .. })),
@@ -84,5 +77,4 @@ fn model_restore_refuses_while_reserved_and_succeeds_after_cleanup() {
     outside.expect("same valid model installs outside the reservation");
     assert_eq!(outside_upper, before_upper - 0.05);
     assert!(!usable);
-    assert!(!history_exists);
 }

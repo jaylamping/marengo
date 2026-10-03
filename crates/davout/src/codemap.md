@@ -16,8 +16,8 @@
 - `JointCommand` / `MitJointCommand` / `SpeedCommand` — command DTOs before/after filtering.
 - `DavoutError` — typed invalid requests/runtime failures, persistent `FaultLatched`, and truthful aggregate `StopDelivery` errors.
 - `validate_control_candidate` — read-only combined policy validation for control overlays before live/durable installation.
-- `from_repo` / `from_repo_with_calibration_record_path` share one initializer with the closed simulation constructors. Ordinary construction resolves runtime configuration; simulation takes the supplied root's `config/` directly (ADR0031). Composition selects the legacy environment or explicit supplied history path; historical rows remain inspectable but ordinary startup state is Unhomed. History read/parse failures precede diagnostic TX. Mutable registry/unchecked Ready/synthetic pose/generic mutable bus APIs are removed. Plain constructors have no reference backend and refuse with `ReferenceUnsupported` (ADRs 0022/0023).
-- `from_repo_with_physical_reference(root, bus, journal)` / `from_repo_with_physical_reference_and_record_path(root, bus, record, journal)` (ADR 0036) install the physical backend, absolute distinct journal and `CurrentPhysical` selection. `calibrate_joint_zero` drives that workflow to a terminal outcome (2 ms poll, `search_timeout_s` + 10 s, `disable_all` on timeout). `verify_physical_identities` re-reads type-0 for every Enable target before any Enable frame; `reference_binding_valid` revokes per joint on epoch/UID/liveness change.
+- `from_repo` shares one initializer with the closed simulation constructors. Ordinary construction resolves runtime configuration; simulation takes the supplied root's `config/` directly (ADR0031). Legacy calibration history is never read and no history path is accepted: every startup is Unhomed, and only a qualified reference workflow grants current reference. The reserved history location (`homing.yaml calibration_record_path`, never read) must stay distinct from the reference journal. Mutable registry/unchecked Ready/synthetic pose/generic mutable bus APIs are removed. Plain constructors have no reference backend and refuse with `ReferenceUnsupported` (ADRs 0022/0023).
+- `from_repo_with_physical_reference(root, bus, journal)` (ADR 0036) install the physical backend, absolute distinct journal and `CurrentPhysical` selection. `calibrate_joint_zero` drives that workflow to a terminal outcome (2 ms poll, `search_timeout_s` + 10 s, `disable_all` on timeout). `verify_physical_identities` re-reads type-0 for every Enable target before any Enable frame; `reference_binding_valid` revokes per joint on epoch/UID/liveness change.
 
 ## Flow
 Enable path: normal/scoped/Active-shortcut private reference gate → complete bounded drain of old queued status → preflight/drive enable → complete final nonblocking drain and repeated authority gate → new receive session → `OperationalMode::Active`. Saturated preflush refuses activation; saturated/malformed final flush rolls back through all-address stop.
@@ -30,5 +30,5 @@ Feedback: observe current reference binding → bounded `recv_feedback_report` �
 
 ## Integration
 - Re-exports `MotorBus`, `MemoryBus` from robstride for test injection
-- Re-exports `JointHomingState` from marengo-homing
+- Re-exports `JointHomingState`, `JointFacetInput` from the folded `homing_facets` module
 - Called exclusively by Berthier control loop and motor-repl commands

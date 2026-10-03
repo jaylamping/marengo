@@ -30,9 +30,16 @@ fn active_gravity_comp() -> ControlLoop<SimulationBus> {
         .supervisor_mut()
         .set_homing_complete()
         .expect("ready");
+    let joints: Vec<String> = controller
+        .supervisor()
+        .motors
+        .motors
+        .iter()
+        .map(|motor| motor.joint.clone())
+        .collect();
     controller
         .supervisor_mut()
-        .request_enable(true)
+        .enable_targets(&joints)
         .expect("recording enable");
     controller.set_control_mode(ControlMode::GravityComp);
     // Fresh status for every joint, so the neutral bootstrap completes and the

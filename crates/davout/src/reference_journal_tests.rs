@@ -406,10 +406,9 @@ fn actual_sql_lock_is_failure_and_does_not_replace_or_overwrite_history() {
 #[test]
 fn ordinary_constructors_and_foreign_handles_never_gain_journal_capability() {
     let tree = tree();
-    let mut ordinary = Supervisor::from_simulation_with_calibration_record_path(
+    let mut ordinary = Supervisor::from_simulation(
         tree.path(),
         SimulationBus::default(),
-        tree.path().join("default.yaml"),
         InitialVirtualReference::Unreferenced,
     )
     .expect("ordinary virtual factory");
@@ -585,8 +584,13 @@ fn restored_policy_bits_cannot_restore_observed_pending_eligibility() {
         .begin_reference_commit(&acquisition, audit())
         .expect("real job");
     assert!(pause.wait_paused(WAIT));
+    let motors = owner.motors.clone();
+    let control = owner.control.clone();
+    let urdf_robot = owner.urdf_robot.clone();
     assert!(
-        owner.rebuild_limits().is_err(),
+        owner
+            .restore_limit_snapshot(motors, control, urdf_robot)
+            .is_err(),
         "eligible pending commit excludes typed installs"
     );
     owner.control.control.comm_watchdog_ms = original + 1;
@@ -743,8 +747,11 @@ fn exact_urdf_optional_fields_and_policy_scalars_survive_real_sql_reopen() {
         k_velocity: -0.0,
     });
     owner.control.control.comm_watchdog_ms = 9_007_199_254_740_993;
+    let motors = owner.motors.clone();
+    let control = owner.control.clone();
+    let urdf_robot = owner.urdf_robot.clone();
     owner
-        .rebuild_limits()
+        .restore_limit_snapshot(motors, control, urdf_robot)
         .expect("typed immutable model install before acquisition");
     let expected_urdf = owner.urdf_robot.clone();
     let acquired = acquire(&mut owner);

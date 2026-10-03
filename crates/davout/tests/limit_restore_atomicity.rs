@@ -3,18 +3,9 @@
 
 use davout::{MemoryBus, Supervisor};
 
-#[path = "../../marengo-homing/tests/support/mod.rs"]
-mod support;
-
 fn supervisor() -> Supervisor<MemoryBus> {
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let directory = support::TestDirectory::new("limit-restore-atomicity");
-    Supervisor::from_repo_with_calibration_record_path(
-        root,
-        MemoryBus::default(),
-        directory.path().join("history.yaml"),
-    )
-    .expect("ordinary unqualified owner")
+    Supervisor::from_repo(root, MemoryBus::default()).expect("ordinary unqualified owner")
 }
 
 fn snapshot(

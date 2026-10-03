@@ -8,22 +8,13 @@ use davout::{
 };
 use robstride::CanFrame;
 
-#[path = "../../marengo-homing/tests/support/mod.rs"]
-mod directory;
-
 fn root() -> std::path::PathBuf {
     std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
 fn virtual_supervisor(initial: InitialVirtualReference) -> Supervisor<SimulationBus> {
-    let fixture = directory::TestDirectory::new("current-reference");
-    Supervisor::from_simulation_with_calibration_record_path(
-        root(),
-        SimulationBus::default(),
-        fixture.path().join("history.yaml"),
-        initial,
-    )
-    .expect("INITIAL virtual reference")
+    Supervisor::from_simulation(root(), SimulationBus::default(), initial)
+        .expect("INITIAL virtual reference")
 }
 
 fn command(joint: &str) -> MitJointCommand {
@@ -47,13 +38,8 @@ fn pose(device: u8) -> CanFrame {
 
 #[test]
 fn direct_scoped_enable_on_fresh_unhomed_refuses_before_arming() {
-    let fixture = directory::TestDirectory::new("unhomed-direct");
-    let mut supervisor = Supervisor::from_repo_with_calibration_record_path(
-        root(),
-        MemoryBus::default(),
-        fixture.path().join("history.yaml"),
-    )
-    .expect("ordinary unqualified Supervisor");
+    let mut supervisor = Supervisor::from_repo(root(), MemoryBus::default())
+        .expect("ordinary unqualified Supervisor");
     let joint = supervisor.motors.motors[0].joint.clone();
     let before = supervisor.bus().tx.clone();
     assert_eq!(
@@ -67,22 +53,22 @@ fn direct_scoped_enable_on_fresh_unhomed_refuses_before_arming() {
         before,
         "reference refusal transmitted frames"
     );
-    assert!(!fixture.path().join("history.yaml").exists());
 }
 
 #[test]
 fn ordinary_constructor_does_not_grant_reference_even_for_concrete_simulation_bus() {
-    let fixture = directory::TestDirectory::new("ordinary-simulation");
-    let mut supervisor = Supervisor::from_repo_with_calibration_record_path(
-        root(),
-        SimulationBus::default(),
-        fixture.path().join("history.yaml"),
-    )
-    .expect("ordinary constructor");
+    let mut supervisor =
+        Supervisor::from_repo(root(), SimulationBus::default()).expect("ordinary constructor");
     let joint = supervisor.motors.motors[0].joint.clone();
+    let joints: Vec<String> = supervisor
+        .motors
+        .motors
+        .iter()
+        .map(|motor| motor.joint.clone())
+        .collect();
     let before = supervisor.bus().frames().len();
     assert!(supervisor.set_homing_complete().is_err());
-    assert!(supervisor.request_enable(true).is_err());
+    assert!(supervisor.enable_targets(&joints).is_err());
     assert!(supervisor.enable_targets(&[joint]).is_err());
     assert_eq!(supervisor.bus().frames().len(), before);
     assert!(
@@ -92,32 +78,16 @@ fn ordinary_constructor_does_not_grant_reference_even_for_concrete_simulation_bu
 }
 
 #[test]
-fn legacy_reference_routes_refuse_before_tx_or_history_write() {
-    let fixture = directory::TestDirectory::new("legacy-reference-refusal");
-    let path = fixture.path().join("history.yaml");
+fn unqualified_calibration_refuses_before_tx_or_history_write() {
     let mut supervisor =
-        Supervisor::from_repo_with_calibration_record_path(root(), MemoryBus::default(), &path)
-            .expect("ordinary constructor");
+        Supervisor::from_repo(root(), MemoryBus::default()).expect("ordinary constructor");
     let joint = supervisor.motors.motors[0].joint.clone();
     let before = supervisor.bus().tx.clone();
-    assert!(matches!(
-        supervisor.verify_zero_after_set(&joint, "operator", true),
-        Err(DavoutError::ReferenceUnsupported { .. })
-    ));
     assert!(matches!(
         supervisor.calibrate_joint_zero(&joint, "operator", true),
         Err(DavoutError::ReferenceUnsupported { .. })
     ));
-    assert!(matches!(
-        supervisor.request_enable_for_calibration(),
-        Err(DavoutError::ReferenceUnsupported { .. })
-    ));
-    assert!(matches!(
-        supervisor.set_zero_position(&joint),
-        Err(DavoutError::ReferenceUnsupported { .. })
-    ));
     assert_eq!(supervisor.bus().tx, before);
-    assert!(!path.exists());
     assert!(!supervisor.has_latched_fault());
     assert_eq!(
         supervisor.joint_homing_state(&joint),
@@ -147,10 +117,7 @@ fn initial_virtual_reference_is_owner_local_and_independent_of_history_state() {
     let mut granted = virtual_supervisor(InitialVirtualReference::AllConfigured);
     let mut unreferenced = virtual_supervisor(InitialVirtualReference::Unreferenced);
     let joint = granted.motors.motors[0].joint.clone();
-    assert_eq!(
-        granted.homing_registry().joint_state(&joint),
-        JointHomingState::Unhomed
-    );
+    // No legacy registry remains: only the private authority projects Verified.
     assert_eq!(
         granted.joint_homing_state(&joint),
         JointHomingState::Verified
@@ -190,7 +157,7 @@ fn initial_reference_covers_only_declared_joints() {
         .enable_targets(std::slice::from_ref(&pitch))
         .expect("scoped initial reference");
     supervisor
-        .request_enable(true)
+        .enable_targets(std::slice::from_ref(&pitch))
         .expect("current scoped set remains authorized");
     supervisor.disable_all().expect("ordinary stop");
     supervisor.bus_mut().clear_trace();
@@ -325,8 +292,14 @@ fn stale_reference_cannot_pass_active_shortcuts_or_output() {
             .enable_targets(std::slice::from_ref(&joint))
             .expect("enable");
         supervisor.motors.motors[0].direction *= -1;
+        let joints: Vec<String> = supervisor
+            .motors
+            .motors
+            .iter()
+            .map(|motor| motor.joint.clone())
+            .collect();
         let result = match entry {
-            0 => supervisor.request_enable(true),
+            0 => supervisor.enable_targets(&joints),
             1 => supervisor.enable_targets(std::slice::from_ref(&joint)),
             _ => supervisor.send_mit_batch(vec![command(&joint)]),
         };
@@ -366,7 +339,13 @@ fn valid_output_only_cap_and_watchdog_changes_preserve_reference() {
     supervisor
         .set_homing_complete()
         .expect("validated compatible output policy");
-    supervisor.request_enable(true).expect("enable");
+    let joints: Vec<String> = supervisor
+        .motors
+        .motors
+        .iter()
+        .map(|motor| motor.joint.clone())
+        .collect();
+    supervisor.enable_targets(&joints).expect("enable");
     assert_eq!(
         supervisor.joint_homing_state(&joint),
         JointHomingState::Verified
@@ -422,7 +401,12 @@ fn fault_and_stop_uncertainty_revoke_initial_reference_without_automatic_recover
 fn rebuilding_limits_revokes_initial_reference() {
     let mut supervisor = virtual_supervisor(InitialVirtualReference::AllConfigured);
     let joint = supervisor.motors.motors[0].joint.clone();
-    supervisor.rebuild_limits().expect("valid rebuilt policy");
+    let motors = supervisor.motors.clone();
+    let control = supervisor.control.clone();
+    let urdf_robot = supervisor.urdf_robot().clone();
+    supervisor
+        .restore_limit_snapshot(motors, control, urdf_robot)
+        .expect("valid rebuilt policy");
     assert_eq!(
         supervisor.joint_homing_state(&joint),
         JointHomingState::Unhomed
@@ -433,13 +417,10 @@ fn rebuilding_limits_revokes_initial_reference() {
 }
 
 #[test]
-fn cached_valid_run_pose_cannot_qualify_legacy_set_zero_or_write_history() {
-    let fixture = directory::TestDirectory::new("cached-reference-refusal");
-    let path = fixture.path().join("history.yaml");
-    let mut supervisor = Supervisor::from_simulation_with_calibration_record_path(
+fn cached_valid_run_pose_cannot_qualify_enable_or_write_history() {
+    let mut supervisor = Supervisor::from_simulation(
         root(),
         SimulationBus::default(),
-        &path,
         InitialVirtualReference::Unreferenced,
     )
     .expect("unreferenced virtual owner");
@@ -454,16 +435,8 @@ fn cached_valid_run_pose_cannot_qualify_legacy_set_zero_or_write_history() {
         "valid cache was never reached"
     );
     supervisor.bus_mut().clear_trace();
-    assert!(matches!(
-        supervisor.verify_zero_after_set(&motor.joint, "operator", true),
-        Err(DavoutError::ReferenceUnsupported { .. })
-    ));
-    assert!(matches!(
-        supervisor.set_zero_position(&motor.joint),
-        Err(DavoutError::ReferenceUnsupported { .. })
-    ));
+    assert!(supervisor.enable_targets(&[motor.joint.clone()]).is_err());
     assert!(supervisor.bus().frames().is_empty());
-    assert!(!path.exists());
     assert_eq!(
         supervisor.joint_homing_state(&motor.joint),
         JointHomingState::Unhomed

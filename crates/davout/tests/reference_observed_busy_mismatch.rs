@@ -136,10 +136,9 @@ fn observed_reserved_or_armed_mapping_mismatch_cannot_resume_after_restoration()
         let history = fixture.path().join("history.yaml");
         std::fs::write(&history, HISTORY).expect("inspection-only historical neighbor");
         let robot = load_robot_config_from(&config).expect("actual copied robot policy");
-        let mut owner = Supervisor::from_simulation_with_calibration_record_path(
+        let mut owner = Supervisor::from_simulation(
             fixture.path(),
             SimulationBus::default(),
-            &history,
             InitialVirtualReference::Unreferenced,
         )
         .expect("closed reference owner without an initial grant");

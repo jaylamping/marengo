@@ -1812,17 +1812,13 @@ mod tests {
     use super::*;
     use crate::simulation::{InitialVirtualReference, SimulationBus};
 
-    use crate::test_directory as directory;
-
     #[test]
     fn exhausted_identity_and_virtual_time_refuse_before_revocation_or_tx() {
         for exhaust_identity in [true, false] {
-            let directory = directory::TestDirectory::new("reference-exhaustion");
             let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-            let mut owner = Supervisor::from_simulation_with_calibration_record_path(
+            let mut owner = Supervisor::from_simulation(
                 root,
                 SimulationBus::default(),
-                directory.path().join("history.yaml"),
                 InitialVirtualReference::Unreferenced,
             )
             .expect("actual closed owner");
@@ -1859,7 +1855,6 @@ mod tests {
             assert_eq!(owner.bus().frames(), before);
             assert_eq!(owner.reference_generation(), generation);
             assert!(!owner.reference_busy());
-            assert!(!directory.path().join("history.yaml").exists());
         }
     }
 
@@ -1870,12 +1865,10 @@ mod tests {
     /// forces one white-box: the reservation's target is not an installed drive after arming.
     #[test]
     fn error_exit_after_arming_runs_the_all_address_stop() {
-        let directory = directory::TestDirectory::new("reference-error-exit-stop");
         let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let mut owner = Supervisor::from_simulation_with_calibration_record_path(
+        let mut owner = Supervisor::from_simulation(
             root,
             SimulationBus::default(),
-            directory.path().join("history.yaml"),
             InitialVirtualReference::Unreferenced,
         )
         .expect("actual closed owner");

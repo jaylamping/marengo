@@ -2,7 +2,8 @@
 #![allow(clippy::expect_used, clippy::panic)]
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -33,7 +34,7 @@ impl TestDirectory {
         for _ in 0..64 {
             let sequence = NEXT_DIRECTORY.fetch_add(1, Ordering::Relaxed);
             let path = base.join(format!(
-                "marengo-homing-{label}-{}-{time}-{sequence}",
+                "marengo-davout-{label}-{}-{time}-{sequence}",
                 std::process::id()
             ));
             match fs::create_dir(&path) {

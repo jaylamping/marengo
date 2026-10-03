@@ -16,7 +16,6 @@ Workspace library crates implementing the Marengo humanoid robot's control stack
 | `davout` | Safety gateway: the only crate that sends motion to robstride; state machine, limit filtering, joint↔motor transform |
 | `robstride` | Pure CAN transport driver: encode/decode Robstride MIT frames (29-bit extended protocol), no policy |
 | `marengo-config` | YAML/URDF config loading: robot.yaml, motors.yaml, control.yaml, homing.yaml |
-| `marengo-homing` | Joint homing registry: encoder zero verification, calibration record persistence |
 | `marengo-support` | `init_tracing()` (RUST_LOG filter) only |
 | `marengo-store` | Time-series key-value store for telemetry replay |
 | `marengo-imu` | BNO085 IMU driver (marengo-pi publishes the samples) |
