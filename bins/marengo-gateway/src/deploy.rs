@@ -241,6 +241,9 @@ mod tests {
 
     const TOKEN: &str = "deploy-gate-test-token";
 
+    /// Both deploy tests take the process-wide `DEPLOY_LOCK` via `try_lock`
+    /// and mutate `MARENGO_DEPLOY_JOB_FILE`: run them one at a time.
+    static TEST_SERIAL: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
     struct JobFileEnv {
         prior: Option<String>,
     }
@@ -278,6 +281,7 @@ mod tests {
         use crate::access::{AccessPolicy, Capability};
         use armee_proto::{Heartbeat, OperationalMode, SafetyState};
 
+        let _serial = TEST_SERIAL.lock().await;
         let dir = tempfile::tempdir().expect("fixture");
         let job_path = dir.path().join("deploy-job.json");
         std::fs::write(&job_path, b"{ torn ledger").expect("corrupt fixture");
@@ -338,6 +342,7 @@ mod tests {
     #[tokio::test]
     async fn deploy_refuses_when_runtime_evidence_is_missing() {
         use crate::access::{AccessPolicy, Capability};
+        let _serial = TEST_SERIAL.lock().await;
 
         let state = std::sync::Arc::new(
             crate::state::AppState::new(std::sync::Arc::new(chappe::Bus::default())).with_access(

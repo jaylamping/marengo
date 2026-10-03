@@ -1,7 +1,7 @@
 //! Import systemd journal lines into `log_events` (Pi maintenance).
 
 #[cfg(target_os = "linux")]
-use std::io::BufRead;
+use std::io::{BufRead, Read};
 #[cfg(target_os = "linux")]
 use std::process::{Command, Stdio};
 
@@ -25,10 +25,11 @@ const DEFAULT_LOOKBACK_MS: u64 = 24 * 60 * 60 * 1000;
 /// Events per insert transaction; bounds import memory on a busy journal.
 #[cfg(target_os = "linux")]
 const IMPORT_BATCH: usize = 500;
+#[cfg(target_os = "linux")]
+const MAX_LINE_BYTES: usize = 1024 * 1024;
 /// Single journal lines past this are skipped (their cursors are unknown, so
 /// nothing advances for the skipped line); bounds one huge line from
 /// ballooning import memory.
-
 /// Units imported into structured logs (`target` prefix `systemd:`).
 pub const JOURNAL_UNITS: &[&str] = &["marengo-pi", "marengo-can", "marengo-gateway"];
 
@@ -117,7 +118,9 @@ fn import_journal_linux(store: &Store, units: &[&str]) -> Result<u32> {
         Some(cursor) if !cursor.trim().is_empty() => {
             cmd.args(["--after-cursor", cursor.trim()]);
         }
-        None => match store
+        // Whitespace-only cursor: no position to resume from; fall through
+        // to the legacy-millisecond/default lookback below.
+        Some(_) | None => match store
             .get_setting(LEGACY_CURSOR_KEY)?
             .and_then(|value| value.parse::<u64>().ok())
         {
