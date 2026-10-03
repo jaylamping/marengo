@@ -10,8 +10,8 @@ use thiserror::Error;
 use crate::comm::{self, CommunicationType};
 use crate::command::CommandError;
 use crate::feedback::{
-    DetailedFaultFeedback, DriveMode, EnableEchoObservation, FeedbackEvent, FeedbackObservation,
-    FeedbackReport, IdentityObservation, MalformedFeedback, MalformedReason,
+    DetailedFaultFeedback, DriveMode, EchoedCommand, FeedbackEvent, FeedbackObservation,
+    FeedbackReport, HostEchoObservation, IdentityObservation, MalformedFeedback, MalformedReason,
     ParameterReadObservation, TransportObservation,
 };
 use crate::identity;
@@ -716,20 +716,30 @@ fn ingest_feedback_frames(
             continue;
         }
         if comm_type == CommunicationType::Enable {
-            ingest_enable_echo(motor_types, report, order, timed);
+            ingest_host_echo(motor_types, report, order, timed, EchoedCommand::Enable);
             continue;
         }
         let device_id = comm::inbound_motor_device_id(frame.id, comm_type);
         if device_id == comm::DEFAULT_HOST_ID {
             // A type-24 command from a host (this one's echo or another local
             // socket's loopback) carries the host id where reports carry the drive.
-            trace_skipped_frame(
-                received.interface.as_deref(),
-                frame.id,
-                "host-command",
-                None,
-                Some(ext.comm_type),
-            );
+            if comm_type == CommunicationType::ActiveReporting {
+                ingest_host_echo(
+                    motor_types,
+                    report,
+                    order,
+                    timed,
+                    EchoedCommand::ReportingOff,
+                );
+            } else {
+                trace_skipped_frame(
+                    received.interface.as_deref(),
+                    frame.id,
+                    "host-command",
+                    None,
+                    Some(ext.comm_type),
+                );
+            }
             continue;
         }
         let Some((address, motor_type)) =
@@ -817,18 +827,24 @@ fn ingest_feedback_frames(
     }
 }
 
-/// Exactly the frame [`MotorBus::enable_drive_at`] transmits, to a configured
-/// address. Any other type-3 envelope is not this host's Enable.
-fn ingest_enable_echo(
+/// Exactly the frame [`MotorBus::enable_drive_at`] or
+/// [`MotorBus::disable_active_reporting_at`] transmits, to a configured
+/// address. Any other envelope of that type (an On, another host's command)
+/// is not this host's echo.
+fn ingest_host_echo(
     motor_types: &HashMap<MotorAddress, MotorType>,
     report: &mut FeedbackReport,
     order: usize,
     timed: &TimedCanFrame,
+    command: EchoedCommand,
 ) {
     let received = &timed.received;
     let frame = &received.frame;
     let device_id = (frame.id & 0xff) as u8;
-    let (id, data) = lifecycle::encode_default_enable(device_id);
+    let (id, data) = match command {
+        EchoedCommand::Enable => lifecycle::encode_default_enable(device_id),
+        EchoedCommand::ReportingOff => lifecycle::encode_default_active_reporting(device_id, false),
+    };
     let exact = received.kind == RxFrameKind::Data
         && frame.id == id
         && received.payload() == Some(data.as_slice());
@@ -839,17 +855,18 @@ fn ingest_enable_echo(
         trace_skipped_frame(
             received.interface.as_deref(),
             frame.id,
-            "not-own-enable",
+            "not-own-echo",
             Some(device_id),
-            Some(CommunicationType::Enable.as_u8()),
+            Some((frame.id >> 24) as u8 & 0x1f),
         );
         return;
     };
-    report.enable_echoes.push(EnableEchoObservation {
+    report.host_echoes.push(HostEchoObservation {
         order,
         address: address.clone(),
         received_at: timed.received_at,
         can_id: frame.id,
+        command,
     });
 }
 

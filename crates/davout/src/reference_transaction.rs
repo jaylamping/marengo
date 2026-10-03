@@ -64,6 +64,10 @@ pub enum ReferencePhase {
     /// Physical: request the target's type-0 MCU identifier before arming.
     RequestIdentity,
     AwaitIdentity,
+    /// Physical, echoing bus: the target's type-24 Off read back from the wire
+    /// at least one control period ago, so no pre-Enable report can follow the
+    /// Enable's echo.
+    AwaitReportingOff,
     ArmTarget,
     DrainPostArm,
     SetZero,
@@ -423,19 +427,25 @@ impl<B: MotorBus> ReferenceOwner<B> {
     }
 
     /// Epoch of a selected grant. Physical grants also require liveness (ADR 0036).
+    /// `withheld_since`: start of an Active session that still withholds this
+    /// address's traffic from session pose (its Enable echo is pending).
     pub(super) fn live_device_epoch(
         &self,
         bus: &B,
         address: &MotorAddress,
         window: Duration,
         owner_busy: bool,
+        withheld_since: Option<Instant>,
     ) -> Option<u64> {
         match self.backend.as_ref()? {
             ReferenceBackend::Virtual(backend) => (backend.current_device_epoch)(bus, address),
-            ReferenceBackend::Physical(_) => {
-                self.physical
-                    .live_epoch(address, Instant::now(), window, owner_busy)
-            }
+            ReferenceBackend::Physical(_) => self.physical.live_epoch(
+                address,
+                Instant::now(),
+                window,
+                owner_busy,
+                withheld_since,
+            ),
         }
     }
 
@@ -933,9 +943,25 @@ impl<B: MotorBus> Supervisor<B> {
                 if let Some(live) = &mut self.reference_owner.reservation {
                     live.stop_generation = stop.generation;
                 }
-                let reporting = self
-                    .active_reporting
-                    .suspend_applied(&mut self.bus, &self.stop_motors);
+                // A physical drive keeps type-24 reporting across host
+                // processes, so the target may stream though this process never
+                // turned it On. A report the drive built before acting on the
+                // Enable would follow the Enable's echo still in Reset and fail
+                // the strict Run check (bench 2026-10-03 14:55), so the target
+                // is turned Off here and, on an echoing bus, armed only once
+                // that Off has settled on the wire (`AwaitReportingOff`).
+                let now = Instant::now();
+                let gated = backend.is_physical() && self.bus.echoes_transmissions();
+                if gated {
+                    self.begin_reporting_off_gate(now);
+                }
+                let unrecorded = backend.is_physical().then_some(&reservation.address);
+                let reporting = self.active_reporting.suspend(
+                    &mut self.bus,
+                    &self.stop_motors,
+                    unrecorded,
+                    now,
+                );
                 let attempts: Vec<_> = reporting
                     .attempts
                     .into_iter()
@@ -961,7 +987,7 @@ impl<B: MotorBus> Supervisor<B> {
                     );
                     return self.fail_reference(
                         ReferenceFailureKind::Reporting,
-                        "applied reporting Off write failed",
+                        "reporting Off write failed",
                     );
                 }
                 ReferencePhase::DrainOld
@@ -989,6 +1015,15 @@ impl<B: MotorBus> Supervisor<B> {
                 next
             }
             ReferencePhase::ArmTarget => {
+                if backend.is_physical()
+                    && self.bus.echoes_transmissions()
+                    && !self.reporting_off_settled(&reservation.address, Instant::now())
+                {
+                    return self.fail_reference(
+                        ReferenceFailureKind::Backend,
+                        "target reporting Off not settled on the wire before Enable",
+                    );
+                }
                 // Uncertain delivery may have armed the target; cleanup is
                 // mandatory even when the bus returns an error.
                 if let Some(live) = &mut self.reference_owner.reservation {
@@ -1043,6 +1078,7 @@ impl<B: MotorBus> Supervisor<B> {
             | ReferencePhase::DrainPostArm
             | ReferencePhase::AwaitEvidence
             | ReferencePhase::AwaitIdentity
+            | ReferencePhase::AwaitReportingOff
             | ReferencePhase::AwaitAck
             | ReferencePhase::AwaitReadback => {
                 if let ReferenceBackend::Virtual(backend) = &backend {
@@ -1169,8 +1205,21 @@ impl<B: MotorBus> Supervisor<B> {
                                 if let Some(live) = &mut self.reference_owner.reservation {
                                     live.uid = Some(uid);
                                 }
-                                ReferencePhase::ArmTarget
+                                if self.bus.echoes_transmissions() {
+                                    ReferencePhase::AwaitReportingOff
+                                } else {
+                                    ReferencePhase::ArmTarget
+                                }
                             }
+                        }
+                    }
+                    // The unrenewed phase deadline fails a missing Off echo
+                    // closed, as DrainPostArm does a missing Enable echo.
+                    ReferencePhase::AwaitReportingOff => {
+                        if self.reporting_off_settled(&reservation.address, Instant::now()) {
+                            ReferencePhase::ArmTarget
+                        } else {
+                            ReferencePhase::AwaitReportingOff
                         }
                     }
                     ReferencePhase::AwaitAck => {

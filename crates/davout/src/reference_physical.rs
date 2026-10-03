@@ -261,23 +261,26 @@ impl PhysicalDevices {
 
     /// Epoch of a granted address, or `None` once it went unobserved for longer
     /// than `window` outside owner reference work (comm loss or a possible reboot).
+    /// While an Active session withholds the address's traffic from pose (its
+    /// Enable echo is pending, since `withheld_since`), silence counts from that
+    /// start instead: the owner is not listening, and the Enable-echo bound
+    /// (the same window from activation) fails the address closed.
     pub(crate) fn live_epoch(
         &self,
         address: &MotorAddress,
         now: Instant,
         window: Duration,
         owner_busy: bool,
+        withheld_since: Option<Instant>,
     ) -> Option<u64> {
         let device = self.devices.get(address)?;
         if owner_busy {
             return Some(device.epoch);
         }
-        let reference = match (device.last_seen, self.last_owner_work) {
-            (Some(seen), Some(work)) => seen.max(work),
-            (Some(seen), None) => seen,
-            (None, Some(work)) => work,
-            (None, None) => return None,
-        };
+        let reference = [device.last_seen, self.last_owner_work, withheld_since]
+            .into_iter()
+            .flatten()
+            .max()?;
         (now.saturating_duration_since(reference) <= window).then_some(device.epoch)
     }
 

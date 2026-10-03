@@ -4,7 +4,8 @@
 //! reporting flags, an MCU identifier and fault knobs. A host frame goes on
 //! the wire when written (or, while held, when released): its SocketCAN echo
 //! is queued first, then the drive's replies, in wire order. Type-24 reports
-//! are emitted only when the test pumps. Inbound status/reply identifiers
+//! are emitted only when the test pumps, or after an Enable when a drive models
+//! a report built before it acted on that Enable. Inbound status/reply identifiers
 //! follow the documented wire layout (`type << 24 | extra << 8 | low`);
 //! outbound frames are produced by the supervisor through the robstride encoders.
 #![allow(dead_code, clippy::expect_used, clippy::panic)]
@@ -59,6 +60,11 @@ pub struct Drive {
     pub fail_writes_after_readback: Vec<u8>,
     /// Acknowledge Enable without entering Run (the drive stays in Reset).
     pub ignore_enable: bool,
+    /// While reporting, a periodic type-24 report the drive built before it
+    /// acted on an Enable follows that Enable on the wire: it still carries the
+    /// pre-Enable mode and precedes the Enable reply (Enable-to-Run reply
+    /// latency is 1.4-4.5 ms on the bench against a 10 ms report period).
+    pub stale_report_after_enable: bool,
 }
 
 impl Drive {
@@ -147,6 +153,8 @@ pub struct Firmware {
     rx: VecDeque<CanFrame>,
     /// Frames the transport accepted, in order.
     pub tx: Vec<CanFrame>,
+    /// When each `tx` frame was accepted.
+    pub tx_at: Vec<Instant>,
     /// Frames whose transmission was refused by an injected failure.
     pub failed_tx: Vec<CanFrame>,
     /// Hold the next host Enable and every later write in the kernel/controller
@@ -200,6 +208,7 @@ impl Firmware {
                     fail_writes: Vec::new(),
                     fail_writes_after_readback: Vec::new(),
                     ignore_enable: false,
+                    stale_report_after_enable: false,
                 }
             })
             .collect();
@@ -271,6 +280,7 @@ impl Firmware {
 
     pub fn clear_trace(&mut self) {
         self.tx.clear();
+        self.tx_at.clear();
         self.failed_tx.clear();
     }
 
@@ -288,6 +298,7 @@ impl Firmware {
             });
         }
         self.tx.push(frame.clone());
+        self.tx_at.push(Instant::now());
         if self.hold_tx_from_enable && comm_type == CommunicationType::Enable.as_u8() {
             self.hold_tx_from_enable = false;
             self.held_tx = Some(VecDeque::new());
@@ -329,6 +340,9 @@ impl Firmware {
                 replies.push(drive.status(CommunicationType::OperationStatus));
             }
             Some(CommunicationType::Enable) => {
+                if drive.stale_report_after_enable && drive.reporting {
+                    replies.push(drive.status(CommunicationType::ActiveReporting));
+                }
                 drive.enabled = !drive.ignore_enable;
                 let reply = drive.status(CommunicationType::OperationStatus);
                 if drive.hold_enable_reply_until_set_zero {
@@ -368,7 +382,9 @@ impl Firmware {
                 }
             }
             Some(CommunicationType::ActiveReporting) => {
+                // Bench candump: every type-24 write is answered by a type-2 status.
                 drive.reporting = frame.data[6] == 0x01;
+                replies.push(drive.status(CommunicationType::OperationStatus));
             }
             _ => {}
         }

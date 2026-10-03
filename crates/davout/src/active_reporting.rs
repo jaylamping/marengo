@@ -50,8 +50,12 @@ pub struct ActiveReportingState {
     /// Rotate refresh attempts even when the selected route's write fails.
     heartbeat_cursor: usize,
     last_heartbeat_attempt: Option<Instant>,
-    /// Last `sync` type-24 write attempt per CAN interface (failed ones too).
+    /// Last paced type-24 write attempt per CAN interface (`sync` and
+    /// `write_off`; failed ones too).
     last_write_by_interface: HashMap<String, Instant>,
+    /// Last successful type-24 Off write per joint, cleared by a later On.
+    /// Echoing owners hold an Enable until such an Off is read back from the wire.
+    off_written_at: HashMap<String, Instant>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -71,7 +75,8 @@ pub(super) struct ReportingSuspendAttempt {
     pub(super) error: Option<BusError>,
 }
 
-/// At most one Off attempt per installed motor that was applied On.
+/// At most one Off attempt per installed motor that was applied On or named
+/// as unrecorded.
 /// Accepted writes do not acknowledge physical quiescence; the owner must drain.
 #[derive(Debug)]
 #[must_use]
@@ -80,24 +85,28 @@ pub(super) struct ReportingSuspendReport {
 }
 
 impl ActiveReportingState {
-    /// Suspend previously applied streams without changing desired leases.
-    /// Every installed On route is attempted once even after another write fails.
-    /// Failed routes remain applied On; no retry or receive occurs in this call.
-    pub(super) fn suspend_applied<B: MotorBus>(
+    /// Suspend previously applied streams, plus the `unrecorded` route's stream
+    /// whatever this process applied, without changing desired leases. A
+    /// physical drive keeps type-24 reporting across host processes, so a route
+    /// this process never turned On may still stream.
+    /// Every attempted route is written once even after another write fails.
+    /// Failed routes keep their applied state; no retry or receive occurs here.
+    pub(super) fn suspend<B: MotorBus>(
         &mut self,
         bus: &mut B,
         installed_motors: &[MotorEntry],
+        unrecorded: Option<&MotorAddress>,
+        now: Instant,
     ) -> ReportingSuspendReport {
         let mut attempts = Vec::new();
         for motor in installed_motors {
-            if !self.applied_on(&motor.joint) {
+            let address = MotorAddress::from(motor);
+            if !self.applied_on(&motor.joint) && unrecorded != Some(&address) {
                 continue;
             }
-            let address = MotorAddress::from(motor);
             let error = bus.disable_active_reporting_at(&address).err();
             if error.is_none() {
-                self.applied.insert(motor.joint.clone(), false);
-                self.last_enable_tx.remove(&motor.joint);
+                self.record_off(&motor.joint, now);
             }
             attempts.push(ReportingSuspendAttempt {
                 joint: motor.joint.clone(),
@@ -108,9 +117,52 @@ impl ActiveReportingState {
         ReportingSuspendReport { attempts }
     }
 
+    /// Write `motor`'s type-24 Off in its interface's [`ACTIVE_REPORTING_WRITE_SPACING`]
+    /// slot, or regardless of the slot when `force`. `None` when the slot is
+    /// taken: nothing was written. Applied state changes only on success.
+    pub(super) fn write_off<B: MotorBus>(
+        &mut self,
+        bus: &mut B,
+        motor: &MotorEntry,
+        now: Instant,
+        force: bool,
+    ) -> Option<Result<(), BusError>> {
+        if !force && !self.slot_free(&motor.can_interface, now) {
+            return None;
+        }
+        self.last_write_by_interface
+            .insert(motor.can_interface.clone(), now);
+        let result = bus.disable_active_reporting_at(&MotorAddress::from(motor));
+        if result.is_ok() {
+            self.record_off(&motor.joint, now);
+        }
+        Some(result)
+    }
+
+    /// When this process last turned `joint`'s stream Off, unless it has turned
+    /// it On since. Write acceptance only: the wire order comes from the echo.
+    pub(super) fn off_written_at(&self, joint: &str) -> Option<Instant> {
+        self.off_written_at.get(joint).copied()
+    }
+
+    fn record_off(&mut self, joint: &str, now: Instant) {
+        self.applied.insert(joint.to_string(), false);
+        self.last_enable_tx.remove(joint);
+        self.off_written_at.insert(joint.to_string(), now);
+    }
+
+    fn slot_free(&self, interface: &str, now: Instant) -> bool {
+        self.last_write_by_interface
+            .get(interface)
+            .is_none_or(|last| {
+                now.saturating_duration_since(*last) >= ACTIVE_REPORTING_WRITE_SPACING
+            })
+    }
+
     pub fn clear_applied(&mut self) {
         self.applied.clear();
         self.last_enable_tx.clear();
+        self.off_written_at.clear();
         self.heartbeat_cursor = 0;
         self.last_heartbeat_attempt = None;
     }
@@ -118,6 +170,7 @@ impl ActiveReportingState {
     pub fn clear_applied_joint(&mut self, joint: &str) {
         self.applied.remove(joint);
         self.last_enable_tx.remove(joint);
+        self.off_written_at.remove(joint);
     }
 
     pub fn applied_on(&self, joint: &str) -> bool {
@@ -310,12 +363,7 @@ impl ActiveReportingState {
         due.sort_by_key(|(_, _, refresh_only)| *refresh_only);
         for (index, want, refresh_only) in due {
             let motor = &motors.motors[index];
-            let slot_free = self
-                .last_write_by_interface
-                .get(&motor.can_interface)
-                .map(|last| now.saturating_duration_since(*last) >= ACTIVE_REPORTING_WRITE_SPACING)
-                .unwrap_or(true);
-            if !slot_free {
+            if !self.slot_free(&motor.can_interface, now) {
                 continue;
             }
             self.last_write_by_interface
@@ -332,11 +380,12 @@ impl ActiveReportingState {
                 bus.disable_active_reporting_at(&address)
             };
             if result.is_ok() {
-                self.applied.insert(joint.to_string(), want);
                 if want {
+                    self.applied.insert(joint.to_string(), true);
                     self.last_enable_tx.insert(joint.to_string(), now);
+                    self.off_written_at.remove(joint);
                 } else {
-                    self.last_enable_tx.remove(joint);
+                    self.record_off(joint, now);
                 }
             }
         }

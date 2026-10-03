@@ -9,8 +9,9 @@ use std::time::Instant;
 use armee_kinematics::measured_position_fault;
 use marengo_config::MotorEntry;
 use robstride::{
-    BusError, DriveMode, EnableEchoObservation, FeedbackEvent, FeedbackObservation, FeedbackReport,
-    MalformedFeedback, MotorAddress, MotorBus, MotorState, RxFrameKind, TimedCanFrame,
+    BusError, DriveMode, EchoedCommand, FeedbackEvent, FeedbackObservation, FeedbackReport,
+    HostEchoObservation, MalformedFeedback, MotorAddress, MotorBus, MotorState, RxFrameKind,
+    TimedCanFrame,
 };
 use tracing::{debug, warn};
 
@@ -154,7 +155,7 @@ struct PoseCandidate {
 
 enum OrderedReceive {
     Motor(FeedbackObservation),
-    EnableEcho(EnableEchoObservation),
+    HostEcho(HostEchoObservation),
     Transport(TimedCanFrame),
     Terminal(BusError),
 }
@@ -272,9 +273,9 @@ impl<B: MotorBus> Supervisor<B> {
         }));
         ordered.extend(
             report
-                .enable_echoes
+                .host_echoes
                 .into_iter()
-                .map(|echo| (echo.order, 1, OrderedReceive::EnableEcho(echo))),
+                .map(|echo| (echo.order, 1, OrderedReceive::HostEcho(echo))),
         );
         if let Some(error) = report.terminal_error {
             // Actual backends supply the first error's raw position. Scripted reports
@@ -296,12 +297,19 @@ impl<B: MotorBus> Supervisor<B> {
         for (order, _, event) in ordered.drain(..) {
             let observation = match event {
                 OrderedReceive::Motor(observation) => observation,
-                OrderedReceive::EnableEcho(echo) => {
+                OrderedReceive::HostEcho(echo) => {
                     // Wire-order marker only: never pose, liveness or a reply.
-                    // A staggered target whose Enable this session has not yet
-                    // written cannot be on the wire; an older echo is not its.
-                    if !self.enable_writes_pending.contains(&echo.address) {
-                        self.enable_echo_pending.remove(&echo.address);
+                    match echo.command {
+                        // A staggered target whose Enable this session has not
+                        // yet written cannot be on the wire; an older echo is not its.
+                        EchoedCommand::Enable => {
+                            if !self.enable_writes_pending.contains(&echo.address) {
+                                self.enable_echo_pending.remove(&echo.address);
+                            }
+                        }
+                        EchoedCommand::ReportingOff => {
+                            self.observe_reporting_off_echo(&echo.address, echo.received_at);
+                        }
                     }
                     continue;
                 }

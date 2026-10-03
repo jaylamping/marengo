@@ -126,17 +126,27 @@ pub struct ParameterReadObservation {
     pub reply: ParameterReadReply,
 }
 
-/// This host's Enable (type 3, [`DEFAULT_HOST_ID`](crate::DEFAULT_HOST_ID))
+/// Which host command an echo reads back.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EchoedCommand {
+    /// Type 3 Enable.
+    Enable,
+    /// Type 24 with `F_CMD` 0: stop the drive's active reporting.
+    ReportingOff,
+}
+
+/// This host's Enable or reporting Off ([`DEFAULT_HOST_ID`](crate::DEFAULT_HOST_ID))
 /// to a configured address, read back from the receive stream. On a bus that
 /// [echoes transmissions](crate::CanBus::echoes_transmissions) its `order` is
-/// where the Enable actually went on the wire, after any drive traffic that
+/// where the command actually went on the wire, after any drive traffic that
 /// preceded it there. It is never drive feedback, liveness or a device reply.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct EnableEchoObservation {
+pub struct HostEchoObservation {
     pub order: usize,
     pub address: MotorAddress,
     pub received_at: Instant,
     pub can_id: u32,
+    pub command: EchoedCommand,
 }
 
 impl FeedbackObservation {
@@ -185,6 +195,7 @@ pub struct FeedbackReport {
     pub identities: Vec<IdentityObservation>,
     /// Type-17 parameter replies to this host, in raw delivery order.
     pub parameter_reads: Vec<ParameterReadObservation>,
-    /// Echoed host Enable frames, in raw delivery order. Ordering evidence only.
-    pub enable_echoes: Vec<EnableEchoObservation>,
+    /// Echoed host Enable and reporting Off frames, in raw delivery order.
+    /// Ordering evidence only.
+    pub host_echoes: Vec<HostEchoObservation>,
 }

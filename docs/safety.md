@@ -165,16 +165,36 @@ disables. The fault does not clear on its own.
   reply, and the bench mcp251x holds only two received frames. On 2026-10-03
   Enable + RunMode to five drives plus their replies (about 2.9 received
   frames/ms for 12 ms, 81% bus load) overran it, and five type-24 Ons did the
-  same at startup. On SocketCAN, Enable now writes the first target per
-  interface and goes Active; `poll_feedback` writes the next target per
-  interface each control period, and any remainder at once half of
-  `comm_watchdog_ms` after activation. Every target is pending from
+  same at startup. On SocketCAN, `poll_feedback` writes Enable + RunMode for at
+  most one target per interface each control period, and any remainder at once
+  half of `comm_watchdog_ms` after activation. Every target is pending from
   activation, so a target not yet written is never held to Run or admitted as
   pose, and only its own echo (not an older one) arms the strict check; the
-  missing-echo latch above is unchanged. Type-24 `sync` writes (On, Off,
-  retries, refreshes) take one slot per interface per control period.
+  missing-echo latch above is unchanged. Type-24 writes (`sync` On, Off,
+  retries, refreshes and the Enable gate's Offs below) take one slot per
+  interface per control period.
   Own-message echo is not receive load: the driver builds it in software on
   TX completion, outside the controller's receive buffers.
+- **Reporting Off before every Enable:** Robstride drives keep type-24
+  reporting across host processes. On 2026-10-03 at 14:51:33 all five were
+  streaming before `marengo-pi` started. Paced `sync` had applied only the
+  first Ons, so the reference baseline Off, which covered only applied
+  streams, left right_lower_arm_yaw streaming through its Enable. At 14:55:24
+  it failed with `unexpected drive mode Reset for Disabled`. Enable-to-Run reply
+  latency is 1.4-4.5 ms against a 10 ms report period, so a report the drive
+  built before acting on the Enable can be read after the Enable's echo, still
+  in Reset [INFERENCE: no candump of that run; 30 captured Enables show none].
+  The Active stagger had the same exposure: at 14:51:40 the Enables of elbow
+  and lower yaw went out while their streams ran. On SocketCAN a target's Enable
+  is now written only after its type-24 Off has been read back from the wire
+  at least one control period earlier. The Off is written whatever this
+  process applied: in the reference baseline for the target, and by the
+  Enable stagger for each target. A missing Off echo fails closed. In a
+  reference, the phase deadline times out before any Enable. In an Active
+  session, DriveState latches at the Enable-echo bound with "type-24 Off not
+  observed". The strict post-echo Run check is unchanged. While a target's
+  Enable echo is pending, grant liveness counts from activation, because its
+  traffic is withheld from pose and the echo bound covers that silence.
 - **Controller receive overflow is persistent (operator recommendation
   open):** an mcp251x RX overflow reaches Davout as a kernel error frame
   (`CAN_ERR_CRTL_RX_OVERFLOW`) and latches Transport. Making an *isolated*

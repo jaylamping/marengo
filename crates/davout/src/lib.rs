@@ -379,11 +379,18 @@ pub struct Supervisor<B: MotorBus> {
     /// Echoing buses only: this session's targets whose Enable + RunMode are not
     /// yet written, in target order. Every host frame solicits a drive reply and
     /// the mcp251x keeps only two received frames, so activation writes one
-    /// target per interface per control period (see [`Self::issue_due_enable_writes`]).
+    /// target per interface per control period (see [`Self::issue_due_enable_writes`]),
+    /// each only once its type-24 Off has settled on the wire.
     /// They stay in `enable_echo_pending` from activation until their own echo.
     enable_writes_pending: Vec<MotorAddress>,
     /// Earliest time the next staggered Enable wave may be written.
     enable_write_due: Option<Instant>,
+    /// Echoing buses only: start of the current enable session or physical
+    /// reference arm. Only type-24 Offs written since then can release an Enable.
+    reporting_off_since: Option<Instant>,
+    /// Echoing buses only: when the echo of each address's type-24 Off written
+    /// since `reporting_off_since` was read (see [`Self::reporting_off_settled`]).
+    reporting_off_echoed: FxHashMap<MotorAddress, Instant>,
     invalid_feedback: FxHashSet<MotorAddress>,
     last_tau_ff: FxHashMap<String, f64>,
     feedback_velocity_trips: FxHashMap<String, u8>,
@@ -593,6 +600,8 @@ impl<B: MotorBus> Supervisor<B> {
             enable_echo_pending: FxHashSet::default(),
             enable_writes_pending: Vec::new(),
             enable_write_due: None,
+            reporting_off_since: None,
+            reporting_off_echoed: FxHashMap::default(),
             invalid_feedback: FxHashSet::default(),
             last_tau_ff: FxHashMap::default(),
             feedback_velocity_trips: FxHashMap::default(),
@@ -975,11 +984,16 @@ impl<B: MotorBus> Supervisor<B> {
             if binding.is_revoked() {
                 continue;
             }
+            let withheld_since = self.active_since.filter(|_| {
+                self.mode == OperationalMode::Active
+                    && self.enable_echo_pending.contains(&binding.address)
+            });
             let current = self.reference_owner.live_device_epoch(
                 &self.bus,
                 &binding.address,
                 window,
                 owner_busy,
+                withheld_since,
             );
             let identity_holds = !physical
                 || binding.uid.is_some()
@@ -1441,13 +1455,17 @@ impl<B: MotorBus> Supervisor<B> {
             if self.bus.echoes_transmissions() {
                 // Every target stays pending from here until its own echo, so
                 // traffic from a target not yet written is never held to Run
-                // and never becomes session pose. The first wave goes now; the
-                // rest follow one per interface per control period.
+                // and never becomes session pose. Each target's type-24 Off goes
+                // first, whatever this process applied: a physical drive keeps
+                // reporting across host processes, and a report it built before
+                // acting on an Enable follows that Enable's echo still in Reset.
+                // Enables follow one per interface per control period, each only
+                // once its Off has settled on the wire.
+                let now = Instant::now();
+                self.begin_reporting_off_gate(now);
                 self.enable_echo_pending.extend(addresses.iter().cloned());
                 self.enable_writes_pending = addresses;
-                for address in self.take_enable_wave(false) {
-                    self.write_enable(&address)?;
-                }
+                self.issue_target_reporting_offs(now, false)?;
             } else {
                 // Without echo, post-enable follows pop time: every target must
                 // be written before activation.
@@ -1465,7 +1483,7 @@ impl<B: MotorBus> Supervisor<B> {
             self.mode = OperationalMode::Active;
             let activated_at = Instant::now();
             self.active_since = Some(activated_at);
-            self.enable_write_due = Some(activated_at + self.loop_period());
+            self.enable_write_due = None;
             self.wrong_sign_state.clear();
             self.last_tau_ff.clear();
             self.last_tick = None;
@@ -1488,24 +1506,107 @@ impl<B: MotorBus> Supervisor<B> {
         Duration::from_micros(1_000_000 / u64::from(self.control.control.loop_hz.max(1)))
     }
 
-    /// Remove the next Enable wave from `enable_writes_pending`: the first
-    /// pending target of each interface, or every pending target when `all`.
-    fn take_enable_wave(&mut self, all: bool) -> Vec<MotorAddress> {
-        if all {
-            return std::mem::take(&mut self.enable_writes_pending);
-        }
+    /// Remove the next Enable wave from `enable_writes_pending`: among targets
+    /// whose type-24 Off has settled on the wire, the first of each interface,
+    /// or all of them when `all`.
+    fn take_enable_wave(&mut self, now: Instant, all: bool) -> Vec<MotorAddress> {
+        let mut pending = std::mem::take(&mut self.enable_writes_pending);
         let mut wave: Vec<MotorAddress> = Vec::new();
-        self.enable_writes_pending.retain(|address| {
-            if wave
-                .iter()
-                .any(|taken| taken.interface == address.interface)
+        pending.retain(|address| {
+            if !self.reporting_off_settled(address, now)
+                || (!all
+                    && wave
+                        .iter()
+                        .any(|taken| taken.interface == address.interface))
             {
                 return true;
             }
             wave.push(address.clone());
             false
         });
+        self.enable_writes_pending = pending;
         wave
+    }
+
+    /// Echoing buses: open the window whose type-24 Offs can release Enables.
+    fn begin_reporting_off_gate(&mut self, now: Instant) {
+        self.reporting_off_since = Some(now);
+        self.reporting_off_echoed.clear();
+    }
+
+    /// When this gate window last wrote `joint`'s type-24 Off, by any writer.
+    fn reporting_off_written(&self, joint: &str) -> Option<Instant> {
+        let since = self.reporting_off_since?;
+        self.active_reporting
+            .off_written_at(joint)
+            .filter(|written| *written >= since)
+    }
+
+    /// The echo of `address`'s type-24 Off written in this gate window was read
+    /// at least one control period before `now`. Read time bounds wire time
+    /// from above, so any report the drive built before acting on that Off has
+    /// left the wire before an Enable written now.
+    fn reporting_off_settled(&self, address: &MotorAddress, now: Instant) -> bool {
+        let Some(motor) = self
+            .motors
+            .motors
+            .iter()
+            .find(|motor| is_motor_address(address, motor))
+        else {
+            return false;
+        };
+        let Some(written) = self.reporting_off_written(&motor.joint) else {
+            return false;
+        };
+        self.reporting_off_echoed
+            .get(address)
+            .is_some_and(|echoed| {
+                *echoed >= written && now.saturating_duration_since(*echoed) >= self.loop_period()
+            })
+    }
+
+    /// Wire-order marker: an Off echo counts only after this window wrote one.
+    fn observe_reporting_off_echo(&mut self, address: &MotorAddress, received_at: Instant) {
+        let written = self
+            .motors
+            .motors
+            .iter()
+            .find(|motor| is_motor_address(address, motor))
+            .and_then(|motor| self.reporting_off_written(&motor.joint));
+        if written.is_some() {
+            self.reporting_off_echoed
+                .insert(address.clone(), received_at);
+        }
+    }
+
+    /// Echoing buses: write the type-24 Off of each target whose Enable is
+    /// pending and whose stream this window has not turned Off yet, in reporting's
+    /// one-write-per-interface-per-period slot unless `force`.
+    fn issue_target_reporting_offs(
+        &mut self,
+        now: Instant,
+        force: bool,
+    ) -> Result<(), DavoutError> {
+        for address in &self.enable_writes_pending {
+            let Some(motor) = self
+                .motors
+                .motors
+                .iter()
+                .find(|motor| is_motor_address(address, motor))
+            else {
+                continue;
+            };
+            if self.reporting_off_written(&motor.joint).is_some() {
+                continue;
+            }
+            if let Some(result) = self
+                .active_reporting
+                .write_off(&mut self.bus, motor, now, force)
+            {
+                result?;
+            }
+        }
+        Ok(())
     }
 
     fn write_enable(&mut self, address: &MotorAddress) -> Result<(), DavoutError> {
@@ -1526,11 +1627,12 @@ impl<B: MotorBus> Supervisor<B> {
         Ok(())
     }
 
-    /// Write the next staggered Enable wave once its control period is due.
-    /// Half of `comm_watchdog_ms` after activation every remaining target is
-    /// written at once, so slow ticks never stretch the stagger into the
-    /// missing-echo bound; that bound still fails closed for any target whose
-    /// echo does not follow.
+    /// Write type-24 Offs, then the next staggered Enable wave once its control
+    /// period is due. Half of `comm_watchdog_ms` after activation every
+    /// remaining Off, and every target whose Off has settled, is written at once,
+    /// so slow ticks never stretch the stagger into the missing-echo bound; that
+    /// bound still fails closed for any target whose Off or Enable echo does not
+    /// follow.
     fn issue_due_enable_writes(&mut self, now: Instant) -> Result<(), DavoutError> {
         if self.mode != OperationalMode::Active || self.enable_writes_pending.is_empty() {
             return Ok(());
@@ -1540,11 +1642,16 @@ impl<B: MotorBus> Supervisor<B> {
         };
         let catch_up = now.saturating_duration_since(active_since)
             >= Duration::from_millis(self.control.control.comm_watchdog_ms) / 2;
+        self.issue_target_reporting_offs(now, catch_up)?;
         if !catch_up && self.enable_write_due.is_some_and(|due| now < due) {
             return Ok(());
         }
-        for address in self.take_enable_wave(catch_up) {
-            self.write_enable(&address)?;
+        let wave = self.take_enable_wave(now, catch_up);
+        if wave.is_empty() {
+            return Ok(());
+        }
+        for address in &wave {
+            self.write_enable(address)?;
         }
         self.enable_write_due = Some(now + self.loop_period());
         Ok(())
@@ -1717,7 +1824,8 @@ impl<B: MotorBus> Supervisor<B> {
 
     /// Fail closed when an Active address's Enable has not been read back from
     /// the wire within `comm_watchdog_ms` of activation: without the echo the
-    /// strict Run expectation would never arm for that address.
+    /// strict Run expectation would never arm for that address. A target whose
+    /// type-24 Off echo never arrived had its Enable withheld; it fails here too.
     fn enable_echo_overdue(&mut self, now: Instant) -> Option<(DavoutError, bool)> {
         if self.mode != OperationalMode::Active || self.enable_echo_pending.is_empty() {
             return None;
@@ -1728,16 +1836,24 @@ impl<B: MotorBus> Supervisor<B> {
             return None;
         }
         let stop_motors = Arc::clone(&self.stop_motors);
-        let motor = stop_motors.iter().find(|motor| {
+        let (motor, address) = stop_motors.iter().find_map(|motor| {
             self.enable_echo_pending
                 .iter()
-                .any(|address| is_motor_address(address, motor))
+                .find(|address| is_motor_address(address, motor))
+                .map(|address| (motor, address))
         })?;
+        let message = if self.enable_writes_pending.contains(address)
+            && !self.reporting_off_echoed.contains_key(address)
+        {
+            format!(
+                "type-24 Off not observed on the bus within {bound_ms} ms; Enable withheld, drive state unconfirmed"
+            )
+        } else {
+            format!("Enable not observed on the bus within {bound_ms} ms; drive state unconfirmed")
+        };
         let error = DavoutError::InvalidFeedback {
             joint: motor.joint.clone(),
-            message: format!(
-                "Enable not observed on the bus within {bound_ms} ms; drive state unconfirmed"
-            ),
+            message,
         };
         let transition = self.fault_authority.record(
             FaultClass::DriveState,
@@ -2175,6 +2291,8 @@ impl<B: MotorBus> Supervisor<B> {
         self.enable_echo_pending.clear();
         self.enable_writes_pending.clear();
         self.enable_write_due = None;
+        self.reporting_off_since = None;
+        self.reporting_off_echoed.clear();
         self.active_joints.clear();
         self.feedback_velocity_trips.clear();
         self.last_feedback_samples.clear();

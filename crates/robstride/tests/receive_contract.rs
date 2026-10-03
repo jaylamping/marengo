@@ -6,9 +6,9 @@ use std::time::{Duration, Instant};
 use marengo_config::MotorType;
 use robstride::{
     encode_default_active_reporting, encode_default_enable, encode_enable, AddressedMitCommand,
-    BusError, CanBus, CanFrame, DriveMode, FeedbackEvent, MalformedReason, MemoryBus, MitCommand,
-    MotorAddress, MotorBus, MotorState, ParameterId, ReceiveAttempt, ReceiveCompletion,
-    ReceiveLimits, ReceivedCanFrame, RunMode, RxFrameKind, TimedCanFrame,
+    BusError, CanBus, CanFrame, DriveMode, EchoedCommand, FeedbackEvent, MalformedReason,
+    MemoryBus, MitCommand, MotorAddress, MotorBus, MotorState, ParameterId, ReceiveAttempt,
+    ReceiveCompletion, ReceiveLimits, ReceivedCanFrame, RunMode, RxFrameKind, TimedCanFrame,
 };
 
 const POSE: [u8; 8] = [0x7f, 0xff, 0x7f, 0xff, 0x7f, 0xff, 0, 0xc8];
@@ -510,11 +510,32 @@ fn own_transmission_echoes_are_bounded_reads_but_never_feedback_or_replies() {
         report.parameter_reads.is_empty(),
         "a request is not a reply"
     );
-    assert_eq!(report.enable_echoes.len(), 1);
-    let echo = &report.enable_echoes[0];
-    assert_eq!(echo.address, address);
-    assert_eq!(echo.order, sent.len() - 1, "wire position, not write time");
-    assert_eq!(echo.can_id, encode_default_enable(1).0);
+    // Only the Enable and the reporting Off are wire-order markers.
+    let echoed: Vec<_> = report
+        .host_echoes
+        .iter()
+        .map(|echo| (echo.command, echo.order, echo.can_id))
+        .collect();
+    assert_eq!(
+        echoed,
+        [
+            (
+                EchoedCommand::ReportingOff,
+                sent.len() - 2,
+                encode_default_active_reporting(1, false).0
+            ),
+            (
+                EchoedCommand::Enable,
+                sent.len() - 1,
+                encode_default_enable(1).0
+            ),
+        ],
+        "wire position, not write time"
+    );
+    assert!(report
+        .host_echoes
+        .iter()
+        .all(|echo| echo.address == address));
 
     // A waiting poll that read only echoes saw no drive at all.
     let report =
@@ -523,8 +544,10 @@ fn own_transmission_echoes_are_bounded_reads_but_never_feedback_or_replies() {
 }
 
 #[test]
-fn only_this_hosts_exact_enable_to_a_configured_address_is_an_echo() {
+fn only_this_hosts_exact_enable_or_reporting_off_to_a_configured_address_is_an_echo() {
     let (own, _) = encode_default_enable(1);
+    let (own_on, on_payload) = encode_default_active_reporting(1, true);
+    let (_, off_payload) = encode_default_active_reporting(1, false);
     let mut bus = ScriptedBus::new([
         Step::Frame(data(own, &[1, 0, 0, 0, 0, 0, 0, 0])),
         Step::Frame(data(own, &[0; 4])),
@@ -533,13 +556,21 @@ fn only_this_hosts_exact_enable_to_a_configured_address_is_an_echo() {
         ),
         Step::Frame(data(encode_default_enable(9).0, &[0; 8])),
         Step::Frame(data(encode_enable(0x20, 1).0, &[0; 8])),
+        // Reporting On is not an Off; an Off to an unconfigured address or
+        // from another host is not this host's.
+        Step::Frame(data(own_on, &on_payload)),
+        Step::Frame(data(
+            encode_default_active_reporting(9, false).0,
+            &off_payload,
+        )),
+        Step::Frame(data(
+            robstride::encode_active_reporting(0x20, 1, false).0,
+            &off_payload,
+        )),
+        Step::Frame(data(own_on, &off_payload[..4])),
     ]);
     let report = bus.recv_feedback_report(&types(), Duration::ZERO, Duration::ZERO);
-    assert!(
-        report.enable_echoes.is_empty(),
-        "{:?}",
-        report.enable_echoes
-    );
+    assert!(report.host_echoes.is_empty(), "{:?}", report.host_echoes);
     assert!(report.observations.is_empty());
 }
 
@@ -556,4 +587,5 @@ fn host_reporting_command_is_not_a_report_even_at_the_host_device_id() {
     let report = bus.recv_feedback_report(&types, Duration::ZERO, Duration::ZERO);
     assert_eq!(report.raw_frames, 1);
     assert!(report.observations.is_empty(), "{:?}", report.observations);
+    assert!(report.host_echoes.is_empty(), "an On is not an Off echo");
 }

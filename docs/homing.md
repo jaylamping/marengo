@@ -85,8 +85,11 @@ it. Only the explicit physical owners
 `from_repo` still refuses with `ReferenceUnsupported`. See
 [ADR 0036](decisions/0036-physical-robstride-reference.md).
 
-Each joint runs on its own: all-address stop with reporting off, a drain, a
-type-0 identity read, Enable to the target only, a drain, then SetZero. Next it
+Each joint runs on its own: an all-address stop with reporting off (for the
+target too, even if this process never turned its stream on), a drain, and a
+type-0 identity read. On SocketCAN it then waits until the target's reporting
+Off has been read back from the wire at least one control period earlier.
+Then comes Enable to the target only, a drain, and SetZero. Next it
 needs a type-2 ack from the target after SetZero, within
 `zero_verify_tolerance_rad`, and a type-17 `mechPos` (0x7019) readback requested
 after the ack, within the same tolerance. Then come the all-address stop, the

@@ -39,10 +39,12 @@ calls `disable_all` and returns `HomingVerify`.
 The phases are:
 
 ```text
-BaselineStop   all-address stop; applied active reporting off
+BaselineStop   all-address stop; applied active reporting off, and the target's
+               reporting off whatever this process applied
 DrainOld       complete bounded drain of queued feedback
 RequestIdentity type-0 to the target (host 0xFD)
 AwaitIdentity  type-0 reply popped after the request; UID not claimed by another address
+AwaitReportingOff echoing bus: the target's type-24 Off echo read at least one control period ago
 ArmTarget      Enable to the target only
 DrainPostArm   complete drain
 SetZero        type-6 to the target; any attempt starts a new device coordinate epoch
@@ -56,6 +58,15 @@ Each new phase gets a 2 s deadline, capped by the overall `search_timeout_s`.
 Repeated await phases do not renew it. A failed or uncertain write is a
 `Delivery` failure, and an invalid internal state is a `Backend` failure. Both
 latch a transport fault. `Identity` and `Readback` failures record no fault.
+
+Drives keep type-24 reporting across host processes, and a report a drive
+built before acting on the Enable can be read after the Enable's echo, still in
+Reset. The strict post-echo Run check would then fail the reference
+(bench 2026-10-03 14:55, right_lower_arm_yaw). The target's Off is therefore
+written regardless of what this process applied. On SocketCAN, the target is
+armed only after that Off's echo has been read and one control period has
+passed. A missing Off echo times out before any Enable. Ordinary Active
+enables follow the same rule (see [safety.md](../safety.md)).
 
 ### Evidence
 
