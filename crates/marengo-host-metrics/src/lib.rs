@@ -133,11 +133,7 @@ mod linux {
                         return None;
                     }
                     let mut out = String::new();
-                    child
-                        .stdout
-                        .take()?
-                        .read_to_string(&mut out)
-                        .ok()?;
+                    child.stdout.take()?.read_to_string(&mut out).ok()?;
                     let _ = child.wait();
                     return Some(out);
                 }
@@ -316,8 +312,8 @@ mod linux {
                 let path = entry.path();
                 let name =
                     read_file_trim(path.join("type")).unwrap_or_else(|| "unknown".to_string());
-                let Some(milli): Option<i64> = read_file_trim(path.join("temp"))
-                    .and_then(|s| s.parse().ok())
+                let Some(milli): Option<i64> =
+                    read_file_trim(path.join("temp")).and_then(|s| s.parse().ok())
                 else {
                     // An unreadable zone is absent, never 0 °C.
                     continue;
@@ -446,8 +442,11 @@ mod linux {
             .filter_map(|unit| {
                 // A failed query is an unknown service, never Inactive:
                 // absent rows must not read as stopped units.
-                let output =
-                    run_bounded("systemctl", &["show", unit, "--property=ActiveState,NRestarts", "--value"], COMMAND_TIMEOUT)?;
+                let output = run_bounded(
+                    "systemctl",
+                    &["show", unit, "--property=ActiveState,NRestarts", "--value"],
+                    COMMAND_TIMEOUT,
+                )?;
                 let (state, restarts) = parse_service_status(&output)?;
                 Some(ServiceStatus {
                     unit: (*unit).to_string(),
@@ -474,9 +473,11 @@ mod linux {
     }
 
     fn sample_clock() -> ClockMetrics {
-        if let Some(output) =
-            run_bounded("timedatectl", &["show", "-p", "NTPSynchronized", "--value"], COMMAND_TIMEOUT)
-        {
+        if let Some(output) = run_bounded(
+            "timedatectl",
+            &["show", "-p", "NTPSynchronized", "--value"],
+            COMMAND_TIMEOUT,
+        ) {
             let synced = output.trim() == "yes";
             return ClockMetrics {
                 sync_source: "systemd-timesyncd".to_string(),

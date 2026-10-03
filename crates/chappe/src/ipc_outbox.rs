@@ -346,9 +346,7 @@ mod shutdown_admission_tests {
         use std::sync::Mutex;
         let now = Arc::new(Mutex::new(Instant::now()));
         let clock = Arc::clone(&now);
-        let outbox = Outbox::new_with_clock(Arc::new(move || {
-            *clock.lock().expect("fake clock")
-        }));
+        let outbox = Outbox::new_with_clock(Arc::new(move || *clock.lock().expect("fake clock")));
         outbox.set_connected(true);
         assert_eq!(outbox.admit("robot/state", &[1]), ForwardOutcome::Accepted);
         *now.lock().expect("fake clock") += Duration::from_secs(2);

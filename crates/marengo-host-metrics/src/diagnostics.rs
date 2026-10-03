@@ -202,41 +202,41 @@ fn disk_for_path(
         mount_point: mount.into(),
         ..Default::default()
     };
-            if let Some(entries) = table.as_ref() {
-                let candidates: Vec<_> = entries
-                    .iter()
-                    .filter(|entry| {
-                        entry.path == *mount
-                            || entry.path == "/"
-                            || mount.starts_with(&format!("{}/", entry.path))
-                    })
-                    .collect();
-                if let Some(longest) = candidates.iter().map(|entry| entry.path.len()).max() {
-                    let selected: Vec<_> = candidates
-                        .into_iter()
-                        .filter(|entry| entry.path.len() == longest)
-                        .collect();
-                    if selected.len() == 1 {
-                        let entry = selected[0];
-                        metric.filesystem = entry.filesystem.clone();
-                        metric.source_device = entry.source.clone();
-                        if let Some(read_only) = entry.read_only {
-                            metric.mount_status_known = true;
-                            metric.read_only = read_only;
-                        }
-                    }
+    if let Some(entries) = table.as_ref() {
+        let candidates: Vec<_> = entries
+            .iter()
+            .filter(|entry| {
+                entry.path == *mount
+                    || entry.path == "/"
+                    || mount.starts_with(&format!("{}/", entry.path))
+            })
+            .collect();
+        if let Some(longest) = candidates.iter().map(|entry| entry.path.len()).max() {
+            let selected: Vec<_> = candidates
+                .into_iter()
+                .filter(|entry| entry.path.len() == longest)
+                .collect();
+            if selected.len() == 1 {
+                let entry = selected[0];
+                metric.filesystem = entry.filesystem.clone();
+                metric.source_device = entry.source.clone();
+                if let Some(read_only) = entry.read_only {
+                    metric.mount_status_known = true;
+                    metric.read_only = read_only;
                 }
             }
-            if let Some((total, used)) = source
-                .command("df", &["-B1", mount])
-                .and_then(|text| parse_capacity(&text))
-            {
-                metric.total_bytes = total;
-                metric.used_bytes = used;
-                metric.capacity_known = true;
-                metric.nearly_full = used as f64 / total as f64 >= 0.9;
-            }
-            metric
+        }
+    }
+    if let Some((total, used)) = source
+        .command("df", &["-B1", mount])
+        .and_then(|text| parse_capacity(&text))
+    {
+        metric.total_bytes = total;
+        metric.used_bytes = used;
+        metric.capacity_known = true;
+        metric.nearly_full = used as f64 / total as f64 >= 0.9;
+    }
+    metric
 }
 
 struct Mount {
