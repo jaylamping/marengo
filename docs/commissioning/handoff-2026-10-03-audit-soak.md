@@ -1,62 +1,69 @@
-# Handoff 2026-10-03: crate audit merged, soak pending, push held
+# Handoff 2026-10-03: crate audit merged, enable soak PASS, pushed
 
 ## State
 
-- Local `main` is at `84e80653` plus this doc. It is **88+ commits ahead of `origin/main` and NOT pushed.**
-- It contains all of the 2026-10-03 crate audit: Phase B WP-A through WP-T, prune batches B1–B16, and the
-  schema-tolerant reference journal fix (`c6428152`).
+- `main` is pushed to `origin/main`. It contains:
+  - all of the 2026-10-03 crate audit: Phase B WP-A through WP-T and prune batches B1–B16;
+  - the schema-tolerant reference journal fix (`c6428152`);
+  - the two enable-liveness fixes below (`ad1eb887`, `aa773418`), and the ADR 0036 note (`7dbc4870`).
 - The workspace is 15 crates and 6 bins (`marengo-homing` was folded into Davout).
-- Gate on `84e80653`: fmt and both clippy runs (host and `aarch64` marengo-pi) clean, `cargo test --workspace`
-  1209 passed / 0 failed, MCP 207/207, `scripts/deploy-config-lock.test.sh` 3/3. Consul tests and build were last
-  run at `a6ed8997` (384 tests); no Consul source changed after that.
-- Deployed to the Pi with `pi_sync_main` (cross): `.deploy-rev` = `84e80653…`, gateway ready, taught limits
-  preserved. The deploy also deleted the stray `config/.marengo-profile.lock` from Pi staging, because the deploy
-  now excludes it.
-- Worktrees: only `main` (plus the unrelated, stale `~/.codex/worktrees/research-cache-await`).
-- The main checkout has two items that belong to the user. Leave both alone:
-  - `?? WATCHDOG.yml`
-  - `stash@{0}` "local mcp.json host strip". Pop it after the soak; deploys need a clean tree.
+- Gate on `aa773418`: fmt and both clippy runs (host and `aarch64` marengo-pi) are clean, and
+  `cargo test --workspace` passes. Both fixes were checked red on their baseline and green after.
+- The Pi runs `.deploy-rev` = `aa773418…`, deployed with `pi_sync_main` (cross). The gateway is ready and the
+  taught limits were preserved.
+- `stash@{0}` ("local mcp.json host strip") was popped after the push. `?? WATCHDOG.yml` belongs to the user;
+  leave it alone.
 
-## Why the last soak failed and what fixed it
+## Enable soak (`pi_enable_soak`, profile `arm_attached`, 20 cycles)
 
-The `pi_enable_soak` run on `3b4e87e6` (`var/enable-soak/20261003T205602Z`) failed 0/20:
+|Rev|Dir (`var/enable-soak/`)|Clean|can0 rx_over Δ|non_neutral_mit|Peak frames/10 ms|
+|---|---|---:|---:|---:|---:|
+|`84e80653`|`20261003T221010Z`|14/20|0|0|67|
+|`7dbc4870` (`ad1eb887`)|`20261003T225034Z`|19/20|0|0|65|
+|`aa773418`|`20261003T230806Z`|**20/20 PASS**|0|0|63|
 
-- Every `right_shoulder_pitch` reference ended `journal Failed { reference codec: unknown field
-  allow_firmware_speed_mode }`.
-- WP-O removed that key, and `deny_unknown_fields` then rejected the historic journal rows that still contained
-  it. `Database::validate_history` fully decoded every historic row against the live config types.
+Earlier reference points: 42 frames/10 ms in the `edbaebaf` soak and 66 in the `3b4e87e6` soak. No overruns
+in any of these three runs, so the stop-burst pacing suspicion from `3b4e87e6` stays unconfirmed.
 
-`c6428152` fixes this:
+### Failure 1: the host read gap (fixed in `ad1eb887`)
 
-- History rows now get structural checks only: checksum, identity via `decode_identity`, ordering and capacity.
-  History never grants.
-- The full typed decode still runs for the row being written and for its readback.
-- `inspect()` lists integrity-verified rows it can't decode as explicit legacy records.
-- Red→green tests:
-  - `older_schema_row_with_retired_control_key_still_opens_and_appends`
-  - `corrupt_old_schema_row_is_refused_and_preserved`
-- ADR 0036 has a 2026-10-03 amendment, and `docs/safety.md` has a one-line note under Physical reference grants.
+Symptom: `enable blocked: … full-master Robot Ready` right after `homing verified`, in 6/20 cycles.
 
-That soak also showed two `rx_over_errors` increments, in cycles 15 and 19, each with a SafetyHazard invalidation.
-Peak bus density was about 66 frames/10 ms, against 42 in the `edbaebaf` soak. The cause is still unexplained.
-The suspects are unpaced abort/shutdown stop bursts (fault, E-stop and shutdown stops are never paced, by
-design).
+- Receive times are host read times.
+- stdin/Chappe Enable runs the gravity preflight (64–96 ms on the Pi, 3125 samples) without reading CAN.
+- Target resolution then judged grant liveness (`comm_watchdog_ms` = 100 ms) on reads from before the
+  preflight. A drive whose post-SetZero blackout covered the last read lost its grant with its reports still
+  queued.
+
+The fix:
+
+- `resolve_enable_targets` drains before it builds the facets.
+- Non-Active drains judge liveness after reading the queue.
+- Active drains are unchanged.
+
+### Failure 2: owed type-24 On during admission (fixed in `aa773418`)
+
+Symptom: `enable failed: … right_shoulder_pitch: no private current-reference permission` in cycle 14.
+
+- Pitch's stream was Off, with its type-24 On held through `POST_SET_ZERO_QUIET`.
+- The quiet ended during synchronous enable work: the preflight, then identity admission waiting out roll's
+  blackout.
+- No reporting sync ran, so the On was never written and the silence counted from the quiet's end passed
+  100 ms.
+
+The fix: `resolve_enable_targets` and each admission poll in `verify_physical_identities` run
+`sync_active_reporting()` first. The liveness rule and the excuse window are unchanged.
+
+Guard tests for both fixes prove that a drive that is genuinely silent still loses its grant. Details are in
+`docs/safety.md` (*Host read gap*, *Owed On during Enable admission*) and in the ADR 0036 *Host-caused
+silence* amendment.
 
 ## Next steps, in order
 
-1. **Operator check (physical).** Ask the user to confirm again that the arm hangs limp at its mechanical zero,
-   is supported, and is hands-off. The soak runs SetZero on all 5 joints every cycle.
-2. **Soak** via MCP:
-   `pi_enable_soak {confirm: true, set_zero: true, at_mechanical_reference: true, profile: "arm_attached", cycles: 20}`
-   - PASS = 20/20 clean, can0 `rx_over_errors` unchanged, and `firmware-timing` `non_neutral_mit == 0`.
-   - After it, run `pi_candump_summary` and compare peak density with the 42 and 66 frames/10 ms figures above.
-   - If `rx_over` grows again, diagnose the stop-burst pacing before doing anything else. Do not relax the
-     Transport latch; that needs an ADR.
-3. **Push** `main` only after a PASS. Then pop `stash@{0}`.
-4. **Gravity calibration sweep** (`pi_gravity_calibrate`). The operator must be present and must re-confirm.
+1. **Gravity calibration sweep** (`pi_gravity_calibrate`). The operator must be present and must re-confirm.
    Weighted profiles also need `confirm_weighted_motion: true`.
-5. **Bench re-check of RS03-tuned values.** The RS03 velocity scale was corrected from ±50 to ±20 rad/s in
-   `1ceeeb5`, so `config/control.yaml` values tuned under the old scale need re-checking on the bench. They are:
+2. **Bench re-check of RS03-tuned values.** The RS03 velocity scale was corrected from ±50 to ±20 rad/s in
+   `1ceeeb5`, so the `config/control.yaml` values tuned under the old scale need re-checking on the bench:
    - Pitch: velocity 1.25, accel 4.5, kd 3.0, slew 0.15.
    - Roll: velocity 0.7, accel 4.0, slew 0.35.
    - Friction fc 0.08.
@@ -64,10 +71,29 @@ design).
 
 ## Open decisions for the user
 
+- **Residual stall risk, two options.** Synchronous work of 100 ms or more that starts before a held quiet ends
+  still revokes the grant. The preflight measured up to 96 ms, so the margin is thin.
+  - (A) Excuse a held On until it is actually written. This extends an ADR 0036 excuse, so it needs an ADR.
+  - (B) Make the gravity preflight cheaper (cache per model revision) or interleave it with ticks. No rule
+    change.
+- **Active-mode drains still judge liveness before reading.** A host stall of about 90 ms or more while Active
+  (for example a redundant `enable` running the preflight) revokes every grant and disables all drives. That
+  could drop an elevated arm in GravityComp.
+- **Kernel RX timestamps (`SO_TIMESTAMPNS`).** These would make receive times wire-accurate instead of read
+  times. Adopting them needs an ADR.
 - NEEDS-DECISION items live in `docs/reviews/2026-10-03-crate-audit/phase-b/WP-*.md` and `PRUNE-*.md`.
   Integrator decisions taken so far are in `docs/reviews/2026-10-03-crate-audit/decisions.md`.
 - Proto types that B13 marked deprecated are still on the wire. Deleting them needs a `buf breaking` exception.
 - Hardware E-stop (BCM 17) is not installed. Drive CanTimeout and the fault-clear frame are still open (see WP-I).
+
+## Firmware and analyzer observations (no action taken)
+
+- **Post-SetZero silence for can0/4 (elbow) reached 66.1 ms** in the PASS soak. The profile documents 45–61 ms.
+  The blackout ended at most 606 ms after the SetZero, so the 800 ms quiet still has about 194 ms of margin.
+  Update `docs/commissioning/firmware/robstride-timing-profile.json` if this holds up.
+- **The `firmware-timing` analyzer misreads stream-Off gaps** as post-SetZero silence. That produced the 117–128 ms
+  pitch "silences" and the n=1 or n=15 pitch counts. When pitch's stream is Off, its real blackout is not
+  observable. Fixing the analyzer is a separate piece of work.
 
 ## Known flakes
 
@@ -76,13 +102,10 @@ design).
 - Rerun them in isolation (`cargo test -p davout --test physical_reference -- <name> --exact`) before treating a
   failure as a regression.
 
-## Agent tooling changed this session (user config, not in this repo)
+## Agent tooling (user config, not in this repo)
 
-- Implementation subagents are routed by `~/.omp/agent/extensions/jev-router.ts`. It loads at session start.
-  - A `task` call with `agent` omitted (or `agent: "task"`) is sent to TypeSafe Jev, which picks `task-low`,
-    `task-medium`, `task-high`, `scout` or `designer`.
-  - Safety overrides (motion/CAN/enable, auth, data loss) force `task-high`.
-  - Low-confidence ties go to the stronger model.
-- Each decision appears as a `Jev routing:` note and is appended to `~/.omp/agent/routing-log.jsonl`. If the
-  first dispatch shows no such note, the extension did not load.
-- `route: <agent>` in a brief forces a route.
+- Implementation subagents are routed by `~/.omp/agent/extensions/jev-router.ts`.
+  - Only `task` items with `agent` omitted or `"task"` are routed. An explicit agent name skips Jev.
+  - To force a tier and keep the routing log, put `route: <agent>` in `solutionSpace`.
+- `~/.omp/agent/agents/verifier.md` now pins `model: "@task_low"` (gpt-6-luna). This gives the verifier a
+  different model family from the Opus and Muse implementers.
