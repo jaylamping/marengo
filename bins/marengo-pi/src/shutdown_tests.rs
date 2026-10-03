@@ -3,7 +3,11 @@
 //! The first probe is replayed unchanged after a separately reviewed parity
 //! extraction. Its archive/manifest binding is recorded outside this source;
 //! this is not an unchanged-original-binary shutdown fixture.
+
 #![allow(clippy::expect_used, clippy::panic)]
+
+#[path = "../../../crates/berthier/tests/support/mod.rs"]
+mod feedback_support;
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -426,6 +430,10 @@ fn stdin_quit_prevents_a_later_actuator_command_and_motion_tick() {
                 extended: true,
             })
             .expect("finite current-session raw status");
+        feedback_support::queue_all_status(
+            controller.supervisor_mut(),
+            Some(("right_elbow_pitch", 0.0, 0.0)),
+        );
         controller
             .supervisor_mut()
             .drain_feedback()
@@ -1125,6 +1133,10 @@ fn active_shutdown_clears_gain_torque_and_wave_intent_before_storage_and_reenabl
             }
             _ => unreachable!("literal intent cases"),
         }
+        feedback_support::queue_all_status(
+            controller.supervisor_mut(),
+            Some(("right_elbow_pitch", 0.0, 0.0)),
+        );
         controller.supervisor_mut().bus_mut().clear_trace();
         controller.tick(None).expect("actual Active intent tick");
         assert_eq!(controller.supervisor().mode(), OperationalMode::Active);

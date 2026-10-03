@@ -87,10 +87,10 @@ enum Commands {
         /// Joint whose torque enters the fit; repeat. Default: every joint.
         #[arg(long = "fit-joint")]
         fit_joints: Vec<String>,
-        #[arg(long, default_value = "docs/commissioning/calibrations")]
+        #[arg(long, required = true)]
         out_dir: PathBuf,
         /// Local URDF compared with the Pi base (reported, never modified).
-        #[arg(long, default_value = "assets/urdf/marengo.urdf")]
+        #[arg(long, required = true)]
         repo_urdf: PathBuf,
     },
     /// Measure Robstride firmware timing (Enable→Run, post-SetZero silence, reply

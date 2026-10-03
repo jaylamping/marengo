@@ -39,7 +39,6 @@ use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use armee_dynamics::{check_gravity_range, GravityRangeVerdict};
 use armee_proto::prost::Message;
 use armee_proto::{
     ActiveReportingLeaseAction, ActiveReportingLeaseRequest, ControlMode as ProtoControlMode,
@@ -457,6 +456,8 @@ fn handle_chappe_enable<B: MotorBus>(
         if queue.is_busy() {
             return Err("reference queue busy; enable refused".into());
         }
+        preflight_gravity_saturation(loop_ctrl)
+            .map_err(|()| "gravity saturation preflight refused enable".to_string())?;
         // Never call set_homing_complete on enable — Verified is Set Zero only.
         let targets = loop_ctrl
             .supervisor()
@@ -854,6 +855,19 @@ fn drain_testing_commands<B: MotorBus>(
             ProtoControlMode::try_from(batch.mode),
             Ok(ProtoControlMode::Position)
         );
+        if want_position
+            && loop_ctrl.supervisor().mode() != OperationalMode::Active
+            && preflight_gravity_saturation(loop_ctrl).is_err()
+        {
+            report_refusal(
+                chappe,
+                "consul",
+                "",
+                "testing batch",
+                "gravity saturation preflight refused motion",
+            );
+            continue;
+        }
         for joint in &batch.joints {
             if shutdown.load(Ordering::SeqCst) {
                 return;
@@ -1057,54 +1071,102 @@ fn print_status<B: MotorBus>(loop_ctrl: &mut ControlLoop<B>, config_dir: &Path) 
 }
 
 fn preflight_gravity_saturation<B: MotorBus>(loop_ctrl: &mut ControlLoop<B>) -> Result<(), ()> {
-    // Collect per-joint range + torque limit from the supervisor first, so the
-    // &mut supervisor borrow ends before we borrow loop_ctrl for the dynamics model.
-    let joint_names: Vec<String> = loop_ctrl.joint_names().to_vec();
-    let joint_specs: Vec<(String, usize, f64, f64, f64)> = {
-        let supervisor = loop_ctrl.supervisor_mut();
-        let motors = &supervisor.motors.motors;
-        joint_names
-            .iter()
-            .enumerate()
-            .filter_map(|(i, joint)| {
-                let motor = motors.iter().find(|m| &m.joint == joint)?;
-                let policy = supervisor.joint_limit_policy(joint)?;
-                Some((
-                    joint.clone(),
-                    i,
-                    motor.bench.position_lower_rad,
-                    motor.bench.position_upper_rad,
-                    policy.tau_ff_max,
-                ))
-            })
-            .collect()
+    const GRID_POINTS: usize = 5;
+    const MAX_GRID_SAMPLES: usize = 1_000_000;
+    let joint_names = loop_ctrl.joint_names().to_vec();
+    let joint_specs: Vec<(String, f64, f64, f64)> = {
+        let supervisor = loop_ctrl.supervisor();
+        let mut specs = Vec::with_capacity(joint_names.len());
+        for joint in &joint_names {
+            let Some(_motor) = supervisor.motors.motors.iter().find(|m| &m.joint == joint) else {
+                error!(
+                    joint,
+                    "gravity preflight: no motor configuration; refusing enable"
+                );
+                return Err(());
+            };
+            let Some(policy) = supervisor.joint_limit_policy(joint) else {
+                error!(
+                    joint,
+                    "gravity preflight: no live limit policy; refusing enable"
+                );
+                return Err(());
+            };
+            let Some(feedback) = supervisor.joint_feedback(joint) else {
+                error!(
+                    joint,
+                    "gravity preflight: no measured position for live envelope"
+                );
+                return Err(());
+            };
+            let (q_min, q_max) =
+                armee_kinematics::effective_command_bounds(policy, feedback.position_rad, 0.0);
+            if !q_min.is_finite() || !q_max.is_finite() || q_min > q_max {
+                error!(
+                    joint,
+                    q_min, q_max, "gravity preflight: invalid live envelope"
+                );
+                return Err(());
+            }
+            specs.push((joint.clone(), q_min, q_max, policy.tau_ff_max));
+        }
+        specs
     };
-    let model = loop_ctrl.dynamics_model();
+    let exponent = match u32::try_from(joint_specs.len()) {
+        Ok(exponent) => exponent,
+        Err(_) => {
+            error!("gravity preflight: too many joints to sweep");
+            return Err(());
+        }
+    };
+    let Some(sample_count) = GRID_POINTS.checked_pow(exponent) else {
+        error!("gravity preflight: sweep size overflow");
+        return Err(());
+    };
+    if sample_count > MAX_GRID_SAMPLES {
+        error!(
+            sample_count,
+            "gravity preflight: sweep exceeds bounded work"
+        );
+        return Err(());
+    }
+    let mut maxima = vec![0.0_f64; joint_specs.len()];
+    let mut q = vec![0.0_f64; joint_specs.len()];
+    for sample in 0..sample_count {
+        let mut digits = sample;
+        for (i, (_, lower, upper, _)) in joint_specs.iter().enumerate() {
+            let point = digits % GRID_POINTS;
+            digits /= GRID_POINTS;
+            q[i] = lower + (upper - lower) * point as f64 / (GRID_POINTS - 1) as f64;
+        }
+        let tau = match loop_ctrl.preview_gravity_torques(&q) {
+            Ok(tau) => tau,
+            Err(error) => {
+                error!(%error, "gravity preflight: model could not be evaluated; refusing enable");
+                return Err(());
+            }
+        };
+        for (i, value) in tau.iter().enumerate() {
+            if !value.is_finite() {
+                error!(joint = %joint_names[i], "gravity preflight: non-finite torque");
+                return Err(());
+            }
+            maxima[i] = maxima[i].max(value.abs());
+        }
+    }
     let mut saturated = false;
-    for (joint, i, q_min, q_max, motor_tau_limit) in &joint_specs {
-        match check_gravity_range(model, *i, *q_min, *q_max, *motor_tau_limit, 20) {
-            GravityRangeVerdict::Within { .. } => {}
-            GravityRangeVerdict::Near { tau_max_nm } => warn!(
-                joint = %joint,
-                tau_max = tau_max_nm, motor_tau_limit = *motor_tau_limit,
-                "gravity torque >80% of motor limit"
-            ),
-            GravityRangeVerdict::Saturated { tau_max_nm } => {
-                error!(
-                    joint = %joint,
-                    tau_max = tau_max_nm, motor_tau_limit = *motor_tau_limit,
-                    "gravity saturation: tau_g exceeds motor torque limit"
-                );
-                saturated = true;
-            }
-            GravityRangeVerdict::Unevaluable(error) => {
-                error!(
-                    joint = %joint,
-                    %error,
-                    "gravity preflight: model could not be evaluated over the joint range; refusing enable"
-                );
-                saturated = true;
-            }
+    for ((joint, _, _, limit), tau_max_nm) in joint_specs.iter().zip(maxima) {
+        if !limit.is_finite() || *limit <= 0.0 || tau_max_nm > *limit {
+            error!(
+                joint,
+                tau_max_nm, limit, "gravity saturation: refusing enable"
+            );
+            saturated = true;
+        } else if tau_max_nm > 0.8 * *limit {
+            warn!(
+                joint,
+                tau_max_nm, limit, "gravity torque >80% of motor limit"
+            );
         }
     }
     if saturated {
@@ -1139,12 +1201,13 @@ fn handle_command<B: MotorBus>(
                 println!("home failed: {message}");
             }
         }
-        PiCommand::Enable { operator_id, force } => {
-            if !force {
-                if let Err(()) = preflight_gravity_saturation(loop_ctrl) {
-                    eprintln!("enable refused: gravity saturation exceeds motor limit (use 'enable <operator> force' to override)");
-                    return true;
-                }
+        PiCommand::Enable {
+            operator_id,
+            force: _,
+        } => {
+            if let Err(()) = preflight_gravity_saturation(loop_ctrl) {
+                eprintln!("enable refused: gravity saturation preflight failed closed");
+                return true;
             }
             match loop_ctrl.supervisor().resolve_enable_targets(repo_root()) {
                 Ok(targets) => match loop_ctrl.supervisor_mut().enable_targets(&targets) {

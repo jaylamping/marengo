@@ -173,7 +173,9 @@ fn record(out: &Path) -> Value {
 #[test]
 fn proposes_mass_patch_that_applies_to_the_pi_urdf() {
     let session = write_session(&POSES);
-    let out = TempDir::new().unwrap();
+    let captured_urdf =
+        std::fs::read(session.path().join("pi-marengo.urdf")).expect("captured URDF");
+    let out = TempDir::new().expect("out");
     let o = run(session.path(), out.path(), &[]);
     let stdout = String::from_utf8_lossy(&o.stdout);
     assert_eq!(
@@ -183,6 +185,21 @@ fn proposes_mass_patch_that_applies_to_the_pi_urdf() {
         String::from_utf8_lossy(&o.stderr)
     );
     assert!(stdout.contains("Nothing applied"), "{stdout}");
+    assert!(
+        !session.path().join("proposed-marengo.urdf").exists(),
+        "gravity-fit must not write proposed URDF into captured evidence"
+    );
+    assert_eq!(
+        std::fs::read(session.path().join("pi-marengo.urdf")).expect("captured URDF unchanged"),
+        captured_urdf,
+        "gravity-fit must leave captured evidence byte-identical"
+    );
+    assert!(
+        out.path()
+            .join(format!("2026-10-03-gravity-{TS}.proposed-marengo.urdf"))
+            .exists(),
+        "proposed URDF belongs with generated output"
+    );
 
     let rec = record(out.path());
     assert_eq!(rec["accepted"], true, "{rec:#}");
@@ -259,6 +276,25 @@ fn proposes_mass_patch_that_applies_to_the_pi_urdf() {
 }
 
 #[test]
+fn gravity_fit_requires_explicit_output_and_local_urdf_paths() {
+    let session = write_session(&POSES);
+    let output = Command::cargo_bin("marengo-log-cli")
+        .expect("binary")
+        .args(["gravity-fit", "--dir"])
+        .arg(session.path())
+        .output()
+        .expect("gravity-fit");
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("--out-dir"), "{stderr}");
+    assert!(stderr.contains("--repo-urdf"), "{stderr}");
+    assert!(
+        !session.path().join("proposed-marengo.urdf").exists(),
+        "missing paths must not make the CLI mutate evidence"
+    );
+}
+
+#[test]
 fn refuses_ill_conditioned_parameters_without_patch() {
     let session = write_session(&POSES);
     let out = TempDir::new().unwrap();
@@ -289,6 +325,40 @@ fn refuses_ill_conditioned_parameters_without_patch() {
         .path()
         .join(format!("2026-10-03-gravity-{TS}.urdf.patch"))
         .exists());
+}
+
+#[test]
+fn refuses_fused_sessions_with_different_calibration_windows() {
+    let first = write_session(&POSES);
+    let second = write_session(&POSES);
+    let control_path = second.path().join("config/control.yaml");
+    let control = std::fs::read_to_string(&control_path).expect("control");
+    let changed = control.replace(
+        "position_soft_upper_rad: 2.8983904819488524",
+        "position_soft_upper_rad: 2.8",
+    );
+    assert_ne!(
+        changed, control,
+        "fixture mutation must hit one joint window"
+    );
+    std::fs::write(control_path, changed).expect("write changed control");
+    let out = TempDir::new().expect("out");
+
+    let second_dir = second.path().to_str().expect("utf-8 fixture path");
+    let result = run(first.path(), out.path(), &["--dir", second_dir]);
+    let stderr = String::from_utf8_lossy(&result.stderr);
+    assert_ne!(result.status.code(), Some(0), "{stderr}");
+    assert!(
+        stderr.contains("different effective calibration windows"),
+        "{stderr}"
+    );
+    assert!(
+        std::fs::read_dir(out.path())
+            .expect("out dir")
+            .next()
+            .is_none(),
+        "refusal writes no calibration result"
+    );
 }
 
 #[test]
