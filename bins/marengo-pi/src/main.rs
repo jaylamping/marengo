@@ -144,7 +144,6 @@ where
     })
 }
 
-
 fn parse_command(line: &str) -> Option<PiCommand> {
     let mut parts = line.split_whitespace();
     match parts.next()? {
@@ -184,8 +183,7 @@ fn parse_command(line: &str) -> Option<PiCommand> {
         "gravity-off" | "gravity_off" => Some(PiCommand::GravityOff),
         "torque-cmd" | "torque_cmd" => {
             let joint = parts.next()?.to_string();
-            let tau_nm =
-                parse_number::<f64>(parts.next()?, "torque-cmd", "torque_nm").ok()?;
+            let tau_nm = parse_number::<f64>(parts.next()?, "torque-cmd", "torque_nm").ok()?;
             Some(PiCommand::TorqueCmd { joint, tau_nm })
         }
         "impedance-on" | "impedance_on" => Some(PiCommand::ImpedanceOn),
@@ -196,16 +194,14 @@ fn parse_command(line: &str) -> Option<PiCommand> {
             let tokens: Vec<_> = parts.collect();
             match tokens.as_slice() {
                 [rad] => {
-                    let position_rad =
-                        parse_number::<f64>(rad, "hold-at", "position_rad").ok()?;
+                    let position_rad = parse_number::<f64>(rad, "hold-at", "position_rad").ok()?;
                     Some(PiCommand::HoldAt {
                         joint: None,
                         position_rad,
                     })
                 }
                 [joint, rad] => {
-                    let position_rad =
-                        parse_number::<f64>(rad, "hold-at", "position_rad").ok()?;
+                    let position_rad = parse_number::<f64>(rad, "hold-at", "position_rad").ok()?;
                     Some(PiCommand::HoldAt {
                         joint: Some(joint.to_string()),
                         position_rad,

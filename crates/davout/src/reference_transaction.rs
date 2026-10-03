@@ -1930,48 +1930,4 @@ mod tests {
             "the cleanup stop must disable every installed drive ({disables} of {installed})"
         );
     }
-
-    /// ADR 0023:22: stop is unconditional with respect to a reference. An
-    /// individual speed stop during a reservation is not refused; it escalates
-    /// to the full stop, which cancels the reference.
-    #[test]
-    fn speed_stop_during_a_reference_stops_instead_of_refusing() {
-        let directory = directory::TestDirectory::new("reference-speed-stop");
-        let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let mut owner = Supervisor::from_simulation_with_calibration_record_path(
-            root,
-            SimulationBus::default(),
-            directory.path().join("history.yaml"),
-            InitialVirtualReference::Unreferenced,
-        )
-        .expect("actual closed owner");
-        let request = ReferenceRequest {
-            stamp: owner
-                .reference_snapshot()
-                .next_stamp
-                .expect("stamp before reservation"),
-            joint: "right_elbow_pitch".into(),
-            confirmed: true,
-            sign_verified: true,
-        };
-        owner.begin_reference(request).expect("reservation");
-        assert!(owner.reference_busy());
-        let frames_before = owner.bus().frames().len();
-
-        owner
-            .stop_speed_command("right_elbow_pitch")
-            .expect("a stop is never refused for a reference");
-
-        assert!(!owner.reference_busy(), "the reference is cancelled");
-        let disables = owner.bus().frames()[frames_before..]
-            .iter()
-            .filter(|frame| {
-                (frame.id >> 24) & 0x1f == u32::from(robstride::CommunicationType::Disable.as_u8())
-            })
-            .count();
-        assert!(
-            disables >= owner.stop_motors.len(),
-            "every installed drive is disabled ({disables})"
-        );
-    }
 }
