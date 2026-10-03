@@ -120,6 +120,17 @@ mkdir -p "${INSTALL_ROOT}"
 seal_installed_tree
 reject_installed_symlinks
 
+# /opt/marengo is a sealed install tree, not a checkout. A legacy layout left a
+# root-owned .git there that git-based tools then resolved against. Remove it
+# only for the canonical install root and never when installing from it.
+LEGACY_GIT="/opt/marengo/.git"
+if [[ "${INSTALL_ROOT}" == /opt/marengo ]] && [[ "$(cd "${ROOT}" && pwd -P)" != /opt/marengo ]] \
+  && [[ -e "${LEGACY_GIT}" || -L "${LEGACY_GIT}" ]]; then
+  legacy_head="$(cat "${LEGACY_GIT}/HEAD" 2>/dev/null || echo unknown)"
+  echo "Removing stale legacy checkout metadata ${LEGACY_GIT} (HEAD: ${legacy_head})"
+  rm -rf -- "${LEGACY_GIT}"
+fi
+
 if ! id "$RUN_USER" &>/dev/null; then
   useradd --system --home "$INSTALL_ROOT" --shell /usr/sbin/nologin "$RUN_USER"
 fi
