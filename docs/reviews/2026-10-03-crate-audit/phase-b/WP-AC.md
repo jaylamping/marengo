@@ -1,6 +1,6 @@
 # Phase B — WP-AC: Robstride wire protocol and CAN transport
 
-Branch: `audit/wp-ac`. The behavior fixes and B6 API pruning share overlapping Robstride implementation and test files, so they are recorded as one combined code commit rather than implying a clean hunk-level split. No Davout enable/reference sequencing, timing constants, or Transport latch behavior was changed.
+Branch: `audit/wp-ac`. Combined code commit: `35ac7cce` (`fix(robstride): harden wire validation and prune legacy APIs`). The behavior fixes and B6 API pruning share overlapping Robstride implementation and test files, so they are recorded as one combined code commit rather than implying a clean hunk-level split. No Davout enable/reference sequencing, timing constants, or Transport latch behavior was changed.
 
 ## Verdicts
 
