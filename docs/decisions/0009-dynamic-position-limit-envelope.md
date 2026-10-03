@@ -65,6 +65,10 @@ margin = min_rad + k_v_s * |dq_cmd| + k_stop * dq_cmd² / (2 * decel_rad_s2)
 - `clamp_hold_target` exempts a target from the kinetic margin only when it is within 5 mrad of the soft bottom or of zero-home (`|target| ≤ 5 mrad`). The earlier gate `max(hard_lower + 5 mrad, 5 mrad)` exempted every target ≤ +5 mrad on joints with a negative `hard_lower`. Berthier's `envelope_dq_cmd_for_hold_clamp` still uses the wider gate to pick the slew-speed `dq_cmd`; aligning it would change which soft-bottom targets are reachable in one leg and needs a bench decision.
 - There is one margin-default table (marengo-config). `LimitMarginConfig` has no `Default`; a joint without a `control.joints` entry is a Davout construction error.
 
+**2026-10-03 (crate audit WP-H).**
+
+- Davout's velocity-scaled margin uses whichever of commanded and measured velocity has greater magnitude, preserving that velocity's sign. Measured gravity-driven motion can therefore tighten the bound even when the planner requests motion the other way; the `dq_cmd`-only wording in the original formula describes the design intent, not the installed conservative behavior.
+
 ## Alternatives considered
 
 - **Static script margins** (`hold-at -0.85`): rejected — breaks when tuning or speed changes.

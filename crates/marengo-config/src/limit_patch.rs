@@ -34,6 +34,7 @@ pub fn ensure_soft_inset(patch: &mut LimitPatch) {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct LimitPatch {
     pub joint: String,
     pub position_lower_rad: f64,

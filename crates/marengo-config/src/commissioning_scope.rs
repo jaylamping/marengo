@@ -16,6 +16,7 @@ pub const COMMISSIONING_SCOPE_VERSION: u32 = 1;
 
 /// On-disk commissioning scope (canonical joint names only — never limb aliases).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CommissioningScopeFile {
     pub version: u32,
     pub joints: Vec<String>,

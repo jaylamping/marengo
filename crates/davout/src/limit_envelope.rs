@@ -62,19 +62,21 @@ impl<B: MotorBus> Supervisor<B> {
             .ok_or_else(|| DavoutError::UnknownJoint {
                 joint: patch.joint.clone(),
             })?;
-        if let Some(sample) = self.last_feedback_samples.get(&patch.joint) {
-            if sample.position_rad < policy.hard_lower()
-                || sample.position_rad > policy.hard_upper()
-            {
-                return Err(DavoutError::Limit {
-                    joint: patch.joint.clone(),
-                    message: format!(
-                        "measured position {} outside proposed hard [{}, {}]",
-                        sample.position_rad,
-                        policy.hard_lower(),
-                        policy.hard_upper()
-                    ),
-                });
+        if let Some(index) = self.motor_index(&patch.joint) {
+            if let Some(sample) = self.published_state(index) {
+                let measured_position = f64::from(sample.position_rad);
+                if measured_position < policy.hard_lower()
+                    || measured_position > policy.hard_upper()
+                {
+                    return Err(DavoutError::Limit {
+                        joint: patch.joint.clone(),
+                        message: format!(
+                            "measured position {measured_position} outside proposed hard [{}, {}]",
+                            policy.hard_lower(),
+                            policy.hard_upper()
+                        ),
+                    });
+                }
             }
         }
 

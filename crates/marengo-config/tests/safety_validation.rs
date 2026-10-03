@@ -305,6 +305,11 @@ fn homing_loader_rejects_invalid_defaults_and_overrides() {
                 "-1",
             ),
             (
+                "unbounded zero tolerance",
+                "homing/zero_verify_tolerance_rad",
+                "0.11",
+            ),
+            (
                 "negative search velocity",
                 "homing/defaults/search_velocity_rad_s",
                 "-1",
@@ -315,6 +320,11 @@ fn homing_loader_rejects_invalid_defaults_and_overrides() {
                 "-1",
             ),
             ("zero timeout", "homing/defaults/search_timeout_s", "0"),
+            (
+                "unbounded timeout",
+                "homing/defaults/search_timeout_s",
+                "301",
+            ),
             (
                 "infinite timeout",
                 "homing/defaults/search_timeout_s",
@@ -328,6 +338,36 @@ fn homing_loader_rejects_invalid_defaults_and_overrides() {
                 "-1",
             ),
         ],
+    );
+}
+
+#[test]
+fn all_master_configs_load_and_unknown_keys_are_rejected() {
+    let dir = source_root().join("config");
+    load_robot_config_from(&dir).expect("master robot config");
+    load_motors_config_from(&dir).expect("master motors config");
+    load_control_config_from(&dir).expect("master control config");
+    load_homing_config_from(&dir).expect("master homing config");
+
+    reject_yaml_cases(
+        "robot.yaml",
+        &[("unknown robot key", "robot/bench/typo_cap", "1")],
+    );
+    reject_yaml_cases(
+        "motors.yaml",
+        &[("unknown motor key", "motors/0/bench/typo_cap", "1")],
+    );
+    reject_yaml_cases(
+        "control.yaml",
+        &[(
+            "unknown control key",
+            "control/joints/right_shoulder_pitch/typo_gain",
+            "1",
+        )],
+    );
+    reject_yaml_cases(
+        "homing.yaml",
+        &[("unknown homing key", "homing/defaults/typo_timeout", "1")],
     );
 }
 
