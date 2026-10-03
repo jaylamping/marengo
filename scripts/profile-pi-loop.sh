@@ -35,7 +35,7 @@ run_pipe() {
     sleep 12
     printf '%s\n' disable
     printf '%s\n' quit
-  } | timeout 25 bin/marengo-pi
+  } | MARENGO_MOTION_OWNER=stdin timeout 25 bin/marengo-pi
 }
 
 filter_timing() {

@@ -21,7 +21,8 @@ use tracing::{debug, info};
 
 use crate::friction::POSITION_HOLD_ERROR_DEADBAND_RAD;
 use crate::gain_runtime::{
-    target_gains_from_yaml, GainClampLimits, GainOverride, GainRuntime, JointModeGains,
+    mode_allows_gain_override, target_gains_from_yaml, GainClampLimits, GainOverride, GainRuntime,
+    JointModeGains,
 };
 use crate::mit_feedforward::{MitFeedforward, MitFfJointIn};
 use crate::position_hold::{
@@ -89,6 +90,13 @@ pub enum LoopError {
     NonFiniteTorqueCmd { joint: String },
     #[error("invalid gain override for {joint}: {field} must be finite and nonnegative")]
     InvalidGainOverride { joint: String, field: &'static str },
+    /// An operator disabled the drives; a motion command may not re-enable them.
+    #[error("drives were disabled by an operator; enable explicitly before commanding motion")]
+    ExplicitEnableRequired,
+    /// A Testing gain override only exists in Impedance/Position; elsewhere it
+    /// would be silently dropped, so the caller is told instead of getting Ok.
+    #[error("gain override for {joint} not applied: control mode {mode:?} has no runtime gains")]
+    GainOverrideNotApplicable { joint: String, mode: ControlMode },
     #[error("invalid nominal controller period {seconds} seconds")]
     InvalidLoopPeriod { seconds: f64 },
 }
@@ -138,6 +146,9 @@ pub struct ControlLoop<B: MotorBus> {
     torque_cmds: TorqueCmdLatch,
     /// In-loop triangle wave on one joint while others hold fixed setpoints.
     position_wave: Option<PositionWave>,
+    /// Set by an operator disable: motion commands then refuse instead of
+    /// re-enabling drives (see [`ControlLoop::ensure_active_for_motion`]).
+    implicit_enable_forbidden: bool,
 }
 
 /// Per-tick CPU time inside [`ControlLoop::tick`] (microseconds, averaged over a window).
@@ -468,6 +479,7 @@ impl<B: MotorBus> ControlLoop<B> {
             gains: GainRuntime::new(),
             torque_cmds: TorqueCmdLatch::new(),
             position_wave: None,
+            implicit_enable_forbidden: false,
         })
     }
 
@@ -756,15 +768,38 @@ impl<B: MotorBus> ControlLoop<B> {
     /// Never calls [`Supervisor::set_homing_complete`] — Verified is Set Zero only.
     /// Targets come from [`Supervisor::resolve_enable_targets`] (persisted scope or
     /// full-master Robot Ready).
+    ///
+    /// After an operator disable ([`Self::forbid_implicit_enable`]) a motion
+    /// command no longer implies Enable: it is refused with
+    /// [`LoopError::ExplicitEnableRequired`] until the operator enables
+    /// explicitly (L-berthier-28).
     pub fn ensure_active_for_motion(&mut self) -> Result<(), LoopError> {
         self.synchronize_stop_generation();
         let targets = if self.supervisor.mode() == OperationalMode::Active {
             self.supervisor.active_joints().iter().cloned().collect()
+        } else if self.implicit_enable_forbidden {
+            return Err(LoopError::ExplicitEnableRequired);
         } else {
             self.supervisor.resolve_enable_targets(&self.repo_root)?
         };
         self.supervisor.enable_targets(&targets)?;
         Ok(())
+    }
+
+    /// The operator disabled the drives: a later motion command must not
+    /// silently re-enable them. Cleared by [`Self::allow_implicit_enable`].
+    pub fn forbid_implicit_enable(&mut self) {
+        self.implicit_enable_forbidden = true;
+    }
+
+    /// The operator enabled the drives explicitly; motion commands may again
+    /// re-arm drives that a safety (non-operator) disable dropped.
+    pub fn allow_implicit_enable(&mut self) {
+        self.implicit_enable_forbidden = false;
+    }
+
+    pub fn implicit_enable_forbidden(&self) -> bool {
+        self.implicit_enable_forbidden
     }
 
     /// MIT / MissingFeedback apply only to Davout `active_joints` while Active.
@@ -967,8 +1002,10 @@ impl<B: MotorBus> ControlLoop<B> {
 
     /// Apply a per-joint gain override, clamped to motor-type safety limits.
     ///
-    /// No-op under GravityComp / TorqueOnly / Disabled so Testing cannot stash
-    /// stiffness that snaps back on Impedance/Position enter.
+    /// Refused ([`LoopError::GainOverrideNotApplicable`]) under GravityComp /
+    /// TorqueOnly / Disabled: Testing cannot stash stiffness that would snap
+    /// back on Impedance/Position enter, and the caller must not be told Ok for
+    /// a gain that was dropped (L-berthier-10).
     pub fn apply_gain_override(
         &mut self,
         joint_name: &str,
@@ -976,16 +1013,28 @@ impl<B: MotorBus> ControlLoop<B> {
     ) -> Result<(), LoopError> {
         self.refuse_reference_intent("gain override")?;
         self.validate_gain_override(joint_name, &gain_override)?;
+        self.require_gain_mode(joint_name)?;
         let limits = self.clamp_limits_for(joint_name);
         self.gains
             .apply(self.control_mode, joint_name, gain_override, limits);
         Ok(())
     }
 
+    fn require_gain_mode(&self, joint: &str) -> Result<(), LoopError> {
+        if mode_allows_gain_override(self.control_mode) {
+            Ok(())
+        } else {
+            Err(LoopError::GainOverrideNotApplicable {
+                joint: joint.to_owned(),
+                mode: self.control_mode,
+            })
+        }
+    }
+
     /// Batch-apply gain overrides for multiple joints.
     ///
-    /// No-op under GravityComp / TorqueOnly / Disabled (same policy as
-    /// [`Self::apply_gain_override`]).
+    /// Same policy as [`Self::apply_gain_override`]: a non-empty batch is
+    /// refused outside Impedance/Position.
     pub fn apply_gain_overrides(
         &mut self,
         overrides: &HashMap<String, GainOverride>,
@@ -993,6 +1042,7 @@ impl<B: MotorBus> ControlLoop<B> {
         self.refuse_reference_intent("gain overrides")?;
         for (joint, gains) in overrides {
             self.validate_gain_override(joint, gains)?;
+            self.require_gain_mode(joint)?;
         }
         // Precompute limits: apply_batch's closure cannot borrow `self` while `gains` is mut.
         let limits: HashMap<String, GainClampLimits> = overrides
@@ -1835,6 +1885,35 @@ mod tests {
         assert_eq!(loop_ctrl.control_mode(), ControlMode::Position);
     }
 
+    /// L-berthier-28: after an operator disable a motion command refuses
+    /// instead of re-enabling; an explicit enable lifts the requirement.
+    #[test]
+    fn hold_at_refuses_to_reenable_after_operator_disable() {
+        let mut loop_ctrl = test_loop();
+        virtual_ready_active(&mut loop_ctrl);
+        loop_ctrl
+            .enter_position_hold_at(Some("right_shoulder_pitch"), 0.25)
+            .expect("hold-at");
+        loop_ctrl.tick(None).expect("tick");
+        loop_ctrl.supervisor_mut().disable_all().expect("disable");
+        loop_ctrl.set_control_mode(ControlMode::Disabled);
+        loop_ctrl.forbid_implicit_enable();
+        let refused = loop_ctrl
+            .enter_position_hold_at(Some("right_shoulder_pitch"), 0.0)
+            .expect_err("operator disable must not be undone by a motion command");
+        assert!(matches!(refused, LoopError::ExplicitEnableRequired));
+        assert_eq!(
+            loop_ctrl.supervisor_mut().mode(),
+            OperationalMode::Disabled,
+            "refusal must not touch the drives"
+        );
+        loop_ctrl.allow_implicit_enable();
+        let after_enable = loop_ctrl
+            .enter_position_hold_at(Some("right_shoulder_pitch"), 0.0)
+            .expect_err("explicit enable restores the re-arm path");
+        assert!(matches!(after_enable, LoopError::EnableIncomplete { .. }));
+    }
+
     /// Active with no session pose: every Position-mode arm refuses and latches
     /// nothing, rather than holding the 0.0 placeholder of a missing pose.
     #[test]
@@ -2147,11 +2226,13 @@ mod tests {
         );
     }
 
+    /// L-berthier-10: a gain override outside Impedance/Position was dropped
+    /// but reported Ok; it is now refused with the mode in the error.
     #[test]
-    fn apply_gain_override_ignored_under_gravity_comp() {
+    fn apply_gain_override_refused_under_gravity_comp() {
         let mut loop_ctrl = test_loop();
         loop_ctrl.set_control_mode(ControlMode::GravityComp);
-        loop_ctrl
+        let err = loop_ctrl
             .apply_gain_override(
                 "right_shoulder_pitch",
                 GainOverride {
@@ -2161,7 +2242,14 @@ mod tests {
                     fc: 1.0,
                 },
             )
-            .expect("valid gain override");
+            .expect_err("GravityComp has no runtime gains");
+        assert!(matches!(
+            err,
+            LoopError::GainOverrideNotApplicable {
+                mode: ControlMode::GravityComp,
+                ..
+            }
+        ));
         assert!(
             loop_ctrl.gain_override("right_shoulder_pitch").is_none(),
             "must not stash overrides under GravityComp"
@@ -2172,10 +2260,10 @@ mod tests {
     }
 
     #[test]
-    fn apply_gain_override_ignored_under_disabled() {
+    fn apply_gain_override_refused_under_disabled() {
         let mut loop_ctrl = test_loop();
         assert_eq!(loop_ctrl.control_mode(), ControlMode::Disabled);
-        loop_ctrl
+        let err = loop_ctrl
             .apply_gain_override(
                 "right_shoulder_pitch",
                 GainOverride {
@@ -2185,7 +2273,14 @@ mod tests {
                     fc: 1.0,
                 },
             )
-            .expect("valid gain override");
+            .expect_err("Disabled has no runtime gains");
+        assert!(matches!(
+            err,
+            LoopError::GainOverrideNotApplicable {
+                mode: ControlMode::Disabled,
+                ..
+            }
+        ));
         assert!(loop_ctrl.gain_override("right_shoulder_pitch").is_none());
     }
 

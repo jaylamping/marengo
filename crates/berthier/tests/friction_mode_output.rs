@@ -26,17 +26,24 @@ fn command(mode: ControlMode, fc: f64) -> CanFrame {
         .enable_targets(&[joint.into()])
         .expect("scoped enable");
     controller.set_control_mode(mode);
-    controller
-        .apply_gain_override(
-            joint,
-            GainOverride {
-                kp: 0.0,
-                kd: 0.0,
-                ki: 0.0,
-                fc,
-            },
-        )
-        .expect("valid output-only override");
+    let applied = controller.apply_gain_override(
+        joint,
+        GainOverride {
+            kp: 0.0,
+            kd: 0.0,
+            ki: 0.0,
+            fc,
+        },
+    );
+    if mode == ControlMode::GravityComp {
+        // L-berthier-10: the override has no effect here and says so.
+        assert!(matches!(
+            applied,
+            Err(berthier::LoopError::GainOverrideNotApplicable { .. })
+        ));
+    } else {
+        applied.expect("valid output-only override");
+    }
     queue_joint_status(controller.supervisor_mut(), joint, 0.0, 0.2);
     // Let the configured torque slew admit this small independent friction step.
     std::thread::sleep(std::time::Duration::from_millis(5));

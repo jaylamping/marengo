@@ -35,6 +35,7 @@ use thiserror::Error;
 use tracing::warn;
 
 use crate::limit_persist::{next_audit_revision, PersistDrainReport, PersistError, PersistRequest};
+use crate::motion_owner::{CommandClass, CommandSource, MotionLease};
 
 pub use crate::limit_persist::ConfigPersistQueue;
 
@@ -61,6 +62,8 @@ pub enum OverlayError {
     Config(#[from] marengo_config::ConfigError),
     #[error("chappe: {0}")]
     Chappe(#[from] chappe::BusError),
+    #[error(transparent)]
+    Motion(#[from] crate::motion_owner::MotionRefusal),
     #[error("controller: {0}")]
     Controller(#[from] berthier::LoopError),
 }
@@ -75,6 +78,7 @@ pub struct ActuatorOverlay {
     limits_dirty: bool,
     allowlist: CommandJointAllowlist,
     persist: ConfigPersistQueue,
+    motion: MotionLease,
 }
 
 impl ActuatorOverlay {
@@ -83,6 +87,9 @@ impl ActuatorOverlay {
             limits_dirty: true,
             allowlist,
             persist,
+            // Chappe owns motion unless `run_control_loop` installs the
+            // runtime's lease (stdin-owned sessions).
+            motion: MotionLease::new(CommandSource::Chappe),
         }
     }
 
@@ -98,6 +105,11 @@ impl ActuatorOverlay {
 
     pub fn mark_limits_dirty(&mut self) {
         self.limits_dirty = true;
+    }
+
+    /// The runtime's motion lease; Chappe runtime tuning needs ownership.
+    pub(crate) fn set_motion_lease(&mut self, motion: MotionLease) {
+        self.motion = motion;
     }
 
     /// Archived subsystem probes exercise this same dispatch with no owner exit.
@@ -319,6 +331,12 @@ impl ActuatorOverlay {
     ) -> Result<Vec<OverlayOutcome>, OverlayError> {
         match TuningTier::try_from(tuning.tier) {
             Ok(TuningTier::RuntimeMit) => {
+                // Live kp/kd retunes change how a held joint moves: motion class.
+                self.motion.admit(
+                    CommandSource::Chappe,
+                    CommandClass::Motion,
+                    "runtime tuning",
+                )?;
                 let before = runtime_param_before(loop_ctrl, joint, &tuning.param)?;
                 apply_runtime_param(loop_ctrl, joint, &tuning.param, tuning.value)?;
                 let after = runtime_param_before(loop_ctrl, joint, &tuning.param)?;
@@ -673,10 +691,7 @@ pub fn publish_tuning_event(
     )
 }
 
-pub fn publish_action_event(
-    chappe: &Arc<Bus>,
-    event: &ActionEvent,
-) -> Result<(), chappe::BusError> {
+pub fn publish_action_event(chappe: &Bus, event: &ActionEvent) -> Result<(), chappe::BusError> {
     chappe.publish(
         TOPIC_AUDIT_ACTION,
         "marengo-pi",

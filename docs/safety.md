@@ -110,6 +110,24 @@ Consul may hold **Active Reporting leases** (operator UI: Enhanced logging) via 
 
 While free-drive sensing is desired (sheet/modal lease or global diagnostics flag), Davout **re-asserts** type-24 enable on a ~1 s heartbeat and when a joint’s feedback goes stale (~200 ms with no RX). Motors can drop Active Reporting mid-sweep; without retry, Consul freezes on the last sample and Set Limits Apply would teach a tiny band.
 
+## Single motion owner (stdin vs Chappe)
+
+`marengo-pi` has two command sources: stdin (MCP scripted bench sessions, a person on SSH) and Chappe (Consul through the gateway). **Exactly one of them owns motion for the life of the process**, claimed at launch with `--motion-owner stdin|chappe` (or `MARENGO_MOTION_OWNER`); the default is `chappe` (the systemd service has no stdin and is steered by Consul). The MCP remote preamble exports `MARENGO_MOTION_OWNER=stdin`, so every MCP-started session owns its own motion and an open Consul tab cannot steer it. There is no runtime hand-over: ownership ends when the process exits.
+
+| Class | Commands | Non-owner |
+|---|---|---|
+| Stop | stdin `disable`, `quit`, `hold-off`, `impedance-off`; Chappe `enable(false)`; SIGINT/SIGTERM | **always accepted** |
+| Observe | stdin `status`; Chappe status poll / Active Reporting lease | accepted |
+| Motion | `enable`, `home`, Set Zero, `hold-on/at`, `wave`, `gravity-on/off`, `impedance-on`, `torque-cmd`, Testing `mit_command_batch`, runtime kp/kd tuning | **refused**: logged, printed (stdin) and published as `ActionEvent{action: "motion_refused", accepted: false}` on `robot/audit/action` |
+
+Further rules enforced in `marengo-pi`/Berthier:
+
+* Testing batches obey the same reference-queue gate as Chappe enable: refused whole while the reference queue is busy or Davout holds a reference, before any gain, mode or enable side effect.
+* An **operator disable** (stdin `disable`, Chappe `enable(false)`, or the fail-closed stop below) stands until an explicit enable: a later `hold-at`/`wave`/Testing position command is refused with `drives were disabled by an operator` instead of silently re-enabling (`ControlLoop::forbid_implicit_enable`). A process that was never operator-disabled keeps the existing "motion command re-arms" behaviour. Safety (non-operator) disables are unchanged: Davout still refuses re-enable while a fault is latched.
+* `robot/enable` is a stop channel. If its broadcast receiver reports `Lagged`, a Disable may have been dropped and cannot be recovered, so the drain **stops every drive, cancels the reference queue, forbids implicit re-enable and discards the queued survivors**, then publishes `ActionEvent{action: "stop_on_lag"}`. Lag is never treated as an empty channel.
+* A Testing gain override is refused (`GainOverrideNotApplicable`) outside Impedance/Position instead of returning Ok; a Testing POSITION batch applies its gains after the mode is entered.
+* Configuration-plane Chappe commands (Set Limits, config overlay tuning) are not motion and are not gated by the lease; they remain refused while a reference is busy.
+
 ## Graceful owner shutdown
 
 The installed Pi exits dispatch when Quit or the shared shutdown flag is observed,
