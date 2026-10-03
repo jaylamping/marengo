@@ -42,7 +42,7 @@ return an error; `ControlLoop::tick` latches a Davout control fault and disables
 - Errors carry `HoldFuseTrip` (`q`, `target`, `tau_p`, `tau_ff`, `tau_g` at trip).
 - Home classification: a clamped target within two feedback counts of zero
   (`home_target_tolerance` of the joint's progress threshold) is latched as exactly `0.0`
-  (raw request kept in `targets_raw`), so a hold-on one count off zero behaves as an exact-zero latch.
+  (raw request kept in `setpoints_raw`, surfaced per-tick as diag `target_raw`).
 
 ## Integration
 - Imports `davout::{Supervisor, ControlMode, MitJointCommand}`

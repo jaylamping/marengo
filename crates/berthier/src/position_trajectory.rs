@@ -190,12 +190,6 @@ pub fn trapezoid_step(
     (q_new, v_new, phase)
 }
 
-/// Damping from commanded vs measured velocity while tracking a trajectory.
-#[allow(dead_code)] // unit tests in this crate
-pub fn trajectory_damping_torque(dq: f64, dq_des: f64, kd: f64) -> f64 {
-    kd * (dq_des - dq)
-}
-
 /// EMA weight for measured velocity used only in position-hold damping FF (200 Hz bench).
 pub const POSITION_DAMPING_DQ_FILTER_ALPHA: f64 = 0.25;
 
@@ -406,12 +400,6 @@ mod tests {
     }
 
     #[test]
-    fn trajectory_damping_tracks_velocity_error() {
-        let tau = trajectory_damping_torque(0.1, 0.2, 2.0);
-        assert!((tau - 0.2).abs() < 1e-12);
-    }
-
-    #[test]
     fn dq_ema_softens_breakaway_spike() {
         let filtered = filter_dq_ema(0.0, 0.144, POSITION_DAMPING_DQ_FILTER_ALPHA);
         assert!((filtered - 0.036).abs() < 1e-9);
@@ -419,7 +407,8 @@ mod tests {
 
     #[test]
     fn damping_spike_cap_limits_mid_travel_brake() {
-        let unfiltered = trajectory_damping_torque(0.144, 0.0612, 1.25);
+        // Linear kd*(dq_des-dq) reference for the raw spike (dead helper removed).
+        let unfiltered = 1.25 * (0.0612 - 0.144);
         assert!(
             unfiltered < -0.08,
             "unfiltered spike should brake hard: {unfiltered}"

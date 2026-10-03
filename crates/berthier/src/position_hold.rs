@@ -452,9 +452,10 @@ impl PositionHold {
         self.setpoints.as_deref()
     }
 
-    /// Operator-requested targets before envelope clamp (diagnostics / status).
-    #[allow(dead_code)] // public status accessor; ControlLoop may wire later
-    pub fn targets_raw(&self) -> Option<&[f64]> {
+    /// Operator-requested targets before envelope clamp, for tests.
+    /// (Pre-tick reads; per-tick diag `target_raw` only exists after a tick.)
+    #[cfg(test)]
+    pub(crate) fn raw_targets_for_test(&self) -> Option<&[f64]> {
         self.setpoints_raw.as_deref()
     }
 
@@ -1416,7 +1417,7 @@ impl PositionHold {
                 approaching_target,
             );
             let mit_kd = if settle_error.abs() < 0.1 {
-                position_hold_mit_kd(jp.kd, world.q[i], target, dq, jp.vel_deadband)
+                position_hold_mit_kd(jp.kd, dq, jp.vel_deadband)
             } else {
                 0.0
             };
@@ -1656,7 +1657,7 @@ mod tests {
         }));
         assert!(hold.is_armed());
         assert_eq!(hold.targets().unwrap()[0], 0.3);
-        assert_eq!(hold.targets_raw().unwrap()[0], 0.35);
+        assert_eq!(hold.setpoints_raw.as_ref().unwrap()[0], 0.35);
         assert!(
             (hold.dq_filtered_at(0).unwrap() - 0.07).abs() < 1e-12,
             "unarmed retarget must apply dq_seed"
