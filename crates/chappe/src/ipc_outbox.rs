@@ -5,17 +5,12 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex, TryLockError};
 use std::time::{Duration, Instant};
 
+use crate::topics::{EVENT_TELEMETRY_TOPICS, LATEST_TELEMETRY_TOPICS};
+
 pub const MAX_PAYLOAD_BYTES: usize = 64 * 1024;
 pub const EVENT_CAPACITY: usize = 128;
 pub const EVENT_BYTE_CAPACITY: usize = 512 * 1024;
-const LATEST_TOPICS: [&str; 6] = [
-    "robot/safety",
-    "robot/heartbeat",
-    "robot/state",
-    "sensors/imu/torso",
-    "host/metrics/pi",
-    "robot/actuator/limits",
-];
+const LATEST_TOPICS: [&str; 6] = LATEST_TELEMETRY_TOPICS;
 pub const QUEUE_ITEM_CAPACITY: usize = LATEST_TOPICS.len() + EVENT_CAPACITY;
 pub const QUEUE_BYTE_CAPACITY: usize =
     LATEST_TOPICS.len() * MAX_PAYLOAD_BYTES + EVENT_BYTE_CAPACITY;
@@ -139,15 +134,12 @@ impl Outbox {
         let latest_index = LATEST_TOPICS
             .iter()
             .position(|candidate| *candidate == topic);
-        let event_topic = match topic {
-            "logs/structured" => Some("logs/structured"),
-            "robot/audit/action" => Some("robot/audit/action"),
-            "robot/audit/tuning" => Some("robot/audit/tuning"),
-            _ => None,
-        };
+        let event_index = EVENT_TELEMETRY_TOPICS
+            .iter()
+            .position(|candidate| *candidate == topic);
         if self.closed()
             || payload.len() > MAX_PAYLOAD_BYTES
-            || (latest_index.is_none() && event_topic.is_none())
+            || (latest_index.is_none() && event_index.is_none())
         {
             return self.drop_publication();
         }
@@ -172,14 +164,14 @@ impl Outbox {
             } else {
                 ForwardOutcome::Accepted
             }
-        } else if let Some(topic) = event_topic {
+        } else if let Some(index) = event_index {
             if queue.events.len() >= EVENT_CAPACITY
                 || queue.event_bytes + payload.len() > EVENT_BYTE_CAPACITY
             {
                 return self.drop_publication();
             }
             queue.events.push_back(Publication {
-                topic,
+                topic: EVENT_TELEMETRY_TOPICS[index],
                 payload: payload.to_vec(),
                 admitted: (self.clock)(),
             });

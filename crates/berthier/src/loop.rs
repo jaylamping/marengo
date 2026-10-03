@@ -16,7 +16,7 @@ use marengo_config::{
     MotorTypeDefaults,
 };
 use thiserror::Error;
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 use crate::friction::POSITION_HOLD_ERROR_DEADBAND_RAD;
 use crate::gain_runtime::{
@@ -184,6 +184,11 @@ pub struct ControlLoop<B: MotorBus> {
     /// Set by an operator disable: motion commands then refuse instead of
     /// re-enabling drives (see [`ControlLoop::ensure_active_for_motion`]).
     implicit_enable_forbidden: bool,
+    /// Chappe telemetry publish failures: counted and logged, never
+    /// propagated as tick errors (telemetry must not stop motion).
+    telemetry_failures: u64,
+    /// Ticks whose wall time exceeded the loop period (M06 loop-budget evidence).
+    tick_overruns: u64,
 }
 
 /// Per-tick CPU time inside [`ControlLoop::tick`] (microseconds, averaged over a window).
@@ -464,12 +469,35 @@ impl<B: MotorBus> ControlLoop<B> {
             torque_cmds: TorqueCmdLatch::new(),
             position_wave: None,
             implicit_enable_forbidden: false,
+            telemetry_failures: 0,
+            tick_overruns: 0,
         })
     }
 
     /// Mean per-tick phase times since the last call; resets the accumulator.
     pub fn take_tick_phase_averages(&mut self) -> Option<TickPhaseAverages> {
         std::mem::take(&mut self.tick_phase).into_averages()
+    }
+
+    /// Chappe telemetry publish failures since construction. These are
+    /// counted and logged at the publish site, never propagated: a failed
+    /// `robot/state` send must not stop motion (L-berthier-24).
+    pub fn telemetry_failures(&self) -> u64 {
+        self.telemetry_failures
+    }
+
+    /// Ticks whose wall time exceeded the loop period (M06 evidence).
+    pub fn tick_overruns(&self) -> u64 {
+        self.tick_overruns
+    }
+
+    /// Flush the position-trace CSV. Call on owner shutdown, never in the tick.
+    pub fn flush_position_trace(&mut self) {
+        if let Some(trace) = self.position_trace.as_mut() {
+            if let Err(error) = trace.flush() {
+                warn!(error = %error, "position trace flush failed");
+            }
+        }
     }
 
     /// Enable is complete for motion: the supervisor is Active, no staggered
@@ -1168,8 +1196,13 @@ impl<B: MotorBus> ControlLoop<B> {
 
     /// One control cycle: recv → compute → send → optional Chappe publish.
     pub fn tick(&mut self, chappe: Option<&Bus>) -> Result<(), LoopError> {
+        let tick_start = Instant::now();
         self.synchronize_stop_generation();
         let result = self.tick_inner(chappe);
+        // One timestamp read and compare per tick; no allocation (M06).
+        if tick_start.elapsed() > self.loop_period {
+            self.tick_overruns = self.tick_overruns.saturating_add(1);
+        }
         if let Err(error) = &result {
             match error {
                 LoopError::MissingFeedback { joint } => self.supervisor.latch_control_fault(
@@ -1251,7 +1284,7 @@ impl<B: MotorBus> ControlLoop<B> {
                     .map(|last| now.duration_since(last) >= self.chappe_publish_period)
                     .unwrap_or(true)
                 {
-                    self.publish_robot_state(bus, &q)?;
+                    self.publish_robot_state_counted(bus, &q);
                     self.last_chappe = Some(now);
                     phase.chappe_us = phase_elapsed_us(t).0;
                 }
@@ -1277,18 +1310,21 @@ impl<B: MotorBus> ControlLoop<B> {
 
         let needs_joint_feedback = operational_mode == OperationalMode::Active
             && self.control_mode != ControlMode::Disabled;
-        let active_names: Vec<&String> = self.supervisor.active_joints().iter().collect();
-        let all_have_feedback = active_names
+        // No per-tick allocation: iterate the live set twice instead of
+        // collecting it (L-berthier-08).
+        let all_have_feedback = self
+            .supervisor
+            .active_joints()
             .iter()
             .all(|name| self.has_joint_feedback(name));
         // First tick (or first ticks after enable) may run before CAN status arrives.
         let feedback_bootstrap =
             needs_joint_feedback && !all_have_feedback && self.active_feedback_grace_ticks > 0;
         if needs_joint_feedback && !feedback_bootstrap {
-            for name in &active_names {
+            for name in self.supervisor.active_joints() {
                 if !self.has_joint_feedback(name) {
                     return Err(LoopError::MissingFeedback {
-                        joint: (*name).clone(),
+                        joint: name.clone(),
                     });
                 }
             }
@@ -1496,7 +1532,7 @@ impl<B: MotorBus> ControlLoop<B> {
                                 lead: d.lead,
                                 lead_sat: d.lead_sat,
                                 settle_error: d.settle_error,
-                                phase: &d.phase,
+                                phase: d.phase,
                                 friction_mode: d.friction_mode,
                                 tau_p: d.tau_p,
                                 tau_g: d.tau_g,
@@ -1512,7 +1548,7 @@ impl<B: MotorBus> ControlLoop<B> {
                                 retarget_age_ms: d.retarget_age_ms,
                                 planner_event: d.planner_event.as_str(),
                             };
-                            let _ = trace.maybe_record(self.tick_count, t_ms, &row);
+                            trace.maybe_record(self.tick_count, t_ms, &row);
                             trace_us_this_tick = trace_us_this_tick.saturating_add(
                                 u64::try_from(trace_start.elapsed().as_micros())
                                     .unwrap_or(u64::MAX),
@@ -1608,7 +1644,7 @@ impl<B: MotorBus> ControlLoop<B> {
                 .map(|t| now.duration_since(t) >= self.chappe_publish_period)
                 .unwrap_or(true)
             {
-                self.publish_robot_state(bus, &q)?;
+                self.publish_robot_state_counted(bus, &q);
                 self.last_chappe = Some(now);
                 phase.chappe_us = phase_elapsed_us(t).0;
             }
@@ -1712,6 +1748,20 @@ impl<B: MotorBus> ControlLoop<B> {
         };
         chappe.publish("robot/state", "berthier", "marengo.v1.RobotState", &state)?;
         Ok(())
+    }
+
+    /// Tick publish that never fails the tick (L-berthier-24): a telemetry
+    /// error is counted and logged, and motion continues.
+    fn publish_robot_state_counted(&mut self, chappe: &Bus, q: &[f64]) {
+        let outcome = self.publish_robot_state(chappe, q);
+        self.note_telemetry_outcome(outcome);
+    }
+
+    fn note_telemetry_outcome(&mut self, outcome: Result<(), LoopError>) {
+        if let Err(error) = outcome {
+            self.telemetry_failures = self.telemetry_failures.saturating_add(1);
+            warn!(error = %error, "chappe telemetry publish failed; motion continues");
+        }
     }
 
     /// Preview gravity torques without sending (for motor-repl status).
@@ -1888,6 +1938,66 @@ mod tests {
             .frames()
             .iter()
             .all(|frame| (frame.id >> 24) & 0x1f != 1));
+    }
+
+    #[test]
+    fn telemetry_failure_is_counted_not_propagated() {
+        // L-berthier-24: a Chappe publish error must not become a tick error.
+        let mut loop_ctrl = test_loop();
+        assert_eq!(loop_ctrl.telemetry_failures(), 0);
+        loop_ctrl.note_telemetry_outcome(Err(LoopError::Chappe(chappe::BusError::Publish(
+            "receiver race".to_string(),
+        ))));
+        assert_eq!(loop_ctrl.telemetry_failures(), 1);
+        loop_ctrl.note_telemetry_outcome(Ok(()));
+        assert_eq!(loop_ctrl.telemetry_failures(), 1);
+    }
+
+    #[test]
+    fn chappe_telemetry_never_fails_the_tick() {
+        // Publish errors are unreachable through `Bus` today (no-receiver
+        // send succeeds); the tick must stay `Ok` with subscriber churn, and
+        // the counter stays put while state is actually published.
+        let mut loop_ctrl = test_loop();
+        let bus = Bus::default();
+        let mut state_rx = bus.subscribe("robot/state");
+        for _ in 0..3 {
+            loop_ctrl.tick(Some(&bus)).expect("tick with telemetry");
+            // Churn subscribers between ticks: dropping the last receiver
+            // must not fail a later publish.
+            let churn = bus.subscribe("robot/state");
+            drop(churn);
+        }
+        assert_eq!(loop_ctrl.telemetry_failures(), 0);
+        assert!(
+            state_rx.try_recv().is_ok(),
+            "robot/state must be published from the tick"
+        );
+    }
+
+    #[test]
+    fn tick_overruns_count_ticks_slower_than_period() {
+        // M06: one timestamp read per tick, no allocation; a 1 ns period is
+        // always exceeded, so every tick overruns deterministically.
+        let mut loop_ctrl = ControlLoop::from_simulation(
+            repo_root(),
+            SimulationBus::default(),
+            InitialVirtualReference::AllConfigured,
+            1_000_000_000,
+            50,
+        )
+        .expect("tiny-period loop");
+        assert_eq!(loop_ctrl.tick_overruns(), 0);
+        loop_ctrl.tick(None).expect("overrun tick still runs");
+        loop_ctrl.tick(None).expect("overrun tick still runs");
+        assert_eq!(loop_ctrl.tick_overruns(), 2);
+    }
+
+    #[test]
+    fn nominal_ticks_do_not_count_overruns() {
+        let mut loop_ctrl = test_loop();
+        loop_ctrl.tick(None).expect("tick");
+        assert_eq!(loop_ctrl.tick_overruns(), 0);
     }
 
     #[test]

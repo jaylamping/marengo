@@ -48,7 +48,7 @@ impl Drop for WorkerExitObserver {
     }
 }
 
-pub(crate) const TOPIC_AUDIT_ACTION: &str = "robot/audit/action";
+pub(crate) use chappe::topics::TOPIC_AUDIT_ACTION;
 
 static AUDIT_REVISION: AtomicU64 = AtomicU64::new(1);
 

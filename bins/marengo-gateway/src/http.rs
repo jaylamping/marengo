@@ -14,6 +14,9 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use chappe::topics::{
+    TOPIC_ACTIVE_REPORTING_LEASE, TOPIC_ENABLE, TOPIC_MOTOR_STATUS_POLL, TOPIC_SET_ZERO,
+};
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use tokio_util::io::ReaderStream;
@@ -276,12 +279,11 @@ async fn authorize_api(
 }
 
 pub(crate) fn sensitive_topic(topic: &str) -> bool {
+    use crate::state::{TOPIC_AUDIT_ACTION, TOPIC_AUDIT_TUNING, TOPIC_LOGS};
+    use chappe::topics::TOPIC_TESTING_MIT_BATCH;
     matches!(
         topic,
-        "logs/structured"
-            | "robot/audit/action"
-            | "robot/audit/tuning"
-            | "robot/testing/mit_command_batch"
+        TOPIC_LOGS | TOPIC_AUDIT_ACTION | TOPIC_AUDIT_TUNING | TOPIC_TESTING_MIT_BATCH
     )
 }
 
@@ -419,12 +421,9 @@ async fn command_enable(
         ));
     }
     let payload = request.encode_to_vec();
-    if let Err(e) = state.publish_command_envelope(
-        "robot/enable",
-        "consul",
-        "marengo.v1.EnableRequest",
-        payload,
-    ) {
+    if let Err(e) =
+        state.publish_command_envelope(TOPIC_ENABLE, "consul", "marengo.v1.EnableRequest", payload)
+    {
         if limited {
             state
                 .rate_limiter
@@ -498,7 +497,7 @@ async fn command_testing_mit(
     }
     let payload = request.encode_to_vec();
     if let Err(e) = state.publish_command_envelope(
-        "robot/testing/mit_command_batch",
+        chappe::topics::TOPIC_TESTING_MIT_BATCH,
         "consul",
         "marengo.v1.MitCommandBatch",
         payload,
@@ -585,7 +584,7 @@ async fn command_set_zero(
     };
     let payload = request.encode_to_vec();
     if let Err(e) = state.publish_command_envelope(
-        "robot/set_zero",
+        TOPIC_SET_ZERO,
         "consul",
         "marengo.v1.SetZeroRequest",
         payload,
@@ -675,7 +674,7 @@ async fn command_active_reporting_lease(
     };
     let payload = request.encode_to_vec();
     if let Err(e) = state.publish_command_envelope(
-        "robot/active_reporting_lease",
+        TOPIC_ACTIVE_REPORTING_LEASE,
         "consul",
         "marengo.v1.ActiveReportingLeaseRequest",
         payload,
@@ -725,7 +724,7 @@ async fn command_motor_status_poll(
     };
     let payload = request.encode_to_vec();
     if let Err(e) = state.publish_command_envelope(
-        "robot/motor_status_poll",
+        TOPIC_MOTOR_STATUS_POLL,
         "consul",
         "marengo.v1.MotorStatusPollRequest",
         payload,

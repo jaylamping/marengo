@@ -5,10 +5,12 @@
 //! - `1` = gateway → runtime (commands)
 
 use std::io::{Read, Write};
+use std::os::unix::fs::FileTypeExt;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::time::Duration;
 
 use crate::ipc_outbox::Outbox;
 pub use crate::ipc_outbox::{
@@ -17,7 +19,7 @@ pub use crate::ipc_outbox::{
 };
 use armee_proto::prost::Message;
 use thiserror::Error;
-use tracing::{debug, error, warn};
+use tracing::{debug, warn};
 
 pub const DIRECTION_RUNTIME_TO_GATEWAY: u8 = 0;
 pub const DIRECTION_GATEWAY_TO_RUNTIME: u8 = 1;
@@ -241,6 +243,12 @@ fn write_with_deadline(
 }
 
 fn read_inbound_commands(stream: &mut std::os::unix::net::UnixStream, bus: crate::Bus) {
+    // Bound the parked time of the reader thread (L-chappe-06): without a
+    // read deadline this blocks forever, so an idle outbox with a hung
+    // gateway goes unnoticed. Commands are rare, so idle timeouts are
+    // normal and just resume the read; full hung-peer detection via a
+    // heartbeat remains NEEDS-DECISION (see WP-M).
+    set_read_deadline(stream);
     let mut buf = Vec::new();
     let mut scratch = [0u8; 4096];
     loop {
@@ -251,6 +259,10 @@ fn read_inbound_commands(stream: &mut std::os::unix::net::UnixStream, bus: crate
                     break;
                 }
                 buf.extend_from_slice(&scratch[..n]);
+            }
+            Err(e) if is_read_idle_timeout(e.kind()) => {
+                debug!("ipc command read idle");
+                continue;
             }
             Err(e) => {
                 warn!(error = %e, "ipc command read");
@@ -277,15 +289,16 @@ fn read_inbound_commands(stream: &mut std::os::unix::net::UnixStream, bus: crate
     }
 }
 
+/// Command admission: allowlisted topic with an envelope no older than 1 s.
+///
+/// NEEDS-DECISION (L-chappe-07): both ends use wall clocks (`SystemTime`),
+/// so an NTP step can refuse or admit commands, and a captured frame can
+/// replay within the 1000 ms window. A real fix needs a monotonic sequence
+/// or boot-epoch in the envelope — a wire change requiring a coordinated
+/// gateway+Pi deploy — so behavior is unchanged here and the window stays
+/// documented rather than silently widened.
 fn command_is_current(topic: &str, payload: &[u8]) -> bool {
-    const COMMAND_TOPICS: [&str; 6] = [
-        "robot/enable",
-        "robot/set_zero",
-        "robot/active_reporting_lease",
-        "robot/motor_status_poll",
-        "robot/testing/mit_command_batch",
-        "robot/actuator/command",
-    ];
+    const COMMAND_TOPICS: [&str; 6] = crate::topics::COMMAND_TOPICS;
     if !COMMAND_TOPICS.contains(&topic) {
         return false;
     }
@@ -324,7 +337,9 @@ fn connect_with_retry(path: &Path, outbound: &Outbox) -> Option<std::os::unix::n
         }
     }
     let unreachable_ms = MAX_ATTEMPTS as u64 * RETRY_MS;
-    error!(
+    // warn, not error: a down gateway is routine during deploys/restarts,
+    // and this fires every ~6 s until it returns (L-chappe-02).
+    warn!(
         path = %path.display(),
         attempts = MAX_ATTEMPTS,
         unreachable_ms,
@@ -338,6 +353,61 @@ pub struct IpcListener {
     peer: Arc<Mutex<Option<std::os::unix::net::UnixStream>>>,
     closed: Arc<AtomicBool>,
     worker: Mutex<Option<thread::JoinHandle<()>>>,
+    accept_health: Arc<AcceptHealth>,
+}
+
+/// Accept-loop health for the listener thread (L-chappe-03): a dead accept
+/// loop used to be silent, leaving `send_command` failing with "no ipc peer"
+/// forever. Transient accept errors now retry with backoff; persistent ones
+/// are counted and surface here instead of dying quietly.
+#[derive(Debug, Default)]
+pub struct AcceptHealth {
+    failures: AtomicU64,
+    dead: AtomicBool,
+}
+
+impl AcceptHealth {
+    /// Total non-`WouldBlock` accept errors observed.
+    pub fn failures(&self) -> u64 {
+        self.failures.load(Ordering::Relaxed)
+    }
+
+    /// True once the accept loop gave up after consecutive failures.
+    pub fn dead(&self) -> bool {
+        self.dead.load(Ordering::Relaxed)
+    }
+}
+
+/// Consecutive accept failures tolerated before the listener gives up.
+/// Pure policy so the retry bound is unit-testable without a socket.
+#[derive(Debug)]
+struct AcceptRetry {
+    consecutive_failures: u32,
+}
+
+impl AcceptRetry {
+    const MAX_CONSECUTIVE_FAILURES: u32 = 20;
+    const RETRY_DELAY: Duration = Duration::from_millis(250);
+
+    fn new() -> Self {
+        Self {
+            consecutive_failures: 0,
+        }
+    }
+
+    fn on_accept(&mut self) {
+        self.consecutive_failures = 0;
+    }
+
+    /// Backoff before the next accept, or `None` once the loop should give up.
+    fn on_error(&mut self) -> Option<Duration> {
+        self.consecutive_failures = self.consecutive_failures.saturating_add(1);
+        if self.consecutive_failures >= Self::MAX_CONSECUTIVE_FAILURES {
+            None
+        } else {
+            Some(Self::RETRY_DELAY)
+        }
+    }
 }
 
 impl IpcListener {
@@ -362,7 +432,17 @@ impl IpcListener {
         on_connection_change: Arc<dyn Fn(bool) + Send + Sync>,
         before_install: impl Fn() + Send + Sync + 'static,
     ) -> Result<Arc<Self>, IpcError> {
+        // Never unlink a non-socket path: a stale regular file at the socket
+        // path is a deployment error, not a leftover to sweep (L-chappe-04).
         if socket_path.exists() {
+            let is_socket = std::fs::symlink_metadata(&socket_path)
+                .map(|metadata| metadata.file_type().is_socket())
+                .unwrap_or(false);
+            if !is_socket {
+                return Err(IpcError::Framing(
+                    "ipc socket path exists and is not a socket; refusing to replace".into(),
+                ));
+            }
             let _ = std::fs::remove_file(&socket_path);
         }
         if let Some(parent) = socket_path.parent() {
@@ -370,20 +450,25 @@ impl IpcListener {
         }
         let listener = std::os::unix::net::UnixListener::bind(&socket_path)?;
         listener.set_nonblocking(true)?;
-        let _ = std::fs::set_permissions(
+        if let Err(error) = std::fs::set_permissions(
             &socket_path,
             std::os::unix::fs::PermissionsExt::from_mode(0o660),
-        );
+        ) {
+            warn!(error = %error, "ipc socket permissions not set; peer trust unchanged");
+        }
         let peer = Arc::new(Mutex::new(None::<std::os::unix::net::UnixStream>));
         let peer_accept = Arc::clone(&peer);
         let delivery = Arc::new(Mutex::new(()));
         let active_generation = Arc::new(AtomicU64::new(0));
         let closed = Arc::new(AtomicBool::new(false));
         let accept_closed = Arc::clone(&closed);
+        let accept_health = Arc::new(AcceptHealth::default());
+        let accept_health_worker = Arc::clone(&accept_health);
         let worker = thread::Builder::new()
             .name("chappe-ipc-server".into())
             .spawn(move || {
                 let mut generation = 0_u64;
+                let mut retry = AcceptRetry::new();
                 let mut previous_reader: Option<thread::JoinHandle<()>> = None;
                 while !accept_closed.load(Ordering::Relaxed) {
                     let stream = match listener.accept() {
@@ -393,10 +478,24 @@ impl IpcListener {
                             continue;
                         }
                         Err(error) => {
-                            warn!(error = %error, "ipc accept failed");
-                            break;
+                            accept_health_worker
+                                .failures
+                                .fetch_add(1, Ordering::Relaxed);
+                            match retry.on_error() {
+                                Some(delay) => {
+                                    warn!(error = %error, "ipc accept failed; retrying");
+                                    thread::sleep(delay);
+                                    continue;
+                                }
+                                None => {
+                                    warn!(error = %error, "ipc accept failed; listener giving up");
+                                    accept_health_worker.dead.store(true, Ordering::Relaxed);
+                                    break;
+                                }
+                            }
                         }
                     };
+                    retry.on_accept();
                     if let Err(error) = stream.set_nonblocking(false) {
                         warn!(error = %error, "ipc peer blocking mode failed");
                         continue;
@@ -477,7 +576,13 @@ impl IpcListener {
             peer,
             closed,
             worker: Mutex::new(Some(worker)),
+            accept_health,
         }))
+    }
+
+    /// Accept-loop health: failures counted, `dead` once the loop gave up.
+    pub fn accept_health(&self) -> &AcceptHealth {
+        &self.accept_health
     }
 
     fn close(&self) {
@@ -526,6 +631,10 @@ impl IpcListener {
                     Err(IpcError::Io(error))
                 }
             }
+        } else if self.accept_health.dead() {
+            Err(IpcError::Framing(
+                "no ipc peer connected; listener accept loop failed".into(),
+            ))
         } else {
             Err(IpcError::Framing("no ipc peer connected".into()))
         }
@@ -542,6 +651,10 @@ fn read_connection(
     mut stream: std::os::unix::net::UnixStream,
     on_runtime_frame: Arc<dyn Fn(String, Vec<u8>) + Send + Sync>,
 ) {
+    // Same idle bound as the client reader (L-chappe-06): telemetry is
+    // frequent, so a timeout here is unusual but still resumes the read
+    // rather than dropping a healthy connection.
+    set_read_deadline(&mut stream);
     let mut buf = Vec::new();
     let mut scratch = [0u8; 4096];
     loop {
@@ -552,6 +665,10 @@ fn read_connection(
                     break;
                 }
                 buf.extend_from_slice(&scratch[..n]);
+            }
+            Err(e) if is_read_idle_timeout(e.kind()) => {
+                debug!("ipc read idle");
+                continue;
             }
             Err(e) => {
                 warn!(error = %e, "ipc read");
@@ -572,11 +689,32 @@ fn read_connection(
                     on_runtime_frame(topic, payload);
                 }
                 Ok((DIRECTION_GATEWAY_TO_RUNTIME, _, _)) => {}
-                Ok((dir, _, _)) => warn!(direction = dir, "ipc unknown direction"),
+                // debug, not warn: the direction byte is peer-controlled, so a
+                // warn here is a log-spam vector (L-chappe-10).
+                Ok((dir, _, _)) => debug!(direction = dir, "ipc unknown direction"),
                 Err(e) => warn!(error = %e, "ipc decode"),
             }
         }
     }
+}
+
+/// Idle bound for IPC readers (L-chappe-06): reader threads wake
+/// periodically instead of parking in `read` forever.
+const READ_IDLE_TIMEOUT: Duration = Duration::from_secs(30);
+
+fn set_read_deadline(stream: &mut std::os::unix::net::UnixStream) {
+    if let Err(error) = stream.set_read_timeout(Some(READ_IDLE_TIMEOUT)) {
+        warn!(error = %error, "ipc read deadline not set; reader may park");
+    }
+}
+
+/// Idle read timeouts resume the read; every other read error drops it.
+/// Pure predicate so the classification is unit-testable.
+fn is_read_idle_timeout(kind: std::io::ErrorKind) -> bool {
+    matches!(
+        kind,
+        std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+    )
 }
 
 fn take_frame(buf: &mut Vec<u8>) -> Result<Option<Vec<u8>>, IpcError> {
@@ -626,6 +764,191 @@ mod tests {
         assert_eq!(dir, DIRECTION_RUNTIME_TO_GATEWAY);
         assert_eq!(topic, "robot/state");
         assert_eq!(payload, vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn accept_retry_gives_up_after_bounded_failures() {
+        // L-chappe-03: transient accept errors retry; persistent ones give up
+        // visibly instead of dying silently on the first error.
+        let mut retry = AcceptRetry::new();
+        for _ in 0..AcceptRetry::MAX_CONSECUTIVE_FAILURES - 1 {
+            assert!(retry.on_error().is_some());
+        }
+        assert!(retry.on_error().is_none());
+    }
+
+    #[test]
+    fn accept_retry_resets_on_success() {
+        let mut retry = AcceptRetry::new();
+        assert!(retry.on_error().is_some());
+        retry.on_accept();
+        for _ in 0..AcceptRetry::MAX_CONSECUTIVE_FAILURES - 1 {
+            assert!(retry.on_error().is_some());
+        }
+        assert!(retry.on_error().is_none());
+    }
+
+    #[test]
+    fn take_frame_refuses_oversize_topic_at_reader() {
+        // L-chappe-11: inbound bounds pinned at the reader's frame splitter,
+        // not just the outbound encoder.
+        let mut buf = vec![DIRECTION_RUNTIME_TO_GATEWAY];
+        buf.extend_from_slice(
+            &u32::try_from(MAX_TOPIC_BYTES + 1)
+                .expect("bound fits")
+                .to_le_bytes(),
+        );
+        buf.extend_from_slice(&[b'x'; MAX_TOPIC_BYTES + 1]);
+        buf.extend_from_slice(&0_u32.to_le_bytes());
+        assert!(take_frame(&mut buf).is_err());
+    }
+
+    #[test]
+    fn take_frame_refuses_oversize_payload_at_reader() {
+        let topic = b"robot/state";
+        let mut buf = vec![DIRECTION_RUNTIME_TO_GATEWAY];
+        buf.extend_from_slice(&(topic.len() as u32).to_le_bytes());
+        buf.extend_from_slice(topic);
+        buf.extend_from_slice(
+            &u32::try_from(MAX_PAYLOAD_BYTES + 1)
+                .expect("bound fits")
+                .to_le_bytes(),
+        );
+        assert!(take_frame(&mut buf).is_err());
+    }
+
+    #[test]
+    fn take_frame_waits_for_truncated_frame() {
+        let mut buf = vec![DIRECTION_RUNTIME_TO_GATEWAY];
+        buf.extend_from_slice(&3_u32.to_le_bytes());
+        buf.extend_from_slice(b"ro");
+        assert!(take_frame(&mut buf).expect("frame").is_none());
+    }
+
+    #[test]
+    fn read_idle_timeout_classification() {
+        // L-chappe-06: only idle timeouts resume the read; every other
+        // error still drops the connection.
+        assert!(is_read_idle_timeout(std::io::ErrorKind::WouldBlock));
+        assert!(is_read_idle_timeout(std::io::ErrorKind::TimedOut));
+        assert!(!is_read_idle_timeout(std::io::ErrorKind::ConnectionReset));
+        assert!(!is_read_idle_timeout(std::io::ErrorKind::BrokenPipe));
+        assert!(!is_read_idle_timeout(std::io::ErrorKind::Interrupted));
+    }
+
+    #[test]
+    fn command_flow_survives_read_deadline() {
+        // The idle deadline must not break a healthy command stream: with
+        // a deadline armed, a queued command is still admitted.
+        use std::os::unix::net::UnixStream;
+
+        let bus = crate::Bus::default();
+        let mut commands = bus.subscribe(crate::topics::TOPIC_MOTOR_STATUS_POLL);
+        let (mut client, mut server) = UnixStream::pair().expect("socketpair");
+        server
+            .set_read_timeout(Some(Duration::from_millis(500)))
+            .expect("test deadline");
+        client
+            .write_all(&fresh_command_frame(crate::topics::TOPIC_MOTOR_STATUS_POLL))
+            .expect("valid command");
+        client
+            .shutdown(std::net::Shutdown::Write)
+            .expect("client eof");
+        read_inbound_commands(&mut server, bus);
+        assert!(commands.try_recv().is_ok());
+    }
+
+    fn fresh_command_frame(topic: &str) -> Vec<u8> {
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as u64)
+            .expect("clock");
+        let envelope = armee_proto::Envelope {
+            timestamp_ms: now_ms,
+            source_node: "test".to_string(),
+            message_type: "test.v1.Command".to_string(),
+            payload: Vec::new(),
+        };
+        encode_frame(
+            DIRECTION_GATEWAY_TO_RUNTIME,
+            topic,
+            &envelope.encode_to_vec(),
+        )
+        .expect("command frame")
+    }
+
+    #[test]
+    fn inbound_reader_closes_on_oversize_frame_without_publishing() {
+        use std::os::unix::net::UnixStream;
+
+        let bus = crate::Bus::default();
+        let mut commands = bus.subscribe(crate::topics::TOPIC_MOTOR_STATUS_POLL);
+        let (mut client, mut server) = UnixStream::pair().expect("socketpair");
+        client
+            .write_all(&fresh_command_frame(crate::topics::TOPIC_MOTOR_STATUS_POLL))
+            .expect("valid command");
+        let mut oversize = vec![DIRECTION_GATEWAY_TO_RUNTIME];
+        oversize.extend_from_slice(
+            &u32::try_from(MAX_TOPIC_BYTES + 1)
+                .expect("bound fits")
+                .to_le_bytes(),
+        );
+        oversize.extend_from_slice(&[b'y'; MAX_TOPIC_BYTES + 1]);
+        oversize.extend_from_slice(&0_u32.to_le_bytes());
+        client.write_all(&oversize).expect("oversize frame");
+        client
+            .shutdown(std::net::Shutdown::Write)
+            .expect("client eof");
+        read_inbound_commands(&mut server, bus);
+        // The valid command ahead of the oversize frame is admitted; the
+        // oversize frame closes the connection without publishing.
+        assert!(commands.try_recv().is_ok());
+        assert!(commands.try_recv().is_err());
+    }
+
+    #[test]
+    fn unknown_direction_frame_is_ignored_and_stream_survives() {
+        // L-chappe-10: a misbehaving peer's direction byte must not break the
+        // stream (and no longer warns per frame).
+        use std::os::unix::net::UnixStream;
+
+        let (mut client, server) = UnixStream::pair().expect("socketpair");
+        let bogus = encode_frame(99, "robot/state", &[1, 2, 3]).expect("bogus direction frame");
+        let valid =
+            encode_frame(DIRECTION_RUNTIME_TO_GATEWAY, "robot/state", &[9]).expect("valid frame");
+        client.write_all(&bogus).expect("bogus");
+        client.write_all(&valid).expect("valid");
+        client
+            .shutdown(std::net::Shutdown::Write)
+            .expect("client eof");
+        let received = Arc::new(Mutex::new(Vec::new()));
+        let handler_received = Arc::clone(&received);
+        read_connection(
+            server,
+            Arc::new(move |topic, payload| {
+                handler_received
+                    .lock()
+                    .expect("handler lock")
+                    .push((topic, payload));
+            }),
+        );
+        let received = received.lock().expect("result lock");
+        assert_eq!(received.as_slice(), &[("robot/state".to_string(), vec![9])]);
+    }
+
+    #[test]
+    fn listener_refuses_to_replace_non_socket_path() {
+        // L-chappe-04: a regular file at the socket path is refused, not unlinked.
+        let fixture = tempfile::tempdir().expect("fixture");
+        let path = fixture.path().join("chappe.sock");
+        std::fs::write(&path, b"not a socket").expect("regular file");
+        let result = IpcListener::spawn_server_with_lifecycle(
+            path.clone(),
+            Arc::new(|_, _| {}),
+            Arc::new(|_| {}),
+        );
+        assert!(result.is_err());
+        assert!(path.is_file());
     }
 }
 

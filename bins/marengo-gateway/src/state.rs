@@ -14,20 +14,14 @@ use tokio::sync::broadcast;
 use crate::logs::{decode_log_payload, LogServices as LogSvc};
 use crate::ratelimit::RateLimiter;
 
-pub const TOPIC_STATE: &str = "robot/state";
+/// Chappe topic contract: values live in [`chappe::topics`]; gateway-only
+/// synthetic topics stay local. Re-exports keep `state::TOPIC_*` paths working.
+pub use chappe::topics::{
+    TOPIC_ACTUATOR_COMMAND, TOPIC_ACTUATOR_LIMITS, TOPIC_AUDIT_ACTION, TOPIC_AUDIT_TUNING,
+    TOPIC_HEARTBEAT, TOPIC_HOST_METRICS_PI, TOPIC_IMU_TORSO, TOPIC_LOGS, TOPIC_SAFETY, TOPIC_STATE,
+};
 pub const TOPIC_RUNTIME_CONNECTION: &str = "gateway/runtime_connection";
-pub const TOPIC_SAFETY: &str = "robot/safety";
-pub const TOPIC_HEARTBEAT: &str = "robot/heartbeat";
-pub const TOPIC_IMU_TORSO: &str = "sensors/imu/torso";
-pub const TOPIC_LOGS: &str = "logs/structured";
-pub const TOPIC_HOST_METRICS_PI: &str = "host/metrics/pi";
 pub const TOPIC_TESTING_TELEMETRY: &str = "robot/testing/telemetry";
-pub const TOPIC_ACTUATOR_LIMITS: &str = "robot/actuator/limits";
-pub const TOPIC_AUDIT_TUNING: &str = "robot/audit/tuning";
-pub const TOPIC_AUDIT_ACTION: &str = "robot/audit/action";
-
-/// Publish-only command topic (not in [`ALLOWED_TOPICS`]).
-pub const TOPIC_ACTUATOR_COMMAND: &str = "robot/actuator/command";
 
 pub const ALLOWED_TOPICS: &[&str] = &[
     TOPIC_RUNTIME_CONNECTION,

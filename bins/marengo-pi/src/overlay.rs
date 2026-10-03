@@ -43,9 +43,9 @@ pub use crate::limit_persist::ConfigPersistQueue;
 #[cfg(test)]
 pub(crate) use crate::limit_persist::TOPIC_AUDIT_ACTION;
 
-pub const TOPIC_ACTUATOR_COMMAND: &str = "robot/actuator/command";
-pub const TOPIC_ACTUATOR_LIMITS: &str = "robot/actuator/limits";
-pub const TOPIC_AUDIT_TUNING: &str = "robot/audit/tuning";
+/// Chappe topic contract: values live in [`chappe::topics`]; `TOPIC_AUDIT_ACTION`
+/// stays homed in [`crate::limit_persist`] (single home).
+pub use chappe::topics::{TOPIC_ACTUATOR_COMMAND, TOPIC_ACTUATOR_LIMITS, TOPIC_AUDIT_TUNING};
 
 #[derive(Debug, Error)]
 pub enum OverlayError {

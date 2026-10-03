@@ -11,6 +11,19 @@ pub enum TrapezoidPhase {
     Hold,
 }
 
+impl TrapezoidPhase {
+    /// Diagnostic name; matches the `Debug` spelling so CSV/log output is
+    /// unchanged while the tick avoids `format!` per joint (L-berthier-08).
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Accelerate => "Accelerate",
+            Self::Cruise => "Cruise",
+            Self::Decelerate => "Decelerate",
+            Self::Hold => "Hold",
+        }
+    }
+}
+
 /// One joint's trapezoidal planner toward a latched target.
 #[derive(Debug, Clone)]
 pub struct JointPositionPlanner {
@@ -377,6 +390,20 @@ mod tests {
     fn planner_always_uses_trapezoid_for_nontrivial_move() {
         let p = JointPositionPlanner::new_for_target(0.0, 0.1);
         assert_eq!(p.phase(), TrapezoidPhase::Accelerate);
+    }
+
+    #[test]
+    fn phase_names_match_debug_spelling() {
+        // `HoldJointDiag.phase` moved from `format!("{phase:?}")` to this
+        // (L-berthier-08); the CSV/log spelling must not change.
+        for phase in [
+            TrapezoidPhase::Accelerate,
+            TrapezoidPhase::Cruise,
+            TrapezoidPhase::Decelerate,
+            TrapezoidPhase::Hold,
+        ] {
+            assert_eq!(phase.as_str(), format!("{phase:?}"));
+        }
     }
 
     #[test]
