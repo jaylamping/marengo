@@ -160,7 +160,7 @@ export function projectMicroLog(
   }
   return frames.slice(-Math.floor(limit)).map((frame) => ({
     lineNo: frame.line_no,
-    offsetS: frame.offset_s ?? frame.delta_s,
+    offsetS: frame.offset_s,
     iface: frame.interface,
     canId: frame.can_id,
     dataHead: frame.data.replace(/\s+/g, '').slice(0, 16),
@@ -217,8 +217,8 @@ function estimatePageHz(frames: CandumpFrameDto[]): number | null {
   if (frames.length < 2) {
     return null;
   }
-  const first = frames[0]?.offset_s ?? frames[0]?.delta_s;
-  const last = frames[frames.length - 1]?.offset_s ?? frames[frames.length - 1]?.delta_s;
+  const first = frames[0]?.offset_s;
+  const last = frames[frames.length - 1]?.offset_s;
   const span = last - first;
   const hz = (frames.length - 1) / span;
   return span > 0 && Number.isFinite(hz) ? hz : null;

@@ -12,3 +12,5 @@ workspace = true
 
 [dependencies]
 armee-proto.workspace = true
+marengo-deploy.workspace = true
+marengo-store.workspace = true

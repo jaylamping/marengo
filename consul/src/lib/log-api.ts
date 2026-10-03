@@ -24,7 +24,6 @@ export type LogSessionDto = {
 };
 
 export type CandumpFrameDto = {
-  delta_s: number;
   offset_s: number;
   interface: string;
   can_id: string;
@@ -75,8 +74,6 @@ export type CandumpSummaryDto = {
   approx_hz: number | null;
   interfaces: CandumpInterfaceSummaryDto[];
   top_ids: CandumpIdCountDto[];
-  frame_count?: number;
-  bytes?: number;
 };
 
 function statusToKind(status: number): LogErrorKind {
@@ -180,12 +177,12 @@ export async function fetchCandumpPage(
   sessionId: string | 'latest',
   offset = 0,
   limit = 200,
-): Promise<LogApiResult<{ frames: CandumpFrameDto[]; total_frames: number; parsed_frames?: number }>> {
+): Promise<LogApiResult<{ frames: CandumpFrameDto[]; parsed_frames: number }>> {
   const path =
     sessionId === 'latest'
       ? `/logs/sessions/latest/candump?offset=${offset}&limit=${limit}`
       : `/logs/sessions/${encodeURIComponent(sessionId)}/candump?offset=${offset}&limit=${limit}`;
-  return logFetch<{ frames: CandumpFrameDto[]; total_frames: number; parsed_frames?: number }>(path);
+  return logFetch<{ frames: CandumpFrameDto[]; parsed_frames: number }>(path);
 }
 
 export async function fetchCandumpSummary(

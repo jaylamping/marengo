@@ -56,7 +56,6 @@ pub(crate) fn sample_cpu_from_stat(content: &str, prev: &mut SampleState) -> Cpu
         let usage = values
             .and_then(|now| prev.cpu_per_core.get(&id).and_then(|old| now.rates(old)))
             .map(|(usage, _)| usage);
-        metrics.per_core_usage_percent.push(usage.unwrap_or(0.0));
         metrics.cores.push(armee_proto::CpuCoreMetrics {
             cpu_id: id,
             usage_percent: usage,
@@ -108,7 +107,9 @@ mod cpu_regression {
             cpu.iowait_percent
         );
         assert_eq!(cpu.core_count, 2);
-        for usage in cpu.per_core_usage_percent {
+        assert_eq!(cpu.cores.len(), 2);
+        for core in cpu.cores {
+            let usage = core.usage_percent.expect("primed core usage");
             assert!(
                 (usage - 20.0).abs() < 0.000001,
                 "core label must not shift counters: {usage}"

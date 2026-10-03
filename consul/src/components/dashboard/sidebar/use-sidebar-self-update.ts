@@ -25,15 +25,6 @@ const BUSY_POLL_MS = 2_500;
 /** Cap hung `/version/status` fetches so a gateway restart cannot freeze the poll loop. */
 export const POLL_FETCH_TIMEOUT_MS = 5_000;
 
-const UI_STATES: ReadonlySet<string> = new Set([
-  'unknown',
-  'current',
-  'stale',
-  'upstream_unknown',
-  'updating',
-  'failed',
-]);
-
 type DeriveSidebarUpdateModeOpts = {
   deployBusy?: boolean;
   /** sessionStorage bookmark from this tab's Update click; survives reload. */
@@ -84,7 +75,7 @@ export function resolveWatchOutcome(
   return null;
 }
 
-/** Prefer gateway `ui_state`; fall back only for older gateways mid-rollout. */
+/** Map the gateway `ui_state` onto sidebar chrome, overlaying this tab's own watched job. */
 export function deriveSidebarUpdateMode(
   status: VersionStatusDto | null,
   opts: DeriveSidebarUpdateModeOpts = {},
@@ -104,7 +95,7 @@ export function deriveSidebarUpdateMode(
     }
     // Install already landed — do not keep “Updating · Queued” on a stale ledger.
     if (installedOnWatchTarget(status)) {
-      if (status.ui_state && UI_STATES.has(status.ui_state) && status.ui_state !== 'updating') {
+      if (status.ui_state !== 'updating') {
         return status.ui_state;
       }
       return status.update_available ? 'stale' : 'current';
@@ -123,16 +114,7 @@ export function deriveSidebarUpdateMode(
   }
 
   if (!status) return 'unknown';
-  if (status.ui_state && UI_STATES.has(status.ui_state)) {
-    return status.ui_state;
-  }
-  // Legacy inference — remove once all Pi gateways serve ui_state.
-  if (status.deploy.state === 'running') return 'updating';
-  if (status.deploy.state === 'failed') return 'failed';
-  if (!status.upstream_ok) return 'upstream_unknown';
-  if (status.update_available) return 'stale';
-  if (status.deploy_sha) return 'current';
-  return 'unknown';
+  return status.ui_state;
 }
 
 function isBusyStatus(status: VersionStatusDto | null): boolean {
@@ -267,8 +249,8 @@ export function useSidebarSelfUpdate() {
         toast.error('Gateway unreachable');
         return;
       }
-      const state: UpdateUiState | undefined = next.ui_state;
-      if (state === 'upstream_unknown' || (!state && !next.upstream_ok)) {
+      const state: UpdateUiState = next.ui_state;
+      if (state === 'upstream_unknown') {
         toast.message('GitHub unreachable — showing installed rev');
         return;
       }
@@ -276,7 +258,7 @@ export function useSidebarSelfUpdate() {
         toast.message(next.deploy.message || 'Last update failed — use Update to retry');
         return;
       }
-      if (state === 'stale' || (!state && next.update_available)) {
+      if (state === 'stale') {
         toast.message('Update available');
         return;
       }

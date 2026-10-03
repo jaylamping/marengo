@@ -17,7 +17,7 @@ use marengo_candump::{
 };
 use marengo_store::{
     import_journal, recover_known_v2, resolve_db_path, resolve_marengo_root, SessionArtifact,
-    Store, DEFAULT_ARCHIVE_DAYS, DEFAULT_HOT_KEEP, JOURNAL_UNITS,
+    Store, DEFAULT_HOT_KEEP, JOURNAL_UNITS,
 };
 use marengo_support::init_tracing;
 
@@ -32,8 +32,9 @@ struct Cli {
     db: Option<PathBuf>,
 }
 
+// Subcommands that operate on the SQLite log store (a doc comment would leak into the root --help).
 #[derive(Subcommand)]
-enum Commands {
+enum StoreCommand {
     /// Register or update a bench session row.
     Session {
         #[command(subcommand)]
@@ -44,20 +45,21 @@ enum Commands {
         #[arg(long, default_value_t = DEFAULT_HOT_KEEP)]
         keep: usize,
     },
-    /// Purge log rows and sessions older than N days.
-    Purge {
-        #[arg(long, default_value_t = DEFAULT_ARCHIVE_DAYS)]
-        days: u32,
-    },
+    /// Enforce the stored `log_archive_days` and `log_disk_budget_bytes` settings.
+    Purge,
     /// One-time import of existing hot log files.
     ImportLegacy {
         #[arg(long, default_value_t = DEFAULT_HOT_KEEP)]
         keep: usize,
     },
-    /// Report log disk usage bytes (stdout).
-    DiskUsage,
     /// Import systemd journal into log_events (marengo-* units).
     JournalImport,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    #[command(flatten)]
+    Store(StoreCommand),
     /// Preserve a verified backup and recover recognized complete v2 with stale marker1.
     RecoverKnownV2 {
         #[arg(long)]
@@ -312,7 +314,7 @@ fn main() -> ExitCode {
             backup,
             output,
         } => run_recovery(source, backup, output),
-        command => run_store_command(root, db, command),
+        Commands::Store(command) => run_store_command(root, db, command),
     };
 
     match result {
@@ -355,13 +357,13 @@ fn run_gravity_fit(args: &gravity_fit::GravityFitArgs) -> ExitCode {
 fn run_store_command(
     root: Option<PathBuf>,
     db: Option<PathBuf>,
-    command: Commands,
+    command: StoreCommand,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let root = root.unwrap_or_else(resolve_marengo_root);
     let db = db.unwrap_or_else(resolve_db_path);
     let store = Store::open(db, root)?;
     match command {
-        Commands::Session { action } => match action {
+        StoreCommand::Session { action } => match action {
             SessionAction::Register {
                 id,
                 label,
@@ -393,34 +395,31 @@ fn run_store_command(
                 }
             }
         },
-        Commands::Archive { keep } => {
+        StoreCommand::Archive { keep } => {
             let n = store.archive_hot_sessions(keep)?;
             println!("archived {n} hot files (keep {keep})");
         }
-        Commands::Purge { days } => {
-            let (logs, sessions) = store.purge_older_than_days(days)?;
-            println!("purged {logs} log rows, {sessions} sessions (>{days} days)");
+        StoreCommand::Purge => {
+            let report = store.enforce_retention()?;
+            println!(
+                "purged {} log rows, {} sessions older than the archive window, {} sessions over the disk budget (usage {} of {} bytes)",
+                report.log_rows,
+                report.aged_sessions,
+                report.budget_sessions,
+                report.usage_bytes,
+                report.budget_bytes
+            );
         }
-        Commands::ImportLegacy { keep } => {
+        StoreCommand::ImportLegacy { keep } => {
             let report = store.import_legacy_hot_report(keep)?;
             println!(
                 "imported {} legacy sessions, {} artifacts",
                 report.sessions, report.artifacts
             );
         }
-        Commands::DiskUsage => {
-            let bytes = store.log_disk_usage_bytes()?;
-            println!("{bytes}");
-        }
-        Commands::JournalImport => {
+        StoreCommand::JournalImport => {
             let n = import_journal(&store, JOURNAL_UNITS)?;
             println!("imported {n} journal lines");
-        }
-        Commands::Candump { .. } => unreachable!("candump handled before store open"),
-        Commands::RecoverKnownV2 { .. } => unreachable!("recovery handled before store open"),
-        Commands::GravityFit { .. } => unreachable!("gravity-fit handled before store open"),
-        Commands::FirmwareTiming { .. } => {
-            unreachable!("firmware-timing handled before store open")
         }
     }
     Ok(())

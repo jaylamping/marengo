@@ -9,26 +9,27 @@
 //! Allowed dependencies are SQLite, compression/time/serialization and ordinary
 //! storage utilities, plus marengo-candump inspection. No control-stack dependency.
 
+mod disk;
 mod error;
 mod journal;
 mod migrations;
 mod model;
 mod paths;
 mod recovery;
-mod ring;
+mod retention;
 mod store;
 
+pub use disk::log_disk_usage_bytes;
 pub use error::{Result, StoreError};
 pub use journal::{import_journal, JOURNAL_UNITS};
-pub use marengo_candump::{Frame as CandumpFrame, Summary as CandumpSummary};
 pub use model::{
     LegacyImportSummary, LogEventInsert, LogEventRow, LogSessionRow, SessionArtifact,
     StructuredLogQuery,
 };
 pub use paths::{
-    blob_dir, default_db_path, log_dir, resolve_db_path, resolve_marengo_root,
-    DEFAULT_ARCHIVE_DAYS, DEFAULT_HOT_KEEP, DEFAULT_LOG_DISK_BUDGET_BYTES,
+    log_dir, resolve_db_path, resolve_marengo_root, DEFAULT_ARCHIVE_DAYS, DEFAULT_HOT_KEEP,
+    DEFAULT_LOG_DISK_BUDGET_BYTES,
 };
 pub use recovery::{recover_known_v2, RecoveryReceipt};
-pub use ring::{LogRingBuffer, DEFAULT_RING_CAPACITY};
+pub use retention::{RetentionPolicy, RetentionReport};
 pub use store::{now_ms, Store};

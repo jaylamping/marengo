@@ -6,7 +6,7 @@ use std::fs;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
-use marengo_store::{blob_dir, log_dir, Store};
+use marengo_store::{log_dir, Store};
 use serde_json::Value;
 
 const INVALID_IDS: [&str; 10] = [
@@ -86,7 +86,7 @@ fn blob_inventory(root: &Path) -> Vec<(PathBuf, Vec<u8>)> {
             }
         }
     }
-    let base = blob_dir(root);
+    let base = log_dir(root).join("blobs");
     let mut files = Vec::new();
     visit(&base, &base, &mut files);
     files.sort_by(|left, right| left.0.cmp(&right.0));

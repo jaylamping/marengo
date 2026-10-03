@@ -33,9 +33,6 @@ export type ConfigSnapshotDto = {
 
 export type ConfigPatchDto = {
   joint: string;
-  device_id?: number;
-  can_interface?: string;
-  direction?: number;
   position_lower_rad?: number;
   position_upper_rad?: number;
   torque_limit_nm?: number;
@@ -49,7 +46,7 @@ export type ConfigPatchResultDto = {
   ok: boolean;
   message: string;
   restart_required: boolean;
-  /** durable | pending | failed | n/a — Durable required before local git sync. */
+  /** durable | pending | failed — Durable required before local git sync. */
   persist_status?: string;
 };
 

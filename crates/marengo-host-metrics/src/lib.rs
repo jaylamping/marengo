@@ -17,24 +17,16 @@ pub fn host_metrics_topic(_role: HostNodeRole) -> &'static str {
     TOPIC_HOST_METRICS_PI
 }
 
-pub fn git_sha() -> &'static str {
+fn git_sha() -> &'static str {
     env!("MARENGO_GIT_SHA")
 }
 
-pub fn build_info(semver: &str) -> BuildInfo {
+fn build_info(semver: &str) -> BuildInfo {
     BuildInfo {
-        deploy_rev: read_deploy_rev(),
+        deploy_rev: marengo_deploy::read_deploy_rev(&marengo_deploy::resolve_deploy_rev_path()).sha,
         git_sha: git_sha().to_string(),
         semver: semver.to_string(),
     }
-}
-
-fn read_deploy_rev() -> String {
-    let root = std::env::var("MARENGO_ROOT").unwrap_or_else(|_| "/opt/marengo".to_string());
-    let path = std::path::Path::new(&root).join(".deploy-rev");
-    std::fs::read_to_string(path)
-        .map(|s| s.trim().to_string())
-        .unwrap_or_default()
 }
 
 /// Sample host metrics; on non-Linux returns a minimal stub for tests.
@@ -84,7 +76,7 @@ fn stub_metrics(
         clock: Some(ClockMetrics::default()),
         platform: None,
         log_disk_bytes: 0,
-        log_disk_budget_bytes: 5 * 1024 * 1024 * 1024,
+        log_disk_budget_bytes: marengo_store::DEFAULT_LOG_DISK_BUDGET_BYTES,
     }
 }
 
@@ -184,30 +176,12 @@ mod linux {
     }
 
     fn sample_log_disk() -> (u64, u64) {
-        let root = std::env::var("MARENGO_ROOT").unwrap_or_else(|_| "/opt/marengo".to_string());
-        let budget = 5_u64 * 1024 * 1024 * 1024;
-        let log_path = Path::new(&root).join("var/log");
-        let mut bytes = dir_size(&log_path);
-        bytes += fs::metadata(Path::new(&root).join("var/marengo.db"))
-            .map(|m| m.len())
-            .unwrap_or(0);
-        (bytes, budget)
-    }
-
-    fn dir_size(path: &Path) -> u64 {
-        if path.is_file() {
-            return fs::metadata(path).map(|m| m.len()).unwrap_or(0);
-        }
-        if !path.is_dir() {
-            return 0;
-        }
-        let mut total = 0_u64;
-        if let Ok(entries) = fs::read_dir(path) {
-            for entry in entries.flatten() {
-                total += dir_size(&entry.path());
-            }
-        }
-        total
+        let bytes = marengo_store::log_disk_usage_bytes(
+            &marengo_store::resolve_marengo_root(),
+            &marengo_store::resolve_db_path(),
+        )
+        .unwrap_or(0);
+        (bytes, marengo_store::DEFAULT_LOG_DISK_BUDGET_BYTES)
     }
 
     fn read_os_pretty_name() -> String {

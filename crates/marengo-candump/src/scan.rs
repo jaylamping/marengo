@@ -169,7 +169,7 @@ struct Accumulator {
     first_raw_ts: Option<f64>,
     previous_raw_ts: Option<f64>,
     last_offset: Duration,
-    id_counts: HashMap<u32, u64>,
+    id_counts: HashMap<CanId, u64>,
     iface_counts: HashMap<String, u64>,
     page: Option<FramePage>,
     page_frames: Vec<Frame>,
@@ -261,7 +261,7 @@ impl Accumulator {
 
         let frame_index = self.parsed_frames;
         self.parsed_frames = self.parsed_frames.saturating_add(1);
-        *self.id_counts.entry(parsed.can_id.get()).or_insert(0) += 1;
+        *self.id_counts.entry(parsed.can_id).or_insert(0) += 1;
         *self
             .iface_counts
             .entry(parsed.interface.clone())
@@ -318,16 +318,12 @@ impl Accumulator {
             .collect();
         interfaces.sort_by(|a, b| a.name.cmp(&b.name));
 
-        let mut top: Vec<(u32, u64)> = self.id_counts.into_iter().collect();
+        let mut top: Vec<(CanId, u64)> = self.id_counts.into_iter().collect();
         top.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
         let top_ids = top
             .into_iter()
             .take(usize::from(self.top_id_limit))
-            .filter_map(|(id, count)| {
-                CanId::new(id)
-                    .ok()
-                    .map(|can_id| CanIdCount { can_id, count })
-            })
+            .map(|(can_id, count)| CanIdCount { can_id, count })
             .collect();
 
         Inspection {
@@ -451,19 +447,25 @@ fn is_ascii_dlc_token(token: &str) -> bool {
     bytes[1..bytes.len() - 1].iter().all(|b| b.is_ascii_digit())
 }
 
+#[cfg(feature = "robstride-enrichment")]
 fn enrich_frame(
     can_id: CanId,
     interface: &str,
     enrichment: &EnrichmentMode,
 ) -> Option<FrameEnrichment> {
     match enrichment {
-        EnrichmentMode::None => {
-            let _ = (can_id, interface);
-            None
-        }
-        #[cfg(feature = "robstride-enrichment")]
+        EnrichmentMode::None => None,
         EnrichmentMode::Robstride(catalog) => enrich_robstride(can_id, interface, catalog),
     }
+}
+
+#[cfg(not(feature = "robstride-enrichment"))]
+fn enrich_frame(
+    _can_id: CanId,
+    _interface: &str,
+    _enrichment: &EnrichmentMode,
+) -> Option<FrameEnrichment> {
+    None
 }
 
 #[cfg(feature = "robstride-enrichment")]
@@ -477,7 +479,7 @@ fn enrich_robstride(
     }
     let ext = robstride::comm::unpack_ext_id(can_id.get())?;
     let known = robstride::comm::CommunicationType::from_u8(ext.comm_type);
-    let comm_type_name = known.map(comm_type_label);
+    let comm_type_name = known.map(|kind| kind.name().to_string());
     let device_id = known.map(|kind| robstride::comm::inbound_motor_device_id(can_id.get(), kind));
     let joint = device_id.and_then(|id| catalog.lookup(interface, id).map(str::to_string));
     Some(FrameEnrichment {
@@ -486,21 +488,4 @@ fn enrich_robstride(
         device_id,
         joint,
     })
-}
-
-#[cfg(feature = "robstride-enrichment")]
-fn comm_type_label(kind: robstride::comm::CommunicationType) -> String {
-    match kind {
-        robstride::comm::CommunicationType::GetDeviceId => "get_device_id",
-        robstride::comm::CommunicationType::OperationControl => "operation_control",
-        robstride::comm::CommunicationType::OperationStatus => "operation_status",
-        robstride::comm::CommunicationType::Enable => "enable",
-        robstride::comm::CommunicationType::Disable => "disable",
-        robstride::comm::CommunicationType::SetZeroPosition => "set_zero_position",
-        robstride::comm::CommunicationType::ReadParameter => "read_parameter",
-        robstride::comm::CommunicationType::WriteParameter => "write_parameter",
-        robstride::comm::CommunicationType::FaultReport => "fault_report",
-        robstride::comm::CommunicationType::ActiveReporting => "active_reporting",
-    }
-    .to_string()
 }

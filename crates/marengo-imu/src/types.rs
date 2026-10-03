@@ -47,12 +47,3 @@ pub struct RotationVectorSample {
     pub quaternion: Quaternion,
     pub accuracy: ImuAccuracy,
 }
-
-/// Typed IMU sample for future Chappe/proto wiring.
-#[derive(Debug, Clone, PartialEq)]
-pub struct ImuSample {
-    pub frame_id: String,
-    pub rotation: RotationVectorSample,
-    pub accelerometer_m_s2: Option<[f64; 3]>,
-    pub gyroscope_rad_s: Option<[f64; 3]>,
-}

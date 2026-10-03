@@ -10,6 +10,6 @@ Time-series **key-value store** for telemetry replay and gateway log archival (S
   schema with a stale marker, preserving the source and a verified standalone backup
 
 ## Integration
-- **Consumed by**: `bins/marengo-gateway`, `bins/marengo-log-cli`
+- **Consumed by**: `bins/marengo-gateway`, `bins/marengo-log-cli`, `marengo-host-metrics` (`log_disk_usage_bytes`)
 
 **Detailed map**: [src/codemap.md](src/codemap.md)

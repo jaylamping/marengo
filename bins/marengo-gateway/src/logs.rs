@@ -1,4 +1,4 @@
-//! Log persistence, ring buffer, and HTTP handlers for marengo-gateway.
+//! Log persistence and HTTP handlers for marengo-gateway.
 
 use std::sync::Arc;
 
@@ -10,9 +10,7 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use marengo_store::{
-    LogEventInsert, LogRingBuffer, Store, StructuredLogQuery, DEFAULT_RING_CAPACITY,
-};
+use marengo_store::{LogEventInsert, Store, StructuredLogQuery};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
@@ -72,8 +70,6 @@ pub struct LogSessionMetaJson {
 #[derive(Serialize)]
 pub struct CandumpPageJson {
     frames: Vec<CandumpFrameJson>,
-    /// Compatibility alias of `parsed_frames` (clamped to u32).
-    total_frames: u32,
     offset: u32,
     parsed_frames: u64,
     total_lines: u64,
@@ -81,8 +77,6 @@ pub struct CandumpPageJson {
 
 #[derive(Serialize)]
 pub struct CandumpFrameJson {
-    /// Compatibility alias of `offset_s`.
-    delta_s: f64,
     offset_s: f64,
     interface: String,
     can_id: String,
@@ -111,8 +105,7 @@ pub struct CandumpInterfaceSummaryJson {
     approx_hz: Option<f64>,
 }
 
-/// Canonical summary JSON (matches `marengo-candump::Summary` / CLI), plus
-/// one-release legacy aliases `frame_count` and `bytes`.
+/// Canonical summary JSON (matches `marengo-candump::Summary` / CLI).
 #[derive(Serialize)]
 pub struct CandumpSummaryJson {
     parsed_frames: u64,
@@ -122,13 +115,10 @@ pub struct CandumpSummaryJson {
     approx_hz: Option<f64>,
     interfaces: Vec<CandumpInterfaceSummaryJson>,
     top_ids: Vec<CandumpIdCountJson>,
-    frame_count: u32,
-    bytes: u64,
 }
 
 pub struct LogServices {
     pub store: Arc<Store>,
-    pub ring: Arc<LogRingBuffer>,
     batch_tx: mpsc::Sender<LogEventInsert>,
     dropped: Arc<std::sync::atomic::AtomicU64>,
 }
@@ -144,7 +134,6 @@ fn candump_frame_json(f: marengo_candump::Frame) -> CandumpFrameJson {
         None => (None, None, None),
     };
     CandumpFrameJson {
-        delta_s: offset_s,
         offset_s,
         interface: f.interface,
         can_id: f.can_id.to_canonical_hex(),
@@ -159,8 +148,6 @@ fn candump_frame_json(f: marengo_candump::Frame) -> CandumpFrameJson {
 
 fn candump_summary_json(summary: marengo_candump::Summary) -> CandumpSummaryJson {
     CandumpSummaryJson {
-        frame_count: u32::try_from(summary.parsed_frames).unwrap_or(u32::MAX),
-        bytes: summary.source_bytes,
         parsed_frames: summary.parsed_frames,
         total_lines: summary.total_lines,
         source_bytes: summary.source_bytes,
@@ -188,7 +175,6 @@ fn candump_summary_json(summary: marengo_candump::Summary) -> CandumpSummaryJson
 
 fn candump_page_json(inspection: marengo_candump::Inspection, offset: u32) -> CandumpPageJson {
     CandumpPageJson {
-        total_frames: u32::try_from(inspection.summary.parsed_frames).unwrap_or(u32::MAX),
         offset,
         parsed_frames: inspection.summary.parsed_frames,
         total_lines: inspection.summary.total_lines,
@@ -203,28 +189,11 @@ fn candump_page_json(inspection: marengo_candump::Inspection, offset: u32) -> Ca
 impl LogServices {
     pub fn open(store: Store) -> Self {
         let store = Arc::new(store);
-        let ring = Arc::new(LogRingBuffer::new(DEFAULT_RING_CAPACITY));
         let (batch_tx, batch_rx) = mpsc::channel(BATCH_QUEUE_CAPACITY);
         let dropped = Arc::new(std::sync::atomic::AtomicU64::new(0));
         spawn_batch_writer(Arc::clone(&store), batch_rx);
-        if let Ok(recent) = store.recent_log_events(DEFAULT_RING_CAPACITY as u32) {
-            let preload: Vec<LogEventInsert> = recent
-                .into_iter()
-                .rev()
-                .map(|row| LogEventInsert {
-                    ts_ms: row.ts_ms,
-                    level: row.level,
-                    target: row.target,
-                    message: row.message,
-                    session_id: row.session_id,
-                    fields_json: row.fields_json,
-                })
-                .collect();
-            ring.preload(preload);
-        }
         Self {
             store,
-            ring,
             batch_tx,
             dropped,
         }
@@ -247,7 +216,6 @@ impl LogServices {
                 Some(event.fields_json.clone())
             },
         };
-        self.ring.push(insert.clone());
         // Non-blocking: under a runaway producer we drop the DB write rather than
         // grow the queue unbounded. Deliberately not logged here — emitting a log
         // on the log-ingest path would feed straight back into this pipeline.

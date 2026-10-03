@@ -2,8 +2,6 @@
 
 pub const DATA_BUFFER_SIZE: usize = 512;
 
-#[allow(dead_code)]
-pub const CHANNEL_SHTP_COMMAND: u8 = 0;
 pub const CHANNEL_EXE: u8 = 1;
 pub const CHANNEL_CONTROL: u8 = 2;
 pub const CHANNEL_INPUT_SENSOR_REPORTS: u8 = 3;
@@ -24,7 +22,12 @@ pub const REPORT_TIMESTAMP_REBASE: u8 = 0xFA;
 pub const REPORT_BASE_TIMESTAMP: u8 = 0xFB;
 
 const Q_POINT_14_SCALAR: f64 = 1.0 / 16384.0;
+#[allow(
+    dead_code,
+    reason = "accel/gyro parsing is kept for the stated future sample support (lib.rs docs); the driver does not store those reports yet"
+)]
 const Q_POINT_9_SCALAR: f64 = 1.0 / 512.0;
+#[allow(dead_code, reason = "see Q_POINT_9_SCALAR")]
 const Q_POINT_8_SCALAR: f64 = 1.0 / 256.0;
 
 const HEADER_LEN: usize = 4;
@@ -95,7 +98,7 @@ pub fn is_meta_report(report_id: u8) -> bool {
     matches!(report_id, REPORT_TIMESTAMP_REBASE | REPORT_BASE_TIMESTAMP)
 }
 
-pub fn split_batch_reports(data: &[u8]) -> Result<Vec<&[u8]>, String> {
+pub fn split_batch_reports(data: &[u8]) -> Vec<&[u8]> {
     let mut slices = Vec::new();
     let mut index = 0;
     while index < data.len() {
@@ -113,7 +116,7 @@ pub fn split_batch_reports(data: &[u8]) -> Result<Vec<&[u8]>, String> {
         slices.push(&data[index..index + required]);
         index += required;
     }
-    Ok(slices)
+    slices
 }
 
 /// Parse a rotation vector report. The standard BNO085 rotation vector report is
@@ -134,6 +137,7 @@ pub fn parse_rotation_vector(report: &[u8]) -> Option<(f64, f64, f64, f64, u8)> 
     Some((i, j, k, real, accuracy))
 }
 
+#[allow(dead_code, reason = "see Q_POINT_9_SCALAR")]
 pub fn parse_vec3_report(report: &[u8], expected_id: u8, scalar: f64) -> Option<[f64; 3]> {
     if report.first().copied()? != expected_id || report.len() < 10 {
         return None;
@@ -144,10 +148,12 @@ pub fn parse_vec3_report(report: &[u8], expected_id: u8, scalar: f64) -> Option<
     Some([x, y, z])
 }
 
+#[allow(dead_code, reason = "see Q_POINT_9_SCALAR")]
 pub fn parse_accel(report: &[u8]) -> Option<[f64; 3]> {
     parse_vec3_report(report, REPORT_ACCELEROMETER, Q_POINT_8_SCALAR)
 }
 
+#[allow(dead_code, reason = "see Q_POINT_9_SCALAR")]
 pub fn parse_gyro(report: &[u8]) -> Option<[f64; 3]> {
     parse_vec3_report(report, REPORT_GYROSCOPE, Q_POINT_9_SCALAR)
 }
@@ -199,11 +205,24 @@ mod tests {
     }
 
     #[test]
+    fn parses_accel_and_gyro_with_their_q_points() {
+        let mut accel = [0u8; 10];
+        accel[0] = REPORT_ACCELEROMETER;
+        accel[4..6].copy_from_slice(&256i16.to_le_bytes());
+        assert_eq!(parse_accel(&accel), Some([1.0, 0.0, 0.0]));
+        let mut gyro = [0u8; 10];
+        gyro[0] = REPORT_GYROSCOPE;
+        gyro[6..8].copy_from_slice(&512i16.to_le_bytes());
+        assert_eq!(parse_gyro(&gyro), Some([0.0, 1.0, 0.0]));
+        assert_eq!(parse_accel(&gyro), None);
+    }
+
+    #[test]
     fn split_batch_two_reports() {
         let mut data = vec![0u8; 22];
         data[0] = REPORT_ROTATION_VECTOR;
         data[12] = REPORT_GYROSCOPE;
-        let slices = split_batch_reports(&data).expect("split");
+        let slices = split_batch_reports(&data);
         assert_eq!(slices.len(), 2);
         assert_eq!(slices[0].len(), 12);
         assert_eq!(slices[1].len(), 10);
@@ -214,7 +233,7 @@ mod tests {
         let mut data = vec![0u8; 19];
         data[0] = REPORT_BASE_TIMESTAMP;
         data[5] = REPORT_ROTATION_VECTOR;
-        let slices = split_batch_reports(&data).expect("split");
+        let slices = split_batch_reports(&data);
         assert_eq!(slices.len(), 2);
         assert_eq!(slices[0].len(), 5);
         assert_eq!(slices[0][0], REPORT_BASE_TIMESTAMP);

@@ -7,7 +7,7 @@ use std::io::Read;
 use std::path::PathBuf;
 
 use flate2::read::GzDecoder;
-use marengo_store::{blob_dir, log_dir, LogSessionRow, Store};
+use marengo_store::{log_dir, LogSessionRow, Store};
 
 const ID: &str = "20200101T000000Z";
 const LABEL: &str = "authoritative capture";
@@ -177,7 +177,8 @@ fn replacing_candump_invalidates_old_statistics_without_losing_siblings_or_captu
         .finalize_session(ID, END)
         .expect("explicit authoritative capture end");
     let archived_paths: [PathBuf; 3] = std::array::from_fn(|index| {
-        blob_dir(&root)
+        log_dir(&root)
+            .join("blobs")
             .join("2020-01-01")
             .join(format!("{}.gz", NAMES[index]))
     });

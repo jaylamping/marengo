@@ -151,12 +151,14 @@ fn imported_capture_end_stays_unknown_until_explicit_finalize_and_survives_reimp
     let imported_path = hot.join(format!("bench-{IMPORTED}.log"));
     fs::write(&imported_path, PAYLOADS[0]).expect("literal new imported capture artifact");
     let imported_count = store
-        .import_legacy_hot(50)
-        .expect("actual new and known capture import");
+        .import_legacy_hot_report(50)
+        .expect("actual new and known capture import")
+        .sessions;
     let imported = observe(&store, false);
     let repeated_count = store
-        .import_legacy_hot(50)
-        .expect("actual repeat capture import");
+        .import_legacy_hot_report(50)
+        .expect("actual repeat capture import")
+        .sessions;
     let repeated = observe(&store, false);
     let kept_bytes = [
         fs::read(&imported_path).expect("kept new imported bytes"),
@@ -191,8 +193,9 @@ fn imported_capture_end_stays_unknown_until_explicit_finalize_and_survives_reimp
     let finalized = observe(&reopened_store, true);
     fs::write(&imported_path, PAYLOADS[0]).expect("re-created real hot sibling after finalization");
     let reimported_count = reopened_store
-        .import_legacy_hot(50)
-        .expect("actual hot sibling reimport after finalization");
+        .import_legacy_hot_report(50)
+        .expect("actual hot sibling reimport after finalization")
+        .sessions;
     let reimported = observe(&reopened_store, true);
     let reimported_hot_bytes =
         fs::read(&imported_path).expect("actual reimported hot sibling bytes");

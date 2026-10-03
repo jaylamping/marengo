@@ -2,10 +2,20 @@
 #![cfg(unix)]
 #![allow(clippy::expect_used)]
 use armee_proto::prost::Message;
-use chappe::ipc::{encode_frame, IpcListener, DIRECTION_RUNTIME_TO_GATEWAY};
+use chappe::ipc::{IpcListener, DIRECTION_RUNTIME_TO_GATEWAY};
 use std::io::{Read, Write};
 use std::sync::{mpsc, Arc};
 use std::time::Duration;
+
+/// Wire frame: direction byte, then length-prefixed (u32 LE) topic and payload.
+fn encode_frame(direction: u8, topic: &str, payload: &[u8]) -> Vec<u8> {
+    let mut out = vec![direction];
+    out.extend_from_slice(&(topic.len() as u32).to_le_bytes());
+    out.extend_from_slice(topic.as_bytes());
+    out.extend_from_slice(&(payload.len() as u32).to_le_bytes());
+    out.extend_from_slice(payload);
+    out
+}
 
 #[derive(Debug, PartialEq)]
 enum Event {
@@ -48,8 +58,7 @@ async fn stale_future_and_unknown_commands_never_reach_runtime_bus() {
             payload: vec![value],
         }
         .encode_to_vec();
-        let frame = encode_frame(chappe::ipc::DIRECTION_GATEWAY_TO_RUNTIME, topic, &envelope)
-            .expect("command frame");
+        let frame = encode_frame(chappe::ipc::DIRECTION_GATEWAY_TO_RUNTIME, topic, &envelope);
         peer.write_all(&frame).expect("command bytes");
     }
     let accepted = tokio::time::timeout(Duration::from_secs(5), commands.recv())
@@ -98,8 +107,7 @@ fn replacement_retires_partial_old_frame_and_disconnect_closes_command_peer() {
         .set_read_timeout(Some(Duration::from_secs(5)))
         .expect("read deadline");
     assert_eq!(next(), Event::Connected(true));
-    let old_frame =
-        encode_frame(DIRECTION_RUNTIME_TO_GATEWAY, "robot/state", &[1; 8]).expect("frame");
+    let old_frame = encode_frame(DIRECTION_RUNTIME_TO_GATEWAY, "robot/state", &[1; 8]);
     first
         .write_all(&old_frame[..old_frame.len() - 4])
         .expect("partial retired publication");
@@ -107,8 +115,7 @@ fn replacement_retires_partial_old_frame_and_disconnect_closes_command_peer() {
     assert_eq!(next(), Event::Connected(true));
     let mut byte = [0];
     assert_eq!(first.read(&mut byte).expect("retired peer closed"), 0);
-    let current =
-        encode_frame(DIRECTION_RUNTIME_TO_GATEWAY, "robot/state", &[2; 8]).expect("new frame");
+    let current = encode_frame(DIRECTION_RUNTIME_TO_GATEWAY, "robot/state", &[2; 8]);
     second.write_all(&current).expect("current publication");
     assert_eq!(next(), Event::Frame(vec![2; 8]));
     drop(second);

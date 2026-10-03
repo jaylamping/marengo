@@ -7,7 +7,7 @@ use std::io::{ErrorKind, Read};
 use std::path::{Path, PathBuf};
 
 use flate2::read::GzDecoder;
-use marengo_store::{blob_dir, log_dir, LegacyImportSummary, LogSessionRow, Store};
+use marengo_store::{log_dir, LegacyImportSummary, LogSessionRow, Store};
 use serde_json::Value;
 
 const IDS: [&str; 4] = [
@@ -216,7 +216,8 @@ fn collect_compatibility_failures(
             } else {
                 let filename = format!("{}-{id}.{}", PREFIXES[kind], EXTENSIONS[kind]);
                 Some(if archived {
-                    blob_dir(root)
+                    log_dir(root)
+                        .join("blobs")
                         .join(BUCKETS[index])
                         .join(format!("{filename}.gz"))
                         .display()

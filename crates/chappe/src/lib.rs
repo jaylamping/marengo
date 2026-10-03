@@ -144,32 +144,9 @@ impl Bus {
         self.sender(topic).subscribe()
     }
 
-    /// Decode the next envelope from a subscription.
-    pub async fn recv_envelope(
-        rx: &mut broadcast::Receiver<Vec<u8>>,
-    ) -> Result<Envelope, BusError> {
-        let bytes = rx
-            .recv()
-            .await
-            .map_err(|e| BusError::Decode(e.to_string()))?;
-        Envelope::decode(bytes.as_slice()).map_err(|e| BusError::Decode(e.to_string()))
-    }
-
     /// Milliseconds since UNIX epoch of the last successful publish.
     pub fn last_publish_ms(&self) -> u64 {
         self.inner.last_publish_ms.load(Ordering::Relaxed)
-    }
-
-    /// Whether IPC fanout is configured (Unix only).
-    pub fn ipc_configured(&self) -> bool {
-        #[cfg(unix)]
-        {
-            self.inner.ipc.read().map(|g| g.is_some()).unwrap_or(false)
-        }
-        #[cfg(not(unix))]
-        {
-            false
-        }
     }
 
     /// Actual IPC connection and bounded admission evidence, when configured.
@@ -218,7 +195,7 @@ mod tests {
             },
         )
         .expect("publish");
-        let env = Bus::recv_envelope(&mut rx).await.expect("recv");
+        let env = Envelope::decode(rx.recv().await.expect("recv").as_slice()).expect("envelope");
         let state = RobotState::decode(env.payload.as_slice()).expect("robot state");
         assert_eq!(state.joints.len(), 1);
     }
@@ -244,7 +221,7 @@ mod tests {
             },
         )
         .expect("publish");
-        let env = Bus::recv_envelope(&mut rx).await.expect("recv");
+        let env = Envelope::decode(rx.recv().await.expect("recv").as_slice()).expect("envelope");
         assert_eq!(env.message_type, "marengo.v1.Heartbeat");
         let hb = Heartbeat::decode(env.payload.as_slice()).expect("inner");
         assert_eq!(hb.node_id, "probe");

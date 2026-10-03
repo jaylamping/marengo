@@ -21,15 +21,17 @@ pub trait I2cBus {
     fn read_packet(&mut self, total_len: usize, out: &mut [u8]) -> Result<(), BusError>;
 }
 
+#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TransactionKind {
+pub(crate) enum TransactionKind {
     Write,
     ReadHeader,
     ReadPacket,
 }
 
+#[cfg(test)]
 #[derive(Debug, Clone)]
-pub struct MockTransaction {
+pub(crate) struct MockTransaction {
     pub kind: TransactionKind,
     pub write_data: Vec<u8>,
     pub header_response: [u8; 4],
@@ -37,12 +39,14 @@ pub struct MockTransaction {
 }
 
 /// Scriptable I2C mock for unit tests.
+#[cfg(test)]
 #[derive(Debug, Default)]
-pub struct MockI2cBus {
+pub(crate) struct MockI2cBus {
     pub transactions: Vec<MockTransaction>,
     pub index: usize,
 }
 
+#[cfg(test)]
 impl MockI2cBus {
     pub fn push_write_ack(&mut self) {
         self.transactions.push(MockTransaction {
@@ -83,6 +87,7 @@ impl MockI2cBus {
     }
 }
 
+#[cfg(test)]
 impl I2cBus for MockI2cBus {
     fn write(&mut self, data: &[u8]) -> Result<(), BusError> {
         let tx = self.next()?;

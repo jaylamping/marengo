@@ -52,7 +52,7 @@ fn idle_like_ui_state(
 }
 
 /// Derive the single authoritative UI state from deploy and job facts.
-pub fn derive_ui_state(
+fn derive_ui_state(
     deploy_sha: &str,
     upstream_ok: bool,
     update_available: bool,
@@ -72,17 +72,9 @@ pub fn derive_ui_state(
     }
 }
 
-/// True when Consul `www/index.html` is present (or readiness check skipped).
-pub fn web_root_ready() -> bool {
-    www_index_present()
-}
-
-/// Return whether the installed target is ready to serve.
-///
-/// The job argument is retained as part of the domain interface for callers
-/// that already have the reconciled job; readiness is based on the same
-/// revision and web-root checks for every job state.
-pub fn ready_for_target(deploy_sha: &str, target: &str, _job: &DeployJob) -> bool {
+/// Return whether the installed target is ready to serve: the revision matches
+/// and the Consul web root is present, for every job state.
+fn ready_for_target(deploy_sha: &str, target: &str) -> bool {
     if target.is_empty() || !shas_match(deploy_sha, target) {
         return false;
     }
@@ -90,7 +82,7 @@ pub fn ready_for_target(deploy_sha: &str, target: &str, _job: &DeployJob) -> boo
 }
 
 /// Assemble a status snapshot after job reconciliation and upstream fetching.
-pub fn assemble_version_status(
+fn assemble_version_status(
     deploy: ParsedDeployRev,
     upstream_sha: String,
     upstream_ok: bool,
@@ -106,8 +98,8 @@ pub fn assemble_version_status(
     } else {
         job.target_sha.clone()
     };
-    let ready_for_target = ready_for_target(&deploy.sha, &target_for_ready, &job)
-        && job.state == DeployJobState::Succeeded;
+    let ready_for_target =
+        ready_for_target(&deploy.sha, &target_for_ready) && job.state == DeployJobState::Succeeded;
     // Persist a retryable failure when install "succeeded" without a web root.
     if job.state == DeployJobState::Succeeded && !ready_for_target {
         job.state = DeployJobState::Failed;
@@ -152,7 +144,8 @@ pub async fn current_version_status(refresh: bool) -> VersionStatus {
     assemble_version_status(deploy, upstream_sha, upstream_ok, fetched_at, job, log_tail)
 }
 
-fn www_index_present() -> bool {
+/// True when Consul `www/index.html` is present (or readiness check skipped).
+pub fn web_root_ready() -> bool {
     let root = match std::env::var("MARENGO_ROOT") {
         Ok(value) => value,
         Err(_) => "/opt/marengo".to_string(),

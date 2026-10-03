@@ -295,15 +295,16 @@ message RuntimeObservationGap {
 
 message ClockMetrics {
   string sync_source = 1;
-  double offset_ms = 2;
+  // Deprecated: never populated.
+  double offset_ms = 2 [deprecated = true];
   bool synchronized = 3;
 }
 
 message CpuMetrics {
   double usage_percent = 1;
   uint32 core_count = 2;
-  // Legacy ascending-CPU-ID values; invalid samples are zero. Use cores for validity/identity.
-  repeated double per_core_usage_percent = 3;
+  // Deprecated: no longer populated (it fabricated 0.0 for invalid samples). Use cores.
+  repeated double per_core_usage_percent = 3 [deprecated = true];
   uint32 freq_mhz = 4;
   double iowait_percent = 5;
   // False for a new baseline, reset, zero delta or unavailable counters.
@@ -337,7 +338,8 @@ message LoadMetrics {
 message ThermalMetrics {
   double cpu_celsius = 1;
   double gpu_celsius = 2;
-  double soc_celsius = 3;
+  // Deprecated: never populated.
+  double soc_celsius = 3 [deprecated = true];
   repeated ThermalZone zones = 4;
 }
 
@@ -351,8 +353,9 @@ message DiskMetrics {
   string filesystem = 2;
   uint64 total_bytes = 3;
   uint64 used_bytes = 4;
-  double read_bytes_per_sec = 5;
-  double write_bytes_per_sec = 6;
+  // Deprecated: disk rates are never populated.
+  double read_bytes_per_sec = 5 [deprecated = true];
+  double write_bytes_per_sec = 6 [deprecated = true];
   bool read_only = 7;
   bool nearly_full = 8;
   // Legacy scalar defaults are meaningful only when their observation is known.
@@ -382,11 +385,13 @@ message ServiceStatus {
 message PiPlatformMetrics {
   bool throttled_now = 1;
   uint32 throttle_events = 2;
-  uint32 arm_freq_mhz = 3;
-  uint32 core_freq_mhz = 4;
-  double core_voltage_v = 5;
-  uint32 sdram_freq_mhz = 6;
-  uint32 gpu_freq_mhz = 7;
+  // Deprecated: arm_freq_mhz, core_freq_mhz, core_voltage_v, sdram_freq_mhz and
+  // gpu_freq_mhz are never populated.
+  uint32 arm_freq_mhz = 3 [deprecated = true];
+  uint32 core_freq_mhz = 4 [deprecated = true];
+  double core_voltage_v = 5 [deprecated = true];
+  uint32 sdram_freq_mhz = 6 [deprecated = true];
+  uint32 gpu_freq_mhz = 7 [deprecated = true];
   double pmic_temp_celsius = 8;
 }
 

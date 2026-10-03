@@ -9,7 +9,6 @@ use armee_proto::{
     PersistStatus as ProtoPersistStatus,
 };
 use marengo_config::{limit_patch_from_motor, profile_content_revision, LimitPatch};
-use serde::Serialize;
 use tokio::time::timeout;
 
 use crate::action_ack::{recv_action_ack, LIMIT_PATCH_PERSIST_ACTION, LIVE_LIMIT_PATCH_ACTION};
@@ -18,30 +17,19 @@ use crate::state::{SharedState, TOPIC_ACTUATOR_COMMAND};
 const LIVE_APPLY_TIMEOUT: Duration = Duration::from_secs(8);
 const LIMIT_PATCH_PERSIST_TIMEOUT: Duration = Duration::from_secs(12);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PersistStatus {
     Durable,
     Pending,
     Failed,
-    /// Retained for Consul `persist_status: "n/a"` wire compatibility.
-    #[allow(dead_code)]
-    #[serde(rename = "n/a")]
-    NotApplicable,
 }
 
-#[derive(Debug, Serialize)]
-pub struct LimitPatchResultJson {
+#[derive(Debug)]
+pub struct LimitPatchResult {
     pub ok: bool,
     pub message: String,
-    pub applied_live: bool,
     pub restart_required: bool,
-    pub revision: Option<String>,
     pub persist_status: PersistStatus,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub before: Option<LimitPatch>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub after: Option<LimitPatch>,
 }
 
 #[derive(Debug, Clone)]
@@ -61,15 +49,10 @@ pub async fn apply_limit_patch_async(
     state: SharedState,
     config_dir: &Path,
     request: LimitPatchRequest,
-) -> LimitPatchResultJson {
+) -> LimitPatchResult {
     let joint = request.joint.trim();
     if joint.is_empty() {
-        return limit_patch_error(
-            "joint name required".to_string(),
-            PersistStatus::Failed,
-            None,
-            None,
-        );
+        return limit_patch_error("joint name required".to_string(), PersistStatus::Failed);
     }
     let before = match limit_patch_from_motor(config_dir, joint) {
         Ok(before) => before,
@@ -77,8 +60,6 @@ pub async fn apply_limit_patch_async(
             return limit_patch_error(
                 format!("joint {joint} not in master config: {error}"),
                 PersistStatus::Failed,
-                None,
-                None,
             );
         }
     };
@@ -86,12 +67,7 @@ pub async fn apply_limit_patch_async(
     let current_revision = match profile_content_revision(config_dir) {
         Ok(revision) => revision,
         Err(error) => {
-            return limit_patch_error(
-                error.to_string(),
-                PersistStatus::Failed,
-                Some(before),
-                Some(after),
-            );
+            return limit_patch_error(error.to_string(), PersistStatus::Failed);
         }
     };
     if let Some(expected) = request.expected_revision.as_deref() {
@@ -99,21 +75,15 @@ pub async fn apply_limit_patch_async(
             return limit_patch_error(
                 format!("config revision mismatch: expected {expected}, found {current_revision}"),
                 PersistStatus::Failed,
-                Some(before),
-                Some(after),
             );
         }
     }
     if before == after {
-        return LimitPatchResultJson {
+        return LimitPatchResult {
             ok: true,
             message: format!("No limit changes for {joint}"),
-            applied_live: false,
             restart_required: false,
-            revision: Some(current_revision),
             persist_status: PersistStatus::Durable,
-            before: Some(before),
-            after: Some(after),
         };
     }
 
@@ -160,8 +130,6 @@ pub async fn apply_limit_patch_async(
         return limit_patch_error(
             format!("failed to publish limit_patch: {error}"),
             PersistStatus::Failed,
-            Some(before),
-            Some(after),
         );
     }
 
@@ -198,8 +166,6 @@ pub async fn apply_limit_patch_async(
                             "live limits applied for {joint}, but timed out waiting for durable persist"
                         ),
                         PersistStatus::Pending,
-                        Some(before),
-                        Some(after),
                     );
                 }
             };
@@ -217,30 +183,15 @@ pub async fn apply_limit_patch_async(
                         persist_event.reject_reason
                     },
                     PersistStatus::Failed,
-                    Some(before),
-                    Some(after),
                 );
             }
-            let revision = if persist_event.config_revision.is_empty() {
-                if event.config_revision.is_empty() {
-                    current_revision
-                } else {
-                    event.config_revision
-                }
-            } else {
-                persist_event.config_revision
-            };
-            LimitPatchResultJson {
+            LimitPatchResult {
                 ok: true,
                 message: format!(
                     "Applied live limits for {joint} on master (durable; URDF expanded if needed)"
                 ),
-                applied_live: true,
                 restart_required: false,
-                revision: Some(revision),
                 persist_status,
-                before: Some(before),
-                after: Some(after),
             }
         }
         Ok(event) => limit_patch_error(
@@ -250,14 +201,10 @@ pub async fn apply_limit_patch_async(
                 event.reject_reason
             },
             PersistStatus::Failed,
-            Some(before),
-            Some(after),
         ),
         Err(_) => limit_patch_error(
             format!("timed out waiting for Pi ACK on limit_patch for {joint}"),
             PersistStatus::Failed,
-            Some(before),
-            Some(after),
         ),
     }
 }
@@ -282,20 +229,11 @@ fn merge_request_limits(before: &LimitPatch, request: &LimitPatchRequest) -> Lim
     }
 }
 
-fn limit_patch_error(
-    message: String,
-    persist_status: PersistStatus,
-    before: Option<LimitPatch>,
-    after: Option<LimitPatch>,
-) -> LimitPatchResultJson {
-    LimitPatchResultJson {
+fn limit_patch_error(message: String, persist_status: PersistStatus) -> LimitPatchResult {
+    LimitPatchResult {
         ok: false,
         message,
-        applied_live: false,
         restart_required: false,
-        revision: None,
         persist_status,
-        before,
-        after,
     }
 }

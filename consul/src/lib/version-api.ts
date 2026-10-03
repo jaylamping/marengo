@@ -51,8 +51,7 @@ export type VersionStatusDto = {
   ready_for_target: boolean;
   deploy: DeployJobDto;
   log_tail?: string | null;
-  /** Present on gateways with marengo-deploy; prefer over client-side inference. */
-  ui_state?: UpdateUiState;
+  ui_state: UpdateUiState;
 };
 
 export type DeployResponseDto = {

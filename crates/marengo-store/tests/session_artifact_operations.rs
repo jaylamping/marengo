@@ -7,7 +7,7 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use flate2::read::GzDecoder;
-use marengo_store::{blob_dir, log_dir, LogSessionRow, SessionArtifact, Store, StoreError};
+use marengo_store::{log_dir, LogSessionRow, SessionArtifact, Store, StoreError};
 
 const SESSION: &str = "20200101T000000Z";
 const LABEL: &str = "authoritative capture";
@@ -178,7 +178,8 @@ fn archive_fixture(fixture: &Fixture, store: &Store) -> ([PathBuf; 3], u32) {
         .archive_hot_sessions(0)
         .expect("actual archive populates candump stats");
     let paths = std::array::from_fn(|index| {
-        blob_dir(&fixture.root)
+        log_dir(&fixture.root)
+            .join("blobs")
             .join("2020-01-01")
             .join(format!("{}.gz", NAMES[index]))
     });
@@ -422,7 +423,8 @@ fn import_report_counts_sessions_separately_and_refuses_readonly_storage_without
         .map(|summary| (summary.sessions, summary.artifacts))
         .map_err(|error| error.to_string());
     let legacy = store
-        .import_legacy_hot(50)
+        .import_legacy_hot_report(50)
+        .map(|summary| summary.sessions)
         .map_err(|error| error.to_string());
     let after = observe(&store, SESSION);
     let peer = observe(&store, "20200102T000000Z");

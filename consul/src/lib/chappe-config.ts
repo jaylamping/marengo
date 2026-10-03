@@ -129,7 +129,6 @@ export const CHAPPE_TOPICS = {
   logs: 'logs/structured',
   hostMetricsPi: 'host/metrics/pi',
   hostMetricsJetson: 'host/metrics/jetson',
-  enable: 'robot/enable',
 } as const;
 
 export function getChappeSubscribeTopics(): string[] {

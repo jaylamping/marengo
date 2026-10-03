@@ -56,7 +56,7 @@ export function useCandumpData(mode: LogsMode, selectedSession: string | null) {
           error: null,
           data: {
             frames: result.data.frames,
-            total: result.data.parsed_frames ?? result.data.total_frames,
+            total: result.data.parsed_frames,
           },
         });
         return;

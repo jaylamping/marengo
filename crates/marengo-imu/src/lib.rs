@@ -23,10 +23,10 @@ mod types;
 #[cfg(all(target_os = "linux", feature = "linux-i2c"))]
 mod i2c_linux;
 
-pub use bus::{BusError, I2cBus, MockI2cBus, MockTransaction, TransactionKind};
+pub use bus::{BusError, I2cBus};
 pub use driver::Bno085;
 pub use error::ImuError;
-pub use types::{ImuAccuracy, ImuSample, Quaternion, RotationVectorSample};
+pub use types::{ImuAccuracy, Quaternion, RotationVectorSample};
 
 #[cfg(all(target_os = "linux", feature = "linux-i2c"))]
 pub use i2c_linux::LinuxI2cBus;

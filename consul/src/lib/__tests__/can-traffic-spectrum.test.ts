@@ -43,7 +43,6 @@ function makeSummary(partial: Partial<CandumpSummaryDto> = {}): CandumpSummaryDt
 
 function makeFrame(partial: Partial<CandumpFrameDto> = {}): CandumpFrameDto {
   return {
-    delta_s: 1,
     offset_s: 1,
     interface: 'can0',
     can_id: '0x001',

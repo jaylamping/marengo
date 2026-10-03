@@ -105,22 +105,6 @@ export async function postEnableCommand(enable: boolean): Promise<void> {
   }
 }
 
-export async function postMitCommandBatch(batch: MitCommandBatch): Promise<void> {
-  const endpoints = getChappeEndpoints();
-  if (!endpoints) {
-    throw new Error('Chappe endpoints not configured');
-  }
-  const res = await fetch(`${endpoints.httpUrl}/command/mit`, {
-    method: 'POST',
-    headers: gatewayAuthHeaders('control', 'application/x-protobuf'),
-    body: toBinary(MitCommandBatchSchema, batch),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`mit command failed: ${res.status} ${text}`);
-  }
-}
-
 export async function postTestingMitCommandBatch(batch: MitCommandBatch): Promise<void> {
   const endpoints = getChappeEndpoints();
   if (!endpoints) {

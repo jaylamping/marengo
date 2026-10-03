@@ -20,6 +20,7 @@ use crate::paths::{blob_dir, log_dir};
 
 pub struct Store {
     conn: Mutex<Connection>,
+    db_path: PathBuf,
     marengo_root: PathBuf,
     candump: marengo_candump::Candump,
 }
@@ -48,17 +49,12 @@ impl Store {
         conn.pragma_update(None, "synchronous", "NORMAL")?;
         let store = Self {
             conn: Mutex::new(conn),
+            db_path: db_path.as_ref().to_path_buf(),
             marengo_root: marengo_root.as_ref().to_path_buf(),
             candump,
         };
         store.migrate()?;
         Ok(store)
-    }
-
-    pub fn open_default() -> Result<Self> {
-        let root = crate::paths::resolve_marengo_root();
-        let db = crate::paths::resolve_db_path();
-        Self::open(db, root)
     }
 
     pub fn connection(&self) -> std::sync::MutexGuard<'_, Connection> {
@@ -294,20 +290,7 @@ impl Store {
         };
 
         for session in &old_sessions {
-            for path in [
-                &session.bench_blob,
-                &session.candump_blob,
-                &session.trace_blob,
-            ]
-            .into_iter()
-            .flatten()
-            {
-                let _ = fs::remove_file(path);
-            }
-            conn.execute(
-                "DELETE FROM log_sessions WHERE id = ?1",
-                params![session.id],
-            )?;
+            remove_session(&conn, session)?;
         }
 
         let _ = conn.execute_batch("PRAGMA wal_checkpoint(PASSIVE);");
@@ -418,19 +401,6 @@ impl Store {
                 "SELECT id, label, started_ms, ended_ms, bench_blob, candump_blob, trace_blob, candump_frame_count, candump_bytes
                  FROM log_sessions WHERE id = ?1",
                 params![id],
-                map_session_row,
-            )
-            .optional()
-            .map_err(StoreError::from)
-    }
-
-    pub fn latest_session(&self) -> Result<Option<LogSessionRow>> {
-        let conn = self.connection();
-        conn
-            .query_row(
-                "SELECT id, label, started_ms, ended_ms, bench_blob, candump_blob, trace_blob, candump_frame_count, candump_bytes
-                 FROM log_sessions ORDER BY started_ms DESC LIMIT 1",
-                [],
                 map_session_row,
             )
             .optional()
@@ -653,17 +623,7 @@ impl Store {
     }
 
     pub fn log_disk_usage_bytes(&self) -> Result<u64> {
-        let mut total = 0u64;
-        if let Ok(meta) = fs::metadata(crate::paths::resolve_db_path()) {
-            total += meta.len();
-        }
-        total += dir_size(&log_dir(&self.marengo_root))?;
-        Ok(total)
-    }
-
-    /// Compatibility entry point returning unique session IDs processed.
-    pub fn import_legacy_hot(&self, keep: usize) -> Result<u32> {
-        Ok(self.import_legacy_hot_report(keep)?.sessions)
+        crate::disk::log_disk_usage_bytes(&self.marengo_root, &self.db_path)
     }
 
     /// Import hot references and archive beyond `keep`. Counts describe files
@@ -733,7 +693,7 @@ fn map_log_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<LogEventRow> {
     })
 }
 
-fn map_session_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<LogSessionRow> {
+pub(crate) fn map_session_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<LogSessionRow> {
     Ok(LogSessionRow {
         id: row.get(0)?,
         label: row.get(1)?,
@@ -862,19 +822,23 @@ fn read_text_page(path: &str, offset: u32, limit: u32) -> Result<(Vec<String>, u
     Ok((all[start..end].to_vec(), total))
 }
 
-fn dir_size(path: &Path) -> Result<u64> {
-    let mut total = 0u64;
-    if path.is_file() {
-        return Ok(fs::metadata(path).map(|m| m.len()).unwrap_or(0));
+/// Delete one session's artifact files and its row. Symlinks are never followed.
+pub(crate) fn remove_session(conn: &Connection, session: &LogSessionRow) -> Result<()> {
+    for path in [
+        &session.bench_blob,
+        &session.candump_blob,
+        &session.trace_blob,
+    ]
+    .into_iter()
+    .flatten()
+    {
+        let _ = fs::remove_file(path);
     }
-    if !path.is_dir() {
-        return Ok(0);
-    }
-    for entry in fs::read_dir(path)? {
-        let entry = entry?;
-        total += dir_size(&entry.path())?;
-    }
-    Ok(total)
+    conn.execute(
+        "DELETE FROM log_sessions WHERE id = ?1",
+        params![session.id],
+    )?;
+    Ok(())
 }
 
 #[cfg(test)]

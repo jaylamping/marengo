@@ -78,9 +78,7 @@ export function useCanTrafficSpectrum({
                     ok: true,
                     data: {
                       frames: pageResult.data.frames,
-                      total:
-                        pageResult.data.parsed_frames ??
-                        pageResult.data.total_frames,
+                      total: pageResult.data.parsed_frames,
                     },
                   }
                 : pageResult,
