@@ -53,6 +53,10 @@ use armee_proto::{
 use berthier::{
     proto_control_mode, ControlLoop, ControlMode, GainOverride, LoopError, TickPhaseAverages,
 };
+use chappe::topics::{
+    TOPIC_ACTIVE_REPORTING_LEASE, TOPIC_ENABLE, TOPIC_HEARTBEAT, TOPIC_HOMING,
+    TOPIC_MOTOR_STATUS_POLL, TOPIC_SAFETY, TOPIC_SET_ZERO, TOPIC_TESTING_MIT_BATCH,
+};
 use chappe::Bus;
 use davout::{
     DavoutError, MotorBus, OperationalMode, ReferenceHandle, ReferenceTerminal, StopReport,
@@ -561,8 +565,7 @@ fn drain_chappe_commands<B: MotorBus>(
         }
         match poll_channel(set_zero_rx) {
             Polled::Message(bytes) => {
-                let Some(request) =
-                    decode_chappe_payload::<SetZeroRequest>(&bytes, "robot/set_zero")
+                let Some(request) = decode_chappe_payload::<SetZeroRequest>(&bytes, TOPIC_SET_ZERO)
                 else {
                     continue;
                 };
@@ -680,7 +683,7 @@ fn drain_chappe_commands<B: MotorBus>(
                 break;
             }
             Polled::Message(bytes) => {
-                let Some(request) = decode_chappe_payload::<EnableRequest>(&bytes, "robot/enable")
+                let Some(request) = decode_chappe_payload::<EnableRequest>(&bytes, TOPIC_ENABLE)
                 else {
                     continue;
                 };
@@ -817,7 +820,7 @@ fn drain_testing_commands<B: MotorBus>(
     testing_cmd_rx: &mut tokio::sync::broadcast::Receiver<Vec<u8>>,
     shutdown: &AtomicBool,
 ) {
-    const TOPIC: &str = "robot/testing/mit_command_batch";
+    const TOPIC: &str = TOPIC_TESTING_MIT_BATCH;
     while !shutdown.load(Ordering::SeqCst) {
         let bytes = match poll_channel(testing_cmd_rx) {
             Polled::Message(bytes) => bytes,
@@ -1014,17 +1017,12 @@ fn publish_safety<B: MotorBus>(
         software_estop_latched: !faults.is_empty(),
         active_faults: faults,
     };
-    chappe.publish(
-        "robot/safety",
-        "marengo-pi",
-        "marengo.v1.SafetyState",
-        &state,
-    )
+    chappe.publish(TOPIC_SAFETY, "marengo-pi", "marengo.v1.SafetyState", &state)
 }
 
 fn publish_heartbeat(chappe: &Bus) -> Result<(), chappe::BusError> {
     chappe.publish(
-        "robot/heartbeat",
+        TOPIC_HEARTBEAT,
         "marengo-pi",
         "marengo.v1.Heartbeat",
         &Heartbeat {
@@ -1444,12 +1442,12 @@ fn main() {
             Err(e) => warn!(error = %e, "Chappe IPC fanout disabled"),
         }
     }
-    let mut enable_rx = chappe.subscribe("robot/enable");
-    let mut homing_rx = chappe.subscribe("robot/homing");
-    let mut set_zero_rx = chappe.subscribe("robot/set_zero");
-    let mut lease_rx = chappe.subscribe("robot/active_reporting_lease");
-    let mut status_poll_rx = chappe.subscribe("robot/motor_status_poll");
-    let mut testing_cmd_rx = chappe.subscribe("robot/testing/mit_command_batch");
+    let mut enable_rx = chappe.subscribe(TOPIC_ENABLE);
+    let mut homing_rx = chappe.subscribe(TOPIC_HOMING);
+    let mut set_zero_rx = chappe.subscribe(TOPIC_SET_ZERO);
+    let mut lease_rx = chappe.subscribe(TOPIC_ACTIVE_REPORTING_LEASE);
+    let mut status_poll_rx = chappe.subscribe(TOPIC_MOTOR_STATUS_POLL);
+    let mut testing_cmd_rx = chappe.subscribe(TOPIC_TESTING_MIT_BATCH);
     let mut actuator_rx = chappe.subscribe(overlay::TOPIC_ACTUATOR_COMMAND);
 
     let shutdown = Arc::new(AtomicBool::new(false));

@@ -280,12 +280,11 @@ async fn authorize_api(
 }
 
 pub(crate) fn sensitive_topic(topic: &str) -> bool {
+    use crate::state::{TOPIC_AUDIT_ACTION, TOPIC_AUDIT_TUNING, TOPIC_LOGS};
+    use chappe::topics::TOPIC_TESTING_MIT_BATCH;
     matches!(
         topic,
-        "logs/structured"
-            | "robot/audit/action"
-            | "robot/audit/tuning"
-            | "robot/testing/mit_command_batch"
+        TOPIC_LOGS | TOPIC_AUDIT_ACTION | TOPIC_AUDIT_TUNING | TOPIC_TESTING_MIT_BATCH
     )
 }
 
@@ -506,7 +505,7 @@ async fn command_testing_mit(
     }
     let payload = request.encode_to_vec();
     if let Err(e) = state.publish_command_envelope(
-        "robot/testing/mit_command_batch",
+        chappe::topics::TOPIC_TESTING_MIT_BATCH,
         "consul",
         "marengo.v1.MitCommandBatch",
         payload,

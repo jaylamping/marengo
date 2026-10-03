@@ -50,7 +50,7 @@ impl Drop for WorkerExitObserver {
     }
 }
 
-const TOPIC_AUDIT_ACTION: &str = "robot/audit/action";
+use crate::overlay::TOPIC_AUDIT_ACTION;
 
 static AUDIT_REVISION: AtomicU64 = AtomicU64::new(1);
 

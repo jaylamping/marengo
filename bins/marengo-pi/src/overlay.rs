@@ -39,10 +39,10 @@ use crate::motion_owner::{CommandClass, CommandSource, MotionLease};
 
 pub use crate::limit_persist::ConfigPersistQueue;
 
-pub const TOPIC_ACTUATOR_COMMAND: &str = "robot/actuator/command";
-pub const TOPIC_ACTUATOR_LIMITS: &str = "robot/actuator/limits";
-pub const TOPIC_AUDIT_TUNING: &str = "robot/audit/tuning";
-pub const TOPIC_AUDIT_ACTION: &str = "robot/audit/action";
+/// Chappe topic contract: values live in [`chappe::topics`].
+pub use chappe::topics::{
+    TOPIC_ACTUATOR_COMMAND, TOPIC_ACTUATOR_LIMITS, TOPIC_AUDIT_ACTION, TOPIC_AUDIT_TUNING,
+};
 
 #[derive(Debug, Error)]
 pub enum OverlayError {
