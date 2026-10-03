@@ -82,8 +82,10 @@ cargo invocations that found no matching test are **not** counted as red.
 
 Gate (final, on committed branch): `cargo fmt --all -- --check` clean;
 `cargo clippy --workspace --all-targets --exclude marengo-host-metrics --exclude marengo-pi -- -D warnings` clean;
-`cargo test --workspace` — full run pending in step 6;
-`cargo clippy -p marengo-pi --all-targets --target aarch64-unknown-linux-gnu` — pending in step 6.
+`cargo clippy -p marengo-pi --all-targets --target aarch64-unknown-linux-gnu` clean
+(after fixing the journal `Read` import, `MAX_LINE_BYTES` cfg, and exhaustive cursor match);
+`cargo test --workspace` **1204 passed, 0 failed** (includes a fixed deploy-test serialization flake and
+one transient berthier timing failure that passes in isolation and in the full rerun).
 Focused suites green: `cargo test -p marengo-store -p marengo-deploy -p marengo-gateway -p marengo-log-cli -p marengo-candump`
-(all `ok`, zero failures); `scripts/deploy-rev.test.sh` 6/6; `scripts/deploy-job-contract.test.sh` 33/34
-(`cargo` not on PATH in that shell; the failing assertion shells out to `cargo test` for the contract suite).
+(all `ok`, zero failures); `scripts/deploy-rev.test.sh` 6/6; `scripts/deploy-job-contract.test.sh` 34/34
+(with `cargo` on PATH).
