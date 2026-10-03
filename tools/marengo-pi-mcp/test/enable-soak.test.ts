@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { MarengoPiConfig } from "../src/config.js";
@@ -18,6 +18,7 @@ import {
   evaluateSoak,
   parseFirmwareTiming,
   parseSoakCycles,
+  parseSoakSessionJson,
   planSoak,
   registerEnableSoakTools,
   soakCycleScript,
@@ -167,8 +168,8 @@ describe("pi_enable_soak script", () => {
  * stdin and whether MARENGO_CHAPPE_SOCKET reached it), instant sleep, pass-through timeout,
  * silent ip/pgrep and sysfs CAN counters under MARENGO_CAN_SYSFS.
  */
-function runSoakBody(
-  opts: { cycles?: number; stopOnFault?: boolean; enableReply?: (cycle: number) => string; overrunPerCycle?: boolean } = {},
+function soakFixture(
+  opts: { cycles?: number; stopOnFault?: boolean; enableReply?: (cycle: number) => string; overrunPerCycle?: boolean; wrapped?: boolean } = {},
 ) {
   const dir = mkdtempSync(path.join(tmpdir(), "soak-body-"));
   const fake = path.join(dir, "fakebin");
@@ -206,6 +207,18 @@ function runSoakBody(
     "fakebin/timeout": 'shift; exec "$@"',
     "fakebin/ip": "exit 0",
     "fakebin/pgrep": "exit 1",
+    ...(opts.wrapped
+      ? {
+          // benchLogWrapper's own commands: motor-repl pre-disable, CAN ownership, UP can0, candump.
+          "bin/motor-repl": "exit 0",
+          "fakebin/sudo": "exit 0",
+          "fakebin/systemctl": "echo inactive",
+          "fakebin/pkill": "exit 1",
+          "fakebin/ip": '[[ "$1 $2 $3" == "link show can0" ]] && echo "3: can0: <NOARP,UP,LOWER_UP> mtu 16 state UP mode DEFAULT"; exit 0',
+          "fakebin/candump":
+            'echo "  (000.000000)  can0  001#00"; echo "  (001.000000)  can0  002#00"; echo "  (002.500000)  can0  003#00"; exec tail -f /dev/null',
+        }
+      : {}),
   };
   for (const [rel, body] of Object.entries(scripts)) {
     writeFileSync(path.join(dir, rel), `#!/bin/bash\n${body}\n`);
@@ -214,7 +227,8 @@ function runSoakBody(
   writeFileSync(path.join(dir, "trace"), "");
   writeFileSync(path.join(dir, "stdin"), "");
   const p = plan({ cycles: opts.cycles ?? 2, stopOnFault: opts.stopOnFault });
-  const r = spawnSync("bash", ["-c", `set -uo pipefail\n{\n${soakSessionBody(cfg, p)}\n} 2>&1`], {
+  /** Run a remote script (bash, merged stdout/stderr) against the stubs. */
+  const run = (script: string) => spawnSync("bash", ["-c", script], {
     cwd: dir,
     env: {
       ...process.env,
@@ -226,12 +240,18 @@ function runSoakBody(
     encoding: "utf8",
     timeout: 60_000,
   });
+  return { dir, plan: p, run };
+}
+
+function runSoakBody(opts: Parameters<typeof soakFixture>[0] = {}) {
+  const f = soakFixture(opts);
+  const r = f.run(`set -uo pipefail\n{\n${soakSessionBody(cfg, f.plan)}\n} 2>&1`);
   return {
     status: r.status,
     output: `${r.stdout}\n${r.stderr}`,
-    trace: readFileSync(path.join(dir, "trace"), "utf8").trim().split("\n").filter(Boolean),
-    stdin: readFileSync(path.join(dir, "stdin"), "utf8").trim().split("\n").filter(Boolean),
-    plan: p,
+    trace: readFileSync(path.join(f.dir, "trace"), "utf8").trim().split("\n").filter(Boolean),
+    stdin: readFileSync(path.join(f.dir, "stdin"), "utf8").trim().split("\n").filter(Boolean),
+    plan: f.plan,
   };
 }
 
@@ -466,5 +486,74 @@ describe("pi_enable_soak handler", () => {
     const dir = path.join(cfg.localRoot, "var", "enable-soak", TS);
     assert.match(h.files[path.join(dir, "bench-session.log")] ?? "", /still owns CAN/);
     assert.ok(!h.execs.some((e) => e.command === "cargo"));
+  });
+});
+
+describe("pi_enable_soak candump recording (generated remote shell)", () => {
+  it("records the session candump, emits parseable session JSON, copies it and runs firmware-timing", async () => {
+    const fixture = soakFixture({ cycles: 1, wrapped: true });
+    const localRoot = mkdtempSync(path.join(tmpdir(), "soak-local-"));
+    const piCfg: MarengoPiConfig = { ...cfg, piRoot: fixture.dir, localRoot };
+    const remote: { output: string; status: number | null }[] = [];
+    const execs: { command: string; args: string[] }[] = [];
+    const analyzed: { path: string; content: string }[] = [];
+    const deps: EnableSoakDeps = {
+      execLocal: async (command, args) => {
+        execs.push({ command, args });
+        if (command === "scp") {
+          // "joey@marengo.local:<remote path>" -> local destination: a real copy of the Pi file.
+          const src = args.at(-2)!.replace(/^[^:]+:/, "");
+          copyFileSync(src, args.at(-1)!);
+          return { stdout: "", stderr: "", exitCode: 0 };
+        }
+        const target = args.at(-1)!;
+        analyzed.push({ path: target, content: readFileSync(target, "utf8") });
+        return { stdout: FIXTURE, stderr: "", exitCode: 0 };
+      },
+      writeFile: async (file, data) => writeFileSync(file, data),
+      mkdir: async (dir) => void mkdirSync(dir, { recursive: true }),
+      now: () => new Date("2026-10-03T12:00:00Z"),
+    };
+    const tools = registerEnableSoakTools(
+      piCfg,
+      async (body) => {
+        const r = fixture.run(`set -uo pipefail\n{\n${body}\n} 2>&1`);
+        remote.push({ output: `${r.stdout}\n${r.stderr}`, status: r.status });
+        return remote.at(-1)!.output;
+      },
+      () => {},
+      deps,
+    );
+
+    const out = await tools.pi_enable_soak.handler({ ...OPT_IN, cycles: 1 });
+    const { output, status } = remote[0];
+    assert.equal(status, 0, output);
+
+    // The wrapper recorded a candump and printed the session line as real JSON.
+    assert.match(output, /^candump recording: can0 -> \/\S+\/var\/log\/candump-\d{8}T\d{6}Z\.log$/m);
+    const jsonLine = output.split("\n").filter((l) => l.startsWith("{")).at(-1)!;
+    const session = JSON.parse(jsonLine) as { log: string; candump: string; ts: string; label: string };
+    assert.equal(session.label, "enable-soak");
+    assert.equal(session.candump, path.join(fixture.dir, "var", "log", `candump-${session.ts}.log`));
+    assert.equal(session.log, path.join(fixture.dir, "var", "log", `bench-${session.ts}.log`));
+    assert.match(readFileSync(session.candump, "utf8"), /can0  003#00/);
+    assert.deepEqual(parseSoakSessionJson(output), { log: session.log, candump: session.candump, ts: session.ts });
+
+    // The handler copied both files by their Pi paths and ran firmware-timing on the candump copy.
+    const dir = path.join(localRoot, "var", "enable-soak", session.ts);
+    assert.deepEqual(
+      execs.map((e) => [e.command, e.args.at(-2)?.replace(/^[^:]+:/, ""), e.args.at(-1)]),
+      [
+        ["scp", session.log, path.join(dir, "bench-session.log")],
+        ["scp", session.candump, path.join(dir, "candump.log")],
+        ["cargo", "--json", path.join(dir, "candump.log")],
+      ],
+    );
+    assert.ok(execs[2].args.includes("firmware-timing"));
+    assert.equal(analyzed.length, 1);
+    assert.match(analyzed[0].content, /can0  003#00/);
+    assert.match(readFileSync(path.join(dir, "bench-session.log"), "utf8"), /=== soak cycle 1\/1 begin ===/);
+    assert.doesNotMatch(out, /not run: no session candump|Pi copy unavailable/);
+    assert.match(out, /non_neutral_mit=0/);
   });
 });

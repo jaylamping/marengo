@@ -216,7 +216,8 @@ export const benchLogWrapper = (
     'ln -sf "$LOG" "$LOGDIR/bench-latest.log"',
     'ln -sf "$TRACE" "$LOGDIR/position-trace-latest.csv"',
     benchLogArchiveShell(cfg.piRoot),
-    'echo "{\"log\":\"$LOG\",\"trace\":\"$TRACE\",\"candump\":\"${CANDUMP:-}\",\"ts\":\"$TS\",\"label\":\"$LABEL\"}"',
+    // printf with a single-quoted format: the JSON quotes reach the MCP parsers intact.
+    `printf '{"log":"%s","trace":"%s","candump":"%s","ts":"%s","label":"%s"}\\n' "$LOG" "$TRACE" "\${CANDUMP:-}" "$TS" "$LABEL"`,
     'exit "$PIPE_STATUS"',
   ].join("\n"));
   return configDir
