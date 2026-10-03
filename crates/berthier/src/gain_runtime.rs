@@ -81,13 +81,13 @@ pub struct JointModeGains<'a> {
 
 /// Per-joint resolved gains for one tick.
 ///
-/// `law_*` feeds PositionHold / Impedance friction. `wire_kp` / `wire_kd` feed
-/// the MIT bus. Position: wire may scale kp only; bus kd stays compose's
-/// `kd_mit` (caller ignores `wire_kd` on the Position path). Ramp does **not**
-/// enter HoldJointParams law fields.
+/// `wire_kp` / `wire_kd` are what the MIT bus carries (override > ramp > YAML). The Position
+/// law takes `wire_kp` as its `kp`, so hold-tracking torque evidence and the diag/trace `kp`
+/// describe the torque actually sent, including during a mode-transition ramp. `law_kd`,
+/// `law_ki` and `law_fc` feed PositionHold / Impedance friction and ignore the ramp. On the
+/// Position path bus kd stays compose's `kd_mit` (caller ignores `wire_kd`).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ResolvedGains {
-    pub law_kp: f64,
     pub law_kd: f64,
     pub law_ki: f64,
     /// Coulomb fc when sticky override present; else `None` (caller uses YAML fc).
@@ -310,12 +310,11 @@ impl GainRuntime {
                 );
                 // Law: override OR impedance YAML (never ramp). GravityComp etc.
                 // still expose impedance fields; callers pick the right path.
-                let (law_kp, law_kd, law_ki, law_fc) = match ov {
-                    Some(o) => (o.kp, o.kd, o.ki, Some(o.fc)),
-                    None => (y.impedance.kp, y.impedance.kd, y.impedance.ki, None),
+                let (law_kd, law_ki, law_fc) = match ov {
+                    Some(o) => (o.kd, o.ki, Some(o.fc)),
+                    None => (y.impedance.kd, y.impedance.ki, None),
                 };
                 ResolvedGains {
-                    law_kp,
                     law_kd,
                     law_ki,
                     law_fc,
@@ -540,7 +539,7 @@ mod tests {
     }
 
     #[test]
-    fn resolve_all_law_ignores_ramp_while_wire_uses_it() {
+    fn resolve_all_wire_kp_follows_ramp_while_law_kd_ignores_it() {
         let joint = "j0".to_string();
         let mut rt = runtime();
         rt.on_mode_enter(
@@ -558,7 +557,6 @@ mod tests {
         let out = rt
             .resolve_all(ControlMode::Position, &[joint], &yaml)
             .unwrap();
-        assert!((out[0].law_kp - 20.0).abs() < 1e-12);
         assert!((out[0].law_kd - 1.0).abs() < 1e-12);
         assert!((out[0].wire_kp - 5.0).abs() < 1e-12);
         assert!((out[0].wire_kd - 0.5).abs() < 1e-12);

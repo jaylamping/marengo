@@ -43,6 +43,11 @@ impl PositionTrace {
         })
     }
 
+    #[cfg(test)]
+    pub(crate) fn open_for_test(path: &Path, loop_hz: u32) -> std::io::Result<Self> {
+        Self::open(path, loop_hz)
+    }
+
     /// Record one sample when `tick` matches the decimation period.
     pub fn maybe_record(
         &mut self,
