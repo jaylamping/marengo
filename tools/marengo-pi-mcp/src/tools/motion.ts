@@ -254,7 +254,17 @@ const SOLE_CAN_OWNER_NOTE =
  */
 export const REFERENCE_ACQUIRE_SEC_PER_JOINT = 10;
 
-const REFERENCE_ACQUIRE_LINE = /^home((?:\s+[A-Za-z0-9_]+)+)\s+sign-tested$/;
+/**
+ * Joints of a marengo-pi `home <joints> sign-tested` line (`sign-tested` / `--sign-tested`
+ * anywhere, as marengo-pi accepts), or null when the line is not a reference acquisition.
+ */
+function referenceAcquireJoints(line: string): string[] | null {
+  const [command, ...tokens] = line.trim().split(/\s+/);
+  const isAttestation = (t: string) => t === "sign-tested" || t === "--sign-tested";
+  const joints = tokens.filter((t) => !isAttestation(t));
+  if (command !== "home" || !tokens.some(isAttestation) || joints.length === 0) return null;
+  return joints.every((j) => /^[A-Za-z0-9_]+$/.test(j)) ? joints : null;
+}
 
 /**
  * marengo-pi stdin line acquiring a qualified current reference for `joints`.
@@ -276,9 +286,9 @@ export function scriptSleepTotalSec(script: string[]): number {
     if (sleepMatch) {
       total += Number(sleepMatch[1]);
     }
-    const acquire = REFERENCE_ACQUIRE_LINE.exec(line.trim());
-    if (acquire) {
-      total += acquire[1].trim().split(/\s+/).length * REFERENCE_ACQUIRE_SEC_PER_JOINT;
+    const joints = referenceAcquireJoints(line);
+    if (joints) {
+      total += joints.length * REFERENCE_ACQUIRE_SEC_PER_JOINT;
     }
   }
   return total;
@@ -354,9 +364,9 @@ export function marengoPiPipeLine(line: string): string {
   if (sleepMatch) {
     return `sleep ${sleepMatch[1]}`;
   }
-  const acquire = REFERENCE_ACQUIRE_LINE.exec(line.trim());
-  if (acquire) {
-    return referenceAcquireShell(line.trim(), acquire[1].trim().split(/\s+/));
+  const joints = referenceAcquireJoints(line);
+  if (joints) {
+    return referenceAcquireShell(line.trim(), joints);
   }
   return `printf '%s\\n' ${JSON.stringify(line)}`;
 }

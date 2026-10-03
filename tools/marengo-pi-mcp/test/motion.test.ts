@@ -82,6 +82,13 @@ describe("reference acquisition feeder", () => {
     assert.equal(scriptSleepTotalSec([...lines, "sleep 2"]), 22);
   });
 
+  it("recognizes --sign-tested anywhere on the line, as marengo-pi does", () => {
+    assert.equal(scriptSleepTotalSec(["home --sign-tested j_a"]), 10);
+    assert.match(marengoPiPipeLine("home --sign-tested j_a"), /grep -q '\^reference j_a current '/);
+    assert.equal(marengoPiPipeLine("home"), `printf '%s\\n' "home"`);
+    assert.equal(marengoPiPipeLine("home j_a"), `printf '%s\\n' "home j_a"`);
+  });
+
   it("rejects joint names that are not identifiers", () => {
     assert.throws(() => referenceAcquireLine([]));
     assert.throws(() => referenceAcquireLine(["a;rm"]));
