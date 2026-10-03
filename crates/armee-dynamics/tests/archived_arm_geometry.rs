@@ -6,7 +6,7 @@
 
 #![allow(clippy::expect_used)]
 
-use armee_dynamics::{gravity_model_from_urdf, DynamicsModel};
+use armee_dynamics::{DynamicsModel, UrdfGravityModel};
 use std::f64::consts::{FRAC_PI_2, PI};
 use std::path::Path;
 
@@ -14,8 +14,16 @@ use std::path::Path;
 fn archived_arm_holding_torque_includes_lateral_joint_offsets() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../assets/urdf/archive/seed-arm_3dof_right/contributor.urdf");
-    let model = gravity_model_from_urdf(path, &["right_shoulder_pitch".to_owned()])
-        .expect("archived arm fixture");
+    // The other two joints are held at zero explicitly; the model never assumes it.
+    let model = UrdfGravityModel::from_urdf_with_held(
+        path,
+        &["right_shoulder_pitch".to_owned()],
+        &[
+            ("right_shoulder_roll".to_owned(), 0.0),
+            ("right_upper_arm_yaw".to_owned(), 0.0),
+        ],
+    )
+    .expect("archived arm fixture");
 
     // Other joint angles are zero. Shoulder-frame mass moments are:
     // X = 0.3*(0.05 + 0.05) + 0.7*(0.05 + 0.08) = 0.121 kg*m.

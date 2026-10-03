@@ -436,3 +436,76 @@ fn point_mass_torques_reproduce_link_contribution() {
         );
     }
 }
+
+/// L9/L10: when the normal equations are singular the loop used to `break` silently, the
+/// verdict looked at an unconverged θ, and the posterior σ came out as `NaN.max(0.0) = 0`
+/// ("certain"). A parameter on a link no joint moves has an all-zero Jacobian column; with a
+/// flat prior (λ = 0) the normal matrix is exactly singular.
+#[test]
+fn singular_normal_equations_refuse_and_never_report_zero_sigma() {
+    let (model, windows) = live();
+    let poses = sweep(&model, &[], PITCH, &PITCH_POSES);
+    let samples = measure(&model, &poses, index(&model, PITCH), &[], &mut Noise(3));
+    let params = [
+        InertialParam::mass("base_link"),
+        InertialParam::mass(UPPER_ARM),
+    ];
+    let opts = FitOptions {
+        prior_mass_scale_sigma: f64::INFINITY,
+        ..FitOptions::default()
+    };
+    let fit = fit_gravity_params(&model, &params, &samples, &windows, &[], &opts)
+        .expect("a singular fit is a refusal verdict, not an input error");
+    assert!(!fit.accepted());
+    assert!(
+        matches!(fit.verdict, FitVerdict::NotConverged { .. }),
+        "{:?}",
+        fit.verdict
+    );
+    for p in &fit.params {
+        assert!(
+            p.sigma.is_nan(),
+            "σ of {} must be NaN (unknown), not {}",
+            p.param,
+            p.sigma
+        );
+    }
+}
+
+#[test]
+fn non_finite_weights_are_not_reported_as_a_fit() {
+    let (model, windows) = live();
+    let poses = sweep(&model, &[], PITCH, &PITCH_POSES);
+    let samples = measure(&model, &poses, index(&model, PITCH), &[], &mut Noise(5));
+    let params = [InertialParam::mass(UPPER_ARM), InertialParam::mass(FOREARM)];
+    for torque_sigma_nm in [f64::NAN, 0.0] {
+        let opts = FitOptions {
+            torque_sigma_nm,
+            ..FitOptions::default()
+        };
+        let fit = fit_gravity_params(&model, &params, &samples, &windows, &[], &opts)
+            .expect("refusal verdict");
+        assert!(!fit.accepted(), "σ_τ={torque_sigma_nm}: {:?}", fit.verdict);
+        assert!(
+            fit.params.iter().all(|p| p.sigma != 0.0),
+            "σ_τ={torque_sigma_nm}: {:?}",
+            fit.params
+        );
+    }
+}
+
+#[test]
+fn accepted_fit_reports_a_finite_positive_sigma() {
+    let (model, windows) = live();
+    let truth = scaled(&model, UPPER_ARM, 1.2, 0.0);
+    let poses = sweep(&model, &[], PITCH, &PITCH_POSES);
+    let samples = measure(&truth, &poses, index(&model, PITCH), &[], &mut Noise(9));
+    let opts = FitOptions::default();
+    let params = default_params(&model, PITCH, &poses, &[], &opts).expect("params");
+    let fit = fit_gravity_params(&model, &params, &samples, &windows, &[], &opts).expect("fit");
+    assert!(fit.accepted(), "{:?}", fit.verdict);
+    assert!(fit
+        .params
+        .iter()
+        .all(|p| p.sigma.is_finite() && p.sigma > 0.0));
+}
