@@ -6,6 +6,7 @@ import { shellQuote, wrapRemote, wrapRemoteWithConfig } from "../env.js";
 import { validateMotionConfirm } from "../safety.js";
 import { homingStatusShell } from "../homing-preflight.js";
 import { renderRobotStateHoming } from "../robot-state.js";
+import { soleCanOwnerShell } from "../can-owner.js";
 
 const benchProfileZod = z.enum(BENCH_PROFILES);
 
@@ -160,7 +161,7 @@ const benchLogWrapper = (
   configDir?: string,
 ) => {
   const logDir = `${cfg.piRoot}/var/log`;
-  const body = [
+  const body = soleCanOwnerShell([
     `LOGDIR=${shellQuote(logDir)}`,
     'mkdir -p "$LOGDIR"',
     'TS=$(date -u +"%Y%m%dT%H%M%SZ")',
@@ -170,8 +171,6 @@ const benchLogWrapper = (
     'export MARENGO_POSITION_TRACE_HZ="${MARENGO_POSITION_TRACE_HZ:-50}"',
     'export MARENGO_LOG_SESSION_ID="$TS"',
     `LABEL=${shellQuote(label)}`,
-    marengoPiPkillLine(cfg),
-    "sleep 0.3",
     "bin/motor-repl disable 2>/dev/null || true",
     'echo "=== bench session $TS ($LABEL) ===" | tee "$LOG"',
     benchCandumpStartShell(),
@@ -187,7 +186,7 @@ const benchLogWrapper = (
     benchLogArchiveShell(cfg.piRoot),
     'echo "{\"log\":\"$LOG\",\"trace\":\"$TRACE\",\"candump\":\"${CANDUMP:-}\",\"ts\":\"$TS\",\"label\":\"$LABEL\"}"',
     'exit "$PIPE_STATUS"',
-  ].join("\n");
+  ].join("\n"));
   return configDir
     ? wrapRemoteWithConfig(cfg, body, configDir)
     : wrapRemote(cfg, body, false);
@@ -242,6 +241,13 @@ const DEFAULT_MOTION_TIMEOUT_SEC = DEFAULT_HOLD_DWELL_SEC;
 
 /** SSH wrapper slack beyond pipe timeout. */
 const REMOTE_SSH_SLACK_MS = 10_000;
+
+/** soleCanOwnerShell overhead: helper stop + owner wait + marengo-pi.service restore. */
+const CAN_SESSION_SLACK_MS = 15_000;
+
+const SOLE_CAN_OWNER_NOTE =
+  "Runs as sole CAN owner: stops marengo-pi.service via the pi_restart_marengo_pi helper, " +
+  "refuses if any marengo-pi/motor-repl remains, restarts the unit afterwards if it was active.";
 
 /** Sum `sleep N` dwell lines (for docs / harness helpers). */
 export function scriptSleepTotalSec(script: string[]): number {
@@ -326,28 +332,18 @@ function marengoPiTimedPipe(
   return `{\n${commandLines.join("\n")}\n} | timeout ${pipeTimeoutSec} ${binary}`;
 }
 
-function marengoPiPkillLine(cfg: MarengoPiConfig): string {
-  const bin = `${cfg.piRoot}/bin/marengo-pi`;
-  return `pkill -f ${shellQuote(bin)} 2>/dev/null || true`;
-}
-
 function holdSessionRemoteBody(
   cfg: MarengoPiConfig,
   args: {
     joint: string;
     setZero: boolean;
-    killStale: boolean;
     operator: string;
     positionRad?: number;
     timeoutSec: number;
     returnHomeSec: number;
   },
 ): string {
-  const lines: string[] = [];
-  if (args.killStale) {
-    lines.push(marengoPiPkillLine(cfg), "sleep 0.3");
-  }
-  lines.push("bin/motor-repl disable 2>/dev/null || true");
+  const lines = ["bin/motor-repl disable 2>/dev/null || true"];
   if (args.setZero) {
     lines.push(`bin/motor-repl set-zero ${shellQuote(args.joint)}`);
   }
@@ -372,11 +368,9 @@ function holdSessionRemoteBody(
   return lines.join("\n");
 }
 
-/** Stop control, disable drives (clears most Robstride faults), brief enable to read fault= line. */
+/** Disable drives (clears most Robstride faults), brief enable to read fault= line. */
 function motorRecoverRemoteBody(cfg: MarengoPiConfig): string {
   return [
-    marengoPiPkillLine(cfg),
-    "sleep 0.3",
     "bin/motor-repl disable 2>/dev/null || true",
     "sleep 0.5",
     marengoPiBinarySelector(cfg),
@@ -436,7 +430,8 @@ export function registerMotionTools(
   return {
     pi_motor_enable: {
       description:
-        "motor-repl enable bench (short probe only — use marengo-pi for sustained control)",
+        "motor-repl enable bench (short probe only — use marengo-pi for sustained control). " +
+        SOLE_CAN_OWNER_NOTE,
       inputSchema: motionConfirmSchema.extend({
         operator: z.string().default("bench"),
       }),
@@ -450,9 +445,9 @@ export function registerMotionTools(
         if (!check.ok) return check.message;
         const body = wrapRemote(
           cfg,
-          `bin/motor-repl enable ${args.operator ?? "bench"}`,
+          soleCanOwnerShell(`bin/motor-repl enable ${args.operator ?? "bench"}`),
         );
-        const out = await runRemote(body, 30_000);
+        const out = await runRemote(body, 30_000 + CAN_SESSION_SLACK_MS);
         auditMotion("pi_motor_enable", args, out, 0);
         return out;
       },
@@ -460,7 +455,8 @@ export function registerMotionTools(
 
     pi_motor_disable: {
       description:
-        "motor-repl disable all joints (Robstride DISABLE frame — primary fault clear; no Motor Studio)",
+        "motor-repl disable all joints (Robstride DISABLE frame — primary fault clear; no Motor Studio). " +
+        SOLE_CAN_OWNER_NOTE,
       inputSchema: motionConfirmSchema.extend({
         config_dir: z
           .string()
@@ -480,10 +476,10 @@ export function registerMotionTools(
         const configDir = benchConfigDirForJoint(cfg, undefined, args.config_dir);
         const body = wrapRemoteWithConfig(
           cfg,
-          "bin/motor-repl disable",
+          soleCanOwnerShell("bin/motor-repl disable"),
           configDir,
         );
-        const out = await runRemote(body, 30_000);
+        const out = await runRemote(body, 30_000 + CAN_SESSION_SLACK_MS);
         auditMotion("pi_motor_disable", args, out, 0);
         return out;
       },
@@ -492,9 +488,10 @@ export function registerMotionTools(
     pi_motor_recover: {
       description:
         "Recover after drive fault (replaces Motor Studio clear + manual SSH). " +
-        "pkill marengo-pi → motor-repl disable → brief enable/status → prints RECOVER_OK or RECOVER_FAIL. " +
+        "stop marengo-pi → motor-repl disable → brief enable/status → prints RECOVER_OK or RECOVER_FAIL. " +
         "Logs to var/log/bench-latest.log. Args: confirm:true; optional config_dir " +
-        "(default master /opt/marengo/config).",
+        "(default master /opt/marengo/config). " +
+        SOLE_CAN_OWNER_NOTE,
       inputSchema: motionConfirmSchema.extend({
         config_dir: z
           .string()
@@ -521,7 +518,7 @@ export function registerMotionTools(
           motorRecoverSummaryShell,
         ].join("\n");
         const body = benchLogWrapper(cfg, pipeCmd, "motor-recover", configDir);
-        const out = await runRemote(body, 45_000);
+        const out = await runRemote(body, 45_000 + CAN_SESSION_SLACK_MS);
         auditMotion("pi_motor_recover", args, out, 0);
         return out;
       },
@@ -546,7 +543,8 @@ export function registerMotionTools(
     pi_set_zero: {
       description:
         "Zero encoder at mechanical reference via CAN SetZero. Verifies |pos| < tolerance, " +
-        "writes calibration record, and prints homing-status. Position arm first; confirm: true.",
+        "writes calibration record, and prints homing-status. Position arm first; confirm: true. " +
+        SOLE_CAN_OWNER_NOTE,
       inputSchema: motionConfirmSchema.extend({
         joint: z
           .string()
@@ -579,10 +577,10 @@ export function registerMotionTools(
           benchConfigDirForJoint(cfg, joint, args.config_dir) ?? BENCH_CONFIG_MASTER;
         const body = wrapRemoteWithConfig(
           cfg,
-          zeroActuatorRemoteBody(joint, verify),
+          soleCanOwnerShell(zeroActuatorRemoteBody(joint, verify)),
           configDir,
         );
-        const out = await runRemote(body, verify ? 45_000 : 30_000);
+        const out = await runRemote(body, (verify ? 45_000 : 30_000) + CAN_SESSION_SLACK_MS);
         auditMotion("pi_set_zero", { ...args, joint, verify }, out, 0);
         // Consul soft-invalidate is browser-local until a Chappe/gateway signal exists.
         return (
@@ -595,7 +593,7 @@ export function registerMotionTools(
     },
 
     pi_jog: {
-      description: "motor-repl jog joint to position_rad",
+      description: `motor-repl jog joint to position_rad. ${SOLE_CAN_OWNER_NOTE}`,
       inputSchema: motionConfirmSchema.extend({
         joint: z.string(),
         position_rad: z.number(),
@@ -611,9 +609,9 @@ export function registerMotionTools(
         if (!check.ok) return check.message;
         const body = wrapRemote(
           cfg,
-          `bin/motor-repl jog ${args.joint} ${args.position_rad}`,
+          soleCanOwnerShell(`bin/motor-repl jog ${args.joint} ${args.position_rad}`),
         );
-        const out = await runRemote(body, 30_000);
+        const out = await runRemote(body, 30_000 + CAN_SESSION_SLACK_MS);
         auditMotion("pi_jog", args, out, 0);
         return out;
       },
@@ -623,7 +621,8 @@ export function registerMotionTools(
       description:
         "Compliant position hold: set-zero (optional), home, enable, hold-on or hold-at. " +
         "Uses kp/kd/slew/trim from master /opt/marengo/config/control.yaml. Logs to var/log. " +
-        "Call pi_sync_bench_config first if control.yaml was edited locally.",
+        "Call pi_sync_bench_config first if control.yaml was edited locally. " +
+        SOLE_CAN_OWNER_NOTE,
       inputSchema: motionConfirmSchema.extend({
         config_dir: z
           .string()
@@ -639,10 +638,6 @@ export function registerMotionTools(
           .max(120)
           .default(DEFAULT_MOTION_TIMEOUT_SEC),
         set_zero: z.boolean().default(false),
-        kill_stale: z
-          .boolean()
-          .default(true)
-          .describe("pkill stale marengo-pi before session"),
         position_rad: z
           .number()
           .optional()
@@ -666,7 +661,6 @@ export function registerMotionTools(
         joint?: string;
         timeout_sec?: number;
         set_zero?: boolean;
-        kill_stale?: boolean;
         position_rad?: number;
         operator?: string;
         return_home_sec?: number;
@@ -681,7 +675,6 @@ export function registerMotionTools(
         const pipeCmd = holdSessionRemoteBody(cfg, {
           joint,
           setZero: args.set_zero ?? true,
-          killStale: args.kill_stale ?? true,
           operator: args.operator ?? "bench",
           positionRad: args.position_rad,
           timeoutSec,
@@ -690,7 +683,7 @@ export function registerMotionTools(
         const body = benchLogWrapper(cfg, pipeCmd, "hold-on", configDir);
         const out = await runRemote(
           body,
-          (timeoutSec + returnHomeSec) * 1000 + 20_000,
+          (timeoutSec + returnHomeSec) * 1000 + 20_000 + CAN_SESSION_SLACK_MS,
         );
         auditMotion("pi_hold_on", args, out, 0);
         return out;
@@ -699,8 +692,10 @@ export function registerMotionTools(
 
     pi_hold_off: {
       description:
-        "Stop hold: pkill marengo-pi and motor-repl disable. " +
-        "Omitted config_dir uses master /opt/marengo/config.",
+        "Stop hold: stop marengo-pi (service via the pi_restart_marengo_pi helper) and motor-repl disable. " +
+        "Omitted config_dir uses master /opt/marengo/config. " +
+        "A marengo-pi.service that was active is restarted afterwards and comes up Disabled; " +
+        "use pi_restart_marengo_pi mode=stop to keep control off.",
       inputSchema: motionConfirmSchema.extend({
         joint: z.string().optional(),
         config_dir: z.string().optional(),
@@ -719,12 +714,10 @@ export function registerMotionTools(
           BENCH_CONFIG_MASTER;
         const body = wrapRemoteWithConfig(
           cfg,
-          [marengoPiPkillLine(cfg), "bin/motor-repl disable"].join(
-            "\n",
-          ),
+          soleCanOwnerShell("bin/motor-repl disable"),
           configDir,
         );
-        const out = await runRemote(body, 20_000);
+        const out = await runRemote(body, 20_000 + CAN_SESSION_SLACK_MS);
         auditMotion("pi_hold_off", args, out, 0);
         return out;
       },
@@ -732,7 +725,8 @@ export function registerMotionTools(
 
     pi_marengo_pi_script: {
       description:
-        "Pipe stdin script to marengo-pi (enable/gravity-on/hold-on/status/disable/quit); logs to var/log",
+        "Pipe stdin script to marengo-pi (enable/gravity-on/hold-on/status/disable/quit); logs to var/log. " +
+        SOLE_CAN_OWNER_NOTE,
       inputSchema: motionConfirmSchema.extend({
         joint: z
           .string()
@@ -790,7 +784,7 @@ export function registerMotionTools(
         const body = benchLogWrapper(cfg, pipeCmd, "marengo-pi-script", configDir);
         const out = await runRemote(
           body,
-          pipeTimeoutSec * 1000 + REMOTE_SSH_SLACK_MS,
+          pipeTimeoutSec * 1000 + REMOTE_SSH_SLACK_MS + CAN_SESSION_SLACK_MS,
         );
         auditMotion("pi_marengo_pi_script", args, out, 0);
         return out;

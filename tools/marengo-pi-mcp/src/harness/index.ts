@@ -9,6 +9,7 @@ import {
   homingPreflightShell,
   homingStatusOutputOk,
 } from "../homing-preflight.js";
+import { restoreCanOwnerShell, takeCanOwnershipShell } from "../can-owner.js";
 import { shellQuote, wrapRemoteWithConfig } from "../env.js";
 import { benchLogArchiveShell, benchCandumpStartShell, benchCandumpStopShell, scriptSleepTotalSec } from "../tools/motion.js";
 import {
@@ -187,8 +188,18 @@ export async function runBenchHarness(
       harnessJointSubset(profile),
     );
 
-  const finish = () =>
-    formatHarnessResult(profile, loadedJoint, steps, faults, logPath, passMeta);
+  // Harness steps are separate SSH sessions, so restore runs here rather than from an EXIT trap.
+  let restoreUnit = false;
+  const finish = async () => {
+    if (restoreUnit) {
+      await step(
+        "restore_marengo_pi_service",
+        remote(`MARENGO_PI_UNIT_RESTORE=true\n${restoreCanOwnerShell()}`),
+        30_000,
+      );
+    }
+    return formatHarnessResult(profile, loadedJoint, steps, faults, logPath, passMeta);
+  };
 
   async function step(
     name: string,
@@ -235,7 +246,7 @@ export async function runBenchHarness(
     return true;
   }
 
-  // 1. health + can up
+  // 1. health, sole CAN ownership (stops marengo-pi.service; restored in finish), can up
   const healthBody = remote(
     [
       "ip -br link show type can || true",
@@ -244,6 +255,14 @@ export async function runBenchHarness(
     ].join("\n"),
   );
   if (!(await step("health", healthBody, 30_000))) {
+    return finish();
+  }
+
+  const tookCan = await step("take_can_ownership", remote(takeCanOwnershipShell()), 30_000);
+  restoreUnit = /^marengo-pi\.service restore after session: true$/m.test(
+    steps[steps.length - 1].output,
+  );
+  if (!tookCan) {
     return finish();
   }
 

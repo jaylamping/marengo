@@ -108,6 +108,15 @@ Every `motor-repl` subcommand opens SocketCAN and sends type-24 active-reporting
 - `pi_health`, `pi_homing_status` and `pi_sync_bench_config` show per-joint homing from marengo-pi's own `RobotState`, read from the gateway's `/snapshot/robot/state`. They don't run `motor-repl homing-status`.
 - `scripts/homing-preflight.sh`, which `install-pi.sh` runs, skips `homing-status` (strict mode exits 1).
 
+Motion tools that open CAN take sole ownership of the bus for the session. These are `pi_motor_enable`, `pi_motor_disable`, `pi_motor_recover`, `pi_set_zero`, `pi_jog`, `pi_hold_on`, `pi_hold_off`, `pi_marengo_pi_script` and `pi_bench_harness`. Each session:
+
+1. Stops `marengo-pi.service` with `sudo -n /usr/local/libexec/marengo/pi-restart-marengo-pi.sh stop`, the same helper `pi_restart_marengo_pi` uses. The service runs as `marengo` with `Restart=always`, so a bare `pkill` either fails or lets systemd start a second owner within 5 s.
+2. Kills leftover `marengo-pi` processes owned by the deploy user.
+3. Refuses to run (exit 1) if any `marengo-pi` or `motor-repl` is still running.
+4. Restarts the unit when the session ends if it was active before, the same way `install-pi.sh` restores state. The unit comes back Disabled. The restart runs on every exit path, including errors and SIGHUP/SIGTERM. `pi_bench_harness` restarts it in a final `restore_marengo_pi_service` step.
+
+To keep control off after a session, run `pi_restart_marengo_pi` with `mode: stop`.
+
 ### Encoder zero (no Motor Studio)
 
 1. Position shaft at mechanical zero (arm down).

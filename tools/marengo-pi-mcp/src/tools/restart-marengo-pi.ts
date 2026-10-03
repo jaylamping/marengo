@@ -31,6 +31,9 @@ export function loadRestartMarengoPiScript(localRoot: string): string {
   return fs.readFileSync(restartMarengoPiScriptPath(localRoot), "utf8");
 }
 
+/** Root-owned helper install-pi.sh grants the deploy user via NOPASSWD sudoers. */
+export const INSTALLED_RESTART_HELPER = "/usr/local/libexec/marengo/pi-restart-marengo-pi.sh";
+
 /**
  * Remote shell body: prefer the immutable libexec helper via passwordless sudo.
  * (deploy-user sudoers). Fall back to embedding the local checkout copy.
@@ -38,7 +41,7 @@ export function loadRestartMarengoPiScript(localRoot: string): string {
 export function restartMarengoPiShell(
   mode: "restart" | "stop",
   scriptSource: string,
-  installedScriptPath = "/usr/local/libexec/marengo/pi-restart-marengo-pi.sh",
+  installedScriptPath = INSTALLED_RESTART_HELPER,
 ): string {
   const body = scriptSource.replace(/\r\n/g, "\n").replace(/^#![^\n]*\n/, "");
   return [

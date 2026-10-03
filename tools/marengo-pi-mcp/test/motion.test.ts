@@ -64,7 +64,9 @@ describe("marengo-pi script tool", () => {
     assert.match(script, /position-trace-\$TS\.csv/);
     assert.match(script, /candump -t z/);
     assert.match(script, /candump-latest\.log/);
-    assert.match(script, /pkill -f/);
+    assert.match(script, /trap restore_can_owner EXIT/);
+    assert.match(script, /sudo -n '\/usr\/local\/libexec\/marengo\/pi-restart-marengo-pi\.sh' stop/);
+    assert.doesNotMatch(script, /pkill -f/);
     assert.match(script, /can kernel start:/);
     assert.match(script, /can kernel delta/);
     assert.match(script, /exit "\$PIPE_STATUS"/);

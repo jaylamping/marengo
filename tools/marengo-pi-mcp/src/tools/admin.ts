@@ -180,15 +180,14 @@ export function registerAdminTools(
     },
 
     pi_build: {
-      description: "Native cargo build on Pi + install-pi.sh (slow fallback)",
+      description:
+        "Native cargo build on Pi + install-pi.sh (slow fallback). install-pi.sh stops marengo-pi " +
+        "and restores the unit's prior enabled/active state.",
       inputSchema: z.object({}),
       handler: async () => {
         const body = wrapRemote(
           cfg,
         [
-          "sudo systemctl stop marengo-pi.service 2>/dev/null || true",
-          "sudo systemctl disable marengo-pi.service 2>/dev/null || true",
-          "sudo pkill -f /opt/marengo/bin/marengo-pi 2>/dev/null || true",
           // Root git trusts this tree once; `--add` alone appends a duplicate every run.
           'TRUSTED_DIRS="$(sudo git config --global --get-all safe.directory 2>/dev/null || true)"',
           'if ! grep -Fxq -- "$(pwd)" <<<"$TRUSTED_DIRS"; then',
