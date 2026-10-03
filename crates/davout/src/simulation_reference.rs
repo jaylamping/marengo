@@ -9,7 +9,7 @@ use std::time::Duration;
 use robstride::{BusError, CanFrame, MotorAddress, ReceivedCanFrame, TimedCanFrame};
 
 use super::{RuleId, SimulationBus, SimulationError, TxOccurrence, MAX_TX_RULES};
-use crate::reference_transaction::{ReferenceBackend, ReferenceCorrelation};
+use crate::reference_transaction::{ReferenceBackend, ReferenceCorrelation, VirtualBackend};
 
 /// Finite virtual reply provenance; never physical firmware evidence.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -271,7 +271,7 @@ impl ReferenceState {
 
 impl SimulationBus {
     pub(super) fn reference_backend(&self) -> ReferenceBackend<Self> {
-        ReferenceBackend {
+        ReferenceBackend::Virtual(VirtualBackend {
             realm: Arc::clone(&self.realm),
             matches: |bus, realm| Arc::ptr_eq(bus.realm(), realm),
             now: |bus| bus.reference.clock,
@@ -285,6 +285,6 @@ impl SimulationBus {
             take_proofs: |bus| bus.reference.take_proofs(),
             device_epoch: |bus| bus.reference.device_epoch(),
             current_device_epoch: |bus, address| bus.reference.current_device_epoch(address),
-        }
+        })
     }
 }

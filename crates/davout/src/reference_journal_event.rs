@@ -161,7 +161,24 @@ pub(super) struct Capture {
     pub(super) reporting: Vec<Reporting>,
     pub(super) receive: Receive,
     pub(super) audit: ReferenceAudit,
+    /// Physical Robstride evidence (ADR 0036); absent for closed virtual history.
+    /// For physical rows `position_rad`/`raw_pop_order`/`can_id` describe the
+    /// requested type-17 `mechPos` readback reply.
+    #[serde(default)]
+    pub(super) physical: Option<PhysicalCapture>,
 }
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub(super) struct PhysicalCapture {
+    /// Raw type-0 MCU identifier bytes, little-endian packed.
+    pub(super) device_uid: u64,
+    pub(super) ack_pop_order: u32,
+    pub(super) ack_can_id: u32,
+    pub(super) ack_position_rad: f32,
+}
+
+const VIRTUAL_EVIDENCE: &str = "closed_virtual";
+const PHYSICAL_EVIDENCE: &str = "physical_robstride";
 
 pub(super) struct Input {
     pub(super) model: InstalledModelStamp,
@@ -191,7 +208,12 @@ impl Input {
         let (robot, urdf) = self.model.descriptor();
         let body = Body {
             version: 1,
-            evidence_class: "closed_virtual".into(),
+            evidence_class: if self.capture.physical.is_some() {
+                PHYSICAL_EVIDENCE
+            } else {
+                VIRTUAL_EVIDENCE
+            }
+            .into(),
             diagnostic_session: session,
             job_sequence: job,
             installed_model_generation: self.model.generation(),
@@ -237,8 +259,20 @@ impl Body {
                             && attempt.error.is_none()
                     },
                 );
+        let class_matches = match (self.evidence_class.as_str(), &capture.physical) {
+            (VIRTUAL_EVIDENCE, None) => true,
+            (PHYSICAL_EVIDENCE, Some(physical)) => {
+                physical.ack_position_rad.is_finite()
+                    && f64::from(physical.ack_position_rad).abs()
+                        <= self.policy.homing.homing.zero_verify_tolerance_rad
+                    && physical.ack_pop_order < 64
+                    && physical.ack_can_id >> 24 == 2
+                    && capture.can_id >> 24 == 17
+            }
+            _ => false,
+        };
         self.version == 1
-            && self.evidence_class == "closed_virtual"
+            && class_matches
             && self.diagnostic_session > 0
             && self.job_sequence > 0
             && self.installed_model_generation > 0
@@ -326,6 +360,13 @@ impl ReferenceHistoryRecord {
     }
     pub fn position_rad(&self) -> f32 {
         self.capture.position_rad
+    }
+    /// Raw type-0 MCU identifier for physical history; `None` for virtual rows.
+    pub fn device_uid(&self) -> Option<u64> {
+        self.capture.physical.map(|physical| physical.device_uid)
+    }
+    pub fn is_physical(&self) -> bool {
+        self.capture.physical.is_some()
     }
     pub fn audit(&self) -> &ReferenceAudit {
         &self.capture.audit

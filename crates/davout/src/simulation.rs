@@ -787,8 +787,6 @@ impl Supervisor<SimulationBus> {
             message: error.to_string(),
         })?;
         owner.reference_commits.install(journal, selection);
-        // Fixed closed specialization, independent of optional INITIAL fixtures.
-        owner.reference_realm_matches = Some(|bus, realm| Arc::ptr_eq(bus.realm(), realm));
         Ok(owner)
     }
 
@@ -873,9 +871,6 @@ impl Supervisor<SimulationBus> {
             &self.homing_config,
             &self.control,
         );
-        // Fixed private read-only comparison, assigned only for this concrete
-        // specialization. Callers cannot supply a callback or backend marker.
-        self.reference_realm_matches = Some(|bus, realm| Arc::ptr_eq(bus.realm(), realm));
         Ok(())
     }
 

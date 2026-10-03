@@ -1,4 +1,6 @@
-//! Bounded owner-local virtual reference acquisition. No grant or durable commit.
+//! Bounded owner-local reference acquisition: the sealed virtual backend and the
+//! qualified physical Robstride backend (ADR 0026, ADR 0036). No grant here;
+//! permission is selected only by the durable commit owner.
 
 use std::cell::Cell;
 use std::collections::VecDeque;
@@ -6,12 +8,13 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use robstride::{BusError, MotorAddress, MotorBus};
+use robstride::{BusError, DeviceUid, MotorAddress, MotorBus, ParameterId};
 
 use crate::feedback_consumer::{
     AdvanceReceiveBudget, ReceiveContext, ReferenceReceiveContext, ReferenceReceivePhase,
 };
 use crate::reference_model::InstalledModelStamp;
+use crate::reference_physical::{PhysicalBackend, PhysicalDevices};
 use crate::{ControlMode, OperationalMode, Supervisor};
 
 use crate::{DavoutError, StopReport};
@@ -58,10 +61,18 @@ pub enum ReferencePhase {
     Idle,
     BaselineStop,
     DrainOld,
+    /// Physical: request the target's type-0 MCU identifier before arming.
+    RequestIdentity,
+    AwaitIdentity,
     ArmTarget,
     DrainPostArm,
     SetZero,
     AwaitEvidence,
+    /// Physical: a type-2 status reply popped after the addressed SetZero.
+    AwaitAck,
+    /// Physical: request the type-17 `mechPos` (0x7019) readback after the ack.
+    RequestReadback,
+    AwaitReadback,
     Terminal,
 }
 
@@ -80,6 +91,10 @@ pub enum ReferenceFailureKind {
     BindingChanged,
     IncompleteReceive,
     Backend,
+    /// Physical identity was absent, ambiguous or changed.
+    Identity,
+    /// The requested post-command readback refused or was outside tolerance.
+    Readback,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -125,11 +140,11 @@ pub struct ReferenceTerminal {
     pub usable_reference: bool,
 }
 
-/// Inspection of retained virtual evidence, never readiness or output permission.
+/// Inspection of retained evidence, never readiness or output permission.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ReferenceStageStatus {
     NoEvidence,
-    CurrentVirtualEvidence,
+    CurrentEvidence,
     Invalidated(ReferenceStageInvalidation),
 }
 
@@ -183,8 +198,9 @@ pub enum ReferenceError {
     Admission(#[from] DavoutError),
 }
 
-/// Private metadata created by the closed virtual device and attached to an
-/// actual raw pop. Public raw/typed queue injection never creates this metadata.
+/// Private correlation for accepted evidence. The closed virtual device attaches
+/// it to an actual raw pop; the physical backend builds it from the requested
+/// readback reply it popped. Public raw/typed queue injection never creates it.
 pub(crate) struct ReferenceCorrelation {
     pub(crate) owner: Arc<()>,
     pub(crate) realm: Arc<()>,
@@ -198,7 +214,7 @@ pub(crate) struct ReferenceCorrelation {
 
 /// Only the concrete SimulationBus specialization installs these fixed private
 /// functions. No public MotorBus capability hook or caller callback is accepted.
-pub(crate) struct ReferenceBackend<B: MotorBus> {
+pub(crate) struct VirtualBackend<B: MotorBus> {
     pub(crate) realm: Arc<()>,
     pub(crate) matches: fn(&B, &Arc<()>) -> bool,
     pub(crate) now: fn(&B) -> Duration,
@@ -210,7 +226,7 @@ pub(crate) struct ReferenceBackend<B: MotorBus> {
     pub(crate) current_device_epoch: fn(&B, &MotorAddress) -> Option<u64>,
 }
 
-impl<B: MotorBus> Clone for ReferenceBackend<B> {
+impl<B: MotorBus> Clone for VirtualBackend<B> {
     fn clone(&self) -> Self {
         Self {
             realm: Arc::clone(&self.realm),
@@ -224,6 +240,58 @@ impl<B: MotorBus> Clone for ReferenceBackend<B> {
             current_device_epoch: self.current_device_epoch,
         }
     }
+}
+
+/// Acquisition capability installed only by explicit factories: the sealed
+/// simulation realm or the physical Robstride protocol owner (ADR 0036).
+pub(crate) enum ReferenceBackend<B: MotorBus> {
+    Virtual(VirtualBackend<B>),
+    Physical(PhysicalBackend),
+}
+
+impl<B: MotorBus> Clone for ReferenceBackend<B> {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Virtual(backend) => Self::Virtual(backend.clone()),
+            Self::Physical(backend) => Self::Physical(backend.clone()),
+        }
+    }
+}
+
+impl<B: MotorBus> ReferenceBackend<B> {
+    pub(crate) fn realm(&self) -> &Arc<()> {
+        match self {
+            Self::Virtual(backend) => &backend.realm,
+            Self::Physical(backend) => &backend.realm,
+        }
+    }
+
+    /// The physical owner's bus cannot be replaced, so its realm always matches.
+    fn matches(&self, bus: &B) -> bool {
+        match self {
+            Self::Virtual(backend) => (backend.matches)(bus, &backend.realm),
+            Self::Physical(_) => true,
+        }
+    }
+
+    fn now(&self, bus: &B) -> Duration {
+        match self {
+            Self::Virtual(backend) => (backend.now)(bus),
+            Self::Physical(backend) => backend.now(),
+        }
+    }
+
+    fn is_physical(&self) -> bool {
+        matches!(self, Self::Physical(_))
+    }
+}
+
+/// Physical ack accepted from a type-2 status popped after the addressed SetZero.
+#[derive(Debug, Clone, Copy)]
+struct PhysicalAck {
+    order: usize,
+    can_id: u32,
+    position_rad: f32,
 }
 
 #[derive(Clone)]
@@ -244,9 +312,13 @@ struct Reservation {
     device_epoch: Option<u64>,
     reporting: Vec<ReferenceReportingAttempt>,
     receive: Option<ReferenceReceiveSummary>,
+    /// Physical: only replies popped after this watermark answer the last request.
+    request_watermark: u64,
+    uid: Option<DeviceUid>,
+    ack: Option<PhysicalAck>,
 }
 
-/// Created only from an admitted pose and its exact sealed raw-pop proof.
+/// Created only from an admitted pose/reply and its exact private correlation.
 struct AcceptedReferenceEvidence {
     proof: ReferenceCorrelation,
     address: MotorAddress,
@@ -256,8 +328,18 @@ struct AcceptedReferenceEvidence {
     position_rad: f32,
 }
 
+/// Physical evidence beside the readback correlation, retained for history.
+#[derive(Debug, Clone, Copy)]
+pub(super) struct PhysicalEvidence {
+    pub(super) uid: DeviceUid,
+    pub(super) ack_order: usize,
+    pub(super) ack_can_id: u32,
+    pub(super) ack_position_rad: f32,
+}
+
 struct RetainedStage {
     evidence: AcceptedReferenceEvidence,
+    physical: Option<PhysicalEvidence>,
     installed_model: InstalledModelStamp,
     overall_deadline: Duration,
     reference_generation: u64,
@@ -271,12 +353,23 @@ pub(super) struct RetainedOutcome {
     stage: Option<RetainedStage>,
 }
 
+/// One owner request driven to a durable commit by the controller tick.
+pub(super) struct PendingCommit {
+    pub(super) acquisition: ReferenceHandle,
+    pub(super) audit: crate::ReferenceAudit,
+}
+
+const REQUEST_FAILURE_CAPACITY: usize = 8;
+
 pub(crate) struct ReferenceOwner<B: MotorBus> {
     identity: Arc<()>,
     next_sequence: u64,
     backend: Option<ReferenceBackend<B>>,
     reservation: Option<Reservation>,
     outcomes: VecDeque<Rc<RetainedOutcome>>,
+    pub(super) physical: PhysicalDevices,
+    pub(super) pending_commit: Option<PendingCommit>,
+    request_failures: VecDeque<(ReferenceHandle, String)>,
 }
 
 impl<B: MotorBus> Default for ReferenceOwner<B> {
@@ -287,6 +380,9 @@ impl<B: MotorBus> Default for ReferenceOwner<B> {
             backend: None,
             reservation: None,
             outcomes: VecDeque::new(),
+            physical: PhysicalDevices::default(),
+            pending_commit: None,
+            request_failures: VecDeque::new(),
         }
     }
 }
@@ -296,9 +392,72 @@ impl<B: MotorBus> ReferenceOwner<B> {
         self.backend = Some(backend);
     }
 
+    pub(crate) fn install_physical(&mut self, backend: PhysicalBackend, devices: PhysicalDevices) {
+        self.backend = Some(ReferenceBackend::Physical(backend));
+        self.physical = devices;
+    }
+
+    pub(super) fn has_backend(&self) -> bool {
+        self.backend.is_some()
+    }
+
+    pub(super) fn is_physical(&self) -> bool {
+        self.backend
+            .as_ref()
+            .is_some_and(ReferenceBackend::is_physical)
+    }
+
+    /// The authority realm must be this owner's installed backend realm.
+    pub(super) fn realm_matches(&self, bus: &B, realm: &Arc<()>) -> bool {
+        self.backend
+            .as_ref()
+            .is_some_and(|backend| Arc::ptr_eq(backend.realm(), realm) && backend.matches(bus))
+    }
+
+    /// Coordinate epoch without liveness: virtual device epoch or physical continuity.
     pub(super) fn current_device_epoch(&self, bus: &B, address: &MotorAddress) -> Option<u64> {
-        let backend = self.backend.as_ref()?;
-        (backend.current_device_epoch)(bus, address)
+        match self.backend.as_ref()? {
+            ReferenceBackend::Virtual(backend) => (backend.current_device_epoch)(bus, address),
+            ReferenceBackend::Physical(_) => self.physical.epoch(address),
+        }
+    }
+
+    /// Epoch of a selected grant. Physical grants also require liveness (ADR 0036).
+    pub(super) fn live_device_epoch(
+        &self,
+        bus: &B,
+        address: &MotorAddress,
+        window: Duration,
+        owner_busy: bool,
+    ) -> Option<u64> {
+        match self.backend.as_ref()? {
+            ReferenceBackend::Virtual(backend) => (backend.current_device_epoch)(bus, address),
+            ReferenceBackend::Physical(_) => {
+                self.physical
+                    .live_epoch(address, Instant::now(), window, owner_busy)
+            }
+        }
+    }
+
+    pub(super) fn mark_owner_work(&mut self) {
+        if self.is_physical() {
+            self.physical.mark_owner_work(Instant::now());
+        }
+    }
+
+    pub(super) fn record_request_failure(&mut self, handle: ReferenceHandle, message: String) {
+        if self.request_failures.len() == REQUEST_FAILURE_CAPACITY {
+            self.request_failures.pop_front();
+        }
+        self.request_failures.push_back((handle, message));
+    }
+
+    pub(super) fn request_failure(&self, handle: &ReferenceHandle) -> Option<&str> {
+        self.request_failures
+            .iter()
+            .rev()
+            .find(|(failed, _)| failed == handle)
+            .map(|(_, message)| message.as_str())
     }
 
     #[cfg(test)]
@@ -362,7 +521,7 @@ impl<B: MotorBus> Supervisor<B> {
             stage.invalidated.set(Some(reason));
             ReferenceStageStatus::Invalidated(reason)
         } else {
-            ReferenceStageStatus::CurrentVirtualEvidence
+            ReferenceStageStatus::CurrentEvidence
         }
     }
 
@@ -393,7 +552,7 @@ impl<B: MotorBus> Supervisor<B> {
         let Some(backend) = &self.reference_owner.backend else {
             return Some(Reason::BindingChanged);
         };
-        if (backend.now)(&self.bus) >= stage.overall_deadline {
+        if backend.now(&self.bus) >= stage.overall_deadline {
             return Some(Reason::DeadlineExpired);
         }
         if self.has_latched_fault() || self.hardware_estop {
@@ -406,7 +565,7 @@ impl<B: MotorBus> Supervisor<B> {
         let proof = &evidence.proof;
         let identity_matches = Arc::ptr_eq(&proof.owner, &self.reference_owner.identity)
             && Arc::ptr_eq(&proof.owner, &outcome.terminal.handle.owner)
-            && Arc::ptr_eq(&proof.realm, &backend.realm)
+            && Arc::ptr_eq(&proof.realm, backend.realm())
             && proof.transaction == outcome.terminal.handle.sequence;
         let pop_matches = proof.address == evidence.address
             && proof.order == evidence.order
@@ -427,9 +586,14 @@ impl<B: MotorBus> Supervisor<B> {
             || !target_matches
             || !receive_matches
             || !evidence.position_rad.is_finite()
-            || !(backend.matches)(&self.bus, &backend.realm)
-            || (backend.current_device_epoch)(&self.bus, &evidence.address)
+            || !backend.matches(&self.bus)
+            || self
+                .reference_owner
+                .current_device_epoch(&self.bus, &evidence.address)
                 != Some(proof.device_epoch)
+            || stage.physical.is_some_and(|physical| {
+                self.reference_owner.physical.uid(&evidence.address) != Some(physical.uid)
+            })
             || self.reference_authority.generation() != stage.reference_generation
             || !self.installed_model.matches(&stage.installed_model)
             || self
@@ -496,7 +660,7 @@ impl<B: MotorBus> Supervisor<B> {
             let now = owner
                 .backend
                 .as_ref()
-                .map_or(Duration::ZERO, |backend| (backend.now)(&self.bus));
+                .map_or(Duration::ZERO, |backend| backend.now(&self.bus));
             ReferenceSnapshot {
                 phase: reservation.phase,
                 joint: Some(reservation.request.joint.clone()),
@@ -541,8 +705,9 @@ impl<B: MotorBus> Supervisor<B> {
         }
     }
 
-    /// Reserve without transmitting. Only the closed concrete virtual backend
-    /// has this acquisition capability; ordinary constructors always refuse.
+    /// Reserve without transmitting. Only the closed concrete virtual backend and
+    /// the explicit physical owner factory have this capability (ADR 0036);
+    /// ordinary constructors always refuse.
     pub fn begin_reference(
         &mut self,
         request: ReferenceRequest,
@@ -578,7 +743,7 @@ impl<B: MotorBus> Supervisor<B> {
             return Err(ReferenceError::Busy);
         }
         self.observe_reference_commits();
-        if self.reference_commits.busy() {
+        if self.reference_commits.busy() || self.reference_owner.pending_commit.is_some() {
             return Err(ReferenceError::Busy);
         }
         if request.stamp.sequence < self.reference_owner.next_sequence {
@@ -599,7 +764,7 @@ impl<B: MotorBus> Supervisor<B> {
         {
             return Err(ReferenceError::StaleStamp);
         }
-        if !(backend.matches)(&self.bus, &backend.realm) {
+        if !backend.matches(&self.bus) {
             return Err(ReferenceError::Unsupported);
         }
         if !request.confirmed {
@@ -633,7 +798,7 @@ impl<B: MotorBus> Supervisor<B> {
                 message: "reference timeout rounds to zero".into(),
             });
         }
-        let now = (backend.now)(&self.bus);
+        let now = backend.now(&self.bus);
         let overall_deadline = now
             .checked_add(timeout)
             .ok_or(ReferenceError::CounterExhausted)?;
@@ -656,19 +821,26 @@ impl<B: MotorBus> Supervisor<B> {
                 message: crate::bounded_message(&error.to_string()),
             }
         })?;
-        // Preflight is complete. Conservative revocation includes all INITIAL
-        // coverage. No history or replacement permission is created here.
-        let reference_generation = self
-            .reference_authority
-            .invalidate_for_acquisition()
-            .ok_or(ReferenceError::CounterExhausted)?;
-        (backend.begin)(
-            &mut self.bus,
-            Arc::clone(&self.reference_owner.identity),
-            request.stamp.sequence,
-            address.clone(),
-        )
-        .map_err(DavoutError::from)?;
+        // Preflight is complete. No history or replacement permission is created
+        // here. Virtual acquisition conservatively revokes all INITIAL coverage;
+        // physical acquisition revokes only the target's coordinate binding.
+        let reference_generation = if backend.is_physical() {
+            self.reference_authority
+                .invalidate_joint_for_acquisition(&request.joint)
+        } else {
+            self.reference_authority.invalidate_for_acquisition()
+        }
+        .ok_or(ReferenceError::CounterExhausted)?;
+        match &backend {
+            ReferenceBackend::Virtual(backend) => (backend.begin)(
+                &mut self.bus,
+                Arc::clone(&self.reference_owner.identity),
+                request.stamp.sequence,
+                address.clone(),
+            )
+            .map_err(DavoutError::from)?,
+            ReferenceBackend::Physical(_) => self.reference_owner.mark_owner_work(),
+        }
         let handle = ReferenceHandle {
             owner: Arc::clone(&self.reference_owner.identity),
             sequence: request.stamp.sequence,
@@ -695,6 +867,9 @@ impl<B: MotorBus> Supervisor<B> {
             device_epoch: None,
             reporting: Vec::new(),
             receive: None,
+            request_watermark: 0,
+            uid: None,
+            ack: None,
         });
         Ok(handle)
     }
@@ -714,7 +889,8 @@ impl<B: MotorBus> Supervisor<B> {
             .backend
             .clone()
             .ok_or(ReferenceError::Unsupported)?;
-        let now = (backend.now)(&self.bus);
+        self.reference_owner.mark_owner_work();
+        let now = backend.now(&self.bus);
         if now >= reservation.overall_deadline || now >= reservation.phase_deadline {
             let terminal = self.finish_reference(ReferenceCause::TimedOut, None, None)?;
             return Ok(self.snapshot_for_terminal(terminal));
@@ -723,7 +899,7 @@ impl<B: MotorBus> Supervisor<B> {
             return self.fail_reference(ReferenceFailureKind::Hazard, "persistent safety hazard");
         }
         if reservation.binding_invalidated.get()
-            || !(backend.matches)(&self.bus, &backend.realm)
+            || !backend.matches(&self.bus)
             || !self.installed_model.matches(&reservation.installed_model)
             || self.reference_authority.generation() != reservation.reference_generation
             || self.stop_generation() != reservation.stop_generation
@@ -788,6 +964,28 @@ impl<B: MotorBus> Supervisor<B> {
                 }
                 ReferencePhase::DrainOld
             }
+            ReferencePhase::RequestIdentity | ReferencePhase::RequestReadback => {
+                let watermark = self.reference_owner.physical.watermark();
+                if let Some(live) = &mut self.reference_owner.reservation {
+                    live.request_watermark = watermark;
+                }
+                let (result, next) = if reservation.phase == ReferencePhase::RequestIdentity {
+                    (
+                        self.bus.get_device_id_at(&reservation.address),
+                        ReferencePhase::AwaitIdentity,
+                    )
+                } else {
+                    (
+                        self.bus
+                            .read_parameter_at(&reservation.address, ParameterId::MechPos),
+                        ReferencePhase::AwaitReadback,
+                    )
+                };
+                if let Err(error) = result {
+                    return self.fail_reference(ReferenceFailureKind::Delivery, &error.to_string());
+                }
+                next
+            }
             ReferencePhase::ArmTarget => {
                 // Uncertain delivery may have armed the target; cleanup is
                 // mandatory even when the bus returns an error.
@@ -810,29 +1008,41 @@ impl<B: MotorBus> Supervisor<B> {
                     })?;
                 self.invalidate_reference_target_pose_for_zero_attempt(&motor);
                 let result = self.bus.set_zero_position_at(&reservation.address);
+                let epoch = match &backend {
+                    ReferenceBackend::Virtual(backend) => (backend.device_epoch)(&self.bus),
+                    // Any attempt, including uncertain delivery, starts a new coordinate.
+                    ReferenceBackend::Physical(_) => self
+                        .reference_owner
+                        .physical
+                        .begin_new_coordinate(&reservation.address),
+                };
                 if let Some(live) = &mut self.reference_owner.reservation {
-                    live.device_epoch = (backend.device_epoch)(&self.bus);
+                    live.device_epoch = epoch;
                 }
                 if let Err(error) = result {
                     return self.fail_reference(ReferenceFailureKind::Delivery, &error.to_string());
                 }
-                if self
-                    .reference_owner
-                    .reservation
-                    .as_ref()
-                    .is_none_or(|live| live.device_epoch.is_none())
-                {
+                if epoch.is_none() {
                     return self.fail_reference(
                         ReferenceFailureKind::Backend,
                         "addressed SetZero did not advance a device epoch",
                     );
                 }
-                ReferencePhase::AwaitEvidence
+                if backend.is_physical() {
+                    ReferencePhase::AwaitAck
+                } else {
+                    ReferencePhase::AwaitEvidence
+                }
             }
             ReferencePhase::DrainOld
             | ReferencePhase::DrainPostArm
-            | ReferencePhase::AwaitEvidence => {
-                (backend.prepare_report)(&mut self.bus);
+            | ReferencePhase::AwaitEvidence
+            | ReferencePhase::AwaitIdentity
+            | ReferencePhase::AwaitAck
+            | ReferencePhase::AwaitReadback => {
+                if let ReferenceBackend::Virtual(backend) = &backend {
+                    (backend.prepare_report)(&mut self.bus);
+                }
                 let mut allowance = AdvanceReceiveBudget::new(None);
                 let report = allowance
                     .acquire(&mut self.bus, &self.motor_types)
@@ -845,10 +1055,10 @@ impl<B: MotorBus> Supervisor<B> {
                     .ok_or_else(|| ReferenceError::InvalidRequest {
                         message: "installed target disappeared".into(),
                     })?;
-                let phase = if reservation.armed {
-                    ReferenceReceivePhase::Enabled
-                } else {
-                    ReferenceReceivePhase::BeforeEnable
+                let phase = match (reservation.armed, reservation.device_epoch.is_some()) {
+                    (false, _) => ReferenceReceivePhase::BeforeEnable,
+                    (true, false) => ReferenceReceivePhase::EnabledBeforeZero,
+                    (true, true) => ReferenceReceivePhase::Enabled,
                 };
                 let context = ReceiveContext::Reference(
                     ReferenceReceiveContext::from_installed_target(&motor, phase),
@@ -861,7 +1071,10 @@ impl<B: MotorBus> Supervisor<B> {
                         read_attempts: consumed.read_attempts,
                     });
                 }
-                let mut proofs = (backend.take_proofs)(&mut self.bus);
+                let mut proofs = match &backend {
+                    ReferenceBackend::Virtual(backend) => (backend.take_proofs)(&mut self.bus),
+                    ReferenceBackend::Physical(_) => Vec::new(),
+                };
                 if let Some(error) = consumed.first_error {
                     let kind =
                         if matches!(error, DavoutError::Bus(BusError::ReceiveIncomplete { .. })) {
@@ -881,47 +1094,107 @@ impl<B: MotorBus> Supervisor<B> {
                         "reference drain is incomplete",
                     );
                 }
-                if reservation.phase == ReferencePhase::AwaitEvidence {
-                    let tolerance = self.homing_config.homing.zero_verify_tolerance_rad;
-                    let accepted = consumed.reference_poses.into_iter().find_map(|pose| {
-                        if pose.address != reservation.address
-                            || !pose.state.position_rad.is_finite()
-                            || f64::from(pose.state.position_rad).abs() > tolerance
-                        {
-                            return None;
+                let tolerance = self.homing_config.homing.zero_verify_tolerance_rad;
+                match reservation.phase {
+                    ReferencePhase::AwaitEvidence => {
+                        let accepted = consumed.reference_poses.into_iter().find_map(|pose| {
+                            if pose.address != reservation.address
+                                || !pose.state.position_rad.is_finite()
+                                || f64::from(pose.state.position_rad).abs() > tolerance
+                            {
+                                return None;
+                            }
+                            let index = proofs.iter().position(|proof| {
+                                Arc::ptr_eq(&proof.owner, &self.reference_owner.identity)
+                                    && Arc::ptr_eq(&proof.realm, backend.realm())
+                                    && proof.transaction == reservation.handle.sequence
+                                    && Some(proof.device_epoch) == reservation.device_epoch
+                                    && proof.address == pose.address
+                                    && proof.order == pose.order
+                                    && proof.can_id == pose.can_id
+                                    && proof.received_at == pose.received_at
+                            })?;
+                            Some(AcceptedReferenceEvidence {
+                                proof: proofs.swap_remove(index),
+                                address: pose.address,
+                                order: pose.order,
+                                can_id: pose.can_id,
+                                received_at: pose.received_at,
+                                position_rad: pose.state.position_rad,
+                            })
+                        });
+                        if let Some(evidence) = accepted {
+                            let terminal = self.finish_reference(
+                                ReferenceCause::EvidenceStaged,
+                                None,
+                                Some((evidence, None)),
+                            )?;
+                            return Ok(self.snapshot_for_terminal(terminal));
                         }
-                        let index = proofs.iter().position(|proof| {
-                            Arc::ptr_eq(&proof.owner, &self.reference_owner.identity)
-                                && Arc::ptr_eq(&proof.realm, &backend.realm)
-                                && proof.transaction == reservation.handle.sequence
-                                && Some(proof.device_epoch) == reservation.device_epoch
-                                && proof.address == pose.address
-                                && proof.order == pose.order
-                                && proof.can_id == pose.can_id
-                                && proof.received_at == pose.received_at
-                        })?;
-                        Some(AcceptedReferenceEvidence {
-                            proof: proofs.swap_remove(index),
-                            address: pose.address,
-                            order: pose.order,
-                            can_id: pose.can_id,
-                            received_at: pose.received_at,
-                            position_rad: pose.state.position_rad,
-                        })
-                    });
-                    if let Some(evidence) = accepted {
-                        let terminal = self.finish_reference(
-                            ReferenceCause::EvidenceStaged,
-                            None,
-                            Some(evidence),
-                        )?;
-                        return Ok(self.snapshot_for_terminal(terminal));
+                        ReferencePhase::AwaitEvidence
                     }
-                    ReferencePhase::AwaitEvidence
-                } else if reservation.phase == ReferencePhase::DrainOld {
-                    ReferencePhase::ArmTarget
-                } else {
-                    ReferencePhase::SetZero
+                    ReferencePhase::DrainOld if backend.is_physical() => {
+                        ReferencePhase::RequestIdentity
+                    }
+                    ReferencePhase::DrainOld => ReferencePhase::ArmTarget,
+                    ReferencePhase::DrainPostArm => ReferencePhase::SetZero,
+                    ReferencePhase::AwaitIdentity => {
+                        let physical = &self.reference_owner.physical;
+                        match physical
+                            .identity_after(&reservation.address, reservation.request_watermark)
+                        {
+                            None => ReferencePhase::AwaitIdentity,
+                            Some(uid)
+                                if physical.uid_claimed_elsewhere(&reservation.address, uid) =>
+                            {
+                                return self.fail_reference(
+                                    ReferenceFailureKind::Identity,
+                                    &format!("device identifier {uid} also answers at another installed address"),
+                                );
+                            }
+                            Some(uid) => {
+                                if let Some(live) = &mut self.reference_owner.reservation {
+                                    live.uid = Some(uid);
+                                }
+                                ReferencePhase::ArmTarget
+                            }
+                        }
+                    }
+                    ReferencePhase::AwaitAck => {
+                        // Only a type-2 status reply popped after the addressed
+                        // SetZero can acknowledge it; type-24 reports cannot.
+                        let ack = consumed.reference_poses.iter().find(|pose| {
+                            pose.address == reservation.address
+                                && pose.can_id >> 24
+                                    == u32::from(
+                                        robstride::CommunicationType::OperationStatus.as_u8(),
+                                    )
+                                && pose.state.position_rad.is_finite()
+                                && f64::from(pose.state.position_rad).abs() <= tolerance
+                        });
+                        match ack {
+                            Some(pose) => {
+                                let ack = PhysicalAck {
+                                    order: pose.order,
+                                    can_id: pose.can_id,
+                                    position_rad: pose.state.position_rad,
+                                };
+                                if let Some(live) = &mut self.reference_owner.reservation {
+                                    live.ack = Some(ack);
+                                }
+                                ReferencePhase::RequestReadback
+                            }
+                            None => ReferencePhase::AwaitAck,
+                        }
+                    }
+                    ReferencePhase::AwaitReadback => {
+                        return self.accept_physical_readback(&reservation, &backend, &motor);
+                    }
+                    _ => {
+                        return Err(ReferenceError::InvalidRequest {
+                            message: "invalid receive phase".into(),
+                        });
+                    }
                 }
             }
             ReferencePhase::Idle | ReferencePhase::Terminal => {
@@ -930,7 +1203,7 @@ impl<B: MotorBus> Supervisor<B> {
                 });
             }
         };
-        // Repeated AwaitEvidence does not renew its deadline.
+        // Repeated await phases do not renew their deadline.
         if next_phase != reservation.phase {
             let deadline = phase_deadline(now, reservation.overall_deadline, next_phase)?;
             if let Some(live) = &mut self.reference_owner.reservation {
@@ -939,6 +1212,97 @@ impl<B: MotorBus> Supervisor<B> {
             }
         }
         Ok(self.reference_snapshot())
+    }
+
+    /// Physical evidence: the `mechPos` reply popped after its request, which was
+    /// issued only after a type-2 ack popped after the addressed SetZero.
+    fn accept_physical_readback(
+        &mut self,
+        reservation: &Reservation,
+        backend: &ReferenceBackend<B>,
+        motor: &marengo_config::MotorEntry,
+    ) -> Result<ReferenceSnapshot, ReferenceError> {
+        let tolerance = self.homing_config.homing.zero_verify_tolerance_rad;
+        let Some(read) = self
+            .reference_owner
+            .physical
+            .read_after(
+                &reservation.address,
+                ParameterId::MechPos,
+                reservation.request_watermark,
+            )
+            .cloned()
+        else {
+            return Ok(self.reference_snapshot());
+        };
+        if !read.reply.succeeded() {
+            return self.fail_reference(
+                ReferenceFailureKind::Readback,
+                &format!("drive refused mechPos read (status {})", read.reply.status),
+            );
+        }
+        let scale = crate::motor_position_scale(motor)?;
+        let position_rad = f64::from(read.reply.as_f32()) / scale;
+        if !position_rad.is_finite() || position_rad.abs() > tolerance {
+            return self.fail_reference(
+                ReferenceFailureKind::Readback,
+                &format!(
+                    "mechPos readback {position_rad} rad is outside tolerance {tolerance} rad"
+                ),
+            );
+        }
+        let (Some(uid), Some(ack), Some(device_epoch)) =
+            (reservation.uid, reservation.ack, reservation.device_epoch)
+        else {
+            return self.fail_reference(
+                ReferenceFailureKind::Backend,
+                "physical readback without identity, ack and coordinate epoch",
+            );
+        };
+        let continuity = self.reference_owner.physical.observe_position(
+            &reservation.address,
+            position_rad,
+            read.received_at,
+            tolerance,
+        );
+        if continuity.is_some()
+            || self.reference_owner.physical.uid(&reservation.address) != Some(uid)
+            || self.reference_owner.physical.epoch(&reservation.address) != Some(device_epoch)
+        {
+            return self.fail_reference(
+                ReferenceFailureKind::Identity,
+                "device identity or coordinate continuity changed during acquisition",
+            );
+        }
+        let evidence = AcceptedReferenceEvidence {
+            proof: ReferenceCorrelation {
+                owner: Arc::clone(&self.reference_owner.identity),
+                realm: Arc::clone(backend.realm()),
+                transaction: reservation.handle.sequence,
+                device_epoch,
+                address: reservation.address.clone(),
+                order: read.order,
+                can_id: read.can_id,
+                received_at: read.received_at,
+            },
+            address: read.address.clone(),
+            order: read.order,
+            can_id: read.can_id,
+            received_at: read.received_at,
+            position_rad: position_rad as f32,
+        };
+        let physical = PhysicalEvidence {
+            uid,
+            ack_order: ack.order,
+            ack_can_id: ack.can_id,
+            ack_position_rad: ack.position_rad,
+        };
+        let terminal = self.finish_reference(
+            ReferenceCause::EvidenceStaged,
+            None,
+            Some((evidence, Some(physical))),
+        )?;
+        Ok(self.snapshot_for_terminal(terminal))
     }
 
     pub fn cancel_reference(
@@ -955,9 +1319,10 @@ impl<B: MotorBus> Supervisor<B> {
 
     /// Mandatory cleanup is separate from optional ordinary exit Disable.
     pub fn cancel_reference_for_shutdown(&mut self) -> Option<ReferenceTerminal> {
-        if self.reference_authority.consumed_binding().is_some() {
+        if !self.reference_authority.consumed_bindings().is_empty() {
             self.reference_authority.revoke();
         }
+        self.reference_owner.pending_commit = None;
         self.invalidate_retained_stages(ReferenceStageInvalidation::Shutdown);
         self.cancel_reference_commits(ReferenceCancelReason::Shutdown);
         if !self.acquisition_busy() {
@@ -1064,7 +1429,7 @@ impl<B: MotorBus> Supervisor<B> {
         &mut self,
         cause: ReferenceCause,
         existing_stop: Option<StopReport>,
-        accepted: Option<AcceptedReferenceEvidence>,
+        accepted: Option<(AcceptedReferenceEvidence, Option<PhysicalEvidence>)>,
     ) -> Result<ReferenceTerminal, ReferenceError> {
         let reservation = self
             .reference_owner
@@ -1072,11 +1437,13 @@ impl<B: MotorBus> Supervisor<B> {
             .take()
             .ok_or(ReferenceError::OutcomeExpired)?;
         let stop = existing_stop.unwrap_or_else(|| self.perform_stop(false));
-        if let Some(backend) = &self.reference_owner.backend {
+        if let Some(ReferenceBackend::Virtual(backend)) = &self.reference_owner.backend {
             (backend.end)(&mut self.bus);
         }
-        let stage = accepted.map(|evidence| RetainedStage {
+        self.reference_owner.mark_owner_work();
+        let stage = accepted.map(|(evidence, physical)| RetainedStage {
             evidence,
+            physical,
             installed_model: reservation.installed_model,
             overall_deadline: reservation.overall_deadline,
             reference_generation: self.reference_authority.generation(),
@@ -1163,6 +1530,9 @@ impl RetainedOutcome {
     pub(super) fn handle(&self) -> &ReferenceHandle {
         &self.terminal.handle
     }
+    pub(super) fn terminal_ref(&self) -> &ReferenceTerminal {
+        &self.terminal
+    }
     pub(super) fn joint(&self) -> &str {
         &self.terminal.joint
     }
@@ -1173,23 +1543,39 @@ impl RetainedOutcome {
             }
         }
     }
-    pub(super) fn select_current_virtual(
+    /// Evidence position (joint space) retained for operator receipts.
+    pub(super) fn evidence_position_rad(&self) -> Option<f32> {
+        self.stage.as_ref().map(|stage| stage.evidence.position_rad)
+    }
+    pub(super) fn is_physical(&self) -> bool {
+        self.stage
+            .as_ref()
+            .is_some_and(|stage| stage.physical.is_some())
+    }
+    pub(super) fn select_current(
         &self,
         authority: &mut crate::reference::ReferenceAuthority,
         job: Arc<()>,
     ) -> Option<()> {
         let stage = self.stage.as_ref()?;
         let proof = &stage.evidence.proof;
-        authority.select_consumed_virtual(
-            self.joint(),
+        let scope = if stage.physical.is_some() {
+            crate::reference::SelectionScope::Accumulate
+        } else {
+            crate::reference::SelectionScope::Replace
+        };
+        authority.select_consumed(
             Arc::clone(&proof.realm),
-            crate::reference::ConsumedReferenceBinding {
+            crate::reference::ConsumedReferenceBinding::new(
                 job,
-                model: stage.installed_model.clone(),
-                address: stage.evidence.address.clone(),
-                device_epoch: proof.device_epoch,
-            },
+                stage.installed_model.clone(),
+                self.joint().to_owned(),
+                stage.evidence.address.clone(),
+                proof.device_epoch,
+                stage.physical.map(|physical| physical.uid),
+            ),
             &stage.typed_policy,
+            scope,
         )
     }
     pub(super) fn journal_input(
@@ -1230,6 +1616,14 @@ impl RetainedOutcome {
                     },
                 )?,
                 audit,
+                physical: stage.physical.map(|physical| {
+                    crate::reference_journal_event::PhysicalCapture {
+                        device_uid: physical.uid.as_u64(),
+                        ack_pop_order: u32::try_from(physical.ack_order).unwrap_or(u32::MAX),
+                        ack_can_id: physical.ack_can_id,
+                        ack_position_rad: physical.ack_position_rad,
+                    }
+                }),
             },
         })
     }

@@ -32,6 +32,8 @@ pub(super) enum ReceiveContext {
 #[derive(Debug, Clone, Copy)]
 pub(super) enum ReferenceReceivePhase {
     BeforeEnable,
+    /// Target armed, SetZero not yet attempted: its old coordinate is untrusted.
+    EnabledBeforeZero,
     Enabled,
 }
 
@@ -55,7 +57,20 @@ impl ReferenceReceiveContext {
     }
 
     fn is_enabled(&self) -> bool {
-        matches!(self.phase, ReferenceReceivePhase::Enabled)
+        matches!(
+            self.phase,
+            ReferenceReceivePhase::EnabledBeforeZero | ReferenceReceivePhase::Enabled
+        )
+    }
+
+    /// Measured-limit faults require a trusted coordinate: the target only after
+    /// its SetZero attempt, peers only while they hold current permission.
+    fn coordinate_trusted(&self, address: &MotorAddress, peer_referenced: bool) -> bool {
+        if *address == self.target {
+            matches!(self.phase, ReferenceReceivePhase::Enabled)
+        } else {
+            peer_referenced
+        }
     }
 }
 
@@ -206,9 +221,20 @@ impl<B: MotorBus> Supervisor<B> {
     /// Reference observations are raw joint-space projections; they carry no proof.
     pub(super) fn consume_report_in_context(
         &mut self,
-        report: FeedbackReport,
+        mut report: FeedbackReport,
         context: &ReceiveContext,
     ) -> FeedbackConsumption {
+        // Physical owners retain identity/readback replies for request correlation
+        // and identity continuity. Replies are never pose or permission evidence.
+        if self.reference_owner.is_physical() {
+            for identity in std::mem::take(&mut report.identities) {
+                self.reference_owner.physical.record_identity(identity);
+            }
+            for read in std::mem::take(&mut report.parameter_reads) {
+                self.reference_owner.physical.record_read(read);
+            }
+        }
+        let at_rest_tolerance = self.homing_config.homing.zero_verify_tolerance_rad;
         let mut reference_poses = Vec::new();
         let mut first_error = None;
         let mut first_transition = false;
@@ -349,6 +375,12 @@ impl<B: MotorBus> Supervisor<B> {
                         DriveMode::Run => 2,
                         DriveMode::Reserved => 3,
                     });
+                    if status.drive_mode == DriveMode::Calibration {
+                        // Encoder recalibration: the coordinate is no longer continuous.
+                        self.reference_owner
+                            .physical
+                            .record_calibration_mode(&address);
+                    }
                     status
                 }
             };
@@ -498,6 +530,14 @@ impl<B: MotorBus> Supervisor<B> {
                 continue;
             }
             self.invalid_feedback.remove(&address);
+            if self.reference_owner.is_physical() {
+                self.reference_owner.physical.observe_position(
+                    &address,
+                    f64::from(state.position_rad),
+                    received_at,
+                    at_rest_tolerance,
+                );
+            }
             self.motor_states.insert(address, state);
             store_by_joint(&mut self.last_feedback_rx, &motor.joint, received_at);
         }
@@ -750,6 +790,14 @@ impl<B: MotorBus> Supervisor<B> {
     ) -> Result<(), DavoutError> {
         if !self.feedback_motion_guards_enabled(context) {
             return Ok(());
+        }
+        if let ReceiveContext::Reference(reference) = context {
+            let address = MotorAddress::from(motor);
+            if !reference
+                .coordinate_trusted(&address, self.reference_authority.contains(&motor.joint))
+            {
+                return Ok(());
+            }
         }
         let lim = self
             .limits

@@ -211,7 +211,7 @@ fn exhausted_commit_identity_refuses_actual_stage_before_disk_admission() {
     ));
     assert_eq!(
         owner.0.reference_snapshot().staged_evidence,
-        ReferenceStageStatus::CurrentVirtualEvidence
+        ReferenceStageStatus::CurrentEvidence
     );
     assert!(!owner.0.reference_work_pending());
     assert!(!tree.path().join("journal.sqlite3").exists());

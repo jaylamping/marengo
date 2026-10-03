@@ -15,8 +15,46 @@ use crate::reference_model::{InstalledModelStamp, InstalledReferenceModel};
 pub(super) struct ConsumedReferenceBinding {
     pub(super) job: Arc<()>,
     pub(super) model: InstalledModelStamp,
+    pub(super) joint: String,
     pub(super) address: MotorAddress,
     pub(super) device_epoch: u64,
+    /// Physical bindings retain the MCU identifier read during acquisition.
+    pub(super) uid: Option<robstride::DeviceUid>,
+    revoked: Cell<bool>,
+}
+
+impl ConsumedReferenceBinding {
+    pub(super) fn new(
+        job: Arc<()>,
+        model: InstalledModelStamp,
+        joint: String,
+        address: MotorAddress,
+        device_epoch: u64,
+        uid: Option<robstride::DeviceUid>,
+    ) -> Self {
+        Self {
+            job,
+            model,
+            joint,
+            address,
+            device_epoch,
+            uid,
+            revoked: Cell::new(false),
+        }
+    }
+
+    pub(super) fn is_revoked(&self) -> bool {
+        self.revoked.get()
+    }
+}
+
+/// How a consumed selection combines with existing current permission.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum SelectionScope {
+    /// R2b2 virtual rule: the selected joint replaces all prior coverage.
+    Replace,
+    /// Physical rule (ADR 0036): per-joint grants accumulate under one policy.
+    Accumulate,
 }
 
 use marengo_config::{
@@ -60,7 +98,8 @@ pub(crate) struct ReferenceAuthority {
     homing: Option<HomingConfigFile>,
     control: Option<ControlConfigFile>,
     realm: Option<Arc<()>>,
-    consumed: Option<ConsumedReferenceBinding>,
+    consumed: Vec<ConsumedReferenceBinding>,
+    accumulates: bool,
     revoked: Cell<bool>,
     generation: Cell<u64>,
 }
@@ -74,7 +113,8 @@ impl Default for ReferenceAuthority {
             homing: None,
             control: None,
             realm: None,
-            consumed: None,
+            consumed: Vec::new(),
+            accumulates: false,
             revoked: Cell::new(false),
             generation: Cell::new(0),
         }
@@ -96,7 +136,8 @@ impl ReferenceAuthority {
             homing: Some(homing.clone()),
             control: Some(control.clone()),
             realm: Some(realm),
-            consumed: None,
+            consumed: Vec::new(),
+            accumulates: false,
             revoked: Cell::new(false),
             generation: Cell::new(1),
         }
@@ -108,7 +149,37 @@ impl ReferenceAuthority {
 
     pub(crate) fn revoke(&self) {
         if !self.revoked.replace(true) {
-            self.generation.set(self.generation.get().saturating_add(1));
+            self.bump_generation();
+        }
+    }
+
+    fn bump_generation(&self) {
+        self.generation.set(self.generation.get().saturating_add(1));
+    }
+
+    /// Revoke one physical joint grant; peers bound to other devices remain.
+    pub(super) fn revoke_binding(&self, binding: &ConsumedReferenceBinding) {
+        if !binding.revoked.replace(true) {
+            self.bump_generation();
+        }
+    }
+
+    pub(super) fn revoke_joint(&self, joint: &str) {
+        if let Some(binding) = self.consumed.iter().find(|binding| binding.joint == joint) {
+            self.revoke_binding(binding);
+        }
+    }
+
+    /// Cancelling the owning commit revokes exactly its selected permission.
+    pub(super) fn revoke_selected(&self, job: &Arc<()>) {
+        let selected = self
+            .consumed
+            .iter()
+            .find(|binding| Arc::ptr_eq(&binding.job, job));
+        match selected {
+            Some(binding) if self.accumulates => self.revoke_binding(binding),
+            Some(_) => self.revoke(),
+            None => {}
         }
     }
 
@@ -125,30 +196,66 @@ impl ReferenceAuthority {
         Some(next)
     }
 
-    pub(crate) fn contains(&self, joint: &str) -> bool {
-        !self.revoked.get() && self.joints.contains(joint)
+    /// Physical acquisition replaces only the target's coordinate; other joints'
+    /// grants keep their own device bindings and continuity (ADR 0036).
+    pub(crate) fn invalidate_joint_for_acquisition(&self, joint: &str) -> Option<u64> {
+        let next = self.generation.get().checked_add(1)?;
+        if let Some(binding) = self.consumed.iter().find(|binding| binding.joint == joint) {
+            binding.revoked.set(true);
+        }
+        if !self.accumulates {
+            self.revoked.set(true);
+        }
+        self.generation.set(next);
+        Some(next)
     }
 
-    pub(super) fn select_consumed_virtual(
+    pub(crate) fn contains(&self, joint: &str) -> bool {
+        !self.revoked.get()
+            && self.joints.contains(joint)
+            && (self.consumed.is_empty()
+                || self
+                    .consumed
+                    .iter()
+                    .any(|binding| binding.joint == joint && !binding.revoked.get()))
+    }
+
+    pub(super) fn select_consumed(
         &mut self,
-        joint: &str,
         realm: Arc<()>,
         binding: ConsumedReferenceBinding,
         policy: &crate::reference_journal_event::TypedPolicy,
+        scope: SelectionScope,
     ) -> Option<()> {
         let next = self.generation.get().checked_add(1)?;
-        let selected = Self {
-            joints: FxHashSet::from_iter([joint.to_owned()]),
+        let joint = binding.joint.clone();
+        let merge = scope == SelectionScope::Accumulate
+            && self.accumulates
+            && !self.revoked.get()
+            && self
+                .realm
+                .as_ref()
+                .is_some_and(|own| Arc::ptr_eq(own, &realm))
+            && self.policy_matches(&policy.motors, &policy.homing, &policy.control);
+        if merge {
+            self.consumed.retain(|existing| existing.joint != joint);
+            self.consumed.push(binding);
+            self.joints.insert(joint);
+            self.generation.set(next);
+            return Some(());
+        }
+        *self = Self {
+            joints: FxHashSet::from_iter([joint]),
             motors: policy.motors.motors.clone(),
             bound: bind_motors(&policy.motors.motors, &policy.homing, &policy.control),
             homing: Some(policy.homing.clone()),
             control: Some(policy.control.clone()),
             realm: Some(realm),
-            consumed: Some(binding),
+            consumed: vec![binding],
+            accumulates: scope == SelectionScope::Accumulate,
             revoked: Cell::new(false),
             generation: Cell::new(next),
         };
-        *self = selected;
         Some(())
     }
 
@@ -156,23 +263,59 @@ impl ReferenceAuthority {
         !self.revoked.get()
             && self
                 .consumed
-                .as_ref()
-                .is_some_and(|binding| Arc::ptr_eq(&binding.job, job))
+                .iter()
+                .any(|binding| !binding.revoked.get() && Arc::ptr_eq(&binding.job, job))
     }
 
-    pub(super) fn consumed_binding(&self) -> Option<&ConsumedReferenceBinding> {
-        self.consumed.as_ref()
+    pub(super) fn consumed_bindings(&self) -> &[ConsumedReferenceBinding] {
+        &self.consumed
+    }
+
+    pub(super) fn binding_for(&self, joint: &str) -> Option<&ConsumedReferenceBinding> {
+        self.consumed
+            .iter()
+            .find(|binding| binding.joint == joint && !binding.revoked.get())
     }
 
     pub(super) fn validate_consumed_model(&self, model: &InstalledReferenceModel) -> bool {
         self.consumed
-            .as_ref()
-            .is_none_or(|binding| model.matches(&binding.model))
+            .iter()
+            .all(|binding| model.matches(&binding.model))
     }
 
     #[cfg(test)]
     pub(super) fn set_generation_for_test(&self, generation: u64) {
         self.generation.set(generation);
+    }
+
+    /// Compare without side effects; `validate_binding` revokes on mismatch.
+    fn policy_matches(
+        &self,
+        motors: &MotorsConfigFile,
+        homing: &HomingConfigFile,
+        control: &ControlConfigFile,
+    ) -> bool {
+        let (Some(bound_homing), Some(bound_control)) = (&self.homing, &self.control) else {
+            return false;
+        };
+        self.motors.len() == motors.motors.len()
+            && self.bound.len() == self.motors.len()
+            && self
+                .motors
+                .iter()
+                .zip(&self.bound)
+                .zip(&motors.motors)
+                .all(|((old, bound), new)| {
+                    motor_reference_matches(old, new)
+                        && control_reference_matches(old, bound, bound_control, control)
+                        && match (&bound.homing, homing.homing.effective_joint_ref(&new.joint)) {
+                            (Some(old), Some(new)) => homing_reference_matches(old, &new),
+                            _ => false,
+                        }
+                })
+            && bound_homing.homing.zero_verify_tolerance_rad
+                == homing.homing.zero_verify_tolerance_rad
+            && bound_homing.homing.calibration_record_path == homing.homing.calibration_record_path
     }
 
     pub(crate) fn validate_binding(
@@ -184,27 +327,7 @@ impl ReferenceAuthority {
         if self.revoked.get() || self.realm.is_none() {
             return false;
         }
-        let Some(bound_homing) = &self.homing else {
-            return false;
-        };
-        let Some(bound_control) = &self.control else {
-            return false;
-        };
-        let matches = self.motors.len() == motors.motors.len()
-            && self.bound.len() == self.motors.len()
-            && self.motors.iter().zip(&self.bound).zip(&motors.motors).all(
-                |((old, bound), new)| {
-                    motor_reference_matches(old, new)
-                        && control_reference_matches(old, bound, bound_control, control)
-                        && match (&bound.homing, homing.homing.effective_joint_ref(&new.joint)) {
-                            (Some(old), Some(new)) => homing_reference_matches(old, &new),
-                            _ => false,
-                        }
-                },
-            )
-            && bound_homing.homing.zero_verify_tolerance_rad
-                == homing.homing.zero_verify_tolerance_rad
-            && bound_homing.homing.calibration_record_path == homing.homing.calibration_record_path;
+        let matches = self.policy_matches(motors, homing, control);
         if !matches {
             self.revoke();
         }

@@ -156,7 +156,7 @@ fn acquire(owner: &mut Supervisor<SimulationBus>) -> ReferenceHandle {
     assert_eq!(terminal.stop.failed_writes(), 0);
     assert_eq!(
         snapshot.staged_evidence,
-        ReferenceStageStatus::CurrentVirtualEvidence
+        ReferenceStageStatus::CurrentEvidence
     );
     handle
 }
@@ -250,10 +250,7 @@ fn durable_history_is_real_readback_and_never_a_current_reference() {
         ),
         "{snapshot:?}"
     );
-    assert_eq!(
-        snapshot.eligibility,
-        ReferenceStageStatus::CurrentVirtualEvidence
-    );
+    assert_eq!(snapshot.eligibility, ReferenceStageStatus::CurrentEvidence);
     assert!(!snapshot.usable_reference);
     assert_eq!(owner.reference_snapshot().terminal, terminal);
     assert!(owner.enable_targets(&[TARGET.into()]).is_err());

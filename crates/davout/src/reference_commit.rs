@@ -1,4 +1,4 @@
-//! Owner-bound virtual commit lifecycle. Only actual current consumption may select output.
+//! Owner-bound commit lifecycle. Only actual current consumption may select output.
 
 use std::cell::Cell;
 use std::collections::VecDeque;
@@ -15,10 +15,11 @@ use crate::feedback_consumer::{
 use crate::reference_journal::{
     JobIdentity, Journal, ReferenceJournalDrain, ReferenceJournalError, ReferenceJournalResult,
 };
-use crate::reference_transaction::RetainedOutcome;
+use crate::reference_transaction::{PendingCommit, RetainedOutcome};
 use crate::{
-    DavoutError, ReferenceCancelReason, ReferenceError, ReferenceHandle, ReferenceReceiveSummary,
-    ReferenceStageInvalidation, ReferenceStageStatus, Supervisor,
+    DavoutError, ReferenceCancelReason, ReferenceCause, ReferenceError, ReferenceHandle,
+    ReferenceReceiveSummary, ReferenceRequest, ReferenceStageInvalidation, ReferenceStageStatus,
+    Supervisor,
 };
 
 const OUTCOME_CAPACITY: usize = 8;
@@ -70,9 +71,24 @@ pub struct ReferenceCommitSnapshot {
     pub usable_reference: bool,
 }
 
+/// Operator receipt for one [`Supervisor::request_reference`]. Inspection only;
+/// `Current` observes present private permission and is never a credential.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ReferenceOutcome {
+    InProgress,
+    /// The acquired joint holds current permission; `position_rad` is the
+    /// accepted post-command evidence in joint space.
+    Current {
+        position_rad: f32,
+    },
+    Failed {
+        message: String,
+    },
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum ReferenceCommitError {
-    #[error("virtual reference journal is unsupported by this owner")]
+    #[error("reference journal is unsupported by this owner")]
     Unsupported,
     #[error("reference owner is busy")]
     Busy,
@@ -120,6 +136,8 @@ pub(super) struct CommitOwner {
 pub(super) enum CommitSelection {
     HistoryOnly,
     CurrentVirtual,
+    /// Physical owner: per-joint accumulation and liveness-bound grants (ADR 0036).
+    CurrentPhysical,
 }
 impl Default for CommitOwner {
     fn default() -> Self {
@@ -137,6 +155,14 @@ impl CommitOwner {
     pub(super) fn install(&mut self, journal: Journal, selection: CommitSelection) {
         self.journal = Some(journal);
         self.selection = selection;
+    }
+    /// A completed durable commit may select current permission.
+    pub(super) fn selects_current(&self) -> bool {
+        self.journal.is_some() && self.selection != CommitSelection::HistoryOnly
+    }
+    fn entry_for_acquisition(&self, acquisition: &ReferenceHandle) -> Option<&Entry> {
+        self.entries()
+            .find(|entry| entry.stage.handle() == acquisition)
     }
     pub(super) fn busy(&self) -> bool {
         self.pending
@@ -254,10 +280,10 @@ impl<B: MotorBus> Supervisor<B> {
         }
         let stage = self.stage_for_commit(acquisition)?;
         let status = self.retained_stage_status(&stage);
-        if status != ReferenceStageStatus::CurrentVirtualEvidence {
+        if status != ReferenceStageStatus::CurrentEvidence {
             return Err(ReferenceCommitError::Ineligible(status));
         }
-        if self.reference_commits.selection == CommitSelection::CurrentVirtual
+        if self.reference_commits.selection != CommitSelection::HistoryOnly
             && self
                 .reference_authority
                 .generation()
@@ -374,21 +400,19 @@ impl<B: MotorBus> Supervisor<B> {
         // Deadline equality and every captured continuity check run before collect.
         self.observe_reference_commits();
         if let Some(entry) = self.reference_commits.collect(handle) {
-            if self.reference_commits.selection == CommitSelection::CurrentVirtual
+            let mut selected = false;
+            if self.reference_commits.selection != CommitSelection::HistoryOnly
                 && entry.phase.get() == ReferenceCommitPhase::Complete
                 && matches!(entry.result, ReferenceJournalResult::DurableHistory { .. })
-                && self.retained_stage_status(&entry.stage)
-                    == ReferenceStageStatus::CurrentVirtualEvidence
+                && self.retained_stage_status(&entry.stage) == ReferenceStageStatus::CurrentEvidence
             {
                 if entry
                     .stage
-                    .select_current_virtual(
-                        &mut self.reference_authority,
-                        Arc::clone(&entry.job.nonce),
-                    )
+                    .select_current(&mut self.reference_authority, Arc::clone(&entry.job.nonce))
                     .is_some()
                 {
                     entry.stage.retire(ReferenceStageInvalidation::Consumed);
+                    selected = true;
                 } else {
                     entry
                         .stage
@@ -398,7 +422,16 @@ impl<B: MotorBus> Supervisor<B> {
                     ));
                 }
             }
+            let physical = entry.stage.is_physical();
             self.reference_commits.retain(entry);
+            if physical {
+                // Liveness of every physical grant restarts when owner work ends;
+                // resume the periodic reporting it relies on without a tick delay.
+                self.reference_owner.mark_owner_work();
+                if selected {
+                    self.sync_active_reporting();
+                }
+            }
         }
         self.reference_commit_snapshot(handle)
     }
@@ -409,10 +442,8 @@ impl<B: MotorBus> Supervisor<B> {
         reason: ReferenceCancelReason,
     ) -> Result<ReferenceCommitSnapshot, ReferenceCommitError> {
         let entry = self.reference_commits.get(handle)?;
-        if reason != ReferenceCancelReason::Disable
-            && self.reference_authority.selected_by(&entry.job.nonce)
-        {
-            self.reference_authority.revoke();
+        if reason != ReferenceCancelReason::Disable {
+            self.reference_authority.revoke_selected(&entry.job.nonce);
         }
         entry
             .stage
@@ -428,9 +459,13 @@ impl<B: MotorBus> Supervisor<B> {
     }
 
     pub fn reference_work_pending(&self) -> bool {
-        self.acquisition_busy() || !self.reference_commits.pending.is_empty()
+        self.acquisition_busy()
+            || !self.reference_commits.pending.is_empty()
+            || self.reference_owner.pending_commit.is_some()
     }
     /// The controller advances the owner once, never a second operational drain.
+    /// A request from [`Self::request_reference`] continues into its durable
+    /// commit here; the commit consumer alone may select current permission.
     pub fn advance_reference_work(&mut self) -> Result<(), ReferenceCommitError> {
         if let Some(handle) = self
             .reference_snapshot()
@@ -438,6 +473,19 @@ impl<B: MotorBus> Supervisor<B> {
             .filter(|_| self.acquisition_busy())
         {
             self.advance_reference(&handle)?;
+        } else if let Some(pending) = self.reference_owner.pending_commit.take() {
+            let staged = self
+                .reference_snapshot()
+                .terminal
+                .filter(|terminal| terminal.handle == pending.acquisition)
+                .is_some_and(|terminal| terminal.cause == ReferenceCause::EvidenceStaged);
+            if staged {
+                if let Err(error) = self.begin_reference_commit(&pending.acquisition, pending.audit)
+                {
+                    self.reference_owner
+                        .record_request_failure(pending.acquisition, error.to_string());
+                }
+            }
         } else if let Some(handle) = self
             .reference_commits
             .pending
@@ -447,6 +495,95 @@ impl<B: MotorBus> Supervisor<B> {
             self.advance_reference_commit(&handle)?;
         }
         Ok(())
+    }
+
+    /// Validated, confirmed request driven to a durable commit by
+    /// [`Self::advance_reference_work`]. Physical owners acquire the requested
+    /// joint only; history and stage diagnostics never grant permission.
+    pub fn request_reference(
+        &mut self,
+        joint: &str,
+        sign_verified: bool,
+        audit: ReferenceAudit,
+    ) -> Result<ReferenceHandle, ReferenceError> {
+        if !self.reference_commits.selects_current() || !self.reference_owner.has_backend() {
+            return Err(ReferenceError::Unsupported);
+        }
+        if !audit.validate() {
+            return Err(ReferenceError::InvalidRequest {
+                message: ReferenceCommitError::Audit.to_string(),
+            });
+        }
+        if self.reference_owner.pending_commit.is_some() {
+            return Err(ReferenceError::Busy);
+        }
+        let stamp = self
+            .reference_snapshot()
+            .next_stamp
+            .ok_or(ReferenceError::CounterExhausted)?;
+        let handle = self.begin_reference(ReferenceRequest {
+            stamp,
+            joint: joint.trim().to_owned(),
+            confirmed: true,
+            sign_verified,
+        })?;
+        self.reference_owner.pending_commit = Some(PendingCommit {
+            acquisition: handle.clone(),
+            audit,
+        });
+        Ok(handle)
+    }
+
+    /// Operator receipt for one request: acquisition, durable commit and the
+    /// consumer's selection. `Current` reflects present permission, not history.
+    pub fn reference_outcome(
+        &self,
+        handle: &ReferenceHandle,
+    ) -> Result<ReferenceOutcome, ReferenceError> {
+        if self
+            .reference_snapshot()
+            .handle
+            .is_some_and(|live| live == *handle && self.acquisition_busy())
+            || self
+                .reference_owner
+                .pending_commit
+                .as_ref()
+                .is_some_and(|pending| pending.acquisition == *handle)
+        {
+            return Ok(ReferenceOutcome::InProgress);
+        }
+        if let Some(message) = self.reference_owner.request_failure(handle) {
+            return Ok(ReferenceOutcome::Failed {
+                message: message.to_owned(),
+            });
+        }
+        let stage = self.stage_for_commit(handle)?;
+        let terminal = stage.terminal_ref();
+        if terminal.cause != ReferenceCause::EvidenceStaged {
+            return Ok(ReferenceOutcome::Failed {
+                message: format!("acquisition ended {:?}", terminal.cause),
+            });
+        }
+        let Some(entry) = self.reference_commits.entry_for_acquisition(handle) else {
+            return Ok(ReferenceOutcome::Failed {
+                message: "staged evidence was not committed".into(),
+            });
+        };
+        let snapshot = self
+            .reference_commit_snapshot(&entry.handle.clone())
+            .map_err(|_| ReferenceError::OutcomeExpired)?;
+        Ok(match snapshot.phase {
+            ReferenceCommitPhase::Pending => ReferenceOutcome::InProgress,
+            _ if snapshot.usable_reference => ReferenceOutcome::Current {
+                position_rad: stage.evidence_position_rad().unwrap_or(f32::NAN),
+            },
+            phase => ReferenceOutcome::Failed {
+                message: format!(
+                    "commit {phase:?}; journal {:?}; eligibility {:?}",
+                    snapshot.journal, snapshot.eligibility
+                ),
+            },
+        })
     }
     pub fn close_reference_journal_admission(&self) {
         if let Some(journal) = &self.reference_commits.journal {

@@ -15,12 +15,15 @@
 //! - Comm watchdog: stale feedback → [`DavoutError::CommWatchdog`].
 //! - Persistent [`SafetySnapshot`]: device/runtime faults survive pose replacement, disable and replay.
 //! - Private current-reference authority: history, cached pose and public scalar verification
-//!   cannot authorize Ready, scoped Enable or motion. Physical acquisition is unsupported.
+//!   cannot authorize Ready, scoped Enable or motion.
 //! - Closed [`simulation::SimulationBus`] INITIAL virtual fixtures share admission/output logic;
 //!   they do not qualify reference acquisition, SetZero correlation or persistence ordering.
-//! - [`Supervisor::begin_reference`] / [`Supervisor::advance_reference`]: a separately
-//!   qualified closed virtual transaction stages correlated evidence and owns bounded
-//!   cleanup. It cannot grant motion; physical acquisition remains unavailable.
+//! - [`Supervisor::begin_reference`] / [`Supervisor::advance_reference`]: bounded owner
+//!   acquisition with mandatory cleanup. The sealed virtual backend stages correlated
+//!   virtual evidence; the explicit physical owner
+//!   ([`Supervisor::from_repo_with_physical_reference`], ADR 0036) stages Robstride
+//!   evidence: type-0 MCU identity, a type-2 ack popped after the addressed SetZero and a
+//!   requested type-17 `mechPos` readback within tolerance. Neither grants motion.
 //! - Retained matched evidence and [`ReferenceStageStatus`]: live inspection of
 //!   owner/device/model/policy/stop continuity after cleanup, distinct from an
 //!   immutable unusable acquisition terminal. No stage diagnostic grants output.
@@ -30,6 +33,10 @@
 //! - Explicit current-consuming virtual owners may select the acquired joint after real
 //!   durable completion and fresh continuity checks. Its private lifetime binds actual
 //!   model/device continuity independently of transaction deadlines and diagnostic caches.
+//! - Physical owners accumulate per-joint grants. Each binds the acquisition's MCU
+//!   identifier and coordinate epoch; identity change or absence at Enable, coordinate
+//!   discontinuity, Calibration mode, or silence beyond `comm_watchdog_ms` outside owner
+//!   reference work revokes that joint. Fault/E-stop/uncertain stop revokes all.
 //! - [`Supervisor::disable_all`]: all-address best-effort stop with honest delivery evidence.
 //! - [`refresh_feedback`]: blocking poll up to `feedback_poll_budget_us` (REPL / set-zero).
 //! - [`drain_feedback`]: non-blocking RX queue drain (Berthier control loop).
@@ -83,13 +90,14 @@ mod reference_journal_event;
 #[cfg(test)]
 mod reference_journal_tests;
 mod reference_model;
+mod reference_physical;
 mod reference_transaction;
 mod reference_urdf_codec;
 pub mod simulation;
 
 pub use reference_commit::{
     ReferenceAudit, ReferenceCommitError, ReferenceCommitHandle, ReferenceCommitPhase,
-    ReferenceCommitSnapshot,
+    ReferenceCommitSnapshot, ReferenceOutcome,
 };
 pub use reference_journal::{ReferenceJournalDrain, ReferenceJournalError, ReferenceJournalResult};
 pub use reference_journal_event::ReferenceHistoryRecord;
@@ -282,6 +290,25 @@ fn map_lease_error(err: ActiveReportingLeaseError) -> DavoutError {
     }
 }
 
+/// Synchronous calibration waits beyond the acquisition deadline only for the
+/// durable commit and its fresh consumption.
+const CALIBRATION_COMMIT_GRACE: Duration = Duration::from_secs(10);
+/// Synchronous calibration yields between bounded owner advances.
+const CALIBRATION_POLL: Duration = Duration::from_millis(2);
+
+fn reference_error(joint: &str, error: ReferenceError) -> DavoutError {
+    match error {
+        ReferenceError::Admission(error) => error,
+        ReferenceError::Unsupported => DavoutError::ReferenceUnsupported {
+            operation: "reference calibration",
+        },
+        other => DavoutError::HomingVerify {
+            joint: joint.to_owned(),
+            message: other.to_string(),
+        },
+    }
+}
+
 const FEEDBACK_VELOCITY_LIMIT_TRIPS: u8 = 3;
 /// Measured (position-derived) speed must exceed `limit + margin` before tripping.
 /// Absorbs encoder quantization and planner cruise at the nominal cap without disabling.
@@ -334,7 +361,6 @@ pub struct Supervisor<B: MotorBus> {
     reference_authority: ReferenceAuthority,
     reference_owner: reference_transaction::ReferenceOwner<B>,
     reference_commits: reference_commit::CommitOwner,
-    reference_realm_matches: Option<fn(&B, &Arc<()>) -> bool>,
     /// Installed routes remain stop targets even if a caller corrupts public policy.
     stop_motors: Arc<[MotorEntry]>,
     /// Routing keys for `motors.motors`; each use revalidates against the public entry.
@@ -386,6 +412,82 @@ impl<B: MotorBus> Supervisor<B> {
         )
     }
 
+    /// Physical owner with the qualified Robstride reference workflow (ADR 0036):
+    /// type-0 identity, target-only arming, SetZero, type-2 ack, type-17 `mechPos`
+    /// readback, stop before storage, durable journal and per-joint selection.
+    /// Every startup is Unreferenced; history and the journal never grant.
+    ///
+    /// `MARENGO_CALIBRATION_RECORD` overrides the history path as in [`Self::from_repo`].
+    /// `journal_path` must be absolute and distinct from that history; resource
+    /// errors return before startup diagnostic traffic is transmitted.
+    pub fn from_repo_with_physical_reference(
+        repo_root: impl AsRef<Path>,
+        bus: B,
+        journal_path: impl AsRef<Path>,
+    ) -> Result<Self, DavoutError> {
+        let record_path = std::env::var_os("MARENGO_CALIBRATION_RECORD").map(PathBuf::from);
+        Self::from_repo_physical_inner(repo_root.as_ref(), bus, record_path, journal_path.as_ref())
+    }
+
+    /// [`Self::from_repo_with_physical_reference`] with an explicit history path.
+    pub fn from_repo_with_physical_reference_and_record_path(
+        repo_root: impl AsRef<Path>,
+        bus: B,
+        record_path: impl AsRef<Path>,
+        journal_path: impl AsRef<Path>,
+    ) -> Result<Self, DavoutError> {
+        Self::from_repo_physical_inner(
+            repo_root.as_ref(),
+            bus,
+            Some(record_path.as_ref().to_owned()),
+            journal_path.as_ref(),
+        )
+    }
+
+    fn from_repo_physical_inner(
+        root: &Path,
+        bus: B,
+        record_path: Option<PathBuf>,
+        journal: &Path,
+    ) -> Result<Self, DavoutError> {
+        let (mut owner, record) =
+            Self::build_unsynced(root, &resolve_config_dir(root), bus, record_path)?;
+        reference_journal::distinct_history_path(&record, journal).map_err(|error| {
+            DavoutError::Homing {
+                message: error.to_string(),
+            }
+        })?;
+        let journal = reference_journal::Journal::spawn(
+            journal.to_owned(),
+            #[cfg(any(test, feature = "reference-journal-test-support"))]
+            None,
+        )
+        .map_err(|error| DavoutError::Homing {
+            message: error.to_string(),
+        })?;
+        let mut installed = Vec::with_capacity(owner.stop_motors.len());
+        for motor in owner.stop_motors.iter() {
+            let gear = motor_position_scale(motor)?.abs();
+            let ranges = robstride::motor_type::MitRanges::for_motor_type(motor.motor_type);
+            installed.push((
+                MotorAddress::from(motor),
+                reference_physical::ContinuityBounds {
+                    max_rate_rad_s: f64::from(ranges.velocity_scale) / gear,
+                    quantization_rad: 2.0 * ranges.feedback_position_step() / gear,
+                },
+            ));
+        }
+        owner
+            .reference_commits
+            .install(journal, reference_commit::CommitSelection::CurrentPhysical);
+        owner.reference_owner.install_physical(
+            reference_physical::PhysicalBackend::new(),
+            reference_physical::PhysicalDevices::new(installed),
+        );
+        owner.sync_active_reporting();
+        Ok(owner)
+    }
+
     fn from_repo_inner(
         root: &Path,
         bus: B,
@@ -400,6 +502,21 @@ impl<B: MotorBus> Supervisor<B> {
         bus: B,
         record_path: Option<PathBuf>,
     ) -> Result<Self, DavoutError> {
+        let (mut supervisor, _) = Self::build_unsynced(root, config_dir, bus, record_path)?;
+        // Arm type-24 when configured so free-drive Set Limits can see motion while
+        // limp (Disabled/Ready). MIT Active still turns reporting off in sync below.
+        supervisor.sync_active_reporting();
+        Ok(supervisor)
+    }
+
+    /// Load and validate every resource without transmitting. Returns the owner
+    /// and its resolved calibration history path.
+    fn build_unsynced(
+        root: &Path,
+        config_dir: &Path,
+        bus: B,
+        record_path: Option<PathBuf>,
+    ) -> Result<(Self, PathBuf), DavoutError> {
         let mut robot = load_robot_config_from(config_dir)?;
         let mut motors = load_motors_config_from(config_dir)?;
         let mut control = load_control_config_from(config_dir)?;
@@ -418,7 +535,7 @@ impl<B: MotorBus> Supervisor<B> {
         let record_path =
             record_path.unwrap_or_else(|| root.join(&homing_config.homing.calibration_record_path));
         let homing = HomingRegistry::with_record_path(
-            record_path,
+            record_path.clone(),
             homing_joints,
             homing_config.homing.zero_verify_tolerance_rad,
         )
@@ -436,7 +553,7 @@ impl<B: MotorBus> Supervisor<B> {
             .map(|m| (MotorAddress::from(m), m.motor_type))
             .collect();
         let motor_addresses = motors.motors.iter().map(MotorAddress::from).collect();
-        let mut supervisor = Self {
+        let supervisor = Self {
             mode: OperationalMode::Disabled,
             control_mode: ControlMode::Disabled,
             hardware_estop: false,
@@ -456,7 +573,6 @@ impl<B: MotorBus> Supervisor<B> {
             reference_authority: ReferenceAuthority::default(),
             reference_owner: reference_transaction::ReferenceOwner::default(),
             reference_commits: reference_commit::CommitOwner::default(),
-            reference_realm_matches: None,
             motor_types,
             bus,
             motor_states: FxHashMap::default(),
@@ -472,10 +588,7 @@ impl<B: MotorBus> Supervisor<B> {
             last_refresh_frames: 0,
             active_joints: HashSet::new(),
         };
-        // Arm type-24 when configured so free-drive Set Limits can see motion while
-        // limp (Disabled/Ready). MIT Active still turns reporting off in sync below.
-        supervisor.sync_active_reporting();
-        Ok(supervisor)
+        Ok((supervisor, record_path))
     }
 
     /// Frames received in the last [`Self::refresh_feedback`] call (0 if none or timeout).
@@ -723,15 +836,18 @@ impl<B: MotorBus> Supervisor<B> {
         })
     }
 
-    /// Legacy calibration validates target/method/sign, then refuses unqualified
-    /// acquisition before any arming, SetZero or persistence.
+    /// Synchronous qualified calibration for one-shot callers (`motor-repl set-zero`).
+    /// Validates target/method/sign first, then drives the owner's own acquisition,
+    /// durable commit and consumption to a terminal outcome. Owners without a
+    /// current-selecting backend refuse before arming, SetZero or persistence.
+    /// The resulting permission belongs to this owner and ends with it.
     ///
     /// Refuses when already [`OperationalMode::Active`] so success cannot
     /// `disable_all` out from under GravityComp / hold.
     pub fn calibrate_joint_zero(
         &mut self,
         joint: &str,
-        _operator: &str,
+        operator: &str,
         sign_test_passed: bool,
     ) -> Result<f64, DavoutError> {
         self.require_fault_clear()?;
@@ -742,9 +858,52 @@ impl<B: MotorBus> Supervisor<B> {
                 message: "set-zero refused while ACTIVE; disable motors first".into(),
             });
         }
-        Err(DavoutError::ReferenceUnsupported {
-            operation: "reference calibration",
-        })
+        if !self.reference_commits.selects_current() || !self.reference_owner.has_backend() {
+            return Err(DavoutError::ReferenceUnsupported {
+                operation: "reference calibration",
+            });
+        }
+        let audit = ReferenceAudit {
+            operator: operator.to_owned(),
+            session: format!("calibrate-{}", std::process::id()),
+        };
+        let homing_timeout = self
+            .homing_config
+            .homing
+            .effective_joint(joint)
+            .and_then(|policy| Duration::try_from_secs_f64(policy.search_timeout_s).ok())
+            .unwrap_or(Duration::ZERO);
+        let handle = self
+            .request_reference(joint, sign_test_passed, audit)
+            .map_err(|error| reference_error(joint, error))?;
+        let deadline = Instant::now() + homing_timeout + CALIBRATION_COMMIT_GRACE;
+        loop {
+            self.advance_reference_work()
+                .map_err(|error| DavoutError::HomingVerify {
+                    joint: joint.to_owned(),
+                    message: error.to_string(),
+                })?;
+            match self
+                .reference_outcome(&handle)
+                .map_err(|error| reference_error(joint, error))?
+            {
+                ReferenceOutcome::Current { position_rad } => return Ok(f64::from(position_rad)),
+                ReferenceOutcome::Failed { message } => {
+                    return Err(DavoutError::HomingVerify {
+                        joint: joint.to_owned(),
+                        message,
+                    })
+                }
+                ReferenceOutcome::InProgress if Instant::now() >= deadline => {
+                    let _ = self.disable_all();
+                    return Err(DavoutError::HomingVerify {
+                        joint: joint.to_owned(),
+                        message: "reference workflow did not finish before its deadline".into(),
+                    });
+                }
+                ReferenceOutcome::InProgress => std::thread::sleep(CALIBRATION_POLL),
+            }
+        }
     }
 
     /// Current reference generation, distinct from ordinary motion-stop generation.
@@ -771,13 +930,10 @@ impl<B: MotorBus> Supervisor<B> {
             self.reference_authority.revoke();
             return false;
         }
-        let realm_matches = match (
-            self.reference_authority.realm(),
-            self.reference_realm_matches,
-        ) {
-            (Some(realm), Some(matches)) => matches(&self.bus, realm),
-            _ => false,
-        };
+        let realm_matches = self
+            .reference_authority
+            .realm()
+            .is_some_and(|realm| self.reference_owner.realm_matches(&self.bus, realm));
         if !realm_matches {
             if self.reference_authority.realm().is_some() {
                 self.reference_authority.revoke();
@@ -787,17 +943,39 @@ impl<B: MotorBus> Supervisor<B> {
         if !self
             .reference_authority
             .validate_consumed_model(&self.installed_model)
-            || self
-                .reference_authority
-                .consumed_binding()
-                .is_some_and(|binding| {
-                    self.reference_owner
-                        .current_device_epoch(&self.bus, &binding.address)
-                        != Some(binding.device_epoch)
-                })
         {
             self.reference_authority.revoke();
             return false;
+        }
+        // Physical grants are per joint: a device that changed identity,
+        // coordinate continuity or went silent beyond the watchdog loses only
+        // its own grant (ADR 0036). A virtual device epoch change revokes all.
+        let physical = self.reference_owner.is_physical();
+        let window = Duration::from_millis(self.control.control.comm_watchdog_ms);
+        let owner_busy = self.acquisition_busy()
+            || self.reference_commits.busy()
+            || self.reference_owner.pending_commit.is_some();
+        for binding in self.reference_authority.consumed_bindings() {
+            if binding.is_revoked() {
+                continue;
+            }
+            let current = self.reference_owner.live_device_epoch(
+                &self.bus,
+                &binding.address,
+                window,
+                owner_busy,
+            );
+            let identity_holds = !physical
+                || binding.uid.is_some()
+                    && self.reference_owner.physical.uid(&binding.address) == binding.uid;
+            if current != Some(binding.device_epoch) || !identity_holds {
+                if physical {
+                    self.reference_authority.revoke_binding(binding);
+                } else {
+                    self.reference_authority.revoke();
+                    return false;
+                }
+            }
         }
         self.reference_authority
             .validate_binding(&self.motors, &self.homing_config, &self.control)
@@ -809,9 +987,14 @@ impl<B: MotorBus> Supervisor<B> {
     }
 
     /// [`Self::ensure_reference_for`] over the current active set, without copying it.
+    /// A physical joint that lost its own grant stops the whole active session.
     fn ensure_reference_for_active(&mut self) -> Result<(), DavoutError> {
         self.ensure_reference_binding()?;
-        self.require_reference_permission(&self.active_joints)
+        let result = self.require_reference_permission(&self.active_joints);
+        if result.is_err() && self.mode == OperationalMode::Active {
+            let _ = self.disable_all();
+        }
+        result
     }
 
     fn ensure_reference_binding(&mut self) -> Result<(), DavoutError> {
@@ -821,7 +1004,14 @@ impl<B: MotorBus> Supervisor<B> {
             if self.mode == OperationalMode::Active {
                 let _ = self.disable_all();
             }
-            return Err(DavoutError::Homing { message: "current reference is unavailable or permanently revoked; qualified acquisition is unsupported".into() });
+            let message = if self.reference_owner.has_backend() {
+                "current reference is unavailable or permanently revoked; acquire a qualified reference for each joint first"
+            } else {
+                "current reference is unavailable or permanently revoked; this owner has no qualified acquisition capability"
+            };
+            return Err(DavoutError::Homing {
+                message: message.into(),
+            });
         }
         Ok(())
     }
@@ -1216,6 +1406,9 @@ impl<B: MotorBus> Supervisor<B> {
     fn enable_targets_inner(&mut self, joints: &[String]) -> Result<(), DavoutError> {
         self.require_fault_clear()?;
         self.ensure_reference_for(joints)?;
+        // Physical admission re-reads every target's MCU identifier before any
+        // enable write (ADR 0036); a changed or missing identity revokes it.
+        self.verify_physical_identities(joints)?;
         // Status has no command-generation field. Drain already queued traffic
         // before activation; only later received poses may authorize this session.
         self.poll_feedback(Duration::ZERO)?;
@@ -1263,6 +1456,74 @@ impl<B: MotorBus> Supervisor<B> {
         result
     }
 
+    /// Type-0 round trip for each physical target, bounded by
+    /// [`reference_physical::IDENTITY_ADMISSION_TIMEOUT`]. No enable frame is sent
+    /// unless every target answers with the identifier its grant bound.
+    fn verify_physical_identities(&mut self, joints: &[String]) -> Result<(), DavoutError> {
+        if !self.reference_owner.is_physical() {
+            return Ok(());
+        }
+        let mut targets = Vec::with_capacity(joints.len());
+        for joint in joints {
+            let binding =
+                self.reference_authority
+                    .binding_for(joint)
+                    .ok_or_else(|| DavoutError::Homing {
+                        message: format!("joint {joint}: no private current-reference permission"),
+                    })?;
+            let uid = binding.uid.ok_or_else(|| DavoutError::HomingVerify {
+                joint: joint.clone(),
+                message: "physical grant has no bound device identity".into(),
+            })?;
+            targets.push((joint.clone(), binding.address.clone(), uid));
+        }
+        let watermark = self.reference_owner.physical.watermark();
+        for (_, address, _) in &targets {
+            self.bus.get_device_id_at(address)?;
+        }
+        let deadline = Instant::now() + reference_physical::IDENTITY_ADMISSION_TIMEOUT;
+        loop {
+            let mut missing = Vec::new();
+            for (joint, address, bound) in &targets {
+                match self
+                    .reference_owner
+                    .physical
+                    .identity_after(address, watermark)
+                {
+                    Some(observed) if observed == *bound => {}
+                    Some(observed) => {
+                        self.reference_authority.revoke_joint(joint);
+                        return Err(DavoutError::HomingVerify {
+                            joint: joint.clone(),
+                            message: format!(
+                                "device identity changed: bound {bound}, observed {observed}"
+                            ),
+                        });
+                    }
+                    None => missing.push(joint),
+                }
+            }
+            if missing.is_empty() {
+                return Ok(());
+            }
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() {
+                for joint in &missing {
+                    self.reference_authority.revoke_joint(joint);
+                }
+                return Err(DavoutError::HomingVerify {
+                    joint: missing
+                        .iter()
+                        .map(|joint| joint.as_str())
+                        .collect::<Vec<_>>()
+                        .join(","),
+                    message: "device identity reply missing at admission".into(),
+                });
+            }
+            self.poll_feedback(remaining.min(reference_physical::IDENTITY_ADMISSION_POLL))?;
+        }
+    }
+
     fn require_active_joint(&self, joint: &str) -> Result<(), DavoutError> {
         self.require_fault_clear()?;
         if self.mode != OperationalMode::Active {
@@ -1299,8 +1560,12 @@ impl<B: MotorBus> Supervisor<B> {
     fn poll_feedback(&mut self, budget: Duration) -> Result<usize, DavoutError> {
         // Observe policy changes before projecting raw pose data. Restoring a
         // public field after this drain must not restore a revoked reference.
-        let lost_active_reference =
-            self.mode == OperationalMode::Active && !self.reference_binding_valid();
+        let lost_active_reference = self.mode == OperationalMode::Active
+            && (!self.reference_binding_valid()
+                || self
+                    .active_joints
+                    .iter()
+                    .any(|joint| !self.reference_authority.contains(joint)));
         if self.mode != OperationalMode::Active {
             let _ = self.reference_binding_valid();
         }

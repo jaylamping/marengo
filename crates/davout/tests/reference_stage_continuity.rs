@@ -598,7 +598,7 @@ fn rejected_rebuild_observes_live_policy_and_cannot_revive_stage_or_initial_perm
         assert_eq!(case.retry.terminal.as_ref(), Some(&case.acquired.terminal));
         assert_eq!(
             case.fresh.snapshot.staged_evidence,
-            ReferenceStageStatus::CurrentVirtualEvidence
+            ReferenceStageStatus::CurrentEvidence
         );
     }
     println!("REBUILD_OBSERVATION_CONTROLS=complete;cleanup_complete=true;cases=6");
@@ -651,7 +651,7 @@ fn matched_evidence_is_current_only_after_real_cleanup_and_stays_unusable() {
     assert_eq!(before.staged_evidence, ReferenceStageStatus::NoEvidence);
     assert_eq!(
         acquired.steps[5].staged_evidence,
-        ReferenceStageStatus::CurrentVirtualEvidence
+        ReferenceStageStatus::CurrentEvidence
     );
     for step in acquired.steps.iter().take(5) {
         assert_eq!(step.staged_evidence, ReferenceStageStatus::NoEvidence);
@@ -664,13 +664,10 @@ fn matched_evidence_is_current_only_after_real_cleanup_and_stays_unusable() {
     assert!(!later.usable_reference);
     assert_eq!(
         acquired.snapshot.staged_evidence,
-        ReferenceStageStatus::CurrentVirtualEvidence,
+        ReferenceStageStatus::CurrentEvidence,
         "only matched evidence after actual cleanup may be current",
     );
-    assert_eq!(
-        later.staged_evidence,
-        ReferenceStageStatus::CurrentVirtualEvidence
-    );
+    assert_eq!(later.staged_evidence, ReferenceStageStatus::CurrentEvidence);
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -814,10 +811,7 @@ fn successful_model_installs_invalidate_even_after_restore_and_failed_restore_pr
         );
         assert_eq!(case.invalid_model, case.original_model);
         assert_eq!(case.invalid_policy, case.original_policy);
-        assert_eq!(
-            case.invalid_status,
-            ReferenceStageStatus::CurrentVirtualEvidence
-        );
+        assert_eq!(case.invalid_status, ReferenceStageStatus::CurrentEvidence);
         case.install
             .as_ref()
             .expect("actual successful installation");
@@ -836,7 +830,7 @@ fn successful_model_installs_invalidate_even_after_restore_and_failed_restore_pr
             assert_acquisition(fresh);
             assert_eq!(
                 fresh.snapshot.staged_evidence,
-                ReferenceStageStatus::CurrentVirtualEvidence
+                ReferenceStageStatus::CurrentEvidence
             );
         }
     }
@@ -919,15 +913,15 @@ fn observed_terminal_policy_mismatch_is_sticky_and_old_handle_never_uses_newest_
     assert_resources(&resources);
     assert_eq!(
         original.snapshot.staged_evidence,
-        ReferenceStageStatus::CurrentVirtualEvidence
+        ReferenceStageStatus::CurrentEvidence
     );
     assert_eq!(
         fresh.snapshot.staged_evidence,
-        ReferenceStageStatus::CurrentVirtualEvidence
+        ReferenceStageStatus::CurrentEvidence
     );
     assert_eq!(
         newest.snapshot.staged_evidence,
-        ReferenceStageStatus::CurrentVirtualEvidence
+        ReferenceStageStatus::CurrentEvidence
     );
     assert_eq!(
         cancelled.cause,
@@ -938,7 +932,7 @@ fn observed_terminal_policy_mismatch_is_sticky_and_old_handle_never_uses_newest_
     assert_eq!(latest.handle.as_ref(), Some(&newest.handle));
     assert_eq!(
         latest.staged_evidence,
-        ReferenceStageStatus::CurrentVirtualEvidence
+        ReferenceStageStatus::CurrentEvidence
     );
     for observed in [&edited, &restored, &retry] {
         assert_eq!(observed.terminal.as_ref(), Some(&original.terminal));
@@ -1042,7 +1036,7 @@ fn original_deadline_disable_and_shutdown_invalidate_without_rewriting_terminal(
         assert!(case.action_ok, "real {:?} action failed", case.kind);
         assert_eq!(
             case.before.staged_evidence,
-            ReferenceStageStatus::CurrentVirtualEvidence
+            ReferenceStageStatus::CurrentEvidence
         );
         assert_eq!(case.after.terminal.as_ref(), Some(&case.acquired.terminal));
         assert_eq!(
