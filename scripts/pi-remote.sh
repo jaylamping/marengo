@@ -80,7 +80,14 @@ REMOTE
     limit="${1:-15}"
     remote_script "$(cat <<REMOTE
 gw='http://127.0.0.1:8080'
-if curl -sf "\${gw}/logs/sessions?limit=${limit}" >/tmp/m-sessions.json 2>/dev/null; then
+gateway_curl() {
+  if [[ -n "\${MARENGO_GATEWAY_LOG_TOKEN:-}" ]]; then
+    curl -sf -H "x-marengo-log-token: \${MARENGO_GATEWAY_LOG_TOKEN}" "$@"
+  else
+    curl -sf "$@"
+  fi
+}
+if gateway_curl "\${gw}/logs/sessions?limit=${limit}" >/tmp/m-sessions.json 2>/dev/null; then
   echo '=== gateway sessions ==='
   cat /tmp/m-sessions.json
   echo

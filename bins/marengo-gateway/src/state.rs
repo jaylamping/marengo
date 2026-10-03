@@ -22,7 +22,6 @@ pub const TOPIC_IMU_TORSO: &str = "sensors/imu/torso";
 pub const TOPIC_LOGS: &str = "logs/structured";
 pub const TOPIC_HOST_METRICS_PI: &str = "host/metrics/pi";
 pub const TOPIC_HOST_METRICS_JETSON: &str = "host/metrics/jetson";
-pub const TOPIC_TESTING_MIT_COMMAND_BATCH: &str = "robot/testing/mit_command_batch";
 pub const TOPIC_TESTING_TELEMETRY: &str = "robot/testing/telemetry";
 pub const TOPIC_ACTUATOR_LIMITS: &str = "robot/actuator/limits";
 pub const TOPIC_AUDIT_TUNING: &str = "robot/audit/tuning";
@@ -40,7 +39,6 @@ pub const ALLOWED_TOPICS: &[&str] = &[
     TOPIC_LOGS,
     TOPIC_HOST_METRICS_PI,
     TOPIC_HOST_METRICS_JETSON,
-    TOPIC_TESTING_MIT_COMMAND_BATCH,
     TOPIC_TESTING_TELEMETRY,
     TOPIC_ACTUATOR_LIMITS,
     TOPIC_AUDIT_TUNING,
@@ -77,7 +75,25 @@ pub struct AppState {
     /// True while a config persist is pending (restart must wait / refuse).
     persist_pending: AtomicBool,
     runtime_generation: std::sync::atomic::AtomicU64,
+    runtime_connected: AtomicBool,
+    listener_health: RwLock<ListenerHealth>,
+    stream_permits: Arc<tokio::sync::Semaphore>,
 }
+
+#[derive(Clone, Copy, serde::Serialize)]
+pub struct ListenerHealth {
+    pub http: bool,
+    pub https: bool,
+    pub https_required: bool,
+}
+
+impl ListenerHealth {
+    pub fn ready(self) -> bool {
+        self.http && (!self.https_required || self.https)
+    }
+}
+
+const MAX_HTTP_STREAMS: usize = 64;
 
 impl AppState {
     #[cfg(test)]
@@ -91,6 +107,9 @@ impl AppState {
         if let Ok(mut snapshots) = self.snapshots.write() {
             *snapshots = Snapshots::default();
         }
+        // Persist flags are not observations: disconnect is not evidence that
+        // a pending write became durable or that a failed write was repaired.
+        self.runtime_connected.store(connected, Ordering::Relaxed);
         let generation = self.runtime_generation.fetch_add(1, Ordering::Relaxed) + 1;
         let message = armee_proto::RuntimeConnectionState {
             generation,
@@ -127,6 +146,7 @@ impl AppState {
                 "gateway mutations and sensitive streams disabled: no access credential configured"
             );
         }
+        let https_required = https_port.is_some();
         Self {
             access: Arc::new(access.with_robot_https_port(https_port)),
             bus,
@@ -140,7 +160,45 @@ impl AppState {
             persist_degraded: AtomicBool::new(false),
             persist_pending: AtomicBool::new(false),
             runtime_generation: std::sync::atomic::AtomicU64::new(0),
+            runtime_connected: AtomicBool::new(false),
+            listener_health: RwLock::new(ListenerHealth {
+                http: false,
+                https: !https_required,
+                https_required,
+            }),
+            stream_permits: Arc::new(tokio::sync::Semaphore::new(MAX_HTTP_STREAMS)),
         }
+    }
+
+    pub fn runtime_connected(&self) -> bool {
+        self.runtime_connected.load(Ordering::Relaxed)
+    }
+
+    pub fn set_http_listener(&self, listening: bool) {
+        if let Ok(mut health) = self.listener_health.write() {
+            health.http = listening;
+        }
+    }
+
+    pub fn set_https_listener(&self, listening: bool) {
+        if let Ok(mut health) = self.listener_health.write() {
+            health.https = listening;
+        }
+    }
+
+    pub fn listener_health(&self) -> ListenerHealth {
+        self.listener_health
+            .read()
+            .map(|health| *health)
+            .unwrap_or(ListenerHealth {
+                http: false,
+                https: false,
+                https_required: true,
+            })
+    }
+
+    pub fn acquire_http_stream(&self) -> Option<tokio::sync::OwnedSemaphorePermit> {
+        Arc::clone(&self.stream_permits).try_acquire_owned().ok()
     }
 
     pub fn persist_degraded(&self) -> bool {
@@ -400,6 +458,66 @@ mod ipc_snapshot_tests {
         state.runtime_connection_changed(false);
         assert!(state.snapshot_robot_state().is_none());
     }
+
+    #[test]
+    fn reconnect_does_not_clear_unresolved_persist_flags() {
+        use armee_proto::{ActionEvent, PersistStatus};
+
+        fn action_frame(status: PersistStatus) -> Vec<u8> {
+            Envelope {
+                timestamp_ms: 1,
+                source_node: "pi".into(),
+                message_type: "marengo.v1.ActionEvent".into(),
+                payload: ActionEvent {
+                    timestamp_ms: 1,
+                    session_id: "session".into(),
+                    operator_id: "operator".into(),
+                    joint: "right_elbow_pitch".into(),
+                    action: "limit_patch".into(),
+                    revision: 1,
+                    accepted: true,
+                    reject_reason: String::new(),
+                    persist_status: status as i32,
+                    config_revision: "revision".into(),
+                }
+                .encode_to_vec(),
+            }
+            .encode_to_vec()
+        }
+
+        let state = AppState::new(Arc::new(Bus::default()));
+        state.ingest_runtime_frame(
+            TOPIC_AUDIT_ACTION.into(),
+            action_frame(PersistStatus::Pending),
+        );
+        assert!(state.persist_pending());
+        state.runtime_connection_changed(false);
+        state.runtime_connection_changed(true);
+        assert!(state.persist_pending());
+
+        state.ingest_runtime_frame(
+            TOPIC_AUDIT_ACTION.into(),
+            action_frame(PersistStatus::Failed),
+        );
+        assert!(state.persist_degraded());
+        state.runtime_connection_changed(false);
+        state.runtime_connection_changed(true);
+        assert!(state.persist_degraded());
+
+        state.ingest_runtime_frame(
+            TOPIC_AUDIT_ACTION.into(),
+            action_frame(PersistStatus::Durable),
+        );
+        assert!(!state.persist_pending());
+        assert!(!state.persist_degraded());
+    }
+
+    #[test]
+    fn testing_mit_command_is_not_a_subscribable_runtime_topic() {
+        let topic = "robot/testing/mit_command_batch";
+        assert!(!topic_allowed(topic));
+        assert!(filter_topics(&[topic.into()]).is_empty());
+    }
 }
 
 #[cfg(test)]
@@ -437,5 +555,20 @@ mod runtime_transition_stream_tests {
             .await
             .expect_err("owned stream task cancelled")
             .is_cancelled());
+    }
+
+    #[test]
+    fn listener_health_requires_bound_http_and_required_https() {
+        let state = AppState::new_with_https_port(Arc::new(Bus::default()), Some(8444));
+        assert!(!state.listener_health().ready());
+        state.set_http_listener(true);
+        assert!(!state.listener_health().ready());
+        state.set_https_listener(true);
+        assert!(state.listener_health().ready());
+        state.set_https_listener(false);
+        assert!(!state.listener_health().ready());
+        state.set_https_listener(true);
+        state.set_http_listener(false);
+        assert!(!state.listener_health().ready());
     }
 }

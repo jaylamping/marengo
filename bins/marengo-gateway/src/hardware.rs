@@ -21,9 +21,9 @@ use marengo_config::{
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::restart::{now_ms, refuse_active_fresh, HEARTBEAT_FRESH_MS};
-use crate::state::SharedState;
+use crate::restart::{now_ms, refuse_unsafe_management_state, HEARTBEAT_FRESH_MS};
 
+use crate::state::SharedState;
 const LIVE_URDF_REL: &str = "marengo.urdf";
 const CONTRIBUTOR_NAME: &str = "contributor.urdf";
 const REPLACED_ACTIVE_NAME: &str = "replaced_active.urdf";
@@ -227,12 +227,26 @@ pub async fn post_activate(
     let upload_id = validate_upload_id(&body.upload_id)?;
     let mode = state.snapshot_safety().map(|s| s.mode);
     let heartbeat_ts_ms = state.snapshot_heartbeat().map(|h| h.timestamp_ms);
-    if refuse_active_fresh(mode, heartbeat_ts_ms, now_ms(), HEARTBEAT_FRESH_MS) {
+    if refuse_unsafe_management_state(mode, heartbeat_ts_ms, now_ms(), HEARTBEAT_FRESH_MS) {
         return Ok((
             StatusCode::CONFLICT,
             Json(ActivateUrdfResultJson {
                 ok: false,
-                message: "urdf activate refused while operational mode Active".to_string(),
+                message: "urdf activate refused: require a known, fresh non-Active runtime state"
+                    .to_string(),
+                checksum_sha256: String::new(),
+                completeness: CompletenessReport { warnings: vec![] },
+                restart_required: false,
+            }),
+        ));
+    }
+    if state.persist_pending() || state.persist_degraded() {
+        return Ok((
+            StatusCode::CONFLICT,
+            Json(ActivateUrdfResultJson {
+                ok: false,
+                message: "urdf activate refused while config write-behind is pending or degraded"
+                    .to_string(),
                 checksum_sha256: String::new(),
                 completeness: CompletenessReport { warnings: vec![] },
                 restart_required: false,

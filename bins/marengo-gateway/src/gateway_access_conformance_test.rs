@@ -76,7 +76,6 @@ async fn all_protected_routes_refuse_before_body_files_publication_or_subscripti
         "robot/actuator/command",
         "robot/motor_status_poll",
         "robot/active_reporting_lease",
-        "robot/limits/patch",
     ]
     .iter()
     .map(|topic| bus.subscribe(topic))
@@ -92,6 +91,9 @@ async fn all_protected_routes_refuse_before_body_files_publication_or_subscripti
         ("GET", "/logs/sessions/fixture/candump/summary", 503),
         ("GET", "/logs/sessions/fixture/download?type=bench", 503),
         ("GET", "/logs/structured", 503),
+        ("GET", "/config/snapshot", 503),
+        ("GET", "/hardware/completeness", 500),
+        ("GET", "/hardware/commissioning-scope", 200),
         ("GET", "/settings", 503),
         ("GET", "/hardware/urdf/archive", 200),
         ("POST", "/config/patch", 400),
@@ -195,7 +197,7 @@ async fn role_matrix_and_body_limits_preserve_independent_admission() {
     let roles = [
         (Control, "/command/enable"),
         (Calibration, "/command/set_zero"),
-        (Configuration, "/config/patch"),
+        (Configuration, "/config/snapshot"),
         (Management, "/control/deploy"),
         (SensitiveRead, "/logs/structured"),
     ];
@@ -208,11 +210,13 @@ async fn role_matrix_and_body_limits_preserve_independent_admission() {
                 .clone()
                 .oneshot(
                     Request::builder()
-                        .method(if path.starts_with("/logs/") {
-                            "GET"
-                        } else {
-                            "POST"
-                        })
+                        .method(
+                            if path.starts_with("/logs/") || path == "/config/snapshot" {
+                                "GET"
+                            } else {
+                                "POST"
+                            },
+                        )
                         .uri(path)
                         .header("authorization", format!("Bearer {TOKEN}"))
                         .header("content-type", "application/json")
@@ -223,7 +227,7 @@ async fn role_matrix_and_body_limits_preserve_independent_admission() {
                 .expect("response");
             let expected = if path != own_path {
                 403
-            } else if role as u8 == SensitiveRead as u8 {
+            } else if path == "/config/snapshot" || role as u8 == SensitiveRead as u8 {
                 503
             } else {
                 400
@@ -235,6 +239,26 @@ async fn role_matrix_and_body_limits_preserve_independent_admission() {
                 role as u8
             );
         }
+    }
+    for role in [Control, Configuration] {
+        let policy = AccessPolicy::role_fixture(TOKEN, role).expect("scoped grant");
+        let app = crate::http::router(
+            Arc::new(AppState::new(Arc::new(Bus::default())).with_access(policy)),
+            None,
+        );
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/config/patch")
+                    .header("authorization", format!("Bearer {TOKEN}"))
+                    .header("content-type", "application/json")
+                    .body(Body::from(vec![0xff]))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
     }
     let state = Arc::new(
         AppState::new(Arc::new(Bus::default()))

@@ -19,7 +19,7 @@ export function deployReadyCheckScript(expectedRevPrefix: string): string {
     'echo "deploy-rev=${REV}"',
     `case "$REV" in ${prefix}*) ;; *) echo "rev mismatch (want prefix ${prefix})"; exit 10;; esac`,
     "systemctl is-active --quiet marengo-gateway || { echo 'marengo-gateway not active'; exit 11; }",
-    'curl -sf "http://127.0.0.1:8080/health" >/dev/null || { echo "gateway /health failed"; exit 12; }',
+    'curl -sf "http://127.0.0.1:8080/health" | python3 -c \'import json,sys; h=json.load(sys.stdin); sys.exit(0 if h.get("ok") is True and h.get("listeners", {}).get("http") is True and (h.get("listeners", {}).get("https_required") is not True or h.get("listeners", {}).get("https") is True) else 1)\' || { echo "gateway listeners are not ready"; exit 12; }',
     'test -f "${ROOT}/www/index.html" || { echo "missing ${ROOT}/www/index.html"; exit 13; }',
     "echo ready",
   ].join("\n");

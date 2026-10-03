@@ -43,20 +43,29 @@ pub(crate) fn now_ms() -> u64 {
         .unwrap_or(0)
 }
 
-/// Refuse when mode is Active and heartbeat timestamp is fresh.
-pub fn refuse_active_fresh(
+/// Refuse management mutation unless mode and heartbeat are both known and fresh.
+pub fn refuse_unsafe_management_state(
     mode: Option<i32>,
     heartbeat_ts_ms: Option<u64>,
     now: u64,
     fresh_ms: u64,
 ) -> bool {
-    if mode != Some(OperationalMode::Active as i32) {
-        return false;
-    }
-    let Some(ts) = heartbeat_ts_ms else {
-        return false;
+    let Some(mode) = mode.and_then(|value| OperationalMode::try_from(value).ok()) else {
+        return true;
     };
-    now.saturating_sub(ts) <= fresh_ms
+    if !matches!(
+        mode,
+        OperationalMode::Disabled | OperationalMode::Ready | OperationalMode::Active
+    ) {
+        return true;
+    }
+    let Some(timestamp) = heartbeat_ts_ms else {
+        return true;
+    };
+    let Some(age) = now.checked_sub(timestamp) else {
+        return true;
+    };
+    age > fresh_ms || mode == OperationalMode::Active
 }
 
 pub fn resolve_restart_script() -> PathBuf {
@@ -85,28 +94,33 @@ pub async fn post_restart_marengo_pi(
 
     let mode = state.snapshot_safety().map(|s| s.mode);
     let hb_ts = state.snapshot_heartbeat().map(|h| h.timestamp_ms);
-    if refuse_active_fresh(mode, hb_ts, now_ms(), HEARTBEAT_FRESH_MS) {
+    if refuse_unsafe_management_state(mode, hb_ts, now_ms(), HEARTBEAT_FRESH_MS) {
         warn!(
             ?mode,
             ?hb_ts,
-            "restart refused: operational mode Active with fresh heartbeat"
+            "restart refused: mode or heartbeat is unknown/stale, or motors are Active"
         );
         return Ok((
             StatusCode::CONFLICT,
             Json(RestartMarengoPiResultJson {
                 ok: false,
-                message: "motors are ACTIVE — disable before restarting marengo-pi".to_string(),
+                message: "restart refused: require a known, fresh non-Active runtime state"
+                    .to_string(),
             }),
         ));
     }
 
-    if state.persist_pending() {
-        warn!("restart refused: config persist queue still pending");
+    if state.persist_pending() || state.persist_degraded() {
+        warn!(
+            pending = state.persist_pending(),
+            degraded = state.persist_degraded(),
+            "restart refused: config persist is pending or degraded"
+        );
         return Ok((
             StatusCode::CONFLICT,
             Json(RestartMarengoPiResultJson {
                 ok: false,
-                message: "config write-behind still pending — wait for durable ACK before restart"
+                message: "config write-behind is pending or failed — resolve it before restart"
                     .to_string(),
             }),
         ));
@@ -286,32 +300,32 @@ mod tests {
     }
 
     #[test]
-    fn refuse_active_only_when_heartbeat_fresh() {
+    fn management_state_requires_fresh_valid_disabled_or_ready_evidence() {
         let now = 100_000;
-        assert!(refuse_active_fresh(
-            Some(OperationalMode::Active as i32),
-            Some(now - 1_000),
-            now,
-            HEARTBEAT_FRESH_MS
-        ));
-        assert!(!refuse_active_fresh(
-            Some(OperationalMode::Active as i32),
-            Some(now - 10_000),
-            now,
-            HEARTBEAT_FRESH_MS
-        ));
-        assert!(!refuse_active_fresh(
-            Some(OperationalMode::Active as i32),
-            None,
-            now,
-            HEARTBEAT_FRESH_MS
-        ));
-        assert!(!refuse_active_fresh(
-            Some(OperationalMode::Ready as i32),
-            Some(now),
-            now,
-            HEARTBEAT_FRESH_MS
-        ));
+        for mode in [OperationalMode::Disabled, OperationalMode::Ready] {
+            assert!(!refuse_unsafe_management_state(
+                Some(mode as i32),
+                Some(now),
+                now,
+                HEARTBEAT_FRESH_MS
+            ));
+        }
+        for (mode, heartbeat) in [
+            (Some(OperationalMode::Active as i32), Some(now)),
+            (Some(OperationalMode::Active as i32), Some(now - 30_000)),
+            (Some(OperationalMode::Ready as i32), None),
+            (Some(OperationalMode::Ready as i32), Some(now - 30_000)),
+            (Some(OperationalMode::Ready as i32), Some(now + 1)),
+            (Some(99), Some(now)),
+            (None, Some(now)),
+        ] {
+            assert!(refuse_unsafe_management_state(
+                mode,
+                heartbeat,
+                now,
+                HEARTBEAT_FRESH_MS
+            ));
+        }
     }
 
     #[tokio::test]
@@ -360,22 +374,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn restart_allows_active_with_stale_heartbeat_via_stub() {
+    async fn restart_refuses_active_with_stale_heartbeat() {
         let _env = lock_test_env();
         std::env::set_var("MARENGO_GATEWAY_LOG_TOKEN", TOKEN);
-        let dir = tempfile::tempdir().expect("tempdir");
-        let stub_path = dir.path().join("restart-stub.sh");
-        std::fs::write(&stub_path, "#!/bin/sh\necho RESTART_OK\nexit 0\n").expect("write");
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let mut perms = std::fs::metadata(&stub_path).expect("meta").permissions();
-            perms.set_mode(0o755);
-            std::fs::set_permissions(&stub_path, perms).expect("chmod");
-        }
-        std::env::set_var("MARENGO_RESTART_MARENGO_PI_SCRIPT", &stub_path);
-        std::env::set_var("MARENGO_RESTART_SKIP_SUDO", "1");
-
         let now = now_ms();
         let state = state_with_safety(OperationalMode::Active, Some(now.saturating_sub(30_000)));
         let app = router(state);
@@ -391,22 +392,8 @@ mod tests {
             )
             .await
             .expect("response");
-        let status = res.status();
-        let body = axum::body::to_bytes(res.into_body(), 64 * 1024)
-            .await
-            .expect("body");
-        assert_eq!(
-            status,
-            StatusCode::OK,
-            "body={}",
-            String::from_utf8_lossy(&body)
-        );
-        let parsed: RestartMarengoPiResultJson = serde_json::from_slice(&body).expect("json");
-        assert!(parsed.ok);
-
+        assert_eq!(res.status(), StatusCode::CONFLICT);
         std::env::remove_var("MARENGO_GATEWAY_LOG_TOKEN");
-        std::env::remove_var("MARENGO_RESTART_MARENGO_PI_SCRIPT");
-        std::env::remove_var("MARENGO_RESTART_SKIP_SUDO");
     }
 
     #[tokio::test]
