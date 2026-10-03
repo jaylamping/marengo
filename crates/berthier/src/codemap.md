@@ -26,7 +26,10 @@ Implementation modules for the Berthier realtime control loop and legacy single-
 3. `dynamics_model.gravity_torques(&q)` → τ_g
 4. Mode branch: gravity-only / impedance / position / torque
 5. `supervisor.send_mit_batch(commands)`
-6. Optional `publish_robot_state(chappe_bus)`
+6. Optional `publish_robot_state(chappe_bus)` — failures are counted
+   (`telemetry_failures`) and logged, never propagated as tick errors.
+   Tick wall-time overruns against the loop period are counted
+   (`tick_overruns`) for the 1 Hz diagnostics.
 
 ### Position-hold fuses (`position_hold.rs`)
 Both use a 2000 ms no-progress budget (`POSITION_ASCENT_STALL_FAULT_MS`) and credit progress only on a

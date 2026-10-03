@@ -20,6 +20,6 @@ Inter-process **pub/sub message bus** for protobuf `Envelope` bytes between Pi r
 - **Depends on**: `armee-proto` (Envelope, RobotState, etc.)
 - **Producers**: `marengo-pi` (RobotState, SafetyState, Heartbeat)
 - **Consumers**: `marengo-gateway`, Consul `chappe-client.ts`
-- Topics: `robot/state`, `safety/state`, `heartbeat`, enable/homing/testing commands
+- Topics: canonical constants in `src/topics.rs` (telemetry, log/audit events, gateway→runtime commands)
 
 **Detailed map**: [src/codemap.md](src/codemap.md)

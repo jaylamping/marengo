@@ -6,6 +6,8 @@ mod enable_gate_tests;
 mod host_metrics;
 #[cfg(all(target_os = "linux", feature = "linux-i2c"))]
 mod imu;
+#[cfg(test)]
+mod ipc_wiring_tests;
 mod limit_persist;
 mod motion_owner;
 #[cfg(test)]
@@ -1433,14 +1435,22 @@ fn main() {
     let chappe = Arc::new(Bus::default());
     chappe::tracing_layer::init_subscriber(Some(Arc::clone(&chappe)), "marengo-pi");
     #[cfg(unix)]
-    if let Some(socket_path) = chappe::ipc::socket_path_from_env() {
-        match chappe::ipc::IpcFanout::spawn_client(socket_path.clone(), (*chappe).clone()) {
-            Ok(fanout) => {
-                chappe.set_ipc_fanout(fanout);
-                info!(path = %socket_path.display(), "Chappe IPC fanout enabled");
+    match resolve_chappe_socket(std::env::var_os("MARENGO_CHAPPE_SOCKET")) {
+        Some(socket_path) => {
+            match chappe::ipc::IpcFanout::spawn_client(socket_path.clone(), (*chappe).clone()) {
+                Ok(fanout) => {
+                    chappe.set_ipc_fanout(fanout);
+                    info!(path = %socket_path.display(), "Chappe IPC fanout enabled");
+                }
+                Err(e) => warn!(error = %e, "Chappe IPC fanout disabled"),
             }
-            Err(e) => warn!(error = %e, "Chappe IPC fanout disabled"),
         }
+        // Explicit, not a quiet headless run: without the socket the runtime
+        // moves motors with no gateway command/telemetry path (L-marengo-pi-08).
+        None => warn!(
+            "MARENGO_CHAPPE_SOCKET is unset: Chappe IPC fanout disabled; \
+             Consul commands and gateway telemetry are unavailable while motors run"
+        ),
     }
     let mut enable_rx = chappe.subscribe(TOPIC_ENABLE);
     let mut homing_rx = chappe.subscribe(TOPIC_HOMING);
@@ -1598,6 +1608,8 @@ fn finish_owner_shutdown<B: MotorBus>(
     #[cfg(test)] before_persist_wait: Option<&BeforePersistWait<'_, B>>,
 ) -> ShutdownOutcome {
     loop_ctrl.inhibit_motion_for_shutdown();
+    // Trace flush is outside the tick by construction (L-berthier-07).
+    loop_ctrl.flush_position_trace();
     let mandatory_reference = loop_ctrl.supervisor_mut().cancel_reference_for_shutdown();
     let stop = if disable_on_exit {
         let result = if let Some(reference) = &mandatory_reference {
@@ -1851,6 +1863,17 @@ fn phase_elapsed_us(since: Instant) -> (u64, Instant) {
     (us, now)
 }
 
+/// Resolve the Chappe IPC socket from an explicit env value (L-marengo-pi-08).
+///
+/// Env-only with no silent default: `None` means the runtime moves motors
+/// with no gateway command/telemetry path, which the caller must log loudly.
+/// Takes the env value as a parameter so the no-default contract is
+/// unit-testable without touching the process environment.
+#[cfg(unix)]
+fn resolve_chappe_socket(env: Option<std::ffi::OsString>) -> Option<PathBuf> {
+    env.map(PathBuf::from)
+}
+
 /// Wall-clock loop stats accumulated between 1 Hz heartbeats.
 struct LoopTimingWindow {
     window_start: Instant,
@@ -1859,6 +1882,9 @@ struct LoopTimingWindow {
     tick_elapsed_max_us: u64,
     tick_elapsed_sum_us: u64,
     overruns: u32,
+    /// Lifetime overruns across windows (L-marengo-pi-12): the per-window
+    /// count alone is debug-only and resets every second.
+    total_overruns: u64,
     refresh_frames_sum: u32,
     outer_stdin_us_sum: u64,
     outer_chappe_drain_us_sum: u64,
@@ -1873,10 +1899,16 @@ impl LoopTimingWindow {
             tick_elapsed_max_us: 0,
             tick_elapsed_sum_us: 0,
             overruns: 0,
+            total_overruns: 0,
             refresh_frames_sum: 0,
             outer_stdin_us_sum: 0,
             outer_chappe_drain_us_sum: 0,
         }
+    }
+
+    /// Lifetime tick overruns (tick wall time exceeded the period).
+    fn total_overruns(&self) -> u64 {
+        self.total_overruns
     }
 
     fn record_tick(
@@ -1893,6 +1925,7 @@ impl LoopTimingWindow {
         self.tick_elapsed_max_us = self.tick_elapsed_max_us.max(us);
         if elapsed > period {
             self.overruns += 1;
+            self.total_overruns = self.total_overruns.saturating_add(1);
         }
         self.refresh_frames_sum = self
             .refresh_frames_sum
@@ -1921,6 +1954,7 @@ impl LoopTimingWindow {
             tick_elapsed_avg_us = avg_us,
             tick_elapsed_max_us = self.tick_elapsed_max_us,
             overruns = self.overruns,
+            total_overruns = self.total_overruns,
             refresh_frames_per_sec = f64::from(self.refresh_frames_sum) / wall_s,
             outer_stdin_avg_us,
             outer_chappe_drain_avg_us,
@@ -1929,7 +1963,9 @@ impl LoopTimingWindow {
         if let Some(phase) = loop_ctrl.take_tick_phase_averages() {
             log_tick_phase_averages(phase);
         }
+        let total_overruns = self.total_overruns;
         *self = Self::new(loop_ctrl.tick_count());
+        self.total_overruns = total_overruns;
     }
 }
 
