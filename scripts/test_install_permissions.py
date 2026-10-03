@@ -49,8 +49,11 @@ class InstallPermissions(unittest.TestCase):
             path = fake_bin / name
             path.write_text('#!/bin/sh\nexit 0\n')
             path.chmod(0o755)
+        cls.systemctl_log = cls.root / 'systemctl.log'
+        # marengo-pi.service starts disabled + inactive; install must keep it so.
         (fake_bin / 'systemctl').write_text(
-            '#!/bin/sh\ncase "$1" in is-active) exit 3;; esac\nexit 0\n')
+            f'#!/bin/sh\necho "$*" >> {cls.systemctl_log}\n'
+            'case "$1" in is-active) exit 3;; is-enabled) exit 1;; esac\nexit 0\n')
         cls.install = cls.root / 'installed'
         environment = dict(os.environ, MARENGO_INSTALL_ROOT=str(cls.install),
                            MARENGO_USER=cls.runtime, MARENGO_DEPLOY_USER=cls.deploy,
@@ -61,6 +64,7 @@ class InstallPermissions(unittest.TestCase):
         if result.returncode:
             raise AssertionError(f'actual installer failed: {result.stdout}\n{result.stderr}')
         cls.install_stdout = result.stdout
+        cls.install_systemctl_calls = cls.systemctl_log.read_text().splitlines()
         policy = Path(f'/etc/sudoers.d/marengo-{cls.runtime}-restart').read_text()
         cls.helpers = []
         for line in policy.splitlines():
@@ -78,6 +82,14 @@ class InstallPermissions(unittest.TestCase):
     def as_runtime(self, script, *arguments):
         return subprocess.run(['runuser', '-u', self.runtime, '--', 'python3', '-c', script,
                                *map(str, arguments)], text=True, capture_output=True, timeout=10)
+
+    def test_installer_preserves_disabled_inactive_marengo_pi_unit(self):
+        calls = self.install_systemctl_calls
+        for verb in ['enable', 'start', 'restart']:
+            with self.subTest(verb=verb):
+                self.assertFalse(
+                    [c for c in calls if c.split()[:1] == [verb] and 'marengo-pi.service' in c],
+                    calls)
 
     def test_runtime_cannot_replace_actual_sudo_targets(self):
         for helper in self.helpers:

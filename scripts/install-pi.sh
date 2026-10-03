@@ -87,6 +87,16 @@ for helper in pi-restart-marengo-pi.sh pi-enqueue-self-update.sh; do
 done
 
 # Bench default: stop always-on control so manual/MCP sessions own marengo-pi.
+# Record the operator's prior unit state first; install restores exactly that
+# and never enables/starts control on its own.
+MARENGO_PI_WAS_ENABLED=false
+MARENGO_PI_WAS_ACTIVE=false
+if systemctl is-enabled --quiet marengo-pi.service 2>/dev/null; then
+  MARENGO_PI_WAS_ENABLED=true
+fi
+if systemctl is-active --quiet marengo-pi.service 2>/dev/null; then
+  MARENGO_PI_WAS_ACTIVE=true
+fi
 systemctl stop marengo-pi.service 2>/dev/null || true
 pkill -f "${INSTALL_ROOT}/bin/marengo-pi" 2>/dev/null || true
 
@@ -342,8 +352,12 @@ if [[ -f "${INSTALL_ROOT}/bin/marengo-log-cli" ]]; then
   systemctl enable --now marengo-log-maintenance.timer
 fi
 if [[ -f "${INSTALL_ROOT}/bin/marengo-pi" ]]; then
-  systemctl enable marengo-pi.service
-  systemctl restart marengo-pi.service
+  if [[ "$MARENGO_PI_WAS_ENABLED" == true ]]; then
+    systemctl enable marengo-pi.service
+  fi
+  if [[ "$MARENGO_PI_WAS_ACTIVE" == true ]]; then
+    systemctl restart marengo-pi.service
+  fi
 fi
 
 echo "Done. CAN (can0/can1) should be UP — verify: ip -br link show type can"
