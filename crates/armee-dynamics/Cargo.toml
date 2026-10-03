@@ -15,3 +15,6 @@ urdf-rs = { workspace = true }
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+marengo-config = { workspace = true }

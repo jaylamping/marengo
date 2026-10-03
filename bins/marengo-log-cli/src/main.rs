@@ -1,6 +1,9 @@
 //! Archive bench sessions, maintain SQLite log store on Pi.
 //! Candump inspection uses `marengo-candump` directly (no DB required).
 //! Explicit historical recovery dispatches before opening the normal Store.
+//! `gravity-fit` fits link inertials to `pi_gravity_calibrate` sessions (workstation, no DB).
+
+mod gravity_fit;
 
 use std::io::Write;
 use std::path::PathBuf;
@@ -66,6 +69,25 @@ enum Commands {
     Candump {
         #[command(subcommand)]
         action: CandumpAction,
+    },
+    /// Fit right-arm link masses/COMs to `pi_gravity_calibrate` sessions and propose a URDF
+    /// inertial patch plus a dated record. Exit 0 = proposed, 2 = refused, 1 = error.
+    GravityFit {
+        /// Session directory (`var/gravity-calibration/<TS>`); repeat to fuse sweeps.
+        #[arg(long = "dir", required = true)]
+        dirs: Vec<PathBuf>,
+        /// Parameter `mass:<link>` or `com:<link>`; repeat. Default: identifiable mass
+        /// scales (then COM offsets) downstream of the swept joint.
+        #[arg(long)]
+        fit: Vec<String>,
+        /// Joint whose torque enters the fit; repeat. Default: every joint.
+        #[arg(long = "fit-joint")]
+        fit_joints: Vec<String>,
+        #[arg(long, default_value = "docs/commissioning/calibrations")]
+        out_dir: PathBuf,
+        /// Local URDF compared with the Pi base (reported, never modified).
+        #[arg(long, default_value = "assets/urdf/marengo.urdf")]
+        repo_urdf: PathBuf,
     },
 }
 
@@ -256,6 +278,21 @@ fn main() -> ExitCode {
     let Cli { command, root, db } = cli;
 
     let result = match command {
+        Commands::GravityFit {
+            dirs,
+            fit,
+            fit_joints,
+            out_dir,
+            repo_urdf,
+        } => {
+            return run_gravity_fit(&gravity_fit::GravityFitArgs {
+                dirs,
+                fit,
+                fit_joints,
+                out_dir,
+                repo_urdf,
+            })
+        }
         Commands::Candump { action } => run_candump(action),
         Commands::RecoverKnownV2 {
             source,
@@ -267,6 +304,22 @@ fn main() -> ExitCode {
 
     match result {
         Ok(()) => ExitCode::SUCCESS,
+        Err(err) => {
+            eprintln!("error: {err}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+/// Exit 0 = patch proposed, 2 = refused (fit verdict or out-of-limit input), 1 = error.
+fn run_gravity_fit(args: &gravity_fit::GravityFitArgs) -> ExitCode {
+    match gravity_fit::run(args) {
+        Ok(gravity_fit::Outcome::Proposed) => ExitCode::SUCCESS,
+        Ok(gravity_fit::Outcome::Refused) => ExitCode::from(2),
+        Err(err) if err.is_refusal() => {
+            eprintln!("refused: {err}");
+            ExitCode::from(2)
+        }
         Err(err) => {
             eprintln!("error: {err}");
             ExitCode::FAILURE
@@ -340,6 +393,7 @@ fn run_store_command(
         }
         Commands::Candump { .. } => unreachable!("candump handled before store open"),
         Commands::RecoverKnownV2 { .. } => unreachable!("recovery handled before store open"),
+        Commands::GravityFit { .. } => unreachable!("gravity-fit handled before store open"),
     }
     Ok(())
 }

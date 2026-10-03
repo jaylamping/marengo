@@ -55,6 +55,8 @@ tools/marengo-research-mcp/**/__pycache__/
 scripts/daily-audit/__pycache__/
 # Pi bench session logs (runtime on device; not committed)
 var/log/
+# pi_gravity_calibrate captures (workstation; fitter inputs)
+var/gravity-calibration/
 # Local deploy staging (docker cross-build rsync bundle)
 .pi-deploy-staging/
 .pi-deploy/

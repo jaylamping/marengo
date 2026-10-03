@@ -96,7 +96,7 @@ just mcp-ensure-enabled --write
 | Read-only | No | `pi_logs_tail`, `pi_health`, `pi_motor_repl_status`, `pi_gravity_preview`, `pi_imu_probe` |
 | Admin | No | `pi_can_up`, `pi_sync_main`, `pi_sync_tree`, `pi_sync_bench_config`, `pi_sync_bench_urdf`, `pi_wait_deploy`, `pi_install_staging`, `pi_git_pull`, `pi_build` |
 | Admin | Yes | `pi_restart_marengo_pi`, `pi_clean_tree` |
-| Motion | Yes | `pi_motor_recover`, `pi_motor_disable`, `pi_set_zero`, `pi_homing_status`, `pi_hold_on`, `pi_hold_off`, `pi_bench_harness`, `pi_marengo_pi_script`, `pi_jog` |
+| Motion | Yes | `pi_motor_recover`, `pi_motor_disable`, `pi_set_zero`, `pi_homing_status`, `pi_hold_on`, `pi_hold_off`, `pi_bench_harness`, `pi_marengo_pi_script`, `pi_jog`, `pi_gravity_calibrate` |
 
 Weighted profile (`weighted_single_arm`, `arm_attached`) needs `confirm: true` and `confirm_weighted_motion: true`.
 
@@ -108,7 +108,7 @@ Every `motor-repl` subcommand opens SocketCAN and sends type-24 active-reporting
 - `pi_health`, `pi_homing_status` and `pi_sync_bench_config` show per-joint homing from marengo-pi's own `RobotState`, read from the gateway's `/snapshot/robot/state`. They don't run `motor-repl homing-status`.
 - `scripts/homing-preflight.sh`, which `install-pi.sh` runs, skips `homing-status` (strict mode exits 1).
 
-Motion tools that open CAN take sole ownership of the bus for the session. These are `pi_motor_enable`, `pi_motor_disable`, `pi_motor_recover`, `pi_set_zero`, `pi_jog`, `pi_hold_on`, `pi_hold_off`, `pi_marengo_pi_script` and `pi_bench_harness`. Each session:
+Motion tools that open CAN take sole ownership of the bus for the session. These are `pi_motor_enable`, `pi_motor_disable`, `pi_motor_recover`, `pi_set_zero`, `pi_jog`, `pi_hold_on`, `pi_hold_off`, `pi_marengo_pi_script`, `pi_gravity_calibrate` and `pi_bench_harness`. Each session:
 
 1. Stops `marengo-pi.service` with `sudo -n /usr/local/libexec/marengo/pi-restart-marengo-pi.sh stop`, the same helper `pi_restart_marengo_pi` uses. The service runs as `marengo` with `Restart=always`, so a bare `pkill` either fails or lets systemd start a second owner within 5 s.
 2. Kills leftover `marengo-pi` processes owned by the deploy user.
@@ -158,6 +158,16 @@ Profiles without a joint subset (`bare_motor`, `weighted_single_arm`, `arm_attac
 In practice `hanging_rest` is the basis that applies. Both tools disable drives before their session, and a disabled Robstride carries no phase current: it reports ~0 Nm whatever the arm weighs, so a disabled reading is not a gravity measurement. `at_mechanical_reference: true` attests that the arm is at that rest pose. If none of the gated joints is in the gravity model, or the preview prints nothing (for example CAN is still owned), the gate fails closed with `FAIL gravity_gate_unavailable`.
 
 Do not raise gains to get past this gate. Fix the URDF instead.
+
+### `pi_gravity_calibrate`
+
+Repeatable right-arm gravity-model calibration (`src/tools/gravity-calibrate.ts`). It runs as **one** marengo-pi session, like `pi_hold_on`: `home <profile joints> sign-tested` (awaited), `home`, `enable`, then `hold-at` each static pose of `sweep_joint` with a `settle_sec + measure_sec` dwell, then `hold-at <sweep_joint> 0`, `status`, `disable`, `quit`. The position trace records τ_meas at every pose for the workstation fitter.
+
+- **Sweep.** `sweep_joint` is `right_shoulder_pitch` (default poses `[0, 0.25, 0.48, 0.8, 1.2]` rad, at least 3) or `right_elbow_pitch` (default `[0, 0.25, 0.5, 0.75]`, with the pitch held at `fixed_pitch_rad`, moved there first and returned to 0 last). Poses (2–12, distinct) are sorted. An up pass overshoots to min − `approach_offset_rad` and visits every pose from below; a down pass overshoots to max + δ and visits every pose from above, so the fit can separate friction from gravity.
+- **Opt-ins.** `confirm` (+ `confirm_weighted_motion` on weighted profiles), `set_zero` and `at_mechanical_reference` as for `pi_hold_on`, plus `skip_hanging_rest_gravity_check: true`. The gravity gate runs as usual but its hanging-rest `|τ_g|` mismatch ends in `SKIPPED gravity_model_mismatch (hanging rest) for gravity calibration` instead of refusing: the calibration exists to fix that model. Residuals are still reported; `gravity_gate_unavailable` and a measured-basis mismatch still refuse.
+- **Limits.** Before any motion a read-only pre-flight (no CAN) reads the Pi `config_dir` `robot.yaml`, `control.yaml`, `motors.yaml` and the URDF `robot.urdf` names. Every target (overshoots included), the fixed pitch and the return pose 0 must lie in `[max(soft, hard) lower, min(soft, hard) upper]` (control.yaml `position_soft_*_rad` ∩ motors.yaml `bench.position_*_rad`), else it refuses naming joint, value and window. The session's sleep + reference budget must be ≤ 300 s.
+- **Outputs.** `var/gravity-calibration/<TS>/` on the workstation (gitignored): `plan.json` (steps = the session's `hold-at` lines in order), `position-trace.csv` (Pi trace verbatim), `pi-marengo.urdf` and `config/{robot,control,motors}.yaml` (captured before motion), `bench-session.txt`. With `run_fit` (default) it then runs `cargo run --release -q -p marengo-log-cli -- gravity-fit --dir <dir> [--fit mass:<link>|com:<link> …]`; exit 2 means the fitter refused.
+- **Never applied.** Review the proposed inertial patch, apply it to `assets/urdf/marengo.urdf`, then run `pi_sync_bench_urdf` as a separate explicit step (ADR 0017).
 
 ### `pi_sync_main`
 

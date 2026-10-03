@@ -150,6 +150,47 @@ Record: date, git rev, `wave_pose` joint angles, residual summary.
 
 ---
 
+## Gravity calibration after hardware changes
+
+**When:** any right-arm hardware change that moves mass: a part swapped or reprinted (other infill, material, orientation), a motor or fastener change, new cabling. Run it before §4b residual gates on the changed arm.
+
+**Source of truth:** until the arm is frozen, the latest accepted record under `docs/commissioning/calibrations/` (applied to the URDF) is the source of truth for right-arm link masses and COMs. Gram-level weighing of the finished, frozen arm **supersedes** it; after that, change URDF inertials only from the weighing.
+
+### 1. Bench sweep (`pi_gravity_calibrate`)
+
+One marengo-pi session (sole CAN owner): `home <profile joints> sign-tested` (awaited), `home`, `enable`, then a `hold-at` pose sweep with `settle_sec + measure_sec` dwell per step, return to 0, `disable`. Requires the `pi_hold_on` opt-ins: `confirm`, `confirm_weighted_motion` (weighted profiles), `set_zero` + `at_mechanical_reference` (arm hanging at the mechanical reference), plus `skip_hanging_rest_gravity_check: true`.
+
+The pre-enable gravity gate still runs and its residuals are reported in the session output and the record, but for this tool only its **hanging-rest |τ_g|** check does not block: the calibration exists to fix that model. `gravity_gate_unavailable` and a measured-basis mismatch (marengo-pi holding the arm) still refuse.
+
+| Argument | Default |
+|----------|---------|
+| `sweep_joint` | `right_shoulder_pitch`; or `right_elbow_pitch` with the pitch held at `fixed_pitch_rad` (default 0; 0.48 separates forearm mass from COM) |
+| `poses_rad` | pitch `[0, 0.25, 0.48, 0.8, 1.2]`; elbow `[0, 0.25, 0.5, 0.75]`; other joints stay at their latched (hanging) pose |
+| `approach_offset_rad` | 0.05: every pose is reached from below (up pass after a `min − δ` overshoot) and from above (down pass after a `max + δ` overshoot) |
+| `settle_sec` / `measure_sec` | 2.5 / 1.5 (≥ 1.0 s averaging window) |
+
+Every step target (including the ±δ overshoots and the fixed pitch) must lie inside `control.yaml` soft ∩ `motors.yaml` hard limits read from the Pi config; otherwise the tool refuses before any motion. The tool copies the Pi's pre-session URDF and config, `plan.json` and the position trace into `var/gravity-calibration/<TS>/` (gitignored), then runs the fit unless `run_fit: false`.
+
+### 2. Measurement
+
+Per measured step, `marengo-log-cli gravity-fit` takes the trailing settled run of the step (every |dq| ≤ 0.05 rad/s, stepped joint within 0.05 rad of target), averages the last `measure_sec` of it, and records q for every joint plus the drive torque `tau_meas` (joint space). At rest the drive torque is gravity plus static friction; the P term `kp·(q_des − q)` is part of that drive torque, so it is **not** subtracted (that would bias the estimate back toward the model). The commanded `tau_p + tau_ff_cmd` is kept as a cross-check column. The below/above pair of each pose is averaged, which cancels Coulomb friction; half their difference is reported as the friction estimate.
+
+### 3. Fit
+
+On the workstation (deterministic): `cargo run --release -p marengo-log-cli -- gravity-fit --dir var/gravity-calibration/<TS> [--dir …] [--fit mass:<link> | com:<link> …] [--fit-joint <joint> …]`. Repeat `--dir` to fuse a pitch and an elbow sweep taken on the same Pi URDF.
+
+- **Parameters:** per-link mass scale `s` (m = s·m_CAD, COM fixed) and COM offset `d` along the link's principal axis (CAD COM direction from the link origin). Default: mass scales of the links downstream of the swept joint, then their COM offsets, each kept only if the set stays identifiable (pitch sweep on the current URDF: upper arm + forearm masses).
+- **Regularisation:** MAP toward CAD (prior σ 0.5 mass scale, 50 mm COM; torque σ 0.02 Nm).
+- **Refusals (no patch):** ill-conditioned (any combination of plausible changes, 25 % mass / 20 mm COM, moves the stacked torques by < 0.05 Nm, or condition number > 100); implausible result (mass scale outside 0.5–2.0, |COM offset| > 50 mm); max |τ_meas − τ_fit| > 0.10 Nm after the fit; measured poses outside the soft ∩ hard windows. Exit 0 = proposed, 2 = refused, 1 = error.
+
+### 4. Output and apply (never automatic)
+
+`docs/commissioning/calibrations/<date>-gravity-<TS>.{json,md}` (always, commit them) and `.urdf.patch` (accepted fits only): per-pose residual before/after, parameter deltas with σ, identifiability, gate report. The patch is a diff of the **Pi's** live URDF (ADR 0017) touching only `<inertial>` `<mass>`/`<origin>` lines of right-arm links: never limits, joints or inertia tensors (the gravity model does not use them).
+
+Applying is a separate, explicit step: make `assets/urdf/marengo.urdf` equal to the Pi URDF (the record says whether it already is), `git apply` the patch, commit, `pi_sync_bench_urdf`, `pi_restart_marengo_pi`, then confirm with `pi_hold_on` (gravity gate residual < 0.20 Nm) and §4b.
+
+---
+
 ## 5. Position speed ladder
 
 **Speed law (mandatory):** effective rung speed for each joint is

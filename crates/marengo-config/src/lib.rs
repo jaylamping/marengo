@@ -807,6 +807,21 @@ pub fn validate_control_against_limits(
     Ok(())
 }
 
+/// Window an operator position command may target for `joint`: `control.yaml` soft bounds
+/// intersected with `motors.yaml` bench hard bounds. `None` when the joint lacks either soft
+/// bound or a motors entry, or the intersection is empty.
+pub fn commanded_position_window(
+    control: &ControlConfigFile,
+    motors: &MotorsConfigFile,
+    joint: &str,
+) -> Option<(f64, f64)> {
+    let soft = control.control.joints.get(joint)?;
+    let hard = &motors.motors.iter().find(|m| m.joint == joint)?.bench;
+    let lower = soft.position_soft_lower_rad?.max(hard.position_lower_rad);
+    let upper = soft.position_soft_upper_rad?.min(hard.position_upper_rad);
+    (lower <= upper).then_some((lower, upper))
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModeGains {
     pub kp: f64,

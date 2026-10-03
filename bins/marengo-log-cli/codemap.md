@@ -10,9 +10,12 @@ delegates to `marengo-store` before normal Store open and prints its completed r
 - Recovery requires explicit source, fresh backup and fresh output paths; it never
   selects the configured database implicitly or replaces the source.
 - Candump summary/page commands require no database.
+- `gravity-fit` requires no database: it fits right-arm link inertials to
+  `pi_gravity_calibrate` sessions and writes `docs/commissioning/calibrations/` records
+  plus a proposed URDF patch (never applied).
 
 ## Integration
-- **Depends on**: marengo-store
-- **Used by**: bench debugging, MCP log tools
+- **Depends on**: marengo-store, marengo-candump, armee-dynamics, marengo-config
+- **Used by**: bench debugging, MCP log tools, MCP `pi_gravity_calibrate` (workstation fit)
 
 **Detailed map**: [src/codemap.md](src/codemap.md)

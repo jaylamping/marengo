@@ -9,7 +9,8 @@ Rigid-body gravity compensation torques tau_g(q) for the Marengo arm. Pure Rust,
 - `DynamicsModel` trait — `joint_names()` and `gravity_torques(&self, q: &[f64]) -> Result<PureGravityTorque, DynamicsError>`. Accepts joint positions in rad in configured order, returns joint-space holding torque in Nm.
 - `PureGravityTorque(Vec<f64>)` — semantic marker for gravity-only output, with public storage. Implements `Deref<Target=[f64]>` and `Index<usize>`; it does not mathematically validate arbitrary constructed values.
 - `UrdfGravityModel` — concrete implementation built from a URDF file and ordered joint names.
-- `DynamicsError` — `Urdf`, `JointCount`, and `UnknownJoint`.
+- `DynamicsError` — `Urdf`, `JointCount`, `UnknownJoint`, and `UnknownLink`.
+- `calibration` — bench gravity calibration (mass scale / COM offset fit, identifiability, refusals) used by `marengo-log-cli gravity-fit`.
 
 ### Algorithm (virtual-work gradient)
 ```

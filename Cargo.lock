@@ -117,6 +117,7 @@ name = "armee-dynamics"
 version = "0.1.0"
 dependencies = [
  "armee-kinematics",
+ "marengo-config",
  "nalgebra",
  "thiserror 1.0.69",
  "urdf-rs",
@@ -1558,13 +1559,17 @@ dependencies = [
 name = "marengo-log-cli"
 version = "0.1.0"
 dependencies = [
+ "armee-dynamics",
  "assert_cmd",
  "clap",
  "marengo-candump",
+ "marengo-config",
  "marengo-store",
  "marengo-support",
+ "serde",
  "serde_json",
  "tempfile",
+ "thiserror 1.0.69",
  "tracing",
 ]
 

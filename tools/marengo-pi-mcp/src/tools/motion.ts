@@ -38,13 +38,13 @@ export const REFERENCE_OPT_IN_REQUIRED =
 
 const benchProfileZod = z.enum(BENCH_PROFILES);
 
-const motionConfirmSchema = z.object({
+export const motionConfirmSchema = z.object({
   confirm: z.literal(true),
   confirm_weighted_motion: z.literal(true).optional(),
   profile: benchProfileZod.optional(),
 });
 
-const BENCH_CONFIG_MASTER = "/opt/marengo/config";
+export const BENCH_CONFIG_MASTER = "/opt/marengo/config";
 
 /** Keep newest N timestamped bench artifacts; symlinks (bench-latest.*) untouched. */
 export const BENCH_LOG_KEEP_COUNT = 50;
@@ -171,7 +171,7 @@ function normalizeBenchConfigDir(cfg: MarengoPiConfig, configDir: string): strin
 }
 
 /** Master config when config_dir omitted (legacy bringup slugs ignored). */
-function benchConfigDirForJoint(
+export function benchConfigDirForJoint(
   cfg: MarengoPiConfig,
   _joint?: string,
   configDir?: string,
@@ -182,7 +182,7 @@ function benchConfigDirForJoint(
   return BENCH_CONFIG_MASTER;
 }
 
-const benchLogWrapper = (
+export const benchLogWrapper = (
   cfg: MarengoPiConfig,
   pipeCmd: string,
   label: string,
@@ -243,7 +243,7 @@ function marengoPiBinarySelector(cfg: MarengoPiConfig): string {
  * Last step before every marengo-pi pipe: pick the binary, then wait for the bus to settle
  * (canSettleShell). Refuses with exit 1 rather than start marengo-pi into a CAN error frame.
  */
-function marengoPiLaunchShell(cfg: MarengoPiConfig): string {
+export function marengoPiLaunchShell(cfg: MarengoPiConfig): string {
   return [marengoPiBinarySelector(cfg), canSettleShell(REFUSE_UNSETTLED_MARENGO_PI)].join("\n");
 }
 
@@ -263,9 +263,9 @@ const REMOTE_SSH_SLACK_MS = 10_000;
  * soleCanOwnerShell overhead: helper stop + owner wait, the pre-launch CAN settle, the
  * post-session release wait and the settle before restoring marengo-pi.service.
  */
-const CAN_SESSION_SLACK_MS = 20_000;
+export const CAN_SESSION_SLACK_MS = 20_000;
 
-const SOLE_CAN_OWNER_NOTE =
+export const SOLE_CAN_OWNER_NOTE =
   "Runs as sole CAN owner: stops marengo-pi.service via the pi_restart_marengo_pi helper, " +
   "refuses if any marengo-pi/motor-repl remains, restarts the unit afterwards if it was active.";
 
@@ -397,7 +397,7 @@ export function marengoPiPipeLine(line: string): string {
   return `printf '%s\\n' ${JSON.stringify(line)}`;
 }
 
-function marengoPiPipe(script: string[], pipeTimeoutSec: number, binary = "$PI_BIN"): string {
+export function marengoPiPipe(script: string[], pipeTimeoutSec: number, binary = "$PI_BIN"): string {
   const pipeLines = script.map(marengoPiPipeLine).join(";\n");
   return `{\n${pipeLines};\n} | timeout ${pipeTimeoutSec} ${binary}`;
 }
@@ -423,11 +423,30 @@ function marengoPiTimedPipe(
 }
 
 /**
- * Hold session body (inside benchLogWrapper, after its pre-session disable). Every drive is
- * already disabled and marengo-pi starts Disabled, so no motor-repl runs between the settle
- * and marengo-pi. The trailing motor-repl disable runs only once marengo-pi has released
- * can0; it never becomes a second writer beside a marengo-pi still shutting down.
+ * marengo-pi session body (inside benchLogWrapper, after its pre-session disable). Every drive
+ * is already disabled and marengo-pi starts Disabled, so no motor-repl runs between the settle
+ * and marengo-pi (`pipeCmd`, a {@link marengoPiPipe}). The trailing motor-repl disable runs only
+ * once marengo-pi has released can0; it never becomes a second writer beside a marengo-pi still
+ * shutting down.
  */
+export function marengoPiSessionBody(cfg: MarengoPiConfig, pipeCmd: string): string {
+  return [
+    marengoPiLaunchShell(cfg),
+    "set +e",
+    pipeCmd,
+    "PIPE_STATUS=$?",
+    'echo "can errors after marengo-pi: $(can_error_counters)"',
+    waitCanReleasedShell(25),
+    "set -e",
+    canOwnerBranch(
+      "bin/motor-repl disable",
+      [canOwnedSkipLine("post-session bin/motor-repl disable"), "PIPE_STATUS=1"].join("\n"),
+    ),
+    'exit "$PIPE_STATUS"',
+  ].join("\n");
+}
+
+/** Hold session body: reference, home, enable, hold, return to 0, disable ({@link marengoPiSessionBody}). */
 export function holdSessionRemoteBody(
   cfg: MarengoPiConfig,
   args: {
@@ -443,25 +462,15 @@ export function holdSessionRemoteBody(
     args.positionRad !== undefined
       ? `hold-at ${args.joint} ${args.positionRad}`
       : "hold-on";
-  return [
-    marengoPiLaunchShell(cfg),
-    "set +e",
+  return marengoPiSessionBody(
+    cfg,
     marengoPiTimedPipe(
       [referenceAcquireLine(args.referenceJoints), "home", `enable ${args.operator}`, holdLine],
       args.timeoutSec,
       args.returnHomeSec,
       args.joint,
     ),
-    "PIPE_STATUS=$?",
-    'echo "can errors after marengo-pi: $(can_error_counters)"',
-    waitCanReleasedShell(25),
-    "set -e",
-    canOwnerBranch(
-      "bin/motor-repl disable",
-      [canOwnedSkipLine("post-session bin/motor-repl disable"), "PIPE_STATUS=1"].join("\n"),
-    ),
-    'exit "$PIPE_STATUS"',
-  ].join("\n");
+  );
 }
 
 /**

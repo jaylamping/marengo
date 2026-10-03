@@ -12,7 +12,15 @@ use crate::{DynamicsError, PureGravityTorque};
 const GRAVITY: Vector3<f64> = Vector3::new(0.0, 0.0, -9.81);
 const DQ_EPS: f64 = 1e-6;
 
+/// Mass (kg) and centre of mass (m, link frame) of one URDF link.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LinkInertial {
+    pub mass_kg: f64,
+    pub com_m: [f64; 3],
+}
+
 /// Gravity compensation model built from URDF kinematics and link masses.
+#[derive(Clone)]
 pub struct UrdfGravityModel {
     joint_names: Vec<String>,
     robot: Robot,
@@ -58,6 +66,113 @@ impl UrdfGravityModel {
             robot,
             link_chains,
         })
+    }
+
+    /// Mass and COM of `link` as loaded from the URDF.
+    pub fn link_inertial(&self, link: &str) -> Result<LinkInertial, DynamicsError> {
+        let l = self.find_link(link)?;
+        let o = &l.inertial.origin.xyz.0;
+        Ok(LinkInertial {
+            mass_kg: l.inertial.mass.value,
+            com_m: [o[0], o[1], o[2]],
+        })
+    }
+
+    /// Copy of the model with `link`'s mass and COM replaced (inertia tensor untouched).
+    pub fn with_link_inertial(
+        &self,
+        link: &str,
+        inertial: LinkInertial,
+    ) -> Result<Self, DynamicsError> {
+        let mut out = self.clone();
+        let l = out
+            .robot
+            .links
+            .iter_mut()
+            .find(|l| l.name == link)
+            .ok_or_else(|| DynamicsError::UnknownLink {
+                link: link.to_string(),
+            })?;
+        l.inertial.mass.value = inertial.mass_kg;
+        l.inertial.origin.xyz.0 = inertial.com_m;
+        Ok(out)
+    }
+
+    /// Links whose pose depends on `joint` (its child link and everything below it), in URDF
+    /// link order.
+    pub fn links_downstream_of(&self, joint: &str) -> Result<Vec<String>, DynamicsError> {
+        let idx = self
+            .robot
+            .joints
+            .iter()
+            .position(|j| j.name == joint)
+            .ok_or_else(|| DynamicsError::UnknownJoint {
+                joint: joint.to_string(),
+            })?;
+        Ok(self
+            .robot
+            .links
+            .iter()
+            .filter(|l| {
+                self.link_chains
+                    .get(&l.name)
+                    .is_some_and(|chain| chain.contains(&idx))
+            })
+            .map(|l| l.name.clone())
+            .collect())
+    }
+
+    /// Joint-space holding torque (Nm) of a **unit** point mass fixed at `point_m` in
+    /// `link`'s frame, at pose `q`. Same sign convention and virtual-work gradient as
+    /// [`DynamicsModel::gravity_torques`](crate::DynamicsModel::gravity_torques); a link's
+    /// contribution there equals `mass · point_mass_torques(link, com, q)`.
+    pub fn point_mass_torques(
+        &self,
+        link: &str,
+        point_m: [f64; 3],
+        q: &[f64],
+    ) -> Result<Vec<f64>, DynamicsError> {
+        self.find_link(link)?;
+        let mut q_map = self.q_map(q)?;
+        let p = Point3::new(point_m[0], point_m[1], point_m[2]);
+        let mut tau = vec![0.0; q.len()];
+        for (i, t) in tau.iter_mut().enumerate() {
+            let q0 = q[i];
+            let mut dpe_dq = 0.0;
+            for sign in [-1.0f64, 1.0] {
+                q_map[i].1 = q0 + sign * DQ_EPS;
+                let world = self.link_transform(link, &q_map).transform_point(&p);
+                dpe_dq += sign * -GRAVITY.dot(&world.coords) / (2.0 * DQ_EPS);
+            }
+            q_map[i].1 = q0;
+            *t = dpe_dq;
+        }
+        Ok(tau)
+    }
+
+    fn find_link(&self, link: &str) -> Result<&urdf_rs::Link, DynamicsError> {
+        self.robot
+            .links
+            .iter()
+            .find(|l| l.name == link)
+            .ok_or_else(|| DynamicsError::UnknownLink {
+                link: link.to_string(),
+            })
+    }
+
+    fn q_map(&self, q: &[f64]) -> Result<Vec<(String, f64)>, DynamicsError> {
+        if q.len() != self.joint_names.len() {
+            return Err(DynamicsError::JointCount {
+                expected: self.joint_names.len(),
+                got: q.len(),
+            });
+        }
+        Ok(self
+            .joint_names
+            .iter()
+            .cloned()
+            .zip(q.iter().copied())
+            .collect())
     }
 
     fn link_com_world(&self, q_map: &[(String, f64)]) -> Vec<(f64, Vector3<f64>)> {
@@ -124,18 +239,7 @@ impl super::DynamicsModel for UrdfGravityModel {
     }
 
     fn gravity_torques(&self, q: &[f64]) -> Result<PureGravityTorque, DynamicsError> {
-        if q.len() != self.joint_names.len() {
-            return Err(DynamicsError::JointCount {
-                expected: self.joint_names.len(),
-                got: q.len(),
-            });
-        }
-        let mut q_map: Vec<(String, f64)> = self
-            .joint_names
-            .iter()
-            .cloned()
-            .zip(q.iter().copied())
-            .collect();
+        let mut q_map = self.q_map(q)?;
 
         let mut tau = vec![0.0; q.len()];
         for (i, _joint_name) in self.joint_names.iter().enumerate() {

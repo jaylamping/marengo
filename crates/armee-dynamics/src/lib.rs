@@ -60,13 +60,14 @@
 //! of gravity instead of holding it. Validate with `motor-repl gravity-preview` before
 //! bench enable, and rely on the Davout wrong-sign watchdog for runtime detection.
 
+pub mod calibration;
 mod urdf_gravity;
 
 use std::path::Path;
 
 use armee_kinematics::UrdfError;
 use thiserror::Error;
-pub use urdf_gravity::UrdfGravityModel;
+pub use urdf_gravity::{LinkInertial, UrdfGravityModel};
 
 #[derive(Debug, Error)]
 pub enum DynamicsError {
@@ -76,6 +77,8 @@ pub enum DynamicsError {
     JointCount { expected: usize, got: usize },
     #[error("unknown joint {joint}")]
     UnknownJoint { joint: String },
+    #[error("unknown link {link}")]
+    UnknownLink { link: String },
 }
 
 /// Joint-space gravity holding torque τ_g(q) in Nm.

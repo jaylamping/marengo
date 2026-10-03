@@ -19,10 +19,14 @@ default = ["robstride-enrichment"]
 robstride-enrichment = ["marengo-candump/robstride-enrichment"]
 
 [dependencies]
+armee-dynamics = { workspace = true }
 clap = { version = "4", features = ["derive", "env"] }
 marengo-candump = { workspace = true }
+marengo-config = { workspace = true }
 marengo-store = { path = "../../crates/marengo-store" }
+serde.workspace = true
 serde_json.workspace = true
+thiserror.workspace = true
 tracing.workspace = true
 marengo-support.workspace = true
 

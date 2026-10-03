@@ -136,7 +136,11 @@ function gravityPreviewShell(pose: Record<string, number>): string {
   ].join("\n");
 }
 
-function evaluateGravityGate(plan: GravityGatePlan, previewOutput: string): GravityGateResult {
+/** Gate verdict plus whether the only failure was a residual mismatch (not unavailability). */
+function evaluateGravityGate(
+  plan: GravityGatePlan,
+  previewOutput: string,
+): GravityGateResult & { mismatchOnly: boolean } {
   const tauG = new Map(
     [...previewOutput.matchAll(TAU_G_LINE)].map((m) => [m[1], Number(m[2])] as const),
   );
@@ -163,6 +167,7 @@ function evaluateGravityGate(plan: GravityGatePlan, previewOutput: string): Grav
   if (!plan.joints.some((j) => tauG.has(j))) {
     return {
       ok: false,
+      mismatchOnly: false,
       report: [
         header,
         ...lines,
@@ -177,21 +182,38 @@ function evaluateGravityGate(plan: GravityGatePlan, previewOutput: string): Grav
         "The URDF gravity model disagrees with the physical arm; refusing before any motion. " +
         "Fix the model (limb-playbook §4a/4b) — do not raise gains to overpower it."
       : `PASS gravity gate: ${residualKind} < ${limit} Nm on every modeled joint`;
-  return { ok: mismatched.length === 0, report: [header, ...lines, verdict].join("\n") };
+  return {
+    ok: mismatched.length === 0,
+    mismatchOnly: mismatched.length > 0,
+    report: [header, ...lines, verdict].join("\n"),
+  };
 }
+
+/** Last report line when {@link runGravityGate} lets a hanging-rest mismatch through. */
+export const HANGING_REST_MISMATCH_SKIPPED =
+  "SKIPPED gravity_model_mismatch (hanging rest) for gravity calibration: residuals reported, not gating";
 
 /**
  * The gate. `snapshotOutput` is remote output of {@link gravityGateSnapshotShell}, captured
  * before the caller stopped marengo-pi; `runPreview` runs a shell as the sole CAN owner.
+ * `allowHangingRestMismatch` (gravity calibration only, which exists to fix the model) passes a
+ * hanging-rest |τ_g| mismatch with the full residual report; `gravity_gate_unavailable` and a
+ * measured-basis mismatch still refuse.
  */
 export async function runGravityGate(opts: {
   profile: BenchProfile;
   joints: readonly string[];
   snapshotOutput: string;
   runPreview: (shell: string) => Promise<string>;
+  allowHangingRestMismatch?: boolean;
 }): Promise<GravityGateResult> {
   const plan = planGravityGate(opts.profile, opts.joints, opts.snapshotOutput);
   const previewOutput = await opts.runPreview(gravityPreviewShell(plan.pose));
-  const result = evaluateGravityGate(plan, previewOutput);
-  return result.ok ? result : { ok: false, report: `${previewOutput.trimEnd()}\n${result.report}` };
+  const { ok, mismatchOnly, report } = evaluateGravityGate(plan, previewOutput);
+  if (ok) return { ok, report };
+  const withPreview = `${previewOutput.trimEnd()}\n${report}`;
+  if (opts.allowHangingRestMismatch === true && plan.basis === "hanging_rest" && mismatchOnly) {
+    return { ok: true, report: `${withPreview}\n${HANGING_REST_MISMATCH_SKIPPED}` };
+  }
+  return { ok: false, report: withPreview };
 }

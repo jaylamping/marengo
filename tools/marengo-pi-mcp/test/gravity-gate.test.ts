@@ -116,4 +116,61 @@ describe("gravity model gate", () => {
     });
     assert.equal(gate.ok, false);
   });
+
+  it("allowHangingRestMismatch passes a hanging-rest mismatch with the full residual report", async () => {
+    const preview = gravityPreviewReply({ right_shoulder_pitch: 0.6 });
+    const gate = await runGravityGate({
+      profile: "arm_attached",
+      joints: ["right_shoulder_pitch", "right_elbow_pitch"],
+      snapshotOutput: "",
+      runPreview: async () => preview,
+      allowHangingRestMismatch: true,
+    });
+    assert.equal(gate.ok, true);
+    assert.ok(gate.report.startsWith(preview));
+    assert.match(gate.report, /right_shoulder_pitch: q=0\.0000 rad τ_g=0\.6000 Nm residual=0\.6000 Nm FAIL/);
+    assert.match(gate.report, /FAIL gravity_model_mismatch: \|τ_g\| at the hanging rest/);
+    assert.equal(
+      gate.report.split("\n").at(-1),
+      "SKIPPED gravity_model_mismatch (hanging rest) for gravity calibration: residuals reported, not gating",
+    );
+  });
+
+  it("allowHangingRestMismatch still refuses unavailable previews and measured mismatches", async () => {
+    const unavailable = await runGravityGate({
+      profile: "bare_motor",
+      joints: ["left_shoulder_pitch"],
+      snapshotOutput: "",
+      runPreview: async () => "error: no model\n[exit 1]",
+      allowHangingRestMismatch: true,
+    });
+    assert.equal(unavailable.ok, false);
+    assert.match(unavailable.report, /FAIL gravity_gate_unavailable/);
+    assert.doesNotMatch(unavailable.report, /SKIPPED/);
+
+    const measured = await runGravityGate({
+      profile: "arm_2dof_smoke",
+      joints: ["right_shoulder_pitch"],
+      snapshotOutput: snapshotOutput(10, [
+        { name: "right_shoulder_pitch", homing: 3, driveActive: true, position: 0, effort: 0.5 },
+      ]),
+      runPreview: async () => gravityPreviewReply(),
+      allowHangingRestMismatch: true,
+    });
+    assert.equal(measured.ok, false);
+    assert.match(measured.report, /basis=measured/);
+    assert.match(measured.report, /FAIL gravity_model_mismatch: \|τ_meas − τ_g\|/);
+    assert.doesNotMatch(measured.report, /SKIPPED/);
+  });
+
+  it("keeps refusing a hanging-rest mismatch by default", async () => {
+    const gate = await runGravityGate({
+      profile: "arm_attached",
+      joints: ["right_shoulder_pitch"],
+      snapshotOutput: "",
+      runPreview: async () => gravityPreviewReply({ right_shoulder_pitch: 0.6 }),
+    });
+    assert.equal(gate.ok, false);
+    assert.doesNotMatch(gate.report, /SKIPPED/);
+  });
 });
