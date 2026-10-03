@@ -58,10 +58,10 @@ fn scalar_tags_keep_exact_signed_zero_subnormal_and_integer_widths() {
 
 #[test]
 fn canonical_map_order_and_full_input_validation_are_enforced() {
-    let mut a = std::collections::HashMap::new();
+    let mut a = std::collections::HashMap::<String, u8>::new();
     a.insert("z".to_string(), 2u8);
     a.insert("a".to_string(), 1u8);
-    let mut b = std::collections::HashMap::new();
+    let mut b = std::collections::HashMap::<String, u8>::new();
     b.insert("a".to_string(), 1u8);
     b.insert("z".to_string(), 2u8);
     let expected = [

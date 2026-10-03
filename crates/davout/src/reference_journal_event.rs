@@ -322,29 +322,56 @@ impl Body {
 pub struct ReferenceHistoryRecord {
     session: u64,
     job: u64,
-    capture: Capture,
-    policy: TypedPolicy,
-    robot: RobotConfigFile,
-    urdf: urdf_rs::Robot,
+    capture: Option<Capture>,
+    policy: Option<TypedPolicy>,
+    robot: Option<RobotConfigFile>,
+    urdf: Option<urdf_rs::Robot>,
     checksum: [u8; 32],
 }
 
 impl ReferenceHistoryRecord {
     pub(super) fn from_body(bytes: &[u8], checksum: [u8; 32]) -> Result<Self, String> {
+        let identity =
+            super::reference_codec::decode_identity(bytes).map_err(|error| error.to_string())?;
         let body: Body =
             super::reference_codec::decode(bytes).map_err(|error| error.to_string())?;
+        if body.diagnostic_session != identity.diagnostic_session
+            || body.job_sequence != identity.job_sequence
+        {
+            return Err("invalid virtual history body".into());
+        }
         if !body.validate() {
             return Err("invalid virtual history body".into());
         }
         Ok(Self {
             session: body.diagnostic_session,
             job: body.job_sequence,
-            capture: body.capture,
-            policy: body.policy,
-            robot: body.robot,
-            urdf: body.urdf.into(),
+            capture: Some(body.capture),
+            policy: Some(body.policy),
+            robot: Some(body.robot),
+            urdf: Some(body.urdf.into()),
             checksum,
         })
+    }
+    /// Legacy row written by an older config schema: the typed body no longer
+    /// decodes under this binary, but its envelope, checksum and row-key
+    /// identity verified. Kept inspection-only; it can never stage or grant.
+    pub(super) fn legacy(session: u64, job: u64, checksum: [u8; 32]) -> Self {
+        Self {
+            session,
+            job,
+            capture: None,
+            policy: None,
+            robot: None,
+            urdf: None,
+            checksum,
+        }
+    }
+    /// Whether this row's typed body still decodes under this binary. Legacy
+    /// rows report session, job and checksum only; every typed accessor is
+    /// `None`.
+    pub fn is_legacy_schema(&self) -> bool {
+        self.capture.is_none()
     }
     pub fn diagnostic_session(&self) -> u64 {
         self.session
@@ -352,39 +379,46 @@ impl ReferenceHistoryRecord {
     pub fn job_sequence(&self) -> u64 {
         self.job
     }
-    pub fn acquisition_sequence(&self) -> u64 {
-        self.capture.acquisition_sequence
+    pub fn acquisition_sequence(&self) -> Option<u64> {
+        self.capture
+            .as_ref()
+            .map(|capture| capture.acquisition_sequence)
     }
-    pub fn joint(&self) -> &str {
-        &self.capture.joint
+    pub fn joint(&self) -> Option<&str> {
+        self.capture.as_ref().map(|capture| capture.joint.as_str())
     }
-    pub fn position_rad(&self) -> f32 {
-        self.capture.position_rad
+    pub fn position_rad(&self) -> Option<f32> {
+        self.capture.as_ref().map(|capture| capture.position_rad)
     }
-    /// Raw type-0 MCU identifier for physical history; `None` for virtual rows.
+    /// Raw type-0 MCU identifier for physical history; `None` for virtual rows
+    /// and for legacy rows whose typed body no longer decodes.
     pub fn device_uid(&self) -> Option<u64> {
-        self.capture.physical.map(|physical| physical.device_uid)
+        self.capture
+            .as_ref()
+            .and_then(|capture| capture.physical.map(|physical| physical.device_uid))
     }
     pub fn is_physical(&self) -> bool {
-        self.capture.physical.is_some()
+        self.capture
+            .as_ref()
+            .is_some_and(|capture| capture.physical.is_some())
     }
-    pub fn audit(&self) -> &ReferenceAudit {
-        &self.capture.audit
+    pub fn audit(&self) -> Option<&ReferenceAudit> {
+        self.capture.as_ref().map(|capture| &capture.audit)
     }
-    pub fn motors(&self) -> &MotorsConfigFile {
-        &self.policy.motors
+    pub fn motors(&self) -> Option<&MotorsConfigFile> {
+        self.policy.as_ref().map(|policy| &policy.motors)
     }
-    pub fn control(&self) -> &ControlConfigFile {
-        &self.policy.control
+    pub fn control(&self) -> Option<&ControlConfigFile> {
+        self.policy.as_ref().map(|policy| &policy.control)
     }
-    pub fn homing(&self) -> &HomingConfigFile {
-        &self.policy.homing
+    pub fn homing(&self) -> Option<&HomingConfigFile> {
+        self.policy.as_ref().map(|policy| &policy.homing)
     }
-    pub fn robot(&self) -> &RobotConfigFile {
-        &self.robot
+    pub fn robot(&self) -> Option<&RobotConfigFile> {
+        self.robot.as_ref()
     }
-    pub fn urdf(&self) -> &urdf_rs::Robot {
-        &self.urdf
+    pub fn urdf(&self) -> Option<&urdf_rs::Robot> {
+        self.urdf.as_ref()
     }
     pub fn checksum(&self) -> [u8; 32] {
         self.checksum

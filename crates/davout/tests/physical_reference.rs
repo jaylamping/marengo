@@ -287,11 +287,12 @@ fn single_joint_reference_arms_only_target_stops_all_and_records_physical_histor
         .expect("durable physical history");
     assert_eq!(records.len(), 1);
     let record = &records[0];
+    assert!(!record.is_legacy_schema());
     assert!(record.is_physical());
-    assert_eq!(record.joint(), PITCH);
+    assert_eq!(record.joint(), Some(PITCH));
     assert_eq!(record.device_uid(), Some(u64::from_le_bytes(uid)));
-    assert_eq!(record.audit().operator, OPERATOR);
-    assert!(f64::from(record.position_rad()).abs() <= bench.tolerance());
+    assert_eq!(record.audit().expect("typed audit").operator, OPERATOR);
+    assert!(f64::from(record.position_rad().expect("typed position")).abs() <= bench.tolerance());
     // Shutdown collection ends every grant; history never grants.
     assert_ne!(bench.state(PITCH), JointHomingState::Verified);
 }

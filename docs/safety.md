@@ -43,7 +43,11 @@ Read this before enabling motors on the bench or robot.
   demand but latched: the check that finds a lapse revokes that joint for the
   rest of the process. Fault, E-stop, uncertain stop, shutdown and model/policy
   changes revoke all grants. `zero_sta`/`add_offset` writes and type-22 saves
-  are never sent.
+  are never sent. Journal history is schema-tolerant for integrity checks:
+  opening the journal verifies checksums, row-key identity, bounds and exact
+  storage schema without decoding old rows under the current config schema,
+  and inspection reports undecodable rows as legacy records. See
+  [ADR 0036](decisions/0036-physical-robstride-reference.md).
 
 Consul's **Online** badge is not grant liveness. While not Active, `RobotState`
 keeps a joint for `FREE_DRIVE_FEEDBACK_TTL` (5 s) after its last sample, so a

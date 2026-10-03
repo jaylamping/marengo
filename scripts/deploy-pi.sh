@@ -72,9 +72,16 @@ stage_copy_tree() {
   local src="$1"
   local dest="$2"
   local delete="${3:-false}"
+  local exclude="${4:-}"
   mkdir -p "$dest"
   if command -v rsync >/dev/null 2>&1; then
-    if [[ "$delete" == true ]]; then
+    if [[ -n "$exclude" ]]; then
+      if [[ "$delete" == true ]]; then
+        rsync -a --delete --exclude="$exclude" "${src}/" "${dest}/"
+      else
+        rsync -a --exclude="$exclude" "${src}/" "${dest}/"
+      fi
+    elif [[ "$delete" == true ]]; then
       rsync -a --delete "${src}/" "${dest}/"
     else
       rsync -a "${src}/" "${dest}/"
@@ -85,6 +92,9 @@ stage_copy_tree() {
     find "$dest" -mindepth 1 -delete 2>/dev/null || rm -rf "${dest:?}/"* 2>/dev/null || true
   fi
   cp -a "${src}/." "$dest/"
+  if [[ -n "$exclude" ]]; then
+    rm -f "${dest}/${exclude}" 2>/dev/null || true
+  fi
 }
 
 sync_staging_to_pi() {
@@ -214,7 +224,7 @@ cp "${ROOT}/target/${TARGET}/release/marengo-gateway" "$STAGING/target/release/"
 cp "${ROOT}/target/${TARGET}/release/marengo-log-cli" "$STAGING/target/release/"
 cp "${ROOT}/target/${TARGET}/release/motor-repl" "$STAGING/target/release/"
 cp "${ROOT}/target/${TARGET}/release/imu-probe" "$STAGING/target/release/"
-stage_copy_tree "${ROOT}/config" "$STAGING/config"
+stage_copy_tree "${ROOT}/config" "$STAGING/config" false .marengo-profile.lock
 stage_copy_tree "${ROOT}/assets" "$STAGING/assets"
 log_note "Staging master SoT: config/ + assets/urdf/marengo.urdf"
 stage_copy_tree "${ROOT}/scripts" "$STAGING/scripts"

@@ -182,6 +182,21 @@ because both backends produce it. The owner never writes `zero_sta` (0x7029) or
 `add_offset` (0x702B), and never sends a type-22 parameter save. Robstride only
 encodes and decodes those registers.
 
+### Journal history is schema-tolerant for integrity checks (amendment, 2026-10-03)
+
+Opening the journal no longer decodes stored rows with the current typed
+config schema. History integrity (SHA-256 checksum of the body, session/job
+identity against the row key, session bounds, body length and capacity, exact
+schema/meta checks) runs on a version-tolerant identity view
+(`diagnostic_session`, `job_sequence`) that skips the policy, robot and URDF
+payloads. A row written by an older binary — e.g. one carrying a retired
+control key like `allow_firmware_speed_mode` — still opens, and new commits
+append normally. Checksum or identity mismatches still fail closed and
+preserve the stored bytes. History never grants, so payload semantics are not
+rechecked on open. Inspection reports such rows as legacy records (session,
+job and checksum only; typed accessors return `None`) instead of failing the
+whole listing.
+
 ## Firmware assumptions [INFERENCE]
 
 These come from the vendor manual and from probe frames

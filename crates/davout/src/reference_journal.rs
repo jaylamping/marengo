@@ -778,7 +778,13 @@ impl Database {
             let job: Vec<u8> = row.get(1).map_err(error)?;
             let body: Vec<u8> = row.get(4).map_err(error)?;
             let checksum: Vec<u8> = row.get(5).map_err(error)?;
-            checked_body(row_session as u64, &job, &body, &checksum)?;
+            // History integrity must not depend on the current config schema:
+            // rows written by older binaries carry retired keys, and the full
+            // typed body no longer decodes. Integrity (checksum, row-key
+            // identity, session bounds, lengths) uses an identity-only view
+            // that skips the policy, robot and URDF payloads. History never
+            // grants, so payload semantics are not rechecked here.
+            checked_history_row(row_session as u64, &job, &body, &checksum)?;
         }
         Ok(())
     }
@@ -889,6 +895,24 @@ impl Database {
     }
 }
 
+fn checked_history_row(
+    session: u64,
+    job: &[u8],
+    body: &[u8],
+    checksum: &[u8],
+) -> Result<(), ReferenceJournalError> {
+    let job: [u8; 8] = job.try_into().map_err(|_| error("job key width"))?;
+    let digest: [u8; 32] = checksum.try_into().map_err(|_| error("checksum width"))?;
+    if <[u8; 32]>::from(Sha256::digest(body)) != digest {
+        return Err(error("body checksum mismatch"));
+    }
+    let identity = super::reference_codec::decode_identity(body).map_err(error)?;
+    if !identity.matches(session, u64::from_be_bytes(job)) {
+        return Err(error("event identity/body mismatch"));
+    }
+    Ok(())
+}
+
 fn checked_body(
     session: u64,
     job: &[u8],
@@ -934,7 +958,25 @@ pub(super) fn inspect(
             .as_slice()
             .try_into()
             .map_err(|_| error("checksum width"))?;
-        records.push(ReferenceHistoryRecord::from_body(&body, digest).map_err(error)?);
+        let row_session: i64 = row.get(0).map_err(error)?;
+        let job: Vec<u8> = row.get(1).map_err(error)?;
+        // Inspection stays honest about schema drift: a row whose body no
+        // longer decodes under the current typed schema is reported as a
+        // legacy record instead of failing the whole listing. Identity and
+        // envelope still decode exactly, so corruption keeps failing closed.
+        let record = match ReferenceHistoryRecord::from_body(&body, digest) {
+            Ok(record) => record,
+            Err(_) => {
+                checked_history_row(row_session as u64, &job, &body, &checksum)?;
+                let identity = super::reference_codec::decode_identity(&body).map_err(error)?;
+                ReferenceHistoryRecord::legacy(
+                    identity.diagnostic_session,
+                    identity.job_sequence,
+                    digest,
+                )
+            }
+        };
+        records.push(record);
     }
     Ok(records)
 }
