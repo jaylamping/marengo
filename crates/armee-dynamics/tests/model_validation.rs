@@ -24,6 +24,12 @@ fn write_urdf(body: &str) -> PathBuf {
     path
 }
 
+fn refusal(path: &Path, joints: &[String]) -> DynamicsError {
+    gravity_model_from_urdf(path, joints)
+        .err()
+        .expect("model load must be refused")
+}
+
 fn names(list: &[&str]) -> Vec<String> {
     list.iter().map(|n| (*n).to_owned()).collect()
 }
@@ -59,10 +65,7 @@ fn two_joint(shoulder_extra: &str, elbow_kind: &str, elbow_extra: &str) -> PathB
 #[test]
 fn unlisted_actuated_joint_is_refused_not_evaluated_at_zero() {
     let path = two_joint(AXIS_Y, "revolute", AXIS_Y);
-    let err = match gravity_model_from_urdf(&path, &names(&["shoulder"])) {
-        Ok(_) => panic!("elbow is actuated but not listed; the model must refuse"),
-        Err(e) => e,
-    };
+    let err = refusal(&path, &names(&["shoulder"]));
     assert!(
         matches!(&err, DynamicsError::UnmodelledJoint { joint } if joint == "elbow"),
         "{err}"
@@ -74,7 +77,7 @@ fn unlisted_actuated_joint_is_refused_not_evaluated_at_zero() {
 #[test]
 fn live_urdf_with_a_joint_missing_from_robot_yaml_is_refused() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let robot = marengo_config::load_robot_config_from(&root.join("config")).expect("robot.yaml");
+    let robot = marengo_config::load_robot_config_from(root.join("config")).expect("robot.yaml");
     let urdf = root.join(&robot.robot.urdf);
     let mut joints = robot.robot.joints.clone();
     joints.retain(|j| j != "right_elbow_pitch");
@@ -85,20 +88,14 @@ fn live_urdf_with_a_joint_missing_from_robot_yaml_is_refused() {
 #[test]
 fn duplicate_and_fixed_names_are_refused() {
     let path = two_joint(AXIS_Y, "revolute", AXIS_Y);
-    let err = match gravity_model_from_urdf(&path, &names(&["shoulder", "elbow", "shoulder"])) {
-        Ok(_) => panic!("duplicate joint name must be refused"),
-        Err(e) => e,
-    };
+    let err = refusal(&path, &names(&["shoulder", "elbow", "shoulder"]));
     assert!(
         matches!(&err, DynamicsError::DuplicateJoint { joint } if joint == "shoulder"),
         "{err}"
     );
 
     let fixed = two_joint(AXIS_Y, "fixed", "");
-    let err = match gravity_model_from_urdf(&fixed, &names(&["shoulder", "elbow"])) {
-        Ok(_) => panic!("a fixed joint in the model list must be refused"),
-        Err(e) => e,
-    };
+    let err = refusal(&fixed, &names(&["shoulder", "elbow"]));
     assert!(
         matches!(&err, DynamicsError::NotActuated { joint, .. } if joint == "elbow"),
         "{err}"
@@ -108,10 +105,7 @@ fn duplicate_and_fixed_names_are_refused() {
 #[test]
 fn prismatic_and_mimic_joints_are_refused() {
     let prismatic = two_joint(AXIS_Y, "prismatic", AXIS_Y);
-    let err = match gravity_model_from_urdf(&prismatic, &names(&["shoulder", "elbow"])) {
-        Ok(_) => panic!("prismatic joints are not representable"),
-        Err(e) => e,
-    };
+    let err = refusal(&prismatic, &names(&["shoulder", "elbow"]));
     assert!(
         matches!(err, DynamicsError::UnsupportedJoint { .. }),
         "{err}"
@@ -122,10 +116,7 @@ fn prismatic_and_mimic_joints_are_refused() {
         "revolute",
         &format!(r#"{AXIS_Y}<mimic joint="shoulder" multiplier="1"/>"#),
     );
-    let err = match gravity_model_from_urdf(&mimic, &names(&["shoulder", "elbow"])) {
-        Ok(_) => panic!("mimic joints are not representable"),
-        Err(e) => e,
-    };
+    let err = refusal(&mimic, &names(&["shoulder", "elbow"]));
     assert!(
         matches!(err, DynamicsError::UnsupportedJoint { .. }),
         "{err}"
@@ -139,10 +130,7 @@ fn zero_axis_is_refused_instead_of_producing_nan() {
         "revolute",
         AXIS_Y,
     );
-    let err = match gravity_model_from_urdf(&path, &names(&["shoulder", "elbow"])) {
-        Ok(_) => panic!("zero axis must be refused"),
-        Err(e) => e,
-    };
+    let err = refusal(&path, &names(&["shoulder", "elbow"]));
     assert!(matches!(err, DynamicsError::InvalidModel { .. }), "{err}");
 }
 
@@ -172,10 +160,7 @@ fn cyclic_chain_is_refused_not_hung() {
         joint("ab", "revolute", "a", "b", AXIS_Y),
         joint("ba", "revolute", "b", "a", AXIS_Y),
     ));
-    let err = match gravity_model_from_urdf(&path, &names(&["ab", "ba"])) {
-        Ok(_) => panic!("cycle must be refused"),
-        Err(e) => e,
-    };
+    let err = refusal(&path, &names(&["ab", "ba"]));
     assert!(matches!(err, DynamicsError::CyclicChain { .. }), "{err}");
 }
 

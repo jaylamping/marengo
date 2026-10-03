@@ -25,7 +25,7 @@ Numerical central difference at q ± DQ_EPS (1e-6) per joint:
 ### Implementation details
 - `UrdfGravityModel::from_urdf(path, joint_names)` — loads URDF, precomputes link chain indices (root→leaf per link) to avoid O(n) joint scan per transform.
 - `link_com_world(q_map)` — transforms each COM as a point, including upstream joint-origin translations; multiplying an isometry by a vector would lose those lever arms (CS23).
-- `link_transform(link_name, q_map)` — traverses the root-to-link chain, applies origins and revolute/continuous rotation. Prismatic motion, mimic and floating-base orientation are unsupported; omitted joint angles currently default to zero.
+- `link_transform(link_name, q_map)` — traverses the root-to-link chain, applies origins and revolute/continuous rotation. Prismatic motion, mimic and floating joints are refused at construction; every actuated joint must be modelled or explicitly held (`from_urdf_with_held`).
 - Gravity vector: `[0, 0, -9.81]` (Z-down, standard URDF convention).
 - Uses `nalgebra` for 3D transforms (Isometry3, Rotation3, Translation3).
 
@@ -37,7 +37,8 @@ Numerical central difference at q ± DQ_EPS (1e-6) per joint:
 
 ### Helper functions
 - `gravity_model_from_urdf(urdf_path, joint_names)` — convenience constructor.
-- `max_gravity_torque_over_range(model, joint_index, q_min, q_max, steps)` — samples tau_g across a range to verify gravity comp won't saturate the drive. Clamped to minimum 2 steps (endpoints only).
+- `max_gravity_torque_over_range(model, joint_index, q_min, q_max, steps)` — samples tau_g across a range to verify gravity comp won't saturate the drive. Clamped to minimum 2 steps (endpoints only). Errors on a non-finite range or torque.
+- `check_gravity_range(model, joint_index, q_min, q_max, torque_limit, steps)` — shared preflight verdict (`Within`/`Near`/`Saturated`/`Unevaluable`); `refuses()` is true for `Saturated` and `Unevaluable`.
 
 ## Flow
 ```

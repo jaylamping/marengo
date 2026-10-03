@@ -24,7 +24,7 @@ URDF kinematic facts for the Marengo arm: joint limits, actuated joint indexing,
 ### Key functions
 - `load_urdf(path)` — parse a URDF file with urdf-rs.
 - `joint_limits(robot, name)` — extract hard position limits for a named joint.
-- `joint_limit_bounds(robot, name)` — hard limits plus safety_controller soft bounds.
+- `joint_limit_bounds(robot, name)` — hard limits plus safety_controller soft bounds (URDF soft is a fallback; Davout overwrites it from `control.yaml`). Errors (`UrdfError::InvalidLimits`) on non-finite/inverted hard or non-finite soft limits.
 - `joint_entry_count(robot)` — total URDF joints (including fixed/mimic).
 - `actuated_joint_names(robot)` — revolute/continuous/prismatic joints in URDF document order.
 - `actuated_joint_count(robot)` — count of actuated joints.
