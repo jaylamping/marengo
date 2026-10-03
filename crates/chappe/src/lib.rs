@@ -17,6 +17,7 @@
 
 pub mod ipc;
 mod ipc_outbox;
+pub mod topics;
 pub mod tracing_layer;
 
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -79,6 +80,13 @@ impl Bus {
     }
 
     fn sender(&self, topic: &str) -> broadcast::Sender<Vec<u8>> {
+        // Fast path: an existing topic takes only a read lock, so the 200 Hz
+        // loop never contends with itself for a write lock (L-chappe-01).
+        if let Ok(guard) = self.inner.channels.read() {
+            if let Some(tx) = guard.get(topic) {
+                return tx.clone();
+            }
+        }
         let mut guard = self
             .inner
             .channels
@@ -110,11 +118,10 @@ impl Bus {
             }
         }
         let tx = self.sender(topic);
-        if tx.receiver_count() == 0 {
-            return Ok(());
-        }
-        tx.send(payload)
-            .map_err(|e| BusError::Publish(e.to_string()))?;
+        // `send` fails only when the last receiver is gone. That is success
+        // for telemetry (and closes the receiver_count check-then-send race
+        // that could surface as a tick error, L-berthier-24).
+        tx.send(payload).ok();
         Ok(())
     }
 
@@ -226,5 +233,41 @@ mod tests {
         assert_eq!(env.message_type, "marengo.v1.Heartbeat");
         let hb = Heartbeat::decode(env.payload.as_slice()).expect("inner");
         assert_eq!(hb.node_id, "probe");
+    }
+
+    #[test]
+    fn publish_after_last_subscriber_dropped_succeeds() {
+        // L-berthier-24: the old receiver_count check-then-send could observe
+        // a live receiver and then fail the send once it dropped. Publish
+        // must succeed whenever no receiver remains.
+        let bus = Bus::default();
+        let rx = bus.subscribe("robot/state");
+        drop(rx);
+        bus.publish_bytes("robot/state", vec![1, 2, 3])
+            .expect("publish with dropped subscriber");
+    }
+
+    #[test]
+    fn concurrent_publish_on_existing_topic_delivers_to_subscriber() {
+        // L-chappe-01: the sender fast path must stay correct under
+        // contention between publishers and a fresh subscriber.
+        let bus = Bus::default();
+        bus.publish_bytes("robot/state", vec![0])
+            .expect("create topic");
+        let mut rx = bus.subscribe("robot/state");
+        std::thread::scope(|scope| {
+            for _ in 0..4 {
+                scope.spawn(|| {
+                    for i in 0..10_u8 {
+                        bus.publish_bytes("robot/state", vec![i]).expect("publish");
+                    }
+                });
+            }
+        });
+        let mut received = 0;
+        while rx.try_recv().is_ok() {
+            received += 1;
+        }
+        assert_eq!(received, 40);
     }
 }

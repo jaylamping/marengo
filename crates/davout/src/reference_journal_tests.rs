@@ -23,22 +23,7 @@ const WAIT: Duration = Duration::from_secs(5);
 
 fn tree() -> support::FixtureTree {
     let source = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let tree = support::FixtureTree::new("reference-journal", &source);
-    let path = tree.path().join("config/control.yaml");
-    let text = std::fs::read_to_string(&path).expect("copied control config");
-    assert_eq!(
-        text.matches("active_reporting_diagnostics: true").count(),
-        1
-    );
-    std::fs::write(
-        path,
-        text.replace(
-            "active_reporting_diagnostics: true",
-            "active_reporting_diagnostics: false",
-        ),
-    )
-    .expect("isolated diagnostics");
-    tree
+    support::fixture_tree_without_diagnostics("reference-journal", &source)
 }
 fn zero() -> ReceivedCanFrame {
     ReceivedCanFrame::full_data(

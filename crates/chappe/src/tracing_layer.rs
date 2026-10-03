@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+pub use crate::topics::TOPIC_LOGS;
 use crate::Bus;
 use armee_proto::LogEvent;
 use serde_json::{Map, Value};
@@ -12,9 +13,11 @@ use tracing::{Event, Level, Subscriber};
 use tracing_subscriber::layer::{Context, Layer};
 use tracing_subscriber::registry::LookupSpan;
 
-pub const TOPIC_LOGS: &str = "logs/structured";
-
 const MAX_LOGS_PER_SEC: u64 = 40;
+/// Separate per-second budget for WARN/ERROR: a warn storm still surfaces
+/// (L-chappe-02) but cannot flood the in-process broadcast or the gateway
+/// DB writer at tick rate.
+const MAX_URGENT_PER_SEC: u64 = 10;
 const MAX_FIELDS_JSON_BYTES: usize = 2048;
 const QUOTA_COUNT_BITS: u32 = 8;
 const QUOTA_COUNT_MASK: u64 = (1 << QUOTA_COUNT_BITS) - 1;
@@ -26,6 +29,12 @@ pub struct ChappeLogLayer {
     // Store the elapsed-second bucket and its count together so concurrent events
     // cannot reset one another's quota or mix counts from different windows.
     quota: AtomicU64,
+    /// Same packing for WARN/ERROR, which get their own budget (L-chappe-02).
+    urgent_quota: AtomicU64,
+    /// Suppressed INFO/DEBUG/TRACE events this window-lifetime (G02 counters).
+    dropped_normal: AtomicU64,
+    /// Suppressed WARN/ERROR events (warn-storm evidence).
+    dropped_urgent: AtomicU64,
     elapsed: Arc<dyn Fn() -> Duration + Send + Sync>,
 }
 
@@ -44,33 +53,58 @@ impl ChappeLogLayer {
             bus,
             source_node: source_node.into(),
             quota: AtomicU64::new(0),
+            urgent_quota: AtomicU64::new(0),
+            dropped_normal: AtomicU64::new(0),
+            dropped_urgent: AtomicU64::new(0),
             elapsed: Arc::new(elapsed),
         }
     }
 
+    /// Events suppressed by the INFO/DEBUG/TRACE quota (lifetime total).
+    pub fn dropped_normal(&self) -> u64 {
+        self.dropped_normal.load(Ordering::Relaxed)
+    }
+
+    /// Events suppressed by the WARN/ERROR quota (lifetime total).
+    pub fn dropped_urgent(&self) -> u64 {
+        self.dropped_urgent.load(Ordering::Relaxed)
+    }
+
     fn allow_event(&self, level: Level) -> bool {
         if matches!(level, Level::ERROR | Level::WARN) {
-            return true;
+            return Self::allow_in_bucket(
+                &self.urgent_quota,
+                (self.elapsed)().as_secs(),
+                MAX_URGENT_PER_SEC,
+            );
         }
-        let bucket = (self.elapsed)().as_secs().min(u64::MAX >> QUOTA_COUNT_BITS);
-        let mut current = self.quota.load(Ordering::Relaxed);
+        Self::allow_in_bucket(&self.quota, (self.elapsed)().as_secs(), MAX_LOGS_PER_SEC)
+    }
+
+    fn allow_in_bucket(bucket: &AtomicU64, now_secs: u64, max_per_sec: u64) -> bool {
+        let window = now_secs.min(u64::MAX >> QUOTA_COUNT_BITS);
+        let mut current = bucket.load(Ordering::Relaxed);
         loop {
-            let next = if current >> QUOTA_COUNT_BITS < bucket {
-                (bucket << QUOTA_COUNT_BITS) | 1
-            } else if current & QUOTA_COUNT_MASK >= MAX_LOGS_PER_SEC {
+            let next = if current >> QUOTA_COUNT_BITS < window {
+                (window << QUOTA_COUNT_BITS) | 1
+            } else if current & QUOTA_COUNT_MASK >= max_per_sec {
                 return false;
             } else {
                 current + 1
             };
-            match self.quota.compare_exchange_weak(
-                current,
-                next,
-                Ordering::Relaxed,
-                Ordering::Relaxed,
-            ) {
+            match bucket.compare_exchange_weak(current, next, Ordering::Relaxed, Ordering::Relaxed)
+            {
                 Ok(_) => return true,
                 Err(updated) => current = updated,
             }
+        }
+    }
+
+    fn record_drop(&self, level: Level) {
+        if matches!(level, Level::ERROR | Level::WARN) {
+            self.dropped_urgent.fetch_add(1, Ordering::Relaxed);
+        } else {
+            self.dropped_normal.fetch_add(1, Ordering::Relaxed);
         }
     }
 }
@@ -170,6 +204,7 @@ where
     fn on_event(&self, event: &Event<'_>, _ctx: Context<'_, S>) {
         let level = *event.metadata().level();
         if !self.allow_event(level) {
+            self.record_drop(level);
             return;
         }
         let mut visitor = FieldsVisitor {
@@ -332,6 +367,53 @@ mod tests {
             40,
             "each admitted event must publish once"
         );
+    }
+
+    #[test]
+    fn warn_storm_is_capped_and_counted() {
+        // L-chappe-02: WARN/ERROR used to bypass the quota entirely, so a
+        // per-tick warn flooded the broadcast and the gateway DB writer.
+        let bus = Arc::new(Bus::new(256));
+        let mut rx = bus.subscribe(TOPIC_LOGS);
+        let layer = ChappeLogLayer::with_clock(bus, "test", || Duration::ZERO);
+        let subscriber = tracing_subscriber::registry().with(layer);
+        tracing::subscriber::with_default(subscriber, || {
+            for _ in 0..(MAX_URGENT_PER_SEC + 5) {
+                tracing::warn!("storm warning");
+            }
+            tracing::error!("storm error");
+            let logs = published_logs(&mut rx);
+            assert_eq!(
+                logs.len() as u64,
+                MAX_URGENT_PER_SEC,
+                "urgent events share one bounded budget per second"
+            );
+            assert!(logs.iter().all(|event| event.level == "warn"));
+        });
+    }
+
+    #[test]
+    fn suppression_counters_distinguish_severity() {
+        let bus = Arc::new(Bus::default());
+        let layer = ChappeLogLayer::with_clock(bus, "test", || Duration::ZERO);
+        layer.record_drop(Level::INFO);
+        layer.record_drop(Level::DEBUG);
+        layer.record_drop(Level::WARN);
+        layer.record_drop(Level::ERROR);
+        assert_eq!(layer.dropped_normal(), 2);
+        assert_eq!(layer.dropped_urgent(), 2);
+    }
+
+    #[test]
+    fn quota_buckets_are_independent_per_severity() {
+        // Exhausting the urgent budget must not consume the normal one.
+        let bus = Arc::new(Bus::default());
+        let layer = ChappeLogLayer::with_clock(bus, "test", || Duration::ZERO);
+        for _ in 0..MAX_URGENT_PER_SEC {
+            assert!(layer.allow_event(Level::WARN));
+        }
+        assert!(!layer.allow_event(Level::ERROR));
+        assert!(layer.allow_event(Level::INFO));
     }
 
     #[test]

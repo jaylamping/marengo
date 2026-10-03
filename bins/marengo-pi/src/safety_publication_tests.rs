@@ -192,7 +192,6 @@ fn exercise_bound(
         ActuatorOverlay::from_config_dir(&config, queue).expect("real installed overlay");
     let (cmd_tx, cmd_rx) = mpsc::channel();
     let mut enable_rx = bus.subscribe("robot/enable");
-    let mut homing_rx = bus.subscribe("robot/homing");
     let mut set_zero_rx = bus.subscribe("robot/set_zero");
     let mut lease_rx = bus.subscribe("robot/active_reporting_lease");
     let mut status_poll_rx = bus.subscribe("robot/motor_status_poll");
@@ -204,7 +203,6 @@ fn exercise_bound(
         chappe: &bus,
         cmd_rx: &cmd_rx,
         enable_rx: &mut enable_rx,
-        homing_rx: &mut homing_rx,
         set_zero_rx: &mut set_zero_rx,
         lease_rx: &mut lease_rx,
         status_poll_rx: &mut status_poll_rx,

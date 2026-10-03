@@ -28,25 +28,33 @@ proptest! {
     fn position_non_gravity_ff_independent_of_tau_g(
         tau_g in -5.0..5.0f64,
         tau_g_perturbed in -5.0..5.0f64,
+        kd in 0.0..20.0f64,
+        dq_filtered in -3.0..3.0f64,
+        dq_traj in -3.0..3.0f64,
+        settle_error in 0.0..1.0f64,
+        vel_deadband in 0.001..0.1f64,
+        effective_max_lead in 0.01..0.3f64,
+        retarget_age_ms in 0..100_000u64,
+        traj_phase in prop_oneof![
+            Just(TrapezoidPhase::Accelerate),
+            Just(TrapezoidPhase::Cruise),
+            Just(TrapezoidPhase::Decelerate),
+            Just(TrapezoidPhase::Hold),
+        ],
+        friction in prop::option::of((
+            0.0..1.0f64,
+            0.0..1.0f64,
+            0.0..1.0f64,
+            0.0..50.0f64,
+        )),
+        approaching_target in prop::bool::ANY,
+        sustained_low_angle_breakaway in prop::bool::ANY,
     ) {
         // Position mode: tau_ff = tau_g + tau_f + tau_d.
         // The non-gravity components (tau_f, tau_d) come from
         // `compose_position_hold_feedforward` and must not depend on tau_g.
-        let friction = FrictionGains {
-            fc: 0.15,
-            fv: 0.0,
-            fo: 0.0,
-            k: 10.0,
-        };
-        let kd = 2.0;
-        let dq_filtered = 0.05;
-        let dq_traj = 0.1;
-        let settle_error = 0.08;
-        let vel_deadband = 0.02;
-        let effective_max_lead = 0.10;
-        let retarget_age_ms = 500u64;
-        let traj_phase = TrapezoidPhase::Cruise;
-        let approaching_target = true;
+        let friction = friction.map(|(fc, fv, fo, k)| FrictionGains { fc, fv, fo, k });
+        let friction_ref = friction.as_ref();
 
         let out1: PositionHoldFeedforward = compose_position_hold_feedforward(
             tau_g,
@@ -58,9 +66,9 @@ proptest! {
             effective_max_lead,
             retarget_age_ms,
             traj_phase,
-            Some(&friction),
+            friction_ref,
             approaching_target,
-            false,
+            sustained_low_angle_breakaway,
         );
         let out2: PositionHoldFeedforward = compose_position_hold_feedforward(
             tau_g_perturbed,
@@ -72,9 +80,9 @@ proptest! {
             effective_max_lead,
             retarget_age_ms,
             traj_phase,
-            Some(&friction),
+            friction_ref,
             approaching_target,
-            false,
+            sustained_low_angle_breakaway,
         );
 
         // The non-gravity components (tau_f, tau_d) must be identical.

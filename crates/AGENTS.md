@@ -17,6 +17,7 @@
 | `marengo-homing` | — | Homing state machine, zero registry |
 | `marengo-imu` | — | BNO085 SHTP/I2C driver, rotation-vector samples |
 | `marengo-support` | — | `init_tracing()` only |
+| `marengo-candump` | — | candump parse, summarize, page, optional Robstride enrichment |
 | `marengo-host-metrics` | — | Host-level metrics (CPU, temp, etc.) |
 | `marengo-store` | — | Bench session / log archive SQL store |
 | `marengo-deploy` | — | Self-update jobs, revisions, upstream status, and enqueueing |
@@ -27,7 +28,7 @@
 | Task | Location |
 |------|----------|
 | Control loop tick | `berthier/src/loop.rs` (`ControlLoop`, `tick`) |
-| Safety supervisor | `davout/src/lib.rs:166` (`Supervisor` struct) |
+| Safety supervisor | `davout/src/lib.rs:367` (`Supervisor` struct) |
 | `disable_all` / `request_enable` | `davout/src/lib.rs` |
 | MIT CAN frame encode/decode | `robstride/src/` (`encode_*`, `decode_*` helpers) |
 | Gravity compensation | `armee-dynamics/src/` (`gravity_torques`) |
@@ -45,9 +46,9 @@
 ## CONVENTIONS
 
 - `thiserror` enums + `Result` in public APIs. No `unwrap`/`expect` (clippy `warn`).
-- `[workspace.dependencies]` in root `Cargo.toml`; feature-gate `socketcan`, heavy sim deps.
+- `[workspace.dependencies]` in root `Cargo.toml`; feature-gate `socketcan`/`linux-i2c`, heavy sim deps.
 - `unsafe_code = "forbid"` workspace-wide unless an ADR documents an exception.
-- Feature gates: `socketcan`, `sim`, `linux-i2c`. Mark hardware tests `#[ignore]`.
+- Feature gates: `socketcan`, `linux-i2c`. Mark hardware tests `#[ignore]`.
 
 ## ANTI-PATTERNS
 

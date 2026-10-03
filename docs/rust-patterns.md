@@ -253,8 +253,8 @@ count decompressed bytes independently of compressed source size. Check floating
 integer boundaries exclusively when the maximum integer rounds up in f64.
 
 - Default `cargo test` must not require hardware.
-- Use features: `socketcan`, `sim`; `vcan` names belong only to virtual-CAN test harnesses. Mark hardware tests `#[ignore]` with a clear message.
-- Sim: deterministic seeds for golden states.
+- Use features: `socketcan`, `linux-i2c`; `vcan` names belong only to virtual-CAN test harnesses. Mark hardware tests `#[ignore]` with a clear message.
+- Sim: deterministic fixtures for golden states (`sim-harness`).
 
 ## 9. Unsafe
 

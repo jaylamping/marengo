@@ -683,6 +683,10 @@ impl MotorBus for SimulationBus {
 impl Supervisor<SimulationBus> {
     /// Explicit closed virtual history owner. Always starts unreferenced.
     /// Opening/encoding/writing occurs only after an accepted commit, on its worker.
+    ///
+    /// Test-only: unpaused `HistoryOnly` selection has no production selection path.
+    /// Paused variants (already feature-gated) are the ones cross-crate tests use.
+    #[cfg(any(test, feature = "reference-journal-test-support"))]
     pub fn from_simulation_with_reference_journal(
         repo_root: impl AsRef<std::path::Path>,
         bus: SimulationBus,

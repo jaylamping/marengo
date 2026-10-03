@@ -126,3 +126,10 @@ Extra checks:
 - `scripts/proto-checksum.sh`: ok.
 
 After the gate, `mod host_metrics` in marengo-pi was cfg-gated to Linux to match its only caller. This clears the four pre-existing macOS dead-code warnings. Re-checked with `cargo test -p marengo-pi` (99 passed, no warnings), aarch64 clippy with and without the IMU/SocketCAN features, and `cargo fmt --check`.
+
+### Merge with main 02571ec9 (B5/B11, B7/B13, WP-R, WP-MQ)
+
+- Conflicts: `crates/armee-proto/src/lib.rs` took main's side (P-armee-proto-01 deleted the prost round-trip tests; WP-L only touched them to fill the new struct fields). `consul/src/gen/.checksum` was regenerated with `npm run gen:proto`; `scripts/proto-checksum.sh` reports ok.
+- Proto: main added deprecations only, no new field numbers, so WP-L's appended fields do not collide. `buf lint` is clean, and so is `buf breaking --against '/Users/joseph/code/marengo/.git#branch=main,subdir=proto'`.
+- Semantic check: `chappe::ipc_outbox` now takes topic lookup from `chappe::topics` (WP-MQ) and keeps the WP-L dropped/expired/rejected split. In marengo-pi, the subscriber and Bus are still created before config load, `UnpublishedTickFault` still feeds `publish_safety` (now `TOPIC_SAFETY`), and `mod host_metrics` is still Linux-only.
+- Gate: `cargo fmt --check` ok; both clippy commands `-D warnings` ok; `cargo test --workspace` 1235 passed, 0 failed (124 suites); Consul `npm test -- --run` 384/384 (78 files), `npm run build` ok; MCP `npm test` 207/207.

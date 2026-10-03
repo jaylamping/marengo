@@ -114,7 +114,6 @@ fn run_retained_pair(owner_stopping: bool) -> RetainedRun {
     let written_kp_in_hook = Arc::clone(&actual_written_kp);
     let queue = ConfigPersistQueue::spawn_with_test_hooks(
         Arc::clone(&chappe),
-        Arc::clone(&owner_shutdown),
         temp.path().to_path_buf(),
         PersistTestHooks {
             before_write: Some(Arc::new(move |request| {
@@ -280,7 +279,6 @@ fn queue_stays_busy_until_the_real_terminal_action_is_published() {
     let timeout_in_hook = Arc::clone(&gate_timed_out);
     let queue = ConfigPersistQueue::spawn_with_test_hooks(
         Arc::clone(&chappe),
-        Arc::clone(&owner_shutdown),
         temp.path().to_path_buf(),
         PersistTestHooks {
             before_publish: Some(Arc::new(move |request| {

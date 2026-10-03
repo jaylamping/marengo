@@ -372,8 +372,8 @@ fn cert_sha256_from_der(cert_der: &[u8]) -> [u8; 32] {
 pub fn spawn_demo_publisher(state: SharedState) {
     use armee_proto::{
         BuildInfo, ChappeHealth, ClockMetrics, CpuMetrics, Heartbeat, HostMetrics, HostNodeRole,
-        JetsonPlatformMetrics, JointState, LoadMetrics, LogEvent, MemoryMetrics, OperationalMode,
-        PiPlatformMetrics, RobotState, SafetyState, ThermalMetrics,
+        JointState, LoadMetrics, LogEvent, MemoryMetrics, OperationalMode, PiPlatformMetrics,
+        RobotState, SafetyState, ThermalMetrics,
     };
     tokio::spawn(async move {
         let mut t = 0u64;
@@ -467,59 +467,6 @@ pub fn spawn_demo_publisher(state: SharedState) {
                 })),
                 ..Default::default()
             };
-            let host_jetson = HostMetrics {
-                timestamp_ms: ts,
-                hostname: "demo-jetson".to_string(),
-                node_role: HostNodeRole::Jetson as i32,
-                uptime_sec: t,
-                build: Some(BuildInfo {
-                    deploy_rev: "demo".to_string(),
-                    git_sha: "demo".to_string(),
-                    semver: env!("CARGO_PKG_VERSION").to_string(),
-                }),
-                cpu: Some(CpuMetrics {
-                    sample_valid: true,
-                    usage_percent: 18.0,
-                    core_count: 8,
-                    ..Default::default()
-                }),
-                memory: Some(MemoryMetrics {
-                    total_bytes: 16 * 1024 * 1024 * 1024,
-                    used_bytes: 6 * 1024 * 1024 * 1024,
-                    available_bytes: 10 * 1024 * 1024 * 1024,
-                    ..Default::default()
-                }),
-                load: Some(LoadMetrics {
-                    load_1m: 0.88,
-                    ..Default::default()
-                }),
-                thermal: Some(ThermalMetrics {
-                    cpu_celsius: 44.0,
-                    gpu_celsius: 51.0,
-                    ..Default::default()
-                }),
-                chappe: Some(ChappeHealth {
-                    ipc_connected: true,
-                    gateway_reachable: true,
-                    ..Default::default()
-                }),
-                clock: Some(ClockMetrics {
-                    sync_source: "demo".to_string(),
-                    synchronized: true,
-                    ..Default::default()
-                }),
-                platform: Some(armee_proto::host_metrics::Platform::Jetson(
-                    JetsonPlatformMetrics {
-                        jetson_model: "Demo Orin".to_string(),
-                        power_mode: "MAXN".to_string(),
-                        gpu_usage_percent: 55.0,
-                        chappe_connected: true,
-                        chappe_rtt_ms: 1.2,
-                        ..Default::default()
-                    },
-                )),
-                ..Default::default()
-            };
             for (topic, msg, type_name) in [
                 (
                     crate::state::TOPIC_STATE,
@@ -544,11 +491,6 @@ pub fn spawn_demo_publisher(state: SharedState) {
                 (
                     crate::state::TOPIC_HOST_METRICS_PI,
                     host_pi.encode_to_vec(),
-                    "marengo.v1.HostMetrics",
-                ),
-                (
-                    crate::state::TOPIC_HOST_METRICS_JETSON,
-                    host_jetson.encode_to_vec(),
                     "marengo.v1.HostMetrics",
                 ),
             ] {

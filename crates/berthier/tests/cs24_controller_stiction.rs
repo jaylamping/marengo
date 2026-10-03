@@ -56,24 +56,8 @@ fn raw_velocity_then_stiction_faults_controller_and_preserves_stop_latch() {
     let source = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let master_control_before =
         std::fs::read(source.join("config/control.yaml")).expect("immutable master control input");
-    let fixture = support::FixtureTree::new("cs24-controller-stiction", &source);
+    let fixture = support::fixture_tree_without_diagnostics("cs24-controller-stiction", &source);
     let fixture_path = fixture.path().to_path_buf();
-    let control_path = fixture.path().join("config/control.yaml");
-    let control_text = std::fs::read_to_string(&control_path).expect("copied fixture control");
-    assert_eq!(
-        control_text
-            .matches("active_reporting_diagnostics: true")
-            .count(),
-        1
-    );
-    std::fs::write(
-        &control_path,
-        control_text.replace(
-            "active_reporting_diagnostics: true",
-            "active_reporting_diagnostics: false",
-        ),
-    )
-    .expect("only copied reporting policy changed before construction");
 
     let mut ctrl = ControlLoop::from_simulation(
         fixture.path(),

@@ -16,4 +16,6 @@ urdf-rs.workspace = true
 
 [dev-dependencies]
 marengo-config.workspace = true
-serde_yaml.workspace = true
+
+[features]
+test-support = []

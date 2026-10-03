@@ -159,6 +159,9 @@ mod linux {
         }
     }
 
+    /// B13 (D-1): the `HostNodeRole::Jetson` arm is deprecated (no producer) but
+    /// kept so a Jetson role maps to no platform metrics, like Unspecified.
+    #[allow(deprecated)]
     pub fn sample(
         role: HostNodeRole,
         semver: &str,
@@ -428,6 +431,9 @@ mod linux {
             .unwrap_or(0)
     }
 
+    /// B13 (D-1): the `HostNodeRole::Jetson` arm is deprecated (no producer) but
+    /// kept so a Jetson role maps to no units, like Unspecified.
+    #[allow(deprecated)]
     fn sample_services(role: HostNodeRole) -> Vec<ServiceStatus> {
         let units: &[&str] = match role {
             HostNodeRole::Pi => &[

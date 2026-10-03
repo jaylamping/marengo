@@ -20,20 +20,6 @@ export type PiHostMetrics = {
   simulated: boolean;
 };
 
-export type JetsonHostMetrics = {
-  hostname: string;
-  cpuPercent: number | undefined;
-  ramUsedGb: number;
-  ramTotalGb: number;
-  gpuPercent: number;
-  tempC: number;
-  load1m: number;
-  uptime: string;
-  powerMode: string;
-  chappeRttMs: number;
-  online: boolean;
-};
-
 export const dummyPiHostMetrics: PiHostMetrics = {
   hostname: 'marengo-pi',
   cpuPercent: 24,
@@ -50,16 +36,3 @@ export const dummyPiHostMetrics: PiHostMetrics = {
   simulated: false,
 };
 
-export const dummyJetsonHostMetrics: JetsonHostMetrics = {
-  hostname: 'marengo-jetson',
-  cpuPercent: 38,
-  ramUsedGb: 5.4,
-  ramTotalGb: 16,
-  gpuPercent: 61,
-  tempC: 48.7,
-  load1m: 1.12,
-  uptime: '4h 12m',
-  powerMode: 'MAXN',
-  chappeRttMs: 1.4,
-  online: true,
-};

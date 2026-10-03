@@ -13,7 +13,6 @@ workspace = true
 [features]
 default = []
 socketcan = ["robstride/socketcan"]
-vcan = ["socketcan"]
 
 [[bin]]
 name = "motor-repl"

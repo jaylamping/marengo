@@ -128,7 +128,6 @@ export const CHAPPE_TOPICS = {
   imuTorso: 'sensors/imu/torso',
   logs: 'logs/structured',
   hostMetricsPi: 'host/metrics/pi',
-  hostMetricsJetson: 'host/metrics/jetson',
 } as const;
 
 export function getChappeSubscribeTopics(): string[] {
@@ -140,6 +139,5 @@ export function getChappeSubscribeTopics(): string[] {
     CHAPPE_TOPICS.imuTorso,
     CHAPPE_TOPICS.logs,
     CHAPPE_TOPICS.hostMetricsPi,
-    CHAPPE_TOPICS.hostMetricsJetson,
   ];
 }
