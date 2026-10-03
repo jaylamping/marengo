@@ -11,10 +11,19 @@
 //! - [`Candump::visit_path`] / [`Candump::visit_bytes`]: stream every parsed frame to a
 //!   caller visitor (whole-capture analyses such as `marengo-log-cli firmware-timing`)
 //! - Validated [`CanId`], [`Summary`], [`Inspection`]
-//! - Optional `robstride-enrichment` catalog lookup
+//! - Optional `robstride-enrichment` catalog lookup. Device ids are decoded by
+//!   direction (drive frames echo host 0xFD with the responder at bits 8-15;
+//!   host frames name the target in the low byte; type-0/17 replies use the
+//!   robstride reply decoders). Kernel error frames and RTR are never enriched.
+//!   `Summary::enriched` is true only when a frame resolved a joint.
+//!
+//! Kernel error frames (`2000xxxx#`, `CAN_ERR_FLAG`) and remote requests
+//! (`ID#R`, `ID [n] remote request`) are parsed frames, counted in
+//! `parsed_frames`/`top_ids`, never malformed. Standard vs extended comes from
+//! the ID field width on the wire (8 hex digits = extended), not the value.
 //!
 //! Untrusted input limits: at most 4096 bytes per physical line (including newline)
-//! and 256 MiB of decompressed capture bytes. Malformed frames are skipped; finite
+//! and 256 MiB of decompressed capture bytes. Malformed lines are skipped; finite
 //! timestamps outside the representable domain fail inspection with a typed error.
 //! Delta timestamps and JSON offsets must fit Duration; absolute timestamps must
 //! round to fewer than 2^64 Unix microseconds. Accepted offsets retain nanosecond

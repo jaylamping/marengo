@@ -19,7 +19,7 @@ Workspace library crates implementing the Marengo humanoid robot's control stack
 | `marengo-homing` | Joint homing registry: encoder zero verification, calibration record persistence |
 | `marengo-support` | `init_tracing()` (RUST_LOG filter) only |
 | `marengo-store` | Time-series key-value store for telemetry replay |
-| `marengo-imu` | IMU driver and frame publishing |
+| `marengo-imu` | BNO085 IMU driver (marengo-pi publishes the samples) |
 | `marengo-host-metrics` | Host-level CPU/Mem/Disk metrics for health dashboard |
 | `marengo-deploy` | Pi self-update jobs, `.deploy-rev`, upstream tip, typed version status |
 | `sim-harness` | Simulation test harness |
