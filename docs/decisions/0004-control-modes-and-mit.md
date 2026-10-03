@@ -37,6 +37,10 @@ Wire encoding is defined in [hardware/docs/decisions/0002-robstride-protocol.md]
 - **Gravity compensation is not optional** on the hardware bench until impedance tuning is documented and signed off.
 - Do not use **position-only** holding for elevated configurations (shoulder up, elbow up) until G-comp is validated.
 
+### Update 2026-10-03: Impedance setpoint tracks measured `q`
+
+Berthier's `Impedance` packs `position = q_measured`, `velocity = 0` every tick (`MitFeedforward::compose`), so the MIT term `kp·(q_des − q)` is zero at compose time: the mode is compliant at the current pose, and `kp` (YAML or Testing override) has almost no restoring effect. `kd`, `tau_g` and friction shape the command. Position stiffness comes from `Position` mode (`hold-on` / `hold-at`). Pinned by `impedance_setpoint_tracks_displaced_q_so_kp_has_no_restoring_term`.
+
 ## Consequences
 
 - Proto adds `MitJointCommand`, `MitCommandBatch`, `ControlMode`.

@@ -157,4 +157,26 @@ mod tests {
         assert!((ov[0].kp - 12.0).abs() < 1e-12);
         assert!((ov[0].kd - 2.0).abs() < 1e-12);
     }
+
+    /// L-berthier-17 characterization (intended; docs/tuning.md "setpoint tracks
+    /// measured q"): Impedance re-latches `q_des` to the measured `q` every tick with
+    /// `v_des = 0`, so the MIT term `kp·(q_des − q)` is zero at compose time for any
+    /// `kp` and any displacement. Only `kd`, `τ_g` and `τ_f` shape the command.
+    #[test]
+    fn impedance_setpoint_tracks_displaced_q_so_kp_has_no_restoring_term() {
+        for kp in [0.0, 5.0, 50.0] {
+            for q in [-0.5, 0.0, 0.3, 1.2] {
+                let mut j = joint("j0", 0.2);
+                j.q = q;
+                j.wire_kp = kp;
+                j.wire_kd = 2.0;
+                let out = MitFeedforward::compose(ControlMode::Impedance, &[j]);
+                assert_eq!(out[0].position_rad, q, "kp={kp} q={q}");
+                assert_eq!(out[0].velocity_rad_s, 0.0);
+                assert_eq!(out[0].kp, kp, "kp is forwarded but multiplies zero error");
+                let restoring = out[0].kp * (out[0].position_rad - q);
+                assert_eq!(restoring, 0.0);
+            }
+        }
+    }
 }
