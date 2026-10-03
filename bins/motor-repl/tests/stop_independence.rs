@@ -2,6 +2,7 @@
 //! configuration. None of these tests touch hardware: the default build has no
 //! SocketCAN, so every drive reports a per-drive open failure, which is exactly
 //! the "CAN interface down" case the stop must survive.
+#![allow(clippy::expect_used, clippy::panic)]
 
 use std::io::{BufRead, BufReader};
 use std::path::Path;
