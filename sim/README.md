@@ -1,6 +1,11 @@
 # Simulation fixtures and tests
 
-CI uses minimal models here until [`assets/urdf/marengo.urdf`](../assets/urdf/marengo.urdf) is exported from CAD.
+`check-sim` smokes the minimal fixture plus the production model
+[`assets/mjcf/marengo.xml`](../assets/mjcf/marengo.xml) (mirrors
+[`assets/urdf/marengo.urdf`](../assets/urdf/marengo.urdf); body inertials are the
+URDF CAD values — never hand-tuned). The Rust side (`sim-harness`) checks
+URDF↔MJCF parity: joint names, axes, and range containment in the URDF hard
+limits.
 
 | File | Purpose |
 |------|---------|
