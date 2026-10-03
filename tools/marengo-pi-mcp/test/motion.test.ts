@@ -1,14 +1,14 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { MarengoPiConfig } from "../src/config.js";
 import {
   benchCanKernelDeltaShell,
   benchCanKernelSnapshotShell,
-  benchLogPruneShell,
+  benchLogArchiveShell,
   expandScriptWithWaveWaits,
   holdSessionRemoteBody,
   marengoPiPipeLine,
@@ -108,6 +108,15 @@ const cfg: MarengoPiConfig = {
   benchProfile: "bare_motor",
   piStagingRoot: "~/marengo",
 };
+
+describe("removed motor-repl tools", () => {
+  it("does not advertise enable or jog without a working reference admission path", () => {
+    const tools = registerMotionTools(cfg, async () => "", () => {});
+
+    assert.equal("pi_motor_enable" in tools, false);
+    assert.equal("pi_jog" in tools, false);
+  });
+});
 
 describe("marengo-pi script tool", () => {
   it("uses timeout_sec as total pipe budget", () => {
@@ -556,20 +565,66 @@ describe("marengo-pi script tool", () => {
     });
   });
 
-  it("prunes under pipefail even when a pattern matches no file", () => {
-    // No bench-*.json exists on the Pi: ls exited 2 and pipefail ended the session wrapper.
-    const dir = mkdtempSync(path.join(tmpdir(), "prune-"));
-    for (const ts of ["20261001T000000Z", "20261002T000000Z", "20261003T000000Z"]) {
-      writeFileSync(path.join(dir, `bench-${ts}.log`), "");
-    }
+  it("uses the installed absolute log CLI and preserves files when unavailable", () => {
+    const root = mkdtempSync(path.join(tmpdir(), "archive-cli-missing-"));
+    const log = path.join(root, "bench-latest.log");
+    writeFileSync(log, "unarchived evidence");
+
+    const shell = benchLogArchiveShell(root, 2);
     const r = spawnSync(
       "bash",
-      ["-c", `set -euo pipefail\nLOGDIR=${dir}\n${benchLogPruneShell("$LOGDIR", 2)}\necho pruned`],
+      [
+        "-c",
+        `set -euo pipefail\nTS=20261003T120000Z LABEL=test LOG=${log} TRACE=${log}.csv CANDUMP= LOGDIR=${root}\n${shell}`,
+      ],
       { encoding: "utf8" },
     );
+
     assert.equal(r.status, 0, r.stderr);
-    assert.equal(r.stdout, "pruned\n");
-    assert.equal(readdirSync(dir).length, 2);
+    assert.match(shell, new RegExp(`${root}/bin/marengo-log-cli session register`));
+    assert.doesNotMatch(shell, /command -v marengo-log-cli|rm -f/);
+    assert.equal(readFileSync(log, "utf8"), "unarchived evidence");
+  });
+
+  it("does not archive hot files after session registration fails", () => {
+    const root = mkdtempSync(path.join(tmpdir(), "archive-register-fails-"));
+    const bin = path.join(root, "bin");
+    mkdirSync(bin);
+    const log = path.join(root, "bench-latest.log");
+    const calls = path.join(root, "calls");
+    writeFileSync(log, "unarchived evidence");
+    writeFileSync(
+      path.join(bin, "marengo-log-cli"),
+      [
+        "#!/bin/bash",
+        'printf "%s\\n" "$1" >> "$CALLS"',
+        'if [[ "$1" == register ]]; then exit 1; fi',
+        'if [[ "$1" == archive ]]; then rm -f "$LOG"; fi',
+      ].join("\n"),
+    );
+    chmodSync(path.join(bin, "marengo-log-cli"), 0o755);
+
+    const shell = benchLogArchiveShell(root, 2);
+    const r = spawnSync(
+      "bash",
+      [
+        "-c",
+        `set -euo pipefail\nTS=20261003T120000Z LABEL=test LOG=${log} TRACE=${log}.csv CANDUMP= CALLS=${calls}\n${shell}`,
+      ],
+      { encoding: "utf8" },
+    );
+
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(readFileSync(calls, "utf8"), "register\n");
+    assert.equal(readFileSync(log, "utf8"), "unarchived evidence");
+  });
+
+  it("omits --candump when the session has no capture", () => {
+    const shell = benchLogArchiveShell("/opt/marengo");
+
+    assert.match(shell, /if \[\[ -n "\$\{CANDUMP:-\}" \]\]; then CANDUMP_ARGS=\(--candump "\$CANDUMP"\)/);
+    assert.match(shell, /"\$\{CANDUMP_ARGS\[@\]\}"/);
+    assert.doesNotMatch(shell, /--candump "\$\{CANDUMP:-\}"/);
   });
 });
 

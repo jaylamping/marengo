@@ -6,7 +6,6 @@ control:
   tau_ff_rate_limit_nm_per_s: 60.0
   disable_on_exit: true
   bench:
-    allow_firmware_speed_mode: false
     # Free-drive Set Limits: keep encoder feedback while limp (Disabled/Ready).
     active_reporting_diagnostics: true
 

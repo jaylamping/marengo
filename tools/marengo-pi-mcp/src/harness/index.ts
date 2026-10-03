@@ -1,6 +1,6 @@
 import type { BenchProfile, MarengoPiConfig } from "../config.js";
 import { sudoCanUpCommand } from "../config.js";
-import { harnessJointSubset, profileMeta } from "../bench-profiles.js";
+import { MASTER_JOINTS, harnessJointSubset, profileMeta } from "../bench-profiles.js";
 import {
   REFUSE_UNSETTLED_MARENGO_PI,
   canSettleShell,
@@ -348,9 +348,8 @@ export async function runBenchHarness(
   if (profile === "weighted_single_arm") {
     const angles = args.gravity_angles ?? [0, 0.3, -0.3];
     for (const a of angles) {
-      const q0 = loadedJoint === "left_shoulder_pitch" ? a : 0;
-      const q1 = loadedJoint === "right_shoulder_pitch" ? a : 0;
-      const body = remote(`bin/motor-repl gravity-preview ${q0} ${q1}`);
+      const pose = MASTER_JOINTS.map((joint) => (joint === loadedJoint ? a : 0));
+      const body = remote(`bin/motor-repl gravity-preview ${pose.join(" ")}`);
       if (!(await step(`gravity_preview_${a}`, body, 30_000))) {
         return finish();
       }

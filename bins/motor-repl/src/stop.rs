@@ -109,20 +109,14 @@ pub fn disable_drives_socketcan(addresses: &[MotorAddress]) -> StopReport {
     disable_drives(addresses, robstride::RuntimeBus::socketcan)
 }
 
-/// Commands that can leave a drive enabled or moving when the process ends, and
-/// so arm the exit stop before they run. `home`, `status`, `gravity-*` and
-/// `torque-cmd` never address a drive in this one-shot process.
+/// `set-zero` can touch a drive and therefore arms an independent exit stop
+/// before its reference transaction begins.
 pub fn arms_exit_stop(command: &str) -> bool {
-    matches!(
-        command,
-        "enable" | "jog" | "speed" | "speed-stop" | "set-zero"
-    )
+    command == "set-zero"
 }
 
-/// Whether the exit stop must run for `command` ending with `exit_code`.
-/// `set-zero` stops the drives itself on success (Davout's transaction
-/// cleanup); every other arming command is one-shot, so a drive it left
-/// enabled would keep its last MIT frame with no host behind it.
+/// Whether a failed `set-zero` needs an additional stop. Davout's qualified
+/// transaction performs its own stop before successful return.
 pub fn exit_stop_required(command: &str, exit_code: i32) -> bool {
     arms_exit_stop(command) && !(command == "set-zero" && exit_code == 0)
 }
@@ -322,15 +316,17 @@ mod tests {
     }
 
     #[test]
-    fn exit_stop_arms_for_drive_touching_commands_only() {
-        for command in ["enable", "jog", "speed", "speed-stop", "set-zero"] {
-            assert!(arms_exit_stop(command), "{command}");
-        }
+    fn exit_stop_arms_only_for_set_zero() {
+        assert!(arms_exit_stop("set-zero"));
         for command in [
             "status",
             "homing-status",
             "home",
+            "enable",
             "disable",
+            "jog",
+            "speed",
+            "speed-stop",
             "gravity-on",
             "gravity-off",
             "torque-cmd",
@@ -350,11 +346,9 @@ mod tests {
             !exit_stop_required("set-zero", 0),
             "Davout already stopped and verified"
         );
-        for command in ["enable", "jog", "speed", "speed-stop"] {
-            assert!(exit_stop_required(command, 0), "{command} success");
-            assert!(exit_stop_required(command, 1), "{command} failure");
+        for command in ["home", "enable", "jog", "speed", "speed-stop"] {
+            assert!(!exit_stop_required(command, 1), "{command}");
         }
-        assert!(!exit_stop_required("status", 1));
     }
 
     #[test]

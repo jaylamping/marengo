@@ -88,7 +88,7 @@ fn home_refusals_queue_nothing() {
 }
 
 #[test]
-fn stdin_defers_while_busy_and_replays_after_failure() {
+fn stdin_discards_deferred_commands_after_reference_failure() {
     let mut loop_ctrl = plain_loop();
     let mut queue = PiReferenceQueue::new("marengo-pi-test".into());
     let mut gate = EnableGate::default();
@@ -102,14 +102,23 @@ fn stdin_defers_while_busy_and_replays_after_failure() {
         &config
     ));
     assert!(queue.is_busy());
-    assert!(dispatch_stdin_command(
-        &mut loop_ctrl,
-        &mut queue,
-        &mut gate,
+    for cmd in [
         PiCommand::Status,
-        &config
-    ));
-    assert!(queue.take_ready_deferred().is_none(), "status deferred");
+        PiCommand::Enable {
+            operator_id: "bench".into(),
+            force: false,
+        },
+        PiCommand::HoldOn,
+    ] {
+        assert!(dispatch_stdin_command(
+            &mut loop_ctrl,
+            &mut queue,
+            &mut gate,
+            cmd,
+            &config
+        ));
+    }
+    assert!(queue.take_ready_deferred().is_none(), "commands defer");
 
     let events = queue.pump(loop_ctrl.supervisor_mut());
     assert_eq!(
@@ -122,13 +131,11 @@ fn stdin_defers_while_busy_and_replays_after_failure() {
             ReferenceEvent::Skipped {
                 joint: JOINT.into()
             },
+            ReferenceEvent::DeferredDiscarded { count: 3 },
         ]
     );
     assert!(!queue.is_busy());
-    assert!(matches!(
-        queue.take_ready_deferred(),
-        Some(PiCommand::Status)
-    ));
+    assert!(queue.take_ready_deferred().is_none());
 }
 
 #[test]

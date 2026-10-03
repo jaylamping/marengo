@@ -19,6 +19,10 @@ describe("MCP motion ownership claim", () => {
   it("the remote preamble exports MARENGO_MOTION_OWNER=stdin", () => {
     assert.match(remotePreamble(cfg), /^export MARENGO_MOTION_OWNER=stdin$/m);
   });
+  it("includes the installed Pi binaries in PATH for tools invoking the log CLI", () => {
+    assert.match(remotePreamble(cfg), /export PATH='\/opt\/marengo\/bin':"\$\{HOME\}\/\.cargo\/bin:/);
+  });
+
 
   it("every wrapper that launches marengo-pi inherits the claim", () => {
     for (const script of [

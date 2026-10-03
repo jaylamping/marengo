@@ -96,22 +96,31 @@ just mcp-ensure-enabled --write
 | Read-only | No | `pi_logs_tail`, `pi_health`, `pi_homing_status`, `pi_motor_repl_status`, `pi_gravity_preview`, `pi_imu_probe` |
 | Admin | No | `pi_can_up`, `pi_sync_main`, `pi_sync_tree`, `pi_sync_bench_config`, `pi_sync_bench_urdf`, `pi_wait_deploy`, `pi_install_staging`, `pi_git_pull`, `pi_build` |
 | Admin | Yes | `pi_restart_marengo_pi`, `pi_clean_tree` |
-| Motion | Yes | `pi_motor_recover`, `pi_motor_disable`, `pi_set_zero`, `pi_hold_on`, `pi_hold_off`, `pi_bench_harness`, `pi_marengo_pi_script`, `pi_jog`, `pi_gravity_calibrate`, `pi_enable_soak` |
+| Motion | Yes | `pi_motor_disable`, `pi_motor_recover`, `pi_set_zero`, `pi_hold_on`, `pi_hold_off`, `pi_bench_harness`, `pi_marengo_pi_script`, `pi_gravity_calibrate`, `pi_enable_soak` |
 
 Weighted profile (`weighted_single_arm`, `arm_attached`) needs `confirm: true` and `confirm_weighted_motion: true`.
 
 ### One CAN owner
 
-Every `motor-repl` subcommand opens SocketCAN and sends type-24 active-reporting frames while starting up. That includes `status`, `homing-status` and `gravity-preview`. If `marengo-pi` already owns the bus, that extra traffic can latch a persistent Transport fault in `marengo-pi`. So while a `marengo-pi` or `motor-repl` process runs (`pgrep -x`), `pi_motor_repl_status`, `pi_gravity_preview` and `pi_can_up` print `… skipped: <name> (pid N) owns CAN` and leave the bus alone.
+`motor-repl status` opens SocketCAN for its probe but bypasses Davout Supervisor
+construction, so it sends no startup type-24 active-reporting burst.
+`gravity-preview` reads the configured URDF model locally and does not open
+CAN. `disable` and `set-zero` are CAN-owning commands; the latter uses Davout's
+qualified reference workflow and an independent exit stop. MCP's ownership
+guard remains conservative: while `marengo-pi` or any `motor-repl` process runs,
+`pi_motor_repl_status`, `pi_gravity_preview` and `pi_can_up` skip rather than
+compete for the bus.
 
-Homing reports never open CAN. Reference grants live only inside the `marengo-pi` that acquired them (ADR 0036), so a fresh `motor-repl homing-status` always reads `Unhomed` and tells you nothing. `pi_health`, `pi_homing_status` and `pi_sync_bench_config` (with `install_to_opt`) therefore:
+Reference grants live only inside the `marengo-pi` process that acquired them
+(ADR 0036). `pi_health`, `pi_homing_status` and `pi_sync_bench_config` (with
+`install_to_opt`) therefore:
 
 - while `marengo-pi` runs (`pgrep -x marengo-pi`), show per-joint homing from its own `RobotState`, read from the gateway's `/snapshot/robot/state`;
 - otherwise print `no live marengo-pi session: reference grants are process-local (ADR 0036)` and the latest reference journal rows from `scripts/reference-journal-tail.py`, which opens `/opt/marengo/var/calibration/reference-journal.sqlite3` read-only. Journal rows are history and never grant a reference.
 
 `install-pi.sh` runs no homing check; it prints one line pointing at the in-process procedure in [docs/homing.md](../../docs/homing.md).
 
-Motion tools that open CAN take sole ownership of the bus for the session. These are `pi_motor_enable`, `pi_motor_disable`, `pi_motor_recover`, `pi_set_zero`, `pi_jog`, `pi_hold_on`, `pi_hold_off`, `pi_marengo_pi_script`, `pi_gravity_calibrate`, `pi_enable_soak` and `pi_bench_harness`. Each session:
+Motion tools that open CAN take sole ownership of the bus for the session. These are `pi_motor_disable`, `pi_motor_recover`, `pi_set_zero`, `pi_hold_on`, `pi_hold_off`, `pi_marengo_pi_script`, `pi_gravity_calibrate`, `pi_enable_soak` and `pi_bench_harness`. Each session:
 
 1. Stops `marengo-pi.service` with `sudo -n /usr/local/libexec/marengo/pi-restart-marengo-pi.sh stop`, the same helper `pi_restart_marengo_pi` uses. The service runs as `marengo` with `Restart=always`, so a bare `pkill` either fails or lets systemd start a second owner within 5 s.
 2. Kills leftover `marengo-pi` processes owned by the deploy user.
@@ -151,7 +160,7 @@ Profiles without a joint subset (`bare_motor`, `weighted_single_arm`, `arm_attac
 `pi_hold_on` and `pi_bench_harness` run one shared gate (`src/gravity-gate.ts`) before anything can enable, for every bench profile. It applies the limb-playbook §4a/4b bar: a joint fails when its residual is **≥ 0.20 Nm**. On a failure the tool stops with `FAIL gravity_model_mismatch` and sends no reference, enable or hold line. `pi_hold_on` returns the report. The harness records `[FAIL] gravity_gate` and restores `marengo-pi.service`.
 
 1. Before taking CAN, the gate reads the Pi clock and the gateway's `/snapshot/robot/state`. This read never touches CAN.
-2. As sole CAN owner, it runs `motor-repl gravity-preview`. `pi_hold_on` runs it in its own `soleCanOwnerShell` session. The harness runs it as the `gravity_gate` step, after `can_up` and `motor_repl_status`. A non-zero pose is passed as a full robot.yaml-order vector; the gate reads the model's joint order first, so the CLI never zero-fills a partial vector.
+2. As sole CAN owner, it runs `motor-repl gravity-preview`. `pi_hold_on` runs it in its own `soleCanOwnerShell` session. The harness runs it as the `gravity_gate` step, after `can_up` and `motor_repl_status`. Non-zero poses use a full `robot.yaml`-order vector. Standalone `pi_gravity_preview` accepts no angles for the all-zero pose or exactly one angle per master joint in order; the harness's weighted previews also pass all five values.
 3. It compares results per gated joint. Gated joints are the referenced joints, plus the hold joint for `pi_hold_on`.
 
 | Basis | When | Residual |
@@ -216,6 +225,8 @@ Sync the Pi staging checkout (`MARENGO_PI_STAGING_ROOT`, default `~/marengo`) wi
 ## Session logs
 
 Motion runs tee to `$MARENGO_ROOT/var/log/bench-latest.log`. Read with `pi_logs_tail` / `pi_logs_last_fault`.
+
+Session registration calls `/opt/marengo/bin/marengo-log-cli` directly. If that binary is unavailable or registration/archive fails, MCP leaves the hot log, trace and candump files in place; it does not prune unarchived evidence.
 
 ### Motor recover (no Motor Studio)
 

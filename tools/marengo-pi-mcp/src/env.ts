@@ -10,7 +10,7 @@ export function remotePreamble(cfg: MarengoPiConfig, debug = false): string {
     "set -euo pipefail",
     "if [[ -f /etc/marengo/env ]]; then set -a; source /etc/marengo/env; set +a; fi",
     'if [[ -f "${HOME}/.cargo/env" ]]; then set -a; source "${HOME}/.cargo/env"; set +a; fi',
-    'export PATH="${HOME}/.cargo/bin:/usr/local/cargo/bin:${PATH:-}"',
+    `export PATH=${shellQuote(`${cfg.piRoot}/bin`)}:"\${HOME}/.cargo/bin:/usr/local/cargo/bin:\${PATH:-}"`,
     `export MARENGO_ROOT=${shellQuote(cfg.piRoot)}`,
     `export MARENGO_CONFIG_DIR=${shellQuote(cfg.configDir)}`,
     // Every marengo-pi started from MCP is a stdin-scripted session: claim motion

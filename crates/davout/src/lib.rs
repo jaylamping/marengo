@@ -183,7 +183,7 @@ use marengo_config::{
 use marengo_homing::{select_enable_targets, HomingRegistry, JointFacetInput};
 use reference::ReferenceAuthority;
 use robstride::AddressedMitCommand;
-use robstride::{MitCommand, MotorState, ParameterId, ParameterValue, RunMode};
+use robstride::{MitCommand, MotorState, RunMode};
 use thiserror::Error;
 use tracing::{debug, info, trace, warn};
 
@@ -204,14 +204,6 @@ pub enum ControlMode {
     TorqueOnly,
 }
 
-/// Command from control stack before safety filtering.
-#[derive(Debug, Clone, PartialEq)]
-pub struct JointCommand {
-    pub joint: String,
-    pub position_rad: f64,
-    pub velocity_rad_s: f64,
-    pub torque_nm: f64,
-}
 
 /// Joint-space feedback sample for one actuated joint.
 ///
@@ -237,12 +229,6 @@ pub struct MitJointCommand {
     pub torque_ff_nm: f64,
 }
 
-/// Firmware speed-mode command for bench diagnostics only.
-#[derive(Debug, Clone, PartialEq)]
-pub struct SpeedCommand {
-    pub joint: String,
-    pub velocity_rad_s: f64,
-}
 
 #[derive(Debug, Error)]
 pub enum DavoutError {
@@ -276,8 +262,6 @@ pub enum DavoutError {
     InvalidFeedback { joint: String, message: String },
     #[error("danger zone {name} triggered on {joint}")]
     DangerZone { name: String, joint: String },
-    #[error("firmware speed mode is disabled in control.bench.allow_firmware_speed_mode")]
-    FirmwareSpeedModeDisabled,
     #[error("invalid motor config for {joint}: {message}")]
     InvalidMotorConfig { joint: String, message: String },
     #[error("motor fault on {joint}: 0x{fault:04x}")]
@@ -2112,24 +2096,6 @@ impl<B: MotorBus> Supervisor<B> {
         Ok(())
     }
 
-    /// Filter and send a joint command. **Legacy position path.**
-    pub fn send_joint_command(&mut self, cmd: JointCommand) -> Result<(), DavoutError> {
-        let joint = cmd.joint.clone();
-        let motor = motor_for_joint(&self.motors, &joint)
-            .ok_or(DavoutError::UnknownJoint {
-                joint: joint.clone(),
-            })?
-            .clone();
-        let mit = MitJointCommand {
-            joint,
-            kp: 0.0,
-            kd: 0.0,
-            position_rad: cmd.position_rad,
-            velocity_rad_s: cmd.velocity_rad_s,
-            torque_ff_nm: cmd.torque_nm,
-        };
-        self.send_mit_joint(mit, &motor)
-    }
 
     /// Filter and send one MIT command.
     pub fn send_mit_joint(
@@ -2296,78 +2262,6 @@ impl<B: MotorBus> Supervisor<B> {
         self.check_comm_watchdog(neutral)
     }
 
-    /// Send a firmware speed-mode command for bench diagnostics.
-    ///
-    /// This is not a Berthier control mode. It switches the drive to Robstride
-    /// `run_mode=2`, caps the target velocity, writes `limit_spd`, then writes
-    /// `spd_ref`.
-    pub fn send_speed_command(&mut self, cmd: SpeedCommand) -> Result<f64, DavoutError> {
-        self.require_fault_clear()?;
-        validate_finite(&cmd.joint, "velocity", cmd.velocity_rad_s)?;
-        if self.hardware_estop {
-            return Err(DavoutError::Estop);
-        }
-        self.ensure_reference_for_active()?;
-        self.require_active_joint(&cmd.joint)?;
-        if !self.control.control.bench.allow_firmware_speed_mode {
-            return Err(DavoutError::FirmwareSpeedModeDisabled);
-        }
-        let motor = motor_for_joint(&self.motors, &cmd.joint)
-            .ok_or_else(|| DavoutError::UnknownJoint {
-                joint: cmd.joint.clone(),
-            })?
-            .clone();
-        let capped = self.filter_speed_command(cmd, &motor)?;
-        let cap = self.speed_cap_for_joint(&capped.joint)?;
-        let scale = motor_position_scale(&motor)?;
-        let wire_cap = checked_wire_float(&motor.joint, "speed cap", cap * scale.abs())?;
-        let wire_velocity =
-            checked_wire_float(&motor.joint, "speed", capped.velocity_rad_s * scale)?;
-        let address = MotorAddress::from(&motor);
-        if let Err(error) = self.check_comm_watchdog(false) {
-            self.stop_after_runtime_error(&error);
-            return Err(error);
-        }
-        let result = (|| {
-            self.bus.set_run_mode_at(&address, RunMode::Speed)?;
-            self.bus.write_parameter_at(
-                &address,
-                ParameterId::LimitSpeed,
-                ParameterValue::F32(wire_cap),
-            )?;
-            self.bus.speed_control_at(&address, wire_velocity)?;
-            Ok::<(), BusError>(())
-        })();
-        if let Err(error) = result {
-            let error = DavoutError::Bus(error);
-            self.stop_after_runtime_error(&error);
-            return Err(error);
-        }
-        Ok(capped.velocity_rad_s)
-    }
-
-    /// Best-effort speed reference zero for bench firmware speed mode.
-    ///
-    /// A stop is never refused for a reference (ADR 0023): while a reference
-    /// reservation is live the individual speed zero escalates to
-    /// [`Self::disable_all`], which cancels the reference and stops every drive.
-    pub fn stop_speed_command(&mut self, joint: &str) -> Result<(), DavoutError> {
-        if self.reference_busy() {
-            return self.disable_all();
-        }
-        let motor = motor_for_joint(&self.motors, joint)
-            .ok_or_else(|| DavoutError::UnknownJoint {
-                joint: joint.to_string(),
-            })?
-            .clone();
-        let address = MotorAddress::from(&motor);
-        if let Err(error) = self.bus.speed_control_at(&address, 0.0) {
-            let error = DavoutError::Bus(error);
-            self.stop_after_runtime_error(&error);
-            return Err(error);
-        }
-        Ok(())
-    }
 
     /// Raw firmware SetZero is unavailable without a qualified owner transaction.
     pub fn set_zero_position(&mut self, joint: &str) -> Result<(), DavoutError> {
@@ -2883,27 +2777,6 @@ impl<B: MotorBus> Supervisor<B> {
         Some((state, Ok(())))
     }
 
-    fn speed_cap_for_joint(&self, joint: &str) -> Result<f64, DavoutError> {
-        let lim = self
-            .limits
-            .get(joint)
-            .ok_or_else(|| DavoutError::UnknownJoint {
-                joint: joint.to_string(),
-            })?;
-        Ok(lim.velocity)
-    }
-
-    pub fn filter_speed_command(
-        &self,
-        cmd: SpeedCommand,
-        _motor: &MotorEntry,
-    ) -> Result<SpeedCommand, DavoutError> {
-        validate_finite(&cmd.joint, "velocity", cmd.velocity_rad_s)?;
-        let cap = self.speed_cap_for_joint(&cmd.joint)?;
-        let mut out = cmd;
-        out.velocity_rad_s = out.velocity_rad_s.clamp(-cap, cap);
-        Ok(out)
-    }
 
     fn apply_danger_zone_clamps(
         &self,
@@ -2941,45 +2814,6 @@ impl<B: MotorBus> Supervisor<B> {
         torque_cap
     }
 
-    /// Apply URDF + bench limits without sending (for tests and planners).
-    pub fn filter_command(&self, cmd: JointCommand) -> Result<JointCommand, DavoutError> {
-        validate_finite(&cmd.joint, "position", cmd.position_rad)?;
-        validate_finite(&cmd.joint, "velocity", cmd.velocity_rad_s)?;
-        validate_finite(&cmd.joint, "torque", cmd.torque_nm)?;
-        let lim = self
-            .limits
-            .get(&cmd.joint)
-            .ok_or_else(|| DavoutError::UnknownJoint {
-                joint: cmd.joint.clone(),
-            })?;
-        let mut out = cmd;
-        out.position_rad =
-            clamp_position_in_envelope(lim, out.position_rad, out.velocity_rad_s, out.position_rad);
-        if out.position_rad < lim.hard_lower() || out.position_rad > lim.hard_upper() {
-            return Err(DavoutError::Limit {
-                joint: out.joint.clone(),
-                message: format!(
-                    "position {} outside [{}, {}]",
-                    out.position_rad,
-                    lim.hard_lower(),
-                    lim.hard_upper()
-                ),
-            });
-        }
-        if out.velocity_rad_s.abs() > lim.velocity {
-            return Err(DavoutError::Limit {
-                joint: out.joint.clone(),
-                message: format!("|velocity| {} > {}", out.velocity_rad_s, lim.velocity),
-            });
-        }
-        if out.torque_nm.abs() > lim.effort {
-            return Err(DavoutError::Limit {
-                joint: out.joint.clone(),
-                message: format!("|torque| {} > {}", out.torque_nm, lim.effort),
-            });
-        }
-        Ok(out)
-    }
 }
 
 fn validate_finite(joint: &str, field: &str, value: f64) -> Result<(), DavoutError> {
@@ -3867,41 +3701,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn rejects_velocity_outside_limits() {
-        let bus = SimulationBus::default();
-        let sup =
-            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
-                .expect("supervisor");
-        let err = sup
-            .filter_command(JointCommand {
-                joint: "right_shoulder_roll".to_string(),
-                position_rad: 0.0,
-                velocity_rad_s: 99.0,
-                torque_nm: 0.0,
-            })
-            .expect_err("limit");
-        assert!(matches!(err, DavoutError::Limit { .. }));
-    }
-
-    #[test]
-    fn active_mode_required_to_send() {
-        let bus = SimulationBus::default();
-        let mut sup =
-            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
-                .expect("supervisor");
-        bench_verify_all_joints(&mut sup);
-        sup.set_homing_complete().expect("ready");
-        let err = sup
-            .send_joint_command(JointCommand {
-                joint: "right_shoulder_roll".to_string(),
-                position_rad: 0.0,
-                velocity_rad_s: 0.0,
-                torque_nm: 0.0,
-            })
-            .expect_err("not active");
-        assert!(matches!(err, DavoutError::NotActive { .. }));
-    }
 
     #[test]
     fn send_mit_records_extended_frame_when_active() {
@@ -4182,21 +3981,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn firmware_speed_mode_requires_config_flag() {
-        let bus = SimulationBus::default();
-        let mut sup =
-            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
-                .expect("supervisor");
-        bench_ready_active(&mut sup);
-        let err = sup
-            .send_speed_command(SpeedCommand {
-                joint: "right_elbow_pitch".to_string(),
-                velocity_rad_s: 0.1,
-            })
-            .expect_err("speed mode disabled");
-        assert!(matches!(err, DavoutError::FirmwareSpeedModeDisabled));
-    }
 
     #[test]
     fn motor_transform_converts_feedback_to_joint_space() {
@@ -4882,24 +4666,6 @@ mod tests {
         assert!(matches!(err, DavoutError::CommWatchdog { ms: 50, .. }));
     }
 
-    #[test]
-    fn filter_command_clamps_position_into_envelope() {
-        let bus = SimulationBus::default();
-        let sup =
-            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
-                .expect("supervisor");
-        let out = sup
-            .filter_command(JointCommand {
-                joint: "right_elbow_pitch".to_string(),
-                position_rad: 99.0,
-                velocity_rad_s: 0.0,
-                torque_nm: 0.0,
-            })
-            .expect("clamp");
-        let policy = sup.joint_limit_policy("right_elbow_pitch").expect("policy");
-        assert!(out.position_rad <= policy.hard_upper());
-        assert!(out.position_rad < 99.0);
-    }
 
     #[test]
     fn mit_filter_clamps_position_into_the_live_envelope() {

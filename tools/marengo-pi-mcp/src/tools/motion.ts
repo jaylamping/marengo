@@ -55,32 +55,23 @@ export function benchLogArchiveShell(
   keep = BENCH_LOG_KEEP_COUNT,
 ): string {
   const root = shellQuote(piRoot);
+  const cli = shellQuote(`${piRoot}/bin/marengo-log-cli`);
   return [
     `# archive hot bench logs (keep ${keep})`,
-    `if command -v marengo-log-cli >/dev/null 2>&1; then`,
-    `  MARENGO_ROOT=${root} marengo-log-cli session register \\`,
-    `    --id "$TS" --label "$LABEL" \\`,
-    `    --bench "$LOG" \\`,
-    `    --candump "\${CANDUMP:-}" \\`,
-    `    --trace "$TRACE" || true`,
-    `  MARENGO_ROOT=${root} marengo-log-cli session finalize --id "$TS" || true`,
-    `  MARENGO_ROOT=${root} marengo-log-cli archive --keep ${keep} || true`,
-    `else`,
-    ...benchLogPruneShell("$LOGDIR", keep).split("\n"),
+    'CANDUMP_ARGS=()',
+    'if [[ -n "${CANDUMP:-}" ]]; then CANDUMP_ARGS=(--candump "$CANDUMP"); fi',
+    `if MARENGO_ROOT=${root} ${cli} session register \\`,
+    `  --id "$TS" --label "$LABEL" \\`,
+    `  --bench "$LOG" \\`,
+    `  "\${CANDUMP_ARGS[@]}" \\`,
+    `  --trace "$TRACE"; then`,
+    `  if MARENGO_ROOT=${root} ${cli} session finalize --id "$TS"; then`,
+    `    MARENGO_ROOT=${root} ${cli} archive --keep ${keep} || true`,
+    `  fi`,
     `fi`,
   ].join("\n");
 }
 
-export function benchLogPruneShell(logDirVar = "$LOGDIR", keep = BENCH_LOG_KEEP_COUNT): string {
-  return [
-    `# prune old bench logs/traces (keep ${keep} newest each)`,
-    // ls exits 2 for a pattern with no files (no bench-*.json today); under the session's
-    // `set -euo pipefail` that ended the wrapper before its session JSON line.
-    `for _pat in bench-*.log position-trace-*.csv bench-*.json candump-*.log; do`,
-    `  { ls -1t ${logDirVar}/$_pat 2>/dev/null || true; } | tail -n +${keep + 1} | while IFS= read -r _f; do rm -f "$_f"; done`,
-    `done`,
-  ].join("\n");
-}
 
 /** Snapshot CAN kernel RX/TX packet counters for UP interfaces. */
 export function benchCanKernelSnapshotShell(kind: "start" | "end"): string {
@@ -623,31 +614,6 @@ export function registerMotionTools(
   }
 
   return {
-    pi_motor_enable: {
-      description:
-        "motor-repl enable bench (short probe only — use marengo-pi for sustained control). " +
-        SOLE_CAN_OWNER_NOTE,
-      inputSchema: motionConfirmSchema.extend({
-        operator: z.string().default("bench"),
-      }),
-      handler: async (args: {
-        confirm: true;
-        confirm_weighted_motion?: true;
-        profile?: BenchProfile;
-        operator?: string;
-      }) => {
-        const check = gate(args);
-        if (!check.ok) return check.message;
-        const body = wrapRemote(
-          cfg,
-          soleCanOwnerShell(`bin/motor-repl enable ${args.operator ?? "bench"}`),
-        );
-        const out = await runRemote(body, 30_000 + CAN_SESSION_SLACK_MS);
-        auditMotion("pi_motor_enable", args, out, 0);
-        return out;
-      },
-    },
-
     pi_motor_disable: {
       description:
         "motor-repl disable all joints: one Robstride type-4 Disable (Byte[0]=0) per configured drive, read from motors.yaml only. " +
@@ -788,30 +754,6 @@ export function registerMotionTools(
       },
     },
 
-    pi_jog: {
-      description: `motor-repl jog joint to position_rad. ${SOLE_CAN_OWNER_NOTE}`,
-      inputSchema: motionConfirmSchema.extend({
-        joint: z.string(),
-        position_rad: z.number(),
-      }),
-      handler: async (args: {
-        confirm: true;
-        confirm_weighted_motion?: true;
-        profile?: BenchProfile;
-        joint: string;
-        position_rad: number;
-      }) => {
-        const check = gate(args);
-        if (!check.ok) return check.message;
-        const body = wrapRemote(
-          cfg,
-          soleCanOwnerShell(`bin/motor-repl jog ${args.joint} ${args.position_rad}`),
-        );
-        const out = await runRemote(body, 30_000 + CAN_SESSION_SLACK_MS);
-        auditMotion("pi_jog", args, out, 0);
-        return out;
-      },
-    },
 
     pi_hold_on: {
       description:

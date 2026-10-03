@@ -1,17 +1,16 @@
 /**
- * Bench SocketCAN has one owner at a time. Every motor-repl subcommand (even
- * status / homing-status / gravity-preview) builds a Davout supervisor, which
- * opens SocketCAN and transmits type-24 active-reporting frames to each motor
- * during construction. Beside a running marengo-pi that is a second writer on
- * the bus its fault authority watches; any CAN error frame latches a persistent
- * Transport fault in marengo-pi.
+ * Bench SocketCAN has one owner at a time. `motor-repl status` opens a socket
+ * without constructing Davout's Supervisor; `gravity-preview` is local-only.
+ * `disable` and `set-zero` are CAN operations, and set-zero constructs the
+ * qualified Davout owner with its independent exit stop. The MCP owner guard
+ * stays conservative and refuses to race any live motor-repl process.
  *
  * The mcp251x controller has two RX buffers and reports an RX FIFO overrun as an
  * error frame (CAN_ERR_CRTL_RX_OVERFLOW, counted in `rx_over_errors`). A
- * motor-repl run ending immediately before marengo-pi starts saturates the bus
- * (its type-24 burst plus stop sequence, then marengo-pi's own type-24 burst)
- * while both processes churn the CPU, so marengo-pi's fresh socket can receive
- * that overrun: hence a settle window before every marengo-pi launch.
+ * `set-zero` or `disable` run ending immediately before marengo-pi starts can
+ * saturate the bus (including its reporting and stop traffic, then marengo-pi's
+ * own startup) while both processes churn the CPU, so marengo-pi needs a settle
+ * window before binding SocketCAN.
  */
 
 import { shellQuote } from "./env.js";
