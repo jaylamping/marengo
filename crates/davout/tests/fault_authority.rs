@@ -213,13 +213,15 @@ fn homing_ready_transition_cannot_hide_physically_active_drives() {
 }
 
 #[test]
-fn calibration_enable_cannot_be_requested_over_active_motion() {
+fn qualified_calibration_cannot_be_requested_over_active_motion() {
     let mut supervisor = supervisor();
     let pitch = motor(&supervisor, "right_shoulder_pitch");
     activate(&mut supervisor, &pitch);
     supervisor.bus_mut().clear_trace();
     assert!(
-        supervisor.request_enable_for_calibration().is_err(),
+        supervisor
+            .calibrate_joint_zero(&pitch.joint, "operator", true)
+            .is_err(),
         "calibration accepted over Active"
     );
     assert_eq!(supervisor.mode(), OperationalMode::Active);
@@ -267,7 +269,7 @@ fn hardware_input_assertion_attempts_disable_for_every_configured_motor() {
 #[test]
 fn every_supported_motion_enable_and_calibration_route_remains_blocked_after_fault() {
     let mut accepted = Vec::new();
-    for route in [0, 1, 4, 5, 6, 7, 8] {
+    for route in [0, 1, 2, 3] {
         let mut supervisor = supervisor();
         let pitch = motor(&supervisor, "right_shoulder_pitch");
         activate(&mut supervisor, &pitch);
@@ -281,17 +283,14 @@ fn every_supported_motion_enable_and_calibration_route_remains_blocked_after_fau
             .queue_frame(status(&pitch))
             .expect("finite closed script");
         let _ = supervisor.drain_feedback();
-        if route >= 7 {
+        if route >= 3 {
             let _ = supervisor.disable_all();
         }
         supervisor.bus_mut().clear_trace();
         let result = match route {
             0 => supervisor.send_mit_joint(command(&pitch), &pitch),
             1 => supervisor.send_mit_batch(vec![command(&pitch)]),
-            4 => supervisor.set_zero_position(&pitch.joint),
-            5 => supervisor.request_enable(true),
-            6 => supervisor.enable_targets(std::slice::from_ref(&pitch.joint)),
-            7 => supervisor.request_enable_for_calibration(),
+            2 => supervisor.enable_targets(std::slice::from_ref(&pitch.joint)),
             _ => supervisor
                 .calibrate_joint_zero(&pitch.joint, "virtual-test", false)
                 .map(|_| ()),
@@ -440,8 +439,8 @@ fn unqualified_set_zero_refuses_before_delivery_without_latching() {
     let (mut supervisor, pitch) = failing_supervisor();
     supervisor.bus_mut().clear_trace();
     assert!(matches!(
-        supervisor.set_zero_position(&pitch.joint),
-        Err(davout::DavoutError::ReferenceUnsupported { .. })
+        supervisor.calibrate_joint_zero(&pitch.joint, "operator", true),
+        Err(davout::DavoutError::Homing { .. })
     ));
     assert!(supervisor.bus().frames().is_empty());
     assert!(!supervisor.has_latched_fault());

@@ -428,6 +428,8 @@ fn all_nonfinite_mit_fields_and_negative_gains_are_rejected_before_clamping() {
     {
         let mut supervisor = supervisor();
         let pitch = motor(&supervisor, "right_shoulder_pitch");
+        activate(&mut supervisor, std::slice::from_ref(&pitch));
+        receive(&mut supervisor, std::slice::from_ref(&pitch));
         let mut request = command(&pitch);
         match field {
             0 => request.position_rad = value,
@@ -436,22 +438,34 @@ fn all_nonfinite_mit_fields_and_negative_gains_are_rejected_before_clamping() {
             3 => request.kd = value,
             _ => request.torque_ff_nm = value,
         }
-        if supervisor.filter_mit_command(request, &pitch).is_ok() {
+        supervisor.bus_mut().clear_trace();
+        if supervisor.send_mit_batch(vec![request]).is_ok() {
             accepted.push(format!("field={field} value={value}"));
         }
+        assert!(
+            supervisor.bus().frames().is_empty(),
+            "rejected MIT data transmitted: field={field} value={value}"
+        );
     }
     for field in [2, 3] {
         let mut supervisor = supervisor();
         let pitch = motor(&supervisor, "right_shoulder_pitch");
+        activate(&mut supervisor, std::slice::from_ref(&pitch));
+        receive(&mut supervisor, std::slice::from_ref(&pitch));
         let mut request = command(&pitch);
         if field == 2 {
             request.kp = -1.0;
         } else {
             request.kd = -1.0;
         }
-        if supervisor.filter_mit_command(request, &pitch).is_ok() {
+        supervisor.bus_mut().clear_trace();
+        if supervisor.send_mit_batch(vec![request]).is_ok() {
             accepted.push(format!("negative gain field={field}"));
         }
+        assert!(
+            supervisor.bus().frames().is_empty(),
+            "rejected negative gain transmitted: field={field}"
+        );
     }
     assert!(
         accepted.is_empty(),

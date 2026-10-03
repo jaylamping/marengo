@@ -237,7 +237,6 @@ fn full_raw_domains_and_fault_identity_survive_healthy_pose_cache_and_replay() {
     let later = supervisor.safety_snapshot();
     assert_eq!(later.first_fault(), first.first_fault());
     assert_eq!(later.stop_generation, first.stop_generation);
-    supervisor.clear_motor_states();
     supervisor
         .bus_mut()
         .queue_frame(status(&pitch))

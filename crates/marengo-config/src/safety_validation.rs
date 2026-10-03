@@ -183,20 +183,12 @@ pub(crate) fn validate_control_numbers(cfg: &ControlConfigFile) -> Result<(), Co
     if control.comm_watchdog_ms == 0 {
         return Err(invalid("control.comm_watchdog_ms", "must be > 0"));
     }
-    if control.feedback_poll_budget_us == 0
-        || control.feedback_poll_budget_us > 1_000_000 / u64::from(control.loop_hz)
-    {
-        return Err(invalid(
-            "control.feedback_poll_budget_us",
-            "must be positive and fit within one control tick",
-        ));
-    }
     if control.feedback_drain_quiet_us == 0
-        || control.feedback_drain_quiet_us > control.feedback_poll_budget_us
+        || control.feedback_drain_quiet_us > 1_000_000 / u64::from(control.loop_hz)
     {
         return Err(invalid(
             "control.feedback_drain_quiet_us",
-            "must be positive and <= feedback_poll_budget_us",
+            "must be positive and fit within one control tick",
         ));
     }
     nonnegative(

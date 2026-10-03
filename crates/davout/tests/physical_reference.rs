@@ -165,7 +165,7 @@ impl Bench {
     /// One report from every streaming drive, then one control-loop drain.
     fn pump_once(&mut self) {
         self.firmware.borrow_mut().emit_reports();
-        self.supervisor.tick_active_reporting_leases();
+        self.supervisor.sync_active_reporting();
         let _ = self.supervisor.drain_feedback();
     }
 
@@ -1523,14 +1523,14 @@ fn own_frame_echoes_are_never_drive_feedback_or_liveness() {
             .supervisor
             .send_mit_batch(vec![neutral()])
             .and_then(|()| {
-                bench.supervisor.tick_active_reporting_leases();
+                bench.supervisor.sync_active_reporting();
                 bench.supervisor.drain_feedback()
             });
         if let Err(error) = tick {
             break error;
         }
         assert_eq!(
-            bench.supervisor.last_refresh_frame_count(),
+            tick.expect("successful echo-only drain"),
             0,
             "an echo is not a decoded drive frame"
         );
@@ -1655,7 +1655,7 @@ impl Bench {
     /// otherwise.
     fn runtime_tick(&mut self) {
         self.firmware.borrow_mut().emit_reports();
-        self.supervisor.tick_active_reporting_leases();
+        self.supervisor.sync_active_reporting();
         if self.supervisor.reference_work_pending() {
             self.supervisor
                 .advance_reference_work()

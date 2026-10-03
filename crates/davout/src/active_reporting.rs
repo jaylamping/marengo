@@ -174,20 +174,6 @@ impl ActiveReportingState {
             })
     }
 
-    pub fn clear_applied(&mut self) {
-        self.applied.clear();
-        self.last_enable_tx.clear();
-        self.off_written_at.clear();
-        self.heartbeat_cursor = 0;
-        self.last_heartbeat_attempt = None;
-    }
-
-    pub fn clear_applied_joint(&mut self, joint: &str) {
-        self.applied.remove(joint);
-        self.last_enable_tx.remove(joint);
-        self.off_written_at.remove(joint);
-    }
-
     pub fn applied_on(&self, joint: &str) -> bool {
         self.applied.get(joint).copied().unwrap_or(false)
     }

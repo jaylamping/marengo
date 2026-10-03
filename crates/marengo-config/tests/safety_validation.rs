@@ -155,15 +155,11 @@ fn control_loader_rejects_nonfinite_negative_and_inconsistent_policy() {
                 "-1",
             ),
             ("NaN FF slew", "control/tau_ff_rate_limit_nm_per_s", ".nan"),
+            ("zero drain quiet", "control/feedback_drain_quiet_us", "0"),
             (
-                "poll longer than tick",
-                "control/feedback_poll_budget_us",
-                "6000",
-            ),
-            (
-                "quiet longer than poll",
+                "quiet longer than tick",
                 "control/feedback_drain_quiet_us",
-                "4000",
+                "6000",
             ),
             (
                 "negative max gain",

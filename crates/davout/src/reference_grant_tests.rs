@@ -660,9 +660,12 @@ fn current_grant_observed_policy_mutation_and_model_replacement_stay_revoked() {
                     .expect("bound policy")
                     .position_hold_trim_rad += 0.01
             }
-            _ => owner
-                .rebuild_limits()
-                .expect("real equal-value model installation"),
+            _ => {
+                let urdf_robot = owner.urdf_robot.clone();
+                owner
+                    .restore_limit_snapshot(motors.clone(), control.clone(), urdf_robot)
+                    .expect("real equal-value model installation")
+            }
         }
         assert_eq!(owner.joint_homing_state(TARGET), JointHomingState::Unhomed);
         owner.motors = motors;

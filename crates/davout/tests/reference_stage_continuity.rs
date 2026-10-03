@@ -445,7 +445,6 @@ use davout::{DavoutError, ReferenceStageInvalidation, ReferenceStageStatus};
 
 #[derive(Clone, Copy, Debug)]
 enum LiveManagement {
-    Rebuild,
     NeighborPatch,
     Restore,
 }
@@ -453,7 +452,6 @@ enum LiveManagement {
 impl Owner {
     fn management_attempt(&mut self, kind: LiveManagement) -> Result<(), DavoutError> {
         match kind {
-            LiveManagement::Rebuild => self.supervisor.rebuild_limits(),
             LiveManagement::NeighborPatch => {
                 let patch = marengo_config::limit_patch_from_motor(
                     self.fixture.tree.path().join("config"),
@@ -502,11 +500,7 @@ struct RejectedLiveCase {
 #[test]
 fn rejected_rebuild_observes_live_policy_and_cannot_revive_stage_or_initial_permission() {
     let mut cases = Vec::new();
-    for kind in [
-        LiveManagement::Rebuild,
-        LiveManagement::NeighborPatch,
-        LiveManagement::Restore,
-    ] {
+    for kind in [LiveManagement::NeighborPatch, LiveManagement::Restore] {
         let mut staged = Owner::new("stage-rejected-management");
         let acquired = staged.acquire();
         let original_control = staged.supervisor.control.clone();
@@ -674,7 +668,6 @@ fn matched_evidence_is_current_only_after_real_cleanup_and_stays_unusable() {
 enum Installation {
     Geometry,
     EquivalentRestore,
-    Rebuild,
     Patch,
 }
 
@@ -704,7 +697,6 @@ fn successful_model_installs_invalidate_even_after_restore_and_failed_restore_pr
     for kind in [
         Installation::Geometry,
         Installation::EquivalentRestore,
-        Installation::Rebuild,
         Installation::Patch,
     ] {
         let mut owner = Owner::new("stage-install");
@@ -758,7 +750,6 @@ fn successful_model_installs_invalidate_even_after_restore_and_failed_restore_pr
                 owner.supervisor.control.clone(),
                 original.clone(),
             ),
-            Installation::Rebuild => owner.supervisor.rebuild_limits(),
             Installation::Patch => {
                 let patch = marengo_config::limit_patch_from_motor(
                     owner.fixture.tree.path().join("config"),

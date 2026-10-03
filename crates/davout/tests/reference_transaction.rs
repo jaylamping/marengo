@@ -332,6 +332,33 @@ fn settle_reporting(owner: &mut Supervisor<SimulationBus>) {
     }
 }
 
+/// Joints whose type-24 stream the owner turned On, read from literal TX.
+/// `settle_reporting` runs before any reference work, so every type-24 frame on
+/// the trace is an On written by construction/sync — no Off exists yet.
+fn reporting_on_trace(owner: &Supervisor<SimulationBus>) -> [bool; 5] {
+    const JOINTS: [&str; 5] = [
+        "right_shoulder_pitch",
+        "right_shoulder_roll",
+        "right_upper_arm_yaw",
+        "right_elbow_pitch",
+        "right_lower_arm_yaw",
+    ];
+    JOINTS.map(|joint| {
+        let device_id = owner
+            .motors
+            .motors
+            .iter()
+            .find(|motor| motor.joint == joint)
+            .expect("installed joint")
+            .device_id;
+        owner.bus().transmissions().iter().any(|tx| {
+            tx.frame.id >> 24 == 24
+                && tx.frame.id & 0xff == u32::from(device_id)
+                && tx.frame.data[6] == 0x01
+        })
+    })
+}
+
 fn owner(fixture: &Fixture) -> Supervisor<SimulationBus> {
     Supervisor::from_simulation_with_calibration_record_path(
         fixture.tree.path(),
@@ -576,10 +603,7 @@ fn virtual_core_stages_only_after_exact_raw_pop_and_never_grants_motion() {
     let peer_after_attempt = owner.joint_feedback("right_shoulder_roll");
     let proof_pops_before = owner.bus_mut().reference_rule_pop_count(proof);
     let busy_denials = normal_denials(&mut owner);
-    let drain_denials = [
-        owner.drain_feedback().is_err(),
-        owner.refresh_feedback().is_err(),
-    ];
+    let drain_denied = owner.drain_feedback().is_err();
     let proof_pops_after_denied_drain = owner.bus_mut().reference_rule_pop_count(proof);
     let awaited = owner.advance_reference(&handle);
     let after = owner.reference_snapshot().terminal;
@@ -626,10 +650,7 @@ fn virtual_core_stages_only_after_exact_raw_pop_and_never_grants_motion() {
     );
     assert_eq!(proof_pops_before, 0);
     assert_eq!(busy_denials, [true; 4]);
-    assert_eq!(
-        drain_denials, [true; 2],
-        "ordinary drain stole the reserved report"
-    );
+    assert!(drain_denied, "ordinary drain stole the reserved report");
     assert_eq!(proof_pops_after_denied_drain, 0);
     assert_eq!(
         awaited.expect("matching proof advance").phase,
@@ -1226,14 +1247,7 @@ fn uncertain_setzero_and_failed_terminal_stop_keep_the_original_outcome() {
     let baseline_fixture = fixture(true, true);
     let mut baseline_owner = owner(&baseline_fixture);
     settle_reporting(&mut baseline_owner);
-    let applied_before_baseline = [
-        "right_shoulder_pitch",
-        "right_shoulder_roll",
-        "right_upper_arm_yaw",
-        "right_elbow_pitch",
-        "right_lower_arm_yaw",
-    ]
-    .map(|joint| baseline_owner.active_reporting_applied(joint));
+    let applied_before_baseline = reporting_on_trace(&baseline_owner);
     let baseline_enable = enable_reply(&mut baseline_owner);
     let baseline_proof = reference_reply(
         &mut baseline_owner,
@@ -1505,14 +1519,7 @@ fn actual_reporting_off_precedes_flush_and_cannot_interfere_with_reference() {
         let fixture = fixture(true, true);
         let mut owner = owner(&fixture);
         settle_reporting(&mut owner);
-        let applied = [
-            "right_shoulder_pitch",
-            "right_shoulder_roll",
-            "right_upper_arm_yaw",
-            "right_elbow_pitch",
-            "right_lower_arm_yaw",
-        ]
-        .map(|joint| owner.active_reporting_applied(joint));
+        let applied = reporting_on_trace(&owner);
         let lease = owner.acquire_active_reporting_lease(
             TARGET,
             "reference-fixture",
@@ -1548,7 +1555,6 @@ fn actual_reporting_off_precedes_flush_and_cannot_interfere_with_reference() {
         for _ in 0..5 {
             if !off_failure {
                 owner.sync_active_reporting();
-                owner.tick_active_reporting_leases();
                 solicit_results.push(owner.solicit_status_feedback());
             }
             remaining.push(owner.advance_reference(&handle));

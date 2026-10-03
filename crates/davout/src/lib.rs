@@ -8,7 +8,7 @@
 //!
 //! - [`Supervisor`]: operational state machine (Disabled → Ready → Active).
 //! - Filter [`MitJointCommand`] / [`JointCommand`]: URDF ∩ bench limits, per-`motor_type`
-//!   `kp`/`kd`/`tau_ff` caps, [`tau_ff` rate limiting](Supervisor::filter_mit_command).
+//!   `kp`/`kd`/`tau_ff` caps and [`tau_ff` rate limiting](Supervisor::filter_mit_core).
 //! - Own joint↔motor coordinate conversion from `config/motors.yaml` (`direction`, `gear_ratio`):
 //!   Berthier and dynamics stay in joint space; robstride stays in raw motor/CAN space.
 //! - [`danger_zones`](marengo_config::DangerZoneRule) from `config/control.yaml` (clamp or fault on rule hit).
@@ -38,8 +38,8 @@
 //!   discontinuity, Calibration mode, or silence beyond `comm_watchdog_ms` outside owner
 //!   reference work revokes that joint. Fault/E-stop/uncertain stop revokes all.
 //! - [`Supervisor::disable_all`]: all-address best-effort stop with honest delivery evidence.
-//! - [`refresh_feedback`]: blocking poll up to `feedback_poll_budget_us` (REPL / set-zero).
-//! - [`drain_feedback`]: non-blocking RX queue drain (Berthier control loop).
+//! - [`drain_feedback`](Supervisor::drain_feedback): non-blocking RX queue drain
+//!   (Berthier control loop; per-tick frame accounting via `begin_tick_feedback`).
 //!
 //! ## Does not
 //!
@@ -176,9 +176,8 @@ use marengo_config::{
     load_commissioning_scope, load_control_config_from, load_homing_config_from,
     load_motors_config_from, load_robot_config, load_robot_config_from, motor_for_joint,
     motor_type_key, resolve_config_dir, resolve_joint_velocity_cap, resolve_urdf_path,
-    validate_control_against_limits, validate_motors_against_robot,
-    validate_robot_control_joint_coverage, validate_safety_config, ControlConfigFile,
-    HomingConfigFile, MotorEntry, MotorType, MotorsConfigFile, RobotConfigFile,
+    validate_control_against_limits, validate_safety_config, ControlConfigFile, HomingConfigFile,
+    MotorEntry, MotorType, MotorsConfigFile, RobotConfigFile,
 };
 use marengo_homing::{select_enable_targets, HomingRegistry, JointFacetInput};
 use reference::ReferenceAuthority;
@@ -423,7 +422,7 @@ pub struct Supervisor<B: MotorBus> {
     active_reporting: ActiveReportingState,
     /// Last time each joint produced a feedback frame (for type-24 silence retry).
     last_feedback_rx: FxHashMap<String, Instant>,
-    /// Status frames decoded in the most recent [`Self::refresh_feedback`] poll.
+    /// Status frames decoded since the last [`Self::begin_tick_feedback`] call.
     last_refresh_frames: usize,
     /// Joints whose drives were successfully enabled for the current Active session.
     active_joints: HashSet<String>,
@@ -572,8 +571,6 @@ impl<B: MotorBus> Supervisor<B> {
         }
         let homing_config = load_homing_config_from(config_dir)?;
         validate_safety_config(&robot, &motors, &control, &homing_config)?;
-        validate_motors_against_robot(&robot, &motors)?;
-        validate_robot_control_joint_coverage(&robot, &control)?;
         let homing_joints: Vec<String> = robot.robot.joints.clone();
         let record_path =
             record_path.unwrap_or_else(|| root.join(&homing_config.homing.calibration_record_path));
@@ -638,11 +635,6 @@ impl<B: MotorBus> Supervisor<B> {
             active_joints: HashSet::new(),
         };
         Ok((supervisor, record_path))
-    }
-
-    /// Frames received in the last [`Self::refresh_feedback`] call (0 if none or timeout).
-    pub fn last_refresh_frame_count(&self) -> usize {
-        self.last_refresh_frames
     }
 
     pub fn homing_registry(&self) -> &HomingRegistry {
@@ -735,27 +727,6 @@ impl<B: MotorBus> Supervisor<B> {
         Ok(threshold)
     }
 
-    /// Rebuild runtime limit policies from the supervisor's in-memory configuration.
-    ///
-    /// The existing policies remain installed if validation or rebuilding fails.
-    pub fn rebuild_limits(&mut self) -> Result<(), DavoutError> {
-        self.refuse_reference_interference("rebuild_limits")?;
-        if self.mode == OperationalMode::Active {
-            return Err(DavoutError::LimitPatchActive);
-        }
-        // A refused install must not erase an observed change to live fields.
-        self.reference_binding_valid();
-        validate_control_against_limits(&self.robot, &self.motors, &self.control)?;
-        let limits = build_limits(&self.robot, &self.motors, &self.control, &self.urdf_robot)?;
-        let installed_model = self
-            .installed_model
-            .replacement(&self.robot, &self.urdf_robot)?;
-        self.reference_authority.revoke();
-        self.installed_model = installed_model;
-        self.limits = limits;
-        Ok(())
-    }
-
     /// Validate a proposed control policy against the installed robot, motor,
     /// and homing configuration before an overlay is installed or persisted.
     /// This reads policy only; callers still own installation and limit rebuilds.
@@ -843,11 +814,6 @@ impl<B: MotorBus> Supervisor<B> {
         self.joint_feedback(joint).map(|s| s.position_rad)
     }
 
-    /// Joint-space feedback velocity (rad/s) if available.
-    pub fn joint_velocity_rad(&self, joint: &str) -> Option<f64> {
-        self.joint_feedback(joint).map(|s| s.velocity_rad_s)
-    }
-
     /// Joint-space feedback torque (Nm) if available.
     pub fn joint_torque_rad(&self, joint: &str) -> Option<f64> {
         self.joint_feedback(joint).map(|s| s.torque_nm)
@@ -870,19 +836,6 @@ impl<B: MotorBus> Supervisor<B> {
         self.mode = OperationalMode::Ready;
         self.sync_active_reporting();
         Ok(())
-    }
-
-    /// Cached pose cannot qualify SetZero; legacy verification refuses before persistence.
-    pub fn verify_zero_after_set(
-        &mut self,
-        joint: &str,
-        _operator: &str,
-        sign_test_passed: bool,
-    ) -> Result<f64, DavoutError> {
-        self.reference_request_preflight(joint, Some(sign_test_passed))?;
-        Err(DavoutError::ReferenceUnsupported {
-            operation: "cached set-zero verification",
-        })
     }
 
     /// Synchronous qualified calibration for one-shot callers (`motor-repl set-zero`).
@@ -1283,13 +1236,6 @@ impl<B: MotorBus> Supervisor<B> {
         }
     }
 
-    pub fn clear_motor_states(&mut self) {
-        if self.reference_busy() {
-            return;
-        }
-        self.motor_states.clear();
-    }
-
     /// Read-only transport diagnostics; physical transmit/replacement is private.
     pub fn bus(&self) -> &B {
         &self.bus
@@ -1341,22 +1287,6 @@ impl<B: MotorBus> Supervisor<B> {
             return Err(DavoutError::NotActive { mode: self.mode });
         }
         self.enable_targets_inner(&targets)
-    }
-
-    /// Legacy calibration arming is unqualified and refuses before transmitting.
-    pub fn request_enable_for_calibration(&mut self) -> Result<(), DavoutError> {
-        self.require_fault_clear()?;
-        if self.hardware_estop {
-            return Err(DavoutError::Estop);
-        }
-        if self.mode == OperationalMode::Active {
-            return Err(DavoutError::Homing {
-                message: "calibration enable refused while ACTIVE; disable first".into(),
-            });
-        }
-        Err(DavoutError::ReferenceUnsupported {
-            operation: "legacy calibration enable",
-        })
     }
 
     /// Enable only the listed joints. On any enable/run-mode failure, [`disable_all`].
@@ -1898,12 +1828,6 @@ impl<B: MotorBus> Supervisor<B> {
         self.poll_feedback(Duration::ZERO)
     }
 
-    /// Poll CAN feedback up to [`feedback_poll_budget_us`](marengo_config::ControlSection::feedback_poll_budget_us).
-    pub fn refresh_feedback(&mut self) -> Result<usize, DavoutError> {
-        self.refuse_reference_interference("ordinary feedback refresh")?;
-        self.poll_feedback(self.feedback_poll_timeout())
-    }
-
     fn poll_feedback(&mut self, budget: Duration) -> Result<usize, DavoutError> {
         // Observe policy changes before projecting raw pose data. Restoring a
         // public field after this drain must not restore a revoked reference.
@@ -2150,7 +2074,6 @@ impl<B: MotorBus> Supervisor<B> {
         self.sync_motor_addresses();
         scratch.configured.clear();
         for cmd in &cmds {
-            validate_mit_command(cmd)?;
             self.require_active_joint(&cmd.joint)?;
             let index = self
                 .motor_index(&cmd.joint)
@@ -2261,14 +2184,6 @@ impl<B: MotorBus> Supervisor<B> {
         }
         scratch.wires.truncate(scratch.staged.len());
         self.check_comm_watchdog(neutral)
-    }
-
-    /// Raw firmware SetZero is unavailable without a qualified owner transaction.
-    pub fn set_zero_position(&mut self, joint: &str) -> Result<(), DavoutError> {
-        self.reference_request_preflight(joint, None)?;
-        Err(DavoutError::ReferenceUnsupported {
-            operation: "raw firmware SetZero",
-        })
     }
 
     /// Disable all drives (best-effort zero speed, zero-torque MIT, then DISABLE).
@@ -2447,6 +2362,7 @@ impl<B: MotorBus> Supervisor<B> {
     /// Free-drive sensing: type-24 per joint when diagnostics/leases say so and not ACTIVE.
     /// ACTIVE uses MIT status replies instead; type-24 must stay off then.
     ///
+    /// Expires lease TTLs and resyncs type-24; call each control-loop iteration.
     /// Re-asserts enable on a 1 s heartbeat and when a joint's feedback goes stale
     /// while sensing is still desired (motors can drop Active Reporting mid-sweep).
     pub fn sync_active_reporting(&mut self) {
@@ -2490,11 +2406,6 @@ impl<B: MotorBus> Supervisor<B> {
                     .count_silence_from(&address, until);
             }
         }
-    }
-
-    /// Expire TTLs and resync type-24 (call each control-loop iteration).
-    pub fn tick_active_reporting_leases(&mut self) {
-        self.sync_active_reporting();
     }
 
     /// Acquire or upsert a client-minted lease for `joint`.
@@ -2542,20 +2453,15 @@ impl<B: MotorBus> Supervisor<B> {
         Ok(())
     }
 
-    /// True when type-24 is applied on for `joint` after last successful sync.
-    pub fn active_reporting_applied(&self, joint: &str) -> bool {
-        self.active_reporting.applied_on(joint)
-    }
-
-    fn feedback_poll_timeout(&self) -> Duration {
-        Duration::from_micros(self.control.control.feedback_poll_budget_us)
-    }
-
     fn feedback_drain_quiet(&self) -> Duration {
         Duration::from_micros(self.control.control.feedback_drain_quiet_us)
     }
 
-    pub fn filter_mit_command(
+    /// Step one joint command through the live filter, keeping limiter/watchdog
+    /// advances on error (unit-test entry; production batches use [`Self::filter_mit_core`]
+    /// through [`Self::send_mit_batch`]).
+    #[cfg(test)]
+    fn filter_mit_command(
         &mut self,
         cmd: MitJointCommand,
         motor: &MotorEntry,
@@ -3033,9 +2939,7 @@ pub(crate) fn build_limits(
             .effort
             .min(motor.bench.torque_limit_nm)
             .min(robot.robot.bench.max_joint_torque_nm);
-        let tau_ff_max = effort
-            .min(motor.bench.torque_limit_nm)
-            .min(defaults.tau_ff_max_nm);
+        let tau_ff_max = effort.min(defaults.tau_ff_max_nm);
         map.insert(
             joint_name.clone(),
             JointLimitPolicy {
@@ -3553,7 +3457,7 @@ mod tests {
     }
 
     #[test]
-    fn rebuild_limits_uses_in_memory_config() {
+    fn restored_snapshot_uses_in_memory_config() {
         let mut sup = Supervisor::from_simulation(
             repo_root(),
             SimulationBus::default(),
@@ -3576,7 +3480,11 @@ mod tests {
             .expect("control")
             .position_soft_upper_rad = Some(1.0);
 
-        sup.rebuild_limits().expect("rebuild");
+        let motors = sup.motors.clone();
+        let control = sup.control.clone();
+        let urdf_robot = sup.urdf_robot.clone();
+        sup.restore_limit_snapshot(motors, control, urdf_robot)
+            .expect("snapshot install");
 
         let policy = sup.joint_limit_policy("right_elbow_pitch").expect("policy");
         assert!((policy.hard_upper() - 1.0).abs() < 1e-9);
@@ -4175,7 +4083,7 @@ mod tests {
             ))
             .expect("finite raw fixture");
 
-        assert_eq!(sup.refresh_feedback().expect("refresh"), 1);
+        assert_eq!(sup.drain_feedback().expect("drain"), 1);
         let fb = sup.joint_feedback(&joint).expect("feedback");
         assert!(
             (fb.position_rad - 0.5).abs() < 1e-3,
@@ -4242,7 +4150,7 @@ mod tests {
             ))
             .expect("finite raw fixture");
 
-        let count = sup.refresh_feedback().expect("feedback");
+        let count = sup.drain_feedback().expect("feedback");
 
         assert_eq!(count, 2);
         let j0 = sup.motors.motors[0].joint.clone();
@@ -4325,11 +4233,11 @@ mod tests {
         sup.bus
             .queue_received(stationary_overspeed.clone())
             .expect("finite raw fixture");
-        sup.refresh_feedback().expect("first spike ignored");
+        sup.drain_feedback().expect("first spike ignored");
         sup.bus
             .queue_received(stationary_overspeed)
             .expect("finite raw fixture");
-        sup.refresh_feedback()
+        sup.drain_feedback()
             .expect("stationary repeated spike remains ignored");
 
         assert!(sup.feedback_velocity_trips.is_empty());
@@ -4534,7 +4442,7 @@ mod tests {
             .motors
             .motors
             .iter()
-            .all(|m| !sup.active_reporting_applied(&m.joint)));
+            .all(|m| !sup.active_reporting.applied_on(&m.joint)));
     }
 
     #[test]
@@ -4547,7 +4455,7 @@ mod tests {
         sup.control.control.bench.active_reporting_diagnostics = false;
         settle_active_reporting(&mut sup);
         for m in &sup.motors.motors {
-            assert!(!sup.active_reporting_applied(&m.joint));
+            assert!(!sup.active_reporting.applied_on(&m.joint));
         }
         sup.bus.clear_trace();
         sup.control.control.bench.active_reporting_diagnostics = true;
@@ -4565,7 +4473,7 @@ mod tests {
             .motors
             .motors
             .iter()
-            .all(|m| !sup.active_reporting_applied(&m.joint)));
+            .all(|m| !sup.active_reporting.applied_on(&m.joint)));
         let new_frames = &sup.bus.frames()[tx_before..];
         for frame in type24_tx_frames(new_frames) {
             assert_eq!(
@@ -4618,7 +4526,7 @@ mod tests {
         sup.control.control.bench.active_reporting_diagnostics = false;
         settle_active_reporting(&mut sup);
         for m in &sup.motors.motors {
-            assert!(!sup.active_reporting_applied(&m.joint));
+            assert!(!sup.active_reporting.applied_on(&m.joint));
         }
         sup.bus.clear_trace();
         sup.control.control.bench.active_reporting_diagnostics = true;
@@ -4627,7 +4535,7 @@ mod tests {
             .motors
             .motors
             .iter()
-            .all(|m| sup.active_reporting_applied(&m.joint)));
+            .all(|m| sup.active_reporting.applied_on(&m.joint)));
         assert_eq!(
             type24_tx_frames(sup.bus.frames()).len(),
             sup.motors.motors.len()
@@ -4640,7 +4548,7 @@ mod tests {
             .motors
             .motors
             .iter()
-            .all(|m| sup.active_reporting_applied(&m.joint)));
+            .all(|m| sup.active_reporting.applied_on(&m.joint)));
         let off_frames = type24_tx_frames(&sup.bus.frames()[tx_before..]);
         assert!(
             off_frames.is_empty(),
@@ -4654,29 +4562,12 @@ mod tests {
     }
 
     #[test]
-    fn feedback_poll_timeout_honors_budget_not_watchdog_cap() {
+    fn comm_watchdog_fires_on_silence() {
         let bus = SimulationBus::default();
         let mut sup =
             Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
                 .expect("supervisor");
         sup.control.control.comm_watchdog_ms = 50;
-        sup.control.control.feedback_poll_budget_us = 3000;
-        sup.control.control.feedback_drain_quiet_us = 300;
-        assert_eq!(
-            sup.feedback_poll_timeout(),
-            Duration::from_micros(3000),
-            "poll budget must not be capped at 1 ms by comm_watchdog_ms"
-        );
-    }
-
-    #[test]
-    fn comm_watchdog_unchanged_despite_larger_poll_budget() {
-        let bus = SimulationBus::default();
-        let mut sup =
-            Supervisor::from_simulation(repo_root(), bus, InitialVirtualReference::AllConfigured)
-                .expect("supervisor");
-        sup.control.control.comm_watchdog_ms = 50;
-        sup.control.control.feedback_poll_budget_us = 3000;
         sup.control.control.feedback_drain_quiet_us = 300;
         bench_ready_active(&mut sup);
         std::thread::sleep(Duration::from_millis(10));

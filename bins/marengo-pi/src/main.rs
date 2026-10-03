@@ -1785,7 +1785,7 @@ fn run_control_loop<B: MotorBus>(
         if runtime.shutdown.load(Ordering::SeqCst) {
             break;
         }
-        loop_ctrl.supervisor_mut().tick_active_reporting_leases();
+        loop_ctrl.supervisor_mut().sync_active_reporting();
         if runtime.shutdown.load(Ordering::SeqCst) {
             break;
         }
@@ -1803,13 +1803,7 @@ fn run_control_loop<B: MotorBus>(
         }
 
         let elapsed = tick_start.elapsed();
-        timing.record_tick(
-            elapsed,
-            period,
-            loop_ctrl.supervisor_mut().last_refresh_frame_count(),
-            outer_stdin_us,
-            outer_chappe_drain_us,
-        );
+        timing.record_tick(elapsed, period, outer_stdin_us, outer_chappe_drain_us);
 
         let now = Instant::now();
         if now.duration_since(last_chappe) >= chappe_period {
@@ -1861,7 +1855,6 @@ struct LoopTimingWindow {
     tick_elapsed_max_us: u64,
     tick_elapsed_sum_us: u64,
     overruns: u32,
-    refresh_frames_sum: u32,
     outer_stdin_us_sum: u64,
     outer_chappe_drain_us_sum: u64,
 }
@@ -1875,7 +1868,6 @@ impl LoopTimingWindow {
             tick_elapsed_max_us: 0,
             tick_elapsed_sum_us: 0,
             overruns: 0,
-            refresh_frames_sum: 0,
             outer_stdin_us_sum: 0,
             outer_chappe_drain_us_sum: 0,
         }
@@ -1885,7 +1877,6 @@ impl LoopTimingWindow {
         &mut self,
         elapsed: Duration,
         period: Duration,
-        refresh_frames: usize,
         outer_stdin_us: u64,
         outer_chappe_drain_us: u64,
     ) {
@@ -1896,9 +1887,6 @@ impl LoopTimingWindow {
         if elapsed > period {
             self.overruns += 1;
         }
-        self.refresh_frames_sum = self
-            .refresh_frames_sum
-            .saturating_add(u32::try_from(refresh_frames).unwrap_or(u32::MAX));
         self.outer_stdin_us_sum = self.outer_stdin_us_sum.saturating_add(outer_stdin_us);
         self.outer_chappe_drain_us_sum = self
             .outer_chappe_drain_us_sum
@@ -1923,7 +1911,6 @@ impl LoopTimingWindow {
             tick_elapsed_avg_us = avg_us,
             tick_elapsed_max_us = self.tick_elapsed_max_us,
             overruns = self.overruns,
-            refresh_frames_per_sec = f64::from(self.refresh_frames_sum) / wall_s,
             outer_stdin_avg_us,
             outer_chappe_drain_avg_us,
             "loop timing"

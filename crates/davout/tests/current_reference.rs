@@ -92,7 +92,7 @@ fn ordinary_constructor_does_not_grant_reference_even_for_concrete_simulation_bu
 }
 
 #[test]
-fn legacy_reference_routes_refuse_before_tx_or_history_write() {
+fn unqualified_calibration_refuses_before_tx_or_history_write() {
     let fixture = directory::TestDirectory::new("legacy-reference-refusal");
     let path = fixture.path().join("history.yaml");
     let mut supervisor =
@@ -101,19 +101,7 @@ fn legacy_reference_routes_refuse_before_tx_or_history_write() {
     let joint = supervisor.motors.motors[0].joint.clone();
     let before = supervisor.bus().tx.clone();
     assert!(matches!(
-        supervisor.verify_zero_after_set(&joint, "operator", true),
-        Err(DavoutError::ReferenceUnsupported { .. })
-    ));
-    assert!(matches!(
         supervisor.calibrate_joint_zero(&joint, "operator", true),
-        Err(DavoutError::ReferenceUnsupported { .. })
-    ));
-    assert!(matches!(
-        supervisor.request_enable_for_calibration(),
-        Err(DavoutError::ReferenceUnsupported { .. })
-    ));
-    assert!(matches!(
-        supervisor.set_zero_position(&joint),
         Err(DavoutError::ReferenceUnsupported { .. })
     ));
     assert_eq!(supervisor.bus().tx, before);
@@ -422,7 +410,12 @@ fn fault_and_stop_uncertainty_revoke_initial_reference_without_automatic_recover
 fn rebuilding_limits_revokes_initial_reference() {
     let mut supervisor = virtual_supervisor(InitialVirtualReference::AllConfigured);
     let joint = supervisor.motors.motors[0].joint.clone();
-    supervisor.rebuild_limits().expect("valid rebuilt policy");
+    let motors = supervisor.motors.clone();
+    let control = supervisor.control.clone();
+    let urdf_robot = supervisor.urdf_robot().clone();
+    supervisor
+        .restore_limit_snapshot(motors, control, urdf_robot)
+        .expect("valid rebuilt policy");
     assert_eq!(
         supervisor.joint_homing_state(&joint),
         JointHomingState::Unhomed
@@ -433,7 +426,7 @@ fn rebuilding_limits_revokes_initial_reference() {
 }
 
 #[test]
-fn cached_valid_run_pose_cannot_qualify_legacy_set_zero_or_write_history() {
+fn cached_valid_run_pose_cannot_qualify_enable_or_write_history() {
     let fixture = directory::TestDirectory::new("cached-reference-refusal");
     let path = fixture.path().join("history.yaml");
     let mut supervisor = Supervisor::from_simulation_with_calibration_record_path(
@@ -454,14 +447,7 @@ fn cached_valid_run_pose_cannot_qualify_legacy_set_zero_or_write_history() {
         "valid cache was never reached"
     );
     supervisor.bus_mut().clear_trace();
-    assert!(matches!(
-        supervisor.verify_zero_after_set(&motor.joint, "operator", true),
-        Err(DavoutError::ReferenceUnsupported { .. })
-    ));
-    assert!(matches!(
-        supervisor.set_zero_position(&motor.joint),
-        Err(DavoutError::ReferenceUnsupported { .. })
-    ));
+    assert!(supervisor.enable_targets(&[motor.joint.clone()]).is_err());
     assert!(supervisor.bus().frames().is_empty());
     assert!(!path.exists());
     assert_eq!(

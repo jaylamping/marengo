@@ -565,14 +565,11 @@ fn unknown_flood_retains_work_limit_stats_and_attempts_every_stop() {
 }
 
 #[test]
-fn ordinary_empty_refresh_and_timeout_remain_benign() {
+fn ordinary_empty_drain_and_timeout_remain_benign() {
     let mut supervisor = supervisor();
     // Startup may configure diagnostic Active Reporting; it is not a stop attempt.
     supervisor.bus_mut().clear_trace();
-    assert_eq!(
-        supervisor.refresh_feedback().expect("empty quiet timeout"),
-        0
-    );
+    assert_eq!(supervisor.drain_feedback().expect("empty drain"), 0);
     supervisor
         .bus_mut()
         .queue_feedback_report(FeedbackReport {
