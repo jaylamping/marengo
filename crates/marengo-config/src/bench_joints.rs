@@ -96,7 +96,7 @@ pub fn joint_subset_from_env() -> Option<HashSet<String>> {
 }
 
 /// Fail closed when any subset name is missing from `robot.joints`.
-pub fn validate_joint_subset(
+pub(crate) fn validate_joint_subset(
     robot: &RobotConfigFile,
     subset: &HashSet<String>,
 ) -> Result<(), ConfigError> {

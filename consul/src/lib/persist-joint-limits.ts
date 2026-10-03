@@ -31,7 +31,6 @@ type PatchConfigFn = (
 ) => Promise<ConfigPatchResultDto | null>;
 
 export type LocalLimitSyncFn = (args: {
-  profile: string;
   joint: string;
   lower: number;
   upper: number;
@@ -68,7 +67,6 @@ export async function persistJointLimits(
     expectedRevision?: string;
     patchConfig?: PatchConfigFn;
     timeoutMs?: number;
-    profile?: string;
     localSync?: LocalLimitSyncFn;
   },
 ): Promise<PersistJointLimitsResult> {
@@ -131,7 +129,6 @@ export async function persistJointLimits(
   if (persistStatus === 'durable') {
     const sync = deps?.localSync ?? defaultLocalLimitSync;
     localSync = await sync({
-      profile: deps?.profile ?? 'master',
       joint,
       lower: hardLower,
       upper: hardUpper,
@@ -161,7 +158,6 @@ export async function persistJointLimits(
 }
 
 async function defaultLocalLimitSync(args: {
-  profile: string;
   joint: string;
   lower: number;
   upper: number;
@@ -187,7 +183,6 @@ async function defaultLocalLimitSync(args: {
       },
       signal: AbortSignal.timeout(12_000),
       body: JSON.stringify({
-        profile: args.profile,
         joint: args.joint,
         lower: args.lower,
         upper: args.upper,

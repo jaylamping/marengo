@@ -2,8 +2,6 @@
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use armee_kinematics::{actuated_joint_names, load_urdf};
 use urdf_rs::JointType;
@@ -70,14 +68,6 @@ fn format_joint_type(joint_type: &JointType) -> String {
     }
 }
 
-#[allow(dead_code)]
-fn is_actuated(joint_type: &JointType) -> bool {
-    matches!(
-        *joint_type,
-        JointType::Revolute | JointType::Continuous | JointType::Prismatic
-    )
-}
-
 /// Compare master and contributor URDF bytes; overlap keyed by actuated joint names.
 pub fn merge_preview_from_paths(
     master_path: impl AsRef<Path>,
@@ -91,7 +81,7 @@ pub fn merge_preview_from_paths(
     Ok(merge_preview_from_robots(&master, &contributor))
 }
 
-pub fn merge_preview_from_robots(
+pub(crate) fn merge_preview_from_robots(
     master: &urdf_rs::Robot,
     contributor: &urdf_rs::Robot,
 ) -> MergePreview {
@@ -252,7 +242,7 @@ pub fn simulate_merge_xml(
     Ok(merged)
 }
 
-pub fn apply_merge_xml(
+pub(crate) fn apply_merge_xml(
     master_xml: &str,
     contributor_xml: &str,
     preview: &MergePreview,
@@ -305,7 +295,7 @@ pub fn apply_merge_xml(
 }
 
 /// Structural checks before promoting a merged URDF to live SoT.
-pub fn validate_merged_urdf_xml(xml: &str) -> Result<(), ConfigError> {
+pub(crate) fn validate_merged_urdf_xml(xml: &str) -> Result<(), ConfigError> {
     let path = Path::new("marengo.urdf");
     let robot = load_urdf_from_str(xml, path)?;
     let mut link_names = HashSet::new();
@@ -369,26 +359,7 @@ pub fn validate_merged_urdf_xml(xml: &str) -> Result<(), ConfigError> {
 }
 
 fn load_urdf_from_str(xml: &str, path: &Path) -> Result<urdf_rs::Robot, ConfigError> {
-    // Unique per call so parallel tests do not race on a pid-only temp path.
-    static SEQ: AtomicU64 = AtomicU64::new(0);
-    let seq = SEQ.fetch_add(1, Ordering::Relaxed);
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_nanos())
-        .unwrap_or(0);
-    let tmp = std::env::temp_dir().join(format!(
-        "marengo-merge-{}-{}-{}.urdf",
-        std::process::id(),
-        nanos,
-        seq
-    ));
-    std::fs::write(&tmp, xml).map_err(|e| ConfigError::Io {
-        path: tmp.clone(),
-        message: e.to_string(),
-    })?;
-    let result = load_urdf(&tmp).map_err(|e| parse_error(path, e.to_string()));
-    let _ = std::fs::remove_file(&tmp);
-    result
+    urdf_rs::read_from_string(xml).map_err(|e| parse_error(path, e.to_string()))
 }
 
 fn collect_links_for_joints(robot: &urdf_rs::Robot, joints: &[String]) -> Vec<String> {

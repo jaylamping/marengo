@@ -39,8 +39,7 @@ mod urdf_merge;
 pub use atomic_file::{write_profile_file_atomic, ProfileWriteLock};
 pub use bench_joints::{
     apply_joint_subset, joint_subset_from_env, load_command_joint_allowlist,
-    load_command_joint_allowlist_from, resolve_command_joint, validate_joint_subset,
-    CommandJointAllowlist,
+    load_command_joint_allowlist_from, resolve_command_joint, CommandJointAllowlist,
 };
 pub use commissioning_scope::{
     clear_commissioning_scope, default_commissioning_scope_path, effective_commissioning_scope,
@@ -53,21 +52,17 @@ pub use limit_patch::{
     apply_limit_patch_to_control, apply_limit_patch_to_motor, ensure_soft_inset,
     soft_limits_with_inset, validate_limit_patch, LimitPatch, DEFAULT_SOFT_INSET_RAD,
 };
-pub use profile_txn::{
-    add_joint_from_source, joint_in_motors, joint_in_profile_urdf, limit_patch_from_motor,
-    membership_slugs_for_joint, upsert_joint_limits, write_motors_and_control, AddJointResult,
-    UpsertLimitResult,
-};
-pub use safety_validation::{
-    validate_homing_config, validate_motors_config, validate_robot_config, validate_safety_config,
+pub use profile_txn::{limit_patch_from_motor, write_motors_and_control};
+pub use safety_validation::validate_safety_config;
+pub(crate) use safety_validation::{
+    validate_homing_config, validate_motors_config, validate_robot_config,
 };
 pub use urdf_expand::{
     apply_local_limit_patch, expand_urdf_file_to_cover_motors, write_motors_control_and_urdf,
 };
 pub use urdf_merge::{
-    apply_merge_xml, merge_preview_from_paths, merge_preview_from_robots, simulate_merge_xml,
-    unresolved_critical_fields, validate_merged_urdf_xml, FieldDiff, FieldResolution, MergePreview,
-    ResolutionChoice,
+    merge_preview_from_paths, simulate_merge_xml, unresolved_critical_fields, FieldDiff,
+    FieldResolution, MergePreview, ResolutionChoice,
 };
 
 use std::path::{Path, PathBuf};
@@ -118,7 +113,6 @@ pub struct RobotConfigFile {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RobotSection {
-    pub name: String,
     pub urdf: String,
     pub bench: BenchSection,
     pub joints: Vec<String>,
@@ -131,7 +125,6 @@ pub struct RobotSection {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct BenchSection {
-    pub max_joint_velocity_rad_s: f64,
     pub max_joint_torque_nm: f64,
 }
 
@@ -210,7 +203,7 @@ pub fn resolve_repo_root() -> PathBuf {
 }
 
 /// Pi install default; dev falls back to `<repo_root>/config` when unset and path missing.
-pub const DEFAULT_PI_CONFIG_DIR: &str = "/opt/marengo/config";
+pub(crate) const DEFAULT_PI_CONFIG_DIR: &str = "/opt/marengo/config";
 
 /// Config directory: `MARENGO_CONFIG_DIR`, else `/opt/marengo/config` when present, else `<repo_root>/config`.
 pub fn resolve_config_dir(repo_root: impl AsRef<Path>) -> PathBuf {
@@ -225,7 +218,7 @@ pub fn resolve_config_dir(repo_root: impl AsRef<Path>) -> PathBuf {
 }
 
 /// File name of the physical reference journal beside the calibration history.
-pub const REFERENCE_JOURNAL_FILE: &str = "reference-journal.sqlite3";
+pub(crate) const REFERENCE_JOURNAL_FILE: &str = "reference-journal.sqlite3";
 
 /// Physical reference journal: `MARENGO_REFERENCE_JOURNAL`, else
 /// [`REFERENCE_JOURNAL_FILE`] beside the calibration history
@@ -521,7 +514,7 @@ pub struct JointControlEntry {
 }
 
 impl JointControlEntry {
-    pub fn limit_margin_fields_valid(&self, joint: &str) -> Result<(), ConfigError> {
+    pub(crate) fn limit_margin_fields_valid(&self, joint: &str) -> Result<(), ConfigError> {
         if !self.position_limit_margin_min_rad.is_finite()
             || self.position_limit_margin_min_rad < 0.0
         {
@@ -625,7 +618,7 @@ pub fn motor_type_key(motor_type: MotorType) -> &'static str {
 }
 
 /// Actuator group containing `joint`, if any.
-pub fn actuator_group_for_joint<'a>(
+pub(crate) fn actuator_group_for_joint<'a>(
     joint: &str,
     control: &'a ControlSection,
 ) -> Option<(&'a str, &'a ActuatorGroupEntry)> {
@@ -637,7 +630,7 @@ pub fn actuator_group_for_joint<'a>(
 }
 
 /// Velocity cap from control.yaml (joint > group > motor type). ADR 0010.
-pub fn resolve_desired_joint_velocity_cap(
+pub fn resolve_joint_velocity_cap(
     joint: &str,
     motor_type: MotorType,
     control: &ControlSection,
@@ -684,15 +677,6 @@ pub fn resolve_desired_joint_velocity_cap(
     Ok(defaults.velocity_max_rad_s)
 }
 
-/// Command velocity cap (rad/s) for one joint — alias for [`resolve_desired_joint_velocity_cap`].
-pub fn resolve_joint_velocity_cap(
-    joint: &str,
-    motor_type: MotorType,
-    control: &ControlSection,
-) -> Result<f64, ConfigError> {
-    resolve_desired_joint_velocity_cap(joint, motor_type, control)
-}
-
 fn validate_actuator_groups(control: &ControlSection) -> Result<(), ConfigError> {
     for (index, (group, entry)) in control.actuator_groups.iter().enumerate() {
         if !entry.velocity_max_rad_s.is_finite() || entry.velocity_max_rad_s <= 0.0 {
@@ -735,7 +719,7 @@ fn validate_actuator_groups(control: &ControlSection) -> Result<(), ConfigError>
 }
 
 /// Validate numeric control policy, gain caps, margins, groups, and danger rules.
-pub fn validate_control_config(control: &ControlConfigFile) -> Result<(), ConfigError> {
+pub(crate) fn validate_control_config(control: &ControlConfigFile) -> Result<(), ConfigError> {
     validate_actuator_groups(&control.control)?;
     for (joint, entry) in &control.control.joints {
         entry.limit_margin_fields_valid(joint)?;
@@ -934,8 +918,6 @@ pub enum HomingMethod {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct HomingJointDefaults {
-    #[serde(default = "default_homing_method")]
-    pub method: HomingMethod,
     #[serde(default)]
     pub home_offset_rad: f64,
     #[serde(default = "default_search_direction")]
@@ -957,7 +939,6 @@ pub struct HomingJointDefaults {
 impl Default for HomingJointDefaults {
     fn default() -> Self {
         Self {
-            method: HomingMethod::ManualReference,
             home_offset_rad: 0.0,
             search_direction: SearchDirection::Positive,
             search_velocity_rad_s: default_search_velocity(),
@@ -1121,7 +1102,7 @@ pub fn load_control_config(repo_root: impl AsRef<Path>) -> Result<ControlConfigF
 }
 
 /// Path to `control.yaml` under `config_dir`.
-pub fn control_config_path(config_dir: impl AsRef<Path>) -> PathBuf {
+pub(crate) fn control_config_path(config_dir: impl AsRef<Path>) -> PathBuf {
     config_dir.as_ref().join("control.yaml")
 }
 
@@ -1220,6 +1201,9 @@ pub fn apply_joint_config_param(
 }
 
 /// Reject impedance/friction gains above motor-type maxima (fail closed before persist).
+/// Validator surface (P-marengo-config-07): no internal production caller today —
+/// `apply_joint_config_param` does not invoke it — but validators are never
+/// pruned, so this stays `pub` for operators and future patch gates.
 pub fn validate_joint_gains_against_motor_type(
     cfg: &ControlConfigFile,
     joint: &str,
@@ -1407,9 +1391,7 @@ mod tests {
     #[test]
     fn robot_yaml_parses() {
         let cfg = load_robot_config(repo_root()).expect("robot.yaml");
-        assert_eq!(cfg.robot.name, "marengo_arm_5dof_right");
         assert!(cfg.robot.urdf.contains("marengo.urdf"));
-        assert!(cfg.robot.bench.max_joint_velocity_rad_s > 0.0);
         assert_eq!(cfg.robot.joints.len(), 5);
         // Match URDF chain + motors.yaml list order (pitch before roll).
         assert_eq!(
@@ -1505,7 +1487,6 @@ mod tests {
         let robot = load_robot_config_from(&config_dir).expect("robot.yaml");
         let motors = load_motors_config_from(&config_dir).expect("motors.yaml");
         validate_motors_against_robot(&robot, &motors).expect("joints align");
-        assert_eq!(robot.robot.name, "marengo_arm_5dof_right");
         assert!(robot.robot.urdf.contains("marengo.urdf"));
         let elbow = motor_for_joint(&motors, "right_elbow_pitch").expect("elbow");
         assert_eq!(elbow.device_id, 4);
@@ -1553,7 +1534,6 @@ mod tests {
         let motors_path = root.join("config/motors_humanoid.yaml");
         let robot: RobotConfigFile = read_yaml(&robot_path).expect("robot_humanoid.yaml");
         let motors: MotorsConfigFile = read_yaml(&motors_path).expect("motors_humanoid.yaml");
-        assert_eq!(robot.robot.name, "marengo_humanoid");
         assert_eq!(robot.robot.joints.len(), 23);
         assert_eq!(motors.motors.len(), 23);
         validate_motors_against_robot(&robot, &motors).expect("humanoid joint names align");
@@ -1664,18 +1644,16 @@ mod tests {
             .get_mut("right_shoulder_pitch")
             .expect("joint")
             .velocity_max_rad_s = Some(1.5);
-        let desired =
-            resolve_desired_joint_velocity_cap("right_shoulder_pitch", MotorType::Rs03, &control)
-                .expect("desired");
+        let desired = resolve_joint_velocity_cap("right_shoulder_pitch", MotorType::Rs03, &control)
+            .expect("desired");
         assert!((desired - 1.5).abs() < 1e-9);
     }
 
     #[test]
     fn group_velocity_used_when_joint_override_absent() {
         let control = sample_control_section();
-        let desired =
-            resolve_desired_joint_velocity_cap("right_shoulder_pitch", MotorType::Rs03, &control)
-                .expect("desired");
+        let desired = resolve_joint_velocity_cap("right_shoulder_pitch", MotorType::Rs03, &control)
+            .expect("desired");
         assert!((desired - 2.0).abs() < 1e-9);
     }
 

@@ -48,6 +48,15 @@ Load-time validation (`validate_control_against_limits`) rejects `position_traje
 
 Position and torque limits still use URDF + bench YAML as before (ADR 0009 envelope, effort min, etc.).
 
+> Amendment (2026-10-03, prune B7): the vestigial `resolve_desired_joint_velocity_cap`
+> alias named on line 33 was folded into `resolve_joint_velocity_cap`; the
+> "alias for" wording above is superseded. Resolver semantics are unchanged.
+> D-8 (same wave): `robot.bench.max_joint_velocity_rad_s` was deleted from the
+> schema, validation, and both robot YAMLs, so the ":35 commissioning
+> documentation" allowance for that field is spent. `motors.yaml`
+> `bench.velocity_limit_rad_s` and URDF `limit.velocity` remain as non-capping
+> documentation.
+
 ## Consequences
 
 - Shoulder bring-up profiles declare `actuator_groups.shoulder_pitch` instead of relying solely on global `rs03` defaults.
