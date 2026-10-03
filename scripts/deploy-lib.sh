@@ -460,5 +460,12 @@ install_deploy_rev() {
     echo "error: no staged .deploy-rev, ${bundle_root} is not a git checkout, and no existing ${install_root}/.deploy-rev" >&2
     return 1
   fi
-  install -m 644 /dev/stdin "${install_root}/.deploy-rev" <<<"${content}"
+  # Temp file + rename instead of `install /dev/stdin`: BSD install(1) cannot
+  # read /dev/stdin (EX_OSERR on macOS), and rename keeps readers atomic.
+  local tmp
+  tmp="$(mktemp "${install_root}/.deploy-rev.XXXXXX")" || return 1
+  if ! { printf '%s\n' "${content}" >"${tmp}" && chmod 644 "${tmp}" && mv -f "${tmp}" "${install_root}/.deploy-rev"; }; then
+    rm -f "${tmp}"
+    return 1
+  fi
 }
