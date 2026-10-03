@@ -1,6 +1,6 @@
 # bins/ — Thin runtimes
 
-9 binaries. Rule: **thin `main`, logic in `crates/`.** Each bin calls `marengo_support::init_tracing()` (or `chappe::tracing_layer::init_subscriber` for Chappe producers).
+6 binaries. Rule: **thin `main`, logic in `crates/`.** Chappe producers (`marengo-pi`, `marengo-gateway`) call `chappe::tracing_layer::init_subscriber`; every other bin calls `marengo_support::init_tracing()`.
 
 ## Binaries
 
@@ -9,6 +9,7 @@
 | `marengo-pi` | Raspberry Pi | Control + CAN + Chappe | Active — main runtime |
 | `marengo-gateway` | Pi | HTTP gateway, log store, Chappe bridge | Active |
 | `marengo-log-cli` | Dev | Query archived bench sessions (SQL store) | Active |
+| `marengo-limit-sync` | Dev | Apply a Durable-gated Set Limits patch to the local checkout | Active |
 | `motor-repl` | Dev (bench) | Status/homing diagnostics, gravity preview, qualified Set Zero, independent disable/exit stop | Active |
 | `imu-probe` | Pi | BNO085 I2C quaternion probe | Active |
 
@@ -26,7 +27,7 @@
 
 - Chappe producers (`marengo-pi`, `marengo-gateway`) → `chappe::tracing_layer::init_subscriber` (publishes `LogEvent` on `logs/structured`).
 - Other bins → `marengo_support::init_tracing()` (stdout/journal).
-- `anyhow::Result` in `main` is fine; print/log errors for operators.
+- `main` returns `ExitCode`; print/log errors for operators.
 - `motor-repl` uses SocketCAN only — no Motor Studio dependency.
 - Env vars: `MARENGO_ROOT`, `MARENGO_CONFIG_DIR`, `MARENGO_CAN_INTERFACE`.
 
