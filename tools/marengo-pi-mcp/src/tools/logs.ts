@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { MarengoPiConfig } from "../config.js";
-import { wrapRemote } from "../env.js";
+import { shellQuote, wrapRemote } from "../env.js";
 
 export function registerLogTools(
   cfg: MarengoPiConfig,
@@ -127,11 +127,7 @@ export function registerLogTools(
             '  echo "(no candump-latest.log — run pi_hold_on or pi_bench_harness first)"',
             "  exit 0",
             "fi",
-            'if ! command -v marengo-log-cli >/dev/null 2>&1; then',
-            '  echo \'{"error":"marengo-log-cli not found on PATH — deploy/install Pi binaries first"}\'',
-            "  exit 0",
-            "fi",
-            'marengo-log-cli candump summary --file "$F" --timestamp delta --format json',
+            `${shellQuote(`${cfg.piRoot}/bin/marengo-log-cli`)} candump summary --file "$F" --timestamp delta --format json`,
           ].join("\n"),
         );
         return runRemote(body, 15_000);

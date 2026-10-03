@@ -79,10 +79,9 @@ describe("log tools", () => {
 
     assert.match(
       script,
-      /marengo-log-cli candump summary --file "\$F" --timestamp delta --format json/,
+      /'\/opt\/marengo\/bin\/marengo-log-cli' candump summary --file "\$F" --timestamp delta --format json/,
     );
-    assert.match(script, /command -v marengo-log-cli/);
-    assert.match(script, /"error":"marengo-log-cli not found/);
+    assert.doesNotMatch(script, /command -v marengo-log-cli/);
     assert.doesNotMatch(script, /awk /);
     assert.doesNotMatch(script, /wc -l/);
   });
