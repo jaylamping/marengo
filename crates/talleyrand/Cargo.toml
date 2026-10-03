@@ -11,6 +11,3 @@ license.workspace = true
 workspace = true
 
 [dependencies]
-armee-kinematics.workspace = true
-thiserror.workspace = true
-tracing.workspace = true

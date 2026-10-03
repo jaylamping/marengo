@@ -782,10 +782,6 @@ dependencies = [
 [[package]]
 name = "fouche"
 version = "0.1.0"
-dependencies = [
- "thiserror 1.0.69",
- "tracing",
-]
 
 [[package]]
 name = "fs-err"
@@ -1481,9 +1477,6 @@ dependencies = [
  "marengo-config",
  "marengo-deploy",
  "marengo-store",
- "marengo-support",
- "prost",
- "quinn",
  "rcgen",
  "rustls",
  "serde",
@@ -1492,7 +1485,6 @@ dependencies = [
  "sha2",
  "subtle",
  "tempfile",
- "thiserror 1.0.69",
  "time",
  "tokio",
  "tokio-rustls",
@@ -1522,7 +1514,6 @@ name = "marengo-host-metrics"
 version = "0.1.0"
 dependencies = [
  "armee-proto",
- "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -1538,11 +1529,7 @@ dependencies = [
 name = "marengo-jetson"
 version = "0.1.0"
 dependencies = [
- "chappe",
- "fouche",
  "marengo-support",
- "talleyrand",
- "tokio",
  "tracing",
 ]
 
@@ -1550,7 +1537,6 @@ dependencies = [
 name = "marengo-limit-sync"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "clap",
  "marengo-config",
 ]
@@ -1571,7 +1557,6 @@ dependencies = [
  "serde_json",
  "tempfile",
  "thiserror 1.0.69",
- "tracing",
 ]
 
 [[package]]
@@ -1611,7 +1596,6 @@ dependencies = [
  "tempfile",
  "thiserror 1.0.69",
  "time",
- "tracing",
 ]
 
 [[package]]
@@ -2856,11 +2840,6 @@ dependencies = [
 [[package]]
 name = "talleyrand"
 version = "0.1.0"
-dependencies = [
- "armee-kinematics",
- "thiserror 1.0.69",
- "tracing",
-]
 
 [[package]]
 name = "teleop"
