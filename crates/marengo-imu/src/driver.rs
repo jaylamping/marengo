@@ -5,10 +5,10 @@ use tracing::debug;
 use crate::bus::{BusError, I2cBus};
 use crate::error::ImuError;
 use crate::shtp::{
-    build_outgoing_packet, build_product_id_request, build_set_feature_report, parse_accel,
-    parse_gyro, parse_rotation_vector, split_batch_reports, PacketHeader, CHANNEL_CONTROL,
-    CHANNEL_EXE, CHANNEL_INPUT_SENSOR_REPORTS, DATA_BUFFER_SIZE, GET_FEATURE_RESPONSE,
-    REPORT_ROTATION_VECTOR, SHTP_REPORT_PRODUCT_ID_RESPONSE,
+    build_outgoing_packet, build_product_id_request, build_set_feature_report,
+    parse_rotation_vector, split_batch_reports, PacketHeader, CHANNEL_CONTROL, CHANNEL_EXE,
+    CHANNEL_INPUT_SENSOR_REPORTS, DATA_BUFFER_SIZE, GET_FEATURE_RESPONSE, REPORT_ROTATION_VECTOR,
+    SHTP_REPORT_PRODUCT_ID_RESPONSE,
 };
 use crate::types::{ImuAccuracy, Quaternion, RotationVectorSample};
 
@@ -23,8 +23,6 @@ pub struct Bno085<B: I2cBus> {
     sequence: [u8; 6],
     enabled_features: Vec<u8>,
     last_rotation: Option<RotationVectorSample>,
-    last_accel: Option<[f64; 3]>,
-    last_gyro: Option<[f64; 3]>,
     id_verified: bool,
 }
 
@@ -35,8 +33,6 @@ impl<B: I2cBus> Bno085<B> {
             sequence: [0; 6],
             enabled_features: Vec::new(),
             last_rotation: None,
-            last_accel: None,
-            last_gyro: None,
             id_verified: false,
         }
     }
@@ -84,23 +80,6 @@ impl<B: I2cBus> Bno085<B> {
     pub fn poll(&mut self) -> Result<Option<RotationVectorSample>, ImuError> {
         self.process_available_packets(None)?;
         Ok(self.last_rotation)
-    }
-
-    pub fn wait_rotation_vector(
-        &mut self,
-        timeout: Duration,
-    ) -> Result<RotationVectorSample, ImuError> {
-        let deadline = Instant::now() + timeout;
-        while Instant::now() < deadline {
-            self.process_available_packets(None)?;
-            if let Some(sample) = self.last_rotation {
-                return Ok(sample);
-            }
-            std::thread::sleep(Duration::from_millis(5));
-        }
-        Err(ImuError::Timeout {
-            what: "rotation vector report".to_string(),
-        })
     }
 
     pub fn last_rotation(&self) -> Option<RotationVectorSample> {
@@ -161,7 +140,7 @@ impl<B: I2cBus> Bno085<B> {
     }
 
     fn handle_packet(&mut self, packet: ShtpPacket) -> Result<(), ImuError> {
-        for report in packet.reports()? {
+        for report in packet.reports() {
             match report.first().copied() {
                 Some(SHTP_REPORT_PRODUCT_ID_RESPONSE) => {
                     self.id_verified = true;
@@ -190,12 +169,6 @@ impl<B: I2cBus> Bno085<B> {
                     quaternion: Quaternion { i, j, k, real }.normalize(),
                     accuracy: ImuAccuracy::from(accuracy),
                 });
-            }
-            if let Some(accel) = parse_accel(report) {
-                self.last_accel = Some(accel);
-            }
-            if let Some(gyro) = parse_gyro(report) {
-                self.last_gyro = Some(gyro);
             }
         }
         Ok(())
@@ -249,8 +222,8 @@ struct ShtpPacket {
 }
 
 impl ShtpPacket {
-    fn reports(&self) -> Result<Vec<&[u8]>, ImuError> {
-        split_batch_reports(&self.data).map_err(ImuError::Protocol)
+    fn reports(&self) -> Vec<&[u8]> {
+        split_batch_reports(&self.data)
     }
 }
 

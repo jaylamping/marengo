@@ -12,8 +12,4 @@ pub enum ImuError {
     Timeout { what: String },
     #[error("feature {feature_id:#04x} was not enabled")]
     FeatureNotEnabled { feature_id: u8 },
-    #[error("no rotation vector report received")]
-    NoSample,
-    #[error("linux i2c backend not enabled (build with feature linux-i2c on Linux)")]
-    BackendUnavailable,
 }
