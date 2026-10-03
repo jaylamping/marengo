@@ -76,6 +76,10 @@ fn exercise_retention() {
             Some(&expired[2]),
         )
         .expect("old session");
+    // Old and abandoned (never finalized, but not the live capture): age
+    // purge must still collect it so crashed captures cannot pin disk.
+    // The newest unfinalized session ("retained" below) is the live capture
+    // and must survive the same purge with its artifact intact.
     let future_ms = now_ms() + 86_400_000;
     store
         .register_session(

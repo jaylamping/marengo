@@ -5,7 +5,7 @@ use std::fs;
 
 use crate::error::{Result, StoreError};
 use crate::model::LogSessionRow;
-use crate::store::{map_session_row, remove_session, Store};
+use crate::store::{map_session_row, remove_session_files, Store};
 
 const ARCHIVE_DAYS_KEY: &str = "log_archive_days";
 const DISK_BUDGET_KEY: &str = "log_disk_budget_bytes";
@@ -62,7 +62,7 @@ impl Store {
     }
 
     fn evict_to_budget(&self, budget_bytes: u64) -> Result<(u64, u64)> {
-        let mut usage = self.log_disk_usage_bytes()?;
+        let usage = self.log_disk_usage_bytes()?;
         if usage <= budget_bytes {
             return Ok((0, usage));
         }
@@ -78,9 +78,14 @@ impl Store {
         };
         sessions.pop();
 
-        let mut removed = 0u64;
+        // Choose victims oldest-first until the accounted usage fits, then
+        // remove files before rows in one transaction (same crash ordering
+        // as the age purge: re-drivable rows, never orphan blobs). Removal
+        // failures are reported by `remove_session_files` and do not abort.
+        let mut victims: Vec<&LogSessionRow> = Vec::new();
+        let mut accounted = usage;
         for session in &sessions {
-            if usage <= budget_bytes {
+            if accounted <= budget_bytes {
                 break;
             }
             let freed: u64 = [
@@ -94,11 +99,21 @@ impl Store {
             .filter(fs::Metadata::is_file)
             .map(|meta| meta.len())
             .sum();
-            remove_session(&conn, session)?;
-            usage = usage.saturating_sub(freed);
-            removed += 1;
+            accounted = accounted.saturating_sub(freed);
+            victims.push(session);
         }
-        Ok((removed, usage))
+        for victim in &victims {
+            remove_session_files(victim);
+        }
+        let tx = conn.unchecked_transaction()?;
+        for victim in &victims {
+            tx.execute(
+                "DELETE FROM log_sessions WHERE id = ?1",
+                rusqlite::params![victim.id],
+            )?;
+        }
+        tx.commit()?;
+        Ok((victims.len() as u64, accounted))
     }
 
     fn numeric_setting<T: std::str::FromStr>(&self, key: &str) -> Result<T> {

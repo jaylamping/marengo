@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
@@ -31,6 +32,10 @@ struct CaptureFile {
     modified_seconds: i64,
 }
 
+/// Process-unique suffix for archive temp files: the CLI and the gateway
+/// archive concurrently, so deterministic `.gz.tmp` names would collide.
+static ARCHIVE_TMP_COUNTER: AtomicU64 = AtomicU64::new(0);
+
 impl Store {
     pub fn open(db_path: impl AsRef<Path>, marengo_root: impl AsRef<Path>) -> Result<Self> {
         Self::open_with_candump(db_path, marengo_root, marengo_candump::Candump::plain())
@@ -45,6 +50,10 @@ impl Store {
             fs::create_dir_all(parent)?;
         }
         let conn = Connection::open(db_path.as_ref())?;
+        // ADR 0029 bounded five-second busy policy on the normal path too,
+        // so the nightly CLI and the gateway batch writer wait out each
+        // other's write reservations instead of failing with SQLITE_BUSY.
+        conn.busy_timeout(std::time::Duration::from_secs(5))?;
         conn.pragma_update(None, "journal_mode", "WAL")?;
         conn.pragma_update(None, "synchronous", "NORMAL")?;
         let store = Self {
@@ -74,7 +83,7 @@ impl Store {
         self.connection().execute(
             "INSERT INTO settings (key, value_json, updated_ms) VALUES (?1, ?2, ?3)
              ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json, updated_ms = excluded.updated_ms",
-            params![key, value_json, updated_ms as i64],
+            params![key, value_json, ms_to_sql(updated_ms)?],
         )?;
         Ok(())
     }
@@ -93,7 +102,7 @@ impl Store {
                value_json = excluded.value_json,
                updated_ms = excluded.updated_ms,
                source = excluded.source",
-            params![key, value_json, updated_ms as i64, source],
+            params![key, value_json, ms_to_sql(updated_ms)?, source],
         )?;
         Ok(())
     }
@@ -115,22 +124,31 @@ impl Store {
         }
         let conn = self.connection();
         let tx = conn.unchecked_transaction()?;
-        {
-            let mut stmt = tx.prepare(
-                "INSERT INTO log_events (ts_ms, level, target, message, session_id, fields_json)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            )?;
-            for e in events {
-                stmt.execute(params![
-                    e.ts_ms as i64,
-                    e.level,
-                    e.target,
-                    e.message,
-                    e.session_id,
-                    e.fields_json,
-                ])?;
-            }
+        insert_events(&tx, events)?;
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// Insert events and advance a settings cursor in one transaction, so a
+    /// crash between the two can neither lose events nor re-import them.
+    /// Used by journal import; the cursor value is opaque to the store.
+    pub fn insert_log_events_with_cursor(
+        &self,
+        events: &[LogEventInsert],
+        cursor_key: &str,
+        cursor: &str,
+    ) -> Result<()> {
+        if events.is_empty() {
+            return Ok(());
         }
+        let conn = self.connection();
+        let tx = conn.unchecked_transaction()?;
+        insert_events(&tx, events)?;
+        tx.execute(
+            "INSERT INTO settings (key, value_json, updated_ms) VALUES (?1, ?2, ?3)
+             ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json, updated_ms = excluded.updated_ms",
+            params![cursor_key, cursor, ms_to_sql(now_ms())?],
+        )?;
         tx.commit()?;
         Ok(())
     }
@@ -157,11 +175,11 @@ impl Store {
 
         if let Some(from) = query.from_ms {
             where_clauses.push("ts_ms >= ?".to_string());
-            params_vec.push(Box::new(from as i64));
+            params_vec.push(Box::new(ms_to_sql(from)?));
         }
         if let Some(to) = query.to_ms {
             where_clauses.push("ts_ms <= ?".to_string());
-            params_vec.push(Box::new(to as i64));
+            params_vec.push(Box::new(ms_to_sql(to)?));
         }
         if let Some(level) = &query.level {
             where_clauses.push("level = ?".to_string());
@@ -183,7 +201,16 @@ impl Store {
         };
 
         if let Some(q) = &query.q {
-            if !q.trim().is_empty() {
+            // Sanitize to a quoted phrase-prefix query: embedded quotes and
+            // FTS operators then match literally instead of breaking MATCH
+            // syntax (previously a `"` in `q` failed the whole query).
+            let sanitized: String = q
+                .trim()
+                .replace('"', " ")
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" ");
+            if !sanitized.is_empty() {
                 let filter_sql = if where_clauses.is_empty() {
                     String::new()
                 } else {
@@ -209,7 +236,7 @@ impl Store {
                      WHERE log_events_fts MATCH ?{filter_sql}
                      ORDER BY e.ts_ms DESC LIMIT ? OFFSET ?"
                 );
-                let fts_q = format!("{}*", q.trim());
+                let fts_q = format!("\"{sanitized}\"*");
                 let mut query_params = params_vec;
                 query_params.insert(0, Box::new(fts_q));
                 let count_refs: Vec<&dyn rusqlite::types::ToSql> =
@@ -219,8 +246,11 @@ impl Store {
                     .query_row(&count_sql, count_refs.as_slice(), |row| {
                         row.get::<_, i64>(0)
                     })
-                    .map(|n| n as u32)
-                    .unwrap_or(0);
+                    .map_err(StoreError::from)
+                    .and_then(|n| {
+                        u32::try_from(n)
+                            .map_err(|_| StoreError::msg("log row count exceeds u32 range"))
+                    })?;
 
                 query_params.push(Box::new(limit as i64));
                 query_params.push(Box::new(offset as i64));
@@ -243,8 +273,10 @@ impl Store {
             .query_row(&count_sql, param_refs.as_slice(), |row| {
                 row.get::<_, i64>(0)
             })
-            .map(|n| n as u32)
-            .unwrap_or(0);
+            .map_err(StoreError::from)
+            .and_then(|n| {
+                u32::try_from(n).map_err(|_| StoreError::msg("log row count exceeds u32 range"))
+            })?;
 
         let select_sql = format!(
             "SELECT id, ts_ms, level, target, message, session_id, fields_json
@@ -269,12 +301,20 @@ impl Store {
 
     /// Remove events and sessions strictly before the supplied UTC epoch cutoff.
     /// Reject cutoffs outside SQLite's signed millisecond range before deletion.
+    ///
+    /// The newest unfinalized session is never purged: it is the live
+    /// capture whose hot files are being written and whose rows are still
+    /// arriving. Older abandoned sessions (crashed before finalize) still
+    /// purge by age so they cannot pin disk forever.
+    /// Artifact files are removed before their rows in one transaction, so a
+    /// crash leaves rows pointing at missing files (re-driven on the next
+    /// purge) rather than blobs without rows (leaked disk no future purge
+    /// can find). File-removal failures are reported, never swallowed, and
+    /// do not abort the purge.
     pub fn purge_before(&self, cutoff_ms: u64) -> Result<(u64, u64)> {
         let cutoff = i64::try_from(cutoff_ms)
             .map_err(|_| StoreError::msg("retention cutoff exceeds SQLite milliseconds range"))?;
         let conn = self.connection();
-        let deleted_logs =
-            conn.execute("DELETE FROM log_events WHERE ts_ms < ?1", params![cutoff])? as u64;
 
         // Read artifact references on the connection already held here. Calling
         // get_session would try to acquire the same non-reentrant mutex again.
@@ -282,7 +322,10 @@ impl Store {
             let mut stmt = conn.prepare(
                 "SELECT id, label, started_ms, ended_ms, bench_blob, candump_blob, trace_blob,
                         candump_frame_count, candump_bytes
-                 FROM log_sessions WHERE started_ms < ?1",
+                 FROM log_sessions WHERE started_ms < ?1
+                   AND (ended_ms IS NOT NULL OR id != (
+                     SELECT id FROM log_sessions
+                     ORDER BY started_ms DESC, id DESC LIMIT 1))",
             )?;
             let rows = stmt.query_map(params![cutoff], map_session_row)?;
             rows.collect::<std::result::Result<Vec<_>, _>>()
@@ -290,8 +333,19 @@ impl Store {
         };
 
         for session in &old_sessions {
-            remove_session(&conn, session)?;
+            remove_session_files(session);
         }
+
+        let tx = conn.unchecked_transaction()?;
+        let deleted_logs =
+            tx.execute("DELETE FROM log_events WHERE ts_ms < ?1", params![cutoff])? as u64;
+        for session in &old_sessions {
+            tx.execute(
+                "DELETE FROM log_sessions WHERE id = ?1",
+                params![session.id],
+            )?;
+        }
+        tx.commit()?;
 
         let _ = conn.execute_batch("PRAGMA wal_checkpoint(PASSIVE);");
         Ok((deleted_logs, old_sessions.len() as u64))
@@ -327,7 +381,7 @@ impl Store {
             params![
                 id,
                 label,
-                started_ms as i64,
+                ms_to_sql(started_ms)?,
                 bench.map(|p| p.display().to_string()),
                 candump.map(|p| p.display().to_string()),
                 trace.map(|p| p.display().to_string()),
@@ -356,7 +410,7 @@ impl Store {
     pub fn finalize_session(&self, id: &str, ended_ms: u64) -> Result<()> {
         self.connection().execute(
             "UPDATE log_sessions SET ended_ms = ?1 WHERE id = ?2",
-            params![ended_ms as i64, id],
+            params![ms_to_sql(ended_ms)?, id],
         )?;
         Ok(())
     }
@@ -377,7 +431,7 @@ impl Store {
         }
         if let Some(to) = to_ms {
             sql.push_str(" AND started_ms <= ?");
-            params_vec.push(Box::new(to as i64));
+            params_vec.push(Box::new(ms_to_sql(to)?));
         }
         if let Some(lbl) = label {
             sql.push_str(" AND label = ?");
@@ -409,15 +463,57 @@ impl Store {
 
     pub fn archive_hot_sessions(&self, keep: usize) -> Result<u32> {
         let hot = log_dir(&self.marengo_root);
-        let mut groups = Vec::new();
+        // Group hot captures by session so one session's bench/candump/trace
+        // archive together: keeping per artifact kind by mtime could strand
+        // a session split across hot and blob. Sessions rank by their newest
+        // artifact mtime; the `keep` newest sessions stay hot in full.
+        let mut by_session: HashSet<String> = HashSet::new();
+        let mut staged: Vec<(SessionArtifact, CaptureFile)> = Vec::new();
         for artifact in [
             SessionArtifact::Bench,
             SessionArtifact::Candump,
             SessionArtifact::Trace,
         ] {
-            let mut files = list_timestamped_files(&hot, artifact)?;
-            files.sort_by(|a, b| b.modified_seconds.cmp(&a.modified_seconds));
-            let files: Vec<_> = files.into_iter().skip(keep).collect();
+            for file in list_timestamped_files(&hot, artifact)? {
+                by_session.insert(file.session_id.clone());
+                staged.push((artifact, file));
+            }
+        }
+        let mut sessions: Vec<(String, i64)> = by_session
+            .into_iter()
+            .map(|id| {
+                let newest = staged
+                    .iter()
+                    .filter(|(_, file)| file.session_id == id)
+                    .map(|(_, file)| file.modified_seconds)
+                    .max()
+                    .unwrap_or(0);
+                (id, newest)
+            })
+            .collect();
+        sessions.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        let archive_ids: HashSet<&str> = sessions
+            .iter()
+            .skip(keep)
+            .map(|(id, _)| id.as_str())
+            .collect();
+        let mut groups: Vec<(SessionArtifact, Vec<CaptureFile>)> = Vec::new();
+        for artifact in [
+            SessionArtifact::Bench,
+            SessionArtifact::Candump,
+            SessionArtifact::Trace,
+        ] {
+            let files: Vec<CaptureFile> = staged
+                .iter()
+                .filter(|(kind, file)| {
+                    *kind == artifact && archive_ids.contains(file.session_id.as_str())
+                })
+                .map(|(_, file)| CaptureFile {
+                    path: file.path.clone(),
+                    session_id: file.session_id.clone(),
+                    modified_seconds: file.modified_seconds,
+                })
+                .collect();
             for file in &files {
                 self.capture_started_ms(&file.session_id)?;
             }
@@ -471,16 +567,28 @@ impl Store {
             .and_then(|n| n.to_str())
             .ok_or_else(|| StoreError::msg("invalid source filename"))?;
         let dest = dest_dir.join(format!("{name}.gz"));
-        let tmp = dest.with_extension("gz.tmp");
-        {
+        // Unique temp per process so concurrent CLI/gateway archives never
+        // share a temp name; fsync file and directory so a power loss after
+        // "archived" cannot resurrect the pre-rename state.
+        let unique = ARCHIVE_TMP_COUNTER.fetch_add(1, Ordering::Relaxed);
+        let tmp = dest.with_file_name(format!("{name}.gz.tmp.{}-{unique}", std::process::id()));
+        let result = (|| {
             let mut input = File::open(source)?;
             let out = File::create(&tmp)?;
             let mut enc = GzEncoder::new(out, Compression::default());
             std::io::copy(&mut input, &mut enc)?;
-            enc.finish()?;
+            let out = enc.finish()?;
+            out.sync_all()?;
+            drop(out);
+            fs::rename(&tmp, &dest)?;
+            let dir = fs::File::open(&dest_dir)?;
+            dir.sync_all()?;
+            Ok(dest.clone())
+        })();
+        if result.is_err() {
+            let _ = fs::remove_file(&tmp);
         }
-        fs::rename(&tmp, &dest)?;
-        Ok(dest)
+        result
     }
 
     fn update_session_blob(
@@ -502,7 +610,11 @@ impl Store {
         let started = self.capture_started_ms(session_id)?;
         self.connection().execute(
             &sql,
-            params![session_id, started as i64, gz_path.display().to_string()],
+            params![
+                session_id,
+                ms_to_sql(started)?,
+                gz_path.display().to_string()
+            ],
         )?;
         Ok(())
     }
@@ -681,10 +793,28 @@ impl Store {
     }
 }
 
+fn insert_events(tx: &rusqlite::Transaction<'_>, events: &[LogEventInsert]) -> Result<()> {
+    let mut stmt = tx.prepare(
+        "INSERT INTO log_events (ts_ms, level, target, message, session_id, fields_json)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+    )?;
+    for e in events {
+        stmt.execute(params![
+            ms_to_sql(e.ts_ms)?,
+            e.level,
+            e.target,
+            e.message,
+            e.session_id,
+            e.fields_json,
+        ])?;
+    }
+    Ok(())
+}
+
 fn map_log_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<LogEventRow> {
     Ok(LogEventRow {
         id: row.get(0)?,
-        ts_ms: row.get::<_, i64>(1)? as u64,
+        ts_ms: u64_from_sql(row.get::<_, i64>(1)?, 1)?,
         level: row.get(2)?,
         target: row.get(3)?,
         message: row.get(4)?,
@@ -697,13 +827,22 @@ pub(crate) fn map_session_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<LogSe
     Ok(LogSessionRow {
         id: row.get(0)?,
         label: row.get(1)?,
-        started_ms: row.get::<_, i64>(2)? as u64,
-        ended_ms: row.get::<_, Option<i64>>(3)?.map(|v| v as u64),
+        started_ms: u64_from_sql(row.get::<_, i64>(2)?, 2)?,
+        ended_ms: row
+            .get::<_, Option<i64>>(3)?
+            .map(|v| u64_from_sql(v, 3))
+            .transpose()?,
         bench_blob: row.get(4)?,
         candump_blob: row.get(5)?,
         trace_blob: row.get(6)?,
-        candump_frame_count: row.get::<_, Option<i64>>(7)?.map(|v| v as u64),
-        candump_bytes: row.get::<_, Option<i64>>(8)?.map(|v| v as u64),
+        candump_frame_count: row
+            .get::<_, Option<i64>>(7)?
+            .map(|v| u64_from_sql(v, 7))
+            .transpose()?,
+        candump_bytes: row
+            .get::<_, Option<i64>>(8)?
+            .map(|v| u64_from_sql(v, 8))
+            .transpose()?,
     })
 }
 
@@ -712,6 +851,26 @@ pub fn now_ms() -> u64 {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as u64)
         .unwrap_or(0)
+}
+
+/// Millisecond timestamps cross into SQLite as signed i64: reject
+/// out-of-range values instead of wrapping them silently.
+fn ms_to_sql(value: u64) -> Result<i64> {
+    i64::try_from(value).map_err(|_| StoreError::msg("timestamp exceeds SQLite millisecond range"))
+}
+
+/// Reject negative stored timestamps instead of wrapping them into huge u64s.
+fn u64_from_sql(value: i64, index: usize) -> rusqlite::Result<u64> {
+    u64::try_from(value).map_err(|_| {
+        rusqlite::Error::FromSqlConversionFailure(
+            index,
+            rusqlite::types::Type::Integer,
+            Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "negative timestamp in store row",
+            )),
+        )
+    })
 }
 
 fn list_timestamped_files(dir: &Path, artifact: SessionArtifact) -> Result<Vec<CaptureFile>> {
@@ -799,31 +958,84 @@ fn capture_datetime(session_id: &str) -> Option<OffsetDateTime> {
     (dt.unix_timestamp() >= 0).then_some(dt)
 }
 
-fn read_text_page(path: &str, offset: u32, limit: u32) -> Result<(Vec<String>, u32)> {
+fn open_text_lines(path: &str) -> Result<Box<dyn BufRead>> {
     let gz = path.ends_with(".gz");
     let file = File::open(path)?;
-    let mut reader: Box<dyn BufRead> = if gz {
-        Box::new(BufReader::new(GzDecoder::new(file)))
+    if gz {
+        Ok(Box::new(BufReader::new(GzDecoder::new(file))))
     } else {
-        Box::new(BufReader::new(file))
+        Ok(Box::new(BufReader::new(file)))
+    }
+}
+
+/// Read one page of a (possibly compressed) line file without materializing
+/// the whole file: stream once to count, then stream again for the window.
+/// Two passes over gzip input decompress twice; page requests stay bounded
+/// in memory either way. Totals saturate (never wrap) at `u32::MAX`.
+fn read_text_page(path: &str, offset: u32, limit: u32) -> Result<(Vec<String>, u32)> {
+    let total = count_text_lines(path)?;
+    let start = u64::from(offset.min(total));
+    let want = u64::from(limit);
+    if want == 0 || start >= u64::from(total) {
+        return Ok((Vec::new(), total));
+    }
+    let end = start.saturating_add(want).min(u64::from(total));
+    let mut reader = open_text_lines(path)?;
+    let mut page = Vec::new();
+    let mut line = String::new();
+    let mut index = 0u64;
+    loop {
+        line.clear();
+        if reader.read_line(&mut line)? == 0 {
+            break;
+        }
+        if index >= start && index < end {
+            page.push(line.trim_end().to_string());
+        }
+        index += 1;
+        if index >= end {
+            break;
+        }
+    }
+    Ok((page, total))
+}
+
+#[cfg(test)]
+fn walkdir_files(dir: &Path) -> Vec<String> {
+    let mut out = Vec::new();
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return out;
     };
-    let mut all = Vec::new();
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            out.extend(walkdir_files(&path));
+        } else if let Some(name) = path.to_str() {
+            out.push(name.to_string());
+        }
+    }
+    out
+}
+
+fn count_text_lines(path: &str) -> Result<u32> {
+    let mut reader = open_text_lines(path)?;
+    let mut total = 0u64;
     let mut line = String::new();
     loop {
         line.clear();
         if reader.read_line(&mut line)? == 0 {
             break;
         }
-        all.push(line.trim_end().to_string());
+        total = total.saturating_add(1);
     }
-    let total = all.len() as u32;
-    let start = offset.min(total) as usize;
-    let end = (start + limit as usize).min(all.len());
-    Ok((all[start..end].to_vec(), total))
+    Ok(u32::try_from(total).unwrap_or(u32::MAX))
 }
 
-/// Delete one session's artifact files and its row. Symlinks are never followed.
-pub(crate) fn remove_session(conn: &Connection, session: &LogSessionRow) -> Result<()> {
+/// Best-effort removal of one session's artifact files. Symlinks are never
+/// followed. Failures are reported via tracing and never swallowed: callers
+/// delete the session row afterwards in the same transaction, so a leftover
+/// file is re-driven on the next purge instead of silently leaking.
+pub(crate) fn remove_session_files(session: &LogSessionRow) {
     for path in [
         &session.bench_blob,
         &session.candump_blob,
@@ -832,19 +1044,32 @@ pub(crate) fn remove_session(conn: &Connection, session: &LogSessionRow) -> Resu
     .into_iter()
     .flatten()
     {
-        let _ = fs::remove_file(path);
+        if let Err(error) = fs::remove_file(path) {
+            if error.kind() != std::io::ErrorKind::NotFound {
+                tracing::warn!(path = %path, %error, "purge could not remove session artifact");
+            }
+        }
     }
-    conn.execute(
-        "DELETE FROM log_sessions WHERE id = ?1",
-        params![session.id],
-    )?;
-    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::expect_used)]
+
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn open_applies_bounded_busy_policy() -> Result<()> {
+        let dir = tempdir()?;
+        let db = dir.path().join("busy.db");
+        let store = Store::open(&db, dir.path())?;
+        let ms: i64 = store
+            .connection()
+            .query_row("PRAGMA busy_timeout", [], |row| row.get(0))?;
+        assert_eq!(ms, 5_000, "ADR 0029 five-second busy policy");
+        Ok(())
+    }
 
     #[test]
     fn migrate_and_insert_logs() -> Result<()> {
@@ -862,6 +1087,36 @@ mod tests {
         let recent = store.recent_log_events(10)?;
         assert_eq!(recent.len(), 1);
         assert_eq!(recent[0].message, "hello");
+        Ok(())
+    }
+
+    #[test]
+    fn fts_query_with_quote_matches_literally() -> Result<()> {
+        // A `"` in the query must not break MATCH syntax: it is sanitized
+        // to a quoted phrase-prefix and matches literally.
+        let dir = tempdir()?;
+        let db = dir.path().join("fts-quote.db");
+        let store = Store::open(&db, dir.path())?;
+        store.insert_log_events(&[LogEventInsert {
+            ts_ms: 1000,
+            level: "info".into(),
+            target: "berthier".into(),
+            message: "say \"hello\" shoulder".into(),
+            session_id: None,
+            fields_json: None,
+        }])?;
+        let (entries, total) = store.query_structured_logs(&StructuredLogQuery {
+            from_ms: None,
+            to_ms: None,
+            target: None,
+            session_id: None,
+            q: Some("\"hello\"".into()),
+            level: None,
+            limit: 10,
+            offset: 0,
+        })?;
+        assert_eq!(total, 1);
+        assert_eq!(entries.len(), 1);
         Ok(())
     }
 
@@ -901,6 +1156,132 @@ mod tests {
         assert_eq!(total, 1);
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].level, "error");
+        Ok(())
+    }
+
+    #[test]
+    fn out_of_range_timestamps_fail_closed() -> Result<()> {
+        let dir = tempdir()?;
+        let db = dir.path().join("range.db");
+        let store = Store::open(&db, dir.path())?;
+        // Far-future writes never wrap into negative SQLite values.
+        let refused = store.insert_log_events(&[LogEventInsert {
+            ts_ms: u64::MAX,
+            level: "info".into(),
+            target: "range".into(),
+            message: "too far".into(),
+            session_id: None,
+            fields_json: None,
+        }]);
+        assert!(refused.is_err(), "u64::MAX timestamp must be refused");
+        // Hand-edited negative rows never wrap into huge u64 timestamps.
+        store.connection().execute(
+            "INSERT INTO log_events (ts_ms, level, target, message) VALUES (?1, 'info', 't', 'm')",
+            rusqlite::params![-1i64],
+        )?;
+        assert!(
+            store.recent_log_events(10).is_err(),
+            "negative stored timestamp must be refused"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn text_page_streams_window_without_head_loss() -> Result<()> {
+        use std::io::Write;
+        let dir = tempdir()?;
+        // Paging must address absolute lines: page 2 of 5 single-line rows
+        // returns exactly rows 3-4, with the true total.
+        let path = dir.path().join("bench.log");
+        {
+            let mut file = std::fs::File::create(&path)?;
+            for index in 0..5 {
+                writeln!(file, "row-{index}")?;
+            }
+        }
+        let name = path.display().to_string();
+        let (page, total) = read_text_page(&name, 2, 2)?;
+        assert_eq!(total, 5);
+        assert_eq!(page, vec!["row-2".to_string(), "row-3".to_string()]);
+        let (empty, total) = read_text_page(&name, 9, 10)?;
+        assert_eq!(total, 5);
+        assert!(empty.is_empty(), "offset past end returns no rows");
+        Ok(())
+    }
+
+    #[test]
+    fn archive_leaves_no_temp_and_roundtrips() -> Result<()> {
+        use std::io::Read;
+        let dir = tempdir()?;
+        let db = dir.path().join("archive.db");
+        let store = Store::open(&db, dir.path())?;
+        let hot = crate::paths::log_dir(dir.path());
+        std::fs::create_dir_all(&hot)?;
+        let body = b"bench line one\nbench line two\n";
+        std::fs::write(hot.join("bench-20260101T000000Z.log"), body)?;
+        let archived = store.archive_hot_sessions(0)?;
+        assert_eq!(archived, 1);
+        let session = store
+            .get_session("20260101T000000Z")?
+            .expect("archived session");
+        let blob = session.bench_blob.expect("bench blob");
+        let mut gz = Vec::new();
+        std::fs::File::open(&blob)?.read_to_end(&mut gz)?;
+        assert_eq!(&gz[0..2], &[0x1f, 0x8b], "blob is gzip");
+        let mut plain = String::new();
+        flate2::read::GzDecoder::new(&gz[..]).read_to_string(&mut plain)?;
+        assert_eq!(plain.as_bytes(), body);
+        // No process-unique temp may survive beside the blob.
+        let blobs = crate::paths::blob_dir(dir.path());
+        let mut leftovers = Vec::new();
+        for entry in walkdir_files(&blobs) {
+            if entry.contains(".gz.tmp.") {
+                leftovers.push(entry);
+            }
+        }
+        assert!(leftovers.is_empty(), "temp leftovers: {leftovers:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn archive_keep_is_session_atomic() -> Result<()> {
+        // `keep = 1` must keep one session whole: no session may end up
+        // split across hot files and blobs, whatever the mtime order.
+        let dir = tempdir()?;
+        let db = dir.path().join("keep.db");
+        let store = Store::open(&db, dir.path())?;
+        let hot = crate::paths::log_dir(dir.path());
+        std::fs::create_dir_all(&hot)?;
+        std::fs::write(hot.join("bench-20260101T000000Z.log"), b"a-bench")?;
+        std::fs::write(hot.join("candump-20260101T000000Z.log"), b"a-candump")?;
+        std::fs::write(hot.join("bench-20260102T000000Z.log"), b"b-bench")?;
+        store.archive_hot_sessions(1)?;
+        let hot_a = hot.join("bench-20260101T000000Z.log").exists() as u8
+            + hot.join("candump-20260101T000000Z.log").exists() as u8;
+        let hot_b = hot.join("bench-20260102T000000Z.log").exists() as u8;
+        assert!(
+            (hot_a == 2 && hot_b == 0) || (hot_a == 0 && hot_b == 1),
+            "one session stays hot whole: hot_a={hot_a} hot_b={hot_b}"
+        );
+        // Archived sessions gain rows pointing at every blob; a session
+        // that stays hot whole has no blob refs yet (rows are created by
+        // archiving, not by capture).
+        for (id, hot_left) in [("20260101T000000Z", hot_a), ("20260102T000000Z", hot_b)] {
+            match store.get_session(id)? {
+                None => assert!(hot_left > 0, "rowless session {id} must be hot"),
+                Some(session) => {
+                    let blobbed = [session.bench_blob, session.candump_blob]
+                        .into_iter()
+                        .flatten()
+                        .count();
+                    assert_eq!(
+                        blobbed + usize::from(hot_left),
+                        if id.starts_with("20260101") { 2 } else { 1 },
+                        "session {id} fully accounted"
+                    );
+                }
+            }
+        }
         Ok(())
     }
 
