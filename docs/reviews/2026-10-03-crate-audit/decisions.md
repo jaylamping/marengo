@@ -14,3 +14,16 @@
 | D-9 | Delete the write-only `JointFacetInput.drive_active` facet. |
 | D-10 | Remove the stale `~/.codex` worktrees and local `codex/*` branches that hold no unpushed work. Remote branches stay. |
 | D-11 | Keep the gain-tuning route (`/command/actuator`, `TuningTier`, `robot/audit/tuning`) and document it as unwired. |
+
+## Phase B decisions taken by the integrator (conservative defaults)
+
+| Item | Decision |
+|---|---|
+| WP-I D2 (no drive-side CAN timeout) | Option C: `ExecStopPost=-/opt/marengo/bin/motor-repl disable` in `marengo-pi.service`. It covers a crash, panic or SIGKILL of the service. Writing `CanTimeout` (option A) waits for the read-only bench probe and a decision on whether the arm should go limp or hold. |
+| WP-I D1 (hardware E-stop) | Open. Gated on the hardware being installed. |
+| WP-I D3 (fault clear) | (a) Leave it: a power cycle is still the recovery. |
+| WP-F D1 (Consul Testing after operator disable) | (a) Keep: an explicit Enable is required. Showing `motion_refused` in Consul is a follow-up. |
+| WP-F D2 / D3 | Deferred: a proto-first wave message; `set_control_mode -> Result`. |
+| WP-D L-05 / L-11 | L-05: decide after loop jitter is measured on the Pi. L-11: (A) keep the GravityComp gain fade, as documented. |
+| WP-E K4 / Berthier gate | Both deferred until a supported-arm bench run. |
+| GrantLiveness 1 / 2 | Accept the excused-silence window, which is bounded by the 800 ms quiet and never applies to a stream that is On. Accept the ≤8 ms blocking pacing while Disabled. |
