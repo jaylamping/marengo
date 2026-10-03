@@ -70,14 +70,18 @@ for phase in init dirty fetch lfs build install done; do
     grep -Eq "(write_job|fail).*[\"']${phase}[\"']|[\"']${phase}[\"']" "${WORKER}"
 done
 
+# Index mode, not worktree -x. Trust the checkout like check.sh's git_root (CI mounts it under another uid).
+git_index_mode() {
+  git -c "safe.directory=${ROOT}" -C "${ROOT}" ls-files -s -- "$1" | awk '{print $1}'
+}
 assert_ok "pi-native-build.sh is executable in git (100755)" \
-  bash -c 'test "$(git -C "${ROOT}" ls-files -s scripts/pi-native-build.sh | awk "{print \$1}")" = "100755"'
+  test "$(git_index_mode scripts/pi-native-build.sh)" = "100755"
 assert_ok "build-consul-native.sh is executable in git (100755)" \
-  bash -c 'test "$(git -C "${ROOT}" ls-files -s scripts/build-consul-native.sh | awk "{print \$1}")" = "100755"'
+  test "$(git_index_mode scripts/build-consul-native.sh)" = "100755"
 assert_ok "self-update runs pi-native-build via file check (not only -x)" \
   grep -q '\[\[ -f ./scripts/pi-native-build.sh \]\]' "${WORKER}"
 assert_ok "marengo-deploy job_script_contract tests" \
-  cargo test -p marengo-deploy --test job_script_contract -- --quiet
+  cargo test --manifest-path "${ROOT}/Cargo.toml" -p marengo-deploy --test job_script_contract -- --quiet
 
 echo
 echo "${pass} passed, ${fail} failed"

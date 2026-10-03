@@ -164,6 +164,14 @@ echo "==> dependency gate contracts"
 bash "${ROOT}/scripts/check-dependencies.test.sh"
 bash "${ROOT}/scripts/check-dependencies.sh"
 
+echo "==> consul dist gate contracts"
+bash "${ROOT}/scripts/check-consul-dist.test.sh"
+
+echo "==> deploy script contracts"
+bash "${ROOT}/scripts/deploy-consul-rebuild.test.sh"
+bash "${ROOT}/scripts/deploy-rev.test.sh"
+bash "${ROOT}/scripts/deploy-job-contract.test.sh"
+
 echo "==> cross-build smoke (aarch64)"
 if command -v aarch64-linux-gnu-gcc >/dev/null 2>&1; then
   # shellcheck source=deploy-lib.sh

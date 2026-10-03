@@ -32,7 +32,8 @@ assert_file_first_field() {
 # --- staged write uses local repo HEAD ---
 STAGING="${TMP}/staging"
 mkdir -p "${STAGING}"
-EXPECTED_SHA="$(git -C "${ROOT}" rev-parse HEAD)"
+# CI bind-mounts the checkout under another uid; trust it like check.sh's git_root.
+EXPECTED_SHA="$(git -c "safe.directory=${ROOT}" -C "${ROOT}" rev-parse HEAD)"
 stage_deploy_rev "${ROOT}" "${STAGING}"
 assert_file_first_field "stage_deploy_rev writes local HEAD" "${STAGING}/.deploy-rev" "${EXPECTED_SHA}"
 
