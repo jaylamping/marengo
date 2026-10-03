@@ -74,14 +74,14 @@ fn inject_status(
     joint_velocity_rad_s: f64,
     joint_torque_nm: f64,
 ) {
-    // RS03 vendor status uses signed ±60 Nm mapped around 0x7fff. Construct the
+    // RS03 vendor status uses signed ±60 Nm and ±20 rad/s mapped around 0x7fff. Construct the
     // documented bytes directly: an encoder/decoder roundtrip would hide scale errors.
     let scale = f64::from(motor.direction) * motor.gear_ratio;
     let raw_torque = ((joint_torque_nm / scale / 60.0 + 1.0) * 32767.0).round() as u16;
     let mut data = [0x7f, 0xff, 0x7f, 0xff, 0, 0, 0, 0xc8];
     let raw_position = ((joint_position_rad * scale / (4.0 * std::f64::consts::PI) + 1.0) * 32767.0)
         .round() as u16;
-    let raw_velocity = ((joint_velocity_rad_s * scale / 50.0 + 1.0) * 32767.0).round() as u16;
+    let raw_velocity = ((joint_velocity_rad_s * scale / 20.0 + 1.0) * 32767.0).round() as u16;
     data[0..2].copy_from_slice(&raw_position.to_be_bytes());
     data[2..4].copy_from_slice(&raw_velocity.to_be_bytes());
     data[4..6].copy_from_slice(&raw_torque.to_be_bytes());

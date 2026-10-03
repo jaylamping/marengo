@@ -14,7 +14,8 @@ use robstride::CanFrame;
 pub fn status(motor: &MotorEntry, position_rad: f64, velocity_rad_s: f64) -> CanFrame {
     let scale = f64::from(motor.direction) * motor.gear_ratio;
     let velocity_scale = match motor.motor_type {
-        MotorType::Rs00 | MotorType::Rs03 => 50.0,
+        MotorType::Rs00 => 50.0,
+        MotorType::Rs03 => 20.0,
         MotorType::Rs02 => 44.0,
         MotorType::Rs04 => 15.0,
     };

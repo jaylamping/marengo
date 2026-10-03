@@ -27,6 +27,7 @@ See [homing.md](homing.md).
 2. **RS03 / RS04 joints** (shoulders, waist, outer hip, **hip pitch**, **knee**): `kd` up to 100; do not copy to RS02/RS00 joints.
 3. **RS02 / RS00 joints** (ankles, arm yaw/elbow, wrists): `kd` max **5** per vendor table.
 4. Increase `kp` until contact feels crisp without oscillation; back off 20%.
+5. **RS03 values tuned before 2026-10-03** (shoulder pitch/roll cruise, accel, slew, `kd`, `fc`, and the `elevated_shoulder_pitch_fall` clamp) were tuned while the drive received `v_des` at 0.4× (wrong ±50 rad/s MIT velocity scale; the drive uses ±20). Re-check them; see [robstride-mit-ranges.md](commissioning/firmware/robstride-mit-ranges.md).
 
 ## Friction
 

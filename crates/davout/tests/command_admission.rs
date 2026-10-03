@@ -84,7 +84,7 @@ fn inject(supervisor: &mut Supervisor<SimulationBus>, address: MotorAddress, sta
         let (velocity_scale, torque_scale) = match motor_type {
             MotorType::Rs00 => (50.0, 17.0),
             MotorType::Rs02 => (44.0, 17.0),
-            MotorType::Rs03 => (50.0, 60.0),
+            MotorType::Rs03 => (20.0, 60.0),
             MotorType::Rs04 => (15.0, 120.0),
         };
         let raw = |value: f32, scale: f32| {
@@ -645,7 +645,7 @@ fn replayed_sample_cannot_poison_current_pose_or_velocity_policy() {
 
     let mut replay = status(original);
     replay.position_rad = 0.01; // Safe old pose must not replace current pose or mutate derivative trips.
-    replay.velocity_rad_s = 50.0;
+    replay.velocity_rad_s = 20.0;
     inject(&mut supervisor, MotorAddress::from(&pitch), replay);
     supervisor.drain_feedback().expect("older pose is ignored");
     let pose = supervisor

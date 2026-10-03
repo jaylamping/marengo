@@ -18,6 +18,11 @@ pub struct MitRanges {
 impl MitRanges {
     pub fn for_motor_type(ty: MotorType) -> Self {
         match ty {
+            // RS00 is disputed: every RS00 manual revision (251112, 260112,
+            // 260713) gives V ±33 rad/s and T ±14 Nm, while these values match
+            // the Seeed SDK (V ±50, T ±17). No RS00 bench motion has been
+            // captured, so they stay unchanged until one settles it. See
+            // docs/commissioning/firmware/robstride-mit-ranges.md.
             MotorType::Rs00 => Self {
                 position_scale: 4.0 * std::f32::consts::PI,
                 velocity_scale: 50.0,
@@ -32,9 +37,16 @@ impl MitRanges {
                 kd_scale: 5.0,
                 torque_scale: 17.0,
             },
+            // RS03 velocity is ±20 rad/s per RS03 User Manual §4.1.2
+            // (communication types 1 and 2: "-20rad/s~20rad/s") and the §4.4
+            // program sample (`V_MIN -20.0f` / `V_MAX 20.0f`), in revisions
+            // 251112, 260112 and 260713. The Seeed SDK's 50 is wrong for the
+            // deployed drives: bench capture cd-20261003T145133Z (right
+            // shoulder pitch, id1) fits a full scale of 20.05 rad/s against
+            // d(position)/dt (r = 0.999, n = 227).
             MotorType::Rs03 => Self {
                 position_scale: 4.0 * std::f32::consts::PI,
-                velocity_scale: 50.0,
+                velocity_scale: 20.0,
                 kp_scale: 5000.0,
                 kd_scale: 100.0,
                 torque_scale: 60.0,

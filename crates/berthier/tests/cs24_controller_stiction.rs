@@ -19,13 +19,13 @@ const NEUTRAL_MIT: [u8; 8] = [0x7f, 0xff, 0x7f, 0xff, 0, 0, 0, 0];
 const ZERO_SPEED: [u8; 8] = [0x0a, 0x70, 0, 0, 0, 0, 0, 0];
 
 // Independent literal inputs: can0 motor1 -> hostfd, fault-free Run.
-// RS03 direction-1: q about+.01994 joint, first raw dq about+.01068.
+// RS03 direction-1: q about+.01994 joint, first raw dq about+.01038 (±20 rad/s scale).
 // Stationary status retains the exact position code and centered raw velocity.
 fn status(initial_positive_velocity: bool) -> CanFrame {
     CanFrame {
         id: 0x0280_01fd,
         data: if initial_positive_velocity {
-            [0x7f, 0xcb, 0x7f, 0xf8, 0x7f, 0xff, 0, 0xc8]
+            [0x7f, 0xcb, 0x7f, 0xee, 0x7f, 0xff, 0, 0xc8]
         } else {
             [0x7f, 0xcb, 0x7f, 0xff, 0x7f, 0xff, 0, 0xc8]
         },

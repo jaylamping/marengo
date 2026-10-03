@@ -3289,7 +3289,7 @@ mod tests {
                 .expect("actual pitch MIT output");
             let speed = -(f64::from(u16::from_be_bytes([frame.data[2], frame.data[3]])) / 32767.0
                 - 1.0)
-                * 50.0;
+                * 20.0;
             max_speed = max_speed.max(speed.abs());
             assert!(
                 speed.abs() <= 0.152,
