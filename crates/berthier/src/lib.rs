@@ -75,7 +75,9 @@ mod test_support;
 pub use davout::ControlMode;
 pub use gain_runtime::{mode_allows_gain_override, GainOverride};
 pub use position_hold::HoldFuseTrip;
-pub use r#loop::{proto_control_mode, ControlLoop, LoopError, TickPhaseAverages};
+pub use r#loop::{
+    proto_control_mode, ControlLoop, LoopError, TickPhaseAverages, ENABLE_COMPLETION_TIMEOUT,
+};
 
 use davout::{DavoutError, JointCommand, OperationalMode, Supervisor};
 use thiserror::Error;

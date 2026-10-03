@@ -34,6 +34,13 @@ use crate::position_trace::{PositionTrace, PositionTraceRow};
 use crate::position_wave::PositionWave;
 use crate::torque_cmd::TorqueCmdLatch;
 
+/// Bound for an operator Enable or Position-mode arm waiting on
+/// [`ControlLoop::enable_completion`]. Covers a target held for its drive's
+/// post-SetZero quiet ([`davout::POST_SET_ZERO_QUIET`], 650 ms) right after a
+/// home, the one-per-interface Enable stagger and the first session status,
+/// with margin. Exceeding it refuses the waiting command.
+pub const ENABLE_COMPLETION_TIMEOUT: Duration = Duration::from_secs(2);
+
 #[derive(Debug, Error)]
 pub enum LoopError {
     #[error("safety: {0}")]
@@ -58,6 +65,10 @@ pub enum LoopError {
     InvalidWavePeriod,
     #[error("missing motor feedback for joint {joint}")]
     MissingFeedback { joint: String },
+    /// A Position-mode arm latches measured `q`; it waits until every Active
+    /// target's staggered Enable is written and its session feedback is fresh.
+    #[error("waiting for enable to complete: {detail}")]
+    EnableIncomplete { detail: String },
     #[error(
         "position hold: outbound ascent stall on {joint}: no measured progress toward target for {ms} ms ({trip})"
     )]
@@ -465,10 +476,33 @@ impl<B: MotorBus> ControlLoop<B> {
         std::mem::take(&mut self.tick_phase).into_averages()
     }
 
-    /// Capture current joint positions as hold targets and commands (no ramp).
-    pub fn latch_position_setpoints(&mut self) -> Result<(), LoopError> {
-        let q = self.refresh_joint_positions()?;
-        self.latch_position_from_q(&q);
+    /// Enable is complete for motion: the supervisor is Active, no staggered
+    /// Enable is still unwritten (e.g. one held for its drive's post-SetZero
+    /// quiet), and every Active joint has fresh pose from this enable session.
+    /// Every Position-mode arm or retarget requires this before it uses
+    /// measured `q`, which reads 0.0 for a joint without pose.
+    pub fn enable_completion(&self) -> Result<(), LoopError> {
+        let mode = self.supervisor.mode();
+        if mode != OperationalMode::Active {
+            return Err(LoopError::EnableIncomplete {
+                detail: format!("supervisor {mode:?}, not Active"),
+            });
+        }
+        if self.supervisor.enable_writes_pending() {
+            return Err(LoopError::EnableIncomplete {
+                detail: "staggered Enable writes pending".into(),
+            });
+        }
+        let active = self.supervisor.active_joints();
+        if let Some(joint) = self
+            .joint_names
+            .iter()
+            .find(|name| active.contains(*name) && !self.has_joint_feedback(name))
+        {
+            return Err(LoopError::EnableIncomplete {
+                detail: format!("no session feedback from {joint}"),
+            });
+        }
         Ok(())
     }
 
@@ -500,6 +534,7 @@ impl<B: MotorBus> ControlLoop<B> {
             });
         };
         let q_now = self.refresh_joint_positions()?;
+        self.enable_completion()?;
         if !self.position_hold.is_armed() {
             self.latch_position_from_q(&q_now);
         }
@@ -656,7 +691,7 @@ impl<B: MotorBus> ControlLoop<B> {
                 joint: joint.to_string(),
             });
         };
-        let q = self.refresh_joint_positions()?;
+        let q = self.motion_positions()?;
         let was_armed = self.position_hold.is_armed();
         self.position_hold.ensure_armed_from_q(&q, self.tick_count);
         if !was_armed {
@@ -665,7 +700,6 @@ impl<B: MotorBus> ControlLoop<B> {
                     .seed_dq_filter(i, self.joint_velocity(name));
             }
         }
-        self.ensure_active_for_motion()?;
         self.set_control_mode(ControlMode::Position);
         let half_period_ticks = (half_period_sec * f64::from(self.loop_hz)).round().max(1.0) as u64;
         let wave = PositionWave::new(
@@ -697,11 +731,24 @@ impl<B: MotorBus> ControlLoop<B> {
     }
 
     /// Latch current `q` and enter [`ControlMode::Position`] (gravity FF + impedance gains).
+    /// Re-arms drives when needed; refuses with [`LoopError::EnableIncomplete`]
+    /// until [`Self::enable_completion`] holds.
     pub fn enter_position_hold(&mut self) -> Result<(), LoopError> {
-        self.latch_position_setpoints()?;
-        self.ensure_active_for_motion()?;
+        let q = self.motion_positions()?;
+        self.latch_position_from_q(&q);
         self.set_control_mode(ControlMode::Position);
         Ok(())
+    }
+
+    /// Measured `q` for a Position-mode arm: drain feedback (a receive failure
+    /// refuses before any Enable), re-arm drives when needed, then require
+    /// [`Self::enable_completion`]. A re-enable done here always waits: its
+    /// session has no pose yet, so the `q` drained before it is never used.
+    fn motion_positions(&mut self) -> Result<Vec<f64>, LoopError> {
+        let q = self.refresh_joint_positions()?;
+        self.ensure_active_for_motion()?;
+        self.enable_completion()?;
+        Ok(q)
     }
 
     /// Re-arm drives after a safety disable via scoped commissioning Enable.
@@ -730,12 +777,14 @@ impl<B: MotorBus> ControlLoop<B> {
     }
 
     /// Enter position hold with an explicit setpoint (single-joint bench: one angle; multi-joint: joint name required).
+    /// Re-arms drives when needed; refuses with [`LoopError::EnableIncomplete`]
+    /// until [`Self::enable_completion`] holds.
     pub fn enter_position_hold_at(
         &mut self,
         joint: Option<&str>,
         position_rad: f64,
     ) -> Result<(), LoopError> {
-        let q = self.refresh_joint_positions()?;
+        let q = self.motion_positions()?;
         if !self.position_hold.is_armed() {
             self.position_hold.arm(&q, &q, self.tick_count);
             for (i, name) in self.joint_names.iter().enumerate() {
@@ -750,7 +799,6 @@ impl<B: MotorBus> ControlLoop<B> {
             let joint = joint.ok_or(LoopError::JointNameRequired)?;
             self.set_joint_position_setpoint(joint, position_rad)?;
         }
-        self.ensure_active_for_motion()?;
         self.set_control_mode(ControlMode::Position);
         Ok(())
     }
@@ -1770,11 +1818,88 @@ mod tests {
         loop_ctrl.tick(None).expect("tick");
         loop_ctrl.supervisor_mut().disable_all().expect("disable");
         assert_eq!(loop_ctrl.supervisor_mut().mode(), OperationalMode::Disabled);
+        let refused = loop_ctrl
+            .enter_position_hold_at(Some("right_shoulder_pitch"), 0.0)
+            .expect_err("re-enabled, but no session feedback yet");
+        assert!(matches!(refused, LoopError::EnableIncomplete { .. }));
+        assert_eq!(loop_ctrl.supervisor_mut().mode(), OperationalMode::Active);
+        assert_ne!(loop_ctrl.control_mode(), ControlMode::Position);
+        queue_all_status(loop_ctrl.supervisor_mut(), None);
+        loop_ctrl
+            .supervisor_mut()
+            .drain_feedback()
+            .expect("first session status");
         loop_ctrl
             .enter_position_hold_at(Some("right_shoulder_pitch"), 0.0)
-            .expect("hold-at home");
-        assert_eq!(loop_ctrl.supervisor_mut().mode(), OperationalMode::Active);
+            .expect("hold-at home once enable completed");
         assert_eq!(loop_ctrl.control_mode(), ControlMode::Position);
+    }
+
+    /// Active with no session pose: every Position-mode arm refuses and latches
+    /// nothing, rather than holding the 0.0 placeholder of a missing pose.
+    #[test]
+    fn position_arms_wait_for_session_feedback() {
+        let mut loop_ctrl = test_loop();
+        loop_ctrl
+            .supervisor_mut()
+            .set_homing_complete()
+            .expect("ready");
+        loop_ctrl
+            .supervisor_mut()
+            .request_enable(true)
+            .expect("active without pose");
+        let refusals = [
+            loop_ctrl.enter_position_hold().map(|()| 0.0),
+            loop_ctrl
+                .enter_position_hold_at(Some("right_shoulder_pitch"), 0.25)
+                .map(|()| 0.0),
+            loop_ctrl.start_position_wave("right_shoulder_pitch", 0.1, 0.2, 1, 1.0),
+            loop_ctrl
+                .set_joint_position_setpoint("right_shoulder_pitch", 0.25)
+                .map(|()| 0.0),
+        ];
+        for refusal in refusals {
+            assert!(
+                matches!(&refusal, Err(LoopError::EnableIncomplete { detail })
+                    if detail.contains("no session feedback")),
+                "{refusal:?}"
+            );
+        }
+        assert!(loop_ctrl.position_setpoints().is_none(), "nothing latched");
+        assert_ne!(loop_ctrl.control_mode(), ControlMode::Position);
+        let completion = loop_ctrl.enable_completion();
+        assert!(
+            matches!(&completion, Err(LoopError::EnableIncomplete { detail })
+                if detail.contains("no session feedback")),
+            "{completion:?}"
+        );
+
+        queue_all_status(
+            loop_ctrl.supervisor_mut(),
+            Some(("right_shoulder_pitch", 0.3, 0.0)),
+        );
+        loop_ctrl
+            .supervisor_mut()
+            .drain_feedback()
+            .expect("first session status");
+        loop_ctrl.enable_completion().expect("enable complete");
+        loop_ctrl.enter_position_hold().expect("hold-on");
+        let pitch = loop_ctrl
+            .joint_names()
+            .iter()
+            .position(|name| name == "right_shoulder_pitch")
+            .expect("pitch");
+        let held = loop_ctrl.position_setpoints().expect("latched")[pitch];
+        assert!((held - 0.3).abs() < 1e-3, "measured q latched, got {held}");
+    }
+
+    #[test]
+    fn enable_completion_requires_active() {
+        let loop_ctrl = test_loop();
+        assert!(matches!(
+            loop_ctrl.enable_completion(),
+            Err(LoopError::EnableIncomplete { detail }) if detail.contains("not Active")
+        ));
     }
 
     #[test]
@@ -1788,11 +1913,8 @@ mod tests {
             .supervisor_mut()
             .request_enable(true)
             .expect("active without pose");
-        loop_ctrl
-            .enter_position_hold_at(Some("right_shoulder_pitch"), 0.25)
-            .expect("hold-at");
+        loop_ctrl.set_control_mode(ControlMode::Position);
         assert_eq!(loop_ctrl.supervisor().mode(), OperationalMode::Active);
-        assert_eq!(loop_ctrl.control_mode(), ControlMode::Position);
         loop_ctrl.supervisor_mut().bus_mut().clear_trace();
         for _ in 0..2 {
             loop_ctrl.tick(None).expect("bounded neutral solicit");
@@ -1827,9 +1949,10 @@ mod tests {
             .request_enable(true)
             .expect("enable");
         loop_ctrl.set_control_mode(ControlMode::Position);
-        loop_ctrl
-            .enter_position_hold_at(Some("right_shoulder_pitch"), 0.25)
-            .expect("hold-at");
+        assert!(matches!(
+            loop_ctrl.enter_position_hold_at(Some("right_shoulder_pitch"), 0.25),
+            Err(LoopError::EnableIncomplete { .. })
+        ));
         loop_ctrl
             .tick(None)
             .expect("grace tick without feedback after homing ticks");

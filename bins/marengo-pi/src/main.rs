@@ -1,5 +1,8 @@
 //! Marengo Pi runtime: CAN I/O, control loop, Chappe telemetry, operator commands.
 
+mod enable_gate;
+#[cfg(test)]
+mod enable_gate_tests;
 mod host_metrics;
 #[cfg(all(target_os = "linux", feature = "linux-i2c"))]
 mod imu;
@@ -46,6 +49,7 @@ use davout::{
     DavoutError, MotorBus, OperationalMode, ReferenceHandle, ReferenceTerminal, StopReport,
     DEFAULT_LEASE_TTL,
 };
+use enable_gate::{emit, EnableGate};
 use marengo_config::{
     load_control_config, load_motors_config, resolve_config_dir, resolve_repo_root,
     resolve_urdf_path,
@@ -300,6 +304,7 @@ fn defers_while_referencing(cmd: &PiCommand) -> bool {
 fn dispatch_stdin_command<B: MotorBus>(
     loop_ctrl: &mut ControlLoop<B>,
     queue: &mut PiReferenceQueue,
+    gate: &mut EnableGate,
     cmd: PiCommand,
     config_dir: &Path,
 ) -> bool {
@@ -307,7 +312,7 @@ fn dispatch_stdin_command<B: MotorBus>(
         queue.defer(cmd);
         return true;
     }
-    handle_command(loop_ctrl, queue, cmd, config_dir)
+    handle_command(loop_ctrl, queue, gate, cmd, config_dir)
 }
 
 fn spawn_stdin_commands(tx: Sender<PiCommand>) {
@@ -647,10 +652,12 @@ fn drain_testing_commands<B: MotorBus>(
                 if shutdown.load(Ordering::SeqCst) {
                     return;
                 }
+                // Re-arm first; a fresh Enable refuses the target until its
+                // session feedback arrives (a later batch retries).
                 let result = if loop_ctrl.control_mode() == ControlMode::Position {
-                    loop_ctrl
-                        .set_joint_position_setpoint(joint.name.as_str(), joint.position)
-                        .and_then(|()| loop_ctrl.ensure_active_for_motion())
+                    loop_ctrl.ensure_active_for_motion().and_then(|()| {
+                        loop_ctrl.set_joint_position_setpoint(joint.name.as_str(), joint.position)
+                    })
                 } else {
                     loop_ctrl.enter_position_hold_at(Some(joint.name.as_str()), joint.position)
                 };
@@ -857,6 +864,7 @@ fn preflight_gravity_saturation<B: MotorBus>(loop_ctrl: &mut ControlLoop<B>) -> 
 fn handle_command<B: MotorBus>(
     loop_ctrl: &mut ControlLoop<B>,
     queue: &mut PiReferenceQueue,
+    gate: &mut EnableGate,
     cmd: PiCommand,
     config_dir: &Path,
 ) -> bool {
@@ -887,10 +895,8 @@ fn handle_command<B: MotorBus>(
             }
             match loop_ctrl.supervisor().resolve_enable_targets(repo_root()) {
                 Ok(targets) => match loop_ctrl.supervisor_mut().enable_targets(&targets) {
-                    Ok(()) => println!(
-                        "enabled (operator={operator_id}) targets={}",
-                        targets.join(",")
-                    ),
+                    // `enabled` is printed once enable completes (EnableGate::poll).
+                    Ok(()) => emit(gate.begin_enable(operator_id, targets, Instant::now())),
                     Err(e) => eprintln!("enable failed: {e}"),
                 },
                 Err(e) => eprintln!("enable blocked: {e}"),
@@ -903,6 +909,7 @@ fn handle_command<B: MotorBus>(
             }
             loop_ctrl.set_control_mode(ControlMode::Disabled);
             emit_reference_events(queue.cancel());
+            emit(gate.cancel());
             println!("disabled");
         }
         PiCommand::GravityOn => {
@@ -939,54 +946,13 @@ fn handle_command<B: MotorBus>(
             loop_ctrl.set_control_mode(ControlMode::Disabled);
             println!("control mode → Disabled");
         }
-        PiCommand::HoldOn => match loop_ctrl.enter_position_hold() {
-            Ok(()) => {
-                println!(
-                    "control mode → Position hold (operational={:?})",
-                    loop_ctrl.supervisor_mut().mode()
-                );
-                if let Some(sp) = loop_ctrl.position_setpoints() {
-                    for (name, &q) in loop_ctrl.joint_names().iter().zip(sp) {
-                        println!("  hold {name} = {q:.4} rad");
-                    }
-                }
-            }
-            Err(e) => eprintln!("hold-on failed: {e}"),
-        },
-        PiCommand::HoldAt {
-            joint,
-            position_rad,
-        } => match loop_ctrl.enter_position_hold_at(joint.as_deref(), position_rad) {
-            Ok(()) => {
-                println!(
-                    "control mode → Position hold → target {position_rad:.4} rad (ramping, operational={:?})",
-                    loop_ctrl.supervisor_mut().mode()
-                );
-                if let Some(j) = joint.as_deref() {
-                    println!("  joint {j}");
-                }
-            }
-            Err(e) => eprintln!("hold-at failed: {e}"),
-        },
-        PiCommand::Wave {
-            joint,
-            min_rad,
-            max_rad,
-            cycles,
-            half_period_sec,
-        } => match loop_ctrl.start_position_wave(&joint, min_rad, max_rad, cycles, half_period_sec)
-        {
-            Ok(duration_sec) => {
-                println!(
-                    "position wave → {joint} {min_rad:.4}↔{max_rad:.4} rad ×{cycles} (~{duration_sec:.2}s, operational={:?})",
-                    loop_ctrl.supervisor_mut().mode()
-                );
-            }
-            Err(e) => eprintln!("wave failed: {e}"),
-        },
+        cmd @ (PiCommand::HoldOn | PiCommand::HoldAt { .. } | PiCommand::Wave { .. }) => {
+            emit(gate.submit(loop_ctrl, cmd, Instant::now()));
+        }
         PiCommand::HoldOff => {
             loop_ctrl.clear_position_hold();
             loop_ctrl.set_control_mode(ControlMode::Disabled);
+            emit(gate.cancel_arms("cancelled by hold-off"));
             println!("hold-off → Disabled");
         }
         PiCommand::Status => print_status(loop_ctrl, config_dir),
@@ -1368,6 +1334,7 @@ fn run_control_loop<B: MotorBus>(
     let mut active_fault: Option<String>;
     let mut timing = LoopTimingWindow::new(loop_ctrl.tick_count());
     let mut reference_queue = PiReferenceQueue::new(format!("marengo-pi-{}", std::process::id()));
+    let mut enable_gate = EnableGate::default();
 
     'control: while !runtime.shutdown.load(Ordering::SeqCst) {
         let tick_start = Instant::now();
@@ -1387,7 +1354,13 @@ fn run_control_loop<B: MotorBus>(
             if runtime.shutdown.load(Ordering::SeqCst) {
                 break 'control;
             }
-            if !dispatch_stdin_command(loop_ctrl, &mut reference_queue, cmd, runtime.config_dir) {
+            if !dispatch_stdin_command(
+                loop_ctrl,
+                &mut reference_queue,
+                &mut enable_gate,
+                cmd,
+                runtime.config_dir,
+            ) {
                 runtime.shutdown.store(true, Ordering::SeqCst);
                 break 'control;
             }
@@ -1443,6 +1416,9 @@ fn run_control_loop<B: MotorBus>(
             }
         };
         emit_reference_events(reference_queue.pump(loop_ctrl.supervisor_mut()));
+        // After the tick: report a completed (or refused) Enable, then retry
+        // deferred Position-mode arms.
+        emit(enable_gate.poll(loop_ctrl, Instant::now()));
         if runtime.shutdown.load(Ordering::SeqCst) {
             break;
         }

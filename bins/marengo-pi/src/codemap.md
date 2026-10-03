@@ -10,6 +10,8 @@ Pi runtime implementation modules.
 | `reference_queue.rs` | One-at-a-time physical reference queue (stdin `home <joints> sign-tested`, Consul Set Zero), deferral of other stdin commands, cancel; stdout contract lines |
 | `reference_queue_tests.rs` | Queue state machine against a scripted driver: refusals, ordering, failure skips, deferral, cancel, E-stop |
 | `reference_dispatch_tests.rs` | `home` parsing and stdin dispatch/deferral/cancel against a plain (unsupported) owner |
+| `enable_gate.rs` | `EnableGate`: stdin `enable` prints `waiting for enable to complete (operator=…)`, then `enabled (operator=…) targets=…` only once `ControlLoop::enable_completion` holds; `hold-on`/`hold-at`/`wave` arriving earlier are deferred and retried after each tick in order. Bounded by `berthier::ENABLE_COMPLETION_TIMEOUT` (2 s): an incomplete Enable prints `enable failed:` and stops every drive; a deferred arm prints `<cmd> failed:`. Disable cancels both; hold-off cancels deferred arms |
+| `enable_gate_tests.rs` | Gate against a closed simulation owner: delayed `enabled`, deferred hold-on latching measured q, Enable and arm timeouts, Disable/hold-off cancel |
 | `overlay.rs` | Shutdown-aware actuator tuning dispatch; live changes and asynchronous persistence admission |
 | `limit_persist.rs` | Closed admission, serialized actual writes/publication, bounded typed drain and observed worker termination |
 | `limit_persist_tests.rs` | Gated real writes and matching completion events for retained drafts, publication lifetime and coalescing |

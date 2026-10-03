@@ -214,6 +214,17 @@ disables. The fault does not clear on its own.
   earlier; arming a different joint is unaffected. A Reset report after the
   held Enable's echo still latches DriveState. Type-0 identity admission retries
   through the blackout separately (`IDENTITY_ADMISSION_RETRY`).
+- **Position arms wait for enable completion:** Berthier reads 0.0 for a joint
+  with no session pose, and `enable_targets` returns while Enables can still be
+  held (stagger, post-SetZero quiet). A `hold-on` arriving then would have
+  latched 0.0 as that joint's hold target. Every Position-mode arm (`hold-on`,
+  `hold-at`, `wave`, Testing-panel setpoints) now refuses with "waiting for
+  enable to complete" and latches nothing until the supervisor is Active, no
+  Enable is unwritten and every Active joint has fresh session pose.
+  `marengo-pi` prints `enabled (operator=…)` only at that point. Earlier stdin
+  arms are deferred and retried after each tick. An Enable that does not
+  complete within 2 s is refused (`enable failed:`) and every drive is stopped;
+  a deferred arm is refused (`<cmd> failed:`).
 - **Controller receive overflow is persistent (operator recommendation
   open):** an mcp251x RX overflow reaches Davout as a kernel error frame
   (`CAN_ERR_CRTL_RX_OVERFLOW`) and latches Transport. Making an *isolated*

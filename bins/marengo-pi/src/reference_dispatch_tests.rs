@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use berthier::ControlLoop;
 use davout::MemoryBus;
 
+use crate::enable_gate::EnableGate;
 use crate::reference_queue::ReferenceEvent;
 use crate::{
     defers_while_referencing, dispatch_stdin_command, parse_command, PiCommand, PiReferenceQueue,
@@ -67,6 +68,7 @@ fn only_home_joints_disable_and_quit_bypass_deferral() {
 fn home_refusals_queue_nothing() {
     let mut loop_ctrl = plain_loop();
     let mut queue = PiReferenceQueue::new("marengo-pi-test".into());
+    let mut gate = EnableGate::default();
     let config = repo_root().join("config");
     for line in [
         format!("home {JOINT}"),
@@ -77,6 +79,7 @@ fn home_refusals_queue_nothing() {
         assert!(dispatch_stdin_command(
             &mut loop_ctrl,
             &mut queue,
+            &mut gate,
             cmd,
             &config
         ));
@@ -88,11 +91,13 @@ fn home_refusals_queue_nothing() {
 fn stdin_defers_while_busy_and_replays_after_failure() {
     let mut loop_ctrl = plain_loop();
     let mut queue = PiReferenceQueue::new("marengo-pi-test".into());
+    let mut gate = EnableGate::default();
     let config = repo_root().join("config");
     let home = parse_command(&format!("home {JOINT} {JOINT} sign-tested")).expect("parsed");
     assert!(dispatch_stdin_command(
         &mut loop_ctrl,
         &mut queue,
+        &mut gate,
         home,
         &config
     ));
@@ -100,6 +105,7 @@ fn stdin_defers_while_busy_and_replays_after_failure() {
     assert!(dispatch_stdin_command(
         &mut loop_ctrl,
         &mut queue,
+        &mut gate,
         PiCommand::Status,
         &config
     ));
@@ -131,11 +137,18 @@ fn disable_and_quit_cancel_the_queue() {
     let config = repo_root().join("config");
     for (stop, keep_running) in [(PiCommand::Disable, true), (PiCommand::Quit, false)] {
         let mut queue = PiReferenceQueue::new("marengo-pi-test".into());
+        let mut gate = EnableGate::default();
         let home = parse_command(&format!("home {JOINT} sign-tested")).expect("parsed");
-        dispatch_stdin_command(&mut loop_ctrl, &mut queue, home, &config);
-        dispatch_stdin_command(&mut loop_ctrl, &mut queue, PiCommand::HoldOn, &config);
+        dispatch_stdin_command(&mut loop_ctrl, &mut queue, &mut gate, home, &config);
+        dispatch_stdin_command(
+            &mut loop_ctrl,
+            &mut queue,
+            &mut gate,
+            PiCommand::HoldOn,
+            &config,
+        );
         assert_eq!(
-            dispatch_stdin_command(&mut loop_ctrl, &mut queue, stop, &config),
+            dispatch_stdin_command(&mut loop_ctrl, &mut queue, &mut gate, stop, &config),
             keep_running
         );
         assert!(!queue.is_busy());
