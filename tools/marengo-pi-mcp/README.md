@@ -117,24 +117,27 @@ Motion tools that open CAN take sole ownership of the bus for the session. These
 
 To keep control off after a session, run `pi_restart_marengo_pi` with `mode: stop`.
 
-### Encoder zero (no Motor Studio)
+### Reference and zero (no Motor Studio)
 
-1. Position shaft at mechanical zero (arm down).
-2. `pi_set_zero` with `confirm: true`. Verifies |pos| < 0.05 rad, writes calibration record.
-3. `pi_homing_status`. Confirm all configured joints show `Verified` before enable/hold.
-4. `motor-repl home` / marengo-pi `home`. Supervisor Ready when all joints verified.
+A current reference is granted only inside the process that acquires it. When that process exits, the grant ends. Acquiring a reference runs SetZero at the joint's current pose, so put each joint at its mechanical reference first.
+
+- `pi_hold_on` and `pi_bench_harness` acquire references inside their own marengo-pi session. They send `home <joints> sign-tested` on stdin and wait until marengo-pi prints `reference <joint> current pos=…` for every joint. Then they send the plain `home`, `enable` and hold lines, so dwell sleeps begin only once the references are held. If a joint prints `reference <joint> failed|skipped: …` or `home failed: …`, or the wait passes 10 s per joint, the session sends `disable` and `quit` and exits 1.
+  `pi_marengo_pi_script` applies the same wait to any `home <joints> sign-tested` line in its script.
+- Both tools require `set_zero: true` **and** `at_mechanical_reference: true`. Without them they refuse before contacting the Pi, so a session never re-zeros at an arbitrary pose. `pi_hold_on` references only `joint` when you give one. If you omit it, it references every joint of the bench profile and holds `right_shoulder_pitch`. `pi_bench_harness` references `joints`, or every joint of the profile, once. It then runs all enable-requiring suites in **one** marengo-pi process: grants survive a clean `disable` but not the process, and re-zeroing per suite would accumulate the return-to-0 tracking error. Before each later suite it checks `$LOG` and stops if an earlier suite failed.
+- `pi_set_zero` runs `motor-repl set-zero <joint> --sign-tested` and then `homing-status`. That checks SetZero and the readback, but the grant ends when motor-repl exits. It doesn't let a later marengo-pi enable.
+- `pi_motor_recover` never acquires a reference and never enables. After a fault the arm isn't attested at the reference, so it disables and reads `fault=` from `status` while Disabled.
 
 ```json
 {
   "confirm": true,
   "joint": "right_shoulder_pitch",
-  "config_dir": "/opt/marengo/config"
+  "set_zero": true,
+  "at_mechanical_reference": true,
+  "position_rad": 0.1
 }
 ```
 
-Omit `config_dir` to use `/opt/marengo/config`. For a 3-DOF harness run,
-select the harness profile that exports `MARENGO_JOINT_SUBSET`; do not point
-`MARENGO_CONFIG_DIR` at a separate bringup tree.
+`config_dir` defaults to `/opt/marengo/config`. For a 3-DOF harness run, select the harness profile that exports `MARENGO_JOINT_SUBSET`. Don't point `MARENGO_CONFIG_DIR` at a separate bringup tree.
 
 ### `pi_sync_main`
 

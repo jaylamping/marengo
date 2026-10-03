@@ -1,22 +1,22 @@
 import type { BenchProfile, MarengoPiConfig } from "../config.js";
 import { sudoCanUpCommand } from "../config.js";
-import {
-  isRightArmBenchProfile,
-  harnessJointSubset,
-  profileMeta,
-} from "../bench-profiles.js";
-import {
-  homingPreflightShell,
-  homingStatusOutputOk,
-} from "../homing-preflight.js";
+import { harnessJointSubset, isRightArmBenchProfile, profileMeta } from "../bench-profiles.js";
 import { restoreCanOwnerShell, takeCanOwnershipShell } from "../can-owner.js";
 import { shellQuote, wrapRemoteWithConfig } from "../env.js";
-import { benchLogArchiveShell, benchCandumpStartShell, benchCandumpStopShell, scriptSleepTotalSec } from "../tools/motion.js";
+import {
+  REFERENCE_OPT_IN_REQUIRED,
+  benchCandumpStartShell,
+  benchCandumpStopShell,
+  benchLogArchiveShell,
+  marengoPiPipeLine,
+  referenceAcquireLine,
+  scriptSleepTotalSec,
+} from "../tools/motion.js";
 import {
   defaultPassKind,
   harnessScriptSuite,
   type HarnessPassKind,
-  type HarnessScriptSuite,
+  type HarnessScript,
 } from "./scripts.js";
 
 const ROLL_JOINT = "right_shoulder_roll";
@@ -37,10 +37,6 @@ export function rollStagedDescentLines(): string[] {
     `hold-at ${ROLL_JOINT} 0`,
     "sleep 15",
   ];
-}
-
-function harnessSetZeroJoints(profile: BenchProfile): string[] {
-  return profileMeta(profile).setZeroJoints;
 }
 
 /** Master config dir for harness runs; optional absolute override only. */
@@ -93,21 +89,44 @@ export interface HarnessArgs {
   joints?: string[];
   loaded_joint?: string;
   gravity_angles?: number[];
-  skip_set_zero?: boolean;
+  set_zero?: boolean;
+  at_mechanical_reference?: boolean;
   debug?: boolean;
 }
 
-function marengoPiPipeLine(line: string): string {
-  const sleepMatch = /^sleep (\d+(?:\.\d+)?)$/i.exec(line.trim());
-  if (sleepMatch) {
-    return `sleep ${sleepMatch[1]}`;
-  }
-  return `printf '%s\\n' ${JSON.stringify(line)}`;
-}
+/** Marks where each suite starts in the single referenced session's output (stderr → $LOG). */
+const SUITE_MARKER = /^=== harness suite (\S+) ===$/m;
 
-function marengoPiPipe(script: string[], timeoutSec: number): string {
-  const pipeLines = script.map(marengoPiPipeLine).join(";\n");
-  return `{\n${pipeLines};\n} | timeout ${timeoutSec} bin/marengo-pi`;
+/** marengo-pi output that means a suite failed; checked between suites to stop the session early. */
+const SESSION_FAILURE =
+  "control tick failed|fault=0x[0-9a-fA-F]*[1-9a-fA-F]|watchdog|outside \\[|home failed:|enable blocked:|enable failed:";
+
+/**
+ * Feeder for one marengo-pi process running every enable-requiring suite after a single awaited
+ * `home <joints> sign-tested`. Grants live only in that process, so suites cannot be split across
+ * processes without re-zeroing; a clean `disable` between suites keeps the grants (Davout).
+ * Before each later suite the feeder stops the session (disable/quit, exit 1) if $LOG shows a failure.
+ */
+function referencedSessionPipe(joints: string[], scripts: HarnessScript[], timeoutSec: number): string {
+  const entries = [marengoPiPipeLine(referenceAcquireLine(joints))];
+  scripts.forEach((s, i) => {
+    if (i > 0) {
+      entries.push(
+        [
+          "sleep 1",
+          `if grep -Eq ${shellQuote(SESSION_FAILURE)} "$LOG"; then`,
+          `  echo "harness: earlier suite failed; not starting ${s.name}" >&2`,
+          "  printf '%s\\n' disable quit",
+          "  exit 1",
+          "fi",
+        ].join("\n"),
+      );
+    }
+    entries.push(`echo "=== harness suite ${s.name} ===" >&2`);
+    entries.push(...s.lines.filter((l) => l.trim() !== "quit").map(marengoPiPipeLine));
+  });
+  entries.push(marengoPiPipeLine("quit"));
+  return `{\n${entries.join(";\n")};\n} | timeout ${timeoutSec} bin/marengo-pi`;
 }
 
 /** Sleep sum + motion/startup slack for marengo-pi pipe timeout. */
@@ -179,6 +198,21 @@ export async function runBenchHarness(
     operator_signoff_required: scriptSuite?.operatorSignoffRequired ?? false,
   };
 
+  // Enable-requiring marengo-pi work, planned up front so a missing reference opt-in refuses
+  // before anything touches the Pi.
+  const sessions: HarnessScript[] =
+    scriptSuite?.scripts ??
+    (profile === "weighted_single_arm"
+      ? [
+          {
+            name: "weighted_gravity_on",
+            timeoutSec: 40,
+            lines: ["home", "enable bench", "status", "gravity-on", "status", "disable", "quit"],
+          },
+        ]
+      : []);
+  const referenceJoints = args.joints ?? profileMeta(profile).setZeroJoints;
+
   const remote = (body: string) =>
     wrapRemoteWithConfig(
       cfg,
@@ -201,20 +235,13 @@ export async function runBenchHarness(
     return formatHarnessResult(profile, loadedJoint, steps, faults, logPath, passMeta);
   };
 
-  async function step(
-    name: string,
-    body: string,
-    timeoutMs: number,
-    isOk: (out: string) => boolean = defaultStepOk,
-  ): Promise<boolean> {
-    const out = await runRemote(body, timeoutMs);
-    const ok = isOk(out);
+  function record(name: string, out: string, ok: boolean): boolean {
     steps.push({ name, ok, output: out.slice(0, 4000) });
     if (!ok) {
       const faultLines = out
         .split("\n")
         .filter((l) =>
-          /\berror\b|\bwarn\b|fault=0x[0-9a-fA-F]*[1-9a-fA-F]|watchdog|outside \[/i.test(
+          /\berror\b|\bwarn\b|fault=0x[0-9a-fA-F]*[1-9a-fA-F]|watchdog|outside \[|failed:|blocked:/i.test(
             l,
           ),
         );
@@ -223,6 +250,16 @@ export async function runBenchHarness(
     const logMatch = out.match(/log=(\S+)/);
     if (logMatch) logPath = logMatch[1];
     return ok;
+  }
+
+  async function step(
+    name: string,
+    body: string,
+    timeoutMs: number,
+    isOk: (out: string) => boolean = defaultStepOk,
+  ): Promise<boolean> {
+    const out = await runRemote(body, timeoutMs);
+    return record(name, out, isOk(out));
   }
 
   function defaultStepOk(out: string): boolean {
@@ -243,7 +280,15 @@ export async function runBenchHarness(
     if (/watchdog|outside \[/i.test(out)) {
       return false;
     }
+    if (/home failed:|enable blocked:|enable failed:/.test(out)) {
+      return false;
+    }
     return true;
+  }
+
+  if (sessions.length > 0 && (args.set_zero !== true || args.at_mechanical_reference !== true)) {
+    record("reference_required", REFERENCE_OPT_IN_REQUIRED, false);
+    return finish();
   }
 
   // 1. health, sole CAN ownership (stops marengo-pi.service; restored in finish), can up
@@ -276,35 +321,7 @@ export async function runBenchHarness(
     return finish();
   }
 
-  // 3. set-zero (skipped by default)
-  if (!args.skip_set_zero) {
-    for (const joint of harnessSetZeroJoints(profile)) {
-      const body = remote(`bin/motor-repl set-zero ${joint}`);
-      if (!(await step(`set_zero_${joint}`, body, 30_000))) {
-        return finish();
-      }
-    }
-  } else {
-    steps.push({
-      name: "set_zero_skipped",
-      ok: true,
-      output: "skip_set_zero=true (default)",
-    });
-  }
-
-  // 3b. homing preflight — fail before motion if calibration record / Verified missing
-  if (
-    !(await step(
-      "homing_preflight",
-      remote(homingPreflightShell(true)),
-      30_000,
-      homingStatusOutputOk,
-    ))
-  ) {
-    return finish();
-  }
-
-  // 4. gravity-preview 0 0 (single-joint / dual-pitch profiles only)
+  // 3. gravity-preview 0 0 (single-joint / dual-pitch profiles only)
   if (!profileMeta(profile).skipGravityPreview) {
     if (
       !(await step(
@@ -325,16 +342,10 @@ export async function runBenchHarness(
     });
   }
 
-  if (scriptSuite) {
-    await runScriptSuite(scriptSuite, async (s) => {
-      const pipeSec = pipeTimeoutSec(s.lines, s.timeoutSec);
-      const pipeCmd = marengoPiPipe(s.lines, pipeSec);
-      const body = benchSessionWrapper(cfg, profile, configDir, s.name, pipeCmd, debug);
-      return step(s.name, body, (pipeSec + 30) * 1000);
-    }, (name, output) => {
-      steps.push({ name, ok: true, output });
-    });
-  } else if (profile === "weighted_single_arm") {
+  if (scriptSuite?.note) {
+    record(scriptSuite.note.name, scriptSuite.note.output, true);
+  }
+  if (profile === "weighted_single_arm") {
     const angles = args.gravity_angles ?? [0, 0.3, -0.3];
     for (const a of angles) {
       const q0 = loadedJoint === "left_shoulder_pitch" ? a : 0;
@@ -344,20 +355,39 @@ export async function runBenchHarness(
         return finish();
       }
     }
+  }
 
-    const pipeCmd = marengoPiPipe(
-      ["home", "enable bench", "status", "gravity-on", "status", "disable", "quit"],
-      40,
+  if (sessions.length > 0) {
+    const pipeSec =
+      sessions.reduce((sum, s) => sum + pipeTimeoutSec(s.lines, s.timeoutSec), 0) +
+      scriptSleepTotalSec([referenceAcquireLine(referenceJoints)]);
+    const out = await runRemote(
+      benchSessionWrapper(
+        cfg,
+        profile,
+        configDir,
+        "referenced_session",
+        referencedSessionPipe(referenceJoints, sessions, pipeSec),
+        debug,
+      ),
+      (pipeSec + 30) * 1000,
     );
-    const body = benchSessionWrapper(
-      cfg,
-      profile,
-      configDir,
-      "weighted_gravity_on",
-      pipeCmd,
-      debug,
+    // split() with a capture group yields [beforeFirstSuite, name1, output1, name2, output2, ...].
+    const [acquireOut, ...suiteParts] = out.split(SUITE_MARKER);
+    record(
+      "reference_acquire",
+      acquireOut,
+      referenceJoints.every((j) => new RegExp(`^reference ${j} current `, "m").test(acquireOut)) &&
+        defaultStepOk(acquireOut),
     );
-    await step("weighted_gravity_on", body, 50_000);
+    for (const s of sessions) {
+      const at = suiteParts.indexOf(s.name);
+      if (at % 2 === 0) {
+        record(s.name, suiteParts[at + 1] ?? "", defaultStepOk(suiteParts[at + 1] ?? ""));
+      } else {
+        record(s.name, "not run: the referenced session stopped before this suite", false);
+      }
+    }
   }
 
   // final disable + status
@@ -365,21 +395,6 @@ export async function runBenchHarness(
   await step("final_status", remote("bin/motor-repl status"), 15_000);
 
   return finish();
-}
-
-async function runScriptSuite(
-  suite: HarnessScriptSuite,
-  runOne: (s: HarnessScriptSuite["scripts"][number]) => Promise<boolean>,
-  pushNote: (name: string, output: string) => void,
-): Promise<void> {
-  if (suite.note) {
-    pushNote(suite.note.name, suite.note.output);
-  }
-  for (const s of suite.scripts) {
-    if (!(await runOne(s))) {
-      break;
-    }
-  }
 }
 
 function formatHarnessResult(

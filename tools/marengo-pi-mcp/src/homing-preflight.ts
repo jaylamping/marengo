@@ -15,30 +15,16 @@ export function homingStatusShell(): string {
   );
 }
 
-/** Shell block: calibration record path + homing-status (warn-only). */
-export function homingPreflightShell(strict = false): string {
-  const strictEnv = strict ? "true" : "false";
-  return [
-    `export HOMING_PREFLIGHT_STRICT=${strictEnv}`,
-    "./scripts/homing-preflight.sh",
-  ].join("\n");
-}
-
-/** True when every reported joint is Verified (no Unhomed/Homing/Faulted). */
-export function homingStatusOutputOk(output: string): boolean {
-  if (output.includes("[exit ")) return false;
-  if (/homing=(Unhomed|Homing|Faulted)/.test(output)) return false;
-  if (!/homing=Verified/.test(output)) return false;
-  return true;
-}
-
 /**
- * Warn-only homing report (pi_health, pi_sync_bench_config). Same CAN-owner
- * fallback as {@link homingStatusShell}; render with renderRobotStateHoming.
+ * Warn-only homing report (pi_health, pi_sync_bench_config): calibration record path +
+ * homing-status via scripts/homing-preflight.sh. Same CAN-owner fallback as
+ * {@link homingStatusShell}; render with renderRobotStateHoming. A fresh motor-repl
+ * holds no reference grant, so its joints read Unhomed; the gateway snapshot shows
+ * marengo-pi's in-process grants.
  */
 export function homingReportShell(): string {
   return canOwnerBranch(
-    homingPreflightShell(false),
+    "export HOMING_PREFLIGHT_STRICT=false\n./scripts/homing-preflight.sh",
     [canOwnedSkipLine("homing preflight"), robotStateSnapshotShell()].join("\n"),
   );
 }

@@ -4,6 +4,9 @@ import type { MarengoPiConfig } from "../src/config.js";
 import { harnessConfigDir, runBenchHarness } from "../src/harness/index.js";
 import { harnessJointSubset } from "../src/bench-profiles.js";
 import { wrapRemoteWithConfig } from "../src/env.js";
+import { harnessScriptSuite } from "../src/harness/scripts.js";
+
+const OPT_IN = { set_zero: true, at_mechanical_reference: true } as const;
 
 const cfg: MarengoPiConfig = {
   host: "marengo.local",
@@ -54,9 +57,9 @@ describe("bench harness config", () => {
       cfg,
       async (body) => {
         bodies.push(body);
-        return body.includes("homing-preflight.sh") ? "homing=Verified" : "ok";
+        return "ok";
       },
-      { profile: "arm_2dof_smoke", skip_set_zero: true },
+      { profile: "arm_2dof_smoke", ...OPT_IN },
     );
 
     const scripted = bodies.find((body) => body.includes("=== bench harness"));
@@ -76,9 +79,9 @@ describe("bench harness config", () => {
         if (body.includes("restore after session")) {
           return "marengo-pi.service restore after session: true";
         }
-        return body.includes("homing-preflight.sh") ? "homing=Verified" : "ok";
+        return "ok";
       },
-      { profile: "arm_2dof_smoke", skip_set_zero: true },
+      { profile: "arm_2dof_smoke", ...OPT_IN },
     );
 
     const take = bodies.findIndex((b) => b.includes("pi-restart-marengo-pi.sh' stop"));
@@ -99,11 +102,65 @@ describe("bench harness config", () => {
           ? "marengo-pi.service restore after session: true\n[exit 1]"
           : "ok";
       },
-      { profile: "arm_2dof_smoke", skip_set_zero: true },
+      { profile: "arm_2dof_smoke", ...OPT_IN },
     );
 
     assert.ok(!bodies.some((b) => b.includes("can-up.sh") || b.includes("bin/motor-repl")));
     assert.match(bodies[bodies.length - 1], /pi-restart-marengo-pi\.sh' restart/);
+  });
+
+  it("refuses enable-requiring suites without the reference opt-in before touching the Pi", async () => {
+    let calls = 0;
+    const out = await runBenchHarness(
+      cfg,
+      async (body) => {
+        calls += 1;
+        return body;
+      },
+      { profile: "arm_2dof_smoke", set_zero: true },
+    );
+
+    assert.equal(calls, 0);
+    assert.match(out, /\[FAIL\] reference_required/);
+    assert.match(out, /at_mechanical_reference: true/);
+  });
+
+  it("runs every suite in one marengo-pi session after a single awaited acquisition", async () => {
+    const names = harnessScriptSuite("arm_2dof_smoke")?.scripts.map((s) => s.name) ?? [];
+    assert.ok(names.length >= 2);
+    const bodies: string[] = [];
+    const out = await runBenchHarness(
+      cfg,
+      async (body) => {
+        bodies.push(body);
+        if (!body.includes("sign-tested")) return "ok";
+        return [
+          "reference right_shoulder_pitch current pos=0.0000",
+          "reference right_shoulder_roll current pos=0.0001",
+          "reference right_upper_arm_yaw current pos=-0.0001",
+          `=== harness suite ${names[0]} ===`,
+          "operational: Active",
+          `=== harness suite ${names[1]} ===`,
+          "enable blocked: Enable requires full-master Robot Ready",
+          "harness: earlier suite failed; not starting next",
+          "[exit 1]",
+        ].join("\n");
+      },
+      { profile: "arm_2dof_smoke", ...OPT_IN },
+    );
+
+    const sessions = bodies.filter((b) => b.includes("sign-tested"));
+    assert.equal(sessions.length, 1);
+    const session = sessions[0];
+    assert.match(session, /"home right_shoulder_pitch right_shoulder_roll right_upper_arm_yaw sign-tested"/);
+    for (const name of names) assert.match(session, new RegExp(`=== harness suite ${name} ===`));
+    assert.equal(session.match(/printf '%s\\n' "quit"/g)?.length, 1);
+    assert.ok(!bodies.some((b) => b.includes("motor-repl set-zero") || b.includes("homing-preflight.sh")));
+
+    assert.match(out, /\[PASS\] reference_acquire/);
+    assert.match(out, new RegExp(`\\[PASS\\] ${names[0]}\\n`));
+    assert.match(out, new RegExp(`\\[FAIL\\] ${names[1]}\\n`));
+    for (const name of names.slice(2)) assert.match(out, new RegExp(`\\[FAIL\\] ${name}\\n`));
   });
 
   it("clears a sourced joint subset when no override is supplied", () => {

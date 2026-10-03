@@ -1,12 +1,32 @@
 import { z } from "zod";
 import type { BenchProfile, MarengoPiConfig } from "../config.js";
-import { BENCH_PROFILES } from "../bench-profiles.js";
+import { BENCH_PROFILES, profileMeta } from "../bench-profiles.js";
 import { appendAudit } from "../audit.js";
 import { shellQuote, wrapRemote, wrapRemoteWithConfig } from "../env.js";
-import { validateMotionConfirm } from "../safety.js";
+import { effectiveProfile, validateMotionConfirm } from "../safety.js";
 import { homingStatusShell } from "../homing-preflight.js";
 import { renderRobotStateHoming } from "../robot-state.js";
 import { soleCanOwnerShell } from "../can-owner.js";
+
+/** Explicit operator opt-in for in-process reference acquisition (SetZero at the current pose). */
+export const referenceOptInShape = {
+  set_zero: z
+    .boolean()
+    .default(false)
+    .describe(
+      "Acquire references in this marengo-pi session (`home <joints> sign-tested`; runs SetZero at the current pose)",
+    ),
+  at_mechanical_reference: z
+    .boolean()
+    .default(false)
+    .describe("Operator statement that every referenced joint is at its mechanical reference now"),
+};
+
+export const REFERENCE_OPT_IN_REQUIRED =
+  "Refused: enabling needs a current reference, which marengo-pi grants only inside the session that " +
+  "acquires it (`home <joints> sign-tested`), and acquisition runs SetZero at the current pose. " +
+  "Place the joints at their mechanical reference, then retry with set_zero: true and " +
+  "at_mechanical_reference: true.";
 
 const benchProfileZod = z.enum(BENCH_PROFILES);
 
@@ -215,25 +235,6 @@ const DEFAULT_HOLD_DWELL_SEC = 5;
 /** Default wait for return to home after hold-at 0 (≤5 s motion budget + slack). */
 const DEFAULT_RETURN_HOME_SEC = 6;
 
-/** Fair Layer 2 start: dwell after hold-at 0; analyzer `--require-home-start` enforces |q|<5 mrad. */
-export const LAYER2_HOME_SETTLE_SEC = 5;
-
-export const LAYER2_HOLD_ROUND_TRIP_SCRIPT = [
-  "home",
-  "enable bench",
-  "hold-at 0",
-  `sleep ${LAYER2_HOME_SETTLE_SEC}`,
-  "hold-at 0.1",
-  "sleep 5",
-  "hold-at 0",
-  "sleep 5",
-  "status",
-  "disable",
-] as const;
-
-/** Pipe timeout for [`LAYER2_HOLD_ROUND_TRIP_SCRIPT`] (sleep sum + startup slack). */
-export const LAYER2_HOLD_ROUND_TRIP_TIMEOUT_SEC = 21;
-
 /** Default total marengo-pi pipe timeout (includes script `sleep N` lines). */
 const DEFAULT_MOTION_TIMEOUT_SEC = DEFAULT_HOLD_DWELL_SEC;
 
@@ -247,13 +248,37 @@ const SOLE_CAN_OWNER_NOTE =
   "Runs as sole CAN owner: stops marengo-pi.service via the pi_restart_marengo_pi helper, " +
   "refuses if any marengo-pi/motor-repl remains, restarts the unit afterwards if it was active.";
 
-/** Sum `sleep N` dwell lines (for docs / harness helpers). */
+/**
+ * Wait budget per joint for marengo-pi `home <joints> sign-tested`; the backend
+ * acquires one joint at a time (stop, identity, SetZero, ack, mechPos readback).
+ */
+export const REFERENCE_ACQUIRE_SEC_PER_JOINT = 10;
+
+const REFERENCE_ACQUIRE_LINE = /^home((?:\s+[A-Za-z0-9_]+)+)\s+sign-tested$/;
+
+/**
+ * marengo-pi stdin line acquiring a qualified current reference for `joints`.
+ * The grant lives only in that marengo-pi process, and acquisition runs SetZero
+ * at the current pose: the arm must be at the mechanical reference.
+ */
+export function referenceAcquireLine(joints: readonly string[]): string {
+  if (joints.length === 0 || joints.some((j) => !/^[A-Za-z0-9_]+$/.test(j))) {
+    throw new Error(`invalid reference joints: ${JSON.stringify(joints)}`);
+  }
+  return `home ${joints.join(" ")} sign-tested`;
+}
+
+/** Sum `sleep N` dwell lines plus the wait budget of reference acquisition lines. */
 export function scriptSleepTotalSec(script: string[]): number {
   let total = 0;
   for (const line of script) {
     const sleepMatch = /^sleep (\d+(?:\.\d+)?)$/i.exec(line.trim());
     if (sleepMatch) {
       total += Number(sleepMatch[1]);
+    }
+    const acquire = REFERENCE_ACQUIRE_LINE.exec(line.trim());
+    if (acquire) {
+      total += acquire[1].trim().split(/\s+/).length * REFERENCE_ACQUIRE_SEC_PER_JOINT;
     }
   }
   return total;
@@ -294,11 +319,44 @@ function ensureScriptQuit(script: string[]): string[] {
   return out;
 }
 
-/** Shell sleep between marengo-pi stdin lines (e.g. dwell after hold-at). */
-function marengoPiPipeLine(line: string): string {
+/**
+ * Feeder shell for `home <joints> sign-tested`: send it, then poll marengo-pi's
+ * output in "$LOG" until every joint printed `reference <joint> current`, so later
+ * lines (and their sleeps) start only once the references are held. On a failure,
+ * skip, `home failed:` or timeout it sends `disable` + `quit` and exits 1.
+ * Runs inside the stdin feeder: anything but marengo-pi commands goes to stderr.
+ */
+function referenceAcquireShell(line: string, joints: string[]): string {
+  const allCurrent = joints
+    .map((j) => `grep -q '^reference ${j} current ' <<<"$_ref_out"`)
+    .join(" && ");
+  return [
+    '_ref_from=$(wc -l < "$LOG")',
+    `printf '%s\\n' ${JSON.stringify(line)}`,
+    "_ref_state=timeout",
+    `for _ in $(seq ${joints.length * REFERENCE_ACQUIRE_SEC_PER_JOINT * 5}); do`,
+    '  _ref_out=$(tail -n "+$((_ref_from + 1))" "$LOG")',
+    "  if grep -Eq '^(reference [^ ]+ (failed|skipped):|home failed:)' <<<\"$_ref_out\"; then _ref_state=failed; break; fi",
+    `  if ${allCurrent}; then _ref_state=ok; break; fi`,
+    "  sleep 0.2",
+    "done",
+    'if [[ "$_ref_state" != ok ]]; then',
+    `  echo "reference acquisition $_ref_state (${joints.join(" ")}); sending disable/quit" >&2`,
+    "  printf '%s\\n' disable quit",
+    "  exit 1",
+    "fi",
+  ].join("\n");
+}
+
+/** One feeder entry: shell sleep, awaited reference acquisition, or a printf'd stdin line. */
+export function marengoPiPipeLine(line: string): string {
   const sleepMatch = /^sleep (\d+(?:\.\d+)?)$/i.exec(line.trim());
   if (sleepMatch) {
     return `sleep ${sleepMatch[1]}`;
+  }
+  const acquire = REFERENCE_ACQUIRE_LINE.exec(line.trim());
+  if (acquire) {
+    return referenceAcquireShell(line.trim(), acquire[1].trim().split(/\s+/));
   }
   return `printf '%s\\n' ${JSON.stringify(line)}`;
 }
@@ -313,47 +371,42 @@ function marengoPiTimedPipe(
   dwellSec: number,
   returnHomeSec: number,
   returnJoint?: string,
-  binary = "$PI_BIN",
 ): string {
   const returnHold =
     returnJoint !== undefined ? `hold-at ${returnJoint} 0` : "hold-at 0";
-  const commandLines = [
-    ...script.map((l) => `printf '%s\\n' ${JSON.stringify(l)};`),
-    `sleep ${dwellSec};`,
-    `printf '%s\\n' ${JSON.stringify(returnHold)};`,
-    `sleep ${returnHomeSec};`,
-    `printf '%s\\n' "status";`,
-    `printf '%s\\n' "disable";`,
-    `printf '%s\\n' "quit";`,
+  const lines = [
+    ...script,
+    `sleep ${dwellSec}`,
+    returnHold,
+    `sleep ${returnHomeSec}`,
+    "status",
+    "disable",
+    "quit",
   ];
-  const pipeTimeoutSec = dwellSec + returnHomeSec + 10;
-  return `{\n${commandLines.join("\n")}\n} | timeout ${pipeTimeoutSec} ${binary}`;
+  return marengoPiPipe(lines, scriptSleepTotalSec(lines) + 10);
 }
 
 function holdSessionRemoteBody(
   cfg: MarengoPiConfig,
   args: {
     joint: string;
-    setZero: boolean;
+    referenceJoints: string[];
     operator: string;
     positionRad?: number;
     timeoutSec: number;
     returnHomeSec: number;
   },
 ): string {
-  const lines = ["bin/motor-repl disable 2>/dev/null || true"];
-  if (args.setZero) {
-    lines.push(`bin/motor-repl set-zero ${shellQuote(args.joint)}`);
-  }
-  lines.push(marengoPiBinarySelector(cfg));
   const holdLine =
     args.positionRad !== undefined
       ? `hold-at ${args.joint} ${args.positionRad}`
       : "hold-on";
-  lines.push(
+  return [
+    "bin/motor-repl disable 2>/dev/null || true",
+    marengoPiBinarySelector(cfg),
     "set +e",
     marengoPiTimedPipe(
-      ["home", `enable ${args.operator}`, holdLine],
+      [referenceAcquireLine(args.referenceJoints), "home", `enable ${args.operator}`, holdLine],
       args.timeoutSec,
       args.returnHomeSec,
       args.joint,
@@ -362,26 +415,20 @@ function holdSessionRemoteBody(
     "set -e",
     "bin/motor-repl disable",
     'exit "$PIPE_STATUS"',
-  );
-  return lines.join("\n");
+  ].join("\n");
 }
 
-/** Disable drives (clears most Robstride faults), brief enable to read fault= line. */
+/**
+ * Disable drives (clears most Robstride faults), then read fault= from marengo-pi
+ * `status` while Disabled (type-24 reporting). No reference, no enable: after a
+ * fault the arm is not attested at the mechanical reference.
+ */
 function motorRecoverRemoteBody(cfg: MarengoPiConfig): string {
   return [
     "bin/motor-repl disable 2>/dev/null || true",
     "sleep 0.5",
     marengoPiBinarySelector(cfg),
-    [
-      "{",
-      "echo home;",
-      "echo 'enable bench';",
-      "sleep 1;",
-      "echo status;",
-      "echo disable;",
-      "echo quit;",
-      "} | timeout 10 \"$PI_BIN\"",
-    ].join(" "),
+    '{ sleep 1; echo status; echo disable; echo quit; } | timeout 10 "$PI_BIN"',
   ].join("\n");
 }
 
@@ -486,7 +533,8 @@ export function registerMotionTools(
     pi_motor_recover: {
       description:
         "Recover after drive fault (replaces Motor Studio clear + manual SSH). " +
-        "stop marengo-pi → motor-repl disable → brief enable/status → prints RECOVER_OK or RECOVER_FAIL. " +
+        "stop marengo-pi → motor-repl disable → marengo-pi status while Disabled → prints RECOVER_OK or RECOVER_FAIL. " +
+        "Never acquires a reference or enables (the arm is not attested at the mechanical reference after a fault). " +
         "Logs to var/log/bench-latest.log. Args: confirm:true; optional config_dir " +
         "(default master /opt/marengo/config). " +
         SOLE_CAN_OWNER_NOTE,
@@ -540,8 +588,10 @@ export function registerMotionTools(
 
     pi_set_zero: {
       description:
-        "Zero encoder at mechanical reference via CAN SetZero. Verifies |pos| < tolerance, " +
-        "writes calibration record, and prints homing-status. Position arm first; confirm: true. " +
+        "Zero encoder at mechanical reference via motor-repl `set-zero <joint> --sign-tested` (CAN SetZero, " +
+        "qualified readback) and print homing-status. The reference grant ends when motor-repl exits: enabling " +
+        "still requires marengo-pi `home <joints> sign-tested` in the controlling session (pi_hold_on set_zero). " +
+        "Position arm first; confirm: true. " +
         SOLE_CAN_OWNER_NOTE,
       inputSchema: motionConfirmSchema.extend({
         joint: z
@@ -617,7 +667,10 @@ export function registerMotionTools(
 
     pi_hold_on: {
       description:
-        "Compliant position hold: set-zero (optional), home, enable, hold-on or hold-at. " +
+        "Compliant position hold in one marengo-pi session: `home <joints> sign-tested` (awaited), home, " +
+        "enable, hold-on or hold-at, return to 0, disable. References exist only inside that process, so " +
+        "every hold acquires them; acquisition runs SetZero at the current pose and needs set_zero: true " +
+        "plus at_mechanical_reference: true (otherwise refused before touching the Pi). " +
         "Uses kp/kd/slew/trim from master /opt/marengo/config/control.yaml. Logs to var/log. " +
         "Call pi_sync_bench_config first if control.yaml was edited locally. " +
         SOLE_CAN_OWNER_NOTE,
@@ -628,14 +681,21 @@ export function registerMotionTools(
           .describe(
             "MARENGO_CONFIG_DIR override (default: MCP env or /opt/marengo/config)",
           ),
-        joint: z.string().default("right_shoulder_pitch"),
+        joint: z
+          .string()
+          .regex(/^[A-Za-z0-9_]+$/)
+          .optional()
+          .describe(
+            "Joint to reference and hold. Omit to reference every joint of the bench profile " +
+            "and hold right_shoulder_pitch.",
+          ),
         timeout_sec: z
           .number()
           .int()
           .min(5)
           .max(120)
           .default(DEFAULT_MOTION_TIMEOUT_SEC),
-        set_zero: z.boolean().default(false),
+        ...referenceOptInShape,
         position_rad: z
           .number()
           .optional()
@@ -659,20 +719,28 @@ export function registerMotionTools(
         joint?: string;
         timeout_sec?: number;
         set_zero?: boolean;
+        at_mechanical_reference?: boolean;
         position_rad?: number;
         operator?: string;
         return_home_sec?: number;
       }) => {
         const check = gate(args);
         if (!check.ok) return check.message;
+        if (args.set_zero !== true || args.at_mechanical_reference !== true) {
+          return REFERENCE_OPT_IN_REQUIRED;
+        }
         const timeoutSec = args.timeout_sec ?? DEFAULT_MOTION_TIMEOUT_SEC;
         const returnHomeSec = args.return_home_sec ?? DEFAULT_RETURN_HOME_SEC;
         const joint = args.joint ?? "right_shoulder_pitch";
+        const referenceJoints =
+          args.joint !== undefined
+            ? [args.joint]
+            : profileMeta(effectiveProfile(cfg.benchProfile, args.profile)).setZeroJoints;
         const configDir =
           benchConfigDirForJoint(cfg, joint, args.config_dir) ?? BENCH_CONFIG_MASTER;
         const pipeCmd = holdSessionRemoteBody(cfg, {
           joint,
-          setZero: args.set_zero ?? true,
+          referenceJoints,
           operator: args.operator ?? "bench",
           positionRad: args.position_rad,
           timeoutSec,
@@ -681,7 +749,9 @@ export function registerMotionTools(
         const body = benchLogWrapper(cfg, pipeCmd, "hold-on", configDir);
         const out = await runRemote(
           body,
-          (timeoutSec + returnHomeSec) * 1000 + 20_000 + CAN_SESSION_SLACK_MS,
+          (timeoutSec + returnHomeSec + referenceJoints.length * REFERENCE_ACQUIRE_SEC_PER_JOINT) * 1000 +
+            20_000 +
+            CAN_SESSION_SLACK_MS,
         );
         auditMotion("pi_hold_on", args, out, 0);
         return out;
@@ -791,17 +861,21 @@ export function registerMotionTools(
 
     pi_bench_harness: {
       description:
-        "Profile-aware bench test matrix (bare_motor, weighted, roll_attached, arm_2dof_smoke, yaw_attached)",
+        "Profile-aware bench test matrix (bare_motor, weighted, roll_attached, arm_2dof_smoke, yaw_attached). " +
+        "Enable-requiring suites run in ONE marengo-pi session after a single awaited " +
+        "`home <joints> sign-tested` (grants are in-process only); they need set_zero: true and " +
+        "at_mechanical_reference: true, otherwise the harness refuses them up front.",
       inputSchema: motionConfirmSchema.extend({
         profile: benchProfileZod.optional(),
         config_dir: z.string().optional(),
-        joints: z.array(z.string()).optional(),
+        joints: z
+          .array(z.string().regex(/^[A-Za-z0-9_]+$/))
+          .min(1)
+          .optional()
+          .describe("Joints to reference; default every joint of the profile"),
         loaded_joint: z.string().optional(),
         gravity_angles: z.array(z.number()).optional(),
-        skip_set_zero: z
-          .boolean()
-          .default(true)
-          .describe("Skip set-zero by default (requires mechanical zero)"),
+        ...referenceOptInShape,
         debug: z.boolean().default(false),
       }),
       handler: async (args: {
@@ -812,7 +886,8 @@ export function registerMotionTools(
         joints?: string[];
         loaded_joint?: string;
         gravity_angles?: number[];
-        skip_set_zero?: boolean;
+        set_zero?: boolean;
+        at_mechanical_reference?: boolean;
         debug?: boolean;
       }) => {
         const check = gate(args);
