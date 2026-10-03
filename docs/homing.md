@@ -141,15 +141,16 @@ shutdown, or a change to the model or relevant policy. A successful ordinary
 Disable keeps grants.
 
 **Identity check at Enable.** Each target gets a type-0 request, repeated every
-10 ms while it stays silent, and must answer within 100 ms of the first. About
-535 ms after a SetZero every drive goes quiet for 48-57 ms and drops any type-0
-it receives meanwhile, so an `enable` right after `home` can land in that gap.
+10 ms while it stays silent, and must answer within 100 ms of the first.
+511-614 ms after a SetZero every drive goes quiet for 45-61 ms and drops any
+type-0 it receives meanwhile, so an `enable` right after `home` can land in that
+gap.
 
 **Enable after a fresh home.** A frame received in that gap is never acted on,
 so on SocketCAN Davout writes no Enable (nor its preceding type-24 Off) to a
-drive until 650 ms (`POST_SET_ZERO_QUIET`) after its last SetZero. An `enable`
+drive until 800 ms (`POST_SET_ZERO_QUIET`) after its last SetZero. An `enable`
 right after `home` succeeds; just-zeroed targets are enabled up to about
-650 ms later, and the log says "Enable held until the post-SetZero quiet
+800 ms later, and the log says "Enable held until the post-SetZero quiet
 elapses".
 
 ### Pi bench procedure

@@ -17,7 +17,9 @@ use davout::{
     ReferenceOutcome, Supervisor, POST_SET_ZERO_QUIET,
 };
 use marengo_config::{load_homing_config_from, load_motors_config_from, HomingMethod};
-use physical_firmware::{Firmware, FirmwareBus, SharedFirmware, SET_ZERO_BLACKOUT};
+use physical_firmware::{
+    Firmware, FirmwareBus, SharedFirmware, LATEST_SET_ZERO_BLACKOUT, SET_ZERO_BLACKOUT,
+};
 use robstride::{CommunicationType, DEFAULT_HOST_ID};
 use support::TestDirectory;
 
@@ -578,10 +580,11 @@ fn missing_identity_at_enable_revokes_without_enable() {
 fn identity_request_dropped_in_post_set_zero_blackout_is_asked_again() {
     // 2026-10-03 15:34:09 bench (candump-20261003T153408Z): right_shoulder_pitch
     // transmitted nothing from 1.1264 s to 1.1798 s, 534 ms after its SetZero,
-    // as each drive did once after its own (48-57 ms, also at 14:51:33). Enable
-    // admission's type-0 reached it at 1.1756 s and was never answered, so
-    // `enable` failed "device identity reply missing at admission".
-    const BLACKOUT: Duration = Duration::from_millis(57);
+    // as each drive did once after its own (45-61 ms over 124 measured
+    // blackouts). Enable admission's type-0 reached it at 1.1756 s and was
+    // never answered, so `enable` failed "device identity reply missing at
+    // admission". Longest measured blackout, rounded up:
+    const BLACKOUT: Duration = Duration::from_millis(61);
     let mut bench = Bench::physical("physical-enable-uid-blackout");
     bench.acquire(PITCH);
     bench.pump(Duration::from_millis(20));
@@ -655,6 +658,7 @@ fn coordinate_discontinuity_after_grant_revokes() {
         .borrow_mut()
         .drive_mut(PITCH)
         .zero_offset_motor_rad = 0.0;
+    bench.firmware.borrow_mut().emit_report(PITCH);
     bench.pump_once();
     assert_eq!(bench.state(PITCH), JointHomingState::Unhomed);
     // Continuous reporting at the new coordinate does not restore the grant.
@@ -1240,13 +1244,21 @@ fn writes_to(bench: &Bench, joint: &str) -> Vec<(u32, Instant)> {
 }
 
 /// PITCH, then ROLL (the last reference) referenced; `enable_targets` is
-/// called 530 ms after ROLL's SetZero, just before its 535-590 ms blackout,
+/// called 530 ms after ROLL's SetZero, before ROLL's blackout, which is the
+/// latest modeled one ([`LATEST_SET_ZERO_BLACKOUT`], 625-690 ms; bench worst
+/// case: right_elbow_pitch silent 614-667 ms after its SetZero on 2026-10-03),
 /// with PITCH's blackout already over. Unheld, ROLL's Off and Enable would
-/// follow within a few control periods: inside ROLL's blackout, where the
-/// drive never acts on them. Returns each joint's SetZero write time; the
-/// trace then holds only this enable session's writes.
+/// follow within a few control periods, and an Enable held only 650 ms would
+/// land inside ROLL's blackout, where the drive never acts on it. Returns each
+/// joint's SetZero write time; the trace then holds only this enable session's
+/// writes.
 fn enable_just_before_last_blackout(label: &str) -> (Bench, [(&'static str, Instant); 2]) {
     let mut bench = Bench::physical(label);
+    bench
+        .firmware
+        .borrow_mut()
+        .drive_mut(ROLL)
+        .set_zero_blackout = LATEST_SET_ZERO_BLACKOUT;
     bench.acquire(PITCH);
     bench.pump(Duration::from_millis(100));
     bench.acquire(ROLL);
@@ -1288,9 +1300,9 @@ fn drain_held_enables(bench: &mut Bench, roll_zeroed: Instant) -> Result<(), Dav
 
 #[test]
 fn enable_right_after_the_last_reference_is_held_past_the_set_zero_blackout() {
-    // Bench candump (rev 15542aa): each drive went silent for 48-57 ms about
-    // 535 ms after its SetZero; an Enable written then was never acted on, the
-    // drive stayed in Reset and the session latched DriveState.
+    // Bench candumps: each drive went silent for 45-61 ms 511-614 ms after its
+    // SetZero; an Enable written then was never acted on, the drive stayed in
+    // Reset and the session latched DriveState (rev 15542aa).
     let (mut bench, zeroed) = enable_just_before_last_blackout("physical-quiet-held");
     assert!(bench.supervisor.enable_writes_pending());
     assert_eq!(
@@ -1318,7 +1330,7 @@ fn enable_right_after_the_last_reference_is_held_past_the_set_zero_blackout() {
         );
         assert_off_settled_before_enable(&bench, joint);
     }
-    // Neither ROLL's Off nor its Enable was written inside its blackout.
+    // Neither ROLL's Off nor its Enable was written inside any modeled blackout.
     let (blackout_start, blackout_end) = SET_ZERO_BLACKOUT;
     for (comm_type, at) in writes_to(&bench, ROLL) {
         if comm_type == u32::from(CommunicationType::Enable.as_u8())

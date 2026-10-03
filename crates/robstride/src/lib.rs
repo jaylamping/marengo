@@ -17,6 +17,8 @@
 //! - [`receive`]: one shared nonblocking engine caps every poll at 64 raw frames and 256
 //!   read attempts, preserving unread suffixes and distinguishing quiescence from incomplete work.
 //! - [`state::MotorState`]: replaceable latest-state compatibility projection, not fault authority.
+//! - [`wire`]: direction-aware classification of captured frames (host command vs drive
+//!   frame) for offline candump analysis.
 //! - Optional SocketCAN backend (`socketcan` feature, Linux).
 //!   Received envelopes retain actual classic-CAN length and Data/Remote/Error class;
 //!   only extended Data frames with exactly eight bytes become status or detailed faults.
@@ -48,6 +50,7 @@ pub mod motor_type;
 pub mod params;
 pub mod receive;
 pub mod state;
+pub mod wire;
 
 pub use bus::{
     send_mit, send_motion, AddressedMitCommand, BusError, CanBus, CanFrame, JointMotion, MemoryBus,
@@ -72,7 +75,9 @@ pub use lifecycle::{
     encode_default_enable, encode_default_set_zero_position, encode_disable, encode_enable,
     encode_set_zero_position,
 };
-pub use mit::{encode_mit, mit_rx_id, mit_tx_id, MitCommand, MitFeedback};
+pub use mit::{
+    decode_mit_command_fields, encode_mit, mit_rx_id, mit_tx_id, MitCommand, MitFeedback,
+};
 pub use params::{
     decode_read_parameter_reply, encode_current_ref, encode_position_ref, encode_read_parameter,
     encode_set_run_mode, encode_speed_ref, encode_write_parameter, ParameterId, ParameterKind,
@@ -83,6 +88,7 @@ pub use receive::{
     MAX_RX_FRAMES_PER_POLL,
 };
 pub use state::MotorState;
+pub use wire::{classify_frame, DriveFrame, HostCommand, MitCommandFields, WireFrame};
 
 #[cfg(all(feature = "socketcan", target_os = "linux"))]
 pub mod vcan {

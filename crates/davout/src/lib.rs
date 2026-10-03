@@ -101,6 +101,8 @@ pub use reference_commit::{
 };
 pub use reference_journal::{ReferenceJournalDrain, ReferenceJournalError, ReferenceJournalResult};
 pub use reference_journal_event::ReferenceHistoryRecord;
+/// Firmware timing bounds, exported for the measured-profile conformance test.
+pub use reference_physical::{IDENTITY_ADMISSION_RETRY, IDENTITY_ADMISSION_TIMEOUT};
 
 pub use reference_transaction::{
     ReferenceCancelReason, ReferenceCause, ReferenceCommit, ReferenceError, ReferenceFailureKind,
@@ -135,15 +137,19 @@ pub const FREE_DRIVE_FEEDBACK_TTL: Duration = Duration::from_secs(5);
 /// Minimum time from a SetZero on the wire to the next Enable (or the type-24
 /// Off that precedes it) written to the same address on an echoing bus.
 ///
-/// Bench candumps (rev 15542aa; 2026-10-03 14:51:33 and 15:34:09, all five
-/// right-arm drives): about 535 ms after receiving a SetZero (type 6) every
-/// Robstride drive transmits nothing for 48-57 ms, and a frame it receives in
-/// that window is never acted on. An Enable written there leaves the drive in
-/// Reset, which latches a persistent `DriveState` fault after the Enable's echo.
-/// 650 ms clears the latest observed blackout end (~592 ms) with margin. The
-/// SetZero time is its host echo's read time (its write time until the echo is
-/// read), which bounds the wire time from above.
-pub const POST_SET_ZERO_QUIET: Duration = Duration::from_millis(650);
+/// Bench candumps of firmware 0.3.1.42 (eight captures 2026-10-03, 128
+/// SetZeros on all five right-arm drives; profile
+/// `docs/commissioning/firmware/robstride-timing-profile.json`): after
+/// receiving a SetZero (type 6) every Robstride drive transmits nothing for
+/// 45-61 ms, starting 511-543 ms later in 127 cases and 614 ms once
+/// (right_elbow_pitch, 15:34:08), and a frame it receives in that window is
+/// never acted on. An Enable written there leaves the drive in Reset, which
+/// latches a persistent `DriveState` fault after the Enable's echo. 800 ms is
+/// the latest observed blackout end (667 ms) plus 100 ms, rounded up to 50 ms;
+/// `tests/firmware_profile.rs` keeps that margin over the committed profile.
+/// The SetZero time is its host echo's read time (its write time until the
+/// echo is read), which bounds the wire time from above.
+pub const POST_SET_ZERO_QUIET: Duration = Duration::from_millis(800);
 
 use armee_kinematics::{
     clamp_position_in_envelope, joint_limit_bounds, joint_limits, load_urdf, LimitMarginConfig,

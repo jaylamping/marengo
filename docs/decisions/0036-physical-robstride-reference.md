@@ -44,7 +44,7 @@ BaselineStop   all-address stop; applied active reporting off, and the target's
 DrainOld       complete bounded drain of queued feedback
 RequestIdentity type-0 to the target (host 0xFD)
 AwaitIdentity  type-0 reply popped after the request; UID not claimed by another address
-AwaitReportingOff echoing bus: the target's type-24 Off echo read at least one control period ago, and POST_SET_ZERO_QUIET (650 ms) since the target's last SetZero
+AwaitReportingOff echoing bus: the target's type-24 Off echo read at least one control period ago, and POST_SET_ZERO_QUIET (800 ms; measured blackout end <= 667 ms) since the target's last SetZero
 ArmTarget      Enable to the target only
 DrainPostArm   complete drain
 SetZero        type-6 to the target; any attempt starts a new device coordinate epoch

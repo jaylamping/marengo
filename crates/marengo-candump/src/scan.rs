@@ -60,10 +60,14 @@ pub(crate) enum EnrichmentMode {
     Robstride(MotorCatalog),
 }
 
+/// Called with every parsed frame, in source order.
+pub(crate) type FrameVisitor<'a> = &'a mut dyn FnMut(&Frame);
+
 pub(crate) fn inspect_path(
     path: &Path,
     request: InspectRequest,
     enrichment: &EnrichmentMode,
+    visit: Option<FrameVisitor<'_>>,
 ) -> Result<Inspection, Error> {
     let meta_len = std::fs::metadata(path)
         .map(|m| m.len())
@@ -93,13 +97,14 @@ pub(crate) fn inspect_path(
     } else {
         Box::new(BufReader::new(file))
     };
-    scan_reader(reader, meta_len, request, enrichment)
+    scan_reader(reader, meta_len, request, enrichment, visit)
 }
 
 pub(crate) fn inspect_bytes(
     bytes: &[u8],
     request: InspectRequest,
     enrichment: &EnrichmentMode,
+    visit: Option<FrameVisitor<'_>>,
 ) -> Result<Inspection, Error> {
     let source_bytes = bytes.len() as u64;
     let gzipped = bytes.len() >= 2 && bytes[0] == GZIP_MAGIC[0] && bytes[1] == GZIP_MAGIC[1];
@@ -108,7 +113,7 @@ pub(crate) fn inspect_bytes(
     } else {
         Box::new(BufReader::new(Cursor::new(bytes)))
     };
-    scan_reader(reader, source_bytes, request, enrichment)
+    scan_reader(reader, source_bytes, request, enrichment, visit)
 }
 
 fn scan_reader(
@@ -116,6 +121,7 @@ fn scan_reader(
     source_bytes: u64,
     request: InspectRequest,
     enrichment: &EnrichmentMode,
+    mut visit: Option<FrameVisitor<'_>>,
 ) -> Result<Inspection, Error> {
     let mut acc = Accumulator::new(request);
     let mut buf = Vec::new();
@@ -152,7 +158,7 @@ fn scan_reader(
                 buf.pop();
             }
         }
-        acc.ingest_line(&buf, enrichment)?;
+        acc.ingest_line(&buf, enrichment, visit.as_deref_mut())?;
     }
     Ok(acc.finish(request.timestamp_mode(), source_bytes))
 }
@@ -188,7 +194,12 @@ impl Accumulator {
         }
     }
 
-    fn ingest_line(&mut self, buf: &[u8], enrichment: &EnrichmentMode) -> Result<(), Error> {
+    fn ingest_line<'v>(
+        &mut self,
+        buf: &[u8],
+        enrichment: &EnrichmentMode,
+        visit: Option<&mut (dyn FnMut(&Frame) + 'v)>,
+    ) -> Result<(), Error> {
         self.total_lines = self.total_lines.saturating_add(1);
         let line_no = NonZeroU64::new(self.total_lines).ok_or_else(|| Error::Io {
             path: PathBuf::from("<stream>"),
@@ -256,21 +267,29 @@ impl Accumulator {
             .entry(parsed.interface.clone())
             .or_insert(0) += 1;
 
-        if let Some(page) = self.page {
+        let in_page = self.page.is_some_and(|page| {
             let start = page.offset();
             let end = start.saturating_add(u64::from(page.limit()));
-            if frame_index >= start && frame_index < end {
-                let enrichment = enrich_frame(parsed.can_id, &parsed.interface, enrichment);
-                self.page_frames.push(Frame {
-                    offset,
-                    unix_time,
-                    interface: parsed.interface,
-                    can_id: parsed.can_id,
-                    data: parsed.data,
-                    source_line: line_no,
-                    enrichment,
-                });
-            }
+            frame_index >= start && frame_index < end
+        });
+        if !in_page && visit.is_none() {
+            return Ok(());
+        }
+        let enrichment = enrich_frame(parsed.can_id, &parsed.interface, enrichment);
+        let frame = Frame {
+            offset,
+            unix_time,
+            interface: parsed.interface,
+            can_id: parsed.can_id,
+            data: parsed.data,
+            source_line: line_no,
+            enrichment,
+        };
+        if let Some(visit) = visit {
+            visit(&frame);
+        }
+        if in_page {
+            self.page_frames.push(frame);
         }
 
         Ok(())
