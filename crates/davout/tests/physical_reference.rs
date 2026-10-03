@@ -375,6 +375,30 @@ fn matching_identity_admits_target_enable() {
     bench.supervisor.disable_all().expect("stop");
 }
 
+#[test]
+fn identity_request_transport_failure_latches_and_stops() {
+    let mut bench = Bench::physical("physical-identity-send-error");
+    bench.acquire(PITCH);
+    bench.pump(Duration::from_millis(20));
+    bench.firmware.borrow_mut().clear_trace();
+    bench
+        .firmware
+        .borrow_mut()
+        .drive_mut(PITCH)
+        .fail_writes
+        .push(CommunicationType::GetDeviceId.as_u8());
+
+    let error = bench
+        .supervisor
+        .enable_targets(&[PITCH.to_owned()])
+        .expect_err("identity send failure refuses Enable");
+    assert!(matches!(error, DavoutError::Bus(_)));
+    assert!(bench.supervisor.has_latched_fault());
+    assert_eq!(bench.sent_any(CommunicationType::Enable), 0);
+    assert!(!bench.firmware.borrow().failed_tx.is_empty());
+    bench.assert_all_drives_stopped();
+}
+
 // ---------------------------------------------------------------- acquisition refusals
 
 #[test]

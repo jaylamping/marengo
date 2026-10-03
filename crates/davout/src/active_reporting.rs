@@ -65,6 +65,7 @@ pub enum ActiveReportingLeaseError {
     UnknownJoint { joint: String },
     InvalidLeaseId,
     InvalidClientId,
+    InvalidTtl,
     TooManyLeases { joint: String },
     MissingLease { joint: String, lease_id: String },
 }
@@ -238,10 +239,15 @@ impl ActiveReportingState {
         known_joints: &MotorsConfigFile,
     ) -> Result<(), ActiveReportingLeaseError> {
         validate_ids(client_id, lease_id)?;
+        let expires = now
+            .checked_add(ttl)
+            .ok_or(ActiveReportingLeaseError::InvalidTtl)?;
         ensure_known_joint(joint, known_joints)?;
+        let client_id = client_id.trim();
+        let lease_id = lease_id.trim();
         let entry = LeaseEntry {
             client_id: client_id.to_string(),
-            expires: now + ttl,
+            expires,
         };
         let by_id = self.leases.entry(joint.to_string()).or_default();
         if !by_id.contains_key(lease_id) && by_id.len() >= MAX_LEASES_PER_JOINT {
@@ -263,7 +269,11 @@ impl ActiveReportingState {
         known_joints: &MotorsConfigFile,
     ) -> Result<(), ActiveReportingLeaseError> {
         validate_ids(client_id, lease_id)?;
+        let expires = now
+            .checked_add(ttl)
+            .ok_or(ActiveReportingLeaseError::InvalidTtl)?;
         ensure_known_joint(joint, known_joints)?;
+        let lease_id = lease_id.trim();
         let Some(by_id) = self.leases.get_mut(joint) else {
             return Err(ActiveReportingLeaseError::MissingLease {
                 joint: joint.to_string(),
@@ -277,23 +287,22 @@ impl ActiveReportingState {
             });
         };
         // Client may rotate labels; lease_id is authoritative.
-        entry.client_id = client_id.to_string();
-        entry.expires = now + ttl;
+        entry.client_id = client_id.trim().to_string();
+        entry.expires = expires;
         Ok(())
     }
-
     pub fn release(
         &mut self,
         joint: &str,
         lease_id: &str,
         known_joints: &MotorsConfigFile,
     ) -> Result<(), ActiveReportingLeaseError> {
-        if lease_id.trim().is_empty() || lease_id.len() > MAX_LEASE_ID_LEN {
+        if lease_id.trim().is_empty() || lease_id.trim().len() > MAX_LEASE_ID_LEN {
             return Err(ActiveReportingLeaseError::InvalidLeaseId);
         }
         ensure_known_joint(joint, known_joints)?;
         if let Some(by_id) = self.leases.get_mut(joint) {
-            by_id.remove(lease_id);
+            by_id.remove(lease_id.trim());
             if by_id.is_empty() {
                 self.leases.remove(joint);
             }
@@ -620,6 +629,33 @@ mod tests {
         assert!(state.applied_on("j1"), "the held peer keeps streaming");
     }
 
+    #[test]
+    fn lease_inputs_are_canonical_and_ttl_overflow_is_rejected() {
+        let motors = motors_two();
+        let now = Instant::now();
+        let mut state = ActiveReportingState::default();
+
+        assert!(matches!(
+            state.acquire("j1", "client", "lease", Duration::MAX, now, &motors),
+            Err(ActiveReportingLeaseError::InvalidTtl)
+        ));
+        assert_eq!(state.lease_count("j1", now), 0);
+
+        state
+            .acquire(
+                "j1",
+                " client ",
+                " lease-a ",
+                DEFAULT_LEASE_TTL,
+                now,
+                &motors,
+            )
+            .expect("acquire canonical lease");
+        state
+            .release("j1", "lease-a", &motors)
+            .expect("trimmed ID is used consistently");
+        assert_eq!(state.lease_count("j1", now), 0);
+    }
     #[test]
     fn stale_release_does_not_kill_newer_lease() {
         let motors = motors_two();
