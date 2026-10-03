@@ -224,6 +224,7 @@ mod tests {
                 homing_state: ProtoJointHomingState::Verified as i32,
                 drive_active: true,
                 out_of_limits: false,
+                sample_age_ms: 0,
             }],
         };
         let bytes = msg.encode_to_vec();
@@ -249,6 +250,7 @@ mod tests {
             homing_state: 0,
             drive_active: false,
             out_of_limits: false,
+            sample_age_ms: 0,
         };
         let bytes = legacy.encode_to_vec();
         let decoded = JointState::decode(bytes.as_slice()).expect("decode");

@@ -42,6 +42,7 @@ mod tests {
                 homing_state: JointHomingState::Verified as i32,
                 drive_active: true,
                 out_of_limits: false,
+                sample_age_ms: 12,
             }],
         };
         let bytes = msg.encode_to_vec();
@@ -134,6 +135,7 @@ mod tests {
             gyro_z_rad_s: 0.0,
             has_accel: true,
             has_gyro: false,
+            sample_seq: 7,
         };
         let bytes = msg.encode_to_vec();
         let decoded = ImuSample::decode(bytes.as_slice()).expect("decode");
