@@ -133,12 +133,15 @@ pub async fn command_actuator(
     }
 
     let payload = operator.encode_to_vec();
-    if let Err(e) = state.publish_command_envelope(
-        TOPIC_ACTUATOR_COMMAND,
-        "consul",
-        "marengo.v1.OperatorCommand",
-        payload,
-    ) {
+    if let Err(e) = state
+        .publish_command_envelope(
+            TOPIC_ACTUATOR_COMMAND,
+            "consul",
+            "marengo.v1.OperatorCommand",
+            payload,
+        )
+        .await
+    {
         state.rate_limiter.refund(client_id, &canonical, bucket);
         return Err((StatusCode::BAD_GATEWAY, e));
     }

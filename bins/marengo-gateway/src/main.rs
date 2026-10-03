@@ -167,9 +167,27 @@ async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     chappe::tracing_layer::init_subscriber(Some(Arc::clone(&bus)), "marengo-gateway");
     let state_holder = Arc::new(std::sync::Mutex::new(IpcStateHolder::default()));
 
+    // `--demo` synthesizes traffic at 20 Hz for UI work without a runtime.
+    // It must never write into the real Store: point it at an ephemeral
+    // per-process directory so demo ticks cannot pollute operator logs,
+    // sessions, or archive blobs.
+    let demo_root: Option<std::path::PathBuf> = args.demo.then(|| {
+        let dir = std::env::temp_dir().join(format!("marengo-gateway-demo-{}", std::process::id()));
+        let _ = std::fs::create_dir_all(dir.join("var").join("log"));
+        dir
+    });
+    if demo_root.is_some() {
+        info!("demo publisher enabled (ephemeral store; no marengo-pi required)");
+    }
+
     let logs = {
-        let root = marengo_store::resolve_marengo_root();
-        let db = marengo_store::resolve_db_path();
+        let root = demo_root
+            .clone()
+            .unwrap_or_else(marengo_store::resolve_marengo_root);
+        let db = demo_root
+            .as_ref()
+            .map(|dir| dir.join("marengo.db"))
+            .unwrap_or_else(marengo_store::resolve_db_path);
         let config_dir = marengo_config::resolve_config_dir(&root);
         let candump = match marengo_candump::Candump::with_robstride_from_config_dir(&config_dir) {
             Ok(c) => {
@@ -254,7 +272,6 @@ async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     marengo_deploy::init_upstream_cache_from_disk();
 
     if args.demo {
-        info!("demo publisher enabled (no marengo-pi required)");
         webtransport::spawn_demo_publisher(Arc::clone(&state));
     }
 

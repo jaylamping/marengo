@@ -289,9 +289,11 @@ pub async fn snapshot_logs_recent(
 ) -> Result<Json<StructuredLogListJson>, StatusCode> {
     let limit = query.limit.clamp(1, 10_000);
     let logs = state.logs.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    let rows = logs
-        .store
-        .recent_log_events(limit)
+    // SQLite reads run on the blocking pool, never on a Tokio worker.
+    let store = std::sync::Arc::clone(&logs.store);
+    let rows = tokio::task::spawn_blocking(move || store.recent_log_events(limit))
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let entries: Vec<StructuredLogEntryJson> = rows
         .into_iter()
@@ -327,15 +329,18 @@ pub async fn list_sessions(
     Query(query): Query<SessionsQuery>,
 ) -> Result<Json<LogSessionListJson>, StatusCode> {
     let logs = state.logs.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    let rows = logs
-        .store
-        .list_sessions(
+    let store = std::sync::Arc::clone(&logs.store);
+    let rows = tokio::task::spawn_blocking(move || {
+        store.list_sessions(
             query.from_ms,
             query.to_ms,
             query.label.as_deref(),
             query.limit,
         )
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let sessions = rows
         .into_iter()
         .map(|s| LogSessionMetaJson {
@@ -371,10 +376,12 @@ pub async fn session_bench(
     Query(query): Query<PageQuery>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     let logs = state.logs.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    let (lines, total) = logs
-        .store
-        .read_bench_page(&id, query.offset, query.limit)
-        .map_err(|_| StatusCode::NOT_FOUND)?;
+    let store = std::sync::Arc::clone(&logs.store);
+    let (lines, total) =
+        tokio::task::spawn_blocking(move || store.read_bench_page(&id, query.offset, query.limit))
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+            .map_err(|_| StatusCode::NOT_FOUND)?;
     Ok(Json(serde_json::json!({ "lines": lines, "total": total })))
 }
 
@@ -384,10 +391,12 @@ pub async fn session_trace(
     Query(query): Query<PageQuery>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     let logs = state.logs.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    let (lines, total) = logs
-        .store
-        .read_trace_page(&id, query.offset, query.limit)
-        .map_err(|_| StatusCode::NOT_FOUND)?;
+    let store = std::sync::Arc::clone(&logs.store);
+    let (lines, total) =
+        tokio::task::spawn_blocking(move || store.read_trace_page(&id, query.offset, query.limit))
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+            .map_err(|_| StatusCode::NOT_FOUND)?;
     Ok(Json(serde_json::json!({ "lines": lines, "total": total })))
 }
 
@@ -397,10 +406,13 @@ pub async fn session_candump(
     Query(query): Query<PageQuery>,
 ) -> Result<Json<CandumpPageJson>, StatusCode> {
     let logs = state.logs.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    let inspection = logs
-        .store
-        .read_candump_page(&id, query.offset, query.limit)
-        .map_err(|_| StatusCode::NOT_FOUND)?;
+    let store = std::sync::Arc::clone(&logs.store);
+    let inspection = tokio::task::spawn_blocking(move || {
+        store.read_candump_page(&id, query.offset, query.limit)
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|_| StatusCode::NOT_FOUND)?;
     Ok(Json(candump_page_json(inspection, query.offset)))
 }
 
@@ -409,10 +421,12 @@ pub async fn latest_candump(
     Query(query): Query<PageQuery>,
 ) -> Result<Json<CandumpPageJson>, StatusCode> {
     let logs = state.logs.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    let inspection = logs
-        .store
-        .read_hot_candump_page(query.offset, query.limit)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let store = std::sync::Arc::clone(&logs.store);
+    let inspection =
+        tokio::task::spawn_blocking(move || store.read_hot_candump_page(query.offset, query.limit))
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(Json(candump_page_json(inspection, query.offset)))
 }
 
@@ -421,9 +435,10 @@ pub async fn session_candump_summary(
     Path(id): Path<String>,
 ) -> Result<Json<CandumpSummaryJson>, StatusCode> {
     let logs = state.logs.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    let summary = logs
-        .store
-        .candump_summary(&id)
+    let store = std::sync::Arc::clone(&logs.store);
+    let summary = tokio::task::spawn_blocking(move || store.candump_summary(&id))
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .map_err(|_| StatusCode::NOT_FOUND)?;
     Ok(Json(candump_summary_json(summary)))
 }
@@ -432,9 +447,10 @@ pub async fn latest_candump_summary(
     State(state): State<SharedState>,
 ) -> Result<Json<CandumpSummaryJson>, StatusCode> {
     let logs = state.logs.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    let summary = logs
-        .store
-        .hot_candump_summary()
+    let store = std::sync::Arc::clone(&logs.store);
+    let summary = tokio::task::spawn_blocking(move || store.hot_candump_summary())
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(Json(candump_summary_json(summary)))
 }
@@ -458,9 +474,9 @@ pub async fn structured_logs(
     Query(query): Query<StructuredQuery>,
 ) -> Result<Json<StructuredLogListJson>, StatusCode> {
     let logs = state.logs.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    let (rows, total) = logs
-        .store
-        .query_structured_logs(&StructuredLogQuery {
+    let store = std::sync::Arc::clone(&logs.store);
+    let (rows, total) = tokio::task::spawn_blocking(move || {
+        store.query_structured_logs(&StructuredLogQuery {
             from_ms: query.from_ms,
             to_ms: query.to_ms,
             level: query.level,
@@ -470,7 +486,10 @@ pub async fn structured_logs(
             offset: query.offset,
             limit: query.limit,
         })
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let entries = rows
         .into_iter()
         .map(|e| StructuredLogEntryJson {
@@ -495,16 +514,22 @@ pub async fn get_settings(
     State(state): State<SharedState>,
 ) -> Result<Json<SettingsResponse>, StatusCode> {
     let logs = state.logs.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    let mut settings = std::collections::HashMap::new();
-    for key in [
-        "schema_version",
-        "log_archive_days",
-        "log_disk_budget_bytes",
-    ] {
-        if let Ok(Some(val)) = logs.store.get_setting(key) {
-            settings.insert(key.to_string(), val);
+    let store = std::sync::Arc::clone(&logs.store);
+    let settings = tokio::task::spawn_blocking(move || {
+        let mut settings = std::collections::HashMap::new();
+        for key in [
+            "schema_version",
+            "log_archive_days",
+            "log_disk_budget_bytes",
+        ] {
+            if let Ok(Some(val)) = store.get_setting(key) {
+                settings.insert(key.to_string(), val);
+            }
         }
-    }
+        settings
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(Json(SettingsResponse { settings }))
 }
 
@@ -514,19 +539,20 @@ pub async fn session_download(
     Query(query): Query<DownloadQuery>,
 ) -> Result<Response, StatusCode> {
     let logs = state.logs.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    let session = logs
-        .store
-        .get_session(&id)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .ok_or(StatusCode::NOT_FOUND)?;
-    let path = match query.kind.as_str() {
-        "candump" => session.candump_blob,
-        "bench" => session.bench_blob,
-        "trace" => session.trace_blob,
-        _ => None,
-    }
+    let store = std::sync::Arc::clone(&logs.store);
+    let bytes = tokio::task::spawn_blocking(move || {
+        let session = store.get_session(&id).ok().flatten()?;
+        let path = match query.kind.as_str() {
+            "candump" => session.candump_blob,
+            "bench" => session.bench_blob,
+            "trace" => session.trace_blob,
+            _ => None,
+        }?;
+        std::fs::read(&path).ok()
+    })
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
     .ok_or(StatusCode::NOT_FOUND)?;
-    let bytes = std::fs::read(&path).map_err(|_| StatusCode::NOT_FOUND)?;
     Ok((
         StatusCode::OK,
         [(axum::http::header::CONTENT_TYPE, "application/gzip")],
