@@ -108,11 +108,13 @@ pub enum ConfigError {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RobotConfigFile {
     pub robot: RobotSection,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RobotSection {
     pub name: String,
     pub urdf: String,
@@ -125,12 +127,14 @@ pub struct RobotSection {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct BenchSection {
     pub max_joint_velocity_rad_s: f64,
     pub max_joint_torque_nm: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct MotorsConfigFile {
     pub motors: Vec<MotorEntry>,
 }
@@ -145,6 +149,7 @@ pub enum MotorType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct MotorEntry {
     pub joint: String,
     pub driver: String,
@@ -176,6 +181,7 @@ fn default_active_reporting_diagnostics() -> bool {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct MotorBenchLimits {
     pub position_lower_rad: f64,
     pub position_upper_rad: f64,
@@ -355,11 +361,13 @@ pub fn load_motor_stop_targets(
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ControlConfigFile {
     pub control: ControlSection,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ControlSection {
     pub loop_hz: u32,
     pub chappe_state_hz: u32,
@@ -389,6 +397,7 @@ pub struct ControlSection {
 /// of `torque_ff` is config-driven: `expected_sign_at_positive_q` tells the
 /// watchdog what sign the motor torque should have when `q > 0`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct WrongSignWatchdogConfig {
     #[serde(default = "default_true")]
     pub enabled: bool,
@@ -436,12 +445,14 @@ fn default_grace_period_ticks() -> u32 {
 
 /// Shared tuning for a named actuator grouping (e.g. shoulder pitch L/R, hips).
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ActuatorGroupEntry {
     pub joints: Vec<String>,
     pub velocity_max_rad_s: f64,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ControlBenchSection {
     #[serde(default)]
     pub allow_firmware_speed_mode: bool,
@@ -450,6 +461,7 @@ pub struct ControlBenchSection {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct MotorTypeDefaults {
     pub kp_max: f64,
     pub kd_max: f64,
@@ -458,6 +470,7 @@ pub struct MotorTypeDefaults {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct JointControlEntry {
     pub motor_type: MotorType,
     pub gravity_comp: ModeGains,
@@ -858,6 +871,7 @@ pub fn commanded_position_window(
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ModeGains {
     pub kp: f64,
     pub kd: f64,
@@ -865,6 +879,7 @@ pub struct ModeGains {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct FrictionGains {
     pub fc: f64,
     pub fv: f64,
@@ -873,6 +888,7 @@ pub struct FrictionGains {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct DangerZoneRule {
     pub name: String,
     pub joint: String,
@@ -891,11 +907,13 @@ pub fn load_homing_config(repo_root: impl AsRef<Path>) -> Result<HomingConfigFil
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct HomingConfigFile {
     pub homing: HomingSection,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct HomingSection {
     pub zero_verify_tolerance_rad: f64,
     pub calibration_record_path: String,
@@ -913,6 +931,7 @@ pub enum HomingMethod {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct HomingJointDefaults {
     #[serde(default = "default_homing_method")]
     pub method: HomingMethod,
@@ -986,6 +1005,7 @@ fn default_true() -> bool {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct HomingJointEntry {
     #[serde(default = "default_homing_method")]
     pub method: HomingMethod,
@@ -994,6 +1014,7 @@ pub struct HomingJointEntry {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct HomingJointOverrides {
     #[serde(default)]
     pub home_offset_rad: Option<f64>,
@@ -1016,6 +1037,7 @@ pub struct HomingJointOverrides {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct HomingSensors {
     pub home: SensorInput,
     pub min_limit: SensorInput,
@@ -1023,6 +1045,7 @@ pub struct HomingSensors {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SensorInput {
     pub gpio: u8,
     #[serde(default = "default_true")]

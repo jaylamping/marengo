@@ -36,6 +36,7 @@ pub enum ResolutionChoice {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct FieldResolution {
     pub joint: String,
     pub field: String,

@@ -310,6 +310,12 @@ fn validate_homing_numbers(
     positive(format_args!("{field}.search_velocity_rad_s"), velocity)?;
     nonnegative(format_args!("{field}.search_torque_nm"), torque)?;
     positive(format_args!("{field}.search_timeout_s"), timeout)?;
+    if timeout > 300.0 {
+        return Err(invalid(
+            format!("{field}.search_timeout_s"),
+            "must be <= 300 seconds",
+        ));
+    }
     if Duration::try_from_secs_f64(timeout).is_err() {
         return Err(invalid(
             format!("{field}.search_timeout_s"),
@@ -326,6 +332,12 @@ pub fn validate_homing_config(cfg: &HomingConfigFile) -> Result<(), ConfigError>
         "homing.zero_verify_tolerance_rad",
         homing.zero_verify_tolerance_rad,
     )?;
+    if homing.zero_verify_tolerance_rad > 0.1 {
+        return Err(invalid(
+            "homing.zero_verify_tolerance_rad",
+            "must be <= 0.1 rad",
+        ));
+    }
     let defaults = &homing.defaults;
     validate_homing_numbers(
         "homing.defaults",

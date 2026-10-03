@@ -96,6 +96,11 @@ after the ack, within the same tolerance. Then come the all-address stop, the
 durable journal row and the grant. Grants accumulate per joint and bind the MCU
 UID.
 
+`zero_verify_tolerance_rad` must be finite, positive, and at most `0.1` rad;
+`search_timeout_s` must be finite, positive, and at most `300` seconds.
+Homing config is schema-checked: unknown YAML keys are rejected rather than
+silently ignored.
+
 **Same process.** Grants never cross processes, so home and enable through
 one `marengo-pi`:
 

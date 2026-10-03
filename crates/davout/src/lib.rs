@@ -2048,6 +2048,9 @@ impl<B: MotorBus> Supervisor<B> {
             });
         }
         for (index, motor) in self.motors.motors.iter().enumerate() {
+            if !self.active_joints.contains(&motor.joint) {
+                continue;
+            }
             let address = self.address_for(index, motor);
             let Some(state) = self.motor_states.get(&*address) else {
                 continue;
@@ -2663,9 +2666,33 @@ impl<B: MotorBus> Supervisor<B> {
         cmd: MitJointCommand,
         motor: &MotorEntry,
     ) -> Result<MitJointCommand, DavoutError> {
+        let index = self
+            .motor_index(&cmd.joint)
+            .ok_or_else(|| DavoutError::UnknownJoint {
+                joint: cmd.joint.clone(),
+            })?;
+        let configured = &self.motors.motors[index];
+        if motor.joint != configured.joint
+            || motor.can_interface != configured.can_interface
+            || motor.device_id != configured.device_id
+            || motor.motor_type != configured.motor_type
+            || motor.direction != configured.direction
+            || motor.gear_ratio != configured.gear_ratio
+        {
+            return Err(DavoutError::InvalidMotorConfig {
+                joint: cmd.joint.clone(),
+                message: "filter motor differs from configured joint mapping".into(),
+            });
+        }
+        validate_safety_config(
+            &self.robot,
+            &self.motors,
+            &self.control,
+            &self.homing_config,
+        )?;
         let tick = Instant::now();
-        let feedback = self.motor_index(&cmd.joint);
-        let (out, q_meas, dq_meas) = self.filter_mit_core(cmd, motor, feedback, self.last_tick)?;
+        let (out, q_meas, dq_meas) =
+            self.filter_mit_core(cmd, configured, Some(index), self.last_tick)?;
         // Unlike a batch, a single filter keeps limiter/watchdog advances on error.
         store_by_joint(&mut self.last_tau_ff, &out.joint, out.torque_ff_nm);
         if let Some((state, admitted)) = self.wrong_sign_step(&out, q_meas, dq_meas) {
@@ -2707,10 +2734,15 @@ impl<B: MotorBus> Supervisor<B> {
             })?;
 
         let mut out = cmd;
-        if out.kp > defaults.kp_max || out.kd > defaults.kd_max {
+        let gain_scale = motor_position_scale(motor)?.powi(2);
+        if !gain_scale.is_finite()
+            || gain_scale <= 0.0
+            || out.kp / gain_scale > defaults.kp_max
+            || out.kd / gain_scale > defaults.kd_max
+        {
             return Err(DavoutError::Limit {
                 joint: out.joint.clone(),
-                message: "kp/kd exceed motor type max".to_string(),
+                message: "motor-space kp/kd exceed motor type max".to_string(),
             });
         }
         // Separate gated reads, as before: each applies its own freshness instant.
@@ -3521,6 +3553,37 @@ mod tests {
     }
 
     #[test]
+    fn scoped_watchdog_ignores_cached_motor_fault_on_inactive_peer() {
+        let mut sup = Supervisor::from_simulation(
+            repo_root(),
+            SimulationBus::default(),
+            InitialVirtualReference::AllConfigured,
+        )
+        .expect("supervisor");
+        bench_active(&mut sup);
+        initial_poses(&mut sup, "right_elbow_pitch", 0.0, 0.0);
+        sup.active_joints.clear();
+        sup.active_joints.insert("right_elbow_pitch".to_string());
+
+        let peer = motor_for_joint(&sup.motors, "right_shoulder_pitch")
+            .expect("inactive peer")
+            .clone();
+        sup.motor_states.insert(
+            MotorAddress::from(&peer),
+            MotorState {
+                position_rad: 0.0,
+                velocity_rad_s: 0.0,
+                torque_nm: 0.0,
+                temperature_c: 25.0,
+                fault: 1,
+                updated: Some(Instant::now()),
+            },
+        );
+
+        assert!(sup.check_comm_watchdog(false).is_ok());
+    }
+
+    #[test]
     fn calibrate_joint_zero_refuses_while_active() {
         let bus = SimulationBus::default();
         let mut sup =
@@ -3690,13 +3753,7 @@ mod tests {
             InitialVirtualReference::AllConfigured,
         )
         .expect("supervisor");
-        sup.last_feedback_samples.insert(
-            "right_elbow_pitch".to_string(),
-            FeedbackSample {
-                position_rad: 1.0,
-                received_at: Instant::now(),
-            },
-        );
+        receive_pose(&mut sup, "right_elbow_pitch", 1.0, 0.0);
 
         let err = sup
             .apply_limit_patch(&elbow_limit_patch(0.1, 0.9))
@@ -4842,6 +4899,95 @@ mod tests {
         let policy = sup.joint_limit_policy("right_elbow_pitch").expect("policy");
         assert!(out.position_rad <= policy.hard_upper());
         assert!(out.position_rad < 99.0);
+    }
+
+    #[test]
+    fn mit_filter_clamps_position_into_the_live_envelope() {
+        let mut sup = Supervisor::from_simulation(
+            repo_root(),
+            SimulationBus::default(),
+            InitialVirtualReference::AllConfigured,
+        )
+        .expect("supervisor");
+        receive_pose(&mut sup, "right_elbow_pitch", 0.5, 0.0);
+        let motor = motor_for_joint(&sup.motors, "right_elbow_pitch")
+            .expect("motor")
+            .clone();
+        let out = sup
+            .filter_mit_command(
+                MitJointCommand {
+                    joint: motor.joint.clone(),
+                    kp: 10.0,
+                    kd: 0.0,
+                    position_rad: 99.0,
+                    velocity_rad_s: 0.0,
+                    torque_ff_nm: 0.0,
+                },
+                &motor,
+            )
+            .expect("valid MIT command clamps");
+        let policy = sup.joint_limit_policy(&motor.joint).expect("policy");
+        assert!(out.position_rad <= policy.hard_upper());
+        assert!(out.position_rad < 99.0);
+    }
+
+    #[test]
+    fn mit_gain_caps_are_checked_after_joint_to_motor_gear_scaling() {
+        let mut sup = Supervisor::from_simulation(
+            repo_root(),
+            SimulationBus::default(),
+            InitialVirtualReference::AllConfigured,
+        )
+        .expect("supervisor");
+        let motor = sup
+            .motors
+            .motors
+            .iter_mut()
+            .find(|motor| motor.joint == "right_elbow_pitch")
+            .expect("elbow motor");
+        motor.gear_ratio = 2.0;
+        let motor = motor.clone();
+        let out = sup
+            .filter_mit_command(
+                MitJointCommand {
+                    joint: motor.joint.clone(),
+                    kp: 1500.0,
+                    kd: 15.0,
+                    position_rad: 0.0,
+                    velocity_rad_s: 0.0,
+                    torque_ff_nm: 0.0,
+                },
+                &motor,
+            )
+            .expect("wire gains are under type caps");
+        assert_eq!(out.kp, 1500.0);
+        assert_eq!(out.kd, 15.0);
+    }
+
+    #[test]
+    fn public_mit_filter_refuses_mutated_invalid_policy_before_clamping() {
+        let mut sup = Supervisor::from_simulation(
+            repo_root(),
+            SimulationBus::default(),
+            InitialVirtualReference::AllConfigured,
+        )
+        .expect("supervisor");
+        let motor = motor_for_joint(&sup.motors, "right_elbow_pitch")
+            .expect("motor")
+            .clone();
+        sup.control.control.tau_ff_rate_limit_nm_per_s = f64::NAN;
+        let result = sup.filter_mit_command(
+            MitJointCommand {
+                joint: motor.joint.clone(),
+                kp: 10.0,
+                kd: 0.0,
+                position_rad: 0.0,
+                velocity_rad_s: 0.0,
+                torque_ff_nm: 0.0,
+            },
+            &motor,
+        );
+        assert!(matches!(result, Err(DavoutError::Config(_))));
     }
 
     fn wrong_sign_sup_at(velocity: f32) -> Supervisor<SimulationBus> {
