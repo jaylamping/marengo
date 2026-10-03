@@ -5,9 +5,10 @@ use std::time::{Duration, Instant};
 
 use marengo_config::MotorType;
 use robstride::{
-    BusError, CanBus, CanFrame, DriveMode, FeedbackEvent, MalformedReason, MemoryBus, MotorAddress,
-    MotorBus, MotorState, ReceiveAttempt, ReceiveCompletion, ReceiveLimits, ReceivedCanFrame,
-    RxFrameKind, TimedCanFrame,
+    encode_default_active_reporting, encode_default_enable, encode_enable, AddressedMitCommand,
+    BusError, CanBus, CanFrame, DriveMode, FeedbackEvent, MalformedReason, MemoryBus, MitCommand,
+    MotorAddress, MotorBus, MotorState, ParameterId, ReceiveAttempt, ReceiveCompletion,
+    ReceiveLimits, ReceivedCanFrame, RunMode, RxFrameKind, TimedCanFrame,
 };
 
 const POSE: [u8; 8] = [0x7f, 0xff, 0x7f, 0xff, 0x7f, 0xff, 0, 0xc8];
@@ -453,4 +454,106 @@ fn memory_backlog_suffix_retains_fifo_payloads_between_bounded_polls() {
         .collect::<Vec<_>>();
     assert_eq!(payloads, (0..130).collect::<Vec<_>>());
     assert!(bus.rx_queue.is_empty());
+}
+
+/// Every frame this host transmits, read back as a SocketCAN echo.
+fn own_transmissions(address: &MotorAddress) -> Vec<CanFrame> {
+    let mut host = MemoryBus::default();
+    host.mit_control_all_at(&[AddressedMitCommand {
+        address: address.clone(),
+        command: MitCommand {
+            device_id: address.device_id,
+            motor_type: MotorType::Rs03,
+            position_rad: 0.0,
+            velocity_rad_s: 0.0,
+            kp: 0.0,
+            kd: 0.0,
+            torque_ff_nm: 0.0,
+        },
+    }])
+    .expect("mit");
+    host.disable_drive_at(address).expect("disable");
+    host.set_zero_position_at(address).expect("set zero");
+    host.get_device_id_at(address).expect("identity request");
+    host.read_parameter_at(address, ParameterId::MechPos)
+        .expect("read request");
+    host.set_run_mode_at(address, RunMode::Mit)
+        .expect("run mode");
+    host.speed_control_at(address, 0.0).expect("speed");
+    host.enable_active_reporting_at(address)
+        .expect("reporting on");
+    host.disable_active_reporting_at(address)
+        .expect("reporting off");
+    host.enable_drive_at(address).expect("enable");
+    host.tx
+}
+
+fn echoes(frames: &[CanFrame]) -> ScriptedBus {
+    ScriptedBus::new(
+        frames
+            .iter()
+            .map(|frame| Step::Frame(data(frame.id, &frame.data))),
+    )
+}
+
+#[test]
+fn own_transmission_echoes_are_bounded_reads_but_never_feedback_or_replies() {
+    let address = MotorAddress::new("can0", 1);
+    let sent = own_transmissions(&address);
+    let report = echoes(&sent).recv_feedback_report(&types(), Duration::ZERO, Duration::ZERO);
+    assert_eq!(report.completion, ReceiveCompletion::Idle);
+    assert_eq!(report.raw_frames, sent.len(), "echoes share the raw bound");
+    assert!(report.observations.is_empty(), "{:?}", report.observations);
+    assert!(report.transport_frames.is_empty());
+    assert!(report.identities.is_empty(), "a request is not a reply");
+    assert!(
+        report.parameter_reads.is_empty(),
+        "a request is not a reply"
+    );
+    assert_eq!(report.enable_echoes.len(), 1);
+    let echo = &report.enable_echoes[0];
+    assert_eq!(echo.address, address);
+    assert_eq!(echo.order, sent.len() - 1, "wire position, not write time");
+    assert_eq!(echo.can_id, encode_default_enable(1).0);
+
+    // A waiting poll that read only echoes saw no drive at all.
+    let report =
+        echoes(&sent).recv_feedback_report(&types(), Duration::from_millis(1), Duration::ZERO);
+    assert!(matches!(report.terminal_error, Some(BusError::RecvTimeout)));
+}
+
+#[test]
+fn only_this_hosts_exact_enable_to_a_configured_address_is_an_echo() {
+    let (own, _) = encode_default_enable(1);
+    let mut bus = ScriptedBus::new([
+        Step::Frame(data(own, &[1, 0, 0, 0, 0, 0, 0, 0])),
+        Step::Frame(data(own, &[0; 4])),
+        Step::Frame(
+            ReceivedCanFrame::new_remote(Some("can0".into()), own, true, 8).expect("request"),
+        ),
+        Step::Frame(data(encode_default_enable(9).0, &[0; 8])),
+        Step::Frame(data(encode_enable(0x20, 1).0, &[0; 8])),
+    ]);
+    let report = bus.recv_feedback_report(&types(), Duration::ZERO, Duration::ZERO);
+    assert!(
+        report.enable_echoes.is_empty(),
+        "{:?}",
+        report.enable_echoes
+    );
+    assert!(report.observations.is_empty());
+}
+
+#[test]
+fn host_reporting_command_is_not_a_report_even_at_the_host_device_id() {
+    // Status-type reports carry the drive in bits 8..15; a host type-24 command
+    // carries the host id there and must never resolve to that address.
+    let types = HashMap::from([(
+        MotorAddress::new("can0", robstride::DEFAULT_HOST_ID),
+        MotorType::Rs03,
+    )]);
+    let (id, payload) = encode_default_active_reporting(5, true);
+    let mut bus = ScriptedBus::new([Step::Frame(data(id, &payload))]);
+    let report = bus.recv_feedback_report(&types, Duration::ZERO, Duration::ZERO);
+    assert_eq!(report.raw_frames, 1);
+    assert!(report.observations.is_empty(), "{:?}", report.observations);
 }

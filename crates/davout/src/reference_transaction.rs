@@ -995,6 +995,9 @@ impl<B: MotorBus> Supervisor<B> {
                 if let Err(error) = self.bus.enable_drive_at(&reservation.address) {
                     return self.fail_reference(ReferenceFailureKind::Delivery, &error.to_string());
                 }
+                if self.bus.echoes_transmissions() {
+                    self.enable_echo_pending.insert(reservation.address.clone());
+                }
                 ReferencePhase::DrainPostArm
             }
             ReferencePhase::SetZero => {
@@ -1137,6 +1140,14 @@ impl<B: MotorBus> Supervisor<B> {
                         ReferencePhase::RequestIdentity
                     }
                     ReferencePhase::DrainOld => ReferencePhase::ArmTarget,
+                    // On an echoing bus the target is armed for the strict Run
+                    // check only once its Enable is read back from the wire; the
+                    // unrenewed phase deadline fails a missing echo closed.
+                    ReferencePhase::DrainPostArm
+                        if self.enable_echo_pending.contains(&reservation.address) =>
+                    {
+                        ReferencePhase::DrainPostArm
+                    }
                     ReferencePhase::DrainPostArm => ReferencePhase::SetZero,
                     ReferencePhase::AwaitIdentity => {
                         let physical = &self.reference_owner.physical;

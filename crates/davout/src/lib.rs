@@ -371,6 +371,11 @@ pub struct Supervisor<B: MotorBus> {
     bus: B,
     motor_states: FxHashMap<MotorAddress, MotorState>,
     active_since: Option<Instant>,
+    /// Echoing buses only: addresses whose latest Enable write has not yet been
+    /// read back from the wire. A write only queues the frame, so drive traffic
+    /// read after it may predate the Enable on the bus; the strict Run
+    /// expectation and session pose start at the echo instead.
+    enable_echo_pending: FxHashSet<MotorAddress>,
     invalid_feedback: FxHashSet<MotorAddress>,
     last_tau_ff: FxHashMap<String, f64>,
     feedback_velocity_trips: FxHashMap<String, u8>,
@@ -577,6 +582,7 @@ impl<B: MotorBus> Supervisor<B> {
             bus,
             motor_states: FxHashMap::default(),
             active_since: None,
+            enable_echo_pending: FxHashSet::default(),
             invalid_feedback: FxHashSet::default(),
             last_tau_ff: FxHashMap::default(),
             feedback_velocity_trips: FxHashMap::default(),
@@ -1428,6 +1434,11 @@ impl<B: MotorBus> Supervisor<B> {
                 );
                 self.bus.enable_drive_at(&address)?;
                 self.bus.set_run_mode_at(&address, RunMode::Mit)?;
+                // The writes only queued the Enable. Nothing is read in between,
+                // so its echo can only be popped after this mark.
+                if self.bus.echoes_transmissions() {
+                    self.enable_echo_pending.insert(address);
+                }
             }
             // Drives can queue status while enable/run-mode writes are still
             // in progress. Decode that traffic before establishing this session
@@ -1577,7 +1588,13 @@ impl<B: MotorBus> Supervisor<B> {
         self.last_refresh_frames = self.last_refresh_frames.saturating_add(count);
         let consumption = self.consume_feedback_report(report);
         let mut first_error = consumption.first_error;
-        let first_transition = consumption.first_transition;
+        let mut first_transition = consumption.first_transition;
+        if let Some((error, transition)) = self.enable_echo_overdue(Instant::now()) {
+            first_transition |= transition;
+            if first_error.is_none() {
+                first_error = Some(error);
+            }
+        }
         if first_transition {
             let _ = self.disable_all();
         }
@@ -1595,6 +1612,40 @@ impl<B: MotorBus> Supervisor<B> {
             Some(error) => Err(error),
             None => Ok(count),
         }
+    }
+
+    /// Fail closed when an Active address's Enable has not been read back from
+    /// the wire within `comm_watchdog_ms` of activation: without the echo the
+    /// strict Run expectation would never arm for that address.
+    fn enable_echo_overdue(&mut self, now: Instant) -> Option<(DavoutError, bool)> {
+        if self.mode != OperationalMode::Active || self.enable_echo_pending.is_empty() {
+            return None;
+        }
+        let bound_ms = self.control.control.comm_watchdog_ms;
+        let since = now.checked_duration_since(self.active_since?)?;
+        if since <= Duration::from_millis(bound_ms) {
+            return None;
+        }
+        let stop_motors = Arc::clone(&self.stop_motors);
+        let motor = stop_motors.iter().find(|motor| {
+            self.enable_echo_pending
+                .iter()
+                .any(|address| is_motor_address(address, motor))
+        })?;
+        let error = DavoutError::InvalidFeedback {
+            joint: motor.joint.clone(),
+            message: format!(
+                "Enable not observed on the bus within {bound_ms} ms; drive state unconfirmed"
+            ),
+        };
+        let transition = self.fault_authority.record(
+            FaultClass::DriveState,
+            Some(motor.joint.clone()),
+            Some(MotorAddress::from(motor)),
+            &error.to_string(),
+            DeviceFaultEvidence::default(),
+        );
+        Some((error, transition))
     }
 
     fn pose_is_current(&self, state: &MotorState, now: Instant) -> bool {
@@ -2020,6 +2071,7 @@ impl<B: MotorBus> Supervisor<B> {
         self.mode = OperationalMode::Disabled;
         self.control_mode = ControlMode::Disabled;
         self.active_since = None;
+        self.enable_echo_pending.clear();
         self.active_joints.clear();
         self.feedback_velocity_trips.clear();
         self.last_feedback_samples.clear();

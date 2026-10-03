@@ -126,6 +126,19 @@ pub struct ParameterReadObservation {
     pub reply: ParameterReadReply,
 }
 
+/// This host's Enable (type 3, [`DEFAULT_HOST_ID`](crate::DEFAULT_HOST_ID))
+/// to a configured address, read back from the receive stream. On a bus that
+/// [echoes transmissions](crate::CanBus::echoes_transmissions) its `order` is
+/// where the Enable actually went on the wire, after any drive traffic that
+/// preceded it there. It is never drive feedback, liveness or a device reply.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EnableEchoObservation {
+    pub order: usize,
+    pub address: MotorAddress,
+    pub received_at: Instant,
+    pub can_id: u32,
+}
+
 impl FeedbackObservation {
     /// Latest-state compatibility only. Safety consumers must inspect every event
     /// in the report; a healthy status can replace this diagnostic projection.
@@ -172,4 +185,6 @@ pub struct FeedbackReport {
     pub identities: Vec<IdentityObservation>,
     /// Type-17 parameter replies to this host, in raw delivery order.
     pub parameter_reads: Vec<ParameterReadObservation>,
+    /// Echoed host Enable frames, in raw delivery order. Ordering evidence only.
+    pub enable_echoes: Vec<EnableEchoObservation>,
 }

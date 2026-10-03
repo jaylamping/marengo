@@ -2,9 +2,9 @@
 //!
 //! Two workloads, both without hardware:
 //! - `router`: robstride `MotorBus` over a SocketCAN-router-shaped in-memory backend
-//!   (two interfaces, five motors each, interface-tagged receive). Per tick:
-//!   `mit_control_all_at` for ten motors, each drive replies with one status frame,
-//!   then `recv_feedback_report` decodes the replies.
+//!   (two interfaces, five motors each, interface-tagged receive, own-write echo).
+//!   Per tick: `mit_control_all_at` for ten motors, each echoed and answered by one
+//!   status frame, then `recv_feedback_report` decodes the replies.
 //! - `davout`: full `Supervisor` tick on the repo master config (five motors, can0):
 //!   status replies → `drain_feedback` → `send_mit_batch`.
 //!
@@ -115,7 +115,9 @@ impl CanBus for RouterBench {
             .tx_checksum
             .wrapping_mul(31)
             .wrapping_add(u64::from(frame.id) ^ u64::from_le_bytes(frame.data));
-        // The drive answers each MIT frame with one status frame.
+        // SocketCAN echoes the write in wire order, then the drive answers each
+        // MIT frame with one status frame.
+        socket.push_back(frame.clone());
         socket.push_back(status_frame(address.device_id, self.tick));
         Ok(())
     }
@@ -127,6 +129,10 @@ impl CanBus for RouterBench {
     fn begin_receive(&mut self) {
         self.cursor = self.next_start;
         self.next_start = (self.next_start + 1) % self.interfaces.len();
+    }
+
+    fn echoes_transmissions(&self) -> bool {
+        true
     }
 
     fn recv_one_nonblocking(&mut self) -> Result<ReceiveAttempt, BusError> {

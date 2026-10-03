@@ -10,9 +10,9 @@ use thiserror::Error;
 use crate::comm::{self, CommunicationType};
 use crate::command::CommandError;
 use crate::feedback::{
-    DetailedFaultFeedback, DriveMode, FeedbackEvent, FeedbackObservation, FeedbackReport,
-    IdentityObservation, MalformedFeedback, MalformedReason, ParameterReadObservation,
-    TransportObservation,
+    DetailedFaultFeedback, DriveMode, EnableEchoObservation, FeedbackEvent, FeedbackObservation,
+    FeedbackReport, IdentityObservation, MalformedFeedback, MalformedReason,
+    ParameterReadObservation, TransportObservation,
 };
 use crate::identity;
 use crate::lifecycle;
@@ -272,6 +272,15 @@ pub trait CanBus {
 
     /// Begin a poll in bounded work. Routers rotate their starting source here.
     fn begin_receive(&mut self) {}
+
+    /// The receive stream includes this host's own transmissions at the point
+    /// they went on the wire (SocketCAN `IFF_ECHO` with `CAN_RAW_RECV_OWN_MSGS`),
+    /// ordered against drive traffic. A successful write only means the frame
+    /// was queued; consumers needing wire order wait for its echo instead.
+    /// Echoes are raw reads (they share the receive bound), never drive feedback.
+    fn echoes_transmissions(&self) -> bool {
+        false
+    }
 
     fn recv_raw_report(
         &mut self,
@@ -706,7 +715,23 @@ fn ingest_feedback_frames(
             ingest_reply_frame(motor_types, report, order, timed, comm_type);
             continue;
         }
+        if comm_type == CommunicationType::Enable {
+            ingest_enable_echo(motor_types, report, order, timed);
+            continue;
+        }
         let device_id = comm::inbound_motor_device_id(frame.id, comm_type);
+        if device_id == comm::DEFAULT_HOST_ID {
+            // A type-24 command from a host (this one's echo or another local
+            // socket's loopback) carries the host id where reports carry the drive.
+            trace_skipped_frame(
+                received.interface.as_deref(),
+                frame.id,
+                "host-command",
+                None,
+                Some(ext.comm_type),
+            );
+            continue;
+        }
         let Some((address, motor_type)) =
             address_for_frame(motor_types, received.interface.as_deref(), device_id)
         else {
@@ -790,6 +815,42 @@ fn ingest_feedback_frames(
             event,
         });
     }
+}
+
+/// Exactly the frame [`MotorBus::enable_drive_at`] transmits, to a configured
+/// address. Any other type-3 envelope is not this host's Enable.
+fn ingest_enable_echo(
+    motor_types: &HashMap<MotorAddress, MotorType>,
+    report: &mut FeedbackReport,
+    order: usize,
+    timed: &TimedCanFrame,
+) {
+    let received = &timed.received;
+    let frame = &received.frame;
+    let device_id = (frame.id & 0xff) as u8;
+    let (id, data) = lifecycle::encode_default_enable(device_id);
+    let exact = received.kind == RxFrameKind::Data
+        && frame.id == id
+        && received.payload() == Some(data.as_slice());
+    let address = exact
+        .then(|| address_for_frame(motor_types, received.interface.as_deref(), device_id))
+        .flatten();
+    let Some((address, _)) = address else {
+        trace_skipped_frame(
+            received.interface.as_deref(),
+            frame.id,
+            "not-own-enable",
+            Some(device_id),
+            Some(CommunicationType::Enable.as_u8()),
+        );
+        return;
+    };
+    report.enable_echoes.push(EnableEchoObservation {
+        order,
+        address: address.clone(),
+        received_at: timed.received_at,
+        can_id: frame.id,
+    });
 }
 
 /// Complete eight-byte Data replies from configured addresses only. Requests,
@@ -1073,6 +1134,17 @@ impl CanBus for RuntimeBus {
             _ => {}
         }
     }
+
+    fn echoes_transmissions(&self) -> bool {
+        match self {
+            #[cfg(all(feature = "socketcan", target_os = "linux"))]
+            Self::Socket(bus) => bus.echoes_transmissions(),
+            #[cfg(all(feature = "socketcan", target_os = "linux"))]
+            Self::Router(bus) => bus.echoes_transmissions(),
+            #[cfg(not(all(feature = "socketcan", target_os = "linux")))]
+            _ => false,
+        }
+    }
 }
 
 impl MotorBus for RuntimeBus {}
@@ -1127,14 +1199,14 @@ mod socketcan {
         Socket, SocketOptions,
     };
 
-    fn configure_vcan_loopback(socket: &CanFdSocket, interface: &str) -> Result<(), BusError> {
-        if !interface.starts_with("vcan") {
-            return Ok(());
-        }
+    /// Own transmissions come back in wire order (`IFF_ECHO` drivers echo on
+    /// TX completion), so consumers can order drive traffic against a frame's
+    /// actual transmission rather than its earlier, merely queued write.
+    fn configure_own_message_echo(socket: &CanFdSocket) -> Result<(), BusError> {
         socket
             .set_loopback(true)
             .and_then(|_| socket.set_recv_own_msgs(true))
-            .map_err(|e| BusError::Driver(e.to_string()))
+            .map_err(|e| BusError::Driver(format!("configure SocketCAN own-message echo: {e}")))
     }
 
     #[derive(Debug)]
@@ -1159,7 +1231,7 @@ mod socketcan {
                 .map_err(|e| BusError::Driver(format!("clone classic CAN descriptor: {e}")))?;
             let socket = CanFdSocket::from(descriptor);
             drop(classic);
-            configure_vcan_loopback(&socket, interface)?;
+            configure_own_message_echo(&socket)?;
             // Error subscriptions default to drop-all in socketcan. Preserve
             // every kernel error class as transport evidence; failures to
             // configure the subscription prevent this socket from being used.
@@ -1272,6 +1344,11 @@ mod socketcan {
                     self.interface
                 ))),
             }
+        }
+
+        /// Opening fails unless own-message echo was configured.
+        fn echoes_transmissions(&self) -> bool {
+            true
         }
     }
 
@@ -1411,6 +1488,13 @@ mod socketcan {
                 BusError::Driver(format!("missing routed SocketCAN interface {interface}"))
             })?;
             socket.recv_one_nonblocking()
+        }
+
+        /// Every routed socket is a [`SocketCanBus`], which always echoes.
+        fn echoes_transmissions(&self) -> bool {
+            self.sockets
+                .values()
+                .all(SocketCanBus::echoes_transmissions)
         }
     }
 

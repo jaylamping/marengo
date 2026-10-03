@@ -9,8 +9,8 @@ use std::time::Instant;
 use armee_kinematics::measured_position_fault;
 use marengo_config::MotorEntry;
 use robstride::{
-    BusError, DriveMode, FeedbackEvent, FeedbackObservation, FeedbackReport, MalformedFeedback,
-    MotorAddress, MotorBus, MotorState, RxFrameKind, TimedCanFrame,
+    BusError, DriveMode, EnableEchoObservation, FeedbackEvent, FeedbackObservation, FeedbackReport,
+    MalformedFeedback, MotorAddress, MotorBus, MotorState, RxFrameKind, TimedCanFrame,
 };
 use tracing::{debug, warn};
 
@@ -154,6 +154,7 @@ struct PoseCandidate {
 
 enum OrderedReceive {
     Motor(FeedbackObservation),
+    EnableEcho(EnableEchoObservation),
     Transport(TimedCanFrame),
     Terminal(BusError),
 }
@@ -166,12 +167,18 @@ pub(super) struct ConsumeScratch {
 }
 
 impl<B: MotorBus> Supervisor<B> {
+    /// Run is required only for frames read after this address's Enable reached
+    /// the wire. Pop time alone cannot show that: a write only queues the frame,
+    /// so on an echoing bus the strict check arms at the Enable's echo, exactly
+    /// as reference replies count only when popped after their request.
     fn feedback_run_expected(
         &self,
         motor: &MotorEntry,
+        address: &MotorAddress,
         received_at: Instant,
         context: &ReceiveContext,
     ) -> bool {
+        let on_wire = !self.enable_echo_pending.contains(address);
         match context {
             ReceiveContext::Operational => {
                 self.mode == OperationalMode::Active
@@ -179,9 +186,10 @@ impl<B: MotorBus> Supervisor<B> {
                     && self
                         .active_since
                         .is_some_and(|enabled| received_at > enabled)
+                    && on_wire
             }
             ReceiveContext::Reference(reference) => {
-                reference.is_enabled() && MotorAddress::from(motor) == reference.target
+                reference.is_enabled() && *address == reference.target && on_wire
             }
         }
     }
@@ -262,6 +270,12 @@ impl<B: MotorBus> Supervisor<B> {
                 OrderedReceive::Transport(observation.frame),
             )
         }));
+        ordered.extend(
+            report
+                .enable_echoes
+                .into_iter()
+                .map(|echo| (echo.order, 1, OrderedReceive::EnableEcho(echo))),
+        );
         if let Some(error) = report.terminal_error {
             // Actual backends supply the first error's raw position. Scripted reports
             // without an ordinal put the terminal failure after their delivered prefix.
@@ -282,6 +296,11 @@ impl<B: MotorBus> Supervisor<B> {
         for (order, _, event) in ordered.drain(..) {
             let observation = match event {
                 OrderedReceive::Motor(observation) => observation,
+                OrderedReceive::EnableEcho(echo) => {
+                    // Wire-order marker only: never pose, liveness or a reply.
+                    self.enable_echo_pending.remove(&echo.address);
+                    continue;
+                }
                 OrderedReceive::Terminal(error) => {
                     if !matches!(error, BusError::RecvTimeout) {
                         let error = DavoutError::Bus(error);
@@ -397,7 +416,7 @@ impl<B: MotorBus> Supervisor<B> {
                 }
             }
             let current_enable =
-                self.feedback_run_expected(motor, observation.received_at, context);
+                self.feedback_run_expected(motor, &address, observation.received_at, context);
             if status.drive_mode == DriveMode::Reserved
                 || (current_enable && status.drive_mode != DriveMode::Run)
             {
@@ -458,6 +477,14 @@ impl<B: MotorBus> Supervisor<B> {
                     continue;
                 }
             };
+            // Read before this session's Enable reached the wire: hazards above
+            // were inspected, but it cannot become post-enable session pose.
+            if matches!(context, ReceiveContext::Operational)
+                && self.mode == OperationalMode::Active
+                && self.enable_echo_pending.contains(&address)
+            {
+                continue;
+            }
             if self
                 .motor_states
                 .get(&address)
@@ -622,7 +649,7 @@ impl<B: MotorBus> Supervisor<B> {
                 device.clone(),
             );
         }
-        let current_enable = self.feedback_run_expected(motor, received_at, context);
+        let current_enable = self.feedback_run_expected(motor, address, received_at, context);
         if device.drive_mode == Some(3)
             || (current_enable && device.drive_mode.is_some_and(|mode| mode != 2))
         {

@@ -620,6 +620,201 @@ fn control_fault_revokes_grant() {
     assert_eq!(bench.sent(CommunicationType::Enable, PITCH), 1);
 }
 
+// ---------------------------------------------------------------- enable wire order
+
+/// Reference `joint`, then Enable it while the controller still queues the
+/// Enable frame: SocketCAN accepted the write but the drive has not seen it.
+fn active_with_enable_queued(label: &str, joint: &str) -> Bench {
+    let mut bench = Bench::physical(label);
+    bench.acquire(joint);
+    bench.pump(Duration::from_millis(20));
+    bench.firmware.borrow_mut().hold_tx_from_enable = true;
+    bench
+        .supervisor
+        .enable_targets(&[joint.to_owned()])
+        .expect("identity admits the target");
+    assert_eq!(bench.supervisor.mode(), OperationalMode::Active);
+    assert!(
+        !bench.firmware.borrow().drive(joint).enabled,
+        "Enable is accepted but not yet on the wire"
+    );
+    bench
+}
+
+#[test]
+fn reset_report_on_the_wire_before_enable_is_not_post_enable_evidence() {
+    // Bench candump: roll's Reset type-24 is on the wire before the queued
+    // Enable, but the host reads it only after declaring the session Active.
+    let mut bench = active_with_enable_queued("physical-enable-before-wire", ROLL);
+    bench.firmware.borrow_mut().emit_report(ROLL);
+    bench
+        .supervisor
+        .drain_feedback()
+        .expect("a report that predates the Enable on the wire is not a drive dropout");
+    assert!(!bench.supervisor.has_latched_fault());
+    assert_eq!(bench.supervisor.mode(), OperationalMode::Active);
+    assert!(
+        bench.supervisor.joint_feedback(ROLL).is_none(),
+        "pre-Enable traffic cannot authorize the session"
+    );
+
+    bench.firmware.borrow_mut().emit_report(ROLL);
+    bench.firmware.borrow_mut().release_tx();
+    assert!(bench.firmware.borrow().drive(ROLL).enabled);
+    bench
+        .supervisor
+        .drain_feedback()
+        .expect("echo, then the drive's Run reply");
+    assert!(!bench.supervisor.has_latched_fault());
+    assert_eq!(bench.supervisor.mode(), OperationalMode::Active);
+    assert!(
+        bench.supervisor.joint_feedback(ROLL).is_some(),
+        "the Run reply after the Enable echo is session pose"
+    );
+    bench.supervisor.disable_all().expect("stop");
+}
+
+#[test]
+fn reset_report_after_the_enable_echo_still_faults() {
+    let mut bench = active_with_enable_queued("physical-enable-ignored", ROLL);
+    {
+        let mut firmware = bench.firmware.borrow_mut();
+        firmware.drive_mut(ROLL).ignore_enable = true;
+        firmware.release_tx();
+        firmware.emit_report(ROLL);
+    }
+    let error = bench
+        .supervisor
+        .drain_feedback()
+        .expect_err("Reset after the Enable reached the drive is a dropout");
+    assert!(
+        matches!(&error, DavoutError::InvalidFeedback { joint, message }
+            if joint == ROLL && message.contains("unexpected drive mode Reset")),
+        "{error}"
+    );
+    assert!(bench.supervisor.has_latched_fault());
+    assert_eq!(bench.supervisor.mode(), OperationalMode::Disabled);
+    bench.assert_all_drives_stopped();
+}
+
+#[test]
+fn missing_enable_echo_fails_closed_within_watchdog() {
+    let mut bench = Bench::physical("physical-enable-echo-lost");
+    bench.acquire(ROLL);
+    bench.pump(Duration::from_millis(20));
+    bench.firmware.borrow_mut().lost_echoes = vec![CommunicationType::Enable.as_u8()];
+    bench
+        .supervisor
+        .enable_targets(&[ROLL.to_owned()])
+        .expect("identity admits the target");
+    let window = Duration::from_millis(bench.supervisor.control.control.comm_watchdog_ms);
+    let give_up = Instant::now() + window * 3;
+    let mut healthy_drains = 0;
+    let error = loop {
+        // The drive did enable and reports Run, but without the echo nothing
+        // shows those reports followed the Enable on the wire.
+        bench.firmware.borrow_mut().emit_report(ROLL);
+        match bench.supervisor.drain_feedback() {
+            Ok(_) => healthy_drains += 1,
+            Err(error) => break error,
+        }
+        assert!(
+            bench.supervisor.joint_feedback(ROLL).is_none(),
+            "unconfirmed traffic cannot authorize the session"
+        );
+        assert!(
+            Instant::now() < give_up,
+            "a missing Enable echo must not leave the Run check unarmed"
+        );
+        std::thread::sleep(PUMP_PERIOD);
+    };
+    assert!(
+        healthy_drains > 0,
+        "the bound is the watchdog, not immediate"
+    );
+    assert!(
+        matches!(&error, DavoutError::InvalidFeedback { joint, message }
+            if joint == ROLL && message.contains("Enable not observed on the bus")),
+        "{error}"
+    );
+    assert!(bench.supervisor.has_latched_fault());
+    assert_eq!(bench.supervisor.mode(), OperationalMode::Disabled);
+    bench.assert_all_drives_stopped();
+}
+
+#[test]
+fn missing_enable_echo_refuses_reference_before_set_zero() {
+    let mut bench = Bench::physical("physical-reference-echo-lost");
+    bench.firmware.borrow_mut().lost_echoes = vec![CommunicationType::Enable.as_u8()];
+    bench.assert_refused(PITCH, "TimedOut");
+    assert_eq!(bench.sent(CommunicationType::Enable, PITCH), 1);
+    assert_eq!(bench.sent_any(CommunicationType::SetZeroPosition), 0);
+    bench.assert_all_drives_stopped();
+}
+
+#[test]
+fn own_frame_echoes_are_never_drive_feedback_or_liveness() {
+    let mut bench = Bench::physical("physical-echo-not-feedback");
+    bench.acquire(ROLL);
+    bench.pump(Duration::from_millis(20));
+    bench
+        .supervisor
+        .enable_targets(&[ROLL.to_owned()])
+        .expect("identity admits the target");
+    bench.firmware.borrow_mut().emit_report(ROLL);
+    bench
+        .supervisor
+        .drain_feedback()
+        .expect("post-enable Run report");
+    let position_rad = bench
+        .supervisor
+        .joint_feedback(ROLL)
+        .expect("session pose")
+        .position_rad;
+    let window = Duration::from_millis(bench.supervisor.control.control.comm_watchdog_ms);
+    bench.firmware.borrow_mut().drive_mut(ROLL).silent_until = Some(Instant::now() + window * 10);
+    let neutral = || davout::MitJointCommand {
+        joint: ROLL.into(),
+        kp: 0.0,
+        kd: 0.0,
+        position_rad,
+        velocity_rad_s: 0.0,
+        torque_ff_nm: 0.0,
+    };
+    let give_up = Instant::now() + window * 3;
+    let error = loop {
+        // Only the host's own MIT and reporting writes come back now.
+        bench.supervisor.begin_tick_feedback();
+        let tick = bench
+            .supervisor
+            .send_mit_batch(vec![neutral()])
+            .and_then(|()| {
+                bench.supervisor.tick_active_reporting_leases();
+                bench.supervisor.drain_feedback()
+            });
+        if let Err(error) = tick {
+            break error;
+        }
+        assert_eq!(
+            bench.supervisor.last_refresh_frame_count(),
+            0,
+            "an echo is not a decoded drive frame"
+        );
+        assert!(Instant::now() < give_up, "echoes must not renew liveness");
+        std::thread::sleep(PUMP_PERIOD);
+    };
+    // Either the session watchdog or the grant's silence bound fires first.
+    assert!(
+        matches!(&error, DavoutError::CommWatchdog { joint, .. } if joint == ROLL)
+            || matches!(&error, DavoutError::Homing { message } if message.contains("permission")
+                || message.contains("revoked")),
+        "{error}"
+    );
+    assert_ne!(bench.state(ROLL), JointHomingState::Verified);
+    assert_eq!(bench.supervisor.mode(), OperationalMode::Disabled);
+    let _ = bench.supervisor.disable_all();
+}
+
 // ---------------------------------------------------------------- unsupported owners
 
 #[test]

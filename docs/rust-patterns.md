@@ -128,6 +128,16 @@ supervisor.send_mit_batch(joint_space_cmds)?;
 - Preserve actual receive class and length; a remote request or padded short frame is never a measured pose or complete type-21 report.
 - Implement the required nonblocking receive primitive explicitly. Share one total frame/read-attempt budget across sources and rounds; truncating the result of an unbounded callback does not bound work.
 - Treat observed idle/quiet separately from work/deadline exhaustion. Incomplete drains retain evidence and cannot satisfy either enable flush. Latest-state projections must expose incomplete work rather than silently accept a prefix.
+- A successful CAN write only queues the frame. When a check depends on whether drive traffic followed a host command on the wire (e.g. Run after Enable), order it against that command's echo (`CanBus::echoes_transmissions`), not write or pop time. Bound a missing echo and fail closed. An echo is never feedback, liveness or a reply.
+
+```rust
+// BAD: anything popped after active_since counts as post-enable, though the
+// Enable may still be queued behind other writes.
+let strict = received_at > active_since;
+
+// GOOD: strict only after this address's own Enable echo was popped
+let strict = received_at > active_since && !enable_echo_pending.contains(address);
+```
 
 **Graceful owner shutdown** ([ADR0024](decisions/0024-stop-before-persistence-shutdown.md)):
 

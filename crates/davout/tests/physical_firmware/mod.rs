@@ -1,11 +1,12 @@
 //! Test-only Robstride firmware emulator behind the public `MotorBus` seam.
 //!
 //! Each configured address owns an encoder, a volatile zero offset, enable and
-//! reporting flags, an MCU identifier and fault knobs. Replies are queued at
-//! transmit time in wire order; type-24 reports are emitted only when the test
-//! pumps. Inbound status/reply identifiers follow the documented wire layout
-//! (`type << 24 | extra << 8 | low`); outbound frames are produced by the
-//! supervisor through the robstride encoders.
+//! reporting flags, an MCU identifier and fault knobs. A host frame goes on
+//! the wire when written (or, while held, when released): its SocketCAN echo
+//! is queued first, then the drive's replies, in wire order. Type-24 reports
+//! are emitted only when the test pumps. Inbound status/reply identifiers
+//! follow the documented wire layout (`type << 24 | extra << 8 | low`);
+//! outbound frames are produced by the supervisor through the robstride encoders.
 #![allow(dead_code, clippy::expect_used, clippy::panic)]
 
 use std::cell::RefCell;
@@ -56,6 +57,8 @@ pub struct Drive {
     pub fail_writes: Vec<u8>,
     /// Communication types that start failing once a mechPos readback was answered.
     pub fail_writes_after_readback: Vec<u8>,
+    /// Acknowledge Enable without entering Run (the drive stays in Reset).
+    pub ignore_enable: bool,
 }
 
 impl Drive {
@@ -146,6 +149,12 @@ pub struct Firmware {
     pub tx: Vec<CanFrame>,
     /// Frames whose transmission was refused by an injected failure.
     pub failed_tx: Vec<CanFrame>,
+    /// Hold the next host Enable and every later write in the kernel/controller
+    /// queue: accepted, but not on the wire until [`Self::release_tx`].
+    pub hold_tx_from_enable: bool,
+    held_tx: Option<VecDeque<CanFrame>>,
+    /// Communication types whose echo the host never reads (lost on RX).
+    pub lost_echoes: Vec<u8>,
 }
 
 pub type SharedFirmware = Rc<RefCell<Firmware>>;
@@ -190,6 +199,7 @@ impl Firmware {
                     reboot_after_ack: None,
                     fail_writes: Vec::new(),
                     fail_writes_after_readback: Vec::new(),
+                    ignore_enable: false,
                 }
             })
             .collect();
@@ -225,6 +235,19 @@ impl Firmware {
         self.rx.extend(frames);
     }
 
+    /// One type-24 report from `joint` in its current drive mode.
+    pub fn emit_report(&mut self, joint: &str) {
+        let frame = self.drive(joint).status(CommunicationType::ActiveReporting);
+        self.rx.push_back(frame);
+    }
+
+    /// Put every held write on the wire, in write order.
+    pub fn release_tx(&mut self) {
+        for frame in self.held_tx.take().unwrap_or_default() {
+            self.on_wire(&frame);
+        }
+    }
+
     /// Accepted frames of `comm_type` addressed to `device_id` (outbound low byte).
     pub fn sent(&self, comm_type: CommunicationType, device_id: u8) -> usize {
         self.tx
@@ -249,25 +272,45 @@ impl Firmware {
     fn transmit(&mut self, frame: &CanFrame) -> Result<(), BusError> {
         let comm_type = ((frame.id >> 24) & 0x1f) as u8;
         let device_id = (frame.id & 0xff) as u8;
-        let now = Instant::now();
-        let Some(index) = self
+        if self
             .drives
             .iter()
-            .position(|drive| drive.device_id == device_id)
-        else {
-            self.tx.push(frame.clone());
-            return Ok(());
-        };
-        if self.drives[index].fail_writes.contains(&comm_type) {
+            .any(|drive| drive.device_id == device_id && drive.fail_writes.contains(&comm_type))
+        {
             self.failed_tx.push(frame.clone());
             return Err(BusError::Send {
                 message: format!("injected write failure to device {device_id}"),
             });
         }
         self.tx.push(frame.clone());
-        let drive = &mut self.drives[index];
+        if self.hold_tx_from_enable && comm_type == CommunicationType::Enable.as_u8() {
+            self.hold_tx_from_enable = false;
+            self.held_tx = Some(VecDeque::new());
+        }
+        match &mut self.held_tx {
+            Some(held) => held.push_back(frame.clone()),
+            None => self.on_wire(frame),
+        }
+        Ok(())
+    }
+
+    /// The frame is transmitted: the host's echo precedes any drive reaction.
+    fn on_wire(&mut self, frame: &CanFrame) {
+        let comm_type = ((frame.id >> 24) & 0x1f) as u8;
+        let device_id = (frame.id & 0xff) as u8;
+        let now = Instant::now();
+        if !self.lost_echoes.contains(&comm_type) {
+            self.rx.push_back(frame.clone());
+        }
+        let Some(drive) = self
+            .drives
+            .iter_mut()
+            .find(|drive| drive.device_id == device_id)
+        else {
+            return;
+        };
         if !drive.responsive(now) {
-            return Ok(());
+            return;
         }
         drive.silent_until = None;
         let mut replies = Vec::new();
@@ -281,7 +324,7 @@ impl Firmware {
                 replies.push(drive.status(CommunicationType::OperationStatus));
             }
             Some(CommunicationType::Enable) => {
-                drive.enabled = true;
+                drive.enabled = !drive.ignore_enable;
                 let reply = drive.status(CommunicationType::OperationStatus);
                 if drive.hold_enable_reply_until_set_zero {
                     drive.held_reply = Some(reply);
@@ -325,7 +368,6 @@ impl Firmware {
             _ => {}
         }
         self.rx.extend(replies);
-        Ok(())
     }
 }
 
@@ -351,6 +393,11 @@ impl CanBus for FirmwareBus {
             }),
             None => ReceiveAttempt::Idle,
         })
+    }
+
+    /// Like the SocketCAN backend: own writes are read back in wire order.
+    fn echoes_transmissions(&self) -> bool {
+        true
     }
 }
 

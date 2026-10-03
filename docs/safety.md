@@ -134,6 +134,13 @@ not establish client delivery or physical stop/support acceptance. See
 - **Limit envelope:** Davout uses `max(|dq_cmd|, |dq_meas|)` for velocity-scaled margins so gravity-driven motion cannot shrink the envelope unexpectedly.
 - **Fault authority:** Observed runtime hazards persist across later healthy feedback, Disable and cache clearing. Davout attempts every configured stop address and retains failures; send acceptance is not physical stop acknowledgement. Qualified recovery/reset is not implemented. See [ADR 0020](decisions/0020-lossless-feedback-and-fault-authority.md).
 - **Receive integrity and work:** Status/detail feedback requires exactly eight Data bytes. Malformed configured feedback, kernel errors and incomplete receive work latch through fault authority. Every poll is limited to 64 raw frames and 256 nonblocking read attempts across all interfaces, including noise and interruptions; both enable flushes require observed quiescence. Host read order/deadlines do not qualify physical acquisition, drive behavior or Pi jitter. See [ADR 0021](decisions/0021-bounded-can-ingress.md).
+- **Enable wire order:** A SocketCAN write only queues a frame. On the bench
+  Pi a drive's Reset report went on the wire before its queued Enable but was
+  read after Davout went Active. Own writes are therefore read back (`CAN_RAW_RECV_OWN_MSGS`).
+  Drive traffic popped before an address's Enable echo is never held to Run and
+  never becomes session pose. After the echo, Reset/Calibration latches as before.
+  A missing echo latches DriveState once `comm_watchdog_ms` has passed since
+  activation. Echoes are never feedback, liveness or replies.
 - **Reference and stop callers:** Private admission closes legacy direct grants
   and cached verification. Physical reference runs inside the owning
   `marengo-pi`/`motor-repl` process (ADR 0036); installed-owner client migration
