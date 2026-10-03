@@ -633,6 +633,7 @@ fn feedback_from_raw(
     let mut report = FeedbackReport {
         completion: raw.completion,
         raw_frames: raw.frames.len(),
+        observations: Vec::with_capacity(raw.frames.len()),
         read_attempts: raw.read_attempts,
         terminal_error: raw.terminal_error,
         terminal_error_order: raw.terminal_error_order,
@@ -689,7 +690,7 @@ fn ingest_feedback_frames(
             continue;
         };
         let device_id = comm::inbound_motor_device_id(frame.id, comm_type);
-        let Some(address) =
+        let Some((address, motor_type)) =
             address_for_frame(motor_types, received.interface.as_deref(), device_id)
         else {
             trace_skipped_frame(
@@ -744,17 +745,13 @@ fn ingest_feedback_frames(
         } else {
             match comm_type {
                 CommunicationType::OperationStatus | CommunicationType::ActiveReporting => {
-                    let Some(motor_type) = motor_types.get(&address).copied() else {
-                        continue;
-                    };
-                    let Some(feedback) = mit::decode_mit_feedback(
+                    // Eight-byte Data payload and status comm type were checked above.
+                    FeedbackEvent::Status(mit::decode_status_payload(
                         motor_type,
+                        comm_type,
                         frame.id,
-                        &frame.data[..usize::from(received.payload_len)],
-                    ) else {
-                        continue;
-                    };
-                    FeedbackEvent::Status(feedback)
+                        &frame.data,
+                    ))
                 }
                 CommunicationType::FaultReport => {
                     let Some(fault) = decode_fault_report(
@@ -770,7 +767,7 @@ fn ingest_feedback_frames(
         };
         report.observations.push(FeedbackObservation {
             order,
-            address,
+            address: address.clone(),
             received_at: timed.received_at,
             can_id: frame.id,
             event,
@@ -778,25 +775,27 @@ fn ingest_feedback_frames(
     }
 }
 
-fn address_for_frame(
-    motor_types: &HashMap<MotorAddress, MotorType>,
+/// Configured key and type for a received frame. A scan of the small configured
+/// set avoids building an owned probe key per frame; keys are unique, so the
+/// interface-qualified match is the same entry a hash lookup would return.
+fn address_for_frame<'a>(
+    motor_types: &'a HashMap<MotorAddress, MotorType>,
     interface: Option<&str>,
     device_id: u8,
-) -> Option<MotorAddress> {
-    if let Some(interface) = interface {
-        let address = MotorAddress::new(interface.to_string(), device_id);
-        return motor_types.contains_key(&address).then_some(address);
-    }
-
+) -> Option<(&'a MotorAddress, MotorType)> {
     let mut matches = motor_types
-        .keys()
-        .filter(|address| address.device_id == device_id)
-        .cloned();
-    let first = matches.next()?;
+        .iter()
+        .filter(|(address, _)| address.device_id == device_id);
+    if let Some(interface) = interface {
+        return matches
+            .find(|(address, _)| address.interface == interface)
+            .map(|(address, kind)| (address, *kind));
+    }
+    let (address, kind) = matches.next()?;
     if matches.next().is_some() {
         None
     } else {
-        Some(first)
+        Some((address, *kind))
     }
 }
 

@@ -140,12 +140,24 @@ pub fn decode_mit_feedback(motor_type: MotorType, can_id: u32, data: &[u8]) -> O
     ) {
         return None;
     }
+    let data: &[u8; 8] = data.try_into().ok()?;
+    Some(decode_status_payload(motor_type, comm, can_id, data))
+}
+
+/// Payload decode for an id the caller already unpacked as OperationStatus or
+/// ActiveReporting; shared by [`decode_mit_feedback`] and the receive path.
+pub(crate) fn decode_status_payload(
+    motor_type: MotorType,
+    comm: CommunicationType,
+    can_id: u32,
+    data: &[u8; 8],
+) -> MitFeedback {
     let ranges = MitRanges::for_motor_type(motor_type);
     let p = vendor_u16_to_signed(read_be_u16(data, 0), ranges.position_scale);
     let v = vendor_u16_to_signed(read_be_u16(data, 2), ranges.velocity_scale);
     let t = vendor_u16_to_signed(read_be_u16(data, 4), ranges.torque_scale);
     let temp = f32::from(read_be_u16(data, 6)) * 0.1;
-    Some(MitFeedback {
+    MitFeedback {
         device_id: crate::comm::inbound_motor_device_id(can_id, comm),
         position_rad: p,
         velocity_rad_s: v,
@@ -154,7 +166,7 @@ pub fn decode_mit_feedback(motor_type: MotorType, can_id: u32, data: &[u8]) -> O
         fault: u16::from(((can_id >> 16) & 0x3f) as u8),
         status_flags: ((can_id >> 16) & 0x3f) as u8,
         drive_mode: crate::feedback::DriveMode::from_can_id(can_id),
-    })
+    }
 }
 
 #[cfg(test)]

@@ -84,10 +84,9 @@ pub(crate) fn drain<B: CanBus + ?Sized>(
     quiet: Duration,
     limits: ReceiveLimits,
 ) -> RawReceiveReport {
-    let started = Instant::now();
     let budget_deadline = if budget.is_zero() {
         None
-    } else if let Some(end) = started.checked_add(budget) {
+    } else if let Some(end) = Instant::now().checked_add(budget) {
         Some(end)
     } else {
         return RawReceiveReport {
@@ -112,6 +111,8 @@ pub(crate) fn drain<B: CanBus + ?Sized>(
         return report;
     }
     bus.begin_receive();
+    // One allocation for a typical burst instead of repeated doubling.
+    report.frames.reserve(max_frames.min(16));
     let mut round_attempts = 0;
     let mut round_idle = true;
     let mut last_round_idle = false;
@@ -135,7 +136,11 @@ pub(crate) fn drain<B: CanBus + ?Sized>(
         round_attempts += 1;
         match bus.recv_one_nonblocking() {
             Ok(ReceiveAttempt::Frame(frame)) => {
-                last_frame_at = Some(Instant::now());
+                // Only positive-budget polls wait for quiet; a zero-budget poll
+                // returns at the first idle pass without reading this stamp.
+                if !budget.is_zero() {
+                    last_frame_at = Some(Instant::now());
+                }
                 report.frames.push(frame);
                 round_idle = false;
             }
